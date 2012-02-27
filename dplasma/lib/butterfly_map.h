@@ -33,7 +33,7 @@ typedef struct dague_seg_ddesc{
 
 /* forward declarations */
 seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb);
-void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, int *offset);
+void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset);
 int type_index_to_sizes(seg_info_t seg, int mb, int nb, int type_index, int *m_off, int *n_off, int *m_sz, int *n_sz);
 //void find_tile(seg_info_t seg, int mb, int nb, int i, int j);
 int segment_to_arena_index(dague_seg_ddesc_t but_ddesc, int m, int n);

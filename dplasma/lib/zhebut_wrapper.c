@@ -17,7 +17,8 @@
 #include "dplasma/lib/zhebut.h"
 
 static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
-    int m_seg, n_seg, m_tile, n_tile, offset;
+    int m_seg, n_seg, m_tile, n_tile;
+    uintptr_t offset;
     va_list ap;
     dague_seg_ddesc_t *segA;
     dague_ddesc_t *A;
@@ -54,7 +55,8 @@ static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
  * these two functions must always correspond.
  */
 static void *dague_rbt_data_of(dague_ddesc_t *desc, ...){
-    int m_seg, n_seg, m_tile, n_tile, offset;
+    int m_seg, n_seg, m_tile, n_tile;
+    uintptr_t offset, data_start;
     va_list ap;
     dague_seg_ddesc_t *segA;
     dague_ddesc_t *A;
@@ -69,7 +71,13 @@ static void *dague_rbt_data_of(dague_ddesc_t *desc, ...){
 
     segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
 
-    return A->data_of(A, m_tile, n_tile);
+#if defined(START_TYPE_WITH_OFFSET)
+    data_start = (uintptr_t)A->data_of(A, m_tile, n_tile);
+#else /* defined(START_TYPE_WITH_OFFSET) */
+    data_start = offset + (uintptr_t)A->data_of(A, m_tile, n_tile);
+#endif /* defined(START_TYPE_WITH_OFFSET) */
+
+    return (void *)data_start;
 }
 
 
@@ -87,6 +95,7 @@ static int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype
                                              unsigned int n_off,
                                              dague_remote_dep_datatype_t* newtype )
 {
+#if defined(START_TYPE_WITH_OFFSET)
     int sizes[2], subsizes[2], starts[2]; 
  
     sizes[0]    = tile_mb;
@@ -97,6 +106,10 @@ static int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype
     starts[1]   = n_off;
 
     MPI_Type_create_subarray(2, sizes, subsizes, starts, MPI_ORDER_FORTRAN, oldtype, newtype); 
+#else /* defined(START_TYPE_WITH_OFFSET) */
+    MPI_Type_vector (seg_nb, seg_mb, tile_mb-seg_mb, oldtype, newtype);
+#endif /* defined(START_TYPE_WITH_OFFSET) */
+
     MPI_Type_commit(newtype);
 #if defined(HAVE_MPI_20)
     do{
@@ -108,6 +121,7 @@ static int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype
         MPI_Type_set_name(*newtype, newtype_name);
     }while(0); /* just for the scope */
 #endif  /* defined(HAVE_MPI_20) */
+
     return 0;
 }
 
@@ -126,7 +140,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
 {
     dague_object_t *dague_zhebut = NULL;
     dague_seg_ddesc_t *seg_descA;
-    int i, nt;
+    int i, mt, nt;
 
     (void)info;
 
@@ -142,19 +156,16 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
     /* store the segment info */
     seg_descA->seg_info = dague_rbt_calculate_constants(A->lm, A->nb, level, i_block, j_block);
 
-    nt = A->lm/A->nb;
-    if( nt%2 ){
-        dplasma_error("dplasma_zhebut_New", "illegal number of tiles in matrix");
-        return NULL;
-    }
+    mt = seg_descA->seg_info.tot_seg_cnt_m;
+    nt = seg_descA->seg_info.tot_seg_cnt_n;
 
-    dague_zhebut = (dague_object_t *)dague_zhebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, nt);
+    dague_zhebut = (dague_object_t *)dague_zhebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt);
     
-    /* keep this, although it's useless, because we're not sure what happens if we leave it empty */
-    dplasma_add2arena_tile(((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_DEFAULT_ARENA], 
-                           A->mb*A->nb*sizeof(Dague_Complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+    /* We don't use the DEFAULT datatype.
+     *   We free the cell for the generated code.
+     */
+    free(((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_DEFAULT_ARENA]);
+    ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_DEFAULT_ARENA] = NULL;
 
     for(i=0; i<36; i++){
         dague_arena_t *arena;
@@ -172,8 +183,12 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
                                               &newtype );
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
-        }
-
+        } else {
+	    /* Oops, yet another arena allocated by the generated code for nothing
+	     *   We free it for it. */
+	    free( ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i]);
+	    ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] = NULL;
+	}
     }
 
     return dague_zhebut;
@@ -182,9 +197,17 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
 void
 dplasma_zhebut_Destruct( dague_object_t *o )
 {
+    int i;
     dague_zhebut_object_t *obut = (dague_zhebut_object_t *)o;
-    
-    dplasma_datatype_undefine_type( &(obut->arenas[DAGUE_zhebut_DEFAULT_ARENA]->opaque_dtt) );
+
+    for(i=0; i<36; i++){
+        if( NULL != obut->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] ){
+            free( obut->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] );
+            obut->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] = NULL;
+        }
+    }
+
+    //dplasma_datatype_undefine_type( &(obut->arenas[DAGUE_zhebut_DEFAULT_ARENA]->opaque_dtt) );
 
     dague_zhebut_destroy(obut);
 }
@@ -199,7 +222,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
 {
     dague_object_t *dague_zgebut = NULL;
     dague_seg_ddesc_t *seg_descA;
-    int i,nt;
+    int i, mt, nt;
 
     (void)info;
 
@@ -215,14 +238,10 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
     /* store the segment info */
     seg_descA->seg_info = dague_rbt_calculate_constants(A->lm, A->nb, level, i_block, j_block);
 
-    nt = A->lm/A->nb;
+    mt = seg_descA->seg_info.tot_seg_cnt_m;
+    nt = seg_descA->seg_info.tot_seg_cnt_n;
 
-    if( nt%2 ){
-        dplasma_error("dplasma_zhebut_New", "illegal number of tiles in matrix");
-        return NULL;
-    }
-
-    dague_zgebut = (dague_object_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, nt);
+    dague_zgebut = (dague_object_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt);
     
     /* keep this, although it's useless, because we're not sure what happens if we leave it empty */
     dplasma_add2arena_tile(((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_DEFAULT_ARENA], 
@@ -246,8 +265,10 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
                                               &newtype );
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
-        }
-
+        } else {
+	    free(((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i]);
+	    ((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i] = NULL;
+	}
     }
 
     return dague_zgebut;
@@ -256,10 +277,16 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
 void
 dplasma_zgebut_Destruct( dague_object_t *o )
 {
+    int i;
     dague_zgebut_object_t *obut = (dague_zgebut_object_t *)o;
-    
-    dplasma_datatype_undefine_type( &(obut->arenas[DAGUE_zgebut_DEFAULT_ARENA]->opaque_dtt) );
 
+    for(i=0; i<36; i++){
+        if( NULL != obut->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i] ){
+            free( obut->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i] );
+            obut->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i] = NULL;
+        }
+    }
+    
     dague_zgebut_destroy(obut);
 }
 
@@ -319,13 +346,12 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, int level)
         fprintf(stderr,"Too many butterflies. Death by starvation.\n");
         return -1;
     }     
-    if( A->nt%nbhe != 0 ){
-        fprintf(stderr,"Please use a matrix size that is divisible by 2^level.\n");
+    if( A->ln%nbhe != 0 ){
+        fprintf(stderr,"Please use a matrix size that is divisible by 2^level: ln=%d, nbhe=%d\n", A->ln, nbhe);
         return -1;
     }     
 
     subop = (dague_object_t **)malloc((nbhe+nbge) * sizeof(dague_object_t*));
-
     
     (void)iterate_ops(A, 0, level, 0, 0, subop, dague, 0, &info);    
     dplasma_progress(dague);

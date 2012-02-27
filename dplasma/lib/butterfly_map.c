@@ -140,15 +140,15 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
     return seg;
 }
 
-void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, int *offset){
+void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset){
     seg_info_t seg;
     int mb, nb;
     int abs_m, abs_n;
     int right=0, bottom=0;
 
     seg = seg_ddesc->seg_info;
-    mb = ((tiled_matrix_desc_t *)seg_ddesc)->mb;
-    nb = ((tiled_matrix_desc_t *)seg_ddesc)->nb;
+    mb = seg_ddesc->A_org->mb;
+    nb = seg_ddesc->A_org->nb;
 
     if( n >= seg.tot_seg_cnt_n || m >= seg.tot_seg_cnt_m ){
         fprintf(stderr,"invalid segment coordinates\n");
