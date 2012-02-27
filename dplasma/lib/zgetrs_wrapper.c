@@ -11,32 +11,70 @@
 #include "dplasma.h"
 
 int
-dplasma_zgetrs(dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *L,
-               tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B)
+dplasma_zgetrs(dague_context_t *dague,
+               const PLASMA_enum trans,
+               tiled_matrix_desc_t *A,
+               tiled_matrix_desc_t *IPIV,
+               tiled_matrix_desc_t *B)
 {
     /* Check input arguments */
-    if (trans != PlasmaNoTrans) {
-        dplasma_error("dplasma_zgetrs", "only PlasmaNoTrans supported");
+    if ( trans != PlasmaNoTrans &&
+         trans != PlasmaTrans   &&
+         trans != PlasmaConjTrans ) {
+        dplasma_error("dplasma_zgetrs", "illegal value of trans");
         return -1;
     }
-    
+
 #ifdef DAGUE_COMPOSITION
-    dague_object_t *dague_ztrsmpl = NULL;
-    dague_object_t *dague_ztrsm   = NULL;
-    
-    dague_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
-    dague_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+    dague_object_t *dague_zlaswp = NULL;
+    dague_object_t *dague_ztrsm1 = NULL;
+    dague_object_t *dague_ztrsm2 = NULL;
 
-    dague_enqueue( dague, dague_ztrsmpl );
-    dague_enqueue( dague, dague_ztrsm   );
+    if ( trans == PlasmaNoTrans )
+    {
+        dague_zlaswp = dplasma_zlaswp_New(B, IPIV, 1);
+        dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, 1.0, A, B);
+        dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
-    dplasma_progress( dague );
+        dague_enqueue( dague, dague_zlaswp );
+        dague_enqueue( dague, dague_ztrsm1 );
+        dague_enqueue( dague, dague_ztrsm2 );
 
-    dplasma_ztrsm_Destruct( dague_ztrsmpl );
-    dplasma_ztrsm_Destruct( dague_ztrsm   );
+        dplasma_progress( dague );
+
+        dplasma_ztrsm_Destruct( dague_zlaswp );
+        dplasma_ztrsm_Destruct( dague_ztrsm1 );
+        dplasma_ztrsm_Destruct( dague_ztrsm2 );
+    }
+    else
+    {
+        dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, trans, PlasmaNonUnit, 1.0, A, B);
+        dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, trans, PlasmaUnit, 1.0, A, B);
+        dague_zlaswp = dplasma_zlaswp_New(B, IPIV, -1);
+
+        dague_enqueue( dague, dague_ztrsm1 );
+        dague_enqueue( dague, dague_ztrsm2 );
+        dague_enqueue( dague, dague_zlaswp );
+
+        dplasma_progress( dague );
+
+        dplasma_ztrsm_Destruct( dague_ztrsm1 );
+        dplasma_ztrsm_Destruct( dague_ztrsm2 );
+        dplasma_ztrsm_Destruct( dague_zlaswp );
+    }
 #else
-    dplasma_ztrsmpl(dague, A, L, IPIV, B );
-    dplasma_ztrsm( dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B );
+    if ( trans == PlasmaNoTrans )
+    {
+        dplasma_zlaswp(dague, B, IPIV, 1);
+        dplasma_ztrsm( dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,    1.0, A, B);
+        dplasma_ztrsm( dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+    }
+    else
+    {
+        dplasma_ztrsm( dague, PlasmaLeft, PlasmaUpper, trans, PlasmaNonUnit, 1.0, A, B);
+        dplasma_ztrsm( dague, PlasmaLeft, PlasmaLower, trans, PlasmaUnit,    1.0, A, B);
+        dplasma_zlaswp(dague, B, IPIV, -1);
+    }
 #endif
     return 0;
 }

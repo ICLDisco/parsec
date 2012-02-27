@@ -14,7 +14,6 @@ extern "C" %{
 #include <plasma.h>
 #include <core_blas.h>
 
-#define BLKLDD(_desc, _k) (_desc).mb
 
 #include "dague.h"
 #include "data_distribution.h"
@@ -50,14 +49,14 @@ BODY
   int ldam = BLKLDD( descA, m );
 
         DRYRUN(
-               CORE_zplrnt( 
+               CORE_zplrnt(
                    tempmm, tempnn, A, ldam,
                    descA.m, m*descA.mb, n*descA.nb, seed );
                );
 
         printlog("thread %d plrnt( %d, %d )\n"
                  "    ( %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->eu_id, m, n, tempmm, tempnn, 
+                 context->eu_id, m, n, tempmm, tempnn,
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END

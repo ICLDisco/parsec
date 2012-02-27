@@ -19,21 +19,20 @@ dague_object_t* dplasma_zgelqf_New( tiled_matrix_desc_t *A,
                                     tiled_matrix_desc_t *T )
 {
     dague_zgelqf_object_t* object;
-    
+    int ib = T->mb;
     /* 
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
      * it should be passed as a parameter as in getrf 
      */
 
-    object = dague_zgelqf_new( (dague_ddesc_t*)A, (dague_ddesc_t*)T, 
-                               A->mt, A->nt, A->mb, A->nb, A->m, A->n, 
-                               T->mb, T->nb, T->mb /*ib*/, NULL, NULL);
+    object = dague_zgelqf_new( *A, (dague_ddesc_t*)A, *T, (dague_ddesc_t*)T, 
+                               ib, NULL, NULL);
 
-    object->pool_Tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->pool_Tau, T->nb * sizeof(Dague_Complex64_t) );
+    object->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( object->p_tau, T->nb * sizeof(Dague_Complex64_t) );
 
-    object->pool_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->pool_work, T->mb * T->nb * sizeof(Dague_Complex64_t) );
+    object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( object->p_work, ib * T->nb * sizeof(Dague_Complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zgelqf_DEFAULT_ARENA], 
@@ -80,11 +79,16 @@ dplasma_zgelqf_Destruct( dague_object_t *o )
 {
     dague_zgelqf_object_t *dague_zgelqf = (dague_zgelqf_object_t *)o;
 
-    dague_private_memory_fini( dague_zgelqf->pool_work );
-    dague_private_memory_fini( dague_zgelqf->pool_Tau  );
-    free( dague_zgelqf->pool_work );
-    free( dague_zgelqf->pool_Tau  );
-
+    dplasma_datatype_undefine_type( &(dague_zgelqf->arenas[DAGUE_zgelqf_DEFAULT_ARENA   ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgelqf->arenas[DAGUE_zgelqf_LOWER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgelqf->arenas[DAGUE_zgelqf_UPPER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgelqf->arenas[DAGUE_zgelqf_LITTLE_T_ARENA  ]->opaque_dtt) );
+      
+    dague_private_memory_fini( dague_zgelqf->p_work );
+    dague_private_memory_fini( dague_zgelqf->p_tau  );
+    free( dague_zgelqf->p_work );
+    free( dague_zgelqf->p_tau  );
+ 
     dague_zgelqf_destroy(dague_zgelqf);
 }
 

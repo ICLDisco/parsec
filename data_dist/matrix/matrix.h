@@ -106,4 +106,9 @@ dague_reduce_row_New( const tiled_matrix_desc_t* src,
                       void* op_data );
 extern void dague_reduce_row_Destruct( struct dague_object_t *o );
 
+/*
+ * Macro to get the block leading dimension
+ */
+#define BLKLDD( _desc_, _m_ ) ( (_desc_).storage == matrix_Tile ? (_desc_).mb : (_desc_).lm )
+
 #endif /* _MATRIX_H_  */

@@ -1,0 +1,318 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+#if (PLASMA_VERSION_MAJOR <= 2) && (PLASMA_VERSION_MINOR <= 2)
+#define CORE_zssssm(M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV) \
+        CORE_zssssm(M1,     M2, N2, IB, K, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV)
+#endif
+
+#if (PLASMA_VERSION_MAJOR >= 2) && (PLASMA_VERSION_MINOR >= 4)
+#define CORE_zgetrf CORE_zgetrf_incpiv
+#endif
+
+#define min( __a, __b ) ( (__a) < (__b) ? (__a) : (__b) )
+
+%}
+
+/** Globals */
+descA     [type = "tiled_matrix_desc_t"]
+A         [type = "dague_ddesc_t *"]
+descL     [type = "tiled_matrix_desc_t"]
+L         [type = "dague_ddesc_t *" aligned=A]
+IPIV      [type = "dague_ddesc_t *" aligned=A]
+work_pool [type = "dague_memory_pool_t*"]
+INFO      [type = "int*"]
+ib        [type = int]
+
+/************************************************************************************
+ *                                    GETRF                                         *
+ ************************************************************************************/
+zgetrf_out(k)  [profile = off]
+k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+
+  :A(k, k)
+
+  READ A <- A zgetrf(k)
+         -> (descA.nt>=(k+2)) ? D zgessm(k, (k+1)..(descA.nt-1))   [type = LOWER_TILE]
+BODY
+        /* Nothing */
+        printlog("thread %d zgetrf_out( %d )\n",
+                 context->eu_id, k);
+END
+
+zgetrf(k)
+  /* Execution space */
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+
+  /* A == A(k,k) */
+  /* B == IPIV(k,k) */
+  /* C == IPIV(k,k) */
+  /* D == A(k,k) */
+  /* F == A(k,k) */
+  /* K == A(m,n1) */
+
+  /* Locality */
+  :A(k, k)
+
+  RW    A <- ( 0 == k ) ? A(k,k) : K zssssm(k-1, k, k)
+          -> (descA.mt>=(k+2)) ? F ztstrf(k, k+1)                 [type = UPPER_TILE]
+          -> (descA.mt==(k+1)) ? A(k,k)
+          -> A zgetrf_out(k)
+  RW    B <- IPIV(k,k)                                            [type = PIVOT]
+          -> IPIV(k,k)                                            [type = PIVOT]
+          -> (descA.nt>=(k+2)) ? C zgessm(k, (k+1)..(descA.nt-1)) [type = PIVOT]
+
+  /* Priority */
+  ;(descA.nt-k)*(descA.nt-k)*(descA.nt-k)
+
+BODY
+
+  int iinfo = 0;
+  DRYRUN(
+         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+         int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+         int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%Bmb);*/
+
+         /* Set local IPIV to 0 before generation
+          * Better here than a global initialization for locality
+          * and it's also done in parallel */
+         memset(B, 0, min(tempkn, tempkm) * sizeof(int) );
+
+         CORE_zgetrf(tempkm, tempkn, ib,
+                     A /* A(k,k)    */, ldak,
+                     B /* IPIV(k,k) */, &iinfo );
+
+         if ( (iinfo != 0) && (k == descA.mt-1) ) {
+             *INFO = k * descA.mb + iinfo; /* Should return if enter here */
+             fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
+         }
+         );
+
+   printlog("thread %d   CORE_zgetrf(%d)\n"
+            "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, IPIV(%d,%d)[%p]) => info = %d\n",
+            context->eu_id, k, k, k, A, k, k, B, k * descA.mb + iinfo);
+
+END
+
+
+/************************************************************************************
+ *                                    GESSM                                         *
+ ************************************************************************************/
+zgessm(k,n)
+  /* Execution space */
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  n = k+1..descA.nt-1
+
+  /* A == A(k,k) */
+  /* B == IPIV(k,k) */
+  /* C == IPIV(k,k) */
+  /* D == A(k,k) */
+  /* E == A(k,n) */
+  /* J == A(k,n1) */
+  /* K == A(m,n1) */
+
+  /* Locality */
+:A(k, n)
+
+  READ  C <- B zgetrf(k)                                            [type = PIVOT]
+  READ  D <- A zgetrf_out(k)                                        [type = LOWER_TILE]
+  RW    E <- (0==k) ? A(k,n) : K zssssm(k-1, k, n)
+          -> (descA.mt==(k+1)) ? A(k, n)
+          -> (descA.mt>=(k+2)) ? J zssssm(k, k+1, n)
+
+    /* Priority */
+; (descA.mt-k)*(descA.mt-n)*(descA.mt-n)
+
+BODY
+
+  DRYRUN(
+         int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+         int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+
+         CORE_zgessm(tempkm, tempnn, tempkm, ib,
+                     C /* IPIV(k,k) */,
+                     D /* A(k,k) */, ldak,
+                     E /* A(k,n) */, ldak );
+         );
+   printlog("thread %d   CORE_zgessm(%d, %d)\n"
+            "\t(tempkm, tempnn, tempkm, ib, IPIV(%d,%d)[%p], \n"
+            "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
+            context->eu_id, k, n, k, k, C, k, k, D, k, n, E);
+
+END
+
+/************************************************************************************
+ *                                    TSTRF                                         *
+ ************************************************************************************/
+ztstrf_out(k)  [profile = off]
+k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
+
+:A(k, k)
+
+  READ A <- F ztstrf(k, descA.mt-1)       [type = UPPER_TILE]
+         -> A(k, k)                       [type = UPPER_TILE]
+
+BODY
+        /* Nothing */
+        printlog("thread %d ztstrf_out( %d )\n",
+                 context->eu_id, k);
+END
+
+ztstrf(k,m)
+  /* Execution space */
+  k = 0..( (descA.mt < descA.nt)? descA.mt-1 : descA.nt-1 )
+  m = k+1..descA.mt-1
+
+  /* A == A(k,k) */
+  /* F == A(k,k) */
+  /* G == A(m,k) */
+  /* H == L(m,k) */
+  /* I == IPIV(m,k) */
+  /* K == A(m,n1) */
+  /* L == L(m,k) */
+  /* M == A(m,k) */
+  /* N == IPIV(m,k) */
+
+  /* Locality */
+:A(m, k)
+
+  RW    F <- ((k+1)==m) ? A zgetrf(m-1) : F ztstrf(k, m-1)           [type = UPPER_TILE]
+          -> (descA.mt==(m+1)) ? A ztstrf_out(k) : F ztstrf(k, m+1)  [type = UPPER_TILE]
+  RW    G <- (0==k) ? A(m,k) :  K zssssm(k-1, m, k)
+          -> (descA.nt>=(k+2)) ? M zssssm(k, m, (k+1)..(descA.nt-1))
+          -> A(m,k)
+  RW    H <- L(m,k)                                                    [type = SMALL_L]
+          -> L(m,k)                                                    [type = SMALL_L]
+          -> (descA.nt>=(k+2)) ? L zssssm(k, m, (k+1)..(descA.nt-1))   [type = SMALL_L]
+  RW    IP<- IPIV(m,k)                                                 [type = PIVOT]
+          -> IPIV(m,k)                                                 [type = PIVOT]
+          -> (descA.nt>=(k+2)) ? N zssssm(k, m, (k+1)..(descA.nt-1))   [type = PIVOT]
+
+    /* Priority */
+; (descA.mt-k)*(descA.mt-k)*(descA.mt-k)
+
+BODY
+
+  DRYRUN(
+         int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+         int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+         int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+         int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+
+         int iinfo;
+         PLASMA_Complex64_t *work = dague_private_memory_pop(work_pool);
+
+         memset(IP, 0, min(tempkn, tempmm) * sizeof(int) );
+         CORE_ztstrf(tempmm, tempkn, ib, descL.nb,
+                     F  /* A(k,k) */, ldak,
+                     G  /* A(m,k) */, ldam,
+                     H  /* L(m,k) */, descL.mb,
+                     IP /* IPIV(m,k) */,
+                     work, descL.nb, &iinfo );
+         dague_private_memory_push(work_pool, work);
+
+         if ( (iinfo != 0) && (m == descA.mt-1) ) {
+             *INFO = k * descA.mb + iinfo; /* Should return if enter here */
+             fprintf(stderr, "ztstrf(%d, %d) failed => %d\n", m, k, *INFO );
+         }
+         );
+
+  printlog("thread %d   CORE_ztstrf(%d, %d)\n"
+           "\t(tempmm, tempkn, ib, descL.nb, \n"
+           "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, \n"
+           "\tL(%d,%d)[%p], descL.mb, IPIV(%d,%d)[%p], descL.nb)\n",
+           context->eu_id, k, m, k, k, F, m, k, G, m, k, H, m, k, IP);
+
+END
+
+/************************************************************************************
+ *                                    SSSSM                                         *
+ ************************************************************************************/
+zssssm_out(k, n1)  [profile = off]
+k = 0..( (descA.mt < descA.nt)? descA.mt-2 : descA.nt-2 )
+n1 = k+1..descA.nt-1
+
+:A(k, n1)
+
+  READ A <- J zssssm(k, descA.mt-1, n1)
+         -> A(k, n1)
+
+BODY
+        /* Nothing */
+        printlog("thread %d zssssm_out( %d, %d )\n",
+                 context->eu_id, k, n1);
+END
+
+zssssm(k,m,n1)
+  /* Execution space */
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  m = k+1..descA.mt-1
+  n1 = k+1..descA.nt-1
+
+  /* A == A(k,k) */
+  /* E == A(k,n) */
+  /* G == A(m,k) */
+  /* H == L(m,k) */
+  /* I == IPIV(m,k) */
+  /* J == A(k,n1) */
+  /* K == A(m,n1) */
+  /* L == L(m,k) */
+  /* M == A(m,k) */
+  /* N == IPIV(m,k) */
+
+  /* Locality */
+:A(m, n1)
+
+  RW    J <- ((k+1)==m) ? E zgessm(m-1, n1) : J zssssm(k, m-1, n1)
+          -> (descA.mt==(m+1)) ? A zssssm_out(k,n1) : J zssssm(k, m+1, n1)
+  RW    K <- (0==k) ? A(m,n1) : K zssssm(k-1, m, n1)
+          -> (((k+1)==n1) & ((k+1)== m)) ? A zgetrf(n1)       /* Diagonal */
+          -> (((k+1)==m ) & ( n1 > m  )) ? E zgessm(k+1, n1)  /* Next Row */
+          -> (((k+1)==n1) & ( m  > n1 )) ? G ztstrf(n1, m)    /* Next Column */
+          -> (((k+1)< n1) & ((k+1) < m)) ? K zssssm(k+1, m, n1) /* Trailing submatrix */
+  READ  L <- H ztstrf(k, m)                                               [type = SMALL_L]
+  READ  M <- G ztstrf(k, m)
+  READ  N <- IP ztstrf(k, m)                                              [type = PIVOT]
+
+    /* Priority */
+; (descA.mt-k)*(descA.mt-n1)*(descA.mt-n1)
+
+BODY
+
+  int tempmm = ((m) ==(descA.mt-1)) ? (descA.m -( m*descA.mb)) : (descA.mb);
+  int tempnn = ((n1)==(descA.nt-1)) ? (descA.n -(n1*descA.nb)) : (descA.nb);
+  int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+  int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+
+  DRYRUN(
+         CORE_zssssm(descA.nb, tempnn, tempmm, tempnn, descA.nb, ib,
+                     J /* A(k,n1) */, ldak,
+                     K /* A(m,n1) */, ldam,
+                     L /* L(m,k) */,  descL.mb,
+                     M /* A(m,k) */,  ldam,
+                     N /* IPIV(m,k) */ );
+         );
+  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, L(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
+           context->eu_id, k, m, n1, descA.nb, tempnn, tempmm, tempnn, descA.nb, ib, k, n1, J, ldak, m, n1, K, ldam, m, k, L, descL.mb, m, k, M, ldam, m, k, N);
+
+END

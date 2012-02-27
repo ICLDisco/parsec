@@ -1,5 +1,16 @@
+/*
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ *
+ */
+
 #ifndef _DPLASMAAUX_H_INCLUDED
 #define _DPLASMAAUX_H_INCLUDED
+
+#if defined(HAVE_STRING_H)
+#include <string.h>
+#endif  /* defined(HAVE_STRING_H) */
 
 #include "data_dist/matrix/matrix.h"
 

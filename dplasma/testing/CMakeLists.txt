@@ -5,7 +5,7 @@ if(MPI_FOUND)
 else()
   add_library(common common.c common_timing.h flops.h)
 endif()
-  
+
 include(RulesTestings.cmake)
 
 set(TESTS
@@ -16,7 +16,9 @@ set(TESTS
   testing_zhebut.c
   testing_zposv.c
   testing_zgetrf.c
-  testing_zgetrf_sd.c
+  testing_zgetrf_incpiv.c
+  testing_zgetrf_incpiv_sd.c
+  testing_zgesv_incpiv.c
   testing_zgeqrf.c
   testing_zgeqrf_param.c
   testing_zgelqf.c
@@ -32,7 +34,7 @@ endif()
 
 testings_addexec(targets "${DPLASMA_PRECISIONS}" "${TESTS}")
 
-#Add the LL define to potrf LL 
+#Add the LL define to potrf LL
 # testings_addexec(lltargets "+;${DPLASMA_PRECISIONS}" "testing_zpotrf_ll.c")
 # foreach(target ${lltargets})
 #   get_target_property(${target}_COMPILE_FLAGS ${target} COMPILE_FLAGS)
@@ -63,7 +65,7 @@ if( MPI_FOUND )
   # No BLAS checked in distributed memory otherwise we will need to link against PBLAS
   add_test(mpi_dgemm  ${MPI_TEST_CMD} ./testing_dgemm -N 4000 -p 2)
 
-  # LAPACK distributed memory 
+  # LAPACK distributed memory
   add_test(mpi_dpotrf    ${MPI_TEST_CMD} ./testing_dpotrf -N 4000 -p 2 -x -v=4)
   add_test(mpi_dposv     ${MPI_TEST_CMD} ./testing_dposv  -N 4000 -p 4 -x -v=4)
   add_test(mpi_dgeqrf    ${MPI_TEST_CMD} ./testing_dgeqrf -N 4000 -p 4 -x -v=4)

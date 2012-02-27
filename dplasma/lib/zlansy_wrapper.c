@@ -15,12 +15,6 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "map2.h"
 
-#define BLKLDD(_desc, _k) (_desc)->mb
-
-#ifndef max
-#define max(a, b) ((a)>(b)?(a):(b))
-#endif
-
 struct lansy_args_s {
   PLASMA_enum ntype;
   tiled_matrix_desc_t *desc;
@@ -50,7 +44,7 @@ dague_operator_zlansy_max( struct dague_execution_unit *eu,
     descA = args->desc;
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
-    ldam = BLKLDD( descA, m );
+    ldam = BLKLDD( (*descA), m );
 
     if ( uplo == PlasmaUpperLower ) {
       CORE_zlange( args->ntype, tempmm, tempnn,

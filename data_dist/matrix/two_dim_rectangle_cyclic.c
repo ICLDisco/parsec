@@ -107,7 +107,7 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
         pos += ((n % Ddesc->grid.stcols) * last_c_size); /* pos is at (B, n)*/
         pos += (m % Ddesc->grid.strows); /* pos is at (m,n)*/
 
-        pos *= (size_t)Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype);
+        pos *= (size_t)Ddesc->super.bsiz;
 
     }
     /* Lapack Storage */
@@ -133,6 +133,7 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
         pos = ( local_n * Ddesc->super.nb ) * Ddesc->super.lm + local_m * Ddesc->super.mb;
     }
 
+    pos *= dague_datadist_getsizeoftype(Ddesc->super.mtype);
     return &(((char *) Ddesc->mat)[pos]);
 }
 
@@ -278,6 +279,57 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
            Ddesc->super.m,  Ddesc->super.n,
            Ddesc->grid.strows, Ddesc->grid.stcols,
            P, Q));
+}
+
+static uint32_t twoDBC_stview_rankof(dague_ddesc_t* ddesc, ...)
+{
+    unsigned int m, n;
+    unsigned int ps,qs,p,q;
+    two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)ddesc;
+    va_list ap;
+    va_start(ap, ddesc);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
+    va_end(ap);
+    p = desc->grid.rows;
+    ps = desc->grid.strows;
+    q = desc->grid.cols;
+    qs = desc->grid.stcols;
+
+    m = (m % ps) * p + m / ps;
+    n = (n % qs) * q + n / qs;
+    return twoDBC_get_rank_for_tile(ddesc, m, n);
+}
+
+static void* twoDBC_stview_dataof(dague_ddesc_t* ddesc, ...)
+{
+    unsigned int m, n;
+    unsigned int ps,qs,p,q;
+    two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)ddesc;
+    va_list ap;
+    va_start(ap, ddesc);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
+    va_end(ap);
+    p = desc->grid.rows;
+    ps = desc->grid.strows;
+    q = desc->grid.cols;
+    qs = desc->grid.stcols;
+
+    m = (m % ps) * p + m / ps;
+    n = (n % qs) * q + n / qs;
+    return twoDBC_get_local_tile(ddesc, m, n);
+}
+
+void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
+                                           two_dim_block_cyclic_t* origin,
+                                           int rst, int cst )
+{
+    target = origin;
+    target->grid.strows = rst;
+    target->grid.stcols = cst;
+    target->super.super.rank_of = twoDBC_stview_rankof;
+    target->super.super.data_of = twoDBC_stview_dataof;
 }
 
 #ifdef HAVE_MPI

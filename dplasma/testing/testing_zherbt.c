@@ -24,7 +24,6 @@ int main(int argc, char *argv[])
     dague_context_t *dague;
     int iparam[IPARAM_SIZEOF];
     PLASMA_desc *plasmaDescA;
-    PLASMA_desc *plasmaDescT;
 
      /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -68,12 +67,6 @@ int main(int argc, char *argv[])
          nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
          MT*IB, N, 1, 1, P))
 
-    PLASMA_Desc_Create(&plasmaDescT, ddescT.mat, PlasmaComplexDouble,
-         ddescT.super.mb, ddescT.super.nb, ddescT.super.bsiz,
-         ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j,
-         ddescT.super.m, ddescT.super.n);
-
-
     PLASMA_enum uplo = PlasmaLower;
 
     dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA, 1358);
@@ -111,7 +104,7 @@ int main(int argc, char *argv[])
     */
 
     PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt,
-         (uplo, IB, *plasmaDescA, (tiled_matrix_desc_t*)&ddescA, *plasmaDescT, (tiled_matrix_desc_t*)&ddescT));
+         (uplo, IB, (tiled_matrix_desc_t*)&ddescA, (tiled_matrix_desc_t*)&ddescT));
 
     PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
 
