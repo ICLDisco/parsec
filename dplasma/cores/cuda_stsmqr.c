@@ -508,8 +508,9 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     gpu_device_t* gpu_device;
     cudaError_t status;
     dague_execution_context_t* progress_array[DAGUE_MAX_STREAMS];
-    int n, m;
+    int k, n, m;
 
+    k = this_task->locals[0].value;
     m = this_task->locals[1].value;
     n = this_task->locals[2].value;
 
