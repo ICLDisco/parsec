@@ -10,15 +10,14 @@ import shutil
 import re
 import math
 import glob
+import events
 
 class dataSet(list):
     stdDev = 0.0
     mean = 0.0
 
-# also write a function to run all .profile files through profile2dat where php is available
-
 # Welford's variance algorithm, via Knuth, via Wikipedia
-def online_variance_mean(data):
+def online_variance_mean(data):  
     n = 0
     mean = 0
     M2 = 0
@@ -71,7 +70,7 @@ def processColumnarData(string, regex, sort=True):
         print '# len = ' + str(len(set)) + '; stdDev = ' + str(set.stdDev) + '; mean = ' + str(set.mean)
         for i in xrange(len(set)):
             print str(i) + '\t' + str(set[i])
-        
+
 if __name__ == '__main__':
     sort = False
     if len(sys.argv) > 2 and sys.argv[2].startswith('s'):
@@ -91,5 +90,4 @@ if __name__ == '__main__':
             sys.stdout = stdoutOrig
     elif os.path.isfile(sys.argv[1]):
         processColumnarData(open(sys.argv[1], 'r').read(), re.compile(r'\d+\s+\d+\s+GEMM\s+\d+\s+\d+\s+\d+\s+(\d+)'), sort)
-            
-        
+
