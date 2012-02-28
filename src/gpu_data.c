@@ -61,10 +61,29 @@ static void* dague_allocate_data_gpu(size_t matrix_size)
  */
 static void dague_free_data_gpu(void *dta)
 {
-    if( using_gpu )
-        cuMemFreeHost( dta );
-    else
-        free( dta );
+    unsigned int flags, call_free = 1;
+    CUresult status;
+
+    if( dague_gpu_allocation_initialized ) {
+        status = cuCtxPushCurrent( dague_allocate_on_gpu_context );
+        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                                { goto clib_free; } );
+
+        status = cuMemHostGetFlags( &flags, dta );
+        DAGUE_CUDA_CHECK_ERROR( "cuMemHostGetFlags ", status,
+                                {goto clib_free;} );
+
+        status = cuMemFreeHost( dta );
+        DAGUE_CUDA_CHECK_ERROR( "cuMemFreeHost ", status,
+                                {goto clib_free;} );
+        call_free = 0;
+        status = cuCtxPopCurrent(NULL);
+        DAGUE_CUDA_CHECK_ERROR( "cuCtxPopCurrent ", status,
+                                {} );
+    }
+
+  clib_free:
+    if( call_free ) free( dta );
 }
 
 /**
@@ -76,6 +95,13 @@ void dague_data_enable_gpu( int nbgpu )
 
     dague_data_allocate = dague_allocate_data_gpu;
     dague_data_free     = dague_free_data_gpu;
+}
+
+void dague_data_disable_gpu( int nbgpu )
+{
+    if( using_gpu > nbgpu ) {
+        using_gpu = nbgpu;
+    }
 }
 
 int dague_using_gpu(void)
