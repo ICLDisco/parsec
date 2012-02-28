@@ -56,13 +56,6 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
 
-#if defined(DAGUE_PROF_TRACE)
-    ddescA.super.super.key = strdup("A");
-    ddescT.super.super.key = strdup("T");
-    ddescA0.super.super.key = strdup("A0");
-    ddescQ.super.super.key = strdup("Q");
-#endif
-
     /* load the GPU kernel */
 #if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     if(iparam[IPARAM_NGPUS] > 0)
