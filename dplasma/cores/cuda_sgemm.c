@@ -278,8 +278,6 @@ int sgemm_cuda_fini(dague_context_t* dague_context)
 
     for(i = 0; i < ndevices; i++) {
         if( NULL == (gpu_device = gpu_active_devices[i]) ) continue;
-        gpu_active_devices[i] = NULL;
-        gpu_device->index = gpu_device->device_index;
 
         status = (cudaError_t)cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(FINI) cuCtxPushCurrent ", status,
@@ -288,11 +286,11 @@ int sgemm_cuda_fini(dague_context_t* dague_context)
         DAGUE_CUDA_CHECK_ERROR( "cuCtxSynchronize", status,
                                 {continue;} );
         /* Save the statistics */
-        gpu_counter[gpu_device->device_index]     += gpu_device->executed_tasks;
-        transferred_in[gpu_device->device_index]  += gpu_device->transferred_data_in;
-        transferred_out[gpu_device->device_index] += gpu_device->transferred_data_out;
-        required_in[gpu_device->device_index]     += gpu_device->required_data_in;
-        required_out[gpu_device->device_index]    += gpu_device->required_data_out;
+        gpu_counter[gpu_device->index]     += gpu_device->executed_tasks;
+        transferred_in[gpu_device->index]  += gpu_device->transferred_data_in;
+        transferred_out[gpu_device->index] += gpu_device->transferred_data_out;
+        required_in[gpu_device->index]     += gpu_device->required_data_in;
+        required_out[gpu_device->index]    += gpu_device->required_data_out;
 
         /**
          * Release the GPU memory.
@@ -339,8 +337,6 @@ int sgemm_cuda_fini(dague_context_t* dague_context)
     if( 0 == active_devices )  /* No active devices */
         return 0;
 
-    free(gpu_active_devices); gpu_active_devices = NULL;
-
     /* Print statistics */
     for( i = 0; i < ndevices; i++ ) {
         total += gpu_counter[i];
@@ -354,12 +350,15 @@ int sgemm_cuda_fini(dague_context_t* dague_context)
     printf("|PU % 5d |  # GEMM   |    %%   |   Data In   |    %%   |   Data Out  |    %%   |\n", dague_context->my_rank);
     printf("|---------|-----------|--------|-------------|--------|-------------|--------|\n");
     for( i = 0; i < ndevices; i++ ) {
+        gpu_device = gpu_active_devices[i];
+
         compute_best_unit( transferred_in[i],  &best_data_in, &data_in_unit );
         compute_best_unit( transferred_out[i], &best_data_out, &data_out_unit );
         printf("|GPU:  %2d |%10d | %6.2f |%10.2f%2s | %6.2f |%10.2f%2s | %6.2f |\n",
-               i, gpu_counter[i], (gpu_counter[i]/gtotal)*100.00,
+               gpu_device->device_index, gpu_counter[i], (gpu_counter[i]/gtotal)*100.00,
                best_data_in, data_in_unit, (((float)transferred_in[i]) / required_in[i]) * 100.0,
                best_data_out, data_out_unit, (((float)transferred_out[i]) / required_out[i]) * 100.0 );
+        gpu_active_devices[i] = NULL;
     }
     printf("|---------|-----------|--------|-------------|--------|-------------|--------|\n");
     compute_best_unit( total_data_in,  &best_data_in, &data_in_unit );
@@ -377,6 +376,8 @@ int sgemm_cuda_fini(dague_context_t* dague_context)
     free(transferred_out);
     free(required_in);
     free(required_out);
+
+    free(gpu_active_devices); gpu_active_devices = NULL;
 
     return 0;
 }
