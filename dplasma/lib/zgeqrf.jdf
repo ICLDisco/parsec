@@ -271,7 +271,7 @@ BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ, m, k );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ, m, k );
-    if( dague_using_gpu() > 0 ) {
+    if( dague_active_gpu() > 0 ) {
         int rc;
 
         if( 0 == (rc = gpu_stsmqr( context, this_task)) )

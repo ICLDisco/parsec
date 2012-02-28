@@ -1,0 +1,9 @@
+The Linux coding style, despite the fact that it declare
+the indentation equal to 8 chars, is a perfectly logical
+coding style. Read more at
+http://www.kernel.org/doc/Documentation/CodingStyle
+
+Here is the list of exception that applies on this project:
+- indentation is 4 chars
+- tabs are not allowed
+

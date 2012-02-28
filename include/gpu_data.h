@@ -62,10 +62,11 @@ typedef struct _gpu_device {
     dague_list_t *fifo_pending_exec;
     dague_list_t *fifo_pending_out;
 #endif  /* DAGUE_GPU_STREAM_PER_TASK */
-    int id;
+    uint8_t index;
+    uint8_t device_index;
+    uint8_t major;
+    uint8_t minor;
     int executed_tasks;
-    int major;
-    int minor;
     volatile uint32_t mutex;
     dague_list_t pending;
     uint64_t transferred_data_in;
@@ -88,18 +89,21 @@ typedef struct _gpu_device {
         }                                                               \
     }
 
-extern gpu_device_t** gpu_devices;
+extern gpu_device_t** gpu_enabled_devices;
 int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities);
-    
+int dague_gpu_fini( void );
+
 /**
- * Enable GPU-compatible memory if possible
+ * Enable and disale GPU-compatible memory if possible
  */
 void dague_data_enable_gpu( int nbgpu );
 
 /**
- * returns not false iff dague_data_enable_gpu succeeded
+ * Returns the number of GPUs managed by the DAGuE runtime. This is
+ * different than the number of GPUs in the system, as they get
+ * enabled based on the GPU mask.
  */
-int dague_using_gpu(void);
+int dague_active_gpu(void);
 
 /**
  * allocate a buffer to hold the data using GPU-compatible memory if needed

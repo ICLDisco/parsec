@@ -175,7 +175,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
         type_exists = type_index_to_sizes(seg_descA->seg_info, A->mb, A->nb, i, &m_off, &n_off, &m_sz, &n_sz);
 
         if( type_exists ){
-            arena = ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i];
+            arena = ((dague_zhebut_object_t*)dague_zhebut)->arenas[i];
             dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
                                               m_sz, n_sz, m_off, n_off,
                                               &newtype );
@@ -199,9 +199,9 @@ dplasma_zhebut_Destruct( dague_object_t *o )
     dague_zhebut_object_t *obut = (dague_zhebut_object_t *)o;
 
     for(i=0; i<36; i++){
-        if( NULL != obut->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] ){
-            free( obut->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] );
-            obut->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] = NULL;
+        if( NULL != obut->arenas[i] ){
+            free( obut->arenas[i] );
+            obut->arenas[i] = NULL;
         }
     }
 
@@ -249,7 +249,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
         type_exists = type_index_to_sizes(seg_descA->seg_info, A->mb, A->nb, i, &m_off, &n_off, &m_sz, &n_sz);
 
         if( type_exists ){
-            arena = ((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i];
+            arena = ((dague_zgebut_object_t*)dague_zgebut)->arenas[i];
             dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
                                               m_sz, n_sz, m_off, n_off,
                                               &newtype );
@@ -285,10 +285,10 @@ dplasma_zgebut_Destruct( dague_object_t *o )
  */
 
 static dague_object_t **iterate_ops(tiled_matrix_desc_t *A, int curlevel,
-                                                       int maxlevel, int i_block, int j_block,
-                                                       dague_object_t **subop,
-                                                       dague_context_t *dague, 
-                                                int destroy, int *info)
+                                    int maxlevel, int i_block, int j_block,
+                                    dague_object_t **subop,
+                                    dague_context_t *dague, 
+                                    int destroy, int *info)
 {
     if(curlevel == maxlevel){
         if( i_block == j_block ){
