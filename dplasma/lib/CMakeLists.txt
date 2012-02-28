@@ -11,12 +11,8 @@ set(EXTRA_SOURCES
   pivgen.c
   pivgen_dbg.c
   map2_wrapper.c
+  butterfly_map.c
 )
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
-    include_directories(${CMAKE_CURRENT_BINARY_DIR})
-endif()
 
 ### Generate .c files from .jdf
 set(OLDJDF
@@ -51,6 +47,12 @@ set(JDF
 precisions_rules_py(generated_jdf
                     "${JDF}"
                     PRECISIONS "${DPLASMA_PRECISIONS}")
+
+if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
+  foreach(src_file ${EXTRA_SOURCES})
+    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.") 
+  endforeach()
+endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 
 list(APPEND generated_jdf
   "${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf")

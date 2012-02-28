@@ -31,14 +31,14 @@ static void* dague_allocate_data_gpu(size_t matrix_size)
 
         status = cuCtxPushCurrent( dague_allocate_on_gpu_context );
         DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
-                                { 
+                                {
                                     ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
                                 } );
 
         status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
         if( CUDA_SUCCESS != status ) {
             DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuMemHostAlloc failed ", status,
-                                    { 
+                                    {
                                         ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
                                     } );
         }
@@ -61,10 +61,29 @@ static void* dague_allocate_data_gpu(size_t matrix_size)
  */
 static void dague_free_data_gpu(void *dta)
 {
-    if( using_gpu )
-        cuMemFreeHost( dta );
-    else
-        free( dta );
+    unsigned int flags, call_free = 1;
+    CUresult status;
+
+    if( dague_gpu_allocation_initialized ) {
+        status = cuCtxPushCurrent( dague_allocate_on_gpu_context );
+        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                                { goto clib_free; } );
+
+        status = cuMemHostGetFlags( &flags, dta );
+        DAGUE_CUDA_CHECK_ERROR( "cuMemHostGetFlags ", status,
+                                {goto clib_free;} );
+
+        status = cuMemFreeHost( dta );
+        DAGUE_CUDA_CHECK_ERROR( "cuMemFreeHost ", status,
+                                {goto clib_free;} );
+        call_free = 0;
+        status = cuCtxPopCurrent(NULL);
+        DAGUE_CUDA_CHECK_ERROR( "cuCtxPopCurrent ", status,
+                                {} );
+    }
+
+  clib_free:
+    if( call_free ) free( dta );
 }
 
 /**
@@ -76,6 +95,13 @@ void dague_data_enable_gpu( int nbgpu )
 
     dague_data_allocate = dague_allocate_data_gpu;
     dague_data_free     = dague_free_data_gpu;
+}
+
+void dague_data_disable_gpu( int nbgpu )
+{
+    if( using_gpu > nbgpu ) {
+        using_gpu = nbgpu;
+    }
 }
 
 int dague_using_gpu(void)
@@ -103,16 +129,17 @@ gpu_device_t** gpu_devices = NULL;
 
 int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
 {
-    int ndevices;
-    int i;
-    
+    int ndevices, i;
+    CUresult status;
+
     if( (*puse_gpu) == -1 ) {
         return -1;  /* Nothing to do around here */
     }
-    cuInit(0);
-    
+    status = cuInit(0);
+    DAGUE_CUDA_CHECK_ERROR( "cuInit ", status, {*puse_gpu = 0; return -1;} );
+
     cuDeviceGetCount( &ndevices );
-    
+
     if( ndevices > (*puse_gpu) )
         ndevices = (*puse_gpu);
     /* Update the number of GPU for the upper layer */
@@ -120,9 +147,8 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
     if( 0 == ndevices ) {
         return -1;
     }
-    
+
     dague_data_enable_gpu( ndevices );
-    
 
     gpu_devices = (gpu_device_t**)calloc(ndevices, sizeof(gpu_device_t));
 
@@ -147,12 +173,11 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
         gpu_device_t* gpu_device;
         CUdevprop devProps;
         char szName[256];
-        CUresult status;
         int major, minor, concurrency;
         CUdevice hcuDevice;
 
-	    status = cuDeviceGet( &hcuDevice, i );
-	    DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {ndevices = 0; return -1;} );
+        status = cuDeviceGet( &hcuDevice, i );
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {ndevices = 0; return -1;} );
         status = cuDeviceGetName( szName, 256, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetName ", status, {ndevices = 0; return -1;} );
 
@@ -188,7 +213,7 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
         dague_list_construct(&gpu_device->pending);
         gpu_device->major = major;
         gpu_device->minor = minor;
-        
+
         if( dague_gpu_allocation_initialized == 0 ) {
             status = cuCtxCreate( &dague_allocate_on_gpu_context, 0 /*CU_CTX_BLOCKING_SYNC*/, hcuDevice );
             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxCreate ", status,
@@ -198,7 +223,7 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
                                     {free(gpu_device); return -1;} );
             dague_gpu_allocation_initialized = 1;
         }
-          
+
         /* cuCtxCreate: Function works on floating contexts and current context */
         status = cuCtxCreate( &(gpu_device->ctx), 0 /*CU_CTX_BLOCKING_SYNC*/, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxCreate ", status,

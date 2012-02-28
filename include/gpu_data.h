@@ -90,11 +90,12 @@ typedef struct _gpu_device {
 
 extern gpu_device_t** gpu_devices;
 int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities);
-    
+
 /**
- * Enable GPU-compatible memory if possible
+ * Enable and disale GPU-compatible memory if possible
  */
 void dague_data_enable_gpu( int nbgpu );
+void dague_data_disable_gpu( int nbgpu );
 
 /**
  * returns not false iff dague_data_enable_gpu succeeded
