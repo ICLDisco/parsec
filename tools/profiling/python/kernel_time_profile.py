@@ -4,12 +4,13 @@ import sys, os
 import subprocess
 import re
 from shutil import move, copy
+import profile2dat
 
 class Trial(object):
     def __init__(self, gflops, runtime):
         self.gflops = gflops
         self.time = runtime
-        
+
 class TrialSet(list):
     def __init__(self, name, matrixSize, numCores=0, NB=0, IB=0, sched='LFQ'):
         self.matrixSize = matrixSize
@@ -42,18 +43,18 @@ class TrialSet(list):
         return ("set name %s, size %d, cores %d, NB %d, IB %d, average gflops: %f, avg time: %f" %
                 (self.name, self.matrixSize,
                  self.numCores, self.NB, self.IB, self.avgGflops, self.avgTime))
-        
-if __name__ == '__main__':  
-   matrixSizes = [3600, 5400, 7200, 9000, 10800, 12600, 14400, 16200, 18000, 19800, 21600]
+
+if __name__ == '__main__':
+   matrixSizes = [21600] #3600, 5400, 7200, 9000, 10800, 12600, 14400, 16200, 18000, 19800, 21600]
    minNumCores = 0 # default to using them all
    maxNumCores = 0
-   NBs = [0] # use default
+   NBs = [180] # use default
    IBdivs = [1]
-   numTrials = 10
+   numTrials = 2
    names = [ 'dpotrf']
    testingDir = 'dplasma/testing/'
    outputBaseDir = '/mnt/scratch/pgaultne/' # = testingDir
-   scheduler = 'LTQ'
+   scheduler = 'LFQ'
 
    pattern = re.compile("### TIMED\s(\d+\.\d+)\s+s.+?NB=\s+(\d+).+?(\d+\.\d+)\s+gflops$")
 
@@ -92,9 +93,9 @@ if __name__ == '__main__':
                             else:
                                 print("results not properly parsed: %s" % stdout)
                             # move profiling file to unique name
-                            move(testingDir + 'testing_' + set.name + '.profile',
+                            profile2dat.profile2dat(testingDir + 'testing_' + set.name + '.profile',
                                  outputDir + set.name + '.' + str(set.matrixSize) + '.' +
-                                 str(trialNum) + '.profile')
+                                 str(trialNum) + '.profile', unlinkAfterProcessing = True)
                     totalGflops = 0.0
                     totalTime = 0.0
                     for item in set:
