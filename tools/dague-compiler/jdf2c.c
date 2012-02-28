@@ -1640,6 +1640,11 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     } else {
         coutput("%s  new_context->priority = 0;\n", indent(nesting));
     }
+
+    // PETER insert data locality info
+    coutput("%s  new_context->flowname = \"%s\";\n",
+	    indent(nesting), f->dataflow->varname);
+
     {
         struct jdf_dataflow *dataflow = f->dataflow;
         for(idx = 0; NULL != dataflow; idx++, dataflow = dataflow->next ) {
