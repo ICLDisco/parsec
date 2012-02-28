@@ -643,7 +643,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
         {
             int success;
-	    char tmp[128];
+	        char tmp1[128];
             dague_dependency_t tmp_mask;
             tmp_mask = *deps;
             success = dague_atomic_cas( deps,
@@ -651,7 +651,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
                 char tmp2[128];
                 ERROR(("I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice (second time by %s)!!!\n",
-                        success, tmp_mask, dague_service_to_string(exec_context, tmp, 128),
+                        success, tmp_mask, dague_service_to_string(exec_context, tmp1, 128),
                         dague_service_to_string(origin, tmp2, 128)));
             }
         }
@@ -663,8 +663,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
          */
         {
 #if defined(DAGUE_DEBUG_VERBOSE1)
+            char tmp1[128];
             char tmp2[128];
-            char tmp[128];
 #endif
             dague_execution_context_t* new_context;
             dague_thread_mempool_t *mpool;
@@ -681,7 +681,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
 
             DEBUG(("%s becomes ready from %s on thread %d, with mask 0x%04x and priority %d\n",
-                   dague_service_to_string(exec_context, tmp, 128),
+                   dague_service_to_string(exec_context, tmp1, 128),
                    dague_service_to_string(origin, tmp2, 128),
                    eu_context->eu_id,
                    *deps, exec_context->priority));
