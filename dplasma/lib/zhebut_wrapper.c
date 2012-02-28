@@ -177,18 +177,18 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
         type_exists = type_index_to_sizes(seg_descA->seg_info, A->mb, A->nb, i, &m_off, &n_off, &m_sz, &n_sz);
 
         if( type_exists ){
-            arena = ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i];
+            arena = ((dague_zhebut_object_t*)dague_zhebut)->arenas[i];
             dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
                                               m_sz, n_sz, m_off, n_off,
                                               &newtype );
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
         } else {
-	    /* Oops, yet another arena allocated by the generated code for nothing
-	     *   We free it for it. */
-	    free( ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i]);
-	    ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] = NULL;
-	}
+            /* Oops, yet another arena allocated by the generated code for nothing
+             *   We free it for it. */
+            free( ((dague_zhebut_object_t*)dague_zhebut)->arenas[i]);
+            ((dague_zhebut_object_t*)dague_zhebut)->arenas[i] = NULL;
+        }
     }
 
     return dague_zhebut;
@@ -201,9 +201,9 @@ dplasma_zhebut_Destruct( dague_object_t *o )
     dague_zhebut_object_t *obut = (dague_zhebut_object_t *)o;
 
     for(i=0; i<36; i++){
-        if( NULL != obut->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] ){
-            free( obut->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] );
-            obut->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] = NULL;
+        if( NULL != obut->arenas[i] ){
+            free( obut->arenas[i] );
+            obut->arenas[i] = NULL;
         }
     }
 
@@ -259,16 +259,16 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
         type_exists = type_index_to_sizes(seg_descA->seg_info, A->mb, A->nb, i, &m_off, &n_off, &m_sz, &n_sz);
 
         if( type_exists ){
-            arena = ((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i];
+            arena = ((dague_zgebut_object_t*)dague_zgebut)->arenas[i];
             dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
                                               m_sz, n_sz, m_off, n_off,
                                               &newtype );
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
         } else {
-	    free(((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i]);
-	    ((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i] = NULL;
-	}
+            free(((dague_zgebut_object_t*)dague_zgebut)->arenas[i]);
+            ((dague_zgebut_object_t*)dague_zgebut)->arenas[i] = NULL;
+        }
     }
 
     return dague_zgebut;
@@ -295,40 +295,40 @@ dplasma_zgebut_Destruct( dague_object_t *o )
  */
 
 static dague_object_t **iterate_ops(tiled_matrix_desc_t *A, int curlevel,
-	      				 	int maxlevel, int i_block, int j_block,
-					       	dague_object_t **subop,
-					       	dague_context_t *dague, 
-						int destroy, int *info)
+                                    int maxlevel, int i_block, int j_block,
+                                    dague_object_t **subop,
+                                    dague_context_t *dague, 
+                                    int destroy, int *info)
 {
     if(curlevel == maxlevel){
         if( i_block == j_block ){
-	    if( destroy ){
-	        dplasma_zhebut_Destruct(*subop);
-	    }else{
-	        *subop = dplasma_zhebut_New(A, i_block, j_block, curlevel, info);
-	    }
-	}else{
-	    if( destroy ){
-	        dplasma_zgebut_Destruct(*subop);
-	    }else{
-	        *subop = dplasma_zgebut_New(A, i_block, j_block, curlevel, info);
-	    }
-	}
-	if( !destroy ){
-            dague_enqueue(dague, *subop);
-	}
+        if( destroy ){
+            dplasma_zhebut_Destruct(*subop);
+        }else{
+            *subop = dplasma_zhebut_New(A, i_block, j_block, curlevel, info);
+        }
+    }else{
+        if( destroy ){
+            dplasma_zgebut_Destruct(*subop);
+        }else{
+            *subop = dplasma_zgebut_New(A, i_block, j_block, curlevel, info);
+        }
+    }
+    if( !destroy ){
+        dague_enqueue(dague, *subop);
+    }
         return subop+1;
     }else{
         if( i_block == j_block ){
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block,   subop, dague, destroy, info);
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block,   subop, dague, destroy, info);
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block+1, subop, dague, destroy, info);
-	}else{
+    }else{
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block,   subop, dague, destroy, info);
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block,   subop, dague, destroy, info);
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block+1, subop, dague, destroy, info);
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block+1, subop, dague, destroy, info);
-	}
+    }
         return subop;
     }
 

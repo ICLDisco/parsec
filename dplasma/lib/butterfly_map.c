@@ -4,7 +4,6 @@
 #include <assert.h>
 
 #include "dplasma/lib/butterfly_map.h"
-#include "dplasma/lib/zhebut.h"
 
 static int segment_to_type_index(seg_info_t seg, int m, int n);
 
@@ -306,7 +305,7 @@ int type_index_to_sizes(seg_info_t seg, int mb, int nb, int type_index, int *m_o
 }
 
 int segment_to_arena_index(dague_seg_ddesc_t but_ddesc, int m, int n){
-    return DAGUE_zhebut_ARENA_INDEX_MIN + segment_to_type_index(but_ddesc.seg_info, m, n);
+    return segment_to_type_index(but_ddesc.seg_info, m, n);
 }
 
 static int segment_to_type_index(seg_info_t seg, int m, int n){
