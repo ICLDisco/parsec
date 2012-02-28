@@ -100,7 +100,7 @@ HEBRT_Reader_TL(i,j)
 
   : A(i,j)
 
-READ A <- A(i, j)
+READ A <- A(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
        -> (i==j) ? Atl HEBRT_Diag(i) : Atl HEBRT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
@@ -118,7 +118,7 @@ HEBRT_Reader_BL(i,j)
 
   : A(i+mt/2,j)
 
-READ A <- A(i+mt/2, j)
+READ A <- A(i+mt/2, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
        -> (i>j)  ? Abl HEBRT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
        -> (i==j) ? Abl HEBRT_Diag(i)    [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
        -> (i<j)  ? Atr HEBRT_Lower(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
@@ -138,7 +138,7 @@ HEBRT_Reader_BR(i,j)
 
   : A(i+mt/2,j+nt/2)
 
-READ A <- A(i+mt/2, j+nt/2)
+READ A <- A(i+mt/2, j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
        -> (i==j) ? Abr HEBRT_Diag(i) : Abr HEBRT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
@@ -157,7 +157,7 @@ HEBRT_Writer_TL(i,j)
   : A(i,j)
 
 RW A <- (i==j) ? Atl HEBRT_Diag(i) : Atl HEBRT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i, j)
+     -> A(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 /* nothing */
@@ -177,7 +177,7 @@ HEBRT_Writer_BL(i,j)
 RW A <- (i==j) ? Abl HEBRT_Diag(i)  [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
      <- (i>j)  ? Abl HEBRT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
      <- (i<j)  ? Abl HEBRT_Lower(j, i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i+mt/2, j)
+     -> A(i+mt/2, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
 
 BODY
 /* nothing */
@@ -195,7 +195,7 @@ HEBRT_Writer_BR(i,j)
   : A(i+mt/2,j+nt/2)
 
 RW A <- (i==j) ? Abr HEBRT_Diag(i) : Abr HEBRT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i+mt/2, j+nt/2)
+     -> A(i+mt/2, j+nt/2)[ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
 
 BODY
 /* nothing */

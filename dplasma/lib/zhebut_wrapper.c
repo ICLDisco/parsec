@@ -13,8 +13,12 @@
 #include "dplasma/lib/dplasmaaux.h"
   
 #include "dplasma/lib/butterfly_map.h"
-#include "dplasma/lib/zgebut.h"
 #include "dplasma/lib/zhebut.h"
+#include "dplasma/lib/zgebut.h"
+
+#if (DAGUE_zhebut_ARENA_INDEX_MIN != 0) || (DAGUE_zgebut_ARENA_INDEX_MIN != 0)
+#error Current zhebut can work only if not using named types.
+#endif
 
 static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
     int m_seg, n_seg, m_tile, n_tile;
@@ -161,12 +165,6 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
 
     dague_zhebut = (dague_object_t *)dague_zhebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt);
     
-    /* We don't use the DEFAULT datatype.
-     *   We free the cell for the generated code.
-     */
-    free(((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_DEFAULT_ARENA]);
-    ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_DEFAULT_ARENA] = NULL;
-
     for(i=0; i<36; i++){
         dague_arena_t *arena;
         dague_remote_dep_datatype_t newtype;
@@ -184,11 +182,11 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
         } else {
-	    /* Oops, yet another arena allocated by the generated code for nothing
-	     *   We free it for it. */
-	    free( ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i]);
-	    ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] = NULL;
-	}
+            /* Oops, yet another arena allocated by the generated code for nothing
+             *   We free it for it. */
+            free( ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i]);
+            ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] = NULL;
+        }
     }
 
     return dague_zhebut;
@@ -206,8 +204,6 @@ dplasma_zhebut_Destruct( dague_object_t *o )
             obut->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] = NULL;
         }
     }
-
-    //dplasma_datatype_undefine_type( &(obut->arenas[DAGUE_zhebut_DEFAULT_ARENA]->opaque_dtt) );
 
     dague_zhebut_destroy(obut);
 }
@@ -243,12 +239,6 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
 
     dague_zgebut = (dague_object_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt);
     
-    /* keep this, although it's useless, because we're not sure what happens if we leave it empty */
-    dplasma_add2arena_tile(((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_DEFAULT_ARENA], 
-                           A->mb*A->nb*sizeof(Dague_Complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
-
     for(i=0; i<36; i++){
         dague_arena_t *arena;
         dague_remote_dep_datatype_t newtype;
@@ -266,9 +256,9 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
         } else {
-	    free(((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i]);
-	    ((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i] = NULL;
-	}
+            free(((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i]);
+            ((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i] = NULL;
+        }
     }
 
     return dague_zgebut;
@@ -295,40 +285,40 @@ dplasma_zgebut_Destruct( dague_object_t *o )
  */
 
 static dague_object_t **iterate_ops(tiled_matrix_desc_t *A, int curlevel,
-	      				 	int maxlevel, int i_block, int j_block,
-					       	dague_object_t **subop,
-					       	dague_context_t *dague, 
-						int destroy, int *info)
+                                                       int maxlevel, int i_block, int j_block,
+                                                       dague_object_t **subop,
+                                                       dague_context_t *dague, 
+                                                int destroy, int *info)
 {
     if(curlevel == maxlevel){
         if( i_block == j_block ){
-	    if( destroy ){
-	        dplasma_zhebut_Destruct(*subop);
-	    }else{
-	        *subop = dplasma_zhebut_New(A, i_block, j_block, curlevel, info);
-	    }
-	}else{
-	    if( destroy ){
-	        dplasma_zgebut_Destruct(*subop);
-	    }else{
-	        *subop = dplasma_zgebut_New(A, i_block, j_block, curlevel, info);
-	    }
-	}
-	if( !destroy ){
+            if( destroy ){
+                dplasma_zhebut_Destruct(*subop);
+            }else{
+                *subop = dplasma_zhebut_New(A, i_block, j_block, curlevel, info);
+            }
+        }else{
+            if( destroy ){
+                dplasma_zgebut_Destruct(*subop);
+            }else{
+                *subop = dplasma_zgebut_New(A, i_block, j_block, curlevel, info);
+            }
+        }
+        if( !destroy ){
             dague_enqueue(dague, *subop);
-	}
+        }
         return subop+1;
     }else{
         if( i_block == j_block ){
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block,   subop, dague, destroy, info);
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block,   subop, dague, destroy, info);
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block+1, subop, dague, destroy, info);
-	}else{
+        }else{
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block,   subop, dague, destroy, info);
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block,   subop, dague, destroy, info);
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block+1, subop, dague, destroy, info);
             subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block+1, subop, dague, destroy, info);
-	}
+        }
         return subop;
     }
 
