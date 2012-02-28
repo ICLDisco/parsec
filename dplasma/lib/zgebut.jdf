@@ -41,21 +41,21 @@ GEBRT(i,j)
 
   : A(i,j)
 
-  /* Atl: A from Top Left */
+  /* Atl: A from Top Left */ 
   RW  Atl <- A GEBRT_Reader(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
           -> A GEBRT_Writer(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A GEBRT_Reader(i+nt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A GEBRT_Writer(i+nt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abl <- A GEBRT_Reader(i+mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBRT_Writer(i+mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Atr: A from Top Right */
-  RW  Atr <- A GEBRT_Reader(i,j+mt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A GEBRT_Writer(i,j+mt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Atr <- A GEBRT_Reader(i,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBRT_Writer(i,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A GEBRT_Reader(i+nt/2,j+mt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A GEBRT_Writer(i+nt/2,j+mt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abr <- A GEBRT_Reader(i+mt/2,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBRT_Writer(i+mt/2,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 /* nothing */
@@ -72,7 +72,7 @@ GEBRT_Reader(i,j)
 
   : A(i,j)
 
-READ A <- A(i, j)
+READ A <- A(i, j)                                     [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]         
        -> ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
        -> ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
        -> ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBRT(i-mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
@@ -97,7 +97,7 @@ READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j) [ arena_index = inline_c %
        <- ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
        <- ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBRT(i-mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
        <- ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBRT(i-mt/2,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> A(i, j)
+       -> A(i, j)                                               [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]         
 
 BODY
 /* nothing */
