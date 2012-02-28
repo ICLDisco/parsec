@@ -472,7 +472,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     if( !on_gpu ) {
         /* Push A into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( d_A, A, tile_size, stream );
-        DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_A) ", status, 
+        DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_A) ", status,
                                   {WARNING(("<<%p>> -> <<%p>> [%d]\n", (void*)A, (void*)(long)d_A, tile_size)); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_in += tile_size;
         how_many++;
@@ -1260,7 +1260,7 @@ int gpu_data_get_tile( tiled_matrix_desc_t* data,
     memory_elem_t* memory_elem = NULL;
     int rc = 0;  /* the tile already existed */
 
-    if( (NULL != NULL) && (NULL == (memory_elem = data_map[col * data->lnt + row])) ) {
+    if( (NULL != data_map) && (NULL == (memory_elem = data_map[col * data->lnt + row])) ) {
         memory_elem = (memory_elem_t*)calloc(1, sizeof(memory_elem_t) + (ndevices-1) * sizeof(gpu_elem_t*));
         memory_elem->col = col;
         memory_elem->row = row;

@@ -159,7 +159,7 @@ BODY
 
     int tempmm = m == descA.mt-1 ? descA.m - m*descA.mb : descA.mb;
     int ldam = BLKLDD( descA, m );
-    
+
     DRYRUN(
         CORE_zherk(
             PlasmaLower, PlasmaNoTrans,
