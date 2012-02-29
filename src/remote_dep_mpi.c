@@ -912,6 +912,8 @@ static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote
         }
         /* we can't process it now, push this eager first in queue, and
          * progress rdv to make room */
+        dague_ulist_push_front(&dep_put_fifo, (dague_list_item_t*)eager);
+#if 0
         dague_list_item_t* item = (dague_list_item_t*)eager;
         while( (dague_list_item_t*)eager == item ) { 
             dague_ulist_push_front(&dep_put_fifo, item);
@@ -921,6 +923,7 @@ static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote
         if( NULL != item ) { /* return the item to the list */
             dague_ulist_push_front(&dep_put_fifo, item);
         }
+#endif
     }
 }
 
