@@ -64,7 +64,7 @@ tile2panel(k, m, n) [profile = off]
             -> ((m == descA.mt-1 ) && (n >  k+1)) ? ctl  swptrsm(k+1, n)
             -> (( m == descA.mt-1) && (k > 0 )) ? ctl1 subm2panel(k, n)
 
-  ;n
+  ;descA.nt-n-1
 BODY
     printlog("thread %d tile2panel( %d, %d, %d )\n", context->eu_id, k, m, n);
 END
@@ -100,6 +100,7 @@ subm2panel(k, n) [profile = off]
   CTL  ctl2 <- (n > k+1) ? ctl2 subm2panel(k, n-1)
             -> (n < descA.nt-1) ? ctl2 subm2panel(k, n+1) : ctl swpback(k, k-1)
 
+  ;0
 BODY
     printlog("thread %d subm2panel( %d, %d )\n", context->eu_id, k, n);
 END
@@ -108,7 +109,7 @@ END
  *                                    GETRF                                         *
  ************************************************************************************/
 
-getrf(k, t)
+getrf(k, t) [high_priority = on]
   /* Execution space */
   k  = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   t  = 0..inline_c %{ return nbthreads( k ); %}
@@ -131,7 +132,7 @@ getrf(k, t)
   /*  CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, m2,         k)*/
 
 /* Priority */
-;k
+;descA.nt-k-1
 
 BODY
 
@@ -141,7 +142,7 @@ BODY
 
   DRYRUN(
       int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
-      int nbthreads = nbthreads( k );
+      int nbthrd = nbthreads( k );
       int info[3];
 
       /* Set local IPIV to 0 before generation
@@ -149,11 +150,11 @@ BODY
        * and it's also done in parallel */
       if ( t == 0 ) {
           memset(IPIV, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
-          fprintf(stderr, "Ther are %d threads woking on it\n", nbthreads);
+          fprintf(stderr, "There are %d threads woking on it\n", nbthrd);
       }
 
       info[1] = t;
-      info[2] = nbthreads+1;
+      info[2] = nbthrd+1;
 
       CORE_zgetrf_reclap(
           tempm, tempkn,
@@ -193,7 +194,7 @@ swptrsm(k, n)
   CTL   ctl  <- ( k > 0 ) ? ctl2 tile2panel(k-1, descA.mt-1, n)
 
 /* Priority */
-;n
+;descA.nt-n-1
 
 BODY
 
@@ -240,7 +241,7 @@ gemm(k,m,n)
   CTL  ctl -> ctl1 tile2panel(k, m, n)
 
     /* Priority */
-; n
+;descA.nt-n-1
 
 BODY
 
@@ -282,7 +283,8 @@ swpback(k, n)
              -> (( k < descA.nt-1 ) && (k < descA.mt-1 )) ? ctl swpback(k+1, n)
 
 /* Priority */
-; descA.nt
+;0
+
 BODY
 
   DRYRUN(
