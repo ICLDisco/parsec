@@ -59,6 +59,7 @@ GEBRT(i,j)
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"GEBRT(%d,%d)\n",i,j); */
 END
 
 
@@ -80,6 +81,7 @@ READ A <- A(i, j)                                     [ arena_index = inline_c %
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"GEBRT_Reader(%d,%d)\n",i,j); */
 END
 
 
@@ -101,6 +103,7 @@ READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j) [ arena_index = inline_c %
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"GEBRT_Writer(%d,%d)\n",i,j); */
 END
 
 

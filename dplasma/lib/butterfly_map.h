@@ -18,7 +18,8 @@ typedef struct{
 typedef struct{
   seg_count_t t_cnt, b_cnt, l_cnt, r_cnt, c_cnt;
   seg_size_t  t_sz,  b_sz,  l_sz,  r_sz,  c_sz;
-  int c_seg_cnt;
+  int c_seg_cnt_m;
+  int c_seg_cnt_n;
   int tot_seg_cnt_m;
   int tot_seg_cnt_n;
   int spm, mpm, epm;

@@ -20,6 +20,9 @@
 #error Current zhebut can work only if not using named types.
 #endif
 
+#define CREATE_N_ENQUEUE 0x0
+#define DESTRUCT         0x1
+
 static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
     int m_seg, n_seg, m_tile, n_tile;
     uintptr_t offset;
@@ -36,6 +39,7 @@ static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
     A = (dague_ddesc_t *)(segA->A_org);
 
     segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
+    //fprintf(stderr,"Rank of: %dx%d -> %dx%d -> %d\n", m_seg, n_seg, m_tile, n_tile, A->rank_of(A, m_tile, n_tile));
 
     /* TODO: if not distributed, return 0 */
 
@@ -78,7 +82,7 @@ static void *dague_rbt_data_of(dague_ddesc_t *desc, ...){
 #if defined(START_TYPE_WITH_OFFSET)
     data_start = (uintptr_t)A->data_of(A, m_tile, n_tile);
 #else /* defined(START_TYPE_WITH_OFFSET) */
-    data_start = offset + (uintptr_t)A->data_of(A, m_tile, n_tile);
+    data_start = offset*sizeof(Dague_Complex64_t) + (uintptr_t)A->data_of(A, m_tile, n_tile);
 #endif /* defined(START_TYPE_WITH_OFFSET) */
 
     return (void *)data_start;
@@ -129,8 +133,6 @@ static int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype
     return 0;
 }
 
-#else /* HAVE MPI */
-# error "No, no. Have MPI. Really."
 #endif
 
 
@@ -162,6 +164,8 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
 
     mt = seg_descA->seg_info.tot_seg_cnt_m;
     nt = seg_descA->seg_info.tot_seg_cnt_n;
+
+    fprintf(stderr,"Inserting zhebut(%d,%d) with mt=%d,nt=%d\n",i_block, j_block, mt, nt);
 
     dague_zhebut = (dague_object_t *)dague_zhebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt);
     
@@ -236,6 +240,8 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
 
     mt = seg_descA->seg_info.tot_seg_cnt_m;
     nt = seg_descA->seg_info.tot_seg_cnt_n;
+
+    fprintf(stderr,"Inserting zgebut(%d,%d) with mt=%d,nt=%d\n",i_block, j_block, mt, nt);
 
     dague_zgebut = (dague_object_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt);
     
@@ -343,9 +349,9 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, int level)
 
     subop = (dague_object_t **)malloc((nbhe+nbge) * sizeof(dague_object_t*));
     
-    (void)iterate_ops(A, 0, level, 0, 0, subop, dague, 0, &info);    
+    (void)iterate_ops(A, 0, level, 0, 0, subop, dague, CREATE_N_ENQUEUE, &info);    
     dplasma_progress(dague);
-    (void)iterate_ops(A, 0, level, 0, 0, subop, dague, 1, &info);    
+    (void)iterate_ops(A, 0, level, 0, 0, subop, dague, DESTRUCT, &info);    
     free(subop);
     return info;
 }
