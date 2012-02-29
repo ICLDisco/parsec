@@ -20,13 +20,13 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 
 #include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/lib/butterfly_map.h"
 
 %}
 
-descA  [type = "tiled_matrix_desc_t"]
+[DAGUE_ARENA_STRUT = 36]
+descA  [type = "dague_seg_ddesc_t"]
 A      [type = "dague_ddesc_t *"]
-it     [type = "int"]
-jt     [type = "int"]
 nt     [type = "int"]
 mt     [type = "int"]
 
@@ -36,29 +36,30 @@ mt     [type = "int"]
  */
 GEBRT(i,j)
   /* Execution space */
-  i = 0 .. nt/2-1
+  i = 0 .. mt/2-1
   j = 0 .. nt/2-1
 
-  : A(it+i,jt+j)
+  : A(i,j)
 
-  /* Atl: A from Top Left */
-  RW  Atl <- A GEBRT_Reader(i,j)
-          -> A GEBRT_Writer(i,j)
+  /* Atl: A from Top Left */ 
+  RW  Atl <- A GEBRT_Reader(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBRT_Writer(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A GEBRT_Reader(i+nt/2,j)
-          -> A GEBRT_Writer(i+nt/2,j)
+  RW  Abl <- A GEBRT_Reader(i+mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBRT_Writer(i+mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Atr: A from Top Right */
-  RW  Atr <- A GEBRT_Reader(i,j+mt/2)
-          -> A GEBRT_Writer(i,j+mt/2)
+  RW  Atr <- A GEBRT_Reader(i,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBRT_Writer(i,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A GEBRT_Reader(i+nt/2,j+mt/2)
-          -> A GEBRT_Writer(i+nt/2,j+mt/2)
+  RW  Abr <- A GEBRT_Reader(i+mt/2,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBRT_Writer(i+mt/2,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"GEBRT(%d,%d)\n",i,j); */
 END
 
 
@@ -67,19 +68,20 @@ END
  */
 GEBRT_Reader(i,j)
   /* Execution space */
-  i = 0 .. nt-1
+  i = 0 .. mt-1
   j = 0 .. nt-1
 
-  : A(i+it,j+jt)
+  : A(i,j)
 
-READ A <- A(i+it, j+jt)
-       -> ( (i<nt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j)
-       -> ( (i<nt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2)
-       -> ( (i>=nt/2) && (j<nt/2)  ) ? Abl GEBRT(i-nt/2,j)
-       -> ( (i>=nt/2) && (j>=nt/2) ) ? Abr GEBRT(i-nt/2,j-nt/2)
+READ A <- A(i, j)                                     [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]         
+       -> ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBRT(i-mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBRT(i-mt/2,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"GEBRT_Reader(%d,%d)\n",i,j); */
 END
 
 
@@ -88,19 +90,20 @@ END
  */
 GEBRT_Writer(i,j)
   /* Execution space */
-  i = 0 .. nt-1
+  i = 0 .. mt-1
   j = 0 .. nt-1
 
-  : A(i+it,j+jt)
+  : A(i,j)
 
-READ A <- ( (i<nt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j)
-       <- ( (i<nt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2)
-       <- ( (i>=nt/2) && (j<nt/2)  ) ? Abl GEBRT(i-nt/2,j)
-       <- ( (i>=nt/2) && (j>=nt/2) ) ? Abr GEBRT(i-nt/2,j-nt/2)
-       -> A(i+it, j+jt)
+READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBRT(i-mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBRT(i-mt/2,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> A(i, j)                                               [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]         
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"GEBRT_Writer(%d,%d)\n",i,j); */
 END
 
 
