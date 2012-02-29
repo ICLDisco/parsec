@@ -123,12 +123,12 @@ int main(int argc, char ** argv)
     }
 #endif
 
+    cleanup_dague(dague, iparam);
+
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
-
-    cleanup_dague(dague, iparam);
 
     return ret;
 }

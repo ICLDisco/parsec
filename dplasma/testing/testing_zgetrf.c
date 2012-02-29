@@ -118,12 +118,12 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
     }
 
+    cleanup_dague(dague, iparam);
+
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_data_free(ddescIPIV.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
-
-    cleanup_dague(dague, iparam);
 
     return EXIT_SUCCESS;
 }

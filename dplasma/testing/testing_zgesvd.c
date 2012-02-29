@@ -274,14 +274,14 @@ int main(int argc, char ** argv)
     dague_diag_band_to_rect_destroy( DAGUE_diag_band_to_rect );
     dplasma_zgbrdb_Destruct( DAGUE_zgbrdb );
 
+    cleanup_dague(dague, iparam);
+
     dague_data_free(ddescBAND.mat);
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescBAND);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
-
-    cleanup_dague(dague, iparam);
 
     return EXIT_SUCCESS;
 }
