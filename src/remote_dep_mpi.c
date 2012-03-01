@@ -892,6 +892,9 @@ static remote_dep_datakey_t remote_dep_mpi_eager_which(remote_dep_wire_activate_
 
 static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote_dep_wire_activate_t* msg, int rank )
 {
+#ifdef DAGUE_DEBUG_VERBOSE3
+    char tmp[128];
+#endif
     remote_dep_datakey_t eager_which = remote_dep_mpi_eager_which(msg);
     if( eager_which ) {
         dague_remote_deps_t* deps = (dague_remote_deps_t*)msg->deps;
@@ -910,10 +913,13 @@ static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote
                 return;
             }
         }
-        /* we can't process it now, push this eager first in queue, and
-         * progress rdv to make room */
+        DEBUG3(("MPI: Put Eager DELAYED for %s from %d tag %u which 0x%x (deps %p)\n",
+                remote_dep_cmd_to_string(&deps->msg, tmp, 128), eager->peer, msg->tag, eager_which, (void*)deps));
+
         dague_ulist_push_front(&dep_put_fifo, (dague_list_item_t*)eager);
 #if 0
+        /* we can't process it now, push this eager first in queue, and
+         * progress rdv to make room */
         dague_list_item_t* item = (dague_list_item_t*)eager;
         while( (dague_list_item_t*)eager == item ) { 
             dague_ulist_push_front(&dep_put_fifo, item);
@@ -1195,7 +1201,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
         assert(NULL == data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
         if(NULL == data) {
             data = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
-            DEBUG3(("MPI:\tMalloc new remote tile %p size %zu\n", data, deps->output[k].type->elem_size));
+            DEBUG3(("MPI:\tMalloc new remote tile %p size %zu\n", data, deps->output[k].type->elem_size*deps->output[k].nbelt));
             assert(data != NULL);
             deps->output[k].data = data;
         }
