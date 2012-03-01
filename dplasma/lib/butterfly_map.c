@@ -10,6 +10,8 @@ static int segment_to_type_index(seg_info_t seg, int m, int n);
 seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
     int am, an, bm, bn, cm, cn, dm, dn, em, en, fm, fn;
     int mb, width, height, block_count;
+    int cstartn, cendn, cstartm, cendm;
+
     seg_info_t seg;
 
     memset(&seg, 0, sizeof(seg_info_t));
@@ -30,6 +32,7 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
     seg.mpm = (seg.spm + seg.epm + 1)/2;
     seg.mpn = (seg.spn + seg.epn + 1)/2;
 
+
     /* Calculate the different sizes that might appear */
     am = seg.spm%nb;
     bm = mb-am;
@@ -44,6 +47,24 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
     dn = mb-cn;
     en = (dn>bn) ? dn-bn : mb + (dn-bn);
     fn = mb-en;
+
+    cstartn = seg.spn;
+    if( bn != nb ){
+      cstartn += bn;
+    }
+    cendn = seg.mpn;
+    if( cn != nb ){
+        cendn -= cn;
+    }
+
+    cstartm = seg.spm;
+    if( bm != mb ){
+      cstartm += bm;
+    }
+    cendm = seg.mpm;
+    if( cm != mb ){
+        cendm -= cm;
+    }
 
     /* top edge types */
     if( bm < fm+em ) {
@@ -76,7 +97,7 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
     }
 
     /* right edge types */
-    if( cn < en+fn && cn ) {
+    if( cn < en+fn && cn && (0 < seg.mpn-(cstartn+nb)) ) {
         if( en < cn ){
             width = cn-en;
             seg.r_cnt.n = 2;
@@ -91,7 +112,8 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
     }
 
     /* bottom edge types */
-    if( cm < em+fm && cm) {
+    if( cm < em+fm && cm && (0 < seg.mpm-(cstartm+mb)) ) {
+    
         if( em < cm ){
             height = cm-em;
             seg.b_cnt.m = 2;
@@ -107,40 +129,27 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
 
     /* center types */
     do{
-        int startn, endn, startm, endm;
-
-        if( 0 < fn ){
+        if( (0 < fn) && (0 < seg.mpn-(cstartn+en)) ){
             seg.c_cnt.n = 2;
-            seg.c_cnt.m = 2;
-        }else{
+            seg.c_sz.n2 = fn;
+            seg.c_sz.n1 = en;
+        }else if( en <= seg.mpn-cstartn ){
             seg.c_cnt.n = 1;
+            seg.c_sz.n1 = en;
+        }
+    
+
+        if( (0 < fm) && (0 < seg.mpm-(cstartm+em)) ){
+            seg.c_cnt.m = 2;
+            seg.c_sz.m2 = fm;
+            seg.c_sz.m1 = em;
+        }else if( em <= seg.mpm-cstartm ){
             seg.c_cnt.m = 1;
-        }
-        seg.c_sz.n1 = en;
-        seg.c_sz.n2 = fn;
-        seg.c_sz.m1 = em;
-        seg.c_sz.m2 = fm;
-
-        startn = seg.spn;
-        if( bn != nb ){
-          startn += bn;
-        }
-        endn = seg.mpn;
-        if( cn != nb ){
-            endn -= cn;
+            seg.c_sz.m1 = em;
         }
 
-        startm = seg.spm;
-        if( bm != mb ){
-          startm += bm;
-        }
-        endm = seg.mpm;
-        if( cm != mb ){
-            endm -= cm;
-        }
-
-        seg.c_seg_cnt_n = seg.c_cnt.n*(endn-startn)/nb;
-        seg.c_seg_cnt_m = seg.c_cnt.m*(endm-startm)/mb;
+        seg.c_seg_cnt_n = seg.c_cnt.n*(cendn-cstartn)/nb;
+        seg.c_seg_cnt_m = seg.c_cnt.m*(cendm-cstartm)/mb;
     }while(0); // just to give me a scope without looking ugly.
 
     seg.tot_seg_cnt_n = 2*(seg.l_cnt.n + seg.c_seg_cnt_n + seg.r_cnt.n);
@@ -220,14 +229,15 @@ void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, in
 
     *m_tile = abs_m/mb;
     *n_tile = abs_n/nb;
-    *offset = (abs_m%mb)*nb+(abs_n%nb);
+    /* *offset = (abs_m%mb)*nb+(abs_n%nb); */
+    *offset = (abs_n%nb)*mb+(abs_m%mb);
 
     return;
 }
 
-int type_index_to_sizes(seg_info_t seg, int mb, int nb, int type_index, int *m_off, int *n_off, int *m_sz, int *n_sz){
+int type_index_to_sizes(seg_info_t seg, unsigned type_index, unsigned *m_sz, unsigned *n_sz){
     int width, height;
-    int abs_m, abs_n;
+    /* int abs_m, abs_n; */
     int type_index_n, type_index_m;
     int success = 1;
 
@@ -237,33 +247,37 @@ int type_index_to_sizes(seg_info_t seg, int mb, int nb, int type_index, int *m_o
     switch(type_index_n){
         /**** left edge ****/
         case 0:
-            abs_n = seg.spn;
+            /* abs_n = seg.spn; */
             width = seg.l_sz.n1;
             break;
         case 1:
-            abs_n = seg.spn;
+            /* abs_n = seg.spn; */
             width = seg.l_sz.n1;
-            abs_n += seg.l_sz.n1;
+            /* abs_n += seg.l_sz.n1; */
             width = seg.l_sz.n2;
             break;
         /**** center ****/
         case 2:
-            abs_n = seg.spn + seg.l_sz.n1 + seg.l_sz.n2;
+            /* abs_n = seg.spn + seg.l_sz.n1 + seg.l_sz.n2; */
             width = seg.c_sz.n1;
             break;
         case 3:
+            /*
             abs_n = seg.spn + seg.l_sz.n1 + seg.l_sz.n2;
             abs_n += seg.c_sz.n1;
+            */
             width = seg.c_sz.n2;
             break;
         /**** right edge ****/
         case 4:
-            abs_n = seg.mpn - (seg.r_sz.n1 + seg.r_sz.n2);
+            /* abs_n = seg.mpn - (seg.r_sz.n1 + seg.r_sz.n2); */
             width = seg.r_sz.n1;
             break;
         case 5:
+            /*
             abs_n = seg.mpn - (seg.r_sz.n1 + seg.r_sz.n2);
             abs_n += seg.r_sz.n1;
+            */
             width = seg.r_sz.n2;
             break;
         default: assert(0);
@@ -272,32 +286,38 @@ int type_index_to_sizes(seg_info_t seg, int mb, int nb, int type_index, int *m_o
     switch(type_index_m){
         /**** top edge ****/
         case 0:
-            abs_m = seg.spm;
+            /* abs_m = seg.spm; */
             height = seg.t_sz.m1;
             break;
         case 1:
+            /*
             abs_m = seg.spm;
             abs_m += seg.t_sz.m1;
+            */
             height = seg.t_sz.m2;
             break;
         /**** center ****/
         case 2:
-            abs_m = seg.spm + seg.t_sz.m1 + seg.t_sz.m2;
+            /* abs_m = seg.spm + seg.t_sz.m1 + seg.t_sz.m2; */
             height = seg.c_sz.m1;
             break;
         case 3:
+            /*
             abs_m = seg.spm + seg.t_sz.m1 + seg.t_sz.m2;
             abs_m += seg.c_sz.m1;
+            */
             height = seg.c_sz.m2;
             break;
         /**** bottom edge ****/
         case 4:
-            abs_m = seg.mpm - (seg.b_sz.m1 + seg.b_sz.m2);
+            /* abs_m = seg.mpm - (seg.b_sz.m1 + seg.b_sz.m2); */
             height = seg.b_sz.m1;
             break;
         case 5:
+            /*
             abs_m = seg.mpm - (seg.b_sz.m1 + seg.b_sz.m2);
             abs_m += seg.b_sz.m1;
+            */
             height = seg.b_sz.m2;
             break;
     }
@@ -306,8 +326,8 @@ int type_index_to_sizes(seg_info_t seg, int mb, int nb, int type_index, int *m_o
         success = 0;
     }
 
-    *m_off = abs_m%mb;
-    *n_off = abs_n%nb;
+    /* *m_off = abs_m%mb; */
+    /* *n_off = abs_n%nb; */
     *m_sz = height;
     *n_sz = width;
 

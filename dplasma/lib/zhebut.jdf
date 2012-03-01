@@ -79,8 +79,8 @@ HEBRT_Lower(i,j)
           -> A HEBRT_Writer_BL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Atr: A from Top Right */
-  RW  Atr <- A HEBRT_Reader_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A HEBRT_Writer_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Atr <- A HEBRT_Reader_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
+          -> A HEBRT_Writer_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
 
   /* Abr: A from Bottom Right */
   RW  Abr <- A HEBRT_Reader_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]

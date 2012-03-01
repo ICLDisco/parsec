@@ -39,7 +39,6 @@ static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
     A = (dague_ddesc_t *)(segA->A_org);
 
     segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
-    //fprintf(stderr,"Rank of: %dx%d -> %dx%d -> %d\n", m_seg, n_seg, m_tile, n_tile, A->rank_of(A, m_tile, n_tile));
 
     /* TODO: if not distributed, return 0 */
 
@@ -79,15 +78,18 @@ static void *dague_rbt_data_of(dague_ddesc_t *desc, ...){
 
     segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
 
-#if defined(START_TYPE_WITH_OFFSET)
-    data_start = (uintptr_t)A->data_of(A, m_tile, n_tile);
-#else /* defined(START_TYPE_WITH_OFFSET) */
     data_start = offset*sizeof(Dague_Complex64_t) + (uintptr_t)A->data_of(A, m_tile, n_tile);
-#endif /* defined(START_TYPE_WITH_OFFSET) */
+
+    /*
+    fprintf(stderr, "Dataof (%d, %d) -> (%d, %d): %p + %llu * %u = %p\n", 
+            m_seg, n_seg, m_tile, n_tile,
+            A->data_of(A, m_tile, n_tile), offset, sizeof(Dague_Complex64_t), data_start);
+    */
 
     return (void *)data_start;
 }
 
+void ompi_datatype_dump(MPI_Datatype newtype);
 
 #if defined(HAVE_MPI)
 /*
@@ -99,24 +101,9 @@ static int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype
                                              unsigned int tile_nb,
                                              unsigned int seg_mb,
                                              unsigned int seg_nb,
-                                             unsigned int m_off,
-                                             unsigned int n_off,
                                              dague_remote_dep_datatype_t* newtype )
 {
-#if defined(START_TYPE_WITH_OFFSET)
-    int sizes[2], subsizes[2], starts[2]; 
- 
-    sizes[0]    = tile_mb;
-    sizes[1]    = tile_nb; 
-    subsizes[0] = seg_mb;
-    subsizes[1] = seg_nb; 
-    starts[0]   = m_off;
-    starts[1]   = n_off;
-
-    MPI_Type_create_subarray(2, sizes, subsizes, starts, MPI_ORDER_FORTRAN, oldtype, newtype); 
-#else /* defined(START_TYPE_WITH_OFFSET) */
-    MPI_Type_vector (seg_nb, seg_mb, tile_mb-seg_mb, oldtype, newtype);
-#endif /* defined(START_TYPE_WITH_OFFSET) */
+    MPI_Type_vector (seg_nb, seg_mb, tile_mb, oldtype, newtype);
 
     MPI_Type_commit(newtype);
 #if defined(HAVE_MPI_20)
@@ -125,7 +112,7 @@ static int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype
         int len;
 
         MPI_Type_get_name(oldtype, oldtype_name, &len);
-        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "SEG %s %4u*%4u+(%4u,%4u) [%4ux%4u]", oldtype_name, seg_mb, seg_nb, m_off, n_off, tile_mb, tile_nb);
+        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "SEG %s %3u*%3u [%3ux%3u]", oldtype_name, seg_mb, seg_nb, tile_mb, tile_nb);
         MPI_Type_set_name(*newtype, newtype_name);
     }while(0); /* just for the scope */
 #endif  /* defined(HAVE_MPI_20) */
@@ -165,7 +152,9 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
     mt = seg_descA->seg_info.tot_seg_cnt_m;
     nt = seg_descA->seg_info.tot_seg_cnt_n;
 
+    /*
     fprintf(stderr,"Inserting zhebut(%d,%d) with mt=%d,nt=%d\n",i_block, j_block, mt, nt);
+    */
 
     dague_zhebut = (dague_object_t *)dague_zhebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt);
     
@@ -174,15 +163,14 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
         dague_remote_dep_datatype_t newtype;
         MPI_Aint extent = 0;
         int type_exists;
-        int m_off, n_off, m_sz, n_sz;
+        unsigned int m_sz, n_sz;
 
-        type_exists = type_index_to_sizes(seg_descA->seg_info, A->mb, A->nb, i, &m_off, &n_off, &m_sz, &n_sz);
+        type_exists = type_index_to_sizes(seg_descA->seg_info, i, &m_sz, &n_sz);
 
         if( type_exists ){
             arena = ((dague_zhebut_object_t*)dague_zhebut)->arenas[i];
             dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
-                                              m_sz, n_sz, m_off, n_off,
-                                              &newtype );
+                                              m_sz, n_sz, &newtype );
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
         } else {
@@ -241,8 +229,6 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
     mt = seg_descA->seg_info.tot_seg_cnt_m;
     nt = seg_descA->seg_info.tot_seg_cnt_n;
 
-    fprintf(stderr,"Inserting zgebut(%d,%d) with mt=%d,nt=%d\n",i_block, j_block, mt, nt);
-
     dague_zgebut = (dague_object_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt);
     
     for(i=0; i<36; i++){
@@ -250,15 +236,14 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
         dague_remote_dep_datatype_t newtype;
         MPI_Aint extent = 0;
         int type_exists;
-        int m_off, n_off, m_sz, n_sz;
+        unsigned int m_sz, n_sz;
 
-        type_exists = type_index_to_sizes(seg_descA->seg_info, A->mb, A->nb, i, &m_off, &n_off, &m_sz, &n_sz);
+        type_exists = type_index_to_sizes(seg_descA->seg_info, i, &m_sz, &n_sz);
 
         if( type_exists ){
             arena = ((dague_zgebut_object_t*)dague_zgebut)->arenas[i];
             dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
-                                              m_sz, n_sz, m_off, n_off,
-                                              &newtype );
+                                              m_sz, n_sz, &newtype );
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
         } else {
