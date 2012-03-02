@@ -53,7 +53,11 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
       cstartn += bn;
     }
     cendn = seg.mpn;
-    if( cn != nb ){
+    if( (cn != nb) && (seg.mpn > cstartn+nb) ){
+        /* if there is a right type and I can fit more than a whole center
+         * before the end, then I got to subtract the right type from the
+         * middle, to find the end of the center type
+         */
         cendn -= cn;
     }
 
@@ -62,7 +66,11 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
       cstartm += bm;
     }
     cendm = seg.mpm;
-    if( cm != mb ){
+    if( (cm != mb) && (seg.mpm > cstartm+mb) ){
+        /* if there is a bottom type and I can fit more than a whole center
+         * before the end, then I got to subtract the bottom type from the
+         * middle, to find the end of the center type
+         */
         cendm -= cm;
     }
 
@@ -148,8 +156,17 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
             seg.c_sz.m1 = em;
         }
 
-        seg.c_seg_cnt_n = seg.c_cnt.n*(cendn-cstartn)/nb;
-        seg.c_seg_cnt_m = seg.c_cnt.m*(cendm-cstartm)/mb;
+        if( (1 == seg.c_cnt.n) && (cendn-cstartn < nb) ){
+            seg.c_seg_cnt_n = 1;
+        }else{
+            seg.c_seg_cnt_n = seg.c_cnt.n*(cendn-cstartn)/nb;
+        }
+
+        if( (1 == seg.c_cnt.m) && (cendm-cstartm < mb) ){
+            seg.c_seg_cnt_m = 1;
+        }else{
+            seg.c_seg_cnt_m = seg.c_cnt.m*(cendm-cstartm)/mb;
+        }
     }while(0); // just to give me a scope without looking ugly.
 
     seg.tot_seg_cnt_n = 2*(seg.l_cnt.n + seg.c_seg_cnt_n + seg.r_cnt.n);
