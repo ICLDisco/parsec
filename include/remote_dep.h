@@ -49,10 +49,10 @@ typedef struct remote_dep_wire_get_t
 } remote_dep_wire_get_t;
 
 struct remote_dep_output_param {
-/** Never change this structure without understanding the 
+/** Never change this structure without understanding the
   *   "subtle" relation with remote_deps_allocation_init in
   *  remote_dep.c
-  */ 
+  */
     void*                 data;
     struct dague_arena_t* type;
     uint32_t              nbelt;
@@ -74,8 +74,8 @@ struct dague_remote_deps_t {
                                                            * the control sequence (only used for control messages) */
     struct remote_dep_output_param  output[1];
 };
-/* { item .. remote_dep_fw_mask (points to fw_mask_bitfield), 
- *   output[0] .. output[max_deps < MAX_PARAM_COUNT], 
+/* { item .. remote_dep_fw_mask (points to fw_mask_bitfield),
+ *   output[0] .. output[max_deps < MAX_PARAM_COUNT],
  *   (max_dep_count x (np+31)/32 uint32_t) rank_bits
  *   ((np+31)/32 x uint32_t) fw_mask_bitfield } */
 
@@ -145,11 +145,11 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 /* Memcopy a particular data using datatype specification */
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_object_t* dague_object,
-                             void *dst, dague_arena_chunk_t *src, 
+                             void *dst, dague_arena_chunk_t *src,
                              const dague_remote_dep_datatype_t datatype,
                              int nbelt);
 
-#else 
+#else
 # define dague_remote_dep_init(ctx) (1)
 # define dague_remote_dep_fini(ctx) (0)
 # define dague_remote_dep_on(ctx)   (0)
