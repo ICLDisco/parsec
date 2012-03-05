@@ -345,3 +345,116 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, int level)
     return info;
 }
 
+
+/*********** Actual kernels ***********/
+
+void BFT_zQTL( int mb, int nb, int lda, int off, int lvl,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose )
+{
+    int i, j;
+    if( is_transpose ){
+        for (j=0; j<nb; j++) {
+            for (i=0; i<mb; i++) {
+                C[j*lda+i] = U[i] * ((tl[j*lda+i]+bl[j*lda+i]) + (tr[i*lda+j]+br[j*lda+i])) * U[j];
+            }
+        }
+    }else{
+        for (j=0; j<nb; j++) {
+            for (i=0; i<mb; i++) {
+                C[j*lda+i] = U[i] * ((tl[j*lda+i]+bl[j*lda+i]) + (tr[j*lda+i]+br[j*lda+i])) * U[j];
+            }
+        }
+    }
+    return;
+}
+
+void BFT_zQBL( int mb, int nb, int lda, int off, int lvl,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose )
+{
+    int i, j;
+    if( is_transpose ){
+        for (j=0; j<nb; j++) {
+            for (i=0; i<mb; i++) {
+                C[j*lda+i] = U[i] * ((tl[j*lda+i]-bl[j*lda+i]) + (tr[i*lda+j]-br[j*lda+i])) * U[j];
+            }
+        }
+    }else{
+        for (j=0; j<nb; j++) {
+            for (i=0; i<mb; i++) {
+                C[j*lda+i] = U[i] * ((tl[j*lda+i]-bl[j*lda+i]) + (tr[j*lda+i]-br[j*lda+i])) * U[j];
+            }
+        }
+    }
+    return;
+}
+
+/* This function writes into a transposed tile, so C is always transposed. */
+void BFT_zQTR_trans( int mb, int nb, int lda, int off, int lvl,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose )
+{
+    int i,j;
+    if( is_transpose ){
+        for (j=0; j<nb; j++) {
+            for (i=0; i<mb; i++) {
+                C[i*lda+j] = U[i] * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[i*lda+j]+br[j*lda+i])) * U[j];
+            }
+        }
+    }else{
+        for (j=0; j<nb; j++) {
+            for (i=0; i<mb; i++) {
+                C[i*lda+j] = U[i] * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[j*lda+i]+br[j*lda+i])) * U[j];
+            }
+        }
+    }
+    return;
+}
+
+void BFT_zQTR( int mb, int nb, int lda, int off, int lvl,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose )
+{
+    int i, j;
+    if( is_transpose ){
+        for (j=0; j<nb; j++) {
+            for (i=0; i<mb; i++) {
+                C[j*lda+i] = U[i] * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[i*lda+j]+br[j*lda+i])) * U[j];
+            }
+        }
+    }else{
+        for (j=0; j<nb; j++) {
+            for (i=0; i<mb; i++) {
+                C[j*lda+i] = U[i] * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[j*lda+i]+br[j*lda+i])) * U[j];
+            }
+        }
+    }
+    return;
+}
+
+void BFT_zQBR( int mb, int nb, int lda, int off, int lvl,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose )
+{
+    int i, j;
+    if( is_transpose ){
+        for (j=0; j<nb; j++) {
+            for (i=0; i<mb; i++) {
+                C[j*lda+i] = U[i] * ((tl[j*lda+i]-bl[j*lda+i]) - (tr[i*lda+j]-br[j*lda+i])) * U[j];
+            }
+        }
+    }else{
+        for (j=0; j<nb; j++) {
+            for (i=0; i<mb; i++) {
+                C[j*lda+i] = U[i] * ((tl[j*lda+i]-bl[j*lda+i]) - (tr[j*lda+i]-br[j*lda+i])) * U[j];
+            }
+        }
+    }
+    return;
+}
