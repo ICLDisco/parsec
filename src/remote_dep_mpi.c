@@ -871,26 +871,6 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     return ret;
 }
 
-static remote_dep_datakey_t remote_dep_mpi_eager_which(remote_dep_wire_activate_t* msg)
-{
-#ifdef DAGUE_DEBUG_VERBOSE3
-        char tmp[128];
-#endif
-    dague_remote_deps_t* deps = (dague_remote_deps_t*)msg->deps;
-    remote_dep_datakey_t eager_which = 0;
-    for(int k = 0; msg->which>>k; k++) {
-        assert(k < MAX_PARAM_COUNT);
-        if( !(msg->which & (1<<k)) ) continue;
-        if( NULL == deps->output[k].type ) continue;
-        size_t extent = deps->output[k].type->elem_size * deps->output[k].nbelt;
-        if( extent < dep_mpi_eager_limit+1 )
-        {
-            eager_which |= 1<<k;
-            DEBUG3(("MPI:\tPEER\tNA\tEager MODE  \t% -8s\tk=%d\tsize=%d <= %d\t(tag=%d)\n", remote_dep_cmd_to_string(&deps->msg, tmp, 128), k, extent, dep_mpi_eager_limit, msg->tag+k));
-        }
-    }
-    return eager_which;
-}
 
 static remote_dep_datakey_t remote_dep_mpi_short_which(remote_dep_wire_activate_t* msg)
 {
