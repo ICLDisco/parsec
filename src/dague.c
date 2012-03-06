@@ -289,7 +289,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
     /* Initialize the barriers */
-    dague_barrier_init( &(context->barrier), NULL, nb_cores );
+    dague_barrier_init( &(context->barrier), NULL, nb_cores ); 
+
 #ifdef DAGUE_PROF_TRACE
     dague_profiling_init( "%s", (*pargv)[0] );
 
@@ -312,6 +313,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
         dague_mempool_construct( &context->context_mempool, sizeof(dague_execution_context_t),
                                  ((char*)&fake_context.mempool_owner) - ((char*)&fake_context), nb_cores );
     }
+
     {
         data_repo_entry_t fake_entry;
         int pi;
