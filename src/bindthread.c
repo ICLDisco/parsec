@@ -34,76 +34,19 @@ int dague_bindthread(int cpu)
     {
         marcel_vpset_t vpset = MARCEL_VPSET_ZERO;
         marcel_vpset_vp(&vpset, cpu);
-        marcel_apply_vpset(&vpset); 
+        marcel_apply_vpset(&vpset);
     }
-    
+
 #elif defined(HAVE_HWLOC)
     {
-        hwloc_topology_t topology; /* Topology object */
-        hwloc_obj_t      obj;      /* Hwloc object    */ 
-        hwloc_cpuset_t   cpuset;   /* HwLoc cpuset    */
-        
-        /* Allocate and initialize topology object.  */
-        hwloc_topology_init(&topology);
-        
-        /* Perform the topology detection.  */
-        hwloc_topology_load(topology);
-        
-        /* Get last one.  */
-        obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu);
-        if (!obj) {
-            /* Destroy topology object.  */
-            hwloc_topology_destroy(topology);  
-            
-            return 0;
-        }
-
-        /* Get a copy of its cpuset that we may modify.  */
-        /* Get only one logical processor (in case the core is SMT/hyperthreaded).  */
-#if !defined(HAVE_HWLOC_BITMAP)
-        cpuset = hwloc_cpuset_dup(obj->cpuset);
-        hwloc_cpuset_singlify(cpuset);
-#else
-        cpuset = hwloc_bitmap_dup(obj->cpuset);
-        hwloc_bitmap_singlify(cpuset);
-#endif
-        
-        /* And try to bind ourself there.  */
-        if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
-            char *str = NULL;
-#if !defined(HAVE_HWLOC_BITMAP)
-            hwloc_cpuset_asprintf(&str, obj->cpuset);
-#else
-            hwloc_bitmap_asprintf(&str, obj->cpuset);
-#endif
-            WARNING(("Couldn't bind to cpuset %s\n", str));
-            free(str);
-
-            /* Free our cpuset copy */
-#if !defined(HAVE_HWLOC_BITMAP)
-            hwloc_cpuset_free(cpuset);
-#else
-            hwloc_bitmap_free(cpuset);
-#endif
-            /* Destroy topology object.  */
-            hwloc_topology_destroy(topology);  
+        cpu=dague_hwloc_bind_on_core_index(cpu);
+        if(cpu == -1 ) {
+            WARNING(("Core binding on node %i failed\n", cpu));
             return -1;
         }
-        
-        /* Get the number at Proc level ( We don't want to use HyperThreading ) */
-        cpu = obj->children[0]->os_index;
-        
-        /* Free our cpuset copy */
-#if !defined(HAVE_HWLOC_BITMAP)
-        hwloc_cpuset_free(cpuset);
-#else
-        hwloc_bitmap_free(cpuset);
-#endif
-        /* Destroy topology object.  */
-        hwloc_topology_destroy(topology);  
     }
 #else /* We bind thread ourself in funtion of architecture */
-    
+
 #ifdef ARCH_PPC
     {
         tid_t self_ktid = thread_self ();
@@ -114,11 +57,11 @@ int dague_bindthread(int cpu)
         bind_to_cpu_id(getpid(), cpu, 0);
     }
 #elif defined(HAVE_SCHED_SETAFFINITY)
-    {  
+    {
         cpu_set_t mask;
         CPU_ZERO(&mask);
         CPU_SET(cpu, &mask);
-        
+
 #ifdef HAVE_OLD_SCHED_SETAFFINITY
         if(sched_setaffinity(0,&mask) < 0)
 #else /* HAVE_OLD_SCHED_SETAFFINITY */
@@ -132,7 +75,7 @@ int dague_bindthread(int cpu)
     {
         thread_affinity_policy_data_t ap;
         int                           ret;
-        
+
         ap.affinity_tag = 1; /* non-null affinity tag */
         ret = thread_policy_set(
                                 mach_thread_self(),
@@ -146,7 +89,7 @@ int dague_bindthread(int cpu)
     }
 #endif /* Architectures */
 #endif /* WITH_HWLOC     */
-    
+
     return cpu;
 }
 
@@ -154,31 +97,6 @@ int dague_bindthread(int cpu)
 #if defined(HAVE_HWLOC)
 int dague_bindthread_mask(hwloc_cpuset_t cpuset)
 {
-    hwloc_topology_t topology; /* Topology object */
-
-    /* Allocate and initialize topology object.  */
-    hwloc_topology_init(&topology);
-
-    /* Perform the topology detection.  */
-    hwloc_topology_load(topology);
-
-    if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
-	char *str = NULL;
-#if !defined(HAVE_HWLOC_BITMAP)
-	hwloc_cpuset_asprintf(&str, cpuset);
-#else
-	hwloc_bitmap_asprintf(&str, cpuset);
-#endif
-	WARNING(("Couldn't bind to cpuset %s\n", str));
-	free(str);
-
-        /* Destroy topology object.  */
-	hwloc_topology_destroy(topology);
-	return -1;
-    }
-
-    /* Destroy topology object.  */
-    hwloc_topology_destroy(topology);
-    return 0;
+    return dague_hwloc_bind_on_mask_index(cpuset);
 }
 #endif
