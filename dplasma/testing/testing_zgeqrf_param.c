@@ -205,14 +205,14 @@ int main(int argc, char ** argv)
 
     dplasma_pivgen_finalize( qrpiv );
 
+    cleanup_dague(dague, iparam);
+
     dague_data_free(ddescA.mat);
     dague_data_free(ddescTS.mat);
     dague_data_free(ddescTT.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescTS);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescTT);
-
-    cleanup_dague(dague, iparam);
 
     return info_ortho || info_facto;
 }

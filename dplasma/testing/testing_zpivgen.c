@@ -61,10 +61,11 @@ int main(int argc, char ** argv)
     dplasma_pivgen_finalize( qrpiv );
 
     free(dot_filename);
-    dague_data_free(ddescA.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
 
     cleanup_dague(dague, iparam);
+
+    dague_data_free(ddescA.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
 
     if ( ret == 0 )
       return EXIT_SUCCESS;

@@ -508,11 +508,10 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     gpu_device_t* gpu_device;
     cudaError_t status;
     dague_execution_context_t* progress_array[DAGUE_MAX_STREAMS];
-    int k, n, m;
 
-    k = this_task->locals[0].value;
-    m = this_task->locals[1].value;
-    n = this_task->locals[2].value;
+    int k = this_task->locals[0].value; (void)k;
+    int m = this_task->locals[1].value;
+    int n = this_task->locals[2].value;
 
     DEBUG(("STSMQR( k = %d, m = %d, n = %d )\n", this_task->locals[0], this_task->locals[1], this_task->locals[2]));
     /* We always schedule the task on the GPU owning the C tile. */

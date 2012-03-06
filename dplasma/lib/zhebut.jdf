@@ -55,6 +55,7 @@ HEBRT_Diag(i)
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Diag(%d)\n",i); */
 END
 
 
@@ -87,6 +88,7 @@ HEBRT_Lower(i,j)
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Lower(%d,%d)\n",i,j); */
 END
 
 
@@ -105,6 +107,7 @@ READ A <- A(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(desc
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Reader_TL(%d,%d)\n",i,j); */
 END
 
 
@@ -125,6 +128,7 @@ READ A <- A(i+mt/2, j) [ arena_index = inline_c %{ return segment_to_arena_index
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Reader_BL(%d,%d)\n",i,j); */
 END
 
 
@@ -143,6 +147,7 @@ READ A <- A(i+mt/2, j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Reader_BR(%d,%d)\n",i,j); */
 END
 
 
@@ -161,6 +166,7 @@ RW A <- (i==j) ? Atl HEBRT_Diag(i) : Atl HEBRT_Lower(i, j) [ arena_index = inlin
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Writer_TL(%d,%d)\n",i,j); */
 END
 
 
@@ -181,6 +187,7 @@ RW A <- (i==j) ? Abl HEBRT_Diag(i)  [ arena_index = inline_c %{ return segment_t
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Writer_BL(%d,%d)\n",i,j); */
 END
 
 
@@ -199,6 +206,7 @@ RW A <- (i==j) ? Abr HEBRT_Diag(i) : Abr HEBRT_Lower(i, j) [ arena_index = inlin
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Writer_BR(%d,%d)\n",i,j); */
 END
 
 

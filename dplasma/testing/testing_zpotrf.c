@@ -134,8 +134,6 @@ int main(int argc, char ** argv)
         dague_data_free(ddescX.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX );
     }
-    dague_data_free(ddescA.mat);
-    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0) {
@@ -143,6 +141,9 @@ int main(int argc, char ** argv)
     }
 #endif
     cleanup_dague(dague, iparam);
+
+    dague_data_free(ddescA.mat);
+    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
 
     return ret;
 }

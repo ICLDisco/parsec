@@ -643,7 +643,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
         {
             int success;
-	        char tmp1[128];
+            char tmp1[128];
             dague_dependency_t tmp_mask;
             tmp_mask = *deps;
             success = dague_atomic_cas( deps,

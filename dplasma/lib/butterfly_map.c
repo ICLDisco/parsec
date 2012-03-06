@@ -107,7 +107,7 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
 
     /* center types */
     do{
-        int startn, endn;
+        int startn, endn, startm, endm;
 
         if( 0 < fn ){
             seg.c_cnt.n = 2;
@@ -130,11 +130,21 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
             endn -= cn;
         }
 
-        seg.c_seg_cnt = seg.c_cnt.n*(endn-startn)/nb;
+        startm = seg.spm;
+        if( bm != mb ){
+          startm += bm;
+        }
+        endm = seg.mpm;
+        if( cm != mb ){
+            endm -= cm;
+        }
+
+        seg.c_seg_cnt_n = seg.c_cnt.n*(endn-startn)/nb;
+        seg.c_seg_cnt_m = seg.c_cnt.m*(endm-startm)/mb;
     }while(0); // just to give me a scope without looking ugly.
 
-    seg.tot_seg_cnt_n = 2*(seg.l_cnt.n + seg.c_seg_cnt + seg.r_cnt.n);
-    seg.tot_seg_cnt_m = 2*(seg.t_cnt.m + seg.c_seg_cnt + seg.b_cnt.m);
+    seg.tot_seg_cnt_n = 2*(seg.l_cnt.n + seg.c_seg_cnt_n + seg.r_cnt.n);
+    seg.tot_seg_cnt_m = 2*(seg.t_cnt.m + seg.c_seg_cnt_m + seg.b_cnt.m);
 
     return seg;
 }
@@ -169,7 +179,7 @@ void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, in
         if( 1 == n ){
             abs_n += seg.l_sz.n1;
         }
-    }else if( n < (seg.l_cnt.n+seg.c_seg_cnt) ){ /* center */
+    }else if( n < (seg.l_cnt.n+seg.c_seg_cnt_n) ){ /* center */
         abs_n = seg.spn + seg.l_sz.n1 + seg.l_sz.n2;
         abs_n += ((n-seg.l_cnt.n)/seg.c_cnt.n)*nb;
         if( (n-seg.l_cnt.n) % seg.c_cnt.n ){
@@ -177,7 +187,7 @@ void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, in
         }
     }else{ /* right edge */
         abs_n = seg.mpn - (seg.r_sz.n1 + seg.r_sz.n2);
-        if( n - (seg.l_cnt.n+seg.c_seg_cnt) ){
+        if( n - (seg.l_cnt.n+seg.c_seg_cnt_n) ){
             abs_n += seg.r_sz.n1;
         }
     }
@@ -188,7 +198,7 @@ void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, in
         if( 1 == m ){
             abs_m += seg.t_sz.m1;
         }
-    }else if( m < (seg.t_cnt.m+seg.c_seg_cnt) ){ /* center */
+    }else if( m < (seg.t_cnt.m+seg.c_seg_cnt_m) ){ /* center */
         abs_m = seg.spm + seg.t_sz.m1 + seg.t_sz.m2;
         abs_m += ((m-seg.t_cnt.m)/seg.c_cnt.m)*nb;
         if( (m-seg.t_cnt.m) % seg.c_cnt.m ){
@@ -196,7 +206,7 @@ void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, in
         }
     }else{ /* bottom edge */
         abs_m = seg.mpm - (seg.b_sz.m1 + seg.b_sz.m2);
-        if( m - (seg.t_cnt.m+seg.c_seg_cnt) ){
+        if( m - (seg.t_cnt.m+seg.c_seg_cnt_m) ){
             abs_m += seg.b_sz.m1;
         }
     }
@@ -332,14 +342,14 @@ static int segment_to_type_index(seg_info_t seg, int m, int n){
         if( 1 == n ){
             type_index_n = 1;
         }
-    }else if( n < (seg.l_cnt.n+seg.c_seg_cnt) ){ /* center */
+    }else if( n < (seg.l_cnt.n+seg.c_seg_cnt_n) ){ /* center */
         type_index_n = 2;
         if( (n-seg.l_cnt.n) % seg.c_cnt.n ){
             type_index_n = 3;
         }
     }else{ /* right edge */
         type_index_n = 4;
-        if( n - (seg.l_cnt.n+seg.c_seg_cnt) ){
+        if( n - (seg.l_cnt.n+seg.c_seg_cnt_n) ){
             type_index_n = 5;
         }
     }
@@ -350,14 +360,14 @@ static int segment_to_type_index(seg_info_t seg, int m, int n){
         if( 1 == m ){
             type_index_m = 1;
         }
-    }else if( m < (seg.t_cnt.m+seg.c_seg_cnt) ){ /* center */
+    }else if( m < (seg.t_cnt.m+seg.c_seg_cnt_m) ){ /* center */
         type_index_m = 2;
         if( (m-seg.t_cnt.m) % seg.c_cnt.m ){
             type_index_m = 3;
         }
     }else{ /* bottom edge */
         type_index_m = 4;
-        if( m - (seg.t_cnt.m+seg.c_seg_cnt) ){
+        if( m - (seg.t_cnt.m+seg.c_seg_cnt_m) ){
             type_index_m = 5;
         }
     }
