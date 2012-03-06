@@ -906,6 +906,7 @@ static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote
         eager->task.deps = msg->deps;
         eager->task.which = eager_which;
         eager->task.tag = msg->tag;
+#if 0
         /* Check if we can process the eager now */
         for(int i = 0; i < DEP_NB_CONCURENT; i++ ) {
             if( NULL == dep_pending_put_array[i] ) {
@@ -913,6 +914,7 @@ static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote
                 return;
             }
         }
+#endif
         DEBUG3(("MPI: Put Eager DELAYED for %s from %d tag %u which 0x%x (deps %p)\n",
                 remote_dep_cmd_to_string(&deps->msg, tmp, 128), eager->peer, msg->tag, eager_which, (void*)deps));
 
