@@ -985,7 +985,8 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
-
+    
+    (void)eu_context;
     DEBUG_MARK_CTL_MSG_GET_RECV(item->peer, (void*)task, task);
 
     assert(task->which);
