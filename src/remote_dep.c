@@ -91,18 +91,6 @@ static void remote_dep_complete_one_and_cleanup(dague_remote_deps_t* deps) {
 
 #endif
 
-#ifndef DAGUE_DIST_EAGER_LIMIT 
-#define RDEP_MSG_EAGER_LIMIT    0
-#else
-#define RDEP_MSG_EAGER_LIMIT    (((size_t)DAGUE_DIST_EAGER_LIMIT)*1024)
-#endif
-
-#ifndef DAGUE_DIST_EAGER_LIMIT 
-#define RDEP_MSG_SHORT_LIMIT    0
-#else
-#define RDEP_MSG_SHORT_LIMIT    (((size_t)DAGUE_DIST_SHORT_LIMIT)*1024)
-#endif
-
 #ifdef HAVE_MPI
 #include "remote_dep_mpi.c" 
 
