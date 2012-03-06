@@ -619,8 +619,20 @@ static void remote_dep_mpi_profiling_init(void)
 #define remote_dep_mpi_profiling_init() do {} while(0)
 #endif  /* DAGUE_PROF_TRACE */
 
-/* TODO: smart use of dague context instead of ugly globals */
+#if defined(DAGUE_STATS)
 
+    #define DAGUE_STATACC_ACCUMULATE_MSG(counter, count, datatype) do {\
+        int _sa_size; \
+        MPI_Pack_size(count, datatype, dep_comm, &_sa_size); \
+        DAGUE_STATACC_ACCUMULATE(counter, 1); \
+        DAGUE_STATACC_ACCUMULATE(counter_bytes_sent, _sa_size); \
+    }
+#else
+    #define DAGUE_STATACC_ACCUMULATE_MSG(counter, count, datatype)
+#endif /* DAGUE_STATS */
+
+
+/* TODO: smart use of dague context instead of ugly globals */
 static MPI_Comm dep_comm;
 #define DEP_NB_REQ (2 * DEP_NB_CONCURENT + 2 * (DEP_NB_CONCURENT * MAX_PARAM_COUNT))
 static MPI_Request  array_of_requests[DEP_NB_REQ];
@@ -780,19 +792,11 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), msg->deps, msg->which, msg->tag));
     
     TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act, eu_context->master_context->my_rank, rank, (*msg));
+    DAGUE_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, dep_count, dep_dtt);
     MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(rank, (void*)msg, msg);
 
-#if defined(DAGUE_STATS)
-    {
-        MPI_Aint _lb, _size;
-        MPI_Type_get_extent(dep_dtt, &_lb, &_size);
-        DAGUE_STATACC_ACCUMULATE(counter_control_messages_sent, 1);
-        DAGUE_STATACC_ACCUMULATE(counter_bytes_sent, _size * dep_count);
-    }
-#endif
-    
     /* Do not wait for completion of CTL */
     for(int k=0; msg->which>>k; k++) {
         if(0 == (msg->which & (1<<k))) continue;
@@ -999,21 +1003,9 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
                item->peer, i, k, task->deps, data, type_name, tag+k));
 #endif
 
-#if defined(DAGUE_STATS)
-        {
-            MPI_Aint lb, size;
-            MPI_Type_get_extent(dtt, &lb, &size);
-            DAGUE_STATACC_ACCUMULATE(counter_data_messages_sent, 1);
-            DAGUE_STATACC_ACCUMULATE(counter_bytes_sent, size*nbelt);
-        }
-#endif
-
-#if defined(DAGUE_PROF_TRACE)
         TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
                             eu_context->master_context->my_rank, item->peer, deps->msg);
-#else
-        (void) eu_context;
-#endif /* DAGUE_PROF_TRACE */
+        DAGUE_STATACC_ACCUMULATE_MSG(counter_data_messages_sent, nbdtt, dtt);
         MPI_Isend(data, nbdtt, dtt, item->peer, tag + k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
         DEBUG_MARK_DTA_MSG_START_SEND(item->peer, data, tag+k);
     }
@@ -1234,21 +1226,13 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
     {
         TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Data_ctl_sk, get, 
                             from, eu_context->master_context->my_rank, (*task));
+        DAGUE_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, datakey_count, datakey_dtt);
         MPI_Send(&msg, datakey_count, datakey_dtt, from, 
                  REMOTE_DEP_GET_DATA_TAG, dep_comm);
         assert(NULL == dep_pending_recv_array[i]);
         dep_pending_recv_array[i] = deps;
         TAKE_TIME(MPIctl_prof, MPI_Data_ctl_ek, get++);
         DEBUG_MARK_CTL_MSG_GET_SENT(from, (void*)&msg, &msg);
-
-#if defined(DAGUE_STATS)
-        {
-            MPI_Aint _lb, _size;
-            MPI_Type_get_extent(datakey_dtt, &_lb, &_size);
-            DAGUE_STATACC_ACCUMULATE(counter_control_messages_sent, 1);
-            DAGUE_STATACC_ACCUMULATE(counter_bytes_sent, _size * datakey_count);
-        }
-#endif
     }
 
     deps->msg.deps = 0; /* now this is the mask of finished deps */
