@@ -4,6 +4,7 @@
 #undef DAGUE_DEBUG_HISTORY
 #include "debug.h"
 #include "bindthread.h"
+#include "dague_hwloc.h"
 #if defined(HAVE_HWLOC)
 #  include <hwloc.h>
 #elif defined(ARCH_COMPAQ)
