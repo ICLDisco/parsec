@@ -63,8 +63,8 @@ struct dague_context_t {
 
 #ifdef HAVE_HWLOC
     int comm_th_core;
-    hwloc_cpuset_t comm_th_binding_mask;
-    hwloc_cpuset_t core_free_mask;
+    hwloc_cpuset_t comm_th_index_mask;
+    hwloc_cpuset_t index_core_free_mask;
 #endif
 
     /* This field should always be the last one in the structure. Even if the
