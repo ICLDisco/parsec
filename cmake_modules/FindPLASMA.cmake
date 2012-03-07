@@ -153,6 +153,7 @@ if(NOT PLASMA_FIND_QUIETLY)
       message(STATUS "A Library with PLASMA API found (using C compiler and Fortran linker).")
     endif(PLASMA_C_COMPILE_SUCCESS)
     string(REGEX REPLACE ";" " " PLASMA_LDFLAGS "${PLASMA_LDFLAGS}")
+    set(PLASMA_FOUND TRUE)
     find_package_message(PLASMA
       "Found PLASMA: ${PLASMA_LIBRARIES}
     PLASMA_CFLAGS       = [${PLASMA_CFLAGS}]
