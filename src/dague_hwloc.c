@@ -180,7 +180,8 @@ int dague_hwloc_bind_on_core_index(int cpu_index)
     /* Get the core of index cpu_index */
     obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
     if (!obj) {
-        WARNING(("dague_hwloc: unable to get the core of index %i (nb physical cores = %i )\n", cpu_index,  dague_hwloc_nb_real_cores()));
+        WARNING(("dague_hwloc: unable to get the core of index %i (nb physical cores = %i )\n",
+                 cpu_index,  dague_hwloc_nb_real_cores()));
         return -1;
     }
 
