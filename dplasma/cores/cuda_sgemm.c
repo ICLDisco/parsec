@@ -48,6 +48,11 @@ static tiled_matrix_desc_t* UGLY_A;
 static int ndevices = 0;
 static gpu_device_t** gpu_active_devices = NULL;
 
+int sgemm_cuda_ndevices(void)
+{
+    return ndevices;
+}
+
 int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA )
 {
     CUdevice hcuDevice;
@@ -100,7 +105,6 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
         status = cuDeviceComputeCapability( &major, &minor, hcuDevice);
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceComputeCapability ", status, {continue;} );
 
-        gpu_device = gpu_enabled_devices[i];
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status,
                                 {continue;} );
@@ -246,7 +250,7 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
 #endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
-                                {free(gpu_device); return -1;} );
+                                {continue;} );
         gpu_device->index = (uint8_t)dindex;
         gpu_active_devices[dindex++] = gpu_device;
     }

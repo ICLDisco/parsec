@@ -36,7 +36,7 @@ struct _gpu_elem {
     memory_elem_t* memory_elem;
     int gpu_version;
 };
- 	
+
 struct _memory_elem {
     int memory_version;
     int readers;
@@ -58,6 +58,8 @@ int gpu_mark_data_usage( tiled_matrix_desc_t* data, int type, int col, int row )
 
 int sgemm_cuda_init( dague_context_t* context, tiled_matrix_desc_t *tileA );
 int sgemm_cuda_fini( dague_context_t* dague_context );
+
+int sgemm_cuda_ndevices(void);
 
 int gpu_data_map_init( gpu_device_t* gpu_device,
                        tiled_matrix_desc_t* data );
