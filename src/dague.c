@@ -188,6 +188,28 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     int argc = (*pargc), i;
     char** argv = NULL;
 
+#if defined(HAVE_HWLOC)
+    dague_hwloc_init();
+#endif  /* defined(HWLOC) */
+
+    /* Set a default the number of cores if not defined by parameters
+     * - with hwloc if available
+     * - with sysconf otherwise (hyperthreaded core number)
+     */
+    if( nb_cores <= 0 )
+    {
+#if defined(HAVE_HWLOC)
+        nb_cores=dague_hwloc_nb_real_cores();
+#else
+        nb_cores= sysconf(_SC_NPROCESSORS_ONLN);
+        if(nb_cores== -1)
+        {
+            perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
+            nb_cores= 1;
+        }
+#endif
+    }
+
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
         {
@@ -213,11 +235,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 #if defined(HAVE_PAPI)
     papime_start();
 #endif
-
-#if defined(HAVE_HWLOC)
-    dague_hwloc_init();
-#endif  /* defined(HWLOC) */
-
 
     context->__dague_internal_finalization_in_progress = 0;
     context->nb_cores       = (int32_t) nb_cores;
