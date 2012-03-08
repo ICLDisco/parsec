@@ -244,7 +244,7 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
         /* Get the core of index cpu */
         obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
         if (!obj) {
-            DEBUG3(("dague_hwloc_bind_on_mask_index: unable to get the core of index %i\n", cpu));
+            DEBUG3(("dague_hwloc_bind_on_mask_index: unable to get the core of index %i\n", cpu_index));
         } else {
             hwloc_bitmap_or(binding_mask, binding_mask, obj->cpuset);
         }
