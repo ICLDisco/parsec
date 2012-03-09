@@ -38,7 +38,7 @@ int main(int argc, char ** argv)
     qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t*)&ddescA,
                                  iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
                                  iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
-                                 iparam[IPARAM_QR_DOMINO], 1);
+                                 iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR] );
 
 
     asprintf(&dot_filename, "tree-%dx%d-a%d-p%d-l%d-h%d-d%d.dot",
@@ -56,7 +56,8 @@ int main(int argc, char ** argv)
     /* dplasma_qr_print_pivot(   (tiled_matrix_desc_t*)&ddescA, qrpiv);    */
     /* dplasma_qr_print_next_k(  (tiled_matrix_desc_t*)&ddescA, qrpiv, 1); */
     /* dplasma_qr_print_prev_k(  (tiled_matrix_desc_t*)&ddescA, qrpiv, 1); */
-    /* dplasma_qr_print_nbgeqrt( (tiled_matrix_desc_t*)&ddescA, qrpiv );   */
+    /* dplasma_qr_print_nbgeqrt( (tiled_matrix_desc_t*)&ddescA, qrpiv ); */
+    /* dplasma_qr_print_type   ( (tiled_matrix_desc_t*)&ddescA, qrpiv ); */
 
     dplasma_pivgen_finalize( qrpiv );
 
