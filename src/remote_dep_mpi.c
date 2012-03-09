@@ -650,7 +650,6 @@ static dague_remote_deps_t* dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_dtt MPI_LONG
 #define datakey_count 3
 static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
-static size_t dep_mpi_eager_limit;
 static size_t dep_mpi_short_limit;
 
 /* Pointers are converted to long to be used as keys to fetch data in the get
@@ -728,7 +727,6 @@ static int remote_dep_mpi_init(dague_context_t* context)
 
     dep_pending_recv_array = (dague_remote_deps_t**)calloc(DEP_NB_CONCURENT, sizeof(dague_remote_deps_t*));
     dep_pending_put_array = (dague_dep_wire_get_fifo_elem_t**)calloc(DEP_NB_CONCURENT, sizeof(dague_dep_wire_get_fifo_elem_t*));
-    dep_mpi_eager_limit = RDEP_MSG_EAGER_LIMIT;
     dep_mpi_short_limit = RDEP_MSG_SHORT_LIMIT;
     remote_dep_mpi_profiling_init();
     return 0;
