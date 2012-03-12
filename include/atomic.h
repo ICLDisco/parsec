@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,24 +11,24 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#if defined(DAGUE_ATOMIC_USE_GCC_32_BUILTINS)
-#include "atomic-gcc.h"
-#elif defined(DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
-#include "atomic-xlc.h"
+#if defined(DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
+#  include "atomic-xlc.h"
 #elif defined(MAC_OS_X)
-#include "atomic-macosx.h"
-#elif defined(ARCH_X86)
-#include "atomic-x86_32.h"
-#elif defined(ARCH_X86_64)
-#include "atomic-x86_64.h"
+#  include "atomic-macosx.h"
 #elif defined(ARCH_PPC)
-#if defined(__bgp__)
-#include "atomic-ppc-bgp.h"
+#  if defined(__bgp__)
+#    include "atomic-ppc-bgp.h"
+#  else
+#    include "atomic-ppc.h"
+#  endif
+#elif defined(DAGUE_ATOMIC_USE_GCC_32_BUILTINS)
+#  include "atomic-gcc.h"
+#elif defined(ARCH_X86)
+#  include "atomic-x86_32.h"
+#elif defined(ARCH_X86_64)
+#  include "atomic-x86_64.h"
 #else
-#include "atomic-ppc.h"
-#endif
-#else
-#error "Using unsafe atomics"
+#  error "Using unsafe atomics"
 #endif
 
 #include <assert.h>
