@@ -2823,21 +2823,19 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 //visited_nodes.insert(source_node);
 //dump_graph(source_node, visited_nodes);
 
-        if( _q2j_finalize_antideps ){
-            // Step 3) Add to every node a tautologic Relation to self:
-            // {[p1,p2,...,pn] -> [p1,p2,...,pn] : TRUE}.
-            visited_nodes.clear();
-            visited_nodes.insert(source_node);
-            add_tautologic_cycles(source_node, visited_nodes);
-  
-            // Step 4) Find all cycles, compute their transitive closures and union them into node.cycle
-            visited_nodes.clear();
-            compute_transitive_closure_of_all_cycles(source_node, visited_nodes, node_stack);
+        // Step 3) Add to every node a tautologic Relation to self:
+        // {[p1,p2,...,pn] -> [p1,p2,...,pn] : TRUE}.
+        visited_nodes.clear();
+        visited_nodes.insert(source_node);
+        add_tautologic_cycles(source_node, visited_nodes);
+
+        // Step 4) Find all cycles, compute their transitive closures and union them into node.cycle
+        visited_nodes.clear();
+        compute_transitive_closure_of_all_cycles(source_node, visited_nodes, node_stack);
 #if defined(DEBUG_ANTI)
-            printf("TC of cycles has been computed.\n");
-            fflush(stdout);
+        printf("TC of cycles has been computed.\n");
+        fflush(stdout);
 #endif /* DEBUG_ANTI */
-        }
 
         // Step 5) Find the union of the transitive edges that start at source_node and end at
         // sink_node
