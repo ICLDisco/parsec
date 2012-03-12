@@ -168,9 +168,9 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <number>DEPENDENCY_TYPE
 
 %token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY STRING SIMCOST
-%token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK PROPERTIES_ON PROPERTIES_OFF 
+%token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK PROPERTIES_ON PROPERTIES_OFF
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
-%token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE 
+%token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE
 
 %nonassoc EQUAL NOTEQUAL RANGE QUESTION_MARK COLON
 %nonassoc LESS LEQ MORE MEQ
@@ -251,7 +251,7 @@ jdf:            jdf function
                         current_jdf.inline_c_functions = inline_c_functions;
                         inline_c_functions = NULL;
                     }
-                } 
+                }
         |       jdf VAR properties
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
@@ -268,7 +268,7 @@ jdf:            jdf function
                         for(g = current_jdf.globals; g->next != NULL; g = g->next)
                             /* nothing */ ;
                         g->next = e;
-                    }                
+                    }
                     if( NULL != inline_c_functions ) {
                         /* Every inline functions declared here where within the context of globals only (no assignment) */
                         for(el = inline_c_functions; NULL != el->next; el = el->next) /* nothing */ ;
@@ -370,25 +370,25 @@ varlist:        VAR COMMA varlist
                 }
          ;
 
-execution_space: 
-                VAR ASSIGNMENT expr_range execution_space
+execution_space:
+                VAR properties ASSIGNMENT expr_range execution_space
                 {
                     jdf_def_list_t *l = new(jdf_def_list_t);
-                    l->name   = $1;
-                    l->expr   = $3;
-                    l->lineno = current_lineno;
-                    l->next   = $4;
-
+                    l->name       = $1;
+                    l->expr       = $4;
+                    l->lineno     = current_lineno;
+                    l->next       = $5;
+                    l->properties = $2;
                     $$ = l;
                 }
-         |      VAR ASSIGNMENT expr_range 
+         |      VAR properties ASSIGNMENT expr_range
                 {
                     jdf_def_list_t *l = new(jdf_def_list_t);
-                    l->name   = $1;
-                    l->expr   = $3;
-                    l->lineno = current_lineno;
-                    l->next   = NULL;
-
+                    l->name       = $1;
+                    l->expr       = $4;
+                    l->lineno     = current_lineno;
+                    l->next       = NULL;
+                    l->properties = $2;
                     $$ = l;
                 }
          ;
@@ -422,11 +422,11 @@ partitioning:   COLON VAR OPEN_PAR expr_list CLOSE_PAR
                       data->nbparams = nbparams;
                       data->lineno = current_lineno;
                   }
-                  $$ = c;                  
+                  $$ = c;
               }
          ;
 
-dataflow_list:  dataflow dataflow_list 
+dataflow_list:  dataflow dataflow_list
                 {
                     $1->next = $2;
                     $$ = $1;
@@ -438,7 +438,7 @@ dataflow_list:  dataflow dataflow_list
          ;
 
 optional_access_type :
-                DEPENDENCY_TYPE 
+                DEPENDENCY_TYPE
                 {
                     $$ = $1;
                 }
@@ -462,13 +462,13 @@ dependencies:  dependency dependencies
                    $1->next = $2;
                    $$ = $1;
                }
-        | 
+        |
                {
                    $$ = NULL;
                }
        ;
 
-dependency:   ARROW guarded_call properties 
+dependency:   ARROW guarded_call properties
               {
                   struct jdf_name_list *g, *e, *prec;
                   jdf_dep_t *d = new(jdf_dep_t);
@@ -610,7 +610,7 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
                   c->var = NULL;
                   c->func_or_mem = $1;
                   c->parameters = $3;
-                  $$ = c;                  
+                  $$ = c;
                   data = jdf_find_or_create_data(&current_jdf, $1);
                   JDF_COUNT_LIST_ENTRIES($3, jdf_expr_t, next, nbparams);
                   if( data->nbparams != -1 ) {
@@ -771,7 +771,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->op = JDF_NOT;
                   e->jdf_ua = $2;
                   $$ = e;
-              }      
+              }
        |      OPEN_PAR expr_simple CLOSE_PAR
               {
                   $$ = $2;
