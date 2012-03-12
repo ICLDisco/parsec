@@ -59,3 +59,22 @@ if ( DAGUEMPI_LIB )
     message( "-- DAGUE Compiled with MPI FOUND" )
 endif( DAGUEMPI_LIB )
 
+
+macro(dague_addexec lang target input)
+  if( MPI_FOUND )
+    set(${target}_${lang}FLAGS  "${MPI_COMPILE_FLAGS} ${${target}_${lang}FLAGS} -DUSE_MPI")
+    set(${target}_LDFLAGS "${MPI_LINK_FLAGS} ${${target}_LDFLAGS}")
+    set(${target}_LIBS    ${DAGUEMPI_LIB} ${${target}_LIBS} ${MPI_LIBRARIES})
+  else ( MPI_FOUND )
+    set(${target}_LIBS    ${DAGUE_LIB} ${${target}_LIBS})
+  endif()
+
+  add_executable(${target} ${input})
+  set_target_properties(${target} PROPERTIES
+                            LINKER_LANGUAGE ${lang}
+                            COMPILE_FLAGS "${${target}_${lang}FLAGS}"
+                            LINK_FLAGS "${${target}_LDFLAGS}")
+  target_link_libraries(${target} ${${target}_LIBS})
+  install(TARGETS ${target} RUNTIME DESTINATION bin)
+endmacro(dague_addexec)
+
