@@ -1,6 +1,6 @@
 %{
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -30,7 +30,7 @@ static void yyerror(const char *str)
     fprintf(stderr, "parse error at line %d: %s\n", current_lineno, str);
 }
 
-int yywrap(void); 
+int yywrap(void);
 
 int yywrap(void)
 {
@@ -39,7 +39,11 @@ int yywrap(void)
 
 #define new(type)  (type*)calloc(1, sizeof(type))
 
-static jdf_def_list_t* jdf_create_properties_list( const char* name, int default_int, const char* default_char, jdf_def_list_t* next )
+jdf_def_list_t*
+jdf_create_properties_list( const char* name,
+                            int default_int,
+                            const char* default_char,
+                            jdf_def_list_t* next )
 {
     jdf_def_list_t* property;
     jdf_expr_t *e;
@@ -106,7 +110,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     /* Chain it with the other globals */
     global->next = jdf->globals;
     jdf->globals = global;
-    
+
     return data;
 }
 
