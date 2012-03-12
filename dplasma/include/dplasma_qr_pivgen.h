@@ -133,6 +133,7 @@ void dplasma_qr_print_dag    ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, char *fi
 void dplasma_qr_print_type   ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
 void dplasma_qr_print_pivot  ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
 void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
+void dplasma_qr_print_perm   ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
 void dplasma_qr_print_next_k ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
 void dplasma_qr_print_prev_k ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
 void dplasma_qr_print_geqrt_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
