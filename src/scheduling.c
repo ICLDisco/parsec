@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -45,7 +45,6 @@ static uint32_t sched_priority_trace_counter;
 static inline int __dague_execute( dague_execution_unit_t* eu_context,
                                    dague_execution_context_t* exec_context )
 {
-    int rc = 0;
     const dague_function_t* function = exec_context->function;
 #if defined(DAGUE_DEBUG)
     {
@@ -68,10 +67,7 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
 #endif
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 
-    if( NULL != function->hook ) {
-        rc = function->hook( eu_context, exec_context );
-    }
-    return rc;
+    return function->hook( eu_context, exec_context );
 }
 
 static inline int all_tasks_done(dague_context_t* context)
@@ -100,9 +96,10 @@ int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context
 
 static dague_scheduler_t scheduler = { NULL, NULL, NULL, NULL, NULL };
 
-void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s ) {
+void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
+{
     if( NULL != scheduler.finalize ) {
-            scheduler.finalize( dague );
+        scheduler.finalize( dague );
     }
     if( NULL != s ) {
         memcpy( &scheduler, s, sizeof(dague_scheduler_t) );
@@ -152,21 +149,6 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     return ret;
 }
 
-#include <math.h>
-static void __do_some_computations( void )
-{
-    const int NB = 256;
-    double *A = (double*)malloc(NB*NB*sizeof(double));
-    int i, j;
-
-    for( i = 0; i < NB; i++ ) {
-        for( j = 0; j < NB; j++ ) {
-            A[i*NB+j] = (double)rand() / RAND_MAX;
-        }
-    }
-    free(A);
-}
-
 #ifdef  HAVE_SCHED_SETAFFINITY
 #define gettid() syscall(__NR_gettid)
 #endif /* HAVE_SCHED_SETAFFINITY */
@@ -180,13 +162,12 @@ static inline unsigned long exponential_backoff(uint64_t k)
     return r * TIME_STEP;
 }
 
-
 inline int dague_complete_execution( dague_execution_unit_t *eu_context,
                                      dague_execution_context_t *exec_context )
 {
     int rc = 0;
 
-    if( NULL != exec_context->function->complete_execution ) 
+    if( NULL != exec_context->function->complete_execution )
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
     __dague_complete_task(exec_context->dague_object, eu_context->master_context);
@@ -212,12 +193,9 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
     rqtp.tv_sec = 0;
     misses_in_a_row = 1;
-    
-    if( 0 != eu_context->eu_id ) {
-        /* Force the kernel to bind me to the expected core */
-        __do_some_computations();
 
-        /* Wait until all threads are done binding themselves 
+    if( 0 != eu_context->eu_id ) {
+        /* Wait until all threads are done binding themselves
          * (see dague_init) */
         dague_barrier_wait( &(master_context->barrier) );
         my_barrier_counter = 1;
@@ -251,7 +229,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             }
         }
 #endif /* DISTRIBUTED */
-        
+
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
             DAGUE_STATACC_ACCUMULATE(time_starved, rqtp.tv_nsec/1000);

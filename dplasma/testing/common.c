@@ -161,6 +161,7 @@ static struct option long_options[] =
     {"tsrr",        required_argument,  0, 'r'},
     {"treel",       required_argument,  0, 'l'},
     {"treeh",       required_argument,  0, 'L'},
+
     {"butlvl",      required_argument,  0, 'y'},
     {"y",           required_argument,  0, 'y'},
 
@@ -238,13 +239,16 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'S': iparam[IPARAM_SNB] = atoi(optarg); break;
             case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break;
 
+                /* HQR parameters */
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
-            case 'd': iparam[IPARAM_QR_DOMINO] = atoi(optarg) ? 1 : 0; break;
-            case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
-            case 'r': iparam[IPARAM_QR_TSRR] = atoi(optarg) ? 1 : 0; break;
+            case 'd': iparam[IPARAM_QR_DOMINO]    = atoi(optarg) ? 1 : 0; break;
+            case 'r': iparam[IPARAM_QR_TSRR]      = atoi(optarg) ? 1 : 0; break;
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;
             case 'L': iparam[IPARAM_HIGHLVL_TREE] = atoi(optarg); break;
+
+                /* Butterfly parameters */
+            case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
 
             case '.': iparam[IPARAM_DOT] = 1; dot_filename = strdup(optarg); break;
 

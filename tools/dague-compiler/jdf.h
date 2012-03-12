@@ -128,6 +128,7 @@ typedef struct jdf_def_list {
     struct jdf_def_list *next;
     char                *name;
     struct jdf_expr     *expr;
+    struct jdf_def_list *properties;
     int                  lineno;
 } jdf_def_list_t;
 
