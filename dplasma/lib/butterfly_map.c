@@ -34,19 +34,19 @@ seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, in
 
 
     /* Calculate the different sizes that might appear */
-    am = seg.spm%nb;
+    am = seg.spm%mb;
     bm = mb-am;
-    cm = seg.mpm%nb;
+    cm = seg.mpm%mb;
     dm = mb-cm;
-    em = (dm>bm) ? dm-bm : nb + (dm-bm);
+    em = (dm>bm) ? dm-bm : mb + (dm-bm);
     fm = mb-em;
 
     an = seg.spn%nb;
-    bn = mb-an;
+    bn = nb-an;
     cn = seg.mpn%nb;
-    dn = mb-cn;
-    en = (dn>bn) ? dn-bn : mb + (dn-bn);
-    fn = mb-en;
+    dn = nb-cn;
+    en = (dn>bn) ? dn-bn : nb + (dn-bn);
+    fn = nb-en;
 
     cstartn = seg.spn;
     if( bn != nb ){
