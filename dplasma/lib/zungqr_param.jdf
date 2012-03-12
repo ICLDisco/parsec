@@ -65,12 +65,12 @@ zttmqr(k, m, n)
           -> (   prevp == descQ.mt ) ? C zunmqr( k, ip, n ) : A1 zttmqr(k, prevp, n )
 
   RW   A2 <- (  k == minMN-1 ) ? Q(m, n)
-          <- ( (type1 == DPLASMA_QR_KILLED_BY_TS) && (k != minMN-1) ) ? A2 zttmqr( k+1, m, n )
-          <- ( (type1 != DPLASMA_QR_KILLED_BY_TS) && (k != minMN-1) ) ? C zunmqr( k+1, im1, n )
-          -> ( (type  == DPLASMA_QR_KILLED_BY_TS) && (k     == 0        ) ) ? Q(m, n)
-          -> ( (type  == DPLASMA_QR_KILLED_BY_TS) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, n )
-          -> ( (type  != DPLASMA_QR_KILLED_BY_TS) && (prevm == descQ.mt ) ) ? C  zunmqr(k, im, n)
-          -> ( (type  != DPLASMA_QR_KILLED_BY_TS) && (prevm != descQ.mt ) ) ? A1 zttmqr(k, prevm, n )
+          <- ( (type1 == 0) && (k != minMN-1) ) ? A2 zttmqr( k+1, m, n )        /* type 0 = DPLASMA_QR_KILLED_BY_TS */
+          <- ( (type1 != 0) && (k != minMN-1) ) ? C zunmqr( k+1, im1, n )       /* type 0 = DPLASMA_QR_KILLED_BY_TS */
+          -> ( (type  == 0) && (k     == 0        ) ) ? Q(m, n)                 /* type 0 = DPLASMA_QR_KILLED_BY_TS */
+          -> ( (type  == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, n )   /* type 0 = DPLASMA_QR_KILLED_BY_TS */
+          -> ( (type  != 0) && (prevm == descQ.mt ) ) ? C  zunmqr(k, im, n)     /* type 0 = DPLASMA_QR_KILLED_BY_TS */
+          -> ( (type  != 0) && (prevm != descQ.mt ) ) ? A1 zttmqr(k, prevm, n ) /* type 0 = DPLASMA_QR_KILLED_BY_TS */
 
   READ  V <- V zttmqr_in_V(k, m)
   READ  T <- T zttmqr_in_T(k, m) [type = LITTLE_T]
