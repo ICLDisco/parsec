@@ -1,6 +1,5 @@
 
 macro(dague_addtest lang target input)
-    message( "lang: ${lang} target: ${target} inputs: ${input}")
   if( MPI_FOUND )
     set(${target}_${lang}FLAGS  "${MPI_COMPILE_FLAGS} ${${target}_${lang}FLAGS} -DUSE_MPI")
     set(${target}_LDFLAGS "${MPI_LINK_FLAGS} ${${target}_LDFLAGS}")
@@ -25,7 +24,7 @@ endmacro(dague_addtest)
 Add_Subdirectory(pingpong)
 if (DAGUE_DEBUG_BUILD_UNIT_TESTS )
   Add_Subdirectory(unit)
-  dague_addtest(operator operator.c)
-  dague_addtest(reduce reduce.c)
+  dague_addtest(C operator operator.c)
+  dague_addtest(C reduce reduce.c)
 endif(DAGUE_DEBUG_BUILD_UNIT_TESTS )
 

@@ -5,3 +5,4 @@ string( REGEX REPLACE "rtt.[hc]" "" include_dir "${rtt_generated}" )
 include_directories(${include_dir})
 
 dague_addtest(C rtt "main.c;${rtt_generated};rtt_wrapper.c;rtt_data.c")
+
