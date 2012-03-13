@@ -135,7 +135,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
     DEBUG2(("VP %i : bind thread %i.%i on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto));
-    printf("VP %i : bind thread %i.%i  on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto);
+    //    printf("VP %i : bind thread %i.%i  on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto);
 
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
@@ -217,6 +217,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
 
+
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
@@ -287,14 +288,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
-#if defined(HAVE_HWLOC_BITMAP)
     context->comm_th_core   = -1;
+#if defined(HAVE_HWLOC_BITMAP)
     context->comm_th_index_mask = hwloc_bitmap_alloc();
     context->index_core_free_mask = hwloc_bitmap_alloc();
     hwloc_bitmap_set_range(context->index_core_free_mask, 0, dague_hwloc_nb_real_cores()-1);
+#endif /* HAVE_HWLOC_BITMAP */
 #endif
-#endif
-
 
     {
         int index = 0;
@@ -462,6 +462,7 @@ int dague_fini( dague_context_t** pcontext )
 
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
+
 
 #if defined(HAVE_HWLOC_BITMAP)
     /* Release thread binding masks */
@@ -692,7 +693,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                         tmp_mask, (tmp_mask | DAGUE_DEPENDENCIES_TASK_DONE) );
             if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
                 char tmp2[128];
-				char tmp[128];
                 ERROR(("I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice (second time by %s)!!!\n",
                         success, tmp_mask, dague_service_to_string(exec_context, tmp1, 128),
                         dague_service_to_string(origin, tmp2, 128)));
@@ -1010,7 +1010,6 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     int p, t, nb_total_comp_threads;
 
     int nb_real_cores=dague_hwloc_nb_real_cores();
-
 
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++)

@@ -56,7 +56,6 @@ static int vpmap_get_nb_threads_in_vp_parameters(int vp)
     return nbthreadspervp;
 }
 
-// STEPH:: hmmm... ? 
 static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread)
 {
     if( (vp < 0) ||
