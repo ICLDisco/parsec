@@ -19,7 +19,7 @@ void vpmap_fini(void);
  * initialize the vpmap using hardware affinity
  *   Create one thread per core
  *   Create one vp per socket
- *   Bind threads of the same vp on the different cores of the 
+ *   Bind threads of the same vp on the different cores of the
  *     corresponding socket
  *   Uses hwloc
  * @return 0 if success; -1 if the initialization was not possible.
@@ -28,7 +28,7 @@ int vpmap_init_from_hardware_affinity(void);
 
 /**
  * initialize the vpmap using a simple nbvp x nbthreadspervp
- *   approach; and a round-robin distribution of threads among cores. 
+ *   approach; and a round-robin distribution of threads among cores.
  */
 int vpmap_init_from_parameters(int nbvp, int nbthreadspervp, int nbcores);
 

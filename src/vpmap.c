@@ -10,6 +10,8 @@
 #include "dague_hwloc.h"
 #include "vpmap.h"
 
+#define DEFAULT_NB_CORE 128
+
 /**
  * These structures are used by the from_hardware and from_file
  * to store the whole vp map
@@ -40,13 +42,13 @@ vpmap_get_nb_threads_in_vp_t vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_i
 vpmap_get_nb_cores_affinity_t vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_parameters;
 vpmap_get_core_affinity_t vpmap_get_core_affinity = vpmap_get_core_affinity_parameters;
 
-int vpmap_get_nb_vp(void) 
+int vpmap_get_nb_vp(void)
 {
-    return nbvp; 
+    return nbvp;
 }
 
-static int vpmap_get_nb_threads_in_vp_parameters(int vp) 
-{ 
+static int vpmap_get_nb_threads_in_vp_parameters(int vp)
+{
     if( (vp < 0) ||
         (vp >= nbvp) ||
         (nbcores == -1) )
@@ -54,8 +56,9 @@ static int vpmap_get_nb_threads_in_vp_parameters(int vp)
     return nbthreadspervp;
 }
 
-static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread) 
-{ 
+// STEPH:: hmmm... ? 
+static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread)
+{
     if( (vp < 0) ||
         (vp >= nbvp) ||
         (thread < 0) ||
@@ -65,15 +68,20 @@ static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread)
     return 1;
 }
 
-static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores) 
-{ 
+static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores)
+{
     if( (vp < 0) ||
         (vp >= nbvp) ||
         (thread < 0) ||
         (thread >= nbthreadspervp )||
         (nbcores == -1) )
         return;
-    *cores = (vp * nbthreadspervp + thread) % nbcores;
+    int nb_real_cores = DEFAULT_NB_CORE;
+#if defined(HAVE_HWLOC)
+    dague_hwloc_init();
+    nb_real_cores = dague_hwloc_nb_real_cores();
+#endif /* HAVE_HWLOC */
+    *cores = (vp * nbthreadspervp + thread) % nbcores % nb_real_cores;
 }
 
 void vpmap_fini(void)
@@ -94,7 +102,7 @@ void vpmap_fini(void)
     nbcores = -1;
 }
 
-static int vpmap_get_nb_threads_in_vp_datamap(int vp) 
+static int vpmap_get_nb_threads_in_vp_datamap(int vp)
 {
     if( (vp < 0) ||
         (vp >= nbvp) ||
@@ -103,7 +111,7 @@ static int vpmap_get_nb_threads_in_vp_datamap(int vp)
     return map[vp].nbthreads;
 }
 
-static int vpmap_get_nb_cores_affinity_datamap(int vp, int thread) 
+static int vpmap_get_nb_cores_affinity_datamap(int vp, int thread)
 {
     if( (vp < 0) ||
         (vp >= nbvp) ||
@@ -114,7 +122,7 @@ static int vpmap_get_nb_cores_affinity_datamap(int vp, int thread)
     return map[vp].threads[thread]->nbcores;
 }
 
-static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores) 
+static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores)
 {
     if( (vp < 0) ||
         (vp >= nbvp) ||
@@ -154,7 +162,7 @@ int vpmap_init_from_hardware_affinity(void)
         mperc[m]++;
     }
 
-    map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));    
+    map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));
 
     v = 0;
     for(p = 0; p < nbcores; p++) {
@@ -173,7 +181,7 @@ int vpmap_init_from_hardware_affinity(void)
             v++;
         }
     }
-    
+
     free(mperc);
 
     vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_datamap;
@@ -188,6 +196,8 @@ int vpmap_init_from_hardware_affinity(void)
 
 int vpmap_init_from_file(const char *filename)
 {
+    // STEPH:: 
+    printf("vpmap_init_from_file\n");
     FILE *f;
     char *line = NULL;
     size_t nline = 0;
@@ -207,7 +217,7 @@ int vpmap_init_from_file(const char *filename)
         }
     }
 
-    map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));    
+    map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));
 
     rewind(f);
     nbth = 0;
@@ -249,7 +259,7 @@ int vpmap_init_from_file(const char *filename)
                 }
             }
             nbth++;
-        }        
+        }
     }
 
     fclose(f);
@@ -257,7 +267,7 @@ int vpmap_init_from_file(const char *filename)
     vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_datamap;
     vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_datamap;
     vpmap_get_core_affinity = vpmap_get_core_affinity_datamap;
-
+    printf(" vpmap_get_core_affinity = \n");
     return 0;
 }
 
@@ -300,7 +310,7 @@ void vpmap_display_map(FILE *out)
     int rank = 0;
     int v, t, c;
     char *cores = NULL, *tmp;
-    int *dcores;
+     int *dcores;
 #if defined(HAVE_MPI)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
@@ -312,8 +322,8 @@ void vpmap_display_map(FILE *out)
     }
 
     fprintf(out, "# [%d]  Map with %d Virtual Processes\n", rank, nbvp);
-    for(v = 0; v < nbvp; v++) { 
-        fprintf(out, "# [%d]  Virtual Process of index %d has %d threads\n", 
+    for(v = 0; v < nbvp; v++) {
+        fprintf(out, "# [%d]  Virtual Process of index %d has %d threads\n",
                 rank, v, vpmap_get_nb_threads_in_vp(v) );
         for(t = 0; t < vpmap_get_nb_threads_in_vp(v); t++) {
             dcores = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));

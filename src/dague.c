@@ -134,7 +134,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
-    DEBUG2(("bind thread %i on core %i\n", startup->th_id, startup->bindto));
+    DEBUG2(("VP %i : bind thread %i.%i on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto));
+    printf("VP %i : bind thread %i.%i  on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto);
 
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
@@ -180,13 +181,13 @@ static void dague_vp_init( dague_vp_t *vp,
 #if defined(DAGUE_SIM)
     vp->largest_simulation_date = 0;
 #endif /* DAGUE_SIM */
-    
+
     dague_mempool_construct( &vp->context_mempool, sizeof(dague_execution_context_t),
-                             ((char*)&fake_context.mempool_owner) - ((char*)&fake_context), 
+                             ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
                              vp->nb_cores );
 
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
-        dague_mempool_construct( &vp->datarepo_mempools[pi], 
+        dague_mempool_construct( &vp->datarepo_mempools[pi],
                                  sizeof(data_repo_entry_t)+(pi-1)*sizeof(dague_arena_chunk_t*),
                                  ((char*)&fake_entry.data_repo_mempool_owner) - ((char*)&fake_entry),
                                  vp->nb_cores);
@@ -197,8 +198,14 @@ static void dague_vp_init( dague_vp_t *vp,
         startup[t].th_id = t;
         startup[t].virtual_process = vp;
         startup[t].nb_cores = nb_cores;
-        startup[t].bindto = -1;
+        if( vpmap_get_nb_cores_affinity(vp->vp_id, t) == 1 )
+            vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto);
+        else
+            startup[t].bindto= -1;
     }
+    // STEPH:: 
+    if (vp->vp_id == 0) 
+        vpmap_display_map(stdout);
 }
 
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
@@ -209,7 +216,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     char** argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
-    
+
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
         {
@@ -240,7 +247,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                 nb_total_comp_threads, nb_cores);
     }
 
-    startup = 
+    startup =
         (__dague_temporary_thread_initialization_t*)malloc(nb_total_comp_threads * sizeof(__dague_temporary_thread_initialization_t));
 
     context->nb_vp = nb_vp;
@@ -265,7 +272,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     hwloc_bitmap_set_range(context->core_free_mask, 0, dague_hwloc_nb_real_cores()-1);
 #endif /* HAVE_HWLOC_BITMAP */
 #endif /* HAVE_HWLOC */
-    
+
     {
         int index = 0;
         /* Check for the upper level arguments */
@@ -288,7 +295,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(HAVE_GETOPT_LONG)
             int option_index = 0;
 
-            ret = getopt_long (argc, argv, "p:b:c:",
+            ret = getopt_long (argc, argv, "p:b:c:v:",
                                long_options, &option_index);
 #else
             ret = getopt (argc, argv, "p:b:c:");
@@ -432,7 +439,7 @@ int dague_fini( dague_context_t** pcontext )
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
 
-#if defined(HAVE_HWLOC) 
+#if defined(HAVE_HWLOC)
 #if defined(HAVE_HWLOC_BITMAP)
     /* Release thread binding masks */
     hwloc_bitmap_free(context->comm_th_binding_mask);
@@ -938,12 +945,21 @@ void dague_usage(void)
             " --dague_bind_comm   : define the core the communication thread will be bound on (prevail over --dague_bind)\n"
             "                       (default: a NUIOA-aware core subset)\n"
             "\n"
+
+
+
             /* " --dague_verbose     : extra verbose output\n" */
             /* " --dague_papi        : enable PAPI\n" */
             " --dague_help         : this message\n"
             "\n"
             ));
 }
+
+
+
+
+
+
 
 /* Parse --dague_bind */
 int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
@@ -954,7 +970,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     char* position;
     int p, t, nb_total_comp_threads;
     int nb_real_cores=dague_hwloc_nb_real_cores();
-    
+
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++)
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
@@ -1105,7 +1121,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
         memset(core_tab, -1, MAX_CORE_LIST*sizeof(int));
         int cmp=0;
         int arg, next_arg;
-        
+
         if( NULL == option ) {
             /* default binding,
                no restrinction for the communication thread binding */

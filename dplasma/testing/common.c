@@ -56,7 +56,7 @@ double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
 
 /**********************************
- * Command line arguments 
+ * Command line arguments
  **********************************/
 void print_usage(void)
 {
@@ -72,17 +72,6 @@ void print_usage(void)
             "                       GD  -- Global Dequeue\n"
             "                       LHQ -- Local Hierarchical Queues\n"
             "                       AP  -- Absolute Priorities\n"
-            " -V --vpmap        : select the virtual process map (default: flat map)\n"
-            "                     Accepted values:\n"
-            "                       flat -- Flat Map: all cores defined with -c are under the same virtual process\n"
-            "                       hwloc -- Hardware Locality based: threads up to -c are created and threads\n"
-            "                                bound on cores that are under the same socket are also under the same\n"
-            "                                virtual process\n"
-            "                       file:filename -- uses filename to load the virtual process map\n"
-            "                       rr:n:p:c -- create n virtual processes per real process, each virtual process with p\n"
-            "                                   threads bound in a round-robin fashion on the number of cores c (overloads the\n"
-            "                                   -c flag)\n"
-            "\n"
             " -p -P --grid-rows : rows (P) in the PxQ process grid   (default: NP)\n"
             " -q -Q --grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
             " -k --prio-switch  : activate prioritized DAG k steps before the end (default: 0)\n"
@@ -115,8 +104,22 @@ void print_usage(void)
             "\n"
             " -v --verbose      : extra verbose output\n"
             " -h --help         : this message\n"
-           );
-    dague_usage();
+            "\n"
+            );
+    // TODO:: Should be moved with the other dague-specific options
+    fprintf(stderr,
+            " -V --vpmap        : select the virtual process map (default: flat map)\n"
+            "                     Accepted values:\n"
+            "                       flat -- Flat Map: all cores defined with -c are under the same virtual process\n"
+            "                       hwloc -- Hardware Locality based: threads up to -c are created and threads\n"
+            "                                bound on cores that are under the same socket are also under the same\n"
+            "                                virtual process\n"
+            "                       file:filename -- uses filename to load the virtual process map\n"
+            "                       rr:n:p:c -- create n virtual processes per real process, each virtual process with p\n"
+            "                                   threads bound in a round-robin fashion on the number of cores c (overloads the\n"
+            "                                   -c flag)\n"
+            "\n");
+            dague_usage();
 }
 
 #define GETOPT_STRING "c:o:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:y:V:"
@@ -138,6 +141,8 @@ static struct option long_options[] =
     {"Q",           required_argument,  0, 'q'},
     {"prio-switch", optional_argument,  0, 'k'},
     {"k",           optional_argument,  0, 'k'},
+
+    // TODO:: Should be moved with the other dague-specific options
     {"V",           required_argument,  0, 'V'},
     {"vpmap",       required_argument,  0, 'V'},
 
@@ -185,7 +190,7 @@ static struct option long_options[] =
 };
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
-static void parse_arguments(int argc, char** argv, int* iparam) 
+static void parse_arguments(int argc, char** argv, int* iparam)
 {
     int opt = 0;
     int c;
@@ -199,12 +204,12 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         c = getopt(argc, argv, GETOPT_STRING);
         (void) opt;
 #endif  /* defined(HAVE_GETOPT_LONG) */
-    
- //       printf("%c: %s = %s\n", c, long_options[opt].name, optarg);
+
+//       printf("%c: %s = %s\n", c, long_options[opt].name, optarg);
         switch(c)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
-            case 'o': 
+            case 'o':
                 if( !strcmp(optarg, "LFQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
                 else if( !strcmp(optarg, "AP") )
@@ -235,7 +240,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 if(optarg)  iparam[IPARAM_PRIO] = atoi(optarg);
                 else        iparam[IPARAM_PRIO] = INT_MAX;
                 break;
-            
+
             case 'N': iparam[IPARAM_N] = atoi(optarg); break;
             case 'M': iparam[IPARAM_M] = atoi(optarg); break;
             case 'K': iparam[IPARAM_K] = atoi(optarg); break;
@@ -247,7 +252,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'T': iparam[IPARAM_MB] = atoi(optarg); break;
             case 's': iparam[IPARAM_SNB] = atoi(optarg); break;
             case 'S': iparam[IPARAM_SMB] = atoi(optarg); break;
-            case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break; 
+            case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break;
 
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
@@ -259,7 +264,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
 
             case '.': iparam[IPARAM_DOT] = 1; dot_filename = strdup(optarg); break;
 
-            case 'v': 
+            case 'v':
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
                 else        iparam[IPARAM_VERBOSE] = 2;
                 break;
@@ -290,7 +295,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 break;
 
             case 'h': print_usage(); exit(0);
-            
+
             case '?': /* getopt_long already printed an error message. */
                 exit(1);
             default:
@@ -298,7 +303,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         }
     } while(-1 != c);
     int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
-    
+
     /* Set some sensible default to the number of cores */
     if(iparam[IPARAM_NCORES] <= 0)
     {
@@ -308,7 +313,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
             iparam[IPARAM_NCORES] = 1;
         }
-        if(verbose) 
+        if(verbose)
             fprintf(stderr, "+++ cores detected      : %d\n", iparam[IPARAM_NCORES]);
     }
     if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
@@ -327,7 +332,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         fprintf(stderr, "xxx the process grid PxQ (%dx%d) is larger than the number of nodes (%d)!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
         exit(2);
     }
-    if(verbose && (pqnp < iparam[IPARAM_NNODES])) 
+    if(verbose && (pqnp < iparam[IPARAM_NNODES]))
     {
         fprintf(stderr, "!!! the process grid PxQ (%dx%d) is smaller than the number of nodes (%d). Some nodes are idling!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
     }
@@ -339,7 +344,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                                     iparam[IPARAM_NNODES] * iparam[IPARAM_NCORES],
                                     iparam[IPARAM_NNODES] * iparam[IPARAM_NGPUS],
                                     iparam[IPARAM_P], iparam[IPARAM_Q],
-                                    pqnp, iparam[IPARAM_NNODES]); 
+                                    pqnp, iparam[IPARAM_NNODES]);
 
     /* Set matrices dimensions to default values if not provided */
     /* Search for N as a bare number if not provided by -N */
@@ -355,7 +360,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     }
     if(0 == iparam[IPARAM_M]) iparam[IPARAM_M] = iparam[IPARAM_N];
     if(0 == iparam[IPARAM_K]) iparam[IPARAM_K] = iparam[IPARAM_N];
-     
+
     /* Set some sensible defaults for the leading dimensions */
     if(-'m' == iparam[IPARAM_LDA]) iparam[IPARAM_LDA] = iparam[IPARAM_M];
     if(-'n' == iparam[IPARAM_LDA]) iparam[IPARAM_LDA] = iparam[IPARAM_N];
@@ -384,11 +389,11 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     }
 
 
-    /* No supertiling by default */    
+    /* No supertiling by default */
     if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
     if(0 == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = 1;
 
-    if(verbose) 
+    if(verbose)
     {
         fprintf(stderr, "+++ N x M x K|NRHS      : %d x %d x %d\n",
                         iparam[IPARAM_N], iparam[IPARAM_M], iparam[IPARAM_K]);
@@ -405,10 +410,10 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     if(verbose)
     {
         if(iparam[IPARAM_IB] > 0)
-            fprintf(stderr, "+++ NB x MB , IB        : %d x %d , %d\n", 
+            fprintf(stderr, "+++ NB x MB , IB        : %d x %d , %d\n",
                             iparam[IPARAM_NB], iparam[IPARAM_MB], iparam[IPARAM_IB]);
         else
-            fprintf(stderr, "+++ NB x MB             : %d x %d\n", 
+            fprintf(stderr, "+++ NB x MB             : %d x %d\n",
                             iparam[IPARAM_NB], iparam[IPARAM_MB]);
 
         if(iparam[IPARAM_SNB] * iparam[IPARAM_SMB] != 1)
@@ -419,7 +424,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
 static void iparam_default(int* iparam)
 {
     /* Just in case someone forget to add the initialization :) */
-    memset(iparam, 0, IPARAM_SIZEOF * sizeof(int)); 
+    memset(iparam, 0, IPARAM_SIZEOF * sizeof(int));
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_NGPUS] = -1;
     iparam[IPARAM_QR_DOMINO] = 1;
@@ -476,7 +481,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
     MPI_Comm_size(MPI_COMM_WORLD, &iparam[IPARAM_NNODES]);
-    MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]); 
+    MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]);
 #else
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_RANK] = 0;
@@ -488,8 +493,8 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 #ifdef HAVE_MPI
     if((verbose > 2) && (provided != MPI_THREAD_SERIALIZED))
         fprintf(stderr, "!!! DAGuE formally needs MPI_THREAD_SERIALIZED, but your MPI does not provide it. This is -usually- fine nonetheless\n");
-#endif 
-    
+#endif
+
     TIME_START();
     dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES], &argc, &argv);
 #if defined(HAVE_CUDA)
@@ -511,14 +516,14 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 #else
     (void)dot_filename;
     if(iparam[IPARAM_DOT] != 0) {
-        fprintf(stderr, 
+        fprintf(stderr,
                 "************************************************************************************************\n"
                 "*** Warning: dot generation requested, but DAGUE configured with DAGUE_PROF_GRAPHER disabled ***\n"
                 "************************************************************************************************\n");
     }
 #endif
 
-    dague_set_scheduler( ctx, dague_schedulers_array[ iparam[IPARAM_SCHEDULER] ] );  
+    dague_set_scheduler( ctx, dague_schedulers_array[ iparam[IPARAM_SCHEDULER] ] );
 
     if(verbose > 2) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialized\n"));
     return ctx;
@@ -549,6 +554,6 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 #endif
 #ifdef HAVE_MPI
     MPI_Finalize();
-#endif    
+#endif
 }
 
