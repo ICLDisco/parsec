@@ -260,18 +260,18 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
     }
 
 #if defined(DAGUE_DEBUG_VERBOSE2) && defined(HAVE_HWLOC_BITMAP)
-        {
-            char *str = NULL;
-            hwloc_bitmap_asprintf(&str,  binding_mask);
-            DEBUG2(("Thread bound on the cpuset  %s\n", str));
-            free(str);
-        }
+    {
+        char *str = NULL;
+        hwloc_bitmap_asprintf(&str,  binding_mask);
+        DEBUG2(("Thread bound on the cpuset  %s\n", str));
+        free(str);
+    }
 #endif /* DAGUE_DEBUG_VERBOSE2 */
 
-hwloc_bitmap_free(binding_mask);
-        return hwloc_bitmap_first(binding_mask);
+    hwloc_bitmap_free(binding_mask);
+    return hwloc_bitmap_first(binding_mask);
 #else
+    (void) cpuset;
     return -1;
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
-
 }
