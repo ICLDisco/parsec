@@ -15,7 +15,6 @@ extern "C" %{
 #include <core_blas.h>
 
 #include "dague.h"
-#include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/memory_pool.h"
@@ -38,14 +37,14 @@ p_work [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*ib*des
 p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)   *descT.nb)"]
 
 
-zgeqrt_typechange(k)
+zgeqrt_typechange(k)  [profile = off]
   /* Execution space */
   k = 0..( (descA.mt-1 < descA.nt-1)? descA.mt-1 : descA.nt-1 )
 
   : A(k,k)
 
 RW A <- A zgeqrt(k)
-     -> (descA.nt>=(2+k)) ? C zunmqr(k, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
+     -> (descA.nt>=(k+2)) ? C zunmqr(k, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
      -> A(k, k)                                              [type = LOWER_TILE]
 
 BODY
@@ -72,6 +71,9 @@ zgeqrt(k)
   RW    B <- T(k, k)                                             [type = LITTLE_T]
           -> T(k, k)                                             [type = LITTLE_T]
           -> (descA.nt-1 > k) ? D zunmqr(k, (k+1)..(descA.nt-1)) [type = LITTLE_T]
+
+  /* Priority */
+  ;(descA.nt-k)*(descA.nt-k)*(descA.nt-k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
@@ -150,7 +152,7 @@ BODY
 END
 
 
-ztsqrt_out_Ak(k)
+ztsqrt_out_Ak(k)  [profile = off]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
 
   : A(k, k)
@@ -184,6 +186,9 @@ ztsqrt(k,m)
   RW    H <- T(m, k)                                                  [type = LITTLE_T]
           -> T(m, k)                                                  [type = LITTLE_T]
           -> (descA.nt-1 > k) ? M ztsmqr(k, m, (k+1)..(descA.nt-1))   [type = LITTLE_T]
+    /* Priority */
+; (descA.mt-k)*(descA.mt-k)*(descA.mt-k)
+
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, k, k );
@@ -217,7 +222,7 @@ BODY
 END
 
 
-ztsmqr_out_A1(k, n1)
+ztsmqr_out_A1(k, n1)  [profile = off]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   n1 = k+1..descA.nt-1
 
@@ -255,6 +260,9 @@ ztsmqr(k,m,n1)
           -> ( (n1>(1+k)) & (m>(1+k)) ) ? K ztsmqr(k+1, m, n1)     /* trailing submatrix */
   READ  L <- G ztsqrt(k, m)
   READ  M <- H ztsqrt(k, m)   [type = LITTLE_T]
+
+    /* Priority */
+; (descA.mt-k)*(descA.mt-n1)*(descA.mt-n1)
 
 BODY
 
