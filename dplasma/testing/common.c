@@ -266,7 +266,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     } while(-1 != c);
     int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
 
-
     if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
 
 
@@ -285,8 +284,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     {
         fprintf(stderr, "!!! the process grid PxQ (%dx%d) is smaller than the number of nodes (%d). Some nodes are idling!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
     }
-
-
 
     /* Set matrices dimensions to default values if not provided */
     /* Search for N as a bare number if not provided by -N */
@@ -337,8 +334,10 @@ static void parse_arguments(int argc, char** argv, int* iparam)
 
 }
 
-static void print_arguments(int verbose, int* iparam)
+static void print_arguments(int* iparam)
 {
+    int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
+
     if(verbose)
         fprintf(stderr, "+++ cores detected      : %d\n", iparam[IPARAM_NCORES]);
 
@@ -466,7 +465,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     {
         iparam[IPARAM_NCORES] = ctx->nb_cores;
     }
-    print_arguments(verbose, iparam);
+    print_arguments(iparam);
 
 #if defined(HAVE_CUDA)
     if(iparam[IPARAM_NGPUS] > 0)
