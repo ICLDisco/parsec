@@ -66,7 +66,7 @@ static const char *expr_tree_to_str(const expr_t *exp);
 static string _expr_tree_to_str(const expr_t *exp);
 static int expr_tree_contains_var(expr_t *root, const char *var_name);
 static int expr_tree_contains_only_vars_in_set(expr_t *root, set<const char *>vars);
-static void convert_if_condition_to_Omega_relation(node_t *node, F_And *R_root, map<string, Variable_ID> ivars, Relation &R);
+static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F_And *R_root, map<string, Variable_ID> ivars, Relation &R);
 static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R);
 static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Relation R);
 static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *root);
@@ -75,6 +75,7 @@ static list< pair<expr_t *, Relation> > simplify_conditions_and_split_disjunctio
 expr_t *relation_to_tree( Relation R );
 static inline bool is_phony_Entry_task(task_t *task);
 static inline bool is_phony_Exit_task(task_t *task);
+static bool inline is_enclosed_by_else(node_t *node, node_t *branch);
 
 #if 0
 void dump_all_uses(und_t *def, var_t *head){
@@ -387,11 +388,32 @@ void process_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> iv
 
 }
 
-static void convert_if_condition_to_Omega_relation(node_t *node, F_And *R_root, map<string, Variable_ID> ivars, Relation &R){
+
+static bool inline is_enclosed_by_else(node_t *node, node_t *branch){
+    node_t *curr, *prev;
+    prev = node;
+
+    for(curr=node->parent; curr != branch; prev = curr, curr = curr->parent)
+        0; /* just walk up the tree to find which side of the if-then-else is the ancestor of "node" */
+
+    Q2J_ASSERT( curr && (curr == branch) && DA_is_if(curr) );
+
+    if( prev == DA_if_then_body(curr) ){
+        return false;
+    }else if( prev == DA_if_else_body(curr) ){
+        return true;
+    }
+
+    Q2J_ASSERT( 0 );
+}
+
+
+static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F_And *R_root, map<string, Variable_ID> ivars, Relation &R){
     map<string, Free_Var_Decl *>::iterator g_it;
     char **known_vars;
     int count;
 
+    // Count the number of "known" variables.
     count = 0;
     for(node_t *tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop )
         count++;
@@ -426,6 +448,12 @@ static void convert_if_condition_to_Omega_relation(node_t *node, F_And *R_root, 
         free(known_vars[--count]);
     }
     free(known_vars);
+
+    // If we are in the else branch of the if-then-else, then negate the condition of the branch
+    if( in_else ){
+        F_Not *neg = R_root->add_not();
+        R_root = neg->add_and();
+    }
 
     // Create the actual condition in the Omega relation "R"
     process_condition(DA_if_condition(node), R_root, ivars, R);
@@ -488,7 +516,8 @@ Relation create_exit_relation(node_t *exit, node_t *def){
 
     // Take into account all the conditions of all enclosing if() statements.
     for(tmp=def->enclosing_if; NULL != tmp; tmp=tmp->enclosing_if ){
-        convert_if_condition_to_Omega_relation(tmp, R_root, ivars, R);
+        bool in_else = is_enclosed_by_else(def, tmp);
+        convert_if_condition_to_Omega_relation(tmp, in_else, R_root, ivars, R);
     }
 
     // Add equalities between corresponding input and output array indexes
@@ -571,7 +600,8 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
 
         // Take into account all the conditions of all enclosing if() statements.
         for(tmp=use->enclosing_if; NULL != tmp; tmp=tmp->enclosing_if ){
-            convert_if_condition_to_Omega_relation(tmp, R_root, ovars, R);
+            bool in_else = is_enclosed_by_else(use, tmp);
+            convert_if_condition_to_Omega_relation(tmp, in_else, R_root, ovars, R);
         }
 
         // Add equalities between corresponding input and output array indexes
@@ -701,7 +731,8 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
 
         // Take into account all the conditions of all if() statements enclosing the DEF.
         for(tmp=def->enclosing_if; NULL != tmp; tmp=tmp->enclosing_if ){
-            convert_if_condition_to_Omega_relation(tmp, R_root, ivars, R);
+            bool in_else = is_enclosed_by_else(def, tmp);
+            convert_if_condition_to_Omega_relation(tmp, in_else, R_root, ivars, R);
         }
 
         // Bound all induction variables of the loops enclosing the USE
@@ -720,7 +751,8 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
 
         // Take into account all the conditions of all if() statements enclosing the USE.
         for(tmp=use->enclosing_if; NULL != tmp; tmp=tmp->enclosing_if ){
-            convert_if_condition_to_Omega_relation(tmp, R_root, ovars, R);
+            bool in_else = is_enclosed_by_else(use, tmp);
+            convert_if_condition_to_Omega_relation(tmp, in_else, R_root, ovars, R);
         }
 
         // Add inequalities of the form (m'>=m || n'>=n || ...) or the form (m'>m || n'>n || ...) if the DU chain is
