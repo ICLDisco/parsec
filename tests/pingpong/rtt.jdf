@@ -1,0 +1,29 @@
+extern "C" %{
+  /* This simple example does not need to include anything */
+%}
+
+NT
+
+PING(k)
+
+k = 0 .. NT
+: A(k)
+
+RW T <- inline_c %{ return k==0 || (NT == -1); %} ? A(k) : I PONG(k-1)
+     -> (k==NT) ? A(k) : I PONG(k)
+
+BODY
+	/* no body */
+END
+
+PONG(k)
+
+k = 0 .. NT-1
+: A(k+1) 
+
+RW I <- T PING(k)
+     -> T PING(k+1)
+
+BODY
+	/* no body */
+END

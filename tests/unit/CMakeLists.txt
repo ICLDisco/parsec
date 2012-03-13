@@ -1,5 +1,3 @@
-set(DAGUE_DIR ../../)
-include(FindDAGUE)
 
-dague_addexec(C lifo lifo.c)
-dague_addexec(C list list.c)
+dague_addtest(C lifo lifo.c)
+dague_addtest(C list list.c)
