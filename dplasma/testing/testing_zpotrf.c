@@ -70,7 +70,7 @@ int main(int argc, char ** argv)
                                                       N, NRHS, SMB, SNB, P));
 
     /* matrix generation */
-    if(loud > 2) printf("+++ Generate matrices ... ");
+    if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), uplo,
                     (tiled_matrix_desc_t *)&ddescA, 1358);
     if ( check ) {
@@ -80,30 +80,28 @@ int main(int argc, char ** argv)
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
     }
-    if(loud > 2) printf("Done\n");
+    if(loud > 3) printf("Done\n");
 
     /* load the GPU kernel */
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0)
         {
-            if(loud) printf("+++ Load GPU kernel ... ");
+            if(loud > 3) printf("+++ Load GPU kernel ... ");
             if(0 != zgemm_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA))
                 {
-                    fprintf(stderr, "XXX Unable to load GPU kernel.\n");
+                    printf("XXX Unable to load GPU kernel.\n");
                     exit(3);
                 }
-            if(loud) printf("Done\n");
+            if(loud > 3) printf("Done\n");
         }
 #endif
 
 
-    if(loud > 2) printf("+++ Computing potrf ... ");
     PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf,
                               (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
     PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf);
 
     dplasma_zpotrf_Destruct( DAGUE_zpotrf );
-    if(loud > 2) printf("Done.\n");
 
     if ( info != 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info);
