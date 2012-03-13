@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -410,7 +410,7 @@ static char* dump_predicate(void** elem, void *arg)
 }
 
 /**
- * Parameters of the dump_assignments function
+ * Parameters of the dump_local_assignments function
  */
 typedef struct assignment_info {
     string_arena_t *sa;
@@ -420,27 +420,26 @@ typedef struct assignment_info {
 } assignment_info_t;
 
 /**
- * dump_assignments:
- *  Takes the pointer to the name of a parameter,
- *  a pointer to a dump_info, and prints <assignment_info.holder>k = assignments[<assignment_info.idx>]
- *  into assignment_info.sa for each variable k that belong to the expression that is going
- *  to be used. This expression is passed into assignment_info->expr. If assignment_info->expr
- *  is NULL, all variables are assigned.
+ * dump_local_assignments:
+ * Takes the pointer to the name of a parameter, a pointer to a dump_info, and prints
+ * int k = <assignment_info.holder>[<assignment_info.idx>] into assignment_info.sa
+ * for each variable that belong to the expression that is going to be used. This
+ * expression is passed into assignment_info->expr. If assignment_info->expr is
+ * NULL, all variables are assigned.
  */
-static char *dump_assignments(void **elem, void *arg)
+static char* dump_local_assignments( void** elem, void* arg )
 {
-    char *varname = *(char**)elem;
+    jdf_def_list_t *def = (jdf_def_list_t*)elem;
     assignment_info_t *info = (assignment_info_t*)arg;
 
-    string_arena_init(info->sa);
-    if( (NULL == info->expr) || jdf_expr_depends_on_symbol(varname, info->expr) ) {
-        string_arena_add_string(info->sa, "%s = %s[%d].value", varname, info->holder, info->idx);
+    if( (NULL == info->expr) || jdf_expr_depends_on_symbol(def->name, info->expr) ) {
+        string_arena_init(info->sa);
+        string_arena_add_string(info->sa, "int %s = %s[%d].value;", def->name, info->holder, info->idx);
         info->idx++;
         return string_arena_get_string(info->sa);
-    } else {
-        info->idx++;
-        return NULL;
     }
+    info->idx++;
+    return NULL;
 }
 
 /**
@@ -1065,8 +1064,8 @@ static void jdf_generate_function_without_expression( const jdf_t *jdf, const jd
             "  (void)__dague_object; (void)assignments;\n"
             "  return %s;\n"
             "}\n", name, jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa2, context, next, name,
-                                 dump_assignments, &ai, "", "  int ", ";\n", ";\n"),
+            UTIL_DUMP_LIST(sa2, context, next, dump_local_assignments, &ai,
+                           "", "  ", "\n", "\n"),
             dump_expr((void**)e, &info));
 
     string_arena_free(sa);
@@ -1113,8 +1112,8 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
                 "  (void)__dague_object; (void)assignments;\n"
                 "  return %s;\n"
                 "}\n", name, jdf_basename, jdf_basename,
-                UTIL_DUMP_LIST_FIELD(sa2, context, next, name,
-                                     dump_assignments, &ai, "", "  int ", ";\n", ";\n"),
+                UTIL_DUMP_LIST(sa2, context, next, dump_local_assignments, &ai,
+                               "", "  ", "\n", "\n"),
                 dump_expr((void**)e, &info));
 
         coutput("static const expr_t %s = {\n"
@@ -1154,8 +1153,8 @@ static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t 
             "  /* Compute Predicate */\n"
             "  return %s_pred%s;\n"
             "}\n", name, jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa2, context, next, name,
-                                 dump_assignments, &ai, "", "  int ", ";\n", ";\n"),
+            UTIL_DUMP_LIST(sa2, context, next,
+                           dump_local_assignments, &ai, "", "  ", "\n", "\n"),
             UTIL_DUMP_LIST_FIELD(sa5, context, next, name,
                                  dump_string, NULL, "", "  (void)", ";\n", ";"),
             fname,
@@ -1889,8 +1888,8 @@ static void jdf_generate_simulation_cost_fct(const jdf_t *jdf, const jdf_functio
             "  const dague_object_t *__dague_object = (const dague_object_t*)this_task->dague_object;\n"
             "%s"
             "  (void)__dague_object;\n",
-            prefix, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
-                                         dump_assignments, &ai, "", "  int ", ";\n", ";\n"));
+            prefix, UTIL_DUMP_LIST(sa1, f->definitions, next,
+                                   dump_local_assignments, &ai, "", "  ", "\n", "\n"));
 
     string_arena_init(sa);
     coutput("%s",
@@ -2820,8 +2819,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "#endif\n"
             "%s",
             name, jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
-                                 dump_assignments, &ai, "", "  int ", ";\n", ";\n"));
+            UTIL_DUMP_LIST(sa, f->definitions, next,
+                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
@@ -2893,8 +2892,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "  (void)context; (void)__dague_object;\n"
             "%s",
             name, jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
-                                 dump_assignments, &ai, "", "  int ", ";\n", ";\n"));
+            UTIL_DUMP_LIST(sa, f->definitions, next,
+                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
 
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
@@ -2941,8 +2940,8 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
 
     coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS ) {\n"
             "%s",
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
-                                 dump_assignments, &ai, "", "    int ", ";\n", ";\n"));
+            UTIL_DUMP_LIST(sa1, f->definitions, next,
+                           dump_local_assignments, &ai, "", "    ", "\n", "\n"));
     /* Quiet the unused variable warnings */
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
@@ -3305,8 +3304,8 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             "  (void)rank_src; (void)rank_dst; (void)__dague_object; (void)__nb_elt;\n",
             name,
             jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
-                                 dump_assignments, &ai, "", "  int ", ";\n", ";\n"));
+            UTIL_DUMP_LIST(sa1, f->definitions, next,
+                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
     coutput("%s",
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
@@ -3498,10 +3497,10 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
         ai.holder = "assignments";
         ai.expr = NULL;
         coutput("%s\n",
-                UTIL_DUMP_LIST_FIELD(sa2, expr->jdf_c_code.function_context->definitions, next, name,
-                                     dump_assignments, &ai, "", "  int ", ";\n", ";\n"));
-        coutput("%s\n",
-                UTIL_DUMP_LIST_FIELD(sa2, expr->jdf_c_code.function_context->definitions, next, name,
+                UTIL_DUMP_LIST(sa2, expr->jdf_c_code.function_context->definitions, next,
+                               dump_local_assignments, &ai, "", "  ", "\n", "\n"));
+         coutput("%s\n",
+                UTIL_DUMP_LIST_FIELD(sa2, expr->jdf_c_code.function_context->definitions, next, name, 
                                      dump_string, NULL, "", "  (void)", ";", ";\n"));
     } else {
         coutput("  /* This inline C function was declared in the global context: no variables */\n"

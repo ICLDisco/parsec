@@ -1636,7 +1636,7 @@ node_t *DA_if_then_body(node_t *node){
 
 node_t *DA_if_else_body(node_t *node){
     if( IF == node->type && node->u.kids.kid_count >= 3)
-        return node->u.kids.kids[1];
+        return node->u.kids.kids[2];
     return NULL;
 }
 

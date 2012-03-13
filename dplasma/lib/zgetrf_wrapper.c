@@ -27,7 +27,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
 
     dague_getrf = dague_zgetrf_new( *A, (dague_ddesc_t*)A,
                                     (dague_ddesc_t*)IPIV,
-                                    INFO );
+                                    INFO, NULL );
 
     /* A */
     dplasma_add2arena_tile( dague_getrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA],

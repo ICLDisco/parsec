@@ -9,6 +9,13 @@
 #ifndef _DPLASMA_QR_PIVGEN_H_
 #define _DPLASMA_QR_PIVGEN_H_
 
+typedef enum dplasma_qr_type_ {
+    DPLASMA_QR_KILLED_BY_TS        = 0,
+    DPLASMA_QR_KILLED_BY_LOCALTREE = 1,
+    DPLASMA_QR_KILLED_BY_DOMINO    = 2,
+    DPLASMA_QR_KILLED_BY_DISTTREE  = 3,
+} dplasma_qr_type_e;
+
 struct qr_piv_s;
 typedef struct qr_piv_s qr_piv_t;
 
@@ -32,7 +39,7 @@ struct qr_subpiv_s {
      *    @param[in] arg pointer to the qr_piv structure
      *    @param[in] m   line you want to eliminate
      *    @param[in] k   step in the factorization
-     * 
+     *
      *  @return the annihilator p used with m at step k
      */
     int (*currpiv)(const qr_subpiv_t *arg, const int m, const int k);
@@ -41,9 +48,9 @@ struct qr_subpiv_s {
      *    @param[in] arg pointer to the qr_piv structure
      *    @param[in] p   line currently used as an annihilator
      *    @param[in] k   step in the factorization
-     *    @param[in] m   line actually annihilated. 
+     *    @param[in] m   line actually annihilated.
      *          m = MT to find the first time p is used as an annihilator during step k
-     *            
+     *
      *  @return the next line m' using the line p as annihilator during step k
      *          desc->mt if p will never be used again as an annihilator.
      */
@@ -53,9 +60,9 @@ struct qr_subpiv_s {
      *    @param[in] arg pointer to the qr_piv structure
      *    @param[in] p   line currently used as an annihilator
      *    @param[in] k   step in the factorization
-     *    @param[in] m   line actually annihilated. 
+     *    @param[in] m   line actually annihilated.
      *          m = p to find the last time p has been used as an annihilator during step k
-     *            
+     *
      *  @return the previous line m' using the line p as annihilator during step k
      *          desc->mt if p has never been used before that as an annihilator.
      */
@@ -68,7 +75,7 @@ struct qr_subpiv_s {
     int domino;
 };
 
-qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_hlvl, 
+qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_hlvl,
                                int a, int p, int domino, int tsrr );
 void      dplasma_pivgen_finalize( qr_piv_t *qrpiv );
 
@@ -89,7 +96,7 @@ int dplasma_qr_gettype(    const qr_piv_t *arg, const int k, const int m   );
  *    @param[in] arg pointer to the qr_piv structure
  *    @param[in] m   line you want to eliminate
  *    @param[in] k   step in the factorization
- * 
+ *
  *  @return the annihilator p used with m at step k
  */
 int dplasma_qr_currpiv(const qr_piv_t *arg, int m, const int k);
@@ -98,9 +105,9 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, int m, const int k);
  *    @param[in] arg pointer to the qr_piv structure
  *    @param[in] p   line currently used as an annihilator
  *    @param[in] k   step in the factorization
- *    @param[in] m   line actually annihilated. 
+ *    @param[in] m   line actually annihilated.
  *          m = MT to find the first time p is used as an annihilator during step k
- *            
+ *
  *  @return the next line m' using the line p as annihilator during step k
  *          desc->mt if p will never be used again as an annihilator.
  */
@@ -110,9 +117,9 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int p, const int k, int m);
  *    @param[in] arg pointer to the qr_piv structure
  *    @param[in] p   line currently used as an annihilator
  *    @param[in] k   step in the factorization
- *    @param[in] m   line actually annihilated. 
+ *    @param[in] m   line actually annihilated.
  *          m = p to find the last time p has been used as an annihilator during step k
- *            
+ *
  *  @return the previous line m' using the line p as annihilator during step k
  *          desc->mt if p has never been used before that as an annihilator.
  */
@@ -126,6 +133,7 @@ void dplasma_qr_print_dag    ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, char *fi
 void dplasma_qr_print_type   ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
 void dplasma_qr_print_pivot  ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
 void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
+void dplasma_qr_print_perm   ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
 void dplasma_qr_print_next_k ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
 void dplasma_qr_print_prev_k ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
 void dplasma_qr_print_geqrt_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );

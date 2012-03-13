@@ -422,6 +422,29 @@ void dplasma_qr_print_prev_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
     }
 }
 
+void dplasma_qr_print_perm( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
+{
+    int minMN = min(A->mt, A->nt );
+    int m, k;
+
+    printf("\n------------ Permutation --------------\n");
+    for (k=0; k<minMN; k++) {
+        printf( "%3d ", k );
+    }
+    printf( "\n" );
+    for (k=0; k<minMN; k++) {
+        printf( "----" );
+    }
+    printf( "\n" );
+
+    for (m=0; m < A->mt+1; m++) {
+        for (k=0; k<minMN; k++) {
+            printf( "%3d ", qrpiv->perm[ k*(A->mt+1) + m ] );
+        }
+        printf( "\n" );
+    }
+    printf( "\n" );
+}
 
 void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
 {
@@ -590,4 +613,3 @@ void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, char *filena
     free(pos);
     free(next);
 }
-

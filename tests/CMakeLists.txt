@@ -1,26 +1,30 @@
+
+macro(dague_addtest lang target input)
+  if( MPI_FOUND )
+    set(${target}_${lang}FLAGS  "${MPI_COMPILE_FLAGS} ${${target}_${lang}FLAGS} -DUSE_MPI")
+    set(${target}_LDFLAGS "${MPI_LINK_FLAGS} ${${target}_LDFLAGS}")
+    set(${target}_LIBS    dague-mpi dague_distribution_matrix-mpi ${EXTRA_LIBS} ${${target}_LIBS} ${MPI_LIBRARIES})
+  else ( MPI_FOUND )
+    set(${target}_LIBS    dague dague_distribution_matrix ${EXTRA_LIBS} ${${target}_LIBS})
+  endif()
+
+  add_executable(${target} ${input})
+  set_target_properties(${target} PROPERTIES
+                            LINKER_LANGUAGE ${lang}
+                            COMPILE_FLAGS "${${target}_${lang}FLAGS} ${LOCAL_${lang}_LINK_FLAGS}"
+                            LINK_FLAGS "${${target}_LDFLAGS}")
+  target_link_libraries(${target} ${${target}_LIBS})
+#  install(TARGETS ${target} RUNTIME DESTINATION bin)
+endmacro(dague_addtest)
+
+
+
 #set(CMAKE_C_COMPILER "vtcc")
 #set(CMAKE_Fortran_COMPILER "vtf77")
-Add_Subdirectory(rtt)
+Add_Subdirectory(pingpong)
 if (DAGUE_DEBUG_BUILD_UNIT_TESTS )
   Add_Subdirectory(unit)
+  dague_addtest(C operator operator.c)
+  dague_addtest(C reduce reduce.c)
 endif(DAGUE_DEBUG_BUILD_UNIT_TESTS )
 
-add_executable(operator operator.c)
-set_target_properties(operator PROPERTIES LINKER_LANGUAGE C)
-if( MPI_FOUND )
-  set_target_properties(operator PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_C_LINK_FLAGS} ${HWLOC_LIB}")
-  target_link_libraries(operator dague_distribution_matrix-mpi dague-mpi ${MPI_LIBRARIES})
-else(MPI_FOUND)
-  set_target_properties(operator PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS} ${HWLOC_LIB}")
-  target_link_libraries(operator dague_distribution_matrix dague)
-endif( MPI_FOUND )
-
-add_executable(reduce reduce.c)
-set_target_properties(reduce PROPERTIES LINKER_LANGUAGE C)
-if( MPI_FOUND )
-  set_target_properties(reduce PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_C_LINK_FLAGS} ${HWLOC_LIB}")
-  target_link_libraries(reduce dague_distribution_matrix-mpi dague-mpi ${MPI_LIBRARIES})
-else(MPI_FOUND)
-  set_target_properties(reduce PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS} ${HWLOC_LIB}")
-  target_link_libraries(reduce dague_distribution_matrix dague)
-endif( MPI_FOUND )

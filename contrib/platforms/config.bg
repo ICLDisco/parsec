@@ -6,7 +6,7 @@ cat << _EOF
 #
 _EOF
 
-LOCATION=`dirname $0`
+LOCATION=`dirname $0`/../../
 USER_OPTIONS="$* "
 SAVE_LDFLAGS=$LDFLAGS
 
