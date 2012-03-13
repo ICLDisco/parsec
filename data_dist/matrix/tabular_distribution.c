@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2009-2011 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
@@ -36,7 +37,7 @@ static uint32_t td_get_rank_for_tile(dague_ddesc_t * desc, ...)
     /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
     m += ((tiled_matrix_desc_t *)desc)->i;
     n += ((tiled_matrix_desc_t *)desc)->j;
-    
+
     res = (Ddesc->super.lmt * n) + m;
     return Ddesc->tiles_table[res].rank;
 }
@@ -59,11 +60,11 @@ static void * td_get_local_tile(dague_ddesc_t * desc, ...)
     n += ((tiled_matrix_desc_t *)desc)->j;
 
 #ifdef DISTRIBUTED
-    assert(desc->myrank == td_get_rank_for_tile(desc, m, n));    
+    assert(desc->myrank == td_get_rank_for_tile(desc, m, n));
 #endif /* DISTRIBUTED */
 
     res = (Ddesc->super.lmt * n) + m;
-    
+
     return  Ddesc->tiles_table[res].tile;
 }
 
@@ -100,11 +101,11 @@ static uint32_t td_data_key(struct dague_ddesc *desc, ...) /* return a unique ke
     n = va_arg(ap, unsigned int);
     va_end(ap);
 
-    return ((n * Ddesc->super.lmt) + m);    
+    return ((n * Ddesc->super.lmt) + m);
 }
 static int  td_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size) /* return a string meaningful for profiling about data */
 {
-    tabular_distribution_t * Ddesc;    
+    tabular_distribution_t * Ddesc;
     unsigned int row, column;
     int res;
     Ddesc = (tabular_distribution_t *)desc;
@@ -123,7 +124,6 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
 {
     int res;
     unsigned int total = 0;
-    
 
     // Filling matrix description with user parameter
     Ddesc->super.super.nodes = nodes ;
@@ -144,20 +144,18 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
     Ddesc->super.lnt = ((Ddesc->super.ln)%(Ddesc->super.nb)==0) ? ((Ddesc->super.ln)/(Ddesc->super.nb)) : ((Ddesc->super.ln)/(Ddesc->super.nb) + 1);
     Ddesc->super.bsiz =  Ddesc->super.mb * Ddesc->super.nb;
 
-    // Submatrix parameters    
+    // Submatrix parameters
     Ddesc->super.mt = ((Ddesc->super.m)%(Ddesc->super.mb)==0) ? ((Ddesc->super.m)/(Ddesc->super.mb)) : ((Ddesc->super.m)/(Ddesc->super.mb) + 1);
     Ddesc->super.nt = ((Ddesc->super.n)%(Ddesc->super.nb)==0) ? ((Ddesc->super.n)/(Ddesc->super.nb)) : ((Ddesc->super.n)/(Ddesc->super.nb) + 1);
-    
 
     /* allocate the table*/
     Ddesc->tiles_table = malloc((Ddesc->super.lmt) * (Ddesc->super.lnt) * sizeof(tile_elem_t));
 
-    
     /*
     for (res = 0 ; res < (Ddesc->super.lmt) * (Ddesc->super.lnt) ; res++)
         {
             Ddesc->tiles_table[res].rank = table[res];
-            if(table[res] == myrank) 
+            if(table[res] == myrank)
                 {
                     Ddesc->tiles_table[res].tile = dague_data_allocate( Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
                     if (Ddesc->tiles_table[res].tile == NULL)
@@ -165,7 +163,6 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
                             perror("matrix memory allocation failed\n");
                             exit(-1);
                         }
-                    
                 }
             else
                 Ddesc->tiles_table[res].tile = NULL;
@@ -174,9 +171,9 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
     for (res = 0 ; res < (Ddesc->super.lmt) * (Ddesc->super.lnt) ; res++)
         {
             Ddesc->tiles_table[res].rank = table[res];
-            if(table[res] == myrank) 
+            if(table[res] == myrank)
                 {
-                    total++;   
+                    total++;
                 }
         }
     Ddesc->super.nb_local_tiles = total;
@@ -187,7 +184,7 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
     Ddesc->super.super.data_key = td_data_key;
     Ddesc->super.super.key_to_string = td_key_to_string;
     Ddesc->super.super.key = NULL;
-    asprintf(&Ddesc->super.super.key_dim, "(%u, %u)", Ddesc->super.mt, Ddesc->super.nt);
+    asprintf(&Ddesc->super.super.key_dim, "(%d, %d)", Ddesc->super.mt, Ddesc->super.nt);
 #endif /* DAGUE_PROF_TRACE */
 
 }
@@ -207,13 +204,13 @@ unsigned int * create_2dbc(unsigned int size, unsigned int block, unsigned int n
 
     nbtiles = (size + block - 1) / block;
     res = malloc(nbtiles * nbtiles * sizeof(unsigned int));
-    
+
     if (res == NULL)
         {
             printf("malloc failed for table creation\n");
             return NULL;
         }
-    
+
     Gcol = nbproc / Grow;
 
     k = 0;
@@ -227,5 +224,4 @@ unsigned int * create_2dbc(unsigned int size, unsigned int block, unsigned int n
                 k++;
             }
     return res;
-    
 }

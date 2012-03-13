@@ -45,12 +45,6 @@ int main(int argc, char ** argv)
                                     nodes, cores, rank, MB, 1, M, NT, 0, 0,
                                     M, NT, SMB, SNB, P))
 
-#if defined(DAGUE_PROF_TRACE)
-    ddescA.super.super.key = strdup("A");
-    ddescL.super.super.key = strdup("L");
-    ddescIPIV.super.super.key = strdup("IPIV");
-#endif
-
     if(!check)
     {
         /* matrix generation */
@@ -220,14 +214,14 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
     }
 
+    cleanup_dague(dague, iparam);
+
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_data_free(ddescL.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescL);
     dague_data_free(ddescIPIV.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
-
-    cleanup_dague(dague, iparam);
 
     return EXIT_SUCCESS;
 }

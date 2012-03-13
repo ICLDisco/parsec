@@ -13,22 +13,51 @@ extern "C" %{
 
 #include <plasma.h>
 #include <core_blas.h>
+#include <string.h>
 
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 
+#include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/lib/butterfly_map.h"
+
+#define NOT_TRANSPOSE 0x0
+#define TRANSPOSE     0x1
+
+void BFT_zQTL( int mb, int nb, int lda, int off, int lvl, int N,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose );
+void BFT_zQBL( int mb, int nb, int lda, int off, int lvl, int N,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose );
+void BFT_zQTR_trans( int mb, int nb, int lda, int off, int lvl, int N,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose );
+void BFT_zQTR( int mb, int nb, int lda, int off, int lvl, int N,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose );
+void BFT_zQBR( int mb, int nb, int lda, int off, int lvl, int N,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose );
+
 
 %}
 
-descA  [type = "tiled_matrix_desc_t"]
+
+[DAGUE_ARENA_STRUT = 36]
+descA  [type = "dague_seg_ddesc_t"]
 A      [type = "dague_ddesc_t *"]
-it     [type = "int"]
-jt     [type = "int"]
 nt     [type = "int"]
 mt     [type = "int"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
 
 
 /*
@@ -36,24 +65,61 @@ mt     [type = "int"]
  */
 HEBRT_Diag(i)
   /* Execution space */
-  i = 0 .. nt/2-1
+  i = 0 .. mt/2-1
 
-  : A(it+i,jt+i)
+  : A(i,i)
 
   /* Atl: A from Top Left */
-  RW  Atl <- A HEBRT_Reader_TL(i,i)
-          -> A HEBRT_Writer_TL(i,i)
+  RW  Atl <- A HEBRT_Reader_TL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+          -> A HEBRT_Writer_TL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A HEBRT_Reader_BL(i,i)
-          -> A HEBRT_Writer_BL(i,i)
+  RW  Abl <- A HEBRT_Reader_BL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+          -> A HEBRT_Writer_BL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A HEBRT_Reader_BR(i,i)
-          -> A HEBRT_Writer_BR(i,i)
+  RW  Abr <- A HEBRT_Reader_BR(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+          -> A HEBRT_Writer_BR(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
 
 BODY
-/* nothing */
+
+  unsigned mb_seg, nb_seg, lda, N;
+  uintptr_t off_in_U, off_in_tile;
+  int type, type_exists, i_tile, j_tile;
+  void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
+
+  type = segment_to_type_index(descA.seg_info, i, i);
+  type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  assert( type_exists );
+  lda = descA.A_org->mb; /* This is the mb of the tile */
+  segment_to_tile(&descA, i, i, &i_tile, &j_tile, &off_in_tile);
+
+  /* off_in_U is the beginning (vertically) of the segment as an absolute offest
+   * from the top of the original matrix */
+  off_in_U = i_tile*lda + off_in_tile%lda;
+  N = descA.A_org->lm;
+
+  p_elem_tl = dague_private_memory_pop( pool_0 );
+  p_elem_bl = dague_private_memory_pop( pool_0 );
+  p_elem_tr = dague_private_memory_pop( pool_0 );
+  p_elem_br = dague_private_memory_pop( pool_0 );
+
+  BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, NOT_TRANSPOSE);
+  BFT_zQBL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, NOT_TRANSPOSE);
+  BFT_zQBR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, NOT_TRANSPOSE);
+
+  dague_private_memory_push( pool_0, p_elem_tl );
+  dague_private_memory_push( pool_0, p_elem_bl );
+  dague_private_memory_push( pool_0, p_elem_tr );
+  dague_private_memory_push( pool_0, p_elem_br );
+
+  /*
+   * printf("HEBRT_Diag(%d)\n",i); 
+   * printf("BFT_zQTL( %u, %u, %u, %lu, %d, %u, %p, %p, %p, %p, %p, %d)\n",
+   *         mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr,
+   *         Atl, NOT_TRANSPOSE);
+   */
+
 END
 
 
@@ -63,29 +129,69 @@ END
  */
 HEBRT_Lower(i,j)
   /* Execution space */
-  i = 1 .. nt/2-1
+  i = 1 .. mt/2-1
   j = 0 .. i-1
 
-  : A(it+i,jt+j)
+  : A(i,j)
 
   /* Atl: A from Top Left */
-  RW  Atl <- A HEBRT_Reader_TL(i,j)
-          -> A HEBRT_Writer_TL(i,j)
+  RW  Atl <- A HEBRT_Reader_TL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A HEBRT_Writer_TL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A HEBRT_Reader_BL(i,j)
-          -> A HEBRT_Writer_BL(i,j)
+  RW  Abl <- A HEBRT_Reader_BL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A HEBRT_Writer_BL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Atr: A from Top Right */
-  RW  Atr <- A HEBRT_Reader_BL(j,i)
-          -> A HEBRT_Writer_BL(j,i)
+  RW  Atr <- A HEBRT_Reader_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
+          -> A HEBRT_Writer_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A HEBRT_Reader_BR(i,j)
-          -> A HEBRT_Writer_BR(i,j)
+  RW  Abr <- A HEBRT_Reader_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A HEBRT_Writer_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
-/* nothing */
+
+  unsigned mb_seg, nb_seg, lda, N;
+  uintptr_t off_in_U, off_in_tile;
+  int type, type_exists, i_tile, j_tile;
+  void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
+
+  type = segment_to_type_index(descA.seg_info, i, j);
+  type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  assert( type_exists );
+  lda = descA.A_org->mb; /* This is the mb of the tile */
+  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
+
+  /* off_in_U is the beginning (vertically) of the segment as an absolute offest
+   * from the top of the original matrix */
+  off_in_U = i_tile*lda + off_in_tile%lda;
+  N = descA.A_org->lm;
+
+  p_elem_tl = dague_private_memory_pop( pool_0 );
+  p_elem_bl = dague_private_memory_pop( pool_0 );
+  p_elem_tr = dague_private_memory_pop( pool_0 );
+  p_elem_br = dague_private_memory_pop( pool_0 );
+
+  BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, TRANSPOSE);
+  BFT_zQBL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, TRANSPOSE);
+  BFT_zQTR_trans( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, TRANSPOSE);
+  BFT_zQBR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, TRANSPOSE);
+
+  memcpy(Atl, p_elem_tl, lda*nb_seg*sizeof(PLASMA_Complex64_t));
+  memcpy(Abl, p_elem_bl, lda*nb_seg*sizeof(PLASMA_Complex64_t));
+  /* Atr is transposed, so it's mb elements in the horizontal dimension */
+  memcpy(Atr, p_elem_tr, lda*mb_seg*sizeof(PLASMA_Complex64_t));
+  memcpy(Abr, p_elem_br, lda*nb_seg*sizeof(PLASMA_Complex64_t));
+
+  dague_private_memory_push( pool_0, p_elem_tl );
+  dague_private_memory_push( pool_0, p_elem_bl );
+  dague_private_memory_push( pool_0, p_elem_tr );
+  dague_private_memory_push( pool_0, p_elem_br );
+
+  /*
+   * printf("HEBRT_Lower(%d,%d)\n",i,j);
+   */
 END
 
 
@@ -94,16 +200,17 @@ END
  */
 HEBRT_Reader_TL(i,j)
   /* Execution space */
-  i = 0 .. nt/2-1
+  i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i+it,j+jt)
+  : A(i,j)
 
-READ A <- A(i+it, j+jt)
-       -> (i==j) ? Atl HEBRT_Diag(i) : Atl HEBRT_Lower(i,j)
+READ A <- A(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> (i==j) ? Atl HEBRT_Diag(i) : Atl HEBRT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Reader_TL(%d,%d)\n",i,j); */
 END
 
 
@@ -112,18 +219,19 @@ END
  */
 HEBRT_Reader_BL(i,j)
   /* Execution space */
-  i = 0 .. nt/2-1
+  i = 0 .. mt/2-1
   j = 0 .. nt/2-1
 
-  : A(i+nt/2+it,j+jt)
+  : A(i+mt/2,j)
 
-READ A <- A(i+nt/2+it, j+jt)
-       -> (i>j)  ? Abl HEBRT_Lower(i,j)
-       -> (i==j) ? Abl HEBRT_Diag(i)
-       -> (i<j)  ? Atr HEBRT_Lower(j,i)
+READ A <- A(i+mt/2, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
+       -> (i>j)  ? Abl HEBRT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> (i==j) ? Abl HEBRT_Diag(i)    [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> (i<j)  ? Atr HEBRT_Lower(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Reader_BL(%d,%d)\n",i,j); */
 END
 
 
@@ -132,16 +240,17 @@ END
  */
 HEBRT_Reader_BR(i,j)
   /* Execution space */
-  i = 0 .. nt/2-1
+  i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i+nt/2+it,j+nt/2+jt)
+  : A(i+mt/2,j+nt/2)
 
-READ A <- A(i+nt/2+it, j+nt/2+jt)
-       -> (i==j) ? Abr HEBRT_Diag(i) : Abr HEBRT_Lower(i,j)
+READ A <- A(i+mt/2, j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
+       -> (i==j) ? Abr HEBRT_Diag(i) : Abr HEBRT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Reader_BR(%d,%d)\n",i,j); */
 END
 
 
@@ -150,16 +259,17 @@ END
  */
 HEBRT_Writer_TL(i,j)
   /* Execution space */
-  i = 0 .. nt/2-1
+  i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i+it,j+jt)
+  : A(i,j)
 
-RW A <- (i==j) ? Atl HEBRT_Diag(i) : Atl HEBRT_Lower(i, j)
-     -> A(i+it, j+jt)
+RW A <- (i==j) ? Atl HEBRT_Diag(i) : Atl HEBRT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     -> A(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Writer_TL(%d,%d)\n",i,j); */
 END
 
 
@@ -168,18 +278,19 @@ END
  */
 HEBRT_Writer_BL(i,j)
   /* Execution space */
-  i = 0 .. nt/2-1
+  i = 0 .. mt/2-1
   j = 0 .. nt/2-1
 
-  : A(i+nt/2+it,j+jt)
+  : A(i+mt/2,j)
 
-RW A <- (i==j) ? Abl HEBRT_Diag(i) 
-     <- (i>j)  ? Abl HEBRT_Lower(i, j)
-     <- (i<j)  ? Abl HEBRT_Lower(j, i)
-     -> A(i+nt/2+it, j+jt)
+RW A <- (i==j) ? Abl HEBRT_Diag(i)  [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     <- (i>j)  ? Abl HEBRT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     <- (i<j)  ? Abl HEBRT_Lower(j, i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     -> A(i+mt/2, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Writer_BL(%d,%d)\n",i,j); */
 END
 
 
@@ -188,16 +299,17 @@ END
  */
 HEBRT_Writer_BR(i,j)
   /* Execution space */
-  i = 0 .. nt/2-1
+  i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i+nt/2+it,j+nt/2+jt)
+  : A(i+mt/2,j+nt/2)
 
-RW A <- (i==j) ? Abr HEBRT_Diag(i) : Abr HEBRT_Lower(i, j)
-     -> A(i+nt/2+it, j+nt/2+jt)
+RW A <- (i==j) ? Abr HEBRT_Diag(i) : Abr HEBRT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     -> A(i+mt/2, j+nt/2)[ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
 
 BODY
 /* nothing */
+  /* fprintf(stderr,"HEBRT_Writer_BR(%d,%d)\n",i,j); */
 END
 
 

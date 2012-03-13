@@ -11,12 +11,8 @@ set(EXTRA_SOURCES
   pivgen.c
   pivgen_dbg.c
   map2_wrapper.c
+  butterfly_map.c
 )
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
-    include_directories(${CMAKE_CURRENT_BINARY_DIR})
-endif()
 
 ### Generate .c files from .jdf
 set(OLDJDF
@@ -32,10 +28,12 @@ set(JDF
   zherk_LN.jdf zherk_LT.jdf zherk_UN.jdf zherk_UT.jdf
   ztrsm_LLN.jdf ztrsm_LLT.jdf ztrsm_LUN.jdf ztrsm_LUT.jdf ztrsm_RLN.jdf ztrsm_RLT.jdf ztrsm_RUN.jdf ztrsm_RUT.jdf
   ztrmm_LLN.jdf ztrmm_LLT.jdf ztrmm_LUN.jdf ztrmm_LUT.jdf ztrmm_RLN.jdf ztrmm_RLT.jdf ztrmm_RUN.jdf ztrmm_RUT.jdf
+  zlaswp.jdf
   zpotrf_rl.jdf zpotrf_ll.jdf
   zpotrf_Url.jdf zpotrf_Lrl.jdf
   zgebut.jdf
   zhebut.jdf
+  zgetrf.jdf
   zgetrf_incpiv.jdf zgetrf_incpiv_sd.jdf
   ztrsmpl.jdf ztrsmpl_sd.jdf
   zgeqrf.jdf
@@ -49,6 +47,12 @@ set(JDF
 precisions_rules_py(generated_jdf
                     "${JDF}"
                     PRECISIONS "${DPLASMA_PRECISIONS}")
+
+if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
+  foreach(src_file ${EXTRA_SOURCES})
+    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.") 
+  endforeach()
+endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 
 list(APPEND generated_jdf
   "${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf")
@@ -71,6 +75,7 @@ set(SOURCES
   zgeadd_wrapper.c
   zlacpy_wrapper.c
   zlaset_wrapper.c
+  zlaswp_wrapper.c
   zplrnt_wrapper.c
   zplghe_wrapper.c
   zplgsy_wrapper.c
@@ -82,9 +87,9 @@ set(SOURCES
   zhebut_wrapper.c
   zpotrs_wrapper.c
   zposv_wrapper.c
-#  zgetrf_incpiv_wrapper.c
-#  zgetrs_incpiv_wrapper.c
-#  zgesv_incpiv_wrapper.c
+  zgetrf_wrapper.c
+  zgetrs_wrapper.c
+  zgesv_wrapper.c
   zgetrf_incpiv_wrapper.c
   zgetrs_incpiv_wrapper.c
   zgesv_incpiv_wrapper.c

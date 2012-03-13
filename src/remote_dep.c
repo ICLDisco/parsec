@@ -24,7 +24,7 @@ static inline void remote_dep_mark_forwarded( dague_execution_unit_t* eu_context
 {
     unsigned int boffset;
     uint32_t mask;
-    
+
     DEBUG3(("fw mark\tREMOTE rank %d\n", rank));
     boffset = rank / (8 * sizeof(uint32_t));
     mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
@@ -37,7 +37,7 @@ static inline int remote_dep_is_forwarded( dague_execution_unit_t* eu_context, d
 {
     unsigned int boffset;
     uint32_t mask;
-    
+
     boffset = rank / (8 * sizeof(uint32_t));
     mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
     assert(boffset <= eu_context->virtual_process->dague_context->remote_dep_fw_mask_sizeof);
@@ -87,20 +87,14 @@ static void remote_dep_complete_one_and_cleanup(dague_remote_deps_t* deps) {
 #endif
         dague_lifo_push(deps->origin, (dague_list_item_t*)deps);
     }
-}                                                                                           
+}
 
-#endif
-
-#ifndef DAGUE_DIST_EAGER_LIMIT 
-#define RDEP_MSG_EAGER_LIMIT    0
-#else
-#define RDEP_MSG_EAGER_LIMIT    (((size_t)DAGUE_DIST_EAGER_LIMIT)*1024)
 #endif
 
 #ifdef HAVE_MPI
-#include "remote_dep_mpi.c" 
+#include "remote_dep_mpi.c"
 
-#else 
+#else
 #endif /* NO TRANSPORT */
 
 
@@ -113,7 +107,7 @@ int dague_remote_dep_init(dague_context_t* context)
     {
         context->remote_dep_fw_mask_sizeof = ((context->nb_nodes + 31) / 32) * sizeof(uint32_t);
     }
-    else 
+    else
     {
         context->remote_dep_fw_mask_sizeof = 0; /* hoping memset(0b) is fast */
     }
@@ -161,12 +155,12 @@ static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
 static inline int remote_dep_bcast_binonial_child(int me, int him)
 {
     int k, mask;
-    
+
     /* flush out the easy cases first */
     assert(him >= 0);
     if(him == 0) return 0; /* root is child to nobody */
     if(me == -1) return 0; /* I don't even know who I am yet... */
-    
+
     /* look for the leftmost 1 bit */
     for(k = sizeof(int) * 8 - 1; k >= 0; k--)
     {
@@ -208,7 +202,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     const dague_function_t* function = exec_context->function;
     int i, me, him, current_mask;
     unsigned int array_index, count, bit_index;
-    
+
 #if defined(DAGUE_DEBUG)
     /* make valgrind happy */
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
@@ -226,13 +220,12 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     for(i = 0; i < function->nb_definitions; i++) {
         remote_deps->msg.locals[i] = exec_context->locals[i];
     }
-    
+
     if(remote_deps->root == eu_context->virtual_process->dague_context->my_rank) me = 0;
-    else me = -1; 
-    
+    else me = -1;
     for( i = 0; remote_deps_count; i++) {
         if( 0 == remote_deps->output[i].count ) continue;
-        
+
         him = 0;
         for( array_index = count = 0; count < remote_deps->output[i].count; array_index++ ) {
             current_mask = remote_deps->output[i].rank_bits[array_index];
@@ -248,7 +241,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     remote_deps_count--;
 
                     DEBUG3((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank));
-                    
+
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
 
@@ -259,11 +252,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         if(rank == eu_context->virtual_process->dague_context->my_rank) continue;
                     }
                     him++;
-                    
+
                     if(remote_dep_bcast_child(me, him))
                     {
                         DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
-                        
                         if(ACCESS_NONE != exec_context->function->out[i]->access_type)
                         {
                             AREF(remote_deps->output[i].data);
@@ -290,7 +282,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 dague_remote_dep_context_t dague_remote_dep_context;
 static int dague_remote_dep_inited = 0;
 
-/* THIS FUNCTION MUST NOT BE CALLED WHILE REMOTE DEP IS ON. 
+/* THIS FUNCTION MUST NOT BE CALLED WHILE REMOTE DEP IS ON.
  * NOT THREAD SAFE (AND SHOULD NOT BE) */
 void remote_deps_allocation_init(int np, int max_output_deps)
 {
@@ -308,7 +300,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
 
         dague_remote_dep_context.max_dep_count = max_output_deps;
         dague_remote_dep_context.max_nodes_number = np;
-        dague_remote_dep_context.elem_size = 
+        dague_remote_dep_context.elem_size =
             /* sizeof(dague_remote_deps_t+outputs+padding) */
             ((intptr_t)&fake_rdep.output[dague_remote_dep_context.max_dep_count])-(intptr_t)&fake_rdep +
             /* One rankbits fw array per output param */
@@ -327,7 +319,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
 void remote_deps_allocation_fini(void)
 {
     dague_remote_deps_t* rdeps;
-        
+
     if(1 == dague_remote_dep_inited) {
         while(NULL != (rdeps = (dague_remote_deps_t*) dague_lifo_pop(&dague_remote_dep_context.freelist))) {
             free(rdeps);
@@ -335,7 +327,7 @@ void remote_deps_allocation_fini(void)
         dague_lifo_destruct(&dague_remote_dep_context.freelist);
     }
     dague_remote_dep_inited = 0;
-} 
+}
 
 #endif /* DISTRIBUTED */
 

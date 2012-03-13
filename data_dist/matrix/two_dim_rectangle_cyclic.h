@@ -80,6 +80,12 @@ int twoDBC_ctolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex32_t* A, int ld
 int twoDBC_dtolapack(two_dim_block_cyclic_t *Mdesc, double* A, int lda);
 int twoDBC_stolapack(two_dim_block_cyclic_t *Mdesc, float* A, int lda);
 
+
+void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target, 
+                                           two_dim_block_cyclic_t* origin, 
+                                           int rst, int cst );
+
+
 #ifdef HAVE_MPI
 
 int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm);

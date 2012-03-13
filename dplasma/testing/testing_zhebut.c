@@ -72,10 +72,11 @@ int main(int argc, char ** argv)
         if( rank == 0 && loud ) printf("-- The butterfly failed (info = %d) ! \n", info);
         ret |= 1;
     }
-    dague_data_free(ddescA.mat);
-    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
 
     cleanup_dague(dague, iparam);
+
+    dague_data_free(ddescA.mat);
+    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
 
     return ret;
 }

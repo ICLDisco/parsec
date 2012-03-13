@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -21,20 +21,17 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-
-static Dague_Complex64_t zone = 1.;
-
 %}
 
-side [type = "PLASMA_enum"]
-uplo [type = "PLASMA_enum"]
+side  [type = "PLASMA_enum"]
+uplo  [type = "PLASMA_enum"]
 trans [type = "PLASMA_enum"]
-diag [type = "PLASMA_enum"]
+diag  [type = "PLASMA_enum"]
 alpha [type = "Dague_Complex64_t"]
 descA [type = "tiled_matrix_desc_t"]
-A [type = "dague_ddesc_t *"]
+A     [type = "dague_ddesc_t *"]
 descB [type = "tiled_matrix_desc_t"]
-B [type = "dague_ddesc_t *"]
+B     [type = "dague_ddesc_t *"]
 
 
 ztrsm(k,n)
@@ -44,40 +41,30 @@ ztrsm(k,n)
 
   : B(k,n)
 
-  /* A == A(k,k) */
-  /* B == B(k,n) */
-  /* D == B(k,n1) */
-  /* E == B(m,n1) */
-
   READ  A <- A ztrsm_in_A0(k,n)
 
-  RW    B <- (k>=1) ? E zgemm(k-1, k, n) 
+  RW    B <- (k>=1) ? E zgemm(k-1, k, n)
           <- (0==k) ? B(k,n)
           -> B(k,n)
-          -> (descB.mt>=(k+2)) ? D zgemm(k, (k+1)..(descB.mt-1), n) 
-
-  /*
-  The following is a superset of the necessary anti-dependencies:
-  ANTI edge from ztrsm:B(k,n) to ztrsm:B(k,n) {[k,n] -> [k,n] : 0 <= k < descB.mt && 0 <= n < descB.nt}
-
-  */
+          -> (descB.mt>=(k+2)) ? D zgemm(k, (k+1)..(descB.mt-1), n)
 
 BODY
 
   int tempkm = ((k)==(descB.mt-1)) ? (descB.m-(k*descB.mb)) : descB.mb;
   int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
-  Dague_Complex64_t lalpha = ((k)==(0)) ? (alpha) : (zone);
+  Dague_Complex64_t lalpha = ((k)==(0)) ? (alpha) : (Dague_Complex64_t)(1.0);
   int lda = BLKLDD( descA, k );
   int ldb = BLKLDD( descB, k );
 
-  CORE_ztrsm(side, uplo, trans, 
-	diag, tempkm, tempnn, 
-	lalpha, A /* A(k,k) */, lda, 
-	B /* B(k,n) */, ldb );
+  DRYRUN(
+      CORE_ztrsm(side, uplo, trans, diag,
+                 tempkm, tempnn, lalpha,
+                 A /* A(k,k) */, lda,
+                 B /* B(k,n) */, ldb );
+         );
   printlog("thread %d VP %d CORE_ztrsm(%d, %d)\n"
            "\t(side, uplo, trans, diag, tempkm, tempnn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-  context->th_id, context->virtual_process->vp_id, k, n, k, k, A, k, n, B);
-
+             context->th_id, context->virtual_process->vp_id, k, n, k, k, A, k, n, B);
 END
 
 /*
@@ -105,43 +92,33 @@ zgemm(k,m,n1)
 
   : B(m,n1)
 
-  /* B == B(k,n) */
-  /* C == A(k,m) */
-  /* D == B(k,n1) */
-  /* E == B(m,n1) */
-
   READ  C <- C zgemm_in_A0(k,m,n1)
 
-  READ  D <- B ztrsm(k, n1) 
+  READ  D <- B ztrsm(k, n1)
   RW    E <- (0==k) ? B(m,n1)
-          <- (k>=1) ? E zgemm(k-1, m, n1) 
-          -> (m>=(k+2)) ? E zgemm(k+1, m, n1) 
-          -> ((k+1)==m) ? B ztrsm(m, n1) 
-
-  /*
-  The following is a superset of the necessary anti-dependencies:
-  ANTI edge from zgemm:B(m,n1) to ztrsm:B(k,n) {[k,m,n1] -> [m,n1] : 0 <= k < m < descB.mt && 0 <= n1 < descB.nt}
-  ANTI edge from zgemm:B(m,n1) to zgemm:B(m,n1) {[k,m,n1] -> [k,m,n1] : 0 <= k < m < descB.mt && 0 <= n1 < descB.nt} union
- {[k,m,n1] -> [k',m,n1] : 0 <= k < k' < m < descB.mt && 0 <= n1 < descB.nt}
-
-  */
+          <- (k>=1) ? E zgemm(k-1, m, n1)
+          -> (m>=(k+2)) ? E zgemm(k+1, m, n1)
+          -> ((k+1)==m) ? B ztrsm(m, n1)
 
 BODY
 
   int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
   int tempnn = ((n1)==(descB.nt-1)) ? (descB.n-(n1*descB.nb)) : descB.nb;
-  Dague_Complex64_t mzone = (Dague_Complex64_t)-1.000000;
-  Dague_Complex64_t lalpha = ((k)==(0)) ? (alpha) : (zone);
-  int ldb = BLKLDD( descB, m );
+  Dague_Complex64_t lalpha = ((k)==(0)) ? (alpha) : (Dague_Complex64_t)(1.0);
+  int ldak = BLKLDD( descA, k );
+  int ldbk = BLKLDD( descB, k );
+  int ldb  = BLKLDD( descB, m );
 
-  CORE_zgemm(trans, PlasmaNoTrans, tempmm, 
-	tempnn, descB.mb, mzone, 
-	C /* A(k,m) */, descA.mb, D /* B(k,n1) */, 
-	descB.mb, lalpha, E /* B(m,n1) */, 
-	ldb );
+  DRYRUN(
+      CORE_zgemm(trans, PlasmaNoTrans,
+                 tempmm, tempnn, descB.mb,
+                 -1.0,   C /* A(k,m) */,  ldak,
+                         D /* B(k,n1) */, ldbk,
+                 lalpha, E /* B(m,n1) */, ldb );
+         );
   printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
            "\t(trans, PlasmaNoTrans, tempmm, tempnn, descB.mb, mzone, A(%d,%d)[%p], descA.mb, B(%d,%d)[%p], descB.mb, lalpha, B(%d,%d)[%p], ldb)\n",
-  context->th_id, context->virtual_process->vp_id, k, m, n1, k, m, C, k, n1, D, m, n1, E);
+             context->th_id, context->virtual_process->vp_id, k, m, n1, k, m, C, k, n1, D, m, n1, E);
 
 END
 

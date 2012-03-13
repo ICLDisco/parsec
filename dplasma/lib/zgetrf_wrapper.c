@@ -15,15 +15,19 @@
 
 #include "zgetrf.h"
 
+void CORE_zgetrf_reclap_init(void);
+
 dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
                                    tiled_matrix_desc_t *IPIV,
                                    int *INFO)
 {
     dague_zgetrf_object_t *dague_getrf;
 
+    CORE_zgetrf_reclap_init();
+
     dague_getrf = dague_zgetrf_new( *A, (dague_ddesc_t*)A,
                                     (dague_ddesc_t*)IPIV,
-                                    INFO);
+                                    INFO, NULL );
 
     /* A */
     dplasma_add2arena_tile( dague_getrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA],

@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010-2012
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -24,6 +24,7 @@ extern "C" %{
 #include "gpu_data.h"
 #include "cores/cuda_sgemm.h"
 extern int *gpu_counter;
+extern dague_gpu_data_map_t *gpu_data_A;
 #endif
 %}
 
@@ -57,7 +58,7 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, k, k );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
     DRYRUN(
         CORE_zpotrf(
@@ -100,8 +101,8 @@ RW    C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, n, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, k, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, n, k );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     if( uplo == PlasmaLower ) {
@@ -113,9 +114,10 @@ BODY
                 (Dague_Complex64_t)1.0, T /*A(k, k)*/, NB, /*A.nb,*/
                                         C /*A(n, k)*/, NB /*A.nb*/ )
             );
-        printlog( 
+        printlog(
                  "thread %d VP %d CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
                  context->th_id, context->virtual_process->vp_id, "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
+
                  NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                  NB, /*A.nb,*/
                  1.0, k, k, NB, /*A.nb,*/
@@ -163,8 +165,8 @@ RW    T <- (k == 0) ? A(n,n) : T HERK(k-1, n)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, n, k );
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, n, n );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, n, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, n, n );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     if( uplo == PlasmaLower ) {
@@ -227,9 +229,9 @@ RW    C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, n, k );
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
-    if( dague_using_gpu() > 0 ) {
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, n, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, m, k );
+    if( dague_active_gpu() > 0 ) {
         int rc;
 
         if( 0 == (rc = gpu_sgemm( context, this_task, uplo )) )
@@ -245,12 +247,12 @@ BODY
         }
         /* Continue with the task on the cores */
     }
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, m, n );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     if( uplo == PlasmaLower ) {
         DRYRUN(
-            CORE_zgemm( 
+            CORE_zgemm(
                 PlasmaNoTrans, PlasmaTrans,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/

@@ -23,15 +23,15 @@ extern "C" %{
 
 %}
 
-side [type = "PLASMA_enum"]
-uplo [type = "PLASMA_enum"]
+side  [type = "PLASMA_enum"]
+uplo  [type = "PLASMA_enum"]
 trans [type = "PLASMA_enum"]
-diag [type = "PLASMA_enum"]
+diag  [type = "PLASMA_enum"]
 alpha [type = "Dague_Complex64_t"]
 descA [type = "tiled_matrix_desc_t"]
-A [type = "dague_ddesc_t *"]
+A     [type = "dague_ddesc_t *"]
 descB [type = "tiled_matrix_desc_t"]
-B [type = "dague_ddesc_t *"]
+B     [type = "dague_ddesc_t *"]
 
 
 ztrsm(k,m)
@@ -41,22 +41,12 @@ ztrsm(k,m)
 
   : B(m,(descB.nt-1)-k)
 
-  /* A == A((descB.nt-1)-k,(descB.nt-1)-k) */
-  /* B == B(m,(descB.nt-1)-k) */
-  /* C == B(m,(descB.nt-1)-k) */
-  /* E == B(m,(descB.nt-1)-n) */
-
   READ  A <- A ztrsm_in_A0(k,m)
 
   RW    B <- (k>=1) ? E zgemm(k-1, m, k)
           <- (0==k) ? B(m,(descB.nt-1)-k)
           -> (descB.nt>=(2+k)) ? C zgemm(k, m, (k+1)..(descB.nt-1))
           -> B(m,(descB.nt-1)-k)
-
-  /*
-  Anti-dependencies:
-
-  */
 
 BODY
 
@@ -67,14 +57,15 @@ BODY
 
   DRYRUN(
 
-    CORE_ztrsm(side, uplo, trans,
-	diag, tempmm, tempkn,
-	alpha, A /* A((descB.nt-1)-k,(descB.nt-1)-k) */, lda,
-	B /* B(m,(descB.nt-1)-k) */, ldb );  );
+      CORE_ztrsm(side, uplo, trans, diag,
+                 tempmm, tempkn, alpha,
+                 A /* A((descB.nt-1)-k,(descB.nt-1)-k) */, lda,
+                 B /* B(m,(descB.nt-1)-k) */, ldb );
+         );
 
   printlog("thread %d VP %d CORE_ztrsm(%d, %d)\n"
            "\t(side, uplo, trans, diag, tempmm, tempkn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-   context->th_id, context->virtual_process->vp_id, k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
+              context->th_id, context->virtual_process->vp_id, k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
 
 END
 
@@ -103,10 +94,6 @@ zgemm(k,m,n)
 
   : B(m,(descB.nt-1)-n)
 
-  /* B == B(m,(descB.nt-1)-k) */
-  /* C == B(m,(descB.nt-1)-k) */
-  /* D == A((descB.nt-1)-n,(descB.nt-1)-k) */
-  /* E == B(m,(descB.nt-1)-n) */
 
   READ  C <- B ztrsm(k, m)
   READ  D <- D zgemm_in_A0(k,m,n)
@@ -126,16 +113,18 @@ BODY
   int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
   int tempkn = ((k)==(0)) ? (descB.n-((descB.nt-1)*descB.nb)) : descB.nb;
   Dague_Complex64_t minvalpha = ((Dague_Complex64_t)-1.000000)/alpha;
+  int ldan = BLKLDD( descA, (descB.nt-1)-n );
   int ldb = BLKLDD( descB, m );
-  Dague_Complex64_t zone = (Dague_Complex64_t)1.000000;
 
   DRYRUN(
 
-    CORE_zgemm(PlasmaNoTrans, trans, tempmm,
-	descB.nb, tempkn, minvalpha,
-	C /* B(m,(descB.nt-1)-k) */, ldb, D /* A((descB.nt-1)-n,(descB.nt-1)-k) */,
-	descA.mb, zone, E /* B(m,(descB.nt-1)-n) */,
-	ldb );  );
+
+    CORE_zgemm(PlasmaNoTrans, trans,
+               tempmm, descB.nb, tempkn,
+               minvalpha, C /* B(m,             (descB.nt-1)-k) */, ldb,
+                          D /* A((descB.nt-1)-n,(descB.nt-1)-k) */, ldan,
+               1.0,       E /* B(m,             (descB.nt-1)-n) */, ldb );
+         );
 
   printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, trans, tempmm, descB.nb, tempkn, minvalpha, B(%d,%d)[%p], ldb, A(%d,%d)[%p], descA.mb, zone, B(%d,%d)[%p], ldb)\n",

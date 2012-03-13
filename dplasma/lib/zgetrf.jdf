@@ -20,10 +20,9 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define min( __a, __b ) ( (__a) < (__b) ? (__a) : (__b) )
-
-static Dague_Complex64_t mzone = (Dague_Complex64_t)-1.;
-static Dague_Complex64_t zone  = (Dague_Complex64_t)1.;
+#define max_thrdnbr_per_panel 8
+#define nbthreads( __k ) (dague_imin( ((descA.mt - (__k)) + 3 )/  4, max_thrdnbr_per_panel) - 1)
+PLASMA_desc plasma_desc_submatrix(PLASMA_desc descA, int i, int j, int m, int n);
 
 %}
 
@@ -32,6 +31,7 @@ descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
 IPIV      [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
+pdescA    [type = "PLASMA_desc*"]
 
 /************************************************************************************
  *                      Tiles 2 panel (Reduction version)
@@ -55,16 +55,18 @@ tile2panel(k, m, n) [profile = off]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-2 )
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
+  ntrd = inline_c %{ return nbthreads( k+1 ); %}
 
   :A(k, n)
 
   CTL  ctl1 <- ctl gemm(k, m, n)
   CTL  ctl2 <- (m > k+1        ) ? ctl2 tile2panel(k, m-1, n)
             -> (m < descA.mt-1 )  ? ctl2 tile2panel(k, m+1, n)
-            -> ((m == descA.mt-1 ) && (n == k+1)) ? ctl  getrf(k+1)
+            -> ((m == descA.mt-1 ) && (n == k+1)) ? ctl  getrf(k+1, 0..ntrd)
             -> ((m == descA.mt-1 ) && (n >  k+1)) ? ctl  swptrsm(k+1, n)
             -> (( m == descA.mt-1) && (k > 0 )) ? ctl1 subm2panel(k, n)
 
+  ;descA.nt-n-1
 BODY
     printlog("thread %d VP %d tile2panel( %d, %d, %d )\n",  context->th_id, context->virtual_process->vp_id, k, m, n);
 END
@@ -100,6 +102,7 @@ subm2panel(k, n) [profile = off]
   CTL  ctl2 <- (n > k+1) ? ctl2 subm2panel(k, n-1)
             -> (n < descA.nt-1) ? ctl2 subm2panel(k, n+1) : ctl swpback(k, k-1)
 
+  ;0
 BODY
     printlog("thread %d VP %d subm2panel( %d, %d )\n", context->th_id, context->virtual_process->vp_id, k, n);
 END
@@ -108,48 +111,68 @@ END
  *                                    GETRF                                         *
  ************************************************************************************/
 
-getrf(k)
+getrf(k, t) [high_priority = on]
   /* Execution space */
-  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  k  = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  t  = 0..inline_c %{ return nbthreads( k ); %}
+  m1 = inline_c %{ return k + t * 4; %}
+  m2 = inline_c %{ return dague_imin( k + (t+1) * 4 - 1, descA.mt-1); %}
 
   /* Locality */
   :A(k, k)
 
-  RW    A    <- ( 0 == k ) ? A(k,k) : C gemm(k-1, k, k)
-          /* <- A(k..descA.mt-1, k) : C gemm(k-1, k..descA.mt-1, k) */
-             -> (k < descA.nt-1) ? A swptrsm(k, k+1..descA.nt-1)
-             -> A(k, k)
-  RW    IPIV <- IPIV(k,0)                                            [type = PIVOT]
-             -> IPIV(k,0)                                            [type = PIVOT]
-             -> (k < descA.nt-1) ? IPIV swptrsm(k, k+1..descA.nt-1)  [type = PIVOT]
-             -> (k > 0)          ? IPIV swpback(k, 0..k-1)           [type = PIVOT]
+  RW    A    <- ( 0 == k ) ? A(k, k) : C gemm(k-1, k, k)
+          /* <- A(m1..m2, k) : C gemm(k-1, m1..m2, k) */
+             -> ((k < descA.nt-1) && (t == 0)) ? A swptrsm(k, k+1..descA.nt-1)
+             -> (t == 0) ? A(k, k)
+          /* -> A(m1..m2, k) */
+  RW    IPIV <- IPIV(k,0)                                                        [type = PIVOT]
+             -> IPIV(k,0)                                                        [type = PIVOT]
+             -> ((t==0) && (k < descA.nt-1)) ? IPIV swptrsm(k, k+1..descA.nt-1)  [type = PIVOT]
+             -> ((t==0) && (k > 0)         ) ? IPIV swpback(k, 0..k-1)           [type = PIVOT]
   CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, descA.mt-1, k)
+  /*  CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, m2,         k)*/
 
 /* Priority */
-;k
+;descA.nt-k-1
 
 BODY
 
-  int iinfo = 0;
+  int tempm  = descA.m - k * descA.mb;
+  int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+  int ldak = BLKLDD(descA, k);
+
   DRYRUN(
-         int tempm  = descA.m - k * descA.mb;
-         int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
-         int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
-         int ldak = BLKLDD(descA, k);
+      int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
+      int nbthrd = nbthreads( k );
+      int info[3];
 
-         /* Set local IPIV to 0 before generation
-          * Better here than a global initialization for locality
-          * and it's also done in parallel */
-         memset(IPIV, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
+      /* Set local IPIV to 0 before generation
+       * Better here than a global initialization for locality
+       * and it's also done in parallel */
+      if ( t == 0 ) {
+          memset(IPIV, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
+          fprintf(stderr, "There are %d threads woking on it\n", nbthrd);
+      }
 
-         CORE_zgetrf(
-                tempm, tempkn,
-                A/*(k, k)*/, ldak, IPIV, &iinfo );
+      info[1] = t;
+      info[2] = nbthrd+1;
 
-         if ( (iinfo != 0) && (k == descA.mt-1) ) {
-             *INFO = k * descA.mb + iinfo; /* Should return if enter here */
-             fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
-         }
+      if ( descA.storage == matrix_Tile ) {
+          int tempk = k * descA.mb;
+          CORE_zgetrf_rectil(
+              plasma_desc_submatrix(*pdescA, tempk, k*descA.nb, tempm, tempkn),
+              IPIV, info );
+      } else {
+          CORE_zgetrf_reclap(
+              tempm, tempkn,
+              A/*(k, k)*/, ldak, IPIV, info );
+      }
+
+      if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
+          *INFO = k * descA.mb + info[0]; /* Should return if enter here */
+          fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
+      }
          );
 
    printlog("thread %d VP %d  CORE_zgetrf_rec(%d)\n"
@@ -171,8 +194,8 @@ swptrsm(k, n)
   /* Locality */
   :A(k, n)
 
-  READ  A    <- A    getrf(k)
-  READ  IPIV <- IPIV getrf(k)                                [type = PIVOT]
+  READ  A    <- A    getrf(k, 0)
+  READ  IPIV <- IPIV getrf(k, 0)                                [type = PIVOT]
   RW    B    <- ( 0 == k ) ? A(k,n) : C gemm(k-1, k, n)
           /* <- A(k..descA.mt-1, n) : C gemm(k-1, k..descA.mt-1, n) */
              -> (k < descA.mt-1) ? B gemm(k, k+1..descA.mt-1, n)
@@ -180,7 +203,7 @@ swptrsm(k, n)
   CTL   ctl  <- ( k > 0 ) ? ctl2 tile2panel(k-1, descA.mt-1, n)
 
 /* Priority */
-;n
+;descA.nt-n-1
 
 BODY
 
@@ -194,8 +217,8 @@ BODY
          CORE_ztrsm(
              PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
              tempkm, tempnn,
-             zone, A /*(k, k)*/, ldak,
-                   B /*(k, n)*/, ldak);
+             1., A /*(k, k)*/, ldak,
+                 B /*(k, n)*/, ldak);
          );
 
    printlog("thread %d VP %d CORE_zswptrsm(%d, %d)\n"
@@ -212,6 +235,7 @@ gemm(k,m,n)
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
+  ntrd = inline_c %{ return nbthreads( k+1 ); %}
 
   /* Locality */
 :A(m, n)
@@ -219,14 +243,14 @@ gemm(k,m,n)
   READ  A  <- A(m, k)
   READ  B  <- B swptrsm(k, n)
   RW    C  <- ( k   == 0 ) ? A(m, n) : C gemm(k-1, m, n)
-           -> ( k+1 == n ) && ( k+1 == m ) ? A getrf(k+1)
+           -> ( k+1 == n ) && ( k+1 == m ) ? A getrf(k+1, 0..ntrd)
          /*-> ( k+1 == n ) && ( k+1 != m ) ? A getrf(k+1)*/
            -> ( k+1 <  n ) && ( k+1 == m ) ? B swptrsm(k+1, n)
            -> ( k+1 <  n ) && ( k+1 <  m ) ? C gemm(k+1, m, n)
   CTL  ctl -> ctl1 tile2panel(k, m, n)
 
     /* Priority */
-; (descA.mt-k)*(descA.mt-n)*(descA.mt-n)
+;descA.nt-n-1
 
 BODY
 
@@ -238,9 +262,9 @@ BODY
 
       CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                  tempmm, tempnn, descA.mb,
-                 mzone, A /*(m, k)*/, ldam,
-                        B /*(k, n)*/, ldak,
-                 zone,  C /*(m, n)*/, ldam );
+                 -1., A /*(m, k)*/, ldam,
+                      B /*(k, n)*/, ldak,
+                 1.,  C /*(m, n)*/, ldam );
          );
    printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
             "\t(%d, %d, %d, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, C(%d,%d)[%p], %d)\n",
@@ -261,15 +285,16 @@ swpback(k, n)
   /* Locality */
   :A(k, n)
 
-  READ  IPIV <- IPIV getrf(k)                                [type = PIVOT]
+  READ  IPIV <- IPIV getrf(k, 0)                                [type = PIVOT]
   RW    A    <- A(k, n)
              -> A(k, n)
   CTL   ctl  <- ((k < descA.nt-1) && (n == k-1)) ? ctl2 subm2panel(k, descA.nt-1)
-             <- (n <  k-1) ? ctl swpback(k-1, n)
+             <- (n <  k-1)                                ? ctl swpback(k-1, n)
              -> (( k < descA.nt-1 ) && (k < descA.mt-1 )) ? ctl swpback(k+1, n)
 
 /* Priority */
-;n
+;0
+
 BODY
 
   DRYRUN(

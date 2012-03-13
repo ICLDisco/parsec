@@ -215,6 +215,7 @@ int main(int argc, char *argv[])
     dague_diag_band_to_rect_destroy( DAGUE_diag_band_to_rect );
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
 
+    cleanup_dague(dague, iparam);
 
     free(A2); free(W1); free(W2); free(D); free(E);
     dague_data_free(ddescBAND.mat);
@@ -223,8 +224,6 @@ int main(int argc, char *argv[])
     dague_ddesc_destroy((dague_ddesc_t*)&ddescBAND);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
-
-    cleanup_dague(dague, iparam);
 
     PLASMA_Finalize();
 

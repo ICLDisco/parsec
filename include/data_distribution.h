@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,9 +9,14 @@
 #define _DATA_DISTRIBUTION_H_ 
 
 #include "dague_config.h"
+#include "profiling.h"
 
+#if defined(HAVE_STDARG_H)
 #include <stdarg.h>
+#endif  /* defined(HAVE_STDARG_H) */
+#if defined(HAVE_UNISTD_H)
 #include <unistd.h>
+#endif  /* defined(HAVE_UNISTD_H) */
 #include <stdint.h>
 #include <stdlib.h>
 

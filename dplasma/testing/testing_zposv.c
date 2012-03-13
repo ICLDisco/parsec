@@ -64,13 +64,6 @@ int main(int argc, char ** argv)
                                                       nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                                       N, NRHS, SMB, SNB, P));
 
-
-#if defined(DAGUE_PROF_TRACE)
-    ddescA0.super.super.key = strdup("A0");
-    ddescB.super.super.key  = strdup("B");
-    ddescX.super.super.key  = strdup("X");
-#endif
-
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
@@ -90,9 +83,6 @@ int main(int argc, char ** argv)
             sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
                                        nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                        N, N, P, uplo[u]));
-#if defined(DAGUE_PROF_TRACE)
-        ddescA.super.super.key  = strdup("A");
-#endif
 
         /* load the GPU kernel */
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
@@ -251,6 +241,8 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
     }
 
+    cleanup_dague(dague, iparam);
+
     dague_data_free(ddescA0.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0);
     dague_data_free(ddescB.mat);
@@ -258,7 +250,6 @@ int main(int argc, char ** argv)
     dague_data_free(ddescX.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
 
-    cleanup_dague(dague, iparam);
     return ret;
 }
 

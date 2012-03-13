@@ -8,7 +8,6 @@
 #define DAGUE_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
-#include "dague.h"
 
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
@@ -71,7 +70,7 @@ struct dague_vp {
      */
     dague_execution_unit_t* execution_units[1];
 };
-	
+
 /**
  * All virtual processes belong to a single physical
  * process
@@ -96,10 +95,11 @@ struct dague_context_t {
 
     int32_t nb_vp; /**< number of virtual processes in this physical process */
 
-#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
-    int comm_th_core; 
-    hwloc_cpuset_t comm_th_binding_mask;
-    hwloc_cpuset_t core_free_mask;
+
+#ifdef HAVE_HWLOC
+    int comm_th_core;
+    hwloc_cpuset_t comm_th_index_mask;
+    hwloc_cpuset_t index_core_free_mask;
 #endif
 
     /* This field should always be the last one in the structure. Even if the
