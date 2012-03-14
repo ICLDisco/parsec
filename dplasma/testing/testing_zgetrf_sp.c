@@ -21,8 +21,7 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     int info = 0;
     int ret = 0;
-    int i;
-    int criteria = 0;
+    double criteria = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -63,25 +62,19 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, check,
-        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Lapack,
-                               nodes, cores, rank, MB, 1, M, 1, 0, 0,
-                               M, 1, SMB, SNB, P));
-
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
 
+    tiled_matrix_desc_t * descA = (tiled_matrix_desc_t *)&ddescA;
     Dague_Complex64_t *tab = (Dague_Complex64_t *) ddescA.mat;
-    for(i = 0; i < ((M<N)?M:N); i++)
-      tab[LDA*i+i] += ((M<N)?M:N);
+    int t,e;
+    for(t = 0; t < ((descA->lmt < descA->lnt)?descA->lmt:descA->lnt); t++)
+        for(e = 0; e < descA->mb; e++)
+            tab[(t * descA->lmt +t) * (descA->mb*descA->nb) + e * descA->mb + e] += ((M<N)?M:N);
 
     if ( check )
     {
-        Dague_Complex64_t *tab = (Dague_Complex64_t *) ddescIPIV.mat;
-        for(i = 0; i < ((M<N)?M:N); i++)
-            tab[i] = i+1;
-
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA,
                         (tiled_matrix_desc_t *)&ddescA0 );
@@ -107,11 +100,28 @@ int main(int argc, char ** argv)
         ret |= 1;
     }
     else if ( check ) {
+        dague_object_t *dague_ztrsm1 = NULL;
+        dague_object_t *dague_ztrsm2 = NULL;
 
-        dplasma_zgetrs(dague, PlasmaNoTrans,
-                       (tiled_matrix_desc_t *)&ddescA,
-                       (tiled_matrix_desc_t *)&ddescIPIV,
-                       (tiled_matrix_desc_t *)&ddescX );
+        dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                                         1.0, (tiled_matrix_desc_t *)&ddescA,
+                                         (tiled_matrix_desc_t *)&ddescX);
+        dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit,
+                                         1.0, (tiled_matrix_desc_t *)&ddescA,
+                                         (tiled_matrix_desc_t *)&ddescX);
+
+        dague_enqueue( dague, dague_ztrsm1 );
+        dague_enqueue( dague, dague_ztrsm2 );
+
+        dague_progress( dague );
+
+        dplasma_ztrsm_Destruct( dague_ztrsm1 );
+        dplasma_ztrsm_Destruct( dague_ztrsm2 );
+
+        /* dplasma_zgetrs(dague, PlasmaNoTrans, */
+        /*                (tiled_matrix_desc_t *)&ddescA, */
+        /*                (tiled_matrix_desc_t *)&ddescIPIV, */
+        /*                (tiled_matrix_desc_t *)&ddescX ); */
 
         /* Check the solution */
         ret |= check_solution( dague, (rank == 0) ? loud : 0,
@@ -128,8 +138,6 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
         dague_data_free(ddescX.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
-        dague_data_free(ddescIPIV.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
     }
 
     //    cleanup_dague(dague, iparam);

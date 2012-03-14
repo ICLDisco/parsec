@@ -17,7 +17,7 @@
 
 
 dague_object_t*
-dplasma_zgetrf_sp_New(int criteria, tiled_matrix_desc_t *A, int *info)
+dplasma_zgetrf_sp_New(double criteria, tiled_matrix_desc_t *A, int *info)
 {
     dague_object_t *dague_zgetrf_sp = NULL;
     //    int pri_change = dplasma_aux_get_priority( "GETRF_SP", A );
@@ -39,7 +39,7 @@ dplasma_zgetrf_sp_Destruct( dague_object_t *o )
     dague_zgetrf_sp_destroy((dague_zgetrf_sp_object_t *)o);
 }
 
-int dplasma_zgetrf_sp( dague_context_t *dague, const int criteria, tiled_matrix_desc_t* ddescA) 
+int dplasma_zgetrf_sp( dague_context_t *dague, const double criteria, tiled_matrix_desc_t* ddescA) 
 {
     dague_object_t *dague_zgetrf_sp = NULL;
     int info = 0, ginfo = 0 ;

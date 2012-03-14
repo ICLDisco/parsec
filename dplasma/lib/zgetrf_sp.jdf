@@ -27,7 +27,7 @@ extern "C" %{
  */
 descA        [type = "tiled_matrix_desc_t"]
 A            [type = "dague_ddesc_t *"]
-CRITERIA     [type = int]
+CRITERIA     [type = double]
 INFO         [type = "int*"]
 
 /**************************************************
@@ -92,7 +92,7 @@ BODY
                 tempkm,
                 tempmm,
                 (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
-                                        C /*A(k, m)*/, ldam )
+                                        C /*A(m, k)*/, ldam )
             );
         printlog("CORE_trsm_L(%d,%d)\n", k, m);
 
@@ -127,7 +127,7 @@ BODY
                 tempkm,
                 tempnn,
                 (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
-                                        C /*A(m, k)*/, ldak )
+                                        C /*A(k, n)*/, ldak )
             );
         printlog("CORE_trsm_U(%d,%d)\n", k, n);
 
@@ -158,7 +158,6 @@ RW    C <- (k == 0) ? A(m,n) : C GEMM(k-1, m, n)
 
 BODY
     DRYRUN(
-            int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
             int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
             int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
             int ldak = BLKLDD( descA, k );
@@ -166,8 +165,8 @@ BODY
 
            CORE_zgemm(
                       PlasmaNoTrans, PlasmaNoTrans,
-                      tempmm, tempnn, ((tempmm<tempnn)?tempmm:tempnn),
-                      (Dague_Complex64_t)-1.0, A /*A(k, m)*/, ldam,
+                      tempmm, tempnn, descA.mb,
+                      (Dague_Complex64_t)-1.0, A /*A(m, k)*/, ldam,
                                                B /*A(k, n)*/, ldak,
                       (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam )
           );
