@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010-2012
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -24,6 +24,7 @@ extern "C" %{
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_sgemm.h"
 extern int *gpu_counter;
+extern dague_gpu_data_map_t *gpu_data_A;
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 %}
 
@@ -56,7 +57,7 @@ WRITE   F -> F GEMM(k, k+1..SIZE-1, 0)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, k, k );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     (void) F;
@@ -100,8 +101,8 @@ RW      C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, k, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, m, k );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     if( uplo == PlasmaLower ) {
@@ -111,9 +112,9 @@ BODY
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 (Dague_Complex64_t)1.0, T /*A(k, k)*/, NB, /*A.nb,*/
-                                        C /*A(m, k)*/, NB /*A.nb*/ ) 
+                                        C /*A(m, k)*/, NB /*A.nb*/ )
             );
-        printlog( 
+        printlog(
                  "CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
                  "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
                  NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
@@ -186,8 +187,8 @@ RW    T <- (n == 0) ? A HERK_IN_A(k) : T HERK(k, n-1)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, n );
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, k, n );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, k, k );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
     (void) F;
     if( uplo == PlasmaLower ) {
@@ -199,7 +200,7 @@ BODY
                 (double)-1.0, A /*A(k, n)*/, NB, /*A.nb,*/
                 (double) 1.0, T /*A(k, k)*/, NB /*A.nb*/ )
             );
-        printlog( 
+        printlog(
                  "CORE_herk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
                  "PlasmaLower", "PlasmaNoTrans",
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
@@ -216,7 +217,7 @@ BODY
                 (double)-1.0, A /*A(n, k)*/, NB, /*A.nb,*/
                 (double) 1.0, T /*A(k, k)*/, NB /*A.nb*/ )
             );
-        printlog( 
+        printlog(
                  "CORE_herk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
                  "PlasmaUpper", "PlasmaTrans",
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
@@ -277,8 +278,8 @@ RW    C <- (n == 0) ? A GEMM_IN_A(k, m) : C GEMM(k, m, n-1)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, n );
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, m );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, k, n );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, k, m );
     if( dague_active_gpu() == 1 ) {
         int rc;
 
@@ -295,12 +296,12 @@ BODY
         }
         /* Continue with the task on the cores */
     }
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, m, k );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     (void) F;
     if( uplo == PlasmaLower ) {
-        DRYRUN( 
+        DRYRUN(
             CORE_zgemm(
                 PlasmaNoTrans, PlasmaTrans,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/

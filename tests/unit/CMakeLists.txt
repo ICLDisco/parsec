@@ -1,11 +1,4 @@
-add_executable(lifo lifo.c ../../src/bindthread.c)
-set_target_properties(lifo PROPERTIES COMPILE_FLAGS "-DADD_")
-set_target_properties(lifo PROPERTIES LINKER_LANGUAGE C)
-set_target_properties(lifo PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
-target_link_libraries(lifo -lpthread ${EXTRA_LIBS} -lm)
 
-add_executable(list list.c ../../src/bindthread.c)
-set_target_properties(list PROPERTIES COMPILE_FLAGS "-DADD_")
-set_target_properties(list PROPERTIES LINKER_LANGUAGE C)
-set_target_properties(list PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
-target_link_libraries(list -lpthread ${EXTRA_LIBS} -lm)
+dague_addtest(C lifo lifo.c)
+dague_addtest(C list list.c)
+

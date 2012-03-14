@@ -64,7 +64,7 @@ struct dague_dependencies_t {
     int                     max;
     dague_dependencies_t* prev;
     /* keep this as the last field in the structure */
-    dague_dependencies_union_t u; 
+    dague_dependencies_union_t u;
 };
 
 typedef int (dague_hook_t)(struct dague_execution_unit*, dague_execution_context_t*);
@@ -78,10 +78,10 @@ typedef enum  {
     DAGUE_ITERATE_CONTINUE
 } dague_ontask_iterate_t;
 
-typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit *eu, 
-                                                         dague_execution_context_t *newcontext, 
-                                                         dague_execution_context_t *oldcontext, 
-                                                         int flow_index, int outdep_index, 
+typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit *eu,
+                                                         dague_execution_context_t *newcontext,
+                                                         dague_execution_context_t *oldcontext,
+                                                         int flow_index, int outdep_index,
                                                          int rank_src, int rank_dst,
                                                          dague_arena_t* arena,
                                                          int nb_elt,
@@ -175,7 +175,7 @@ extern int schedule_push_begin, schedule_push_end;
 extern int schedule_sleep_begin, schedule_sleep_end;
 #endif
 
-typedef void (*dague_startup_fn_t)(dague_context_t *context, 
+typedef void (*dague_startup_fn_t)(dague_context_t *context,
                                    dague_object_t *dague_object,
                                    dague_execution_context_t** startup_list);
 typedef int (*dague_completion_cb_t)(dague_object_t* dague_object, void*);
@@ -243,10 +243,10 @@ typedef struct {
 #endif
 } dague_release_dep_fct_arg_t;
 
-dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu, 
-                                             dague_execution_context_t *newcontext, 
-                                             dague_execution_context_t *oldcontext, 
-                                             int flow_index, int outdep_index, 
+dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu,
+                                             dague_execution_context_t *newcontext,
+                                             dague_execution_context_t *oldcontext,
+                                             int flow_index, int outdep_index,
                                              int rank_src, int rank_dst,
                                              dague_arena_t* arena,
                                              int nb_elt,

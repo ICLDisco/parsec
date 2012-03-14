@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010-2012
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -21,11 +21,11 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
+extern dague_gpu_data_map_t *gpu_data_A;
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 %}
 
@@ -58,7 +58,7 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, k, k );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
@@ -75,7 +75,7 @@ BODY
 
     printlog(
              "thread %d CORE_zpotrf( %d ) {%d}\n\t( %s, %d, A(%d,%d)[%p], %d)\n",
-             context->eu_id, k, this_task->priority, 
+             context->eu_id, k, this_task->priority,
              plasma_const(uplo), tempkm, k, k, T, descA.mb );
 END
 
@@ -105,8 +105,8 @@ RW    C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, k, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, m, k );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
@@ -115,7 +115,7 @@ BODY
     DRYRUN(
         CORE_ztrsm(
             PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit,
-            tempmm, descA.nb, 
+            tempmm, descA.nb,
             (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
                                     C /*A(m, k)*/, ldam);
         );
@@ -124,7 +124,7 @@ BODY
              context->eu_id, m, k, this_task->priority,
              plasma_const( PlasmaRight ), plasma_const( PlasmaLower ),
              plasma_const( PlasmaConjTrans ), plasma_const( PlasmaNonUnit ),
-             tempmm, descA.nb, 
+             tempmm, descA.nb,
              1.0, k, k, T, ldak,
                   m, k, C, ldam);
 
@@ -153,8 +153,8 @@ RW    T <- (k == 0)   ? A(m, m)    : T HERK(k-1, m)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, m );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, m, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, m, m );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m*descA.mb : descA.mb;
@@ -205,9 +205,9 @@ BODY
     int ldan = BLKLDD( descA, n );
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, n, k );
-    if( dague_active_gpu() > 0 ) {
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, m, k );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, n, k );
+    if( zgemm_cuda_ndevices() > 0 ) {
         int rc;
 
         if( 0 == (rc = gpu_zgemm( context, this_task, uplo )) )
@@ -223,11 +223,11 @@ BODY
         }
         /* Continue with the task on the cores */
     }
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
+    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, m, n );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     DRYRUN(
-        CORE_zgemm( 
+        CORE_zgemm(
             PlasmaNoTrans, PlasmaConjTrans,
             tempmm, descA.mb, descA.mb,
             (Dague_Complex64_t)-1.0, A /*A(m, k)*/, ldam,
@@ -235,7 +235,7 @@ BODY
             (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam);
         );
     printlog("thread %d CORE_zgemm( %d, %d, %d ) {%d}\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             context->eu_id, k, m, n, this_task->priority, 
+             context->eu_id, k, m, n, this_task->priority,
              plasma_const( PlasmaNoTrans ),  plasma_const( PlasmaConjTrans ),
              tempmm, descA.mb, descA.mb,
              -1.0, m, k, A, ldam,

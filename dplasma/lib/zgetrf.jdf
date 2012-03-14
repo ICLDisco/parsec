@@ -22,6 +22,7 @@ extern "C" %{
 
 #define max_thrdnbr_per_panel 8
 #define nbthreads( __k ) (dague_imin( ((descA.mt - (__k)) + 3 )/  4, max_thrdnbr_per_panel) - 1)
+PLASMA_desc plasma_desc_submatrix(PLASMA_desc descA, int i, int j, int m, int n);
 
 %}
 
@@ -30,6 +31,7 @@ descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
 IPIV      [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
+pdescA    [type = "PLASMA_desc*"]
 
 /************************************************************************************
  *                      Tiles 2 panel (Reduction version)
@@ -156,9 +158,16 @@ BODY
       info[1] = t;
       info[2] = nbthrd+1;
 
-      CORE_zgetrf_reclap(
-          tempm, tempkn,
-          A/*(k, k)*/, ldak, IPIV, info );
+      if ( descA.storage == matrix_Tile ) {
+          int tempk = k * descA.mb;
+          CORE_zgetrf_rectil(
+              plasma_desc_submatrix(*pdescA, tempk, k*descA.nb, tempm, tempkn),
+              IPIV, info );
+      } else {
+          CORE_zgetrf_reclap(
+              tempm, tempkn,
+              A/*(k, k)*/, ldak, IPIV, info );
+      }
 
       if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
           *INFO = k * descA.mb + info[0]; /* Should return if enter here */

@@ -108,7 +108,6 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
     }
-    /* cleanup_dague(dague, iparam); */
 
     if ( check ) {
         dague_data_free(ddescA0.mat);

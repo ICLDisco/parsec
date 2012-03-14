@@ -78,7 +78,7 @@ if [ "${PLASMA_DIR}" ]; then
 fi
 
 # Done with variable allocation, do the thing with Cmake
-LOCATION=`dirname $0`
+LOCATION=`dirname $0`/../../
 export CC CXX FC
 
 echo cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${CUDA} ${Q2J} ${PLASMA} ${USER_OPTIONS} ${LOCATION}

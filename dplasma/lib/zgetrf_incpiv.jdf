@@ -33,7 +33,6 @@ extern "C" %{
 
 %}
 
-/** Globals */
 descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
 descL     [type = "tiled_matrix_desc_t"]

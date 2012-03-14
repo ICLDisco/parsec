@@ -11,7 +11,7 @@ rm -rf CMakeCache.txt CMakeFiles
 # OpenMPI library.
 # -DMPI_LIBRARY:FILEPATH="/sw/xt5/ompi/1.7a1r22760/cnl2.2_pgi9.0.4/lib/libmpi.a" \
 
-env cmake . \
+env cmake `dirname $0`/../../ \
 -DMPI_LIBRARY:FILEPATH="/opt/mpt/3.5.1/xt/mpich2-pgi/lib/libmpich.a" \
 -DBLAS_LIBRARIES="/opt/xt-libsci/10.4.1/pgi/lib/libsci_quadcore.a" \
 -DPLASMA_DIR=/tmp/work/adanalis/PLASMA/plasma_2.1.0 \
