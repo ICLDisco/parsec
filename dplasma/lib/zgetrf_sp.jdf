@@ -1,0 +1,175 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+%}
+
+/* Globals
+ */
+descA        [type = "tiled_matrix_desc_t"]
+A            [type = "dague_ddesc_t *"]
+CRITERIA     [type = int]
+INFO         [type = "int*"]
+
+/**************************************************
+ *                    GETRF_SP                     *
+ **************************************************/
+GETRF_SP(k) [high_priority = on]
+
+// Execution space
+k = 0..((descA.mt-1<descA.nt-1)?descA.mt-1:descA.nt-1)
+
+// Parallel partitioning
+:A(k, k)
+
+// Parameters
+RW T <- (k == 0) ? A(k, k) : C GEMM(k-1, k, k)
+     -> T TRSM_L(k, k+1..descA.mt-1)
+     -> T TRSM_U(k, k+1..descA.nt-1)
+     -> A(k, k)
+
+BODY
+    DRYRUN(
+           int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
+           int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
+           int ldak = BLKLDD( descA, k );
+
+           int iinfo = 0;
+           CORE_zgetrf_sp(tempkm, tempkn, T, ldak, CRITERIA, &iinfo);
+           *INFO += iinfo;
+          );
+    printlog("CORE_getrf_sp(%d)\n",k);
+END
+
+
+/**************************************************
+ *                     TRSM_L                     *
+ **************************************************/
+TRSM_L(k, m) [high_priority = on]
+
+// Execution space
+k = 0..((descA.mt-1<descA.nt-1)?descA.mt-1:descA.nt-1)
+m = k+1..descA.mt-1
+
+// Parallel partitioning
+: A(m, k)
+
+// Parameters
+READ    T <- T GETRF_SP(k)
+RW      C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, k)
+          -> A GEMM(k,m, k+1..descA.mt-1)
+          -> A(m, k)
+
+BODY
+
+        DRYRUN(
+            int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
+            int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
+            int ldak = BLKLDD( descA, k );
+            int ldam = BLKLDD( descA, m );
+
+            CORE_ztrsm(
+                PlasmaRight, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit,
+                tempkm,
+                tempmm,
+                (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
+                                        C /*A(k, m)*/, ldam )
+            );
+        printlog("CORE_trsm_L(%d,%d)\n", k, m);
+
+END
+
+/**************************************************
+ *                     TRSM_U                     *
+ **************************************************/
+TRSM_U(k, n) [high_priority = on]
+
+// Execution space
+k = 0..((descA.mt-1<descA.nt-1)?descA.mt-1:descA.nt-1)
+n = k+1..descA.nt-1
+
+// Parallel partitioning
+: A(k, n)
+
+// Parameters
+READ    T <- T GETRF_SP(k)
+RW      C <- (k == 0) ? A(k, n) : C GEMM(k-1, k, n)
+          -> B GEMM(k, k+1..descA.nt-1, n)
+          -> A(k, n)
+
+BODY
+        DRYRUN(
+            int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
+            int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
+            int ldak = BLKLDD( descA, k );
+
+            CORE_ztrsm(
+                PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                tempkm,
+                tempnn,
+                (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
+                                        C /*A(m, k)*/, ldak )
+            );
+        printlog("CORE_trsm_U(%d,%d)\n", k, n);
+
+END
+
+/**************************************************
+ *                      GEMM                      *
+ **************************************************/
+GEMM(k, m, n)
+
+// Execution space
+k = 0..((descA.mt-1<descA.nt-1)?descA.mt-1:descA.nt-1)
+m = k+1..descA.mt-1
+n = k+1..descA.nt-1
+
+// Parallel partitioning
+: A(m, n)
+
+// Parameters
+READ  A <- C TRSM_L(k, m)
+READ  B <- C TRSM_U(k, n)
+RW    C <- (k == 0) ? A(m,n) : C GEMM(k-1, m, n)
+        -> ((m == k+1) && (n == k+1)) ? T GETRF_SP(k+1)  /* Diagonal */
+        -> ((m > k+1) && (n == k+1)) ?  C TRSM_L(k+1,m)  /* Lower */
+        -> ((m == k+1) && (n > k+1)) ?  C TRSM_U(k+1,n)  /* Upper */
+        -> ((m > k+1) && (n > k+1)) ?  C GEMM(k+1,m,n)   /* Everything else */
+
+
+BODY
+    DRYRUN(
+            int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
+            int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
+            int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
+            int ldak = BLKLDD( descA, k );
+            int ldam = BLKLDD( descA, m );
+
+           CORE_zgemm(
+                      PlasmaNoTrans, PlasmaNoTrans,
+                      tempmm, tempnn, ((tempmm<tempnn)?tempmm:tempnn),
+                      (Dague_Complex64_t)-1.0, A /*A(k, m)*/, ldam,
+                                               B /*A(k, n)*/, ldak,
+                      (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam )
+          );
+     printlog("CORE_gemm()\n");
+END

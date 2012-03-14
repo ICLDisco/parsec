@@ -21,6 +21,8 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     int info = 0;
     int ret = 0;
+    int i;
+    int criteria = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -46,15 +48,10 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, M, N, 0, 0,
                                LDA, N, SMB, SNB, P));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
-        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Lapack,
-                               nodes, cores, rank, MB, 1, M, 1, 0, 0,
-                               M, 1, SMB, SNB, P));
-
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                   N, N, SMB, SNB, P));
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               LDA, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Lapack,
@@ -66,10 +63,25 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, check,
+        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Lapack,
+                               nodes, cores, rank, MB, 1, M, 1, 0, 0,
+                               M, 1, SMB, SNB, P));
+
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
-    if ( check ) {
+
+    Dague_Complex64_t *tab = (Dague_Complex64_t *) ddescA.mat;
+    for(i = 0; i < ((M<N)?M:N); i++)
+      tab[LDA*i+i] += ((M<N)?M:N);
+
+    if ( check )
+    {
+        Dague_Complex64_t *tab = (Dague_Complex64_t *) ddescIPIV.mat;
+        for(i = 0; i < ((M<N)?M:N); i++)
+            tab[i] = i+1;
+
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA,
                         (tiled_matrix_desc_t *)&ddescA0 );
@@ -82,17 +94,16 @@ int main(int argc, char ** argv)
 
     /* Create DAGuE */
     if(loud > 2) printf("+++ Computing getrf ... ");
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf,
-                              ((tiled_matrix_desc_t*)&ddescA,
-                               (tiled_matrix_desc_t*)&ddescIPIV,
+    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_sp,
+                              (criteria,(tiled_matrix_desc_t*)&ddescA,
                                &info));
     /* lets rock! */
-    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf);
-    dplasma_zgetrf_Destruct( DAGUE_zgetrf );
+    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_sp);
+    dplasma_zgetrf_sp_Destruct( DAGUE_zgetrf_sp );
     if(loud > 2) printf("Done.\n");
 
     if ( check && info != 0 ) {
-        if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );
+        if( rank == 0 && loud ) printf("-- Factorization is done with static pivoting (info = %d) ! \n", info );
         ret |= 1;
     }
     else if ( check ) {
@@ -108,7 +119,7 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
     }
-    /* cleanup_dague(dague, iparam); */
+    cleanup_dague(dague, iparam);
 
     if ( check ) {
         dague_data_free(ddescA0.mat);
@@ -117,14 +128,14 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
         dague_data_free(ddescX.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
+        dague_data_free(ddescIPIV.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
     }
 
-    cleanup_dague(dague, iparam);
+    //    cleanup_dague(dague, iparam);
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
-    dague_data_free(ddescIPIV.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
 
     return EXIT_SUCCESS;
 }
