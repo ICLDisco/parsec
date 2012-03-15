@@ -150,7 +150,7 @@ BODY
 END
 
 
-ztsqrt_out_Ak(k)  [profile = off]
+ztsqrt_out_Ak(k) [profile = off]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
 
   : A(k, k)
@@ -219,7 +219,7 @@ BODY
 END
 
 
-ztsmqr_out_A1(k, n1)  [profile = off]
+ztsmqr_out_A1(k, n1) [profile = off]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   n1 = k+1..descA.nt-1
 

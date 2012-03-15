@@ -104,7 +104,7 @@ END
 /*
  * Pseudo-task
  */
-zgelqt_in_data_T0(k)
+zgelqt_in_data_T0(k) [profile = off]
   k = 0..(MT-1)
 
   : T(k,k)
@@ -119,7 +119,7 @@ END
 /*
  * Pseudo-task
  */
-zgelqt_out_data_T1(k)
+zgelqt_out_data_T1(k) [profile = off]
   k = 0..(MT-1)
 
   : T(k,k)
@@ -249,7 +249,7 @@ END
 /*
  * Pseudo-task
  */
-ztslqt_out_desc_A0(k)
+ztslqt_out_desc_A0(k) [profile = off]
   k = 0..(MT-1)
 
   : A(k,k)
@@ -264,7 +264,7 @@ END
 /*
  * Pseudo-task
  */
-ztslqt_in_data_T1(k,n)
+ztslqt_in_data_T1(k,n) [profile = off]
   k = 0.. minnt1mt2
   n = (k+1)..(NT-1)
 
@@ -280,7 +280,7 @@ END
 /*
  * Pseudo-task
  */
-ztslqt_out_data_T2(k,n)
+ztslqt_out_data_T2(k,n) [profile = off]
   k = 0.. minnt1mt2
   n = (k+1)..(NT-1)
 
@@ -411,7 +411,7 @@ END
 /*
  * Pseudo-task
  */
-zgeqrt_in_data_T0(k)
+zgeqrt_in_data_T0(k) [profile = off]
   k = 0..(MT-1)
 
   : T(k+1,k)
@@ -426,7 +426,7 @@ END
 /*
  * Pseudo-task
  */
-zgeqrt_out_data_T1(k)
+zgeqrt_out_data_T1(k) [profile = off]
   k = 0..(MT-2)
 
   : T(k+1,k)
@@ -553,7 +553,7 @@ END
 /*
  * Pseudo-task
  */
-ztsqrt_out_desc_A0(k)
+ztsqrt_out_desc_A0(k) [profile = off]
   k = 0..(MT-3)
 
   : A(k+1,k)
@@ -568,7 +568,7 @@ END
 /*
  * Pseudo-task
  */
-ztsqrt_in_data_T1(k,m2)
+ztsqrt_in_data_T1(k,m2) [profile = off]
   k = 0..(MT-3)
   m2 = (k+2)..(MT-1)
 
@@ -584,7 +584,7 @@ END
 /*
  * Pseudo-task
  */
-ztsqrt_out_data_T2(k,m2)
+ztsqrt_out_data_T2(k,m2) [profile = off]
   k = 0..(MT-3)
   m2 = (k+2)..(MT-1)
 

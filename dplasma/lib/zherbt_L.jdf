@@ -350,7 +350,7 @@ BODY
 
 END
 
-ztsmqr_in_A0(k,m1,j)  [profile = off]
+ztsmqr_in_A0(k,m1,j) [profile = off]
   k = 0
   m1 = ((descA.nt>=2) ? 2 : (descA.mt))..(descA.mt-1)
   j = (m1+1)..(descA.mt-1)
