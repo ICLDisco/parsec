@@ -43,8 +43,8 @@ int main(int argc, char ** argv)
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
-                               nodes, cores, rank, MB, NB, M, N, 0, 0,
-                               LDA, N, SMB, SNB, P));
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
         two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Lapack,
@@ -53,8 +53,8 @@ int main(int argc, char ** argv)
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                   N, N, SMB, SNB, P));
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Lapack,
@@ -69,7 +69,9 @@ int main(int argc, char ** argv)
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
-    if ( check ) {
+
+    if ( check )
+    {
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA,
                         (tiled_matrix_desc_t *)&ddescA0 );

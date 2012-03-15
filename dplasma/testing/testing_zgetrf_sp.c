@@ -44,13 +44,13 @@ int main(int argc, char ** argv)
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
-                               nodes, cores, rank, MB, NB, M, N, 0, 0,
-                               LDA, N, SMB, SNB, P));
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                               LDA, N, SMB, SNB, P));
+                               M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Lapack,
@@ -66,12 +66,19 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
 
-    tiled_matrix_desc_t * descA = (tiled_matrix_desc_t *)&ddescA;
-    Dague_Complex64_t *tab = (Dague_Complex64_t *) ddescA.mat;
-    int t,e;
-    for(t = 0; t < ((descA->lmt < descA->lnt)?descA->lmt:descA->lnt); t++)
-        for(e = 0; e < descA->mb; e++)
-            tab[(t * descA->lmt +t) * (descA->mb*descA->nb) + e * descA->mb + e] += ((M<N)?M:N);
+    /* Increase diagonale to avoid pivoting */
+    {
+        tiled_matrix_desc_t *descA = (tiled_matrix_desc_t *)&ddescA;
+        Dague_Complex64_t   *tab   = (Dague_Complex64_t *) ddescA.mat;
+        int minmnt = dague_imin( descA->mt, descA->nt );
+        int minmn  = dague_imin( descA->m,  descA->n );
+        int t, e;
+
+        for(t = 0; t < minmnt; t++ ) {
+            for(e = 0; e < descA->mb; e++)
+                tab[(t * descA->lmt + t) * (descA->mb*descA->nb) + e * descA->mb + e] += (Dague_Complex64_t)minmn;
+        }
+    }
 
     if ( check )
     {
@@ -95,33 +102,17 @@ int main(int argc, char ** argv)
     dplasma_zgetrf_sp_Destruct( DAGUE_zgetrf_sp );
     if(loud > 2) printf("Done.\n");
 
-    if ( check && info != 0 ) {
-        if( rank == 0 && loud ) printf("-- Factorization is done with static pivoting (info = %d) ! \n", info );
+    if ( check && info < 0 ) {
+        if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );
         ret |= 1;
     }
     else if ( check ) {
-        dague_object_t *dague_ztrsm1 = NULL;
-        dague_object_t *dague_ztrsm2 = NULL;
-
-        dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
-                                         1.0, (tiled_matrix_desc_t *)&ddescA,
-                                         (tiled_matrix_desc_t *)&ddescX);
-        dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit,
-                                         1.0, (tiled_matrix_desc_t *)&ddescA,
-                                         (tiled_matrix_desc_t *)&ddescX);
-
-        dague_enqueue( dague, dague_ztrsm1 );
-        dague_enqueue( dague, dague_ztrsm2 );
-
-        dague_progress( dague );
-
-        dplasma_ztrsm_Destruct( dague_ztrsm1 );
-        dplasma_ztrsm_Destruct( dague_ztrsm2 );
-
-        /* dplasma_zgetrs(dague, PlasmaNoTrans, */
-        /*                (tiled_matrix_desc_t *)&ddescA, */
-        /*                (tiled_matrix_desc_t *)&ddescIPIV, */
-        /*                (tiled_matrix_desc_t *)&ddescX ); */
+        dplasma_ztrsm(dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                      1.0, (tiled_matrix_desc_t *)&ddescA,
+                           (tiled_matrix_desc_t *)&ddescX);
+        dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit,
+                      1.0, (tiled_matrix_desc_t *)&ddescA,
+                           (tiled_matrix_desc_t *)&ddescX);
 
         /* Check the solution */
         ret |= check_solution( dague, (rank == 0) ? loud : 0,
@@ -129,7 +120,6 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
     }
-    cleanup_dague(dague, iparam);
 
     if ( check ) {
         dague_data_free(ddescA0.mat);
@@ -140,7 +130,7 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
     }
 
-    //    cleanup_dague(dague, iparam);
+    cleanup_dague(dague, iparam);
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
