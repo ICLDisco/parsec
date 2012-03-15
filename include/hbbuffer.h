@@ -107,6 +107,116 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
     }
 }
 
+static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dague_list_item_t *list)
+{
+    dague_list_item_t *topush = list;
+    int i = 0, nbelt = 0;
+    dague_execution_context_t *candidate, *best_context;
+    int item_prio, best_prio, best_index;
+    dague_list_item_t *ejected = NULL;
+    
+    /* Assume that we're going to push list.
+     * Remove the first element from the list, keeping the rest of the list in topush
+     * Don't move this line inside the loop: sometimes, multiple iterations of the loop with
+     * the same element are necessary.
+     */
+    list = dague_list_item_ring_chop(topush);
+    DAGUE_LIST_ITEM_SINGLETON(topush);
+    while(topush != NULL) {
+        best_prio = ((dague_execution_context_t*)topush)->priority;
+        /* Iterate on the list, find best position */
+        best_index = -1;
+        for(i = 0; (size_t)i < b->size; i++) {
+            if( NULL == (candidate = (dague_execution_context_t*)b->items[i]) ) {
+                best_index = i;
+                best_context = NULL;
+                break;
+            }
+
+            /* This cannot segfault as long as the freelist holding candidate
+             * is not emptied (which should not happen now). However, this solution
+             * is subject ot a form of ABA that might lead it to expel an element
+             * whose priority was higher. But this is considered as a case rare enough
+             * to ignore for now.
+             * Alternative is to lock the elements, which is not a good idea
+             */
+              
+            item_prio = candidate->priority;
+            if( item_prio < best_prio ) {
+                best_index = i;
+                best_context = candidate;
+                best_prio = item_prio;
+            }
+        }
+
+        if( best_index > -1 ) {
+            /* found a nice place, try to CAS */
+            if( 1 == dague_atomic_cas( &b->items[best_index], (uintptr_t) best_context, (uintptr_t) topush ) ) {
+                /* Woohoo ! Success... */
+                if( NULL != best_context ) {
+                    assert( ((dague_list_item_t*)best_context)->list_next == (dague_list_item_t*)best_context );
+                    assert( ((dague_list_item_t*)best_context)->list_prev == (dague_list_item_t*)best_context );
+                    /* best_context is the lowest priority element, and it was removed from the 
+                     * list, which is arguably full. Keep it in the ejected list, preserving 
+                     * the priority ordering (reverse priority)
+                     * Hopefully, best_context is already a singleton, because it was pushed by
+                     * the same function
+                     */
+                    if( NULL != ejected )
+                        dague_list_item_ring_push( (dague_list_item_t*)best_context, ejected );
+                    ejected = (dague_list_item_t*)best_context;
+                }
+                
+                if( NULL == list )
+                    break; /* We pushed everything */
+
+                topush = list;
+                list = dague_list_item_ring_chop(topush);
+                DAGUE_LIST_ITEM_SINGLETON(topush);
+                nbelt++;
+                continue;
+            } else {
+                /* Mmmh... Somebody stole my spot... Try again with the same topush element */
+                continue;
+            }
+        } else {
+            /* topush has been singletonned by chop */
+            if( NULL != ejected )
+                dague_list_item_ring_push( topush, ejected );
+            ejected = topush;
+
+            /* Because list is in decreasing priority order, any new element
+             * should not find a spot either.
+             * TODO: ejected is ordered in decreasing priority; list is ordered
+             *       by decreasing priority; a merge should be done.
+             */
+            if( NULL != list )
+                dague_list_item_ring_merge( ejected, list );
+
+            /* List is full. Go to parent */
+            break;
+        }
+    }
+
+    DEBUG3(("HBB:\tpushed %d elements. %s\n", nbelt, NULL != ejected ? "More to push, go to father" : "Everything pushed - done"));
+
+    if( NULL != ejected ) {
+#if defined(DAGUE_DEBUG_VERBOSE3)
+        dague_list_item_t *it;
+        char tmp[128];
+
+        DEBUG3(("HBB:\t Ejected elements (to father) are:\n"));
+        it = ejected;
+        do {
+            DEBUG3(("  %s\n", dague_service_to_string((dague_execution_context_t*)it, tmp, 128)));
+            it = DAGUE_LIST_ITEM_NEXT(it);
+        } while(it != ejected);
+#endif
+
+        b->parent_push_fct(b->parent_store, ejected);
+    }
+}
+
 /* This code is unsafe, since another thread may be inserting new elements.
  * Use is_empty in safe-checking only 
  */
