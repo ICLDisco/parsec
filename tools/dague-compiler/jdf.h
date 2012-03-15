@@ -23,7 +23,7 @@ void jdf_fatal(int lineno, const char *format, ...);
  *
  * @return -1 if a fatal error was encountered
  * @return 0 if no warning was signaled (except for warnings during parsing)
- * @return >0 the number of warnings signaled if a non fatal but probable 
+ * @return >0 the number of warnings signaled if a non fatal but probable
  *            error was encountered
  */
 typedef uint64_t jdf_warning_mask_t;
@@ -42,13 +42,13 @@ typedef struct jdf_compiler_global_args {
     char *output_c;
     char *output_h;
     char *funcid;
-    jdf_warning_mask_t wmask;   
+    jdf_warning_mask_t wmask;
     int  noline;  /**< Don't dump the jdf line number in the generate .c file */
 } jdf_compiler_global_args_t;
 extern jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS;
 
 /**
- * Toplevel structure: four linked lists: prologues, epilogues, globals and functions 
+ * Toplevel structure: four linked lists: prologues, epilogues, globals and functions
  */
 typedef struct jdf {
     struct jdf_external_entry *prologue;
@@ -63,7 +63,7 @@ typedef struct jdf {
 
 extern jdf_t current_jdf;
 
-/** A prologue/epilogue is a c-code that is dumped as-is with a #line directive 
+/** A prologue/epilogue is a c-code that is dumped as-is with a #line directive
  *  We remember the line number in the JDF file where this external code was found
  */
 typedef struct jdf_external_entry {
