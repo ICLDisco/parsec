@@ -182,6 +182,7 @@ subs = {
     ('strtri','dtrtri','ctrtri','ztrtri'),
     ('strsmpl','dtrsmpl','ctrsmpl','ztrsmpl'),
     ('STRSMPL','DTRSMPL','CTRSMPL','ZTRSMPL'),
+    ('slacpy','dlacpy','slacpy','dlacpy'),
     ('ger','ger','gerc','gerc'),
     ('ger','ger','geru','geru'),
     ('symm','symm','hemm','hemm'),
@@ -237,6 +238,11 @@ subs = {
     ('TESTING_S',   'TESTING_D',   'TESTING_C',   'TESTING_Z'  ),
     ('twoDBC_s',    'twoDBC_d',    'twoDBC_c',    'twoDBC_z'   ),
     ('workspace_s', 'workspace_d', 'workspace_c', 'workspace_z'),
+
+# Be carefull: don't put something matching the following line,
+# it matches dplasma_datatype (should be changed)
+#    ('plasma_s',    'plasma_d',    'plasma_s',    'plasma_d'   ),
+
   ],
   'tracing' : [
     ['plain','tau'],
