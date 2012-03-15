@@ -244,13 +244,16 @@ static void dump_whole_trace(int fd)
         it = (dague_list_item_t *)it->list_next) {
         profile = (dague_thread_profiling_t*)it;
         pit = iterator_new( profile, fd );
+#if defined(DAGUE_DEBUG_VERBOSE1)
         for( event = iterator_first( pit );
              NULL != event;
              event = iterator_next( pit ) ) {
+            dague_time_t zero = ZERO_TIME;
             DEBUG(("TRACE %d/%lu on %p (timestamp %llu)\n", event->event.key, event->event.id, profile,
                    diff_time(zero, event->event.timestamp)));
 
         }
+#endif
         iterator_delete(pit);
     };
 }
