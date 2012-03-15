@@ -10,6 +10,8 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
+static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
+
 static int check_solution( dague_context_t *dague, int loud,
                            tiled_matrix_desc_t *ddescA,
                            tiled_matrix_desc_t *ddescB,
