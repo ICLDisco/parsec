@@ -67,7 +67,7 @@ param_p[type = int default="pivfct->p" hidden=on]
 param_a[type = int default="pivfct->a" hidden=on]
 param_d[type = int default="pivfct->domino" hidden=on]
 
-zgeqrt_typechange(k, i)
+zgeqrt_typechange(k, i) [profile = off]
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
@@ -195,7 +195,7 @@ BODY
 END
 
 
-zttqrt_out_A1(k)
+zttqrt_out_A1(k) [profile = off]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
 
@@ -284,7 +284,7 @@ BODY
 END
 
 
-zttmqr_out_A1(k, n)
+zttmqr_out_A1(k, n) [profile = off]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   n = k+1..descA.nt-1
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}

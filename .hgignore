@@ -295,3 +295,5 @@ dplasma/testing/testing_dsybut\.c
 dplasma/testing/testing_ssybut
 dplasma/testing/testing_ssybut\.c
 dplasma/testing/testing_zhebut
+tools/profiling/dbp2paje
+tools/profiling/dbp2xml

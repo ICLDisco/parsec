@@ -1,5 +1,5 @@
 Add_Subdirectory(dague-compiler)
-
+Add_Subdirectory(profiling)
 #
 # If building cross-compile there is no reason
 # to build these.

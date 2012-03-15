@@ -38,7 +38,7 @@ p_work [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*ib*des
 p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)   *descT.nb)"]
 
 
-zgeqrt_typechange(k)
+zgeqrt_typechange(k) [profile=off]
   /* Execution space */
   k = 0..( (descA.mt-1 < descA.nt-1)? descA.mt-1 : descA.nt-1 )
 
@@ -150,7 +150,7 @@ BODY
 END
 
 
-ztsqrt_out_Ak(k)
+ztsqrt_out_Ak(k) [profile=off]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
     
   : A(k, k)
@@ -217,7 +217,7 @@ BODY
 END
 
 
-ztsmqr_out_A1(k, n1)
+ztsmqr_out_A1(k, n1) [profile=off]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   n1 = k+1..descA.nt-1
 

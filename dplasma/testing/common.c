@@ -511,7 +511,7 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 #else
     asprintf(&filename, "%s.profile", argvzero);
 #endif
-    dague_profiling_dump_xml(filename);
+    dague_profiling_dump_dbp(filename);
     free(filename);
 #endif  /* DAGUE_PROF_TRACE */
 #if defined(HAVE_CUDA)
