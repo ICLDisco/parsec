@@ -43,9 +43,9 @@ int main(int argc, char ** argv)
     SNB = 1;
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-                               sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-                                                          nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                                          N, N, P, uplo));
+        sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   N, N, P, uplo));
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
