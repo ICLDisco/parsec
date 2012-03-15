@@ -45,22 +45,22 @@ int main(int argc, char ** argv)
 
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
-        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
+        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
-        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Lapack,
+        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
-        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Lapack,
+        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
@@ -109,6 +109,7 @@ int main(int argc, char ** argv)
         ret |= 1;
     }
     else if ( check ) {
+        printf("-- Number of pivoting (info = %d) ! \n", info );
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
                       1.0, (tiled_matrix_desc_t *)&ddescA,
                            (tiled_matrix_desc_t *)&ddescX);
