@@ -64,5 +64,7 @@ dplasma_zlaswp( dague_context_t *dague,
     dague_enqueue( dague, (dague_object_t*)dague_zlaswp);
     dplasma_progress(dague);
 
+    dplasma_zlaswp_Destruct( dague_zlaswp );
+
     return 0;
 }
