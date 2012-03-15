@@ -82,6 +82,11 @@ int main(int argc, char ** argv)
         }
     }
 
+    /* Initialize criteria */
+    double eps = LAPACKE_dlamch_work('e');
+    double Anorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescA);
+    criteria = eps * Anorm;
+
     if ( check )
     {
         dplasma_zlacpy( dague, PlasmaUpperLower,
