@@ -89,7 +89,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 14 "pzgerbb_1_if_cpp.c"
   CORE_zgeqrt(tempkm, tempkn, ib, 
 	A /* A(k,k) */, ldak, B /* T(k,k) */, 
 	desc_T->mb, p_elem_A, p_elem_B );
@@ -173,7 +172,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 18 "pzgerbb_1_if_cpp.c"
   CORE_zunmqr(PlasmaLeft, PlasmaConjTrans, tempkm, 
 	tempnn, tempkm, ib, 
 	C /* A(k,k) */, ldak, D /* T(k,k) */, 
@@ -235,7 +233,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 23 "pzgerbb_1_if_cpp.c"
   CORE_ztsqrt(tempmm, tempkn, ib, 
 	F /* A(k,k) */, ldak, G /* A(m,k) */, 
 	ldam, H /* T(m,k) */, desc_T->mb, 
@@ -345,7 +342,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 27 "pzgerbb_1_if_cpp.c"
   CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans, desc_A->mb, 
 	tempnn, tempmm, tempnn, 
 	desc_A->nb, ib, J /* A(k,n1) */, 
@@ -399,7 +395,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 32 "pzgerbb_1_if_cpp.c"
   CORE_zgelqt(tempkm, tempkn, ib, 
 	N /* A(k,k+1) */, ldak, O /* T(k,k+1) */, 
 	desc_T->mb, p_elem_A, p_elem_B );
@@ -481,7 +476,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 37 "pzgerbb_1_if_cpp.c"
   CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
 	tempkn, tempkn, ib, 
 	P /* A(k,k+1) */, ldak, Q /* T(k,k+1) */, 
@@ -541,7 +535,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 41 "pzgerbb_1_if_cpp.c"
   CORE_ztslqt(tempkm, tempnn, ib, 
 	S /* A(k,k+1) */, ldak, T /* A(k,n2) */, 
 	ldak, U /* T(k,n2) */, desc_T->mb, 
@@ -649,7 +642,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 46 "pzgerbb_1_if_cpp.c"
   CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
 	desc_A->nb, tempmm, tempnn, 
 	desc_A->mb, ib, V /* A(m2,k+1) */, 
