@@ -88,7 +88,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( p_tau  );
   void *p_elem_B = dague_private_memory_pop( p_work );
 
-#line 102 "pzgeqrf.c"
   CORE_zgeqrt(tempkm, tempkn, ib,
         A /* A(k,k) */, ldak, B /* T(k,k) */,
         descT.mb, p_elem_A, p_elem_B );
@@ -132,7 +131,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( p_work );
 
-#line 115 "pzgeqrf.c"
   DRYRUN(
          int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
          int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
@@ -152,7 +150,7 @@ BODY
 END
 
 
-ztsqrt_out_Ak(k)  [profile = off]
+ztsqrt_out_Ak(k) [profile = off]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
 
   : A(k, k)
@@ -199,7 +197,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( p_tau  );
   void *p_elem_B = dague_private_memory_pop( p_work );
 
-#line 134 "pzgeqrf_cpp.c"
   DRYRUN(
 
          int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
@@ -222,7 +219,7 @@ BODY
 END
 
 
-ztsmqr_out_A1(k, n1)  [profile = off]
+ztsmqr_out_A1(k, n1) [profile = off]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   n1 = k+1..descA.nt-1
 
@@ -299,7 +296,6 @@ BODY
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, m, n1 );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
-#line 151 "pzgeqrf.c"
   p_elem_A = dague_private_memory_pop( p_work );
   DRYRUN(
          CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans, descA.mb,

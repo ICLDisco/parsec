@@ -35,8 +35,9 @@ int main(int argc, char ** argv)
     LDB = max(LDB, M);
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, LDA, 0, 0,
+                               nodes, cores, rank, MB, NB, LDA, Am, 0, 0,
                                Am, Am, SMB, SNB, P));
+
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,

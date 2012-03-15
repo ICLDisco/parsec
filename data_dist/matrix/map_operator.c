@@ -435,7 +435,7 @@ void dague_map_operator_Destruct( struct dague_object_t* o )
 #else
     asprintf(&filename, "%s.profile", "operator");
 #endif
-    dague_profiling_dump_xml(filename);
+    dague_profiling_dump_dbp(filename);
     free(filename);
 #endif  /* defined(DAGUE_PROF_TRACE) */
     (void)o;

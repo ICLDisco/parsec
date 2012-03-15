@@ -44,8 +44,8 @@ int main(int argc, char ** argv)
     IB += 1; /* Add one line per L to store IPIV */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, M, N, 0, 0,
-                               LDA, N, SMB, SNB, P));
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescL, 1,
         two_dim_block_cyclic, (&ddescL, matrix_ComplexDouble, matrix_Tile,
@@ -55,7 +55,7 @@ int main(int argc, char ** argv)
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                               N, N, SMB, SNB, P));
+                               M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,

@@ -25,7 +25,7 @@
 #if defined(HAVE_SCHED_SETAFFINITY)
 #include <linux/unistd.h>
 #endif  /* defined(HAVE_SCHED_SETAFFINITY) */
-#if defined(DAGUE_PROF_TRACE)
+#if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), NULL)
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
@@ -142,9 +142,13 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     }
 # endif
 
-    TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
+    /* Deactivate this measurement, until the MPI thread has its own execution unit
+     *  TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
+     */
     ret = scheduler.schedule_task(eu_context, new_context);
-    TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
+    /* Deactivate this measurement, until the MPI thread has its own execution unit
+     *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
+     */
 
     return ret;
 }

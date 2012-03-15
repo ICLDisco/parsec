@@ -564,13 +564,7 @@ typedef struct {
     char func[16];
 } dague_profile_remote_dep_mpi_info_t;
 
-static int  dague_profile_remote_dep_mpi_info_to_string(void *info, char *text, size_t size)
-{
-    int res;
-    dague_profile_remote_dep_mpi_info_t nfo = *(dague_profile_remote_dep_mpi_info_t*)info;
-    res = snprintf(text, size, "%d -> %d: %s", nfo.rank_src, nfo.rank_dst, nfo.func);
-    return res;
-}
+static char dague_profile_remote_dep_mpi_info_to_string[] = "";
 
 static void remote_dep_mpi_profiling_init(void)
 {
