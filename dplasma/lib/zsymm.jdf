@@ -41,7 +41,7 @@ plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 plasma_left    [type="PLASMA_enum" hidden=on default=PlasmaLeft  ]
 plasma_right   [type="PLASMA_enum" hidden=on default=PlasmaRight ]
 
-symm_in_A(m, n)
+symm_in_A(m, n) [profile = off]
 // Execution space
 m = 0 .. descA.mt-1
 n = ((uplo == plasma_upper) ? m : 0) .. ((uplo == plasma_upper) ? descA.nt-1 : m)
@@ -58,7 +58,7 @@ BODY
 /* nothing */
 END
 
-symm_in_B(m, n)
+symm_in_B(m, n) [profile = off]
 // Execution space
 m = 0 .. descB.mt-1
 n = 0 .. descB.nt-1

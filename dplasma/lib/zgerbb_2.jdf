@@ -89,7 +89,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 14 "pzgerbb_2_if_cpp.c"
   CORE_zgelqt(tempkm, tempkn, ib, 
 	A /* A(k,k) */, ldak, B /* T(k,k) */, 
 	desc_T->mb, p_elem_A, p_elem_B );
@@ -105,7 +104,7 @@ END
 /*
  * Pseudo-task
  */
-zgelqt_in_data_T0(k)
+zgelqt_in_data_T0(k) [profile = off]
   k = 0..(MT-1)
 
   : T(k,k)
@@ -120,7 +119,7 @@ END
 /*
  * Pseudo-task
  */
-zgelqt_out_data_T1(k)
+zgelqt_out_data_T1(k) [profile = off]
   k = 0..(MT-1)
 
   : T(k,k)
@@ -174,7 +173,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 28 "pzgerbb_2_if_cpp.c"
   CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
 	tempkn, tempkn, ib, 
 	C /* A(k,k) */, ldak, D /* T(k,k) */, 
@@ -235,7 +233,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 46 "pzgerbb_2_if_cpp.c"
   CORE_ztslqt(tempkm, tempnn, ib, 
 	F /* A(k,k) */, ldak, G /* A(k,n) */, 
 	ldak, H /* T(k,n) */, desc_T->mb, 
@@ -252,7 +249,7 @@ END
 /*
  * Pseudo-task
  */
-ztslqt_out_desc_A0(k)
+ztslqt_out_desc_A0(k) [profile = off]
   k = 0..(MT-1)
 
   : A(k,k)
@@ -267,7 +264,7 @@ END
 /*
  * Pseudo-task
  */
-ztslqt_in_data_T1(k,n)
+ztslqt_in_data_T1(k,n) [profile = off]
   k = 0.. minnt1mt2
   n = (k+1)..(NT-1)
 
@@ -283,7 +280,7 @@ END
 /*
  * Pseudo-task
  */
-ztslqt_out_data_T2(k,n)
+ztslqt_out_data_T2(k,n) [profile = off]
   k = 0.. minnt1mt2
   n = (k+1)..(NT-1)
 
@@ -345,7 +342,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 63 "pzgerbb_2_if_cpp.c"
   CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
 	desc_A->nb, tempmm, tempnn, 
 	desc_A->mb, ib, J /* A(m1,k) */, 
@@ -400,7 +396,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 89 "pzgerbb_2_if_cpp.c"
   CORE_zgeqrt(tempkm, tempkn, ib, 
 	N /* A(k+1,k) */, ldak, O /* T(k+1,k) */, 
 	desc_T->mb, p_elem_A, p_elem_B );
@@ -416,7 +411,7 @@ END
 /*
  * Pseudo-task
  */
-zgeqrt_in_data_T0(k)
+zgeqrt_in_data_T0(k) [profile = off]
   k = 0..(MT-1)
 
   : T(k+1,k)
@@ -431,7 +426,7 @@ END
 /*
  * Pseudo-task
  */
-zgeqrt_out_data_T1(k)
+zgeqrt_out_data_T1(k) [profile = off]
   k = 0..(MT-2)
 
   : T(k+1,k)
@@ -482,7 +477,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 102 "pzgerbb_2_if_cpp.c"
   CORE_zunmqr(PlasmaLeft, PlasmaConjTrans, tempkm, 
 	tempnn, tempkm, ib, 
 	P /* A(k+1,k) */, ldak, Q /* T(k+1,k) */, 
@@ -543,7 +537,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 121 "pzgerbb_2_if_cpp.c"
   CORE_ztsqrt(tempmm, tempkn, ib, 
 	S /* A(k+1,k) */, ldak, T /* A(m2,k) */, 
 	ldam, U /* T(m2,k) */, desc_T->mb, 
@@ -560,7 +553,7 @@ END
 /*
  * Pseudo-task
  */
-ztsqrt_out_desc_A0(k)
+ztsqrt_out_desc_A0(k) [profile = off]
   k = 0..(MT-3)
 
   : A(k+1,k)
@@ -575,7 +568,7 @@ END
 /*
  * Pseudo-task
  */
-ztsqrt_in_data_T1(k,m2)
+ztsqrt_in_data_T1(k,m2) [profile = off]
   k = 0..(MT-3)
   m2 = (k+2)..(MT-1)
 
@@ -591,7 +584,7 @@ END
 /*
  * Pseudo-task
  */
-ztsqrt_out_data_T2(k,m2)
+ztsqrt_out_data_T2(k,m2) [profile = off]
   k = 0..(MT-3)
   m2 = (k+2)..(MT-1)
 
@@ -651,7 +644,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 137 "pzgerbb_2_if_cpp.c"
   CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans, desc_A->mb, 
 	tempnn, tempmm, tempnn, 
 	desc_A->nb, ib, V /* A(k+1,n2) */, 

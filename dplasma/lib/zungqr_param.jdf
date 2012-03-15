@@ -124,7 +124,7 @@ END
 /*
  * Pseudo-task
  */
-zttmqr_in_A1(k, n)
+zttmqr_in_A1(k, n) [profile = off]
   k = 0..( (descQ.mt < descQ.nt) ? descQ.mt-2 : descQ.nt-1 )
   n = 0..descQ.nt-1
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
@@ -140,7 +140,7 @@ END
 /*
  * Pseudo-task
  */
-zttmqr_in_V(k, m)
+zttmqr_in_V(k, m) [profile = off]
   /* k = MAX(0,minMN+1-descQ.mt)..(minMN-1) */
   k = 0..minMN-1
   m = k+1..descQ.mt-1
@@ -157,7 +157,7 @@ END
 /*
  * Pseudo-task
  */
-zttmqr_in_T(k, m)
+zttmqr_in_T(k, m) [profile = off]
   k = 0..minMN-1
   m = k+1..descQ.mt-1
 
@@ -220,7 +220,7 @@ END
 /*
  * Pseudo-task
  */
-zunmqr_in_A(k, i)
+zunmqr_in_A(k, i) [profile = off]
   k = 0..minMN-1
   i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descQ.mt ) - 1; %}
   m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
@@ -237,7 +237,7 @@ END
 /*
  * Pseudo-task
  */
-zunmqr_in_T(k, i)
+zunmqr_in_T(k, i) [profile = off]
   k = 0..minMN-1
   i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descQ.mt ) - 1; %}
   m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}

@@ -6,8 +6,11 @@
  * @precisions normal z -> s d c
  *
  */
+#include <math.h>
+#include <stdlib.h>
 #include "dague.h"
 #include <plasma.h>
+#include <cblas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
@@ -33,23 +36,23 @@ static PLASMA_Complex64_t *U;
 void BFT_zQTL( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
 void BFT_zQBL( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
 void BFT_zQTR_trans( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
 void BFT_zQTR( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
 void BFT_zQBR( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
 
 static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
     int m_seg, n_seg, m_tile, n_tile;
@@ -360,11 +363,19 @@ static dague_object_t **iterate_ops(tiled_matrix_desc_t *A, int curlevel,
 
 }
 
+static void RBT_zrandom(int N, PLASMA_Complex64_t *V)
+{
+    int i;
+
+    for (i=0; i<N; i++){
+        V[i] = (PLASMA_Complex64_t)exp(((random()/(double)RAND_MAX)-0.5)/10.0);
+    }
+}
+
 
 int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, int level)
 {
     dague_object_t **subop;
-    int iseed[4] = {0,1,2,4};
     int info = 0;
     int nbhe = 1<<level;
     int nbge = (1<<(level-1))*((1<<level)-1);
@@ -380,7 +391,10 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, int level)
 
     subop = (dague_object_t **)malloc((nbhe+nbge) * sizeof(dague_object_t*));
     U = (PLASMA_Complex64_t *)malloc( (level+1)*(A->lm)*sizeof(PLASMA_Complex64_t) );
-    LAPACKE_zlarnv_work(1, iseed, (level+1)*(A->lm), U);
+    srandom(0);
+    RBT_zrandom((level+1)*(A->lm), U);
+
+
 
     (void)iterate_ops(A, 0, level, 0, 0, subop, dague, CREATE_N_ENQUEUE, &info);
     dplasma_progress(dague);
@@ -397,18 +411,20 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, int level)
 void BFT_zQTL( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose )
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
 {
     int i, j;
     if( is_transpose ){
         for (j=0; j<nb; j++) {
-            for (i=0; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 C[j*lda+i] = U[lvl*N+off+i] * ((tl[j*lda+i]+bl[j*lda+i]) + (tr[i*lda+j]+br[j*lda+i])) * U[lvl*N+off+j];
             }
         }
     }else{
         for (j=0; j<nb; j++) {
-            for (i=0; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 C[j*lda+i] = U[lvl*N+off+i] * ((tl[j*lda+i]+bl[j*lda+i]) + (tr[j*lda+i]+br[j*lda+i])) * U[lvl*N+off+j];
             }
         }
@@ -419,18 +435,20 @@ void BFT_zQTL( int mb, int nb, int lda, int off, int lvl, int N,
 void BFT_zQBL( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose )
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
 {
     int i, j;
     if( is_transpose ){
         for (j=0; j<nb; j++) {
-            for (i=0; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 C[j*lda+i] = U[lvl*N+off+i] * ((tl[j*lda+i]-bl[j*lda+i]) + (tr[i*lda+j]-br[j*lda+i])) * U[lvl*N+off+j];
             }
         }
     }else{
         for (j=0; j<nb; j++) {
-            for (i=0; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 C[j*lda+i] = U[lvl*N+off+i] * ((tl[j*lda+i]-bl[j*lda+i]) + (tr[j*lda+i]-br[j*lda+i])) * U[lvl*N+off+j];
             }
         }
@@ -442,18 +460,20 @@ void BFT_zQBL( int mb, int nb, int lda, int off, int lvl, int N,
 void BFT_zQTR_trans( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose )
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
 {
     int i,j;
     if( is_transpose ){
         for (j=0; j<nb; j++) {
-            for (i=0; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 C[i*lda+j] = U[lvl*N+off+i] * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[i*lda+j]+br[j*lda+i])) * U[lvl*N+off+j];
             }
         }
     }else{
         for (j=0; j<nb; j++) {
-            for (i=0; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 C[i*lda+j] = U[lvl*N+off+i] * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[j*lda+i]+br[j*lda+i])) * U[lvl*N+off+j];
             }
         }
@@ -464,18 +484,20 @@ void BFT_zQTR_trans( int mb, int nb, int lda, int off, int lvl, int N,
 void BFT_zQTR( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose )
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
 {
     int i, j;
     if( is_transpose ){
         for (j=0; j<nb; j++) {
-            for (i=0; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 C[j*lda+i] = U[lvl*N+off+i] * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[i*lda+j]+br[j*lda+i])) * U[lvl*N+off+j];
             }
         }
     }else{
         for (j=0; j<nb; j++) {
-            for (i=0; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 C[j*lda+i] = U[lvl*N+off+i] * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[j*lda+i]+br[j*lda+i])) * U[lvl*N+off+j];
             }
         }
@@ -486,18 +508,20 @@ void BFT_zQTR( int mb, int nb, int lda, int off, int lvl, int N,
 void BFT_zQBR( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose )
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
 {
     int i, j;
     if( is_transpose ){
         for (j=0; j<nb; j++) {
-            for (i=0; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 C[j*lda+i] = U[lvl*N+off+i] * ((tl[j*lda+i]-bl[j*lda+i]) - (tr[i*lda+j]-br[j*lda+i])) * U[lvl*N+off+j];
             }
         }
     }else{
         for (j=0; j<nb; j++) {
-            for (i=0; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 C[j*lda+i] = U[lvl*N+off+i] * ((tl[j*lda+i]-bl[j*lda+i]) - (tr[j*lda+i]-br[j*lda+i])) * U[lvl*N+off+j];
             }
         }

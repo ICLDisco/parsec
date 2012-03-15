@@ -48,7 +48,7 @@
 dague_allocate_data_t dague_data_allocate = malloc;
 dague_free_data_t     dague_data_free = free;
 
-#ifdef DAGUE_PROF_TRACE
+#if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
 int MEMALLOC_start_key, MEMALLOC_end_key;
 int schedule_poll_begin, schedule_poll_end;
 int schedule_push_begin, schedule_push_end;
@@ -308,9 +308,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_cores );
 
-#ifdef DAGUE_PROF_TRACE
+#if defined(DAGUE_PROF_TRACE)
     dague_profiling_init( "%s", (*pargv)[0] );
 
+#  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
     dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
                                             0, NULL,
                                             &MEMALLOC_start_key, &MEMALLOC_end_key);
@@ -323,6 +324,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     dague_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
                                             0, NULL,
                                             &schedule_sleep_begin, &schedule_sleep_end);
+#  endif /* DAGUE_PROF_TRACE_SCHEDULING_EVENTS */
 #endif  /* DAGUE_PROF_TRACE */
 
     {

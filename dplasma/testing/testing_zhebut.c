@@ -43,9 +43,9 @@ int main(int argc, char ** argv)
     SNB = 1;
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-                               sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-                                                          nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                                          N, N, P, uplo));
+        sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   N, N, P, uplo));
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
@@ -58,6 +58,10 @@ int main(int argc, char ** argv)
     SYNC_TIME_START();
     TIME_START();
     dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, butterfly_level);
+
+    dplasma_zhetrf(dague, (tiled_matrix_desc_t *)&ddescA);
+    fprintf(stderr,"-- DONE\n");
+
     if(loud)
         TIME_PRINT(rank, ("zhebut computed %d tasks,\trate %f task/s\n",
                    nb_local_tasks,
