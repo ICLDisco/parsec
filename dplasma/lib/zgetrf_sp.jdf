@@ -49,8 +49,8 @@ RW T <- (k == 0) ? A(k, k) : C GEMM(k-1, k, k)
 
 BODY
     DRYRUN(
-           int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
-           int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
+           int tempkm = (k == descA.mt-1) ? descA.m - k * descA.mb : descA.mb;
+           int tempkn = (k == descA.nt-1) ? descA.n - k * descA.nb : descA.nb;
            int ldak = BLKLDD( descA, k );
 
            int iinfo = 0;
@@ -82,8 +82,8 @@ RW      C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, k)
 BODY
 
         DRYRUN(
-            int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
-            int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
+            int tempkm = (k == descA.mt-1) ? descA.m - k * descA.mb : descA.mb;
+            int tempmm = (m == descA.mt-1) ? descA.m - m * descA.mb : descA.mb;
             int ldak = BLKLDD( descA, k );
             int ldam = BLKLDD( descA, m );
 
@@ -118,8 +118,8 @@ RW      C <- (k == 0) ? A(k, n) : C GEMM(k-1, k, n)
 
 BODY
         DRYRUN(
-            int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
-            int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
+            int tempkm = (k == descA.mt-1) ? descA.m - k * descA.mb : descA.mb;
+            int tempnn = (n == descA.nt-1) ? descA.n - n * descA.nb : descA.nb;
             int ldak = BLKLDD( descA, k );
 
             CORE_ztrsm(
@@ -151,15 +151,14 @@ READ  A <- C TRSM_L(k, m)
 READ  B <- C TRSM_U(k, n)
 RW    C <- (k == 0) ? A(m,n) : C GEMM(k-1, m, n)
         -> ((m == k+1) && (n == k+1)) ? T GETRF_SP(k+1)  /* Diagonal */
-        -> ((m > k+1) && (n == k+1)) ?  C TRSM_L(k+1,m)  /* Lower */
-        -> ((m == k+1) && (n > k+1)) ?  C TRSM_U(k+1,n)  /* Upper */
-        -> ((m > k+1) && (n > k+1)) ?  C GEMM(k+1,m,n)   /* Everything else */
-
+        -> ((m >  k+1) && (n == k+1)) ? C TRSM_L(k+1,m)  /* Lower */
+        -> ((m == k+1) && (n >  k+1)) ? C TRSM_U(k+1,n)  /* Upper */
+        -> ((m >  k+1) && (n >  k+1)) ? C GEMM(k+1,m,n)  /* Everything else */
 
 BODY
     DRYRUN(
-            int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
-            int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
+            int tempmm = (m == descA.mt-1) ? descA.m - m * descA.mb : descA.mb;
+            int tempnn = (n == descA.nt-1) ? descA.n - n * descA.nb : descA.nb;
             int ldak = BLKLDD( descA, k );
             int ldam = BLKLDD( descA, m );
 
