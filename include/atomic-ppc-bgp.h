@@ -38,7 +38,7 @@ static inline int dague_atomic_bor_32b( volatile uint32_t* location,
         tmp_val = old_val | mask;
     } while( !_bgp_StoreConditional( location, tmp_val ) );
  
-    return( old_val );
+    return( tmp_val );
 }
 
 static inline int dague_atomic_band_32b( volatile uint32_t* location,
@@ -52,7 +52,7 @@ static inline int dague_atomic_band_32b( volatile uint32_t* location,
         tmp_val = old_val & mask;
     } while( !_bgp_StoreConditional( location, tmp_val ) );
  
-    return( old_val );
+    return( tmp_val );
 }
 
 static inline int dague_atomic_cas_32b( volatile uint32_t* location,
@@ -90,7 +90,7 @@ static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
         tmp_val = old_val + 1;
     } while( !_bgp_StoreConditional( location, tmp_val ) );
  
-    return( old_val );
+    return( tmp_val );
 }
 
 #define DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B
@@ -104,7 +104,7 @@ static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
         tmp_val = old_val - 1;
     } while( !_bgp_StoreConditional( location, tmp_val ) );
  
-    return( old_val );
+    return( tmp_val );
 }
 
 #endif  /* DAGUE_ATOMIC_BGP_HAS_BEEN_INCLUDED */

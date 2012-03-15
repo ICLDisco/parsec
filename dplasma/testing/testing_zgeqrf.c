@@ -59,24 +59,24 @@ int main(int argc, char ** argv)
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0)
     {
-        if(loud) printf("+++ Load GPU kernel ... ");
+        if(loud > 3) printf("+++ Load GPU kernel ... ");
         if(0 != stsmqr_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT))
         {
             printf("XXX Unable to load GPU kernel.\n");
             exit(3);
         }
-        if(loud) printf("Done\n");
+        if(loud > 3) printf("Done\n");
     }
 #endif
 
     /* matrix generation */
-    if(loud > 2) printf("+++ Generate matrices ... ");
+    if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
     if( check )
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescA0 );
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
-    if(loud > 2) printf("Done\n");
+    if(loud > 3) printf("Done\n");
 
     /* Create DAGuE */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf,

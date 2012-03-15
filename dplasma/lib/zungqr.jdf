@@ -101,7 +101,7 @@ END
 /*
  * Pseudo-task
  */
-ztsmqr_in_A1(k,n)
+ztsmqr_in_A1(k,n) [profile = off]
   k = 0..( (descQ.mt < descQ.nt) ? descQ.mt-2 : descQ.nt-1 )
   n = 0..(descQ.nt-1)
 
@@ -117,7 +117,7 @@ END
 /*
  * Pseudo-task
  */
-ztsmqr_in_V(k, m)
+ztsmqr_in_V(k, m) [profile = off]
   k = 0..(minMN-1)
   m = k+1..(descQ.mt-1)
 
@@ -133,7 +133,7 @@ END
 /*
  * Pseudo-task
  */
-ztsmqr_in_T(k, m)
+ztsmqr_in_T(k, m) [profile = off]
   k = 0..(minMN-1)
   m = k+1..(descQ.mt-1)
 
@@ -202,7 +202,7 @@ END
 /*
  * Pseudo-task
  */
-zunmqr_in_A(k)
+zunmqr_in_A(k) [profile = off]
   k = 0..(minMN-1)
 
   : A( k, k )
@@ -217,7 +217,7 @@ END
 /*
  * Pseudo-task
  */
-zunmqr_in_T(k)
+zunmqr_in_T(k) [profile = off]
   k = 0..(minMN-1)
 
   : T( k, k )

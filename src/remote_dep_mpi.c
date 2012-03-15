@@ -644,7 +644,6 @@ static dague_remote_deps_t* dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_dtt MPI_LONG
 #define datakey_count 3
 static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
-static size_t dep_mpi_eager_limit;
 static size_t dep_mpi_short_limit;
 
 /* Pointers are converted to long to be used as keys to fetch data in the get
@@ -722,7 +721,6 @@ static int remote_dep_mpi_init(dague_context_t* context)
 
     dep_pending_recv_array = (dague_remote_deps_t**)calloc(DEP_NB_CONCURENT, sizeof(dague_remote_deps_t*));
     dep_pending_put_array = (dague_dep_wire_get_fifo_elem_t**)calloc(DEP_NB_CONCURENT, sizeof(dague_dep_wire_get_fifo_elem_t*));
-    dep_mpi_eager_limit = RDEP_MSG_EAGER_LIMIT;
     dep_mpi_short_limit = RDEP_MSG_SHORT_LIMIT;
     remote_dep_mpi_profiling_init();
     return 0;
@@ -805,7 +803,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         }
         remote_dep_complete_one_and_cleanup(deps);
     }
-    remote_dep_mpi_put_short(eu_context, msg, rank); 
+    remote_dep_mpi_put_short(eu_context, msg, rank);
     return 1;
 }
 
@@ -1249,11 +1247,11 @@ static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_rem
 }
 
 
-// STEPH:: hwloc et no bitmap to check.
+/* Bind the communication thread on an unused core if possible */
 int remote_dep_bind_thread(dague_context_t* context){
     do_nano=1;
 
-#ifdef HAVE_HWLOC
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     char *str = NULL;
 
     if (context->comm_th_core >= 0) {
@@ -1262,13 +1260,8 @@ int remote_dep_bind_thread(dague_context_t* context){
             STATUS(("Communication thread bound to physical core %d\n",  context->comm_th_core));
 
             /* Check if this core is not used by a computation thread */
-#if !defined(HAVE_HWLOC_BITMAP)
-            if( hwloc_cpuset_isset(context->index_core_free_mask, context->comm_th_core) )
-                do_nano = 0;
-#else
             if( hwloc_bitmap_isset(context->index_core_free_mask, context->comm_th_core) )
                 do_nano = 0;
-#endif
         } else {
             /* There is no guarantee the thread doesn't share the core. Let do_nano to 1. */
             WARNING(("Request to bind the communication thread on core %d failed.\n", context->comm_th_core));
@@ -1278,17 +1271,6 @@ int remote_dep_bind_thread(dague_context_t* context){
         hwloc_cpuset_t free_common_cores;
 
         /* reduce the mask to unused cores if any */
-#if !defined(HAVE_HWLOC_BITMAP)
-        free_common_cores=hwloc_cpuset_alloc();
-        hwloc_cpuset_and(free_common_cores, context->index_core_free_mask, context->comm_th_index_mask);
-
-        if( !hwloc_cpuset_iszero(free_common_cores) ) {
-            hwloc_cpuset_copy(context->comm_th_index_mask, free_common_cores);
-            do_nano = 0;
-        }
-        hwloc_cpuset_free(free_common_cores);
-        hwloc_cpuset_asprintf(&str, context->comm_th_index_mask);
-#else
         free_common_cores=hwloc_bitmap_alloc();
         hwloc_bitmap_and(free_common_cores, context->index_core_free_mask, context->comm_th_index_mask);
 
@@ -1299,7 +1281,6 @@ int remote_dep_bind_thread(dague_context_t* context){
         }
         hwloc_bitmap_asprintf(&str, context->comm_th_index_mask);
         hwloc_bitmap_free(free_common_cores);
-#endif
         if( dague_bindthread_mask(context->comm_th_index_mask) >= 0 ) {
             DEBUG(("Communication thread bound on the index mask %s\n", str));
         } else {
@@ -1311,7 +1292,7 @@ int remote_dep_bind_thread(dague_context_t* context){
          * - bind on available cores if any,
          * - let float otherwise
          */
-#if defined(HAVE_HWLOC_BITMAP)
+
         if( !hwloc_bitmap_iszero(context->index_core_free_mask) ) {
             if( dague_bindthread_mask(context->index_core_free_mask) > -1 ){
                 hwloc_bitmap_asprintf(&str, context->index_core_free_mask);
@@ -1319,13 +1300,6 @@ int remote_dep_bind_thread(dague_context_t* context){
                 do_nano = 0;
             }
         }
-#else
-        int first_cpu = hwloc_cpuset_first(context->index_core_free_mask);
-        if( first_cpu > -1) {
-            int boundto = dague_bindthread(first_cpu);
-            do_nano=0;
-        }
-#endif
     }
 #else /* NO HAVE_HWLOC */
     /* If we don't have hwloc, try to bind the thread on the core #nbcore as the

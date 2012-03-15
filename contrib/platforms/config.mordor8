@@ -6,7 +6,7 @@ export FC=gfortran
 #PLASMA_DIR=/home/bosilca/unstable/dplasma/plasma-svn/
 #PLASMA_DIR=/opt/plasma
 
-cmake .  -DBLAS_LIBRARIES="-L/mnt/scratch/sw/intel/11.1.069/mkl/lib/em64t -lmkl_gf_lp64 -lmkl_sequential -lmkl_core" \
+cmake `dirname $0`/../../  -DBLAS_LIBRARIES="-L/mnt/scratch/sw/intel/11.1.069/mkl/lib/em64t -lmkl_gf_lp64 -lmkl_sequential -lmkl_core" \
 -DPLASMA_DIR="/home/saengpat/plasma-installer/install" \
 -DDPLASMA_MPI=OFF -DCUDA_DIR="/mnt/scratch/cuda-3.1" \
 -DHWLOC_DIR="/mnt/scratch/plasma/sw/hwloc-1.0.1" \

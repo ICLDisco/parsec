@@ -58,6 +58,10 @@ int main(int argc, char ** argv)
     SYNC_TIME_START();
     TIME_START();
     dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, butterfly_level);
+
+    dplasma_zhetrf(dague, (tiled_matrix_desc_t *)&ddescA);
+    fprintf(stderr,"-- DONE\n");
+
     if(loud)
         TIME_PRINT(rank, ("zhebut computed %d tasks,\trate %f task/s\n",
                    nb_local_tasks,

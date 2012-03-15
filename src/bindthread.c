@@ -4,9 +4,8 @@
 #undef DAGUE_DEBUG_HISTORY
 #include "debug.h"
 #include "bindthread.h"
-#include "dague_hwloc.h"
 #if defined(HAVE_HWLOC)
-#  include <hwloc.h>
+#include "dague_hwloc.h"
 #elif defined(ARCH_COMPAQ)
 #  include <sys/types.h>
 #  include <sys/resource.h>
@@ -42,7 +41,7 @@ int dague_bindthread(int cpu)
     {
         cpu=dague_hwloc_bind_on_core_index(cpu);
         if(cpu == -1 ) {
-            WARNING(("Core binding on node %i failed\n", cpu));
+            DEBUG(("Core binding on node %i failed\n", cpu));
             return -1;
         }
     }
@@ -89,6 +88,7 @@ int dague_bindthread(int cpu)
         }
     }
 #endif /* Architectures */
+
 #endif /* WITH_HWLOC     */
 
     return cpu;
@@ -101,3 +101,4 @@ int dague_bindthread_mask(hwloc_cpuset_t cpuset)
     return dague_hwloc_bind_on_mask_index(cpuset);
 }
 #endif
+

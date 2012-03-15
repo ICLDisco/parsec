@@ -30,23 +30,23 @@ extern "C" %{
 void BFT_zQTL( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
 void BFT_zQBL( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
 void BFT_zQTR_trans( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
 void BFT_zQTR( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
 void BFT_zQBR( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
 
 %}
 
@@ -88,7 +88,7 @@ BODY
 
   unsigned mb_seg, nb_seg, lda, N;
   uintptr_t off_in_U, off_in_tile;
-  int type, type_exists, i_tile, j_tile;
+  int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
 
   type = segment_to_type_index(descA.seg_info, i, j);
@@ -107,15 +107,16 @@ BODY
   p_elem_tr = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
-  BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, NOT_TRANSPOSE);
-  BFT_zQBL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, NOT_TRANSPOSE);
-  BFT_zQTR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tr, NOT_TRANSPOSE);
-  BFT_zQBR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, NOT_TRANSPOSE);
+  BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, NOT_TRANSPOSE, 0);
+  BFT_zQBL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, NOT_TRANSPOSE, 0);
+  BFT_zQTR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tr, NOT_TRANSPOSE, 0);
+  BFT_zQBR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, NOT_TRANSPOSE, 0);
 
-  memcpy(Atl, p_elem_tl, lda*nb_seg*sizeof(PLASMA_Complex64_t));
-  memcpy(Abl, p_elem_bl, lda*nb_seg*sizeof(PLASMA_Complex64_t));
-  memcpy(Atr, p_elem_tr, lda*nb_seg*sizeof(PLASMA_Complex64_t));
-  memcpy(Abr, p_elem_br, lda*nb_seg*sizeof(PLASMA_Complex64_t));
+  sz = (lda*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
+  memcpy(Atl, p_elem_tl, sz);
+  memcpy(Abl, p_elem_bl, sz);
+  memcpy(Atr, p_elem_tr, sz);
+  memcpy(Abr, p_elem_br, sz);
 
   dague_private_memory_push( pool_0, p_elem_tl );
   dague_private_memory_push( pool_0, p_elem_bl );
