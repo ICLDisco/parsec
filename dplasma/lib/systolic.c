@@ -135,7 +135,7 @@ int dplasma_qr_getnbgeqrf( const qr_piv_t *arg, const int k, const int gmt ) {
     int p = arg->p;
     int sq_p = sqrt(p);
 
-    myassert( p = sq_p * sq_p);
+    myassert( p == sq_p * sq_p);
 
     return min( p, gmt - k);
 }
@@ -171,24 +171,24 @@ int dplasma_qr_geti( const qr_piv_t *arg, const int k, int m )
  *     -1 - Error
  *      0 - if m is reduced thanks to a TS kernel
  *      1 - if m is reduced thanks to the 2nd coordinate flat tree
- *      2 - if m is reduced thanks to the 1st coordinate flat tree
+ *      3 - if m is reduced thanks to the 1st coordinate flat tree
  */
 int dplasma_qr_gettype( const qr_piv_t *arg, const int k, const int m ) {
     int p = arg->p;
     int sq_p = sqrt(p);
 
-    myassert(p = sq_p * sq_p);
+    myassert(p == sq_p * sq_p);
 
     /* Element to be reduce with a single pivot */
-    if (m < k + sq_p) 
-        return 2;
-
-    /* Element to be reduced with sq_p pivot */
-    else if ( m < k + p )
-        return 1;
+    if ( (m - k) % sq_p == 0 ) 
+        return 3;
 
     /* Local eliminations with a TS kernel */
-    else return 0;
+    else if ( m > k + p )
+        return 0;
+
+    /* Element to be reduced with sq_p pivot */
+    else return 1;
 }
 
 /****************************************************
