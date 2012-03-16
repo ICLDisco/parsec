@@ -179,13 +179,13 @@ int dplasma_qr_gettype( const qr_piv_t *arg, const int k, const int m ) {
 
     myassert(p == sq_p * sq_p);
 
-    /* Element to be reduce with a single pivot */
-    if ( (m - k) % sq_p == 0 ) 
-        return 3;
-
     /* Local eliminations with a TS kernel */
-    else if ( m > k + p )
+    if ( m > k + p -1 )
         return 0;
+
+    /* Element to be reduce with a single pivot */
+    else if ( (m - k) % sq_p == 0 ) 
+        return 3;
 
     /* Element to be reduced with sq_p pivot */
     else return 1;
@@ -218,13 +218,14 @@ static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int pivot, con
 static int dplasma_low_flat_prevpiv(const qr_subpiv_t *arg, const int pivot, const int k, const int start)
 {
     if ( start == arg->ldd )
-        return m + arg->p * ((arg->ldd-1-k)/arg->p);
-    else { 
+        return pivot + arg->p * ((arg->ldd-1-k)/arg->p);
+    else {
         if ( start > pivot + arg->p )
             return start - arg->p;
         else
             return arg->ldd;
-    }
+        }
+    return arg->ldd;
 };
 
 static void dplasma_low_flat_init(qr_subpiv_t *arg){
@@ -259,31 +260,38 @@ static int dplasma_high_flat_flat_currpiv(const qr_subpiv_t *arg, const int m, c
   - finishes (no more tiles to kill) with return arg->ldd */
 static int dplasma_high_flat_flat_nextpiv(const qr_subpiv_t *arg, const int pivot, const int k, const int start)
 {
-    if ( (pivot-k) % (arg->p) == 0 && arg->ldd > 1 ) {
-        if ( start == arg->ldd )
-            return pivot+1;
+    assert ( (pivot-k) % (arg->p) == 0 && arg->ldd > 1 );
+    if ( start == arg->ldd )  //base case.
+        return pivot+1;
+   else 
+        if ( (start - pivot< arg->p - 1) ) //first dimension elimination before: "&& start < min(k + (arg->p * arg-> p) , arg->ldd)"
+           return start+1;
         else 
-            if ( start < min(k + (arg->p * arg-> p) , arg->ldd) && (start - pivot< arg->p - 1) ) //first dimension elimination
-               return start+1;
-            else 
-                if (pivot == k && start == k + arg->p -1)  //when we step from the first dimension elimination to the second dimension elimination.
-                    return k + arg->p;
+           if (pivot == k) {
+                if (start == k + arg->p -1)  //when we step from the first dimension elimination to the second dimension elimination.
+                   return k + arg->p;
                 else
-                    if (pivot == k && start == k + (arg->p) * (arg->p -1)) //the end of the second dimension elimination
+                    if ( start == k + (arg->p) * (arg->p -1) ) //the end of the second dimension elimination
                         return arg->ldd;
                     else
-                        if (pivot == k && (start - k) % (arg->p) == 0 ) //second dimension elimination
+                        if ( (start - k) % (arg->p) == 0 ) //second dimension elimination
                             return min( start + arg->p , arg->ldd );
-    }
+            }
+            else return arg->ldd;
     return arg->ldd;
 };
 
 /* Return the last row which has used the row "pivot" as a pivot in step k before the row start */
 static int dplasma_high_flat_flat_prevpiv(const qr_subpiv_t *arg, const int pivot, const int k, const int start)
 {
-    if ( pivot == k && arg->ldd > 1){
-        if ( start == arg->ldd)
-            return min( k + arg->p * (arg->p - 1) , k + arg->p * (arg->ldd - 1 - k)/arg->p );
+    assert(arg->ldd >1);
+    if ( pivot == k ){
+        if ( start == arg->ldd){
+            if ( k + arg->p * ((arg->ldd - 1 - k)/arg->p) >= arg-> ldd ) //in that case there never is no second dimension elimination
+                return min( k + arg->p -1, arg->ldd-1);
+            else
+                return min( k + arg->p * (arg->p - 1) , k + arg->p * ((arg->ldd - 1 - k)/arg->p) ); //else last element used in the second dimension elimination
+        }
         else
             if ( start == pivot + arg->p ) 
                 return start - 1;
@@ -296,7 +304,7 @@ static int dplasma_high_flat_flat_prevpiv(const qr_subpiv_t *arg, const int pivo
     }
     else
         if ( start == arg->ldd )
-            return pivot+ arg->p - 1;
+            return min( pivot+ arg->p - 1, max( arg->ldd -1, pivot +1) );
         else 
             if ( start - pivot > 1 ) //first dimension elimination
                return start-1;
@@ -321,7 +329,6 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
     int lm, rank, *perm;
     int a    = arg->a;
     int p    = arg->p;
-    int domino = arg->domino;
 
     perm_m = dplasma_qr_getinvperm( arg, k, m );
     lm   = perm_m / p; /* Local index in the distribution over p domains */
@@ -332,72 +339,43 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
     myassert( (p==1) || (perm_m % p) == (m % p) );
 
     /* TS level common to every case */
-    if ( domino ) {
-        switch( dplasma_qr_gettype( arg, k, m ) )
-        {
-        case 0:
-            tmp = lm / a;
-            if ( tmp == k / arg->a )
-                return perm[       k * p + rank ]; /* Below to the first bloc including the diagonal */
-            else
-                return perm[ tmp * a * p + rank ];
-            break;
-        case 1:
-            tmp = arg->llvl->currpiv(arg->llvl, perm_m, k);
-            return perm[ ( tmp == k / arg->a ) ? k * p + rank : tmp * a * p + rank ];
-            break;
-        case 2:
-            return m - p;
-            break;
-        case 3:
-            if ( arg->hlvl != NULL )
-                return arg->hlvl->currpiv(arg->hlvl, perm_m, k);
-        default:
-            return arg->desc->mt;
-        }
-    }
-    else {
-        switch( dplasma_qr_gettype( arg, k, m ) )
-        {
-        case 0:
-            tmp = lm / a;
-            /* tmpk = (k + p - 1 - m%p) / p / a;  */
-            tmpk = k / (p * a);
-            return perm[ ( tmp == tmpk ) ? k + (perm_m-k)%p : tmp * a * p + rank ];
-            break;
-        case 1:
-            tmp = arg->llvl->currpiv(arg->llvl, perm_m, k);
-            /* tmpk = (k + p - 1 - m%p) / p / a; */
-            tmpk = k / (p * a);
-            return perm[ ( tmp == tmpk ) ? k + (perm_m-k)%p : tmp * a * p + rank ];
-            break;
-        case 2:
-            return perm[ perm_m - p];
-            break;
-        case 3:
-            if ( arg->hlvl != NULL )
-                return perm[arg->hlvl->currpiv(arg->hlvl, perm_m, k)];
-        default:
-            return arg->desc->mt;
-        }
+
+    switch( dplasma_qr_gettype( arg, k, m ) )
+    {
+    case 0:
+        tmp = lm / a;
+        tmpk = k / (p * a);
+        return perm[ ( tmp == tmpk ) ? k + (perm_m-k)%p : tmp * a * p + rank ];
+        break;
+    case 1:
+        tmp = arg->llvl->currpiv(arg->llvl, perm_m, k);
+        /* tmpk = (k + p - 1 - m%p) / p / a; */
+        tmpk = k / (p * a);
+        return perm[ ( tmp == tmpk ) ? k + (perm_m-k)%p : tmp * a * p + rank ];
+        break;
+    case 2:
+        return perm[ perm_m - p];
+        break;
+    case 3:
+        if ( arg->hlvl != NULL )
+            return perm[arg->hlvl->currpiv(arg->hlvl, perm_m, k)];
+    default:
+        return arg->desc->mt;
     }
 };
 
 int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 {
     int tmp, ls, lp, nextp;
-    int opivot, ostart; /* original values before permutation */
     int lpivot, rpivot, lstart, *perm;
     int a = arg->a;
     int p = arg->p;
-
-    /* fprintf(stderr, "Before: k=%d, pivot=%d, start=%d\n", k, pivot, start); */
-    ostart = start;
-    opivot = pivot;
+ 
+   /* fprintf(stderr, "Before: k=%d, pivot=%d, start=%d\n", k, pivot, start); */
+    int ostart = start;
+    int opivot = pivot;
     start = dplasma_qr_getinvperm( arg, k, ostart);
     pivot = dplasma_qr_getinvperm( arg, k, opivot);
-
-    /* fprintf(stderr, "After: k=%d, pivot=%d, start=%d\n", k, pivot, start); */
 
     lpivot = pivot / p; /* Local index in the distribution over p domains */
     rpivot = pivot % p; /* Staring index in this distribution             */
@@ -418,16 +396,12 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
         {
         case -1:
 
-            if ( lp == DPLASMA_QR_KILLED_BY_TS ) {
+            if ( lp == 0 ) {
                 myassert( start == arg->desc->mt );
                 return arg->desc->mt;
             }
 
-        case DPLASMA_QR_KILLED_BY_TS:
-
-            /* If the tile is over the diagonal of step k, skip directly to type 2 */
-            if ( arg->domino && lpivot < k )
-                goto next_2;
+        case 0:
 
             if ( start == arg->desc->mt )
                 nextp = pivot + p;
@@ -441,11 +415,7 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
             start = arg->desc->mt;
             lstart = arg->llvl->ldd * a;
 
-        case DPLASMA_QR_KILLED_BY_LOCALTREE:
-
-            /* If the tile is over the diagonal of step k, skip directly to type 2 */
-            if ( arg->domino && lpivot < k )
-                goto next_2;
+        case 1:
 
             /* Get the next pivot for the low level tree */
             tmp = arg->llvl->nextpiv(arg->llvl, pivot, k, lstart / a );
@@ -462,27 +432,19 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
             start = arg->desc->mt;
             lstart = arg->llvl->ldd * a;
 
-        case DPLASMA_QR_KILLED_BY_DOMINO:
+        case 2:
 
-            if ( lp < DPLASMA_QR_KILLED_BY_DOMINO ) {
+            if ( lp < 2 ) {
                 return arg->desc->mt;
-            }
-
-            /* Type 2 are killed only once if they are strictly in the band */
-            if ( arg->domino &&
-                 (start == arg->desc->mt) &&
-                 (lpivot < k)             &&
-                 (pivot+p < arg->desc->mt) ) {
-                return perm[pivot+p];
             }
 
             /* no next of type 2, we reset start to search the next 3 */
             start = arg->desc->mt;
             lstart = arg->llvl->ldd * a;
 
-        case DPLASMA_QR_KILLED_BY_DISTTREE:
+        case 3:
 
-            if ( lp < DPLASMA_QR_KILLED_BY_DISTTREE ) {
+            if ( lp < 3 ) {
                 return arg->desc->mt;
             }
 
@@ -522,13 +484,13 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
     ls = dplasma_qr_gettype( arg, k, ostart );
     lp = dplasma_qr_gettype( arg, k, opivot );
 
-    if ( lp == DPLASMA_QR_KILLED_BY_TS )
+    if ( lp == 0 )
       return arg->desc->mt;
 
     myassert( lp >= ls );
     switch( ls )
         {
-        case DPLASMA_QR_KILLED_BY_DISTTREE:
+        case 1:
             if( arg->hlvl != NULL ) {
                 tmp = arg->hlvl->prevpiv( arg->hlvl, pivot, k, start );
                 if ( tmp != arg->desc->mt )
@@ -538,28 +500,15 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
             start = pivot;
             lstart = pivot / p;
 
-        case DPLASMA_QR_KILLED_BY_DOMINO:
-            /* If the tile is over the diagonal of step k, process it as type 2 */
-            if ( arg->domino && lpivot < k ) {
+        case 2:
 
-                if ( ( start == pivot ) &&
-                     (start+p < arg->desc->mt ) )
-                    return perm[start+p];
-
-                if ( lp > DPLASMA_QR_KILLED_BY_LOCALTREE )
-                    return arg->desc->mt;
-            }
 
             start = pivot;
             lstart = pivot / p;
 
             /* If it is the 'local' diagonal block, we go to 1 */
 
-        case DPLASMA_QR_KILLED_BY_LOCALTREE:
-            /* If the tile is over the diagonal of step k and is of type 2,
-               it cannot annihilate type 0 or 1 */
-            if ( arg->domino && lpivot < k )
-                return arg->desc->mt;
+        case 3:
 
             tmp = arg->llvl->prevpiv(arg->llvl, pivot, k, lstart / a);
 
@@ -606,129 +555,20 @@ static void dplasma_qr_genperm( qr_piv_t *qrpiv )
 {
     int m = qrpiv->desc->mt;
     int n = qrpiv->desc->nt;
-    int a = qrpiv->a;
-    int p = qrpiv->p;
-    int domino = qrpiv->domino;
     int minMN = min( m, n );
-    int pa = p * a;
     int i, j, k;
-    int nbextra1;
-    int end2;
-    int mpa   = m % pa;
-    int endpa = m - mpa;
     int *perm;
 
     qrpiv->perm = (int*)malloc( (m+1) * minMN * sizeof(int) );
     perm = qrpiv->perm;
-
-    if ( qrpiv->tsrr ) {
-#if VERSION == 1
-        {
-            int par1, par2, par3;
-            for(k=0; k<minMN; k++) {
-                for( i=0; i<m+1; i++) {
-                    perm[i] = -1;
-                }
-                perm += m+1;
-            }
-            perm = qrpiv->perm;
-
-            for(k=0; k<minMN; k++) {
-                for( i=0; i<m+1; i++){
-                    par1 = i % p;
-                    par2 = ((i-par1)/p) % (p*p);
-                    par3 = ( (i-par1)/p - par2) / (p * p);
-                    perm[i] = p*(par2 + m/( p * p) * par3) + par1;
-                    //fprintf(stderr, "Permutation (%d,%d) \n", i,perm[i]);
-                }
-                perm[m] = m;
-                perm += m+1;
-            }
-            perm = qrpiv->perm;
+    for(k=0; k<minMN; k++) {
+        for( i=0; i<m+1; i++) {
+            perm[i] = i;
         }
-#elif VERSION == 2
-        {
-            int par1, par2, par3;
-            for(k=0; k<minMN; k++) {
-                for( i=0; i<m+1; i++) {
-                    perm[i] = -1;
-                }
-                perm += m+1;
-            }
-            perm = qrpiv->perm;
-
-            for(k=0; k<minMN; k++) {
-                for( i=0; i<m; i++){
-                    par1 = i % p;
-                    par2 = ((i-par1)/p) % (m/(p*p));
-                    par3 = (( (i-par1)/p - par2) * p * p)/m;
-                    perm[i] = par2 * p * p + par3 * p + par1;
-                    fprintf(stderr, "Permutation (%d,%d) \n", i,perm[i]);
-                }
-                perm[m] = m;
-                perm += m+1;
-            }
-            perm = qrpiv->perm;
-        }
-#else
-        for(k=0; k<minMN; k++) {
-            for( i=0; i<m+1; i++) {
-                perm[i] = -1;
-            }
-            perm += m+1;
-        }
-        perm = qrpiv->perm;
-        for(k=0; k<minMN; k++) {
-            nbextra1 = nbextra1_formula;
-
-            end2 = p + ( domino ? k*p : k + nbextra1 );
-            end2 = (( end2 + pa - 1 ) / pa ) * pa;
-            end2 = min( end2, m );
-
-            /*
-             * All tiles of type 3, 2 and:
-             * - 1 when domino is disabled
-             * - 0 before the first multiple of pa under the considered diagonal
-             */
-            for( i=k; i<end2; i++) {
-                perm[i] = i;
-            }
-
-            /* All permutations in groups of pa tiles */
-            assert( i%pa == 0 || i>=endpa);
-            for( ; i<endpa; i+=pa ) {
-                for(j=0; j<pa; j++) {
-                    perm[i+j] = i + ( j + p * (k%a) )%pa;
-                }
-            }
-
-            /* Last group of tiles */
-            if ( i < m ) {
-                int lp, la;
-                for(lp=0; lp<p; lp++) {
-                    la = mpa / p;
-                    if ( lp < mpa%p ) la++;
-
-                    for( j=lp; j<mpa && (i+j)<m; j+=p ) {
-                        perm[i+j] = i + ( j + p * (k%la) )%(p*la);
-                        assert(perm[i+j] < m);
-                    }
-                }
-            }
-            perm[m] = m;
-            perm += m+1;
-        }
-#endif
-    }
-    else {
-        for(k=0; k<minMN; k++) {
-            for( i=0; i<m+1; i++) {
-                perm[i] = i;
-            }
-            perm += m+1;
-        }
+        perm += m+1;
     }
 }
+
 
 
 
@@ -763,18 +603,17 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A,
     int low_mt, minMN;
     qr_piv_t *qrpiv = (qr_piv_t*) malloc( sizeof(qr_piv_t) );
 
-/*    a = max( a, 1 );*/
     p = max( p, 1 );
-    sq_p = sqrt(p);
+    int sq_p = sqrt(p);
 
-    myassert( p == sq_p * qs_p);
+    myassert( p == sq_p * sq_p);
 
     qrpiv->desc = A;
-/*    qrpiv->a = a;*/
+    qrpiv->a = 1;
     qrpiv->p = p;
-/*    qrpiv->domino = NULL;*/
-/*    qrpiv->tsrr = NULL;*/
-/*    qrpiv->perm = NULL;*/
+    qrpiv->domino = 0;
+    qrpiv->tsrr = 0;
+    qrpiv->perm = NULL;
 
     qrpiv->llvl = (qr_subpiv_t*) malloc( sizeof(qr_subpiv_t) );
     qrpiv->hlvl = NULL;
@@ -784,9 +623,9 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A,
 
     qrpiv->llvl->minMN  = minMN;
     qrpiv->llvl->ldd    = low_mt;
-/*    qrpiv->llvl->a      = a;*/
+    qrpiv->llvl->a      = 1;
     qrpiv->llvl->p      = p;
-/*    qrpiv->llvl->domino = domino;*/
+    qrpiv->llvl->domino = 0;
 
     switch( type_llvl ) {
     case DPLASMA_FLAT_TREE :
@@ -799,9 +638,9 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A,
 
         qrpiv->hlvl->minMN  = minMN; //a priori on ne l'utilise jamais ?
         qrpiv->hlvl->ldd    = A->mt;
-/*        qrpiv->hlvl->a      = a;*/
+        qrpiv->hlvl->a      = 1;
         qrpiv->hlvl->p      = sq_p;
-/*        qrpiv->hlvl->domino = domino;*/
+        qrpiv->hlvl->domino = 0;
 
         switch( type_hlvl ) {
         case DPLASMA_FLAT_TREE :
