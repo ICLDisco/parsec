@@ -177,7 +177,7 @@ static dague_profiling_output_t   *iterator_next(dague_profiling_iterator_t *it)
     return iterator_current(it);
 }
 
-static void                        iterator_delete(dague_profiling_iterator_t *it)
+static void iterator_delete(dague_profiling_iterator_t *it)
 {
     if( NULL != it->current_events_buffer )
         release_events_buffer(it->current_events_buffer);
@@ -192,7 +192,7 @@ static int find_matching_event_in_profile(const dague_profiling_iterator_t *star
     dague_profiling_output_t *e;
     size_t elen;
     dague_profiling_iterator_t *it;
-    
+
     it = iterator_new_from_iterator( start_it );
     e = iterator_current( it );
     while( NULL != e ) {
@@ -210,10 +210,12 @@ static int find_matching_event_in_profile(const dague_profiling_iterator_t *star
                 iterator_delete(it);
                 return 1;
             } else if ( e->event.id != 0 ) {
+#if 0
                 WARNING(("Event with ID %d appear in reverse order: start is at %d.%09d, end is at %d.%09d\n",
-                         e->event.id, 
+                         e->event.id,
                          (int)ref->event.timestamp.tv_sec, (int)ref->event.timestamp.tv_nsec,
                          (int)e->event.timestamp.tv_sec, (int)e->event.timestamp.tv_nsec));
+#endif
             }
         }
         e = iterator_next( it );
@@ -235,7 +237,7 @@ static void dump_whole_trace(int fd)
             break;
         }
         DEBUG(("TRACE event [%d:%d] name <%s> attributes <%s> info_length %d\n",
-               START_KEY(i), END_KEY(i), dague_prof_keys[i].name, dague_prof_keys[i].attributes, 
+               START_KEY(i), END_KEY(i), dague_prof_keys[i].name, dague_prof_keys[i].attributes,
                dague_prof_keys[i].info_length));
     }
 
