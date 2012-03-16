@@ -125,7 +125,7 @@ int main(int argc, char ** argv)
     dague_data_free(ddescIPIV.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
 
-    return EXIT_SUCCESS;
+    return ret;
 }
 
 
