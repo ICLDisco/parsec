@@ -33,7 +33,7 @@ set(JDF
   zpotrf_Url.jdf zpotrf_Lrl.jdf
   zgebut.jdf
   zhebut.jdf
-  zgetrf.jdf
+  zgetrf.jdf zhetrf.jdf
   zgetrf_incpiv.jdf zgetrf_incpiv_sd.jdf
   ztrsmpl.jdf ztrsmpl_sd.jdf
   zgeqrf.jdf
@@ -88,6 +88,7 @@ set(SOURCES
   zpotrs_wrapper.c
   zposv_wrapper.c
   zgetrf_wrapper.c
+  zhetrf_wrapper.c
   zgetrs_wrapper.c
   zgesv_wrapper.c
   zgetrf_incpiv_wrapper.c
