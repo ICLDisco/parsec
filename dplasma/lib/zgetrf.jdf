@@ -20,7 +20,7 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define max_thrdnbr_per_panel 8
+#define max_thrdnbr_per_panel 2
 #define nbthreads( __k ) (dague_imin( ((descA.mt - (__k)) + 3 )/  4, max_thrdnbr_per_panel) - 1)
 PLASMA_desc plasma_desc_submatrix(PLASMA_desc descA, int i, int j, int m, int n);
 
@@ -110,6 +110,30 @@ END
 /************************************************************************************
  *                                    GETRF                                         *
  ************************************************************************************/
+IPIV_in(k) [profile = off]
+  k  = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  nbtrd  = inline_c %{ return nbthreads( k ); %}
+
+:IPIV(k, 0)
+
+READ IP <- IPIV(k, 0)                [type = PIVOT]
+        -> IPIV getrf(k, 0..nbtrd)   [type = PIVOT]
+
+BODY
+    /**/
+END
+
+IPIV_out(k) [profile = off]
+  k  = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+
+:IPIV(k, 0)
+
+READ IP <- IPIV getrf(k, 0)          [type = PIVOT]
+        -> IPIV(k, 0)                [type = PIVOT]
+
+BODY
+    /**/
+END
 
 getrf(k, t) [high_priority = on]
   /* Execution space */
@@ -126,8 +150,8 @@ getrf(k, t) [high_priority = on]
              -> ((k < descA.nt-1) && (t == 0)) ? A swptrsm(k, k+1..descA.nt-1)
              -> (t == 0) ? A(k, k)
           /* -> A(m1..m2, k) */
-  RW    IPIV <- IPIV(k,0)                                                        [type = PIVOT]
-             -> IPIV(k,0)                                                        [type = PIVOT]
+  RW    IPIV <- IP IPIV_in(k)                                                    [type = PIVOT]
+             -> ( t==0 ) ? IP IPIV_out(k)                                        [type = PIVOT]
              -> ((t==0) && (k < descA.nt-1)) ? IPIV swptrsm(k, k+1..descA.nt-1)  [type = PIVOT]
              -> ((t==0) && (k > 0)         ) ? IPIV swpback(k, 0..k-1)           [type = PIVOT]
   CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, descA.mt-1, k)
