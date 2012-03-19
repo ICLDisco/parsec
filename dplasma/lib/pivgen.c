@@ -1351,6 +1351,31 @@ static void dplasma_qr_genperm( qr_piv_t *qrpiv )
     perm = qrpiv->perm;
 
     if ( qrpiv->tsrr ) {
+#if 1
+        {
+            int par1, par2, par3;
+            for(k=0; k<minMN; k++) {
+                for( i=0; i<m+1; i++) {
+                    perm[i] = -1;
+                }
+                perm += m+1;
+            }
+            perm = qrpiv->perm;
+
+            for(k=0; k<minMN; k++) {
+                for( i=0; i<m; i++){
+                    par1 = i % p;
+                    par2 = ((i-par1)/p) % (m/(p*p));
+                    par3 = (( (i-par1)/p - par2) * p * p)/m;
+                    /* perm[i] = par2 * p * p + par3 * p + par1; */
+                    perm[par2 * p * p + par3 * p + par1] = i;
+                }
+                perm[m] = m;
+                perm += m+1;
+            }
+            perm = qrpiv->perm;
+        }
+#else
         for(k=0; k<minMN; k++) {
             for( i=0; i<m+1; i++) {
                 perm[i] = -1;
@@ -1398,6 +1423,7 @@ static void dplasma_qr_genperm( qr_piv_t *qrpiv )
             perm[m] = m;
             perm += m+1;
         }
+#endif
     }
     else {
         for(k=0; k<minMN; k++) {
@@ -1415,8 +1441,14 @@ int dplasma_qr_getinvperm( const qr_piv_t *qrpiv, int k, int m )
     int pa = qrpiv->a * qrpiv->p;
     int start = m / pa * pa;
     int stop  = min( start + pa, qrpiv->desc->mt+1 ) - start;
-    int *perm = qrpiv->perm + (qrpiv->desc->mt+1)*k + start;
+    int *perm = qrpiv->perm + (qrpiv->desc->mt+1)*k; /* + start;*/
     int i;
+
+    for ( i=0; i < qrpiv->desc->mt+1; i++ ) {
+        if( perm[i] == m )
+            return i;
+    }
+
 
     if (qrpiv->a == 1)
         return m;
