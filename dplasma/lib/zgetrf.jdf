@@ -32,6 +32,7 @@ A         [type = "dague_ddesc_t *"]
 IPIV      [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
 pdescA    [type = "PLASMA_desc*"]
+minMNT    [type = "int" default="( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )" hidden=on]
 
 /************************************************************************************
  *                      Tiles 2 panel (Reduction version)
@@ -52,7 +53,7 @@ pdescA    [type = "PLASMA_desc*"]
  *                      Tiles 2 panel (Forward)                                     *
  ************************************************************************************/
 tile2panel(k, m, n) [profile = off]
-  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-2 )
+  k = 0..minMNT
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
   ntrd = inline_c %{ return nbthreads( k+1 ); %}
@@ -93,7 +94,7 @@ END
  *                    Submatrix 2 panel (backward)                                  *
  ************************************************************************************/
 subm2panel(k, n) [profile = off]
-  k = 1..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-2 )
+  k = 1..minMNT
   n = k+1..descA.nt-1
 
   :A(k, n)
@@ -111,7 +112,7 @@ END
  *                                    GETRF                                         *
  ************************************************************************************/
 IPIV_in(k) [profile = off]
-  k  = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  k  = 0..minMNT
   nbtrd  = inline_c %{ return nbthreads( k ); %}
 
 :IPIV(k, 0)
@@ -137,7 +138,7 @@ END
 
 getrf(k, t) [high_priority = on]
   /* Execution space */
-  k  = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  k  = 0..minMNT
   t  = 0..inline_c %{ return nbthreads( k ); %}
   m1 = inline_c %{ return k + t * 4; %}
   m2 = inline_c %{ return dague_imin( k + (t+1) * 4 - 1, descA.mt-1); %}
@@ -155,6 +156,7 @@ getrf(k, t) [high_priority = on]
              -> ((t==0) && (k < descA.nt-1)) ? IPIV swptrsm(k, k+1..descA.nt-1)  [type = PIVOT]
              -> ((t==0) && (k > 0)         ) ? IPIV swpback(k, 0..k-1)           [type = PIVOT]
   CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, descA.mt-1, k)
+             -> (t == 0 ) ? ctl GEMM_A_in(k, k+1..descA.mt-1)
   /*  CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, m2,         k)*/
 
 /* Priority */
@@ -212,7 +214,7 @@ END
 
 swptrsm(k, n)
   /* Execution space */
-  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-2 )
+  k = 0..minMNT
   n = k+1..descA.nt-1
 
   /* Locality */
@@ -254,21 +256,40 @@ END
 /************************************************************************************
  *                                    GEMM                                         *
  ************************************************************************************/
+GEMM_A_in(k,m)
+  /* Execution space */
+  k = 0..minMNT
+  m = k+1..descA.mt-1
+    //myrank = inline_c %{ return A->rank_of(A, m, k); %}
+
+  /* Locality */
+:A(m, k)
+
+  READ  A  <- ( k == 0 ) ? A(m, k) : C gemm(k-1, m, k)
+           -> A gemm(k, m, k+1..descA.nt-1)
+  CTL  ctl <- ctl getrf(k, 0)
+
+BODY
+  /* */
+END
+
+
 gemm(k,m,n)
   /* Execution space */
-  k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
+  k = 0..minMNT
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
-  ntrd = inline_c %{ return nbthreads( k+1 ); %}
+  ntrd   = inline_c %{ return nbthreads( k+1 ); %}
+  //  myrank = inline_c %{ return A->rank_of(A, m, n); %}
 
   /* Locality */
 :A(m, n)
 
-  READ  A  <- A(m, k)
+READ  A  <- A GEMM_A_in(k, m)
   READ  B  <- B swptrsm(k, n)
   RW    C  <- ( k   == 0 ) ? A(m, n) : C gemm(k-1, m, n)
            -> ( k+1 == n ) && ( k+1 == m ) ? A getrf(k+1, 0..ntrd)
-         /*-> ( k+1 == n ) && ( k+1 != m ) ? A getrf(k+1)*/
+           -> ( k+1 == n ) && ( k+1 <  m ) ? A GEMM_A_in(k+1, m)
            -> ( k+1 <  n ) && ( k+1 == m ) ? B swptrsm(k+1, n)
            -> ( k+1 <  n ) && ( k+1 <  m ) ? C gemm(k+1, m, n)
   CTL  ctl -> ctl1 tile2panel(k, m, n)
@@ -302,7 +323,7 @@ END
 
 swpback(k, n)
   /* Execution space */
-  k = 1..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  k = 1..minMNT
   n = 0..k-1
 
   /* Locality */
