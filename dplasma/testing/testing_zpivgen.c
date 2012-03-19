@@ -57,8 +57,7 @@ int main(int argc, char ** argv)
     /* dplasma_qr_print_next_k(  (tiled_matrix_desc_t*)&ddescA, qrpiv, 1); */
     /* dplasma_qr_print_prev_k(  (tiled_matrix_desc_t*)&ddescA, qrpiv, 1); */
     /* dplasma_qr_print_nbgeqrt( (tiled_matrix_desc_t*)&ddescA, qrpiv ); */
-    dplasma_qr_print_type   ( (tiled_matrix_desc_t*)&ddescA, qrpiv );
-    dplasma_qr_print_perm   ( (tiled_matrix_desc_t*)&ddescA, qrpiv );
+    /* dplasma_qr_print_type   ( (tiled_matrix_desc_t*)&ddescA, qrpiv ); */
 
     dplasma_pivgen_finalize( qrpiv );
 
