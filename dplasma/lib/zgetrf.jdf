@@ -164,12 +164,13 @@ getrf(k, t) [high_priority = on]
 
 BODY
 
-  int tempm  = descA.m - k * descA.mb;
+  int tempk  = k * descA.mb;
+  int tempm  = descA.m - tempk;
   int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
   int ldak = BLKLDD(descA, k);
 
   DRYRUN(
-      int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
+      int tempkm = k == descA.mt-1 ? tempm : descA.mb;
       int nbthrd = nbthreads( k );
       int info[3];
 
@@ -185,9 +186,8 @@ BODY
       info[2] = nbthrd+1;
 
       if ( descA.storage == matrix_Tile ) {
-          int tempk = k * descA.mb;
           CORE_zgetrf_rectil(
-              plasma_desc_submatrix(*pdescA, tempk, k*descA.nb, tempm, tempkn),
+              plasma_desc_submatrix(*pdescA, tempk, tempk, tempm, tempkn),
               IPIV, info );
       } else {
           CORE_zgetrf_reclap(
@@ -196,7 +196,7 @@ BODY
       }
 
       if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
-          *INFO = k * descA.mb + info[0]; /* Should return if enter here */
+          *INFO = tempk + info[0]; /* Should return if enter here */
           fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
       }
          );
@@ -240,7 +240,7 @@ BODY
 
          if ( descA.storage == matrix_Tile ) {
              int tempk = k * descA.mb;
-             int tempm  = descA.m - tempk;
+             int tempm = descA.m - tempk;
              CORE_zlaswp_ontile(
                  plasma_desc_submatrix(*pdescA, tempk, n*descA.nb, tempm, tempnn),
                  1, tempkm, IPIV, 1);

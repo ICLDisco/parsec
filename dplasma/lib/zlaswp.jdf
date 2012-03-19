@@ -20,6 +20,8 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
+PLASMA_desc plasma_desc_submatrix(PLASMA_desc descA, int i, int j, int m, int n);
+
 %}
 
 /** Globals */
@@ -28,6 +30,7 @@ A         [type = "dague_ddesc_t *"]
 descIP    [type = "tiled_matrix_desc_t"]
 IPIV      [type = "dague_ddesc_t *"]
 inc       [type = "int"]
+pdescA    [type = "PLASMA_desc*"]
 
 /************************************************************************************
  *                              SWAP                                                *
@@ -68,8 +71,15 @@ BODY
          int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
          int ldak = BLKLDD(descA, k);
 
-         CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc);
-
+         if ( descA.storage == matrix_Tile ) {
+             int tempk = k * descA.mb;
+             int tempm = descA.m - tempk;
+             CORE_zlaswp_ontile(
+                 plasma_desc_submatrix(*pdescA, tempk, n*descA.nb, tempm, tempnn),
+                 1, tempkm, IPIV, 1);
+         } else {
+             CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc);
+         }
          );
 
    printlog("thread %d   CORE_zlaswp(%d, %d)\n"
