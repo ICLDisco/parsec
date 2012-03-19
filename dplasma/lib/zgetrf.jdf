@@ -238,7 +238,15 @@ BODY
          int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
          int ldak = BLKLDD(descA, k);
 
-         CORE_zlaswp( tempnn, B, descA.lm, 1, tempkm, IPIV, 1);
+         if ( descA.storage == matrix_Tile ) {
+             int tempk = k * descA.mb;
+             int tempm  = descA.m - tempk;
+             CORE_zlaswp_ontile(
+                 plasma_desc_submatrix(*pdescA, tempk, n*descA.nb, tempm, tempnn),
+                 1, tempkm, IPIV, 1);
+         } else {
+             CORE_zlaswp( tempnn, B, descA.lm, 1, tempkm, IPIV, 1);
+         }
 
          CORE_ztrsm(
              PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
@@ -344,10 +352,18 @@ BODY
   DRYRUN(
       int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
       int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
-      int tempk  = dague_imin(tempkn, tempkm);
+      int tempmin = dague_imin(tempkn, tempkm);
       int ldak = BLKLDD(descA, k);
 
-      CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempk, IPIV, 1 );
+      if ( descA.storage == matrix_Tile ) {
+          int tempk  = k * descA.mb;
+          int tempm  = descA.m - tempk;
+          CORE_zlaswp_ontile(
+              plasma_desc_submatrix(*pdescA, tempk, n*descA.nb, tempm, descA.nb),
+              1, tempmin, IPIV, 1);
+      } else {
+          CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempmin, IPIV, 1 );
+      }
          );
 
   printlog("thread %d CORE_zswpback(%d, %d)\n"
