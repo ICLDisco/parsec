@@ -106,6 +106,8 @@ int dplasma_qr_getm(       const qr_piv_t *arg, const int k, const int i   );
 int dplasma_qr_geti(       const qr_piv_t *arg, const int k, const int m   );
 int dplasma_qr_gettype(    const qr_piv_t *arg, const int k, const int m   );
 
+static void dplasma_qr_genperm   (       qr_piv_t *qrpiv );
+static int  dplasma_qr_getinvperm( const qr_piv_t *qrpiv, const int k, int m );
 
 /*
  * Subtree for low-level
@@ -208,6 +210,7 @@ static int dplasma_low_flat_currpiv(const qr_subpiv_t *arg, const int m, const i
   - finishes (no more tiles to kill) with return arg->ldd */
 static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int pivot, const int k, const int start)
 {
+    (void) k;
     if ( start == arg->ldd )
         return min( pivot + arg->p , arg->ldd );
     else
@@ -218,7 +221,7 @@ static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int pivot, con
 static int dplasma_low_flat_prevpiv(const qr_subpiv_t *arg, const int pivot, const int k, const int start)
 {
     if ( start == arg->ldd )
-        return pivot + arg->p * ((arg->ldd-1-k)/arg->p);
+        return pivot + ((arg->ldd -1 -k)/arg->p) * arg->p;
     else {
         if ( start > pivot + arg->p )
             return start - arg->p;
@@ -325,40 +328,22 @@ static void dplasma_high_flat_flat_init(qr_subpiv_t *arg){
  ***************************************************/
 int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
 {
-    int tmp, tmpk, perm_m;
-    int lm, rank, *perm;
-    int a    = arg->a;
-    int p    = arg->p;
-
-    perm_m = dplasma_qr_getinvperm( arg, k, m );
-    lm   = perm_m / p; /* Local index in the distribution over p domains */
-    rank = perm_m % p; /* Staring index in this distribution             */
-    perm = arg->perm + (arg->desc->mt+1) * k;
-
-    myassert( (p==1) || (perm_m / (p*a)) == (m / (p*a)) );
-    myassert( (p==1) || (perm_m % p) == (m % p) );
-
     /* TS level common to every case */
 
     switch( dplasma_qr_gettype( arg, k, m ) )
     {
     case 0:
-        tmp = lm / a;
-        tmpk = k / (p * a);
-        return perm[ ( tmp == tmpk ) ? k + (perm_m-k)%p : tmp * a * p + rank ];
+        return arg->llvl->currpiv(arg->llvl, m, k) ;
         break;
     case 1:
-        tmp = arg->llvl->currpiv(arg->llvl, perm_m, k);
-        /* tmpk = (k + p - 1 - m%p) / p / a; */
-        tmpk = k / (p * a);
-        return perm[ ( tmp == tmpk ) ? k + (perm_m-k)%p : tmp * a * p + rank ];
+        return arg->hlvl->currpiv(arg->llvl, m, k) ;
         break;
-    case 2:
-        return perm[ perm_m - p];
-        break;
+/*    case 2:*/
+/*        return perm[ perm_m - p];*/
+/*        break;*/
     case 3:
         if ( arg->hlvl != NULL )
-            return perm[arg->hlvl->currpiv(arg->hlvl, perm_m, k)];
+            return arg->hlvl->currpiv(arg->hlvl, m, k);
     default:
         return arg->desc->mt;
     }
@@ -366,93 +351,39 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
 
 int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 {
-    int tmp, ls, lp, nextp;
-    int lpivot, rpivot, lstart, *perm;
-    int a = arg->a;
-    int p = arg->p;
- 
-   /* fprintf(stderr, "Before: k=%d, pivot=%d, start=%d\n", k, pivot, start); */
-    int ostart = start;
-    int opivot = pivot;
-    start = dplasma_qr_getinvperm( arg, k, ostart);
-    pivot = dplasma_qr_getinvperm( arg, k, opivot);
-
-    lpivot = pivot / p; /* Local index in the distribution over p domains */
-    rpivot = pivot % p; /* Staring index in this distribution             */
-
-    /* Local index in the distribution over p domains */
-    lstart = ( start == arg->desc->mt ) ? arg->llvl->ldd * a : start / p;
-
-    perm = arg->perm + (arg->desc->mt+1) * k;
+    int ls, lp;
 
     myassert( start > pivot && pivot >= k );
-    myassert( start == arg->desc->mt || opivot == dplasma_qr_currpiv( arg, ostart, k ) );
+    myassert( start == arg->desc->mt || pivot == dplasma_qr_currpiv( arg, start, k ) ); // Returns -1 if pivot is not the pivot of start at step k.
 
     /* TS level common to every case */
-    ls = (start < arg->desc->mt) ? dplasma_qr_gettype( arg, k, ostart ) : -1;
-    lp = dplasma_qr_gettype( arg, k, opivot );
+    ls = (start < arg->desc->mt) ? dplasma_qr_gettype( arg, k, start ) : -1;
+    lp = dplasma_qr_gettype( arg, k, pivot );
 
     switch( ls )
         {
-        case -1:
+        case -1:   //What this will do is for all the tiles that are not supposed to be pivot, will always return arg->desc->mt (ldd). For the others, will not do anything. (why is there an "if" ?)
 
-            if ( lp == 0 ) {
-                myassert( start == arg->desc->mt );
+            if ( lp == DPLASMA_QR_KILLED_BY_TS ) {
+                myassert( start == arg->desc->mt ); 
                 return arg->desc->mt;
             }
+            return -1;
+            break;
 
-        case 0:
+        case DPLASMA_QR_KILLED_BY_TS:
+            return arg->llvl->nextpiv(arg->llvl, pivot, k, start );
+            break;
 
-            if ( start == arg->desc->mt )
-                nextp = pivot + p;
-            else
-                nextp = start + p;
+        case DPLASMA_QR_KILLED_BY_LOCALTREE:
+            myassert( arg->hlvl != NULL );
+            return arg->hlvl->nextpiv(arg->hlvl, pivot, k, start );
+            break;
 
-            if ( ( nextp < arg->desc->mt ) &&
-                 ( nextp < pivot + a*p ) &&
-                 ( (nextp/p)%a != 0 ) )
-                return perm[nextp];
-            start = arg->desc->mt;
-            lstart = arg->llvl->ldd * a;
-
-        case 1:
-
-            /* Get the next pivot for the low level tree */
-            tmp = arg->llvl->nextpiv(arg->llvl, pivot, k, lstart / a );
-
-            if ( (tmp * a * p + rpivot >= arg->desc->mt)
-                 && (tmp == arg->llvl->ldd-1) )
-                tmp = arg->llvl->nextpiv(arg->llvl, pivot, k, tmp);
-
-            if ( tmp != arg->llvl->ldd )
-                return perm[tmp * a * p + rpivot];
-
-        next_2:
-            /* no next of type 1, we reset start to search the next 2 */
-            start = arg->desc->mt;
-            lstart = arg->llvl->ldd * a;
-
-        case 2:
-
-            if ( lp < 2 ) {
-                return arg->desc->mt;
-            }
-
-            /* no next of type 2, we reset start to search the next 3 */
-            start = arg->desc->mt;
-            lstart = arg->llvl->ldd * a;
-
-        case 3:
-
-            if ( lp < 3 ) {
-                return arg->desc->mt;
-            }
-
-            if( arg->hlvl != NULL ) {
-                tmp = arg->hlvl->nextpiv( arg->hlvl, pivot, k, start );
-                if ( tmp != arg->desc->mt )
-                    return perm[tmp];
-            }
+        case DPLASMA_QR_KILLED_BY_DISTTREE:
+            myassert( arg->hlvl != NULL );
+            return arg->hlvl->nextpiv(arg->hlvl, pivot, k, start );
+            break;
 
         default:
             return arg->desc->mt;
@@ -545,7 +476,6 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
         }
 };
 
-
 /****************************************************
  *
  * Generate the permutation required for the round-robin on TS
@@ -571,7 +501,6 @@ static void dplasma_qr_genperm( qr_piv_t *qrpiv )
 
 
 
-
 int dplasma_qr_getinvperm( const qr_piv_t *qrpiv, int k, int m )
 {
     int p  = qrpiv->p;
@@ -589,6 +518,7 @@ int dplasma_qr_getinvperm( const qr_piv_t *qrpiv, int k, int m )
    /* We should never arrive here */
     myassert( 0 );
 }
+
 
 /****************************************************
  *
@@ -649,7 +579,7 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A,
         }
     }
 
-    dplasma_qr_genperm( qrpiv );
+     dplasma_qr_genperm( qrpiv );
     return qrpiv;
 }
 
