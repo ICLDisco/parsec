@@ -405,6 +405,7 @@ static bool inline is_enclosed_by_else(node_t *node, node_t *branch){
     }
 
     Q2J_ASSERT( 0 );
+    return false; /* Just to silence the pedantic warning of icc */
 }
 
 
