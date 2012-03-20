@@ -889,7 +889,7 @@ static void dague_object_empty_repository(void)
     object_array = NULL;
     object_array_size = 1;
     object_array_pos = 0;
-    dague_atomic_unlock( &object_array_pos );
+    dague_atomic_unlock( &object_array_lock );
 }
 
 /**< Retrieve the local object attached to a unique object id */

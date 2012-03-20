@@ -3333,7 +3333,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 string_arena_init(sa_tmp_nbelt);
                 if( JDF_VAR_TYPE_CTL == fl->access_type ) {
                     string_arena_add_string(sa, "NULL");
-                    string_arena_add_string(sa_tmp_nbelt, "  /* Control: no __nb_elt */n");
+                    string_arena_add_string(sa_tmp_nbelt, "  /* Control: no __nb_elt */ 0");
                 } else {
                     string_arena_add_string(sa, "__dague_object->super.arenas[");
                     create_datatype_to_integer_code(sa, dl->datatype);
