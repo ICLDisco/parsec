@@ -194,7 +194,6 @@ static int find_matching_event_in_profile(const dague_profiling_iterator_t *star
 
 static void dump_whole_trace(int fd)
 {
-    const dague_profiling_output_t *event;
     const dague_thread_profiling_t *profile;
     dague_profiling_iterator_t *pit;
     dague_list_item_t *it;
