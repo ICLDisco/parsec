@@ -209,12 +209,10 @@ static int find_matching_event_in_profile(const dague_profiling_iterator_t *star
                 iterator_delete(it);
                 return 1;
             } else if ( e->event.id != 0 ) {
-#if 0
                 WARNING(("Event with ID %d appear in reverse order: start is at %d.%09d, end is at %d.%09d\n",
                          e->event.id,
                          (int)ref->event.timestamp.tv_sec, (int)ref->event.timestamp.tv_nsec,
                          (int)e->event.timestamp.tv_sec, (int)e->event.timestamp.tv_nsec));
-#endif
             }
         }
         e = iterator_next( it );
@@ -306,9 +304,8 @@ static int dague_profiling_dump_one_paje( const dague_thread_profiling_t *profil
                         iterator_delete(nit);
                         event_not_found = 0;
                         break;
-                    } else {
-                        iterator_delete(nit);
                     }
+                    iterator_delete(nit);
                 });
 
             if( event_not_found ) {
