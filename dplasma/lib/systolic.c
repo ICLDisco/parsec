@@ -134,10 +134,10 @@ static void dplasma_low_flat_init(     qr_subpiv_t *arg);
  *    The number of geqrt to execute in the panel k
  */
 int dplasma_qr_getnbgeqrf( const qr_piv_t *arg, const int k, const int gmt ) {
-    int p = arg->p;
-    int sq_p = sqrt(p);
+    int p    = arg->p;
+    int sq_p = (int)sqrt((double)p);
 
-    myassert( p == sq_p * sq_p);
+    myassert( p == (sq_p * sq_p) );
 
     return min( p, gmt - k);
 }
@@ -186,7 +186,7 @@ int dplasma_qr_gettype( const qr_piv_t *arg, const int k, const int m ) {
         return 0;
 
     /* Element to be reduce with a single pivot */
-    else if ( (m - k) % sq_p == 0 ) 
+    else if ( (m - k) % sq_p == 0 )
         return 3;
 
     /* Element to be reduced with sq_p pivot */
@@ -205,8 +205,8 @@ static int dplasma_low_flat_currpiv(const qr_subpiv_t *arg, const int m, const i
     return k + arg->p - 1 - m%(arg->p) ;
 };
 
-/* Return the next row which will use the row "pivot" as a pivot in step k after it has been used by row start ;  
-  - initiated (have not killed anyone yet) with start==arg->ldd 
+/* Return the next row which will use the row "pivot" as a pivot in step k after it has been used by row start ;
+  - initiated (have not killed anyone yet) with start==arg->ldd
   - finishes (no more tiles to kill) with return arg->ldd */
 static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int pivot, const int k, const int start)
 {
@@ -241,11 +241,11 @@ static void dplasma_low_flat_init(qr_subpiv_t *arg){
 
 /****************************************************
  *                 DPLASMA_HIGH_FLAT_FLAT_TREE
-Notation: 
-In High_FlatFlat Tree we consider that there is only sqrt(p) processors (arg->p = sqrt(p), 
+Notation:
+In High_FlatFlat Tree we consider that there is only sqrt(p) processors (arg->p = sqrt(p),
 where p is the number of processors considered in Low_Flat Tree).
-There are two possibilities for every function which will need to be considered, 
-either we are in the first dimension elimination (p killers), 
+There are two possibilities for every function which will need to be considered,
+either we are in the first dimension elimination (p killers),
 either we are in the second dimension (a final killer).
  ***************************************************/
 
@@ -258,18 +258,18 @@ static int dplasma_high_flat_flat_currpiv(const qr_subpiv_t *arg, const int m, c
         return k + (arg->p) * ( m - k )/(arg->p);                  //first dimension elimination
 };
 
-/* Return the next row which will use the row "pivot" as a pivot in step k after it has been used by row start ;  
-  - initiated (have not killed anyone yet) with start==arg->ldd 
+/* Return the next row which will use the row "pivot" as a pivot in step k after it has been used by row start ;
+  - initiated (have not killed anyone yet) with start==arg->ldd
   - finishes (no more tiles to kill) with return arg->ldd */
 static int dplasma_high_flat_flat_nextpiv(const qr_subpiv_t *arg, const int pivot, const int k, const int start)
 {
     assert ( (pivot-k) % (arg->p) == 0 && arg->ldd > 1 );
     if ( start == arg->ldd )  //base case.
         return pivot+1;
-   else 
+   else
         if ( (start - pivot< arg->p - 1) ) //first dimension elimination before: "&& start < min(k + (arg->p * arg-> p) , arg->ldd)"
            return start+1;
-        else 
+        else
            if (pivot == k) {
                 if (start == k + arg->p -1)  //when we step from the first dimension elimination to the second dimension elimination.
                    return k + arg->p;
@@ -296,9 +296,9 @@ static int dplasma_high_flat_flat_prevpiv(const qr_subpiv_t *arg, const int pivo
                 return min( k + arg->p * (arg->p - 1) , k + arg->p * ((arg->ldd - 1 - k)/arg->p) ); //else last element used in the second dimension elimination
         }
         else
-            if ( start == pivot + arg->p ) 
+            if ( start == pivot + arg->p )
                 return start - 1;
-            else 
+            else
                 if ( (start - pivot) % (arg->p) == 0)
                     return start - arg->p;
                 else
@@ -308,7 +308,7 @@ static int dplasma_high_flat_flat_prevpiv(const qr_subpiv_t *arg, const int pivo
     else
         if ( start == arg->ldd )
             return min( pivot+ arg->p - 1, max( arg->ldd -1, pivot +1) );
-        else 
+        else
             if ( start - pivot > 1 ) //first dimension elimination
                return start-1;
     return arg->ldd;
@@ -365,7 +365,7 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
         case -1:   //What this will do is for all the tiles that are not supposed to be pivot, will always return arg->desc->mt (ldd). For the others, will not do anything. (why is there an "if" ?)
 
             if ( lp == DPLASMA_QR_KILLED_BY_TS ) {
-                myassert( start == arg->desc->mt ); 
+                myassert( start == arg->desc->mt );
                 return arg->desc->mt;
             }
             return -1;

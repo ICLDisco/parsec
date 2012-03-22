@@ -8,7 +8,8 @@ set(EXTRA_SOURCES
   memory_pool.c
   dplasmatypes.c
   dplasmaaux.c
-  pivgen.c
+  #pivgen.c
+  systolic.c
   pivgen_dbg.c
   map2_wrapper.c
   butterfly_map.c
