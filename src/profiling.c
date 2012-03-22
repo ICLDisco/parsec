@@ -302,7 +302,7 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
         pthread_mutex_unlock( &file_backend_lock );
         return NULL;
     }
-    
+
     if( ftruncate(file_backend_fd, file_backend_next_offset+event_buffer_size) == -1 ) {
         fprintf(stderr, "Warning profiling system: resize of the events backend file failed: %s. Events trace will be truncated.\n",
                 strerror(errno));
@@ -389,8 +389,6 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned 
 {
     dague_profiling_output_t *this_event;
     size_t this_event_length;
-
-    assert(context->thread_owner == pthread_self());
 
     if( -1 == file_backend_fd ) {
         return -1;
@@ -670,7 +668,7 @@ int dague_profiling_dump_dbp( const char* filename )
             write_down_existing_buffer(t->current_events_buffer);
             t->current_events_buffer = NULL;
         }
-    });    
+    });
 
     if( rename(bpf_filename, filename) == -1 ) {
         fprintf(stderr, "Warning Profiling System: Unable to rename events file %s in %s: %s\n",

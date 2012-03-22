@@ -21,19 +21,22 @@ dplasma_zgesv( dague_context_t *dague,
 #ifdef DAGUE_COMPOSITION
 #warning "Not implemented"
 
-    dague_object_t *dague_zgetrf  = dplasma_zgetrf_New(A, L, IPIV, &info);
-    dague_object_t *dague_ztrsm   = dplasma_ztrsmpl_New(A, L, IPIV, B);
-    dague_object_t *dague_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+    dague_object_t *dague_zgetrf = dplasma_zgetrf_New(A, IPIV, &info);
+    dague_object_t *dague_zlaswp = dplasma_zlaswp_New(B, IPIV, 1);
+    dague_object_t *dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, 1.0, A, B);
+    dague_object_t *dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
     dague_enqueue( dague, dague_zgetrf  );
-    dague_enqueue( dague, dague_ztrsmpl );
-    dague_enqueue( dague, dague_ztrsm   );
+    dague_enqueue( dague, dague_zlaswp );
+    dague_enqueue( dague, dague_ztrsm1 );
+    dague_enqueue( dague, dague_ztrsm2 );
 
     dplasma_progress( dague );
 
     dplasma_zgetrf_Destruct( dague_zgetrf  );
-    dplasma_ztrsmpl_Destruct( dague_ztrsmpl );
-    dplasma_ztrsm_Destruct( dague_ztrsm   );
+    dplasma_ztrsm_Destruct( dague_zlaswp );
+    dplasma_ztrsm_Destruct( dague_ztrsm1 );
+    dplasma_ztrsm_Destruct( dague_ztrsm2 );
 #else
     info = dplasma_zgetrf(dague, A, IPIV );
     if( info == 0 ) {

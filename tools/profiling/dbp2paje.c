@@ -21,11 +21,11 @@
 FILE *pajeGetProcFile();
 
 static trace_return_t pajeSetState2(varPrec time, const char* type,
-                                    const char *cont, const char* val) 
+                                    const char *cont, const char* val)
 {
     FILE *procFile = pajeGetProcFile();
     if (procFile){
-        fprintf (procFile, "10 %.13e \"%s\" \"%s\" \"%s\"\n", 
+        fprintf (procFile, "10 %.13e \"%s\" \"%s\" \"%s\"\n",
                  time, type, cont, val);
         return TRACE_SUCCESS;
     }
@@ -77,7 +77,6 @@ static dague_profiling_key_t* dague_prof_keys;
 /* List of threads */
 static dague_list_t threads;
 static char *hr_id = NULL;
-static dague_profiling_info_t *dague_profiling_infos = NULL;
 
 static void release_events_buffer(dague_profiling_buffer_t *buffer)
 {
@@ -116,7 +115,7 @@ static dague_profiling_iterator_t *iterator_new_from_iterator( const dague_profi
     res->profile = it->profile;
     res->current_event_position = it->current_event_position;
     res->current_event_index = it->current_event_index;
-    res->current_buffer_position = it->current_buffer_position;    
+    res->current_buffer_position = it->current_buffer_position;
     res->current_events_buffer = refer_events_buffer( it->fd, res->current_buffer_position );
     res->fd = it->fd;
     return res;
@@ -210,12 +209,10 @@ static int find_matching_event_in_profile(const dague_profiling_iterator_t *star
                 iterator_delete(it);
                 return 1;
             } else if ( e->event.id != 0 ) {
-#if 0
                 WARNING(("Event with ID %d appear in reverse order: start is at %d.%09d, end is at %d.%09d\n",
                          e->event.id,
                          (int)ref->event.timestamp.tv_sec, (int)ref->event.timestamp.tv_nsec,
                          (int)e->event.timestamp.tv_sec, (int)e->event.timestamp.tv_nsec));
-#endif
             }
         }
         e = iterator_next( it );
@@ -226,7 +223,6 @@ static int find_matching_event_in_profile(const dague_profiling_iterator_t *star
 
 static void dump_whole_trace(int fd)
 {
-    const dague_profiling_output_t *event;
     const dague_thread_profiling_t *profile;
     dague_profiling_iterator_t *pit;
     dague_list_item_t *it;
@@ -247,13 +243,15 @@ static void dump_whole_trace(int fd)
         profile = (dague_thread_profiling_t*)it;
         pit = iterator_new( profile, fd );
 #if defined(DAGUE_DEBUG_VERBOSE1)
-        for( event = iterator_first( pit );
-             NULL != event;
-             event = iterator_next( pit ) ) {
-            dague_time_t zero = ZERO_TIME;
-            DEBUG(("TRACE %d/%lu on %p (timestamp %llu)\n", event->event.key, event->event.id, profile,
-                   diff_time(zero, event->event.timestamp)));
-
+        {
+            const dague_profiling_output_t *event;
+            for( event = iterator_first( pit );
+                 NULL != event;
+                 event = iterator_next( pit ) ) {
+                dague_time_t zero = ZERO_TIME;
+                DEBUG(("TRACE %d/%lu on %p (timestamp %llu)\n", event->event.key, event->event.id, profile,
+                       diff_time(zero, event->event.timestamp)));
+            }
         }
 #endif
         iterator_delete(pit);
@@ -267,7 +265,7 @@ static int dague_profiling_dump_one_paje( const dague_thread_profiling_t *profil
 {
     unsigned int pos;
     uint64_t start, end;
-    dague_profiling_output_t oldend, oldstart;
+    dague_profiling_output_t oldend;
     int first_iteration = 1;
     static int displayed_error_message = 0;
     char *infostr = malloc(4);
@@ -288,7 +286,7 @@ static int dague_profiling_dump_one_paje( const dague_thread_profiling_t *profil
             continue;
 
         pos = BASE_KEY(start_event->event.key);
-            
+
         if( 0 == find_matching_event_in_profile(pit, start_event, &end_event, &end_event_size) ) {
             /* Argh, couldn't find the end in this profile */
 
@@ -297,26 +295,25 @@ static int dague_profiling_dump_one_paje( const dague_thread_profiling_t *profil
              * logged by another thread
              */
             DAGUE_ULIST_ITERATOR(&threads, it, {
-                    op = (dague_thread_profiling_t*)it;   
+                    op = (dague_thread_profiling_t*)it;
                     if( op == profile )
                         continue;
-                    
+
                     nit = iterator_new( op, backend_fd );
                     if( 1 == find_matching_event_in_profile(nit, start_event, &end_event, &end_event_size) ) {
                         iterator_delete(nit);
                         event_not_found = 0;
                         break;
-                    } else {
-                        iterator_delete(nit);
                     }
+                    iterator_delete(nit);
                 });
-            
+
             if( event_not_found ) {
                 /* Couldn't find the end, or no id. Bad. */
-                
+
                 WARNING(("Profiling: end event of key %u (%s) id %lu was not found for ID %s\n",
                          END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id));
-                
+
                 if( !displayed_error_message ) {
                     dump_whole_trace( backend_fd );
                     displayed_error_message = 1;
@@ -334,7 +331,7 @@ static int dague_profiling_dump_one_paje( const dague_thread_profiling_t *profil
             end = diff_time( relative, end_event->event.timestamp );
 
             assert( start_event != end_event );
-            if( !first_iteration 
+            if( !first_iteration
                 && diff_time( relative, oldend.event.timestamp ) > start ) {
                 current_stat[ BASE_KEY(start_event->event.key) ].nb_matcherror++;
                 continue;
@@ -343,13 +340,12 @@ static int dague_profiling_dump_one_paje( const dague_thread_profiling_t *profil
             assert( start <= end );
 
             oldend = *end_event;
-            oldstart = *start_event;
 
             current_stat[ BASE_KEY(start_event->event.key) ].nb_matched_samethread++;
-            
+
             sprintf(keyid, "K-%u", pos);
             pajeSetState2( ((double)start) * 1e-3, "ST_TS", cont_thread_name, keyid );
-            pajeSetState2( ((double)end) * 1e-3, "ST_TS", cont_thread_name, "Wait");            
+            pajeSetState2( ((double)end) * 1e-3, "ST_TS", cont_thread_name, "Wait");
         }
     }
     iterator_delete(pit);
@@ -379,8 +375,7 @@ static int process_thread_info(dague_thread_profiling_t * res, int nb_infos, cha
 {
     dague_profiling_info_buffer_t *ib;
     dague_profiling_info_t *nfo;
-    int i;
-    int pos;
+    int i, pos = 0;
 
     res->infos = NULL;
     for(i = 0; i < nb_infos; i++) {
@@ -400,7 +395,8 @@ static int process_thread_info(dague_thread_profiling_t * res, int nb_infos, cha
     return pos;
 }
 
-static int load_thread_heads(int ifd) {
+static int load_thread_heads(int ifd)
+{
     dague_thread_profiling_t *res;
     dague_profiling_thread_buffer_t *br;
     dague_profiling_buffer_t *b, *n;
@@ -444,9 +440,9 @@ static int load_thread_heads(int ifd) {
             assert( PROFILING_BUFFER_TYPE_THREAD == n->buffer_type );
             release_events_buffer( b );
             b = n;
-           
+
             nbthis = b->this_buffer.nb_threads;
- 
+
             pos = 0;
         }
     }
@@ -491,8 +487,8 @@ static int dague_profiling_dump_paje( const char* filename )
     addContainer (0.00000, "Appli", "CT_Appli", "0", hr_id, "");
 
     for(i = 0; i < dague_prof_keys_count; i++) {
-        color_code = strtoul( (char*)dague_prof_keys[i].attributes + strlen((char*)dague_prof_keys[i].attributes) - 6, NULL, 0);
-        color = gtg_color_create(dague_prof_keys[i].name, 
+        color_code = strtoul( dague_prof_keys[i].attributes, NULL, 16);
+        color = gtg_color_create(dague_prof_keys[i].name,
                                  GTG_COLOR_GET_RED(color_code),
                                  GTG_COLOR_GET_GREEN(color_code),
                                  GTG_COLOR_GET_BLUE(color_code));
@@ -500,7 +496,7 @@ static int dague_profiling_dump_paje( const char* filename )
         addEntityValue (dico_id, "ST_TS", dague_prof_keys[i].name, color);
         gtg_color_free(color);
     }
-   
+
     relative = files[0]->head.start_time;
     for(ifd = 1; ifd < nb_files; ifd++) {
         if( time_less(files[ifd]->head.start_time, relative) ) {
@@ -577,7 +573,7 @@ static int open_files(int argc, char *argv[])
         }
         files[n] = (dbp_file_t*)malloc( sizeof(dbp_file_t) );
         files[n]->fd = fd;
-        if( read( fd, &(files[n]->head), sizeof(dbp_file_t) ) != sizeof(dbp_file_t) ) {
+        if( read( fd, &(files[n]->head), sizeof(dague_profiling_binary_file_header_t) ) != sizeof(dague_profiling_binary_file_header_t) ) {
             fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
                     argv[i]);
             close(fd);
@@ -655,7 +651,7 @@ static int open_files(int argc, char *argv[])
 
     nb_files = n;
     event_buffer_size = files[0]->head.profile_buffer_size;
-    event_avail_space = event_buffer_size - 
+    event_avail_space = event_buffer_size -
         ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
 
     return n;
@@ -667,17 +663,17 @@ static int reconciliate_dictionnary(void)
     dague_profiling_key_buffer_t *a, *b;
     int i, nb, nbthis, pos;
     dague_prof_keys_count = 0;
-    
+
     for(i = 1; i < nb_files; i++) {
         if( files[0]->head.dictionary_size != files[i]->head.dictionary_size ) {
-            fprintf(stderr, 
+            fprintf(stderr,
                     "Current version of dbp2paje does not allow binary profile files to have different dictionary entries.\n"
                     " %s has %d entries, while %s has %d\n",
                     files[0]->filename, files[0]->head.dictionary_size,
                     files[i]->filename, files[i]->head.dictionary_size);
             return -1;
         }
-        
+
         first_dico = refer_events_buffer( files[0]->fd, files[0]->head.dictionary_offset );
         if( NULL == first_dico ) {
             fprintf(stderr, "Unable to read dictionary entry: Profile file %s broken\n",
@@ -685,7 +681,7 @@ static int reconciliate_dictionnary(void)
             return -1;
         }
         assert( PROFILING_BUFFER_TYPE_DICTIONARY == first_dico->buffer_type );
-        
+
         dico = refer_events_buffer( files[i]->fd, files[i]->head.dictionary_offset );
         if( NULL == dico ) {
             fprintf(stderr, "Unable to read dictionary entry: Profile file %s broken\n",
@@ -694,9 +690,9 @@ static int reconciliate_dictionnary(void)
             return -1;
         }
         assert( PROFILING_BUFFER_TYPE_DICTIONARY == dico->buffer_type );
-        
+
         if( dico->this_buffer.nb_dictionary_entries != first_dico->this_buffer.nb_dictionary_entries ) {
-            fprintf(stderr, 
+            fprintf(stderr,
                     "Current version of dbp2paje does not allow binary profile files to have different dictionary entries.\n"
                     " %s has %ld entries in some dictionnary buffer, while %s has %ld\n",
                     files[0]->filename, first_dico->this_buffer.nb_dictionary_entries,
@@ -705,16 +701,16 @@ static int reconciliate_dictionnary(void)
             release_events_buffer( first_dico );
             return -1;
         }
-        
+
         nb = files[0]->head.dictionary_size;
         nbthis = first_dico->this_buffer.nb_dictionary_entries;
         pos = 0;
         while( nb > 0 ) {
             a = (dague_profiling_key_buffer_t*)&first_dico->buffer[pos];
             b = (dague_profiling_key_buffer_t*)&dico->buffer[pos];
-            
+
             if( strncmp(a->name, b->name, 64) ) {
-                fprintf(stderr, 
+                fprintf(stderr,
                         "Current version of dbp2paje does not allow binary profile files to have different dictionary entries.\n"
                         " %s has an entry number %d with name %s, while the corresponding entry in %s has name %s\n",
                         files[0]->filename, files[0]->head.dictionary_size-nb, a->name,
@@ -725,7 +721,7 @@ static int reconciliate_dictionnary(void)
             }
 
             if( strncmp(a->attributes, b->attributes, 128) ) {
-                fprintf(stderr, 
+                fprintf(stderr,
                         "Current version of dbp2paje does not allow binary profile files to have different dictionary entries.\n"
                         " %s has an entry number %d with attributes %s, while the corresponding entry in %s has attributes %s\n",
                         files[0]->filename, files[0]->head.dictionary_size-nb, a->attributes,
@@ -736,7 +732,7 @@ static int reconciliate_dictionnary(void)
             }
 
             if( a->keyinfo_length != b->keyinfo_length ) {
-                fprintf(stderr, 
+                fprintf(stderr,
                         "Current version of dbp2paje does not allow binary profile files to have different dictionary entries.\n"
                         " %s has an entry number %d of %d bytes for its info, while %s's entry has %d bytes for its info\n",
                         files[0]->filename, files[0]->head.dictionary_size-nb, a->keyinfo_length, files[i]->filename, b->keyinfo_length);
@@ -746,18 +742,18 @@ static int reconciliate_dictionnary(void)
             }
 
             if( a->keyinfo_convertor_length != b->keyinfo_convertor_length ) {
-                fprintf(stderr, 
+                fprintf(stderr,
                         "Current version of dbp2paje does not allow binary profile files to have different dictionary entries.\n"
                         " %s has an entry number %d of %d bytes for its convertor, while %s's entry has %d bytes for its convertor\n",
-                        files[0]->filename, files[0]->head.dictionary_size-nb, a->keyinfo_convertor_length, 
+                        files[0]->filename, files[0]->head.dictionary_size-nb, a->keyinfo_convertor_length,
                         files[i]->filename, b->keyinfo_convertor_length);
                 release_events_buffer( dico );
                 release_events_buffer( first_dico );
                 return -1;
             }
-            
+
             if( strncmp(a->convertor, b->convertor, a->keyinfo_convertor_length) ) {
-                fprintf(stderr, 
+                fprintf(stderr,
                         "Current version of dbp2paje does not allow binary profile files to have different dictionary entries.\n"
                         " %s has an entry number %d with convertor '%s', while the corresponding entry in %s has convertor '%s'\n",
                         files[0]->filename, files[0]->head.dictionary_size-nb, a->convertor,
@@ -807,37 +803,37 @@ static int reconciliate_dictionnary(void)
         release_events_buffer( dico );
         release_events_buffer( first_dico );
     }
-     
+
     /* Dictionaries match: take the first in memory */
     first_dico = refer_events_buffer( files[0]->fd, files[0]->head.dictionary_offset );
-    if( NULL == dico ) {
+    if( NULL == first_dico ) {
         fprintf(stderr, "Unable to read dictionary entry: Profile file %s broken\n",
                 files[0]->filename);
         return -1;
     }
     assert( PROFILING_BUFFER_TYPE_DICTIONARY == first_dico->buffer_type );
-    
+
     dague_prof_keys_count = files[0]->head.dictionary_size;
-    dague_prof_keys = (dague_profiling_key_t *)calloc(dague_prof_keys_count, sizeof(dague_profiling_key_t));        
+    dague_prof_keys = (dague_profiling_key_t *)calloc(dague_prof_keys_count, sizeof(dague_profiling_key_t));
     nb = files[0]->head.dictionary_size;
     nbthis = first_dico->this_buffer.nb_dictionary_entries;
     pos = 0;
     while( nb > 0 ) {
         a = (dague_profiling_key_buffer_t*)&first_dico->buffer[pos];
-        
+
         dague_prof_keys[ dague_prof_keys_count - nb ].name = strdup(a->name);
-        dague_prof_keys[ dague_prof_keys_count - nb ].attributes = strdup(a->attributes);
+        dague_prof_keys[ dague_prof_keys_count - nb ].attributes = strdup(((char*)a->attributes)+6);
         dague_prof_keys[ dague_prof_keys_count - nb ].convertor = (char*)malloc(a->keyinfo_convertor_length+1);
         memcpy(dague_prof_keys[ dague_prof_keys_count - nb ].convertor,
                a->convertor,
                a->keyinfo_convertor_length);
         dague_prof_keys[ dague_prof_keys_count - nb ].convertor[a->keyinfo_convertor_length] = '\0';
         dague_prof_keys[ dague_prof_keys_count - nb ].info_length = a->keyinfo_length;
-        
+
         pos += a->keyinfo_convertor_length - 1 + sizeof(dague_profiling_key_buffer_t);
         nb--;
         nbthis--;
-        
+
         if( nb > 0 && nbthis == 0 ) {
             next = refer_events_buffer( files[0]->fd, first_dico->next_buffer_file_offset );
             if( NULL == next ) {
@@ -849,12 +845,12 @@ static int reconciliate_dictionnary(void)
             assert( PROFILING_BUFFER_TYPE_DICTIONARY == first_dico->buffer_type );
             release_events_buffer( first_dico );
             first_dico = next;
-            
+
             pos = 0;
         }
-    }        
+    }
     release_events_buffer( first_dico );
-    
+
     return 0;
 }
 
@@ -890,7 +886,7 @@ int main(int argc, char *argv[])
     for(k = 0 ; k < dague_prof_keys_count; k = k+1 ) {
         stat_columns[k+1] = stat_columns[k] + 2 +strlen(dague_prof_keys[k].name);
     }
-    
+
     printf("#Stats:\n");
     printf("#Thread   ");
     for(k = 0 ; k < dague_prof_keys_count; k = k+1 ) {
@@ -903,7 +899,7 @@ int main(int argc, char *argv[])
             printf("#  %s", dico_stat[i][j].name);
 
             for(k = 0; k < dague_prof_keys_count; k++) {
-                printf("[%dG[%dm%d[0m/[%dm%d[0m/[%dm%d[0m", 
+                printf("[%dG[%dm%d[0m/[%dm%d[0m/[%dm%d[0m",
                        stat_columns[k],
                        dico_stat[i][j].stats[k].nb_matched_samethread > 0 ? 32 : 2,
                        dico_stat[i][j].stats[k].nb_matched_samethread,
@@ -912,7 +908,7 @@ int main(int argc, char *argv[])
                        dico_stat[i][j].stats[k].nb_matcherror > 0 ? 31 : 2,
                        dico_stat[i][j].stats[k].nb_matcherror);
             }
-            
+
             printf("\n");
         }
     }
