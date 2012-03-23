@@ -61,7 +61,7 @@ static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
         tmp_val = old_val + 1;
     } while( !__stwcx( (volatile int*)location, tmp_val ) );
 
-    return( old_val );
+    return( tmp_val );
 }
 
 #define DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B
@@ -75,5 +75,5 @@ static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
         tmp_val = old_val - 1;
     } while( !__stwcx( (volatile int*)location, tmp_val ) );
 
-    return( old_val );
+    return( tmp_val );
 }

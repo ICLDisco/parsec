@@ -77,6 +77,8 @@ option(DAGUE_DIST_COLLECTIVES
   "Use optimized asynchronous operations where collective communication pattern is detected" ON)
 set   (DAGUE_DIST_EAGER_LIMIT 0 CACHE STRING
   "Use the eager protocol (no flow control) for messages smaller than the limit in KB")
+set   (DAGUE_DIST_SHORT_LIMIT 0 CACHE STRING
+  "Use the short protocol (no flow control) for messages smaller than the limit in KB")
 
 ### GPU engine parameters
 mark_as_advanced(DAGUE_GPU_WITH_OPENCL) # Hide this as it is not supported yet
@@ -442,6 +444,8 @@ IF( BUILD_DAGUE )
     endif (PAPI_FOUND)
   endif (DAGUE_PROF_PAPI)
 ENDIF( BUILD_DAGUE )
+
+find_package(GTG)
 
 if( DAGUE_PROF_TRACE )
   list(APPEND EXTRA_SOURCES src/profiling.c)

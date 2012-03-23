@@ -23,6 +23,8 @@ int  dplasma_zherk( dague_context_t *dague, const PLASMA_enum uplo, const PLASMA
                     const double beta,  tiled_matrix_desc_t* C);
 void dplasma_ztrmm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag,
                     const PLASMA_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
+
+int dplasma_ztrdsm( dague_context_t *dague, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 int dplasma_ztrsm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag,
                    const PLASMA_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 void dplasma_ztrsmpl( dague_context_t *dague, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *L,
@@ -35,10 +37,12 @@ int  dplasma_zsymm( dague_context_t *dague, const PLASMA_enum side, const PLASMA
 int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A);
 int dplasma_zpotrs( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* B);
 int dplasma_zposv ( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* B);
+int dplasma_zhetrs( dague_context_t *dague, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 int dplasma_zgetrf( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *IPIV );
 int dplasma_zgetrf_incpiv( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV );
 int dplasma_zgetrs( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t* A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
 int dplasma_zgetrs_incpiv( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
+int dplasma_zgesv ( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
 int dplasma_zgesv_incpiv ( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
 int dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 int dplasma_zgeqrf_param( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
@@ -65,6 +69,7 @@ void dplasma_ztrsmpl_sd( dague_context_t *dague, const tiled_matrix_desc_t *A, c
 int  dplasma_zprint( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A);
 
 int dplasma_zhebut( dague_context_t *dague, tiled_matrix_desc_t *A, int level);
+int dplasma_zhetrf(dague_context_t *dague, tiled_matrix_desc_t *A);
 
 /***********************************************************
  *             Non-Blocking interface
@@ -81,6 +86,8 @@ dague_object_t* dplasma_zherk_New( const PLASMA_enum uplo, const PLASMA_enum tra
                                    const double beta,  tiled_matrix_desc_t* C);
 dague_object_t* dplasma_ztrmm_New( const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag,
                                    const PLASMA_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
+
+dague_object_t* dplasma_ztrdsm_New( const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B );
 dague_object_t* dplasma_ztrsm_New( const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag,
                                    const PLASMA_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 dague_object_t* dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *L,
@@ -123,6 +130,10 @@ dague_object_t* dplasma_zplgsy_New( Dague_Complex64_t bump, PLASMA_enum uplo, ti
 dague_object_t* dplasma_zhebut_New( tiled_matrix_desc_t *A, int it, int jt, int nt, int *info);
 dague_object_t* dplasma_zgebut_New( tiled_matrix_desc_t *A, int it, int jt, int nt, int *info);
 
+/* Low-level nonblocking LDL interface */
+dague_object_t* dplasma_zhetrf_New( tiled_matrix_desc_t *A, int ib, int *info);
+
+
 /***********************************************************
  *               Destruct functions
  */
@@ -130,6 +141,7 @@ void dplasma_zgemm_Destruct( dague_object_t *o );
 void dplasma_zhemm_Destruct( dague_object_t *o );
 void dplasma_zherk_Destruct( dague_object_t *o );
 void dplasma_ztrmm_Destruct( dague_object_t *o );
+void dplasma_ztrdsm_Destruct( dague_object_t *o );
 void dplasma_ztrsm_Destruct( dague_object_t *o );
 void dplasma_ztrsmpl_Destruct( dague_object_t *o );
 void dplasma_ztrsmpl_sd_Destruct( dague_object_t *o );
@@ -159,5 +171,7 @@ void dplasma_zplgsy_Destruct( dague_object_t *o );
 
 void dplasma_zhebut_Destruct( dague_object_t *o );
 void dplasma_zgebut_Destruct( dague_object_t *o );
+
+void dplasma_zhetrf_Destruct( dague_object_t *o );
 
 #endif /* _DPLASMA_Z_H_ */

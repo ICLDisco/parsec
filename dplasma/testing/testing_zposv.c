@@ -50,19 +50,19 @@ int main(int argc, char ** argv)
     SNB = 1;
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
-                               two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
-                                                      nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                                      N, N, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               N, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
-                               two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                                                      nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
-                                                      N, NRHS, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1,
-                               two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
-                                                      nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
-                                                      N, NRHS, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               N, NRHS, SMB, SNB, P));
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
@@ -352,10 +352,10 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
     double eps = LAPACKE_dlamch_work('e');
 
     PASTE_CODE_ALLOCATE_MATRIX(R, 1,
-                               two_dim_block_cyclic, (&R, matrix_ComplexDouble, matrix_Tile,
-                                                      A->super.nodes, A->super.cores, twodB->grid.rank,
-                                                      A->mb, A->nb, N, NRHS, 0, 0,
-                                                      N, NRHS, twodB->grid.strows, twodB->grid.stcols, twodB->grid.rows));
+        two_dim_block_cyclic, (&R, matrix_ComplexDouble, matrix_Tile,
+                               A->super.nodes, A->super.cores, twodB->grid.rank,
+                               A->mb, A->nb, N, NRHS, 0, 0,
+                               N, NRHS, twodB->grid.strows, twodB->grid.stcols, twodB->grid.rows));
 
     Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A);
     Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, B);

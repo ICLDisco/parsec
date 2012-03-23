@@ -20,8 +20,9 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define max_thrdnbr_per_panel 8
+#define max_thrdnbr_per_panel 2
 #define nbthreads( __k ) (dague_imin( ((descA.mt - (__k)) + 3 )/  4, max_thrdnbr_per_panel) - 1)
+PLASMA_desc plasma_desc_submatrix(PLASMA_desc descA, int i, int j, int m, int n);
 
 %}
 
@@ -30,6 +31,8 @@ descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
 IPIV      [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
+pdescA    [type = "PLASMA_desc*"]
+minMNT    [type = "int" default="( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )" hidden=on]
 
 /************************************************************************************
  *                      Tiles 2 panel (Reduction version)
@@ -50,7 +53,7 @@ INFO      [type = "int*"]
  *                      Tiles 2 panel (Forward)                                     *
  ************************************************************************************/
 tile2panel(k, m, n) [profile = off]
-  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-2 )
+  k = 0..minMNT
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
   ntrd = inline_c %{ return nbthreads( k+1 ); %}
@@ -91,7 +94,7 @@ END
  *                    Submatrix 2 panel (backward)                                  *
  ************************************************************************************/
 subm2panel(k, n) [profile = off]
-  k = 1..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-2 )
+  k = 1..minMNT
   n = k+1..descA.nt-1
 
   :A(k, n)
@@ -108,10 +111,34 @@ END
 /************************************************************************************
  *                                    GETRF                                         *
  ************************************************************************************/
+IPIV_in(k) [profile = off]
+  k  = 0..minMNT
+  nbtrd  = inline_c %{ return nbthreads( k ); %}
+
+:IPIV(k, 0)
+
+READ IP <- IPIV(k, 0)                [type = PIVOT]
+        -> IPIV getrf(k, 0..nbtrd)   [type = PIVOT]
+
+BODY
+    /**/
+END
+
+IPIV_out(k) [profile = off]
+  k  = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+
+:IPIV(k, 0)
+
+READ IP <- IPIV getrf(k, 0)          [type = PIVOT]
+        -> IPIV(k, 0)                [type = PIVOT]
+
+BODY
+    /**/
+END
 
 getrf(k, t) [high_priority = on]
   /* Execution space */
-  k  = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  k  = 0..minMNT
   t  = 0..inline_c %{ return nbthreads( k ); %}
   m1 = inline_c %{ return k + t * 4; %}
   m2 = inline_c %{ return dague_imin( k + (t+1) * 4 - 1, descA.mt-1); %}
@@ -124,11 +151,12 @@ getrf(k, t) [high_priority = on]
              -> ((k < descA.nt-1) && (t == 0)) ? A swptrsm(k, k+1..descA.nt-1)
              -> (t == 0) ? A(k, k)
           /* -> A(m1..m2, k) */
-  RW    IPIV <- IPIV(k,0)                                                        [type = PIVOT]
-             -> IPIV(k,0)                                                        [type = PIVOT]
+  RW    IPIV <- IP IPIV_in(k)                                                    [type = PIVOT]
+             -> ( t==0 ) ? IP IPIV_out(k)                                        [type = PIVOT]
              -> ((t==0) && (k < descA.nt-1)) ? IPIV swptrsm(k, k+1..descA.nt-1)  [type = PIVOT]
              -> ((t==0) && (k > 0)         ) ? IPIV swpback(k, 0..k-1)           [type = PIVOT]
   CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, descA.mt-1, k)
+             -> (t == 0 ) ? ctl GEMM_A_in(k, k+1..descA.mt-1)
   /*  CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, m2,         k)*/
 
 /* Priority */
@@ -136,12 +164,13 @@ getrf(k, t) [high_priority = on]
 
 BODY
 
-  int tempm  = descA.m - k * descA.mb;
+  int tempk  = k * descA.mb;
+  int tempm  = descA.m - tempk;
   int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
   int ldak = BLKLDD(descA, k);
 
   DRYRUN(
-      int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
+      int tempkm = k == descA.mt-1 ? tempm : descA.mb;
       int nbthrd = nbthreads( k );
       int info[3];
 
@@ -156,12 +185,18 @@ BODY
       info[1] = t;
       info[2] = nbthrd+1;
 
-      CORE_zgetrf_reclap(
-          tempm, tempkn,
-          A/*(k, k)*/, ldak, IPIV, info );
+      if ( descA.storage == matrix_Tile ) {
+          CORE_zgetrf_rectil(
+              plasma_desc_submatrix(*pdescA, tempk, tempk, tempm, tempkn),
+              IPIV, info );
+      } else {
+          CORE_zgetrf_reclap(
+              tempm, tempkn,
+              A/*(k, k)*/, ldak, IPIV, info );
+      }
 
       if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
-          *INFO = k * descA.mb + info[0]; /* Should return if enter here */
+          *INFO = tempk + info[0]; /* Should return if enter here */
           fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
       }
          );
@@ -179,7 +214,7 @@ END
 
 swptrsm(k, n)
   /* Execution space */
-  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-2 )
+  k = 0..minMNT
   n = k+1..descA.nt-1
 
   /* Locality */
@@ -203,7 +238,15 @@ BODY
          int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
          int ldak = BLKLDD(descA, k);
 
-         CORE_zlaswp( tempnn, B, descA.lm, 1, tempkm, IPIV, 1);
+         if ( descA.storage == matrix_Tile ) {
+             int tempk = k * descA.mb;
+             int tempm = descA.m - tempk;
+             CORE_zlaswp_ontile(
+                 plasma_desc_submatrix(*pdescA, tempk, n*descA.nb, tempm, tempnn),
+                 1, tempkm, IPIV, 1);
+         } else {
+             CORE_zlaswp( tempnn, B, descA.lm, 1, tempkm, IPIV, 1);
+         }
 
          CORE_ztrsm(
              PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
@@ -221,21 +264,40 @@ END
 /************************************************************************************
  *                                    GEMM                                         *
  ************************************************************************************/
+GEMM_A_in(k,m)
+  /* Execution space */
+  k = 0..minMNT
+  m = k+1..descA.mt-1
+    //myrank = inline_c %{ return A->rank_of(A, m, k); %}
+
+  /* Locality */
+:A(m, k)
+
+  READ  A  <- ( k == 0 ) ? A(m, k) : C gemm(k-1, m, k)
+           -> A gemm(k, m, k+1..descA.nt-1)
+  CTL  ctl <- ctl getrf(k, 0)
+
+BODY
+  /* */
+END
+
+
 gemm(k,m,n)
   /* Execution space */
-  k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
+  k = 0..minMNT
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
-  ntrd = inline_c %{ return nbthreads( k+1 ); %}
+  ntrd   = inline_c %{ return nbthreads( k+1 ); %}
+  //  myrank = inline_c %{ return A->rank_of(A, m, n); %}
 
   /* Locality */
 :A(m, n)
 
-  READ  A  <- A(m, k)
+READ  A  <- A GEMM_A_in(k, m)
   READ  B  <- B swptrsm(k, n)
   RW    C  <- ( k   == 0 ) ? A(m, n) : C gemm(k-1, m, n)
            -> ( k+1 == n ) && ( k+1 == m ) ? A getrf(k+1, 0..ntrd)
-         /*-> ( k+1 == n ) && ( k+1 != m ) ? A getrf(k+1)*/
+           -> ( k+1 == n ) && ( k+1 <  m ) ? A GEMM_A_in(k+1, m)
            -> ( k+1 <  n ) && ( k+1 == m ) ? B swptrsm(k+1, n)
            -> ( k+1 <  n ) && ( k+1 <  m ) ? C gemm(k+1, m, n)
   CTL  ctl -> ctl1 tile2panel(k, m, n)
@@ -269,7 +331,7 @@ END
 
 swpback(k, n)
   /* Execution space */
-  k = 1..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  k = 1..minMNT
   n = 0..k-1
 
   /* Locality */
@@ -290,10 +352,18 @@ BODY
   DRYRUN(
       int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
       int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
-      int tempk  = dague_imin(tempkn, tempkm);
+      int tempmin = dague_imin(tempkn, tempkm);
       int ldak = BLKLDD(descA, k);
 
-      CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempk, IPIV, 1 );
+      if ( descA.storage == matrix_Tile ) {
+          int tempk  = k * descA.mb;
+          int tempm  = descA.m - tempk;
+          CORE_zlaswp_ontile(
+              plasma_desc_submatrix(*pdescA, tempk, n*descA.nb, tempm, descA.nb),
+              1, tempmin, IPIV, 1);
+      } else {
+          CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempmin, IPIV, 1 );
+      }
          );
 
   printlog("thread %d CORE_zswpback(%d, %d)\n"

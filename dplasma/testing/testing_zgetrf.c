@@ -15,6 +15,8 @@ static int check_solution( dague_context_t *dague, int loud,
                            tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX );
 
+static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
+
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
@@ -42,27 +44,27 @@ int main(int argc, char ** argv)
 
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
-                               nodes, cores, rank, MB, NB, M, N, 0, 0,
-                               LDA, N, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
-        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Lapack,
-                               nodes, cores, rank, MB, 1, M, 1, 0, 0,
-                               M, 1, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
+                               nodes, cores, rank, MB, 1, dague_imin(M, N), 1, 0, 0,
+                               dague_imin(M, N), 1, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
-        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                   N, N, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
-        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Lapack,
+        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
-        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Lapack,
+        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
@@ -108,7 +110,6 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
     }
-    cleanup_dague(dague, iparam);
 
     if ( check ) {
         dague_data_free(ddescA0.mat);
@@ -126,7 +127,7 @@ int main(int argc, char ** argv)
     dague_data_free(ddescIPIV.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
 
-    return EXIT_SUCCESS;
+    return ret;
 }
 
 

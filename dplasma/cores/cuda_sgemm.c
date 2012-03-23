@@ -48,6 +48,16 @@ static tiled_matrix_desc_t* UGLY_A;
 static int ndevices = 0;
 static gpu_device_t** gpu_active_devices = NULL;
 
+int sgemm_cuda_ndevices(void)
+{
+    return ndevices;
+}
+
+dague_gpu_data_map_t gpu_data;
+dague_gpu_data_map_t *gpu_data_A = &gpu_data;
+dague_gpu_data_map_t *gpu_data_B = &gpu_data;
+dague_gpu_data_map_t *gpu_data_C = &gpu_data;
+
 int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA )
 {
     CUdevice hcuDevice;
@@ -100,7 +110,6 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
         status = cuDeviceComputeCapability( &major, &minor, hcuDevice);
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceComputeCapability ", status, {continue;} );
 
-        gpu_device = gpu_enabled_devices[i];
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status,
                                 {continue;} );
@@ -147,7 +156,9 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
         /**
          * Prepare the reusable memory on the GPU.
          */
-        gpu_data_map_init( gpu_device, tileA );
+        gpu_data.tiled_matrix = NULL;
+        gpu_data.data_map = NULL;
+        gpu_data_map_init( gpu_device, tileA, &gpu_data );
         /**
          * It appears that CUDA allocate the memory in chunks of 1MB,
          * so we need to adapt to this.
@@ -246,7 +257,7 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
 #endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
-                                {free(gpu_device); return -1;} );
+                                {continue;} );
         gpu_device->index = (uint8_t)dindex;
         gpu_active_devices[dindex++] = gpu_device;
     }
@@ -333,6 +344,8 @@ int sgemm_cuda_fini(dague_context_t* dague_context)
         free(gpu_device->gpu_mem_lru); gpu_device->gpu_mem_lru = NULL;
         active_devices++;
     }
+
+    gpu_data_map_fini(&gpu_data);
 
     if( 0 == active_devices )  /* No active devices */
         return 0;
@@ -445,7 +458,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
 
     DEBUG3(("GPU:\tRequest Data of A(%d, %d) on GPU\n", n, k));
     tile_size = ddescA(this_task)->mb * ddescA(this_task)->nb * dague_datadist_getsizeoftype(ddescA(this_task)->mtype);
-    on_gpu = gpu_data_is_on_gpu(gpu_device, ddescA(this_task), DAGUE_READ, n, k, &gpu_elem_A);
+    on_gpu = gpu_data_is_on_gpu(gpu_device, gpu_data_A, DAGUE_READ, n, k, &gpu_elem_A);
     gpu_elem_A->memory_elem->memory = A;
     d_A = gpu_elem_A->gpu_mem;
     gpu_device->required_data_in += tile_size;
@@ -461,7 +474,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
 
     DEBUG3(("GPU:\tRequest Data of B(%d, %d) on GPU\n", m, k));
     tile_size = ddescB(this_task)->mb * ddescB(this_task)->nb * dague_datadist_getsizeoftype(ddescB(this_task)->mtype);
-    on_gpu = gpu_data_is_on_gpu(gpu_device, ddescB(this_task), DAGUE_READ, m, k, &gpu_elem_B);
+    on_gpu = gpu_data_is_on_gpu(gpu_device, gpu_data_B, DAGUE_READ, m, k, &gpu_elem_B);
     d_B = gpu_elem_B->gpu_mem;
     gpu_elem_B->memory_elem->memory = B;
     gpu_device->required_data_in += tile_size;
@@ -477,7 +490,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
 
     DEBUG3(("GPU:\tRequest Data of C(%d, %d) on GPU\n", m, n));
     tile_size = ddescC(this_task)->mb * ddescC(this_task)->nb * dague_datadist_getsizeoftype(ddescC(this_task)->mtype);
-    on_gpu = gpu_data_is_on_gpu(gpu_device, ddescC(this_task), DAGUE_READ | DAGUE_WRITE, m, n, &gpu_elem_C);
+    on_gpu = gpu_data_is_on_gpu(gpu_device, gpu_data_C, DAGUE_READ | DAGUE_WRITE, m, n, &gpu_elem_C);
     d_C = gpu_elem_C->gpu_mem;
     gpu_elem_C->memory_elem->memory = C;
     gpu_device->required_data_in += tile_size;
@@ -654,7 +667,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     n = this_task->locals[2].value;
     (void)uplo;
     /* We always schedule the task on the GPU owning the C tile. */
-    which_gpu = gpu_data_tile_write_owner( ddescA(this_task), m, n );
+    which_gpu = gpu_data_tile_write_owner( gpu_data_C, m, n );
     if( which_gpu < 0 ) {  /* this is the first time we see this tile. Let's decide which GPU will work on it. */
         which_gpu = 0; /* TODO */
 #if DPLASMA_SCHEDULING
@@ -763,7 +776,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
          * Do not skip the cuda event generation. The problem is that some of the inputs
          * might be in the pipe of being transferred to the GPU. If we activate this task
          * too early, it might get executed before the data is available on the GPU.
-         * Obviously, this lead to bad results.
+         * Obviously, this lead to incorrect results.
          */
         /*if( 0 == rc ) goto exec_task;*/  /* No data to be moved for this task */
         gpu_device->in_array[gpu_device->in_submit] = this_task;
@@ -1174,52 +1187,70 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
  ****************************************************/
 
 #include "gpu_data.h"
-#include "data_distribution.h"
-
-static memory_elem_t** data_map = NULL;
 extern int ndevices;
 
-int gpu_mark_data_usage( tiled_matrix_desc_t* data, int type, int col, int row )
-{
-    memory_elem_t* this_data;
-
-    if( (NULL == data_map) || (NULL == (this_data = data_map[col * data->lnt + row])) ) {
-        /* Data not on the GPU. Nothing to do */
-        return 0;
-    }
-    if( type & DAGUE_WRITE ) {
-        this_data->memory_version++;
-        this_data->writer++;
-    }
-    if( type & DAGUE_READ ) {
-        this_data->readers++;
-    }
-    return 0;
-}
-
 int gpu_data_map_init( gpu_device_t* gpu_device,
-                       tiled_matrix_desc_t* data )
+                       tiled_matrix_desc_t* data,
+                       dague_gpu_data_map_t* gpu_map )
 {
-    if( NULL == data_map ) {
-        data_map = (memory_elem_t**)calloc(data->lmt * data->lnt, sizeof(memory_elem_t*));
+    if( NULL != gpu_map->data_map ) {
+        if( gpu_map->tiled_matrix != data ) {
+            return -1;
+        }
+    } else {
+        gpu_map->tiled_matrix = data;
+        gpu_map->data_map = (memory_elem_t**)calloc(data->lmt * data->lnt, sizeof(memory_elem_t*));
     }
+
     gpu_device->gpu_mem_lru = (dague_list_t*)malloc(sizeof(dague_list_t));
     dague_list_construct(gpu_device->gpu_mem_lru);
     return 0;
 }
 
-int gpu_data_tile_write_owner( tiled_matrix_desc_t* data,
+int gpu_data_map_fini( dague_gpu_data_map_t* gpu_map )
+{
+    if( NULL != gpu_map->data_map ) {
+        free(gpu_map->data_map);
+        gpu_map->data_map = NULL;
+    }
+    gpu_map->tiled_matrix = NULL;
+    return 0;
+}
+
+int gpu_mark_data_usage( dague_gpu_data_map_t* gpu_map,
+                         int type,
+                         int col, int row )
+{
+    memory_elem_t* this_elem;
+
+    if( (NULL == gpu_map) || (NULL == gpu_map->data_map) ||
+        (NULL == (this_elem = gpu_map->data_map[col * gpu_map->tiled_matrix->lmt + row])) ) {
+        /* Data not on the GPU. Nothing to do */
+        return 0;
+    }
+    if( type & DAGUE_WRITE ) {
+        this_elem->memory_version++;
+        this_elem->writer++;
+    }
+    if( type & DAGUE_READ ) {
+        this_elem->readers++;
+    }
+    return 0;
+}
+
+int gpu_data_tile_write_owner( dague_gpu_data_map_t* gpu_map,
                                int col, int row )
 {
-    memory_elem_t* memory_elem;
+    memory_elem_t* this_elem;
     gpu_elem_t* gpu_elem;
     int i;
 
-    if( (NULL == data_map) || (NULL == (memory_elem = data_map[col * data->lnt + row])) ) {
+    if( (NULL == gpu_map) || (NULL == gpu_map->data_map) ||
+        (NULL == (this_elem = gpu_map->data_map[col * gpu_map->tiled_matrix->lmt + row])) ) {
         return -1;
     }
     for( i = 0; i < ndevices; i++ ) {
-        gpu_elem = memory_elem->gpu_elems[i];
+        gpu_elem = this_elem->gpu_elems[i];
         if( NULL == gpu_elem )
             continue;
         if( gpu_elem->type & DAGUE_WRITE )
@@ -1228,29 +1259,33 @@ int gpu_data_tile_write_owner( tiled_matrix_desc_t* data,
     return -2;
 }
 
-int gpu_data_get_tile( tiled_matrix_desc_t* data,
+int gpu_data_get_tile( dague_gpu_data_map_t* gpu_map,
                        int col, int row,
                        memory_elem_t **pmem_elem )
 {
-    memory_elem_t* memory_elem = NULL;
+    memory_elem_t **where_from, *this_elem = NULL;
     int rc = 0;  /* the tile already existed */
 
-    if( (NULL != data_map) && (NULL == (memory_elem = data_map[col * data->lnt + row])) ) {
-        memory_elem = (memory_elem_t*)calloc(1, sizeof(memory_elem_t) + (ndevices-1) * sizeof(gpu_elem_t*));
-        memory_elem->col = col;
-        memory_elem->row = row;
-        memory_elem->memory_version = 0;
-        memory_elem->readers = 0;
-        memory_elem->writer = 0;
-        memory_elem->memory = NULL;
+    if( (NULL == gpu_map) || (NULL == gpu_map->data_map) )
+        return -1;
+
+    where_from = &(gpu_map->data_map[col * gpu_map->tiled_matrix->lmt + row]);
+    if( NULL == (this_elem = *where_from) ) {
+        this_elem = (memory_elem_t*)calloc(1, sizeof(memory_elem_t) + (ndevices-1) * sizeof(gpu_elem_t*));
+        this_elem->col = col;
+        this_elem->row = row;
+        this_elem->memory_version = 0;
+        this_elem->readers = 0;
+        this_elem->writer = 0;
+        this_elem->memory = NULL;
         rc = 1;  /* the tile has just been created */
-        if( 0 == dague_atomic_cas( &(data_map[col * data->lnt + row]), NULL, memory_elem ) ) {
-            free(memory_elem);
+        if( 0 == dague_atomic_cas( where_from, NULL, this_elem ) ) {
+            free(this_elem);
             rc = 0;  /* the tile already existed */
-            memory_elem = data_map[col * data->lnt + row];
+            this_elem = *where_from;
         }
     }
-    *pmem_elem = memory_elem;
+    *pmem_elem = this_elem;
     return rc;
 }
 
@@ -1263,19 +1298,19 @@ int gpu_data_get_tile( tiled_matrix_desc_t* data,
  * necessary, and a negative value if no memory is currently available on the GPU.
  */
 int gpu_data_is_on_gpu( gpu_device_t* gpu_device,
-                        tiled_matrix_desc_t* data,
+                        dague_gpu_data_map_t* gpu_map,
                         int type, int col, int row,
                         gpu_elem_t **pgpu_elem)
 {
-    memory_elem_t* memory_elem;
+    memory_elem_t* this_elem;
     gpu_elem_t* gpu_elem;
 
-    gpu_data_get_tile( data, col, row, &memory_elem );
+    gpu_data_get_tile( gpu_map, col, row, &this_elem );
 
-    if( NULL == (gpu_elem = memory_elem->gpu_elems[gpu_device->index]) ) {
+    if( NULL == (gpu_elem = this_elem->gpu_elems[gpu_device->index]) ) {
         /* Get the LRU element on the GPU and transfer it to this new data */
         gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop(gpu_device->gpu_mem_lru);
-        if( memory_elem != gpu_elem->memory_elem ) {
+        if( this_elem != gpu_elem->memory_elem ) {
             if( NULL != gpu_elem->memory_elem ) {
                 memory_elem_t* old_mem = gpu_elem->memory_elem;
                 old_mem->gpu_elems[gpu_device->index] = NULL;
@@ -1283,8 +1318,8 @@ int gpu_data_is_on_gpu( gpu_device_t* gpu_device,
             gpu_elem->type = 0;
         }
         gpu_elem->type |= type;
-        gpu_elem->memory_elem = memory_elem;
-        memory_elem->gpu_elems[gpu_device->index] = gpu_elem;
+        gpu_elem->memory_elem = this_elem;
+        this_elem->gpu_elems[gpu_device->index] = gpu_elem;
         *pgpu_elem = gpu_elem;
         dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
     } else {
@@ -1292,7 +1327,7 @@ int gpu_data_is_on_gpu( gpu_device_t* gpu_device,
         dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
         gpu_elem->type |= type;
         *pgpu_elem = gpu_elem;
-        if( memory_elem->memory_version == gpu_elem->gpu_version ) {
+        if( this_elem->memory_version == gpu_elem->gpu_version ) {
             /* The GPU version of the data matches the one in memory. We're done */
             return 1;
         }
@@ -1300,7 +1335,7 @@ int gpu_data_is_on_gpu( gpu_device_t* gpu_device,
          * upper level know a transfer is required.
          */
     }
-    gpu_elem->gpu_version = memory_elem->memory_version;
+    gpu_elem->gpu_version = this_elem->memory_version;
     /* Transfer is required */
     return 0;
 }

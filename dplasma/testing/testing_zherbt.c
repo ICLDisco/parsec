@@ -47,8 +47,8 @@ int main(int argc, char *argv[])
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
          two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-         nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-         N, N, 1, 1, P))
+                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                N, N, 1, 1, P))
 
     PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble,
          ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz,

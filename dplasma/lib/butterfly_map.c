@@ -5,17 +5,17 @@
 
 #include "dplasma/lib/butterfly_map.h"
 
-static int segment_to_type_index(seg_info_t seg, int m, int n);
-
-seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
+seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, int ib, int jb){
     int am, an, bm, bn, cm, cn, dm, dn, em, en, fm, fn;
     int mb, width, height, block_count;
     int cstartn, cendn, cstartm, cendm;
-
+    int N, nb;
     seg_info_t seg;
 
     memset(&seg, 0, sizeof(seg_info_t));
 
+    N  = A->lm;
+    nb = A->nb;
     /* The matrix has to be symmetric if we are applying the random butterfly transformation */
     mb = nb;
     block_count = 1<<L;
@@ -34,19 +34,19 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
 
 
     /* Calculate the different sizes that might appear */
-    am = seg.spm%nb;
+    am = seg.spm%mb;
     bm = mb-am;
-    cm = seg.mpm%nb;
+    cm = seg.mpm%mb;
     dm = mb-cm;
-    em = (dm>bm) ? dm-bm : nb + (dm-bm);
+    em = (dm>bm) ? dm-bm : mb + (dm-bm);
     fm = mb-em;
 
     an = seg.spn%nb;
-    bn = mb-an;
+    bn = nb-an;
     cn = seg.mpn%nb;
-    dn = mb-cn;
-    en = (dn>bn) ? dn-bn : mb + (dn-bn);
-    fn = mb-en;
+    dn = nb-cn;
+    en = (dn>bn) ? dn-bn : nb + (dn-bn);
+    fn = nb-en;
 
     cstartn = seg.spn;
     if( bn != nb ){
@@ -175,7 +175,7 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
     return seg;
 }
 
-void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset){
+void segment_to_tile(const dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset){
     seg_info_t seg;
     int mb, nb;
     int abs_m, abs_n;
@@ -252,11 +252,15 @@ void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, in
     return;
 }
 
-int type_index_to_sizes(seg_info_t seg, unsigned type_index, unsigned *m_sz, unsigned *n_sz){
-    int width, height;
+int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, unsigned *n_sz){
+    unsigned width, height;
     /* int abs_m, abs_n; */
-    int type_index_n, type_index_m;
+    unsigned type_index_n, type_index_m;
     int success = 1;
+
+    if( type_index < 0 ){
+        return 0;
+    }
 
     type_index_n = type_index%6;
     type_index_m = type_index/6;
@@ -351,14 +355,14 @@ int type_index_to_sizes(seg_info_t seg, unsigned type_index, unsigned *m_sz, uns
     return success;
 }
 
-int segment_to_arena_index(dague_seg_ddesc_t but_ddesc, int m, int n){
+int segment_to_arena_index(const dague_seg_ddesc_t but_ddesc, int m, int n){
     /* if using named types in the JDF or the default type, then you need to
      * offset the following value by the number of named+default types used
      */
     return segment_to_type_index(but_ddesc.seg_info, m, n);
 }
 
-static int segment_to_type_index(seg_info_t seg, int m, int n){
+int segment_to_type_index(const seg_info_t seg, int m, int n){
     int type_index_n, type_index_m, type_index;
 
     if( n >= seg.tot_seg_cnt_n || m >= seg.tot_seg_cnt_m ){
