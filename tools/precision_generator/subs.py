@@ -120,6 +120,7 @@ subs = {
     ('SSBRDT','DSBRDT','CHBRDT','ZHBRDT'),
     ('strsm','dtrsm','ctrsm','ztrsm'),
     ('STRSM','DTRSM','CTRSM','ZTRSM'),
+    ('strdsm', 'dtrdsm', 'ctrdsm', 'ztrdsm')
     ('sgelq2','dgelq2','cgelq2','zgelq2'),
     ('sgelqf','dgelqf','cgelqf','zgelqf'),
     ('SGELQF','DGELQF','CGELQF','ZGELQF'),
