@@ -79,6 +79,7 @@ subs = {
     ('CORE_sasum','CORE_dasum','CORE_scasum','CORE_dzasum'),
     ('core_sasum','core_dasum','core_scasum','core_dzasum'),
     ('strdv', 'dtrdv', 'ctrdv', 'ztrdv'),
+    ('strdsm', 'dtrdsm', 'ctrdsm', 'ztrdsm'),
     ('ssytr', 'dsytr', 'chetr', 'zhetr'),
     ('ssygst','dsygst','chegst','zhegst'),
     ('SSYGST','DSYGST','CHEGST','ZHEGST'),
