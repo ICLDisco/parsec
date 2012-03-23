@@ -13,7 +13,12 @@
 
 #include "profiling.h"
 #include "dbp.h"
-#include "debug.h"
+
+#if defined(DAGUE_DEBUG_VERBOSE1)
+#define DEBUG(toto) printf toto
+#else
+#define DEBUG(toto) do {} while(0)
+#endif
 
 typedef struct {
     int fd;
