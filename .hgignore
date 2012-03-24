@@ -298,7 +298,6 @@ dplasma/testing/testing_zhebut
 tools/profiling/dbp2paje
 tools/profiling/dbp2xml
 ImportExecutables\.cmake
-config
 dplasma/lib/claswp\.c
 dplasma/lib/claswp\.h
 dplasma/lib/claswp\.jdf
