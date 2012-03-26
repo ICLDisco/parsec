@@ -26,7 +26,7 @@
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_ztrsm_New - Generates dague object to compute triangular solve 
+ *  dplasma_ztrsm_New - Generates dague object to compute triangular solve
  *     op( A ) * X = B or X * op( A ) = B
  *
  *******************************************************************************
@@ -37,12 +37,14 @@
  *          = PlasmaRight: X * op( A ) = B
  *
  * @param[in] uplo
- *          Specifies whether the matrix A is upper triangular or lower triangular:
+ *          Specifies whether the matrix A is upper triangular or lower
+ *          triangular:
  *          = PlasmaUpper: Upper triangle of A is stored;
  *          = PlasmaLower: Lower triangle of A is stored.
  *
  * @param[in] transA
- *          Specifies whether the matrix A is transposed, not transposed or conjugate transposed:
+ *          Specifies whether the matrix A is transposed, not transposed or
+ *          conjugate transposed:
  *          = PlasmaNoTrans:   A is transposed;
  *          = PlasmaTrans:     A is not transposed;
  *          = PlasmaConjTrans: A is conjugate transposed.
@@ -54,12 +56,13 @@
  *
  * @param[in] A
  *          Descriptor of the triangular matrix A of size N-by-N.
- *          If uplo = PlasmaUpper, the leading N-by-N upper triangular
- *          part of the array A contains the upper triangular matrix, and the strictly lower
- *          triangular part of A is not referenced. If uplo = PlasmaLower, the leading N-by-N
- *          lower triangular part of the array A contains the lower triangular matrix, and the
- *          strictly upper triangular part of A is not referenced. If diag = PlasmaUnit, the
- *          diagonal elements of A are also not referenced and are assumed to be 1.
+ *          If uplo = PlasmaUpper, the leading N-by-N upper triangular part of
+ *          the array A contains the upper triangular matrix, and the strictly
+ *          lower triangular part of A is not referenced. If uplo = PlasmaLower,
+ *          the leading N-by-N lower triangular part of the array A contains the
+ *          lower triangular matrix, and the strictly upper triangular part of A
+ *          is not referenced. If diag = PlasmaUnit, the diagonal elements of A
+ *          are also not referenced and are assumed to be 1.
  *
  * @param[in,out] B
  *          Descriptor of the N-by-NRHS right hand side B
@@ -69,8 +72,8 @@
  *******************************************************************************
  *
  * @return
- *          \retval 0 successful exit
- *          \retval <0 if -i, the i-th argument had an illegal value
+ *          \retval The dague object which describes the operation to perform
+ *                  NULL if one of the parameter is incorrect
  *
  *******************************************************************************
  *
@@ -82,13 +85,13 @@
  *
  ******************************************************************************/
 dague_object_t*
-dplasma_ztrsm_New(const PLASMA_enum side,  const PLASMA_enum uplo, 
+dplasma_ztrsm_New(const PLASMA_enum side,  const PLASMA_enum uplo,
                   const PLASMA_enum trans, const PLASMA_enum diag,
-                  const Dague_Complex64_t alpha, 
-                  const tiled_matrix_desc_t *A, 
+                  const Dague_Complex64_t alpha,
+                  const tiled_matrix_desc_t *A,
                   tiled_matrix_desc_t *B )
 {
-    dague_object_t *dague_trsm = NULL; 
+    dague_object_t *dague_trsm = NULL;
 
     if ( side == PlasmaLeft ) {
         if ( uplo == PlasmaLower ) {
@@ -144,7 +147,7 @@ dplasma_ztrsm_New(const PLASMA_enum side,  const PLASMA_enum uplo,
         }
     }
 
-    dplasma_add2arena_tile(((dague_ztrsm_LLN_object_t*)dague_trsm)->arenas[DAGUE_ztrsm_LLN_DEFAULT_ARENA], 
+    dplasma_add2arena_tile(((dague_ztrsm_LLN_object_t*)dague_trsm)->arenas[DAGUE_ztrsm_LLN_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(Dague_Complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
@@ -182,7 +185,7 @@ dplasma_ztrsm_Destruct( dague_object_t *o )
     int trans = ((dague_ztrsm_LLN_object_t *)o)->trans;
 
     dplasma_datatype_undefine_type( &(otrsm->arenas[DAGUE_ztrsm_LLN_DEFAULT_ARENA]->opaque_dtt) );
-    
+
     if ( side == PlasmaLeft ) {
         if ( uplo == PlasmaLower ) {
             if ( trans == PlasmaNoTrans ) {
@@ -229,7 +232,7 @@ dplasma_ztrsm_Destruct( dague_object_t *o )
  *
  * @return
  *          \retval 0 if success
- *          \retval < 0 if one of the parameter had an illegal value.
+ *          \retval <0 if -i, the i-th argument had an illegal value
  *
  *******************************************************************************
  *
@@ -240,12 +243,12 @@ dplasma_ztrsm_Destruct( dague_object_t *o )
  * @sa dplasma_strsm
  *
  ******************************************************************************/
-int 
-dplasma_ztrsm( dague_context_t *dague, 
-               const PLASMA_enum side, const PLASMA_enum uplo, 
+int
+dplasma_ztrsm( dague_context_t *dague,
+               const PLASMA_enum side, const PLASMA_enum uplo,
                const PLASMA_enum trans, const PLASMA_enum diag,
-               const Dague_Complex64_t alpha, 
-               const tiled_matrix_desc_t *A, 
+               const Dague_Complex64_t alpha,
+               const tiled_matrix_desc_t *A,
                tiled_matrix_desc_t *B)
 {
     dague_object_t *dague_ztrsm = NULL;
@@ -267,14 +270,14 @@ dplasma_ztrsm( dague_context_t *dague,
         dplasma_error("dplasma_ztrsm_New", "illegal value of diag");
         return -4;
     }
- 
+
    dague_ztrsm = dplasma_ztrsm_New(side, uplo, trans, diag, alpha, A, B);
 
-    if ( dague_ztrsm != NULL ) 
+    if ( dague_ztrsm != NULL )
     {
         dague_enqueue( dague, dague_ztrsm );
         dplasma_progress( dague );
-        
+
         dplasma_ztrsm_Destruct( dague_ztrsm );
     }
     return 0;

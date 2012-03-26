@@ -82,8 +82,15 @@ BODY
  /* Nothing */
 END
 
-
-
+/*
+ * GEQRT kernel
+ *
+ * There are dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) geqrt applyed at step
+ * k on the rows indexed by m.
+ * nextm is the first row that will be killed by the row m at step k.
+ * nextm = descA.mt if the row m is never used as a killer.
+ *
+ */
 zgeqrt(k, i)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
@@ -130,7 +137,6 @@ BODY
 
          );
 
-
 #if defined(DAGUE_SIM)
   if ( descA.mt-1 == k )
     ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
@@ -141,7 +147,9 @@ BODY
 
 END
 
-
+/*
+ * UNMQR (see GEQRT)
+ */
 zunmqr(k, i, n)
   /* Execution space */
   k = 0..( ( descA.mt < descA.nt ) ? descA.mt-1 : descA.nt-1)
@@ -207,6 +215,18 @@ BODY
 /* nothing */
 END
 
+/*
+ * TTQRT kernel
+ *
+ * The row p kills the row m.
+ * nextp is the row that will be killed by p at next stage of the reduction.
+ * prevp is the row that has been killed by p at the previous stage of the reduction.
+ * prevm is the row that has been killed by m at the previous stage of the reduction.
+ * type defines the operation to perform: TS if 0, TT otherwise
+ * ip is the index of the killer p in the sorted set of killers for the step k.
+ * im is the index of the killer m in the sorted set of killers for the step k.
+ *
+ */
 zttqrt(k, m)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
@@ -297,6 +317,16 @@ BODY
 /* nothing */
 END
 
+
+/*
+ * TTMQR kernel (see TTQRT)
+ *
+ * type1 defines the operations to perfom at next step k+1 on the row m
+ *   if type1 == 0, it will be a TS so the tile goes to a TTQRT/TTMQR operation
+ *   if type1 != 0, it will be a TT so the tile goes to a GEQRT/UNMQR operation
+ * im1 is the index of the killer m at the next step k+1 if its type is !0, descA.mt otherwise
+ *
+ */
 zttmqr(k, m, n)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
