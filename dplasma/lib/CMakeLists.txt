@@ -42,7 +42,9 @@ set(JDF
   zherbt_L.jdf
   zhbrdt.jdf
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
-  zgeqrf_param.jdf zgetrf_param.jdf  zgetrf_param2.jdf  zungqr_param.jdf
+  zgeqrf_param.jdf zungqr_param.jdf
+  zgetrf_param.jdf
+  #zgetrf_param2.jdf
   zungqr.jdf
 )
 precisions_rules_py(generated_jdf
@@ -51,7 +53,7 @@ precisions_rules_py(generated_jdf
 
 if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
   foreach(src_file ${EXTRA_SOURCES})
-    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.") 
+    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.")
   endforeach()
 endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 
@@ -100,7 +102,7 @@ set(SOURCES
   zgeqrf_wrapper.c
   zgeqrf_param_wrapper.c
   zgetrf_param_wrapper.c
-  zgetrf_param2_wrapper.c
+  #zgetrf_param2_wrapper.c
   zungqr_param_wrapper.c
   zgelqf_wrapper.c
   zherbt_wrapper.c
