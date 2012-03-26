@@ -29,7 +29,7 @@ dague_object_t* dplasma_zgetrf_param_New( qr_piv_t *qrpiv,
      * it should be passed as a parameter as in getrf
      */
     object = dague_zgetrf_param_new( *A,  (dague_ddesc_t*)A,
-                                     IPIV,
+                                          (dague_ddesc_t*)IPIV,
                                      *LT, (dague_ddesc_t*)LT,
                                      qrpiv, ib,
                                      NULL, NULL,
