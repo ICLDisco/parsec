@@ -296,10 +296,8 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
 {
     dague_profiling_buffer_t *res;
 
-    pthread_mutex_lock( &file_backend_lock );
     if( !file_backend_extendable ) {
         *offset = -1;
-        pthread_mutex_unlock( &file_backend_lock );
         return NULL;
     }
 
@@ -308,14 +306,12 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
                 strerror(errno));
         file_backend_extendable = 0;
         *offset = -1;
-        pthread_mutex_unlock( &file_backend_lock );
         return NULL;
     }
 
     res = mmap(NULL, event_buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, file_backend_fd, file_backend_next_offset);
     *offset = file_backend_next_offset;
     file_backend_next_offset += event_buffer_size;
-    pthread_mutex_unlock( &file_backend_lock );
 
     if( MAP_FAILED == res ) {
         fprintf(stderr, "Warning profiling system: remap of the events backend file failed: %s. Events trace will be truncated.\n",
@@ -366,10 +362,14 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
     dague_profiling_buffer_t *old_buffer;
     off_t off;
 
+    pthread_mutex_lock( &file_backend_lock );
+
     new_buffer = allocate_empty_buffer(&off, PROFILING_BUFFER_TYPE_EVENTS);
 
-    if( NULL == new_buffer )
+    if( NULL == new_buffer ) {
+        pthread_mutex_unlock( &file_backend_lock );
         return -1;
+    }
 
     old_buffer = context->current_events_buffer;
     if( NULL == old_buffer ) {
@@ -378,9 +378,12 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
         old_buffer->next_buffer_file_offset = off;
     }
     context->current_events_buffer = new_buffer;
+    context->current_events_buffer_offset = off;
     context->next_event_position = 0;
 
     write_down_existing_buffer( old_buffer );
+
+    pthread_mutex_unlock( &file_backend_lock );
 
     return 0;
 }
@@ -401,6 +404,16 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned 
             return -1;
         }
     }
+    /*
+    fprintf(stderr, "%s event of key %d (%s) id %lu is event %ld->%ld in buffer @%ld of profiling context %p\n",
+            START_KEY(BASE_KEY(key)) == key ? "start" : "end",
+            BASE_KEY(key),
+            dague_prof_keys[ BASE_KEY(key) ].name,
+            id,
+            context->next_event_position, context->next_event_position+this_event_length,
+            context->current_events_buffer_offset,
+            context);
+    */
     this_event = (dague_profiling_output_t *)&context->current_events_buffer->buffer[context->next_event_position];
     assert( context->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
     context->current_events_buffer->this_buffer.nb_events++;

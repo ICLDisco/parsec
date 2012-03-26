@@ -10,10 +10,25 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdarg.h>
 
 #include "profiling.h"
 #include "dbp.h"
-#include "debug.h"
+
+#if defined(DAGUE_DEBUG_VERBOSE1)
+#define DEBUG(toto) output toto
+#else
+#define DEBUG(toto) do {} while(0)
+#endif
+#define WARNING(toto) output toto
+
+static void output(const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    vfprintf(stderr, format, ap);
+    va_end(ap);
+}
 
 #include <GTG.h>
 #include <GTGPaje.h>
@@ -206,6 +221,16 @@ static int find_matching_event_in_profile(const dague_profiling_iterator_t *star
                     *out = (dague_profiling_output_t*)realloc(*out, elen);
                 }
                 memcpy(*out, e, elen);
+
+                /*
+                fprintf(stderr, "end event of key %d (%s) id %lu is event %ld->%ld in buffer @%ld\n",
+                        BASE_KEY(ref->event.key),
+                        dague_prof_keys[ BASE_KEY(ref->event.key) ].name,
+                        e->event.id,
+                        it->current_event_position, (long int)(it->current_event_position + elen),
+                        it->current_buffer_position);
+                */
+
                 iterator_delete(it);
                 return 1;
             } else if ( e->event.id != 0 ) {
@@ -258,15 +283,59 @@ static void dump_whole_trace(int fd)
     };
 }
 
+#define CONSOLIDATED_EVENT_TYPE_UNDEF 0
+#define CONSOLIDATED_EVENT_TYPE_STATE 1
+#define CONSOLIDATED_EVENT_TYPE_ARROW 2
+
+typedef struct {
+    dague_list_item_t super;
+    int             type;
+    uint64_t        id;
+    uint64_t        start;
+    uint64_t        end;
+    int             key;
+    size_t          start_info_size;
+    size_t          end_info_size;
+    char            infos[1];
+} consolidated_event_t;
+
+static int merge_event( dague_list_t *list, consolidated_event_t *cev )
+{
+    dague_list_item_t *it;
+    consolidated_event_t *lev, *prev;
+    int broken = 0;
+
+    prev = NULL;
+    for( it = DAGUE_LIST_ITERATOR_FIRST(list);
+         it != DAGUE_LIST_ITERATOR_END(list);
+         it = DAGUE_LIST_ITERATOR_NEXT(it) ) {
+        lev = (consolidated_event_t*)it;
+        if( lev->start >= cev->start ) {
+            if( (cev->end > lev->start) ||
+                ((prev != NULL) && (cev->start < prev->end) ) ) {
+                broken = 1;
+            }
+            dague_list_nolock_add_before( list,
+                                          it,
+                                          (dague_list_item_t*)cev );
+            return broken;
+        }
+        prev = lev;
+    }
+    if( (prev != NULL) && (cev->start < prev->end) ) {
+        broken = 1;
+    }
+    dague_list_nolock_push_back( list, (dague_list_item_t*)cev );
+    return broken;
+}
+
 static int dague_profiling_dump_one_paje( const dague_thread_profiling_t *profile, 
                                           char *cont_thread_name,
                                           int backend_fd,
                                           dague_time_t relative )
 {
-    unsigned int pos;
+    unsigned int pos, key, broken = 0;
     uint64_t start, end;
-    dague_profiling_output_t oldend;
-    int first_iteration = 1;
     static int displayed_error_message = 0;
     char *infostr = malloc(4);
     int event_not_found;
@@ -276,8 +345,13 @@ static int dague_profiling_dump_one_paje( const dague_thread_profiling_t *profil
     size_t end_event_size = 0;
     char keyid[64];
     dague_profiling_iterator_t *pit, *nit;
+    dague_list_t consolidated_events;
+    consolidated_event_t *cev;
+    static int linkuid = 0;
+    char linkid[64];
 
     pit = iterator_new( profile, backend_fd );
+    dague_list_construct( &consolidated_events );
     for( start_event = iterator_first( pit );
          NULL != start_event;
          start_event = iterator_next( pit ) ) {
@@ -286,6 +360,15 @@ static int dague_profiling_dump_one_paje( const dague_thread_profiling_t *profil
             continue;
 
         pos = BASE_KEY(start_event->event.key);
+
+        /*
+        fprintf(stderr, "start event of key %d (%s) id %lu is event %ld->%ld in buffer @%ld\n",
+                (int)pos,
+                dague_prof_keys[ pos ].name,
+                start_event->event.id,
+                pit->current_event_position, pit->current_event_position,
+                pit->current_buffer_position);
+        */
 
         if( 0 == find_matching_event_in_profile(pit, start_event, &end_event, &end_event_size) ) {
             /* Argh, couldn't find the end in this profile */
@@ -312,7 +395,9 @@ static int dague_profiling_dump_one_paje( const dague_thread_profiling_t *profil
                 /* Couldn't find the end, or no id. Bad. */
 
                 WARNING(("Profiling: end event of key %u (%s) id %lu was not found for ID %s\n",
-                         END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id));
+                         pos, dague_prof_keys[pos].name, start_event->event.id, profile->hr_id));
+
+                find_matching_event_in_profile(pit, start_event, &end_event, &end_event_size);
 
                 if( !displayed_error_message ) {
                     dump_whole_trace( backend_fd );
@@ -324,32 +409,51 @@ static int dague_profiling_dump_one_paje( const dague_thread_profiling_t *profil
                 current_stat[ BASE_KEY(start_event->event.key) ].nb_matched_differentthread++;
             }
         } else {
-            assert( END_KEY(BASE_KEY(start_event->event.key)) == end_event->event.key );
-            assert( START_KEY(BASE_KEY(end_event->event.key)) == start_event->event.key );
+            key = BASE_KEY(start_event->event.key);
+            assert( END_KEY(key) == end_event->event.key );
+            assert( START_KEY(key) == start_event->event.key );
+            assert( start_event != end_event );
 
             start = diff_time( relative, start_event->event.timestamp );
             end = diff_time( relative, end_event->event.timestamp );
 
-            assert( start_event != end_event );
-            if( !first_iteration
-                && diff_time( relative, oldend.event.timestamp ) > start ) {
-                current_stat[ BASE_KEY(start_event->event.key) ].nb_matcherror++;
-                continue;
-            }
-            first_iteration = 0;
             assert( start <= end );
 
-            oldend = *end_event;
+            cev = (consolidated_event_t*)malloc(sizeof(consolidated_event_t) +
+                                                (EVENT_HAS_INFO( start_event ) ? dague_prof_keys[key].info_length : 0) +
+                                                (EVENT_HAS_INFO( end_event ) ? dague_prof_keys[key].info_length : 0) );
+            cev->type = CONSOLIDATED_EVENT_TYPE_UNDEF;
+            cev->id = start_event->event.id;
+            cev->start = start;
+            cev->end = end;
+            cev->key = BASE_KEY( start_event->event.key );
+            cev->start_info_size = (EVENT_HAS_INFO( start_event ) ? dague_prof_keys[key].info_length : 0);
+            cev->end_info_size = (EVENT_HAS_INFO( end_event ) ? dague_prof_keys[key].info_length : 0);
+            memcpy(cev->infos, start_event->info, cev->start_info_size);
+            memcpy(cev->infos + cev->start_info_size, end_event->info, cev->end_info_size);
 
-            current_stat[ BASE_KEY(start_event->event.key) ].nb_matched_samethread++;
-
-            sprintf(keyid, "K-%u", pos);
-            pajeSetState2( ((double)start) * 1e-3, "ST_TS", cont_thread_name, keyid );
-            pajeSetState2( ((double)end) * 1e-3, "ST_TS", cont_thread_name, "Wait");
+            broken = merge_event( &consolidated_events, cev ) || broken;
         }
     }
     iterator_delete(pit);
 
+    while( NULL != (cev = (consolidated_event_t*)dague_list_nolock_pop_front( &consolidated_events ) ) ) {
+        current_stat[ cev->key ].nb_matched_samethread++;
+
+        sprintf(keyid, "K-%d", cev->key);
+        if( !broken ) {
+            pajeSetState2( ((double)cev->start) * 1e-3, "ST_TS", cont_thread_name, keyid );
+            pajeSetState2( ((double)cev->end) * 1e-3, "ST_TS", cont_thread_name, "Wait");
+        } else {
+            sprintf(linkid, "L-%d", linkuid);
+            linkuid++;
+            startLink( ((double)cev->start) * 1e-3, "LT_TL", cont_thread_name, cont_thread_name, cont_thread_name, keyid, linkid);
+            endLink( ((double)cev->end) * 1e-3, "LT_TL", cont_thread_name, cont_thread_name, cont_thread_name, keyid, linkid);
+        }
+
+        free(cev);
+    }
+    dague_list_destruct( &consolidated_events );
     free(infostr);
 
     return 0;
@@ -552,8 +656,6 @@ static int dague_profiling_dump_paje( const char* filename )
     
         free_thread_heads();
     }
-
-    endTrace();
 
     return 0;
 }
@@ -821,8 +923,11 @@ static int reconciliate_dictionnary(void)
     while( nb > 0 ) {
         a = (dague_profiling_key_buffer_t*)&first_dico->buffer[pos];
 
-        dague_prof_keys[ dague_prof_keys_count - nb ].name = strdup(a->name);
-        dague_prof_keys[ dague_prof_keys_count - nb ].attributes = strdup(((char*)a->attributes)+6);
+        dague_prof_keys[ dague_prof_keys_count - nb ].name = malloc( 64 );
+        strncpy(dague_prof_keys[ dague_prof_keys_count - nb ].name, a->name, 64);
+        assert( strlen(a->attributes) > 6 );
+        dague_prof_keys[ dague_prof_keys_count - nb ].attributes = malloc( 128 );
+        strncpy(dague_prof_keys[ dague_prof_keys_count - nb ].attributes, ((char*)a->attributes) + strlen(a->attributes) - 6, 128 );
         dague_prof_keys[ dague_prof_keys_count - nb ].convertor = (char*)malloc(a->keyinfo_convertor_length+1);
         memcpy(dague_prof_keys[ dague_prof_keys_count - nb ].convertor,
                a->convertor,
@@ -912,6 +1017,8 @@ int main(int argc, char *argv[])
             printf("\n");
         }
     }
+
+    endTrace();
 
     return 0;
 }
