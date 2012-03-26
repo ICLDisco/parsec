@@ -2250,17 +2250,17 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
                 str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
-	    case ADDR_OF:
+	        case ADDR_OF:
                 return strdup("&");
-	    case STAR:
+	        case STAR:
                 return strdup("*");
-	    case PLUS:
+	        case PLUS:
                 return strdup("+");
-	    case MINUS:
+	        case MINUS:
                 return strdup("-");
-	    case TILDA:
+	        case TILDA:
                 return strdup("~");
-	    case BANG:
+	        case BANG:
                 return strdup("!");
 
             case ADD:
