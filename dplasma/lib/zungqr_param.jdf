@@ -42,6 +42,11 @@ param_p[type = "int" hidden=on default="pivfct->p"]
 param_a[type = "int" hidden=on default="pivfct->a"]
 param_d[type = "int" hidden=on default="pivfct->domino"]
 
+/*
+ * For explanations on zungqr_param.jdf, look at zgeqrf_param.jdf
+ * The single difference is that the arrows are reversed on this case to browse
+ * the tree from top to bottom.
+ */
 zttmqr(k, m, n)
   /* Execution space */
   k     = 0..minMN-1
