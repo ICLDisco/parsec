@@ -292,6 +292,7 @@ BODY
       int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
       int tempk  = dague_imin(tempkn, tempkm);
       int ldak = BLKLDD(descA, k);
+      
 
       CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempk, IPIV, 1 );
          );
