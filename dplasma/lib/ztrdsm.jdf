@@ -1,0 +1,131 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+#define max(_a, _b) (((_a) > (_b)) ? (_a) : (_b))
+
+/*
+ * Copied from core_blas/core_ztrdsm.c in Du's branch
+ * of plasma svn.
+ */
+int CORE_ztrdsm(int M, int N,
+                PLASMA_Complex64_t *A, int LDA,
+                PLASMA_Complex64_t *B, int LDB);
+
+int CORE_ztrdsm(int M, int N,
+                PLASMA_Complex64_t *A, int LDA,
+                PLASMA_Complex64_t *B, int LDB)
+{
+    int i;
+    PLASMA_Complex64_t zone = 1.0, alpha;
+
+    /* Check input arguments */
+    if (M < 0) {
+        coreblas_error(1, "Illegal value of M");
+        return -2;
+    }
+    if (N < 0) {
+        coreblas_error(2, "Illegal value of N");
+        return -2;
+    }
+    if (LDA < max(1, M)) {
+        coreblas_error(1, "Illegal value of LDA");
+        return -4;
+    }
+    if (LDB < max(1, M)) {
+        coreblas_error(1, "Illegal value of LDB");
+        return -6;
+    }
+
+    /* Quick return */
+    if (max(M, 0) == 0)
+        return PLASMA_SUCCESS;
+    if (max(N, 0) == 0)
+        return PLASMA_SUCCESS;
+
+    /**/
+    for (i=0; i<M; i++) {
+            alpha = zone / A[LDA*i+i];
+            cblas_zscal(N, CBLAS_SADDR(alpha), &B[i], LDB);
+    }
+
+    return PLASMA_SUCCESS;
+
+}
+
+
+%}
+
+
+desc_A [type = "tiled_matrix_desc_t"]
+data_A [type = "dague_ddesc_t *"]
+desc_B [type = "tiled_matrix_desc_t"]
+data_B [type = "dague_ddesc_t *"]
+
+
+ztrdsm(k,n)
+  /* Execution space */
+  k = 0..(desc_B.mt-1)
+  n = 0..(desc_B.nt-1)
+
+  : data_B(k,n)
+
+  /* A == data_A(k,k) */
+  /* B == data_B(k,n) */
+
+  READ  A <- A ztrdsm_in_data_A0(k,n)
+
+  RW    B <- data_B(k,n)
+          -> data_B(k,n)
+
+BODY
+
+  int tempkm = ((k)==((desc_B.mt)-1)) ? ((desc_B.m)-(k*(desc_B.mb))) : (desc_B.mb);
+  int tempkn = ((n)==((desc_B.nt)-1)) ? ((desc_B.n)-(n*(desc_B.nb))) : (desc_B.nb);
+  int lda = BLKLDD( desc_A, k );
+  int ldb = BLKLDD( desc_B, k );
+
+  DRYRUN(
+    CORE_ztrdsm(tempkm, tempkn, A, lda, B, ldb );
+  );
+
+  printlog("thread %d CORE_ztrdsm(%d, %d)\n"
+           "\t(tempkm, tempkn, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
+           context->eu_id, k, n, k, k, A, k, n, B);
+
+END
+
+/*
+ * Pseudo-task
+ */
+ztrdsm_in_data_A0(k,n)
+  k = 0..(desc_B.mt-1)
+  n = 0..(desc_B.nt-1)
+
+  : data_A(k,k)
+
+  RW A <- data_A(k,k)
+       -> A ztrdsm(k,n)
+BODY
+/* nothing */
+END
+

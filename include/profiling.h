@@ -86,19 +86,6 @@ int dague_profiling_reset( void );
 int dague_profiling_change_profile_attribute( const char *format, ... );
 
 /**
- * The type of the convertion function to convert the info data as a
- * printable character. The function doesn't need to be thread safe.
- * Usage of snprintf in this function is encouraged.
- * @param [IN]  info: the pointer to the information area
- * @param [OUT] text: the string to print related to this information area
- * @param [IN]  size: the number of characters that can be printed.
- * @return the number of bytes needed to store the result in a character strings
- *         if return value >= 0, a <INFO></INFO> entry will be added to the record
- *         if return < 0, no <INFO></INFO> entry will be added to the record
- */
-typedef int (*dague_profiling_info_convert_fct_t)(void *info, char *text, size_t size);
-
-/**
  * Inserts a new keyword in the dictionnary
  * The dictionnary is process-global, and operations on it are *not* thread
  * safe. All keywords should be inserted by one thread at most, and no thread
@@ -107,14 +94,15 @@ typedef int (*dague_profiling_info_convert_fct_t)(void *info, char *text, size_t
  * @param [IN] name: the (human readable) name of the key
  * @param [IN] attributes: attributes that can be associated to the key (e.g. color)
  * @param [IN] info_length: the number of bytes passed as additional info
- * @param [IN] cnvt: the function to convert the info into a text (called at profiling dump time)
+ * @param [IN] convertor_code: php code to convert a info byte array into XML code.
  * @param [OUT] key_start: the key to use to denote the start of an event of this type
  * @param [OUT] key_end: the key to use to denote the end of an event of this type.
  * @return 0    if success, -1 otherwie.
  * not thread safe
  */
-int dague_profiling_add_dictionary_keyword( const char*name, const char* attributes, 
-                                            size_t info_length, dague_profiling_info_convert_fct_t cnvt,
+int dague_profiling_add_dictionary_keyword( const char* name, const char* attributes, 
+                                            size_t info_length,
+                                            const char* convertor_code,
                                             int* key_start, int* key_end );
 
 /**
@@ -157,7 +145,7 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned 
  * @return 0 if success, -1 otherwise
  * not thread safe
  */
-int dague_profiling_dump_xml( const char* filename );
+int dague_profiling_dump_dbp( const char* filename );
 
 /**
  * Returns a char * (owned by dague_profiling library)
@@ -174,15 +162,10 @@ char *dague_profiling_strerror(void);
  *  (appropriately) in dague_profiling_add_dictionary_keyword
  */
 
-/**
- * Take a couple dague-ddesc_t * and unique id returned by the
- * dague_ddesc_t *->data_key, and return the corresponding string
- * Use the dague_profile_ddesc_info_t datatype to store the elements.
- */
 typedef struct {
     struct dague_ddesc *desc;
     uint32_t       id;
 } dague_profile_ddesc_info_t;
-int dague_profile_ddesc_key_to_string(void *info, char *text, size_t size);
+extern char *dague_profile_ddesc_key_to_string;
 
 #endif  /* _DAGUE_profiling_h */

@@ -33,7 +33,6 @@ extern "C" %{
 
 %}
 
-/** Globals */
 descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
 descL     [type = "tiled_matrix_desc_t"]
@@ -46,7 +45,7 @@ ib        [type = int]
 /************************************************************************************
  *                                    GETRF                                         *
  ************************************************************************************/
-zgetrf_out(k)  [profile = off]
+zgetrf_out(k) [profile = off]
 k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
 
   :A(k, k)
@@ -164,7 +163,7 @@ END
 /************************************************************************************
  *                                    TSTRF                                         *
  ************************************************************************************/
-ztstrf_out(k)  [profile = off]
+ztstrf_out(k) [profile = off]
 k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
 
 :A(k, k)
@@ -248,7 +247,7 @@ END
 /************************************************************************************
  *                                    SSSSM                                         *
  ************************************************************************************/
-zssssm_out(k, n1)  [profile = off]
+zssssm_out(k, n1) [profile = off]
 k = 0..( (descA.mt < descA.nt)? descA.mt-2 : descA.nt-2 )
 n1 = k+1..descA.nt-1
 

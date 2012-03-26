@@ -269,6 +269,7 @@ int main(int argc, char **argv)
                 if( !xmlStrEqual(tmp->name, (xmlChar*)"KEY") ) continue;
                 key_heads[nbkeys] = xmlGetFirstNodeWithName( tmp, (xmlChar*)"EVENT" );
                 assert( key_heads[nbkeys] != NULL);
+
                 nbkeys++;
             }
 
@@ -283,11 +284,7 @@ int main(int argc, char **argv)
                  * Assumes that for a given key, events are ordered. */
                 best = -1;
                 for(i = 0; i < nbkeys; i++) {
-                    if( key_heads[i] == NULL )
-                        continue;
-
-                    e = key_heads[i];
-                    if( e == NULL ) {
+                    if( NULL == (e = key_heads[i]) ) {
                         continue;
                     }
                     start = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"START" );
@@ -318,22 +315,18 @@ int main(int argc, char **argv)
 
                 if( NULL == id ||
                     NULL == start ||
-                    NULL == end ||
-                    NULL == info ) {
+                    NULL == end ) {
                     fprintf(stderr, "Malformed profiles file for reason 3\n");
                     return -145;
                 }
 
-                sscanf((const char *)info, "(null)(%d, %d)", &x, &y);
-#if 0
-                if( fmt == PAJE || fmt == VITE ) {
-                    pajePushState2( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid, x, y);
-                    pajePopState2(  strtoll((char*)end,   NULL, 0) * 1e-3, "ST_TS", cont_thread_name, x, y);
+                if( NULL != info ) {
+                    sscanf((const char *)info, "(null)(%d, %d)", &x, &y);
                 } else {
-                    pushState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
-                    popState(  strtoll((char*)end,   NULL, 0) * 1e-3, "ST_TS", cont_thread_name);
+                    x = -1;
+                    y = -1;
                 }
-#else
+
                 if( fmt == PAJE || fmt == VITE ) {
                     pajeSetState2( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid, x, y);
                     pajeSetState2( strtoll((char*)end,   NULL, 0) * 1e-3, "ST_TS", cont_thread_name, "Wait", x, y );
@@ -341,8 +334,8 @@ int main(int argc, char **argv)
                     setState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
                     setState( strtoll((char*)end,   NULL, 0) * 1e-3, "ST_TS", cont_thread_name, "Wait" );
                 }
-#endif
-                /*printf("  %s %s %s %s %s\n", keyid, id, start, end, info);*/
+
+                printf("  %s %s %s %s %s. best = %d\n", keyid, id, start, end, info, best);
             } while(1);
 
             nbkeys = 0;

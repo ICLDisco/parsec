@@ -46,8 +46,8 @@ else()
   set(GPU_KERNEL_SOURCES "")
 endif()
 
-### Generate the lib 
-add_library(dplasma_cores 
+### Generate the lib
+add_library(dplasma_cores
   ${generated_headers}
   ${generated_files}
   ${GPU_KERNEL_SOURCES})

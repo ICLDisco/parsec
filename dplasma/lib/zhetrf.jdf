@@ -1,0 +1,415 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+void CORE_ztrmdm(int uplo, int tempkn, void *tile, int ldak );
+
+void CORE_zgemdm(int trans, int ctrans, int tempmm, 
+    int tempnn, int tempkn, PLASMA_Complex64_t mzone, 
+    void *tile0, int ld1, void *tile1, 
+    int mb, PLASMA_Complex64_t zone, void *tile2,
+    int ld2, void *tile3, int ld, void *pool_ptr, int lwork);
+
+void CORE_zhedrk(int uplo, int trans, int tempmm, 
+    int tempkn, int ib, int aaa, 
+    void *tile0, int ld1, int bbb,
+    void *tile1, int ld2, void *tile2,
+    int ld, void *pool_ptr, int lwork );
+
+void CORE_zhetrf2_nopiv(int uplo, int tempkn, int ib, 
+    void *tile0, int ldak, void *pool_ptr,
+    int ldwork, int ld );
+
+void CORE_zhetrf_nopiv(int uplo, int tempkn, int ib, 
+    void *tile0, int ldak, void *pool_ptr,
+    int ldwork, int ld );
+
+
+void CORE_ztrmdm(int uplo, int tempkn, void *tile, int ldak ){
+    (void)uplo;
+    (void)tempkn;
+    (void)tile;
+    (void)ldak;
+}
+
+void CORE_zgemdm(int trans, int ctrans, int tempmm, 
+	int tempnn, int tempkn, PLASMA_Complex64_t mzone, 
+	void *tile0, int ld1, void *tile1, 
+	int mb, PLASMA_Complex64_t zone, void *tile2,
+	int ld2, void *tile3, int ld, void *pool_ptr, int lwork){
+
+    (void) trans;
+    (void) ctrans;
+    (void) tempmm;
+	(void) tempnn;
+    (void) tempkn;
+    (void) mzone;
+    (void) tile0;
+    (void) ld1;
+    (void) tile1;
+    (void) mb;
+    (void) zone;
+    (void) tile2;
+	(void) ld2;
+    (void) tile3;
+    (void) ld;
+    (void) pool_ptr;
+    (void) lwork;
+}
+
+void CORE_zhedrk(int uplo, int trans, int tempmm, 
+	int tempkn, int ib, int aaa, 
+	void *tile0, int ld1, int bbb,
+	void *tile1, int ld2, void *tile2,
+	int ld, void *pool_ptr, int lwork ){
+
+    (void)uplo;
+    (void)trans;
+    (void)tempmm;
+    (void)tempkn;
+    (void)ib;
+    (void)aaa;
+    (void)tile0;
+    (void)ld1;
+    (void)bbb;
+    (void)tile1;
+    (void)ld2;
+    (void)tile2;
+    (void)ld;
+    (void)pool_ptr;
+    (void)lwork;
+
+}
+
+
+void CORE_zhetrf_nopiv(int uplo, int tempkn, int ib, 
+	void *tile0, int ldak, void *pool_ptr,
+	int ldwork, int ld ){
+
+    (void)uplo;
+    (void)tempkn;
+    (void)ib;
+    (void)tile0;
+    (void)ldak;
+    (void)pool_ptr;
+    (void)ldwork;
+    (void)ld;
+
+}
+
+
+void CORE_zhetrf2_nopiv(int uplo, int tempkn, int ib, 
+	void *tile0, int ldak, void *pool_ptr,
+	int ldwork, int ld ){
+
+    (void)uplo;
+    (void)tempkn;
+    (void)ib;
+    (void)tile0;
+    (void)ldak;
+    (void)pool_ptr;
+    (void)ldwork;
+    (void)ld;
+}
+%}
+
+uplo [type = "int"]
+desc_A [type = "tiled_matrix_desc_t"]
+data_A [type = "dague_ddesc_t *"]
+DPLASMA_IB [type = "int"]
+pool_1 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*lwork"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*ldwork"]
+
+
+zhetrf2_nopiv(k)
+  /* Execution space */
+  k = 0..(desc_A.mt-2)
+
+  : data_A(k,k)
+
+  /* A == data_A(k,k) */
+  /* C == data_A(k,k) */
+  /* F == data_A(m1,m1) */
+  /* G == data_A(k,k) */
+  /* H == data_A(k,k) */
+  /* O == data_A(k1,k1) */
+
+  RW    A <- (k>=1) & (desc_A.mt>=(k+2)) ? F zhedrk(k-1, k) 
+          <- (0==k) & (desc_A.mt>=2) ? data_A(k,k)
+          -> (desc_A.mt>=(k+2)) ? O ztrmdm(k) 
+          -> (desc_A.mt>=(k+2)) ? G zhedrk(k, (k+1)..(desc_A.mt-1)) 
+          -> (desc_A.mt>=(k+2)) ? H magic(k, (k+1)..(desc_A.mt-1)) 
+          -> (desc_A.mt>=(k+2)) ? C ztrsm(k, (k+1)..(desc_A.mt-1)) 
+
+BODY
+
+  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  int ib = DPLASMA_IB;
+  int ldak = desc_A.mb;
+  int ldwork = (tempkn+1)*ib;
+
+  DRYRUN(
+    void *p_elem_A = dague_private_memory_pop( pool_0 );
+
+    CORE_zhetrf2_nopiv(PlasmaLower, tempkn, ib, 
+	A /* data_A(k,k) */, ldak, p_elem_A, 
+	ldwork, 
+	(desc_A.nb)*k );
+
+    dague_private_memory_push( pool_0, p_elem_A );
+  );
+
+  printlog("thread %d CORE_zhetrf2_nopiv(%d)\n"
+           "\t(PlasmaLower, tempkn, ib, A(%d,%d)[%p], ldak, p_elem_A, ldwork, (desc_A.nb)*k)\n",
+  context->eu_id, k, k, k, A);
+
+END
+
+
+zhetrf_nopiv(k)
+  /* Execution space */
+  k = (desc_A.mt-1)..(desc_A.mt-1)
+
+  : data_A(k,k)
+
+  /* B == data_A(k,k) */
+  /* F == data_A(m1,m1) */
+
+  RW    B <- (k == desc_A.mt-1) ? F zhedrk(desc_A.mt-1-1, desc_A.mt-1) 
+          -> (k == desc_A.mt-1) ? data_A(k,k)
+
+BODY
+
+  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  int ib = DPLASMA_IB;
+  int ldak = desc_A.mb;
+  int ldwork = (tempkn+1)*ib;
+
+  DRYRUN(
+    void *p_elem_A = dague_private_memory_pop( pool_0 );
+
+    CORE_zhetrf_nopiv(PlasmaLower, tempkn, ib, 
+	B /* data_A(k,k) */, ldak, p_elem_A, 
+	ldwork, 
+	(desc_A.nb)*k );
+
+    dague_private_memory_push( pool_0, p_elem_A );
+  );
+
+  printlog("thread %d CORE_zhetrf_nopiv(%d)\n"
+           "\t(PlasmaLower, tempkn, ib, A(%d,%d)[%p], ldak, p_elem_A, ldwork, (desc_A.nb)*k)\n",
+  context->eu_id, k, k, k, B);
+
+END
+
+
+ztrsm(k,m)
+  /* Execution space */
+  k = 0..(desc_A.mt-2)
+  m = (k+1)..(desc_A.mt-1)
+
+  : data_A(m,k)
+
+  /* A == data_A(k,k) */
+  /* C == data_A(k,k) */
+  /* D == data_A(m,k) */
+  /* E == data_A(m1,k) */
+  /* K == data_A(m1,k) */
+  /* L == data_A(n,k) */
+  /* M == data_A(m1,n) */
+
+  READ  C <- A zhetrf2_nopiv(k) 
+  RW    D <- (k>=1) ? M zgemdm(k-1, m, k) 
+          <- (0==k) ? data_A(m,k)
+          -> data_A(m,k)
+/*          -> (desc_A.mt>=(2+m)) ? L zgemdm(k, inline_c %{ return dague_imax((m+1),(k+1)); %}..(desc_A.mt-1), m) */
+          -> (desc_A.mt>=(2+m)) ? L zgemdm(k, (m+1)..(desc_A.mt-1), m) 
+          -> (m>=(2+k)) ? K zgemdm(k, m, (k+1)..(m-1)) 
+          -> E zhedrk(k, m) 
+
+BODY
+
+  int tempmm = ((m)==((desc_A.mt)-1)) ? ((desc_A.m)-(m*(desc_A.mb))) : (desc_A.mb);
+  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  PLASMA_Complex64_t zone = (PLASMA_Complex64_t)1.000000;
+  int ldak = desc_A.mb;
+  int ldam = desc_A.mb;
+
+  DRYRUN(
+
+    CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaConjTrans, 
+	PlasmaNonUnit, tempmm, tempkn, 
+	zone, C /* data_A(k,k) */, ldak, 
+	D /* data_A(m,k) */, ldam );  );
+
+  printlog("thread %d CORE_ztrsm(%d, %d)\n"
+           "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, tempkn, zone, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
+  context->eu_id, k, m, k, k, C, m, k, D);
+
+END
+
+
+zhedrk(k,m1)
+  /* Execution space */
+  k = 0..(desc_A.mt-2)
+  m1 = (k+1)..(desc_A.mt-1)
+
+  : data_A(m1,m1)
+
+  /* A == data_A(k,k) */
+  /* B == data_A(k,k) */
+  /* D == data_A(m,k) */
+  /* E == data_A(m1,k) */
+  /* F == data_A(m1,m1) */
+  /* G == data_A(k,k) */
+
+  READ  E <- D ztrsm(k, m1) 
+  RW    F <- (k>=1) ? F zhedrk(k-1, m1) 
+          <- (0==k) ? data_A(m1,m1)
+          -> ((k+1)==m1) & (desc_A.mt>=(k+3)) ? A zhetrf2_nopiv(m1) 
+          -> ((k+1)==m1) & ((k+2)==desc_A.mt) ? B zhetrf_nopiv(m1) 
+          -> (m1>=(k+2)) ? F zhedrk(k+1, m1) 
+  READ  G <- A zhetrf2_nopiv(k) 
+
+BODY
+
+  int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
+  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  int ib = 64;
+  int ldam = desc_A.mb;
+  int lwork = ((tempmm+1)*tempkn)+(ib*ib);
+  int ldak = desc_A.mb;
+
+  DRYRUN(
+    void *p_elem_A = dague_private_memory_pop( pool_1 );
+
+    CORE_zhedrk(PlasmaLower, PlasmaNoTrans, tempmm, 
+	tempkn, ib, -1.000000, 
+	E /* data_A(m1,k) */, ldam, 1.000000, 
+	F /* data_A(m1,m1) */, ldam, G /* data_A(k,k) */, 
+	ldak+1, p_elem_A, lwork );
+
+    dague_private_memory_push( pool_1, p_elem_A );
+  );
+
+  printlog("thread %d CORE_zhedrk(%d, %d)\n"
+           "\t(PlasmaLower, PlasmaNoTrans, tempmm, tempkn, ib, -1.000000, A(%d,%d)[%p], ldam, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
+  context->eu_id, k, m1, m1, k, E, m1, m1, F, k, k, G);
+
+END
+
+
+magic(k,m1)
+  /* Execution space */
+  k = 0..(desc_A.mt-2)
+  m1 = (k+1)..(desc_A.mt-1)
+
+  : data_A(k,k)
+
+  /* H == data_A(k,k) */
+
+  RW  H <- A zhetrf2_nopiv(k) 
+        -> (m1>=(2+k)) ? N zgemdm(k, m1, (k+1)..(m1-1)) 
+
+BODY
+/* This is a pseudo-task generated to enable the "triangular" broadcast */
+END
+
+
+zgemdm(k,m1,n)
+  /* Execution space */
+  k = 0..(desc_A.mt-2)
+  m1 = (k+2)..(desc_A.mt-1)
+  n = (k+1)..(m1-1)
+
+  : data_A(m1,n)
+
+  /* D == data_A(m,k) */
+  /* K == data_A(m1,k) */
+  /* L == data_A(n,k) */
+  /* M == data_A(m1,n) */
+
+  READ  K <- D ztrsm(k, m1) 
+  READ  L <- D ztrsm(k, n) 
+  RW    M <- (k>=1) ? M zgemdm(k-1, m1, n) 
+          <- (0==k) ? data_A(m1,n)
+          -> ((k+1)==n) ? D ztrsm(n, m1) 
+          -> (n>=(k+2)) ? M zgemdm(k+1, m1, n) 
+  READ  N <- H magic(k, m1) 
+
+BODY
+
+  int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
+  int tempnn = ((n)==((desc_A.nt)-1)) ? ((desc_A.n)-(n*(desc_A.nb))) : (desc_A.nb);
+  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  PLASMA_Complex64_t mzone = (PLASMA_Complex64_t)-1.000000;
+  int ldam = desc_A.mb;
+  PLASMA_Complex64_t zone = (PLASMA_Complex64_t)1.000000;
+  int lwork = ((PlasmaNoTrans)==(PlasmaNoTrans)) ? ((tempmm+1)*tempkn) : ((tempnn+1)*tempkn);
+  int ldak = desc_A.mb;
+
+  DRYRUN( 
+    void *p_elem_A = dague_private_memory_pop( pool_1 );
+
+    CORE_zgemdm(PlasmaNoTrans, PlasmaConjTrans, tempmm, 
+	tempnn, tempkn, mzone, 
+	K /* data_A(m1,k) */, ldam, L /* data_A(n,k) */, 
+	desc_A.mb, zone, M /* data_A(m1,n) */, 
+	ldam, N, ldak+1, p_elem_A, lwork );
+
+    dague_private_memory_push( pool_1, p_elem_A );
+  ); 
+
+  printlog("thread %d CORE_zgemdm(%d, %d, %d)\n"
+           "\t(PlasmaNoTrans, PlasmaConjTrans, tempmm, tempnn, tempkn, mzone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], desc_A.mb, zone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
+  context->eu_id, k, m1, n, m1, k, K, n, k, L, m1, n, M, k, k, N);
+
+END
+
+
+ztrmdm(k1)
+  /* Execution space */
+  k1 = 0..(desc_A.mt-2)
+
+  : data_A(k1,k1)
+
+  /* A == data_A(k,k) */
+  /* O == data_A(k1,k1) */
+
+  RW    O <- A zhetrf2_nopiv(k1) 
+          -> data_A(k1,k1)
+
+BODY
+
+  int tempkn = ((k1)==((desc_A.nt)-1)) ? ((desc_A.n)-(k1*(desc_A.nb))) : (desc_A.nb);
+  int ldak = desc_A.mb;
+
+  DRYRUN(
+
+    CORE_ztrmdm(PlasmaLower, tempkn, O /* data_A(k1,k1) */, ldak );
+  );
+
+  printlog("thread %d CORE_ztrmdm(%d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, k1, k1, k1, O);
+
+END

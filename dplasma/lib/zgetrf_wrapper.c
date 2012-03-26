@@ -16,18 +16,40 @@
 #include "zgetrf.h"
 
 void CORE_zgetrf_reclap_init(void);
+void CORE_zgetrf_rectil_init(void);
+
+/* Dirty hack which uses internal function of PLASMA to avoid initializing the lib */
+/* TODO: remove check on context in PLASMA for this function, it's useless */
+PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
+                             int lm, int ln, int i, int j, int m, int n);
+
 
 dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
                                    tiled_matrix_desc_t *IPIV,
                                    int *INFO)
 {
     dague_zgetrf_object_t *dague_getrf;
+    PLASMA_desc *pdescA = NULL;
 
-    CORE_zgetrf_reclap_init();
+    if ( A->storage == matrix_Tile ) {
+        CORE_zgetrf_rectil_init();
+
+        /* Allocate memory and initialize the descriptor */
+        pdescA = (PLASMA_desc*)malloc(sizeof(PLASMA_desc));
+        *pdescA = plasma_desc_init(
+            PlasmaComplexDouble, A->mb, A->nb, A->mb * A->nb,
+            A->lm, A->ln, A->i, A->j, A->m, A->n);
+
+        /* We guess that (0,0) is the mat pointer, to be changed for distributed */
+        pdescA->mat = ((dague_ddesc_t*)A)->data_of( ((dague_ddesc_t*)A), 0, 0 );
+
+    } else {
+        CORE_zgetrf_reclap_init();
+    }
 
     dague_getrf = dague_zgetrf_new( *A, (dague_ddesc_t*)A,
                                     (dague_ddesc_t*)IPIV,
-                                    INFO );
+                                    INFO, pdescA );
 
     /* A */
     dplasma_add2arena_tile( dague_getrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA],
@@ -51,6 +73,9 @@ dplasma_zgetrf_Destruct( dague_object_t *o )
 
     dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA     ]->opaque_dtt) );
+
+    if ( dague_zgetrf->pdescA != NULL )
+        free( dague_zgetrf->pdescA );
 
     dague_zgetrf_destroy(dague_zgetrf);
 }

@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010-2012
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -38,7 +38,7 @@ plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 map_l_in_Amn(m, n)   [profile = off]
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
 n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
-    
+
   : A(m, n)
 
   RW A <- A(m, n)

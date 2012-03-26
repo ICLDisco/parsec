@@ -13,14 +13,41 @@ extern "C" %{
 
 #include <plasma.h>
 #include <core_blas.h>
+#include <string.h>
 
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 
+#include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/butterfly_map.h"
+
+#define NOT_TRANSPOSE 0x0
+#define TRANSPOSE     0x1
+
+void BFT_zQTL( int mb, int nb, int lda, int off, int lvl, int N,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+void BFT_zQBL( int mb, int nb, int lda, int off, int lvl, int N,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+void BFT_zQTR_trans( int mb, int nb, int lda, int off, int lvl, int N,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+void BFT_zQTR( int mb, int nb, int lda, int off, int lvl, int N,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+void BFT_zQBR( int mb, int nb, int lda, int off, int lvl, int N,
+          PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
+          PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
+          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+
 
 %}
 
@@ -30,6 +57,7 @@ descA  [type = "dague_seg_ddesc_t"]
 A      [type = "dague_ddesc_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
 
 
 /*
@@ -54,8 +82,44 @@ HEBRT_Diag(i)
           -> A HEBRT_Writer_BR(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
 
 BODY
-/* nothing */
-  /* fprintf(stderr,"HEBRT_Diag(%d)\n",i); */
+
+  unsigned mb_seg, nb_seg, lda, N;
+  uintptr_t off_in_U, off_in_tile;
+  int type, sz, type_exists, i_tile, j_tile;
+  void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
+
+  type = segment_to_type_index(descA.seg_info, i, i);
+  type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  assert( type_exists );
+  lda = descA.A_org->mb; /* This is the mb of the tile */
+  segment_to_tile(&descA, i, i, &i_tile, &j_tile, &off_in_tile);
+
+  /* off_in_U is the beginning (vertically) of the segment as an absolute offest
+   * from the top of the original matrix */
+  off_in_U = i_tile*lda + off_in_tile%lda;
+  N = descA.A_org->lm;
+
+  p_elem_tl = dague_private_memory_pop( pool_0 );
+  p_elem_bl = dague_private_memory_pop( pool_0 );
+  p_elem_tr = dague_private_memory_pop( pool_0 );
+  p_elem_br = dague_private_memory_pop( pool_0 );
+
+  BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, NOT_TRANSPOSE, 1);
+  BFT_zQBL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, NOT_TRANSPOSE, 1);
+  BFT_zQBR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, NOT_TRANSPOSE, 1);
+
+  /* FIXME: copy only the lower triangle, not the whole thing */
+  sz = (lda*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
+
+  memcpy(Atl, p_elem_tl, sz);
+  memcpy(Abl, p_elem_tl, sz);
+  memcpy(Abr, p_elem_tl, sz);
+
+  dague_private_memory_push( pool_0, p_elem_tl );
+  dague_private_memory_push( pool_0, p_elem_bl );
+  dague_private_memory_push( pool_0, p_elem_tr );
+  dague_private_memory_push( pool_0, p_elem_br );
+
 END
 
 
@@ -87,8 +151,49 @@ HEBRT_Lower(i,j)
           -> A HEBRT_Writer_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
-/* nothing */
-  /* fprintf(stderr,"HEBRT_Lower(%d,%d)\n",i,j); */
+
+  unsigned mb_seg, nb_seg, lda, N;
+  uintptr_t off_in_U, off_in_tile;
+  int type, sz, type_exists, i_tile, j_tile;
+  void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
+
+  type = segment_to_type_index(descA.seg_info, i, j);
+  type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  assert( type_exists );
+  lda = descA.A_org->mb; /* This is the mb of the tile */
+  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
+
+  /* off_in_U is the beginning (vertically) of the segment as an absolute offest
+   * from the top of the original matrix */
+  off_in_U = i_tile*lda + off_in_tile%lda;
+  N = descA.A_org->lm;
+
+  p_elem_tl = dague_private_memory_pop( pool_0 );
+  p_elem_bl = dague_private_memory_pop( pool_0 );
+  p_elem_tr = dague_private_memory_pop( pool_0 );
+  p_elem_br = dague_private_memory_pop( pool_0 );
+
+  BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, TRANSPOSE, 0);
+  BFT_zQBL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, TRANSPOSE, 0);
+  BFT_zQTR_trans( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, TRANSPOSE, 0);
+  BFT_zQBR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, TRANSPOSE, 0);
+
+  sz = (lda*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
+  memcpy(Atl, p_elem_tl, sz);
+  memcpy(Abl, p_elem_bl, sz);
+  memcpy(Abr, p_elem_br, sz);
+  /* Atr is transposed, so it's mb elements in the horizontal dimension */
+  sz = (lda*(mb_seg-1)+nb_seg) * sizeof(PLASMA_Complex64_t);
+  memcpy(Atr, p_elem_tr, sz);
+
+  dague_private_memory_push( pool_0, p_elem_tl );
+  dague_private_memory_push( pool_0, p_elem_bl );
+  dague_private_memory_push( pool_0, p_elem_tr );
+  dague_private_memory_push( pool_0, p_elem_br );
+
+  /*
+   * printf("HEBRT_Lower(%d,%d)\n",i,j);
+   */
 END
 
 

@@ -69,7 +69,7 @@ enum iparam_t {
 void iparam_default_facto(int* iparam);
 void iparam_default_solve(int* iparam);
 void iparam_default_gemm(int* iparam);
-void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb); 
+void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
 
 #define PASTE_CODE_IPARAM_LOCALS(iparam) \
   int rank  = iparam[IPARAM_RANK];\
@@ -106,11 +106,11 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
 typedef double DagDouble_t;
 #define PASTE_CODE_FLOPS( FORMULA, PARAMS ) \
   double gflops, flops = FORMULA PARAMS;
-  
+
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #define PASTE_CODE_FLOPS_COUNT(FADD,FMUL,PARAMS) \
   double gflops, flops = (2. * FADD PARAMS + 6. * FMUL PARAMS);
-#else 
+#else
 #define PASTE_CODE_FLOPS_COUNT(FADD,FMUL,PARAMS) \
   double gflops, flops = (FADD PARAMS + FMUL PARAMS);
 #endif
@@ -142,7 +142,7 @@ void cleanup_dague(dague_context_t* dague, int *iparam);
  * no way to correctly define them without borderline effects.
  */
 #undef max
-#undef min 
+#undef min
 static inline int max(int a, int b) { return a > b ? a : b; }
 static inline int min(int a, int b) { return a < b ? a : b; }
 
@@ -170,7 +170,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
     dague_progress(DAGUE);                                              \
-    if(loud) TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n", \
+    if(loud > 2) TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n", \
                                nb_local_tasks,                          \
                                nb_local_tasks/time_elapsed));           \
     SYNC_TIME_PRINT(rank, (#KERNEL " computation N= %d NB= %d : %f gflops\n", N, NB, \

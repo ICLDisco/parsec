@@ -79,7 +79,7 @@ subs = {
     ('CORE_sasum','CORE_dasum','CORE_scasum','CORE_dzasum'),
     ('core_sasum','core_dasum','core_scasum','core_dzasum'),
     ('strdv', 'dtrdv', 'ctrdv', 'ztrdv'),
-    ('sytra1','sytra1','hetra1','hetra1'),
+    ('ssytr', 'dsytr', 'chetr', 'zhetr'),
     ('ssygst','dsygst','chegst','zhegst'),
     ('SSYGST','DSYGST','CHEGST','ZHEGST'),
     ('ssterf','dsterf','ssterf','dsterf'),
@@ -182,10 +182,12 @@ subs = {
     ('strtri','dtrtri','ctrtri','ztrtri'),
     ('strsmpl','dtrsmpl','ctrsmpl','ztrsmpl'),
     ('STRSMPL','DTRSMPL','CTRSMPL','ZTRSMPL'),
+    ('slacpy','dlacpy','slacpy','dlacpy'),
     ('ger','ger','gerc','gerc'),
     ('ger','ger','geru','geru'),
     ('symm','symm','hemm','hemm'),
     ('syrk','syrk','herk','herk'),
+    ('sytr', 'sytr', 'hetr', 'hetr'),
     ('syrbt','syrbt','herbt','herbt'),
     ('ssyev','dsyev','cheev','zheev'),
     ('syrfb1','syrfb1','herfb1','herfb1'),
@@ -237,6 +239,11 @@ subs = {
     ('TESTING_S',   'TESTING_D',   'TESTING_C',   'TESTING_Z'  ),
     ('twoDBC_s',    'twoDBC_d',    'twoDBC_c',    'twoDBC_z'   ),
     ('workspace_s', 'workspace_d', 'workspace_c', 'workspace_z'),
+
+# Be carefull: don't put something matching the following line,
+# it matches dplasma_datatype (should be changed)
+#    ('plasma_s',    'plasma_d',    'plasma_s',    'plasma_d'   ),
+
   ],
   'tracing' : [
     ['plain','tau'],
