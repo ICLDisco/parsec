@@ -54,22 +54,19 @@ extern "C" %{
 
 %}
 
-descA  [type = "tiled_matrix_desc_t"]
-A      [type = "dague_ddesc_t *"]
-descL  [type = "tiled_matrix_desc_t"]
-L      [type = "dague_ddesc_t *" aligned=A]
-descL2 [type = "tiled_matrix_desc_t"]
-L2     [type = "dague_ddesc_t *" aligned=A]
-pivfct [type = "qr_piv_t*"]
-ib     [type = int]
-p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descL.nb))"]
-p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descL.nb))"]
-param_p[type = int default="pivfct->p" hidden=on]
-param_a[type = int default="pivfct->a" hidden=on]
-param_d[type = int default="pivfct->domino" hidden=on]
-IPIV      [type = "dague_ddesc_t *" aligned=A]
-INFO      [type = "int*"]
-work_pool [type = "dague_memory_pool_t*"]
+descA   [type = "tiled_matrix_desc_t"]
+A       [type = "dague_ddesc_t *"]
+IPIV    [type = "dague_ddesc_t *" aligned=A]
+descLT  [type = "tiled_matrix_desc_t"]
+LT      [type = "dague_ddesc_t *" aligned=A]
+pivfct  [type = "qr_piv_t*"]
+ib      [type = int]
+p_work  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descL.nb))"]
+p_tau   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descL.nb))"]
+param_p [type = int default="pivfct->p"      hidden=on]
+param_a [type = int default="pivfct->a"      hidden=on]
+param_d [type = int default="pivfct->domino" hidden=on]
+INFO    [type = "int*"]
 
 zgetrf_param_out(k, i)
   /* Execution space */
@@ -109,8 +106,8 @@ zgetrf_param(k, i)
           -> ( k == descA.mt-1 ) ? A(m, k)                                     [type = UPPER_TILE]
           -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ?  A zttqrt(k, nextm)  [type = UPPER_TILE]
           -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ?  C zttqrt(k, m)      [type = UPPER_TILE]
-  RW    P <- IPIV(m, k)                                                           [type = PIVOT]
-          -> IPIV(m, k)                                                           [type = PIVOT]
+  RW    P <- IPIV(m, k)                                                        [type = PIVOT]
+          -> IPIV(m, k)                                                        [type = PIVOT]
           -> (descA.nt-1 > k) ? P zgessm(k, i, (k+1)..(descA.nt-1))            [type = PIVOT]
 
   ; inline_c %{ return GETPRIO_PANEL(m, k); %}
@@ -119,9 +116,9 @@ BODY
 
   int iinfo = 0;
   DRYRUN(
-         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-         int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-         int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%Bmb);*/
+         int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
+         int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+         int ldak   = BLKLDD( descA, k );
 
          /* Set local IPIV to 0 before generation
           * Better here than a global initialization for locality
@@ -129,12 +126,12 @@ BODY
          memset(P, 0, min(tempkn, tempkm) * sizeof(int) );
 
          CORE_zgetrf_incpiv(tempkm, tempkn, ib,
-                     A /* A(k,k)    */, ldak,
-                     P /* IPIV(k,k) */, &iinfo );
+                            A /* A(   m, k) */, ldak,
+                            P /* IPIV(m, k) */, &iinfo );
 
          if ( (iinfo != 0) && (k == descA.mt-1) ) {
              *INFO = k * descA.mb + iinfo; /* Should return if enter here */
-             fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
+             fprintf(stderr, "zgetrf(%d, %d) failed => %d\n", k, m, *INFO );
          }
          );
 
@@ -161,7 +158,7 @@ zgessm(k, i, n)
   /* T == T(m,k) */
   /* C == A(m,n) */
 
-  READ  A <- A zgetrf_param_out(k, i)                                       [type = LOWER_TILE]
+  READ  A <- A zgetrf_param_out(k, i)                                     [type = LOWER_TILE]
   READ  P <- P zgetrf_param(k, i)                                         [type = PIVOT]
   RW    C <- ( 0 == k ) ? A(m, n)
           <- ( k >  0 ) ? C zttmqr(k-1, m, n)
@@ -176,7 +173,7 @@ BODY
   DRYRUN(
          int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
          int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-         int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+         int ldak   = BLKLDD( descA, k );
 
          CORE_zgessm(tempkm, tempnn, tempkm, ib,
                      P /* IPIV(k,k) */,
@@ -223,68 +220,62 @@ zttqrt(k, m)
   /* A2 == A(m,  k) */
   /* T  == T2(m, k) */
 
-  RW   A  <- (   prevp == descA.mt ) ? A zgetrf_param(k, ip ) : A zttqrt(k, prevp )   [type = UPPER_TILE]
-          -> (   nextp != descA.mt ) ? A zttqrt(k, nextp )                      [type = UPPER_TILE]
-          -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)          [type = UPPER_TILE]
-          -> ( ( nextp == descA.mt ) & (p != k) ) ? C zttqrt(k, p)              [type = UPPER_TILE]
+  RW   A  <- (   prevp == descA.mt ) ? A zgetrf_param(k, ip ) : A zttqrt(k, prevp )     [type = UPPER_TILE]
+          -> (   nextp != descA.mt ) ? A zttqrt(k, nextp )                              [type = UPPER_TILE]
+          -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)                  [type = UPPER_TILE]
+          -> ( ( nextp == descA.mt ) & (p != k) ) ? C zttqrt(k, p)                      [type = UPPER_TILE]
   RW   C  <- ( (type == 0) && (k     == 0        ) ) ? A(m, k)
           <- ( (type == 0) && (k     != 0        ) ) ? C zttmqr(k-1, m, k )
           <- ( (type != 0) && (prevm == descA.mt ) ) ? A zgetrf_param(k, im )
           <- ( (type != 0) && (prevm != descA.mt ) ) ? A zttqrt(k, prevm )
           -> A(m, k)
           -> (descA.nt-1 > k)? H zttmqr(k, m, (k+1)..(descA.nt-1))
-  RW   L  <- L(m, k)                                              [type = SMALL_L]
-          -> L(m, k)                                              [type = SMALL_L]
-          -> (descA.nt-1 > k)? L zttmqr(k, m, (k+1)..(descA.nt-1)) [type = SMALL_L]
-  RW   P <- IPIV(m,k)
-          -> IPIV(m,k)
-          -> (descA.nt-1 > k)? P zttmqr(k, m, (k+1)..(descA.nt-1))
+  RW   L  <- LT(m, k)                                                                   [type = SMALL_L]
+          -> LT(m, k)                                                                   [type = SMALL_L]
+          -> (descA.nt-1 > k)? L zttmqr(k, m, (k+1)..(descA.nt-1))                      [type = SMALL_L]
+  RW   P  <-  ( type == 0 ) ? IPIV(m,k)                                                 [type = PIVOT]
+          ->  ( type == 0 ) ? IPIV(m,k)                                                 [type = PIVOT]
+          -> (( type == 0 ) && (descA.nt-1 > k) ) ? P zttmqr(k, m, (k+1)..(descA.nt-1)) [type = PIVOT]
 
  ; inline_c %{ return type == 0 ? GETPRIO_PANEL(p, k) : GETPRIO_PANEL(m, k); %}
 
 BODY
   DRYRUN(
-         if ( type == 0 ) {
-           int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-           int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-           int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
-           int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+      int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+      int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+      int ldam   = BLKLDD( descA, m );
+      void *p_elem_B = dague_private_memory_pop( p_work );
 
-           int iinfo;
-           PLASMA_Complex64_t *work = dague_private_memory_pop(work_pool);
+      if ( type == 0 ) {
+          int ldak   = BLKLDD( descA, k );
+          int iinfo;
 
            memset(P, 0, min(tempkn, tempmm) * sizeof(int) );
            CORE_ztstrf(tempmm, tempkn, ib, descL.nb,
-                       A  /* A(k,k) */, ldak,
+                       A  /* A(p,k) */, ldak,
                        C  /* A(m,k) */, ldam,
                        L  /* L(m,k) */, descL.mb,
                        P /* IPIV(m,k) */,
                        work, descL.nb, &iinfo );
-           dague_private_memory_push(work_pool, work);
 
-         if ( (iinfo != 0) && (m == descA.mt-1) ) {
-             *INFO = k * descA.mb + iinfo; /* Should return if enter here */
-             fprintf(stderr, "ztstrf(%d, %d) failed => %d\n", m, k, *INFO );
-         }
-         } else {
-           void *p_elem_A = dague_private_memory_pop( p_tau  );
-           void *p_elem_B = dague_private_memory_pop( p_work );
+           if ( (iinfo != 0) && (m == descA.mt-1) ) {
+               *INFO = k * descA.mb + iinfo; /* Should return if enter here */
+               fprintf(stderr, "ztstrf(%d, %d) failed => %d\n", m, k, *INFO );
+           }
+      } else {
+          void *p_elem_A = dague_private_memory_pop( p_tau  );
 
-           int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-           int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
-           int ldam = BLKLDD( descA, m );
+          CORE_zttqrt(
+              tempmm, tempkn, ib,
+              A /* A(p, k) */, descA.mb,
+              C /* A(m, k) */, ldam,
+              L /* T(m, k) */, descL.mb,
+              p_elem_A, p_elem_B );
 
-           CORE_zttqrt(
-                     tempmm, tempkn, ib,
-                     A /* A(p, k) */, descA.mb,
-                     C /* A(m, k) */, ldam,
-                     L  /* T(m, k) */, descL.mb,
-                     p_elem_A, p_elem_B );
+          dague_private_memory_push( p_tau , p_elem_A );
+      }
 
-           dague_private_memory_push( p_tau , p_elem_A );
-           dague_private_memory_push( p_work, p_elem_B );
-         }
-
+      dague_private_memory_push( p_work, p_elem_B );
          );
 
 #if defined(DAGUE_SIM)
@@ -350,45 +341,41 @@ zttmqr(k, m, n)
           -> ( (type1 == 0 ) && (n> (k+1)) ) ? C zttmqr( k+1, m, n )
 
   READ  H <- C zttqrt(k, m)
-  READ  L <- L zttqrt(k, m) [type = SMALL_L]
-  READ  P <- P zttqrt(k, m) 
+  READ  L <- L zttqrt(k, m)                [type = SMALL_L]
+  READ  P <- (type == 0 ) ? P zttqrt(k, m) [type = PIVOT]
 
     ; inline_c %{ return type == 0 ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
 
 BODY
   DRYRUN(
+      int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
+      int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+      int ldam   = BLKLDD( descA, m );
 
-         if ( type == 0 ) {
-            int tempmm = ((m) ==(descA.mt-1)) ? (descA.m -( m*descA.mb)) : (descA.mb);
-            int tempnn = ((n)==(descA.nt-1)) ? (descA.n -(n*descA.nb)) : (descA.nb);
-            int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
-            int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+      if ( type == 0 ) {
+          int ldak = BLKLDD( descA, k );
 
-            CORE_zssssm(descA.nb, tempnn, tempmm, tempnn, descA.nb, ib,
-                     V /* A(k,n) */, ldak,
-                     C /* A(m,n) */, ldam,
-                     L /* L(m,k) */,  descL.mb,
-                     H /* A(m,k) */,  ldam,
-                     P /* IPIV(m,k) */ );
-         } else {
-            void *p_elem_A = dague_private_memory_pop( p_work );
+          CORE_zssssm(descA.nb, tempnn, tempmm, tempnn, descA.nb, ib,
+                      V /* A(p,n) */, ldak,
+                      C /* A(m,n) */, ldam,
+                      L /* L(m,k) */,  descL.mb,
+                      H /* A(m,k) */,  ldam,
+                      P /* IPIV(m,k) */ );
+      } else {
+          void *p_elem_A = dague_private_memory_pop( p_work );
+          int ldwork = ib;
 
-            int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
-            int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-            int ldam = BLKLDD( descA, m );
-            int ldwork = ib;
+          CORE_zttmqr(
+              PlasmaLeft, PlasmaConjTrans,
+              descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
+              V /* A(p, n) */, descA.mb,
+              C /* A(m, n) */, ldam,
+              H /* A(m, k) */, ldam,
+              L /* T(m, k) */, descL.mb,
+              p_elem_A, ldwork );
 
-            CORE_zttmqr(
-                PlasmaLeft, PlasmaConjTrans,
-                descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-                V /* A(p, n) */, descA.mb,
-                C /* A(m, n) */, ldam,
-                H  /* A(m, k) */, ldam,
-                L  /* T(m, k) */, descL.mb,
-                p_elem_A, ldwork );
-
-            dague_private_memory_push( p_work, p_elem_A );
-         }
+          dague_private_memory_push( p_work, p_elem_A );
+      }
 
          );
 
