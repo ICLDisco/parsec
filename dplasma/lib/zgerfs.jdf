@@ -21,7 +21,7 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define BLKLDD(_desc, _k) ( (_desc).storage == matrix_Tile ? (_desc).mb : (_desc).lm )
+/*#define BLKLDD(_desc, _k) ( (_desc).storage == matrix_Tile ? (_desc).mb : (_desc).lm )*/
 
 %}
 

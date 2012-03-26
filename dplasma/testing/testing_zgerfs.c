@@ -78,6 +78,11 @@ int main(int argc, char ** argv)
     double Anorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescA);
     criteria = eps * Anorm;
 
+
+    ((Dague_Complex64_t *) ddescA.mat)[0] = 0;
+    /* ((Dague_Complex64_t *) ddescA.mat)[1] = 0; */
+    /* ((Dague_Complex64_t *) ddescA.mat)[((tiled_matrix_desc_t *)&ddescA)->mb+1] = 0; */
+
     dplasma_zlacpy( dague, PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescA,
                     (tiled_matrix_desc_t *)&ddescLU );
@@ -89,17 +94,24 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("Done\n");
 
 
-    if(loud > 2) printf("+++ Computing getrf ... ");
+    if(loud > 2) printf("+++ Computing getrf_sp ... ");
+
     /* Computing LU */
-    dplasma_zgetrf_sp(dague,criteria,(tiled_matrix_desc_t *)&ddescLU);
+
+    int nb_pivot = dplasma_zgetrf_sp(dague,criteria,(tiled_matrix_desc_t *)&ddescLU);
+    printf("LU decomposition done with %d pivoting\n",nb_pivot);
+
     /* Computing first solution */
+
     dplasma_ztrsm(dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
                   1.0, (tiled_matrix_desc_t *)&ddescLU,
                   (tiled_matrix_desc_t *)&ddescX);
     dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit,
                   1.0, (tiled_matrix_desc_t *)&ddescLU,
                   (tiled_matrix_desc_t *)&ddescX);
+
     /* Refinement */
+
     int nb_iter_ref = 0;
     double Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescB);
     double Xnorm, Rnorm;
@@ -107,8 +119,11 @@ int main(int argc, char ** argv)
     double result;
     do
     {
-        dplasma_zgerfs(dague, (tiled_matrix_desc_t*) &ddescA, (tiled_matrix_desc_t*) &ddescLU,
-                       (tiled_matrix_desc_t*) &ddescB, (tiled_matrix_desc_t*) &ddescR,
+        dplasma_zgerfs(dague,
+                       (tiled_matrix_desc_t*) &ddescA,
+                       (tiled_matrix_desc_t*) &ddescLU,
+                       (tiled_matrix_desc_t*) &ddescB,
+                       (tiled_matrix_desc_t*) &ddescR,
                        (tiled_matrix_desc_t*) &ddescX);
         Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescR);
         Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescX);
@@ -117,13 +132,17 @@ int main(int argc, char ** argv)
 
         nb_iter_ref++;
         printf("Iter ref %d: ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n", nb_iter_ref,result);
-    }
-    while(  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 60.0) );
+        printf( "-- ||A||_oo = %e, ||X||_oo = %e, ||B||_oo= %e, ||A X - B||_oo = %e\n",
+                Anorm, Xnorm, Bnorm, Rnorm );
 
-    printf("Solution reffined in %d iterations\n",nb_iter_ref);
+    }
+    while(  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 1.) );
+
+    printf("Solution refined in %d iterations\n",nb_iter_ref);
+
     if(loud > 2) printf("Done.\n");
 
-    if ( check && info < 0 ) {
+    if ( info < 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );
         ret |= 1;
     }

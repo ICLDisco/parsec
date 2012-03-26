@@ -22,7 +22,6 @@ dplasma_zgerfs_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t* LU,
                    tiled_matrix_desc_t* X)
 {
     dague_object_t *dague_zgerfs = NULL;
-    //    int pri_change = dplasma_aux_get_priority( "GERFS", A );
 
     dague_zgerfs = (dague_object_t*)dague_zgerfs_new(*A, (dague_ddesc_t*)A,
                                                      *LU, (dague_ddesc_t*)LU,
@@ -41,7 +40,9 @@ dplasma_zgerfs_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t* LU,
 void
 dplasma_zgerfs_Destruct( dague_object_t *o )
 {
-    dague_zgerfs_destroy((dague_zgerfs_object_t *)o);
+    dague_zgerfs_object_t *dague_zgerfs = (dague_zgerfs_object_t *)o;
+    dplasma_datatype_undefine_type( &(dague_zgerfs->arenas[DAGUE_zgerfs_DEFAULT_ARENA   ]->opaque_dtt) );
+    dague_zgerfs_destroy(dague_zgerfs);
 }
 
 int dplasma_zgerfs( dague_context_t *dague, tiled_matrix_desc_t* ddescA, tiled_matrix_desc_t* ddescLU,

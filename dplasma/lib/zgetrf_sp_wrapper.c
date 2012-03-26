@@ -20,7 +20,6 @@ dague_object_t*
 dplasma_zgetrf_sp_New(double criteria, tiled_matrix_desc_t *A, int *info)
 {
     dague_object_t *dague_zgetrf_sp = NULL;
-    //    int pri_change = dplasma_aux_get_priority( "GETRF_SP", A );
 
     *info = 0;
     dague_zgetrf_sp = (dague_object_t*)dague_zgetrf_sp_new(*A, (dague_ddesc_t*)A, criteria, info);
@@ -36,7 +35,9 @@ dplasma_zgetrf_sp_New(double criteria, tiled_matrix_desc_t *A, int *info)
 void
 dplasma_zgetrf_sp_Destruct( dague_object_t *o )
 {
-    dague_zgetrf_sp_destroy((dague_zgetrf_sp_object_t *)o);
+    dague_zgetrf_sp_object_t *dague_zgetrf_sp = (dague_zgetrf_sp_object_t *)o;
+    dplasma_datatype_undefine_type( &(dague_zgetrf_sp->arenas[DAGUE_zgetrf_sp_DEFAULT_ARENA   ]->opaque_dtt) );
+    dague_zgetrf_sp_destroy(dague_zgetrf_sp);
 }
 
 int dplasma_zgetrf_sp( dague_context_t *dague, const double criteria, tiled_matrix_desc_t* ddescA) 
@@ -54,7 +55,7 @@ int dplasma_zgetrf_sp( dague_context_t *dague, const double criteria, tiled_matr
     }
 
 #if defined(HAVE_MPI)
-    MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 #else
     ginfo = info;
 #endif
