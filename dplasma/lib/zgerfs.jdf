@@ -214,7 +214,7 @@ ztrsm_46(k1,n2)
           <- (k1>=1) ? K zgemm_55(k1-1, k1, n2) 
           <- (0==k1) & (descA.nt>=1) ? E zgemm_34(0, n2, descA.nt-1) 
           <- (0==k1) & (descB.nt>=(1+n2)) & (descB.mt>=1) & (0>=descA.nt) ? B zlacpy_19(0, n2) 
-          -> (descR.mt>=(k1+2)) ? P zgemm_82(0, ((-1)*k1)+descR.mt-1, n2) 
+          -> (descR.mt>=(k1+2)) ? P zgemm_82(0, ((0-1)*k1)+descR.mt-1, n2) 
           -> (descR.mt>=(k1+2)) ? J zgemm_55(k1, (k1+1)..(descR.mt-1), n2) 
           -> (descR.mt==(1+k1)) ? M ztrsm_70(0, n2) 
 
@@ -349,7 +349,7 @@ ztrsm_70(k2,n4)
 
   RW    M <- (0==k2) ? G ztrsm_46(descR.mt-1, n4) 
           <- (k2>=1) ? P zgemm_82(k2-1, k2, n4) 
-          -> Q zgeadd_107(((-1)*k2)+descR.mt-1, n4) 
+          -> Q zgeadd_107(((0-1)*k2)+descR.mt-1, n4) 
           -> R((descR.mt-1)-k2,n4)
           -> (descR.mt>=(k2+2)) ? O zgemm_82(k2, (k2+1)..(descR.mt-1), n4) 
 
@@ -412,7 +412,7 @@ zgemm_82(k2,m3,n5)
   READ  N <- N zgemm_82_in_LU0(k2,m3,n5)
 
   READ  O <- M ztrsm_70(k2, n5) 
-  RW    P <- (0==k2) ? G ztrsm_46(descR.mt+((-1)*m3)-1, n5) 
+  RW    P <- (0==k2) ? G ztrsm_46(descR.mt+((0-1)*m3)-1, n5) 
           <- (k2>=1) ? P zgemm_82(k2-1, m3, n5) 
           -> ((k2+1)==m3) ? M ztrsm_70(m3, n5) 
           -> (m3>=(k2+2)) ? P zgemm_82(k2+1, m3, n5) 
@@ -472,7 +472,7 @@ zgeadd_107(m4,n6)
   /* Q == R(m4,n6) */
   /* R == X(m4,n6) */
 
-  READ  Q <- M ztrsm_70(descR.mt+((-1)*m4)-1, n6) 
+  READ  Q <- M ztrsm_70(descR.mt+((0-1)*m4)-1, n6) 
   RW    R <- X(m4,n6)
           -> X(m4,n6)
 

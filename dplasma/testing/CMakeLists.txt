@@ -15,6 +15,7 @@ set(TESTS
   testing_zpotrf.c
 #  testing_zhebut.c
   testing_zposv.c
+  testing_zgerfs.c
   testing_zgetrf.c
   testing_zgetrf_sp.c
   testing_zgetrf_incpiv.c
