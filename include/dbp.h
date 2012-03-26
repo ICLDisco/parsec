@@ -98,6 +98,7 @@ struct dague_thread_profiling_t {
     dague_profiling_info_t  *infos;
     off_t                    first_events_buffer_offset; /* Offset (in the file) of the first events buffer */
     pthread_t                thread_owner;
+    off_t                     current_events_buffer_offset;
     dague_profiling_buffer_t *current_events_buffer;     /* points to the events buffer in which we are writing. */
 };
 

@@ -2768,13 +2768,13 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
 
             if( (src_task_f == src_task) && (dst_task_f == dst_task) ){
                 Relation ra, rb, *rptr;
-                rptr = dep_pruned->rel; /* save the pointer so we can free it */
+                //rptr = dep_pruned->rel; /* save the pointer so we can free it */
                 ra = *(dep_pruned->rel);
                 rb = *(dep_f->rel);
                 if( ra.is_null() ){ break; }
                 if( rb.is_null() ){ continue; }
                 dep_pruned->rel = new Relation( Difference(ra, rb) );
-                delete rptr;
+                //delete rptr;
             }
         }
 

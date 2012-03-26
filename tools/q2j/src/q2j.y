@@ -255,6 +255,7 @@ postfix_expression
 	| postfix_expression '(' ')'
           {
               $$.type = FCALL;
+              $$.lineno = yyget_lineno();
 
               $$.u.kids.kids = (node_t **)calloc(1, sizeof(node_t *));
               $$.u.kids.kid_count = 1;
@@ -266,6 +267,7 @@ postfix_expression
               int i, count = 0;
 
               $$.type = FCALL;
+              $$.lineno = yyget_lineno();
 
               for(tmp=$3.next; NULL != tmp ; flwr=tmp, tmp=tmp->prev){
                   count++;
@@ -1315,7 +1317,6 @@ external_declaration
               convert_OUTPUT_to_INOUT(&($1));
               if( _q2j_add_phony_tasks )
                   add_entry_and_exit_task_loops(&($1));
-              //printf("%s\n",tree_to_str(&($1)));
               analyze_deps(&($1));
           }
 	| declaration
