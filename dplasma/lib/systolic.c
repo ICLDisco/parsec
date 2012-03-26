@@ -179,7 +179,7 @@ int dplasma_qr_gettype( const qr_piv_t *arg, const int k, const int m ) {
     int p = arg->p;
     int sq_p = sqrt(p);
 
-    myassert(p == sq_p * sq_p);
+    assert(p == sq_p * sq_p);
 
     /* Local eliminations with a TS kernel */
     if ( m > k + p -1 )
@@ -411,7 +411,7 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 
     switch( ls )
         {
-        case -1:   //What this will do is for all the tiles that are not supposed to be pivot, will always return arg->desc->mt (ldd). For the others, will not do anything. (why is there an "if" ?)
+        case -1:
 
             if ( lp == DPLASMA_QR_KILLED_BY_TS ) {
                 myassert( start == arg->desc->mt );
@@ -442,27 +442,31 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 {
     int ls, lp;
+    int temp;
 
-    myassert( start >= pivot && pivot >= k && start < arg->desc->mt );
+    myassert( start >= pivot && pivot >= k && start <= arg->desc->mt );
     myassert( start == arg->desc->mt || start == pivot || pivot == dplasma_qr_currpiv( arg, start, k ) );
 
     /* TS level common to every case */
     ls = (start < arg->desc->mt) ? dplasma_qr_gettype( arg, k, start ) : -1;
     lp = dplasma_qr_gettype( arg, k, pivot );
 
-    if ( lp == 0 )
+    if ( lp == DPLASMA_QR_KILLED_BY_TS ) // This is because Mathieu est un gros sale =)
       return arg->desc->mt;
 
     myassert( lp >= ls );
     switch( ls )
         {
-        case -1:   //What this will do is for all the tiles that are not supposed to be pivot, will always return arg->desc->mt (ldd). For the others, will not do anything. (why is there an "if" ?)
-
+        case -1:
             if ( lp == DPLASMA_QR_KILLED_BY_TS ) {
                 myassert( start == arg->desc->mt );
                 return -1;
             }
-            return arg->hlvl->prevpiv(arg->hlvl, pivot, k, start );
+            temp = arg->hlvl->prevpiv(arg->hlvl, pivot, k, start );
+            if (temp == -5)
+                return arg->llvl->prevpiv(arg->llvl, pivot, k, start );
+            else 
+                return temp;
             break;
 
         case DPLASMA_QR_KILLED_BY_TS:
@@ -470,13 +474,27 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
             break;
 
         case DPLASMA_QR_KILLED_BY_LOCALTREE:
-            myassert( start != pivot );
-            return arg->hlvl->prevpiv(arg->hlvl, pivot, k, start );
+            if ( start == pivot && (pivot + arg->llvl->p >= arg->desc->mt) )
+                return arg->desc->mt;
+            else
+                myassert( start != pivot );
+            temp = arg->hlvl->prevpiv(arg->hlvl, pivot, k, start );
+            if ( temp == pivot )
+                return arg->desc->mt;
+            else
+                return temp;
             break;
 
         case DPLASMA_QR_KILLED_BY_DISTTREE:
-            myassert( start != pivot );
-            return arg->hlvl->prevpiv(arg->hlvl, pivot, k, start );
+            if ( start == pivot && (pivot + 1 >= arg->desc->mt) )
+                return arg->desc->mt;
+            else
+                myassert( start != pivot );
+            temp = arg->hlvl->prevpiv(arg->hlvl, pivot, k, start );
+            if ( temp == pivot )
+                return arg->desc->mt;
+            else
+                return temp;
             break;
 
         default:
