@@ -17,7 +17,7 @@
 
 dague_object_t* dplasma_zgetrf_param_New( qr_piv_t *qrpiv,
                                           tiled_matrix_desc_t *A,
-                                          dague_ddesc_t * IPIV,
+                                          tiled_matrix_desc_t *IPIV,
                                           tiled_matrix_desc_t *LT,
                                           int* INFO )
 {
@@ -77,7 +77,7 @@ dague_object_t* dplasma_zgetrf_param_New( qr_piv_t *qrpiv,
 int dplasma_zgetrf_param( dague_context_t *dague,
                           qr_piv_t *qrpiv,
                           tiled_matrix_desc_t *A,
-                          dague_ddesc_t * IPIV,
+                          tiled_matrix_desc_t *IPIV,
                           tiled_matrix_desc_t *LT,
                           int* INFO )
 {
