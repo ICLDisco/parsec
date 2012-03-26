@@ -61,12 +61,13 @@ descLT  [type = "tiled_matrix_desc_t"]
 LT      [type = "dague_ddesc_t *" aligned=A]
 pivfct  [type = "qr_piv_t*"]
 ib      [type = int]
-p_work  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descL.nb))"]
-p_tau   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descL.nb))"]
+p_work  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descLT.nb))"]
+p_tau   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descLT.nb))"]
+INFO    [type = "int*"]
+
 param_p [type = int default="pivfct->p"      hidden=on]
 param_a [type = int default="pivfct->a"      hidden=on]
 param_d [type = int default="pivfct->domino" hidden=on]
-INFO    [type = "int*"]
 
 zgetrf_param_out(k, i)
   /* Execution space */
@@ -251,12 +252,12 @@ BODY
           int iinfo;
 
            memset(P, 0, min(tempkn, tempmm) * sizeof(int) );
-           CORE_ztstrf(tempmm, tempkn, ib, descL.nb,
+           CORE_ztstrf(tempmm, tempkn, ib, descLT.nb,
                        A  /* A(p,k) */, ldak,
                        C  /* A(m,k) */, ldam,
-                       L  /* L(m,k) */, descL.mb,
+                       L  /* L(m,k) */, descLT.mb,
                        P /* IPIV(m,k) */,
-                       work, descL.nb, &iinfo );
+                       p_elem_B, descLT.nb, &iinfo );
 
            if ( (iinfo != 0) && (m == descA.mt-1) ) {
                *INFO = k * descA.mb + iinfo; /* Should return if enter here */
@@ -269,7 +270,7 @@ BODY
               tempmm, tempkn, ib,
               A /* A(p, k) */, descA.mb,
               C /* A(m, k) */, ldam,
-              L /* T(m, k) */, descL.mb,
+              L /* T(m, k) */, descLT.mb,
               p_elem_A, p_elem_B );
 
           dague_private_memory_push( p_tau , p_elem_A );
@@ -284,7 +285,7 @@ BODY
     ((PLASMA_Complex64_t*)H)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
   printlog("thread %d CORE_zttqrt(%d, %d)\n"
-           "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descL.mb, p_elem_A, p_elem_B)\n",
+           "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)\n",
            context->eu_id, k, m, p, k, V, m, k, C, m, k, L);
 
 END
@@ -358,7 +359,7 @@ BODY
           CORE_zssssm(descA.nb, tempnn, tempmm, tempnn, descA.nb, ib,
                       V /* A(p,n) */, ldak,
                       C /* A(m,n) */, ldam,
-                      L /* L(m,k) */,  descL.mb,
+                      L /* L(m,k) */,  descLT.mb,
                       H /* A(m,k) */,  ldam,
                       P /* IPIV(m,k) */ );
       } else {
@@ -371,7 +372,7 @@ BODY
               V /* A(p, n) */, descA.mb,
               C /* A(m, n) */, ldam,
               H /* A(m, k) */, ldam,
-              L /* T(m, k) */, descL.mb,
+              L /* T(m, k) */, descLT.mb,
               p_elem_A, ldwork );
 
           dague_private_memory_push( p_work, p_elem_A );
@@ -381,7 +382,7 @@ BODY
 
   printlog("thread %d CORE_zttmqr(%d, %d, %d)\n"
            "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
-           "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descL.mb, p_elem_A, ldwork)\n",
+           "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n",
            context->eu_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
 END
