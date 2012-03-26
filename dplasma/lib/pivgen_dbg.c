@@ -286,7 +286,7 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
                 do {
                     next = dplasma_qr_nextpiv(qrpiv, m, k, start);
                     if ( next == A->mt )
-                        prev = dplasma_qr_prevpiv(qrpiv, m, k, m);
+                        prev = dplasma_qr_prevpiv(qrpiv, m, k, next);//prev = dplasma_qr_prevpiv(qrpiv, m, k, m);
                     else
                         prev = dplasma_qr_prevpiv(qrpiv, m, k, next);
 
