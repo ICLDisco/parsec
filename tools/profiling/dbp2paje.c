@@ -10,15 +10,25 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdarg.h>
 
 #include "profiling.h"
 #include "dbp.h"
 
 #if defined(DAGUE_DEBUG_VERBOSE1)
-#define DEBUG(toto) printf toto
+#define DEBUG(toto) output toto
 #else
 #define DEBUG(toto) do {} while(0)
 #endif
+#define WARNING(toto) output toto
+
+static void output(const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    vfprintf(stderr, format, ap);
+    va_end(ap);
+}
 
 #include <GTG.h>
 #include <GTGPaje.h>
