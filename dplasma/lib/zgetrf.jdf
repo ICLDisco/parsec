@@ -354,6 +354,7 @@ BODY
       int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
       int tempmin = dague_imin(tempkn, tempkm);
       int ldak = BLKLDD(descA, k);
+      
 
       if ( descA.storage == matrix_Tile ) {
           int tempk  = k * descA.mb;
