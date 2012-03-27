@@ -41,6 +41,7 @@ int dplasma_zgetrf_sp( dague_context_t *dague, const double criteria, tiled_matr
 int dplasma_zgetrf_incpiv( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV );
 int dplasma_zgetrs( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t* A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
 int dplasma_zgetrs_incpiv( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
+int dplasma_zgerfs( dague_context_t     *dague, tiled_matrix_desc_t *ddescA, tiled_matrix_desc_t *ddescLU, tiled_matrix_desc_t *ddescB, tiled_matrix_desc_t *ddescR, tiled_matrix_desc_t *ddescX);
 int dplasma_zgesv_incpiv ( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
 int dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 int dplasma_zgeqrf_param( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
