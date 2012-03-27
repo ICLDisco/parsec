@@ -23,6 +23,7 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     int info = 0;
     int ret = 0;
+    int nbpivot = 0;
     double criteria = 0;
 
     /* Set defaults for non argv iparams */
@@ -78,8 +79,7 @@ int main(int argc, char ** argv)
     double Anorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescA);
     criteria = eps * Anorm;
 
-
-    ((Dague_Complex64_t *) ddescA.mat)[0] = 0;
+    /* ((Dague_Complex64_t *) ddescA.mat)[0] = 0; */
     /* ((Dague_Complex64_t *) ddescA.mat)[1] = 0; */
     /* ((Dague_Complex64_t *) ddescA.mat)[((tiled_matrix_desc_t *)&ddescA)->mb+1] = 0; */
 
@@ -93,29 +93,25 @@ int main(int argc, char ** argv)
 
     if(loud > 2) printf("Done\n");
 
-
     if(loud > 2) printf("+++ Computing getrf_sp ... ");
 
     /* Computing LU */
-
-    int nb_pivot = dplasma_zgetrf_sp(dague,criteria,(tiled_matrix_desc_t *)&ddescLU);
+    nbpivot = dplasma_zgetrf_sp(dague,criteria,(tiled_matrix_desc_t *)&ddescLU);
     printf("LU decomposition done with %d pivoting\n",nb_pivot);
 
     /* Computing first solution */
-
     dplasma_ztrsm(dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
                   1.0, (tiled_matrix_desc_t *)&ddescLU,
-                  (tiled_matrix_desc_t *)&ddescX);
+                       (tiled_matrix_desc_t *)&ddescX);
     dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit,
                   1.0, (tiled_matrix_desc_t *)&ddescLU,
-                  (tiled_matrix_desc_t *)&ddescX);
+                       (tiled_matrix_desc_t *)&ddescX);
 
     /* Refinement */
-
-    int nb_iter_ref = 0;
-    double Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescB);
+    int    nb_iter_ref = 0;
+    double Bnorm       = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescB);
     double Xnorm, Rnorm;
-    int m = ((tiled_matrix_desc_t*) &ddescB)->m;
+    int    m           = ((tiled_matrix_desc_t*) &ddescB)->m;
     double result;
     do
     {
@@ -138,7 +134,7 @@ int main(int argc, char ** argv)
     }
     while(  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 1.) );
 
-    printf("Solution refined in %d iterations\n",nb_iter_ref);
+    printf("Solution refined in %d iterations\n", nb_iter_ref );
 
     if(loud > 2) printf("Done.\n");
 

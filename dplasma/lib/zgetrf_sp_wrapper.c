@@ -40,7 +40,7 @@ dplasma_zgetrf_sp_Destruct( dague_object_t *o )
     dague_zgetrf_sp_destroy(dague_zgetrf_sp);
 }
 
-int dplasma_zgetrf_sp( dague_context_t *dague, const double criteria, tiled_matrix_desc_t* ddescA) 
+int dplasma_zgetrf_sp( dague_context_t *dague, const double criteria, tiled_matrix_desc_t* ddescA)
 {
     dague_object_t *dague_zgetrf_sp = NULL;
     int info = 0, ginfo = 0 ;
