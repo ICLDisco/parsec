@@ -3339,52 +3339,57 @@ printf("========================================================================
 
     edge_it = outgoing_edges.begin();
     for( ;edge_it != outgoing_edges.end(); ++edge_it ){
-	task_t *src_task;
-	char *task_name;
-	set<dep_t *> deps;
+	    task_t *src_task;
+	    char *task_name;
+	    set<dep_t *> deps;
 
-	task_name = edge_it->first;
-	deps = edge_it->second;
+	    task_name = edge_it->first;
+	    deps = edge_it->second;
 
-	// Get the source task from the dependencies
-	if( !deps.empty() ){
-	    src_task = (*deps.begin())->src->task;
-	}else{
-	    // If there are no outgoing deps, get the source task from the incoming dependencies
-	    set<dep_t *> in_deps = incoming_edges[task_name];
-	    if( !in_deps.empty() ){
-		src_task = (*in_deps.begin())->src->task;
+	    // Get the source task from the dependencies
+	    if( !deps.empty() ){
+	        src_task = (*deps.begin())->src->task;
 	    }else{
-		// If there are no incoming and no outgoing deps, skip this task
-		continue;
+	        // If there are no outgoing deps, get the source task from the incoming dependencies
+	        set<dep_t *> in_deps = incoming_edges[task_name];
+	        if( !in_deps.empty() ){
+		    src_task = (*in_deps.begin())->src->task;
+	        }else{
+		    // If there are no incoming and no outgoing deps, skip this task
+		    continue;
+	        }
 	    }
-	}
 
-	// If the source task is NOT the ENTRY, then dump all the info
-	if( NULL != src_task ){
+	    // If the source task is NOT the ENTRY, then dump all the info
+	    if( NULL != src_task ){
 
-	    printf("\n\n%s(",task_name);
-	    for(int i=0; NULL != src_task->ind_vars[i]; ++i){
-		if( i ) printf(",");
-		printf("%s", src_task->ind_vars[i]);
-	    }
-	    printf(")\n");
+	        printf("\n\n%s(",task_name);
+	        for(int i=0; NULL != src_task->ind_vars[i]; ++i){
+		    if( i ) printf(",");
+		    printf("%s", src_task->ind_vars[i]);
+	        }
+	        printf(")\n");
+    
+	        Relation S_es = process_and_print_execution_space(src_task->task_node);
+	        printf("\n");
+	        node_t *reference_data_element = print_default_task_placement(src_task->task_node);
+	        printf("\n");
+	        print_pseudo_variables(deps, incoming_edges[task_name]);
+	        printf("\n");
+	        list <char *>ptask_list = print_edges_and_create_pseudotasks(deps, incoming_edges[task_name], S_es, reference_data_element);
+	        S_es.Null();
+	        printf("\n");
 
-	    Relation S_es = process_and_print_execution_space(src_task->task_node);
-	    printf("\n");
-	    node_t *reference_data_element = print_default_task_placement(src_task->task_node);
-	    printf("\n");
-	    print_pseudo_variables(deps, incoming_edges[task_name]);
-	    printf("\n");
-	    list <char *>ptask_list = print_edges_and_create_pseudotasks(deps, incoming_edges[task_name], S_es, reference_data_element);
-	    S_es.Null();
-	    printf("\n");
 
-	    printf("  /*\n  Anti-dependencies:\n");
 
-	    // If this task has no name, then it's probably a phony task, so ignore it.
-	    if( (NULL != src_task->task_name) ){
+	        // If this task has no name, then it's probably a phony task, so ignore it.
+	        if( (NULL != src_task->task_name) ){
                 map<char *, set<dep_t *> >::iterator synch_edge_it;
+
+                // Only print the anti-dependencies block, if there are any anti-dependencies.
+                if( synch_edges.begin() != synch_edges.end() ){
+	                printf("  /*\n  Anti-dependencies:\n");
+                }
 
                 for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
                     char *tmp_task_name = synch_edge_it->first;
@@ -3405,13 +3410,15 @@ printf("========================================================================
                         ad_r.print_with_subs();
                     }
                 }
+
+                if( synch_edges.begin() != synch_edges.end() ){
+                    printf("\n  */\n\n");
+                }
+
             }else{
                 printf("DEBUG: unnamed task.\n");
             }
 
-            printf("\n");
-
-            printf("  */\n\n");
 
             print_body(src_task->task_node);
 
