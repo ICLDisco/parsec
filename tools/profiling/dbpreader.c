@@ -210,7 +210,7 @@ const dbp_event_t *dbp_iterator_current(const dbp_event_iterator_t *it)
     return &it->current_event;
 }
 
-dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
+const dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
 {
     if( it->current_events_buffer != NULL ) {
         release_events_buffer( it->current_events_buffer );
@@ -228,7 +228,7 @@ dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
     return dbp_iterator_current(it);
 }
 
-dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
+const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
 {
     size_t elen;
     dague_profiling_output_t *current;
@@ -283,7 +283,7 @@ void dbp_iterator_delete(dbp_event_iterator_t *it)
 int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
                                         const dbp_event_t *ref)
 {
-    dbp_event_t *e;
+    const dbp_event_t *e;
     
     e = dbp_iterator_current( pos );
     while( NULL != e ) {
@@ -306,7 +306,7 @@ int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
 dbp_event_iterator_t *dbp_iterator_find_matching_event_all_threads(const dbp_event_iterator_t *pos)
 {
     dbp_event_iterator_t *it;
-    dbp_event_t *ref;
+    const dbp_event_t *ref;
     dbp_file_t *dbp_file;
     int th;
 
