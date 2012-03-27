@@ -21,21 +21,18 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-/*#define BLKLDD(_desc, _k) ( (_desc).storage == matrix_Tile ? (_desc).mb : (_desc).lm )*/
-
 %}
 
-descA [type = "tiled_matrix_desc_t"]
-A [type = "dague_ddesc_t *"]
+descA  [type = "tiled_matrix_desc_t"]
+A      [type = "dague_ddesc_t *"]
 descLU [type = "tiled_matrix_desc_t"]
-LU [type = "dague_ddesc_t *"]
-descB [type = "tiled_matrix_desc_t"]
-B [type = "dague_ddesc_t *"]
-descR [type = "tiled_matrix_desc_t"]
-R [type = "dague_ddesc_t *"]
-descX [type = "tiled_matrix_desc_t"]
-X [type = "dague_ddesc_t *"]
-
+LU     [type = "dague_ddesc_t *"]
+descB  [type = "tiled_matrix_desc_t"]
+B      [type = "dague_ddesc_t *"]
+descR  [type = "tiled_matrix_desc_t"]
+R      [type = "dague_ddesc_t *"]
+descX  [type = "tiled_matrix_desc_t"]
+X      [type = "dague_ddesc_t *"]
 
 zlacpy_19(m,n)
   /* Execution space */
@@ -53,17 +50,12 @@ zlacpy_19(m,n)
   READ  A <- A zlacpy_19_in_B0(m,n)
 
   RW    B <- R(m,n)
-          -> (descR.nt>=(n+1)) & (descA.nt>=1) & (descR.mt>=(m+1)) ? E zgemm_34(m, n, 0) 
-          -> (0==m) & (descR.nt>=(n+1)) & (descR.mt>=1) & (0>=descA.nt) ? G ztrsm_46(0, n) 
-          -> (m>=1) & (descR.mt>=1) & (descR.nt>=(n+1)) & (descR.mt>=(m+1)) & (0>=descA.nt) ? K zgemm_55(0, m, n) 
+          -> (descR.nt>=(n+1)) & (descA.nt>=1) & (descR.mt>=(m+1)) ? E zgemm_34(m, n, 0)
+          -> (0==m) & (descR.nt>=(n+1)) & (descR.mt>=1) & (0>=descA.nt) ? G ztrsm_46(0, n)
+          -> (m>=1) & (descR.mt>=1) & (descR.nt>=(n+1)) & (descR.mt>=(m+1)) & (0>=descA.nt) ? K zgemm_55(0, m, n)
           -> (n>=descR.nt) & ((m+1)>=descR.mt) ? R(m,n)
           -> (!((n>=descR.nt) & ((m+1)>=descR.mt))) & (m>=descR.mt) & (descR.nt>=(n+1)) ? R(m,n)
           -> (!((n>=descR.nt) & ((m+1)>=descR.mt))) & (!((m>=descR.mt) & (descR.nt>=(n+1)))) & (descR.mt>=(m+2)) & (n>=descR.nt) ? R(m,n)
-
-  /*
-  Anti-dependencies:
-
-  */
 
 BODY
 
@@ -73,10 +65,10 @@ BODY
   int ldrm = BLKLDD( descR, m );
 
   DRYRUN(
-
-    CORE_zlacpy(PlasmaUpperLower, tempmm, tempnn, 
-	A /* B(m,n) */, ldbm, B /* R(m,n) */, 
-	ldrm );  );
+    CORE_zlacpy(PlasmaUpperLower, tempmm, tempnn,
+                A /* B(m,n) */, ldbm,
+                B /* R(m,n) */, ldrm );
+         );
 
   printlog("thread %d CORE_zlacpy(%d, %d)\n"
            "\t(PlasmaUpperLower, tempmm, tempnn, B(%d,%d)[%p], ldbm, R(%d,%d)[%p], ldrm)\n",
@@ -120,18 +112,13 @@ zgemm_34(m1,n1,k)
 
   READ  D <- D zgemm_34_in_X1(m1,n1,k)
 
-  RW    E <- (0==k) & (descB.mt>=(m1+1)) & (descB.nt>=(1+n1)) ? B zlacpy_19(m1, n1) 
-          <- (k>=1) ? E zgemm_34(m1, n1, k-1) 
+  RW    E <- (0==k) & (descB.mt>=(m1+1)) & (descB.nt>=(1+n1)) ? B zlacpy_19(m1, n1)
+          <- (k>=1) ? E zgemm_34(m1, n1, k-1)
           <- (0==k) & (m1>=descB.mt) ? R(m1,n1)
           <- (!((0==k) & (m1>=descB.mt))) & (0==k) & (descB.mt>=(m1+1)) & (n1>=descB.nt) ? R(m1,n1)
-          -> ((1+k)==descA.nt) & (0==m1) ? G ztrsm_46(0, n1) 
-          -> (descA.nt>=(k+2)) ? E zgemm_34(m1, n1, k+1) 
-          -> (descA.nt==(k+1)) & (m1>=1) ? K zgemm_55(0, m1, n1) 
-
-  /*
-  Anti-dependencies:
-
-  */
+          -> ((1+k)==descA.nt) & (0==m1) ? G ztrsm_46(0, n1)
+          -> (descA.nt>=(k+2)) ? E zgemm_34(m1, n1, k+1)
+          -> (descA.nt==(k+1)) & (m1>=1) ? K zgemm_55(0, m1, n1)
 
 BODY
 
@@ -144,11 +131,11 @@ BODY
 
   DRYRUN(
 
-    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, tempmm, 
-	tempnn, tempkn, (Dague_Complex64_t)-1.000000, 
-	C /* A(m1,k) */, ldam, D /* X(k,n1) */, 
-	ldxk, (Dague_Complex64_t)1.000000, E /* R(m1,n1) */, 
-	ldrm );  );
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, tempmm,
+        tempnn, tempkn, (Dague_Complex64_t)-1.000000,
+        C /* A(m1,k) */, ldam, D /* X(k,n1) */,
+        ldxk, (Dague_Complex64_t)1.000000, E /* R(m1,n1) */,
+        ldrm );  );
 
   printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, tempkn, (Dague_Complex64_t)-1.000000, A(%d,%d)[%p], ldam, X(%d,%d)[%p], ldxk, (Dague_Complex64_t)1.000000, R(%d,%d)[%p], ldrm)\n",
@@ -211,17 +198,12 @@ ztrsm_46(k1,n2)
 
   RW    G <- (0==k1) & (0>=descB.mt) & (0>=descA.nt) ? R(k1,n2)
           <- (!((0==k1) & (0>=descB.mt) & (0>=descA.nt))) & (0==k1) & (descB.mt>=1) & (n2>=descB.nt) & (0>=descA.nt) ? R(k1,n2)
-          <- (k1>=1) ? K zgemm_55(k1-1, k1, n2) 
-          <- (0==k1) & (descA.nt>=1) ? E zgemm_34(0, n2, descA.nt-1) 
-          <- (0==k1) & (descB.nt>=(1+n2)) & (descB.mt>=1) & (0>=descA.nt) ? B zlacpy_19(0, n2) 
-          -> (descR.mt>=(k1+2)) ? P zgemm_82(0, descR.mt-k1-1, n2) 
-          -> (descR.mt>=(k1+2)) ? J zgemm_55(k1, (k1+1)..(descR.mt-1), n2) 
-          -> (descR.mt==(1+k1)) ? M ztrsm_70(0, n2) 
-
-  /*
-  Anti-dependencies:
-
-  */
+          <- (k1>=1) ? K zgemm_55(k1-1, k1, n2)
+          <- (0==k1) & (descA.nt>=1) ? E zgemm_34(0, n2, descA.nt-1)
+          <- (0==k1) & (descB.nt>=(1+n2)) & (descB.mt>=1) & (0>=descA.nt) ? B zlacpy_19(0, n2)
+          -> (descR.mt>=(k1+2)) ? P zgemm_82(0, descR.mt-k1-1, n2)
+          -> (descR.mt>=(k1+2)) ? J zgemm_55(k1, (k1+1)..(descR.mt-1), n2)
+          -> (descR.mt==(1+k1)) ? M ztrsm_70(0, n2)
 
 BODY
 
@@ -232,10 +214,10 @@ BODY
 
   DRYRUN(
 
-    CORE_ztrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans, 
-	PlasmaUnit, tempkm, tempnn, 
-	(Dague_Complex64_t)1.000000, F /* LU(k1,k1) */, lda, 
-	G /* R(k1,n2) */, ldr );  );
+    CORE_ztrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans,
+        PlasmaUnit, tempkm, tempnn,
+        (Dague_Complex64_t)1.000000, F /* LU(k1,k1) */, lda,
+        G /* R(k1,n2) */, ldr );  );
 
   printlog("thread %d CORE_ztrsm(%d, %d)\n"
            "\t(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, tempkm, tempnn, (Dague_Complex64_t)1.000000, LU(%d,%d)[%p], lda, R(%d,%d)[%p], ldr)\n",
@@ -277,19 +259,14 @@ zgemm_55(k1,m2,n3)
 
   READ  H <- H zgemm_55_in_LU0(k1,m2,n3)
 
-  READ  J <- G ztrsm_46(k1, n3) 
+  READ  J <- G ztrsm_46(k1, n3)
   RW    K <- (0==k1) & (m2>=descB.mt) & (0>=descA.nt) ? R(m2,n3)
           <- (!((0==k1) & (m2>=descB.mt) & (0>=descA.nt))) & (0==k1) & (descB.mt>=(m2+1)) & (n3>=descB.nt) & (0>=descA.nt) ? R(m2,n3)
-          <- (0==k1) & (descB.nt>=(n3+1)) & (descB.mt>=(m2+1)) & (0>=descA.nt) ? B zlacpy_19(m2, n3) 
-          <- (k1>=1) ? K zgemm_55(k1-1, m2, n3) 
-          <- (0==k1) & (descA.nt>=1) ? E zgemm_34(m2, n3, descA.nt-1) 
-          -> ((k1+1)==m2) ? G ztrsm_46(m2, n3) 
-          -> (m2>=(2+k1)) ? K zgemm_55(k1+1, m2, n3) 
-
-  /*
-  Anti-dependencies:
-
-  */
+          <- (0==k1) & (descB.nt>=(n3+1)) & (descB.mt>=(m2+1)) & (0>=descA.nt) ? B zlacpy_19(m2, n3)
+          <- (k1>=1) ? K zgemm_55(k1-1, m2, n3)
+          <- (0==k1) & (descA.nt>=1) ? E zgemm_34(m2, n3, descA.nt-1)
+          -> ((k1+1)==m2) ? G ztrsm_46(m2, n3)
+          -> (m2>=(2+k1)) ? K zgemm_55(k1+1, m2, n3)
 
 BODY
 
@@ -301,11 +278,11 @@ BODY
 
   DRYRUN(
 
-    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, tempmm, 
-	tempnn, descR.mb, mzone, 
-	H /* LU(m2,k1) */, lda, J /* R(k1,n3) */, 
-	descR.mb, (Dague_Complex64_t)1.000000, K /* R(m2,n3) */, 
-	ldr );  );
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, tempmm,
+        tempnn, descR.mb, mzone,
+        H /* LU(m2,k1) */, lda, J /* R(k1,n3) */,
+        descR.mb, (Dague_Complex64_t)1.000000, K /* R(m2,n3) */,
+        ldr );  );
 
   printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descR.mb, mzone, LU(%d,%d)[%p], lda, R(%d,%d)[%p], descR.mb, (Dague_Complex64_t)1.000000, R(%d,%d)[%p], ldr)\n",
@@ -347,16 +324,11 @@ ztrsm_70(k2,n4)
 
   READ  L <- L ztrsm_70_in_LU0(k2,n4)
 
-  RW    M <- (0==k2) ? G ztrsm_46(descR.mt-1, n4) 
-          <- (k2>=1) ? P zgemm_82(k2-1, k2, n4) 
-          -> Q zgeadd_107(descR.mt-k2-1, n4) 
+  RW    M <- (0==k2) ? G ztrsm_46(descR.mt-1, n4)
+          <- (k2>=1) ? P zgemm_82(k2-1, k2, n4)
+          -> Q zgeadd_107(descR.mt-k2-1, n4)
           -> R((descR.mt-1)-k2,n4)
-          -> (descR.mt>=(k2+2)) ? O zgemm_82(k2, (k2+1)..(descR.mt-1), n4) 
-
-  /*
-  Anti-dependencies:
-
-  */
+          -> (descR.mt>=(k2+2)) ? O zgemm_82(k2, (k2+1)..(descR.mt-1), n4)
 
 BODY
 
@@ -367,10 +339,10 @@ BODY
 
   DRYRUN(
 
-    CORE_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, 
-	PlasmaNonUnit, tempkm, tempnn, 
-	(Dague_Complex64_t)1.000000, L /* LU((descR.mt-1)-k2,(descR.mt-1)-k2) */, lda, 
-	M /* R((descR.mt-1)-k2,n4) */, ldr );  );
+    CORE_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans,
+        PlasmaNonUnit, tempkm, tempnn,
+        (Dague_Complex64_t)1.000000, L /* LU((descR.mt-1)-k2,(descR.mt-1)-k2) */, lda,
+        M /* R((descR.mt-1)-k2,n4) */, ldr );  );
 
   printlog("thread %d CORE_ztrsm(%d, %d)\n"
            "\t(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, tempkm, tempnn, (Dague_Complex64_t)1.000000, LU(%d,%d)[%p], lda, R(%d,%d)[%p], ldr)\n",
@@ -411,16 +383,11 @@ zgemm_82(k2,m3,n5)
 
   READ  N <- N zgemm_82_in_LU0(k2,m3,n5)
 
-  READ  O <- M ztrsm_70(k2, n5) 
-  RW    P <- (0==k2) ? G ztrsm_46(descR.mt-m3-1, n5) 
-          <- (k2>=1) ? P zgemm_82(k2-1, m3, n5) 
-          -> ((k2+1)==m3) ? M ztrsm_70(m3, n5) 
-          -> (m3>=(k2+2)) ? P zgemm_82(k2+1, m3, n5) 
-
-  /*
-  Anti-dependencies:
-
-  */
+  READ  O <- M ztrsm_70(k2, n5)
+  RW    P <- (0==k2) ? G ztrsm_46(descR.mt-m3-1, n5)
+          <- (k2>=1) ? P zgemm_82(k2-1, m3, n5)
+          -> ((k2+1)==m3) ? M ztrsm_70(m3, n5)
+          -> (m3>=(k2+2)) ? P zgemm_82(k2+1, m3, n5)
 
 BODY
 
@@ -431,11 +398,11 @@ BODY
 
   DRYRUN(
 
-    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, descR.mb, 
-	tempnn, tempkm, mzone, 
-	N /* LU((descR.mt-1)-m3,(descR.mt-1)-k2) */, descLU.mb, O /* R((descR.mt-1)-k2,n5) */, 
-	ldr, (Dague_Complex64_t)1.000000, P /* R((descR.mt-1)-m3,n5) */, 
-	descR.mb );  );
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, descR.mb,
+        tempnn, tempkm, mzone,
+        N /* LU((descR.mt-1)-m3,(descR.mt-1)-k2) */, descLU.mb, O /* R((descR.mt-1)-k2,n5) */,
+        ldr, (Dague_Complex64_t)1.000000, P /* R((descR.mt-1)-m3,n5) */,
+        descR.mb );  );
 
   printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, PlasmaNoTrans, descR.mb, tempnn, tempkm, mzone, LU(%d,%d)[%p], descLU.mb, R(%d,%d)[%p], ldr, (Dague_Complex64_t)1.000000, R(%d,%d)[%p], descR.mb)\n",
@@ -472,14 +439,9 @@ zgeadd_107(m4,n6)
   /* Q == R(m4,n6) */
   /* R == X(m4,n6) */
 
-  READ  Q <- M ztrsm_70(descR.mt-m4-1, n6) 
+  READ  Q <- M ztrsm_70(descR.mt-m4-1, n6)
   RW    R <- X(m4,n6)
           -> X(m4,n6)
-
-  /*
-  Anti-dependencies:
-
-  */
 
 BODY
 
@@ -490,9 +452,9 @@ BODY
 
   DRYRUN(
 
-    CORE_zgeadd(tempmm, tempnn, (Dague_Complex64_t)1.000000, 
-	Q /* R(m4,n6) */, ldrm, R /* X(m4,n6) */, 
-	ldxm );  );
+    CORE_zgeadd(tempmm, tempnn, (Dague_Complex64_t)1.000000,
+        Q /* R(m4,n6) */, ldrm, R /* X(m4,n6) */,
+        ldxm );  );
 
   printlog("thread %d CORE_zgeadd(%d, %d)\n"
            "\t(tempmm, tempnn, (Dague_Complex64_t)1.000000, R(%d,%d)[%p], ldrm, X(%d,%d)[%p], ldxm)\n",
