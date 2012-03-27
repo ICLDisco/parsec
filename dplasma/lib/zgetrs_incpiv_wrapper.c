@@ -11,8 +11,12 @@
 #include "dplasma.h"
 
 int
-dplasma_zgetrs_incpiv(dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *L,
-                      tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B)
+dplasma_zgetrs_incpiv(dague_context_t *dague,
+                      const PLASMA_enum trans,
+                      tiled_matrix_desc_t *A,
+                      tiled_matrix_desc_t *L,
+                      tiled_matrix_desc_t *IPIV,
+                      tiled_matrix_desc_t *B)
 {
     /* Check input arguments */
     if (trans != PlasmaNoTrans) {

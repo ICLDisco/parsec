@@ -359,22 +359,32 @@ static char *numToSymName(int num){
 
 
 // Turn "CORE_taskname_quark" into "taskname" wasting some memory in the process
-static char *quark_call_to_task_name( char *call_name ){
+static char *quark_call_to_task_name( char *call_name, uint32_t lineno ){
     char *task_name, *end;
+    ptrdiff_t len;
+    uint32_t i, digits;
 
     if( NULL != strstr(call_name, "CORE_") )
         call_name += 5;
 
-    task_name = strdup(call_name);
-
-    end = strstr(task_name, "_quark");
+    end = strstr(call_name, "_quark");
     if( NULL != end ){
-        *end = '\0';
+        len = (uintptr_t)end-(uintptr_t)call_name;
+    }else{
+        len = strlen(call_name);
     }
+
+    digits = 0;
+    for(i=lineno; i>0; i/=10){
+        digits++;
+    }
+
+    task_name = (char *)calloc(len+digits+2, sizeof(char));
+    snprintf(task_name, len+1, "%s", call_name);
+    snprintf(task_name+len, digits+2, "_%u",lineno);
 
     return task_name;
 }
-
 
 static void quark_record_uses_defs_and_pools(node_t *node){
     static int symbolic_name_count = 0;
@@ -399,7 +409,7 @@ static void quark_record_uses_defs_and_pools(node_t *node){
         // QUARK specific code. The task is the second parameter.
         if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
             task = (task_t *)calloc(1, sizeof(task_t));
-            task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)) );
+            task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), node->lineno );
             task->task_node = node;
             task->ind_vars = (char **)calloc(1+node->loop_depth, sizeof(char *));
             i=node->loop_depth-1;
@@ -2240,17 +2250,17 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
                 str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
-	    case ADDR_OF:
+	        case ADDR_OF:
                 return strdup("&");
-	    case STAR:
+	        case STAR:
                 return strdup("*");
-	    case PLUS:
+	        case PLUS:
                 return strdup("+");
-	    case MINUS:
+	        case MINUS:
                 return strdup("-");
-	    case TILDA:
+	        case TILDA:
                 return strdup("~");
-	    case BANG:
+	        case BANG:
                 return strdup("!");
 
             case ADD:

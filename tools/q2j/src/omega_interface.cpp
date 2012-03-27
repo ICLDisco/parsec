@@ -62,8 +62,8 @@ static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *
 static inline set<expr_t *> find_all_GEs_with_var(const char *var_name, expr_t *exp);
 static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t *exp, int constr_type);
 static bool is_expr_simple(const expr_t *exp);
-static const char *expr_tree_to_str(const expr_t *exp);
-static string _expr_tree_to_str(const expr_t *exp);
+static const char *expr_tree_to_str(expr_t *exp);
+static string _expr_tree_to_str(expr_t *exp);
 static int expr_tree_contains_var(expr_t *root, const char *var_name);
 static int expr_tree_contains_only_vars_in_set(expr_t *root, set<const char *>vars);
 static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F_And *R_root, map<string, Variable_ID> ivars, Relation &R);
@@ -76,6 +76,8 @@ expr_t *relation_to_tree( Relation R );
 static inline bool is_phony_Entry_task(task_t *task);
 static inline bool is_phony_Exit_task(task_t *task);
 static bool inline is_enclosed_by_else(node_t *node, node_t *branch);
+static inline void flip_sign(expr_t *exp);
+static inline bool is_negative(expr_t *exp);
 
 #if 0
 void dump_all_uses(und_t *def, var_t *head){
@@ -405,6 +407,7 @@ static bool inline is_enclosed_by_else(node_t *node, node_t *branch){
     }
 
     Q2J_ASSERT( 0 );
+    return false; /* Just to silence the pedantic warning of icc */
 }
 
 
@@ -2767,13 +2770,13 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
 
             if( (src_task_f == src_task) && (dst_task_f == dst_task) ){
                 Relation ra, rb, *rptr;
-                rptr = dep_pruned->rel; /* save the pointer so we can free it */
+                //rptr = dep_pruned->rel; /* save the pointer so we can free it */
                 ra = *(dep_pruned->rel);
                 rb = *(dep_f->rel);
                 if( ra.is_null() ){ break; }
                 if( rb.is_null() ){ continue; }
                 dep_pruned->rel = new Relation( Difference(ra, rb) );
-                delete rptr;
+                //delete rptr;
             }
         }
 
@@ -3691,13 +3694,57 @@ static bool is_expr_simple(const expr_t *exp){
     return false;
 }
 
-const char *expr_tree_to_str(const expr_t *exp){
+static inline void flip_sign(expr_t *exp){
+
+    switch( exp->type ){
+        case INTCONSTANT:
+            exp->value.int_const = -(exp->value.int_const);
+            break;
+        case MUL:
+            if( is_negative(exp->l) ){
+                flip_sign(exp->l);
+            }else if( is_negative(exp->r) ){
+                flip_sign(exp->r);
+            }else{
+#if defined(DEBUG_EXPR)
+                Q2J_ASSERT(0 && "flig_sign() was passed an expression that has no negative parts");
+#endif
+            }
+            break;
+        default:
+#if defined(DEBUG_EXPR)
+            Q2J_ASSERT(0 && "flig_sign() was passed an expression that is neither INTCONSTANT, nor MUL");
+#endif
+            return;
+    }
+
+    return;
+}
+
+
+static inline bool is_negative(expr_t *exp){
+    if( NULL == exp )
+        return false;
+
+    switch( exp->type ){
+        case INTCONSTANT:
+            return (exp->value.int_const < 0);
+        case MUL:
+            return (is_negative(exp->l)^is_negative(exp->r));
+        default:
+            return false;
+    }
+
+    return false;
+}
+
+static const char *expr_tree_to_str(expr_t *exp){
     string str;
     str = _expr_tree_to_str(exp);
     return strdup(str.c_str());
 }
 
-static string _expr_tree_to_str(const expr_t *exp){
+static string _expr_tree_to_str(expr_t *exp){
     stringstream ss, ssL, ssR;
     unsigned int skipSymbol=0, first=1;
     unsigned int r_needs_paren = 0, l_needs_paren = 0;
@@ -3850,7 +3897,36 @@ static string _expr_tree_to_str(const expr_t *exp){
         case ADD:
             Q2J_ASSERT( (NULL != exp->l) && (NULL != exp->r) );
 
-            if( (NULL != exp->l) && (INTCONSTANT == exp->l->type) ){
+            /*
+             * If the left hand side is negative, then flip the order, flip the
+             * sign, convert the node into a SUB and start processing the node
+             * all over again.
+             */
+            if( is_negative(exp->l) ){
+                expr_t *tmp = exp->l;
+                exp->l = exp->r;
+                exp->r = tmp;
+                flip_sign(exp->r);
+                exp->type = SUB;
+                return _expr_tree_to_str(exp);
+            }
+
+
+            /*
+             * If the right hand side is negative, then flip the sign, convert
+             * the node into a SUB and start processing the node all over again.
+             */
+            if( is_negative(exp->r) ){
+                flip_sign(exp->r);
+                exp->type = SUB;
+                return _expr_tree_to_str(exp);
+            }
+
+            /* do not break, fall through into the SUB */
+        case SUB:
+            Q2J_ASSERT( (NULL != exp->l) && (NULL != exp->r) );
+
+            if( INTCONSTANT == exp->l->type ){
                 if( exp->l->value.int_const != 0 ){
                     ss << _expr_tree_to_str(exp->l);
                 }else{
@@ -3860,16 +3936,21 @@ static string _expr_tree_to_str(const expr_t *exp){
                 ss << _expr_tree_to_str(exp->l);
             }
 
-
-            // If the thing we add is a "-c" (where c is a constant)
-            // detect it so we print "-c" instead of "+(-c)"
-            if( (NULL != exp->r) && (INTCONSTANT == exp->r->type) && (exp->r->value.int_const < 0) ){
-                ss << "-" << labs(exp->r->value.int_const);
+            /*
+             * If the right hand side is a negative constant, detect it so we
+             * print "-c" instead of "+(-c) if it's ADD or
+             * "+c" instead of "-(-c)" is it's SUB.
+             */
+            if( (INTCONSTANT == exp->r->type) && (exp->r->value.int_const < 0) ){
+                if( ADD == exp->type)
+                    ss << "-" << labs(exp->r->value.int_const);
+                else
+                    ss << "+" << labs(exp->r->value.int_const);
                 return ss.str();
             }
 
             if( !skipSymbol )
-                ss << type_to_symbol(ADD);
+                ss << type_to_symbol(exp->type);
 
             ss << _expr_tree_to_str(exp->r);
 

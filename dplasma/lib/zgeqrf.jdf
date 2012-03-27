@@ -81,22 +81,25 @@ BODY
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ | DAGUE_WRITE, k, k );
 #endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
 
-  int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
-  int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
-  int ldak = BLKLDD( descA, k );
+    DRYRUN(
+        int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
+        int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
+        int ldak = BLKLDD( descA, k );
 
-  void *p_elem_A = dague_private_memory_pop( p_tau  );
-  void *p_elem_B = dague_private_memory_pop( p_work );
+        void *p_elem_A = dague_private_memory_pop( p_tau  );
+        void *p_elem_B = dague_private_memory_pop( p_work );
 
-  CORE_zgeqrt(tempkm, tempkn, ib,
-        A /* A(k,k) */, ldak, B /* T(k,k) */,
-        descT.mb, p_elem_A, p_elem_B );
+        CORE_zgeqrt(tempkm, tempkn, ib,
+                    A /* A(k,k) */, ldak,
+                    B /* T(k,k) */, descT.mb,
+                    p_elem_A, p_elem_B );
 
-  dague_private_memory_push( p_tau , p_elem_A );
-  dague_private_memory_push( p_work, p_elem_B );
+        dague_private_memory_push( p_tau , p_elem_A );
+        dague_private_memory_push( p_work, p_elem_B );
+           )
 
-  printlog("thread %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, k, k, A, k, k, B);
+    printlog("thread %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+             context->eu_id, k, k, k, A, k, k, B);
 
 END
 
@@ -136,10 +139,11 @@ BODY
          int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
          int ldak = BLKLDD( descA, k );
 
-         CORE_zunmqr(PlasmaLeft, PlasmaConjTrans, tempkm,
-                     tempnn, tempkm, ib,
-                     C /* A(k,k) */, ldak, D /* T(k,k) */,
-                     descT.mb, E /* A(k,n) */, ldak,
+         CORE_zunmqr(PlasmaLeft, PlasmaConjTrans,
+                     tempkm, tempnn, tempkm, ib,
+                     C /* A(k,k) */, ldak,
+                     D /* T(k,k) */, descT.mb,
+                     E /* A(k,n) */, ldak,
                      p_elem_A, descT.nb );
          );
   dague_private_memory_push( p_work, p_elem_A );
@@ -298,8 +302,8 @@ BODY
 
   p_elem_A = dague_private_memory_pop( p_work );
   DRYRUN(
-         CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans, descA.mb,
-                     tempnn, tempmm, tempnn, descA.nb, ib,
+         CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans,
+                     descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
                      J /* A(k,n1) */, ldak,
                      K /* A(m,n1) */, ldam,
                      L /* A(m,k) */,  ldam,

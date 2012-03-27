@@ -130,7 +130,7 @@ int main(int argc, char ** argv)
     dague_data_free(ddescL.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescL);
 
-    return EXIT_SUCCESS;
+    return ret;
 }
 
 

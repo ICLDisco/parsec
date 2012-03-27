@@ -86,6 +86,7 @@ dague_scheduler_t sched_global_dequeue = {
 
 /*********************************************************************/
 /****************** Local Queues (flat & hier) ***********************/
+/****************** and Priority-Based Queues  ***********************/
 /*********************************************************************/
 
 typedef struct { 
@@ -320,6 +321,12 @@ static int schedule_local_queues( dague_execution_unit_t* eu_context,
     return 0;
 }
 
+static int schedule_local_queues_by_priority( dague_execution_unit_t* eu_context,
+                                              dague_execution_context_t* new_context )
+{
+    dague_hbbuffer_push_all_by_priority( LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)new_context);
+    return 0;
+}
 
 static void finalize_local_hier_queues( dague_context_t *master )
 {
@@ -400,6 +407,13 @@ dague_scheduler_t sched_local_hier_queues = {
 };
 
 
+dague_scheduler_t sched_priority_based_queues = {
+    .init = init_local_flat_queues,
+    .schedule_task = schedule_local_queues_by_priority,
+    .select_task = choose_job_local_queues,
+    .display_stats = NULL,
+    .finalize = finalize_local_flat_queues
+};
 
 /*********************************************************************/
 /********************* Absolute Priorities ***************************/
@@ -466,5 +480,6 @@ dague_scheduler_t *dague_schedulers_array[NB_DAGUE_SCHEDULERS] =
         &sched_local_flat_queues,
         &sched_global_dequeue,
         &sched_local_hier_queues,
-        &sched_absolute_priorities
+        &sched_absolute_priorities,
+        &sched_priority_based_queues
     };

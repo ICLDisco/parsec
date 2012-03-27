@@ -1224,7 +1224,7 @@ int gpu_mark_data_usage( dague_gpu_data_map_t* gpu_map,
     memory_elem_t* this_elem;
 
     if( (NULL == gpu_map) || (NULL == gpu_map->data_map) ||
-        (NULL == (this_elem = gpu_map->data_map[col * gpu_map->tiled_matrix->lnt + row])) ) {
+        (NULL == (this_elem = gpu_map->data_map[col * gpu_map->tiled_matrix->lmt + row])) ) {
         /* Data not on the GPU. Nothing to do */
         return 0;
     }
@@ -1246,7 +1246,7 @@ int gpu_data_tile_write_owner( dague_gpu_data_map_t* gpu_map,
     int i;
 
     if( (NULL == gpu_map) || (NULL == gpu_map->data_map) ||
-        (NULL == (this_elem = gpu_map->data_map[col * gpu_map->tiled_matrix->lnt + row])) ) {
+        (NULL == (this_elem = gpu_map->data_map[col * gpu_map->tiled_matrix->lmt + row])) ) {
         return -1;
     }
     for( i = 0; i < ndevices; i++ ) {
@@ -1269,7 +1269,7 @@ int gpu_data_get_tile( dague_gpu_data_map_t* gpu_map,
     if( (NULL == gpu_map) || (NULL == gpu_map->data_map) )
         return -1;
 
-    where_from = &(gpu_map->data_map[col * gpu_map->tiled_matrix->lnt + row]);
+    where_from = &(gpu_map->data_map[col * gpu_map->tiled_matrix->lmt + row]);
     if( NULL == (this_elem = *where_from) ) {
         this_elem = (memory_elem_t*)calloc(1, sizeof(memory_elem_t) + (ndevices-1) * sizeof(gpu_elem_t*));
         this_elem->col = col;
