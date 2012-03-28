@@ -67,10 +67,24 @@ typedef struct {
     uint64_t        start;
     uint64_t        end;
     int             key;
+    const dbp_thread_t   *start_thread;
+    const dbp_thread_t   *end_thread;
     size_t          start_info_size;
     size_t          end_info_size;
     char            infos[1];
 } consolidated_event_t;
+
+static char *getThreadContainerIdentifier( const char *prefix, const char *identifier )
+{
+    const char *r = identifier + strlen(identifier) - 1;
+    char *ret;
+
+    while( *r != ' ' )
+        r--;
+
+    asprintf( &ret, "%sT%s", prefix, r+1);
+    return ret;
+}
 
 static int merge_event( dague_list_t *list, consolidated_event_t *cev )
 {
@@ -84,8 +98,9 @@ static int merge_event( dague_list_t *list, consolidated_event_t *cev )
          it = DAGUE_LIST_ITERATOR_NEXT(it) ) {
         lev = (consolidated_event_t*)it;
         if( lev->start >= cev->start ) {
-            if( (cev->end > lev->start) ||
-                ((prev != NULL) && (cev->start < prev->end) ) ) {
+            if( ((cev->end > lev->start) ||
+                ((prev != NULL) && (cev->start < prev->end) )) &&
+                (cev->start_thread == cev->end_thread) ) {
                 broken = 1;
             }
             dague_list_nolock_add_before( list,
@@ -95,27 +110,65 @@ static int merge_event( dague_list_t *list, consolidated_event_t *cev )
         }
         prev = lev;
     }
-    if( (prev != NULL) && (cev->start < prev->end) ) {
+    if( (prev != NULL) && (cev->start < prev->end) &&
+        (cev->start_thread == cev->end_thread) ) {
         broken = 1;
     }
     dague_list_nolock_push_back( list, (dague_list_item_t*)cev );
     return broken;
 }
 
+static uint64_t *step_height(dague_list_t *list, int *level)
+{
+    dague_list_item_t *e;
+    consolidated_event_t *cev;
+    int nb_steps = 0, s;
+    uint64_t *dates = NULL;
+    
+    for( e = DAGUE_LIST_ITERATOR_FIRST(list);
+         e != DAGUE_LIST_ITERATOR_END(list);
+         e = DAGUE_LIST_ITERATOR_NEXT(e) ) {
+        cev = (consolidated_event_t*)e;
+        if( cev->start_thread == cev->end_thread ) {
+            for(s = 0; s < nb_steps; s++) {
+                if( dates[s] <= cev->start ) {
+                    dates[s] = cev->end;
+                    break;
+                }
+            }
+            if (s == nb_steps) {
+                nb_steps++;
+                dates = (uint64_t*)realloc(dates, nb_steps * sizeof(uint64_t));
+                dates[s] = cev->end;
+            }
+        }
+    }
+    memset(dates, 0, nb_steps * sizeof(uint64_t));
+    *level = nb_steps;
+    return dates;
+}
+
 static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                           const dbp_thread_t *th,
-                          char *cont_thread_name )
+                          const char *cont_mpi_name,
+                          const char *cont_thread_name )
 {
     unsigned int key, broken = 0;
     uint64_t start, end;
+    int s;
     char keyid[64];
     dbp_event_iterator_t *pit, *nit;
     dague_list_t consolidated_events;
     consolidated_event_t *cev;
     static int linkuid = 0;
     char linkid[64];
+    char cont_step_name[64];
     dague_time_t relative;
     const dbp_event_t *e, *g;
+    char *cont_src;
+    char *cont_dst;
+    uint64_t *steps_end_dates;
+    int nb_steps;
 
     relative = dbp_reader_min_date(dbp);
 
@@ -154,6 +207,8 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                 cev->id = dbp_event_get_id(e);
                 cev->start = start;
                 cev->end = end;
+                cev->start_thread = dbp_iterator_thread(pit);
+                cev->end_thread = dbp_iterator_thread(nit);
                 cev->key = key;
                 cev->start_info_size = dbp_event_info_len(e, dbp);
                 cev->end_info_size = dbp_event_info_len(g, dbp);
@@ -168,35 +223,47 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     }
     dbp_iterator_delete(pit);
 
+    if( broken ) {
+        steps_end_dates = step_height(&consolidated_events, &nb_steps);
+    } else {
+        nb_steps = 1;
+        steps_end_dates = (uint64_t*)calloc(1, sizeof(uint64_t));
+    }
+    for(s = 0; s < nb_steps; s++) {
+        sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
+        addContainer(0.00000, cont_step_name, "CT_S", cont_thread_name, " ", "");
+    }
+
     while( NULL != (cev = (consolidated_event_t*)dague_list_nolock_pop_front( &consolidated_events ) ) ) {
         sprintf(keyid, "K-%d", cev->key);
-        if( !broken ) {
-            pajeSetState2( ((double)cev->start) * 1e-3, "ST_TS", cont_thread_name, keyid );
-            pajeSetState2( ((double)cev->end) * 1e-3, "ST_TS", cont_thread_name, "Wait");
+        if( cev->start_thread == cev->end_thread ) {
+            for(s = 0; s < nb_steps; s++) {
+                if( steps_end_dates[s] <= cev->start ) {
+                    steps_end_dates[s] = cev->end;
+                    break;
+                }
+            }
+            assert( s < nb_steps );
+            sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
+            pajeSetState2( ((double)cev->start) * 1e-3, "ST_TS", cont_step_name, keyid );
+            pajeSetState2( ((double)cev->end) * 1e-3, "ST_TS", cont_step_name, "Wait");
         } else {
             sprintf(linkid, "L-%d", linkuid);
             linkuid++;
-            startLink( ((double)cev->start) * 1e-3, "LT_TL", cont_thread_name, cont_thread_name, cont_thread_name, keyid, linkid);
-            endLink( ((double)cev->end) * 1e-3, "LT_TL", cont_thread_name, cont_thread_name, cont_thread_name, keyid, linkid);
+            cont_src = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(cev->start_thread) );
+            cont_dst = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(cev->end_thread) );
+            startLink( ((double)cev->start) * 1e-3, "LT_TL", cont_mpi_name, cont_src, cont_dst, keyid, linkid);
+            endLink( ((double)cev->end) * 1e-3, "LT_TL", cont_mpi_name, cont_src, cont_dst, keyid, linkid);
+            free(cont_src);
+            free(cont_dst);
         }
-
         free(cev);
     }
+
+    free(steps_end_dates);
     dague_list_destruct( &consolidated_events );
     
     return 0;
-}
-
-static char *getThreadContainerIdentifier( const char *prefix, const char *identifier )
-{
-    const char *r = identifier + strlen(identifier) - 1;
-    char *ret;
-
-    while( *r != ' ' )
-        r--;
-
-    asprintf( &ret, "%sT%s", prefix, r+1);
-    return ret;
 }
 
 static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_reader_t *dbp )
@@ -218,7 +285,8 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
     addContType ("CT_Appli", "0", "Application");
     addContType ("CT_P", "CT_Appli", "Process");
     addContType ("CT_T", "CT_P", "Thread");
-    addStateType ("ST_TS", "CT_T", "Thread State");
+    addContType ("CT_S", "CT_T", "State");
+    addStateType ("ST_TS", "CT_S", "Thread State");
     addLinkType ("LT_TL", "Split Event Link", "CT_P", "CT_T", "CT_T");
 
     addEntityValue ("Wait", "ST_TS", "Waiting", GTG_LIGHTGREY);
@@ -259,13 +327,11 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
 
         sprintf(name, "MPI-%d", dbp_file_get_rank(file));
         sprintf(cont_mpi_name, "MPI-%d", dbp_file_get_rank(file));
-        addContainer (0.00000, cont_mpi_name, "CT_P", "Appli", name, cont_mpi_name);
-        
+        addContainer (0.00000, cont_mpi_name, "CT_P", "Appli", name, "");
         for(t = 0; t < dbp_file_nb_threads(file); t++) {
             th = dbp_file_get_thread(file, t);
 
             cont_thread_name = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(th) );
-
             {
                 int l;
                 l = 3 + snprintf(NULL, 0, "#  %s", cont_thread_name);
@@ -275,10 +341,19 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
                 dico_stat[ifd][t].name = strdup(cont_thread_name);
                 current_stat = dico_stat[ifd][t].stats;
             }
+            addContainer (0.00000, cont_thread_name, "CT_T", cont_mpi_name, dbp_thread_get_hr_id(th), "");
+        }
+    }
 
-            addContainer (0.00000, cont_thread_name, "CT_T", cont_mpi_name, dbp_thread_get_hr_id(th), cont_thread_name);
+    for(ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
+        file = dbp_reader_get_file(dbp, ifd);
 
-            dump_one_paje(dbp, th, cont_thread_name);
+        sprintf(name, "MPI-%d", dbp_file_get_rank(file));
+        sprintf(cont_mpi_name, "MPI-%d", dbp_file_get_rank(file));
+        for(t = 0; t < dbp_file_nb_threads(file); t++) {
+            th = dbp_file_get_thread(file, t);
+            cont_thread_name = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(th) );
+            dump_one_paje(dbp, th, cont_mpi_name, cont_thread_name);
         }
     }
 
