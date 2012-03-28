@@ -12,6 +12,7 @@
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include <lapacke.h>
 
 #include "zgerfs.h"
 
@@ -83,16 +84,16 @@ int dplasma_zgerfs( dague_context_t     *dague,
 
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         ddescR, two_dim_block_cyclic,
-        (&ddescR, matrix_RealDouble, matrix_Tile, ddescB->super.nodes, ddescB->super.cores, ddescB->super.myrank,
-         1, 1, ddescB->mt, ddescB->nt, 0, 0, ddescB->mt, ddescB->nt,
+        (&ddescR, matrix_ComplexDouble, matrix_Tile, ddescB->super.nodes, ddescB->super.cores, ddescB->super.myrank,
+         ddescB->mb, ddescB->nb, ddescB->mt, ddescB->nt, 0, 0, ddescB->m, ddescB->n,
          ((two_dim_block_cyclic_t*)ddescB)->grid.strows,
          ((two_dim_block_cyclic_t*)ddescB)->grid.stcols,
          ((two_dim_block_cyclic_t*)ddescB)->grid.rows));
 
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         ddescZ, two_dim_block_cyclic,
-        (&ddescZ, matrix_RealDouble, matrix_Tile, ddescB->super.nodes, ddescB->super.cores, ddescB->super.myrank,
-         1, 1, ddescB->mt, ddescB->nt, 0, 0, ddescB->mt, ddescB->nt,
+        (&ddescZ, matrix_ComplexDouble, matrix_Tile, ddescB->super.nodes, ddescB->super.cores, ddescB->super.myrank,
+         ddescB->mb, ddescB->nb, ddescB->mt, ddescB->nt, 0, 0, ddescB->m, ddescB->n,
          ((two_dim_block_cyclic_t*)ddescB)->grid.strows,
          ((two_dim_block_cyclic_t*)ddescB)->grid.stcols,
          ((two_dim_block_cyclic_t*)ddescB)->grid.rows));

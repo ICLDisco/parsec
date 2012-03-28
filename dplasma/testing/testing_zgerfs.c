@@ -74,7 +74,7 @@ int main(int argc, char ** argv)
     double Anorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescA);
     criteria = eps * Anorm;
 
-    ((Dague_Complex64_t *) ddescA.mat)[0] = criteria*0.1;
+    /* ((Dague_Complex64_t *) ddescA.mat)[0] = criteria*0.1; */
     /* ((Dague_Complex64_t *) ddescA.mat)[1] = eps; */
     /* ((Dague_Complex64_t *) ddescA.mat)[((tiled_matrix_desc_t *)&ddescA)->mb+1] = eps; */
 
@@ -113,9 +113,6 @@ int main(int argc, char ** argv)
         for(i = 0; i < (descX->lmt*descX->mb); i++ )
             for(j = 0; j < (descX->lnt*descX->nb); j++)
                 tab[j*(descX->lmt*descX->mb)+i] = (Dague_Complex64_t) 0.;
-
-        double Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescX);
-        printf("lmt=%d, lnt=%d, m=%d, n=%d, Xnorm=%e\n",descX->lmt,descX->lnt,descX->m,descX->n,Xnorm);
     }
 
     dplasma_zgerfs(dague,
