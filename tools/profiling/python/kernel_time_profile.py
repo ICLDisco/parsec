@@ -5,10 +5,13 @@ import subprocess
 import re
 from shutil import move, copy
 import profile2dat
+import process_profile
+from random import randint
+import math
 
 class Trial(object):
-    def __init__(self, gflops, runtime):
-        self.gflops = gflops
+   def __init__(self, gflops, runtime):
+	self.gflops = gflops
         self.time = runtime
 
 class TrialSet(list):
@@ -19,8 +22,9 @@ class TrialSet(list):
         self.IB = IB
         self.name = name
         self.avgGflops = 0.0
-        self.stddev = 0.0
+        self.Gstddev = 0.0
         self.avgTime = 0.0
+        self.Tstddev = 0.0
         self.sched = sched
     def genCmd(self):
         cmd = 'testing_' + self.name
@@ -40,21 +44,21 @@ class TrialSet(list):
             args.append(str(self.IB))
         return cmd, args
     def __str__(self):
-        return ("set name %s, size %d, cores %d, NB %d, IB %d, average gflops: %f, avg time: %f" %
-                (self.name, self.matrixSize,
-                 self.numCores, self.NB, self.IB, self.avgGflops, self.avgTime))
+        return ("%s %s %d cores %d NB %d IB %d gflops(avg/stddev): %f %f time(avg/stddev): %f %f" %
+                (self.name, self.sched, self.matrixSize,
+                 self.numCores, self.NB, self.IB, self.avgGflops, self.Gstddev, self.avgTime, self.Tstddev))
 
 if __name__ == '__main__':
-   matrixSizes = [21600] #3600, 5400, 7200, 9000, 10800, 12600, 14400, 16200, 18000, 19800, 21600]
+   matrixSizes = [3600, 9000, 14400, 21600, 27000, 31500]
    minNumCores = 0 # default to using them all
    maxNumCores = 0
    NBs = [180] # use default
    IBdivs = [1]
-   numTrials = 2
+   numTrials = 10
    names = [ 'dpotrf']
    testingDir = 'dplasma/testing/'
    outputBaseDir = '/mnt/scratch/pgaultne/' # = testingDir
-   scheduler = 'LFQ'
+   schedulers = ['LTQ', 'LFQ']
 
    pattern = re.compile("### TIMED\s(\d+\.\d+)\s+s.+?NB=\s+(\d+).+?(\d+\.\d+)\s+gflops$")
 
@@ -62,50 +66,59 @@ if __name__ == '__main__':
    # per actual testing script
    for name in names:
       for matrixSize in matrixSizes:
-         sys.stderr.write("%s %d\n" % (name, matrixSize))
+         sys.stderr.write("%s %d\n" % (name, matrixSize))   
          for numCores in range(minNumCores,maxNumCores + 1):
             for NB in NBs:
-                for IBdiv in IBdivs:
-                    IB = NB / IBdiv
-                    set = TrialSet(name, matrixSize, numCores, NB, IB, scheduler)
-                    outputDir = outputBaseDir + str(matrixSize) + os.sep
-                    if not os.path.isdir(outputDir):
+               for IBdiv in IBdivs:
+                  IB = NB / IBdiv
+                  for scheduler in schedulers:
+                     schedDir = outputBaseDir + scheduler + os.sep
+                     if not os.path.isdir(schedDir):
+                        os.mkdir(schedDir)
+                     set = TrialSet(name, matrixSize, numCores, NB, IB, scheduler)
+                     outputDir = schedDir + str(matrixSize) + os.sep
+                     if not os.path.isdir(outputDir):
                         os.mkdir(outputDir)
-                    for trialNum in range(0, numTrials):
-                        print("%s for %dx%d matrix on %d cores, NB = %d, IB = %d; sched = %s trial #%d" %
-                              (name, matrixSize, matrixSize, numCores, NB, IB, set.sched, trialNum))
-                        cmd, args = set.genCmd()
-                        proc = subprocess.Popen([testingDir + cmd] + args,
-                                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        (stdout, stderr) = proc.communicate()
-                        if len(stderr) != 0:
-                            print("AN ERROR OCCURRED")
-                            print(stderr)
-                        else:
-                            match = pattern.match(stdout)
-                            if match:
-                                set.NB = int(match.group(2))
-                                gflops = float(match.group(3))
-                                time = float(match.group(1))
-                                print("gflops: %f time: %f NB:%d" % (gflops, time, set.NB))
-                                trialObj = Trial(gflops, time)
-                                set.append(trialObj)
-                            else:
-                                print("results not properly parsed: %s" % stdout)
-                            # move profiling file to unique name
-                            profile2dat.profile2dat(testingDir + 'testing_' + set.name + '.profile',
-                                 outputDir + set.name + '.' + str(set.matrixSize) + '.' +
-                                 str(trialNum) + '.profile', unlinkAfterProcessing = True)
-                    totalGflops = 0.0
-                    totalTime = 0.0
-                    for item in set:
-                        totalGflops += item.gflops
-                        totalTime += item.time
-                    set.avgGflops = totalGflops / len(set)
-                    set.avgTime = totalTime / len(set)
-                    trialSets.append(set)
-                    print set # early progress report
+                     for trialNum in range(0, numTrials):
+                         print("%s for %dx%d matrix on %d cores, NB = %d, IB = %d; sched = %s trial #%d" %
+                               (name, matrixSize, matrixSize, numCores, NB, IB, set.sched, trialNum))
+                         cmd, args = set.genCmd()
+                         proc = subprocess.Popen([testingDir + cmd] + args,
+                                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                         (stdout, stderr) = proc.communicate()
+                         if len(stderr) != 0:
+                             marker = randint(0, 99999)
+                             print("AN ERROR OCCURRED %d" % marker)
+                             sys.stderr.write(str(marker) + ':\n' + stderr + '\n')
+                         match = pattern.match(stdout)
+                         if match:
+                             set.NB = int(match.group(2))
+                             gflops = float(match.group(3))
+                             time = float(match.group(1))
+                             print("gflops: %f time: %f NB:%d" % (gflops, time, set.NB))
+                             trialObj = Trial(gflops, time)
+                             set.append(trialObj)
+                         else:
+                             sys.stderr.write("results not properly parsed: %s\n" % stdout)
+                         # move profiling file to unique name
+                         profile2dat.profiles2dat(testingDir, 
+                                                  outputDirectory = outputDir,
+                                                  filePrefix = 'testing_' + set.name, 
+                                                  outputTag = 't' + str(trialNum),
+                                                  unlink = True)
+                     gflopsSet = []
+                     timeSet = []
+                     for trial in set:
+                         timeSet.append(trial.time)
+                         gflopsSet.append(trial.gflops)
+                     set.Gstddev, set.avgGflops = process_profile.online_variance_mean(gflopsSet)
+                     set.Tstddev, set.avgTime = process_profile.online_variance_mean(timeSet)
+                     set.Gstddev = math.sqrt(set.Gstddev)
+                     set.Tstddev = math.sqrt(set.Tstddev)
+                     trialSets.append(set)
+                     print set # early progress report
 
+   print '\n\nfinal results:\n'
    for trialSet in trialSets:
        print trialSet
    print 'done'

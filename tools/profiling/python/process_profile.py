@@ -19,15 +19,21 @@ class dataSet(list):
 # Welford's variance algorithm, via Knuth, via Wikipedia
 def online_variance_mean(data):  
     n = 0
-    mean = 0
-    M2 = 0
+    mean = 0.0
+    M2 = 0.0
+    variance = 0.0
     for x in data:
         n = n + 1
         delta = x - mean
         mean = mean + delta/n
         M2 = M2 + delta*(x - mean)  # This expression uses the new value of mean
-    variance_n = M2/n
-    variance = M2/(n - 1)
+    if n > 0:
+        variance_n = M2/n
+	variance = M2/(n - 1)
+    else:
+        print ("empty data set")
+        from traceback import print_tb
+        print_tb(sys.last_traceback)
     return variance, mean
 
 def online_mean(data):
@@ -72,12 +78,12 @@ def processColumnarData(string, regex, sort=True):
             print str(i) + '\t' + str(set[i])
 
 if __name__ == '__main__':
-    sort = False
+    sort = True
     if len(sys.argv) > 2 and sys.argv[2].startswith('s'):
         sort = True
     if os.path.isdir(sys.argv[1]):
         print 'isDIR!'
-        profiles = glob.glob(sys.argv[1] + '/' + 'dpotrf*.dat')
+        profiles = glob.glob(sys.argv[1] + '/' + '*.dat')
         stdoutOrig = sys.stdout
         for profile in profiles:
             print profile

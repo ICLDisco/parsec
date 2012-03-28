@@ -23,17 +23,17 @@ def profile2dat(profileFile, outputFile, executable = defaultExecutable, unlinkA
         print('unlinked ' + profileFile)
 
 # assumes suffix of .profile, and uses filename minus .profile plus .dat as output filename
-def profiles2dat(directory, outputDirectory = None, executable = defaultExecutable, unlink = False):
+def profiles2dat(directory, outputDirectory = None, filePrefix = '', outputTag = '', executable = defaultExecutable, unlink = False):
     if outputDirectory is None:
         outputDirectory = directory
-    globThing = directory + '/' + '*.profile'
+    globThing = directory + '/' + filePrefix + '*.profile'
     profiles = glob.glob(globThing)
 
     for profile in profiles:
         basename = os.path.basename(profile)
         basename = basename[:basename.rfind('.profile')]
         profile2dat(profile, outputDirectory + '/' + 
-                    basename + '.dat', 
+                    basename + outputTag + '.dat', 
                     executable, unlink)
 
 if __name__ == '__main__':

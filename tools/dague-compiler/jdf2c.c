@@ -1550,6 +1550,8 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
 }
 
 // PETER this is of interest with regard to tasks generated outside of release_dep_fct
+// This needs to be fixed - it will stop the segfault
+// at the very least, we should be adding an empty string
 static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
     string_arena_t *sa1, *sa2;
