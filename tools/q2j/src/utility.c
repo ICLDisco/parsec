@@ -2110,12 +2110,6 @@ char *quark_tree_to_body(node_t *node){
 
                         // Add the definition into the list, so we don't emmit it again.
                         mark_definition_as_seen(&var_def_list, param);
-/*
-                        var_def_item_t *new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
-                        new_list_item->var = param;
-                        new_list_item->def = tmp;
-                        dague_ulist_lifo_push( &var_def_list, (dague_list_item_t *)new_list_item );
-*/
                     }
                 }
                 kernel_call = append_to_string( kernel_call, param, NULL, 0);
