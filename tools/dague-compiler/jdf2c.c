@@ -1535,6 +1535,9 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
     return (0 == already_added) ? NULL : string_arena_get_string(sa);
 }
 
+// PETER this is of interest with regard to tasks generated outside of release_dep_fct
+// This needs to be fixed - it will stop the segfault
+// at the very least, we should be adding an empty string
 static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
     string_arena_t *sa1, *sa2;
@@ -1625,6 +1628,11 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     } else {
         coutput("%s  new_context->priority = 0;\n", indent(nesting));
     }
+
+    // PETER insert data locality info
+    coutput("%s  new_context->flowname = \"%s\";\n",
+	    indent(nesting), f->dataflow->varname);
+
     {
         struct jdf_dataflow *dataflow = f->dataflow;
         for(idx = 0; NULL != dataflow; idx++, dataflow = dataflow->next ) {
@@ -1642,7 +1650,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
 
     coutput("%s  dague_list_add_single_elem_by_priority( pready_list, new_context );\n", indent(nesting));
-
+	 // PETER this does eventually pass through dague_schedule
     coutput("%s  new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->execution_units[0]->context_mempool );\n"
             "%s  assignments = new_context->locals;\n",
             indent(nesting),
@@ -3237,6 +3245,11 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     free(p);
     linfo.prefix = NULL;
 
+    // PETER locality insertion
+    string_arena_add_string(sa_open,
+                            "%s%s  %s.flowname = \"%s\";\n",
+                            prefix, indent(nbopen), var, flow->varname);
+
     if( NULL != targetf->priority ) {
         string_arena_add_string(sa_open,
                                 "%s%s  %s.priority = priority_of_%s_%s_as_expr_fct(this_task->dague_object, nc.locals);\n",
@@ -3407,7 +3420,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                                                             "      ", "nc"));
 
                         depnb++;
-                        string_arena_init(sa);
+                        string_arena_init(sa);      // PETER add fl->varname to here
                         string_arena_add_string(sa, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, arena, __nb_elt, ontask_arg)",
                                                 flownb, depnb);
 
@@ -3603,7 +3616,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     jdf_generate_inline_c_functions(jdf);
     jdf_generate_hashfunctions(jdf);
     jdf_generate_predeclarations( jdf );
-    jdf_generate_functions_statics(jdf);
+    jdf_generate_functions_statics(jdf); // PETER generates startup tasks
     jdf_generate_startup_hook( jdf );
 
     /**
