@@ -60,11 +60,6 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescR, 1,
-        two_dim_block_cyclic, (&ddescR, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
-                               N, NRHS, SMB, SNB, P));
-
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1,
         two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
@@ -79,17 +74,14 @@ int main(int argc, char ** argv)
     double Anorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescA);
     criteria = eps * Anorm;
 
-    /* ((Dague_Complex64_t *) ddescA.mat)[0] = 0; */
-    /* ((Dague_Complex64_t *) ddescA.mat)[1] = 0; */
-    /* ((Dague_Complex64_t *) ddescA.mat)[((tiled_matrix_desc_t *)&ddescA)->mb+1] = 0; */
+    ((Dague_Complex64_t *) ddescA.mat)[0] = criteria*0.1;
+    /* ((Dague_Complex64_t *) ddescA.mat)[1] = eps; */
+    /* ((Dague_Complex64_t *) ddescA.mat)[((tiled_matrix_desc_t *)&ddescA)->mb+1] = eps; */
 
     dplasma_zlacpy( dague, PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescA,
                     (tiled_matrix_desc_t *)&ddescLU );
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
-    dplasma_zlacpy( dague, PlasmaUpperLower,
-                    (tiled_matrix_desc_t *)&ddescB,
-                    (tiled_matrix_desc_t *)&ddescX );
 
     if(loud > 2) printf("Done\n");
 
@@ -97,44 +89,86 @@ int main(int argc, char ** argv)
 
     /* Computing LU */
     nbpivot = dplasma_zgetrf_sp(dague,criteria,(tiled_matrix_desc_t *)&ddescLU);
-    printf("LU decomposition done with %d pivoting\n",nb_pivot);
+    printf("LU decomposition done with %d pivoting\n",nbpivot);
 
-    /* Computing first solution */
-    dplasma_ztrsm(dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
-                  1.0, (tiled_matrix_desc_t *)&ddescLU,
-                       (tiled_matrix_desc_t *)&ddescX);
-    dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit,
-                  1.0, (tiled_matrix_desc_t *)&ddescLU,
-                       (tiled_matrix_desc_t *)&ddescX);
-
-    /* Refinement */
-    int    nb_iter_ref = 0;
-    double Bnorm       = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescB);
-    double Xnorm, Rnorm;
-    int    m           = ((tiled_matrix_desc_t*) &ddescB)->m;
-    double result;
-    do
+    /* Initialize X */
+    int first_solution = 1;
+    if(first_solution)
     {
-        dplasma_zgerfs(dague,
-                       (tiled_matrix_desc_t*) &ddescA,
-                       (tiled_matrix_desc_t*) &ddescLU,
-                       (tiled_matrix_desc_t*) &ddescB,
-                       (tiled_matrix_desc_t*) &ddescR,
-                       (tiled_matrix_desc_t*) &ddescX);
-        Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescR);
-        Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescX);
+        dplasma_zlacpy( dague, PlasmaUpperLower,
+                        (tiled_matrix_desc_t *)&ddescB,
+                        (tiled_matrix_desc_t *)&ddescX );
+        dplasma_ztrsm(dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                      1.0, (tiled_matrix_desc_t *)&ddescLU,
+                      (tiled_matrix_desc_t *)&ddescX);
+        dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit,
+                      1.0, (tiled_matrix_desc_t *)&ddescLU,
+                      (tiled_matrix_desc_t *)&ddescX);
+    }
+    else /* Initialize X to null matrix */
+    {
+        tiled_matrix_desc_t *descX = (tiled_matrix_desc_t *)&ddescX;
+        Dague_Complex64_t   *tab   = (Dague_Complex64_t *) ddescX.mat;
+        int i,j;
+        for(i = 0; i < (descX->lmt*descX->mb); i++ )
+            for(j = 0; j < (descX->lnt*descX->nb); j++)
+                tab[j*(descX->lmt*descX->mb)+i] = (Dague_Complex64_t) 0.;
 
-        result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
+        double Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescX);
+        printf("lmt=%d, lnt=%d, m=%d, n=%d, Xnorm=%e\n",descX->lmt,descX->lnt,descX->m,descX->n,Xnorm);
+    }
 
-        nb_iter_ref++;
-        printf("Iter ref %d: ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n", nb_iter_ref,result);
-        printf( "-- ||A||_oo = %e, ||X||_oo = %e, ||B||_oo= %e, ||A X - B||_oo = %e\n",
-                Anorm, Xnorm, Bnorm, Rnorm );
+    dplasma_zgerfs(dague,
+                   (tiled_matrix_desc_t*) &ddescA,
+                   (tiled_matrix_desc_t*) &ddescLU,
+                   (tiled_matrix_desc_t*) &ddescB,
+                   (tiled_matrix_desc_t*) &ddescX);
+    if(check)
+    {
+        Dague_Complex64_t *A, *LU, *B, *X;
+        lapack_int ipiv[N];
+        int i;
+        for(i = 0; i < N; i++)
+            ipiv[i] = i+1;
+        double ferr[NRHS];
+        double berr[NRHS];
+
+        A = (Dague_Complex64_t *)malloc((ddescA.super.lm)*(ddescA.super.n)*sizeof(Dague_Complex64_t));
+        LU = (Dague_Complex64_t *)malloc((ddescLU.super.lm)*(ddescLU.super.n)*sizeof(Dague_Complex64_t));
+        B = (Dague_Complex64_t *)malloc((ddescB.super.lm)*(ddescB.super.n)*sizeof(Dague_Complex64_t));
+        X = (Dague_Complex64_t *)malloc((ddescX.super.lm)*(ddescX.super.n)*sizeof(Dague_Complex64_t));
+
+        twoDBC_ztolapack( &ddescA, A, LDA );
+        twoDBC_ztolapack( &ddescLU, LU, LDA );
+        twoDBC_ztolapack( &ddescB, B, LDB );
+        twoDBC_ztolapack( &ddescX, X, LDB );
+
+        int ret = LAPACKE_zgerfs( LAPACK_COL_MAJOR, 'N', N, NRHS, A, LDA, LU, LDA, ipiv, B, LDB, X, LDB, ferr, berr );
+        printf("The refinement is %s\n",ret?"bad":"good");
+
+        Dague_Complex64_t alpha =  -1.;
+        Dague_Complex64_t beta  = 1.;
+
+        cblas_zgemm(CblasColMajor,
+                    (CBLAS_TRANSPOSE)CblasNoTrans, (CBLAS_TRANSPOSE)CblasNoTrans,
+                    M, NRHS, M, CBLAS_SADDR(alpha), A, LDA, X, LDB,
+                    CBLAS_SADDR(beta), B, LDB);
+
+        double Bnorm       = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescB);
+        double Xnorm, Rnorm, Znorm;
+
+        double *work  = (double *)malloc(M* sizeof(double));
+        Xnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'm', M, NRHS, X, LDB, work);
+        Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'm', M, NRHS, B, LDB, work);
+
+        double result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * M * eps ) ;
+
+        if (  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 10.0) )
+            printf("-- Lapack solution is suspicious ! \n");
+        else
+            printf("-- Lapack solution is CORRECT ! \n");
 
     }
-    while(  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 1.) );
-
-    printf("Solution refined in %d iterations\n", nb_iter_ref );
 
     if(loud > 2) printf("Done.\n");
 
@@ -154,8 +188,6 @@ int main(int argc, char ** argv)
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescLU);
     dague_data_free(ddescB.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
-    dague_data_free(ddescR.mat);
-    dague_ddesc_destroy( (dague_ddesc_t*)&ddescR);
     dague_data_free(ddescX.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
     dague_data_free(ddescA.mat);
