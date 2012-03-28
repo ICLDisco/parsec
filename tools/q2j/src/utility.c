@@ -358,11 +358,14 @@ static char *numToSymName(int num){
 }
 
 
-// Turn "CORE_taskname_quark" into "taskname" wasting some memory in the process
-static char *quark_call_to_task_name( char *call_name, uint32_t lineno ){
+/*
+ * Turn "CORE_taskname_quark" into "taskname".  If lineno is non-negative
+ * the result is "taskname_lineno" (where lineno is the number, not the string).
+ */
+static char *quark_call_to_task_name( char *call_name, int32_t lineno ){
     char *task_name, *end;
     ptrdiff_t len;
-    uint32_t i, digits;
+    uint32_t i, digits=1;
 
     if( NULL != strstr(call_name, "CORE_") )
         call_name += 5;
@@ -374,19 +377,20 @@ static char *quark_call_to_task_name( char *call_name, uint32_t lineno ){
         len = strlen(call_name);
     }
 
-    digits = 0;
     for(i=lineno; i>0; i/=10){
         digits++;
     }
 
     task_name = (char *)calloc(len+digits+2, sizeof(char));
     snprintf(task_name, len+1, "%s", call_name);
-    snprintf(task_name+len, digits+2, "_%u",lineno);
+    if( lineno >= 0 ){
+        snprintf(task_name+len, digits+2, "_%d",lineno);
+    }
 
     return task_name;
 }
 
-static void quark_record_uses_defs_and_pools(node_t *node){
+static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
     static int symbolic_name_count = 0;
     int i;
     static int pool_initialized = 0;
@@ -409,7 +413,11 @@ static void quark_record_uses_defs_and_pools(node_t *node){
         // QUARK specific code. The task is the second parameter.
         if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
             task = (task_t *)calloc(1, sizeof(task_t));
-            task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), node->lineno );
+            if( mult_kernel_occ ){
+                task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), (int32_t)node->lineno );
+            }else{
+                task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), -1 );
+            }
             task->task_node = node;
             task->ind_vars = (char **)calloc(1+node->loop_depth, sizeof(char *));
             i=node->loop_depth-1;
@@ -447,11 +455,11 @@ static void quark_record_uses_defs_and_pools(node_t *node){
     if( BLOCK == node->type ){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
-            quark_record_uses_defs_and_pools(tmp);
+            quark_record_uses_defs_and_pools(tmp, mult_kernel_occ);
         }
     }else{
         for(i=0; i<node->u.kids.kid_count; ++i){
-            quark_record_uses_defs_and_pools(node->u.kids.kids[i]);
+            quark_record_uses_defs_and_pools(node->u.kids.kids[i], mult_kernel_occ);
         }
     }
 
@@ -516,8 +524,71 @@ static matrix_variable_t *quark_find_all_matrices(node_t *node){
     return matrix_variable_list_head;
 }
 
+/* 
+ * kernel_exists() uses the functions is_definition_seen() and mark_definition_as_seen()
+ * not because this code does anything with uses and definitions but as a 
+ * set::find() and set::insert() in C++ stl terminology.
+ */
+static inline int kernel_exists(char *task_name){
+    static int kernel_count_initialized = 0;
+    static dague_list_t kernel_name_list;
+
+    if ( !kernel_count_initialized ) {
+        dague_list_construct(&kernel_name_list);
+        kernel_count_initialized = 1;
+    }
+
+    if( is_definition_seen(&kernel_name_list, task_name) ){
+        return 1;
+    }
+    mark_definition_as_seen(&kernel_name_list, task_name);
+
+    return 0;
+}
+
+static inline int check_for_multiple_kernel_occurances(node_t *node){
+    int i;
+
+    if( FCALL == node->type ){
+        int kid_count;
+
+        if( strcmp("QUARK_Insert_Task", DA_kid(node,0)->u.var_name) ){
+            return 0;
+        }
+
+        kid_count = node->u.kids.kid_count;
+
+        // QUARK specific code. The task is the second parameter.
+        if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
+            char *task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), -1 );
+            if( kernel_exists(task_name) ){
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            if( check_for_multiple_kernel_occurances(tmp) ){
+                return 1;
+            }
+        }
+    }else{
+        for(i=0; i< DA_kid_count(node); ++i){
+            if( check_for_multiple_kernel_occurances( DA_kid(node,i) ) ){
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 void analyze_deps(node_t *node){
-    quark_record_uses_defs_and_pools(node);
+    int mult = check_for_multiple_kernel_occurances(node);
+    quark_record_uses_defs_and_pools(node, mult);
     //dump_all_unds();
     interrogate_omega(node, var_head);
 }

@@ -109,6 +109,8 @@ void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
     }
 }
 
+// PETER this is where we end up after the release_dep_fct is called and generates a
+// readylist. the new_context IS the readylist. 
 int __dague_schedule( dague_execution_unit_t* eu_context,
                       dague_execution_context_t* new_context )
 {
@@ -121,6 +123,8 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
         int set_parameters, i;
         char tmp[128];
 
+		  // PETER it seems like this while loop mostly verifies
+		  // that nothing is terrible wrong?
         do {
             for( i = set_parameters = 0; NULL != (flow = context->function->in[i]); i++ ) {
                 if( ACCESS_NONE == flow->access_type ) continue;
@@ -247,7 +251,9 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
         if( exec_context != NULL ) {
-            misses_in_a_row = 0;
+			  // DEBUG PETER
+			  assert(NULL != exec_context->function);
+			  misses_in_a_row = 0;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
             {
@@ -259,6 +265,10 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                 }
             }
 #endif
+
+				// MY MODS
+				TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
+				TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
 
             /* We're good to go ... */
             if( 0 == __dague_execute( eu_context, exec_context ) ) {
