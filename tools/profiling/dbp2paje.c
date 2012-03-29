@@ -218,8 +218,9 @@ static uint64_t *step_height(dague_list_t *list, int *level)
 {
     dague_list_item_t *e;
     consolidated_event_t *cev;
-    int nb_steps = 0, s;
-    uint64_t *dates = NULL;
+    int s, nb_steps = 0;
+    static int allocated_dates = 0;
+    static uint64_t *dates = NULL;
     
     for( e = DAGUE_LIST_ITERATOR_FIRST(list);
          e != DAGUE_LIST_ITERATOR_END(list);
@@ -234,7 +235,10 @@ static uint64_t *step_height(dague_list_t *list, int *level)
             }
             if (s == nb_steps) {
                 nb_steps++;
-                dates = (uint64_t*)realloc(dates, nb_steps * sizeof(uint64_t));
+                if( nb_steps > allocated_dates ) {
+                    allocated_dates = nb_steps;
+                    dates = (uint64_t*)realloc(dates, nb_steps * sizeof(uint64_t));
+                }
                 dates[s] = cev->end;
             }
         }
@@ -360,7 +364,6 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
         progress_bar_event_output();
     }
 
-    free(steps_end_dates);
     dague_list_destruct( &consolidated_events );
     
     return 0;
