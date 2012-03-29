@@ -66,12 +66,13 @@ struct dague_lifo_t {
 #define DAGUE_LIFO_PTR( v )       ( (dague_list_item_t *) ( (uintptr_t)(v) & DAGUE_LIFO_PTRMASK ) )
 #define DAGUE_LIFO_VAL( p, c)     ( (dague_list_item_t *) ( ((uintptr_t)DAGUE_LIFO_PTR(p)) | DAGUE_LIFO_CNT(c) ) )
 
-#define DAGUE_LIFO_ITEM_ALLOC( elt, truesize ) ({                        \
-        dague_list_item_t *_elt;                                        \
-        (void)posix_memalign( (void**)&_elt, DAGUE_LIFO_ALIGNMENT, (truesize) ); \
-        dague_list_item_construct(_elt);                                 \
-        (elt) = (__typeof__(elt))_elt;                                  \
-})
+#define DAGUE_LIFO_ITEM_ALLOC( elt, truesize ) ({                       \
+            dague_list_item_t *_elt;                                    \
+            int rc;                                                     \
+            rc = posix_memalign( (void**)&_elt, DAGUE_LIFO_ALIGNMENT, (truesize) ); \
+            dague_list_item_construct(_elt);                            \
+            (elt) = (__typeof__(elt))_elt;                              \
+        })
 #define DAGUE_LIFO_ITEM_FREE( elt ) free(elt)
 
 
