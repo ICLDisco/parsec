@@ -96,7 +96,7 @@ static void progress_bar_init(uint64_t nb_events, int nb_threads, int nb_files)
     gettimeofday(&start_run, NULL);
 }
 
-static void progress_bar_update(void)
+static void progress_bar_update(int force)
 {
     struct timeval now, diff;
     double delta;
@@ -106,29 +106,30 @@ static void progress_bar_update(void)
     timersub(&now, &last_display, &diff);
     delta = (double)diff.tv_sec + (double)diff.tv_usec / 1000000.0;
 
-    if( delta < 1.0 )
+    if( (delta < 1.0) && !force )
         return;
 
     timersub(&now, &start_run, &diff);
     delta = (double)diff.tv_sec + (double)diff.tv_usec / 1000000.0;
-    if( events_output > 0 ) {
-        sprintf(eta, "%gs", ((double)total_events-(double)events_output)*delta/(double)events_output);
+    if( events_read > 0 ) {
+        sprintf(eta, "%fs", ((double)total_events-(double)events_read)*delta/(double)events_read);
     } else {
         sprintf(eta, " -- ");
     }
     
     if( events_to_output > 0 ) {
-        sprintf(to_output, "%6.2g%%", (double)events_output*100.0/(double)events_to_output);
+        sprintf(to_output, "%4.1f%%", (double)events_output*100.0/(double)events_to_output);
     } else {
         sprintf(to_output, " -- ");
     }
 
-    fprintf(stderr, "\r%d/%d files done; %d/%d threads done; %6.2g%% events read (%s of those events have been output); ETA: %s             ", 
+    fprintf(stderr, "\r%d/%d files done; %d/%d threads done; %4.1f%% events read (%s of those events have been output); ETA: %s                        %s", 
             files_done, total_files,
             threads_done, total_threads,
             (double)events_read*100.0/(double)total_events,
             to_output,
-            eta);
+            eta,
+            force ? "\n" : "");
     fflush(stderr);
 
     gettimeofday(&last_display, NULL);
@@ -137,36 +138,36 @@ static void progress_bar_update(void)
 static void progress_bar_file_done(void)
 {
     files_done++;
-    progress_bar_update();
+    progress_bar_update(0);
 }
 
 static void progress_bar_thread_done(void)
 {
     threads_done++;
-    progress_bar_update();
+    progress_bar_update(0);
 }
 
 static void progress_bar_event_read(void)
 {
     events_read++;
-    progress_bar_update();
+    progress_bar_update(0);
 }
 
 static void progress_bar_event_to_output(void)
 {
     events_to_output++;
-    progress_bar_update();
+    progress_bar_update(0);
 }
 
 static void progress_bar_event_output(void)
 {
     events_output++;
-    progress_bar_update();
+    progress_bar_update(0);
 }
 
 static void progress_bar_end(void)
 {
-    fprintf(stderr, "\r                                                                                                 \n");  
+    progress_bar_update(1);
 }
 
 static char *getThreadContainerIdentifier( const char *prefix, const char *identifier )
@@ -482,7 +483,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    progress_bar_init(nb_events / 2, nb_threads, dbp_reader_nb_files(dbp));
+    progress_bar_init(nb_events, nb_threads, dbp_reader_nb_files(dbp));
 
     dico_stat = (thread_stat_t**)malloc(dbp_reader_nb_files(dbp) * sizeof(thread_stat_t*));
     for(i = 0; i < dbp_reader_nb_files(dbp); i++) {
