@@ -520,7 +520,6 @@ static int check_dictionnary(const dbp_multifile_reader_t *dbp, int fd, const da
     while( nb > 0 ) {
         a = (dague_profiling_key_buffer_t*)&dico->buffer[pos];
 
-        dbp->dico_keys[ dbp->dico_size - nb ].name = malloc( 64 );
         if( strncmp(dbp->dico_keys[ dbp->dico_size - nb ].name, a->name, 64) ) {
             fprintf(stderr, "Dictionary entry %d has a name of %s in the reference dictionary, and %s in the new file dictionary.\n",
                     dbp->dico_size - nb, dbp->dico_keys[ dbp->dico_size - nb ].name, a->name);
@@ -654,6 +653,7 @@ static int read_threads(dbp_multifile_reader_t *dbp, int n, int fd, const dague_
         
         nbthis--;
         nb--;
+        assert(nb >= 0);
         pos += sizeof(dague_profiling_thread_buffer_t) - sizeof(dague_profiling_info_buffer_t);
         pos += read_thread_infos( res, &dbp->files[n].threads[head->nb_threads-nb],
                                   br->nb_infos, (char*)br->infos );
