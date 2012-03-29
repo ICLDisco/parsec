@@ -29,6 +29,8 @@ int dplasma_ztrsm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_
                    const PLASMA_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 void dplasma_ztrsmpl( dague_context_t *dague, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *L,
                       const tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B);
+void dplasma_ztrsmpl_param( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, 
+                           tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
 int  dplasma_zsymm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum uplo,
                     const Dague_Complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
                     const double beta,  tiled_matrix_desc_t* C);
@@ -92,6 +94,8 @@ dague_object_t* dplasma_ztrsm_New( const PLASMA_enum side, const PLASMA_enum upl
                                    const PLASMA_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 dague_object_t* dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *L,
                                     const tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B);
+dague_object_t* dplasma_ztrsmpl_param_New( qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, 
+                                          tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
 dague_object_t* dplasma_zsymm_New( const PLASMA_enum side, const PLASMA_enum uplo,
                                    const Dague_Complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
                                    const double beta,  tiled_matrix_desc_t* C);
@@ -145,6 +149,7 @@ void dplasma_ztrdsm_Destruct( dague_object_t *o );
 void dplasma_ztrsm_Destruct( dague_object_t *o );
 void dplasma_ztrsmpl_Destruct( dague_object_t *o );
 void dplasma_ztrsmpl_sd_Destruct( dague_object_t *o );
+void dplasma_ztrsmpl_param_Destruct( dague_object_t *o );
 void dplasma_zsymm_Destruct( dague_object_t *o );
 
 void dplasma_zgelqf_Destruct( dague_object_t *o );

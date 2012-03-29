@@ -114,8 +114,12 @@ zgetrf_param(k, i)
   ; inline_c %{ return GETPRIO_PANEL(m, k); %}
 
 BODY
-
   int iinfo = 0;
+
+   printlog("\nBEGIN thread %d   CORE_zgetrf_incpiv(%d,%d)\n"
+            "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, IPIV(%d,%d)[%p]) => info = %d\n",
+            context->eu_id, k, i, m, k, A, m, k, P, k * descA.mb + iinfo);
+
   DRYRUN(
          int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
          int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
@@ -136,9 +140,9 @@ BODY
          }
          );
 
-   printlog("thread %d   CORE_zgetrf(%d)\n"
+   printlog("\nEN thread %d   CORE_zgetrf_incpiv(%d,%d)\n"
             "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, IPIV(%d,%d)[%p]) => info = %d\n",
-            context->eu_id, k, k, k, A, k, k, P, k * descA.mb + iinfo);
+            context->eu_id, k, i, m, k, A, m, k, P, k * descA.mb + iinfo);
 
 END
 
@@ -171,20 +175,25 @@ zgessm(k, i, n)
 
 BODY
 
+   printlog("\nBEGIN thread %d   CORE_zgessm(%d, %d, %d)\n"
+            "\t(tempkm, tempnn, tempkm, ib, IPIV(%d,%d)[%p], \n"
+            "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
+            context->eu_id, k, i, n, m, k, P, m, k, A, m, n, C);
+
   DRYRUN(
          int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
          int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
          int ldak   = BLKLDD( descA, k );
 
          CORE_zgessm(tempkm, tempnn, tempkm, ib,
-                     P /* IPIV(k,k) */,
-                     A /* A(k,k) */, ldak,
-                     C /* A(k,n) */, ldak );
+                     P /* IPIV(m,k) */,
+                     A /* A(m,k) */, ldak,
+                     C /* A(m,n) */, ldak );
          );
-   printlog("thread %d   CORE_zgessm(%d, %d)\n"
+   printlog("\nEN thread %d   CORE_zgessm(%d, %d, %d)\n"
             "\t(tempkm, tempnn, tempkm, ib, IPIV(%d,%d)[%p], \n"
             "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
-            context->eu_id, k, n, k, k, P, k, k, A, k, n, C);
+            context->eu_id, k, i, n, m, k, P, m, k, A, m, n, C);
 
 END
 
@@ -234,13 +243,18 @@ zttqrt(k, m)
   RW   L  <- LT(m, k)                                                                   [type = SMALL_L]
           -> LT(m, k)                                                                   [type = SMALL_L]
           -> (descA.nt-1 > k)? L zttmqr(k, m, (k+1)..(descA.nt-1))                      [type = SMALL_L]
-  RW   P  <-  ( type == 0 ) ? IPIV(m,k)                                                 [type = PIVOT]
+  RW   P  <- IPIV(m,k)                                                 [type = PIVOT]
           ->  ( type == 0 ) ? IPIV(m,k)                                                 [type = PIVOT]
           -> (( type == 0 ) && (descA.nt-1 > k) ) ? P zttmqr(k, m, (k+1)..(descA.nt-1)) [type = PIVOT]
 
  ; inline_c %{ return type == 0 ? GETPRIO_PANEL(p, k) : GETPRIO_PANEL(m, k); %}
 
 BODY
+
+  printlog("\nBEGIN thread %d CORE_zttqrt(%d, %d)\n"
+           "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)\n",
+           context->eu_id, k, m, p, k, A, m, k, C, m, k, L);
+
   DRYRUN(
       int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
       int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
@@ -284,9 +298,9 @@ BODY
   if ( ( ( nextp == descA.mt ) & (p == k) ) )
     ((PLASMA_Complex64_t*)H)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
-  printlog("thread %d CORE_zttqrt(%d, %d)\n"
+  printlog("\nEN thread %d CORE_zttqrt(%d, %d)\n"
            "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)\n",
-           context->eu_id, k, m, p, k, V, m, k, C, m, k, L);
+           context->eu_id, k, m, p, k, A, m, k, C, m, k, L);
 
 END
 
@@ -323,10 +337,10 @@ zttmqr(k, m, n)
 
   : A(m, n)
 
-  /* V  == A(m, k) */
+  /* H  == A(m, k) */
   /* T  == T(m, k) */
-  /* A1 == A(p, n) */
-  /* A2 == A(m, n) */
+  /* V == A(p, n) */
+  /* C == A(m, n) */
 
   RW   V  <- (   prevp == descA.mt ) ? C  zgessm( k, ip, n ) : V zttmqr(k, prevp, n )
           -> (   nextp != descA.mt ) ? V zttmqr( k, nextp, n)
@@ -344,10 +358,16 @@ zttmqr(k, m, n)
   READ  H <- C zttqrt(k, m)
   READ  L <- L zttqrt(k, m)                [type = SMALL_L]
   READ  P <- (type == 0 ) ? P zttqrt(k, m) [type = PIVOT]
-
+          <- (type != 0 ) ? IPIV(m,k)      [type = PIVOT]
     ; inline_c %{ return type == 0 ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
 
 BODY
+
+  printlog("\nBEGIN thread %d CORE_zttmqr(%d, %d, %d)\n"
+           "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
+           "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n",
+           context->eu_id, k, m, n, p, n, V, m, n, C, m, k, V, m, k, L);
+
   DRYRUN(
       int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
       int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
@@ -380,9 +400,9 @@ BODY
 
          );
 
-  printlog("thread %d CORE_zttmqr(%d, %d, %d)\n"
+  printlog("EN thread %d CORE_zttmqr(%d, %d, %d)\n"
            "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
            "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n",
-           context->eu_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
+           context->eu_id, k, m, n, p, n, V, m, n, C, m, k, V, m, k, L);
 
 END
