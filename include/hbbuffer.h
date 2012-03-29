@@ -111,7 +111,7 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
 {
     dague_list_item_t *topush = list;
     int i = 0, nbelt = 0;
-    dague_execution_context_t *candidate, *best_context;
+    dague_execution_context_t *candidate, *best_context = NULL;
     int item_prio, best_prio, best_index;
     dague_list_item_t *ejected = NULL;
     
