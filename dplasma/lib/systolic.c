@@ -106,8 +106,8 @@ int dplasma_qr_getm(       const qr_piv_t *arg, const int k, const int i   );
 int dplasma_qr_geti(       const qr_piv_t *arg, const int k, const int m   );
 int dplasma_qr_gettype(    const qr_piv_t *arg, const int k, const int m   );
 
-static void dplasma_qr_genperm   (       qr_piv_t *qrpiv );
-static int  dplasma_qr_getinvperm( const qr_piv_t *qrpiv, const int k, int m );
+/* static void dplasma_qr_genperm   (       qr_piv_t *qrpiv ); */
+/* static int  dplasma_qr_getinvperm( const qr_piv_t *qrpiv, const int k, int m ); */
 
 /*
  * Subtree for low-level
@@ -507,43 +507,43 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
  * Generate the permutation required for the round-robin on TS
  *
  ***************************************************/
-static void dplasma_qr_genperm( qr_piv_t *qrpiv )
-{
-    int m = qrpiv->desc->mt;
-    int n = qrpiv->desc->nt;
-    int minMN = min( m, n );
-    int i, j, k;
-    int *perm;
+/* static void dplasma_qr_genperm( qr_piv_t *qrpiv ) */
+/* { */
+/*     int m = qrpiv->desc->mt; */
+/*     int n = qrpiv->desc->nt; */
+/*     int minMN = min( m, n ); */
+/*     int i, j, k; */
+/*     int *perm; */
 
-    qrpiv->perm = (int*)malloc( (m+1) * minMN * sizeof(int) );
-    perm = qrpiv->perm;
-    for(k=0; k<minMN; k++) {
-        for( i=0; i<m+1; i++) {
-            perm[i] = i;
-        }
-        perm += m+1;
-    }
-}
+/*     qrpiv->perm = (int*)malloc( (m+1) * minMN * sizeof(int) ); */
+/*     perm = qrpiv->perm; */
+/*     for(k=0; k<minMN; k++) { */
+/*         for( i=0; i<m+1; i++) { */
+/*             perm[i] = i; */
+/*         } */
+/*         perm += m+1; */
+/*     } */
+/* } */
 
 
 
-int dplasma_qr_getinvperm( const qr_piv_t *qrpiv, int k, int m )
-{
-    int p  = qrpiv->p;
-    int pa = qrpiv->a * qrpiv->p;
-    int start = m / pa * pa;
-    int stop  = min( start + pa, qrpiv->desc->mt+1 ) - start;
-    int *perm = qrpiv->perm + (qrpiv->desc->mt+1)*k; /* + start;*/
-    int i;
+/* int dplasma_qr_getinvperm( const qr_piv_t *qrpiv, int k, int m ) */
+/* { */
+/*     int p  = qrpiv->p; */
+/*     int pa = qrpiv->a * qrpiv->p; */
+/*     int start = m / pa * pa; */
+/*     int stop  = min( start + pa, qrpiv->desc->mt+1 ) - start; */
+/*     int *perm = qrpiv->perm + (qrpiv->desc->mt+1)*k; /\* + start;*\/ */
+/*     int i; */
 
-    for ( i=0; i < qrpiv->desc->mt+1; i++ ) {
-        if( perm[i] == m )
-            return i;
-    }
+/*     for ( i=0; i < qrpiv->desc->mt+1; i++ ) { */
+/*         if( perm[i] == m ) */
+/*             return i; */
+/*     } */
 
-   /* We should never arrive here */
-    myassert( 0 );
-}
+/*    /\* We should never arrive here *\/ */
+/*     myassert( 0 ); */
+/* } */
 
 
 /****************************************************
@@ -561,8 +561,9 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A,
 
     p = max( p, 1 );
     int sq_p = sqrt(p);
+    (void)a; (void)domino; (void)tsrr;
 
-    myassert( p == sq_p * sq_p);
+    myassert( p == (sq_p * sq_p) );
 
     qrpiv->desc = A;
     qrpiv->a = 1;
@@ -605,7 +606,7 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A,
         }
     }
 
-     dplasma_qr_genperm( qrpiv );
+    /*dplasma_qr_genperm( qrpiv );*/
     return qrpiv;
 }
 
