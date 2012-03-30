@@ -32,7 +32,7 @@ set(JDF
   zpotrf_rl.jdf zpotrf_ll.jdf
   zpotrf_Url.jdf zpotrf_Lrl.jdf
   zgetrf_sp.jdf
-  zgerfs.jdf
+  zgerfs.jdf zgerfs_exp.jdf
   zgebut.jdf
   zhebut.jdf
   zgetrf.jdf zhetrf.jdf
