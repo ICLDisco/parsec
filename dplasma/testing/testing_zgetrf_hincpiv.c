@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -106,7 +106,7 @@ int main(int argc, char ** argv)
 
     /* Create DAGuE */
     if(loud > 2) printf("+++ Computing getrf_param ... ");
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_param,
+    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_hincpiv,
                               (qrpiv,
                                (tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescIPIV,
@@ -114,11 +114,10 @@ int main(int argc, char ** argv)
                                &info));
 
     /* lets rock! */
-    printf("\nLet's rock the factorisation!\n");
-    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_param);
-    dplasma_zgetrf_param_Destruct( DAGUE_zgetrf_param );
-    if(loud > 2) printf("Done.\n");
-    printf("\nFactorisation is done!\n");
+    if(loud > 2) printf("\nLet's rock the factorisation!\n");
+    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_hincpiv);
+    dplasma_zgetrf_hincpiv_Destruct( DAGUE_zgetrf_hincpiv );
+    if(loud > 2) printf("\nFactorisation is done!\n");
 
     if ( info != 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );
@@ -128,19 +127,20 @@ int main(int argc, char ** argv)
         /*
          * First check with a right hand side
          */
-		printf("\nLet's apply modifications to B for right hand side\n");
+        printf("\nFirst check with a right hand side.\n");
+		if(loud > 2) printf("\nLet's apply modifications to B for right hand side\n");
         dplasma_ztrsmpl_param( dague, qrpiv,
                               (tiled_matrix_desc_t *)&ddescA,
                               (tiled_matrix_desc_t *)&ddescX,
                               (tiled_matrix_desc_t *)&ddescIPIV,
                               (tiled_matrix_desc_t *)&ddescLT,
                               &info);
-		printf("\nB for right hand side is done!\n");
-		printf("\nLet's solve the triangular system for right hand side!\n");
+		if(loud > 2) printf("\nB for right hand side is done!\n");
+		if(loud > 2) printf("\nLet's solve the triangular system for right hand side!\n");
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                       (tiled_matrix_desc_t *)&ddescA,
                       (tiled_matrix_desc_t *)&ddescX);
-		printf("\nTriangular system for right hand side solved!\n");
+		if(loud > 2) printf("\nTriangular system for right hand side solved!\n");
 
         /* Check the solution */
         ret |= check_solution(dague, (rank == 0) ? loud : 0,
@@ -149,21 +149,22 @@ int main(int argc, char ** argv)
                               (tiled_matrix_desc_t *)&ddescX);
 
         /*
-         * First check with inverse
+         * Second check with inverse
          */
-		printf("\nLet's apply modifications to B for inverse\n");
+        printf("\nSecond check with inverse (right hand side is Identity).\n");
+		if(loud > 2) printf("\nLet's apply modifications to B for inverse\n");
         dplasma_ztrsmpl_param( dague, qrpiv,
                               (tiled_matrix_desc_t *)&ddescA,
                               (tiled_matrix_desc_t *)&ddescInvA,
                               (tiled_matrix_desc_t *)&ddescIPIV,
                               (tiled_matrix_desc_t *)&ddescLT,
                               &info);
-		printf("\nB for inverse is done!\n");
-		printf("\nLet's solve the triangular system for inverse!\n");
+		if(loud > 2) printf("\nB for inverse is done!\n");
+		if(loud > 2) printf("\nLet's solve the triangular system for inverse!\n");
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                       (tiled_matrix_desc_t *)&ddescA,
                       (tiled_matrix_desc_t *)&ddescInvA);
-		printf("\nTriangular system solved for inverse!\n");
+		if(loud > 2) printf("\nTriangular system solved for inverse!\n");
 
         /* Check the solution */
         ret |= check_inverse(dague, (rank == 0) ? loud : 0,
@@ -262,7 +263,7 @@ static int check_inverse( dague_context_t *dague, int loud,
     Anorm    = dplasma_zlange(dague, PlasmaMaxNorm, ddescA   );
     InvAnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescInvA);
 
-    /* Compute I - A*A-1 */
+    /* Compute I - A*A^{-1} */
     dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescInvA, 1.0, ddescI);
 
     Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescI);
@@ -273,10 +274,10 @@ static int check_inverse( dague_context_t *dague, int loud,
         printf("============\n");
         printf("Checking the Residual of the solution \n");
         if ( loud > 3 )
-            printf( "-- ||A||_oo = %e, ||A-1||_oo = %e, ||A A-1 - I||_oo = %e\n",
+            printf( "-- ||A||_oo = %e, ||A^{-1}||_oo = %e, ||A A^{-1} - I||_oo = %e\n",
                     Anorm, InvAnorm, Rnorm );
 
-        printf("-- ||AA^-1-I||_oo/((||A||_oo||A^-1||_oo).N.eps) = %e \n", result);
+        printf("-- ||AA^{-1}-I||_oo/((||A||_oo||A^{-1}||_oo).N.eps) = %e \n", result);
     }
 
     if (  isnan(Rnorm) || isinf(Rnorm) || isnan(result) || isinf(result) || (result > 60.0) ) {
