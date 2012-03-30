@@ -44,8 +44,8 @@ set(JDF
   zhbrdt.jdf
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
   zgeqrf_param.jdf zungqr_param.jdf
-  zgetrf_param.jdf
-  #zgetrf_param2.jdf
+  zgetrf_hincpiv.jdf
+  #zgetrf_hincpiv2.jdf
   zungqr.jdf
 )
 precisions_rules_py(generated_jdf
@@ -103,8 +103,8 @@ set(SOURCES
   zgesv_incpiv_wrapper.c
   zgeqrf_wrapper.c
   zgeqrf_param_wrapper.c
-  zgetrf_param_wrapper.c
-  #zgetrf_param2_wrapper.c
+  zgetrf_hincpiv_wrapper.c
+  #zgetrf_hincpiv2_wrapper.c
   zungqr_param_wrapper.c
   zgelqf_wrapper.c
   zherbt_wrapper.c
