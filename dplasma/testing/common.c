@@ -74,6 +74,7 @@ void print_usage(void)
             "                       LHQ -- Local Hierarchical Queues\n"
             "                       AP  -- Absolute Priorities\n"
             "                       PBQ -- Priority Based Local Flat Queues\n"
+            "                       LTQ -- Local Tree Queues\n"
             "\n"
             " -p -P --grid-rows : rows (P) in the PxQ process grid   (default: NP)\n"
             " -q -Q --grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
@@ -198,6 +199,8 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'o':
                 if( !strcmp(optarg, "LFQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
+                else if( !strcmp(optarg, "LTQ") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LTQ;
                 else if( !strcmp(optarg, "AP") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_AP;
                 else if( !strcmp(optarg, "LHQ") )
@@ -207,7 +210,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 else if( !strcmp(optarg, "PBQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_PBQ;
                 else {
-                    fprintf(stderr, "malformed scheduler value %s (accepted: LFQ AP LHQ GD PBQ). Reverting to default LFQ\n",
+                    fprintf(stderr, "malformed scheduler value %s (accepted: LFQ AP LHQ GD PBQ LTQ). Reverting to default LFQ\n",
                             optarg);
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
                 }

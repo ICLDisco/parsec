@@ -61,9 +61,13 @@ static inline int dague_list_nolock_is_empty( dague_list_t* list );
  *  get the next element.
  *  Does not lock the list; does not work on ulist.
  */
-#define DAGUE_LIST_ITERATOR_FIRST(LIST)    _OPAQUE_LIST_ITERATOR_FIRST_DEFINITION(LIST) 
+#define DAGUE_LIST_ITERATOR_FIRST(LIST)    _OPAQUE_LIST_ITERATOR_FIRST_DEFINITION(LIST)
 #define DAGUE_LIST_ITERATOR_END(LIST)      _OPAQUE_LIST_ITERATOR_END_DEFINITION(LIST)
 #define DAGUE_LIST_ITERATOR_NEXT(ITEM)     _OPAQUE_LIST_ITERATOR_NEXT_DEFINITION(ITEM)
+
+#define DAGUE_LIST_ITERATOR_LAST(LIST)     _OPAQUE_LIST_ITERATOR_LAST_DEFINITION(LIST)
+#define DAGUE_LIST_ITERATOR_BEGIN(LIST)    _OPAQUE_LIST_ITERATOR_BEGIN_DEFINITION(LIST)
+#define DAGUE_LIST_ITERATOR_PREV(ITEM)     _OPAQUE_LIST_ITERATOR_PREV_DEFINITION(ITEM)
 
 /** add the @new item before the @position item in @list (not thread safe)
  *    @position item must be in @list
@@ -337,6 +341,10 @@ dague_list_unlock( dague_list_t* list )
 #define _OPAQUE_LIST_ITERATOR_FIRST_DEFINITION(list) ((dague_list_item_t*)(list)->ghost_element.list_next)
 #define _OPAQUE_LIST_ITERATOR_END_DEFINITION(list)   (&((list)->ghost_element))
 #define _OPAQUE_LIST_ITERATOR_NEXT_DEFINITION(ITEM)  ((dague_list_item_t*)ITEM->list_next)
+
+#define _OPAQUE_LIST_ITERATOR_LAST_DEFINITION(list)  ((dague_list_item_t*)(list)->ghost_element.list_prev)
+#define _OPAQUE_LIST_ITERATOR_BEGIN_DEFINITION(list) (&((list)->ghost_element))
+#define _OPAQUE_LIST_ITERATOR_PREV_DEFINITION(ITEM)  ((dague_list_item_t*)ITEM->list_prev)
 
 #define _OPAQUE_LIST_ITERATOR_DEFINITION(list,ITEM,CODE) ({             \
     dague_list_item_t* ITEM;                                            \
