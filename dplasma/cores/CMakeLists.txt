@@ -10,6 +10,7 @@ precisions_rules_py(generated_headers
 ### Generate the dplasma wrappers for all required precisions 
 set(SOURCES
   core_ztrdv.c
+  core_zgetrf_rectil.c
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"
@@ -48,6 +49,7 @@ endif()
 
 ### Generate the lib
 add_library(dplasma_cores
+  dplasma_cores.h
   ${generated_headers}
   ${generated_files}
   ${GPU_KERNEL_SOURCES})
