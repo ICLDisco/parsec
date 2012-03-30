@@ -128,19 +128,19 @@ int main(int argc, char ** argv)
         /*
          * First check with a right hand side
          */
-		printf("\nLet's apply modifications to B\n");
+		printf("\nLet's apply modifications to B for right hand side\n");
         dplasma_ztrsmpl_param( dague, qrpiv,
                               (tiled_matrix_desc_t *)&ddescA,
                               (tiled_matrix_desc_t *)&ddescX,
                               (tiled_matrix_desc_t *)&ddescIPIV,
                               (tiled_matrix_desc_t *)&ddescLT,
                               &info);
-		printf("\nB is done!\n");
-		printf("\nLet's solve the triangular system!\n");
+		printf("\nB for right hand side is done!\n");
+		printf("\nLet's solve the triangular system for right hand side!\n");
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                       (tiled_matrix_desc_t *)&ddescA,
                       (tiled_matrix_desc_t *)&ddescX);
-		printf("\nTriangular system solved!\n");
+		printf("\nTriangular system for right hand side solved!\n");
 
         /* Check the solution */
         ret |= check_solution(dague, (rank == 0) ? loud : 0,
@@ -149,21 +149,21 @@ int main(int argc, char ** argv)
                               (tiled_matrix_desc_t *)&ddescX);
 
         /*
-         * First check with a right hand side
+         * First check with inverse
          */
-		printf("\nLet's apply modifications to B\n");
+		printf("\nLet's apply modifications to B for inverse\n");
         dplasma_ztrsmpl_param( dague, qrpiv,
                               (tiled_matrix_desc_t *)&ddescA,
                               (tiled_matrix_desc_t *)&ddescInvA,
                               (tiled_matrix_desc_t *)&ddescIPIV,
                               (tiled_matrix_desc_t *)&ddescLT,
                               &info);
-		printf("\nB is done!\n");
-		printf("\nLet's solve the triangular system!\n");
+		printf("\nB for inverse is done!\n");
+		printf("\nLet's solve the triangular system for inverse!\n");
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                       (tiled_matrix_desc_t *)&ddescA,
                       (tiled_matrix_desc_t *)&ddescInvA);
-		printf("\nTriangular system solved!\n");
+		printf("\nTriangular system solved for inverse!\n");
 
         /* Check the solution */
         ret |= check_inverse(dague, (rank == 0) ? loud : 0,
@@ -188,12 +188,12 @@ int main(int argc, char ** argv)
         dague_data_free(ddescA0.mat);
         dague_data_free(ddescInvA.mat);
         dague_data_free(ddescI.mat);
-        //dague_data_free(ddescB.mat);
+        dague_data_free(ddescB.mat);
         dague_data_free(ddescX.mat);
     
         dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescInvA);
-        //dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescX);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescI);
     } 
