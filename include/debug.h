@@ -34,6 +34,7 @@ static inline char* arprintf(const char* fmt, ...)
     rc = vasprintf(&txt, fmt, args);
     va_end(args);
 
+    (void)rc;
     return txt;
 }
 

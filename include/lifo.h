@@ -13,21 +13,21 @@
 
 typedef struct dague_lifo_t dague_lifo_t;
 
-static inline void 
-dague_lifo_construct( dague_lifo_t* lifo ); 
-static inline void 
+static inline void
+dague_lifo_construct( dague_lifo_t* lifo );
+static inline void
 dague_lifo_destruct( dague_lifo_t* lifo );
 
-static inline int 
+static inline int
 dague_lifo_is_empty( dague_lifo_t* lifo );
-static inline int 
+static inline int
 dague_lifo_nolock_is_empty( dague_lifo_t* lifo);
 #define dague_ulifo_is_empty(lifo) dague_lifo_nolock_is_empty(lifo);
 
 static inline void
 dague_lifo_push(dague_lifo_t* lifo, dague_list_item_t* item);
 static inline void
-dague_lifo_nolock_push(dague_lifo_t* lifo, dague_list_item_t* item);    
+dague_lifo_nolock_push(dague_lifo_t* lifo, dague_list_item_t* item);
 #define dague_ulifo_push(lifo, item) dague_lifo_nolock_push(lifo, item)
 
 static inline void
@@ -40,14 +40,14 @@ static inline dague_list_item_t*
 dague_lifo_pop(dague_lifo_t* lifo);
 static inline dague_list_item_t*
 dague_lifo_try_pop(dague_lifo_t* lifo);
-static inline dague_list_item_t* 
+static inline dague_list_item_t*
 dague_lifo_nolock_pop(dague_lifo_t* lifo);
 #define dague_ulifo_pop(lifo) dague_lifo_nolock_pop(lifo)
 
 
 /***********************************************************************
  * Interface is defined. Everything else is private thereafter */
- 
+
 #ifdef DAGUE_DEBUG_LIFO_USE_ATOMICS
 
 #include <stdlib.h>
@@ -70,6 +70,7 @@ struct dague_lifo_t {
             dague_list_item_t *_elt;                                    \
             int rc;                                                     \
             rc = posix_memalign( (void**)&_elt, DAGUE_LIFO_ALIGNMENT, (truesize) ); \
+            (void)rc;                                                   \
             dague_list_item_construct(_elt);                            \
             (elt) = (__typeof__(elt))_elt;                              \
         })
@@ -88,8 +89,8 @@ static inline int dague_lifo_nolock_is_empty( dague_lifo_t* lifo )
     return dague_lifo_is_empty(lifo);
 }
 
-static inline void dague_lifo_push( dague_lifo_t* lifo, 
-                                    dague_list_item_t* item )                                   
+static inline void dague_lifo_push( dague_lifo_t* lifo,
+                                    dague_list_item_t* item )
 {
 #if defined(DAGUE_DEBUG)
     assert( (uintptr_t)item % DAGUE_LIFO_ALIGNMENT == 0 );
@@ -97,7 +98,7 @@ static inline void dague_lifo_push( dague_lifo_t* lifo,
     DAGUE_ITEM_ATTACH(lifo, item);
 
     dague_list_item_t* tp = DAGUE_LIFO_VAL(item, (item->keeper_of_the_seven_keys + 1));
-    
+
     do {
         item->list_next = lifo->lifo_head;
         if( dague_atomic_cas(&(lifo->lifo_head),
@@ -108,14 +109,14 @@ static inline void dague_lifo_push( dague_lifo_t* lifo,
         /* DO some kind of pause to release the bus */
     } while( 1 );
 }
-static inline void dague_lifo_nolock_push( dague_lifo_t* lifo, 
+static inline void dague_lifo_nolock_push( dague_lifo_t* lifo,
                                            dague_list_item_t* item )
 {
  #if defined(DAGUE_DEBUG)
     assert( (uintptr_t)item % DAGUE_LIFO_ALIGNMENT == 0 );
 #endif
     DAGUE_ITEM_ATTACH(lifo, item);
-    
+
     item->list_next = lifo->lifo_head;
     lifo->lifo_head = item;
 }
@@ -130,7 +131,7 @@ static inline void dague_lifo_chain( dague_lifo_t* lifo,
 
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
     dague_list_item_t* tp = DAGUE_LIFO_VAL(items, (items->keeper_of_the_seven_keys + 1));
-    
+
     do {
         tail->list_next = lifo->lifo_head;
         if( dague_atomic_cas(&(lifo->lifo_head),
@@ -150,7 +151,7 @@ static inline void dague_lifo_nolock_chain( dague_lifo_t* lifo,
     DAGUE_ITEMS_ATTACH(lifo, items);
 
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
-    
+
     tail->list_next = lifo->lifo_head;
     lifo->lifo_head = items;
 }
@@ -171,7 +172,7 @@ static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
     if( item == lifo->lifo_ghost ) return NULL;
     item->keeper_of_the_seven_keys = DAGUE_LIFO_CNT(save);
     DAGUE_ITEM_DETACH(item);
-    return item;    
+    return item;
 }
 
 static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
@@ -179,9 +180,9 @@ static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
     dague_list_item_t *item, *save;
 
     item = lifo->lifo_head;
-    if( DAGUE_LIFO_PTR(item) == lifo->lifo_ghost ) 
+    if( DAGUE_LIFO_PTR(item) == lifo->lifo_ghost )
         return NULL;
-        
+
     if( dague_atomic_cas(&(lifo->lifo_head),
                          (uintptr_t) item,
                          (uintptr_t) DAGUE_LIFO_PTR(item)->list_next) )
@@ -233,7 +234,7 @@ struct dague_lifo_t {
     DAGUE_LIST_ITEM_DESTRUCT(elt);                                      \
     free(elt); } while(0)
 
-static inline void 
+static inline void
 dague_lifo_construct( dague_lifo_t* lifo ) {
     dague_list_construct((dague_list_t*)lifo);
 }
@@ -248,7 +249,7 @@ dague_lifo_is_empty( dague_lifo_t* lifo ) {
     return dague_list_is_empty((dague_list_t*)lifo);
 }
 
-static inline int 
+static inline int
 dague_lifo_nolock_is_empty( dague_lifo_t* lifo)
 {
     return dague_list_nolock_is_empty((dague_list_t*)lifo);
@@ -256,11 +257,11 @@ dague_lifo_nolock_is_empty( dague_lifo_t* lifo)
 
 static inline void
 dague_lifo_push(dague_lifo_t* lifo, dague_list_item_t* item) {
-    dague_list_push_front((dague_list_t*)lifo, item); 
+    dague_list_push_front((dague_list_t*)lifo, item);
 }
 static inline void
-dague_lifo_nolock_push(dague_lifo_t* lifo, dague_list_item_t* item) { 
-    dague_list_nolock_push_front((dague_list_t*)lifo, item); 
+dague_lifo_nolock_push(dague_lifo_t* lifo, dague_list_item_t* item) {
+    dague_list_nolock_push_front((dague_list_t*)lifo, item);
 }
 
 static inline void
@@ -268,21 +269,21 @@ dague_lifo_chain(dague_lifo_t* lifo, dague_list_item_t* items) {
     dague_list_chain_front((dague_list_t*)lifo, items);
 }
 static inline void
-dague_lifo_nolock_chain(dague_lifo_t* lifo, dague_list_item_t* items) { 
+dague_lifo_nolock_chain(dague_lifo_t* lifo, dague_list_item_t* items) {
     dague_list_nolock_chain_front((dague_list_t*)lifo, items);
 }
 
 static inline dague_list_item_t*
 dague_lifo_pop(dague_lifo_t* lifo) {
-    return dague_list_pop_front((dague_list_t*)lifo); 
+    return dague_list_pop_front((dague_list_t*)lifo);
 }
 static inline dague_list_item_t*
 dague_lifo_try_pop(dague_lifo_t* lifo) {
     return dague_list_try_pop_front((dague_list_t*)lifo);
 }
-static inline dague_list_item_t* 
-dague_lifo_nolock_pop(dague_lifo_t* lifo) { 
-    return dague_list_nolock_pop_front((dague_list_t*)lifo); 
+static inline dague_list_item_t*
+dague_lifo_nolock_pop(dague_lifo_t* lifo) {
+    return dague_list_nolock_pop_front((dague_list_t*)lifo);
 }
 
 #endif /* LIFO_USE_ATOMICS */

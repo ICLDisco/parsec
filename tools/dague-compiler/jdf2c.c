@@ -3202,6 +3202,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     }
 
     rc = asprintf(&linfo.assignments, "%s.locals", var);
+    (void)rc;
     for(; NULL != def; def = def->next, i++) {
         string_arena_add_string(sa_open, "%s%s  const int %s_%s = %s;\n",
                                 prefix, indent(nbopen-1),
@@ -3496,6 +3497,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
     assert(JDF_OP_IS_C_CODE(expr->op));
     rc = asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
                   jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
+    (void)rc;
     coutput("static inline int %s(const dague_object_t *__dague_object_parent, const assignment_t *assignments)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)__dague_object_parent;\n"
