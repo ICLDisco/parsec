@@ -1,0 +1,160 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/cores/dplasma_zcores.h"
+
+%}
+
+/* Globals
+ */
+descA        [type = "tiled_matrix_desc_t"]
+A            [type = "dague_ddesc_t *"]
+descW        [type = "tiled_matrix_desc_t"]
+W            [type = "dague_ddesc_t *"]
+P            [type = "int"]
+Q            [type = "int"]
+
+/**************************************************
+ *                    STEP1                       *
+ **************************************************/
+STEP1(m,n) [high_priority = on]
+
+// Execution space
+m = 0..descA.mt
+n = 0..descA.nt
+
+// Parallel partitioning
+:A(m, n)
+
+// Parameters
+READ      A <-  A(m, n)
+RW        W <-  (n < Q)? W(m, n%Q) : W STEP1(m,n-Q)
+            ->  (descA.nt-n>Q)? W STEP1(m,n+Q): W ROW_REDUCE(m,n%Q)
+
+BODY
+    DRYRUN(
+            int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+            int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+            int ldam = BLKLDD( descA, m );
+            int i, j;
+            for(j = 0; j < tempnn; j++)
+                  for(i = 0; i < tempmm; i++)
+                        W[i] += A[j*ldam+i];
+          );
+    printlog("");
+END
+
+/**************************************************
+ *                    ROW_REDUCE                  *
+ **************************************************/
+ROW_REDUCE(m,n) [high_priority = on]
+
+// Execution space
+m = 0..descA.mt
+n = 0..Q
+
+// Parallel partitioning
+:A(m, n)
+
+// Parameters
+RW        W <-  W STEP1(m,n)
+            ->  W STEP3(m,n)
+
+BODY
+    DRYRUN(
+
+          );
+    printlog("");
+END
+
+/**************************************************
+ *                    ROW_ALL_REDUCE              *
+ **************************************************/
+ROW_ALL_REDUCE(m,n) [high_priority = on]
+
+// Execution space
+m = 0..descA.mt
+n = 0..Q
+
+// Parallel partitioning
+:A(m, n)
+
+// Parameters
+RW        W <-  W STEP1(m,n)
+            ->  W STEP3(m,n)
+
+BODY
+    DRYRUN(
+
+          );
+    printlog("");
+END
+
+/**************************************************
+ *                    STEP3                       *
+ **************************************************/
+STEP3(m,n) [high_priority = on]
+
+// Execution space
+m = 0..descA.mt
+n = 0..Q
+
+// Parallel partitioning
+:A(m, n)
+
+// Parameters
+READ      W <-  W ROW_ALL_REDUCE(m,n)
+RW        S <- (m < P)? S(m%P, n) : W STEP3(m-P,n)
+            ->  (descA.mt-m>P)? S COL_REDUCE(m%P,n) : S STEP3(m+P,n)
+
+BODY
+    DRYRUN(
+            int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+            int i;
+            for(i = 0; i < tempmm; i++)
+                  if(S[0] < W[i])
+                  S[0] = W[i];
+          );
+    printlog("");
+END
+/**************************************************
+ *                    COL_REDUCE                       *
+ **************************************************/
+COL_REDUCE(m,n) [high_priority = on]
+
+// Execution space
+m = 0..P
+n = 0..Q
+
+// Parallel partitioning
+:A(m, n)
+
+// Parameters
+RW        S <-  S STEP3(m,n)
+            ->  S(m,n)
+
+BODY
+    DRYRUN(
+
+          );
+    printlog("");
+END

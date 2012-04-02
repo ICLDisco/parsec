@@ -299,3 +299,4 @@ dplasma/lib/zhetrf\.c
 dplasma/lib/zhetrf\.h
 dplasma/lib/ztrdsm\.c
 dplasma/lib/ztrdsm\.h
+config.ig

@@ -33,6 +33,7 @@ set(JDF
   zpotrf_Url.jdf zpotrf_Lrl.jdf
   zgetrf_sp.jdf
   zgerfs.jdf
+  zlange_inf_cyclic.jdf
   zgebut.jdf
   zhebut.jdf
   zgetrf.jdf zhetrf.jdf

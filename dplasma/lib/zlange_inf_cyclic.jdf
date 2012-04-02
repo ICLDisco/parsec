@@ -1,0 +1,152 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/cores/dplasma_zcores.h"
+
+%}
+
+/* Globals
+ */
+descA        [type = "tiled_matrix_desc_t"]
+A            [type = "dague_ddesc_t *"]
+descW        [type = "tiled_matrix_desc_t"]
+W            [type = "dague_ddesc_t *"]
+descS        [type = "tiled_matrix_desc_t"]
+S            [type = "dague_ddesc_t *"]
+P            [type = "int"]
+Q            [type = "int"]
+
+/**************************************************
+ *                    STEP1                       *
+ **************************************************/
+STEP1(m,n) [high_priority = on]
+
+// Execution space
+m = 0..descA.mt-1
+n = 0..descA.nt-1
+
+// Parallel partitioning
+:A(m, n)
+
+// Parameters
+READ      A <-  A(m, n)
+RW        W <-  (descA.nt-n>Q)? W(m, n) : W STEP1(m,n+Q)
+            ->  (n<Q)? W ROW_REDUCE(m,n) : W STEP1(m,n-Q)
+            ->  ((n<Q)&&(n==0))? V ROW_REDUCE(m,1)
+
+BODY
+    DRYRUN(
+            int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+            int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+            int ldam = BLKLDD( descA, m );
+            int i, j;
+            for(j = 0; j < tempnn; j++)
+                  for(i = 0; i < tempmm; i++)
+                        W[i] += A[j*ldam+i];
+          );
+    printlog("");
+END
+
+/**************************************************
+ *                    ROW_REDUCE                  *
+ **************************************************/
+ROW_REDUCE(m,n) [high_priority = on]
+
+// Execution space
+m = 0..descA.mt-1
+n = 1..Q-1
+
+// Parallel partitioning
+:A(m, n)
+
+// Parameters
+RW        W <-  W STEP1(m,n)
+            ->  (n == Q-1)? W STEP3(m,0..Q-1) : V ROW_REDUCE(m,n+1)
+READ      V <-  (n == 1)? W STEP1(m,(descA.nt/Q)*Q) : W ROW_REDUCE(m,n-1)
+
+
+BODY
+    DRYRUN(
+            int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+            int ldam = BLKLDD( descA, m );
+            int i, j;
+            for(j = 0; j < descA.nb; j++)
+                  for(i = 0; i < tempmm; i++)
+                        W[i] += V[j*ldam+i];
+          );
+    printlog("");
+END
+
+
+/**************************************************
+ *                    STEP3                       *
+ **************************************************/
+STEP3(m,n) [high_priority = on]
+
+// Execution space
+m = 0..descA.mt-1
+n = 0..Q-1
+
+// Parallel partitioning
+:A(m, n)
+
+// Parameters
+READ      W <-  W ROW_REDUCE(m,Q-1)
+RW        S <-  (descA.mt-m>P)? S(m, n) : S STEP3(m+P,n)
+            ->  (m < P)? S COL_REDUCE(m,n) : S STEP3(m-P,n)
+            ->  ((m<P)&&(m==0))? V COL_REDUCE(1,n)
+BODY
+    DRYRUN(
+            int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+            int i;
+            for(i = 0; i < tempmm; i++)
+                  if(S[0] < W[i])
+                          S[0] = W[i];
+          );
+    printlog("");
+END
+/**************************************************
+ *                    COL_REDUCE                  *
+ **************************************************/
+COL_REDUCE(m,n) [high_priority = on]
+
+// Execution space
+m = 1..P-1
+n = 0..Q-1
+
+// Parallel partitioning
+:A(m, n)
+
+// Parameters
+RW        S <-  S STEP3(m,n)
+            -> (m == P-1)?  S(0..P-1,n) : V COL_REDUCE(m+1,n)
+READ      V <-  (m == 1)? S STEP3(0,n) : S COL_REDUCE(m-1,n)
+
+BODY
+    DRYRUN(
+            int i;
+            for(i = 0; i < descA.mb; i++)
+                  if(S[0] < V[i])
+                          S[0] = V[i];
+          );
+    printlog("");
+END
