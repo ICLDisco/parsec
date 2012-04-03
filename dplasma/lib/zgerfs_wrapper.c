@@ -13,10 +13,12 @@
 #include "dplasma/lib/dplasmaaux.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <lapacke.h>
+#include <math.h>
 
 #include "zgerfs.h"
+#include "zgerfs_exp.h"
 
-
+int mode_exp = 1;
 
 dague_object_t*
 dplasma_zgerfs_New(tiled_matrix_desc_t *A,
@@ -28,27 +30,49 @@ dplasma_zgerfs_New(tiled_matrix_desc_t *A,
 {
     dague_object_t *dague_zgerfs = NULL;
 
-    dague_zgerfs = (dague_object_t*)dague_zgerfs_new(*A,  (dague_ddesc_t*)A,
-                                                     *LU, (dague_ddesc_t*)LU,
-                                                     *B,  (dague_ddesc_t*)B,
-                                                     *R,  (dague_ddesc_t*)R,
-                                                     *X,  (dague_ddesc_t*)X,
-                                                     *Z,  (dague_ddesc_t*)Z);
+    if(mode_exp)
+    {
+        dague_zgerfs = (dague_object_t*)dague_zgerfs_exp_new(*A,  (dague_ddesc_t*)A,
+                                                             *LU, (dague_ddesc_t*)LU,
+                                                             *B,  (dague_ddesc_t*)B,
+                                                             *R,  (dague_ddesc_t*)R,
+                                                             *X,  (dague_ddesc_t*)X,
+                                                             *Z,  (dague_ddesc_t*)Z,10);
 
-    dplasma_add2arena_tile(((dague_zgerfs_object_t*)dague_zgerfs)->arenas[DAGUE_zgerfs_DEFAULT_ARENA],
-                           A->mb*A->nb*sizeof(Dague_Complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+        dplasma_add2arena_tile(((dague_zgerfs_exp_object_t*)dague_zgerfs)->arenas[DAGUE_zgerfs_exp_DEFAULT_ARENA],
+                               A->mb*A->nb*sizeof(Dague_Complex64_t),
+                               DAGUE_ARENA_ALIGNMENT_SSE,
+                               MPI_DOUBLE_COMPLEX, A->mb);
+    }else{
+        dague_zgerfs = (dague_object_t*)dague_zgerfs_new(*A,  (dague_ddesc_t*)A,
+                                                         *LU, (dague_ddesc_t*)LU,
+                                                         *B,  (dague_ddesc_t*)B,
+                                                         *R,  (dague_ddesc_t*)R,
+                                                         *X,  (dague_ddesc_t*)X,
+                                                         *Z,  (dague_ddesc_t*)Z);
 
+        dplasma_add2arena_tile(((dague_zgerfs_object_t*)dague_zgerfs)->arenas[DAGUE_zgerfs_DEFAULT_ARENA],
+                               A->mb*A->nb*sizeof(Dague_Complex64_t),
+                               DAGUE_ARENA_ALIGNMENT_SSE,
+                               MPI_DOUBLE_COMPLEX, A->mb);
+
+    }
     return dague_zgerfs;
 }
 
 void
 dplasma_zgerfs_Destruct( dague_object_t *o )
 {
-    dague_zgerfs_object_t *dague_zgerfs = (dague_zgerfs_object_t *)o;
-    dplasma_datatype_undefine_type( &(dague_zgerfs->arenas[DAGUE_zgerfs_DEFAULT_ARENA]->opaque_dtt) );
-    dague_zgerfs_destroy(dague_zgerfs);
+    if(mode_exp)
+    {
+        dague_zgerfs_exp_object_t *dague_zgerfs = (dague_zgerfs_exp_object_t *)o;
+        dplasma_datatype_undefine_type( &(dague_zgerfs->arenas[DAGUE_zgerfs_exp_DEFAULT_ARENA]->opaque_dtt) );
+        dague_zgerfs_exp_destroy(dague_zgerfs);
+    }else{
+        dague_zgerfs_object_t *dague_zgerfs = (dague_zgerfs_object_t *)o;
+        dplasma_datatype_undefine_type( &(dague_zgerfs->arenas[DAGUE_zgerfs_DEFAULT_ARENA]->opaque_dtt) );
+        dague_zgerfs_destroy(dague_zgerfs);
+    }
 }
 
 int dplasma_zgerfs_aux( dague_context_t     *dague,
@@ -81,11 +105,11 @@ int dplasma_zgerfs( dague_context_t     *dague,
                     tiled_matrix_desc_t *ddescX)
 {
     two_dim_block_cyclic_t ddescR, ddescZ;
-
+    printf("%d %d %d %d %d %d\n",ddescB->mb, ddescB->nb, ddescB->lmt, ddescB->lnt, ddescB->m, ddescB->n);
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         ddescR, two_dim_block_cyclic,
         (&ddescR, matrix_ComplexDouble, matrix_Tile, ddescB->super.nodes, ddescB->super.cores, ddescB->super.myrank,
-         ddescB->mb, ddescB->nb, ddescB->mt, ddescB->nt, 0, 0, ddescB->m, ddescB->n,
+         ddescB->mb, ddescB->nb, ddescB->lmt, ddescB->lnt, 0, 0, ddescB->m, ddescB->n,
          ((two_dim_block_cyclic_t*)ddescB)->grid.strows,
          ((two_dim_block_cyclic_t*)ddescB)->grid.stcols,
          ((two_dim_block_cyclic_t*)ddescB)->grid.rows));
@@ -93,7 +117,7 @@ int dplasma_zgerfs( dague_context_t     *dague,
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         ddescZ, two_dim_block_cyclic,
         (&ddescZ, matrix_ComplexDouble, matrix_Tile, ddescB->super.nodes, ddescB->super.cores, ddescB->super.myrank,
-         ddescB->mb, ddescB->nb, ddescB->mt, ddescB->nt, 0, 0, ddescB->m, ddescB->n,
+         ddescB->mb, ddescB->nb, ddescB->lmt, ddescB->lnt, 0, 0, ddescB->m, ddescB->n,
          ((two_dim_block_cyclic_t*)ddescB)->grid.strows,
          ((two_dim_block_cyclic_t*)ddescB)->grid.stcols,
          ((two_dim_block_cyclic_t*)ddescB)->grid.rows));
@@ -116,16 +140,16 @@ int dplasma_zgerfs( dague_context_t     *dague,
         result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 
         nb_iter_ref++;
-         printf("Iter ref %d: ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n", nb_iter_ref,result);
+        printf("Iter ref %d: ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e\n", nb_iter_ref,result);
     }
-    while(  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (( ( Anorm * Xnorm + Bnorm ) * m * eps ) < Rnorm) );
+    while( (( ( Anorm * Xnorm + Bnorm ) * m * eps ) < Rnorm) && !(isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result)));
 
     dague_data_free(ddescR.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescR);
     dague_data_free(ddescZ.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescZ);
 
-    printf("Solution refined in %d iterations\n", nb_iter_ref );
+    printf("Solution refined in %d iterations , berr = %e\n", nb_iter_ref ,Rnorm);
 
     return 0;
 }

@@ -164,7 +164,12 @@ int main(int argc, char ** argv)
             printf("-- Lapack solution is suspicious ! \n");
         else
             printf("-- Lapack solution is CORRECT ! \n");
+        printf("Lapack berr = %e\n",berr[0]);
 
+        free(A);
+        free(LU);
+        free(B);
+        free(X);
     }
 
     if(loud > 2) printf("Done.\n");
