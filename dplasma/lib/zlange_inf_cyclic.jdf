@@ -13,6 +13,7 @@ extern "C" %{
 
 #include <plasma.h>
 #include <core_blas.h>
+#include <math.h>
 
 #include "dague.h"
 #include "data_distribution.h"
@@ -49,7 +50,7 @@ n = 0..descA.nt-1
 
 // Parameters
 READ      A <-  A(m, n)
-RW        W <-  (descA.nt-n>Q)? W(m, n) : W STEP1(m,n+Q)
+RW        W <-  (descA.nt-n<=Q)? W(m, n) : W STEP1(m,n+Q)
             ->  (n<Q)? W ROW_REDUCE(m,n) : W STEP1(m,n-Q)
             ->  ((n<Q)&&(n==0))? V ROW_REDUCE(m,1)
 
@@ -58,12 +59,13 @@ BODY
             int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
             int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
             int ldam = BLKLDD( descA, m );
-            int i, j;
+            int i;
+            int j;
             for(j = 0; j < tempnn; j++)
                   for(i = 0; i < tempmm; i++)
-                        W[i] += A[j*ldam+i];
+                        ((double *)W)[i] += fabs(((PLASMA_Complex64_t *)A)[j*ldam+i]);
           );
-    printlog("");
+    printf("STEP1(%d,%d)\n",m,n);
 END
 
 /**************************************************
@@ -88,12 +90,13 @@ BODY
     DRYRUN(
             int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
             int ldam = BLKLDD( descA, m );
-            int i, j;
+            int i;
+            int j;
             for(j = 0; j < descA.nb; j++)
                   for(i = 0; i < tempmm; i++)
-                        W[i] += V[j*ldam+i];
+                        ((double *)W)[i] += fabs(((PLASMA_Complex64_t *)V)[j*ldam+i]);
           );
-    printlog("");
+    printf("ROW_REDUCE(%d,%d)\n",m,n);
 END
 
 
@@ -111,18 +114,20 @@ n = 0..Q-1
 
 // Parameters
 READ      W <-  W ROW_REDUCE(m,Q-1)
-RW        S <-  (descA.mt-m>P)? S(m, n) : S STEP3(m+P,n)
-            ->  (m < P)? S COL_REDUCE(m,n) : S STEP3(m-P,n)
+RW        S <-  (descA.mt-m<=P)? S(m, n) : S STEP3(m+P,n)
+            ->  (m<P)? W COL_REDUCE(m,n) : S STEP3(m-P,n)
             ->  ((m<P)&&(m==0))? V COL_REDUCE(1,n)
+            ->  ((m<P)&&(m==0))? S(m,n)
+
 BODY
     DRYRUN(
             int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
             int i;
             for(i = 0; i < tempmm; i++)
-                  if(S[0] < W[i])
-                          S[0] = W[i];
+                  if(((double *)S)[0] < ((double *)W)[i])
+                              ((double *)S)[0] = ((double *)W)[i];
           );
-    printlog("");
+    printf("STEP3(%d,%d)\n",m,n);
 END
 /**************************************************
  *                    COL_REDUCE                  *
@@ -137,16 +142,14 @@ n = 0..Q-1
 :A(m, n)
 
 // Parameters
-RW        S <-  S STEP3(m,n)
-            -> (m == P-1)?  S(0..P-1,n) : V COL_REDUCE(m+1,n)
-READ      V <-  (m == 1)? S STEP3(0,n) : S COL_REDUCE(m-1,n)
+RW        W <-  S STEP3(m,n)
+            -> (m<P-1)? V COL_REDUCE(m+1,n)
+            -> S(m,n)
+READ      V <-  (m == 1)? S STEP3(0,n) : W COL_REDUCE(m-1,n)
 
 BODY
     DRYRUN(
-            int i;
-            for(i = 0; i < descA.mb; i++)
-                  if(S[0] < V[i])
-                          S[0] = V[i];
+           ((double *)W)[0] = ((double *)V)[0];
           );
-    printlog("");
+    printf("COL_REDUCE(%d,%d)\n",m,n);
 END

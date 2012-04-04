@@ -95,6 +95,7 @@ set(SOURCES
   zgetrf_wrapper.c
   zgetrf_sp_wrapper.c
   zgerfs_wrapper.c
+  zlange_inf_wrapper.c
   zhetrf_wrapper.c
   ztrdsm_wrapper.c
   zgetrs_wrapper.c
