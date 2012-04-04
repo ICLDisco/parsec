@@ -16,7 +16,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#if defined(DAGUE_PROFILING_USE_MMAP)
 #include <sys/mman.h>
+#endif
+#include <inttypes.h>
 
 #include "profiling.h"
 #include "dbp.h"
@@ -309,9 +312,8 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
         return NULL;
     }
 
+#if defined(DAGUE_PROFILING_USE_MMAP)
     res = mmap(NULL, event_buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, file_backend_fd, file_backend_next_offset);
-    *offset = file_backend_next_offset;
-    file_backend_next_offset += event_buffer_size;
 
     if( MAP_FAILED == res ) {
         fprintf(stderr, "Warning profiling system: remap of the events backend file failed: %s. Events trace will be truncated.\n",
@@ -320,6 +322,21 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
         *offset = -1;
         return NULL;
     }
+#else
+    res = (dague_profiling_buffer_t*)malloc(event_buffer_size);
+    if( NULL == res ) {
+        fprintf(stderr, "Warning profiling system: unable to allocate new profiling buffer: %s. Events trace will be truncated.\n",
+                strerror(errno));
+        file_backend_extendable = 0;
+        *offset = -1;
+        return NULL;
+    }
+#endif
+
+    res->this_buffer_file_offset = file_backend_next_offset;
+
+    *offset = file_backend_next_offset;
+    file_backend_next_offset += event_buffer_size;
 
     if(PROFILING_BUFFER_TYPE_HEADER != type ) {
         res->next_buffer_file_offset = (off_t)-1;
@@ -350,10 +367,23 @@ static void write_down_existing_buffer(dague_profiling_buffer_t *buffer)
 {
     if( NULL == buffer )
         return;
+#if defined(DAGUE_PROFILING_USE_MMAP)
     if( munmap(buffer, event_buffer_size) == -1 ) {
         fprintf(stderr, "Warning profiling system: unmap of the events backend file at %p failed: %s\n",
                 buffer, strerror(errno));
     }
+#else
+    if( lseek(file_backend_fd, buffer->this_buffer_file_offset, SEEK_SET) == (off_t)-1 ) {
+        fprintf(stderr, "Warning profiling system: seek in the events backend file at %"PRId64" failed: %s. Events trace will be truncated.\n",
+                buffer->this_buffer_file_offset, strerror(errno));
+    } else {
+        if( write(file_backend_fd, buffer, event_buffer_size) != event_buffer_size ) {
+            fprintf(stderr, "Warning profiling system: write in the events backend file at %"PRId64" failed: %s. Events trace will be truncated.\n",
+                     buffer->this_buffer_file_offset, strerror(errno));
+        }
+    }
+    free(buffer);
+#endif
 }
 
 static int switch_event_buffer( dague_thread_profiling_t *context )
@@ -546,6 +576,7 @@ static int64_t dump_dictionary(int *nbdico)
         strncpy(kb->name, k->name, 64);
         strncpy(kb->attributes, k->attributes, 128);
         kb->keyinfo_length = k->info_length;
+        kb->keyinfo_convertor_length = cs;
         if( cs > 0 ) {
             memcpy(kb->convertor, k->convertor, cs);
         }
