@@ -50,9 +50,9 @@ n = 0..descA.nt-1
 
 // Parameters
 READ      A <-  A(m, n)
-RW        W <-  (descA.nt-n<=Q)? W(m, n) : W STEP1(m,n+Q)
-            ->  (n<Q)? W ROW_REDUCE(m,n) : W STEP1(m,n-Q)
-            ->  ((n<Q)&&(n==0))? V ROW_REDUCE(m,1)
+RW        W <-  (descA.nt-n<=Q)? W(m, n) : W STEP1(m,n+Q)                     [type = WTAB]
+            ->  (n<Q)? W ROW_REDUCE(m,n) : W STEP1(m,n-Q)                     [type = WTAB]
+            ->  ((n<Q)&&(n==0))? V ROW_REDUCE(m,1)                            [type = WTAB]
 
 BODY
     DRYRUN(
@@ -81,9 +81,9 @@ n = 1..Q-1
 :A(m, n)
 
 // Parameters
-RW        W <-  W STEP1(m,n)
-            ->  (n == Q-1)? W STEP3(m,0..Q-1) : V ROW_REDUCE(m,n+1)
-READ      V <-  (n == 1)? W STEP1(m,(descA.nt/Q)*Q) : W ROW_REDUCE(m,n-1)
+RW        W <-  W STEP1(m,n)                                                    [type = WTAB]
+            ->  (n == Q-1)? W STEP3(m,0..Q-1) : V ROW_REDUCE(m,n+1)             [type = WTAB]
+READ      V <-  (n == 1)? W STEP1(m,(descA.nt/Q)*Q) : W ROW_REDUCE(m,n-1)       [type = WTAB]
 
 
 BODY
@@ -113,11 +113,11 @@ n = 0..Q-1
 :A(m, n)
 
 // Parameters
-READ      W <-  W ROW_REDUCE(m,Q-1)
-RW        S <-  (descA.mt-m<=P)? S(m, n) : S STEP3(m+P,n)
-            ->  (m<P)? W COL_REDUCE(m,n) : S STEP3(m-P,n)
-            ->  ((m<P)&&(m==0))? V COL_REDUCE(1,n)
-            ->  ((m<P)&&(m==0))? S(m,n)
+READ      W <-  W ROW_REDUCE(m,Q-1)                                             [type = WTAB]
+RW        S <-  (descA.mt-m<=P)? S(m, n) : S STEP3(m+P,n)                       [type = STAB]
+            ->  (m<P)? W COL_REDUCE(m,n) : S STEP3(m-P,n)                       [type = STAB]
+            ->  ((m<P)&&(m==0))? V COL_REDUCE(1,n)                              [type = STAB]
+            ->  ((m<P)&&(m==0))? S(m,n)                                         [type = STAB]
 
 BODY
     DRYRUN(
@@ -142,10 +142,10 @@ n = 0..Q-1
 :A(m, n)
 
 // Parameters
-RW        W <-  S STEP3(m,n)
-            -> (m<P-1)? V COL_REDUCE(m+1,n)
-            -> S(m,n)
-READ      V <-  (m == 1)? S STEP3(0,n) : W COL_REDUCE(m-1,n)
+RW        W <-  S STEP3(m,n)                                                    [type = STAB]
+            -> (m<P-1)? V COL_REDUCE(m+1,n)                                     [type = STAB]
+            -> S(m,n)                                                           [type = STAB]
+READ      V <-  (m == 1)? S STEP3(0,n) : W COL_REDUCE(m-1,n)                    [type = STAB]
 
 BODY
     DRYRUN(

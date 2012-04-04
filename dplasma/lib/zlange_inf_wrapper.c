@@ -33,11 +33,14 @@ dague_object_t* dplasma_zlange_inf_New( tiled_matrix_desc_t *A,
                            A->mb*A->nb*sizeof(Dague_Complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
-
-    dplasma_add2arena_tile(((dague_zlange_inf_cyclic_object_t*)dague_zlange_inf)->arenas[DAGUE_zlange_inf_cyclic_DEFAULT_ARENA],
-                           A->mb*A->nb*sizeof(Dague_Complex64_t),
+    dplasma_add2arena_tile(((dague_zlange_inf_cyclic_object_t*)dague_zlange_inf)->arenas[DAGUE_zlange_inf_cyclic_WTAB_ARENA],
+                           A->mb*sizeof(double),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+                           MPI_DOUBLE, A->mb);
+    dplasma_add2arena_tile(((dague_zlange_inf_cyclic_object_t*)dague_zlange_inf)->arenas[DAGUE_zlange_inf_cyclic_STAB_ARENA],
+                           sizeof(double),
+                           DAGUE_ARENA_ALIGNMENT_SSE,
+                           MPI_DOUBLE, 1);
 
     return dague_zlange_inf;
 }

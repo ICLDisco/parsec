@@ -26,7 +26,7 @@
   Maximum size of blocks given to blas in factorisation
 */
 
-#define MAXSIZEOFBLOCKS 16 /*64 in LAPACK*/
+#define MAXSIZEOFBLOCKS 32 /*64 in LAPACK*/
 
 static PLASMA_Complex64_t zone  = 1.;
 static PLASMA_Complex64_t mzone = -1.;
