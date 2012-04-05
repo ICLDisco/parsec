@@ -269,16 +269,18 @@ static int hook_of(dague_execution_unit_t *context,
     const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)this_task->dague_object;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
-    dague_arena_chunk_t *asrc = NULL, *adest;
+    dague_arena_chunk_t *asrc = NULL, *adest = NULL;
     const void* src_data = NULL;
-    void* dest_data;
+    void* dest_data = NULL;
 
     if( NULL != __dague_object->super.src ) {
         asrc = (dague_arena_chunk_t*) src(k,n);
         src_data = ADATA(asrc);
     }
-    adest = (dague_arena_chunk_t*) dest(k,n);
-    dest_data = ADATA(adest);
+    if( NULL != __dague_object->super.dest ) {
+        adest = (dague_arena_chunk_t*) dest(k,n);
+        dest_data = ADATA(adest);
+    }
 
     this_task->data[0].data = asrc;
     this_task->data[0].data_repo = NULL;
