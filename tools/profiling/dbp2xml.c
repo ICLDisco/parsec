@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
 #undef HAVE_MPI
 
@@ -59,7 +65,7 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
                     end = diff_time( relative, dbp_event_get_timestamp( g ) );
 
                     if( displayed_key == 0 ) {
-                        fprintf(tracefile, "               <KEY ID=\"%u\">\n", k);
+                        fprintf(tracefile, "               <KEY ID=\"%d\">\n", k);
                         displayed_key = 1;
                     }
                     
@@ -128,7 +134,7 @@ static int dump_xml( const char* filename, const dbp_multifile_reader_t *dbp )
     for(i = 0; i < dbp_reader_nb_dictionary_entries(dbp); i++) {
         dico = dbp_reader_get_dictionary(dbp, i);
         fprintf(tracefile,
-                "   <KEY ID=\"%u\">\n"
+                "   <KEY ID=\"%d\">\n"
                 "    <NAME>%s</NAME>\n"
                 "    <ATTRIBUTES><![CDATA[%s]]></ATTRIBUTES>\n"
                 "   </KEY>\n",
