@@ -21,7 +21,7 @@
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
 
-typedef struct { 
+typedef struct {
     dague_dequeue_t   *system_queue;
     dague_hbbuffer_t  *task_queue;
     int                nb_hierarch_queues;
@@ -46,7 +46,7 @@ static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
  *  the wrappers to functions
  */
 static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
-{ 
+{
     /* Store is a hbbbuffer */
     dague_hbbuffer_push_all( (dague_hbbuffer_t*)store, elt );
 }
@@ -83,7 +83,7 @@ static int init_tree_queues(  dague_context_t *master )
 
         sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
         eu->scheduler_object = sched_obj;
-    
+
         if( eu->eu_id == 0 ) {
             sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
             dague_dequeue_construct( sched_obj->system_queue );
@@ -96,11 +96,11 @@ static int init_tree_queues(  dague_context_t *master )
         eu = master->execution_units[i];
         sched_obj = LOCAL_QUEUES_OBJECT(eu);
 
-        sched_obj->nb_hierarch_queues = master->nb_cores;    
+        sched_obj->nb_hierarch_queues = master->nb_cores;
         sched_obj->hierarch_queues = (dague_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
 
         /* Each thread creates its own "local" queue, connected to the shared dequeue */
-        sched_obj->task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper, 
+        sched_obj->task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper,
                                                     (void*)sched_obj->system_queue);
         sched_obj->hierarch_queues[0] = sched_obj->task_queue;
     }
@@ -109,15 +109,15 @@ static int init_tree_queues(  dague_context_t *master )
         nq = 1;
         eu = master->execution_units[i];
         sched_obj = LOCAL_QUEUES_OBJECT(eu);
- 
+
         /* Then, they know about all other queues, from the closest to the farthest */
 #if defined(HAVE_HWLOC)
         for(int level = 0; level <= dague_hwloc_nb_levels(); level++) {
-            for(int id = (eu->eu_id + 1) % master->nb_cores; 
-                id != eu->eu_id; 
+            for(int id = (eu->eu_id + 1) % master->nb_cores;
+                id != eu->eu_id;
                 id = (id + 1) %  master->nb_cores) {
                 int d;
-                
+
                 d = dague_hwloc_distance(eu->eu_id, id);
                 if( d == 2*level || d == 2*level + 1 ) {
                     sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(master->execution_units[id])->task_queue;
@@ -281,6 +281,7 @@ static void finalize_tree_queues( dague_context_t *master )
 
 
 dague_scheduler_t sched_local_tree_queues = {
+    .name = "Local Tree Queues",
     .init = init_tree_queues,
     .schedule_task = schedule_tree_queues,
     .select_task = choose_job_tree_queues,
@@ -338,7 +339,7 @@ static void finalize_global_dequeue( dague_context_t *master )
 {
     int i;
     dague_execution_unit_t *eu;
-    
+
     for(i = 0; i < master->nb_cores; i++) {
         eu = master->execution_units[i];
         if( eu->eu_id == 0 ) {
@@ -350,6 +351,7 @@ static void finalize_global_dequeue( dague_context_t *master )
 }
 
 dague_scheduler_t sched_global_dequeue = {
+    .name = "Global Dequeues",
     .init = init_global_dequeue,
     .schedule_task = schedule_global_dequeue,
     .select_task = choose_job_global_dequeue,
@@ -642,6 +644,7 @@ static void finalize_local_flat_queues( dague_context_t *master )
 }
 
 dague_scheduler_t sched_local_flat_queues = {
+    .name = "Local Flat Queues",
     .init = init_local_flat_queues,
     .schedule_task = schedule_local_queues,
     .select_task = choose_job_local_queues,
@@ -650,6 +653,7 @@ dague_scheduler_t sched_local_flat_queues = {
 };
 
 dague_scheduler_t sched_local_hier_queues = {
+    .name = "Local Hierarchical Queues",
     .init = init_local_hier_queues,
     .schedule_task = schedule_local_queues,
     .select_task = choose_job_local_queues,
@@ -658,6 +662,7 @@ dague_scheduler_t sched_local_hier_queues = {
 };
 
 dague_scheduler_t sched_priority_based_queues = {
+    .name = "Priority Based Queues",
     .init = init_local_flat_queues,
     .schedule_task = schedule_local_queues_by_priority,
     .select_task = choose_job_local_queues,
@@ -718,6 +723,7 @@ static void finalize_absolute_priorities( dague_context_t *master )
 }
 
 dague_scheduler_t sched_absolute_priorities = {
+    .name = "Absolute priorities",
     .init = init_absolute_priorities,
     .schedule_task = schedule_absolute_priorities,
     .select_task = choose_job_absolute_priorities,
@@ -726,7 +732,7 @@ dague_scheduler_t sched_absolute_priorities = {
 };
 
 dague_scheduler_t *dague_schedulers_array[NB_DAGUE_SCHEDULERS] =
-{ 
+{
 	&sched_local_flat_queues,
 	&sched_global_dequeue,
 	&sched_local_hier_queues,

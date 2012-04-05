@@ -94,7 +94,7 @@ int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context
 }
 
 
-static dague_scheduler_t scheduler = { NULL, NULL, NULL, NULL, NULL };
+static dague_scheduler_t scheduler = { "None", NULL, NULL, NULL, NULL, NULL };
 
 void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
 {
@@ -109,8 +109,10 @@ void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
     }
 }
 
-// PETER this is where we end up after the release_dep_fct is called and generates a
-// readylist. the new_context IS the readylist. 
+/**
+ * This is where we end up after the release_dep_fct is called and generates a
+ * readylist. the new_context IS the readylist.
+ */
 int __dague_schedule( dague_execution_unit_t* eu_context,
                       dague_execution_context_t* new_context )
 {
