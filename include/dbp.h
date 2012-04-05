@@ -3,6 +3,7 @@
 
 #include "dague_config.h"
 #include <inttypes.h>
+#include <pthread.h>
 
 #include "os-spec-timing.h"
 #include "list.h"
