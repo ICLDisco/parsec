@@ -10,7 +10,6 @@
 #include "dague_config.h"
 #include <stdint.h>
 #include <unistd.h>
-
 #if defined(DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
 #  include "atomic-xlc.h"
 #elif defined(MAC_OS_X)
@@ -69,7 +68,7 @@ static inline uint64_t dague_atomic_bor_xxb( volatile void* location,
     dague_atomic_cas_xxb((volatile void*)(LOCATION),                   \
                          (uint64_t)(OLD_VALUE), (uint64_t)(NEW_VALUE), \
                          sizeof(*(LOCATION)))
-    
+
 #define dague_atomic_set_mask(LOCATION, MASK) dague_atomic_bor((LOCATION), (MASK))
 #define dague_atomic_clear_mask(LOCATION, MASK)  dague_atomic_band((LOCATION), ~(MASK))
 
