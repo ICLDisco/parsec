@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "scheduling.h"
+#include "schedulers.h"
 #include "profiling.h"
 #include "remote_dep.h"
 #include "dague.h"
@@ -340,8 +340,8 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
     dague_execution_context_t *startup_list = NULL;
 
     if( NULL == scheduler.schedule_task ) {
-        WARNING(("You cannot enqueue a task without selecting a scheduler first.\n"));
-        return -1;
+        /* No scheduler selected yet. The default is 0 */
+        dague_set_scheduler( context, dague_schedulers_array[DAGUE_SCHEDULER_LFQ] );
     }
 
     if( object->nb_local_tasks > 0 ) {
