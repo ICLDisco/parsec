@@ -66,20 +66,25 @@ double dplasma_zlange_inf( dague_context_t *dague,
         PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
             workW, two_dim_block_cyclic,
             (&workW, matrix_RealDouble, matrix_Tile, 1, A->super.cores, A->super.myrank,
-             1, 1, A->mt, A->nt, 0, 0, A->mt, A->nt,
+             A->mb, 1, A->mt, ((two_dim_block_cyclic_t*)A)->grid.cols, 0, 0, A->mt, ((two_dim_block_cyclic_t*)A)->grid.cols,
              ((two_dim_block_cyclic_t*)A)->grid.strows, ((two_dim_block_cyclic_t*)A)->grid.stcols,
              ((two_dim_block_cyclic_t*)A)->grid.rows));
         PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
             workS, two_dim_block_cyclic,
             (&workS, matrix_RealDouble, matrix_Tile, 1, A->super.cores, A->super.myrank,
-             1, 1, A->mt, A->nt, 0, 0, A->mt, A->nt, 1, 1, 1));
+             1, 1, ((two_dim_block_cyclic_t*)A)->grid.rows, ((two_dim_block_cyclic_t*)A)->grid.cols, 0, 0,
+             ((two_dim_block_cyclic_t*)A)->grid.rows, ((two_dim_block_cyclic_t*)A)->grid.cols, 1, 1, ((two_dim_block_cyclic_t*)A)->grid.rows));
         break;
 
     default:
         return -1.0;
     }
 
-    dague_zlange_inf = dplasma_zlange_inf_New(A, (tiled_matrix_desc_t *)&workW, (tiled_matrix_desc_t *)&workS, A->mt, A->nt);
+    dague_zlange_inf = dplasma_zlange_inf_New(A,
+                                              (tiled_matrix_desc_t *)&workW,
+                                              (tiled_matrix_desc_t *)&workS,
+                                              ((two_dim_block_cyclic_t*)A)->grid.rows,
+                                              ((two_dim_block_cyclic_t*)A)->grid.cols);
 
     if ( dague_zlange_inf != NULL )
     {

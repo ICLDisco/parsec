@@ -37,9 +37,9 @@ P            [type = "int"]
 Q            [type = "int"]
 
 /**************************************************
- *                    STEP1                       *
+ *                    STEP0                       *
  **************************************************/
-STEP1(m,n) [high_priority = on]
+STEP0(m,n) [high_priority = on]
 
 // Execution space
 m = 0..descA.mt-1
@@ -50,9 +50,29 @@ n = 0..descA.nt-1
 
 // Parameters
 READ      A <-  A(m, n)
+            ->  A STEP1(m,n)
+
+BODY
+
+END
+
+/**************************************************
+ *                    STEP1                       *
+ **************************************************/
+STEP1(m,n) [high_priority = on]
+
+// Execution space
+m = 0..descA.mt-1
+n = 0..descA.nt-1
+
+// Parallel partitioning
+:W(m, n)
+
+// Parameters
+READ      A <-  A STEP0(m, n)
 RW        W <-  (descA.nt-n<=Q)? W(m, n) : W STEP1(m,n+Q)                     [type = WTAB]
             ->  (n<Q)? W ROW_REDUCE(m,n) : W STEP1(m,n-Q)                     [type = WTAB]
-            ->  ((n<Q)&&(n==0))? V ROW_REDUCE(m,1)                            [type = WTAB]
+            ->  (n==0)? V ROW_REDUCE(m,1)                                     [type = WTAB]
 
 BODY
     DRYRUN(
@@ -65,7 +85,7 @@ BODY
                   for(i = 0; i < tempmm; i++)
                         ((double *)W)[i] += fabs(((PLASMA_Complex64_t *)A)[j*ldam+i]);
           );
-    printf("STEP1(%d,%d)\n",m,n);
+    printf("STEP1(%d,%d) with P=%d, Q=%d\n",m,n,P,Q);
 END
 
 /**************************************************
@@ -83,7 +103,7 @@ n = 1..Q-1
 // Parameters
 RW        W <-  W STEP1(m,n)                                                    [type = WTAB]
             ->  (n == Q-1)? W STEP3(m,0..Q-1) : V ROW_REDUCE(m,n+1)             [type = WTAB]
-READ      V <-  (n == 1)? W STEP1(m,(descA.nt/Q)*Q) : W ROW_REDUCE(m,n-1)       [type = WTAB]
+READ      V <-  (n == 1)? W STEP1(m,0) : W ROW_REDUCE(m,n-1)                    [type = WTAB]
 
 
 BODY
@@ -110,14 +130,14 @@ m = 0..descA.mt-1
 n = 0..Q-1
 
 // Parallel partitioning
-:A(m, n)
+:S(m, n)
 
 // Parameters
 READ      W <-  W ROW_REDUCE(m,Q-1)                                             [type = WTAB]
 RW        S <-  (descA.mt-m<=P)? S(m, n) : S STEP3(m+P,n)                       [type = STAB]
             ->  (m<P)? W COL_REDUCE(m,n) : S STEP3(m-P,n)                       [type = STAB]
-            ->  ((m<P)&&(m==0))? V COL_REDUCE(1,n)                              [type = STAB]
-            ->  ((m<P)&&(m==0))? S(m,n)                                         [type = STAB]
+            ->  (m==0)? V COL_REDUCE(1,n)                                       [type = STAB]
+            ->  (m==0)? S(m,n)                                                  [type = STAB]
 
 BODY
     DRYRUN(
@@ -139,7 +159,7 @@ m = 1..P-1
 n = 0..Q-1
 
 // Parallel partitioning
-:A(m, n)
+:S(m, n)
 
 // Parameters
 RW        W <-  S STEP3(m,n)                                                    [type = STAB]
