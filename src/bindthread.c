@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2010      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
 /*  unset options that make debug.h unpure, we need bindthread to compile standalone for unit tests */
 #undef HAVE_MPI

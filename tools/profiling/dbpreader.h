@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _dbpreader_h_
 #define _dbpreader_h_
 

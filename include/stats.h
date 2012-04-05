@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef stats_h
 #define stats_h
 
