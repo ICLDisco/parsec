@@ -533,7 +533,7 @@ static int check_dictionnary(const dbp_multifile_reader_t *dbp, int fd, const da
             goto error;
         }
 
-        if( strlen(dbp->dico_keys[ dbp->dico_size - nb ].convertor) != a->keyinfo_convertor_length ) {
+        if( strlen(dbp->dico_keys[ dbp->dico_size - nb ].convertor) != (size_t)a->keyinfo_convertor_length ) {
             fprintf(stderr, "Dictionary entry %d has a convertor of %d bytes in the reference dictionary, and %d in the new file dictionary.\n",
                     dbp->dico_size - nb, (int)strlen(dbp->dico_keys[ dbp->dico_size - nb ].convertor), a->keyinfo_convertor_length);
             goto error;
