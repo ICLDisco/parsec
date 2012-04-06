@@ -2112,8 +2112,6 @@ void print_header(){
            "#include \"dplasma/lib/memory_pool.h\"\n"
            "#include \"dplasma/lib/dplasmajdf.h\"\n"
            "\n"
-           "#define BLKLDD(_desc, _k) ( (_desc).storage == matrix_Tile ? (_desc).mb : (_desc).lm )\n"
-           "\n"
            "%%}\n\n");
 }
 
@@ -2959,10 +2957,10 @@ void print_types_of_formal_parameters(node_t *root){
     do{
         for(sym=scope->symbols; NULL!=sym; sym=sym->next){
             if( !strcmp(sym->var_type, "PLASMA_desc") ){
-                printf("desc_%s [type = \"PLASMA_desc\"]\n",sym->var_name);
-                printf("data_%s [type = \"dague_ddesc_t *\"]\n",sym->var_name);
+                printf("desc%-5s [type = \"PLASMA_desc\"]\n",sym->var_name);
+                printf("data%-5s [type = \"dague_ddesc_t *\"]\n",sym->var_name);
             }else{
-                printf("%s [type = \"%s\"]\n",sym->var_name, sym->var_type);
+                printf("%-9s [type = \"%s\"]\n",sym->var_name, sym->var_type);
             }
         }
         scope = scope->parent;
