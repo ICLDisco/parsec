@@ -70,9 +70,9 @@ n = 0..descA.nt-1
 
 // Parameters
 READ      A <-  A STEP0(m, n)
-RW        W <-  (descA.nt-n<=Q)? W(m, n) : W STEP1(m,n+Q)                     [type = WTAB]
+RW        W <-  (descA.nt-n<=Q)? W(m, n%Q) : W STEP1(m,n+Q)                   [type = WTAB]
             ->  (n<Q)? W ROW_REDUCE(m,n) : W STEP1(m,n-Q)                     [type = WTAB]
-            ->  (n==0)? V ROW_REDUCE(m,1)                                     [type = WTAB]
+            ->  (n==0)? V ROW_REDUCE(m,0)                                     [type = WTAB]
 
 BODY
     DRYRUN(
@@ -85,7 +85,7 @@ BODY
                   for(i = 0; i < tempmm; i++)
                         ((double *)W)[i] += fabs(((PLASMA_Complex64_t *)A)[j*ldam+i]);
           );
-    printf("STEP1(%d,%d) with P=%d, Q=%d\n",m,n,P,Q);
+    printlog("STEP1(%d,%d) with P=%d, Q=%d\n",m,n,P,Q);
 END
 
 /**************************************************
@@ -95,7 +95,7 @@ ROW_REDUCE(m,n) [high_priority = on]
 
 // Execution space
 m = 0..descA.mt-1
-n = 1..Q-1
+n = 0..Q-1
 
 // Parallel partitioning
 :A(m, n)
@@ -103,11 +103,13 @@ n = 1..Q-1
 // Parameters
 RW        W <-  W STEP1(m,n)                                                    [type = WTAB]
             ->  (n == Q-1)? W STEP3(m,0..Q-1) : V ROW_REDUCE(m,n+1)             [type = WTAB]
-READ      V <-  (n == 1)? W STEP1(m,0) : W ROW_REDUCE(m,n-1)                    [type = WTAB]
+READ      V <-  (n == 0)? W STEP1(m,0) : W ROW_REDUCE(m,n-1)                    [type = WTAB]
 
 
 BODY
     DRYRUN(
+        if(n != 0)
+        {
             int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
             int ldam = BLKLDD( descA, m );
             int i;
@@ -115,8 +117,9 @@ BODY
             for(j = 0; j < descA.nb; j++)
                   for(i = 0; i < tempmm; i++)
                         ((double *)W)[i] += fabs(((PLASMA_Complex64_t *)V)[j*ldam+i]);
+        }
           );
-    printf("ROW_REDUCE(%d,%d)\n",m,n);
+    printlog("ROW_REDUCE(%d,%d)\n",m,n);
 END
 
 
@@ -134,10 +137,9 @@ n = 0..Q-1
 
 // Parameters
 READ      W <-  W ROW_REDUCE(m,Q-1)                                             [type = WTAB]
-RW        S <-  (descA.mt-m<=P)? S(m, n) : S STEP3(m+P,n)                       [type = STAB]
+RW        S <-  (descA.mt-m<=P)? S(m%P, n) : S STEP3(m+P,n)                     [type = STAB]
             ->  (m<P)? W COL_REDUCE(m,n) : S STEP3(m-P,n)                       [type = STAB]
-            ->  (m==0)? V COL_REDUCE(1,n)                                       [type = STAB]
-            ->  (m==0)? S(m,n)                                                  [type = STAB]
+            ->  (m==0)? V COL_REDUCE(0,n)                                       [type = STAB]
 
 BODY
     DRYRUN(
@@ -147,7 +149,7 @@ BODY
                   if(((double *)S)[0] < ((double *)W)[i])
                               ((double *)S)[0] = ((double *)W)[i];
           );
-    printf("STEP3(%d,%d)\n",m,n);
+    printlog("STEP3(%d,%d)\n",m,n);
 END
 /**************************************************
  *                    COL_REDUCE                  *
@@ -155,7 +157,7 @@ END
 COL_REDUCE(m,n) [high_priority = on]
 
 // Execution space
-m = 1..P-1
+m = 0..P-1
 n = 0..Q-1
 
 // Parallel partitioning
@@ -165,11 +167,12 @@ n = 0..Q-1
 RW        W <-  S STEP3(m,n)                                                    [type = STAB]
             -> (m<P-1)? V COL_REDUCE(m+1,n)                                     [type = STAB]
             -> S(m,n)                                                           [type = STAB]
-READ      V <-  (m == 1)? S STEP3(0,n) : W COL_REDUCE(m-1,n)                    [type = STAB]
+READ      V <-  (m == 0)? S STEP3(0,n) : W COL_REDUCE(m-1,n)                    [type = STAB]
 
 BODY
     DRYRUN(
+        if(m != 0)
            ((double *)W)[0] = ((double *)V)[0];
           );
-    printf("COL_REDUCE(%d,%d)\n",m,n);
+    printlog("COL_REDUCE(%d,%d)\n",m,n);
 END

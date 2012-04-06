@@ -57,7 +57,7 @@ double dplasma_zlange_inf( dague_context_t *dague,
                            tiled_matrix_desc_t *A)
 {
     two_dim_block_cyclic_t workW, workS;
-    double result = -1.0;
+    double result;
     dague_object_t *dague_zlange_inf = NULL;
 
     switch( ntype )
@@ -65,15 +65,22 @@ double dplasma_zlange_inf( dague_context_t *dague,
     case PlasmaInfNorm:
         PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
             workW, two_dim_block_cyclic,
-            (&workW, matrix_RealDouble, matrix_Tile, 1, A->super.cores, A->super.myrank,
-             A->mb, 1, A->mt, ((two_dim_block_cyclic_t*)A)->grid.cols, 0, 0, A->mt, ((two_dim_block_cyclic_t*)A)->grid.cols,
+            (&workW, matrix_RealDouble, matrix_Tile, A->super.nodes, A->super.cores, A->super.myrank,
+             A->mb, 1,          /* Dimesions of the tile */
+             A->m, ((two_dim_block_cyclic_t*)A)->grid.cols, /* Dimensions of the matrix */
+             0, 0,                                           /* Starting points (not important here) */
+             A->m, ((two_dim_block_cyclic_t*)A)->grid.cols, /* Dimensions of the submatrix */
              ((two_dim_block_cyclic_t*)A)->grid.strows, ((two_dim_block_cyclic_t*)A)->grid.stcols,
              ((two_dim_block_cyclic_t*)A)->grid.rows));
         PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
             workS, two_dim_block_cyclic,
-            (&workS, matrix_RealDouble, matrix_Tile, 1, A->super.cores, A->super.myrank,
-             1, 1, ((two_dim_block_cyclic_t*)A)->grid.rows, ((two_dim_block_cyclic_t*)A)->grid.cols, 0, 0,
-             ((two_dim_block_cyclic_t*)A)->grid.rows, ((two_dim_block_cyclic_t*)A)->grid.cols, 1, 1, ((two_dim_block_cyclic_t*)A)->grid.rows));
+            (&workS, matrix_RealDouble, matrix_Tile, A->super.nodes, A->super.cores, A->super.myrank,
+             1, 1,          /* Dimesions of the tile */
+             ((two_dim_block_cyclic_t*)A)->grid.rows, ((two_dim_block_cyclic_t*)A)->grid.cols, /* Dimensions of the matrix */
+             0, 0,                                           /* Starting points (not important here) */
+             ((two_dim_block_cyclic_t*)A)->grid.rows, ((two_dim_block_cyclic_t*)A)->grid.cols, /* Dimensions of the submatrix */
+             ((two_dim_block_cyclic_t*)A)->grid.strows, ((two_dim_block_cyclic_t*)A)->grid.stcols,
+             ((two_dim_block_cyclic_t*)A)->grid.rows));
         break;
 
     default:
@@ -93,6 +100,8 @@ double dplasma_zlange_inf( dague_context_t *dague,
         dplasma_zlange_inf_Destruct( dague_zlange_inf );
     }
 
+    if ( workS.super.super.myrank == 0 )
+        result = ((double*)workS.mat)[0];
 
     dague_data_free(workW.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&workW);

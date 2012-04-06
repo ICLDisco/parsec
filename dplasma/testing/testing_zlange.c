@@ -47,11 +47,11 @@ int main(int argc, char ** argv)
 
     if(loud > 2) printf("+++ Computing getrf_sp ... ");
 
-    /* Computing LU */
+    /* Computing the norm */
 
     double ret = dplasma_zlange_inf(dague,PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescA);
 
-    printf("The infini norm of A is %g",ret);
+    printf("The infini norm of A is %g\n",ret);
 
     if(check)
     {
@@ -60,9 +60,10 @@ int main(int argc, char ** argv)
 
         twoDBC_ztolapack( &ddescA, A, LDA );
 
-        double ret = LAPACKE_zlange(LAPACK_COL_MAJOR, 'i', N, N, A, LDA);
-        printf("The infini Lapacke norm of A is %g",ret);
-
+        double *work  = (double *)malloc(M* sizeof(double));
+        double ret_lapacke = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, A, LDA, work);
+        printf("The infini Lapacke norm of A is %g\n",ret);
+        printf("The solution is %s\n",(ret == ret_lapacke)?"correct":"bad");
         free(A);
     }
 
