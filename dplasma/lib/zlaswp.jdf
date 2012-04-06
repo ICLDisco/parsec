@@ -20,7 +20,8 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-PLASMA_desc plasma_desc_submatrix(PLASMA_desc descA, int i, int j, int m, int n);
+PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
+                             int lm, int ln, int i, int j, int m, int n);
 
 %}
 
@@ -30,7 +31,6 @@ A         [type = "dague_ddesc_t *"]
 descIP    [type = "tiled_matrix_desc_t"]
 IPIV      [type = "dague_ddesc_t *"]
 inc       [type = "int"]
-pdescA    [type = "PLASMA_desc*"]
 
 /************************************************************************************
  *                              SWAP                                                *
@@ -41,7 +41,7 @@ IPIV_in(k) [profile = off]
 
 :IPIV(k, 0)
 
-READ IP <- IPIV(k, 0)                [type = PIVOT]
+READ IP <- IPIV(k, 0)                     [type = PIVOT]
         -> IPIV laswp(k, 0..descA.nt-1)   [type = PIVOT]
 
 BODY
@@ -74,9 +74,12 @@ BODY
          if ( descA.storage == matrix_Tile ) {
              int tempk = k * descA.mb;
              int tempm = descA.m - tempk;
-             CORE_zlaswp_ontile(
-                 plasma_desc_submatrix(*pdescA, tempk, n*descA.nb, tempm, tempnn),
-                 1, tempkm, IPIV, 1);
+             PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                                    descA.mb, descA.nb, descA.mb * descA.nb,
+                                                    ( descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                                    tempm, tempnn);
+             pdescA.mat = A;
+             CORE_zlaswp_ontile( pdescA, 1, tempkm, IPIV, 1);
          } else {
              CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc);
          }

@@ -25,23 +25,10 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
                    int inc)
 {
     dague_zlaswp_object_t *dague_laswp;
-    PLASMA_desc *pdescA = NULL;
-
-    if ( A->storage == matrix_Tile ) {
-        /* Allocate memory and initialize the descriptor */
-        pdescA = (PLASMA_desc*)malloc(sizeof(PLASMA_desc));
-        *pdescA = plasma_desc_init(
-            PlasmaComplexDouble, A->mb, A->nb, A->mb * A->nb,
-            A->lm, A->ln, A->i, A->j, A->m, A->n);
-
-        /* We guess that (0,0) is the mat pointer, to be changed for distributed */
-        pdescA->mat = ((dague_ddesc_t*)A)->data_of( ((dague_ddesc_t*)A), 0, 0 );
-
-    }
 
     dague_laswp = dague_zlaswp_new( *A,    (dague_ddesc_t*)A,
                                     *IPIV, (dague_ddesc_t*)IPIV,
-                                    inc, pdescA );
+                                    inc );
 
     /* A */
     dplasma_add2arena_tile( dague_laswp->arenas[DAGUE_zlaswp_DEFAULT_ARENA],
@@ -65,9 +52,6 @@ dplasma_zlaswp_Destruct( dague_object_t *o )
 
     dplasma_datatype_undefine_type( &(dague_zlaswp->arenas[DAGUE_zlaswp_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlaswp->arenas[DAGUE_zlaswp_PIVOT_ARENA     ]->opaque_dtt) );
-
-    if ( dague_zlaswp->pdescA != NULL )
-        free( dague_zlaswp->pdescA );
 
     dague_zlaswp_destroy(dague_zlaswp);
 }
