@@ -12,6 +12,7 @@
 #include <string.h>
 #include <assert.h>
 #include <ctype.h>
+#include <stddef.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
