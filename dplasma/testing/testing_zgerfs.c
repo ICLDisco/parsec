@@ -71,7 +71,7 @@ int main(int argc, char ** argv)
 
     /* Initialize criteria */
     double eps = LAPACKE_dlamch_work('e');
-    double Anorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescA);
+    double Anorm = dplasma_zlange_inf(dague, PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescA);
     criteria = eps * Anorm;
 
     /* ((Dague_Complex64_t *) ddescA.mat)[0] = criteria*0.1; */
@@ -92,7 +92,7 @@ int main(int argc, char ** argv)
     printf("LU decomposition done with %d pivoting\n",nbpivot);
 
     /* Initialize X */
-    int first_solution = 1;
+    int first_solution = 0;
     if(first_solution)
     {
         dplasma_zlacpy( dague, PlasmaUpperLower,
@@ -140,8 +140,9 @@ int main(int argc, char ** argv)
         twoDBC_ztolapack( &ddescB, B, LDB );
         twoDBC_ztolapack( &ddescX, X, LDB );
 
+        double Bnorm       = dplasma_zlange_inf(dague, PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescB);
+
         int ret = LAPACKE_zgerfs( LAPACK_COL_MAJOR, 'N', N, NRHS, A, LDA, LU, LDA, ipiv, B, LDB, X, LDB, ferr, berr );
-        printf("The refinement is %s\n",ret?"bad":"good");
 
         Dague_Complex64_t alpha =  -1.;
         Dague_Complex64_t beta  = 1.;
@@ -150,20 +151,20 @@ int main(int argc, char ** argv)
                     (CBLAS_TRANSPOSE)CblasNoTrans, (CBLAS_TRANSPOSE)CblasNoTrans,
                     M, NRHS, M, CBLAS_SADDR(alpha), A, LDA, X, LDB,
                     CBLAS_SADDR(beta), B, LDB);
-
-        double Bnorm       = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescB);
-        double Xnorm, Rnorm, Znorm;
-
+        double Xnorm, Rnorm;
         double *work  = (double *)malloc(M* sizeof(double));
-        Xnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'm', M, NRHS, X, LDB, work);
-        Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'm', M, NRHS, B, LDB, work);
+
+        Xnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, NRHS, X, LDB, work);
+        Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, NRHS, B, LDB, work);
 
         double result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * M * eps ) ;
 
-        if (  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 10.0) )
+        if (  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 1.0) )
             printf("-- Lapack solution is suspicious ! \n");
         else
             printf("-- Lapack solution is CORRECT ! \n");
+
+
         printf("Lapack berr = %e\n",berr[0]);
 
         free(A);
@@ -215,14 +216,14 @@ static int check_solution( dague_context_t *dague, int loud,
     int m = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescA);
-    Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
-    Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescX);
+    Anorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescA);
+    Bnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescB);
+    Xnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescX);
 
     /* Compute b - A*x */
     dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescX, 1.0, ddescB);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
+    Rnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescB);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 
@@ -236,7 +237,7 @@ static int check_solution( dague_context_t *dague, int loud,
         printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n", result);
     }
 
-    if (  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 60.0) ) {
+    if (  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 1.0) ) {
         if( loud ) printf("-- Solution is suspicious ! \n");
         info_solution = 1;
     }

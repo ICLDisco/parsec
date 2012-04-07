@@ -47,10 +47,7 @@ int main(int argc, char ** argv)
 
     if(loud > 2) printf("+++ Computing getrf_sp ... ");
 
-    /* Computing the norm */
-
     double ret = dplasma_zlange_inf(dague,PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescA);
-
     printf("The infini norm of A is %g\n",ret);
 
     if(check)
@@ -62,7 +59,7 @@ int main(int argc, char ** argv)
 
         double *work  = (double *)malloc(M* sizeof(double));
         double ret_lapacke = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, A, LDA, work);
-        printf("The infini Lapacke norm of A is %g\n",ret);
+        printf("The infini Lapacke norm of A is %g\n",ret_lapacke);
         printf("The solution is %s\n",(ret == ret_lapacke)?"correct":"bad");
         free(A);
     }

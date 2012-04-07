@@ -299,4 +299,6 @@ dplasma/lib/zhetrf\.c
 dplasma/lib/zhetrf\.h
 dplasma/lib/ztrdsm\.c
 dplasma/lib/ztrdsm\.h
+config.igdplasma/lib/zgerfs.jdf.new
 config.ig
+dplasma/lib/zgerfs.jdf.new

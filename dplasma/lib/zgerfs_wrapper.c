@@ -18,7 +18,7 @@
 #include "zgerfs.h"
 #include "zgerfs_exp.h"
 
-int mode_exp = 1;
+int mode_exp = 0;
 
 dague_object_t*
 dplasma_zgerfs_New(tiled_matrix_desc_t *A,
@@ -105,11 +105,11 @@ int dplasma_zgerfs( dague_context_t     *dague,
                     tiled_matrix_desc_t *ddescX)
 {
     two_dim_block_cyclic_t ddescR, ddescZ;
-    printf("%d %d %d %d %d %d\n",ddescB->mb, ddescB->nb, ddescB->lmt, ddescB->lnt, ddescB->m, ddescB->n);
+
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         ddescR, two_dim_block_cyclic,
         (&ddescR, matrix_ComplexDouble, matrix_Tile, ddescB->super.nodes, ddescB->super.cores, ddescB->super.myrank,
-         ddescB->mb, ddescB->nb, ddescB->lmt, ddescB->lnt, 0, 0, ddescB->m, ddescB->n,
+         ddescB->mb, ddescB->nb, ddescB->m, ddescB->n, 0, 0, ddescB->m, ddescB->n,
          ((two_dim_block_cyclic_t*)ddescB)->grid.strows,
          ((two_dim_block_cyclic_t*)ddescB)->grid.stcols,
          ((two_dim_block_cyclic_t*)ddescB)->grid.rows));
@@ -117,15 +117,15 @@ int dplasma_zgerfs( dague_context_t     *dague,
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         ddescZ, two_dim_block_cyclic,
         (&ddescZ, matrix_ComplexDouble, matrix_Tile, ddescB->super.nodes, ddescB->super.cores, ddescB->super.myrank,
-         ddescB->mb, ddescB->nb, ddescB->lmt, ddescB->lnt, 0, 0, ddescB->m, ddescB->n,
+         ddescB->mb, ddescB->nb, ddescB->m, ddescB->n, 0, 0, ddescB->m, ddescB->n,
          ((two_dim_block_cyclic_t*)ddescB)->grid.strows,
          ((two_dim_block_cyclic_t*)ddescB)->grid.stcols,
          ((two_dim_block_cyclic_t*)ddescB)->grid.rows));
 
     double eps = LAPACKE_dlamch_work('e');
-    double Anorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescA);
-    double Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
-    double Xnorm, Rnorm, Znorm;
+    double Anorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescA);
+    double Bnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescB);
+    double Xnorm, Rnorm;
 
     int nb_iter_ref = 0;
     int m = ddescB->m;
@@ -133,9 +133,8 @@ int dplasma_zgerfs( dague_context_t     *dague,
     do
     {
         dplasma_zgerfs_aux(dague, ddescA, ddescLU, ddescB, (tiled_matrix_desc_t*) &ddescR, ddescX, (tiled_matrix_desc_t*) &ddescZ);
-        Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescR);
-        Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescX);
-        Znorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescZ);
+        Rnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescR);
+        Xnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescX);
 
         result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 
