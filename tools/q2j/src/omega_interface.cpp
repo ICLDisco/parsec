@@ -4216,10 +4216,10 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
             Q2J_ASSERT(0);
         }
 
-        if( ideps.size() > MAX_PRED_COUNT )
-            fprintf(stderr,"WARNING: Number of incoming edges (%lu) for variable \"%s\" exceeds %d\n", ideps.size(), var_pseudoname, MAX_PRED_COUNT);
-        if( odeps.size() > MAX_PRED_COUNT )
-            fprintf(stderr,"WARNING: Number of outgoing edges (%lu) for variable \"%s\" exceeds %d\n", odeps.size(), var_pseudoname, MAX_PRED_COUNT);
+        if( ideps.size() > MAX_DEP_IN_COUNT )
+            fprintf(stderr,"WARNING: Number of incoming edges (%lu) for variable \"%s\" exceeds %d\n", ideps.size(), var_pseudoname, MAX_DEP_IN_COUNT);
+        if( odeps.size() > MAX_DEP_OUT_COUNT )
+            fprintf(stderr,"WARNING: Number of outgoing edges (%lu) for variable \"%s\" exceeds %d\n", odeps.size(), var_pseudoname, MAX_DEP_OUT_COUNT);
 
         // Print the pseudoname
         printf("%s",var_pseudoname);

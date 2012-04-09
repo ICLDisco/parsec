@@ -92,8 +92,10 @@
 #endif
 
 #define MAX_LOCAL_COUNT  20
-#define MAX_PRED_COUNT   20
 #define MAX_PARAM_COUNT  20
+
+#define MAX_DEP_IN_COUNT  10
+#define MAX_DEP_OUT_COUNT 10
 
 #include "dague_config_bottom.h"
 

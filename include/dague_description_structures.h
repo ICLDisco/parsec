@@ -62,9 +62,6 @@ struct expr {
 #define ACCESS_WRITE    0x02
 #define ACCESS_RW       (ACCESS_READ | ACCESS_WRITE)
 
-#define MAX_DEP_IN_COUNT  10
-#define MAX_DEP_OUT_COUNT 10
-
 struct dague_flow {
     char               *name;
     unsigned char       sym_type;
