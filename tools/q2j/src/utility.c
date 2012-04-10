@@ -731,7 +731,6 @@ void add_entry_and_exit_task_loops(node_t *node){
     add_entry_task_loops(list, node);
     add_exit_task_loops(list, node);
     DA_parentize(node);
-//printf("%s\n\n",tree_to_str(node));
 }
 
 static int is_var_repeating(char *iv_str, char **iv_names){
@@ -762,7 +761,7 @@ static int is_matching_var(char *iv_str, char *old_var){
             return 0;
     }
 
-    // If not test failed, it's a match
+    // If no test failed, it's a match
     return 1;
 }
 
@@ -820,7 +819,7 @@ static char *rename_ivar(char *iv_str, char **iv_names, node_t *node){
     num = var_name_to_num(iv_names[i], strlen(iv_str));
     // The new var will need to be one higher than the higest existing one
     num += 1;
-    // Find the number of digits of the number without paying the cost of a log()
+    // Find the number of digits in the number
     i = 1;
     for(lg=1; lg<num; lg*=10){
         i++;
@@ -839,6 +838,7 @@ static char *rename_ivar(char *iv_str, char **iv_names, node_t *node){
 
     return new_name;
 }
+
 
 void rename_induction_variables(node_t *node){
     static int len=0, pos=0;
@@ -865,12 +865,17 @@ void rename_induction_variables(node_t *node){
             if( is_var_repeating(iv_str, iv_names) ){
                 iv_str = rename_ivar(iv_str, iv_names, node);
             }
-            // Add the new variable into the list (iv_names)
             if( pos >= len-1 ){
                 // The array that holds the list needs to be resized
+                uintptr_t old_size;
+                char **tmp_ptr;
+                old_size = len*sizeof(char *);
                 len*=2;
-                iv_names = (char **)realloc(iv_names, len*sizeof(char *));
+                tmp_ptr = (char **)calloc(len, sizeof(char *));
+                memcpy(tmp_ptr, iv_names, old_size);
+                iv_names = tmp_ptr;
             }
+            // Add the new variable into the list (iv_names)
             iv_names[pos] = iv_str;
             pos++;
             break;
