@@ -264,6 +264,7 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
             return -1;
         }
         pos = dague_prof_keys_count;
+        dague_prof_keys_count++;
     }
 
     dague_prof_keys[pos].name = strdup(key_name);
@@ -276,7 +277,6 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
 
     *key_start = START_KEY(pos);
     *key_end = END_KEY(pos);
-    dague_prof_keys_count++;
     return 0;
 }
 
