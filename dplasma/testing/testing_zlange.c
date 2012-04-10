@@ -13,7 +13,7 @@
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
-    double norm;
+    double norm = 0.0;
     int iparam[IPARAM_SIZEOF];
     int ret = 0;
     double eps = LAPACKE_dlamch_work('e');
@@ -54,12 +54,12 @@ int main(int argc, char ** argv)
     norm = dplasma_zlange_inf(dague, PlasmaInfNorm,
                               (tiled_matrix_desc_t *)&ddescA);
 
-    printf("The infini norm of A is %e\n", norm );
+    printf("%d: The infini norm of A is %e\n", rank, norm );
 
     if(check)
     {
         double *work;
-        double normlap;
+        double normlap = 0.0;
 
         dplasma_zlacpy(dague,
                        PlasmaUpperLower,
@@ -72,9 +72,10 @@ int main(int argc, char ** argv)
             normlap = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N,
                                           (Dague_Complex64_t*)(ddescA0.mat), ddescA0.super.lm, work);
 
-            printf("The infini Lapacke norm of A is %e\n", normlap);
+            printf("The infini Lapacke norm of A is %e\n", normlap );
 
-            if ( (norm - normlap ) < (N*eps) ) {
+            normlap = normlap - norm;
+            if ( normlap < (N*eps) ) {
                 printf( "The solution is correct\n" );
             } else {
                 printf( "The solution is bad (%e)\n", norm - normlap );
