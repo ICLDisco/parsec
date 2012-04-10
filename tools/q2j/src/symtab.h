@@ -1,19 +1,19 @@
 #ifndef SYMTAB_H_HAS_BEEN_INCLUDED
 #define SYMTAB_H_HAS_BEEN_INCLUDED
 
-typedef struct symbol_t symbol_t;
+typedef struct q2j_symbol_t q2j_symbol_t;
 
-struct symbol_t{
+struct q2j_symbol_t{
     char *var_name;
     char *var_type;
-    symbol_t *next;
+    q2j_symbol_t *next;
 };
 
 typedef struct symtab_t symtab_t;
     
 struct symtab_t{
     symtab_t *parent;
-    symbol_t *symbols;
+    q2j_symbol_t *symbols;
 };
 
 symtab_t *st_get_current_st(void);
