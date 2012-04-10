@@ -60,13 +60,12 @@ BODY
             int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
             int ldam = BLKLDD( descA, m );
             int i;
-            int j;
             if(descA.nt-n<=Q)
                   for(i = 0; i < tempmm; i++)
                         ((double *)W)[i] = 0;
-            for(j = 0; j < tempnn; j++)
-                  for(i = 0; i < tempmm; i++)
-                        ((double *)W)[i] += fabs(((PLASMA_Complex64_t *)A)[j*ldam+i]);
+            CORE_dzasum(PlasmaRowwise, PlasmaUpperLower,
+                        tempmm, tempnn,
+                        A, ldam, W);
           );
     printlog("STEP1(%d,%d) with P=%d, Q=%d, tempmm=%d, tempnn=%d\n",m,n,P,Q, tempmm, tempnn);
 END
@@ -95,11 +94,9 @@ BODY
         int ldam = BLKLDD( descA, m );
         if(n != 0)
         {
-            int i;
-            int j;
-            for(j = 0; j < descA.nb; j++)
-                  for(i = 0; i < tempmm; i++)
-                        ((double *)W)[i] += fabs(((PLASMA_Complex64_t *)V)[j*ldam+i]);
+            CORE_dasum(PlasmaRowwise, PlasmaUpperLower,
+                       tempmm, descA.nb,
+                       V, ldam, W);
         }
           );
     printlog("ROW_REDUCE(%d,%d), tempmm=%d\n",m,n, tempmm);
