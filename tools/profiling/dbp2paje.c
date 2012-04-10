@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
 #undef HAVE_MPI
 
@@ -7,6 +13,7 @@
 #include <inttypes.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <sys/time.h>
 
 #include "profiling.h"
 #include "dbp.h"
@@ -61,61 +68,214 @@ static thread_stat_t **dico_stat = NULL;
 static int            *stat_columns = NULL;
 static dico_stat_t    *current_stat = NULL;
 
+static uint64_t total_events = 0, events_read = 0, events_output = 0, events_to_output = 0;
+static int      total_threads = 0, threads_done = 0;
+static int      total_files = 0, files_done = 0;
+static struct timeval start_run;
+static struct timeval last_display;
+
 typedef struct {
     dague_list_item_t super;
-    uint64_t        id;
+    uint64_t        event_id;
     uint64_t        start;
     uint64_t        end;
     int             key;
+    uint32_t        object_id;
+    const dbp_thread_t   *start_thread;
+    const dbp_thread_t   *end_thread;
     size_t          start_info_size;
     size_t          end_info_size;
     char            infos[1];
 } consolidated_event_t;
 
+static void progress_bar_init(uint64_t nb_events, int nb_threads, int nb_files)
+{
+    total_events = nb_events;
+    total_threads = nb_threads;
+    total_files = nb_files;
+
+    events_read = 0;
+    events_output = 0;
+    events_to_output = 0;
+    threads_done = 0;
+    files_done = 0;
+
+    gettimeofday(&start_run, NULL);
+}
+
+static void progress_bar_update(int force)
+{
+    struct timeval now, diff;
+    double delta;
+    char eta[64], to_output[64];
+
+    gettimeofday(&now, NULL);
+    timersub(&now, &last_display, &diff);
+    delta = (double)diff.tv_sec + (double)diff.tv_usec / 1000000.0;
+
+    if( (delta < 1.0) && !force )
+        return;
+
+    timersub(&now, &start_run, &diff);
+    delta = (double)diff.tv_sec + (double)diff.tv_usec / 1000000.0;
+    if( events_read > 0 ) {
+        sprintf(eta, "%fs", ((double)total_events-(double)events_read)*delta/(double)events_read);
+    } else {
+        sprintf(eta, " -- ");
+    }
+    
+    if( events_to_output > 0 ) {
+        sprintf(to_output, "%4.1f%%", (double)events_output*100.0/(double)events_to_output);
+    } else {
+        sprintf(to_output, " -- ");
+    }
+
+    fprintf(stderr, "\r%d/%d files done; %d/%d threads done; %4.1f%% events read (%s of those events have been output); ETA: %s                        %s", 
+            files_done, total_files,
+            threads_done, total_threads,
+            (double)events_read*100.0/(double)total_events,
+            to_output,
+            eta,
+            force ? "\n" : "");
+    fflush(stderr);
+
+    gettimeofday(&last_display, NULL);
+}
+
+static void progress_bar_file_done(void)
+{
+    files_done++;
+    progress_bar_update(0);
+}
+
+static void progress_bar_thread_done(void)
+{
+    threads_done++;
+    progress_bar_update(0);
+}
+
+static void progress_bar_event_read(void)
+{
+    events_read++;
+    progress_bar_update(0);
+}
+
+static void progress_bar_event_to_output(void)
+{
+    events_to_output++;
+    progress_bar_update(0);
+}
+
+static void progress_bar_event_output(void)
+{
+    events_output++;
+    progress_bar_update(0);
+}
+
+static void progress_bar_end(void)
+{
+    progress_bar_update(1);
+}
+
+static char *getThreadContainerIdentifier( const char *prefix, const char *identifier )
+{
+    const char *r = identifier + strlen(identifier) - 1;
+    char *ret;
+
+    while( *r != ' ' )
+        r--;
+
+    asprintf( &ret, "%sT%s", prefix, r+1);
+    return ret;
+}
+
 static int merge_event( dague_list_t *list, consolidated_event_t *cev )
 {
     dague_list_item_t *it;
-    consolidated_event_t *lev, *prev;
+    consolidated_event_t *lev, *next;
     int broken = 0;
 
-    prev = NULL;
-    for( it = DAGUE_LIST_ITERATOR_FIRST(list);
-         it != DAGUE_LIST_ITERATOR_END(list);
-         it = DAGUE_LIST_ITERATOR_NEXT(it) ) {
+    next = NULL;
+    for( it = DAGUE_LIST_ITERATOR_LAST(list);
+         it != DAGUE_LIST_ITERATOR_BEGIN(list);
+         it = DAGUE_LIST_ITERATOR_PREV(it) ) {
         lev = (consolidated_event_t*)it;
-        if( lev->start >= cev->start ) {
-            if( (cev->end > lev->start) ||
-                ((prev != NULL) && (cev->start < prev->end) ) ) {
+        if( cev->start >= lev->start ) {
+            if( ((cev->start < lev->end) ||
+                ((next != NULL) && (cev->end > next->start) )) &&
+                (cev->start_thread == cev->end_thread) ) {
                 broken = 1;
-            }
-            dague_list_nolock_add_before( list,
-                                          it,
-                                          (dague_list_item_t*)cev );
+            } 
+            dague_list_nolock_add_after( list,
+                                         it,
+                                         (dague_list_item_t*)cev );
             return broken;
         }
-        prev = lev;
+        next = lev;
     }
-    if( (prev != NULL) && (cev->start < prev->end) ) {
+    if( (next != NULL) && (cev->end > next->start) &&
+        (cev->start_thread == cev->end_thread) ) {
         broken = 1;
     }
-    dague_list_nolock_push_back( list, (dague_list_item_t*)cev );
+    dague_list_nolock_push_front( list, (dague_list_item_t*)cev );
     return broken;
+}
+
+static uint64_t *step_height(dague_list_t *list, int *level)
+{
+    dague_list_item_t *e;
+    consolidated_event_t *cev;
+    int s, nb_steps = 0;
+    static int allocated_dates = 0;
+    static uint64_t *dates = NULL;
+    
+    for( e = DAGUE_LIST_ITERATOR_FIRST(list);
+         e != DAGUE_LIST_ITERATOR_END(list);
+         e = DAGUE_LIST_ITERATOR_NEXT(e) ) {
+        cev = (consolidated_event_t*)e;
+        if( cev->start_thread == cev->end_thread ) {
+            for(s = 0; s < nb_steps; s++) {
+                if( dates[s] <= cev->start ) {
+                    dates[s] = cev->end;
+                    break;
+                }
+            }
+            if (s == nb_steps) {
+                nb_steps++;
+                if( nb_steps > allocated_dates ) {
+                    allocated_dates = nb_steps;
+                    dates = (uint64_t*)realloc(dates, nb_steps * sizeof(uint64_t));
+                }
+                dates[s] = cev->end;
+            }
+        }
+    }
+    memset(dates, 0, nb_steps * sizeof(uint64_t));
+    *level = nb_steps;
+    return dates;
 }
 
 static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                           const dbp_thread_t *th,
-                          char *cont_thread_name )
+                          const char *cont_mpi_name,
+                          const char *cont_thread_name )
 {
     unsigned int key, broken = 0;
     uint64_t start, end;
+    int s;
     char keyid[64];
     dbp_event_iterator_t *pit, *nit;
     dague_list_t consolidated_events;
     consolidated_event_t *cev;
     static int linkuid = 0;
     char linkid[64];
+    char cont_step_name[64];
     dague_time_t relative;
     const dbp_event_t *e, *g;
+    char *cont_src;
+    char *cont_dst;
+    uint64_t *steps_end_dates;
+    int nb_steps;
 
     relative = dbp_reader_min_date(dbp);
 
@@ -129,9 +289,9 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
 
             if( NULL == nit ) {
                 /* Argh, couldn't find the end in this trace */
-                WARNING(("   Event of class %s id %d at %lu does not have a match anywhere\n",
+                WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
                          dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
-                         dbp_event_get_id(e),
+                         dbp_event_get_object_id(e), dbp_event_get_event_id(e),
                          diff_time(relative, dbp_event_get_timestamp(e))));
                 
                 current_stat[ key ].nb_matcherror++;
@@ -151,52 +311,70 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                 cev = (consolidated_event_t*)malloc(sizeof(consolidated_event_t) +
                                                     dbp_event_info_len(e, dbp) +
                                                     dbp_event_info_len(g, dbp) );
-                cev->id = dbp_event_get_id(e);
+                cev->event_id = dbp_event_get_event_id(e);
+                cev->object_id = dbp_event_get_object_id(e);
                 cev->start = start;
                 cev->end = end;
+                cev->start_thread = dbp_iterator_thread(pit);
+                cev->end_thread = dbp_iterator_thread(nit);
                 cev->key = key;
                 cev->start_info_size = dbp_event_info_len(e, dbp);
                 cev->end_info_size = dbp_event_info_len(g, dbp);
                 memcpy(cev->infos, dbp_event_get_info( e ), cev->start_info_size);
                 memcpy(cev->infos + cev->start_info_size, dbp_event_get_info( g ), cev->end_info_size);
                 
+                progress_bar_event_to_output();
+
                 broken = merge_event( &consolidated_events, cev ) || broken;
                 dbp_iterator_delete(nit);
             }
         }
+        progress_bar_event_read();
         dbp_iterator_next(pit);
     }
     dbp_iterator_delete(pit);
 
+    if( broken ) {
+        steps_end_dates = step_height(&consolidated_events, &nb_steps);
+    } else {
+        nb_steps = 1;
+        steps_end_dates = (uint64_t*)calloc(1, sizeof(uint64_t));
+    }
+    for(s = 0; s < nb_steps; s++) {
+        sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
+        addContainer(0.00000, cont_step_name, "CT_S", cont_thread_name, " ", "");
+    }
+
     while( NULL != (cev = (consolidated_event_t*)dague_list_nolock_pop_front( &consolidated_events ) ) ) {
         sprintf(keyid, "K-%d", cev->key);
-        if( !broken ) {
-            pajeSetState2( ((double)cev->start) * 1e-3, "ST_TS", cont_thread_name, keyid );
-            pajeSetState2( ((double)cev->end) * 1e-3, "ST_TS", cont_thread_name, "Wait");
+        if( cev->start_thread == cev->end_thread ) {
+            for(s = 0; s < nb_steps; s++) {
+                if( steps_end_dates[s] <= cev->start ) {
+                    steps_end_dates[s] = cev->end;
+                    break;
+                }
+            }
+            assert( s < nb_steps );
+            sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
+            pajeSetState2( ((double)cev->start) * 1e-3, "ST_TS", cont_step_name, keyid );
+            pajeSetState2( ((double)cev->end) * 1e-3, "ST_TS", cont_step_name, "Wait");
         } else {
             sprintf(linkid, "L-%d", linkuid);
             linkuid++;
-            startLink( ((double)cev->start) * 1e-3, "LT_TL", cont_thread_name, cont_thread_name, cont_thread_name, keyid, linkid);
-            endLink( ((double)cev->end) * 1e-3, "LT_TL", cont_thread_name, cont_thread_name, cont_thread_name, keyid, linkid);
+            cont_src = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(cev->start_thread) );
+            cont_dst = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(cev->end_thread) );
+            startLink( ((double)cev->start) * 1e-3, "LT_TL", cont_mpi_name, cont_src, cont_dst, keyid, linkid);
+            endLink( ((double)cev->end) * 1e-3, "LT_TL", cont_mpi_name, cont_src, cont_dst, keyid, linkid);
+            free(cont_src);
+            free(cont_dst);
         }
-
         free(cev);
+        progress_bar_event_output();
     }
+
     dague_list_destruct( &consolidated_events );
     
     return 0;
-}
-
-static char *getThreadContainerIdentifier( const char *prefix, const char *identifier )
-{
-    const char *r = identifier + strlen(identifier) - 1;
-    char *ret;
-
-    while( *r != ' ' )
-        r--;
-
-    asprintf( &ret, "%sT%s", prefix, r+1);
-    return ret;
 }
 
 static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_reader_t *dbp )
@@ -218,7 +396,8 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
     addContType ("CT_Appli", "0", "Application");
     addContType ("CT_P", "CT_Appli", "Process");
     addContType ("CT_T", "CT_P", "Thread");
-    addStateType ("ST_TS", "CT_T", "Thread State");
+    addContType ("CT_S", "CT_T", "State");
+    addStateType ("ST_TS", "CT_S", "Thread State");
     addLinkType ("LT_TL", "Split Event Link", "CT_P", "CT_T", "CT_T");
 
     addEntityValue ("Wait", "ST_TS", "Waiting", GTG_LIGHTGREY);
@@ -236,13 +415,14 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
         gtg_color_free(color);
     }
 
+    relative = dbp_reader_min_date(dbp);    
     if( dbp_reader_nb_files(dbp) > 1 ) {
         dague_time_t max_time;
         uint64_t delta_time;
 
         delta_time = 0;
         max_time = dbp_reader_min_date(dbp);
-        for(ifd = 1; ifd < dbp_reader_nb_files(dbp); ifd++) {
+        for(ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
             file = dbp_reader_get_file(dbp, ifd);
             delta_time += diff_time(relative, dbp_file_get_min_date( file ));
             if( time_less(max_time, dbp_file_get_min_date( file )) ) {
@@ -259,27 +439,35 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
 
         sprintf(name, "MPI-%d", dbp_file_get_rank(file));
         sprintf(cont_mpi_name, "MPI-%d", dbp_file_get_rank(file));
-        addContainer (0.00000, cont_mpi_name, "CT_P", "Appli", name, cont_mpi_name);
-        
+        addContainer (0.00000, cont_mpi_name, "CT_P", "Appli", name, "");
         for(t = 0; t < dbp_file_nb_threads(file); t++) {
             th = dbp_file_get_thread(file, t);
 
             cont_thread_name = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(th) );
-
             {
                 int l;
                 l = 3 + snprintf(NULL, 0, "#  %s", cont_thread_name);
                 if( l > stat_columns[0] )
                     stat_columns[0] = l;
-
                 dico_stat[ifd][t].name = strdup(cont_thread_name);
-                current_stat = dico_stat[ifd][t].stats;
             }
-
-            addContainer (0.00000, cont_thread_name, "CT_T", cont_mpi_name, dbp_thread_get_hr_id(th), cont_thread_name);
-
-            dump_one_paje(dbp, th, cont_thread_name);
+            addContainer (0.00000, cont_thread_name, "CT_T", cont_mpi_name, dbp_thread_get_hr_id(th), "");
         }
+    }
+
+    for(ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
+        file = dbp_reader_get_file(dbp, ifd);
+
+        sprintf(name, "MPI-%d", dbp_file_get_rank(file));
+        sprintf(cont_mpi_name, "MPI-%d", dbp_file_get_rank(file));
+        for(t = 0; t < dbp_file_nb_threads(file); t++) {
+            th = dbp_file_get_thread(file, t);
+            cont_thread_name = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(th) );
+            current_stat = dico_stat[ifd][t].stats;
+            dump_one_paje(dbp, th, cont_mpi_name, cont_thread_name);
+            progress_bar_thread_done();
+        }
+        progress_bar_file_done();
     }
 
     return 0;
@@ -289,12 +477,24 @@ int main(int argc, char *argv[])
 {
     dbp_multifile_reader_t *dbp;
     dbp_file_t *file;
+    uint64_t nb_events = 0;
+    int nb_threads = 0;
     int i, j, k;
 
     dbp = dbp_reader_open_files(argc, argv);
-    
+
     if( NULL == dbp )
         return 1;
+
+    for(i = 0; i < dbp_reader_nb_files(dbp); i++) {
+        file = dbp_reader_get_file(dbp, i);
+        nb_threads += dbp_file_nb_threads(file);
+        for(j = 0; j < dbp_file_nb_threads(file); j++) {
+            nb_events += dbp_thread_nb_events( dbp_file_get_thread(file, j));
+        }
+    }
+
+    progress_bar_init(nb_events, nb_threads, dbp_reader_nb_files(dbp));
 
     dico_stat = (thread_stat_t**)malloc(dbp_reader_nb_files(dbp) * sizeof(thread_stat_t*));
     for(i = 0; i < dbp_reader_nb_files(dbp); i++) {
@@ -318,6 +518,8 @@ int main(int argc, char *argv[])
     
     dague_profiling_dump_paje( "out", dbp );
     
+    progress_bar_end();
+
     for(k = 0 ; k < dbp_reader_nb_dictionary_entries(dbp); k = k+1 ) {
         int l = strlen(dbp_dictionary_name(dbp_reader_get_dictionary(dbp, k)));
         stat_columns[k+1] = stat_columns[k] + max(l + 2, 16);

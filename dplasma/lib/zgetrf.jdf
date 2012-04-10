@@ -19,10 +19,14 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#define max_thrdnbr_per_panel 2
+#define max_thrdnbr_per_panel 8
 #define nbthreads( __k ) (dague_imin( ((descA.mt - (__k)) + 3 )/  4, max_thrdnbr_per_panel) - 1)
-PLASMA_desc plasma_desc_submatrix(PLASMA_desc descA, int i, int j, int m, int n);
+
+PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
+                             int lm, int ln, int i, int j, int m, int n);
+
 
 %}
 
@@ -31,7 +35,6 @@ descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
 IPIV      [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
-pdescA    [type = "PLASMA_desc*"]
 minMNT    [type = "int" default="( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )" hidden=on]
 
 /************************************************************************************
@@ -169,7 +172,7 @@ BODY
   int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
   int ldak = BLKLDD(descA, k);
 
-  DRYRUN(
+  /* DRYRUN( */
       int tempkm = k == descA.mt-1 ? tempm : descA.mb;
       int nbthrd = nbthreads( k );
       int info[3];
@@ -186,9 +189,13 @@ BODY
       info[2] = nbthrd+1;
 
       if ( descA.storage == matrix_Tile ) {
-          CORE_zgetrf_rectil(
-              plasma_desc_submatrix(*pdescA, tempk, tempk, tempm, tempkn),
-              IPIV, info );
+          PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                                 descA.mb, descA.nb, descA.mb * descA.nb,
+                                                 (descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                                 tempm, tempkn);
+          pdescA.mat = A;
+          CORE_zgetrf_rectil( pdescA, IPIV, info );
+
       } else {
           CORE_zgetrf_reclap(
               tempm, tempkn,
@@ -199,7 +206,7 @@ BODY
           *INFO = tempk + info[0]; /* Should return if enter here */
           fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
       }
-         );
+/*          ); */
 
    printlog("thread %d   CORE_zgetrf_rec(%d)\n"
             "\t(%d, %d, A(%d,%d)[%p], %d, IPIV(%d)[%p])\n",
@@ -233,7 +240,7 @@ swptrsm(k, n)
 
 BODY
 
-  DRYRUN(
+/*   DRYRUN( */
          int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
          int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
          int ldak = BLKLDD(descA, k);
@@ -241,9 +248,13 @@ BODY
          if ( descA.storage == matrix_Tile ) {
              int tempk = k * descA.mb;
              int tempm = descA.m - tempk;
-             CORE_zlaswp_ontile(
-                 plasma_desc_submatrix(*pdescA, tempk, n*descA.nb, tempm, tempnn),
-                 1, tempkm, IPIV, 1);
+             PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble, 
+                                                    descA.mb, descA.nb, descA.mb * descA.nb,
+                                                    (descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                                    tempm, tempnn);
+             pdescA.mat = (void*)A;
+
+             CORE_zlaswp_ontile(pdescA, 1, tempkm, IPIV, 1);
          } else {
              CORE_zlaswp( tempnn, B, descA.lm, 1, tempkm, IPIV, 1);
          }
@@ -253,7 +264,7 @@ BODY
              tempkm, tempnn,
              1., A /*(k, k)*/, ldak,
                  B /*(k, n)*/, ldak);
-         );
+/*          ); */
 
    printlog("thread %d   CORE_zswptrsm(%d, %d)\n"
             "\t(%d, %d, A(%d,%d)[%p], B(%d,%d)[%p])\n",
@@ -349,7 +360,7 @@ swpback(k, n)
 
 BODY
 
-  DRYRUN(
+/*   DRYRUN( */
       int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
       int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
       int tempmin = dague_imin(tempkn, tempkm);
@@ -358,13 +369,16 @@ BODY
       if ( descA.storage == matrix_Tile ) {
           int tempk  = k * descA.mb;
           int tempm  = descA.m - tempk;
-          CORE_zlaswp_ontile(
-              plasma_desc_submatrix(*pdescA, tempk, n*descA.nb, tempm, descA.nb),
-              1, tempmin, IPIV, 1);
+          PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble, 
+                                                 descA.mb, descA.nb, descA.mb * descA.nb,
+                                                 (descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                                 tempm, descA.nb);
+          pdescA.mat = (void*)A;
+          CORE_zlaswp_ontile(pdescA, 1, tempmin, IPIV, 1);
       } else {
           CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempmin, IPIV, 1 );
       }
-         );
+/*          ); */
 
   printlog("thread %d CORE_zswpback(%d, %d)\n"
            "\t(%d, A(%d,%d)[%p], %d, IPIV(%d)[%p])\n",
