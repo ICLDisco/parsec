@@ -29,153 +29,208 @@ extern "C" %{
  */
 descA        [type = "tiled_matrix_desc_t"]
 A            [type = "dague_ddesc_t *"]
-descW        [type = "tiled_matrix_desc_t"]
 W            [type = "dague_ddesc_t *"]
-descS        [type = "tiled_matrix_desc_t"]
-S            [type = "dague_ddesc_t *"]
 P            [type = "int"]
 Q            [type = "int"]
+norm         [type = "double*"]
 
-/**************************************************
- *                    STEP1                       *
- **************************************************/
-STEP1(m,n) [high_priority = on]
+READ_W(m, n) [profile = off]
 
-// Execution space
-m = 0..descA.mt-1
-n = 0..descA.nt-1
+    // Execution space
+    m = 0..descA.mt-1
+    n = 0..Q-1
 
-// Parallel partitioning
-:A(m, n)
+    // Parallel partitioning
+    :W(m, n)
 
-// Parameters
-READ      A <-  A(m, n)
-RW        W <-  (descA.nt-n<=Q)? W(m, n%Q) : W STEP1(m,n+Q)                   [type = WTAB aligned=A]
-            ->  (n<Q)? W ROW_REDUCE(m,n) : W STEP1(m,n-Q)                     [type = WTAB]
-            ->  (n==0)? V ROW_REDUCE(m,0)                                     [type = WTAB]
+    // Parameters
+    READ      W <- W(m, n)
+                -> W STEP1(m, n)
 
 BODY
+    /**/
+END
+
+/**************************************************
+ *
+ *                    STEP 1
+ *
+ *  For j in [1,Q], W(m, j) = reduce( A(m, j+k*Q) )
+ *
+ **************************************************/
+STEP1(m,n)
+
+    // Execution space
+    m = 0..descA.mt-1
+    n = 0..descA.nt-1
+
+    // Parallel partitioning
+    :A(m, n)
+
+    // Parameters
+    READ A <-  A(m, n)
+    RW   W <-  ( n < Q           ) ? W READ_W(m, n) : W STEP1(m,n-Q)   [type = COL]
+           ->  ( n < (descA.nt-Q)) ? W STEP1(m,n+Q) : W STEP2(m,n%Q)   [type = COL]
+
+BODY
+
+    int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
+    int tempnn = ( n == (descA.nt-1) ) ? descA.n - n * descA.nb : descA.nb;
+    int ldam = BLKLDD( descA, m );
+
+    printlog("thread %d zlange STEP1(%d, %d)\n"
+             "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
+             context->eu_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
+
     DRYRUN(
-            int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-            int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-            int ldam = BLKLDD( descA, m );
-            int i;
-            if(descA.nt-n<=Q)
-                  for(i = 0; i < tempmm; i++)
-                        ((double *)W)[i] = 0;
+
+            /* Initialize W */
+            if( n < Q ) {
+                int i;
+                for(i = 0; i < tempmm; i++)
+                    ((double *)W)[i] = 0;
+            }
             CORE_dzasum(PlasmaRowwise, PlasmaUpperLower,
                         tempmm, tempnn,
                         A, ldam, W);
           );
-    printlog("STEP1(%d,%d) with P=%d, Q=%d, tempmm=%d, tempnn=%d\n",m,n,P,Q, tempmm, tempnn);
+
 END
 
 /**************************************************
- *                    ROW_REDUCE                  *
+ *                    STEP 2
+ *
+ *  For each j, W(m, j) = reduce( W(m, 0..Q-1) )
+ *
  **************************************************/
-ROW_REDUCE(m,n) [high_priority = on]
+STEP2(m, n)
 
-// Execution space
-m = 0..descA.mt-1
-n = 0..Q-1
+    // Execution space
+    m = 0..descA.mt-1
+    n = 0..Q-1
 
-// Parallel partitioning
-:A(m, n)
+    // Parallel partitioning
+    :W(m, n)
 
-// Parameters
-RW        W <-  W STEP1(m,n)                                                    [type = WTAB]
-            ->  (n == Q-1)? W STEP3(m,0..Q-1) : V ROW_REDUCE(m,n+1)             [type = WTAB]
-READ      V <-  (n == 0)? W STEP1(m,0) : W ROW_REDUCE(m,n-1)                    [type = WTAB]
-
+    // Parameters
+    READ A <-  (n == 0 ) ? W(m, n) : W STEP2(m, n-1)               [type = COL]
+    RW   W <-  W STEP1(m, n)                                       [type = COL]
+           ->  (n == Q-1) ? A STEP3(m, 0..Q-1) : A STEP2(m, n+1)   [type = COL]
 
 BODY
+
+    int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
+
+    printlog("thread %d zlange STEP2(%d, %d)\n"
+             "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
+             context->eu_id, m, n, tempmm, m, n-1, m, n);
+
     DRYRUN(
-        int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-        int ldam = BLKLDD( descA, m );
-        if(n != 0)
+        if(n > 0)
         {
-            CORE_dasum(PlasmaRowwise, PlasmaUpperLower,
-                       tempmm, descA.nb,
-                       V, ldam, W);
+            cblas_daxpy( tempmm, 1., A, 1, W, 1);
         }
-          );
-    printlog("ROW_REDUCE(%d,%d), tempmm=%d\n",m,n, tempmm);
+           );
+
 END
 
 
 /**************************************************
- *                    STEP3                       *
+ *
+ *                    STEP3
+ *
+ * For m in 0..P-1, W(m, n) = max( W(m..mt[P], n ) )
+ *
  **************************************************/
-STEP3(m,n) [high_priority = on]
+STEP3(m, n)
 
-// Execution space
-m = 0..descA.mt-1
-n = 0..Q-1
+    // Execution space
+    m = 0..descA.mt-1
+    n = 0..Q-1
 
-// Parallel partitioning
-:S(m, n)
+    // Parallel partitioning
+    :W(m, n)
 
-// Parameters
-READ      W <-  W ROW_REDUCE(m,Q-1)                                             [type = WTAB]
-RW        S <-  (descA.mt-m<=P)? S(m%P, n) : S STEP3(m+P,n)                     [type = STAB aligned=S]
-            ->  (m<P)? W COL_REDUCE(m,n) : S STEP3(m-P,n)                       [type = STAB]
-            ->  (m==0)? V COL_REDUCE(0,n)                                       [type = STAB]
+    // Parameters
+    READ A <- W STEP2(m, Q-1)                                          [type = COL]
+    RW   W <- (m < P           ) ? W(m, n) : W STEP3( m-P, n )         [type = ELT]
+           -> (m < (descA.mt-P)) ? W STEP3( m+P, n ) : W STEP4(m%P,n)  [type = ELT]
 
 BODY
+
+    int tempmm = ( m == descA.mt-1) ? descA.m-m*descA.mb  : (descA.mb);
+
+    printlog("thread %d zlange STEP3(%d, %d)\n",
+             context->eu_id, m, n);
+
     DRYRUN(
-            int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-            int i;
-            if(descA.mt-m<=P)
-                  ((double *)S)[0] = 0;
-            for(i = 0; i < tempmm; i++)
-                  if(((double *)S)[0] < ((double *)W)[i])
-                              ((double *)S)[0] = ((double *)W)[i];
-          );
+        double *dA = (double*)A;
+        double *dW = (double*)W;
+        double maxval = 0;
+        int i;
+
+        for(i = 0; i < tempmm; i++, dA++)
+            maxval = ( maxval > *dA ) ? maxval : *dA;
+
+        if ( m < P ) {
+            *dW = maxval;
+        } else {
+            *dW = ( maxval > *dW ) ? maxval : *dW;
+        }
+           );
     printlog("STEP3(%d,%d), tempmm=%d\n",m,n, tempmm);
 END
+
 /**************************************************
- *                    COL_REDUCE                  *
+ *                    STEP 4
+ *
+ *  For each i, W(i, n) = max( W(0..P-1, n) )
+ *
  **************************************************/
-COL_REDUCE(m,n) [high_priority = on]
+STEP4(m,n)
 
-// Execution space
-m = 0..P-1
-n = 0..Q-1
+    // Execution space
+    m = 0..P-1
+    n = 0..Q-1
 
-// Parallel partitioning
-:S(m, n)
+    // Parallel partitioning
+    :W(m, n)
 
-// Parameters
-RW        W <-  S STEP3(m,n)                                                    [type = STAB]
-            -> (m == P-1)? S STEP5(0..P-1,n): V COL_REDUCE(m+1,n)             [type = STAB]
-READ      V <-  (m == 0)? S STEP3(0,n) : W COL_REDUCE(m-1,n)                    [type = STAB]
+    // Parameters
+    READ      A <- ( m == 0 ) ? W(m, n) : W STEP4(m-1, n)                    [type = ELT]
+    RW        W <- W STEP3(m, n)                                             [type = ELT]
+                -> (m == P-1) ? W WRITE_RES(0..P-1, n): A STEP4(m+1, n)      [type = ELT]
 
 BODY
+
+    printlog("thread %d zlange STEP4(%d, %d)\n",
+             context->eu_id, m, n);
+
     DRYRUN(
-        if(m != 0)
-           if(((double *)W)[0] < ((double *)V)[0])
-                       ((double *)W)[0] = ((double *)V)[0];
-          );
-    printlog("COL_REDUCE(%d,%d)\n",m,n);
+        double *dA = (double*)A;
+        double *dW = (double*)W;
+        if(m > 0)
+            *dW = ( *dA > *dW ) ? *dA : *dW;
+           );
+
 END
 
 /**************************************************
  *                      STEP5                     *
  **************************************************/
-STEP5(m,n) [high_priority = on]
+WRITE_RES(m,n)
 
-// Execution space
-m = 0..P-1
-n = 0..Q-1
+    // Execution space
+    m = 0..P-1
+    n = 0..Q-1
 
-// Parallel partitioning
-:S(m, n)
+    // Parallel partitioning
+    :W(m, n)
 
-// Parameters
-READ      S <-  W COL_REDUCE(P-1,n)                                                [type = STAB]
-            -> S(m,n)                                                             [type = STAB]
-
+    // Parameters
+    RW W <- W STEP4(P-1, n )   [type = ELT]
+         -> W(m, n)            [type = ELT]
 
 BODY
-
+    *norm = *( (double*)W );
 END
