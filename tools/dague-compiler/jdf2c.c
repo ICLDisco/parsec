@@ -961,7 +961,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "   info.id = refid;                                         \\\n"
             "   dague_profiling_trace(context->eu_profile,               \\\n"
             "                         __dague_object->super.super.profiling_array[(key)],\\\n"
-            "                         eid, (void*)&info);                \\\n"
+            "                         eid, __dague_object->super.super.object_id, (void*)&info);\\\n"
             "  } while(0);\n"
             "#else\n"
             "#define TAKE_TIME(context, key, id, refdesc, refid)\n"
