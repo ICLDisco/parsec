@@ -70,6 +70,9 @@ dplasma_zlange_inf_Destruct( dague_object_t *o )
     dague_ddesc_destroy( dague_zlange->W );
     free( dague_zlange->W );
 
+    dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_DEFAULT_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_COL_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_ELT_ARENA]->opaque_dtt) );
 
     dague_zlange_inf_cyclic_destroy(dague_zlange);
 }
