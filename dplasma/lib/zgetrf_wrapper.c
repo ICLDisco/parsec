@@ -12,6 +12,7 @@
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include "zgetrf.h"
 
@@ -29,27 +30,16 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
                                    int *INFO)
 {
     dague_zgetrf_object_t *dague_getrf;
-    PLASMA_desc *pdescA = NULL;
-
+    
     if ( A->storage == matrix_Tile ) {
         CORE_zgetrf_rectil_init();
-
-        /* Allocate memory and initialize the descriptor */
-        pdescA = (PLASMA_desc*)malloc(sizeof(PLASMA_desc));
-        *pdescA = plasma_desc_init(
-            PlasmaComplexDouble, A->mb, A->nb, A->mb * A->nb,
-            A->lm, A->ln, A->i, A->j, A->m, A->n);
-
-        /* We guess that (0,0) is the mat pointer, to be changed for distributed */
-        pdescA->mat = ((dague_ddesc_t*)A)->data_of( ((dague_ddesc_t*)A), 0, 0 );
-
     } else {
         CORE_zgetrf_reclap_init();
     }
 
     dague_getrf = dague_zgetrf_new( *A, (dague_ddesc_t*)A,
                                     (dague_ddesc_t*)IPIV,
-                                    INFO, pdescA );
+                                    INFO );
 
     /* A */
     dplasma_add2arena_tile( dague_getrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA],
@@ -73,9 +63,6 @@ dplasma_zgetrf_Destruct( dague_object_t *o )
 
     dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA     ]->opaque_dtt) );
-
-    if ( dague_zgetrf->pdescA != NULL )
-        free( dague_zgetrf->pdescA );
 
     dague_zgetrf_destroy(dague_zgetrf);
 }

@@ -34,11 +34,11 @@ int *gpu_load;
 static int OHM_N = 5;
 static int OHM_M = 3;
 
-#define TRACE_WITH_REF(prof, key, eid, refdesc, refdescid) do {         \
+#define TRACE_WITH_REF(prof, key, eid, oid, refdesc, refdescid) do {    \
         dague_profile_ddesc_info_t info;                                \
         info.desc = refdesc;                                            \
         info.id = refdescid;                                            \
-        dague_profiling_trace(prof, key, eid, (void*)&info);            \
+        dague_profiling_trace(prof, key, eid, oid, (void*)&info);       \
     } while(0)
 
 static void compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
@@ -453,7 +453,9 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
 
 #if defined(DAGUE_PROF_TRACE)
     if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN )
-        dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_start, (unsigned long)this_task, NULL );
+        dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_start, 
+                               (unsigned long)this_task, this_task->dague_object->object_id,
+                               NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
     DEBUG3(("GPU:\tRequest Data of A(%d, %d) on GPU\n", n, k));
@@ -538,7 +540,8 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
             this_task->function->key( this_task->dague_object, this_task->locals );
         TRACE_WITH_REF(gpu_device->profiling,
                        DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,this_task->function->function_id),
-                       task_id, ddesca, data_id);
+                       task_id, this_task->dague_object->object_id,
+                       ddesca, data_id);
     }
 #endif  /* defined(DAGUE_PROF_TRACE) */
     offset = 0;
@@ -610,7 +613,9 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
         DEBUG3(("GPU Request out of GPU for C(%d, %d)\n", m, n));
 #if defined(DAGUE_PROF_TRACE)
         if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
-            dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start, (unsigned long)this_task, NULL );
+            dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start, 
+                                   (unsigned long)this_task, this_task->dague_object->object_id,
+                                   NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
         /* Pop C from the GPU */
         status = (cudaError_t)cuMemcpyDtoHAsync( C, d_C, tile_size, stream );
@@ -741,7 +746,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 
 #if defined(DAGUE_PROF_TRACE)
     if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
-        dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_start, (unsigned long)eu_context, NULL );
+        dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_start, (unsigned long)eu_context, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
     status = (cudaError_t)cuCtxPushCurrent(saved_ctx);
@@ -797,7 +802,9 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             this_task = gpu_device->in_array[gpu_device->in_waiting];
 #if defined(DAGUE_PROF_TRACE)
             if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN )
-                dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end, (unsigned long)this_task, NULL );
+                dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end, 
+                                       (unsigned long)this_task, this_task->dague_object->object_id,
+                                       NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
             gpu_device->in_array[gpu_device->in_waiting] = NULL;
             gpu_device->in_waiting = (gpu_device->in_waiting + 1) % gpu_device->max_in_tasks;
@@ -859,7 +866,8 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
                     this_task->function->key( this_task->dague_object, this_task->locals );
                 TRACE_WITH_REF(gpu_device->profiling,
                                DAGUE_PROF_FUNC_KEY_END(this_task->dague_object, this_task->function->function_id),
-                               task_id, ddesca, data_id);
+                               task_id, this_task->dague_object->object_id,
+                               ddesca, data_id);
             }
 #endif  /* defined(DAGUE_PROF_TRACE) */
             gpu_device->exec_array[gpu_device->exec_waiting] = NULL;
@@ -911,7 +919,9 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             this_task = gpu_device->out_array[gpu_device->out_waiting];
 #if defined(DAGUE_PROF_TRACE)
             if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
-                dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end, (unsigned long)this_task, NULL );
+                dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end, 
+                                       (unsigned long)this_task, this_task->dague_object->object_id,
+                                       NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
             gpu_device->out_array[gpu_device->out_waiting] = NULL;
             gpu_device->out_waiting = (gpu_device->out_waiting + 1) % gpu_device->max_out_tasks;
@@ -944,7 +954,8 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
                 (NULL == gpu_device->out_array[gpu_device->out_waiting]) );
 #if defined(DAGUE_PROF_TRACE)
         if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
-            dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_end, (unsigned long)eu_context, NULL );
+            dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_end, 
+                                   (unsigned long)eu_context, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
         status = (cudaError_t)cuCtxPopCurrent(NULL);
         /* Restore the context so the others can steal it */
