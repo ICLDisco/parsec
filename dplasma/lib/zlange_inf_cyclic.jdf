@@ -45,7 +45,7 @@ READ_W(m, n) [profile = off]
 
     // Parameters
     READ      W <- W(m, n)
-                -> W STEP1(m, n)
+    -> W STEP1(m, descA.nt - (Q - n))
 
 BODY
     /**/
@@ -69,8 +69,8 @@ STEP1(m,n)
 
     // Parameters
     READ A <-  A(m, n)
-    RW   W <-  ( n < Q           ) ? W READ_W(m, n) : W STEP1(m,n-Q)   [type = COL]
-           ->  ( n < (descA.nt-Q)) ? W STEP1(m,n+Q) : W STEP2(m,n%Q)   [type = COL]
+    RW   W <-  ( n < (descA.nt-Q)) ? W STEP1(m,n+Q) : W READ_W(m, n%Q) [type = COL]
+           ->  ( n < Q           ) ? W STEP2(m,n)   : W STEP1(m,n-Q)   [type = COL]
 
 BODY
 
@@ -85,15 +85,15 @@ BODY
     DRYRUN(
 
             /* Initialize W */
-            if( n < Q ) {
-                int i;
-                for(i = 0; i < tempmm; i++)
-                    ((double *)W)[i] = 0;
-            }
-            CORE_dzasum(PlasmaRowwise, PlasmaUpperLower,
-                        tempmm, tempnn,
-                        A, ldam, W);
-          );
+        if( !(n < (descA.nt-Q)) ) {
+            int i;
+            for(i = 0; i < tempmm; i++)
+                ((double *)W)[i] = 0;
+        }
+        CORE_dzasum(PlasmaRowwise, PlasmaUpperLower,
+                    tempmm, tempnn,
+                    A, ldam, W);
+           );
 
 END
 
@@ -152,9 +152,9 @@ STEP3(m, n)
     :W(m, n)
 
     // Parameters
-    READ A <- W STEP2(m, Q-1)                                          [type = COL]
-    RW   W <- (m < P           ) ? W(m, n) : W STEP3( m-P, n )         [type = ELT]
-           -> (m < (descA.mt-P)) ? W STEP3( m+P, n ) : W STEP4(m%P,n)  [type = ELT]
+    READ A <- W STEP2(m, Q-1)                                            [type = COL]
+    RW   W <- (m < (descA.mt-P)) ? W STEP3( m+P, n ) : W(m, n)           [type = ELT]
+           -> (m < P           ) ? W STEP4( m,   n ) : W STEP3( m-P, n ) [type = ELT]
 
 BODY
 
@@ -172,13 +172,13 @@ BODY
         for(i = 0; i < tempmm; i++, dA++)
             maxval = ( maxval > *dA ) ? maxval : *dA;
 
-        if ( m < P ) {
-            *dW = maxval;
-        } else {
+        if ( m < (descA.mt-P) ) {
             *dW = ( maxval > *dW ) ? maxval : *dW;
+        } else {
+            *dW = maxval;
         }
            );
-    printlog("STEP3(%d,%d), tempmm=%d\n",m,n, tempmm);
+
 END
 
 /**************************************************
@@ -228,8 +228,7 @@ WRITE_RES(m,n)
     :W(m, n)
 
     // Parameters
-    RW W <- W STEP4(P-1, n )   [type = ELT]
-         -> W(m, n)            [type = ELT]
+    READ W <- W STEP4(P-1, n )   [type = ELT]
 
 BODY
     *norm = *( (double*)W );
