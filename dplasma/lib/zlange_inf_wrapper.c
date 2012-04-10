@@ -17,20 +17,6 @@
 
 #include "zlange_inf_cyclic.h"
 
-static int dplasma_zlange_inf_callback(dague_object_t* dague_object, void *data)
-{
-    dague_zlange_inf_cyclic_object_t *o = (dague_zlange_inf_cyclic_object_t *)dague_object;
-    two_dim_block_cyclic_t *W = (two_dim_block_cyclic_t*)(o->W);
-    (void)data;
-
-    dague_data_free( W->mat );
-    dague_ddesc_destroy( o->W );
-    free( o->W );
-
-    return 0;
-}
-
-
 dague_object_t* dplasma_zlange_inf_New( tiled_matrix_desc_t *A,
                                         int P, int Q,
                                         double *result)
@@ -43,14 +29,13 @@ dague_object_t* dplasma_zlange_inf_New( tiled_matrix_desc_t *A,
 
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         (*W), two_dim_block_cyclic,
-        (W, matrix_RealDouble, matrix_Tile, A->super.nodes, A->super.cores, A->super.myrank,
-         A->mb, 1,                                      /* Dimesions of the tile                */
-         A->m, ((two_dim_block_cyclic_t*)A)->grid.cols, /* Dimensions of the matrix             */
-         0, 0,                                          /* Starting points (not important here) */
-         A->m, ((two_dim_block_cyclic_t*)A)->grid.cols, /* Dimensions of the submatrix          */
-         ((two_dim_block_cyclic_t*)A)->grid.strows,
-         ((two_dim_block_cyclic_t*)A)->grid.stcols,
-         ((two_dim_block_cyclic_t*)A)->grid.rows));
+        (W, matrix_RealDouble, matrix_Tile,
+         A->super.nodes, A->super.cores, A->super.myrank,
+         A->mb, 1,  /* Dimesions of the tile                */
+         A->m, Q,   /* Dimensions of the matrix             */
+         0, 0,      /* Starting points (not important here) */
+         A->m, Q,   /* Dimensions of the submatrix          */
+         1, 1, P));
 
     /* Create the DAG */
     dague_zlange_inf = dague_zlange_inf_cyclic_new(*A, (dague_ddesc_t*)A,
@@ -72,10 +57,6 @@ dague_object_t* dplasma_zlange_inf_New( tiled_matrix_desc_t *A,
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE, 1);
 
-    /* Set the callback to free the workspace */
-    dague_set_complete_callback( (dague_object_t*)dague_zlange_inf,
-                                 dplasma_zlange_inf_callback, NULL);
-
     return (dague_object_t*)dague_zlange_inf;
 }
 
@@ -83,6 +64,12 @@ void
 dplasma_zlange_inf_Destruct( dague_object_t *o )
 {
     dague_zlange_inf_cyclic_object_t *dague_zlange = (dague_zlange_inf_cyclic_object_t *)o;
+    two_dim_block_cyclic_t *W = (two_dim_block_cyclic_t*)(dague_zlange->W);
+
+    dague_data_free( W->mat );
+    dague_ddesc_destroy( dague_zlange->W );
+    free( dague_zlange->W );
+
 
     dague_zlange_inf_cyclic_destroy(dague_zlange);
 }
