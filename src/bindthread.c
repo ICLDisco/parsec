@@ -53,16 +53,7 @@ int dague_bindthread(int cpu)
     }
 #else /* We bind thread ourself in funtion of architecture */
 
-#ifdef ARCH_PPC
-    {
-        tid_t self_ktid = thread_self ();
-        bindprocessor(BINDTHREAD, self_ktid, cpu*2);
-    }
-#elif (defined ARCH_COMPAQ)
-    {
-        bind_to_cpu_id(getpid(), cpu, 0);
-    }
-#elif defined(HAVE_SCHED_SETAFFINITY)
+#if defined(HAVE_SCHED_SETAFFINITY)
     {
         cpu_set_t mask;
         CPU_ZERO(&mask);
@@ -76,6 +67,15 @@ int dague_bindthread(int cpu)
             {
                 return -1;
             }
+    }
+#elif defined(ARCH_PPC)
+    {
+        tid_t self_ktid = thread_self ();
+        bindprocessor(BINDTHREAD, self_ktid, cpu*2);
+    }
+#elif (defined ARCH_COMPAQ)
+    {
+        bind_to_cpu_id(getpid(), cpu, 0);
     }
 #elif (defined MAC_OS_X)
     {

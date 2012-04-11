@@ -20,7 +20,8 @@
 typedef struct dague_profiling_output_base_event_t {
     uint16_t        key;
     uint16_t        flags;
-    uint64_t        id;
+    uint32_t        object_id;
+    uint64_t        event_id;
     dague_time_t    timestamp;
 } dague_profiling_output_base_event_t;
 

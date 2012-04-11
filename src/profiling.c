@@ -264,6 +264,7 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
             return -1;
         }
         pos = dague_prof_keys_count;
+        dague_prof_keys_count++;
     }
 
     dague_prof_keys[pos].name = strdup(key_name);
@@ -276,7 +277,6 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
 
     *key_start = START_KEY(pos);
     *key_end = END_KEY(pos);
-    dague_prof_keys_count++;
     return 0;
 }
 
@@ -418,7 +418,8 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
     return 0;
 }
 
-int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned long id, void *info )
+int dague_profiling_trace( dague_thread_profiling_t* context, int key, 
+                           uint64_t event_id, uint32_t object_id, void *info )
 {
     dague_profiling_output_t *this_event;
     size_t this_event_length;
@@ -451,8 +452,9 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned 
     context->next_event_position += this_event_length;
     context->nb_events++;
 
-    this_event->event.key   = (uint16_t)key;
-    this_event->event.id    = id;
+    this_event->event.key = (uint16_t)key;
+    this_event->event.event_id = event_id;
+    this_event->event.object_id = object_id;
     this_event->event.flags = 0;
 
     if( NULL != info ) {
