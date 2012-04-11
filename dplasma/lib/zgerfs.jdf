@@ -52,17 +52,25 @@ zlacpy_21(m,n)
   /* F == Z(m2,n2) */
   /* J == Z(k1,n3) */
   /* M == Z(m3,n4) */
+  /* V == Z(k3,n8) */
 
   READ  A <- A zlacpy_21_in_B0(m,n)
 
   RW    B <- Z(m,n)
-          -> (descZ.mt>=(m+1)) & (descZ.nt>=(n+1)) & (0>=descA.nt) ? F zlacpy_48(m, n) 
-          -> (descZ.nt>=(n+1)) & (descA.nt>=1) & (descZ.mt>=(m+1)) ? E zgemm_36(m, n, 0) 
-          -> (0==m) & (descZ.nt>=(1+n)) & (descZ.mt>=1) & (0>=descA.nt) ? J ztrsm_59(0, n) 
-          -> (m>=1) & (descZ.mt>=1) & (descZ.nt>=(n+1)) & (descZ.mt>=(m+1)) & (0>=descA.nt) ? M zgemm_72(0, m, n) 
+          -> (descZ.nt>=(1+n)) & (descA.nt>=1) & (descZ.mt>=(1+m)) ? E zgemm_36(m, n, 0) 
           -> (n>=descZ.nt) & ((m+1)>=descZ.mt) ? Z(m,n)
           -> (!((n>=descZ.nt) & ((m+1)>=descZ.mt))) & (descZ.nt>=(n+1)) & (m>=descZ.mt) ? Z(m,n)
           -> (!((n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((descZ.nt>=(n+1)) & (m>=descZ.mt))) & (descZ.mt>=(2+m)) & (n>=descZ.nt) ? Z(m,n)
+          -> (descZ.mt>=1) & (descZ.nt>=(n+1)) & (descZ.mt>=(m+1)) & (0>=descA.nt) & (m>=1) ? M zgemm_72(0, m, n) 
+          -> (n>=descZ.nt) & (descA.nt>=(m+1)) & (descR.nt>=(n+1)) & (descR.mt>=1) ? V zgemm_154(0..(descR.mt-1), n, m) 
+          -> (!((n>=descZ.nt) & (descA.nt>=(m+1)) & (descR.nt>=(n+1)) & (descR.mt>=1))) & (descZ.nt>=(1+n)) & (m>=descZ.mt) & (descA.nt>=(1+m)) & (descR.nt>=(n+1)) & (descR.mt>=1) ? V zgemm_154(0..(descR.mt-1), n, m) 
+          -> (descZ.mt>=(m+1)) & (descZ.nt>=(n+1)) & (0>=descA.nt) ? F zlacpy_48(m, n) 
+          -> (0==m) & (descZ.nt>=(n+1)) & (descZ.mt>=1) & (0>=descA.nt) ? J ztrsm_59(0, n) 
+
+  /*
+  Anti-dependencies:
+
+  */
 
 BODY
 
@@ -121,13 +129,18 @@ zgemm_36(m1,n1,k)
   READ  D <- D zgemm_36_in_X1(m1,n1,k)
 
   RW    E <- (0==k) & (descB.nt>=(n1+1)) & (descB.mt>=(1+m1)) ? B zlacpy_21(m1, n1) 
-          <- (0==k) & (m1>=descB.mt) ? Z(m1,n1)
-          <- (!((0==k) & (m1>=descB.mt))) & (0==k) & (n1>=descB.nt) & (descB.mt>=(1+m1)) ? Z(m1,n1)
           <- (k>=1) ? E zgemm_36(m1, n1, k-1) 
-          -> (descA.nt==(1+k)) ? F zlacpy_48(m1, n1) 
-          -> (descA.nt==(1+k)) & (m1>=1) ? M zgemm_72(0, m1, n1) 
-          -> (descA.nt==(k+1)) & (0==m1) ? J ztrsm_59(0, n1) 
+          <- (0==k) & (m1>=descB.mt) ? Z(m1,n1)
+          <- (!((0==k) & (m1>=descB.mt))) & (0==k) & (descB.mt>=(1+m1)) & (n1>=descB.nt) ? Z(m1,n1)
           -> (descA.nt>=(k+2)) ? E zgemm_36(m1, n1, k+1) 
+          -> (descA.nt==(1+k)) & (m1>=1) ? M zgemm_72(0, m1, n1) 
+          -> (descA.nt==(k+1)) ? F zlacpy_48(m1, n1) 
+          -> (descA.nt==(1+k)) & (0==m1) ? J ztrsm_59(0, n1) 
+
+  /*
+  Anti-dependencies:
+
+  */
 
 BODY
 
@@ -198,15 +211,24 @@ zlacpy_48(m2,n2)
   /* E == Z(m1,n1) */
   /* F == Z(m2,n2) */
   /* G == R(m2,n2) */
+  /* W == R(m6,n8) */
 
-  READ  F <- (m2>=descB.mt) & (0>=descA.nt) ? F zlacpy_48_in_Z0(m2,n2)
-
-          <- (!((m2>=descB.mt) & (0>=descA.nt))) & (descB.mt>=(1+m2)) & (n2>=descB.nt) & (0>=descA.nt) ? F zlacpy_48_in_Z1(m2,n2)
-
-          <- (descB.nt>=(1+n2)) & (descB.mt>=(m2+1)) & (0>=descA.nt) ? B zlacpy_21(m2, n2) 
+  READ  F <- (descB.nt>=(1+n2)) & (descB.mt>=(m2+1)) & (0>=descA.nt) ? B zlacpy_21(m2, n2) 
           <- (descA.nt>=1) ? E zgemm_36(m2, n2, descA.nt-1) 
+          <- (m2>=descB.mt) & (0>=descA.nt) ? F zlacpy_48_in_Z0(m2,n2)
+
+          <- (!((m2>=descB.mt) & (0>=descA.nt))) & (descB.mt>=(m2+1)) & (n2>=descB.nt) & (0>=descA.nt) ? F zlacpy_48_in_Z1(m2,n2)
+
   RW    G <- R(m2,n2)
-          -> R(m2,n2)
+          -> (descR.nt>=(n2+1)) & (descA.nt>=1) & (descR.mt>=(m2+1)) ? W zgemm_154(m2, n2, 0) 
+          -> (n2>=descR.nt) ? R(m2,n2)
+          -> (!((n2>=descR.nt))) & (descR.nt>=(1+n2)) & (0>=descA.nt) ? R(m2,n2)
+          -> (!((n2>=descR.nt))) & (!((descR.nt>=(1+n2)) & (0>=descA.nt))) & (descR.nt>=(n2+1)) & (descA.nt>=1) & (m2>=descR.mt) ? R(m2,n2)
+
+  /*
+  Anti-dependencies:
+
+  */
 
 BODY
 
@@ -278,14 +300,19 @@ ztrsm_59(k1,n3)
 
   READ  H <- H ztrsm_59_in_LU0(k1,n3)
 
-  RW    J <- (k1>=1) ? M zgemm_72(k1-1, k1, n3) 
-          <- (0==k1) & (descA.nt>=1) ? E zgemm_36(0, n3, descA.nt-1) 
+  RW    J <- (0==k1) & (descB.nt>=(n3+1)) & (descB.mt>=1) & (0>=descA.nt) ? B zlacpy_21(0, n3) 
           <- (0==k1) & (0>=descB.mt) & (0>=descA.nt) ? Z(k1,n3)
           <- (!((0==k1) & (0>=descB.mt) & (0>=descA.nt))) & (0==k1) & (descB.mt>=1) & (n3>=descB.nt) & (0>=descA.nt) ? Z(k1,n3)
-          <- (0==k1) & (descB.nt>=(1+n3)) & (descB.mt>=1) & (0>=descA.nt) ? B zlacpy_21(0, n3) 
+          <- (0==k1) & (descA.nt>=1) ? E zgemm_36(0, n3, descA.nt-1) 
+          <- (k1>=1) ? M zgemm_72(k1-1, k1, n3) 
           -> (descZ.mt>=(2+k1)) ? R zgemm_105(0, descZ.mt-k1-1, n3) 
-          -> (descZ.mt>=(k1+2)) ? L zgemm_72(k1, (k1+1)..(descZ.mt-1), n3) 
+          -> (descZ.mt>=(2+k1)) ? L zgemm_72(k1, (k1+1)..(descZ.mt-1), n3) 
           -> (descZ.mt==(k1+1)) ? O ztrsm_93(0, n3) 
+
+  /*
+  Anti-dependencies:
+
+  */
 
 BODY
 
@@ -342,13 +369,18 @@ zgemm_72(k1,m3,n4)
   READ  K <- K zgemm_72_in_LU0(k1,m3,n4)
 
   READ  L <- J ztrsm_59(k1, n4) 
-  RW    M <- (k1>=1) ? M zgemm_72(k1-1, m3, n4) 
-          <- (0==k1) & (descB.nt>=(n4+1)) & (descB.mt>=(m3+1)) & (0>=descA.nt) ? B zlacpy_21(m3, n4) 
-          <- (0==k1) & (descA.nt>=1) ? E zgemm_36(m3, n4, descA.nt-1) 
+  RW    M <- (0==k1) & (descB.nt>=(n4+1)) & (descB.mt>=(m3+1)) & (0>=descA.nt) ? B zlacpy_21(m3, n4) 
           <- (0==k1) & (m3>=descB.mt) & (0>=descA.nt) ? Z(m3,n4)
           <- (!((0==k1) & (m3>=descB.mt) & (0>=descA.nt))) & (0==k1) & (descB.mt>=(m3+1)) & (n4>=descB.nt) & (0>=descA.nt) ? Z(m3,n4)
-          -> ((1+k1)==m3) ? J ztrsm_59(m3, n4) 
-          -> (m3>=(2+k1)) ? M zgemm_72(k1+1, m3, n4) 
+          <- (0==k1) & (descA.nt>=1) ? E zgemm_36(m3, n4, descA.nt-1) 
+          <- (k1>=1) ? M zgemm_72(k1-1, m3, n4) 
+          -> (m3>=(k1+2)) ? M zgemm_72(k1+1, m3, n4) 
+          -> ((k1+1)==m3) ? J ztrsm_59(m3, n4) 
+
+  /*
+  Anti-dependencies:
+
+  */
 
 BODY
 
@@ -403,14 +435,21 @@ ztrsm_93(k2,n5)
   /* Q == Z((descZ.mt-1)-k2,n6) */
   /* R == Z((descZ.mt-1)-m4,n6) */
   /* S == Z(m5,n7) */
+  /* V == Z(k3,n8) */
 
   READ  N <- N ztrsm_93_in_LU0(k2,n5)
 
   RW    O <- (k2>=1) ? R zgemm_105(k2-1, k2, n5) 
           <- (0==k2) ? J ztrsm_59(descZ.mt-1, n5) 
-          -> (descZ.mt>=(2+k2)) ? Q zgemm_105(k2, (k2+1)..(descZ.mt-1), n5) 
           -> S zgeadd_130(descZ.mt-k2-1, n5) 
+          -> (descZ.mt>=(k2+2)) ? Q zgemm_105(k2, (k2+1)..(descZ.mt-1), n5) 
+          -> ((descA.nt+k2)>=descZ.mt) & (descR.nt>=(n5+1)) & (descR.mt>=1) ? V zgemm_154(0..(descR.mt-1), n5, descZ.mt-k2-1) 
           -> Z((descZ.mt-1)-k2,n5)
+
+  /*
+  Anti-dependencies:
+
+  */
 
 BODY
 
@@ -466,10 +505,15 @@ zgemm_105(k2,m4,n6)
   READ  P <- P zgemm_105_in_LU0(k2,m4,n6)
 
   READ  Q <- O ztrsm_93(k2, n6) 
-  RW    R <- (0==k2) ? J ztrsm_59(descZ.mt-m4-1, n6) 
-          <- (k2>=1) ? R zgemm_105(k2-1, m4, n6) 
-          -> ((k2+1)==m4) ? O ztrsm_93(m4, n6) 
+  RW    R <- (k2>=1) ? R zgemm_105(k2-1, m4, n6) 
+          <- (0==k2) ? J ztrsm_59(descZ.mt-m4-1, n6) 
           -> (m4>=(k2+2)) ? R zgemm_105(k2+1, m4, n6) 
+          -> ((k2+1)==m4) ? O ztrsm_93(m4, n6) 
+
+  /*
+  Anti-dependencies:
+
+  */
 
 BODY
 
@@ -525,6 +569,11 @@ zgeadd_130(m5,n7)
   RW    T <- X(m5,n7)
           -> X(m5,n7)
 
+  /*
+  Anti-dependencies:
+
+  */
+
 BODY
 
   int tempmm = ((m5)==(descZ.mt-1)) ? (descZ.m-(m5*descZ.mb)) : descZ.mb;
@@ -543,3 +592,190 @@ BODY
   context->eu_id, m5, n7, m5, n7, S, m5, n7, T);
 
 END
+
+
+zgemm_154(m6,n8,k3)
+  /* Execution space */
+  m6 = 0..(descR.mt-1)
+  n8 = 0..(descR.nt-1)
+  k3 = 0..(descA.nt-1)
+
+  : R(m6,n8)
+
+  /* B == Z(m,n) */
+  /* G == R(m2,n2) */
+  /* O == Z((descZ.mt-1)-k2,n5) */
+  /* U == A(m6,k3) */
+  /* V == Z(k3,n8) */
+  /* W == R(m6,n8) */
+
+  READ  U <- U zgemm_154_in_A0(m6,n8,k3)
+
+  READ  V <- (k3>=descB.mt) & ((k3+1)>=descZ.mt) & (n8>=descZ.nt) ? V zgemm_154_in_Z1(m6,n8,k3)
+
+          <- (!((k3>=descB.mt) & ((k3+1)>=descZ.mt) & (n8>=descZ.nt))) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt) ? V zgemm_154_in_Z2(m6,n8,k3)
+
+          <- (!((k3>=descB.mt) & ((k3+1)>=descZ.mt) & (n8>=descZ.nt))) & (!((descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt) ? V zgemm_154_in_Z3(m6,n8,k3)
+
+          <- (!((k3>=descB.mt) & ((k3+1)>=descZ.mt) & (n8>=descZ.nt))) & (!((descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt))) & (descB.nt>=(n8+1)) & (k3>=descB.mt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt) ? V zgemm_154_in_Z4(m6,n8,k3)
+
+          <- (!((k3>=descB.mt) & ((k3+1)>=descZ.mt) & (n8>=descZ.nt))) & (!((descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt))) & (!((descB.nt>=(n8+1)) & (k3>=descB.mt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt))) & (n8>=descB.nt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt) ? V zgemm_154_in_Z5(m6,n8,k3)
+
+          <- (!((k3>=descB.mt) & ((k3+1)>=descZ.mt) & (n8>=descZ.nt))) & (!((descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt))) & (!((descB.nt>=(n8+1)) & (k3>=descB.mt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt))) & (!((n8>=descB.nt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt))) & (descB.nt>=(n8+1)) & (k3>=descB.mt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt) ? V zgemm_154_in_Z6(m6,n8,k3)
+
+          <- (descB.mt>=(1+k3)) & (descB.nt>=(n8+1)) & (n8>=descZ.nt) ? B zlacpy_21(k3, n8) 
+          <- (!((descB.mt>=(1+k3)) & (descB.nt>=(n8+1)) & (n8>=descZ.nt))) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt) & (descB.nt>=(n8+1)) & (descB.mt>=(1+k3)) ? B zlacpy_21(k3, n8) 
+          <- (descZ.nt>=(n8+1)) & (descZ.mt>=(k3+1)) ? O ztrsm_93(descZ.mt-k3-1, n8) 
+  RW    W <- (0==k3) & (m6>=descZ.mt) ? R(m6,n8)
+          <- (!((0==k3) & (m6>=descZ.mt))) & (0==k3) & (descZ.mt>=(m6+1)) & (n8>=descZ.nt) ? R(m6,n8)
+          <- (0==k3) & (descZ.mt>=(m6+1)) & (descZ.nt>=(n8+1)) ? G zlacpy_48(m6, n8) 
+          <- (k3>=1) ? W zgemm_154(m6, n8, k3-1) 
+          -> (descA.nt==(k3+1)) ? R(m6,n8)
+          -> (descA.nt>=(k3+2)) ? W zgemm_154(m6, n8, k3+1) 
+
+  /*
+  Anti-dependencies:
+
+  */
+
+BODY
+
+  int tempmm = ((m6)==(descR.mt-1)) ? (descR.m-(m6*descR.mb)) : descR.mb;
+  int tempnn = ((n8)==(descR.nt-1)) ? (descR.n-(n8*descR.nb)) : descR.nb;
+  int tempkn = ((k3)==(descA.nt-1)) ? (descA.n-(k3*descA.nb)) : descA.nb;
+  int ldam = BLKLDD_S( descA, m6 );
+  int ldzk = BLKLDD_S( descZ, k3 );
+  int ldrm = BLKLDD_S( descR, m6 );
+
+  DRYRUN(
+
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, tempmm, 
+	tempnn, tempkn, (Dague_Complex64_t)-1.000000, 
+	U /* A(m6,k3) */, ldam, V /* Z(k3,n8) */, 
+	ldzk, (Dague_Complex64_t)1.000000, W /* R(m6,n8) */, 
+	ldrm );  );
+
+  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+           "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, tempkn, (Dague_Complex64_t)-1.000000, A(%d,%d)[%p], ldam, Z(%d,%d)[%p], ldzk, (Dague_Complex64_t)1.000000, R(%d,%d)[%p], ldrm)\n",
+  context->eu_id, m6, n8, k3, m6, k3, U, k3, n8, V, m6, n8, W);
+
+END
+
+/*
+ * Pseudo-task
+ */
+zgemm_154_in_A0(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = 0..(descR.nt-1)
+  k3 = 0..(descA.nt-1)
+
+  : A(m6,k3)
+
+  RW U <- A(m6,k3)
+       -> U zgemm_154(m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_154_in_Z1(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((0),descZ.nt); %}..(descR.nt-1)
+  k3 = inline_c %{ return dague_imax((dague_imax((0),descB.mt)),(descZ.mt-1)); %}..(descA.nt-1)
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_154(m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_154_in_Z2(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((dague_imax((0),descB.nt)),descZ.nt); %}..(descR.nt-1)
+  k3 = inline_c %{ return dague_imax((0),(descZ.mt-1)); %}..inline_c %{ return dague_imin((descA.nt-1),(descB.mt-1)); %}
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_154(m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_154_in_Z3(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((0),descB.nt); %}..inline_c %{ return dague_imin((descR.nt-1),(descZ.nt-1)); %}
+  k3 = inline_c %{ return dague_imax((0),descZ.mt); %}..(descA.nt-1)
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_154(m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_154_in_Z4(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = 0..inline_c %{ return dague_imin((dague_imin((descR.nt-1),(descB.nt-1))),(descZ.nt-1)); %}
+  k3 = inline_c %{ return dague_imax((dague_imax((0),descB.mt)),descZ.mt); %}..(descA.nt-1)
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_154(m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_154_in_Z5(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((dague_imax((0),descB.nt)),descZ.nt); %}..(descR.nt-1)
+  k3 = 0..inline_c %{ return dague_imin((descA.nt-1),(descZ.mt-2)); %}
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_154(m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_154_in_Z6(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((0),descZ.nt); %}..inline_c %{ return dague_imin((descR.nt-1),(descB.nt-1)); %}
+  k3 = inline_c %{ return dague_imax((0),descB.mt); %}..inline_c %{ return dague_imin((descA.nt-1),(descZ.mt-2)); %}
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_154(m6,n8,k3)
+BODY
+/* nothing */
+END
+

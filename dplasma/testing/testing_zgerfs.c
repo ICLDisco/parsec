@@ -165,7 +165,7 @@ int main(int argc, char ** argv)
             printf("-- Lapack solution is CORRECT ! \n");
 
 
-        printf("Lapack berr = %e\n",berr[0]);
+        printf("Lapack berr = %e, ferr = %e\n",berr[0],ferr[0]);
 
         free(A);
         free(LU);
