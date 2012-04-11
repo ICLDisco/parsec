@@ -38,9 +38,9 @@ dague_object_t* dplasma_zlange_inf_New( tiled_matrix_desc_t *A,
          1, 1, P));
 
     /* Create the DAG */
-    dague_zlange_inf = dague_zlange_inf_cyclic_new(*A, (dague_ddesc_t*)A,
+    dague_zlange_inf = dague_zlange_inf_cyclic_new(P, Q,
+                                                   (dague_ddesc_t*)A,
                                                    (dague_ddesc_t*)W,
-                                                   P, Q,
                                                    result);
 
     /* Set the datatypes */
