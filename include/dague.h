@@ -155,6 +155,7 @@ struct dague_data_pair_t {
     dague_object_t          *dague_object;               \
     const  dague_function_t *function;                   \
     int32_t                  priority;                   \
+    char *                   flowname;                   \
     assignment_t             locals[MAX_LOCAL_COUNT];
 
 struct dague_minimal_execution_context_t {
@@ -173,6 +174,8 @@ struct dague_execution_context_t {
 extern int schedule_poll_begin, schedule_poll_end;
 extern int schedule_push_begin, schedule_push_end;
 extern int schedule_sleep_begin, schedule_sleep_end;
+extern int queue_add_begin, queue_add_end;
+extern int queue_remove_begin, queue_remove_end;
 #endif
 
 typedef void (*dague_startup_fn_t)(dague_context_t *context,

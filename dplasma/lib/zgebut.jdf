@@ -61,7 +61,7 @@ pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA
 /*
  *
  */
-GEBRT(i,j)
+GEBUT(i,j)
   /* Execution space */
   i = 0 .. mt/2-1
   j = 0 .. nt/2-1
@@ -69,20 +69,20 @@ GEBRT(i,j)
   : A(i,j)
 
   /* Atl: A from Top Left */ 
-  RW  Atl <- A GEBRT_Reader(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A GEBRT_Writer(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Atl <- A GEBUT_Reader(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A GEBRT_Reader(i+mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A GEBRT_Writer(i+mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abl <- A GEBUT_Reader(i+mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i+mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Atr: A from Top Right */
-  RW  Atr <- A GEBRT_Reader(i,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A GEBRT_Writer(i,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Atr <- A GEBUT_Reader(i,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A GEBRT_Reader(i+mt/2,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A GEBRT_Writer(i+mt/2,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abr <- A GEBUT_Reader(i+mt/2,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i+mt/2,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 
@@ -90,6 +90,10 @@ BODY
   uintptr_t off_in_U, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
+
+  printlog("thread %d GEBUT(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i, j, Atl);
 
   type = segment_to_type_index(descA.seg_info, i, j);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
@@ -107,6 +111,7 @@ BODY
   p_elem_tr = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
+printf("-- GEBUT\n");
   BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, NOT_TRANSPOSE, 0);
   BFT_zQBL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, NOT_TRANSPOSE, 0);
   BFT_zQTR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tr, NOT_TRANSPOSE, 0);
@@ -123,14 +128,14 @@ BODY
   dague_private_memory_push( pool_0, p_elem_tr );
   dague_private_memory_push( pool_0, p_elem_br );
 
-  /* printf("GEBRT(%d,%d)\n",i,j); */
+  /* printf("GEBUT(%d,%d)\n",i,j); */
 END
 
 
 /*
  *
  */
-GEBRT_Reader(i,j)
+GEBUT_Reader(i,j)
   /* Execution space */
   i = 0 .. mt-1
   j = 0 .. nt-1
@@ -138,36 +143,44 @@ GEBRT_Reader(i,j)
   : A(i,j)
 
 READ A <- A(i, j)                                     [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]         
-       -> ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBRT(i-mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBRT(i-mt/2,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
-/* nothing */
-  /* fprintf(stderr,"GEBRT_Reader(%d,%d)\n",i,j); */
+  /* nothing */
+
+  printlog("thread %d GEBUT_Reader(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i, j, A);
+
 END
 
 
 /*
  *
  */
-GEBRT_Writer(i,j)
+GEBUT_Writer(i,j)
   /* Execution space */
   i = 0 .. mt-1
   j = 0 .. nt-1
 
   : A(i,j)
 
-READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       <- ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       <- ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBRT(i-mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       <- ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBRT(i-mt/2,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
        -> A(i, j)                                               [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]         
 
 BODY
-/* nothing */
-  /* fprintf(stderr,"GEBRT_Writer(%d,%d)\n",i,j); */
+  /* nothing */
+
+  printlog("thread %d GEBUT_Writer(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i, j, A);
+
 END
 
 

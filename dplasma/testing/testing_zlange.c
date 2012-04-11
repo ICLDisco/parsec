@@ -10,11 +10,13 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
+    double norm = 0.0;
     int iparam[IPARAM_SIZEOF];
+    int ret = 0;
+    double eps = LAPACKE_dlamch_work('e');
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -27,45 +29,65 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
-    PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M, (DagDouble_t)N))
+    PASTE_CODE_FLOPS(FLOPS_ZGEMV, ((DagDouble_t)M, (DagDouble_t)N))
 
-    if ( M != N && check ) {
-        fprintf(stderr, "Check cannot be perfomed with M != N\n");
-        check = 0;
-    }
+    LDA = max( LDA, M );
 
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
+
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
+        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
+                               1, cores, rank, MB, NB, LDA, N, 0, 0,
+                               M, N, SMB, SNB, 1));
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
-
     if(loud > 2) printf("Done\n");
 
     if(loud > 2) printf("+++ Computing getrf_sp ... ");
 
-    double ret = dplasma_zlange_inf(dague,PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescA);
-    printf("The infini norm of A is %g\n",ret);
+    /* Computing the norm */
+    norm = dplasma_zlange_inf(dague, PlasmaInfNorm,
+                              (tiled_matrix_desc_t *)&ddescA);
+
+    printf("%d: The infini norm of A is %e\n", rank, norm );
 
     if(check)
     {
-        Dague_Complex64_t *A;
-        A = (Dague_Complex64_t *)malloc((ddescA.super.lm)*(ddescA.super.n)*sizeof(Dague_Complex64_t));
+        double *work;
+        double normlap = 0.0;
 
-        twoDBC_ztolapack( &ddescA, A, LDA );
+        dplasma_zlacpy(dague,
+                       PlasmaUpperLower,
+                       (tiled_matrix_desc_t *)&ddescA,
+                       (tiled_matrix_desc_t *)&ddescA0);
 
-        double *work  = (double *)malloc(M* sizeof(double));
-        double ret_lapacke = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, A, LDA, work);
-        printf("The infini Lapacke norm of A is %g\n",ret_lapacke);
-        printf("The solution is %s\n",(ret == ret_lapacke)?"correct":"bad");
-        free(A);
+        if( rank == 0 ) {
+
+            work    = (double *)malloc( max(M,N) * sizeof(double));
+            normlap = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N,
+                                          (Dague_Complex64_t*)(ddescA0.mat), ddescA0.super.lm, work);
+
+            printf("The infini Lapacke norm of A is %e\n", normlap );
+
+            normlap = normlap - norm;
+            if ( normlap < (N*eps) ) {
+                printf( "The solution is correct\n" );
+            } else {
+                printf( "The solution is bad (%e)\n", norm - normlap );
+            }
+
+            free( work );
+        }
+        dague_data_free(ddescA0.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
     }
 
     if(loud > 2) printf("Done.\n");
-
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);

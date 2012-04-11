@@ -1,9 +1,0 @@
-#!/bin/sh
-rm -rf CMakeCache.txt CMakeFiles
-
-export CC=/mnt/scratch/sw/intel/2011.2.137/bin/icc
-export F77=/mnt/scratch/sw/intel/2011.2.137/bin/ifort
-export MKL="/mnt/scratch/sw/intel/2011.2.137/mkl/"
-PLASMADIR="/home/bosilca/unstable/dplasma/PLASMA/build/"
-
-cmake -G "Unix Makefiles" `dirname $0`/../../ -DPLASMA_DIR=${PLASMADIR} -DHWLOC_DIR=/home/bosilca/opt/64/ -DDPLASMA_SCHED_HWLOC=ON

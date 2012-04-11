@@ -53,6 +53,8 @@ int MEMALLOC_start_key, MEMALLOC_end_key;
 int schedule_poll_begin, schedule_poll_end;
 int schedule_push_begin, schedule_push_end;
 int schedule_sleep_begin, schedule_sleep_end;
+int queue_add_begin, queue_add_end;
+int queue_remove_begin, queue_remove_end;
 #endif  /* DAGUE_PROF_TRACE */
 
 #ifdef HAVE_PAPI
@@ -324,6 +326,12 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     dague_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
                                             0, NULL,
                                             &schedule_sleep_begin, &schedule_sleep_end);
+    dague_profiling_add_dictionary_keyword( "Queue ADD", "fill:#767676",
+                                            0, NULL,
+                                            &queue_add_begin, &queue_add_end);
+    dague_profiling_add_dictionary_keyword( "Queue REMOVE", "fill:#B9B243",
+                                            0, NULL,
+                                            &queue_remove_begin, &queue_remove_end);
 #  endif /* DAGUE_PROF_TRACE_SCHEDULING_EVENTS */
 #endif  /* DAGUE_PROF_TRACE */
 
@@ -921,7 +929,7 @@ int dague_object_register( dague_object_t* object )
     object_array[index] = object;
     object->object_id = index;
     dague_atomic_unlock( &object_array_lock );
-    dague_remote_dep_new_object( object );
+    (void)dague_remote_dep_new_object( object );
     return (int)index;
 }
 
