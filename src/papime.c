@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "papime.h"
 
 static void handle_error(int e){
