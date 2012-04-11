@@ -1623,10 +1623,10 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting),
             indent(nesting), jdf_basename, f->fname);
     if( NULL != f->priority ) {
-        coutput("%s  new_context->priority = priority_of_%s_%s_as_expr_fct(new_context->dague_object, new_context->locals);\n",
+        coutput("%s  new_context->priority = __dague_object->super.super.object_priority + priority_of_%s_%s_as_expr_fct(new_context->dague_object, new_context->locals);\n",
                 indent(nesting), jdf_basename, f->fname);
     } else {
-        coutput("%s  new_context->priority = 0;\n", indent(nesting));
+        coutput("%s  new_context->priority = __dague_object->super.super.object_priority;\n", indent(nesting));
     }
 
     // PETER insert data locality info
@@ -3252,10 +3252,10 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     if( NULL != targetf->priority ) {
         string_arena_add_string(sa_open,
-                                "%s%s  %s.priority = priority_of_%s_%s_as_expr_fct(this_task->dague_object, nc.locals);\n",
+                                "%s%s  %s.priority = __dague_object->super.super.object_priority + priority_of_%s_%s_as_expr_fct(this_task->dague_object, nc.locals);\n",
                                 prefix, indent(nbopen), var, jdf_basename, targetf->fname);
     } else {
-        string_arena_add_string(sa_open, "%s%s  %s.priority = 0;\n",
+        string_arena_add_string(sa_open, "%s%s  %s.priority = __dague_object->super.super.object_priority;\n",
                                 prefix, indent(nbopen), var);
     }
 
