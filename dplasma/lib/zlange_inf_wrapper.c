@@ -17,6 +17,8 @@
 
 #include "zlange_inf_cyclic.h"
 
+static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };
+
 dague_object_t* dplasma_zlange_inf_New( tiled_matrix_desc_t *A,
                                         int P, int Q,
                                         double *result)
@@ -32,9 +34,9 @@ dague_object_t* dplasma_zlange_inf_New( tiled_matrix_desc_t *A,
         (W, matrix_RealDouble, matrix_Tile,
          A->super.nodes, A->super.cores, A->super.myrank,
          A->mb, 1,  /* Dimesions of the tile                */
-         A->m,  Q,  /* Dimensions of the matrix             */
+         dague_imax(A->m, P*A->mb),  Q,  /* Dimensions of the matrix             */
          0, 0,      /* Starting points (not important here) */
-         A->m,  Q,   /* Dimensions of the submatrix          */
+         dague_imax(A->m, P*A->mb),  Q,   /* Dimensions of the submatrix          */
          1, 1, P));
 
     /* Create the DAG */
