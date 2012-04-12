@@ -27,7 +27,7 @@
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
-#define  DLARFG      zlarfg
+#define  DLARFG      zlarfg_
 extern void zlarfg(int *N, Dague_Complex64_t *ALPHA, Dague_Complex64_t *X, int *INCX, Dague_Complex64_t *TAU);
 
 void band_to_trd_vmpi1(int N, int NB, Dague_Complex64_t *A, int LDA);
