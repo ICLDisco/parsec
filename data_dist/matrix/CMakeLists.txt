@@ -21,10 +21,10 @@ precisions_rules_py(generated_files
                  PRECISIONS "s;d;c;z"
 )
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 
 if(NOT DAGUE_COMPILE_INPLACE)
-  include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
+  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
 endif(NOT DAGUE_COMPILE_INPLACE)
 
 set(sources
