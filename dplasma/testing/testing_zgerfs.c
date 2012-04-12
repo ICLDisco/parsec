@@ -71,7 +71,7 @@ int main(int argc, char ** argv)
 
     /* Initialize criteria */
     double eps = LAPACKE_dlamch_work('e');
-    double Anorm = dplasma_zlange_inf(dague, PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescA);
+    double Anorm = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescA);
     criteria = eps * Anorm;
 
     /* ((Dague_Complex64_t *) ddescA.mat)[0] = criteria*0.1; */
@@ -140,7 +140,7 @@ int main(int argc, char ** argv)
         twoDBC_ztolapack( &ddescB, B, LDB );
         twoDBC_ztolapack( &ddescX, X, LDB );
 
-        double Bnorm       = dplasma_zlange_inf(dague, PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescB);
+        double Bnorm       = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescB);
 
         int ret = LAPACKE_zgerfs( LAPACK_COL_MAJOR, 'N', N, NRHS, A, LDA, LU, LDA, ipiv, B, LDB, X, LDB, ferr, berr );
 
@@ -216,14 +216,14 @@ static int check_solution( dague_context_t *dague, int loud,
     int m = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescA);
-    Bnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescB);
-    Xnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescX);
+    Anorm = dplasma_zlange(dague, PlasmaInfNorm, ddescA);
+    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
+    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
 
     /* Compute b - A*x */
     dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescX, 1.0, ddescB);
 
-    Rnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescB);
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 
