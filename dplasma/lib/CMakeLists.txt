@@ -85,7 +85,6 @@ set(SOURCES
   zplghe_wrapper.c
   zplgsy_wrapper.c
   zlange_wrapper.c
-  zlange2_wrapper.c
   zlanhe_wrapper.c
   zlansy_wrapper.c
   # Lapack
