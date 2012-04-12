@@ -19,6 +19,7 @@
 #include "dplasma/lib/butterfly_map.h"
 #include "dplasma/lib/zhebut.h"
 #include "dplasma/lib/zgebut.h"
+#include "dplasma/lib/zgebmm.h"
 #include <lapacke.h>
 
 #if (DAGUE_zhebut_ARENA_INDEX_MIN != 0) || (DAGUE_zgebut_ARENA_INDEX_MIN != 0)
@@ -299,6 +300,86 @@ dplasma_zgebut_Destruct( dague_object_t *o )
 }
 
 /*
+ * dplasma_zgebmm_New()
+ */
+dague_object_t*
+dplasma_zgebmm_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level, int trans, int *info)
+{
+    dague_object_t *dague_zgebmm = NULL;
+    dague_seg_ddesc_t *seg_descA;
+    dague_memory_pool_t *pool_0;
+    int i, mt, nt;
+
+    (void)info;
+
+    seg_descA = (dague_seg_ddesc_t *)calloc(1, sizeof(dague_seg_ddesc_t));
+
+    /* copy the ddesc part of A into seg_descA */
+    memcpy(seg_descA, A, sizeof(dague_ddesc_t));
+    /* overwrite the rank_of() and data_of() */
+    ((dague_ddesc_t *)seg_descA)->rank_of = dague_rbt_rank_of;
+    ((dague_ddesc_t *)seg_descA)->data_of = dague_rbt_data_of;
+    /* store a pointer to A itself */
+    seg_descA->A_org = A;
+    /* store the level */
+    seg_descA->level = level;
+    /* store the segment info */
+    seg_descA->seg_info = dague_rbt_calculate_constants(A, level, i_block, j_block);
+
+    mt = seg_descA->seg_info.tot_seg_cnt_m;
+    nt = seg_descA->seg_info.tot_seg_cnt_n;
+
+    pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(Dague_Complex64_t) );
+
+    dague_zgebmm = (dague_object_t *)dague_zgebmm_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt, trans, pool_0);
+
+    for(i=0; i<36; i++){
+#if defined(HAVE_MPI)
+       dague_arena_t *arena;
+        dague_remote_dep_datatype_t newtype;
+        MPI_Aint extent = 0;
+        int type_exists;
+        unsigned int m_sz, n_sz;
+
+        type_exists = type_index_to_sizes(seg_descA->seg_info, i, &m_sz, &n_sz);
+
+        if( type_exists ){
+            arena = ((dague_zgebmm_object_t*)dague_zgebmm)->arenas[i];
+            dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
+                                              m_sz, n_sz, &newtype );
+            dplasma_get_extent(newtype, &extent);
+            dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
+        } else
+#endif
+        {
+            free(((dague_zgebmm_object_t*)dague_zgebmm)->arenas[DAGUE_zgebmm_ARENA_INDEX_MIN + i]);
+            ((dague_zgebmm_object_t*)dague_zgebmm)->arenas[DAGUE_zgebmm_ARENA_INDEX_MIN + i] = NULL;
+        }
+    }
+
+    return dague_zgebmm;
+}
+
+void
+dplasma_zgebmm_Destruct( dague_object_t *o )
+{
+    int i;
+    dague_zgebmm_object_t *obmm = (dague_zgebmm_object_t *)o;
+
+    for(i=0; i<36; i++){
+        if( NULL != obmm->arenas[DAGUE_zgebmm_ARENA_INDEX_MIN + i] ){
+            free( obmm->arenas[DAGUE_zgebmm_ARENA_INDEX_MIN + i] );
+            obmm->arenas[DAGUE_zgebmm_ARENA_INDEX_MIN + i] = NULL;
+        }
+    }
+
+    dague_zgebmm_destroy(obmm);
+}
+
+
+
+/*
  * Blocking Interface
  */
 
@@ -309,7 +390,7 @@ static dague_object_t **iterate_ops(tiled_matrix_desc_t *A, int curlevel,
                                     int destroy, int *info)
 {
     if(curlevel == maxlevel){
-        if( i_block == j_block ){
+        if( (i_block == j_block) ){
             if( destroy ){
                 dplasma_zhebut_Destruct(*subop);
             }else{
@@ -348,7 +429,7 @@ static void RBT_zrandom(int N, PLASMA_Complex64_t *V)
 
     for (i=0; i<N; i++){
         V[i] = (PLASMA_Complex64_t)exp(((random()/(double)RAND_MAX)-0.5)/10.0);
-        printf("V[%d]: %lf\n",i,V[i]);
+        printf("U_but_vec[%d]: %lf\n",i,V[i]);
     }
 }
 
@@ -373,7 +454,6 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, int level)
     U_but_vec = (PLASMA_Complex64_t *)malloc( (level+1)*(A->lm)*sizeof(PLASMA_Complex64_t) );
     srandom(0);
     RBT_zrandom((level+1)*(A->lm), U_but_vec);
-
 
     (void)iterate_ops(A, 0, level, 0, 0, subop, dague, CREATE_N_ENQUEUE, &info);
     dplasma_progress(dague);

@@ -178,7 +178,7 @@ seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, in
 void segment_to_tile(const dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset){
     seg_info_t seg;
     int mb, nb;
-    int abs_m, abs_n;
+    int abs_m=0, abs_n=0;
     int right=0, bottom=0;
 
     seg = seg_ddesc->seg_info;
@@ -246,7 +246,6 @@ void segment_to_tile(const dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_ti
 
     *m_tile = abs_m/mb;
     *n_tile = abs_n/nb;
-    /* *offset = (abs_m%mb)*nb+(abs_n%nb); */
     *offset = (abs_n%nb)*mb+(abs_m%mb);
 
     return;

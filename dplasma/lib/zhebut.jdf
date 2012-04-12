@@ -24,27 +24,27 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/butterfly_map.h"
 
-#define NOT_TRANSPOSE 0x0
-#define TRANSPOSE     0x1
+#define BL_IS_TR_BL_IS_BLD 0x0
+#define BL_IS_BL     0x1
 
 /* Forward declarations */
-void BFT_zQTL( int mb, int nb, int lda, int off, int lvl, int N,
+void BFT_zQTL( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
-void BFT_zQBL( int mb, int nb, int lda, int off, int lvl, int N,
+void BFT_zQBL( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
-void BFT_zQTR_trans( int mb, int nb, int lda, int off, int lvl, int N,
+void BFT_zQTR_trans( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
-void BFT_zQTR( int mb, int nb, int lda, int off, int lvl, int N,
+void BFT_zQTR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
-void BFT_zQBR( int mb, int nb, int lda, int off, int lvl, int N,
+void BFT_zQBR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
@@ -82,8 +82,8 @@ HEBUT_Diag(i)
 
 BODY
 
-  unsigned mb_seg, nb_seg, lda, N;
-  uintptr_t off_in_U, off_in_tile;
+  unsigned mb_seg, nb_seg, mb_tile, nb_tile, N;
+  uintptr_t i_seg, j_seg, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_br;
 
@@ -94,24 +94,24 @@ BODY
   type = segment_to_type_index(descA.seg_info, i, i);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists );
-  lda = descA.A_org->mb; /* This is the mb of the tile */
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
   segment_to_tile(&descA, i, i, &i_tile, &j_tile, &off_in_tile);
 
-  /* off_in_U is the beginning (vertically) of the segment as an absolute offest
-   * from the top of the original matrix */
-  off_in_U = i_tile*lda + off_in_tile%lda;
+  i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
+  j_seg = j_tile*nb_tile + off_in_tile%nb_tile;
   N = descA.A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
   p_elem_bl = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
-  BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, NOT_TRANSPOSE, 1);
-  BFT_zQBL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, NOT_TRANSPOSE, 1);
-  BFT_zQBR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, NOT_TRANSPOSE, 1);
+  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, BL_IS_TR_BL_IS_BLD, 1);
+  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, BL_IS_TR_BL_IS_BLD, 1);
+  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, BL_IS_TR_BL_IS_BLD, 1);
 
   /* FIXME: copy only the lower triangle, not the whole thing */
-  sz = (lda*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
+  sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
 
   memcpy(Atl, p_elem_tl, sz);
   memcpy(Abl, p_elem_bl, sz);
@@ -153,8 +153,8 @@ HEBUT_Lower(i,j)
 
 BODY
 
-  unsigned mb_seg, nb_seg, lda, N;
-  uintptr_t off_in_U, off_in_tile;
+  unsigned mb_seg, nb_seg, mb_tile, nb_tile, N;
+  uintptr_t i_seg, j_seg, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
 
@@ -165,12 +165,12 @@ BODY
   type = segment_to_type_index(descA.seg_info, i, j);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists );
-  lda = descA.A_org->mb; /* This is the mb of the tile */
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
   segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
 
-  /* off_in_U is the beginning (vertically) of the segment as an absolute offest
-   * from the top of the original matrix */
-  off_in_U = i_tile*lda + off_in_tile%lda;
+  i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
+  j_seg = j_tile*nb_tile + off_in_tile%nb_tile;
   N = descA.A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
@@ -178,22 +178,18 @@ BODY
   p_elem_tr = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
-  printf("Atl:%lf Atr:%lf Abl:%lf Abr:%lf\n",*(double *)Atl, *(double *)Atr, *(double *)Abl, *(double *)Abr);
+  BFT_zQTL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, BL_IS_BL, 0);
+  BFT_zQBL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, BL_IS_BL, 0);
+  BFT_zQTR_trans( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, BL_IS_BL, 0);
+  BFT_zQBR(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, BL_IS_BL, 0);
 
-  BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, TRANSPOSE, 0);
-  BFT_zQBL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, TRANSPOSE, 0);
-  BFT_zQTR_trans( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, TRANSPOSE, 0);
-  BFT_zQBR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, TRANSPOSE, 0);
-
-  sz = (lda*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
+  sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
   memcpy(Atl, p_elem_tl, sz);
   memcpy(Abl, p_elem_bl, sz);
   memcpy(Abr, p_elem_br, sz);
   /* Atr is transposed, so it's mb elements in the horizontal dimension */
-  sz = (lda*(mb_seg-1)+nb_seg) * sizeof(PLASMA_Complex64_t);
+  sz = (mb_tile*(mb_seg-1)+nb_seg) * sizeof(PLASMA_Complex64_t);
   memcpy(Atr, p_elem_tr, sz);
-
-  printf("Atl:%lf Atr:%lf Abl:%lf Abr:%lf\n",*(double *)Atl, *(double *)Atr, *(double *)Abl, *(double *)Abr);
 
   dague_private_memory_push( pool_0, p_elem_tl );
   dague_private_memory_push( pool_0, p_elem_bl );

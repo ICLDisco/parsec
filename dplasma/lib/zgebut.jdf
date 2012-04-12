@@ -27,23 +27,23 @@ extern "C" %{
 #define NOT_TRANSPOSE 0x0
 #define TRANSPOSE     0x1
 
-void BFT_zQTL( int mb, int nb, int lda, int off, int lvl, int N,
+void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
-void BFT_zQBL( int mb, int nb, int lda, int off, int lvl, int N,
+void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
-void BFT_zQTR_trans( int mb, int nb, int lda, int off, int lvl, int N,
+void BFT_zQTR_trans( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
-void BFT_zQTR( int mb, int nb, int lda, int off, int lvl, int N,
+void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
-void BFT_zQBR( int mb, int nb, int lda, int off, int lvl, int N,
+void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
@@ -86,8 +86,8 @@ GEBUT(i,j)
 
 BODY
 
-  unsigned mb_seg, nb_seg, lda, N;
-  uintptr_t off_in_U, off_in_tile;
+  unsigned mb_seg, nb_seg, mb_tile, nb_tile, N;
+  uintptr_t i_seg, j_seg, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
 
@@ -98,12 +98,13 @@ BODY
   type = segment_to_type_index(descA.seg_info, i, j);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists );
-  lda = descA.A_org->mb; /* This is the mb of the tile */
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
   segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
 
-  /* off_in_U is the beginning (vertically) of the segment as an absolute offest
-   * from the top of the original matrix */
-  off_in_U = i_tile*lda + off_in_tile%lda;
+  i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
+  j_seg = j_tile*nb_tile + off_in_tile%nb_tile;
+
   N = descA.A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
@@ -112,12 +113,15 @@ BODY
   p_elem_br = dague_private_memory_pop( pool_0 );
 
 printf("-- GEBUT\n");
-  BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, NOT_TRANSPOSE, 0);
-  BFT_zQBL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, NOT_TRANSPOSE, 0);
-  BFT_zQTR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tr, NOT_TRANSPOSE, 0);
-  BFT_zQBR( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, NOT_TRANSPOSE, 0);
+/* why Abl twice?
+  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, NOT_TRANSPOSE, 0);
+*/
+  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, NOT_TRANSPOSE, 0);
+  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, NOT_TRANSPOSE, 0);
+  BFT_zQTR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, NOT_TRANSPOSE, 0);
+  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, NOT_TRANSPOSE, 0);
 
-  sz = (lda*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
+  sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
   memcpy(Atl, p_elem_tl, sz);
   memcpy(Abl, p_elem_bl, sz);
   memcpy(Atr, p_elem_tr, sz);
@@ -155,6 +159,9 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i, j, A);
 
+  printf("R A[%d][%d]:%lf\n",i,j,*(double *)A);
+
+
 END
 
 
@@ -180,6 +187,8 @@ BODY
   printlog("thread %d GEBUT_Writer(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i, j, A);
+
+  printf("W A[%d][%d]:%lf\n",i,j,*(double *)A);
 
 END
 
