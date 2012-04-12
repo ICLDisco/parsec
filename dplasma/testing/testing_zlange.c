@@ -10,26 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-/* static void dplasma_zprint_tile( int m, int n, Dague_Complex64_t *M, int lda ) */
-/* { */
-/*     int ii, jj; */
-
-/*     fprintf(stdout, "===================  check ==================\n"); */
-/*     for(ii=0; ii<m; ii++) { */
-/*         for(jj=0; jj<n; jj++) { */
-/* #if defined(PRECISION_z) || defined(PRECISION_c) */
-/*             fprintf(stdout, " (%e, %e)", */
-/*                     creal( M[jj*lda + ii] ), */
-/*                     cimag( M[jj*lda + ii] )); */
-/* #else */
-/*             fprintf(stdout, " %e", M[jj*lda + ii]); */
-/* #endif */
-/*         } */
-/*         fprintf(stdout, "\n"); */
-/*     } */
-/*     fflush(stdout); */
-/* } */
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
