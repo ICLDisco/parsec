@@ -32,7 +32,6 @@ set(JDF
   zpotrf_rl.jdf zpotrf_ll.jdf
   zpotrf_Url.jdf zpotrf_Lrl.jdf
   zgetrf_sp.jdf
-  zlange_inf_cyclic.jdf
   zgerfs.jdf zgerfs_exp.jdf
   zgebut.jdf
   zhebut.jdf
@@ -100,7 +99,6 @@ set(SOURCES
   zgetrf_wrapper.c
   zgetrf_sp_wrapper.c
   zgerfs_wrapper.c
-  zlange_inf_wrapper.c
   zhetrf_wrapper.c
   ztrdsm_wrapper.c
   zgetrs_wrapper.c
