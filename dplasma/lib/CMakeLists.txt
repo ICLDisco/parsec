@@ -50,9 +50,10 @@ precisions_rules_py(generated_jdf
                     PRECISIONS "${DPLASMA_PRECISIONS}")
 
 if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
-  foreach(src_file ${EXTRA_SOURCES})
-    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.") 
-  endforeach()
+  include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
+#  foreach(src_file ${EXTRA_SOURCES})
+#    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.") 
+#  endforeach()
 endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 
 list(APPEND generated_jdf
