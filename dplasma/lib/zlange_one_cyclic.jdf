@@ -64,9 +64,9 @@ READ_W(m, n) [profile = off]
 
     // Parameters
     READ W <- W(m, n)
-           -> ( m > (descA.mt-1) ) ? W STEP2(m, n)                       [type = COL]
-           -> ( (m < descA.mt  ) && (n > (descA.nt-1))) ? W STEP4(m, n)  [type = ELT]
-           -> ( (m < descA.mt  ) && (n < descA.nt  )) ? W STEP1(row, n)  [type = COL]
+           -> (  m >  (descA.mt-1) ) ? W STEP2(m, n)                           [type = COL]
+           -> ( (m <= (descA.mt-1)) && (n >  (descA.nt-1)) ) ? W STEP4(m, n)   [type = ELT]
+           -> ( (m <= (descA.mt-1)) && (n <= (descA.nt-1)) ) ? W STEP1(row, n) [type = COL]
 
 BODY
     DRYRUN(
@@ -95,8 +95,8 @@ STEP1(m,n)
 
     // Parameters
     READ A <-  A(m, n)
-    RW   W <-  ( m < (descA.mt-P)) ? W STEP1(m+P,n) : W READ_W(m%P, n) [type = COL]
-           ->  ( m < P           ) ? W STEP2(m,  n) : W STEP1(m-P,  n) [type = COL]
+    RW   W <-  ( m >= (descA.mt-P)) ? W READ_W(m%P, n) : W STEP1(m+P, n) [type = COL]
+           ->  ( m <  P           ) ? W STEP2( m,   n) : W STEP1(m-P, n) [type = COL]
 
 BODY
 
@@ -174,7 +174,7 @@ STEP3(m, n)
     // Parameters
     READ A <- W STEP2(P-1, n)                                            [type = COL]
     RW   W <- (n < (descA.nt-Q)) ? W STEP3( m, n+Q ) : W(m, n)           [type = ELT]
-           -> (n < Q           ) ? W STEP4( m, n   ) : W STEP3( m, n-Q ) [type = ELT]
+           -> (n <  Q          ) ? W STEP4( m, n )   : W STEP3( m, n-Q ) [type = ELT]
 
 BODY
 
