@@ -26,7 +26,7 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
                                      tiled_matrix_desc_t *A,
                                      double *result )
 {
-    int m, n, mb, nb, col, elt;
+    int m, n, mb, nb, elt;
     two_dim_block_cyclic_t *W;
     dague_object_t *dague_zlange = NULL;
 
@@ -37,25 +37,22 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
     case PlasmaFrobeniusNorm:
         mb = 2;
         nb = 1;
-        m  = dague_imax(A->mt*mb, P*mb);
+        m  = dague_imax(A->mt, P) * mb;
         n  = Q;
-        col = 2;
         elt = 2;
         break;
     case PlasmaInfNorm:
         mb = A->mb;
         nb = 1;
-        m  = dague_imax(A->mt*mb, P*mb);
+        m  = dague_imax(A->mt, P) * mb;
         n  = Q;
-        col = mb;
         elt = 1;
         break;
     case PlasmaOneNorm:
         mb = 1;
         nb = A->nb;
         m  = P;
-        n  = dague_imax(A->nt*nb, Q*nb);
-        col = nb;
+        n  = dague_imax(A->nt, Q) * nb;
         elt = 1;
         break;
     case PlasmaMaxNorm:
@@ -64,7 +61,6 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
         nb = 1;
         m  = P;
         n  = dague_imax(A->nt, Q);
-        col = 1;
         elt = 1;
     }
 
@@ -103,14 +99,12 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
                            A->mb*A->nb*sizeof(Dague_Complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
-    dplasma_add2arena_tile(((dague_zlange_inf_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_inf_cyclic_COL_ARENA],
-                           mb*sizeof(double),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE, col);
-    dplasma_add2arena_tile(((dague_zlange_inf_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_inf_cyclic_ELT_ARENA],
-                           sizeof(double),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE, elt);
+    dplasma_add2arena_rectangle(((dague_zlange_inf_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_inf_cyclic_COL_ARENA],
+                                mb * nb * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
+                                MPI_DOUBLE, mb, nb, -1);
+    dplasma_add2arena_rectangle(((dague_zlange_inf_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_inf_cyclic_ELT_ARENA],
+                                elt * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
+                                MPI_DOUBLE, elt, 1, -1);
 
     return (dague_object_t*)dague_zlange;
 }
