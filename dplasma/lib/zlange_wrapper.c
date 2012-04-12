@@ -133,11 +133,14 @@ dplasma_zlange_Destruct( dague_object_t *o )
 }
 
 double dplasma_zlange( dague_context_t *dague,
-                        PLASMA_enum ntype, int P, int Q,
+                        PLASMA_enum ntype,
                         tiled_matrix_desc_t *A)
 {
     double result;
     dague_object_t *dague_zlange = NULL;
+
+    int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
+    int Q = ((two_dim_block_cyclic_t*)A)->grid.cols;
 
     dague_zlange = dplasma_zlange_New(ntype, P, Q, A, &result);
 

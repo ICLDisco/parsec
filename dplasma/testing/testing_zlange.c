@@ -65,8 +65,8 @@ int main(int argc, char ** argv)
             printf("***************************************************\n");
         }
         if(loud > 2) printf("+++ Computing norm %s ... ", normsstr[i]);
-        normdag = dplasma_zlange2(dague, norms[i], P, Q,
-                               (tiled_matrix_desc_t *)&ddescA);
+        normdag = dplasma_zlange(dague, norms[i],
+                                 (tiled_matrix_desc_t *)&ddescA);
 
         if ( rank == 0 ) {
             normlap = LAPACKE_zlange_work(LAPACK_COL_MAJOR, normsstr[i][0], M, N,

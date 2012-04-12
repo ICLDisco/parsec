@@ -54,7 +54,7 @@ int    dplasma_zungqr_param( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matr
 
 int    dplasma_zgeadd( dague_context_t *dague, PLASMA_enum uplo, Dague_Complex64_t alpha, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 int    dplasma_zlacpy( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
-double dplasma_zlange( dague_context_t *dague, PLASMA_enum ntype, int P, int Q, tiled_matrix_desc_t *A);
+double dplasma_zlange( dague_context_t *dague, PLASMA_enum ntype, tiled_matrix_desc_t *A);
 double dplasma_zlanhe( dague_context_t *dague, PLASMA_enum ntype, PLASMA_enum uplo, tiled_matrix_desc_t *A);
 double dplasma_zlansy( dague_context_t *dague, PLASMA_enum ntype, PLASMA_enum uplo, tiled_matrix_desc_t *A);
 int    dplasma_zlaset( dague_context_t *dague, PLASMA_enum uplo, Dague_Complex64_t alpha, Dague_Complex64_t beta, tiled_matrix_desc_t *A);
