@@ -64,9 +64,9 @@ READ_W(m, n) [profile = off]
 
     // Parameters
     READ W <- W(m, n)
-           -> (  m >  (descA.mt-1) ) ? W STEP2(m, n)                           [type = COL]
-           -> ( (m <= (descA.mt-1)) && (n >  (descA.nt-1)) ) ? W STEP4(m, n)   [type = ELT]
-           -> ( (m <= (descA.mt-1)) && (n <= (descA.nt-1)) ) ? W STEP1(row, n) [type = COL]
+           -> ( (n > (descA.nt-1)) )                       ? W STEP4(m,   n)  [type = ELT]
+           -> ( (n <  descA.nt   ) && (m > (descA.mt-1) )) ? W STEP2(m,   n)  [type = COL]
+           -> ( (n <  descA.nt   ) && (m <  descA.mt    )) ? W STEP1(row, n)  [type = COL]
 
 BODY
     DRYRUN(

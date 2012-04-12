@@ -68,9 +68,9 @@ READ_W(m, n) [profile = off]
 
     // Parameters
     READ W <- W(m, n)
-           -> ( n > (descA.nt-1) ) ? W STEP2(m, n)                       [type = COL]
-           -> ( (n < descA.nt  ) && (m > (descA.mt-1))) ? W STEP4(m, n)  [type = ELT]
-           -> ( (n < descA.nt  ) && (m < descA.mt  )) ? W STEP1(m, col)  [type = COL]
+           -> ( (m > (descA.mt-1)) )                       ? W STEP4(m, n)    [type = ELT]
+           -> ( (m <  descA.mt   ) && (n > (descA.nt-1) )) ? W STEP2(m, n)    [type = COL]
+           -> ( (m <  descA.mt   ) && (n <  descA.nt    )) ? W STEP1(m, col)  [type = COL]
 
 BODY
     DRYRUN(
@@ -226,9 +226,9 @@ STEP4(m,n)
     :W(m, n)
 
     // Parameters
-    READ A <- ( m == 0 ) ? W(m, n) : W STEP4(m-1, n)                    [type = ELT]
-    RW   W <- ( m > (descA.mt-1)) ? W READ_W(m, n)  : W STEP3(m, n)     [type = ELT]
-           -> (m < (P-1)) ? A STEP4(m+1, n) : W WRITE_RES(0..P-1, n)    [type = ELT]
+    READ A <- ( m == 0 ) ? W(m, n) : W STEP4(m-1, n)                         [type = ELT]
+    RW   W <- ( m > (descA.mt-1)) ? W READ_W(m, n)  : W STEP3(m, n)          [type = ELT]
+           -> ( m < (P-1)       ) ? A STEP4(m+1, n) : W WRITE_RES(0..P-1, n) [type = ELT]
 
 BODY
 
@@ -253,7 +253,7 @@ BODY
                 dW[1] = dW[1] + sqr * dA[1];
             }
         }
-            );
+           );
 END
 
 /**************************************************
