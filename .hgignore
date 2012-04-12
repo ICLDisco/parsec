@@ -103,6 +103,7 @@ dplasma/lib/[sdc]syrbt_L\.jdf
 dplasma/lib/[sdc]hbrdt\.jdf
 dplasma/lib/[sdc]sbrdt\.jdf
 dplasma/lib/[sdc]laset\.jdf
+dplasma/lib/[sdc]lange_.*_cyclic\.jdf
 dplasma/lib/[sdc]plrnt\.jdf
 dplasma/lib/[sdc]plghe\.jdf
 dplasma/lib/[sdc]plgsy\.jdf
@@ -161,6 +162,7 @@ dplasma/lib/[sdcz]syrbt_L\.[ch]
 dplasma/lib/[sdcz]hbrdt\.[ch]
 dplasma/lib/[sdcz]sbrdt\.[ch]
 dplasma/lib/[sdcz]laset\.[ch]
+dplasma/lib/[sdcz]lange_.*_cyclic\.[ch]
 dplasma/lib/[sdcz]laswp\.[ch]
 dplasma/lib/[sdcz]plrnt\.[ch]
 dplasma/lib/[sdcz]plghe\.[ch]

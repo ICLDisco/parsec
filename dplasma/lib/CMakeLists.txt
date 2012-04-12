@@ -44,6 +44,10 @@ set(JDF
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
   zgeqrf_param.jdf zungqr_param.jdf
   zungqr.jdf
+  zlange_inf_cyclic.jdf
+  zlange_one_cyclic.jdf
+  zlange_max_cyclic.jdf
+  zlange_frb_cyclic.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
@@ -81,6 +85,7 @@ set(SOURCES
   zplghe_wrapper.c
   zplgsy_wrapper.c
   zlange_wrapper.c
+  zlange2_wrapper.c
   zlanhe_wrapper.c
   zlansy_wrapper.c
   # Lapack
