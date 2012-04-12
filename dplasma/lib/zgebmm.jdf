@@ -1,0 +1,179 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+#include <string.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/lib/butterfly_map.h"
+
+extern void RBMM_zTOP( int mb, int nb, int lda, int off, int lvl, int N, int trans,
+          PLASMA_Complex64_t *top, PLASMA_Complex64_t *btm,
+          PLASMA_Complex64_t *C );
+extern void RBMM_zBTM( int mb, int nb, int lda, int off, int lvl, int N, int trans,
+          PLASMA_Complex64_t *top, PLASMA_Complex64_t *btm,
+          PLASMA_Complex64_t *C );
+
+
+%}
+
+[DAGUE_ARENA_STRUT = 36]
+descA  [type = "dague_seg_ddesc_t"]
+A      [type = "dague_ddesc_t *"]
+nt     [type = "int"]
+mt     [type = "int"]
+trans  [type = "int"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
+
+
+/*
+ *
+ */
+GEBMM(i,j)
+  /* Execution space */
+  i = 0 .. mt/2-1
+  j = 0 .. nt/2-1
+
+  : A(i,j)
+
+  /* Atl: A from Top Left */ 
+  RW  Atl <- A GEBMM_Reader(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBMM_Writer(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+
+  /* Abl: A from Bottom Left */
+  RW  Abl <- A GEBMM_Reader(i+mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBMM_Writer(i+mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+
+  /* Atr: A from Top Right */
+  RW  Atr <- A GEBMM_Reader(i,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBMM_Writer(i,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+
+  /* Abr: A from Bottom Right */
+  RW  Abr <- A GEBMM_Reader(i+mt/2,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBMM_Writer(i+mt/2,j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+
+BODY
+
+  unsigned mb_seg, nb_seg, lda, N;
+  uintptr_t off_in_U, off_trans, off_in_tile;
+  int type, sz, type_exists, i_tile, j_tile;
+  void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
+
+  printlog("thread %d GEBMM(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i, j, Atl);
+
+  type = segment_to_type_index(descA.seg_info, i, j);
+  type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  assert( type_exists );
+  lda = descA.A_org->mb; /* This is the mb of the tile */
+  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
+
+  /*
+   * off_in_U is the beginning (vertically) of the segment as an absolute offest
+   * from the top of the original matrix
+   */
+  off_in_U = i_tile*lda + off_in_tile%lda;
+
+  N = descA.A_org->lm;
+
+  p_elem_tl = dague_private_memory_pop( pool_0 );
+  p_elem_bl = dague_private_memory_pop( pool_0 );
+  p_elem_tr = dague_private_memory_pop( pool_0 );
+  p_elem_br = dague_private_memory_pop( pool_0 );
+
+printf("-- GEBMM\n");
+  RBMM_zTOP( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atl, Abl, p_elem_tl);
+  RBMM_zBTM( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atl, Abl, p_elem_bl);
+  RBMM_zTOP( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atr, Abr, p_elem_tr);
+  RBMM_zBTM( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atr, Abr, p_elem_br);
+
+  sz = (lda*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
+  memcpy(Atl, p_elem_tl, sz);
+  memcpy(Abl, p_elem_bl, sz);
+  memcpy(Atr, p_elem_tr, sz);
+  memcpy(Abr, p_elem_br, sz);
+
+  dague_private_memory_push( pool_0, p_elem_tl );
+  dague_private_memory_push( pool_0, p_elem_bl );
+  dague_private_memory_push( pool_0, p_elem_tr );
+  dague_private_memory_push( pool_0, p_elem_br );
+
+  /* printf("GEBMM(%d,%d)\n",i,j); */
+END
+
+
+/*
+ *
+ */
+GEBMM_Reader(i,j)
+  /* Execution space */
+  i = 0 .. mt-1
+  j = 0 .. nt-1
+
+  : A(i,j)
+
+READ A <- A(i, j)                                     [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]         
+       -> ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBMM(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBMM(i,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBMM(i-mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBMM(i-mt/2,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+
+BODY
+  /* nothing */
+
+  printlog("thread %d GEBMM_Reader(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i, j, A);
+
+  printf("R A[%d][%d]:%lf\n",i,j,*(double *)A);
+
+
+END
+
+
+/*
+ *
+ */
+GEBMM_Writer(i,j)
+  /* Execution space */
+  i = 0 .. mt-1
+  j = 0 .. nt-1
+
+  : A(i,j)
+
+READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBMM(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBMM(i,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBMM(i-mt/2,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBMM(i-mt/2,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> A(i, j)                                               [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]         
+
+BODY
+  /* nothing */
+
+  printlog("thread %d GEBMM_Writer(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i, j, A);
+
+  printf("W A[%d][%d]:%lf\n",i,j,*(double *)A);
+
+END
+
+

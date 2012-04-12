@@ -123,8 +123,10 @@ dague_object_t* dplasma_zplghe_New( double            bump, PLASMA_enum uplo, ti
 dague_object_t* dplasma_zplgsy_New( Dague_Complex64_t bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 
 /* Low-level nonblocking butterfly interface */
-dague_object_t* dplasma_zhebut_New( tiled_matrix_desc_t *A, int it, int jt, int nt, int *info);
-dague_object_t* dplasma_zgebut_New( tiled_matrix_desc_t *A, int it, int jt, int nt, int *info);
+dague_object_t* dplasma_zhebut_New( tiled_matrix_desc_t *A, int it, int jt, int level, int *info);
+dague_object_t* dplasma_zgebut_New( tiled_matrix_desc_t *A, int it, int jt, int level, int *info);
+dague_object_t* dplasma_zgebmm_New( tiled_matrix_desc_t *A, int it, int jt, int level, int trans, int *info);
+
 
 /* Low-level nonblocking LDL interface */
 dague_object_t* dplasma_zhetrf_New( tiled_matrix_desc_t *A, int *info);
