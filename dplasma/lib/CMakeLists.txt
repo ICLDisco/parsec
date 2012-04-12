@@ -47,15 +47,20 @@ set(JDF
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
   zgeqrf_param.jdf zungqr_param.jdf
   zungqr.jdf
+  zlange_inf_cyclic.jdf
+  zlange_one_cyclic.jdf
+  zlange_max_cyclic.jdf
+  zlange_frb_cyclic.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
                     PRECISIONS "${DPLASMA_PRECISIONS}")
 
 if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
-  foreach(src_file ${EXTRA_SOURCES})
-    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.")
-  endforeach()
+  include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
+#  foreach(src_file ${EXTRA_SOURCES})
+#    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.")
+#  endforeach()
 endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 
 list(APPEND generated_jdf

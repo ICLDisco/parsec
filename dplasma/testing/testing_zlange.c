@@ -13,10 +13,12 @@
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
-    double norm = 0.0;
-    int iparam[IPARAM_SIZEOF];
-    int ret = 0;
+    double *work;
+    double normlap = 0.0;
+    double normdag = 0.0;
     double eps = LAPACKE_dlamch_work('e');
+    int iparam[IPARAM_SIZEOF];
+    int i, ret = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -28,9 +30,10 @@ int main(int argc, char ** argv)
 #endif
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
-    PASTE_CODE_IPARAM_LOCALS(iparam)
-    PASTE_CODE_FLOPS(FLOPS_ZGEMV, ((DagDouble_t)M, (DagDouble_t)N))
+    PASTE_CODE_IPARAM_LOCALS(iparam);
+    PASTE_CODE_FLOPS(FLOPS_ZGEMV, ((DagDouble_t)M, (DagDouble_t)N));
 
+    check = 1;
     LDA = max( LDA, M );
 
     /* initializing matrix structure */
@@ -46,48 +49,58 @@ int main(int argc, char ** argv)
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
+    dplasma_zlacpy(dague,
+                   PlasmaUpperLower,
+                   (tiled_matrix_desc_t *)&ddescA,
+                   (tiled_matrix_desc_t *)&ddescA0);
     if(loud > 2) printf("Done\n");
 
-    if(loud > 2) printf("+++ Computing getrf_sp ... ");
-
-    /* Computing the norm */
-    norm = dplasma_zlange_inf(dague, PlasmaInfNorm,
-                              (tiled_matrix_desc_t *)&ddescA);
-
-    printf("%d: The infini norm of A is %e\n", rank, norm );
-
-    if(check)
-    {
-        double *work;
-        double normlap = 0.0;
-
-        dplasma_zlacpy(dague,
-                       PlasmaUpperLower,
-                       (tiled_matrix_desc_t *)&ddescA,
-                       (tiled_matrix_desc_t *)&ddescA0);
-
-        if( rank == 0 ) {
-
-            work    = (double *)malloc( max(M,N) * sizeof(double));
-            normlap = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N,
-                                          (Dague_Complex64_t*)(ddescA0.mat), ddescA0.super.lm, work);
-
-            printf("The infini Lapacke norm of A is %e\n", normlap );
-
-            normlap = normlap - norm;
-            if ( normlap < (N*eps) ) {
-                printf( "The solution is correct\n" );
-            } else {
-                printf( "The solution is bad (%e)\n", norm - normlap );
-            }
-
-            free( work );
-        }
-        dague_data_free(ddescA0.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
+    if( rank == 0 ) {
+        work    = (double *)malloc( max(M,N) * sizeof(double));
     }
 
-    if(loud > 2) printf("Done.\n");
+    /* Computing the norm */
+    for(i=0; i<4; i++) {
+        if ( rank == 0 ) {
+            printf("***************************************************\n");
+        }
+        if(loud > 2) printf("+++ Computing norm %s ... ", normsstr[i]);
+        normdag = dplasma_zlange(dague, norms[i],
+                                 (tiled_matrix_desc_t *)&ddescA);
+
+        if ( rank == 0 ) {
+            normlap = LAPACKE_zlange_work(LAPACK_COL_MAJOR, normsstr[i][0], M, N,
+                                          (Dague_Complex64_t*)(ddescA0.mat), ddescA0.super.lm, work);
+        }
+        if(loud > 2) printf("Done.\n");
+
+        if ( loud > 2 ) {
+            printf( "%d: The norm %s of A is %e\n",
+                    rank, normsstr[i], normdag);
+        }
+
+        if ( rank == 0 ) {
+            if ( loud > 2 ) {
+                printf( "The LAPACK norm %s of A is %e\n",
+                        normsstr[i], normlap);
+            }
+            normdag = fabs(normdag - normlap) / normlap ;
+            if ( normdag < ( 10 * (double)N * eps ) ) {
+                printf(" ----- TESTING ZLANGE (%s) ... SUCCESS !\n", normsstr[i]);
+            } else {
+                printf(" ----- TESTING ZLANGE (%s) ... FAILED !\n", normsstr[i]);
+                printf("       | Ndag - Nlap | / Nlap = %e\n", normdag);
+                ret |= 1;
+            }
+        }
+    }
+
+    if ( rank == 0 ) {
+        printf("***************************************************\n");
+        free( work );
+    }
+    dague_data_free(ddescA0.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
