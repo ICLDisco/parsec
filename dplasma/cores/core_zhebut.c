@@ -24,23 +24,23 @@ extern PLASMA_Complex64_t *U_but_vec;
 void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, int bl_is_tr_trans, int is_diagonal );
 void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, int bl_is_tr_trans);
 void BFT_zQTR_trans( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, int bl_is_tr_trans);
 void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, int bl_is_tr_trans);
 void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, int bl_is_tr_trans, int is_diagonal );
 
 void RBMM_zTOP( int mb, int nb, int lda, int i_seg, int lvl, int N, int trans,
           PLASMA_Complex64_t *top, PLASMA_Complex64_t *btm,
@@ -54,14 +54,14 @@ void RBMM_zBTM( int mb, int nb, int lda, int i_seg, int lvl, int N, int trans,
 void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
+          PLASMA_Complex64_t *C, int bl_is_tr_trans, int is_diagonal )
 {
     int i, j;
     printf("BFT_zQTL()\n");
-    if( is_transpose ){
+    if( bl_is_tr_trans ){
         for (j=0; j<nb; j++) {
-            //int start = is_diagonal ? j : 0;
-            for (i=0/*start*/; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t rj = U_but_vec[lvl*N+j_seg+j];
                 printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) + (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j, lvl*N+i_seg+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+j);
@@ -73,8 +73,8 @@ void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
         }
     }else{
         for (j=0; j<nb; j++) {
-            //int start = is_diagonal ? j : 0;
-            for (i=0/*start*/; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t rj = U_but_vec[lvl*N+j_seg+j];
                 printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) + (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+j);
@@ -91,14 +91,13 @@ void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
 void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
+          PLASMA_Complex64_t *C, int bl_is_tr_trans)
 {
     int i, j;
     printf("BFT_zQBL()\n");
-    if( is_transpose ){
+    if( bl_is_tr_trans ){
         for (j=0; j<nb; j++) {
-            //int start = is_diagonal ? j : 0;
-            for (i=0/*start*/; i<mb; i++) {
+            for (i=0; i<mb; i++) {
                 PLASMA_Complex64_t si = U_but_vec[lvl*N+i_seg+N/2+i];
                 PLASMA_Complex64_t rj = U_but_vec[lvl*N+j_seg+j];
                 printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) + (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+j);
@@ -110,8 +109,7 @@ void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
         }
     }else{
         for (j=0; j<nb; j++) {
-            //int start = is_diagonal ? j : 0;
-            for (i=0/*start*/; i<mb; i++) {
+            for (i=0; i<mb; i++) {
                 PLASMA_Complex64_t si = U_but_vec[lvl*N+i_seg+N/2+i];
                 PLASMA_Complex64_t rj = U_but_vec[lvl*N+j_seg+j];
                 printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) + (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+j);
@@ -129,14 +127,13 @@ void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
 void BFT_zQTR_trans( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
+          PLASMA_Complex64_t *C, int bl_is_tr_trans )
 {
     int i,j;
     printf("BFT_zQTR_trans()\n");
-    if( is_transpose ){
+    if( bl_is_tr_trans ){
         for (j=0; j<nb; j++) {
-            //int start = is_diagonal ? j : 0;
-            for (i=0/*start*/; i<mb; i++) {
+            for (i=0; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
                 printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+j, j_seg+i+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
@@ -148,8 +145,7 @@ void BFT_zQTR_trans( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int
         }
     }else{
         for (j=0; j<nb; j++) {
-            //int start = is_diagonal ? j : 0;
-            for (i=0/*start*/; i<mb; i++) {
+            for (i=0; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
                 printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+j, j_seg+i+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);
@@ -166,14 +162,13 @@ void BFT_zQTR_trans( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int
 void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
+          PLASMA_Complex64_t *C, int bl_is_tr_trans )
 {
     int i, j;
     printf("BFT_zQTR()\n");
-    if( is_transpose ){
+    if( bl_is_tr_trans ){
         for (j=0; j<nb; j++) {
-            //int start = is_diagonal ? j : 0;
-            for (i=0/*start*/; i<mb; i++) {
+            for (i=0; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
                 printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
@@ -185,8 +180,7 @@ void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
         }
     }else{
         for (j=0; j<nb; j++) {
-            //int start = is_diagonal ? j : 0;
-            for (i=0/*start*/; i<mb; i++) {
+            for (i=0; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
                 printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);
@@ -203,14 +197,14 @@ void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
 void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
+          PLASMA_Complex64_t *C, int bl_is_tr_trans, int is_diagonal )
 {
     int i, j;
     printf("BFT_zQBR()\n");
-    if( is_transpose ){
+    if( bl_is_tr_trans ){
         for (j=0; j<nb; j++) {
-            //int start = is_diagonal ? j : 0;
-            for (i=0/*start*/; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 PLASMA_Complex64_t si = U_but_vec[lvl*N+i_seg+N/2+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
                 printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) - (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j+N/2, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
@@ -222,8 +216,8 @@ void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
         }
     }else{
         for (j=0; j<nb; j++) {
-            //int start = is_diagonal ? j : 0;
-            for (i=0/*start*/; i<mb; i++) {
+            int start = is_diagonal ? j : 0;
+            for (i=start; i<mb; i++) {
                 PLASMA_Complex64_t si = U_but_vec[lvl*N+i_seg+N/2+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
                 printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) - (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j+N/2, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);

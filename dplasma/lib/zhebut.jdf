@@ -110,12 +110,18 @@ BODY
   BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, BL_IS_TR_TRANS, 1);
   BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, BL_IS_TR_TRANS, 1);
 
-  /* FIXME: copy only the lower triangle, not the whole thing */
+  /* The bottom left segment will always be rectangular, so copy the whole thing */
   sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
-
-  memcpy(Atl, p_elem_tl, sz);
   memcpy(Abl, p_elem_bl, sz);
-  memcpy(Abr, p_elem_br, sz);
+
+  /* The top left and bottom right segments in this task are always triangular, so copy only the triangle */
+  int ii;
+  for(ii=0; ii<nb_seg; ii++){
+      uintptr_t off = (mb_tile*ii+ii) * sizeof(PLASMA_Complex64_t);
+      sz = (mb_seg-ii) * sizeof(PLASMA_Complex64_t);
+      memcpy(Atl+off, p_elem_tl+off, sz);
+      memcpy(Abr+off, p_elem_br+off, sz);
+  }
 
   dague_private_memory_push( pool_0, p_elem_tl );
   dague_private_memory_push( pool_0, p_elem_bl );
