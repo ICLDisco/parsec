@@ -92,7 +92,7 @@ int main(int argc, char ** argv)
     printf("LU decomposition done with %d pivoting\n",nbpivot);
 
     /* Initialize X */
-    int first_solution = 0;
+    int first_solution = 1;
     if(first_solution)
     {
         dplasma_zlacpy( dague, PlasmaUpperLower,
@@ -115,11 +115,6 @@ int main(int argc, char ** argv)
                 tab[j*(descX->lmt*descX->mb)+i] = (Dague_Complex64_t) 0.;
     }
 
-    dplasma_zgerfs(dague,
-                   (tiled_matrix_desc_t*) &ddescA,
-                   (tiled_matrix_desc_t*) &ddescLU,
-                   (tiled_matrix_desc_t*) &ddescB,
-                   (tiled_matrix_desc_t*) &ddescX);
     if(check)
     {
         Dague_Complex64_t *A, *LU, *B, *X;
@@ -172,6 +167,12 @@ int main(int argc, char ** argv)
         free(B);
         free(X);
     }
+
+    dplasma_zgerfs(dague,
+                   (tiled_matrix_desc_t*) &ddescA,
+                   (tiled_matrix_desc_t*) &ddescLU,
+                   (tiled_matrix_desc_t*) &ddescB,
+                   (tiled_matrix_desc_t*) &ddescX);
 
     if(loud > 2) printf("Done.\n");
 
