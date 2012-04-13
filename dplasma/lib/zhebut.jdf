@@ -24,8 +24,8 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/butterfly_map.h"
 
-#define BL_IS_TR_BL_IS_BLD 0x0
-#define BL_IS_BL     0x1
+#define BL_IS_TR_TRANS 0x1
+#define BL_IS_BL       0x0
 
 /* Forward declarations */
 void BFT_zQTL( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
@@ -106,9 +106,9 @@ BODY
   p_elem_bl = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
-  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, BL_IS_TR_BL_IS_BLD, 1);
-  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, BL_IS_TR_BL_IS_BLD, 1);
-  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, BL_IS_TR_BL_IS_BLD, 1);
+  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, BL_IS_TR_TRANS, 1);
+  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, BL_IS_TR_TRANS, 1);
+  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, BL_IS_TR_TRANS, 1);
 
   /* FIXME: copy only the lower triangle, not the whole thing */
   sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
@@ -178,10 +178,10 @@ BODY
   p_elem_tr = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
-  BFT_zQTL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, BL_IS_BL, 0);
-  BFT_zQBL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, BL_IS_BL, 0);
-  BFT_zQTR_trans( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, BL_IS_BL, 0);
-  BFT_zQBR(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, BL_IS_BL, 0);
+  BFT_zQTL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, BL_IS_TR_TRANS, 0);
+  BFT_zQBL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, BL_IS_TR_TRANS, 0);
+  BFT_zQTR_trans( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, BL_IS_TR_TRANS, 0);
+  BFT_zQBR(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, BL_IS_TR_TRANS, 0);
 
   sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
   memcpy(Atl, p_elem_tl, sz);
@@ -292,7 +292,18 @@ BODY
   printlog("thread %d HEBUT_Writer_TL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i, j, A);
-  printf("W A[%d][%d]:%lf\n",i,j,*(double *)A);
+
+  int ii,jj,mb,nb;
+  mb = descA.A_org->mb;
+  nb = descA.A_org->nb;
+  printf("HEBUT_Writer_TL(%d,%d)\n",i,j);
+  for(jj=0; jj<nb; jj++){
+      printf("  ");
+      for(ii=0; ii<mb; ii++){
+          printf("A(%d,%d):%lf ",i*mb+jj,j*nb+ii, *(double *)((ii*mb+jj)*sizeof(double)+A) );
+      }
+      printf("\n");
+  }
 
 END
 
@@ -318,7 +329,18 @@ BODY
   printlog("thread %d HEBUT_Writer_BL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i+mt/2, j, A);
-  printf("W A[%d][%d]:%lf\n",i+mt/2,j,*(double *)A);
+
+  int ii,jj,mb,nb;
+  mb = descA.A_org->mb;
+  nb = descA.A_org->nb;
+  printf("HEBUT_Writer_BL(%d,%d)\n",i,j);
+  for(jj=0; jj<nb; jj++){
+      printf("  ");
+      for(ii=0; ii<mb; ii++){
+          printf("A(%d,%d):%lf ",(i+mt/2)*mb+jj,j*nb+ii, *(double *)((ii*mb+jj)*sizeof(double)+A) );
+      }
+      printf("\n");
+  }
 
 END
 
@@ -342,6 +364,17 @@ BODY
   printlog("thread %d HEBUT_Writer_BR(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i+mt/2, j+nt/2, A);
-  printf("W A[%d][%d]:%lf\n",i+mt/2,j+nt/2,*(double *)A);
+
+  int ii,jj,mb,nb;
+  mb = descA.A_org->mb;
+  nb = descA.A_org->nb;
+  printf("HEBUT_Writer_BR(%d,%d)\n",i,j);
+  for(jj=0; jj<descA.A_org->nb; jj++){
+      printf("  ");
+      for(ii=0; ii<descA.A_org->mb; ii++){
+          printf("A(%d,%d):%lf ", (i+mt/2)*mb+jj, (j+nt/2)*nb+ii, *(double *)((ii*mb+jj)*sizeof(double)+A) );
+      }
+      printf("\n");
+  }
 
 END

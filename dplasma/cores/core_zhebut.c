@@ -57,29 +57,30 @@ void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
 {
     int i, j;
+    printf("BFT_zQTL()\n");
     if( is_transpose ){
         for (j=0; j<nb; j++) {
-            int start = is_diagonal ? j : 0;
-            for (i=start; i<mb; i++) {
+            //int start = is_diagonal ? j : 0;
+            for (i=0/*start*/; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t rj = U_but_vec[lvl*N+j_seg+j];
-                printf("HE C[%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) + (tr[%d]+br[%d])) * U_but_vec[%d]\n", j*lda+i, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, i*lda+j, lvl*N+j_seg+j);
+                printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) + (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j, lvl*N+i_seg+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+j);
                 fflush(stdout);
                 C[j*lda+i] = ri * ((tl[j*lda+i]+bl[j*lda+i]) + (tr[i*lda+j]+br[j*lda+i])) * rj;
-                printf("HE *C:%lf ri:%lf *tl:%lf *bl:%lf *tr:%lf *br:%lf rj:%lf\n",*(double *)C, (double)ri, *(double *)tl, *(double *)bl, *(double *)tr, *(double *)br, (double)rj);
+                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], ri, tl[j*lda+i], bl[j*lda+i], tr[i*lda+j], br[j*lda+i], rj);
                 fflush(stdout);
             }    
         }
     }else{
         for (j=0; j<nb; j++) {
-            int start = is_diagonal ? j : 0;
-            for (i=start; i<mb; i++) {
+            //int start = is_diagonal ? j : 0;
+            for (i=0/*start*/; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t rj = U_but_vec[lvl*N+j_seg+j];
-                printf("GE C[%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) + (tr[%d]+br[%d])) * U_but_vec[%d]\n", j*lda+i, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+j);
+                printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) + (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+j);
                 fflush(stdout);
                 C[j*lda+i] = ri * ((tl[j*lda+i]+bl[j*lda+i]) + (tr[j*lda+i]+br[j*lda+i])) * rj;
-                printf("GE *C:%lf ri:%lf *tl:%lf *bl:%lf *tr:%lf *br:%lf rj:%lf\n",*(double *)C, (double)ri, *(double *)tl, *(double *)bl, *(double *)tr, *(double *)br, (double)rj);
+                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], ri, tl[j*lda+i], bl[j*lda+i], tr[j*lda+i], br[j*lda+i], rj);
                 fflush(stdout);
             }
         }
@@ -93,29 +94,30 @@ void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
 {
     int i, j;
+    printf("BFT_zQBL()\n");
     if( is_transpose ){
         for (j=0; j<nb; j++) {
-            int start = is_diagonal ? j : 0;
-            for (i=start; i<mb; i++) {
+            //int start = is_diagonal ? j : 0;
+            for (i=0/*start*/; i<mb; i++) {
                 PLASMA_Complex64_t si = U_but_vec[lvl*N+i_seg+N/2+i];
                 PLASMA_Complex64_t rj = U_but_vec[lvl*N+j_seg+j];
-                printf("HE C[%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) + (tr[%d]-br[%d])) * U_but_vec[%d]\n", j*lda+i, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, j*lda+i, i*lda+j, lvl*N+j_seg+j);
+                printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) + (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+j);
                 fflush(stdout);
                 C[j*lda+i] = si * ((tl[j*lda+i]-bl[j*lda+i]) + (tr[i*lda+j]-br[j*lda+i])) * rj;
-                printf("HE *C:%lf si:%lf *tl:%lf *bl:%lf *tr:%lf *br:%lf rj:%lf\n",*(double *)C, (double)si, *(double *)tl, *(double *)bl, *(double *)tr, *(double *)br, (double)rj);
+                printf("HE %lf %lf %lf %lf %lf %lf %lf\n",C[j*lda+i], si, tl[j*lda+i], bl[j*lda+i], tr[i*lda+j], br[j*lda+i], rj);
                 fflush(stdout);
             }
         }
     }else{
         for (j=0; j<nb; j++) {
-            int start = is_diagonal ? j : 0;
-            for (i=start; i<mb; i++) {
+            //int start = is_diagonal ? j : 0;
+            for (i=0/*start*/; i<mb; i++) {
                 PLASMA_Complex64_t si = U_but_vec[lvl*N+i_seg+N/2+i];
                 PLASMA_Complex64_t rj = U_but_vec[lvl*N+j_seg+j];
-                printf("GE C[%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) + (tr[%d]-br[%d])) * U_but_vec[%d]\n", j*lda+i, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+j);
+                printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) + (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+j);
                 fflush(stdout);
                 C[j*lda+i] = si * ((tl[j*lda+i]-bl[j*lda+i]) + (tr[j*lda+i]-br[j*lda+i])) * rj;
-                printf("GE *C:%lf si:%lf *tl:%lf *bl:%lf *tr:%lf *br:%lf rj:%lf\n",*(double *)C, (double)si, *(double *)tl, *(double *)bl, *(double *)tr, *(double *)br, (double)rj);
+                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], si, tl[j*lda+i], bl[j*lda+i], tr[j*lda+i], br[j*lda+i], rj);
                 fflush(stdout);
             }
         }
@@ -130,29 +132,30 @@ void BFT_zQTR_trans( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
 {
     int i,j;
+    printf("BFT_zQTR_trans()\n");
     if( is_transpose ){
         for (j=0; j<nb; j++) {
-            int start = is_diagonal ? j : 0;
-            for (i=start; i<mb; i++) {
+            //int start = is_diagonal ? j : 0;
+            for (i=0/*start*/; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
-                printf("HE C[%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i*lda+j, lvl*N+i_seg+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
+                printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+j, j_seg+i+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[i*lda+j] = ri * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[i*lda+j]+br[j*lda+i])) * sj;
-                printf("HE *C:%lf ri:%lf *tl:%lf *bl:%lf *tr:%lf *br:%lf sj:%lf\n",*(double *)C, (double)ri, *(double *)tl, *(double *)bl, *(double *)tr, *(double *)br, (double)sj);
+                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", C[i*lda+j], ri, tl[j*lda+i], bl[j*lda+i], tr[i*lda+j], br[j*lda+i], sj);
                 fflush(stdout);
             }
         }
     }else{
         for (j=0; j<nb; j++) {
-            int start = is_diagonal ? j : 0;
-            for (i=start; i<mb; i++) {
+            //int start = is_diagonal ? j : 0;
+            for (i=0/*start*/; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
-                printf("GE C[%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i*lda+j, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);
+                printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+j, j_seg+i+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[i*lda+j] = ri * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[j*lda+i]+br[j*lda+i])) * sj;
-                printf("GE *C:%lf ri:%lf *tl:%lf *bl:%lf *tr:%lf *br:%lf sj:%lf\n",*(double *)C, (double)ri, *(double *)tl, *(double *)bl, *(double *)tr, *(double *)br, (double)sj);
+                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", C[i*lda+j], ri, tl[j*lda+i], bl[j*lda+i], tr[j*lda+i], br[j*lda+i], sj);
                 fflush(stdout);
             }
         }
@@ -166,29 +169,30 @@ void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
 {
     int i, j;
+    printf("BFT_zQTR()\n");
     if( is_transpose ){
         for (j=0; j<nb; j++) {
-            int start = is_diagonal ? j : 0;
-            for (i=start; i<mb; i++) {
+            //int start = is_diagonal ? j : 0;
+            for (i=0/*start*/; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
-                printf("HE C[%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", j*lda+i, lvl*N+i_seg+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
+                printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[j*lda+i] = ri * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[i*lda+j]+br[j*lda+i])) * sj;
-                printf("HE *C:%lf ri:%lf *tl:%lf *bl:%lf *tr:%lf *br:%lf sj:%lf\n",*(double *)C, (double)ri, *(double *)tl, *(double *)bl, *(double *)tr, *(double *)br, (double)sj);
+                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], ri, tl[j*lda+i], bl[j*lda+i], tr[i*lda+j], br[j*lda+i], sj);
                 fflush(stdout);
             }
         }
     }else{
         for (j=0; j<nb; j++) {
-            int start = is_diagonal ? j : 0;
-            for (i=start; i<mb; i++) {
+            //int start = is_diagonal ? j : 0;
+            for (i=0/*start*/; i<mb; i++) {
                 PLASMA_Complex64_t ri = U_but_vec[lvl*N+i_seg+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
-                printf("GE C[%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", j*lda+i, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);
+                printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[j*lda+i] = ri * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[j*lda+i]+br[j*lda+i])) * sj;
-                printf("GE *C:%lf ri:%lf *tl:%lf *bl:%lf *tr:%lf *br:%lf sj:%lf\n",*(double *)C, (double)ri, *(double *)tl, *(double *)bl, *(double *)tr, *(double *)br, (double)sj);
+                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], ri, tl[j*lda+i], bl[j*lda+i], tr[j*lda+i], br[j*lda+i], sj);
                 fflush(stdout);
             }
         }
@@ -202,29 +206,30 @@ void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal )
 {
     int i, j;
+    printf("BFT_zQBR()\n");
     if( is_transpose ){
         for (j=0; j<nb; j++) {
-            int start = is_diagonal ? j : 0;
-            for (i=start; i<mb; i++) {
+            //int start = is_diagonal ? j : 0;
+            for (i=0/*start*/; i<mb; i++) {
                 PLASMA_Complex64_t si = U_but_vec[lvl*N+i_seg+N/2+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
-                printf("HE C[%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) - (tr[%d]-br[%d])) * U_but_vec[%d]\n", j*lda+i, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
+                printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) - (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j+N/2, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[j*lda+i] = si * ((tl[j*lda+i]-bl[j*lda+i]) - (tr[i*lda+j]-br[j*lda+i])) * sj;
-                printf("HE *C:%lf si:%lf *tl:%lf *bl:%lf *tr:%lf *br:%lf sj:%lf\n",*(double *)C, (double)si, *(double *)tl, *(double *)bl, *(double *)tr, *(double *)br, (double)sj);
+                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], si, tl[j*lda+i], bl[j*lda+i], tr[i*lda+j], br[j*lda+i], sj);
                 fflush(stdout);
             }
         }
     }else{
         for (j=0; j<nb; j++) {
-            int start = is_diagonal ? j : 0;
-            for (i=start; i<mb; i++) {
+            //int start = is_diagonal ? j : 0;
+            for (i=0/*start*/; i<mb; i++) {
                 PLASMA_Complex64_t si = U_but_vec[lvl*N+i_seg+N/2+i];
                 PLASMA_Complex64_t sj = U_but_vec[lvl*N+j_seg+N/2+j];
-                printf("GE C[%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) - (tr[%d]-br[%d])) * U_but_vec[%d]\n", j*lda+i, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);
+                printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) - (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j+N/2, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[j*lda+i] = si * ((tl[j*lda+i]-bl[j*lda+i]) - (tr[j*lda+i]-br[j*lda+i])) * sj;
-                printf("GE *C:%lf si:%lf *tl:%lf *bl:%lf *tr:%lf *br:%lf sj:%lf\n",*(double *)C, (double)si, *(double *)tl, *(double *)bl, *(double *)tr, *(double *)br, (double)sj);
+                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], si, tl[j*lda+i], bl[j*lda+i], tr[j*lda+i], br[j*lda+i], sj);
                 fflush(stdout);
             }
         }
@@ -239,6 +244,7 @@ void RBMM_zTOP( int mb, int nb, int lda, int i_seg, int lvl, int N, int trans,
           PLASMA_Complex64_t *C )
 {
     int i, j;
+    printf("RBMM_zTOP()\n");
     for (j=0; j<nb; j++) {
         for (i=0; i<mb; i++) {
             PLASMA_Complex64_t r = U_but_vec[lvl*N+i_seg+i];
@@ -266,6 +272,7 @@ void RBMM_zBTM( int mb, int nb, int lda, int i_seg, int lvl, int N, int trans,
           PLASMA_Complex64_t *C )
 {
     int i, j;
+    printf("RBMM_zBTM()\n");
     for (j=0; j<nb; j++) {
         for (i=0; i<mb; i++) {
             PLASMA_Complex64_t s = U_but_vec[lvl*N+i_seg+N/2+i];
