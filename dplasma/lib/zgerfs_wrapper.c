@@ -123,8 +123,8 @@ int dplasma_zgerfs( dague_context_t     *dague,
          ((two_dim_block_cyclic_t*)ddescB)->grid.rows));
 
     double eps = LAPACKE_dlamch_work('e');
-    double Anorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescA);
-    double Bnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescB);
+    double Anorm = dplasma_zlange(dague, PlasmaInfNorm, ddescA);
+    double Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
     double Xnorm, Rnorm;
 
     int nb_iter_ref = 0;
@@ -133,8 +133,8 @@ int dplasma_zgerfs( dague_context_t     *dague,
     do
     {
         dplasma_zgerfs_aux(dague, ddescA, ddescLU, ddescB, (tiled_matrix_desc_t*) &ddescR, ddescX, (tiled_matrix_desc_t*) &ddescZ);
-        Rnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescR);
-        Xnorm = dplasma_zlange_inf(dague, PlasmaInfNorm, ddescX);
+        Rnorm = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t *)&ddescR);
+        Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
 
         result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 

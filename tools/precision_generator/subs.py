@@ -207,6 +207,8 @@ subs = {
     ('fabsf','fabs','fabsf','fabs'),
     ('fabsf','fabs','cabsf','cabs'),
     ('sqrtf','sqrt','csqrtf','csqrt'),
+    ('sqrtf','sqrt','sqrtf','sqrt'),
+    ('tsqrt','tsqrt','tsqrt','tsqrtf'), #This line fixes the previous one, needs to be done differently
     ('fmaxf','fmax','fmaxf','fmax'),
     ('float','double','float _Complex','double _Complex'),
     ('float','double','float','double'),

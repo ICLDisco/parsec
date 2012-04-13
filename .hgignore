@@ -55,9 +55,10 @@ data_dist/matrix/reduce_row\.c
 data_dist/matrix/reduce_row\.h
 data_dist/matrix/[sdc]twoDBC\.c
 data_dist/matrix/[sdc]matrix\.c
+dplasma/cores/dplasma_[sdc]cores\.h
 dplasma/cores/sgemm-sm.*\.cubin
 dplasma/cores/core_[sdc]trdv\.c
-dplasma/cores/dplasma_[sdc]cores\.h
+dplasma/cores/core_[sdc]plssq\.c
 dplasma/include/dplasma_[sdc]\.h
 dplasma/lib/[sdc]gebut\.jdf
 dplasma/lib/chebut\.jdf
@@ -103,6 +104,7 @@ dplasma/lib/[sdc]syrbt_L\.jdf
 dplasma/lib/[sdc]hbrdt\.jdf
 dplasma/lib/[sdc]sbrdt\.jdf
 dplasma/lib/[sdc]laset\.jdf
+dplasma/lib/[sdc]lange_.*_cyclic\.jdf
 dplasma/lib/[sdc]plrnt\.jdf
 dplasma/lib/[sdc]plghe\.jdf
 dplasma/lib/[sdc]plgsy\.jdf
@@ -161,6 +163,7 @@ dplasma/lib/[sdcz]syrbt_L\.[ch]
 dplasma/lib/[sdcz]hbrdt\.[ch]
 dplasma/lib/[sdcz]sbrdt\.[ch]
 dplasma/lib/[sdcz]laset\.[ch]
+dplasma/lib/[sdcz]lange_.*_cyclic\.[ch]
 dplasma/lib/[sdcz]laswp\.[ch]
 dplasma/lib/[sdcz]plrnt\.[ch]
 dplasma/lib/[sdcz]plghe\.[ch]
@@ -229,6 +232,8 @@ dplasma/testing/testing_[cds]getrf_incpiv\.c
 dplasma/testing/testing_[zcds]getrf_incpiv_sd
 dplasma/testing/testing_[cds]getrf_incpiv_sd\.c
 dplasma/testing/testing_[zcds]gesv_incpiv
+dplasma/testing/testing_[zcds]lange
+dplasma/testing/testing_[cds]lange\.c
 dplasma/testing/testing_[zcds]potrf
 dplasma/testing/testing_[zcds]potrf_ll
 dplasma/testing/testing_[zcds]posv
@@ -266,20 +271,6 @@ tools/profiling/xml2traces/xml2traces
 tools/profiling/dbp2paje
 tools/profiling/dbp2xml
 ImportExecutables\.cmake
-dplasma/lib/claswp\.c
-dplasma/lib/claswp\.h
-dplasma/lib/claswp\.jdf
-dplasma/lib/claswp_wrapper\.c
-dplasma/lib/dlaswp\.c
-dplasma/lib/dlaswp\.h
-dplasma/lib/dlaswp\.jdf
-dplasma/lib/dlaswp_wrapper\.c
-dplasma/lib/slaswp\.c
-dplasma/lib/slaswp\.h
-dplasma/lib/slaswp\.jdf
-dplasma/lib/slaswp_wrapper\.c
-dplasma/lib/zlaswp\.c
-dplasma/lib/zlaswp\.h
 dplasma/lib/chetrf\.c
 dplasma/lib/chetrf\.h
 dplasma/lib/chetrf\.jdf

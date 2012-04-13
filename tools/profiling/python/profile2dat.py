@@ -23,29 +23,30 @@ def profile2dat(profileFile, outputFile, executable = defaultExecutable, unlinkA
         print('unlinked ' + profileFile)
 
 # assumes suffix of .profile, and uses filename minus .profile plus .dat as output filename
-def profiles2dat(directory, outputDirectory = None, filePrefix = '', outputTag = '', executable = defaultExecutable, unlink = False):
+def profiles2dat(directory, outputDirectory = None, filePrefix = '', fileSuffix = '.profile', outputTag = '', executable = defaultExecutable, unlink = False):
     if outputDirectory is None:
         outputDirectory = directory
-    globThing = directory + '/' + filePrefix + '*.profile'
+    globThing = directory + '/' + filePrefix + '*' + fileSuffix
     profiles = glob.glob(globThing)
 
     for profile in profiles:
         basename = os.path.basename(profile)
-        basename = basename[:basename.rfind('.profile')]
+        basename = basename[:basename.rfind(fileSuffix)]
         profile2dat(profile, outputDirectory + '/' + 
                     basename + outputTag + '.dat', 
                     executable, unlink)
 
 if __name__ == '__main__':
+
     outputDir = sys.argv[1]
-    executable = defaultExecutable
-    if not os.path.exists(executable):
-        print('executable ' + executable + ' doesn\'t exist.')
+    exc = defaultExecutable
+    if not os.path.exists(exc):
+        print('executable ' + exc + ' doesn\'t exist.')
     unlink = True
     if len(sys.argv) > 2:
         outputDir = sys.argv[2]
     if len(sys.argv) > 3:
-        executable = sys.argv[3]
+        exc = sys.argv[3]
     if len(sys.argv) > 4:
         arg4 = string.lower(sys.argv[4])
         if (arg4.startswith('unl') or
@@ -55,7 +56,7 @@ if __name__ == '__main__':
             arg4.startswith('t')):
             unlink = True
     try:
-        profiles2dat(sys.argv[1], outputDir, executable, unlink)
+        profiles2dat(sys.argv[1], outputDirectory = outputDir, fileSuffix = '.xml', executable = exc, unlink = unlink)
     except:
         cla, exc, trbk = sys.exc_info()
         print (exc)

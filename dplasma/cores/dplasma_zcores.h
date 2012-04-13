@@ -26,3 +26,6 @@ void CORE_zgetrf_sp_rec(int m, int  n,
                         double  criteria,
                         int *nbpivot);
 
+int CORE_zplssq(int M, int N,
+                Dague_Complex64_t *A, int LDA,
+                double *scale, double *sumsq);

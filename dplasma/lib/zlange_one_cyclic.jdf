@@ -9,14 +9,14 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  *
- * This jdf returns the value of the infinity norm of a matrix A
- * where the infinity norm  of a matrix is the maximum row sum.
+ * This jdf returns the value of the one norm of a matrix A
+ * where the one norm  of a matrix is the maximum column sum.
  *
  * This jdf is optimized for 2D-Block cyclic distributed data with a grid
  * P-by-Q.
- * The first step sums the local data of each rows.
- * The second finishes the sums on each rows. At the end of this step, all Q
- * processes belonging to a row have the same data.
+ * The first step sums the local data of each columns.
+ * The second finishes the sums on each columns. At the end of this step, all P
+ * processes belonging to a column have the same data.
  * The third step search the local maximum.
  * The fourth step combines the local maxima together. At the end all processes
  * owns the same value.
@@ -53,10 +53,10 @@ descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_de
 READ_W(m, n) [profile = off]
 
     // Execution space
-    m = 0 .. inline_c %{ return dague_imax( descA.mt-1, P-1 ); %}
-    n = 0 .. Q-1
-    col = inline_c %{
-        return ((descA.nt - Q + n) / Q) * Q + n;
+    m = 0 .. P-1
+    n = 0 .. inline_c %{ return dague_imax( descA.nt-1, Q-1 ); %}
+    row = inline_c %{
+        return ((descA.mt - P + m) / P) * P + m;
         %}
 
     // Parallel partitioning
@@ -64,15 +64,15 @@ READ_W(m, n) [profile = off]
 
     // Parameters
     READ W <- W(m, n)
-           -> ( (m > (descA.mt-1)) )                       ? W STEP4(m, n)    [type = ELT]
-           -> ( (m <  descA.mt   ) && (n > (descA.nt-1) )) ? W STEP2(m, n)    [type = COL]
-           -> ( (m <  descA.mt   ) && (n <  descA.nt    )) ? W STEP1(m, col)  [type = COL]
+           -> ( (n > (descA.nt-1)) )                       ? W STEP4(m,   n)  [type = ELT]
+           -> ( (n <  descA.nt   ) && (m > (descA.mt-1) )) ? W STEP2(m,   n)  [type = COL]
+           -> ( (n <  descA.nt   ) && (m <  descA.mt    )) ? W STEP1(row, n)  [type = COL]
 
 BODY
     DRYRUN(
         /* Initialize W */
         int i;
-        for(i = 0; i < descA.mb; i++)
+        for(i = 0; i < descA.nb; i++)
             ((double *)W)[i] = 0;
            );
 END
@@ -95,8 +95,8 @@ STEP1(m,n)
 
     // Parameters
     READ A <-  A(m, n)
-    RW   W <-  ( n >= (descA.nt-Q)) ? W READ_W(m, n%Q) : W STEP1(m,n+Q) [type = COL]
-           ->  ( n < Q            ) ? W STEP2( m, n  ) : W STEP1(m,n-Q) [type = COL]
+    RW   W <-  ( m >= (descA.mt-P)) ? W READ_W(m%P, n) : W STEP1(m+P, n) [type = COL]
+           ->  ( m <  P           ) ? W STEP2( m,   n) : W STEP1(m-P, n) [type = COL]
 
 BODY
 
@@ -110,7 +110,7 @@ BODY
 
     DRYRUN(
 
-        CORE_dzasum(PlasmaRowwise, PlasmaUpperLower,
+        CORE_dzasum(PlasmaColumnwise, PlasmaUpperLower,
                     tempmm, tempnn,
                     A, ldam, W);
            );
@@ -126,29 +126,29 @@ END
 STEP2(m, n)
 
     // Execution space
-    m = 0 .. descA.mt-1
-    n = 0 .. Q-1
+    m = 0 .. P-1
+    n = 0 .. descA.nt-1
 
     // Parallel partitioning
     :W(m, n)
 
     // Parameters
-    READ A <-  (n == 0 ) ? W(m, n) : W STEP2(m, n-1)                      [type = COL]
-    RW   W <-  (n >  (descA.nt-1)) ? W READ_W(m, n)     : W STEP1(m, n)   [type = COL]
-           ->  (n == (Q-1)       ) ? A STEP3(m, 0..Q-1) : A STEP2(m, n+1) [type = COL]
+    READ A <-  (m == 0 ) ? W(m, n) : W STEP2(m-1, n)                      [type = COL]
+    RW   W <-  (m >  (descA.mt-1)) ? W READ_W(m, n)     : W STEP1(m,   n) [type = COL]
+           ->  (m == (P-1)       ) ? A STEP3(0..P-1, n) : A STEP2(m+1, n) [type = COL]
 
 BODY
 
-    int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
+    int tempnn = ( n == (descA.nt-1) ) ? descA.n - n * descA.nb : descA.nb;
 
     printlog("thread %d zlange STEP2(%d, %d)\n"
-             "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
-             context->eu_id, m, n, tempmm, m, n-1, m, n);
+             "\t( tempnn=%d, W(%d, %d) + W(%d, %d)\n",
+             context->eu_id, m, n, tempnn, m-1, n, m, n);
 
     DRYRUN(
-        if(n > 0)
+        if(m > 0)
         {
-            cblas_daxpy( tempmm, 1., A, 1, W, 1);
+            cblas_daxpy( tempnn, 1., A, 1, W, 1);
         }
            );
 
@@ -165,20 +165,20 @@ END
 STEP3(m, n)
 
     // Execution space
-    m = 0 .. descA.mt-1
-    n = 0 .. Q-1
+    m = 0 .. P-1
+    n = 0 .. descA.nt-1
 
     // Parallel partitioning
     :W(m, n)
 
     // Parameters
-    READ A <- W STEP2(m, Q-1)                                            [type = COL]
-    RW   W <- (m < (descA.mt-P)) ? W STEP3( m+P, n ) : W(m, n)           [type = ELT]
-           -> (m < P           ) ? W STEP4( m,   n ) : W STEP3( m-P, n ) [type = ELT]
+    READ A <- W STEP2(P-1, n)                                            [type = COL]
+    RW   W <- (n < (descA.nt-Q)) ? W STEP3( m, n+Q ) : W(m, n)           [type = ELT]
+           -> (n <  Q          ) ? W STEP4( m, n )   : W STEP3( m, n-Q ) [type = ELT]
 
 BODY
 
-    int tempmm = ( m == descA.mt-1) ? descA.m-m*descA.mb  : (descA.mb);
+    int tempnn = ( n == (descA.nt-1) ) ? descA.n - n * descA.nb : descA.nb;
 
     printlog("thread %d zlange STEP3(%d, %d)\n",
              context->eu_id, m, n);
@@ -189,10 +189,10 @@ BODY
         double maxval = 0;
         int i;
 
-        for(i = 0; i < tempmm; i++, dA++)
+        for(i = 0; i < tempnn; i++, dA++)
             maxval = ( maxval > *dA ) ? maxval : *dA;
 
-        if ( m < (descA.mt-P) ) {
+        if ( n < (descA.nt-Q) ) {
             *dW = ( maxval > *dW ) ? maxval : *dW;
         } else {
             *dW = maxval;
@@ -217,9 +217,9 @@ STEP4(m,n)
     :W(m, n)
 
     // Parameters
-    READ A <- ( m == 0 ) ? W(m, n) : W STEP4(m-1, n)                    [type = ELT]
-    RW   W <- ( m > (descA.mt-1)) ? W READ_W(m, n)  : W STEP3(m, n)     [type = ELT]
-           -> ( m < (P-1)) ? A STEP4(m+1, n) : W WRITE_RES(0..P-1, n)    [type = ELT]
+    READ A <- ( n == 0 ) ? W(m, n) : W STEP4(m, n-1)                    [type = ELT]
+    RW   W <- ( n > (descA.nt-1)) ? W READ_W(m, n)  : W STEP3(m, n)     [type = ELT]
+           -> ( n < (Q-1)) ? A STEP4(m, n+1) : W WRITE_RES(m, 0..Q-1)   [type = ELT]
 
 BODY
 
@@ -229,7 +229,7 @@ BODY
     DRYRUN(
         double *dA = (double*)A;
         double *dW = (double*)W;
-        if(m > 0)
+        if(n > 0)
             *dW = ( *dA > *dW ) ? *dA : *dW;
            );
 
@@ -248,7 +248,7 @@ WRITE_RES(m,n)
     :W(m, n)
 
     // Parameters
-    READ W <- W STEP4( P-1, n )   [type = ELT]
+        READ W <- W STEP4( m, Q-1 )   [type = ELT]
 
 BODY
     *norm = *( (double*)W );

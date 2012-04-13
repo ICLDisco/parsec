@@ -9,19 +9,23 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  *
- * This jdf returns the value of the infinity norm of a matrix A
- * where the infinity norm  of a matrix is the maximum row sum.
+ * This jdf returns the value of the Frobenius norm of a matrix A
+ * where the Frobenius norm of a matrix is the square root of sum of
+ * squares.
  *
  * This jdf is optimized for 2D-Block cyclic distributed data with a grid
  * P-by-Q.
- * The first step sums the local data of each rows.
- * The second finishes the sums on each rows. At the end of this step, all Q
+ * The first step search the Frobenius norm of each local rows of tile.
+ * The second reduces the tile rows norms. At the end of this step, all Q
  * processes belonging to a row have the same data.
- * The third step search the local maximum.
- * The fourth step combines the local maxima together. At the end all processes
+ * The third step conbines the local tiles per column (one column per node).
+ * The fourth step combines the norms together. At the end all processes
  * owns the same value.
  *
  * The reductions are down by a pipeline folowed by a broadcast of the results.
+ *
+ * More information in zlange.f and zlassq.f from Netlib LAPACK.
+ * W[0] coressponds to scale and W[1] to sum.
  *
  */
 #define PRECISION_z
@@ -71,9 +75,8 @@ READ_W(m, n) [profile = off]
 BODY
     DRYRUN(
         /* Initialize W */
-        int i;
-        for(i = 0; i < descA.mb; i++)
-            ((double *)W)[i] = 0;
+        ((double *)W)[0] = 0.;
+        ((double *)W)[1] = 1.;
            );
 END
 
@@ -95,8 +98,8 @@ STEP1(m,n)
 
     // Parameters
     READ A <-  A(m, n)
-    RW   W <-  ( n >= (descA.nt-Q)) ? W READ_W(m, n%Q) : W STEP1(m,n+Q) [type = COL]
-           ->  ( n < Q            ) ? W STEP2( m, n  ) : W STEP1(m,n-Q) [type = COL]
+    RW   W <-  ( n < (descA.nt-Q)) ? W STEP1(m,n+Q) : W READ_W(m, n%Q) [type = COL]
+           ->  ( n < Q           ) ? W STEP2(m,n)   : W STEP1(m,n-Q)   [type = COL]
 
 BODY
 
@@ -109,10 +112,11 @@ BODY
              context->eu_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
     DRYRUN(
+        double *dW = (double*)W;
 
-        CORE_dzasum(PlasmaRowwise, PlasmaUpperLower,
-                    tempmm, tempnn,
-                    A, ldam, W);
+        CORE_zplssq(tempmm, tempnn,
+                    A, ldam, dW, dW+1 );
+
            );
 
 END
@@ -139,16 +143,22 @@ STEP2(m, n)
 
 BODY
 
-    int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
-
     printlog("thread %d zlange STEP2(%d, %d)\n"
-             "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
-             context->eu_id, m, n, tempmm, m, n-1, m, n);
+             "\t( W(%d, %d) || W(%d, %d)\n",
+             context->eu_id, m, n, m, n-1, m, n);
 
     DRYRUN(
         if(n > 0)
         {
-            cblas_daxpy( tempmm, 1., A, 1, W, 1);
+            double *dA = (double*)A;
+            double *dW = (double*)W;
+
+            if( dW[0] < dA[0] ) {
+                dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                dW[0] = dA[0];
+            } else {
+                dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+            }
         }
            );
 
@@ -178,24 +188,23 @@ STEP3(m, n)
 
 BODY
 
-    int tempmm = ( m == descA.mt-1) ? descA.m-m*descA.mb  : (descA.mb);
-
     printlog("thread %d zlange STEP3(%d, %d)\n",
              context->eu_id, m, n);
 
     DRYRUN(
         double *dA = (double*)A;
         double *dW = (double*)W;
-        double maxval = 0;
-        int i;
-
-        for(i = 0; i < tempmm; i++, dA++)
-            maxval = ( maxval > *dA ) ? maxval : *dA;
 
         if ( m < (descA.mt-P) ) {
-            *dW = ( maxval > *dW ) ? maxval : *dW;
+            if( dW[0] < dA[0] ) {
+                dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                dW[0] = dA[0];
+            } else {
+                dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+            }
         } else {
-            *dW = maxval;
+            dW[0] = dA[0];
+            dW[1] = dA[1];
         }
            );
 
@@ -217,9 +226,9 @@ STEP4(m,n)
     :W(m, n)
 
     // Parameters
-    READ A <- ( m == 0 ) ? W(m, n) : W STEP4(m-1, n)                    [type = ELT]
-    RW   W <- ( m > (descA.mt-1)) ? W READ_W(m, n)  : W STEP3(m, n)     [type = ELT]
-           -> ( m < (P-1)) ? A STEP4(m+1, n) : W WRITE_RES(0..P-1, n)    [type = ELT]
+    READ A <- ( m == 0 ) ? W(m, n) : W STEP4(m-1, n)                         [type = ELT]
+    RW   W <- ( m > (descA.mt-1)) ? W READ_W(m, n)  : W STEP3(m, n)          [type = ELT]
+           -> ( m < (P-1)       ) ? A STEP4(m+1, n) : W WRITE_RES(0..P-1, n) [type = ELT]
 
 BODY
 
@@ -227,12 +236,24 @@ BODY
              context->eu_id, m, n);
 
     DRYRUN(
-        double *dA = (double*)A;
-        double *dW = (double*)W;
         if(m > 0)
-            *dW = ( *dA > *dW ) ? *dA : *dW;
-           );
+        {
+            double *dA = (double*)A;
+            double *dW = (double*)W;
+            double  sqr;
 
+            if( dW[0] < dA[0] ) {
+                sqr = dW[0] / dA[0];
+                sqr = sqr * sqr;
+                dW[1] = dA[1] + sqr * dW[1];
+                dW[0] = dA[0];
+            } else {
+                sqr = dA[0] / dW[0];
+                sqr = sqr * sqr;
+                dW[1] = dW[1] + sqr * dA[1];
+            }
+        }
+           );
 END
 
 /**************************************************
@@ -251,5 +272,6 @@ WRITE_RES(m,n)
     READ W <- W STEP4( P-1, n )   [type = ELT]
 
 BODY
-    *norm = *( (double*)W );
+    double *dW = (double*)W;
+    *norm = dW[0] * sqrt( dW[1] );
 END

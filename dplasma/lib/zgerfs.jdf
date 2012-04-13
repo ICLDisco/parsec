@@ -21,8 +21,6 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define BLKLDD_S(_desc, _k) ( (_desc).storage == matrix_Tile ? (_desc).mb : (_desc).lm )
-
 %}
 
 descA [type = "tiled_matrix_desc_t"]
@@ -76,8 +74,8 @@ BODY
 
   int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
   int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
-  int ldbm = BLKLDD_S( descB, m );
-  int ldzm = BLKLDD_S( descZ, m );
+  int ldbm = BLKLDD( descB, m );
+  int ldzm = BLKLDD( descZ, m );
 
   DRYRUN(
 
@@ -147,9 +145,9 @@ BODY
   int tempmm = ((m1)==(descZ.mt-1)) ? (descZ.m-(m1*descZ.mb)) : descZ.mb;
   int tempnn = ((n1)==(descZ.nt-1)) ? (descZ.n-(n1*descZ.nb)) : descZ.nb;
   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
-  int ldam = BLKLDD_S( descA, m1 );
-  int ldxk = BLKLDD_S( descX, k );
-  int ldzm = BLKLDD_S( descZ, m1 );
+  int ldam = BLKLDD( descA, m1 );
+  int ldxk = BLKLDD( descX, k );
+  int ldzm = BLKLDD( descZ, m1 );
 
   DRYRUN(
 
@@ -234,8 +232,8 @@ BODY
 
   int tempmm = ((m2)==(descZ.mt-1)) ? (descZ.m-(m2*descZ.mb)) : descZ.mb;
   int tempnn = ((n2)==(descZ.nt-1)) ? (descZ.n-(n2*descZ.nb)) : descZ.nb;
-  int ldzm = BLKLDD_S( descZ, m2 );
-  int ldrm = BLKLDD_S( descR, m2 );
+  int ldzm = BLKLDD( descZ, m2 );
+  int ldrm = BLKLDD( descR, m2 );
 
   DRYRUN(
 
@@ -318,8 +316,8 @@ BODY
 
   int tempkm = ((k1)==(descZ.mt-1)) ? (descZ.m-(k1*descZ.mb)) : descZ.mb;
   int tempnn = ((n3)==(descZ.nt-1)) ? (descZ.n-(n3*descZ.nb)) : descZ.nb;
-  int lda = BLKLDD_S( descLU, k1 );
-  int ldz = BLKLDD_S( descZ, k1 );
+  int lda = BLKLDD( descLU, k1 );
+  int ldz = BLKLDD( descZ, k1 );
 
   DRYRUN(
 
@@ -387,8 +385,8 @@ BODY
   int tempmm = ((m3)==(descZ.mt-1)) ? (descZ.m-(m3*descZ.mb)) : descZ.mb;
   int tempnn = ((n4)==(descZ.nt-1)) ? (descZ.n-(n4*descZ.nb)) : descZ.nb;
   Dague_Complex64_t mzone = (Dague_Complex64_t)-1.000000;
-  int lda = BLKLDD_S( descLU, m3 );
-  int ldz = BLKLDD_S( descZ, m3 );
+  int lda = BLKLDD( descLU, m3 );
+  int ldz = BLKLDD( descZ, m3 );
 
   DRYRUN(
 
@@ -455,8 +453,8 @@ BODY
 
   int tempkm = ((k2)==(0)) ? (descZ.m-((descZ.mt-1)*descZ.mb)) : descZ.mb;
   int tempnn = ((n5)==(descZ.nt-1)) ? (descZ.n-(n5*descZ.nb)) : descZ.nb;
-  int lda = BLKLDD_S( descLU, (descZ.mt-1)-k2 );
-  int ldz = BLKLDD_S( descZ, (descZ.mt-1)-k2 );
+  int lda = BLKLDD( descLU, (descZ.mt-1)-k2 );
+  int ldz = BLKLDD( descZ, (descZ.mt-1)-k2 );
 
   DRYRUN(
 
@@ -520,7 +518,7 @@ BODY
   int tempnn = ((n6)==(descZ.nt-1)) ? (descZ.n-(n6*descZ.nb)) : descZ.nb;
   int tempkm = ((k2)==(0)) ? (descZ.m-((descZ.mt-1)*descZ.mb)) : descZ.mb;
   Dague_Complex64_t mzone = (Dague_Complex64_t)-1.000000;
-  int ldz = BLKLDD_S( descZ, (descZ.mt-1)-k2 );
+  int ldz = BLKLDD( descZ, (descZ.mt-1)-k2 );
 
   DRYRUN(
 
@@ -578,8 +576,8 @@ BODY
 
   int tempmm = ((m5)==(descZ.mt-1)) ? (descZ.m-(m5*descZ.mb)) : descZ.mb;
   int tempnn = ((n7)==(descZ.nt-1)) ? (descZ.n-(n7*descZ.nb)) : descZ.nb;
-  int ldzm = BLKLDD_S( descZ, m5 );
-  int ldxm = BLKLDD_S( descX, m5 );
+  int ldzm = BLKLDD( descZ, m5 );
+  int ldxm = BLKLDD( descX, m5 );
 
   DRYRUN(
 
@@ -643,9 +641,9 @@ BODY
   int tempmm = ((m6)==(descR.mt-1)) ? (descR.m-(m6*descR.mb)) : descR.mb;
   int tempnn = ((n8)==(descR.nt-1)) ? (descR.n-(n8*descR.nb)) : descR.nb;
   int tempkn = ((k3)==(descA.nt-1)) ? (descA.n-(k3*descA.nb)) : descA.nb;
-  int ldam = BLKLDD_S( descA, m6 );
-  int ldzk = BLKLDD_S( descZ, k3 );
-  int ldrm = BLKLDD_S( descR, m6 );
+  int ldam = BLKLDD( descA, m6 );
+  int ldzk = BLKLDD( descZ, k3 );
+  int ldrm = BLKLDD( descR, m6 );
 
   DRYRUN(
 
