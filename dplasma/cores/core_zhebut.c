@@ -67,7 +67,7 @@ void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
                 printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) + (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j, lvl*N+i_seg+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+j);
                 fflush(stdout);
                 C[j*lda+i] = ri * ((tl[j*lda+i]+bl[j*lda+i]) + (tr[i*lda+j]+br[j*lda+i])) * rj;
-                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], ri, tl[j*lda+i], bl[j*lda+i], tr[i*lda+j], br[j*lda+i], rj);
+                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", creal(C[j*lda+i]), creal(ri), creal(tl[j*lda+i]), creal(bl[j*lda+i]), creal(tr[i*lda+j]), creal(br[j*lda+i]), creal(rj));
                 fflush(stdout);
             }    
         }
@@ -80,7 +80,7 @@ void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
                 printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) + (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+j);
                 fflush(stdout);
                 C[j*lda+i] = ri * ((tl[j*lda+i]+bl[j*lda+i]) + (tr[j*lda+i]+br[j*lda+i])) * rj;
-                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], ri, tl[j*lda+i], bl[j*lda+i], tr[j*lda+i], br[j*lda+i], rj);
+                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", creal(C[j*lda+i]), creal(ri), creal(tl[j*lda+i]), creal(bl[j*lda+i]), creal(tr[j*lda+i]), creal(br[j*lda+i]), creal(rj));
                 fflush(stdout);
             }
         }
@@ -103,7 +103,7 @@ void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
                 printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) + (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+j);
                 fflush(stdout);
                 C[j*lda+i] = si * ((tl[j*lda+i]-bl[j*lda+i]) + (tr[i*lda+j]-br[j*lda+i])) * rj;
-                printf("HE %lf %lf %lf %lf %lf %lf %lf\n",C[j*lda+i], si, tl[j*lda+i], bl[j*lda+i], tr[i*lda+j], br[j*lda+i], rj);
+                printf("HE %lf %lf %lf %lf %lf %lf %lf\n",creal(C[j*lda+i]), creal(si), creal(tl[j*lda+i]), creal(bl[j*lda+i]), creal(tr[i*lda+j]), creal(br[j*lda+i]), creal(rj));
                 fflush(stdout);
             }
         }
@@ -115,7 +115,7 @@ void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
                 printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) + (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+j);
                 fflush(stdout);
                 C[j*lda+i] = si * ((tl[j*lda+i]-bl[j*lda+i]) + (tr[j*lda+i]-br[j*lda+i])) * rj;
-                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], si, tl[j*lda+i], bl[j*lda+i], tr[j*lda+i], br[j*lda+i], rj);
+                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", creal(C[j*lda+i]), creal(si), creal(tl[j*lda+i]), creal(bl[j*lda+i]), creal(tr[j*lda+i]), creal(br[j*lda+i]), creal(rj));
                 fflush(stdout);
             }
         }
@@ -139,7 +139,7 @@ void BFT_zQTR_trans( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int
                 printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+j, j_seg+i+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[i*lda+j] = ri * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[i*lda+j]+br[j*lda+i])) * sj;
-                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", C[i*lda+j], ri, tl[j*lda+i], bl[j*lda+i], tr[i*lda+j], br[j*lda+i], sj);
+                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", creal(C[i*lda+j]), creal(ri), creal(tl[j*lda+i]), creal(bl[j*lda+i]), creal(tr[i*lda+j]), creal(br[j*lda+i]), creal(sj));
                 fflush(stdout);
             }
         }
@@ -151,7 +151,7 @@ void BFT_zQTR_trans( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int
                 printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+j, j_seg+i+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[i*lda+j] = ri * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[j*lda+i]+br[j*lda+i])) * sj;
-                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", C[i*lda+j], ri, tl[j*lda+i], bl[j*lda+i], tr[j*lda+i], br[j*lda+i], sj);
+                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", creal(C[i*lda+j]), creal(ri), creal(tl[j*lda+i]), creal(bl[j*lda+i]), creal(tr[j*lda+i]), creal(br[j*lda+i]), creal(sj));
                 fflush(stdout);
             }
         }
@@ -174,7 +174,7 @@ void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
                 printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[j*lda+i] = ri * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[i*lda+j]+br[j*lda+i])) * sj;
-                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], ri, tl[j*lda+i], bl[j*lda+i], tr[i*lda+j], br[j*lda+i], sj);
+                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", creal(C[j*lda+i]), creal(ri), creal(tl[j*lda+i]), creal(bl[j*lda+i]), creal(tr[i*lda+j]), creal(br[j*lda+i]), creal(sj));
                 fflush(stdout);
             }
         }
@@ -186,7 +186,7 @@ void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
                 printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]+bl[%d]) - (tr[%d]+br[%d])) * U_but_vec[%d]\n", i_seg+i, j_seg+j+N/2, lvl*N+i_seg+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[j*lda+i] = ri * ((tl[j*lda+i]+bl[j*lda+i]) - (tr[j*lda+i]+br[j*lda+i])) * sj;
-                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], ri, tl[j*lda+i], bl[j*lda+i], tr[j*lda+i], br[j*lda+i], sj);
+                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", creal(C[j*lda+i]), creal(ri), creal(tl[j*lda+i]), creal(bl[j*lda+i]), creal(tr[j*lda+i]), creal(br[j*lda+i]), creal(sj));
                 fflush(stdout);
             }
         }
@@ -210,7 +210,7 @@ void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
                 printf("HE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) - (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j+N/2, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, i*lda+j, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[j*lda+i] = si * ((tl[j*lda+i]-bl[j*lda+i]) - (tr[i*lda+j]-br[j*lda+i])) * sj;
-                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], si, tl[j*lda+i], bl[j*lda+i], tr[i*lda+j], br[j*lda+i], sj);
+                printf("HE %lf %lf %lf %lf %lf %lf %lf\n", creal(C[j*lda+i]), creal(si), creal(tl[j*lda+i]), creal(bl[j*lda+i]), creal(tr[i*lda+j]), creal(br[j*lda+i]), creal(sj));
                 fflush(stdout);
             }
         }
@@ -223,7 +223,7 @@ void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
                 printf("GE A[%d][%d] = U_but_vec[%d]*((tl[%d]-bl[%d]) - (tr[%d]-br[%d])) * U_but_vec[%d]\n", i_seg+i+N/2, j_seg+j+N/2, lvl*N+i_seg+N/2+i, j*lda+i, j*lda+i, j*lda+i, j*lda+i, lvl*N+j_seg+N/2+j);
                 fflush(stdout);
                 C[j*lda+i] = si * ((tl[j*lda+i]-bl[j*lda+i]) - (tr[j*lda+i]-br[j*lda+i])) * sj;
-                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", C[j*lda+i], si, tl[j*lda+i], bl[j*lda+i], tr[j*lda+i], br[j*lda+i], sj);
+                printf("GE %lf %lf %lf %lf %lf %lf %lf\n", creal(C[j*lda+i]), creal(si), creal(tl[j*lda+i]), creal(bl[j*lda+i]), creal(tr[j*lda+i]), creal(br[j*lda+i]), creal(sj));
                 fflush(stdout);
             }
         }
