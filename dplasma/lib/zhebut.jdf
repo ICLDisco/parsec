@@ -27,6 +27,7 @@ extern "C" %{
 #define NOT_TRANSPOSE 0x0
 #define TRANSPOSE     0x1
 
+/* Forward declarations */
 void BFT_zQTL( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
@@ -47,8 +48,6 @@ void BFT_zQBR( int mb, int nb, int lda, int off, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
           PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
-
-
 %}
 
 
@@ -63,30 +62,34 @@ pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA
 /*
  *
  */
-HEBRT_Diag(i)
+HEBUT_Diag(i)
   /* Execution space */
   i = 0 .. mt/2-1
 
   : A(i,i)
 
   /* Atl: A from Top Left */
-  RW  Atl <- A HEBRT_Reader_TL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
-          -> A HEBRT_Writer_TL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+  RW  Atl <- A HEBUT_Reader_TL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+          -> A HEBUT_Writer_TL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A HEBRT_Reader_BL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
-          -> A HEBRT_Writer_BL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+  RW  Abl <- A HEBUT_Reader_BL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+          -> A HEBUT_Writer_BL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A HEBRT_Reader_BR(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
-          -> A HEBRT_Writer_BR(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+  RW  Abr <- A HEBUT_Reader_BR(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+          -> A HEBUT_Writer_BR(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
 
 BODY
 
   unsigned mb_seg, nb_seg, lda, N;
   uintptr_t off_in_U, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
-  void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
+  void *p_elem_tl, *p_elem_bl, *p_elem_br;
+
+  printlog("thread %d HEBUT_Diag(%d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, i, i, Atl);
 
   type = segment_to_type_index(descA.seg_info, i, i);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
@@ -101,7 +104,6 @@ BODY
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
   p_elem_bl = dague_private_memory_pop( pool_0 );
-  p_elem_tr = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
   BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, NOT_TRANSPOSE, 1);
@@ -112,12 +114,11 @@ BODY
   sz = (lda*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
 
   memcpy(Atl, p_elem_tl, sz);
-  memcpy(Abl, p_elem_tl, sz);
-  memcpy(Abr, p_elem_tl, sz);
+  memcpy(Abl, p_elem_bl, sz);
+  memcpy(Abr, p_elem_br, sz);
 
   dague_private_memory_push( pool_0, p_elem_tl );
   dague_private_memory_push( pool_0, p_elem_bl );
-  dague_private_memory_push( pool_0, p_elem_tr );
   dague_private_memory_push( pool_0, p_elem_br );
 
 END
@@ -127,7 +128,7 @@ END
 /*
  *
  */
-HEBRT_Lower(i,j)
+HEBUT_Lower(i,j)
   /* Execution space */
   i = 1 .. mt/2-1
   j = 0 .. i-1
@@ -135,20 +136,20 @@ HEBRT_Lower(i,j)
   : A(i,j)
 
   /* Atl: A from Top Left */
-  RW  Atl <- A HEBRT_Reader_TL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A HEBRT_Writer_TL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Atl <- A HEBUT_Reader_TL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A HEBUT_Writer_TL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A HEBRT_Reader_BL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A HEBRT_Writer_BL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abl <- A HEBUT_Reader_BL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A HEBUT_Writer_BL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Atr: A from Top Right */
-  RW  Atr <- A HEBRT_Reader_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
-          -> A HEBRT_Writer_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
+  RW  Atr <- A HEBUT_Reader_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
+          -> A HEBUT_Writer_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A HEBRT_Reader_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A HEBRT_Writer_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abr <- A HEBUT_Reader_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A HEBUT_Writer_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 
@@ -156,6 +157,10 @@ BODY
   uintptr_t off_in_U, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
+
+  printlog("thread %d HEBUT_Lower(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i, j, Atl);
 
   type = segment_to_type_index(descA.seg_info, i, j);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
@@ -173,6 +178,8 @@ BODY
   p_elem_tr = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
+  printf("Atl:%lf Atr:%lf Abl:%lf Abr:%lf\n",*(double *)Atl, *(double *)Atr, *(double *)Abl, *(double *)Abr);
+
   BFT_zQTL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, TRANSPOSE, 0);
   BFT_zQBL( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, TRANSPOSE, 0);
   BFT_zQTR_trans( mb_seg, nb_seg, lda, off_in_U, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, TRANSPOSE, 0);
@@ -186,21 +193,20 @@ BODY
   sz = (lda*(mb_seg-1)+nb_seg) * sizeof(PLASMA_Complex64_t);
   memcpy(Atr, p_elem_tr, sz);
 
+  printf("Atl:%lf Atr:%lf Abl:%lf Abr:%lf\n",*(double *)Atl, *(double *)Atr, *(double *)Abl, *(double *)Abr);
+
   dague_private_memory_push( pool_0, p_elem_tl );
   dague_private_memory_push( pool_0, p_elem_bl );
   dague_private_memory_push( pool_0, p_elem_tr );
   dague_private_memory_push( pool_0, p_elem_br );
 
-  /*
-   * printf("HEBRT_Lower(%d,%d)\n",i,j);
-   */
 END
 
 
 /*
  *
  */
-HEBRT_Reader_TL(i,j)
+HEBUT_Reader_TL(i,j)
   /* Execution space */
   i = 0 .. mt/2-1
   j = 0 .. i
@@ -208,18 +214,23 @@ HEBRT_Reader_TL(i,j)
   : A(i,j)
 
 READ A <- A(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> (i==j) ? Atl HEBRT_Diag(i) : Atl HEBRT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
-/* nothing */
-  /* fprintf(stderr,"HEBRT_Reader_TL(%d,%d)\n",i,j); */
+  /* nothing */
+
+  printlog("thread %d HEBUT_Reader_TL(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i, j, A);
+  printf("R A[%d][%d]:%lf\n",i,j,*(double *)A);
+
 END
 
 
 /*
  *
  */
-HEBRT_Reader_BL(i,j)
+HEBUT_Reader_BL(i,j)
   /* Execution space */
   i = 0 .. mt/2-1
   j = 0 .. nt/2-1
@@ -227,20 +238,25 @@ HEBRT_Reader_BL(i,j)
   : A(i+mt/2,j)
 
 READ A <- A(i+mt/2, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
-       -> (i>j)  ? Abl HEBRT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> (i==j) ? Abl HEBRT_Diag(i)    [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> (i<j)  ? Atr HEBRT_Lower(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> (i>j)  ? Abl HEBUT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> (i==j) ? Abl HEBUT_Diag(i)    [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> (i<j)  ? Atr HEBUT_Lower(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
-/* nothing */
-  /* fprintf(stderr,"HEBRT_Reader_BL(%d,%d)\n",i,j); */
+  /* nothing */
+
+  printlog("thread %d HEBUT_Reader_BL(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i+mt/2, j, A);
+  printf("R A[%d][%d]:%lf\n",i+mt/2,j,*(double *)A);
+
 END
 
 
 /*
  *
  */
-HEBRT_Reader_BR(i,j)
+HEBUT_Reader_BR(i,j)
   /* Execution space */
   i = 0 .. mt/2-1
   j = 0 .. i
@@ -248,70 +264,88 @@ HEBRT_Reader_BR(i,j)
   : A(i+mt/2,j+nt/2)
 
 READ A <- A(i+mt/2, j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
-       -> (i==j) ? Abr HEBRT_Diag(i) : Abr HEBRT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
-/* nothing */
-  /* fprintf(stderr,"HEBRT_Reader_BR(%d,%d)\n",i,j); */
+  /* nothing */
+
+  printlog("thread %d HEBUT_Reader_BR(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i+mt/2, j+nt/2, A);
+  printf("R A[%d][%d]:%lf\n",i+mt/2,j+nt/2,*(double *)A);
+
 END
 
 
 /*
  *
  */
-HEBRT_Writer_TL(i,j)
+HEBUT_Writer_TL(i,j)
   /* Execution space */
   i = 0 .. mt/2-1
   j = 0 .. i
 
   : A(i,j)
 
-RW A <- (i==j) ? Atl HEBRT_Diag(i) : Atl HEBRT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+RW A <- (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
      -> A(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
-/* nothing */
-  /* fprintf(stderr,"HEBRT_Writer_TL(%d,%d)\n",i,j); */
+  /* nothing */
+
+  printlog("thread %d HEBUT_Writer_TL(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i, j, A);
+  printf("W A[%d][%d]:%lf\n",i,j,*(double *)A);
+
 END
 
 
 /*
  *
  */
-HEBRT_Writer_BL(i,j)
+HEBUT_Writer_BL(i,j)
   /* Execution space */
   i = 0 .. mt/2-1
   j = 0 .. nt/2-1
 
   : A(i+mt/2,j)
 
-RW A <- (i==j) ? Abl HEBRT_Diag(i)  [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-     <- (i>j)  ? Abl HEBRT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-     <- (i<j)  ? Abl HEBRT_Lower(j, i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+RW A <- (i==j) ? Abl HEBUT_Diag(i)  [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     <- (i>j)  ? Abl HEBUT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     <- (i<j)  ? Abl HEBUT_Lower(j, i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
      -> A(i+mt/2, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
 
 BODY
-/* nothing */
-  /* fprintf(stderr,"HEBRT_Writer_BL(%d,%d)\n",i,j); */
+  /* nothing */
+
+  printlog("thread %d HEBUT_Writer_BL(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i+mt/2, j, A);
+  printf("W A[%d][%d]:%lf\n",i+mt/2,j,*(double *)A);
+
 END
 
 
 /*
  *
  */
-HEBRT_Writer_BR(i,j)
+HEBUT_Writer_BR(i,j)
   /* Execution space */
   i = 0 .. mt/2-1
   j = 0 .. i
 
   : A(i+mt/2,j+nt/2)
 
-RW A <- (i==j) ? Abr HEBRT_Diag(i) : Abr HEBRT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+RW A <- (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
      -> A(i+mt/2, j+nt/2)[ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
 
 BODY
-/* nothing */
-  /* fprintf(stderr,"HEBRT_Writer_BR(%d,%d)\n",i,j); */
+  /* nothing */
+
+  printlog("thread %d HEBUT_Writer_BR(%d, %d)\n"
+           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+  context->eu_id, i, j, i+mt/2, j+nt/2, A);
+  printf("W A[%d][%d]:%lf\n",i+mt/2,j+nt/2,*(double *)A);
+
 END
-
-

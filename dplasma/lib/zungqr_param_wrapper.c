@@ -25,7 +25,8 @@
  *  Q is defined as the first N columns of a product of the elementary
  *  reflectors returned by dplasma_zgeqrf.
  *  This version of zungqr is based on the hierarchical QR algorithm described
- *  in the LAWN xxxx.
+ *  in the LAWN 257.
+ *
  *
  *******************************************************************************
  *

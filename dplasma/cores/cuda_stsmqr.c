@@ -310,7 +310,7 @@ gpu_stsmqr_internal_push( gpu_device_t* gpu_device,
 
     tile_size = ddescA(this_task)->mb*ddescA(this_task)->nb*sizeof(float);
 #if defined(DAGUE_PROF_TRACE)
-    dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_start, 0, NULL );
+    dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_start, 0, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PROFILING) */
 
     on_gpu = gpu_qr_data_is_on_gpu(0, gpu_device, ddescA(this_task), DAGUE_READ, n, k, &gpu_elem_A);
@@ -353,7 +353,7 @@ gpu_stsmqr_internal_push( gpu_device_t* gpu_device,
     this_task->data[2].gpu_data = (struct gpu_elem_t *)gpu_elem_C;
 
 #if defined(DAGUE_PROF_TRACE)
-    dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end, 0, NULL );
+    dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end, 0, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PROFILING) */
 
  release_and_return_error:
@@ -380,7 +380,7 @@ gpu_stsmqr_internal_submit( gpu_device_t* gpu_device,
     d_C = gpu_elem_C->gpu_mem;
 
 #if defined(DAGUE_PROF_TRACE)
-    dague_profiling_trace( gpu_device->profiling, this_task->dague_object->profiling_array[0 + 2 * this_task->function->function_id], 1, NULL );
+    dague_profiling_trace( gpu_device->profiling, this_task->dague_object->profiling_array[0 + 2 * this_task->function->function_id], 1, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PROFILING) */
     offset = 0;
     CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_B );
@@ -409,7 +409,7 @@ gpu_stsmqr_internal_submit( gpu_device_t* gpu_device,
                               {return -1;} );
 
 #if defined(DAGUE_PROF_TRACE)
-    dague_profiling_trace( gpu_device->profiling, this_task->dague_object->profiling_array[1 + 2 * this_task->function->function_id], 1, NULL );
+    dague_profiling_trace( gpu_device->profiling, this_task->dague_object->profiling_array[1 + 2 * this_task->function->function_id], 1, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PROFILING) */
     return 0;
 }
@@ -448,7 +448,7 @@ gpu_stsmqr_internal_pop( gpu_device_t* gpu_device,
     gpu_device->required_data_out += tile_size;
     if( (n == k+1) ) {
 #if defined(DAGUE_PROF_TRACE)
-        dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start, 2, NULL );
+        dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start, 2, PROFILE_OBJECT_ID_NULL,NULL );
 #endif  /* defined(PROFILING) */
         /* Pop C from the GPU */
         status = (cudaError_t)cuMemcpyDtoHAsync( C, d_C, tile_size, stream );
@@ -456,7 +456,7 @@ gpu_stsmqr_internal_pop( gpu_device_t* gpu_device,
                                   {printf("<<%p>> -> <<%p>>\n", (void*)(long)d_C, (void*)C); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_out += tile_size;
 #if defined(DAGUE_PROF_TRACE)
-        dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end, 2, NULL );
+        dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end, 2, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PROFILING) */
     }
  release_and_return_error:

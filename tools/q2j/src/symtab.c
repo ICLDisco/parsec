@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <symtab.h>
 
-static inline symbol_t *create_symtab_entry(char *var, char *type);
+static inline q2j_symbol_t *create_symtab_entry(char *var, char *type);
 static symtab_t *_current_st=NULL;
 
 symtab_t *st_get_current_st(void){
@@ -53,7 +53,7 @@ symtab_t *st_exit_scope(void){
 ////////////////////////////////////////////////////////////////////////////////
 //
 void st_insert_new_variable(char *var, char *type){
-    symbol_t *sym, *prev;
+    q2j_symbol_t *sym, *prev;
     
     assert( NULL != _current_st );
 
@@ -79,7 +79,7 @@ void st_insert_new_variable(char *var, char *type){
 ////////////////////////////////////////////////////////////////////////////////
 //
 void dump_st(symtab_t *scope){
-    symbol_t *sym;
+    q2j_symbol_t *sym;
 
     do{
         for(sym=scope->symbols; NULL!=sym; sym=sym->next){
@@ -94,7 +94,7 @@ void dump_st(symtab_t *scope){
 ////////////////////////////////////////////////////////////////////////////////
 //
 char *st_type_of_variable(char *var, symtab_t *scope){
-    symbol_t *sym;
+    q2j_symbol_t *sym;
 
     if( NULL == scope ){
         return NULL;
@@ -114,9 +114,9 @@ char *st_type_of_variable(char *var, symtab_t *scope){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-static inline symbol_t *create_symtab_entry(char *var, char *type){
-    symbol_t *sym;
-    sym = (symbol_t *)calloc(1, sizeof(symbol_t));
+static inline q2j_symbol_t *create_symtab_entry(char *var, char *type){
+    q2j_symbol_t *sym;
+    sym = (q2j_symbol_t *)calloc(1, sizeof(q2j_symbol_t));
     sym->var_name = strdup(var);
     sym->var_type = strdup(type);
     sym->next = NULL;

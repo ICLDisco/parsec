@@ -23,14 +23,15 @@
  * dplasma_zhetrf_New()
  */
 dague_object_t*
-dplasma_zhetrf_New( tiled_matrix_desc_t *A, int ib, int *info)
+dplasma_zhetrf_New( tiled_matrix_desc_t *A, int *INFO)
 {
-    int ldwork, lwork;
+    int ldwork, lwork, ib;
     dague_object_t *dague_zhetrf = NULL;
     dague_memory_pool_t *pool_0, *pool_1;
 
-    (void)info;
+    ib = A->mb;
 
+    /* ldwork and lwork are necessary for the macros zhetrf_pool_0_SIZE and zhetrf_pool_1_SIZE */
     ldwork = (A->nb+1)*ib;
     lwork = (A->mb+1)*A->nb + ib*ib;
 
@@ -40,7 +41,7 @@ dplasma_zhetrf_New( tiled_matrix_desc_t *A, int ib, int *info)
     pool_1 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( pool_1, zhetrf_pool_1_SIZE );
 
-    dague_zhetrf = (dague_object_t *)dague_zhetrf_new(PlasmaLower, *A, (dague_ddesc_t *)A, ib, pool_1, pool_0);
+    dague_zhetrf = (dague_object_t *)dague_zhetrf_new(PlasmaLower, *A, (dague_ddesc_t *)A, ib, pool_1, pool_0, INFO);
 
     dplasma_add2arena_tile(((dague_zhetrf_object_t*)dague_zhetrf)->arenas[DAGUE_zhetrf_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(Dague_Complex64_t),
@@ -70,8 +71,7 @@ int dplasma_zhetrf(dague_context_t *dague, tiled_matrix_desc_t *A)
     dague_object_t *dague_zhetrf;
     int info = 0, ginfo = 0;
 
-    /* FIXME, we should pass ib, not A->mb as the second parameter */
-    dague_zhetrf = dplasma_zhetrf_New(A, A->mb, &info);
+    dague_zhetrf = dplasma_zhetrf_New(A, &info);
     dague_enqueue(dague, (dague_object_t *)dague_zhetrf);
     dplasma_progress(dague);
     dplasma_zhetrf_Destruct(dague_zhetrf);
