@@ -1,0 +1,138 @@
+
+#define min(a,b) ((a)<(b))?(a):(b)
+#define log2(a) ((int)ceil(log((a)) / log(2.0)))
+
+/**************************************************
+ *                    SWAP_COPY
+ * Copying the A(k,n) and send it to itself
+ **************************************************/
+SWAP_COPY(k,n)
+
+// Execution space
+k = 0..min(descA.mt,descA.nt)
+n = k+1..descA.nt
+
+// Parallel partitioning
+:ACOPY(n%Q)
+
+// Parameters
+READ      A <-  C GEMM(k-1, k, n)
+RW    ACOPY <-  ACOPY(n%Q)
+            ->  A SWAP_RECV(k,k,n)
+
+BODY
+    DRYRUN(
+            int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+            int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+            int lda = BLKLDD( descA, m );
+            int ldacopy = BLKLDD( descACOPY, m );
+            int i;
+            int j;
+            for(j = 0; j < tempnn; j++)
+                  for(i = 0; i < descA.mt; i++)
+                        ACOPY[j*ldacopy+i] = A[j*lda+i];
+          );
+    printlog("");
+END
+
+
+/**************************************************
+ *                    SWAP_RECV
+ * Swapping all the lines from the A(k,n) copy by
+ * the current process then sending it to next process
+ **************************************************/
+SWAP(k,m,n) [high_priority = on]
+
+// Execution space
+k = 0..min(descA.mt,descA.nt)
+m = k..descA.mt
+n = k+1..descA.nt
+
+// Parallel partitioning
+:A(m, n)
+
+// Parameters
+READ      U <- (m==k)? ACOPY SWAP_COPY(k, n) : ((m-k<P)? U SWAP_RECV(k,m-1,n) : U SWAP_RECV(k,m-P,n))
+            ->  (descA.mt-m>P)? U SWAP_RECV(k,m+P,n)
+            ->  (m-k<P-1)? U SWAP_RECV(k,m+1,n)
+RW        T <-  T SWAP_COLLECT(k,m,n)
+            ->  (m!=k)? C GEMM(k,m,n)
+READ     IP <-  IP SWAP_COLLECT(k,m,n)
+
+BODY
+    DRYRUN(
+/* <-  (m==k)? A SWAP_COPY(k, n) : ((m-k>=P)? A SWAP_RECV(k,m-P,n) : A SWAP_RECV(k,descA.mt-((descA.mt-m)%P)-1,n))
+   ->  ((descA.mt-m<P) && (k+((m-k)%P) != P-1))? A SWAP_RECV(k,k+((m-k)%P),n)*/
+          );
+    printlog("");
+END
+
+
+/**************************************************
+ *                    SWAP_COLLECT
+ * Swapping all the lines for the current process
+ * in the temporary buffer
+ **************************************************/
+SWAP_COLLECT(k,m,n) [high_priority = on]
+
+// Execution space
+k = 0..min(descA.mt,descA.nt)
+m = k..descA.mt
+n = k+1..descA.nt
+
+// Parallel partitioning
+:A(m, n)
+
+// Parameters
+RW   MYBUF  <-  (m-k>=P)? MYBUF SWAP_COLLECT(k,m-P,n) : BUFFER(m%P,n%Q)
+            ->  (descA.mt-m>P)? MYBUF SWAP_COLLECT(k,m+P,n)
+            ->  ((descA.mt-m<=P) && (((m-k)%P)%2==0))? MYBUF SWAP_SEND(0,k,((m-k)%P)/2,n)
+            ->  ((descA.mt-m<=P) && ((m-k)%P)%2)? BUFFER SWAP_SEND(0,k,((m-k)%P)/2,n)
+READ      T <-  C GEMM(k-1, m, n)
+            ->  T SWAP_RECV(k,m,n)
+READ     IP <-  IP GETRF(k)
+            ->  IP SWAP_RECV(k,m,n)
+            ->  IP ((descA.mt-m<=P) && (((m-k)%P)%2==0))? IP SWAP_SEND(0,k,((m-k)%P)/2,n)
+
+BODY
+    DRYRUN(
+          );
+    printlog("");
+END
+
+
+/**************************************************
+ *                    SWAP_SEND
+ * Sending the temporary buffer to the logarithmic
+ * neighbor
+ **************************************************/
+SWAP_SEND(d,k,m,n) [high_priority = on]
+
+// Execution space
+d = 0..log2(min(descA.mt-k,P))
+k = 0..min(descA.mt,descA.nt)
+m = 0..((d%2)?d-1:d)
+n = k+1..descA.nt
+
+// Parallel partitioning
+:BUFFER(m%P, n%Q)
+
+// Parameters
+READ  MYBUF <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-(descA.mt-1-k-m)%P-1,n) : MYBUF SWAP_SEND(d-1,k,m*2,n)
+            ->  ((m%2==0) && (m<d))? MYBUF SWAP_SEND(d+1,k,m/2,n)
+RW   BUFFER <-  (d == 0)? SWAP_COLLECT(k,descA.mt-(descA.mt-2-k-m)%P-1,n) : BUFFER SWAP_SEND(d-1,k,m*2+1,n)
+            ->  (m<d)? BUFFER SWAP_SEND(d+1,k,m/2,n)
+            ->  ((m == d) && (m == 0)) C TRSM(k,k,n)
+READ     IP <-  (d == 0)? IP GETRF(k) : IP SWAP_SEND(d+1,k,m/2,n)
+            ->  ((m%2==0) && (m<d))? IP SWAP_SEND(d+1,k,m/2,n)
+
+BODY
+    DRYRUN(
+        if(m<d)
+        {
+
+        }
+          );
+    printlog("");
+END
+
