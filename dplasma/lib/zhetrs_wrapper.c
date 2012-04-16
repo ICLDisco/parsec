@@ -11,12 +11,18 @@
 #include "dplasma.h"
 
 int
-dplasma_zhetrs(dague_context_t *dague, const tiled_matrix_desc_t* A, tiled_matrix_desc_t* B)
+dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, tiled_matrix_desc_t* B)
 {
 
-    dplasma_ztrsm( dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, 1.0, A, B );
+    if( uplo != PlasmaLower ){
+        dplasma_error("dplasma_zhetrs", "illegal value for \"uplo\".  Only PlasmaLower is currently supported");
+    }
+
+    // B = U_but_vec^T * B 
+    dplasma_ztrsm( dague, PlasmaLeft, uplo, (uplo == PlasmaUpper) ? PlasmaConjTrans : PlasmaNoTrans, PlasmaUnit, 1.0, A, B );
     dplasma_ztrdsm( dague, A, B );
-    dplasma_ztrsm( dague, PlasmaLeft, PlasmaLower, PlasmaConjTrans, PlasmaUnit, 1.0, A, B );
+    dplasma_ztrsm( dague, PlasmaLeft, uplo, (uplo == PlasmaUpper) ? PlasmaNoTrans : PlasmaConjTrans, PlasmaUnit, 1.0, A, B );
+    // X = U_but_vec * X  (here X is B)
 
     return 0;
 }

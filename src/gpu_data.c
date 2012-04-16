@@ -279,9 +279,11 @@ int dague_gpu_fini( void )
         status = (cudaError_t)cuCtxDestroy( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxDestroy ", status,
                                 {continue;} );
+        gpu_device->ctx = NULL;
     }
     free(gpu_enabled_devices);
     gpu_enabled_devices = NULL;
+    __dague_active_gpu = 0;
     return 0;
 }
 

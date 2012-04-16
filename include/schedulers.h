@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef schedulers_h
 #define schedulers_h
 

@@ -27,6 +27,7 @@ set(TESTS
   testing_zherbt.c
   testing_zhbrdt.c
   testing_zheev.c
+  testing_zlange.c
   #testing_zgesvd.c
 )
 if( DPLASMA_DEBUG_QR_PIVGEN )
@@ -54,6 +55,10 @@ add_test(dtrsm  ./testing_dtrsm -N 1500 -x -v=4)
 add_test(dpotrf    ./testing_dpotrf -N 4000 -x -v=4)
 add_test(dposv     ./testing_dposv  -N 4000 -x -v=4)
 add_test(dgeqrf    ./testing_dgeqrf -N 4000 -x -v=4)
+add_test(dpotrf_tq ./testing_dpotrf -N 4000 -x -v=4 -o LTQ)
+add_test(dpotrf_pq ./testing_dpotrf -N 4000 -x -v=4 -o PBQ)
+add_test(dgeqrf_tq ./testing_dgeqrf -N 4000 -x -v=4 -o LTQ)
+add_test(dgeqrf_pq ./testing_dgeqrf -N 4000 -x -v=4 -o PBQ)
 add_test(dgeqrf_p0 ./testing_dgeqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 0 -v=4)
 add_test(dgeqrf_p1 ./testing_dgeqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 1 -v=4)
 add_test(dgeqrf_p2 ./testing_dgeqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 2 -v=4)
@@ -71,6 +76,10 @@ if( MPI_FOUND )
   add_test(mpi_dpotrf    ${MPI_TEST_CMD} ./testing_dpotrf -N 4000 -p 2 -x -v=4)
   add_test(mpi_dposv     ${MPI_TEST_CMD} ./testing_dposv  -N 4000 -p 4 -x -v=4)
   add_test(mpi_dgeqrf    ${MPI_TEST_CMD} ./testing_dgeqrf -N 4000 -p 4 -x -v=4)
+  add_test(mpi_dpotrf_tq ${MPI_TEST_CMD} ./testing_dpotrf -N 4000 -p 2 -x -v=4 -o LTQ)
+  add_test(mpi_dgeqrf_tq ${MPI_TEST_CMD} ./testing_dgeqrf -N 4000 -p 4 -x -v=4 -o LTQ)
+  add_test(mpi_dpotrf_pq ${MPI_TEST_CMD} ./testing_dpotrf -N 4000 -p 2 -x -v=4 -o PBQ)
+  add_test(mpi_dgeqrf_pq ${MPI_TEST_CMD} ./testing_dgeqrf -N 4000 -p 4 -x -v=4 -o PBQ)
   add_test(mpi_dgeqrf_p0 ${MPI_TEST_CMD} ./testing_dgeqrf_param -N 4000 -t 200 -i 32 -p 4 -x --qr_p=8 --qr_a=2 --treel 0 -v=4)
   add_test(mpi_dgeqrf_p1 ${MPI_TEST_CMD} ./testing_dgeqrf_param -N 4000 -t 200 -i 32 -p 4 -x --qr_p=8 --qr_a=2 --treel 1 -v=4)
   add_test(mpi_dgeqrf_p2 ${MPI_TEST_CMD} ./testing_dgeqrf_param -N 4000 -t 200 -i 32 -p 4 -x --qr_p=8 --qr_a=2 --treel 2 -v=4)

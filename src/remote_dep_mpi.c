@@ -603,10 +603,10 @@ static void remote_dep_mpi_profiling_init(void)
         dague_service_to_string( &__exec_context, __info.func, 16 );    \
         __info.rank_src = src;                                          \
         __info.rank_dst = dst;                                          \
-        dague_profiling_trace((PROF), (KEY), (I), &__info);             \
+        dague_profiling_trace((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, &__info); \
     } while(0)
 
-#define TAKE_TIME(PROF, KEY, I) dague_profiling_trace((PROF), (KEY), (I), NULL);
+#define TAKE_TIME(PROF, KEY, I) dague_profiling_trace((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, NULL);
 #else
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, ctx) do {} while(0)
 #define TAKE_TIME(PROF, KEY, I) do {} while(0)

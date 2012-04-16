@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
 
 #include <stdlib.h>
@@ -47,9 +53,14 @@ int dbp_event_get_flags(const dbp_event_t *e)
     return e->native->event.flags;
 }
 
-int dbp_event_get_id(const dbp_event_t *e)
+uint64_t dbp_event_get_event_id(const dbp_event_t *e)
 {
-    return e->native->event.id;
+    return e->native->event.event_id;
+}
+
+uint32_t dbp_event_get_object_id(const dbp_event_t *e)
+{
+    return e->native->event.object_id;
 }
 
 dague_time_t dbp_event_get_timestamp(const dbp_event_t *e)
@@ -287,15 +298,16 @@ int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
     
     e = dbp_iterator_current( pos );
     while( NULL != e ) {
-        if( (dbp_event_get_id(e) == dbp_event_get_id(ref)) &&
+        if( (dbp_event_get_object_id(e) == dbp_event_get_object_id(ref)) &&
+            (dbp_event_get_event_id(e) == dbp_event_get_event_id(ref)) &&
             (dbp_event_get_key(e) == END_KEY(BASE_KEY(dbp_event_get_key(ref)))) ) {
-            if( dbp_event_get_id(e) != 0 ||
+            if( dbp_event_get_event_id(e) != 0 ||
                 time_less( dbp_event_get_timestamp(ref), dbp_event_get_timestamp(e)) ||
                 (diff_time(dbp_event_get_timestamp(ref), dbp_event_get_timestamp(e)) == 0) ) {
                 return 1;
-            } else if ( dbp_event_get_id(e) != 0 ) {
+            } else if ( dbp_event_get_event_id(e) != 0 ) {
                 WARNING(("Event with ID %d appear in reverse order\n",
-                         dbp_event_get_id(e)));
+                         dbp_event_get_event_id(e)));
             }
         }
         e = dbp_iterator_next( pos );
@@ -448,7 +460,8 @@ static int read_dictionnary(dbp_multifile_reader_t *dbp, int fd, const dague_pro
     /* Dictionaries match: take the first in memory */
     dico = refer_events_buffer( fd, head->dictionary_offset );
     if( NULL == dico ) {
-        fprintf(stderr, "Unable to read entire dictionary entry\n");
+        fprintf(stderr, "Unable to read entire dictionary entry at offset %"PRId64"\n",
+                head->dictionary_offset);
         return -1;
     }
     assert( PROFILING_BUFFER_TYPE_DICTIONARY == dico->buffer_type );
@@ -504,7 +517,8 @@ static int check_dictionnary(const dbp_multifile_reader_t *dbp, int fd, const da
     /* Dictionaries match: take the first in memory */
     dico = refer_events_buffer( fd, head->dictionary_offset );
     if( NULL == dico ) {
-        fprintf(stderr, "Unable to read entire dictionary entry.\n");
+        fprintf(stderr, "Unable to read entire dictionary entry at offset %"PRId64"\n",
+                head->dictionary_offset);
         return -1;
     }
     assert( PROFILING_BUFFER_TYPE_DICTIONARY == dico->buffer_type );
@@ -533,7 +547,7 @@ static int check_dictionnary(const dbp_multifile_reader_t *dbp, int fd, const da
             goto error;
         }
 
-        if( strlen(dbp->dico_keys[ dbp->dico_size - nb ].convertor) != a->keyinfo_convertor_length ) {
+        if( strlen(dbp->dico_keys[ dbp->dico_size - nb ].convertor) != (size_t)a->keyinfo_convertor_length ) {
             fprintf(stderr, "Dictionary entry %d has a convertor of %d bytes in the reference dictionary, and %d in the new file dictionary.\n",
                     dbp->dico_size - nb, (int)strlen(dbp->dico_keys[ dbp->dico_size - nb ].convertor), a->keyinfo_convertor_length);
             goto error;

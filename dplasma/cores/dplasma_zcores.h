@@ -22,3 +22,7 @@ int blgchase_ztrdv2(int NT, int N, int NB,
                    int sweep, int id, int blktile);
 
 int CORE_zgetrf_rectil_1thrd(const PLASMA_desc A, int *IPIV);
+
+int CORE_zplssq(int M, int N,
+                Dague_Complex64_t *A, int LDA,
+                double *scale, double *sumsq);
