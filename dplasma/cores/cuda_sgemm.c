@@ -168,6 +168,12 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
         /* We allocate 9/10 of the total memory */
         thread_gpu_mem = (total_mem - total_mem / 10);
 
+        /* Align tile size to 256 */
+        tile_size = (( tile_size + 255 ) / 256 ) * 256;
+        nb_allocations = thread_gpu_mem / tile_size;
+        gpu_device->memory = gpu_malloc_init( nb_allocations, tile_size );
+
+#if 0
         while( free_mem > (total_mem - thread_gpu_mem) ) {
             gpu_elem_t* gpu_elem;
             cudaError_t cuda_status;
@@ -195,6 +201,7 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
             dague_ulist_fifo_push( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
         }
+#endif
         if( 0 == nb_allocations ) {
             WARNING(("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!\n", dague_context->my_rank, i));
             continue;
