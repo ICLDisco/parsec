@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2012      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _GPU_MALLOC_H_
 #define _GPU_MALLOC_H_
 
