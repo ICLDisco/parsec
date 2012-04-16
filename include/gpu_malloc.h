@@ -1,6 +1,8 @@
 #ifndef _GPU_MALLOC_H_
 #define _GPU_MALLOC_H_
 
+#include "dague_config.h"
+
 #include <stdlib.h>
 #include <assert.h>
 #include <cuda.h>
@@ -13,7 +15,7 @@ typedef struct segment {
 } segment_t;
 
 typedef struct gpu_malloc_s {
-    void      *base;                 /* Base pointer              */
+    char      *base;                 /* Base pointer              */
     segment_t *allocated_segments;   /* List of allocated segment */
     segment_t *free_segments;        /* List of available segment */
     size_t     unit_size;            /* Nasic Unit                */
@@ -25,12 +27,6 @@ static inline gpu_malloc_t *gpu_malloc_init(int max_segment, size_t unit_size);
 static inline void  gpu_malloc_fini(gpu_malloc_t *gdata);
 static inline void *gpu_malloc(gpu_malloc_t *gdata, int nb_units);
 static inline void  gpu_free(  gpu_malloc_t *gdata, void *ptr);
-
-#define BACKEND_MALLOC( __ptr, __size)  cuMemAlloc( &(__ptr), (__size) )
-#define BACKEND_FREE( __ptr )           cuFree( __ptr )
-
-/* typedef void (*tmalloc_error_cback_t)(const char *msg); */
-/* static tmalloc_error_cback_t gpu_malloc_cback = NULL; */
 
 static inline void gpu_malloc_error(const char *msg)
 {
@@ -52,10 +48,9 @@ static inline gpu_malloc_t *gpu_malloc_init(int _max_segment, size_t _unit_size)
     gdata->unit_size          = _unit_size;
     gdata->max_segment        = _max_segment+2;
 
-    rc = (cudaError_t)cudaMalloc( gdata->base,
+    rc = (cudaError_t)cudaMalloc( &((void*)gdata->base),
                                   (_max_segment * gdata->unit_size) );
-
-    if( NULL == gdata->base ) {
+    if( (cudaSuccess != rc) || (NULL == gdata->base) ) {
         gpu_malloc_error("unable to allocate backend memory");
         free(gdata);
         return NULL;
@@ -99,7 +94,10 @@ static inline void gpu_malloc_fini(gpu_malloc_t *gdata)
         gdata->free_segments = s;
     }
 
-    rc = cudaFree(gdata->base);
+    rc = (cudaError_t)cudaFree(gdata->base);
+    if( cudaSuccess != rc ) {
+        gpu_malloc_error("Failed to free the GPU backend memory.");
+    }
     gdata->max_segment = 0;
     gdata->unit_size = 0;
     gdata->base = NULL;
@@ -122,7 +120,7 @@ static inline void *gpu_malloc(gpu_malloc_t *gdata, int nb_units)
             n->next = s->next;
             s->nb_free = 0;
             s->next = n;
-            return gdata->base + (n->start_index * gdata->unit_size);
+            return (void*)(gdata->base + (n->start_index * gdata->unit_size));
         }
     }
 
@@ -136,7 +134,7 @@ static inline void gpu_free(gpu_malloc_t *gdata, void *add)
     int tid;
 
     p = gdata->allocated_segments;
-    tid = (add - gdata->base) / gdata->unit_size;
+    tid = ((char*)add - gdata->base) / gdata->unit_size;
     for(s = gdata->allocated_segments->next; s->next != NULL; s = s->next) {
         if ( s->start_index == tid ) {
             p->next = s->next;
