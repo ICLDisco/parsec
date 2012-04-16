@@ -184,6 +184,7 @@ subs = {
     ('strsmpl','dtrsmpl','ctrsmpl','ztrsmpl'),
     ('STRSMPL','DTRSMPL','CTRSMPL','ZTRSMPL'),
     ('slacpy','dlacpy','slacpy','dlacpy'),
+    ('slaset','dlaset','slaset','dlaset'),
     ('sscal','dscal','csscal','zdscal'),
     ('ger','ger','gerc','gerc'),
     ('ger','ger','geru','geru'),
