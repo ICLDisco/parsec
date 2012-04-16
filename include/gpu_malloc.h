@@ -29,13 +29,14 @@ static inline void  gpu_free(  gpu_malloc_t *gdata, void *ptr);
 #define BACKEND_MALLOC( __ptr, __size)  cuMemAlloc( &(__ptr), (__size) )
 #define BACKEND_FREE( __ptr )           cuFree( __ptr )
 
-typedef void (*tmalloc_error_cback_t)(const char *msg);
-tmalloc_error_cback_t tmalloc_cback = NULL;
+/* typedef void (*tmalloc_error_cback_t)(const char *msg); */
+/* static tmalloc_error_cback_t gpu_malloc_cback = NULL; */
 
-static void error(const char *msg)
+static inline void gpu_malloc_error(const char *msg)
 {
-    if( tmalloc_cback != NULL )
-        tmalloc_cback(msg);
+    if( gpu_malloc_cback != NULL )
+        fprintf(stderr, "%s\n", msg);
+        /*       gpu_malloc_cback(msg);*/
 }
 
 static inline gpu_malloc_t *gpu_malloc_init(int _max_segment, size_t _unit_size)
@@ -53,9 +54,9 @@ static inline gpu_malloc_t *gpu_malloc_init(int _max_segment, size_t _unit_size)
 
     rc = (cudaError_t)cudaMalloc( gdata->base,
                                   (gdata->max_segment * gdata->unit_size) );
-    
+
     if( NULL == gdata->base ) {
-        error("unable to allocate backend memory");
+        gpu_malloc_error("unable to allocate backend memory");
         free(gdata);
         return NULL;
     }
@@ -71,13 +72,13 @@ static inline gpu_malloc_t *gpu_malloc_init(int _max_segment, size_t _unit_size)
     gdata->allocated_segments->start_index = 0;
     gdata->allocated_segments->nb_units    = 1;
     gdata->allocated_segments->nb_free     = _max_segment;
-    
+
     gdata->allocated_segments->next = (segment_t*)malloc(sizeof(segment_t));
     gdata->allocated_segments->next->start_index = _max_segment+1;
     gdata->allocated_segments->next->nb_units    = 1;
     gdata->allocated_segments->next->nb_free     = 0;
     gdata->allocated_segments->next->next        = NULL;
-    
+
     return gdata;
 }
 
@@ -125,7 +126,7 @@ static inline void *gpu_malloc(gpu_malloc_t *gdata, int nb_units)
         }
     }
 
-    error("no more memory available");
+    gpu_malloc_error("no more memory available");
     return NULL;
 }
 
@@ -149,7 +150,7 @@ static inline void gpu_free(gpu_malloc_t *gdata, void *add)
         p = s;
     }
     assert(0);
-    error("address to free not allocated");
+    gpu_malloc_error("address to free not allocated");
 }
 
 #endif /* _GPU_MALLOC_H_ */
