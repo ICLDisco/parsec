@@ -35,32 +35,32 @@ static inline void ignore(const char* fmt, ...){
     return;
 }
 
-
 #define NOT_TRANSPOSE 0x0
 #define TRANSPOSE     0x1
 
 void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int is_transpose, int is_diagonal );
 void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int is_transpose );
 void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose );
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int is_transpose );
 void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int is_transpose, int is_diagonal );
 
 %}
 
 [DAGUE_ARENA_STRUT = 36]
 descA  [type = "dague_seg_ddesc_t"]
 A      [type = "dague_ddesc_t *"]
+Ubut   [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
 pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
@@ -122,10 +122,10 @@ BODY
 
 but_debug ("-- GEBUT\n");
 
-  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, NOT_TRANSPOSE, 0);
-  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, NOT_TRANSPOSE);
-  BFT_zQTR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, NOT_TRANSPOSE);
-  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, NOT_TRANSPOSE, 0);
+  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, Ubut, NOT_TRANSPOSE, 0);
+  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, Ubut, NOT_TRANSPOSE);
+  BFT_zQTR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, Ubut, NOT_TRANSPOSE);
+  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, Ubut, NOT_TRANSPOSE, 0);
 
   sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
   memcpy(Atl, p_elem_tl, sz);

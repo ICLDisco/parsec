@@ -34,6 +34,7 @@ int main(int argc, char ** argv)
     int info = 0;
     int ret = 0;
     int uplo = PlasmaLower;
+    PLASMA_Complex64_t *U_but_vec;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -115,9 +116,8 @@ int main(int argc, char ** argv)
 
     SYNC_TIME_START();
     TIME_START();
-    dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, butterfly_level);
+    dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, &U_but_vec, butterfly_level);
     dplasma_zhetrf(dague, (tiled_matrix_desc_t *)&ddescA);
-    //dplasma_zprint(dague, PlasmaLower, (tiled_matrix_desc_t *)&ddescA);
 
     fprintf(stderr,"-- DONE\n");
 
@@ -135,7 +135,7 @@ int main(int argc, char ** argv)
         if( rank == 0 && loud ) printf("-- The butterfly failed (info = %d) ! \n", info);
         ret |= 1;
     }else if(check){
-        dplasma_zhetrs(dague, uplo, (const tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescInvA);
+        dplasma_zhetrs(dague, uplo, (const tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescInvA, U_but_vec);
         //dplasma_zhetrs(dague, uplo, (const tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX);
 
         /* Check the solution */

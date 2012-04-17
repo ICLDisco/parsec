@@ -29,8 +29,6 @@
 #define CREATE_N_ENQUEUE 0x0
 #define DESTRUCT         0x1
 
-/* Global matrix holding the butterflies.  It is a concatanation of L+1 vectors */
-PLASMA_Complex64_t *U_but_vec;
 
 static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
     int m_seg, n_seg, m_tile, n_tile;
@@ -138,7 +136,7 @@ static int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype
  * dplasma_zhebut_New()
  */
 dague_object_t*
-dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level, int *info)
+dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int *info)
 {
     dague_object_t *dague_zhebut = NULL;
     dague_seg_ddesc_t *seg_descA;
@@ -171,7 +169,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(Dague_Complex64_t) );
 
-    dague_zhebut = (dague_object_t *)dague_zhebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt, pool_0);
+    dague_zhebut = (dague_object_t *)dague_zhebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_but_vec, nt, mt, pool_0);
 
 
     for(i=0; i<36; i++){
@@ -225,7 +223,7 @@ dplasma_zhebut_Destruct( dague_object_t *o )
  * dplasma_zgebut_New()
  */
 dague_object_t*
-dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level, int *info)
+dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int *info)
 {
     dague_object_t *dague_zgebut = NULL;
     dague_seg_ddesc_t *seg_descA;
@@ -254,7 +252,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(Dague_Complex64_t) );
 
-    dague_zgebut = (dague_object_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt, pool_0);
+    dague_zgebut = (dague_object_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_but_vec, nt, mt, pool_0);
 
     for(i=0; i<36; i++){
 #if defined(HAVE_MPI)
@@ -303,7 +301,7 @@ dplasma_zgebut_Destruct( dague_object_t *o )
  * dplasma_zgebmm_New()
  */
 dague_object_t*
-dplasma_zgebmm_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level, int trans, int *info)
+dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int trans, int *info)
 {
     dague_object_t *dague_zgebmm = NULL;
     dague_seg_ddesc_t *seg_descA;
@@ -332,7 +330,7 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(Dague_Complex64_t) );
 
-    dague_zgebmm = (dague_object_t *)dague_zgebmm_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, mt, trans, pool_0);
+    dague_zgebmm = (dague_object_t *)dague_zgebmm_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_but_vec, nt, mt, trans, pool_0);
 
     for(i=0; i<36; i++){
 #if defined(HAVE_MPI)
@@ -387,6 +385,7 @@ static dague_object_t **iterate_ops(tiled_matrix_desc_t *A, int curlevel,
                                     int maxlevel, int i_block, int j_block,
                                     dague_object_t **subop,
                                     dague_context_t *dague,
+                                    PLASMA_Complex64_t *U_but_vec,
                                     int destroy, int *info)
 {
     if(curlevel == maxlevel){
@@ -394,13 +393,13 @@ static dague_object_t **iterate_ops(tiled_matrix_desc_t *A, int curlevel,
             if( destroy ){
                 dplasma_zhebut_Destruct(*subop);
             }else{
-                *subop = dplasma_zhebut_New(A, i_block, j_block, curlevel, info);
+                *subop = dplasma_zhebut_New(A, U_but_vec, i_block, j_block, curlevel, info);
             }
         }else{
             if( destroy ){
                 dplasma_zgebut_Destruct(*subop);
             }else{
-                *subop = dplasma_zgebut_New(A, i_block, j_block, curlevel, info);
+                *subop = dplasma_zgebut_New(A, U_but_vec, i_block, j_block, curlevel, info);
             }
         }
         if( !destroy ){
@@ -409,14 +408,14 @@ static dague_object_t **iterate_ops(tiled_matrix_desc_t *A, int curlevel,
         return subop+1;
     }else{
         if( i_block == j_block ){
-            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block,   subop, dague, destroy, info);
-            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block,   subop, dague, destroy, info);
-            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block+1, subop, dague, destroy, info);
+            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block,   subop, dague, U_but_vec, destroy, info);
+            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block,   subop, dague, U_but_vec, destroy, info);
+            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block+1, subop, dague, U_but_vec, destroy, info);
         }else{
-            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block,   subop, dague, destroy, info);
-            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block,   subop, dague, destroy, info);
-            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block+1, subop, dague, destroy, info);
-            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block+1, subop, dague, destroy, info);
+            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block,   subop, dague, U_but_vec, destroy, info);
+            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block,   subop, dague, U_but_vec, destroy, info);
+            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block,   2*j_block+1, subop, dague, U_but_vec, destroy, info);
+            subop = iterate_ops(A, curlevel+1, maxlevel, 2*i_block+1, 2*j_block+1, subop, dague, U_but_vec, destroy, info);
         }
         return subop;
     }
@@ -433,9 +432,10 @@ static void RBT_zrandom(int N, PLASMA_Complex64_t *V)
 }
 
 
-int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, int level)
+int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Complex64_t **U_but_ptr, int level)
 {
     dague_object_t **subop;
+    PLASMA_Complex64_t *U_but_vec;
     int info = 0;
     int nbhe = 1<<level;
     int nbge = (1<<(level-1))*((1<<level)-1);
@@ -451,12 +451,13 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, int level)
 
     subop = (dague_object_t **)malloc((nbhe+nbge) * sizeof(dague_object_t*));
     U_but_vec = (PLASMA_Complex64_t *)malloc( (level+1)*(A->lm)*sizeof(PLASMA_Complex64_t) );
+    *U_but_ptr = U_but_vec;
     srandom(0);
     RBT_zrandom((level+1)*(A->lm), U_but_vec);
 
-    (void)iterate_ops(A, 0, level, 0, 0, subop, dague, CREATE_N_ENQUEUE, &info);
+    (void)iterate_ops(A, 0, level, 0, 0, subop, dague, U_but_vec, CREATE_N_ENQUEUE, &info);
     dplasma_progress(dague);
-    (void)iterate_ops(A, 0, level, 0, 0, subop, dague, DESTRUCT, &info);
+    (void)iterate_ops(A, 0, level, 0, 0, subop, dague, NULL, DESTRUCT, &info);
     free(subop);
     return info;
 }

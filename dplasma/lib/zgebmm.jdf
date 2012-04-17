@@ -37,16 +37,17 @@ static inline void ignore(const char* fmt, ...){
 
 extern void RBMM_zTOP( int mb, int nb, int lda, int off, int lvl, int N, int trans,
           PLASMA_Complex64_t *top, PLASMA_Complex64_t *btm,
-          PLASMA_Complex64_t *C );
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec );
 extern void RBMM_zBTM( int mb, int nb, int lda, int off, int lvl, int N, int trans,
           PLASMA_Complex64_t *top, PLASMA_Complex64_t *btm,
-          PLASMA_Complex64_t *C );
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec );
 
 %}
 
 [DAGUE_ARENA_STRUT = 36]
 descA  [type = "dague_seg_ddesc_t"]
 A      [type = "dague_ddesc_t *"]
+U      [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
 trans  [type = "int"]
@@ -110,10 +111,10 @@ BODY
   p_elem_br = dague_private_memory_pop( pool_0 );
 
 but_debug ("-- GEBMM\n");
-  RBMM_zTOP( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atl, Abl, p_elem_tl);
-  RBMM_zBTM( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atl, Abl, p_elem_bl);
-  RBMM_zTOP( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atr, Abr, p_elem_tr);
-  RBMM_zBTM( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atr, Abr, p_elem_br);
+  RBMM_zTOP( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atl, Abl, p_elem_tl, U);
+  RBMM_zBTM( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atl, Abl, p_elem_bl, U);
+  RBMM_zTOP( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atr, Abr, p_elem_tr, U);
+  RBMM_zBTM( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atr, Abr, p_elem_br, U);
 
   //sz = (lda*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
   //memcpy(Atl, p_elem_tl, sz);

@@ -11,7 +11,7 @@
 #include "dplasma.h"
 
 int
-dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, tiled_matrix_desc_t* B)
+dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, tiled_matrix_desc_t* B, PLASMA_Complex64_t *U_but_vec)
 {
     int info;
     dague_object_t *op;
@@ -22,7 +22,7 @@ dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, t
 
     // B = U_but_vec^T * B 
 #if 1
-    op = dplasma_zgebmm_New( B, 0, 0, 0, PlasmaConjTrans, &info);
+    op = dplasma_zgebmm_New( B, U_but_vec, 0, 0, 0, PlasmaConjTrans, &info);
     dague_enqueue(dague, op);
     dague_progress(dague);
     dplasma_zgebmm_Destruct(op);
@@ -34,7 +34,7 @@ dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, t
 
     // X = U_but_vec * X  (here X is B)
 #if 1
-    op = dplasma_zgebmm_New( B, 0, 0, 0, PlasmaNoTrans, &info);
+    op = dplasma_zgebmm_New( B, U_but_vec, 0, 0, 0, PlasmaNoTrans, &info);
     dague_enqueue(dague, op);
     dague_progress(dague);
     dplasma_zgebmm_Destruct(op);

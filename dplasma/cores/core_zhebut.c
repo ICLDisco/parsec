@@ -29,43 +29,44 @@ static inline void ignore(const char* fmt, ...){
  * U_but_vec is a concatanation of L+1 vectors (where L is the level of the 
  * butterfly) and is allocated in zhebut_wrapper.c
  */
-extern PLASMA_Complex64_t *U_but_vec;
+//extern PLASMA_Complex64_t *U_but_vec;
 
 /* Forward declaration of kernels for the butterfly transformation */
 void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int bl_is_tr_trans, int is_diagonal );
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int bl_is_tr_trans, int is_diagonal );
+
 void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int bl_is_tr_trans);
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int bl_is_tr_trans);
 void BFT_zQTR_trans( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int bl_is_tr_trans);
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int bl_is_tr_trans);
 void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int bl_is_tr_trans);
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int bl_is_tr_trans);
 void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int bl_is_tr_trans, int is_diagonal );
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int bl_is_tr_trans, int is_diagonal );
 
 void RBMM_zTOP( int mb, int nb, int lda, int i_seg, int lvl, int N, int trans,
           PLASMA_Complex64_t *top, PLASMA_Complex64_t *btm,
-          PLASMA_Complex64_t *C );
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec);
 void RBMM_zBTM( int mb, int nb, int lda, int i_seg, int lvl, int N, int trans,
           PLASMA_Complex64_t *top, PLASMA_Complex64_t *btm,
-          PLASMA_Complex64_t *C );
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec);
 
 /* Bodies of kernels for the butterfly transformation */
 
 void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int bl_is_tr_trans, int is_diagonal )
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int bl_is_tr_trans, int is_diagonal )
 {
     int i, j;
 
@@ -105,7 +106,7 @@ void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
 void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int bl_is_tr_trans)
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int bl_is_tr_trans)
 {
     int i, j;
     but_debug ("BFT_zQBL()\n");
@@ -141,7 +142,7 @@ void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
 void BFT_zQTR_trans( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int bl_is_tr_trans )
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int bl_is_tr_trans )
 {
     int i,j;
     but_debug ("BFT_zQTR_trans()\n");
@@ -176,7 +177,7 @@ void BFT_zQTR_trans( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int
 void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int bl_is_tr_trans )
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int bl_is_tr_trans )
 {
     int i, j;
     but_debug ("BFT_zQTR()\n");
@@ -211,7 +212,7 @@ void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
 void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int bl_is_tr_trans, int is_diagonal )
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int bl_is_tr_trans, int is_diagonal )
 {
     int i, j;
 
@@ -254,7 +255,7 @@ void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
 
 void RBMM_zTOP( int mb, int nb, int lda, int i_seg, int lvl, int N, int trans,
           PLASMA_Complex64_t *top, PLASMA_Complex64_t *btm,
-          PLASMA_Complex64_t *C )
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec)
 {
     int i, j;
     but_debug ("RBMM_zTOP()\n");
@@ -282,7 +283,7 @@ void RBMM_zTOP( int mb, int nb, int lda, int i_seg, int lvl, int N, int trans,
 
 void RBMM_zBTM( int mb, int nb, int lda, int i_seg, int lvl, int N, int trans,
           PLASMA_Complex64_t *top, PLASMA_Complex64_t *btm,
-          PLASMA_Complex64_t *C )
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec)
 {
     int i, j;
     but_debug ("RBMM_zBTM()\n");
