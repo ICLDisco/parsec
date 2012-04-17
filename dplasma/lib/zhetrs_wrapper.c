@@ -26,7 +26,6 @@ dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, t
     dague_enqueue(dague, op);
     dague_progress(dague);
     dplasma_zgebmm_Destruct(op);
-    dplasma_zprint(dague, PlasmaUpperLower, B);
 #endif
 
     dplasma_ztrsm( dague, PlasmaLeft, uplo, (uplo == PlasmaUpper) ? PlasmaConjTrans : PlasmaNoTrans, PlasmaUnit, 1.0, A, B );

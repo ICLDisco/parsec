@@ -24,6 +24,18 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/butterfly_map.h"
 
+#if defined(DEBUG_BUTTERFLY)
+# define but_debug printf
+#else
+# define but_debug ignore
+#endif
+
+static inline void ignore(const char* fmt, ...){
+    (void) fmt;
+    return;
+}
+
+
 #define NOT_TRANSPOSE 0x0
 #define TRANSPOSE     0x1
 
@@ -108,7 +120,7 @@ BODY
   p_elem_tr = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
-printf("-- GEBUT\n");
+but_debug ("-- GEBUT\n");
 
   BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, NOT_TRANSPOSE, 0);
   BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, NOT_TRANSPOSE);
@@ -126,7 +138,7 @@ printf("-- GEBUT\n");
   dague_private_memory_push( pool_0, p_elem_tr );
   dague_private_memory_push( pool_0, p_elem_br );
 
-  /* printf("GEBUT(%d,%d)\n",i,j); */
+  /* but_debug ("GEBUT(%d,%d)\n",i,j); */
 END
 
 
@@ -153,7 +165,7 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i, j, A);
 
-  printf("R A[%d][%d]:%lf\n",i,j,*(double *)A);
+  but_debug ("R A[%d][%d]:%lf\n",i,j,*(double *)A);
 
 
 END
@@ -182,7 +194,7 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i, j, A);
 
-  printf("W A[%d][%d]:%lf\n",i,j,*(double *)A);
+  but_debug ("W A[%d][%d]:%lf\n",i,j,*(double *)A);
 
 END
 

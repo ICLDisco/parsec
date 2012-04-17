@@ -24,13 +24,23 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/butterfly_map.h"
 
+#if defined(DEBUG_BUTTERFLY)
+# define but_debug printf
+#else
+# define but_debug ignore
+#endif
+
+static inline void ignore(const char* fmt, ...){
+    (void) fmt;
+    return;
+}
+
 extern void RBMM_zTOP( int mb, int nb, int lda, int off, int lvl, int N, int trans,
           PLASMA_Complex64_t *top, PLASMA_Complex64_t *btm,
           PLASMA_Complex64_t *C );
 extern void RBMM_zBTM( int mb, int nb, int lda, int off, int lvl, int N, int trans,
           PLASMA_Complex64_t *top, PLASMA_Complex64_t *btm,
           PLASMA_Complex64_t *C );
-
 
 %}
 
@@ -99,7 +109,7 @@ BODY
   p_elem_tr = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
-printf("-- GEBMM\n");
+but_debug ("-- GEBMM\n");
   RBMM_zTOP( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atl, Abl, p_elem_tl);
   RBMM_zBTM( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atl, Abl, p_elem_bl);
   RBMM_zTOP( mb_seg, nb_seg, lda, off_in_U, descA.level, N, trans, Atr, Abr, p_elem_tr);
@@ -125,7 +135,7 @@ printf("-- GEBMM\n");
   dague_private_memory_push( pool_0, p_elem_tr );
   dague_private_memory_push( pool_0, p_elem_br );
 
-  /* printf("GEBMM(%d,%d)\n",i,j); */
+  /* but_debug ("GEBMM(%d,%d)\n",i,j); */
 END
 
 
@@ -152,7 +162,7 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i, j, A);
 
-  printf("R A[%d][%d]:%lf\n",i,j,*(double *)A);
+  but_debug ("R A[%d][%d]:%lf\n",i,j,*(double *)A);
 
 
 END
@@ -181,7 +191,7 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i, j, A);
 
-  printf("W A[%d][%d]:%lf\n",i,j,*(double *)A);
+  but_debug ("W A[%d][%d]:%lf\n",i,j,*(double *)A);
 
 END
 

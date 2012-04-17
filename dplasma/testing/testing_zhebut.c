@@ -117,7 +117,7 @@ int main(int argc, char ** argv)
     TIME_START();
     dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, butterfly_level);
     dplasma_zhetrf(dague, (tiled_matrix_desc_t *)&ddescA);
-    dplasma_zprint(dague, PlasmaLower, (tiled_matrix_desc_t *)&ddescA);
+    //dplasma_zprint(dague, PlasmaLower, (tiled_matrix_desc_t *)&ddescA);
 
     fprintf(stderr,"-- DONE\n");
 
