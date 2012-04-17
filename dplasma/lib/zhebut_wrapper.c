@@ -429,7 +429,7 @@ static void RBT_zrandom(int N, PLASMA_Complex64_t *V)
 
     for (i=0; i<N; i++){
         V[i] = (PLASMA_Complex64_t)exp(((random()/(double)RAND_MAX)-0.5)/10.0);
-        printf("U_but_vec[%d]: %lf\n",i,V[i]);
+        printf("U_but_vec[%d]: %lf\n",i,creal(V[i]));
     }
 }
 
