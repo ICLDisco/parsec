@@ -31,7 +31,6 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
-    PASTE_CODE_FLOPS(FLOPS_ZGEMV, ((DagDouble_t)M, (DagDouble_t)N));
 
     check = 1;
     LDA = max( LDA, M );
