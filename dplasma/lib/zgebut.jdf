@@ -34,11 +34,11 @@ void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
 void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, int is_transpose );
 void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, int is_transpose );
 void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
@@ -99,7 +99,7 @@ BODY
   segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
 
   i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
-  j_seg = j_tile*nb_tile + off_in_tile%nb_tile;
+  j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
   N = descA.A_org->lm;
 
@@ -109,12 +109,10 @@ BODY
   p_elem_br = dague_private_memory_pop( pool_0 );
 
 printf("-- GEBUT\n");
-/* why Abl twice?
-  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, NOT_TRANSPOSE, 0);
-*/
+
   BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, NOT_TRANSPOSE, 0);
-  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, NOT_TRANSPOSE, 0);
-  BFT_zQTR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, NOT_TRANSPOSE, 0);
+  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, NOT_TRANSPOSE);
+  BFT_zQTR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, NOT_TRANSPOSE);
   BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, NOT_TRANSPOSE, 0);
 
   sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
