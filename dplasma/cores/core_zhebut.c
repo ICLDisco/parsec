@@ -57,7 +57,10 @@ void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *C, int bl_is_tr_trans, int is_diagonal )
 {
     int i, j;
-    printf("BFT_zQTL()\n");
+
+    printf("BFT_zQTL(mb:%d, nb:%d, lda:%d, i_seg:%d, j_seg:%d, lvl:%d, N:%d, bl_is_tr_trans:%d, is_diagonal:%d)\n",
+            mb, nb, lda, i_seg, j_seg, lvl, N, bl_is_tr_trans, is_diagonal);
+
     if( bl_is_tr_trans ){
         for (j=0; j<nb; j++) {
             int start = is_diagonal ? j : 0;
@@ -200,7 +203,12 @@ void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *C, int bl_is_tr_trans, int is_diagonal )
 {
     int i, j;
-    printf("BFT_zQBR()\n");
+
+    if( is_diagonal )
+        printf("BFT_zQBR(diag)\n");
+    else
+        printf("BFT_zQBR(lower)\n");
+
     if( bl_is_tr_trans ){
         for (j=0; j<nb; j++) {
             int start = is_diagonal ? j : 0;
