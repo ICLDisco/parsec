@@ -35,15 +35,15 @@ void BFT_zQTL( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N
 void BFT_zQBL( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, int is_transpose);
 void BFT_zQTR_trans( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, int is_transpose);
 void BFT_zQTR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, int is_transpose, int is_diagonal );
+          PLASMA_Complex64_t *C, int is_transpose);
 void BFT_zQBR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
@@ -82,7 +82,7 @@ HEBUT_Diag(i)
 
 BODY
 
-  unsigned mb_seg, nb_seg, mb_tile, nb_tile, N;
+  unsigned jj, mb_seg, nb_seg, mb_tile, nb_tile, N;
   uintptr_t i_seg, j_seg, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_br;
@@ -99,29 +99,54 @@ BODY
   segment_to_tile(&descA, i, i, &i_tile, &j_tile, &off_in_tile);
 
   i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
-  j_seg = j_tile*nb_tile + off_in_tile%nb_tile;
+  j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
   N = descA.A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
   p_elem_bl = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
+  fflush(stdout);
+  fflush(stderr);
+
+  printf("=> HEBUT_Diag(%d): i_tile:%d, j_tile:%d, off_in_tile:%lu, i_seg:%lu, j_seg:%lu\n", i, i_tile, j_tile, off_in_tile, i_seg, j_seg);
+
+  fflush(stdout);
+  fflush(stderr);
+
   BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, BL_IS_TR_TRANS, 1);
-  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, BL_IS_TR_TRANS, 1);
+  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, BL_IS_TR_TRANS);
   BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, BL_IS_TR_TRANS, 1);
 
-  /* The bottom left segment will always be rectangular, so copy the whole thing */
-  sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
-  memcpy(Abl, p_elem_bl, sz);
+  fflush(stdout);
+  fflush(stderr);
+
+  printf("--> HEBUT_Diag(%d): mb_tile=%u, nb_tile=%u, mb_seg=%u, nb_seg=%u\n",i, mb_tile, nb_tile, mb_seg, nb_seg);
+
+  /* The bottom left segment will always be rectangular */
+  for(jj=0; jj<nb_seg; jj++){
+      uintptr_t off = (mb_tile*jj) * sizeof(PLASMA_Complex64_t);
+      sz = mb_seg * sizeof(PLASMA_Complex64_t);
+      memcpy(Abl+off, p_elem_bl+off, sz);
+      printf("--> HEBUT_Diag(%d): Abl: %p, sz:%d\n",i, Abl, sz);
+  }
 
   /* The top left and bottom right segments in this task are always triangular, so copy only the triangle */
-  int ii;
-  for(ii=0; ii<nb_seg; ii++){
-      uintptr_t off = (mb_tile*ii+ii) * sizeof(PLASMA_Complex64_t);
-      sz = (mb_seg-ii) * sizeof(PLASMA_Complex64_t);
-      memcpy(Atl+off, p_elem_tl+off, sz);
-      memcpy(Abr+off, p_elem_br+off, sz);
+  for(jj=0; jj<nb_seg; jj++){
+      uintptr_t off = (mb_tile*jj+jj) * sizeof(PLASMA_Complex64_t);
+      sz = (mb_seg-jj) * sizeof(PLASMA_Complex64_t);
+      if( 0 != sz ){
+          memcpy(Atl+off, p_elem_tl+off, sz);
+          memcpy(Abr+off, p_elem_br+off, sz);
+
+          printf("--> HEBUT_Diag(%d): Atl+off: %p+%lu, sz:%d\n",i, Atl, off, sz);
+          printf("--> HEBUT_Diag(%d): Abr+off: %p+%lu, sz:%d\n",i, Abr, off, sz);
+          printf("--> HEBUT_Diag(%d): (off = (%u*%u+%u)*%lu)\n",i, mb_tile, jj, jj, sizeof(PLASMA_Complex64_t));
+      }
   }
+
+  fflush(stdout);
+  fflush(stderr);
 
   dague_private_memory_push( pool_0, p_elem_tl );
   dague_private_memory_push( pool_0, p_elem_bl );
@@ -159,7 +184,7 @@ HEBUT_Lower(i,j)
 
 BODY
 
-  unsigned mb_seg, nb_seg, mb_tile, nb_tile, N;
+  unsigned jj, mb_seg, nb_seg, mb_tile, nb_tile, N;
   uintptr_t i_seg, j_seg, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
@@ -176,7 +201,7 @@ BODY
   segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
 
   i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
-  j_seg = j_tile*nb_tile + off_in_tile%nb_tile;
+  j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
   N = descA.A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
@@ -184,18 +209,51 @@ BODY
   p_elem_tr = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
+  fflush(stdout);
+  fflush(stderr);
+  
+  printf("=> HEBUT_Lower(%d, %d): i_tile:%d, j_tile:%d, off_in_tile:%lu, i_seg:%lu, j_seg:%lu\n", i, j, i_tile, j_tile, off_in_tile, i_seg, j_seg);
+
+  fflush(stdout);
+  fflush(stderr);
+
   BFT_zQTL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, BL_IS_TR_TRANS, 0);
-  BFT_zQBL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, BL_IS_TR_TRANS, 0);
-  BFT_zQTR_trans( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, BL_IS_TR_TRANS, 0);
+  BFT_zQBL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, BL_IS_TR_TRANS);
+  BFT_zQTR_trans( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, BL_IS_TR_TRANS);
   BFT_zQBR(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, BL_IS_TR_TRANS, 0);
 
-  sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
-  memcpy(Atl, p_elem_tl, sz);
-  memcpy(Abl, p_elem_bl, sz);
-  memcpy(Abr, p_elem_br, sz);
+  fflush(stdout);
+  fflush(stderr);
+
+  printf("--> HEBUT_Lower(%d,%d): mb_tile=%u, nb_tile=%u, mb_seg=%u, nb_seg=%u\n",i,j, mb_tile, nb_tile, mb_seg, nb_seg);
+
+  //sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
+  //memcpyAtl, p_elem_tl, sz);
+  //memcpy(Abl, p_elem_bl, sz);
+  //memcpy(Abr, p_elem_br, sz);
+
+  /* The bottom left segment will always be rectangular */
+  for(jj=0; jj<nb_seg; jj++){
+      uintptr_t off = (mb_tile*jj) * sizeof(PLASMA_Complex64_t);
+      sz = mb_seg * sizeof(PLASMA_Complex64_t);
+      memcpy(Atl+off, p_elem_tl+off, sz);
+      memcpy(Abl+off, p_elem_bl+off, sz);
+      memcpy(Abr+off, p_elem_br+off, sz);
+      printf("--> HEBUT_Lower(%d,%d): Atl+off: %p+%lu, sz:%d\n",i,j, Atl, off, sz);
+      printf("--> HEBUT_Lower(%d,%d): Abl+off: %p+%lu, sz:%d\n",i,j, Abl, off, sz);
+      printf("--> HEBUT_Lower(%d,%d): Abr+off: %p+%lu, sz:%d\n",i,j, Abr, off, sz);
+  }
+
   /* Atr is transposed, so it's mb elements in the horizontal dimension */
-  sz = (mb_tile*(mb_seg-1)+nb_seg) * sizeof(PLASMA_Complex64_t);
-  memcpy(Atr, p_elem_tr, sz);
+  //sz = (mb_tile*(mb_seg-1)+nb_seg) * sizeof(PLASMA_Complex64_t);
+  //memcpy(Atr, p_elem_tr, sz);
+  for(jj=0; jj<mb_seg; jj++){
+      uintptr_t off = (mb_tile*jj) * sizeof(PLASMA_Complex64_t);
+      sz = nb_seg * sizeof(PLASMA_Complex64_t);
+      memcpy(Atr+off, p_elem_tr+off, sz);
+      printf("--> HEBUT_Lower(%d,%d): Atr+off: %p+%lu, sz:%d\n",i,j, Atr, off, sz);
+  }
+
 
   dague_private_memory_push( pool_0, p_elem_tl );
   dague_private_memory_push( pool_0, p_elem_bl );
@@ -294,19 +352,25 @@ RW A <- (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i, j) [ arena_index = inlin
 
 BODY
   /* nothing */
+  unsigned ii,jj, mb_tile, nb_tile, mb_seg, nb_seg, type;
 
   printlog("thread %d HEBUT_Writer_TL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i, j, A);
+  context->eu_id, i*mb_seg, j*nb_seg, i, j, A);
 
-  int ii,jj,mb,nb;
-  mb = descA.A_org->mb;
-  nb = descA.A_org->nb;
   printf("HEBUT_Writer_TL(%d,%d)\n",i,j);
-  for(jj=0; jj<nb; jj++){
+
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
+
+  type = segment_to_type_index(descA.seg_info, i, j);
+  (void)type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+
+  for(ii=0; ii<mb_seg; ii++){
       printf("  ");
-      for(ii=0; ii<mb; ii++){
-          printf("A(%d,%d):%lf ",i*mb+jj,j*nb+ii, *(double *)((ii*mb+jj)*sizeof(double)+A) );
+      for(jj=0; jj<nb_seg; jj++){
+          printf("A(%d,%d):%lf ",i*mb_seg+ii,j*nb_seg+jj, *(double *)((jj*mb_tile+ii)*sizeof(double)+A) );
+          //printf("A(%d,%d):%lf ",i*mb_seg+jj,j*nb_seg+ii, *(double *)((ii*mb_seg+jj)*sizeof(double)+A) );
       }
       printf("\n");
   }
@@ -331,19 +395,24 @@ RW A <- (i==j) ? Abl HEBUT_Diag(i)  [ arena_index = inline_c %{ return segment_t
 
 BODY
   /* nothing */
+  unsigned ii, jj, mb_tile, nb_tile, mb_seg, nb_seg, type;
 
   printlog("thread %d HEBUT_Writer_BL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i+mt/2, j, A);
 
-  int ii,jj,mb,nb;
-  mb = descA.A_org->mb;
-  nb = descA.A_org->nb;
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
+
+  type = segment_to_type_index(descA.seg_info, i, j);
+  (void)type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+
   printf("HEBUT_Writer_BL(%d,%d)\n",i,j);
-  for(jj=0; jj<nb; jj++){
+  for(ii=0; ii<mb_seg; ii++){
       printf("  ");
-      for(ii=0; ii<mb; ii++){
-          printf("A(%d,%d):%lf ",(i+mt/2)*mb+jj,j*nb+ii, *(double *)((ii*mb+jj)*sizeof(double)+A) );
+      for(jj=0; jj<nb_seg; jj++){
+          printf("A(%d,%d):%lf ",(i+mt/2)*mb_seg+ii,j*nb_seg+jj, *(double *)((jj*mb_tile+ii)*sizeof(double)+A) );
+          //printf("A(%d,%d):%lf ",(i+mt/2)*mb_seg+jj,j*nb_seg+ii, *(double *)((ii*mb_seg+jj)*sizeof(double)+A) );
       }
       printf("\n");
   }
@@ -366,19 +435,24 @@ RW A <- (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i, j) [ arena_index = inlin
 
 BODY
   /* nothing */
+  unsigned ii, jj, mb_tile, nb_tile, mb_seg, nb_seg, type;
 
   printlog("thread %d HEBUT_Writer_BR(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i+mt/2, j+nt/2, A);
 
-  int ii,jj,mb,nb;
-  mb = descA.A_org->mb;
-  nb = descA.A_org->nb;
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
+
+  type = segment_to_type_index(descA.seg_info, i, j);
+  (void)type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+
   printf("HEBUT_Writer_BR(%d,%d)\n",i,j);
-  for(jj=0; jj<descA.A_org->nb; jj++){
+  for(ii=0; ii<mb_seg; ii++){
       printf("  ");
-      for(ii=0; ii<descA.A_org->mb; ii++){
-          printf("A(%d,%d):%lf ", (i+mt/2)*mb+jj, (j+nt/2)*nb+ii, *(double *)((ii*mb+jj)*sizeof(double)+A) );
+      for(jj=0; jj<nb_seg; jj++){
+          printf("A(%d,%d):%lf ",(i+mt/2)*mb_seg+ii,(j+nt/2)*nb_seg+jj, *(double *)((jj*mb_tile+ii)*sizeof(double)+A) );
+          //printf("A(%d,%d):%lf ", (i+mt/2)*mb_seg+jj, (j+nt/2)*nb_seg+ii, *(double *)((ii*mb_seg+jj)*sizeof(double)+A) );
       }
       printf("\n");
   }
