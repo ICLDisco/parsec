@@ -167,6 +167,7 @@ void dplasma_zplgsy_Destruct( dague_object_t *o );
 
 void dplasma_zhebut_Destruct( dague_object_t *o );
 void dplasma_zgebut_Destruct( dague_object_t *o );
+void dplasma_zgebmm_Destruct( dague_object_t *o );
 
 void dplasma_zhetrf_Destruct( dague_object_t *o );
 
