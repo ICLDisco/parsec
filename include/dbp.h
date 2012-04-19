@@ -1,8 +1,15 @@
+/*
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _dbp_h
 #define _dbp_h
 
 #include "dague_config.h"
 #include <inttypes.h>
+#include <pthread.h>
 
 #include "os-spec-timing.h"
 #include "list.h"
@@ -13,7 +20,8 @@
 typedef struct dague_profiling_output_base_event_t {
     uint16_t        key;
     uint16_t        flags;
-    uint64_t        id;
+    uint32_t        object_id;
+    uint64_t        event_id;
     dague_time_t    timestamp;
 } dague_profiling_output_base_event_t;
 
@@ -28,6 +36,7 @@ typedef struct dague_profiling_output_t {
 #define PROFILING_BUFFER_TYPE_GLOBAL_INFO 4
 #define PROFILING_BUFFER_TYPE_HEADER      5
 typedef struct dague_profiling_buffer {
+    int64_t  this_buffer_file_offset;    /* Used by the malloc / write method. MUST BE THE FIRST ELEMENT */
     int64_t  next_buffer_file_offset;
     union {
         int64_t  nb_events;              /* Used by BUFFER_TYPE_EVENTS     */
@@ -67,6 +76,7 @@ typedef struct {
  * Structure of a Dague Binary Profile:
  */
 typedef struct {
+    int64_t  this_buffer_file_offset;  /* Must be 0. Used by the malloc / write method. MUST BE THE FIRST ELEMENT */
     char    magick[24];          /* Must be "#DAGUE BINARY PROFILE  " */
     int64_t byte_order;          /* The writer put 0x0123456789ABCDEF */
     int32_t profile_buffer_size; /* Size of profile_*_buffers */

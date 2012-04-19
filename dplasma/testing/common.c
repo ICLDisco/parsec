@@ -45,11 +45,13 @@ const int   side[2]  = { PlasmaLeft,    PlasmaRight };
 const int   uplo[2]  = { PlasmaUpper,   PlasmaLower };
 const int   diag[2]  = { PlasmaNonUnit, PlasmaUnit  };
 const int   trans[3] = { PlasmaNoTrans, PlasmaTrans, PlasmaConjTrans };
+const int   norms[4] = { PlasmaMaxNorm, PlasmaOneNorm, PlasmaInfNorm, PlasmaFrobeniusNorm };
 
 const char *sidestr[2]  = { "Left ", "Right" };
 const char *uplostr[2]  = { "Upper", "Lower" };
 const char *diagstr[2]  = { "NonUnit", "Unit   " };
 const char *transstr[3] = { "N", "T", "H" };
+const char *normsstr[4] = { "Max", "One", "Inf", "Fro" };
 
 static char *dot_filename = NULL;
 

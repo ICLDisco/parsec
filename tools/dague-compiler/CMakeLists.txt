@@ -13,7 +13,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
   SET_SOURCE_FILES_PROPERTIES(${BISON_dague_yacc_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS} -w")
   SET_SOURCE_FILES_PROPERTIES(${FLEX_dague_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS} -w")
 
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+  include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 
   add_executable(daguepp main.c jdf.c jdf2c.c ${BISON_dague_yacc_OUTPUTS} ${FLEX_dague_flex_OUTPUTS})
   set_target_properties(daguepp PROPERTIES LINKER_LANGUAGE C)

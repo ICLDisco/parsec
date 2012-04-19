@@ -29,7 +29,8 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     int info = 0;
     int u, t1, t2;
-    int info_solve, info_facto;
+    int info_solve = 0;
+    int info_facto = 0;
     int ret = 0;
 
     /* Set defaults for non argv iparams */
@@ -120,14 +121,14 @@ int main(int argc, char ** argv)
 
         /* Check the factorization */
         if ( info == 0 ) {
-          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
-                                            (tiled_matrix_desc_t *)&ddescA,
-                                            (tiled_matrix_desc_t *)&ddescA0);
+            info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
+                                              (tiled_matrix_desc_t *)&ddescA,
+                                              (tiled_matrix_desc_t *)&ddescA0);
 
-          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
-                                       (tiled_matrix_desc_t *)&ddescA0,
-                                       (tiled_matrix_desc_t *)&ddescB,
-                                       (tiled_matrix_desc_t *)&ddescX);
+            info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
+                                         (tiled_matrix_desc_t *)&ddescA0,
+                                         (tiled_matrix_desc_t *)&ddescB,
+                                         (tiled_matrix_desc_t *)&ddescX);
         }
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
@@ -167,14 +168,14 @@ int main(int argc, char ** argv)
 
         /* Check the solution */
         if ( info == 0 ) {
-          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
-                                            (tiled_matrix_desc_t *)&ddescA,
-                                            (tiled_matrix_desc_t *)&ddescA0);
+            info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
+                                              (tiled_matrix_desc_t *)&ddescA,
+                                              (tiled_matrix_desc_t *)&ddescA0);
 
-          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
-                                       (tiled_matrix_desc_t *)&ddescA0,
-                                       (tiled_matrix_desc_t *)&ddescB,
-                                       (tiled_matrix_desc_t *)&ddescX);
+            info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
+                                         (tiled_matrix_desc_t *)&ddescA0,
+                                         (tiled_matrix_desc_t *)&ddescB,
+                                         (tiled_matrix_desc_t *)&ddescX);
         }
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
@@ -216,14 +217,14 @@ int main(int argc, char ** argv)
 
         /* Check the solution */
         if ( info == 0 ) {
-          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
-                                            (tiled_matrix_desc_t *)&ddescA,
-                                            (tiled_matrix_desc_t *)&ddescA0);
+            info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
+                                              (tiled_matrix_desc_t *)&ddescA,
+                                              (tiled_matrix_desc_t *)&ddescA0);
 
-          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
-                                       (tiled_matrix_desc_t *)&ddescA0,
-                                       (tiled_matrix_desc_t *)&ddescB,
-                                       (tiled_matrix_desc_t *)&ddescX);
+            info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
+                                         (tiled_matrix_desc_t *)&ddescA0,
+                                         (tiled_matrix_desc_t *)&ddescB,
+                                         (tiled_matrix_desc_t *)&ddescX);
         }
 
         if ( rank == 0 ) {

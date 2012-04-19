@@ -15,9 +15,10 @@
 
 #include "profiling.h"
 
-
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+
+#include "gpu_malloc.h"
 
 #define DAGUE_MAX_STREAMS 4
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
@@ -77,6 +78,7 @@ typedef struct _gpu_device {
 #if defined(DAGUE_PROF_TRACE)
     dague_thread_profiling_t *profiling;
 #endif  /* defined(PROFILING) */
+    gpu_malloc_t *memory;
 } gpu_device_t;
 
 #define DAGUE_CUDA_CHECK_ERROR( STR, ERROR, CODE )                      \

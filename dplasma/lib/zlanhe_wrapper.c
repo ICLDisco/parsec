@@ -142,7 +142,7 @@ double dplasma_zlanhe( dague_context_t *dague,
         return -1;
     }
 
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&workD);
+    dplasma_dlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&workD);
 
     args.ntype = ntype;
     args.desc = A;
