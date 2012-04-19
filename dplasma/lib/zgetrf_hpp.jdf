@@ -119,7 +119,7 @@ BODY
 
   int tempm  = m * descA.mb;
   //int tempn  = k * descA.nb;
-  //int temp_m_plus_s_minus_one_m  = (m+s-1 == descA.mt-1) ? descA.m-(m+s-1)*descA.mb : descA.mb;
+  int temp_m_plus_s_minus_one_m  = (m+s-1 == descA.mt-1) ? descA.m-(m+s-1)*descA.mb : descA.mb;
   int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
   int tempmm = m == descA.mt-1 ? descA.m-m*descA.mb : descA.mb;
   //int ldak = BLKLDD(descA, k);
@@ -132,7 +132,7 @@ BODY
 
       PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
                                              descA.mb, descA.nb, descA.mb * descA.nb,
-                                             (descA.mt-m)*descA.mb, descA.nb, 0, 0,
+                                             (s-1)*descA.mb + temp_m_plus_s_minus_one_m, descA.nb, 0, 0,
                                              tempm, tempkn);
       pdescA.mat = A;
       CORE_zgetrf_rectil_1thrd( pdescA, IP);
@@ -176,13 +176,14 @@ BODY
   DRYRUN(
          int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
          int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-         int ldak = BLKLDD(descA, k);
+         int temp_m_plus_s_minus_one_m  = (m+s-1 == descA.mt-1) ? descA.m-(m+s-1)*descA.mb : descA.mb;
+         int ldam = BLKLDD(descA, m);
          int tempk = k * descA.mb;
          int tempm = descA.m - tempk;
 
          PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble, 
                                                 descA.mb, descA.nb, descA.mb * descA.nb,
-                                                (descA.mt-m)*descA.mb, descA.nb, 0, 0,
+                                                (s-1)*descA.mb + temp_m_plus_s_minus_one_m, descA.nb, 0, 0,
                                                 tempm, tempnn);
          pdescA.mat = (void*)A;
 
@@ -191,8 +192,8 @@ BODY
          CORE_ztrsm(
              PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
              tempmm, tempnn,
-             1., A /*A(m, k)*/, ldak,
-                 C /*A(m, n)*/, ldak);
+             1., A /*A(m, k)*/, ldam,
+                 C /*A(m, n)*/, ldam);
          );
 
    printlog("thread %d   CORE_zswptrsm(%d, %d)\n"
