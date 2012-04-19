@@ -343,12 +343,6 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
         dindex++;
     }
 
-    /**
-     * Prepare the reusable memory on the GPU.
-     */
-    dague_gpu_map.desc     = NULL;
-    dague_gpu_map.data_map = NULL;
-    
     dague_data_enable_gpu( ndevices );
     return 0;
 }
