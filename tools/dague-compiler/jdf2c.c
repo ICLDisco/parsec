@@ -1577,7 +1577,6 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     sa2 = string_arena_new(64);
     sa3 = string_arena_new(64);
 
-#warning Should be virtal_processes[vpid_of(...)] (not critical, though)
     coutput("static int %s(dague_context_t *context, const __dague_%s_internal_object_t *__dague_object, dague_execution_context_t** pready_list)\n"
             "{\n"
             "  dague_execution_context_t* new_context, new_context_holder, *new_dynamic_context;\n"
@@ -1699,17 +1698,6 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
 
     coutput("%s  dague_list_add_single_elem_by_priority( &pready_list[vpid], new_dynamic_context );\n", indent(nesting));
-
-	 // PETER this does eventually pass through dague_schedule 
-    coutput("%s  new_dynamic_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->virtual_processes[vpid]->execution_units[0]->context_mempool );\n"
-            "%s  assignments = new_dynamic_context->locals;\n",
-            indent(nesting),
-            indent(nesting));
-    /* Dump all assignments except the last one */
-    for(idx = 0, dl = f->definitions; NULL != dl->next; dl = dl->next, idx++) {
-        coutput("%s  assignments[%d].value = %s;\n",
-                indent(nesting), idx, dl->name);
-    }
 
     for(; nesting > 0; nesting--) {
         coutput("%s}\n", indent(nesting));
