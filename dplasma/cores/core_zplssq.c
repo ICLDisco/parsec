@@ -15,9 +15,12 @@
 #include <math.h>
 #include <lapacke.h>
 //#include "common.h"
+#include "dague_config.h"
 #include "plasma.h"
 #include "cblas.h"
 #include "core_blas.h"
+#include "dplasma_cores.h"
+#include "dplasma_zcores.h"
 
 #define COMPLEX
 

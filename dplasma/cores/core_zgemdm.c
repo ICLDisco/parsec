@@ -15,7 +15,7 @@
  **/
 #include <lapacke.h>
 #include "dague_config.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 
 #if defined(HAVE_STRING_H)
