@@ -89,7 +89,7 @@ static inline char* arprintf(const char* fmt, ...)
 
 #ifdef DAGUE_DEBUG_VERBOSE3
 # define DEBUG3(ARG) do { \
-    _DAGUE_OUTPUT("D-.", ARG); \
+    _DAGUE_OUTPUT("D^", ARG); \
     _DAGUE_DEBUG_HISTORY(ARG); \
 } while(0)
 #else /*DEBUG3*/
@@ -98,7 +98,7 @@ static inline char* arprintf(const char* fmt, ...)
 
 #ifdef DAGUE_DEBUG_VERBOSE2
 # define DEBUG2(ARG) do { \
-    _DAGUE_OUTPUT("D_.", ARG); \
+    _DAGUE_OUTPUT("D.", ARG); \
     _DAGUE_DEBUG_HISTORY(ARG); \
 } while(0)
 #else /*DEBUG2*/
