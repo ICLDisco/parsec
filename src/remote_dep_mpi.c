@@ -340,6 +340,7 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_remote_dep_datatype_t datatype,
                              int nbelt)
 {
+    assert(eu_context->master_context->nb_nodes > 1);
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
     DAGUE_LIST_ITEM_CONSTRUCT(item);
     item->action = DEP_MEMCPY;
@@ -644,7 +645,6 @@ static dague_remote_deps_t* dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_dtt MPI_LONG
 #define datakey_count 3
 static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
-static size_t dep_mpi_eager_limit;
 static size_t dep_mpi_short_limit;
 
 /* Pointers are converted to long to be used as keys to fetch data in the get
@@ -722,7 +722,6 @@ static int remote_dep_mpi_init(dague_context_t* context)
 
     dep_pending_recv_array = (dague_remote_deps_t**)calloc(DEP_NB_CONCURENT, sizeof(dague_remote_deps_t*));
     dep_pending_put_array = (dague_dep_wire_get_fifo_elem_t**)calloc(DEP_NB_CONCURENT, sizeof(dague_dep_wire_get_fifo_elem_t*));
-    dep_mpi_eager_limit = RDEP_MSG_EAGER_LIMIT;
     dep_mpi_short_limit = RDEP_MSG_SHORT_LIMIT;
     remote_dep_mpi_profiling_init();
     return 0;
@@ -775,55 +774,37 @@ static int remote_dep_mpi_on(dague_context_t* context)
 /* Send the activate tag */
 static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank, remote_dep_wire_activate_t* msg)
 {
-    dague_remote_deps_t* deps = (dague_remote_deps_t*) msg->deps;
-    dague_object_t* obj = deps->dague_object;
 #ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[128];
 #endif
+
 #if !defined(DAGUE_PROF_TRACE)
     (void)eu_context;
 #endif
-
     msg->tag = next_tag(MAX_PARAM_COUNT); /* todo: waste less tags to diminish collision probability */
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), msg->deps, msg->which, msg->tag));
 
-    /* Treat for special cases: CTL, Eeager, etc... */
-    char* packed_buffer[RDEP_MSG_EAGER_LIMIT];
-    int packed = 0;
-    MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, RDEP_MSG_EAGER_LIMIT, &packed, dep_comm);
-    for(int k=0; msg->which>>k; k++) {
-        if(0 == (msg->which & (1<<k))) continue;
-
-        /* Remove CTL from the message we expect to send */
-        if(NULL == deps->output[k].type) {
-            DEBUG2((" CTL\t%s\tparam %d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
-            msg->which ^= (1<<k);
-            remote_dep_complete_one_and_cleanup(deps);
-        }
-
-        /* Embed as many Eager as possible with the activate msg */
-        int dsize;
-        MPI_Pack_size(deps->output[k].nbelt, deps->output[k].type->opaque_dtt, dep_comm, &dsize);
-        if((dep_mpi_eager_limit - packed) > (size_t)dsize) {
-            DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
-            msg->which ^= (1<<k);
-            MPI_Pack(ADATA(deps->output[k].data), deps->output[k].nbelt, deps->output[k].type->opaque_dtt, packed_buffer, dep_mpi_eager_limit, &packed, dep_comm);
-            remote_dep_complete_one_and_cleanup(deps);
-        }
-    }
-
     TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act, eu_context->master_context->my_rank, rank, (*msg));
-    DAGUE_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, packed, MPI_PACKED);
-    MPI_Send((void*) packed_buffer, packed, MPI_PACKED, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
+    DAGUE_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, dep_count, dep_dtt);
+    MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(rank, (void*)msg, msg);
-    
-    if(0 == msg->which) {
-        remote_dep_dec_flying_messages(obj, eu_context->master_context);
+
+    /* Do not wait for completion of CTL */
+    for(int k=0; msg->which>>k; k++) {
+        if(0 == (msg->which & (1<<k))) continue;
+        dague_remote_deps_t* deps = (dague_remote_deps_t*) msg->deps;
+        if(NULL != deps->output[k].type) continue;
+
+        DEBUG2((" CTL\t%s\tparam %d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
+
+        msg->which ^= (1<<k);
+        if(0 == msg->which) {
+            remote_dep_dec_flying_messages(((dague_remote_deps_t*)msg->deps)->dague_object, eu_context->master_context);
+        }
+        remote_dep_complete_one_and_cleanup(deps);
     }
-    else {
-        remote_dep_mpi_put_short(eu_context, msg, rank);
-    }
+    remote_dep_mpi_put_short(eu_context, msg, rank);
     return 1;
 }
 
