@@ -350,14 +350,14 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
 int dague_gpu_fini( void )
 {
     gpu_device_t* gpu_device;
-    cudaError_t status;
+    CUresult status;
     int i, j;
 
     for(i = 0; i < __dague_active_gpu; i++) {
         if( NULL == (gpu_device = gpu_enabled_devices[i]) ) continue;
         gpu_enabled_devices[i] = NULL;
 
-        status = (cudaError_t)cuCtxPushCurrent( gpu_device->ctx );
+        status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxPushCurrent ", status,
                                 {continue;} );
         
@@ -377,7 +377,7 @@ int dague_gpu_fini( void )
         /* Release all registered events */
         for( j= 0; j < gpu_device->max_in_tasks; j++ ) {
             assert( NULL == gpu_device->in_array[j] );
-            status = (cudaError_t)cuEventDestroy(gpu_device->in_array_events[j]);
+            status = cuEventDestroy(gpu_device->in_array_events[j]);
             DAGUE_CUDA_CHECK_ERROR( "(FINI) cuEventDestroy ", status,
                                     {continue;} );
         }
@@ -385,7 +385,7 @@ int dague_gpu_fini( void )
         free(gpu_device->in_array_events); gpu_device->in_array_events = NULL;
         for( j= 0; j < gpu_device->max_exec_tasks; j++ ) {
             assert( NULL == gpu_device->exec_array[j] );
-            status = (cudaError_t)cuEventDestroy(gpu_device->exec_array_events[j]);
+            status = cuEventDestroy(gpu_device->exec_array_events[j]);
             DAGUE_CUDA_CHECK_ERROR( "(FINI) cuEventDestroy ", status,
                                     {continue;} );
         }
@@ -393,7 +393,7 @@ int dague_gpu_fini( void )
         free(gpu_device->exec_array_events); gpu_device->exec_array_events = NULL;
         for( j= 0; j < gpu_device->max_out_tasks; j++ ) {
             assert( NULL == gpu_device->out_array[j] );
-            status = (cudaError_t)cuEventDestroy(gpu_device->out_array_events[j]);
+            status = cuEventDestroy(gpu_device->out_array_events[j]);
             DAGUE_CUDA_CHECK_ERROR( "(FINI) cuEventDestroy ", status,
                                     {continue;} );
         }
@@ -405,7 +405,7 @@ int dague_gpu_fini( void )
         DAGUE_LIST_DESTRUCT(gpu_device->fifo_pending_out);
 #endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
 
-        status = (cudaError_t)cuCtxDestroy( gpu_device->ctx );
+        status = cuCtxDestroy( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxDestroy ", status,
                                 {continue;} );
         gpu_device->ctx = NULL;
@@ -433,7 +433,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                              )
 {
     gpu_device_t* gpu_device;
-    cudaError_t status;
+    CUresult status;
     int i;
 
     if( NULL != dague_gpu_map.data_map ) {
@@ -457,7 +457,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
 
         if( NULL == (gpu_device = gpu_enabled_devices[i]) ) continue;
 
-        status = (cudaError_t)cuCtxPushCurrent( gpu_device->ctx );
+        status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxPushCurrent ", status,
                                 {continue;} );
         
@@ -534,13 +534,13 @@ int dague_gpu_data_unregister( )
 {
     gpu_device_t* gpu_device;
     gpu_elem_t* gpu_elem;
-    cudaError_t status;
+    CUresult status;
     int i;
 
     for(i = 0; i < __dague_active_gpu; i++) {
         if( NULL == (gpu_device = gpu_enabled_devices[i]) ) continue;
 
-        status = (cudaError_t)cuCtxPushCurrent( gpu_device->ctx );
+        status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxPushCurrent ", status,
                                 {continue;} );
         
