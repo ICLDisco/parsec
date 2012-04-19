@@ -1,4 +1,4 @@
-#!/home/pgaultne/bin/php-5.3.10/sapi/cli/php -q
+#!/usr/bin/php
 <?php
 libxml_use_internal_errors(true);
 
@@ -34,47 +34,27 @@ function display_xml_error($error, $xml)
     return "$return\n\n--------------------------------------------\n\n";
 }
 
-for($fileidx = 1; $fileidx < $argc; $fileidx++ ) {
-    $xml = simplexml_load_file( $argv[$fileidx] );
-    if( !$xml ) {
-        error_log("Parse Error in $argv[$fileidx]:\n");
-        $errors = libxml_get_errors();
-        error_log(" There was " . count($errors) . " errors\n");
-        foreach ($errors as $error) {
-           error_log( " - " . display_xml_error($error, $xml) . "\n");
-        }
-        libxml_clear_errors();
-        continue;
+$XML = simplexml_load_file( $argv[1] );
+if( !$XML ) {
+    error_log("Parse Error in $argv[1]:\n");
+    $errors = libxml_get_errors();
+    error_log(" There was " . count($errors) . " errors\n");
+    foreach ($errors as $error) {
+        error_log( " - " . display_xml_error($error, $XML) . "\n");
     }
-
-    if( $proc == 0 ) {
-        $keys = $xml->DICTIONARY;
-    } else {
-        $nk = $xml->DICTIONARY;
-        $kid = 0;
-        foreach( $keys->KEY as $k ) {
-            $n1 = $k->NAME;
-            $n2 = $nk->KEY[$kid]->NAME;
-            if( "$n1" != "$n2" ) {
-                error_log("$n1 != $n2 -> Dictionaries don't match. All dictionaries must match\n");
-                exit;
-            } 
-            $kid++;
-        }
-    }
-
-    $XML[] = $xml;
-    $proc++;
+    libxml_clear_errors();
+    exit(1);
 }
 
+$keys = $XML->DICTIONARY;
+
 echo "#proc\tthid\tkey\teventid\tstart\tend\tduration\n";
-$tu = $XML[0]->PROFILES['TIME_UNIT'];
-echo "#time units: $tu\n";
 
 $proc = 0;
-foreach($XML as $xml) {
+foreach($XML->DISTRIBUTED_PROFILE->NODE as $node) {
     $thid = 0;
-    foreach( $xml->PROFILES->THREAD as $th ) {
+    foreach($node->PROFILES->THREAD as $th) {
+        $thid = 0;
         foreach( $th->KEY as $key ) {
             $nb = $key['ID'];
             $kn = "NOTFOUND";
