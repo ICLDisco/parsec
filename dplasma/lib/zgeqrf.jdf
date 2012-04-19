@@ -20,7 +20,7 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_stsmqr.h"
 extern int *gpu_counter;
@@ -76,7 +76,7 @@ zgeqrt(k)
   ;(descA.nt-k)*(descA.nt-k)*(descA.nt-k)
 
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, k, k );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ | DAGUE_WRITE, k, k );
 #endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
@@ -126,7 +126,7 @@ zunmqr(k,n)
           -> (descA.mt>=(k+2)) ? J ztsmqr(k, k+1, n)
 
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ, k, k );
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, k, n );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ, k, k );
@@ -192,7 +192,7 @@ ztsqrt(k,m)
 ; (descA.mt-k)*(descA.mt-k)*(descA.mt-k)
 
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, k, k );
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, m, k );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ | DAGUE_WRITE, m, k );
@@ -277,7 +277,7 @@ BODY
          int ldwork = ib;
          );
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ, m, k );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ, m, k );
     if( dague_active_gpu() > 0 ) {
@@ -319,7 +319,7 @@ BODY
            k, n1, J, m, n1, K,
            m, k,  L, m, k,  M);
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
 FIN:
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 

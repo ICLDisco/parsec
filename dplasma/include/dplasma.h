@@ -43,4 +43,11 @@ void dplasma_map2_Destruct( dague_object_t *o );
 static inline int imax(int32_t a, int32_t b) { return a > b ? a : b; }
 static inline int imin(int32_t a, int32_t b) { return a < b ? a : b; }
 
+
+/* sqrt function */
+#define dplasma_zsqrt csqrt
+#define dplasma_csqrt csqrtf
+#define dplasma_dsqrt sqrt
+#define dplasma_ssqrt sqrtf
+
 #endif /* _DPLASMA_H_ */

@@ -136,9 +136,9 @@ struct dague_function {
 
 struct dague_data_pair_t {
     struct data_repo_entry   *data_repo;
-    dague_arena_chunk_t *data;
+    dague_arena_chunk_t      *data;
 #if defined(HAVE_CUDA)
-    struct gpu_elem_t   *gpu_data;
+    struct _memory_elem      *mem2dev_data;
 #endif  /* defined(HAVE_CUDA) */
 };
 
@@ -188,6 +188,7 @@ struct dague_object {
     uint32_t                   object_id;
     volatile uint32_t          nb_local_tasks;
     uint32_t                   nb_functions;
+    int32_t                    object_priority;
     dague_startup_fn_t         startup_hook;
     const dague_function_t**   functions_array;
 #if defined(DAGUE_PROF_TRACE)
@@ -224,6 +225,20 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
 int dague_fini( dague_context_t** pcontext );
 int dague_enqueue( dague_context_t* context, dague_object_t* object);
 int dague_progress(dague_context_t* context);
+
+/**
+ * Allow to change the default priority of an object. It returns the
+ * old priority (the default priorityy of an object is 0). This function
+ * can be used during the lifetime of an object, however, only tasks
+ * generated after this call will be impacted.
+ */
+static inline int32_t dague_set_priority( dague_object_t* object, int32_t new_priority )
+{
+    int32_t old_priority = object->object_priority;
+    object->object_priority = new_priority;
+    return old_priority;
+}
+
 char* dague_service_to_string( const dague_execution_context_t* exec_context,
                                char* tmp,
                                size_t length );

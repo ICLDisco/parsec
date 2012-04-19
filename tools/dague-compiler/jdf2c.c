@@ -1085,18 +1085,33 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
     if( e->op == JDF_RANGE ) {
         char *subf = (char*)malloc(strlen(name) + 64);
         sprintf(subf, "rangemin_of_%s", name);
-        jdf_generate_expression(jdf, context, e->jdf_ba1, subf);
+        jdf_generate_expression(jdf, context, e->jdf_ta1, subf);
         sprintf(subf, "rangemax_of_%s", name);
-        jdf_generate_expression(jdf, context, e->jdf_ba2, subf);
+        jdf_generate_expression(jdf, context, e->jdf_ta2, subf);
 
-        coutput("static const expr_t %s = {\n"
-                "  .op = EXPR_OP_BINARY_RANGE,\n"
-                "  .u_expr.binary = {\n"
-                "    .op1 = &rangemin_of_%s,\n"
-                "    .op2 = &rangemax_of_%s\n"
-                "  }\n"
-                "};\n",
-                name, name, name);
+        if( e->jdf_ta3->op == JDF_CST ) {
+            coutput("static const expr_t %s = {\n"
+                    "  .op = EXPR_OP_RANGE_CST_INCREMENT,\n"
+                    "  .u_expr.range = {\n"
+                    "    .op1 = &rangemin_of_%s,\n"
+                    "    .op2 = &rangemax_of_%s,\n"
+                    "    .increment.cst = %d\n"
+                    "  }\n"
+                    "};\n",
+                    name, name, name, e->jdf_ta3->jdf_cst );
+        } else {
+            sprintf(subf, "rangeincrement_of_%s", name);
+            jdf_generate_expression(jdf, context, e->jdf_ta3, subf);
+            coutput("static const expr_t %s = {\n"
+                    "  .op = EXPR_OP_RANGE_EXPR_INCREMENT,\n"
+                    "  .u_expr.range = {\n"
+                    "    .op1 = &rangemin_of_%s,\n"
+                    "    .op2 = &rangemax_of_%s,\n"
+                    "    .increment.expr = &rangeincrement_of_%s\n"
+                    "  }\n"
+                    "};\n",
+                    name, name, name, name);
+        }
     } else {
         info.sa = sa;
         info.prefix = "";
@@ -1185,15 +1200,23 @@ static void jdf_generate_symbols( const jdf_t *jdf, const jdf_def_list_t *def, c
         if( d->expr->op == JDF_RANGE ) {
             sprintf(exprname, "minexpr_of_%s%s", prefix, d->name);
             string_arena_add_string(sa, ".min = &%s, ", exprname);
-            jdf_generate_expression(jdf, def, d->expr->jdf_ba1, exprname);
+            jdf_generate_expression(jdf, def, d->expr->jdf_ta1, exprname);
 
             sprintf(exprname, "maxexpr_of_%s%s", prefix, d->name);
             string_arena_add_string(sa, ".max = &%s, ", exprname);
-            jdf_generate_expression(jdf, def, d->expr->jdf_ba2, exprname);
+            jdf_generate_expression(jdf, def, d->expr->jdf_ta2, exprname);
+
+            if( d->expr->jdf_ta3->op == JDF_CST ) {
+                string_arena_add_string(sa, ".cst_inc = %d, .expr_inc = NULL, ", d->expr->jdf_ta3->jdf_cst);
+            } else {
+                sprintf(exprname, "incexpr_of_%s%s", prefix, d->name);
+                string_arena_add_string(sa, ".cst_inc = 0, .expr_inc = &%s, ", exprname);
+                jdf_generate_expression(jdf, def, d->expr->jdf_ta3, exprname);
+            }
         } else {
             sprintf(exprname, "expr_of_%s%s", prefix, d->name);
             string_arena_add_string(sa, ".min = &%s, ", exprname);
-            string_arena_add_string(sa, ".max = &%s, ", exprname);
+            string_arena_add_string(sa, ".max = &%s, .cst_inc = 0, .expr_inc = NULL, ", exprname);
             jdf_generate_expression(jdf, def, d->expr, exprname);
         }
 
@@ -1540,10 +1563,10 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
 // at the very least, we should be adding an empty string
 static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
-    string_arena_t *sa1, *sa2;
+    string_arena_t *sa1, *sa2, *sa3;
     jdf_def_list_t *dl;
     int nesting;
-    expr_info_t info1, info2;
+    expr_info_t info1, info2, info3;
     int idx;
 
     assert( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP );
@@ -1551,6 +1574,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
+    sa3 = string_arena_new(64);
 
     coutput("static int %s(dague_context_t *context, const __dague_%s_internal_object_t *__dague_object, dague_execution_context_t** pready_list)\n"
             "{\n"
@@ -1568,6 +1592,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     string_arena_init(sa1);
     string_arena_init(sa2);
+    string_arena_init(sa3);
 
     info1.sa = sa1;
     info1.prefix = "";
@@ -1577,6 +1602,10 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     info2.prefix = "";
     info2.assignments = "assignments";
 
+    info3.sa = sa3;
+    info3.prefix = "";
+    info3.assignments = "assignments";
+
     coutput("  /* Parse all the inputs and generate the ready execution tasks */\n");
 
     nesting = 0;
@@ -1585,11 +1614,11 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
         if(dl->expr->op == JDF_RANGE) {
             coutput("%s  for(%s = %s;\n"
                     "%s      %s <= %s;\n"
-                    "%s      %s++) {\n"
+                    "%s      %s+=%s) {\n"
                     "%s    assignments[%d].value = %s;\n",
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ba1, &info1),
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ba2, &info2),
-                    indent(nesting), dl->name,
+                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info1),
+                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info2),
+                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info3),
                     indent(nesting), idx, dl->name);
             nesting++;
         } else {
@@ -1623,10 +1652,10 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting),
             indent(nesting), jdf_basename, f->fname);
     if( NULL != f->priority ) {
-        coutput("%s  new_context->priority = priority_of_%s_%s_as_expr_fct(new_context->dague_object, new_context->locals);\n",
+        coutput("%s  new_context->priority = __dague_object->super.super.object_priority + priority_of_%s_%s_as_expr_fct(new_context->dague_object, new_context->locals);\n",
                 indent(nesting), jdf_basename, f->fname);
     } else {
-        coutput("%s  new_context->priority = 0;\n", indent(nesting));
+        coutput("%s  new_context->priority = __dague_object->super.super.object_priority;\n", indent(nesting));
     }
 
     // PETER insert data locality info
@@ -1665,9 +1694,9 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
         coutput("%s}\n", indent(nesting));
     }
 
-    /* Quiet the compiler by using the varibales */
     string_arena_free(sa1);
     string_arena_free(sa2);
+    string_arena_free(sa3);
 
     coutput("  dague_thread_mempool_free( context->execution_units[0]->context_mempool, new_context );\n");
 
@@ -1677,15 +1706,16 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
 static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
-    string_arena_t *sa1, *sa2;
+    string_arena_t *sa1, *sa2, *sa3;
     jdf_def_list_t *dl;
     jdf_name_list_t *pl;
     int nesting, idx;
     const jdf_function_entry_t *pf;
-    expr_info_t info1, info2;
+    expr_info_t info1, info2, info3;
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
+    sa3 = string_arena_new(64);
 
     coutput("static int %s(__dague_%s_internal_object_t *__dague_object)\n"
             "{\n"
@@ -1715,13 +1745,14 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     if( NULL != f->parameters->next ) {
         for(dl = f->definitions, pl = f->parameters; pl != NULL; dl = dl->next, pl = pl->next ) {
             if(dl->expr->op == JDF_RANGE) {
-                coutput("  int32_t %s_start, %s_end;", dl->name, dl->name );
+                coutput("  int32_t %s_start, %s_end, %s_inc;", dl->name, dl->name, dl->name );
             }
         }
     }
 
     string_arena_init(sa1);
     string_arena_init(sa2);
+    string_arena_init(sa3);
 
     info1.sa = sa1;
     info1.prefix = "";
@@ -1730,6 +1761,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     info2.sa = sa2;
     info2.prefix = "";
     info2.assignments = "assignments";
+
+    info3.sa = sa3;
+    info3.prefix = "";
+    info3.assignments = "assignments";
 
     coutput("  /* First, find the min and max value for each of the dimensions */\n");
 
@@ -1803,11 +1838,13 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             if(dl->expr->op == JDF_RANGE) {
                 last_dimension_is_a_range = 1;
                 coutput("%s  %s_start = %s;\n",
-                        indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ba1, &info1));
+                        indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info1));
                 coutput("%s  %s_end = %s;\n",
-                        indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ba2, &info2));
-                coutput("%s  for(%s = dague_imax(%s_start, %s_min); %s <= dague_imin(%s_end, %s_max); %s++) {\n",
-                        indent(nesting), dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name);
+                        indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info2));
+                coutput("%s  %s_inc = %s;\n",
+                        indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info3));
+                coutput("%s  for(%s = dague_imax(%s_start, %s_min); %s <= dague_imin(%s_end, %s_max); %s+=%s_inc) {\n",
+                        indent(nesting), dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name);
                 nesting++;
             } else {
                 last_dimension_is_a_range = 0;
@@ -1856,13 +1893,14 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     if( NULL != f->parameters->next ) {
         for(dl = f->definitions, pl = f->parameters; pl != NULL; dl = dl->next, pl = pl->next ) {
             if(dl->expr->op == JDF_RANGE) {
-                coutput("  (void)%s_start; (void)%s_end;", dl->name, dl->name );
+                coutput("  (void)%s_start; (void)%s_end; (void)%s_inc;", dl->name, dl->name, dl->name);
             }
         }
     }
 
     string_arena_free(sa1);
     string_arena_free(sa2);
+    string_arena_free(sa3);
 
     for(nesting = 0, pf = jdf->functions;
         strcmp( pf->fname, f->fname);
@@ -2364,10 +2402,11 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
 
         if( !strcmp(dl->name, pl->name) ) {
             if( dl->expr->op == JDF_RANGE ) {
-                coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)dl->expr->jdf_ba1, &info));
+                coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
                 if( pl->next != NULL ) {
-                    coutput("  int %s_range = %s - %s_min + 1;\n",
-                            dl->name, dump_expr((void**)dl->expr->jdf_ba2, &info), dl->name);
+                    coutput("  int %s_inc = %s;\n", dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info));
+                    coutput("  int %s_range = (%s - %s_min + 1 + (%s_inc-1))/%s_inc;\n",
+                            dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info), dl->name, dl->name, dl->name);
                 }
             } else {
                 coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)dl->expr, &info));
@@ -3159,9 +3198,11 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                     "%s%s  for( %s_%s = %s;",
                                     prefix, indent(nbopen),
                                     prefix, indent(nbopen), targetf->fname, nl->name,
-                                    prefix, indent(nbopen), targetf->fname, nl->name, dump_expr((void**)el->jdf_ba1, &info));
-            string_arena_add_string(sa_open, "%s_%s <= %s; %s_%s++ ) {\n",
-                                    targetf->fname, nl->name, dump_expr((void**)el->jdf_ba2, &info), targetf->fname, nl->name);
+                                    prefix, indent(nbopen), targetf->fname, nl->name, dump_expr((void**)el->jdf_ta1, &info));
+            string_arena_add_string(sa_open, "%s_%s <= %s; %s_%s+=",
+                                    targetf->fname, nl->name, dump_expr((void**)el->jdf_ta2, &info), targetf->fname, nl->name);
+            string_arena_add_string(sa_open, "%s) {\n",
+                                    dump_expr((void**)el->jdf_ta3, &info));
             string_arena_add_string(sa_close,
                                     "%s%s  }\n", prefix, indent(nbopen));
             nbopen++;
@@ -3177,10 +3218,10 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
             string_arena_add_string(sa_open,
                                     "%s%s  if( (%s_%s >= (%s))",
                                     prefix, indent(nbopen), targetf->fname, nl->name,
-                                    dump_expr((void**)def->expr->jdf_ba1, &linfo));
+                                    dump_expr((void**)def->expr->jdf_ta1, &linfo));
             string_arena_add_string(sa_open, " && (%s_%s <= (%s)) ) {\n",
                                     targetf->fname, nl->name,
-                                    dump_expr((void**)def->expr->jdf_ba2, &linfo));
+                                    dump_expr((void**)def->expr->jdf_ta2, &linfo));
             string_arena_add_string(sa_close, "%s%s  }\n",
                                     prefix, indent(nbopen));
             nbopen++;
@@ -3252,10 +3293,10 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     if( NULL != targetf->priority ) {
         string_arena_add_string(sa_open,
-                                "%s%s  %s.priority = priority_of_%s_%s_as_expr_fct(this_task->dague_object, nc.locals);\n",
+                                "%s%s  %s.priority = __dague_object->super.super.object_priority + priority_of_%s_%s_as_expr_fct(this_task->dague_object, nc.locals);\n",
                                 prefix, indent(nbopen), var, jdf_basename, targetf->fname);
     } else {
-        string_arena_add_string(sa_open, "%s%s  %s.priority = 0;\n",
+        string_arena_add_string(sa_open, "%s%s  %s.priority = __dague_object->super.super.object_priority;\n",
                                 prefix, indent(nbopen), var);
     }
 
