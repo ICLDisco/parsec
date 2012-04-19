@@ -1776,10 +1776,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             assert( pl != NULL );
             coutput("%s  for(%s = %s;\n"
                     "%s      %s <= %s;\n"
-                    "%s      %s++) {\n",
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ba1, &info1),
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ba2, &info2),
-                    indent(nesting), dl->name);
+                    "%s      %s += %s) {\n",
+                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info1),
+                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info2),
+                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info3));
             nesting++;
         } else {
             coutput("%s  %s = %s;\n",
