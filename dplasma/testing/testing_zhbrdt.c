@@ -15,11 +15,6 @@
 #define FADDS_ZHBRDT(__n) (-1)
 #define FMULS_ZHBRDT(__n) (-1)
 
-/* static int check_solution(int, double*, double*, double); */
-static inline double dplasma_fmax( double a, double b){
-    return ( a > b ) ? a : b;
-}
-
 int main(int argc, char *argv[])
 {
     dague_context_t *dague;
