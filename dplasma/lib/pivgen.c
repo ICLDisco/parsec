@@ -104,6 +104,8 @@ int dplasma_qr_getnbgeqrf( const qr_piv_t *arg, const int k, const int gmt );
 int dplasma_qr_getm(       const qr_piv_t *arg, const int k, const int i   );
 int dplasma_qr_geti(       const qr_piv_t *arg, const int k, const int m   );
 int dplasma_qr_gettype(    const qr_piv_t *arg, const int k, const int m   );
+int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i );
+int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i );
 
 static void dplasma_qr_genperm   (       qr_piv_t *qrpiv );
 static int  dplasma_qr_getinvperm( const qr_piv_t *qrpiv, const int k, int m );
