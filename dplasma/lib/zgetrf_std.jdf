@@ -395,7 +395,7 @@ n = k+1..descA.nt-1
 // Parameters
 READ  A <- C TRSM_L(k, m)
 READ  B <- C TRSM_U(k, n)
-RW    C <- T SWAP_RECV(k-1, m, n)
+RW    C <- T SWAP_RECV(k, m, n)
         -> ((m == k+1) && (n == k+1)) ? T GETRF(k+1)  /* Diagonal */
         -> ((m >  k+1) && (n == k+1)) ? C TRSM_L(k+1,m)  /* Lower */
         -> ((m == k+1) && (n >  k+1)) ? A SWAP_COPY(k+1,n)  /* Swap */
