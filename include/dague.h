@@ -136,9 +136,9 @@ struct dague_function {
 
 struct dague_data_pair_t {
     struct data_repo_entry   *data_repo;
-    dague_arena_chunk_t *data;
+    dague_arena_chunk_t      *data;
 #if defined(HAVE_CUDA)
-    struct gpu_elem_t   *gpu_data;
+    struct _memory_elem      *mem2dev_data;
 #endif  /* defined(HAVE_CUDA) */
 };
 

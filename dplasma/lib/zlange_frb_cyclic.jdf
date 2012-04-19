@@ -38,6 +38,7 @@ extern "C" %{
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
+#include "dplasma.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/cores/dplasma_zcores.h"
@@ -273,5 +274,5 @@ WRITE_RES(m,n)
 
 BODY
     double *dW = (double*)W;
-    *norm = dW[0] * sqrt( dW[1] );
+    *norm = dW[0] * dplasma_dsqrt( dW[1] );
 END

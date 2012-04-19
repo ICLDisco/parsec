@@ -75,6 +75,7 @@ typedef struct _gpu_device {
     uint64_t required_data_in;
     uint64_t required_data_out;
     dague_list_t* gpu_mem_lru;
+    dague_list_t* gpu_mem_owned_lru;
 #if defined(DAGUE_PROF_TRACE)
     dague_thread_profiling_t *profiling;
 #endif  /* defined(PROFILING) */

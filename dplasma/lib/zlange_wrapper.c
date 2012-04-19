@@ -59,8 +59,8 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
     default:
         mb = 1;
         nb = 1;
-        m  = P;
-        n  = dague_imax(A->nt, Q);
+        m  = dague_imax(A->mt, P);
+        n  = Q;
         elt = 1;
     }
 

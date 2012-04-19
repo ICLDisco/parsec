@@ -303,3 +303,9 @@ dplasma/cores/core_chetrf_nopiv\.c
 dplasma/cores/core_[ds]sytrf_nopiv\.c
 dplasma/cores/core_chetrf2_nopiv\.c
 dplasma/cores/core_[ds]sytrf2_nopiv\.c
+tests/branching/branching
+tests/branching/branching\.c
+tests/branching/branching\.h
+tests/pingpong/rtt
+tests/pingpong/rtt\.c
+tests/pingpong/rtt\.h
