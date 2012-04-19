@@ -36,7 +36,7 @@ A      [type = "dague_ddesc_t *"]
 plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
-LASET_L(m, n)
+LASET_L(m, n) [profile=off]
 
 // Execution space
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
@@ -66,7 +66,7 @@ BODY
                  tempmm, tempnn, creal(alpha), creal(beta), m, n, ldam);
 END
 
-LASET_U(m, n)
+LASET_U(m, n) [profile=off]
 
 // Execution space
 m = 0   .. descA.mt-1
@@ -96,7 +96,7 @@ BODY
                  tempmm, tempnn, creal(alpha), creal(beta), m, n, ldam);
 END
 
-LASET_DIAG(k)
+LASET_DIAG(k) [profile=off]
 
 // Execution space
      k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )

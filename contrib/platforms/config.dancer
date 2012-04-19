@@ -8,7 +8,8 @@ CC=${CC:="icc"}
 CXX=${CXX:="icpc"}
 FC=${FC:="ifort"}
 MPI_DIR=${MPI_DIR:="/opt/ompi"}
-HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}  
+HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
+GTG_DIR=${GTG_DIR:="/opt/gtg"}
 CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
 OMEGA_DIR=${OMEGA_DIR:="/opt/Omega/"}
 if [ "x${CC}" = "xgcc" ]; then
@@ -21,6 +22,7 @@ fi
 if [ "x$USER" = "xbosilca" ]; then
   HWLOC_DIR="/home/bosilca/opt/"
   MPI_DIR="/home/bosilca/opt/mpi"
+  USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=ON"
 elif [ "x$USER" = "xherault" ]; then
   #MPI="-DMPI_COMPILER=/usr/bin/mpicc"
   USER_OPTIONS+="-DDAGUE_Q2J=ON"
@@ -53,7 +55,11 @@ fi
 
 if [ -n "$HWLOC_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_WITH_HWLOC=OFF.*") -eq 0 ]; then
     echo "With HWLOC"
-  HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
+    HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
+fi
+
+if [ -f "$GTG_DIR/include/GTG.h" -a -f "$GTG_DIR/lib/libgtg.so" ]; then
+    GTG="-DGTG_DIR=${GTG_DIR}"
 fi
 
 if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_GPU_WITH_CUDA=OFF.*") -eq 0 ]; then 
@@ -81,5 +87,5 @@ fi
 LOCATION=`dirname $0`/../../
 export CC CXX FC
 
-echo cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${CUDA} ${Q2J} ${PLASMA} ${USER_OPTIONS} ${LOCATION}
-cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${CUDA} ${Q2J} ${PLASMA} ${USER_OPTIONS} ${LOCATION}
+echo cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${USER_OPTIONS} ${LOCATION}
+cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${USER_OPTIONS} ${LOCATION}

@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "scheduling.h"
+#include "schedulers.h"
 #include "profiling.h"
 #include "remote_dep.h"
 #include "dague.h"
@@ -26,7 +26,7 @@
 #if defined(HAVE_SCHED_SETAFFINITY)
 #include <linux/unistd.h>
 #endif  /* defined(HAVE_SCHED_SETAFFINITY) */
-#if defined(DAGUE_PROF_TRACE)
+#if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), NULL)
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
@@ -96,7 +96,7 @@ int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context
 }
 
 
-static dague_scheduler_t scheduler = { NULL, NULL, NULL, NULL, NULL };
+static dague_scheduler_t scheduler = { "None", NULL, NULL, NULL, NULL, NULL };
 
 void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
 {
@@ -111,6 +111,10 @@ void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
     }
 }
 
+/**
+ * This is where we end up after the release_dep_fct is called and generates a
+ * readylist. the new_context IS the readylist.
+ */
 int __dague_schedule( dague_execution_unit_t* eu_context,
                       dague_execution_context_t* new_context )
 {
@@ -123,6 +127,8 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
         int set_parameters, i;
         char tmp[128];
 
+		  // PETER it seems like this while loop mostly verifies
+		  // that nothing is terrible wrong?
         do {
             for( i = set_parameters = 0; NULL != (flow = context->function->in[i]); i++ ) {
                 if( ACCESS_NONE == flow->access_type ) continue;
@@ -146,9 +152,13 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     }
 # endif
 
-    TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
+    /* Deactivate this measurement, until the MPI thread has its own execution unit
+     *  TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
+     */
     ret = scheduler.schedule_task(eu_context, new_context);
-    TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
+    /* Deactivate this measurement, until the MPI thread has its own execution unit
+     *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
+     */
 
     return ret;
 }
@@ -247,7 +257,9 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
         if( exec_context != NULL ) {
-            misses_in_a_row = 0;
+			  // DEBUG PETER
+			  assert(NULL != exec_context->function);
+			  misses_in_a_row = 0;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
             {
@@ -260,6 +272,10 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                 }
             }
 #endif
+
+				// MY MODS
+				TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
+				TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
 
             /* We're good to go ... */
             if( 0 == __dague_execute( eu_context, exec_context ) ) {
@@ -332,8 +348,8 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
     int p;
 
     if( NULL == scheduler.schedule_task ) {
-        WARNING(("You cannot enqueue a task without selecting a scheduler first.\n"));
-        return -1;
+        /* No scheduler selected yet. The default is 0 */
+        dague_set_scheduler( context, dague_schedulers_array[DAGUE_SCHEDULER_LFQ] );
     }
 
     /* These pointers need to be initialized to NULL; doing it with calloc */

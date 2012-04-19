@@ -70,7 +70,7 @@ END
 /*
  * Pseudo-task
  */
-ztrsm_in_A0(k,n)
+ztrsm_in_A0(k,n) [profile = off]
   k = 0..(descB.mt-1)
   n = 0..(descB.nt-1)
 
@@ -125,7 +125,7 @@ END
 /*
  * Pseudo-task
  */
-zgemm_in_A0(k,m,n1)
+zgemm_in_A0(k,m,n1) [profile = off]
   k = 0..(descB.mt-2)
   m = (k+1)..(descB.mt-1)
   n1 = 0..(descB.nt-1)

@@ -127,10 +127,12 @@ extern const int side[2];
 extern const int uplo[2];
 extern const int diag[2];
 extern const int trans[3];
+extern const int norms[4];
 extern const char *sidestr[2];
 extern const char *uplostr[2];
 extern const char *diagstr[2];
 extern const char *transstr[3];
+extern const char *normsstr[4];
 
 void print_usage(void);
 
@@ -170,7 +172,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
     dague_progress(DAGUE);                                              \
-    if(loud) TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n", \
+    if(loud > 2) TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n", \
                                nb_local_tasks,                          \
                                nb_local_tasks/time_elapsed));           \
     SYNC_TIME_PRINT(rank, (#KERNEL " computation N= %d NB= %d : %f gflops\n", N, NB, \

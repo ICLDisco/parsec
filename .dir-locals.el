@@ -102,4 +102,4 @@
                                            (c . 1)
                                            (comment-intro . 0)
                                            (knr-argdecl-intro . -)))
-            (fill-column . 120))))
+            (fill-column . 80))))

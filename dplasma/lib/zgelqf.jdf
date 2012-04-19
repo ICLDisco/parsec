@@ -193,7 +193,7 @@ END
 /*
  * Pseudo-task
  */
-ztslqt_out_A0(k)
+ztslqt_out_A0(k) [profile = off]
   k = 0..inline_c %{ return dague_imin((descA.nt-2),(descA.mt-1)); %}
 
   : A(k,k)
@@ -267,7 +267,7 @@ END
 /*
  * Pseudo-task
  */
-ztsmlq_out_A0(k,m1)
+ztsmlq_out_A0(k,m1) [profile = off]
   k = 0..inline_c %{ return dague_imin((descA.nt-2),(descA.mt-2)); %}
   m1 = (k+1)..(descA.mt-1)
 

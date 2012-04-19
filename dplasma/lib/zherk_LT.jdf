@@ -80,7 +80,7 @@ END
 /*
  * Pseudo-task
  */
-zherk_in_A0(n,k)
+zherk_in_A0(n,k) [profile = off]
   n = 0..(descC.nt-1)
   k = 0..(descA.mt-1)
 
@@ -147,7 +147,7 @@ END
 /*
  * Pseudo-task
  */
-zgemm_in_A0(n,m,k1)
+zgemm_in_A0(n,m,k1) [profile = off]
   n = 0..inline_c %{ return dague_imin((descC.mt-2),(descC.nt-1)); %}
   m = (n+1)..(descC.mt-1)
   k1 = 0..(descA.mt-1)
@@ -164,7 +164,7 @@ END
 /*
  * Pseudo-task
  */
-zgemm_in_A1(n,m,k1)
+zgemm_in_A1(n,m,k1) [profile = off]
   n = 0..inline_c %{ return dague_imin((descC.nt-1),(descC.mt-2)); %}
   m = (n+1)..(descC.mt-1)
   k1 = 0..(descA.mt-1)

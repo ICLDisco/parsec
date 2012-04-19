@@ -45,11 +45,13 @@
 dague_allocate_data_t dague_data_allocate = malloc;
 dague_free_data_t     dague_data_free = free;
 
-#ifdef DAGUE_PROF_TRACE
+#if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
 int MEMALLOC_start_key, MEMALLOC_end_key;
 int schedule_poll_begin, schedule_poll_end;
 int schedule_push_begin, schedule_push_end;
 int schedule_sleep_begin, schedule_sleep_end;
+int queue_add_begin, queue_add_end;
+int queue_remove_begin, queue_remove_end;
 #endif  /* DAGUE_PROF_TRACE */
 
 #ifdef HAVE_HWLOC
@@ -240,6 +242,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif
     }
 
+    /* Default case if vpmap has not been initialized */
+    if(vpmap_get_nb_vp() == -1)
+        vpmap_init_from_flat(nb_cores);
+
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
         {
@@ -351,9 +357,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
 
-#ifdef DAGUE_PROF_TRACE
+#if defined(DAGUE_PROF_TRACE)
     dague_profiling_init( "%s", (*pargv)[0] );
 
+#  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
     dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
                                             0, NULL,
                                             &MEMALLOC_start_key, &MEMALLOC_end_key);
@@ -366,6 +373,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
                                             0, NULL,
                                             &schedule_sleep_begin, &schedule_sleep_end);
+    dague_profiling_add_dictionary_keyword( "Queue ADD", "fill:#767676",
+                                            0, NULL,
+                                            &queue_add_begin, &queue_add_end);
+    dague_profiling_add_dictionary_keyword( "Queue REMOVE", "fill:#B9B243",
+                                            0, NULL,
+                                            &queue_remove_begin, &queue_remove_end);
+#  endif /* DAGUE_PROF_TRACE_SCHEDULING_EVENTS */
 #endif  /* DAGUE_PROF_TRACE */
 
     if( nb_total_comp_threads > 1 ) {
@@ -913,7 +927,7 @@ static void dague_object_empty_repository(void)
     object_array = NULL;
     object_array_size = 1;
     object_array_pos = 0;
-    dague_atomic_unlock( &object_array_pos );
+    dague_atomic_unlock( &object_array_lock );
 }
 
 /**< Retrieve the local object attached to a unique object id */
@@ -945,7 +959,7 @@ int dague_object_register( dague_object_t* object )
     object_array[index] = object;
     object->object_id = index;
     dague_atomic_unlock( &object_array_lock );
-    dague_remote_dep_new_object( object );
+    (void)dague_remote_dep_new_object( object );
     return (int)index;
 }
 

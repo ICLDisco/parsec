@@ -112,7 +112,8 @@ double dplasma_zlansy( dague_context_t *dague,
             workD, two_dim_block_cyclic,
             (&workD, matrix_RealDouble, matrix_Tile, A->super.nodes, A->super.cores, A->super.myrank,
              1, 1, A->mt, A->nt, 0, 0, A->mt, A->nt,
-             ((two_dim_block_cyclic_t*)A)->grid.strows, ((two_dim_block_cyclic_t*)A)->grid.stcols,
+             ((two_dim_block_cyclic_t*)A)->grid.strows,
+             ((two_dim_block_cyclic_t*)A)->grid.stcols,
              ((two_dim_block_cyclic_t*)A)->grid.rows));
 
         op = dague_operator_zlansy_max;
@@ -141,7 +142,7 @@ double dplasma_zlansy( dague_context_t *dague,
         return -1;
     }
 
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&workD);
+    dplasma_dlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&workD);
 
     args.ntype = ntype;
     args.desc = A;
@@ -152,10 +153,10 @@ double dplasma_zlansy( dague_context_t *dague,
     /* Second one with on element (one double or one vector )  per tile */
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         workS, two_dim_block_cyclic,
-        (&workS, matrix_RealDouble, matrix_Tile, 1, workD.super.super.cores, workD.super.super.myrank,
+        (&workS, matrix_RealDouble, matrix_Tile, 1, A->super.cores, A->super.myrank,
          1, 1, A->mt, A->nt, 0, 0, A->mt, A->nt, 1, 1, 1));
 
-    dplasma_zlacpy(dague, PlasmaUpperLower, (tiled_matrix_desc_t*)&workD, (tiled_matrix_desc_t*)&workS);
+    dplasma_dlacpy(dague, PlasmaUpperLower, (tiled_matrix_desc_t*)&workD, (tiled_matrix_desc_t*)&workS);
 
     if ( workS.super.super.myrank == 0 ) {
         CORE_dlansy(

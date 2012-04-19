@@ -79,7 +79,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 72 "pzherbt-L.c"
   CORE_zgeqrt(tempkn, descA.nb, ib,
         A /* A(k+1,k) */, ldak, B /* T(k+1,k) */,
         descT.mb, p_elem_A, p_elem_B );
@@ -128,7 +127,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_2 );
 
-#line 85 "pzherbt-L.c"
   CORE_zherfb(PlasmaLower, tempkn, tempkn,
         ib, descT.nb, C /* A(k+1,k) */,
         ldak, D /* T(k+1,k) */, descT.mb,
@@ -182,7 +180,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 105 "pzherbt-L.c"
   CORE_zunmqr(PlasmaRight, PlasmaNoTrans, tempmm,
         descA.nb, tempkn, ib,
         F /* A(k+1,k) */, ldak, G /* T(k+1,k) */,
@@ -264,7 +261,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 126 "pzherbt-L.c"
   CORE_ztsqrt(tempmm, descA.nb, ib,
         J /* A(k+1,k) */, ldak, K /* A(m1,k) */,
         ldam, L /* T(m1,k) */, descT.mb,
@@ -340,7 +336,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 143 "pzherbt-L.c"
   CORE_ztsmqr_hetra1(PlasmaLeft, PlasmaConjTrans, descA.mb,
         descA.nb, tempmm, descA.nb,
         descA.nb, ib, M /* A(i,k+1) */,
@@ -355,7 +350,7 @@ BODY
 
 END
 
-ztsmqr_in_A0(k,m1,j)  [profile = off]
+ztsmqr_in_A0(k,m1,j) [profile = off]
   k = 0
   m1 = ((descA.nt>=2) ? 2 : (descA.mt))..(descA.mt-1)
   j = (m1+1)..(descA.mt-1)
@@ -415,7 +410,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 169 "pzherbt-L.c"
   CORE_ztsmqr(PlasmaRight, PlasmaNoTrans, tempjj,
         descA.nb, tempjj, tempmm,
         descA.nb, ib, Q /* A(j,k+1) */,
@@ -516,7 +510,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_3 );
 
-#line 191 "pzherbt-L.c"
   CORE_ztsmqr_corner(descA.nb, descA.nb, tempmm,
         descA.nb, tempmm, tempmm,
         descA.nb, ib, descT.nb,

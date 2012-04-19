@@ -1,12 +1,10 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010-2012
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
- *
- * @precisions normal z -> s d c
  *
  */
 #include <plasma.h>
@@ -38,7 +36,7 @@ plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 map_l_in_Amn(m, n)   [profile = off]
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
 n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
-    
+
   : A(m, n)
 
   RW A <- A(m, n)
@@ -61,7 +59,7 @@ READ  A <- A map_l_in_Amn(m, n)
 RW    B <- B(m, n)
         -> B(m, n)
 BODY
-  
+
   DRYRUN(
          operator( context, A, B, op_args, PlasmaUpperLower, m, n );
       );
@@ -73,7 +71,7 @@ END
 map_u_in_Amn(m, n)  [profile = off]
 m = 0   .. descA.mt-1
 n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
-    
+
   : A(m, n)
 
   RW A <- A(m, n)
@@ -109,7 +107,7 @@ END
 
 map_diag_in_Akk(k)  [profile = off]
      k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
-    
+
   : A(k, k)
 
   RW A <- A(k, k)
@@ -143,4 +141,3 @@ END
 extern "C" %{
 
 %}
-

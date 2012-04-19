@@ -12,22 +12,34 @@
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include "zgetrf.h"
 
 void CORE_zgetrf_reclap_init(void);
+void CORE_zgetrf_rectil_init(void);
+
+/* Dirty hack which uses internal function of PLASMA to avoid initializing the lib */
+/* TODO: remove check on context in PLASMA for this function, it's useless */
+PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
+                             int lm, int ln, int i, int j, int m, int n);
+
 
 dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
                                    tiled_matrix_desc_t *IPIV,
                                    int *INFO)
 {
     dague_zgetrf_object_t *dague_getrf;
-
-    CORE_zgetrf_reclap_init();
+    
+    if ( A->storage == matrix_Tile ) {
+        CORE_zgetrf_rectil_init();
+    } else {
+        CORE_zgetrf_reclap_init();
+    }
 
     dague_getrf = dague_zgetrf_new( *A, (dague_ddesc_t*)A,
                                     (dague_ddesc_t*)IPIV,
-                                    INFO, NULL );
+                                    INFO );
 
     /* A */
     dplasma_add2arena_tile( dague_getrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA],

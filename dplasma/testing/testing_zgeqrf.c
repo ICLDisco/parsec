@@ -10,7 +10,7 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
 #include "dplasma/cores/cuda_stsmqr.h"
 #endif
 
@@ -28,7 +28,7 @@ int main(int argc, char ** argv)
     iparam_default_ibnbmb(iparam, 48, 144, 144);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     iparam[IPARAM_NGPUS] = 0;
 #endif
 
@@ -56,27 +56,27 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
     /* load the GPU kernel */
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     if(iparam[IPARAM_NGPUS] > 0)
     {
-        if(loud) printf("+++ Load GPU kernel ... ");
+        if(loud > 3) printf("+++ Load GPU kernel ... ");
         if(0 != stsmqr_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT))
         {
             printf("XXX Unable to load GPU kernel.\n");
             exit(3);
         }
-        if(loud) printf("Done\n");
+        if(loud > 3) printf("Done\n");
     }
 #endif
 
     /* matrix generation */
-    if(loud > 2) printf("+++ Generate matrices ... ");
+    if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
     if( check )
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescA0 );
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
-    if(loud > 2) printf("Done\n");
+    if(loud > 3) printf("Done\n");
 
     /* Create DAGuE */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf,
@@ -108,7 +108,7 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
     }
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     if(iparam[IPARAM_NGPUS] > 0)
     {
         stsmqr_cuda_fini(dague);

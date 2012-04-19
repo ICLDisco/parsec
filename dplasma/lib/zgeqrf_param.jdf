@@ -41,7 +41,7 @@ extern "C" %{
 #define GETPRIO_PANEL( __m, __n )      ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
 #define GETPRIO_UPDTE( __m, __n, __k ) ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
 #elif defined(PRIO_MATYVES)
-#define FORMULE( __x ) ( ( -1. + sqrt( 1. + 4.* (__x) * (__x)) ) * 0.5 )
+#define FORMULE( __x ) ( ( -1. + dplasma_dsqrt( 1. + 4.* (__x) * (__x)) ) * 0.5 )
 #define GETPRIO_PANEL( __m, __k )      (int)( 22. * (__k) + 6. * ( FORMULE( descA.mt ) - FORMULE( (__m) - (__k) + 1. ) ) )
 #define GETPRIO_UPDTE( __m, __n, __k ) (int)( (__m) < (__n) ? GETPRIO_PANEL( (__n), (__n) ) - 22. * ( (__m) - (__k) ) - 6. * ( (__n) - (__m) ) \
                                               :               GETPRIO_PANEL( (__m), (__n) ) - 22. * ( (__n) - (__k) ) )
@@ -67,7 +67,7 @@ param_p[type = int default="pivfct->p" hidden=on]
 param_a[type = int default="pivfct->a" hidden=on]
 param_d[type = int default="pivfct->domino" hidden=on]
 
-zgeqrt_typechange(k, i)
+zgeqrt_typechange(k, i) [profile = off]
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
@@ -82,8 +82,15 @@ BODY
  /* Nothing */
 END
 
-
-
+/*
+ * GEQRT kernel
+ *
+ * There are dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) geqrt applyed at step
+ * k on the rows indexed by m.
+ * nextm is the first row that will be killed by the row m at step k.
+ * nextm = descA.mt if the row m is never used as a killer.
+ *
+ */
 zgeqrt(k, i)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
@@ -130,7 +137,6 @@ BODY
 
          );
 
-
 #if defined(DAGUE_SIM)
   if ( descA.mt-1 == k )
     ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
@@ -141,7 +147,9 @@ BODY
 
 END
 
-
+/*
+ * UNMQR (see GEQRT)
+ */
 zunmqr(k, i, n)
   /* Execution space */
   k = 0..( ( descA.mt < descA.nt ) ? descA.mt-1 : descA.nt-1)
@@ -195,7 +203,7 @@ BODY
 END
 
 
-zttqrt_out_A1(k)
+zttqrt_out_A1(k) [profile = off]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
 
@@ -207,6 +215,18 @@ BODY
 /* nothing */
 END
 
+/*
+ * TTQRT kernel
+ *
+ * The row p kills the row m.
+ * nextp is the row that will be killed by p at next stage of the reduction.
+ * prevp is the row that has been killed by p at the previous stage of the reduction.
+ * prevm is the row that has been killed by m at the previous stage of the reduction.
+ * type defines the operation to perform: TS if 0, TT otherwise
+ * ip is the index of the killer p in the sorted set of killers for the step k.
+ * im is the index of the killer m in the sorted set of killers for the step k.
+ *
+ */
 zttqrt(k, m)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
@@ -284,7 +304,7 @@ BODY
 END
 
 
-zttmqr_out_A1(k, n)
+zttmqr_out_A1(k, n) [profile = off]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   n = k+1..descA.nt-1
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
@@ -297,6 +317,16 @@ BODY
 /* nothing */
 END
 
+
+/*
+ * TTMQR kernel (see TTQRT)
+ *
+ * type1 defines the operations to perfom at next step k+1 on the row m
+ *   if type1 == 0, it will be a TS so the tile goes to a TTQRT/TTMQR operation
+ *   if type1 != 0, it will be a TT so the tile goes to a GEQRT/UNMQR operation
+ * im1 is the index of the killer m at the next step k+1 if its type is !0, descA.mt otherwise
+ *
+ */
 zttmqr(k, m, n)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )

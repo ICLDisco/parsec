@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2010      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
 #include "dague_prof_grapher.h"
 

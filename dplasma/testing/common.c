@@ -46,11 +46,13 @@ const int   side[2]  = { PlasmaLeft,    PlasmaRight };
 const int   uplo[2]  = { PlasmaUpper,   PlasmaLower };
 const int   diag[2]  = { PlasmaNonUnit, PlasmaUnit  };
 const int   trans[3] = { PlasmaNoTrans, PlasmaTrans, PlasmaConjTrans };
+const int   norms[4] = { PlasmaMaxNorm, PlasmaOneNorm, PlasmaInfNorm, PlasmaFrobeniusNorm };
 
 const char *sidestr[2]  = { "Left ", "Right" };
 const char *uplostr[2]  = { "Upper", "Lower" };
 const char *diagstr[2]  = { "NonUnit", "Unit   " };
 const char *transstr[3] = { "N", "T", "H" };
+const char *normsstr[4] = { "Max", "One", "Inf", "Fro" };
 
 static char *dot_filename = NULL;
 
@@ -74,6 +76,9 @@ void print_usage(void)
             "                       GD  -- Global Dequeue\n"
             "                       LHQ -- Local Hierarchical Queues\n"
             "                       AP  -- Absolute Priorities\n"
+            "                       PBQ -- Priority Based Local Flat Queues\n"
+            "                       LTQ -- Local Tree Queues\n"
+            "\n"
             " -p -P --grid-rows : rows (P) in the PxQ process grid   (default: NP)\n"
             " -q -Q --grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
             " -k --prio-switch  : activate prioritized DAG k steps before the end (default: 0)\n"
@@ -198,7 +203,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
 {
     int opt = 0;
     int c;
-
     do
     {
 #if defined(HAVE_GETOPT_LONG)
@@ -216,14 +220,18 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'o':
                 if( !strcmp(optarg, "LFQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
+                else if( !strcmp(optarg, "LTQ") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LTQ;
                 else if( !strcmp(optarg, "AP") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_AP;
                 else if( !strcmp(optarg, "LHQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LHQ;
                 else if( !strcmp(optarg, "GD") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_GD;
+                else if( !strcmp(optarg, "PBQ") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_PBQ;
                 else {
-                    fprintf(stderr, "malformed scheduler value %s (accepted: LFQ AP LHQ GD). Reverting to default LFQ\n",
+                    fprintf(stderr, "malformed scheduler value %s (accepted: LFQ AP LHQ GD PBQ LTQ). Reverting to default LFQ\n",
                             optarg);
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
                 }
@@ -281,13 +289,14 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 break;
 
             case 'V':
+
                 if( !strncmp(optarg, "display", 7 )) {
                     vpmap_display_map(stderr);
                 } else {
                     /* Change the vpmap choice: first cancel the previous one */
                     vpmap_fini();
                     if( !strncmp(optarg, "flat", 4) ) {
-                        /* No problem, this is the default choice */
+                        /* default case (handled in dague_init) */
                     } else if( !strncmp(optarg, "hwloc", 5) ) {
                         vpmap_init_from_hardware_affinity();
                     } else if( !strncmp(optarg, "file:", 5) ) {
@@ -313,12 +322,10 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 break; /* Assume anything else is dague/mpi stuff */
         }
     } while(-1 != c);
+
     int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
 
     if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
-
-    /* This will fail if another init has been done already */
-    (void)vpmap_init_from_flat(iparam[IPARAM_NCORES]);
 
     /* Check the process grid */
     if(0 == iparam[IPARAM_P])
@@ -335,7 +342,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     {
         fprintf(stderr, "!!! the process grid PxQ (%dx%d) is smaller than the number of nodes (%d). Some nodes are idling!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
     }
-
 
     /* Set matrices dimensions to default values if not provided */
     /* Search for N as a bare number if not provided by -N */
@@ -384,8 +390,10 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     if(0 == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = 1;
 }
 
-static void print_arguments(int verbose, int* iparam)
+static void print_arguments(int* iparam)
 {
+    int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
+
     if(verbose)
         fprintf(stderr, "+++ cores detected      : %d\n", iparam[IPARAM_NCORES]);
 
@@ -517,7 +525,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
         }
         iparam[IPARAM_NCORES] = nb_total_comp_threads;
     }
-    print_arguments(verbose, iparam);
+    print_arguments(iparam);
 
 #if defined(HAVE_CUDA)
     if(iparam[IPARAM_NGPUS] > 0)
@@ -562,7 +570,7 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 #else
     asprintf(&filename, "%s.profile", argvzero);
 #endif
-    dague_profiling_dump_xml(filename);
+    dague_profiling_dump_dbp(filename);
     free(filename);
 #endif  /* DAGUE_PROF_TRACE */
 #if defined(HAVE_CUDA)

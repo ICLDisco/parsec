@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -40,7 +40,7 @@ plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 lacpy_l_in_Amn(m, n)  [profile = off]
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
 n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
-    
+
   : A(m, n)
 
   RW A <- A(m, n)
@@ -70,16 +70,16 @@ BODY
   int ldbm = BLKLDD( descB, m );
 
         DRYRUN(
-               LAPACKE_zlacpy_work( 
+               LAPACKE_zlacpy_work(
                    LAPACK_COL_MAJOR, 'A',
-                   tempmm, tempnn, 
+                   tempmm, tempnn,
                    A, ldam, B, ldbm);
                );
 
         printlog("thread %d VP %d lacpy_l( %d, %d )\n"
                  "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 context->th_id, context->virtual_process->vp_id, m, n, 
-                 plasma_const(uplo), tempmm, tempnn, 
+                 context->th_id, context->virtual_process->vp_id, m, n,
+                 plasma_const(uplo), tempmm, tempnn,
                  m, n, ldam, m, n, ldbm);
 END
 
@@ -87,7 +87,7 @@ END
 lacpy_u_in_Amn(m, n)  [profile = off]
 m = 0   .. descA.mt-1
 n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
-    
+
   : A(m, n)
 
   RW A <- A(m, n)
@@ -117,22 +117,22 @@ BODY
   int ldbm = BLKLDD( descB, m );
 
         DRYRUN(
-               LAPACKE_zlacpy_work( 
+               LAPACKE_zlacpy_work(
                    LAPACK_COL_MAJOR, 'A',
-                   tempmm, tempnn, 
+                   tempmm, tempnn,
                    A, ldam, B, ldbm);
                );
 
         printlog("thread %d VP %d lacpy_u( %d, %d )\n"
                  "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 context->th_id, context->virtual_process->vp_id, m, n, 
-                 plasma_const(uplo), tempmm, tempnn, 
+                 context->th_id, context->virtual_process->vp_id, m, n,
+                 plasma_const(uplo), tempmm, tempnn,
                  m, n, ldam, m, n, ldbm);
 END
 
 lacpy_diag_in_Akk(k)  [profile = off]
      k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
-    
+
   : A(k, k)
 
   RW A <- A(k, k)
@@ -161,16 +161,16 @@ BODY
   int ldbk = BLKLDD( descB, k );
 
         DRYRUN(
-               LAPACKE_zlacpy_work( 
+               LAPACKE_zlacpy_work(
                    LAPACK_COL_MAJOR,
-                   lapack_const(uplo), tempkm, tempkn, 
+                   lapack_const(uplo), tempkm, tempkn,
                    A, ldak, B, ldbk);
                );
 
         printlog("thread %d VP %d lacpy_diag( %d, %d )\n"
                  "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 context->th_id, context->virtual_process->vp_id, k, k, 
-                 plasma_const(uplo), tempkm, tempkn, 
+                 context->th_id, context->virtual_process->vp_id, k, k,
+                 plasma_const(uplo), tempkm, tempkn,
                  k, k, ldak, k, k, ldbk);
 END
 extern "C" %{

@@ -26,7 +26,7 @@ extern "C" %{
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
-extern dague_gpu_data_map_t *gpu_data_A;
+extern dague_gpu_data_map_t gpu_data;
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 %}
 
@@ -59,7 +59,7 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, k, k );
+    dague_update_data_version( &gpu_data, GEMM_KEY(k, k) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
@@ -106,8 +106,7 @@ RW    C <- (k == 0) ? A(k, n) : C GEMM(k-1, k, n)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, k, k );
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, k, n );
+    dague_update_data_version( &gpu_data, GEMM_KEY(k, n) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
@@ -154,8 +153,7 @@ RW    T <- (k == 0)   ? A(n, n)    : T HERK(k-1, n)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, k, n );
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, n, n );
+    dague_update_data_version( &gpu_data, GEMM_KEY(n, n) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n*descA.nb : descA.nb;
@@ -207,8 +205,6 @@ BODY
     int ldan = BLKLDD( descA, n );
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, k, m );
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, k, n );
     if( dague_active_gpu() > 0 ) {
         int rc;
 
@@ -225,7 +221,7 @@ BODY
         }
         /* Continue with the task on the cores */
     }
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, m, n );
+    dague_update_data_version( &gpu_data, GEMM_KEY(m, n) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     DRYRUN(

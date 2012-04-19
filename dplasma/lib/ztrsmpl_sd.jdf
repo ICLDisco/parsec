@@ -37,7 +37,7 @@ ib        [type = int]
 /**************************************************
  *                      ZGESSM                    *
  **************************************************/
-zgessm_inAIPIV(k)  [profile = off]
+zgessm_inAIPIV(k) [profile = off]
 k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
 
 :A(k, k)
@@ -101,7 +101,7 @@ END
 /**************************************************
  *                      ZSSSSM                    *
  **************************************************/
-zssssm_inALIPIV(k, m)  [profile = off]
+zssssm_inALIPIV(k, m) [profile = off]
 k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
 m = k+1..descA.mt-1
 
@@ -118,7 +118,7 @@ BODY
                  context->th_id, context->virtual_process->vp_id, k, m);
 END
 
-zssssm_outB(k, n1)  [profile = off]
+zssssm_outB(k, n1) [profile = off]
 k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
 n1 = 0..descB.nt-1
 
