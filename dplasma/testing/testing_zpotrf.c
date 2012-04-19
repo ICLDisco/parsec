@@ -89,12 +89,12 @@ int main(int argc, char ** argv)
             if(loud > 3) printf("+++ Load GPU kernel ... ");
             if(0 != zgemm_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA))
                 {
-                    dague_gpu_data_register(dague,
-                                            (dague_ddesc_t*)&ddescA,
-                                            MT*NT, MB*NB*sizeof(Dague_Complex64_t) );
                     printf("XXX Unable to load GPU kernel.\n");
                     exit(3);
                 }
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescA,
+                                    MT*NT, MB*NB*sizeof(Dague_Complex64_t) );
             if(loud > 3) printf("Done\n");
         }
 #endif
