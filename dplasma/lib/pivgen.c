@@ -105,7 +105,7 @@ int dplasma_qr_getm(       const qr_piv_t *arg, const int k, const int i   );
 int dplasma_qr_geti(       const qr_piv_t *arg, const int k, const int m   );
 int dplasma_qr_gettype(    const qr_piv_t *arg, const int k, const int m   );
 int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i );
-int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i );
+int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m);
 
 static void dplasma_qr_genperm   (       qr_piv_t *qrpiv );
 static int  dplasma_qr_getinvperm( const qr_piv_t *qrpiv, const int k, int m );
@@ -272,6 +272,27 @@ int dplasma_qr_gettype( const qr_piv_t *arg, const int k, const int m ) {
             return 0;
     }
 }
+
+/*
+ * Extra parameter:
+ *      i - The index of the geqrt in the panel k
+ * Return
+ *     The size of domain in tiles
+ *
+ * Warning: It doesn't work with domino
+ */
+int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i ) {
+    int a = arg -> a;
+    int nb_tile = arg->desc->mt - k;
+    int q = nb_tile / a;
+    int r = nb_tile - q*a;
+    
+    if (i<r)
+        return a-1;
+    else
+        return a;
+}
+
 
 /****************************************************
  *                 DPLASMA_LOW_FLAT_TREE
@@ -1228,6 +1249,17 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
             return arg->desc->mt;
         }
 }
+
+int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m)
+{
+    int next = dplasma_qr_nextpiv(arg, p, k, m);
+
+    while (dplasma_qr_gettype(arg, k, next) == 0) {
+        next = dplasma_qr_nextpiv(arg, p, k, next);
+    }
+    
+    return next;
+};
 
 int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 {

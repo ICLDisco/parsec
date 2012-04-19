@@ -89,6 +89,7 @@ void      dplasma_pivgen_finalize( qr_piv_t *qrpiv );
 int dplasma_qr_getnbgeqrf( const qr_piv_t *arg, const int k, const int gmt );
 int dplasma_qr_getm(       const qr_piv_t *arg, const int k, const int i   );
 int dplasma_qr_geti(       const qr_piv_t *arg, const int k, const int m   );
+int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i );
 int dplasma_qr_gettype(    const qr_piv_t *arg, const int k, const int m   );
 
 /*
@@ -112,6 +113,7 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, int m, const int k);
  *          desc->mt if p will never be used again as an annihilator.
  */
 int dplasma_qr_nextpiv(const qr_piv_t *arg, int p, const int k, int m);
+int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m);
 /*
  * dplasma_qr_nextpiv
  *    @param[in] arg pointer to the qr_piv structure
