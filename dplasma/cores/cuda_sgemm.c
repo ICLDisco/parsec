@@ -195,7 +195,9 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
 {
     int tile_size, ret;
     int i, j, k, n, m, move_data_count = 0;
-    gpu_elem_t* gpu_elem;
+    int eltsize;
+    gpu_elem_t* gpu_elem, *lru_gpu_elem;
+    (void)eltsize;
 
     k = this_task->locals[0].value;
     m = this_task->locals[1].value;
@@ -219,36 +221,65 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
             gpu_elem = (gpu_elem_t*)mem_elem->device_elem[gpu_device->index];
             if( NULL != gpu_elem ) continue;
 
-          find_another_data:
-            gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop(gpu_device->gpu_mem_lru);
-            if( NULL == gpu_elem ) {
-                /* Make sure we all temporary locations are set to NULL */
-                for( ; i < this_task->function->nb_parameters; temp_loc[i++] = NULL );
-                break;  /* Go and cleanup */
-            }
-            DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)gpu_elem);
+#if !defined(GPU_MEMORY_PER_TILE)
+            gpu_elem = (gpu_elem_t*)calloc(1, sizeof(gpu_elem_t));
+            DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
+            
+            eltsize = UGLY_A->mb*UGLY_A->nb*sizeof(float);
+            eltsize = (eltsize + GPU_MALLOC_UNIT_SIZE - 1) / GPU_MALLOC_UNIT_SIZE;
+            
+        malloc_data:
+            gpu_elem->gpu_mem = (CUdeviceptr)gpu_malloc( gpu_device->memory, eltsize );
+            fprintf(stderr, "%c", ((gpu_elem->gpu_mem == 0) ? 'X' : '+') );
 
-            /* If there are pending readers, let the gpu_elem loose. This is a weak coordination
-             * protocol between here and the dague_gpu_data_stage_in, where the readers don't necessarily
-             * always remove the data from the LRU.
-             */
-            if( 0 != gpu_elem->generic.readers ) goto find_another_data;
-            /* Make sure the new GPU element is clean and ready to be used */
-            if( mem_elem != gpu_elem->generic.memory_elem ) {
-                if( NULL != gpu_elem->generic.memory_elem ) {
-                    memory_elem_t* old_mem = gpu_elem->generic.memory_elem;
-                    /* Let's check we're not trying to steal one of our own data */
-                    for( j = 0; j < this_task->function->nb_parameters; j++ ) {
-                        if( this_task->data[j].mem2dev_data == old_mem ) {
-                            temp_loc[j] = gpu_elem;
-                            goto find_another_data;
+            if ( gpu_elem->gpu_mem == 0 )
+            {
+#endif
+
+            find_another_data:
+                lru_gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop(gpu_device->gpu_mem_lru);
+                if( NULL == lru_gpu_elem ) {
+                    /* Make sure we all temporary locations are set to NULL */
+                    for( ; i < this_task->function->nb_parameters; temp_loc[i++] = NULL );
+                    break;  /* Go and cleanup */
+                }
+                DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)lru_gpu_elem);
+                
+                /* If there are pending readers, let the gpu_elem loose. This is a weak coordination
+                 * protocol between here and the dague_gpu_data_stage_in, where the readers don't necessarily
+                 * always remove the data from the LRU.
+                 */
+                if( 0 != lru_gpu_elem->generic.readers ) goto find_another_data;
+                /* Make sure the new GPU element is clean and ready to be used */
+                assert( mem_elem != lru_gpu_elem->generic.memory_elem );
+                if( mem_elem != lru_gpu_elem->generic.memory_elem ) {
+                    if( NULL != lru_gpu_elem->generic.memory_elem ) {
+                        memory_elem_t* old_mem = lru_gpu_elem->generic.memory_elem;
+                        /* Let's check we're not trying to steal one of our own data */
+                        for( j = 0; j < this_task->function->nb_parameters; j++ ) {
+                            if( this_task->data[j].mem2dev_data == old_mem ) {
+                                temp_loc[j] = lru_gpu_elem;
+                                goto find_another_data;
+                            }
                         }
-                    }
+
                     old_mem->device_elem[gpu_device->index] = NULL;
                     DEBUG3(("Repurpose a data for %s(%d, %d, %d):%d\n", this_task->function->name,
                             this_task->locals[0].value, this_task->locals[1].value, this_task->locals[2].value, i));
+
+#if !defined(GPU_MEMORY_PER_TILE)
+                    fprintf(stderr, "-");
+                    gpu_free( gpu_device->memory, (void*)(lru_gpu_elem->gpu_mem) );
+                    free(lru_gpu_elem);
+                    goto malloc_data;
+#endif
+                    }
                 }
+                gpu_elem = lru_gpu_elem;
+
+#if !defined(GPU_MEMORY_PER_TILE)
             }
+#endif
             mem_elem->device_elem[gpu_device->index] = (dague_device_elem_t*)gpu_elem;
             gpu_elem->generic.memory_elem = mem_elem;
             gpu_elem->generic.coherency_state = DAGUE_DATA_INVALID;

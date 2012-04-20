@@ -9,6 +9,7 @@
 #if defined(HAVE_CUDA)
 #include "dague.h"
 #include "gpu_data.h"
+#include "gpu_malloc.h"
 #include "profiling.h"
 #include "execution_unit.h"
 
@@ -16,8 +17,6 @@
 #include <cuda_runtime_api.h>
 #include <errno.h>
 #include "lifo.h"
-
-#define GPU_MEMORY_PER_TILE 1
 
 /*
  *  dague_gpu_init()           : Initialize the ndevices GPU asked 
@@ -435,6 +434,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
     gpu_device_t* gpu_device;
     CUresult status;
     int i;
+    (void)eltsize;
 
     if( NULL != dague_gpu_map.data_map ) {
         if( dague_gpu_map.desc != data ) {
@@ -485,7 +485,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             if( nb_allocations > (uint32_t)20 )
                 break;
 #endif
-            gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
+            gpu_elem = (gpu_elem_t*)calloc(1, sizeof(gpu_elem_t));
             DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
 
             cuda_status = (cudaError_t)cuMemAlloc( &(gpu_elem->gpu_mem), eltsize);
@@ -518,8 +518,19 @@ int dague_gpu_data_register( dague_context_t *dague_context,
         /*
          * We allocate all the memory on the GPU and we use our memory management
          */
-
-        /* Put init of thomas code here */
+        
+        nb_allocations = thread_gpu_mem / GPU_MALLOC_UNIT_SIZE ;
+        
+        gpu_device->memory = (gpu_malloc_t *)calloc( 1, sizeof(gpu_malloc_t) );
+        //gpu_device->memory = gpu_malloc_init( 1<<21, GPU_MALLOC_UNIT_SIZE );
+        gpu_device->memory = gpu_malloc_init( nb_allocations, GPU_MALLOC_UNIT_SIZE );
+        
+        if( gpu_device->memory == NULL ) {
+            WARNING(("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!\n", dague_context->my_rank, i));
+            /*dague_gpu_1gpu_fini( ... );*/
+            continue;
+        }
+        DEBUG3(( "GPU:\tAllocate %u segment of size %d on the GPU memory\n", nb_allocations, GPU_MALLOC_UNIT_SIZE ));
 #endif
 
         status = cuCtxPopCurrent(NULL);
@@ -551,7 +562,8 @@ int dague_gpu_data_unregister( )
 #if defined(GPU_MEMORY_PER_TILE)
             cuMemFree( gpu_elem->gpu_mem );
 #else
-            FREE
+            fprintf(stderr, "~");
+            gpu_free( gpu_device->memory, (void*)(gpu_elem->gpu_mem) );
 #endif
             free( gpu_elem );
         }
@@ -560,13 +572,15 @@ int dague_gpu_data_unregister( )
 #if defined(GPU_MEMORY_PER_TILE)
             cuMemFree( gpu_elem->gpu_mem );
 #else
-            FREE
+            fprintf(stderr, "~");
+            gpu_free( gpu_device->memory, (void*)(gpu_elem->gpu_mem) );
 #endif
             free( gpu_elem );
         }
 
 #if !defined(GPU_MEMORY_PER_TILE)
-        FREE
+        gpu_malloc_fini( gpu_device->memory );
+        free( gpu_device->memory );
 #endif
 
         status = cuCtxPopCurrent(NULL);
