@@ -599,6 +599,11 @@ int main(int argc, char *argv[])
     if( NULL == dbp )
         return 1;
 
+    if( dbp_reader_nb_files(dbp) == 0 ) {
+        fprintf(stderr, "Unable to open any of the files. Aborting.\n");
+        exit(1);
+    }
+
     for(i = 0; i < dbp_reader_nb_files(dbp); i++) {
         file = dbp_reader_get_file(dbp, i);
         nb_threads += dbp_file_nb_threads(file);

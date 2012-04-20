@@ -694,7 +694,7 @@ static int read_threads(dbp_multifile_reader_t *dbp, int n, int fd, const dague_
     return 0;
 }
 
-static dbp_multifile_reader_t *open_files(int argc, char *argv[])
+static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
 {
     int fd, i, j, p, n;
     dague_profiling_buffer_t dummy_events_buffer;
@@ -703,37 +703,37 @@ static dbp_multifile_reader_t *open_files(int argc, char *argv[])
     dague_time_t zero = ZERO_TIME;
 
     dbp = (dbp_multifile_reader_t*)malloc(sizeof(dbp_multifile_reader_t));
-    dbp->files = (dbp_file_t*)malloc((argc-1) * sizeof(dbp_file_t));
+    dbp->files = (dbp_file_t*)malloc(nbfiles * sizeof(dbp_file_t));
     dbp->min_date = zero;
 
     n = 0;
-    for(i = 1; i < argc; i++) {
-        fd = open(argv[i], O_RDONLY);
+    for(i = 0; i < nbfiles; i++) {
+        fd = open(filenames[i], O_RDONLY);
         if( fd == -1 ) {
-            fprintf(stderr, "Unable to open %s: %s -- skipped\n", argv[i], strerror(errno));
+            fprintf(stderr, "Unable to open %s: %s -- skipped\n", filenames[i], strerror(errno));
             continue;
         }
         dbp->files[n].parent = dbp;
         dbp->files[n].fd = fd;
         if( read( fd, &head, sizeof(dague_profiling_binary_file_header_t) ) != sizeof(dague_profiling_binary_file_header_t) ) {
             fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
-                    argv[i]);
+                    filenames[i]);
             close(fd);
             continue;
         }
         if( strncmp( head.magick, DAGUE_PROFILING_MAGICK, 24 ) ) {
             fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
-                    argv[i]);
+                    filenames[i]);
             close(fd);
             continue;
         }
         if( head.byte_order != 0x0123456789ABCDEF ) {
             fprintf(stderr, "The profile in file %s has been generated with a different byte ordering. File ignored\n",
-                    argv[i]);
+                    filenames[i]);
             close(fd);
             continue;
         }
-        dbp->files[n].filename = strdup(argv[i]);
+        dbp->files[n].filename = strdup(filenames[i]);
         if( n > 0 ) {
             if( strncmp(head.hr_id, dbp->files[0].hr_id, 128) ) {
                 fprintf(stderr, "The profile in file %s has unique id %s, which is not compatible with id %s of file %s. File ignored.\n",
