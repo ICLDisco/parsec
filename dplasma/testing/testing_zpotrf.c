@@ -99,7 +99,6 @@ int main(int argc, char ** argv)
         }
 #endif
 
-
     PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf,
                               (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
     PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf);
