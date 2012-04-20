@@ -25,7 +25,6 @@
 
 #if DPLASMA_SCHEDULING
 uint32_t *gpu_set;
-int *gpu_load;
 #endif
 #include "data_dist/matrix/matrix.h"
 
@@ -83,7 +82,6 @@ int sgemm_cuda_init( dague_context_t* dague_context,
     nbgpus = dague_active_gpu();
 #if DPLASMA_SCHEDULING
     gpu_set = (uint32_t*)calloc(UGLY_A->nt, sizeof(uint32_t));
-    gpu_load = (int*)calloc(nbgpus, sizeof(int));
 #endif
     //gpu_active_devices = (gpu_device_t** )calloc(nbgpus, sizeof(gpu_device_t*));
     for( i = dindex = 0; i < nbgpus; i++ ) {
@@ -195,9 +193,9 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
 {
     int sizeloc[MAX_PARAM_COUNT];
     int tile_size, ret;
-    int i, j, k, n, m, move_data_count = 0;
-    int eltsize;
-    gpu_elem_t* gpu_elem, *lru_gpu_elem;
+    int k, n, m, move_data_count = 0;
+    int eltsize = 0;
+    gpu_elem_t* gpu_elem;
     (void)eltsize;
 
     k = this_task->locals[0].value;
@@ -513,7 +511,6 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             return -99;
         }
 #endif  /* DPLASMA_ONLY_GPU */
-        gpu_load[which_gpu] += n;  /* keep n -- not being used yet*/
 #endif  /* DPLASMA_SCHEDULING */
     }
     gpu_device = gpu_enabled_devices[which_gpu];
@@ -893,12 +890,6 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 #endif
     }
     gpu_device = gpu_enabled_devices[which_gpu];
-
-#if DPLASMA_SCHEDULING
-
-    /* keep n -- not being used yet*/
-    gpu_load[gpu_device->index]+=n;
-#endif
 
     /* Check the GPU status */
     rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
