@@ -212,6 +212,11 @@ int dague_gpu_data_get_elt( dague_gpu_data_map_t* gpu_map,
 
 int dague_gpu_update_data_version( dague_gpu_data_map_t* gpu_map, uint32_t key );
 
+int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
+                                   dague_execution_context_t *this_task,
+                                   int *array_of_eltsize,
+                                   int  move_data_count );
+
 int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              uint32_t key, int32_t type,
                              memory_elem_t* mem_elem,

@@ -680,6 +680,112 @@ int dague_gpu_data_get_elt( dague_gpu_data_map_t* gpu_map,
     return rc;
 }
 
+
+/**
+ * Try to find memory space to move all data on the GPU.
+ * Returns:
+ *    0: All gpu_mem/mem_elem have been initialized
+ *   -2: The task needs to rescheduled
+ */
+int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
+                                   dague_execution_context_t *this_task,
+                                   int *array_of_eltsize,
+                                   int  move_data_count )
+{
+    gpu_elem_t* temp_loc[MAX_PARAM_COUNT];
+    gpu_elem_t *gpu_elem, *lru_gpu_elem;
+    int eltsize = 0;
+    int i, j;
+    (void)array_of_eltsize;
+    (void)eltsize;
+
+    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+        memory_elem_t* mem_elem = this_task->data[i].mem2dev_data;
+        temp_loc[i] = NULL;
+
+        gpu_elem = (gpu_elem_t*)mem_elem->device_elem[gpu_device->index];
+        if( NULL != gpu_elem ) continue;
+
+#if !defined(GPU_MEMORY_PER_TILE)
+        gpu_elem = (gpu_elem_t*)calloc(1, sizeof(gpu_elem_t));
+        DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
+        
+        eltsize = array_of_eltsize[0];
+        eltsize = (eltsize + GPU_MALLOC_UNIT_SIZE - 1) / GPU_MALLOC_UNIT_SIZE;
+        
+    malloc_data:
+        gpu_elem->gpu_mem = (CUdeviceptr)gpu_malloc( gpu_device->memory, eltsize );
+        fprintf(stderr, "%c", ((gpu_elem->gpu_mem == 0) ? 'X' : '+') );
+        
+        if ( gpu_elem->gpu_mem == 0 )
+        {
+#endif
+            
+        find_another_data:
+            lru_gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop(gpu_device->gpu_mem_lru);
+            if( NULL == lru_gpu_elem ) {
+                /* Make sure we all temporary locations are set to NULL */
+                for( ; i < this_task->function->nb_parameters; temp_loc[i++] = NULL );
+                break;  /* Go and cleanup */
+            }
+            DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)lru_gpu_elem);
+            
+            /* If there are pending readers, let the gpu_elem loose. This is a weak coordination
+             * protocol between here and the dague_gpu_data_stage_in, where the readers don't necessarily
+             * always remove the data from the LRU.
+             */
+            if( 0 != lru_gpu_elem->generic.readers ) goto find_another_data;
+            /* Make sure the new GPU element is clean and ready to be used */
+            assert( mem_elem != lru_gpu_elem->generic.memory_elem );
+            if( mem_elem != lru_gpu_elem->generic.memory_elem ) {
+                if( NULL != lru_gpu_elem->generic.memory_elem ) {
+                    memory_elem_t* old_mem = lru_gpu_elem->generic.memory_elem;
+                    /* Let's check we're not trying to steal one of our own data */
+                    for( j = 0; j < this_task->function->nb_parameters; j++ ) {
+                        if( this_task->data[j].mem2dev_data == old_mem ) {
+                            temp_loc[j] = lru_gpu_elem;
+                            goto find_another_data;
+                        }
+                    }
+                    
+                    old_mem->device_elem[gpu_device->index] = NULL;
+                    DEBUG3(("Repurpose a data for %s:%d\n", this_task->function->name, i));
+                    
+#if !defined(GPU_MEMORY_PER_TILE)
+                    fprintf(stderr, "-");
+                    gpu_free( gpu_device->memory, (void*)(lru_gpu_elem->gpu_mem) );
+                    free(lru_gpu_elem);
+                    goto malloc_data;
+#endif
+                }
+            }
+            gpu_elem = lru_gpu_elem;
+            
+#if !defined(GPU_MEMORY_PER_TILE)
+        }
+#endif
+        mem_elem->device_elem[gpu_device->index] = (dague_device_elem_t*)gpu_elem;
+        gpu_elem->generic.memory_elem = mem_elem;
+        gpu_elem->generic.coherency_state = DAGUE_DATA_INVALID;
+        move_data_count--;
+        temp_loc[i] = gpu_elem;
+    }
+    if( 0 != move_data_count ) {
+        DEBUG3(("GPU:\tRequest space on GPU failed for %d out of %d data\n",
+                move_data_count, this_task->function->nb_parameters));
+        /* We can't find enough room on the GPU. Insert the tiles in the begining of
+         * the LRU (in order to be reused asap) and return without scheduling the task.
+         */
+        for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+            if( NULL == temp_loc[i] ) continue;
+            dague_list_push_back(gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[i]);
+        }
+        return -2;
+    }
+    return 0;
+}
+
+
 /**
  * If the most current version of the data is not yet available on the GPU memory
  * schedule a transfer.
