@@ -218,10 +218,13 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
         sizeloc[1] = tile_size;
         sizeloc[2] = tile_size;
 
-        dague_gpu_find_space_for_elts( gpu_device,
-                                       this_task,
-                                       sizeloc,
-                                       move_data_count );
+        ret = dague_gpu_find_space_for_elts( gpu_device,
+                                             this_task,
+                                             sizeloc,
+                                             move_data_count );
+        if( ret < 0 ) {
+            goto release_and_return_error;
+        }
     }
 
 #if defined(DAGUE_PROF_TRACE)
@@ -353,6 +356,8 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
             gpu_elem->generic.readers--;
             if( (0 == gpu_elem->generic.readers) &&
                 !(this_task->function->in[i]->access_type & ACCESS_WRITE) ) {
+                dague_ulist_remove( gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_elem);
+                DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
                 dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
             }
         }

@@ -13,7 +13,7 @@
 #include <assert.h>
 #include <cuda.h>
 
-#define GPU_MALLOC_UNIT_SIZE 128
+#define GPU_MALLOC_UNIT_SIZE (1024*1024)
 
 typedef struct segment {
     int start_index;/* Index of the first byte of this segment */
@@ -132,7 +132,6 @@ static inline void *gpu_malloc(gpu_malloc_t *gdata, int nb_units)
         }
     }
 
-    //gpu_malloc_error("@");/*no more memory available");*/
     return NULL;
 }
 
@@ -157,9 +156,6 @@ static inline void gpu_free(gpu_malloc_t *gdata, void *add)
         p = s;
     }
     gpu_malloc_error("address to free not allocated\n");
-    fprintf(stderr, " Address was %p and base address was %p\n",
-            add, gdata->base);
-    assert(0);
 }
 
 #endif /* _GPU_MALLOC_H_ */

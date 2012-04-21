@@ -460,7 +460,6 @@ int dague_gpu_data_register( dague_context_t *dague_context,
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxPushCurrent ", status,
                                 {continue;} );
-        
 
         /**
          * It appears that CUDA allocate the memory in chunks of 1MB,
@@ -520,9 +519,6 @@ int dague_gpu_data_register( dague_context_t *dague_context,
          */
         
         nb_allocations = thread_gpu_mem / GPU_MALLOC_UNIT_SIZE ;
-        
-        gpu_device->memory = (gpu_malloc_t *)calloc( 1, sizeof(gpu_malloc_t) );
-        //gpu_device->memory = gpu_malloc_init( 1<<21, GPU_MALLOC_UNIT_SIZE );
         gpu_device->memory = gpu_malloc_init( nb_allocations, GPU_MALLOC_UNIT_SIZE );
         
         if( gpu_device->memory == NULL ) {
@@ -562,7 +558,6 @@ int dague_gpu_data_unregister( )
 #if defined(GPU_MEMORY_PER_TILE)
             cuMemFree( gpu_elem->gpu_mem );
 #else
-            fprintf(stderr, "~");
             gpu_free( gpu_device->memory, (void*)(gpu_elem->gpu_mem) );
 #endif
             free( gpu_elem );
@@ -572,7 +567,6 @@ int dague_gpu_data_unregister( )
 #if defined(GPU_MEMORY_PER_TILE)
             cuMemFree( gpu_elem->gpu_mem );
 #else
-            fprintf(stderr, "~");
             gpu_free( gpu_device->memory, (void*)(gpu_elem->gpu_mem) );
 #endif
             free( gpu_elem );
@@ -715,10 +709,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
         
     malloc_data:
         gpu_elem->gpu_mem = (CUdeviceptr)gpu_malloc( gpu_device->memory, eltsize );
-        fprintf(stderr, "%c", ((gpu_elem->gpu_mem == 0) ? 'X' : '+') );
-        
-        if ( gpu_elem->gpu_mem == 0 )
-        {
+        if ( gpu_elem->gpu_mem == 0 ) {
 #endif
             
         find_another_data:
@@ -734,9 +725,14 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
              * protocol between here and the dague_gpu_data_stage_in, where the readers don't necessarily
              * always remove the data from the LRU.
              */
-            if( 0 != lru_gpu_elem->generic.readers ) goto find_another_data;
+            if( 0 != lru_gpu_elem->generic.readers ) {
+                goto find_another_data;
+            }
             /* Make sure the new GPU element is clean and ready to be used */
             assert( mem_elem != lru_gpu_elem->generic.memory_elem );
+#if !defined(GPU_MEMORY_PER_TILE)
+            assert(NULL != lru_gpu_elem->generic.memory_elem);
+#endif
             if( mem_elem != lru_gpu_elem->generic.memory_elem ) {
                 if( NULL != lru_gpu_elem->generic.memory_elem ) {
                     memory_elem_t* old_mem = lru_gpu_elem->generic.memory_elem;
@@ -752,7 +748,6 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
                     DEBUG3(("Repurpose a data for %s:%d\n", this_task->function->name, i));
                     
 #if !defined(GPU_MEMORY_PER_TILE)
-                    fprintf(stderr, "-");
                     gpu_free( gpu_device->memory, (void*)(lru_gpu_elem->gpu_mem) );
                     free(lru_gpu_elem);
                     goto malloc_data;
