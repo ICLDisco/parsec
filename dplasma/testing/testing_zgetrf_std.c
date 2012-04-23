@@ -42,11 +42,6 @@ int main(int argc, char ** argv)
         check = 0;
     }
 
-    if ( P > 1 ) {
-        fprintf(stderr, "This function cannot be used with a 2D block cyclic distribution for now\n");
-        return 1;
-    }
-
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
@@ -55,8 +50,8 @@ int main(int argc, char ** argv)
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
         two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
-                               nodes, cores, rank, MB, 1, dague_imin(M, N), 1, 0, 0,
-                               dague_imin(M, N), 1, SMB, SNB, P*Q));
+                               nodes, cores, rank, MB, 1, dague_imin(M, N), Q, 0, 0,
+                               dague_imin(M, N), Q, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,

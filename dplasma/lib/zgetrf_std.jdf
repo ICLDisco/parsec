@@ -46,10 +46,10 @@ IP_in(k)
 k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
 
 // Parallel partitioning
-:IPIV(k)
+:IPIV(k,k%Q)
 
 // Parameters
-READ  IP <- IPIV(k)                                    [type = PIVOT]
+READ  IP <- IPIV(k,k%Q)                                [type = PIVOT]
          -> IP GETRF(k)                                [type = PIVOT]
 
 BODY
@@ -143,8 +143,8 @@ n = k+1..descA.nt-1
 :ACOPY(k%P,n)
 
 // Parameters
-READ  A  <- ACOPY(k%P,n)                                      //[type = UINIT]
-         -> ACOPY SWAP_COPY(k,n)                              //[type = UINIT]
+READ  A  <- ACOPY(k%P,n)
+         -> ACOPY SWAP_COPY(k,n)
 
 BODY
         /* Nothing to do */
@@ -165,8 +165,8 @@ n = k+1..descA.nt-1
 
 // Parameters
 READ      A <-  (k == 0)? A(k,n) : C GEMM(k-1, k, n)
-RW    ACOPY <-  A ACOPY_in(k,n)                                      //[type = UINIT]
-            ->  U SWAP_RECV(k,k,n)                                   //[type = UINIT]
+RW    ACOPY <-  A ACOPY_in(k,n)
+            ->  U SWAP_RECV(k,k,n)
 CTL     ctl ->  ctl SWAP_PASTE(k,n)
 
 BODY
@@ -200,10 +200,10 @@ n = k+1..descA.nt-1
 
 // Parameters
 /*READ      U <- (m==k)? ACOPY SWAP_COPY(k, n) : ((m-k<P)? U SWAP_RECV(k,m-1,n) : U SWAP_RECV(k,m-P,n))*/
-READ      U <- (m==k)? ACOPY SWAP_COPY(k, n)                                      //[type = UINIT]
-            <- (m-k<P)? U SWAP_RECV(k,m-1,n) : U SWAP_RECV(k,m-P,n)               //[type = UINIT]
-            ->  (descA.mt-m>P)? U SWAP_RECV(k,m+P,n)                              //[type = UINIT]
-            ->  (m-k<P-1)? U SWAP_RECV(k,m+1,n)                                   //[type = UINIT]
+READ      U <- (m==k)? ACOPY SWAP_COPY(k, n)
+            <- (m-k<P)? U SWAP_RECV(k,m-1,n) : U SWAP_RECV(k,m-P,n)
+            ->  (descA.mt-m>P)? U SWAP_RECV(k,m+P,n)
+            ->  (m-k<P-1)? U SWAP_RECV(k,m+1,n)
 RW        T <-  T SWAP_COLLECT(k,m,n)
             ->  (m!=k)? C GEMM(k,m,n)
 READ     IP <-  IP SWAP_COLLECT(k,m,n)                  [type = PIVOT]
@@ -228,11 +228,11 @@ m = 0..((P<descA.mt-k)?P-1:descA.mt-k-1)
 n = k+1..descA.nt-1
 
 // Parallel partitioning
-:BUFFER((k+m)%P,n%Q)
+:BUFFER((k+m)%P,n)
 
 // Parameters
-READ  B  <- BUFFER((k+m)%P,n%Q)                                      //[type = UFINAL]
-         -> MYBUF SWAP_COLLECT(k,k+m,n)                              //[type = UFINAL]
+READ  B  <- BUFFER((k+m)%P,n)
+         -> MYBUF SWAP_COLLECT(k,k+m,n)
 
 BODY
         /* Nothing to do */
@@ -254,16 +254,16 @@ n = k+1..descA.nt-1
 :A(m, n)
 
 // Parameters
-RW   MYBUF  <-  (m-k>=P)? MYBUF SWAP_COLLECT(k,m-P,n) : B BUFFER_in(k,m%P,n)                                   //[type = UFINAL]
-            ->  (descA.mt-m>P)? MYBUF SWAP_COLLECT(k,m+P,n)                                                    //[type = UFINAL]
-            ->  ( ((descA.mt-m) <= P) && (((m-k)%P)%2 == 0) )? MYBUF  SWAP_SND(k,0,((m-k)%P)/2,n)              //[type = UFINAL]
-            ->  ( ((descA.mt-m) <= P) && (((m-k)%P)%2 == 1) )? BUFFER  SWAP_SND(k,0,((m-k)%P)/2,n)             //[type = UFINAL]
-            ->  ( ((descA.mt-m) <= P) && ((P%2)==1) && ((m-k)%P == P-1) )? BUFFER SWAP_SND(k,0,((m-k)%P)/2,n)  //[type = UFINAL]
+RW   MYBUF  <-  (m-k>=P)? MYBUF SWAP_COLLECT(k,m-P,n) : B BUFFER_in(k,(k+m)%P,n)
+            ->  (descA.mt-m>P)? MYBUF SWAP_COLLECT(k,m+P,n)
+            ->  ( ((descA.mt-m) <= P) && (((m-k)%P)%2 == 0) )? MYBUF  SWAP_SND(k,0,((m-k)%P)/2,n)
+            ->  ( ((descA.mt-m) <= P) && (((m-k)%P)%2 == 1) )? BUFFER  SWAP_SND(k,0,((m-k)%P)/2,n)
+            ->  ( ((descA.mt-m) <= P) && ((P%2)==1) && ((m-k)%P == P-1) )? BUFFER SWAP_SND(k,0,((m-k)%P)/2,n)
 READ      T <-  (k == 0)? A(m,n) : C GEMM(k-1, m, n)
             ->  T SWAP_RECV(k,m,n)
 READ     IP <-  (m==k)? IP GETRF(k) : IP TRSM_L(k,m)                                                           [type = PIVOT]
             ->  IP SWAP_RECV(k,m,n)                                                                            [type = PIVOT]
-            ->  ( ((descA.mt-m) <= P ) && (((m-k)%P)%2 == 0) )? IP    SWAP_SND(k,0,((m-k)%P)/2,n)  [type = PIVOT]
+            ->  ( ((descA.mt-m) <= P ) && (((m-k)%P)%2 == 0) )? IP    SWAP_SND(k,0,((m-k)%P)/2,n)  	       [type = PIVOT]
 
 BODY
     DRYRUN(
@@ -283,23 +283,28 @@ SWAP_SND(k,d,m,n)
 k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
 d = 0.. inline_c %{ 
   int size = (descA.mt-k < P) ? descA.mt-k : P;
-  /* fprintf(stderr, "P=%d, descA.mt=%d, k=%d\n", P, descA.mt, k); */
-  return ((int)ceil( log( (double)size ) / log(2.0) ) ); %}
-m = 0..((d%2)?d-1:d)
+  int loga = ((int)ceil( log( (double)((size==1) ? 1 : size-1)) / log(2.0) ) );
+  return loga; %}
+m = 0 .. inline_c %{
+  int nb_init = descA.mt-k;
+  int i;
+  for(i = 0; i <= d ; i++)
+      nb_init = (nb_init+1)/2;
+  return nb_init; %}
 n = k+1..descA.nt-1
 
-pui= inline_c %{ return pow(2,d);%}
+pui= inline_c %{ return (int) pow(2,d);%}
 // Parallel partitioning
 :A(k+(m*pui), n)
 /*:BUFFER(m%Q,n)*/
 
 // Parameters
-READ  MYBUF <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-1-k-m)%P)-1,n) : MYBUF SWAP_SND(k,d-1,m*2,n)     //[type = UFINAL]
-            ->  ((m%2==0) && (m<d))? MYBUF SWAP_SND(k,d+1,m/2,n)                                                    //[type = UFINAL]
-RW   BUFFER <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-2-k-m)%P)-1,n) : BUFFER SWAP_SND(k,d-1,m*2+1,n)  //[type = UFINAL]
-            ->  (m<d)? BUFFER SWAP_SND(k,d+1,m/2,n)                                                                 //[type = UFINAL]
-            ->  ((m == d) && (m == 0))? B SWAP_PASTE(k,n)                                                           //[type = UFINAL]
-READ     IP <-  (d == 0)? IP SWAP_COLLECT(k,descA.mt-((descA.mt-2-k-m)%P)-1,n) : IP SWAP_SND(k,d+1,m/2,n)           [type = PIVOT]
+READ  MYBUF <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-1-k-m)%P)-1,n) : MYBUF SWAP_SND(k,d-1,m*2,n)
+            ->  ((m%2==0) && (m<d))? MYBUF SWAP_SND(k,d+1,m/2,n)
+RW   BUFFER <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-2-k-m)%P)-1,n) : BUFFER SWAP_SND(k,d-1,m*2+1,n)
+            ->  (m<d)? BUFFER SWAP_SND(k,d+1,m/2,n)
+            ->  ((m == d) && (m == 0))? B SWAP_PASTE(k,n)
+READ     IP <-  (d == 0)? IP SWAP_COLLECT(k,descA.mt-((descA.mt-1-k-m)%P)-1,n) : IP SWAP_SND(k,d-1,m/2,n)           [type = PIVOT]
             ->  ((m%2==0) && (m<d))? IP SWAP_SND(k,d+1,m/2,n)                                                       [type = PIVOT]
 
 BODY
@@ -333,9 +338,7 @@ d = inline_c %{
 // Parameters
 CTL     ctl <-  ctl SWAP_COPY(k, n)
             ->  ctl TRSM_U(k,n)
-READ      B <-  BUFFER SWAP_SND(k,d,0,n)                                         //[type = UFINAL]
-//            ->  C TRSM_U(k,n)
-//            ->  A(k,n)
+READ      B <-  BUFFER SWAP_SND(k,d,0,n)
 
 BODY
     DRYRUN(
@@ -399,7 +402,7 @@ RW    C <- T SWAP_RECV(k, m, n)
         -> ((m == k+1) && (n == k+1)) ? T GETRF(k+1)  /* Diagonal */
         -> ((m >  k+1) && (n == k+1)) ? C TRSM_L(k+1,m)  /* Lower */
         -> ((m == k+1) && (n >  k+1)) ? A SWAP_COPY(k+1,n)  /* Swap */
-        -> ((m >  k) && (n >  k+1)) ? T SWAP_COLLECT(k+1,m,n)  /* Everything else */
+        -> ((m >  k)   && (n >  k+1)) ? T SWAP_COLLECT(k+1,m,n)  /* Everything else */
 
 BODY
     DRYRUN(

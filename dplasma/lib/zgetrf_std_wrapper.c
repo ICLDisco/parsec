@@ -16,8 +16,6 @@
 
 #include "zgetrf_std.h"
 
-static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };
-
 dague_object_t* dplasma_zgetrf_std_New( tiled_matrix_desc_t *A,
                                         tiled_matrix_desc_t *IPIV,
                                         int P,
