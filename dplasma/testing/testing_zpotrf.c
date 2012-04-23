@@ -92,10 +92,12 @@ int main(int argc, char ** argv)
                     printf("XXX Unable to load GPU kernel.\n");
                     exit(3);
                 }
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescA,
+                                    MT*NT, MB*NB*sizeof(Dague_Complex64_t) );
             if(loud > 3) printf("Done\n");
         }
 #endif
-
 
     PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf,
                               (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
@@ -135,7 +137,8 @@ int main(int argc, char ** argv)
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0) {
-        zgemm_cuda_fini(dague);
+        dague_gpu_data_unregister();
+        dague_gpu_kernel_fini(dague, "zgemm");
     }
 #endif
     cleanup_dague(dague, iparam);
