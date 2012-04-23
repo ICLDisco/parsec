@@ -39,9 +39,33 @@ static void output(const char *format, ...)
 static int event_buffer_size = 0;
 static int event_avail_space = 0;
 
+struct dbp_file {
+    struct dbp_multifile_reader *parent;
+    char *hr_id;
+    int fd;
+    dague_time_t min_date;
+    char *filename;
+    int rank;
+    int nb_infos;
+    int  nb_threads;
+    struct dbp_info  **infos;
+    struct dbp_thread *threads;
+};
+
 struct dbp_event {
     dague_profiling_output_t *native;
 };
+
+void dbp_file_print(dbp_file_t * file) {
+    printf("parent %p\n", file->parent);
+    printf("hr_id %s\n", file->hr_id);
+    printf("fd %d\n", file->fd);
+    printf("filename %s\n", file->filename);
+    printf("rank %d\n", file->rank);
+    printf("nb_infos %d\n", file->nb_infos);
+    printf("nb_threads %d\n", file->nb_threads);
+    printf("infos %p\n", file->infos);
+}
 
 int dbp_event_get_key(const dbp_event_t *e)
 {
@@ -100,19 +124,7 @@ struct dbp_info {
     char *value;
 };
 
-struct dbp_file {
-    dbp_multifile_reader_t *parent;
-    char *hr_id;
-    int fd;
-    dague_time_t min_date;
-    char *filename;
-    int rank;
-    int nb_infos;
-    int  nb_threads;
-    dbp_info_t  **infos;
-    dbp_thread_t *threads;
-};
-
+// file here
 struct dbp_dictionary {
     int keylen;
     char *name;
@@ -399,6 +411,11 @@ int dbp_file_nb_threads(const dbp_file_t *file)
     return file->nb_threads;
 }
 
+char * dbp_file_get_name(const dbp_file_t *file)
+{
+    return file->filename;
+}
+
 int dbp_file_nb_infos(const dbp_file_t *file)
 {
     return file->nb_infos;
@@ -406,7 +423,7 @@ int dbp_file_nb_infos(const dbp_file_t *file)
 
 dbp_info_t *dbp_file_get_info(const dbp_file_t *file, int iid)
 {
-    assert( iid >= 0 && iid < file->nb_infos );
+    assert( iid >= 0 && iid < file->nb_infos && file->infos != NULL);
     return file->infos[iid];
 }
 
@@ -715,13 +732,18 @@ static dbp_multifile_reader_t *open_files(int argc, char *argv[])
         }
         dbp->files[n].parent = dbp;
         dbp->files[n].fd = fd;
-        if( read( fd, &head, sizeof(dague_profiling_binary_file_header_t) ) != sizeof(dague_profiling_binary_file_header_t) ) {
+        dbp->files[n].nb_infos = 0;
+
+        if( (p = read( fd, &head, sizeof(dague_profiling_binary_file_header_t) )) != sizeof(dague_profiling_binary_file_header_t) ) {
+            fprintf(stderr, "read %d bytes\n", p);
             fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
                     argv[i]);
             close(fd);
             continue;
         }
+
         if( strncmp( head.magick, DAGUE_PROFILING_MAGICK, 24 ) ) {
+            fprintf(stderr, "read %d bytes %s\n%s\n", p, head.magick, DAGUE_PROFILING_MAGICK);
             fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
                     argv[i]);
             close(fd);
@@ -733,6 +755,7 @@ static dbp_multifile_reader_t *open_files(int argc, char *argv[])
             close(fd);
             continue;
         }
+
         dbp->files[n].filename = strdup(argv[i]);
         if( n > 0 ) {
             if( strncmp(head.hr_id, dbp->files[0].hr_id, 128) ) {
