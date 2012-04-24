@@ -282,15 +282,38 @@ int dplasma_qr_gettype( const qr_piv_t *arg, const int k, const int m ) {
  * Warning: It doesn't work with domino
  */
 int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i ) {
-    int a = arg -> a;
+    /*int a = arg -> a;
+    int p = arg -> p;
+    int mt = desc -> mt;
     int nb_tile = arg->desc->mt - k;
-    int q = nb_tile / a;
-    int r = nb_tile - q*a;
+    int m = dplasma_qr_getm(arg, k, i);
+    int proc = m / p;
+
+    int i_proc = 
+    int nb_tile_proc = 
+
+
+
+    int q = nb_tile_proc / a;
+    int r = nb_tile_proc - q*a;
     
-    if (i<r)
+    if (i_proc < r)
         return a-1;
     else
-        return a;
+        return a;*/
+
+    //printf("\nDébut du calcul de getsize( k=%d, i=%d)\n",k,i);
+    int p = arg -> p;
+    int mt = arg->desc->mt;
+    int m = dplasma_qr_getm(arg, k, i);
+    int size = 1;
+    int next = m + p;
+    while (next < mt ? dplasma_qr_gettype(arg, k, m) == 0 : 0) {
+        next += p;
+        size++;
+    }
+    //printf("\ngetsize( k=%d, i=%d) = %d\n",k,i,size);
+    return size;   
 }
 
 
@@ -1252,12 +1275,15 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 
 int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m)
 {
+    //printf("\nDébut du calcul de nexttriangle( p=%d, k=%d, m=%d)\n",p,k,m);
     int next = dplasma_qr_nextpiv(arg, p, k, m);
+    int mt = arg -> desc -> mt;
 
-    while (dplasma_qr_gettype(arg, k, next) == 0) {
+    while (next == mt ? 0 : dplasma_qr_gettype(arg, k, next) == 0) {
         next = dplasma_qr_nextpiv(arg, p, k, next);
     }
     
+    //printf("\nnexttriangle( p=%d, k=%d, m=%d) = %d\n",p,k,m,next);
     return next;
 };
 
