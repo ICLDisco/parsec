@@ -116,31 +116,36 @@ zgetrf_hpp(k, i)
   ; inline_c %{ return GETPRIO_PANEL(m, k); %}
 
 BODY
-
-  int tempm  = m * descA.mb;
+  //int tempm  = m * descA.mb;
   //int tempn  = k * descA.nb;
-  int temp_m_plus_s_minus_one_m  = (m+s-1 == descA.mt-1) ? descA.m-(m+s-1)*descA.mb : descA.mb;
-  int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
-  int tempmm = m == descA.mt-1 ? descA.m-m*descA.mb : descA.mb;
+  int temp_m_plus_s_minus_one_m  = (m+(s-1)*param_p == descA.mt-1) ? descA.m-(m+(s-1)*param_p)*descA.mb : descA.mb;
+  int tempn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+  int tempm = temp_m_plus_s_minus_one_m + (s-1)*descA.mb;
   //int ldak = BLKLDD(descA, k);
+
+   printlog("BEGIN thread %d   CORE_zgetrf_rectil_1thrd(k = %d, i = %d)\n"
+            "\t(%d, %d, A(%d,%d)[%p], IP(%d,%d)[%p])\n",
+            context->eu_id, k, i, tempm, tempn, m, k, A, m, k, IP);
+
+   printf("\nGETRF( k=%d, i=%d, m=%d)\ndplasma_qr_getsize( k=%d, i=%d, m=%d) = %d\ntempn = %d\ntemp_m_plus_s_minus_one_m = %d\ntempm = %d\n\n", k, i, m, k, i, m, s, tempn, temp_m_plus_s_minus_one_m, tempm);
 
   DRYRUN(
       /* Set local IPIV to 0 before generation
        * Better here than a global initialization for locality
        * and it's also done in parallel */
-      memset(IP, 0, dague_imin(tempkn, tempmm) * sizeof(int) );
+      //memset(IP, 0, dague_imin(tempn, tempm) * sizeof(int) );
 
       PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
                                              descA.mb, descA.nb, descA.mb * descA.nb,
-                                             (s-1)*descA.mb + temp_m_plus_s_minus_one_m, descA.nb, 0, 0,
-                                             tempm, tempkn);
+                                             s*descA.mb, descA.nb, 0, 0,
+                                             tempm, tempn);
       pdescA.mat = A;
       CORE_zgetrf_rectil_1thrd( pdescA, IP);
          );
 
-   printlog("thread %d   CORE_zgetrf_rectil_1thrd(%d)\n"
-            "\t(%d, %d, A(%d,%d)[%p], %d, IP(%d)[%p])\n",
-            context->eu_id, k, tempm, tempkn, k, k, A, ldak, k, IP);
+   printlog("EN thread %d   CORE_zgetrf_rectil_1thrd(k = %d, i = %d)\n"
+            "\t(%d, %d, A(%d,%d)[%p], IP(%d,%d)[%p])\n",
+            context->eu_id, k, i, tempm, tempn, m, k, A, m, k, IP);
 
 END
 
@@ -176,15 +181,21 @@ BODY
   DRYRUN(
          int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
          int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-         int temp_m_plus_s_minus_one_m  = (m+s-1 == descA.mt-1) ? descA.m-(m+s-1)*descA.mb : descA.mb;
+         int temp_m_plus_s_minus_one_m  = (m+(s-1)*param_p == descA.mt-1) ? descA.m-(m+(s-1)*param_p)*descA.mb : descA.mb;
+         int tempm = (s-1)*descA.mb + temp_m_plus_s_minus_one_m;
          int ldam = BLKLDD(descA, m);
-         int tempk = k * descA.mb;
-         int tempm = descA.m - tempk;
+         //int tempk = k * descA.mb;
+         //int tempm = descA.m - tempk;
+         int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
 
-         PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble, 
-                                                descA.mb, descA.nb, descA.mb * descA.nb,
-                                                (s-1)*descA.mb + temp_m_plus_s_minus_one_m, descA.nb, 0, 0,
-                                                tempm, tempnn);
+         printlog("BEGIN thread %d   CORE_zswptrsm(%d, %d, %d)\n"
+            "\t(%d, %d, A(%d,%d)[%p], A(%d,%d)[%p])\n",
+            context->eu_id, k, i, n, tempmm, tempnn, m, k, A, m, n, C);
+
+         PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                             descA.mb, descA.nb, descA.mb * descA.nb,
+                                             s*descA.mb, descA.nb, 0, 0,
+                                             tempm, tempnn);
          pdescA.mat = (void*)A;
 
          CORE_zlaswp_ontile(pdescA, 1, tempmm, IP, 1);
@@ -196,9 +207,9 @@ BODY
                  C /*A(m, n)*/, ldam);
          );
 
-   printlog("thread %d   CORE_zswptrsm(%d, %d)\n"
-            "\t(%d, %d, A(%d,%d)[%p], B(%d,%d)[%p])\n",
-            context->eu_id, k, n, tempkm, tempnn, k, k, A, k, n, B);
+   printlog("EN thread %d   CORE_zswptrsm(%d, %d, %d)\n"
+            "\t(%d, %d, A(%d,%d)[%p], A(%d,%d)[%p])\n",
+            context->eu_id, k, i, n, tempmm, tempnn, m, k, A, m, n, C);
 
 END
 
@@ -244,7 +255,7 @@ zttqrt(k, m)
           <- ( (type != 0) & (prevm == descA.mt ) ) ? A  zgetrf_hpp(k, im )        
           <- ( (type != 0) & (prevm != descA.mt ) ) ? A  zttqrt(k, prevm )    
           -> (type == 0) ? A(m, k)
-          -> (k < descA.nt-1) ? H zttmqr(k, m, m1..ms..param_p)
+          -> (k < descA.nt-1) ? H zttmqr(k, m, k+1..descA.nt-1)
   RW   A  <- ( (prevp == descA.mt) & (type !=0) ) ? A  zgetrf_hpp(k, ip )           [type = UPPER_TILE]
           <- ( (prevp != descA.mt) & (type !=0) ) ? A zttqrt(k, prevp)          [type = UPPER_TILE]
           <- (type == 0) ? A zgetrf_hpp(k, ip)                                      [type = UPPER_TILE]    /*unused*/
@@ -266,6 +277,10 @@ BODY
          int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
          int ldam = BLKLDD( descA, m );
 
+  printlog("BEGIN thread %d CORE_zttqrt(%d, %d)\n"
+           "\t(%d, %d, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)\n",
+           context->eu_id, k, m, tempmm, tempkn, p, k, A, m, k, C, m, k, T);
+
          if ( type == DPLASMA_QR_KILLED_BY_TS ) {
          } else {
            CORE_zttqrt(
@@ -285,9 +300,9 @@ BODY
   if ( ( ( nextp == descA.mt ) & (p == k) ) )
     ((PLASMA_Complex64_t*)A1)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
-  printlog("thread %d CORE_zttqrt(%d, %d)\n"
-           "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)\n",
-           context->eu_id, k, m, p, k, A1, m, k, A2, m, k, T);
+  printlog("EN thread %d CORE_zttqrt(%d, %d)\n"
+           "\t(%d, %d, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)\n",
+           context->eu_id, k, m, tempmm, tempkn, p, k, A, m, k, C, m, k, T);
 
 END
 
@@ -349,10 +364,10 @@ zttmqr(k, m, n)
 
   : A(m, n)
 
-  /* V  == A(m, k) */
+  /* H  == A(m, k) */
   /* T  == T(m, k) */
-  /* A1 == A(p, n) */
-  /* A2 == A(m, n) */
+  /* V == A(p, n) */
+  /* C == A(m, n) */
 
   RW   V  <- (   prevp == descA.mt ) ? C  swptrsm( k, ip, n ) 
           <- (   prevp != descA.mt ) ? V zttmqr(k, prevp, n )
@@ -368,7 +383,7 @@ zttmqr(k, m, n)
           -> ( (nexttype != 0 ) && (n>  k+1)  ) ? C  swptrsm( k+1, nextim, n )            
           -> ( (nexttype == 0 ) && (n> (k+1)) ) ? C zttmqr( k+1, m, n )             
   READ  T <- T  zttqrt(k, m)                                                     [type = LITTLE_T]
-  CTL ctl -> (type ==0) ? ctl1 tile2panel(k, m, n)
+  CTL ctl -> ctl1 tile2panel(k, m, n)
 
     ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
 
@@ -381,6 +396,11 @@ BODY
          int ldam = BLKLDD( descA, m );
          int ldap = BLKLDD( descA, p );
          int ldwork = ib;
+
+          printlog("BEGIN thread %d CORE_zttmqr(%d, %d, %d)\n"
+           "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
+           "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n",
+           context->eu_id, k, m, n, p, n, V, m, n, C, m, k, H, m, k, T);
 
          if ( type == DPLASMA_QR_KILLED_BY_TS ) {
            CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
@@ -402,35 +422,35 @@ BODY
 
          );
 
-  printlog("thread %d CORE_zttmqr(%d, %d, %d)\n"
+  printlog("EN thread %d CORE_zttmqr(%d, %d, %d)\n"
            "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
            "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n",
-           context->eu_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
+           context->eu_id, k, m, n, p, n, V, m, n, C, m, k, H, m, k, T);
 
 END
 
 
-tile2panel(k, m, n) [profile = off]
+tile2panel(k, m, n) /*[profile = off]*/
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
-  type  = inline_c %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
-  s = inline_c %{ return dplasma_qr_getsize( pivfct, k, i); %}
-  m0 = inline_c %{ return dplasma_qr_currpiv(pivfct, m, k); %}
-  ms = inline_c %{ return m + (s-1)*param_p; %}
-  i    = inline_c %{ return dplasma_qr_geti(    pivfct, k, m0 ); %}
+  type  = inline_c %{ return dplasma_qr_gettype( pivfct, k+1,   m ); %}
+  m0 = inline_c %{ return type == 0 ? dplasma_qr_currpiv(pivfct, m, k+1) : m; %}
+  i    = inline_c %{ return dplasma_qr_geti(    pivfct, k+1, m0 ); %}
+  s = inline_c %{ return dplasma_qr_getsize( pivfct, k+1, i); %}
+  ms = inline_c %{ return m0 + (s-1)*param_p; %}
 
   :A(k, n)
 
-  CTL  ctl1 <- (type == 0) ? ctl zttmqr(k, m, n)
-  CTL  ctl2 <- ( (type == 0) & (m > m0 + param_p) ) ? ctl2 tile2panel(k, m-param_p, n)
-            -> ( (type == 0) & (m < ms ) )  ? ctl2 tile2panel(k, m+param_p, n)
-            -> ( (type == 0) & (m == ms-1 ) & (n == k+1) ) ? ctl  zgetrf_hpp(k+1, i)
-            -> ( (type == 0) & (m == ms-1 ) & (n > k+1) ) ? ctl  swptrsm(k+1, i, n)
+  CTL  ctl1 <- ctl zttmqr(k, m, n)
+  CTL  ctl2 <- m > m0 ? ctl2 tile2panel(k, m-param_p, n)
+            -> m < ms ? ctl2 tile2panel(k, m+param_p, n)
+            -> ( (m == ms) & (n == k+1) ) ? ctl  zgetrf_hpp(k+1, i)
+            -> ( (m == ms ) & (n > k+1) ) ? ctl  swptrsm(k+1, i, n)
 
   ;descA.nt-n-1
 BODY
-    printlog("thread %d tile2panel( %d, %d, %d )\n", context->eu_id, k, m, n);
+    printlog("thread %d tile2panel( %d, %d, %d ) type = %d\n", context->eu_id, k, m, n, type);
 END
 
 
