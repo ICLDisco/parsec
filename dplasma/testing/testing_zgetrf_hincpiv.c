@@ -126,7 +126,7 @@ int main(int argc, char ** argv)
          * First check with a right hand side
          */
         printf("\nFirst check with a right hand side.\n");
-        dplasma_ztrsmpl_param( dague, qrpiv,
+        dplasma_ztrsmpl_hincpiv( dague, qrpiv,
                               (tiled_matrix_desc_t *)&ddescA,
                               (tiled_matrix_desc_t *)&ddescX,
                               (tiled_matrix_desc_t *)&ddescIPIV,
@@ -146,7 +146,7 @@ int main(int argc, char ** argv)
          * Second check with inverse
          */
         printf("\nSecond check with inverse (right hand side is Identity).\n");
-        dplasma_ztrsmpl_param( dague, qrpiv,
+        dplasma_ztrsmpl_hincpiv( dague, qrpiv,
                               (tiled_matrix_desc_t *)&ddescA,
                               (tiled_matrix_desc_t *)&ddescInvA,
                               (tiled_matrix_desc_t *)&ddescIPIV,

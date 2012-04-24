@@ -37,7 +37,8 @@ set(JDF
   ztrdsm.jdf
   zgetrf_incpiv.jdf zgetrf_incpiv_sd.jdf
   ztrsmpl.jdf ztrsmpl_sd.jdf
-  ztrsmpl_param.jdf
+  ztrsmpl_hincpiv.jdf
+  ztrsmpl_hpp.jdf
   zgeqrf.jdf
   zgelqf.jdf
   zherbt_L.jdf
@@ -79,7 +80,8 @@ set(SOURCES
   ztrsm_wrapper.c
   ztrmm_wrapper.c
   ztrsmpl_wrapper.c
-  ztrsmpl_param_wrapper.c
+  ztrsmpl_hincpiv_wrapper.c
+  ztrsmpl_hpp_wrapper.c
   zsymm_wrapper.c
   # Lapack Auxiliary
   zgeadd_wrapper.c
