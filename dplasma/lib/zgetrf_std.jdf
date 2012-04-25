@@ -254,11 +254,12 @@ n = k+1..descA.nt-1
 :A(m, n)
 
 // Parameters
-RW   MYBUF  <-  (m-k>=P)? MYBUF SWAP_COLLECT(k,m-P,n) : B BUFFER_in(k,(k+m)%P,n)
+RW   MYBUF  <-  (m-k>=P)? MYBUF SWAP_COLLECT(k,m-P,n) : B BUFFER_in(k,m-k,n)
             ->  (descA.mt-m>P)? MYBUF SWAP_COLLECT(k,m+P,n)
             ->  ( ((descA.mt-m) <= P) && (((m-k)%P)%2 == 0) )? MYBUF  SWAP_SND(k,0,((m-k)%P)/2,n)
             ->  ( ((descA.mt-m) <= P) && (((m-k)%P)%2 == 1) )? BUFFER  SWAP_SND(k,0,((m-k)%P)/2,n)
-            ->  ( ((descA.mt-m) <= P) && ((P%2)==1) && ((m-k)%P == P-1) )? BUFFER SWAP_SND(k,0,((m-k)%P)/2,n)
+            ->  ( ((descA.mt-m) <= P) && (descA.mt-k <  P) && (((descA.mt-k)%2)==1) && (m == descA.mt-1) )? BUFFER SWAP_SND(k,0,((m-k)%P)/2,n)
+	    ->  ( ((descA.mt-m) <= P) && (descA.mt-k >= P) && (((P)%2)==1) && (((m+1)%P) == (k%P)) )? BUFFER SWAP_SND(k,0,((m-k)%P)/2,n)
 READ      T <-  (k == 0)? A(m,n) : C GEMM(k-1, m, n)
             ->  T SWAP_RECV(k,m,n)
 READ     IP <-  (m==k)? IP GETRF(k) : IP TRSM_L(k,m)                                                           [type = PIVOT]
@@ -282,30 +283,52 @@ SWAP_SND(k,d,m,n)
 // Execution space
 k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
 d = 0.. inline_c %{ 
-  int size = (descA.mt-k < P) ? descA.mt-k : P;
-  int loga = ((int)ceil( log( (double)((size==1) ? 1 : size-1)) / log(2.0) ) );
-  return loga; %}
+  int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
+  int i;
+  for(i = 0; nb_init != 1 ; i++)
+      nb_init/=2;
+  return i;%}
 m = 0 .. inline_c %{
-  int nb_init = descA.mt-k;
+  int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
   int i;
   for(i = 0; i <= d ; i++)
       nb_init = (nb_init+1)/2;
-  return nb_init; %}
+  return nb_init-1; %}
 n = k+1..descA.nt-1
 
-pui= inline_c %{ return (int) pow(2,d);%}
+dmax = inline_c %{
+  int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
+  int i;
+  for(i = 0; nb_init != 1 ; i++)
+      nb_init/=2;
+  return i; %}
+xmax = inline_c %{
+       int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
+       int i;
+       for(i = 0; i < d ; i++)
+       	     nb_init = (nb_init+1)/2;
+       return nb_init; %}
+
 // Parallel partitioning
+pui= inline_c %{ return (int) pow(2,d+1);%}
 :A(k+(m*pui), n)
 /*:BUFFER(m%Q,n)*/
 
 // Parameters
-READ  MYBUF <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-1-k-m)%P)-1,n) : MYBUF SWAP_SND(k,d-1,m*2,n)
-            ->  ((m%2==0) && (m<d))? MYBUF SWAP_SND(k,d+1,m/2,n)
-RW   BUFFER <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-2-k-m)%P)-1,n) : BUFFER SWAP_SND(k,d-1,m*2+1,n)
-            ->  (m<d)? BUFFER SWAP_SND(k,d+1,m/2,n)
-            ->  ((m == d) && (m == 0))? B SWAP_PASTE(k,n)
-READ     IP <-  (d == 0)? IP SWAP_COLLECT(k,descA.mt-((descA.mt-1-k-m)%P)-1,n) : IP SWAP_SND(k,d-1,m/2,n)           [type = PIVOT]
-            ->  ((m%2==0) && (m<d))? IP SWAP_SND(k,d+1,m/2,n)                                                       [type = PIVOT]
+READ  MYBUF <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+1))%P)-1,n) : MYBUF SWAP_SND(k,d-1,m*2,n)
+            ->  ((m%2==0) && (d != dmax))? MYBUF SWAP_SND(k,d+1,m/2,n)
+RW   BUFFER <-  ((d == 0) && (m == (((xmax+1)/2)-1)) && (xmax%2 == 1))? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+1))%P)-1,n)
+	    <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+2))%P)-1,n)
+     	    <-  ((d != 0) && (m == (((xmax+1)/2)-1)) && (xmax%2 == 1))? BUFFER SWAP_SND(k,d-1,m*2,n)
+     	    <-  (d != 0)? BUFFER SWAP_SND(k,d-1,m*2+1,n)
+            ->  ((d != dmax) && (m%2==1))? BUFFER SWAP_SND(k,d+1,m/2,n)
+	    ->  ((d != dmax) && (m == (((xmax+1)/2)-1)) && (((xmax+1)/2)%2 == 1))? BUFFER SWAP_SND(k,d+1,m/2,n)
+            ->  (d == dmax)? B SWAP_PASTE(k,n)
+READ     IP <-  (d == 0)? IP SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+1))%P)-1,n) : IP SWAP_SND(k,d-1,m*2,n)           [type = PIVOT]
+            ->  ((m%2==0) && (d != dmax))? IP SWAP_SND(k,d+1,m/2,n)                                                             [type = PIVOT]
+
+//descA.mt-((descA.mt-1-k-m)%P)-1
+//descA.mt-((descA.mt-2-k-m)%P)-1
 
 BODY
     DRYRUN(
@@ -328,9 +351,12 @@ SWAP_PASTE(k,n)
 k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
 n = k+1..descA.nt-1
 
-d = inline_c %{ 
-      int size = (descA.mt-k < P) ? descA.mt-k : P;;
-      return ((int)ceil( log( (double)size ) / log(2.0) ) ); %}
+d = inline_c %{
+  int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
+  int i;
+  for(i = 0; nb_init != 1 ; i++)
+      nb_init/=2;
+  return i; %}
 
 // Parallel partitioning
 :A(k,n)
