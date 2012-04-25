@@ -11,6 +11,13 @@ precisions_rules_py(generated_headers
 set(SOURCES
   core_ztrdv.c
   core_zgetrf_rectil.c
+  core_zhetrf2_nopiv.c
+  core_zgemdm.c
+  core_zhedrk.c
+  core_ztrmdm.c
+  core_zhetrf_nopiv.c
+  core_zhebut.c
+  core_zplssq.c
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"
@@ -42,7 +49,8 @@ if(CUDA_FOUND)
       RENAME sgemm-sm_20.cubin)
 
     cuda_build_clean_target()
-    set(GPU_KERNEL_SOURCES cuda_sgemm.c cuda_stsmqr.c)
+    set(GPU_KERNEL_SOURCES cuda_sgemm.c)
+###    set(GPU_KERNEL_SOURCES cuda_sgemm.c cuda_stsmqr.c)
 else()
   set(GPU_KERNEL_SOURCES "")
 endif()

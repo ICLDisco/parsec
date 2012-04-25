@@ -37,7 +37,8 @@ set(JDF
   ztrdsm.jdf
   zgetrf_incpiv.jdf zgetrf_incpiv_sd.jdf
   ztrsmpl.jdf ztrsmpl_sd.jdf
-  ztrsmpl_param.jdf
+  ztrsmpl_hincpiv.jdf
+  ztrsmpl_hpp.jdf
   zgeqrf.jdf
   zgelqf.jdf
   zherbt_L.jdf
@@ -45,17 +46,22 @@ set(JDF
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
   zgeqrf_param.jdf zungqr_param.jdf
   zgetrf_hincpiv.jdf
-  #zgetrf_hincpiv2.jdf
+  zgetrf_hpp.jdf
   zungqr.jdf
+  zlange_inf_cyclic.jdf
+  zlange_one_cyclic.jdf
+  zlange_max_cyclic.jdf
+  zlange_frb_cyclic.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
                     PRECISIONS "${DPLASMA_PRECISIONS}")
 
 if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
-  foreach(src_file ${EXTRA_SOURCES})
-    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.")
-  endforeach()
+  include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
+#  foreach(src_file ${EXTRA_SOURCES})
+#    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.") 
+#  endforeach()
 endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 
 list(APPEND generated_jdf
@@ -74,7 +80,8 @@ set(SOURCES
   ztrsm_wrapper.c
   ztrmm_wrapper.c
   ztrsmpl_wrapper.c
-  ztrsmpl_param_wrapper.c
+  ztrsmpl_hincpiv_wrapper.c
+  ztrsmpl_hpp_wrapper.c
   zsymm_wrapper.c
   # Lapack Auxiliary
   zgeadd_wrapper.c
@@ -104,7 +111,7 @@ set(SOURCES
   zgeqrf_wrapper.c
   zgeqrf_param_wrapper.c
   zgetrf_hincpiv_wrapper.c
-  #zgetrf_hincpiv2_wrapper.c
+  zgetrf_hpp_wrapper.c
   zungqr_param_wrapper.c
   zgelqf_wrapper.c
   zherbt_wrapper.c

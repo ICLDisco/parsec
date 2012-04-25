@@ -127,10 +127,12 @@ extern const int side[2];
 extern const int uplo[2];
 extern const int diag[2];
 extern const int trans[3];
+extern const int norms[4];
 extern const char *sidestr[2];
 extern const char *uplostr[2];
 extern const char *diagstr[2];
 extern const char *transstr[3];
+extern const char *normsstr[4];
 
 void print_usage(void);
 

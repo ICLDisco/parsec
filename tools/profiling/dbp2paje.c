@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
 #undef HAVE_MPI
 
@@ -8,6 +14,9 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <sys/time.h>
+
+#include <unistd.h>
+#include <getopt.h>
 
 #include "profiling.h"
 #include "dbp.h"
@@ -30,6 +39,94 @@ static void output(const char *format, ...)
 
 #include <GTG.h>
 #include <GTGPaje.h>
+
+struct {
+    int split_events_box_at_start;
+    int split_events_link;
+    char *outfile;
+    char **files;
+    int nbfiles;
+    int progress;
+    int stats;
+} USERFLAGS;
+
+static void parse_arguments_error(char *message)
+{
+    fprintf(stderr, 
+            "dbp2paje error: %s\n"
+            " Usage: dbp2paje [options] profile0 profile1 profile2 ...\n"
+            "   where profile0 to profilen are DAGuE Binary Profile files corresponding to a single run\n"
+            "   and options consists of the following:\n"
+            "\n"
+            " General Options\n"
+            "   -o|--out <outfile>         Output file base name (default: 'out')\n"
+            "   -p|--progress              Disable progress bar (default: enable progress bar)\n"
+            "   -s|--stats                 Disable statistics on the profiles (default: enable statistics)\n"
+            " Split Event Options\n"
+            "  (split events are events that start on a thread and terminate on another)\n"
+            "   -b|--box-split-events      Disable boxes for the split events. Without this option, a box on the\n"
+            "                              thread that started the event will be shown\n"
+            "   -l|--link-split-events     Disable links for the split events. Without this option, a link connecting\n"
+            "                              the beginning of this event and the end of this event will be shown.\n"
+            "\n", message);
+    exit(1);
+}
+
+static void parse_arguments(int argc, char **argv)
+{
+    int c, option_index;
+    static struct option long_options[] = {
+        {"out", 1, 0, 'o'},
+        {"progress", 0, 0, 'p'},
+        {"stats", 0, 0, 's'},
+        {"box-split-events", 0, 0, 'b'},
+        {"link-split-events", 0, 0, 'l'},
+        {"help", 0, 0, 'h'},
+        {0, 0, 0, 0}
+    };
+
+    USERFLAGS.outfile = strdup("out");
+    USERFLAGS.progress = 1;
+    USERFLAGS.stats = 1;
+    USERFLAGS.split_events_box_at_start = 1;
+    USERFLAGS.split_events_link = 1;
+
+    while(1) {
+        c = getopt_long(argc, argv, "o:psblh", long_options, &option_index);
+        if(-1 == c) {
+            break;
+        }
+        switch(c) {
+        case 'o':
+            free(USERFLAGS.outfile);
+            USERFLAGS.outfile = strdup(optarg);
+            break;
+        case 'p':
+            USERFLAGS.progress = 0;
+            break;
+        case 's':
+            USERFLAGS.stats = 0;
+            break;
+        case 'b':
+            USERFLAGS.split_events_box_at_start = 0;
+            break;
+        case 'l':
+            USERFLAGS.split_events_link = 0;
+            break;
+        case 'h':
+        default:
+            parse_arguments_error("Unrecognized option");
+        }
+    }
+
+    if( optind < argc ) {
+        USERFLAGS.nbfiles = argc-optind;
+        USERFLAGS.files   = &argv[optind];
+    } else {
+        parse_arguments_error("You must provide at least a profile file to convert");
+    }
+
+}
 
 #define max(a, b) ((a)>(b)?(a):(b))
 
@@ -70,10 +167,11 @@ static struct timeval last_display;
 
 typedef struct {
     dague_list_item_t super;
-    uint64_t        id;
+    uint64_t        event_id;
     uint64_t        start;
     uint64_t        end;
     int             key;
+    uint32_t        object_id;
     const dbp_thread_t   *start_thread;
     const dbp_thread_t   *end_thread;
     size_t          start_info_size;
@@ -83,6 +181,8 @@ typedef struct {
 
 static void progress_bar_init(uint64_t nb_events, int nb_threads, int nb_files)
 {
+    if( !USERFLAGS.progress )
+        return;
     total_events = nb_events;
     total_threads = nb_threads;
     total_files = nb_files;
@@ -102,6 +202,8 @@ static void progress_bar_update(int force)
     double delta;
     char eta[64], to_output[64];
 
+    if( !USERFLAGS.progress )
+        return;
     gettimeofday(&now, NULL);
     timersub(&now, &last_display, &diff);
     delta = (double)diff.tv_sec + (double)diff.tv_usec / 1000000.0;
@@ -137,36 +239,48 @@ static void progress_bar_update(int force)
 
 static void progress_bar_file_done(void)
 {
+    if( !USERFLAGS.progress )
+        return;
     files_done++;
     progress_bar_update(0);
 }
 
 static void progress_bar_thread_done(void)
 {
+    if( !USERFLAGS.progress )
+        return;
     threads_done++;
     progress_bar_update(0);
 }
 
 static void progress_bar_event_read(void)
 {
+    if( !USERFLAGS.progress )
+        return;
     events_read++;
     progress_bar_update(0);
 }
 
 static void progress_bar_event_to_output(void)
 {
+    if( !USERFLAGS.progress )
+        return;
     events_to_output++;
     progress_bar_update(0);
 }
 
 static void progress_bar_event_output(void)
 {
+    if( !USERFLAGS.progress )
+        return;
     events_output++;
     progress_bar_update(0);
 }
 
 static void progress_bar_end(void)
 {
+    if( !USERFLAGS.progress )
+        return;
     progress_bar_update(1);
 }
 
@@ -226,7 +340,8 @@ static uint64_t *step_height(dague_list_t *list, int *level)
          e != DAGUE_LIST_ITERATOR_END(list);
          e = DAGUE_LIST_ITERATOR_NEXT(e) ) {
         cev = (consolidated_event_t*)e;
-        if( cev->start_thread == cev->end_thread ) {
+        if( cev->start_thread == cev->end_thread ||
+            USERFLAGS.split_events_box_at_start ) {
             for(s = 0; s < nb_steps; s++) {
                 if( dates[s] <= cev->start ) {
                     dates[s] = cev->end;
@@ -282,9 +397,9 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
 
             if( NULL == nit ) {
                 /* Argh, couldn't find the end in this trace */
-                WARNING(("   Event of class %s id %d at %lu does not have a match anywhere\n",
+                WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
                          dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
-                         dbp_event_get_id(e),
+                         dbp_event_get_object_id(e), dbp_event_get_event_id(e),
                          diff_time(relative, dbp_event_get_timestamp(e))));
                 
                 current_stat[ key ].nb_matcherror++;
@@ -304,7 +419,8 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                 cev = (consolidated_event_t*)malloc(sizeof(consolidated_event_t) +
                                                     dbp_event_info_len(e, dbp) +
                                                     dbp_event_info_len(g, dbp) );
-                cev->id = dbp_event_get_id(e);
+                cev->event_id = dbp_event_get_event_id(e);
+                cev->object_id = dbp_event_get_object_id(e);
                 cev->start = start;
                 cev->end = end;
                 cev->start_thread = dbp_iterator_thread(pit);
@@ -339,7 +455,8 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
 
     while( NULL != (cev = (consolidated_event_t*)dague_list_nolock_pop_front( &consolidated_events ) ) ) {
         sprintf(keyid, "K-%d", cev->key);
-        if( cev->start_thread == cev->end_thread ) {
+        if( cev->start_thread == cev->end_thread ||
+            USERFLAGS.split_events_box_at_start ) {
             for(s = 0; s < nb_steps; s++) {
                 if( steps_end_dates[s] <= cev->start ) {
                     steps_end_dates[s] = cev->end;
@@ -350,7 +467,9 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
             sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
             pajeSetState2( ((double)cev->start) * 1e-3, "ST_TS", cont_step_name, keyid );
             pajeSetState2( ((double)cev->end) * 1e-3, "ST_TS", cont_step_name, "Wait");
-        } else {
+        } 
+        if( cev->start_thread != cev->end_thread &&
+            USERFLAGS.split_events_link ) {
             sprintf(linkid, "L-%d", linkuid);
             linkuid++;
             cont_src = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(cev->start_thread) );
@@ -473,7 +592,9 @@ int main(int argc, char *argv[])
     int nb_threads = 0;
     int i, j, k;
 
-    dbp = dbp_reader_open_files(argc, argv);
+    parse_arguments(argc, argv);
+
+    dbp = dbp_reader_open_files(USERFLAGS.nbfiles, USERFLAGS.files);
 
     if( NULL == dbp )
         return 1;
@@ -508,7 +629,7 @@ int main(int argc, char *argv[])
             stat_columns[0] = l;
     }
     
-    dague_profiling_dump_paje( "out", dbp );
+    dague_profiling_dump_paje( USERFLAGS.outfile, dbp );
     
     progress_bar_end();
 
@@ -517,33 +638,35 @@ int main(int argc, char *argv[])
         stat_columns[k+1] = stat_columns[k] + max(l + 2, 16);
     }
 
-    printf("#Stats:\n");
-    printf("#Thread   ");
-    for(k = 0 ; k < dbp_reader_nb_dictionary_entries(dbp); k = k+1 ) {
-        printf("[%dG%s", stat_columns[k], dbp_dictionary_name(dbp_reader_get_dictionary(dbp, k)));
-    }
-    printf("\n");
-    for(i = 0; i < dbp_reader_nb_files(dbp); i++) {
-        file = dbp_reader_get_file(dbp, i);
-        printf("#%s Rank %d/%d\n", 
-               dbp_file_hr_id(file), 
-               dbp_file_get_rank(file), 
-               dbp_reader_worldsize(dbp));
-        for(j = 0; j < dbp_file_nb_threads(file); j++) {
-            printf("#  %s", dico_stat[i][j].name);
-
-            for(k = 0; k < dbp_reader_nb_dictionary_entries(dbp); k++) {
-                printf("[%dG[%dm%d[0m/[%dm%d[0m/[%dm%d[0m",
-                       stat_columns[k],
-                       dico_stat[i][j].stats[k].nb_matchsuccess > 0 ? 32 : 2,
-                       dico_stat[i][j].stats[k].nb_matchsuccess,
-                       dico_stat[i][j].stats[k].nb_matchthreads > 0 ? 35 : 2,
-                       dico_stat[i][j].stats[k].nb_matchthreads,
-                       dico_stat[i][j].stats[k].nb_matcherror > 0 ? 31 : 2,
-                       dico_stat[i][j].stats[k].nb_matcherror);
+    if( USERFLAGS.stats ) {
+        printf("#Stats:\n");
+        printf("#Thread   ");
+        for(k = 0 ; k < dbp_reader_nb_dictionary_entries(dbp); k = k+1 ) {
+            printf("[%dG%s", stat_columns[k], dbp_dictionary_name(dbp_reader_get_dictionary(dbp, k)));
+        }
+        printf("\n");
+        for(i = 0; i < dbp_reader_nb_files(dbp); i++) {
+            file = dbp_reader_get_file(dbp, i);
+            printf("#%s Rank %d/%d\n", 
+                   dbp_file_hr_id(file), 
+                   dbp_file_get_rank(file), 
+                   dbp_reader_worldsize(dbp));
+            for(j = 0; j < dbp_file_nb_threads(file); j++) {
+                printf("#  %s", dico_stat[i][j].name);
+                
+                for(k = 0; k < dbp_reader_nb_dictionary_entries(dbp); k++) {
+                    printf("[%dG[%dm%d[0m/[%dm%d[0m/[%dm%d[0m",
+                           stat_columns[k],
+                           dico_stat[i][j].stats[k].nb_matchsuccess > 0 ? 32 : 2,
+                           dico_stat[i][j].stats[k].nb_matchsuccess,
+                           dico_stat[i][j].stats[k].nb_matchthreads > 0 ? 35 : 2,
+                           dico_stat[i][j].stats[k].nb_matchthreads,
+                           dico_stat[i][j].stats[k].nb_matcherror > 0 ? 31 : 2,
+                           dico_stat[i][j].stats[k].nb_matcherror);
+                }
+                
+                printf("\n");
             }
-
-            printf("\n");
         }
     }
 

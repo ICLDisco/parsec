@@ -7,7 +7,7 @@
  *
  */
 #include "dague_config.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 
 #if defined(HAVE_STRING_H)
@@ -22,11 +22,13 @@
 #endif
 
 #include "plasma.h"
+#include "cblas.h"
+#include "core_blas.h"
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define  DLARFG      zlarfg_
-extern void zlarfg_(int *N, Dague_Complex64_t *ALPHA, Dague_Complex64_t *X, int *INCX, Dague_Complex64_t *TAU);
+extern void DLARFG(int *N, Dague_Complex64_t *ALPHA, Dague_Complex64_t *X, int *INCX, Dague_Complex64_t *TAU);
 
 void band_to_trd_vmpi1(int N, int NB, Dague_Complex64_t *A, int LDA);
 void band_to_trd_vmpi2(int N, int NB, Dague_Complex64_t *A, int LDA);

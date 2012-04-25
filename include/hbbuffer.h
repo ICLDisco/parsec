@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef HBBUFFER_H_HAS_BEEN_INCLUDED
 #define HBBUFFER_H_HAS_BEEN_INCLUDED
 

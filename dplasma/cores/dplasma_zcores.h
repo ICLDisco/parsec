@@ -6,14 +6,8 @@
  * @precisions normal z -> s d c
  *
  */
-
-#include <math.h>
-#include <cblas.h>
-#include <lapacke.h>
-#include <plasma.h>
-#include "dague.h"
-#include "data_dist/matrix/precision.h"
-#include "dplasma_cores.h"
+#ifndef _DPLASMA_Z_CORES_H
+#define _DPLASMA_Z_CORES_H
 
 int blgchase_ztrdv2(int NT, int N, int NB,
                    Dague_Complex64_t *A1, Dague_Complex64_t *A2,
@@ -22,3 +16,9 @@ int blgchase_ztrdv2(int NT, int N, int NB,
                    int sweep, int id, int blktile);
 
 int CORE_zgetrf_rectil_1thrd(const PLASMA_desc A, int *IPIV);
+
+int CORE_zplssq(int M, int N,
+                Dague_Complex64_t *A, int LDA,
+                double *scale, double *sumsq);
+
+#endif /* _DPLASMA_Z_CORES_ */

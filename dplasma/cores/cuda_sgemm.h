@@ -15,6 +15,9 @@
 #include "list.h"
 #include "fifo.h"
 
+#define GEMM_KEY(M, N) (uint32_t)((NULL == gpu_data.tiled_matrix) ? \
+                                  0 : (M) * gpu_data.tiled_matrix->lmt + (N))
+
 int gpu_sgemm( dague_execution_unit_t* eu_context,
                dague_execution_context_t* this_task,
                int uplo );
@@ -25,26 +28,41 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 
 #include "data_dist/matrix/matrix.h"
 
-typedef struct _memory_elem memory_elem_t;
-typedef struct _gpu_elem gpu_elem_t;
+/**
+ * Data coherency protocol based on MOESI.
+ */
+#define    DAGUE_DATA_INVALID    ((uint8_t)0x0)
+#define    DAGUE_DATA_OWNED      ((uint8_t)0x1)
+#define    DAGUE_DATA_EXCLUSIVE  ((uint8_t)0x2)
+#define    DAGUE_DATA_SHARED     ((uint8_t)0x4)
 
-struct _gpu_elem {
-    dague_list_item_t item;
-    int lock;
-    int type;
-    CUdeviceptr gpu_mem;
-    memory_elem_t* memory_elem;
-    int gpu_version;
+typedef uint8_t                    dague_data_coherency_t;
+typedef struct _dague_device_elem  dague_device_elem_t;
+typedef struct _memory_elem        memory_elem_t;
+typedef struct _gpu_elem           gpu_elem_t;
+
+/**
+ * Generic type for all the devices.
+ */
+struct _dague_device_elem {
+    dague_list_item_t      item;
+    dague_data_coherency_t coherency_state;
+    uint16_t               readers;
+    uint32_t               version;
+    memory_elem_t*         memory_elem;
 };
 
+/**
+ * A memory element targets a specific data. It can be found
+ * based on a unique key.
+ */
 struct _memory_elem {
-    int memory_version;
-    int readers;
-    int writer;
-    int row;
-    int col;
-    void* memory;
-    gpu_elem_t* gpu_elems[1];
+    uint32_t               key;
+    dague_data_coherency_t coherency_state;
+    uint16_t               device_owner;
+    uint32_t               version;
+    void*                  main_memory;
+    dague_device_elem_t*   device_elem[1];
 };
 
 typedef struct __dague_gpu_data_map {
@@ -52,9 +70,21 @@ typedef struct __dague_gpu_data_map {
     memory_elem_t** data_map;
 } dague_gpu_data_map_t;
 
+/**
+ * Particular overloading of the generic device type
+ * for GPUs.
+ */
+struct _gpu_elem {
+    dague_device_elem_t    generic;
+    CUdeviceptr            gpu_mem;
+};
+
+
 typedef enum {
-    DAGUE_READ,
-    DAGUE_WRITE
+    DAGUE_READ       = ACCESS_READ,
+    DAGUE_WRITE      = ACCESS_WRITE,
+    DAGUE_READ_DONE  = 0x4,
+    DAGUE_WRITE_DONE = 0x8
 } dague_data_usage_type_t;
 
 int sgemm_cuda_init( dague_context_t* context, tiled_matrix_desc_t *tileA );
@@ -67,18 +97,12 @@ int gpu_data_map_init( gpu_device_t* gpu_device,
                        dague_gpu_data_map_t* gpu_map);
 int gpu_data_map_fini( dague_gpu_data_map_t* gpu_map );
 
-int gpu_mark_data_usage( dague_gpu_data_map_t* gpu_map,
-                         int type,
-                         int col, int row );
 int gpu_data_tile_write_owner( dague_gpu_data_map_t* gpu_map,
-                               int col, int row );
+                               uint32_t key );
 int gpu_data_get_tile( dague_gpu_data_map_t* gpu_map,
-                       int col, int row,
+                       uint32_t key,
                        memory_elem_t **pmem_elem );
-int gpu_data_is_on_gpu( gpu_device_t* gpu_device,
-                        dague_gpu_data_map_t* gpu_map,
-                        int type,
-                        int col, int row,
-                        gpu_elem_t **pgpu_elem);
+
+int dague_update_data_version( dague_gpu_data_map_t* gpu_map, uint32_t key );
 
 #endif

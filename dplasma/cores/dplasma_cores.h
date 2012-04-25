@@ -9,6 +9,13 @@
 #ifndef _DPLASMA_CORES_H_
 #define _DPLASMA_CORES_H_
 
+#include <math.h>
+#include <cblas.h>
+#include <lapacke.h>
+#include <plasma.h>
+#include "dague.h"
+#include "data_dist/matrix/precision.h"
+
 /***************************************************************************//**
  *
  **/
