@@ -25,7 +25,7 @@ extern "C" %{
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
-extern dague_gpu_data_map_t gpu_data;
+extern dague_gpu_data_map_t dague_gpu_map;
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 %}
 
@@ -58,7 +58,7 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    dague_update_data_version( &gpu_data, GEMM_KEY(k, k) );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(k, k) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
@@ -105,7 +105,7 @@ RW    C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    dague_update_data_version( &gpu_data, GEMM_KEY(m, k) );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(m, k) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
@@ -152,7 +152,7 @@ RW    T <- (k == 0)   ? A(m, m)    : T HERK(k-1, m)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    dague_update_data_version( &gpu_data, GEMM_KEY(m, m) );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(m, m) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m*descA.mb : descA.mb;
@@ -203,7 +203,7 @@ BODY
     int ldan = BLKLDD( descA, n );
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    if( zgemm_cuda_ndevices() > 0 ) {
+    if( dague_active_gpu() > 0 ) {
         int rc;
 
         if( 0 == (rc = gpu_zgemm( context, this_task, uplo )) )
@@ -219,7 +219,7 @@ BODY
         }
         /* Continue with the task on the cores */
     }
-    dague_update_data_version( &gpu_data, GEMM_KEY(m, n) );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(m, n) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     DRYRUN(

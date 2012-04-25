@@ -24,7 +24,7 @@ extern "C" %{
 #include "gpu_data.h"
 #include "cores/cuda_sgemm.h"
 extern int *gpu_counter;
-extern dague_gpu_data_map_t gpu_data;
+extern dague_gpu_data_map_t dague_gpu_map;
 #endif
 %}
 
@@ -58,7 +58,7 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    dague_update_data_version( &gpu_data, GEMM_KEY(k, k) );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(k, k) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
     DRYRUN(
         CORE_zpotrf(
@@ -101,7 +101,7 @@ RW    C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    dague_update_data_version( &gpu_data, GEMM_KEY(n, k) );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(n, k) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     if( uplo == PlasmaLower ) {
@@ -163,7 +163,7 @@ RW    T <- (k == 0) ? A(n,n) : T HERK(k-1, n)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    dague_update_data_version( &gpu_data, GEMM_KEY(n, n) );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(n, n) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     if( uplo == PlasmaLower ) {
@@ -242,7 +242,7 @@ BODY
         }
         /* Continue with the task on the cores */
     }
-    dague_update_data_version( &gpu_data, GEMM_KEY(m, n) );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(m, n) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     if( uplo == PlasmaLower ) {

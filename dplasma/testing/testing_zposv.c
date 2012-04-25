@@ -88,16 +88,20 @@ int main(int argc, char ** argv)
         /* load the GPU kernel */
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
         if(iparam[IPARAM_NGPUS] > 0)
+        {
+            if(loud > 3) printf("+++ Load GPU kernel ... ");
+            if(0 != zgemm_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA))
             {
-                if(loud) printf("+++ Load GPU kernel ... ");
-                if(0 != zgemm_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA))
-                    {
-                        fprintf(stderr, "XXX Unable to load GPU kernel.\n");
-                        exit(3);
-                    }
-                if(loud) printf("Done\n");
+                printf("XXX Unable to load GPU kernel.\n");
+                exit(3);
             }
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescA,
+                                    MT*NT, MB*NB*sizeof(Dague_Complex64_t) );
+            if(loud > 3) printf("Done\n");
+        }
 #endif
+
 
         /*********************************************************************
          *               First Check ( ZPOSV )
@@ -241,6 +245,13 @@ int main(int argc, char ** argv)
         dague_data_free(ddescA.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
     }
+
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
+    if(iparam[IPARAM_NGPUS] > 0) {
+        dague_gpu_data_unregister();
+        dague_gpu_kernel_fini(dague, "zgemm");
+    }
+#endif
 
     cleanup_dague(dague, iparam);
 

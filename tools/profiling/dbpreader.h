@@ -12,6 +12,7 @@
 
 /* Basic Key-Value Info interface */
 
+typedef struct dbp_file dbp_file_t;
 typedef struct dbp_info dbp_info_t;
 char *dbp_info_get_key(const dbp_info_t *info);
 char *dbp_info_get_value(const dbp_info_t *info);
@@ -37,10 +38,11 @@ int dbp_dictionary_keylen(const dbp_dictionary_t *dico);
 
 /* Single DBP file interface */
 
-typedef struct dbp_file dbp_file_t;
+//typedef struct dbp_file dbp_file_t;
 dbp_file_t *dbp_reader_get_file(const dbp_multifile_reader_t *dbp, int fid);
 
-char *dbp_file_hr_id(const dbp_file_t *file);
+char * dbp_file_hr_id(const dbp_file_t *file);
+char * dbp_file_get_name(const dbp_file_t *file);
 int dbp_file_get_rank(const dbp_file_t *file);
 dague_time_t dbp_file_get_min_date(const dbp_file_t *file);
 int dbp_file_nb_threads(const dbp_file_t *file);
@@ -79,5 +81,7 @@ dague_time_t dbp_event_get_timestamp(const dbp_event_t *e);
 void *dbp_event_get_info(const dbp_event_t *e);
 int   dbp_event_info_len(const dbp_event_t *e, const dbp_multifile_reader_t *dbp);
 
+// DEBUG
+void dbp_file_print(dbp_file_t * file);
 
 #endif /* _dbpreader_h_ */
