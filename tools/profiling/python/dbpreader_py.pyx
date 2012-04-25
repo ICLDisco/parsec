@@ -2,6 +2,13 @@
 # DBPreader Python interface
 # run 'python setup.py build_ext --inplace' to compile
 # import dbpreader_py to use
+#
+# This is verified to work with Python 2.4.3 and above, compiled with Cython 0.16rc0
+# However, it is recommended that Python 2.5 or greater is used to build and run,
+# as certain sorting functions are not available until that version of Python.
+#
+# Be SURE to build this against the same version of Python as you have built Cython itself.
+# Contrasting versions will likely lead to odd errors about Unicode functions.
 
 import sys
 from libc.stdlib cimport malloc, free
@@ -46,28 +53,30 @@ class dbpInfo:
       self.value = value
 
 class dbpThread:
-   def __init__(self, num):
+   def __init__(self, parentFile, threadNumber):
+      self.file = parentFile
       self.events = []
-      self.num = num
+      self.id = int(threadNumber) # if it's not a number, it's wrong
 
 class dbpEvent:
-   def __init__(self, key, flags, object_id, event_id, start, end):
+   def __init__(self, parentThread, key, flags, object_id, event_id, start, end):
+      self.thread = parentThread
       self.key = key
       self.flags = flags
       self.object_id = object_id
       self.event_id = event_id
       self.start = start
       self.end = end
+      self.duration = self.end - self.start
    def __str__(self):
-      return 'key %d flags %d objID %s eventID %d start %d end %d' % (
-              self.key, self.flags, self.object_id, self.event_id, self.start, self.end)
+      return 'key %d flags %d tid %d objID %s eventID %d start %d end %d duration %d' % (
+              self.key, self.flags, self.thread.id, self.object_id, self.event_id, self.start, self.end, self.duration)
      
 
 # Cython code
 
 # this is the public Python interface function. 
 cpdef readProfilesIntoPython(filenames):
-   filenames.insert(0, 'progname placeholder')
    cdef char ** c_filenames = stringListToCStrings(filenames)
    cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
    reader = multifile_reader(dbp_reader_nb_files(dbp), dbp_reader_nb_dictionary_entries(dbp))
@@ -81,7 +90,7 @@ cpdef readProfilesIntoPython(filenames):
       for inf in range(dbp_file_nb_infos(cfile)):
          file.infos.append(makeDbpInfo(cfile, inf))
       for t in range(dbp_file_nb_threads(cfile)):
-         file.threads.append(makeDbpThread(dbp, cfile, t))
+         file.threads.append(makeDbpThread(dbp, cfile, t, file))
 
       reader.files.append(file)
 
@@ -119,15 +128,16 @@ cdef makeDbpDictEntry(dbp_multifile_reader_t * dbp, int index):
    dico = dbp_reader_get_dictionary(dbp, index)
    return dbpDictEntry(index, dbp_dictionary_name(dico), dbp_dictionary_attributes(dico))
    
-cdef makeDbpThread(dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index):
+cdef makeDbpThread(dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, file):
    cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, index)
    cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
    cdef dbp_event_iterator_t * it_e
    cdef dbp_event_t * event_s = dbp_iterator_current(it_s)
    cdef dbp_event_t * event_e
    cdef dague_time_t reader_start = dbp_reader_min_date(dbp)
+   cdef unsigned long long start, end
 
-   thread = dbpThread(index)
+   thread = dbpThread(file, index)
 
    while event_s is not NULL:
       if KEY_IS_START( dbp_event_get_key(event_s) ):
@@ -136,7 +146,7 @@ cdef makeDbpThread(dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index):
             event_e = dbp_iterator_current(it_e)
             start = diff_time(reader_start, dbp_event_get_timestamp(event_s))
             end = diff_time(reader_start, dbp_event_get_timestamp(event_e))
-            event = dbpEvent(dbp_event_get_key(event_s), dbp_event_get_flags(event_s), 
+            event = dbpEvent(thread, dbp_event_get_key(event_s), dbp_event_get_flags(event_s), 
                              dbp_event_get_object_id(event_s), dbp_event_get_event_id(event_s), 
                              start, end)
             thread.events.append(event)

@@ -1,10 +1,12 @@
 # dbpreader python definition file
 
-cdef extern from "os-spec-timing.h":
-   ctypedef struct dague_time_t:
-      pass
+# NOTE: MUST INCLUDE dbp.h BEFORE os-spec-timing.h, so that dbp.h will pull in dague_config.h, which DEFINES #HAVE_CLOCK_GETTIME
+# without that definition, the wrong (microsecond) version of diff_time (for most platforms) will be chosen.
+# basically, just make sure dague_config gets included early on.
 
-   long long diff_time(dague_time_t start, dague_time_t end)
+# additional note: dague_config.h is generated during the build process, so it'd be nice to find a way to 
+# build this during the normal build. currently, it is necessary to do a build and then pull the
+# dague_config.h over from the build directory into the source directory manually.
 
 cdef extern from "dbp.h":
    ctypedef struct dague_thread_profiling_t:
@@ -13,6 +15,12 @@ cdef extern from "dbp.h":
    int KEY_IS_START(int key)
    int KEY_IS_END(int key)
    int BASE_KEY(int key)
+
+cdef extern from "os-spec-timing.h":
+   ctypedef struct dague_time_t:
+      pass
+
+   unsigned long long diff_time(dague_time_t start, dague_time_t end)
 
 cdef extern from "dbpreader.h":
    ctypedef struct dbp_info_t:
