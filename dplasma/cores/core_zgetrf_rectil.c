@@ -20,8 +20,7 @@
 #include <cblas.h>
 #include <lapacke.h>
 #include <plasma.h>
-#include "dplasma_cores.h"
-#include "dplasma_zcores.h"
+#include "common.h"
 
 #ifndef min
 #define min(__a, __b) ( ((__a) < (__b)) ? (__a) : (__b) )
@@ -86,7 +85,7 @@ CORE_zgetrf_rectil_update(const PLASMA_desc A, int *IPIV,
  *                  to solve a system of equations.
  *
  */
-int CORE_zgetrf_rectil_1thrd(const PLASMA_desc A, int *IPIV)
+int CORE_zgetrf_rectil(const PLASMA_desc A, int *IPIV)
 {
     int minMN = min( A.m, A.n );
     int info = 0;
@@ -321,6 +320,8 @@ CORE_zgetrf_rectil_rec(const PLASMA_desc A, int *IPIV, int *info,
         jp = offset + max_it*A.mb + max_i;
         /* CORE_zamax1_thread( tmp1, thidx, thcnt, &thwin, */
         /*                     &tmp2, pivot, jp + 1, IPIV + column + n1 ); */
+        IPIV[ column + n1 ] = jp + 1;
+        *pivot = tmp1;
 
         U[n1] = *pivot; /* all threads have the pivot element: no need for synchronization */
         if ( jp-offset != column+n1 ) /* if there is a need to exchange the pivot */
@@ -385,7 +386,8 @@ CORE_zgetrf_rectil_rec(const PLASMA_desc A, int *IPIV, int *info,
             jp = offset + max_it*A.mb + max_i;
             /* CORE_zamax1_thread( tmp1, thidx, thcnt, &thwin, */
             /*                     &tmp2, pivot, jp + 1, IPIV + column ); */
-
+            IPIV[column] = jp +1;
+            *pivot = tmp1;
             Atop[0] = *pivot; /* all threads have the pivot element: no need for synchronization */
 
             if ( jp-offset != 0 ) /* if there is a need to exchange the pivot */
