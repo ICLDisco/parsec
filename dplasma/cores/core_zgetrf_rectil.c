@@ -20,7 +20,8 @@
 #include <cblas.h>
 #include <lapacke.h>
 #include <plasma.h>
-#include "common.h"
+#include "dplasma_cores.h"
+#include "dplasma_zcores.h"
 
 #ifndef min
 #define min(__a, __b) ( ((__a) < (__b)) ? (__a) : (__b) )
