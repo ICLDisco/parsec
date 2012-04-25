@@ -68,6 +68,26 @@ static void * td_get_local_tile(dague_ddesc_t * desc, ...)
     return  Ddesc->tiles_table[res].tile;
 }
 
+static int32_t td_get_vpid(dague_ddesc_t *desc, ...)
+{
+    int m, n;
+    int32_t res;
+    tabular_distribution_t * Ddesc;
+    va_list ap;
+    Ddesc = (tabular_distribution_t *)desc;
+    va_start(ap, desc);
+    m = va_arg(ap, int);
+    n = va_arg(ap, int);
+    va_end(ap);
+
+#ifdef DISTRIBUTED
+    assert(desc->myrank == td_get_rank_for_tile(desc, m, n));
+#endif /* DISTRIBUTED */
+
+    res = (Ddesc->super.lmt * n) + m;
+    
+    return  Ddesc->tiles_table[res].vpid;
+}
 
 #ifdef DAGUE_PROF_TRACE
 static uint32_t td_data_key(struct dague_ddesc *desc, ...) /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
@@ -159,6 +179,7 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
     Ddesc->super.nb_local_tiles = total;
     Ddesc->super.super.rank_of =  td_get_rank_for_tile;
     Ddesc->super.super.data_of =  td_get_local_tile;
+    Ddesc->super.super.vpid_of = td_get_vpid;
 #ifdef DAGUE_PROF_TRACE
     Ddesc->super.super.data_key = td_data_key;
     Ddesc->super.super.key_to_string = td_key_to_string;

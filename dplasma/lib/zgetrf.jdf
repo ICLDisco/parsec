@@ -72,7 +72,7 @@ tile2panel(k, m, n) [profile = off]
 
   ;descA.nt-n-1
 BODY
-    printlog("thread %d tile2panel( %d, %d, %d )\n", context->eu_id, k, m, n);
+    printlog("thread %d VP %d tile2panel( %d, %d, %d )\n",  context->th_id, context->virtual_process->vp_id, k, m, n);
 END
 
 /************************************************************************************
@@ -90,7 +90,7 @@ END
 /* CTL  ctl1 <- ctlb gemm(k-1, k..descA.mt-1, k+1..descA.nt-1) */
 /*           -> ctl swpback(k, k-1) */
 /* BODY */
-/*      printlog("thread %d tile2panel( %d, %d, %d )\n", context->eu_id, m, n, k); */
+/*      printlog("thread %d VP %d tile2panel( %d, %d, %d )\n",  context->th_id, context->virtual_process->vp_id, m, n, k); */
 /* END */
 
 /************************************************************************************
@@ -108,7 +108,7 @@ subm2panel(k, n) [profile = off]
 
   ;0
 BODY
-    printlog("thread %d subm2panel( %d, %d )\n", context->eu_id, k, n);
+    printlog("thread %d VP %d subm2panel( %d, %d )\n", context->th_id, context->virtual_process->vp_id, k, n);
 END
 
 /************************************************************************************
@@ -208,9 +208,9 @@ BODY
       }
 /*          ); */
 
-   printlog("thread %d   CORE_zgetrf_rec(%d)\n"
+   printlog("thread %d VP %d  CORE_zgetrf_rec(%d)\n"
             "\t(%d, %d, A(%d,%d)[%p], %d, IPIV(%d)[%p])\n",
-            context->eu_id, k, tempm, tempkn, k, k, A, ldak, k, IPIV);
+             context->th_id, context->virtual_process->vp_id, k, tempm, tempkn, k, k, A, ldak, k, IPIV);
 
 END
 
@@ -266,9 +266,9 @@ BODY
                  B /*(k, n)*/, ldak);
 /*          ); */
 
-   printlog("thread %d   CORE_zswptrsm(%d, %d)\n"
+   printlog("thread %d VP %d CORE_zswptrsm(%d, %d)\n"
             "\t(%d, %d, A(%d,%d)[%p], B(%d,%d)[%p])\n",
-            context->eu_id, k, n, tempkm, tempnn, k, k, A, k, n, B);
+            context->th_id, context->virtual_process->vp_id, k, n, tempkm, tempnn, k, k, A, k, n, B);
 
 END
 
@@ -330,9 +330,10 @@ BODY
                       B /*(k, n)*/, ldak,
                  1.,  C /*(m, n)*/, ldam );
          );
-   printlog("thread %d   CORE_zgemm(%d, %d, %d)\n"
+   printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
             "\t(%d, %d, %d, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, C(%d,%d)[%p], %d)\n",
-            context->eu_id, k, m, n, tempmm, tempnn, descA.mb, k, k, A, ldam, k, k, B, ldak, k, n, C, ldam);
+            context->th_id, context->virtual_process->vp_id, k, m, n, tempmm, tempnn, descA.mb, k, k, A, ldam, k, k, B, ldak, k, n, C, ldam);
+
 
 END
 
@@ -380,8 +381,8 @@ BODY
       }
 /*          ); */
 
-  printlog("thread %d CORE_zswpback(%d, %d)\n"
-           "\t(%d, A(%d,%d)[%p], %d, IPIV(%d)[%p])\n",
-           context->eu_id, k, n, descA.nb, k, n, A, ldak, k, IPIV);
 
+  printlog("thread %d VP %d CORE_zswpback(%d, %d)\n"
+           "\t(%d, A(%d,%d)[%p], %d, IPIV(%d)[%p])\n",
+           context->th_id, context->virtual_process->vp_id, k, n, descA.nb, k, n, A, ldak, k, IPIV);
 END

@@ -23,8 +23,9 @@ typedef struct dague_remote_deps_t       dague_remote_deps_t;
 typedef struct dague_execution_context_t dague_execution_context_t;
 typedef struct dague_dependencies_t      dague_dependencies_t;
 typedef struct dague_data_pair_t         dague_data_pair_t;
-typedef struct dague_execution_unit      dague_execution_unit_t;
-typedef struct dague_context_t           dague_context_t;
+typedef struct dague_execution_unit      dague_execution_unit_t;    /**< Each virtual process includes multiple execution units (posix threads + local data) */
+typedef struct dague_vp                  dague_vp_t;                /**< Each MPI process includes multiple virtual processes (and a single comm. thread) */
+typedef struct dague_context_t           dague_context_t;           /**< The general context that holds all the threads of dague for this MPI process */
 typedef struct dague_arena_chunk_t       dague_arena_chunk_t;
 typedef struct dague_arena_t             dague_arena_t;
 struct dague_thread_mempool;
@@ -83,6 +84,7 @@ typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_
                                                          dague_execution_context_t *oldcontext,
                                                          int flow_index, int outdep_index,
                                                          int rank_src, int rank_dst,
+                                                         int vpid_dst,
                                                          dague_arena_t* arena,
                                                          int nb_elt,
                                                          void *param);
@@ -254,7 +256,7 @@ typedef struct {
     struct data_repo_entry *output_entry;
     int action_mask;
     struct dague_remote_deps_t *deps;
-    dague_execution_context_t* ready_list;
+    dague_execution_context_t** ready_lists;
 #if defined(DISTRIBUTED)
     int remote_deps_count;
     struct dague_remote_deps_t *remote_deps;
@@ -266,6 +268,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu,
                                              dague_execution_context_t *oldcontext,
                                              int flow_index, int outdep_index,
                                              int rank_src, int rank_dst,
+                                             int vpid_dst,
                                              dague_arena_t* arena,
                                              int nb_elt,
                                              void *param);
