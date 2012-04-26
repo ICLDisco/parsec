@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
+ *  Copyright (c) 2012
  *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
@@ -119,13 +119,13 @@ zgeqrt(k, i)
   ; inline_c %{ return GETPRIO_PANEL(m, k); %}
 
 BODY
+  int tempmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+  int tempkn = (k==(descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+  int ldam   = BLKLDD( descA, m );
+
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_tau  );
          void *p_elem_B = dague_private_memory_pop( p_work );
-
-         int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-         int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
-         int ldam = BLKLDD( descA, m );
 
          CORE_zgeqrt(tempmm, tempkn, ib,
                      A /* A(m,k) */, ldam,
@@ -141,9 +141,10 @@ BODY
   if ( descA.mt-1 == k )
     ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
-  printlog("thread %d CORE_zgeqrt(%d, %d)\n"
-           "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-           context->eu_id, k, m, m, k, A, m, k, T);
+  printlog("\nthread %d  zgeqrt( k=%d, i=%d, m=%d, nextm=%d)\n"
+           "\t( tempmm=%d, tempkn=%d, ib, A(%d,%d)[%p], ldam=%d, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+           context->eu_id, k, i, m, nextm,
+           tempmm, tempkn, m, k, A, ldam, m, k, T);
 
 END
 
@@ -180,9 +181,9 @@ BODY
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_work );
 
-         int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-         int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
-         int ldam = BLKLDD( descA, m );
+         int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+         int tempnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
+         int ldam   = BLKLDD( descA, m );
 
          CORE_zunmqr(
                      PlasmaLeft, PlasmaConjTrans,
@@ -264,25 +265,26 @@ zttqrt(k, m)
  ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_PANEL(p, k) : GETPRIO_PANEL(m, k); %}
 
 BODY
+  int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+  int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
+  int ldap = BLKLDD( descA, p );
+  int ldam = BLKLDD( descA, m );
+
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_tau  );
          void *p_elem_B = dague_private_memory_pop( p_work );
 
-         int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-         int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
-         int ldam = BLKLDD( descA, m );
-
          if ( type == DPLASMA_QR_KILLED_BY_TS ) {
            CORE_ztsqrt(
                      tempmm, tempkn, ib,
-                     A1 /* A(p, k) */, descA.mb,
+                     A1 /* A(p, k) */, ldap,
                      A2 /* A(m, k) */, ldam,
                      T  /* T(m, k) */, descT.mb,
                      p_elem_A, p_elem_B );
          } else {
            CORE_zttqrt(
                      tempmm, tempkn, ib,
-                     A1 /* A(p, k) */, descA.mb,
+                     A1 /* A(p, k) */, ldap,
                      A2 /* A(m, k) */, ldam,
                      T  /* T(m, k) */, descT.mb,
                      p_elem_A, p_elem_B );
@@ -346,10 +348,10 @@ zttmqr(k, m, n)
 
   : A(m, n)
 
-  /* V  == A(m, k) */
-  /* T  == T(m, k) */
   /* A1 == A(p, n) */
   /* A2 == A(m, n) */
+  /* V  == A(m, k) */
+  /* T  == T(m, k) */
 
   RW   A1 <- (   prevp == descA.mt ) ? C  zunmqr( k, ip, n ) : A1 zttmqr(k, prevp, n )
           -> (   nextp != descA.mt ) ? A1 zttmqr( k, nextp, n)
@@ -370,19 +372,20 @@ zttmqr(k, m, n)
     ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
 
 BODY
+  int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
+  int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+  int ldap = BLKLDD( descA, p );
+  int ldam = BLKLDD( descA, m );
+  int ldwork = ib;
+
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_work );
-
-         int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
-         int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-         int ldam = BLKLDD( descA, m );
-         int ldwork = ib;
 
          if ( type == DPLASMA_QR_KILLED_BY_TS ) {
            CORE_ztsmqr(
              PlasmaLeft, PlasmaConjTrans,
              descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-             A1 /* A(p, n) */, descA.mb,
+             A1 /* A(p, n) */, ldap,
              A2 /* A(m, n) */, ldam,
              V  /* A(m, k) */, ldam,
              T  /* T(m, k) */, descT.mb,
@@ -391,7 +394,7 @@ BODY
            CORE_zttmqr(
              PlasmaLeft, PlasmaConjTrans,
              descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-             A1 /* A(p, n) */, descA.mb,
+             A1 /* A(p, n) */, ldap,
              A2 /* A(m, n) */, ldam,
              V  /* A(m, k) */, ldam,
              T  /* T(m, k) */, descT.mb,
