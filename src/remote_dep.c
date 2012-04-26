@@ -203,7 +203,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     int i, me, him, current_mask;
     unsigned int array_index, count, bit_index;
 
-    assert(eu_context->master_context->nb_nodes > 1);
+    assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
 
 #if defined(DAGUE_DEBUG)
     /* make valgrind happy */
