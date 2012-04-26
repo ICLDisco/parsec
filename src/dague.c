@@ -205,9 +205,6 @@ static void dague_vp_init( dague_vp_t *vp,
         else
             startup[t].bindto= -1;
     }
-    // STEPH:: 
-    if (vp->vp_id == 0) 
-        vpmap_display_map(stdout);
 }
 
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
