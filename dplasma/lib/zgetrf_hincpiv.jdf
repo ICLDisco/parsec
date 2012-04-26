@@ -23,9 +23,6 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma_qr_pivgen.h"
 
-#define MYMIN(a, b) ((a)<(b)?(a):(b))
-#define MYMAX(a, b) ((a)>(b)?(a):(b))
-
 //#define PRIO_YVES1
 
 #if defined(PRIO_YVES1)
@@ -38,8 +35,8 @@ extern "C" %{
 #define GETPRIO_PANEL( __m, __n )      (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
 #define GETPRIO_UPDTE( __m, __n, __k ) (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
 #elif defined(PRIO_MATHIEU2)
-#define GETPRIO_PANEL( __m, __n )      ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
-#define GETPRIO_UPDTE( __m, __n, __k ) ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
+#define GETPRIO_PANEL( __m, __n )      ((dague_imax(descA.mt, descA.nt) - dague_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
+#define GETPRIO_UPDTE( __m, __n, __k ) ((dague_imax(descA.mt, descA.nt) - dague_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
 #elif defined(PRIO_MATYVES)
 #define FORMULE( __x ) ( ( -1. + dplasma_dsqrt( 1. + 4.* (__x) * (__x)) ) * 0.5 )
 #define GETPRIO_PANEL( __m, __k )      (int)( 22. * (__k) + 6. * ( FORMULE( descA.mt ) - FORMULE( (__m) - (__k) + 1. ) ) )
@@ -80,7 +77,7 @@ zgetrf_hincpiv_out(k, i) [profile = off]
        -> ( descA.nt-1 > k ) ? A zgessm(k, i, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
        -> A(m, k)                                                  [type = LOWER_TILE]
 BODY
- /* Nothing */
+    /* Nothing */
 END
 
 /*
@@ -119,37 +116,37 @@ zgetrf_hincpiv(k, i)
   ; inline_c %{ return GETPRIO_PANEL(m, k); %}
 
 BODY
-  int iinfo = 0;
-  int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
-  int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
-  int ldam   = BLKLDD( descA, m );
+    int iinfo = 0;
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int ldam   = BLKLDD( descA, m );
 
-  DRYRUN(
-         /* Set local IPIV to 0 before generation
-          * Better here than a global initialization for locality
-          * and it's also done in parallel */
-         memset(P, 0, dague_imin(tempkn, tempmm) * sizeof(int) );
+    printlog("\nthread %d  zgetrf_incpiv( k=%d, i=%d, m=%d, nextm=%d)\n"
+             "\t( tempmm=%d, tempkn=%d, ib, A(%d,%d)[%p], ldam=%d, IPIV(%d,%d)[%p]) => info = %d\n",
+             context->eu_id, k, i, m, nextm,
+             tempmm, tempkn, m, k, A, ldam, m, k, P,
+             (iinfo != 0 ? m * descA.mb + iinfo : 0 ));
+    DRYRUN(
+           /* Set local IPIV to 0 before generation
+            * Better here than a global initialization for locality
+            * and it's also done in parallel */
+           memset(P, 0, dague_imin(tempkn, tempmm) * sizeof(int) );
 
-         CORE_zgetrf_incpiv(tempmm, tempkn, ib,
-                            A /* A(m, k)    */, ldam,
-                            P /* IPIV(m, k) */, &iinfo );
+           CORE_zgetrf_incpiv(tempmm, tempkn, ib,
+                              A /* A(m, k)    */, ldam,
+                              P /* IPIV(m, k) */, &iinfo );
 
-         if ( (iinfo != 0) /*&& (k == descA.mt-1)*/ ) {
-             *INFO = k * descA.mb + iinfo; /* Should return if enter here */
-             fprintf(stderr, "\nWarning!!! zgetrf( k=%d, i=%d, m=%d) failed => %d\n", k, i, m, *INFO );
-         }
-         );
+           if ( (iinfo != 0) /*&& (k == descA.mt-1)*/ ) {
+               *INFO = k * descA.mb + iinfo; /* Should return if enter here */
+               fprintf(stderr, "\nWarning!!! zgetrf( k=%d, i=%d, m=%d) failed => %d\n", k, i, m, *INFO );
+           }
+           );
 
 #if defined(DAGUE_SIM)
-  if ( descA.mt-1 == k )
-    ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
+    if ( descA.mt-1 == k )
+        ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
 
-  printlog("\nthread %d  zgetrf_incpiv( k=%d, i=%d, m=%d, nextm=%d)\n"
-           "\t( tempmm=%d, tempkn=%d, ib, A(%d,%d)[%p], ldam=%d, IPIV(%d,%d)[%p]) => info = %d\n",
-           context->eu_id, k, i, m, nextm,
-           tempmm, tempkn, m, k, A, ldam, m, k, P,
-           (iinfo != 0 ? m * descA.mb + iinfo : 0 ));
 END
 
 /*
@@ -182,21 +179,22 @@ zgessm(k, i, n)
     ; inline_c %{ return GETPRIO_UPDTE(m, n, k); %}
 
 BODY
-  DRYRUN(
-         int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
-         int tempnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
-         int ldam   = BLKLDD( descA, m );
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int tempnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
+    int ldam   = BLKLDD( descA, m );
 
-         CORE_zgessm(tempmm, tempnn, tempmm, ib,
-                     P /* IPIV(m,k) */,
-                     A /* A(m,k)    */, ldam,
-                     C /* A(m,n)    */, ldam );
-         );
-   printlog("\nthread %d   zgessm( k=%d, i=%d, n=%d, m=%d, nextm=%d)\n"
-            "\t( tempmm=%d, tempnn=%d, tempmm=%d, ib, IPIV(%d,%d)[%p], \n"
-            "\t  A(%d,%d)[%p], ldam = %d, A(%d,%d)[%p], ldam = %d)\n",
-            context->eu_id, k, i, n, m, nextm,
-            tempmm, tempnn, tempmm, m, k, P, m, k, A, ldam, m, n, C, ldam);
+    printlog("\nthread %d   zgessm( k=%d, i=%d, n=%d, m=%d, nextm=%d)\n"
+              "\t( tempmm=%d, tempnn=%d, tempmm=%d, ib, IPIV(%d,%d)[%p], \n"
+              "\t  A(%d,%d)[%p], ldam = %d, A(%d,%d)[%p], ldam = %d)\n",
+              context->eu_id, k, i, n, m, nextm,
+              tempmm, tempnn, tempmm, m, k, P, m, k, A, ldam, m, n, C, ldam);
+
+    DRYRUN(
+           CORE_zgessm(tempmm, tempnn, tempmm, ib,
+                       P /* IPIV(m,k) */,
+                       A /* A(m,k)    */, ldam,
+                       C /* A(m,n)    */, ldam );
+           );
 END
 
 
@@ -265,52 +263,58 @@ zttqrt(k, m)
  ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_PANEL(p, k) : GETPRIO_PANEL(m, k); %}
 
 BODY
-  int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-  int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
-  int ldap = BLKLDD( descA, p );
-  int ldam = BLKLDD( descA, m );
+    int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+    int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
+    int ldap = BLKLDD( descA, p );
+    int ldam = BLKLDD( descA, m );
 
-  DRYRUN(
-      void *p_elem_B = dague_private_memory_pop( p_work );
+    printlog("\nthread %d zttqrt( k=%d, m=%d, p=%d, nextp=%d, prevp=%d, prevm=%d, type=%d, ip=%d, im=%d )\n"
+             "\t(tempmm=%d, tempkn=%d, ib=%d, descLT.nb=%d,\n"
+             "\t A(%d,%d)[%p], ldap=%d, A(%d,%d)[%p], ldam=%d,\n"
+             "\t LT(%d,%d)[%p], descLT.mb=%d, descLT.nb=%d)\n",
+             context->eu_id, k, m, p, nextp, prevp, prevm, type, ip, im,
+             tempmm, tempkn, ib, descLT.nb,
+             p, k, A, ldap, m, k, C, ldam, m, k, L, descLT.mb, descLT.nb);
 
-      if ( type == DPLASMA_QR_KILLED_BY_TS ) {
-          int iinfo = 0;
-          memset(P, 0, dague_imin(tempkn, tempmm) * sizeof(int) );
-          CORE_ztstrf(tempmm, tempkn, ib, descLT.nb,
-                      A /* A(p,k)    */, ldap,
-                      C /* A(m,k)    */, ldam,
-                      L /* L(m,k)    */, descLT.mb,
-                      P /* IPIV(m,k) */,
-                      p_elem_B, descLT.nb, &iinfo );
+    DRYRUN(
+        void *p_elem_B = dague_private_memory_pop( p_work );
 
-          if ( (iinfo != 0) /*&& (m == descA.mt-1)*/ ) {
-              *INFO = k * descA.mb + iinfo; /* Should return if enter here */
-              fprintf(stderr, "ztstrf(%d, %d) failed => %d\n", m, k, *INFO );
-          }
-      } else {
-          void *p_elem_A = dague_private_memory_pop( p_tau  );
+        if ( type == DPLASMA_QR_KILLED_BY_TS ) {
+            int iinfo = 0;
+            memset(P, 0, dague_imin(tempkn, tempmm) * sizeof(int) );
+            CORE_ztstrf(tempmm, tempkn, ib, descLT.nb,
+                        A /* A(p,k)    */, ldap,
+                        C /* A(m,k)    */, ldam,
+                        L /* L(m,k)    */, descLT.mb,
+                        P /* IPIV(m,k) */,
+                        p_elem_B, descLT.nb, &iinfo );
 
-          CORE_zttqrt(
-              tempmm, tempkn, ib,
-              A /* A(p, k)  */, descA.mb /*ldap*/,
-              C /* A(m, k)  */, ldam,
-              L /* LT(m, k) */, descLT.mb,
-              p_elem_A, p_elem_B );
+            if ( (iinfo != 0) /*&& (m == descA.mt-1)*/ ) {
+                *INFO = k * descA.mb + iinfo; /* Should return if enter here */
+                fprintf(stderr, "ztstrf(%d, %d) failed => %d\n", m, k, *INFO );
+            }
+        } else {
+            void *p_elem_A = dague_private_memory_pop( p_tau  );
 
-          dague_private_memory_push( p_tau , p_elem_A );
-      }
+            CORE_zttqrt(
+                tempmm, tempkn, ib,
+                A /* A(p, k)  */, descA.mb /*ldap*/,
+                C /* A(m, k)  */, ldam,
+                L /* LT(m, k) */, descLT.mb,
+                p_elem_A, p_elem_B );
 
-      dague_private_memory_push( p_work, p_elem_B );
-         );
+            dague_private_memory_push( p_tau , p_elem_A );
+        }
+
+        dague_private_memory_push( p_work, p_elem_B );
+           );
 
 #if defined(DAGUE_SIM)
-  ((PLASMA_Complex64_t*)C)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
-  if ( ( ( nextp == descA.mt ) & (p == k) ) )
-    ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
+    ((PLASMA_Complex64_t*)C)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
+    if ( ( ( nextp == descA.mt ) & (p == k) ) )
+      ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
-  printlog("\nthread %d CORE_zttqrt( k=%d, m=%d)\t type = %d\n"
-           "\t(tempmm = %d, tempkn = %d, ib = %d, descLT.nb = %d, A(%d,%d)[%p], ldap = %d, A(%d,%d)[%p], ldam = %d, T(%d,%d)[%p], descLT.mb = %d, p_elem_A, P, p_elem_B, descLT.nb = %d, iinfo)\n",
-           context->eu_id, k, m, type, tempmm, tempkn, ib, descLT.nb, p, k, A, ldap, m, k, C, ldam, m, k, L, descLT.mb, descLT.nb);
+
 END
 
 
@@ -384,53 +388,45 @@ zttmqr(k, m, n)
     ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
 
 BODY
-  int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
-  int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-  int ldap = BLKLDD( descA, p );
-  int ldam = BLKLDD( descA, m );
+    int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
+    int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+    int ldap = BLKLDD( descA, p );
+    int ldam = BLKLDD( descA, m );
 
-  DRYRUN(
-      /* int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb); */
-      /* //int temppn = ((p)==((descA.nt)-1)) ? ((descA.n)-(p*(descA.nb))) : (descA.nb); */
-      /* int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);  */
-      /* int temppm = ((p)==((descA.mt)-1)) ? ((descA.m)-(p*(descA.mb))) : (descA.mb); */
-      /* int ldam   = BLKLDD( descA, m ); */
-      /* int ldap   = BLKLDD( descA, p ); */
-      /* //int temppmin = min(temppm, temppn); */
+    printlog("\nthread %d zttmqr( k=%d, m=%d, n=%d, p=%d, nextp=%d, prevp=%d, prevm=%d, type=%d, type1=%d, ip=%d, im=%d, im1=%d)\n"
+             "\t(descA.mb=%d, tempnn=%d, tempmm=%d, tempnn=%d, ib=%d, \n"
+             "\t A(%d,%d)[%p], ldap=%d, A(%d,%d)[%p], ldam,\n"
+             "\t LT(%d,%d)[%p], descLT.mb=%d, A(%d,%d)[%p], ldam)\n",
+             context->eu_id, k, m, n, p, nextp, prevp, prevm, type, type1, ip, im, im1,
+             descA.mb, tempnn, tempmm, tempnn, ib,
+             p, n, V, ldap, m, n, C, ldam,
+             m, k, L, descLT.mb, m, k, H, ldam);
 
-      /* printlog("\nBEG thread %d CORE_zttmqr( k=%d, m=%d, n=%d)\t type = %d\n" */
-      /*          "\t(PlasmaLeft, PlasmaConjTrans, temppm = %d, tempnn = %d, tempmm = %d, tempnn =%d, descA.nb, ib, \n" */
-      /*          "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n", */
-      /*          context->eu_id, k, m, n, type, temppm, tempnn, tempmm, tempnn, p, n, V, m, n, C, m, k, H, m, k, L); */
+    DRYRUN(
 
-      if ( type == DPLASMA_QR_KILLED_BY_TS ) {
-          CORE_zssssm(
-              descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-              V /* A(p, n)  */, ldap,
-              C /* A(m, n)  */, ldam,
-              L /* LT(m, k) */, descLT.mb,
-              H /* A(m, k)  */, ldam,
-              P /* IPIV(m,k)*/ );
-      } else {
-          void *p_elem_A = dague_private_memory_pop( p_work );
-          
-          CORE_zttmqr(
-              PlasmaLeft, PlasmaConjTrans,
-              descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-              V /* A(p, n)  */, ldap,
-              C /* A(m, n)  */, ldam,
-              H /* A(m, k)  */, ldam,
-              L /* LT(m, k) */, descLT.mb,
-              p_elem_A, ib );
-          
-          dague_private_memory_push( p_work, p_elem_A );
-      }
-      
-         );
+        if ( type == DPLASMA_QR_KILLED_BY_TS ) {
+            CORE_zssssm(
+                descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
+                V /* A(p, n)  */, ldap,
+                C /* A(m, n)  */, ldam,
+                L /* LT(m, k) */, descLT.mb,
+                H /* A(m, k)  */, ldam,
+                P /* IPIV(m,k)*/ );
+        } else {
+            void *p_elem_A = dague_private_memory_pop( p_work );
 
-  printlog("\nthread %d CORE_zttmqr( k=%d, m=%d, n=%d)\t type = %d\n"
-           "\t(PlasmaLeft, PlasmaConjTrans, temppm = %d, tempnn = %d, tempmm = %d, tempnn =%d, descA.nb, ib, \n"
-           "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n",
-           context->eu_id, k, m, n, type, temppm, tempnn, tempmm, tempnn, p, n, V, m, n, C, m, k, H, m, k, L);
+            CORE_zttmqr(
+                PlasmaLeft, PlasmaConjTrans,
+                descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
+                V /* A(p, n)  */, ldap,
+                C /* A(m, n)  */, ldam,
+                H /* A(m, k)  */, ldam,
+                L /* LT(m, k) */, descLT.mb,
+                p_elem_A, ib );
+
+            dague_private_memory_push( p_work, p_elem_A );
+        }
+
+           );
 
 END
