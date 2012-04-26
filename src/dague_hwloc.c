@@ -103,7 +103,6 @@ int dague_hwloc_master_id( int level, int processor_id )
     return -1;
 }
 
-
 unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
 #if defined(HAVE_HWLOC)
@@ -124,6 +123,7 @@ unsigned int dague_hwloc_nb_cores( int level, int master_id )
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
 }
+
 
 int dague_hwloc_nb_levels(void)
 {

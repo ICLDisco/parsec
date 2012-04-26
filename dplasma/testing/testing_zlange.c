@@ -13,7 +13,7 @@
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
-    double *work;
+    double *work = NULL;
     double normlap = 0.0;
     double normdag = 0.0;
     double eps = LAPACKE_dlamch_work('e');
@@ -31,7 +31,6 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
-    PASTE_CODE_FLOPS(FLOPS_ZGEMV, ((DagDouble_t)M, (DagDouble_t)N));
 
     check = 1;
     LDA = max( LDA, M );
@@ -56,7 +55,7 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("Done\n");
 
     if( rank == 0 ) {
-        work    = (double *)malloc( max(M,N) * sizeof(double));
+        work = (double *)malloc( max(M,N) * sizeof(double));
     }
 
     /* Computing the norm */

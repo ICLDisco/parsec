@@ -46,6 +46,8 @@ typedef struct two_dim_block_cyclic {
 /**
  * Initialize the description of a  2-D block cyclic distributed matrix.
  * @param Ddesc matrix description structure, already allocated, that will be initialize
+ * @param mtype type of data used for this matrix
+ * @param storage type of storage of data
  * @param nodes number of nodes
  * @param cores number of cores per node
  * @param myrank rank of the local node (as of mpi rank)
@@ -61,14 +63,14 @@ typedef struct two_dim_block_cyclic {
  * @param ncst number of column of tiles for block distribution
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  */
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc,
-                               enum matrix_type mtype,
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc, 
+                               enum matrix_type mtype, 
                                enum matrix_storage storage,
-                               int nodes, int cores, int myrank,
-			       int mb,   int nb,   /* Tile size */
-			       int lm,   int ln,   /* Global matrix size (what is stored)*/
-                               int i,    int j,    /* Staring point in the global matrix */
-			       int m,    int n,    /* Submatrix size (the one concerned by the computation */
+                               int nodes, int cores, int myrank, 
+                               int mb,   int nb,   /* Tile size */                                           
+                               int lm,   int ln,   /* Global matrix size (what is stored)*/                  
+                               int i,    int j,    /* Staring point in the global matrix */                  
+                               int m,    int n,    /* Submatrix size (the one concerned by the computation */
                                int nrst, int ncst, /* Super-tiling size */
                                int process_GridRows );
 

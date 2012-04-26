@@ -1,7 +1,7 @@
 extern "C" %{
 /*
  *  Copyright (c) 2010 - 2011
- * 
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -43,7 +43,7 @@ Bmb  [type = int]
 Bnb  [type = int]
 Bmt  [type = int]
 Bnt  [type = int]
-     
+
 /**************************************************
  *                      TRMM                      *
  **************************************************/
@@ -57,7 +57,7 @@ READ A <- A(n, n)
 
 BODY
   /* Nothing */
-  printlog("thread %d trmm_in( %d )\n", context->eu_id, n);
+  printlog("thread %d VP %d trmm_in( %d )\n", context->th_id, context->virtual_process->vp_id, n);
 END
 
 TRMM(m, n)
@@ -86,10 +86,10 @@ BODY
                      B /*B(m, n)*/, Bmb)
           );
 
-     printlog("thread %d CORE_ztrmm( %d, %d )\n"
+     printlog("thread %d VP %d CORE_ztrmm( %d, %d )\n"
               "    ( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-              context->eu_id, m, n, 
-              plasma_const(side), plasma_const(uplo), plasma_const(trans), plasma_const(diag), 
+              context->th_id, context->virtual_process->vp_id, m, n,
+              plasma_const(side), plasma_const(uplo), plasma_const(trans), plasma_const(diag),
               tempmm, tempnn,
               creal(alpha), m, m, A, Amb,
                      m, n, B, Bmb);
@@ -109,7 +109,7 @@ READ A <- A(n, k)
 
 BODY
   /* Nothing */
-  printlog("thread %d gemm_inA( %d, %d )\n", context->eu_id, n, k);
+  printlog("thread %d VP %d gemm_inA( %d, %d )\n", context->th_id, context->virtual_process->vp_id, n, k);
 END
 
 
@@ -124,7 +124,7 @@ READ B <- B(m, k)
 
 BODY
   /* Nothing */
-  printlog("thread %d gemm_inB( %d, %d )\n", context->eu_id, m, k);
+  printlog("thread %d VP %d gemm_inB( %d, %d )\n", context->th_id, context->virtual_process->vp_id, m, k);
 END
 
 // Name
@@ -157,13 +157,13 @@ BODY
 		  (Dague_Complex64_t)1.0, C, Bmb)
 	   );
 
-      printlog("thread %d gemm( %d, %d, %d )\n"
+      printlog("thread %d VP %d gemm( %d, %d, %d )\n"
 	       "    ( %s, %s, %d, %d, %d, %f, B(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, m, n, k, 
-               plasma_const( PlasmaNoTrans ), plasma_const( trans ), 
+	       context->th_id, context->virtual_process->vp_id, m, n, k,
+               plasma_const( PlasmaNoTrans ), plasma_const( trans ),
                tempmm, tempnn, tempkn,
 	       creal(alpha), m, k, B, Bmb, n, k, A, Amb,
-	       1.0, m, n, C, Bmb);
+	       (float)1.0, m, n, C, Bmb);
 END
 
 /**************************************************
@@ -186,5 +186,5 @@ CTL   ctl1 <- (n != 0)   ? ctl1 GOK(m, n-1, k)
 CTL   ctl2 <- ctl GEMM(m, n, k)
 BODY
       /* Fake task to guaranty the end of all gemm using B(m, n) before to start TRMM */
-     printlog("thread %d gok( %d, %d, %d )\n", context->eu_id, m, n, k);
+     printlog("thread %d VP %d gok( %d, %d, %d )\n", context->th_id, context->virtual_process->vp_id, m, n, k);
 END

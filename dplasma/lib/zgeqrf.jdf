@@ -20,7 +20,7 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_stsmqr.h"
 extern int *gpu_counter;
@@ -76,7 +76,7 @@ zgeqrt(k)
   ;(descA.nt-k)*(descA.nt-k)*(descA.nt-k)
 
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, k, k );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ | DAGUE_WRITE, k, k );
 #endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
@@ -98,8 +98,8 @@ BODY
         dague_private_memory_push( p_work, p_elem_B );
            )
 
-    printlog("thread %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-             context->eu_id, k, k, k, A, k, k, B);
+     printlog("thread %d VP %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+     context->th_id, context->virtual_process->vp_id, k, k, k, A, k, k, B);
 
 END
 
@@ -126,7 +126,7 @@ zunmqr(k,n)
           -> (descA.mt>=(k+2)) ? J ztsmqr(k, k+1, n)
 
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ, k, k );
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, k, n );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ, k, k );
@@ -148,8 +148,8 @@ BODY
          );
   dague_private_memory_push( p_work, p_elem_A );
 
-  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, p_elem_A, descT.nb)\n",
-  context->eu_id, k, n, k, k, C, k, k, D, k, n, E);
+  printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, p_elem_A, descT.nb)\n",
+  context->th_id, context->virtual_process->vp_id, k, n, k, k, C, k, k, D, k, n, E);
 
 END
 
@@ -192,7 +192,7 @@ ztsqrt(k,m)
 ; (descA.mt-k)*(descA.mt-k)*(descA.mt-k)
 
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, k, k );
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, m, k );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ | DAGUE_WRITE, m, k );
@@ -217,8 +217,8 @@ BODY
   dague_private_memory_push( p_tau , p_elem_A );
   dague_private_memory_push( p_work, p_elem_B );
 
-  printlog("thread %d CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, m, k, k, F, m, k, G, m, k, H);
+  printlog("thread %d VP %d CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, m, k, k, F, m, k, G, m, k, H);
 
 END
 
@@ -277,7 +277,7 @@ BODY
          int ldwork = ib;
          );
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ, m, k );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ, m, k );
     if( dague_active_gpu() > 0 ) {
@@ -312,14 +312,14 @@ BODY
          );
   dague_private_memory_push( p_work, p_elem_A );
 
-  printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_ztsmqr(%d, %d, %d)\n"
            "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
            "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-           context->eu_id, k, m, n1,
+           context->th_id, context->virtual_process->vp_id, k, m, n1,
            k, n1, J, m, n1, K,
            m, k,  L, m, k,  M);
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
 FIN:
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
