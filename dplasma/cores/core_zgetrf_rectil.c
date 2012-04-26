@@ -86,7 +86,7 @@ CORE_zgetrf_rectil_update(const PLASMA_desc A, int *IPIV,
  *                  to solve a system of equations.
  *
  */
-int CORE_zgetrf_rectil(const PLASMA_desc A, int *IPIV)
+int CORE_zgetrf_rectil_1thrd(const PLASMA_desc A, int *IPIV)
 {
     int minMN = min( A.m, A.n );
     int info = 0;
