@@ -72,6 +72,20 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
 
+    /* Increase diagonale to avoid pivoting */
+    {
+        tiled_matrix_desc_t *descA = (tiled_matrix_desc_t *)&ddescA;
+        Dague_Complex64_t   *tab   = (Dague_Complex64_t *) ddescA.mat;
+        int minmnt = dague_imin( descA->mt, descA->nt );
+        int minmn  = dague_imin( descA->m,  descA->n );
+        int t, e;
+
+        for(t = 0; t < minmnt; t++ ) {
+            for(e = 0; e < descA->mb; e++)
+                tab[(t * descA->lmt + t) * (descA->mb*descA->nb) + e * descA->mb + e] += (Dague_Complex64_t)minmn;
+        }
+    }
+
     if ( check )
     {
         dplasma_zlacpy( dague, PlasmaUpperLower,
@@ -103,10 +117,12 @@ int main(int argc, char ** argv)
     }
     else if ( check ) {
 
-        dplasma_zgetrs(dague, PlasmaNoTrans,
-                       (tiled_matrix_desc_t *)&ddescA,
-                       (tiled_matrix_desc_t *)&ddescIPIV,
-                       (tiled_matrix_desc_t *)&ddescX );
+        dplasma_ztrsm(dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                      1.0, (tiled_matrix_desc_t *)&ddescA,
+                           (tiled_matrix_desc_t *)&ddescX);
+        dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit,
+                      1.0, (tiled_matrix_desc_t *)&ddescA,
+                           (tiled_matrix_desc_t *)&ddescX);
 
         /* Check the solution */
         ret |= check_solution( dague, (rank == 0) ? loud : 0,
