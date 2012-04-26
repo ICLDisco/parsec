@@ -216,7 +216,7 @@ static int check_solution( dague_context_t *dague, int loud,
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 
-    if ( loud > 2 ) {
+    //if ( loud > 2 ) {
         printf("============\n");
         printf("Checking the Residual of the solution \n");
         if ( loud > 3 )
@@ -224,7 +224,7 @@ static int check_solution( dague_context_t *dague, int loud,
                     Anorm, Xnorm, Bnorm, Rnorm );
 
         printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n", result);
-    }
+    //}
 
     if (  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 60.0) ) {
         if( loud ) printf("-- Solution is suspicious ! \n");
@@ -260,7 +260,7 @@ static int check_inverse( dague_context_t *dague, int loud,
 
     result = Rnorm / ( ( Anorm * InvAnorm ) * m * eps ) ;
 
-    if ( loud > 2 ) {
+    //if ( loud > 2 ) {
         printf("============\n");
         printf("Checking the Residual of the solution \n");
         if ( loud > 3 )
@@ -268,7 +268,7 @@ static int check_inverse( dague_context_t *dague, int loud,
                     Anorm, InvAnorm, Rnorm );
 
         printf("-- ||AA^{-1}-I||_oo/((||A||_oo||A^{-1}||_oo).N.eps) = %e \n", result);
-    }
+   // }
 
     if (  isnan(Rnorm) || isinf(Rnorm) || isnan(result) || isinf(result) || (result > 60.0) ) {
         if( loud ) printf("-- Solution is suspicious ! \n");
