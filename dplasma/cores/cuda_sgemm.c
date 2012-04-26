@@ -408,7 +408,7 @@ gpu_kernel_pop_sgemm( gpu_device_t* gpu_device,
                                    (unsigned long)this_task, this_task->dague_object->object_id,
                                    NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
-        /* Pop C from the GPU */
+        /* Move the data back into main memory */
         status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[2].data), gpu_elem->gpu_mem, tile_size, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
                                 { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[2]->name,
