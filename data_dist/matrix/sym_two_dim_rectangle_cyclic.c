@@ -24,6 +24,7 @@
 #endif
 #include <stdint.h>
 #include <inttypes.h>
+#include <math.h>
 
 #include <assert.h>
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
@@ -32,13 +33,14 @@
 #define UINT_MAX (~0UL)
 #endif
 
-static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
+static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
 {
-    unsigned int rr, cr, m, n;
+    unsigned int cr, m, n;
+    unsigned int rr;
     unsigned int res;
     va_list ap;
     sym_two_dim_block_cyclic_t * Ddesc;
-    Ddesc = (sym_two_dim_block_cyclic_t *) desc;
+    Ddesc = (sym_two_dim_block_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -55,7 +57,6 @@ static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     if ( ((Ddesc->uplo == MatrixLower) && (m < n)) || 
          ((Ddesc->uplo == MatrixUpper) && (m > n)) )
         {
-            //        printf("Tried to get rank for tile (%d,%d)\n", m,n);
             return UINT_MAX;
         }
 
@@ -67,15 +68,36 @@ static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     /* P(rr, cr) has the tile, compute the mpi rank*/
     res = rr * Ddesc->grid.cols + cr;
 
-    /* printf("tile (%d, %d) belongs to process %d [%d,%d] in a grid of %dx%d\n", */
-    /*        m, n, res, rr, cr, Ddesc->grid.rows, Ddesc->grid.cols); */
     return res;
 }
 
-static size_t sym_twoDBC_compute_mempos_from_global_coordinates(sym_two_dim_block_cyclic_t *Ddesc, int m, int n)
+static void *sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
 {
     int nb_elem, nb_elem_col, column;
     size_t pos;
+    int m, n;
+    //int local_m, local_n;
+    //int local_lmt;
+    va_list ap;
+    sym_two_dim_block_cyclic_t * Ddesc;
+    Ddesc = (sym_two_dim_block_cyclic_t *)desc;
+
+    /* Get coordinates */
+    va_start(ap, desc);
+    m = (int)va_arg(ap, unsigned int);
+    n = (int)va_arg(ap, unsigned int);
+    va_end(ap);
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
+
+#if defined(DISTRIBUTED)
+    assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));
+#endif
+    assert( Ddesc->super.storage == matrix_Tile );
+    assert( (Ddesc->uplo == MatrixLower && m>=n) || 
+            (Ddesc->uplo == MatrixUpper && n>=m) );
 
     pos = 0; /* current position (as number of tile) in the buffer */
     column = Ddesc->grid.crank; /* tile column considered */
@@ -111,15 +133,17 @@ static size_t sym_twoDBC_compute_mempos_from_global_coordinates(sym_two_dim_bloc
         pos += (m / (Ddesc->grid.rows));
     }
 
-    return pos;
+    pos *= Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype);
+    return &(((char *) Ddesc->mat)[pos]);
 }
 
-static int32_t sym_twoDBC_get_vpid(dague_ddesc_t *desc, ...)
+static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
 {
-    int m, n;
-    size_t pos;
+    int m, n, p, q, pq;
+    int local_m, local_n;
     sym_two_dim_block_cyclic_t * Ddesc;
     va_list ap;
+    int32_t vpid;
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
 
     /* Get coordinates */
@@ -132,41 +156,32 @@ static int32_t sym_twoDBC_get_vpid(dague_ddesc_t *desc, ...)
     m += Ddesc->super.i / Ddesc->super.mb;
     n += Ddesc->super.j / Ddesc->super.nb;
 
-    assert(desc->myrank == sym_twoDBC_get_rank_for_tile(desc, m, n));
-    
-    pos = sym_twoDBC_compute_mempos_from_global_coordinates(Ddesc, m, n);
-    /* pos is expressed in tiles */
-    return tiled_matrix_get_vpid(&Ddesc->super, pos);
+#if defined(DISTRIBUTED)
+    assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));
+#endif
+    assert( (Ddesc->uplo == MatrixLower && m>=n) || 
+            (Ddesc->uplo == MatrixUpper && n>=m) );
+
+    pq = vpmap_get_nb_vp();
+    if ( pq == 1 )
+        return 0;
+
+    q = (int)ceilf(sqrtf( (float)pq ));
+    assert(q > 0);
+    p = pq / q;
+
+    /* Compute the local tile row */
+    local_m = m / Ddesc->grid.rows;
+    assert( (m % Ddesc->grid.rows) == Ddesc->grid.rrank );
+
+    /* Compute the local column */
+    local_n = n / Ddesc->grid.cols;
+    assert( (n % Ddesc->grid.cols) == Ddesc->grid.crank );
+
+    vpid = (local_n % q) * p + (local_m % p);
+    assert( vpid < vpmap_get_nb_vp() );
+    return vpid;
 }
-
-static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
-{
-    int m, n;
-    size_t pos;
-    sym_two_dim_block_cyclic_t * Ddesc;
-    va_list ap;
-    Ddesc = (sym_two_dim_block_cyclic_t *)desc;
-
-    /* Get coordinates */
-    va_start(ap, desc);
-    m = (int)va_arg(ap, unsigned int);
-    n = (int)va_arg(ap, unsigned int);
-    va_end(ap);
-
-    /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
-    n += Ddesc->super.j / Ddesc->super.nb;
-
-    assert(desc->myrank == sym_twoDBC_get_rank_for_tile(desc, m, n));
-
-    pos = sym_twoDBC_compute_mempos_from_global_coordinates(Ddesc, m, n);
-
-    /**********************************/
-    //printf("get tile (%d, %d) is at pos %d\t(ptr %p, base %p)\n", m, n, pos*Ddesc->bsiz,&(((double *) Ddesc->mat)[pos * Ddesc->bsiz]), Ddesc->mat);
-    /************************************/
-    return &(((char *) Ddesc->mat)[pos * Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype)]);
-}
-
 
 
 #ifdef DAGUE_PROF_TRACE
@@ -230,9 +245,9 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
         o->cores  = cores;
         o->myrank = myrank;
         
-        o->rank_of       = sym_twoDBC_get_rank_for_tile;
-        o->data_of       = sym_twoDBC_get_local_tile;
-        o->vpid_of       = sym_twoDBC_get_vpid;
+        o->rank_of       = sym_twoDBC_rank_of;
+        o->data_of       = sym_twoDBC_data_of;
+        o->vpid_of       = sym_twoDBC_vpid_of;
 #if defined(DAGUE_PROF_TRACE)
         o->data_key      = sym_twoDBC_data_key;
         o->key_to_string = sym_twoDBC_key_to_string;
