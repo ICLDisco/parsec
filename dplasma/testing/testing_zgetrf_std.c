@@ -75,14 +75,17 @@ int main(int argc, char ** argv)
     /* Increase diagonale to avoid pivoting */
     {
         tiled_matrix_desc_t *descA = (tiled_matrix_desc_t *)&ddescA;
-        Dague_Complex64_t   *tab   = (Dague_Complex64_t *) ddescA.mat;
         int minmnt = dague_imin( descA->mt, descA->nt );
         int minmn  = dague_imin( descA->m,  descA->n );
         int t, e;
 
         for(t = 0; t < minmnt; t++ ) {
-            for(e = 0; e < descA->mb; e++)
-                tab[(t * descA->lmt + t) * (descA->mb*descA->nb) + e * descA->mb + e] += (Dague_Complex64_t)minmn;
+	  if(((dague_ddesc_t*) &ddescA)->rank_of(((dague_ddesc_t*) &ddescA), t, t)  == ((dague_ddesc_t*) &ddescA)->myrank)
+	    {
+	      Dague_Complex64_t *tab = ((dague_ddesc_t*) &ddescA)->data_of(((dague_ddesc_t*) &ddescA), t, t);
+	      for(e = 0; e < descA->mb; e++)
+                tab[e * descA->mb + e] += (Dague_Complex64_t)minmn;
+	    }
         }
     }
 
