@@ -93,7 +93,7 @@ BODY
 
   printlog("thread %d GEBUT(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i, j, Atl);
+  context->th_id, i, j, i, j, Atl);
 
   type = segment_to_type_index(descA.seg_info, i, j);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
@@ -153,7 +153,7 @@ BODY
 
   printlog("thread %d GEBUT_Reader(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i, j, A);
+  context->th_id, i, j, i, j, A);
 
 END
 
@@ -179,7 +179,7 @@ BODY
 
   printlog("thread %d GEBUT_Writer(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i, j, A);
+  context->th_id, i, j, i, j, A);
 
 END
 

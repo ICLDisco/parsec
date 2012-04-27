@@ -89,7 +89,7 @@ BODY
 
   printlog("thread %d HEBUT_Diag(%d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, i, i, Atl);
+  context->th_id, i, i, i, Atl);
 
   type = segment_to_type_index(descA.seg_info, i, i);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
@@ -160,7 +160,7 @@ BODY
 
   printlog("thread %d HEBUT_Lower(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i, j, Atl);
+  context->th_id, i, j, i, j, Atl);
 
   type = segment_to_type_index(descA.seg_info, i, j);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
@@ -221,7 +221,7 @@ BODY
 
   printlog("thread %d HEBUT_Reader_TL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i, j, A);
+  context->th_id, i, j, i, j, A);
   printf("R A[%d][%d]:%lf\n",i,j,*(double *)A);
 
 END
@@ -247,7 +247,7 @@ BODY
 
   printlog("thread %d HEBUT_Reader_BL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i+mt/2, j, A);
+  context->th_id, i, j, i+mt/2, j, A);
   printf("R A[%d][%d]:%lf\n",i+mt/2,j,*(double *)A);
 
 END
@@ -271,7 +271,7 @@ BODY
 
   printlog("thread %d HEBUT_Reader_BR(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i+mt/2, j+nt/2, A);
+  context->th_id, i, j, i+mt/2, j+nt/2, A);
   printf("R A[%d][%d]:%lf\n",i+mt/2,j+nt/2,*(double *)A);
 
 END
@@ -295,7 +295,7 @@ BODY
 
   printlog("thread %d HEBUT_Writer_TL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i, j, A);
+  context->th_id, i, j, i, j, A);
   printf("W A[%d][%d]:%lf\n",i,j,*(double *)A);
 
 END
@@ -321,7 +321,7 @@ BODY
 
   printlog("thread %d HEBUT_Writer_BL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i+mt/2, j, A);
+  context->th_id, i, j, i+mt/2, j, A);
   printf("W A[%d][%d]:%lf\n",i+mt/2,j,*(double *)A);
 
 END
@@ -345,7 +345,7 @@ BODY
 
   printlog("thread %d HEBUT_Writer_BR(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i+mt/2, j+nt/2, A);
+  context->th_id, i, j, i+mt/2, j+nt/2, A);
   printf("W A[%d][%d]:%lf\n",i+mt/2,j+nt/2,*(double *)A);
 
 END
