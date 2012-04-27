@@ -195,8 +195,7 @@ int vpmap_init_from_hardware_affinity(void)
 
 int vpmap_init_from_file(const char *filename)
 {
-    // STEPH:: 
-    printf("vpmap_init_from_file\n");
+
     FILE *f;
     char *line = NULL;
     size_t nline = 0;
