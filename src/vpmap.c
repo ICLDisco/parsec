@@ -242,7 +242,7 @@ int vpmap_init_from_file(const char *filename)
             v++;
         } else {
             nbcores = 1;
-            for(c = 0; c < strlen(line); c++)
+            for(c = 0; c < (int)strlen(line); c++)
                 if( line[c] == ' ' )
                     nbcores++;
             map[v].threads[nbth] = (vpmap_thread_t*)malloc( (nbcores-1) * sizeof(int) + sizeof(vpmap_thread_t) );
@@ -250,7 +250,7 @@ int vpmap_init_from_file(const char *filename)
 
             nbcores = 0;
             sscanf(line, "%d", &map[v].threads[nbth]->cores[nbcores]);
-            for(c = 0; c < strlen(line); c++) {
+            for(c = 0; c < (int)strlen(line); c++) {
                 if( line[c] == ' ' ) {
                     nbcores++;
                     sscanf(line + c + 1, "%d", &map[v].threads[nbth]->cores[nbcores]);
