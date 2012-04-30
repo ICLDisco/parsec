@@ -56,7 +56,10 @@ static void multilevel_zgebmm(dague_context_t *dague, tiled_matrix_desc_t* B, PL
 int
 dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, tiled_matrix_desc_t* B, PLASMA_Complex64_t *U_but_vec, int level)
 {
-    int i,info;
+    int info;
+#if defined(DEBUG_BUTTERFLY)
+    int i;
+#endif
 
     if( uplo != PlasmaLower ){
         dplasma_error("dplasma_zhetrs", "illegal value for \"uplo\".  Only PlasmaLower is currently supported");
