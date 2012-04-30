@@ -1809,7 +1809,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
     string_arena_init(sa1);
     coutput("%s  if( !%s_pred(%s) ) continue;\n"
-	    "%s  DEBUG3((\"%s(%s)\",%s));\n"
+	    "%s  DEBUG3((\"%s(%s)\\n\",%s));\n"
             "%s  nb_tasks++;\n",
             indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
                                                             dump_string, NULL,
