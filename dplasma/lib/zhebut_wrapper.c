@@ -142,7 +142,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     dague_seg_ddesc_t *seg_descA;
     dague_memory_pool_t* pool_0;
     PLASMA_Complex64_t *U_before, *U_after;
-    int i, mt, nt, N, block_size;
+    int i, mt, nt, N;
 
     (void)info;
 
@@ -161,19 +161,12 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     seg_descA->seg_info = dague_rbt_calculate_constants(A, level, i_block, j_block);
 
     N  = A->lm;
-    block_size = N/(1<<level);
     mt = seg_descA->seg_info.tot_seg_cnt_m;
     nt = seg_descA->seg_info.tot_seg_cnt_n;
-
-    /*
-    fprintf(stderr,"Inserting zhebut(%d,%d) with mt=%d,nt=%d\n",i_block, j_block, mt, nt);
-    */
 
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(Dague_Complex64_t) );
 
-    //U_before = &U_but_vec[level*N+i_block*block_size];
-    //U_after  = &U_but_vec[level*N+j_block*block_size];
     U_before = &U_but_vec[level*N];
     U_after  = &U_but_vec[level*N];
 
@@ -236,7 +229,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     dague_object_t *dague_zgebut = NULL;
     dague_seg_ddesc_t *seg_descA;
     dague_memory_pool_t *pool_0;
-    int i, mt, nt, N, block_size;
+    int i, mt, nt, N;
     PLASMA_Complex64_t *U_before, *U_after;
 
     (void)info;
@@ -256,12 +249,9 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     seg_descA->seg_info = dague_rbt_calculate_constants(A, level, i_block, j_block);
 
     N  = A->lm;
-    block_size = N/(1<<level);
     mt = seg_descA->seg_info.tot_seg_cnt_m;
     nt = seg_descA->seg_info.tot_seg_cnt_n;
 
-    //U_before = &U_but_vec[level*N+i_block*block_size];
-    //U_after  = &U_but_vec[level*N+j_block*block_size];
     U_before = &U_but_vec[level*N];
     U_after  = &U_but_vec[level*N];
 
@@ -322,7 +312,7 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     dague_object_t *dague_zgebmm = NULL;
     dague_seg_ddesc_t *seg_descA;
     dague_memory_pool_t *pool_0;
-    int i, mt, nt, N, block_size;
+    int i, mt, nt, N;
 
     (void)info;
 
@@ -345,8 +335,6 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     */
 
     N  = A->lm;
-    block_size = N/(1<<level);
-    //U_but_vec = &U_but_vec[level*N+i_block*block_size];
     U_but_vec = &U_but_vec[level*N];
 
     mt = seg_descA->seg_info.tot_seg_cnt_m;
@@ -453,7 +441,6 @@ static void RBT_zrandom(int N, PLASMA_Complex64_t *V)
 
     for (i=0; i<N; i++){
         V[i] = (PLASMA_Complex64_t)exp(((random()/(double)RAND_MAX)-0.5)/10.0);
-        //V[i] = (PLASMA_Complex64_t)1.0;
     }
 
 }
@@ -488,7 +475,7 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Comple
     srandom(0);
     RBT_zrandom((levels+1)*N, U_but_vec);
 
-    beta = pow(1.0/sqrt(2.0), levels);
+    beta = (PLASMA_Complex64_t)pow(1.0/sqrt(2.0), levels);
     cblas_zscal(levels*N, CBLAS_SADDR(beta), U_but_vec, 1);
 #if defined(DEBUG_BUTTERFLY)
     for(i=0; i<levels*N; i++){
