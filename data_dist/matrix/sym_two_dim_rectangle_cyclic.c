@@ -146,6 +146,14 @@ static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     int32_t vpid;
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
 
+    pq = vpmap_get_nb_vp();
+    if ( pq == 1 )
+        return 0;
+
+    q = (int)ceilf(sqrtf( (float)pq ));
+    assert(q > 0);
+    p = pq / q;
+
     /* Get coordinates */
     va_start(ap, desc);
     m = (int)va_arg(ap, unsigned int);
@@ -161,14 +169,6 @@ static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
 #endif
     assert( (Ddesc->uplo == MatrixLower && m>=n) || 
             (Ddesc->uplo == MatrixUpper && n>=m) );
-
-    pq = vpmap_get_nb_vp();
-    if ( pq == 1 )
-        return 0;
-
-    q = (int)ceilf(sqrtf( (float)pq ));
-    assert(q > 0);
-    p = pq / q;
 
     /* Compute the local tile row */
     local_m = m / Ddesc->grid.rows;
