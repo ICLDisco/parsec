@@ -51,11 +51,6 @@ zherk(n,k)
           -> (descA.nt==(k+1)) ? C(n,n)
           -> (descA.nt>=(k+2)) ? B zherk(n, k+1)
 
-  /*
-  Anti-dependencies:
-
-  */
-
 BODY
 
   int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
@@ -71,9 +66,9 @@ BODY
         ldan, dbeta, B /* C(n,n) */,
         ldcn );  );
 
-  printlog("thread %d CORE_zherk(%d, %d)\n"
+  printlog("thread %d VP %d CORE_zherk(%d, %d)\n"
            "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, dbeta, C(%d,%d)[%p], ldcn)\n",
-  context->eu_id, n, k, n, k, A, n, n, B);
+           context->th_id, context->virtual_process->vp_id, n, k, n, k, A, n, n, B);
 
 END
 
@@ -112,7 +107,7 @@ zgemm(n,m,k1)
 
   RW    E <- (0==k1) ? C(m,n)
           <- (k1>=1) ? E zgemm(n, m, k1-1)
-          -> (descA.nt==(1+k1)) ? C(m,n)
+      -> (descA.nt==(1+k1)) ? C(m,n)
           -> (descA.nt>=(k1+2)) ? E zgemm(n, m, k1+1)
 
   /*
@@ -139,9 +134,9 @@ BODY
         ldan, zbeta, E /* C(m,n) */,
         ldcm );  );
 
-  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
            "\t(trans, PlasmaConjTrans, tempmm, tempnn, tempkn, zalpha, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldan, zbeta, C(%d,%d)[%p], ldcm)\n",
-  context->eu_id, n, m, k1, m, k1, C, n, k1, D, m, n, E);
+           context->th_id, context->virtual_process->vp_id, n, m, k1, m, k1, C, n, k1, D, m, n, E);
 
 END
 

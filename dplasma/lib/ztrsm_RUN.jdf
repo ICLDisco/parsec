@@ -49,7 +49,6 @@ ztrsm(k,m)
           -> B(m,k)
 
 BODY
-
   int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
   int tempkn = ((k)==(descB.nt-1)) ? (descB.n-(k*descB.nb)) : descB.nb;
   Dague_Complex64_t lalpha = ((k)==(0)) ? (alpha) : (Dague_Complex64_t)1.0;
@@ -63,9 +62,9 @@ BODY
                  B /* B(m,k) */, ldb );
          );
 
-  printlog("thread %d CORE_ztrsm(%d, %d)\n"
+  printlog("thread %d VP %d CORE_ztrsm(%d, %d)\n"
            "\t(side, uplo, trans, diag, tempmm, tempkn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-           context->eu_id, k, m, k, k, A, m, k, B);
+             context->th_id, context->virtual_process->vp_id, k, m, k, k, A, m, k, B);
 
 END
 
@@ -94,6 +93,7 @@ zgemm(k,m1,n)
 
   : B(m1,n)
 
+
   READ  C <- B ztrsm(k, m1)
   READ  D <- D zgemm_in_A0(k,m1,n)
 
@@ -101,9 +101,7 @@ zgemm(k,m1,n)
           <- (k>=1) ? E zgemm(k-1, m1, n)
           -> ((1+k)==n) ? B ztrsm(n, m1)
           -> (n>=(k+2)) ? E zgemm(k+1, m1, n)
-
 BODY
-
   int tempmm = ((m1)==(descB.mt-1)) ? (descB.m-(m1*descB.mb)) : descB.mb;
   int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
   int ldb = BLKLDD( descB, m1 );
@@ -118,10 +116,9 @@ BODY
                  lalpha, E /* B(m1,n) */, ldb );
          );
 
-  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descB.mb, mzone, B(%d,%d)[%p], ldb, A(%d,%d)[%p], lda, lalpha, B(%d,%d)[%p], ldb)\n",
-           context->eu_id, k, m1, n, m1, k, C, k, n, D, m1, n, E);
-
+             context->th_id, context->virtual_process->vp_id, k, m1, n, m1, k, C, k, n, D, m1, n, E);
 END
 
 /*
@@ -137,6 +134,5 @@ zgemm_in_A0(k,m1,n) [profile = off]
   RW D <- A(k,n)
        -> D zgemm(k,m1,n)
 BODY
-/* nothing */
+        /* nothing */
 END
-

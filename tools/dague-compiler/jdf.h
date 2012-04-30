@@ -230,9 +230,9 @@ typedef struct jdf_expr {
     jdf_expr_operand_t            op;
     union {
         struct {
-            struct jdf_expr      *test;
             struct jdf_expr      *arg1;
             struct jdf_expr      *arg2;
+            struct jdf_expr      *arg3;
         } ternary;
         struct {
             struct jdf_expr      *arg1;
@@ -255,9 +255,10 @@ typedef struct jdf_expr {
 #define jdf_ua  u.unary.arg
 #define jdf_ba1 u.binary.arg1
 #define jdf_ba2 u.binary.arg2
-#define jdf_tat u.ternary.test
 #define jdf_ta1 u.ternary.arg1
 #define jdf_ta2 u.ternary.arg2
+#define jdf_tat u.ternary.arg3
+#define jdf_ta3 u.ternary.arg3
 #define jdf_var u.varname
 #define jdf_cst u.cstval
 #define jdf_c_code u.c_code

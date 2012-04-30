@@ -29,7 +29,8 @@ struct assignment {
 /**
  * Expressions
  */
-#define EXPR_OP_BINARY_RANGE          24
+#define EXPR_OP_RANGE_CST_INCREMENT   24
+#define EXPR_OP_RANGE_EXPR_INCREMENT  25
 #define EXPR_OP_INLINE                100
 
 typedef int (*expr_op_inline_func_t)(const struct dague_object *__dague_object_parent, const assignment_t *assignments);
@@ -39,14 +40,20 @@ struct expr {
         struct {
             const struct expr *op1;
             const struct expr *op2;
-        } binary;
+            union {
+                int cst;
+                const struct expr *expr;
+            } increment;
+        } range;
         expr_op_inline_func_t inline_func;
     } u_expr;
     unsigned char op;
 };
 
-#define bop1        u_expr.binary.op1
-#define bop2        u_expr.binary.op2
+#define rop1        u_expr.range.op1
+#define rop2        u_expr.range.op2
+#define rcstinc     u_expr.range.increment.cst
+#define rexprinc    u_expr.range.increment.expr
 #define inline_func u_expr.inline_func
 
 /**
@@ -106,6 +113,8 @@ struct symbol {
     const char     *type;
     const expr_t   *min;
     const expr_t   *max;
+    const expr_t   *expr_inc;  /* NULL if and only if cst_inc is defined */
+    int             cst_inc;
 };
 
 /**

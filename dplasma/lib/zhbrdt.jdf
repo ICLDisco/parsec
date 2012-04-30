@@ -40,8 +40,8 @@ in_dat(i) [profile = off hidden = on]
        -> B zhbrdt(0,0,i-1)
 BODY
 /* nothing */
-  printlog("thread %d in_dat(%d, %d, %d) <- A[0, %d] = %p\n",
-           context->eu_id, 0, 0, i-1, i, A);
+  printlog("thread %d VP %d in_dat(%d, %d, %d) <- A[0, %d] = %p\n",
+           context->th_id, context->virtual_process->vp_id, 0, 0, i-1, i, A);
 END
 
 /*
@@ -96,8 +96,8 @@ BODY
                     vi,  taui,
                     vii, tauii,
                     s1 * NB + s, i, s1);
-    printlog("thread %d CORE_zhbrdt(s1 = %d, s = %d, i = %d)\n\t(A(%d,%d)[%p], A(%d,%d)[%p], s1*NB+s, i)\n",
-                 context->eu_id, s1, s, i, 0, i, A, 0, i+1, B);
+    printlog("thread %d VP %d CORE_zhbrdt(s1 = %d, s = %d, i = %d)\n\t(A(%d,%d)[%p], A(%d,%d)[%p], s1*NB+s, i)\n",
+                 context->th_id, context->virtual_process->vp_id, s1, s, i, 0, i, A, 0, i+1, B);
 
 END
 
@@ -139,7 +139,7 @@ BODY
                     vi, taui,
                     vi, taui,
                     s1 * NB + s, NT-1, s1);
-    printlog("thread %d CORE_zhbrdt_half(s1 = %d, s = %d)\n\t(A(%d,%d)[%p], s1*NB+s, NT-1)\n",
-                 context->eu_id, s1, s, 0, NT-1, A);
+    printlog("thread %d VP %d CORE_zhbrdt_half(s1 = %d, s = %d)\n\t(A(%d,%d)[%p], s1*NB+s, NT-1)\n",
+                 context->th_id, context->virtual_process->vp_id, s1, s, 0, NT-1, A);
 END
 

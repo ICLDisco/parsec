@@ -185,6 +185,7 @@ subs = {
     ('strsmpl','dtrsmpl','ctrsmpl','ztrsmpl'),
     ('STRSMPL','DTRSMPL','CTRSMPL','ZTRSMPL'),
     ('slacpy','dlacpy','slacpy','dlacpy'),
+    ('slaset','dlaset','slaset','dlaset'),
     ('sscal','dscal','csscal','zdscal'),
     ('ger','ger','gerc','gerc'),
     ('ger','ger','geru','geru'),
@@ -205,8 +206,10 @@ subs = {
     ('','','crealf','creal'),
     ('fabsf','fabs','fabsf','fabs'),
     ('fabsf','fabs','cabsf','cabs'),
-    ('sqrtf','sqrt','csqrtf','csqrt'),
     ('fmaxf','fmax','fmaxf','fmax'),
+    ('fmaxf','fmax','cmaxf','cmax'),
+    ('fminf','fmin','fminf','fmin'),
+    ('fminf','fmin','cminf','cmin'),
     ('float','double','float _Complex','double _Complex'),
     ('float','double','float','double'),
     ('lapack_slamch','lapack_dlamch','lapack_slamch','lapack_dlamch'),
@@ -223,7 +226,7 @@ subs = {
     ('scheck','dcheck','ccheck','zcheck'),
     ('stile','dtile','ctile','ztile'),
     ('sdot','ddot','sdot','ddot'),
-
+    ('dplasma_ssqrt','dplasma_dsqrt','dplasma_ssqrt','dplasma_dsqrt'),
 
     ('cblas_is','cblas_id','cblas_ic','cblas_iz'),
     ('cblas_s','cblas_d','cblas_c','cblas_z'),

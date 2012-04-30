@@ -71,9 +71,9 @@ BODY
         ldan, dbeta, B /* C(n,n) */,
         ldcn );  );
 
-  printlog("thread %d CORE_zherk(%d, %d)\n"
+  printlog("thread %d VP %d CORE_zherk(%d, %d)\n"
            "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, dbeta, C(%d,%d)[%p], ldcn)\n",
-  context->eu_id, n, k, n, k, A, n, n, B);
+  context->th_id, context->virtual_process->vp_id, n, k, n, k, A, n, n, B);
 
 END
 
@@ -139,9 +139,9 @@ BODY
         ldam, zbeta, E /* C(n,m) */,
         ldcn );  );
 
-  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
            "\t(trans, PlasmaConjTrans, tempnn, tempmm, tempkn, zalpha, A(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, zbeta, C(%d,%d)[%p], ldcn)\n",
-  context->eu_id, n, m, k1, n, k1, C, m, k1, D, n, m, E);
+  context->th_id, context->virtual_process->vp_id, n, m, k1, n, k1, C, m, k1, D, n, m, E);
 
 END
 

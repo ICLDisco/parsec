@@ -1,0 +1,278 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ *
+ * This jdf returns the value of the Frobenius norm of a matrix A
+ * where the Frobenius norm of a matrix is the square root of sum of
+ * squares.
+ *
+ * This jdf is optimized for 2D-Block cyclic distributed data with a grid
+ * P-by-Q.
+ * The first step search the Frobenius norm of each local rows of tile.
+ * The second reduces the tile rows norms. At the end of this step, all Q
+ * processes belonging to a row have the same data.
+ * The third step conbines the local tiles per column (one column per node).
+ * The fourth step combines the norms together. At the end all processes
+ * owns the same value.
+ *
+ * The reductions are down by a pipeline folowed by a broadcast of the results.
+ *
+ * More information in zlange.f and zlassq.f from Netlib LAPACK.
+ * W[0] coressponds to scale and W[1] to sum.
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+#include <math.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/cores/dplasma_zcores.h"
+
+%}
+
+/* Globals
+ */
+P            [type = "int"]
+Q            [type = "int"]
+A            [type = "dague_ddesc_t *"]
+W            [type = "dague_ddesc_t *"]
+norm         [type = "double *"]
+
+descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)A)" ]
+
+READ_W(m, n) [profile = off]
+
+    // Execution space
+    m = 0 .. inline_c %{ return dague_imax( descA.mt-1, P-1 ); %}
+    n = 0 .. Q-1
+    col = inline_c %{
+        return ((descA.nt - Q + n) / Q) * Q + n;
+        %}
+
+    // Parallel partitioning
+    :W(m, n)
+
+    // Parameters
+    READ W <- W(m, n)
+           -> ( (m > (descA.mt-1)) )                       ? W STEP4(m, n)    [type = ELT]
+           -> ( (m <  descA.mt   ) && (n > (descA.nt-1) )) ? W STEP2(m, n)    [type = COL]
+           -> ( (m <  descA.mt   ) && (n <  descA.nt    )) ? W STEP1(m, col)  [type = COL]
+
+BODY
+    DRYRUN(
+        /* Initialize W */
+        ((double *)W)[0] = 0.;
+        ((double *)W)[1] = 1.;
+           );
+END
+
+/**************************************************
+ *
+ *                    STEP 1
+ *
+ *  For j in [1,Q], W(m, j) = reduce( A(m, j+k*Q) )
+ *
+ **************************************************/
+STEP1(m,n)
+
+    // Execution space
+    m = 0 .. descA.mt-1
+    n = 0 .. descA.nt-1
+
+    // Parallel partitioning
+    :A(m, n)
+
+    // Parameters
+    READ A <-  A(m, n)
+    RW   W <-  ( n < (descA.nt-Q)) ? W STEP1(m,n+Q) : W READ_W(m, n%Q) [type = COL]
+           ->  ( n < Q           ) ? W STEP2(m,n)   : W STEP1(m,n-Q)   [type = COL]
+
+BODY
+
+    int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
+    int tempnn = ( n == (descA.nt-1) ) ? descA.n - n * descA.nb : descA.nb;
+    int ldam = BLKLDD( descA, m );
+
+    printlog("thread %d zlange STEP1(%d, %d)\n"
+             "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
+             context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
+
+    DRYRUN(
+        double *dW = (double*)W;
+
+        CORE_zplssq(tempmm, tempnn,
+                    A, ldam, dW, dW+1 );
+
+           );
+
+END
+
+/**************************************************
+ *                    STEP 2
+ *
+ *  For each j, W(m, j) = reduce( W(m, 0..Q-1) )
+ *
+ **************************************************/
+STEP2(m, n)
+
+    // Execution space
+    m = 0 .. descA.mt-1
+    n = 0 .. Q-1
+
+    // Parallel partitioning
+    :W(m, n)
+
+    // Parameters
+    READ A <-  (n == 0 ) ? W(m, n) : W STEP2(m, n-1)                      [type = COL]
+    RW   W <-  (n >  (descA.nt-1)) ? W READ_W(m, n)     : W STEP1(m, n)   [type = COL]
+           ->  (n == (Q-1)       ) ? A STEP3(m, 0..Q-1) : A STEP2(m, n+1) [type = COL]
+
+BODY
+
+    printlog("thread %d zlange STEP2(%d, %d)\n"
+             "\t( W(%d, %d) || W(%d, %d)\n",
+             context->th_id, m, n, m, n-1, m, n);
+
+    DRYRUN(
+        if(n > 0)
+        {
+            double *dA = (double*)A;
+            double *dW = (double*)W;
+
+            if( dW[0] < dA[0] ) {
+                dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                dW[0] = dA[0];
+            } else {
+                dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+            }
+        }
+           );
+
+END
+
+
+/**************************************************
+ *
+ *                    STEP3
+ *
+ * For m in 0..P-1, W(m, n) = max( W(m..mt[P], n ) )
+ *
+ **************************************************/
+STEP3(m, n)
+
+    // Execution space
+    m = 0 .. descA.mt-1
+    n = 0 .. Q-1
+
+    // Parallel partitioning
+    :W(m, n)
+
+    // Parameters
+    READ A <- W STEP2(m, Q-1)                                            [type = COL]
+    RW   W <- (m < (descA.mt-P)) ? W STEP3( m+P, n ) : W(m, n)           [type = ELT]
+           -> (m < P           ) ? W STEP4( m,   n ) : W STEP3( m-P, n ) [type = ELT]
+
+BODY
+
+    printlog("thread %d zlange STEP3(%d, %d)\n",
+             context->th_id, m, n);
+
+    DRYRUN(
+        double *dA = (double*)A;
+        double *dW = (double*)W;
+
+        if ( m < (descA.mt-P) ) {
+            if( dW[0] < dA[0] ) {
+                dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                dW[0] = dA[0];
+            } else {
+                dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+            }
+        } else {
+            dW[0] = dA[0];
+            dW[1] = dA[1];
+        }
+           );
+
+END
+
+/**************************************************
+ *                    STEP 4
+ *
+ *  For each i, W(i, n) = max( W(0..P-1, n) )
+ *
+ **************************************************/
+STEP4(m,n)
+
+    // Execution space
+    m = 0..P-1
+    n = 0..Q-1
+
+    // Parallel partitioning
+    :W(m, n)
+
+    // Parameters
+    READ A <- ( m == 0 ) ? W(m, n) : W STEP4(m-1, n)                         [type = ELT]
+    RW   W <- ( m > (descA.mt-1)) ? W READ_W(m, n)  : W STEP3(m, n)          [type = ELT]
+           -> ( m < (P-1)       ) ? A STEP4(m+1, n) : W WRITE_RES(0..P-1, n) [type = ELT]
+
+BODY
+
+    printlog("thread %d zlange STEP4(%d, %d)\n",
+             context->th_id, m, n);
+
+    DRYRUN(
+        if(m > 0)
+        {
+            double *dA = (double*)A;
+            double *dW = (double*)W;
+            double  sqr;
+
+            if( dW[0] < dA[0] ) {
+                sqr = dW[0] / dA[0];
+                sqr = sqr * sqr;
+                dW[1] = dA[1] + sqr * dW[1];
+                dW[0] = dA[0];
+            } else {
+                sqr = dA[0] / dW[0];
+                sqr = sqr * sqr;
+                dW[1] = dW[1] + sqr * dA[1];
+            }
+        }
+           );
+END
+
+/**************************************************
+ *                      STEP5                     *
+ **************************************************/
+WRITE_RES(m,n)
+
+    // Execution space
+    m = 0..P-1
+    n = 0..Q-1
+
+    // Parallel partitioning
+    :W(m, n)
+
+    // Parameters
+    READ W <- W STEP4( P-1, n )   [type = ELT]
+
+BODY
+    double *dW = (double*)W;
+    *norm = dW[0] * dplasma_dsqrt( dW[1] );
+END

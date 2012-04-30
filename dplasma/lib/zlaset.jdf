@@ -60,9 +60,9 @@ BODY
                    tempmm, tempnn, alpha, alpha, A, ldam);
                );
 
-        printlog("thread %d laset( %d, %d )\n"
+        printlog("thread %d VP %d laset( %d, %d )\n"
                  "    ( %s, %d, %d, %f, %f, A(%d,%d), %d)\n",
-                 context->eu_id, m, n, "Lower",
+                 context->th_id, context->virtual_process->vp_id, m, n, "Lower",
                  tempmm, tempnn, creal(alpha), creal(beta), m, n, ldam);
 END
 
@@ -90,9 +90,9 @@ BODY
                    tempmm, tempnn, alpha, alpha, A, ldam);
                );
 
-        printlog("thread %d laset( %d, %d )\n"
+        printlog("thread %d VP %d laset( %d, %d )\n"
                  "    ( %s, %d, %d, %f, %f, A(%d,%d), %d)\n",
-                 context->eu_id, m, n, "Upper",
+                 context->th_id, context->virtual_process->vp_id, m, n, "Upper",
                  tempmm, tempnn, creal(alpha), creal(beta), m, n, ldam);
 END
 
@@ -119,9 +119,9 @@ BODY
                    tempkm, tempkn, alpha, beta, A, ldak);
                );
 
-   printlog("thread %d laset_diag( %d )\n"
+   printlog("thread %d VP %d laset_diag( %d )\n"
            "    ( %s, %d, %d, %e, %e, A(%d,%d), %d)\n",
-           context->eu_id, k, plasma_const( uplo ),
+           context->th_id, context->virtual_process->vp_id, k, plasma_const( uplo ),
             tempkm, tempkn, creal(alpha), creal(beta), k, k, ldak);
 END
 extern "C" %{
