@@ -105,6 +105,15 @@ static int32_t twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     int32_t vpid;
     Ddesc = (two_dim_block_cyclic_t *)desc;
 
+    /* If 1 VP, always return 0 */
+    pq = vpmap_get_nb_vp();
+    if ( pq == 1 )
+        return 0;
+    /* Compute P and Q */
+    q = (int)ceilf(sqrtf( (float)pq ));
+    assert(q > 0);
+    p = pq / q;
+    
     /* Get coordinates */
     va_start(ap, desc);
     m = (int)va_arg(ap, unsigned int);
@@ -118,14 +127,6 @@ static int32_t twoDBC_vpid_of(dague_ddesc_t *desc, ...)
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_rank_of(desc, m, n));
 #endif
-
-    pq = vpmap_get_nb_vp();
-    if ( pq == 1 )
-        return 0;
-
-    q = (int)ceilf(sqrtf( (float)pq ));
-    assert(q > 0);
-    p = pq / q;
 
     /* Compute the local tile row */
     local_m = m / Ddesc->grid.rows;
@@ -235,6 +236,15 @@ static int32_t twoDBC_vpid_of_st(dague_ddesc_t *desc, ...)
     int32_t vpid;
     Ddesc = (two_dim_block_cyclic_t *)desc;
 
+    /* If no vp, always return 0 */
+    pq = vpmap_get_nb_vp();
+    if ( pq == 1 )
+        return 0;
+    /* Compute P and Q */
+    q = (int)ceilf(sqrtf( (float)pq ));
+    assert(q > 0);
+    p = pq / q;
+    
     /* Get coordinates */
     va_start(ap, desc);
     m = (int)va_arg(ap, unsigned int);
@@ -248,14 +258,6 @@ static int32_t twoDBC_vpid_of_st(dague_ddesc_t *desc, ...)
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_rank_of_st(desc, m, n));
 #endif
-
-    pq = vpmap_get_nb_vp();
-    if ( pq == 1 )
-        return 0;
-
-    q = (int)ceilf(sqrtf( (float)pq ));
-    assert(q > 0);
-    p = pq / q;
 
     /* Compute the local tile row */
     local_m = ( m / (Ddesc->grid.strows * Ddesc->grid.rows) ) * Ddesc->grid.strows;
