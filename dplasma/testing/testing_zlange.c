@@ -41,17 +41,21 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
-        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
-                               1, cores, rank, MB, NB, LDA, N, 0, 0,
-                               M, N, SMB, SNB, 1));
+/*     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check, */
+/*         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile, */
+/*                                1, cores, rank, MB, NB, LDA, N, 0, 0, */
+/*                                M, N, SMB, SNB, 1)); */
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
-    dplasma_zlacpy(dague,
-                   PlasmaUpperLower,
-                   (tiled_matrix_desc_t *)&ddescA,
-                   (tiled_matrix_desc_t *)&ddescA0);
+/*     dplasma_zlacpy(dague, */
+/*                    PlasmaUpperLower, */
+/*                    (tiled_matrix_desc_t *)&ddescA, */
+/*                    (tiled_matrix_desc_t *)&ddescA0); */
+    Dague_Complex64_t *ddescA0;
+    ddescA0 = (Dague_Complex64_t *)malloc(LDA*N*sizeof(Dague_Complex64_t));
+    twoDBC_ztolapack( &ddescA, ddescA0, LDA );
+
     if(loud > 2) printf("Done\n");
 
     if( rank == 0 ) {
@@ -59,7 +63,7 @@ int main(int argc, char ** argv)
     }
 
     /* Computing the norm */
-    for(i=0; i<4; i++) {
+    for(i=0; i<1; i++) {
         if ( rank == 0 ) {
             printf("***************************************************\n");
         }
@@ -69,7 +73,7 @@ int main(int argc, char ** argv)
 
         if ( rank == 0 ) {
             normlap = LAPACKE_zlange_work(LAPACK_COL_MAJOR, normsstr[i][0], M, N,
-                                          (Dague_Complex64_t*)(ddescA0.mat), ddescA0.super.lm, work);
+                                          ddescA0, LDA,/* (Dague_Complex64_t*)(ddescA0.mat) , ddescA0.super.lm,*/ work);
         }
         if(loud > 2) printf("Done.\n");
 
@@ -98,8 +102,9 @@ int main(int argc, char ** argv)
         printf("***************************************************\n");
         free( work );
     }
-    dague_data_free(ddescA0.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
+/*     dague_data_free(ddescA0.mat); */
+/*     dague_ddesc_destroy((dague_ddesc_t*)&ddescA0); */
+    free(ddescA0);
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
