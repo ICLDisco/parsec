@@ -131,7 +131,7 @@ BODY
   for(jj=0; jj<nb_seg; jj++){
       uintptr_t off = (mb_tile*jj) * sizeof(PLASMA_Complex64_t);
       sz = mb_seg * sizeof(PLASMA_Complex64_t);
-      memcpy(Abl+off, p_elem_bl+off, sz);
+      memcpy((void *)(off+(uintptr_t)Abl), (void *)(off+(uintptr_t)p_elem_bl), sz);
 #if defined(DEBUG_BUTTERFLY)
       printf ("--> HEBUT_Diag(%d): Abl: %p, sz:%d\n",i, Abl, sz);
 #endif
@@ -142,8 +142,8 @@ BODY
       uintptr_t off = (mb_tile*jj+jj) * sizeof(PLASMA_Complex64_t);
       sz = (mb_seg-jj) * sizeof(PLASMA_Complex64_t);
       if( 0 != sz ){
-          memcpy(Atl+off, p_elem_tl+off, sz);
-          memcpy(Abr+off, p_elem_br+off, sz);
+          memcpy((void *)(off+(uintptr_t)Atl), (void *)(off+(uintptr_t)p_elem_tl), sz);
+          memcpy((void *)(off+(uintptr_t)Abr), (void *)(off+(uintptr_t)p_elem_br), sz);
 
 #if defined(DEBUG_BUTTERFLY)
           printf ("--> HEBUT_Diag(%d): Atl+off: %p+%lu, sz:%d\n",i, Atl, off, sz);
@@ -244,9 +244,9 @@ BODY
   for(jj=0; jj<nb_seg; jj++){
       uintptr_t off = (mb_tile*jj) * sizeof(PLASMA_Complex64_t);
       sz = mb_seg * sizeof(PLASMA_Complex64_t);
-      memcpy(Atl+off, p_elem_tl+off, sz);
-      memcpy(Abl+off, p_elem_bl+off, sz);
-      memcpy(Abr+off, p_elem_br+off, sz);
+      memcpy((void *)(off+(uintptr_t)Atl), (void *)(off+(uintptr_t)p_elem_tl), sz);
+      memcpy((void *)(off+(uintptr_t)Abl), (void *)(off+(uintptr_t)p_elem_bl), sz);
+      memcpy((void *)(off+(uintptr_t)Abr), (void *)(off+(uintptr_t)p_elem_br), sz);
 #if defined(DEBUG_BUTTERFLY)
       printf ("--> HEBUT_Lower(%d,%d): Atl+off: %p+%lu, sz:%d\n",i,j, Atl, off, sz);
       printf ("--> HEBUT_Lower(%d,%d): Abl+off: %p+%lu, sz:%d\n",i,j, Abl, off, sz);
@@ -260,7 +260,7 @@ BODY
   for(jj=0; jj<mb_seg; jj++){
       uintptr_t off = (mb_tile*jj) * sizeof(PLASMA_Complex64_t);
       sz = nb_seg * sizeof(PLASMA_Complex64_t);
-      memcpy(Atr+off, p_elem_tr+off, sz);
+      memcpy((void *)(off+(uintptr_t)Atr), (void *)(off+(uintptr_t)p_elem_tr), sz);
 #if defined(DEBUG_BUTTERFLY)
       printf ("--> HEBUT_Lower(%d,%d): Atr+off: %p+%lu, sz:%d\n",i,j, Atr, off, sz);
 #endif
