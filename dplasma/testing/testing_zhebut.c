@@ -115,18 +115,40 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("+++ Computing Butterfly ... \n");
 
     SYNC_TIME_START();
-    TIME_START();
-    dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, &U_but_vec, butterfly_level);
-    dplasma_zhetrf(dague, (tiled_matrix_desc_t *)&ddescA);
+    if(loud) TIME_START();
 
-    fprintf(stderr,"-- DONE\n");
+/*
+printf("Start\n");
+fflush(stdout);
+dplasma_zprint(dague, PlasmaLower, (tiled_matrix_desc_t *)&ddescA);
+*/
 
-    if(loud)
-        TIME_PRINT(rank, ("zhebut computed %d tasks,\trate %f task/s\n",
-                   nb_local_tasks,
-                   nb_local_tasks/time_elapsed));
+    ret = dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, &U_but_vec, butterfly_level);
+    if( ret < 0 )
+        return ret;
+
+/*
+printf("After Butterfly\n");
+fflush(stdout);
+dplasma_zprint(dague, PlasmaLower, (tiled_matrix_desc_t *)&ddescA);
+*/
+
     SYNC_TIME_PRINT(rank, ("zhebut computation N= %d NB= %d : %f gflops\n", N, NB,
                     gflops = (flops/1e9)/(sync_time_elapsed)));
+
+    SYNC_TIME_START();
+
+    dplasma_zhetrf(dague, (tiled_matrix_desc_t *)&ddescA);
+
+    if(loud){
+        TIME_PRINT(rank, ("zhetrf computed %d tasks,\trate %f task/s\n",
+                   nb_local_tasks,
+                   nb_local_tasks/time_elapsed));
+    }
+
+    SYNC_TIME_PRINT(rank, ("zhetrf computation N= %d NB= %d : %f gflops\n", N, NB,
+                    gflops = (flops/1e9)/(sync_time_elapsed)));
+
     (void)gflops;
 
     if(loud > 2) printf("Done.\n");
@@ -135,7 +157,12 @@ int main(int argc, char ** argv)
         if( rank == 0 && loud ) printf("-- The butterfly failed (info = %d) ! \n", info);
         ret |= 1;
     }else if(check){
-        dplasma_zhetrs(dague, uplo, (const tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescInvA, U_but_vec);
+        dplasma_zhetrs(dague, uplo, (const tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescInvA, U_but_vec, butterfly_level);
+
+/*
+dplasma_zprint(dague, PlasmaLower, (tiled_matrix_desc_t *)&ddescA);
+*/
+
         //dplasma_zhetrs(dague, uplo, (const tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX);
 
         /* Check the solution */

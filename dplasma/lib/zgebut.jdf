@@ -24,43 +24,40 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/butterfly_map.h"
 
-#if defined(DEBUG_BUTTERFLY)
-# define but_debug printf
-#else
-# define but_debug ignore
-#endif
+/*
+#define DEBUG_BUTTERFLY
+*/
 
-static inline void ignore(const char* fmt, ...){
-    (void) fmt;
-    return;
-}
+#define TR_IS_BL_TRANS 0x1
+#define BL_IS_BL       0x0
 
-#define NOT_TRANSPOSE 0x0
-#define TRANSPOSE     0x1
+#define ON_DIAG 0x1
+#define OFF_DIAG 0x0
 
-void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
+/* Forward declarations */
+void BFT_zQTL( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int is_transpose, int is_diagonal );
-void BFT_zQBL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *Ubefore, PLASMA_Complex64_t *Uafter, int is_transpose, int is_diagonal );
+void BFT_zQBL( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int is_transpose );
-void BFT_zQTR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *Ubefore, PLASMA_Complex64_t *Uafter, int is_transpose, int is_diagonal);
+void BFT_zQTR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int is_transpose );
-void BFT_zQBR( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *Ubefore, PLASMA_Complex64_t *Uafter, int is_transpose);
+void BFT_zQBR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N,
           PLASMA_Complex64_t *tl, PLASMA_Complex64_t *bl,
           PLASMA_Complex64_t *tr, PLASMA_Complex64_t *br,
-          PLASMA_Complex64_t *C, PLASMA_Complex64_t *U_but_vec, int is_transpose, int is_diagonal );
-
+          PLASMA_Complex64_t *C, PLASMA_Complex64_t *Ubefore, PLASMA_Complex64_t *Uafter, int is_transpose, int is_diagonal );
 %}
 
 [DAGUE_ARENA_STRUT = 36]
 descA  [type = "dague_seg_ddesc_t"]
 A      [type = "dague_ddesc_t *"]
-Ubut   [type = "PLASMA_Complex64_t *"]
+Ubef   [type = "PLASMA_Complex64_t *"]
+Uaft   [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
 pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
@@ -94,7 +91,7 @@ GEBUT(i,j)
 
 BODY
 
-  unsigned mb_seg, nb_seg, mb_tile, nb_tile, N;
+  unsigned mb_seg, nb_seg, mb_tile, nb_tile, N, jj;
   uintptr_t i_seg, j_seg, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
@@ -108,8 +105,8 @@ BODY
   assert( type_exists );
   mb_tile = descA.A_org->mb;
   nb_tile = descA.A_org->nb;
-  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
 
+  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
   i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
@@ -120,25 +117,41 @@ BODY
   p_elem_tr = dague_private_memory_pop( pool_0 );
   p_elem_br = dague_private_memory_pop( pool_0 );
 
-but_debug ("-- GEBUT\n");
+#if defined(DEBUG_BUTTERFLY)
+  printf("-- GEBUT\n");
+#endif
 
-  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, Ubut, NOT_TRANSPOSE, 0);
-  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, Ubut, NOT_TRANSPOSE);
-  BFT_zQTR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, Ubut, NOT_TRANSPOSE);
-  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, Ubut, NOT_TRANSPOSE, 0);
+  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, Ubef, Uaft, BL_IS_BL, OFF_DIAG);
+  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, Ubef, Uaft, BL_IS_BL, OFF_DIAG);
+  BFT_zQTR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, Ubef, Uaft, BL_IS_BL);
+  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, Ubef, Uaft, BL_IS_BL, OFF_DIAG);
 
-  sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
-  memcpy(Atl, p_elem_tl, sz);
-  memcpy(Abl, p_elem_bl, sz);
-  memcpy(Atr, p_elem_tr, sz);
-  memcpy(Abr, p_elem_br, sz);
+//  sz = (mb_tile*(nb_seg-1)+mb_seg) * sizeof(PLASMA_Complex64_t);
+//  memcpy(Atl, p_elem_tl, sz);
+//  memcpy(Abl, p_elem_bl, sz);
+//  memcpy(Atr, p_elem_tr, sz);
+//  memcpy(Abr, p_elem_br, sz);
+
+  for(jj=0; jj<nb_seg; jj++){
+      uintptr_t off = (mb_tile*jj) * sizeof(PLASMA_Complex64_t);
+      sz = mb_seg * sizeof(PLASMA_Complex64_t);
+      memcpy(Atl+off, p_elem_tl+off, sz);
+      memcpy(Abl+off, p_elem_bl+off, sz);
+      memcpy(Atr+off, p_elem_tr+off, sz);
+      memcpy(Abr+off, p_elem_br+off, sz);
+#if defined(DEBUG_BUTTERFLY)
+      printf ("--> GEBUT(%d,%d): Atl+off: %p+%lu, sz:%d\n",i,j, Atl, off, sz);
+      printf ("--> GEBUT(%d,%d): Abl+off: %p+%lu, sz:%d\n",i,j, Abl, off, sz);
+      printf ("--> GEBUT(%d,%d): Atr+off: %p+%lu, sz:%d\n",i,j, Atr, off, sz);
+      printf ("--> GEBUT(%d,%d): Abr+off: %p+%lu, sz:%d\n",i,j, Abr, off, sz);
+#endif
+  }
 
   dague_private_memory_push( pool_0, p_elem_tl );
   dague_private_memory_push( pool_0, p_elem_bl );
   dague_private_memory_push( pool_0, p_elem_tr );
   dague_private_memory_push( pool_0, p_elem_br );
 
-  /* but_debug ("GEBUT(%d,%d)\n",i,j); */
 END
 
 
@@ -159,13 +172,39 @@ READ A <- A(i, j)                                     [ arena_index = inline_c %
        -> ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
-  /* nothing */
+#if defined(DEBUG_BUTTERFLY)
+  unsigned mb_tile, nb_tile, mb_seg, nb_seg, type;
+  unsigned ii,jj;
+  int i_tile, j_tile;
+  uintptr_t off_in_tile;
+#endif
 
   printlog("thread %d GEBUT_Reader(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i, j, A);
 
-  but_debug ("R A[%d][%d]:%lf\n",i,j,*(double *)A);
+#if defined(DEBUG_BUTTERFLY)
+  printf ("GEBUT_Reader(%d,%d)\n",i,j);
+
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
+
+  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
+  int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
+  int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
+
+  type = segment_to_type_index(descA.seg_info, i, j);
+  (void)type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+
+  for(ii=0; ii<mb_seg; ii++){
+      printf ("  R ");
+      for(jj=0; jj<nb_seg; jj++){
+          //printf ("A(%d,%d):%lf ",i*mb_seg+ii,j*nb_seg+jj, *(double *)((jj*mb_tile+ii)*sizeof(double)+A) );
+          printf ("A(%d,%d):%lf ",i_seg+ii,j_seg+jj, *(double *)((jj*mb_tile+ii)*sizeof(double)+A) );
+      }
+      printf ("\n");
+  }
+#endif
 
 
 END
@@ -188,13 +227,33 @@ READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j) [ arena_index = inline_c %
        -> A(i, j)                                               [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]         
 
 BODY
-  /* nothing */
+#if defined(DEBUG_BUTTERFLY)
+  unsigned mb_tile, nb_tile, mb_seg, nb_seg, type;
+  unsigned ii,jj;
+#endif
 
   printlog("thread %d GEBUT_Writer(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->eu_id, i, j, i, j, A);
 
-  but_debug ("W A[%d][%d]:%lf\n",i,j,*(double *)A);
+#if defined(DEBUG_BUTTERFLY)
+  printf ("GEBUT_Writer(%d,%d)\n",i,j);
+
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
+
+  type = segment_to_type_index(descA.seg_info, i, j);
+  (void)type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+
+  for(ii=0; ii<mb_seg; ii++){
+      printf ("  W ");
+      for(jj=0; jj<nb_seg; jj++){
+          printf ("A(%d,%d):%lf ",i*mb_seg+ii,j*nb_seg+jj, *(double *)((jj*mb_tile+ii)*sizeof(double)+A) );
+      }
+      printf ("\n");
+  }
+#endif
+
 
 END
 

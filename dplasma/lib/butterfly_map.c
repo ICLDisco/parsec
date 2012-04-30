@@ -20,8 +20,6 @@ seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, in
     mb = nb;
     block_count = 1<<L;
 
-    assert(ib>=jb);
-
     /* Calculate starting, middle and ending point for this butterfly */
     seg.spm = ib*N/block_count;
     seg.spn = jb*N/block_count;
