@@ -83,6 +83,21 @@ param_d [type = int default="pivfct->domino" hidden=on]
  *
  */
 
+zgetrf_hpp_typechange(k, i) [profile = off]
+  /* Execution space */
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
+  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
+
+  : A(m, k)
+
+  RW A <- A zgetrf_hpp(k, i)
+       -> ( k <  descA.nt-1 ) ? A swptrsm(k, i, k+1..descA.nt-1)   [type = LOWER_TILE]
+       -> A(m, k)                                                  [type = LOWER_TILE]
+BODY
+ /* Nothing */
+END
+
 zgetrf_hpp(k, i)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
@@ -92,7 +107,6 @@ zgetrf_hpp(k, i)
   nextm = inline_c %{ return dplasma_qr_nexttriangle( pivfct, m, k, descA.mt); %}
   m1 = inline_c %{ return m + param_p; %}
   ms = inline_c %{ return m + (s-1)*param_p; %}
-  /* !!! Attention le nextm doit représenter ici le prochain triangle tué (on ne prend plus en compte les TS) !!! */
 
   SIMCOST 4
 
@@ -103,11 +117,11 @@ zgetrf_hpp(k, i)
 
   RW    A    <- ( k == 0 ) ? A(m, k)
              <- ( k > 0  ) ? C zttmqr(k-1, m, k )
+             -> A zgetrf_hpp_typechange(k, i)       
              -> ( k == descA.mt-1 ) ? A(m, k)                                     [type = UPPER_TILE]
-             -> ( k <  descA.nt-1 ) ? A swptrsm(k, i, k+1..descA.nt-1)
              -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ?  A zttqrt(k, nextm)  [type = UPPER_TILE]
              -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ?  C zttqrt(k, m)      [type = UPPER_TILE]
-             -> ( k < descA.mt-1) ? A zttqrt(k, m1..ms..param_p)                  [type = UPPER_TILE]
+             -> ((k < descA.mt-1) & (m1 <= ms)) ? A zttqrt(k, m1..ms..param_p)    [type = UPPER_TILE]
   RW    IP   <- IPIV(m,k)                                                         [type = PIVOT]
              -> IPIV(m, k)                                                        [type = PIVOT]
 		     -> (k < descA.nt-1) ? IP swptrsm(k, i, k+1..descA.nt-1)              [type = PIVOT]
@@ -123,11 +137,11 @@ BODY
   int tempm = temp_m_plus_s_minus_one_m + (s-1)*descA.mb;
   //int ldak = BLKLDD(descA, k);
 
-   printlog("BEGIN thread %d   CORE_zgetrf_rectil_1thrd(k = %d, i = %d)\n"
-            "\t(%d, %d, A(%d,%d)[%p], IP(%d,%d)[%p])\n",
-            context->eu_id, k, i, tempm, tempn, m, k, A, m, k, IP);
+   printlog("\nBEGIN thread %d   CORE_zgetrf_rectil_1thrd(k = %d, i = %d)\t m = %d\n"
+            "\t(s*descA.mb = %d, descA.nb = %d, tempm = %d, tempn =%d, A(%d,%d)[%p], IP(%d,%d)[%p])\n",
+            context->eu_id, k, i, m, s*descA.mb, descA.nb, tempm, tempn, m, k, A, m, k, IP);
 
-   printf("\nGETRF( k=%d, i=%d, m=%d)\ndplasma_qr_getsize( k=%d, i=%d, m=%d) = %d\ntempn = %d\ntemp_m_plus_s_minus_one_m = %d\ntempm = %d\n\n", k, i, m, k, i, m, s, tempn, temp_m_plus_s_minus_one_m, tempm);
+   //printf("\nGETRF( k=%d, i=%d, m=%d)\ndplasma_qr_getsize( k=%d, i=%d, m=%d) = %d\ntempn = %d\ntemp_m_plus_s_minus_one_m = %d\ntempm = %d\n\n", k, i, m, k, i, m, s, tempn, temp_m_plus_s_minus_one_m, tempm);
 
   DRYRUN(
       /* Set local IPIV to 0 before generation
@@ -143,9 +157,9 @@ BODY
       CORE_zgetrf_rectil_1thrd( pdescA, IP);
          );
 
-   printlog("EN thread %d   CORE_zgetrf_rectil_1thrd(k = %d, i = %d)\n"
-            "\t(%d, %d, A(%d,%d)[%p], IP(%d,%d)[%p])\n",
-            context->eu_id, k, i, tempm, tempn, m, k, A, m, k, IP);
+   printlog("\nEN thread %d   CORE_zgetrf_rectil_1thrd(k = %d, i = %d)\t m = %d\n"
+            "\t(s*descA.mb = %d, descA.nb = %d, tempm = %d, tempn =%d, A(%d,%d)[%p], IP(%d,%d)[%p])\n",
+            context->eu_id, k, i, m, s*descA.mb, descA.nb, tempm, tempn, m, k, A, m, k, IP);
 
 END
 
@@ -164,14 +178,15 @@ swptrsm(k, i, n)
   /* Locality */
   :A(m, n)
 
-  READ  A    <- A  zgetrf_hpp(k, i)
+  READ  A    <- A  zgetrf_hpp_typechange(k, i)                                                 [type = LOWER_TILE]
   READ  IP   <- IP zgetrf_hpp(k, i)                                [type = PIVOT]
   RW    C    <- ( k == 0 ) ? A(m,n) : C zttmqr(k-1, m, n)
              -> (k == descA.mt-1) ? A(m,n)
-             -> (k < descA.mt-1) ? V zttmqr(k, m1..ms..param_p, n)
+             -> ((k < descA.mt-1) & (m1 <= ms)) ? V zttmqr(k, m1..ms..param_p, n)
              -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ?  V zttmqr(k, nextm, n)  [type = UPPER_TILE]
              -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ?  C zttmqr(k, m, n)      [type = UPPER_TILE]
   CTL   ctl  <- ( k > 0 ) ? ctl2 tile2panel(k-1, ms, n)
+             -> ctl1 low2high(k,m,n)
 
 /* Priority */
 ;descA.nt-n-1
@@ -186,17 +201,17 @@ BODY
          int ldam = BLKLDD(descA, m);
          //int tempk = k * descA.mb;
          //int tempm = descA.m - tempk;
-         int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+         //int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
 
-         printlog("BEGIN thread %d   CORE_zswptrsm(%d, %d, %d)\n"
-            "\t(%d, %d, A(%d,%d)[%p], A(%d,%d)[%p])\n",
-            context->eu_id, k, i, n, tempmm, tempnn, m, k, A, m, n, C);
+         printlog("\nBEGIN thread %d   CORE_zswptrsm(k = %d, i = %d, n = %d)\n"
+            "\t(s*descA.mb = %d, descA.nb = %d, tempm = %d, tempnn = %d, tempmm = %d, tempnn = %d, A(%d,%d)[%p], ldam = %d, A(%d,%d)[%p], ldam = %d)\n",
+            context->eu_id, k, i, n, s*descA.mb, descA.nb, tempm, tempnn, tempmm, tempnn, m, k, A, ldam, m, n, C, ldam);
 
          PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
                                              descA.mb, descA.nb, descA.mb * descA.nb,
                                              s*descA.mb, descA.nb, 0, 0,
                                              tempm, tempnn);
-         pdescA.mat = (void*)A;
+         pdescA.mat = (void*)C;
 
          CORE_zlaswp_ontile(pdescA, 1, tempmm, IP, 1);
 
@@ -207,9 +222,9 @@ BODY
                  C /*A(m, n)*/, ldam);
          );
 
-   printlog("EN thread %d   CORE_zswptrsm(%d, %d, %d)\n"
-            "\t(%d, %d, A(%d,%d)[%p], A(%d,%d)[%p])\n",
-            context->eu_id, k, i, n, tempmm, tempnn, m, k, A, m, n, C);
+         printlog("\nEN thread %d   CORE_zswptrsm(k = %d, i = %d, n = %d)\n"
+            "\t(s*descA.mb = %d, descA.nb = %d, tempm = %d, tempnn = %d, tempmm = %d, tempnn = %d, A(%d,%d)[%p], ldam = %d, A(%d,%d)[%p], ldam = %d)\n",
+            context->eu_id, k, i, n, s*descA.mb, descA.nb, tempm, tempnn, tempmm, tempnn, m, k, A, ldam, m, n, C, ldam);
 
 END
 
@@ -233,8 +248,9 @@ zttqrt(k, m)
   m = k+1..descA.mt-1
   p =     inline_c %{ return dplasma_qr_currpiv(pivfct, m, k); %}
   nextp = inline_c %{ return dplasma_qr_nexttriangle(pivfct, p, k, m); %}
-  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m); %}
-  prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m); %}
+  nextp2 = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
+  prevp = inline_c %{ return dplasma_qr_prevtriangle(pivfct, p, k, m); %}
+  prevm = inline_c %{ return dplasma_qr_prevtriangle(pivfct, m, k, m); %}
   type  = inline_c %{ return dplasma_qr_gettype( pivfct, k, m ); %}
   ip    = inline_c %{ return dplasma_qr_geti(    pivfct, k, p ); %}
   im    = inline_c %{ return dplasma_qr_geti(    pivfct, k, m ); %}
@@ -254,14 +270,14 @@ zttqrt(k, m)
   RW   C  <- (type == 0) ? A(m, k)                 
           <- ( (type != 0) & (prevm == descA.mt ) ) ? A  zgetrf_hpp(k, im )        
           <- ( (type != 0) & (prevm != descA.mt ) ) ? A  zttqrt(k, prevm )    
-          -> (type == 0) ? A(m, k)
+          ->  A(m, k)
           -> (k < descA.nt-1) ? H zttmqr(k, m, k+1..descA.nt-1)
   RW   A  <- ( (prevp == descA.mt) & (type !=0) ) ? A  zgetrf_hpp(k, ip )           [type = UPPER_TILE]
           <- ( (prevp != descA.mt) & (type !=0) ) ? A zttqrt(k, prevp)          [type = UPPER_TILE]
           <- (type == 0) ? A zgetrf_hpp(k, ip)                                      [type = UPPER_TILE]    /*unused*/
-          -> (   nextp != descA.mt ) ? A zttqrt(k, nextp )                      [type = UPPER_TILE]
-          -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out(k)             [type = UPPER_TILE]
-          -> ( ( nextp == descA.mt ) & (p != k) ) ? C zttqrt(k, p)              [type = UPPER_TILE]
+          -> ((type != 0) & (nextp != descA.mt)) ? A zttqrt(k, nextp )                      [type = UPPER_TILE]
+          -> (( nextp2 == descA.mt ) & (p == k) ) ? A zttqrt_out(k)             [type = UPPER_TILE]
+          -> ((type != 0) & ( nextp == descA.mt ) & (p != k) ) ? C zttqrt(k, p)              [type = UPPER_TILE]
   RW   T  <- LT(m, k)                                                           [type = LITTLE_T]
           -> LT(m, k)                                                           [type = LITTLE_T]
           -> (descA.nt-1 > k) ? T zttmqr(k, m, (k+1)..(descA.nt-1))             [type = LITTLE_T]
@@ -276,16 +292,17 @@ BODY
          int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
          int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
          int ldam = BLKLDD( descA, m );
+         int ldap = BLKLDD( descA, p );
 
-  printlog("BEGIN thread %d CORE_zttqrt(%d, %d)\n"
-           "\t(%d, %d, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)\n",
-           context->eu_id, k, m, tempmm, tempkn, p, k, A, m, k, C, m, k, T);
+  printlog("\nBEGIN thread %d CORE_zttqrt(k = %d, m = %d)\t type = %d\n"
+           "\t(tempmm = %d, tempkn = %d, ib = %d, A(%d,%d)[%p], ldap = %d, A.mb, A(%d,%d)[%p], ldam = %d, T(%d,%d)[%p], descLT.mb = %d, p_elem_A, p_elem_B)\n",
+           context->eu_id, k, m, type, tempmm, tempkn, ib, p, k, A, ldap, m, k, C, ldam, m, k, T, descLT.mb);
 
          if ( type == DPLASMA_QR_KILLED_BY_TS ) {
          } else {
            CORE_zttqrt(
                      tempmm, tempkn, ib,
-                     A /* A(p, k) */, descA.mb,
+                     A /* A(p, k) */, ldap,
                      C /* A(m, k) */, ldam,
                      T  /* T(m, k) */, descLT.mb,
                      p_elem_A, p_elem_B );
@@ -300,14 +317,14 @@ BODY
   if ( ( ( nextp == descA.mt ) & (p == k) ) )
     ((PLASMA_Complex64_t*)A1)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
-  printlog("EN thread %d CORE_zttqrt(%d, %d)\n"
-           "\t(%d, %d, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)\n",
-           context->eu_id, k, m, tempmm, tempkn, p, k, A, m, k, C, m, k, T);
 
+  printlog("\nEN thread %d CORE_zttqrt(k = %d, m = %d)\t type = %d\n"
+           "\t(tempmm = %d, tempkn = %d, ib = %d, A(%d,%d)[%p], ldap = %d, A.mb, A(%d,%d)[%p], ldam = %d, T(%d,%d)[%p], descLT.mb = %d, p_elem_A, p_elem_B)\n",
+           context->eu_id, k, m, type, tempmm, tempkn, ib, p, k, A, ldap, m, k, C, ldam, m, k, T, descLT.mb);
 END
 
 
-zttqrt_out(k) [profile = off]
+zttqrt_out(k) //[profile = off]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
 
@@ -317,10 +334,11 @@ zttqrt_out(k) [profile = off]
        -> A(k, k)               [type = UPPER_TILE]
 BODY
 /* nothing */
+//printf("\nprevp(k= %d) = %d\n",k,prevp);
 END
 
 
-zttmqr_out(k, n) [profile = off]
+zttmqr_out(k, n) //[profile = off]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   n = k+1..descA.nt-1
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
@@ -344,21 +362,43 @@ END
  *
  */
 
+/*zttmqr_in0(m,n)
+  m = 1..descA.mt-1
+  n = 1..descA.nt-1
+  type  = inline_c %{ return dplasma_qr_gettype( pivfct, 0,   m ); %}
+
+  SIMCOST inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
+
+  : A(m, n)
+
+RW A <- (type == 0) ? A(m,n)
+     -> (type == 0) ? C zttmqr(0,m,n)
+
+BODY*/
+/* nothing */
+//END
+
+
 zttmqr(k, m, n)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
   p =     inline_c %{ return dplasma_qr_currpiv(pivfct, m, k); %}
-  nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
-  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m); %}
-  prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m); %}
+  nextp = inline_c %{ return dplasma_qr_nexttriangle(pivfct, p, k, m); %}
+  nextp2 = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
+  prevp = inline_c %{ return dplasma_qr_prevtriangle(pivfct, p, k, m); %}
+  prevm = inline_c %{ return dplasma_qr_prevtriangle(pivfct, m, k, m); %}
   type  = inline_c %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
   nexttype = inline_c %{ return dplasma_qr_gettype( pivfct, k+1, m ); %}
   ip    = inline_c %{ return dplasma_qr_geti(    pivfct, k,   p ); %}
-  im    = inline_c %{ return dplasma_qr_geti(    pivfct, k,   m ); %}
   nextim   = inline_c %{ return dplasma_qr_geti(    pivfct, k+1, m ); %}
   nextm = inline_c %{ return dplasma_qr_nexttriangle( pivfct, m, k, descA.mt); %}
+  m0 = inline_c %{ return type == 0 ? dplasma_qr_currpiv(pivfct, m, k) : m; %}
+  im    = inline_c %{ return (type == 0) ? dplasma_qr_geti(    pivfct, k,   m0 ) : dplasma_qr_geti(    pivfct, k,   m ); %}
+  s = inline_c %{ return dplasma_qr_getsize( pivfct, k, im); %}
+  ms = inline_c %{ return m0 + (s-1)*param_p; %}
+  j = inline_c %{ return (type != 0)? dplasma_qr_getjkill( pivfct, k, p, m) : 0; %}
 
   SIMCOST inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
 
@@ -371,19 +411,23 @@ zttmqr(k, m, n)
 
   RW   V  <- (   prevp == descA.mt ) ? C  swptrsm( k, ip, n ) 
           <- (   prevp != descA.mt ) ? V zttmqr(k, prevp, n )
-          -> ( ( nextp == descA.mt ) & ( p == k ) ) ? A zttmqr_out(k, n)
-          -> ( ( nextp == descA.mt ) & ( p != k ) ) ? C zttmqr( k, p, n )
-          -> (   nextp != descA.mt ) ? V zttmqr( k, nextp, n)
+          -> (( nextp2 == descA.mt ) & ( p == k ) ) ? A zttmqr_out(k, n)
+          -> ( (type != 0) & ( nextp == descA.mt ) & ( p != k ) ) ? C zttmqr( k, p, n )
+          -> ((type != 0) & (   nextp != descA.mt)) ? V zttmqr( k, nextp, n)
   READ  H <- C zttqrt(k, m)
   RW   C  <- ( (type  != 0 ) && (prevm == descA.mt ) ) ? C  swptrsm(k, im, n)       
           <- ( (type  != 0 ) && (prevm != descA.mt ) ) ? V zttmqr(k, prevm, n )  
-          <- ( (type  == 0 ) && (k     == 0        ) ) ? A(m, n)                   
+          <- ( (type  == 0 ) && (k     == 0        ) ) ? A(m,n)                 
           <- ( (type  == 0 ) && (k     != 0        ) ) ? C zttmqr(k-1, m, n )     
           -> ( (nexttype != 0 ) && (n==(k+1)) ) ? A  zgetrf_hpp( k+1, nextim )              
           -> ( (nexttype != 0 ) && (n>  k+1)  ) ? C  swptrsm( k+1, nextim, n )            
           -> ( (nexttype == 0 ) && (n> (k+1)) ) ? C zttmqr( k+1, m, n )             
   READ  T <- T  zttqrt(k, m)                                                     [type = LITTLE_T]
-  CTL ctl -> ctl1 tile2panel(k, m, n)
+  CTL ctl <- (type != 0) ? ctl2 low2high(k, ms, n)
+          -> ctl1 tile2panel(k, m, n)
+          -> (type == 0) ? ctl1 low2high(k, m, n)
+  CTL ctl2 <- (type != 0) ? ctl low2high_release(k, ip, n, j)
+
 
     ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
 
@@ -397,10 +441,10 @@ BODY
          int ldap = BLKLDD( descA, p );
          int ldwork = ib;
 
-          printlog("BEGIN thread %d CORE_zttmqr(%d, %d, %d)\n"
-           "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
-           "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n",
-           context->eu_id, k, m, n, p, n, V, m, n, C, m, k, H, m, k, T);
+          printlog("\nBEGIN thread %d CORE_zttmqr( k = %d, m = %d, n = %d)\t type = %d\n"
+           "\t(PlasmaLeft, PlasmaConjTrans, descA.mb = %d, tempnn = %d, tempmm = %d, tempnn = %d, descA.nb = %d, ib = %d, \n"
+           "\t A(%d,%d)[%p], ldap = %d, A(%d,%d)[%p], ldam = %d, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb = %d, p_elem_A, ldwork)\n",
+           context->eu_id, k, m, n, type, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, p, n, V, ldap, m, n, C, ldam, m, k, H, m, k, T, descLT.mb);
 
          if ( type == DPLASMA_QR_KILLED_BY_TS ) {
            CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
@@ -412,7 +456,7 @@ BODY
            CORE_zttmqr(
              PlasmaLeft, PlasmaConjTrans,
              descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-             V /* A(p, n) */, descA.mb,
+             V /* A(p, n) */, ldap,
              C /* A(m, n) */, ldam,
              H  /* A(m, k) */, ldam,
              T  /* T(m, k) */, descLT.mb,
@@ -422,10 +466,10 @@ BODY
 
          );
 
-  printlog("EN thread %d CORE_zttmqr(%d, %d, %d)\n"
-           "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
-           "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n",
-           context->eu_id, k, m, n, p, n, V, m, n, C, m, k, H, m, k, T);
+          printlog("\nEN thread %d CORE_zttmqr( k = %d, m = %d, n = %d)\t type = %d\n"
+           "\t(PlasmaLeft, PlasmaConjTrans, descA.mb = %d, tempnn = %d, tempmm = %d, tempnn = %d, descA.nb = %d, ib = %d, \n"
+           "\t A(%d,%d)[%p], ldap = %d, A(%d,%d)[%p], ldam = %d, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb = %d, p_elem_A, ldwork)\n",
+           context->eu_id, k, m, n, type, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, p, n, V, ldap, m, n, C, ldam, m, k, H, m, k, T, descLT.mb);
 
 END
 
@@ -450,7 +494,52 @@ tile2panel(k, m, n) /*[profile = off]*/
 
   ;descA.nt-n-1
 BODY
-    printlog("thread %d tile2panel( %d, %d, %d ) type = %d\n", context->eu_id, k, m, n, type);
+    printlog("\nthread %d tile2panel( k = %d, m = %d, n = %d ) type = %d\n", context->eu_id, k, m, n, type);
 END
 
 
+low2high(k,m,n) /*[profile = off]*/
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  m = k..descA.mt-1
+  n = k+1..descA.nt-1
+  type  = inline_c %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
+  m0 = inline_c %{ return type == 0 ? dplasma_qr_currpiv(pivfct, m, k) : m; %}
+  i    = inline_c %{ return dplasma_qr_geti(    pivfct, k, m0 ); %}
+  s = inline_c %{ return dplasma_qr_getsize( pivfct, k, i); %}
+  ms = inline_c %{ return m0 + (s-1)*param_p; %}
+  nbkill = inline_c %{ return dplasma_qr_nbkill( pivfct, k, m0); %}
+
+  :A(k, n)
+
+  CTL  ctl1 <- (type == 0) ? ctl zttmqr(k, m, n)
+            <- (type != 0) ? ctl swptrsm(k,i,n)
+  CTL  ctl2 <- m > m0 ? ctl2 low2high(k, m-param_p, n)
+            -> m < ms ? ctl2 low2high(k, m+param_p, n)
+            -> ((m ==ms) & (m0 != k)) ? ctl zttmqr(k, m0, n)
+            -> (m ==ms) ? ctl low2high_release(k,i,n,0..nbkill-1)
+
+  ;descA.nt-n-1
+BODY
+    printlog("\nthread %d low2high( k = %d, m = %d, n = %d ) type = %d\n", context->eu_id, k, m, n, type);
+END
+
+
+low2high_release(k,i,n,j)
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
+  n = k+1..descA.nt-1
+  j = 0..inline_c %{ return dplasma_qr_nbkill( pivfct, k, dplasma_qr_getm( pivfct, k, i)) -1; %}
+  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
+  s = inline_c %{ return dplasma_qr_getsize( pivfct, k, i); %}
+  ms = inline_c %{ return m + (s-1)*param_p; %}
+  kill = inline_c %{ return dplasma_qr_getkill( pivfct, k, m, j); %}
+  
+  :A(m,n)
+
+  CTL ctl <- ctl2 low2high(k,ms,n)
+          -> ctl2 zttmqr(k, kill, n)
+
+  ;descA.nt-n-1
+BODY
+    printlog("\nthread %d low2high_release( k = %d, i = %d, n = %d, j = %d ) \n", context->eu_id, k, i, n, j);
+END
