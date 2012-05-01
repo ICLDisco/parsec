@@ -125,7 +125,7 @@ int main(int argc, char ** argv)
         /*
          * First check with a right hand side
          */
-        printf("\nFirst check with a right hand side.\n");
+        //printf("\nFirst check with a right hand side.\n");
         dplasma_ztrsmpl_hincpiv( dague, qrpiv,
                               (tiled_matrix_desc_t *)&ddescA,
                               (tiled_matrix_desc_t *)&ddescX,
@@ -145,7 +145,7 @@ int main(int argc, char ** argv)
         /*
          * Second check with inverse
          */
-        printf("\nSecond check with inverse (right hand side is Identity).\n");
+        //printf("\nSecond check with inverse (right hand side is Identity).\n");
         dplasma_ztrsmpl_hincpiv( dague, qrpiv,
                               (tiled_matrix_desc_t *)&ddescA,
                               (tiled_matrix_desc_t *)&ddescInvA,
@@ -217,11 +217,11 @@ static int check_solution( dague_context_t *dague, int loud,
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 
     //if ( loud > 2 ) {
-        printf("============\n");
-        printf("Checking the Residual of the solution \n");
-        if ( loud > 3 )
+        //printf("============\n");
+        //printf("Checking the Residual of the solution \n");
+        /*if ( loud > 3 )
             printf( "-- ||A||_oo = %e, ||X||_oo = %e, ||B||_oo= %e, ||A X - B||_oo = %e\n",
-                    Anorm, Xnorm, Bnorm, Rnorm );
+                    Anorm, Xnorm, Bnorm, Rnorm );*/
 
         printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n", result);
     //}
@@ -261,11 +261,11 @@ static int check_inverse( dague_context_t *dague, int loud,
     result = Rnorm / ( ( Anorm * InvAnorm ) * m * eps ) ;
 
     //if ( loud > 2 ) {
-        printf("============\n");
-        printf("Checking the Residual of the solution \n");
-        if ( loud > 3 )
+        //printf("============\n");
+        //printf("Checking the Residual of the solution \n");
+        /*if ( loud > 3 )
             printf( "-- ||A||_oo = %e, ||A^{-1}||_oo = %e, ||A A^{-1} - I||_oo = %e\n",
-                    Anorm, InvAnorm, Rnorm );
+                    Anorm, InvAnorm, Rnorm );*/
 
         printf("-- ||AA^{-1}-I||_oo/((||A||_oo||A^{-1}||_oo).N.eps) = %e \n", result);
    // }

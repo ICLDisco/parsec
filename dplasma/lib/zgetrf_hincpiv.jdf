@@ -395,8 +395,8 @@ BODY
 
     printlog("\nthread %d zttmqr( k=%d, m=%d, n=%d, p=%d, nextp=%d, prevp=%d, prevm=%d, type=%d, type1=%d, ip=%d, im=%d, im1=%d)\n"
              "\t(descA.mb=%d, tempnn=%d, tempmm=%d, tempnn=%d, ib=%d, \n"
-             "\t A(%d,%d)[%p], ldap=%d, A(%d,%d)[%p], ldam,\n"
-             "\t LT(%d,%d)[%p], descLT.mb=%d, A(%d,%d)[%p], ldam)\n",
+             "\t A(%d,%d)[%p], ldap=%d, A(%d,%d)[%p], ldam = %d,\n"
+             "\t LT(%d,%d)[%p], descLT.mb=%d, A(%d,%d)[%p], ldam = %d)\n",
              context->eu_id, k, m, n, p, nextp, prevp, prevm, type, type1, ip, im, im1,
              descA.mb, tempnn, tempmm, tempnn, ib,
              p, n, V, ldap, m, n, C, ldam,
