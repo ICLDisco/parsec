@@ -126,6 +126,10 @@ int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m);
  *          desc->mt if p has never been used before that as an annihilator.
  */
 int dplasma_qr_prevpiv(const qr_piv_t *arg, int p, const int k, int m);
+int dplasma_qr_prevtriangle(const qr_piv_t *arg, int p, const int k, int m);
+int dplasma_qr_nbkill(const qr_piv_t *arg, const int k, const int m);
+int dplasma_qr_getkill(const qr_piv_t *arg, const int k, const int m, const int j);
+int dplasma_qr_getjkill(const qr_piv_t *arg, const int k, const int m, const int kill);
 
 /*
  * Debugging functions

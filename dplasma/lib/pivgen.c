@@ -106,6 +106,10 @@ int dplasma_qr_geti(       const qr_piv_t *arg, const int k, const int m   );
 int dplasma_qr_gettype(    const qr_piv_t *arg, const int k, const int m   );
 int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i );
 int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m);
+int dplasma_qr_prevtriangle(const qr_piv_t *arg, int p, const int k, int m);
+int dplasma_qr_nbkill(const qr_piv_t *arg, const int k, const int m);
+int dplasma_qr_getkill(const qr_piv_t *arg, const int k, const int m, const int j);
+int dplasma_qr_getjkill(const qr_piv_t *arg, const int k, const int m, const int kill);
 
 static void dplasma_qr_genperm   (       qr_piv_t *qrpiv );
 static int  dplasma_qr_getinvperm( const qr_piv_t *qrpiv, const int k, int m );
@@ -308,7 +312,8 @@ int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i ) {
     int m = dplasma_qr_getm(arg, k, i);
     int size = 1;
     int next = m + p;
-    while (next < mt ? dplasma_qr_gettype(arg, k, m) == 0 : 0) {
+    //printf("\nDans getsize: p = %d, mt = %d, m = %d, next = %d\n",p,mt,m,next);
+    while (next < mt ? dplasma_qr_gettype(arg, k, next) == 0 : 0) {
         next += p;
         size++;
     }
@@ -1275,7 +1280,6 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 
 int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m)
 {
-    //printf("\nDébut du calcul de nexttriangle( p=%d, k=%d, m=%d)\n",p,k,m);
     int next = dplasma_qr_nextpiv(arg, p, k, m);
     int mt = arg -> desc -> mt;
 
@@ -1385,6 +1389,68 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
             return arg->desc->mt;
         }
 };
+
+int dplasma_qr_prevtriangle(const qr_piv_t *arg, int p, const int k, int m)
+{
+    int prev = dplasma_qr_prevpiv(arg, p, k, m);
+    int mt = arg -> desc -> mt;
+
+    while (prev == mt ? 0 : dplasma_qr_gettype(arg, k, prev) == 0) {
+        prev = dplasma_qr_prevpiv(arg, p, k, prev);
+    }
+    
+    //printf("\nprevtriangle( p=%d, k=%d, m=%d) = %d\n",p,k,m,prev);
+    return prev;
+};
+
+int dplasma_qr_nbkill(const qr_piv_t *arg, const int k, const int m)
+{
+    int nb_kill = 0;
+    int mt = arg -> desc -> mt;
+    int next = dplasma_qr_nexttriangle(arg, m, k, mt);
+
+    //printf("\nDébut nbkill(k=%d, m=%d)\n",k,m);
+
+    while (next != mt) {
+        next = dplasma_qr_nexttriangle(arg, m, k, next);
+        nb_kill++;
+    }
+    
+    //printf("\nnbkill(k=%d, m=%d) =%d\n",k,m,nb_kill);
+
+    return nb_kill;
+};
+
+int dplasma_qr_getkill(const qr_piv_t *arg, const int k, const int m, const int j)
+{
+    int mt = arg -> desc -> mt;
+    int kill = dplasma_qr_nexttriangle(arg, m, k, mt);
+    int i = 0;
+   
+    for (i=0; i<j; i++) 
+        kill = dplasma_qr_nexttriangle(arg, m, k, kill);
+
+   return kill;
+};
+
+int dplasma_qr_getjkill(const qr_piv_t *arg, const int k, const int m, const int kill)
+{
+    int mt = arg -> desc -> mt;
+    int j =0;
+    int next = dplasma_qr_nexttriangle(arg, m, k, mt);
+ 
+    //printf("\nDébut getjkill(k=%d, m=%d, kill=%d)\n",k,m,kill);
+
+    while (next != kill) {
+        next = dplasma_qr_nexttriangle(arg, m, k, next);
+        j++;
+    }
+
+    //printf("\ngetjkill(k=%d, m=%d, kill=%d) = %d\n",k,m,kill,j);
+
+    return j;
+};
+
 
 /****************************************************
  *
