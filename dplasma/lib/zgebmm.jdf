@@ -78,7 +78,7 @@ BODY
 
   printlog("thread %d GEBMM(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i, j, Atl);
+           context->th_id, i, j, i, j, Atl);
 
   type = segment_to_type_index(descA.seg_info, i, j);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
@@ -146,7 +146,7 @@ BODY
 
   printlog("thread %d GEBMM_Reader(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i, j, A);
+  context->th_id, i, j, i, j, A);
 
 #if defined(DEBUG_BUTTERFLY)
   but_debug ("R A[%d][%d]:%lf\n",i,j,*(double *)A);
@@ -177,7 +177,7 @@ BODY
 
   printlog("thread %d GEBMM_Writer(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, i, j, i, j, A);
+  context->th_id, i, j, i, j, A);
 
 #if defined(DEBUG_BUTTERFLY)
   but_debug ("W A[%d][%d]:%lf\n",i,j,*(double *)A);

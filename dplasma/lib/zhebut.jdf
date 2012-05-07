@@ -98,7 +98,7 @@ BODY
 
   printlog("thread %d HEBUT_Diag(%d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, i, i, i, Atl);
+           context->th_id, i, i, i, Atl);
 
   type = segment_to_type_index(descA.seg_info, i, i);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
@@ -453,7 +453,7 @@ BODY
 
   printlog("thread %d HEBUT_Writer_TL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, i*mb_seg, j*nb_seg, i, j, A);
+           context->th_id, i, j, i, j, A);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_TL(%d,%d)\n",i,j);
