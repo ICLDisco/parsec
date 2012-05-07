@@ -933,6 +933,21 @@ int dague_object_register( dague_object_t* object )
     return (int)index;
 }
 
+/**< This function is called in a body only.
+ *   It sets the current task as the last task.
+ *   The current implemenation has limitations: it assumes that 
+ *   no other task of the object is running, and it assumes that
+ *   all tasks that are cancelled were never started (i.e. no
+ *   input dependency for these tasks was ever true).
+ * 
+ *   Update this comment and the comment in the header file
+ *   if some limitations are relieved.
+ */
+void dague_object_terminate( dague_object_t *object )
+{
+    object->nb_local_tasks = 1;
+}
+
 /**< Print DAGuE usage message */
 void dague_usage(void)
 {

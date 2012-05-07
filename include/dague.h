@@ -274,8 +274,13 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu,
 dague_object_t* dague_object_lookup( uint32_t object_id );
 /**< Register the object with the engine. Create the unique identifier for the object */
 int dague_object_register( dague_object_t* object );
-/**< Start the dague execution and launch the ready tasks */
-int dague_object_start( dague_object_t* object);
+/** Make a dague object almost completed: it will be completed at the end
+ *  of this BODY call. Restrictions:
+ *     This is supposed to be called in a BODY, obviously;
+ *     With the current implementation, this works only if non-completed tasks will never
+ *     have any incoming dependency fired.
+ */
+void dague_object_terminate( dague_object_t *object );
 
 #define dague_execution_context_priority_comparator offsetof(dague_execution_context_t, priority)
 
