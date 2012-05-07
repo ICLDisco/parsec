@@ -59,14 +59,14 @@ zgelqt(k)
   /* F == A(k,k) */
   /* K == A(m1,n) */
 
-  RW    A <- (0==k) ? A(k,k) : K ztsmlq(k-1, k, k)  
+  RW    A <- (0==k) ? A(k,k) : K ztsmlq(k-1, k, k)
           -> (descA.nt==(k+1)) ? A(k,k)            [type = LOWER_TILE]
           -> (descA.nt>=(2+k)) ? F ztslqt(k, k+1)  [type = LOWER_TILE]
           -> A zgelqt_typechange(k)
   RW    B <- T(k, k)                                              [type = LITTLE_T]
           -> T(k, k)                                              [type = LITTLE_T]
           -> (descA.mt>=(k+2)) ? D zunmlq(k, (k+1)..(descA.mt-1)) [type = LITTLE_T]
-          
+
 
 BODY
 
@@ -77,20 +77,19 @@ BODY
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_tau );
          void *p_elem_B = dague_private_memory_pop( p_work );
-         
-         CORE_zgelqt(tempkm, tempkn, ib, 
-                     A /* A(k,k) */, ldak, 
-                     B /* T(k,k) */, descT.mb, 
+
+         CORE_zgelqt(tempkm, tempkn, ib,
+                     A /* A(k,k) */, ldak,
+                     B /* T(k,k) */, descT.mb,
                      p_elem_A, p_elem_B );
-         
+
          dague_private_memory_push( p_tau, p_elem_A );
          dague_private_memory_push( p_work, p_elem_B );
          );
 
-  printlog("thread %d CORE_zgelqt(%d)\n"
+  printlog("thread %d VP %d CORE_zgelqt(%d)\n"
            "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, k, k, A, k, k, B);
-
+  context->th_id, context->virtual_process->vp_id, k, k, k, A, k, k, B);
 END
 
 zunmlq(k,m)
@@ -110,9 +109,9 @@ zunmlq(k,m)
 
   READ  C <- A zgelqt_typechange(k) [type = UPPER_TILE]
   READ  D <- B zgelqt(k)            [type = LITTLE_T]
-  RW    E <- (0==k) ? A(m,k) : K ztsmlq(k-1, k-1+1, m) 
+  RW    E <- (0==k) ? A(m,k) : K ztsmlq(k-1, k-1+1, m)
           -> (descA.nt==(1+k)) ? A(m,k)
-          -> (descA.nt>=(k+2)) ? J ztsmlq(k, k+1, m) 
+          -> (descA.nt>=(k+2)) ? J ztsmlq(k, k+1, m)
 
 BODY
 
@@ -123,20 +122,21 @@ BODY
 
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_work );
-         
-         CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
-                     tempkn, tempkn, ib, 
-                     C /* A(k,k) */, ldak, 
-                     D /* T(k,k) */, descT.mb, 
-                     E /* A(m,k) */, ldam, 
+
+         CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm,
+                     tempkn, tempkn, ib,
+                     C /* A(k,k) */, ldak,
+                     D /* T(k,k) */, descT.mb,
+                     E /* A(m,k) */, ldam,
                      p_elem_A, descT.nb );
-         
+
          dague_private_memory_push( p_work, p_elem_A );
          );
 
-  printlog("thread %d CORE_zunmlq(%d, %d)\n"
+
+  printlog("thread %d  VP %d CORE_zunmlq(%d, %d)\n"
            "\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldam, p_elem_A, descT.nb)\n",
-  context->eu_id, k, m, k, k, C, k, k, D, m, k, E);
+  context->th_id, context->virtual_process->vp_id, k, m, k, k, C, k, k, D, m, k, E);
 
 END
 
@@ -158,8 +158,8 @@ ztslqt(k,n)
 
   RW    F <- ( (k+1) == n ) ? A zgelqt(n-1) : F ztslqt(k, n-1)         [type = LOWER_TILE]
           -> (descA.nt==(1+n)) ? F ztslqt_out_A0(k) : F ztslqt(k, n+1) [type = LOWER_TILE]
-  RW    G <- (0==k) ? A(k,n) : K ztsmlq(k-1, n, k) 
-          -> (descA.mt>=(2+k)) ? L ztsmlq(k, n, (k+1)..(descA.mt-1)) 
+  RW    G <- (0==k) ? A(k,n) : K ztsmlq(k-1, n, k)
+          -> (descA.mt>=(2+k)) ? L ztsmlq(k, n, (k+1)..(descA.mt-1))
           -> A(k,n)
   RW    H <- T(k, n)                                                 [type = LITTLE_T]
           -> T(k, n)                                                 [type = LITTLE_T]
@@ -174,20 +174,19 @@ BODY
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_tau );
          void *p_elem_B = dague_private_memory_pop( p_work );
-         
-         CORE_ztslqt(tempkm, tempnn, ib, 
-                     F /* A(k,k) */, ldak, 
-                     G /* A(k,n) */, ldak, 
-                     H /* T(k,n) */, descT.mb, 
+
+         CORE_ztslqt(tempkm, tempnn, ib,
+                     F /* A(k,k) */, ldak,
+                     G /* A(k,n) */, ldak,
+                     H /* T(k,n) */, descT.mb,
                      p_elem_A, p_elem_B );
-         
          dague_private_memory_push( p_tau, p_elem_A );
          dague_private_memory_push( p_work, p_elem_B );
          );
-                                                 
-  printlog("thread %d CORE_ztslqt(%d, %d)\n"
+
+  printlog("thread %d VP %d CORE_ztslqt(%d, %d)\n"
            "\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, n, k, k, F, k, n, G, k, n, H);
+  context->th_id, context->virtual_process->vp_id, k, n, k, k, F, k, n, G, k, n, H);
 
 END
 
@@ -223,18 +222,18 @@ ztsmlq(k,n,m1)
   /* L == A(k,n) */
   /* M == T(k,n) */
 
-  RW    J <- (n>=(k+2)) ? J ztsmlq(k, n-1, m1) 
-          <- ((1+k)==n) & (m1>=(k+1)) & (descA.mt>=(1+k)) ? E zunmlq(n-1, m1) 
+  RW    J <- (n>=(k+2)) ? J ztsmlq(k, n-1, m1)
+          <- ((1+k)==n) & (m1>=(k+1)) & (descA.mt>=(1+k)) ? E zunmlq(n-1, m1)
           -> (descA.nt==(1+n)) ? J ztsmlq_out_A0(k,m1)
 
-          -> (descA.nt>=(n+2)) ? J ztsmlq(k, n+1, m1) 
-  RW    K <- (k>=1) ? K ztsmlq(k-1, n, m1) 
+          -> (descA.nt>=(n+2)) ? J ztsmlq(k, n+1, m1)
+  RW    K <- (k>=1) ? K ztsmlq(k-1, n, m1)
           <- (0==k) ? A(m1,n)
-          -> (m1>=(k+2)) & (n>=(2+k)) ? K ztsmlq(k+1, n, m1) 
-          -> (n==(k+1)) & (m1>=(n+1)) ? E zunmlq(k+1, m1) 
-          -> ((k+1)==m1) & ((k+1)==n) & (descA.nt>=(k+2)) ? A zgelqt(m1) 
-          -> ((k+1)==m1) & (descA.nt>=(k+2)) & (n>=(k+2)) ? G ztslqt(m1, n) 
-  READ  L <- G ztslqt(k, n) 
+          -> (m1>=(k+2)) & (n>=(2+k)) ? K ztsmlq(k+1, n, m1)
+          -> (n==(k+1)) & (m1>=(n+1)) ? E zunmlq(k+1, m1)
+          -> ((k+1)==m1) & ((k+1)==n) & (descA.nt>=(k+2)) ? A zgelqt(m1)
+          -> ((k+1)==m1) & (descA.nt>=(k+2)) & (n>=(k+2)) ? G ztslqt(m1, n)
+  READ  L <- G ztslqt(k, n)
   READ  M <- H ztslqt(k, n) [type = LITTLE_T]
 
 BODY
@@ -247,21 +246,21 @@ BODY
 
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_work );
-         
-         CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
-                     descA.nb, tempmm, tempnn, descA.mb, ib, 
-                     J /* A(m1,k) */, ldam, 
-                     K /* A(m1,n) */, ldam, 
-                     L /* A(k, n) */, ldak, 
-                     M /* T(k, n) */, descT.mb, 
+
+         CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm,
+                     descA.nb, tempmm, tempnn, descA.mb, ib,
+                     J /* A(m1,k) */, ldam,
+                     K /* A(m1,n) */, ldam,
+                     L /* A(k, n) */, ldak,
+                     M /* T(k, n) */, descT.mb,
                      p_elem_A, ldwork );
 
          dague_private_memory_push( p_work, p_elem_A );
          );
-                            
-  printlog("thread %d CORE_ztsmlq(%d, %d, %d)\n"
+
+  printlog("thread  %d VP %d  CORE_ztsmlq(%d, %d, %d)\n"
            "\t(PlasmaRight, PlasmaConjTrans, tempmm, descA.nb, tempmm, tempnn, descA.mb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-  context->eu_id, k, n, m1, m1, k, J, m1, n, K, k, n, L, k, n, M);
+  context->th_id, context->virtual_process->vp_id, k, n, m1, m1, k, J, m1, n, K, k, n, L, k, n, M);
 
 END
 

@@ -27,7 +27,7 @@ typedef struct{
 } seg_info_t;
 
 typedef struct dague_seg_ddesc{
- dague_ddesc_t super;
+ tiled_matrix_desc_t super;
  tiled_matrix_desc_t *A_org;
  seg_info_t seg_info;
  int level;

@@ -23,6 +23,7 @@
 
 typedef struct tile_elem {
     uint32_t rank;
+    int32_t vpid;
     void * tile;
 } tile_elem_t;
 

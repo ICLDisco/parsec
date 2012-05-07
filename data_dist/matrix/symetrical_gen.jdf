@@ -54,7 +54,7 @@ BODY
 
     
     OUTPUT((
-        "thread %d GEN( A(%d,%d)[%p])\n",
-            context->eu_id, i, j, T)
+        "thread %d VP %d GEN( A(%d,%d)[%p])\n",
+            context->th_id, context->virtual_process->vp_id, i, j, T)
         );
 END

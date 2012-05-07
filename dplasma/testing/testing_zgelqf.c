@@ -158,7 +158,7 @@ static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_de
                      1.0, Q, Q, -1.0, (tiled_matrix_desc_t*)&Id );
     }
 
-    normQ = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&Id);
+    normQ = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&Id);
 
     result = normQ / (minMN * eps);
     if ( loud ) {
@@ -224,8 +224,8 @@ static int check_factorization(dague_context_t *dague, int loud, tiled_matrix_de
     dague_data_free(R.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&R);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&Residual);
-    Anorm = dplasma_zlange(dague, PlasmaMaxNorm, Aorig);
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&Residual);
+    Anorm = dplasma_zlange(dague, PlasmaInfNorm, Aorig);
 
     result = Rnorm / ( Anorm * minMN * eps);
 

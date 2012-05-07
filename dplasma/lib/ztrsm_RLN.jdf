@@ -57,15 +57,16 @@ BODY
   int ldb = BLKLDD( descB, m );
 
   DRYRUN(
-      CORE_ztrsm(side, uplo, trans, diag,
+        CORE_ztrsm(side, uplo, trans, diag,
                  tempmm, tempkn, lalpha,
                  A /* A((descB.nt-1)-k,(descB.nt-1)-k) */, lda,
                  B /* B(m,(descB.nt-1)-k) */, ldb );
          );
-  printlog("thread %d CORE_ztrsm(%d, %d)\n"
-           "\t(side, uplo, trans, diag, tempmm, tempkn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-           context->eu_id, k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
 
+  printlog("thread %d VP %d CORE_ztrsm(%d, %d)\n"
+           "\t(side, uplo, trans, diag, tempmm, tempkn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
+           context->th_id, context->virtual_process->vp_id, k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
+  
 END
 
 /*
@@ -84,7 +85,6 @@ BODY
 END
 
 
-
 zgemm(k,m,n)
   /* Execution space */
   k = 0..(descB.nt-2)
@@ -100,7 +100,6 @@ zgemm(k,m,n)
           <- (0==k) ? B(m,(descB.nt-1)-n)
           -> (n>=(k+2)) ? E zgemm(k+1, m, n)
           -> ((k+1)==n) ? B ztrsm(n, m)
-
 BODY
 
   int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
@@ -117,9 +116,9 @@ BODY
                  lalpha, E /* B(m,             (descB.nt-1)-n) */, ldb );
          );
 
-  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, descB.nb, tempkn, mzone, B(%d,%d)[%p], ldb, A(%d,%d)[%p], lda, lalpha, B(%d,%d)[%p], ldb)\n",
-           context->eu_id, k, m, n, m, (descB.nt-1)-k, C, (descB.nt-1)-k, (descB.nt-1)-n, D, m, (descB.nt-1)-n, E);
+             context->th_id, context->virtual_process->vp_id, k, m, n, m, (descB.nt-1)-k, C, (descB.nt-1)-k, (descB.nt-1)-n, D, m, (descB.nt-1)-n, E);
 
 END
 

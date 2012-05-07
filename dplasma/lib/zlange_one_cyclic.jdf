@@ -106,7 +106,7 @@ BODY
 
     printlog("thread %d zlange STEP1(%d, %d)\n"
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
-             context->eu_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
+             context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
     DRYRUN(
 
@@ -143,7 +143,7 @@ BODY
 
     printlog("thread %d zlange STEP2(%d, %d)\n"
              "\t( tempnn=%d, W(%d, %d) + W(%d, %d)\n",
-             context->eu_id, m, n, tempnn, m-1, n, m, n);
+             context->th_id, m, n, tempnn, m-1, n, m, n);
 
     DRYRUN(
         if(m > 0)
@@ -181,7 +181,7 @@ BODY
     int tempnn = ( n == (descA.nt-1) ) ? descA.n - n * descA.nb : descA.nb;
 
     printlog("thread %d zlange STEP3(%d, %d)\n",
-             context->eu_id, m, n);
+             context->th_id, m, n);
 
     DRYRUN(
         double *dA = (double*)A;
@@ -224,7 +224,7 @@ STEP4(m,n)
 BODY
 
     printlog("thread %d zlange STEP4(%d, %d)\n",
-             context->eu_id, m, n);
+             context->th_id, m, n);
 
     DRYRUN(
         double *dA = (double*)A;

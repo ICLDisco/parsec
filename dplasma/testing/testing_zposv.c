@@ -90,7 +90,7 @@ int main(int argc, char ** argv)
         if(iparam[IPARAM_NGPUS] > 0)
         {
             if(loud > 3) printf("+++ Load GPU kernel ... ");
-            if(0 != zgemm_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA))
+            if(0 != gpu_kernel_init_zgemm(dague, (tiled_matrix_desc_t *)&ddescA))
             {
                 printf("XXX Unable to load GPU kernel.\n");
                 exit(3);
@@ -370,15 +370,15 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
                                N, NRHS, twodB->grid.strows, twodB->grid.stcols, twodB->grid.rows));
 
     Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A);
-    Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, B);
-    Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, X);
+    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, B);
+    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, X);
     dplasma_zlacpy( dague, PlasmaUpperLower, B, (tiled_matrix_desc_t *)&R );
 
     /* Compute A*x */
     dplasma_zhemm( dague, PlasmaLeft, uplo, -1.0, A, X,
                    1.0, (tiled_matrix_desc_t *)&R);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm,
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm,
                            (tiled_matrix_desc_t *)&R);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * N * eps ) ;

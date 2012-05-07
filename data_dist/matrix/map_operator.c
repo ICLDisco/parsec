@@ -183,6 +183,7 @@ add_task_to_list(struct dague_execution_unit *eu_context,
                  dague_execution_context_t *oldcontext,
                  int flow_index, int outdep_index,
                  int rank_src, int rank_dst,
+                 int vpid_dst,
                  dague_arena_t* arena,
                  int nbelt,
                  void *flow)
@@ -191,11 +192,13 @@ add_task_to_list(struct dague_execution_unit *eu_context,
     dague_execution_context_t* new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
     dague_thread_mempool_t* mpool = new_context->mempool_owner;
 
+#warning should we do something with vpid_dst?
+
     memcpy( new_context, newcontext, sizeof(dague_execution_context_t) );
     new_context->mempool_owner = mpool;
 
     dague_list_add_single_elem_by_priority( pready_list, new_context );
-    (void)arena; (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst; (void)nbelt;
+    (void)arena; (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst; (void)vpid_dst; (void)nbelt;
     return DAGUE_ITERATE_STOP;
 }
 
@@ -227,9 +230,12 @@ static void iterate_successors(dague_execution_unit_t *eu,
             nc.dague_object = this_task->dague_object;
             nc.data[0].data = this_task->data[0].data;
             nc.data[1].data = this_task->data[1].data;
+#warning is vpid_dst useful here?
             ontask(eu, &nc, this_task, 0, 0,
                    __dague_object->super.src->super.myrank,
-                   __dague_object->super.src->super.myrank, NULL, -1, ontask_arg);
+                   __dague_object->super.src->super.myrank, 
+                   -1,
+                   NULL, -1, ontask_arg);
             return;
         }
         /* Go to the next row ... atomically */
@@ -307,7 +313,7 @@ static int complete_hook(dague_execution_unit_t *context,
 
     TAKE_TIME(context, 2*this_task->function->function_id+1, map_operator_op_hash( __dague_object, k, n ), NULL, 0);
 
-    dague_prof_grapher_task(this_task, context->eu_id, k+n);
+    dague_prof_grapher_task(this_task, context->th_id, context->virtual_process->vp_id, k+n);
 
     release_deps(context, this_task,
                  (DAGUE_ACTION_RELEASE_REMOTE_DEPS |
@@ -359,7 +365,8 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
     fake_context.data[1].data      = NULL;
     /* If this is the last n, try to move to the next k */
     for( ; k < (int)__dague_object->super.src->nt; n = 0) {
-        eu = context->execution_units[count];
+#warning This should be context->virtual_processes[vpid_of(...)]
+        eu = context->virtual_processes[0]->execution_units[count];
         ready_list = NULL;
 
         for( ; n < (int)__dague_object->super.src->mt; n++ ) {
@@ -370,13 +377,14 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
             /* Here we go, one ready local task */
             fake_context.locals[0].value = k;
             fake_context.locals[1].value = n;
+#warning vpid_dst should not be -1 here.
             add_task_to_list(eu, &fake_context, NULL, 0, 0,
-                             __dague_object->super.src->super.myrank,
-                             __dague_object->super.src->super.myrank, NULL, -1,
-                             (void*)&ready_list);
+                             __dague_object->super.src->super.myrank, -1,
+                             -1, NULL, -1, (void*)&ready_list);
             __dague_schedule( eu, ready_list );
             count++;
-            if( count == context->nb_cores ) goto done;
+#warning This should be context->virtual_processes[vpid_of(...)]
+            if( count == context->virtual_processes[0]->nb_cores ) goto done;
             break;
         }
         /* Go to the next row ... atomically */

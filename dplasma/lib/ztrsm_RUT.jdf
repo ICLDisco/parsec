@@ -56,15 +56,16 @@ BODY
   int ldb = BLKLDD( descB, m );
 
   DRYRUN(
+
       CORE_ztrsm(side, uplo, trans, diag,
                  tempmm, tempkn, alpha,
                  A /* A((descB.nt-1)-k,(descB.nt-1)-k) */, lda,
                  B /* B(m,(descB.nt-1)-k) */, ldb );
          );
 
-  printlog("thread %d CORE_ztrsm(%d, %d)\n"
+  printlog("thread %d VP %d CORE_ztrsm(%d, %d)\n"
            "\t(side, uplo, trans, diag, tempmm, tempkn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-           context->eu_id, k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
+              context->th_id, context->virtual_process->vp_id, k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
 
 END
 
@@ -93,6 +94,7 @@ zgemm(k,m,n)
 
   : B(m,(descB.nt-1)-n)
 
+
   READ  C <- B ztrsm(k, m)
   READ  D <- D zgemm_in_A0(k,m,n)
 
@@ -100,6 +102,11 @@ zgemm(k,m,n)
           <- (k>=1) ? E zgemm(k-1, m, n)
           -> (n>=(k+2)) ? E zgemm(k+1, m, n)
           -> ((k+1)==n) ? B ztrsm(n, m)
+
+  /*
+  Anti-dependencies:
+
+  */
 
 BODY
 
@@ -111,6 +118,7 @@ BODY
 
   DRYRUN(
 
+
     CORE_zgemm(PlasmaNoTrans, trans,
                tempmm, descB.nb, tempkn,
                minvalpha, C /* B(m,             (descB.nt-1)-k) */, ldb,
@@ -118,9 +126,9 @@ BODY
                1.0,       E /* B(m,             (descB.nt-1)-n) */, ldb );
          );
 
-  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, trans, tempmm, descB.nb, tempkn, minvalpha, B(%d,%d)[%p], ldb, A(%d,%d)[%p], descA.mb, zone, B(%d,%d)[%p], ldb)\n",
-  context->eu_id, k, m, n, m, (descB.nt-1)-k, C, (descB.nt-1)-n, (descB.nt-1)-k, D, m, (descB.nt-1)-n, E);
+  context->th_id, context->virtual_process->vp_id, k, m, n, m, (descB.nt-1)-k, C, (descB.nt-1)-n, (descB.nt-1)-k, D, m, (descB.nt-1)-n, E);
 
 END
 
