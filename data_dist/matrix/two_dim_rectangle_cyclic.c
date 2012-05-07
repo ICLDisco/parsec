@@ -88,7 +88,7 @@ static void *twoDBC_data_of(dague_ddesc_t *desc, ...)
         pos = Ddesc->nb_elem_r * local_n + local_m;
         pos *= (size_t)Ddesc->super.bsiz;
     } else {
-        pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm 
+        pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm
             +  local_m * Ddesc->super.mb;
     }
 
@@ -113,7 +113,7 @@ static int32_t twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     q = (int)ceilf(sqrtf( (float)pq ));
     assert(q > 0);
     p = pq / q;
-    
+
     /* Get coordinates */
     va_start(ap, desc);
     m = (int)va_arg(ap, unsigned int);
@@ -188,7 +188,7 @@ static void *twoDBC_data_of_st(dague_ddesc_t *desc, ...)
     va_list ap;
     two_dim_block_cyclic_t * Ddesc;
     Ddesc = (two_dim_block_cyclic_t *)desc;
-    
+
     /* Get coordinates */
     va_start(ap, desc);
     m = (int)va_arg(ap, unsigned int);
@@ -208,18 +208,18 @@ static void *twoDBC_data_of_st(dague_ddesc_t *desc, ...)
     m = m % (Ddesc->grid.strows * Ddesc->grid.rows);
     assert( m / Ddesc->grid.strows == Ddesc->grid.rrank);
     local_m += m % Ddesc->grid.strows;
-    
+
     /* Compute the local column */
     local_n = ( n / (Ddesc->grid.stcols * Ddesc->grid.cols) ) * Ddesc->grid.stcols;
     n = n % (Ddesc->grid.stcols * Ddesc->grid.cols);
     assert( n / Ddesc->grid.stcols == Ddesc->grid.crank);
     local_n += n % Ddesc->grid.stcols;
-    
+
     if( Ddesc->super.storage == matrix_Tile ) {
         pos = Ddesc->nb_elem_r * local_n + local_m;
         pos *= (size_t)Ddesc->super.bsiz;
     } else {
-        pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm 
+        pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm
             +  local_m * Ddesc->super.mb;
     }
 
@@ -244,7 +244,7 @@ static int32_t twoDBC_vpid_of_st(dague_ddesc_t *desc, ...)
     q = (int)ceilf(sqrtf( (float)pq ));
     assert(q > 0);
     p = pq / q;
-    
+
     /* Get coordinates */
     va_start(ap, desc);
     m = (int)va_arg(ap, unsigned int);
@@ -264,13 +264,13 @@ static int32_t twoDBC_vpid_of_st(dague_ddesc_t *desc, ...)
     m = m % (Ddesc->grid.strows * Ddesc->grid.rows);
     assert( m / Ddesc->grid.strows == Ddesc->grid.rrank);
     local_m += m % Ddesc->grid.strows;
-    
+
     /* Compute the local column */
     local_n = ( n / (Ddesc->grid.stcols * Ddesc->grid.cols) ) * Ddesc->grid.stcols;
     n = n % (Ddesc->grid.stcols * Ddesc->grid.cols);
     assert( n / Ddesc->grid.stcols == Ddesc->grid.crank);
     local_n += n % Ddesc->grid.stcols;
-    
+
     vpid = (local_n % q) * p + (local_m % p);
     assert( vpid < vpmap_get_nb_vp() );
     return vpid;
