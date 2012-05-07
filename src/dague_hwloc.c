@@ -16,6 +16,7 @@
 
 #if defined(HAVE_HWLOC)
 static hwloc_topology_t topology;
+int first_init = 1;
 #endif  /* defined(HAVE_HWLOC) */
 
 #if defined(HAVE_HWLOC_PARENT_MEMBER)
@@ -27,10 +28,12 @@ static hwloc_topology_t topology;
 int dague_hwloc_init(void)
 {
 #if defined(HAVE_HWLOC)
-    hwloc_topology_init(&topology);
-    hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_NODE);
-    hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_SOCKET);
-    hwloc_topology_load(topology);
+    if ( first_init ) {
+        hwloc_topology_init(&topology);
+        hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_NODE);
+        hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_SOCKET);
+        hwloc_topology_load(topology);
+    }
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
 }
