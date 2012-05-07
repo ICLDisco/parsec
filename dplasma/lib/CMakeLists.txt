@@ -33,7 +33,9 @@ set(JDF
   zpotrf_Url.jdf zpotrf_Lrl.jdf
   zgetrf_sp.jdf
   zgetrf_std.jdf
-  zgerfs.jdf zgerfs_exp.jdf
+  zgerfs.jdf
+  zgerfs_exp.jdf
+  zgebmm.jdf
   zgebut.jdf
   zhebut.jdf
   zgetrf.jdf zhetrf.jdf

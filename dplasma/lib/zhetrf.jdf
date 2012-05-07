@@ -88,7 +88,7 @@ BODY
 
   printlog("thread %d CORE_zhetrf2_nopiv(%d)\n"
            "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
-  context->eu_id, k, tempkn, ib, k, k, A, ldak, ldwork);
+  context->th_id, k, tempkn, ib, k, k, A, ldak, ldwork);
 
   DRYRUN(
     int info = 0;
@@ -130,7 +130,7 @@ BODY
 
   printlog("thread %d CORE_zhetrf_nopiv(%d)\n"
            "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
-  context->eu_id, k, tempkn, ib, k, k, B, ldak, ldwork);
+  context->th_id, k, tempkn, ib, k, k, B, ldak, ldwork);
 
   DRYRUN(
     int info = 0;
@@ -185,7 +185,7 @@ BODY
 
   printlog("thread %d CORE_ztrsm(%d, %d)\n"
            "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, tempkn, zone, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
-  context->eu_id, k, m, k, k, C, m, k, D);
+  context->th_id, k, m, k, k, C, m, k, D);
 
   DRYRUN(
 
@@ -231,7 +231,7 @@ BODY
 
   printlog("thread %d CORE_zhedrk(%d, %d)\n"
            "\t(PlasmaLower, PlasmaNoTrans, tempmm, tempkn, ib, -1.000000, A(%d,%d)[%p], ldam, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
-  context->eu_id, k, m1, m1, k, E, m1, m1, F, k, k, G);
+  context->th_id, k, m1, m1, k, E, m1, m1, F, k, k, G);
 
   DRYRUN(
     void *p_elem_A = dague_private_memory_pop( pool_1 );
@@ -264,7 +264,7 @@ BODY
 /* This is a pseudo-task generated to enable the "triangular" broadcast */
 
   printlog("thread %d magic(%d,%d)\n",
-      context->eu_id, k, m1);
+      context->th_id, k, m1);
 
 END
 
@@ -304,7 +304,7 @@ BODY
 
   printlog("thread %d CORE_zgemdm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, PlasmaConjTrans, tempmm, tempnn, tempkn, mzone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], desc_A.mb, zone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
-  context->eu_id, k, m1, n, m1, k, K, n, k, L, m1, n, M, k, k, N);
+  context->th_id, k, m1, n, m1, k, K, n, k, L, m1, n, M, k, k, N);
 
   DRYRUN( 
     void *p_elem_A = dague_private_memory_pop( pool_1 );
@@ -341,7 +341,7 @@ BODY
 
   printlog("thread %d CORE_ztrmdm(%d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->eu_id, k1, k1, k1, O);
+  context->th_id, k1, k1, k1, O);
 
   DRYRUN(
 
@@ -373,5 +373,5 @@ GOK(k,m,n)  [profile = off]
 
 BODY
      /* Synchronization thread */
-     printlog("thread %d gok( %d, %d, %d )\n", context->eu_id, k, m, n);
+     printlog("thread %d gok( %d, %d, %d )\n", context->th_id, k, m, n);
 END

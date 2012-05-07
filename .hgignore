@@ -304,10 +304,11 @@ dplasma/cores/core_chetrf2_nopiv\.c
 dplasma/cores/core_[ds]sytrf2_nopiv\.c
 dplasma/lib/ztrdsm\.c
 dplasma/lib/ztrdsm\.h
+dplasma/lib/[cds]gebmm\.jdf
+dplasma/lib/[zcds]gebmm\.[ch]
 tests/branching/branching
 tests/branching/branching\.c
 tests/branching/branching\.h
 tests/pingpong/rtt
 tests/pingpong/rtt\.c
 tests/pingpong/rtt\.h
->>>>>>> other

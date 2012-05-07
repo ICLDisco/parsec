@@ -21,13 +21,10 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#define max_thrdnbr_per_panel 48
-#define nbthreads( __k ) (dague_imin( ((descA.mt - (__k)) + 3 )/  4, max_thrdnbr_per_panel) - 1)
+#define nbthreads( __k ) (dague_imin( ((descA.mt - (__k)) + 3 )/  4, nbmaxthrd) - 1)
 
 PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
                              int lm, int ln, int i, int j, int m, int n);
-
-
 %}
 
 /** Globals */
@@ -35,6 +32,7 @@ descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
 IPIV      [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
+nbmaxthrd [type = "int" default="( dague_imin( A->cores, 48 ) )" hidden=on] /* 48 is the actual limit of the kernel */
 minMNT    [type = "int" default="( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )" hidden=on]
 
 /************************************************************************************
@@ -54,6 +52,7 @@ minMNT    [type = "int" default="( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt
 
 /************************************************************************************
  *                      Tiles 2 panel (Forward)                                     *
+ *            step k on tile(m, n) is done when tile2panel(k, m, n) is released     *
  ************************************************************************************/
 tile2panel(k, m, n) [profile = off]
   k = 0..minMNT
@@ -68,7 +67,7 @@ tile2panel(k, m, n) [profile = off]
             -> (m < descA.mt-1 )  ? ctl2 tile2panel(k, m+1, n)
             -> ((m == descA.mt-1 ) && (n == k+1)) ? ctl  getrf(k+1, 0..ntrd)
             -> ((m == descA.mt-1 ) && (n >  k+1)) ? ctl  swptrsm(k+1, n)
-            -> (( m == descA.mt-1) && (k > 0 )) ? ctl1 subm2panel(k, n)
+            -> ( m == descA.mt-1 ) ? ctl1 subm2panel(k, n)
 
   ;descA.nt-n-1
 BODY
@@ -95,16 +94,17 @@ END
 
 /************************************************************************************
  *                    Submatrix 2 panel (backward)                                  *
+ *       Step k on panel n is is done when subm2panel(k,n) is released              *
  ************************************************************************************/
 subm2panel(k, n) [profile = off]
-  k = 1..minMNT
+  k = 0..minMNT
   n = k+1..descA.nt-1
 
   :A(k, n)
 
   CTL  ctl1 <- ctl2 tile2panel(k, descA.mt-1, n)
   CTL  ctl2 <- (n > k+1) ? ctl2 subm2panel(k, n-1)
-            -> (n < descA.nt-1) ? ctl2 subm2panel(k, n+1) : ctl swpback(k, k-1)
+            -> (n < descA.nt-1) ? ctl2 subm2panel(k, n+1) : ctl swpback(k+1, k)
 
   ;0
 BODY
@@ -182,7 +182,7 @@ BODY
        * and it's also done in parallel */
       if ( t == 0 ) {
           memset(IPIV, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
-          /* fprintf(stderr, "There are %d threads woking on it\n", nbthrd); */
+          /*fprintf(stderr, "There are %d threads woking on it\n", nbthrd+1);*/
       }
 
       info[1] = t;
@@ -248,11 +248,11 @@ BODY
          if ( descA.storage == matrix_Tile ) {
              int tempk = k * descA.mb;
              int tempm = descA.m - tempk;
-             PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble, 
+             PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
                                                     descA.mb, descA.nb, descA.mb * descA.nb,
                                                     (descA.mt-k)*descA.mb, descA.nb, 0, 0,
                                                     tempm, tempnn);
-             pdescA.mat = (void*)A;
+             pdescA.mat = (void*)B;
 
              CORE_zlaswp_ontile(pdescA, 1, tempkm, IPIV, 1);
          } else {
@@ -334,7 +334,6 @@ BODY
             "\t(%d, %d, %d, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, C(%d,%d)[%p], %d)\n",
             context->th_id, context->virtual_process->vp_id, k, m, n, tempmm, tempnn, descA.mb, k, k, A, ldam, k, k, B, ldak, k, n, C, ldam);
 
-
 END
 
 /************************************************************************************
@@ -352,7 +351,7 @@ swpback(k, n)
   READ  IPIV <- IPIV getrf(k, 0)                                [type = PIVOT]
   RW    A    <- A(k, n)
              -> A(k, n)
-  CTL   ctl  <- ((k < descA.nt-1) && (n == k-1)) ? ctl2 subm2panel(k, descA.nt-1)
+  CTL   ctl  <- (n == k-1) ? ctl2 subm2panel(k-1, descA.nt-1)
              <- (n <  k-1)                                ? ctl swpback(k-1, n)
              -> (( k < descA.nt-1 ) && (k < descA.mt-1 )) ? ctl swpback(k+1, n)
 
@@ -370,7 +369,7 @@ BODY
       if ( descA.storage == matrix_Tile ) {
           int tempk  = k * descA.mb;
           int tempm  = descA.m - tempk;
-          PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble, 
+          PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
                                                  descA.mb, descA.nb, descA.mb * descA.nb,
                                                  (descA.mt-k)*descA.mb, descA.nb, 0, 0,
                                                  tempm, descA.nb);
@@ -385,4 +384,5 @@ BODY
   printlog("thread %d VP %d CORE_zswpback(%d, %d)\n"
            "\t(%d, A(%d,%d)[%p], %d, IPIV(%d)[%p])\n",
            context->th_id, context->virtual_process->vp_id, k, n, descA.nb, k, n, A, ldak, k, IPIV);
+
 END

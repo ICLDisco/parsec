@@ -2083,13 +2083,19 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     for(i = 0, fl = f->dataflow; fl != NULL; fl = fl->next, i++) {
         jdf_generate_dataflow(jdf, f->definitions, fl, prefix, (uint32_t)i);
     }
+    
     sprintf(prefix, "&flow_of_%s_%s_for_", jdf_basename, f->fname);
+    UTIL_DUMP_LIST(sa2, f->dataflow, next, dump_dataflow, "IN", "", prefix, ", ", "");
+    if(0 == strlen(string_arena_get_string(sa2)))
+        string_arena_add_string(sa2, "NULL");
     string_arena_add_string(sa, "  .in = { %s },\n",
-                            UTIL_DUMP_LIST(sa2, f->dataflow, next, dump_dataflow, "IN",
-                                           "", prefix, ", ", ""));
+                            string_arena_get_string(sa2));
+    UTIL_DUMP_LIST(sa2, f->dataflow, next, dump_dataflow, "OUT", "", prefix, ", ", "");
+    if(0 == strlen(string_arena_get_string(sa2)))
+        string_arena_add_string(sa2, "NULL");
     string_arena_add_string(sa, "  .out = { %s },\n",
-                            UTIL_DUMP_LIST(sa2, f->dataflow, next, dump_dataflow, "OUT",
-                                           "", prefix, ", ", ""));
+                            string_arena_get_string(sa2)); 
+                           
 
     sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_iterate_successors(jdf, f, prefix);

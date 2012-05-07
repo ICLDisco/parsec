@@ -306,7 +306,7 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
     } while(-1 != whatsup);
     /* Release all resources */
     remote_dep_mpi_fini(context);
-    pthread_exit((void*)context);
+    return (void*)context;
 }
 
 static int remote_dep_dequeue_new_object(dague_object_t* obj)

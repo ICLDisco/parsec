@@ -45,7 +45,7 @@ int main(int argc, char ** argv)
     if ( P > 1 ) {
         fprintf(stderr, "This function cannot be used with a 2D block cyclic distribution for now\n");
         return 1;
-    }        
+    }
 
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
@@ -152,14 +152,14 @@ static int check_solution( dague_context_t *dague, int loud,
     int m = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescA);
-    Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
-    Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescX);
+    Anorm = dplasma_zlange(dague, PlasmaInfNorm, ddescA);
+    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
+    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
 
     /* Compute b - A*x */
     dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescX, 1.0, ddescB);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 
