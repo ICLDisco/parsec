@@ -183,17 +183,23 @@ void dplasma_zhetrf_Destruct( dague_object_t *o );
 
 int dplasma_zgetrf_hincpiv( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
 int dplasma_zgetrf_hpp( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
+int dplasma_zgetrf_qrf( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
 void dplasma_ztrsmpl_hincpiv( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
 int dplasma_ztrsmpl_hpp( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
+int dplasma_ztrsmpl_qrf( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
 
 dague_object_t* dplasma_zgetrf_hincpiv_New(qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
 dague_object_t* dplasma_zgetrf_hpp_New(qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
+dague_object_t* dplasma_zgetrf_qrf_New(qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
 dague_object_t* dplasma_ztrsmpl_hincpiv_New( qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
 dague_object_t* dplasma_ztrsmpl_hpp_New(qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
+dague_object_t* dplasma_ztrsmpl_qrf_New(qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
 
 void dplasma_zgetrf_hincpiv_Destruct( dague_object_t *o );
 void dplasma_zgetrf_hpp_Destruct( dague_object_t *o );
+void dplasma_zgetrf_qrf_Destruct( dague_object_t *o );
 void dplasma_ztrsmpl_hincpiv_Destruct( dague_object_t *o );
 void dplasma_ztrsmpl_hpp_Destruct( dague_object_t *o );
+void dplasma_ztrsmpl_qrf_Destruct( dague_object_t *o );
 
 #endif /* _DPLASMA_Z_H_ */
