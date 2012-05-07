@@ -96,9 +96,9 @@ BODY
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_br;
 
-  printlog("thread %d HEBUT_Diag(%d)\n"
+  printlog("thread %d VP %d HEBUT_Diag(%d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-           context->th_id, i, i, i, Atl);
+           context->th_id, context->virtual_process->vp_id, i, i, i, Atl);
 
   type = segment_to_type_index(descA.seg_info, i, i);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
@@ -194,9 +194,9 @@ BODY
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
 
-  printlog("thread %d HEBUT_Lower(%d, %d)\n"
+  printlog("thread %d VP %d HEBUT_Lower(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, i, j, i, j, Atl);
+  context->th_id, context->virtual_process->vp_id, i, j, i, j, Atl);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("=> HEBUT_Lower(%d,%d)\n", i, j);
@@ -296,9 +296,9 @@ BODY
   uintptr_t off_in_tile;
 #endif
 
-  printlog("thread %d HEBUT_Reader_TL(%d, %d)\n"
+  printlog("thread %d VP %d HEBUT_Reader_TL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, i, j, i, j, A);
+  context->th_id, context->virtual_process->vp_id, i, j, i, j, A);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_TL(%d,%d)\n",i,j);
@@ -349,9 +349,9 @@ BODY
   uintptr_t off_in_tile;
 #endif
 
-  printlog("thread %d HEBUT_Reader_BL(%d, %d)\n"
+  printlog("thread %d VP %d HEBUT_Reader_BL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, i, j, i+mt/2, j, A);
+  context->th_id, context->virtual_process->vp_id, i, j, i+mt/2, j, A);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_BL(%d,%d)\n",i,j);
@@ -400,9 +400,9 @@ BODY
   uintptr_t off_in_tile;
 #endif
 
-  printlog("thread %d HEBUT_Reader_BR(%d, %d)\n"
+  printlog("thread %d VP %d HEBUT_Reader_BR(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, i, j, i+mt/2, j+nt/2, A);
+  context->th_id, context->virtual_process->vp_id, i, j, i+mt/2, j+nt/2, A);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_BR(%d,%d)\n",i,j);
@@ -451,9 +451,9 @@ BODY
   uintptr_t off_in_tile;
 #endif
 
-  printlog("thread %d HEBUT_Writer_TL(%d, %d)\n"
+  printlog("thread %d VP %d HEBUT_Writer_TL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-           context->th_id, i, j, i, j, A);
+           context->th_id, context->virtual_process->vp_id, i, j, i, j, A);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_TL(%d,%d)\n",i,j);
@@ -504,9 +504,9 @@ BODY
   uintptr_t off_in_tile;
 #endif
 
-  printlog("thread %d HEBUT_Writer_BL(%d, %d)\n"
+  printlog("thread %d VP %d HEBUT_Writer_BL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, i, j, i+mt/2, j, A);
+  context->th_id, context->virtual_process->vp_id, i, j, i+mt/2, j, A);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_BL(%d,%d)\n",i,j);
@@ -555,9 +555,9 @@ BODY
   uintptr_t off_in_tile;
 #endif
 
-  printlog("thread %d HEBUT_Writer_BR(%d, %d)\n"
+  printlog("thread %d VP %d HEBUT_Writer_BR(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, i, j, i+mt/2, j+nt/2, A);
+  context->th_id, context->virtual_process->vp_id, i, j, i+mt/2, j+nt/2, A);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_BR(%d,%d)\n",i,j);
