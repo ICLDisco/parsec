@@ -56,7 +56,7 @@ READ_W(m, n) [profile = off]
     m = 0 .. P-1
     n = 0 .. inline_c %{ return dague_imax( descA.nt-1, Q-1 ); %}
     row = inline_c %{
-        return ((descA.mt - P + m) / P) * P + m;
+    	return descA.mt-((descA.mt-m-1)%P)-1;
         %}
 
     // Parallel partitioning
