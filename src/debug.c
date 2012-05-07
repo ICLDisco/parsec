@@ -121,7 +121,7 @@ void dague_debug_history_add(const char *format, ...)
     set_my_mark( debug_str );
 }
 
-void debug_mark_exe(int core, const struct dague_execution_context_t *ctx)
+void debug_mark_exe(int th, int vp, const struct dague_execution_context_t *ctx)
 {
     int j;
     char msg[512];
@@ -135,9 +135,9 @@ void debug_mark_exe(int core, const struct dague_execution_context_t *ctx)
                         (j == ctx->function->nb_parameters-1) ? ")\n" : ", ");
     }
 
-    dague_debug_history_add("Mark: execution on core %d\n"
+    dague_debug_history_add("Mark: execution on thread %d of VP %d\n"
                             "\t      %s",
-                            core, msg);
+                            th, vp, msg);
 }
 
 void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote_dep_wire_activate_t *m)

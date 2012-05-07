@@ -141,10 +141,9 @@ BODY
   if ( descA.mt-1 == k )
     ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
-  printlog("\nthread %d  zgeqrt( k=%d, i=%d, m=%d, nextm=%d)\n"
-           "\t( tempmm=%d, tempkn=%d, ib, A(%d,%d)[%p], ldam=%d, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-           context->eu_id, k, i, m, nextm,
-           tempmm, tempkn, m, k, A, ldam, m, k, T);
+  printlog("thread %d VP %d CORE_zgeqrt(%d, %d)\n"
+           "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+           context->th_id, context->virtual_process->vp_id, k, m, m, k, A, m, k, T);
 
 END
 
@@ -196,10 +195,10 @@ BODY
          dague_private_memory_push( p_work, p_elem_A );
          );
 
-  printlog("thread %d CORE_zunmqr(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_zunmqr(%d, %d, %d)\n"
            "\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, \n"
            "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldam, p_elem_A, descT.nb)\n",
-           context->eu_id, k, m, n, m, k, A, m, k, T, m, n, C);
+           context->th_id, context->virtual_process->vp_id, k, m, n, m, k, A, m, k, T, m, n, C);
 
 END
 
@@ -299,9 +298,9 @@ BODY
   if ( ( ( nextp == descA.mt ) & (p == k) ) )
     ((PLASMA_Complex64_t*)A1)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
-  printlog("thread %d CORE_zttqrt(%d, %d)\n"
+  printlog("thread %d VP %d CORE_zttqrt(%d, %d)\n"
            "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-           context->eu_id, k, m, p, k, A1, m, k, A2, m, k, T);
+           context->th_id, context->virtual_process->vp_id, k, m, p, k, A1, m, k, A2, m, k, T);
 
 END
 
@@ -404,9 +403,9 @@ BODY
 
          );
 
-  printlog("thread %d CORE_zttmqr(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_zttmqr(%d, %d, %d)\n"
            "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
            "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-           context->eu_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
+           context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
 END

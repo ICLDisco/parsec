@@ -21,6 +21,10 @@
 #include "gpu_malloc.h"
 #include "data_distribution.h"
 
+#define DPLASMA_SCHEDULING       1
+#define DPLASMA_ONLY_GPU         0
+#define DAGUE_GPU_USE_PRIORITIES 1
+
 #define DAGUE_MAX_STREAMS            4
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
 

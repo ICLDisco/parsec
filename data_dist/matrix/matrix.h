@@ -9,9 +9,11 @@
 #define _MATRIX_H_
 
 #include <stdarg.h>
+#include <assert.h>
 #include "dague_config.h"
 #include "precision.h"
 #include "data_distribution.h"
+#include "vpmap.h"
 
 enum matrix_type {
     matrix_Byte          = 0, /**< unsigned char  */
@@ -65,7 +67,14 @@ typedef struct tiled_matrix_desc_t {
 void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage,
                              int mb, int nb, int lm, int ln, int i,  int j, int m,  int n);
 int  tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename);
-int  tiled_matrix_data_read( tiled_matrix_desc_t *tdesc, char *filename);
+int  tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename);
+
+static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
+{
+    assert( vpmap_get_nb_vp() > 0 );
+    assert( pos <= tdesc->nb_local_tiles );
+    return pos % vpmap_get_nb_vp();
+}
 
 #ifdef HAVE_MPI
 void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);

@@ -59,6 +59,7 @@ int main(int argc, char ** argv)
         two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
                                nodes, cores, rank, MB, 1, M, NT, 0, 0,
                                M, NT, SMB, SNB, P));
+
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
@@ -85,22 +86,22 @@ int main(int argc, char ** argv)
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescLT);
     qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t *)&ddescA,
-                                 iparam[IPARAM_LOWLVL_TREE], 
+                                 iparam[IPARAM_LOWLVL_TREE],
                                  iparam[IPARAM_HIGHLVL_TREE],
                                  iparam[IPARAM_QR_TS_SZE],
                                  iparam[IPARAM_QR_HLVL_SZE],
-                                 iparam[IPARAM_QR_DOMINO],
-                                 iparam[IPARAM_QR_TSRR] );
-	if ( check ) {
+                                 0 /*iparam[IPARAM_QR_DOMINO]*/,
+                                 0 /*iparam[IPARAM_QR_TSRR]*/ );
+    if ( check ) {
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA,
                         (tiled_matrix_desc_t *)&ddescA0 );
-		dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 9867 );
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 9867 );
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB,
                         (tiled_matrix_desc_t *)&ddescX );
-		dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescI);
-		dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescInvA);
+        dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescI);
+        dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescInvA);
     }
     if(loud > 2) printf("Done\n");
 
@@ -170,24 +171,24 @@ int main(int argc, char ** argv)
     dague_data_free(ddescA.mat);
     dague_data_free(ddescLT.mat);
     dague_data_free(ddescIPIV.mat);
-    
+
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescLT);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
-    
+
     if ( check ) {
         dague_data_free(ddescA0.mat);
         dague_data_free(ddescInvA.mat);
         dague_data_free(ddescI.mat);
         dague_data_free(ddescB.mat);
         dague_data_free(ddescX.mat);
-    
+
         dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescInvA);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescX);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescI);
-    } 
+    }
     return info_sol;
 }
 
@@ -205,26 +206,25 @@ static int check_solution( dague_context_t *dague, int loud,
     int m = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescA);
-    Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
-    Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescX);
+    Anorm = dplasma_zlange(dague, PlasmaInfNorm, ddescA);
+    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
+    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
 
     /* Compute b - A*x */
     dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescX, 1.0, ddescB);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 
-    //if ( loud > 2 ) {
-        //printf("============\n");
-        //printf("Checking the Residual of the solution \n");
-        /*if ( loud > 3 )
+    if ( loud > 2 ) {
+        printf("============\n");
+        printf("Checking the Residual of the solution \n");
+        if ( loud > 3 )
             printf( "-- ||A||_oo = %e, ||X||_oo = %e, ||B||_oo= %e, ||A X - B||_oo = %e\n",
-                    Anorm, Xnorm, Bnorm, Rnorm );*/
-
+                    Anorm, Xnorm, Bnorm, Rnorm );
         printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n", result);
-    //}
+    }
 
     if (  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 60.0) ) {
         if( loud ) printf("-- Solution is suspicious ! \n");
@@ -250,25 +250,24 @@ static int check_inverse( dague_context_t *dague, int loud,
     int m = ddescA->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm    = dplasma_zlange(dague, PlasmaMaxNorm, ddescA   );
-    InvAnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescInvA);
+    Anorm    = dplasma_zlange(dague, PlasmaInfNorm, ddescA   );
+    InvAnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescInvA);
 
     /* Compute I - A*A^{-1} */
     dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescInvA, 1.0, ddescI);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescI);
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescI);
 
     result = Rnorm / ( ( Anorm * InvAnorm ) * m * eps ) ;
 
-    //if ( loud > 2 ) {
-        //printf("============\n");
-        //printf("Checking the Residual of the solution \n");
-        /*if ( loud > 3 )
+    if ( loud > 2 ) {
+        printf("============\n");
+        printf("Checking the Residual of the solution \n");
+        if ( loud > 3 )
             printf( "-- ||A||_oo = %e, ||A^{-1}||_oo = %e, ||A A^{-1} - I||_oo = %e\n",
-                    Anorm, InvAnorm, Rnorm );*/
-
+                    Anorm, InvAnorm, Rnorm );
         printf("-- ||AA^{-1}-I||_oo/((||A||_oo||A^{-1}||_oo).N.eps) = %e \n", result);
-   // }
+    }
 
     if (  isnan(Rnorm) || isinf(Rnorm) || isnan(result) || isinf(result) || (result > 60.0) ) {
         if( loud ) printf("-- Solution is suspicious ! \n");
@@ -281,4 +280,4 @@ static int check_inverse( dague_context_t *dague, int loud,
 
     return info_solution;
 }
-	
+
