@@ -133,7 +133,7 @@ BODY
        int j;
        if(h != 0)		/* Applying the previous swap */
        {
-	 Dague_Complex64_t alpha = ((Dague_Complex64_t) 1) / (((Dague_Complex64_t *) V)[MAXI]);
+	 Dague_Complex64_t alpha = ((Dague_Complex64_t) 1.) / (((Dague_Complex64_t *) V)[MAXI]);
 	 int p = (m == k)? h : 0;
 	 cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), (void *)(((uintptr_t)T)+(((h-1)*ldam+p)*sizeof(Dague_Complex64_t))), 1 );
 	 Dague_Complex64_t mzone = -1.;
@@ -150,7 +150,7 @@ BODY
 	    ((Dague_Complex64_t *) V)[LDV*i+INIT] = ((Dague_Complex64_t *) V)[LDV*i+SRCH]  = ((Dague_Complex64_t *) T)[ldam*(i+h)+h];
        }
        for(i = h; i < tempmm; i++) /* Looking for the local max */
-	 if(fabs(((Dague_Complex64_t *) T)[ldam*h+i]) > fabs(((Dague_Complex64_t *) V)[SRCH]))
+	 if(cabs(((Dague_Complex64_t *) T)[ldam*h+i]) > cabs(((Dague_Complex64_t *) V)[SRCH]))
 	   cblas_zcopy(tempkn-h,
 		       (void *)(((uintptr_t)T)+(((ldam*h)+i)*sizeof(Dague_Complex64_t))), ldam,
 		       (void *)(((uintptr_t)V)+(SRCH*sizeof(Dague_Complex64_t))), LDV);
@@ -223,7 +223,7 @@ BODY
 /*          for(j = 0; j < tempkn-h; j++) */
 /*            ((Dague_Complex64_t *) W)[LDV*j+INIT] = ((Dague_Complex64_t *) V)[LDV*j+INIT]; */
 
-       if(((Dague_Complex64_t *) V)[SRCH] > ((Dague_Complex64_t *) W)[SRCH])
+       if( cabs(((Dague_Complex64_t *) V)[SRCH]) > cabs(((Dague_Complex64_t *) W)[SRCH]) )
 	 cblas_zcopy(tempkn-h,
 		     (void *)(((uintptr_t)V)+(SRCH*sizeof(Dague_Complex64_t))), LDV,
 		     (void *)(((uintptr_t)W)+(SRCH*sizeof(Dague_Complex64_t))), LDV);
