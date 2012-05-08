@@ -16,9 +16,9 @@ RW D  <- (k == 0) ? A(k)
       <- inline_c %{ return (k > 0) && (idecision(k-1) == 1); %} ? D TA(k-1)
       <- inline_c %{ return (k > 0) && (idecision(k-1) == 2); %} ? D TB(k-1)
       -> D Selector(0..P-1, k)
-RW C  <- (k <= NT) ? C creader(k) : decision(k)   [type=DECISION]
-      -> (k <= NT) ? C Selector(0..P-1, k)        [type=DECISION]
-CTL T -> (k == NT+1) ? T Terminate(0..P-1)        [type=DECISION]
+RW C  <- decision(k)                               [type=DECISION]
+      -> (k <= NT) ? C Selector(0..P-1, k)         [type=DECISION]
+CTL T -> (k == NT+1) ? T1 Terminate(0..P-1)
 
 BODY
 	int d;
@@ -33,23 +33,12 @@ Terminate(pos)
 pos = 0..P-1
 :A(pos)
 
-CTL T <- T Choice(NT+1)
+CTL T1 <- T Choice(NT+1)
+CTL T2 <- T2 SelectorDone(pos, NT)
 
 BODY
      printf("Execute Terminate(%d): Terminating the DAG\n", pos);
      dague_object_terminate( this_task->dague_object );
-END
-	     
-creader(k)
-k = 0..NT
-:A (k)
-
-RW C  <- decision(k)                 [type=DECISION]
-      -> C Choice(k)                 [type=DECISION]
-CTL T <- (k > 0) ? T2 SelectorDone(P-1, k-1)
-
-BODY
-    printf("Reading the next decision address and passing it to Choice(%d)\n", k);
 END
 
 SelectorDone(pos, k)
@@ -61,15 +50,17 @@ k = 0..NT
 
 CTL T1 <- T Selector(pos, k)
 CTL T2 <- (pos>0) ? T2 SelectorDone(pos-1, k)
+       <- ((pos==0) && (k>0)) ? T2 SelectorDone(P-1, k-1)
        -> (pos<P-1) ? T2 SelectorDone(pos+1, k)
        -> inline_c %{ return (pos == P-1) && idecision(k) == 1; %} ? T TA(k)
        -> inline_c %{ return (pos == P-1) && idecision(k) == 2; %} ? T TB(k)
-       -> (pos == P-1) ? T creader(k+1)
+       -> ((k<NT) && (pos==P-1)) ? T2 SelectorDone(0, k+1)
+       -> (k==NT) ? T2 Terminate(pos)
 
 BODY
-       printf("Selector Broadcast at step %d is done on rank %d\n", k, pos);
+       printf("Selector Broadcast at step %d is done on rank %d; idecision(%d) = %d\n", k, pos, k, idecision(k));
        if( pos == P-1 ) {
-             printf(" Enabling creader and the rest at %d\n", k+1);
+             printf(" Enabling next phase at %d\n", k+1);
        }
 END
 
@@ -116,5 +107,5 @@ RW  D <- inline_c %{ return idecision(k) == 2; %} ? D Selector(k%P, k)
 CTL T <- inline_c %{ return idecision(k) == 2; %} ? T2 SelectorDone(P-1, k)
 
 BODY
-	printf("Execute TB(%d)\n", k);
+	printf("Execute TB(%d); idecision(%d) = %d\n", k, k, idecision(k));
 END
