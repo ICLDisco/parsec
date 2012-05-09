@@ -23,6 +23,7 @@ set(TESTS
   testing_zgeqrf_param.c
   testing_zgetrf_hincpiv.c
   testing_zgetrf_hpp.c
+  testing_zgetrf_hpp_multithrd.c
   testing_zgelqf.c
   testing_zherbt.c
   testing_zhbrdt.c
