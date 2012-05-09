@@ -100,10 +100,7 @@ zgetrf_hincpiv(k, i)
 
   : A(m, k)
 
-  /* A == A(m, k) */
-  /* P == IPIV(m, k) */
-
-  RW    A <- ( 0 == k ) ? A(m, k)
+  RW    A <- ( k == 0 ) ? A(m, k)
           <- ( k > 0  ) ? C zttmqr(k-1, m, k )
           -> A zgetrf_hincpiv_out(k, i)
           -> ( k == descA.mt-1 ) ? A(m, k)                                     [type = UPPER_TILE]
@@ -111,7 +108,7 @@ zgetrf_hincpiv(k, i)
           -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ?  C zttqrt(k, m)      [type = UPPER_TILE]
   RW    P <- IPIV(m, k)                                                        [type = PIVOT]
           -> IPIV(m, k)                                                        [type = PIVOT]
-          -> (descA.nt-1 > k) ? P zgessm(k, i, (k+1)..(descA.nt-1))            [type = PIVOT]
+          -> (k < descA.nt-1) ? P zgessm(k, i, (k+1)..(descA.nt-1))            [type = PIVOT]
 
   ; inline_c %{ return GETPRIO_PANEL(m, k); %}
 
@@ -162,11 +159,8 @@ zgessm(k, i, n)
 
   SIMCOST 6
 
+  /* Locality */
   : A(m, n)
-
-  /* A == A(m,k)    */
-  /* P == IPIV(m,k) */
-  /* C == A(m,n)    */
 
   READ  A <- A zgetrf_hincpiv_out(k, i)                                          [type = LOWER_TILE]
   READ  P <- P zgetrf_hincpiv(k, i)                                              [type = PIVOT]
