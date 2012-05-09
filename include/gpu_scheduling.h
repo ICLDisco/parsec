@@ -136,17 +136,21 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
     if( rc < 0 ) {
         if( -1 == rc )
             goto disable_gpu;
-    } else {
-        if( NULL != next_task ) {
-            this_task = next_task;
+    }
+    if( NULL != next_task ) {
+        /* We have a succesfully completed task. However, it is not this_task, as
+         * it was just submitted into the data retrieval system. Instead, the task
+         * ready to move into the next level is the next_task.
+         */
+        this_task = next_task;
+        next_task = NULL;
 #if defined(DAGUE_PROF_TRACE)
-            if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
-                dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end,
-                                       (unsigned long)this_task, this_task->dague_object->object_id,
-                                       NULL );
+        if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
+            dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end,
+                                   (unsigned long)this_task, this_task->dague_object->object_id,
+                                   NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
-            goto complete_task;
-        }
+        goto complete_task;
     }
     this_task = next_task;
 
