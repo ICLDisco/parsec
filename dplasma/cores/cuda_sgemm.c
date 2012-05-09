@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <plasma.h>
-#include <cublas.h>
 #include "dague.h"
 #include "gpu_data.h"
 #include "execution_unit.h"
@@ -21,15 +20,14 @@
 
 #define KERNEL_NAME sgemm
 
-
-int gpu_kernel_init_sgemm( dague_context_t* dague_context, 
+int gpu_kernel_init_sgemm( dague_context_t* dague_context,
                            tiled_matrix_desc_t *tileA );
 
 static inline
 int gpu_kernel_push_sgemm( gpu_device_t* gpu_device,
                            dague_execution_context_t* this_task,
                            CUstream stream );
-    
+
 static inline
 int gpu_kernel_submit_sgemm( gpu_device_t* gpu_device,
                            dague_execution_context_t* this_task,
@@ -44,7 +42,7 @@ static inline
 int  gpu_kernel_epilog_sgemm( gpu_device_t* gpu_device,
                               dague_execution_context_t* this_task );
 
-static inline 
+static inline
 void gpu_kernel_profile_sgemm( gpu_device_t              *gpu_device,
                                dague_execution_context_t *this_task,
                                dague_ddesc_t             *ddesca );
@@ -75,7 +73,7 @@ void gpu_kernel_profile_sgemm( gpu_device_t              *gpu_device,
             ddesca->data_key(ddesca, this_task->locals[1].value, this_task->locals[2].value);
         uint64_t task_id =
             this_task->function->key( this_task->dague_object, this_task->locals );
-        
+
         dague_profile_ddesc_info_t info;
         info.desc = ddesca;
         info.id = data_id;
@@ -88,7 +86,7 @@ void gpu_kernel_profile_sgemm( gpu_device_t              *gpu_device,
 }
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
-int gpu_kernel_init_sgemm( dague_context_t* dague_context, 
+int gpu_kernel_init_sgemm( dague_context_t* dague_context,
                            tiled_matrix_desc_t *tileA )
 {
     char *env;
@@ -227,26 +225,29 @@ gpu_kernel_push_sgemm( gpu_device_t* gpu_device,
                        dague_execution_context_t* this_task,
                        CUstream stream )
 {
+    int tile_size, ret, k, n, m, move_data_count = 0;
     int sizeloc[MAX_PARAM_COUNT];
-    int tile_size, ret;
-    int k, n, m, move_data_count = 0;
-    int eltsize = 0;
-    gpu_elem_t* gpu_elem;
-    (void)eltsize;
 
     k = this_task->locals[0].value;
     m = this_task->locals[1].value;
     n = this_task->locals[2].value;
 
-    gpu_elem = dague_gpu_get_data_on_gpu(gpu_device, &dague_gpu_map, GEMM_KEY(n, k),
-                                         &(this_task->data[0].mem2dev_data) );
-    if( NULL == gpu_elem ) move_data_count++;
-    gpu_elem = dague_gpu_get_data_on_gpu(gpu_device, &dague_gpu_map, GEMM_KEY(m, k),
-                                         &(this_task->data[1].mem2dev_data));
-    if( NULL == gpu_elem ) move_data_count++;
-    gpu_elem = dague_gpu_get_data_on_gpu(gpu_device, &dague_gpu_map, GEMM_KEY(m, n),
-                                         &(this_task->data[2].mem2dev_data));
-    if( NULL == gpu_elem ) move_data_count++;
+    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(n, k),
+                           &(this_task->data[0].mem2dev_data));
+    if( NULL == (this_task->data[0].mem2dev_data)->device_elem[gpu_device->index])
+        move_data_count++;
+
+    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(m, k),
+                           &(this_task->data[1].mem2dev_data));
+    if( NULL == (this_task->data[1].mem2dev_data)->device_elem[gpu_device->index])
+        move_data_count++;
+
+    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(m, n),
+                           &(this_task->data[2].mem2dev_data));
+    if( NULL == (this_task->data[2].mem2dev_data)->device_elem[gpu_device->index])
+        move_data_count++;
+
+    this_task->data[3].mem2dev_data =  NULL;  /* last element */
 
     if( 0 != move_data_count ) { /* Try to reserve enough room for all data */
         tile_size = UGLY_A->mb*UGLY_A->nb*sizeof(float);
@@ -263,6 +264,10 @@ gpu_kernel_push_sgemm( gpu_device_t* gpu_device,
         }
     }
 
+    assert( NULL != this_task->data[0].mem2dev_data->device_elem[gpu_device->index] );
+    assert( NULL != this_task->data[1].mem2dev_data->device_elem[gpu_device->index] );
+    assert( NULL != this_task->data[2].mem2dev_data->device_elem[gpu_device->index] );
+
 #if defined(DAGUE_PROF_TRACE)
     if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN )
         dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_start,
@@ -272,33 +277,27 @@ gpu_kernel_push_sgemm( gpu_device_t* gpu_device,
 
     DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[0]->name, n, k));
     tile_size = ddescA(this_task)->mb * ddescA(this_task)->nb * dague_datadist_getsizeoftype(ddescA(this_task)->mtype);
-    ret = dague_gpu_data_stage_in( gpu_device, GEMM_KEY(n, k), this_task->function->in[0]->access_type,
-                                   this_task->data[0].mem2dev_data,
-                                   ADATA(this_task->data[0].data), tile_size, stream );
+    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[0]->access_type,
+                                   &(this_task->data[0]), tile_size, stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
     DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[1]->name, m, k));
     tile_size = ddescB(this_task)->mb * ddescB(this_task)->nb * dague_datadist_getsizeoftype(ddescB(this_task)->mtype);
-    ret = dague_gpu_data_stage_in( gpu_device, GEMM_KEY(m, k), this_task->function->in[1]->access_type,
-                                   this_task->data[1].mem2dev_data,
-                                   ADATA(this_task->data[1].data), tile_size, stream );
+    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[1]->access_type,
+                                   &(this_task->data[1]), tile_size, stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
-    
+
     DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[2]->name, m, n));
     tile_size = ddescC(this_task)->mb * ddescC(this_task)->nb * dague_datadist_getsizeoftype(ddescC(this_task)->mtype);
-    ret = dague_gpu_data_stage_in( gpu_device, GEMM_KEY(m, n), this_task->function->in[2]->access_type,
-                                   this_task->data[2].mem2dev_data,
-                                   ADATA(this_task->data[2].data), tile_size, stream );
+    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[2]->access_type,
+                                   &(this_task->data[2]), tile_size, stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
-    assert( NULL != this_task->data[0].mem2dev_data->device_elem[gpu_device->index] );
-    assert( NULL != this_task->data[1].mem2dev_data->device_elem[gpu_device->index] );
-    assert( NULL != this_task->data[2].mem2dev_data->device_elem[gpu_device->index] );
   release_and_return_error:
     return ret;
 }
@@ -376,15 +375,15 @@ gpu_kernel_pop_sgemm( gpu_device_t* gpu_device,
     int return_code = 0, tile_size, how_many = 0, i;
     cudaError_t status;
 
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; NULL != this_task->function->in[i]; i++ ) {
         gpu_elem = (gpu_elem_t*)this_task->data[i].mem2dev_data->device_elem[gpu_device->index];
         assert( gpu_elem->generic.memory_elem == this_task->data[i].mem2dev_data );
         if( this_task->function->in[i]->access_type & ACCESS_READ ) {
-            gpu_elem->generic.readers--;
+            gpu_elem->generic.readers--; assert(gpu_elem->generic.readers >= 0);
             if( (0 == gpu_elem->generic.readers) &&
                 !(this_task->function->in[i]->access_type & ACCESS_WRITE) ) {
-                dague_ulist_remove( gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_elem);
-                DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
+                dague_ulist_remove( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
+                DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
                 dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
             }
         }
@@ -422,14 +421,17 @@ gpu_kernel_pop_sgemm( gpu_device_t* gpu_device,
     return (return_code < 0 ? return_code : how_many);
 }
 
+/**
+ * Make sure all data on the device is correctly put back into the queues.
+ */
 static inline int
 gpu_kernel_epilog_sgemm( gpu_device_t* gpu_device,
                          dague_execution_context_t* this_task )
 {
     gpu_elem_t* gpu_elem;
     int i;
-    
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+
+    for( i = 0; NULL != this_task->data[i].mem2dev_data; i++ ) {
         if( !(this_task->function->in[i]->access_type & ACCESS_WRITE) ) continue;
 
         gpu_elem = (gpu_elem_t*)this_task->data[i].mem2dev_data->device_elem[gpu_device->index];
@@ -438,6 +440,12 @@ gpu_kernel_epilog_sgemm( gpu_device_t* gpu_device,
         gpu_elem->generic.memory_elem->version = gpu_elem->generic.version;
         this_task->data[2].mem2dev_data->device_owner = -1;
 
+#if defined(DAGUE_PROF_TRACE)
+        if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN )
+            dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end,
+                                   (unsigned long)this_task, this_task->dague_object->object_id,
+                                   NULL );
+#endif  /* defined(DAGUE_PROF_TRACE) */
         if( this_task->locals[2].value == (this_task->locals[0].value+1) ) {  /* n == (k  + 1) */
             dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
         } else {
