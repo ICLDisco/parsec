@@ -799,7 +799,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         cudaError_t status;
 
         DEBUG3(("GPU:\tMove data %x (%p:%p) to GPU %d\n",
-                mem_elem->key, memptr, (void*)gpu_elem->gpu_me, gpu_device->device_index));
+                mem_elem->key, memptr, (void*)gpu_elem->gpu_mem, gpu_device->device_index));
         /* Push data into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( gpu_elem->gpu_mem, memptr, length, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device ", status,
