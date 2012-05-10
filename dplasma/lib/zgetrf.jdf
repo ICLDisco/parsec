@@ -71,7 +71,7 @@ tile2panel(k, m, n) [profile = off]
 
   ;descA.nt-n-1
 BODY
-    printlog("thread %d VP %d tile2panel( %d, %d, %d )\n",  context->th_id, context->virtual_process->vp_id, k, m, n);
+    printlog("thread %d VP %d tile2panel( %d, %d, %d )\n", context->th_id, context->virtual_process->vp_id, k, m, n);
 END
 
 /************************************************************************************

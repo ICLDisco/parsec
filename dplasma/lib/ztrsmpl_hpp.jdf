@@ -143,9 +143,9 @@ BODY
          //int tempm = descA.m - tempk;
          //int tempknB = k == descB.nt-1 ? descB.n-k*descB.nb : descB.nb;
 
-         printlog("BEGIN thread %d   CORE_zswptrsm(k = %d, i = %d, n = %d)\t m = %d\n"
+         printlog("BEGIN thread %d VP %d   CORE_zswptrsm(k = %d, i = %d, n = %d)\t m = %d\n"
             "\t(tempmB = %d, tempnnB = %d, s*descB.mb = %d, descB.nb = %d, tempmmB = %d, tempnnB = %d, A(%d,%d)[%p], B(%d,%d)[%p])\n",
-            context->eu_id, k, i, n, m, tempmB, tempnnB, s*descB.mb, descB.nb, tempmmB, tempnnB, m, k, A, m, n, C);
+            context->th_id, context->virtual_process->vp_id, k, i, n, m, tempmB, tempnnB, s*descB.mb, descB.nb, tempmmB, tempnnB, m, k, A, m, n, C);
 
          PLASMA_desc pdescB = plasma_desc_init( PlasmaComplexDouble,
                                              descB.mb, descB.nb, descB.mb * descB.nb,
@@ -162,9 +162,9 @@ BODY
                  C /*B(m, n)*/, ldbm);
          );
 
-         printlog("EN thread %d   CORE_zswptrsm(k = %d, i = %d, n = %d)\t m = %d\n"
+         printlog("EN thread %d VP %d   CORE_zswptrsm(k = %d, i = %d, n = %d)\t m = %d\n"
             "\t(tempmB = %d, tempnnB = %d, s*descB.mb = %d, descB.nb = %d, tempmmB = %d, tempnnB = %d, A(%d,%d)[%p], B(%d,%d)[%p])\n",
-            context->eu_id, k, i, n, m, tempmB, tempnnB,s*descB.mb, descB.nb, tempmmB, tempnnB, m, k, A, m, n, C);
+            context->th_id, context->virtual_process->vp_id, k, i, n, m, tempmB, tempnnB,s*descB.mb, descB.nb, tempmmB, tempnnB, m, k, A, m, n, C);
 
 END
 
@@ -272,10 +272,10 @@ BODY
          int ldbp = BLKLDD( descB, p );
          int ldwork = ib;
 
-          printlog("BEGIN thread %d CORE_zttmqr(%d, %d, %d)\n"
+          printlog("BEGIN thread %d VP %d CORE_zttmqr(%d, %d, %d)\n"
            "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
            "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n",
-           context->eu_id, k, m, n, p, n, V, m, n, C, m, k, H, m, k, T);
+           context->th_id, context->virtual_process->vp_id, k, m, n, p, n, V, m, n, C, m, k, H, m, k, T);
 
          if ( type == DPLASMA_QR_KILLED_BY_TS ) {
            CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
@@ -297,10 +297,10 @@ BODY
 
          );
 
-  printlog("EN thread %d CORE_zttmqr(%d, %d, %d)\n"
+  printlog("EN thread %d VP %d CORE_zttmqr(%d, %d, %d)\n"
            "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
            "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n",
-           context->eu_id, k, m, n, p, n, V, m, n, C, m, k, H, m, k, T);
+           context->th_id, context->virtual_process->vp_id, k, m, n, p, n, V, m, n, C, m, k, H, m, k, T);
 
 END
 
@@ -324,7 +324,7 @@ tile2panel(k, m, n) /*[profile = off]*/
 
   ;descA.nt-n-1
 BODY
-    printlog("thread %d tile2panel( %d, %d, %d ) type = %d\n", context->eu_id, k, m, n, type);
+    printlog("thread %d VP %d tile2panel( %d, %d, %d ) type = %d\n", context->th_id, context->virtual_process->vp_id, k, m, n, type);
 END
 
 
@@ -350,7 +350,7 @@ low2high(k,m,n) /*[profile = off]*/
 
   ;descA.nt-n-1
 BODY
-    printlog("\nthread %d low2high( k = %d, m = %d, n = %d ) type = %d\n", context->eu_id, k, m, n, type);
+    printlog("\nthread %d VP %d low2high( k = %d, m = %d, n = %d ) type = %d\n", context->th_id, context->virtual_process->vp_id, k, m, n, type);
 END
 
 low2high_release(k,i,n,j)
@@ -370,5 +370,5 @@ low2high_release(k,i,n,j)
 
   ;descA.nt-n-1
 BODY
-    printlog("\nthread %d low2high_release( k = %d, i = %d, n = %d, j = %d ) \n", context->eu_id, k, i, n, j);
+    printlog("\nthread %d VP %d low2high_release( k = %d, i = %d, n = %d, j = %d ) \n", context->th_id, context->virtual_process->vp_id, k, i, n, j);
 END
