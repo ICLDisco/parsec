@@ -13,15 +13,15 @@
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
 
-#include "zgetrf_hpp.h"
+#include "zgetrf_hpp_multithrd.h"
 
-dague_object_t* dplasma_zgetrf_hpp_New( qr_piv_t *qrpiv,
+dague_object_t* dplasma_zgetrf_hpp_multithrd_New( qr_piv_t *qrpiv,
                                             tiled_matrix_desc_t *A,
                                             tiled_matrix_desc_t *IPIV,
                                             tiled_matrix_desc_t *LT,
                                             int* INFO )
 {
-    dague_zgetrf_hpp_object_t* object;
+    dague_zgetrf_hpp_multithrd_object_t* object;
     int ib = LT->mb;
 
     /*
@@ -29,7 +29,7 @@ dague_object_t* dplasma_zgetrf_hpp_New( qr_piv_t *qrpiv,
      * it should be passed as a parameter as in getrf
      */
 
-    object = dague_zgetrf_hpp_new( *A,  (dague_ddesc_t*)A,
+    object = dague_zgetrf_hpp_multithrd_new( *A,  (dague_ddesc_t*)A,
                                             (dague_ddesc_t*)IPIV,
                                        *LT, (dague_ddesc_t*)LT,
                                        qrpiv, ib,
@@ -43,31 +43,31 @@ dague_object_t* dplasma_zgetrf_hpp_New( qr_piv_t *qrpiv,
     dague_private_memory_init( object->p_tau, LT->nb * sizeof(Dague_Complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zgetrf_hpp_DEFAULT_ARENA],
+    dplasma_add2arena_tile( object->arenas[DAGUE_zgetrf_hpp_multithrd_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(Dague_Complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
     /* Upper triangular part of tile with diagonal */
-    dplasma_add2arena_upper( object->arenas[DAGUE_zgetrf_hpp_UPPER_TILE_ARENA],
+    dplasma_add2arena_upper( object->arenas[DAGUE_zgetrf_hpp_multithrd_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(Dague_Complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 1 );
 
     /* IPIV */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_hpp_PIVOT_ARENA],
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_hpp_multithrd_PIVOT_ARENA],
                                  A->mb*sizeof(int),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_INT, A->mb, 1, -1 );
 
     /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( object->arenas[DAGUE_zgetrf_hpp_LOWER_TILE_ARENA],
+    dplasma_add2arena_lower( object->arenas[DAGUE_zgetrf_hpp_multithrd_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(Dague_Complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_hpp_LITTLE_T_ARENA], 
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_hpp_multithrd_LITTLE_T_ARENA], 
                                  LT->mb*LT->nb*sizeof(Dague_Complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, LT->mb, LT->nb, -1);
@@ -75,41 +75,41 @@ dague_object_t* dplasma_zgetrf_hpp_New( qr_piv_t *qrpiv,
     return (dague_object_t*)object;
 }
 
-int dplasma_zgetrf_hpp( dague_context_t *dague,
+int dplasma_zgetrf_hpp_multithrd( dague_context_t *dague,
                             qr_piv_t *qrpiv,
                             tiled_matrix_desc_t *A,
                             tiled_matrix_desc_t *IPIV,
                             tiled_matrix_desc_t *LT,
                             int* INFO )
 {
-    dague_object_t *dague_zgetrf_hpp = NULL;
+    dague_object_t *dague_zgetrf_hpp_multithrd = NULL;
 
-    dague_zgetrf_hpp = dplasma_zgetrf_hpp_New(qrpiv, A, IPIV, LT, INFO);
+    dague_zgetrf_hpp_multithrd = dplasma_zgetrf_hpp_multithrd_New(qrpiv, A, IPIV, LT, INFO);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zgetrf_hpp);
+    dague_enqueue(dague, (dague_object_t*)dague_zgetrf_hpp_multithrd);
     dplasma_progress(dague);
 
-    dplasma_zgetrf_hpp_Destruct( dague_zgetrf_hpp );
+    dplasma_zgetrf_hpp_multithrd_Destruct( dague_zgetrf_hpp_multithrd );
     return 0;
 }
 
 void
-dplasma_zgetrf_hpp_Destruct( dague_object_t *o )
+dplasma_zgetrf_hpp_multithrd_Destruct( dague_object_t *o )
 {
-    dague_zgetrf_hpp_object_t *dague_zgetrf_hpp = (dague_zgetrf_hpp_object_t *)o;
+    dague_zgetrf_hpp_multithrd_object_t *dague_zgetrf_hpp_multithrd = (dague_zgetrf_hpp_multithrd_object_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_zgetrf_hpp->arenas[DAGUE_zgetrf_hpp_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_hpp->arenas[DAGUE_zgetrf_hpp_UPPER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_hpp->arenas[DAGUE_zgetrf_hpp_PIVOT_ARENA     ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_hpp->arenas[DAGUE_zgetrf_hpp_LOWER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_hpp->arenas[DAGUE_zgetrf_hpp_LITTLE_T_ARENA  ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_hpp_multithrd->arenas[DAGUE_zgetrf_hpp_multithrd_DEFAULT_ARENA   ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_hpp_multithrd->arenas[DAGUE_zgetrf_hpp_multithrd_UPPER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_hpp_multithrd->arenas[DAGUE_zgetrf_hpp_multithrd_PIVOT_ARENA     ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_hpp_multithrd->arenas[DAGUE_zgetrf_hpp_multithrd_LOWER_TILE_ARENA     ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_hpp_multithrd->arenas[DAGUE_zgetrf_hpp_multithrd_LITTLE_T_ARENA     ]->opaque_dtt) );
 
-    dague_private_memory_fini( dague_zgetrf_hpp->p_work );
-    dague_private_memory_fini( dague_zgetrf_hpp->p_tau  );
+    dague_private_memory_fini( dague_zgetrf_hpp_multithrd->p_work );
+    dague_private_memory_fini( dague_zgetrf_hpp_multithrd->p_tau  );
 
-    free( dague_zgetrf_hpp->p_work );
-    free( dague_zgetrf_hpp->p_tau  );
+    free( dague_zgetrf_hpp_multithrd->p_work );
+    free( dague_zgetrf_hpp_multithrd->p_tau  );
 
-    dague_zgetrf_hpp_destroy(dague_zgetrf_hpp);
+    dague_zgetrf_hpp_multithrd_destroy(dague_zgetrf_hpp_multithrd);
 }
 
