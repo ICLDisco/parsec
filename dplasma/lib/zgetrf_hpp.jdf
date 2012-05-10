@@ -289,10 +289,11 @@ END
 zttqrt_out(k) [ profile = off ]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
+  type = inline_c %{ return dplasma_qr_gettype(pivfct, k, prevp); %}
 
   : A(k, k)
 
-  RW A <- A zttqrt( k, prevp )  [type = UPPER_TILE]
+  RW A <- (type == 0) ? A(k, k) : A zttqrt( k, prevp )  [type = UPPER_TILE]
        -> A(k, k)               [type = UPPER_TILE]
 BODY
     /* nothing */
@@ -403,10 +404,11 @@ zttmqr_out(k, n) [ profile = off ]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   n = k+1..descA.nt-1
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
+  type = inline_c %{ return dplasma_qr_gettype(pivfct, k, prevp); %}
 
   : A(k, n)
 
-  RW A <- V zttmqr( k, prevp, n )
+  RW A <- (type == 0) ? A(k, n) : V zttmqr( k, prevp, n )
        -> A(k, n)
 BODY
     /* nothing */
@@ -436,8 +438,8 @@ low2high(k, m, n) [ profile = off ]
 
   CTL  ctl  <- (type == 0) ? ctl zttmqr(k, m, n)
             /* Protect step k */
-            -> ( (m == p) & (kp != descA.mt) ) ? ctlp zttmqr(k, kp, n)
-            -> ( (m == p) & (kp == descA.mt) ) ? ctlm zttmqr(k, m,  n)
+            -> ( (m == p) & (kp != descA.mt)            ) ? ctlp zttmqr(k, kp, n)
+            -> ( (m == p) & (kp == descA.mt) & (p != k) ) ? ctlm zttmqr(k, m,  n)
             /* Protect step k+1 ( See if it's possible to merge tile2panel in low2high */
             /* -> ( (m == p) & ((nexttype+1) != 0) & (n == k+1) ) ? ctl zgetrf_hpp(k+1, nexti) */
             /* -> ( (m == p) & ((nexttype+1) != 0) & (n >  k+1) ) ? ctl swptrsm(k+1, nexti, n) */
