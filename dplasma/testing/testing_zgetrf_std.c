@@ -37,10 +37,10 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam)
     PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M, (DagDouble_t)N))
 
-/*     if ( M != N && check ) { */
-/*         fprintf(stderr, "Check cannot be perfomed with M != N\n"); */
-/*         check = 0; */
-/*     } */
+    if ( M != N && check ) {
+        fprintf(stderr, "Check cannot be perfomed with M != N\n");
+        check = 0;
+    }
 
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
@@ -72,7 +72,7 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
 
-    /* /\* Increase diagonale to avoid pivoting *\/ */
+    /* Increase diagonale to avoid pivoting */
     {
         tiled_matrix_desc_t *descA = (tiled_matrix_desc_t *)&ddescA;
         int minmnt = dague_imin( descA->mt, descA->nt );
@@ -88,19 +88,6 @@ int main(int argc, char ** argv)
 	    }
         }
     }
-/*     {   */
-/*       Dague_Complex64_t *matrice = ((dague_ddesc_t*) &ddescA)->data_of(((dague_ddesc_t*) &ddescA), 0, 0); */
-/*       tiled_matrix_desc_t *descA = (tiled_matrix_desc_t *)&ddescA; */
-/*       int i,k; */
-/*       for(i = 0; i < descA->mb*descA->nb; i++) */
-/* 	matrice[i] = 0.; */
-/*       for(i = 0, k = 0.; i < descA->m-1; i++, k++) */
-/* 	{ */
-/* 	  matrice[i] = 1.; */
-/* 	  matrice[(i+1)*descA->mb+i] = (Dague_Complex64_t) (k + 1.); */
-/* 	} */
-/*       matrice[descA->m-1] = 1; */
-/*     } */
 
     if ( check )
     {
@@ -114,47 +101,17 @@ int main(int argc, char ** argv)
     }
     if(loud > 2) printf("Done\n");
 
-/*     Dague_Complex64_t *A; */
-/*     A = (Dague_Complex64_t *)malloc(LDA*N*sizeof(Dague_Complex64_t)); */
-/*     twoDBC_ztolapack( &ddescA, A, LDA ); */
-/*     int i,j; */
-/*     for (i=0; i<M; i++) */
-/*       { */
-/* 	for (j=0; j<N; j++) */
-/* 	  printf("%2.2e\t",A[j*LDA+i]); */
-/* 	printf("\n"); */
-/*       } */
-
     /* Create DAGuE */
     if(loud > 2) printf("+++ Computing getrf ... ");
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_panel,
+    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_std,
                               ((tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescIPIV,
                                P,
                                Q,
                                &info));
     /* lets rock! */
-    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_panel);
-    dplasma_zgetrf_panel_Destruct( DAGUE_zgetrf_panel );
-
-/*     twoDBC_ztolapack( &ddescA, A, LDA ); */
-/*     for (i=0; i<M; i++) */
-/*       { */
-/* 	for (j=0; j<N; j++) */
-/* 	  printf("%2.2e\t",A[j*LDA+i]); */
-/* 	printf("\n"); */
-/*       } */
-
-
-/*     PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_std, */
-/*                               ((tiled_matrix_desc_t*)&ddescA, */
-/*                                (tiled_matrix_desc_t*)&ddescIPIV, */
-/*                                P, */
-/*                                Q, */
-/*                                &info)); */
-/*     /\* lets rock! *\/ */
-/*     PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_std); */
-/*     dplasma_zgetrf_std_Destruct( DAGUE_zgetrf_std ); */
+    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_std);
+    dplasma_zgetrf_std_Destruct( DAGUE_zgetrf_std );
     if(loud > 2) printf("Done.\n");
 
     if ( check && info != 0 ) {
