@@ -312,6 +312,7 @@ END
  * im1 is the index of the killer m at the next step k+1 if its type is !0, descA.mt otherwise
  *
  ********************************************************************************************/
+
 zttmqr(k, m, n)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
