@@ -144,7 +144,7 @@ hmax = inline_c %{
  //      -> T TRSM_U(k, k+1..descA.nt-1)
 RW  T <- ((k == 0) && (h == 0))? A(m, k)
       <- ((k != 0) && (h == 0))? C GEMM(k-1, m, k)
-      <- ((k != 0) && (h != 0))?T GETRF_MAX(k,m,h-1)
+      <- ((h != 0))? T GETRF_MAX(k,m,h-1)
       -> (h != hmax)? T GETRF_MAX(k,m,h+1)
       -> (h == hmax)? T GETRF_FNL(k,m)
 RW  V <- ((h == 0) && (m-k<P))? V V_in(k,m-k)                     [type = SWAP]
@@ -334,12 +334,12 @@ hmax = inline_c %{
 :A(m, k)
 
 RW    T <- T GETRF_MAX(k,m,hmax)
-         -> (m == k)? T TRSM_U(k, k+1..descA.mt-1) : A GEMM(k,m, k+1..descA.mt-1)
+        -> (m == k) ? T TRSM_U(k, k+1..descA.mt-1) : A GEMM(k,m, k+1..descA.mt-1)
         -> A(m, k)
 READ  V <- W GETRF_SND(k,dmax,(m-k)%P,hmax)                  [type = SWAP]
 RW   IP <- IP IP_in(k,(m-k)%P)                               [type = PIVOT]
         -> (m-k < P)? IP IP_out(k,(m-k))                     [type = PIVOT]
-        -> IP SWAP_COLLECT(k, k, k+1..descA.nt-1)            [type = PIVOT]
+        -> IP SWAP_COLLECT(k, m, k+1..descA.nt-1)            [type = PIVOT]
 
 BODY
  DRYRUN(
