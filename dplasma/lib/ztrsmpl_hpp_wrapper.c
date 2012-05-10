@@ -50,11 +50,11 @@ dague_object_t* dplasma_ztrsmpl_hpp_New( qr_piv_t *qrpiv,
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
-    /* Upper triangular part of tile with diagonal */
-    dplasma_add2arena_upper( object->arenas[DAGUE_ztrsmpl_hpp_UPPER_TILE_ARENA],
+    /* Lower triangular part of tile without diagonal */
+    dplasma_add2arena_lower( object->arenas[DAGUE_ztrsmpl_hpp_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(Dague_Complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
-                             MPI_DOUBLE_COMPLEX, A->mb, 1 );
+                             MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* IPIV */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_ztrsmpl_hpp_PIVOT_ARENA],
@@ -90,7 +90,7 @@ dplasma_ztrsmpl_hpp_Destruct( dague_object_t *o )
     dague_ztrsmpl_hpp_object_t *dague_ztrsmpl_hpp = (dague_ztrsmpl_hpp_object_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_ztrsmpl_hpp->arenas[DAGUE_ztrsmpl_hpp_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_ztrsmpl_hpp->arenas[DAGUE_ztrsmpl_hpp_UPPER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_ztrsmpl_hpp->arenas[DAGUE_ztrsmpl_hpp_LOWER_TILE_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_ztrsmpl_hpp->arenas[DAGUE_ztrsmpl_hpp_PIVOT_ARENA     ]->opaque_dtt) );
 
     dague_private_memory_fini( dague_ztrsmpl_hpp->p_work );
