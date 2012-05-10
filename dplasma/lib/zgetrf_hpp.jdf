@@ -112,7 +112,7 @@ BODY
     printlog("\nthread %d VP %d zgetrf_hpp( k=%d, i=%d, m=%d, nextm=%d, s=%d, ms=%d )\n"
              "\t( M=%d, N=%d, A(%d,%d)[%p], IPIV(%d,%d)[%p]) => info = %d\n",
              context->th_id, context->virtual_process->vp_id, k, i, m, nextm, s, ms,
-             tempm, tempn, m, k, A, m, k, IP
+             tempm, tempn, m, k, A, m, k, IP,
              (iinfo != 0 ? m * descA.mb + iinfo : 0 ));
 }
 END
@@ -261,7 +261,7 @@ BODY
              "\t T(%d,%d)[%p], ldt=%d)\n",
              context->th_id, context->virtual_process->vp_id, k, m, p, nextp, prevp, prevm, type, ip, im,
              tempmm, tempkn, ib,
-             p, k, A, ldap, m, k, C, ldam, m, k, L, descLT.mb);
+             p, k, A, ldap, m, k, C, ldam, m, k, T, descLT.mb);
 
     DRYRUN(
          if ( type == DPLASMA_QR_KILLED_BY_TS ) {
@@ -369,7 +369,7 @@ BODY
              context->th_id, context->virtual_process->vp_id, k, m, n, p, nextp, prevp, prevm, type, nexttype, ip, im, nextim,
              descA.mb, tempnn, tempmm, tempnn, ib,
              p, n, V, ldap, m, n, C, ldam,
-             m, k, L, descLT.mb, m, k, H, ldam);
+             m, k, T, descLT.mb, m, k, H, ldam);
 
     DRYRUN(
          if ( type == DPLASMA_QR_KILLED_BY_TS ) {
