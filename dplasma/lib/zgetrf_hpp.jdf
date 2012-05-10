@@ -175,7 +175,7 @@ BODY
 
     printlog("\nthread %d VP %d zswptrsm_hpp( k=%d, i=%d, n=%d, m=%d, nextm=%d, s=%d, ms=%d )\n"
              "\t( M=%d, N=%d, A(%d,%d)[%p], lda=%d, C(%d, %d)[%p], ldc=%d, IPIV(%d,%d)[%p])\n",
-             context->th_id, context->virtual_process->vp_id, k, i, m, n, nextm, s, ms,
+             context->th_id, context->virtual_process->vp_id, k, i, n, m, nextm, s, ms,
              tempm, tempnn, m, k, A, ldam, m, n, C, ldam, m, k, IP);
 
     DRYRUN(
@@ -427,7 +427,7 @@ low2high(k, m, n) [ profile = off ]
   i    = inline_c %{ return dplasma_qr_geti( pivfct, k, p ); %}
   s    = inline_c %{ return dplasma_qr_getsize( pivfct, k, i ); %}
   ms   = inline_c %{ return p + (s-1)*param_p; %}
-  kp   = inline_c %{ return dplasma_qr_nexttriangle(pivfct, p, k, m); %}
+  kp   = inline_c %{ return dplasma_qr_nexttriangle(pivfct, p, k, descA.mt); %}
 
   :A(m, n)
 
@@ -444,7 +444,7 @@ low2high(k, m, n) [ profile = off ]
 
   ;descA.nt-n-1
 BODY
-    printlog("\nthread %d VP %d tile2panel( k = %d, m = %d, n = %d ) type = %d\n", context->th_id, context->virtual_process->vp_id, k, m, n, type);
+    printlog("\nthread %d VP %d low2high( k = %d, m = %d, n = %d, kp = %d ) type = %d\n", context->th_id, context->virtual_process->vp_id, k, m, n, kp, type);
 END
 
 /************************************************************************************
