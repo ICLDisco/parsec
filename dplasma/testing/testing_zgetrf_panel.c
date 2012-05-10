@@ -44,7 +44,6 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, 1, MB*P, dague_imin(MT, NT), 0, 0,
                                MB*P, dague_imin(MT, NT), SMB, SNB, P));
 
-
     PASTE_CODE_ALLOCATE_MATRIX(ddescAl, check,
         two_dim_block_cyclic, (&ddescAl, matrix_ComplexDouble, matrix_Lapack,
                                1, cores, rank, MB, NB, LDA, N, 0, 0,
@@ -190,14 +189,16 @@ int main(int argc, char ** argv)
 	dplasma_zlacpy( dague, PlasmaUpperLower,
 			(tiled_matrix_desc_t *)&ddescA,
 			(tiled_matrix_desc_t *)&ddescLUl );
-	double alpha = -1.;
-	dplasma_zgeadd(dague, PlasmaUpperLower,  CBLAS_SADDR(alpha), (tiled_matrix_desc_t *)&ddescLUl, (tiled_matrix_desc_t *)&ddescAl);
+	Dague_Complex64_t alpha = -1.;
+	dplasma_zgeadd(dague, PlasmaUpperLower, alpha, (tiled_matrix_desc_t *)&ddescLUl, (tiled_matrix_desc_t *)&ddescAl);
 	double norm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescAl);
 	if( (((dague_ddesc_t*) &ddescAl)->myrank) == 0)
 	  printf("The norm is %e\n",norm);
       }
 
-      MPI_Barrier(MPI_COMM_WORLD);
+/* #ifdef USE_MPI */
+/*       MPI_Barrier(MPI_COMM_WORLD); */
+/* #endif */
 
       if((((dague_ddesc_t*) &ddescA)->myrank) == 0) {
 	dague_data_free(ddescAl.mat);
