@@ -16,7 +16,7 @@
 
 #include "zgetrf_panel.h"
 
-#define LDV  3
+#define LDV  5
 
 dague_object_t* dplasma_zgetrf_panel_New( tiled_matrix_desc_t *A,
                                         tiled_matrix_desc_t *IPIV,
@@ -56,9 +56,15 @@ dague_object_t* dplasma_zgetrf_panel_New( tiled_matrix_desc_t *A,
 
     /* SWAP */
     dplasma_add2arena_rectangle( ((dague_zgetrf_panel_object_t*)dague_zgetrf_panel)->arenas[DAGUE_zgetrf_panel_SWAP_ARENA],
-                                 LDV*A->nb*sizeof(int),
+                                 LDV*nb*sizeof(Dague_Complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_INT, 3, A->nb, -1 );
+                                 MPI_DOUBLE_COMPLEX, LDV, nb, -1 );
+
+    /* PIVOT */
+    dplasma_add2arena_rectangle( ((dague_zgetrf_panel_object_t*)dague_zgetrf_panel)->arenas[DAGUE_zgetrf_panel_PIVOT_ARENA],
+                                 A->mb*sizeof(int),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_INT, A->mb, 1, -1 );
 
     return (dague_object_t*)dague_zgetrf_panel;
 }
@@ -75,6 +81,7 @@ dplasma_zgetrf_panel_Destruct( dague_object_t *o )
 
     dplasma_datatype_undefine_type( &(dague_zgetrf_panel->arenas[DAGUE_zgetrf_panel_DEFAULT_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_panel->arenas[DAGUE_zgetrf_panel_SWAP_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_panel->arenas[DAGUE_zgetrf_panel_PIVOT_ARENA]->opaque_dtt) );
 
     dague_zgetrf_panel_destroy(dague_zgetrf_panel);
 }

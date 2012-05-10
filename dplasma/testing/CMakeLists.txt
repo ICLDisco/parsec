@@ -17,7 +17,7 @@ set(TESTS
   testing_zposv.c
   testing_zgerfs.c
   testing_zgetrf.c
-  testing_zgetrf_std.c
+  testing_zgetrf_std.c  testing_zgetrf_panel.c
   testing_zgetrf_sp.c
   testing_zgetrf_incpiv.c
   testing_zgetrf_incpiv_sd.c

@@ -224,7 +224,7 @@ dplasma/testing/testing_[zcds]gemm
 dplasma/testing/testing_[zcds]geqrf
 dplasma/testing/testing_[zcds]trmm
 dplasma/testing/testing_[zcds]trsm
-dplasma/testing/testing_[zcds]getrf
+dplasma/testing/testing_[cds]getrf
 dplasma/testing/testing_[cds]getrf\.c
 dplasma/testing/testing_[zcds]gesv
 dplasma/testing/testing_[zcds]getrf_incpiv

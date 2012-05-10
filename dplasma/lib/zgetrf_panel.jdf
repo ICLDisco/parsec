@@ -24,9 +24,10 @@ extern "C" %{
 #include "dplasma/cores/dplasma_zcores.h"
 
 #define INIT 0
-#define MAXI 1
-#define SRCH 2
-#define LDV  3
+#define TEMP (descA.nb)
+#define MAXI (descA.nb*2)
+#define SRCH (descA.nb*3)
+#define PIVO (descA.nb*4)
 
 %}
 
@@ -44,21 +45,43 @@ descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_de
 /**************************************************
  *                    IP_in (pseudo task)
  **************************************************/
-/* IP_in(k) */
+IP_in(k,m)
 
-/* // Execution space */
-/* k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1) */
+// Execution space
+k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
+m = 0..((descA.mt<P)?(descA.mt-1):(P-1))
 
-/* // Parallel partitioning */
-/* :IPIV(k,k%Q) */
+// Parallel partitioning
+:IPIV((k+m)%P,k%Q)
 
-/* // Parameters */
-/* READ  IP <- IPIV(k,k%Q)                                [type = PIVOT] */
-/*          -> IP GETRF_SND(k,0,0..P-1,0)                 [type = PIVOT] */
+// Parameters
+READ  IP <- IPIV((k+m)%P,k%Q)                                                               [type = PIVOT]
+         -> IP GETRF_FNL(k,(k+m)..(descA.mt-((descA.mt-k-m-1)%P)-1)..P)                         [type = PIVOT]
 
-/* BODY */
-/*         /\* Nothing to do *\/ */
-/* END */
+BODY
+        /* Nothing to do */
+END
+
+/**************************************************
+ *                    IP_out (pseudo task)
+ **************************************************/
+IP_out(k,m)
+
+// Execution space
+k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
+m = 0..((descA.mt<P)?(descA.mt-1):(P-1))
+
+// Parallel partitioning
+:IPIV((k+m)%P,k%Q)
+
+// Parameters
+READ  IP <- IP GETRF_FNL(k,k+m)                                                             [type = PIVOT]
+         -> IPIV((k+m)%P,k%Q)                                                               [type = PIVOT]
+
+BODY
+        /* Nothing to do */
+END
+
 
 /**************************************************
  *                    V_in (pseudo task)
@@ -103,6 +126,8 @@ dmax = inline_c %{
       nb_init/=2;
   return i; %}
 
+mmax = inline_c %{return ((descA.mt-k < P) ? descA.mt-k : P); %}
+
 hmax = inline_c %{ 
   int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
@@ -117,45 +142,100 @@ RW  T <- (h == 0)? A(m, k) : T GETRF_MAX(k,m,h-1)
       -> (h != hmax)? T GETRF_MAX(k,m,h+1)
       -> (h == hmax)? T GETRF_FNL(k,m)
 RW  V <- ((h == 0) && (m-k<P))? V V_in(k,m-k)                     [type = SWAP]
-      <- ((h != 0) && (m-k<P))? W GETRF_SND(k,dmax,(m-k)%P,h-1)   [type = SWAP]
+      <- ((h != 0) && (m-k<P))? W GETRF_SND(k,dmax,(m-k)%mmax,h-1)   [type = SWAP]
       <- (m-k >= P)? V GETRF_MAX(k,m-P,h)                         [type = SWAP]
       -> ((descA.mt-m)>P)? V GETRF_MAX(k,m+P,h)                   [type = SWAP]
-      -> ((descA.mt-m) <= P)? V GETRF_SND(k,0,((m-k)%P),h)        [type = SWAP]
-      -> ((descA.mt-m) <= P)? W GETRF_SND(k,0,((m-k+1)%P),h)      [type = SWAP]
+      -> ((descA.mt-m) <= P)? V GETRF_SND(k,0,((m-k)%mmax),h)        [type = SWAP]
+      -> ((descA.mt-m) <= P)? W GETRF_SND(k,0,((m-k+1)%mmax),h)      [type = SWAP]
 
 BODY
     DRYRUN(
        int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-       int minMN = (tempmm < tempkn)? tempmm : tempkn;
        int ldam = BLKLDD( descA, m );
        int i;
-       int j;
-       if(h != 0)		/* Applying the previous swap */
+       int pivoting = 0;
+       int p = (m == k)? h : 0;
+       int index = p/* +m*descA.mb */;
+       double max;
+
+       Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
+       Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
+
+
+       if(h != 0)		
        {
-	 Dague_Complex64_t alpha = ((Dague_Complex64_t) 1) / (((Dague_Complex64_t *) V)[MAXI]);
-	 int p = (m == k)? h : 0;
-	 cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), (void *)(((uintptr_t)T)+(((h-1)*ldam+p)*sizeof(Dague_Complex64_t))), 1 );
+	 /* Applying the previous swap */	 
+	 if(m == k) {
+	     cblas_zcopy(tempkn, lV + MAXI, 1,
+			         lT + h-1,  ldam);
+	 }
+	 if((m - k) < P)
+	     cblas_zcopy(tempkn, lV + INIT, 1,
+			         lV + TEMP, 1);
+
+	 int owner_last_index = ((int) (lV[PIVO + h-1]))/descA.mb;
+	 int last_index       = ((int) (lV[PIVO + h-1]))%descA.mb;
+/* 	 if(P == 1 && Q == 1 &&m == k) */
+/* 	   printf("the %deme pivot is in %d, his owner %d is on the index %d\n", */
+/* 		  h-1,((int) (lV[PIVO + h-1])),owner_last_index,last_index); */
+
+	 if(owner_last_index == m) {
+	   cblas_zcopy(tempkn, lV + TEMP,       1,
+		               lT + last_index, ldam);
+	 }
+
+	 /* Appliying the update */
+	 Dague_Complex64_t alpha = ((Dague_Complex64_t)1.) / (lV[MAXI + h-1]);
+	 cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), lT + ((h-1)*ldam+p), 1 );
 	 Dague_Complex64_t mzone = -1.;
-	 if ( k < minMN )
-             cblas_zgeru(CblasColMajor, tempmm-p, tempkn-h,
-                         CBLAS_SADDR(mzone),
-                         (void *)(((uintptr_t)T)+(((h-1)*ldam+p)*sizeof(Dague_Complex64_t))), 1,
-                         (void *)(((uintptr_t)V)+((LDV+MAXI)*sizeof(Dague_Complex64_t))),    LDV,
-                         (void *)(((uintptr_t)T)+((h*ldam+p)*sizeof(Dague_Complex64_t))),    ldam);	 
+	 cblas_zgeru(CblasColMajor, tempmm-p, tempkn-h,
+		     CBLAS_SADDR(mzone),
+		     lT+ ldam * (h-1) + p,    1,
+		     lV+ MAXI         + h, 1,
+		     lT+ ldam *  h    + p,    ldam);
        }
-       if(m == k) 		/* Saving the default swap line */
+
+       /* Saving the default swap line */
+       if(m == k)
        {
-          for(i = 0; i < (tempkn-h); i++)
-	    ((Dague_Complex64_t *) V)[LDV*i+INIT] = ((Dague_Complex64_t *) V)[LDV*i+SRCH]  = ((Dague_Complex64_t *) T)[ldam*(i+h)+h];
+	 /* TODO: 2 * memcpy or zcopy */
+	   for(i = 0; i < tempkn; i++)
+	       lV[INIT + i] = lV[SRCH + i]  = lT[ldam*i+h];
+	   lV[PIVO + h] = index+m*descA.mb;
+       }else if (m-k < P){
+	 cblas_zcopy(tempkn, lT,        ldam,
+                             lV + SRCH, 1);
+	 lV[PIVO + h] = index+m*descA.mb;
        }
-       for(i = h; i < tempmm; i++) /* Looking for the local max */
-	 if(fabs(((Dague_Complex64_t *) T)[ldam*h+i]) > fabs(((Dague_Complex64_t *) V)[SRCH]))
-	   cblas_zcopy(tempkn-h,
-		       (void *)(((uintptr_t)T)+(((ldam*h)+i)*sizeof(Dague_Complex64_t))), ldam,
-		       (void *)(((uintptr_t)V)+(SRCH*sizeof(Dague_Complex64_t))), LDV);
-/*             for(j = 0; j < tempkn-h; j++) */
-/*               ((Dague_Complex64_t *) V)[LDV*j+SRCH] = ((Dague_Complex64_t *) T)[ldam*(j+h)+i]; */
+       
+       /* DEBUG */
+/*        if(P == 1 && Q == 1) { */
+/* 	   int j; */
+/* 	   for(i=0; i<tempmm; i++) { */
+/* 	       printf("%d:\t",i+m*descA.mb); */
+/* 	       for(j=0; j<tempkn; j++) */
+/* 		   printf("%e\t",((Dague_Complex64_t *) T)[ldam*j+i]); */
+/* 	       printf("\n"); */
+/* 	   } */
+/*        } */
+
+       /* Looking for the local max */
+       max = cabs(lV[SRCH + h]);
+       for(i = p; i < tempmm; i++) { 
+	 if(cabs(lT[ldam*h+i]) > max)
+	   {
+	     index = i;
+	     pivoting = 1;
+	     max = cabs( lT[ldam*h+i] );
+	   }
+       }
+       if(pivoting) {
+	 cblas_zcopy(tempkn,
+		     lT + index, ldam,
+		     lV + SRCH,  1);
+	 lV[PIVO + h] = (Dague_Complex64_t)(index+m*descA.mb);
+       }
           );
     printlog();
 END
@@ -200,42 +280,35 @@ pui= inline_c %{ return (int) pow(2,d+1); %}
 // Parallel partitioning
 :A(k+m, k)
 
-READ  V <- (d == 0)? V GETRF_MAX(k,descA.mt-((descA.mt-(k+m+1))%P)-1,h) : W GETRF_SND(k,d-1,m,h)           [type = SWAP]
-RW    W <- (d == 0)? V GETRF_MAX(k,descA.mt-((descA.mt-(k+m))%P)-1,h) : W GETRF_SND(k,d-1,(P+m-pui/2)%P,h) [type = SWAP]
+READ  V <- (d == 0)? V GETRF_MAX(k,descA.mt-((descA.mt-(k+m+1))%mmax)-1,h) : W GETRF_SND(k,d-1,m,h)           [type = SWAP]
+RW    W <- (d == 0)? V GETRF_MAX(k,descA.mt-((descA.mt-(k+m))%mmax)-1,h) : W GETRF_SND(k,d-1,(mmax+m-pui/2)%mmax,h) [type = SWAP]
 	-> (d != dmax)? V GETRF_SND(k,d+1,m,h)	                                                           [type = SWAP]
-        -> (d != dmax)? W GETRF_SND(k,d+1,(m+pui)%P,h)	                                                   [type = SWAP]
+        -> (d != dmax)? W GETRF_SND(k,d+1,(m+pui)%mmax,h)	                                                   [type = SWAP]
 	-> (d == dmax)? V GETRF_MAX(k,k+m,h+1)	                                                           [type = SWAP]
         -> ((h == hmax) && (d == dmax))? V GETRF_FNL(k,(k+m)..(descA.mt-((descA.mt-(k+m+1))%P)-1)..P)      [type = SWAP]
-/* RW   IP <- ((d == 0) && (h == 0))? IP IP_in(k)                                                       [type = PIVOT] */
-/*         <- ((d == 0) && (h != 0))? IP GETRF_SND(k,dmax,m,h-1)                                        [type = PIVOT] */
-/* 	<- (d != 0)? IP GETRF_SND(k,d-1,m,h)                                                         [type = PIVOT] */
-/* 	-> (d != dmax)? IP GETRF_SND(k,d+1,m,h)                                                      [type = PIVOT] */
-/* 	-> ((d == dmax) && (h == descA.nb))? IP GETRF_SND(k,0,m,h+1)	                             [type = PIVOT] */
 
 BODY
     DRYRUN(
        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-/*        int j; */
-       if(m  < pui && m < pui/2)
-	 cblas_zcopy(tempkn-h,
-		     (void *)(((uintptr_t)V)+(INIT*sizeof(Dague_Complex64_t))), LDV,
-		     (void *)(((uintptr_t)W)+(INIT*sizeof(Dague_Complex64_t))), LDV);
-/*          for(j = 0; j < tempkn-h; j++) */
-/*            ((Dague_Complex64_t *) W)[LDV*j+INIT] = ((Dague_Complex64_t *) V)[LDV*j+INIT]; */
 
-       if(((Dague_Complex64_t *) V)[SRCH] > ((Dague_Complex64_t *) W)[SRCH])
-	 cblas_zcopy(tempkn-h,
-		     (void *)(((uintptr_t)V)+(SRCH*sizeof(Dague_Complex64_t))), LDV,
-		     (void *)(((uintptr_t)W)+(SRCH*sizeof(Dague_Complex64_t))), LDV);
-/*          for(j = 0; j < tempkn-h; j++) */
-/*            ((Dague_Complex64_t *) W)[LDV*j+SRCH] = ((Dague_Complex64_t *) V)[LDV*j+SRCH]; */
+       Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
+       Dague_Complex64_t *lW = (Dague_Complex64_t*)W;
+
+
+       if(m  < pui && m < pui/2)
+	 cblas_zcopy(tempkn, lV + INIT, 1,
+		             lW + INIT, 1);
+
+       if(cabs(lV[SRCH + h]) > cabs(lW[SRCH + h]))
+	 {
+	   lW[PIVO + h] = lV[PIVO + h];
+	   cblas_zcopy(tempkn, lV + SRCH, 1,
+		               lW + SRCH, 1);
+	 }
 
        if(d == dmax)
-	 cblas_zcopy(tempkn-h,
-		     (void *)(((uintptr_t)W)+(SRCH*sizeof(Dague_Complex64_t))), LDV,
-		     (void *)(((uintptr_t)W)+(MAXI*sizeof(Dague_Complex64_t))), LDV);
-/*          for(j = 0; j < tempkn-h; j++) */
-/*            ((Dague_Complex64_t *) W)[LDV*j+MAXI] = ((Dague_Complex64_t *) W)[LDV*j+SRCH]; */
+	 cblas_zcopy(tempkn, lW + SRCH, 1,
+		             lW + MAXI, 1);
 
           );
     printlog();
@@ -268,16 +341,56 @@ hmax = inline_c %{
 // Parallel partitioning
 :A(m, k)
 
-RW  T <- T GETRF_MAX(k,m,hmax)
-      -> A(m, k)
-READ  V <- W GETRF_SND(k,dmax,(m-k)%P,hmax)       [type = SWAP]
+RW    T <- T GETRF_MAX(k,m,hmax)
+        -> A(m, k)
+READ  V <- W GETRF_SND(k,dmax,(m-k)%P,hmax)                  [type = SWAP]
+RW   IP <- IP IP_in(k,(m-k)%P)                               [type = PIVOT]
+        -> (m-k < P)? IP IP_out(k,(m-k))                     [type = PIVOT]
 
 BODY
  DRYRUN(
-/*      Dague_Complex64_t alpha = ((Dague_Complex64_t) 1.) / (((Dague_Complex64_t *) V)[MAXI]); */
-/*      int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb); */
-/*      int ldam = BLKLDD( descA, m ); */
-/*      cblas_zscal(tempmm-hmax, CBLAS_SADDR( alpha ), (void *)(((uintptr_t)T)+((hmax*ldam+hmax-1)*sizeof(Dague_Complex64_t))), 1 ); */
-       );
+   int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+   int ldam = BLKLDD( descA, m );
+   int p = (m == k)? hmax+1 : 0;
+   int i;
+
+
+   Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
+   Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
+
+
+   /* Applying the previous swap */
+   if(m == k)
+     cblas_zcopy(tempkn, lV + MAXI, 1,
+		         lT + hmax, ldam);
+	 
+   int owner_last_index = ((int) (((Dague_Complex64_t *) V)[PIVO + hmax]))/descA.mb;
+   int last_index = ((int) (((Dague_Complex64_t *) V)[PIVO + hmax]))%descA.mb;
+/*    if(P == 1 && Q == 1 && m == k) */
+/*      printf("the %deme pivot is in %d, his owner %d is on the index %d\n",hmax,((int) (((Dague_Complex64_t *) V)[PIVO + hmax])),owner_last_index,last_index); */
+   if(owner_last_index == m) {
+     cblas_zcopy(tempkn, lV + INIT      , 1,
+		         lT + last_index, ldam);
+   }
+
+   /* Appliying the update */
+   Dague_Complex64_t alpha = ((Dague_Complex64_t) 1.) / (lV[MAXI + hmax]);
+   cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), lT + hmax*ldam + p, 1 );
+
+
+/*    if(P == 1 && Q == 1) { */
+/*        int j; */
+/*        for(i=0; i<tempmm; i++) { */
+/* 	   printf("%d:\t",i+m*descA.mb); */
+/* 	   for(j=0; j<tempkn; j++) */
+/* 	       printf("%e\t",lT[ldam*j+i]); */
+/* 	   printf("\n"); */
+/*        } */
+/*    } */
+
+   for(i = 0; i <= hmax; i++)
+     ((int *) IP)[i] = ((int) lV[PIVO + i]) + 1;
+	);
     printlog();
 END
