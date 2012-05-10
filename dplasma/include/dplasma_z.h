@@ -46,6 +46,7 @@ int    dplasma_zgetrf_sp( dague_context_t *dague, const double criteria, tiled_m
 int    dplasma_zgetrf_incpiv( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV );
 int    dplasma_zgetrf_std( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV);
 int    dplasma_zgetrf_panel( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV);
+dague_object_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
 int    dplasma_zgetrs( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t* A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
 int    dplasma_zgetrs_incpiv( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
 int    dplasma_zgesv ( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
@@ -104,6 +105,7 @@ dague_object_t* dplasma_zsymm_New( const PLASMA_enum side, const PLASMA_enum upl
 dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int* INFO);
 dague_object_t* dplasma_zgetrf_std_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
 dague_object_t* dplasma_zgetrf_panel_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
+dague_object_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
 dague_object_t* dplasma_zgetrf_sp_New(double criteria, tiled_matrix_desc_t *A, int *info);
 dague_object_t* dplasma_zgetrf_incpiv_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, int* INFO);
 dague_object_t* dplasma_zgeqrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
@@ -165,6 +167,7 @@ void dplasma_zgeqrf_param_Destruct( dague_object_t *o );
 void dplasma_zgetrf_Destruct( dague_object_t *o );
 void dplasma_zgetrf_std_Destruct( dague_object_t *o );
 void dplasma_zgetrf_panel_Destruct( dague_object_t *o );
+void dplasma_zgetrf_fusion_Destruct( dague_object_t *o );
 void dplasma_zgetrf_sp_Destruct( dague_object_t *o );
 void dplasma_zgetrf_incpiv_Destruct( dague_object_t *o );
 void dplasma_zgetrf_incpiv_sd_Destruct( dague_object_t *o );
