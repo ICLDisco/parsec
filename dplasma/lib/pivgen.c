@@ -1281,12 +1281,12 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m)
 {
     int next = dplasma_qr_nextpiv(arg, p, k, m);
-    int mt = arg -> desc -> mt;
+    int mt = arg->desc->mt;
 
     while (next == mt ? 0 : dplasma_qr_gettype(arg, k, next) == 0) {
         next = dplasma_qr_nextpiv(arg, p, k, next);
     }
-    
+
     //printf("\nnexttriangle( p=%d, k=%d, m=%d) = %d\n",p,k,m,next);
     return next;
 };
