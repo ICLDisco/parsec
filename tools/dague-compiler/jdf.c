@@ -172,34 +172,54 @@ static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
 {
     jdf_function_entry_t *f;
     jdf_name_list_t *p;
-    jdf_def_list_t *d;
+    jdf_def_list_t *d, *d2;
     int rc = 0;
-    int pi;
+    int pi, found_def;
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
         pi = 1;
-        for(p = f->parameters, d = f->definitions;
-            p != NULL && d != NULL;
-            p = p->next, d = d->next, pi++) {
-            if( strcmp(d->name, p->name) ) {
-                /* Inline functions rely on this check to work,
-                 * because they cannot appear before the last parameter
-                 */
-                jdf_fatal(f->lineno, "%s appears as the %dth parameter of function %s, but the associated definition is not for %s it is for %s\n",
-                          p->name, pi, f->fname, p->name, d->name);
+        for(p = f->parameters; p != NULL; p = p->next, pi++) {
+            found_def = 0;
+            for(d = f->definitions; d != NULL; d = d->next) {
+                if( 0 == strcmp(d->name, p->name) ) {
+                    if( found_def ) {
+                        jdf_fatal(f->lineno, "The definition of %s (%dth parameter of function %s) appears more than once.\n",
+                                  p->name, pi, f->fname);
+                        rc = -1;
+                    } else {
+                        found_def = 1;
+                    }
+                }
+            }
+            if( !found_def ) {
+                jdf_fatal(f->lineno, "Parameter %s of function %s is declared but no range is associated to it\n",
+                          p->name, f->fname);
                 rc = -1;
             }
         }
-        if( p != NULL ) {
-            jdf_fatal(f->lineno, "Parameter %s of function %s is declared but no range is associated to it\n",
-                      p->name, f->fname);
-            rc = -1;
-        }
-        for(; d!= NULL; d = d->next, pi++) {
-            if( d->expr->op == JDF_RANGE ) {
-                jdf_warn(f->lineno, "Definition %d of function %s for %s is a range, but not a parameter of the function.\n"
-                          "  If this range allows for more than one value, that would make multiple functions %s with the same name.\n",
-                         pi, f->fname, d->name, f->fname);
+
+        pi = 1;
+        for(d=f->definitions; d!= NULL; d = d->next, pi++) {
+            found_def = 0;
+            for(p = f->parameters; p != NULL; p = p->next) {
+                if( strcmp(d->name, p->name) == 0 ) {
+                    found_def = 1;
+                    break;
+                }
+            }
+            if( found_def == 0 ) {
+                if( d->expr->op == JDF_RANGE ) {
+                    jdf_warn(f->lineno, "Definition %d of function %s for %s is a range, but not a parameter of the function.\n"
+                             "  If this range allows for more than one value, that would make multiple functions %s with the same name.\n",
+                             pi, f->fname, d->name, f->fname);
+                }
+                for(d2 = d->next; d2!=NULL; d2=d2->next) {
+                    if( !strcmp(d->name, d2->name) ) {
+                        jdf_fatal(f->lineno, "The definition of %s in function %s appears more than once.\n",
+                                  d->name, f->fname);
+                        rc = -1;
+                    }
+                }
             }
         }
     }
