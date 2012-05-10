@@ -30,11 +30,11 @@ dague_object_t* dplasma_zgetrf_hpp_New( qr_piv_t *qrpiv,
      */
 
     object = dague_zgetrf_hpp_new( *A,  (dague_ddesc_t*)A,
-                                            (dague_ddesc_t*)IPIV,
-                                       *LT, (dague_ddesc_t*)LT,
-                                       qrpiv, ib,
-                                       NULL, NULL,
-                                       INFO);
+                                   (dague_ddesc_t*)IPIV,
+                                   *LT, (dague_ddesc_t*)LT,
+                                   qrpiv, ib,
+                                   NULL, NULL,
+                                   INFO);
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( object->p_work, ib * LT->nb * sizeof(Dague_Complex64_t) );
@@ -67,7 +67,7 @@ dague_object_t* dplasma_zgetrf_hpp_New( qr_piv_t *qrpiv,
                              MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_hpp_LITTLE_T_ARENA], 
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_hpp_LITTLE_T_ARENA],
                                  LT->mb*LT->nb*sizeof(Dague_Complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, LT->mb, LT->nb, -1);

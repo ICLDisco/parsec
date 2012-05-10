@@ -48,7 +48,7 @@ set(JDF
   zgeqrf_param.jdf zungqr_param.jdf
   zgetrf_hincpiv.jdf
   zgetrf_hpp.jdf
-  zgetrf_qrf.jdf
+  #zgetrf_qrf.jdf
   zungqr.jdf
   zlange_inf_cyclic.jdf
   zlange_one_cyclic.jdf
@@ -114,7 +114,7 @@ set(SOURCES
   zgeqrf_param_wrapper.c
   zgetrf_hincpiv_wrapper.c
   zgetrf_hpp_wrapper.c
-  zgetrf_qrf_wrapper.c
+  #zgetrf_qrf_wrapper.c
   zungqr_param_wrapper.c
   zgelqf_wrapper.c
   zherbt_wrapper.c
