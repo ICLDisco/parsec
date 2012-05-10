@@ -41,7 +41,7 @@ static inline int remote_dep_is_forwarded( dague_execution_unit_t* eu_context, d
     boffset = rank / (8 * sizeof(uint32_t));
     mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
     assert(boffset <= eu_context->virtual_process->dague_context->remote_dep_fw_mask_sizeof);
-    DEBUG3(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));
+    DEBUG3(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (rdeps->remote_dep_fw_mask[boffset] & mask)));
     return (int) ((rdeps->remote_dep_fw_mask[boffset] & mask) != 0);
 }
 
