@@ -44,8 +44,6 @@ struct dague_execution_unit {
     struct dague_vp        *virtual_process;   /**< Backlink to the virtual process that holds this thread */
     dague_thread_mempool_t *context_mempool;
     dague_thread_mempool_t *datarepo_mempools[MAX_PARAM_COUNT+1];
-
-    uint32_t *remote_dep_fw_mask;
 };
 
 /**
