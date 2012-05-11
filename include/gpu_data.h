@@ -66,7 +66,7 @@ typedef struct _gpu_device {
     uint8_t minor;
 #if !defined(DAGUE_GPU_STREAM_PER_TASK)
     int max_exec_streams;
-    dague_gpu_exec_stream_t exec_stream[4];
+    dague_gpu_exec_stream_t* exec_stream;
 #endif  /* DAGUE_GPU_STREAM_PER_TASK */
     int executed_tasks;
     volatile uint32_t mutex;

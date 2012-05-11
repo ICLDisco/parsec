@@ -258,6 +258,9 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
                                 {free(gpu_device); gpu_enabled_devices[dindex] = NULL; continue; } );
 
         gpu_device->max_exec_streams = DAGUE_MAX_STREAMS;
+        gpu_device->exec_stream =
+            (dague_gpu_exec_stream_t*)malloc(gpu_device->max_exec_streams
+                                             * sizeof(dague_gpu_exec_stream_t));
         for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
             dague_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
 
@@ -272,11 +275,13 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
             exec_stream->end          = 0;
             exec_stream->fifo_pending = (dague_list_t*)malloc( sizeof(dague_list_t) );
             dague_list_construct( exec_stream->fifo_pending );
-            exec_stream->tasks  = (struct dague_execution_context_t**)malloc(exec_stream->max_events * sizeof(struct dague_execution_context_t*));
+            exec_stream->tasks  = (struct dague_execution_context_t**)malloc(exec_stream->max_events
+                                                                             * sizeof(struct dague_execution_context_t*));
             exec_stream->events = (CUevent*)malloc(exec_stream->max_events * sizeof(CUevent));
             /* and the corresponding events */
             for( k = 0; k < exec_stream->max_events; k++ ) {
                 exec_stream->events[k] = NULL;
+                exec_stream->tasks[k]  = NULL;
 #if CUDA_VERSION >= 3020
                 status = cuEventCreate(&(exec_stream->events[k]), CU_EVENT_DISABLE_TIMING);
 #else
@@ -852,6 +857,7 @@ int progress_stream( gpu_device_t* gpu_device,
         /* No more room on the event list or no tasks. Keep moving */
         goto check_completion;
     }
+    DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)task);
 
     assert( NULL == exec_stream->tasks[exec_stream->start] );
     temp_rc = rc = progress_fct( gpu_device, task, exec_stream->cuda_stream );
@@ -880,15 +886,13 @@ int progress_stream( gpu_device_t* gpu_device,
     if( (NULL == *out_task) && (NULL != exec_stream->tasks[exec_stream->end]) ) {
         rc = cuEventQuery(exec_stream->events[exec_stream->end]);
         if( CUDA_SUCCESS == rc ) {
-            task = exec_stream->tasks[exec_stream->end];
-            DEBUG3(("GPU: Complete %s(task %p)\n", task->function->name, (void*)task ));
+            /* Save the task for the next step */
+            *out_task = exec_stream->tasks[exec_stream->end];
+            DEBUG3(("GPU: Complete %s(task %p)\n", task->function->name, (void*)*out_task ));
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
-            /* Save the task for the next step */
-            *out_task = task;
             saved_rc = temp_rc;
-            /* Try to submit another pending task if possible */
-            task = NULL;
+            task = NULL;  /* Try to schedule another task */
             goto grab_a_task;
         }
         if( CUDA_ERROR_NOT_READY != rc ) {
