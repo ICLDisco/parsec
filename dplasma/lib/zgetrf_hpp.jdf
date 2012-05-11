@@ -447,7 +447,8 @@ low2high(k, m, n) [ profile = off ]
 
   ;descA.nt-n-1
 BODY
-    printlog("\nthread %d VP %d low2high( k = %d, m = %d, n = %d, kp = %d ) type = %d\n", context->th_id, context->virtual_process->vp_id, k, m, n, kp, type);
+    printlog("\nthread %d VP %d low2high( k = %d, m = %d, n = %d, kp = %d ) type = %d\n",
+             context->th_id, context->virtual_process->vp_id, k, m, n, kp, type);
 END
 
 /************************************************************************************
