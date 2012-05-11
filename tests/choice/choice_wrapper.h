@@ -11,7 +11,7 @@
  *
  * @return the dague object to schedule.
  */
-dague_object_t *choice_new(dague_ddesc_t *A, int size, dague_ddesc_t *decision, int nb, int world);
+dague_object_t *choice_new(dague_ddesc_t *A, int size, int *decision, int nb, int world);
 
 /**
  * @param [INOUT] o the dague object to destroy

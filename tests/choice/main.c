@@ -17,7 +17,8 @@ int main(int argc, char *argv[])
     dague_context_t* dague;
     int rank, world, cores;
     int size, nb, i, c;
-    dague_ddesc_t *ddescA, *decision;
+    dague_ddesc_t *ddescA;
+    int *decision;
     dague_object_t *choice;
 
 #if defined(HAVE_MPI)
@@ -45,8 +46,7 @@ int main(int argc, char *argv[])
     ddescA = create_and_distribute_data(rank, world, cores, size);
     dague_ddesc_set_key(ddescA, "A");
 
-    decision = create_and_distribute_data(rank, world, cores, nb+1);
-    dague_ddesc_set_key(decision, "decision");
+    decision = (int*)calloc(sizeof(int), nb+1);
     
     choice = choice_new(ddescA, size, decision, nb, world);
     dague_enqueue(dague, choice);
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
         if( rank == size ) {
             printf("On rank %d, the choices were: ", rank);
             for(i = 0; i <= nb; i++) {
-                c = *((int32_t*)decision->data_of(decision, i));
+                c = decision[i];
                 printf("%c%s", c == 0 ? '#' : (c == 1 ? 'A' : 'B'), i == nb ? "\n" : ", ");
             }
         }
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
     }
 
     free_data(ddescA);
-    free_data(decision);
+    free(decision);
 
 #ifdef HAVE_MPI
     MPI_Finalize();

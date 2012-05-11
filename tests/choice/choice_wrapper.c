@@ -18,7 +18,7 @@ static MPI_Datatype block;
  *
  * @return the dague object to schedule.
  */
-dague_object_t *choice_new(dague_ddesc_t *A, int size, dague_ddesc_t *decision, int nb, int world)
+dague_object_t *choice_new(dague_ddesc_t *A, int size, int *decision, int nb, int world)
 {
     dague_choice_object_t *o = NULL;
     
@@ -36,9 +36,6 @@ dague_object_t *choice_new(dague_ddesc_t *A, int size, dague_ddesc_t *decision, 
         dague_arena_construct(o->arenas[DAGUE_choice_DEFAULT_ARENA],
                               size * sizeof(char), size * sizeof(char), 
                               block);
-        dague_arena_construct(o->arenas[DAGUE_choice_DECISION_ARENA],
-                              sizeof(int), sizeof(int), 
-                              MPI_INT);
     }
 #endif
 
