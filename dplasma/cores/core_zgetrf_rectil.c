@@ -154,7 +154,7 @@ CORE_zgetrf_rectil_update(const PLASMA_desc A, int *IPIV,
 
     /* First tile */
     L = Atop + column + n1;
-    tmpM = ldft - column - n1;
+    tmpM = min(ldft, A.m) - column - n1;
 
     /* Apply the GEMM */
     cblas_zgemm( CblasColMajor, CblasNoTrans, CblasNoTrans,
@@ -256,7 +256,7 @@ CORE_zgetrf_rectil_rec(const PLASMA_desc A, int *IPIV, int *info,
         /* First tile */
         {
             L = Atop + column + n1;
-            tmpM = ldft - column - n1;
+            tmpM = min(ldft, A.m) - column - n1;
 
             /* Scale last column of L */
             if ( piv_sf ) {
