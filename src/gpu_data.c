@@ -168,7 +168,7 @@ int dague_gpu_init(dague_context_t *dague_context,
 
     for( i = nb_cores = 0; i < dague_context->nb_vp; i++ )
         nb_cores += dague_context->virtual_processes[i]->nb_cores;
-    total_perf = nb_cores * (float)2261206 * 4;
+    total_perf = nb_cores * (float)22620000 * 4;
 
 #if defined(DAGUE_PROF_TRACE)
     dague_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",

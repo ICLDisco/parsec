@@ -87,3 +87,6 @@ typedef uint32_t dague_dependency_t;
 
 #define MAX_DEP_IN_COUNT  10
 #define MAX_DEP_OUT_COUNT 10
+
+#define MAX_TASK_STRLEN 128
+

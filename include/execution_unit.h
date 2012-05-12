@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -21,7 +21,7 @@
 #include "barrier.h"
 
 /**
- *  Computational Thread-specific structure 
+ *  Computational Thread-specific structure
  */
 struct dague_execution_unit {
     int32_t   th_id;          /**< Internal thread identifier. A thread belongs to a vp */

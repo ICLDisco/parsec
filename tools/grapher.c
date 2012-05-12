@@ -13,8 +13,6 @@
 #include "dague.h"
 #include "data_distribution.h"
 
-#define MAX_TASK_STRLEN 1024
-
 static uint32_t pseudo_rank_of(struct dague_ddesc *mat, ...)
 {
     va_list ap;
@@ -140,8 +138,8 @@ static dague_ontask_iterate_t ontask_function(struct dague_execution_unit *eu,
     (void)rank_dst;
     (void)param;
 
-    dague_service_to_string(oldcontext, fromstr, MAX_TASK_STRLEN);
-    dague_service_to_string(newcontext, tostr, MAX_TASK_STRLEN);
+    dague_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, oldcontext);
+    dague_snprintf_execution_context(tostr, MAX_TASK_STRLEN, newcontext);
     
     from = lookup_create_vertex(fromstr);
     to = lookup_create_vertex(tostr);
@@ -210,7 +208,7 @@ int main(int argc, char *argv[])
     s = (dague_list_item_t*)startup;
     do {
         char fromstr[MAX_TASK_STRLEN];
-        dague_service_to_string((dague_execution_context_t*)s, fromstr, MAX_TASK_STRLEN);
+        dague_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, (dague_execution_context_t*)s);
         lookup_create_vertex(fromstr);
         s = (dague_list_item_t*)s->list_next;
     } while( s != (dague_list_item_t*)startup );

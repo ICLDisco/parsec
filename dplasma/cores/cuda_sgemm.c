@@ -288,6 +288,9 @@ gpu_kernel_submit_sgemm( gpu_device_t* gpu_device,
     int grid_width, grid_height;
     float alpha = -1.0, beta = 1.0;
     int offset;
+#if defined(DAGUE_DEBUG_VERBOSE2)
+    char tmp[MAX_TASK_STRLEN];
+#endif
 
     gpu_elem_A = (gpu_elem_t *)this_task->data[0].mem2dev_data->device_elem[gpu_device->index];
     gpu_elem_B = (gpu_elem_t *)this_task->data[1].mem2dev_data->device_elem[gpu_device->index];
@@ -296,7 +299,9 @@ gpu_kernel_submit_sgemm( gpu_device_t* gpu_device,
     d_B = gpu_elem_B->gpu_mem;
     d_C = gpu_elem_C->gpu_mem;
 
-    DEBUG2(("GPU:\tRequest GPU runs GEMM(%d, %d, %d)\n", this_task->locals[0], this_task->locals[1], this_task->locals[2]));
+    DEBUG2(( "GPU[%1d]:\Enqueue on device %s priority %d\n", gpu_device->device_index,
+             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
+             this_task->priority ));
 
 #if defined(DAGUE_PROF_TRACE)
     gpu_kernel_profile( gpu_device, this_task, dague_gpu_map.desc);

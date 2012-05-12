@@ -85,8 +85,8 @@ struct dague_flow {
 
 struct dague_datatype {
     int index;
-    expr_op_inline_func_t index_fct;
     int nb_elt;
+    expr_op_inline_func_t index_fct;
     expr_op_inline_func_t nb_elt_fct;
 };
 

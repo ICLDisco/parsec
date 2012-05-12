@@ -114,6 +114,7 @@ struct dague_function {
     uint16_t                     function_id;
     uint8_t                      nb_parameters;
     uint8_t                      nb_definitions;
+    int16_t                      deps;  /**< This is the index of the dependency array in the __DAGUE_object_t */
     dague_dependency_t           dependencies_goal;
     const symbol_t              *params[MAX_LOCAL_COUNT];
     const symbol_t              *locals[MAX_LOCAL_COUNT];
@@ -121,7 +122,6 @@ struct dague_function {
     const dague_flow_t          *in[MAX_PARAM_COUNT];
     const dague_flow_t          *out[MAX_PARAM_COUNT];
     const expr_t                *priority;
-    int                          deps;  /**< This is the index of the dependency array in the __DAGUE_object_t */
 #if defined(DAGUE_SIM)
     dague_sim_cost_fct_t        *sim_cost_fct;
 #endif
@@ -241,9 +241,10 @@ static inline int32_t dague_set_priority( dague_object_t* object, int32_t new_pr
     return old_priority;
 }
 
-char* dague_service_to_string( const dague_execution_context_t* exec_context,
-                               char* tmp,
-                               size_t length );
+/* Dump functions */
+char* dague_snprintf_execution_context( char* str, size_t size,
+                                        dague_execution_context_t* task);
+
 /* Accessors to set and get the completion callback */
 int dague_set_complete_callback( dague_object_t* dague_object,
                                  dague_completion_cb_t complete_cb, void* complete_data );
@@ -302,11 +303,6 @@ dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_
     }
     return *list;
 }
-
-
-/* gdb helpers */
-void dague_dump_object( dague_object_t* object );
-void dague_dump_execution_context( dague_execution_context_t* exec_context );
 
 /**< Print DAGuE usage message */
 void dague_usage(void);

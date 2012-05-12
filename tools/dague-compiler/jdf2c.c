@@ -1694,7 +1694,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s  {\n"
             "%s    char tmp[128];\n"
             "%s    DEBUG2((\"Add startup task %%s\\n\",\n"
-            "%s           dague_service_to_string(new_dynamic_context, tmp, 128)));\n"
+            "%s           dague_snprintf_execution_context(tmp, 128, new_dynamic_context)));\n"
             "%s  }\n"
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
 
@@ -3388,8 +3388,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                             "%s%s  char tmp[128], tmp1[128];\n"
                             "%s%s  DEBUG((\"thread %%d VP %%d release deps of %s:%%s to %s:%%s (from node %%d to %%d)\\n\",\n"
                             "%s%s         eu->th_id, eu->virtual_process->vp_id,\n"
-                            "%s%s         dague_service_to_string(this_task, tmp, 128),\n"
-                            "%s%s         dague_service_to_string(&%s, tmp1, 128), rank_src, rank_dst));\n"
+                            "%s%s         dague_snprintf_execution_context(tmp, 128, this_task),\n"
+                            "%s%s         dague_snprintf_execution_context(tmp1, 128, &%s), rank_src, rank_dst));\n"
                             "%s%s}\n"
                             "#endif\n",
                             prefix, indent(nbopen),
