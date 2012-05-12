@@ -240,6 +240,7 @@ subs = {
     ('coreblas_s',  'coreblas_d',  'coreblas_c',  'coreblas_z' ),
     ('example_s',   'example_d',   'example_c',   'example_z'  ),
     ('lapack_s',    'lapack_d',    'lapack_c',    'lapack_z'   ),
+    ('LAPACKE_s',   'LAPACKE_d',   'LAPACKE_c',   'LAPACKE_z'  ),
     ('PLASMA_s',    'PLASMA_d',    'PLASMA_c',    'PLASMA_z'   ),
     ('PLASMA_S',    'PLASMA_D',    'PLASMA_C',    'PLASMA_Z'   ),
     ('plasma_s',    'plasma_d',    'plasma_c',    'plasma_z'   ),
