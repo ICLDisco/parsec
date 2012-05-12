@@ -156,19 +156,19 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
     assert( NULL == this_task );
     this_task = (dague_execution_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != this_task ) {
-        DEBUG2(( "GPU:\tAdd gemm(k = %d, m = %d, n = %d) priority %d\n",
+        DEBUG2(( "GPU:\tAdd %s(k = %d, m = %d, n = %d) priority %d\n", this_task->function.name,
                 this_task->locals[0].value, this_task->locals[1].value, this_task->locals[2].value,
                 this_task->priority ));
     }
     goto check_in_deps;
 
  complete_task:
+    assert( NULL != this_task );
     /* Everything went fine so far, the result is correct and back in the main memory */
-    if( NULL != this_task ) {
-        DAGUE_LIST_ITEM_SINGLETON(this_task);
-        gpu_kernel_epilog( gpu_device, this_task );
-        dague_complete_execution( eu_context, this_task );
-    }
+    DAGUE_LIST_ITEM_SINGLETON(this_task);
+    gpu_kernel_epilog( gpu_device, this_task );
+    dague_complete_execution( eu_context, this_task );
+    device_load[gpu_device->device_index+1] -= device_weight[gpu_device->device_index+1];
     gpu_device->executed_tasks++;
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     if( 0 == rc ) {  /* I was the last one */
