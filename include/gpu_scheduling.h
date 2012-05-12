@@ -49,8 +49,6 @@ extern gpu_device_t** gpu_enabled_devices;
  * -1 - if the kernel is scheduled to be executed on a GPU.
  */
 
-#if !defined(DAGUE_GPU_STREAM_PER_TASK)
-
 /**
  * This version is based on 4 streams: one for transfers from the memory to
  * the GPU, 2 for kernel executions and one for tranfers from the GPU into
@@ -198,9 +196,6 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
     exit(-20);
     return -2;
 }
-#else /* !defined(DAGUE_GPU_STREAM_PER_TASK)*/
-#error "Not implemented"
-#endif
 
 #endif /* HAVE_CUDA */
 

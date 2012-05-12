@@ -181,8 +181,8 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = 0..descA.mt-3
-m = k+2..descA.mt-1
+k = 0..descA.mt-3    [volatile = on]
+m = k+2..descA.mt-1  [volatile = off]
 n = k+1..m-1
 
 // Parallel partitioning
@@ -209,7 +209,7 @@ BODY
         if( 0 == (rc = gpu_zgemm( context, this_task, uplo )) )
             goto FIN;
         if( -1 == rc ) {
-            /* We're done, but the task has been already destroyed */
+            /* The task is pending in the device, and will be subsequently completed */
             return -1;
         }
         if( -2 == rc ) {
@@ -217,7 +217,6 @@ BODY
 	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
 	    exit(2);
         }
-        /* Continue with the task on the cores */
     }
     dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(m, n) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
@@ -239,6 +238,8 @@ BODY
               1.0, m, n, C, ldam);
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
+    device_load[0] -= device_weight[0];  /* lessen the load on the CPUs */
 FIN:
-#endif
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
+
 END

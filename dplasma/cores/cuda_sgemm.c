@@ -49,18 +49,8 @@ void gpu_kernel_profile_sgemm( gpu_device_t              *gpu_device,
 
 #include "gpu_scheduling.h"
 
-#if DPLASMA_SCHEDULING
-uint32_t *gpu_set;
-#endif
-
 static tiled_matrix_desc_t* UGLY_A;
 static int ndevices = 0;
-
-static int OHM_N = 5;
-static int OHM_M = 3;
-
-/* FIXME */
-#define dague_gpu_1gpu_fini( ... )
 
 #if defined(DAGUE_PROF_TRACE)
 static inline
@@ -90,8 +80,7 @@ int gpu_kernel_init_sgemm( dague_context_t* dague_context,
                            tiled_matrix_desc_t *tileA )
 {
     char *env;
-    int i, dindex;
-    int nbgpus;
+    int i, dindex, nbgpus;
     (void)dague_context;
 
     UGLY_A = tileA;
@@ -105,18 +94,7 @@ int gpu_kernel_init_sgemm( dague_context_t* dague_context,
         return -1;
     }
 
-    env = getenv("OHM_N");
-    if( NULL != env )
-        OHM_N = atoi(env);
-
-    env = getenv("OHM_M");
-    if( NULL != env )
-        OHM_M = atoi(env);
-
     nbgpus = dague_active_gpu();
-#if DPLASMA_SCHEDULING
-    gpu_set = (uint32_t*)calloc(UGLY_A->nt, sizeof(uint32_t));
-#endif
     //gpu_active_devices = (gpu_device_t** )calloc(nbgpus, sizeof(gpu_device_t*));
     for( i = dindex = 0; i < nbgpus; i++ ) {
         gpu_device_t* gpu_device;
@@ -126,7 +104,7 @@ int gpu_kernel_init_sgemm( dague_context_t* dague_context,
         gpu_device = gpu_enabled_devices[i];
 
         status = cuCtxPushCurrent( gpu_device->ctx );
-        DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status, { dague_gpu_1gpu_fini(gpu_device); continue;} );
+        DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status, {continue;} );
 
         /* If not disallowed by env, load from static linked kernels */
         /* This is non functional, as the ptr is not a CuFunction. */
@@ -150,7 +128,6 @@ int gpu_kernel_init_sgemm( dague_context_t* dague_context,
             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status,
                                     {
                                         WARNING(("GPU:\tUnable to load `%s'\n", module_path));
-                                        dague_gpu_1gpu_fini(gpu_device); 
                                         continue;
                                     } );
             snprintf(module_path, FILENAME_MAX, "sgemmNT_SM%d%d", gpu_device->major, gpu_device->minor);
@@ -159,7 +136,6 @@ int gpu_kernel_init_sgemm( dague_context_t* dague_context,
             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleGetFunction ", status,
                                     {
                                         WARNING(("GPU:\tUnable to find the function `%s'\n", module_path));
-                                        dague_gpu_1gpu_fini(gpu_device); 
                                         continue;
                                     } );
         }
@@ -170,10 +146,9 @@ int gpu_kernel_init_sgemm( dague_context_t* dague_context,
             cuFuncSetBlockShape( gpu_device->hcuFunction, 64, 4, 1 );
         }
 
-
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
-                                {dague_gpu_1gpu_fini(gpu_device); continue;} );
+                                {continue;} );
         gpu_device->index = (uint8_t)dindex;
         gpu_enabled_devices[dindex++] = gpu_device;
     }
@@ -465,8 +440,6 @@ gpu_kernel_epilog_sgemm( gpu_device_t* gpu_device,
  * -1 - if the GEMM is scheduled to be executed on a GPU.
  */
 
-#if !defined(DAGUE_GPU_STREAM_PER_TASK)
-
 /**
  * This version is based on 4 streams: one for transfers from the memory to
  * the GPU, 2 for kernel executions and one for tranfers from the GPU into
@@ -479,280 +452,37 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
                dague_execution_context_t* this_task,
                int uplo )
 {
-    int which_gpu;
-    int n, m;
+    int which_gpu, n, m;
 
     m = this_task->locals[1].value;
     n = this_task->locals[2].value;
     (void)uplo;
     /* We always schedule the task on the GPU owning the C tile. */
     which_gpu = dague_gpu_data_elt_write_owner( &dague_gpu_map, GEMM_KEY(m, n) );
-    if( which_gpu < 0 ) {  /* this is the first time we see this tile. Let's decide which GPU will work on it. */
-        which_gpu = 0; /* TODO */
-#if DPLASMA_SCHEDULING
-        assert( n < UGLY_A->nt );
-        if( ndevices > 1){
-            /* reverse odd-even */
-            /* homogeneous GPU */
-            {
-                if(n % 2 == 0){
-                    which_gpu = gpu_set[n] % ndevices;
-                }
-                else{
-                    which_gpu = ndevices - (gpu_set[n] % ndevices + 1);
-                }
+    if( which_gpu < 0 ) {  /* this is the first time we see this tile.
+                            * Let's decide which GPU will work on it. */
+        int best_index = -1;  /* cores */
+        /* There are 3 types of GEMMs kernels: the ones waiting on the
+         * execution contextes queues to be investigated, the current one
+         * which is investigated for execution on the context of the current
+         * execution context, and the ones already queued on the GPUs. The
+         * decision regarding the status of the current GEMM should be therefore
+         * based only on the number of pending tasks on the GPUs.
+         */
+        float weight, best_weight = device_load[0] + device_weight[0];
+        for( which_gpu = 0; which_gpu < ndevices; which_gpu++ ) {
+            weight = device_load[which_gpu+1] + device_weight[which_gpu+1];
+            if( best_weight > weight ) {
+                best_index = which_gpu;
+                best_weight = weight;
             }
-
-            /* heterogenous GPU */
-            /* weight by percentage of getting n of (n) with performance factor */
-            {
-
-
-            }
-
-            dague_atomic_inc_32b( &(gpu_set[n]) );
         }
-#if DPLASMA_ONLY_GPU
-#else
-        /*
-        **Rectangular Mesh **
-        1. Fact, a number of tile ahd GEMMs comes from Matrix size and tile size
-        - we may have to change m,n in every tile size/ matrix size
-        2. m and n is assign the size of squares which're going to mark over the
-        * triangular bunch of GEMMs
-        * 3. m % (?) == (?) and n % (?) == (?) marks which tile is gonna be executed on CPU
-        * 4. all (?) values affect "square size" and "position"-- which affects how many GEMMs will be executed on CPU
-        * 5. Once we superpose/pile up "many square(m,n) -- like a mesh" on to triangular GEMMs, we will be able to caluculate how many GEMMs will be on CPU, also know which tiles 
-        * 6. The number GEMMs on GPU and CPU would meet "how many times GPU faster than CPU "
-        * I usually use m % 3 == 0 && n % 2 == 0 on C1060 (3x2 square)
-        * I usaully use m % 4 == 0 && n % 2 == 0 on C2050 (4x2 square)
-        * chance is lower that 1:6 or 1:8 becasue we pile up this square on to triangular
-        * Why this method ?
-        *  - try to finish "each bunch of GEMMs" as soon as poosible with GPU+CPU
-        *  - plus "balancing" between CPU/GPU
-        **/
-
-        if( ((m % OHM_M) == 0) && ( (n % OHM_N) == 0) ){
-            dague_atomic_inc_32b( &(dague_cpu_counter) );
+        if( best_index == -1 ) {
+            dague_atomic_inc_32b( &dague_cpu_counter );
             return -99;
         }
-#endif  /* DPLASMA_ONLY_GPU */
-#endif  /* DPLASMA_SCHEDULING */
+        device_load[best_index+1] = best_weight;  /* update the expected load: 0 is for the cores */
+        which_gpu = best_index;
     }
-
     return gpu_kernel_scheduler_sgemm( eu_context, this_task, which_gpu );
 }
-
-#else
-#error "This case is not correct right now"
-
-static int
-gpu_sgemm_internal( gpu_device_t* gpu_device,
-                    dague_execution_unit_t* eu_context,
-                    dague_execution_context_t* this_task,
-                    CUstream stream, int uplo )
-{
-    int return_code = 0;  /* by default suppose an error */
-
-    (void)eu_context;
-    (void)uplo;
-
-   // DEBUG(("GPU:\tExecute GEMM( k = %d, m = %d, n = %d ) [%d] on device %d stream %p\n",
-     //      k, m, n, this_task->priority, gpu_device->device_index, (void*)stream));
-
-    return_code = gpu_sgemm_internal_push( gpu_device,
-                                           this_task,
-                                           stream );
-    if( 0 > return_code ) goto release_and_return_error;
-
-    return_code = gpu_sgemm_internal_submit( gpu_device,
-                                             this_task,
-                                             stream );
-    if( 0 != return_code ) goto release_and_return_error;
-
-    return_code = gpu_sgemm_internal_pop( gpu_device,
-                                          this_task,
-                                          stream );
-
- release_and_return_error:
-    return (return_code < 0 ? return_code : 0);
-}
-
-/**
- * This version is based on 4 streams, each of them potentially containing
- * all transfers from memory to the GPU, the kernel execution on the GPU and
- * the transfers from the GPU to the main memory. The synchronizations are
- * based on the fact that each stream contains only tasks related to a single
- * kernel, so waiting for the stream to be empty means everything related to
- * a task has been completed. There might be overlap between the operations on
- * different streams, however it is difficult to schedule in advance transfers
- * related to kernel that will be executed later.
- */
-int gpu_sgemm( dague_execution_unit_t* eu_context,
-               dague_execution_context_t* this_task,
-               int uplo )
-{
-    int which_gpu, rc, stream_rc, waiting = 0, submit = 0;
-    gpu_device_t* gpu_device;
-    cudaError_t status;
-    dague_execution_context_t* progress_array[DAGUE_MAX_STREAMS];
-    int n, m;
-
-    m = this_task->locals[1].value;
-    n = this_task->locals[2].value;
-
-    /* We always schedule the task on the GPU owning the C tile. */
-    which_gpu = dague_gpu_data_elt_write_owner( &dague_gpu_map, GEMM_KEY(m, n) );
-    if( which_gpu < 0 ) {  /* this is the first time we see this tile. Let's decide which GPU will work on it. */
-        which_gpu = 0; /* TODO */
-#if DPLASMA_SCHEDULING
-        assert( n < UGLY_A->nt );
-        if(ndevices > 1) {
-        /* reverse odd-even */
-        /* homogeneous GPU */
-        if(n % 2 == 0) {
-            which_gpu = gpu_set[n] % ndevices;
-        }
-        else {
-            which_gpu = ndevices - (gpu_set[n] % ndevices + 1);
-        }
-
-        /* heterogenous GPU */
-        /* weight by percentage of getting n of (n) with performance factor */
-        {
-
-        }
-        dague_atomic_inc_32b( &(gpu_set[n]) );
-    }
-    /*c1060 4 - 2  384-448  3-0-2-0 960 */
-    /*c2050 5 - 2 448       4-2 960 */
-
-#if DPLASMA_ONLY_GPU
-
-#else
-
-     /*
-      **Rectangular Mesh **
-
-       1. Fact, number of tile,GEMMs is come from Matrix size and tile size
-       	- we may have to change m,n in every tile size/ matrix size
-       2. m and n is assign the size of squares which're going to mark over the
-     * triangular bunch of GEMMs
-     * 3. m % (?) == (?) and n % (?) == (?) marks which tile is gonna be executed on CPU
-     * 4. all (?) values affect "square size" and "position"-- which affects how many GEMMs will be executed on CPU
-     * 5. Once we superpose/pile up "many square(m,n) -- like a mesh" on to triangular GEMMs, we will be able to caluculate how many GEMMs will be on CPU, also know which tiles 
-     * 6. The number GEMMs on GPU and CPU would meet "how many times GPU faster than CPU "
-     * I usually use m % 3 == 0 && n % 2 == 0 on C1060 (3x2 square)
-     * I usaully use m % 4 == 0 && n % 2 == 0 on C2050 (4x2 square)
-     * chance is lower that 1:6 or 1:8 becasue we pile up this square on to triangular
-     *
-     * Why this method ?
-     * 	 - try to finish "each bunch of GEMMs" as soon as poosible with GPU+CPU
-     * 	 - plus "balancing" between CPU/GPU
-     */
-    if( ((m % OHM_M) == 0) && ( (n % OHM_N) == 0) ){
-        dague_atomic_inc_32b( &(dague_cpu_counter) );
-        return -99;
-    }
-#endif
-
-#endif
-    }
-    gpu_device = gpu_enabled_devices[which_gpu];
-
-    /* Check the GPU status */
-    rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
-    if( 1 != rc ) {  /* I'm not the only one messing with this GPU */
-        dague_fifo_push( &(gpu_device->pending), (dague_list_item_t*)this_task );
-        return -1;
-    }
-
-    status = (cudaError_t)cuCtxPushCurrent(gpu_device->ctx);
-    DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                              {return -2;} );
-    for( rc = 0; rc < DAGUE_MAX_STREAMS; rc++ )
-        progress_array[rc] = NULL;
-
- more_work_to_do:
-    if( (NULL != this_task) && (NULL == progress_array[submit]) ) {
-        progress_array[submit] = this_task;
-
-        /* Push this task into the GPU */
-        rc = gpu_sgemm_internal( gpu_device, eu_context, this_task, gpu_device->streams[submit], uplo );
-        if( 0 != rc ) {  /* something fishy happened. Reschedule the pending tasks on the cores */
-            goto disable_gpu;
-        }
-        DEBUG3(( "GPU:\tsubmit %p (k = %d, m = %d, n = %d) [%d]\n", (void*)progress_array[submit], k, m, n, submit ));
-        submit = (submit + 1) % gpu_device->max_streams;
-        this_task = NULL;
-    }
-
-    if( NULL != progress_array[waiting] ) {
-    wait_for_completion:
-        stream_rc = cuStreamQuery(gpu_device->streams[waiting]);
-        if( CUDA_ERROR_NOT_READY == stream_rc ) {
-            goto fetch_more_work;
-            /* Task not yet completed */
-        } else if( CUDA_SUCCESS == stream_rc ) {  /* Done with this task */
-            goto complete_previous_work;
-        } else {
-            DAGUE_CUDA_CHECK_ERROR( "cuStreamQuery ", stream_rc,
-                                      {return -2;} );
-        }
-    }
-
-    if( NULL == this_task ) {
-        goto fetch_more_work;
-    }
-    goto more_work_to_do;
-
- complete_previous_work:
-    /* Everything went fine so far, the result is correct and back in the main memory */
-    DEBUG3(( "GPU:\tcomplete %p (k = %d, m = %d, n = %d) [%d]\n", (void*)progress_array[waiting], k, m, n, waiting ));
-    dague_complete_execution( eu_context, progress_array[waiting] );
-    progress_array[waiting] = NULL;
-    waiting = (waiting + 1) % gpu_device->max_streams;
-
-    gpu_device->executed_tasks++;
-/*	dague_atomic_dec_32b( &(gpu_device->workload) );*/
-    rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
-    if( 0 == rc ) {  /* I was the last one */
-        status = (cudaError_t)cuCtxPopCurrent(NULL);
-        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                                  {return -1;} );
-        return -1;
-    }
-
- fetch_more_work:
-    /* Do we still have room in the progress_array? */
-    if( NULL != progress_array[submit] )
-        goto wait_for_completion;
-
-    this_task = (dague_execution_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
-    if( NULL == this_task ) {  /* Collisions, save time and come back here later */
-        goto more_work_to_do;
-    }
-
-    m = this_task->locals[1].value;
-    n = this_task->locals[2].value;
-
-    goto more_work_to_do;
-
-    /* a device ... */
- disable_gpu:
-    __dague_schedule( eu_context, this_task);
-    rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
-    while( rc != 0 ) {
-        this_task = (dague_execution_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
-        if( NULL != this_task ) {
-            __dague_schedule( eu_context, this_task);
-            rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
-        }
-    }
-    status = (cudaError_t)cuCtxPopCurrent(NULL);
-    DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                              {} );
-    return -2;
-}
-#endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
-

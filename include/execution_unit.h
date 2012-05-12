@@ -93,7 +93,6 @@ struct dague_context_t {
 
     int32_t nb_vp; /**< number of virtual processes in this physical process */
 
-
 #ifdef HAVE_HWLOC
     int comm_th_core;
     hwloc_cpuset_t comm_th_index_mask;

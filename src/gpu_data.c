@@ -35,7 +35,7 @@ static int dague_gpu_allocation_initialized = 0;
 
 dague_gpu_data_map_t dague_gpu_map = { NULL, NULL };
 volatile uint32_t dague_cpu_counter = 0;
-
+float *device_load = NULL, *device_weight = NULL;
 
 #define DAGUE_LIST_DESTRUCT(__dague_list)                               \
     {                                                                   \
@@ -43,8 +43,6 @@ volatile uint32_t dague_cpu_counter = 0;
         free( __dague_list );                                           \
         __dague_list = NULL;                                            \
     }
-
-
 
 static void* dague_allocate_data_gpu(size_t matrix_size)
 {
@@ -62,11 +60,12 @@ static void* dague_allocate_data_gpu(size_t matrix_size)
         status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
         DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuMemHostAlloc failed ", status,
                                 {
-                                    ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
+                                    ERROR(("Unable to allocate %ld bytes of GPU-compatible data as requested.\n", matrix_size));
                                 } );
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                 {} );
+        printf("Allocate %lu bytes on GPU\n", matrix_size);
     } else {
         mat = malloc( matrix_size );
     }
@@ -129,7 +128,7 @@ int dague_active_gpu(void)
 /* Accepted values are: DAGUE_PROFILE_CUDA_TRACK_DATA_IN | DAGUE_PROFILE_CUDA_TRACK_DATA_OUT |
  *                      DAGUE_PROFILE_CUDA_TRACK_OWN | DAGUE_PROFILE_CUDA_TRACK_EXEC
  */
-int dague_cuda_trackable_events = DAGUE_PROFILE_CUDA_TRACK_EXEC | DAGUE_PROFILE_CUDA_TRACK_OWN;
+int dague_cuda_trackable_events = DAGUE_PROFILE_CUDA_TRACK_EXEC;
 int dague_cuda_movein_key_start;
 int dague_cuda_movein_key_end;
 int dague_cuda_moveout_key_start;
@@ -143,9 +142,12 @@ int dague_cuda_own_GPU_key_end;
  */
 gpu_device_t** gpu_enabled_devices = NULL;
 
-int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
+int dague_gpu_init(dague_context_t *dague_context,
+                   int* puse_gpu,
+                   int dague_show_detailed_capabilities)
 {
-    int ndevices, i, j, k, dindex;
+    int ndevices, i, j, k, dindex, nb_cores;
+    float total_perf;
     CUresult status;
 
     if( (*puse_gpu) == -1 ) {
@@ -164,6 +166,10 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
         return -1;
     }
 
+    for( i = nb_cores = 0; i < dague_context->nb_vp; i++ )
+        nb_cores += dague_context->virtual_processes[i]->nb_cores;
+    total_perf = nb_cores * (float)2261206 * 4;
+
 #if defined(DAGUE_PROF_TRACE)
     dague_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
                                             0, NULL,
@@ -177,6 +183,11 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
 #endif  /* defined(PROFILING) */
 
     gpu_enabled_devices = (gpu_device_t**)calloc(ndevices, sizeof(gpu_device_t*));
+
+    device_load = (float*)calloc(ndevices+1, sizeof(float));  /* 0 for the cores */
+    device_weight = (float*)calloc(ndevices+1, sizeof(float));
+    for( i = 0; i < (ndevices+1); i++ ) device_weight[i] = total_perf / nb_cores;
+
     for( i = dindex = 0; i < ndevices; i++ ) {
 #if CUDA_VERSION >= 3020
         size_t total_mem;
@@ -188,9 +199,6 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
         char szName[256];
         int major, minor, concurrency;
         CUdevice hcuDevice;
-
-        /* Allow fine grain selection of the GPU's */
-        if( !((1 << i) & __dague_gpu_mask) ) continue;
 
         status = cuDeviceGet( &hcuDevice, i );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {continue;} );
@@ -205,6 +213,13 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
 
         status = cuDeviceGetAttribute( &concurrency, CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
+
+        device_weight[i+1] = ((float)devProps.maxThreadsPerBlock * (float)devProps.clockRate) * (float)2.0;
+        total_perf += device_weight[i+1];
+        device_weight[i+1] *= (concurrency == 1 ? 2 : 1);
+
+        /* Allow fine grain selection of the GPU's */
+        if( !((1 << i) & __dague_gpu_mask) ) continue;
 
         if( dague_show_detailed_capabilities ) {
             STATUS(("GPU Device %d (capability %d.%d): %s\n", i, major, minor, szName ));
@@ -268,7 +283,6 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
             status = cuStreamCreate( &(exec_stream->cuda_stream), 0 );
             DAGUE_CUDA_CHECK_ERROR( "cuStreamCreate ", status,
                                     {break;} );
-#if !defined(DAGUE_GPU_STREAM_PER_TASK)
             exec_stream->max_events   = DAGUE_MAX_EVENTS_PER_STREAM;
             exec_stream->executed     = 0;
             exec_stream->start        = 0;
@@ -289,7 +303,6 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
 #endif  /* CUDA_VERSION >= 3020 */
                 DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
                                         {break;} );
-#endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
             }
         }
 
@@ -301,6 +314,14 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
         gpu_device->profiling = dague_profiling_thread_init( 2*1024*1024, "GPU %d.0", i );
 #endif  /* defined(PROFILING) */
         dindex++;
+    }
+    /* Compute the weight of each device including the cores */
+    for( i = 0; i < (ndevices+1); i++ ) {
+        device_weight[i] = (total_perf / device_weight[i]);
+        if( 0 == i )
+            printf("CPU             ->ratio %2.4f\n", device_weight[i]);
+        else
+            printf("Device index %2d ->ratio %2.4f\n", i-1, device_weight[i]);
     }
 
     dague_data_enable_gpu( ndevices );
@@ -331,7 +352,6 @@ int dague_gpu_fini( void )
         for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
             dague_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
 
-#if !defined(DAGUE_GPU_STREAM_PER_TASK)
             exec_stream->max_events   = DAGUE_MAX_EVENTS_PER_STREAM;
             exec_stream->executed     = 0;
             exec_stream->start        = 0;
@@ -346,7 +366,6 @@ int dague_gpu_fini( void )
             free(exec_stream->events); exec_stream->events = NULL;
             free(exec_stream->tasks); exec_stream->tasks = NULL;
             free(exec_stream->fifo_pending); exec_stream->fifo_pending = NULL;
-#endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
             /* Release the stream */
             cuStreamDestroy( exec_stream->cuda_stream );
         }
@@ -820,7 +839,6 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     return 0;
 }
 
-#if !defined(DAGUE_GPU_STREAM_PER_TASK)
 
 #if DAGUE_GPU_USE_PRIORITIES
 static inline dague_list_item_t* dague_fifo_push_ordered( dague_list_t* fifo,
@@ -833,7 +851,6 @@ static inline dague_list_item_t* dague_fifo_push_ordered( dague_list_t* fifo,
 #else
 #define DAGUE_FIFO_PUSH  dague_ulist_fifo_push
 #endif
-#endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
 
 int progress_stream( gpu_device_t* gpu_device,
                      dague_gpu_exec_stream_t* exec_stream,

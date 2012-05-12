@@ -21,7 +21,6 @@
 #include "gpu_malloc.h"
 #include "data_distribution.h"
 
-#define DPLASMA_SCHEDULING       1
 #define DPLASMA_ONLY_GPU         0
 #define DAGUE_GPU_USE_PRIORITIES 1
 
@@ -45,6 +44,8 @@ extern int dague_cuda_own_GPU_key_start;
 extern int dague_cuda_own_GPU_key_end;
 #endif  /* defined(PROFILING) */
 
+extern float *device_load, *device_weight;
+
 typedef struct __dague_gpu_exec_stream {
     struct dague_execution_context_t **tasks;
     CUevent *events;
@@ -64,10 +65,8 @@ typedef struct _gpu_device {
     uint8_t device_index;
     uint8_t major;
     uint8_t minor;
-#if !defined(DAGUE_GPU_STREAM_PER_TASK)
     int max_exec_streams;
     dague_gpu_exec_stream_t* exec_stream;
-#endif  /* DAGUE_GPU_STREAM_PER_TASK */
     int executed_tasks;
     volatile uint32_t mutex;
     dague_list_t pending;
@@ -94,7 +93,9 @@ typedef struct _gpu_device {
     }
 
 extern gpu_device_t** gpu_enabled_devices;
-int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities);
+int dague_gpu_init(dague_context_t *dague_context,
+                   int* puse_gpu,
+                   int dague_show_detailed_capabilities);
 int dague_gpu_fini( void );
 
 /**

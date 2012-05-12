@@ -37,9 +37,8 @@
 #endif
 
 #ifdef HAVE_CUDA
-#include "cuda.h"
-#include "cublas.h"
-#include "cuda_runtime_api.h"
+#include <cuda.h>
+#include <cuda_runtime_api.h>
 #endif
 
 dague_allocate_data_t dague_data_allocate = malloc;
