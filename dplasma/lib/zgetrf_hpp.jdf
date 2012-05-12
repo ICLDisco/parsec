@@ -16,6 +16,8 @@ extern "C" %{
 #include <plasma.h>
 #include <core_blas.h>
 
+#include <lapacke.h>
+
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
@@ -27,6 +29,7 @@ extern "C" %{
 PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
                              int lm, int ln, int i, int j, int m, int n);
 
+#define FOLLOW_CONDNUM
 %}
 
 descA   [type = "tiled_matrix_desc_t"]
@@ -78,6 +81,7 @@ zgetrf_hpp(k, i)
   CTL   ctl  <- (k > 0) ? ctl tile2panel(k-1, m, k)
              -> ((k < descA.mt-1) & (m < ms)) ? ctl zttqrt(k, (m+param_p)..ms..param_p)
 
+; descA.nt-k-1
 BODY
 {
     int iinfo = 0;
@@ -101,12 +105,39 @@ BODY
                                                s*descA.mb, descA.nb, 0, 0,
                                                tempm, tempn );
         pdescA.mat = A;
+
+#ifdef FOLLOW_CONDNUM
+        double Anorm, Acond, Ucond;
+        int info;
+        int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+        int tempmin = dague_imin(tempmm, tempn);
+        assert( tempmm <= tempn );
+        Anorm = LAPACKE_zlange( LAPACK_COL_MAJOR, '1', tempmm, tempn, A, descA.mb );
+#endif
+
         iinfo = CORE_zgetrf_rectil_1thrd( pdescA, IP );
 
         if ( iinfo != 0 ) {
             *INFO = m * descA.mb + iinfo; /* Should return if enter here */
             fprintf(stderr, "zgetrf(%d, %d, %d) failed => %d\n", k, i, m, *INFO );
         }
+
+#ifdef FOLLOW_CONDNUM
+        info = LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempmin, A, descA.mb, Anorm, &Acond );
+        if ( info != 0 ) {
+            fprintf(stderr, "Fucking hell it doesn't work\n");
+            assert(0);
+        }
+
+        info = LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'u', 'n', tempmin, A, descA.mb, &Ucond );
+        if ( info != 0 ) {
+            fprintf(stderr, "Fucking hell 2 it doesn't work\n");
+            assert(0);
+        }
+
+        printf("getrf(%d, %d) => Anorm=%e, Acond=%e, Ucond=%e\n",
+               k, i, Anorm, 1./Acond, 1./Ucond );
+#endif
            );
 
     printlog("\nthread %d VP %d zgetrf_hpp( k=%d, i=%d, m=%d, nextm=%d, s=%d, ms=%d )\n"
@@ -128,6 +159,8 @@ zgetrf_hpp_typechange(k, i) [profile = off]
   RW A <- A zgetrf_hpp(k, i)
        -> ( descA.nt-1 > k ) ? A swptrsm(k, i, (k+1)..(descA.nt-1))   [type = LOWER_TILE]
        -> A(m, k)                                                     [type = LOWER_TILE]
+
+; descA.nt-k-1
 BODY
     /* Nothing */
 END
@@ -248,6 +281,7 @@ zttqrt(k, m)
 
   CTL ctl <- ( type == 0 ) ? ctl zgetrf_hpp(k, p)
 
+; descA.nt-k-1
 BODY
 {
     int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
@@ -277,9 +311,21 @@ BODY
                  T  /* T(m, k) */, descLT.mb,
                  p_elem_A, p_elem_B );
 
-         dague_private_memory_push( p_tau , p_elem_A );
-         dague_private_memory_push( p_work, p_elem_B );
+             dague_private_memory_push( p_tau , p_elem_A );
+             dague_private_memory_push( p_work, p_elem_B );
 
+#ifdef FOLLOW_CONDNUM
+             int info;
+             double cond;
+             info = LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'u', 'n', dague_imin(tempmm, tempkn), A, ldap, &cond );
+             if ( info != 0 ) {
+                 fprintf(stderr, "Fucking hell 3 it doesn't work\n");
+                 assert(0);
+             }
+
+             printf("ttqrt( %d, %d, %d ) => cond=%e\n",
+                    k, ip, im, 1./cond );
+#endif
          }
            );
 }
@@ -356,6 +402,7 @@ zttmqr(k, m, n)
   CTL ctl  -> ( type == 0 ) ? ctl tile2panel(k, m, n)
            -> ( type == 0 ) ? ctl low2high(k, m, n)
 
+; descA.nt-n-1
 BODY
 {
     int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
