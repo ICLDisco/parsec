@@ -412,6 +412,7 @@ RW    W <- (d == 0)? V GETRF_SVM(k,(mmax+m-1)%mmax,h) : W GETRF_SND(k,d-1,(mmax+
 
 BODY
     DRYRUN(
+       int isend = (h%2 == 1)? IEVN : IODD;
        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
 
        Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
@@ -419,8 +420,8 @@ BODY
 
 
        if(m  < pui && m < pui/2)
-	 cblas_zcopy(tempkn, lV + IEVN, 1,
-		             lW + IEVN, 1);
+	 cblas_zcopy(tempkn, lV + isend, 1,
+		             lW + isend, 1);
 
        if(cabs(lV[SRCH + h]) > cabs(lW[SRCH + h]))
 	 {
