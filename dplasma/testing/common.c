@@ -530,7 +530,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 #if defined(HAVE_CUDA)
     if(iparam[IPARAM_NGPUS] > 0)
     {
-        if(0 != dague_gpu_init(&iparam[IPARAM_NGPUS], 0))
+        if(0 != dague_gpu_init(ctx, &iparam[IPARAM_NGPUS], 0))
         {
             fprintf(stderr, "xxx DAGuE is unable to initialize the CUDA environment.\n");
             exit(3);

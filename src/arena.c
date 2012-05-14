@@ -28,7 +28,7 @@ int dague_arena_construct(dague_arena_t* arena,
     arena->alignment = alignment;
     arena->elem_size = elem_size;
     arena->opaque_dtt = opaque_dtt;
-    arena->used = 0;     
+    arena->used = 0;
     arena->released = 0;
     arena->max_used = INT32_MAX;
     arena->max_released = INT32_MAX;
@@ -57,9 +57,9 @@ int dague_arena_construct_ex(dague_arena_t* arena,
 void dague_arena_destruct(dague_arena_t* arena)
 {
     dague_list_item_t* item;
-    
+
     assert(0 == arena->used);
-    
+
     while(NULL != (item = dague_lifo_pop(&arena->lifo))) {
         arena->data_free(item);
     }
@@ -83,7 +83,7 @@ dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count)
                 return NULL;
             }
         }
-        
+
         item = dague_lifo_pop(&arena->lifo);
         if(NULL != item) {
             if(INT32_MAX != arena->max_released) {
@@ -97,6 +97,7 @@ dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count)
                     sizeof(union _internal_chunk_prefix_t), DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
         } else {
             item = arena->data_malloc(size);
+            dague_list_item_construct(item);
             assert(NULL != item);
             DEBUG3(("Arena:\tallocate a new tile of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
                     arena->elem_size, arena, arena->alignment, item,
@@ -135,7 +136,7 @@ void dague_arena_release(dague_arena_chunk_t* ptr)
 
     if(chunk->count > 1 || arena->released >= arena->max_released) {
         DEBUG3(("Arena:\tdeallocate a tile of size %zu x %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
-                arena->elem_size, chunk->count, arena, arena->alignment, chunk, chunk->data, sizeof(union _internal_chunk_prefix_t), 
+                arena->elem_size, chunk->count, arena, arena->alignment, chunk, chunk->data, sizeof(union _internal_chunk_prefix_t),
                 DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
         arena->data_free(chunk);
     } else {

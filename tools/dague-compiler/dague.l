@@ -2,7 +2,7 @@
 
 %{
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -22,7 +22,7 @@ static char *extern_code(char *base, int len)
 {
    char *res;
    int rp, rlen;
-   
+
    rlen = len + 16 + strlen(yyfilename);
    res = (char*)calloc(1, rlen);
 
@@ -65,25 +65,25 @@ WHITE         [\f\t\v ]
                           while( *b != '\n' ) b++;
                           yylval.string = extern_code( b+1, strlen(b+1) - 3 );
                           current_lineno++;
-                          return BODY; 
+                          return BODY;
                       }
 extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}                          {
                           int lstart, lend, bstart, skip_line = 0;
-                          /* This assumes that no extern language rightfully has a " 
+                          /* This assumes that no extern language rightfully has a "
                            * in its name, which is also an assumption of the lexer anyway */
-                          
+
                           /* find the beginning of the language */
                           for(lstart = 0; yytext[lstart] != '"'; lstart++) /* nothing */;
                           lstart++;
-                          
+
                           /* find the end of the language */
                           for(lend = lstart + 1; yytext[lend] != '"'; lend++) /* nothing */;
                           assert( (yytext[lstart] == 'C') && ((lend-lstart) == 1) );
-                          
+
                           /* Search for the start of the body */
                           for(bstart = lend + 1; yytext[bstart] != '{'; bstart++ ) /* nothing */;
                           bstart++;
-                          while( yytext[bstart] != '\n' ) bstart++; 
+                          while( yytext[bstart] != '\n' ) bstart++;
                           bstart++;
                           for( lend = 0; lend <= bstart; lend++ )
                               if( yytext[lend] == '\n' ) skip_line++;
@@ -107,7 +107,7 @@ inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}                                      
                       }
 SIMCOST               { return SIMCOST; }
 <*>"/*"               { yy_push_state(comment);                            }
-<comment>[^*\n]*      {  /* Eat up non '*'s */                             } 
+<comment>[^*\n]*      {  /* Eat up non '*'s */                             }
 <comment>"*"+[^*/\n]* {  /* Eat '*'s not followed by a '/' */              }
 <comment>"*"+"/"      { yy_pop_state();  /* Done with the comment BLOCK */ }
 <*>{WHITE}+           {  /* Eat multiple white-spaces */                   }

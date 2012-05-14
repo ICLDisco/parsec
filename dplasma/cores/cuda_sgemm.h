@@ -12,15 +12,13 @@
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"
-#include "list.h"
 #include "fifo.h"
-#include "data_distribution.h"
 #include "data_dist/matrix/matrix.h"
 
 #define GEMM_KEY(M, N) (uint32_t)(NULL == dague_gpu_map.desc ? \
                                   0 : (M) * (((tiled_matrix_desc_t*)(dague_gpu_map.desc))->lmt) + (N))
 
-int gpu_kernel_init_sgemm( dague_context_t* dague_context, 
+int gpu_kernel_init_sgemm( dague_context_t* dague_context,
                            tiled_matrix_desc_t *tileA );
 
 int gpu_sgemm( dague_execution_unit_t* eu_context,

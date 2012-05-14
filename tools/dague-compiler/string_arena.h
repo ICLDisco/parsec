@@ -16,6 +16,7 @@ static string_arena_t *string_arena_new(int base_size)
     }
     sa->ptr  = (char*)malloc(base_size);
     sa->pos  = 0;
+    sa->ptr[0]='\0';
     sa->size = base_size;
     return sa;
 }

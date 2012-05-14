@@ -21,9 +21,7 @@
 #include "gpu_malloc.h"
 #include "data_distribution.h"
 
-#define DPLASMA_SCHEDULING       1
-#define DPLASMA_ONLY_GPU         0
-#define DAGUE_GPU_USE_PRIORITIES 1
+#define DAGUE_GPU_USE_PRIORITIES     1
 
 #define DAGUE_MAX_STREAMS            4
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
@@ -45,35 +43,29 @@ extern int dague_cuda_own_GPU_key_start;
 extern int dague_cuda_own_GPU_key_end;
 #endif  /* defined(PROFILING) */
 
+extern float *device_load, *device_weight;
+
+typedef struct __dague_gpu_exec_stream {
+    struct dague_execution_context_t **tasks;
+    CUevent *events;
+    CUstream cuda_stream;
+    int32_t max_events;  /* number of potential events, and tasks */
+    int32_t executed;    /* number of executed tasks */
+    int32_t start, end;  /* circular buffer management start and end positions */
+    dague_list_t *fifo_pending;
+} dague_gpu_exec_stream_t;
+
 typedef struct _gpu_device {
     dague_list_item_t item;
-    CUcontext ctx;
+    CUcontext  ctx;
     CUmodule   hcuModule;
     CUfunction hcuFunction;
-    CUstream   streams[DAGUE_MAX_STREAMS];
-    int max_streams;
-#if !defined(DAGUE_GPU_STREAM_PER_TASK)
-    int max_in_tasks,
-        max_exec_tasks,
-        max_out_tasks;
-    int max_exec_streams;
-    struct dague_execution_context_t **in_array;
-    struct dague_execution_context_t **exec_array;
-    struct dague_execution_context_t **out_array;
-    CUevent *in_array_events;
-    CUevent *exec_array_events;
-    CUevent *out_array_events;
-    int in_submit, in_waiting,
-        exec_submit, exec_waiting,
-        out_submit, out_waiting;
-    dague_list_t *fifo_pending_in;
-    dague_list_t *fifo_pending_exec;
-    dague_list_t *fifo_pending_out;
-#endif  /* DAGUE_GPU_STREAM_PER_TASK */
     uint8_t index;
     uint8_t device_index;
     uint8_t major;
     uint8_t minor;
+    int max_exec_streams;
+    dague_gpu_exec_stream_t* exec_stream;
     int executed_tasks;
     volatile uint32_t mutex;
     dague_list_t pending;
@@ -100,7 +92,9 @@ typedef struct _gpu_device {
     }
 
 extern gpu_device_t** gpu_enabled_devices;
-int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities);
+int dague_gpu_init(dague_context_t *dague_context,
+                   int* puse_gpu,
+                   int dague_show_detailed_capabilities);
 int dague_gpu_fini( void );
 
 /**
@@ -148,7 +142,7 @@ typedef struct _gpu_elem           gpu_elem_t;
 struct _dague_device_elem {
     dague_list_item_t      item;
     dague_data_coherency_t coherency_state;
-    uint16_t               readers;
+    int16_t                readers;
     uint32_t               version;
     memory_elem_t*         memory_elem;
 };
@@ -191,9 +185,9 @@ typedef enum {
 /*
  * Data [un]registering
  */
-int dague_gpu_data_register( dague_context_t *dague_context, 
+int dague_gpu_data_register( dague_context_t *dague_context,
                              dague_ddesc_t   *data,
-                             int              nbelem, 
+                             int              nbelem,
                              size_t           eltsize );
 int dague_gpu_data_unregister();
 
@@ -202,7 +196,6 @@ int dague_gpu_data_unregister();
  */
 int dague_gpu_kernel_fini(dague_context_t* dague_context,
                           char *kernelname);
-    
 
 /*
  * Data coherency and movement
@@ -220,23 +213,27 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
                                    dague_execution_context_t *this_task,
                                    int *array_of_eltsize,
                                    int  move_data_count );
-
+/**
+ *
+ */
 int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
-                             uint32_t key, int32_t type,
-                             memory_elem_t* mem_elem,
-                             void* memptr, size_t length,
+                             int32_t type,
+                             dague_data_pair_t* task_data,
+                             size_t length,
                              CUstream stream );
 
-static inline gpu_elem_t*
-dague_gpu_get_data_on_gpu( gpu_device_t* gpu_device,
-                           dague_gpu_data_map_t* gpu_map,
-                           uint32_t key,
-                           memory_elem_t** mem_elem )
-{
-    if( 0 > dague_gpu_data_get_elt(gpu_map, key, mem_elem) )
-        return NULL;
-    return (gpu_elem_t*)((*mem_elem)->device_elem[gpu_device->index]);
-}
+/**
+ *
+ */
+typedef int (*advance_task_function_t)(gpu_device_t* gpu_device,
+                                       dague_execution_context_t* task,
+                                       CUstream cuda_stream);
+
+int progress_stream( gpu_device_t* gpu_device,
+                     dague_gpu_exec_stream_t* exec_stream,
+                     advance_task_function_t progress_fct,
+                     dague_execution_context_t* task,
+                     dague_execution_context_t** out_task );
 
 /**
  * Compute the adapted unit
