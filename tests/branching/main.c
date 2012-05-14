@@ -50,6 +50,15 @@ int main(int argc, char *argv[])
 
     dague_progress(dague);
 
+#if defined(DAGUE_PROF_TRACE)
+    {
+        char *pname;
+        asprintf(&pname, "rtt-%d.profile", rank);
+        dague_profiling_dump_dbp(pname);
+        free(pname);
+    }
+#endif
+
     dague_fini(&dague);
 
 #if defined(DAGUE_PROF_GRAPHER)
