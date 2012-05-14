@@ -94,7 +94,7 @@ BODY
              context->th_id, context->virtual_process->vp_id, k, i, m, nextm, s, ms,
              tempm, tempn, m, k, A, m, k, IP);
 
-    DRYRUN(
+   // DRYRUN(
         /* Set local IPIV to 0 before generation
          * Better here than a global initialization for locality
          * and it's also done in parallel */
@@ -138,7 +138,7 @@ BODY
         printf("getrf(%d, %d) => Anorm=%e, Acond=%e, Ucond=%e\n",
                k, i, Anorm, 1./Acond, 1./Ucond );
 #endif
-           );
+      //     );
 
     printlog("\nthread %d VP %d zgetrf_hpp( k=%d, i=%d, m=%d, nextm=%d, s=%d, ms=%d )\n"
              "\t( M=%d, N=%d, A(%d,%d)[%p], IPIV(%d,%d)[%p]) => info = %d\n",
