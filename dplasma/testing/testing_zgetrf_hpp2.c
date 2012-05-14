@@ -59,6 +59,10 @@ int main(int argc, char ** argv)
         two_dim_block_cyclic, (&ddescLT, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, SMB, SNB, P));
+    PASTE_CODE_ALLOCATE_MATRIX(ddescLT2, 1,
+        two_dim_block_cyclic, (&ddescLT2, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+                               MT*IB, N, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
         two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
                                nodes, cores, rank, MB, 1, M, NT, 0, 0,
@@ -93,6 +97,7 @@ int main(int argc, char ** argv)
 
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescLT);
+    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescLT2);
     qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t *)&ddescA,
                                  iparam[IPARAM_LOWLVL_TREE], 
                                  iparam[IPARAM_HIGHLVL_TREE],
@@ -127,6 +132,7 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescIPIV,
                                (tiled_matrix_desc_t*)&ddescLT,
+                               (tiled_matrix_desc_t*)&ddescLT2,
                                &info));
 
     /* lets rock! */
@@ -149,6 +155,7 @@ int main(int argc, char ** argv)
                               (tiled_matrix_desc_t *)&ddescX,
                               (tiled_matrix_desc_t *)&ddescIPIV,
                               (tiled_matrix_desc_t *)&ddescLT,
+                              (tiled_matrix_desc_t *)&ddescLT2,
                               &info);
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                       (tiled_matrix_desc_t *)&ddescA,
@@ -171,6 +178,7 @@ int main(int argc, char ** argv)
                               (tiled_matrix_desc_t *)&ddescInvA,
                               (tiled_matrix_desc_t *)&ddescIPIV,
                               (tiled_matrix_desc_t *)&ddescLT,
+                              (tiled_matrix_desc_t *)&ddescLT2,
                               &info);
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                       (tiled_matrix_desc_t *)&ddescA,
@@ -192,6 +200,7 @@ int main(int argc, char ** argv)
     dague_data_free(ddescA.mat);
 //printf("\nMaintenant data_free LT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n");
     dague_data_free(ddescLT.mat);
+    dague_data_free(ddescLT2.mat);
 //printf("\nMaintenant data_free IPIV!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n");
     dague_data_free(ddescIPIV.mat);
     
@@ -199,6 +208,7 @@ int main(int argc, char ** argv)
 //printf("\nMaintenant destroy!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n");
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescLT);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescLT2);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
     
     if ( check ) {
