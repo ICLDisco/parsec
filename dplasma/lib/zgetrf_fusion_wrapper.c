@@ -25,10 +25,21 @@ dague_object_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A,
                                         int *info )
 {
     dague_object_t *dague_zgetrf_fusion = NULL;
-    two_dim_block_cyclic_t *V, *BUFFER, *ACOPY;;
+    two_dim_block_cyclic_t *LMAX, *V, *BUFFER, *ACOPY;;
     int mb = A->mb, nb = A->nb;
 
     /* Create the workspaces */
+    LMAX = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
+    PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
+        (*LMAX), two_dim_block_cyclic,
+        (LMAX, matrix_ComplexDouble, matrix_Tile,
+         A->super.nodes, A->super.cores, A->super.myrank,
+         1,  nb +1,        /* Dimesions of the tile                */
+         A->mt, (nb+1)*Q,  /* Dimensions of the matrix             */
+         0,    0,          /* Starting points (not important here) */
+         A->mt, (nb+1)*Q,  /* Dimensions of the submatrix          */
+         1, 1, P));
+
     V = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         (*V), two_dim_block_cyclic,
@@ -66,6 +77,7 @@ dague_object_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A,
     *info = 0;
     dague_zgetrf_fusion = (dague_object_t*)dague_zgetrf_fusion_new((dague_ddesc_t*)A,
                                                              (dague_ddesc_t*)IPIV,
+                                                             (dague_ddesc_t*)LMAX,
                                                              (dague_ddesc_t*)V,
                                                              (dague_ddesc_t*)BUFFER,
                                                              (dague_ddesc_t*)ACOPY,
@@ -85,6 +97,13 @@ dague_object_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, LDV, nb, -1 );
 
+    /* MAXL */
+    dplasma_add2arena_rectangle( ((dague_zgetrf_fusion_object_t*)dague_zgetrf_fusion)->arenas[DAGUE_zgetrf_fusion_MAXL_ARENA],
+                                 (nb+1)*sizeof(Dague_Complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_DOUBLE_COMPLEX, 1, nb+1, -1 );
+
+
     /* PIVOT */
     dplasma_add2arena_rectangle( ((dague_zgetrf_fusion_object_t*)dague_zgetrf_fusion)->arenas[DAGUE_zgetrf_fusion_PIVOT_ARENA],
                                  A->mb*sizeof(int),
@@ -98,6 +117,11 @@ void
 dplasma_zgetrf_fusion_Destruct( dague_object_t *o )
 {
     dague_zgetrf_fusion_object_t *dague_zgetrf_fusion = (dague_zgetrf_fusion_object_t *)o;
+
+    two_dim_block_cyclic_t *LMAX = (two_dim_block_cyclic_t*)(dague_zgetrf_fusion->LMAX);
+    dague_data_free(LMAX->mat );
+    dague_ddesc_destroy( dague_zgetrf_fusion->LMAX );
+    free( dague_zgetrf_fusion->LMAX );
 
     two_dim_block_cyclic_t *V = (two_dim_block_cyclic_t*)(dague_zgetrf_fusion->V);
     dague_data_free( V->mat );
@@ -115,6 +139,7 @@ dplasma_zgetrf_fusion_Destruct( dague_object_t *o )
     free( dague_zgetrf_fusion->ACOPY );
 
     dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_DEFAULT_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_MAXL_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_SWAP_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_PIVOT_ARENA]->opaque_dtt) );
 
