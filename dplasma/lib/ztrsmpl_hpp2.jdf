@@ -36,6 +36,8 @@ B       [type = "dague_ddesc_t *"]
 IPIV    [type = "dague_ddesc_t *" aligned=A]
 descLT  [type = "tiled_matrix_desc_t"]
 LT      [type = "dague_ddesc_t *" aligned=A]
+descLT2 [type = "tiled_matrix_desc_t"]
+LT2     [type = "dague_ddesc_t *" aligned=A]
 pivfct  [type = "qr_piv_t*"]
 ib      [type = int]
 p_work  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descLT.nb))"]
@@ -98,7 +100,7 @@ BODY
     DRYRUN(
 
 
-        if (k !=  ((descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1)) 
+        if (s!=1) 
         {
         PLASMA_desc pdescB = plasma_desc_init( PlasmaComplexDouble,
                                                descB.mb, descB.nb, descB.mb * descB.nb,
@@ -148,7 +150,7 @@ swptrsm_in(k, i)
          -> A swptrsm(k, i, 0..descB.nt-1)     [type = LOWER_TILE]
   READ P <- IPIV(m,k)                          [type = PIVOT]
          -> IP swptrsm(k, i, 0..descB.nt-1)    [type = PIVOT]
-  READ T <- LT(m,k)                            [type = LITTLE_T]
+  READ T <- LT2(m,k)                            [type = LITTLE_T]
          -> T swptrsm(k, i, 0..descB.nt-1)     [type = LITTLE_T]
 
 BODY

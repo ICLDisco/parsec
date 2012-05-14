@@ -19,6 +19,7 @@ dague_object_t* dplasma_zgetrf_hpp2_New( qr_piv_t *qrpiv,
                                             tiled_matrix_desc_t *A,
                                             tiled_matrix_desc_t *IPIV,
                                             tiled_matrix_desc_t *LT,
+                                            tiled_matrix_desc_t *LT2,
                                             int* INFO )
 {
     dague_zgetrf_hpp2_object_t* object;
@@ -32,6 +33,7 @@ dague_object_t* dplasma_zgetrf_hpp2_New( qr_piv_t *qrpiv,
     object = dague_zgetrf_hpp2_new( *A,  (dague_ddesc_t*)A,
                                    (dague_ddesc_t*)IPIV,
                                    *LT, (dague_ddesc_t*)LT,
+                                   *LT2, (dague_ddesc_t*)LT2,
                                    qrpiv, ib,
                                    NULL, NULL,
                                    INFO);
@@ -80,11 +82,12 @@ int dplasma_zgetrf_hpp2( dague_context_t *dague,
                             tiled_matrix_desc_t *A,
                             tiled_matrix_desc_t *IPIV,
                             tiled_matrix_desc_t *LT,
+                            tiled_matrix_desc_t *LT2,
                             int* INFO )
 {
     dague_object_t *dague_zgetrf_hpp2 = NULL;
 
-    dague_zgetrf_hpp2 = dplasma_zgetrf_hpp2_New(qrpiv, A, IPIV, LT, INFO);
+    dague_zgetrf_hpp2 = dplasma_zgetrf_hpp2_New(qrpiv, A, IPIV, LT, LT2, INFO);
 
     dague_enqueue(dague, (dague_object_t*)dague_zgetrf_hpp2);
     dplasma_progress(dague);
