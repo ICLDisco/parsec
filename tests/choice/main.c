@@ -55,6 +55,15 @@ int main(int argc, char *argv[])
 
     choice_destroy(choice);
 
+#if defined(DAGUE_PROF_TRACE)
+    {
+        char *pname;
+        asprintf(&pname, "choice-%d.profile", rank);
+        dague_profiling_dump_dbp(pname);
+        free(pname);
+    }
+#endif
+
     dague_fini(&dague);
 
 #if defined(DAGUE_PROF_GRAPHER)

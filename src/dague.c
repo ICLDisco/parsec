@@ -37,9 +37,8 @@
 #endif
 
 #ifdef HAVE_CUDA
-#include "cuda.h"
-#include "cublas.h"
-#include "cuda_runtime_api.h"
+#include <cuda.h>
+#include <cuda_runtime_api.h>
 #endif
 
 dague_allocate_data_t dague_data_allocate = malloc;
@@ -509,29 +508,6 @@ int dague_fini( dague_context_t** pcontext )
 }
 
 /**
- * Convert the execution context to a string.
- */
-char* dague_service_to_string( const dague_execution_context_t* exec_context,
-                               char* tmp,
-                               size_t length )
-{
-    const dague_function_t* function = exec_context->function;
-    unsigned int i, index = 0;
-
-    index += snprintf( tmp + index, length - index, "%s", function->name );
-    if( index >= length ) return tmp;
-    for( i = 0; i < function->nb_parameters; i++ ) {
-        index += snprintf( tmp + index, length - index, "%s%d",
-                           (i == 0) ? "(" : ", ",
-                           exec_context->locals[i].value );
-        if( index >= length ) return tmp;
-    }
-    index += snprintf(tmp + index, length - index, ")");
-
-    return tmp;
-}
-
-/**
  * Resolve all IN() dependencies for this particular instance of execution.
  */
 static dague_dependency_t
@@ -603,11 +579,11 @@ static dague_dependency_t *find_deps(dague_object_t *dague_object,
 
     for(p = 0; p < exec_context->function->nb_parameters - 1; p++) {
         assert( (deps->flags & DAGUE_DEPENDENCIES_FLAG_NEXT) != 0 );
-        deps = deps->u.next[exec_context->locals[p].value - deps->min];
+        deps = deps->u.next[exec_context->locals[exec_context->function->params[p]->context_index].value - deps->min];
         assert( NULL != deps );
     }
 
-    return &(deps->u.dependencies[exec_context->locals[exec_context->function->nb_parameters - 1].value - deps->min]);
+    return &(deps->u.dependencies[exec_context->locals[exec_context->function->params[p]->context_index].value - deps->min]);
 }
 
 /**
@@ -625,16 +601,14 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_context_t** pready_list )
 {
     const dague_function_t* function = exec_context->function;
-    dague_dependency_t *deps;
-    dague_dependency_t dep_new_value, dep_cur_value;
+    dague_dependency_t dep_new_value, dep_cur_value, *deps;
 #if defined(DAGUE_DEBUG_VERBOSE2)
-    char tmp[128];
+    char tmp[MAX_TASK_STRLEN];
 #endif
 
     (void)eu_context;
-
     DEBUG2(("Activate dependencies for %s priority %d\n",
-           dague_service_to_string(exec_context, tmp, 128), exec_context->priority));
+            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), exec_context->priority));
     deps = find_deps(dague_object, exec_context);
 
 #if !defined(DAGUE_SCHED_DEPS_MASK)
@@ -652,7 +626,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #if defined(DAGUE_DEBUG)
     if( dep_cur_value > function->dependencies_goal ) {
         ERROR(("function %s as reached a dependency count of %d, higher than the goal dependencies count of %d\n",
-               dague_service_to_string(exec_context, tmp, 128), dep_cur_value, function->dependencies_goal));
+               dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), dep_cur_value, function->dependencies_goal));
     }
 #endif /* DAGUE_DEBUG */
 
@@ -661,17 +635,16 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #else  /* defined(DAGUE_SCHED_DEPS_MASK) */
 
 #if defined(DAGUE_DEBUG)
-    if( (*deps) & (1 << dest_flow->flow_index) ) {
-        char tmp1[128];
-        char tmp2[128];
+        if( (*deps) & (1 << dest_flow->flow_index) ) {
+            char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
 
-        ERROR(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
-               dest_flow->flow_index, dague_service_to_string(origin, tmp1, 128), origin_flow->name,
-               *deps,
-               dague_service_to_string(exec_context, tmp2, 128),  dest_flow->name ));
-    }
+            ERROR(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
+                   dest_flow->flow_index, dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, origin), origin_flow->name,
+                   *deps,
+                   dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, exec_context),  dest_flow->name ));
+        }
 #else
-    (void) origin; (void) origin_flow;
+        (void) origin; (void) origin_flow;
 #endif
     assert( 0 == (*deps & (1 << dest_flow->flow_index)) );
 
@@ -697,16 +670,16 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
         {
             int success;
-            char tmp1[128];
+            char tmp1[MAX_TASK_STRLEN];
             dague_dependency_t tmp_mask;
             tmp_mask = *deps;
             success = dague_atomic_cas( deps,
                                         tmp_mask, (tmp_mask | DAGUE_DEPENDENCIES_TASK_DONE) );
             if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
-                char tmp2[128];
+                char tmp2[MAX_TASK_STRLEN];
                 ERROR(("I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice (second time by %s)!!!\n",
-                        success, tmp_mask, dague_service_to_string(exec_context, tmp1, 128),
-                        dague_service_to_string(origin, tmp2, 128)));
+                        success, tmp_mask, dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
+                        dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, origin)));
             }
         }
 #endif  /* defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK) */
@@ -717,8 +690,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
          */
         {
 #if defined(DAGUE_DEBUG_VERBOSE1)
-            char tmp1[128];
-            char tmp2[128];
+            char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
 #endif
             dague_execution_context_t* new_context;
             dague_thread_mempool_t *mpool;
@@ -735,8 +707,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
 
             DEBUG(("%s becomes ready from %s on thread %d, with mask 0x%04x and priority %d\n",
-                   dague_service_to_string(exec_context, tmp1, 128),
-                   dague_service_to_string(origin, tmp2, 128),
+                   dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
+                   dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, origin),
                    *deps,
                    eu_context->th_id, eu_context->virtual_process->vp_id,
                    exec_context->priority));
@@ -765,12 +737,12 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
 #if defined(DAGUE_SCHED_DEPS_MASK)
         DEBUG2(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
-               dague_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_goal,
+                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), (int)function->dependencies_goal,
                (int)(dep_cur_value & DAGUE_DEPENDENCIES_BITMASK),
                (int)(dep_cur_value)));
 #else
         DEBUG2(("  => Service %s not yet ready (requires %d dependencies, %d done)\n",
-               dague_service_to_string( exec_context, tmp, 128 ),
+                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
                (int)function->dependencies_goal, dep_cur_value));
 #endif
     }
@@ -781,23 +753,24 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #define is_inplace(ctx,flow,dep) NULL
 #define is_read_only(ctx,flow,dep) NULL
 
-dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
-                                             dague_execution_context_t *newcontext,
-                                             dague_execution_context_t *oldcontext,
-                                             int out_index, int outdep_index,
-                                             int src_rank, int dst_rank,
-                                             int dst_vpid,
-                                             dague_arena_t* arena,
-                                             int nbelt,
-                                             void *param)
+dague_ontask_iterate_t
+dague_release_dep_fct(dague_execution_unit_t *eu,
+                      dague_execution_context_t *newcontext,
+                      dague_execution_context_t *oldcontext,
+                      int out_index, int outdep_index,
+                      int src_rank, int dst_rank,
+                      int dst_vpid,
+                      dague_arena_t* arena,
+                      int nbelt,
+                      void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
     const dague_flow_t* target = oldcontext->function->out[out_index];
 
     if( !(arg->action_mask & (1 << out_index)) ) {
-        char tmp[128];
+        char tmp[MAX_TASK_STRLEN];
         WARNING(("On task %s out_index %d not on the action_mask %x\n",
-               dague_service_to_string(oldcontext, tmp, 128), out_index, arg->action_mask));
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, oldcontext), out_index, arg->action_mask));
         return DAGUE_ITERATE_CONTINUE;
     }
 
@@ -861,16 +834,26 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
     return DAGUE_ITERATE_CONTINUE;
 }
 
-void dague_dump_object( dague_object_t* object )
+/**
+ * Convert the execution context to a string.
+ */
+char* dague_snprintf_execution_context( char* str, size_t size,
+                                        dague_execution_context_t* task)
 {
-    (void) object;
-}
+    const dague_function_t* function = task->function;
+    unsigned int ip, index = 0;
 
-void dague_dump_execution_context( dague_execution_context_t* exec_context )
-{
-    char tmp[128];
+    index += snprintf( str + index, size - index, "%s", function->name );
+    if( index >= size ) return str;
+    for( ip = 0; ip < function->nb_parameters; ip++ ) {
+        index += snprintf( str + index, size - index, "%s%d",
+                           (ip == 0) ? "(" : ", ",
+                           task->locals[function->params[ip]->context_index].value );
+        if( index >= size ) return str;
+    }
+    index += snprintf(str + index, size - index, ")");
 
-    printf( "Task %s\n", dague_service_to_string( exec_context, tmp, 128 ) );
+    return str;
 }
 
 void dague_destruct_dependencies(dague_dependencies_t* d)

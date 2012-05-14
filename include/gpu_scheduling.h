@@ -49,8 +49,6 @@ extern gpu_device_t** gpu_enabled_devices;
  * -1 - if the kernel is scheduled to be executed on a GPU.
  */
 
-#if !defined(DAGUE_GPU_STREAM_PER_TASK)
-
 /**
  * This version is based on 4 streams: one for transfers from the memory to
  * the GPU, 2 for kernel executions and one for tranfers from the GPU into
@@ -69,6 +67,9 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
     cudaError_t status;
     int rc, exec_stream = 0;
     dague_execution_context_t *next_task;
+#if defined(DAGUE_DEBUG_VERBOSE2)
+    char tmp[MAX_TASK_STRLEN];
+#endif
 
     gpu_device = gpu_enabled_devices[which_gpu];
 
@@ -98,6 +99,11 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
                             {return -2;} );
 
  check_in_deps:
+    if( NULL != this_task ) {
+        DEBUG2(( "GPU[%1d]:\tPush data for %s priority %d\n", gpu_device->device_index,
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
+                 this_task->priority ));
+    }
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[0]),
                           gpu_kernel_push,
@@ -110,6 +116,11 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
 
     /* Task is ready to be executed */
     exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams - 2);  /* Choose an exec_stream */
+    if( NULL != this_task ) {
+        DEBUG2(( "GPU[%1d]:\tExecute %s priority %d\n", gpu_device->device_index,
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
+                 this_task->priority ));
+    }
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[2+exec_stream]),
                           gpu_kernel_submit,
@@ -127,6 +138,11 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
     }
     this_task = next_task;
 
+    if( NULL != this_task ) {
+        DEBUG2(( "GPU[%1d]:\tPop data for %s priority %d\n", gpu_device->device_index,
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
+                 this_task->priority ));
+    }
     /* Task is ready to move the data back to main memory */
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[1]),
@@ -136,17 +152,21 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
     if( rc < 0 ) {
         if( -1 == rc )
             goto disable_gpu;
-    } else {
-        if( NULL != next_task ) {
-            this_task = next_task;
+    }
+    if( NULL != next_task ) {
+        /* We have a succesfully completed task. However, it is not this_task, as
+         * it was just submitted into the data retrieval system. Instead, the task
+         * ready to move into the next level is the next_task.
+         */
+        this_task = next_task;
+        next_task = NULL;
 #if defined(DAGUE_PROF_TRACE)
-            if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
-                dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end,
-                                       (unsigned long)this_task, this_task->dague_object->object_id,
-                                       NULL );
+        if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
+            dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end,
+                                   (unsigned long)this_task, this_task->dague_object->object_id,
+                                   NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
-            goto complete_task;
-        }
+        goto complete_task;
     }
     this_task = next_task;
 
@@ -154,19 +174,22 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
     assert( NULL == this_task );
     this_task = (dague_execution_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != this_task ) {
-        DEBUG2(( "GPU:\tAdd gemm(k = %d, m = %d, n = %d) priority %d\n",
-                this_task->locals[0].value, this_task->locals[1].value, this_task->locals[2].value,
-                this_task->priority ));
+        DEBUG2(( "GPU[%1d]:\tGet from shared queue %s priority %d\n", gpu_device->device_index,
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
+                 this_task->priority ));
     }
     goto check_in_deps;
 
  complete_task:
+    assert( NULL != this_task );
+    DEBUG2(( "GPU[%1d]:\Complete %s priority %d\n", gpu_device->device_index,
+             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
+             this_task->priority ));
     /* Everything went fine so far, the result is correct and back in the main memory */
-    if( NULL != this_task ) {
-        DAGUE_LIST_ITEM_SINGLETON(this_task);
-        gpu_kernel_epilog( gpu_device, this_task );
-        dague_complete_execution( eu_context, this_task );
-    }
+    DAGUE_LIST_ITEM_SINGLETON(this_task);
+    gpu_kernel_epilog( gpu_device, this_task );
+    dague_complete_execution( eu_context, this_task );
+    device_load[gpu_device->device_index+1] -= device_weight[gpu_device->device_index+1];
     gpu_device->executed_tasks++;
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     if( 0 == rc ) {  /* I was the last one */
@@ -194,9 +217,6 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
     exit(-20);
     return -2;
 }
-#else /* !defined(DAGUE_GPU_STREAM_PER_TASK)*/
-#error "Not implemented"
-#endif
 
 #endif /* HAVE_CUDA */
 
