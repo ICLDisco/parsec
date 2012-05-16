@@ -28,7 +28,7 @@ static inline char* arprintf(const char* fmt, ...)
 {
     char* txt;
     va_list args;
-    
+
     va_start(args, fmt);
     vasprintf(&txt, fmt, args);
     va_end(args);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010     The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -44,13 +44,13 @@
 # define DAGUE_PROF_DRY_DEP
 #endif
 
-#ifndef DAGUE_DIST_EAGER_LIMIT 
+#ifndef DAGUE_DIST_EAGER_LIMIT
 #define RDEP_MSG_EAGER_LIMIT    0
 #else
 #define RDEP_MSG_EAGER_LIMIT    (((size_t)DAGUE_DIST_EAGER_LIMIT)*1024)
 #endif
 
-#ifndef DAGUE_DIST_EAGER_LIMIT 
+#ifndef DAGUE_DIST_EAGER_LIMIT
 #define RDEP_MSG_SHORT_LIMIT    0
 #else
 #define RDEP_MSG_SHORT_LIMIT    (((size_t)DAGUE_DIST_SHORT_LIMIT)*1024)
@@ -77,7 +77,7 @@ typedef uint32_t dague_dependency_t;
 typedef uint32_t dague_dependency_t;
 
 #endif
- 
+
 /*
  * A set of constants defining the capabilities of the underlying
  * runtime.
@@ -87,3 +87,6 @@ typedef uint32_t dague_dependency_t;
 
 #define MAX_DEP_IN_COUNT  20
 #define MAX_DEP_OUT_COUNT 20
+
+#define MAX_TASK_STRLEN 128
+

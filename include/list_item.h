@@ -57,6 +57,7 @@ dague_list_item_singleton( dague_list_item_t* item )
 {
 #if defined(DAGUE_DEBUG)
     assert(0 == item->refcount);
+    item->belong_to = NULL;
 #endif
     item->list_next = item;
     item->list_prev = item;

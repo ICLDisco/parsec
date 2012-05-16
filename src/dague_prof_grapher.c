@@ -115,7 +115,7 @@ static char *service_to_taskid(const dague_execution_context_t *exec_context, ch
     index += snprintf( tmp + index, length - index, "%s", function->name );
     for( i = 0; i < function->nb_parameters; i++ ) {
         index += snprintf( tmp + index, length - index, "_%d",
-                           exec_context->locals[i].value );
+                           exec_context->locals[function->params[i]->context_index].value );
     }
 
     return tmp;
@@ -123,11 +123,10 @@ static char *service_to_taskid(const dague_execution_context_t *exec_context, ch
 
 void dague_prof_grapher_task(const dague_execution_context_t *context, int thread_id, int vp_id, int task_hash)
 {
-    char tmp[128];
-    char nmp[128];
+    char tmp[MAX_TASK_STRLEN], nmp[MAX_TASK_STRLEN];
     if( NULL != grapher_file ) {
-        dague_service_to_string(context, tmp, 128);
-        service_to_taskid(context, nmp, 128);
+        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context);
+        service_to_taskid(context, nmp, MAX_TASK_STRLEN);
 #if defined(DAGUE_SIM)
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"<%d/%d> %s [%d]\",tooltip=\"%s%d\"];\n",

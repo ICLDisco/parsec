@@ -52,7 +52,7 @@ echo "#proc\tthid\tkey\teventid\tstart\tend\tduration\n";
 
 $proc = 0;
 foreach($XML->DISTRIBUTED_PROFILE->NODE as $node) {
-    $thid = 0;
+    $thid = $th->IDENTIFIER;
     foreach($node->PROFILES->THREAD as $th) {
         $thid = 0;
         foreach( $th->KEY as $key ) {

@@ -64,8 +64,8 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
     }
 # endif
 #ifdef DAGUE_DEBUG_VERBOSE1
-    char tmp[128];
-    DEBUG(( "thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id, dague_service_to_string(exec_context, tmp, 128))); 
+    char tmp[MAX_TASK_STRLEN];
+    DEBUG(( "thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id, dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context))); 
 #endif
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 
@@ -125,7 +125,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
         dague_execution_context_t* context = new_context;
         const struct dague_flow* flow;
         int set_parameters, i;
-        char tmp[128];
+        char tmp[MAX_TASK_STRLEN];
 
 		  // PETER it seems like this while loop mostly verifies
 		  // that nothing is terrible wrong?
@@ -136,17 +136,17 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                     set_parameters++;
                     if( NULL == context->data[flow->flow_index].data ) {
                         ERROR(( "Task %s has flow %d data_repo != NULL but a data == NULL (%s:%d)\n",
-                                dague_service_to_string(context, tmp, 128), flow->flow_index, __FILE__, __LINE__));
+                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), flow->flow_index, __FILE__, __LINE__));
                     }
                 }
             }
             if( set_parameters > 1 ) {
                 ERROR(( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
-                        dague_service_to_string(context, tmp, 128), __FILE__, __LINE__));
+                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__));
             }
             DEBUG2(( "thread %d of VP %d Schedules %s\n", 
                     eu_context->th_id, eu_context->virtual_process->vp_id,
-                    dague_service_to_string(context, tmp, 128) ));
+                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context) ));
             context = (dague_execution_context_t*)context->list_item.list_next;
         } while ( context != new_context );
     }
