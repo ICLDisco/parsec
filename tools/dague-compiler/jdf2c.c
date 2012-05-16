@@ -3174,21 +3174,18 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "\n",
             jdf_basename, f->fname);
 
-    coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n");
+    coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n"
+            "    struct dague_vp** vps = eu->virtual_process->dague_context->virtual_processes;\n");
     if( 0 != has_output_data ) {
         coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n",
                 f->fname);
     }
     coutput("    for(__vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; __vp_id++) {\n"
-            "      if( NULL != arg.ready_lists[__vp_id] ) {\n"
-            "        if( eu != NULL && __vp_id == eu->virtual_process->vp_id ) {\n"
-            "          __dague_schedule(eu, arg.ready_lists[__vp_id]);\n"
-            "        } else {\n"
-            "          __dague_schedule(eu->virtual_process->dague_context->virtual_processes[__vp_id]->execution_units[0], arg.ready_lists[__vp_id]);\n"
-            "        }\n"
-            "        arg.ready_lists[__vp_id] = NULL;\n"
-            "      }\n"
+            "      if( NULL == arg.ready_lists[__vp_id] ) continue;\n"
+            "      __dague_schedule(vps[__vp_id]->execution_units[0], arg.ready_lists[__vp_id]);\n"
+            "      arg.ready_lists[__vp_id] = NULL;\n"
             "    }\n"
+            "    free(arg.ready_lists);\n"
             "  }\n"
             "#if defined(DISTRIBUTED)\n"
             "  if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) && arg.remote_deps_count ) {\n"
@@ -3196,15 +3193,9 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  }\n"
             "#endif\n");
 
-    if( 0 != has_output_data )
-        jdf_generate_code_free_hash_table_entry(jdf, f);
+    jdf_generate_code_free_hash_table_entry(jdf, f);
 
-    coutput("  if(arg.ready_lists != NULL) {\n"
-            "    for(__vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; __vp_id++) {\n"
-            "      assert( NULL == arg.ready_lists[__vp_id] );\n"
-            "    }\n"
-            "    free(arg.ready_lists);\n"
-            "  }\n"
+    coutput(
             "  return arg.nb_released;\n"
             "}\n"
             "\n");
