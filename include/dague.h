@@ -243,7 +243,7 @@ static inline int32_t dague_set_priority( dague_object_t* object, int32_t new_pr
 
 /* Dump functions */
 char* dague_snprintf_execution_context( char* str, size_t size,
-                                        dague_execution_context_t* task);
+                                        const dague_execution_context_t* task);
 
 /* Accessors to set and get the completion callback */
 int dague_set_complete_callback( dague_object_t* dague_object,
