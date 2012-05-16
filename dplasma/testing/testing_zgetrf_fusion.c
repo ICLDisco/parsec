@@ -68,6 +68,16 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
+/*     PASTE_CODE_ALLOCATE_MATRIX(ddescAl, check, */
+/*         two_dim_block_cyclic, (&ddescAl, matrix_ComplexDouble, matrix_Lapack, */
+/*                                1, cores, rank, MB, NB, LDA, N, 0, 0, */
+/*                                M, N, SMB, SNB, 1)); */
+
+/*     PASTE_CODE_ALLOCATE_MATRIX(ddescIPIVl, check, */
+/*         two_dim_block_cyclic, (&ddescIPIVl, matrix_Integer, matrix_Lapack, */
+/*                                1, cores, rank, MB, 1, MB*P, dague_imin(MT, NT), 0, 0, */
+/*                                MB*P, dague_imin(MT, NT), SMB, SNB, 1)); */
+
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
@@ -94,6 +104,9 @@ int main(int argc, char ** argv)
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA,
                         (tiled_matrix_desc_t *)&ddescA0 );
+/*         dplasma_zlacpy( dague, PlasmaUpperLower, */
+/*                         (tiled_matrix_desc_t *)&ddescA, */
+/*                         (tiled_matrix_desc_t *)&ddescAl ); */
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB,
@@ -119,6 +132,50 @@ int main(int argc, char ** argv)
         ret |= 1;
     }
     else if ( check ) {
+/*       if( (((dague_ddesc_t*) &ddescA)->myrank) == 0) */
+/* 	LAPACKE_zgetrf_work(LAPACK_COL_MAJOR, M, N,  */
+/* 			    (Dague_Complex64_t*)(ddescAl.mat), MB*MT,  */
+/* 			    (int *)(ddescIPIVl.mat)); */
+/*       int i, j, it, jt; */
+/*       printf("LU decomposition of A with Lapack\n"); */
+/*       for(it=0; it<MT; it++) */
+/* 	{ */
+/* 	  int tempkm = ((it)==(MT-1)) ? (M-(it*MB)) : (MB); */
+/*           for(i=0; i<tempkm; i++) { */
+/*             printf("%d:\t",i+it*MB); */
+
+/*             for(jt=0; jt<NT; jt++) */
+/*               { */
+/*                 int tempkn = ((jt)==(NT-1)) ? (N-(jt*NB)) : (NB); */
+/*                 if(((dague_ddesc_t*) &ddescAl)->rank_of(((dague_ddesc_t*) &ddescAl), it, jt)  == ((dague_ddesc_t*) &ddescAl)->myrank) { */
+/*                   Dague_Complex64_t *mat = ((dague_ddesc_t*) &ddescAl)->data_of(((dague_ddesc_t*) &ddescAl), it, jt); */
+/*                   for(j=0; j<tempkn; j++) */
+/*                     printf("%e\t",mat[MT*MB*j+i]); */
+/*                 } */
+/*               } */
+/*             printf("\n"); */
+/*           } */
+/*         } */
+
+/*       printf("LU decomposition of A with DPLASMA\n"); */
+/*       for(it=0; it<MT; it++) */
+/* 	{ */
+/* 	  int tempkm = ((it)==(MT-1)) ? (M-(it*MB)) : (MB); */
+/*           for(i=0; i<tempkm; i++) { */
+/*             printf("%d:\t",i+it*MB); */
+
+/*             for(jt=0; jt<NT; jt++) */
+/*               { */
+/*                 int tempkn = ((jt)==(NT-1)) ? (N-(jt*NB)) : (NB); */
+/*                 if(((dague_ddesc_t*) &ddescAl)->rank_of(((dague_ddesc_t*) &ddescA), it, jt)  == ((dague_ddesc_t*) &ddescA)->myrank) { */
+/*                   Dague_Complex64_t *mat = ((dague_ddesc_t*) &ddescA)->data_of(((dague_ddesc_t*) &ddescA), it, jt); */
+/*                   for(j=0; j<tempkn; j++) */
+/*                     printf("%e\t",mat[MB*j+i]); */
+/*                 } */
+/* 	    } */
+/*             printf("\n"); */
+/*           } */
+/*         } */
 
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
                       1.0, (tiled_matrix_desc_t *)&ddescA,

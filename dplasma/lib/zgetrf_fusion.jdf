@@ -12,6 +12,7 @@ extern "C" %{
 #define PRECISION_z
 
 #include <plasma.h>
+#include <lapacke.h>
 #include <core_blas.h>
 #include <math.h>
 
@@ -36,10 +37,12 @@ extern "C" %{
  */
 A            [type = "dague_ddesc_t *"]
 IPIV         [type = "dague_ddesc_t *"]
+UMAT         [type = "dague_ddesc_t *"]
 LMAX         [type = "dague_ddesc_t *"]
 V            [type = "dague_ddesc_t *"]
 BUFFER       [type = "dague_ddesc_t *"]
 ACOPY        [type = "dague_ddesc_t *"]
+IB           [type = "int"]
 P            [type = "int"]
 Q            [type = "int"]
 INFO         [type = "int*"]
@@ -105,8 +108,31 @@ m = k .. (descA.mt-1)
 :V((k+m)%P,k%Q)
 
 // Parameters
-READ  V <- V((k+m)%P,k%Q)                                       [type = SWAP]
+READ  V <- V((k+m)%P,k%Q)                                     [type = SWAP]
         -> V GETRF_MAX(k,m,0)                                 [type = SWAP]
+
+;descA.mt-k-1
+
+BODY
+    /* Nothing to do */
+END
+
+
+/**************************************************
+ *                    U_in (pseudo task)
+ **************************************************/
+U_in(k,m)
+
+// Execution space
+k = 0 .. ((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
+m = k .. (descA.mt-1)
+
+// Parallel partitioning
+:UMAT((k+m)%P,k%Q)
+
+// Parameters
+READ  U <- UMAT((k+m)%P,k%Q)                                  [type = UMES]
+        -> U GETRF_MAX(k,m,0)                                 [type = UMES]
 
 ;descA.mt-k-1
 
@@ -175,8 +201,14 @@ RW  T <- ((k == 0) && (h == 0))? A(m, k)
       -> (h == hmax)? T GETRF_FNL(k,m)
 
 RW  V <- (h == 0)? V V_in(k,m)                                                                   [type = SWAP]
-      <- (h != 0)? W GETRF_SND(k,dmax,m-k,h-1)                                                   [type = SWAP]
+      <- (h != 0)? W GETRF_SND(k,dmax,(m-k)%P,h-1)                                               [type = SWAP]
       -> (m-k < P)? V GETRF_SVM(k,m-k,h)                                                         [type = SWAP]
+
+RW  U <- (h == 0)? U U_in(k,m)									 [type = UMES]
+      <- ((h != 0) && (h%IB == 0))? U GETRF_MDL(k,(m-k)%P,(h/IB)-1)                              [type = UMES]
+      <- ((h != 0) && (h%IB != 0))? U GETRF_MAX(k,m,h-1)	                                 [type = UMES]
+      -> ((((h%IB) == IB-1) || (h == hmax)) && (m-k<P))? U GETRF_MDL(k,(m-k)%P,h/IB)             [type = UMES]
+      -> ((h != hmax) && (h%IB != IB-1))? U GETRF_MAX(k,m,h+1)                                   [type = UMES]
 
 RW  M <- (h == 0)? M LMAX_in(k,m)                                                                [type = MAXL]
       <- (h != 0)? M GETRF_MAX(k,m,h-1)	                                                         [type = MAXL]
@@ -191,6 +223,7 @@ BODY
     DRYRUN(
        int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+       int temphn = ( ((tempkn-(h-1)) < IB) && (tempkn%IB != 0) ) ? tempkn%IB : IB;
        int ldam = BLKLDD( descA, m );
        int i;
        int p = (m == k)? h : 0;
@@ -198,11 +231,14 @@ BODY
        double max;
        int irecv = (h%2 == 0)? IEVN : IODD;
        int isend = (h%2 == 1)? IEVN : IODD;
+       Dague_Complex64_t zone  = 1.;
+       Dague_Complex64_t mzone = -1.;
+       Dague_Complex64_t alpha;
 
        Dague_Complex64_t *lM = (Dague_Complex64_t*)M;
        Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
+       Dague_Complex64_t *lU = (Dague_Complex64_t*)U;
        Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
-
 
        if(h != 0)		
        {
@@ -211,6 +247,12 @@ BODY
 	     cblas_zcopy(tempkn, lV + MAXI, 1,
 			         lT + h-1,  ldam);
 	 }
+
+	 /* Copying the max line in the local U */
+	 if((m - k < P) && ((h%IB) != 0))
+	   cblas_zcopy(tempkn, lV + MAXI      , 1,
+			       lU + ((h-1)%IB), IB);
+
 
 	 int owner_last_index = ((int) (lV[PIVO + h-1]))/descA.mb;
 	 int last_index       = ((int) (lV[PIVO + h-1]))%descA.mb;
@@ -221,14 +263,35 @@ BODY
 	 }
 
 	 /* Appliying the update */
-	 Dague_Complex64_t alpha = ((Dague_Complex64_t)1.) / (lV[MAXI + h-1]);
+	 alpha = ((Dague_Complex64_t)1.) / (lV[MAXI + h-1]);
 	 cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), lT + ((h-1)*ldam+p), 1 );
-	 Dague_Complex64_t mzone = -1.;
-	 cblas_zgeru(CblasColMajor, tempmm-p, tempkn-h,
-		     CBLAS_SADDR(mzone),
-		     lT+ ldam * (h-1) + p,    1,
-		     lV+ MAXI         + h, 1,
-		     lT+ ldam *  h    + p,    ldam);
+
+         if((h%IB) != 0){
+           cblas_zgeru(CblasColMajor, tempmm-p, temphn-(h%IB),
+                       CBLAS_SADDR(mzone),
+                       lT+ ldam * (h-1) + p,    1,
+                       lV+ MAXI         + h, 1,
+                       lT+ ldam *  h    + p,    ldam);
+         }
+         else {
+           if(m == k)
+             LAPACKE_zlacpy_work(
+                                 LAPACK_COL_MAJOR,
+                                 'a', IB, tempkn-h, 
+                                 lU + h * IB           , IB,
+                                 lT + h * ldam + h - IB, ldam);
+
+/*              for(i = 0; i < IB; i++) */
+/*                cblas_zcopy(tempkn-h, lU + h * IB   + i         , IB, */
+/*                                      lT + h * ldam + i + h - IB, ldam); */
+
+           cblas_zgemm(CblasColMajor,
+                       (CBLAS_TRANSPOSE)CblasNoTrans, (CBLAS_TRANSPOSE)CblasNoTrans,
+                       tempmm - p, tempkn - h, IB,
+                       CBLAS_SADDR(mzone), lT + (h-IB) * ldam + p, ldam,
+                                           lU +      h * IB      , IB,
+                       CBLAS_SADDR(zone),  lT +      h * ldam + p, ldam);
+         }
        }
 
        /* Saving the default swap line */
@@ -239,7 +302,7 @@ BODY
        /* Looking for the local max */
        index = p;
        max = cabs(lT[ldam*h+p]);
-       for(i = p+1;i < tempmm;i++) { 
+       for(i = p+1; i < tempmm; i++) { 
 	 if(cabs(lT[ldam*h+i]) > max)
 	   {
 	     index = i;
@@ -363,6 +426,78 @@ BODY
 END
 
 /**************************************************
+ *                    GETRF_MDL
+ * Applying the trsm on the local U matrice
+ *
+ **************************************************/
+GETRF_MDL(k,m,h)
+
+k = 0 .. ((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
+m = 0 .. ((descA.mt-k < P) ? descA.mt-k-1 : P-1)
+h = 0 .. inline_c %{ 
+  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+  int ret = ((tempkm<tempkn)? tempkm : tempkn);
+  return ((ret%IB) == 0)? (ret/IB-1) : ret/IB; %}
+
+hmax = inline_c %{ 
+  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+  int ret = ((tempkm<tempkn)? tempkm : tempkn);
+  return ((ret%IB) == 0)? (ret/IB-1) : ret/IB; %}
+ 
+dmax = inline_c %{
+  int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
+  int i;
+  for(i = 0;nb_init != 1 ;i++)
+      nb_init/=2;
+  return i;%}
+
+nmax = inline_c %{
+  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+  return ((tempkm<tempkn)? tempkm : tempkn)-1; %}
+
+sender = inline_c %{
+  return ((h == hmax)? nmax : ((h+1)*IB)-1); %}
+
+// Parallel partitioning
+:A(k+m, k)
+
+READ  V  <- W GETRF_SND(k,dmax,m,sender)                                                                  [type = SWAP]
+         -> (h == hmax)? V GETRF_FNL(k,(k+m)..(descA.mt-((descA.mt-(k+m+1))%P)-1)..P)                     [type = SWAP]
+RW    U <-  U GETRF_MAX(k,k+m,sender                  )                                                   [type = UMES]
+        ->  (h != hmax)? U GETRF_MAX(k,(k+m)..(descA.mt-((descA.mt-(k+m+1))%P)-1)..P,((h+1)*IB))          [type = UMES]
+
+;descA.mt-k-1
+
+BODY
+    DRYRUN(
+       int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+       Dague_Complex64_t zone = 1.;
+
+       Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
+       Dague_Complex64_t *lU = (Dague_Complex64_t*)U;
+
+       /* Copying the max line in the local U */
+       if(h != hmax) {
+         cblas_zcopy(tempkn, lV + MAXI, 1,
+                             lU + IB-1, IB);
+         cblas_ztrsm(CblasColMajor,
+                     (CBLAS_SIDE)CblasLeft, (CBLAS_UPLO)CblasLower,
+                     (CBLAS_TRANSPOSE)CblasNoTrans, (CBLAS_DIAG)CblasUnit,
+                     IB, tempkn - (h+1)*IB,
+                     CBLAS_SADDR(zone), lU + h    * IB * IB, IB,
+                                        lU + (h+1)* IB * IB, IB);
+       } else {
+         cblas_zcopy(tempkn, lV + MAXI     , 1,
+                             lU + (nmax%IB), IB);
+       }
+          );
+    printlog();
+END
+
+/**************************************************
  *                    GETRF_SND
  * Look and share the global max of the step h 
  * by using the Bruck algorithm
@@ -405,8 +540,8 @@ READ  V <- (d == 0)? V GETRF_SVM(k,m,h) : W GETRF_SND(k,d-1,m,h)                
 RW    W <- (d == 0)? V GETRF_SVM(k,(mmax+m-1)%mmax,h) : W GETRF_SND(k,d-1,(mmax+m-pui/2)%mmax,h)           [type = SWAP]
 	-> (d != dmax)? V GETRF_SND(k,d+1,m,h)	                                                           [type = SWAP]
         -> (d != dmax)? W GETRF_SND(k,d+1,(m+pui)%mmax,h)	                                           [type = SWAP]
+        -> ((((h%IB) == IB - 1) || (h == hmax)) && (d == dmax))? V GETRF_MDL(k,m, h/IB)                    [type = SWAP]
         -> ((h != hmax) && (d == dmax))? V GETRF_MAX(k,(k+m)..(descA.mt-((descA.mt-(k+m+1))%P)-1)..P, h+1) [type = SWAP]
-        -> ((h == hmax) && (d == dmax))? V GETRF_FNL(k,(k+m)..(descA.mt-((descA.mt-(k+m+1))%P)-1)..P)      [type = SWAP]
 
 ;descA.mt-k-1
 
@@ -461,6 +596,11 @@ hmax = inline_c %{
   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
   return ((tempkm<tempkn)? tempkm : tempkn)-1;%}
 
+imax = inline_c %{ 
+  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+  int ret = ((tempkm<tempkn)? tempkm : tempkn);
+  return ((ret%IB) == 0)? (ret/IB-1) : ret/IB; %}
 
 // Parallel partitioning
 :A(m, k)
@@ -468,7 +608,7 @@ hmax = inline_c %{
 RW    T <- T GETRF_MAX(k,m,hmax)
         -> (m == k) ? T TRSM_U(k, k+1..descA.mt-1) : A GEMM(k,m, k+1..descA.nt-1)
         -> A(m, k)
-READ  V <- W GETRF_SND(k,dmax,(m-k)%P,hmax)                  [type = SWAP]
+READ  V <- V GETRF_MDL(k,(m-k)%P,imax)                       [type = SWAP]
 RW   IP <- IP IP_in(k,(m-k)%P)                               [type = PIVOT]
         -> (m-k < P)? IP IP_out(k,(m-k))                     [type = PIVOT]
         -> IP SWAP_COLLECT(k, m, k+1..descA.nt-1)            [type = PIVOT]

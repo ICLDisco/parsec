@@ -17,6 +17,7 @@
 #include "zgetrf_fusion.h"
 
 #define LDV  5
+#define IB 40
 
 dague_object_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A,
                                         tiled_matrix_desc_t *IPIV,
@@ -25,10 +26,22 @@ dague_object_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A,
                                         int *info )
 {
     dague_object_t *dague_zgetrf_fusion = NULL;
-    two_dim_block_cyclic_t *LMAX, *V, *BUFFER, *ACOPY;;
+    two_dim_block_cyclic_t *UMAT, *LMAX, *V, *BUFFER, *ACOPY;
     int mb = A->mb, nb = A->nb;
 
     /* Create the workspaces */
+    UMAT = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
+    PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
+        (*UMAT), two_dim_block_cyclic,
+        (UMAT, matrix_ComplexDouble, matrix_Tile,
+         A->super.nodes, A->super.cores, A->super.myrank,
+         IB,  nb ,          /* Dimesions of the tile                */
+         IB*P, nb*Q,      /* Dimensions of the matrix             */
+         0,    0,          /* Starting points (not important here) */
+         IB*P, nb*Q,      /* Dimensions of the submatrix          */
+         1, 1, P));
+
+
     LMAX = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         (*LMAX), two_dim_block_cyclic,
@@ -77,10 +90,12 @@ dague_object_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A,
     *info = 0;
     dague_zgetrf_fusion = (dague_object_t*)dague_zgetrf_fusion_new((dague_ddesc_t*)A,
                                                              (dague_ddesc_t*)IPIV,
+                                                             (dague_ddesc_t*)UMAT,
                                                              (dague_ddesc_t*)LMAX,
                                                              (dague_ddesc_t*)V,
                                                              (dague_ddesc_t*)BUFFER,
                                                              (dague_ddesc_t*)ACOPY,
+                                                             IB,
                                                              P,
                                                              Q,
                                                              info);
@@ -103,6 +118,11 @@ dague_object_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, 1, nb+1, -1 );
 
+    /* UMES */
+    dplasma_add2arena_rectangle( ((dague_zgetrf_fusion_object_t*)dague_zgetrf_fusion)->arenas[DAGUE_zgetrf_fusion_UMES_ARENA],
+                                 IB*nb*sizeof(Dague_Complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_DOUBLE_COMPLEX, IB, nb, -1 );
 
     /* PIVOT */
     dplasma_add2arena_rectangle( ((dague_zgetrf_fusion_object_t*)dague_zgetrf_fusion)->arenas[DAGUE_zgetrf_fusion_PIVOT_ARENA],
