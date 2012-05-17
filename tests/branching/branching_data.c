@@ -50,6 +50,7 @@ static void *data_of(dague_ddesc_t *desc, ...)
     return (void*)(dat->data);
 } 
 
+#if defined(DAGUE_PROF_TRACE)
 static uint32_t data_key(struct dague_ddesc *desc, ...)
 {
     int k;
@@ -61,6 +62,7 @@ static uint32_t data_key(struct dague_ddesc *desc, ...)
 
     return (uint32_t)k;
 }
+#endif
 
 dague_ddesc_t *create_and_distribute_data(int rank, int world, int cores, int size)
 {
