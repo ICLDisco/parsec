@@ -2523,7 +2523,6 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
 
   string_arena_init(sa);
   sa2 = string_arena_new(64);
-  string_arena_add_string(sa, "%s{\n", indent(spaces));
 
   infodst.sa = sa2;
   infodst.prefix = f->fname;
@@ -2532,36 +2531,29 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   infosrc.prefix = "";
   infosrc.assignments = "assignments";
 
-  for(dl = f->definitions; dl != NULL; dl = dl->next) {
-      string_arena_add_string(sa, "%s  int %s%s;\n", indent(spaces), f->fname, dl->name);
-  }
   for(idx = 0, dl = f->definitions; dl != NULL; idx++, dl = dl->next) {
       /* Is this definition a parameter or a value? */
       /* If it is a parameter, find the corresponding param in the call */
       for(el = params, pl = f->parameters; pl != NULL; el = el->next, pl = pl->next) {
           assert( el != NULL );
-          if(!strcmp(pl->name, dl->name)) 
+          if(!strcmp(pl->name, dl->name))
               break;
       }
       if( NULL == pl ) {
           /* It is a value. Let's dump it's expression in the destination context */
           string_arena_init(sa2);
-          string_arena_add_string(sa, 
-                                  "%s  %s[%d].value = %s%s = %s; (void)%s%s;\n",
-                                  indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)dl->expr, &infodst),
-                                  f->fname, dl->name);
+          string_arena_add_string(sa,
+                                  "%s  %s[%d].value = %s;\n",
+                                  indent(spaces), name, idx, dump_expr((void**)dl->expr, &infodst));
       } else {
           /* It is a parameter. Let's dump it's expression in the source context */
           assert(el != NULL);
           string_arena_init(sa2);
-          string_arena_add_string(sa, 
-                                  "%s  %s[%d].value = %s%s = %s; (void)%s%s;\n",
-                                  indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)el, &infosrc),
-                                  f->fname, dl->name);
+          string_arena_add_string(sa,
+                                  "%s  %s[%d].value = %s;\n",
+                                  indent(spaces), name, idx, dump_expr((void**)el, &infosrc));
       }
   }
-
-  string_arena_add_string(sa, "%s}\n", indent(spaces));
 
   string_arena_free(sa2);
   free(infodst.assignments);
@@ -2585,8 +2577,7 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
     info.assignments = "assignments";
 
     if( call->var != NULL ) {
-        dataindex = jdf_data_output_index(jdf, call->func_or_mem,
-                                          call->var);
+        dataindex = jdf_data_output_index(jdf, call->func_or_mem, call->var);
         if( dataindex < 0 ) {
             if( dataindex == -1 ) {
                 jdf_fatal(lineno,
@@ -2604,14 +2595,13 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
                 exit(1);
             }
         }
-        /* THOMAS TODO HERE */
-        coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces), jdf, "tass", call));
-        coutput("%s  e%s = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, tass ));\n"
-                "%s  g%s = e%s->data[%d];\n",
+        coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "tass", call));
+        coutput("%s    e%s = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, tass ));\n"
+                "%s    g%s = e%s->data[%d];\n",
                 spaces, f->varname, call->func_or_mem, call->func_or_mem,
                 spaces, f->varname, f->varname, dataindex);
     } else {
-        coutput("%s  g%s = (dague_arena_chunk_t*) %s(%s);\n",
+        coutput("%s    g%s = (dague_arena_chunk_t*) %s(%s);\n",
                 spaces, f->varname, call->func_or_mem,
                 UTIL_DUMP_LIST(sa, call->parameters, next,
                                dump_expr, (void**)&info, "", "", ", ", ""));
@@ -2630,7 +2620,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     expr_info_t info;
     string_arena_t *sa;
     int cond_index = 0;
-    char* condition[] = {"  if( %s ) {\n", "  else if( %s ) {\n"};
+    char* condition[] = {"    if( %s ) {\n", "    else if( %s ) {\n"};
 
     if( JDF_VAR_TYPE_CTL == flow->access_type ) {
         coutput("    /* this_task->data[%u] is a control flow */\n", flow_index);
@@ -2654,25 +2644,25 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
 
         switch( dl->guard->guard_type ) {
         case JDF_GUARD_UNCONDITIONAL:
-            if( 0 != cond_index ) coutput("  else {\n");
+            if( 0 != cond_index ) coutput("    else {\n");
             jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, flow->lineno, fname, flow,
                                                    (0 != cond_index ? "  " : "") );
-            if( 0 != cond_index ) coutput("  }\n");
+            if( 0 != cond_index ) coutput("    }\n");
             goto done_with_input;
         case JDF_GUARD_BINARY:
             coutput( (0 == cond_index ? condition[0] : condition[1]),
                      dump_expr((void**)dl->guard->guard, &info));
             jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, flow->lineno, fname, flow, "  " );
-            coutput("  }\n");
+            coutput("    }\n");
             cond_index++;
             break;
         case JDF_GUARD_TERNARY:
             coutput( (0 == cond_index ? condition[0] : condition[1]),
                      dump_expr((void**)dl->guard->guard, &info));
             jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, flow->lineno, fname, flow, "  " );
-            coutput("  } else {\n");
+            coutput("    } else {\n");
             jdf_generate_code_call_initialization( jdf, dl->guard->callfalse, flow->lineno, fname, flow, "  " );
-            coutput("  }\n");
+            coutput("    }\n");
             goto done_with_input;
         }
     }
@@ -3435,6 +3425,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     string_arena_t *sa_type = string_arena_new(64);
     string_arena_t *sa_nbelt = string_arena_new(64);
     string_arena_t *sa_tmp_nbelt = string_arena_new(64);
+    string_arena_t *sa_temp = string_arena_new(64);
     int flownb, depnb;
     assignment_info_t ai;
     expr_info_t info;
@@ -3499,25 +3490,25 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                     string_arena_add_string(sa_tmp_nbelt, "%s", dump_expr((void**)dl->datatype.nb_elt, &ai));
                 }
 
+                string_arena_init(sa_temp);
                 if( strcmp(string_arena_get_string(sa), string_arena_get_string(sa_type)) ) {
-                    /* The type might change (possibly from undefined), so let's output */
                     string_arena_init(sa_type);
+                    /* The type might change (possibly from undefined), so let's output */
                     string_arena_add_string(sa_type, "%s", string_arena_get_string(sa));
-                    string_arena_add_string(sa_coutput,
-                                            "#if defined(DISTRIBUTED)\n"
-                                            "    arena = %s;\n"
-                                            "#endif\n",
-                                            string_arena_get_string(sa_type));
+                    string_arena_add_string(sa_temp, "    arena = %s;\n", string_arena_get_string(sa_type));
                 }
                 if( strcmp(string_arena_get_string(sa_tmp_nbelt), string_arena_get_string(sa_nbelt)) ) {
                     /* Same thing: the number of transmitted elements may change at anytime */
                     string_arena_init(sa_nbelt);
                     string_arena_add_string(sa_nbelt, "%s", string_arena_get_string(sa_tmp_nbelt));
+                    string_arena_add_string(sa_temp, "    __nb_elt = %s;\n", string_arena_get_string(sa_tmp_nbelt));
+                }
+                if( strlen(string_arena_get_string(sa_temp)) ) {
                     string_arena_add_string(sa_coutput,
                                             "#if defined(DISTRIBUTED)\n"
-                                            "    __nb_elt = %s;\n"
-                                            "#endif  /* defined(DISTRIBUTED) */\n",
-                                            string_arena_get_string(sa_nbelt));
+                                            "%s"
+                                            "#endif\n",
+                                            string_arena_get_string(sa_temp));
                 }
 
                 string_arena_init(sa);
@@ -3627,6 +3618,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     string_arena_free(sa_type);
     string_arena_free(sa_nbelt);
     string_arena_free(sa_tmp_nbelt);
+    string_arena_free(sa_temp);
 }
 
 static void jdf_generate_inline_c_function(jdf_expr_t *expr)
