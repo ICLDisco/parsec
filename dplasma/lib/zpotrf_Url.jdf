@@ -32,7 +32,7 @@ extern dague_gpu_data_map_t dague_gpu_map;
 
 /* Globals
  */
-PRI_CHANGE [type = int]
+PRI_CHANGE [type = int hidden = on]
 uplo       [type = PLASMA_enum]
 descA      [type = "tiled_matrix_desc_t"]
 A          [type = "dague_ddesc_t *"]
@@ -169,7 +169,7 @@ BODY
         );
     printlog(
              "thread %d VP %d CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             context->th_id, context->virtual_process->vp_id, k, n, 
+             context->th_id, context->virtual_process->vp_id, k, n,
              plasma_const( PlasmaUpper ), plasma_const( PlasmaConjTrans ),
              tempnn, descA.mb,
              -1.0, k, n, A, ldak,
