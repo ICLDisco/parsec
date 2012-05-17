@@ -213,10 +213,8 @@ int main(int argc, char *argv[])
         }
     }
 
-
-
     dplasma_zherbt_Destruct( DAGUE_zherbt );
-    dague_diag_band_to_rect_destroy( DAGUE_diag_band_to_rect );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT( DAGUE_diag_band_to_rect );
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
 
     cleanup_dague(dague, iparam);

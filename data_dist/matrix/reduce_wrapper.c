@@ -23,7 +23,7 @@ dague_reduce_col_New( const tiled_matrix_desc_t* src,
 
 void dague_reduce_col_Destruct( struct dague_object_t *o )
 {
-    dague_reduce_col_destroy( (dague_reduce_col_object_t*)o );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 struct dague_object_t*
@@ -40,6 +40,6 @@ dague_reduce_row_New( const tiled_matrix_desc_t* src,
 
 void dague_reduce_row_Destruct( struct dague_object_t *o )
 {
-    dague_reduce_row_destroy( (dague_reduce_row_object_t*)o );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 

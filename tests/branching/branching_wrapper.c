@@ -51,5 +51,5 @@ void branching_destroy(dague_object_t *o)
     MPI_Type_free( &block );
 #endif
 
-    dague_branching_destroy( (dague_branching_object_t*)o );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -77,6 +77,6 @@ void dplasma_zherbt_Destruct( dague_object_t *o )
         dague_private_memory_fini( dague_zherbt->pool_3 );
         free( dague_zherbt->pool_3 );
 
-        dague_zherbt_L_destroy(dague_zherbt);
+        DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zherbt);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -78,7 +78,7 @@ dplasma_zgetrf_incpiv_Destruct( dague_object_t *o )
     dague_private_memory_fini( dague_zgetrf_incpiv->work_pool );
     free( dague_zgetrf_incpiv->work_pool );
 
-    dague_zgetrf_incpiv_destroy(dague_zgetrf_incpiv);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgetrf_incpiv);
 }
 
 int dplasma_zgetrf_incpiv( dague_context_t *dague, tiled_matrix_desc_t *A,
@@ -160,5 +160,5 @@ dplasma_zgetrf_incpiv_sd_Destruct( dague_object_t *o )
     dague_private_memory_fini( dague_zgetrf_incpiv->work_pool );
     free( dague_zgetrf_incpiv->work_pool );
 
-    dague_zgetrf_incpiv_sd_destroy(dague_zgetrf_incpiv);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgetrf_incpiv);
 }

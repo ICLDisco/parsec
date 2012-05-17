@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -47,24 +47,9 @@ void
 dplasma_zpotrf_Destruct( dague_object_t *o )
 {
     dague_zpotrf_Url_object_t *opotrf = (dague_zpotrf_Url_object_t *)o;
-    int uplo    = ((dague_zpotrf_Url_object_t *)o)->uplo;
-    int looking = PlasmaRight; /*((dague_zpotrf_Url_object_t *)o)->uplo;*/
 
     dplasma_datatype_undefine_type( &(opotrf->arenas[DAGUE_zpotrf_Url_DEFAULT_ARENA]->opaque_dtt) );
-
-    if (looking == PlasmaRight ) {
-        if ( uplo == PlasmaUpper ) {
-            dague_zpotrf_Url_destroy((dague_zpotrf_Url_object_t *)o);
-        } else {
-            dague_zpotrf_Lrl_destroy((dague_zpotrf_Lrl_object_t *)o);
-        }
-    } /* else { */
-    /*     if ( uplo == PlasmaUpper ) { */
-    /*         dague_zpotrf_Ull_destroy((dague_zpotrf_Ull_object_t *)o); */
-    /*     } else { */
-    /*         dague_zpotrf_Lll_destroy((dague_zpotrf_Lll_object_t *)o); */
-    /*     } */
-    /* } */
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA)

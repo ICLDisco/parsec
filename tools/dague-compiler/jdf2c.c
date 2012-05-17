@@ -922,9 +922,6 @@ static void jdf_generate_header_file(const jdf_t* jdf)
                                 "", "", ", ", ""));
     }
 
-    houtput("extern void dague_%s_destroy( dague_%s_object_t *o );\n",
-            jdf_basename, jdf_basename);
-
     string_arena_free(sa1);
     string_arena_free(sa2);
     string_arena_free(sa3);
@@ -2242,7 +2239,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 {
     string_arena_t *sa = string_arena_new(64);
 
-    coutput("void dague_%s_destroy( dague_%s_object_t *o )\n"
+    coutput("static void %s_destructor( dague_%s_object_t *o )\n"
             "{\n"
             "  dague_object_t *d = (dague_object_t *)o;\n"
             "  __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t*)o; (void)__dague_object;\n"
@@ -2386,11 +2383,12 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_data_repository_constructor, sa2,
                             "", "", "\n", "\n"));
 
-    coutput("  __dague_object->super.super.startup_hook = %s_startup;\n"
+    coutput("  __dague_object->super.super.startup_hook      = %s_startup;\n"
+            "  __dague_object->super.super.object_destructor = (dague_destruct_object_fn_t)%s_destructor;\n"
             "  (void)dague_object_register((dague_object_t*)__dague_object);\n"
             "  return (dague_%s_object_t*)__dague_object;\n"
             "}\n\n",
-            jdf_basename, jdf_basename);
+            jdf_basename, jdf_basename, jdf_basename);
 
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -3758,9 +3756,8 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     /**
      * Generate the externally visible function.
      */
-    jdf_generate_constructor(jdf);
-
     jdf_generate_destructor( jdf );
+    jdf_generate_constructor(jdf);
 
     /**
      * Dump all the epilogue sections

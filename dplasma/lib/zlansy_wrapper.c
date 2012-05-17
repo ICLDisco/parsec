@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -180,11 +180,8 @@ double dplasma_zlansy( dague_context_t *dague,
 #endif
 }
 
-#if 0
 void
 dplasma_zlansy_Destruct( dague_object_t *o )
 {
-    dague_zlansy_object_t *dague_zlansy = (dague_zlansy_object_t *)o;
-    dague_zlansy_destroy(dague_zlansy);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
-#endif

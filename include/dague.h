@@ -184,6 +184,7 @@ typedef void (*dague_startup_fn_t)(dague_context_t *context,
                                    dague_object_t *dague_object,
                                    dague_execution_context_t** startup_list);
 typedef int (*dague_completion_cb_t)(dague_object_t* dague_object, void*);
+typedef void (*dague_destruct_object_fn_t)(dague_object_t* dague_object);
 
 struct dague_object {
     /** All dague_object_t structures hold these two arrays **/
@@ -201,6 +202,7 @@ struct dague_object {
      */
     dague_completion_cb_t      complete_cb;
     void*                      complete_cb_data;
+    dague_destruct_object_fn_t object_destructor;
     dague_dependencies_t**     dependencies_array;
 };
 
@@ -227,6 +229,19 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
 int dague_fini( dague_context_t** pcontext );
 int dague_enqueue( dague_context_t* context, dague_object_t* object);
 int dague_progress(dague_context_t* context);
+
+/**
+ * This is a convenience macro for the wrapper file. Do not call this destructor
+ * directly from the applications, or face memory leaks as it only release the
+ * most internal structues, while leaving the datatypes and the tasks management
+ * buffers untouched. Instead, from the application layer call the _Destruct.
+ */
+#define DAGUE_INTERNAL_OBJECT_DESTRUCT(OBJ)             \
+    do {                                                \
+    dague_object_t* __obj = (dague_object_t*)(OBJ);     \
+    __obj->object_destructor(__obj);                    \
+    (OBJ) = NULL;                                       \
+} while (0)
 
 /**
  * Allow to change the default priority of an object. It returns the
