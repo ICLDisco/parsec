@@ -223,7 +223,9 @@ BODY
     DRYRUN(
        int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-       int temphn = ( ((tempkn-(h-1)) < IB) && (tempkn%IB != 0) ) ? tempkn%IB : IB;
+       int nt = ( tempkn - 1 ) / IB ;
+       int jt = h / IB ;
+       int temphn = (( jt ==  nt ) && (tempkn%IB != 0) ) ? tempkn%IB : IB;
        int ldam = BLKLDD( descA, m );
        int i;
        int p = (m == k)? h : 0;
@@ -267,11 +269,11 @@ BODY
 	 cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), lT + ((h-1)*ldam+p), 1 );
 
          if((h%IB) != 0){
-           cblas_zgeru(CblasColMajor, tempmm-p, temphn-(h%IB),
-                       CBLAS_SADDR(mzone),
-                       lT+ ldam * (h-1) + p,    1,
-                       lV+ MAXI         + h, 1,
-                       lT+ ldam *  h    + p,    ldam);
+             cblas_zgeru(CblasColMajor, tempmm-p, temphn-(h%IB),
+                         CBLAS_SADDR(mzone),
+                         lT+ ldam * (h-1) + p,    1,
+                         lV+ MAXI         + h, 1,
+                         lT+ ldam *  h    + p,    ldam);
          }
          else {
            if(m == k)
