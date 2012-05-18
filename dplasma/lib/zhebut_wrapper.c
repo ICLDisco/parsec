@@ -6,15 +6,17 @@
  * @precisions normal z -> s d c
  *
  */
-#include <math.h>
-#include <stdlib.h>
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
-#include <cblas.h>
+#include "data_dist/matrix/matrix.h"
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
+
+#include <math.h>
+#include <stdlib.h>
+#include <cblas.h>
 
 #include "dplasma/lib/butterfly_map.h"
 #include "dplasma/lib/zhebut.h"

@@ -5,6 +5,7 @@
  */
 
 #include "dague_config.h"
+#include "dague_internal.h"
 
 #if defined(HAVE_CUDA)
 #include "dague.h"

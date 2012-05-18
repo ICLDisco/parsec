@@ -11,7 +11,7 @@
 
 #if defined(DAGUE_PROF_GRAPHER)
 
-#include "dague.h"
+#include "dague_internal.h"
 #include "execution_unit.h"
 
 void dague_prof_grapher_init(const char *base_filename, int rank, int size, int nbthreads);

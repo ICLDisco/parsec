@@ -1,4 +1,4 @@
-#include "dague.h"
+#include "dague_internal.h"
 #include <data_distribution.h>
 #include <arena.h>
 

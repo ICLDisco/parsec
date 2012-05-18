@@ -6,7 +6,7 @@
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include <core_blas.h>
 #include "dplasma.h"
@@ -123,7 +123,7 @@ dplasma_zlange_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_COL_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_ELT_ARENA]->opaque_dtt) );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zlange);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 double dplasma_zlange( dague_context_t *dague,

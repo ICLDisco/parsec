@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "dague.h"
+#include "dague_internal.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -713,9 +713,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                    *deps,
                    exec_context->priority));
 
-#if defined(DAGUE_SCHED_CACHE_AWARE)
-            new_context->data[0].gc_data = NULL;
-#endif
             /* TODO: change this to the real number of input dependencies */
             memset( new_context->data, 0, sizeof(dague_data_pair_t) * MAX_PARAM_COUNT );
             assert( dest_flow->flow_index <= MAX_PARAM_COUNT );

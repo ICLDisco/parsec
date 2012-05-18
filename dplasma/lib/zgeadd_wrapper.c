@@ -7,7 +7,7 @@
  *
  */
 
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include <core_blas.h>
 #include "dplasma.h"

@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "dague.h"
+#include "dague_internal.h"
 #include "debug.h"
 #include "scheduling.h"
 #include "schedulers.h"
