@@ -61,7 +61,7 @@ READ_W(m, n) [profile = off]
     m = 0 .. inline_c %{ return dague_imax( descA.mt-1, P-1 ); %}
     n = 0 .. Q-1
     col = inline_c %{
-        return ((descA.nt - Q + n) / Q) * Q + n;
+    	return descA.nt-((descA.nt-n-1)%Q)-1;
         %}
 
     // Parallel partitioning
@@ -110,7 +110,7 @@ BODY
 
     printlog("thread %d zlange STEP1(%d, %d)\n"
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
-             context->eu_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
+             context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
     DRYRUN(
         double *dW = (double*)W;
@@ -146,7 +146,7 @@ BODY
 
     printlog("thread %d zlange STEP2(%d, %d)\n"
              "\t( W(%d, %d) || W(%d, %d)\n",
-             context->eu_id, m, n, m, n-1, m, n);
+             context->th_id, m, n, m, n-1, m, n);
 
     DRYRUN(
         if(n > 0)
@@ -190,7 +190,7 @@ STEP3(m, n)
 BODY
 
     printlog("thread %d zlange STEP3(%d, %d)\n",
-             context->eu_id, m, n);
+             context->th_id, m, n);
 
     DRYRUN(
         double *dA = (double*)A;
@@ -234,7 +234,7 @@ STEP4(m,n)
 BODY
 
     printlog("thread %d zlange STEP4(%d, %d)\n",
-             context->eu_id, m, n);
+             context->th_id, m, n);
 
     DRYRUN(
         if(m > 0)

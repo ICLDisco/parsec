@@ -5,9 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "debug.h"
-
-#include "dague.h"
+#include "dague_internal.h"
 #include "remote_dep.h"
 #include "atomic.h"
 
@@ -121,7 +119,7 @@ void dague_debug_history_add(const char *format, ...)
     set_my_mark( debug_str );
 }
 
-void debug_mark_exe(int core, const struct dague_execution_context_t *ctx)
+void debug_mark_exe(int th, int vp, const struct dague_execution_context_t *ctx)
 {
     int j;
     char msg[512];
@@ -130,14 +128,14 @@ void debug_mark_exe(int core, const struct dague_execution_context_t *ctx)
 
     pos += snprintf(msg+pos, len-pos, "%s(", ctx->function->name);
     for(j = 0; j < ctx->function->nb_parameters; j++) {
-        pos += snprintf(msg+pos, len-pos, "locals[%d]=%d%s",
-                        j, ctx->locals[j].value,
+        pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",
+                        j, ctx->function->locals[j]->name, ctx->locals[j].value,
                         (j == ctx->function->nb_parameters-1) ? ")\n" : ", ");
     }
 
-    dague_debug_history_add("Mark: execution on core %d\n"
+    dague_debug_history_add("Mark: execution on thread %d of VP %d\n"
                             "\t      %s",
-                            core, msg);
+                            th, vp, msg);
 }
 
 void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote_dep_wire_activate_t *m)
@@ -155,9 +153,9 @@ void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote
     f = object->functions_array[m->function_id];
     pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
     for(j = 0; j < f->nb_parameters; j++) {
-        pos += snprintf(msg+pos, len-pos, "locals[%d]=%d%s", 
+        pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s", 
                         j,
-                        m->locals[j].value,
+                        f->locals[j]->name, m->locals[j].value,
                         (j == f->nb_parameters - 1) ? ")\n" : ", ");
     }
     pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n", 
@@ -182,9 +180,9 @@ void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remo
     f = object->functions_array[m->function_id];
     pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
     for(j = 0; j < f->nb_parameters; j++) {
-        pos += snprintf(msg+pos, len-pos, "locals[%d]=%d%s", 
+        pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s", 
                         j,
-                        m->locals[j].value,
+                        f->locals[j]->name, m->locals[j].value,
                         (j == f->nb_parameters - 1) ? ")\n" : ", ");
     }
     pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n", 

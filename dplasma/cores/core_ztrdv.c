@@ -20,6 +20,7 @@
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
+#include <stdlib.h>
 
 #include "plasma.h"
 #include "cblas.h"

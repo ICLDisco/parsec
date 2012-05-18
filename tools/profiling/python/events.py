@@ -1,9 +1,4 @@
 #!/usr/bin/python
-# USAGE:
-# ./extract_starvation.py profiling.data
-#
-# requires Python 2.5 or greater because of multiple-attribute attrgetter
-# as per http://docs.python.org/library/operator.html
 import re
 
 defaultProfileRegex = r'(\d+)\s+(\d+)\s+([\w\s]+?)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*'
@@ -11,10 +6,10 @@ defaultRegex = re.compile(defaultProfileRegex)
 
 class Event(object):
     def __init__(self, procID, tID, key, ID, start, end, duration):
-        self.procID = int(procID)
-        self.tID = int(tID)
+        self.pid = int(procID)
+        self.tid = int(tID)
         self.key = key
-        self.ID = int(ID)
+        self.id = int(ID)
         self.start = int(start)
         self.end = int(end)
         self.duration = int(duration)

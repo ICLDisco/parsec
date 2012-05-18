@@ -8,6 +8,7 @@
 #define HBBUFFER_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
+#include "dague_internal.h"
 #include "debug.h"
 #include "atomic.h"
 #include <stdlib.h>
@@ -209,12 +210,12 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
     if( NULL != ejected ) {
 #if defined(DAGUE_DEBUG_VERBOSE3)
         dague_list_item_t *it;
-        char tmp[128];
+        char tmp[MAX_TASK_STRLEN];
 
         DEBUG3(("HBB:\t Ejected elements (to father) are:\n"));
         it = ejected;
         do {
-            DEBUG3(("  %s\n", dague_service_to_string((dague_execution_context_t*)it, tmp, 128)));
+            DEBUG3(("  %s\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it)));
             it = DAGUE_LIST_ITEM_NEXT(it);
         } while(it != ejected);
 #endif

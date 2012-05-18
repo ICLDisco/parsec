@@ -31,6 +31,7 @@ set(JDF
   zlaswp.jdf
   zpotrf_rl.jdf zpotrf_ll.jdf
   zpotrf_Url.jdf zpotrf_Lrl.jdf
+  zgebmm.jdf
   zgebut.jdf
   zhebut.jdf
   zgetrf.jdf zhetrf.jdf

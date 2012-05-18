@@ -7,6 +7,7 @@
 #define __USE_REMOTE_DEP_H__
 
 #include "dague_config.h"
+#include "dague_internal.h"
 
 typedef unsigned long remote_dep_datakey_t;
 
@@ -21,7 +22,6 @@ typedef void* dague_remote_dep_datatype_t;
 
 #include "dague_description_structures.h"
 #include "lifo.h"
-#include "dague.h"
 
 #define DAGUE_ACTION_DEPS_MASK                  0x00FF
 #define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x0100
