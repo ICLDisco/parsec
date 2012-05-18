@@ -641,6 +641,7 @@ static MPI_Request* dep_put_rcv_req     = &array_of_requests[2 * DEP_NB_CONCUREN
 /* TODO: fix heterogeneous restriction by using proper mpi datatypes */
 #define dep_dtt MPI_BYTE
 #define dep_count sizeof(remote_dep_wire_activate_t)
+#define dep_extent dep_count
 static dague_remote_deps_t* dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_dtt MPI_LONG
 #define datakey_count 3
@@ -789,9 +790,9 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n", rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN), msg->deps, msg->which, msg->tag));
 
     /* Treat for special cases: CTL, Eeager, etc... */
-    char* packed_buffer[RDEP_MSG_EAGER_LIMIT];
+    char packed_buffer[dep_extent+RDEP_MSG_EAGER_LIMIT];
     int packed = 0;
-    MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, RDEP_MSG_EAGER_LIMIT, &packed, dep_comm);
+    MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, dep_extent+RDEP_MSG_EAGER_LIMIT, &packed, dep_comm);
     for(int k=0; msg->which>>k; k++) {
         if(0 == (msg->which & (1<<k))) continue;
         
