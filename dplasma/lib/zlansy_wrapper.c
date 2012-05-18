@@ -180,8 +180,10 @@ double dplasma_zlansy( dague_context_t *dague,
 #endif
 }
 
+#if 0
 void
 dplasma_zlansy_Destruct( dague_object_t *o )
 {
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
+#endif
