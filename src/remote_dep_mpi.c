@@ -141,7 +141,7 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
     if( index >= len ) return str;
     for( i = 0; i < function->nb_parameters; i++ ) {
         index += snprintf( str + index, len - index, "_%d",
-                           origin->locals[function->params[ip]->context_index].value );
+                           origin->locals[function->params[i]->context_index].value );
         if( index >= len ) return str;
     }
     return str;
