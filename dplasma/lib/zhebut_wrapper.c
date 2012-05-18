@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -215,7 +215,7 @@ dplasma_zhebut_Destruct( dague_object_t *o )
         }
     }
 
-    dague_zhebut_destroy(obut);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(obut);
 }
 
 /* GE for General */
@@ -300,7 +300,7 @@ dplasma_zgebut_Destruct( dague_object_t *o )
         }
     }
 
-    dague_zgebut_destroy(obut);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(obut);
 }
 
 /*
@@ -385,7 +385,7 @@ dplasma_zgebmm_Destruct( dague_object_t *o )
         }
     }
 
-    dague_zgebmm_destroy(obmm);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(obmm);
 }
 
 

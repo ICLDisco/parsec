@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -64,7 +64,7 @@ dplasma_zgetrf_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA     ]->opaque_dtt) );
 
-    dague_zgetrf_destroy(dague_zgetrf);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgetrf);
 }
 
 int dplasma_zgetrf( dague_context_t *dague,

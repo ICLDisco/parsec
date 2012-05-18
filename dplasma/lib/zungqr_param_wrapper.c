@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -175,7 +175,7 @@ dplasma_zungqr_param_Destruct( dague_object_t *o )
     dague_private_memory_fini( dague_zungqr_param->p_work );
     free( dague_zungqr_param->p_work );
 
-    dague_zungqr_param_destroy(dague_zungqr_param);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zungqr_param);
 }
 
 

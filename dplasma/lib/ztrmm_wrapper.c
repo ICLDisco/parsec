@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011 The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -121,41 +121,9 @@ void
 dplasma_ztrmm_Destruct( dague_object_t *o )
 {
     dague_ztrmm_LLN_object_t *otrmm = (dague_ztrmm_LLN_object_t *)o;
-    int side  = ((dague_ztrmm_LLN_object_t *)o)->side;
-    int uplo  = ((dague_ztrmm_LLN_object_t *)o)->uplo;
-    int trans = ((dague_ztrmm_LLN_object_t *)o)->trans;
 
     dplasma_datatype_undefine_type( &(otrmm->arenas[DAGUE_ztrmm_LLN_DEFAULT_ARENA]->opaque_dtt) );
-    
-    if ( side == PlasmaLeft ) {
-        if ( uplo == PlasmaLower ) {
-            if ( trans == PlasmaNoTrans ) {
-                dague_ztrmm_LLN_destroy((dague_ztrmm_LLN_object_t *)o);
-            } else { /* trans =! PlasmaNoTrans */
-                dague_ztrmm_LLT_destroy((dague_ztrmm_LLT_object_t *)o);
-            }
-        } else { /* uplo = PlasmaUpper */
-            if ( trans == PlasmaNoTrans ) {
-                dague_ztrmm_LUN_destroy((dague_ztrmm_LUN_object_t *)o);
-            } else { /* trans =! PlasmaNoTrans */
-                dague_ztrmm_LUT_destroy((dague_ztrmm_LUT_object_t *)o);
-            }
-        }
-    } else { /* side == PlasmaRight */
-        if ( uplo == PlasmaLower ) {
-            if ( trans == PlasmaNoTrans ) {
-                dague_ztrmm_RLN_destroy((dague_ztrmm_RLN_object_t *)o);
-            } else { /* trans =! PlasmaNoTrans */
-                dague_ztrmm_RLT_destroy((dague_ztrmm_RLT_object_t *)o);
-            }
-        } else { /* uplo = PlasmaUpper */
-            if ( trans == PlasmaNoTrans ) {
-                dague_ztrmm_RUN_destroy((dague_ztrmm_RUN_object_t *)o);
-            } else { /* trans =! PlasmaNoTrans */
-                dague_ztrmm_RUT_destroy((dague_ztrmm_RUT_object_t *)o);
-            }
-        }
-    }
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 void

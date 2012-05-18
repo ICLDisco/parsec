@@ -51,5 +51,5 @@ void rtt_destroy(dague_object_t *o)
     MPI_Type_free( &block );
 #endif
 
-    dague_rtt_destroy( (dague_rtt_object_t*)o );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }

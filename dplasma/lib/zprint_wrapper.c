@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -44,11 +44,7 @@ int dplasma_zprint( dague_context_t *dague,
     dplasma_progress(dague);
 
     dplasma_datatype_undefine_type( &(object->arenas[DAGUE_zprint_DEFAULT_ARENA]->opaque_dtt) );
-    dague_zprint_destroy( object );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT( object );
 
-#if defined(HAVE_MPI)
-    /* Avoid other printing to inteleave with zprint */
-    MPI_Barrier(dplasma_comm);
-#endif
     return 0;
 }

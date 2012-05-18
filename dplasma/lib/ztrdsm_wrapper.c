@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -59,7 +59,7 @@ dplasma_ztrdsm_Destruct( dague_object_t *o )
 {
     dague_ztrdsm_object_t *otrdsm = (dague_ztrdsm_object_t *)o;
     dplasma_datatype_undefine_type( &(otrdsm->arenas[DAGUE_ztrdsm_DEFAULT_ARENA]->opaque_dtt) );
-    dague_ztrdsm_destroy((dague_ztrdsm_object_t *)o);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 /***************************************************************************//**

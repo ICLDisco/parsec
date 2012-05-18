@@ -1,4 +1,4 @@
-# 
+#
 # DAGuE Internal: generation of various floating point precision files from a template.
 #
 
@@ -11,9 +11,9 @@ include(ParseArguments)
 # Generates a rule for every SOURCES file, to create the precisions in PRECISIONS. If TARGETDIR
 # is not empty then all generated files will be prepended with the $TARGETDIR/.
 # A new file is created, from a copy by default
-# If the first precision is "/", all occurences of the basename in the file are remplaced by 
-# "pbasename" where p is the selected precision. 
-# the target receives a -DPRECISION_p in its cflags. 
+# If the first precision is "/", all occurences of the basename in the file are remplaced by
+# "pbasename" where p is the selected precision.
+# the target receives a -DPRECISION_p in its cflags.
 #
 macro(precisions_rules_py)
   PARSE_ARGUMENTS(PREC_RULE
@@ -40,7 +40,7 @@ macro(precisions_rules_py)
 
   foreach(prec_rules_SOURCE ${SOURCES})
     foreach(prec_rules_PREC ${PREC_RULE_PRECISIONS})
-    
+
       set(pythoncmd ${PRECISIONPP} -f ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} -p ${prec_rules_PREC} ${PRECISIONPP_arg} ${PRECISIONPP_prefix})
 
       execute_process(COMMAND ${pythoncmd} --out

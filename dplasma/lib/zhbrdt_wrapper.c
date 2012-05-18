@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -32,6 +32,6 @@ dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
 
 void dplasma_zhbrdt_Destruct( dague_object_t* o )
 {
-    dague_zhbrdt_destroy( (dague_zhbrdt_object_t*)o );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
