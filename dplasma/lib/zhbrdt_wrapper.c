@@ -7,7 +7,7 @@
  *
  */
 
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "data_dist/matrix/matrix.h"
 #include "dplasma.h"

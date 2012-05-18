@@ -8,9 +8,9 @@
 #ifndef _MATRIX_H_
 #define _MATRIX_H_
 
+#include "dague_config.h"
 #include <stdarg.h>
 #include <assert.h>
-#include "dague_config.h"
 #include "precision.h"
 #include "data_distribution.h"
 #include "vpmap.h"

@@ -5,7 +5,8 @@
  */
 
 #include "dague_config.h"
-#include "dague.h"
+#include "dague_internal.h"
+#include "debug.h"
 
 #include <stdlib.h>
 #include <stdio.h>

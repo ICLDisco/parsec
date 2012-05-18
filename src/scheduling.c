@@ -5,10 +5,10 @@
  */
 
 #include "dague_config.h"
+#include "dague_internal.h"
 #include "schedulers.h"
 #include "profiling.h"
 #include "remote_dep.h"
-#include "dague.h"
 #include "stats.h"
 #include "datarepo.h"
 #include "execution_unit.h"
