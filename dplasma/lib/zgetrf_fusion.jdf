@@ -56,7 +56,7 @@ extern "C" %{
 	opermut[tmp - diff] = (IP[i] - 1);
       }
     } else {
-      upermut[i] = upermut[(IP[i] - 1)];
+      upermut[i] = upermut[(IP[i] - diff - 1)];
       upermut[(IP[i] - diff - 1)] = tmp;
     }
   }
@@ -677,7 +677,6 @@ BODY
    if(m - k < P) {
      /* Saving the pivots */
      for(i = 0;i <= hmax;i++) {
-       printf("(%d,%d)\n",i,((int) lV[PIVO + i]));
        ((int *) IP)[i] = ((int) lV[PIVO + i]) + 1;
      }
    }
@@ -788,7 +787,6 @@ BODY
              owner_index = opermut[i]/descA.mb;
              index       = opermut[i]%descA.mb;
              if(owner_index == m) {
-               printf("Swapping line %d of U in %d (%d)\n",i,opermut[i], index);
                cblas_zcopy(tempkn, lU + i    , descA.mb,
                                    lT + index, ldam);
              }
