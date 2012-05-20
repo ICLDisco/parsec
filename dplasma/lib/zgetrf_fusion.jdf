@@ -47,16 +47,16 @@ extern "C" %{
 	  index = j;
 	  break; 
 	}
-      if(index > hmax) {
+      if(index >= hmax) {
 	upermut[i] = (IP[i] - 1);
-	opermut[i] = (IP[i] - 1);
+	opermut[tmp-diff] = (IP[i] - 1);
       } else {
 	upermut[i] = index;
 	opermut[index] = index;
 	opermut[tmp - diff] = (IP[i] - 1);
       }
     } else {
-      upermut[i] = upermut[(IP[i] - diff - 1)];
+      upermut[i] = upermut[(IP[i] - 1)];
       upermut[(IP[i] - diff - 1)] = tmp;
     }
   }
@@ -675,10 +675,8 @@ BODY
    cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), lT + hmax*ldam + p, 1 );
 
    if(m - k < P) {
-     printf("The swap are :\n");
      /* Saving the pivots */
      for(i = 0;i <= hmax;i++) {
-       printf("(%d,%d)\n",i,((int) lV[PIVO + i]));
        ((int *) IP)[i] = ((int) lV[PIVO + i]) + 1;
      }
    }
@@ -789,11 +787,9 @@ BODY
              owner_index = opermut[i]/descA.mb;
              index       = opermut[i]%descA.mb;
              if(owner_index == m) {
-               printf("Swapping line %d of U in %d (%d)\n",i,opermut[i], index);
                cblas_zcopy(tempkn, lU + i    , descA.mb,
                                    lT + index, ldam);
              }
-
            }
          }
           );
@@ -877,7 +873,6 @@ BODY
              index       = upermut[i]%descA.mb;
              
              if(owner_index == m) {
-               printf("Saving line %d (%d) in %d BY (%d,%d)\n",upermut[i],index,i,m,n);
                cblas_zcopy(tempkn, lT + index, ldam,
                                    lM + i    , descA.mb);
              }
@@ -966,7 +961,6 @@ BODY
 /*            index       = upermut[i]%descA.mb; */
              
 /*            if(((m*(pui/2)) <= owner_index) && (owner_index < ((m+1)*(pui/2)))) { */
-/*              printf("Saving %d\n",i); */
 /*              cblas_zcopy(tempkn, lM + i, descA.mb, */
 /*                          lB + i, descA.mb); */
 /*            } */
@@ -1025,10 +1019,10 @@ BODY
            for(i = 0; i < hmax; i++) {
              owner_index = upermut[i]/descA.mb;
              index       = upermut[i]%descA.mb;
-             printf("Swap line %d with line %d\n",i, upermut[i]);
                cblas_zcopy(tempnn, lB + i, descA.mb,
                                    lT + i, ldak);
-             }
+           }
+
           );
     printlog("SWAP_PASTE(k=%d,n=%d)\n",d,n);
 END
