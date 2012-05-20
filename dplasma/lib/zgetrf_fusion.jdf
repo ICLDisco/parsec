@@ -636,7 +636,7 @@ imax = inline_c %{
 :A(m, k)
 
 RW    T <- T GETRF_MAX(k,m,hmax)
-        -> (m == k) ? T TRSM_U(k, k+1..descA.mt-1) : A GEMM(k,m, k+1..descA.nt-1)
+        -> (m == k) ? T TRSM_U(k, k+1..descA.nt-1) : A GEMM(k,m, k+1..descA.nt-1)
         -> A(m, k)
 READ  V <- V GETRF_MDL(k,(m-k)%P,imax)                                                         [type = SWAP]
 RW   IP <-  IP IP_in(k,(m-k)%P)                                                                [type = PIVOT]
@@ -677,6 +677,7 @@ BODY
    if(m - k < P) {
      /* Saving the pivots */
      for(i = 0;i <= hmax;i++) {
+       printf("(%d,%d)\n",i,((int) lV[PIVO + i]));
        ((int *) IP)[i] = ((int) lV[PIVO + i]) + 1;
      }
    }
@@ -787,6 +788,7 @@ BODY
              owner_index = opermut[i]/descA.mb;
              index       = opermut[i]%descA.mb;
              if(owner_index == m) {
+               printf("Swapping line %d of U in %d (%d)\n",i,opermut[i], index);
                cblas_zcopy(tempkn, lU + i    , descA.mb,
                                    lT + index, ldam);
              }
