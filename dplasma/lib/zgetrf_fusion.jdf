@@ -31,6 +31,38 @@ extern "C" %{
 #define SRCH (descA.nb*3)
 #define PIVO (descA.nb*4)
 
+  static inline void pivot_to_permutation(int *IP, int hmax, int *upermut, int *opermut, int diff)
+{
+  int i,j;
+  int index;
+  for(i = 0; i < hmax; i++)
+    upermut[i] = opermut[i] = i + diff;
+
+  for(i = 0; i < hmax; i++) {
+    int tmp = upermut[i];
+    if((IP[i] - diff - 1) >= hmax) {
+      index = (IP[i] - diff - 1);
+      for(j = 0; j < hmax; j++)
+	if(opermut[j] == (IP[i] - 1)) {
+	  index = j;
+	  break; 
+	}
+      if(index > hmax) {
+	upermut[i] = (IP[i] - 1);
+	opermut[i] = (IP[i] - 1);
+      } else {
+	upermut[i] = index;
+	opermut[index] = index;
+	opermut[tmp - diff] = (IP[i] - 1);
+      }
+    } else {
+      upermut[i] = upermut[(IP[i] - diff - 1)];
+      upermut[(IP[i] - diff - 1)] = tmp;
+    }
+  }
+}
+
+
 %}
 
 /* Globals
@@ -60,10 +92,10 @@ k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
 m = 0..inline_c %{ return dague_imin( descA.mt-k-1, P-1 ); %}
 
 // Parallel partitioning
-:IPIV((k+m)%P,k/* %Q */)
+:IPIV((k+m)%P,k)
 
 // Parameters
-READ  IP <- IPIV((k+m)%P,k/* %Q */)                                                               [type = PIVOT]
+READ  IP <- IPIV((k+m)%P,k)                                                               [type = PIVOT]
          -> IP GETRF_FNL(k,(k+m)..(descA.mt-((descA.mt-k-m-1)%P)-1)..P)                         [type = PIVOT]
 
 ;descA.mt-k-1
@@ -82,11 +114,11 @@ k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
 m = 0..inline_c %{ return dague_imin( descA.mt-k-1, P-1 ); %}
 
 // Parallel partitioning
-:IPIV((k+m)%P,k/*%Q*/)
+:IPIV((k+m)%P,k)
 
 // Parameters
 READ  IP <- IP GETRF_FNL(k,k+m)                                                             [type = PIVOT]
-   -> IPIV((k+m)%P,k/*%Q*/)                                                               [type = PIVOT]
+         -> IPIV((k+m)%P,k)                                                                 [type = PIVOT]
 
 ;descA.mt-k-1
 
@@ -282,10 +314,6 @@ BODY
                                  'a', IB, tempkn-h, 
                                  lU + h * IB           , IB,
                                  lT + h * ldam + h - IB, ldam);
-
-/*              for(i = 0; i < IB; i++) */
-/*                cblas_zcopy(tempkn-h, lU + h * IB   + i         , IB, */
-/*                                      lT + h * ldam + i + h - IB, ldam); */
 
            cblas_zgemm(CblasColMajor,
                        (CBLAS_TRANSPOSE)CblasNoTrans, (CBLAS_TRANSPOSE)CblasNoTrans,
@@ -610,10 +638,10 @@ imax = inline_c %{
 RW    T <- T GETRF_MAX(k,m,hmax)
         -> (m == k) ? T TRSM_U(k, k+1..descA.mt-1) : A GEMM(k,m, k+1..descA.nt-1)
         -> A(m, k)
-READ  V <- V GETRF_MDL(k,(m-k)%P,imax)                       [type = SWAP]
-RW   IP <- IP IP_in(k,(m-k)%P)                               [type = PIVOT]
-        -> (m-k < P)? IP IP_out(k,(m-k))                     [type = PIVOT]
-        -> IP SWAP_COLLECT(k, m, k+1..descA.nt-1)            [type = PIVOT]
+READ  V <- V GETRF_MDL(k,(m-k)%P,imax)                                                         [type = SWAP]
+RW   IP <-  IP IP_in(k,(m-k)%P)                                                                [type = PIVOT]
+        -> (m-k < P)? IP IP_out(k,(m-k))                                                       [type = PIVOT]
+        -> IP SWAP_COLLECT(k, m, k+1..descA.nt-1)                                              [type = PIVOT]
 
 ;descA.mt-k-1
 
@@ -646,9 +674,14 @@ BODY
    Dague_Complex64_t alpha = ((Dague_Complex64_t) 1.) / (lV[MAXI + hmax]);
    cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), lT + hmax*ldam + p, 1 );
 
-
-   for(i = 0;i <= hmax;i++)
-     ((int *) IP)[i] = ((int) lV[PIVO + i]) + 1;
+   if(m - k < P) {
+     printf("The swap are :\n");
+     /* Saving the pivots */
+     for(i = 0;i <= hmax;i++) {
+       printf("(%d,%d)\n",i,((int) lV[PIVO + i]));
+       ((int *) IP)[i] = ((int) lV[PIVO + i]) + 1;
+     }
+   }
 	);
     printlog();
 END
@@ -690,19 +723,19 @@ n = k+1..descA.nt-1
 
 // Parameters
 READ      A <-  (k == 0)? A(k,n) : C GEMM(k-1, k, n)
+            ->  T SWAP_PASTE(k,n)
 RW    ACOPY <-  A ACOPY_in(k,n)
             ->  U SWAP_RECV(k,k,n)
-CTL     ctl ->  ctl SWAP_PASTE(k,n)
 
 BODY
     DRYRUN(
-            /*int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-            int ldak = BLKLDD( descA, k );
-            int i;
-            int j;
-            for(j = 0;j < tempnn;j++)
-                  for(i = 0;i < descA.mt;i++)
-                        ACOPY[j*ldak+i] = A[j*ldak+i];*/
+       int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+       int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+       int ldak = BLKLDD( descA, k );
+       LAPACKE_zlacpy_work(LAPACK_COL_MAJOR,
+                           'a', tempkm, tempnn,
+                           A    , ldak,
+                           ACOPY, descA.mb);
           );
     printlog("SWAP_COPY(k=%d,n=%d)\n",d,n);
 END
@@ -724,7 +757,6 @@ n = k+1..descA.nt-1
 :A(m, n)
 
 // Parameters
-/*READ      U <- (m==k)? ACOPY SWAP_COPY(k, n) : ((m-k<P)? U SWAP_RECV(k,m-1,n) : U SWAP_RECV(k,m-P,n))*/
 READ      U <- (m==k)? ACOPY SWAP_COPY(k, n)
             <- (m-k<P)? U SWAP_RECV(k,m-1,n) : U SWAP_RECV(k,m-P,n)
             ->  (descA.mt-m>P)? U SWAP_RECV(k,m+P,n)
@@ -737,8 +769,33 @@ READ     IP <-  IP SWAP_COLLECT(k,m,n)                  [type = PIVOT]
 
 BODY
     DRYRUN(
-/* <-  (m==k)? A SWAP_COPY(k, n) : ((m-k>=P)? A SWAP_RECV(k,m-P,n) : A SWAP_RECV(k,descA.mt-((descA.mt-m)%P)-1,n))
-   ->  ((descA.mt-m<P) && (k+((m-k)%P) != P-1))? A SWAP_RECV(k,k+((m-k)%P),n)*/
+         if(m != k) {
+           int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+           int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+           int hmax = ((tempkm<tempkn)? tempkm : tempkn);
+           int ldam = BLKLDD( descA, m );
+           int owner_index;
+           int index;
+
+           Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
+           Dague_Complex64_t *lU = (Dague_Complex64_t*)U;
+
+           int upermut[hmax];
+           int opermut[hmax];
+           pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb);
+
+           int i;
+           for(i = 0; i < hmax; i++) {
+             owner_index = opermut[i]/descA.mb;
+             index       = opermut[i]%descA.mb;
+             if(owner_index == m) {
+               printf("Swapping line %d of U in %d (%d)\n",i,opermut[i], index);
+               cblas_zcopy(tempkn, lU + i    , descA.mb,
+                                   lT + index, ldam);
+             }
+
+           }
+         }
           );
     printlog("SWAP_RECV(k=%d,m=%d,n=%d)\n",k,m,n);
 END
@@ -799,6 +856,33 @@ READ     IP <-  IP GETRF_FNL(k,m)                                               
 
 BODY
     DRYRUN(
+           int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+           int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+           int hmax = ((tempkm<tempkn)? tempkm : tempkn);
+           int ldam = BLKLDD( descA, m );
+           int owner_index;
+           int index;
+
+           Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
+           Dague_Complex64_t *lM = (Dague_Complex64_t*)MYBUF;
+
+           int upermut[hmax];
+           int opermut[hmax];
+           pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb);
+
+
+           int i;
+           for(i = 0; i < hmax; i++) {
+             owner_index = upermut[i]/descA.mb;
+             index       = upermut[i]%descA.mb;
+             
+             if(owner_index == m) {
+               printf("Saving line %d (%d) in %d BY (%d,%d)\n",upermut[i],index,i,m,n);
+               cblas_zcopy(tempkn, lT + index, ldam,
+                                   lM + i    , descA.mb);
+             }
+
+           }
           );
     printlog("SWAP_COLLECT(k=%d,m=%d,n=%d)\n",k,m,n);
 END
@@ -843,7 +927,6 @@ xmax = inline_c %{
 // Parallel partitioning
 pui= inline_c %{ return (int) pow(2,d+1);%}
 :A(k+(m*pui), n)
-/*:BUFFER(m%Q,n)*/
 
 // Parameters
 READ  MYBUF <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+1))%P)-1,n) : MYBUF SWAP_SND(k,d-1,m*2,n)
@@ -855,20 +938,40 @@ RW   BUFFER <-  ((d == 0) && (m == (((xmax+1)/2)-1)) && (xmax%2 == 1))? MYBUF SW
             ->  ((d != dmax) && (m%2==1))? BUFFER SWAP_SND(k,d+1,m/2,n)
 	    ->  ((d != dmax) && (m == (((xmax+1)/2)-1)) && (((xmax+1)/2)%2 == 1))? BUFFER SWAP_SND(k,d+1,m/2,n)
             ->  (d == dmax)? B SWAP_PASTE(k,n)
-READ     IP <-  (d == 0)? IP SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+1))%P)-1,n) : IP SWAP_SND(k,d-1,m*2,n)           [type = PIVOT]
+READ     IP <-  (d == 0)? IP SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+1))%P)-1,n) : IP SWAP_SND(k,d-1,m*2,n)                 [type = PIVOT]
             ->  ((m%2==0) && (d != dmax))? IP SWAP_SND(k,d+1,m/2,n)                                                             [type = PIVOT]
-
-//descA.mt-((descA.mt-1-k-m)%P)-1
-//descA.mt-((descA.mt-2-k-m)%P)-1
+            ->  (d == dmax)? IP SWAP_PASTE(k,n)                                                                                 [type = PIVOT]
 
 ;descA.mt-n-1
 
 BODY
     DRYRUN(
-/*        if(m<d)
-        {
-                ;
-        }*/
+  /*      int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb); */
+/*        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb); */
+/*        int hmax = ((tempkm<tempkn)? tempkm : tempkn); */
+/*        int owner_index; */
+/*        int index; */
+
+/*        Dague_Complex64_t *lM = (Dague_Complex64_t*)MYBUF; */
+/*        Dague_Complex64_t *lB = (Dague_Complex64_t*)BUFFER; */
+
+/*        int upermut[hmax]; */
+/*        int opermut[hmax]; */
+/*        pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb); */
+
+/*        int i; */
+/*        if(!((m == (((xmax+1)/2)-1)) && (xmax%2 == 1))) { */
+/*          for(i = 0; i < hmax; i++) { */
+/*            owner_index = ((upermut[i]/descA.mb) - k)%P; */
+/*            index       = upermut[i]%descA.mb; */
+             
+/*            if(((m*(pui/2)) <= owner_index) && (owner_index < ((m+1)*(pui/2)))) { */
+/*              printf("Saving %d\n",i); */
+/*              cblas_zcopy(tempkn, lM + i, descA.mb, */
+/*                          lB + i, descA.mb); */
+/*            } */
+/*          } */
+/*        } */
           );
 
     printlog("SWAP_SND(k=%d,d=%d,m=%d,n=%d)\n",k,d,m,n);
@@ -895,14 +998,37 @@ d = inline_c %{
 :A(k,n)
 
 // Parameters
-CTL     ctl <-  ctl SWAP_COPY(k, n)
-            ->  ctl TRSM_U(k,n)
+RW        T <-  A SWAP_COPY(k,n)
+            ->  C TRSM_U(k,n)
 READ      B <-  BUFFER SWAP_SND(k,d,0,n)
-
+READ     IP <-  IP SWAP_SND(k,d,0,n)
 ;descA.mt-n-1
 
 BODY
     DRYRUN(
+           int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+           int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+           int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+           int hmax = ((tempkm<tempnn)? tempkm : tempkn);
+           int ldak = BLKLDD( descA, k );
+           int owner_index;
+           int index;
+
+           Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
+           Dague_Complex64_t *lB = (Dague_Complex64_t*)B;
+
+           int upermut[hmax];
+           int opermut[hmax];
+           pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb);
+
+           int i;
+           for(i = 0; i < hmax; i++) {
+             owner_index = upermut[i]/descA.mb;
+             index       = upermut[i]%descA.mb;
+             printf("Swap line %d with line %d\n",i, upermut[i]);
+               cblas_zcopy(tempnn, lB + i, descA.mb,
+                                   lT + i, ldak);
+             }
           );
     printlog("SWAP_PASTE(k=%d,n=%d)\n",d,n);
 END
@@ -921,15 +1047,14 @@ n = k+1..descA.nt-1
 
 // Parameters
 READ    T <- T GETRF_FNL(k,k)
-CTL   ctl <- ctl SWAP_PASTE(k,n)
-RW      C <- A(k,n)/* B SWAP_PASTE(k,n) */
+RW      C <- T SWAP_PASTE(k,n)
           -> B GEMM(k, k+1..descA.mt-1, n)
           -> A(k, n)
 
 ;descA.mt-n-1
 
 BODY
-        DRYRUN(
+        DRYRUN(  
             int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
             int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
             int ldak = BLKLDD( descA, k );
@@ -939,7 +1064,7 @@ BODY
                 tempkm,
                 tempnn,
                 (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
-                                        C /*A(k, n)*/, ldak )
+                                        C /*A(k, n)*/, ldak );
             );
         printlog("CORE_trsm_U(k=%d,n=%d,ldk=%d,A(%d,%d))\n", tempkm, tempnn,ldak,k,n);
 
