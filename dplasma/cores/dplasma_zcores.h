@@ -7,7 +7,7 @@
  *
  */
 
-#include "dague.h"
+#include "dague_internal.h"
 
 int blgchase_ztrdv2(int NT, int N, int NB,
                    Dague_Complex64_t *A1, Dague_Complex64_t *A2,
