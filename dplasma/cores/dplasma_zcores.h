@@ -7,7 +7,8 @@
  *
  */
 
-#include "dague_internal.h"
+#include "data_dist/matrix/precision.h"
+#include "dague.h"
 
 int blgchase_ztrdv2(int NT, int N, int NB,
                    Dague_Complex64_t *A1, Dague_Complex64_t *A2,
