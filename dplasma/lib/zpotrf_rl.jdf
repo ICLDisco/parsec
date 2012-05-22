@@ -254,6 +254,7 @@ BODY
 	    exit(2);
         }
         /* Continue with the task on the cores */
+        device_load[0] -= device_weight[0];  /* lessen the load on the CPUs */
     }
     dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(m, n) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
