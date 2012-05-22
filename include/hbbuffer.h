@@ -122,18 +122,6 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
     dague_execution_context_t *candidate, *best_context;
     int item_prio, best_prio, best_index;
     dague_list_item_t *ejected = NULL;
-#if defined(DAGUE_DEBUG_VERBOSE3)
-    int nbpushed = 0;
-    int nbejected = 0;
-    int nborig = 1;
-    dague_list_item_t *_it;
-    for(_it = (dague_list_item_t*)list->list_next; _it != list; _it=(dague_list_item_t*)_it->list_next) nborig++;
-#define PUSH_ONE nbpushed++
-#define EJECT_ONE nbejected++
-#else
-#define PUSH_ONE
-#define EJECT_ONE
-#endif
     
     /* Assume that we're going to push list.
      * Remove the first element from the list, keeping the rest of the list in topush
@@ -177,9 +165,9 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
 #if defined(DAGUE_DEBUG_VERBOSE3)
                 char tmp[MAX_TASK_STRLEN];
 #endif
-                DEBUG3(("HBB:\tPushed task %s in buffer %p.\n",
-                        dague_snprintf_execution_context( tmp,  MAX_TASK_STRLEN, (dague_execution_context_t*)topush ), b));
-                PUSH_ONE;
+                DEBUG3(("HBB:\tPushed task %s<%d> in buffer %p.\n",
+                        dague_snprintf_execution_context( tmp,  MAX_TASK_STRLEN, (dague_execution_context_t*)topush ), 
+                        ((dague_execution_context_t*)topush)->priority, b));
 
                 if( NULL != best_context ) {
                     assert( ((dague_list_item_t*)best_context)->list_next == (dague_list_item_t*)best_context );
@@ -191,8 +179,9 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
                      * the same function
                      */
 
-                    DEBUG3(("HBB:\tEjected task %s from buffer %p.\n",
-                            dague_snprintf_execution_context( tmp, 128, (dague_execution_context_t*)best_context ), b));
+                    DEBUG3(("HBB:\tEjected task %s<%d> from buffer %p.\n",
+                            dague_snprintf_execution_context( tmp, 128, best_context ), 
+                            best_context->priority, b));
 
                     /* "Push" ejected after best_context, then consider ejected as best_context, to preserve the
                      * ordering of priorities in ejected.
@@ -203,7 +192,6 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
                         dague_list_item_ring_merge( (dague_list_item_t*)best_context, ejected );
                     }
                     ejected = (dague_list_item_t*)best_context;
-                    EJECT_ONE;
                 }
                 
                 if( NULL == list )
@@ -235,8 +223,6 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
         }
     } /* end while( topush != NULL ) */
 
-    DEBUG3(("HBB:\tOriginal list is %d elements long. I pushed %d elements in the buffer %p, and ejected %d elements from it.\n", 
-            nborig, nbpushed, (void*)b, nbejected));
     DEBUG3(("HBB:\t  %s\n", NULL != ejected ? "More to push, go to father" : "Everything pushed - done"));
 
     if( NULL != ejected ) {
@@ -247,7 +233,9 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
         DEBUG3(("HBB:\t Elements that overflow and are given to the parent are:\n"));
         it = ejected;
         do {
-            DEBUG3(("HBB:\tPush Parent %s\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it)));
+            DEBUG3(("HBB:\tPush Parent %s<%d>\n", 
+                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it),
+                    ((dague_execution_context_t*)it)->priority));
             it = DAGUE_LIST_ITEM_NEXT(it);
         } while(it != ejected);
 #endif
