@@ -1305,11 +1305,12 @@ int remote_dep_bind_thread(dague_context_t* context){
     /* If we don't have hwloc, try to bind the thread on the core #nbcore as the
      * default strategy disributed the computation threads from core 0 to nbcore-1 */
     int nb_total_comp_threads = 0;
+    int p;
     for(p = 0; p < context->nb_vp; p++) {
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
     }
     int boundto = dague_bindthread(nb_total_comp_threads);
-    if (boundto != cnb_total_comp_threads) {
+    if (boundto != nb_total_comp_threads) {
         DEBUG(("Communication thread floats\n"));
     } else {
         do_nano = 0;
