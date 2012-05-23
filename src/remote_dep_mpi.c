@@ -645,9 +645,9 @@ static MPI_Request* dep_put_rcv_req     = &array_of_requests[2 * DEP_NB_CONCUREN
 static dague_remote_deps_t* dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_dtt MPI_LONG
 #define datakey_count 3
+#define DEP_EAGER_BUFFER_SEND (sizeof(remote_dep_wire_activate_t)+RDEP_MSG_EAGER_LIMIT)
+#define DEP_EAGER_BUFFER_RECV (sizeof(dague_remote_deps_t)+RDEP_MSG_EAGER_LIMIT)
 static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
-static size_t dep_mpi_eager_limit;
-static size_t dep_mpi_short_limit;
 
 /* Pointers are converted to long to be used as keys to fetch data in the get
  * rdv protocol. Make sure we can carry pointers correctly.
@@ -724,8 +724,6 @@ static int remote_dep_mpi_init(dague_context_t* context)
 
     dep_pending_recv_array = (dague_remote_deps_t**)calloc(DEP_NB_CONCURENT, sizeof(dague_remote_deps_t*));
     dep_pending_put_array = (dague_dep_wire_get_fifo_elem_t**)calloc(DEP_NB_CONCURENT, sizeof(dague_dep_wire_get_fifo_elem_t*));
-    dep_mpi_eager_limit = RDEP_MSG_EAGER_LIMIT;
-    dep_mpi_short_limit = RDEP_MSG_SHORT_LIMIT;
     remote_dep_mpi_profiling_init();
     return 0;
 }
@@ -790,9 +788,9 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n", rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN), msg->deps, msg->which, msg->tag));
 
     /* Treat for special cases: CTL, Eeager, etc... */
-    char packed_buffer[dep_extent+RDEP_MSG_EAGER_LIMIT];
+    char packed_buffer[DEP_EAGER_BUFFER_SEND];
     int packed = 0;
-    MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, dep_extent+RDEP_MSG_EAGER_LIMIT, &packed, dep_comm);
+    MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, DEP_EAGER_BUFFER_SEND, &packed, dep_comm);
     for(int k=0; msg->which>>k; k++) {
         if(0 == (msg->which & (1<<k))) continue;
         
@@ -806,10 +804,10 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         /* Embed as many Eager as possible with the activate msg */
         int dsize;
         MPI_Pack_size(deps->output[k].nbelt, deps->output[k].type->opaque_dtt, dep_comm, &dsize);
-        if((dep_mpi_eager_limit - packed) > (size_t)dsize) {
+        if((DEP_EAGER_BUFFER_SEND - packed) > (size_t)dsize) {
             DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             msg->which ^= (1<<k);
-            MPI_Pack(ADATA(deps->output[k].data), deps->output[k].nbelt, deps->output[k].type->opaque_dtt, packed_buffer, dep_mpi_eager_limit, &packed, dep_comm);
+            MPI_Pack(ADATA(deps->output[k].data), deps->output[k].nbelt, deps->output[k].type->opaque_dtt, packed_buffer, DEP_EAGER_BUFFER_SEND, &packed, dep_comm);
             remote_dep_complete_one_and_cleanup(deps);
         }
     }
@@ -900,10 +898,10 @@ static remote_dep_datakey_t remote_dep_mpi_short_which(remote_dep_wire_activate_
         if( !(msg->which & (1<<k)) ) continue;
         if( NULL == deps->output[k].type ) continue;
         size_t extent = deps->output[k].type->elem_size * deps->output[k].nbelt;
-        if( extent < dep_mpi_short_limit+1 )
+        if( extent < (RDEP_MSG_SHORT_LIMIT+1) )
         {
             short_which |= 1<<k;
-            DEBUG3(("MPI:\tPEER\tNA\tShort MODE  \t% -8s\tk=%d\tsize=%d <= %d\t(tag=%d)\n", remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, extent, dep_mpi_short_limit, msg->tag+k));
+            DEBUG3(("MPI:\tPEER\tNA\tShort MODE  \t% -8s\tk=%d\tsize=%d <= %d\t(tag=%d)\n", remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, extent, RDEP_MSG_SHORT_LIMIT, msg->tag+k));
         }
     }
     return short_which;
@@ -1072,7 +1070,8 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
             deps->msg.deps |= 1<<k;
             continue;
         }
-        /* Check if we have short deps to satisfy quickly */
+
+        /* Check if we have SHORT deps to satisfy quickly */
         if( short_which & (1<<k) )
         {
             assert(NULL == deps->output[k].data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
@@ -1082,6 +1081,19 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
                         deps->output[k].data, deps->output[k].type->elem_size, deps->output[k].nbelt));
                 assert(deps->output[k].data != NULL);
             }
+            
+            /* Check first if the message is EAGER, embedded into the activate */
+            int dsize; int unpacked = dep_extent;
+            MPI_Pack_size(deps->output[k].nbelt, deps->output[k].type->opaque_dtt, dep_comm, &dsize);
+            if((DEP_EAGER_BUFFER_SEND - unpacked) > (size_t)dsize) {
+#ifndef DAGUE_PROF_DRY_DEP
+                DEBUG2((" EGR\t%s\tparam %d\teager piggyback from the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
+                MPI_Unpack(&deps->msg, DEP_EAGER_BUFFER_SEND, &unpacked, ADATA(deps->output[k].data), deps->output[k].nbelt, deps->output[k].type->opaque_dtt, dep_comm);
+#endif
+                deps->msg.deps |= 1<<k;
+                continue;
+            }
+            /* Not EAGER, then it is SHORT */
             DEBUG2(("MPI:\tFROM\t%d\tGet SHORT\t% -8s\ti=NA,k=%d\twith datakey %lx at %p\t(tag=%d)\n",
                    deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, deps->msg.deps, ADATA(deps->output[k].data), tag+k));
 #ifndef DAGUE_PROF_DRY_DEP
