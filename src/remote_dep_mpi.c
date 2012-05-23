@@ -1171,6 +1171,7 @@ static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context, in
                        deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                        i, deps->msg.deps, deps->msg.which));
         /* TODO: copy the eager data to some temp storage */
+        assert(0 == RDEP_MSG_EAGER_LIMIT);
         dague_ulist_fifo_push(&dep_activates_noobj_fifo, (dague_list_item_t*)deps);
         return;
     }
