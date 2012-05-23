@@ -898,10 +898,17 @@ static remote_dep_datakey_t remote_dep_mpi_short_which(remote_dep_wire_activate_
         if( !(msg->which & (1<<k)) ) continue;
         if( NULL == deps->output[k].type ) continue;
         size_t extent = deps->output[k].type->elem_size * deps->output[k].nbelt;
-        if( extent < (RDEP_MSG_SHORT_LIMIT+1) )
+        if( extent < (RDEP_MSG_EAGER_LIMIT) )
+        {
+            short_which |= 1<<k;
+            DEBUG3(("MPI:\tPEER\tNA\tEager MODE  \t% -8s\tk=%d\tsize=%d <= %d\t(tag=%d)\n", remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, extent, RDEP_MSG_EAGER_LIMIT, msg->tag+k));
+            continue;
+        }
+        if( extent < (RDEP_MSG_SHORT_LIMIT) )
         {
             short_which |= 1<<k;
             DEBUG3(("MPI:\tPEER\tNA\tShort MODE  \t% -8s\tk=%d\tsize=%d <= %d\t(tag=%d)\n", remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, extent, RDEP_MSG_SHORT_LIMIT, msg->tag+k));
+            continue;
         }
     }
     return short_which;
