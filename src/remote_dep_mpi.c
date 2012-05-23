@@ -642,11 +642,11 @@ static MPI_Request* dep_put_rcv_req     = &array_of_requests[2 * DEP_NB_CONCUREN
 #define dep_dtt MPI_BYTE
 #define dep_count sizeof(remote_dep_wire_activate_t)
 #define dep_extent dep_count
-static dague_remote_deps_t* dep_activate_buff[DEP_NB_CONCURENT];
+#define DEP_EAGER_BUFFER_SIZE (dep_extent+RDEP_MSG_EAGER_LIMIT)
+static char dep_activate_buff[DEP_NB_CONCURENT][DEP_EAGER_BUFFER_SIZE];
+//static dague_remote_deps_t* dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_dtt MPI_LONG
 #define datakey_count 3
-#define DEP_EAGER_BUFFER_SEND (sizeof(remote_dep_wire_activate_t)+RDEP_MSG_EAGER_LIMIT)
-#define DEP_EAGER_BUFFER_RECV (sizeof(dague_remote_deps_t)+RDEP_MSG_EAGER_LIMIT)
 static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
 
 /* Pointers are converted to long to be used as keys to fetch data in the get
@@ -709,14 +709,9 @@ static int remote_dep_mpi_init(dague_context_t* context)
         array_of_requests[i] = MPI_REQUEST_NULL;
     }
 
-    /* Create the remote dependencies activation buffers */
-    for(i = 0; i < DEP_NB_CONCURENT; i++) {
-        dep_activate_buff[i] = remote_deps_allocation(&dague_remote_dep_context.freelist);
-    }
-
     /* Create all the pending receives and start them */
     for(i = 0; i < DEP_NB_CONCURENT; i++) {
-        MPI_Recv_init(&dep_activate_buff[i]->msg, dep_count, dep_dtt, MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm, &dep_activate_req[i]);
+        MPI_Recv_init(&dep_activate_buff[i], DEP_EAGER_BUFFER_SIZE, MPI_PACKED, MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm, &dep_activate_req[i]);
         MPI_Recv_init(&dep_get_buff[i], datakey_count, datakey_dtt, MPI_ANY_SOURCE, REMOTE_DEP_GET_DATA_TAG, dep_comm, &dep_get_req[i]);
         MPI_Start(&dep_activate_req[i]);
         MPI_Start(&dep_get_req[i]);
@@ -788,9 +783,9 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n", rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN), msg->deps, msg->which, msg->tag));
 
     /* Treat for special cases: CTL, Eeager, etc... */
-    char packed_buffer[DEP_EAGER_BUFFER_SEND];
+    char packed_buffer[DEP_EAGER_BUFFER_SIZE];
     int packed = 0;
-    MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, DEP_EAGER_BUFFER_SEND, &packed, dep_comm);
+    MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, DEP_EAGER_BUFFER_SIZE, &packed, dep_comm);
     for(int k=0; msg->which>>k; k++) {
         if(0 == (msg->which & (1<<k))) continue;
         
@@ -804,10 +799,10 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         /* Embed as many Eager as possible with the activate msg */
         int dsize;
         MPI_Pack_size(deps->output[k].nbelt, deps->output[k].type->opaque_dtt, dep_comm, &dsize);
-        if((DEP_EAGER_BUFFER_SEND - packed) > (size_t)dsize) {
+        if((DEP_EAGER_BUFFER_SIZE - packed) > (size_t)dsize) {
             DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             msg->which ^= (1<<k);
-            MPI_Pack(ADATA(deps->output[k].data), deps->output[k].nbelt, deps->output[k].type->opaque_dtt, packed_buffer, DEP_EAGER_BUFFER_SEND, &packed, dep_comm);
+            MPI_Pack(ADATA(deps->output[k].data), deps->output[k].nbelt, deps->output[k].type->opaque_dtt, packed_buffer, DEP_EAGER_BUFFER_SIZE, &packed, dep_comm);
             remote_dep_complete_one_and_cleanup(deps);
         }
     }
@@ -1057,7 +1052,7 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, in
     }
 }
 
-static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, dague_remote_deps_t* deps )
+static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, char* packed_buffer, int unpacked )
 {
 #ifdef DAGUE_DEBUG_VERBOSE2
     char tmp[MAX_TASK_STRLEN];
@@ -1077,6 +1072,25 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
             deps->msg.deps |= 1<<k;
             continue;
         }
+        
+        /* Check if the data is EAGER embedded in the activate */
+        int dsize;
+        MPI_Pack_size(deps->output[k].nbelt, deps->output[k].type->opaque_dtt, dep_comm, &dsize);
+        if((DEP_EAGER_BUFFER_SIZE - unpacked) > (size_t)dsize) {
+            assert(NULL == deps->output[k].data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
+            if(NULL == deps->output[k].data) {
+                deps->output[k].data = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
+                DEBUG3(("MPI:\tMalloc new remote tile %p size %zu nbelt = %d\n",
+                        deps->output[k].data, deps->output[k].type->elem_size, deps->output[k].nbelt));
+                assert(deps->output[k].data != NULL);
+            }
+#ifndef DAGUE_PROF_DRY_DEP
+            DEBUG2((" EGR\t%s\tparam %d\teager piggyback from the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
+            MPI_Unpack(packed_buffer, DEP_EAGER_BUFFER_SIZE, &unpacked, ADATA(deps->output[k].data), deps->output[k].nbelt, deps->output[k].type->opaque_dtt, dep_comm);
+#endif
+            deps->msg.deps |= 1<<k;
+            continue;
+        }
 
         /* Check if we have SHORT deps to satisfy quickly */
         if( short_which & (1<<k) )
@@ -1088,19 +1102,6 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
                         deps->output[k].data, deps->output[k].type->elem_size, deps->output[k].nbelt));
                 assert(deps->output[k].data != NULL);
             }
-            
-            /* Check first if the message is EAGER, embedded into the activate */
-            int dsize; int unpacked = dep_extent;
-            MPI_Pack_size(deps->output[k].nbelt, deps->output[k].type->opaque_dtt, dep_comm, &dsize);
-            if((DEP_EAGER_BUFFER_SEND - unpacked) > (size_t)dsize) {
-#ifndef DAGUE_PROF_DRY_DEP
-                DEBUG2((" EGR\t%s\tparam %d\teager piggyback from the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
-                MPI_Unpack(&deps->msg, DEP_EAGER_BUFFER_SEND, &unpacked, ADATA(deps->output[k].data), deps->output[k].nbelt, deps->output[k].type->opaque_dtt, dep_comm);
-#endif
-                deps->msg.deps |= 1<<k;
-                continue;
-            }
-            /* Not EAGER, then it is SHORT */
             DEBUG2(("MPI:\tFROM\t%d\tGet SHORT\t% -8s\ti=NA,k=%d\twith datakey %lx at %p\t(tag=%d)\n",
                    deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, deps->msg.deps, ADATA(deps->output[k].data), tag+k));
 #ifndef DAGUE_PROF_DRY_DEP
@@ -1156,28 +1157,29 @@ static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context, in
 #ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[MAX_TASK_STRLEN];
 #endif
-    dague_remote_deps_t* deps = dep_activate_buff[i];
+    int unpacked = 0;
+    dague_remote_deps_t* deps = remote_deps_allocation(&dague_remote_dep_context.freelist);
+    MPI_Unpack(dep_activate_buff[i], DEP_EAGER_BUFFER_SIZE, &unpacked, 
+               &deps->msg, dep_count, dep_dtt, dep_comm);
+    deps->from = status->MPI_SOURCE;
     DEBUG(("MPI:\tFROM\t%d\tActivate\t% -8s\ti=%d\twith datakey %lx\tparams %lx\n",
            status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
            i, deps->msg.deps, deps->msg.which));
 
-    dague_remote_deps_t* saved_deps = remote_deps_allocation(&dague_remote_dep_context.freelist);
-    /* Copy the required fields */
-    saved_deps->msg = deps->msg;
-    saved_deps->from = status->MPI_SOURCE;
+    if( -1 == remote_dep_get_datatypes(deps) )
+    {   /* the corresponding dague_object doesn't exist, yet. Put it in unexpected */
+        DEBUG2(("MPI:\tFROM\t%d\tActivate NOOBJ\t% -8s\ti=%d\twith datakey %lx\tparams %lx\n",
+                       deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+                       i, deps->msg.deps, deps->msg.which));
+        /* TODO: copy the eager data to some temp storage */
+        dague_ulist_fifo_push(&dep_activates_noobj_fifo, (dague_list_item_t*)deps);
+        return;
+    }
     /* Retrieve the data arenas and update the msg.which to reflect all the data
      * we should be receiving from the father. If some of the dependencies have
      * been dropped, force their release.
      */
-    if( -1 == remote_dep_get_datatypes(saved_deps) )
-    {   /* the corresponding dague_object doesn't exist, yet. Put it in unexpected */
-        DEBUG2(("MPI:\tFROM\t%d\tActivate NOOBJ\t% -8s\ti=%d\twith datakey %lx\tparams %lx\n",
-                       saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, MAX_TASK_STRLEN),
-                       i, deps->msg.deps, saved_deps->msg.which));
-        dague_ulist_fifo_push(&dep_activates_noobj_fifo, (dague_list_item_t*)saved_deps);
-        return;
-    }
-    remote_dep_mpi_recv_activate(eu_context, saved_deps);
+    remote_dep_mpi_recv_activate(eu_context, deps, dep_activate_buff[i], unpacked);
 }
 
 static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dague_object_t* obj )
@@ -1197,7 +1199,7 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dague
                        deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                        deps->msg.deps, deps->msg.which));
         item = dague_ulist_remove(&dep_activates_noobj_fifo, item);
-        remote_dep_mpi_recv_activate(eu_context, deps);
+//        remote_dep_mpi_recv_activate(eu_context, deps);
     });
 }
 
