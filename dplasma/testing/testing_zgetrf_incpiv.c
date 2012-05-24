@@ -15,6 +15,11 @@ static int check_solution( dague_context_t *dague, int loud,
                            tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX );
 
+static int check_inverse( dague_context_t *dague, int loud,
+                          tiled_matrix_desc_t *ddescA,
+                          tiled_matrix_desc_t *ddescInvA,
+                          tiled_matrix_desc_t *ddescI );
+
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
@@ -39,6 +44,8 @@ int main(int argc, char ** argv)
         fprintf(stderr, "Check cannot be perfomed with M != N\n");
         check = 0;
     }
+
+    int check_inv = check == 0 ?  0 : 1;
 
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
@@ -71,6 +78,15 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescInvA, check_inv,
+        two_dim_block_cyclic, (&ddescInvA, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               M, N, SMB, SNB, P));
+    PASTE_CODE_ALLOCATE_MATRIX(ddescI, check_inv,
+        two_dim_block_cyclic, (&ddescI, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               M, N, SMB, SNB, P));
+
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
@@ -83,6 +99,11 @@ int main(int argc, char ** argv)
                         (tiled_matrix_desc_t *)&ddescB,
                         (tiled_matrix_desc_t *)&ddescX );
     }
+	if (check_inv != 0)
+	  {	
+                dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescI);
+		dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescInvA);
+	  }
     if(loud > 2) printf("Done\n");
 
     /* Create DAGuE */
@@ -114,6 +135,21 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t *)&ddescA0,
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
+
+        if (check_inv != 0)
+	  {
+        dplasma_zgetrs_incpiv(dague, PlasmaNoTrans,
+                              (tiled_matrix_desc_t *)&ddescA,
+                              (tiled_matrix_desc_t *)&ddescL,
+                              (tiled_matrix_desc_t *)&ddescIPIV,
+                              (tiled_matrix_desc_t *)&ddescInvA );
+
+        /* Check the solution */
+        ret |= check_inverse(dague, (rank == 0) ? loud : 0,
+                             (tiled_matrix_desc_t *)&ddescA0,
+                             (tiled_matrix_desc_t *)&ddescInvA,
+                             (tiled_matrix_desc_t *)&ddescI);
+	  }
     }
 
     if ( check ) {
@@ -123,6 +159,16 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
         dague_data_free(ddescX.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
+		if (check_inv != 0)
+	  {
+        dague_data_free(ddescInvA.mat);
+        dague_data_free(ddescI.mat);
+	  }
+        if (check_inv != 0)
+	  {
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescI);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescInvA);
+	  }
     }
 
     cleanup_dague(dague, iparam);
@@ -184,3 +230,50 @@ static int check_solution( dague_context_t *dague, int loud,
 
     return info_solution;
 }
+
+
+
+static int check_inverse( dague_context_t *dague, int loud,
+                          tiled_matrix_desc_t *ddescA,
+                          tiled_matrix_desc_t *ddescInvA,
+                          tiled_matrix_desc_t *ddescI )
+{
+    int info_solution;
+    double Anorm    = 0.0;
+    double InvAnorm = 0.0;
+    double Rnorm, result;
+    int m = ddescA->m;
+    double eps = LAPACKE_dlamch_work('e');
+
+    Anorm    = dplasma_zlange(dague, PlasmaInfNorm, ddescA   );
+    InvAnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescInvA);
+
+    /* Compute I - A*A^{-1} */
+    dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescInvA, 1.0, ddescI);
+
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescI);
+
+    result = Rnorm / ( ( Anorm * InvAnorm ) * m * eps ) ;
+
+    // if ( loud > 2 ) {
+        //printf("============\n");
+       // printf("Checking the Residual of the solution \n");
+        /*if ( loud > 3 )
+            printf( "-- ||A||_oo = %e, ||A^{-1}||_oo = %e, ||A A^{-1} - I||_oo = %e\n",
+                    Anorm, InvAnorm, Rnorm );*/
+
+    if( loud) printf("-- ||AA^{-1}-I||_oo/((||A||_oo||A^{-1}||_oo).N.eps) = %e \n", result);
+    // }
+
+    if (  isnan(Rnorm) || isinf(Rnorm) || isnan(result) || isinf(result) || (result > 60.0) ) {
+        if( loud ) printf("-- Solution is suspicious ! \n");
+        info_solution = 1;
+    }
+    else{
+        if( loud ) printf("-- Solution is CORRECT ! \n");
+        info_solution = 0;
+    }
+
+    return info_solution;
+}
+	

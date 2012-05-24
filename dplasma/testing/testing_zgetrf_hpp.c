@@ -42,7 +42,7 @@ int main(int argc, char ** argv)
 
     LDA = max(M, LDA);
 
-    int check_inv = check == 0 ?  0 : 0;
+    int check_inv = check == 0 ?  0 : 1;
 
 
 	if ( M != N && check ) {
