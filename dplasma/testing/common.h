@@ -39,7 +39,6 @@ enum iparam_t {
   IPARAM_NCORES,       /* Number of cores                   */
   IPARAM_SCHEDULER,    /* What scheduler do we choose */
   IPARAM_NGPUS,        /* Number of GPUs                    */
-  IPARAM_PRIO,         /* Switchpoint for priority DAG      */
   IPARAM_P,            /* Rows in the process grid          */
   IPARAM_Q,            /* Columns in the process grid       */
   IPARAM_M,            /* Number of rows of the matrix      */
@@ -76,7 +75,6 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int nodes = iparam[IPARAM_NNODES];\
   int cores = iparam[IPARAM_NCORES];\
   int gpus  = iparam[IPARAM_NGPUS];\
-  int prio  = iparam[IPARAM_PRIO];\
   int P     = iparam[IPARAM_P];\
   int Q     = iparam[IPARAM_Q];\
   int M     = iparam[IPARAM_M];\
@@ -98,7 +96,7 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int scheduler = iparam[IPARAM_SCHEDULER];\
   int nb_local_tasks = 0;                                               \
   int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
-  (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prio;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
+  (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
   (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;\
   (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;
 

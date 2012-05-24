@@ -286,13 +286,14 @@ static void progress_bar_end(void)
 
 static char *getThreadContainerIdentifier( const char *prefix, const char *identifier )
 {
-    const char *r = identifier + strlen(identifier) - 1;
+    int thid, vpid;
+    int rc;
     char *ret;
 
-    while( *r != ' ' )
-        r--;
+    rc = sscanf(identifier, "DAGuE Thread %d of VP %d", &thid, &vpid);
+    assert(2 == rc);
 
-    asprintf( &ret, "%sT%s", prefix, r+1);
+    asprintf( &ret, "%sT%d:%d", prefix, vpid, thid);
     return ret;
 }
 
