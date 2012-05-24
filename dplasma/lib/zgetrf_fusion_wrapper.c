@@ -163,7 +163,7 @@ dplasma_zgetrf_fusion_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_SWAP_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_PIVOT_ARENA]->opaque_dtt) );
 
-    dague_zgetrf_fusion_destroy(dague_zgetrf_fusion);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 int dplasma_zgetrf_fusion( dague_context_t *dague,

@@ -37,7 +37,7 @@ dplasma_zgetrf_sp_Destruct( dague_object_t *o )
 {
     dague_zgetrf_sp_object_t *dague_zgetrf_sp = (dague_zgetrf_sp_object_t *)o;
     dplasma_datatype_undefine_type( &(dague_zgetrf_sp->arenas[DAGUE_zgetrf_sp_DEFAULT_ARENA   ]->opaque_dtt) );
-    dague_zgetrf_sp_destroy(dague_zgetrf_sp);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 int dplasma_zgetrf_sp( dague_context_t *dague, const double criteria, tiled_matrix_desc_t* ddescA)

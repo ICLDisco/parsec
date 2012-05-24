@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmaaux.h"
@@ -39,7 +39,7 @@ dplasma_map2_Destruct( dague_object_t *o )
 
     dplasma_datatype_undefine_type( &(omap2->arenas[DAGUE_map2_DEFAULT_ARENA]->opaque_dtt) );
     
-    dague_map2_destroy( omap2 );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(omap2);
 }
 
 void

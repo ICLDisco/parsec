@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "dague.h"
+#include "dague_internal.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -706,16 +706,13 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             new_context->mempool_owner = mpool;
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
 
-            DEBUG(("%s becomes ready from %s on thread %d, with mask 0x%04x and priority %d\n",
+            DEBUG(("%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d\n",
                    dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
                    dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, origin),
-                   *deps,
                    eu_context->th_id, eu_context->virtual_process->vp_id,
+                   *deps,
                    exec_context->priority));
 
-#if defined(DAGUE_SCHED_CACHE_AWARE)
-            new_context->data[0].gc_data = NULL;
-#endif
             /* TODO: change this to the real number of input dependencies */
             memset( new_context->data, 0, sizeof(dague_data_pair_t) * MAX_PARAM_COUNT );
             assert( dest_flow->flow_index <= MAX_PARAM_COUNT );
@@ -820,6 +817,12 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
         if( (NULL != arg->output_entry) && (NULL != oldcontext->data[target->flow_index].data) ) {
             arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
             arg->output_usage++;
+            /* BEWARE: This increment is required to be done here. As the target task
+             * bits are marked, another thread can now enable the task. Once schedulable
+             * the task will try to access its input data and decrement their ref count.
+             * Thus, if the ref count is not increased here, the data might dissapear
+             * before it become useless.
+             */
             AREF( arg->output_entry->data[out_index] );
         }
         arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
@@ -838,7 +841,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
  * Convert the execution context to a string.
  */
 char* dague_snprintf_execution_context( char* str, size_t size,
-                                        dague_execution_context_t* task)
+                                        const dague_execution_context_t* task)
 {
     const dague_function_t* function = task->function;
     unsigned int ip, index = 0;

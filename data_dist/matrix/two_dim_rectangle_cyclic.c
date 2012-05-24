@@ -4,6 +4,15 @@
  *                         reserved.
  */
 
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif /* HAVE_MPI */
+
+#include "dague_config.h"
+#include "dague_internal.h"
+#include "debug.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,14 +21,6 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <math.h>
-
-#ifdef HAVE_MPI
-#include <mpi.h>
-#endif /* HAVE_MPI */
-
-#include "dague_config.h"
-#include "dague.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 /*
  *

@@ -8,11 +8,11 @@
 #define DAGUE_GPU_DATA_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
+#include "dague_internal.h"
 
 #if defined(HAVE_CUDA)
 #include "list_item.h"
 #include "fifo.h"
-
 #include "profiling.h"
 
 #include <cuda.h>

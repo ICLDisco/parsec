@@ -7,7 +7,7 @@
 #ifndef _DAGUE_scheduling_h
 #define _DAGUE_scheduling_h
 
-#include "dague.h"
+#include "dague_internal.h"
 
 /**
  * Add the dague_object_t to the execution queue of the dague_context_t. As

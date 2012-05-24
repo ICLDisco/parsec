@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
@@ -89,6 +89,6 @@ dplasma_zgelqf_Destruct( dague_object_t *o )
     free( dague_zgelqf->p_work );
     free( dague_zgelqf->p_tau  );
  
-    dague_zgelqf_destroy(dague_zgelqf);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgelqf);
 }
 

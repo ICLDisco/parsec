@@ -42,10 +42,12 @@ static inline
 int  gpu_kernel_epilog_sgemm( gpu_device_t* gpu_device,
                               dague_execution_context_t* this_task );
 
+#if defined(DAGUE_PROF_TRACE)
 static inline
 void gpu_kernel_profile_sgemm( gpu_device_t              *gpu_device,
                                dague_execution_context_t *this_task,
                                dague_ddesc_t             *ddesca );
+#endif
 
 #include "gpu_scheduling.h"
 

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include <core_blas.h>
 #include "dplasma.h"
@@ -123,7 +123,7 @@ dplasma_zlange_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_COL_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_ELT_ARENA]->opaque_dtt) );
 
-    dague_zlange_inf_cyclic_destroy(dague_zlange);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 double dplasma_zlange( dague_context_t *dague,

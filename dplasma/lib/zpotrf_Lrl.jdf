@@ -31,7 +31,7 @@ extern dague_gpu_data_map_t dague_gpu_map;
 
 /* Globals
  */
-PRI_CHANGE [type = int]
+PRI_CHANGE [type = int hidden = on]
 uplo       [type = PLASMA_enum]
 descA      [type = "tiled_matrix_desc_t"]
 A          [type = "dague_ddesc_t *"]
@@ -167,7 +167,7 @@ BODY
         );
     printlog(
              "thread %d VP %d CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, 
+             context->th_id, context->virtual_process->vp_id, k, m,
              plasma_const( PlasmaLower ), plasma_const( PlasmaNoTrans ),
              tempmm, descA.mb,
              -1.0, m, k, A, ldam,
@@ -181,8 +181,8 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = 0..descA.mt-3    [volatile = on]
-m = k+2..descA.mt-1  [volatile = off]
+k = 0..descA.mt-3
+m = k+2..descA.mt-1
 n = k+1..m-1
 
 // Parallel partitioning
@@ -217,6 +217,8 @@ BODY
 	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
 	    exit(2);
         }
+        /* Continue with the task on the cores */
+        device_load[0] -= device_weight[0];  /* lessen the load on the CPUs */
     }
     dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(m, n) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
@@ -238,7 +240,6 @@ BODY
               1.0, m, n, C, ldam);
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    device_load[0] -= device_weight[0];  /* lessen the load on the CPUs */
 FIN:
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 

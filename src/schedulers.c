@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "dague.h"
+#include "dague_internal.h"
 #include "debug.h"
 #include "scheduling.h"
 #include "schedulers.h"
@@ -438,6 +438,9 @@ static int init_local_flat_queues(  dague_context_t *master )
             }
         }
 
+        DEBUG(("VP %d: creating queues for %d cores\n",
+               p, vp->nb_cores));
+
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_units[t];
             sched_obj = LOCAL_QUEUES_OBJECT(eu);
@@ -449,10 +452,8 @@ static int init_local_flat_queues(  dague_context_t *master )
             sched_obj->task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper, 
                                                         (void*)sched_obj->system_queue);
             sched_obj->hierarch_queues[0] = sched_obj->task_queue;
+            DEBUG((" Core %d:%d: Task queue is %p (that's 0-preferred queue)\n",  p, t, sched_obj->task_queue));
         }
-
-        DEBUG(("VP %d: creating queues for %d cores\n",
-               p, vp->nb_cores));
 
         for(t = 0; t < vp->nb_cores; t++) {
             nq = 1;
@@ -484,7 +485,7 @@ static int init_local_flat_queues(  dague_context_t *master )
                         d = dague_hwloc_distance(eu->th_id, id);
                         if( d == 2*level || d == 2*level + 1 ) {
                             sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_units[id])->task_queue;
-                            DEBUG(("%d of %d: my %d preferred queue is the task queue of %d (%p)\n",
+                            DEBUG(("%d of %d: my %d-preferred queue is the task queue of %d (%p)\n",
                                    eu->th_id, eu->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]));
                             nq++;
                             if( nq == sched_obj->nb_hierarch_queues )
@@ -609,11 +610,17 @@ static dague_execution_context_t *choose_job_local_queues( dague_execution_unit_
                                                                            ranking_function_bypriority,
                                                                            NULL);
         if( NULL != exec_context ) {
+            DEBUG3(("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
+                    eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]));
             return exec_context;
         }
     }
 
     exec_context = (dague_execution_context_t *)dague_dequeue_try_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
+    if( NULL != exec_context ) {
+        DEBUG3(("LQ\t: %d:%d found task %p in its system queue %p\n",
+                eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue));
+    }
     return exec_context;
 }
 

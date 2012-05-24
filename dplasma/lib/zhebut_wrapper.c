@@ -1,20 +1,22 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#include <math.h>
-#include <stdlib.h>
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
-#include <cblas.h>
+#include "data_dist/matrix/matrix.h"
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
+
+#include <math.h>
+#include <stdlib.h>
+#include <cblas.h>
 
 #include "dplasma/lib/butterfly_map.h"
 #include "dplasma/lib/zhebut.h"
@@ -215,7 +217,7 @@ dplasma_zhebut_Destruct( dague_object_t *o )
         }
     }
 
-    dague_zhebut_destroy(obut);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(obut);
 }
 
 /* GE for General */
@@ -300,7 +302,7 @@ dplasma_zgebut_Destruct( dague_object_t *o )
         }
     }
 
-    dague_zgebut_destroy(obut);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(obut);
 }
 
 /*
@@ -385,7 +387,7 @@ dplasma_zgebmm_Destruct( dague_object_t *o )
         }
     }
 
-    dague_zgebmm_destroy(obmm);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(obmm);
 }
 
 
