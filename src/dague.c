@@ -854,7 +854,7 @@ char* dague_snprintf_execution_context( char* str, size_t size,
                            task->locals[function->params[ip]->context_index].value );
         if( index >= size ) return str;
     }
-    index += snprintf(str + index, size - index, ")");
+    index += snprintf(str + index, size - index, ")<%d>", task->priority);
 
     return str;
 }
