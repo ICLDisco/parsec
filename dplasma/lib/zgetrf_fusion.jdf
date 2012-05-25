@@ -31,7 +31,7 @@ extern "C" %{
 #define SRCH (descA.nb*3)
 #define PIVO (descA.nb*4)
 
-  static inline void pivot_to_permutation(int *IP, int hmax, int *upermut, int *opermut, int diff)
+static inline void pivot_to_permutation(int *IP, int hmax, int *upermut, int *opermut, int diff)
 {
   int i,j;
   int index;
@@ -61,7 +61,6 @@ extern "C" %{
     }
   }
 }
-
 
 %}
 
@@ -249,7 +248,8 @@ RW  M <- (h == 0)? M LMAX_in(k,m)                                               
       -> ((k+((m-k)%P)+(((m-k)/P)*2+1)*P) >= descA.mt)? Mg GETRF_RDC(k,(m-k)%P,(m-k)/P,h)        [type = MAXL]
       -> ((k+((m-k)%P)+(((m-k)/P)*2+2)*P) >= descA.mt)? Md GETRF_RDC(k,(m-k)%P,(m-k)/P,h)        [type = MAXL]
 
-;descA.mt-k-1
+// Priority
+;1000000
 
 BODY
     DRYRUN(
@@ -393,7 +393,8 @@ RW    Mm <- M GETRF_MAX(k,k+r+P*m,h)                                            
 READ  Mg <- ((m*2+1) <= mmax)? Mm GETRF_RDC(k,r,m*2+1,h) : M GETRF_MAX(k,k+r+P*m,h)                            [type = MAXL]
 READ  Md <- ((m*2+2) <= mmax)? Mm GETRF_RDC(k,r,m*2+2,h) : M GETRF_MAX(k,k+r+P*m,h)                            [type = MAXL]
 
-;descA.mt-k-1
+// Priority
+;1000000
 
 BODY
     DRYRUN(
@@ -439,7 +440,8 @@ RW    V  <- V GETRF_MAX(k,k+m,h)                                                
 
 READ  M <-  Mm GETRF_RDC(k,m,0,h)                                                                          [type = MAXL]
 
-;descA.mt-k-1
+// Priority
+; 1000000
 
 BODY
     DRYRUN(
@@ -499,7 +501,8 @@ READ  V  <- W GETRF_SND(k,dmax,m,sender)                                        
 RW    U <-  U GETRF_MAX(k,k+m,sender                  )                                                   [type = UMES]
         ->  (h != hmax)? U GETRF_MAX(k,(k+m)..(descA.mt-((descA.mt-(k+m+1))%P)-1)..P,((h+1)*IB))          [type = UMES]
 
-;descA.mt-k-1
+// Priority
+; 1000000
 
 BODY
     DRYRUN(
@@ -573,7 +576,8 @@ RW    W <- (d == 0)? V GETRF_SVM(k,(mmax+m-1)%mmax,h) : W GETRF_SND(k,d-1,(mmax+
         -> ((((h%IB) == IB - 1) || (h == hmax)) && (d == dmax))? V GETRF_MDL(k,m, h/IB)                    [type = SWAP]
         -> ((h != hmax) && (d == dmax))? V GETRF_MAX(k,(k+m)..(descA.mt-((descA.mt-(k+m+1))%P)-1)..P, h+1) [type = SWAP]
 
-;descA.mt-k-1
+// Priority
+;1000000
 
 BODY
     DRYRUN(
@@ -643,7 +647,8 @@ RW   IP <-  IP IP_in(k,(m-k)%P)                                                 
         -> (m-k < P)? IP IP_out(k,(m-k))                                                       [type = PIVOT]
         -> IP SWAP_COLLECT(k, m, k+1..descA.nt-1)                                              [type = PIVOT]
 
-;descA.mt-k-1
+// Priority
+;1000000
 
 BODY
  DRYRUN(
@@ -700,7 +705,7 @@ n = k+1..descA.nt-1
 READ  A  <- ACOPY(k%P,n)
          -> ACOPY SWAP_COPY(k,n)
 
-;descA.mt-n-1
+; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
         /* Nothing to do */
@@ -724,6 +729,8 @@ READ      A <-  (k == 0)? A(k,n) : C GEMM(k-1, k, n)
             ->  T SWAP_PASTE(k,n)
 RW    ACOPY <-  A ACOPY_in(k,n)
             ->  U SWAP_RECV(k,k,n)
+
+; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
     DRYRUN(
@@ -763,7 +770,7 @@ RW        T <-  T SWAP_COLLECT(k,m,n)
             ->  (m!=k)? C GEMM(k,m,n)
 READ     IP <-  IP SWAP_COLLECT(k,m,n)                  [type = PIVOT]
 
-;descA.mt-n-1
+; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
     DRYRUN(
@@ -814,7 +821,7 @@ n = k+1..descA.nt-1
 READ  B  <- BUFFER((k+m)%P,n)
          -> MYBUF SWAP_COLLECT(k,k+m,n)
 
-;descA.mt-n-1
+; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
         /* Nothing to do */
@@ -848,7 +855,7 @@ READ     IP <-  IP GETRF_FNL(k,m)                                               
             ->  IP SWAP_RECV(k,m,n)                                                                            [type = PIVOT]
             ->  ( ((descA.mt-m) <= P ) && (((m-k)%P)%2 == 0) )? IP    SWAP_SND(k,0,((m-k)%P)/2,n)  	       [type = PIVOT]
 
-;descA.mt-n-1
+; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
     DRYRUN(
@@ -937,7 +944,7 @@ READ     IP <-  (d == 0)? IP SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+1))%P)-
             ->  ((m%2==0) && (d != dmax))? IP SWAP_SND(k,d+1,m/2,n)                                                             [type = PIVOT]
             ->  (d == dmax)? IP SWAP_PASTE(k,n)                                                                                 [type = PIVOT]
 
-;descA.mt-n-1
+; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
     DRYRUN(
@@ -996,7 +1003,8 @@ RW        T <-  A SWAP_COPY(k,n)
             ->  C TRSM_U(k,n)
 READ      B <-  BUFFER SWAP_SND(k,d,0,n)
 READ     IP <-  IP SWAP_SND(k,d,0,n)
-;descA.mt-n-1
+
+; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
     DRYRUN(
@@ -1045,7 +1053,7 @@ RW      C <- T SWAP_PASTE(k,n)
           -> B GEMM(k, k+1..descA.mt-1, n)
           -> A(k, n)
 
-;descA.mt-n-1
+; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
         DRYRUN(  
@@ -1085,7 +1093,7 @@ RW    C <- T SWAP_RECV(k, m, n)
         -> ((m == k+1) && (n >  k+1)) ? A SWAP_COPY(k+1,n)  /* Swap */
         -> ((m >  k)   && (n >  k+1)) ? T SWAP_COLLECT(k+1,m,n)  /* Everything else */
 
-;descA.mt-n-1
+; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
     DRYRUN(
