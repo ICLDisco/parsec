@@ -200,8 +200,8 @@ BODY
              "\t A1(%d,%d)[%p], lda1=%d, A2(%d,%d)[%p], lda2 = %d,\n"
              "\t LT(%d,%d)[%p], descLT.mb=%d, A(%d,%d)[%p], lda = %d)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, p, nextp, prevp, prevm, type, nexttype, ip, im, nextim,
-             descA.mb, tempnn, tempmm, tempnn, ib,
-             p, n, V, ldap,      m, n, C, ldam,
+             descA.mb, tempBnn, tempmm, tempBnn, ib,
+             p, n, V, ldbp,      m, n, C, ldam,
              m, k, T, descLT.mb, m, k, H, ldam);
 
   DRYRUN(
