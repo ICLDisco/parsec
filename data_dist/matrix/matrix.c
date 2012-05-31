@@ -39,6 +39,7 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     /* Matrix properties */
     tdesc->mtype   = dtyp;
     tdesc->storage = storage;
+    tdesc->dtype   = tiled_matrix_desc_type;
     tdesc->tileld  = (storage == matrix_Tile) ? mb : lm;
     tdesc->mb      = mb;
     tdesc->nb      = nb;

@@ -43,10 +43,15 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
     }
 }
 
+#define tiled_matrix_desc_type        0x01
+#define two_dim_block_cyclic_type     0x02
+#define sym_two_dim_block_cyclic_type 0x04
+
 typedef struct tiled_matrix_desc_t {
     dague_ddesc_t super;
     enum matrix_type    mtype;      /**< precision of the matrix */
     enum matrix_storage storage;    /**< storage of the matrix   */
+    int dtype;          /**< Type of descriptor      */
     int tileld;         /**< leading dimension of each tile (Should be a function depending on the row) */
     int mb;             /**< number of rows in a tile */
     int nb;             /**< number of columns in a tile */
