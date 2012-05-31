@@ -81,8 +81,6 @@ void print_usage(void)
             "\n"
             " -p -P --grid-rows : rows (P) in the PxQ process grid   (default: NP)\n"
             " -q -Q --grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
-            " -k --prio-switch  : activate prioritized DAG k steps before the end (default: 0)\n"
-            "                   : with no argument, prioritized DAG from the start\n"
             "\n"
             " -N                : dimension (N) of the matrices (required)\n"
             " -M                : dimension (M) of the matrices (default: N)\n"
@@ -126,11 +124,15 @@ void print_usage(void)
             "                       rr:n:p:c -- create n virtual processes per real process, each virtual process with p\n"
             "                                   threads bound in a round-robin fashion on the number of cores c (overloads the\n"
             "                                   -c flag)\n"
+            "\n"
+            "\n"
+            "ENVIRONMENT\n"
+            "  [SDCZ]<FUNCTION> : defines the priority limit of a given function for a given precision\n"
             "\n");
             dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:y:V:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:y:V:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -147,8 +149,6 @@ static struct option long_options[] =
     {"grid-cols",   required_argument,  0, 'q'},
     {"q",           required_argument,  0, 'q'},
     {"Q",           required_argument,  0, 'q'},
-    {"prio-switch", optional_argument,  0, 'k'},
-    {"k",           optional_argument,  0, 'k'},
 
     // TODO:: Should be moved with the other dague-specific options
     {"V",           required_argument,  0, 'V'},
@@ -248,11 +248,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 break;
             case 'p': case 'P': iparam[IPARAM_P] = atoi(optarg); break;
             case 'q': case 'Q': iparam[IPARAM_Q] = atoi(optarg); break;
-            case 'k':
-                if(optarg)  iparam[IPARAM_PRIO] = atoi(optarg);
-                else        iparam[IPARAM_PRIO] = INT_MAX;
-                break;
-
             case 'N': iparam[IPARAM_N] = atoi(optarg); break;
             case 'M': iparam[IPARAM_M] = atoi(optarg); break;
             case 'K': iparam[IPARAM_K] = atoi(optarg); break;
