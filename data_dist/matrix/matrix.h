@@ -76,18 +76,6 @@ static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
     return pos % vpmap_get_nb_vp();
 }
 
-#ifdef HAVE_MPI
-void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-void matrix_ccompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-void matrix_dcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-void matrix_scompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-#else
-#define matrix_zcompare_dist_data(...) do {} while(0)
-#define matrix_ccompare_dist_data(...) do {} while(0)
-#define matrix_dcompare_dist_data(...) do {} while(0)
-#define matrix_scompare_dist_data(...) do {} while(0)
-#endif
-
 struct dague_execution_unit;
 typedef int (*dague_operator_t)( struct dague_execution_unit *eu, const void* src, void* dst, void* op_data, ... );
 
