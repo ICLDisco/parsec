@@ -95,6 +95,7 @@ void print_usage(void)
             " -s --SMB          : rows of tiles in a supertile (default: 1)\n"
             " -S --SNB          : columns of tiles in a supertile (default: 1)\n"
             " -x --check        : verify the results\n"
+            " -X --check_inv    : verify the results against the inverse\n"
             "\n"
             "    --qr_a         : Size of TS domain. (specific to xgeqrf_param)\n"
             "    --qr_p         : Size of the high level tree. (specific to xgeqrf_param)\n"
@@ -132,7 +133,7 @@ void print_usage(void)
             dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:y:V:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -176,6 +177,8 @@ static struct option long_options[] =
     {"S",           required_argument,  0, 'S'},
     {"check",       no_argument,        0, 'x'},
     {"x",           no_argument,        0, 'x'},
+    {"check_inv",   no_argument,        0, 'X'},
+    {"X",           no_argument,        0, 'X'},
 
     {"qr_a",        required_argument,  0, '0'},
     {"qr_p",        required_argument,  0, '1'},
@@ -261,6 +264,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 's': iparam[IPARAM_SMB] = atoi(optarg); break;
             case 'S': iparam[IPARAM_SNB] = atoi(optarg); break;
 
+            case 'X': iparam[IPARAM_CHECKINV] = 1;
             case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break;
 
                 /* HQR parameters */
