@@ -252,6 +252,7 @@ subs = {
     ('TESTING_S',   'TESTING_D',   'TESTING_C',   'TESTING_Z'  ),
     ('twoDBC_s',    'twoDBC_d',    'twoDBC_c',    'twoDBC_z'   ),
     ('workspace_s', 'workspace_d', 'workspace_c', 'workspace_z'),
+    ('dplasmacore_s',   'dplasmacore_d',   'dplasmacore_c',   'dplasmacore_z'  ),
 
 # Be carefull: don't put something matching the following line,
 # it matches dplasma_datatype (should be changed)
