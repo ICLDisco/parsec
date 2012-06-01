@@ -14,12 +14,7 @@
  **/
 #include <math.h>
 #include <lapacke.h>
-#include "dplasma_zcores.h"
-//#include "common.h"
-#include "dague_config.h"
-#include "plasma.h"
-#include "cblas.h"
-#include "core_blas.h"
+#include <plasma.h>
 #include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 

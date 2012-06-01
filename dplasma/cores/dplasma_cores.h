@@ -15,6 +15,7 @@
 #include <plasma.h>
 #include "dague.h"
 #include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
 
 /***************************************************************************//**
  *
@@ -58,7 +59,7 @@ static inline void *plasma_getaddr(PLASMA_desc A, int m, int n)
     return (void*)((intptr_t)A.mat + (offset*eltsize) );
 }
 
-#define BLKADDR(A, type, m, n)  (type *)plasma_getaddr(A, m, n)
-#define BLKLDD(A, k) ( ( (k) + (A).i/(A).mb) < (A).lm1 ? (A).mb : (A).lm%(A).mb )
+#define PLASMA_BLKADDR(A, type, m, n)  (type *)plasma_getaddr(A, m, n)
+#define PLASMA_BLKLDD(A, k) ( ( (k) + (A).i/(A).mb) < (A).lm1 ? (A).mb : (A).lm%(A).mb )
 
 #endif /* _DPLASMA_CORES_H_ */
