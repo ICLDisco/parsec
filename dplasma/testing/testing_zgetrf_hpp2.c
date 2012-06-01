@@ -42,9 +42,6 @@ int main(int argc, char ** argv)
 
     LDA = max(M, LDA);
 
-    int check_inv = check == 0 ?  0 : 0;
-
-
 	if ( M != N && check ) {
         fprintf(stderr, "Check is impossible if M != N\n");
         check = 0;

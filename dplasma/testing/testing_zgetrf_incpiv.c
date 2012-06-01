@@ -45,8 +45,6 @@ int main(int argc, char ** argv)
         check = 0;
     }
 
-    int check_inv = check == 0 ?  0 : 1;
-
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
