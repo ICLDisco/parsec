@@ -17,7 +17,8 @@ else
 fi
 
 elif [ "x$USER" == "xherault" ]; then
-	PLASMA_DIR=/Users/herault/Documents/Recherche/dague/plasma
+	PLASMA_DIR=/Users/herault/Documents/Recherche/plasma/plasma-installer
+        PLASMA_DIR=/Users/herault/Documents/Recherche/dague/plasma
 	MY_OPTS="-DHWLOC_DIR=/opt/local"
 
 elif [ "x$USER" == "xbosilca" ]; then 
