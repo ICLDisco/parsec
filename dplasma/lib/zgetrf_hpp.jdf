@@ -27,7 +27,7 @@ extern "C" %{
 PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
                              int lm, int ln, int i, int j, int m, int n);
 
-#define FOLLOW_CONDNUM
+//#define FOLLOW_CONDNUM
 #ifdef FOLLOW_CONDNUM
 #include <lapacke.h>
 #endif
@@ -95,7 +95,16 @@ BODY
              context->th_id, context->virtual_process->vp_id, k, i, m, nextm, s, ms,
              tempm, tempn, m, k, A, m, k, IP);
 
-   // DRYRUN(
+#ifdef FOLLOW_CONDNUM
+    double Anorm, Acond, Ucond;
+    int info;
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int tempmin = dague_imin(tempmm, tempn);
+    assert( tempmm <= tempn );
+    Anorm = LAPACKE_zlange( LAPACK_COL_MAJOR, '1', tempmm, tempn, A, descA.mb );
+#endif
+
+    DRYRUN(
         /* Set local IPIV to 0 before generation
          * Better here than a global initialization for locality
          * and it's also done in parallel */
@@ -107,39 +116,30 @@ BODY
                                                tempm, tempn );
         pdescA.mat = A;
 
-#ifdef FOLLOW_CONDNUM
-        double Anorm, Acond, Ucond;
-        int info;
-        int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
-        int tempmin = dague_imin(tempmm, tempn);
-        assert( tempmm <= tempn );
-        Anorm = LAPACKE_zlange( LAPACK_COL_MAJOR, '1', tempmm, tempn, A, descA.mb );
-#endif
-
         iinfo = CORE_zgetrf_rectil_1thrd( pdescA, IP );
 
         if ( iinfo != 0 ) {
             *INFO = m * descA.mb + iinfo; /* Should return if enter here */
             fprintf(stderr, "zgetrf(%d, %d, %d) failed => %d\n", k, i, m, *INFO );
         }
+           );
 
 #ifdef FOLLOW_CONDNUM
-        info = LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempmin, A, descA.mb, Anorm, &Acond );
-        if ( info != 0 ) {
-            fprintf(stderr, "Fucking hell it doesn't work\n");
-            assert(0);
-        }
+    info = LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempmin, A, descA.mb, Anorm, &Acond );
+    if ( info != 0 ) {
+        fprintf(stderr, "Fucking hell it doesn't work\n");
+        assert(0);
+    }
 
-        info = LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'u', 'n', tempmin, A, descA.mb, &Ucond );
-        if ( info != 0 ) {
-            fprintf(stderr, "Fucking hell 2 it doesn't work\n");
-            assert(0);
-        }
+    info = LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'u', 'n', tempmin, A, descA.mb, &Ucond );
+    if ( info != 0 ) {
+        fprintf(stderr, "Fucking hell 2 it doesn't work\n");
+        assert(0);
+    }
 
-        printf("getrf(%d, %d) => Anorm=%e, Acond=%e, Ucond=%e\n",
-               k, i, Anorm, 1./Acond, 1./Ucond );
+    printf("getrf(%d, %d) => Anorm=%e, Acond=%e, Ucond=%e\n",
+           k, i, Anorm, 1./Acond, 1./Ucond );
 #endif
-      //     );
 
     printlog("\nthread %d VP %d zgetrf_hpp( k=%d, i=%d, m=%d, nextm=%d, s=%d, ms=%d )\n"
              "\t( M=%d, N=%d, A(%d,%d)[%p], IPIV(%d,%d)[%p]) => info = %d\n",
