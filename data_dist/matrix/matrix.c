@@ -17,6 +17,8 @@
 
 #include "dague_config.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "matrix.h"
 
 /***************************************************************************//**
@@ -90,6 +92,37 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
 #endif
 
     return;
+}
+
+tiled_matrix_desc_t *
+tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
+                        int i, int j, int m, int n)
+{
+    int mb, nb;
+    tiled_matrix_desc_t *newdesc;
+
+    if( tdesc->dtype & two_dim_block_cyclic_type ) {
+        newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(two_dim_block_cyclic_t) );
+        memcpy( newdesc, tdesc, sizeof(two_dim_block_cyclic_t) );
+    }
+    else if( tdesc->dtype & sym_two_dim_block_cyclic_type ) {
+        newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(sym_two_dim_block_cyclic_t) );
+        memcpy( newdesc, tdesc, sizeof(sym_two_dim_block_cyclic_t) );
+    } else {
+        fprintf(stderr, "Type not completely defined\n");
+    }
+
+    mb = tdesc->mb;
+    nb = tdesc->nb;
+    // Submatrix parameters
+    newdesc->i = i;
+    newdesc->j = j;
+    newdesc->m = m;
+    newdesc->n = n;
+    // Submatrix derived parameters
+    newdesc->mt = (i+m-1)/mb - i/mb + 1;
+    newdesc->nt = (j+n-1)/nb - j/nb + 1;
+    return newdesc;
 }
 
 /*
