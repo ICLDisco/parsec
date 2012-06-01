@@ -16,8 +16,6 @@ extern "C" %{
 #include <plasma.h>
 #include <core_blas.h>
 
-#include <lapacke.h>
-
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
@@ -30,6 +28,9 @@ PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
                              int lm, int ln, int i, int j, int m, int n);
 
 #define FOLLOW_CONDNUM
+#ifdef FOLLOW_CONDNUM
+#include <lapacke.h>
+#endif
 %}
 
 descA   [type = "tiled_matrix_desc_t"]

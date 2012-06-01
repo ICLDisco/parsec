@@ -97,7 +97,7 @@ int main(int argc, char ** argv)
                         (tiled_matrix_desc_t *)&ddescB,
                         (tiled_matrix_desc_t *)&ddescX );
     }
-    if (check_inv != 0) {
+    if ( check_inv ) {
         dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescI);
         dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescInvA);
     }
@@ -136,7 +136,7 @@ int main(int argc, char ** argv)
         /*
          * Second check with inverse
          */
-        if ( check_inv != 0 ) {
+        if ( check_inv ) {
             dplasma_zgetrs(dague, PlasmaNoTrans,
                            (tiled_matrix_desc_t *)&ddescA,
                            (tiled_matrix_desc_t *)&ddescIPIV,
@@ -157,15 +157,11 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
         dague_data_free(ddescX.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
-        if (check_inv != 0)
-        {
+        if ( check_inv ) {
             dague_data_free(ddescInvA.mat);
-            dague_data_free(ddescI.mat);
-        }
-        if (check_inv != 0)
-        {
-            dague_ddesc_destroy((dague_ddesc_t*)&ddescI);
             dague_ddesc_destroy((dague_ddesc_t*)&ddescInvA);
+            dague_data_free(ddescI.mat);
+            dague_ddesc_destroy((dague_ddesc_t*)&ddescI);
         }
     }
 
