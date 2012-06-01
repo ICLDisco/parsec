@@ -7,10 +7,11 @@ set(generated_headers "")
 precisions_rules_py(generated_headers
                  "dplasma_zcores.h"
                  PRECISIONS "s;d;c;z")
-### Generate the dplasma wrappers for all required precisions 
+### Generate the dplasma wrappers for all required precisions
 set(SOURCES
   core_ztrdv.c
   core_zgetrf_rectil.c
+  core_zgetrf_rectil_1thrd.c
   core_zhetrf2_nopiv.c
   core_zgemdm.c
   core_zhedrk.c
