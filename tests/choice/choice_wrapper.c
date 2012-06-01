@@ -21,7 +21,7 @@ static MPI_Datatype block;
 dague_object_t *choice_new(dague_ddesc_t *A, int size, int *decision, int nb, int world)
 {
     dague_choice_object_t *o = NULL;
-    
+
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, CHOICE nb and size must be > 0\n");
         return (dague_object_t*)o;
@@ -31,10 +31,10 @@ dague_object_t *choice_new(dague_ddesc_t *A, int size, int *decision, int nb, in
 
 #if defined(HAVE_MPI)
     {
-    	MPI_Type_vector(1, size, size, MPI_BYTE, &block);
+        MPI_Type_vector(1, size, size, MPI_BYTE, &block);
         MPI_Type_commit(&block);
         dague_arena_construct(o->arenas[DAGUE_choice_DEFAULT_ARENA],
-                              size * sizeof(char), size * sizeof(char), 
+                              size * sizeof(char), size * sizeof(char),
                               block);
     }
 #endif
@@ -48,10 +48,11 @@ dague_object_t *choice_new(dague_ddesc_t *A, int size, int *decision, int nb, in
 void choice_destroy(dague_object_t *o)
 {
     dague_choice_object_t *c = (dague_choice_object_t*)o;
+    (void)c;
 
 #if defined(HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    dague_choice_destroy( c );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }

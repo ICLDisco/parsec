@@ -110,6 +110,6 @@ dplasma_zgetrf_hincpiv_Destruct( dague_object_t *o )
     free( dague_zgetrf_hincpiv->p_work );
     free( dague_zgetrf_hincpiv->p_tau  );
 
-    dague_zgetrf_hincpiv_destroy(dague_zgetrf_hincpiv);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 

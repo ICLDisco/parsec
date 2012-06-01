@@ -99,6 +99,6 @@ dplasma_ztrsmpl_hpp_Destruct( dague_object_t *o )
     free( dague_ztrsmpl_hpp->p_work );
     free( dague_ztrsmpl_hpp->p_tau  );
 
-    dague_ztrsmpl_hpp_destroy(dague_ztrsmpl_hpp);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 

@@ -110,6 +110,6 @@ dplasma_zgetrf_hpp_Destruct( dague_object_t *o )
     free( dague_zgetrf_hpp->p_work );
     free( dague_zgetrf_hpp->p_tau  );
 
-    dague_zgetrf_hpp_destroy(dague_zgetrf_hpp);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
