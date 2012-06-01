@@ -98,10 +98,14 @@ zgetrf_hincpiv(k, i)
 
   SIMCOST 4
 
+  /* Locality */
   : A(m, k)
 
+  /* A == A(m,k) */
+  /* P == P(m,k) */
+
   RW    A <- ( k == 0 ) ? A(m, k)
-          <- ( k > 0  ) ? C zttmqr(k-1, m, k )
+          <- ( k >  0 ) ? C zttmqr(k-1, m, k )
           -> A zgetrf_hincpiv_out(k, i)
           -> ( k == descA.mt-1 ) ? A(m, k)                                     [type = UPPER_TILE]
           -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ?  A zttqrt(k, nextm)  [type = UPPER_TILE]
@@ -143,7 +147,6 @@ BODY
     if ( descA.mt-1 == k )
         ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
-
 END
 
 /*
@@ -157,10 +160,14 @@ zgessm(k, i, n)
   m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
   nextm = inline_c %{ return dplasma_qr_nextpiv( pivfct, m, k, descA.mt); %}
 
-  SIMCOST 6
+      SIMCOST 6
 
   /* Locality */
   : A(m, n)
+
+  /* A == A(m,k) */
+  /* P == P(m,k) */
+  /* C == A(m,n) */
 
   READ  A <- A zgetrf_hincpiv_out(k, i)                                          [type = LOWER_TILE]
   READ  P <- P zgetrf_hincpiv(k, i)                                              [type = PIVOT]
@@ -308,7 +315,6 @@ BODY
     if ( ( ( nextp == descA.mt ) & (p == k) ) )
       ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
-
 END
 
 
