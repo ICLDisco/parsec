@@ -307,6 +307,7 @@ tests/pingpong/rtt\.c
 tests/pingpong/rtt\.h
 
 dplasma/cores/core_[sdc]getrf_rectil\.c
+dplasma/cores/core_[sdc]getrf_rectil_1thrd\.c
 dplasma/lib/[sdcz]getrf_hincpiv\.[ch]
 dplasma/lib/[sdcz]getrf_hpp\.[ch]
 dplasma/lib/[sdcz]trsmpl_hincpiv\.[ch]
