@@ -141,7 +141,7 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
     if( index >= len ) return str;
     for( i = 0; i < function->nb_parameters; i++ ) {
         index += snprintf( str + index, len - index, "_%d",
-                           origin->locals[function->params[ip]->context_index].value );
+                           origin->locals[function->params[i]->context_index].value );
         if( index >= len ) return str;
     }
     return str;
@@ -1305,11 +1305,12 @@ int remote_dep_bind_thread(dague_context_t* context){
     /* If we don't have hwloc, try to bind the thread on the core #nbcore as the
      * default strategy disributed the computation threads from core 0 to nbcore-1 */
     int nb_total_comp_threads = 0;
+    int p;
     for(p = 0; p < context->nb_vp; p++) {
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
     }
     int boundto = dague_bindthread(nb_total_comp_threads);
-    if (boundto != cnb_total_comp_threads) {
+    if (boundto != nb_total_comp_threads) {
         DEBUG(("Communication thread floats\n"));
     } else {
         do_nano = 0;

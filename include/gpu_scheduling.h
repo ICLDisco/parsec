@@ -7,7 +7,7 @@
 #include "dague_config.h"
 
 #if defined(HAVE_CUDA)
-#include "dague.h"
+#include "dague_internal.h"
 #include "gpu_data.h"
 #include "gpu_malloc.h"
 #include "profiling.h"

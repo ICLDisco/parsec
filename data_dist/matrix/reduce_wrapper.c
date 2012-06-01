@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#include "dague.h"
+#include "dague_config.h"
+#include "dague_internal.h"
 #include "data_dist/matrix/matrix.h"
 #include "reduce_col.h"
 #include "reduce_row.h"
@@ -23,7 +24,7 @@ dague_reduce_col_New( const tiled_matrix_desc_t* src,
 
 void dague_reduce_col_Destruct( struct dague_object_t *o )
 {
-    dague_reduce_col_destroy( (dague_reduce_col_object_t*)o );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 struct dague_object_t*
@@ -40,6 +41,6 @@ dague_reduce_row_New( const tiled_matrix_desc_t* src,
 
 void dague_reduce_row_Destruct( struct dague_object_t *o )
 {
-    dague_reduce_row_destroy( (dague_reduce_row_object_t*)o );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 

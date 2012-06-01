@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -7,7 +7,7 @@
  *
  */
 
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmaaux.h"
@@ -180,41 +180,9 @@ void
 dplasma_ztrsm_Destruct( dague_object_t *o )
 {
     dague_ztrsm_LLN_object_t *otrsm = (dague_ztrsm_LLN_object_t *)o;
-    int side  = ((dague_ztrsm_LLN_object_t *)o)->side;
-    int uplo  = ((dague_ztrsm_LLN_object_t *)o)->uplo;
-    int trans = ((dague_ztrsm_LLN_object_t *)o)->trans;
 
     dplasma_datatype_undefine_type( &(otrsm->arenas[DAGUE_ztrsm_LLN_DEFAULT_ARENA]->opaque_dtt) );
-
-    if ( side == PlasmaLeft ) {
-        if ( uplo == PlasmaLower ) {
-            if ( trans == PlasmaNoTrans ) {
-                dague_ztrsm_LLN_destroy((dague_ztrsm_LLN_object_t *)o);
-            } else { /* trans =! PlasmaNoTrans */
-                dague_ztrsm_LLT_destroy((dague_ztrsm_LLT_object_t *)o);
-            }
-        } else { /* uplo = PlasmaUpper */
-            if ( trans == PlasmaNoTrans ) {
-                dague_ztrsm_LUN_destroy((dague_ztrsm_LUN_object_t *)o);
-            } else { /* trans =! PlasmaNoTrans */
-                dague_ztrsm_LUT_destroy((dague_ztrsm_LUT_object_t *)o);
-            }
-        }
-    } else { /* side == PlasmaRight */
-        if ( uplo == PlasmaLower ) {
-            if ( trans == PlasmaNoTrans ) {
-                dague_ztrsm_RLN_destroy((dague_ztrsm_RLN_object_t *)o);
-            } else { /* trans =! PlasmaNoTrans */
-                dague_ztrsm_RLT_destroy((dague_ztrsm_RLT_object_t *)o);
-            }
-        } else { /* uplo = PlasmaUpper */
-            if ( trans == PlasmaNoTrans ) {
-                dague_ztrsm_RUN_destroy((dague_ztrsm_RUN_object_t *)o);
-            } else { /* trans =! PlasmaNoTrans */
-                dague_ztrsm_RUT_destroy((dague_ztrsm_RUT_object_t *)o);
-            }
-        }
-    }
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 /***************************************************************************//**

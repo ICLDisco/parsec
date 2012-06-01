@@ -5,9 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "debug.h"
-
-#include "dague.h"
+#include "dague_internal.h"
 #include "remote_dep.h"
 #include "atomic.h"
 

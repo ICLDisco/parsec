@@ -4,6 +4,16 @@
  *                         reserved.
  */
 
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif /* HAVE_MPI */
+
+#include "dague_config.h"
+#include "dague_internal.h"
+#include "debug.h"
+#include "data_dist/matrix/matrix.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,14 +22,6 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <math.h>
-
-#ifdef HAVE_MPI
-#include <mpi.h>
-#endif /* HAVE_MPI */
-
-#include "dague_config.h"
-#include "dague.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 /*
  *
@@ -365,6 +367,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(Ddesc->super), mtype, storage,
                             mb, nb, lm, ln, i, j, m, n);
+    Ddesc->super.dtype |= two_dim_block_cyclic_type;
 
     if(nodes < P)
         ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));

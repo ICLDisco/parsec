@@ -33,6 +33,11 @@
 #define END_C_DECLS            /* empty */
 #endif
 
+#if defined(HAVE_STDDEF_H)
+#include <stddef.h>
+#endif  /* HAVE_STDDEF_H */
+#include <stdint.h>
+
 #if defined(HAVE_MPI)
 # define DISTRIBUTED
 #else
@@ -67,7 +72,6 @@
 #   define DAGUE_DEBUG_VERBOSE1
 #endif
 
-#include <stdint.h>
 #if defined(DAGUE_SCHED_DEPS_MASK)
 typedef uint32_t dague_dependency_t;
 #else

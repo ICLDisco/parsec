@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
@@ -83,24 +83,9 @@ dplasma_zgemm_New( const int transA, const int transB,
 void
 dplasma_zgemm_Destruct( dague_object_t *o )
 {
-    int transA = ((dague_zgemm_NN_object_t *)o)->transA;
-    int transB = ((dague_zgemm_NN_object_t *)o)->transB;
-
     dplasma_datatype_undefine_type( &(((dague_zgemm_NN_object_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
 
-    if( PlasmaNoTrans == transA ) {
-        if( PlasmaNoTrans == transB ) {
-            dague_zgemm_NN_destroy((dague_zgemm_NN_object_t *)o);
-        } else {
-            dague_zgemm_NT_destroy((dague_zgemm_NT_object_t *)o);
-        }
-    } else {
-        if( PlasmaNoTrans == transB ) {
-            dague_zgemm_TN_destroy((dague_zgemm_TN_object_t *)o);
-        } else {
-            dague_zgemm_TT_destroy((dague_zgemm_TT_object_t *)o);
-        }
-    }
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 void

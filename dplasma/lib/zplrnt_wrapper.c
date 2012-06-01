@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> c d s
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
@@ -65,6 +65,6 @@ dplasma_zplrnt_Destruct( dague_object_t *o )
 {
     dague_zplrnt_object_t *dague_zplrnt = (dague_zplrnt_object_t *)o;
     dplasma_datatype_undefine_type( &(dague_zplrnt->arenas[DAGUE_zplrnt_DEFAULT_ARENA   ]->opaque_dtt) );
-    dague_zplrnt_destroy(dague_zplrnt);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zplrnt);
 }
 

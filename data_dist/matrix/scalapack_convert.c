@@ -5,10 +5,11 @@
  */
 
 #include "dague_config.h"
-#include "dague.h"
+#include "dague_internal.h"
 #include "scalapack_convert.h"
 #include "data_distribution.h"
 #include "matrix.h"
+#include "debug.h"
 
 #ifdef HAVE_STRING_H
 #include <string.h>

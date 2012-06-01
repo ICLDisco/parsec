@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "dague.h"
+#include "dague_internal.h"
 #include "debug.h"
 #include "scheduling.h"
 #include "schedulers.h"
@@ -33,14 +33,6 @@ typedef struct {
 
 static int no_scheduler_is_active( dague_context_t *master );
 
-
-static unsigned int ranking_function_bypriority(dague_list_item_t *elt, void *_)
-{
-    dague_execution_context_t *exec = (dague_execution_context_t*)elt;
-    (void)_;
-    return (~(unsigned int)0) - exec->priority;
-}
-
 static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
 {
     dague_dequeue_chain_back( (dague_dequeue_t*)store, elt );
@@ -60,12 +52,7 @@ static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
 /*************************** List of Trees ***************************/
 /*********************************************************************/
 
-static unsigned int ranking_function_heap_bypriority(dague_list_item_t *elt, void *_)
-{
-    dague_heap_t *heap = (dague_heap_t*)elt;
-    (void)_;
-    return (~(unsigned int)0) - heap->priority;
-}
+#define dague_heap_priority_comparator (offsetof(dague_heap_t, priority))
 
 // TREE
 static int init_tree_queues(  dague_context_t *master )
@@ -177,10 +164,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
      no, don't think so. each time you split you get one node
      with a single child, so there will always be a split.
      */
-    heap = (dague_heap_t*)dague_hbbuffer_pop_best(
-        LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
-        ranking_function_heap_bypriority,
-        NULL);
+    heap = (dague_heap_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, dague_heap_priority_comparator);
     exec_context = heap_split_and_steal(&heap, &new_heap);
     if( NULL != heap )
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
@@ -189,10 +173,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 
     // if we failed to find one in our queue
     for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
-        heap = (dague_heap_t*)dague_hbbuffer_pop_best(
-            LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i],
-            ranking_function_heap_bypriority,
-            NULL);
+        heap = (dague_heap_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i], dague_heap_priority_comparator);
         exec_context = heap_split_and_steal(&heap, &new_heap);
         if( NULL != heap ) {
             if (NULL != new_heap) {
@@ -438,6 +419,9 @@ static int init_local_flat_queues(  dague_context_t *master )
             }
         }
 
+        DEBUG(("VP %d: creating queues for %d cores\n",
+               p, vp->nb_cores));
+
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_units[t];
             sched_obj = LOCAL_QUEUES_OBJECT(eu);
@@ -449,10 +433,8 @@ static int init_local_flat_queues(  dague_context_t *master )
             sched_obj->task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper, 
                                                         (void*)sched_obj->system_queue);
             sched_obj->hierarch_queues[0] = sched_obj->task_queue;
+            DEBUG((" Core %d:%d: Task queue is %p (that's 0-preferred queue)\n",  p, t, sched_obj->task_queue));
         }
-
-        DEBUG(("VP %d: creating queues for %d cores\n",
-               p, vp->nb_cores));
 
         for(t = 0; t < vp->nb_cores; t++) {
             nq = 1;
@@ -484,7 +466,7 @@ static int init_local_flat_queues(  dague_context_t *master )
                         d = dague_hwloc_distance(eu->th_id, id);
                         if( d == 2*level || d == 2*level + 1 ) {
                             sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_units[id])->task_queue;
-                            DEBUG(("%d of %d: my %d preferred queue is the task queue of %d (%p)\n",
+                            DEBUG(("%d of %d: my %d-preferred queue is the task queue of %d (%p)\n",
                                    eu->th_id, eu->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]));
                             nq++;
                             if( nq == sched_obj->nb_hierarch_queues )
@@ -595,8 +577,7 @@ static dague_execution_context_t *choose_job_local_queues( dague_execution_unit_
     int i;
 
     exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
-                                                                       ranking_function_bypriority,
-                                                                       NULL);
+                                                                       dague_execution_context_priority_comparator);
     if( NULL != exec_context ) {
         return exec_context;
     }
@@ -606,14 +587,19 @@ static dague_execution_context_t *choose_job_local_queues( dague_execution_unit_
     // all the tasks we aren't going to immediately consume
     for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
         exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i],
-                                                                           ranking_function_bypriority,
-                                                                           NULL);
+                                                                           dague_execution_context_priority_comparator);
         if( NULL != exec_context ) {
+            DEBUG3(("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
+                    eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]));
             return exec_context;
         }
     }
 
     exec_context = (dague_execution_context_t *)dague_dequeue_try_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
+    if( NULL != exec_context ) {
+        DEBUG3(("LQ\t: %d:%d found task %p in its system queue %p\n",
+                eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue));
+    }
     return exec_context;
 }
 
@@ -743,6 +729,15 @@ static dague_execution_context_t *choose_job_absolute_priorities( dague_executio
 static int schedule_absolute_priorities( dague_execution_unit_t* eu_context,
                                          dague_execution_context_t* new_context )
 {
+#if defined(DAGUE_DEBUG_VERBOSE3)
+    dague_list_item_t *it = (dague_list_item_t*)new_context;
+    char tmp[MAX_TASK_STRLEN];
+    do {
+        DEBUG3(("AP:\t Pushing task %s\n", 
+                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it)));
+        it = (dague_list_item_t*)((dague_list_item_t*)it)->list_next;
+    } while( it != (dague_list_item_t*)new_context );
+#endif
     dague_list_chain_sorted((dague_list_t*)eu_context->scheduler_object,
                             (dague_list_item_t*)new_context,
                             dague_execution_context_priority_comparator);
