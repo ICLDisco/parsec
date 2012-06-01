@@ -94,7 +94,7 @@ int main(int argc, char ** argv)
     if( check ){
 #if 0
         dplasma_zplrnt( dague,
-                        (tiled_matrix_desc_t *)&ddescB, 3872);
+                        (tiled_matrix_desc_t *)&ddescB, 2354);
 #endif
 
         dplasma_zlacpy( dague, uplo, 

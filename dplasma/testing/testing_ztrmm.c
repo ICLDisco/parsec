@@ -57,7 +57,7 @@ int main(int argc, char ** argv)
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         dplasma_zplghe( dague, 0., uplo, (tiled_matrix_desc_t *)&ddescA, 1358);
-        dplasma_zplrnt( dague,           (tiled_matrix_desc_t *)&ddescB, 5676);
+        dplasma_zplrnt( dague,           (tiled_matrix_desc_t *)&ddescB, 2354);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
@@ -90,7 +90,7 @@ int main(int argc, char ** argv)
                                    M, NRHS, SMB, SNB, P));
 
         dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA, 1358);
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 5676);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
 
         for (s=0; s<2; s++) {
             for (u=0; u<2; u++) {

@@ -60,8 +60,8 @@ int main(int argc, char ** argv)
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 4674);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC, 2873);
         if(loud > 2) printf("Done\n");
 
@@ -121,8 +121,8 @@ int main(int argc, char ** argv)
                                            nodes, cores, rank, MB, NB, LDB, LDB, 0, 0,
                                            Bm, Bn, SMB, SNB, P));
 
-                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA,  3872);
-                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB,  4674);
+                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA,  7657);
+                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
 
                 if ( rank == 0 ) {
                     printf("***************************************************\n");

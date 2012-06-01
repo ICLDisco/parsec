@@ -49,7 +49,7 @@ int main(int argc, char ** argv)
     {
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
         if(loud > 2) printf("Done\n");
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_incpiv,
@@ -86,7 +86,7 @@ int main(int argc, char ** argv)
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
 
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA0, 3872);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA0, 7657);
 
         /*********************************************************************
          *               First Check
@@ -99,7 +99,7 @@ int main(int argc, char ** argv)
         printf("Generate matrices ... ");
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
         printf("Done\n");
@@ -135,7 +135,7 @@ int main(int argc, char ** argv)
         printf("Generate matrices ... ");
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
         printf("Done\n");
@@ -175,7 +175,7 @@ int main(int argc, char ** argv)
         printf("Generate matrices ... ");
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
         printf("Done\n");

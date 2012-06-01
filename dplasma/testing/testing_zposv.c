@@ -70,7 +70,7 @@ int main(int argc, char ** argv)
     dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescA0, 1358);
     dplasma_zplrnt( dague,
-                    (tiled_matrix_desc_t *)&ddescB, 3872);
+                    (tiled_matrix_desc_t *)&ddescB, 2354);
     if(loud > 2) printf("Done\n");
 
     for ( u=0; u<2; u++) {
