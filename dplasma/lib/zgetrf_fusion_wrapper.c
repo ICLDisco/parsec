@@ -20,10 +20,10 @@
 #define IB 40
 
 dague_object_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A,
-                                        tiled_matrix_desc_t *IPIV,
-                                        int P,
-                                        int Q,
-                                        int *info )
+                                           tiled_matrix_desc_t *IPIV,
+                                           int P,
+                                           int Q,
+                                           int *info )
 {
     dague_object_t *dague_zgetrf_fusion = NULL;
     two_dim_block_cyclic_t *UMAT, *LMAX, *V, *BUFFER, *ACOPY;
@@ -137,30 +137,37 @@ void
 dplasma_zgetrf_fusion_Destruct( dague_object_t *o )
 {
     dague_zgetrf_fusion_object_t *dague_zgetrf_fusion = (dague_zgetrf_fusion_object_t *)o;
+    two_dim_block_cyclic_t *desc;
 
-    two_dim_block_cyclic_t *LMAX = (two_dim_block_cyclic_t*)(dague_zgetrf_fusion->LMAX);
-    dague_data_free(LMAX->mat );
+    desc = (two_dim_block_cyclic_t*)(dague_zgetrf_fusion->UMAT);
+    dague_data_free( desc->mat );
+    dague_ddesc_destroy( dague_zgetrf_fusion->UMAT );
+    free( dague_zgetrf_fusion->UMAT );
+
+    desc = (two_dim_block_cyclic_t*)(dague_zgetrf_fusion->LMAX);
+    dague_data_free( desc->mat );
     dague_ddesc_destroy( dague_zgetrf_fusion->LMAX );
     free( dague_zgetrf_fusion->LMAX );
 
-    two_dim_block_cyclic_t *V = (two_dim_block_cyclic_t*)(dague_zgetrf_fusion->V);
-    dague_data_free( V->mat );
+    desc = (two_dim_block_cyclic_t*)(dague_zgetrf_fusion->V);
+    dague_data_free( desc->mat );
     dague_ddesc_destroy( dague_zgetrf_fusion->V );
     free( dague_zgetrf_fusion->V );
 
-    two_dim_block_cyclic_t *BUFFER = (two_dim_block_cyclic_t*)(dague_zgetrf_fusion->BUFFER);
-    dague_data_free( BUFFER->mat );
+    desc = (two_dim_block_cyclic_t*)(dague_zgetrf_fusion->BUFFER);
+    dague_data_free( desc->mat );
     dague_ddesc_destroy( dague_zgetrf_fusion->BUFFER );
     free( dague_zgetrf_fusion->BUFFER );
 
-    two_dim_block_cyclic_t *ACOPY = (two_dim_block_cyclic_t*)(dague_zgetrf_fusion->ACOPY);
-    dague_data_free( ACOPY->mat );
+    desc= (two_dim_block_cyclic_t*)(dague_zgetrf_fusion->ACOPY);
+    dague_data_free( desc->mat );
     dague_ddesc_destroy( dague_zgetrf_fusion->ACOPY );
     free( dague_zgetrf_fusion->ACOPY );
 
     dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_DEFAULT_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_MAXL_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_SWAP_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_MAXL_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_UMES_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_fusion->arenas[DAGUE_zgetrf_fusion_PIVOT_ARENA]->opaque_dtt) );
 
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
