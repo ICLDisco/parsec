@@ -28,6 +28,7 @@
 #include <math.h>
 
 #include <assert.h>
+#include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 
 #if !defined(UINT_MAX)
@@ -53,9 +54,9 @@ static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
     m += Ddesc->super.i / Ddesc->super.mb;
     n += Ddesc->super.j / Ddesc->super.nb;
 
-    assert( (Ddesc->uplo == MatrixLower && m>=n) || 
+    assert( (Ddesc->uplo == MatrixLower && m>=n) ||
             (Ddesc->uplo == MatrixUpper && n>=m) );
-    if ( ((Ddesc->uplo == MatrixLower) && (m < n)) || 
+    if ( ((Ddesc->uplo == MatrixLower) && (m < n)) ||
          ((Ddesc->uplo == MatrixUpper) && (m > n)) )
         {
             return UINT_MAX;
@@ -97,7 +98,7 @@ static void *sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
     assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));
 #endif
     assert( Ddesc->super.storage == matrix_Tile );
-    assert( (Ddesc->uplo == MatrixLower && m>=n) || 
+    assert( (Ddesc->uplo == MatrixLower && m>=n) ||
             (Ddesc->uplo == MatrixUpper && n>=m) );
 
     pos = 0; /* current position (as number of tile) in the buffer */
@@ -108,17 +109,17 @@ static void *sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
         nb_elem_col = (Ddesc->super.lmt) / (Ddesc->grid.rows); //nb of tile associated to that proc in a full column
         if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
             nb_elem_col++;
-            
+
         while(column != n) {
             /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
             nb_elem = column / (Ddesc->grid.rows);
             if ( (column % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
                 nb_elem++;
-                    
+
             pos += (nb_elem_col - nb_elem);
             column += Ddesc->grid.cols;
         }
-            
+
         pos += ((m - n) / (Ddesc->grid.rows));
     } else {
         while(column != n) {
@@ -126,11 +127,11 @@ static void *sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
             nb_elem = (column + 1) / (Ddesc->grid.rows);
             if ( ( (column + 1) % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
                 nb_elem++;
-                    
+
             pos += nb_elem;
             column += Ddesc->grid.cols;
         }
-            
+
         pos += (m / (Ddesc->grid.rows));
     }
 
@@ -168,7 +169,7 @@ static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
 #if defined(DISTRIBUTED)
     assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));
 #endif
-    assert( (Ddesc->uplo == MatrixLower && m>=n) || 
+    assert( (Ddesc->uplo == MatrixLower && m>=n) ||
             (Ddesc->uplo == MatrixUpper && n>=m) );
 
     /* Compute the local tile row */
@@ -210,7 +211,7 @@ static uint32_t sym_twoDBC_data_key(struct dague_ddesc *desc, ...)
 /* return a string meaningful for profiling about data */
 static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
 {
-    sym_two_dim_block_cyclic_t * Ddesc;    
+    sym_two_dim_block_cyclic_t * Ddesc;
     unsigned int row, column;
     int res;
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
@@ -227,8 +228,8 @@ static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey
 
 
 void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
-                                   enum matrix_type mtype, 
-                                   int nodes, int cores, int myrank, 
+                                   enum matrix_type mtype,
+                                   int nodes, int cores, int myrank,
                                    int mb,   int nb,   /* Tile size */
                                    int lm,   int ln,   /* Global matrix size (what is stored)*/
                                    int i,    int j,    /* Staring point in the global matrix */
@@ -245,7 +246,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
         o->nodes  = nodes;
         o->cores  = cores;
         o->myrank = myrank;
-        
+
         o->rank_of       = sym_twoDBC_rank_of;
         o->data_of       = sym_twoDBC_data_of;
         o->vpid_of       = sym_twoDBC_vpid_of;
@@ -260,6 +261,8 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
                             mb, nb, lm, ln, i, j, m, n );
+
+    Ddesc->super.dtype |= sym_two_dim_block_cyclic_type;
 
     if(nodes < P)
         ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
@@ -278,13 +281,13 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
         int nb_elem_col = (Ddesc->super.lmt) / (Ddesc->grid.rows); //nb of tile associated to that proc in a full column
         if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
             nb_elem_col++;
-        
+
         while(column < Ddesc->super.lnt) /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
             {
                 nb_elem = column / (Ddesc->grid.rows);
                 if ( (column % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
                     nb_elem++;
-                
+
                 total += (nb_elem_col - nb_elem);
                 column += Ddesc->grid.cols;
             }
@@ -293,18 +296,18 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
         int nb_elem_row = (Ddesc->super.lnt) / (Ddesc->grid.cols); //nb of tile associated to that proc in a full row
         if( (Ddesc->super.lnt) % (Ddesc->grid.cols) > Ddesc->grid.crank )
             nb_elem_row++;
-        
+
         while(row < Ddesc->super.lmt) /* for each row of tiles in memory before searched element, compute the number of tile for displacement */
             {
                 nb_elem = row / (Ddesc->grid.cols);
                 if ( (row % (Ddesc->grid.cols)) > Ddesc->grid.crank)
                     nb_elem++;
-                
+
                 total += (nb_elem_row - nb_elem);
                 row += Ddesc->grid.rows;
             }
     }
-        
+
     /*  printf("process %d(%d,%d) handles %d x %d tiles\n",
         Ddesc->mpi_rank, Ddesc->grid.rrank, Ddesc->grid.crank, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 
