@@ -99,6 +99,16 @@ dague_list_nolock_remove( dague_list_t* list,
 
 /* SORTED LIST FUNCTIONS */
 
+#define COMPARISON_VAL(it, off)                 (*((int*)(((uintptr_t)it)+off)))
+#define HIGHER_IS_BETTER
+#if defined(HIGHER_IS_BETTER)
+#define A_LOWER_PRIORITY_THAN_B(a, b, off)      (COMPARISON_VAL((a), (off)) <  COMPARISON_VAL((b), (off)))
+#define A_HIGHER_PRIORITY_THAN_B(a, b, off)     (COMPARISON_VAL((a), (off)) >  COMPARISON_VAL((b), (off)))
+#else
+#define A_LOWER_PRIORITY_THAN_B(a, b, off)      (COMPARISON_VAL((a), (off)) >  COMPARISON_VAL((b), (off)))
+#define A_HIGHER_PRIORITY_THAN_B(a, b, off)     (COMPARISON_VAL((a), (off)) <  COMPARISON_VAL((b), (off)))
+#endif
+
 /** add the @item before the first element of @list that is strictly smaller" (mutex protected),
  *  according to the integer  value at @offset in items. That is, if the input @list is
  *  sorted (descending order), the resulting list is still sorted. */
@@ -445,9 +455,6 @@ dague_list_remove_item( dague_list_t* list,
 }
 #endif
 
-
-#define _comp_val(it, off) (*((int*)(((uintptr_t)it)+off)))
-
 static inline void
 dague_list_push_sorted( dague_list_t* list,
                         dague_list_item_t* item,
@@ -465,7 +472,7 @@ dague_list_nolock_push_sorted( dague_list_t* list,
 {
     dague_list_item_t* position = DAGUE_ULIST_ITERATOR(list, pos,
     {
-        if( _comp_val(new, off) > _comp_val(pos, off) )
+        if( A_LOWER_PRIORITY_THAN_B(new, pos, off) )
             break;
     });
     dague_ulist_add_before(list, position, new);
@@ -506,7 +513,7 @@ dague_list_nolock_chain_sorted( dague_list_t* list,
         new = items)
     {
         items = dague_list_item_ring_chop(items);
-        if( _comp_val(new, off) > _comp_val(pos, off) )
+        if( A_HIGHER_PRIORITY_THAN_B(new, pos, off) )
         {   /* this new item is larger than the last insert,
              * reboot and insert from the beginning */
              pos = (dague_list_item_t*)_HEAD(list);
@@ -515,7 +522,7 @@ dague_list_nolock_chain_sorted( dague_list_t* list,
          * from the current start position, then insert before it */
         for(; pos != _GHOST(list); pos = (dague_list_item_t*)pos->list_next)
         {
-            if( _comp_val(new, off) > _comp_val(pos, off) )
+            if( A_HIGHER_PRIORITY_THAN_B(new, pos, off) )
                 break;
         }
         dague_list_nolock_add_before(list, pos, new);
@@ -547,9 +554,6 @@ dague_list_nolock_sort( dague_list_t* list,
     _TAIL(list) = _GHOST(list);
     dague_list_nolock_chain_sorted(list, items, off);
 }
-
-#undef _comp_val
-
 
 static inline void
 dague_list_nolock_push_front( dague_list_t* list,

@@ -21,8 +21,6 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define printlog(...)
-
 %}
 
 descA [type = "tiled_matrix_desc_t"]

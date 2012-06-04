@@ -67,12 +67,11 @@ dplasma_zgerfs_Destruct( dague_object_t *o )
     {
         dague_zgerfs_exp_object_t *dague_zgerfs = (dague_zgerfs_exp_object_t *)o;
         dplasma_datatype_undefine_type( &(dague_zgerfs->arenas[DAGUE_zgerfs_exp_DEFAULT_ARENA]->opaque_dtt) );
-        dague_zgerfs_exp_destroy(dague_zgerfs);
     }else{
         dague_zgerfs_object_t *dague_zgerfs = (dague_zgerfs_object_t *)o;
         dplasma_datatype_undefine_type( &(dague_zgerfs->arenas[DAGUE_zgerfs_DEFAULT_ARENA]->opaque_dtt) );
-        dague_zgerfs_destroy(dague_zgerfs);
     }
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 int dplasma_zgerfs_aux( dague_context_t     *dague,
