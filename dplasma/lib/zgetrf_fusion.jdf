@@ -43,17 +43,17 @@ static inline void pivot_to_permutation(int *IP, int hmax, int *upermut, int *op
     if((IP[i] - diff - 1) >= hmax) {
       index = (IP[i] - diff - 1);
       for(j = 0; j < hmax; j++)
-	if(opermut[j] == (IP[i] - 1)) {
-	  index = j;
-	  break; 
-	}
+        if(opermut[j] == (IP[i] - 1)) {
+          index = j;
+          break;
+        }
       if(index >= hmax) {
-	upermut[i] = (IP[i] - 1);
-	opermut[tmp-diff] = (IP[i] - 1);
+        upermut[i] = (IP[i] - 1);
+        opermut[tmp-diff] = (IP[i] - 1);
       } else {
-	upermut[i] = index;
-	opermut[index] = index;
-	opermut[tmp - diff] = (IP[i] - 1);
+        upermut[i] = index;
+        opermut[index] = index;
+        opermut[tmp - diff] = (IP[i] - 1);
       }
     } else {
       upermut[i] = upermut[(IP[i] - diff - 1)];
@@ -79,15 +79,15 @@ Q            [type = "int"]
 INFO         [type = "int*"]
 
 descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)A)" ]
-
+minmnt       [type = "int" hidden=on default="( dague_imin( ((tiled_matrix_desc_t*)A)->mt, ((tiled_matrix_desc_t*)A)->nt ) - 1 )" ]
 
 /**************************************************
  *                    IP_in (pseudo task)
  **************************************************/
-IP_in(k,m)
+IP_in(k,m) [profile = off]
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
+k = 0..minmnt
 m = 0..inline_c %{ return dague_imin( descA.mt-k-1, P-1 ); %}
 
 // Parallel partitioning
@@ -95,7 +95,7 @@ m = 0..inline_c %{ return dague_imin( descA.mt-k-1, P-1 ); %}
 
 // Parameters
 READ  IP <- IPIV((k+m)%P,k)                                                               [type = PIVOT]
-         -> IP GETRF_FNL(k,(k+m)..(descA.mt-((descA.mt-k-m-1)%P)-1)..P)                         [type = PIVOT]
+         -> IP GETRF_FNL(k,(k+m)..(descA.mt-((descA.mt-k-m-1)%P)-1)..P)                   [type = PIVOT]
 
 ;descA.mt-k-1
 
@@ -106,10 +106,10 @@ END
 /**************************************************
  *                    IP_out (pseudo task)
  **************************************************/
-IP_out(k,m)
+IP_out(k,m) [profile = off]
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
+k = 0..minmnt
 m = 0..inline_c %{ return dague_imin( descA.mt-k-1, P-1 ); %}
 
 // Parallel partitioning
@@ -129,7 +129,7 @@ END
 /**************************************************
  *                    V_in (pseudo task)
  **************************************************/
-V_in(k,m)
+V_in(k,m) [profile = off]
 
 // Execution space
 k = 0 .. ((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
@@ -152,7 +152,7 @@ END
 /**************************************************
  *                    U_in (pseudo task)
  **************************************************/
-U_in(k,m)
+U_in(k,m) [profile = off]
 
 // Execution space
 k = 0 .. ((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
@@ -174,7 +174,7 @@ END
 /**************************************************
  *                    LMAX_in (pseudo task)
  **************************************************/
-LMAX_in(k,m)
+LMAX_in(k,m) [profile = off]
 
 // Execution space
 k = 0 .. ((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
@@ -185,7 +185,7 @@ m = k .. descA.mt-1
 
 // Parameters
 READ  M <- LMAX(m,k%Q)                                          [type = MAXL]
-       -> M GETRF_MAX(k,m,0)                                    [type = MAXL]
+        -> M GETRF_MAX(k,m,0)                                   [type = MAXL]
 
 BODY
     /* Nothing to do */
@@ -201,26 +201,25 @@ END
 GETRF_MAX(k,m,h)
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
+k = 0..minmnt
 m = k..descA.mt-1
-h = 0..inline_c %{ 
+hmax = inline_c %{
   int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-  return ((tempkm<tempkn)? tempkm : tempkn)-1;%}
+  return ((tempkm<tempkn)? tempkm : tempkn)-1;
+%}
+h = 0..hmax
 
 dmax = inline_c %{
   int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
   int i;
   for(i = 0;nb_init != 1 ;i++)
       nb_init/=2;
-  return i;%}
+  return i;
+%}
 
 mmax = inline_c %{return ((descA.mt-k < P) ? descA.mt-k : P);%}
 
-hmax = inline_c %{ 
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-  return ((tempkm<tempkn)? tempkm : tempkn)-1;%}
 
 // Parallel partitioning
 :A(m, k)
@@ -235,16 +234,16 @@ RW  V <- (h == 0)? V V_in(k,m)                                                  
       <- (h != 0)? W GETRF_SND(k,dmax,(m-k)%P,h-1)                                               [type = SWAP]
       -> (m-k < P)? V GETRF_SVM(k,m-k,h)                                                         [type = SWAP]
 
-RW  U <- (h == 0)? U U_in(k,m)									 [type = UMES]
+RW  U <- (h == 0)? U U_in(k,m)                                                                   [type = UMES]
       <- ((h != 0) && (h%IB == 0))? U GETRF_MDL(k,(m-k)%P,(h/IB)-1)                              [type = UMES]
-      <- ((h != 0) && (h%IB != 0))? U GETRF_MAX(k,m,h-1)	                                 [type = UMES]
+      <- ((h != 0) && (h%IB != 0))? U GETRF_MAX(k,m,h-1)                                         [type = UMES]
       -> ((((h%IB) == IB-1) || (h == hmax)) && (m-k<P))? U GETRF_MDL(k,(m-k)%P,h/IB)             [type = UMES]
       -> ((h != hmax) && (h%IB != IB-1))? U GETRF_MAX(k,m,h+1)                                   [type = UMES]
 
 RW  M <- (h == 0)? M LMAX_in(k,m)                                                                [type = MAXL]
-      <- (h != 0)? M GETRF_MAX(k,m,h-1)	                                                         [type = MAXL]
+      <- (h != 0)? M GETRF_MAX(k,m,h-1)                                                          [type = MAXL]
       -> (h != hmax)? M GETRF_MAX(k,m,h+1)                                                       [type = MAXL]
-      -> Mm GETRF_RDC(k,(m-k)%P,(m-k)/P,h)							 [type = MAXL]
+      -> Mm GETRF_RDC(k,(m-k)%P,(m-k)/P,h)                                                       [type = MAXL]
       -> ((k+((m-k)%P)+(((m-k)/P)*2+1)*P) >= descA.mt)? Mg GETRF_RDC(k,(m-k)%P,(m-k)/P,h)        [type = MAXL]
       -> ((k+((m-k)%P)+(((m-k)/P)*2+2)*P) >= descA.mt)? Md GETRF_RDC(k,(m-k)%P,(m-k)/P,h)        [type = MAXL]
 
@@ -252,6 +251,7 @@ RW  M <- (h == 0)? M LMAX_in(k,m)                                               
 ;1000000
 
 BODY
+{
     DRYRUN(
        int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
@@ -274,114 +274,108 @@ BODY
        Dague_Complex64_t *lU = (Dague_Complex64_t*)U;
        Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
 
-       if(h != 0)		
-       {
-	 /* Applying the previous swap */	 
-	 if(m == k) {
-	     cblas_zcopy(tempkn, lV + MAXI, 1,
-			         lT + h-1,  ldam);
-	 }
+       if(h != 0) {
+           /* Applying the previous swap */
+           if(m == k) {
+               cblas_zcopy(tempkn, lV + MAXI, 1,
+                                   lT + h-1,  ldam);
+           }
 
-	 /* Copying the max line in the local U */
-	 if((m - k < P) && ((h%IB) != 0))
-	   cblas_zcopy(tempkn, lV + MAXI      , 1,
-			       lU + ((h-1)%IB), IB);
+           /* Copying the max line in the local U */
+           if((m - k < P) && ((h%IB) != 0))
+               cblas_zcopy(tempkn, lV + MAXI      , 1,
+                                   lU + ((h-1)%IB), IB);
 
+           int owner_last_index = ((int) (lV[PIVO + h-1]))/descA.mb;
+           int last_index       = ((int) (lV[PIVO + h-1]))%descA.mb;
 
-	 int owner_last_index = ((int) (lV[PIVO + h-1]))/descA.mb;
-	 int last_index       = ((int) (lV[PIVO + h-1]))%descA.mb;
+           if(owner_last_index == m) {
+               cblas_zcopy(tempkn, lV + irecv,       1,
+                           lT + last_index, ldam);
+           }
 
-	 if(owner_last_index == m) {
-	   cblas_zcopy(tempkn, lV + irecv,       1,
-		               lT + last_index, ldam);
-	 }
+           /* Appliying the update */
+           alpha = ((Dague_Complex64_t)1.) / (lV[MAXI + h-1]);
+           cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), lT + ((h-1)*ldam+p), 1 );
 
-	 /* Appliying the update */
-	 alpha = ((Dague_Complex64_t)1.) / (lV[MAXI + h-1]);
-	 cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), lT + ((h-1)*ldam+p), 1 );
+           if((h%IB) != 0){
+               cblas_zgeru(CblasColMajor, tempmm-p, temphn-(h%IB),
+                           CBLAS_SADDR(mzone),
+                           lT+ ldam * (h-1) + p,    1,
+                           lV+ MAXI         + h, 1,
+                           lT+ ldam *  h    + p,    ldam);
+           }
+           else {
+               if(m == k)
+                   LAPACKE_zlacpy_work(
+                       LAPACK_COL_MAJOR,
+                       'a', IB, tempkn-h,
+                       lU + h * IB           , IB,
+                       lT + h * ldam + h - IB, ldam);
 
-         if((h%IB) != 0){
-             cblas_zgeru(CblasColMajor, tempmm-p, temphn-(h%IB),
-                         CBLAS_SADDR(mzone),
-                         lT+ ldam * (h-1) + p,    1,
-                         lV+ MAXI         + h, 1,
-                         lT+ ldam *  h    + p,    ldam);
-         }
-         else {
-           if(m == k)
-             LAPACKE_zlacpy_work(
-                                 LAPACK_COL_MAJOR,
-                                 'a', IB, tempkn-h, 
-                                 lU + h * IB           , IB,
-                                 lT + h * ldam + h - IB, ldam);
-
-           cblas_zgemm(CblasColMajor,
-                       (CBLAS_TRANSPOSE)CblasNoTrans, (CBLAS_TRANSPOSE)CblasNoTrans,
-                       tempmm - p, tempkn - h, IB,
-                       CBLAS_SADDR(mzone), lT + (h-IB) * ldam + p, ldam,
-                                           lU +      h * IB      , IB,
-                       CBLAS_SADDR(zone),  lT +      h * ldam + p, ldam);
-         }
+               cblas_zgemm(CblasColMajor,
+                           (CBLAS_TRANSPOSE)CblasNoTrans, (CBLAS_TRANSPOSE)CblasNoTrans,
+                           tempmm - p, tempkn - h, IB,
+                           CBLAS_SADDR(mzone), lT + (h-IB) * ldam + p, ldam,
+                                               lU +      h * IB      , IB,
+                           CBLAS_SADDR(zone),  lT +      h * ldam + p, ldam);
+           }
        }
 
        /* Saving the default swap line */
        if(m == k)
-	 cblas_zcopy(tempkn, lT + h,    ldam,
-		             lV + isend, 1);
+           cblas_zcopy(tempkn, lT + h,    ldam,
+                       lV + isend, 1);
 
        /* Looking for the local max */
        index = p;
        max = cabs(lT[ldam*h+p]);
-       for(i = p+1; i < tempmm; i++) { 
-	 if(cabs(lT[ldam*h+i]) > max)
-	   {
-	     index = i;
-	     max = cabs( lT[ldam*h+i] );
-	   }
+       for(i = p+1; i < tempmm; i++) {
+           if(cabs(lT[ldam*h+i]) > max)
+           {
+               index = i;
+               max = cabs( lT[ldam*h+i] );
+           }
        }
 
        cblas_zcopy(tempkn, lT + index, ldam,
-                           lM + 1,     1);
+                   lM + 1,     1);
        lM[0] = (Dague_Complex64_t)(index+m*descA.mb);
-          );
+           );
     printlog();
+}
 END
 
 /**************************************************
  *                    GETRF_RDC
- * Look for the local node max of the step h 
+ * Look for the local node max of the step h
  *
  **************************************************/
 GETRF_RDC(k,r,m,h)
 
-k = 0 .. ((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-r = 0 .. ((descA.mt-k < P) ? descA.mt-k-1 : P-1)
-m = 0 .. inline_c %{
-  int ret = -1;
-  int i;
-  for(i = k; i < descA.mt ;i++)
-    if((i-k)%P == r)
-      ret++;
-  return ret;%}
-h = 0..inline_c %{ 
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-  return ((tempkm<tempkn)? tempkm : tempkn)-1;%}
+k = 0 .. minmnt
 
-rmax = inline_c %{ return ((descA.mt-k < P) ? descA.mt-k-1 : P-1); %}
+rmax = inline_c %{
+    return ((descA.mt-k < P) ? descA.mt-k-1 : P-1);
+    %}
+r = 0 .. rmax
 
 mmax = inline_c %{
   int ret = -1;
   int i;
   for(i = k; i < descA.mt ;i++)
-    if((i-k)%P == r)
-      ret++;
-  return ret;%}
+      if((i-k)%P == r)
+          ret++;
+  return ret;
+%}
+m = 0 .. mmax
 
 hmax = inline_c %{
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-  return ((tempkm<tempkn)? tempkm : tempkn)-1;%}
+    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+    int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+    return ((tempkm<tempkn)? tempkm : tempkn)-1;
+    %}
+h = 0 .. hmax
 
 // Parallel partitioning
 :A(k+r, k)
@@ -397,22 +391,24 @@ READ  Md <- ((m*2+2) <= mmax)? Mm GETRF_RDC(k,r,m*2+2,h) : M GETRF_MAX(k,k+r+P*m
 ;1000000
 
 BODY
+{
     DRYRUN(
-       int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
 
-       Dague_Complex64_t *lMm = (Dague_Complex64_t*)Mm;
-       Dague_Complex64_t *lMg = (Dague_Complex64_t*)Mg;
-       Dague_Complex64_t *lMd = (Dague_Complex64_t*)Md;
+        Dague_Complex64_t *lMm = (Dague_Complex64_t*)Mm;
+        Dague_Complex64_t *lMg = (Dague_Complex64_t*)Mg;
+        Dague_Complex64_t *lMd = (Dague_Complex64_t*)Md;
 
-       if(cabs(lMm[1+h]) < cabs(lMg[1+h]))
-	 cblas_zcopy(tempkn+1, lMg, 1,
-		               lMm, 1);
+        if(cabs(lMm[1+h]) < cabs(lMg[1+h]))
+            cblas_zcopy(tempkn+1, lMg, 1,
+                        lMm, 1);
 
-       if(cabs(lMm[1+h]) < cabs(lMd[1+h]))
-	 cblas_zcopy(tempkn+1, lMd, 1,
-			       lMm, 1);
-          );
+        if(cabs(lMm[1+h]) < cabs(lMd[1+h]))
+            cblas_zcopy(tempkn+1, lMd, 1,
+                        lMm, 1);
+           );
     printlog();
+}
 END
 
 /**************************************************
@@ -422,14 +418,15 @@ END
  **************************************************/
 GETRF_SVM(k,m,h)
 
-k = 0 .. ((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-m = 0 .. ((descA.mt-k < P) ? descA.mt-k-1 : P-1)
-h = 0..inline_c %{ 
+k = 0 .. minmnt
+
+mmax = inline_c %{return ((descA.mt-k < P) ? descA.mt-k : P);%}
+m = 0 .. mmax-1
+
+h = 0..inline_c %{
   int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
   return ((tempkm<tempkn)? tempkm : tempkn)-1;%}
-
-mmax = inline_c %{return ((descA.mt-k < P) ? descA.mt-k : P);%}
 
 // Parallel partitioning
 :A(k+m, k)
@@ -444,17 +441,19 @@ READ  M <-  Mm GETRF_RDC(k,m,0,h)                                               
 ; 1000000
 
 BODY
+{
     DRYRUN(
-       int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
 
-       Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
-       Dague_Complex64_t *lM = (Dague_Complex64_t*)M;
+        Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
+        Dague_Complex64_t *lM = (Dague_Complex64_t*)M;
 
-       lV[PIVO + h] = (int) lM[0];
-       cblas_zcopy(tempkn, lM + 1,    1,
-		           lV + SRCH, 1);
-          );
+        lV[PIVO + h] = (int) lM[0];
+        cblas_zcopy(tempkn, lM + 1,    1,
+                    lV + SRCH, 1);
+           );
     printlog();
+}
 END
 
 /**************************************************
@@ -464,34 +463,38 @@ END
  **************************************************/
 GETRF_MDL(k,m,h)
 
-k = 0 .. ((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-m = 0 .. ((descA.mt-k < P) ? descA.mt-k-1 : P-1)
-h = 0 .. inline_c %{ 
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-  int ret = ((tempkm<tempkn)? tempkm : tempkn);
-  return ((ret%IB) == 0)? (ret/IB-1) : ret/IB; %}
+k = 0 .. minmnt
 
-hmax = inline_c %{ 
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-  int ret = ((tempkm<tempkn)? tempkm : tempkn);
-  return ((ret%IB) == 0)? (ret/IB-1) : ret/IB; %}
- 
+mmax = inline_c %{
+    return ((descA.mt-k < P) ? descA.mt-k-1 : P-1);
+%}
+m = 0 .. mmax
+
+hmax = inline_c %{
+    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+    int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+    int ret = ((tempkm<tempkn)? tempkm : tempkn);
+    return ((ret%IB) == 0)? (ret/IB-1) : ret/IB;
+%}
+h = 0 .. hmax
+
 dmax = inline_c %{
-  int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
-  int i;
-  for(i = 0;nb_init != 1 ;i++)
-      nb_init/=2;
-  return i;%}
+    int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
+    int i;
+    for(i = 0;nb_init != 1 ;i++)
+        nb_init/=2;
+    return i;
+%}
 
 nmax = inline_c %{
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-  return ((tempkm<tempkn)? tempkm : tempkn)-1; %}
+    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+    int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+    return ((tempkm<tempkn)? tempkm : tempkn)-1;
+%}
 
 sender = inline_c %{
-  return ((h == hmax)? nmax : ((h+1)*IB)-1); %}
+    return ((h == hmax)? nmax : ((h+1)*IB)-1);
+%}
 
 // Parallel partitioning
 :A(k+m, k)
@@ -505,50 +508,41 @@ RW    U <-  U GETRF_MAX(k,k+m,sender                  )                         
 ; 1000000
 
 BODY
+{
     DRYRUN(
-       int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-       Dague_Complex64_t zone = 1.;
+        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+        Dague_Complex64_t zone = 1.;
 
-       Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
-       Dague_Complex64_t *lU = (Dague_Complex64_t*)U;
+        Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
+        Dague_Complex64_t *lU = (Dague_Complex64_t*)U;
 
-       /* Copying the max line in the local U */
-       if(h != hmax) {
-         cblas_zcopy(tempkn, lV + MAXI, 1,
-                             lU + IB-1, IB);
-         cblas_ztrsm(CblasColMajor,
-                     (CBLAS_SIDE)CblasLeft, (CBLAS_UPLO)CblasLower,
-                     (CBLAS_TRANSPOSE)CblasNoTrans, (CBLAS_DIAG)CblasUnit,
-                     IB, tempkn - (h+1)*IB,
-                     CBLAS_SADDR(zone), lU + h    * IB * IB, IB,
-                                        lU + (h+1)* IB * IB, IB);
-       } else {
-         cblas_zcopy(tempkn, lV + MAXI     , 1,
-                             lU + (nmax%IB), IB);
-       }
-          );
+        /* Copying the max line in the local U */
+        if(h != hmax) {
+            cblas_zcopy(tempkn, lV + MAXI, 1,
+                        lU + IB-1, IB);
+            cblas_ztrsm(CblasColMajor,
+                        (CBLAS_SIDE)CblasLeft, (CBLAS_UPLO)CblasLower,
+                        (CBLAS_TRANSPOSE)CblasNoTrans, (CBLAS_DIAG)CblasUnit,
+                        IB, tempkn - (h+1)*IB,
+                        CBLAS_SADDR(zone), lU + h    * IB * IB, IB,
+                        lU + (h+1)* IB * IB, IB);
+        } else {
+            cblas_zcopy(tempkn, lV + MAXI     , 1,
+                        lU + (nmax%IB), IB);
+        }
+           );
     printlog();
+}
 END
 
 /**************************************************
  *                    GETRF_SND
- * Look and share the global max of the step h 
+ * Look and share the global max of the step h
  * by using the Bruck algorithm
  **************************************************/
 GETRF_SND(k,d,m,h)
 
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-d = 0.. inline_c %{ 
-  int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
-  int i;
-  for(i = 0;nb_init != 1 ;i++)
-      nb_init/=2;
-  return i;%}
-m = 0..((descA.mt-k < P) ? (descA.mt-k-1) : (P-1))
-h = 0..inline_c %{ 
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-  return ((tempkm<tempkn)? tempkm : tempkn)-1;%}
+k = 0 .. minmnt
 
 dmax = inline_c %{
   int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
@@ -556,23 +550,27 @@ dmax = inline_c %{
   for(i = 0;nb_init != 1 ;i++)
       nb_init/=2;
   return i;%}
+d = 0 .. dmax
 
 mmax = inline_c %{return ((descA.mt-k < P) ? descA.mt-k : P);%}
+m = 0 .. mmax-1
 
-hmax = inline_c %{ 
+hmax = inline_c %{
   int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
   return ((tempkm<tempkn)? tempkm : tempkn)-1;%}
+h = 0 .. hmax
 
-pui= inline_c %{ return (int) pow(2,d+1);%}
+pui = inline_c %{ return (int) pow(2,d+1);%}
+
 
 // Parallel partitioning
 :A(k+m, k)
 
 READ  V <- (d == 0)? V GETRF_SVM(k,m,h) : W GETRF_SND(k,d-1,m,h)                                           [type = SWAP]
 RW    W <- (d == 0)? V GETRF_SVM(k,(mmax+m-1)%mmax,h) : W GETRF_SND(k,d-1,(mmax+m-pui/2)%mmax,h)           [type = SWAP]
-	-> (d != dmax)? V GETRF_SND(k,d+1,m,h)	                                                           [type = SWAP]
-        -> (d != dmax)? W GETRF_SND(k,d+1,(m+pui)%mmax,h)	                                           [type = SWAP]
+        -> (d != dmax)? V GETRF_SND(k,d+1,m,h)                                                             [type = SWAP]
+        -> (d != dmax)? W GETRF_SND(k,d+1,(m+pui)%mmax,h)                                                  [type = SWAP]
         -> ((((h%IB) == IB - 1) || (h == hmax)) && (d == dmax))? V GETRF_MDL(k,m, h/IB)                    [type = SWAP]
         -> ((h != hmax) && (d == dmax))? V GETRF_MAX(k,(k+m)..(descA.mt-((descA.mt-(k+m+1))%P)-1)..P, h+1) [type = SWAP]
 
@@ -580,31 +578,33 @@ RW    W <- (d == 0)? V GETRF_SVM(k,(mmax+m-1)%mmax,h) : W GETRF_SND(k,d-1,(mmax+
 ;1000000
 
 BODY
+{
     DRYRUN(
-       int isend = (h%2 == 1)? IEVN : IODD;
-       int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+        int isend = (h%2 == 1)? IEVN : IODD;
+        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
 
-       Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
-       Dague_Complex64_t *lW = (Dague_Complex64_t*)W;
+        Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
+        Dague_Complex64_t *lW = (Dague_Complex64_t*)W;
 
 
-       if(m  < pui && m < pui/2)
-	 cblas_zcopy(tempkn, lV + isend, 1,
-		             lW + isend, 1);
+        if(m  < pui && m < pui/2)
+            cblas_zcopy(tempkn, lV + isend, 1,
+                        lW + isend, 1);
 
-       if(cabs(lV[SRCH + h]) > cabs(lW[SRCH + h]))
-	 {
-	   lW[PIVO + h] = lV[PIVO + h];
-	   cblas_zcopy(tempkn, lV + SRCH, 1,
-		               lW + SRCH, 1);
-	 }
+        if(cabs(lV[SRCH + h]) > cabs(lW[SRCH + h]))
+        {
+            lW[PIVO + h] = lV[PIVO + h];
+            cblas_zcopy(tempkn, lV + SRCH, 1,
+                        lW + SRCH, 1);
+        }
 
-       if(d == dmax)
-	 cblas_zcopy(tempkn, lW + SRCH, 1,
-		             lW + MAXI, 1);
+        if(d == dmax)
+            cblas_zcopy(tempkn, lW + SRCH, 1,
+                        lW + MAXI, 1);
 
-          );
+           );
     printlog();
+}
 END
 
 /**************************************************
@@ -615,8 +615,8 @@ END
 GETRF_FNL(k,m)
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-m = k..descA.mt-1
+k = 0 .. minmnt
+m = k .. descA.mt-1
 
 dmax = inline_c %{
   int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
@@ -625,12 +625,12 @@ dmax = inline_c %{
       nb_init/=2;
   return i;%}
 
-hmax = inline_c %{ 
+hmax = inline_c %{
   int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
   return ((tempkm<tempkn)? tempkm : tempkn)-1;%}
 
-imax = inline_c %{ 
+imax = inline_c %{
   int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
   int ret = ((tempkm<tempkn)? tempkm : tempkn);
@@ -651,52 +651,54 @@ RW   IP <-  IP IP_in(k,(m-k)%P)                                                 
 ;1000000
 
 BODY
- DRYRUN(
-   int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-   int ldam = BLKLDD( descA, m );
-   int p = (m == k)? hmax+1 : 0;
-   int i;
-   int irecv = ((hmax+1)%2 == 0)? IEVN : IODD;
+{
+    DRYRUN(
+        int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+        int ldam = BLKLDD( descA, m );
+        int p = (m == k)? hmax+1 : 0;
+        int i;
+        int irecv = ((hmax+1)%2 == 0)? IEVN : IODD;
 
-   Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
-   Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
+        Dague_Complex64_t *lV = (Dague_Complex64_t*)V;
+        Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
 
 
-   /* Applying the previous swap */
-   if(m == k)
-     cblas_zcopy(tempkn, lV + MAXI, 1,
-		         lT + hmax, ldam);
-	 
-   int owner_last_index = ((int) (((Dague_Complex64_t *) V)[PIVO + hmax]))/descA.mb;
-   int last_index = ((int) (((Dague_Complex64_t *) V)[PIVO + hmax]))%descA.mb;
-   if(owner_last_index == m) {
-     cblas_zcopy(tempkn, lV + irecv     , 1,
-		         lT + last_index, ldam);
-   }
+        /* Applying the previous swap */
+        if(m == k)
+            cblas_zcopy(tempkn, lV + MAXI, 1,
+                        lT + hmax, ldam);
 
-   /* Appliying the update */
-   Dague_Complex64_t alpha = ((Dague_Complex64_t) 1.) / (lV[MAXI + hmax]);
-   cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), lT + hmax*ldam + p, 1 );
+        int owner_last_index = ((int) (((Dague_Complex64_t *) V)[PIVO + hmax]))/descA.mb;
+        int last_index = ((int) (((Dague_Complex64_t *) V)[PIVO + hmax]))%descA.mb;
+        if(owner_last_index == m) {
+            cblas_zcopy(tempkn, lV + irecv     , 1,
+                        lT + last_index, ldam);
+        }
 
-   if(m - k < P) {
-     /* Saving the pivots */
-     for(i = 0;i <= hmax;i++) {
-       ((int *) IP)[i] = ((int) lV[PIVO + i]) + 1;
-     }
-   }
-	);
+        /* Appliying the update */
+        Dague_Complex64_t alpha = ((Dague_Complex64_t) 1.) / (lV[MAXI + hmax]);
+        cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), lT + hmax*ldam + p, 1 );
+
+        if(m - k < P) {
+            /* Saving the pivots */
+            for(i = 0;i <= hmax;i++) {
+                ((int *) IP)[i] = ((int) lV[PIVO + i]) + 1;
+            }
+        }
+           );
     printlog();
+}
 END
 
 /**************************************************
  *                    ACOPY_in (pseudo task)
  **************************************************/
-ACOPY_in(k,n)
+ACOPY_in(k,n) [profile = off]
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-n = k+1..descA.nt-1
+k = 0   .. minmnt
+n = k+1 .. descA.nt-1
 
 // Parallel partitioning
 :ACOPY(k%P,n)
@@ -708,7 +710,9 @@ READ  A  <- ACOPY(k%P,n)
 ; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
+{
         /* Nothing to do */
+}
 END
 
 /**************************************************
@@ -718,8 +722,8 @@ END
 SWAP_COPY(k,n)
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-n = k+1..descA.nt-1
+k = 0   .. minmnt
+n = k+1 .. descA.nt-1
 
 // Parallel partitioning
 :A(k,n)
@@ -733,18 +737,19 @@ RW    ACOPY <-  A ACOPY_in(k,n)
 ; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
+{
     DRYRUN(
-       int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-       int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-       int ldak = BLKLDD( descA, k );
-       LAPACKE_zlacpy_work(LAPACK_COL_MAJOR,
-                           'a', tempkm, tempnn,
-                           A    , ldak,
-                           ACOPY, descA.mb);
-          );
+        int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+        int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+        int ldak = BLKLDD( descA, k );
+        LAPACKE_zlacpy_work(LAPACK_COL_MAJOR,
+                            'a', tempkm, tempnn,
+                            A    , ldak,
+                            ACOPY, descA.mb);
+           );
     printlog("SWAP_COPY(k=%d,n=%d)\n",d,n);
+}
 END
-
 
 /**************************************************
  *                    SWAP_RECV
@@ -754,9 +759,9 @@ END
 SWAP_RECV(k,m,n)
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-m = k..descA.mt-1
-n = k+1..descA.nt-1
+k = 0   .. minmnt
+m = k   .. descA.mt-1
+n = k+1 .. descA.nt-1
 
 // Parallel partitioning
 :A(m, n)
@@ -773,46 +778,48 @@ READ     IP <-  IP SWAP_COLLECT(k,m,n)                  [type = PIVOT]
 ; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
+{
     DRYRUN(
-         if(m != k) {
-           int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-           int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-           int hmax = ((tempkm<tempkn)? tempkm : tempkn);
-           int ldam = BLKLDD( descA, m );
-           int owner_index;
-           int index;
+        if(m != k) {
+            int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+            int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+            int hmax = ((tempkm<tempkn)? tempkm : tempkn);
+            int ldam = BLKLDD( descA, m );
+            int owner_index;
+            int index;
 
-           Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
-           Dague_Complex64_t *lU = (Dague_Complex64_t*)U;
+            Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
+            Dague_Complex64_t *lU = (Dague_Complex64_t*)U;
 
-           int upermut[hmax];
-           int opermut[hmax];
-           pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb);
+            int upermut[hmax];
+            int opermut[hmax];
+            pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb);
 
-           int i;
-           for(i = 0; i < hmax; i++) {
-             owner_index = opermut[i]/descA.mb;
-             index       = opermut[i]%descA.mb;
-             if(owner_index == m) {
-               cblas_zcopy(tempkn, lU + i    , descA.mb,
-                                   lT + index, ldam);
-             }
-           }
-         }
-          );
+            int i;
+            for(i = 0; i < hmax; i++) {
+                owner_index = opermut[i]/descA.mb;
+                index       = opermut[i]%descA.mb;
+                if(owner_index == m) {
+                    cblas_zcopy(tempkn, lU + i    , descA.mb,
+                                lT + index, ldam);
+                }
+            }
+        }
+           );
     printlog("SWAP_RECV(k=%d,m=%d,n=%d)\n",k,m,n);
+}
 END
 
 
 /**************************************************
  *                    BUFFER_in (pseudo task)
  **************************************************/
-BUFFER_in(k,m,n)
+BUFFER_in(k,m,n) [profile = off]
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-m = 0..((P<descA.mt-k)?P-1:descA.mt-k-1)
-n = k+1..descA.nt-1
+k = 0   .. minmnt
+m = 0   .. ((P<descA.mt-k)?P-1:descA.mt-k-1)
+n = k+1 .. descA.nt-1
 
 // Parallel partitioning
 :BUFFER((k+m)%P,n)
@@ -835,9 +842,9 @@ END
 SWAP_COLLECT(k,m,n)
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-m = k..descA.mt-1
-n = k+1..descA.nt-1
+k = 0   .. minmnt
+m = k   .. descA.mt-1
+n = k+1 .. descA.nt-1
 
 // Parallel partitioning
 :A(m, n)
@@ -848,45 +855,47 @@ RW   MYBUF  <-  (m-k>=P)? MYBUF SWAP_COLLECT(k,m-P,n) : B BUFFER_in(k,m-k,n)
             ->  ( ((descA.mt-m) <= P) && (((m-k)%P)%2 == 0) )? MYBUF  SWAP_SND(k,0,((m-k)%P)/2,n)
             ->  ( ((descA.mt-m) <= P) && (((m-k)%P)%2 == 1) )? BUFFER  SWAP_SND(k,0,((m-k)%P)/2,n)
             ->  ( ((descA.mt-m) <= P) && (descA.mt-k <  P) && (((descA.mt-k)%2)==1) && (m == descA.mt-1) )? BUFFER SWAP_SND(k,0,((m-k)%P)/2,n)
-	    ->  ( ((descA.mt-m) <= P) && (descA.mt-k >= P) && (((P)%2)==1) && (((m+1)%P) == (k%P)) )? BUFFER SWAP_SND(k,0,((m-k)%P)/2,n)
+            ->  ( ((descA.mt-m) <= P) && (descA.mt-k >= P) && (((P)%2)==1) && (((m+1)%P) == (k%P)) )? BUFFER SWAP_SND(k,0,((m-k)%P)/2,n)
 READ      T <-  (k == 0)? A(m,n) : C GEMM(k-1, m, n)
             ->  T SWAP_RECV(k,m,n)
 READ     IP <-  IP GETRF_FNL(k,m)                                                                              [type = PIVOT]
             ->  IP SWAP_RECV(k,m,n)                                                                            [type = PIVOT]
-            ->  ( ((descA.mt-m) <= P ) && (((m-k)%P)%2 == 0) )? IP    SWAP_SND(k,0,((m-k)%P)/2,n)  	       [type = PIVOT]
+            ->  ( ((descA.mt-m) <= P ) && (((m-k)%P)%2 == 0) )? IP    SWAP_SND(k,0,((m-k)%P)/2,n)              [type = PIVOT]
 
 ; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
+{
     DRYRUN(
-           int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-           int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-           int hmax = ((tempkm<tempkn)? tempkm : tempkn);
-           int ldam = BLKLDD( descA, m );
-           int owner_index;
-           int index;
+        int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+        int hmax = ((tempkm<tempkn)? tempkm : tempkn);
+        int ldam = BLKLDD( descA, m );
+        int owner_index;
+        int index;
 
-           Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
-           Dague_Complex64_t *lM = (Dague_Complex64_t*)MYBUF;
+        Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
+        Dague_Complex64_t *lM = (Dague_Complex64_t*)MYBUF;
 
-           int upermut[hmax];
-           int opermut[hmax];
-           pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb);
+        int upermut[hmax];
+        int opermut[hmax];
+        pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb);
 
 
-           int i;
-           for(i = 0; i < hmax; i++) {
-             owner_index = upermut[i]/descA.mb;
-             index       = upermut[i]%descA.mb;
-             
-             if(owner_index == m) {
-               cblas_zcopy(tempkn, lT + index, ldam,
-                                   lM + i    , descA.mb);
-             }
+        int i;
+        for(i = 0; i < hmax; i++) {
+            owner_index = upermut[i]/descA.mb;
+            index       = upermut[i]%descA.mb;
 
-           }
-          );
+            if(owner_index == m) {
+                cblas_zcopy(tempkn, lT + index, ldam,
+                            lM + i    , descA.mb);
+            }
+
+        }
+           );
     printlog("SWAP_COLLECT(k=%d,m=%d,n=%d)\n",k,m,n);
+}
 END
 
 
@@ -898,13 +907,16 @@ END
 SWAP_SND(k,d,m,n)
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-d = 0.. inline_c %{ 
+k = 0 .. minmnt
+
+dmax = inline_c %{
   int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
   int i;
   for(i = 0;nb_init != 1 ;i++)
       nb_init/=2;
   return i;%}
+d = 0 .. dmax
+
 m = 0 .. inline_c %{
   int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
   int i;
@@ -913,32 +925,27 @@ m = 0 .. inline_c %{
   return nb_init-1;%}
 n = k+1..descA.nt-1
 
-dmax = inline_c %{
-  int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
-  int i;
-  for(i = 0;nb_init != 1 ;i++)
-      nb_init/=2;
-  return i;%}
 xmax = inline_c %{
-       int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
-       int i;
-       for(i = 0;i < d ;i++)
-       	     nb_init = (nb_init+1)/2;
-       return nb_init;%}
+    int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
+    int i;
+    for(i = 0;i < d ;i++)
+        nb_init = (nb_init+1)/2;
+    return nb_init;%}
+
+pui = inline_c %{ return (int) pow(2,d+1);%}
 
 // Parallel partitioning
-pui= inline_c %{ return (int) pow(2,d+1);%}
 :A(k+(m*pui), n)
 
 // Parameters
 READ  MYBUF <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+1))%P)-1,n) : MYBUF SWAP_SND(k,d-1,m*2,n)
             ->  ((m%2==0) && (d != dmax))? MYBUF SWAP_SND(k,d+1,m/2,n)
 RW   BUFFER <-  ((d == 0) && (m == (((xmax+1)/2)-1)) && (xmax%2 == 1))? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+1))%P)-1,n)
-	    <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+2))%P)-1,n)
-     	    <-  ((d != 0) && (m == (((xmax+1)/2)-1)) && (xmax%2 == 1))? BUFFER SWAP_SND(k,d-1,m*2,n)
-     	    <-  (d != 0)? BUFFER SWAP_SND(k,d-1,m*2+1,n)
+            <-  (d == 0)? MYBUF SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+2))%P)-1,n)
+            <-  ((d != 0) && (m == (((xmax+1)/2)-1)) && (xmax%2 == 1))? BUFFER SWAP_SND(k,d-1,m*2,n)
+            <-  (d != 0)? BUFFER SWAP_SND(k,d-1,m*2+1,n)
             ->  ((d != dmax) && (m%2==1))? BUFFER SWAP_SND(k,d+1,m/2,n)
-	    ->  ((d != dmax) && (m == (((xmax+1)/2)-1)) && (((xmax+1)/2)%2 == 1))? BUFFER SWAP_SND(k,d+1,m/2,n)
+            ->  ((d != dmax) && (m == (((xmax+1)/2)-1)) && (((xmax+1)/2)%2 == 1))? BUFFER SWAP_SND(k,d+1,m/2,n)
             ->  (d == dmax)? B SWAP_PASTE(k,n)
 READ     IP <-  (d == 0)? IP SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+1))%P)-1,n) : IP SWAP_SND(k,d-1,m*2,n)                 [type = PIVOT]
             ->  ((m%2==0) && (d != dmax))? IP SWAP_SND(k,d+1,m/2,n)                                                             [type = PIVOT]
@@ -947,35 +954,37 @@ READ     IP <-  (d == 0)? IP SWAP_COLLECT(k,descA.mt-((descA.mt-k-((m*2)+1))%P)-
 ; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
+{
     DRYRUN(
-  /*      int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb); */
-/*        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb); */
-/*        int hmax = ((tempkm<tempkn)? tempkm : tempkn); */
-/*        int owner_index; */
-/*        int index; */
+        /*      int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb); */
+        /*        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb); */
+        /*        int hmax = ((tempkm<tempkn)? tempkm : tempkn); */
+        /*        int owner_index; */
+        /*        int index; */
 
-/*        Dague_Complex64_t *lM = (Dague_Complex64_t*)MYBUF; */
-/*        Dague_Complex64_t *lB = (Dague_Complex64_t*)BUFFER; */
+        /*        Dague_Complex64_t *lM = (Dague_Complex64_t*)MYBUF; */
+        /*        Dague_Complex64_t *lB = (Dague_Complex64_t*)BUFFER; */
 
-/*        int upermut[hmax]; */
-/*        int opermut[hmax]; */
-/*        pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb); */
+        /*        int upermut[hmax]; */
+        /*        int opermut[hmax]; */
+        /*        pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb); */
 
-/*        int i; */
-/*        if(!((m == (((xmax+1)/2)-1)) && (xmax%2 == 1))) { */
-/*          for(i = 0; i < hmax; i++) { */
-/*            owner_index = ((upermut[i]/descA.mb) - k)%P; */
-/*            index       = upermut[i]%descA.mb; */
-             
-/*            if(((m*(pui/2)) <= owner_index) && (owner_index < ((m+1)*(pui/2)))) { */
-/*              cblas_zcopy(tempkn, lM + i, descA.mb, */
-/*                          lB + i, descA.mb); */
-/*            } */
-/*          } */
-/*        } */
+        /*        int i; */
+        /*        if(!((m == (((xmax+1)/2)-1)) && (xmax%2 == 1))) { */
+        /*          for(i = 0; i < hmax; i++) { */
+        /*            owner_index = ((upermut[i]/descA.mb) - k)%P; */
+        /*            index       = upermut[i]%descA.mb; */
+
+        /*            if(((m*(pui/2)) <= owner_index) && (owner_index < ((m+1)*(pui/2)))) { */
+        /*              cblas_zcopy(tempkn, lM + i, descA.mb, */
+        /*                          lB + i, descA.mb); */
+        /*            } */
+        /*          } */
+        /*        } */
           );
 
     printlog("SWAP_SND(k=%d,d=%d,m=%d,n=%d)\n",k,d,m,n);
+}
 END
 
 /**************************************************
@@ -985,8 +994,8 @@ END
 SWAP_PASTE(k,n)
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-n = k+1..descA.nt-1
+k = 0   .. minmnt
+n = k+1 .. descA.nt-1
 
 d = inline_c %{
   int nb_init = (descA.mt-k < P) ? descA.mt-k : P;
@@ -1007,32 +1016,30 @@ READ     IP <-  IP SWAP_SND(k,d,0,n)
 ; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
+{
     DRYRUN(
-           int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-           int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-           int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-           int hmax = ((tempkm<tempnn)? tempkm : tempkn);
-           int ldak = BLKLDD( descA, k );
-           int owner_index;
-           int index;
+        int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+        int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+        int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+        int hmax = ((tempkm<tempnn)? tempkm : tempkn);
+        int ldak = BLKLDD( descA, k );
 
-           Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
-           Dague_Complex64_t *lB = (Dague_Complex64_t*)B;
+        Dague_Complex64_t *lT = (Dague_Complex64_t*)T;
+        Dague_Complex64_t *lB = (Dague_Complex64_t*)B;
 
-           int upermut[hmax];
-           int opermut[hmax];
-           pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb);
+        int upermut[hmax];
+        int opermut[hmax];
+        pivot_to_permutation(((int *) IP), hmax, upermut, opermut, k*descA.mb);
 
-           int i;
-           for(i = 0; i < hmax; i++) {
-             owner_index = upermut[i]/descA.mb;
-             index       = upermut[i]%descA.mb;
-               cblas_zcopy(tempnn, lB + i, descA.mb,
-                                   lT + i, ldak);
-           }
+        int i;
+        for(i = 0; i < hmax; i++) {
+            cblas_zcopy(tempnn, lB + i, descA.mb,
+                        lT + i, ldak);
+        }
 
-          );
+           );
     printlog("SWAP_PASTE(k=%d,n=%d)\n",d,n);
+}
 END
 
 /**************************************************
@@ -1041,8 +1048,8 @@ END
 TRSM_U(k, n)
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-1:descA.nt-1)
-n = k+1..descA.nt-1
+k = 0   .. minmnt
+n = k+1 .. descA.nt-1
 
 // Parallel partitioning
 : A(k, n)
@@ -1056,20 +1063,21 @@ RW      C <- T SWAP_PASTE(k,n)
 ; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
-        DRYRUN(  
-            int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-            int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-            int ldak = BLKLDD( descA, k );
+{
+    DRYRUN(
+        int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+        int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+        int ldak = BLKLDD( descA, k );
 
-            CORE_ztrsm(
-                PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
-                tempkm,
-                tempnn,
-                (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
-                                        C /*A(k, n)*/, ldak );
-            );
-        printlog("CORE_trsm_U(k=%d,n=%d,ldk=%d,A(%d,%d))\n", tempkm, tempnn,ldak,k,n);
-
+        CORE_ztrsm(
+            PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+            tempkm,
+            tempnn,
+            (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
+            C /*A(k, n)*/, ldak );
+           );
+    printlog("CORE_trsm_U(k=%d,n=%d,ldk=%d,A(%d,%d))\n", tempkm, tempnn,ldak,k,n);
+}
 END
 
 /**************************************************
@@ -1078,9 +1086,9 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = 0..((descA.mt<descA.nt)?descA.mt-2:descA.nt-2)
-m = k+1..descA.mt-1
-n = k+1..descA.nt-1
+k = 0   .. minmnt-1
+m = k+1 .. descA.mt-1
+n = k+1 .. descA.nt-1
 
 // Parallel partitioning
 : A(m, n)
@@ -1089,25 +1097,27 @@ n = k+1..descA.nt-1
 READ  A <- T GETRF_FNL(k, m)
 READ  B <- C TRSM_U(k, n)
 RW    C <- T SWAP_RECV(k, m, n)
-	  -> (n == k+1) ? T GETRF_MAX(k+1,m,0)  /* Panel */
+        -> (n == k+1) ? T GETRF_MAX(k+1,m,0)  /* Panel */
         -> ((m == k+1) && (n >  k+1)) ? A SWAP_COPY(k+1,n)  /* Swap */
         -> ((m >  k)   && (n >  k+1)) ? T SWAP_COLLECT(k+1,m,n)  /* Everything else */
 
 ; (descA.mt-n-1) * (descA.nt-k-1)
 
 BODY
+{
     DRYRUN(
-            int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-            int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-            int ldak = BLKLDD( descA, k );
-            int ldam = BLKLDD( descA, m );
+        int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+        int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+        int ldak = BLKLDD( descA, k );
+        int ldam = BLKLDD( descA, m );
 
-           CORE_zgemm(
-                      PlasmaNoTrans, PlasmaNoTrans,
-                      tempmm, tempnn, descA.mb,
-                      (Dague_Complex64_t)-1.0, A /*A(m, k)*/, ldam,
-                                               B /*A(k, n)*/, ldak,
-                      (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam )
-          );
-     printlog("CORE_gemm(k=%d,m=%d,n=%d,A(%d,%d),ldk=%d,ldm=%d)\n",k,tempmm,tempnn,m,n,ldak,ldam);
+        CORE_zgemm(
+            PlasmaNoTrans, PlasmaNoTrans,
+            tempmm, tempnn, descA.mb,
+            (Dague_Complex64_t)-1.0, A /*A(m, k)*/, ldam,
+                                     B /*A(k, n)*/, ldak,
+            (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam )
+           );
+    printlog("CORE_gemm(k=%d,m=%d,n=%d,A(%d,%d),ldk=%d,ldm=%d)\n",k,tempmm,tempnn,m,n,ldak,ldam);
+}
 END
