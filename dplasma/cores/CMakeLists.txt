@@ -3,26 +3,6 @@ include(RulesPrecisions)
 set(generated_files "")
 set(generated_headers "")
 
-### generate the dplasma_cores headers for all possible precisions
-precisions_rules_py(generated_headers
-                 "dplasma_zcores.h"
-                 PRECISIONS "s;d;c;z")
-
-### Generate the dplasma wrappers for all required precisions 
-set(SOURCES
-  core_ztrdv.c
-  core_zhetrf2_nopiv.c
-  core_zgemdm.c
-  core_zhedrk.c
-  core_ztrmdm.c
-  core_zhetrf_nopiv.c
-  core_zhebut.c
-  core_zplssq.c
-)
-precisions_rules_py(generated_files
-                 "${SOURCES}"
-                 PRECISIONS "${DPLASMA_PRECISIONS}")
-
 ### Generate the CUDA kernels if necessary
 if(CUDA_FOUND)
 
@@ -100,19 +80,52 @@ if(CUDA_FOUND)
     cuda_build_clean_target()
 
     set(GPU_KERNEL_SOURCES
-        cuda_sgemm.c
+        cuda_zgemm.c
 #        cuda_stsmqr.c
+    )
+
+    set(GPU_KERNEL_HEADERS
+        cuda_zgemm.h
+#        cuda_stsmqr.h
     )
 
 else()
     set(GPU_KERNEL_SOURCES "")
+    set(GPU_KERNEL_HEADERS "")
 endif()
+
+set(HEADERS
+    dplasma_zcores.h
+    ${GPU_KERNEL_HEADERS}
+)
+
+### generate the dplasma_cores headers for all possible precisions
+precisions_rules_py(generated_headers
+                    "${HEADERS}"
+                    PRECISIONS "s;d;c;z")
+
+### Generate the dplasma wrappers for all required precisions 
+set(SOURCES
+  core_ztrdv.c
+  core_zhetrf2_nopiv.c
+  core_zgemdm.c
+  core_zhedrk.c
+  core_ztrmdm.c
+  core_zhetrf_nopiv.c
+  core_zhebut.c
+  core_zplssq.c
+  ${GPU_KERNEL_SOURCES}
+)
+
+precisions_rules_py(generated_files
+                 "${SOURCES}"
+                 PRECISIONS "${DPLASMA_PRECISIONS}")
 
 ### Generate the lib
 add_library(dplasma_cores
   ${generated_headers}
   ${generated_files}
-  ${GPU_KERNEL_SOURCES})
+)
 install(TARGETS dplasma_cores ARCHIVE DESTINATION lib)
 
 foreach(generated_header ${generated_headers})
