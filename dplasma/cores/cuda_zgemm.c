@@ -6,8 +6,6 @@
  * @precisions normal z -> z c d s
  *
  */
-#define PRECISION_z
-
 #include "dague_config.h"
 #include <stdlib.h>
 #include <dlfcn.h>
@@ -202,17 +200,17 @@ gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
     m = this_task->locals[1].value;
     n = this_task->locals[2].value;
 
-    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(n, k),
+    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY( UGLY_A, n, k),
                            &(this_task->data[0].mem2dev_data));
     if( NULL == (this_task->data[0].mem2dev_data)->device_elem[gpu_device->index])
         move_data_count++;
 
-    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(m, k),
+    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY( UGLY_A, m, k),
                            &(this_task->data[1].mem2dev_data));
     if( NULL == (this_task->data[1].mem2dev_data)->device_elem[gpu_device->index])
         move_data_count++;
 
-    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(m, n),
+    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY( UGLY_A, m, n),
                            &(this_task->data[2].mem2dev_data));
     if( NULL == (this_task->data[2].mem2dev_data)->device_elem[gpu_device->index])
         move_data_count++;
@@ -436,15 +434,16 @@ gpu_kernel_epilog_zgemm( gpu_device_t* gpu_device,
  */
 int gpu_zgemm( dague_execution_unit_t* eu_context,
                dague_execution_context_t* this_task,
-               int uplo )
+               PLASMA_enum transA, PLASMA_enum transB,
+               int M, int N, int K, 
+               Dague_Complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA,
+                                        int Bm, int Bn, const tiled_matrix_desc_t *descB,
+               Dague_Complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC )
 {
-    int which_gpu, n, m;
+    int which_gpu;
 
-    m = this_task->locals[1].value;
-    n = this_task->locals[2].value;
-    (void)uplo;
     /* We always schedule the task on the GPU owning the C tile. */
-    which_gpu = dague_gpu_data_elt_write_owner( &dague_gpu_map, GEMM_KEY(m, n) );
+    which_gpu = dague_gpu_data_elt_write_owner( &dague_gpu_map, GEMM_KEY( descC, Cm, Cn) );
     if( which_gpu < 0 ) {  /* this is the first time we see this tile.
                             * Let's decide which GPU will work on it. */
         int best_index = -1;  /* cores */
