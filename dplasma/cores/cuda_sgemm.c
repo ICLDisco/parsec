@@ -20,6 +20,13 @@
 
 #define KERNEL_NAME sgemm
 
+
+/* void (*cuda_zgemm) ( char TRANSA, char TRANSB, int m, int n, int k, */
+/*                      cuDoubleComplex alpha, cuDoubleComplex *d_A, int lda, */
+/*                                             cuDoubleComplex *d_B, int ldb, */
+/*                      cuDoubleComplex beta,  cuDoubleComplex *d_C, int ldc, */
+/*                      CUstream stream ); */
+
 int gpu_kernel_init_sgemm( dague_context_t* dague_context,
                            tiled_matrix_desc_t *tileA );
 
@@ -101,56 +108,63 @@ int gpu_kernel_init_sgemm( dague_context_t* dague_context,
     for( i = dindex = 0; i < nbgpus; i++ ) {
         gpu_device_t* gpu_device;
         CUresult status;
-        char module_path[FILENAME_MAX];
+        char library_name[FILENAME_MAX];
+        char function_name[FILENAME_MAX];
 
         gpu_device = gpu_enabled_devices[i];
+        gpu_device->function = NULL;
+
+        snprintf(library_name,  FILENAME_MAX, "libdplasma-sm_%d%d.so", gpu_device->major, gpu_device->minor);
+        snprintf(function_name, FILENAME_MAX, "magmablas_sgemm_SM%d%d", gpu_device->major, gpu_device->minor);
 
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status, {continue;} );
 
         /* If not disallowed by env, load from static linked kernels */
-        /* This is non functional, as the ptr is not a CuFunction. */
-        gpu_device->hcuFunction = NULL;
         env = getenv("DAGUE_CUBIN_NOSTATIC");
         if( !env || (('1' != env[0]) && ('y' != env[0])) ) {
             void* dlh;
-            snprintf(module_path, FILENAME_MAX, "sgemmNT_SM%d%d", gpu_device->major, gpu_device->minor);
             dlh = dlopen(NULL, RTLD_NOW);
             if(NULL == dlh) ERROR(("Error parsing static libs: %s\n", dlerror()));
-            gpu_device->hcuFunction = dlsym(dlh, module_path);
+            gpu_device->function = dlsym(dlh, function_name);
             dlclose(dlh);
         }
 
-        /* If not found statically, cuload it */
-        if(NULL == gpu_device->hcuFunction) {
-            env = getenv("DAGUE_CUBIN_PATH");
-            snprintf(module_path, FILENAME_MAX, "%s/sgemm-sm_%1d%1d.cubin",
-                     env?env:"../cores", gpu_device->major, gpu_device->minor);
-            status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
-            DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status,
-                                    {
-                                        WARNING(("GPU:\tUnable to load `%s'\n", module_path));
-                                        continue;
-                                    } );
-            snprintf(module_path, FILENAME_MAX, "sgemmNT_SM%d%d", gpu_device->major, gpu_device->minor);
-            DEBUG3(("CUDA MODULE %s\n", module_path));
-            status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, module_path );
-            DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleGetFunction ", status,
-                                    {
-                                        WARNING(("GPU:\tUnable to find the function `%s'\n", module_path));
-                                        continue;
-                                    } );
+        /* If not found statically, try shared lib */
+/*         if(NULL == gpu_device->hcuFunction) { */
+/*             env = getenv("DAGUE_CUBIN_PATH"); */
+/*             snprintf(module_path, FILENAME_MAX, "%s/sgemm-sm_%1d%1d.cubin", */
+/*                      env?env:"../cores", gpu_device->major, gpu_device->minor); */
+/*             status = cuModuleLoad(&(gpu_device->hcuModule), module_path); */
+/*             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status, */
+/*                                     { */
+/*                                         WARNING(("GPU:\tUnable to load `%s'\n", module_path)); */
+/*                                         continue; */
+/*                                     } ); */
+/*             snprintf(module_path, FILENAME_MAX, "sgemmNT_SM%d%d", gpu_device->major, gpu_device->minor); */
+/*             DEBUG3(("CUDA MODULE %s\n", module_path)); */
+/*             status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, module_path ); */
+/*             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleGetFunction ", status, */
+/*                                     { */
+/*                                         WARNING(("GPU:\tUnable to find the function `%s'\n", module_path)); */
+/*                                         continue; */
+/*                                     } ); */
+/*         } */
+
+        if(NULL == gpu_device->function) {
+            void* dlh;
+            dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
+            if(NULL == dlh) ERROR(("Could not find %s library (%s)\n", library_name, dlerror()));
+            gpu_device->function = dlsym(dlh, function_name);
+            dlclose(dlh);
         }
-        if(NULL == gpu_device->hcuFunction) return -1;
-        if( 1 == gpu_device->major ) {
-            cuFuncSetBlockShape( gpu_device->hcuFunction, 16, 4, 1 );
-        } else {
-            cuFuncSetBlockShape( gpu_device->hcuFunction, 64, 4, 1 );
-        }
+
+        if(NULL == gpu_device->function) return -1;
 
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
                                 {continue;} );
+
         gpu_device->index = (uint8_t)dindex;
         gpu_enabled_devices[dindex++] = gpu_device;
     }
@@ -294,6 +308,13 @@ gpu_kernel_submit_sgemm( gpu_device_t* gpu_device,
     char tmp[MAX_TASK_STRLEN];
 #endif
 
+    void (*cuda_sgemm) ( char TRANSA, char TRANSB, int m, int n, int k,
+                         float alpha, float *d_A, int lda,
+                                      float *d_B, int ldb,
+                         float beta,  float *d_C, int ldc,
+                         CUstream stream ) = gpu_device->function;
+    
+
     gpu_elem_A = (gpu_elem_t *)this_task->data[0].mem2dev_data->device_elem[gpu_device->index];
     gpu_elem_B = (gpu_elem_t *)this_task->data[1].mem2dev_data->device_elem[gpu_device->index];
     gpu_elem_C = (gpu_elem_t *)this_task->data[2].mem2dev_data->device_elem[gpu_device->index];
@@ -309,6 +330,7 @@ gpu_kernel_submit_sgemm( gpu_device_t* gpu_device,
     gpu_kernel_profile( gpu_device, this_task, dague_gpu_map.desc);
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
+#if 0
     offset = 0;
     CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_B );
     CU_PUSH_INT(     gpu_device->hcuFunction, offset, ddescA(this_task)->nb );
@@ -337,6 +359,16 @@ gpu_kernel_submit_sgemm( gpu_device_t* gpu_device,
 
     DAGUE_CUDA_CHECK_ERROR( "cuLaunchGridAsync ", status,
                               {return -1;} );
+
+#else
+    
+    cuda_sgemm( 'N', 'T', ddescA(this_task)->nb, ddescA(this_task)->nb, ddescA(this_task)->nb,
+                alpha, (float*)d_A, ddescA(this_task)->nb,
+                       (float*)d_B, ddescA(this_task)->nb,
+                beta,  (float*)d_C, ddescA(this_task)->nb,
+                stream );
+
+#endif
 
     return 0;
 }
