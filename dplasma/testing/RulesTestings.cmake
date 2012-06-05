@@ -25,12 +25,6 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
       )
   endif()
 
-  if (CUDA_FOUND)
-    set(testings_addexec_LIBS
-        ${testings_addexec_LIBS} ${CUDA_cublas_LIBRARY}
-      )
-  endif( CUDA_FOUND )
-
   set(testings_addexec_GENFILES "")
   precisions_rules_py(testings_addexec_GENFILES
     "${ZSOURCES}"

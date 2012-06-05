@@ -47,8 +47,13 @@ if(CUDA_FOUND)
 
     set(CUDA_BUILD_CUBIN ON)
     set(CUDA_PROPAGATE_HOST_FLAGS OFF)
+    set(CUDA_NVCC_FLAGS_BACKUP ${CUDA_NVCC_FLAGS})
 
-        set(CUDA_NVCC_FLAGS_BACKUP ${CUDA_NVCC_FLAGS})
+    set( cudalibs_deps
+         ${CUDA_cublas_LIBRARY}
+         ${CUDA_CUDART_LIBRARY}
+         ${CUDA_CUDA_LIBRARY}
+         )
 
     foreach( _cudafile ${CUDA_SOURCES} )
         string(REGEX REPLACE "\\.cu" "" _cudafilename ${_cudafile})
@@ -61,15 +66,19 @@ if(CUDA_FOUND)
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_11})
     cuda_add_library(dplasma-sm_11 ${SM11_FILES} SHARED )
+    target_link_libraries( dplasma-sm_11 ${cudalibs_deps} )
     install(TARGETS dplasma-sm_11 LIBRARY DESTINATION lib)
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_13})
     cuda_add_library(dplasma-sm_13 ${SM13_FILES} SHARED )
+    target_link_libraries( dplasma-sm_13 ${cudalibs_deps} )
     install(TARGETS dplasma-sm_13 LIBRARY DESTINATION lib)
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_20})
     cuda_add_library(dplasma-sm_20 ${SM20_FILES} SHARED )
+    target_link_libraries( dplasma-sm_20 ${cudalibs_deps} )
     install(TARGETS dplasma-sm_20 LIBRARY DESTINATION lib)
+
 
     # Install cubin files
 #     foreach( _cudafile ${CUDA_SOURCES} )
