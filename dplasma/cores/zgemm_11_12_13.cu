@@ -18,6 +18,9 @@
 #include <cuda.h>
 #include <cublas.h>
 
+#include "dague.h"
+#include "data_dist/matrix/precision.h"
+
 #define PRECISION_z
 
 #if defined(PRECISION_z) || defined(PRECISION_c) 
@@ -34,19 +37,27 @@
 
 extern "C" void
 GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
-                                 cuDoubleComplex alpha, cuDoubleComplex *d_A, int lda,
-                                                        cuDoubleComplex *d_B, int ldb,
-                                 cuDoubleComplex beta,  cuDoubleComplex *d_C, int ldc,
+                                 Dague_Complex64_t alpha, Dague_Complex64_t *d_A, int lda,
+                                                          Dague_Complex64_t *d_B, int ldb,
+                                 Dague_Complex64_t beta,  Dague_Complex64_t *d_C, int ldc,
                                  CUstream stream )
 {
+#if defined(PRECISION_z) || defined(PRECISION_c)    
+    cuDoubleComplex lalpha = make_cuDoubleComplex( creal(alpha), cimag(alpha) );
+    cuDoubleComplex lbeta  = make_cuDoubleComplex( creal(beta),  cimag(beta)  );
+#else
+    double lalpha = alpha;
+    double lbeta  = beta;
+#endif
+
 #if (__CUDA_API_VERSION < 4000)
     
     cublasSetKernelStream( stream );
 
     cublasZgemm(TRANSA, TRANSB, m, n, k, 
-                alpha, d_A, lda,
-                        d_B, ldb,
-                beta,  d_C, ldc); 
+                lalpha, (cuDoubleComplex*)d_A, lda,
+                        (cuDoubleComplex*)d_B, ldb,
+                lbeta,  (cuDoubleComplex*)d_C, ldc); 
 
 #else
     cudaStream_t current_stream;
@@ -57,9 +68,9 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
 
     cublasZgemm_v2(handle, convertToOp(TRANSA), convertToOp(TRANSB),
                    m, n, k, 
-                   &alpha, d_A, lda,
-                           d_B, ldb,
-                   &beta,  d_C, ldc); 
+                   &lalpha, (cuDoubleComplex*)d_A, lda,
+                            (cuDoubleComplex*)d_B, ldb,
+                   &lbeta,  (cuDoubleComplex*)d_C, ldc); 
 
     cublasSetStream_v2 ( handle, &saved_stream );
 #endif

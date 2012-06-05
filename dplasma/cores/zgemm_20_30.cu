@@ -17,6 +17,9 @@
 #include <assert.h>
 #include <cuda.h>
 
+#include "dague.h"
+#include "data_dist/matrix/precision.h"
+
 #define PRECISION_z
 
 #if defined(PRECISION_z) || defined(PRECISION_c) 
@@ -146,13 +149,21 @@
 
 extern "C" void
 GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
-                                 cuDoubleComplex alpha, cuDoubleComplex *d_A, int lda,
-                                                        cuDoubleComplex *d_B, int ldb,
-                                 cuDoubleComplex beta,  cuDoubleComplex *d_C, int ldc,
+                                 Dague_Complex64_t alpha, Dague_Complex64_t *d_A, int lda,
+                                                          Dague_Complex64_t *d_B, int ldb,
+                                 Dague_Complex64_t beta,  Dague_Complex64_t *d_C, int ldc,
                                  CUstream stream )
 {
     if (m<=0 || n<=0 || k<=0)
         return;
+
+#if defined(PRECISION_z) || defined(PRECISION_c)    
+    cuDoubleComplex lalpha = make_cuDoubleComplex( creal(alpha), cimag(alpha) );
+    cuDoubleComplex lbeta  = make_cuDoubleComplex( creal(beta),  cimag(beta)  );
+#else
+    double lalpha = alpha;
+    double lbeta  = beta;
+#endif
 
     size_t offsetA = 0;
     size_t offsetB = 0;
@@ -185,9 +196,10 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
     if (sizeA>=CUBLAS_MAX_1DBUF_SIZE ||
         sizeB>=CUBLAS_MAX_1DBUF_SIZE )
         {
-            cublasZgemm(TRANSA, TRANSB, m, n, k, alpha,
-                        d_A, lda, d_B, ldb,
-                        beta, d_C, ldc);
+            cublasZgemm(TRANSA, TRANSB, m, n, k, 
+                        lalpha, (cuDoubleComplex*)d_A, lda, 
+                               (cuDoubleComplex*)d_B, ldb,
+                        lbeta,  (cuDoubleComplex*)d_C, ldc);
             return;
         }
 #else
@@ -210,9 +222,9 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
     tex_ref_B.addressMode[0] = cudaAddressModeClamp;
     
     // Bind A and B to texture references
-    assert(cudaBindTexture(&offsetA, tex_ref_A, d_A, sizeA*sizeof(cuDoubleComplex)) 
+    assert(cudaBindTexture(&offsetA, tex_ref_A, d_A, sizeA*sizeof(Dague_Complex64_t)) 
            == cudaSuccess);
-    assert(cudaBindTexture(&offsetB, tex_ref_B, d_B, sizeB*sizeof(cuDoubleComplex))
+    assert(cudaBindTexture(&offsetB, tex_ref_B, d_B, sizeB*sizeof(Dague_Complex64_t))
            == cudaSuccess);
 #endif
 
@@ -226,56 +238,83 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
     if (TransA==0 && TransB ==0){
         dim3 dimGrid(m/BLK_M_nn + (m%BLK_M_nn != 0),
                      n/BLK_N_nn + (n%BLK_N_nn != 0));
-        GENERATE_SM_VERSION_KERNEL_NAME(nn)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k, alpha, d_A, lda, d_B, ldb, beta, d_C, ldc,
+        GENERATE_SM_VERSION_KERNEL_NAME(nn)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k, 
+                                                                                lalpha, (cuDoubleComplex*)d_A, lda,
+                                                                                        (cuDoubleComplex*)d_B, ldb,
+                                                                                lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
     } 
     else if (TransA==0 && TransB ==1){
         dim3 dimGrid(m/BLK_M_nt + (m%BLK_M_nt != 0),
                      n/BLK_N_nt + (n%BLK_N_nt != 0));
-        GENERATE_SM_VERSION_KERNEL_NAME(nt)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k, alpha, d_A, lda, d_B, ldb, beta, d_C, ldc,
+        GENERATE_SM_VERSION_KERNEL_NAME(nt)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k,
+                                                                                lalpha, (cuDoubleComplex*)d_A, lda,
+                                                                                        (cuDoubleComplex*)d_B, ldb,
+                                                                                lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
     }
     else if (TransA==1 && TransB ==0){
         dim3 dimGrid(m/BLK_M_tn + (m%BLK_M_tn != 0),
                      n/BLK_N_tn + (n%BLK_N_tn != 0));
-        GENERATE_SM_VERSION_KERNEL_NAME(tn)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k, alpha, d_A, lda, d_B, ldb, beta, d_C, ldc,
+        GENERATE_SM_VERSION_KERNEL_NAME(tn)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k,
+                                                                                lalpha, (cuDoubleComplex*)d_A, lda,
+                                                                                        (cuDoubleComplex*)d_B, ldb,
+                                                                                lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
     }
     else if (TransA==1 && TransB ==1){
         dim3 dimGrid(m/BLK_M_tt + (m%BLK_M_tt != 0),
                      n/BLK_N_tt + (n%BLK_N_tt != 0));
-        GENERATE_SM_VERSION_KERNEL_NAME(tt)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k, alpha, d_A, lda, d_B, ldb, beta, d_C, ldc,
+        GENERATE_SM_VERSION_KERNEL_NAME(tt)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k,
+                                                                                lalpha, (cuDoubleComplex*)d_A, lda,
+                                                                                        (cuDoubleComplex*)d_B, ldb,
+                                                                                lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
     }
 #if defined(PRECISION_z) || defined(PRECISION_c) 
     else if (TransA==0 && TransB ==2){
         dim3 dimGrid(m/BLK_M_nt + (m%BLK_M_nt != 0),
                      n/BLK_N_nt + (n%BLK_N_nt != 0));
-        GENERATE_SM_VERSION_KERNEL_NAME(nc)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k, alpha, d_A, lda, d_B, ldb, beta, d_C, ldc,
+        GENERATE_SM_VERSION_KERNEL_NAME(nc)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k,
+                                                                                lalpha, (cuDoubleComplex*)d_A, lda,
+                                                                                        (cuDoubleComplex*)d_B, ldb,
+                                                                                lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
     } 
     else if (TransA==1 && TransB ==2){
         dim3 dimGrid(m/BLK_M_tt + (m%BLK_M_tt != 0),
                      n/BLK_N_tt + (n%BLK_N_tt != 0));
-        GENERATE_SM_VERSION_KERNEL_NAME(tc)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k, alpha, d_A, lda, d_B, ldb, beta, d_C, ldc,
+        GENERATE_SM_VERSION_KERNEL_NAME(tc)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k,
+                                                                                lalpha, (cuDoubleComplex*)d_A, lda,
+                                                                                        (cuDoubleComplex*)d_B, ldb,
+                                                                                lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
     }
     else if (TransA==2 && TransB ==0){
         dim3 dimGrid(m/BLK_M_tn + (m%BLK_M_tn != 0),
                      n/BLK_N_tn + (n%BLK_N_tn != 0));
-        GENERATE_SM_VERSION_KERNEL_NAME(cn)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k, alpha, d_A, lda, d_B, ldb, beta, d_C, ldc,
+        GENERATE_SM_VERSION_KERNEL_NAME(cn)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k,
+                                                                                lalpha, (cuDoubleComplex*)d_A, lda,
+                                                                                        (cuDoubleComplex*)d_B, ldb,
+                                                                                lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
     }
     else if (TransA==2 && TransB ==1){
         dim3 dimGrid(m/BLK_M_tt + (m%BLK_M_tt != 0),
                      n/BLK_N_tt + (n%BLK_N_tt != 0));
-        GENERATE_SM_VERSION_KERNEL_NAME(ct)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k, alpha, d_A, lda, d_B, ldb, beta, d_C, ldc,
+        GENERATE_SM_VERSION_KERNEL_NAME(ct)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k,
+                                                                                lalpha, (cuDoubleComplex*)d_A, lda,
+                                                                                        (cuDoubleComplex*)d_B, ldb,
+                                                                                lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
     } 
     else if (TransA==2 && TransB ==2){
         dim3 dimGrid(m/BLK_M_tt + (m%BLK_M_tt != 0),
                      n/BLK_N_tt + (n%BLK_N_tt != 0));
-        GENERATE_SM_VERSION_KERNEL_NAME(cc)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k, alpha, d_A, lda, d_B, ldb, beta, d_C, ldc,
+        GENERATE_SM_VERSION_KERNEL_NAME(cc)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k,
+                                                                                lalpha, (cuDoubleComplex*)d_A, lda,
+                                                                                        (cuDoubleComplex*)d_B, ldb,
+                                                                                lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
     }
 #endif
