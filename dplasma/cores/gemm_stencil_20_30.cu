@@ -52,8 +52,6 @@ void     kernel_name (int M, int N, int K,
                       FloatingPoint_t beta,        FloatingPoint_t *C, int LDC,
                       int offsetA, int offsetB)
 {
-    int offset[THR_M+1];
-
     int idx = threadIdx.x;  // thread's m dimension
     int idy = threadIdx.y;  // thread's n dimension
 
@@ -101,14 +99,14 @@ void     kernel_name (int M, int N, int K,
         #endif
       #else
         #ifdef TRANS_A
-          const FloatingPoint_t *offs_dA = A + blx*BLK_M*LDA + idyA*LDA+idxA;
+          FloatingPoint_t *offs_dA = A + blx*BLK_M*LDA + idyA*LDA+idxA;
         #else
-          const FloatingPoint_t *offs_dA = A + blx*BLK_M     + idyA*LDA+idxA;
+          FloatingPoint_t *offs_dA = A + blx*BLK_M     + idyA*LDA+idxA;
         #endif
         #ifdef TRANS_B
-          const FloatingPoint_t *offs_dB = B + bly*BLK_N     + idyB*LDB+idxB;
+          FloatingPoint_t *offs_dB = B + bly*BLK_N     + idyB*LDB+idxB;
         #else
-          const FloatingPoint_t *offs_dB = B + bly*BLK_N*LDB + idyB*LDB+idxB;
+          FloatingPoint_t *offs_dB = B + bly*BLK_N*LDB + idyB*LDB+idxB;
         #endif
       #endif
 
@@ -320,7 +318,7 @@ void     kernel_name (int M, int N, int K,
         for (m = 0; m < THR_M; m++) {
             int coord_dCm = blx*BLK_M + m*DIM_X+idx;
             if (coord_dCm < M && coord_dCn < N) {
-                int offsC = coord_dCn*LDC + offset[m]; /*coord_dCm;*/
+                int offsC = coord_dCn*LDC + coord_dCm;
 
                 FloatingPoint_t &regC = rC[n][m];
                 FloatingPoint_t &memC = C[offsC];
