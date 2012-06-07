@@ -25,10 +25,6 @@
 
 #define KERNEL_NAME zgemm
 
-
-int gpu_kernel_init_zgemm( dague_context_t* dague_context,
-                           tiled_matrix_desc_t *tileA );
-
 static inline
 int gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
                            dague_execution_context_t* this_task,
