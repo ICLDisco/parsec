@@ -197,10 +197,6 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
 
-    k = this_task->locals[0].value;
-    m = this_task->locals[1].value;
-    n = this_task->locals[2].value;
-
     /* WARNING: A has to be the first data,
      *          B the second one and
      *          C the third one.
