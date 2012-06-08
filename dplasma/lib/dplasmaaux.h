@@ -14,7 +14,7 @@
 
 #include "data_dist/matrix/matrix.h"
 
-int dplasma_aux_get_priority( char* function, const tiled_matrix_desc_t* ddesc );   
+int dplasma_aux_get_priority_limit( char* function, const tiled_matrix_desc_t* ddesc );   
 
 
 #define PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(DDESC, TYPE, INIT_PARAMS)   \

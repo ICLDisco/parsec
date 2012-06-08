@@ -57,6 +57,7 @@ dague_list_item_singleton( dague_list_item_t* item )
 {
 #if defined(DAGUE_DEBUG)
     assert(0 == item->refcount);
+    item->belong_to = NULL;
 #endif
     item->list_next = item;
     item->list_prev = item;
@@ -107,6 +108,31 @@ dague_list_item_ring_push( dague_list_item_t* ring,
     ring->list_prev->list_next = item;
     ring->list_prev = item;
     return ring;
+}
+
+/* Merge @ring1 with @ring2 (not thread safe)
+ *   @return @ring1
+ */
+static inline dague_list_item_t* 
+dague_list_item_ring_merge( dague_list_item_t* ring1,
+                            dague_list_item_t* ring2 )
+{
+    volatile dague_list_item_t *tmp;
+#if defined(DAGUE_DEBUG)
+    assert( 0 == ring1->refcount );
+    assert( (void*)0xdeadbeef != ring1->list_next );
+    assert( (void*)0xdeadbeef != ring1->list_prev );
+    assert( 0 == ring2->refcount );
+    assert( (void*)0xdeadbeef != ring2->list_next );
+    assert( (void*)0xdeadbeef != ring2->list_prev );
+#endif
+    ring2->list_prev->list_next = ring1;
+    ring1->list_prev->list_next = ring2;
+    tmp = ring1->list_prev;
+    ring1->list_prev = ring2->list_prev;
+    ring2->list_prev = tmp;
+
+    return ring1;
 }
 
 /* Remove the current first item of the ring @item (not thread safe)

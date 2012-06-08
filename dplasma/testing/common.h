@@ -39,7 +39,6 @@ enum iparam_t {
   IPARAM_NCORES,       /* Number of cores                   */
   IPARAM_SCHEDULER,    /* What scheduler do we choose */
   IPARAM_NGPUS,        /* Number of GPUs                    */
-  IPARAM_PRIO,         /* Switchpoint for priority DAG      */
   IPARAM_P,            /* Rows in the process grid          */
   IPARAM_Q,            /* Columns in the process grid       */
   IPARAM_M,            /* Number of rows of the matrix      */
@@ -76,7 +75,6 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int nodes = iparam[IPARAM_NNODES];\
   int cores = iparam[IPARAM_NCORES];\
   int gpus  = iparam[IPARAM_NGPUS];\
-  int prio  = iparam[IPARAM_PRIO];\
   int P     = iparam[IPARAM_P];\
   int Q     = iparam[IPARAM_Q];\
   int M     = iparam[IPARAM_M];\
@@ -98,7 +96,7 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int scheduler = iparam[IPARAM_SCHEDULER];\
   int nb_local_tasks = 0;                                               \
   int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
-  (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prio;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
+  (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
   (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;\
   (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;
 
@@ -127,10 +125,12 @@ extern const int side[2];
 extern const int uplo[2];
 extern const int diag[2];
 extern const int trans[3];
+extern const int norms[4];
 extern const char *sidestr[2];
 extern const char *uplostr[2];
 extern const char *diagstr[2];
 extern const char *transstr[3];
+extern const char *normsstr[4];
 
 void print_usage(void);
 
@@ -170,7 +170,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
     dague_progress(DAGUE);                                              \
-    if(loud) TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n", \
+    if(loud > 2) TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n", \
                                nb_local_tasks,                          \
                                nb_local_tasks/time_elapsed));           \
     SYNC_TIME_PRINT(rank, (#KERNEL " computation N= %d NB= %d : %f gflops\n", N, NB, \

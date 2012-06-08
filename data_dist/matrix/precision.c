@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include <precision.h>
 
 #ifndef DAGUE_HAS_COMPLEX_H

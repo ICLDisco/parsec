@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
@@ -28,6 +28,10 @@
  *
  * @param[in] A
  *          Descriptor of the matrix A of size M-by-K.
+ *          On entry, the i-th column must contain the vector which
+ *          defines the elementary reflector H(i), for i = 1,2,...,k, as
+ *          returned by dplasma_zgeqrf in the first k columns of its array
+ *          argument A.
  *
  * @param[in] T
  *          Descriptor of the auxiliary factorization data, computed
@@ -40,6 +44,7 @@
  *
  * @return
  *          \retval The dague object which describes the operation to perform
+ *                  NULL if one of the parameter is incorrect
  *
  *******************************************************************************
  *
@@ -51,7 +56,7 @@
  * @sa dplasma_zgeqrf_New
  *
  ******************************************************************************/
-dague_object_t* 
+dague_object_t*
 dplasma_zungqr_New( tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T,
                     tiled_matrix_desc_t *Q)
@@ -59,24 +64,49 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
     dague_zungqr_object_t* object;
     int ib = T->mb;
 
-    /* 
+    /* if ( !dplasma_check_desc(A) ) { */
+    /*     dplasma_error("dplasma_zungqr_New", "illegal A descriptor"); */
+    /*     return NULL; */
+    /* } */
+    /* if ( !dplasma_check_desc(T) ) { */
+    /*     dplasma_error("dplasma_zungqr_New", "illegal T descriptor"); */
+    /*     return NULL; */
+    /* } */
+    /* if ( !dplasma_check_desc(Q) ) { */
+    /*     dplasma_error("dplasma_zungqr_New", "illegal Q descriptor"); */
+    /*     return NULL; */
+    /* } */
+    if ( Q->n > Q->m ) {
+        dplasma_error("dplasma_zungqr_New", "illegal size of Q (N should be smaller or equal to M)");
+        return NULL;
+    }
+    if ( A->n > Q->n ) {
+        dplasma_error("dplasma_zungqr_New", "illegal size of A (K should be smaller or equal to N)");
+        return NULL;
+    }
+    if ( (T->nt < A->nt) || (T->mt < A->mt) ) {
+        dplasma_error("dplasma_zungqr_New", "illegal size of T (T should have as many tiles as A)");
+        return NULL;
+    }
+
+    /*
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
-     * it should be passed as a parameter as in getrf 
+     * it should be passed as a parameter as in getrf
      */
-    object = dague_zungqr_new( *A, (dague_ddesc_t*)A, 
-                               *T, (dague_ddesc_t*)T, 
-                               *Q, (dague_ddesc_t*)Q, 
+    object = dague_zungqr_new( *A, (dague_ddesc_t*)A,
+                               *T, (dague_ddesc_t*)T,
+                               *Q, (dague_ddesc_t*)Q,
                                ib, NULL);
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( object->p_work, ib * T->nb * sizeof(Dague_Complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zungqr_DEFAULT_ARENA], 
+    dplasma_add2arena_tile( object->arenas[DAGUE_zungqr_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(Dague_Complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
-    
+
     /* Lower triangular part of tile without diagonal */
     dplasma_add2arena_lower( object->arenas[DAGUE_zungqr_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(Dague_Complex64_t),
@@ -84,7 +114,7 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
                              MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zungqr_LITTLE_T_ARENA], 
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zungqr_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(Dague_Complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
@@ -120,7 +150,7 @@ dplasma_zungqr_Destruct( dague_object_t *object )
 
     dague_private_memory_fini( dague_zungqr->p_work );
     free( dague_zungqr->p_work );
-    dague_zungqr_destroy(dague_zungqr);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zungqr);
 }
 
 /***************************************************************************//**
@@ -150,11 +180,11 @@ dplasma_zungqr_Destruct( dague_object_t *object )
  * @sa dplasma_zgeqrf
  *
  ******************************************************************************/
-int 
-dplasma_zungqr( dague_context_t *dague, 
-                tiled_matrix_desc_t *A, 
-                tiled_matrix_desc_t *T, 
-                tiled_matrix_desc_t *Q ) 
+int
+dplasma_zungqr( dague_context_t *dague,
+                tiled_matrix_desc_t *A,
+                tiled_matrix_desc_t *T,
+                tiled_matrix_desc_t *Q )
 {
     dague_object_t *dague_zungqr = NULL;
 
@@ -162,7 +192,6 @@ dplasma_zungqr( dague_context_t *dague,
         dplasma_error("dplasma_zungqr", "dplasma not initialized");
         return -1;
     }
-
     if ( Q->n > Q->m) {
         dplasma_error("dplasma_zungqr", "illegal number of columns in Q (N)");
         return -2;

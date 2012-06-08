@@ -29,7 +29,8 @@ struct assignment {
 /**
  * Expressions
  */
-#define EXPR_OP_BINARY_RANGE          24
+#define EXPR_OP_RANGE_CST_INCREMENT   24
+#define EXPR_OP_RANGE_EXPR_INCREMENT  25
 #define EXPR_OP_INLINE                100
 
 typedef int (*expr_op_inline_func_t)(const struct dague_object *__dague_object_parent, const assignment_t *assignments);
@@ -39,14 +40,20 @@ struct expr {
         struct {
             const struct expr *op1;
             const struct expr *op2;
-        } binary;
+            union {
+                int cst;
+                const struct expr *expr;
+            } increment;
+        } range;
         expr_op_inline_func_t inline_func;
     } u_expr;
     unsigned char op;
 };
 
-#define bop1        u_expr.binary.op1
-#define bop2        u_expr.binary.op2
+#define rop1        u_expr.range.op1
+#define rop2        u_expr.range.op2
+#define rcstinc     u_expr.range.increment.cst
+#define rexprinc    u_expr.range.increment.expr
 #define inline_func u_expr.inline_func
 
 /**
@@ -61,9 +68,6 @@ struct expr {
 #define ACCESS_READ     0x01
 #define ACCESS_WRITE    0x02
 #define ACCESS_RW       (ACCESS_READ | ACCESS_WRITE)
-
-#define MAX_DEP_IN_COUNT  10
-#define MAX_DEP_OUT_COUNT 10
 
 struct dague_flow {
     char               *name;
@@ -81,8 +85,8 @@ struct dague_flow {
 
 struct dague_datatype {
     int index;
-    expr_op_inline_func_t index_fct;
     int nb_elt;
+    expr_op_inline_func_t index_fct;
     expr_op_inline_func_t nb_elt_fct;
 };
 
@@ -104,11 +108,13 @@ void dep_dump(const dep_t *d, const struct dague_object *dague_object, const cha
 #define DAGUE_SYMBOL_IS_STANDALONE  0x0002     /**> standalone symbol, with dependencies only to global symbols */
 
 struct symbol {
-    uint32_t        flags;
-    const char     *name;
-    const char     *type;
-    const expr_t   *min;
-    const expr_t   *max;
+    uint32_t        flags;           /*< mask of GLOBAL and STANDALONE */
+    const char     *name;            /*< Name, used for debugging purposes */
+    int             context_index;   /*< Location of this symbol's value in the execution_context->locals array */
+    const expr_t   *min;             /*< Expression that represents the minimal value of this symbol */
+    const expr_t   *max;             /*< Expression that represents the maximal value of this symbol */
+    const expr_t   *expr_inc;        /*< Expression that represents the increment of this symbol. NULL if and only if cst_inc is defined */
+    int             cst_inc;         /*< If expr_inc is NULL, represents the integer increment of this symbol. */
 };
 
 /**

@@ -41,7 +41,7 @@ plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 plasma_left    [type="PLASMA_enum" hidden=on default=PlasmaLeft  ]
 plasma_right   [type="PLASMA_enum" hidden=on default=PlasmaRight ]
 
-hemm_in_A(m, n)
+hemm_in_A(m, n) [profile = off]
 // Execution space
 m = 0 .. descA.mt-1
 n = ((uplo == plasma_upper) ? m : 0) .. ((uplo == plasma_upper) ? descA.nt-1 : m)
@@ -58,7 +58,7 @@ BODY
 /* nothing */
 END
 
-hemm_in_B(m, n)
+hemm_in_B(m, n) [profile = off]
 // Execution space
 m = 0 .. descB.mt-1
 n = 0 .. descB.nt-1
@@ -149,9 +149,9 @@ BODY
         }
         );
 
-    printlog("thread %d hemm( %d, %d, %d )\n",
+    printlog("thread %d VP %d hemm( %d, %d, %d )\n",
              /* "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n", */
-             context->eu_id, m, n, k);
+             context->th_id, context->virtual_process->vp_id, m, n, k);
              /* plasma_const(uplo), tempmm, tempnn,  */
              /* m, n, ldam, m, n, ldbm); */
 END

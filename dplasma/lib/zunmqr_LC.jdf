@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -78,27 +78,26 @@ BODY
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( pool_0 );
 
-#line 19 "pzunmqr_LC.cpp"
-         CORE_zunmqr(side, trans, 
-                     tempkm, tempnn, tempkmin, ib, 
-                     A /* A(k,k) */, ldak, 
-                     T /* T(k,k) */, descT.mb, 
-                     B /* B(k,n) */, ldbk, 
+         CORE_zunmqr(side, trans,
+                     tempkm, tempnn, tempkmin, ib,
+                     A /* A(k,k) */, ldak,
+                     T /* T(k,k) */, descT.mb,
+                     B /* B(k,n) */, ldbk,
                      p_elem_A, descT.nb );
-         
+
          dague_private_memory_push( pool_0, p_elem_A );
          );
 
-  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(side, trans, tempkm, tempnn, tempkmin, ib, \n"
+  printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(side, trans, tempkm, tempnn, tempkmin, ib, \n"
            "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, B(%d,%d)[%p], ldbk, p_elem_A, descT.nb)\n",
-  context->eu_id, k, n, k, k, A, k, k, T, k, n, B);
+  context->th_id, context->virtual_process->vp_id, k, n, k, k, A, k, k, T, k, n, B);
 
 END
 
 /*
  * Pseudo-task
  */
-zunmqr_in_A(k)
+zunmqr_in_A(k) [profile = off]
   k = 0..(descA.nt-1)
   /*_dague_pseudotask_predicate = 1..(n>=0) & (descB.nt>=(1+n)) & (k>=0) & (descA.mt>=(k+1)) & (descA.nt>=(k+1))*/
 
@@ -114,7 +113,7 @@ END
 /*
  * Pseudo-task
  */
-zunmqr_in_T(k)
+zunmqr_in_T(k) [profile = off]
   k = 0..(descA.nt-1)
   /*_dague_pseudotask_predicate = 1..(n>=0) & (descB.nt>=(n+1)) & (k>=0) & (descA.mt>=(k+1)) & (descA.nt>=(k+1))*/
 
@@ -141,13 +140,13 @@ ztsmqr(k, m, n)
   /* V == A(m,k) */
   /* T == T(m,k) */
 
-  RW    D <- ((1+k)==m) & (descA.nt>=(k+1)) & (descA.mt>=(1+k)) ? B zunmqr(m-1, n) 
-          <- (m>=(k+2)) ? D ztsmqr(k, m-1, n) 
-          -> ( m == descB.mt-1 ) ? D ztsmqr_out_B0(k, n) : D ztsmqr(k, m+1, n) 
+  RW    D <- ((1+k)==m) & (descA.nt>=(k+1)) & (descA.mt>=(1+k)) ? B zunmqr(m-1, n)
+          <- (m>=(k+2)) ? D ztsmqr(k, m-1, n)
+          -> ( m == descB.mt-1 ) ? D ztsmqr_out_B0(k, n) : D ztsmqr(k, m+1, n)
 
-  RW    E <- (0==k) ? B(m,n) : E ztsmqr(k-1, m, n) 
-          -> ((k+1)==m) & (descA.mt>=(k+2)) & (descA.nt>=(2+k)) ? B zunmqr(m, n) 
-          -> (m>=(k+2)) & (descA.nt>=(k+2)) & (descA.mt>=(k+2)) ? E ztsmqr(k+1, m, n) 
+  RW    E <- (0==k) ? B(m,n) : E ztsmqr(k-1, m, n)
+          -> ((k+1)==m) & (descA.mt>=(k+2)) & (descA.nt>=(2+k)) ? B zunmqr(m, n)
+          -> (m>=(k+2)) & (descA.nt>=(k+2)) & (descA.mt>=(k+2)) ? E ztsmqr(k+1, m, n)
           -> (descA.mt==(k+1)) & (m>=descA.nt) ? B(m,n)
           -> !((descA.mt==(k+1)) & (m>=descA.nt)) & (descA.nt==(k+1)) & (descA.mt>=(descA.nt+1)) ? B(m,n)
           -> !((descA.mt==(k+1)) & (m>=descA.nt)) & !((descA.nt==(k+1)) & (descA.mt>=(descA.nt+1))) & (descA.mt==(k+1)) & (descA.nt>=(m+1)) ? B(m,n)
@@ -180,29 +179,28 @@ BODY
 
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( pool_0 );
-         
-#line 42 "pzunmqr_LC.cpp"
-         CORE_ztsmqr(side, trans, 
-                     descB.mb, tempnn, tempmm, tempnn, tempkmin, ib, 
-                     D /* B(k,n) */, ldbk, 
-                     E /* B(m,n) */, ldbm, 
-                     V /* A(m,k) */, ldam, 
-                     T /* T(m,k) */, descT.mb, 
+
+         CORE_ztsmqr(side, trans,
+                     descB.mb, tempnn, tempmm, tempnn, tempkmin, ib,
+                     D /* B(k,n) */, ldbk,
+                     E /* B(m,n) */, ldbm,
+                     V /* A(m,k) */, ldam,
+                     T /* T(m,k) */, descT.mb,
                      p_elem_A, ldwork );
 
          dague_private_memory_push( pool_0, p_elem_A );
          );
 
-  printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(side, trans, descB.mb, tempnn, tempmm, tempnn, tempkmin, ib, \n"
+  printlog("thread %d VP %d CORE_ztsmqr(%d, %d, %d)\n\t(side, trans, descB.mb, tempnn, tempmm, tempnn, tempkmin, ib, \n"
            "\tB(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-  context->eu_id, k, m, n, k, n, D, m, n, E, m, k, V, m, k, T);
+  context->th_id, context->virtual_process->vp_id, k, m, n, k, n, D, m, n, E, m, k, V, m, k, T);
 
 END
 
 /*
  * Pseudo-task
  */
-ztsmqr_out_B0(k, n)
+ztsmqr_out_B0(k, n) [profile = off]
   k = 0..descA.nt-1
   n = 0..descB.nt-1
   /*_dague_pseudotask_predicate = 1..((m+1)==descB.mt) & (n>=0) & (descB.nt>=(n+1)) & (m>=(k+1)) & (descA.nt>=(k+1)) & (k>=0) & (descA.mt>=(k+1))*/
@@ -219,7 +217,7 @@ END
 /*
  * Pseudo-task
  */
-ztsmqr_in_V(k, m)
+ztsmqr_in_V(k, m) [profile = off]
   k = 0..descA.mt-1
   m = k+1..descB.mt-1
   /*_dague_pseudotask_predicate = 1..(n>=0) & (descB.nt>=(1+n)) & (m>=(k+1)) & (descB.mt>=(m+1)) & (k>=0) & (descA.mt>=(k+1)) & (descA.nt>=(k+1))*/
@@ -236,7 +234,7 @@ END
 /*
  * Pseudo-task
  */
-ztsmqr_in_T(k, m)
+ztsmqr_in_T(k, m) [profile = off]
   k = 0..descA.nt-1
   m = k+1..descB.mt-1
   /*_dague_pseudotask_predicate = 1..(n>=0) & (descB.nt>=(n+1)) & (m>=(k+1)) & (descB.mt>=(m+1)) & (k>=0) & (descA.mt>=(k+1)) & (descA.nt>=(k+1))*/

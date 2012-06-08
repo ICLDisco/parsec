@@ -15,13 +15,12 @@ extern "C" %{
 #include <core_blas.h>
 
 #include "dague.h"
-#include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_stsmqr.h"
 extern int *gpu_counter;
@@ -38,14 +37,14 @@ p_work [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*ib*des
 p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)   *descT.nb)"]
 
 
-zgeqrt_typechange(k)
+zgeqrt_typechange(k)  [profile = off]
   /* Execution space */
   k = 0..( (descA.mt-1 < descA.nt-1)? descA.mt-1 : descA.nt-1 )
 
   : A(k,k)
 
 RW A <- A zgeqrt(k)
-     -> (descA.nt>=(2+k)) ? C zunmqr(k, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
+     -> (descA.nt>=(k+2)) ? C zunmqr(k, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
      -> A(k, k)                                              [type = LOWER_TILE]
 
 BODY
@@ -73,29 +72,34 @@ zgeqrt(k)
           -> T(k, k)                                             [type = LITTLE_T]
           -> (descA.nt-1 > k) ? D zunmqr(k, (k+1)..(descA.nt-1)) [type = LITTLE_T]
 
+  /* Priority */
+  ;(descA.nt-k)*(descA.nt-k)*(descA.nt-k)
+
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, k, k );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ | DAGUE_WRITE, k, k );
 #endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
 
-  int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
-  int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
-  int ldak = BLKLDD( descA, k );
+    DRYRUN(
+        int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
+        int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
+        int ldak = BLKLDD( descA, k );
 
-  void *p_elem_A = dague_private_memory_pop( p_tau  );
-  void *p_elem_B = dague_private_memory_pop( p_work );
+        void *p_elem_A = dague_private_memory_pop( p_tau  );
+        void *p_elem_B = dague_private_memory_pop( p_work );
 
-#line 102 "pzgeqrf.c"
-  CORE_zgeqrt(tempkm, tempkn, ib,
-        A /* A(k,k) */, ldak, B /* T(k,k) */,
-        descT.mb, p_elem_A, p_elem_B );
+        CORE_zgeqrt(tempkm, tempkn, ib,
+                    A /* A(k,k) */, ldak,
+                    B /* T(k,k) */, descT.mb,
+                    p_elem_A, p_elem_B );
 
-  dague_private_memory_push( p_tau , p_elem_A );
-  dague_private_memory_push( p_work, p_elem_B );
+        dague_private_memory_push( p_tau , p_elem_A );
+        dague_private_memory_push( p_work, p_elem_B );
+           )
 
-  printlog("thread %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, k, k, A, k, k, B);
+     printlog("thread %d VP %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+     context->th_id, context->virtual_process->vp_id, k, k, k, A, k, k, B);
 
 END
 
@@ -122,7 +126,7 @@ zunmqr(k,n)
           -> (descA.mt>=(k+2)) ? J ztsmqr(k, k+1, n)
 
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ, k, k );
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, k, n );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ, k, k );
@@ -130,27 +134,27 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( p_work );
 
-#line 115 "pzgeqrf.c"
   DRYRUN(
          int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
          int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
          int ldak = BLKLDD( descA, k );
 
-         CORE_zunmqr(PlasmaLeft, PlasmaConjTrans, tempkm,
-                     tempnn, tempkm, ib,
-                     C /* A(k,k) */, ldak, D /* T(k,k) */,
-                     descT.mb, E /* A(k,n) */, ldak,
+         CORE_zunmqr(PlasmaLeft, PlasmaConjTrans,
+                     tempkm, tempnn, tempkm, ib,
+                     C /* A(k,k) */, ldak,
+                     D /* T(k,k) */, descT.mb,
+                     E /* A(k,n) */, ldak,
                      p_elem_A, descT.nb );
          );
   dague_private_memory_push( p_work, p_elem_A );
 
-  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, p_elem_A, descT.nb)\n",
-  context->eu_id, k, n, k, k, C, k, k, D, k, n, E);
+  printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, p_elem_A, descT.nb)\n",
+  context->th_id, context->virtual_process->vp_id, k, n, k, k, C, k, k, D, k, n, E);
 
 END
 
 
-ztsqrt_out_Ak(k)
+ztsqrt_out_Ak(k) [profile = off]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
 
   : A(k, k)
@@ -184,8 +188,11 @@ ztsqrt(k,m)
   RW    H <- T(m, k)                                                  [type = LITTLE_T]
           -> T(m, k)                                                  [type = LITTLE_T]
           -> (descA.nt-1 > k) ? M ztsmqr(k, m, (k+1)..(descA.nt-1))   [type = LITTLE_T]
+    /* Priority */
+; (descA.mt-k)*(descA.mt-k)*(descA.mt-k)
+
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, k, k );
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, m, k );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ | DAGUE_WRITE, m, k );
@@ -194,7 +201,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( p_tau  );
   void *p_elem_B = dague_private_memory_pop( p_work );
 
-#line 134 "pzgeqrf_cpp.c"
   DRYRUN(
 
          int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
@@ -211,13 +217,13 @@ BODY
   dague_private_memory_push( p_tau , p_elem_A );
   dague_private_memory_push( p_work, p_elem_B );
 
-  printlog("thread %d CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, m, k, k, F, m, k, G, m, k, H);
+  printlog("thread %d VP %d CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, m, k, k, F, m, k, G, m, k, H);
 
 END
 
 
-ztsmqr_out_A1(k, n1)
+ztsmqr_out_A1(k, n1) [profile = off]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   n1 = k+1..descA.nt-1
 
@@ -256,6 +262,9 @@ ztsmqr(k,m,n1)
   READ  L <- G ztsqrt(k, m)
   READ  M <- H ztsqrt(k, m)   [type = LITTLE_T]
 
+    /* Priority */
+; (descA.mt-k)*(descA.mt-n1)*(descA.mt-n1)
+
 BODY
 
   void *p_elem_A;
@@ -268,7 +277,7 @@ BODY
          int ldwork = ib;
          );
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ, m, k );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ, m, k );
     if( dague_active_gpu() > 0 ) {
@@ -291,11 +300,10 @@ BODY
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, m, n1 );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
-#line 151 "pzgeqrf.c"
   p_elem_A = dague_private_memory_pop( p_work );
   DRYRUN(
-         CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans, descA.mb,
-                     tempnn, tempmm, tempnn, descA.nb, ib,
+         CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans,
+                     descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
                      J /* A(k,n1) */, ldak,
                      K /* A(m,n1) */, ldam,
                      L /* A(m,k) */,  ldam,
@@ -304,14 +312,14 @@ BODY
          );
   dague_private_memory_push( p_work, p_elem_A );
 
-  printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_ztsmqr(%d, %d, %d)\n"
            "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
            "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-           context->eu_id, k, m, n1,
+           context->th_id, context->virtual_process->vp_id, k, m, n1,
            k, n1, J, m, n1, K,
            m, k,  L, m, k,  M);
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
 FIN:
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 

@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -47,9 +47,9 @@ ztsmqr(k,m,n)
   /* V == A(m, k) */
   /* T == T(m, k) */
 
-  RW   A1 <- ( m == descQ.mt-1 ) ? A ztsmqr_in_A1(k, n) : A1 ztsmqr(k, m+1, n) 
+  RW   A1 <- ( m == descQ.mt-1 ) ? A ztsmqr_in_A1(k, n) : A1 ztsmqr(k, m+1, n)
           -> ( m == k+1 ) ? C zunmqr( k, n )
-          -> ( m >  k+1 ) ? A1 ztsmqr(k, m-1, n) 
+          -> ( m >  k+1 ) ? A1 ztsmqr(k, m-1, n)
 
   RW   A2 <- ( k == minMN-1 ) ? Q(m, n)
           <- ( k <  minMN-1 ) & (k+1 == m) ? C zunmqr(k+1, n)
@@ -66,12 +66,12 @@ ztsmqr(k,m,n)
   */
 BODY
 
-   printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, \n"
+   printlog("thread %d VP %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, \n"
             "\tdescQ.mb, tempnn, tempmm, tempnn, tempAkn, ib, \n"
             "\tQ(%d,%d)[%p], ldqk, Q(%d,%d)[%p], ldqm, \n"
             "\tA(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-            context->eu_id, k, m, n, 
-            k, n, A1, m, n, A2, 
+            context->th_id, context->virtual_process->vp_id, k, m, n,
+            k, n, A1, m, n, A2,
             m, k, V, m, k, T);
 
   DRYRUN(
@@ -82,17 +82,17 @@ BODY
          int ldqm = BLKLDD( descQ, m );
          int ldam = BLKLDD( descA, m );
          int ldwork = ib;
-         
+
          void *p_elem_A = dague_private_memory_pop( p_work );
-         
-         CORE_ztsmqr(PlasmaLeft, PlasmaNoTrans, 
-                     descQ.mb, tempnn, tempmm, tempnn, tempAkn, ib, 
-                     A1 /* Q(k, n) */, ldqk, 
-                     A2 /* Q(m, n) */, ldqm, 
-                     V  /* A(m, k) */, ldam, 
-                     T  /* T(m, k) */, descT.mb, 
+
+         CORE_ztsmqr(PlasmaLeft, PlasmaNoTrans,
+                     descQ.mb, tempnn, tempmm, tempnn, tempAkn, ib,
+                     A1 /* Q(k, n) */, ldqk,
+                     A2 /* Q(m, n) */, ldqm,
+                     V  /* A(m, k) */, ldam,
+                     T  /* T(m, k) */, descT.mb,
                      p_elem_A, ldwork );
-         
+
          dague_private_memory_push( p_work, p_elem_A );
          );
 
@@ -101,7 +101,7 @@ END
 /*
  * Pseudo-task
  */
-ztsmqr_in_A1(k,n)
+ztsmqr_in_A1(k,n) [profile = off]
   k = 0..( (descQ.mt < descQ.nt) ? descQ.mt-2 : descQ.nt-1 )
   n = 0..(descQ.nt-1)
 
@@ -117,7 +117,7 @@ END
 /*
  * Pseudo-task
  */
-ztsmqr_in_V(k, m)
+ztsmqr_in_V(k, m) [profile = off]
   k = 0..(minMN-1)
   m = k+1..(descQ.mt-1)
 
@@ -133,7 +133,7 @@ END
 /*
  * Pseudo-task
  */
-ztsmqr_in_T(k, m)
+ztsmqr_in_T(k, m) [profile = off]
   k = 0..(minMN-1)
   m = k+1..(descQ.mt-1)
 
@@ -173,9 +173,9 @@ zunmqr(k, n)
 
 BODY
 
-  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, \n"
+  printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, \n"
            "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
-           context->eu_id, k, n, k, k, A, k, k, T, k, n, C);
+           context->th_id, context->virtual_process->vp_id, k, n, k, k, A, k, k, T, k, n, C);
 
      DRYRUN(
          int tempAkm  = ( k == descA.mt-1 ) ? descA.m - k * descA.mb : descA.mb;
@@ -185,14 +185,14 @@ BODY
          int tempkmin = ( tempAkn < tempAkm ) ? tempAkn : tempAkm ;
          int ldak = BLKLDD( descA, k );
          int ldqk = BLKLDD( descQ, k );
-         
+
          void *p_elem_A = dague_private_memory_pop( p_work );
-         
-         CORE_zunmqr(PlasmaLeft, PlasmaNoTrans, 
-                     tempkm, tempnn, tempkmin, ib, 
-                     A /* A(k, k) */, ldak, 
-                     T /* T(k, k) */, descT.mb, 
-                     C /* Q(k, n) */, ldqk, 
+
+         CORE_zunmqr(PlasmaLeft, PlasmaNoTrans,
+                     tempkm, tempnn, tempkmin, ib,
+                     A /* A(k, k) */, ldak,
+                     T /* T(k, k) */, descT.mb,
+                     C /* Q(k, n) */, ldqk,
                      p_elem_A, descT.nb );
 
          dague_private_memory_push( p_work, p_elem_A );
@@ -202,7 +202,7 @@ END
 /*
  * Pseudo-task
  */
-zunmqr_in_A(k)
+zunmqr_in_A(k) [profile = off]
   k = 0..(minMN-1)
 
   : A( k, k )
@@ -217,7 +217,7 @@ END
 /*
  * Pseudo-task
  */
-zunmqr_in_T(k)
+zunmqr_in_T(k) [profile = off]
   k = 0..(minMN-1)
 
   : T( k, k )
@@ -227,4 +227,3 @@ zunmqr_in_T(k)
 BODY
 /* nothing */
 END
-

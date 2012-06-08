@@ -1,18 +1,23 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 
 #include "zlaswp.h"
+
+/* Dirty hack which uses internal function of PLASMA to avoid initializing the lib */
+/* TODO: remove check on context in PLASMA for this function, it's useless */
+PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
+                             int lm, int ln, int i, int j, int m, int n);
 
 dague_object_t *
 dplasma_zlaswp_New(tiled_matrix_desc_t *A,
@@ -23,7 +28,7 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
 
     dague_laswp = dague_zlaswp_new( *A,    (dague_ddesc_t*)A,
                                     *IPIV, (dague_ddesc_t*)IPIV,
-                                    inc);
+                                    inc );
 
     /* A */
     dplasma_add2arena_tile( dague_laswp->arenas[DAGUE_zlaswp_DEFAULT_ARENA],
@@ -48,7 +53,7 @@ dplasma_zlaswp_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zlaswp->arenas[DAGUE_zlaswp_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlaswp->arenas[DAGUE_zlaswp_PIVOT_ARENA     ]->opaque_dtt) );
 
-    dague_zlaswp_destroy(dague_zlaswp);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zlaswp);
 }
 
 int
@@ -63,6 +68,8 @@ dplasma_zlaswp( dague_context_t *dague,
 
     dague_enqueue( dague, (dague_object_t*)dague_zlaswp);
     dplasma_progress(dague);
+
+    dplasma_zlaswp_Destruct( dague_zlaswp );
 
     return 0;
 }

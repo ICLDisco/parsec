@@ -7,7 +7,7 @@
 #ifndef _DAGUE_scheduling_h
 #define _DAGUE_scheduling_h
 
-#include "dague.h"
+#include "dague_internal.h"
 
 /**
  * Add the dague_object_t to the execution queue of the dague_context_t. As
@@ -97,6 +97,7 @@ int dague_complete_execution( dague_execution_unit_t *eu_context,
                               dague_execution_context_t *exec_context );
 
 typedef struct {
+    char* name;
     int(*init)(dague_context_t* master);
     int(*schedule_task)(dague_execution_unit_t* eu_context, dague_execution_context_t* new_context);
     dague_execution_context_t *(*select_task)( dague_execution_unit_t *eu_context );

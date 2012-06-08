@@ -71,16 +71,16 @@ BODY
         ldan, dbeta, B /* C(n,n) */,
         ldcn );  );
 
-  printlog("thread %d CORE_zherk(%d, %d)\n"
+  printlog("thread %d VP %d CORE_zherk(%d, %d)\n"
            "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, dbeta, C(%d,%d)[%p], ldcn)\n",
-  context->eu_id, n, k, n, k, A, n, n, B);
+  context->th_id, context->virtual_process->vp_id, n, k, n, k, A, n, n, B);
 
 END
 
 /*
  * Pseudo-task
  */
-zherk_in_A0(n,k)
+zherk_in_A0(n,k) [profile = off]
   n = 0..(descC.nt-1)
   k = 0..(descA.nt-1)
 
@@ -139,16 +139,16 @@ BODY
         ldam, zbeta, E /* C(n,m) */,
         ldcn );  );
 
-  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
            "\t(trans, PlasmaConjTrans, tempnn, tempmm, tempkn, zalpha, A(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, zbeta, C(%d,%d)[%p], ldcn)\n",
-  context->eu_id, n, m, k1, n, k1, C, m, k1, D, n, m, E);
+  context->th_id, context->virtual_process->vp_id, n, m, k1, n, k1, C, m, k1, D, n, m, E);
 
 END
 
 /*
  * Pseudo-task
  */
-zgemm_in_A0(n,m,k1)
+zgemm_in_A0(n,m,k1) [profile = off]
   n = 0..inline_c %{ return dague_imin((descC.mt-2),(descC.nt-1)); %}
   m = (n+1)..(descC.mt-1)
   k1 = 0..(descA.nt-1)
@@ -165,7 +165,7 @@ END
 /*
  * Pseudo-task
  */
-zgemm_in_A1(n,m,k1)
+zgemm_in_A1(n,m,k1) [profile = off]
   n = 0..inline_c %{ return dague_imin((descC.mt-2),(descC.nt-1)); %}
   m = (n+1)..(descC.mt-1)
   k1 = 0..(descA.nt-1)

@@ -20,6 +20,9 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
+PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
+                             int lm, int ln, int i, int j, int m, int n);
+
 %}
 
 /** Globals */
@@ -33,6 +36,19 @@ inc       [type = "int"]
  *                              SWAP                                                *
  ************************************************************************************/
 
+IPIV_in(k) [profile = off]
+  k = 0..descIP.mt-1
+
+:IPIV(k, 0)
+
+READ IP <- IPIV(k, 0)                     [type = PIVOT]
+        -> IPIV laswp(k, 0..descA.nt-1)   [type = PIVOT]
+
+BODY
+    /**/
+END
+
+
 laswp(k, n)
   /* Execution space */
   k = 0..descIP.mt-1
@@ -42,7 +58,7 @@ laswp(k, n)
   :A(k, n)
 
   READ  A    <- A(k, n)
-  READ  IPIV <- IPIV(k, 0)                               [type = PIVOT]
+  READ  IPIV <- IP IPIV_in(k)                              [type = PIVOT]
   CTL   ctl  <- ( (inc > 0) && (k > 0 )          ) ? ctl laswp(k-1, n)
              <- ( (inc < 0) && (k < descIP.mt-1 )) ? ctl laswp(k+1, n)
              -> ( (inc > 0) && (k < descIP.mt-1 )) ? ctl laswp(k+1, n)
@@ -55,12 +71,22 @@ BODY
          int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
          int ldak = BLKLDD(descA, k);
 
-         CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc);
-
+         if ( descA.storage == matrix_Tile ) {
+             int tempk = k * descA.mb;
+             int tempm = descA.m - tempk;
+             PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                                    descA.mb, descA.nb, descA.mb * descA.nb,
+                                                    ( descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                                    tempm, tempnn);
+             pdescA.mat = A;
+             CORE_zlaswp_ontile( pdescA, 1, tempkm, IPIV, 1);
+         } else {
+             CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc);
+         }
          );
 
    printlog("thread %d   CORE_zlaswp(%d, %d)\n"
-            "\t(%d, A(%d,%d)[%p], %d, %d, IPIV(%d)[%p], %d)\n",
-            context->eu_id, tempnn, k, n, A, ldak, 1, tempkm, k, IPIV, inc);
+            "\t(%d, A(%d,%d)[%p], %d, %d, %d, IPIV(%d)[%p], %d)\n",
+            context->th_id, k, n, tempnn, k, n, A, ldak, 1, tempkm, k, IPIV, inc);
 
 END

@@ -89,7 +89,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 14 "pzgerbb_1_if_cpp.c"
   CORE_zgeqrt(tempkm, tempkn, ib, 
 	A /* A(k,k) */, ldak, B /* T(k,k) */, 
 	desc_T->mb, p_elem_A, p_elem_B );
@@ -97,15 +96,15 @@ BODY
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, k, k, A, k, k, B);
+  printlog("thread %d VP %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, k, k, A, k, k, B);
 
 END
 
 /*
  * Pseudo-task
  */
-zgeqrt_in_T0(k)
+zgeqrt_in_T0(k) [profile = off]
   k = 0..(NT-1)
 
   : T(k,k)
@@ -120,7 +119,7 @@ END
 /*
  * Pseudo-task
  */
-zgeqrt_out_T1(k)
+zgeqrt_out_T1(k) [profile = off]
   k = 0..(NT-1)
 
   : T(k,k)
@@ -173,7 +172,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 18 "pzgerbb_1_if_cpp.c"
   CORE_zunmqr(PlasmaLeft, PlasmaConjTrans, tempkm, 
 	tempnn, tempkm, ib, 
 	C /* A(k,k) */, ldak, D /* T(k,k) */, 
@@ -182,8 +180,8 @@ BODY
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, A(%d,%d)[%p], ldak, p_elem_A, desc_T->nb)\n",
-  context->eu_id, k, n, k, k, C, k, k, D, k, n, E);
+  printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, A(%d,%d)[%p], ldak, p_elem_A, desc_T->nb)\n",
+  context->th_id, context->virtual_process->vp_id, k, n, k, k, C, k, k, D, k, n, E);
 
 END
 
@@ -235,7 +233,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 23 "pzgerbb_1_if_cpp.c"
   CORE_ztsqrt(tempmm, tempkn, ib, 
 	F /* A(k,k) */, ldak, G /* A(m,k) */, 
 	ldam, H /* T(m,k) */, desc_T->mb, 
@@ -244,15 +241,15 @@ BODY
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, m, k, k, F, m, k, G, m, k, H);
+  printlog("thread %d VP %d CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, m, k, k, F, m, k, G, m, k, H);
 
 END
 
 /*
  * Pseudo-task
  */
-ztsqrt_out_A0(k)
+ztsqrt_out_A0(k) [profile = off]
   k = 0..(NT-1)
 
   : A(k,k)
@@ -267,7 +264,7 @@ END
 /*
  * Pseudo-task
  */
-ztsqrt_in_T1(k,m)
+ztsqrt_in_T1(k,m) [profile = off]
   k = 0.. minnt1mt2
   m = (k+1)..(MT-1)
 
@@ -283,7 +280,7 @@ END
 /*
  * Pseudo-task
  */
-ztsqrt_out_T2(k,m)
+ztsqrt_out_T2(k,m) [profile = off]
   k = 0.. minnt1mt2
   m = (k+1)..(MT-1)
 
@@ -345,7 +342,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 27 "pzgerbb_1_if_cpp.c"
   CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans, desc_A->mb, 
 	tempnn, tempmm, tempnn, 
 	desc_A->nb, ib, J /* A(k,n1) */, 
@@ -355,8 +351,8 @@ BODY
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, desc_A->mb, tempnn, tempmm, tempnn, desc_A->nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T->mb, p_elem_A, ldwork)\n",
-  context->eu_id, k, m, n1, k, n1, J, m, n1, K, m, k, L, m, k, M);
+  printlog("thread %d VP %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, desc_A->mb, tempnn, tempmm, tempnn, desc_A->nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T->mb, p_elem_A, ldwork)\n",
+  context->th_id, context->virtual_process->vp_id, k, m, n1, k, n1, J, m, n1, K, m, k, L, m, k, M);
 
 END
 
@@ -399,7 +395,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 32 "pzgerbb_1_if_cpp.c"
   CORE_zgelqt(tempkm, tempkn, ib, 
 	N /* A(k,k+1) */, ldak, O /* T(k,k+1) */, 
 	desc_T->mb, p_elem_A, p_elem_B );
@@ -407,15 +402,15 @@ BODY
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d CORE_zgelqt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, k, k+1, N, k, k+1, O);
+  printlog("thread %d VP %d CORE_zgelqt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, k, k+1, N, k, k+1, O);
 
 END
 
 /*
  * Pseudo-task
  */
-zgelqt_in_T0(k)
+zgelqt_in_T0(k) [profile = off]
   k = 0..(NT-1)
 
   : T(k,k+1)
@@ -430,7 +425,7 @@ END
 /*
  * Pseudo-task
  */
-zgelqt_out_T1(k)
+zgelqt_out_T1(k) [profile = off]
   k = 0..(NT-2)
 
   : T(k,k+1)
@@ -481,7 +476,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 37 "pzgerbb_1_if_cpp.c"
   CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
 	tempkn, tempkn, ib, 
 	P /* A(k,k+1) */, ldak, Q /* T(k,k+1) */, 
@@ -490,8 +484,8 @@ BODY
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_zunmlq(%d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, A(%d,%d)[%p], ldam, p_elem_A, desc_T->nb)\n",
-  context->eu_id, k, m1, k, k+1, P, k, k+1, Q, m1, k+1, R);
+  printlog("thread %d VP %d CORE_zunmlq(%d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, A(%d,%d)[%p], ldam, p_elem_A, desc_T->nb)\n",
+  context->th_id, context->virtual_process->vp_id, k, m1, k, k+1, P, k, k+1, Q, m1, k+1, R);
 
 END
 
@@ -541,7 +535,6 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
-#line 41 "pzgerbb_1_if_cpp.c"
   CORE_ztslqt(tempkm, tempnn, ib, 
 	S /* A(k,k+1) */, ldak, T /* A(k,n2) */, 
 	ldak, U /* T(k,n2) */, desc_T->mb, 
@@ -550,15 +543,15 @@ BODY
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d CORE_ztslqt(%d, %d)\n\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, n2, k, k+1, S, k, n2, T, k, n2, U);
+  printlog("thread %d VP %d CORE_ztslqt(%d, %d)\n\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, n2, k, k+1, S, k, n2, T, k, n2, U);
 
 END
 
 /*
  * Pseudo-task
  */
-ztslqt_out_A0(k)
+ztslqt_out_A0(k) [profile = off]
  k = 0..(NT-3)
 
   : A(k,k+1)
@@ -573,7 +566,7 @@ END
 /*
  * Pseudo-task
  */
-ztslqt_in_T1(k,n2)
+ztslqt_in_T1(k,n2) [profile = off]
   k = 0..(NT-3)
   n2 = (k+2)..(NT-1)
 
@@ -589,7 +582,7 @@ END
 /*
  * Pseudo-task
  */
-ztslqt_out_T2(k,n2)
+ztslqt_out_T2(k,n2) [profile = off]
   k = 0..(NT-3)
   n2 = (k+2)..(NT-1)
 
@@ -649,7 +642,6 @@ BODY
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
-#line 46 "pzgerbb_1_if_cpp.c"
   CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
 	desc_A->nb, tempmm, tempnn, 
 	desc_A->mb, ib, V /* A(m2,k+1) */, 
@@ -659,7 +651,7 @@ BODY
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, desc_A->nb, tempmm, tempnn, desc_A->mb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, ldwork)\n",
-  context->eu_id, k, n2, m2, m2, k+1, V, m2, n2, W, k, n2, X, k, n2, Y);
+  printlog("thread %d VP %d CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, desc_A->nb, tempmm, tempnn, desc_A->mb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, ldwork)\n",
+  context->th_id, context->virtual_process->vp_id, k, n2, m2, m2, k+1, V, m2, n2, W, k, n2, X, k, n2, Y);
 
 END

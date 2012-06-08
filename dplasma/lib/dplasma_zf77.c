@@ -18,41 +18,37 @@
 #include "dplasmaf77.h"
 #include "data_dist/matrix/matrix.h"
 
-
-#define dplasmaf77_zgemm    DPLASMA_ZF77NAME( gemm, GEMM )
-
-#define dplasmaf77_zhemm    DPLASMA_ZF77NAME( hemm, HEMM )
-#define dplasmaf77_ztrmm    DPLASMA_ZF77NAME( trmm, TRMM )
-#define dplasmaf77_ztrsm    DPLASMA_ZF77NAME( trsm, TRSM )
-#define dplasmaf77_ztrsmpl    DPLASMA_ZF77NAME( trsmpl, TRSMPL )
+#define dplasmaf77_zgemm      DPLASMA_ZF77NAME( gemm,      GEMM      )
+#define dplasmaf77_zhemm      DPLASMA_ZF77NAME( hemm,      HEMM      )
+#define dplasmaf77_ztrmm      DPLASMA_ZF77NAME( trmm,      TRMM      )
+#define dplasmaf77_ztrsm      DPLASMA_ZF77NAME( trsm,      TRSM      )
+#define dplasmaf77_ztrsmpl    DPLASMA_ZF77NAME( trsmpl,    TRSMPL    )
+#define dplasmaf77_ztrsmpl_sd DPLASMA_ZF77NAME( trsmpl_sd, TRSMPL_SD )
 
 /* Lapack */
-#define dplasmaf77_zpotrf    DPLASMA_ZF77NAME( potrf, POTRF )
-#define dplasmaf77_zpotrs    DPLASMA_ZF77NAME( potrs, POTRS )
-#define dplasmaf77_zposv    DPLASMA_ZF77NAME( posv, POSV )
-#define dplasmaf77_zgetrf    DPLASMA_ZF77NAME( getrf, GETRF )
-#define dplasmaf77_zgetrs    DPLASMA_ZF77NAME( getrs, GETRS )
-#define dplasmaf77_zgesv    DPLASMA_ZF77NAME( gesv, GESV )
-#define dplasmaf77_zgeqrf    DPLASMA_ZF77NAME( geqrf, GEQRF )
-#define dplasmaf77_zgeqrf_param    DPLASMA_ZF77NAME( geqrf_param, GEQRF_PARAM )
-#define dplasmaf77_zgelqf    DPLASMA_ZF77NAME( gelqf, GELQF )
-#define dplasmaf77_zungqr    DPLASMA_ZF77NAME( ungqr, UNGQR )
-#define dplasmaf77_zungqr_param    DPLASMA_ZF77NAME( ungqr_param, UNGQR_PARAM )
+#define dplasmaf77_zpotrf       DPLASMA_ZF77NAME( potrf,       POTRF       )
+#define dplasmaf77_zpotrs       DPLASMA_ZF77NAME( potrs,       POTRS       )
+#define dplasmaf77_zposv        DPLASMA_ZF77NAME( posv,        POSV        )
+#define dplasmaf77_zgetrf       DPLASMA_ZF77NAME( getrf,       GETRF       )
+#define dplasmaf77_zgetrs       DPLASMA_ZF77NAME( getrs,       GETRS       )
+#define dplasmaf77_zgesv        DPLASMA_ZF77NAME( gesv,        GESV        )
+#define dplasmaf77_zgeqrf       DPLASMA_ZF77NAME( geqrf,       GEQRF       )
+#define dplasmaf77_zgeqrf_param DPLASMA_ZF77NAME( geqrf_param, GEQRF_PARAM )
+#define dplasmaf77_zgelqf       DPLASMA_ZF77NAME( gelqf,       GELQF       )
+#define dplasmaf77_zungqr       DPLASMA_ZF77NAME( ungqr,       UNGQR       )
+#define dplasmaf77_zungqr_param DPLASMA_ZF77NAME( ungqr_param, UNGQR_PARAM )
 
-#define dplasmaf77_zgeadd    DPLASMA_ZF77NAME( geadd, GEADD )
-#define dplasmaf77_zlacpy    DPLASMA_ZF77NAME( lacpy, LACPY )
-#define dplasmaf77_zlaset    DPLASMA_ZF77NAME( laset, LASET )
+#define dplasmaf77_zgeadd       DPLASMA_ZF77NAME( geadd, GEADD )
+#define dplasmaf77_zlacpy       DPLASMA_ZF77NAME( lacpy, LACPY )
+#define dplasmaf77_zlaset       DPLASMA_ZF77NAME( laset, LASET )
 #if defined(PRECISION_z) || defined(PRECISION_c)
-#define dplasmaf77_zplghe    DPLASMA_ZF77NAME( plghe, PLGHE )
+#define dplasmaf77_zplghe       DPLASMA_ZF77NAME( plghe, PLGHE )
 #endif
-#define dplasmaf77_zplgsy    DPLASMA_ZF77NAME( plgsy, PLGSY )
-#define dplasmaf77_zplrnt    DPLASMA_ZF77NAME( plrnt, PLRNT )
+#define dplasmaf77_zplgsy       DPLASMA_ZF77NAME( plgsy, PLGSY )
+#define dplasmaf77_zplrnt       DPLASMA_ZF77NAME( plrnt, PLRNT )
 
-#define dplasmaf77_zlange    DPLASMA_ZF77NAME( lange, LANGE )
-#define dplasmaf77_zlanhe    DPLASMA_ZF77NAME( lanhe, LANHE )
-
-#define dplasmaf77_ztrsmpl_sd    DPLASMA_ZF77NAME( trsmpl_sd, TRSMPL_SD )
-
+#define dplasmaf77_zlange       DPLASMA_ZF77NAME( lange, LANGE )
+#define dplasmaf77_zlanhe       DPLASMA_ZF77NAME( lanhe, LANHE )
 
 void dplasmaf77_zgemm( int *transA, int *transB, Dague_Complex64_t *alpha, tiled_matrix_desc_t **A, tiled_matrix_desc_t **B, Dague_Complex64_t *beta, tiled_matrix_desc_t **C)
 {

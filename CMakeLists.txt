@@ -153,11 +153,11 @@ include (CheckSymbolExists)
 include (CheckIncludeFiles)
 
 #
-# check the capabilities of the system we are building for 
+# check the capabilities of the system we are building for
 #
 
 IF( BUILD_TOOLS )
-  # Check for compiler tools 
+  # Check for compiler tools
   find_package(BISON)
   find_package(FLEX)
 ENDIF( BUILD_TOOLS )
@@ -427,6 +427,13 @@ IF( BUILD_DAGUE )
       list(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
       list(APPEND EXTRA_SOURCES src/gpu_data.c)
       set(HAVE_CUDA 1)
+      set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
+      set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
+      set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${CUDA_INCLUDE_DIRS}")
+      set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CUDA_LIBRARIES}")
+      check_function_exists(cudaDeviceCanAccessPeer DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
+      set(CMAKE_REQUIRED_INCLUDES  "${saved_include}")
+      set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
     else (CUDA_FOUND)
       set(HAVE_CUDA 0)
     endif (CUDA_FOUND)
@@ -445,6 +452,8 @@ IF( BUILD_DAGUE )
   endif (DAGUE_PROF_PAPI)
 ENDIF( BUILD_DAGUE )
 
+find_package(GTG)
+
 if( DAGUE_PROF_TRACE )
   list(APPEND EXTRA_SOURCES src/profiling.c)
 endif( DAGUE_PROF_TRACE )
@@ -461,12 +470,12 @@ endif( DAGUE_PROF_GRAPHER )
 ##
 #
 set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
-include_directories("${CMAKE_CURRENT_BINARY_DIR}")
-include_directories("${PROJECT_INCLUDE_DIR}")
+include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
+include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
 STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} DAGUE_COMPILE_INPLACE)
 if(NOT DAGUE_COMPILE_INPLACE)
-  include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
-  include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
+  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 endif(NOT DAGUE_COMPILE_INPLACE)
 add_definitions(-DHAVE_CONFIG_H)
 
@@ -497,6 +506,7 @@ set(SRCS
   src/debug.c 
   src/bindthread.c 
   src/mempool.c 
+  src/vpmap.c
  ${EXTRA_SOURCES} 
 )
 

@@ -33,6 +33,7 @@
 
 #include "dague_prof_grapher.h"
 #include "schedulers.h"
+#include "vpmap.h"
 
 /*******************************
  * globals and argv set values *
@@ -45,11 +46,13 @@ const int   side[2]  = { PlasmaLeft,    PlasmaRight };
 const int   uplo[2]  = { PlasmaUpper,   PlasmaLower };
 const int   diag[2]  = { PlasmaNonUnit, PlasmaUnit  };
 const int   trans[3] = { PlasmaNoTrans, PlasmaTrans, PlasmaConjTrans };
+const int   norms[4] = { PlasmaMaxNorm, PlasmaOneNorm, PlasmaInfNorm, PlasmaFrobeniusNorm };
 
 const char *sidestr[2]  = { "Left ", "Right" };
 const char *uplostr[2]  = { "Upper", "Lower" };
 const char *diagstr[2]  = { "NonUnit", "Unit   " };
 const char *transstr[3] = { "N", "T", "H" };
+const char *normsstr[4] = { "Max", "One", "Inf", "Fro" };
 
 static char *dot_filename = NULL;
 
@@ -73,11 +76,11 @@ void print_usage(void)
             "                       GD  -- Global Dequeue\n"
             "                       LHQ -- Local Hierarchical Queues\n"
             "                       AP  -- Absolute Priorities\n"
+            "                       PBQ -- Priority Based Local Flat Queues\n"
+            "                       LTQ -- Local Tree Queues\n"
             "\n"
             " -p -P --grid-rows : rows (P) in the PxQ process grid   (default: NP)\n"
             " -q -Q --grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
-            " -k --prio-switch  : activate prioritized DAG k steps before the end (default: 0)\n"
-            "                   : with no argument, prioritized DAG from the start\n"
             "\n"
             " -N                : dimension (N) of the matrices (required)\n"
             " -M                : dimension (M) of the matrices (default: N)\n"
@@ -100,17 +103,36 @@ void print_usage(void)
             "    --treel        : Tree used for low level reduction inside nodes. (specific to xgeqrf_param)\n"
             "    --treeh        : Tree used for high level reduction between nodes, only if qr_p > 1. (specific to xgeqrf_param)\n"
             "                      (0: Flat, 1: Greedy, 2: Fibonacci, 3: Binary)\n"
+
             " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
             "    --dot          : create a dot output file (default: don't)\n"
             "\n"
             " -v --verbose      : extra verbose output\n"
             " -h --help         : this message\n"
-           );
-    dague_usage();
+            "\n"
+            );
+    // TODO:: Should be moved with the other dague-specific options
+    fprintf(stderr,
+            " -V --vpmap        : select the virtual process map (default: flat map)\n"
+            "                     Accepted values:\n"
+            "                       flat -- Flat Map: all cores defined with -c are under the same virtual process\n"
+            "                       hwloc -- Hardware Locality based: threads up to -c are created and threads\n"
+            "                                bound on cores that are under the same socket are also under the same\n"
+            "                                virtual process\n"
+            "                       file:filename -- uses filename to load the virtual process map\n"
+            "                       rr:n:p:c -- create n virtual processes per real process, each virtual process with p\n"
+            "                                   threads bound in a round-robin fashion on the number of cores c (overloads the\n"
+            "                                   -c flag)\n"
+            "\n"
+            "\n"
+            "ENVIRONMENT\n"
+            "  [SDCZ]<FUNCTION> : defines the priority limit of a given function for a given precision\n"
+            "\n");
+            dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:y:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:y:V:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -127,8 +149,10 @@ static struct option long_options[] =
     {"grid-cols",   required_argument,  0, 'q'},
     {"q",           required_argument,  0, 'q'},
     {"Q",           required_argument,  0, 'q'},
-    {"prio-switch", optional_argument,  0, 'k'},
-    {"k",           optional_argument,  0, 'k'},
+
+    // TODO:: Should be moved with the other dague-specific options
+    {"V",           required_argument,  0, 'V'},
+    {"vpmap",       required_argument,  0, 'V'},
 
     {"N",           required_argument,  0, 'N'},
     {"M",           required_argument,  0, 'M'},
@@ -179,7 +203,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
 {
     int opt = 0;
     int c;
-
     do
     {
 #if defined(HAVE_GETOPT_LONG)
@@ -190,21 +213,25 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         (void) opt;
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
- //       printf("%c: %s = %s\n", c, long_options[opt].name, optarg);
+        //       printf("%c: %s = %s\n", c, long_options[opt].name, optarg);
         switch(c)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
             case 'o':
                 if( !strcmp(optarg, "LFQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
+                else if( !strcmp(optarg, "LTQ") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LTQ;
                 else if( !strcmp(optarg, "AP") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_AP;
                 else if( !strcmp(optarg, "LHQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LHQ;
                 else if( !strcmp(optarg, "GD") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_GD;
+                else if( !strcmp(optarg, "PBQ") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_PBQ;
                 else {
-                    fprintf(stderr, "malformed scheduler value %s (accepted: LFQ AP LHQ GD). Reverting to default LFQ\n",
+                    fprintf(stderr, "malformed scheduler value %s (accepted: LFQ AP LHQ GD PBQ LTQ). Reverting to default LFQ\n",
                             optarg);
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
                 }
@@ -221,11 +248,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 break;
             case 'p': case 'P': iparam[IPARAM_P] = atoi(optarg); break;
             case 'q': case 'Q': iparam[IPARAM_Q] = atoi(optarg); break;
-            case 'k':
-                if(optarg)  iparam[IPARAM_PRIO] = atoi(optarg);
-                else        iparam[IPARAM_PRIO] = INT_MAX;
-                break;
-
             case 'N': iparam[IPARAM_N] = atoi(optarg); break;
             case 'M': iparam[IPARAM_M] = atoi(optarg); break;
             case 'K': iparam[IPARAM_K] = atoi(optarg); break;
@@ -233,17 +255,21 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'B': iparam[IPARAM_LDB] = atoi(optarg); break;
             case 'C': iparam[IPARAM_LDC] = atoi(optarg); break;
             case 'i': iparam[IPARAM_IB] = atoi(optarg); break;
+
             case 't': iparam[IPARAM_MB] = atoi(optarg); break;
             case 'T': iparam[IPARAM_NB] = atoi(optarg); break;
             case 's': iparam[IPARAM_SMB] = atoi(optarg); break;
             case 'S': iparam[IPARAM_SNB] = atoi(optarg); break;
+
             case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break;
 
                 /* HQR parameters */
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
+
             case 'd': iparam[IPARAM_QR_DOMINO]    = atoi(optarg) ? 1 : 0; break;
             case 'r': iparam[IPARAM_QR_TSRR]      = atoi(optarg) ? 1 : 0; break;
+
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;
             case 'L': iparam[IPARAM_HIGHLVL_TREE] = atoi(optarg); break;
 
@@ -256,6 +282,33 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
                 else        iparam[IPARAM_VERBOSE] = 2;
                 break;
+
+            case 'V':
+
+                if( !strncmp(optarg, "display", 7 )) {
+                    vpmap_display_map(stderr);
+                } else {
+                    /* Change the vpmap choice: first cancel the previous one */
+                    vpmap_fini();
+                    if( !strncmp(optarg, "flat", 4) ) {
+                        /* default case (handled in dague_init) */
+                    } else if( !strncmp(optarg, "hwloc", 5) ) {
+                        vpmap_init_from_hardware_affinity();
+                    } else if( !strncmp(optarg, "file:", 5) ) {
+                        vpmap_init_from_file(optarg + 5);
+                    } else if( !strncmp(optarg, "rr:", 3) ) {
+                        int n, p, co;
+                        sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co);
+                        vpmap_init_from_parameters(n, p, co);
+                        iparam[IPARAM_NCORES] = co;
+                    } else {
+                        fprintf(stderr, "invalid VPMAP choice (-V argument): %s\n", optarg);
+                        print_usage();
+                        exit(1);
+                    }
+                }
+                break;
+
             case 'h': print_usage(); exit(0);
 
             case '?': /* getopt_long already printed an error message. */
@@ -264,11 +317,10 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 break; /* Assume anything else is dague/mpi stuff */
         }
     } while(-1 != c);
+
     int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
 
-
     if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
-
 
     /* Check the process grid */
     if(0 == iparam[IPARAM_P])
@@ -285,8 +337,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     {
         fprintf(stderr, "!!! the process grid PxQ (%dx%d) is smaller than the number of nodes (%d). Some nodes are idling!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
     }
-
-
 
     /* Set matrices dimensions to default values if not provided */
     /* Search for N as a bare number if not provided by -N */
@@ -333,12 +383,12 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     /* No supertiling by default */
     if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
     if(0 == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = 1;
-
-
 }
 
-static void print_arguments(int verbose, int* iparam)
+static void print_arguments(int* iparam)
 {
+    int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
+
     if(verbose)
         fprintf(stderr, "+++ cores detected      : %d\n", iparam[IPARAM_NCORES]);
 
@@ -376,11 +426,11 @@ static void print_arguments(int verbose, int* iparam)
         else
             fprintf(stderr, "+++ MB x NB             : %d x %d\n",
                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
-
         if(iparam[IPARAM_SNB] * iparam[IPARAM_SMB] != 1)
             fprintf(stderr, "+++ SMB x SNB           : %d x %d\n", iparam[IPARAM_SMB], iparam[IPARAM_SNB]);
     }
 }
+
 
 
 
@@ -464,14 +514,18 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
      update it with the default parameter computed in dague_init. */
     if(iparam[IPARAM_NCORES] <= 0)
     {
-        iparam[IPARAM_NCORES] = ctx->nb_cores;
+        int p, nb_total_comp_threads = 0;
+        for(p = 0; p < ctx->nb_vp; p++) {
+            nb_total_comp_threads += ctx->virtual_processes[p]->nb_cores;
+        }
+        iparam[IPARAM_NCORES] = nb_total_comp_threads;
     }
-    print_arguments(verbose, iparam);
+    print_arguments(iparam);
 
 #if defined(HAVE_CUDA)
     if(iparam[IPARAM_NGPUS] > 0)
     {
-        if(0 != dague_gpu_init(&iparam[IPARAM_NGPUS], 0))
+        if(0 != dague_gpu_init(ctx, &iparam[IPARAM_NGPUS], 0))
         {
             fprintf(stderr, "xxx DAGuE is unable to initialize the CUDA environment.\n");
             exit(3);
@@ -511,7 +565,7 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 #else
     asprintf(&filename, "%s.profile", argvzero);
 #endif
-    dague_profiling_dump_xml(filename);
+    dague_profiling_dump_dbp(filename);
     free(filename);
 #endif  /* DAGUE_PROF_TRACE */
 #if defined(HAVE_CUDA)

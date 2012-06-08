@@ -42,6 +42,11 @@ param_p[type = "int" hidden=on default="pivfct->p"]
 param_a[type = "int" hidden=on default="pivfct->a"]
 param_d[type = "int" hidden=on default="pivfct->domino"]
 
+/*
+ * For explanations on zungqr_param.jdf, look at zgeqrf_param.jdf
+ * The single difference is that the arrows are reversed on this case to browse
+ * the tree from top to bottom.
+ */
 zttmqr(k, m, n)
   /* Execution space */
   k     = 0..minMN-1
@@ -77,11 +82,12 @@ zttmqr(k, m, n)
 
 BODY
 
-   printlog("thread %d CORE_zttmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, \n"
+   printlog("thread %d VP %d CORE_zttmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, \n"
             "\tdescQ.mb, tempnn, tempmm, tempnn, tempAkn, ib, \n"
             "\tQ(%d,%d)[%p], ldqk, Q(%d,%d)[%p], ldqm, \n"
             "\tA(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-            context->eu_id, k, m, n,
+            context->th_id, context->virtual_process->vp_id, k, m, n,
+
             k, n, A1, m, n, A2,
             m, k, V,  m, k, T);
 
@@ -124,7 +130,7 @@ END
 /*
  * Pseudo-task
  */
-zttmqr_in_A1(k, n)
+zttmqr_in_A1(k, n) [profile = off]
   k = 0..( (descQ.mt < descQ.nt) ? descQ.mt-2 : descQ.nt-1 )
   n = 0..descQ.nt-1
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
@@ -140,7 +146,7 @@ END
 /*
  * Pseudo-task
  */
-zttmqr_in_V(k, m)
+zttmqr_in_V(k, m) [profile = off]
   /* k = MAX(0,minMN+1-descQ.mt)..(minMN-1) */
   k = 0..minMN-1
   m = k+1..descQ.mt-1
@@ -157,7 +163,7 @@ END
 /*
  * Pseudo-task
  */
-zttmqr_in_T(k, m)
+zttmqr_in_T(k, m) [profile = off]
   k = 0..minMN-1
   m = k+1..descQ.mt-1
 
@@ -190,10 +196,9 @@ zunmqr(k, i, n)
           -> ( k >  0 ) ? A2 zttmqr(k-1, m, n)
 
 BODY
-
-     printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, \n"
+     printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, \n"
               "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
-              context->eu_id, k, n, k, k, A, k, k, T, k, n, C);
+              context->th_id, context->virtual_process->vp_id, k, n, k, k, A, k, k, T, k, n, C);
 
      DRYRUN(
          int tempAkm  = ( k == descA.mt-1 ) ? descA.m - k * descA.mb : descA.mb;
@@ -220,7 +225,7 @@ END
 /*
  * Pseudo-task
  */
-zunmqr_in_A(k, i)
+zunmqr_in_A(k, i) [profile = off]
   k = 0..minMN-1
   i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descQ.mt ) - 1; %}
   m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
@@ -237,7 +242,7 @@ END
 /*
  * Pseudo-task
  */
-zunmqr_in_T(k, i)
+zunmqr_in_T(k, i) [profile = off]
   k = 0..minMN-1
   i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descQ.mt ) - 1; %}
   m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}

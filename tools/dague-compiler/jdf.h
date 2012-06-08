@@ -23,7 +23,7 @@ void jdf_fatal(int lineno, const char *format, ...);
  *
  * @return -1 if a fatal error was encountered
  * @return 0 if no warning was signaled (except for warnings during parsing)
- * @return >0 the number of warnings signaled if a non fatal but probable 
+ * @return >0 the number of warnings signaled if a non fatal but probable
  *            error was encountered
  */
 typedef uint64_t jdf_warning_mask_t;
@@ -42,13 +42,13 @@ typedef struct jdf_compiler_global_args {
     char *output_c;
     char *output_h;
     char *funcid;
-    jdf_warning_mask_t wmask;   
+    jdf_warning_mask_t wmask;
     int  noline;  /**< Don't dump the jdf line number in the generate .c file */
 } jdf_compiler_global_args_t;
 extern jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS;
 
 /**
- * Toplevel structure: four linked lists: prologues, epilogues, globals and functions 
+ * Toplevel structure: four linked lists: prologues, epilogues, globals and functions
  */
 typedef struct jdf {
     struct jdf_external_entry *prologue;
@@ -63,7 +63,7 @@ typedef struct jdf {
 
 extern jdf_t current_jdf;
 
-/** A prologue/epilogue is a c-code that is dumped as-is with a #line directive 
+/** A prologue/epilogue is a c-code that is dumped as-is with a #line directive
  *  We remember the line number in the JDF file where this external code was found
  */
 typedef struct jdf_external_entry {
@@ -230,9 +230,9 @@ typedef struct jdf_expr {
     jdf_expr_operand_t            op;
     union {
         struct {
-            struct jdf_expr      *test;
             struct jdf_expr      *arg1;
             struct jdf_expr      *arg2;
+            struct jdf_expr      *arg3;
         } ternary;
         struct {
             struct jdf_expr      *arg1;
@@ -255,9 +255,10 @@ typedef struct jdf_expr {
 #define jdf_ua  u.unary.arg
 #define jdf_ba1 u.binary.arg1
 #define jdf_ba2 u.binary.arg2
-#define jdf_tat u.ternary.test
 #define jdf_ta1 u.ternary.arg1
 #define jdf_ta2 u.ternary.arg2
+#define jdf_tat u.ternary.arg3
+#define jdf_ta3 u.ternary.arg3
 #define jdf_var u.varname
 #define jdf_cst u.cstval
 #define jdf_c_code u.c_code

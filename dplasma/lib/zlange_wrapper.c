@@ -1,246 +1,150 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include <core_blas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "map2.h"
 
-struct lange_args_s {
-  PLASMA_enum ntype;
-  tiled_matrix_desc_t *desc;
-};
-typedef struct lange_args_s lange_args_t;
+#include "zlange_max_cyclic.h"
+#include "zlange_inf_cyclic.h"
+#include "zlange_one_cyclic.h"
+#include "zlange_frb_cyclic.h"
 
-static int
-dague_operator_zlange_max( struct dague_execution_unit *eu,
-                           const void* src,
-                           void* dest,
-                           void* op_data, ... )
-{
-    va_list ap;
-    lange_args_t *args = (lange_args_t*)op_data;
-    PLASMA_enum uplo;
-    int m, n;
-    int tempmm, tempnn, ldam;
-    tiled_matrix_desc_t *descA;
+static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };
 
-    (void)eu;
-    va_start(ap, op_data);
-    uplo = va_arg(ap, PLASMA_enum);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
-    va_end(ap);
-
-    (void)uplo;
-
-    descA = args->desc;
-    tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
-    tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
-    ldam = BLKLDD( (*descA), m );
-
-    CORE_zlange( args->ntype, tempmm, tempnn,
-                 (PLASMA_Complex64_t*)src, ldam, NULL, (double*)dest );
-
-    return 0;
-}
-
-#if 0
-static int
-dague_operator_zlange_one( struct dague_execution_unit *eu,
-                           const void* src,
-                           void* dest,
-                           void* op_data, ... )
-{
-    va_list ap;
-    lange_args_t *args = (lange_args_t*)op_data;
-    int m, n;
-    int tempmm, tempnn, ldam;
-    tiled_matrix_desc_t *descA;
-
-    (void)eu;
-    va_start(ap, op_data);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
-    va_end(ap);
-
-    descA = args->desc;
-    tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
-    tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
-    ldam = BLKLDD( descA, m );
-
-    CORE_dzasum(
-        PlasmaColumnwise, PlasmaUpperLower,
-        tempmm, tempnn,
-        (PLASMA_Complex64_t*)src, ldam, (double *)dest);
-
-    return 0;
-}
-
-static int
-dague_operator_zlange_inf( struct dague_execution_unit *eu,
-                           const void* src,
-                           void* dest,
-                           void* op_data, ... )
-{
-    va_list ap;
-    lange_args_t *args = (lange_args_t*)op_data;
-    int m, n;
-    int tempmm, tempnn, ldam;
-    tiled_matrix_desc_t *descA;
-
-    (void)eu;
-    va_start(ap, op_data);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
-    va_end(ap);
-
-    descA = args->desc;
-    tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
-    tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
-    ldam = BLKLDD( descA, m );
-
-     CORE_dzasum(
-         PlasmaRowwise, PlasmaUpperLower,
-         tempmm, tempnn, (PLASMA_Complex64_t*)src, ldam, (double*)dest );
-    return 0;
-}
-#endif
-
-/***************************************************************************/
-/**
- *
- * @ingroup DPLASMA_Complex64_t
- *
- *  dplasma_zlange_New - Sets the elements of the matrix A on the diagonal
- *  to beta and on the off-diagonals to alpha
- *
- *******************************************************************************
- *
- * @param[in] norm
- *          = PlasmaMaxNorm: Max norm
- *          = PlasmaOneNorm: One norm
- *          = PlasmaInfNorm: Infinity norm
- *          = PlasmaFrobeniusNorm: Frobenius norm
- *
- * @param[in,out] A
- *         On entry, the M-by-N tile A.
- *         On exit, A has been set accordingly.
- *
- **/
-#if 0
 dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
-                                    tiled_matrix_desc_t *A,
-                                    double *result )
+                                     int P, int Q,
+                                     tiled_matrix_desc_t *A,
+                                     double *result )
 {
-    dague_zlange_object_t* object;
-    lange_args_t args;
-    return (dague_object_t*)object;
-}
-#endif
+    int m, n, mb, nb, elt;
+    two_dim_block_cyclic_t *W;
+    dague_object_t *dague_zlange = NULL;
 
-double dplasma_zlange( dague_context_t *dague,
-                       PLASMA_enum ntype,
-                       tiled_matrix_desc_t *A)
-{
-#if defined(DAGUE_DRY_RUN) || defined(DAGUE_PROF_DRY_BODY) || defined(DAGUE_PROF_DRY_DEP)
-    return -1.0;
-#else
-    dague_operator_t op;
-    double *work = NULL;
-    two_dim_block_cyclic_t workD, workS;
-    lange_args_t args;
-    double result = -1.0;
+    /* Create the workspace */
+    W = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
 
     switch( ntype ) {
     case PlasmaFrobeniusNorm:
-    case PlasmaInfNorm:
-      fprintf(stderr, "zlange: Only PlasmaMaxNorm is supported\n");
-
-    case PlasmaMaxNorm:
-        PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
-            workD, two_dim_block_cyclic,
-            (&workD, matrix_RealDouble, matrix_Tile, A->super.nodes, A->super.cores, A->super.myrank,
-             1, 1, A->mt, A->nt, 0, 0, A->mt, A->nt,
-             ((two_dim_block_cyclic_t*)A)->grid.strows, ((two_dim_block_cyclic_t*)A)->grid.stcols,
-             ((two_dim_block_cyclic_t*)A)->grid.rows));
-
-        op = dague_operator_zlange_max;
+        mb = 2;
+        nb = 1;
+        m  = dague_imax(A->mt, P) * mb;
+        n  = Q;
+        elt = 2;
         break;
-
-    /* case PlasmaOneNorm: */
-    /*     two_dim_block_cyclic_init(&workD, matrix_RealDouble, matrix_Tile, A->super.nodes, A->super.cores, A->super.myrank, */
-    /*                               1, A->nb, A->mt, A->n, 0, 0, A->mt, A->n, */
-    /*                               ((two_dim_block_cyclic_t*)A)->grid.strows, ((two_dim_block_cyclic_t*)A)->grid.stcols,  */
-    /*                               ((two_dim_block_cyclic_t*)A)->grid.rows); */
-
-    /*     op = dague_operator_zlange_one; */
-    /*     work = (double *)malloc( max(A->n, A->mt) * sizeof(double) );  */
-    /*     break; */
-
-    /* case PlasmaInfNorm: */
-    /*     two_dim_block_cyclic_init(&workD, matrix_RealDouble, A->super.nodes, A->super.cores, A->super.myrank, */
-    /*                               A->mb, 1, A->m,  A->nt, 0, 0, A->m,  A->nt,  */
-    /*                               ((two_dim_block_cyclic_t*)A)->grid.strows, ((two_dim_block_cyclic_t*)A)->grid.stcols,  */
-    /*                               ((two_dim_block_cyclic_t*)A)->grid.rows); */
-
-    /*     op = dague_operator_zlange_inf; */
-    /*     work = (double *)malloc( max(A->nt, A->m) * sizeof(double) );  */
-    /*     break; */
+    case PlasmaInfNorm:
+        mb = A->mb;
+        nb = 1;
+        m  = dague_imax(A->mt, P) * mb;
+        n  = Q;
+        elt = 1;
+        break;
+    case PlasmaOneNorm:
+        mb = 1;
+        nb = A->nb;
+        m  = P;
+        n  = dague_imax(A->nt, Q) * nb;
+        elt = 1;
+        break;
+    case PlasmaMaxNorm:
     default:
-        return -1.0;
+        mb = 1;
+        nb = 1;
+        m  = dague_imax(A->mt, P);
+        n  = Q;
+        elt = 1;
     }
 
-    args.ntype = ntype;
-    args.desc = A;
-
-    /* First reduction by tile */
-    dplasma_map2( dague, PlasmaUpperLower, A, (tiled_matrix_desc_t*)&workD, op, (void *)&args );
-
-    /* Second one with on element (one double or one vector )  per tile */
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
-        workS, two_dim_block_cyclic,
-        (&workS, matrix_RealDouble, matrix_Tile, 1, workD.super.super.cores, workD.super.super.myrank,
-         1, 1, A->mt, A->nt, 0, 0, A->mt, A->nt, 1, 1, 1));
+        (*W), two_dim_block_cyclic,
+        (W, matrix_RealDouble, matrix_Tile,
+         A->super.nodes, A->super.cores, A->super.myrank,
+         mb, nb,   /* Dimesions of the tile                */
+         m,  n,    /* Dimensions of the matrix             */
+         0,  0,    /* Starting points (not important here) */
+         m,  n,    /* Dimensions of the submatrix          */
+         1, 1, P));
 
-    dplasma_zlacpy(dague, PlasmaUpperLower, (tiled_matrix_desc_t*)&workD, (tiled_matrix_desc_t*)&workS);
-
-    if ( workS.super.super.myrank == 0 ) {
-        CORE_dlange(
-            ntype, workS.super.m, workS.super.n,
-            (double*)workS.mat, workS.super.lm, work, &result);
+    /* Create the DAG */
+    switch( ntype ) {
+    case PlasmaFrobeniusNorm:
+        dague_zlange = (dague_object_t*)dague_zlange_frb_cyclic_new(
+            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)W, result);
+        break;
+    case PlasmaInfNorm:
+        dague_zlange = (dague_object_t*)dague_zlange_inf_cyclic_new(
+            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)W, result);
+        break;
+    case PlasmaOneNorm:
+        dague_zlange = (dague_object_t*)dague_zlange_one_cyclic_new(
+            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)W, result);
+        break;
+    case PlasmaMaxNorm:
+    default:
+        dague_zlange = (dague_object_t*)dague_zlange_max_cyclic_new(
+            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)W, result);
     }
 
-    dague_data_free(workD.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&workD);
-    dague_data_free(workS.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&workS);
+    /* Set the datatypes */
+    dplasma_add2arena_tile(((dague_zlange_inf_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_inf_cyclic_DEFAULT_ARENA],
+                           A->mb*A->nb*sizeof(Dague_Complex64_t),
+                           DAGUE_ARENA_ALIGNMENT_SSE,
+                           MPI_DOUBLE_COMPLEX, A->mb);
+    dplasma_add2arena_rectangle(((dague_zlange_inf_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_inf_cyclic_COL_ARENA],
+                                mb * nb * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
+                                MPI_DOUBLE, mb, nb, -1);
+    dplasma_add2arena_rectangle(((dague_zlange_inf_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_inf_cyclic_ELT_ARENA],
+                                elt * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
+                                MPI_DOUBLE, elt, 1, -1);
 
-    if ( work != NULL )
-        free(work);
-
-#if defined(HAVE_MPI)
-    MPI_Bcast(&result, 1, MPI_DOUBLE, 0, dplasma_comm);
-#endif
-
-    return result;
-#endif
+    return (dague_object_t*)dague_zlange;
 }
 
-#if 0
 void
 dplasma_zlange_Destruct( dague_object_t *o )
 {
-    dague_zlange_object_t *dague_zlange = (dague_zlange_object_t *)o;
-    dague_zlange_destroy(dague_zlange);
+    dague_zlange_inf_cyclic_object_t *dague_zlange = (dague_zlange_inf_cyclic_object_t *)o;
+    two_dim_block_cyclic_t *W = (two_dim_block_cyclic_t*)(dague_zlange->W);
+
+    dague_data_free( W->mat );
+    dague_ddesc_destroy( dague_zlange->W );
+    free( dague_zlange->W );
+
+    dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_DEFAULT_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_COL_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_ELT_ARENA]->opaque_dtt) );
+
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
-#endif
+
+double dplasma_zlange( dague_context_t *dague,
+                        PLASMA_enum ntype,
+                        tiled_matrix_desc_t *A)
+{
+    double result;
+    dague_object_t *dague_zlange = NULL;
+
+    int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
+    int Q = ((two_dim_block_cyclic_t*)A)->grid.cols;
+
+    dague_zlange = dplasma_zlange_New(ntype, P, Q, A, &result);
+
+    if ( dague_zlange != NULL )
+    {
+        dague_enqueue( dague, (dague_object_t*)dague_zlange);
+        dplasma_progress(dague);
+        dplasma_zlange_Destruct( dague_zlange );
+    }
+
+    return result;
+}
+

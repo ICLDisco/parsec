@@ -12,73 +12,17 @@
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"
-#include "list.h"
 #include "fifo.h"
+#include "data_dist/matrix/matrix.h"
+
+#define GEMM_KEY(M, N) (uint32_t)(NULL == dague_gpu_map.desc ? \
+                                  0 : (M) * (((tiled_matrix_desc_t*)(dague_gpu_map.desc))->lmt) + (N))
+
+int gpu_kernel_init_sgemm( dague_context_t* dague_context,
+                           tiled_matrix_desc_t *tileA );
 
 int gpu_sgemm( dague_execution_unit_t* eu_context,
                dague_execution_context_t* this_task,
                int uplo );
-
-/****************************************************
- ** GPU-DATA Specific Starts Here **
- ****************************************************/
-
-#include "data_dist/matrix/matrix.h"
-
-typedef struct _memory_elem memory_elem_t;
-typedef struct _gpu_elem gpu_elem_t;
-
-struct _gpu_elem {
-    dague_list_item_t item;
-    int lock;
-    int type;
-    CUdeviceptr gpu_mem;
-    memory_elem_t* memory_elem;
-    int gpu_version;
-};
-
-struct _memory_elem {
-    int memory_version;
-    int readers;
-    int writer;
-    int row;
-    int col;
-    void* memory;
-    gpu_elem_t* gpu_elems[1];
-};
-
-typedef struct __dague_gpu_data_map {
-    tiled_matrix_desc_t*  tiled_matrix;
-    memory_elem_t** data_map;
-} dague_gpu_data_map_t;
-
-typedef enum {
-    DAGUE_READ,
-    DAGUE_WRITE
-} dague_data_usage_type_t;
-
-int sgemm_cuda_init( dague_context_t* context, tiled_matrix_desc_t *tileA );
-int sgemm_cuda_fini( dague_context_t* dague_context );
-
-int sgemm_cuda_ndevices(void);
-
-int gpu_data_map_init( gpu_device_t* gpu_device,
-                       tiled_matrix_desc_t* data,
-                       dague_gpu_data_map_t* gpu_map);
-int gpu_data_map_fini( dague_gpu_data_map_t* gpu_map );
-
-int gpu_mark_data_usage( dague_gpu_data_map_t* gpu_map,
-                         int type,
-                         int col, int row );
-int gpu_data_tile_write_owner( dague_gpu_data_map_t* gpu_map,
-                               int col, int row );
-int gpu_data_get_tile( dague_gpu_data_map_t* gpu_map,
-                       int col, int row,
-                       memory_elem_t **pmem_elem );
-int gpu_data_is_on_gpu( gpu_device_t* gpu_device,
-                        dague_gpu_data_map_t* gpu_map,
-                        int type,
-                        int col, int row,
-                        gpu_elem_t **pgpu_elem);
 
 #endif

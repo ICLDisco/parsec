@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010     The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -33,6 +33,11 @@
 #define END_C_DECLS            /* empty */
 #endif
 
+#if defined(HAVE_STDDEF_H)
+#include <stddef.h>
+#endif  /* HAVE_STDDEF_H */
+#include <stdint.h>
+
 #if defined(HAVE_MPI)
 # define DISTRIBUTED
 #else
@@ -44,13 +49,13 @@
 # define DAGUE_PROF_DRY_DEP
 #endif
 
-#ifndef DAGUE_DIST_EAGER_LIMIT 
+#ifndef DAGUE_DIST_EAGER_LIMIT
 #define RDEP_MSG_EAGER_LIMIT    0
 #else
 #define RDEP_MSG_EAGER_LIMIT    (((size_t)DAGUE_DIST_EAGER_LIMIT)*1024)
 #endif
 
-#ifndef DAGUE_DIST_EAGER_LIMIT 
+#ifndef DAGUE_DIST_EAGER_LIMIT
 #define RDEP_MSG_SHORT_LIMIT    0
 #else
 #define RDEP_MSG_SHORT_LIMIT    (((size_t)DAGUE_DIST_SHORT_LIMIT)*1024)
@@ -67,7 +72,6 @@
 #   define DAGUE_DEBUG_VERBOSE1
 #endif
 
-#include <stdint.h>
 #if defined(DAGUE_SCHED_DEPS_MASK)
 typedef uint32_t dague_dependency_t;
 #else
@@ -75,5 +79,18 @@ typedef uint32_t dague_dependency_t;
  * Should be large enough to support MAX_PARAM_COUNT values.
  */
 typedef uint32_t dague_dependency_t;
+
 #endif
- 
+
+/*
+ * A set of constants defining the capabilities of the underlying
+ * runtime.
+ */
+#define MAX_LOCAL_COUNT  20
+#define MAX_PARAM_COUNT  20
+
+#define MAX_DEP_IN_COUNT  10
+#define MAX_DEP_OUT_COUNT 10
+
+#define MAX_TASK_STRLEN 128
+

@@ -111,7 +111,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
 {
     data_repo_entry_t *e;
     int h = key % repo->nbentries;
-    
+
     dague_atomic_lock(&repo->heads[h].lock);
     for(e = repo->heads[h].first_entry;
         e != NULL;
@@ -130,7 +130,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(dague_executi
 {
     data_repo_entry_t *e, *n;
     int h = key % repo->nbentries;
-    
+
     dague_atomic_lock(&repo->heads[h].lock);
     for(e = repo->heads[h].first_entry;
         e != NULL;

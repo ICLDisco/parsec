@@ -15,8 +15,6 @@
 #define FADDS_ZHBRDT(__n) (-1)
 #define FMULS_ZHBRDT(__n) (-1)
 
-/* static int check_solution(int, double*, double*, double); */
-
 int main(int argc, char *argv[])
 {
     dague_context_t *dague;
@@ -134,11 +132,11 @@ static int check_solution(int N, double *E1, double *E2, double eps)
     double *Residual = (double *)malloc(N*sizeof(double));
     double maxtmp;
     double maxel = fabs(fabs(E1[0])-fabs(E2[0]));
-    double maxeig = fmax(fabs(E1[0]), fabs(E2[0]));
+    double maxeig = dplasma_fmax(fabs(E1[0]), fabs(E2[0]));
     for (i = 1; i < N; i++){
         Residual[i] = fabs(fabs(E1[i])-fabs(E2[i]));
-        maxtmp      = fmax(fabs(E1[i]), fabs(E2[i]));
-        maxeig      = fmax(maxtmp, maxeig);
+        maxtmp      = dplasma_fmax(fabs(E1[i]), fabs(E2[i]));
+        maxeig      = dplasma_fmax(maxtmp, maxeig);
         //printf("Residu: %f E1: %f E2: %f\n", Residual[i], E1[i], E2[i] );
         if (maxel < Residual[i])
            maxel =  Residual[i];

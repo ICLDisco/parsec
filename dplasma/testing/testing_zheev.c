@@ -8,6 +8,7 @@
  */
 
 #include "common.h"
+#include "dague_internal.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/diag_band_to_rect.h"
@@ -16,6 +17,10 @@
 /* Including the bulge chassing */
 #define FADDS_ZHEEV(__n) (((__n) * (-8.0 / 3.0 + (__n) * (1.0 + 2.0 / 3.0 * (__n)))) - 4.0)
 #define FMULS_ZHEEV(__n) (((__n) * (-1.0 / 6.0 + (__n) * (5.0 / 2.0 + 2.0 / 3.0 * (__n)))) - 15.0)
+
+static inline double dplasma_fmax( double a, double b){
+    return ( a > b ) ? a : b;
+}
 
 static int check_solution(int, double*, double*, double);
 
@@ -209,10 +214,8 @@ int main(int argc, char *argv[])
         }
     }
 
-
-
     dplasma_zherbt_Destruct( DAGUE_zherbt );
-    dague_diag_band_to_rect_destroy( DAGUE_diag_band_to_rect );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT( DAGUE_diag_band_to_rect );
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
 
     cleanup_dague(dague, iparam);
@@ -241,12 +244,12 @@ static int check_solution(int N, double *E1, double *E2, double eps)
     int info_solution, i;
     double *Residual = (double *)malloc(N*sizeof(double));
     double maxtmp;
-    double maxel = fabs(fabs(E1[0])-fabs(E2[0]));
-    double maxeig = fmax(fabs(E1[0]), fabs(E2[0]));
+    double maxel  = fabs(fabs(E1[0])-fabs(E2[0]));
+    double maxeig = dplasma_fmax(fabs(E1[0]), fabs(E2[0]));
     for (i = 1; i < N; i++){
         Residual[i] = fabs(fabs(E1[i])-fabs(E2[i]));
-        maxtmp      = fmax(fabs(E1[i]), fabs(E2[i]));
-        maxeig      = fmax(maxtmp, maxeig);
+        maxtmp      = dplasma_fmax(fabs(E1[i]), fabs(E2[i]));
+        maxeig      = dplasma_fmax(maxtmp, maxeig);
         //printf("Residu: %f E1: %f E2: %f\n", Residual[i], E1[i], E2[i] );
         if (maxel < Residual[i])
            maxel =  Residual[i];

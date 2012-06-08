@@ -12,6 +12,7 @@
 #include <string.h>
 #include <assert.h>
 #include <ctype.h>
+#include <stddef.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
@@ -358,25 +359,39 @@ static char *numToSymName(int num){
 }
 
 
-// Turn "CORE_taskname_quark" into "taskname" wasting some memory in the process
-static char *quark_call_to_task_name( char *call_name ){
+/*
+ * Turn "CORE_taskname_quark" into "taskname".  If lineno is non-negative
+ * the result is "taskname_lineno" (where lineno is the number, not the string).
+ */
+static char *quark_call_to_task_name( char *call_name, int32_t lineno ){
     char *task_name, *end;
+    ptrdiff_t len;
+    uint32_t i, digits=1;
 
     if( NULL != strstr(call_name, "CORE_") )
         call_name += 5;
 
-    task_name = strdup(call_name);
-
-    end = strstr(task_name, "_quark");
+    end = strstr(call_name, "_quark");
     if( NULL != end ){
-        *end = '\0';
+        len = (uintptr_t)end-(uintptr_t)call_name;
+    }else{
+        len = strlen(call_name);
+    }
+
+    for(i=lineno; i>0; i/=10){
+        digits++;
+    }
+
+    task_name = (char *)calloc(len+digits+2, sizeof(char));
+    snprintf(task_name, len+1, "%s", call_name);
+    if( lineno >= 0 ){
+        snprintf(task_name+len, digits+2, "_%d",lineno);
     }
 
     return task_name;
 }
 
-
-static void quark_record_uses_defs_and_pools(node_t *node){
+static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
     static int symbolic_name_count = 0;
     int i;
     static int pool_initialized = 0;
@@ -399,7 +414,11 @@ static void quark_record_uses_defs_and_pools(node_t *node){
         // QUARK specific code. The task is the second parameter.
         if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
             task = (task_t *)calloc(1, sizeof(task_t));
-            task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)) );
+            if( mult_kernel_occ ){
+                task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), (int32_t)node->lineno );
+            }else{
+                task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), -1 );
+            }
             task->task_node = node;
             task->ind_vars = (char **)calloc(1+node->loop_depth, sizeof(char *));
             i=node->loop_depth-1;
@@ -437,11 +456,11 @@ static void quark_record_uses_defs_and_pools(node_t *node){
     if( BLOCK == node->type ){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
-            quark_record_uses_defs_and_pools(tmp);
+            quark_record_uses_defs_and_pools(tmp, mult_kernel_occ);
         }
     }else{
         for(i=0; i<node->u.kids.kid_count; ++i){
-            quark_record_uses_defs_and_pools(node->u.kids.kids[i]);
+            quark_record_uses_defs_and_pools(node->u.kids.kids[i], mult_kernel_occ);
         }
     }
 
@@ -506,8 +525,71 @@ static matrix_variable_t *quark_find_all_matrices(node_t *node){
     return matrix_variable_list_head;
 }
 
+/* 
+ * kernel_exists() uses the functions is_definition_seen() and mark_definition_as_seen()
+ * not because this code does anything with uses and definitions but as a 
+ * set::find() and set::insert() in C++ stl terminology.
+ */
+static inline int kernel_exists(char *task_name){
+    static int kernel_count_initialized = 0;
+    static dague_list_t kernel_name_list;
+
+    if ( !kernel_count_initialized ) {
+        dague_list_construct(&kernel_name_list);
+        kernel_count_initialized = 1;
+    }
+
+    if( is_definition_seen(&kernel_name_list, task_name) ){
+        return 1;
+    }
+    mark_definition_as_seen(&kernel_name_list, task_name);
+
+    return 0;
+}
+
+static inline int check_for_multiple_kernel_occurances(node_t *node){
+    int i;
+
+    if( FCALL == node->type ){
+        int kid_count;
+
+        if( strcmp("QUARK_Insert_Task", DA_kid(node,0)->u.var_name) ){
+            return 0;
+        }
+
+        kid_count = node->u.kids.kid_count;
+
+        // QUARK specific code. The task is the second parameter.
+        if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
+            char *task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), -1 );
+            if( kernel_exists(task_name) ){
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            if( check_for_multiple_kernel_occurances(tmp) ){
+                return 1;
+            }
+        }
+    }else{
+        for(i=0; i< DA_kid_count(node); ++i){
+            if( check_for_multiple_kernel_occurances( DA_kid(node,i) ) ){
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 void analyze_deps(node_t *node){
-    quark_record_uses_defs_and_pools(node);
+    int mult = check_for_multiple_kernel_occurances(node);
+    quark_record_uses_defs_and_pools(node, mult);
     //dump_all_unds();
     interrogate_omega(node, var_head);
 }
@@ -650,7 +732,6 @@ void add_entry_and_exit_task_loops(node_t *node){
     add_entry_task_loops(list, node);
     add_exit_task_loops(list, node);
     DA_parentize(node);
-//printf("%s\n\n",tree_to_str(node));
 }
 
 static int is_var_repeating(char *iv_str, char **iv_names){
@@ -681,7 +762,7 @@ static int is_matching_var(char *iv_str, char *old_var){
             return 0;
     }
 
-    // If not test failed, it's a match
+    // If no test failed, it's a match
     return 1;
 }
 
@@ -739,7 +820,7 @@ static char *rename_ivar(char *iv_str, char **iv_names, node_t *node){
     num = var_name_to_num(iv_names[i], strlen(iv_str));
     // The new var will need to be one higher than the higest existing one
     num += 1;
-    // Find the number of digits of the number without paying the cost of a log()
+    // Find the number of digits in the number
     i = 1;
     for(lg=1; lg<num; lg*=10){
         i++;
@@ -758,6 +839,7 @@ static char *rename_ivar(char *iv_str, char **iv_names, node_t *node){
 
     return new_name;
 }
+
 
 void rename_induction_variables(node_t *node){
     static int len=0, pos=0;
@@ -784,12 +866,17 @@ void rename_induction_variables(node_t *node){
             if( is_var_repeating(iv_str, iv_names) ){
                 iv_str = rename_ivar(iv_str, iv_names, node);
             }
-            // Add the new variable into the list (iv_names)
             if( pos >= len-1 ){
                 // The array that holds the list needs to be resized
+                uintptr_t old_size;
+                char **tmp_ptr;
+                old_size = len*sizeof(char *);
                 len*=2;
-                iv_names = (char **)realloc(iv_names, len*sizeof(char *));
+                tmp_ptr = (char **)calloc(len, sizeof(char *));
+                memcpy(tmp_ptr, iv_names, old_size);
+                iv_names = tmp_ptr;
             }
+            // Add the new variable into the list (iv_names)
             iv_names[pos] = iv_str;
             pos++;
             break;
@@ -1636,7 +1723,7 @@ node_t *DA_if_then_body(node_t *node){
 
 node_t *DA_if_else_body(node_t *node){
     if( IF == node->type && node->u.kids.kid_count >= 3)
-        return node->u.kids.kids[1];
+        return node->u.kids.kids[2];
     return NULL;
 }
 
@@ -1941,7 +2028,7 @@ char *quark_tree_to_body(node_t *node){
     // then change "kernel_call" to add the "#line" directive.
 
     // Form the string for the "printlog"
-    printStr = strdup("  printlog(\"thread %d ");
+    printStr = strdup("  printlog(\"thread %d VP %d ");
     printStr = append_to_string( printStr, kernel_call, "%s(", 1+strlen(kernel_call));
     for(i=0; NULL != node->task->ind_vars[i]; i++ ){
         if( i > 0 )
@@ -1964,7 +2051,9 @@ char *quark_tree_to_body(node_t *node){
 
     // Form the string for the suffix of the "printlog". That is whatever follows the format string, or in
     // other words the variables whose value we are interested in instead of the name.
-    printSuffix = strdup(")\\n\",\n  context->eu_id");
+
+    printSuffix = strdup(")\\n\",\n  context->th_id, context->virtual_process->vp_id");
+
     for(i=0; NULL != node->task->ind_vars[i]; i++ ){
         char *iv = node->task->ind_vars[i];
         printSuffix = append_to_string( printSuffix, iv, ", %s", 2+strlen(iv));
@@ -2029,12 +2118,6 @@ char *quark_tree_to_body(node_t *node){
 
                         // Add the definition into the list, so we don't emmit it again.
                         mark_definition_as_seen(&var_def_list, param);
-/*
-                        var_def_item_t *new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
-                        new_list_item->var = param;
-                        new_list_item->def = tmp;
-                        dague_ulist_lifo_push( &var_def_list, (dague_list_item_t *)new_list_item );
-*/
                     }
                 }
                 kernel_call = append_to_string( kernel_call, param, NULL, 0);
@@ -2094,14 +2177,14 @@ char *quark_tree_to_body(node_t *node){
 
     // Form the result by concatenating the strings we created in the right order.
     result = append_to_string(result, prefix, NULL, 0);
+    result = append_to_string(result, printStr, "\n%s", 1+strlen(printStr));
     result = append_to_string(result, "\n  DRYRUN(\n", NULL, 0);
     if( NULL != pool_pop )
         result = append_to_string(result, pool_pop, "  %s", 2+strlen(pool_pop) );
     result = append_to_string(result, kernel_call, "\n  %s", 3+strlen(kernel_call) );
     if( NULL != pool_push )
         result = append_to_string(result, pool_push, "\n\n  %s", 4+strlen(pool_push) );
-    result = append_to_string(result, "  );\n", NULL, 0); // close the DRYRUN
-    result = append_to_string(result, printStr, "\n%s", 1+strlen(printStr));
+    result = append_to_string(result, "\n  );\n", NULL, 0); // close the DRYRUN
 
     // clean up the list of variables and their definitions
     var_def_item_t *item;
@@ -2240,17 +2323,17 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
                 str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
-	    case ADDR_OF:
+	        case ADDR_OF:
                 return strdup("&");
-	    case STAR:
+	        case STAR:
                 return strdup("*");
-	    case PLUS:
+	        case PLUS:
                 return strdup("+");
-	    case MINUS:
+	        case MINUS:
                 return strdup("-");
-	    case TILDA:
+	        case TILDA:
                 return strdup("~");
-	    case BANG:
+	        case BANG:
                 return strdup("!");
 
             case ADD:

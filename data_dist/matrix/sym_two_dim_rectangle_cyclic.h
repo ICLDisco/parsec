@@ -11,7 +11,7 @@
 #include "data_dist/matrix/grid_2Dcyclic.h"
 
 /*
- * Symmetrical matrix. 2D block cyclic distribution, lower tiles dsitributed only
+ * Symmetrical matrix. 2D block cyclic distribution, lower tiles distributed only
  *
  * --
  *|0 |
@@ -24,7 +24,6 @@
  * -----------
  *
  */
-
 
 /*******************************************************************
  * distributed data structure and basic functionalities
@@ -71,7 +70,11 @@ typedef struct sym_two_dim_block_cyclic {
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  * @param uplo upper or lower triangular part of the matrix is kept
  */
-void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int lm, int ln, int i, int j, int m, int n, int process_GridRows, int uplo );
-
+void sym_two_dim_block_cyclic_init( sym_two_dim_block_cyclic_t * Ddesc,
+                                    enum matrix_type mtype,
+                                    int nodes, int cores, int myrank,
+                                    int mb, int nb, int lm, int ln,
+                                    int i, int j, int m, int n,
+                                    int process_GridRows, int uplo );
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

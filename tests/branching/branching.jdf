@@ -1,0 +1,42 @@
+extern "C" %{
+  /* This simple example does not need to include anything */
+%}
+
+NT
+
+TA(k)
+
+k = 0 .. NT
+: A(k)
+
+RW T <- A(k)
+     -> T TB(k..(2*NT)+1..NT+1)
+
+BODY
+	printf("Execute TA(%d)\n", k);
+END
+
+TB(k)
+
+k = 0 .. (2*NT)+1
+: A(k) 
+
+RW T <- T TA(k%(NT+1))
+     -> ((k % 2) == 0) ? T1 TC(k) : T2 TC(k-1)
+
+BODY
+	printf("Execute TB(%d)\n", k);
+END
+
+TC(k)
+
+k = 0 .. 2*NT..2
+: A(k%NT) 
+
+RW T1 <- T TB(k)
+      -> A(k%NT)
+READ T2 <- T TB(k+1)
+
+BODY
+	printf("Execute TC(%d)\n", k);
+END

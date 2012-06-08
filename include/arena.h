@@ -9,7 +9,7 @@
 #include <stdlib.h>
 
 #include "dague_config.h"
-#include "dague.h"
+#include "dague_internal.h"
 #if defined(HAVE_STDDEF_H)
 #include <stddef.h>
 #endif  /* HAVE_STDDEF_H */
@@ -41,7 +41,7 @@ struct dague_arena_t
     dague_free_data_t data_free;
 };
 
-/* The fields are ordered so that important list_item_t fields are not 
+/* The fields are ordered so that important list_item_t fields are not
  * damaged when using them as arena chunks */
 struct dague_arena_chunk_t {
     dague_arena_t* origin;

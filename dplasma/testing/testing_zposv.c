@@ -29,7 +29,8 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     int info = 0;
     int u, t1, t2;
-    int info_solve, info_facto;
+    int info_solve = 0;
+    int info_facto = 0;
     int ret = 0;
 
     /* Set defaults for non argv iparams */
@@ -50,19 +51,19 @@ int main(int argc, char ** argv)
     SNB = 1;
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
-                               two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
-                                                      nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                                      N, N, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               N, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
-                               two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                                                      nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
-                                                      N, NRHS, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1,
-                               two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
-                                                      nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
-                                                      N, NRHS, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               N, NRHS, SMB, SNB, P));
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
@@ -87,16 +88,20 @@ int main(int argc, char ** argv)
         /* load the GPU kernel */
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
         if(iparam[IPARAM_NGPUS] > 0)
+        {
+            if(loud > 3) printf("+++ Load GPU kernel ... ");
+            if(0 != gpu_kernel_init_zgemm(dague, (tiled_matrix_desc_t *)&ddescA))
             {
-                if(loud) printf("+++ Load GPU kernel ... ");
-                if(0 != zgemm_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA))
-                    {
-                        fprintf(stderr, "XXX Unable to load GPU kernel.\n");
-                        exit(3);
-                    }
-                if(loud) printf("Done\n");
+                printf("XXX Unable to load GPU kernel.\n");
+                exit(3);
             }
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescA,
+                                    MT*NT, MB*NB*sizeof(Dague_Complex64_t) );
+            if(loud > 3) printf("Done\n");
+        }
 #endif
+
 
         /*********************************************************************
          *               First Check ( ZPOSV )
@@ -120,14 +125,14 @@ int main(int argc, char ** argv)
 
         /* Check the factorization */
         if ( info == 0 ) {
-          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
-                                            (tiled_matrix_desc_t *)&ddescA,
-                                            (tiled_matrix_desc_t *)&ddescA0);
+            info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
+                                              (tiled_matrix_desc_t *)&ddescA,
+                                              (tiled_matrix_desc_t *)&ddescA0);
 
-          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
-                                       (tiled_matrix_desc_t *)&ddescA0,
-                                       (tiled_matrix_desc_t *)&ddescB,
-                                       (tiled_matrix_desc_t *)&ddescX);
+            info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
+                                         (tiled_matrix_desc_t *)&ddescA0,
+                                         (tiled_matrix_desc_t *)&ddescB,
+                                         (tiled_matrix_desc_t *)&ddescX);
         }
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
@@ -167,14 +172,14 @@ int main(int argc, char ** argv)
 
         /* Check the solution */
         if ( info == 0 ) {
-          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
-                                            (tiled_matrix_desc_t *)&ddescA,
-                                            (tiled_matrix_desc_t *)&ddescA0);
+            info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
+                                              (tiled_matrix_desc_t *)&ddescA,
+                                              (tiled_matrix_desc_t *)&ddescA0);
 
-          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
-                                       (tiled_matrix_desc_t *)&ddescA0,
-                                       (tiled_matrix_desc_t *)&ddescB,
-                                       (tiled_matrix_desc_t *)&ddescX);
+            info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
+                                         (tiled_matrix_desc_t *)&ddescA0,
+                                         (tiled_matrix_desc_t *)&ddescB,
+                                         (tiled_matrix_desc_t *)&ddescX);
         }
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
@@ -216,14 +221,14 @@ int main(int argc, char ** argv)
 
         /* Check the solution */
         if ( info == 0 ) {
-          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
-                                            (tiled_matrix_desc_t *)&ddescA,
-                                            (tiled_matrix_desc_t *)&ddescA0);
+            info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
+                                              (tiled_matrix_desc_t *)&ddescA,
+                                              (tiled_matrix_desc_t *)&ddescA0);
 
-          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
-                                       (tiled_matrix_desc_t *)&ddescA0,
-                                       (tiled_matrix_desc_t *)&ddescB,
-                                       (tiled_matrix_desc_t *)&ddescX);
+            info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
+                                         (tiled_matrix_desc_t *)&ddescA0,
+                                         (tiled_matrix_desc_t *)&ddescB,
+                                         (tiled_matrix_desc_t *)&ddescX);
         }
 
         if ( rank == 0 ) {
@@ -240,6 +245,13 @@ int main(int argc, char ** argv)
         dague_data_free(ddescA.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
     }
+
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
+    if(iparam[IPARAM_NGPUS] > 0) {
+        dague_gpu_data_unregister();
+        dague_gpu_kernel_fini(dague, "zgemm");
+    }
+#endif
 
     cleanup_dague(dague, iparam);
 
@@ -352,21 +364,21 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
     double eps = LAPACKE_dlamch_work('e');
 
     PASTE_CODE_ALLOCATE_MATRIX(R, 1,
-                               two_dim_block_cyclic, (&R, matrix_ComplexDouble, matrix_Tile,
-                                                      A->super.nodes, A->super.cores, twodB->grid.rank,
-                                                      A->mb, A->nb, N, NRHS, 0, 0,
-                                                      N, NRHS, twodB->grid.strows, twodB->grid.stcols, twodB->grid.rows));
+        two_dim_block_cyclic, (&R, matrix_ComplexDouble, matrix_Tile,
+                               A->super.nodes, A->super.cores, twodB->grid.rank,
+                               A->mb, A->nb, N, NRHS, 0, 0,
+                               N, NRHS, twodB->grid.strows, twodB->grid.stcols, twodB->grid.rows));
 
     Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A);
-    Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, B);
-    Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, X);
+    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, B);
+    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, X);
     dplasma_zlacpy( dague, PlasmaUpperLower, B, (tiled_matrix_desc_t *)&R );
 
     /* Compute A*x */
     dplasma_zhemm( dague, PlasmaLeft, uplo, -1.0, A, X,
                    1.0, (tiled_matrix_desc_t *)&R);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm,
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm,
                            (tiled_matrix_desc_t *)&R);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * N * eps ) ;

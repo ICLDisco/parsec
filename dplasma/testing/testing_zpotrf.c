@@ -50,27 +50,27 @@ int main(int argc, char ** argv)
     SNB = 1;
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-                               sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-                                                          nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                                          N, N, P, uplo));
+        sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   N, N, P, uplo));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
-                               sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
-                                                          nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                                          N, N, P, uplo));
+        sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   N, N, P, uplo));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
-                               two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                                                      nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
-                                                      N, NRHS, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
-                               two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
-                                                      nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
-                                                      N, NRHS, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               N, NRHS, SMB, SNB, P));
 
     /* matrix generation */
-    if(loud > 2) printf("+++ Generate matrices ... ");
+    if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), uplo,
                     (tiled_matrix_desc_t *)&ddescA, 1358);
     if ( check ) {
@@ -80,30 +80,30 @@ int main(int argc, char ** argv)
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
     }
-    if(loud > 2) printf("Done\n");
+    if(loud > 3) printf("Done\n");
 
     /* load the GPU kernel */
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0)
         {
-            if(loud) printf("+++ Load GPU kernel ... ");
-            if(0 != zgemm_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA))
+            if(loud > 3) printf("+++ Load GPU kernel ... ");
+            if(0 != gpu_kernel_init_zgemm(dague, (tiled_matrix_desc_t *)&ddescA))
                 {
-                    fprintf(stderr, "XXX Unable to load GPU kernel.\n");
+                    printf("XXX Unable to load GPU kernel.\n");
                     exit(3);
                 }
-            if(loud) printf("Done\n");
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescA,
+                                    MT*NT, MB*NB*sizeof(Dague_Complex64_t) );
+            if(loud > 3) printf("Done\n");
         }
 #endif
 
-
-    if(loud > 2) printf("+++ Computing potrf ... ");
     PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf,
                               (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
     PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf);
 
     dplasma_zpotrf_Destruct( DAGUE_zpotrf );
-    if(loud > 2) printf("Done.\n");
 
     if ( info != 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info);
@@ -137,7 +137,8 @@ int main(int argc, char ** argv)
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0) {
-        zgemm_cuda_fini(dague);
+        dague_gpu_data_unregister();
+        dague_gpu_kernel_fini(dague, "zgemm");
     }
 #endif
     cleanup_dague(dague, iparam);
@@ -163,15 +164,15 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
     PLASMA_enum side;
 
     PASTE_CODE_ALLOCATE_MATRIX(L1, 1,
-                               sym_two_dim_block_cyclic, (&L1, matrix_ComplexDouble,
-                                                          A->super.nodes, A->super.cores, twodA->grid.rank,
-                                                          A->mb, A->nb, M, N, 0, 0,
-                                                          M, N, twodA->grid.rows, uplo));
+        sym_two_dim_block_cyclic, (&L1, matrix_ComplexDouble,
+                                   A->super.nodes, A->super.cores, twodA->grid.rank,
+                                   A->mb, A->nb, M, N, 0, 0,
+                                   M, N, twodA->grid.rows, uplo));
     PASTE_CODE_ALLOCATE_MATRIX(L2, 1,
-                               two_dim_block_cyclic, (&L2, matrix_ComplexDouble, matrix_Tile,
-                                                      A->super.nodes, A->super.cores, twodA->grid.rank,
-                                                      A->mb, A->nb, M, N, 0, 0,
-                                                      M, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
+        two_dim_block_cyclic, (&L2, matrix_ComplexDouble, matrix_Tile,
+                               A->super.nodes, A->super.cores, twodA->grid.rank,
+                               A->mb, A->nb, M, N, 0, 0,
+                               M, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 
     dplasma_zlacpy( dague, uplo, A, (tiled_matrix_desc_t *)&L1 );
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0.,(tiled_matrix_desc_t *)&L2 );
@@ -245,13 +246,13 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
     double eps = LAPACKE_dlamch_work('e');
 
     Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, ddescA);
-    Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
-    Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescX);
+    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
+    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
 
     /* Compute A*x */
     dplasma_zhemm( dague, PlasmaLeft, uplo, -1.0, ddescA, ddescX, 1.0, ddescB);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * N * eps ) ;
 

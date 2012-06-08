@@ -227,15 +227,15 @@ jdf:            jdf function
                         inline_c_functions = NULL;
                     }
                 }
-        |       jdf VAR properties ASSIGNMENT expr_complete
+        |       jdf VAR ASSIGNMENT expr_complete properties
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
                     jdf_expr_t *el;
 
                     e->next       = NULL;
                     e->name       = $2;
-                    e->properties = $3;
-                    e->expression = $5;
+                    e->properties = $5;
+                    e->expression = $4;
                     e->lineno     = current_lineno;
                     if( current_jdf.globals == NULL ) {
                         current_jdf.globals = e;
@@ -371,24 +371,24 @@ varlist:        VAR COMMA varlist
          ;
 
 execution_space:
-                VAR properties ASSIGNMENT expr_range execution_space
+                VAR ASSIGNMENT expr_range properties execution_space
                 {
                     jdf_def_list_t *l = new(jdf_def_list_t);
                     l->name       = $1;
-                    l->expr       = $4;
+                    l->expr       = $3;
                     l->lineno     = current_lineno;
+                    l->properties = $4;
                     l->next       = $5;
-                    l->properties = $2;
                     $$ = l;
                 }
-         |      VAR properties ASSIGNMENT expr_range
+         |      VAR ASSIGNMENT expr_range properties
                 {
                     jdf_def_list_t *l = new(jdf_def_list_t);
                     l->name       = $1;
-                    l->expr       = $4;
+                    l->expr       = $3;
                     l->lineno     = current_lineno;
+                    l->properties = $4;
                     l->next       = NULL;
-                    l->properties = $2;
                     $$ = l;
                 }
          ;
@@ -663,8 +663,20 @@ expr_range: expr_complete RANGE expr_complete
             {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_RANGE;
-                  e->jdf_ba1 = $1;
-                  e->jdf_ba2 = $3;
+                  e->jdf_ta1 = $1;
+                  e->jdf_ta2 = $3;
+                  e->jdf_ta3 = new(jdf_expr_t);
+                  e->jdf_ta3->op = JDF_CST;
+                  e->jdf_ta3->jdf_cst = 1;
+                  $$ = e;
+            }
+          | expr_complete RANGE expr_complete RANGE expr_complete
+            {
+                  jdf_expr_t *e = new(jdf_expr_t);
+                  e->op = JDF_RANGE;
+                  e->jdf_ta1 = $1;
+                  e->jdf_ta2 = $3;
+                  e->jdf_ta3 = $5;
                   $$ = e;
             }
           | expr_complete

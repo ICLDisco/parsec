@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2010      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
 #include "dague_prof_grapher.h"
 
@@ -7,7 +13,7 @@
 #include <math.h>
 
 static FILE *grapher_file = NULL;
-static int nbthreads = -1;
+static int nbfuncs = -1;
 static char **colors = NULL;
 
 static void HSVtoRGB( double *r, double *g, double *b, double h, double s, double v )
@@ -95,10 +101,10 @@ void dague_prof_grapher_init(const char *base_filename, int rank, int size, int 
     fprintf(grapher_file, "digraph G {\n");
     fflush(grapher_file);
 
-    nbthreads = nb;
-    colors = (char**)malloc(nbthreads * sizeof(char*));
-    for(t = 0; t < nbthreads; t++)
-        colors[t] = unique_color(rank * nbthreads + t, size * nbthreads);
+    nbfuncs = nb;
+    colors = (char**)malloc(nbfuncs * sizeof(char*));
+    for(t = 0; t < nbfuncs; t++)
+        colors[t] = unique_color(rank * nbfuncs + t, size * nbfuncs);
 }
 
 static char *service_to_taskid(const dague_execution_context_t *exec_context, char *tmp, int length)
@@ -109,27 +115,26 @@ static char *service_to_taskid(const dague_execution_context_t *exec_context, ch
     index += snprintf( tmp + index, length - index, "%s", function->name );
     for( i = 0; i < function->nb_parameters; i++ ) {
         index += snprintf( tmp + index, length - index, "_%d",
-                           exec_context->locals[i].value );
+                           exec_context->locals[function->params[i]->context_index].value );
     }
 
     return tmp;
 }
 
-void dague_prof_grapher_task(const dague_execution_context_t *context, int thread_id, int task_hash)
+void dague_prof_grapher_task(const dague_execution_context_t *context, int thread_id, int vp_id, int task_hash)
 {
-    char tmp[128];
-    char nmp[128];
+    char tmp[MAX_TASK_STRLEN], nmp[MAX_TASK_STRLEN];
     if( NULL != grapher_file ) {
-        dague_service_to_string(context, tmp, 128);
-        service_to_taskid(context, nmp, 128);
+        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context);
+        service_to_taskid(context, nmp, MAX_TASK_STRLEN);
 #if defined(DAGUE_SIM)
         fprintf(grapher_file,
-                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s [%d]\",tooltip=\"%s%d\"];\n",
-                nmp, colors[thread_id % nbthreads], tmp, context->sim_exec_date, context->function->name, task_hash);
+                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"<%d/%d> %s [%d]\",tooltip=\"%s%d\"];\n",
+                nmp, colors[context->function->function_id % nbfuncs], thread_id, vp_id, tmp, context->sim_exec_date, context->function->name, task_hash);
 #else
         fprintf(grapher_file,
-                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\",tooltip=\"%s%d\"];\n",
-                nmp, colors[thread_id % nbthreads], tmp, context->function->name, task_hash);
+                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"<%d/%d> %s\",tooltip=\"%s%d\"];\n",
+                nmp, colors[context->function->function_id % nbfuncs], thread_id, vp_id, tmp, context->function->name, task_hash);
 #endif
         fflush(grapher_file);
     }
@@ -163,7 +168,7 @@ void dague_prof_grapher_fini(void)
 
     fprintf(grapher_file, "}\n");
     fclose(grapher_file);
-    for(t = 0; t < nbthreads; t++)
+    for(t = 0; t < nbfuncs; t++)
         free(colors[t]);
     free(colors);
     colors = NULL;

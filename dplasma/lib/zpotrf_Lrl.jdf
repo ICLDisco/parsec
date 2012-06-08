@@ -25,13 +25,13 @@ extern "C" %{
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
-extern dague_gpu_data_map_t *gpu_data_A;
+extern dague_gpu_data_map_t dague_gpu_map;
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 %}
 
 /* Globals
  */
-PRI_CHANGE [type = int]
+PRI_CHANGE [type = int hidden = on]
 uplo       [type = PLASMA_enum]
 descA      [type = "tiled_matrix_desc_t"]
 A          [type = "dague_ddesc_t *"]
@@ -58,7 +58,7 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, k, k );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(k, k) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
@@ -74,8 +74,8 @@ BODY
          );
 
     printlog(
-             "thread %d CORE_zpotrf( %d ) {%d}\n\t( %s, %d, A(%d,%d)[%p], %d)\n",
-             context->eu_id, k, this_task->priority,
+             "thread %d VP %d CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d)\n",
+             context->th_id, context->virtual_process->vp_id, k,
              plasma_const(uplo), tempkm, k, k, T, descA.mb );
 END
 
@@ -105,8 +105,7 @@ RW    C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, k)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, k, k );
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, m, k );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(m, k) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
@@ -120,8 +119,8 @@ BODY
                                     C /*A(m, k)*/, ldam);
         );
 
-    printlog("thread %d CORE_ztrsm( %d, %d )\t{%d}\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
-             context->eu_id, m, k, this_task->priority,
+    printlog("thread %d VP %d CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
+             context->th_id, context->virtual_process->vp_id, m, k,
              plasma_const( PlasmaRight ), plasma_const( PlasmaLower ),
              plasma_const( PlasmaConjTrans ), plasma_const( PlasmaNonUnit ),
              tempmm, descA.nb,
@@ -153,8 +152,7 @@ RW    T <- (k == 0)   ? A(m, m)    : T HERK(k-1, m)
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, m, k );
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, m, m );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(m, m) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m*descA.mb : descA.mb;
@@ -168,8 +166,8 @@ BODY
             (double) 1.0, T /*A(m, m)*/, ldam);
         );
     printlog(
-             "thread %d CORE_zherk( %d, %d ) {%d}\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             context->eu_id, k, m, this_task->priority,
+             "thread %d VP %d CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+             context->th_id, context->virtual_process->vp_id, k, m,
              plasma_const( PlasmaLower ), plasma_const( PlasmaNoTrans ),
              tempmm, descA.mb,
              -1.0, m, k, A, ldam,
@@ -205,15 +203,13 @@ BODY
     int ldan = BLKLDD( descA, n );
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, m, k );
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ, n, k );
-    if( zgemm_cuda_ndevices() > 0 ) {
+    if( dague_active_gpu() > 0 ) {
         int rc;
 
         if( 0 == (rc = gpu_zgemm( context, this_task, uplo )) )
             goto FIN;
         if( -1 == rc ) {
-            /* We're done, but the task has been already destroyed */
+            /* The task is pending in the device, and will be subsequently completed */
             return -1;
         }
         if( -2 == rc ) {
@@ -222,8 +218,9 @@ BODY
 	    exit(2);
         }
         /* Continue with the task on the cores */
+        device_load[0] -= device_weight[0];  /* lessen the load on the CPUs */
     }
-    gpu_mark_data_usage( gpu_data_A, DAGUE_READ | DAGUE_WRITE, m, n );
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(m, n) );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     DRYRUN(
@@ -234,8 +231,8 @@ BODY
                                      B /*A(n, k)*/, ldan,
             (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam);
         );
-    printlog("thread %d CORE_zgemm( %d, %d, %d ) {%d}\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             context->eu_id, k, m, n, this_task->priority,
+    printlog("thread %d VP %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+             context->th_id, context->virtual_process->vp_id, k, m, n,
              plasma_const( PlasmaNoTrans ),  plasma_const( PlasmaConjTrans ),
              tempmm, descA.mb, descA.mb,
              -1.0, m, k, A, ldam,
@@ -244,5 +241,6 @@ BODY
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 FIN:
-#endif
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
+
 END

@@ -63,16 +63,16 @@ BODY
                  B /* B(k,n) */, ldb );
          );
 
-  printlog("thread %d CORE_ztrsm(%d, %d)\n"
-           "\t(side, uplo, trans, diag, tempkm, tempnn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-           context->eu_id, k, n, k, k, A, k, n, B);
+  printlog("thread %d VP %d CORE_ztrsm(%d, %d)\n"
+             "\t(side, uplo, trans, diag, tempkm, tempnn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
+               context->th_id, context->virtual_process->vp_id, k, n, k, k, A, k, n, B);
 
 END
 
 /*
  * Pseudo-task
  */
-ztrsm_in_A0(k,n)
+ztrsm_in_A0(k,n) [profile = off]
   k = 0..(descB.mt-1)
   n = 0..(descB.nt-1)
 
@@ -112,22 +112,21 @@ BODY
   int ldb  = BLKLDD( descB, m );
 
   DRYRUN(
-      CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
+       CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                  tempmm, tempnn, descB.mb,
                  -1.,    C /* A(m,k) */,  lda,
                          D /* B(k,n1) */, ldbk,
                  lalpha, E /* B(m,n1) */, ldb );
          );
-  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
-           "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descB.mb, mzone, A(%d,%d)[%p], lda, B(%d,%d)[%p], descB.mb, lalpha, B(%d,%d)[%p], ldb)\n",
-           context->eu_id, k, m, n1, m, k, C, k, n1, D, m, n1, E);
-
+  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
+         "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descB.mb, mzone, A(%d,%d)[%p], lda, B(%d,%d)[%p], descB.mb, lalpha, B(%d,%d)[%p], ldb)\n",
+           context->th_id, context->virtual_process->vp_id, k, m, n1, m, k, C, k, n1, D, m, n1, E);
 END
 
 /*
  * Pseudo-task
  */
-zgemm_in_A0(k,m,n1)
+zgemm_in_A0(k,m,n1) [profile = off]
   k = 0..(descB.mt-2)
   m = (k+1)..(descB.mt-1)
   n1 = 0..(descB.nt-1)

@@ -1,18 +1,22 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 
 int
-dplasma_zgetrs_incpiv(dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *L,
-                      tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B)
+dplasma_zgetrs_incpiv(dague_context_t *dague,
+                      const PLASMA_enum trans,
+                      tiled_matrix_desc_t *A,
+                      tiled_matrix_desc_t *L,
+                      tiled_matrix_desc_t *IPIV,
+                      tiled_matrix_desc_t *B)
 {
     /* Check input arguments */
     if (trans != PlasmaNoTrans) {
