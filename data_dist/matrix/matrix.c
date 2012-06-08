@@ -110,6 +110,7 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
         memcpy( newdesc, tdesc, sizeof(sym_two_dim_block_cyclic_t) );
     } else {
         fprintf(stderr, "Type not completely defined\n");
+        return NULL;
     }
 
     mb = tdesc->mb;
