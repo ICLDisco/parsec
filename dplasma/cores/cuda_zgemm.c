@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <plasma.h>
+#include <core_blas.h>
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
 #endif
@@ -27,76 +28,78 @@
 
 static inline
 int gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
-                           dague_execution_context_t* this_task,
+                           dague_gpu_context_t* this_task,
                            CUstream stream );
 
 static inline
 int gpu_kernel_submit_zgemm( gpu_device_t* gpu_device,
-                           dague_execution_context_t* this_task,
+                           dague_gpu_context_t* this_task,
                            CUstream stream );
 
 static inline
 int gpu_kernel_pop_zgemm( gpu_device_t* gpu_device,
-                           dague_execution_context_t* this_task,
+                           dague_gpu_context_t* this_task,
                            CUstream stream );
 
 static inline
 int  gpu_kernel_epilog_zgemm( gpu_device_t* gpu_device,
-                              dague_execution_context_t* this_task );
+                              dague_gpu_context_t* this_task );
 
 #if defined(DAGUE_PROF_TRACE)
 static inline
-void gpu_kernel_profile_zgemm( gpu_device_t              *gpu_device,
-                               dague_execution_context_t *this_task,
-                               dague_ddesc_t             *ddesca );
+void gpu_kernel_profile_zgemm( gpu_device_t        *gpu_device,
+                               dague_gpu_context_t *this_task );
 #endif
+
+typedef struct dague_zgemm_args_s {
+    dague_gpu_context_t super;
+    int pushout;
+    Dague_Complex64_t alpha, beta;
+    PLASMA_enum transA, transB;
+    int M, N, K;
+    int Am, An, lda, Bm, Bn, ldb, Cm, Cn, ldc;
+    size_t sizeA, sizeB, sizeC;
+    dague_ddesc_t *ddescA, *ddescB, *ddescC;
+} dague_zgemm_args_t;
 
 #include "gpu_scheduling.h"
 
-static tiled_matrix_desc_t* UGLY_A;
 static int ndevices = 0;
 
 #if defined(DAGUE_PROF_TRACE)
 static inline
-void gpu_kernel_profile_zgemm( gpu_device_t              *gpu_device,
-                               dague_execution_context_t *this_task,
-                               dague_ddesc_t             *ddesca )
+void gpu_kernel_profile_zgemm( gpu_device_t        *gpu_device,
+                               dague_gpu_context_t *this_task )
 {
     if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC ) {
+        dague_execution_context_t *ec   = this_task->ec;
+        dague_zgemm_args_t        *args = (dague_zgemm_args_t*)this_task;
+        dague_ddesc_t *ddesc = (dague_ddesc_t*)(args->ddescC);
         int data_id =
-            ddesca->data_key(ddesca, this_task->locals[1].value, this_task->locals[2].value);
-        uint64_t task_id =
-            this_task->function->key( this_task->dague_object, this_task->locals );
+            ddesc->data_key(ddesc, 
+                            args->Cm, 
+                            args->Cn );
 
+        uint64_t task_id =
+            ec->function->key( ec->dague_object, ec->locals );
+        
         dague_profile_ddesc_info_t info;
-        info.desc = ddesca;
+        info.desc = ddesc;
         info.id = data_id;
         dague_profiling_trace( gpu_device->profiling,
-                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
-                                                         this_task->function->function_id),
-                               task_id, this_task->dague_object->object_id,
+                               DAGUE_PROF_FUNC_KEY_START(ec->dague_object,
+                                                         ec->function->function_id),
+                               task_id, ec->dague_object->object_id,
                                (void*)&info);
     }
 }
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
-int gpu_kernel_init_zgemm( dague_context_t* dague_context,
-                           tiled_matrix_desc_t *tileA )
+int gpu_kernel_init_zgemm( dague_context_t* dague_context )
 {
     char *env;
     int i, dindex, nbgpus;
     (void)dague_context;
-
-    UGLY_A = tileA;
-
-    /**
-     * Right now the zgemm function available with DPLASMA can only handle
-     * square tiles with a size multiple of 64.
-     */
-    if( (tileA->mb != tileA->nb) || ((tileA->nb % 64) != 0) ) {
-        ERROR(("The CUDA GEMM version provided by DPLASMA is limited to 64 multiple square tiles\n"));
-        return -1;
-    }
 
     nbgpus = dague_active_gpu();
     //gpu_active_devices = (gpu_device_t** )calloc(nbgpus, sizeof(gpu_device_t*));
@@ -109,7 +112,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context,
         gpu_device = gpu_enabled_devices[i];
         gpu_device->function = NULL;
 
-        snprintf(library_name,  FILENAME_MAX, "libdplasma-sm_%d%d.so", gpu_device->major, gpu_device->minor);
+        snprintf(library_name,  FILENAME_MAX, "libdplasma-sm_%d%d.so",  gpu_device->major, gpu_device->minor);
         snprintf(function_name, FILENAME_MAX, "magmablas_zgemm_SM%d%d", gpu_device->major, gpu_device->minor);
 
         status = cuCtxPushCurrent( gpu_device->ctx );
@@ -149,7 +152,11 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context,
         if(NULL == gpu_device->function) {
             void* dlh;
             dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
-            if(NULL == dlh) ERROR(("Could not find %s library (%s)\n", library_name, dlerror()));
+            if(NULL == dlh) {
+                WARNING(("Could not find %s library (%s)\n", library_name, dlerror()));
+                status = cuCtxPopCurrent(NULL);
+                continue;
+            }
             gpu_device->function = dlsym(dlh, function_name);
             dlclose(dlh);
         }
@@ -171,10 +178,6 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context,
     return 0;
 }
 
-#define ddescA(ec) (UGLY_A)
-#define ddescB(ec) ddescA(ec)
-#define ddescC(ec) ddescA(ec)
-
 /**
  *  This function schedule the move of all the data required for a
  *  specific task from the main memory into the GPU memory.
@@ -185,28 +188,35 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context,
  *     -2: No more room on the GPU to move this data.
  */
 static inline int
-gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
-                       dague_execution_context_t* this_task,
+gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
+                       dague_gpu_context_t *gpu_task,
                        CUstream stream )
 {
-    int tile_size, ret, k, n, m, move_data_count = 0;
+    int ret, k, n, m, move_data_count = 0;
     int sizeloc[MAX_PARAM_COUNT];
+    dague_execution_context_t *this_task = gpu_task->ec;
+    dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
 
     k = this_task->locals[0].value;
     m = this_task->locals[1].value;
     n = this_task->locals[2].value;
 
-    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY( UGLY_A, n, k),
+    /* WARNING: A has to be the first data,
+     *          B the second one and
+     *          C the third one.
+     * if the kernel swapp A and B it won't work 
+     */
+    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(args->ddescA, args->Am, args->An ),
                            &(this_task->data[0].mem2dev_data));
     if( NULL == (this_task->data[0].mem2dev_data)->device_elem[gpu_device->index])
         move_data_count++;
 
-    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY( UGLY_A, m, k),
+    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(args->ddescB, args->Bm, args->Bn ),
                            &(this_task->data[1].mem2dev_data));
     if( NULL == (this_task->data[1].mem2dev_data)->device_elem[gpu_device->index])
         move_data_count++;
 
-    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY( UGLY_A, m, n),
+    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(args->ddescC, args->Cm, args->Cn ),
                            &(this_task->data[2].mem2dev_data));
     if( NULL == (this_task->data[2].mem2dev_data)->device_elem[gpu_device->index])
         move_data_count++;
@@ -214,10 +224,9 @@ gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
     this_task->data[3].mem2dev_data =  NULL;  /* last element */
 
     if( 0 != move_data_count ) { /* Try to reserve enough room for all data */
-        tile_size = UGLY_A->mb*UGLY_A->nb*sizeof(Dague_Complex64_t);
-        sizeloc[0] = tile_size;
-        sizeloc[1] = tile_size;
-        sizeloc[2] = tile_size;
+        sizeloc[0] = args->sizeA;
+        sizeloc[1] = args->sizeB;
+        sizeloc[2] = args->sizeC;
 
         ret = dague_gpu_find_space_for_elts( gpu_device,
                                              this_task,
@@ -239,26 +248,23 @@ gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
                                NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
-    DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[0]->name, n, k));
-    tile_size = ddescA(this_task)->mb * ddescA(this_task)->nb * dague_datadist_getsizeoftype(ddescA(this_task)->mtype);
+    DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[0]->name, args->Am, args->An));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[0]->access_type,
-                                   &(this_task->data[0]), tile_size, stream );
+                                   &(this_task->data[0]), args->sizeA, stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
-    DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[1]->name, m, k));
-    tile_size = ddescB(this_task)->mb * ddescB(this_task)->nb * dague_datadist_getsizeoftype(ddescB(this_task)->mtype);
+    DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[1]->name, args->Bm, args->Bn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[1]->access_type,
-                                   &(this_task->data[1]), tile_size, stream );
+                                   &(this_task->data[1]), args->sizeB, stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
-    DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[2]->name, m, n));
-    tile_size = ddescC(this_task)->mb * ddescC(this_task)->nb * dague_datadist_getsizeoftype(ddescC(this_task)->mtype);
+    DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[2]->name, args->Cm, args->Cn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[2]->access_type,
-                                   &(this_task->data[2]), tile_size, stream );
+                                   &(this_task->data[2]), args->sizeC, stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
@@ -267,15 +273,15 @@ gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
 }
 
 static inline int
-gpu_kernel_submit_zgemm( gpu_device_t* gpu_device,
-                         dague_execution_context_t* this_task,
+gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
+                         dague_gpu_context_t *gpu_task,
                          CUstream stream )
 {
+    dague_execution_context_t *this_task = gpu_task->ec;
+    dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
     gpu_elem_t *gpu_elem_A = NULL, *gpu_elem_B = NULL, *gpu_elem_C = NULL;
     CUdeviceptr d_A, d_B, d_C;
     cudaError_t status;
-    Dague_Complex64_t alpha = -1.0;
-    Dague_Complex64_t beta  = 1.0;
 #if defined(DAGUE_DEBUG_VERBOSE2)
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -298,19 +304,26 @@ gpu_kernel_submit_zgemm( gpu_device_t* gpu_device,
              this_task->priority ));
 
 #if defined(DAGUE_PROF_TRACE)
-    gpu_kernel_profile( gpu_device, this_task, dague_gpu_map.desc);
+    gpu_kernel_profile( gpu_device, gpu_task );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
     status = cudaSuccess;
-    cuda_zgemm( 'N', 'T', ddescA(this_task)->nb, ddescA(this_task)->nb, ddescA(this_task)->nb,
-                alpha, (Dague_Complex64_t*)d_A, ddescA(this_task)->nb,
-                       (Dague_Complex64_t*)d_B, ddescA(this_task)->nb,
-                beta,  (Dague_Complex64_t*)d_C, ddescA(this_task)->nb,
+    cuda_zgemm( lapack_const(args->transA), lapack_const(args->transB), args->M, args->N, args->K, 
+                args->alpha, (Dague_Complex64_t*)d_A, args->lda,
+                             (Dague_Complex64_t*)d_B, args->ldb,
+                args->beta,  (Dague_Complex64_t*)d_C, args->ldc,
                 stream );
 
     DAGUE_CUDA_CHECK_ERROR( "cuLaunchGridAsync ", status,
                               {return -1;} );
 
+/*     fprintf(stderr, "cuda_zgemm( %d, %d, %d )\n\t( %c, %c, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n", */
+/*             this_task->locals[0].value, this_task->locals[1].value, this_task->locals[2].value, */
+/*             lapack_const( args->transA ),  lapack_const( args->transB ), */
+/*             args->M, args->N, args->K,  */
+/*             args->alpha, args->Am, args->An, (Dague_Complex64_t*)d_A, args->lda, */
+/*                          args->Bm, args->Bn, (Dague_Complex64_t*)d_B, args->ldb, */
+/*             args->beta,  args->Cm, args->Cn, (Dague_Complex64_t*)d_C, args->ldc); */
     return 0;
 }
 
@@ -322,12 +335,14 @@ gpu_kernel_submit_zgemm( gpu_device_t* gpu_device,
  *           positive: the number of data to be moved.
  */
 static inline int
-gpu_kernel_pop_zgemm( gpu_device_t* gpu_device,
-                      dague_execution_context_t* this_task,
+gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
+                      dague_gpu_context_t *gpu_task,
                       CUstream stream )
 {
+    dague_execution_context_t *this_task = gpu_task->ec;
+    dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
     gpu_elem_t *gpu_elem = NULL;
-    int return_code = 0, tile_size, how_many = 0, i;
+    int return_code = 0, how_many = 0, i;
     cudaError_t status;
 
     for( i = 0; NULL != this_task->function->in[i]; i++ ) {
@@ -348,13 +363,13 @@ gpu_kernel_pop_zgemm( gpu_device_t* gpu_device,
     }
 
     gpu_elem = (gpu_elem_t*)this_task->data[2].mem2dev_data->device_elem[gpu_device->index];
-    tile_size = ddescC(this_task)->mb * ddescC(this_task)->nb * dague_datadist_getsizeoftype(ddescC(this_task)->mtype);
 
     /* Stage the transfer of the data back to main memory */
-    gpu_device->required_data_out += tile_size;
+    gpu_device->required_data_out += args->sizeC;
     assert( ((dague_list_item_t*)gpu_elem)->list_next == (dague_list_item_t*)gpu_elem );
     assert( ((dague_list_item_t*)gpu_elem)->list_prev == (dague_list_item_t*)gpu_elem );
-    if( this_task->locals[2].value == (this_task->locals[0].value+1) ) {  /* n == (k + 1) */
+
+    if( args->pushout ) {  /* n == (k + 1) */
         DEBUG3(("GPU Request out of GPU for %s key %d\n", this_task->function->in[2]->name, this_task->data[2].mem2dev_data->key));
 #if defined(DAGUE_PROF_TRACE)
         if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
@@ -363,13 +378,13 @@ gpu_kernel_pop_zgemm( gpu_device_t* gpu_device,
                                    NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
         /* Move the data back into main memory */
-        status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[2].data), gpu_elem->gpu_mem, tile_size, stream );
+        status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[2].data), gpu_elem->gpu_mem, args->sizeC, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
                                 { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[2]->name,
                                            (void*)(long)gpu_elem->gpu_mem, (void*)ADATA(this_task->data[2].data)));
                                   return_code = -2;
                                   goto release_and_return_error;} );
-        gpu_device->transferred_data_out += tile_size;
+        gpu_device->transferred_data_out += args->sizeC;
         how_many++;
     }
  release_and_return_error:
@@ -380,9 +395,11 @@ gpu_kernel_pop_zgemm( gpu_device_t* gpu_device,
  * Make sure all data on the device is correctly put back into the queues.
  */
 static inline int
-gpu_kernel_epilog_zgemm( gpu_device_t* gpu_device,
-                         dague_execution_context_t* this_task )
+gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
+                         dague_gpu_context_t *gpu_task )
 {
+    dague_execution_context_t *this_task = gpu_task->ec;
+    dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
     gpu_elem_t* gpu_elem;
     int i;
 
@@ -401,7 +418,7 @@ gpu_kernel_epilog_zgemm( gpu_device_t* gpu_device,
                                    (unsigned long)this_task, this_task->dague_object->object_id,
                                    NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
-        if( this_task->locals[2].value == (this_task->locals[0].value+1) ) {  /* n == (k  + 1) */
+        if( args->pushout ) {  /* n == (k  + 1) */
             dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
         } else {
             dague_ulist_fifo_push(gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_elem);
@@ -430,13 +447,41 @@ gpu_kernel_epilog_zgemm( gpu_device_t* gpu_device,
  */
 int gpu_zgemm( dague_execution_unit_t* eu_context,
                dague_execution_context_t* this_task,
+               int pushout,
                PLASMA_enum transA, PLASMA_enum transB,
                int M, int N, int K, 
-               Dague_Complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA,
-                                        int Bm, int Bn, const tiled_matrix_desc_t *descB,
-               Dague_Complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC )
+               Dague_Complex64_t alpha, int Am, int An, tiled_matrix_desc_t *descA, int lda,
+                                        int Bm, int Bn, tiled_matrix_desc_t *descB, int ldb,
+               Dague_Complex64_t beta,  int Cm, int Cn, tiled_matrix_desc_t *descC, int ldc )
 {
     int which_gpu;
+    dague_zgemm_args_t *gpu_task = (dague_zgemm_args_t*)malloc(sizeof(dague_zgemm_args_t));
+
+    DAGUE_LIST_ITEM_CONSTRUCT(gpu_task);
+    gpu_task->super.ec = this_task;
+    gpu_task->pushout  = pushout;
+    gpu_task->alpha    = alpha;
+    gpu_task->beta     = beta;
+    gpu_task->transA   = transA;
+    gpu_task->transB   = transB;
+    gpu_task->M        = M;
+    gpu_task->N        = N;
+    gpu_task->K        = K;
+    gpu_task->Am       = Am;
+    gpu_task->An       = An;
+    gpu_task->lda      = lda;
+    gpu_task->Bm       = Bm;
+    gpu_task->Bn       = Bn;
+    gpu_task->ldb      = ldb;
+    gpu_task->Cm       = Cm;
+    gpu_task->Cn       = Cn;
+    gpu_task->ldc      = ldc;
+    gpu_task->sizeA    = sizeof(Dague_Complex64_t) * (size_t)lda * (( transA == PlasmaNoTrans ) ? K : M );
+    gpu_task->sizeB    = sizeof(Dague_Complex64_t) * (size_t)ldb * (( transB == PlasmaNoTrans ) ? N : K );
+    gpu_task->sizeC    = sizeof(Dague_Complex64_t) * (size_t)ldc * N;
+    gpu_task->ddescA   = (dague_ddesc_t*)descA;
+    gpu_task->ddescB   = (dague_ddesc_t*)descB;
+    gpu_task->ddescC   = (dague_ddesc_t*)descC;
 
     /* We always schedule the task on the GPU owning the C tile. */
     which_gpu = dague_gpu_data_elt_write_owner( &dague_gpu_map, GEMM_KEY( descC, Cm, Cn) );
@@ -465,5 +510,5 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
         device_load[best_index+1] = best_weight;  /* update the expected load: 0 is for the cores */
         which_gpu = best_index;
     }
-    return gpu_kernel_scheduler_zgemm( eu_context, this_task, which_gpu );
+    return gpu_kernel_scheduler_zgemm( eu_context, (dague_gpu_context_t*)gpu_task, which_gpu );
 }
