@@ -90,7 +90,7 @@ int main(int argc, char ** argv)
         if(iparam[IPARAM_NGPUS] > 0)
         {
             if(loud > 3) printf("+++ Load GPU kernel ... ");
-            if(0 != gpu_kernel_init_zgemm(dague, (tiled_matrix_desc_t *)&ddescA))
+            if(0 != gpu_kernel_init_zgemm(dague))
             {
                 printf("XXX Unable to load GPU kernel.\n");
                 exit(3);
