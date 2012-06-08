@@ -66,7 +66,6 @@ static void* dague_allocate_data_gpu(size_t matrix_size)
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                 {} );
-        printf("Allocate %lu bytes on GPU\n", matrix_size);
     } else {
         mat = malloc( matrix_size );
     }
@@ -290,8 +289,8 @@ int dague_gpu_init(dague_context_t *dague_context,
             exec_stream->end          = 0;
             exec_stream->fifo_pending = (dague_list_t*)malloc( sizeof(dague_list_t) );
             dague_list_construct( exec_stream->fifo_pending );
-            exec_stream->tasks  = (struct dague_execution_context_t**)malloc(exec_stream->max_events
-                                                                             * sizeof(struct dague_execution_context_t*));
+            exec_stream->tasks  = (dague_gpu_context_t**)malloc(exec_stream->max_events
+                                                                       * sizeof(dague_gpu_context_t*));
             exec_stream->events = (CUevent*)malloc(exec_stream->max_events * sizeof(CUevent));
             /* and the corresponding events */
             for( k = 0; k < exec_stream->max_events; k++ ) {
@@ -856,8 +855,8 @@ static inline dague_list_item_t* dague_fifo_push_ordered( dague_list_t* fifo,
 int progress_stream( gpu_device_t* gpu_device,
                      dague_gpu_exec_stream_t* exec_stream,
                      advance_task_function_t progress_fct,
-                     dague_execution_context_t* task,
-                     dague_execution_context_t** out_task )
+                     dague_gpu_context_t* task,
+                     dague_gpu_context_t** out_task )
 {
     int saved_rc = 0, temp_rc = 0, rc;
     *out_task = NULL;
@@ -869,7 +868,7 @@ int progress_stream( gpu_device_t* gpu_device,
   grab_a_task:
     if( NULL == exec_stream->tasks[exec_stream->start] ) {
         /* get the best task */
-        task = (dague_execution_context_t*)dague_ulist_fifo_pop(exec_stream->fifo_pending);
+        task = (dague_gpu_context_t*)dague_ulist_fifo_pop(exec_stream->fifo_pending);
     }
     if( NULL == task ) {
         /* No more room on the event list or no tasks. Keep moving */
@@ -884,7 +883,7 @@ int progress_stream( gpu_device_t* gpu_device,
         /* No more room on the GPU. Push the task back on the queue and check the completion queue. */
         DAGUE_FIFO_PUSH(exec_stream->fifo_pending, (dague_list_item_t*)task);
         DEBUG2(( "GPU: Reschedule %s(task %p) priority %d: no room available on the GPU for data\n",
-                 task->function->name, (void*)task, task->priority ));
+                 task->ec->function->name, (void*)task->ec, task->ec->priority ));
     } else {
         /**
          * Do not skip the cuda event generation. The problem is that some of the inputs
