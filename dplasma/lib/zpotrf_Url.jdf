@@ -202,18 +202,19 @@ RW    C <- (k == 0)   ? A(m, n)      : C GEMM(k-1, m, n)
 BODY
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
-    int ldan = BLKLDD( descA, n );
+    int ldam = BLKLDD( descA, m );
 
 #if defined(HAVE_CUDA)
     if( dague_active_gpu() > 0 ) {
         int rc;
 
         if( 0 == (rc = gpu_zgemm( context, this_task, 
+                                  ( m == k+1 ),
                                   PlasmaConjTrans, PlasmaNoTrans,
                                   descA.mb, tempnn, descA.mb,
-                                  (Dague_Complex64_t)-1.0, k, m, &descA,
-                                                           k, n, &descA,
-                                  (Dague_Complex64_t) 1.0, m, n, &descA)) )
+                                  (Dague_Complex64_t)-1.0, k, m, &descA, ldak,
+                                                           k, n, &descA, ldak,
+                                  (Dague_Complex64_t) 1.0, m, n, &descA, ldam)) )
             goto FIN;
         if( -1 == rc ) {
             /* We're done, but the task has been already destroyed */
@@ -236,7 +237,7 @@ dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, m, n) );
             descA.mb, tempnn, descA.nb,
             (Dague_Complex64_t)-1.0, A /*A(k, m)*/, ldak,
                                      B /*A(k, n)*/, ldak,
-            (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldan);
+            (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam);
         );
     printlog("thread %d VP %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n,
@@ -244,7 +245,7 @@ dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, m, n) );
              descA.mb, tempnn, descA.nb,
              -1.0, k, m, A, ldak,
                    k, n, B, ldak,
-              1.0, m, n, C, ldan);
+              1.0, m, n, C, ldam);
 
 #if defined(HAVE_CUDA)
 FIN:

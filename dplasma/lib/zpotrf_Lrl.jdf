@@ -181,9 +181,9 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = 0..descA.mt-3
-m = k+2..descA.mt-1
-n = k+1..m-1
+k = 0   .. descA.mt-3
+m = k+2 .. descA.mt-1
+n = k+1 .. m-1
 
 // Parallel partitioning
 : A(m, n)
@@ -207,11 +207,12 @@ BODY
         int rc;
 
         if( 0 == (rc = gpu_zgemm( context, this_task, 
+                                  ( n == k+1 ),
                                   PlasmaNoTrans, PlasmaConjTrans,
                                   tempmm, descA.mb, descA.mb,
-                                  (Dague_Complex64_t)-1.0, m, k, &descA,
-                                                           n, k, &descA,
-                                  (Dague_Complex64_t) 1.0, m, n, &descA)) )
+                                  (Dague_Complex64_t)-1.0, m, k, &descA, ldam,
+                                                           n, k, &descA, ldan,
+                                  (Dague_Complex64_t) 1.0, m, n, &descA, ldam)) )
             goto FIN;
         if( -1 == rc ) {
             /* The task is pending in the device, and will be subsequently completed */
