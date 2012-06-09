@@ -192,7 +192,7 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
                        dague_gpu_context_t *gpu_task,
                        CUstream stream )
 {
-    int ret, k, n, m, move_data_count = 0;
+    int ret, move_data_count = 0;
     int sizeloc[MAX_PARAM_COUNT];
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
@@ -316,7 +316,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 /*     fprintf(stderr, "cuda_zgemm( %d, %d, %d )\n\t( %c, %c, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n", */
 /*             this_task->locals[0].value, this_task->locals[1].value, this_task->locals[2].value, */
 /*             lapack_const( args->transA ),  lapack_const( args->transB ), */
-/*             args->M, args->N, args->K,  */
+/*             args->M, args->N, args->K, */
 /*             args->alpha, args->Am, args->An, (Dague_Complex64_t*)d_A, args->lda, */
 /*                          args->Bm, args->Bn, (Dague_Complex64_t*)d_B, args->ldb, */
 /*             args->beta,  args->Cm, args->Cn, (Dague_Complex64_t*)d_C, args->ldc); */
