@@ -177,7 +177,7 @@ int dplasma_qr_geti( const qr_piv_t *arg, const int k, int m )
  */
 int dplasma_qr_gettype( const qr_piv_t *arg, const int k, const int m ) {
     int p = arg->p;
-    int sq_p = sqrt(p);
+    int sq_p = (int)sqrt((double)p);
 
     assert(p == sq_p * sq_p);
 
@@ -213,7 +213,7 @@ static int dplasma_low_flat_currpiv(const qr_subpiv_t *arg, const int m, const i
   - finishes (no more tiles to kill) with return arg->ldd */
 static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int pivot, const int k, const int start)
 {
-    int sq_p = sqrt(arg->p);
+    int sq_p = (int)sqrt((double)(arg->p));
     assert(arg->p == sq_p * sq_p);
     assert(pivot < k + arg->p);
 
@@ -240,7 +240,7 @@ static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int pivot, con
 /* Return the last row which has used the row "pivot" as a pivot in step k before the row start */
 static int dplasma_low_flat_prevpiv(const qr_subpiv_t *arg, const int pivot, const int k, const int start)
 {
-    int sq_p = sqrt(arg->p);
+    int sq_p = (int)sqrt((double)(arg->p));
     myassert(arg->p == sq_p * sq_p);
 
     if ( start == arg->ldd ) { //n'arrive que lorsque pivot est une tile de type 1
@@ -360,7 +360,8 @@ static int dplasma_high_flat_flat_prevpiv(const qr_subpiv_t *arg, const int pivo
                return start-1;
             else
                 return min( pivot + ((arg->ldd -1- pivot)/(arg->p * arg->p)) * arg->p * arg->p, arg->ldd); //todo here
-    if ( pivot + (arg->p - 1) * arg->p >= arg->ldd ) 
+
+    if ( (pivot + (arg->p - 1) * arg->p) >= arg->ldd ) 
         return arg->ldd;
     else
         return pivot + (arg->p - 1) * arg->p;
@@ -556,14 +557,14 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A,
                                int a, int p,
                                int domino, int tsrr )
 {
-    int low_mt, minMN;
+    int low_mt, minMN, sq_p;
     qr_piv_t *qrpiv = (qr_piv_t*) malloc( sizeof(qr_piv_t) );
-
-    p = max( p, 1 );
-    int sq_p = sqrt(p);
     (void)a; (void)domino; (void)tsrr;
-
-    myassert( p == (sq_p * sq_p) );
+ 
+    p = max( p, 1 );
+    sq_p = (int)sqrt((double)p);
+    
+    assert( p == (sq_p * sq_p) );
 
     qrpiv->desc = A;
     qrpiv->a = 1;
