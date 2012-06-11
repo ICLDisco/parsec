@@ -503,8 +503,10 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
             dague_atomic_inc_32b( &dague_cpu_counter );
             return -99;
         }
-        device_load[best_index+1] = best_weight;  /* update the expected load: 0 is for the cores */
         which_gpu = best_index;
     }
+    /* Update the load of the selected GPU */
+    device_load[which_gpu+1] += device_weight[which_gpu+1];
+
     return gpu_kernel_scheduler_zgemm( eu_context, (dague_gpu_context_t*)gpu_task, which_gpu );
 }

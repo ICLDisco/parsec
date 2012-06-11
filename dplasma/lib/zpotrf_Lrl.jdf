@@ -223,8 +223,6 @@ BODY
 	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
 	    exit(2);
         }
-        /* Continue with the task on the cores */
-        device_load[0] -= device_weight[0];  /* lessen the load on the CPUs */
     }
     dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, m, n) );
 #endif  /* defined(HAVE_CUDA) */
