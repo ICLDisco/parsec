@@ -14,7 +14,6 @@
 
 #include "zpotrf_Url.h"
 #include "zpotrf_Lrl.h"
-#include "zpotrf_ll.h"
 
 dague_object_t*
 dplasma_zpotrf_New(PLASMA_enum uplo, tiled_matrix_desc_t *A, int *info)

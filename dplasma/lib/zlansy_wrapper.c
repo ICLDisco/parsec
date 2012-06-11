@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @precisions normal z -> c
+ * @precisions normal z -> z c d s
  *
  */
 #include "dague_internal.h"
