@@ -87,9 +87,6 @@ macro(precisions_rules_py)
             COMMAND ${CMAKE_COMMAND} -E remove -f ${_dependency_OUTPUT} && ${pythoncmd} && chmod a-w ${_dependency_OUTPUT}
             DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${_dependency_INPUT} ${PRECISIONPP} ${PRECISIONPP_subs})
 
-          if( NOT DAGUE_COMPILE_INPLACE )
-            set(_dependency_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${_dependency_OUTPUT}")
-          endif()
           set_source_files_properties(${_dependency_OUTPUT} PROPERTIES COMPILE_FLAGS "-DPRECISION_${_dependency_PREC}" GENERATED 1 IS_IN_BINARY_DIR 1 )
 
         else( generate_out )
