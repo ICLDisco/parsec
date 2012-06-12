@@ -12,7 +12,7 @@
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #if defined(HAVE_CUDA)
-#include "dplasma/cores/cuda_sgemm.h"
+#include "dplasma/cores/cuda_zgemm.h"
 #endif
 
 static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum uplo,
