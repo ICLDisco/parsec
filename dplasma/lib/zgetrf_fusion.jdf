@@ -24,6 +24,12 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
+#if defined(HAVE_CUDA)
+#include "gpu_data.h"
+#include "dplasma/cores/cuda_zgemm.h"
+extern int *gpu_counter;
+extern dague_gpu_data_map_t dague_gpu_map;
+#endif  /* defined(HAVE_CUDA) */
 
 #define IEVN 0
 #define IODD (descA.nb)
@@ -688,6 +694,11 @@ BODY
         }
            );
     printlog();
+
+#if defined(HAVE_CUDA)
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, m, k) );
+#endif  /* defined(HAVE_CUDA) */
+
 }
 END
 
@@ -779,6 +790,8 @@ READ     IP <-  IP SWAP_COLLECT(k,m,n)                  [type = PIVOT]
 
 BODY
 {
+    printlog("SWAP_RECV(k=%d,m=%d,n=%d)\n",k,m,n);
+
     DRYRUN(
         if(m != k) {
             int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
@@ -801,12 +814,14 @@ BODY
                 index       = opermut[i]%descA.mb;
                 if(owner_index == m) {
                     cblas_zcopy(tempkn, lU + i    , descA.mb,
-                                lT + index, ldam);
+                                        lT + index, ldam);
                 }
             }
         }
            );
-    printlog("SWAP_RECV(k=%d,m=%d,n=%d)\n",k,m,n);
+#if defined(HAVE_CUDA)
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, m, n) );
+#endif  /* defined(HAVE_CUDA) */
 }
 END
 
@@ -889,7 +904,7 @@ BODY
 
             if(owner_index == m) {
                 cblas_zcopy(tempkn, lT + index, ldam,
-                            lM + i    , descA.mb);
+                                    lM + i    , descA.mb);
             }
 
         }
@@ -1034,11 +1049,15 @@ BODY
         int i;
         for(i = 0; i < hmax; i++) {
             cblas_zcopy(tempnn, lB + i, descA.mb,
-                        lT + i, ldak);
+                                lT + i, ldak);
         }
 
            );
     printlog("SWAP_PASTE(k=%d,n=%d)\n",d,n);
+
+#if defined(HAVE_CUDA)
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, k, n) );
+#endif  /* defined(HAVE_CUDA) */
 }
 END
 
@@ -1077,6 +1096,10 @@ BODY
             C /*A(k, n)*/, ldak );
            );
     printlog("CORE_trsm_U(k=%d,n=%d,ldk=%d,A(%d,%d))\n", tempkm, tempnn,ldak,k,n);
+
+#if defined(HAVE_CUDA)
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, k, n) );
+#endif  /* defined(HAVE_CUDA) */
 }
 END
 
@@ -1105,12 +1128,40 @@ RW    C <- T SWAP_RECV(k, m, n)
 
 BODY
 {
-    DRYRUN(
-        int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-        int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-        int ldak = BLKLDD( descA, k );
-        int ldam = BLKLDD( descA, m );
+    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
+    printlog("CORE_gemm(k=%d,m=%d,n=%d,A(%d,%d),ldk=%d,ldm=%d)\n",
+             k,tempmm,tempnn,m,n,ldak,ldam);
+
+#if defined(HAVE_CUDA)
+    if( dague_active_gpu() > 0 ) {
+        int rc;
+
+        if( 0 == (rc = gpu_zgemm( context, this_task, 
+                                  1/*( n == k+1 )*/,
+                                  PlasmaNoTrans, PlasmaNoTrans,
+                                  tempmm, tempnn, descA.mb,
+                                  (Dague_Complex64_t)-1.0, m, k, &descA, ldam,
+                                                           k, n, &descA, ldak,
+                                  (Dague_Complex64_t) 1.0, m, n, &descA, ldam)) )
+            goto FIN;
+        if( -1 == rc ) {
+            /* The task is pending in the device, and will be subsequently completed */
+            return -1;
+        }
+        if( -2 == rc ) {
+            /* The GPU failed to execute this task, but the task was already rescheduled */
+	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
+	    exit(2);
+        }
+    }
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, m, n) );
+#endif  /* defined(HAVE_CUDA) */
+
+    DRYRUN(
         CORE_zgemm(
             PlasmaNoTrans, PlasmaNoTrans,
             tempmm, tempnn, descA.mb,
@@ -1118,6 +1169,11 @@ BODY
                                      B /*A(k, n)*/, ldak,
             (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam )
            );
-    printlog("CORE_gemm(k=%d,m=%d,n=%d,A(%d,%d),ldk=%d,ldm=%d)\n",k,tempmm,tempnn,m,n,ldak,ldam);
+
+#if defined(HAVE_CUDA)
+ FIN:
+    (void)tempmm;
+#endif  /* defined(HAVE_CUDA) */
+    
 }
 END
