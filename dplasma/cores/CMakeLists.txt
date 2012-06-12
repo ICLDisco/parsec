@@ -3,6 +3,8 @@ include(RulesPrecisions)
 set(generated_files "")
 set(generated_headers "")
 
+include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
+
 ### Generate the CUDA kernels if necessary
 if(CUDA_FOUND)
 
@@ -38,10 +40,17 @@ if(CUDA_FOUND)
     foreach( _cudafile ${CUDA_SOURCES} )
         string(REGEX REPLACE "\\.cu" "" _cudafilename ${_cudafile})
 
-        set(SM11_FILES ${SM11_FILES} ${_cudafile})
-        set(SM13_FILES ${SM13_FILES} ${_cudafile})
-        set(SM20_FILES ${SM20_FILES} ${_cudafile})
+        get_source_file_property(_IsInBinaryDir ${_cudafile} IS_IN_BINARY_DIR )
 
+        if( _IsInBinaryDir )
+            set(SM11_FILES ${SM11_FILES} ${CMAKE_CURRENT_BINARY_DIR}/${_cudafile})
+            set(SM13_FILES ${SM13_FILES} ${CMAKE_CURRENT_BINARY_DIR}/${_cudafile})
+            set(SM20_FILES ${SM20_FILES} ${CMAKE_CURRENT_BINARY_DIR}/${_cudafile})
+        else( _IsInBinaryDir )
+            set(SM11_FILES ${SM11_FILES} ${_cudafile})
+            set(SM13_FILES ${SM13_FILES} ${_cudafile})
+            set(SM20_FILES ${SM20_FILES} ${_cudafile})
+        endif( _IsInBinaryDir )
     endforeach()
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_11})
@@ -58,7 +67,6 @@ if(CUDA_FOUND)
     cuda_add_library(dplasma-sm_20 ${SM20_FILES} SHARED )
     target_link_libraries( dplasma-sm_20 ${cudalibs_deps} )
     install(TARGETS dplasma-sm_20 LIBRARY DESTINATION lib)
-
 
     # Install cubin files
 #     foreach( _cudafile ${CUDA_SOURCES} )
