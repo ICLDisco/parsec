@@ -72,7 +72,7 @@ macro(precisions_rules_py)
 
       # Force the copy of the original files in the binary_dir
       # for VPATH compilation
-      if( NOT MAGMA_COMPILE_INPLACE )
+      if( NOT DAGUE_COMPILE_INPLACE )
         set(generate_out 1)
       else( NOT DAGUE_COMPILE_INPLACE )
         string(COMPARE NOTEQUAL "${prec_rules_OSRC}" "${prec_rules_SOURCE}" generate_out )
