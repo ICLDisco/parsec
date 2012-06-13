@@ -112,7 +112,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         gpu_device = gpu_enabled_devices[i];
         gpu_device->function = NULL;
 
-        snprintf(library_name,  FILENAME_MAX, "libdplasma-sm_%d%d.so",  gpu_device->major, gpu_device->minor);
+        snprintf(library_name,  FILENAME_MAX, "libdplasma_sm%d%d.so",  gpu_device->major, gpu_device->minor);
         snprintf(function_name, FILENAME_MAX, "magmablas_zgemm_SM%d%d", gpu_device->major, gpu_device->minor);
 
         status = cuCtxPushCurrent( gpu_device->ctx );
@@ -131,7 +131,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         /* If not found statically, try shared lib */
 /*         if(NULL == gpu_device->hcuFunction) { */
 /*             env = getenv("DAGUE_CUBIN_PATH"); */
-/*             snprintf(module_path, FILENAME_MAX, "%s/zgemm-sm_%1d%1d.cubin", */
+/*             snprintf(module_path, FILENAME_MAX, "%s/zgemm_sm%1d%1d.cubin", */
 /*                      env?env:"../cores", gpu_device->major, gpu_device->minor); */
 /*             status = cuModuleLoad(&(gpu_device->hcuModule), module_path); */
 /*             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status, */

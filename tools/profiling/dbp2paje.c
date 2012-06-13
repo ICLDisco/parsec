@@ -531,7 +531,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
 
 static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_reader_t *dbp )
 {
-    unsigned int i, t, ifd;
+    int i, t, ifd;
     dague_time_t relative = ZERO_TIME;
     dbp_dictionary_t *dico;
     dbp_file_t *file;

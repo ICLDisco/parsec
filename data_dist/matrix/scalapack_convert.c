@@ -234,6 +234,7 @@ void tile_to_block_double(scalapack_info_t * info, int row, int col)
          
     src = info->Ddesc->super.rank_of((dague_ddesc_t *)(info->Ddesc), row, col);
     dest = twoDBC_get_rank( info->Ddesc, info->process_grid_rows, row, col);
+    dec = -1;
 
     if (INT_MAX == src)
         return;
