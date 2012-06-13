@@ -198,7 +198,7 @@ int dague_gpu_init(dague_context_t *dague_context,
 
     /* Theoritical perf in double 
      * 2.27 is the frequency of dancer */
-    total_perf = (float)nb_cores * 2.27 * 4.;
+    total_perf = (float)nb_cores * 2.27f * 4.f;
     if ( ! isdouble )
         total_perf *= 2;
     device_weight[0] = total_perf;
