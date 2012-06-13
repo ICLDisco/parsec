@@ -54,35 +54,35 @@ if(CUDA_FOUND)
     endforeach()
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_11})
-    cuda_add_library(dplasma-sm_11 ${SM11_FILES} SHARED )
-    target_link_libraries( dplasma-sm_11 ${cudalibs_deps} )
-    install(TARGETS dplasma-sm_11 LIBRARY DESTINATION lib)
+    cuda_add_library(dplasma_sm11 ${SM11_FILES} SHARED )
+    target_link_libraries( dplasma_sm11 ${cudalibs_deps} )
+    install(TARGETS dplasma_sm11 LIBRARY DESTINATION lib)
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_13})
-    cuda_add_library(dplasma-sm_13 ${SM13_FILES} SHARED )
-    target_link_libraries( dplasma-sm_13 ${cudalibs_deps} )
-    install(TARGETS dplasma-sm_13 LIBRARY DESTINATION lib)
+    cuda_add_library(dplasma_sm13 ${SM13_FILES} SHARED )
+    target_link_libraries( dplasma_sm13 ${cudalibs_deps} )
+    install(TARGETS dplasma_sm13 LIBRARY DESTINATION lib)
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_20})
-    cuda_add_library(dplasma-sm_20 ${SM20_FILES} SHARED )
-    target_link_libraries( dplasma-sm_20 ${cudalibs_deps} )
-    install(TARGETS dplasma-sm_20 LIBRARY DESTINATION lib)
+    cuda_add_library(dplasma_sm20 ${SM20_FILES} SHARED )
+    target_link_libraries( dplasma_sm20 ${cudalibs_deps} )
+    install(TARGETS dplasma_sm20 LIBRARY DESTINATION lib)
 
     # Install cubin files
 #     foreach( _cudafile ${CUDA_SOURCES} )
 #         string(REGEX REPLACE "\\.cu" "" _cudafilename ${_cudafile})
 
-#         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/dplasma-sm_11.dir/dplasma-sm_11_generated_${_cudafile}.o.cubin.txt
+#         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/dplasma_sm11.dir/dplasma_sm11_generated_${_cudafile}.o.cubin.txt
 #                 DESTINATION lib
-#                 RENAME dplasma-sm_11_${_cudafilename}.cubin )
+#                 RENAME dplasma_sm11_${_cudafilename}.cubin )
 
-#         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/dplasma-sm_13.dir/dplasma-sm_13_generated_${_cudafile}.o.cubin.txt
+#         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/dplasma_sm13.dir/dplasma_sm13_generated_${_cudafile}.o.cubin.txt
 #                 DESTINATION lib
-#                 RENAME dplasma-sm_13_${_cudafilename}.cubin )
+#                 RENAME dplasma_sm13_${_cudafilename}.cubin )
 
-#         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/dplasma-sm_20.dir/dplasma-sm_20_generated_${_cudafile}.o.cubin.txt
+#         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/dplasma_sm20.dir/dplasma_sm20_generated_${_cudafile}.o.cubin.txt
 #                 DESTINATION lib
-#                 RENAME dplasma-sm_20_${_cudafilename}.cubin )
+#                 RENAME dplasma_sm20_${_cudafilename}.cubin )
 #     endforeach()
 
     cuda_build_clean_target()
