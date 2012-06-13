@@ -75,7 +75,7 @@ macro(precisions_rules_py)
       if( NOT DAGUE_COMPILE_INPLACE )
         set(generate_out 1)
       else( NOT DAGUE_COMPILE_INPLACE )
-        string(COMPARE NOTEQUAL "${prec_rules_OSRC}" "${prec_rules_SOURCE}" generate_out )
+        string(COMPARE NOTEQUAL "${_dependency_OUTPUT}" "${_dependency_INPUT}" generate_out )
       endif()
 
       # We generate a dependency only if a file will be generated
