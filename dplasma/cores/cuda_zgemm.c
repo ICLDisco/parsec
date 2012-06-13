@@ -26,6 +26,20 @@
 
 #define KERNEL_NAME zgemm
 
+typedef void (*cuda_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                               Dague_Complex64_t alpha, Dague_Complex64_t *d_A, int lda,
+                                                        Dague_Complex64_t *d_B, int ldb,
+                               Dague_Complex64_t beta,  Dague_Complex64_t *d_C, int ldc,
+                               CUstream stream );
+
+#define FORCE_UNDEFINED_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
+extern cuda_zgemm_t magmablas_zgemm_SM11;
+FORCE_UNDEFINED_SYMBOL(magmablas_zgemm_SM11)
+extern cuda_zgemm_t magmablas_zgemm_SM13;
+FORCE_UNDEFINED_SYMBOL(magmablas_zgemm_SM13)
+extern cuda_zgemm_t magmablas_zgemm_SM20;
+FORCE_UNDEFINED_SYMBOL(magmablas_zgemm_SM20)
+
 static inline
 int gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
                            dague_gpu_context_t* this_task,
@@ -283,12 +297,6 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
     return ret;
 }
 
-
-typedef void (*cuda_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
-                               Dague_Complex64_t alpha, Dague_Complex64_t *d_A, int lda,
-                                                        Dague_Complex64_t *d_B, int ldb,
-                               Dague_Complex64_t beta,  Dague_Complex64_t *d_C, int ldc,
-                               CUstream stream );
 
 static inline int
 gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,

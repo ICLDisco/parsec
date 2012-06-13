@@ -54,19 +54,19 @@ if(CUDA_FOUND)
     endforeach()
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_11})
-    cuda_add_library(dplasma_cucores_sm11 ${SM11_FILES} SHARED )
+    cuda_add_library(dplasma_cucores_sm11 ${SM11_FILES} )
     target_link_libraries( dplasma_cucores_sm11 ${cudalibs_deps} )
-    install(TARGETS dplasma_cucores_sm11 LIBRARY DESTINATION lib)
+    install(TARGETS dplasma_cucores_sm11 LIBRARY DESTINATION lib ARCHIVE DESTINATION lib )
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_13})
-    cuda_add_library(dplasma_cucores_sm13 ${SM13_FILES} SHARED )
+    cuda_add_library(dplasma_cucores_sm13 ${SM13_FILES} )
     target_link_libraries( dplasma_cucores_sm13 ${cudalibs_deps} )
-    install(TARGETS dplasma_cucores_sm13 LIBRARY DESTINATION lib)
+    install(TARGETS dplasma_cucores_sm13 LIBRARY DESTINATION lib ARCHIVE DESTINATION lib )
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_20})
-    cuda_add_library(dplasma_cucores_sm20 ${SM20_FILES} SHARED )
+    cuda_add_library(dplasma_cucores_sm20 ${SM20_FILES} )
     target_link_libraries( dplasma_cucores_sm20 ${cudalibs_deps} )
-    install(TARGETS dplasma_cucores_sm20 LIBRARY DESTINATION lib)
+    install(TARGETS dplasma_cucores_sm20 LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 
     # Install cubin files
 #     foreach( _cudafile ${CUDA_SOURCES} )
@@ -97,9 +97,16 @@ if(CUDA_FOUND)
 #        cuda_stsmqr.h
     )
 
+    if(NOT CMAKE_BUILD_SHARED_LIBS)
+        set(GPU_KERNEL_LIBS
+            "dplasma_cucores_sm11;dplasma_cucores_sm13;dplasma_cucores_sm20")
+    else()
+        set(GPU_KERNEL_LIBS "")
+    endif()
 else()
     set(GPU_KERNEL_SOURCES "")
     set(GPU_KERNEL_HEADERS "")
+    set(GPU_KERNEL_LIBS "")
 endif()
 
 set(HEADERS
@@ -134,6 +141,7 @@ add_library(dplasma_cores
   ${generated_headers}
   ${generated_files}
 )
+target_link_libraries(dplasma_cores ${GPU_KERNEL_LIBS})
 install(TARGETS dplasma_cores ARCHIVE DESTINATION lib)
 
 foreach(generated_header ${generated_headers})
