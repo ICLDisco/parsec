@@ -169,7 +169,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
                            "    set it to /path/libdplasma_cucores\n"
                            "  Or unset it to use the default GPU kernels\n"
                            , library_name, dlerror(), env));
-            DEBUG(("Could not find %s library (%s)\n", library_name, dlerror()));
+            DEBUG3(("Could not find %s library (%s)\n", library_name, dlerror()));
         }
         else {
             gpu_device->function = dlsym(dlh, function_name);
@@ -178,6 +178,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
 
         /* Couldn't load from dynamic libs, try static */
         if(NULL == gpu_device->function) {
+            DEBUG3(("No dynamic function %s found, loading from statically linked\n", function_name));
             dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
             if(NULL == dlh) ERROR(("Error parsing static libs: %s\n", dlerror()));
             gpu_device->function = dlsym(dlh, function_name);
@@ -321,7 +322,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     d_B = gpu_elem_B->gpu_mem;
     d_C = gpu_elem_C->gpu_mem;
 
-    DEBUG2(( "GPU[%1d]:\Enqueue on device %s priority %d\n", gpu_device->device_index,
+    DEBUG2(( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->device_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
              this_task->priority ));
 

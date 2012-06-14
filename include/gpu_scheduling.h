@@ -182,7 +182,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
  complete_task:
     assert( NULL != this_task );
-    DEBUG2(( "GPU[%1d]:\Complete %s priority %d\n", gpu_device->device_index,
+    DEBUG2(( "GPU[%1d]:\tComplete %s priority %d\n", gpu_device->device_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
              this_task->ec->priority ));
     /* Everything went fine so far, the result is correct and back in the main memory */
