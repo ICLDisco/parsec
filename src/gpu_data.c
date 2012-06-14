@@ -337,15 +337,15 @@ int dague_gpu_init(dague_context_t *dague_context,
     }
 
     /* Compute the weight of each device including the cores */
-    printf("Global Theoritical performance: %2.4f\n", total_perf );
+    DEBUG(("Global Theoritical performance: %2.4f\n", total_perf ));
     for( i = 0; i < (ndevices+1); i++ ) {
         if( 0 == i )
-            printf("CPU             ->ratio %2.4e (%2.4e)\n",
+            DEBUG(("CPU             ->ratio %2.4e (%2.4e)\n",
                    device_weight[i],
-                   device_weight[i] / nb_cores );
+                   device_weight[i] / nb_cores ));
         else
-            printf("Device index %2d ->ratio %2.4e\n", 
-                   i-1, device_weight[i]);
+            DEBUG(("Device index %2d ->ratio %2.4e\n", 
+                   i-1, device_weight[i]));
         device_weight[i] = (total_perf / device_weight[i]);
     }
 
@@ -934,8 +934,8 @@ int progress_stream( gpu_device_t* gpu_device,
         rc = cuEventQuery(exec_stream->events[exec_stream->end]);
         if( CUDA_SUCCESS == rc ) {
             /* Save the task for the next step */
-            *out_task = exec_stream->tasks[exec_stream->end];
-            DEBUG3(("GPU: Complete %s(task %p)\n", task->ec->function->name, (void*)*out_task ));
+            task = *out_task = exec_stream->tasks[exec_stream->end];
+            DEBUG3(("GPU: Complete %s(task %p)\n", task->ec->function->name, (void*)task ));
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
             saved_rc = temp_rc;
