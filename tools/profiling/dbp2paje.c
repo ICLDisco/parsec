@@ -562,7 +562,7 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
                                  GTG_COLOR_GET_RED(color_code),
                                  GTG_COLOR_GET_GREEN(color_code),
                                  GTG_COLOR_GET_BLUE(color_code));
-        sprintf(dico_id, "K-%u", i);
+        sprintf(dico_id, "K-%d", i);
         addEntityValue (dico_id, "ST_TS", dbp_dictionary_name(dico), color);
         gtg_color_free(color);
     }
