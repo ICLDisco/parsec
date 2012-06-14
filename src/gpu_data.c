@@ -925,7 +925,7 @@ int progress_stream( gpu_device_t* gpu_device,
         exec_stream->tasks[exec_stream->start] = task;
         exec_stream->start = (exec_stream->start + 1) % exec_stream->max_events;
         DEBUG3(( "GPU: Submitted %s(task %p) priority %d\n",
-                 task->function->name, (void*)task, task->priority ));
+                 task->ec->function->name, (void*)task->ec, task->ec->priority ));
     }
     task = NULL;
 
@@ -935,7 +935,7 @@ int progress_stream( gpu_device_t* gpu_device,
         if( CUDA_SUCCESS == rc ) {
             /* Save the task for the next step */
             *out_task = exec_stream->tasks[exec_stream->end];
-            DEBUG3(("GPU: Complete %s(task %p)\n", task->function->name, (void*)*out_task ));
+            DEBUG3(("GPU: Complete %s(task %p)\n", task->ec->function->name, (void*)*out_task ));
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
             saved_rc = temp_rc;
