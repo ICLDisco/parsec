@@ -16,17 +16,6 @@ int blgchase_ztrdv2(int NT, int N, int NB,
                    Dague_Complex64_t *V2, Dague_Complex64_t *TAU2,
                    int sweep, int id, int blktile);
 
-void CORE_zgetrf_sp(int m, int  n,
-                    Dague_Complex64_t *A,
-                    int  stride,
-                    double  criteria,
-                    int *nbpivot);
-void CORE_zgetrf_sp_rec(int m, int  n,
-                        Dague_Complex64_t *A,
-                        int  stride,
-                        double  criteria,
-                        int *nbpivot);
-
 int CORE_zplssq(int M, int N,
                 Dague_Complex64_t *A, int LDA,
                 double *scale, double *sumsq);

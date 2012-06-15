@@ -138,13 +138,6 @@ static inline int function_has_data_output( const jdf_function_entry_t *f )
 
 /** Utils: dumper functions for UTIL_DUMP_LIST_FIELD and UTIL_DUMP_LIST calls **/
 
-static char *no_dump(void **elt, void *_)
-{
-  (void)elt;
-  (void)_;
-  return "";
-}
-
 /**
  * dump_string:
  *  general function to use with UTIL_DUMP_LIST_FIELD.
@@ -1800,18 +1793,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
     string_arena_init(sa1);
     coutput("%s  if( !%s_pred(%s) ) continue;\n"
-	    "%s  DEBUG3((\"%s(%s)\\n\",%s));\n"
             "%s  nb_tasks++;\n",
             indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
                                                             dump_string, NULL,
                                                             "", "", ", ", ""),
-	    indent(nesting), f->fname, 
-	    UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name,
-				 no_dump, NULL,
-				 "", "", "%d, ", "%d"),
-	    UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
-				 dump_string, NULL,
-				 "", "", ", ", ""),
             indent(nesting));
     for(pl = f->parameters; pl != NULL; pl = pl->next ) {
         coutput("%s  %s_max = dague_imax(%s_max, %s);\n"

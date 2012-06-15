@@ -30,10 +30,6 @@ set(JDF
   ztrmm_LLN.jdf ztrmm_LLT.jdf ztrmm_LUN.jdf ztrmm_LUT.jdf ztrmm_RLN.jdf ztrmm_RLT.jdf ztrmm_RUN.jdf ztrmm_RUT.jdf
   zlaswp.jdf
   zpotrf_Url.jdf zpotrf_Lrl.jdf
-  zgetrf_sp.jdf
-  zgetrf_std.jdf  zgetrf_panel.jdf   zgetrf_fusion.jdf
-  zgerfs.jdf
-  zgerfs_exp.jdf
   zgebmm.jdf
   zgebut.jdf
   zhebut.jdf
@@ -60,7 +56,7 @@ precisions_rules_py(generated_jdf
 if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
   include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 #  foreach(src_file ${EXTRA_SOURCES})
-#    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.")
+#    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.") 
 #  endforeach()
 endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 
@@ -98,10 +94,7 @@ set(SOURCES
   zhetrs_wrapper.c
   zpotrs_wrapper.c
   zposv_wrapper.c
-  zgetrf_std_wrapper.c zgetrf_panel_wrapper.c zgetrf_fusion_wrapper.c
   zgetrf_wrapper.c
-  zgetrf_sp_wrapper.c
-  zgerfs_wrapper.c
   zhetrf_wrapper.c
   ztrdsm_wrapper.c
   zgetrs_wrapper.c
