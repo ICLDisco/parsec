@@ -73,6 +73,8 @@ int dague_wait( dague_context_t* );
  */
 int __dague_schedule( dague_execution_unit_t*, dague_execution_context_t*);
 
+int __dague_execute( dague_execution_unit_t*, dague_execution_context_t*);
+
 int dague_progress(dague_context_t* context);
 void* __dague_progress(dague_execution_unit_t* eu_context);
 /**

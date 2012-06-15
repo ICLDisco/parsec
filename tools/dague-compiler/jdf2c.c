@@ -2025,7 +2025,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             "static const dague_function_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
                             "  .deps = %d,\n"
-                            "  .flags = %s%s,\n"
+                            "  .flags = %s%s%s,\n"
                             "  .function_id = %d,\n"
 #if !defined(DAGUE_SCHED_DEPS_MASK)
                             "  .dependencies_goal = %d,\n"
@@ -2039,6 +2039,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             dep_index,
                             (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
                             has_in_in_dep ? " | DAGUE_HAS_IN_IN_DEPENDENCIES" : "",
+                            jdf_property_get_int(f->properties, "immediate", 0) ? " | DAGUE_IMMEDIATE_TASK" : "",
                             dep_index,
 #if !defined(DAGUE_SCHED_DEPS_MASK)
                             nbinput,

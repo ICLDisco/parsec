@@ -44,8 +44,8 @@ static sched_priority_trace_t sched_priority_trace[DAGUE_SCHED_MAX_PRIORITY_TRAC
 static uint32_t sched_priority_trace_counter;
 #endif
 
-static inline int __dague_execute( dague_execution_unit_t* eu_context,
-                                   dague_execution_context_t* exec_context )
+int __dague_execute( dague_execution_unit_t* eu_context,
+                     dague_execution_context_t* exec_context )
 {
     const dague_function_t* function = exec_context->function;
 #if defined(DAGUE_DEBUG)

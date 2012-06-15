@@ -90,6 +90,7 @@ typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object, co
 #define DAGUE_HAS_OUT_OUT_DEPENDENCIES   0x0002
 #define DAGUE_HAS_IN_STRONG_DEPENDENCIES 0x0004
 #define DAGUE_HIGH_PRIORITY_TASK         0x0008
+#define DAGUE_IMMEDIATE_TASK             0x0010
 
 struct dague_function {
     const char                  *name;
