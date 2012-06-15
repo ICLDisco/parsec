@@ -10,12 +10,12 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
+static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
+
 static int check_solution( dague_context_t *dague, int loud,
                            tiled_matrix_desc_t *ddescA,
                            tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX );
-
-static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
 
 int main(int argc, char ** argv)
 {
@@ -23,6 +23,7 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     int info = 0;
     int ret = 0;
+    double criteria = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -42,21 +43,11 @@ int main(int argc, char ** argv)
         check = 0;
     }
 
-    if ( P > 1 ) {
-        fprintf(stderr, "This function cannot be used with a 2D block cyclic distribution for now\n");
-        return 1;
-    }
-
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
-
-    PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
-        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
-                               nodes, cores, rank, MB, 1, dague_imin(M, N), 1, 0, 0,
-                               dague_imin(M, N), 1, SMB, SNB, P*Q));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
@@ -77,6 +68,28 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
 
+    /* Increase diagonale to avoid pivoting */
+    {
+        tiled_matrix_desc_t *descA = (tiled_matrix_desc_t *)&ddescA;
+        int minmnt = dague_imin( descA->mt, descA->nt );
+        int minmn  = dague_imin( descA->m,  descA->n );
+        int t, e;
+
+        for(t = 0; t < minmnt; t++ ) {
+	  if(((dague_ddesc_t*) &ddescA)->rank_of(((dague_ddesc_t*) &ddescA), t, t)  == ((dague_ddesc_t*) &ddescA)->myrank)
+	    {
+	      Dague_Complex64_t *tab = ((dague_ddesc_t*) &ddescA)->data_of(((dague_ddesc_t*) &ddescA), t, t);
+	      for(e = 0; e < descA->mb; e++)
+                tab[e * descA->mb + e] += (Dague_Complex64_t)minmn;
+	    }
+        }
+    }
+
+    /* Initialize criteria */
+    double eps = LAPACKE_dlamch_work('e');
+    double Anorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t *)&ddescA);
+    criteria = eps * Anorm;
+
     if ( check )
     {
         dplasma_zlacpy( dague, PlasmaUpperLower,
@@ -91,25 +104,26 @@ int main(int argc, char ** argv)
 
     /* Create DAGuE */
     if(loud > 2) printf("+++ Computing getrf ... ");
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf,
-                              ((tiled_matrix_desc_t*)&ddescA,
-                               (tiled_matrix_desc_t*)&ddescIPIV,
+    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_sp,
+                              (criteria,(tiled_matrix_desc_t*)&ddescA,
                                &info));
     /* lets rock! */
-    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf);
-    dplasma_zgetrf_Destruct( DAGUE_zgetrf );
+    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_sp);
+    dplasma_zgetrf_sp_Destruct( DAGUE_zgetrf_sp );
     if(loud > 2) printf("Done.\n");
 
-    if ( check && info != 0 ) {
+    if ( check && info < 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );
         ret |= 1;
     }
     else if ( check ) {
-
-        dplasma_zgetrs(dague, PlasmaNoTrans,
-                       (tiled_matrix_desc_t *)&ddescA,
-                       (tiled_matrix_desc_t *)&ddescIPIV,
-                       (tiled_matrix_desc_t *)&ddescX );
+        printf("-- Number of pivoting (info = %d) ! \n", info );
+        dplasma_ztrsm(dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                      1.0, (tiled_matrix_desc_t *)&ddescA,
+                           (tiled_matrix_desc_t *)&ddescX);
+        dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit,
+                      1.0, (tiled_matrix_desc_t *)&ddescA,
+                           (tiled_matrix_desc_t *)&ddescX);
 
         /* Check the solution */
         ret |= check_solution( dague, (rank == 0) ? loud : 0,
@@ -131,10 +145,8 @@ int main(int argc, char ** argv)
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
-    dague_data_free(ddescIPIV.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
 
-    return ret;
+    return EXIT_SUCCESS;
 }
 
 
@@ -152,14 +164,14 @@ static int check_solution( dague_context_t *dague, int loud,
     int m = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlange(dague, PlasmaInfNorm, ddescA);
-    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
-    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
+    Anorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescA);
+    Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
+    Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescX);
 
     /* Compute b - A*x */
     dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescX, 1.0, ddescB);
 
-    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
+    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 

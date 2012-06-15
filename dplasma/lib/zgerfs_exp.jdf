@@ -1,0 +1,1262 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+%}
+
+descA [type = "tiled_matrix_desc_t"]
+A [type = "dague_ddesc_t *"]
+descLU [type = "tiled_matrix_desc_t"]
+LU [type = "dague_ddesc_t *"]
+descB [type = "tiled_matrix_desc_t"]
+B [type = "dague_ddesc_t *"]
+descR [type = "tiled_matrix_desc_t"]
+R [type = "dague_ddesc_t *"]
+descX [type = "tiled_matrix_desc_t"]
+X [type = "dague_ddesc_t *"]
+descZ [type = "tiled_matrix_desc_t"]
+Z [type = "dague_ddesc_t *"]
+nb_iter [type = "int"]
+
+
+zlacpy_23(m,n)
+  /* Execution space */
+  m = 0..(descB.mt-1)
+  n = 0..(descB.nt-1)
+
+  : Z(m,n)
+
+  /* A == B(m,n) */
+  /* B == Z(m,n) */
+  /* E == Z(m1,n1) */
+  /* F == Z(m2,n2) */
+  /* J == Z(k1,n3) */
+  /* M == Z(m3,n4) */
+  /* V == Z(k3,n8) */
+  /* Y == Z(m7,n9) */
+
+  READ  A <- A zlacpy_23_in_B0(m,n)
+
+  RW    B <- Z(m,n)
+          -> (n>=descZ.nt) & ((m+1)>=descZ.mt) & (nb_iter>=2) & (descR.nt>=(n+1)) & (descR.mt>=(m+1)) ? Y zlacpy_188(1, m, n) 
+          -> (!((n>=descZ.nt) & ((m+1)>=descZ.mt) & (nb_iter>=2) & (descR.nt>=(n+1)) & (descR.mt>=(m+1)))) & (nb_iter>=2) & (descR.nt>=(n+1)) & (descZ.nt>=(n+1)) & (m>=descZ.mt) & (descR.mt>=(m+1)) ? Y zlacpy_188(1, m, n) 
+          -> (!((n>=descZ.nt) & ((m+1)>=descZ.mt) & (nb_iter>=2) & (descR.nt>=(n+1)) & (descR.mt>=(m+1)))) & (!((nb_iter>=2) & (descR.nt>=(n+1)) & (descZ.nt>=(n+1)) & (m>=descZ.mt) & (descR.mt>=(m+1)))) & (nb_iter>=2) & (descR.nt>=(n+1)) & (descR.mt>=(1+m)) & (descZ.mt>=(m+2)) & (n>=descZ.nt) ? Y zlacpy_188(1, m, n) 
+          -> (0==m) & (descZ.nt>=(n+1)) & (descZ.mt>=1) & (0>=descA.nt) ? J ztrsm_64(0, n) 
+          -> (descR.nt>=(n+1)) & (descR.mt>=1) & (n>=descZ.nt) & (nb_iter>=2) & (descA.nt>=(m+1)) ? V zgemm_167(1, 0..(descR.mt-1), n, m) 
+          -> (!((descR.nt>=(n+1)) & (descR.mt>=1) & (n>=descZ.nt) & (nb_iter>=2) & (descA.nt>=(m+1)))) & (descR.mt>=1) & (descZ.nt>=(1+n)) & (m>=descZ.mt) & (nb_iter>=2) & (descA.nt>=(m+1)) & (descR.nt>=(n+1)) ? V zgemm_167(1, 0..(descR.mt-1), n, m) 
+          -> (!((descR.nt>=(n+1)) & (descR.mt>=1) & (n>=descZ.nt) & (nb_iter>=2) & (descA.nt>=(m+1)))) & (!((descR.mt>=1) & (descZ.nt>=(1+n)) & (m>=descZ.mt) & (nb_iter>=2) & (descA.nt>=(m+1)) & (descR.nt>=(n+1)))) & (descA.nt>=(m+1)) & (descR.nt>=(n+1)) & (n>=descZ.nt) & (m>=descR.mt) & (descR.mt>=1) & (nb_iter>=3) ? V zgemm_167((2)..(nb_iter-1), 0..(descR.mt-1), n, m) 
+          -> (!((descR.nt>=(n+1)) & (descR.mt>=1) & (n>=descZ.nt) & (nb_iter>=2) & (descA.nt>=(m+1)))) & (!((descR.mt>=1) & (descZ.nt>=(1+n)) & (m>=descZ.mt) & (nb_iter>=2) & (descA.nt>=(m+1)) & (descR.nt>=(n+1)))) & (!((descA.nt>=(m+1)) & (descR.nt>=(n+1)) & (n>=descZ.nt) & (m>=descR.mt) & (descR.mt>=1) & (nb_iter>=3))) & (m>=descR.mt) & (descA.nt>=(m+1)) & (descZ.nt>=(1+n)) & (m>=descZ.mt) & (descR.mt>=1) & (nb_iter>=3) & (descR.nt>=(1+n)) ? V zgemm_167((2)..(nb_iter-1), 0..(descR.mt-1), n, m) 
+          -> (descZ.mt>=(1+m)) & (descZ.nt>=(n+1)) & (0>=descA.nt) ? F zlacpy_50(m, n) 
+          -> (descZ.nt>=(n+1)) & (descA.nt>=1) & (descZ.mt>=(m+1)) ? E zgemm_38(m, n, 0) 
+          -> (descZ.nt>=(n+1)) & (descZ.mt>=(1+m)) & (0>=descA.nt) & (m>=1) & (descZ.mt>=1) ? M zgemm_78(0, m, n) 
+          -> (n>=descR.nt) & (n>=descZ.nt) & ((m+1)>=descZ.mt) ? Z(m,n)
+          -> (!((n>=descR.nt) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (descR.nt>=(n+1)) & (m>=descR.mt) & (n>=descZ.nt) & ((1+m)>=descZ.mt) ? Z(m,n)
+          -> (!((n>=descR.nt) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((descR.nt>=(n+1)) & (m>=descR.mt) & (n>=descZ.nt) & ((1+m)>=descZ.mt))) & (descR.nt>=(1+n)) & (descR.mt>=(m+1)) & (1>=nb_iter) & (n>=descZ.nt) & ((m+1)>=descZ.mt) ? Z(m,n)
+          -> (!((n>=descR.nt) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((descR.nt>=(n+1)) & (m>=descR.mt) & (n>=descZ.nt) & ((1+m)>=descZ.mt))) & (!((descR.nt>=(1+n)) & (descR.mt>=(m+1)) & (1>=nb_iter) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (n>=descR.nt) & (descZ.nt>=(n+1)) & (m>=descZ.mt) ? Z(m,n)
+          -> (!((n>=descR.nt) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((descR.nt>=(n+1)) & (m>=descR.mt) & (n>=descZ.nt) & ((1+m)>=descZ.mt))) & (!((descR.nt>=(1+n)) & (descR.mt>=(m+1)) & (1>=nb_iter) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((n>=descR.nt) & (descZ.nt>=(n+1)) & (m>=descZ.mt))) & (descR.nt>=(1+n)) & (m>=descR.mt) & (descZ.nt>=(1+n)) & (m>=descZ.mt) ? Z(m,n)
+          -> (!((n>=descR.nt) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((descR.nt>=(n+1)) & (m>=descR.mt) & (n>=descZ.nt) & ((1+m)>=descZ.mt))) & (!((descR.nt>=(1+n)) & (descR.mt>=(m+1)) & (1>=nb_iter) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((n>=descR.nt) & (descZ.nt>=(n+1)) & (m>=descZ.mt))) & (!((descR.nt>=(1+n)) & (m>=descR.mt) & (descZ.nt>=(1+n)) & (m>=descZ.mt))) & (descR.nt>=(n+1)) & (descR.mt>=(m+1)) & (1>=nb_iter) & (descZ.nt>=(n+1)) & (m>=descZ.mt) ? Z(m,n)
+          -> (!((n>=descR.nt) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((descR.nt>=(n+1)) & (m>=descR.mt) & (n>=descZ.nt) & ((1+m)>=descZ.mt))) & (!((descR.nt>=(1+n)) & (descR.mt>=(m+1)) & (1>=nb_iter) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((n>=descR.nt) & (descZ.nt>=(n+1)) & (m>=descZ.mt))) & (!((descR.nt>=(1+n)) & (m>=descR.mt) & (descZ.nt>=(1+n)) & (m>=descZ.mt))) & (!((descR.nt>=(n+1)) & (descR.mt>=(m+1)) & (1>=nb_iter) & (descZ.nt>=(n+1)) & (m>=descZ.mt))) & (1>=nb_iter) & (descZ.mt>=(2+m)) & (n>=descZ.nt) ? Z(m,n)
+          -> (!((n>=descR.nt) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((descR.nt>=(n+1)) & (m>=descR.mt) & (n>=descZ.nt) & ((1+m)>=descZ.mt))) & (!((descR.nt>=(1+n)) & (descR.mt>=(m+1)) & (1>=nb_iter) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((n>=descR.nt) & (descZ.nt>=(n+1)) & (m>=descZ.mt))) & (!((descR.nt>=(1+n)) & (m>=descR.mt) & (descZ.nt>=(1+n)) & (m>=descZ.mt))) & (!((descR.nt>=(n+1)) & (descR.mt>=(m+1)) & (1>=nb_iter) & (descZ.nt>=(n+1)) & (m>=descZ.mt))) & (!((1>=nb_iter) & (descZ.mt>=(2+m)) & (n>=descZ.nt))) & (nb_iter>=2) & (m>=descR.mt) & (descZ.mt>=(2+m)) & (n>=descZ.nt) ? Z(m,n)
+          -> (!((n>=descR.nt) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((descR.nt>=(n+1)) & (m>=descR.mt) & (n>=descZ.nt) & ((1+m)>=descZ.mt))) & (!((descR.nt>=(1+n)) & (descR.mt>=(m+1)) & (1>=nb_iter) & (n>=descZ.nt) & ((m+1)>=descZ.mt))) & (!((n>=descR.nt) & (descZ.nt>=(n+1)) & (m>=descZ.mt))) & (!((descR.nt>=(1+n)) & (m>=descR.mt) & (descZ.nt>=(1+n)) & (m>=descZ.mt))) & (!((descR.nt>=(n+1)) & (descR.mt>=(m+1)) & (1>=nb_iter) & (descZ.nt>=(n+1)) & (m>=descZ.mt))) & (!((1>=nb_iter) & (descZ.mt>=(2+m)) & (n>=descZ.nt))) & (!((nb_iter>=2) & (m>=descR.mt) & (descZ.mt>=(2+m)) & (n>=descZ.nt))) & (nb_iter>=2) & (descR.mt>=(1+m)) & (n>=descR.nt) & (descZ.mt>=(m+2)) & (n>=descZ.nt) ? Z(m,n)
+
+BODY
+
+  int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
+  int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
+  int ldbm = BLKLDD( descB, m );
+  int ldzm = BLKLDD( descZ, m );
+
+  DRYRUN(
+
+    CORE_zlacpy(PlasmaUpperLower, tempmm, tempnn, 
+	A /* B(m,n) */, ldbm, B /* Z(m,n) */, 
+	ldzm );  );
+
+  printlog("thread %d CORE_zlacpy(%d, %d)\n"
+           "\t(PlasmaUpperLower, tempmm, tempnn, B(%d,%d)[%p], ldbm, Z(%d,%d)[%p], ldzm)\n",
+  context->eu_id, m, n, m, n, A, m, n, B);
+
+END
+
+/*
+ * Pseudo-task
+ */
+zlacpy_23_in_B0(m,n)
+  m = 0..(descB.mt-1)
+  n = 0..(descB.nt-1)
+
+  : B(m,n)
+
+  RW A <- B(m,n)
+       -> A zlacpy_23(m,n)
+BODY
+/* nothing */
+END
+
+
+
+zgemm_38(m1,n1,k)
+  /* Execution space */
+  m1 = 0..(descZ.mt-1)
+  n1 = 0..(descZ.nt-1)
+  k = 0..(descA.nt-1)
+
+  : Z(m1,n1)
+
+  /* B == Z(m,n) */
+  /* C == A(m1,k) */
+  /* D == X(k,n1) */
+  /* E == Z(m1,n1) */
+  /* F == Z(m2,n2) */
+  /* J == Z(k1,n3) */
+  /* M == Z(m3,n4) */
+
+  READ  C <- C zgemm_38_in_A0(m1,n1,k)
+
+  READ  D <- D zgemm_38_in_X1(m1,n1,k)
+
+  RW    E <- (0==k) & (descB.nt>=(n1+1)) & (descB.mt>=(m1+1)) ? B zlacpy_23(m1, n1) 
+          <- (0==k) & (m1>=descB.mt) ? Z(m1,n1)
+          <- (!((0==k) & (m1>=descB.mt))) & (0==k) & (descB.mt>=(m1+1)) & (n1>=descB.nt) ? Z(m1,n1)
+          <- (k>=1) ? E zgemm_38(m1, n1, k-1) 
+          -> (descA.nt>=(2+k)) ? E zgemm_38(m1, n1, k+1) 
+          -> (descA.nt==(k+1)) ? F zlacpy_50(m1, n1) 
+          -> (descA.nt==(1+k)) & (0==m1) ? J ztrsm_64(0, n1) 
+          -> (descA.nt==(1+k)) & (m1>=1) ? M zgemm_78(0, m1, n1) 
+
+BODY
+
+  int tempmm = ((m1)==(descZ.mt-1)) ? (descZ.m-(m1*descZ.mb)) : descZ.mb;
+  int tempnn = ((n1)==(descZ.nt-1)) ? (descZ.n-(n1*descZ.nb)) : descZ.nb;
+  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
+  int ldam = BLKLDD( descA, m1 );
+  int ldxk = BLKLDD( descX, k );
+  int ldzm = BLKLDD( descZ, m1 );
+
+  DRYRUN(
+
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, tempmm, 
+	tempnn, tempkn, (Dague_Complex64_t)-1.000000, 
+	C /* A(m1,k) */, ldam, D /* X(k,n1) */, 
+	ldxk, (Dague_Complex64_t)1.000000, E /* Z(m1,n1) */, 
+	ldzm );  );
+
+  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+           "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, tempkn, (Dague_Complex64_t)-1.000000, A(%d,%d)[%p], ldam, X(%d,%d)[%p], ldxk, (Dague_Complex64_t)1.000000, Z(%d,%d)[%p], ldzm)\n",
+  context->eu_id, m1, n1, k, m1, k, C, k, n1, D, m1, n1, E);
+
+END
+
+/*
+ * Pseudo-task
+ */
+zgemm_38_in_A0(m1,n1,k)
+  m1 = 0..(descZ.mt-1)
+  n1 = 0..(descZ.nt-1)
+  k = 0..(descA.nt-1)
+
+  : A(m1,k)
+
+  RW C <- A(m1,k)
+       -> C zgemm_38(m1,n1,k)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_38_in_X1(m1,n1,k)
+  m1 = 0..(descZ.mt-1)
+  n1 = 0..(descZ.nt-1)
+  k = 0..(descA.nt-1)
+
+  : X(k,n1)
+
+  RW D <- X(k,n1)
+       -> D zgemm_38(m1,n1,k)
+BODY
+/* nothing */
+END
+
+
+
+zlacpy_50(m2,n2)
+  /* Execution space */
+  m2 = 0..(descZ.mt-1)
+  n2 = 0..(descZ.nt-1)
+
+  : R(m2,n2)
+
+  /* B == Z(m,n) */
+  /* E == Z(m1,n1) */
+  /* F == Z(m2,n2) */
+  /* G == R(m2,n2) */
+  /* W == R(m6,n8) */
+  /* X == R(m7,n9) */
+
+  READ  F <- (descB.nt>=(1+n2)) & (descB.mt>=(m2+1)) & (0>=descA.nt) ? B zlacpy_23(m2, n2) 
+          <- (descA.nt>=1) ? E zgemm_38(m2, n2, descA.nt-1) 
+          <- (m2>=descB.mt) & (0>=descA.nt) ? F zlacpy_50_in_Z0(m2,n2)
+
+          <- (!((m2>=descB.mt) & (0>=descA.nt))) & (descB.mt>=(m2+1)) & (n2>=descB.nt) & (0>=descA.nt) ? F zlacpy_50_in_Z1(m2,n2)
+
+  RW    G <- R(m2,n2)
+          -> (0>=descA.nt) & (nb_iter>=2) & (descR.nt>=(1+n2)) & (descR.mt>=(m2+1)) ? X zlacpy_188((1)..(nb_iter-1), m2, n2) 
+          -> (1>=nb_iter) ? R(m2,n2)
+          -> (!((1>=nb_iter))) & (nb_iter>=2) & (m2>=descR.mt) ? R(m2,n2)
+          -> (!((1>=nb_iter))) & (!((nb_iter>=2) & (m2>=descR.mt))) & (nb_iter>=2) & (descR.mt>=(m2+1)) & (0>=descA.nt) ? R(m2,n2)
+          -> (!((1>=nb_iter))) & (!((nb_iter>=2) & (m2>=descR.mt))) & (!((nb_iter>=2) & (descR.mt>=(m2+1)) & (0>=descA.nt))) & (nb_iter>=2) & (descR.mt>=(m2+1)) & (descA.nt>=1) & (n2>=descR.nt) ? R(m2,n2)
+          -> (descR.mt>=(1+m2)) & (descA.nt>=1) & (nb_iter>=2) & (descR.nt>=(1+n2)) ? W zgemm_167(1, m2, n2, 0) 
+
+BODY
+
+  int tempmm = ((m2)==(descZ.mt-1)) ? (descZ.m-(m2*descZ.mb)) : descZ.mb;
+  int tempnn = ((n2)==(descZ.nt-1)) ? (descZ.n-(n2*descZ.nb)) : descZ.nb;
+  int ldzm = BLKLDD( descZ, m2 );
+  int ldrm = BLKLDD( descR, m2 );
+
+  DRYRUN(
+
+    CORE_zlacpy(PlasmaUpperLower, tempmm, tempnn, 
+	F /* Z(m2,n2) */, ldzm, G /* R(m2,n2) */, 
+	ldrm );  );
+
+  printlog("thread %d CORE_zlacpy(%d, %d)\n"
+           "\t(PlasmaUpperLower, tempmm, tempnn, Z(%d,%d)[%p], ldzm, R(%d,%d)[%p], ldrm)\n",
+  context->eu_id, m2, n2, m2, n2, F, m2, n2, G);
+
+END
+
+/*
+ * Pseudo-task
+ */
+zlacpy_50_in_Z0(m2,n2)
+  m2 = inline_c %{ return dague_imax((0),descB.mt); %}..(descZ.mt-1)
+  n2 = 0..(descZ.nt-1)
+
+  : Z(m2,n2)
+
+  RW F <- Z(m2,n2)
+       -> F zlacpy_50(m2,n2)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zlacpy_50_in_Z1(m2,n2)
+  m2 = 0..inline_c %{ return dague_imin((descZ.mt-1),(descB.mt-1)); %}
+  n2 = inline_c %{ return dague_imax(descB.nt,(0)); %}..(descZ.nt-1)
+
+  : Z(m2,n2)
+
+  RW F <- Z(m2,n2)
+       -> F zlacpy_50(m2,n2)
+BODY
+/* nothing */
+END
+
+
+
+ztrsm_64(k1,n3)
+  /* Execution space */
+  k1 = 0..(descZ.mt-1)
+  n3 = 0..(descZ.nt-1)
+
+  : Z(k1,n3)
+
+  /* B == Z(m,n) */
+  /* E == Z(m1,n1) */
+  /* H == LU(k1,k1) */
+  /* J == Z(k1,n3) */
+  /* L == Z(k1,n4) */
+  /* M == Z(m3,n4) */
+  /* O == Z((descZ.mt-1)-k2,n5) */
+  /* R == Z((descZ.mt-1)-m4,n6) */
+
+  READ  H <- H ztrsm_64_in_LU0(k1,n3)
+
+  RW    J <- (0==k1) & (descB.mt>=1) & (0>=descA.nt) & (descB.nt>=(n3+1)) ? B zlacpy_23(0, n3) 
+          <- (0==k1) & (0>=descB.mt) & (0>=descA.nt) ? Z(k1,n3)
+          <- (!((0==k1) & (0>=descB.mt) & (0>=descA.nt))) & (0==k1) & (descB.mt>=1) & (n3>=descB.nt) & (0>=descA.nt) ? Z(k1,n3)
+          <- (k1>=1) ? M zgemm_78(k1-1, k1, n3) 
+          <- (0==k1) & (descA.nt>=1) ? E zgemm_38(0, n3, descA.nt-1) 
+          -> (descZ.mt==(k1+1)) ? O ztrsm_99(0, n3) 
+          -> (descZ.mt>=(k1+2)) ? R zgemm_111(0, descZ.mt-k1-1, n3) 
+          -> (descZ.mt>=(k1+2)) ? L zgemm_78(k1, (k1+1)..(descZ.mt-1), n3) 
+
+BODY
+
+  int tempkm = ((k1)==(descZ.mt-1)) ? (descZ.m-(k1*descZ.mb)) : descZ.mb;
+  int tempnn = ((n3)==(descZ.nt-1)) ? (descZ.n-(n3*descZ.nb)) : descZ.nb;
+  int lda = BLKLDD( descLU, k1 );
+  int ldz = BLKLDD( descZ, k1 );
+
+  DRYRUN(
+
+    CORE_ztrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans, 
+	PlasmaUnit, tempkm, tempnn, 
+	(Dague_Complex64_t)1.000000, H /* LU(k1,k1) */, lda, 
+	J /* Z(k1,n3) */, ldz );  );
+
+  printlog("thread %d CORE_ztrsm(%d, %d)\n"
+           "\t(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, tempkm, tempnn, (Dague_Complex64_t)1.000000, LU(%d,%d)[%p], lda, Z(%d,%d)[%p], ldz)\n",
+  context->eu_id, k1, n3, k1, k1, H, k1, n3, J);
+
+END
+
+/*
+ * Pseudo-task
+ */
+ztrsm_64_in_LU0(k1,n3)
+  k1 = 0..(descZ.mt-1)
+  n3 = 0..(descZ.nt-1)
+
+  : LU(k1,k1)
+
+  RW H <- LU(k1,k1)
+       -> H ztrsm_64(k1,n3)
+BODY
+/* nothing */
+END
+
+
+
+zgemm_78(k1,m3,n4)
+  /* Execution space */
+  k1 = 0..(descZ.mt-2)
+  m3 = (k1+1)..(descZ.mt-1)
+  n4 = 0..(descZ.nt-1)
+
+  : Z(m3,n4)
+
+  /* B == Z(m,n) */
+  /* E == Z(m1,n1) */
+  /* J == Z(k1,n3) */
+  /* K == LU(m3,k1) */
+  /* L == Z(k1,n4) */
+  /* M == Z(m3,n4) */
+
+  READ  K <- K zgemm_78_in_LU0(k1,m3,n4)
+
+  READ  L <- J ztrsm_64(k1, n4) 
+  RW    M <- (0==k1) & (descB.nt>=(n4+1)) & (descB.mt>=(m3+1)) & (0>=descA.nt) ? B zlacpy_23(m3, n4) 
+          <- (0==k1) & (m3>=descB.mt) & (0>=descA.nt) ? Z(m3,n4)
+          <- (!((0==k1) & (m3>=descB.mt) & (0>=descA.nt))) & (0==k1) & (descB.mt>=(1+m3)) & (n4>=descB.nt) & (0>=descA.nt) ? Z(m3,n4)
+          <- (k1>=1) ? M zgemm_78(k1-1, m3, n4) 
+          <- (0==k1) & (descA.nt>=1) ? E zgemm_38(m3, n4, descA.nt-1) 
+          -> (m3>=(k1+2)) ? M zgemm_78(k1+1, m3, n4) 
+          -> ((k1+1)==m3) ? J ztrsm_64(m3, n4) 
+
+BODY
+
+  int tempmm = ((m3)==(descZ.mt-1)) ? (descZ.m-(m3*descZ.mb)) : descZ.mb;
+  int tempnn = ((n4)==(descZ.nt-1)) ? (descZ.n-(n4*descZ.nb)) : descZ.nb;
+  Dague_Complex64_t mzone = (Dague_Complex64_t)-1.000000;
+  int lda = BLKLDD( descLU, m3 );
+  int ldz = BLKLDD( descZ, m3 );
+
+  DRYRUN(
+
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, tempmm, 
+	tempnn, descZ.mb, mzone, 
+	K /* LU(m3,k1) */, lda, L /* Z(k1,n4) */, 
+	descZ.mb, (Dague_Complex64_t)1.000000, M /* Z(m3,n4) */, 
+	ldz );  );
+
+  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+           "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descZ.mb, mzone, LU(%d,%d)[%p], lda, Z(%d,%d)[%p], descZ.mb, (Dague_Complex64_t)1.000000, Z(%d,%d)[%p], ldz)\n",
+  context->eu_id, k1, m3, n4, m3, k1, K, k1, n4, L, m3, n4, M);
+
+END
+
+/*
+ * Pseudo-task
+ */
+zgemm_78_in_LU0(k1,m3,n4)
+  k1 = 0..(descZ.mt-2)
+  m3 = (k1+1)..(descZ.mt-1)
+  n4 = 0..(descZ.nt-1)
+
+  : LU(m3,k1)
+
+  RW K <- LU(m3,k1)
+       -> K zgemm_78(k1,m3,n4)
+BODY
+/* nothing */
+END
+
+
+
+ztrsm_99(k2,n5)
+  /* Execution space */
+  k2 = 0..(descZ.mt-1)
+  n5 = 0..(descZ.nt-1)
+
+  : Z((descZ.mt-1)-k2,n5)
+
+  /* A1 == Z(k4,n10) */
+  /* D1 == Z(m8,n11) */
+  /* J == Z(k1,n3) */
+  /* N == LU((descZ.mt-1)-k2,(descZ.mt-1)-k2) */
+  /* O == Z((descZ.mt-1)-k2,n5) */
+  /* Q == Z((descZ.mt-1)-k2,n6) */
+  /* R == Z((descZ.mt-1)-m4,n6) */
+  /* S == Z(m5,n7) */
+  /* V == Z(k3,n8) */
+  /* Y == Z(m7,n9) */
+
+  READ  N <- N ztrsm_99_in_LU0(k2,n5)
+
+  RW    O <- (0==k2) ? J ztrsm_64(descZ.mt-1, n5) 
+          <- (k2>=1) ? R zgemm_111(k2-1, k2, n5) 
+          -> (descZ.mt==(1+k2)) & (0>=descR.mt) & (nb_iter>=2) ? A1 ztrsm_211(1, 0, n5) 
+          -> (!((descZ.mt==(1+k2)) & (0>=descR.mt) & (nb_iter>=2))) & (descZ.mt==(1+k2)) & (descR.mt>=1) & (n5>=descR.nt) & (nb_iter>=2) ? A1 ztrsm_211(1, 0, n5) 
+          -> (1>=nb_iter) ? Z((descZ.mt-1)-k2,n5)
+          -> (nb_iter>=2) & (descR.nt>=(n5+1)) & ((k2+descR.mt)>=descZ.mt) ? Y zlacpy_188(1, descZ.mt-k2-1, n5) 
+          -> (nb_iter>=2) & ((descA.nt+k2)>=descZ.mt) & (descR.nt>=(n5+1)) & (descR.mt>=1) ? V zgemm_167(1, 0..(descR.mt-1), n5, descZ.mt-k2-1) 
+          -> S zgeadd_136(descZ.mt-k2-1, n5) 
+          -> (descZ.mt>=(2+k2)) ? Q zgemm_111(k2, (k2+1)..(descZ.mt-1), n5) 
+          -> (descZ.mt>=(descR.mt+k2+1)) & (descZ.mt>=(k2+2)) & (nb_iter>=2) ? D1 zgemm_225(1, 0, descZ.mt-k2-1, n5) 
+          -> (!((descZ.mt>=(descR.mt+k2+1)) & (descZ.mt>=(k2+2)) & (nb_iter>=2))) & ((descR.mt+k2)>=descZ.mt) & (n5>=descR.nt) & (descZ.mt>=(k2+2)) & (nb_iter>=2) ? D1 zgemm_225(1, 0, descZ.mt-k2-1, n5) 
+
+BODY
+
+  int tempkm = ((k2)==(0)) ? (descZ.m-((descZ.mt-1)*descZ.mb)) : descZ.mb;
+  int tempnn = ((n5)==(descZ.nt-1)) ? (descZ.n-(n5*descZ.nb)) : descZ.nb;
+  int lda = BLKLDD( descLU, (descZ.mt-1)-k2 );
+  int ldz = BLKLDD( descZ, (descZ.mt-1)-k2 );
+
+  DRYRUN(
+
+    CORE_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, 
+	PlasmaNonUnit, tempkm, tempnn, 
+	(Dague_Complex64_t)1.000000, N /* LU((descZ.mt-1)-k2,(descZ.mt-1)-k2) */, lda, 
+	O /* Z((descZ.mt-1)-k2,n5) */, ldz );  );
+
+  printlog("thread %d CORE_ztrsm(%d, %d)\n"
+           "\t(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, tempkm, tempnn, (Dague_Complex64_t)1.000000, LU(%d,%d)[%p], lda, Z(%d,%d)[%p], ldz)\n",
+  context->eu_id, k2, n5, (descZ.mt-1)-k2, (descZ.mt-1)-k2, N, (descZ.mt-1)-k2, n5, O);
+
+END
+
+/*
+ * Pseudo-task
+ */
+ztrsm_99_in_LU0(k2,n5)
+  k2 = 0..(descZ.mt-1)
+  n5 = 0..(descZ.nt-1)
+
+  : LU((descZ.mt-1)-k2,(descZ.mt-1)-k2)
+
+  RW N <- LU((descZ.mt-1)-k2,(descZ.mt-1)-k2)
+       -> N ztrsm_99(k2,n5)
+BODY
+/* nothing */
+END
+
+
+
+zgemm_111(k2,m4,n6)
+  /* Execution space */
+  k2 = 0..(descZ.mt-2)
+  m4 = (k2+1)..(descZ.mt-1)
+  n6 = 0..(descZ.nt-1)
+
+  : Z((descZ.mt-1)-m4,n6)
+
+  /* J == Z(k1,n3) */
+  /* O == Z((descZ.mt-1)-k2,n5) */
+  /* P == LU((descZ.mt-1)-m4,(descZ.mt-1)-k2) */
+  /* Q == Z((descZ.mt-1)-k2,n6) */
+  /* R == Z((descZ.mt-1)-m4,n6) */
+
+  READ  P <- P zgemm_111_in_LU0(k2,m4,n6)
+
+  READ  Q <- O ztrsm_99(k2, n6) 
+  RW    R <- (0==k2) ? J ztrsm_64(descZ.mt-m4-1, n6) 
+          <- (k2>=1) ? R zgemm_111(k2-1, m4, n6) 
+          -> ((k2+1)==m4) ? O ztrsm_99(m4, n6) 
+          -> (m4>=(k2+2)) ? R zgemm_111(k2+1, m4, n6) 
+
+BODY
+
+  int tempnn = ((n6)==(descZ.nt-1)) ? (descZ.n-(n6*descZ.nb)) : descZ.nb;
+  int tempkm = ((k2)==(0)) ? (descZ.m-((descZ.mt-1)*descZ.mb)) : descZ.mb;
+  Dague_Complex64_t mzone = (Dague_Complex64_t)-1.000000;
+  int ldz = BLKLDD( descZ, (descZ.mt-1)-k2 );
+
+  DRYRUN(
+
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, descZ.mb, 
+	tempnn, tempkm, mzone, 
+	P /* LU((descZ.mt-1)-m4,(descZ.mt-1)-k2) */, descLU.mb, Q /* Z((descZ.mt-1)-k2,n6) */, 
+	ldz, (Dague_Complex64_t)1.000000, R /* Z((descZ.mt-1)-m4,n6) */, 
+	descZ.mb );  );
+
+  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+           "\t(PlasmaNoTrans, PlasmaNoTrans, descZ.mb, tempnn, tempkm, mzone, LU(%d,%d)[%p], descLU.mb, Z(%d,%d)[%p], ldz, (Dague_Complex64_t)1.000000, Z(%d,%d)[%p], descZ.mb)\n",
+  context->eu_id, k2, m4, n6, (descZ.mt-1)-m4, (descZ.mt-1)-k2, P, (descZ.mt-1)-k2, n6, Q, (descZ.mt-1)-m4, n6, R);
+
+END
+
+/*
+ * Pseudo-task
+ */
+zgemm_111_in_LU0(k2,m4,n6)
+  k2 = 0..(descZ.mt-2)
+  m4 = (k2+1)..(descZ.mt-1)
+  n6 = 0..(descZ.nt-1)
+
+  : LU((descZ.mt-1)-m4,(descZ.mt-1)-k2)
+
+  RW P <- LU((descZ.mt-1)-m4,(descZ.mt-1)-k2)
+       -> P zgemm_111(k2,m4,n6)
+BODY
+/* nothing */
+END
+
+
+
+zgeadd_136(m5,n7)
+  /* Execution space */
+  m5 = 0..(descZ.mt-1)
+  n7 = 0..(descZ.nt-1)
+
+  : X(m5,n7)
+
+  /* K1 == X(m10,n14) */
+  /* O == Z((descZ.mt-1)-k2,n5) */
+  /* S == Z(m5,n7) */
+  /* T == X(m5,n7) */
+
+  READ  S <- O ztrsm_99(descZ.mt-m5-1, n7) 
+  RW    T <- X(m5,n7)
+          -> (1>=nb_iter) ? X(m5,n7)
+          -> (nb_iter>=2) ? K1 zgeadd_283(1, m5, n7) 
+
+BODY
+
+  int tempmm = ((m5)==(descZ.mt-1)) ? (descZ.m-(m5*descZ.mb)) : descZ.mb;
+  int tempnn = ((n7)==(descZ.nt-1)) ? (descZ.n-(n7*descZ.nb)) : descZ.nb;
+  int ldzm = BLKLDD( descZ, m5 );
+  int ldxm = BLKLDD( descX, m5 );
+
+  DRYRUN(
+
+    CORE_zgeadd(tempmm, tempnn, (Dague_Complex64_t)1.000000, 
+	S /* Z(m5,n7) */, ldzm, T /* X(m5,n7) */, 
+	ldxm );  );
+
+  printlog("thread %d CORE_zgeadd(%d, %d)\n"
+           "\t(tempmm, tempnn, (Dague_Complex64_t)1.000000, Z(%d,%d)[%p], ldzm, X(%d,%d)[%p], ldxm)\n",
+  context->eu_id, m5, n7, m5, n7, S, m5, n7, T);
+
+END
+
+
+zgemm_167(ni,m6,n8,k3)
+  /* Execution space */
+  ni = (1)..(nb_iter-1)
+  m6 = 0..(descR.mt-1)
+  n8 = 0..(descR.nt-1)
+  k3 = 0..(descA.nt-1)
+
+  : R(m6,n8)
+
+  /* B == Z(m,n) */
+  /* F1 == Z((descZ.mt-1)-k5,n12) */
+  /* G == R(m2,n2) */
+  /* O == Z((descZ.mt-1)-k2,n5) */
+  /* U == A(m6,k3) */
+  /* V == Z(k3,n8) */
+  /* W == R(m6,n8) */
+  /* X == R(m7,n9) */
+  /* Y == Z(m7,n9) */
+
+  READ  U <- U zgemm_167_in_A0(ni,m6,n8,k3)
+
+  READ  V <- (descZ.nt>=(n8+1)) & (descZ.mt>=(1+k3)) & (ni>=2) ? F1 ztrsm_246(ni-1, descZ.mt-k3-1, n8) 
+          <- (1==ni) & (n8>=descZ.nt) & (descB.nt>=(n8+1)) & (descB.mt>=(k3+1)) ? B zlacpy_23(k3, n8) 
+          <- (!((1==ni) & (n8>=descZ.nt) & (descB.nt>=(n8+1)) & (descB.mt>=(k3+1)))) & (1==ni) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt) & (descB.nt>=(n8+1)) & (descB.mt>=(k3+1)) ? B zlacpy_23(k3, n8) 
+          <- (!((1==ni) & (n8>=descZ.nt) & (descB.nt>=(n8+1)) & (descB.mt>=(k3+1)))) & (!((1==ni) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt) & (descB.nt>=(n8+1)) & (descB.mt>=(k3+1)))) & (n8>=descZ.nt) & (ni>=2) & (k3>=descR.mt) & (descB.nt>=(n8+1)) & (descB.mt>=(k3+1)) ? B zlacpy_23(k3, n8) 
+          <- (!((1==ni) & (n8>=descZ.nt) & (descB.nt>=(n8+1)) & (descB.mt>=(k3+1)))) & (!((1==ni) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt) & (descB.nt>=(n8+1)) & (descB.mt>=(k3+1)))) & (!((n8>=descZ.nt) & (ni>=2) & (k3>=descR.mt) & (descB.nt>=(n8+1)) & (descB.mt>=(k3+1)))) & (descZ.nt>=(1+n8)) & (k3>=descZ.mt) & (ni>=2) & (k3>=descR.mt) & (descB.nt>=(n8+1)) & (descB.mt>=(k3+1)) ? B zlacpy_23(k3, n8) 
+          <- (1==ni) & (descZ.nt>=(n8+1)) & (descZ.mt>=(1+k3)) ? O ztrsm_99(descZ.mt-k3-1, n8) 
+          <- (1==ni) & (k3>=descB.mt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt) ? V zgemm_167_in_Z1(m6,n8,k3)
+
+          <- (!((1==ni) & (k3>=descB.mt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt) ? V zgemm_167_in_Z2(m6,n8,k3)
+
+          <- (!((1==ni) & (k3>=descB.mt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (1==ni) & (k3>=descB.mt) & (descZ.nt>=(1+n8)) & (k3>=descZ.mt) ? V zgemm_167_in_Z3(m6,n8,k3)
+
+          <- (!((1==ni) & (k3>=descB.mt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.nt>=(1+n8)) & (k3>=descZ.mt))) & (1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt) ? V zgemm_167_in_Z4(m6,n8,k3)
+
+          <- (!((1==ni) & (k3>=descB.mt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.nt>=(1+n8)) & (k3>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt))) & (1==ni) & (k3>=descB.mt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt) ? V zgemm_167_in_Z5(m6,n8,k3)
+
+          <- (!((1==ni) & (k3>=descB.mt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.nt>=(1+n8)) & (k3>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt))) & (1==ni) & (descB.mt>=(1+k3)) & (n8>=descB.nt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt) ? V zgemm_167_in_Z6(m6,n8,k3)
+
+          <- (!((1==ni) & (k3>=descB.mt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.nt>=(1+n8)) & (k3>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt))) & (!((1==ni) & (descB.mt>=(1+k3)) & (n8>=descB.nt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt))) & (k3>=descB.mt) & (n8>=descZ.nt) & (ni>=2) & (k3>=descR.mt) ? V zgemm_167_in_Z7(ni,m6,n8,k3)
+
+          <- (!((1==ni) & (k3>=descB.mt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.nt>=(1+n8)) & (k3>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt))) & (!((1==ni) & (descB.mt>=(1+k3)) & (n8>=descB.nt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt))) & (!((k3>=descB.mt) & (n8>=descZ.nt) & (ni>=2) & (k3>=descR.mt))) & (descB.mt>=(1+k3)) & (n8>=descB.nt) & (n8>=descZ.nt) & (ni>=2) & (k3>=descR.mt) ? V zgemm_167_in_Z8(ni,m6,n8,k3)
+
+          <- (!((1==ni) & (k3>=descB.mt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.nt>=(1+n8)) & (k3>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt))) & (!((1==ni) & (descB.mt>=(1+k3)) & (n8>=descB.nt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt))) & (!((k3>=descB.mt) & (n8>=descZ.nt) & (ni>=2) & (k3>=descR.mt))) & (!((descB.mt>=(1+k3)) & (n8>=descB.nt) & (n8>=descZ.nt) & (ni>=2) & (k3>=descR.mt))) & (n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt) & (ni>=2) & (k3>=descR.mt) ? V zgemm_167_in_Z9(ni,m6,n8,k3)
+
+          <- (!((1==ni) & (k3>=descB.mt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (n8>=descZ.nt) & ((k3+1)>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.nt>=(1+n8)) & (k3>=descZ.mt))) & (!((1==ni) & (descB.mt>=(k3+1)) & (n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt))) & (!((1==ni) & (k3>=descB.mt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt))) & (!((1==ni) & (descB.mt>=(1+k3)) & (n8>=descB.nt) & (descZ.mt>=(k3+2)) & (n8>=descZ.nt))) & (!((k3>=descB.mt) & (n8>=descZ.nt) & (ni>=2) & (k3>=descR.mt))) & (!((descB.mt>=(1+k3)) & (n8>=descB.nt) & (n8>=descZ.nt) & (ni>=2) & (k3>=descR.mt))) & (!((n8>=descB.nt) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt) & (ni>=2) & (k3>=descR.mt))) & (descB.nt>=(n8+1)) & (k3>=descB.mt) & (descZ.nt>=(1+n8)) & (k3>=descZ.mt) & (ni>=2) & (k3>=descR.mt) ? V zgemm_167_in_Z10(ni,m6,n8,k3)
+
+          <- (n8>=descZ.nt) & (ni>=2) & (descR.mt>=(k3+1)) ? Y zlacpy_188(ni-1, k3, n8) 
+          <- (!((n8>=descZ.nt) & (ni>=2) & (descR.mt>=(k3+1)))) & (descZ.nt>=(n8+1)) & (k3>=descZ.mt) & (descR.mt>=(1+k3)) & (ni>=2) ? Y zlacpy_188(ni-1, k3, n8) 
+  RW    W <- (k3>=1) ? W zgemm_167(ni, m6, n8, k3-1) 
+          <- (!((k3>=1))) & (0==k3) & (ni>=2) ? W zgemm_167(ni-1, m6, n8, descA.nt-1) 
+          <- (1==ni) & (0==k3) & (m6>=descZ.mt) ? R(m6,n8)
+          <- (!((1==ni) & (0==k3) & (m6>=descZ.mt))) & (1==ni) & (0==k3) & (descZ.mt>=(m6+1)) & (n8>=descZ.nt) ? R(m6,n8)
+          <- (0==k3) & (1==ni) & (descZ.nt>=(n8+1)) & (descZ.mt>=(m6+1)) ? G zlacpy_50(m6, n8) 
+          -> (descA.nt>=(k3+2)) ? W zgemm_167(ni, m6, n8, k3+1) 
+          -> (!((descA.nt>=(k3+2)))) & (descA.nt==(1+k3)) & (nb_iter>=(ni+2)) ? W zgemm_167(ni+1, m6, n8, 0) 
+          -> (descA.nt==(1+k3)) ? X zlacpy_188(ni, m6, n8) 
+          -> (descA.nt==(k3+1)) & (nb_iter==(ni+1)) ? R(m6,n8)
+
+BODY
+
+  int tempmm = ((m6)==(descR.mt-1)) ? (descR.m-(m6*descR.mb)) : descR.mb;
+  int tempnn = ((n8)==(descR.nt-1)) ? (descR.n-(n8*descR.nb)) : descR.nb;
+  int tempkn = ((k3)==(descA.nt-1)) ? (descA.n-(k3*descA.nb)) : descA.nb;
+  int ldam = BLKLDD( descA, m6 );
+  int ldzk = BLKLDD( descZ, k3 );
+  int ldrm = BLKLDD( descR, m6 );
+
+  DRYRUN(
+
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, tempmm, 
+	tempnn, tempkn, (Dague_Complex64_t)-1.000000, 
+	U /* A(m6,k3) */, ldam, V /* Z(k3,n8) */, 
+	ldzk, (Dague_Complex64_t)1.000000, W /* R(m6,n8) */, 
+	ldrm );  );
+
+  printlog("thread %d CORE_zgemm(%d, %d, %d, %d)\n"
+           "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, tempkn, (Dague_Complex64_t)-1.000000, A(%d,%d)[%p], ldam, Z(%d,%d)[%p], ldzk, (Dague_Complex64_t)1.000000, R(%d,%d)[%p], ldrm)\n",
+  context->eu_id, ni, m6, n8, k3, m6, k3, U, k3, n8, V, m6, n8, W);
+
+END
+
+/*
+ * Pseudo-task
+ */
+zgemm_167_in_A0(ni,m6,n8,k3)
+  ni = (1)..(nb_iter-1)
+  m6 = 0..(descR.mt-1)
+  n8 = 0..(descR.nt-1)
+  k3 = 0..(descA.nt-1)
+
+  : A(m6,k3)
+
+  RW U <- A(m6,k3)
+       -> U zgemm_167(ni,m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_167_in_Z1(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((0),descZ.nt); %}..(descR.nt-1)
+  k3 = inline_c %{ return dague_imax((dague_imax((0),(descZ.mt-1))),descB.mt); %}..(descA.nt-1)
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_167(1,m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_167_in_Z2(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((dague_imax((0),descZ.nt)),descB.nt); %}..(descR.nt-1)
+  k3 = inline_c %{ return dague_imax((0),(descZ.mt-1)); %}..inline_c %{ return dague_imin((descA.nt-1),(descB.mt-1)); %}
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_167(1,m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_167_in_Z3(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = 0..inline_c %{ return dague_imin((descR.nt-1),(descZ.nt-1)); %}
+  k3 = inline_c %{ return dague_imax((dague_imax((0),descZ.mt)),descB.mt); %}..(descA.nt-1)
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_167(1,m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_167_in_Z4(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((0),descB.nt); %}..inline_c %{ return dague_imin((descR.nt-1),(descZ.nt-1)); %}
+  k3 = inline_c %{ return dague_imax((0),descZ.mt); %}..inline_c %{ return dague_imin((descA.nt-1),(descB.mt-1)); %}
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_167(1,m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_167_in_Z5(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((0),descZ.nt); %}..(descR.nt-1)
+  k3 = inline_c %{ return dague_imax((0),descB.mt); %}..inline_c %{ return dague_imin((descA.nt-1),(descZ.mt-2)); %}
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_167(1,m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_167_in_Z6(m6,n8,k3)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((dague_imax((0),descZ.nt)),descB.nt); %}..(descR.nt-1)
+  k3 = 0..inline_c %{ return dague_imin((dague_imin((descA.nt-1),(descZ.mt-2))),(descB.mt-1)); %}
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_167(1,m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_167_in_Z7(ni,m6,n8,k3)
+  ni = (2)..(nb_iter-1)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((0),descZ.nt); %}..(descR.nt-1)
+  k3 = inline_c %{ return dague_imax((dague_imax((0),descB.mt)),descR.mt); %}..(descA.nt-1)
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_167(ni,m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_167_in_Z8(ni,m6,n8,k3)
+  ni = (2)..(nb_iter-1)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((dague_imax((0),descB.nt)),descZ.nt); %}..(descR.nt-1)
+  k3 = inline_c %{ return dague_imax((0),descR.mt); %}..inline_c %{ return dague_imin((descA.nt-1),(descB.mt-1)); %}
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_167(ni,m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_167_in_Z9(ni,m6,n8,k3)
+  ni = (2)..(nb_iter-1)
+  m6 = 0..(descR.mt-1)
+  n8 = inline_c %{ return dague_imax((0),descB.nt); %}..inline_c %{ return dague_imin((descR.nt-1),(descZ.nt-1)); %}
+  k3 = inline_c %{ return dague_imax((dague_imax((0),descZ.mt)),descR.mt); %}..(descA.nt-1)
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_167(ni,m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zgemm_167_in_Z10(ni,m6,n8,k3)
+  ni = (2)..(nb_iter-1)
+  m6 = 0..(descR.mt-1)
+  n8 = 0..inline_c %{ return dague_imin((dague_imin((descR.nt-1),(descB.nt-1))),(descZ.nt-1)); %}
+  k3 = inline_c %{ return dague_imax((dague_imax((dague_imax((0),descB.mt)),descZ.mt)),descR.mt); %}..(descA.nt-1)
+
+  : Z(k3,n8)
+
+  RW V <- Z(k3,n8)
+       -> V zgemm_167(ni,m6,n8,k3)
+BODY
+/* nothing */
+END
+
+
+
+zlacpy_188(ni,m7,n9)
+  /* Execution space */
+  ni = (1)..(nb_iter-1)
+  m7 = 0..(descR.mt-1)
+  n9 = 0..(descR.nt-1)
+
+  : Z(m7,n9)
+
+  /* A1 == Z(k4,n10) */
+  /* B == Z(m,n) */
+  /* D1 == Z(m8,n11) */
+  /* F1 == Z((descZ.mt-1)-k5,n12) */
+  /* G == R(m2,n2) */
+  /* O == Z((descZ.mt-1)-k2,n5) */
+  /* V == Z(k3,n8) */
+  /* W == R(m6,n8) */
+  /* X == R(m7,n9) */
+  /* Y == Z(m7,n9) */
+
+  READ  X <- (m7>=descZ.mt) & (0>=descA.nt) ? X zlacpy_188_in_R0(ni,m7,n9)
+
+          <- (!((m7>=descZ.mt) & (0>=descA.nt))) & (descZ.mt>=(1+m7)) & (n9>=descZ.nt) & (0>=descA.nt) ? X zlacpy_188_in_R1(ni,m7,n9)
+
+          <- (descA.nt>=1) ? W zgemm_167(ni, m7, n9, descA.nt-1) 
+          <- (descZ.nt>=(n9+1)) & (descZ.mt>=(m7+1)) & (0>=descA.nt) ? G zlacpy_50(m7, n9) 
+  RW    Y <- (1==ni) & (n9>=descZ.nt) & ((m7+1)>=descZ.mt) & (descB.nt>=(1+n9)) & (descB.mt>=(m7+1)) ? B zlacpy_23(m7, n9) 
+          <- (!((1==ni) & (n9>=descZ.nt) & ((m7+1)>=descZ.mt) & (descB.nt>=(1+n9)) & (descB.mt>=(m7+1)))) & (1==ni) & (descB.nt>=(n9+1)) & (descB.mt>=(m7+1)) & (descZ.nt>=(n9+1)) & (m7>=descZ.mt) ? B zlacpy_23(m7, n9) 
+          <- (!((1==ni) & (n9>=descZ.nt) & ((m7+1)>=descZ.mt) & (descB.nt>=(1+n9)) & (descB.mt>=(m7+1)))) & (!((1==ni) & (descB.nt>=(n9+1)) & (descB.mt>=(m7+1)) & (descZ.nt>=(n9+1)) & (m7>=descZ.mt))) & (1==ni) & (descZ.mt>=(2+m7)) & (n9>=descZ.nt) & (descB.nt>=(n9+1)) & (descB.mt>=(m7+1)) ? B zlacpy_23(m7, n9) 
+          <- (1==ni) & (descZ.nt>=(n9+1)) & (descZ.mt>=(m7+1)) ? O ztrsm_99(descZ.mt-m7-1, n9) 
+          <- (1==ni) & (n9>=descZ.nt) & (m7>=descB.mt) ? Z(m7,n9)
+          <- (!((1==ni) & (n9>=descZ.nt) & (m7>=descB.mt))) & (1==ni) & (descB.mt>=(m7+1)) & (n9>=descB.nt) & (n9>=descZ.nt) ? Z(m7,n9)
+          <- (!((1==ni) & (n9>=descZ.nt) & (m7>=descB.mt))) & (!((1==ni) & (descB.mt>=(m7+1)) & (n9>=descB.nt) & (n9>=descZ.nt))) & (1==ni) & (m7>=descB.mt) & (descZ.nt>=(n9+1)) & (m7>=descZ.mt) ? Z(m7,n9)
+          <- (!((1==ni) & (n9>=descZ.nt) & (m7>=descB.mt))) & (!((1==ni) & (descB.mt>=(m7+1)) & (n9>=descB.nt) & (n9>=descZ.nt))) & (!((1==ni) & (m7>=descB.mt) & (descZ.nt>=(n9+1)) & (m7>=descZ.mt))) & (1==ni) & (descB.mt>=(m7+1)) & (n9>=descB.nt) & (descZ.nt>=(n9+1)) & (m7>=descZ.mt) ? Z(m7,n9)
+          <- (n9>=descZ.nt) & (ni>=2) ? Y zlacpy_188(ni-1, m7, n9) 
+          <- (!((n9>=descZ.nt) & (ni>=2))) & (descZ.nt>=(1+n9)) & (m7>=descZ.mt) & (ni>=2) ? Y zlacpy_188(ni-1, m7, n9) 
+          <- (descZ.nt>=(1+n9)) & (descZ.mt>=(1+m7)) & (ni>=2) ? F1 ztrsm_246(ni-1, descZ.mt-m7-1, n9) 
+          -> (0==m7) & (descZ.mt>=1) & (descZ.nt>=(n9+1)) ? A1 ztrsm_211(ni, 0, n9) 
+          -> (nb_iter==(ni+1)) & (n9>=descZ.nt) & ((1+m7)>=descZ.mt) ? Z(m7,n9)
+          -> (!((nb_iter==(ni+1)) & (n9>=descZ.nt) & ((1+m7)>=descZ.mt))) & (nb_iter==(ni+1)) & (descZ.nt>=(1+n9)) & (m7>=descZ.mt) ? Z(m7,n9)
+          -> (!((nb_iter==(ni+1)) & (n9>=descZ.nt) & ((1+m7)>=descZ.mt))) & (!((nb_iter==(ni+1)) & (descZ.nt>=(1+n9)) & (m7>=descZ.mt))) & (nb_iter==(ni+1)) & (descZ.mt>=(m7+2)) & (n9>=descZ.nt) ? Z(m7,n9)
+          -> (descZ.mt>=1) & (descZ.nt>=(n9+1)) & (descZ.mt>=(1+m7)) & (m7>=1) ? D1 zgemm_225(ni, 0, m7, n9) 
+          -> (nb_iter>=(2+ni)) & (n9>=descZ.nt) ? Y zlacpy_188(ni+1, m7, n9) 
+          -> (!((nb_iter>=(2+ni)) & (n9>=descZ.nt))) & (nb_iter>=(2+ni)) & (descZ.nt>=(n9+1)) & (m7>=descZ.mt) ? Y zlacpy_188(ni+1, m7, n9) 
+          -> (n9>=descZ.nt) & (nb_iter>=(ni+2)) & (descA.nt>=(m7+1)) ? V zgemm_167(ni+1, 0..(descR.mt-1), n9, m7) 
+          -> (!((n9>=descZ.nt) & (nb_iter>=(ni+2)) & (descA.nt>=(m7+1)))) & (descZ.nt>=(n9+1)) & (m7>=descZ.mt) & (nb_iter>=(ni+2)) & (descA.nt>=(m7+1)) ? V zgemm_167(ni+1, 0..(descR.mt-1), n9, m7) 
+
+BODY
+
+  int tempmm = ((m7)==(descR.mt-1)) ? (descR.m-(m7*descR.mb)) : descR.mb;
+  int tempnn = ((n9)==(descR.nt-1)) ? (descR.n-(n9*descR.nb)) : descR.nb;
+  int ldrm = BLKLDD( descR, m7 );
+  int ldzm = BLKLDD( descZ, m7 );
+
+  DRYRUN(
+
+    CORE_zlacpy(PlasmaUpperLower, tempmm, tempnn, 
+	X /* R(m7,n9) */, ldrm, Y /* Z(m7,n9) */, 
+	ldzm );  );
+
+  printlog("thread %d CORE_zlacpy(%d, %d, %d)\n"
+           "\t(PlasmaUpperLower, tempmm, tempnn, R(%d,%d)[%p], ldrm, Z(%d,%d)[%p], ldzm)\n",
+  context->eu_id, ni, m7, n9, m7, n9, X, m7, n9, Y);
+
+END
+
+/*
+ * Pseudo-task
+ */
+zlacpy_188_in_R0(ni,m7,n9)
+  ni = (1)..(nb_iter-1)
+  m7 = inline_c %{ return dague_imax((0),descZ.mt); %}..(descR.mt-1)
+  n9 = 0..(descR.nt-1)
+
+  : R(m7,n9)
+
+  RW X <- R(m7,n9)
+       -> X zlacpy_188(ni,m7,n9)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zlacpy_188_in_R1(ni,m7,n9)
+  ni = (1)..(nb_iter-1)
+  m7 = 0..inline_c %{ return dague_imin((descR.mt-1),(descZ.mt-1)); %}
+  n9 = inline_c %{ return dague_imax((0),descZ.nt); %}..(descR.nt-1)
+
+  : R(m7,n9)
+
+  RW X <- R(m7,n9)
+       -> X zlacpy_188(ni,m7,n9)
+BODY
+/* nothing */
+END
+
+
+
+ztrsm_211(ni,k4,n10)
+  /* Execution space */
+  ni = (1)..(nb_iter-1)
+  k4 = 0..(descZ.mt-1)
+  n10 = 0..(descZ.nt-1)
+
+  : Z(k4,n10)
+
+  /* A1 == Z(k4,n10) */
+  /* C1 == Z(k4,n11) */
+  /* D1 == Z(m8,n11) */
+  /* F1 == Z((descZ.mt-1)-k5,n12) */
+  /* I1 == Z((descZ.mt-1)-m9,n13) */
+  /* O == Z((descZ.mt-1)-k2,n5) */
+  /* Y == Z(m7,n9) */
+  /* Z == LU(k4,k4) */
+
+  READ  Z <- Z ztrsm_211_in_LU0(ni,k4,n10)
+
+  RW    A1 <- (0==k4) & (0>=descR.mt) & (ni>=2) ? F1 ztrsm_246(ni-1, descZ.mt-1, n10) 
+          <- (!((0==k4) & (0>=descR.mt) & (ni>=2))) & (0==k4) & (descR.mt>=1) & (n10>=descR.nt) & (ni>=2) ? F1 ztrsm_246(ni-1, descZ.mt-1, n10) 
+          <- (0==k4) & (descR.nt>=(n10+1)) & (descR.mt>=1) ? Y zlacpy_188(ni, 0, n10) 
+          <- (k4>=1) ? D1 zgemm_225(ni, k4-1, k4, n10) 
+          <- (1==ni) & (0==k4) & (0>=descR.mt) ? O ztrsm_99(descZ.mt-1, n10) 
+          <- (!((1==ni) & (0==k4) & (0>=descR.mt))) & (1==ni) & (0==k4) & (descR.mt>=1) & (n10>=descR.nt) ? O ztrsm_99(descZ.mt-1, n10) 
+          -> (descZ.mt>=(2+k4)) ? C1 zgemm_225(ni, k4, (k4+1)..(descZ.mt-1), n10) 
+          -> (descZ.mt==(k4+1)) ? F1 ztrsm_246(ni, 0, n10) 
+          -> (descZ.mt>=(k4+2)) ? I1 zgemm_258(ni, 0, descZ.mt-k4-1, n10) 
+
+BODY
+
+  int tempkm = ((k4)==(descZ.mt-1)) ? (descZ.m-(k4*descZ.mb)) : descZ.mb;
+  int tempnn = ((n10)==(descZ.nt-1)) ? (descZ.n-(n10*descZ.nb)) : descZ.nb;
+  int lda = BLKLDD( descLU, k4 );
+  int ldz = BLKLDD( descZ, k4 );
+
+  DRYRUN(
+
+    CORE_ztrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans, 
+	PlasmaUnit, tempkm, tempnn, 
+	(Dague_Complex64_t)1.000000, Z /* LU(k4,k4) */, lda, 
+	A1 /* Z(k4,n10) */, ldz );  );
+
+  printlog("thread %d CORE_ztrsm(%d, %d, %d)\n"
+           "\t(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, tempkm, tempnn, (Dague_Complex64_t)1.000000, LU(%d,%d)[%p], lda, Z(%d,%d)[%p], ldz)\n",
+  context->eu_id, ni, k4, n10, k4, k4, Z, k4, n10, A);
+
+END
+
+/*
+ * Pseudo-task
+ */
+ztrsm_211_in_LU0(ni,k4,n10)
+  ni = (1)..(nb_iter-1)
+  k4 = 0..(descZ.mt-1)
+  n10 = 0..(descZ.nt-1)
+
+  : LU(k4,k4)
+
+  RW Z <- LU(k4,k4)
+       -> Z ztrsm_211(ni,k4,n10)
+BODY
+/* nothing */
+END
+
+
+
+zgemm_225(ni,k4,m8,n11)
+  /* Execution space */
+  ni = (1)..(nb_iter-1)
+  k4 = 0..(descZ.mt-2)
+  m8 = (k4+1)..(descZ.mt-1)
+  n11 = 0..(descZ.nt-1)
+
+  : Z(m8,n11)
+
+  /* A1 == Z(k4,n10) */
+  /* B1 == LU(m8,k4) */
+  /* C1 == Z(k4,n11) */
+  /* D1 == Z(m8,n11) */
+  /* F1 == Z((descZ.mt-1)-k5,n12) */
+  /* O == Z((descZ.mt-1)-k2,n5) */
+  /* Y == Z(m7,n9) */
+
+  READ  B1 <- B1 zgemm_225_in_LU0(ni,k4,m8,n11)
+
+  READ  C1 <- A1 ztrsm_211(ni, k4, n11) 
+  RW    D1 <- (0==k4) & (m8>=descR.mt) & (ni>=2) ? F1 ztrsm_246(ni-1, descZ.mt-m8-1, n11) 
+          <- (!((0==k4) & (m8>=descR.mt) & (ni>=2))) & (0==k4) & (descR.mt>=(m8+1)) & (n11>=descR.nt) & (ni>=2) ? F1 ztrsm_246(ni-1, descZ.mt-m8-1, n11) 
+          <- (k4>=1) ? D1 zgemm_225(ni, k4-1, m8, n11) 
+          <- (0==k4) & (descR.nt>=(1+n11)) & (descR.mt>=(m8+1)) ? Y zlacpy_188(ni, m8, n11) 
+          <- (1==ni) & (0==k4) & (m8>=descR.mt) ? O ztrsm_99(descZ.mt-m8-1, n11) 
+          <- (!((1==ni) & (0==k4) & (m8>=descR.mt))) & (1==ni) & (0==k4) & (descR.mt>=(m8+1)) & (n11>=descR.nt) ? O ztrsm_99(descZ.mt-m8-1, n11) 
+          -> (m8>=(2+k4)) ? D1 zgemm_225(ni, k4+1, m8, n11) 
+          -> ((k4+1)==m8) ? A1 ztrsm_211(ni, m8, n11) 
+
+BODY
+
+  int tempmm = ((m8)==(descZ.mt-1)) ? (descZ.m-(m8*descZ.mb)) : descZ.mb;
+  int tempnn = ((n11)==(descZ.nt-1)) ? (descZ.n-(n11*descZ.nb)) : descZ.nb;
+  Dague_Complex64_t mzone = (Dague_Complex64_t)-1.000000;
+  int lda = BLKLDD( descLU, m8 );
+  int ldz = BLKLDD( descZ, m8 );
+
+  DRYRUN(
+
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, tempmm, 
+	tempnn, descZ.mb, mzone, 
+	B1 /* LU(m8,k4) */, lda, C1 /* Z(k4,n11) */, 
+	descZ.mb, (Dague_Complex64_t)1.000000, D1 /* Z(m8,n11) */, 
+	ldz );  );
+
+  printlog("thread %d CORE_zgemm(%d, %d, %d, %d)\n"
+           "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descZ.mb, mzone, LU(%d,%d)[%p], lda, Z(%d,%d)[%p], descZ.mb, (Dague_Complex64_t)1.000000, Z(%d,%d)[%p], ldz)\n",
+  context->eu_id, ni, k4, m8, n11, m8, k4, B1, k4, n11, C, m8, n11, D);
+
+END
+
+/*
+ * Pseudo-task
+ */
+zgemm_225_in_LU0(ni,k4,m8,n11)
+  ni = (1)..(nb_iter-1)
+  k4 = 0..(descZ.mt-2)
+  m8 = (k4+1)..(descZ.mt-1)
+  n11 = 0..(descZ.nt-1)
+
+  : LU(m8,k4)
+
+  RW B1 <- LU(m8,k4)
+       -> B1 zgemm_225(ni,k4,m8,n11)
+BODY
+/* nothing */
+END
+
+
+
+ztrsm_246(ni,k5,n12)
+  /* Execution space */
+  ni = (1)..(nb_iter-1)
+  k5 = 0..(descZ.mt-1)
+  n12 = 0..(descZ.nt-1)
+
+  : Z((descZ.mt-1)-k5,n12)
+
+  /* A1 == Z(k4,n10) */
+  /* D1 == Z(m8,n11) */
+  /* E1 == LU((descZ.mt-1)-k5,(descZ.mt-1)-k5) */
+  /* F1 == Z((descZ.mt-1)-k5,n12) */
+  /* H1 == Z((descZ.mt-1)-k5,n13) */
+  /* I1 == Z((descZ.mt-1)-m9,n13) */
+  /* J1 == Z(m10,n14) */
+  /* V == Z(k3,n8) */
+  /* Y == Z(m7,n9) */
+
+  READ  E1 <- E1 ztrsm_246_in_LU0(ni,k5,n12)
+
+  RW    F1 <- (k5>=1) ? I1 zgemm_258(ni, k5-1, k5, n12) 
+          <- (0==k5) ? A1 ztrsm_211(ni, descZ.mt-1, n12) 
+          -> (nb_iter>=(ni+2)) & ((descR.mt+k5)>=descZ.mt) & (descR.nt>=(n12+1)) ? Y zlacpy_188(ni+1, descZ.mt-k5-1, n12) 
+          -> (nb_iter>=(ni+2)) & ((k5+descA.nt)>=descZ.mt) & (descR.nt>=(n12+1)) & (descR.mt>=1) ? V zgemm_167(ni+1, 0..(descR.mt-1), n12, descZ.mt-k5-1) 
+          -> (descZ.mt>=(descR.mt+k5+1)) & (descZ.mt>=(k5+2)) & (nb_iter>=(ni+2)) ? D1 zgemm_225(ni+1, 0, descZ.mt-k5-1, n12) 
+          -> (!((descZ.mt>=(descR.mt+k5+1)) & (descZ.mt>=(k5+2)) & (nb_iter>=(ni+2)))) & ((descR.mt+k5)>=descZ.mt) & (n12>=descR.nt) & (descZ.mt>=(k5+2)) & (nb_iter>=(2+ni)) ? D1 zgemm_225(ni+1, 0, descZ.mt-k5-1, n12) 
+          -> (descZ.mt==(k5+1)) & (0>=descR.mt) & (nb_iter>=(2+ni)) ? A1 ztrsm_211(ni+1, 0, n12) 
+          -> (!((descZ.mt==(k5+1)) & (0>=descR.mt) & (nb_iter>=(2+ni)))) & (descZ.mt==(1+k5)) & (descR.mt>=1) & (n12>=descR.nt) & (nb_iter>=(ni+2)) ? A1 ztrsm_211(ni+1, 0, n12) 
+          -> (nb_iter==(ni+1)) ? Z((descZ.mt-1)-k5,n12)
+          -> (descZ.mt>=(2+k5)) ? H1 zgemm_258(ni, k5, (k5+1)..(descZ.mt-1), n12) 
+          -> J1 zgeadd_283(ni, descZ.mt-k5-1, n12) 
+
+BODY
+
+  int tempkm = ((k5)==(0)) ? (descZ.m-((descZ.mt-1)*descZ.mb)) : descZ.mb;
+  int tempnn = ((n12)==(descZ.nt-1)) ? (descZ.n-(n12*descZ.nb)) : descZ.nb;
+  int lda = BLKLDD( descLU, (descZ.mt-1)-k5 );
+  int ldz = BLKLDD( descZ, (descZ.mt-1)-k5 );
+
+  DRYRUN(
+
+    CORE_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, 
+	PlasmaNonUnit, tempkm, tempnn, 
+	(Dague_Complex64_t)1.000000, E1 /* LU((descZ.mt-1)-k5,(descZ.mt-1)-k5) */, lda, 
+	F1 /* Z((descZ.mt-1)-k5,n12) */, ldz );  );
+
+  printlog("thread %d CORE_ztrsm(%d, %d, %d)\n"
+           "\t(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, tempkm, tempnn, (Dague_Complex64_t)1.000000, LU(%d,%d)[%p], lda, Z(%d,%d)[%p], ldz)\n",
+  context->eu_id, ni, k5, n12, (descZ.mt-1)-k5, (descZ.mt-1)-k5, E1, (descZ.mt-1)-k5, n12, F);
+
+END
+
+/*
+ * Pseudo-task
+ */
+ztrsm_246_in_LU0(ni,k5,n12)
+  ni = (1)..(nb_iter-1)
+  k5 = 0..(descZ.mt-1)
+  n12 = 0..(descZ.nt-1)
+
+  : LU((descZ.mt-1)-k5,(descZ.mt-1)-k5)
+
+  RW E1 <- LU((descZ.mt-1)-k5,(descZ.mt-1)-k5)
+       -> E1 ztrsm_246(ni,k5,n12)
+BODY
+/* nothing */
+END
+
+
+
+zgemm_258(ni,k5,m9,n13)
+  /* Execution space */
+  ni = (1)..(nb_iter-1)
+  k5 = 0..(descZ.mt-2)
+  m9 = (k5+1)..(descZ.mt-1)
+  n13 = 0..(descZ.nt-1)
+
+  : Z((descZ.mt-1)-m9,n13)
+
+  /* A1 == Z(k4,n10) */
+  /* F1 == Z((descZ.mt-1)-k5,n12) */
+  /* G1 == LU((descZ.mt-1)-m9,(descZ.mt-1)-k5) */
+  /* H1 == Z((descZ.mt-1)-k5,n13) */
+  /* I1 == Z((descZ.mt-1)-m9,n13) */
+
+  READ  G1 <- G1 zgemm_258_in_LU0(ni,k5,m9,n13)
+
+  READ  H1 <- F1 ztrsm_246(ni, k5, n13) 
+  RW    I1 <- (0==k5) ? A1 ztrsm_211(ni, descZ.mt-m9-1, n13) 
+          <- (k5>=1) ? I1 zgemm_258(ni, k5-1, m9, n13) 
+          -> ((k5+1)==m9) ? F1 ztrsm_246(ni, m9, n13) 
+          -> (m9>=(k5+2)) ? I1 zgemm_258(ni, k5+1, m9, n13) 
+
+BODY
+
+  int tempnn = ((n13)==(descZ.nt-1)) ? (descZ.n-(n13*descZ.nb)) : descZ.nb;
+  int tempkm = ((k5)==(0)) ? (descZ.m-((descZ.mt-1)*descZ.mb)) : descZ.mb;
+  Dague_Complex64_t mzone = (Dague_Complex64_t)-1.000000;
+  int ldz = BLKLDD( descZ, (descZ.mt-1)-k5 );
+
+  DRYRUN(
+
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, descZ.mb, 
+	tempnn, tempkm, mzone, 
+	G1 /* LU((descZ.mt-1)-m9,(descZ.mt-1)-k5) */, descLU.mb, H1 /* Z((descZ.mt-1)-k5,n13) */, 
+	ldz, (Dague_Complex64_t)1.000000, I1 /* Z((descZ.mt-1)-m9,n13) */, 
+	descZ.mb );  );
+
+  printlog("thread %d CORE_zgemm(%d, %d, %d, %d)\n"
+           "\t(PlasmaNoTrans, PlasmaNoTrans, descZ.mb, tempnn, tempkm, mzone, LU(%d,%d)[%p], descLU.mb, Z(%d,%d)[%p], ldz, (Dague_Complex64_t)1.000000, Z(%d,%d)[%p], descZ.mb)\n",
+  context->eu_id, ni, k5, m9, n13, (descZ.mt-1)-m9, (descZ.mt-1)-k5, G1, (descZ.mt-1)-k5, n13, H, (descZ.mt-1)-m9, n13, I);
+
+END
+
+/*
+ * Pseudo-task
+ */
+zgemm_258_in_LU0(ni,k5,m9,n13)
+  ni = (1)..(nb_iter-1)
+  k5 = 0..(descZ.mt-2)
+  m9 = (k5+1)..(descZ.mt-1)
+  n13 = 0..(descZ.nt-1)
+
+  : LU((descZ.mt-1)-m9,(descZ.mt-1)-k5)
+
+  RW G1 <- LU((descZ.mt-1)-m9,(descZ.mt-1)-k5)
+       -> G1 zgemm_258(ni,k5,m9,n13)
+BODY
+/* nothing */
+END
+
+
+
+zgeadd_283(ni,m10,n14)
+  /* Execution space */
+  ni = (1)..(nb_iter-1)
+  m10 = 0..(descZ.mt-1)
+  n14 = 0..(descZ.nt-1)
+
+  : X(m10,n14)
+
+  /* F1 == Z((descZ.mt-1)-k5,n12) */
+  /* J1 == Z(m10,n14) */
+  /* K1 == X(m10,n14) */
+  /* T == X(m5,n7) */
+
+  READ  J1 <- F1 ztrsm_246(ni, descZ.mt-m10-1, n14) 
+  RW    K1 <- (ni>=2) ? K1 zgeadd_283(ni-1, m10, n14) 
+          <- (1==ni) ? T zgeadd_136(m10, n14) 
+          -> (nb_iter==(ni+1)) ? X(m10,n14)
+          -> (nb_iter>=(ni+2)) ? K1 zgeadd_283(ni+1, m10, n14) 
+
+BODY
+
+  int tempmm = ((m10)==(descZ.mt-1)) ? (descZ.m-(m10*descZ.mb)) : descZ.mb;
+  int tempnn = ((n14)==(descZ.nt-1)) ? (descZ.n-(n14*descZ.nb)) : descZ.nb;
+  int ldzm = BLKLDD( descZ, m10 );
+  int ldxm = BLKLDD( descX, m10 );
+
+  DRYRUN(
+
+    CORE_zgeadd(tempmm, tempnn, (Dague_Complex64_t)1.000000, 
+	J1 /* Z(m10,n14) */, ldzm, K1 /* X(m10,n14) */, 
+	ldxm );  );
+
+  printlog("thread %d CORE_zgeadd(%d, %d, %d)\n"
+           "\t(tempmm, tempnn, (Dague_Complex64_t)1.000000, Z(%d,%d)[%p], ldzm, X(%d,%d)[%p], ldxm)\n",
+  context->eu_id, ni, m10, n14, m10, n14, J, m10, n14, K);
+
+END

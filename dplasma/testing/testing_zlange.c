@@ -52,6 +52,7 @@ int main(int argc, char ** argv)
                    PlasmaUpperLower,
                    (tiled_matrix_desc_t *)&ddescA,
                    (tiled_matrix_desc_t *)&ddescA0);
+
     if(loud > 2) printf("Done\n");
 
     if( rank == 0 ) {
@@ -59,7 +60,7 @@ int main(int argc, char ** argv)
     }
 
     /* Computing the norm */
-    for(i=0; i<4; i++) {
+    for(i=0; i<1; i++) {
         if ( rank == 0 ) {
             printf("***************************************************\n");
         }
@@ -69,7 +70,7 @@ int main(int argc, char ** argv)
 
         if ( rank == 0 ) {
             normlap = LAPACKE_zlange_work(LAPACK_COL_MAJOR, normsstr[i][0], M, N,
-                                          (Dague_Complex64_t*)(ddescA0.mat), ddescA0.super.lm, work);
+                                          (Dague_Complex64_t*)(ddescA0.mat) , ddescA0.super.lm, work);
         }
         if(loud > 2) printf("Done.\n");
 
