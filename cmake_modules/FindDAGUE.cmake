@@ -74,7 +74,7 @@ if( NOT DAGUE_FOUND )
       set(DAGUE_EXTRA_LIBRARIES ${DAGUE_EXTRA_LIB})
     endif()
   endforeach()
-  
+
   # Add all dependencies from the configuration
   CHECK_INCLUDE_FILES(FOUND_DAGUE_CONFIG dague_config.h)
   if( FOUND_DAGUE_CONFIG )
