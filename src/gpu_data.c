@@ -757,6 +757,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
         mem_elem->device_elem[gpu_device->index] = (dague_device_elem_t*)gpu_elem;
         gpu_elem->generic.memory_elem = mem_elem;
         gpu_elem->generic.coherency_state = DAGUE_DATA_INVALID;
+        gpu_elem->generic.version = 0;
         move_data_count--;
         temp_loc[i] = gpu_elem;
         dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
