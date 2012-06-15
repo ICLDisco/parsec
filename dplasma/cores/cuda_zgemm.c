@@ -473,9 +473,9 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
                int pushout,
                PLASMA_enum transA, PLASMA_enum transB,
                int M, int N, int K, 
-               Dague_Complex64_t alpha, int Am, int An, tiled_matrix_desc_t *descA, int lda,
-                                        int Bm, int Bn, tiled_matrix_desc_t *descB, int ldb,
-               Dague_Complex64_t beta,  int Cm, int Cn, tiled_matrix_desc_t *descC, int ldc )
+               Dague_Complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA, int lda,
+                                        int Bm, int Bn, const tiled_matrix_desc_t *descB, int ldb,
+               Dague_Complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC, int ldc )
 {
     int which_gpu;
     dague_zgemm_args_t *gpu_task = (dague_zgemm_args_t*)malloc(sizeof(dague_zgemm_args_t));
