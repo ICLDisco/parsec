@@ -15,14 +15,18 @@ dague_operator_print_id( struct dague_execution_unit *eu,
                          void* op_data, ... )
 {
     va_list ap;
-    int k, n;
+    int k, n, rank = 0;
+
+#if defined(HAVE_MPI)
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
 
     va_start(ap, op_data);
     k = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
-    printf( "tile (%d, %d) -> %p:%p thread %d of VP %d\n",
-            k, n, src, dest, eu->th_id, eu->virtual_process->vp_id );
+    printf( "tile (%d, %d) -> %p:%p thread %d of VP %d, process %d\n",
+            k, n, src, dest, eu->th_id, eu->virtual_process->vp_id, rank );
     return 0;
 }
 
@@ -41,6 +45,9 @@ int main( int argc, char* argv[] )
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
+    vpmap_fini();
+    vpmap_init_from_hardware_affinity();
+    vpmap_display_map(stderr);
 
     dague = dague_init(cores, &argc, &argv);
     
@@ -62,6 +69,10 @@ int main( int argc, char* argv[] )
     dague_map_operator_Destruct( object );
 
     dague_fini(&dague);
+
+#if defined(HAVE_MPI)
+    MPI_Finalize();
+#endif
 
     return 0;
 }
