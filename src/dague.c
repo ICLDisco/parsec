@@ -727,6 +727,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             {
                 DEBUG3(("  Task %s is immediate and is executed NOW\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, new_context)));
                 __dague_execute(eu_context, new_context);
+                __dague_complete_execution(eu_context, new_context);
             }
             else
             {
