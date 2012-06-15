@@ -176,8 +176,8 @@ static inline unsigned long exponential_backoff(uint64_t k)
     return r * TIME_STEP;
 }
 
-inline int dague_complete_execution( dague_execution_unit_t *eu_context,
-                                     dague_execution_context_t *exec_context )
+inline int __dague_complete_execution( dague_execution_unit_t *eu_context,
+                                       dague_execution_context_t *exec_context )
 {
     int rc = 0;
 
@@ -279,7 +279,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
             /* We're good to go ... */
             if( 0 == __dague_execute( eu_context, exec_context ) ) {
-                dague_complete_execution( eu_context, exec_context );
+                __dague_complete_execution( eu_context, exec_context );
             }
             nbiterations++;
 
