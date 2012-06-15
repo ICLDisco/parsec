@@ -723,7 +723,15 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
              */
             new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
             new_context->data[(int)dest_flow->flow_index].data      = origin->data[(int)origin_flow->flow_index].data;
-            dague_list_add_single_elem_by_priority( pready_list, new_context );
+            if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK)
+            {
+                DEBUG3(("  Task %s is immediate and is executed NOW\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, new_context)));
+                __dague_execute((dague_execution_unit_t*)exec_context, new_context);
+            }
+            else
+            {
+                dague_list_add_single_elem_by_priority( pready_list, new_context );
+            }
         }
 
         DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
