@@ -38,11 +38,6 @@ elif [ "x${USER}" = "xmfaverge" ]; then
   USER_OPTIONS+=" -DDAGUE_Q2J=ON"
   USER_OPTIONS+=" -DDPLASMA_PRECISIONS=s;d;c;z"
 
-elif [ "x$USER" = "xadanalis" ]; then
-  USER_OPTIONS+=" -DDAGUE_DIST_WITH_GRAVEL=ON"
-  USER_OPTIONS+=" -DGRAVEL_C_INCLUDE_PATH=/home/adanalis/Gravel/include"
-  USER_OPTIONS+=" -DGRAVEL_C_LIBRARIES=/home/adanalis/Gravel/libgravel_gen2.a"
-
 elif [ "x$USER" = "xYOURSELF" ]; then
   PLASMA_DIR="SOMEWHERE"
   USER_OPTIONS+="-DDAGUE_OPTION=ON"

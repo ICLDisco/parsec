@@ -89,7 +89,8 @@ dplasma_ztrmdm_Destruct( dague_object_t *o )
 
     dplasma_datatype_undefine_type( &(obut->arenas[DAGUE_ztrmdm_DEFAULT_ARENA]->opaque_dtt) );
 
-    dague_ztrmdm_destroy(obut);
+    //dague_ztrmdm_destroy(obut);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(obut);
 }
 
 /*
