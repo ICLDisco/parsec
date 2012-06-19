@@ -34,6 +34,7 @@ set(JDF
   zgebut.jdf
   zhebut.jdf
   zgetrf.jdf zhetrf.jdf
+  ztrmdm.jdf
   ztrdsm.jdf
   zgetrf_incpiv.jdf zgetrf_incpiv_sd.jdf
   ztrsmpl.jdf ztrsmpl_sd.jdf
