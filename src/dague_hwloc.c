@@ -241,6 +241,7 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
 {
 #if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     unsigned cpu_index;
+    int first_free;
     hwloc_obj_t obj;
     hwloc_cpuset_t binding_mask=hwloc_bitmap_alloc();
 
@@ -274,8 +275,9 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
     }
 #endif /* DAGUE_DEBUG_VERBOSE2 */
 
+    first_free = hwloc_bitmap_first(binding_mask);
     hwloc_bitmap_free(binding_mask);
-    return hwloc_bitmap_first(binding_mask);
+    return first_free;
 #else
     (void) cpuset;
     return -1;
