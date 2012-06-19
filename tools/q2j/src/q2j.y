@@ -1326,7 +1326,7 @@ external_declaration
               tmp.type=EMPTY;
               $$=tmp;
           }
-        | typedef_specifier
+    | typedef_specifier
           {
               /* do nothing */
           }
