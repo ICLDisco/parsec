@@ -911,6 +911,7 @@ int dague_get_complete_callback( const dague_object_t* dague_object,
 static volatile uint32_t object_array_lock = 0;
 static dague_object_t** object_array = NULL;
 static uint32_t object_array_size = 1, object_array_pos = 0;
+#define NOOBJECT ((void*)-1)
 
 static void dague_object_empty_repository(void)
 {
@@ -953,6 +954,16 @@ int dague_object_register( dague_object_t* object )
     dague_atomic_unlock( &object_array_lock );
     (void)dague_remote_dep_new_object( object );
     return (int)index;
+}
+
+/**< Unregister the object with the engine. */
+void dague_object_unregister( dague_object_t* object )
+{
+    dague_atomic_lock( &object_array_lock );
+    assert( object->object_id < object_array_size );
+    assert( object_array[object->object_id] == object );
+    object_array[object->object_id] = NOOBJECT;
+    dague_atomic_unlock( &object_array_lock );
 }
 
 /**< Print DAGuE usage message */
