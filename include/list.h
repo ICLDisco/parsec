@@ -194,6 +194,11 @@ static inline void
 dague_list_chain_back( dague_list_t* list,
                        dague_list_item_t* items );
 
+/** unchain the entire collection of items from the list (mutex protected)
+ *    the return is a list_item ring */
+static inline dague_list_item_t* 
+dague_list_unchain( dague_list_t* list );
+
 /** pop the first item of the list (not thread safe)
  *    if the list is empty, NULL is returned */
 static inline dague_list_item_t*
@@ -229,6 +234,11 @@ dague_list_nolock_chain_back( dague_list_t* list,
                               dague_list_item_t* items );
 #define dague_ulist_chain_back(list, items) dague_list_nolock_chain_back(list, items)
 
+/** unchain the entire collection of items from the list (not thread safe)
+ *    the return is a list_item ring */
+static inline dague_list_item_t*
+dague_list_nolock_unchain( dague_list_t* list );
+#define dague_ulist_unchain(list) dague_list_nolock_unchain(list)
 
 /* FIFO EMULATION FUNCTIONS */
 
@@ -418,7 +428,7 @@ dague_list_nolock_remove( dague_list_t* list,
 {
     assert( &list->ghost_element != item );
 #if defined(DAGUE_DEBUG)
-    assert(item->belong_to == list);
+    assert( list == item->belong_to );
 #else
     (void)list;
 #endif
@@ -654,6 +664,38 @@ dague_list_chain_back( dague_list_t* list,
     _TAIL(list)->list_next = items;
     _TAIL(list) = tail;
     dague_atomic_unlock(&list->atomic_lock);
+}
+
+static inline dague_list_item_t* 
+dague_list_nolock_unchain( dague_list_t* list )
+{
+    dague_list_item_t* head;
+    dague_list_item_t* tail;
+    if( dague_list_nolock_is_empty(list) )
+        return NULL;
+    head = (dague_list_item_t*)_HEAD(list);
+    tail = (dague_list_item_t*)_TAIL(list);
+    _HEAD(list) = _GHOST(list);
+    _TAIL(list) = _GHOST(list);
+    dague_list_item_ring(head, tail);
+    return head;
+}
+
+static inline dague_list_item_t* 
+dague_list_unchain( dague_list_t* list )
+{
+    dague_list_item_t* head;
+    dague_list_item_t* tail;
+    dague_atomic_lock(&list->atomic_lock);
+    if( dague_list_nolock_is_empty(list) )
+        return NULL;
+    head = (dague_list_item_t*)_HEAD(list);
+    tail = (dague_list_item_t*)_TAIL(list);
+    _HEAD(list) = _GHOST(list);
+    _TAIL(list) = _GHOST(list);
+    dague_atomic_unlock(&list->atomic_lock);
+    dague_list_item_ring(head, tail);
+    return head;
 }
 
 

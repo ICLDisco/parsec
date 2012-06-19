@@ -57,7 +57,7 @@ dague_list_item_singleton( dague_list_item_t* item )
 {
 #if defined(DAGUE_DEBUG)
     assert(0 == item->refcount);
-    item->belong_to = NULL;
+    item->belong_to = item;
 #endif
     item->list_next = item;
     item->list_prev = item;
@@ -98,10 +98,9 @@ dague_list_item_ring_push( dague_list_item_t* ring,
                            dague_list_item_t* item )
 {
 #if defined(DAGUE_DEBUG)
-    assert( 0 == ring->refcount );
+    assert( 0 == item->refcount );
     assert( (void*)0xdeadbeef != ring->list_next );
     assert( (void*)0xdeadbeef != ring->list_prev );
-    assert( 0 == item->refcount );
 #endif
     item->list_next = ring;
     item->list_prev = ring->list_prev;
@@ -119,10 +118,8 @@ dague_list_item_ring_merge( dague_list_item_t* ring1,
 {
     volatile dague_list_item_t *tmp;
 #if defined(DAGUE_DEBUG)
-    assert( 0 == ring1->refcount );
     assert( (void*)0xdeadbeef != ring1->list_next );
     assert( (void*)0xdeadbeef != ring1->list_prev );
-    assert( 0 == ring2->refcount );
     assert( (void*)0xdeadbeef != ring2->list_next );
     assert( (void*)0xdeadbeef != ring2->list_prev );
 #endif
@@ -142,7 +139,6 @@ static inline dague_list_item_t*
 dague_list_item_ring_chop( dague_list_item_t* item )
 {
 #if defined(DAGUE_DEBUG)
-    assert( 0 == item->refcount );
     assert( (void*)0xdeadbeef != item->list_next );
     assert( (void*)0xdeadbeef != item->list_prev );
 #endif
