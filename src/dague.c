@@ -607,7 +607,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #endif
     dague_list_t pready_list; 
     dague_list_construct(&pready_list);
-    dague_ulist_chain_front(&pready_list, &(*pready_ring)->list_item);
+    if(*pready_ring)
+        dague_ulist_chain_front(&pready_list, &(*pready_ring)->list_item);
 
     (void)eu_context;
     DEBUG2(("Activate dependencies for %s priority %d\n",
