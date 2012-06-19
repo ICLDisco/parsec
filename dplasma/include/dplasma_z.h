@@ -136,6 +136,7 @@ dague_object_t* dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *
 
 /* Low-level nonblocking LDL interface */
 dague_object_t* dplasma_zhetrf_New( tiled_matrix_desc_t *A, int *info);
+dague_object_t* dplasma_ztrmdm_New( tiled_matrix_desc_t *A);
 
 
 /***********************************************************
@@ -177,5 +178,6 @@ void dplasma_zhebut_Destruct( dague_object_t *o );
 void dplasma_zgebut_Destruct( dague_object_t *o );
 void dplasma_zgebmm_Destruct( dague_object_t *o );
 void dplasma_zhetrf_Destruct( dague_object_t *o );
+void dplasma_ztrmdm_Destruct( dague_object_t *o );
 
 #endif /* _DPLASMA_Z_H_ */

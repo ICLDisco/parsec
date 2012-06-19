@@ -81,6 +81,8 @@ int dague_get_complete_callback( const dague_object_t* dague_object,
 dague_object_t* dague_object_lookup( uint32_t object_id );
 /**< Register the object with the engine. Create the unique identifier for the object */
 int dague_object_register( dague_object_t* object );
+/**< Unregister the object with the engine. */
+void dague_object_unregister( dague_object_t* object );
 /**< Start the dague execution and launch the ready tasks */
 int dague_object_start( dague_object_t* object);
 
