@@ -238,8 +238,8 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
     seg_descA = (dague_seg_ddesc_t *)calloc(1, sizeof(dague_seg_ddesc_t));
 
-    /* copy the ddesc part of A into seg_descA */
-    memcpy(seg_descA, A, sizeof(dague_ddesc_t));
+    /* copy the tiled_matrix_desc_t part of A into seg_descA */
+    memcpy(seg_descA, A, sizeof(tiled_matrix_desc_t));
     /* overwrite the rank_of() and data_of() */
     ((dague_ddesc_t *)seg_descA)->rank_of = dague_rbt_rank_of;
     ((dague_ddesc_t *)seg_descA)->data_of = dague_rbt_data_of;
@@ -320,8 +320,8 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
     seg_descA = (dague_seg_ddesc_t *)calloc(1, sizeof(dague_seg_ddesc_t));
 
-    /* copy the ddesc part of A into seg_descA */
-    memcpy(seg_descA, A, sizeof(dague_ddesc_t));
+    /* copy the tiled_matrix_desc_t part of A into seg_descA */
+    memcpy(seg_descA, A, sizeof(tiled_matrix_desc_t));
     /* overwrite the rank_of() and data_of() */
     ((dague_ddesc_t *)seg_descA)->rank_of = dague_rbt_rank_of;
     ((dague_ddesc_t *)seg_descA)->data_of = dague_rbt_data_of;
