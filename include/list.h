@@ -439,32 +439,6 @@ dague_list_nolock_remove( dague_list_t* list,
     return prev;
 }
 
-#if 0
-/* This is incorrect. list is locked, but item is not, item might have
- * been poped, used and pushed in another list by another thread, the
- * ring trick, which solves concurrent remove_item, is still unsafe
- * in the general case. I prefer removing this. Keep it around for the
- * unexpected case it serves some tailored purpose somewhere */
-static inline dague_list_item_t*
-dague_list_remove_item( dague_list_t* list,
-                        dague_list_item_t* item)
-{
-#if defined(DAGUE_DEBUG)
-    assert( item->belong_to == list );
-#else
-    (void)list;
-#endif
-    dague_atomic_lock(&list->atomic_lock);
-    item->list_prev->list_next = item->list_next;
-    item->list_next->list_prev = item->list_prev;
-    dague_atomic_unlock(&list->atomic_lock);
-    item->list_next = item;
-    item->list_prev = item;
-    DAGUE_ITEM_DETACH(item);
-    return item;
-}
-#endif
-
 static inline void
 dague_list_push_sorted( dague_list_t* list,
                         dague_list_item_t* item,

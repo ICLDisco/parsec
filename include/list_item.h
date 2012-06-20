@@ -146,6 +146,7 @@ dague_list_item_ring_chop( dague_list_item_t* item )
     item->list_prev->list_next = item->list_next;
     item->list_next->list_prev = item->list_prev;
 #if defined(DAGUE_DEBUG)
+    if(item->refcount) item->refcount--;
     item->list_prev = (void*)0xdeadbeef;
     item->list_next = (void*)0xdeadbeef;
 #endif
