@@ -375,7 +375,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             gpu_elem->generic.readers--; assert(gpu_elem->generic.readers >= 0);
             if( (0 == gpu_elem->generic.readers) &&
                 !(this_task->function->in[i]->access_type & ACCESS_WRITE) ) {
-                dague_item_ring_chop((dague_list_item_t*)gpu_elem);
+                dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
                 DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
                 dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
             }

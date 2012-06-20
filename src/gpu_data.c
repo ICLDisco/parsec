@@ -834,7 +834,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
      * until the task is completed.
      */
     if( ACCESS_WRITE & type ) {
-        dague_item_ring_chop((dague_list_item_t*)gpu_elem);
+        dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
     /* The version on the GPU doesn't match the one in memory. Let the
