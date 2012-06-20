@@ -2254,6 +2254,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "    if( o->arenas[i] != NULL ) {\n"
             "      dague_arena_destruct(o->arenas[i]);\n"
             "      free(o->arenas[i]);\n"
+            "      o->arenas[i] = NULL;\n"
             "    }\n"
             "  }\n"
             "  free( o->arenas );\n"
@@ -2271,12 +2272,16 @@ static void jdf_generate_destructor( const jdf_t *jdf )
         }
     }
 
-    coutput("  for(i = 0; i < DAGUE_%s_NB_FUNCTIONS; i++)\n"
+    coutput("  for(i = 0; i < DAGUE_%s_NB_FUNCTIONS; i++) {\n"
             "    dague_destruct_dependencies( d->dependencies_array[i] );\n"
-            "  free( d->dependencies_array );\n",
+            "    d->dependencies_array[i] = NULL;\n"
+            "  }\n"
+            "  free( d->dependencies_array );\n"
+            "  d->dependencies_array = NULL;\n",
             jdf_basename);
 
-    coutput("  free(o);\n");
+    coutput("  dague_object_unregister( d );\n"
+            "  free(o);\n");
 
     coutput("}\n"
             "\n");

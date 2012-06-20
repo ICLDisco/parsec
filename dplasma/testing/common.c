@@ -584,6 +584,9 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 #else
     (void)iparam;
 #endif
+    if (dot_filename != NULL)
+        free(dot_filename);
+
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif
