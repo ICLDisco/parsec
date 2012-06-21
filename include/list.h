@@ -99,16 +99,6 @@ dague_list_nolock_remove( dague_list_t* list,
 
 /* SORTED LIST FUNCTIONS */
 
-#define COMPARISON_VAL(it, off)                 (*((int*)(((uintptr_t)it)+off)))
-#define HIGHER_IS_BETTER
-#if defined(HIGHER_IS_BETTER)
-#define A_LOWER_PRIORITY_THAN_B(a, b, off)      (COMPARISON_VAL((a), (off)) <  COMPARISON_VAL((b), (off)))
-#define A_HIGHER_PRIORITY_THAN_B(a, b, off)     (COMPARISON_VAL((a), (off)) >  COMPARISON_VAL((b), (off)))
-#else
-#define A_LOWER_PRIORITY_THAN_B(a, b, off)      (COMPARISON_VAL((a), (off)) >  COMPARISON_VAL((b), (off)))
-#define A_HIGHER_PRIORITY_THAN_B(a, b, off)     (COMPARISON_VAL((a), (off)) <  COMPARISON_VAL((b), (off)))
-#endif
-
 /** add the @item before the first element of @list that is strictly smaller" (mutex protected),
  *  according to the integer  value at @offset in items. That is, if the input @list is
  *  sorted (descending order), the resulting list is still sorted. */
@@ -196,7 +186,7 @@ dague_list_chain_back( dague_list_t* list,
 
 /** unchain the entire collection of items from the list (mutex protected)
  *    the return is a list_item ring */
-static inline dague_list_item_t* 
+static inline dague_list_item_t*
 dague_list_unchain( dague_list_t* list );
 
 /** pop the first item of the list (not thread safe)
@@ -640,7 +630,7 @@ dague_list_chain_back( dague_list_t* list,
     dague_atomic_unlock(&list->atomic_lock);
 }
 
-static inline dague_list_item_t* 
+static inline dague_list_item_t*
 dague_list_nolock_unchain( dague_list_t* list )
 {
     dague_list_item_t* head;
