@@ -598,17 +598,13 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_context_t* restrict exec_context,
                                           const dague_flow_t* restrict dest_flow,
                                           data_repo_entry_t* dest_repo_entry,
-                                          dague_execution_context_t** pready_ring )
+                                          dague_execution_context_t** pready_ring)
 {
     const dague_function_t* function = exec_context->function;
     dague_dependency_t dep_new_value, dep_cur_value, *deps;
 #if defined(DAGUE_DEBUG_VERBOSE2)
     char tmp[MAX_TASK_STRLEN];
 #endif
-    dague_list_t pready_list; 
-    dague_list_construct(&pready_list);
-    if(*pready_ring)
-        dague_ulist_chain_front(&pready_list, &(*pready_ring)->list_item);
 
     (void)eu_context;
     DEBUG2(("Activate dependencies for %s priority %d\n",
@@ -688,9 +684,10 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
         }
 #endif  /* defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK) */
 
-        /* This service is ready to be executed as all dependencies
-         * are solved.  Queue it into the ready_list passed as an
-         * argument.
+        DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
+
+        /* This service is ready to be executed as all dependencies are solved. Queue it into the
+         * ready_list passed as an argument.
          */
         {
 #if defined(DAGUE_DEBUG_VERBOSE1)
@@ -718,8 +715,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                    exec_context->priority));
 
             /* TODO: change this to the real number of input dependencies */
-            memset( new_context->data, 0, sizeof(dague_data_pair_t) * MAX_PARAM_COUNT );
             assert( dest_flow->flow_index <= MAX_PARAM_COUNT );
+            memset( new_context->data, 0, sizeof(dague_data_pair_t) * MAX_PARAM_COUNT );
             /**
              * Save the data_repo and the pointer to the data for later use. This will prevent the
              * engine from atomically locking the hash table for at least one of the flow
@@ -727,19 +724,16 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
              */
             new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
             new_context->data[(int)dest_flow->flow_index].data      = origin->data[(int)origin_flow->flow_index].data;
-            if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK)
-            {
-                DEBUG3(("  Task %s is immediate and is executed NOW\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, new_context)));
+            if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
+                DEBUG3(("  Task %s is immediate and will be executed ASAP\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, new_context)));
                 __dague_execute(eu_context, new_context);
                 __dague_complete_execution(eu_context, new_context);
-            }
-            else
-            {
-                dague_ulist_push_sorted(&pready_list, &new_context->list_item, dague_execution_context_priority_comparator);
+            } else {
+                *pready_ring = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(*pready_ring),
+                                                                                             &new_context->list_item,
+                                                                                             dague_execution_context_priority_comparator );
             }
         }
-
-        DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
 
     } else { /* Service not ready */
 
@@ -757,7 +751,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #endif
     }
 
-    *pready_ring = (dague_execution_context_t*) dague_ulist_unchain(&pready_list);
     return 0;
 }
 

@@ -30,7 +30,7 @@ typedef struct dague_list_item_t {
 } dague_list_item_t;
 
 
-static inline void 
+static inline void
 dague_list_item_construct( dague_list_item_t* item )
 {
     item->list_prev = item;
@@ -52,7 +52,7 @@ dague_list_item_construct( dague_list_item_t* item )
 /** Make a well formed singleton ring with a list item @item.
  *   @return @item, a valid list item ring containing itself
  */
-static inline dague_list_item_t* 
+static inline dague_list_item_t*
 dague_list_item_singleton( dague_list_item_t* item )
 {
 #if defined(DAGUE_DEBUG)
@@ -68,12 +68,12 @@ dague_list_item_singleton( dague_list_item_t* item )
 /** Make a ring from a chain of items, starting with @first, ending with @last, @returns @first
  *    if first->last is not a valid chain of items, result is undetermined
  *    in DAGUE_DEBUG mode, attached items are detached, must be reattached if needed */
-static inline dague_list_item_t* 
+static inline dague_list_item_t*
 dague_list_item_ring( dague_list_item_t* first, dague_list_item_t* last )
 {
     first->list_prev = last;
     last->list_next = first;
-    
+
 #if defined(DAGUE_DEBUG)
     if( 1 == first->refcount )
     {   /* Pseudo detach the items if they had been attached */
@@ -93,7 +93,7 @@ dague_list_item_ring( dague_list_item_t* first, dague_list_item_t* last )
 /* Add an @item to the item ring @ring, preceding @ring (not thread safe)
  *   @return @ring, the list item representing the ring
  */
-static inline dague_list_item_t* 
+static inline dague_list_item_t*
 dague_list_item_ring_push( dague_list_item_t* ring,
                            dague_list_item_t* item )
 {
@@ -112,7 +112,7 @@ dague_list_item_ring_push( dague_list_item_t* ring,
 /* Merge @ring1 with @ring2 (not thread safe)
  *   @return @ring1
  */
-static inline dague_list_item_t* 
+static inline dague_list_item_t*
 dague_list_item_ring_merge( dague_list_item_t* ring1,
                             dague_list_item_t* ring2 )
 {
@@ -135,7 +135,7 @@ dague_list_item_ring_merge( dague_list_item_t* ring1,
 /* Remove the current first item of the ring @item (not thread safe)
  *   @returns the ring starting at next item, or NULL if @item is a singleton
  */
-static inline dague_list_item_t* 
+static inline dague_list_item_t*
 dague_list_item_ring_chop( dague_list_item_t* item )
 {
 #if defined(DAGUE_DEBUG)
@@ -154,6 +154,41 @@ dague_list_item_ring_chop( dague_list_item_t* item )
     return ring;
 }
 
+#define _LIST_ITEM_ITERATOR(RING, LAST, ITEM, CODE)                     \
+    ({                                                                  \
+        dague_list_item_t* ITEM = (dague_list_item_t*)(RING);           \
+        do {                                                            \
+            {                                                           \
+                CODE;                                                   \
+            }                                                           \
+            ITEM = (dague_list_item_t*)ITEM->list_next;                 \
+        } while (ITEM != (LAST));                                       \
+        ITEM;                                                           \
+    })
+
+static inline dague_list_item_t*
+dague_list_item_ring_push_sorted( dague_list_item_t* ring,
+                                  dague_list_item_t* item,
+                                  size_t off )
+{
+    dague_list_item_t* position;
+    int success = 0;
+
+    dague_list_item_singleton(item);
+    if( NULL == ring ) {
+        return item;
+    }
+    position = _LIST_ITEM_ITERATOR(ring, ring, pos,
+                                   {
+                                       if( A_LOWER_PRIORITY_THAN_B(item, pos, off) ) {
+                                           success = 1;
+                                           break;
+                                       }
+                                   });
+    dague_list_item_ring_push(position, item);
+    if( success && (ring == position) ) return item;
+    return ring;
+}
 
 /* This is debug helpers for list items accounting */
 #if defined(DAGUE_DEBUG)

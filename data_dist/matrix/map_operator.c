@@ -195,7 +195,10 @@ add_task_to_list(struct dague_execution_unit *eu_context,
     memcpy( new_context, newcontext, sizeof(dague_execution_context_t) );
     new_context->mempool_owner = mpool;
 
-    dague_list_add_single_elem_by_priority( &(pready_list[vpid_dst]), new_context );
+    pready_list[vpid_dst] = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(pready_list[vpid_dst]),
+                                                                                          (dague_list_item_t*)new_context,
+                                                                                          dague_execution_context_priority_comparator );
+
     (void)arena; (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst; (void)vpid_dst; (void)nbelt;
     return DAGUE_ITERATE_STOP;
 }

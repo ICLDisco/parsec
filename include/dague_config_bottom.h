@@ -94,3 +94,17 @@ typedef uint32_t dague_dependency_t;
 
 #define MAX_TASK_STRLEN 128
 
+#define COMPARISON_VAL(it, off)                 (*((int*)(((uintptr_t)it)+off)))
+#define HIGHER_IS_BETTER
+#if defined(HIGHER_IS_BETTER)
+#define A_LOWER_PRIORITY_THAN_B(a, b, off)      (COMPARISON_VAL((a), (off)) <  COMPARISON_VAL((b), (off)))
+#define A_HIGHER_PRIORITY_THAN_B(a, b, off)     (COMPARISON_VAL((a), (off)) >  COMPARISON_VAL((b), (off)))
+#define SET_HIGHEST_PRIORITY(task, off)         (*((int*)(((uintptr_t)task)+off))) = 0x7fffffff;
+#define SET_LOWEST_PRIORITY(task, off)          (*((int*)(((uintptr_t)task)+off))) = 0xffffffff;
+#else
+#define A_LOWER_PRIORITY_THAN_B(a, b, off)      (COMPARISON_VAL((a), (off)) >  COMPARISON_VAL((b), (off)))
+#define A_HIGHER_PRIORITY_THAN_B(a, b, off)     (COMPARISON_VAL((a), (off)) <  COMPARISON_VAL((b), (off)))
+#define SET_HIGHEST_PRIORITY(task, off)         (*((int*)(((uintptr_t)task)+off))) = 0xffffffff;
+#define SET_LOWEST_PRIORITY(task, off)          (*((int*)(((uintptr_t)task)+off))) = 0x7fffffff;
+#endif
+
