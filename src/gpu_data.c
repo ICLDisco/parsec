@@ -497,8 +497,6 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                                     }) );
             nb_allocations++;
             gpu_elem->generic.memory_elem = NULL;
-            assert( ((dague_list_item_t*)gpu_elem)->list_next == (dague_list_item_t*)gpu_elem );
-            assert( ((dague_list_item_t*)gpu_elem)->list_prev == (dague_list_item_t*)gpu_elem );
             dague_ulist_fifo_push( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
         }
@@ -836,13 +834,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
      * until the task is completed.
      */
     if( ACCESS_WRITE & type ) {
-#if defined(DAGUE_DEBUG)
-        if( NULL != ((dague_list_item_t*)gpu_elem)->belong_to )
-            dague_ulist_remove( (dague_list_t*)(((dague_list_item_t*)gpu_elem)->belong_to),
-                                (dague_list_item_t*)gpu_elem);
-#else
-        dague_ulist_remove( gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_elem);
-#endif  /* defined(DAGUE_DEBUG) */
+        dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
     /* The version on the GPU doesn't match the one in memory. Let the
