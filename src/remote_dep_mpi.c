@@ -793,6 +793,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
             DEBUG2((" CTL\t%s\tparam %d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             msg->which ^= (1<<k);
             remote_dep_complete_one_and_cleanup(deps);
+            continue;
         }
 
         /* Embed as many Eager as possible with the activate msg */
