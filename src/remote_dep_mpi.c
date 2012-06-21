@@ -400,7 +400,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
             DEBUG3(("MPI:\tDATA %p released from %p[%d]\n", ADATA(origin->output[i].data), origin, i));
             exec_context.data[whereto].data = origin->output[i].data;
 #if defined(DAGUE_DEBUG) && defined(DAGUE_DEBUG_VERBOSE3)
-            {
+            if(origin->output[i].type) { /* no prints for CTL! */
                 char tmp[MAX_TASK_STRLEN];
                 void* _data = ADATA(exec_context.data[whereto].data);
                 DEBUG3(("MPI:\t%s: recv %p -> [0] %9.5f [1] %9.5f [2] %9.5f\n",
