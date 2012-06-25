@@ -111,10 +111,11 @@ static int32_t twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     pq = vpmap_get_nb_vp();
     if ( pq == 1 )
         return 0;
-    /* Compute P and Q */
-    q = (int)ceilf(sqrtf( (float)pq ));
-    assert(q > 0);
-    p = pq / q;
+
+    q = Ddesc->grid.vp_q;
+    p = Ddesc->grid.vp_p;
+    assert(p*q == pq);
+
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -242,10 +243,10 @@ static int32_t twoDBC_vpid_of_st(dague_ddesc_t *desc, ...)
     pq = vpmap_get_nb_vp();
     if ( pq == 1 )
         return 0;
-    /* Compute P and Q */
-    q = (int)ceilf(sqrtf( (float)pq ));
-    assert(q > 0);
-    p = pq / q;
+
+    q = Ddesc->grid.vp_q;
+    p = Ddesc->grid.vp_p;
+    assert(p*q == pq);
 
     /* Get coordinates */
     va_start(ap, desc);
