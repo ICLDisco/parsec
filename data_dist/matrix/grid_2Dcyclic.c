@@ -24,6 +24,7 @@
 #include "vpmap.h"
 #include "debug.h"
 
+
 int default_vp_data_dist();
 
 void grid_2Dcyclic_init(grid_2Dcyclic_t *grid, int myrank, int P, int Q, int nrst, int ncst)
@@ -43,7 +44,7 @@ void grid_2Dcyclic_init(grid_2Dcyclic_t *grid, int myrank, int P, int Q, int nrs
     grid->cloc = 0;
 
     /* VPMAP data distribution */
-    /* TODO:: Users should be able to define them as parameter */
+    /* TODO:: Users should be able to define it through parameters */
     grid->vp_q = default_vp_data_dist();
     grid->vp_p = vpmap_get_nb_vp()/default_vp_data_dist();
 }
@@ -64,7 +65,7 @@ int default_vp_data_dist()
         q++;
         p = pq / q;
     }
-    WARNING(("Default data distribution \"pxq\" = %ix%i\n", p, q ));
+    DEBUG(( "Default data distribution between VP defined by \"pxq\" %ix%i\n", p, q ));
     return q;
 }
 
