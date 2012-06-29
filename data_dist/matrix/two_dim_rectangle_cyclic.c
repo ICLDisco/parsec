@@ -144,6 +144,7 @@ static int32_t twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     return vpid;
 }
 
+#if defined(DAGUE_HARD_SUPERTILE)
 /*
  *
  * Set of functions with super-tiles
@@ -278,6 +279,7 @@ static int32_t twoDBC_vpid_of_st(dague_ddesc_t *desc, ...)
     assert( vpid < vpmap_get_nb_vp() );
     return vpid;
 }
+#endif /* DAGUE_HARD_SUPERTILE */
 
 /*
  * Common functions
@@ -335,11 +337,54 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
                                int P )
 {
     int temp;
-    int nbstile_r;
-    int nbstile_c;
     int Q;
 
-    /* Initialize the dague_ddesc */
+    /* Initialize the tiled_matrix descriptor */
+    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage,
+                            mb, nb, lm, ln, i, j, m, n );
+    Ddesc->super.dtype |= two_dim_block_cyclic_type;
+
+    if(nodes < P)
+        ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
+    Q = nodes / P;
+    if(nodes != P*Q)
+        WARNING(("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d\n", nodes, P, Q));
+#if defined(DAGUE_HARD_SUPERTILE)
+    grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, nrst, ncst);
+#else
+    grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, 1, 1);
+#endif /* DAGUE_HARD_SUPERTILE */
+
+    /* Compute the number of rows handled by the local process */
+    Ddesc->nb_elem_r = 0;
+    temp = Ddesc->grid.rrank * Ddesc->grid.strows; /* row coordinate of the first tile to handle */
+    while( temp < Ddesc->super.lmt ) {
+        if( (temp + (Ddesc->grid.strows)) < Ddesc->super.lmt ) {
+            Ddesc->nb_elem_r += (Ddesc->grid.strows);
+            temp += ((Ddesc->grid.rows) * (Ddesc->grid.strows));
+            continue;
+        }
+        Ddesc->nb_elem_r += ((Ddesc->super.lmt) - temp);
+        break;
+    }
+
+    /* Compute the number of columns handled by the local process */
+    Ddesc->nb_elem_c = 0;
+    temp = Ddesc->grid.crank * Ddesc->grid.stcols;
+    while( temp < Ddesc->super.lnt ) {
+        if( (temp + (Ddesc->grid.stcols)) < Ddesc->super.lnt ) {
+            Ddesc->nb_elem_c += (Ddesc->grid.stcols);
+            temp += (Ddesc->grid.cols) * (Ddesc->grid.stcols);
+            continue;
+        }
+        Ddesc->nb_elem_c += ((Ddesc->super.lnt) - temp);
+        break;
+    }
+
+    /* Total number of tiles stored locally */
+    Ddesc->super.nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
+
+    /* set the methods */
     {
         dague_ddesc_t *o = &(Ddesc->super.super);
 
@@ -352,9 +397,13 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
             o->data_of      = twoDBC_data_of;
             o->vpid_of      = twoDBC_vpid_of;
         } else {
+#if defined(DAGUE_HARD_SUPERTILE) 
             o->rank_of      = twoDBC_rank_of_st;
             o->data_of      = twoDBC_data_of_st;
             o->vpid_of      = twoDBC_vpid_of_st;
+#else
+            two_dim_block_cyclic_supertiled_view(Ddesc, Ddesc, nrst, ncst);
+#endif /* DAGUE_HARD_SUPERTILE */
         }
 
 #if defined(DAGUE_PROF_TRACE)
@@ -364,62 +413,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         o->key           = NULL;
 #endif
     }
-
-    /* Initialize the tiled_matrix descriptor */
-    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage,
-                            mb, nb, lm, ln, i, j, m, n);
-    Ddesc->super.dtype |= two_dim_block_cyclic_type;
-
-    if(nodes < P)
-        ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
-    Q = nodes / P;
-    if(nodes != P*Q)
-        WARNING(("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d\n", nodes, P, Q));
-    grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, nrst, ncst);
-
-    /* Compute the number of rows of super-tile */
-    nbstile_r = Ddesc->super.lmt / Ddesc->grid.strows;
-    if((Ddesc->super.lmt % Ddesc->grid.strows) != 0)
-        nbstile_r++;
-
-    /* Compute the number of colums of super-tile */
-    nbstile_c = Ddesc->super.lnt / Ddesc->grid.stcols;
-    if((Ddesc->super.lnt % Ddesc->grid.stcols) != 0)
-        nbstile_c++;
-
-    /* Compute the number of rows handled by the local process */
-    Ddesc->nb_elem_r = 0;
-    temp = Ddesc->grid.rrank * Ddesc->grid.strows; /* row coordinate of the first tile to handle */
-    while ( temp < Ddesc->super.lmt)
-        {
-            if ( (temp  + (Ddesc->grid.strows)) < Ddesc->super.lmt)
-                {
-                    Ddesc->nb_elem_r += (Ddesc->grid.strows);
-                    temp += ((Ddesc->grid.rows) * (Ddesc->grid.strows));
-                    continue;
-                }
-            Ddesc->nb_elem_r += ((Ddesc->super.lmt) - temp);
-            break;
-        }
-
-    /* Compute the number of columns handled by the local process */
-    Ddesc->nb_elem_c = 0;
-    temp = Ddesc->grid.crank * Ddesc->grid.stcols;
-    while ( temp < Ddesc->super.lnt)
-        {
-            if ( (temp  + (Ddesc->grid.stcols)) < Ddesc->super.lnt)
-                {
-                    Ddesc->nb_elem_c += (Ddesc->grid.stcols);
-                    temp += (Ddesc->grid.cols) * (Ddesc->grid.stcols);
-                    continue;
-                }
-            Ddesc->nb_elem_c += ((Ddesc->super.lnt) - temp);
-            break;
-        }
-
-    /* Total number of tiles stored locally */
-    Ddesc->super.nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
-
+    
     DEBUG3(("two_dim_block_cyclic_init: \n"
            "      Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
@@ -435,7 +429,6 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 }
 
 #ifdef HAVE_MPI
-
 int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
     return MPI_File_open(comm, filename, MPI_MODE_RDWR|MPI_MODE_CREATE, MPI_INFO_NULL, handle);
 }
@@ -443,6 +436,7 @@ int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
 int close_matrix_file(MPI_File * handle){
     return MPI_File_close(handle);
 }
+#endif /* HAVE_MPI */
 
 static int32_t twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...)
 {
@@ -520,4 +514,3 @@ void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
 }
 
 
-#endif /* HAVE_MPI */
