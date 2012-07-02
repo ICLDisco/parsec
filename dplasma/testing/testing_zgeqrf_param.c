@@ -173,6 +173,13 @@ int main(int argc, char ** argv)
                      iparam[IPARAM_M],
                      iparam[IPARAM_N],
                      gflops = (flops/1e9)/(sync_time_elapsed)));
+    if(loud >= 5 && rank == 0) {
+        printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n"
+               "                 encoding=\"none\" compression=\"none\">\n"
+               "%g\n"
+               "</DartMeasurement>\n",
+               gflops);
+    }
 #endif
     (void)flops;
     (void)gflops;
