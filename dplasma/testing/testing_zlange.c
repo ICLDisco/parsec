@@ -25,9 +25,6 @@ int main(int argc, char ** argv)
     iparam_default_ibnbmb(iparam, 40, 200, 200);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
-    iparam[IPARAM_NGPUS] = 0;
-#endif
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
@@ -106,5 +103,5 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague, iparam);
 
-    return EXIT_SUCCESS;
+    return ret;
 }

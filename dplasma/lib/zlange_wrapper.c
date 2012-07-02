@@ -22,9 +22,9 @@
 static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };
 
 dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
-                                     int P, int Q,
-                                     tiled_matrix_desc_t *A,
-                                     double *result )
+                                    int P, int Q,
+                                    tiled_matrix_desc_t *A,
+                                    double *result )
 {
     int m, n, mb, nb, elt;
     two_dim_block_cyclic_t *W;
@@ -127,8 +127,8 @@ dplasma_zlange_Destruct( dague_object_t *o )
 }
 
 double dplasma_zlange( dague_context_t *dague,
-                        PLASMA_enum ntype,
-                        tiled_matrix_desc_t *A)
+                       PLASMA_enum ntype,
+                       tiled_matrix_desc_t *A)
 {
     double result;
     dague_object_t *dague_zlange = NULL;
