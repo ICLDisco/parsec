@@ -281,7 +281,7 @@ void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
 
 static uint32_t twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...)
 {
-    unsigned int m, n;
+    unsigned int m, n, sm, sn;
     unsigned int ps,qs,p,q;
     two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)ddesc;
     va_list ap;
@@ -294,8 +294,9 @@ static uint32_t twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...)
     q = desc->grid.cols;
     qs = desc->grid.stcols;
 
-    m = (m % ps) * p + m / ps;
-    n = (n % qs) * q + n / qs;
+    sm = (m % ps) * p + m / ps;
+    sn = (n % qs) * q + n / qs;
+    DEBUG3(("SuperTiledView: %d,%d converted to %d,%d", m, n, sm, sn));
     return twoDBC_rank_of(ddesc, m, n);
 }
 
