@@ -294,9 +294,9 @@ static uint32_t twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...)
     q = desc->grid.cols;
     qs = desc->grid.stcols;
 
-    sm = (m % ps) * p + m / ps;
-    sn = (n % qs) * q + n / qs;
-    DEBUG3(("SuperTiledView: %d,%d converted to %d,%d", m, n, sm, sn));
+    sm = m-m%(p*ps) + (m%ps)*p + (m/ps)%p;
+    sn = n-n%(q*qs) + (n%qs)*q + (n/qs)%q;
+    DEBUG3(("SuperTiledView: %d,%d converted to %d,%d\n", m, n, sm, sn));
     return twoDBC_rank_of(ddesc, m, n);
 }
 
@@ -315,8 +315,8 @@ static int32_t twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...)
     q = desc->grid.cols;
     qs = desc->grid.stcols;
 
-    m = (m % ps) * p + m / ps;
-    n = (n % qs) * q + n / qs;
+    m = m-m%(p*ps) + (m%ps)*p + (m/ps)%p;
+    n = n-n%(q*qs) + (n%qs)*q + (n/qs)%q;
     return twoDBC_vpid_of(ddesc, m, n);
 }
 
@@ -335,8 +335,8 @@ static void* twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...)
     q = desc->grid.cols;
     qs = desc->grid.stcols;
 
-    m = (m % ps) * p + m / ps;
-    n = (n % qs) * q + n / qs;
+    m = m-m%(p*ps) + (m%ps)*p + (m/ps)%p;
+    n = n-n%(q*qs) + (n%qs)*q + (n/qs)%q;
     return twoDBC_data_of(ddesc, m, n);
 }
 
