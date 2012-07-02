@@ -152,9 +152,10 @@ static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     if ( pq == 1 )
         return 0;
 
-    q = (int)ceilf(sqrtf( (float)pq ));
-    assert(q > 0);
-    p = pq / q;
+    q = Ddesc->grid.vp_q;
+    p = Ddesc->grid.vp_p;
+    assert(p*q == pq);
+
 
     /* Get coordinates */
     va_start(ap, desc);
