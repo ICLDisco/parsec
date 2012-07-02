@@ -239,31 +239,21 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
 {
     int nb_elem, total;
     int Q;
-
-    /* Initialize the dague_ddesc */
-    {
-        dague_ddesc_t *o = &(Ddesc->super.super);
-
-        o->nodes  = nodes;
-        o->cores  = cores;
-        o->myrank = myrank;
-
-        o->rank_of       = sym_twoDBC_rank_of;
-        o->data_of       = sym_twoDBC_data_of;
-        o->vpid_of       = sym_twoDBC_vpid_of;
-#if defined(DAGUE_PROF_TRACE)
-        o->data_key      = sym_twoDBC_data_key;
-        o->key_to_string = sym_twoDBC_key_to_string;
-        o->key_dim       = NULL;
-        o->key           = NULL;
-#endif
-    }
-
     /* Initialize the tiled_matrix descriptor */
+    dague_ddesc_t *o = &(Ddesc->super.super);
+    o->rank_of       = sym_twoDBC_rank_of;
+    o->vpid_of       = sym_twoDBC_vpid_of;
+    o->data_of       = sym_twoDBC_data_of;
+#if defined(DAGUE_PROF_TRACE)
+    o->data_key      = sym_twoDBC_data_key;
+    o->key_to_string = sym_twoDBC_key_to_string;
+    o->key_dim       = NULL;
+    o->key           = NULL;
+#endif
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
+                            sym_two_dim_block_cyclic_type, 
+                            nodes, cores, myrank,
                             mb, nb, lm, ln, i, j, m, n );
-
-    Ddesc->super.dtype |= sym_two_dim_block_cyclic_type;
 
     if(nodes < P)
         ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));

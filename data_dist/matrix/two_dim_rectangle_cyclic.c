@@ -57,14 +57,17 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     int temp;
     int Q;
     dague_ddesc_t *o = &(Ddesc->super.super);
+#if defined(DAGUE_PROF_TRACE)
+    o->data_key      = twoDBC_data_key;
+    o->key_to_string = twoDBC_key_to_string;
+    o->key_dim       = NULL;
+    o->key           = NULL;
+#endif
 
     /* Initialize the tiled_matrix descriptor */
-    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage,
+    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type, 
+                            nodes, cores, myrank,
                             mb, nb, lm, ln, i, j, m, n );
-    Ddesc->super.dtype |= two_dim_block_cyclic_type;
-    o->nodes  = nodes;
-    o->cores  = cores;
-    o->myrank = myrank;
 
     if(nodes < P)
         ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
@@ -109,24 +112,17 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     /* set the methods */
     if( (nrst == 1) && (ncst == 1) ) {
         o->rank_of      = twoDBC_rank_of;
-        o->data_of      = twoDBC_data_of;
         o->vpid_of      = twoDBC_vpid_of;
+        o->data_of      = twoDBC_data_of;
     } else {
 #if defined(DAGUE_HARD_SUPERTILE) 
         o->rank_of      = twoDBC_st_rank_of;
-        o->data_of      = twoDBC_st_data_of;
         o->vpid_of      = twoDBC_st_vpid_of;
+        o->data_of      = twoDBC_st_data_of;
 #else
         two_dim_block_cyclic_supertiled_view(Ddesc, Ddesc, nrst, ncst);
 #endif /* DAGUE_HARD_SUPERTILE */
     }
-
-#if defined(DAGUE_PROF_TRACE)
-    o->data_key      = twoDBC_data_key;
-    o->key_to_string = twoDBC_key_to_string;
-    o->key_dim       = NULL;
-    o->key           = NULL;
-#endif
     
     DEBUG3(("two_dim_block_cyclic_init: \n"
            "      Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %d, \n"
