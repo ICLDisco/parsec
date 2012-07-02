@@ -413,7 +413,7 @@ static int32_t twoDBC_st_vpid_of(dague_ddesc_t *desc, ...)
     n += Ddesc->super.j / Ddesc->super.nb;
 
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == twoDBC_rank_of_st(desc, m, n));
+    assert(desc->myrank == twoDBC_st_rank_of(desc, m, n));
 #endif
 
     /* Compute the local tile row */
@@ -452,7 +452,7 @@ static void *twoDBC_st_data_of(dague_ddesc_t *desc, ...)
     n += Ddesc->super.j / Ddesc->super.nb;
 
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == twoDBC_rank_of_st(desc, m, n));
+    assert(desc->myrank == twoDBC_st_rank_of(desc, m, n));
 #endif
 
     /* Compute the local tile row */
