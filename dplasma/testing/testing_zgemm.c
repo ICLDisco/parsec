@@ -75,7 +75,7 @@ int main(int argc, char ** argv)
         if(loud > 2) printf("Done\n");
 
     /* load the GPU kernel */
-#if defined(HAVE_CUDA) && 0
+#if defined(HAVE_CUDA)
         if(iparam[IPARAM_NGPUS] > 0) {
             if(loud > 3) printf("+++ Load GPU kernel ... ");
             if(0 != gpu_kernel_init_zgemm(dague)) {
@@ -108,7 +108,7 @@ int main(int argc, char ** argv)
 
         dplasma_zgemm_Destruct( DAGUE_zgemm );
 
-#if defined(HAVE_CUDA) && 0
+#if defined(HAVE_CUDA) 
         if(iparam[IPARAM_NGPUS] > 0) {
             //dague_gpu_data_unregister(); A
             //dague_gpu_data_unregister(); B
