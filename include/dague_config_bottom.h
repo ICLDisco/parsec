@@ -44,7 +44,7 @@
 # undef DISTRIBUTED
 #endif
 
-#define DAGUE_HARD_SUPERTILE
+/*#define DAGUE_HARD_SUPERTILE */
 
 #if defined(DAGUE_PROF_DRY_RUN)
 # define DAGUE_PROF_DRY_BODY
