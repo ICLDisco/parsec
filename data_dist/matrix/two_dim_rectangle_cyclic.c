@@ -279,64 +279,71 @@ void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
     target->super.super.vpid_of = twoDBC_stview_vpid_of;
 }
 
+static inline unsigned int st_compute_m(two_dim_block_cyclic_t* desc, unsigned int m)
+{
+    unsigned int p, ps, mt;
+    p = desc->grid.rows;
+    ps = desc->grid.strows;
+    mt = desc->super.mt;
+    do { 
+        m = m-m%(p*ps) + (m%ps)*p + (m/ps)%p;
+    } while(m >= mt);
+    return m;
+}
+
+static inline unsigned int st_compute_n(two_dim_block_cyclic_t* desc, unsigned int n)
+{
+    unsigned int q, qs, nt;
+    q = desc->grid.cols;
+    qs = desc->grid.stcols;
+    nt = desc->super.nt;
+    do {
+        n = n-n%(q*qs) + (n%qs)*q + (n/qs)%q;
+    } while(n >= nt);
+    return n;
+}
+
+
 static uint32_t twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...)
 {
     unsigned int m, n, sm, sn;
-    unsigned int ps,qs,p,q;
     two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)ddesc;
     va_list ap;
     va_start(ap, ddesc);
     m = va_arg(ap, unsigned int);
     n = va_arg(ap, unsigned int);
     va_end(ap);
-    p = desc->grid.rows;
-    ps = desc->grid.strows;
-    q = desc->grid.cols;
-    qs = desc->grid.stcols;
-
-    sm = m-m%(p*ps) + (m%ps)*p + (m/ps)%p;
-    sn = n-n%(q*qs) + (n%qs)*q + (n/qs)%q;
-    DEBUG3(("SuperTiledView: %d,%d converted to %d,%d\n", m, n, sm, sn));
-    return twoDBC_rank_of(ddesc, m, n);
+    sm = st_compute_m(desc, m);
+    sn = st_compute_n(desc, n);
+    DEBUG3(("SuperTiledView: rankof(%d,%d)=%d converted to rankof(%d,%d)=%d\n", m, n, twoDBC_rank_of(ddesc,m,n), sm, sn, twoDBC_rank_of(ddesc,sm,sn)));
+    return twoDBC_rank_of(ddesc, sm, sn);
 }
 
 static int32_t twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...)
 {
     unsigned int m, n;
-    unsigned int ps,qs,p,q;
     two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)ddesc;
     va_list ap;
     va_start(ap, ddesc);
     m = va_arg(ap, unsigned int);
     n = va_arg(ap, unsigned int);
     va_end(ap);
-    p = desc->grid.rows;
-    ps = desc->grid.strows;
-    q = desc->grid.cols;
-    qs = desc->grid.stcols;
-
-    m = m-m%(p*ps) + (m%ps)*p + (m/ps)%p;
-    n = n-n%(q*qs) + (n%qs)*q + (n/qs)%q;
+    m = st_compute_m(desc, m);
+    n = st_compute_n(desc, n);
     return twoDBC_vpid_of(ddesc, m, n);
 }
 
 static void* twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...)
 {
     unsigned int m, n;
-    unsigned int ps,qs,p,q;
     two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)ddesc;
     va_list ap;
     va_start(ap, ddesc);
     m = va_arg(ap, unsigned int);
     n = va_arg(ap, unsigned int);
     va_end(ap);
-    p = desc->grid.rows;
-    ps = desc->grid.strows;
-    q = desc->grid.cols;
-    qs = desc->grid.stcols;
-
-    m = m-m%(p*ps) + (m%ps)*p + (m/ps)%p;
-    n = n-n%(q*qs) + (n%qs)*q + (n/qs)%q;
+    m = st_compute_m(desc, m);
+    n = st_compute_n(desc, n);
     return twoDBC_data_of(ddesc, m, n);
 }
 
