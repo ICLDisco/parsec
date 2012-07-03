@@ -25,7 +25,8 @@ int main(int argc, char ** argv)
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
-    iparam_default_ibnbmb(iparam, 48, 144, 144);
+    iparam_default_ibnbmb(iparam, 48, 192, 192);
+    iparam[IPARAM_SMB] = 2;
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
 #if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
