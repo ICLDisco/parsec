@@ -98,7 +98,7 @@ int main(int argc, char ** argv)
                                    nodes, cores, rank, MB, NB, LDC, N, 0, 0,
                                    M, N, SMB, SNB, P));
 
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, 2873);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, Cseed);
 
 /* Iterate on the transpose forms. TODO: LDB is set incorrecly for T and H */
 #if defined(PRECISION_z) || defined(PRECISION_c)
