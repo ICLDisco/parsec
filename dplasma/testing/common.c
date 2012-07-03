@@ -381,8 +381,10 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     }
 
     /* No supertiling by default */
-    if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
+    if(-'p' == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = (iparam[IPARAM_M]/iparam[IPARAM_MB])/iparam[IPARAM_P];
+    if(-'q' == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = (iparam[IPARAM_N]/iparam[IPARAM_NB])/iparam[IPARAM_Q];
     if(0 == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = 1;
+    if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
 }
 
 static void print_arguments(int* iparam)
@@ -479,6 +481,8 @@ void iparam_default_gemm(int* iparam)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'k';
     iparam[IPARAM_LDC] = -'m';
+    iparam[IPARAM_SMB] = -'p';
+    iparam[IPARAM_SNB] = -'q';
 }
 
 #ifdef DAGUE_PROF_TRACE
