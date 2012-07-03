@@ -1347,6 +1347,7 @@ int remote_dep_bind_thread(dague_context_t* context){
             if( dague_bindthread_mask(context->index_core_free_mask) > -1 ){
                 hwloc_bitmap_asprintf(&str, context->index_core_free_mask);
                 DEBUG(("Communication thread bound on the cpu mask %s\n", str));
+                free(str);
                 do_nano = 0;
             }
         }
