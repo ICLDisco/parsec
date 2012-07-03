@@ -51,7 +51,7 @@ typedef struct tiled_matrix_desc_t {
     dague_ddesc_t super;
     enum matrix_type    mtype;      /**< precision of the matrix */
     enum matrix_storage storage;    /**< storage of the matrix   */
-    int dtype;          /**< Type of descriptor      */
+    int dtype;          /**< Distribution type of descriptor      */
     int tileld;         /**< leading dimension of each tile (Should be a function depending on the row) */
     int mb;             /**< number of rows in a tile */
     int nb;             /**< number of columns in a tile */
@@ -70,6 +70,7 @@ typedef struct tiled_matrix_desc_t {
 } tiled_matrix_desc_t;
 
 void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage,
+                             int matrix_distribution_type, int nodes, int cores, int myrank,
                              int mb, int nb, int lm, int ln, int i,  int j, int m,  int n);
 
 tiled_matrix_desc_t *tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc, int i, int j, int m, int n);
