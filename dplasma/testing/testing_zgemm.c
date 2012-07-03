@@ -60,11 +60,11 @@ int main(int argc, char ** argv)
     {
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
             two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                                   nodes, cores, rank, MB, NB, LDA, LDA, 0, 0,
+                                   nodes, cores, rank, MB, NB, LDA, K, 0, 0,
                                    M, K, SMB, SNB, P));
         PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
             two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                                   nodes, cores, rank, MB, NB, LDB, LDB, 0, 0,
+                                   nodes, cores, rank, MB, NB, LDB, N, 0, 0,
                                    K, N, SMB, SNB, P));
 
         /* matrix generation */
@@ -75,49 +75,54 @@ int main(int argc, char ** argv)
         if(loud > 2) printf("Done\n");
 
     /* load the GPU kernel */
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        if(loud > 3) printf("+++ Load GPU kernel ... ");
-        if(0 != gpu_kernel_init_zgemm(dague)) {
-            printf("XXX Unable to load GPU kernel.\n");
-            exit(3);
+#if defined(HAVE_CUDA) && 0
+        if(iparam[IPARAM_NGPUS] > 0) {
+            if(loud > 3) printf("+++ Load GPU kernel ... ");
+            if(0 != gpu_kernel_init_zgemm(dague)) {
+                printf("XXX Unable to load GPU kernel.\n");
+                exit(3);
+            }
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescC,
+                                    MT*NT, MB*NB*sizeof(Dague_Complex64_t));
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescA,
+                                    MT*KT, MB*NB*sizeof(Dague_Complex64_t));
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescB,
+                                    KT*NT, MB*NB*sizeof(Dague_Complex64_t));
+            if(loud > 3) printf("Done\n");
         }
-        dague_gpu_data_register(dague,
-                                (dague_ddesc_t*)&ddescC,
-                                MT*NT, MB*NB*sizeof(Dague_Complex64_t));
-        dague_gpu_data_register(dague,
-                                (dague_ddesc_t*)&ddescA,
-                                MT*KT, MB*NB*sizeof(Dague_Complex64_t));
-        dague_gpu_data_register(dague,
-                                (dague_ddesc_t*)&ddescB,
-                                KT*NT, MB*NB*sizeof(Dague_Complex64_t));
-        if(loud > 3) printf("Done\n");
-    }
 #endif
-
-
 
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgemm,
-                                           (tA, tB, alpha,
-                                            (tiled_matrix_desc_t *)&ddescA,
-                                            (tiled_matrix_desc_t *)&ddescB,
-                                            beta,
-                                            (tiled_matrix_desc_t *)&ddescC));
+                                  (tA, tB, alpha,
+                                   (tiled_matrix_desc_t *)&ddescA,
+                                   (tiled_matrix_desc_t *)&ddescB,
+                                   beta,
+                                   (tiled_matrix_desc_t *)&ddescC));
 
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, zgemm);
 
         dplasma_zgemm_Destruct( DAGUE_zgemm );
 
+#if defined(HAVE_CUDA) && 0
+        if(iparam[IPARAM_NGPUS] > 0) {
+            //dague_gpu_data_unregister(); A
+            //dague_gpu_data_unregister(); B
+            //dague_gpu_data_unregister(); C
+            dague_gpu_kernel_fini(dague, "zgemm");
+        }
+#endif
+
         dague_data_free(ddescA.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
         dague_data_free(ddescB.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
-    } else if ( iparam[IPARAM_NNODES] > 1 ) {
-        fprintf(stderr, "Checking doesn't work in distributed\n");
-        info_solution = 1;
-    } else {
+    }
+    else {
         int Am, An, Bm, Bn;
         PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check,
             two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, matrix_Tile,
@@ -126,7 +131,6 @@ int main(int argc, char ** argv)
 
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, Cseed);
 
-/* Iterate on the transpose forms. TODO: LDB is set incorrecly for T and H */
 #if defined(PRECISION_z) || defined(PRECISION_c)
         for(tA=0; tA<3; tA++) {
             for(tB=0; tB<3; tB++) {
