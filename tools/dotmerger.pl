@@ -11,7 +11,7 @@ my $linkcolorexpr = "%E ? \"00FF00\" : \"FF0000\"";
 my $linkstyleexpr = "%C ? \"dashed\" : \"solid\"";
 
 my @shapes=("ellipse", "circle", "oval", "box", "polygon", "diamond", "pentagon", "hexagon", "septagon", "octagon", "square", "house", "invhouse", "trapezium","invtrapezium");
-my @colors=("009900", "0099FF", "666600", "6666FF", "993300","9933FF","CC3300", "CC33FF", "FF3300","FF33FF","FFFF00");
+my @colors=("589AB7", "D7ACEF", "ABD6FD", "D2FC3D", "993300","9933FF","CC3300", "CC33FF", "FF3300","FF33FF","FFFF00");
 my $ignore={};
 my $inputs=[];
 
