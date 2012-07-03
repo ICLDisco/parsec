@@ -26,20 +26,12 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
                                     tiled_matrix_desc_t *A,
                                     double *result )
 {
-    int m, n, mb, nb, smb, snb, elt;
+    int m, n, mb, nb, elt;
     two_dim_block_cyclic_t *W;
     dague_object_t *dague_zlange = NULL;
 
     /* Create the workspace */
     W = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
-
-    if ( A->dtype & two_dim_block_cyclic_type ) {
-        smb = ((two_dim_block_cyclic_t*)A)->grid.strows;
-        snb = ((two_dim_block_cyclic_t*)A)->grid.stcols;
-    } else {
-        smb = 1;
-        snb = 1;
-    }
 
     /* Warning: Pb with smb/snb when mt/nt lower than P/Q */
     switch( ntype ) {
@@ -49,7 +41,6 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
         m  = dague_imax(A->mt, P) * mb;
         n  = Q;
         elt = 2;
-        snb = 1;
         break;
     case PlasmaInfNorm:
         mb = A->mb;
@@ -57,7 +48,6 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
         m  = dague_imax(A->mt, P) * mb;
         n  = Q;
         elt = 1;
-        snb = 1;
         break;
     case PlasmaOneNorm:
         mb = 1;
@@ -65,7 +55,6 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
         m  = P;
         n  = dague_imax(A->nt, Q) * nb;
         elt = 1;
-        smb = 1;
         break;
     case PlasmaMaxNorm:
     default:
@@ -74,7 +63,6 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
         m  = dague_imax(A->mt, P);
         n  = Q;
         elt = 1;
-        snb = 1;
     }
 
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
@@ -85,7 +73,7 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
          m,   n,    /* Dimensions of the matrix             */
          0,   0,    /* Starting points (not important here) */
          m,   n,    /* Dimensions of the submatrix          */
-         smb, snb, P));
+         1, 1, P));
 
     /* Create the DAG */
     switch( ntype ) {
