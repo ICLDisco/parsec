@@ -29,7 +29,7 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
     iparam_default_ibnbmb(iparam, 0, 200, 200);
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
+#if defined(HAVE_CUDA)
     iparam[IPARAM_NGPUS] = 0;
 #endif
     /* Initialize DAGuE */
@@ -70,6 +70,29 @@ int main(int argc, char ** argv)
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, Bseed);
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC, Cseed);
         if(loud > 2) printf("Done\n");
+
+    /* load the GPU kernel */
+#if defined(HAVE_CUDA)
+    if(iparam[IPARAM_NGPUS] > 0) {
+        if(loud > 3) printf("+++ Load GPU kernel ... ");
+        if(0 != gpu_kernel_init_zgemm(dague)) {
+            printf("XXX Unable to load GPU kernel.\n");
+            exit(3);
+        }
+        dague_gpu_data_register(dague,
+                                (dague_ddesc_t*)&ddescC,
+                                MT*NT, MB*NB*sizeof(Dague_Complex64_t));
+        dague_gpu_data_register(dague,
+                                (dague_ddesc_t*)&ddescA,
+                                MT*KT, MB*NB*sizeof(Dague_Complex64_t));
+        dague_gpu_data_register(dague,
+                                (dague_ddesc_t*)&ddescB,
+                                KT*NT, MB*NB*sizeof(Dague_Complex64_t));
+        if(loud > 3) printf("Done\n");
+    }
+#endif
+
+
 
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgemm,
