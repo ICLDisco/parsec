@@ -204,6 +204,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     unsigned int array_index, count, bit_index;
 
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
+    if( 0 == remote_deps_count ) { /* nothing needs to be done, just forget about it. */
+        remote_deps_free(remote_deps);
+        return 0;
+    }
 
 #if defined(DAGUE_DEBUG)
     /* make valgrind happy */
