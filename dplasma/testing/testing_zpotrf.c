@@ -11,8 +11,8 @@
 #include "flops.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-#include "dplasma/cores/cuda_sgemm.h"
+#if defined(HAVE_CUDA)
+#include "dplasma/cores/cuda_zgemm.h"
 #endif
 
 static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum uplo,
@@ -34,7 +34,7 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA)
     iparam[IPARAM_NGPUS] = 0;
 #endif
 
@@ -83,11 +83,11 @@ int main(int argc, char ** argv)
     if(loud > 3) printf("Done\n");
 
     /* load the GPU kernel */
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA)
     if(iparam[IPARAM_NGPUS] > 0)
         {
             if(loud > 3) printf("+++ Load GPU kernel ... ");
-            if(0 != gpu_kernel_init_zgemm(dague, (tiled_matrix_desc_t *)&ddescA))
+            if(0 != gpu_kernel_init_zgemm(dague))
                 {
                     printf("XXX Unable to load GPU kernel.\n");
                     exit(3);
@@ -135,7 +135,7 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX );
     }
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA)
     if(iparam[IPARAM_NGPUS] > 0) {
         dague_gpu_data_unregister();
         dague_gpu_kernel_fini(dague, "zgemm");

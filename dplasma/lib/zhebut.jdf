@@ -89,6 +89,10 @@ HEBUT_Diag(i)
   RW  Abr <- A HEBUT_Reader_BR(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
           -> A HEBUT_Writer_BR(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
 
+/* Priority */
+;nt*mt-(i*nt)-i
+
+
 BODY
 
   unsigned jj, mb_seg, nb_seg, mb_tile, nb_tile, N;
@@ -186,6 +190,10 @@ HEBUT_Lower(i,j)
   /* Abr: A from Bottom Right */
   RW  Abr <- A HEBUT_Reader_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
           -> A HEBUT_Writer_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+
+/* Priority */
+;nt*mt-(i*nt)-j
+
 
 BODY
 
@@ -288,6 +296,9 @@ HEBUT_Reader_TL(i,j)
 READ A <- A(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
        -> (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
+/* Priority */
+;nt*mt-(i*nt)-j
+
 BODY
 #if defined(DEBUG_BUTTERFLY)
   unsigned mb_tile, nb_tile, mb_seg, nb_seg, type;
@@ -341,6 +352,9 @@ READ A <- A(i+mt/2, j) [ arena_index = inline_c %{ return segment_to_arena_index
        -> (i==j) ? Abl HEBUT_Diag(i)    [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
        -> (i<j)  ? Atr HEBUT_Lower(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
+/* Priority */
+;nt*mt-(i*nt)-j
+
 BODY
 #if defined(DEBUG_BUTTERFLY)
   unsigned mb_tile, nb_tile, mb_seg, nb_seg, type;
@@ -391,6 +405,9 @@ HEBUT_Reader_BR(i,j)
 
 READ A <- A(i+mt/2, j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
        -> (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+
+/* Priority */
+;nt*mt-(i*nt)-j
 
 BODY
 #if defined(DEBUG_BUTTERFLY)

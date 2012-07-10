@@ -58,15 +58,15 @@ extern gpu_device_t** gpu_enabled_devices;
  * where tasks ready to jump to the respective step are waiting.
  */
 static inline
-int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
-                          dague_execution_context_t *this_task,
+int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
+                          dague_gpu_context_t    *this_task,
                           int which_gpu )
 {
     gpu_device_t* gpu_device;
     CUcontext saved_ctx;
     cudaError_t status;
     int rc, exec_stream = 0;
-    dague_execution_context_t *next_task;
+    dague_gpu_context_t *next_task;
 #if defined(DAGUE_DEBUG_VERBOSE2)
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -101,8 +101,8 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
  check_in_deps:
     if( NULL != this_task ) {
         DEBUG2(( "GPU[%1d]:\tPush data for %s priority %d\n", gpu_device->device_index,
-                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
-                 this_task->priority ));
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
+                 this_task->ec->priority ));
     }
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[0]),
@@ -118,8 +118,8 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
     exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams - 2);  /* Choose an exec_stream */
     if( NULL != this_task ) {
         DEBUG2(( "GPU[%1d]:\tExecute %s priority %d\n", gpu_device->device_index,
-                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
-                 this_task->priority ));
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
+                 this_task->ec->priority ));
     }
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[2+exec_stream]),
@@ -132,7 +132,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
         if( NULL != next_task ) {
             this_task = next_task;
 #if defined(DAGUE_PROF_TRACE)
-            gpu_kernel_profile( gpu_device, this_task, dague_gpu_map.desc);
+            gpu_kernel_profile( gpu_device, this_task );
 #endif  /* defined(DAGUE_PROF_TRACE) */
         }
     }
@@ -140,8 +140,8 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
 
     if( NULL != this_task ) {
         DEBUG2(( "GPU[%1d]:\tPop data for %s priority %d\n", gpu_device->device_index,
-                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
-                 this_task->priority ));
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
+                 this_task->ec->priority ));
     }
     /* Task is ready to move the data back to main memory */
     rc = progress_stream( gpu_device,
@@ -163,7 +163,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
 #if defined(DAGUE_PROF_TRACE)
         if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
             dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end,
-                                   (unsigned long)this_task, this_task->dague_object->object_id,
+                                   (unsigned long)this_task->ec, this_task->ec->dague_object->object_id,
                                    NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
         goto complete_task;
@@ -172,25 +172,26 @@ int gpu_kernel_scheduler( dague_execution_unit_t    *eu_context,
 
  fetch_task_from_shared_queue:
     assert( NULL == this_task );
-    this_task = (dague_execution_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
+    this_task = (dague_gpu_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != this_task ) {
         DEBUG2(( "GPU[%1d]:\tGet from shared queue %s priority %d\n", gpu_device->device_index,
-                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
-                 this_task->priority ));
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
+                 this_task->ec->priority ));
     }
     goto check_in_deps;
 
  complete_task:
     assert( NULL != this_task );
-    DEBUG2(( "GPU[%1d]:\Complete %s priority %d\n", gpu_device->device_index,
-             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
-             this_task->priority ));
+    DEBUG2(( "GPU[%1d]:\tComplete %s priority %d\n", gpu_device->device_index,
+             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
+             this_task->ec->priority ));
     /* Everything went fine so far, the result is correct and back in the main memory */
     DAGUE_LIST_ITEM_SINGLETON(this_task);
     gpu_kernel_epilog( gpu_device, this_task );
-    dague_complete_execution( eu_context, this_task );
+    __dague_complete_execution( eu_context, this_task->ec );
     device_load[gpu_device->device_index+1] -= device_weight[gpu_device->device_index+1];
     gpu_device->executed_tasks++;
+    free( this_task );
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     if( 0 == rc ) {  /* I was the last one */
 #if defined(DAGUE_PROF_TRACE)

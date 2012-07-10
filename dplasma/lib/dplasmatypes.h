@@ -19,6 +19,10 @@
  * accessing the extent of a datatype.
  */
 int dplasma_get_extent( MPI_Datatype dt, MPI_Aint* extent );
+int dplasma_datatype_define_contiguous( dague_remote_dep_datatype_t oldtype,
+                                        unsigned int nb_elem,
+                                        int resized,
+                                        dague_remote_dep_datatype_t* newtype );
 int dplasma_datatype_define_rectangle( dague_remote_dep_datatype_t oldtype,
                                        unsigned int tile_mb,
                                        unsigned int tile_nb,
@@ -50,6 +54,7 @@ int dplasma_datatype_undefine_type(dague_remote_dep_datatype_t* type);
 # define MPI_INTEGER        NULL
 # define MPI_INT            NULL
 
+# define dplasma_datatype_define_contiguous( oldtype, nb_elem, resized, newtype) (*(newtype) = NULL)
 # define dplasma_datatype_define_rectangle( oldtype, tile_mb, tile_nb, resized, newtype) (*(newtype) = NULL)
 # define dplasma_datatype_define_tile(      oldtype, tile_nb, newtype ) (*(newtype) = NULL)
 # define dplasma_datatype_define_upper(     oldtype, tile_nb, diag, newtype) (*(newtype) = NULL)
@@ -61,6 +66,9 @@ int dplasma_datatype_undefine_type(dague_remote_dep_datatype_t* type);
 
 #endif
 
+int dplasma_add2arena_contiguous( dague_arena_t *arena, size_t elem_size, size_t alignment,
+                                  dague_remote_dep_datatype_t oldtype,
+                                  unsigned int nb_elem, int resized );
 int dplasma_add2arena_rectangle( dague_arena_t *arena, size_t elem_size, size_t alignment,
                                  dague_remote_dep_datatype_t oldtype, 
                                  unsigned int tile_mb, unsigned int tile_nb, int resized );

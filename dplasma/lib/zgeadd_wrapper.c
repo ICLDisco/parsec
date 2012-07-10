@@ -131,6 +131,6 @@ dplasma_zgeadd_Destruct( dague_object_t *o )
 {
     dague_map2_object_t *dague_zgeadd = (dague_map2_object_t *)o;
     free(dague_zgeadd->op_args);
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    dplasma_map2_Destruct( o );
 }
 

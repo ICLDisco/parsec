@@ -53,6 +53,9 @@ data_dist/matrix/reduce_row\.[ch]
 data_dist/matrix/[sdc]twoDBC\.c
 data_dist/matrix/[sdc]matrix\.c
 dplasma/cores/dplasma_[sdc]cores\.h
+dplasma/cores/[sdc]gemm_11_12_13.cu
+dplasma/cores/[sdc]gemm_20_30.cu
+dplasma/cores/cuda_[sdc]gemm\.[ch]
 dplasma/cores/sgemm-sm.*\.cubin
 dplasma/cores/core_[sdc]trdv\.c
 dplasma/cores/core_[sdc]plssq\.c

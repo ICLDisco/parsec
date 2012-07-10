@@ -91,13 +91,14 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int SNB   = iparam[IPARAM_SNB];\
   int MT    = (M%MB==0) ? (M/MB) : (M/MB+1); \
   int NT    = (N%NB==0) ? (N/NB) : (N/NB+1); \
+  int KT    = (K%MB==0) ? (K/MB) : (K/MB+1); \
   int check = iparam[IPARAM_CHECK];\
   int loud  = iparam[IPARAM_VERBOSE];\
   int scheduler = iparam[IPARAM_SCHEDULER];\
   int nb_local_tasks = 0;                                               \
   int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
-  (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;\
+  (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)KT;(void)SMB;(void)SNB;(void)check;(void)loud;\
   (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;
 
 /* Define a double type which not pass through the precision generation process */
@@ -116,10 +117,6 @@ typedef double DagDouble_t;
 /*******************************
  * globals values
  *******************************/
-
-#if defined(HAVE_MPI)
-extern MPI_Datatype SYNCHRO;
-#endif  /* HAVE_MPI */
 
 extern const int side[2];
 extern const int uplo[2];
@@ -170,12 +167,23 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
     dague_progress(DAGUE);                                              \
-    if(loud > 2) TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n", \
-                               nb_local_tasks,                          \
-                               nb_local_tasks/time_elapsed));           \
-    SYNC_TIME_PRINT(rank, (#KERNEL " computation N= %d NB= %d : %f gflops\n", N, NB, \
-                           gflops = (flops/1e9)/(sync_time_elapsed)));  \
+    TIME_STOP();                                                        \
+    SYNC_TIME_STOP();                                                   \
+    if(loud > 2)                                                        \
+        printf("[%d] TIMED %f s\t: "#KERNEL " computed %d tasks,\trate %f task/s\n", \
+               rank, time_elapsed,                                      \
+               nb_local_tasks,                                          \
+               nb_local_tasks/time_elapsed);                            \
+    gflops = (flops/1e9)/sync_time_elapsed;                             \
+    printf("[%d] TIMED %f s\t: "#KERNEL" computation N= %d NB= %d : %f gflops\n", \
+           rank, time_elapsed, N, NB, gflops);                          \
+    if(loud >= 5 && rank == 0) {                                         \
+        printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n" \
+               "                 encoding=\"none\" compression=\"none\">\n" \
+               "%g\n"                                                   \
+               "</DartMeasurement>\n",                                  \
+               gflops);                                                 \
+    }                                                                   \
     (void)gflops;
-
 
 #endif /* _TESTSCOMMON_H */

@@ -22,9 +22,9 @@
 static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };
 
 dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
-                                     int P, int Q,
-                                     tiled_matrix_desc_t *A,
-                                     double *result )
+                                    int P, int Q,
+                                    tiled_matrix_desc_t *A,
+                                    double *result )
 {
     int m, n, mb, nb, elt;
     two_dim_block_cyclic_t *W;
@@ -33,6 +33,7 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
     /* Create the workspace */
     W = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
 
+    /* Warning: Pb with smb/snb when mt/nt lower than P/Q */
     switch( ntype ) {
     case PlasmaFrobeniusNorm:
         mb = 2;
@@ -68,10 +69,10 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
         (*W), two_dim_block_cyclic,
         (W, matrix_RealDouble, matrix_Tile,
          A->super.nodes, A->super.cores, A->super.myrank,
-         mb, nb,   /* Dimesions of the tile                */
-         m,  n,    /* Dimensions of the matrix             */
-         0,  0,    /* Starting points (not important here) */
-         m,  n,    /* Dimensions of the submatrix          */
+         mb,  nb,   /* Dimesions of the tile                */
+         m,   n,    /* Dimensions of the matrix             */
+         0,   0,    /* Starting points (not important here) */
+         m,   n,    /* Dimensions of the submatrix          */
          1, 1, P));
 
     /* Create the DAG */
@@ -127,8 +128,8 @@ dplasma_zlange_Destruct( dague_object_t *o )
 }
 
 double dplasma_zlange( dague_context_t *dague,
-                        PLASMA_enum ntype,
-                        tiled_matrix_desc_t *A)
+                       PLASMA_enum ntype,
+                       tiled_matrix_desc_t *A)
 {
     double result;
     dague_object_t *dague_zlange = NULL;
