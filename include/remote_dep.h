@@ -62,7 +62,7 @@ struct remote_dep_output_param {
 
 struct dague_remote_deps_t {
     dague_list_item_t               item;
-    struct dague_lifo_t*     origin;  /**< The memory arena where the data pointer is comming from */
+    struct dague_lifo_t*            origin;  /**< The memory arena where the data pointer is comming from */
     struct dague_object*            dague_object;  /**< dague object generating this data transfer */
     remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
     int                             root;    /**< The root of the control message */
@@ -95,7 +95,7 @@ extern dague_remote_dep_context_t dague_remote_dep_context;
 void remote_deps_allocation_init(int np, int max_deps);
 void remote_deps_allocation_fini(void);
 
-static inline dague_remote_deps_t* remote_deps_allocation( dague_lifo_t* lifo )
+static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
 {
     dague_remote_deps_t* remote_deps = (dague_remote_deps_t*)dague_lifo_pop(lifo);
     uint32_t i, rank_bit_size;
@@ -121,9 +121,12 @@ static inline dague_remote_deps_t* remote_deps_allocation( dague_lifo_t* lifo )
 }
 #define DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
     if( NULL == (REMOTE_DEPS) ) { /* only once per function */                 \
-        (REMOTE_DEPS) = (dague_remote_deps_t*)remote_deps_allocation(&dague_remote_dep_context.freelist); \
+        (REMOTE_DEPS) = (dague_remote_deps_t*)remote_deps_allocate(&dague_remote_dep_context.freelist); \
     }
-
+/* This returns the deps to the freelist, no use counter */
+static inline void remote_deps_free(dague_remote_deps_t* deps) {
+    dague_lifo_push(deps->origin, (dague_list_item_t*)deps);
+}
 
 int dague_remote_dep_init(dague_context_t* context);
 int dague_remote_dep_fini(dague_context_t* context);

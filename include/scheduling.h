@@ -75,14 +75,11 @@ int __dague_schedule( dague_execution_unit_t*, dague_execution_context_t*);
 
 int dague_progress(dague_context_t* context);
 void* __dague_progress(dague_execution_unit_t* eu_context);
-/**
- * Mark a task belonging to dague_object as complete, and update the
- * corresponding statuses. If it was the last task in the dague_object,
- * trigger the completion callback and then update the main context.
- * Otherwise, just update the dague_object.
- */
-int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context);
 
+/**
+ * Execute the body of the task associated to the context.
+ */
+int __dague_execute( dague_execution_unit_t*, dague_execution_context_t*);
 /**
  * Signal the termination of the execution context to all dependencies of 
  * its dependencies.  
@@ -93,8 +90,17 @@ int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context
  * @return 0    If the dependencies have successfully been signaled.
  * @return -1   If something went wrong. 
  */
-int dague_complete_execution( dague_execution_unit_t *eu_context,
+int __dague_complete_execution( dague_execution_unit_t *eu_context,
                               dague_execution_context_t *exec_context );
+/**
+ * Mark a task belonging to dague_object as complete, and update the
+ * corresponding statuses. If it was the last task in the dague_object,
+ * trigger the completion callback and then update the main context.
+ * Otherwise, just update the dague_object.
+ */
+int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context);
+
+
 
 typedef struct {
     char* name;

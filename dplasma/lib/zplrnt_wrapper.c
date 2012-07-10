@@ -33,21 +33,21 @@ dague_object_t* dplasma_zplrnt_New( tiled_matrix_desc_t *A,
                                     unsigned long long int seed)
 {
     dague_zplrnt_object_t* object;
-    
+
     object = dague_zplrnt_new( seed, *A, (dague_ddesc_t*)A);
 
     /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zplrnt_DEFAULT_ARENA], 
+    dplasma_add2arena_tile( object->arenas[DAGUE_zplrnt_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(Dague_Complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
-    
+
     return (dague_object_t*)object;
 }
 
-int dplasma_zplrnt( dague_context_t *dague, 
+int dplasma_zplrnt( dague_context_t *dague,
                     tiled_matrix_desc_t *A,
-                    unsigned long long int seed) 
+                    unsigned long long int seed)
 {
     dague_object_t *dague_zplrnt = NULL;
 
@@ -67,4 +67,3 @@ dplasma_zplrnt_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zplrnt->arenas[DAGUE_zplrnt_DEFAULT_ARENA   ]->opaque_dtt) );
     DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zplrnt);
 }
-

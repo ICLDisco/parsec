@@ -9,6 +9,7 @@
     -- Rajib Nath
 */
 
+#if (CUDA_SM_VERSION == 20) || (CUDA_SM_VERSION == 30)
 
 /*
     This version is used with testing_stream_sgemm.cpp to add streams.
@@ -35,14 +36,9 @@
 #include <cuda_runtime.h>
 #include <cuda.h>
 
-#if (CUDA_SM_VERSION != 20) && (CUDA_SM_VERSION != 30)
-  #error "CUDA_SM_VERSION must be defined to 20, or 30 for this kernel"
-  #endif
-  #define GENERATE_SM_VERSION_NAME_I(func, version) func##_SM##version
-  #define GENERATE_SM_VERSION_NAME_I2(func, version) GENERATE_SM_VERSION_NAME_I(func, version)
-  #define GENERATE_SM_VERSION_NAME(func) GENERATE_SM_VERSION_NAME_I2(func, CUDA_SM_VERSION)
-
-
+#define GENERATE_SM_VERSION_NAME_I(func, version) func##_SM##version
+#define GENERATE_SM_VERSION_NAME_I2(func, version) GENERATE_SM_VERSION_NAME_I(func, version)
+#define GENERATE_SM_VERSION_NAME(func) GENERATE_SM_VERSION_NAME_I2(func, CUDA_SM_VERSION)
 
 #define fermiSgemm_v2_kernel_NN GENERATE_SM_VERSION_NAME(sgemmNN)
 #define fermiSgemm_v2_kernel_TN GENERATE_SM_VERSION_NAME(sgemmTN)
@@ -665,3 +661,4 @@ magmablas_fermi_sgemm(char TRANSA, char TRANSB, int m , int n , int k , float al
 #endif
 //====================================================================================
 
+#endif /*  (CUDA_SM_VERSION == 20) || (CUDA_SM_VERSION == 30) */

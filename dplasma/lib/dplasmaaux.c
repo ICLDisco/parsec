@@ -1,6 +1,6 @@
 #include "dplasmaaux.h"
 
-int dplasma_aux_get_priority_limit( char* function, const tiled_matrix_desc_t* ddesc )   
+int dplasma_aux_get_priority_limit( char* function, const tiled_matrix_desc_t* ddesc )
 {
     char *v;
     char keyword[strlen(function)+2];
@@ -21,6 +21,8 @@ int dplasma_aux_get_priority_limit( char* function, const tiled_matrix_desc_t* d
     case matrix_ComplexDouble:
         sprintf(keyword, "Z%s", function);
         break;
+    default:
+        return 0;
     }
 
     if( (v = getenv(keyword)) != NULL ) {

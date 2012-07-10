@@ -3579,7 +3579,8 @@ static Relation process_and_print_execution_space(node_t *node){
     }
 
     // Ask Omega to simplify the Relation for us.
-    S.simplify(2,2);
+    //S.simplify(2,2);
+    S.simplify();
     (void)S.print_with_subs_to_string(false);
 
     // Print the execution space based on the bounds that exist in the relation.

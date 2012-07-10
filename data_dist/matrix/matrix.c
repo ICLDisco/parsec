@@ -25,8 +25,9 @@
  *  Internal static descriptor initializer (PLASMA code)
  **/
 void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
-                             enum matrix_type    dtyp,
+                             enum matrix_type    mtyp,
                              enum matrix_storage storage,
+                             int dtype, int nodes, int cores, int myrank,
                              int mb, int nb,
                              int lm, int ln,
                              int i,  int j,
@@ -38,10 +39,15 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     /* tdesc->A12 = (     lm%mb)*(ln - ln%nb) + tdesc->A21; */
     /* tdesc->A22 = (lm - lm%mb)*(     ln%nb) + tdesc->A12; */
 
+    /* Super setup */
+    tdesc->super.nodes = nodes;    
+    tdesc->super.cores = cores;
+    tdesc->super.myrank = myrank;
+
     /* Matrix properties */
-    tdesc->mtype   = dtyp;
+    tdesc->mtype   = mtyp;
     tdesc->storage = storage;
-    tdesc->dtype   = tiled_matrix_desc_type;
+    tdesc->dtype   = tiled_matrix_desc_type | dtype;
     tdesc->tileld  = (storage == matrix_Tile) ? mb : lm;
     tdesc->mb      = mb;
     tdesc->nb      = nb;
@@ -110,6 +116,7 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
         memcpy( newdesc, tdesc, sizeof(sym_two_dim_block_cyclic_t) );
     } else {
         fprintf(stderr, "Type not completely defined\n");
+        return NULL;
     }
 
     mb = tdesc->mb;

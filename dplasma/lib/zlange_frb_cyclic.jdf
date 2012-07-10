@@ -18,14 +18,14 @@ extern "C" %{
  * The first step search the Frobenius norm of each local rows of tile.
  * The second reduces the tile rows norms. At the end of this step, all Q
  * processes belonging to a row have the same data.
- * The third step conbines the local tiles per column (one column per node).
+ * The third step combines the local tiles per column (one column per node).
  * The fourth step combines the norms together. At the end all processes
  * owns the same value.
  *
- * The reductions are down by a pipeline folowed by a broadcast of the results.
+ * The reductions are done by a pipeline followed by a broadcast of the results.
  *
  * More information in zlange.f and zlassq.f from Netlib LAPACK.
- * W[0] coressponds to scale and W[1] to sum.
+ * W[0] corresponds to scale and W[1] to sum.
  *
  */
 #define PRECISION_z

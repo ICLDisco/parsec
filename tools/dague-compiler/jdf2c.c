@@ -1695,7 +1695,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s  }\n"
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
 
-    coutput("%s  dague_list_add_single_elem_by_priority( &pready_list[vpid], new_dynamic_context );\n", indent(nesting));
+    coutput("%s  pready_list[vpid] = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(pready_list[vpid]), (dague_list_item_t*)new_dynamic_context, dague_execution_context_priority_comparator );\n", indent(nesting));
 
     for(; nesting > 0; nesting--) {
         coutput("%s}\n", indent(nesting));
@@ -2025,7 +2025,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             "static const dague_function_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
                             "  .deps = %d,\n"
-                            "  .flags = %s%s,\n"
+                            "  .flags = %s%s%s,\n"
                             "  .function_id = %d,\n"
 #if !defined(DAGUE_SCHED_DEPS_MASK)
                             "  .dependencies_goal = %d,\n"
@@ -2039,6 +2039,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             dep_index,
                             (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
                             has_in_in_dep ? " | DAGUE_HAS_IN_IN_DEPENDENCIES" : "",
+                            jdf_property_get_int(f->properties, "immediate", 0) ? " | DAGUE_IMMEDIATE_TASK" : "",
                             dep_index,
 #if !defined(DAGUE_SCHED_DEPS_MASK)
                             nbinput,
@@ -2253,6 +2254,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "    if( o->arenas[i] != NULL ) {\n"
             "      dague_arena_destruct(o->arenas[i]);\n"
             "      free(o->arenas[i]);\n"
+            "      o->arenas[i] = NULL;\n"
             "    }\n"
             "  }\n"
             "  free( o->arenas );\n"
@@ -2270,12 +2272,16 @@ static void jdf_generate_destructor( const jdf_t *jdf )
         }
     }
 
-    coutput("  for(i = 0; i < DAGUE_%s_NB_FUNCTIONS; i++)\n"
+    coutput("  for(i = 0; i < DAGUE_%s_NB_FUNCTIONS; i++) {\n"
             "    dague_destruct_dependencies( d->dependencies_array[i] );\n"
-            "  free( d->dependencies_array );\n",
+            "    d->dependencies_array[i] = NULL;\n"
+            "  }\n"
+            "  free( d->dependencies_array );\n"
+            "  d->dependencies_array = NULL;\n",
             jdf_basename);
 
-    coutput("  free(o);\n");
+    coutput("  dague_object_unregister( d );\n"
+            "  free(o);\n");
 
     coutput("}\n"
             "\n");
@@ -3173,7 +3179,13 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "    free(arg.ready_lists);\n"
             "  }\n"
             "#if defined(DISTRIBUTED)\n"
-            "  if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) && arg.remote_deps_count ) {\n"
+            "  if( 0 == arg.remote_deps_count ) {\n"
+            "    if( NULL != arg.remote_deps ) {\n"
+            "      remote_deps_free(arg.remote_deps);\n"
+            "      arg.remote_deps = NULL;\n"
+            "    }\n"
+            "  }\n"
+            "  else if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) ) {\n"
             "    arg.nb_released += dague_remote_dep_activate(eu, context, arg.remote_deps, arg.remote_deps_count);\n"
             "  }\n"
             "#endif\n");
