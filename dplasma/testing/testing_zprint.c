@@ -31,24 +31,24 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     /* initializing matrix structure */
-    LDA = max( LDA, N );
-    LDB = max( LDB, N );
+    LDA = max( LDA, M );
+    LDB = max( LDB, M );
     SMB = 1;
     SNB = 1;
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-                               sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-                                                          nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                                                          N, N, P, uplo));
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+        sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   M, N, P, uplo));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
-                               two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble,  matrix_Tile,
-                                                      nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                                                      N, N, 1, 1, P));
-    
+    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
+        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble,  matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDB, N, 0, 0,
+                               M, N, 1, 1, P));
+
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    dplasma_zplghe( dague, (double)(N), uplo, 
+    dplasma_zplghe( dague, (double)(N), uplo,
                     (tiled_matrix_desc_t *)&ddescA, 1358);
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
     if(loud > 2) printf("Done\n");
@@ -65,4 +65,3 @@ int main(int argc, char ** argv)
 
     return ret;
 }
-
