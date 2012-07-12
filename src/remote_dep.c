@@ -201,9 +201,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 {
     const dague_function_t* function = exec_context->function;
     int i, me, him, current_mask;
-    int tofree, receiver;
+    int tofree = 0;
     unsigned int array_index, count, bit_index;
-    (void)receiver;
 
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
     assert(remote_deps_count);
@@ -226,11 +225,13 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
         remote_deps->msg.locals[i] = exec_context->locals[i];
     }
 
-    if(remote_deps->root == eu_context->virtual_process->dague_context->my_rank) me = 0;
-    else me = -1;
-
-    tofree = 1;
-    receiver = (me == -1);
+    if(remote_deps->root == eu_context->virtual_process->dague_context->my_rank) {
+        me = 0;
+    }
+    else {
+        me = -1;
+        tofree = 1; /* if this is a forward in a coll, maybe nothing to do */
+    }
 
     for( i = 0; remote_deps_count; i++) {
         if( 0 == remote_deps->output[i].count ) continue;
@@ -295,7 +296,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
      * have to forward the information or not.
      */
     if (tofree) {
-        assert(receiver);
         remote_dep_complete_one_and_cleanup( remote_deps );
     }
 
