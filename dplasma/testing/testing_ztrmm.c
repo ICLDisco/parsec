@@ -72,8 +72,7 @@ int main(int argc, char ** argv)
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, ztrmm);
 
-        dplasma_ztrmm_Destruct( DAGUE_ztrmm );
-
+        dplasma_ztrsm_Destruct( DAGUE_ztrmm );
     }
     else
     {
@@ -115,7 +114,7 @@ int main(int argc, char ** argv)
                                         (tiled_matrix_desc_t *)&ddescC2, (tiled_matrix_desc_t *)&ddescC );
                         printf("Done\n");
 
-                        /* Create TRMM DAGuE */
+                        /* Compute */
                         printf("Compute ... ... ");
                         dplasma_ztrmm(dague, side[s], uplo[u], trans[t], diag[d], (Dague_Complex64_t)alpha,
                                       (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescC);
