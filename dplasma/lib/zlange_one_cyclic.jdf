@@ -121,7 +121,7 @@ STEP1(m,n)
     // Parameters
     READ A <-  A(m, n)
     RW   W <-  ( m < (descA.mt-P)) ? W STEP1( m+P, n ) : W RWCOL( m%P, n ) [type = COL]
-           ->  ( m < Q           ) ? W STEP2( m, n   ) : W STEP1( m-P, n ) [type = COL]
+           ->  ( m < P           ) ? W STEP2( m, n   ) : W STEP1( m-P, n ) [type = COL]
 
 BODY
 
