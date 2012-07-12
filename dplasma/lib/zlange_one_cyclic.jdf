@@ -34,6 +34,7 @@ extern "C" %{
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
+#include "dplasma.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/cores/dplasma_zcores.h"
@@ -45,28 +46,28 @@ extern "C" %{
 P            [type = "int"]
 Q            [type = "int"]
 A            [type = "dague_ddesc_t *"]
-W            [type = "dague_ddesc_t *"]
+Wcol         [type = "dague_ddesc_t *"]
+Welt         [type = "dague_ddesc_t *"]
 norm         [type = "double *"]
 
 descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)A)" ]
 
-READ_W(m, n) [profile = off]
+RWCOL(m, n) [profile = off]
 
     // Execution space
     m = 0 .. P-1
-    n = 0 .. inline_c %{ return dague_imax( descA.nt-1, Q-1 ); %}
+    n = 0 .. descA.nt-1
     row = inline_c %{
     	return descA.mt-((descA.mt-m-1)%P)-1;
         %}
 
     // Parallel partitioning
-    :W(m, n)
+    :Wcol(m, n)
 
     // Parameters
-    READ W <- W(m, n)
-           -> ( (n > (descA.nt-1)) )                       ? W STEP4(m,   n)  [type = ELT]
-           -> ( (n <  descA.nt   ) && (m > (descA.mt-1) )) ? W STEP2(m,   n)  [type = COL]
-           -> ( (n <  descA.nt   ) && (m <  descA.mt    )) ? W STEP1(row, n)  [type = COL]
+    READ W <- Wcol(m, n)
+           -> (m <  descA.mt   ) ? W STEP1(row, n)  [type = COL]
+           -> (m > (descA.mt-1)) ? W STEP2(m,   n)  [type = COL]
 
 BODY
     DRYRUN(
@@ -74,6 +75,30 @@ BODY
         int i;
         for(i = 0; i < descA.nb; i++)
             ((double *)W)[i] = 0;
+           );
+END
+
+RWELT(m, n) [profile = off]
+
+    // Execution space
+    m = 0 .. P-1
+    n = 0 .. Q-1
+    col = inline_c %{
+    	return descA.nt-((descA.nt-n-1)%Q)-1;
+        %}
+
+    // Parallel partitioning
+    :Welt(m, n)
+
+    // Parameters
+    READ W <- Welt(m, n)
+           -> (n <  descA.nt   ) ? W STEP3(m, col)  [type = ELT]
+           -> (n > (descA.nt-1)) ? W STEP4(m,   n)  [type = ELT]
+
+BODY
+    DRYRUN(
+        /* Initialize W */
+        ((double *)W)[0] = 0.;
            );
 END
 
@@ -95,8 +120,8 @@ STEP1(m,n)
 
     // Parameters
     READ A <-  A(m, n)
-    RW   W <-  ( m >= (descA.mt-P)) ? W READ_W(m%P, n) : W STEP1(m+P, n) [type = COL]
-           ->  ( m <  P           ) ? W STEP2( m,   n) : W STEP1(m-P, n) [type = COL]
+    RW   W <-  ( m < (descA.mt-P)) ? W STEP1( m+P, n ) : W RWCOL( m%P, n ) [type = COL]
+           ->  ( m < Q           ) ? W STEP2( m, n   ) : W STEP1( m-P, n ) [type = COL]
 
 BODY
 
@@ -130,12 +155,12 @@ STEP2(m, n)
     n = 0 .. descA.nt-1
 
     // Parallel partitioning
-    :W(m, n)
+    :Wcol(m, n)
 
     // Parameters
-    READ A <-  (m == 0 ) ? W(m, n) : W STEP2(m-1, n)                      [type = COL]
-    RW   W <-  (m >  (descA.mt-1)) ? W READ_W(m, n)     : W STEP1(m,   n) [type = COL]
-           ->  (m == (P-1)       ) ? A STEP3(0..P-1, n) : A STEP2(m+1, n) [type = COL]
+    READ A <- ( m == 0 ) ? Wcol(m, n) : W STEP2(m-1, n)                   [type = COL]
+    RW   W <- ( m >  (descA.mt-1)) ? W RWCOL(m, n )     : W STEP1(m,   n) [type = COL]
+           -> ( m == (P-1)       ) ? A STEP3(0..P-1, n) : A STEP2(m+1, n) [type = COL]
 
 BODY
 
@@ -169,12 +194,12 @@ STEP3(m, n)
     n = 0 .. descA.nt-1
 
     // Parallel partitioning
-    :W(m, n)
+    :Wcol(m, n)
 
     // Parameters
     READ A <- W STEP2(P-1, n)                                            [type = COL]
-    RW   W <- (n < (descA.nt-Q)) ? W STEP3( m, n+Q ) : W(m, n)           [type = ELT]
-           -> (n <  Q          ) ? W STEP4( m, n )   : W STEP3( m, n-Q ) [type = ELT]
+    RW   W <- (n < (descA.nt-Q)) ? W STEP3( m, n+Q ) : W RWELT( m, n%Q ) [type = ELT]
+           -> (n < Q           ) ? W STEP4( m, n   ) : W STEP3( m, n-Q ) [type = ELT]
 
 BODY
 
@@ -214,12 +239,12 @@ STEP4(m,n)
     n = 0..Q-1
 
     // Parallel partitioning
-    :W(m, n)
+    :Welt(m, n)
 
     // Parameters
-    READ A <- ( n == 0 ) ? W(m, n) : W STEP4(m, n-1)                    [type = ELT]
-    RW   W <- ( n > (descA.nt-1)) ? W READ_W(m, n)  : W STEP3(m, n)     [type = ELT]
-           -> ( n < (Q-1)) ? A STEP4(m, n+1) : W WRITE_RES(m, 0..Q-1)   [type = ELT]
+    READ A <- ( n == 0 ) ? Welt(m, n) : W STEP4(m, n-1)                       [type = ELT]
+    RW   W <- ( n >  (descA.nt-1)) ? W RWELT( m, n)         : W STEP3(m, n  ) [type = ELT]
+           -> ( n == (Q-1)       ) ? W WRITE_RES(m, 0..Q-1) : A STEP4(m, n+1) [type = ELT]
 
 BODY
 
@@ -245,7 +270,7 @@ WRITE_RES(m,n)
     n = 0..Q-1
 
     // Parallel partitioning
-    :W(m, n)
+    :Welt(m, n)
 
     // Parameters
         READ W <- W STEP4( m, Q-1 )   [type = ELT]
