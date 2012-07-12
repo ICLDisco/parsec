@@ -8,6 +8,8 @@ add_test(print  ./testing_dprint -N 40 -t 7 -x -v=5)
 # check the norms that are used in all other testings
 add_test(dlange ./testing_dlange -N 1500 -t 233 -x -v=5)
 
+# Need to add here check on lacpy (Tile => Lapack) and geadd
+
 # BLAS Shared memory
 add_test(dtrmm  ./testing_dtrmm -N 1500 -x -v=5)
 add_test(dtrsm  ./testing_dtrsm -N 1500 -x -v=5)
