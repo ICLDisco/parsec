@@ -216,15 +216,16 @@ static int check_solution( dague_context_t *dague, int loud,
 
     Rnorm = dplasma_zlange( dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)ddescCfinal);
 
+    result = Rnorm / (Clapacknorm * max(M,N) * eps);
+
     if ( rank == 0 ) {
         if ( loud > 2 ) {
             printf("  ||A||_inf = %e, ||C||_inf = %e\n"
-                   "  ||lapack(a*A*C)||_inf = %e, ||dplasma(a*A*C)||_inf = %e, ||R||_m = %e\n",
-                   Anorm, Cinitnorm, Clapacknorm, Cdplasmanorm, Rnorm);
+                   "  ||lapack(a*A*C)||_inf = %e, ||dplasma(a*A*C)||_inf = %e, ||R||_m = %e, res = %e\n",
+                   Anorm, Cinitnorm, Clapacknorm, Cdplasmanorm, Rnorm, result);
         }
     }
 
-    result = Rnorm / ((Anorm + Cinitnorm) * max(M,N) * eps);
     if (  isinf(Clapacknorm) || isinf(Cdplasmanorm) ||
           isnan(result) || isinf(result) || (result > 10.0) ) {
         info_solution = 1;
