@@ -135,8 +135,7 @@ void debug_mark_exe(int th, int vp, const struct dague_execution_context_t *ctx)
                         (j == ctx->function->nb_parameters-1) ? ")\n" : ", ");
     }
 
-    dague_debug_history_add("Mark: execution on thread %d of VP %d\n"
-                            "\t      %s",
+    dague_debug_history_add("Mark: execution on thread %d of VP %d:\t%s",
                             th, vp, msg);
 }
 
@@ -244,7 +243,7 @@ void debug_mark_dta_msg_end_recv(int tag)
 
 void debug_mark_display_history(void)
 {
-    int current_mark, i;
+    int current_mark, ii;
     char *gm;
     mark_buffer_t *cmark, *nmark;
 
@@ -262,23 +261,24 @@ void debug_mark_display_history(void)
     dague_atomic_cas( &marks, cmark, nmark );
 
     current_mark = cmark->nextmark > MAX_MARKS ? MAX_MARKS : cmark->nextmark;
-    for(i = ( (int)cmark->nextmark % MAX_MARKS); i != ( (int)cmark->nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
+    for(ii = 0; ii < MAX_MARKS; ii++) {
+        int i = ((int)cmark->nextmark + ii) % MAX_MARKS;
         do {
             gm = cmark->marks[i];
         } while( !dague_atomic_cas( &cmark->marks[i], gm, NULL ) );
         if( gm != NULL ) {
-            STATUS(("%s\n", gm));
+            _DAGUE_OUTPUT("..", ("%s", gm));
             free(gm);
         } else {
-            VERBOSE(("A mark here was already displayed, or has not been pushed yet\n"));
+            if(dague_verbose) _DAGUE_OUTPUT("^.", ("A mark here was already displayed, or has not been pushed yet\n"));
         }
     }
-    VERBOSE(("DISPLAYED last %d of %u events pushed since last display\n", current_mark, cmark->nextmark));
+    if(dague_verbose) _DAGUE_OUTPUT("^.", ("DISPLAYED last %d of %u events pushed since last display\n", current_mark, cmark->nextmark));
 }
 
-void debug_mark_purge(void)
+void debug_mark_purge_history(void)
 {
-    int current_mark, i;
+    int ii;
     char *gm;
     mark_buffer_t *cmark, *nmark;
 
@@ -295,8 +295,8 @@ void debug_mark_purge(void)
      */
     dague_atomic_cas( &marks, cmark, nmark );
 
-    current_mark = cmark->nextmark > MAX_MARKS ? MAX_MARKS : cmark->nextmark;
-    for(i = ( (int)cmark->nextmark % MAX_MARKS); i != ( (int)cmark->nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
+    for(ii = 0; ii < MAX_MARKS; ii++) {
+        int i = ((int)cmark->nextmark + ii) % MAX_MARKS;
         do {
             gm = cmark->marks[i];
         } while( !dague_atomic_cas( &cmark->marks[i], gm, NULL ) );
@@ -304,6 +304,11 @@ void debug_mark_purge(void)
             free(gm);
         } 
     }
+}
+
+void debug_mark_purge_all_history(void) {
+    debug_mark_purge_history();
+    debug_mark_purge_history();
 }
 
 #endif
