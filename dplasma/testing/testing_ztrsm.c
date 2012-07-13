@@ -76,11 +76,6 @@ int main(int argc, char ** argv)
     }
     else
     {
-        if ( iparam[IPARAM_NNODES] > 1 ) {
-            fprintf(stderr, "Checking doesn't work in distributed\n");
-            return EXIT_FAILURE;
-        }
-
         int s, u, t, d;
         int info_solution;
         Dague_Complex64_t alpha = 3.5;
@@ -202,12 +197,14 @@ static int check_solution( dague_context_t *dague, int loud,
     Cinitnorm    = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
     Cdplasmanorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)ddescCfinal );
 
-    cblas_ztrsm(CblasColMajor,
-                (CBLAS_SIDE)side, (CBLAS_UPLO)uplo,
-                (CBLAS_TRANSPOSE)trans, (CBLAS_DIAG)diag,
-                M, N,
-                CBLAS_SADDR(alpha), ddescA.mat, LDA,
-                                    ddescC.mat, LDC );
+    if ( rank == 0 ) {
+        cblas_ztrsm(CblasColMajor,
+                    (CBLAS_SIDE)side, (CBLAS_UPLO)uplo,
+                    (CBLAS_TRANSPOSE)trans, (CBLAS_DIAG)diag,
+                    M, N,
+                    CBLAS_SADDR(alpha), ddescA.mat, LDA,
+                                        ddescC.mat, LDC );
+    }
 
     Clapacknorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
 
