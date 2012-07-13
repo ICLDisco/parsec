@@ -245,11 +245,6 @@ void debug_mark_display_history(void)
     int current_mark, i, rank;
     char *gm;
     mark_buffer_t *cmark, *nmark;
-#if defined(HAVE_MPI)
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    rank = 0;
-#endif
 
     /* Atomically swap the current marks buffer, to avoid the case when we read
      * something that is changing
@@ -270,13 +265,43 @@ void debug_mark_display_history(void)
             gm = cmark->marks[i];
         } while( !dague_atomic_cas( &cmark->marks[i], gm, NULL ) );
         if( gm != NULL ) {
-            fprintf(stderr, "[%d]: %s", rank, gm);
+            STATUS(("%s\n", gm));
             free(gm);
         } else {
-            fprintf(stderr, "[%d]: -- A mark here was already displayed, or has not been pushed yet\n", rank);
+            VERBOSE(("A mark here was already displayed, or has not been pushed yet\n"));
         }
     }
-    fprintf(stderr, "DISPLAYED last %d of %u events pushed since last display\n", current_mark, cmark->nextmark);
+    VERBOSE(("DISPLAYED last %d of %u events pushed since last display\n", current_mark, cmark->nextmark));
+}
+
+void debug_mark_purge(void)
+{
+    int current_mark, i, rank;
+    char *gm;
+    mark_buffer_t *cmark, *nmark;
+
+    /* Atomically swap the current marks buffer, to avoid the case when we read
+     * something that is changing
+     */
+    cmark = marks;
+    nmark = (marks == &marks_A ? &marks_B : &marks_A );
+    nmark->nextmark = 0;
+    /* This CAS can only fail if debug_mark_display_history is called
+     * in parallel by two threads. The atomic swap is not wanted for that,
+     * it is wanted to avoid reading from the buffer that is being used to
+     * push new marks.
+     */
+    dague_atomic_cas( &marks, cmark, nmark );
+
+    current_mark = cmark->nextmark > MAX_MARKS ? MAX_MARKS : cmark->nextmark;
+    for(i = ( (int)cmark->nextmark % MAX_MARKS); i != ( (int)cmark->nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
+        do {
+            gm = cmark->marks[i];
+        } while( !dague_atomic_cas( &cmark->marks[i], gm, NULL ) );
+        if( gm != NULL ) {
+            free(gm);
+        } 
+    }
 }
 
 #endif
