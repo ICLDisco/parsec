@@ -17,6 +17,8 @@ add_test(dgemm  ./testing_dgemm -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
 
 # LAPACK shared memory
 add_test(dpotrf    ./testing_dpotrf -N 4000 -x -v=5)
+add_test(dpotrf_g1 ./testing_dpotrf -N 8000 -x -v=5 -g 1)
+add_test(dpotrf_g2 ./testing_dpotrf -N 8000 -x -v=5 -g 2)
 add_test(dposv     ./testing_dposv  -N 4000 -x -v=5)
 add_test(dpotrf_tq ./testing_dpotrf -N 4000 -x -v=5 -o LTQ)
 add_test(dpotrf_pq ./testing_dpotrf -N 4000 -x -v=5 -o PBQ)
@@ -53,6 +55,7 @@ if( MPI_FOUND )
   add_test(mpi_dgemm         ${MPI_TEST_CMD} ./testing_dgemm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
 
   add_test(mpi_dpotrf        ${MPI_TEST_CMD} ./testing_dpotrf        -p 2 -N 4000 -x -v=5)
+  add_test(mpi_dpotrf_g1     ${MPI_TEST_CMD} ./testing_dpotrf        -p 2 -N 8000 -x -v=5 -g 1)
   add_test(mpi_dposv         ${MPI_TEST_CMD} ./testing_dposv         -p 4 -N 4000 -x -v=5)
   add_test(mpi_dpotrf_tq     ${MPI_TEST_CMD} ./testing_dpotrf        -p 2 -N 4000 -x -v=5 -o LTQ)
   add_test(mpi_dpotrf_pq     ${MPI_TEST_CMD} ./testing_dpotrf        -p 2 -N 4000 -x -v=5 -o PBQ)
