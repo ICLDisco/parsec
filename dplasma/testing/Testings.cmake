@@ -57,7 +57,7 @@ if( MPI_FOUND )
   add_test(mpi_dpotrf_tq     ${MPI_TEST_CMD} ./testing_dpotrf        -p 2 -N 4000 -x -v=5 -o LTQ)
   add_test(mpi_dpotrf_pq     ${MPI_TEST_CMD} ./testing_dpotrf        -p 2 -N 4000 -x -v=5 -o PBQ)
 
-  add_test(mpi_dgetrf        ${MPI_TEST_CMD} ./testing_dgetrf        -p 4 -N 4000 -x -v=5)
+  add_test(mpi_dgetrf        ${MPI_TEST_CMD} ./testing_dgetrf        -p 1 -N 4000 -x -v=5)
   add_test(mpi_dgetrf_incpiv ${MPI_TEST_CMD} ./testing_dgetrf_incpiv -p 4 -N 4000 -x -v=5)
   add_test(mpi_dgesv_incpiv  ${MPI_TEST_CMD} ./testing_dgesv_incpiv  -p 4 -N 4000 -x -v=5)
 
