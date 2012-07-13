@@ -9,7 +9,6 @@
 #include "scheduling.h"
 #include "execution_unit.h"
 #include <stdio.h>
-#include <string.h>
 
 #ifdef DISTRIBUTED
 /* Clear the already forwarded remote dependency matrix */
@@ -59,33 +58,13 @@ static inline void remote_dep_dec_flying_messages(dague_object_t *dague_object, 
     __dague_complete_task(dague_object, ctx);
 }
 
-/* Mark that one of the remote deps is finished, and return the remote dep to
+/* Mark that ncompleted of the remote deps are finished, and return the remote dep to
  * the free items queue if it is now done */
-static void remote_dep_complete_one_and_cleanup(dague_remote_deps_t* deps) {
-    deps->output_sent_count++;
-    if(deps->output_count == deps->output_sent_count) {
-        unsigned int count = 0;
-        int k = 0;
-        while( count < deps->output_count ) {
-            for(uint32_t a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
-                deps->output[k].rank_bits[a] = 0;
-            count += deps->output[k].count;
-            deps->output[k].count = 0;
-#if defined(DAGUE_DEBUG)
-            deps->output[k].data = NULL;
-            deps->output[k].type = NULL;
-            deps->output[k].nbelt = -1;
-#endif
-            k++;
-            assert(k < MAX_PARAM_COUNT);
-        }
-        assert(count == deps->output_count);
-        deps->output_count = 0;
-        deps->output_sent_count = 0;
-#if defined(DAGUE_DEBUG)
-        memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
-#endif
-        dague_lifo_push(deps->origin, (dague_list_item_t*)deps);
+static void remote_dep_complete_and_cleanup(dague_remote_deps_t* deps, int ncompleted) {
+    deps->output_sent_count += ncompleted;
+    assert( deps->output_sent_count <= deps->output_count );
+    if( deps->output_count == deps->output_sent_count ) {
+        remote_deps_free(deps);
     }
 }
 
@@ -201,9 +180,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 {
     const dague_function_t* function = exec_context->function;
     int i, me, him, current_mask;
-    int tofree, receiver;
+    int skipped_count = 0;
     unsigned int array_index, count, bit_index;
-    (void)receiver;
 
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
     assert(remote_deps_count);
@@ -228,9 +206,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 
     if(remote_deps->root == eu_context->virtual_process->dague_context->my_rank) me = 0;
     else me = -1;
-
-    tofree = 1;
-    receiver = (me == -1);
 
     for( i = 0; remote_deps_count; i++) {
         if( 0 == remote_deps->output[i].count ) continue;
@@ -258,7 +233,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     {
                         /* the next bit points after me, so I know my dense rank now */
                         me = ++him;
-                        if(rank == eu_context->virtual_process->dague_context->my_rank) continue;
+                        if(rank == eu_context->virtual_process->dague_context->my_rank) {
+                            skipped_count++;
+                            continue;
+                        }
                     }
                     him++;
 
@@ -276,8 +254,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         remote_dep_inc_flying_messages(exec_context->dague_object, eu_context->virtual_process->dague_context);
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
-                        tofree = 0;
                     } else {
+                        skipped_count++;
                         DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) ][ %d (d%d)\n",
                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), remote_deps->root,
                                eu_context->virtual_process->dague_context->my_rank, me, rank, him));
@@ -287,16 +265,16 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
         }
     }
 
-    /* Only the thread doing reception can enter the following lines
-     * Any other threads would create a race condition
-     * This has to be done only if the receiver is a leaf in a broadcast, or if
-     * it is a point-to-point communication. The remote_deps has then been
-     * allocated in dague_release_dep_fct when we don't know yet if we will
-     * have to forward the information or not.
+    /* Only the thread doing bcast forward can enter the following line.
+     * the same communication thread calls here and does the 
+     * sends that call complete_and_cleanup concurently. 
+     * Any other threads would create a race condition.
+     * This has to be done only if the receiver is a leaf in a broadcast. 
+     * The remote_deps has then been allocated in dague_release_dep_fct 
+     * when we didn't knew yet if we forward the data or not.
      */
-    if (tofree) {
-        assert(receiver);
-        remote_dep_complete_one_and_cleanup( remote_deps );
+    if( skipped_count ) {
+        remote_dep_complete_and_cleanup(remote_deps, skipped_count);
     }
 
     return 0;
