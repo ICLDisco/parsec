@@ -107,7 +107,7 @@ int main(int argc, char ** argv)
         if( loud > 2 ) printf("Info = %d\n", info);
 
         /* Check the solution */
-        info_solution = check_solution( dague, rank?0:loud, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
+        info_solution = check_solution( dague, rank?0:loud, (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
 
         if ( rank == 0 ) {
             if (info_solution == 0) {
@@ -146,7 +146,7 @@ int main(int argc, char ** argv)
         if( loud > 2 ) printf("Info = %d\n", info);
 
         /* Check the solution */
-        info_solution = check_solution( dague, rank?0:loud, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
+        info_solution = check_solution( dague, rank?0:loud, (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
 
         if ( rank == 0 ) {
             if (info_solution == 0) {
@@ -187,7 +187,7 @@ int main(int argc, char ** argv)
         if( loud > 2 ) printf("Info = %d\n", info);
 
         /* Check the solution */
-        info_solution = check_solution( dague, rank?0:loud, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
+        info_solution = check_solution( dague, rank?0:loud, (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
 
         if ( rank == 0 ) {
             if (info_solution == 0) {
