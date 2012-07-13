@@ -445,7 +445,7 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
     int ls, lp;
     int temp;
    if ( start == pivot )
-             start = arg->desc->mt;//
+             start = arg->desc->mt;// This patch is because I though that if nextpiv(pivot,k,start) = arg->desc->mt, then prevpiv(pivot,k,arg->desc->mt) should be equal to start, whereas it is prevpiv(pivot,k,pivot) that should be equal to start.
     myassert( start >= pivot && pivot >= k && start <= arg->desc->mt );
     myassert( start == arg->desc->mt || start == pivot || pivot == dplasma_qr_currpiv( arg, start, k ) );
 
