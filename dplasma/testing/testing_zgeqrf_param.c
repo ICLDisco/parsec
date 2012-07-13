@@ -74,10 +74,20 @@ int main(int argc, char ** argv)
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
     if(loud > 2) printf("Done\n");
 
+    /* Fixed for systolic */
+    iparam[IPARAM_LOWLVL_TREE]  = 0; 
+    iparam[IPARAM_HIGHLVL_TREE] = 0;
+    iparam[IPARAM_QR_TS_SZE]    = 1; 
+    iparam[IPARAM_QR_DOMINO]    = 0; 
+    iparam[IPARAM_QR_TSRR]      = 0; 
+
     qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t *)&ddescA,
-                                 iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
-                                 iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
-                                 iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR] );
+                                 iparam[IPARAM_LOWLVL_TREE],
+                                 iparam[IPARAM_HIGHLVL_TREE],
+                                 iparam[IPARAM_QR_TS_SZE],
+                                 iparam[IPARAM_QR_HLVL_SZE],
+                                 iparam[IPARAM_QR_DOMINO],
+                                 iparam[IPARAM_QR_TSRR]      );
 
     /* Create DAGuE */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param,
