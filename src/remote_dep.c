@@ -233,7 +233,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     {
                         /* the next bit points after me, so I know my dense rank now */
                         me = ++him;
-                        if(rank == eu_context->virtual_process->dague_context->my_rank) continue;
+                        if(rank == eu_context->virtual_process->dague_context->my_rank) {
+                            skipped_count++;
+                            continue;
+                        }
                     }
                     him++;
 
