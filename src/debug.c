@@ -14,6 +14,8 @@
 #endif  /* defined(HAVE_ERRNO_H) */
 #include <stdio.h>
 
+int dague_verbose = 0;
+
 #if !defined(HAVE_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, ...)
 {
@@ -242,7 +244,7 @@ void debug_mark_dta_msg_end_recv(int tag)
 
 void debug_mark_display_history(void)
 {
-    int current_mark, i, rank;
+    int current_mark, i;
     char *gm;
     mark_buffer_t *cmark, *nmark;
 
@@ -276,7 +278,7 @@ void debug_mark_display_history(void)
 
 void debug_mark_purge(void)
 {
-    int current_mark, i, rank;
+    int i;
     char *gm;
     mark_buffer_t *cmark, *nmark;
 
@@ -293,7 +295,6 @@ void debug_mark_purge(void)
      */
     dague_atomic_cas( &marks, cmark, nmark );
 
-    current_mark = cmark->nextmark > MAX_MARKS ? MAX_MARKS : cmark->nextmark;
     for(i = ( (int)cmark->nextmark % MAX_MARKS); i != ( (int)cmark->nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
         do {
             gm = cmark->marks[i];
