@@ -72,7 +72,7 @@ int main(int argc, char ** argv)
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, ztrmm);
 
-        dplasma_ztrsm_Destruct( DAGUE_ztrmm );
+        dplasma_ztrmm_Destruct( DAGUE_ztrmm );
     }
     else
     {
