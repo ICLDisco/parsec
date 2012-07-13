@@ -78,7 +78,7 @@ int main(int argc, char ** argv)
     iparam[IPARAM_LOWLVL_TREE]  = 0; 
     iparam[IPARAM_HIGHLVL_TREE] = 0;
     iparam[IPARAM_QR_TS_SZE]    = 1; 
-    iparam[IPARAM_QR_HLVL_SZE]  = P;
+    /*iparam[IPARAM_QR_HLVL_SZE]  = P;*/
     iparam[IPARAM_QR_DOMINO]    = 0; 
     iparam[IPARAM_QR_TSRR]      = 0; 
 
