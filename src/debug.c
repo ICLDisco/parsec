@@ -14,6 +14,8 @@
 #endif  /* defined(HAVE_ERRNO_H) */
 #include <stdio.h>
 
+int dague_verbose = 0;
+
 #if !defined(HAVE_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, ...)
 {
@@ -242,7 +244,7 @@ void debug_mark_dta_msg_end_recv(int tag)
 
 void debug_mark_display_history(void)
 {
-    int current_mark, i, rank;
+    int current_mark, i;
     char *gm;
     mark_buffer_t *cmark, *nmark;
 
@@ -276,7 +278,7 @@ void debug_mark_display_history(void)
 
 void debug_mark_purge(void)
 {
-    int current_mark, i, rank;
+    int current_mark, i;
     char *gm;
     mark_buffer_t *cmark, *nmark;
 
