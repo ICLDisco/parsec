@@ -14,6 +14,8 @@
 #endif  /* defined(HAVE_ERRNO_H) */
 #include <stdio.h>
 
+int dague_verbose = 0;
+
 #if !defined(HAVE_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, ...)
 {
@@ -133,8 +135,7 @@ void debug_mark_exe(int th, int vp, const struct dague_execution_context_t *ctx)
                         (j == ctx->function->nb_parameters-1) ? ")\n" : ", ");
     }
 
-    dague_debug_history_add("Mark: execution on thread %d of VP %d\n"
-                            "\t      %s",
+    dague_debug_history_add("Mark: execution on thread %d of VP %d:\t%s",
                             th, vp, msg);
 }
 
@@ -242,14 +243,9 @@ void debug_mark_dta_msg_end_recv(int tag)
 
 void debug_mark_display_history(void)
 {
-    int current_mark, i, rank;
+    int current_mark, ii;
     char *gm;
     mark_buffer_t *cmark, *nmark;
-#if defined(HAVE_MPI)
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    rank = 0;
-#endif
 
     /* Atomically swap the current marks buffer, to avoid the case when we read
      * something that is changing
@@ -265,18 +261,54 @@ void debug_mark_display_history(void)
     dague_atomic_cas( &marks, cmark, nmark );
 
     current_mark = cmark->nextmark > MAX_MARKS ? MAX_MARKS : cmark->nextmark;
-    for(i = ( (int)cmark->nextmark % MAX_MARKS); i != ( (int)cmark->nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
+    for(ii = 0; ii < MAX_MARKS; ii++) {
+        int i = ((int)cmark->nextmark + ii) % MAX_MARKS;
         do {
             gm = cmark->marks[i];
         } while( !dague_atomic_cas( &cmark->marks[i], gm, NULL ) );
         if( gm != NULL ) {
-            fprintf(stderr, "[%d]: %s", rank, gm);
+            _DAGUE_OUTPUT("..", ("%s", gm));
             free(gm);
         } else {
-            fprintf(stderr, "[%d]: -- A mark here was already displayed, or has not been pushed yet\n", rank);
+            if(dague_verbose) _DAGUE_OUTPUT("^.", ("A mark here was already displayed, or has not been pushed yet\n"));
         }
     }
-    fprintf(stderr, "DISPLAYED last %d of %u events pushed since last display\n", current_mark, cmark->nextmark);
+    if(dague_verbose) _DAGUE_OUTPUT("^.", ("DISPLAYED last %d of %u events pushed since last display\n", current_mark, cmark->nextmark));
+}
+
+void debug_mark_purge_history(void)
+{
+    int ii;
+    char *gm;
+    mark_buffer_t *cmark, *nmark;
+
+    /* Atomically swap the current marks buffer, to avoid the case when we read
+     * something that is changing
+     */
+    cmark = marks;
+    nmark = (marks == &marks_A ? &marks_B : &marks_A );
+    nmark->nextmark = 0;
+    /* This CAS can only fail if debug_mark_display_history is called
+     * in parallel by two threads. The atomic swap is not wanted for that,
+     * it is wanted to avoid reading from the buffer that is being used to
+     * push new marks.
+     */
+    dague_atomic_cas( &marks, cmark, nmark );
+
+    for(ii = 0; ii < MAX_MARKS; ii++) {
+        int i = ((int)cmark->nextmark + ii) % MAX_MARKS;
+        do {
+            gm = cmark->marks[i];
+        } while( !dague_atomic_cas( &cmark->marks[i], gm, NULL ) );
+        if( gm != NULL ) {
+            free(gm);
+        } 
+    }
+}
+
+void debug_mark_purge_all_history(void) {
+    debug_mark_purge_history();
+    debug_mark_purge_history();
 }
 
 #endif

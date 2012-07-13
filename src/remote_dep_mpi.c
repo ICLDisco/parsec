@@ -791,7 +791,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         if(NULL == deps->output[k].type) {
             DEBUG2((" CTL\t%s\tparam %d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             msg->which ^= (1<<k);
-            remote_dep_complete_one_and_cleanup(deps);
+            remote_dep_complete_and_cleanup(deps, 1);
             continue;
         }
 
@@ -802,7 +802,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
             DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             msg->which ^= (1<<k);
             MPI_Pack(ADATA(deps->output[k].data), deps->output[k].nbelt, deps->output[k].type->opaque_dtt, packed_buffer, DEP_EAGER_BUFFER_SIZE, &packed, dep_comm);
-            remote_dep_complete_one_and_cleanup(deps);
+            remote_dep_complete_and_cleanup(deps, 1);
         }
     }
 
@@ -1040,7 +1040,7 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, in
     if( 0 == task->which ) {
         remote_dep_dec_flying_messages(deps->dague_object, eu_context->virtual_process->dague_context);
     }
-    remote_dep_complete_one_and_cleanup(deps);
+    remote_dep_complete_and_cleanup(deps, 1);
     if( 0 == task->which ) {
         free(item);
         dep_pending_put_array[i] = NULL;

@@ -3,27 +3,22 @@ extern "C" %{
 %}
 
 NT
+WS
 
 PING(k)
 
-k = 0 .. NT
-: A(k)
-
-RW T <- inline_c %{ return k==0 || (NT == -1); %} ? A(k) : I PONG(k-1)
-     -> (k==NT) ? A(k) : I PONG(k)
-
-BODY
-	/* no body */
-END
-
-PONG(k)
-
 k = 0 .. NT-1
-: A(k+1) 
+: A(k % WS)
 
-RW I <- T PING(k)
-     -> T PING(k+1)
+RW T <- (k ==0) ? A(k % WS) : T PING(k-1)
+     -> (k< NT) ? T PING(k+1)
+     -> A(k % WS)
+
+; 0
 
 BODY
-	/* no body */
+	/* 
+	int r; MPI_Comm_rank(MPI_COMM_WORLD, &r);
+	printf("%d: PING(%d)\n", r, k);
+ 	*/
 END
