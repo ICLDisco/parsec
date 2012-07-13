@@ -139,7 +139,7 @@ int dplasma_qr_getnbgeqrf( const qr_piv_t *arg, const int k, const int gmt ) {
 
     myassert( p == (sq_p * sq_p) );
 
-    return min( p, gmt - k);
+    return min( p, gmt - k); //is it (gmt - k +1)? Pretty sure not.
 }
 
 /*
@@ -328,7 +328,7 @@ static int dplasma_high_flat_flat_prevpiv(const qr_subpiv_t *arg, const int pivo
 {
     assert(arg->ldd >1);
     if ( (pivot-k)%(arg->p) != 0)
-        return -5;
+        return -5; //this is used to exit the hlvl prevpiv, to go to llvl prevpiv
 
 
     if ( pivot == k ){
@@ -444,7 +444,8 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 {
     int ls, lp;
     int temp;
-
+   if ( start == pivot )
+             start = arg->desc->mt;//
     myassert( start >= pivot && pivot >= k && start <= arg->desc->mt );
     myassert( start == arg->desc->mt || start == pivot || pivot == dplasma_qr_currpiv( arg, start, k ) );
 
