@@ -273,12 +273,14 @@ static int check_solution( dague_context_t *dague, int loud,
     Cinitnorm    = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
     Cdplasmanorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)ddescCfinal );
 
-    cblas_zgemm(CblasColMajor,
-                (CBLAS_TRANSPOSE)transA, (CBLAS_TRANSPOSE)transB,
-                M, N, K,
-                CBLAS_SADDR(alpha), ddescA.mat, LDA,
-                                    ddescB.mat, LDB,
-                CBLAS_SADDR(beta),  ddescC.mat, LDC );
+    if ( rank == 0 ) {
+        cblas_zgemm(CblasColMajor,
+                    (CBLAS_TRANSPOSE)transA, (CBLAS_TRANSPOSE)transB,
+                    M, N, K,
+                    CBLAS_SADDR(alpha), ddescA.mat, LDA,
+                                        ddescB.mat, LDB,
+                    CBLAS_SADDR(beta),  ddescC.mat, LDC );
+    }
 
     Clapacknorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
 

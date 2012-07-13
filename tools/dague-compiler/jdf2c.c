@@ -3370,6 +3370,20 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                            dump_expr, (void**)&linfo,
                                            "", "", ", ", ""));
 
+    // PETER locality insertion
+    string_arena_add_string(sa_open,
+                            "%s%s  %s.flowname = \"%s\";\n",
+                            prefix, indent(nbopen), var, flow->varname);
+
+    if( NULL != targetf->priority ) {
+        string_arena_add_string(sa_open,
+                                "%s%s  %s.priority = __dague_object->super.super.object_priority + priority_of_%s_%s_as_expr_fct(this_task->dague_object, nc.locals);\n",
+                                prefix, indent(nbopen), var, jdf_basename, targetf->fname);
+    } else {
+        string_arena_add_string(sa_open, "%s%s  %s.priority = __dague_object->super.super.object_priority;\n",
+                                prefix, indent(nbopen), var);
+    }
+    
     string_arena_add_string(sa_open,
                             "#if defined(DAGUE_DEBUG_VERBOSE1)\n"
                             "%s%sif( NULL != eu ) {\n"
@@ -3391,20 +3405,6 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     linfo.assignments = NULL;
     free(p);
     linfo.prefix = NULL;
-
-    // PETER locality insertion
-    string_arena_add_string(sa_open,
-                            "%s%s  %s.flowname = \"%s\";\n",
-                            prefix, indent(nbopen), var, flow->varname);
-
-    if( NULL != targetf->priority ) {
-        string_arena_add_string(sa_open,
-                                "%s%s  %s.priority = __dague_object->super.super.object_priority + priority_of_%s_%s_as_expr_fct(this_task->dague_object, nc.locals);\n",
-                                prefix, indent(nbopen), var, jdf_basename, targetf->fname);
-    } else {
-        string_arena_add_string(sa_open, "%s%s  %s.priority = __dague_object->super.super.object_priority;\n",
-                                prefix, indent(nbopen), var);
-    }
 
     string_arena_add_string(sa_open,
                             "%s%s  if( DAGUE_ITERATE_STOP == %s )\n"
