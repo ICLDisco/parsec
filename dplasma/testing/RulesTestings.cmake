@@ -13,7 +13,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
   # Set flags for compilation
   if( MPI_FOUND )
     set(testings_addexec_CFLAGS  "${MPI_COMPILE_FLAGS} ${testings_addexec_CFLAGS} -DUSE_MPI")
-    set(testings_addexec_LDFLAGS "${MPI_LINK_FLAGS} ${testings_addexec_LDFLAGS} ${CMAKE_EXE_EXPORTS_C_FLAG}")
+    set(testings_addexec_LDFLAGS "${MPI_LINK_FLAGS} ${testings_addexec_LDFLAGS}")
     set(testings_addexec_LIBS
       common-mpi dplasma-mpi dplasma_cores dague-mpi dague_distribution_matrix-mpi
       ${testings_addexec_LIBS} ${MPI_LIBRARIES}
@@ -36,7 +36,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
     set_target_properties(${testings_addexec_EXEC} PROPERTIES
                             LINKER_LANGUAGE Fortran
                             COMPILE_FLAGS "${testings_addexec_CFLAGS}"
-                            LINK_FLAGS "${testings_addexec_LDFLAGS}")
+                            LINK_FLAGS "${testings_addexec_LDFLAGS} ${CMAKE_EXE_EXPORTS_C_FLAG}")
     target_link_libraries(${testings_addexec_EXEC} ${testings_addexec_LIBS} ${PLASMA_LDFLAGS} ${PLASMA_LIBRARIES})
     install(TARGETS ${testings_addexec_EXEC} RUNTIME DESTINATION bin)
     list(APPEND ${OUTPUTLIST} ${testings_addexec_EXEC})
