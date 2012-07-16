@@ -433,7 +433,7 @@ ztsmqr_corner_out_A0(k,m1) [profile = off]
        -> A(k+1,k+1)
 BODY
 /* nothing */
- printlog("thread  %d VP %d ztsmqr_corner_out_A0(%d, %d) A(%d, %d)[%p]\n",
+ printlog("ztsmqr_corner_out_A0(%d, %d) A(%d, %d)[%p]\n",
           k, m1, k+1, k+1, U);
 END
 
