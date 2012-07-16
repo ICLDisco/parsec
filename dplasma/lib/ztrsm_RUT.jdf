@@ -63,9 +63,9 @@ BODY
                  B /* B(m,(descB.nt-1)-k) */, ldb );
          );
 
-  printlog("thread %d VP %d CORE_ztrsm(%d, %d)\n"
+  printlog("CORE_ztrsm(%d, %d)\n"
            "\t(side, uplo, trans, diag, tempmm, tempkn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-              context->th_id, context->virtual_process->vp_id, k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
+              k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
 
 END
 
@@ -126,9 +126,9 @@ BODY
                1.0,       E /* B(m,             (descB.nt-1)-n) */, ldb );
          );
 
-  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("CORE_zgemm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, trans, tempmm, descB.nb, tempkn, minvalpha, B(%d,%d)[%p], ldb, A(%d,%d)[%p], descA.mb, zone, B(%d,%d)[%p], ldb)\n",
-  context->th_id, context->virtual_process->vp_id, k, m, n, m, (descB.nt-1)-k, C, (descB.nt-1)-n, (descB.nt-1)-k, D, m, (descB.nt-1)-n, E);
+  k, m, n, m, (descB.nt-1)-k, C, (descB.nt-1)-n, (descB.nt-1)-k, D, m, (descB.nt-1)-n, E);
 
 END
 

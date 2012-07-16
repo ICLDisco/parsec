@@ -149,9 +149,9 @@ BODY
         }
         );
 
-    printlog("thread %d VP %d hemm( %d, %d, %d )\n",
+    printlog("hemm( %d, %d, %d )\n",
              /* "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n", */
-             context->th_id, context->virtual_process->vp_id, m, n, k);
+             m, n, k);
              /* plasma_const(uplo), tempmm, tempnn,  */
              /* m, n, ldam, m, n, ldbm); */
 END

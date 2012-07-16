@@ -57,8 +57,8 @@ k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
          -> (descA.nt>=(k+2)) ? D zgessm(k, (k+1)..(descA.nt-1))   [type = LOWER_TILE]
 BODY
         /* Nothing */
-        printlog("thread %d VP %d zgetrf_out( %d )\n",
-                 context->th_id, context->virtual_process->vp_id, k);
+        printlog("zgetrf_out( %d )\n",
+                 k);
 END
 
 zgetrf(k)
@@ -109,9 +109,9 @@ BODY
          }
          );
 
-   printlog("thread %d VP %d   CORE_zgetrf(%d)\n"
+   printlog("  CORE_zgetrf(%d)\n"
             "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, IPIV(%d,%d)[%p]) => info = %d\n",
-            context->th_id, context->virtual_process->vp_id, k, k, k, A, k, k, B, k * descA.mb + iinfo);
+            k, k, k, A, k, k, B, k * descA.mb + iinfo);
 
 END
 
@@ -156,10 +156,10 @@ BODY
                      D /* A(k,k) */, ldak, 
                      E /* A(k,n) */, ldak );
          );
-   printlog("thread %d VP %d   CORE_zgessm(%d, %d)\n"
+   printlog("  CORE_zgessm(%d, %d)\n"
             "\t(tempkm, tempnn, tempkm, ib, IPIV(%d,%d)[%p], \n"
             "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
-            context->th_id, context->virtual_process->vp_id, k, n, k, k, getIPIV(C), k, k, D, k, n, E);
+            k, n, k, k, getIPIV(C), k, k, D, k, n, E);
 
 END
 
@@ -176,8 +176,8 @@ k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
 
 BODY
         /* Nothing */
-        printlog("thread %d VP %d ztstrf_out( %d )\n", 
-                 context->th_id, context->virtual_process->vp_id, k);
+        printlog("ztstrf_out( %d )\n", 
+                 k);
 END
 
 ztstrf(k,m)
@@ -236,11 +236,11 @@ BODY
          }
          );
 
-  printlog("thread %d VP %d   CORE_ztstrf(%d, %d)\n"
+  printlog("  CORE_ztstrf(%d, %d)\n"
            "\t(tempmm, tempkn, ib, descL.nb, \n"
            "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, \n"
            "\tL(%d,%d)[%p], descL.mb, IPIV(%d,%d)[%p], descL.nb)\n",
-           context->th_id, context->virtual_process->vp_id, k, m, k, k, F, m, k, G, 
+           k, m, k, k, F, m, k, G, 
            m, k, getL(H), m, k, getIPIV(H));
 
 END
@@ -259,8 +259,8 @@ n1 = k+1..descA.nt-1
 
 BODY
         /* Nothing */
-        printlog("thread %d VP %d zssssm_out( %d, %d )\n", 
-                 context->th_id, context->virtual_process->vp_id, k, n1);
+        printlog("zssssm_out( %d, %d )\n", 
+                 k, n1);
 END
 
 zssssm(k,m,n1)
@@ -311,10 +311,10 @@ BODY
                      M          /* A(m,k) */,  ldam, 
                      getIPIV(L) /* IPIV(m,k) */ );
          );
-  printlog("thread %d VP %d   CORE_zssssm(%d, %d, %d)\n"
+  printlog("  CORE_zssssm(%d, %d, %d)\n"
            "\t(%d, %d, %d, %d, %d, %d, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, \n"
            "\tL(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
-           context->th_id, context->virtual_process->vp_id, k, m, n1, descA.nb, tempnn, tempmm, tempnn, descA.nb, ib, 
+           k, m, n1, descA.nb, tempnn, tempmm, tempnn, descA.nb, ib, 
            k, n1, J, ldak,     m, n1, K, ldam, 
            m, k, getL(L), descL.mb-1, m, k,  M, ldam, 
            m, k, getIPIV(L));

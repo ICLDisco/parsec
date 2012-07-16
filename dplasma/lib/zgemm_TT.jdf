@@ -109,9 +109,9 @@ BODY
                 lbeta, C /*C(m, n)*/, ldcm);
             );
 
-        printlog("thread %d VP %d gemm( %d, %d, %d )\n"
+        printlog("gemm( %d, %d, %d )\n"
                  "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
-                 context->th_id, context->virtual_process->vp_id, m, n, k,
+                 m, n, k,
                  plasma_const( transA ), plasma_const( transB ), 
                  tempmm, tempnn, tempkk,
                  creal(alpha), k, m, ldak,

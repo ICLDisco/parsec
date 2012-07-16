@@ -71,7 +71,9 @@ tile2panel(k, m, n) [profile = off]
 
   ;descA.nt-n-1
 BODY
-    printlog("thread %d VP %d tile2panel( %d, %d, %d )\n",  context->th_id, context->virtual_process->vp_id, k, m, n);
+{
+    printlog("tile2panel( %d, %d, %d )\n", k, m, n);
+}
 END
 
 /************************************************************************************
@@ -89,7 +91,7 @@ END
 /* CTL  ctl1 <- ctlb gemm(k-1, k..descA.mt-1, k+1..descA.nt-1) */
 /*           -> ctl swpback(k, k-1) */
 /* BODY */
-/*      printlog("thread %d VP %d tile2panel( %d, %d, %d )\n",  context->th_id, context->virtual_process->vp_id, m, n, k); */
+/*      printlog("tile2panel( %d, %d, %d )\n",  m, n, k); */
 /* END */
 
 /************************************************************************************
@@ -108,7 +110,9 @@ subm2panel(k, n) [profile = off]
 
   ;0
 BODY
-    printlog("thread %d VP %d subm2panel( %d, %d )\n", context->th_id, context->virtual_process->vp_id, k, n);
+{
+    printlog("subm2panel( %d, %d )\n", k, n);
+}
 END
 
 /************************************************************************************
@@ -166,52 +170,52 @@ getrf(k, t) [high_priority = on]
 ;descA.nt-k-1
 
 BODY
+{
+    int tempk  = k * descA.mb;
+    int tempm  = descA.m - tempk;
+    int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+    int ldak = BLKLDD(descA, k);
 
-  int tempk  = k * descA.mb;
-  int tempm  = descA.m - tempk;
-  int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
-  int ldak = BLKLDD(descA, k);
+    printlog("CORE_zgetrf_rec(%d)\n"
+             "\t(%d, %d, A(%d,%d)[%p], %d, IPIV(%d)[%p])",
+             k, tempm, tempkn, k, k, A, ldak, k, IPIV);
 
-  /* DRYRUN( */
-      int tempkm = k == descA.mt-1 ? tempm : descA.mb;
-      int nbthrd = nbthreads( k );
-      int info[3];
+    DRYRUN(
+        int tempkm = k == descA.mt-1 ? tempm : descA.mb;
+        int nbthrd = nbthreads( k );
+        int info[3];
 
-      /* Set local IPIV to 0 before generation
-       * Better here than a global initialization for locality
-       * and it's also done in parallel */
-      if ( t == 0 ) {
-          memset(IPIV, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
-          /*fprintf(stderr, "There are %d threads woking on it\n", nbthrd+1);*/
-      }
+        /* Set local IPIV to 0 before generation
+         * Better here than a global initialization for locality
+         * and it's also done in parallel */
+        if ( t == 0 ) {
+            memset(IPIV, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
+            /*fprintf(stderr, "There are %d threads woking on it\n", nbthrd+1);*/
+        }
 
-      info[1] = t;
-      info[2] = nbthrd+1;
+        info[1] = t;
+        info[2] = nbthrd+1;
 
-      if ( descA.storage == matrix_Tile ) {
-          PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                 descA.mb, descA.nb, descA.mb * descA.nb,
-                                                 (descA.mt-k)*descA.mb, descA.nb, 0, 0,
-                                                 tempm, tempkn);
-          pdescA.mat = A;
-          CORE_zgetrf_rectil( pdescA, IPIV, info );
+        if ( descA.storage == matrix_Tile ) {
+            PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                                   descA.mb, descA.nb, descA.mb * descA.nb,
+                                                   (descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                                   tempm, tempkn);
+            pdescA.mat = A;
+            CORE_zgetrf_rectil( pdescA, IPIV, info );
 
-      } else {
-          CORE_zgetrf_reclap(
-              tempm, tempkn,
-              A/*(k, k)*/, ldak, IPIV, info );
-      }
+        } else {
+            CORE_zgetrf_reclap(
+                tempm, tempkn,
+                A/*(k, k)*/, ldak, IPIV, info );
+        }
 
-      if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
-          *INFO = tempk + info[0]; /* Should return if enter here */
-          fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
-      }
-/*          ); */
-
-   printlog("thread %d VP %d  CORE_zgetrf_rec(%d)\n"
-            "\t(%d, %d, A(%d,%d)[%p], %d, IPIV(%d)[%p])\n",
-             context->th_id, context->virtual_process->vp_id, k, tempm, tempkn, k, k, A, ldak, k, IPIV);
-
+        if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
+            *INFO = tempk + info[0]; /* Should return if enter here */
+            fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
+        }
+           );
+}
 END
 
 
@@ -239,37 +243,37 @@ swptrsm(k, n)
 ;descA.nt-n-1
 
 BODY
+{
+    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+    int ldak = BLKLDD(descA, k);
 
-/*   DRYRUN( */
-         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-         int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-         int ldak = BLKLDD(descA, k);
+    printlog("CORE_zswptrsm(%d, %d)\n"
+             "\t(%d, %d, A(%d,%d)[%p], B(%d,%d)[%p])",
+             k, n, tempkm, tempnn, k, k, A, k, n, B);
 
-         if ( descA.storage == matrix_Tile ) {
-             int tempk = k * descA.mb;
-             int tempm = descA.m - tempk;
-             PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                    descA.mb, descA.nb, descA.mb * descA.nb,
-                                                    (descA.mt-k)*descA.mb, descA.nb, 0, 0,
-                                                    tempm, tempnn);
-             pdescA.mat = (void*)B;
+    DRYRUN(
+        if ( descA.storage == matrix_Tile ) {
+            int tempk = k * descA.mb;
+            int tempm = descA.m - tempk;
+            PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                                   descA.mb, descA.nb, descA.mb * descA.nb,
+                                                   (descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                                   tempm, tempnn);
+            pdescA.mat = (void*)B;
 
-             CORE_zlaswp_ontile(pdescA, 1, tempkm, IPIV, 1);
-         } else {
-             CORE_zlaswp( tempnn, B, descA.lm, 1, tempkm, IPIV, 1);
-         }
+            CORE_zlaswp_ontile(pdescA, 1, tempkm, IPIV, 1);
+        } else {
+            CORE_zlaswp( tempnn, B, descA.lm, 1, tempkm, IPIV, 1);
+        }
 
-         CORE_ztrsm(
-             PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
-             tempkm, tempnn,
-             1., A /*(k, k)*/, ldak,
-                 B /*(k, n)*/, ldak);
-/*          ); */
-
-   printlog("thread %d VP %d CORE_zswptrsm(%d, %d)\n"
-            "\t(%d, %d, A(%d,%d)[%p], B(%d,%d)[%p])\n",
-            context->th_id, context->virtual_process->vp_id, k, n, tempkm, tempnn, k, k, A, k, n, B);
-
+        CORE_ztrsm(
+            PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+            tempkm, tempnn,
+            1., A /*(k, k)*/, ldak,
+                B /*(k, n)*/, ldak);
+           );
+}
 END
 
 /************************************************************************************
@@ -317,23 +321,24 @@ gemm(k,m,n)
 ;descA.nt-n-1
 
 BODY
+{
+    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+    int ldak = BLKLDD(descA, k);
+    int ldam = BLKLDD(descA, m);
 
-  DRYRUN(
-      int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-      int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-      int ldak = BLKLDD(descA, k);
-      int ldam = BLKLDD(descA, m);
+    printlog("CORE_zgemm(%d, %d, %d)\n"
+             "\t(%d, %d, %d, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, C(%d,%d)[%p], %d)",
+             k, m, n, tempmm, tempnn, descA.mb, k, k, A, ldam, k, k, B, ldak, k, n, C, ldam);
 
-      CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
-                 tempmm, tempnn, descA.mb,
-                 -1., A /*(m, k)*/, ldam,
-                      B /*(k, n)*/, ldak,
-                 1.,  C /*(m, n)*/, ldam );
-         );
-   printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
-            "\t(%d, %d, %d, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, C(%d,%d)[%p], %d)\n",
-            context->th_id, context->virtual_process->vp_id, k, m, n, tempmm, tempnn, descA.mb, k, k, A, ldam, k, k, B, ldak, k, n, C, ldam);
-
+    DRYRUN(
+        CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
+                   tempmm, tempnn, descA.mb,
+                   -1., A /*(m, k)*/, ldam,
+                        B /*(k, n)*/, ldak,
+                   1.,  C /*(m, n)*/, ldam );
+           );
+}
 END
 
 /************************************************************************************
@@ -359,30 +364,29 @@ swpback(k, n)
 ;0
 
 BODY
+{
+    int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
+    int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+    int tempmin = dague_imin(tempkn, tempkm);
+    int ldak = BLKLDD(descA, k);
 
-/*   DRYRUN( */
-      int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
-      int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
-      int tempmin = dague_imin(tempkn, tempkm);
-      int ldak = BLKLDD(descA, k);
+    printlog("CORE_zswpback(%d, %d)\n"
+             "\t(%d, A(%d,%d)[%p], %d, IPIV(%d)[%p])",
+             k, n, descA.nb, k, n, A, ldak, k, IPIV);
 
-      if ( descA.storage == matrix_Tile ) {
-          int tempk  = k * descA.mb;
-          int tempm  = descA.m - tempk;
-          PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                 descA.mb, descA.nb, descA.mb * descA.nb,
-                                                 (descA.mt-k)*descA.mb, descA.nb, 0, 0,
-                                                 tempm, descA.nb);
-          pdescA.mat = (void*)A;
-          CORE_zlaswp_ontile(pdescA, 1, tempmin, IPIV, 1);
-      } else {
-          CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempmin, IPIV, 1 );
-      }
-/*          ); */
-
-
-  printlog("thread %d VP %d CORE_zswpback(%d, %d)\n"
-           "\t(%d, A(%d,%d)[%p], %d, IPIV(%d)[%p])\n",
-           context->th_id, context->virtual_process->vp_id, k, n, descA.nb, k, n, A, ldak, k, IPIV);
-
+    DRYRUN(
+        if ( descA.storage == matrix_Tile ) {
+            int tempk  = k * descA.mb;
+            int tempm  = descA.m - tempk;
+            PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                                   descA.mb, descA.nb, descA.mb * descA.nb,
+                                                   (descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                                   tempm, descA.nb);
+            pdescA.mat = (void*)A;
+            CORE_zlaswp_ontile(pdescA, 1, tempmin, IPIV, 1);
+        } else {
+            CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempmin, IPIV, 1 );
+        }
+           );
+}
 END
