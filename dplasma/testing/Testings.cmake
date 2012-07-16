@@ -1,7 +1,11 @@
 #
 # Shared Memory Testings
 #
-set(SHM_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 1 -hostfile /etc/hostfile -bynode)
+if (MPI_FOUND)
+  set(SHM_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 1 -hostfile /etc/hostfile -bynode)
+else()
+  unset(SHM_TEST_CMD )
+endif()
 
 # check the control in shared memory
 add_test(print  ${SHM_TEST_CMD} ./testing_dprint -N 40 -t 7 -x -v=5)

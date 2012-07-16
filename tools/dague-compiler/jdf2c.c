@@ -2612,15 +2612,32 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
     string_arena_free(sa2);
 }
 
+static void create_datatype_to_integer_code(string_arena_t *sa, jdf_datatransfer_type_t datatype)
+{
+    expr_info_t info;
+    string_arena_t *sa2 = string_arena_new(64);
+    info.sa = sa2;
+    info.prefix = "";
+    info.assignments = "this_task->locals";
+    if( datatype.simple ) {
+        string_arena_add_string(sa, "DAGUE_%s_%s_ARENA", jdf_basename, datatype.u.simple_name);
+    } else {
+        string_arena_add_string(sa, "%s", dump_expr((void**)datatype.u.complex_expr, &info));
+    }
+    string_arena_free(sa2);
+}
+
 static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                                                   const char *fname,
                                                   const jdf_dataflow_t *flow,
                                                   uint32_t flow_index)
 {
+    jdf_datatransfer_type_t *datatype = NULL;
     jdf_dep_t *dl;
     expr_info_t info;
-    string_arena_t *sa;
+    string_arena_t *sa, *sa2;
     int cond_index = 0;
+    int is_output = 1;
     char* condition[] = {"    if( %s ) {\n", "    else if( %s ) {\n"};
 
     if( JDF_VAR_TYPE_CTL == flow->access_type ) {
@@ -2633,16 +2650,23 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
              flow->varname, flow_index,
              flow->varname, flow_index,
              flow->varname);
-    sa = string_arena_new(64);
+
+    sa  = string_arena_new(64);
+    sa2 = string_arena_new(64);
+
     info.sa = sa;
     info.prefix = "";
     info.assignments = "  this_task->locals";
 
     for(dl = flow->deps; dl != NULL; dl = dl->next) {
-        if( dl->type == JDF_DEP_TYPE_OUT )
-            /** No initialization for output-only flows */
+        if( dl->type == JDF_DEP_TYPE_OUT ) {
+            /* Save the first output type for WRITE only flow */
+            if ( datatype == NULL )
+                datatype = &(dl->datatype);
             continue;
+        }
 
+        is_output = 0;
         switch( dl->guard->guard_type ) {
         case JDF_GUARD_UNCONDITIONAL:
             if( 0 != cond_index ) coutput("    else {\n");
@@ -2668,6 +2692,16 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
         }
     }
 
+    if (is_output) {
+        /** No initialization for output-only flows */
+        string_arena_init(sa2);
+        create_datatype_to_integer_code(sa2, *datatype);
+        coutput( "    g%s = dague_arena_get(__dague_object->super.arenas[%s], %d);\n"
+                 "    (DAGUE_ARENA_PREFIX(g%s)->refcount)--;\n",
+                 flow->varname,
+                 string_arena_get_string(sa2), 1,
+                 flow->varname );
+    }
  done_with_input:
     coutput("    this_task->data[%u].data = g%s;\n"
             "    this_task->data[%u].data_repo = e%s;\n"
@@ -2677,20 +2711,6 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             flow_index, flow->varname,
             flow->varname, flow->varname);
     string_arena_free(sa);
-}
-
-static void create_datatype_to_integer_code(string_arena_t *sa, jdf_datatransfer_type_t datatype)
-{
-    expr_info_t info;
-    string_arena_t *sa2 = string_arena_new(64);
-    info.sa = sa2;
-    info.prefix = "";
-    info.assignments = "this_task->locals";
-    if( datatype.simple ) {
-        string_arena_add_string(sa, "DAGUE_%s_%s_ARENA", jdf_basename, datatype.u.simple_name);
-    } else {
-        string_arena_add_string(sa, "%s", dump_expr((void**)datatype.u.complex_expr, &info));
-    }
     string_arena_free(sa2);
 }
 
