@@ -122,9 +122,9 @@ IPIV_in(k) [profile = off]
   k  = 0..minMNT
   nbtrd  = inline_c %{ return nbthreads( k ); %}
 
-:IPIV(k, 0)
+:IPIV(0, k)
 
-READ IP <- IPIV(k, 0)                [type = PIVOT]
+READ IP <- IPIV(0, k)                [type = PIVOT]
         -> IPIV getrf(k, 0..nbtrd)   [type = PIVOT]
 
 BODY
@@ -132,12 +132,12 @@ BODY
 END
 
 IPIV_out(k) [profile = off]
-  k  = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  k  = 0 .. minMNT
 
-:IPIV(k, 0)
+:IPIV(0, k)
 
 READ IP <- IPIV getrf(k, 0)          [type = PIVOT]
-        -> IPIV(k, 0)                [type = PIVOT]
+        -> IPIV(0, k)                [type = PIVOT]
 
 BODY
     /**/
@@ -145,8 +145,8 @@ END
 
 getrf(k, t) [high_priority = on]
   /* Execution space */
-  k  = 0..minMNT
-  t  = 0..inline_c %{ return nbthreads( k ); %}
+  k  = 0 .. minMNT
+  t  = 0 .. inline_c %{ return nbthreads( k ); %}
   m1 = inline_c %{ return k + t * 4; %}
   m2 = inline_c %{ return dague_imin( k + (t+1) * 4 - 1, descA.mt-1); %}
 
@@ -154,17 +154,16 @@ getrf(k, t) [high_priority = on]
   :A(k, k)
 
   RW    A    <- ( 0 == k ) ? A(k, k) : C gemm(k-1, k, k)
-          /* <- A(m1..m2, k) : C gemm(k-1, m1..m2, k) */
-             -> ((k < descA.nt-1) && (t == 0)) ? A swptrsm(k, k+1..descA.nt-1)
+             -> (t == 0) && (k < (descA.nt-1)) ? A swptrsm(k, k+1..descA.nt-1)
              -> (t == 0) ? A(k, k)
-          /* -> A(m1..m2, k) */
-  RW    IPIV <- IP IPIV_in(k)                                                    [type = PIVOT]
-             -> ( t==0 ) ? IP IPIV_out(k)                                        [type = PIVOT]
-             -> ((t==0) && (k < descA.nt-1)) ? IPIV swptrsm(k, k+1..descA.nt-1)  [type = PIVOT]
-             -> ((t==0) && (k > 0)         ) ? IPIV swpback(k, 0..k-1)           [type = PIVOT]
+
+  RW    IPIV <- IP IPIV_in(k)                                                       [type = PIVOT]
+             -> ( t==0 ) ? IP IPIV_out(k)                                           [type = PIVOT]
+             -> ((t==0) && (k < (descA.nt-1))) ? IPIV swptrsm(k, k+1 .. descA.nt-1) [type = PIVOT]
+             -> ((t==0) && (k > 0)         )   ? IPIV swpback(k, 0 .. k-1)          [type = PIVOT]
+
   CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, descA.mt-1, k)
-             -> (t == 0 ) ? ctl GEMM_A_in(k, k+1..descA.mt-1)
-  /*  CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, m2,         k)*/
+             -> (t == 0) && (k < descA.mt-1) ? ctl GEMM_A_in(k, k+1..descA.mt-1)
 
 /* Priority */
 ;descA.nt-k-1
@@ -225,8 +224,8 @@ END
 
 swptrsm(k, n)
   /* Execution space */
-  k = 0..minMNT
-  n = k+1..descA.nt-1
+  k = 0   .. minMNT
+  n = k+1 .. descA.nt-1
 
   /* Locality */
   :A(k, n)
@@ -279,11 +278,10 @@ END
 /************************************************************************************
  *                                    GEMM                                         *
  ************************************************************************************/
-GEMM_A_in(k,m)
+GEMM_A_in(k, m)
   /* Execution space */
-  k = 0..minMNT
-  m = k+1..descA.mt-1
-    //myrank = inline_c %{ return A->rank_of(A, m, k); %}
+  k = 0   .. minMNT
+  m = k+1 .. descA.mt-1
 
   /* Locality */
 :A(m, k)
@@ -297,13 +295,13 @@ BODY
 END
 
 
-gemm(k,m,n)
+gemm(k, m, n)
   /* Execution space */
-  k = 0..minMNT
-  m = k+1..descA.mt-1
-  n = k+1..descA.nt-1
-  ntrd   = inline_c %{ return nbthreads( k+1 ); %}
-  //  myrank = inline_c %{ return A->rank_of(A, m, n); %}
+  k = 0   .. minMNT
+  m = k+1 .. descA.mt-1
+  n = k+1 .. descA.nt-1
+
+  ntrd = inline_c %{ return nbthreads( k+1 ); %}
 
   /* Locality */
 :A(m, n)
@@ -322,8 +320,8 @@ gemm(k,m,n)
 
 BODY
 {
-    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+    int tempmm = (m == (descA.mt-1)) ? descA.m - m * descA.mb : descA.mb;
+    int tempnn = (n == (descA.nt-1)) ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD(descA, k);
     int ldam = BLKLDD(descA, m);
 
@@ -347,26 +345,28 @@ END
 
 swpback(k, n)
   /* Execution space */
-  k = 1..minMNT
-  n = 0..k-1
+  k = 1 .. minMNT
+  n = 0 .. k-1
 
   /* Locality */
   :A(k, n)
 
   READ  IPIV <- IPIV getrf(k, 0)                                [type = PIVOT]
+
   RW    A    <- A(k, n)
              -> A(k, n)
-  CTL   ctl  <- (n == k-1) ? ctl2 subm2panel(k-1, descA.nt-1)
-             <- (n <  k-1)                                ? ctl swpback(k-1, n)
-             -> (( k < descA.nt-1 ) && (k < descA.mt-1 )) ? ctl swpback(k+1, n)
+
+  CTL   ctl  <- (n == (k-1)) ? ctl2 subm2panel(k-1, descA.nt-1)
+             <- (n <  (k-1)) ? ctl  swpback(k-1, n)
+             -> (k < minMNT) ? ctl  swpback(k+1, n)
 
 /* Priority */
 ;0
 
 BODY
 {
-    int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
-    int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+    int tempkm = k == descA.mt-1 ? descA.m - k * descA.mb : descA.mb;
+    int tempkn = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
     int tempmin = dague_imin(tempkn, tempkm);
     int ldak = BLKLDD(descA, k);
 
