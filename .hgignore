@@ -309,3 +309,7 @@ tests/branching/branching\.h
 tests/pingpong/rtt
 tests/pingpong/rtt\.c
 tests/pingpong/rtt\.h
+dplasma/lib/dtrmdm\.c
+dplasma/lib/dtrmdm\.h
+dplasma/lib/dtrmdm\.jdf
+tools/precision_generator/Conversion\.pyc
