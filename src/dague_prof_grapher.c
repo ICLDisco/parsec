@@ -120,7 +120,8 @@ static char *service_to_taskid(const dague_execution_context_t *exec_context, ch
     const dague_function_t* function = exec_context->function;
     unsigned int i, index = 0;
 
-    index += snprintf( tmp + index, length - index, "%s", function->name );
+    assert( NULL!= exec_context->dague_object );
+    index += snprintf( tmp + index, length - index, "%s_%u", function->name, exec_context->dague_object->object_id );
     for( i = 0; i < function->nb_parameters; i++ ) {
         index += snprintf( tmp + index, length - index, "_%d",
                            exec_context->locals[function->params[i]->context_index].value );
