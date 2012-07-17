@@ -1052,7 +1052,7 @@ int dague_object_register( dague_object_t* object )
     if( index >= object_array_size ) {
         object_array_size *= 2;
         object_array = (dague_object_t**)realloc(object_array, object_array_size * sizeof(dague_object_t*) );
-#if defined(DAGUE_DEBUG) || 1
+#if defined(DAGUE_DEBUG)
         {
             unsigned int i;
             for(i = index; i < object_array_size; i++)
