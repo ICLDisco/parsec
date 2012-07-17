@@ -600,6 +600,7 @@ static void remote_dep_mpi_profiling_init(void)
         dague_execution_context_t __exec_context;                       \
         dague_object_t *__object = dague_object_lookup( ctx.object_id ); \
         __exec_context.function = __object->functions_array[ ctx.function_id ]; \
+        __exec_context.dague_object = __object;                         \
         memcpy(&__exec_context.locals, ctx.locals, MAX_LOCAL_COUNT * sizeof(assignment_t)); \
         dague_snprintf_execution_context(__info.func, 16, &__exec_context);      \
         __info.rank_src = src;                                          \
