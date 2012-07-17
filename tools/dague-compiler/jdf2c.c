@@ -6,6 +6,7 @@
 
 #include "dague_config.h"
 #include "dague.h"
+#include "dague_internal.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -1247,7 +1248,8 @@ static void jdf_generate_dependency( const jdf_t *jdf, jdf_datatransfer_type_t d
     string_arena_add_string(sa,
                             "static const dep_t %s = {\n"
                             "  .cond = %s,\n"
-                            "  .dague = &%s_%s,\n",
+                            "  .dague = &%s_%s,\n"
+                            "  .ctl_gather_nb = NULL,\n",
                             depname,
                             condname,
                             jdf_basename, call->func_or_mem);
@@ -1307,8 +1309,8 @@ static void jdf_generate_dependency( const jdf_t *jdf, jdf_datatransfer_type_t d
     string_arena_free(sa);
 }
 
-static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *context,
-                                   jdf_dataflow_t *flow, const char *prefix, uint32_t flow_index )
+static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *context,
+                                  jdf_dataflow_t *flow, const char *prefix, uint32_t flow_index )
 {
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa_dep_in = string_arena_new(64);
@@ -1325,10 +1327,6 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     char *sep;
 
     (void)jdf;
-#if !defined(DAGUE_SCHED_DEPS_MASK)
-    assert((1<< flow_index) && (((1 << flow_index) & ~DAGUE_DEPENDENCIES_BITMASK) == 0));
-    (void)flow_index;
-#endif
 
     string_arena_init(sa_dep_in);
     string_arena_init(sa_dep_out);
@@ -1423,9 +1421,15 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     string_arena_free(sa_dep_in);
     string_arena_free(sa_dep_out);
 
-
     coutput("%s", string_arena_get_string(sa));
     string_arena_free(sa);
+
+    /* This checks that the size of the dependency_t is big enough to
+     * store all the flows, using the MASK method. Return false if 
+     * the MASK method must be discarded, and 1 if the MASK method
+     * can be used. */
+    return ( ((dague_dependency_t)(1<< flow_index)) == 0 ||
+             ((dague_dependency_t)(((1 << flow_index) & ~DAGUE_DEPENDENCIES_BITMASK))) == 0 );
 }
 
 /**
@@ -1979,6 +1983,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     jdf_dataflow_t *fl;
     jdf_dep_t *dl;
     char *prefix;
+    int use_mask, mask_ok;
 
     sa = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -2025,27 +2030,13 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             "static const dague_function_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
                             "  .deps = %d,\n"
-                            "  .flags = %s%s%s,\n"
                             "  .function_id = %d,\n"
-#if !defined(DAGUE_SCHED_DEPS_MASK)
-                            "  .dependencies_goal = %d,\n"
-#else
-                            "  .dependencies_goal = 0x%x,\n"
-#endif
                             "  .nb_parameters = %d,\n"
                             "  .nb_definitions = %d,\n",
                             jdf_basename, f->fname,
                             f->fname,
+                            dep_index,                            
                             dep_index,
-                            (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
-                            has_in_in_dep ? " | DAGUE_HAS_IN_IN_DEPENDENCIES" : "",
-                            jdf_property_get_int(f->properties, "immediate", 0) ? " | DAGUE_IMMEDIATE_TASK" : "",
-                            dep_index,
-#if !defined(DAGUE_SCHED_DEPS_MASK)
-                            nbinput,
-#else
-                            inputmask,
-#endif
                             nbparameters,
                             nbdefinitions);
 
@@ -2073,11 +2064,28 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
         string_arena_add_string(sa, "  .priority = NULL,\n");
     }
 
+#if defined(DAGUE_SCHED_DEPS_MASK)
+    use_mask = 1;
+#else
+    use_mask = 0;
+#endif
+    if( jdf_property_get_int(f->properties, "count_deps", 0) )
+        use_mask = 0;
+    if( jdf_property_get_int(f->properties, "mask_deps", 0) )
+        use_mask = 1;
     sprintf(prefix, "flow_of_%s_%s_for_", jdf_basename, f->fname);
     for(i = 0, fl = f->dataflow; fl != NULL; fl = fl->next, i++) {
-        jdf_generate_dataflow(jdf, f->definitions, fl, prefix, (uint32_t)i);
+        mask_ok = jdf_generate_dataflow(jdf, f->definitions, fl, prefix, (uint32_t)i);
+        use_mask &= mask_ok;
     }
-    
+    if( jdf_property_get_int(f->properties, "mask_deps", 0) && (use_mask == 0) ) {
+        jdf_warn(f->lineno, 
+                 "In task %s, mask_deps was requested, but this method cannot be provided\n"
+                 "  Either the function uses too many flows to store in a mask\n"
+                 "  Or it uses control gather, which must be counted\n"
+                 "  Falling back to the counting method for dependency managing.\n",
+                 f->fname);
+    }
     sprintf(prefix, "&flow_of_%s_%s_for_", jdf_basename, f->fname);
     UTIL_DUMP_LIST(sa2, f->dataflow, next, dump_dataflow, "IN", "", prefix, ", ", "");
     if(0 == strlen(string_arena_get_string(sa2)))
@@ -2090,6 +2098,23 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     string_arena_add_string(sa, "  .out = { %s },\n",
                             string_arena_get_string(sa2)); 
                            
+    if( use_mask ) {
+        string_arena_add_string(sa, 
+                                "  .flags = %s%s%s|DAGUE_USE_DEPS_MASK,\n"
+                                "  .dependencies_goal = 0x%x,\n",
+                                (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
+                                has_in_in_dep ? " | DAGUE_HAS_IN_IN_DEPENDENCIES" : "",
+                                jdf_property_get_int(f->properties, "immediate", 0) ? " | DAGUE_IMMEDIATE_TASK" : "",
+                                inputmask);
+    } else {
+        string_arena_add_string(sa, 
+                                "  .flags = %s%s%s,\n"
+                                "  .dependencies_goal = %d,\n",
+                                (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
+                                has_in_in_dep ? " | DAGUE_HAS_IN_IN_DEPENDENCIES" : "",
+                                jdf_property_get_int(f->properties, "immediate", 0) ? " | DAGUE_IMMEDIATE_TASK" : "",
+                                nbinput);
+    }
 
     sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_iterate_successors(jdf, f, prefix);
@@ -2166,7 +2191,7 @@ static char *dump_pseudodague(void **elem, void *arg)
     string_arena_add_string(sa,
                             "static const dague_function_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
-                            "  .flags = 0x0,\n"
+                            "  .flags = 0x0/*|DAGUE_USE_DEPS_MASK*/,\n"
                             "  .dependencies_goal = 0x0,\n"
                             "  .nb_parameters = 0,\n"
                             "  .nb_definitions = 0,\n"
@@ -3464,7 +3489,8 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
-    coutput("  nc.dague_object = this_task->dague_object;\n");
+    coutput("  nc.dague_object = this_task->dague_object;\n"
+            "  nc.priority = this_task->priority;\n");
     coutput("#if defined(DISTRIBUTED)\n"
             "  rank_src = ((dague_ddesc_t*)__dague_object->super.%s)->rank_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
             "#endif\n",
