@@ -55,8 +55,8 @@ int main(int argc, char ** argv)
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
         two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
-                               nodes, cores, rank, MB, 1, dague_imin(M, N), 1, 0, 0,
-                               dague_imin(M, N), 1, SMB, SNB, P*Q));
+                               nodes, cores, rank, 1, NB, 1, dague_imin(M, N), 0, 0,
+                               1, dague_imin(M, N), SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,

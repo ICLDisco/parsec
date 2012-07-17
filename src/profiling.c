@@ -383,7 +383,7 @@ static void write_down_existing_buffer(dague_profiling_buffer_t *buffer,
         fprintf(stderr, "Warning profiling system: seek in the events backend file at %"PRId64" failed: %s. Events trace will be truncated.\n",
                 buffer->this_buffer_file_offset, strerror(errno));
     } else {
-        if( write(file_backend_fd, buffer, event_buffer_size) != event_buffer_size ) {
+        if( (size_t)(write(file_backend_fd, buffer, event_buffer_size)) != event_buffer_size ) {
             fprintf(stderr, "Warning profiling system: write in the events backend file at %"PRId64" failed: %s. Events trace will be truncated.\n",
                      buffer->this_buffer_file_offset, strerror(errno));
         }
@@ -538,7 +538,8 @@ static int64_t dump_dictionary(int *nbdico)
     dague_profiling_buffer_t *b, *n;
     dague_profiling_key_buffer_t *kb;
     dague_profiling_key_t *k;
-    int nb, nbthis, cs, i;
+    unsigned int i;
+    int nb, nbthis, cs;
     int pos;
     int64_t first_off;
 

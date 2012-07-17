@@ -387,6 +387,9 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
     int ret, i, whereto;
 
     exec_context.dague_object = dague_object_lookup( origin->msg.object_id );
+#if defined(DAGUE_DEBUG)
+    exec_context.priority = 0;
+#endif
     assert(exec_context.dague_object); /* Future: for composition, store this in a list to be considered upon creation of the DO*/
     exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
     for( i = 0; i < exec_context.function->nb_definitions; i++)
@@ -825,7 +828,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
 
 static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
 {
-#ifdef DAGUE_DEBUG_VERBOSE1
+#ifdef DAGUE_DEBUG_VERBOSE2
     char tmp[MAX_TASK_STRLEN];
 #endif
     MPI_Status *status;
@@ -1371,5 +1374,3 @@ int remote_dep_bind_thread(dague_context_t* context){
 #endif /* NO HAVE_HWLOC */
     return 0;
 }
-
-

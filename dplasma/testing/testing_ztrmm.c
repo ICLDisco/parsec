@@ -76,11 +76,6 @@ int main(int argc, char ** argv)
     }
     else
     {
-        if ( iparam[IPARAM_NNODES] > 1 ) {
-            fprintf(stderr, "Checking doesn't work in distributed\n");
-            return EXIT_FAILURE;
-        }
-
         int s, u, t, d;
         int info_solution;
         Dague_Complex64_t alpha = 3.5;
@@ -202,19 +197,21 @@ static int check_solution( dague_context_t *dague, int loud,
     Cinitnorm    = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
     Cdplasmanorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)ddescCfinal );
 
-    cblas_ztrmm(CblasColMajor,
-                (CBLAS_SIDE)side, (CBLAS_UPLO)uplo,
-                (CBLAS_TRANSPOSE)trans, (CBLAS_DIAG)diag,
-                M, N,
-                CBLAS_SADDR(alpha), ddescA.mat, LDA,
-                                    ddescC.mat, LDC );
+    if ( rank == 0 ) {
+        cblas_ztrmm(CblasColMajor,
+                    (CBLAS_SIDE)side, (CBLAS_UPLO)uplo,
+                    (CBLAS_TRANSPOSE)trans, (CBLAS_DIAG)diag,
+                    M, N,
+                    CBLAS_SADDR(alpha), ddescA.mat, LDA,
+                                        ddescC.mat, LDC );
+    }
 
     Clapacknorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
 
-    dplasma_zgeadd( dague, PlasmaUpperLower, -1.0, (tiled_matrix_desc_t*)&ddescC,
-                                                   (tiled_matrix_desc_t*)ddescCfinal );
+    dplasma_zgeadd( dague, PlasmaUpperLower, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
+                                                   (tiled_matrix_desc_t*)&ddescC );
 
-    Rnorm = dplasma_zlange( dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)ddescCfinal);
+    Rnorm = dplasma_zlange( dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&ddescC );
 
     result = Rnorm / (Clapacknorm * max(M,N) * eps);
 
@@ -224,15 +221,19 @@ static int check_solution( dague_context_t *dague, int loud,
                    "  ||lapack(a*A*C)||_inf = %e, ||dplasma(a*A*C)||_inf = %e, ||R||_m = %e, res = %e\n",
                    Anorm, Cinitnorm, Clapacknorm, Cdplasmanorm, Rnorm, result);
         }
+
+        if (  isinf(Clapacknorm) || isinf(Cdplasmanorm) ||
+              isnan(result) || isinf(result) || (result > 10.0) ) {
+            info_solution = 1;
+        }
+        else {
+            info_solution = 0;
+        }
     }
 
-    if (  isinf(Clapacknorm) || isinf(Cdplasmanorm) ||
-          isnan(result) || isinf(result) || (result > 10.0) ) {
-        info_solution = 1;
-    }
-    else {
-        info_solution = 0;
-    }
+#if defined(HAVE_MPI)
+    MPI_Bcast(&info_solution, 1, MPI_INT, 0, MPI_COMM_WORLD);
+#endif
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);

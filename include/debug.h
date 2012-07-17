@@ -79,6 +79,11 @@ static inline char* arprintf(const char* fmt, ...)
         _DAGUE_OUTPUT("+.", ARG); \
     _DAGUE_DEBUG_HISTORY(ARG); \
 } while(0)
+#define VERBOSE2(ARG) do { \
+    if(dague_verbose > 1) \
+        _DAGUE_OUTPUT("+^", ARG); \
+    _DAGUE_DEBUG_HISTORY(ARG); \
+} while(0)
 #define WARNING(ARG) do { \
     _DAGUE_OUTPUT("!.", ARG) ; \
     _DAGUE_DEBUG_HISTORY(ARG); \
@@ -156,6 +161,8 @@ void debug_mark_dta_msg_end_recv(int tag);
 #define DEBUG_MARK_DTA_MSG_END_RECV(tag) debug_mark_dta_msg_end_recv(tag)
 
 void debug_mark_display_history(void);
+void debug_mark_purge_history(void);
+void debug_mark_purge_all_history(void);
 
 #else /* DAGUE_DEBUG_HISTORY */
 
@@ -168,6 +175,8 @@ void debug_mark_display_history(void);
 #define DEBUG_MARK_DTA_MSG_START_RECV(from, buffer, tag)
 #define DEBUG_MARK_DTA_MSG_END_SEND(tag)
 #define DEBUG_MARK_DTA_MSG_END_RECV(tag)
+#define debug_mark_purge_history()
+#define debug_mark_purge_all_history()
 
 #endif /* DAGUE_DEBUG_HISTORY */
 

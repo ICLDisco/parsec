@@ -192,12 +192,12 @@ int dague_gpu_init(dague_context_t *dague_context,
     device_weight = (float*)calloc(ndevices+1, sizeof(float));
 
     memset( device_load, 0, (ndevices+1 )* sizeof(float) );
-    
+
     for( i = nb_cores = 0; i < dague_context->nb_vp; i++ )
         nb_cores += dague_context->virtual_processes[i]->nb_cores;
 
-    /* Theoritical perf in double 
-     * 2.27 is the frequency of dancer */
+    /* TODO: Change this to a more generic approach */
+    /* Theoritical perf in double 2.27 is the frequency of dancer */
     total_perf = (float)nb_cores * 2.27f * 4.f;
     if ( ! isdouble )
         total_perf *= 2;
@@ -344,16 +344,57 @@ int dague_gpu_init(dague_context_t *dague_context,
                    device_weight[i],
                    device_weight[i] / nb_cores ));
         else
-            DEBUG(("Device index %2d ->ratio %2.4e\n", 
+            DEBUG(("Device index %2d ->ratio %2.4e\n",
                    i-1, device_weight[i]));
         device_weight[i] = (total_perf / device_weight[i]);
+        if( 0 == i )
+            printf("CPU             ->ratio %2.4f\n", device_weight[i]);
+        else
+            printf("Device index %2d ->ratio %2.4f\n", i-1, device_weight[i]);
     }
+#if defined(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
+    for( i = 0; i < ndevices; i++ ) {
+        gpu_device_t *source_gpu, *target_gpu;
+        CUdevice source, target;
+        int canAccessPeer;
 
-    // Set the initial load of the cores to twice their weight, so that GPU will offload on CPU only if the work goes over that 
+        if( NULL == (source_gpu = gpu_enabled_devices[i]) ) continue;
+
+        source_gpu->peer_access_mask = 0;
+        status = cuDeviceGet( &source, source_gpu->device_index );
+        DAGUE_CUDA_CHECK_ERROR( "No peer memory access: cuDeviceGet ", status, {continue;} );
+        status = cuCtxPushCurrent( source_gpu->ctx );
+        DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_init) cuCtxPushCurrent ", status,
+                                {continue;} );
+
+        for( j = 0; j < ndevices; j++ ) {
+            if( (NULL == (target_gpu = gpu_enabled_devices[j])) || (i == j) ) continue;
+
+            status = cuDeviceGet( &target, target_gpu->device_index );
+            DAGUE_CUDA_CHECK_ERROR( "No peer memory access: cuDeviceGet ", status, {continue;} );
+
+            /* Communication mask */
+            status = cuDeviceCanAccessPeer( &canAccessPeer, source, target );
+            DAGUE_CUDA_CHECK_ERROR( "cuDeviceCanAccessPeer ", status,
+                                    {continue;} );
+            if( 1 == canAccessPeer ) {
+                status = cuCtxEnablePeerAccess( target_gpu->ctx, 0 );
+                DAGUE_CUDA_CHECK_ERROR( "cuCtxEnablePeerAccess ", status,
+                                        {continue;} );
+                source_gpu->peer_access_mask |= (int16_t)(1 << target_gpu->device_index);
+            }
+        }
+        status = cuCtxPopCurrent(NULL);
+        DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_init) cuCtxPopCurrent ", status,
+                                {continue;} );
+    }
+#endif
+
+    /* Set the initial load of the cores to twice their weight, so that GPU will
+     * offload on CPU only if the work goes over that. */
     device_load[0] = device_weight[0] * 2;
-    // Now we set the weight to only one core
+    /* Now we set the weight to only one core */
     device_weight[0] = device_weight[0] / nb_cores;
-
     dague_data_enable_gpu( ndevices );
     return 0;
 }
@@ -467,7 +508,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
 #if defined(GPU_MEMORY_PER_TILE)
         /*
          * We allocate a bunch of tiles that will be used
-         * during the compuations
+         * during the computations
          */
         while( free_mem > (total_mem - thread_gpu_mem) ) {
             gpu_elem_t* gpu_elem;
@@ -701,13 +742,13 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
 
     malloc_data:
         gpu_elem->gpu_mem = (CUdeviceptr)gpu_malloc( gpu_device->memory, eltsize );
-        if ( gpu_elem->gpu_mem == 0 ) {
+        if( NULL == gpu_elem->gpu_mem ) {
 #endif
 
         find_another_data:
             lru_gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop(gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
-                /* Make sure we all temporary locations are set to NULL */
+                /* Make sure we all remaining temporary locations are set to NULL */
                 for( ;  NULL != (mem_elem = this_task->data[i].mem2dev_data); temp_loc[i++] = NULL );
                 break;  /* Go and cleanup */
             }

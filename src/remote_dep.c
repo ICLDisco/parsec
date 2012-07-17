@@ -191,7 +191,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     /* make valgrind happy */
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
 #endif
-#if defined(DAGUE_DEBUG_VERBOSE1)
+#if defined(DAGUE_DEBUG_VERBOSE2)
     char tmp[MAX_TASK_STRLEN];
 #endif
 

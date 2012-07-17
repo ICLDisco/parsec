@@ -30,7 +30,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
                                    int *INFO)
 {
     dague_zgetrf_object_t *dague_getrf;
-    
+
     if ( A->storage == matrix_Tile ) {
         CORE_zgetrf_rectil_init();
     } else {
@@ -51,7 +51,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
     dplasma_add2arena_rectangle( dague_getrf->arenas[DAGUE_zgetrf_PIVOT_ARENA],
                                  A->mb*sizeof(int),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_INT, A->mb, 1, -1 );
+                                 MPI_INT, 1, A->mb, -1 );
 
     return (dague_object_t*)dague_getrf;
 }

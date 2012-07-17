@@ -90,13 +90,13 @@ void gpu_kernel_profile_zgemm( gpu_device_t        *gpu_device,
         dague_zgemm_args_t        *args = (dague_zgemm_args_t*)this_task;
         dague_ddesc_t *ddesc = (dague_ddesc_t*)(args->ddescC);
         int data_id =
-            ddesc->data_key(ddesc, 
-                            args->Cm, 
+            ddesc->data_key(ddesc,
+                            args->Cm,
                             args->Cn );
 
         uint64_t task_id =
             ec->function->key( ec->dague_object, ec->locals );
-        
+
         dague_profile_ddesc_info_t info;
         info.desc = ddesc;
         info.id = data_id;
@@ -159,7 +159,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         else {
             snprintf(library_name,  FILENAME_MAX, "%s_sm%d%d.so", env, gpu_device->major, gpu_device->minor);
         }
-            
+
         dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
         if(NULL == dlh) {
             if(env) ERROR(("Could not find %s library: %s\n"
@@ -230,7 +230,7 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
     /* WARNING: A has to be the first data,
      *          B the second one and
      *          C the third one.
-     * if the kernel swapp A and B it won't work 
+     * if the kernel swap A and B it won't work
      */
     dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(args->ddescA, args->Am, args->An ),
                            &(this_task->data[0].mem2dev_data));
@@ -314,7 +314,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 #endif
 
     cuda_zgemm_t cuda_zgemm = (cuda_zgemm_t) gpu_device->function;
-    
+
     gpu_elem_A = (gpu_elem_t *)this_task->data[0].mem2dev_data->device_elem[gpu_device->index];
     gpu_elem_B = (gpu_elem_t *)this_task->data[1].mem2dev_data->device_elem[gpu_device->index];
     gpu_elem_C = (gpu_elem_t *)this_task->data[2].mem2dev_data->device_elem[gpu_device->index];
@@ -331,7 +331,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
     status = cudaSuccess;
-    cuda_zgemm( lapack_const(args->transA), lapack_const(args->transB), args->M, args->N, args->K, 
+    cuda_zgemm( lapack_const(args->transA), lapack_const(args->transB), args->M, args->N, args->K,
                 args->alpha, (Dague_Complex64_t*)d_A, args->lda,
                              (Dague_Complex64_t*)d_B, args->ldb,
                 args->beta,  (Dague_Complex64_t*)d_C, args->ldc,
@@ -472,7 +472,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
                dague_execution_context_t* this_task,
                int pushout,
                PLASMA_enum transA, PLASMA_enum transB,
-               int M, int N, int K, 
+               int M, int N, int K,
                Dague_Complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA, int lda,
                                         int Bm, int Bn, const tiled_matrix_desc_t *descB, int ldb,
                Dague_Complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC, int ldc )
