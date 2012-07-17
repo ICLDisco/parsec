@@ -40,7 +40,7 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
     dplasma_add2arena_rectangle( dague_laswp->arenas[DAGUE_zlaswp_PIVOT_ARENA],
                                  A->mb*sizeof(int),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_INT, A->mb, 1, -1 );
+                                 MPI_INT, 1, A->mb, -1 );
 
     return (dague_object_t*)dague_laswp;
 }
