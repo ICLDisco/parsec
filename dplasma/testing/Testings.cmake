@@ -48,7 +48,8 @@ if( MPI_FOUND )
 
   add_test(mpi_dlange        ${MPI_TEST_CMD} ./testing_dlange        -p 4 -N 1500 -t 233 -x -v=5)
 
-  add_test(mpi_dtrmm         ${MPI_TEST_CMD} ./testing_dtrmm         -p 2 -N 1500 -x -v=5)
+# dtrmm answers "testing does not work in parallel"... Remove it.
+#  add_test(mpi_dtrmm         ${MPI_TEST_CMD} ./testing_dtrmm         -p 2 -N 1500 -x -v=5)
   add_test(mpi_dtrsm         ${MPI_TEST_CMD} ./testing_dtrsm         -p 4 -N 1500 -x -v=5)
   add_test(mpi_dgemm         ${MPI_TEST_CMD} ./testing_dgemm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
 
