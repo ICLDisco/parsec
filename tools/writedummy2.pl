@@ -109,16 +109,10 @@ sub writeNodes {
 
     my $offset = tell FILE;
     my $pagesize = POSIX::sysconf(POSIX::_SC_PAGESIZE);
-    print $pagesize, ' ', $offset."\n";
 
     for(my $i = 0; (($i + $offset) % $pagesize) != 0; $i++) {
-        print '.';
         print FILE pack('c', 0);
     }
-    
-    $offset = tell FILE;
-    print $pagesize, ' ', $offset."\n";
-    
     
     close FILE;
 }
