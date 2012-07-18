@@ -45,26 +45,38 @@ static void filenode_add_pred(node_t *n, node_t *p)
     n->pred[n->nbpred-1] = p;
 }
 
-static void load_single_node(char *m, off_t offset, int i, node_t *allnodes)
+static off_t load_single_node(char *m, off_t offset, int i, node_t *allnodes)
 {
     filenode_t *n;
     node_t *t;
     int j;
 
-    n = (filenode_t *)&(m[offset]);
     t = &allnodes[i];
-    t->tname = strdup( (char*)&(m[n->tname]) );
-    t->accesses = strdup( (char*)&(m[n->accesses]) );
-    t->nbsucc = n->nbsucc;
-    if( n->nbsucc > 0 ) {
+    t->tname    = strdup( (char*)(m + offset) );
+    offset += strlen( t->tname ) + 1;
+    fprintf(stderr, " (%s, ", t->tname );
+
+    t->accesses = strdup( (char*)(m + offset) );
+    offset += strlen( t->accesses ) + 1;
+    fprintf(stderr, " %s, ", t->accesses );
+
+    t->nbsucc = ((int*)(m + offset))[0];
+    offset += sizeof(int);
+    fprintf(stderr, " %d) -> ", t->nbsucc );
+
+    if( t->nbsucc > 0 ) {
         t->succ = (node_t**)malloc( t->nbsucc * sizeof(node_t*) );
-        for(j = 0; j < n->nbsucc; j++) {
-            t->succ[j] = &(allnodes[ n->succ[j] ]);
-            filenode_add_pred( &(allnodes[ n->succ[j] ]), t );
+        for(j = 0; j < t->nbsucc; j++) {
+            int succ = ((int*)(m + offset))[0];
+            offset += sizeof(int);
+            t->succ[j] = &(allnodes[ succ ]);
+            filenode_add_pred( &(allnodes[ succ ]), t );
+            fprintf(stderr, " %d", succ );
         }
     } else {
         t->succ = NULL;
     }
+    return offset;
 }
 
 static nl_t *load_filenode(const char *filename, int *nbnodes)
@@ -75,6 +87,7 @@ static nl_t *load_filenode(const char *filename, int *nbnodes)
     filenode_header_t *h;
     nl_t *r = NULL;
     node_t *allnodes;
+    off_t offset;
 
     if( (fd = open(filename, O_RDONLY)) == -1 ) {
         perror(filename);
@@ -87,6 +100,7 @@ static nl_t *load_filenode(const char *filename, int *nbnodes)
         return r;
     }
 
+    fprintf( stderr, "pagesize: %d, %d\n", (int)(s.st_size), getpagesize() );
     assert( s.st_size % getpagesize() == 0 );
 
     if( (m = mmap(NULL, s.st_size, PROT_READ, MAP_PRIVATE, fd, 0)) == MAP_FAILED ) {
@@ -96,18 +110,21 @@ static nl_t *load_filenode(const char *filename, int *nbnodes)
     }
     close(fd);
 
-    h = (filenode_header_t*)m;
-    *nbnodes = h->nbnodes;
+    *nbnodes = ((int*)m)[0];
+    fprintf(stderr, "nbnodes: %d\n", *nbnodes);
 
     r = (nl_t*)malloc(sizeof(nl_t));
     r->size = 0;
     r->allocated = 1;
     r->node = (node_t**)malloc(1 * sizeof(node_t*));
 
-    allnodes = (node_t*)calloc(h->nbnodes, sizeof(node_t));
+    allnodes = (node_t*)calloc(*nbnodes, sizeof(node_t));
 
-    for(i = 0; i < h->nbnodes; i++) {
-        load_single_node(m, h->nodes[i], i, allnodes);
+    offset = sizeof(int);
+    for(i = 0; i < *nbnodes; i++) {
+        fprintf(stderr, "Noeud %d : ", i);
+        offset = load_single_node(m, offset, i, allnodes);
+        fprintf(stderr, "\n");
     }
 
     for(i = 0; i < h->nbnodes; i++) {
