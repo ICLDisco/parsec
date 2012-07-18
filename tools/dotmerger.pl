@@ -122,9 +122,6 @@ END
 
 parseArgs(@ARGV);
 
-print_r(@inputs);
-exit 1;
-
 my $KERNELS = {};
 my $TASKS = {};
 
@@ -247,7 +244,7 @@ sub onNodes {
       my $line=$_;
       $lnb++;
       next if ($line =~ /^digraph G {$/);
-      last if ($line =~ /}/);
+      last if ($line =~ /^}/);
       next if ($line =~ / -> /);
       my ($ID, $COLOR, $T, $V, $K, $P, $p);
       if( ($ID, $COLOR, $T, $V, $K, $P, $p) = ($line =~ /^([^ ]+) \[shape="[^"]+",style=filled,fillcolor="#(......)",fontcolor="black",label="<([0-9]+)\/([0-9]+)> ([^(]+)\(([^)]*)\)<([^>]+)>/) ) {
@@ -259,6 +256,7 @@ sub onNodes {
       }
     }
     $R++;
+    close(F);
   }
 }
 
@@ -289,7 +287,7 @@ sub onLinks {
       my $line=$_;
       $lnb++;
       next if ($line =~ /^digraph G {$/);
-      last if ($line =~ /}/);
+      last if ($line =~ /^}/);
       next unless ($line =~ / -> /);
       my ($ID1, $ID2, $VSRC, $VDST, $COLOR);
       if( ($ID1, $ID2, $VSRC, $VDST, $COLOR) = ($line =~ /^([^ ]+) -> ([^ ]+) \[label="([^=]+)=>([^"]+)" color="#(......)"/) ) {
@@ -304,6 +302,7 @@ sub onLinks {
       }
     }
     $R++;
+    close(F);
   }
 }
 
