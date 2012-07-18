@@ -39,7 +39,7 @@ sub addDependencies {
     my $tmp = "/tmp/writedummy.tmp";
     my $tmp2 = "/tmp/writedummy2.tmp";
     system( "grep '^.* -> .* \\[.*' $filename > $tmp" );
-    system( "sed -i 's/\(.* -> .*\) \\[.*/\1/' $tmp" );
+    system( "sed -i 's/\\(.* -> .*\\) \\[.*/\\1/' $tmp" );
     system( "sort -u $tmp > $tmp2" );
 
     open FILE, $tmp2 or die $!;
