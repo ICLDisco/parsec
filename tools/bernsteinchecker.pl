@@ -59,7 +59,7 @@ while ( <> ) {
 		} else {
 		  $error = "Write/Read";
 		}
-		print STDERR "Found a $error scenario related to task $T: task " . $data->{$memref}->{writer} . " can write in parallel.\n$line\n";
+		die "Found a $error scenario related to task $T: task " . $data->{$memref}->{writer} . " can write in parallel.\n$line\n";
 		goto CLEANUP;
 	      } elsif ( @{$data->{$memref}->{readers}} > 0 ) {
 		if ( $type eq "R" ) {
@@ -67,7 +67,7 @@ while ( <> ) {
 #		  print "Adding $T to the readers of $memref " . Dumper( $data->{$memref} ) . "\n";
 		} else {
 		  my $error = join(", ", @{$data->{$memref}->{readers}});
-		  print STDERR "Found a Write/Read scenario related to task $T: task $T can write while some tasks ($error) can read in parallel\n$line\n";
+		  die "Found a Write/Read scenario related to task $T: task $T can write while some tasks ($error) can read in parallel\n$line\n";
 		  goto CLEANUP;
 		}
 	      } else {
