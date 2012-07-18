@@ -11,7 +11,6 @@
 typedef struct node {
     char         *tname;
     char         *accesses;
-    int           done;
     int           nbsucc;
     struct node **succ;
 } node_t;
@@ -24,46 +23,42 @@ typedef struct {
 
 static node_t ta_start = {
     .tname = "S#A",
-    .accesses = "M0x1",
-    .done = 0};
+    .accesses = "M0x1"};
 static node_t ta_end = {
     .tname = "E#A",
-    .accesses = "M0x1",
-    .done = 0};
+    .accesses = "M0x1"};
 static node_t tb_start = {
     .tname = "S#B",
-    .accesses = "R0x1,W0x2",
-    .done = 0};
+    .accesses = "R0x1,W0x2"};
 static node_t tb_end = {
     .tname = "E#B",
-    .accesses = "R0x1,W0x2",
-    .done = 0};
+    .accesses = "R0x1,W0x2"};
 static node_t tc_start = {
     .tname = "S#C",
-    .accesses = "R0x1,W0x3",
-    .done = 0};
+    .accesses = "R0x1,W0x3"};
 static node_t tc_end = {
     .tname = "E#C",
-    .accesses = "R0x1,W0x3",
-    .done = 0};
+    .accesses = "R0x1,W0x3"};
 static node_t td_start = {
     .tname = "S#D",
-    .accesses = "R0x3,W0x1",
-    .done = 0};
+    .accesses = "R0x3,W0x1"};
 static node_t td_end = {
     .tname = "E#D",
-    .accesses = "R0x3,W0x1",
-    .done = 0};
+    .accesses = "R0x3,W0x1"};
 static node_t te_start = {
     .tname = "S#E",
-    .accesses = "R0x1,W0x3",
-    .done = 0};
+    .accesses = "R0x1,W0x3"};
 static node_t te_end = {
     .tname = "E#E",
-    .accesses = "R0x1,W0x3",
-    .done = 0};
+    .accesses = "R0x1,W0x3"};
+static node_t tf_start = {
+    .tname = "S#F",
+    .accesses = "M0x3"};
+static node_t tf_end = {
+    .tname = "E#F",
+    .accesses = "M0x3"};
 
-#define NBNODES 10
+#define NBNODES 12
 #define MAXSUCC  2
 
 node_t **load_dummy_graph(void)
@@ -79,6 +74,8 @@ node_t **load_dummy_graph(void)
     r[7] = &td_end;
     r[8] = &te_start;
     r[9] = &te_end;
+    r[10]= &tf_start;
+    r[11]= &tf_end;
 
     ta_start.nbsucc = 1;
     ta_start.succ = (node_t**)malloc(1*sizeof(node_t));
@@ -100,15 +97,20 @@ node_t **load_dummy_graph(void)
     te_start.succ = (node_t**)malloc(1*sizeof(node_t));
     te_start.succ[0] = &te_end;
 
+    tf_start.nbsucc = 1;
+    tf_start.succ = (node_t**)malloc(1*sizeof(node_t));
+    tf_start.succ[0] = &tf_end;
+
     ta_end.nbsucc = 2;
     ta_end.succ = (node_t**)malloc(2*sizeof(node_t));
     ta_end.succ[0] = &tb_start;
     ta_end.succ[1] = &tc_start;
     
-    tb_end.nbsucc = 1;
+    tb_end.nbsucc = 2;
     tb_end.succ = (node_t**)malloc(1*sizeof(node_t));
     tb_end.succ[0] = &te_start;
-    
+    tb_end.succ[1] = &tf_start;
+
     tc_end.nbsucc = 1;
     tc_end.succ = (node_t**)malloc(1*sizeof(node_t));
     tc_end.succ[0] = &td_start;
@@ -116,6 +118,10 @@ node_t **load_dummy_graph(void)
     td_end.nbsucc = 1;
     td_end.succ = (node_t**)malloc(1*sizeof(node_t));
     td_end.succ[0] = &te_start;
+
+    tf_end.nbsucc = 1;
+    tf_end.succ = (node_t**)malloc(1*sizeof(node_t));
+    tf_end.succ[0] = &td_start;
 
     return r;
 }
