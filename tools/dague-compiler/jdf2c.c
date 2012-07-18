@@ -483,13 +483,13 @@ static char *dump_dataflow_var_type(void **elem, void *arg)
         return NULL;
 
     if ( fl->access_type == (JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE) )
-        return "M\%p";
+        return "M%%p";
     else if ( fl->access_type & JDF_VAR_TYPE_READ )
-        return "R\%p";
+        return "R%%p";
     else if ( fl->access_type & JDF_VAR_TYPE_WRITE )
-        return "W\%p";
+        return "W%%p";
     else
-        return "X\%p";
+        return "X%%p";
 }
 
 /**
