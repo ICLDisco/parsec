@@ -2,6 +2,23 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+typedef struct {
+    off_t         tname;
+    off_t         accesses;
+    int           nbsucc;
+    int           succ[1];
+} filenode_t;
+
+typedef struct {
+    int           nbnodes;
+    off_t         nodes[1];
+} filenode_header_t;
 
 typedef struct node {
     char         *tname;
@@ -18,6 +35,91 @@ typedef struct {
     int       size;
     int       allocated;
 } nl_t;
+
+static void nl_add(nl_t *s, node_t *n);
+
+static void filenode_add_pred(node_t *n, node_t *p)
+{
+    n->nbpred++;
+    n->pred = (node_t**)realloc( n->pred, n->nbpred * sizeof(node_t*) );
+    n->pred[n->nbpred-1] = p;
+}
+
+static void load_single_node(char *m, off_t offset, int i, node_t *allnodes)
+{
+    filenode_t *n;
+    node_t *t;
+    int j;
+
+    n = (filenode_t *)&(m[offset]);
+    t = &allnodes[i];
+    t->tname = strdup( (char*)&(m[n->tname]) );
+    t->accesses = strdup( (char*)&(m[n->accesses]) );
+    t->nbsucc = n->nbsucc;
+    if( n->nbsucc > 0 ) {
+        t->succ = (node_t**)malloc( t->nbsucc * sizeof(node_t*) );
+        for(j = 0; j < n->nbsucc; j++) {
+            t->succ[j] = &(allnodes[ n->succ[j] ]);
+            filenode_add_pred( &(allnodes[ n->succ[j] ]), t );
+        }
+    } else {
+        t->succ = NULL;
+    }
+}
+
+static nl_t *load_filenode(const char *filename, int *nbnodes)
+{
+    int fd, i;
+    struct stat s;
+    char *m;
+    filenode_header_t *h;
+    nl_t *r = NULL;
+    node_t *allnodes;
+
+    if( (fd = open(filename, O_RDONLY)) == -1 ) {
+        perror(filename);
+        return r;
+    }
+
+    if( fstat(fd, &s) == -1 ) {
+        perror(filename);
+        close(fd);
+        return r;
+    }
+
+    assert( s.st_size % getpagesize() == 0 );
+
+    if( (m = mmap(NULL, s.st_size, PROT_READ, MAP_PRIVATE, fd, 0)) == MAP_FAILED ) {
+        perror(filename);
+        close(fd);
+        return r;
+    }
+    close(fd);
+
+    h = (filenode_header_t*)m;
+    *nbnodes = h->nbnodes;
+
+    r = (nl_t*)malloc(sizeof(nl_t));
+    r->size = 0;
+    r->allocated = 1;
+    r->node = (node_t**)malloc(1 * sizeof(node_t*));
+
+    allnodes = (node_t*)calloc(h->nbnodes, sizeof(node_t));
+
+    for(i = 0; i < h->nbnodes; i++) {
+        load_single_node(m, h->nodes[i], i, allnodes);
+    }
+
+    for(i = 0; i < h->nbnodes; i++) {
+        if( allnodes[i].nbpred == 0 ) {
+            nl_add(r, &allnodes[i]);
+        }
+    }
+
+    munmap( m, s.st_size );
+
+    return r;
+}
 
 static nl_t *nl_dup(const nl_t *s)
 {
@@ -115,130 +217,14 @@ static void walk(node_t **word, int pos, nl_t *ready) {
     }
 }
 
-static node_t ta_start = {
-    .tname = "S#A",
-    .accesses = "M0x1",
-    .done = 0};
-static node_t ta_end = {
-    .tname = "E#A",
-    .accesses = "M0x1",
-    .done = 0};
-static node_t tb_start = {
-    .tname = "S#B",
-    .accesses = "R0x1,W0x2",
-    .done = 0};
-static node_t tb_end = {
-    .tname = "E#B",
-    .accesses = "R0x1,W0x2",
-    .done = 0};
-static node_t tc_start = {
-    .tname = "S#C",
-    .accesses = "R0x1,W0x3",
-    .done = 0};
-static node_t tc_end = {
-    .tname = "E#C",
-    .accesses = "R0x1,W0x3",
-    .done = 0};
-static node_t td_start = {
-    .tname = "S#D",
-    .accesses = "R0x3,W0x1",
-    .done = 0};
-static node_t td_end = {
-    .tname = "E#D",
-    .accesses = "R0x3,W0x1",
-    .done = 0};
-static node_t te_start = {
-    .tname = "S#E",
-    .accesses = "R0x1,W0x3",
-    .done = 0};
-static node_t te_end = {
-    .tname = "E#E",
-    .accesses = "R0x1,W0x3",
-    .done = 0};
-
-nl_t *load_dummy_graph(int *nbnodes)
-{
-    nl_t *init = (nl_t*)malloc(sizeof(nl_t));
-    init->node = (node_t**)malloc(sizeof(node_t*));
-    init->size = 1;
-    init->allocated = 1;
-    
-    ta_start.nbsucc = 1;
-    ta_start.succ = (node_t**)malloc(1*sizeof(node_t));
-    ta_start.succ[0] = &ta_end;
-    ta_end.nbpred = 1;
-    ta_end.pred = (node_t**)malloc(1*sizeof(node_t));
-    ta_end.pred[0] = &ta_start;
-
-    tb_start.nbsucc = 1;
-    tb_start.succ = (node_t**)malloc(1*sizeof(node_t));
-    tb_start.succ[0] = &tb_end;
-    tb_end.nbpred = 1;
-    tb_end.pred = (node_t**)malloc(1*sizeof(node_t));
-    tb_end.pred[0] = &tb_start;
-
-    tc_start.nbsucc = 1;
-    tc_start.succ = (node_t**)malloc(1*sizeof(node_t));
-    tc_start.succ[0] = &tc_end;
-    tc_end.nbpred = 1;
-    tc_end.pred = (node_t**)malloc(1*sizeof(node_t));
-    tc_end.pred[0] = &tc_start;
-
-    td_start.nbsucc = 1;
-    td_start.succ = (node_t**)malloc(1*sizeof(node_t));
-    td_start.succ[0] = &td_end;
-    td_end.nbpred = 1;
-    td_end.pred = (node_t**)malloc(1*sizeof(node_t));
-    td_end.pred[0] = &td_start;
-
-    te_start.nbsucc = 1;
-    te_start.succ = (node_t**)malloc(1*sizeof(node_t));
-    te_start.succ[0] = &te_end;
-    te_end.nbpred = 1;
-    te_end.pred = (node_t**)malloc(1*sizeof(node_t));
-    te_end.pred[0] = &te_start;
-
-    ta_end.nbsucc = 2;
-    ta_end.succ = (node_t**)malloc(2*sizeof(node_t));
-    ta_end.succ[0] = &tb_start;
-    ta_end.succ[1] = &tc_start;
-    tb_start.nbpred = 1;
-    tb_start.pred = (node_t**)malloc(1*sizeof(node_t));
-    tb_start.pred[0] = &ta_end;
-    tc_start.nbpred = 1;
-    tc_start.pred = (node_t**)malloc(1*sizeof(node_t));
-    tc_start.pred[0] = &ta_end;
-    
-    tb_end.nbsucc = 1;
-    tb_end.succ = (node_t**)malloc(1*sizeof(node_t));
-    tb_end.succ[0] = &te_start;
-    te_start.nbpred = 2;
-    te_start.pred = (node_t**)malloc(1*sizeof(node_t));
-    te_start.pred[0] = &tb_end;
-    
-    tc_end.nbsucc = 1;
-    tc_end.succ = (node_t**)malloc(1*sizeof(node_t));
-    tc_end.succ[0] = &td_start;
-    td_start.nbpred = 1;
-    td_start.pred = (node_t**)malloc(1*sizeof(node_t));
-    td_start.pred[0] = &tc_end;
-    
-    td_end.nbsucc = 1;
-    td_end.succ = (node_t**)malloc(1*sizeof(node_t));
-    td_end.succ[0] = &te_start;
-    te_start.pred[1] = &td_end;
-
-    init->node[0] = &ta_start;
-    *nbnodes = 10;
-    return init;
-}
-
 int main(int argc, char *argv[])
 {
     nl_t *graph;
     node_t **word;
     int nb_nodes;
-    graph = load_dummy_graph(&nb_nodes);
+    graph = load_filenode("dummy.grp", &nb_nodes);
+    if( NULL == graph )
+        return 1;
     word = (node_t**)calloc(nb_nodes+1, sizeof(node_t*));
     walk(word, 0, graph);
     return 0;
