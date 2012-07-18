@@ -1258,20 +1258,20 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
 #  ifdef DAGUE_DEBUG_VERBOSE2
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s nbelt %d extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), i, k, task->deps, ADATA(data), type_name, nbdtt, deps->output[k].type->elem_size * nbdtt, msg.tag+k));
+#  endif
         TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from,
                             eu_context->virtual_process->dague_context->my_rank, deps->msg);
-#  endif /* defined(DAGUE_PROF_TRACE) */
+        DEBUG_MARK_DTA_MSG_START_RECV(from, data, msg.tag+k);
         MPI_Irecv(ADATA(data), nbdtt,
                   dtt, from, msg.tag+k, dep_comm,
                   &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
-        DEBUG_MARK_DTA_MSG_START_RECV(from, data, msg.tag+k);
 #endif
     }
     if(msg.which)
     {
         TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Data_ctl_sk, get,
                             from, eu_context->virtual_process->dague_context->my_rank, (*task)); 
-       DAGUE_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, datakey_count, datakey_dtt);
+        DAGUE_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, datakey_count, datakey_dtt);
         MPI_Send(&msg, datakey_count, datakey_dtt, from,
                  REMOTE_DEP_GET_DATA_TAG, dep_comm);
         assert(NULL == dep_pending_recv_array[i]);
