@@ -36,7 +36,13 @@ sub getNodes {
 sub addDependencies {
     my ($filename) = @_;
 
-    open FILE, $filename or die $!;
+    my $tmp = "/tmp/writedummy.tmp";
+    my $tmp2 = "/tmp/writedummy2.tmp";
+    system( "grep '^.* -> .* \\[.*' $filename > $tmp" );
+    system( "sed -i 's/\(.* -> .*\) \\[.*/\1/' $tmp" );
+    system( "sort -u $tmp > $tmp2" );
+
+    open FILE, $tmp2 or die $!;
     while (<FILE>) {
         my $line = $_;
         chop $line;
@@ -58,6 +64,9 @@ sub addDependencies {
         }
     }
     close FILE;
+
+    system("rm -f $tmp $tmp2");
+
 }
 
 sub printNodes {
