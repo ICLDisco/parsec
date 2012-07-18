@@ -39,6 +39,19 @@ typedef struct {
 
 static void nl_add(nl_t *s, node_t *n);
 
+static void dump_dot(node_t *nodes, int nbnodes)
+{
+    int i, k;
+    printf("digraph G {\n");
+    for(i = 0; i < nbnodes; i++) {
+        fprintf(stderr, "%s has %d successors\n",  nodes[i].tname, nodes[i].nbsucc);
+        for(k = 0; k < nodes[i].nbsucc; k++)
+            printf("  %s -> %s;\n",
+                   nodes[i].tname, nodes[i].succ[k]->tname);
+    }
+    printf("}\n");
+}
+
 static void filenode_add_pred(node_t *n, node_t *p)
 {
     n->nbpred++;
@@ -150,7 +163,7 @@ static nl_t *load_filenode(const char *filename, int *nbnodes)
     }
 
     munmap( m, s.st_size );
-
+    
     return r;
 }
 
