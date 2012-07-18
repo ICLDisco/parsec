@@ -4,6 +4,35 @@ use Data::Dumper;
 
 my ($lineok, $linefound);
 
+sub parse_access {
+  my ($MEM) = @_;
+  my @acc = split /,/, $MEM;
+  my $t = {};
+
+  foreach my $a (@acc) {
+    if( my ($type, $memref) = ($a =~ /^([RWM])(.*)$/) ) {
+      if( defined $t->{ $memref } ) {
+	next if( $t->{ $memref } == $type );
+	next if( $t->{ $memref } == "M" );
+	next if( $t->{ $memref } == "W" );
+	$t->{ $memref } = $type;
+      } else {
+	$t->{ $memref } = $type;
+      }
+    } else {
+      die "Malformed memory reference: $a\n";
+    }
+  }
+
+  my @r;
+  foreach my $memref (keys %{$t}) {
+    push @r, "" . $t->{$memref} . $memref;
+    delete $t->{$memref};
+  }
+
+  return @r;
+}
+
 while ( <> ) {
   my $line = $_;
   my $warncleanup = 0;
@@ -15,7 +44,7 @@ while ( <> ) {
     my ($SE, $T, $MEM);
     if ( ($SE, $T, $MEM) = ($op =~ /^([SE])\#([^\#]+)\#([^\#]*)\#/) ) {
       if ( $SE eq "S" ) {
-	my @accesses = split /,/, $MEM;
+	my @accesses = parse_access($MEM);
 	foreach my $access (@accesses) {
 	  my ($type,$memref);
 	  if ( ($type, $memref) = ($access =~ /^([RWM])(.*)$/) ) {
@@ -78,7 +107,7 @@ while ( <> ) {
 	}
       } else {
 	die "malformed input: $op ($SE does not start with S or E)\n" unless ($SE eq "E");
-	my @accesses = split /,/, $MEM;
+	my @accesses = parse_access($MEM);
 	foreach my $access (@accesses) {
 	  my $memref;
 	  if ( ($memref) = ($access =~ /^[RWM](.*)$/) ) {

@@ -122,6 +122,9 @@ END
 
 parseArgs(@ARGV);
 
+print_r(@inputs);
+exit 1;
+
 my $KERNELS = {};
 my $TASKS = {};
 
