@@ -4,7 +4,6 @@ use Getopt::Long;
 use POSIX;
 
 my %nodes = ();
-my $MAXSUCC = 256;
 
 sub getNodes {
     
@@ -31,8 +30,6 @@ sub getNodes {
     }
     
     close FILE;
-    
-#    %nodes = sort keys %nodes;
 }
 
 
@@ -95,13 +92,7 @@ sub writeNodes {
 
     open(FILE, '>:raw', $filename );
 
-    # Write filenode_header_t 
     print FILE pack('i', $nbnodes);
-#     foreach (%nodes) {
-#         print $nextstring;
-#         $nextstring += $filenode_size;
-#     }
-    
     foreach my $key (keys %nodes) {
         print FILE $key;
         print FILE pack('c', 0);
@@ -109,22 +100,11 @@ sub writeNodes {
         print FILE pack('c', 0);
         print FILE pack('i', $nodes{$key}{'nbsucc'});
 
-#         print $nextstring;
-#         $nextstring += length($key) + 1;
-#         print $nextstring;
-#         $nextstring += length($nodes{$key}{'prop'}) + 1;
-#         print $nodes{$key}{'nbsucc'};
-
         my $i=0;
         for(; $i<$nodes{$key}{'nbsucc'}; $i++) {
             my $succ = $nodes{$key}{'succ'}[$i];
             print FILE pack( 'i', getNodeIndex( $succ ) );
-            #print "$key: $nodes{$key}\n";
         }
-
-#         for(; $i<$MAXSUCC; $i++) {
-#             print -1;
-#         }
     }
 
     my $offset = tell FILE;
@@ -141,10 +121,6 @@ sub writeNodes {
     
     
     close FILE;
-#     foreach my $key (keys %nodes) {
-#         print $key;
-#         print $nodes{$key}{'prop'};
-#     }
 }
 
 
