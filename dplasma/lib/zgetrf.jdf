@@ -160,7 +160,8 @@ getrf(k, t) [high_priority = on]
   RW    IPIV <- IP IPIV_in(k)                                                       [type = PIVOT]
              -> ( t==0 ) ? IP IPIV_out(k)                                           [type = PIVOT]
              -> ((t==0) && (k < (descA.nt-1))) ? IPIV swptrsm(k, k+1 .. descA.nt-1) [type = PIVOT]
-             -> ((t==0) && (k > 0)         )   ? IPIV swpback(k, 0 .. k-1)          [type = PIVOT]
+             -> ((t==0) && (k > 0)         )   ? IPIV bcastback(k)                  [type = PIVOT]
+//           -> ((t==0) && (k > 0)         )   ? IPIV swpback(k, 0 .. k-1)          [type = PIVOT]
 
   CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, descA.mt-1, k)
              -> (t == 0) && (k < descA.mt-1) ? ctl GEMM_A_in(k, k+1..descA.mt-1)
@@ -343,6 +344,18 @@ END
  *                              SWAP Backward                                       *
  ************************************************************************************/
 
+bcastback(k) 
+  k = 1 .. minMNT
+
+  :A(k, k)
+
+READ  IPIV <- IPIV getrf(k, 0)                                [type = PIVOT]
+           -> IPIV swpback(k, 0 .. k-1 )                      [type = PIVOT]
+
+BODY
+      /**/
+END
+
 swpback(k, n)
   /* Execution space */
   k = 1 .. minMNT
@@ -351,7 +364,8 @@ swpback(k, n)
   /* Locality */
   :A(k, n)
 
-  READ  IPIV <- IPIV getrf(k, 0)                                [type = PIVOT]
+      //  READ  IPIV <- IPIV getrf(k, 0)                                [type = PIVOT]
+  READ  IPIV <- IPIV bcastback(k)                                [type = PIVOT]
 
   RW    A    <- A(k, n)
              -> A(k, n)
