@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -47,34 +48,45 @@ static void filenode_add_pred(node_t *n, node_t *p)
 
 static off_t load_single_node(char *m, off_t offset, int i, node_t *allnodes)
 {
-    filenode_t *n;
-    node_t *t;
+    node_t *s, *e;
     int j;
+    char *acc, *name;
 
-    t = &allnodes[i];
-    t->tname    = strdup( (char*)(m + offset) );
-    offset += strlen( t->tname ) + 1;
-    fprintf(stderr, " (%s, ", t->tname );
+    name = (char*)(m + offset);
+    offset += strlen( name ) + 1;
 
-    t->accesses = strdup( (char*)(m + offset) );
-    offset += strlen( t->accesses ) + 1;
-    fprintf(stderr, " %s, ", t->accesses );
+    acc = strdup( (char*)(m + offset) );
+    offset += strlen( acc ) + 1;
 
-    t->nbsucc = ((int*)(m + offset))[0];
+    s = &allnodes[2*i];
+    e = &allnodes[2*i+1];
+
+    asprintf(&s->tname, "S#%s", name);
+    s->accesses = acc;
+    
+    s->nbsucc = 1;
+    s->succ = (node_t**)malloc( sizeof(node_t*) );
+    s->succ[0] = e;
+
+    e->accesses = acc;
+    asprintf(&e->tname, "E#%s", name);
+    e->nbpred = 1;
+    e->pred = (node_t**)malloc( sizeof(node_t*) );
+    e->pred[0] = s;
+
+    e->nbsucc = ((int*)(m + offset))[0];
     offset += sizeof(int);
-    fprintf(stderr, " %d) -> ", t->nbsucc );
 
-    if( t->nbsucc > 0 ) {
-        t->succ = (node_t**)malloc( t->nbsucc * sizeof(node_t*) );
-        for(j = 0; j < t->nbsucc; j++) {
+    if( e->nbsucc > 0 ) {
+        e->succ = (node_t**)malloc( e->nbsucc * sizeof(node_t*) );
+        for(j = 0; j < e->nbsucc; j++) {
             int succ = ((int*)(m + offset))[0];
             offset += sizeof(int);
-            t->succ[j] = &(allnodes[ succ ]);
-            filenode_add_pred( &(allnodes[ succ ]), t );
-            fprintf(stderr, " %d", succ );
+            e->succ[j] = &(allnodes[ 2*succ ]);
+            filenode_add_pred( &(allnodes[ 2*succ ]), e );
         }
     } else {
-        t->succ = NULL;
+        e->succ = NULL;
     }
     return offset;
 }
@@ -84,7 +96,6 @@ static nl_t *load_filenode(const char *filename, int *nbnodes)
     int fd, i;
     struct stat s;
     char *m;
-    filenode_header_t *h;
     nl_t *r = NULL;
     node_t *allnodes;
     off_t offset;
@@ -100,7 +111,6 @@ static nl_t *load_filenode(const char *filename, int *nbnodes)
         return r;
     }
 
-    fprintf( stderr, "pagesize: %d, %d\n", (int)(s.st_size), getpagesize() );
     assert( s.st_size % getpagesize() == 0 );
 
     if( (m = mmap(NULL, s.st_size, PROT_READ, MAP_PRIVATE, fd, 0)) == MAP_FAILED ) {
@@ -111,23 +121,29 @@ static nl_t *load_filenode(const char *filename, int *nbnodes)
     close(fd);
 
     *nbnodes = ((int*)m)[0];
-    fprintf(stderr, "nbnodes: %d\n", *nbnodes);
 
     r = (nl_t*)malloc(sizeof(nl_t));
     r->size = 0;
     r->allocated = 1;
     r->node = (node_t**)malloc(1 * sizeof(node_t*));
 
-    allnodes = (node_t*)calloc(*nbnodes, sizeof(node_t));
+    allnodes = (node_t*)calloc(2 * (*nbnodes), sizeof(node_t));
 
     offset = sizeof(int);
     for(i = 0; i < *nbnodes; i++) {
-        fprintf(stderr, "Noeud %d : ", i);
         offset = load_single_node(m, offset, i, allnodes);
-        fprintf(stderr, "\n");
     }
 
-    for(i = 0; i < h->nbnodes; i++) {
+    *nbnodes *= 2;
+
+    for(i = 0; i < *nbnodes; i++) {
+        if( i % 2 == 0 ) {
+            assert( allnodes[i].nbsucc == 1 );
+            assert( allnodes[i].succ[0] == &allnodes[i+1] );
+        } else {
+            assert( allnodes[i].nbpred == 1 );
+            assert( allnodes[i].pred[0] == &allnodes[i-1] );
+        }
         if( allnodes[i].nbpred == 0 ) {
             nl_add(r, &allnodes[i]);
         }
@@ -174,6 +190,15 @@ static void nl_add(nl_t *s, node_t *n)
     s->size++;
 }
 
+static void add_ready_task(nl_t *s, node_t *n)
+{
+    int i;
+    for(i = 0; i < s->size; i++)
+        assert( s->node[i] != n );
+
+    nl_add(s, n);
+}
+
 static void display_node_list(nl_t *s)
 {
     int i;
@@ -192,12 +217,13 @@ static void display_node_array(node_t **word, int len)
     printf("\n");
 }
 
-static void walk(node_t **word, int pos, nl_t *ready) {
+static void walk(node_t **word, int nbnodes, int pos, nl_t *ready) {
     int i, j, k;
     nl_t *myready;
     node_t *s, *e;
 
     //    printf("entering level %d with a list of size %d\n", pos, ready->size);
+    assert(pos <= nbnodes);
 
     if( ready->size == 0 ) {
         word[pos] = NULL;
@@ -207,6 +233,8 @@ static void walk(node_t **word, int pos, nl_t *ready) {
 
     for(i = 0; i < ready->size; i++) {
         e = ready->node[i];
+
+        assert( e->done == 0 );
         e->done = 1;
         word[pos] = e;
 
@@ -224,10 +252,10 @@ static void walk(node_t **word, int pos, nl_t *ready) {
             }
             if( k == s->nbpred ) {
                 //                printf("%s is now ready\n", s->tname);
-                nl_add(myready, s);
+                add_ready_task(myready, s);
             }
         }
-        walk(word, pos+1, myready);
+        walk(word, nbnodes, pos+1, myready);
         nl_free(myready);
 
         e->done = 0;
@@ -243,6 +271,6 @@ int main(int argc, char *argv[])
     if( NULL == graph )
         return 1;
     word = (node_t**)calloc(nb_nodes+1, sizeof(node_t*));
-    walk(word, 0, graph);
+    walk(word, nb_nodes, 0, graph);
     return 0;
 }
