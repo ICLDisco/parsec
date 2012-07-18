@@ -115,7 +115,7 @@ void dague_prof_grapher_init(const char *base_filename, int rank, int size, int 
         colors[t] = unique_color(rank * nbfuncs + t, size * nbfuncs);
 }
 
-static char *service_to_taskid(const dague_execution_context_t *exec_context, char *tmp, int length)
+char *dague_prof_grapher_taskid(const dague_execution_context_t *exec_context, char *tmp, int length)
 {
     const dague_function_t* function = exec_context->function;
     unsigned int i, index = 0;
@@ -135,7 +135,7 @@ void dague_prof_grapher_task(const dague_execution_context_t *context, int threa
     char tmp[MAX_TASK_STRLEN], nmp[MAX_TASK_STRLEN];
     if( NULL != grapher_file ) {
         dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context);
-        service_to_taskid(context, nmp, MAX_TASK_STRLEN);
+        dague_prof_grapher_taskid(context, nmp, MAX_TASK_STRLEN);
 #if defined(DAGUE_SIM)
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"<%d/%d> %s [%d]\",tooltip=\"%s%d\"];\n",
@@ -157,10 +157,10 @@ void dague_prof_grapher_dep(const dague_execution_context_t* from, const dague_e
     int index = 0;
 
     if( NULL != grapher_file ) {
-        service_to_taskid( from, tmp, 128 );
+        dague_prof_grapher_taskid( from, tmp, 128 );
         index = strlen(tmp);
         index += snprintf( tmp + index, 128 - index, " -> " );
-        service_to_taskid( to, tmp + index, 128 - index - 4 );
+        dague_prof_grapher_taskid( to, tmp + index, 128 - index - 4 );
         fprintf(grapher_file, 
                 "%s [label=\"%s=>%s\" color=\"#%s\" style=\"solid\"]\n", 
                 tmp, origin_flow->name, dest_flow->name,
