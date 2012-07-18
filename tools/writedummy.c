@@ -151,11 +151,13 @@ int main(int argc, char *argv[])
 {
     int i, j;
     char zero = 0;
-    filenode_header_t h;
-    filenode_t t;
+/*     filenode_header_t h; */
+/*     filenode_t t; */
     node_t **nodes;
     off_t next_string;
     int fd = open("dummy.grp", O_CREAT|O_WRONLY|O_TRUNC, 00644);
+    int nbnodes = NBNODES;
+
     if( fd == -1 ) {
         perror("unable to create dummy.grp:");
         exit(1);
@@ -163,32 +165,48 @@ int main(int argc, char *argv[])
 
     nodes = load_dummy_graph();
 
-    h.nbnodes = NBNODES;
-    h.nodes[0] = (off_t)sizeof(filenode_header_t);
-    for(i = 1; i < NBNODES; i++) {
-        h.nodes[i] = (off_t)( h.nodes[i-1] + sizeof(filenode_t) );
-    }
-    write(fd, &h, sizeof(filenode_header_t));
-    next_string = h.nodes[NBNODES-1] + sizeof(filenode_t);
+/*     h.nbnodes = NBNODES; */
+/*     h.nodes[0] = (off_t)sizeof(filenode_header_t); */
+/*     for(i = 1; i < NBNODES; i++) { */
+/*         h.nodes[i] = (off_t)( h.nodes[i-1] + sizeof(filenode_t) ); */
+/*     } */
+/*     write(fd, &h, sizeof(filenode_header_t)); */
+/*     next_string = h.nodes[NBNODES-1] + sizeof(filenode_t); */
+
+/*     for(i = 0; i < NBNODES; i++) { */
+/*         t.tname = next_string; */
+/*         next_string += strlen( nodes[i]->tname ) + 1; */
+/*         t.accesses = next_string; */
+/*         next_string += strlen( nodes[i]->accesses ) + 1; */
+/*         t.nbsucc = nodes[i]->nbsucc; */
+/*         for(j = 0; j < nodes[i]->nbsucc; j++) { */
+/*             assert( j < MAXSUCC ); */
+/*             t.succ[j] = node_index_of(nodes[i]->succ[j], nodes, NBNODES); */
+/*             assert( t.succ[j] != -1); */
+/*         } */
+/*         write(fd, &t, sizeof(filenode_t)); */
+/*     } */
+/*     for(i = 0; i < NBNODES; i++) { */
+/*         write( fd, nodes[i]->tname, strlen(nodes[i]->tname) + 1 ); */
+/*         write( fd, nodes[i]->accesses, strlen(nodes[i]->accesses) + 1 ); */
+/*     } */
+    
+    write(fd, &nbnodes, sizeof(int));
 
     for(i = 0; i < NBNODES; i++) {
-        t.tname = next_string;
-        next_string += strlen( nodes[i]->tname ) + 1;
-        t.accesses = next_string;
-        next_string += strlen( nodes[i]->accesses ) + 1;
-        t.nbsucc = nodes[i]->nbsucc;
+        write( fd, nodes[i]->tname,    strlen(nodes[i]->tname)    + 1 );
+        write( fd, nodes[i]->accesses, strlen(nodes[i]->accesses) + 1 );
+        write( fd, &(nodes[i]->nbsucc), sizeof(int) );
+
         for(j = 0; j < nodes[i]->nbsucc; j++) {
             assert( j < MAXSUCC );
-            t.succ[j] = node_index_of(nodes[i]->succ[j], nodes, NBNODES);
-            assert( t.succ[j] != -1);
+            int succ = node_index_of(nodes[i]->succ[j], nodes, NBNODES);
+            write( fd, &succ, sizeof(int) );
+            assert( succ != -1 );
         }
-        write(fd, &t, sizeof(filenode_t));
-    }
-    for(i = 0; i < NBNODES; i++) {
-        write( fd, nodes[i]->tname, strlen(nodes[i]->tname) + 1 );
-        write( fd, nodes[i]->accesses, strlen(nodes[i]->accesses) + 1 );
     }
     
+    next_string = lseek( fd, 0, SEEK_CUR );
     for(i = 0; (i + next_string) % getpagesize() != 0; i++) 
         write(fd, &zero, sizeof(char));
 
