@@ -12,9 +12,9 @@ sub parse_access {
   foreach my $a (@acc) {
     if( my ($type, $memref) = ($a =~ /^([RWM])(.*)$/) ) {
       if( defined $t->{ $memref } ) {
-	next if( $t->{ $memref } == $type );
-	next if( $t->{ $memref } == "M" );
-	next if( $t->{ $memref } == "W" );
+	next if( $t->{ $memref } eq $type );
+	next if( $t->{ $memref } eq "M" );
+	next if( $t->{ $memref } eq "W" );
 	$t->{ $memref } = $type;
       } else {
 	$t->{ $memref } = $type;
