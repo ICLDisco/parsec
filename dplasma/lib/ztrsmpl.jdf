@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -41,13 +41,13 @@ k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
 :A(k, k)
 
 READ A    <- A(k, k)
-          -> B zgessm(k, 0..descB.nt-1) 
+          -> B zgessm(k, 0..descB.nt-1)
      IPIV <- IPIV(k, k)                               [type = PIVOT]
           -> A zgessm(k, 0..descB.nt-1)                  [type = PIVOT]
-     
+
 BODY
         /* Nothing */
-        printlog("zgessm_inAIPIV( %d )\n", 
+        printlog("zgessm_inAIPIV( %d )\n",
                  k);
 END
 
@@ -66,8 +66,8 @@ zgessm(k,n)
 
   READ  A <- IPIV zgessm_inAIPIV(k)                     [type = PIVOT]
   READ  B <- A    zgessm_inAIPIV(k)
-  RW    C <- (k == 0) ? B(k,n) : E zssssm(k-1, k, n) 
-          -> (descA.mt>=(k+2)) ? D zssssm(k, k+1, n) 
+  RW    C <- (k == 0) ? B(k,n) : E zssssm(k-1, k, n)
+          -> (descA.mt>=(k+2)) ? D zssssm(k, k+1, n)
           -> (descA.mt==(k+1)) ? B(k,n)
 
 BODY
@@ -85,9 +85,9 @@ BODY
           int ldak = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
           int ldbk = descB.mb; /*((k+(Bi/descB.mb))<Blm1) ? (descB.mb) : (Blm%descB.mb);*/
 
-	   CORE_zgessm(tempkm, tempnn, tempkmin, ib, 
-                       A /* IPIV(k,k) */, 
-                       B /* A(k,k) */, ldak, 
+           CORE_zgessm(tempkm, tempnn, tempkmin, ib,
+                       A /* IPIV(k,k) */,
+                       B /* A(k,k) */, ldak,
                        C /* B(k,n) */, ldbk );
           );
 
@@ -106,15 +106,15 @@ m = k+1..descA.mt-1
 :A(m, k)
 
 READ A    <- A(m, k)
-          -> G zssssm(k, m, 0..descB.nt-1) 
+          -> G zssssm(k, m, 0..descB.nt-1)
      L    <- L(m, k)                         [type = SMALL_L]
           -> F zssssm(k, m, 0..descB.nt-1)   [type = SMALL_L]
      IPIV <- IPIV(m, k)                      [type = PIVOT]
-          -> H zssssm(k, m, 0..descB.nt-1)   [type = PIVOT]  
+          -> H zssssm(k, m, 0..descB.nt-1)   [type = PIVOT]
 
 BODY
         /* Nothing */
-        printlog("zssssm_inALIPIV( %d, %d )\n", 
+        printlog("zssssm_inALIPIV( %d, %d )\n",
                  k, m);
 END
 
@@ -128,7 +128,7 @@ n1 = 0..descB.nt-1
             -> B(k, n1)
 BODY
         /* Nothing */
-        printlog("zssssm_outB( %d, %d )\n", 
+        printlog("zssssm_outB( %d, %d )\n",
                  k, n1);
 END
 
@@ -149,13 +149,13 @@ zssssm(k,m,n1)
 
   RW    D <- ( m == (1+k) ) ? C zgessm(m-1, n1) : D zssssm(k, m-1, n1)
           -> (descA.mt==(m+1)) ? B zssssm_outB(k, n1)
-          -> (descA.mt>=(m+2)) ? D zssssm(k, m+1, n1) 
-  RW    E <- (0==k) ? B(m,n1) : E zssssm(k-1, m, n1) 
-          -> (m>=(k+2)) & (descA.nt>=(k+2)) ? E zssssm(k+1, m, n1) 
+          -> (descA.mt>=(m+2)) ? D zssssm(k, m+1, n1)
+  RW    E <- (0==k) ? B(m,n1) : E zssssm(k-1, m, n1)
+          -> (m>=(k+2)) & (descA.nt>=(k+2)) ? E zssssm(k+1, m, n1)
           -> (descA.nt==(k+1)) ? B(m,n1)
-          -> ((1+k)==m) & (descA.nt>=(2+k)) ? C zgessm(m, n1) 
+          -> ((1+k)==m) & (descA.nt>=(2+k)) ? C zgessm(m, n1)
   READ  F <- L zssssm_inALIPIV(k, m)         [type = SMALL_L]
-  READ  G <- A zssssm_inALIPIV(k, m)         
+  READ  G <- A zssssm_inALIPIV(k, m)
   READ  H <- IPIV zssssm_inALIPIV(k, m)      [type = PIVOT]
 
   /*
@@ -172,12 +172,12 @@ BODY
   int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
 
   DRYRUN(
-         CORE_zssssm(descA.nb, tempnn, tempmm, 
-                     tempnn, tempkn, ib, 
-                     D /* B(k,n1) */, ldbk, 
-                     E /* B(m,n1) */, ldbm, 
-                     F /* L(m,k) */,  descL.mb, 
-                     G /* A(m,k) */,  ldam, 
+         CORE_zssssm(descA.nb, tempnn, tempmm,
+                     tempnn, tempkn, ib,
+                     D /* B(k,n1) */, ldbk,
+                     E /* B(m,n1) */, ldbm,
+                     F /* L(m,k) */,  descL.mb,
+                     G /* A(m,k) */,  ldam,
                      H /* IPIV(m,k) */ );
          );
   printlog("  CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, B(%d,%d)[%p], %d, B(%d,%d)[%p], %d, L(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
