@@ -148,8 +148,13 @@ dplasma_zungqr_Destruct( dague_object_t *object )
 {
     dague_zungqr_object_t *dague_zungqr = (dague_zungqr_object_t *)object;
 
+    dplasma_datatype_undefine_type( &(dague_zungqr->arenas[DAGUE_zungqr_DEFAULT_ARENA   ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zungqr->arenas[DAGUE_zungqr_LOWER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zungqr->arenas[DAGUE_zungqr_LITTLE_T_ARENA  ]->opaque_dtt) );
+
     dague_private_memory_fini( dague_zungqr->p_work );
     free( dague_zungqr->p_work );
+
     DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zungqr);
 }
 
