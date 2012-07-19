@@ -430,6 +430,10 @@ IF( BUILD_DAGUE )
     list(APPEND EXTRA_SOURCES src/profiling.c)
   endif( DAGUE_PROF_TRACE )
 
+  if( DAGUE_PROF_STATS )
+    list(APPEND EXTRA_SOURCES src/stats.c)
+  endif( DAGUE_PROF_STATS )
+
   if( DAGUE_PROF_GRAPHER )
     list(APPEND EXTRA_SOURCES src/dague_prof_grapher.c)
   endif( DAGUE_PROF_GRAPHER )
@@ -470,7 +474,6 @@ ENDIF(CMAKE_CROSSCOMPILING)
 # 
 set(SRCS 
   src/barrier.c 
-  src/stats.c 
   src/scheduling.c
   src/schedulers.c 
   src/dague.c 
