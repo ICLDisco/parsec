@@ -89,8 +89,10 @@ int dplasma_zgetrf_incpiv( dague_context_t *dague, tiled_matrix_desc_t *A,
     int info = 0;
     dague_zgetrf_incpiv = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
 
-    dague_enqueue( dague, (dague_object_t*)dague_zgetrf_incpiv);
+    dague_enqueue( dague, dague_zgetrf_incpiv );
     dplasma_progress(dague);
+
+    dplasma_zgetrf_incpiv_Destruct( dague_zgetrf_incpiv );
 
     return info;
 }
