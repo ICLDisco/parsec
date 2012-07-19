@@ -72,6 +72,7 @@ subs = {
     ('float',               'double',              'float',               'double'              ),
     ('matrix_RealFloat',    'matrix_RealDouble',   'matrix_RealFloat',    'matrix_RealDouble'   ),
     ('MPI_FLOAT',           'MPI_DOUBLE',          'MPI_COMPLEX',         'MPI_DOUBLE_COMPLEX'  ),
+    ('MPI_FLOAT',           'MPI_DOUBLE',          'MPI_FLOAT',           'MPI_DOUBLE'          ),
     ('smatrix',             'dmatrix',             'cmatrix',             'zmatrix'             ),
     ('stwoDBC',             'dtwoDBC',             'ctwoDBC',             'ztwoDBC'             ),
     ('float',               'double',              'cuFloatComplex',      'cuDoubleComplex'     ),
