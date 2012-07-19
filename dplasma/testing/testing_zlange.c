@@ -56,7 +56,7 @@ int main(int argc, char ** argv)
     }
 
     /* Computing the norm */
-    for(i=3; i<4; i++) {
+    for(i=0; i<4; i++) {
         if ( rank == 0 ) {
             printf("***************************************************\n");
         }

@@ -483,13 +483,13 @@ static char *dump_dataflow_var_type(void **elem, void *arg)
         return NULL;
 
     if ( fl->access_type == (JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE) )
-        return "M%%p";
+        return "M%p";
     else if ( fl->access_type & JDF_VAR_TYPE_READ )
-        return "R%%p";
+        return "R%p";
     else if ( fl->access_type & JDF_VAR_TYPE_WRITE )
-        return "W%%p";
+        return "W%p";
     else
-        return "X%%p";
+        return "X%p";
 }
 
 /**
@@ -2454,12 +2454,6 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             UTIL_DUMP_LIST( sa1, jdf->functions, next,
                             dump_profiling_init, &pi, "", "    ", "\n", "\n"));
 
-    coutput("  /* Open the file to store the pointers used during execution */\n"
-            "#if defined(DAGUE_PROF_PTR_FILE)\n"
-            "  pointers_file = fopen(\"%s.txt\", \"w\");\n"
-            "#endif /*defined(DAGUE_PROF_PTR_FILE)*/\n",
-            jdf_basename );
-
     coutput("  /* Create the data repositories for this object */\n"
             "%s",
             UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_data_repository_constructor, sa2,
@@ -2467,10 +2461,27 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     coutput("  __dague_object->super.super.startup_hook      = %s_startup;\n"
             "  __dague_object->super.super.object_destructor = (dague_destruct_object_fn_t)%s_destructor;\n"
-            "  (void)dague_object_register((dague_object_t*)__dague_object);\n"
-            "  return (dague_%s_object_t*)__dague_object;\n"
+            "  (void)dague_object_register((dague_object_t*)__dague_object);\n",
+            jdf_basename, jdf_basename);
+
+    coutput("  /* Open the file to store the pointers used during execution */\n"
+            "#if defined(DAGUE_PROF_PTR_FILE)\n"
+            "{\n    int myrank = 0;\n"
+            "    char *filename;\n"
+            "#if defined(DISTRIBUTED) && defined(HAVE_MPI)\n"
+            "    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);\n"
+            "#endif /*defined(DISTRIBUTED) && defined(HAVE_MPI)*/\n"
+            "    asprintf(&filename, \"%%d-%s-%%d.txt\", __dague_object->super.super.object_id, myrank);\n"
+            "    pointers_file = fopen( filename, \"w\");\n"
+            "    free( filename );\n"
+            "}\n"
+            "#endif /*defined(DAGUE_PROF_PTR_FILE)*/\n",
+            jdf_basename );
+
+    coutput("  return (dague_%s_object_t*)__dague_object;\n"
             "}\n\n",
-            jdf_basename, jdf_basename, jdf_basename);
+            jdf_basename);
+
 
     string_arena_free(sa1);
     string_arena_free(sa2);

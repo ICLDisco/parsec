@@ -47,7 +47,7 @@ sub addDependencies {
         my $line = $_;
         chop $line;
         
-        if ( $line =~ /(.*) -> (.*) \[.*/ ) {
+        if ( $line =~ /(.*) -> (.*)/ ) {
             my $node1 = $1;
             my $node2 = $2;
             if ( !(exists $nodes{$node1}) ) {
