@@ -10,7 +10,7 @@
 #define _GEMM_STENCIL_H_
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Common parameters 
+// Common parameters
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define TEXTURE_1D
@@ -143,22 +143,11 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 #endif /* defined(PRECISION_x) */
 
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//  Block sizes parameters 
+//  Block sizes parameters
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-
-
-
-
-
-
-
-
-#if defined(PRECISION_z) 
+#if defined(PRECISION_z)
 
 #define DIM_X  8
 #define DIM_Y  8
@@ -219,7 +208,7 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 
 #define DIM_XA_nn 32
 #define DIM_YA_nn  8
-  
+
 #define DIM_XB_nn 16
 #define DIM_YB_nn 16
 
@@ -269,7 +258,7 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 
 #define DIM_XA_nn 16
 #define DIM_YA_nn 16
-  
+
 #define DIM_XB_nn 16
 #define DIM_YB_nn 16
 
@@ -319,7 +308,7 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 
 #define DIM_XA_nn 32
 #define DIM_YA_nn  8
-  
+
 #define DIM_XB_nn  8
 #define DIM_YB_nn 32
 
@@ -364,7 +353,7 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 //
 
 #define BLK_M  BLK_M_nn
-#define BLK_N  BLK_N_nn 
+#define BLK_N  BLK_N_nn
 #define BLK_K  BLK_K_nn
 #define DIM_XA DIM_XA_nn
 #define DIM_YA DIM_YA_nn
@@ -373,14 +362,14 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 
 #define version trans_nn
 #include "gemm_stencil_20_30.cu"
- 
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //
 //  NoTrans - Trans
 //
- 
+
 #define BLK_M  BLK_M_nt
-#define BLK_N  BLK_N_nt 
+#define BLK_N  BLK_N_nt
 #define BLK_K  BLK_K_nt
 #define DIM_XA DIM_XA_nt
 #define DIM_YA DIM_YA_nt
@@ -392,7 +381,7 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #define BLK_M  BLK_M_nt
-#define BLK_N  BLK_N_nt 
+#define BLK_N  BLK_N_nt
 #define BLK_K  BLK_K_nt
 #define DIM_XA DIM_XA_nt
 #define DIM_YA DIM_YA_nt
@@ -407,9 +396,9 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 //
 //  Trans - Trans
 //
- 
+
 #define BLK_M  BLK_M_tt
-#define BLK_N  BLK_N_tt 
+#define BLK_N  BLK_N_tt
 #define BLK_K  BLK_K_tt
 #define DIM_XA DIM_XA_tt
 #define DIM_YA DIM_YA_tt
@@ -421,7 +410,7 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #define BLK_M  BLK_M_tt
-#define BLK_N  BLK_N_tt 
+#define BLK_N  BLK_N_tt
 #define BLK_K  BLK_K_tt
 #define DIM_XA DIM_XA_tt
 #define DIM_YA DIM_YA_tt
@@ -432,7 +421,7 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 #include "gemm_stencil_20_30.cu"
 
 #define BLK_M  BLK_M_tt
-#define BLK_N  BLK_N_tt 
+#define BLK_N  BLK_N_tt
 #define BLK_K  BLK_K_tt
 #define DIM_XA DIM_XA_tt
 #define DIM_YA DIM_YA_tt
@@ -443,7 +432,7 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 #include "gemm_stencil_20_30.cu"
 
 #define BLK_M  BLK_M_tt
-#define BLK_N  BLK_N_tt 
+#define BLK_N  BLK_N_tt
 #define BLK_K  BLK_K_tt
 #define DIM_XA DIM_XA_tt
 #define DIM_YA DIM_YA_tt
@@ -459,9 +448,9 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 //
 //  Trans - NoTrans
 //
- 
+
 #define BLK_M  BLK_M_tn
-#define BLK_N  BLK_N_tn 
+#define BLK_N  BLK_N_tn
 #define BLK_K  BLK_K_tn
 #define DIM_XA DIM_XA_tn
 #define DIM_YA DIM_YA_tn
@@ -473,7 +462,7 @@ texture<float, 1, cudaReadModeElementType> tex_ref_B;
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #define BLK_M  BLK_M_tn
-#define BLK_N  BLK_N_tn 
+#define BLK_N  BLK_N_tn
 #define BLK_K  BLK_K_tn
 #define DIM_XA DIM_XA_tn
 #define DIM_YA DIM_YA_tn
