@@ -458,8 +458,6 @@ IF( BUILD_DAGUE )
   endif (DAGUE_PROF_PAPI)
 ENDIF( BUILD_DAGUE )
 
-find_package(GTG)
-
 if( DAGUE_PROF_TRACE )
   list(APPEND EXTRA_SOURCES src/profiling.c)
 endif( DAGUE_PROF_TRACE )
