@@ -9,12 +9,15 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 if(CUDA_FOUND)
 
     # CUDA sources
-    set( CUDA_SOURCES
-         zgemm_11_12_13.cu
+    set( CUDA11_SOURCES
+         zgemm_11_12_13.cu 
+    )
+    set( CUDA13_SOURCES ${CUDA11_SOURCES} )
+    set( CUDA20_SOURCES 
          zgemm_20_30.cu
     )
     precisions_rules_py(cuda_generated_files
-                        "${CUDA_SOURCES}"
+                        "${CUDA11_SOURCES} ${CUDA13_SOURCES} ${CUDA20_SOURCES}"
                         PRECISIONS "${DPLASMA_PRECISIONS}")
 
     set( CUDA_SOURCES
