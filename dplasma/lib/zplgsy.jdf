@@ -27,7 +27,7 @@ extern "C" %{
  * Globals
  */
 uplo   [type = PLASMA_enum]
-bump   [type = Dague_Complex64_t]
+bump   [type = dague_complex64_t]
 seed   [type = "unsigned long long int" ]
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]

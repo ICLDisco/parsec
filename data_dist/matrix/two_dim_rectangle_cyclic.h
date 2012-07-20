@@ -75,8 +75,8 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc,
                                int process_GridRows );
 
 int twoDBC_tolapack( two_dim_block_cyclic_t *Mdesc, void* A, int lda);
-int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex64_t* A, int lda);
-int twoDBC_ctolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex32_t* A, int lda);
+int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, dague_complex64_t* A, int lda);
+int twoDBC_ctolapack(two_dim_block_cyclic_t *Mdesc, dague_complex32_t* A, int lda);
 int twoDBC_dtolapack(two_dim_block_cyclic_t *Mdesc, double* A, int lda);
 int twoDBC_stolapack(two_dim_block_cyclic_t *Mdesc, float* A, int lda);
 

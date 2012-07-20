@@ -27,9 +27,9 @@
 #define KERNEL_NAME zgemm
 
 typedef void (*cuda_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
-                               Dague_Complex64_t alpha, Dague_Complex64_t *d_A, int lda,
-                                                        Dague_Complex64_t *d_B, int ldb,
-                               Dague_Complex64_t beta,  Dague_Complex64_t *d_C, int ldc,
+                               dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
+                                                        dague_complex64_t *d_B, int ldb,
+                               dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,
                                CUstream stream );
 
 #define FORCE_UNDEFINED_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
@@ -68,7 +68,7 @@ void gpu_kernel_profile_zgemm( gpu_device_t        *gpu_device,
 typedef struct dague_zgemm_args_s {
     dague_gpu_context_t super;
     int pushout;
-    Dague_Complex64_t alpha, beta;
+    dague_complex64_t alpha, beta;
     PLASMA_enum transA, transB;
     int M, N, K;
     int Am, An, lda, Bm, Bn, ldb, Cm, Cn, ldc;
@@ -332,9 +332,9 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 
     status = cudaSuccess;
     cuda_zgemm( lapack_const(args->transA), lapack_const(args->transB), args->M, args->N, args->K,
-                args->alpha, (Dague_Complex64_t*)d_A, args->lda,
-                             (Dague_Complex64_t*)d_B, args->ldb,
-                args->beta,  (Dague_Complex64_t*)d_C, args->ldc,
+                args->alpha, (dague_complex64_t*)d_A, args->lda,
+                             (dague_complex64_t*)d_B, args->ldb,
+                args->beta,  (dague_complex64_t*)d_C, args->ldc,
                 stream );
 
     DAGUE_CUDA_CHECK_ERROR( "cuLaunchGridAsync ", status,
@@ -344,9 +344,9 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 /*             this_task->locals[0].value, this_task->locals[1].value, this_task->locals[2].value, */
 /*             lapack_const( args->transA ),  lapack_const( args->transB ), */
 /*             args->M, args->N, args->K, */
-/*             args->alpha, args->Am, args->An, (Dague_Complex64_t*)d_A, args->lda, */
-/*                          args->Bm, args->Bn, (Dague_Complex64_t*)d_B, args->ldb, */
-/*             args->beta,  args->Cm, args->Cn, (Dague_Complex64_t*)d_C, args->ldc); */
+/*             args->alpha, args->Am, args->An, (dague_complex64_t*)d_A, args->lda, */
+/*                          args->Bm, args->Bn, (dague_complex64_t*)d_B, args->ldb, */
+/*             args->beta,  args->Cm, args->Cn, (dague_complex64_t*)d_C, args->ldc); */
     return 0;
 }
 
@@ -473,9 +473,9 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
                int pushout,
                PLASMA_enum transA, PLASMA_enum transB,
                int M, int N, int K,
-               Dague_Complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA, int lda,
+               dague_complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA, int lda,
                                         int Bm, int Bn, const tiled_matrix_desc_t *descB, int ldb,
-               Dague_Complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC, int ldc )
+               dague_complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC, int ldc )
 {
     int which_gpu;
     dague_zgemm_args_t *gpu_task = (dague_zgemm_args_t*)malloc(sizeof(dague_zgemm_args_t));
@@ -499,9 +499,9 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     gpu_task->Cm       = Cm;
     gpu_task->Cn       = Cn;
     gpu_task->ldc      = ldc;
-    gpu_task->sizeA    = sizeof(Dague_Complex64_t) * (size_t)lda * (( transA == PlasmaNoTrans ) ? K : M );
-    gpu_task->sizeB    = sizeof(Dague_Complex64_t) * (size_t)ldb * (( transB == PlasmaNoTrans ) ? N : K );
-    gpu_task->sizeC    = sizeof(Dague_Complex64_t) * (size_t)ldc * N;
+    gpu_task->sizeA    = sizeof(dague_complex64_t) * (size_t)lda * (( transA == PlasmaNoTrans ) ? K : M );
+    gpu_task->sizeB    = sizeof(dague_complex64_t) * (size_t)ldb * (( transB == PlasmaNoTrans ) ? N : K );
+    gpu_task->sizeC    = sizeof(dague_complex64_t) * (size_t)ldc * N;
     gpu_task->ddescA   = (dague_ddesc_t*)descA;
     gpu_task->ddescB   = (dague_ddesc_t*)descB;
     gpu_task->ddescC   = (dague_ddesc_t*)descC;

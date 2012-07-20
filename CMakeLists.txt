@@ -358,6 +358,7 @@ check_include_files(stddef.h HAVE_STDDEF_H)
 check_function_exists(getrusage HAVE_GETRUSAGE)
 check_include_files(limits.h HAVE_LIMITS_H)
 check_include_files(string.h HAVE_STRING_H)
+check_include_files(complex.h HAVE_COMPLEX_H)
 
 #
 # Find optional packages

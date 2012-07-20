@@ -10,11 +10,11 @@
 #include <stdint.h>
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex64_t* A, int lda)
+int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, dague_complex64_t* A, int lda)
 {
     int i, j, il, jl, x, y;
     int imax, jmax;
-    Dague_Complex64_t *bdl, *f77;
+    dague_complex64_t *bdl, *f77;
     int64_t dec;
 
     /* check which tiles to generate */

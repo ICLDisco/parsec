@@ -21,7 +21,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 
 #define getIPIV(__ptr) ((int*)(__ptr))
-#define getL(__ptr)    ((Dague_Complex64_t*)(__ptr) + descL.nb)
+#define getL(__ptr)    ((dague_complex64_t*)(__ptr) + descL.nb)
 
 %}
 

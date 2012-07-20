@@ -27,7 +27,7 @@ side  [type = "PLASMA_enum"]
 uplo  [type = "PLASMA_enum"]
 trans [type = "PLASMA_enum"]
 diag  [type = "PLASMA_enum"]
-alpha [type = "Dague_Complex64_t"]
+alpha [type = "dague_complex64_t"]
 descA [type = "tiled_matrix_desc_t"]
 A     [type = "dague_ddesc_t *"]
 descB [type = "tiled_matrix_desc_t"]
@@ -104,7 +104,7 @@ BODY
 
   int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
   int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
-  Dague_Complex64_t minvalpha = ((Dague_Complex64_t)-1.000000)/alpha;
+  dague_complex64_t minvalpha = ((dague_complex64_t)-1.000000)/alpha;
   int ldb = BLKLDD( descB, m );
   int ldan = BLKLDD( descA, n );
 

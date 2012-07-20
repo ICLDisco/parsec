@@ -66,6 +66,7 @@
 #cmakedefine HAVE_STDDEF_H
 #cmakedefine HAVE_LIMITS_H
 #cmakedefine HAVE_STRING_H
+#cmakedefine HAVE_COMPLEX_H
 #cmakedefine ARCH_X86
 #cmakedefine ARCH_X86_64
 #cmakedefine ARCH_PPC

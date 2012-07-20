@@ -39,7 +39,7 @@ dague_object_t* dplasma_zlacpy_New( PLASMA_enum uplo,
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zlacpy_DEFAULT_ARENA], 
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
+                            A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
     

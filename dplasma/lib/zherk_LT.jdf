@@ -125,9 +125,9 @@ BODY
   int tempmm = ((m)==(descC.mt-1)) ? (descC.m-(m*descC.mb)) : descC.mb;
   int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
   int tempkm = ((k1)==(descA.mt-1)) ? (descA.m-(k1*descA.mb)) : descA.mb;
-  Dague_Complex64_t zalpha = (Dague_Complex64_t)alpha;
+  dague_complex64_t zalpha = (dague_complex64_t)alpha;
   int ldak = BLKLDD( descA, k1 );
-  Dague_Complex64_t zbeta = (Dague_Complex64_t)( ( k1 == 0 ) ? beta : 1. );
+  dague_complex64_t zbeta = (dague_complex64_t)( ( k1 == 0 ) ? beta : 1. );
   int ldcm = BLKLDD( descC, m );
 
   DRYRUN(

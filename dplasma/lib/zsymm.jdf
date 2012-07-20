@@ -27,7 +27,7 @@ extern "C" %{
  */
 side   [type = PLASMA_enum]
 uplo   [type = PLASMA_enum]
-alpha  [type = Dague_Complex64_t]
+alpha  [type = dague_complex64_t]
 beta   [type = double]
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
@@ -102,7 +102,7 @@ RW    C <- ( k == 0 ) ? C(m, n) : C SYMM( m, n, k-1 )
         -> ( ( (side == plasma_left) && (k == descC.mt-1) ) || ( (side == plasma_right) && (k == descC.nt-1) ) ) ? C( m, n ) : C SYMM(m, n, k+1)
 BODY
 
-    Dague_Complex64_t zbeta = (k == 0) ? beta : (Dague_Complex64_t)1.0;
+    dague_complex64_t zbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
     int tempmm = ( m == descC.mt-1 ) ? descC.m - m * descC.mb : descC.mb;
     int tempnn = ( n == descC.nt-1 ) ? descC.n - n * descC.nb : descC.nb;
     int ldcm   = BLKLDD( descC, m );

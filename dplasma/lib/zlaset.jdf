@@ -28,8 +28,8 @@ extern "C" %{
  * Globals
  */
 uplo   [type = PLASMA_enum]
-alpha  [type = Dague_Complex64_t]
-beta   [type = Dague_Complex64_t]
+alpha  [type = dague_complex64_t]
+beta   [type = dague_complex64_t]
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
 

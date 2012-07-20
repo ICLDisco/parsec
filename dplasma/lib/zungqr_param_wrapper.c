@@ -119,23 +119,23 @@ dplasma_zungqr_param_New( qr_piv_t *qrpiv,
                                      qrpiv, ib, NULL);
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->p_work, ib * TS->nb * sizeof(Dague_Complex64_t) );
+    dague_private_memory_init( object->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zungqr_param_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
+                            A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
     /* Lower triangular part of tile without diagonal */
     dplasma_add2arena_lower( object->arenas[DAGUE_zungqr_param_LOWER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(Dague_Complex64_t),
+                             A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Little T */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_zungqr_param_LITTLE_T_ARENA],
-                                 TS->mb*TS->nb*sizeof(Dague_Complex64_t),
+                                 TS->mb*TS->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, TS->mb, TS->nb, -1);
 
