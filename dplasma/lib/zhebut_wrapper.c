@@ -89,12 +89,12 @@ static void *dague_rbt_data_of(dague_ddesc_t *desc, ...){
 
     segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
 
-    data_start = offset*sizeof(Dague_Complex64_t) + (uintptr_t)A->data_of(A, m_tile, n_tile);
+    data_start = offset*sizeof(dague_complex64_t) + (uintptr_t)A->data_of(A, m_tile, n_tile);
 
     /*
     fprintf(stderr, "Dataof (%d, %d) -> (%d, %d): %p + %llu * %u = %p\n",
             m_seg, n_seg, m_tile, n_tile,
-            A->data_of(A, m_tile, n_tile), offset, sizeof(Dague_Complex64_t), data_start);
+            A->data_of(A, m_tile, n_tile), offset, sizeof(dague_complex64_t), data_start);
     */
 
     return (void *)data_start;
@@ -167,7 +167,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     nt = seg_descA->seg_info.tot_seg_cnt_n;
 
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(Dague_Complex64_t) );
+    dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(dague_complex64_t) );
 
     U_before = &U_but_vec[level*N];
     U_after  = &U_but_vec[level*N];
@@ -258,7 +258,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     U_after  = &U_but_vec[level*N];
 
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(Dague_Complex64_t) );
+    dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(dague_complex64_t) );
 
     dague_zgebut = (dague_object_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_before, U_after, nt, mt, pool_0);
 
@@ -343,7 +343,7 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     nt = seg_descA->seg_info.tot_seg_cnt_n;
 
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(Dague_Complex64_t) );
+    dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(dague_complex64_t) );
 
     dague_zgebmm = (dague_object_t *)dague_zgebmm_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_but_vec, nt, mt, trans, pool_0);
 

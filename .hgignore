@@ -95,6 +95,7 @@ dplasma/lib/[sdc]trsm_RLN\.jdf
 dplasma/lib/[sdc]trsm_RLT\.jdf
 dplasma/lib/[sdc]trsm_RUN\.jdf
 dplasma/lib/[sdc]trsm_RUT\.jdf
+dplasma/lib/[sdc]trmdm\.jdf
 dplasma/lib/[sdc]trmm_LLN\.jdf
 dplasma/lib/[sdc]trmm_LLT\.jdf
 dplasma/lib/[sdc]trmm_LUN\.jdf
@@ -155,6 +156,7 @@ dplasma/lib/[sdcz]trsm_RLN\.[ch]
 dplasma/lib/[sdcz]trsm_RLT\.[ch]
 dplasma/lib/[sdcz]trsm_RUN\.[ch]
 dplasma/lib/[sdcz]trsm_RUT\.[ch]
+dplasma/lib/[sdcz]trmdm\.[ch]
 dplasma/lib/[sdcz]trmm_LLN\.[ch]
 dplasma/lib/[sdcz]trmm_LLT\.[ch]
 dplasma/lib/[sdcz]trmm_LUN\.[ch]
@@ -309,3 +311,4 @@ tests/branching/branching\.h
 tests/pingpong/rtt
 tests/pingpong/rtt\.c
 tests/pingpong/rtt\.h
+tools/precision_generator/Conversion\.pyc

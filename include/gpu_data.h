@@ -70,7 +70,11 @@ typedef struct _gpu_device {
     uint8_t device_index;
     uint8_t major;
     uint8_t minor;
-    int max_exec_streams;
+    int16_t max_exec_streams;
+    int16_t peer_access_mask;  /**< A bit set to 1 represent the capability of
+                                *   the device to access directly the memory of
+                                *   the index of the set bit device.
+                                */
     dague_gpu_exec_stream_t* exec_stream;
     int executed_tasks;
     volatile uint32_t mutex;

@@ -11,11 +11,11 @@
 #include "dague.h"
 
 int blgchase_ztrdv2(int NT, int N, int NB,
-                   Dague_Complex64_t *A1, Dague_Complex64_t *A2,
-                   Dague_Complex64_t *V1, Dague_Complex64_t *TAU1,
-                   Dague_Complex64_t *V2, Dague_Complex64_t *TAU2,
+                   dague_complex64_t *A1, dague_complex64_t *A2,
+                   dague_complex64_t *V1, dague_complex64_t *TAU1,
+                   dague_complex64_t *V2, dague_complex64_t *TAU2,
                    int sweep, int id, int blktile);
 
 int CORE_zplssq(int M, int N,
-                Dague_Complex64_t *A, int LDA,
+                dague_complex64_t *A, int LDA,
                 double *scale, double *sumsq);

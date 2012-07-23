@@ -8,7 +8,8 @@
 #   include <stdlib.h>
 #   include <stdio.h>
 #   define plasma_const( x )  plasma_lapack_constants[x]
-#   define printlog(...) fprintf(stderr, __VA_ARGS__)
+#   define printlog(str, ...) fprintf(stderr, "thread %d VP %d " str "\n", \
+                                      context->th_id, context->virtual_process->vp_id, __VA_ARGS__)
 #   define OUTPUT(ARG)  printf ARG
 #else
 #   define printlog(...) do {} while(0)

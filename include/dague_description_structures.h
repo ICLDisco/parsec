@@ -91,11 +91,12 @@ struct dague_datatype {
 };
 
 struct dep {
-    const expr_t                *cond;
-    const struct dague_function *dague;
-    const expr_t                *call_params[MAX_CALL_PARAM_COUNT];
-    const dague_flow_t          *flow;
-    dague_datatype_t             datatype;
+    const expr_t                *cond;           /**< The runtime-evaluable condition on this dependency */
+    const expr_t                *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
+    const struct dague_function *dague;          /**< Pointer to the dague function pointed by this dependency */
+    const expr_t                *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
+    const dague_flow_t          *flow;           /**< Back pointer to the flow corresponding to this dependency */
+    dague_datatype_t             datatype;       /**< Datatype associated with this dependency */
 };
 
 void dep_dump(const dep_t *d, const struct dague_object *dague_object, const char *prefix);

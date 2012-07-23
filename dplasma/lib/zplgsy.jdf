@@ -27,7 +27,7 @@ extern "C" %{
  * Globals
  */
 uplo   [type = PLASMA_enum]
-bump   [type = Dague_Complex64_t]
+bump   [type = dague_complex64_t]
 seed   [type = "unsigned long long int" ]
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
@@ -59,9 +59,9 @@ BODY
                    descA.m, m*descA.mb, n*descA.nb, seed );
                );
 
-        printlog("thread %d VP %d plgsy_l( %d, %d )\n"
+        printlog("plgsy_l( %d, %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->th_id, context->virtual_process->vp_id, m, n, creal(bump), tempmm, tempnn, 
+                 m, n, creal(bump), tempmm, tempnn, 
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
@@ -90,9 +90,9 @@ BODY
                    descA.m, m*descA.mb, n*descA.nb, seed );
                );
 
-        printlog("thread %d VP %d plgsy_u( %d, %d )\n"
+        printlog("plgsy_u( %d, %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->th_id, context->virtual_process->vp_id, m, n, creal(bump), tempmm, tempnn, 
+                 m, n, creal(bump), tempmm, tempnn, 
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
@@ -120,9 +120,9 @@ BODY
                    descA.m, k*descA.mb, k*descA.nb, seed );
                );
 
-        printlog("thread %d VP %d plgsy_diag( %d )\n"
+        printlog("plgsy_diag( %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->th_id, context->virtual_process->vp_id, k, creal(bump), tempkm, tempkn, 
+                 k, creal(bump), tempkm, tempkn, 
                  k, k, ldak,
                  descA.m, k*descA.mb, k*descA.nb, seed);
 END

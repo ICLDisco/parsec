@@ -23,6 +23,9 @@ int vasprintf(char **ret, const char *format, va_list ap);
 #include <stdlib.h>
 #include <stdio.h>
 
+void debug_save_stack_trace(void);
+void debug_dump_stack_traces(void);
+
 /* only one printf to avoid line breaks in the middle */
 static inline char* arprintf(const char* fmt, ...)
 {

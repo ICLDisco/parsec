@@ -48,6 +48,7 @@ static inline int remote_dep_is_forwarded( dague_execution_unit_t* eu_context, d
 /* make sure we don't leave before serving all data deps */
 static inline void remote_dep_inc_flying_messages(dague_object_t *dague_object, dague_context_t* ctx)
 {
+    assert( dague_object->nb_local_tasks > 0 );
     dague_atomic_inc_32b( &(dague_object->nb_local_tasks) );
     (void)ctx;
 }
@@ -190,7 +191,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     /* make valgrind happy */
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
 #endif
-#if defined(DAGUE_DEBUG_VERBOSE1)
+#if defined(DAGUE_DEBUG_VERBOSE2)
     char tmp[MAX_TASK_STRLEN];
 #endif
 

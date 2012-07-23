@@ -75,8 +75,8 @@ BODY
          );
 
     printlog(
-             "thread %d VP %d CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d) return info = %d\n",
-             context->th_id, context->virtual_process->vp_id, k,
+             "CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d) return info = %d\n",
+             k,
              plasma_const(uplo), tempkn, k, k, T, ldak, iinfo );
 END
 
@@ -116,12 +116,12 @@ BODY
         CORE_ztrsm(
             PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit,
             descA.mb, tempnn,
-            (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
+            (dague_complex64_t)1.0, T /*A(k, k)*/, ldak,
                                     C /*A(k, n)*/, ldak);
         );
 
-    printlog("thread %d VP %d CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
-             context->th_id, context->virtual_process->vp_id, k, n,
+    printlog("CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
+             k, n,
              plasma_const( PlasmaLeft ), plasma_const( PlasmaUpper ),
              plasma_const( PlasmaConjTrans ), plasma_const( PlasmaNonUnit ),
              descA.mb, tempnn,
@@ -168,8 +168,8 @@ BODY
             (double) 1.0, T /*A(n, n)*/, ldan);
         );
     printlog(
-             "thread %d VP %d CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             context->th_id, context->virtual_process->vp_id, k, n,
+             "CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+             k, n,
              plasma_const( PlasmaUpper ), plasma_const( PlasmaConjTrans ),
              tempnn, descA.mb,
              -1.0, k, n, A, ldak,
@@ -212,9 +212,9 @@ BODY
                                   ( m == k+1 ),
                                   PlasmaConjTrans, PlasmaNoTrans,
                                   descA.mb, tempnn, descA.mb,
-                                  (Dague_Complex64_t)-1.0, k, m, &descA, ldak,
+                                  (dague_complex64_t)-1.0, k, m, &descA, ldak,
                                                            k, n, &descA, ldak,
-                                  (Dague_Complex64_t) 1.0, m, n, &descA, ldam)) )
+                                  (dague_complex64_t) 1.0, m, n, &descA, ldam)) )
             goto FIN;
         if( -1 == rc ) {
             /* We're done, but the task has been already destroyed */
@@ -233,12 +233,12 @@ BODY
         CORE_zgemm(
             PlasmaConjTrans, PlasmaNoTrans,
             descA.mb, tempnn, descA.nb,
-            (Dague_Complex64_t)-1.0, A /*A(k, m)*/, ldak,
+            (dague_complex64_t)-1.0, A /*A(k, m)*/, ldak,
                                      B /*A(k, n)*/, ldak,
-            (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam);
+            (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
         );
-    printlog("thread %d VP %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n,
+    printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
+             k, m, n,
              plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
              descA.mb, tempnn, descA.nb,
              -1.0, k, m, A, ldak,

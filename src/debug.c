@@ -14,7 +14,40 @@
 #endif  /* defined(HAVE_ERRNO_H) */
 #include <stdio.h>
 
+#include <execinfo.h>
+
 int dague_verbose = 0;
+#define ST_SIZE 128
+#define ST_ASIZE 64
+static uint32_t st_idx = 0;
+static void *stack[ST_ASIZE][ST_SIZE];
+static int   stack_size[ST_ASIZE];
+
+void debug_save_stack_trace(void)
+{
+    uint32_t my_idx = dague_atomic_inc_32b( &st_idx ) % ST_ASIZE;
+    stack_size[my_idx] = backtrace( stack[my_idx], ST_SIZE );
+}
+
+void debug_dump_stack_traces(void)
+{
+    int i, my, r = 0, t;
+    char **s;
+#if defined(HAVE_MPI)
+    MPI_Comm_rank(MPI_COMM_WORLD, &r);
+#endif
+
+    for(i = 0; i < ST_ASIZE; i++) {
+        my = (st_idx + i) % ST_ASIZE;
+        fprintf(stderr, "[%d] --- %u ---\n", r, st_idx + i);
+        s = backtrace_symbols(stack[my], stack_size[my]);
+        for(t = 0; t < stack_size[my]; t++) {
+            fprintf(stderr, "[%d]  %s\n", r, s[t]);
+        }
+        free(s);
+        fprintf(stderr, "[%d]\n", r);
+    }
+}
 
 #if !defined(HAVE_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, ...)

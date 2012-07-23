@@ -36,7 +36,7 @@ int dplasma_zprint( dague_context_t *dague,
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zprint_DEFAULT_ARENA], 
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
+                            A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
     

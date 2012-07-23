@@ -36,7 +36,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
     set_target_properties(${testings_addexec_EXEC} PROPERTIES
                             LINKER_LANGUAGE Fortran
                             COMPILE_FLAGS "${testings_addexec_CFLAGS}"
-                            LINK_FLAGS "${testings_addexec_LDFLAGS}")
+                            LINK_FLAGS "${testings_addexec_LDFLAGS} ${CMAKE_EXE_EXPORTS_C_FLAG}")
     target_link_libraries(${testings_addexec_EXEC} ${testings_addexec_LIBS} ${PLASMA_LDFLAGS} ${PLASMA_LIBRARIES})
     install(TARGETS ${testings_addexec_EXEC} RUNTIME DESTINATION bin)
     list(APPEND ${OUTPUTLIST} ${testings_addexec_EXEC})

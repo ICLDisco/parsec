@@ -33,8 +33,8 @@ A      [type = "dague_ddesc_t *"]
 descT  [type = "tiled_matrix_desc_t"]
 T      [type = "dague_ddesc_t *" aligned=A]
 ib     [type = "int"]
-p_work [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*ib*descT.nb)"]
-p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)   *descT.nb)"]
+p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*ib*descT.nb)"]
+p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)   *descT.nb)"]
 
 
 zgeqrt_typechange(k)  [profile = off]
@@ -98,8 +98,8 @@ BODY
         dague_private_memory_push( p_work, p_elem_B );
            )
 
-     printlog("thread %d VP %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-     context->th_id, context->virtual_process->vp_id, k, k, k, A, k, k, B);
+     printlog("CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+     k, k, k, A, k, k, B);
 
 END
 
@@ -148,8 +148,8 @@ BODY
          );
   dague_private_memory_push( p_work, p_elem_A );
 
-  printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, p_elem_A, descT.nb)\n",
-  context->th_id, context->virtual_process->vp_id, k, n, k, k, C, k, k, D, k, n, E);
+  printlog("CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, p_elem_A, descT.nb)\n",
+  k, n, k, k, C, k, k, D, k, n, E);
 
 END
 
@@ -217,8 +217,8 @@ BODY
   dague_private_memory_push( p_tau , p_elem_A );
   dague_private_memory_push( p_work, p_elem_B );
 
-  printlog("thread %d VP %d CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-  context->th_id, context->virtual_process->vp_id, k, m, k, k, F, m, k, G, m, k, H);
+  printlog("CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+  k, m, k, k, F, m, k, G, m, k, H);
 
 END
 
@@ -312,10 +312,10 @@ BODY
          );
   dague_private_memory_push( p_work, p_elem_A );
 
-  printlog("thread %d VP %d CORE_ztsmqr(%d, %d, %d)\n"
+  printlog("CORE_ztsmqr(%d, %d, %d)\n"
            "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
            "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-           context->th_id, context->virtual_process->vp_id, k, m, n1,
+           k, m, n1,
            k, n1, J, m, n1, K,
            m, k,  L, m, k,  M);
 

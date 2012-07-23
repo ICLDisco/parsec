@@ -21,7 +21,7 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-static void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, Dague_Complex64_t *M )
+static void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, dague_complex64_t *M )
 {
     int tempmm = ( m == descA.mt-1 ) ? descA.m - m*descA.mb : descA.mb;
     int tempnn = ( n == descA.nt-1 ) ? descA.n - n*descA.nb : descA.nb;
@@ -85,7 +85,7 @@ READ A   <- dataA(m, n)
 CTL  ctl <- (k > 0 )      ? ctl PRINT_F(k-1)
          -> (k < sizef-1) ? ctl PRINT_F(k+1)
 BODY
-  DRYRUN( dplasma_zprint_tile( m, n, descA, (Dague_Complex64_t *)A ); )
+  DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); )
 END
 
 
@@ -106,7 +106,7 @@ READ  A   <- dataA(m, n)
 CTL   ctl <- (k > 0 )      ? ctl PRINT_L(k-1)
           -> (k < sizel-1) ? ctl PRINT_L(k+1)
 BODY
-  DRYRUN( dplasma_zprint_tile( m, n, descA, (Dague_Complex64_t *)A ); )
+  DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); )
 END
 
 /*
@@ -126,7 +126,7 @@ READ  A   <- dataA(m, n)
 CTL   ctl <- (k > 0 )      ? ctl PRINT_U(k-1)
           -> (k < sizeu-1) ? ctl PRINT_U(k+1)
 BODY
-  DRYRUN( dplasma_zprint_tile( m, n, descA, (Dague_Complex64_t *)A ); )
+  DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); )
 END
 
 extern "C" %{

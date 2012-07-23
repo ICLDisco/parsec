@@ -1,3 +1,19 @@
+### Look for OMEGA
+option(DAGUE_Q2J
+  "Build the JDF generator" ON)
+set(FOUND_OMEGA false)
+if(DAGUE_Q2J)
+  message(STATUS "Looking for DAGUE_OMEGA_DIR to enable DAGUE_Q2J")
+  if(DAGUE_OMEGA_DIR)
+    message(STATUS "DAGUE_OMEGA_DIR found in ${DAGUE_OMEGA_DIR}")
+    set(FOUND_OMEGA true)
+  else(DAGUE_OMEGA_DIR)
+    message(WARNING "DAGUE_OMEGA_DIR not set: disabling DAGUE_Q2J")
+    set(DAGUE_Q2J false)
+    set(FOUND_OMEGA false)
+  endif(DAGUE_OMEGA_DIR)
+endif(DAGUE_Q2J)
+
 if(FOUND_OMEGA)
   BISON_TARGET(dague_q2j_yacc src/q2j.y ${CMAKE_CURRENT_BINARY_DIR}/q2j.y.c)
   FLEX_TARGET(dague_q2j_flex src/q2j.l  ${CMAKE_CURRENT_BINARY_DIR}/q2j.l.c)

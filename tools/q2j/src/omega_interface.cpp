@@ -2085,9 +2085,9 @@ static list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunction
 ////////////////////////////////////////////////////////////////////////////////
 //
 void print_body(node_t *task_node){
-    printf("BODY\n\n");
+    printf("BODY\n{\n");
     printf("%s\n", quark_tree_to_body(task_node));
-    printf("\nEND\n");
+    printf("}\nEND\n");
 }
 
 

@@ -33,6 +33,7 @@
 #cmakedefine DAGUE_PROF_STATS
 #cmakedefine DAGUE_PROF_PAPI
 #cmakedefine DAGUE_PROF_GRAPHER
+#cmakedefine DAGUE_PROF_PTR_FILE
 #cmakedefine DAGUE_PROF_DRY_RUN
 #cmakedefine DAGUE_PROF_DRY_BODY
 #cmakedefine DAGUE_PROF_DRY_DEP
@@ -65,6 +66,7 @@
 #cmakedefine HAVE_STDDEF_H
 #cmakedefine HAVE_LIMITS_H
 #cmakedefine HAVE_STRING_H
+#cmakedefine HAVE_COMPLEX_H
 #cmakedefine ARCH_X86
 #cmakedefine ARCH_X86_64
 #cmakedefine ARCH_PPC
