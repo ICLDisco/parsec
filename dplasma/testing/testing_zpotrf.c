@@ -139,7 +139,7 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX );
     }
 
-    dague_data_free(ddescA.mat);
+    //dague_data_free(ddescA.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
     
     cleanup_dague(dague, iparam);
