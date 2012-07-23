@@ -111,6 +111,7 @@ int dague_gpu_fini( void );
  * Enable and disale GPU-compatible memory if possible
  */
 void dague_data_enable_gpu( int nbgpu );
+void dague_data_disable_gpu( void );
 
 /**
  * Returns the number of GPUs managed by the DAGuE runtime. This is

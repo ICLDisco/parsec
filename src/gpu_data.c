@@ -119,6 +119,12 @@ void dague_data_enable_gpu( int nbgpu )
     dague_data_free     = dague_free_data_gpu;
 }
 
+void dague_data_disable_gpu(void) {
+    __dague_active_gpu = 0;
+    dague_data_allocate = malloc;
+    dague_data_free     = free;
+}
+
 int dague_active_gpu(void)
 {
     return __dague_active_gpu;
@@ -617,6 +623,8 @@ int dague_gpu_data_unregister( )
         dague_gpu_map.data_map = NULL;
     }
     dague_gpu_map.desc = NULL;
+    
+    dague_data_disable_gpu();
 
     return 0;
 }
