@@ -131,7 +131,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status, {continue;} );
 
         snprintf(function_name, FILENAME_MAX, "magmablas_zgemm_SM%d%d", gpu_device->major, gpu_device->minor);
-        env = getenv("DAGUE_CUBIN_LIBNAME");
+        env = getenv("DAGUE_CUCORES_LIB");
         if(NULL == env) {
             snprintf(library_name,  FILENAME_MAX, "libdplasma_cucores_sm%d%d.so",  gpu_device->major, gpu_device->minor);
         }

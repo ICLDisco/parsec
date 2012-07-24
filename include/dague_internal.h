@@ -113,6 +113,10 @@ struct dague_function {
 #endif
     dague_hook_t                *hook;
     dague_hook_t                *complete_execution;
+#ifdef DAGUE_GPU_WITH_CUDA
+    dague_hook_t                *cuda_hook;
+    dague_hook_t                *cuda_complete_execution;
+#endif
     dague_traverse_function_t   *iterate_successors;
     dague_release_deps_t        *release_deps;
     dague_functionkey_fn_t      *key;
