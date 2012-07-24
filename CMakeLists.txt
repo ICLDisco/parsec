@@ -81,11 +81,15 @@ set   (DAGUE_DIST_SHORT_LIMIT 0 CACHE STRING
   "Use the short protocol (no flow control) for messages smaller than the limit in KB")
 
 ### GPU engine parameters
-mark_as_advanced(DAGUE_GPU_WITH_OPENCL) # Hide this as it is not supported yet
 option(DAGUE_GPU_WITH_CUDA
   "Enable GPU support using CUDA kernels" ON)
+option(DAGUE_GPU_CUDA_ALLOC_PER_TILE
+  "Tile based allocation engine for GPU memory (instead of internal management
+  of a complete allocation)" ON)
+mark_as_advanced(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
 option(DAGUE_GPU_WITH_OPENCL
   "Enable GPU support using OpenCL kernels" OFF)
+mark_as_advanced(DAGUE_GPU_WITH_OPENCL) # Hide this as it is not supported yet
 if(DAGUE_GPU_WITH_OPENCL)
   message(WARNING "Open CL is not supported yet, ignored.")
 endif()
