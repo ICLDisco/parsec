@@ -252,21 +252,21 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
                                NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
-    DEBUG3(("GPU:\tLoad Data of %s(%d, %d) on GPU\n", this_task->function->in[0]->name, args->Am, args->An));
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[0]->name, args->Am, args->An));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[0]->access_type,
                                    &(this_task->data[0]), args->sizeA, stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
-    DEBUG3(("GPU:\tLoad Data of %s(%d, %d) on GPU\n", this_task->function->in[1]->name, args->Bm, args->Bn));
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[1]->name, args->Bm, args->Bn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[1]->access_type,
                                    &(this_task->data[1]), args->sizeB, stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
-    DEBUG3(("GPU:\tLoad Data of %s(%d, %d) on GPU\n", this_task->function->in[2]->name, args->Cm, args->Cn));
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[2]->name, args->Cm, args->Cn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[2]->access_type,
                                    &(this_task->data[2]), args->sizeC, stream );
     if( ret < 0 ) {
@@ -371,7 +371,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
     assert( ((dague_list_item_t*)gpu_elem)->list_prev == (dague_list_item_t*)gpu_elem );
 
     if( args->pushout ) {  /* n == (k + 1) */
-        DEBUG3(("GPU[%1d]:\tRequest out of GPU for %s key %d\n", gpu_device->device_index, this_task->function->in[2]->name, this_task->data[2].mem2dev_data->key));
+        DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index, this_task->function->in[2]->name, this_task->data[2].mem2dev_data->key));
 #if defined(DAGUE_PROF_TRACE)
         if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
             dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start,
