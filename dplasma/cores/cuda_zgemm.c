@@ -130,27 +130,6 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status, {continue;} );
 
-/* If not found statically, try shared lib */
-/*         if(NULL == gpu_device->hcuFunction) { */
-/*             env = getenv("DAGUE_CUBIN_PATH"); */
-/*             snprintf(module_path, FILENAME_MAX, "%s/zgemm_sm%1d%1d.cubin", */
-/*                      env?env:"../cores", gpu_device->major, gpu_device->minor); */
-/*             status = cuModuleLoad(&(gpu_device->hcuModule), module_path); */
-/*             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status, */
-/*                                     { */
-/*                                         WARNING(("GPU:\tUnable to load `%s'\n", module_path)); */
-/*                                         continue; */
-/*                                     } ); */
-/*             snprintf(module_path, FILENAME_MAX, "zgemmNT_SM%d%d", gpu_device->major, gpu_device->minor); */
-/*             DEBUG3(("CUDA MODULE %s\n", module_path)); */
-/*             status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, module_path ); */
-/*             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleGetFunction ", status, */
-/*                                     { */
-/*                                         WARNING(("GPU:\tUnable to find the function `%s'\n", module_path)); */
-/*                                         continue; */
-/*                                     } ); */
-/*         } */
-
         snprintf(function_name, FILENAME_MAX, "magmablas_zgemm_SM%d%d", gpu_device->major, gpu_device->minor);
         env = getenv("DAGUE_CUBIN_LIBNAME");
         if(NULL == env) {
