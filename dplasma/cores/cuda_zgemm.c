@@ -136,7 +136,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
             snprintf(library_name,  FILENAME_MAX, "libdplasma_cucores_sm%d%d.so",  gpu_device->major, gpu_device->minor);
         }
         else {
-            snprintf(library_name,  FILENAME_MAX, "%s_sm%d%d.so", env, gpu_device->major, gpu_device->minor);
+            snprintf(library_name,  FILENAME_MAX, "%s", env);
         }
 
         dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
