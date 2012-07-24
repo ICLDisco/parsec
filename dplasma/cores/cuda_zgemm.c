@@ -142,13 +142,12 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
         if(NULL == dlh) {
             if(env) ERROR(("Could not find %s library: %s\n"
-                           "  It is derived from environment DAGUE_CUBIN_LIBNAME=%s\n"
+                           "  It is derived from environment DAGUE_CUCORES_LIB=%s\n"
                            "  To resolve this issue, set this variable to the correct path\n"
-                           "    ex: if /path/libdplasma_cucores_sm20.so exists, \n"
-                           "    set it to /path/libdplasma_cucores\n"
+                           "    ex: /path/libdplasma_cucores_sm20.so\n"
                            "  Or unset it to use the default GPU kernels\n"
                            , library_name, dlerror(), env));
-            DEBUG3(("Could not find %s library (%s)\n", library_name, dlerror()));
+            DEBUG3(("Could not find %s dynamic library (%s)\n", library_name, dlerror()));
         }
         else {
             gpu_device->function = dlsym(dlh, function_name);
