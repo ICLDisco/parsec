@@ -886,9 +886,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
-            void* data;
-
-            data = is_read_only(oldcontext, out_index, outdep_index);
+            void* data = is_read_only(oldcontext, out_index, outdep_index);
             if(NULL != data) {
                 arg->deps->msg.which &= ~(1 << out_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
@@ -914,6 +912,13 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                 arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[out_index].count++;
                 arg->remote_deps_count++;
+            } else {
+                /* The bit is already flipped. This means either that we reached the same peer
+                 * several times with the same operation (broadcast), or that we reached the
+                 * same peer with two operations that dispatch the same output dependency
+                 * (aka. the same data) using distinct communication paths due to different
+                 * outdep index.
+                 */
             }
             if(newcontext->priority > arg->remote_deps->max_priority) arg->remote_deps->max_priority = newcontext->priority;
         }
