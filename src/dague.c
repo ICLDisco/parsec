@@ -886,7 +886,9 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
-            void* data = is_read_only(oldcontext, out_index, outdep_index);
+            void* data;
+
+            data = is_read_only(oldcontext, out_index, outdep_index);
             if(NULL != data) {
                 arg->deps->msg.which &= ~(1 << out_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
@@ -904,7 +906,6 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             _array_pos = dst_rank / (8 * sizeof(uint32_t));
             _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
-            assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
                 arg->remote_deps->output[out_index].type = arena;
@@ -913,13 +914,6 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                 arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[out_index].count++;
                 arg->remote_deps_count++;
-            } else {
-                /* The bit is already flipped. This means either that we reached the same peer
-                 * several times with the same operation (broadcast), or that we reached the
-                 * same peer with two operations that dispatch the same output dependency
-                 * (aka. the same data) using distinct communication paths due to different
-                 * outdep index.
-                 */
             }
             if(newcontext->priority > arg->remote_deps->max_priority) arg->remote_deps->max_priority = newcontext->priority;
         }
