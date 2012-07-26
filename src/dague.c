@@ -904,6 +904,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             _array_pos = dst_rank / (8 * sizeof(uint32_t));
             _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
+            assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
                 arg->remote_deps->output[out_index].type = arena;
