@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -7,7 +7,7 @@
  *
  */
 
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmaaux.h"
@@ -32,7 +32,7 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
 
     /* A and B */
     dplasma_add2arena_tile( dague_trsmpl->arenas[DAGUE_ztrsmpl_DEFAULT_ARENA], 
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
+                            A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
     
@@ -44,7 +44,7 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
 
     /* L */
     dplasma_add2arena_rectangle( dague_trsmpl->arenas[DAGUE_ztrsmpl_SMALL_L_ARENA], 
-                                 L->mb*L->nb*sizeof(Dague_Complex64_t),
+                                 L->mb*L->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, L->mb, L->nb, -1);
 
@@ -60,7 +60,7 @@ dplasma_ztrsmpl_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_trsmpl->arenas[DAGUE_ztrsmpl_PIVOT_ARENA  ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_trsmpl->arenas[DAGUE_ztrsmpl_SMALL_L_ARENA]->opaque_dtt) );
       
-    dague_ztrsmpl_destroy((dague_ztrsmpl_object_t *)o);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 void
@@ -99,7 +99,7 @@ dplasma_ztrsmpl_sd_New(const tiled_matrix_desc_t *A,
     
     /* A and B */
     dplasma_add2arena_tile( dague_trsmpl_sd->arenas[DAGUE_ztrsmpl_sd_DEFAULT_ARENA], 
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
+                            A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
     
@@ -111,7 +111,7 @@ dplasma_ztrsmpl_sd_New(const tiled_matrix_desc_t *A,
 
     /* L */
     dplasma_add2arena_rectangle( dague_trsmpl_sd->arenas[DAGUE_ztrsmpl_sd_L_PIVOT_ARENA], 
-                                 L->mb*L->nb*sizeof(Dague_Complex64_t),
+                                 L->mb*L->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, L->mb, L->nb, -1);
 
@@ -127,7 +127,7 @@ dplasma_ztrsmpl_sd_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_ztrsmpl_sd->arenas[DAGUE_ztrsmpl_sd_PIVOT_ARENA  ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_ztrsmpl_sd->arenas[DAGUE_ztrsmpl_sd_L_PIVOT_ARENA]->opaque_dtt) );
       
-    dague_ztrsmpl_sd_destroy((dague_ztrsmpl_sd_object_t *)o);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 void

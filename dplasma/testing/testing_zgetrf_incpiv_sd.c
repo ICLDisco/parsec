@@ -25,6 +25,7 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 40, 200, 200);
+    iparam[IPARAM_SMB] = 2;
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
 #if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
@@ -148,14 +149,14 @@ static int check_solution( dague_context_t *dague, int loud,
     int m = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescA);
-    Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
-    Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescX);
+    Anorm = dplasma_zlange(dague, PlasmaInfNorm, ddescA);
+    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
+    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
 
     /* Compute b - A*x */
     dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescX, 1.0, ddescB);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 

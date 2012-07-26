@@ -17,14 +17,17 @@
 
 #include "dague_config.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "matrix.h"
 
 /***************************************************************************//**
  *  Internal static descriptor initializer (PLASMA code)
  **/
 void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
-                             enum matrix_type    dtyp,
+                             enum matrix_type    mtyp,
                              enum matrix_storage storage,
+                             int dtype, int nodes, int cores, int myrank,
                              int mb, int nb,
                              int lm, int ln,
                              int i,  int j,
@@ -36,9 +39,15 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     /* tdesc->A12 = (     lm%mb)*(ln - ln%nb) + tdesc->A21; */
     /* tdesc->A22 = (lm - lm%mb)*(     ln%nb) + tdesc->A12; */
 
+    /* Super setup */
+    tdesc->super.nodes = nodes;    
+    tdesc->super.cores = cores;
+    tdesc->super.myrank = myrank;
+
     /* Matrix properties */
-    tdesc->mtype   = dtyp;
+    tdesc->mtype   = mtyp;
     tdesc->storage = storage;
+    tdesc->dtype   = tiled_matrix_desc_type | dtype;
     tdesc->tileld  = (storage == matrix_Tile) ? mb : lm;
     tdesc->mb      = mb;
     tdesc->nb      = nb;
@@ -82,11 +91,45 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->mt = (i+m-1)/mb - i/mb + 1;
     tdesc->nt = (j+n-1)/nb - j/nb + 1;
 
+    assert(vpmap_get_nb_vp() > 0);
+
 #if defined(DAGUE_PROF_TRACE)
     asprintf(&(tdesc->super.key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
 #endif
 
     return;
+}
+
+tiled_matrix_desc_t *
+tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
+                        int i, int j, int m, int n)
+{
+    int mb, nb;
+    tiled_matrix_desc_t *newdesc;
+
+    if( tdesc->dtype & two_dim_block_cyclic_type ) {
+        newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(two_dim_block_cyclic_t) );
+        memcpy( newdesc, tdesc, sizeof(two_dim_block_cyclic_t) );
+    }
+    else if( tdesc->dtype & sym_two_dim_block_cyclic_type ) {
+        newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(sym_two_dim_block_cyclic_t) );
+        memcpy( newdesc, tdesc, sizeof(sym_two_dim_block_cyclic_t) );
+    } else {
+        fprintf(stderr, "Type not completely defined\n");
+        return NULL;
+    }
+
+    mb = tdesc->mb;
+    nb = tdesc->nb;
+    // Submatrix parameters
+    newdesc->i = i;
+    newdesc->j = j;
+    newdesc->m = m;
+    newdesc->n = n;
+    // Submatrix derived parameters
+    newdesc->mt = (i+m-1)/mb - i/mb + 1;
+    newdesc->nt = (j+n-1)/nb - j/nb + 1;
+    return newdesc;
 }
 
 /*
@@ -185,203 +228,3 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
     fclose(tmpf);
     return 0;
 }
-
-
-/*
- * Deprecated code
- */
-#if 0
-
-typedef struct tile_coordinate{
-    int row;
-    int col;
-} tile_coordinate_t;
-
-typedef struct info_tiles{
-    int th_id;
-    tiled_matrix_desc_t * Ddesc;
-    tile_coordinate_t * tiles;
-    unsigned int nb_elements;
-    unsigned int starting_position;
-    unsigned long long int seed;
-    void (*gen_fct)( tiled_matrix_desc_t *, void *, int, int, unsigned long long int);
-} info_tiles_t;
-
-/* thread function for affecting multiple tiles with random values
- * @param : tiles : of type dist_tiles_t
-
- */
-static void * rand_dist_tiles(void * info)
-{
-    unsigned int i;
-    /* bind thread to cpu */
-    int bind_to_proc = ((info_tiles_t *)info)->th_id;
-
-    dague_bindthread(bind_to_proc);
-
-    /*printf("generating matrix on process %d, thread %d: %d tiles\n",
-           ((dist_tiles_t*)tiles)->Ddesc->mpi_rank,
-           ((dist_tiles_t*)tiles)->th_id,
-           ((dist_tiles_t*)tiles)->nb_elements);*/
-    for(i = 0 ; i < ((info_tiles_t *)info)->nb_elements ; i++ )
-        {
-            ((info_tiles_t *)info)->gen_fct(((info_tiles_t *)info)->Ddesc,
-                                            ((info_tiles_t *)info)->Ddesc->super.data_of(
-                                                                                         ((struct dague_ddesc *)((info_tiles_t *)info)->Ddesc),
-                                                                                         ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
-                                                                                         ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col ),
-                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
-                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col,
-                                            ((info_tiles_t *)info)->seed);
-        }
-    return NULL;
-}
-
-/* affecting the complete local view of a distributed matrix with random values */
-static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned long long int sed)
-{
-    tile_coordinate_t * tiles; /* table of tiles that node will handle */
-    int tiles_coord_size;      /* size of the above table */
-    unsigned int c;
-    int i, j;
-    int pos = 0;
-    pthread_t *threads = NULL;
-    pthread_attr_t thread_attr;
-    info_tiles_t * info_gen;
-    tiles_coord_size = (Mdesc->lmt * Mdesc->lnt) / Mdesc->super.nodes; /* average number of tiles per nodes */
-    tiles_coord_size = (3*tiles_coord_size)/2; /* consider imbalance in distribution */
-    tiles = malloc(tiles_coord_size * sizeof(tile_coordinate_t));
-
-    /* check which tiles to generate */
-    {
-        for ( j = 0 ; j < Mdesc->lnt ; j++) {
-            for ( i = 0 ; i < Mdesc->lmt ; i++) {
-                if(Mdesc->super.myrank == Mdesc->super.rank_of((dague_ddesc_t *)Mdesc, i, j )) {
-                    if (pos == tiles_coord_size) {
-                        tiles_coord_size = 2 * tiles_coord_size;
-                        tiles = realloc(tiles,
-                                        tiles_coord_size*sizeof(tile_coordinate_t));
-                        if (NULL == tiles) {
-                            perror("cannot generate random matrix\n");
-                            exit(-1);
-                        }
-                    }
-                    tiles[pos].row = i;
-                    tiles[pos].col = j;
-                    pos++;
-                }
-            }
-        }
-    }
-    /* have 'pos' tiles to generate, knowing which ones. Now gererating them */
-    j = 0;
-    info_gen = malloc(sizeof(info_tiles_t) * Mdesc->super.cores);
-    for ( c = 0 ; c < Mdesc->super.cores ; c++ ) {
-        info_gen[c].th_id = c;
-        info_gen[c].tiles = tiles;
-        info_gen[c].Ddesc = Mdesc;
-        info_gen[c].nb_elements = pos / Mdesc->super.cores;
-        info_gen[c].starting_position = j;
-        info_gen[c].seed = sed;
-        j += info_gen[c].nb_elements;
-        if (mtype == 1) { /* cholesky like generation (symetric, diagonal dominant) */
-            if(Mdesc->mtype == matrix_RealFloat) {
-                info_gen[c].gen_fct = matrix_stile_cholesky;
-            } else if (Mdesc->mtype == matrix_RealDouble) {
-                info_gen[c].gen_fct = matrix_dtile_cholesky;
-            } else { /* unknown type */
-                printf("unknown generation type: aborting generation\n");
-                free (info_gen);
-                free(tiles);
-                return;
-            }
-        } else if (mtype == 0) { /* LU like generation */
-            if(Mdesc->mtype == matrix_RealFloat) {
-                info_gen[c].gen_fct = matrix_stile;
-            } else if (Mdesc->mtype == matrix_RealDouble) {
-                info_gen[c].gen_fct = matrix_dtile;
-            } else { /* unknown type */
-                printf("unknown generation type: aborting generation\n");
-                free (info_gen);
-                free(tiles);
-                return;
-            }
-        } else if(mtype == 2) {
-            info_gen[c].gen_fct = create_tile_zero;
-        }
-    }
-    info_gen[c - 1].nb_elements += pos % Mdesc->super.cores;
-
-    if (Mdesc->super.cores > 1) {
-        pthread_attr_init(&thread_attr);
-        pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
-#ifdef __linux
-        pthread_setconcurrency(Mdesc->super.cores);
-#endif
-        threads = malloc((Mdesc->super.cores - 1) * sizeof(pthread_t));
-        if (NULL == threads) {
-            perror("No memory for generating matrix\n");
-            exit(-1);
-        }
-
-        for ( c = 1 ; c < Mdesc->super.cores ; c++) {
-            pthread_create( &(threads[c-1]),
-                            &thread_attr,
-                            (void* (*)(void*))rand_dist_tiles,
-                            (void*)&(info_gen[c]));
-        }
-    }
-
-    rand_dist_tiles((void*) &(info_gen[0]));
-
-    if (Mdesc->super.cores > 1) {
-        for(c = 0 ; c < Mdesc->super.cores - 1 ; c++)
-            pthread_join(threads[c],NULL);
-        free (threads);
-    }
-    free(info_gen);
-    free(tiles);
-    return;
-}
-
-void generate_tiled_zero_mat(tiled_matrix_desc_t * Mdesc)
-{
-
-    rand_dist_matrix(Mdesc, 2, 0);
-}
-
-void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed)
-{
-    rand_dist_matrix(Mdesc, 1, seed);
-}
-
-void generate_tiled_random_sym_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed)
-{
-    rand_dist_matrix(Mdesc, 1, seed);
-}
-
-void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed)
-{
-    rand_dist_matrix(Mdesc, 0, seed);
-}
-
-
-void pddiagset(tiled_matrix_desc_t * Mdesc, double val)
-{
-    int i, j;
-    int target;
-    double * buffer;
-    target = (Mdesc->lmt < Mdesc->lnt) ? Mdesc->lmt : Mdesc->lnt;
-
-    for( i = 0 ; i < target ; i++ ) {
-        if(Mdesc->super.myrank == Mdesc->super.rank_of( (dague_ddesc_t *)Mdesc, i, i )) {
-            buffer = Mdesc->super.data_of( (dague_ddesc_t *)Mdesc, i, i );
-            for( j = 0 ; j < Mdesc->nb ; j++) {
-                buffer[(j * Mdesc->mb) + j] = val;
-            }
-        }
-    }
-    return;
-}
-#endif
-

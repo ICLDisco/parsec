@@ -18,8 +18,13 @@ else
     PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
 fi
 
-
 if [ "x$USER" = "xbosilca" ]; then
+  if [ -x nvcc ]; then
+    CUDA_DIR=`which nvcc`
+    CUDA_DIR=`dirname ${CUDA_DIR}`
+    CUDA_DIR=`dirname ${CUDA_DIR}`
+  fi
+#  CUDA_DIR="/opt/cuda-5.0.7/cuda"
   HWLOC_DIR="/home/bosilca/opt/"
   MPI_DIR="/home/bosilca/opt/mpi"
   USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=ON"

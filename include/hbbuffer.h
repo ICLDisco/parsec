@@ -8,10 +8,12 @@
 #define HBBUFFER_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
+#include "dague_internal.h"
 #include "debug.h"
 #include "atomic.h"
 #include <stdlib.h>
 #include "lifo.h"
+#include "list.h"
 
 typedef struct dague_hbbuffer_t dague_hbbuffer_t;
 
@@ -21,19 +23,6 @@ typedef struct dague_hbbuffer_t dague_hbbuffer_t;
  *   bounded buffers with a parent storage, to store elements
  *   that will be ejected from the current buffer at push time.
  */
-
-/**
- * ranking function: takes an element that was stored in the buffer,
- * and serves as input to the pop_best function.
- * pop_best will pop the first element it finds in the bounded buffer
- * that has the highest score with this ranking function
- * 
- * @return an integer value for the element. Bigger is better.
- *         DAGUE_RANKING_FUNCTION_BEST means that no other element 
- *         can be better than this element.
- */
-#define DAGUE_RANKING_FUNCTION_BEST 0xffffff
-typedef unsigned int (*dague_hbbuffer_ranking_fct_t)(dague_list_item_t *elt, void *param);
 
 /** 
  * parent push function: takes a pointer to the parent store object, and
@@ -82,6 +71,7 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
          * Remove the first element from the list, keeping the rest of the list in next
          */
         next = dague_list_item_ring_chop(elt);
+        DAGUE_LIST_ITEM_SINGLETON(elt);
         /* Try to find a room for elt */
         for(; (size_t)i < b->size; i++) {
             if( 0 == dague_atomic_cas(&b->items[i], (uintptr_t) NULL, (uintptr_t) elt) )
@@ -115,27 +105,30 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
 
 static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dague_list_item_t *list)
 {
-    dague_list_item_t *topush = list;
-    int i = 0, nbelt = 0;
+    int i = 0;
     dague_execution_context_t *candidate, *best_context;
-    int item_prio, best_prio, best_index;
+    dague_list_item_t *topush;
+    int best_index;
     dague_list_item_t *ejected = NULL;
+#define CTX(to) ((dague_execution_context_t*)(to))
     
     /* Assume that we're going to push list.
      * Remove the first element from the list, keeping the rest of the list in topush
      * Don't move this line inside the loop: sometimes, multiple iterations of the loop with
      * the same element are necessary.
      */
+    topush = list;
     list = dague_list_item_ring_chop(topush);
     DAGUE_LIST_ITEM_SINGLETON(topush);
     while(topush != NULL) {
-        best_prio = ((dague_execution_context_t*)topush)->priority;
         /* Iterate on the list, find best position */
         best_index = -1;
+        /* We need to find something with a lower priority than topush anyway */
+        best_context = CTX(topush);
         for(i = 0; (size_t)i < b->size; i++) {
-            if( NULL == (candidate = (dague_execution_context_t*)b->items[i]) ) {
+            if( NULL == (candidate = CTX(b->items[i])) ) {
                 best_index = i;
-                best_context = NULL;
+                best_context = CTX(topush);
                 break;
             }
 
@@ -146,30 +139,42 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
              * to ignore for now.
              * Alternative is to lock the elements, which is not a good idea
              */
-              
-            item_prio = candidate->priority;
-            if( item_prio < best_prio ) {
+            if( A_LOWER_PRIORITY_THAN_B(candidate, best_context, dague_execution_context_priority_comparator) ) {
                 best_index = i;
                 best_context = candidate;
-                best_prio = item_prio;
             }
         }
+
+        if( best_context == CTX(topush) )
+            best_context = NULL;
 
         if( best_index > -1 ) {
             /* found a nice place, try to CAS */
             if( 1 == dague_atomic_cas( &b->items[best_index], (uintptr_t) best_context, (uintptr_t) topush ) ) {
                 /* Woohoo ! Success... */
+#if defined(DAGUE_DEBUG_VERBOSE3)
+                char tmp[MAX_TASK_STRLEN];
+#endif
+                DEBUG3(("HBB:\tPushed task %s in buffer %p.\n",
+                        dague_snprintf_execution_context( tmp,  MAX_TASK_STRLEN, CTX(topush) ), b));
+
                 if( NULL != best_context ) {
-                    assert( ((dague_list_item_t*)best_context)->list_next == (dague_list_item_t*)best_context );
-                    assert( ((dague_list_item_t*)best_context)->list_prev == (dague_list_item_t*)best_context );
                     /* best_context is the lowest priority element, and it was removed from the 
                      * list, which is arguably full. Keep it in the ejected list, preserving 
                      * the priority ordering (reverse priority)
                      * Hopefully, best_context is already a singleton, because it was pushed by
                      * the same function
                      */
-                    if( NULL != ejected )
-                        dague_list_item_ring_push( (dague_list_item_t*)best_context, ejected );
+
+                    DEBUG3(("HBB:\tEjected task %s from buffer %p.\n",
+                            dague_snprintf_execution_context( tmp, 128, best_context ), b));
+
+                    /* "Push" ejected after best_context, then consider ejected as best_context, to preserve the
+                     * ordering of priorities in ejected.
+                     */
+                    if( NULL != ejected ) {
+                        dague_list_item_ring_merge( (dague_list_item_t*)best_context, ejected );
+                    }
                     ejected = (dague_list_item_t*)best_context;
                 }
                 
@@ -179,16 +184,12 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
                 topush = list;
                 list = dague_list_item_ring_chop(topush);
                 DAGUE_LIST_ITEM_SINGLETON(topush);
-                nbelt++;
-                continue;
-            } else {
-                /* Mmmh... Somebody stole my spot... Try again with the same topush element */
-                continue;
-            }
+            } /* else ... Somebody stole my spot... Try again with the same topush element */
         } else {
-            /* topush has been singletonned by chop */
-            if( NULL != ejected )
-                dague_list_item_ring_push( topush, ejected );
+            /* topush has been singletoned after chop */
+            if( NULL != ejected ) {
+                dague_list_item_ring_merge( topush, ejected );
+            }
             ejected = topush;
 
             /* Because list is in decreasing priority order, any new element
@@ -202,25 +203,27 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
             /* List is full. Go to parent */
             break;
         }
-    }
+    } /* end while( topush != NULL ) */
 
-    DEBUG3(("HBB:\tpushed %d elements. %s\n", nbelt, NULL != ejected ? "More to push, go to father" : "Everything pushed - done"));
+    DEBUG3(("HBB:\t  %s\n", NULL != ejected ? "More to push, go to father" : "Everything pushed - done"));
 
     if( NULL != ejected ) {
 #if defined(DAGUE_DEBUG_VERBOSE3)
         dague_list_item_t *it;
-        char tmp[128];
+        char tmp[MAX_TASK_STRLEN];
 
-        DEBUG3(("HBB:\t Ejected elements (to father) are:\n"));
+        DEBUG3(("HBB:\t Elements that overflow and are given to the parent are:\n"));
         it = ejected;
         do {
-            DEBUG3(("  %s\n", dague_service_to_string((dague_execution_context_t*)it, tmp, 128)));
+            DEBUG3(("HBB:\tPush Parent %s\n", 
+                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, CTX(it))));
             it = DAGUE_LIST_ITEM_NEXT(it);
         } while(it != ejected);
 #endif
 
         b->parent_push_fct(b->parent_store, ejected);
     }
+#undef CTX
 }
 
 /* This code is unsafe, since another thread may be inserting new elements.
@@ -236,32 +239,24 @@ static inline int dague_hbbuffer_is_empty(dague_hbbuffer_t *b)
 }
 
 static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b, 
-                                                         dague_hbbuffer_ranking_fct_t rank_function, 
-                                                         void *rank_function_param)
+                                                         off_t priority_offset)
 {
     unsigned int idx;
     dague_list_item_t *best_elt = NULL;
     int best_idx = -1;
-    unsigned int best_rank = 0, rank;
     dague_list_item_t *candidate;
     
     do {
         best_elt = NULL;
         best_idx = -1;
-        best_rank = 0;
 
         for(idx = 0; idx < b->size; idx++) {
             if( NULL == (candidate = (dague_list_item_t *)b->items[idx]) )
                 continue;
 
-            rank = rank_function(candidate, rank_function_param);
-            if( (NULL == best_elt) || (rank == DAGUE_RANKING_FUNCTION_BEST) || (rank > best_rank) ) {
-                best_rank = rank;
+            if( (NULL == best_elt) || A_HIGHER_PRIORITY_THAN_B(candidate, best_elt, priority_offset) ) {
                 best_elt  = candidate;
                 best_idx  = idx;
-
-                if( DAGUE_RANKING_FUNCTION_BEST == rank )
-                    break;
             }
         }
         
@@ -271,9 +266,14 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
     } while( dague_atomic_cas( &b->items[best_idx], (uintptr_t) best_elt, (uintptr_t) NULL ) == 0 );
 
     /** Removes the element from the buffer. */
+#if defined(DAGUE_DEBUG_VERBOSE3)
     if( best_elt != NULL ) {
-        DEBUG3(("HBB:\tFound best element %p in local queue %p at position %d\n", best_elt, b, best_idx));
+        char tmp[MAX_TASK_STRLEN];
+        DEBUG3(("HBB:\tFound best element %s in local queue %p at position %d\n", 
+                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)best_elt), 
+                b, best_idx));
     }
+#endif
 
     return best_elt;
 }

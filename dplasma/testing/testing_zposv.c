@@ -11,8 +11,8 @@
 #include "flops.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-#include "dplasma/cores/cuda_sgemm.h"
+#if defined(HAVE_CUDA)
+#include "dplasma/cores/cuda_zgemm.h"
 #endif
 
 static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum uplo,
@@ -36,7 +36,7 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA)
     iparam[IPARAM_NGPUS] = 0;
 #endif
 
@@ -86,18 +86,22 @@ int main(int argc, char ** argv)
                                        N, N, P, uplo[u]));
 
         /* load the GPU kernel */
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA)
         if(iparam[IPARAM_NGPUS] > 0)
+        {
+            if(loud > 3) printf("+++ Load GPU kernel ... ");
+            if(0 != gpu_kernel_init_zgemm(dague))
             {
-                if(loud) printf("+++ Load GPU kernel ... ");
-                if(0 != zgemm_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA))
-                    {
-                        fprintf(stderr, "XXX Unable to load GPU kernel.\n");
-                        exit(3);
-                    }
-                if(loud) printf("Done\n");
+                printf("XXX Unable to load GPU kernel.\n");
+                exit(3);
             }
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescA,
+                                    MT*NT, MB*NB*sizeof(dague_complex64_t) );
+            if(loud > 3) printf("Done\n");
+        }
 #endif
+
 
         /*********************************************************************
          *               First Check ( ZPOSV )
@@ -238,9 +242,21 @@ int main(int argc, char ** argv)
             printf("***************************************************\n");
         }
 
+#if defined(HAVE_CUDA)
+        if(iparam[IPARAM_NGPUS] > 0) {
+            dague_gpu_data_unregister();
+        }
+#endif
+
         dague_data_free(ddescA.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
     }
+
+#if defined(HAVE_CUDA)
+    if(iparam[IPARAM_NGPUS] > 0) {
+        dague_gpu_kernel_fini(dague, "zgemm");
+    }
+#endif
 
     cleanup_dague(dague, iparam);
 
@@ -359,15 +375,15 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
                                N, NRHS, twodB->grid.strows, twodB->grid.stcols, twodB->grid.rows));
 
     Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A);
-    Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, B);
-    Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, X);
+    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, B);
+    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, X);
     dplasma_zlacpy( dague, PlasmaUpperLower, B, (tiled_matrix_desc_t *)&R );
 
     /* Compute A*x */
     dplasma_zhemm( dague, PlasmaLeft, uplo, -1.0, A, X,
                    1.0, (tiled_matrix_desc_t *)&R);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm,
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm,
                            (tiled_matrix_desc_t *)&R);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * N * eps ) ;

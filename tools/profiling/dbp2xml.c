@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
 {
     dbp_multifile_reader_t *dbp;
 
-    dbp = dbp_reader_open_files(argc, argv);
+    dbp = dbp_reader_open_files(argc-1, argv+1);
     if( NULL == dbp ) {
         return 1;
     }

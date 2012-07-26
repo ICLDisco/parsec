@@ -7,8 +7,8 @@
 #ifndef MAXHEAP_H_HAS_BEEN_INCLUDED
 #define MAXHEAP_H_HAS_BEEN_INCLUDED
 
-#include "dague.h"
 #include "dague_config.h"
+#include "dague_internal.h"
 
 #include "debug.h"
 #include "atomic.h"

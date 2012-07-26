@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -7,7 +7,7 @@
  *
  */
 
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmaaux.h"
@@ -42,7 +42,7 @@ dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
                                                      *B, (dague_ddesc_t*)B );
 
     dplasma_add2arena_tile(((dague_ztrdsm_object_t*)dague_trdsm)->arenas[DAGUE_ztrdsm_DEFAULT_ARENA], 
-                           A->mb*A->nb*sizeof(Dague_Complex64_t),
+                           A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
 
@@ -59,7 +59,7 @@ dplasma_ztrdsm_Destruct( dague_object_t *o )
 {
     dague_ztrdsm_object_t *otrdsm = (dague_ztrdsm_object_t *)o;
     dplasma_datatype_undefine_type( &(otrdsm->arenas[DAGUE_ztrdsm_DEFAULT_ARENA]->opaque_dtt) );
-    dague_ztrdsm_destroy((dague_ztrdsm_object_t *)o);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 /***************************************************************************//**

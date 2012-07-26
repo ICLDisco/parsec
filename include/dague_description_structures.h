@@ -85,17 +85,18 @@ struct dague_flow {
 
 struct dague_datatype {
     int index;
-    expr_op_inline_func_t index_fct;
     int nb_elt;
+    expr_op_inline_func_t index_fct;
     expr_op_inline_func_t nb_elt_fct;
 };
 
 struct dep {
-    const expr_t                *cond;
-    const struct dague_function *dague;
-    const expr_t                *call_params[MAX_CALL_PARAM_COUNT];
-    const dague_flow_t          *flow;
-    dague_datatype_t             datatype;
+    const expr_t                *cond;           /**< The runtime-evaluable condition on this dependency */
+    const expr_t                *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
+    const struct dague_function *dague;          /**< Pointer to the dague function pointed by this dependency */
+    const expr_t                *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
+    const dague_flow_t          *flow;           /**< Back pointer to the flow corresponding to this dependency */
+    dague_datatype_t             datatype;       /**< Datatype associated with this dependency */
 };
 
 void dep_dump(const dep_t *d, const struct dague_object *dague_object, const char *prefix);
@@ -108,13 +109,13 @@ void dep_dump(const dep_t *d, const struct dague_object *dague_object, const cha
 #define DAGUE_SYMBOL_IS_STANDALONE  0x0002     /**> standalone symbol, with dependencies only to global symbols */
 
 struct symbol {
-    uint32_t        flags;
-    const char     *name;
-    const char     *type;
-    const expr_t   *min;
-    const expr_t   *max;
-    const expr_t   *expr_inc;  /* NULL if and only if cst_inc is defined */
-    int             cst_inc;
+    uint32_t        flags;           /*< mask of GLOBAL and STANDALONE */
+    const char     *name;            /*< Name, used for debugging purposes */
+    int             context_index;   /*< Location of this symbol's value in the execution_context->locals array */
+    const expr_t   *min;             /*< Expression that represents the minimal value of this symbol */
+    const expr_t   *max;             /*< Expression that represents the maximal value of this symbol */
+    const expr_t   *expr_inc;        /*< Expression that represents the increment of this symbol. NULL if and only if cst_inc is defined */
+    int             cst_inc;         /*< If expr_inc is NULL, represents the integer increment of this symbol. */
 };
 
 /**

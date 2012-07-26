@@ -284,15 +284,56 @@ static void progress_bar_end(void)
     progress_bar_update(1);
 }
 
+typedef struct uidentry {
+    struct uidentry *next;
+    char *uid;
+    char *long_uid;
+} uidentry_t;
+
+#define UID_HASH_LEN 256
+static uidentry_t *UIDs[UID_HASH_LEN] = { NULL, };
+
+static int uid_hash(const char *long_uid)
+{
+    unsigned int r;
+    unsigned char c;
+    int i=0;
+    r = *(unsigned char *)long_uid++;
+    while( *long_uid != '\0' ) {
+        c = *(unsigned char*)long_uid++;
+        r = r ^ (0xff & (c << (++i%8) ));
+    }
+    return (int)(r % UID_HASH_LEN);
+}
+
+static uidentry_t *uidhash_lookup_create_entry(const char *long_uid)
+{
+    static int nextid = 0;
+    uidentry_t *n;
+    int h;
+
+    h = uid_hash(long_uid);
+
+    for(n = UIDs[ h ]; NULL != n; n = n->next) {
+        if( 0 == strcmp(n->long_uid, long_uid) )
+            return n;
+    }
+    
+    n = (uidentry_t*)malloc( sizeof(uidentry_t) );
+    n->long_uid = strdup(long_uid);
+    asprintf(&n->uid, "%X", nextid++);
+    n->next = UIDs[h];
+    UIDs[h] = n;
+
+    return n;
+}
+
 static char *getThreadContainerIdentifier( const char *prefix, const char *identifier )
 {
-    const char *r = identifier + strlen(identifier) - 1;
+    uidentry_t *n;
     char *ret;
-
-    while( *r != ' ' )
-        r--;
-
-    asprintf( &ret, "%sT%s", prefix, r+1);
+    n = uidhash_lookup_create_entry(identifier);
+    asprintf( &ret, "%sT%s", prefix, n->uid);
     return ret;
 }
 
@@ -490,7 +531,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
 
 static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_reader_t *dbp )
 {
-    unsigned int i, t, ifd;
+    int i, t, ifd;
     dague_time_t relative = ZERO_TIME;
     dbp_dictionary_t *dico;
     dbp_file_t *file;
@@ -521,7 +562,7 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
                                  GTG_COLOR_GET_RED(color_code),
                                  GTG_COLOR_GET_GREEN(color_code),
                                  GTG_COLOR_GET_BLUE(color_code));
-        sprintf(dico_id, "K-%u", i);
+        sprintf(dico_id, "K-%d", i);
         addEntityValue (dico_id, "ST_TS", dbp_dictionary_name(dico), color);
         gtg_color_free(color);
     }
@@ -598,6 +639,11 @@ int main(int argc, char *argv[])
 
     if( NULL == dbp )
         return 1;
+
+    if( dbp_reader_nb_files(dbp) == 0 ) {
+        fprintf(stderr, "Unable to open any of the files. Aborting.\n");
+        exit(1);
+    }
 
     for(i = 0; i < dbp_reader_nb_files(dbp); i++) {
         file = dbp_reader_get_file(dbp, i);

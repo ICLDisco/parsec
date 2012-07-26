@@ -324,6 +324,9 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
     }
 #else
     res = (dague_profiling_buffer_t*)malloc(event_buffer_size);
+#if !defined(NDEBUG)
+    memset(res, 0, event_buffer_size);
+#endif
     if( NULL == res ) {
         fprintf(stderr, "Warning profiling system: unable to allocate new profiling buffer: %s. Events trace will be truncated.\n",
                 strerror(errno));
@@ -363,10 +366,13 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
     return res;
 }
 
-static void write_down_existing_buffer(dague_profiling_buffer_t *buffer)
+static void write_down_existing_buffer(dague_profiling_buffer_t *buffer,
+                                       size_t count)
 {
+    (void)count;
     if( NULL == buffer )
         return;
+    memset( &(buffer->buffer[count]), 0, event_avail_space - count );
 #if defined(DAGUE_PROFILING_USE_MMAP)
     if( munmap(buffer, event_buffer_size) == -1 ) {
         fprintf(stderr, "Warning profiling system: unmap of the events backend file at %p failed: %s\n",
@@ -377,7 +383,7 @@ static void write_down_existing_buffer(dague_profiling_buffer_t *buffer)
         fprintf(stderr, "Warning profiling system: seek in the events backend file at %"PRId64" failed: %s. Events trace will be truncated.\n",
                 buffer->this_buffer_file_offset, strerror(errno));
     } else {
-        if( write(file_backend_fd, buffer, event_buffer_size) != event_buffer_size ) {
+        if( (size_t)(write(file_backend_fd, buffer, event_buffer_size)) != event_buffer_size ) {
             fprintf(stderr, "Warning profiling system: write in the events backend file at %"PRId64" failed: %s. Events trace will be truncated.\n",
                      buffer->this_buffer_file_offset, strerror(errno));
         }
@@ -411,14 +417,14 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
     context->current_events_buffer_offset = off;
     context->next_event_position = 0;
 
-    write_down_existing_buffer( old_buffer );
+    write_down_existing_buffer( old_buffer, context->next_event_position );
 
     pthread_mutex_unlock( &file_backend_lock );
 
     return 0;
 }
 
-int dague_profiling_trace( dague_thread_profiling_t* context, int key, 
+int dague_profiling_trace( dague_thread_profiling_t* context, int key,
                            uint64_t event_id, uint32_t object_id, void *info )
 {
     dague_profiling_output_t *this_event;
@@ -462,7 +468,7 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key,
         this_event->event.flags = DAGUE_PROFILING_EVENT_HAS_INFO;
     }
     this_event->event.timestamp = take_time();
-    
+
     return 0;
 }
 
@@ -487,13 +493,13 @@ static int64_t dump_global_infos(int *nbinfos)
         return -1;
     }
 
-    pos = 0;    
+    pos = 0;
     nb = 0;
     nbthis = 0;
     for(i = dague_profiling_infos; i != NULL; i = i->next) {
         is = strlen(i->key);
         vs = strlen(i->value);
-        
+
         if( pos + sizeof(dague_profiling_info_buffer_t) + is + vs - 1 >= event_avail_space ) {
             b->this_buffer.nb_infos = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
@@ -503,7 +509,7 @@ static int64_t dump_global_infos(int *nbinfos)
                 return first_off;
             }
 
-            write_down_existing_buffer(b);
+            write_down_existing_buffer(b, pos);
 
             b = n;
             pos = 0;
@@ -512,16 +518,16 @@ static int64_t dump_global_infos(int *nbinfos)
         }
         ib = (dague_profiling_info_buffer_t *)&(b->buffer[pos]);
         ib->info_size = is;
-        ib->value_size = vs;        
-        memcpy(ib->info_and_value, i->key, ib->info_size);
-        memcpy(ib->info_and_value + ib->info_size, i->value, ib->value_size);
+        ib->value_size = vs;
+        memcpy(ib->info_and_value + 0,  i->key,   is);
+        memcpy(ib->info_and_value + is, i->value, vs);
         nb++;
         nbthis++;
         pos += sizeof(dague_profiling_info_buffer_t) + is + vs - 1;
     }
 
     b->this_buffer.nb_infos = nbthis;
-    write_down_existing_buffer(b);
+    write_down_existing_buffer(b, pos);
 
     *nbinfos = nb;
     return first_off;
@@ -532,7 +538,8 @@ static int64_t dump_dictionary(int *nbdico)
     dague_profiling_buffer_t *b, *n;
     dague_profiling_key_buffer_t *kb;
     dague_profiling_key_t *k;
-    int nb, nbthis, cs, i;
+    unsigned int i;
+    int nb, nbthis, cs;
     int pos;
     int64_t first_off;
 
@@ -548,7 +555,7 @@ static int64_t dump_dictionary(int *nbdico)
         return -1;
     }
 
-    pos = 0;    
+    pos = 0;
     nb = 0;
     nbthis = 0;
     for(i = 0; i < dague_prof_keys_count; i++) {
@@ -557,7 +564,7 @@ static int64_t dump_dictionary(int *nbdico)
             cs = 0;
         else
             cs = strlen(k->convertor);
-                
+
         if( pos + sizeof(dague_profiling_key_buffer_t) + cs - 1 >= event_avail_space ) {
             b->this_buffer.nb_dictionary_entries = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_DICTIONARY);
@@ -567,7 +574,7 @@ static int64_t dump_dictionary(int *nbdico)
                 return first_off;
             }
 
-            write_down_existing_buffer(b);
+            write_down_existing_buffer(b, pos);
 
             b = n;
             pos = 0;
@@ -588,7 +595,7 @@ static int64_t dump_dictionary(int *nbdico)
     }
 
     b->this_buffer.nb_dictionary_entries = nbthis;
-    write_down_existing_buffer(b);
+    write_down_existing_buffer(b, pos);
 
     *nbdico = nb;
     return first_off;
@@ -639,7 +646,7 @@ static int64_t dump_thread(int *nbth)
         return -1;
     }
 
-    pos = 0;    
+    pos = 0;
     nb = 0;
     nbthis = 0;
 
@@ -648,7 +655,7 @@ static int64_t dump_thread(int *nbth)
         it = DAGUE_LIST_ITERATOR_NEXT( it ) ) {
         thread = (dague_thread_profiling_t*)it;
         th_size = thread_size(thread);
-        
+
         if( pos + th_size >= event_avail_space ) {
             b->this_buffer.nb_threads = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_THREAD);
@@ -658,7 +665,7 @@ static int64_t dump_thread(int *nbth)
                 return off;
             }
 
-            write_down_existing_buffer(b);
+            write_down_existing_buffer(b, pos);
 
             b = n;
             pos = 0;
@@ -695,7 +702,7 @@ static int64_t dump_thread(int *nbth)
     }
 
     b->this_buffer.nb_threads = nbthis;
-    write_down_existing_buffer(b);
+    write_down_existing_buffer(b, pos);
 
     *nbth = nb;
     return off;
@@ -711,7 +718,7 @@ int dague_profiling_dump_dbp( const char* filename )
     DAGUE_LIST_ITERATOR(&threads, it, {
         t = (dague_thread_profiling_t*)it;
         if( NULL != t->current_events_buffer ) {
-            write_down_existing_buffer(t->current_events_buffer);
+            write_down_existing_buffer(t->current_events_buffer, t->next_event_position);
             t->current_events_buffer = NULL;
         }
     });
@@ -735,7 +742,8 @@ int dague_profiling_dump_dbp( const char* filename )
     }
 
     /* The head is now complete. Last flush. */
-    write_down_existing_buffer((dague_profiling_buffer_t *)profile_head);
+    write_down_existing_buffer((dague_profiling_buffer_t *)profile_head,
+                               sizeof(dague_profiling_binary_file_header_t));
 
     /* Close the backend file */
     pthread_mutex_lock(&file_backend_lock);

@@ -6,11 +6,9 @@
 
 #include <precision.h>
 
-#ifndef DAGUE_HAS_COMPLEX_H
+#ifndef HAVE_COMPLEX_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <math.h>
 
 float cabsf(float _Complex z)
 {
@@ -46,20 +44,20 @@ double cabs(double _Complex z)
     return fabs(x) * sqrt(1.0f + y / x);
 }
 
-double cimag(Dague_Complex64_t z)
+double cimag(dague_complex64_t z)
 {
     return ((double *)&z)[1];
 }
 
-double creal(Dague_Complex64_t z)
+double creal(dague_complex64_t z)
 {
     return ((double *)&z)[0];
 }
 
-Dague_Complex64_t conj(Dague_Complex64_t z)
+dague_complex64_t conj(dague_complex64_t z)
 {
     double *zp, *vp;
-    Dague_Complex64_t v;
+    dague_complex64_t v;
 
     zp = (double *)&z;
     vp = (double *)&v;
@@ -67,9 +65,5 @@ Dague_Complex64_t conj(Dague_Complex64_t z)
     vp[1] = -zp[1];
     return v;
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* DAGUE_HAS_COMPLEX */

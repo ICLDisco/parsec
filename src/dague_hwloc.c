@@ -5,7 +5,8 @@
  */
 
 #include "dague_config.h"
-#include "dague.h"
+#include "dague_internal.h"
+#include "debug.h"
 
 #include "dague_hwloc.h"
 #if defined(HAVE_HWLOC)
@@ -16,6 +17,7 @@
 
 #if defined(HAVE_HWLOC)
 static hwloc_topology_t topology;
+int first_init = 1;
 #endif  /* defined(HAVE_HWLOC) */
 
 #if defined(HAVE_HWLOC_PARENT_MEMBER)
@@ -27,10 +29,13 @@ static hwloc_topology_t topology;
 int dague_hwloc_init(void)
 {
 #if defined(HAVE_HWLOC)
-    hwloc_topology_init(&topology);
-    hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_NODE);
-    hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_SOCKET);
-    hwloc_topology_load(topology);
+    if ( first_init ) {
+        hwloc_topology_init(&topology);
+        hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_NODE);
+        hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_SOCKET);
+        hwloc_topology_load(topology);
+        first_init = 0;
+    }
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
 }
@@ -39,6 +44,7 @@ int dague_hwloc_fini(void)
 {
 #if defined(HAVE_HWLOC)
     hwloc_topology_destroy(topology);
+    first_init = 1;
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
 }
@@ -103,7 +109,6 @@ int dague_hwloc_master_id( int level, int processor_id )
     return -1;
 }
 
-
 unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
 #if defined(HAVE_HWLOC)
@@ -124,6 +129,7 @@ unsigned int dague_hwloc_nb_cores( int level, int master_id )
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
 }
+
 
 int dague_hwloc_nb_levels(void)
 {
@@ -235,6 +241,7 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
 {
 #if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     unsigned cpu_index;
+    int first_free;
     hwloc_obj_t obj;
     hwloc_cpuset_t binding_mask=hwloc_bitmap_alloc();
 
@@ -268,8 +275,9 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
     }
 #endif /* DAGUE_DEBUG_VERBOSE2 */
 
+    first_free = hwloc_bitmap_first(binding_mask);
     hwloc_bitmap_free(binding_mask);
-    return hwloc_bitmap_first(binding_mask);
+    return first_free;
 #else
     (void) cpuset;
     return -1;

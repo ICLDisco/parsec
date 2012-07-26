@@ -23,12 +23,15 @@ int vasprintf(char **ret, const char *format, va_list ap);
 #include <stdlib.h>
 #include <stdio.h>
 
+void debug_save_stack_trace(void);
+void debug_dump_stack_traces(void);
+
 /* only one printf to avoid line breaks in the middle */
 static inline char* arprintf(const char* fmt, ...)
 {
     char* txt;
     va_list args;
-    
+
     va_start(args, fmt);
     vasprintf(&txt, fmt, args);
     va_end(args);
@@ -74,6 +77,11 @@ static inline char* arprintf(const char* fmt, ...)
 #define VERBOSE(ARG) do { \
     if(dague_verbose) \
         _DAGUE_OUTPUT("+.", ARG); \
+    _DAGUE_DEBUG_HISTORY(ARG); \
+} while(0)
+#define VERBOSE2(ARG) do { \
+    if(dague_verbose > 1) \
+        _DAGUE_OUTPUT("+^", ARG); \
     _DAGUE_DEBUG_HISTORY(ARG); \
 } while(0)
 #define WARNING(ARG) do { \
@@ -128,8 +136,8 @@ static inline char* arprintf(const char* fmt, ...)
 #   endif
 
 struct dague_execution_context_t;
-void debug_mark_exe(int core, const struct dague_execution_context_t *ctx);
-#define DEBUG_MARK_EXE(core, ctx) debug_mark_exe(core, ctx)
+void debug_mark_exe(int th, int vp, const struct dague_execution_context_t *ctx);
+#define DEBUG_MARK_EXE(th, vp, ctx) debug_mark_exe(th, vp, ctx)
 
 struct remote_dep_wire_activate_t;
 void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote_dep_wire_activate_t *m);
@@ -153,10 +161,12 @@ void debug_mark_dta_msg_end_recv(int tag);
 #define DEBUG_MARK_DTA_MSG_END_RECV(tag) debug_mark_dta_msg_end_recv(tag)
 
 void debug_mark_display_history(void);
+void debug_mark_purge_history(void);
+void debug_mark_purge_all_history(void);
 
 #else /* DAGUE_DEBUG_HISTORY */
 
-#define DEBUG_MARK_EXE(core, ctx)
+#define DEBUG_MARK_EXE(th, vp, ctx)
 #define DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(to, buffer, message)
 #define DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, buffer, message)
 #define DEBUG_MARK_CTL_MSG_GET_SENT(to, buffer, message)
@@ -165,6 +175,8 @@ void debug_mark_display_history(void);
 #define DEBUG_MARK_DTA_MSG_START_RECV(from, buffer, tag)
 #define DEBUG_MARK_DTA_MSG_END_SEND(tag)
 #define DEBUG_MARK_DTA_MSG_END_RECV(tag)
+#define debug_mark_purge_history()
+#define debug_mark_purge_all_history()
 
 #endif /* DAGUE_DEBUG_HISTORY */
 

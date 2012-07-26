@@ -8,6 +8,7 @@
  */
 
 #include "common.h"
+#include "dague_internal.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/diag_band_to_rect.h"
@@ -125,7 +126,7 @@ int main(int argc, char *argv[])
             MT, NT, MB, NB, sizeof(matrix_ComplexDouble));
     dague_arena_t* arena = DAGUE_diag_band_to_rect->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA];
     dplasma_add2arena_tile(arena,
-                           MB*NB*sizeof(Dague_Complex64_t),
+                           MB*NB*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, MB);
     dague_enqueue(dague, (dague_object_t*)DAGUE_diag_band_to_rect);
@@ -213,10 +214,8 @@ int main(int argc, char *argv[])
         }
     }
 
-
-
     dplasma_zherbt_Destruct( DAGUE_zherbt );
-    dague_diag_band_to_rect_destroy( DAGUE_diag_band_to_rect );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT( DAGUE_diag_band_to_rect );
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
 
     cleanup_dague(dague, iparam);

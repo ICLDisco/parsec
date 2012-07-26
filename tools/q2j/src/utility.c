@@ -2028,7 +2028,7 @@ char *quark_tree_to_body(node_t *node){
     // then change "kernel_call" to add the "#line" directive.
 
     // Form the string for the "printlog"
-    printStr = strdup("  printlog(\"thread %d ");
+    printStr = strdup("  printlog(\"");
     printStr = append_to_string( printStr, kernel_call, "%s(", 1+strlen(kernel_call));
     for(i=0; NULL != node->task->ind_vars[i]; i++ ){
         if( i > 0 )
@@ -2051,10 +2051,15 @@ char *quark_tree_to_body(node_t *node){
 
     // Form the string for the suffix of the "printlog". That is whatever follows the format string, or in
     // other words the variables whose value we are interested in instead of the name.
-    printSuffix = strdup(")\\n\",\n           context->eu_id");
+
+    printSuffix = strdup(")\\n\",\n  ");
+
     for(i=0; NULL != node->task->ind_vars[i]; i++ ){
         char *iv = node->task->ind_vars[i];
-        printSuffix = append_to_string( printSuffix, iv, ", %s", 2+strlen(iv));
+        if (i == 0)
+            printSuffix = append_to_string( printSuffix, iv, "%s", 2+strlen(iv));
+        else
+            printSuffix = append_to_string( printSuffix, iv, ", %s", 2+strlen(iv));
     }
 
     // Form the string for the actual function-call as well as the prefix, which is all
@@ -2157,8 +2162,6 @@ char *quark_tree_to_body(node_t *node){
                 char *var_str = tree_to_str(arr->u.kids.kids[ii]);
                 printSuffix = append_to_string( printSuffix, var_str, ", %s", 2+strlen(var_str));
             }
-            // Mathieu said we should print the DAGuE alias symbol, not the array base name.
-            // printSuffix = append_to_string( printSuffix, base_name, ", %s", 2+strlen(base_name));
             char *alias = arr->var_symname;
             printSuffix = append_to_string( printSuffix, alias, ", %s", 2+strlen(base_name));
         }else{

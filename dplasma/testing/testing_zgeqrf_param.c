@@ -93,7 +93,7 @@ int main(int argc, char ** argv)
 
 #if defined(DAGUE_SIM)
     if ( rank == 0 ) {
-        Dague_Complex64_t *mat = ddescA.mat;
+        dague_complex64_t *mat = ddescA.mat;
 
         if (0)
         {
@@ -173,6 +173,13 @@ int main(int argc, char ** argv)
                      iparam[IPARAM_M],
                      iparam[IPARAM_N],
                      gflops = (flops/1e9)/(sync_time_elapsed)));
+    if(loud >= 5 && rank == 0) {
+        printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n"
+               "                 encoding=\"none\" compression=\"none\">\n"
+               "%g\n"
+               "</DartMeasurement>\n",
+               gflops);
+    }
 #endif
     (void)flops;
     (void)gflops;
@@ -248,7 +255,7 @@ static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_de
                      1.0, Q, Q, -1.0, (tiled_matrix_desc_t*)&Id );
     }
 
-    normQ = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&Id);
+    normQ = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&Id);
 
     result = normQ / (minMN * eps);
     if ( loud ) {
@@ -314,8 +321,8 @@ static int check_factorization(dague_context_t *dague, int loud, tiled_matrix_de
     dague_data_free(R.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&R);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&Residual);
-    Anorm = dplasma_zlange(dague, PlasmaMaxNorm, Aorig);
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&Residual);
+    Anorm = dplasma_zlange(dague, PlasmaInfNorm, Aorig);
 
     result = Rnorm / ( Anorm * minMN * eps);
 

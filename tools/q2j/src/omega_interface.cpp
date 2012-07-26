@@ -2085,9 +2085,9 @@ static list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunction
 ////////////////////////////////////////////////////////////////////////////////
 //
 void print_body(node_t *task_node){
-    printf("BODY\n\n");
+    printf("BODY\n{\n");
     printf("%s\n", quark_tree_to_body(task_node));
-    printf("\nEND\n");
+    printf("}\nEND\n");
 }
 
 
@@ -3579,7 +3579,8 @@ static Relation process_and_print_execution_space(node_t *node){
     }
 
     // Ask Omega to simplify the Relation for us.
-    S.simplify(2,2);
+    //S.simplify(2,2);
+    S.simplify();
     (void)S.print_with_subs_to_string(false);
 
     // Print the execution space based on the bounds that exist in the relation.

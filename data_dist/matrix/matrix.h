@@ -8,10 +8,12 @@
 #ifndef _MATRIX_H_
 #define _MATRIX_H_
 
-#include <stdarg.h>
 #include "dague_config.h"
+#include <stdarg.h>
+#include <assert.h>
 #include "precision.h"
 #include "data_distribution.h"
+#include "vpmap.h"
 
 enum matrix_type {
     matrix_Byte          = 0, /**< unsigned char  */
@@ -34,17 +36,22 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
     case matrix_Integer       : return sizeof(int);
     case matrix_RealFloat     : return sizeof(float);
     case matrix_RealDouble    : return sizeof(double);
-    case matrix_ComplexFloat  : return sizeof(Dague_Complex32_t);
-    case matrix_ComplexDouble : return sizeof(Dague_Complex64_t);
+    case matrix_ComplexFloat  : return sizeof(dague_complex32_t);
+    case matrix_ComplexDouble : return sizeof(dague_complex64_t);
     default:
         return -1;
     }
 }
 
+#define tiled_matrix_desc_type        0x01
+#define two_dim_block_cyclic_type     0x02
+#define sym_two_dim_block_cyclic_type 0x04
+
 typedef struct tiled_matrix_desc_t {
     dague_ddesc_t super;
     enum matrix_type    mtype;      /**< precision of the matrix */
     enum matrix_storage storage;    /**< storage of the matrix   */
+    int dtype;          /**< Distribution type of descriptor      */
     int tileld;         /**< leading dimension of each tile (Should be a function depending on the row) */
     int mb;             /**< number of rows in a tile */
     int nb;             /**< number of columns in a tile */
@@ -63,21 +70,20 @@ typedef struct tiled_matrix_desc_t {
 } tiled_matrix_desc_t;
 
 void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage,
+                             int matrix_distribution_type, int nodes, int cores, int myrank,
                              int mb, int nb, int lm, int ln, int i,  int j, int m,  int n);
-int  tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename);
-int  tiled_matrix_data_read( tiled_matrix_desc_t *tdesc, char *filename);
 
-#ifdef HAVE_MPI
-void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-void matrix_ccompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-void matrix_dcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-void matrix_scompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-#else
-#define matrix_zcompare_dist_data(...) do {} while(0)
-#define matrix_ccompare_dist_data(...) do {} while(0)
-#define matrix_dcompare_dist_data(...) do {} while(0)
-#define matrix_scompare_dist_data(...) do {} while(0)
-#endif
+tiled_matrix_desc_t *tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc, int i, int j, int m, int n);
+
+int  tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename);
+int  tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename);
+
+static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
+{
+    assert( vpmap_get_nb_vp() > 0 );
+    assert( pos <= tdesc->nb_local_tiles );
+    return pos % vpmap_get_nb_vp();
+}
 
 struct dague_execution_unit;
 typedef int (*dague_operator_t)( struct dague_execution_unit *eu, const void* src, void* dst, void* op_data, ... );

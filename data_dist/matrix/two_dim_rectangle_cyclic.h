@@ -46,6 +46,8 @@ typedef struct two_dim_block_cyclic {
 /**
  * Initialize the description of a  2-D block cyclic distributed matrix.
  * @param Ddesc matrix description structure, already allocated, that will be initialize
+ * @param mtype type of data used for this matrix
+ * @param storage type of storage of data
  * @param nodes number of nodes
  * @param cores number of cores per node
  * @param myrank rank of the local node (as of mpi rank)
@@ -65,22 +67,22 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc,
                                enum matrix_type mtype,
                                enum matrix_storage storage,
                                int nodes, int cores, int myrank,
-			       int mb,   int nb,   /* Tile size */
-			       int lm,   int ln,   /* Global matrix size (what is stored)*/
+                               int mb,   int nb,   /* Tile size */
+                               int lm,   int ln,   /* Global matrix size (what is stored)*/
                                int i,    int j,    /* Staring point in the global matrix */
-			       int m,    int n,    /* Submatrix size (the one concerned by the computation */
+                               int m,    int n,    /* Submatrix size (the one concerned by the computation */
                                int nrst, int ncst, /* Super-tiling size */
                                int process_GridRows );
 
 int twoDBC_tolapack( two_dim_block_cyclic_t *Mdesc, void* A, int lda);
-int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex64_t* A, int lda);
-int twoDBC_ctolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex32_t* A, int lda);
+int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, dague_complex64_t* A, int lda);
+int twoDBC_ctolapack(two_dim_block_cyclic_t *Mdesc, dague_complex32_t* A, int lda);
 int twoDBC_dtolapack(two_dim_block_cyclic_t *Mdesc, double* A, int lda);
 int twoDBC_stolapack(two_dim_block_cyclic_t *Mdesc, float* A, int lda);
 
 
-void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target, 
-                                           two_dim_block_cyclic_t* origin, 
+void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
+                                           two_dim_block_cyclic_t* origin,
                                            int rst, int cst );
 
 

@@ -7,10 +7,13 @@
 #define __USE_REMOTE_DEP_H__
 
 #include "dague_config.h"
+#include "dague_internal.h"
 
 typedef unsigned long remote_dep_datakey_t;
 
 #include "debug.h"
+#include <string.h>
+
 
 #if defined(HAVE_MPI)
 #include <mpi.h>
@@ -21,7 +24,6 @@ typedef void* dague_remote_dep_datatype_t;
 
 #include "dague_description_structures.h"
 #include "lifo.h"
-#include "dague.h"
 
 #define DAGUE_ACTION_DEPS_MASK                  0x00FF
 #define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x0100
@@ -62,7 +64,7 @@ struct remote_dep_output_param {
 
 struct dague_remote_deps_t {
     dague_list_item_t               item;
-    struct dague_lifo_t*     origin;  /**< The memory arena where the data pointer is comming from */
+    struct dague_lifo_t*            origin;  /**< The memory arena where the data pointer is comming from */
     struct dague_object*            dague_object;  /**< dague object generating this data transfer */
     remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
     int                             root;    /**< The root of the control message */
@@ -95,7 +97,7 @@ extern dague_remote_dep_context_t dague_remote_dep_context;
 void remote_deps_allocation_init(int np, int max_deps);
 void remote_deps_allocation_fini(void);
 
-static inline dague_remote_deps_t* remote_deps_allocation( dague_lifo_t* lifo )
+static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
 {
     dague_remote_deps_t* remote_deps = (dague_remote_deps_t*)dague_lifo_pop(lifo);
     uint32_t i, rank_bit_size;
@@ -121,9 +123,34 @@ static inline dague_remote_deps_t* remote_deps_allocation( dague_lifo_t* lifo )
 }
 #define DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
     if( NULL == (REMOTE_DEPS) ) { /* only once per function */                 \
-        (REMOTE_DEPS) = (dague_remote_deps_t*)remote_deps_allocation(&dague_remote_dep_context.freelist); \
+        (REMOTE_DEPS) = (dague_remote_deps_t*)remote_deps_allocate(&dague_remote_dep_context.freelist); \
     }
-
+/* This returns the deps to the freelist, no use counter */
+static inline void remote_deps_free(dague_remote_deps_t* deps) {
+    unsigned int count = 0;
+    int k = 0;
+    while( count < deps->output_count ) {
+        for(uint32_t a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
+            deps->output[k].rank_bits[a] = 0;
+        count += deps->output[k].count;
+        deps->output[k].count = 0;
+#if defined(DAGUE_DEBUG)
+        deps->output[k].data = NULL;
+        deps->output[k].type = NULL;
+        deps->output[k].nbelt = -1;
+#endif
+        k++;
+        assert(k < MAX_PARAM_COUNT);
+    }
+    assert(count == deps->output_count);
+#if defined(DAGUE_DEBUG)
+    DEBUG(("remote_deps_free: sent_count=%u/%u\n", deps->output_sent_count, deps->output_count));
+    memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
+#endif
+    deps->output_count = 0;
+    deps->output_sent_count = 0;
+    dague_lifo_push(deps->origin, (dague_list_item_t*)deps);
+}
 
 int dague_remote_dep_init(dague_context_t* context);
 int dague_remote_dep_fini(dague_context_t* context);

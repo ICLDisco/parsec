@@ -27,7 +27,7 @@ side  [type = "PLASMA_enum"]
 uplo  [type = "PLASMA_enum"]
 trans [type = "PLASMA_enum"]
 diag  [type = "PLASMA_enum"]
-alpha [type = "Dague_Complex64_t"]
+alpha [type = "dague_complex64_t"]
 descA [type = "tiled_matrix_desc_t"]
 A     [type = "dague_ddesc_t *"]
 descB [type = "tiled_matrix_desc_t"]
@@ -56,15 +56,16 @@ BODY
   int ldb = BLKLDD( descB, m );
 
   DRYRUN(
+
       CORE_ztrsm(side, uplo, trans, diag,
                  tempmm, tempkn, alpha,
                  A /* A((descB.nt-1)-k,(descB.nt-1)-k) */, lda,
                  B /* B(m,(descB.nt-1)-k) */, ldb );
          );
 
-  printlog("thread %d CORE_ztrsm(%d, %d)\n"
+  printlog("CORE_ztrsm(%d, %d)\n"
            "\t(side, uplo, trans, diag, tempmm, tempkn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-           context->eu_id, k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
+              k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
 
 END
 
@@ -93,6 +94,7 @@ zgemm(k,m,n)
 
   : B(m,(descB.nt-1)-n)
 
+
   READ  C <- B ztrsm(k, m)
   READ  D <- D zgemm_in_A0(k,m,n)
 
@@ -101,15 +103,21 @@ zgemm(k,m,n)
           -> (n>=(k+2)) ? E zgemm(k+1, m, n)
           -> ((k+1)==n) ? B ztrsm(n, m)
 
+  /*
+  Anti-dependencies:
+
+  */
+
 BODY
 
   int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
   int tempkn = ((k)==(0)) ? (descB.n-((descB.nt-1)*descB.nb)) : descB.nb;
-  Dague_Complex64_t minvalpha = ((Dague_Complex64_t)-1.000000)/alpha;
+  dague_complex64_t minvalpha = ((dague_complex64_t)-1.000000)/alpha;
   int ldan = BLKLDD( descA, (descB.nt-1)-n );
   int ldb = BLKLDD( descB, m );
 
   DRYRUN(
+
 
     CORE_zgemm(PlasmaNoTrans, trans,
                tempmm, descB.nb, tempkn,
@@ -118,9 +126,9 @@ BODY
                1.0,       E /* B(m,             (descB.nt-1)-n) */, ldb );
          );
 
-  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("CORE_zgemm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, trans, tempmm, descB.nb, tempkn, minvalpha, B(%d,%d)[%p], ldb, A(%d,%d)[%p], descA.mb, zone, B(%d,%d)[%p], ldb)\n",
-  context->eu_id, k, m, n, m, (descB.nt-1)-k, C, (descB.nt-1)-n, (descB.nt-1)-k, D, m, (descB.nt-1)-n, E);
+  k, m, n, m, (descB.nt-1)-k, C, (descB.nt-1)-n, (descB.nt-1)-k, D, m, (descB.nt-1)-n, E);
 
 END
 

@@ -45,7 +45,7 @@ int main(int argc, char ** argv)
     if ( P > 1 ) {
         fprintf(stderr, "This function cannot be used with a 2D block cyclic distribution for now\n");
         return 1;
-    }        
+    }
 
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
@@ -55,8 +55,8 @@ int main(int argc, char ** argv)
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
         two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
-                               nodes, cores, rank, MB, 1, dague_imin(M, N), 1, 0, 0,
-                               dague_imin(M, N), 1, SMB, SNB, P*Q));
+                               nodes, cores, rank, 1, NB, 1, dague_imin(M, N), 0, 0,
+                               1, dague_imin(M, N), SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
@@ -150,14 +150,14 @@ static int check_solution( dague_context_t *dague, int loud,
     int m = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescA);
-    Bnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
-    Xnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescX);
+    Anorm = dplasma_zlange(dague, PlasmaInfNorm, ddescA);
+    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
+    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
 
     /* Compute b - A*x */
     dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescX, 1.0, ddescB);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 

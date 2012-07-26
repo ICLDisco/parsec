@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> c d s
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
@@ -39,7 +39,7 @@
  *          The seed used in the random generation.
  *
  ******************************************************************************/
-dague_object_t* dplasma_zplgsy_New( Dague_Complex64_t bump, PLASMA_enum uplo, 
+dague_object_t* dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo, 
                                     tiled_matrix_desc_t *A,
                                     unsigned long long int seed)
 {
@@ -49,7 +49,7 @@ dague_object_t* dplasma_zplgsy_New( Dague_Complex64_t bump, PLASMA_enum uplo,
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zplgsy_DEFAULT_ARENA], 
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
+                            A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
     
@@ -57,7 +57,7 @@ dague_object_t* dplasma_zplgsy_New( Dague_Complex64_t bump, PLASMA_enum uplo,
 }
 
 int dplasma_zplgsy( dague_context_t *dague, 
-                    Dague_Complex64_t bump, PLASMA_enum uplo, 
+                    dague_complex64_t bump, PLASMA_enum uplo, 
                     tiled_matrix_desc_t *A,
                     unsigned long long int seed) 
 {
@@ -77,6 +77,6 @@ dplasma_zplgsy_Destruct( dague_object_t *o )
 {
     dague_zplgsy_object_t *dague_zplgsy = (dague_zplgsy_object_t *)o;
     dplasma_datatype_undefine_type( &(dague_zplgsy->arenas[DAGUE_zplgsy_DEFAULT_ARENA]->opaque_dtt) );
-    dague_zplgsy_destroy(dague_zplgsy);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zplgsy);
 }
 

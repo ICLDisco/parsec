@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
@@ -30,7 +30,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
                                    int *INFO)
 {
     dague_zgetrf_object_t *dague_getrf;
-    
+
     if ( A->storage == matrix_Tile ) {
         CORE_zgetrf_rectil_init();
     } else {
@@ -43,7 +43,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
 
     /* A */
     dplasma_add2arena_tile( dague_getrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
+                            A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
@@ -51,7 +51,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
     dplasma_add2arena_rectangle( dague_getrf->arenas[DAGUE_zgetrf_PIVOT_ARENA],
                                  A->mb*sizeof(int),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_INT, A->mb, 1, -1 );
+                                 MPI_INT, 1, A->mb, -1 );
 
     return (dague_object_t*)dague_getrf;
 }
@@ -64,7 +64,7 @@ dplasma_zgetrf_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA     ]->opaque_dtt) );
 
-    dague_zgetrf_destroy(dague_zgetrf);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgetrf);
 }
 
 int dplasma_zgetrf( dague_context_t *dague,

@@ -28,7 +28,6 @@ if(NOT DAGUE_COMPILE_INPLACE)
 endif(NOT DAGUE_COMPILE_INPLACE)
 
 set(sources
-        precision.c
         matrix.c
         map_operator.c
         tabular_distribution.c 
@@ -39,6 +38,9 @@ set(sources
         ${generated_files} 
         ${generated_jdf}
 )  
+if( NOT HAVE_COMPLEX_H )
+  list(APPEND sources precision.c)
+endif()
 
 if (MPI_FOUND)
     add_library(dague_distribution_matrix-mpi STATIC
