@@ -53,7 +53,7 @@ int main(int argc, char ** argv)
         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
                                    nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, uplo));
-    
+
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), uplo,
@@ -105,7 +105,7 @@ int main(int argc, char ** argv)
         ret |= check_factorization( dague, (rank == 0) ? loud : 0, uplo,
                                     (tiled_matrix_desc_t *)&ddescA,
                                     (tiled_matrix_desc_t *)&ddescA0);
-        
+
         /* Check the solution */
         PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
             two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
@@ -119,7 +119,7 @@ int main(int argc, char ** argv)
                                    N, NRHS, SMB, SNB, P));
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
-    
+
         dplasma_zpotrs(dague, uplo,
                        (tiled_matrix_desc_t *)&ddescA,
                        (tiled_matrix_desc_t *)&ddescX );
@@ -129,7 +129,7 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t *)&ddescA0,
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
-        
+
         /* Cleanup */
         dague_data_free(ddescA0.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0 );
@@ -139,9 +139,9 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX );
     }
 
-    //dague_data_free(ddescA.mat);
+    dague_data_free(ddescA.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
-    
+
     cleanup_dague(dague, iparam);
     return ret;
 }
