@@ -119,16 +119,6 @@ void dague_data_disable_gpu( void );
  */
 int dague_active_gpu(void);
 
-/**
- * allocate a buffer to hold the data using GPU-compatible memory if needed
- */
-void* dague_allocate_data( size_t matrix_size );
-
-/**
- * free a buffer allocated by dague_allocate_data
- */
-void dague_free_data(void *address);
-
 /****************************************************
  ** GPU-DATA Specific Starts Here **
  ****************************************************/
