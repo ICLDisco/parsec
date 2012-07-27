@@ -119,6 +119,7 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     }
     remote_deps->max_priority = 0xffffffff;
     remote_deps->dague_object = NULL;
+    remote_deps->root         = -1;
     return remote_deps;
 }
 #define DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
