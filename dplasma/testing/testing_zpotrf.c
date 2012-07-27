@@ -89,12 +89,13 @@ int main(int argc, char ** argv)
     }
 #endif
 
-    if ( 0 == rank && info != 0 ) {
+    if( 0 == rank && info != 0 ) {
         printf("-- Factorization is suspicious (info = %d) ! \n", info);
         ret |= 1;
     }
-    else if ( check ) {
+    if( !info && check ) {
         /* Check the factorization */
+fprintf(stderr, "A%d\n", rank);
         PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
             sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
                                        nodes, cores, rank, MB, NB, LDA, N, 0, 0,
@@ -105,14 +106,15 @@ int main(int argc, char ** argv)
         ret |= check_factorization( dague, (rank == 0) ? loud : 0, uplo,
                                     (tiled_matrix_desc_t *)&ddescA,
                                     (tiled_matrix_desc_t *)&ddescA0);
-        
         /* Check the solution */
+fprintf(stderr, "B%d\n", rank);
         PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
             two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
 
+fprintf(stderr, "C%d\n", rank);
         PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
             two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
@@ -139,7 +141,7 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX );
     }
 
-    //dague_data_free(ddescA.mat);
+    dague_data_free(ddescA.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
     
     cleanup_dague(dague, iparam);
@@ -160,11 +162,13 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
     double eps = LAPACKE_dlamch_work('e');
     PLASMA_enum side;
 
+fprintf(stderr, "D%d\n", twodA->grid.rank);
     PASTE_CODE_ALLOCATE_MATRIX(L1, 1,
         sym_two_dim_block_cyclic, (&L1, matrix_ComplexDouble,
                                    A->super.nodes, A->super.cores, twodA->grid.rank,
                                    A->mb, A->nb, M, N, 0, 0,
                                    M, N, twodA->grid.rows, uplo));
+fprintf(stderr, "E%d\n", twodA->grid.rank);
     PASTE_CODE_ALLOCATE_MATRIX(L2, 1,
         two_dim_block_cyclic, (&L2, matrix_ComplexDouble, matrix_Tile,
                                A->super.nodes, A->super.cores, twodA->grid.rank,
