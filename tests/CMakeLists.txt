@@ -29,3 +29,8 @@ if (DAGUE_DEBUG_BUILD_UNIT_TESTS )
   dague_addtest(C reduce reduce.c)
 endif(DAGUE_DEBUG_BUILD_UNIT_TESTS )
 
+jdf_rules(touch_generated "${CMAKE_CURRENT_SOURCE_DIR}/touch.jdf")
+string( REGEX REPLACE "touch.[hc]" "" include_dir "${touch_generated}" )
+include_directories(${include_dir})
+
+dague_addtest(C touch_ex "touch_ex.c;${touch_generated}")
