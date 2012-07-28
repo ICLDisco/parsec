@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -208,13 +208,10 @@ static void dague_vp_init( dague_vp_t *vp,
 
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
-    int argc = (*pargc);
-    int nb_vp;
-    int p, t, nb_total_comp_threads;
+    int argc = 0, nb_vp, p, t, nb_total_comp_threads;
     char** argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
-
 
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
@@ -298,7 +295,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* HAVE_HWLOC_BITMAP */
 #endif
 
-    {
+    if( NULL != pargc ) {
         int index = 0;
         /* Check for the upper level arguments */
         while(1) {
@@ -502,7 +499,7 @@ int dague_fini( dague_context_t** pcontext )
 
     dague_object_empty_repository();
     debug_mark_purge_all_history();
-    
+
     free(context);
     *pcontext = NULL;
     return 0;
@@ -588,7 +585,7 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
     const dep_t* dep;
     dague_dependency_t ret = 0;
 
-    if( !(function->flags & DAGUE_HAS_CTL_GATHER) && 
+    if( !(function->flags & DAGUE_HAS_CTL_GATHER) &&
         !(function->flags & DAGUE_HAS_IN_IN_DEPENDENCIES) ) {
         /* If the number of goal does not depend on this particular task instance,
          * it is pre-computed by the daguepp compiler
@@ -754,11 +751,11 @@ static int dague_update_deps_with_mask( dague_object_t *dague_object,
         }
     }
 #endif
-    
+
     DEBUG3(("Task %s has a current dependencies of 0x%x and a goal of 0x%x -- It %s using the mask approach\n",
             dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
             dep_cur_value, function->dependencies_goal,
-            ((dep_cur_value & function->dependencies_goal) == function->dependencies_goal) ? 
+            ((dep_cur_value & function->dependencies_goal) == function->dependencies_goal) ?
             "becomes ready" : "stays there waiting"));
     return (dep_cur_value & function->dependencies_goal) == function->dependencies_goal;
 }
@@ -797,9 +794,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
     if( completed ) {
         dague_prof_grapher_dep(origin, exec_context, 1, origin_flow, dest_flow);
-        
+
         DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
-        
+
         /* This service is ready to be executed as all dependencies are solved. Queue it into the
          * ready_list passed as an argument.
          */
@@ -848,7 +845,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                                                                              dague_execution_context_priority_comparator );
             }
         }
-        
+
     } else { /* Service not ready */
         dague_prof_grapher_dep(origin, exec_context, 0, origin_flow, dest_flow);
 
@@ -963,7 +960,7 @@ char* dague_snprintf_execution_context( char* str, size_t size,
 {
     const dague_function_t* function = task->function;
     unsigned int ip, index = 0;
-    
+
     assert( NULL != task->dague_object );
     index += snprintf( str + index, size - index, "%s", function->name );
     if( index >= size ) return str;
