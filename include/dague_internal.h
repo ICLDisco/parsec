@@ -113,6 +113,10 @@ struct dague_function {
 #endif
     dague_hook_t                *hook;
     dague_hook_t                *complete_execution;
+#ifdef DAGUE_GPU_WITH_CUDA
+    dague_hook_t                *cuda_hook;
+    dague_hook_t                *cuda_complete_execution;
+#endif
     dague_traverse_function_t   *iterate_successors;
     dague_release_deps_t        *release_deps;
     dague_functionkey_fn_t      *key;
@@ -200,10 +204,10 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu,
 
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_unit_t* eu_context,
-                                          const dague_execution_context_t* restrict origin,
-                                          const dague_flow_t* restrict origin_flow,
-                                          dague_execution_context_t* restrict exec_context,
-                                          const dague_flow_t* restrict dest_flow,
+                                          const dague_execution_context_t* origin,
+                                          const dague_flow_t* origin_flow,
+                                          dague_execution_context_t* exec_context,
+                                          const dague_flow_t* dest_flow,
                                           struct data_repo_entry* dest_repo_entry,
                                           dague_execution_context_t** pready_list );
 

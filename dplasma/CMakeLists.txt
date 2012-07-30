@@ -27,6 +27,7 @@ if( PLASMA_SRC )
    list(APPEND PLASMA_INCLUDE_DIR ${PLASMA_SRC})
 endif( PLASMA_SRC )
 
+mark_as_advanced( DAGUE_GPU_WITH_MAGMA )
 if( DPLASMA_GPU_WITH_MAGMA )
   find_package(MAGMA)
   if( MAGMA_FOUND )

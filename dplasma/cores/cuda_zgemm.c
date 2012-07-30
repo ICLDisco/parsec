@@ -130,46 +130,24 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status, {continue;} );
 
-/* If not found statically, try shared lib */
-/*         if(NULL == gpu_device->hcuFunction) { */
-/*             env = getenv("DAGUE_CUBIN_PATH"); */
-/*             snprintf(module_path, FILENAME_MAX, "%s/zgemm_sm%1d%1d.cubin", */
-/*                      env?env:"../cores", gpu_device->major, gpu_device->minor); */
-/*             status = cuModuleLoad(&(gpu_device->hcuModule), module_path); */
-/*             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status, */
-/*                                     { */
-/*                                         WARNING(("GPU:\tUnable to load `%s'\n", module_path)); */
-/*                                         continue; */
-/*                                     } ); */
-/*             snprintf(module_path, FILENAME_MAX, "zgemmNT_SM%d%d", gpu_device->major, gpu_device->minor); */
-/*             DEBUG3(("CUDA MODULE %s\n", module_path)); */
-/*             status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, module_path ); */
-/*             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleGetFunction ", status, */
-/*                                     { */
-/*                                         WARNING(("GPU:\tUnable to find the function `%s'\n", module_path)); */
-/*                                         continue; */
-/*                                     } ); */
-/*         } */
-
         snprintf(function_name, FILENAME_MAX, "magmablas_zgemm_SM%d%d", gpu_device->major, gpu_device->minor);
-        env = getenv("DAGUE_CUBIN_LIBNAME");
+        env = getenv("DAGUE_CUCORES_LIB");
         if(NULL == env) {
             snprintf(library_name,  FILENAME_MAX, "libdplasma_cucores_sm%d%d.so",  gpu_device->major, gpu_device->minor);
         }
         else {
-            snprintf(library_name,  FILENAME_MAX, "%s_sm%d%d.so", env, gpu_device->major, gpu_device->minor);
+            snprintf(library_name,  FILENAME_MAX, "%s", env);
         }
 
         dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
         if(NULL == dlh) {
             if(env) ERROR(("Could not find %s library: %s\n"
-                           "  It is derived from environment DAGUE_CUBIN_LIBNAME=%s\n"
+                           "  It is derived from environment DAGUE_CUCORES_LIB=%s\n"
                            "  To resolve this issue, set this variable to the correct path\n"
-                           "    ex: if /path/libdplasma_cucores_sm20.so exists, \n"
-                           "    set it to /path/libdplasma_cucores\n"
+                           "    ex: /path/libdplasma_cucores_sm20.so\n"
                            "  Or unset it to use the default GPU kernels\n"
                            , library_name, dlerror(), env));
-            DEBUG3(("Could not find %s library (%s)\n", library_name, dlerror()));
+            DEBUG3(("Could not find %s dynamic library (%s)\n", library_name, dlerror()));
         }
         else {
             gpu_device->function = dlsym(dlh, function_name);
@@ -274,21 +252,21 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
                                NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
-    DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[0]->name, args->Am, args->An));
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[0]->name, args->Am, args->An));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[0]->access_type,
                                    &(this_task->data[0]), args->sizeA, stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
-    DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[1]->name, args->Bm, args->Bn));
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[1]->name, args->Bm, args->Bn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[1]->access_type,
                                    &(this_task->data[1]), args->sizeB, stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
-    DEBUG3(("GPU:\tRequest Data of %s(%d, %d) on GPU\n", this_task->function->in[2]->name, args->Cm, args->Cn));
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[2]->name, args->Cm, args->Cn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[2]->access_type,
                                    &(this_task->data[2]), args->sizeC, stream );
     if( ret < 0 ) {
@@ -393,7 +371,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
     assert( ((dague_list_item_t*)gpu_elem)->list_prev == (dague_list_item_t*)gpu_elem );
 
     if( args->pushout ) {  /* n == (k + 1) */
-        DEBUG3(("GPU Request out of GPU for %s key %d\n", this_task->function->in[2]->name, this_task->data[2].mem2dev_data->key));
+        DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index, this_task->function->in[2]->name, this_task->data[2].mem2dev_data->key));
 #if defined(DAGUE_PROF_TRACE)
         if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
             dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start,

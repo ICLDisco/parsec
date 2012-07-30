@@ -45,7 +45,7 @@ float *device_load = NULL, *device_weight = NULL;
         __dague_list = NULL;                                            \
     }
 
-static void* dague_allocate_data_gpu(size_t matrix_size)
+static void* dague_gpu_data_allocate(size_t matrix_size)
 {
     void* mat = NULL;
 
@@ -80,7 +80,7 @@ static void* dague_allocate_data_gpu(size_t matrix_size)
 /**
  * free a buffer allocated by dague_allocate_data
  */
-static void dague_free_data_gpu(void *dta)
+static void dague_gpu_data_free(void *dta)
 {
     unsigned int flags, call_free = 1;
 
@@ -115,8 +115,14 @@ void dague_data_enable_gpu( int nbgpu )
 {
     __dague_active_gpu = nbgpu;
 
-    dague_data_allocate = dague_allocate_data_gpu;
-    dague_data_free     = dague_free_data_gpu;
+    dague_data_allocate = dague_gpu_data_allocate;
+    dague_data_free     = dague_gpu_data_free;
+}
+
+void dague_data_disable_gpu(void) {
+    __dague_active_gpu = 0;
+    dague_data_allocate = malloc;
+    dague_data_free     = free;
 }
 
 int dague_active_gpu(void)
@@ -505,7 +511,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
         /* We allocate 9/10 of the total memory */
         thread_gpu_mem = (total_mem - total_mem / 10);
 
-#if defined(GPU_MEMORY_PER_TILE)
+#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         /*
          * We allocate a bunch of tiles that will be used
          * during the computations
@@ -570,7 +576,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
     return 0;
 }
 
-int dague_gpu_data_unregister( )
+int dague_gpu_data_unregister( void )
 {
     gpu_device_t* gpu_device;
     gpu_elem_t* gpu_elem;
@@ -585,7 +591,7 @@ int dague_gpu_data_unregister( )
                                 {continue;} );
         /* Free memory on GPU */
         while( NULL != (gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop( gpu_device->gpu_mem_lru )) ) {
-#if defined(GPU_MEMORY_PER_TILE)
+#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
             cuMemFree( gpu_elem->gpu_mem );
 #else
             gpu_free( gpu_device->memory, (void*)(gpu_elem->gpu_mem) );
@@ -594,7 +600,7 @@ int dague_gpu_data_unregister( )
         }
         while( NULL != (gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop( gpu_device->gpu_mem_owned_lru )) ) {
             WARNING(("Owned data %d still on GPU memory\n", gpu_elem->generic.memory_elem->key));
-#if defined(GPU_MEMORY_PER_TILE)
+#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
             cuMemFree( gpu_elem->gpu_mem );
 #else
             gpu_free( gpu_device->memory, (void*)(gpu_elem->gpu_mem) );
@@ -602,7 +608,7 @@ int dague_gpu_data_unregister( )
             free( gpu_elem );
         }
 
-#if !defined(GPU_MEMORY_PER_TILE)
+#if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         gpu_malloc_fini( gpu_device->memory );
         free( gpu_device->memory );
 #endif
@@ -617,7 +623,7 @@ int dague_gpu_data_unregister( )
         dague_gpu_map.data_map = NULL;
     }
     dague_gpu_map.desc = NULL;
-
+    
     return 0;
 }
 
@@ -733,7 +739,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
         gpu_elem = (gpu_elem_t*)mem_elem->device_elem[gpu_device->index];
         if( NULL != gpu_elem ) continue;
 
-#if !defined(GPU_MEMORY_PER_TILE)
+#if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         gpu_elem = (gpu_elem_t*)calloc(1, sizeof(gpu_elem_t));
         DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
 
@@ -763,7 +769,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
             }
             /* Make sure the new GPU element is clean and ready to be used */
             assert( mem_elem != lru_gpu_elem->generic.memory_elem );
-#if !defined(GPU_MEMORY_PER_TILE)
+#if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
             assert(NULL != lru_gpu_elem->generic.memory_elem);
 #endif
             if( mem_elem != lru_gpu_elem->generic.memory_elem ) {
@@ -780,7 +786,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
                     old_mem->device_elem[gpu_device->index] = NULL;
                     DEBUG3(("Repurpose a data for %s:%d\n", this_task->function->name, i));
 
-#if !defined(GPU_MEMORY_PER_TILE)
+#if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
                     gpu_free( gpu_device->memory, (void*)(lru_gpu_elem->gpu_mem) );
                     free(lru_gpu_elem);
                     goto malloc_data;
@@ -789,7 +795,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
             }
             gpu_elem = lru_gpu_elem;
 
-#if !defined(GPU_MEMORY_PER_TILE)
+#if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         }
 #endif
         assert( 0 == gpu_elem->generic.readers );
