@@ -49,6 +49,8 @@ static void* dague_gpu_data_allocate(size_t matrix_size)
 {
     void* mat = NULL;
 
+    if( 0 == matrix_size ) return NULL;
+
     if( __dague_active_gpu ) {
         CUresult status;
 
@@ -83,6 +85,8 @@ static void* dague_gpu_data_allocate(size_t matrix_size)
 static void dague_gpu_data_free(void *dta)
 {
     unsigned int flags, call_free = 1;
+
+    if( NULL == dta ) return;
 
     if( dague_gpu_allocation_initialized ) {
         CUresult status;
