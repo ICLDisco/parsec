@@ -691,10 +691,17 @@ static int dague_update_deps_with_counter( dague_object_t *dague_object,
     }
 
 #if defined(DAGUE_DEBUG)
-    if( (uint32_t)dep_cur_value > (uint32_t)-128) {
+    {
         char tmp[MAX_TASK_STRLEN];
-        ERROR(("function %s as reached an improbable dependency count of %u\n",
-               dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), dep_cur_value ));
+        if( (uint32_t)dep_cur_value > (uint32_t)-128) {
+            ERROR(("function %s as reached an improbable dependency count of %u\n",
+                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), dep_cur_value ));
+        }
+    
+        DEBUG3(("Task %s has a current dependencies count of %d (remaining). It %s using the mask approach\n",
+                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
+                dep_cur_value,
+                (dep_cur_value == 0) ? "becomes ready" : "stays there waiting"));
     }
 #endif /* DAGUE_DEBUG */
 
