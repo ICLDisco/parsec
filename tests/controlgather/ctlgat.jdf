@@ -1,5 +1,12 @@
 extern "C" %{
-  /* This simple example does not need to include anything */
+#include "dague_config.h"
+
+#if defined(HAVE_MPI)
+#include <mpi.h>
+#define MY_RANK(r) int r; MPI_Comm_rank(MPI_COMM_WORLD, &r)
+#else
+#define MY_RANK(r) int r = 0
+#endif
 %}
 
 NT
@@ -15,7 +22,7 @@ CTL X -> X TC(0)
 ; 0
 
 BODY
-	int r; MPI_Comm_rank(MPI_COMM_WORLD, &r);
+	MY_RANK(r);
 	printf("%d: TA(%d)\n", r, k);
 END
 
@@ -29,7 +36,7 @@ CTL X -> Y TC(0)
 ; 0
 
 BODY
-	int r; MPI_Comm_rank(MPI_COMM_WORLD, &r);
+	MY_RANK(r);
 	printf("%d: TB(%d)\n", r, k);
 END
 
@@ -44,6 +51,6 @@ CTL Y <- X TB(0..NT-1)
 ; 0
 
 BODY
-	int r; MPI_Comm_rank(MPI_COMM_WORLD, &r);
+	MY_RANK(r);
 	printf("%d: TC(%d)\n", r, k);
 END
