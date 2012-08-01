@@ -97,12 +97,13 @@ static void dague_gpu_data_free(void *dta)
 
         status = cuMemHostGetFlags( &flags, dta );
         DAGUE_CUDA_CHECK_ERROR( "cuMemHostGetFlags ", status,
-                                {goto clib_free;} );
+                                {goto release_cuda_context;} );
 
         status = cuMemFreeHost( dta );
         DAGUE_CUDA_CHECK_ERROR( "cuMemFreeHost ", status,
-                                {goto clib_free;} );
+                                {goto release_cuda_context;} );
         call_free = 0;
+    release_cuda_context:
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "cuCtxPopCurrent ", status,
                                 {} );
