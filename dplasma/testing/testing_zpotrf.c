@@ -95,7 +95,6 @@ int main(int argc, char ** argv)
     }
     if( !info && check ) {
         /* Check the factorization */
-fprintf(stderr, "A%d\n", rank);
         PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
             sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
                                        nodes, cores, rank, MB, NB, LDA, N, 0, 0,
@@ -107,14 +106,12 @@ fprintf(stderr, "A%d\n", rank);
                                     (tiled_matrix_desc_t *)&ddescA,
                                     (tiled_matrix_desc_t *)&ddescA0);
         /* Check the solution */
-fprintf(stderr, "B%d\n", rank);
         PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
             two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
 
-fprintf(stderr, "C%d\n", rank);
         PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
             two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
@@ -126,22 +123,21 @@ fprintf(stderr, "C%d\n", rank);
                        (tiled_matrix_desc_t *)&ddescA,
                        (tiled_matrix_desc_t *)&ddescX );
 
-
         ret |= check_solution( dague, (rank == 0) ? loud : 0, uplo,
                                (tiled_matrix_desc_t *)&ddescA0,
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
 
         /* Cleanup */
-        dague_data_free(ddescA0.mat);
+        dague_data_free(ddescA0.mat); ddescA0.mat = NULL;
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0 );
-        dague_data_free(ddescB.mat);
+        dague_data_free(ddescB.mat); ddescB.mat = NULL;
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescB );
-        dague_data_free(ddescX.mat);
+        dague_data_free(ddescX.mat); ddescX.mat = NULL;
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX );
     }
 
-    dague_data_free(ddescA.mat);
+    dague_data_free(ddescA.mat); ddescA.mat = NULL;
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
 
     cleanup_dague(dague, iparam);
@@ -222,9 +218,9 @@ fprintf(stderr, "E%d\n", twodA->grid.rank);
         info_factorization = 0;
     }
 
-    dague_data_free(L1.mat);
+    dague_data_free(L1.mat); L1.mat = NULL;
     dague_ddesc_destroy( (dague_ddesc_t*)&L1);
-    dague_data_free(L2.mat);
+    dague_data_free(L2.mat); L2.mat = NULL;
     dague_ddesc_destroy( (dague_ddesc_t*)&L2);
 
     return info_factorization;
