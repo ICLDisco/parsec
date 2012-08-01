@@ -41,8 +41,8 @@
 #include <cuda_runtime_api.h>
 #endif
 
-dague_allocate_data_t dague_data_allocate = malloc;
-dague_free_data_t     dague_data_free = free;
+dague_data_allocate_t dague_data_allocate = malloc;
+dague_data_free_t     dague_data_free = free;
 
 #if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
 int MEMALLOC_start_key, MEMALLOC_end_key;
