@@ -28,8 +28,8 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
                int pushout,
                PLASMA_enum transA, PLASMA_enum transB,
                int M, int N, int K, 
-               Dague_Complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA, int lda,
+               dague_complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA, int lda,
                                         int Bm, int Bn, const tiled_matrix_desc_t *descB, int ldb,
-               Dague_Complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC, int ldc );
+               dague_complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC, int ldc );
 
 #endif /* _cuda_zgemm_h_ */

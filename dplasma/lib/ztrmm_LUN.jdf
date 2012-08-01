@@ -28,7 +28,7 @@ uplo  [type = "PLASMA_enum"]
 trans [type = "PLASMA_enum"]
 diag  [type = "PLASMA_enum"]
 
-alpha[type = Dague_Complex64_t]
+alpha[type = dague_complex64_t]
 
 Am   [type = int]
 An   [type = int]
@@ -154,7 +154,7 @@ BODY
                   tempmm, tempnn, tempkn,
 		  alpha, A, Amb,
 		         B, Bmb,
-		  (Dague_Complex64_t)1.0, C, Bmb)
+		  (dague_complex64_t)1.0, C, Bmb)
 	   );
 
       printlog("gemm( %d, %d, %d )\n"

@@ -50,14 +50,14 @@
 #define dplasmaf77_zlange       DPLASMA_ZF77NAME( lange, LANGE )
 #define dplasmaf77_zlanhe       DPLASMA_ZF77NAME( lanhe, LANHE )
 
-void dplasmaf77_zgemm( int *transA, int *transB, Dague_Complex64_t *alpha, tiled_matrix_desc_t **A, tiled_matrix_desc_t **B, Dague_Complex64_t *beta, tiled_matrix_desc_t **C)
+void dplasmaf77_zgemm( int *transA, int *transB, dague_complex64_t *alpha, tiled_matrix_desc_t **A, tiled_matrix_desc_t **B, dague_complex64_t *beta, tiled_matrix_desc_t **C)
 {
     extern dague_context_t *daguef77_context;
     dplasma_zgemm( daguef77_context, *transA, *transB, *alpha, *A, *B, *beta, *C) ;
 }
 
 
-void dplasmaf77_zhemm( PLASMA_enum *side, PLASMA_enum *uplo, Dague_Complex64_t *alpha, tiled_matrix_desc_t **A, tiled_matrix_desc_t **B, double *beta, tiled_matrix_desc_t **C)
+void dplasmaf77_zhemm( PLASMA_enum *side, PLASMA_enum *uplo, dague_complex64_t *alpha, tiled_matrix_desc_t **A, tiled_matrix_desc_t **B, double *beta, tiled_matrix_desc_t **C)
 {
     extern dague_context_t *daguef77_context;
     dplasma_zhemm( daguef77_context, *side, *uplo, *alpha, *A, *B, *beta, *C) ;
@@ -161,7 +161,7 @@ void dplasmaf77_zungqr_param( qr_piv_t **qrpiv, tiled_matrix_desc_t **A, tiled_m
 }
 
 
-void dplasmaf77_zgeadd( PLASMA_enum *uplo, Dague_Complex64_t *alpha, tiled_matrix_desc_t **A, tiled_matrix_desc_t **B, int *ret )
+void dplasmaf77_zgeadd( PLASMA_enum *uplo, dague_complex64_t *alpha, tiled_matrix_desc_t **A, tiled_matrix_desc_t **B, int *ret )
 {
     extern dague_context_t *daguef77_context;
     *ret = dplasma_zgeadd( daguef77_context, *uplo, *alpha, *A, *B) ;
@@ -175,7 +175,7 @@ void dplasmaf77_zlacpy( PLASMA_enum *uplo, tiled_matrix_desc_t **A, tiled_matrix
 
 }
 
-void dplasmaf77_zlaset( PLASMA_enum *uplo, Dague_Complex64_t *alpha, Dague_Complex64_t *beta, tiled_matrix_desc_t **A, int *ret ) 
+void dplasmaf77_zlaset( PLASMA_enum *uplo, dague_complex64_t *alpha, dague_complex64_t *beta, tiled_matrix_desc_t **A, int *ret ) 
 {
     extern dague_context_t *daguef77_context;
     *ret = dplasma_zlaset( daguef77_context, *uplo, *alpha, *beta, *A)  ;
@@ -191,7 +191,7 @@ void dplasmaf77_zplghe( double *bump, PLASMA_enum *uplo, tiled_matrix_desc_t **A
 }
 
 #endif
-void dplasmaf77_zplgsy( Dague_Complex64_t *bump, PLASMA_enum *uplo, tiled_matrix_desc_t **A, unsigned long long int *seed, int *ret )
+void dplasmaf77_zplgsy( dague_complex64_t *bump, PLASMA_enum *uplo, tiled_matrix_desc_t **A, unsigned long long int *seed, int *ret )
 {
     extern dague_context_t *daguef77_context;
     *ret = dplasma_zplgsy( daguef77_context, *bump, *uplo, *A, *seed) ;

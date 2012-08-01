@@ -12,7 +12,7 @@
 
 static int check_solution( dague_context_t *dague, int loud,
                            PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
-                           Dague_Complex64_t alpha,
+                           dague_complex64_t alpha,
                            int Am, int An, int Aseed,
                            int M,  int N,  int Cseed,
                            two_dim_block_cyclic_t *ddescCfinal );
@@ -65,7 +65,7 @@ int main(int argc, char ** argv)
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, ztrmm,
                                   (side, uplo, trans, diag,
-                                   (Dague_Complex64_t)1.0,
+                                   (dague_complex64_t)1.0,
                                    (tiled_matrix_desc_t *)&ddescA,
                                    (tiled_matrix_desc_t *)&ddescC));
 
@@ -78,7 +78,7 @@ int main(int argc, char ** argv)
     {
         int s, u, t, d;
         int info_solution;
-        Dague_Complex64_t alpha = 3.5;
+        dague_complex64_t alpha = 3.5;
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescC2, 1,
             two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, matrix_Tile,
@@ -111,7 +111,7 @@ int main(int argc, char ** argv)
 
                         /* Compute */
                         printf("Compute ... ... ");
-                        dplasma_ztrmm(dague, side[s], uplo[u], trans[t], diag[d], (Dague_Complex64_t)alpha,
+                        dplasma_ztrmm(dague, side[s], uplo[u], trans[t], diag[d], (dague_complex64_t)alpha,
                                       (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescC);
                         printf("Done\n");
 
@@ -164,7 +164,7 @@ int main(int argc, char ** argv)
  */
 static int check_solution( dague_context_t *dague, int loud,
                            PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
-                           Dague_Complex64_t alpha,
+                           dague_complex64_t alpha,
                            int Am, int An, int Aseed,
                            int M,  int N,  int Cseed,
                            two_dim_block_cyclic_t *ddescCfinal )

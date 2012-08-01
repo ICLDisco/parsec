@@ -26,7 +26,6 @@
 #define DAGUE_MAX_STREAMS            4
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
 
-#define GPU_MEMORY_PER_TILE 1
 
 #if defined(DAGUE_PROF_TRACE)
 #define DAGUE_PROFILE_CUDA_TRACK_DATA_IN  0x0001
@@ -111,6 +110,7 @@ int dague_gpu_fini( void );
  * Enable and disale GPU-compatible memory if possible
  */
 void dague_data_enable_gpu( int nbgpu );
+void dague_data_disable_gpu( void );
 
 /**
  * Returns the number of GPUs managed by the DAGuE runtime. This is
@@ -118,16 +118,6 @@ void dague_data_enable_gpu( int nbgpu );
  * enabled based on the GPU mask.
  */
 int dague_active_gpu(void);
-
-/**
- * allocate a buffer to hold the data using GPU-compatible memory if needed
- */
-void* dague_allocate_data( size_t matrix_size );
-
-/**
- * free a buffer allocated by dague_allocate_data
- */
-void dague_free_data(void *address);
 
 /****************************************************
  ** GPU-DATA Specific Starts Here **

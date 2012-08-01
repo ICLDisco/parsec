@@ -72,8 +72,8 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
 {
     int i, j, first_row, first_col;
     int nb = Ddesc->nb;
-    Dague_Complex64_t mn_max = (Dague_Complex64_t) max(Ddesc->n, Ddesc->m);
-    Dague_Complex64_t *x = (Dague_Complex64_t*) position;
+    dague_complex64_t mn_max = (dague_complex64_t) max(Ddesc->n, Ddesc->m);
+    dague_complex64_t *x = (dague_complex64_t*) position;
     unsigned long long int ran;
     int nbgen = 1;
 #ifdef COMPLEX
@@ -84,7 +84,7 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
     first_row = row * nb;
     first_col = col * nb;
 
-    memset( position, 0, nb*nb*sizeof(Dague_Complex64_t) );
+    memset( position, 0, nb*nb*sizeof(dague_complex64_t) );
 
     if ( row == col ) { /* Diagonal */
         for (j = 0; j < nb; ++j) {
@@ -109,7 +109,7 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
             x += (nb - i);
         }
 
-        x = (Dague_Complex64_t*)position;
+        x = (dague_complex64_t*)position;
         for (j = 0; j < nb; ++j) {
             if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
                 break;
@@ -180,14 +180,14 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
     int i, j, first_row, first_col;
     int mb = Ddesc->mb;
     int nb = Ddesc->nb;
-    Dague_Complex64_t *x = (Dague_Complex64_t*)position;
+    dague_complex64_t *x = (dague_complex64_t*)position;
     unsigned long long int ran;
 
     /* These are global values of first row and column of the tile counting from 0 */
     first_row = row * mb;
     first_col = col * nb;
 
-    memset( position, 0, mb*nb*sizeof(Dague_Complex64_t) );
+    memset( position, 0, mb*nb*sizeof(dague_complex64_t) );
 
     for (j = 0; j < nb; ++j) {
         if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
@@ -236,10 +236,10 @@ static double lamch(void)
 void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 {
     MPI_Status status;
-    Dague_Complex64_t * bufferA = NULL;
-    Dague_Complex64_t * bufferB = NULL;
-    Dague_Complex64_t * tmpA = malloc(a->bsiz * sizeof(Dague_Complex64_t));
-    Dague_Complex64_t * tmpB = malloc(a->bsiz * sizeof(Dague_Complex64_t));
+    dague_complex64_t * bufferA = NULL;
+    dague_complex64_t * bufferB = NULL;
+    dague_complex64_t * tmpA = malloc(a->bsiz * sizeof(dague_complex64_t));
+    dague_complex64_t * tmpB = malloc(a->bsiz * sizeof(dague_complex64_t));
 
     int i,j;
     int k;

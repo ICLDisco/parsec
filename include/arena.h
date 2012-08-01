@@ -37,8 +37,8 @@ struct dague_arena_t
     int32_t max_released;                    /* when more that max elements are released, they are really freed instead of joining the lifo
                                               * some host hardware requires special allocation functions (Cuda, pinning,
                                               * Open CL, ...). Defaults are to use C malloc/free */
-    dague_allocate_data_t data_malloc;
-    dague_free_data_t data_free;
+    dague_data_allocate_t data_malloc;
+    dague_data_free_t data_free;
 };
 
 /* The fields are ordered so that important list_item_t fields are not

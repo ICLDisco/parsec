@@ -116,7 +116,7 @@ BODY
         CORE_ztrsm(
             PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit,
             descA.mb, tempnn,
-            (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
+            (dague_complex64_t)1.0, T /*A(k, k)*/, ldak,
                                     C /*A(k, n)*/, ldak);
         );
 
@@ -212,9 +212,9 @@ BODY
                                   ( m == k+1 ),
                                   PlasmaConjTrans, PlasmaNoTrans,
                                   descA.mb, tempnn, descA.mb,
-                                  (Dague_Complex64_t)-1.0, k, m, &descA, ldak,
+                                  (dague_complex64_t)-1.0, k, m, &descA, ldak,
                                                            k, n, &descA, ldak,
-                                  (Dague_Complex64_t) 1.0, m, n, &descA, ldam)) )
+                                  (dague_complex64_t) 1.0, m, n, &descA, ldam)) )
             goto FIN;
         if( -1 == rc ) {
             /* We're done, but the task has been already destroyed */
@@ -233,9 +233,9 @@ BODY
         CORE_zgemm(
             PlasmaConjTrans, PlasmaNoTrans,
             descA.mb, tempnn, descA.nb,
-            (Dague_Complex64_t)-1.0, A /*A(k, m)*/, ldak,
+            (dague_complex64_t)-1.0, A /*A(k, m)*/, ldak,
                                      B /*A(k, n)*/, ldak,
-            (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam);
+            (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
         );
     printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
              k, m, n,

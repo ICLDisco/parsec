@@ -81,11 +81,15 @@ set   (DAGUE_DIST_SHORT_LIMIT 0 CACHE STRING
   "Use the short protocol (no flow control) for messages smaller than the limit in KB")
 
 ### GPU engine parameters
-mark_as_advanced(DAGUE_GPU_WITH_OPENCL) # Hide this as it is not supported yet
 option(DAGUE_GPU_WITH_CUDA
   "Enable GPU support using CUDA kernels" ON)
+option(DAGUE_GPU_CUDA_ALLOC_PER_TILE
+  "Tile based allocation engine for GPU memory (instead of internal management
+  of a complete allocation)" ON)
+mark_as_advanced(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
 option(DAGUE_GPU_WITH_OPENCL
   "Enable GPU support using OpenCL kernels" OFF)
+mark_as_advanced(DAGUE_GPU_WITH_OPENCL) # Hide this as it is not supported yet
 if(DAGUE_GPU_WITH_OPENCL)
   message(WARNING "Open CL is not supported yet, ignored.")
 endif()
@@ -96,7 +100,7 @@ option(DAGUE_DEBUG
 set   (DAGUE_DEBUG_VERBOSE 0 CACHE STRING
     "Controls the amount of verbose debug output spit on stderr (0,1,2,3)")
 option(DAGUE_DEBUG_HISTORY
-  "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
+  "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
 option(DAGUE_DEBUG_BUILD_UNIT_TESTS
@@ -129,22 +133,6 @@ option(DAGUE_PROF_DRY_BODY
   "Disable calls to the actual bodies; no computation is performed" OFF)
 option(DAGUE_PROF_DRY_DEP
   "Disable calls to the actual data transport; remote dependencies are notified, but no data movement takes place" OFF)
-
-### Look for OMEGA
-option(DAGUE_Q2J
-  "Build the JDF generator" OFF)
-set(FOUND_OMEGA false)
-if(DAGUE_Q2J)
-  message(STATUS "Looking for DAGUE_OMEGA_DIR to enable DAGUE_Q2J")
-  if(DAGUE_OMEGA_DIR)
-    message(STATUS "DAGUE_OMEGA_DIR found in ${DAGUE_OMEGA_DIR}")
-    set(FOUND_OMEGA true)
-  else(DAGUE_OMEGA_DIR)
-    message(WARNING "DAGUE_OMEGA_DIR not set: disabling DAGUE_Q2J")
-    set(DAGUE_Q2J false)
-    set(FOUND_OMEGA false)
-  endif(DAGUE_OMEGA_DIR)
-endif(DAGUE_Q2J)
 
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
@@ -302,7 +290,7 @@ CHECK_C_COMPILER_FLAG( "-g3" HAVE_G3 )
 IF( HAVE_G3 )
     SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g3 ${C_WFLAGS}" )
 ELSE()
-    SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 ${C_WFLAGS}" )
+    SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g ${C_WFLAGS}" )
 ENDIF( HAVE_G3)
 SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
 
@@ -374,6 +362,7 @@ check_include_files(stddef.h HAVE_STDDEF_H)
 check_function_exists(getrusage HAVE_GETRUSAGE)
 check_include_files(limits.h HAVE_LIMITS_H)
 check_include_files(string.h HAVE_STRING_H)
+check_include_files(complex.h HAVE_COMPLEX_H)
 
 #
 # Find optional packages
@@ -385,24 +374,13 @@ IF( BUILD_DAGUE )
     list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
     list(APPEND EXTRA_LIBS ${HWLOC_LIB})
     include_directories( ${HWLOC_INCLUDE_DIR} )
-  else( HWLOC_FOUND )
-    if( DAGUE_SCHED_CACHE_AWARE OR DAGUE_SCHED_HIERARCHICAL_QUEUES)
-      message( WARNING "DAGUE_SCHED_CACHE_AWARE and DAGUE_SCHED_HIERARCHICAL_QUEUES require the HWLOC package, but it has not been found. Revert to flat queues." )
-      set(DAGUE_SCHED_CACHE_AWARE 0)
-      set(DAGUE_SCHED_HIERARCHICAL_QUEUES 0)
-    endif()
   endif (HWLOC_FOUND)
 
   if (DAGUE_DIST_WITH_MPI)
     find_package(MPI REQUIRED)
+    set(HAVE_MPI ${MPI_FOUND})
     if (MPI_FOUND)
-      set(HAVE_MPI 1)
       include_directories( ${MPI_INCLUDE_PATH} )
-    else (MPI_FOUND)
-      set(HAVE_MPI 0)
-      message(WARNING "MPI support is required in order to build the distributed version of DAGuE."
-        "Unfortunately, MPI does not seem to be properly installed on this system, at least"
-        "not on the default path.")
     endif (MPI_FOUND)
   endif (DAGUE_DIST_WITH_MPI)
   #
@@ -420,6 +398,7 @@ IF( BUILD_DAGUE )
 
   if( DAGUE_GPU_WITH_CUDA )
     find_package(CUDA)
+    set(HAVE_CUDA ${CUDA_FOUND})
     if (CUDA_FOUND)
       if(CUDA_VERSION VERSION_LESS "3.0")
         set(CUDA_HOST_COMPILATION_CPP OFF)
@@ -428,7 +407,6 @@ IF( BUILD_DAGUE )
       include_directories(${CUDA_INCLUDE_DIRS})
       list(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
       list(APPEND EXTRA_SOURCES src/gpu_data.c)
-      set(HAVE_CUDA 1)
       set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
       set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
       set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${CUDA_INCLUDE_DIRS}")
@@ -440,33 +418,31 @@ IF( BUILD_DAGUE )
       endif()
       set(CMAKE_REQUIRED_INCLUDES  "${saved_include}")
       set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
-    else (CUDA_FOUND)
-      set(HAVE_CUDA 0)
     endif (CUDA_FOUND)
   endif( DAGUE_GPU_WITH_CUDA )
 
   if (DAGUE_PROF_PAPI)
     find_package(PAPI REQUIRED)
+    set(HAVE_PAPI ${PAPI_FOUND})
     if (PAPI_FOUND)
       list(APPEND EXTRA_SOURCES src/papime.c)
       list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
       include_directories( ${PAPI_INCLUDE_DIR} )
-      set(HAVE_PAPI 1)
-    else (PAPI_FOUND)
-      set(HAVE_PAPI 0)
     endif (PAPI_FOUND)
   endif (DAGUE_PROF_PAPI)
+  
+  if( DAGUE_PROF_TRACE )
+    list(APPEND EXTRA_SOURCES src/profiling.c)
+  endif( DAGUE_PROF_TRACE )
+
+  if( DAGUE_PROF_STATS )
+    list(APPEND EXTRA_SOURCES src/stats.c)
+  endif( DAGUE_PROF_STATS )
+
+  if( DAGUE_PROF_GRAPHER )
+    list(APPEND EXTRA_SOURCES src/dague_prof_grapher.c)
+  endif( DAGUE_PROF_GRAPHER )
 ENDIF( BUILD_DAGUE )
-
-find_package(GTG)
-
-if( DAGUE_PROF_TRACE )
-  list(APPEND EXTRA_SOURCES src/profiling.c)
-endif( DAGUE_PROF_TRACE )
-
-if( DAGUE_PROF_GRAPHER )
-  list(APPEND EXTRA_SOURCES src/dague_prof_grapher.c)
-endif( DAGUE_PROF_GRAPHER )
 
 #
 ##
@@ -503,7 +479,6 @@ ENDIF(CMAKE_CROSSCOMPILING)
 # 
 set(SRCS 
   src/barrier.c 
-  src/stats.c 
   src/scheduling.c
   src/schedulers.c 
   src/dague.c 

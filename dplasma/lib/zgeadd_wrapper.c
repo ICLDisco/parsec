@@ -16,7 +16,7 @@
 #include "map2.h"
 
 struct zgeadd_args_s {
-  Dague_Complex64_t alpha;
+  dague_complex64_t alpha;
   tiled_matrix_desc_t *descA;
   tiled_matrix_desc_t *descB;
 };
@@ -34,8 +34,8 @@ dague_operator_zgeadd( struct dague_execution_unit *eu,
     int j, m, n;
     int tempmm, tempnn, ldam, ldbm;
     tiled_matrix_desc_t *descA, *descB;
-    Dague_Complex64_t *A = (Dague_Complex64_t*)_A;
-    Dague_Complex64_t *B = (Dague_Complex64_t*)_B;
+    dague_complex64_t *A = (dague_complex64_t*)_A;
+    dague_complex64_t *B = (dague_complex64_t*)_B;
     (void)eu;
     va_start(ap, op_data);
     uplo = va_arg(ap, PLASMA_enum);
@@ -75,7 +75,7 @@ dague_operator_zgeadd( struct dague_execution_unit *eu,
 
 /***************************************************************************//**
  *
- * @ingroup Dague_Complex64_t
+ * @ingroup dague_complex64_t
  *
  *  dplasma_zgeadd_New - Compute the operation B = alpha * A + B
  *
@@ -92,7 +92,7 @@ dague_operator_zgeadd( struct dague_execution_unit *eu,
  *          On exit, the matrix B with the M-by-N part overwrite by alpha*A+B
  *
  ******************************************************************************/
-dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, Dague_Complex64_t alpha,
+dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, dague_complex64_t alpha,
                                    tiled_matrix_desc_t *A,
                                    tiled_matrix_desc_t *B)
 {
@@ -111,7 +111,7 @@ dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, Dague_Complex64_t alpha,
 
 int dplasma_zgeadd( dague_context_t *dague,
                    PLASMA_enum uplo,
-                   Dague_Complex64_t alpha,
+                   dague_complex64_t alpha,
                    tiled_matrix_desc_t *A,
                    tiled_matrix_desc_t *B)
 {

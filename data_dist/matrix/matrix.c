@@ -96,7 +96,6 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
 #if defined(DAGUE_PROF_TRACE)
     asprintf(&(tdesc->super.key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
 #endif
-
     return;
 }
 

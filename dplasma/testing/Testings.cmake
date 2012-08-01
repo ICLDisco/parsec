@@ -22,8 +22,10 @@ add_test(dgemm ${SHM_TEST_CMD} ./testing_dgemm -M 1067 -N 2873 -K 987 -t 56 -x -
 
 # LAPACK shared memory
 add_test(dpotrf     ${SHM_TEST_CMD} ./testing_dpotrf -N 4000 -x -v=5)
-add_test(dpotrf_g1  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 1)
-add_test(dpotrf_g2  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 2)
+if (CUDA_FOUND)
+  add_test(dpotrf_g1  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 1)
+  add_test(dpotrf_g2  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 2)
+endif (CUDA_FOUND)
 add_test(dposv      ${SHM_TEST_CMD} ./testing_dposv  -N 4000 -x -v=5)
 add_test(dpotrf_pbq ${SHM_TEST_CMD} ./testing_dpotrf -N 4000 -x -v=5 -o PBQ)
 
@@ -58,7 +60,9 @@ if( MPI_FOUND )
   add_test(mpi_dgemm         ${MPI_TEST_CMD} ./testing_dgemm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
 
   add_test(mpi_dpotrf        ${MPI_TEST_CMD} ./testing_dpotrf        -p 2 -N 4000 -x -v=5)
+if (CUDA_FOUND)
   add_test(mpi_dpotrf_g1     ${MPI_TEST_CMD} -mca btl_openib_flags 1 ./testing_dpotrf        -p 2 -N 8000 -x -v=5 -g 1)
+endif (CUDA_FOUND)
   add_test(mpi_dposv         ${MPI_TEST_CMD} ./testing_dposv         -p 4 -N 4000 -x -v=5)
   add_test(mpi_dpotrf_pbq    ${MPI_TEST_CMD} ./testing_dpotrf        -p 2 -N 4000 -x -v=5 -o PBQ)
 

@@ -30,16 +30,16 @@ dplasma_zherbt_New( PLASMA_enum uplo, int IB,
     }
 
     pool[0] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* tau */
-    dague_private_memory_init( pool[0], (sizeof(Dague_Complex64_t)*T->nb) );
+    dague_private_memory_init( pool[0], (sizeof(dague_complex64_t)*T->nb) );
 
     pool[1] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* work */
-    dague_private_memory_init( pool[1], (sizeof(Dague_Complex64_t)*T->nb*IB) );
+    dague_private_memory_init( pool[1], (sizeof(dague_complex64_t)*T->nb*IB) );
 
     pool[2] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* work for HERFB1 */
-    dague_private_memory_init( pool[2], (sizeof(Dague_Complex64_t)*T->nb*2 *T->nb) );
+    dague_private_memory_init( pool[2], (sizeof(dague_complex64_t)*T->nb*2 *T->nb) );
 
     pool[3] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* work for the TSMQRLR */
-    dague_private_memory_init( pool[3], (sizeof(Dague_Complex64_t)*T->nb*4 *T->nb) );
+    dague_private_memory_init( pool[3], (sizeof(dague_complex64_t)*T->nb*4 *T->nb) );
 
     if( PlasmaLower == uplo ) {
         dague_zherbt = dague_zherbt_L_new(uplo, IB,
@@ -47,11 +47,11 @@ dplasma_zherbt_New( PLASMA_enum uplo, int IB,
                                           *T, (dague_ddesc_t*)T,
                                           pool[3], pool[2], pool[1], pool[0]);
         dplasma_add2arena_rectangle( dague_zherbt->arenas[DAGUE_zherbt_L_DEFAULT_ARENA],
-                                     A->mb*A->nb*sizeof(Dague_Complex64_t),
+                                     A->mb*A->nb*sizeof(dague_complex64_t),
                                      DAGUE_ARENA_ALIGNMENT_SSE,
                                      MPI_DOUBLE_COMPLEX, A->mb, A->nb, -1);
         dplasma_add2arena_rectangle( dague_zherbt->arenas[DAGUE_zherbt_L_LITTLE_T_ARENA],
-                                     T->mb*T->nb*sizeof(Dague_Complex64_t),
+                                     T->mb*T->nb*sizeof(dague_complex64_t),
                                      DAGUE_ARENA_ALIGNMENT_SSE,
                                      MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
     }

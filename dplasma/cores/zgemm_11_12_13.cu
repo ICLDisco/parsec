@@ -37,9 +37,9 @@
 
 extern "C" void
 GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
-                                 Dague_Complex64_t alpha, Dague_Complex64_t *d_A, int lda,
-                                                          Dague_Complex64_t *d_B, int ldb,
-                                 Dague_Complex64_t beta,  Dague_Complex64_t *d_C, int ldc,
+                                 dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
+                                                          dague_complex64_t *d_B, int ldb,
+                                 dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,
                                  CUstream stream )
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)    

@@ -30,10 +30,10 @@ A      [type = "dague_ddesc_t *"]
 descT  [type = "tiled_matrix_desc_t"]
 T      [type = "dague_ddesc_t *" aligned=A]
 
-pool_3 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb*4 *descT.nb)"]
-pool_2 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb*2 *descT.nb)"]
-pool_1 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb*ib)"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb)"]
+pool_3 [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.nb*4 *descT.nb)"]
+pool_2 [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.nb*2 *descT.nb)"]
+pool_1 [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.nb*ib)"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.nb)"]
 
 zgeqrt(k)
   /* Execution space */
