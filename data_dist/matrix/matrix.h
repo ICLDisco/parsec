@@ -82,6 +82,7 @@ static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
 {
     assert( vpmap_get_nb_vp() > 0 );
     assert( pos <= tdesc->nb_local_tiles );
+    (void)tdesc;
     return pos % vpmap_get_nb_vp();
 }
 
