@@ -486,12 +486,12 @@ int dague_gpu_data_register( dague_context_t *dague_context,
     if( NULL != data->gpu_moesi_map ) {
         /*TODO: check that __dague_active_gpu didn't changed, if it 
          * changed, check that the discarded maps are empty */
-        DEBUG3(("GPU:\tregister ddesc %p, already register\n", data));
+        DEBUG3(("GPU:\tregister ddesc %p, already registered\n", data));
         return 0;
     } 
-    
     data->gpu_moesi_map = calloc(nbelem, sizeof(memory_elem_t*));
     DEBUG3(("GPU:\tregister ddesc %p, with %d tiles of size %zu (map at %p)\n", data, nbelem, eltsize, data->gpu_moesi_map));
+    
     for(i = 0; i < __dague_active_gpu; i++) {
         size_t thread_gpu_mem;
 #if CUDA_VERSION < 3020
@@ -516,6 +516,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
         thread_gpu_mem = (total_mem - total_mem / 10);
 
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
+        if( dague_ulist_is_empty(gpu_device->gpu_mem_lru) ) {
         /*
          * We allocate a bunch of tiles that will be used
          * during the computations
@@ -523,11 +524,8 @@ int dague_gpu_data_register( dague_context_t *dague_context,
         while( free_mem > (total_mem - thread_gpu_mem) ) {
             gpu_elem_t* gpu_elem;
             cudaError_t cuda_status;
-#if 1
+#if 0
             if( nb_allocations > (uint32_t)(nbelem/2*3) )
-                break;
-#else
-            if( nb_allocations > (uint32_t)20 )
                 break;
 #endif
             gpu_elem = (gpu_elem_t*)calloc(1, sizeof(gpu_elem_t));
@@ -556,7 +554,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             continue;
         }
         DEBUG3(( "GPU:\tAllocate %u tiles on the GPU memory\n", nb_allocations ));
-
+ }
 #else
         /*
          * We allocate all the memory on the GPU and we use our memory management

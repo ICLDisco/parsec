@@ -32,7 +32,7 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
     iparam_default_ibnbmb(iparam, 0, 200, 200);
-#if 0 && defined(HAVE_CUDA)
+#if defined(HAVE_CUDA) && 1
     iparam[IPARAM_NGPUS] = 0;
 #endif
     /* Initialize DAGuE */
@@ -110,9 +110,9 @@ int main(int argc, char ** argv)
 
 #if defined(HAVE_CUDA) 
         if(iparam[IPARAM_NGPUS] > 0) {
-            //dague_gpu_data_unregister(); A
-            //dague_gpu_data_unregister(); B
-            //dague_gpu_data_unregister(); C
+            dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
+            dague_gpu_data_unregister((dague_ddesc_t*)&ddescB);
+            dague_gpu_data_unregister((dague_ddesc_t*)&ddescC);
             dague_gpu_kernel_fini(dague, "zgemm");
         }
 #endif
