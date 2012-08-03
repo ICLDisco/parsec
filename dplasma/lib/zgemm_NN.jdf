@@ -146,6 +146,11 @@ BODY
                  creal(alpha), m, k, ldam,
                                k, n, ldbk,
                  creal(lbeta), m, n, ldcm );
+
+#if defined(HAVE_CUDA)
+FIN:
+#endif  /* defined(HAVE_CUDA) */
+
 END
 
 extern "C" %{
