@@ -160,10 +160,7 @@ struct _memory_elem {
     dague_device_elem_t*   device_elem[1];
 };
 
-typedef struct __dague_gpu_data_map {
-    dague_ddesc_t*  desc;
-    memory_elem_t** data_map;
-} dague_gpu_data_map_t;
+typedef memory_elem_t** gpu_moesi_map_t;
 
 /**
  * Particular overloading of the generic device type

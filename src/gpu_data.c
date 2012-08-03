@@ -34,7 +34,6 @@ static uint32_t __dague_gpu_mask = 0xffffffff;
 static CUcontext dague_allocate_on_gpu_context;
 static int dague_gpu_allocation_initialized = 0;
 
-dague_gpu_data_map_t dague_gpu_map = { NULL, NULL };
 volatile uint32_t dague_cpu_counter = 0;
 float *device_load = NULL, *device_weight = NULL;
 
@@ -484,14 +483,13 @@ int dague_gpu_data_register( dague_context_t *dague_context,
     int i;
     (void)eltsize;
 
-    if( NULL != dague_gpu_map.data_map ) {
-        if( dague_gpu_map.desc != data ) {
-            return -1;
-        }
-    } else {
-        dague_gpu_map.desc = data;
-        dague_gpu_map.data_map = (memory_elem_t**)calloc(nbelem, sizeof(memory_elem_t*));
-    }
+    if( NULL != data->gpu_moesi_map ) {
+        /*TODO: check that __dague_active_gpu didn't changed, if it 
+         * changed, check that the discarded maps are empty */
+        return 0;
+    } 
+    
+    data->gpu_moesi_map = (memory_elem_t**)calloc(nbelem, sizeof(memory_elem_t*));
 
     for(i = 0; i < __dague_active_gpu; i++) {
         size_t thread_gpu_mem;
