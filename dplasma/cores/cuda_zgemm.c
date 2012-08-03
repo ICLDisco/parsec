@@ -210,17 +210,17 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
      *          C the third one.
      * if the kernel swap A and B it won't work
      */
-    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(args->ddescA, args->Am, args->An ),
+    dague_gpu_data_get_elt(args->ddescA->gpu_moesi_map, GEMM_KEY(args->ddescA, args->Am, args->An ),
                            &(this_task->data[0].mem2dev_data));
     if( NULL == (this_task->data[0].mem2dev_data)->device_elem[gpu_device->index])
         move_data_count++;
 
-    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(args->ddescB, args->Bm, args->Bn ),
+    dague_gpu_data_get_elt(args->ddescB->gpu_moesi_map, GEMM_KEY(args->ddescB, args->Bm, args->Bn ),
                            &(this_task->data[1].mem2dev_data));
     if( NULL == (this_task->data[1].mem2dev_data)->device_elem[gpu_device->index])
         move_data_count++;
 
-    dague_gpu_data_get_elt(&dague_gpu_map, GEMM_KEY(args->ddescC, args->Cm, args->Cn ),
+    dague_gpu_data_get_elt(args->ddescC->gpu_moesi_map, GEMM_KEY(args->ddescC, args->Cm, args->Cn ),
                            &(this_task->data[2].mem2dev_data));
     if( NULL == (this_task->data[2].mem2dev_data)->device_elem[gpu_device->index])
         move_data_count++;
@@ -485,7 +485,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     gpu_task->ddescC   = (dague_ddesc_t*)descC;
 
     /* We always schedule the task on the GPU owning the C tile. */
-    which_gpu = dague_gpu_data_elt_write_owner( &dague_gpu_map, GEMM_KEY( descC, Cm, Cn) );
+    which_gpu = dague_gpu_data_elt_write_owner( descC->super.gpu_moesi_map, GEMM_KEY( descC, Cm, Cn) );
     if( which_gpu < 0 ) {  /* this is the first time we see this tile.
                             * Let's decide which GPU will work on it. */
         int best_index = -1;  /* cores */

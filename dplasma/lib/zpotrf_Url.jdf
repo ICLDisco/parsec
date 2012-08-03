@@ -26,7 +26,6 @@ extern "C" %{
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
-extern dague_gpu_data_map_t dague_gpu_map;
 #endif  /* defined(HAVE_CUDA) */
 %}
 
@@ -59,7 +58,7 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 
 BODY
 #if defined(HAVE_CUDA)
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, k, k) );
+    dague_gpu_update_data_version( descA.super.gpu_moesi_map, GEMM_KEY( &descA, k, k) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
@@ -106,7 +105,7 @@ RW    C <- (k == 0) ? A(k, n) : C GEMM(k-1, k, n)
 
 BODY
 #if defined(HAVE_CUDA)
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, k, n) );
+    dague_gpu_update_data_version( descA.super.gpu_moesi_map, GEMM_KEY( &descA, k, n) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
@@ -153,7 +152,7 @@ RW    T <- (k == 0)   ? A(n, n)    : T HERK(k-1, n)
 
 BODY
 #if defined(HAVE_CUDA)
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, n, n) );
+    dague_gpu_update_data_version( descA.super.gpu_moesi_map, GEMM_KEY( &descA, n, n) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n*descA.nb : descA.nb;
@@ -226,7 +225,7 @@ BODY
 	    exit(2);
         }
     }
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, m, n) );
+    dague_gpu_update_data_version( descA.super.gpu_moesi_map, GEMM_KEY( &descA, m, n) );
 #endif  /* defined(HAVE_CUDA) */
 
     DRYRUN(

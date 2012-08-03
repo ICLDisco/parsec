@@ -486,11 +486,12 @@ int dague_gpu_data_register( dague_context_t *dague_context,
     if( NULL != data->gpu_moesi_map ) {
         /*TODO: check that __dague_active_gpu didn't changed, if it 
          * changed, check that the discarded maps are empty */
+        DEBUG3(("GPU:\tregister ddesc %p, already register\n", data));
         return 0;
     } 
     
-    data->gpu_moesi_map = (memory_elem_t**)calloc(nbelem, sizeof(memory_elem_t*));
-
+    data->gpu_moesi_map = calloc(nbelem, sizeof(memory_elem_t*));
+    DEBUG3(("GPU:\tregister ddesc %p, with %d tiles of size %zu (map at %p)\n", data, nbelem, eltsize, data->gpu_moesi_map));
     for(i = 0; i < __dague_active_gpu; i++) {
         size_t thread_gpu_mem;
 #if CUDA_VERSION < 3020
@@ -523,7 +524,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             gpu_elem_t* gpu_elem;
             cudaError_t cuda_status;
 #if 1
-            if( nb_allocations > (uint32_t)(nbelem) >> 1)
+            if( nb_allocations > (uint32_t)(nbelem/2*3) )
                 break;
 #else
             if( nb_allocations > (uint32_t)20 )
@@ -579,12 +580,17 @@ int dague_gpu_data_register( dague_context_t *dague_context,
     return 0;
 }
 
-int dague_gpu_data_unregister( void )
+int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
 {
     gpu_device_t* gpu_device;
     gpu_elem_t* gpu_elem;
     CUresult status;
     int i;
+
+    if( NULL != ddesc->gpu_moesi_map ) {
+        free(ddesc->gpu_moesi_map);
+        ddesc->gpu_moesi_map = NULL;
+    }
 
     for(i = 0; i < __dague_active_gpu; i++) {
         if( NULL == (gpu_device = gpu_enabled_devices[i]) ) continue;
@@ -621,26 +627,20 @@ int dague_gpu_data_unregister( void )
                                 {continue;} );
     }
 
-    if( NULL != dague_gpu_map.data_map ) {
-        free(dague_gpu_map.data_map);
-        dague_gpu_map.data_map = NULL;
-    }
-    dague_gpu_map.desc = NULL;
-    
     return 0;
 }
 
 /**
  * Release data usage on a tile.
  */
-int dague_gpu_update_data_version( dague_gpu_data_map_t* gpu_map, uint32_t key )
+int dague_gpu_update_data_version( gpu_moesi_map_t gpu_map, uint32_t key )
 {
     memory_elem_t* mem_elem;
 
-    if( (NULL == gpu_map) || (NULL == gpu_map->data_map) || (NULL == gpu_map->data_map[key]))
+    if( (NULL == gpu_map) || (NULL == gpu_map[key]))
         return 0;
 
-    mem_elem = gpu_map->data_map[key];
+    mem_elem = gpu_map[key];
     if( DAGUE_DATA_SHARED == mem_elem->coherency_state ) {
         int i;
         for( i = 0; i < __dague_active_gpu; i++ ) {
@@ -659,15 +659,14 @@ int dague_gpu_update_data_version( dague_gpu_data_map_t* gpu_map, uint32_t key )
  * the tile is not yet located on any device, otherwise it indicate
  * the device index.
  */
-int dague_gpu_data_elt_write_owner( dague_gpu_data_map_t* gpu_map,
+int dague_gpu_data_elt_write_owner( gpu_moesi_map_t gpu_map,
                                     uint32_t key )
 {
     memory_elem_t* this_elem;
     gpu_elem_t* gpu_elem;
     int i;
 
-    if( (NULL == gpu_map) || (NULL == gpu_map->data_map) ||
-        (NULL == (this_elem = gpu_map->data_map[key])) ) {
+    if( (NULL == gpu_map) || (NULL == (this_elem = gpu_map[key])) ) {
         return -1;
     }
     for( i = 0; i < __dague_active_gpu; i++ ) {
@@ -685,14 +684,14 @@ int dague_gpu_data_elt_write_owner( dague_gpu_data_map_t* gpu_map,
  * Extract and return the memory element used for handling a specific
  * tile. Devices will have to add their own data to the device_elem array.
  */
-int dague_gpu_data_get_elt( dague_gpu_data_map_t* gpu_map,
-                             uint32_t key,
-                             memory_elem_t **pmem_elem )
+int dague_gpu_data_get_elt( gpu_moesi_map_t gpu_map,
+                            uint32_t key,
+                            memory_elem_t **pmem_elem )
 {
     memory_elem_t **where_from, *this_elem = NULL;
     int rc = 0;  /* the tile already existed */
 
-    where_from = &(gpu_map->data_map[key]);
+    where_from = &(gpu_map[key]);
     if( NULL == (this_elem = *where_from) ) {
         this_elem = (memory_elem_t*)calloc(1, sizeof(memory_elem_t) + (__dague_active_gpu-1) * sizeof(gpu_elem_t*));
         this_elem->key             = key;

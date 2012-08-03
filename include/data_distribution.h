@@ -24,8 +24,6 @@
 #include "mpi.h"
 #endif /*HAVE_MPI */
 
-#include "gpu_data.h"
-
 typedef struct dague_ddesc {
     uint32_t myrank;  /**< process rank */
     uint32_t cores;   /**< number of cores used for computation per node */
@@ -34,7 +32,7 @@ typedef struct dague_ddesc {
     void *   (*data_of)(struct dague_ddesc *mat, ...);   /* return the pointer to the data possessed locally */
     int32_t  (*vpid_of)(struct dague_ddesc *mat, ...);   /* return the virtual process ID of data possessed locally */
 #ifdef HAVE_CUDA
-    gpu_moesi_map_t gpu_moesi_map; /* the map that tracks accesses to GPU memory replicated blocks */
+    void* gpu_moesi_map; /* the map that tracks accesses to GPU memory replicated blocks */
 #endif
 #ifdef DAGUE_PROF_TRACE
     uint32_t (*data_key)(struct dague_ddesc *mat, ...); /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
@@ -42,7 +40,7 @@ typedef struct dague_ddesc {
     char      *key_dim;
     char      *key;
 #endif /* DAGUE_PROF_TRACE */
-} dague_ddesc_t;
+} dague_ddesc_t; 
 
 static inline void dague_ddesc_destroy(dague_ddesc_t *d)
 {

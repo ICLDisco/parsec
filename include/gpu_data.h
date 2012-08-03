@@ -19,7 +19,6 @@
 #include <cuda_runtime_api.h>
 
 #include "gpu_malloc.h"
-#include "data_distribution.h"
 
 #define DAGUE_GPU_USE_PRIORITIES     1
 
@@ -179,6 +178,8 @@ typedef enum {
     DAGUE_WRITE_DONE = 0x8
 } dague_data_usage_type_t;
 
+#include "data_distribution.h"
+
 /*
  * Data [un]registering
  */
@@ -186,7 +187,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                              dague_ddesc_t   *data,
                              int              nbelem,
                              size_t           eltsize );
-int dague_gpu_data_unregister();
+int dague_gpu_data_unregister( dague_ddesc_t* data );
 
 /*
  * Init/Finalize kernel
@@ -197,14 +198,14 @@ int dague_gpu_kernel_fini(dague_context_t* dague_context,
 /*
  * Data coherency and movement
  */
-int dague_gpu_data_elt_write_owner( dague_gpu_data_map_t* gpu_map,
+int dague_gpu_data_elt_write_owner( gpu_moesi_map_t gpu_map,
                                     uint32_t key );
 
-int dague_gpu_data_get_elt( dague_gpu_data_map_t* gpu_map,
+int dague_gpu_data_get_elt( gpu_moesi_map_t gpu_map,
                             uint32_t key,
                             memory_elem_t **pmem_elem );
 
-int dague_gpu_update_data_version( dague_gpu_data_map_t* gpu_map, uint32_t key );
+int dague_gpu_update_data_version( gpu_moesi_map_t gpu_map, uint32_t key );
 
 int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
                                    dague_execution_context_t *this_task,
