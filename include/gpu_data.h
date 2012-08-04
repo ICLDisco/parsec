@@ -12,8 +12,9 @@
 
 #if defined(HAVE_CUDA)
 #include "list_item.h"
-#include "fifo.h"
+#include "list.h"
 #include "profiling.h"
+#include "moesi.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
@@ -122,52 +123,17 @@ int dague_active_gpu(void);
  ** GPU-DATA Specific Starts Here **
  ****************************************************/
 
-/**
- * Data coherency protocol based on MOESI.
- */
-#define    DAGUE_DATA_INVALID    ((uint8_t)0x0)
-#define    DAGUE_DATA_OWNED      ((uint8_t)0x1)
-#define    DAGUE_DATA_EXCLUSIVE  ((uint8_t)0x2)
-#define    DAGUE_DATA_SHARED     ((uint8_t)0x4)
-
-typedef uint8_t                    dague_data_coherency_t;
-typedef struct _dague_device_elem  dague_device_elem_t;
-typedef struct _memory_elem        memory_elem_t;
 typedef struct _gpu_elem           gpu_elem_t;
 
-/**
- * Generic type for all the devices.
- */
-struct _dague_device_elem {
-    dague_list_item_t      item;
-    dague_data_coherency_t coherency_state;
-    int16_t                readers;
-    uint32_t               version;
-    memory_elem_t*         memory_elem;
-};
-
-/**
- * A memory element targets a specific data. It can be found
- * based on a unique key.
- */
-struct _memory_elem {
-    uint32_t               key;
-    dague_data_coherency_t coherency_state;
-    uint16_t               device_owner;
-    uint32_t               version;
-    void*                  main_memory;
-    dague_device_elem_t*   device_elem[1];
-};
-
-typedef memory_elem_t** moesi_map_t;
 
 /**
  * Particular overloading of the generic device type
  * for GPUs.
  */
 struct _gpu_elem {
-    dague_device_elem_t    generic;
-    CUdeviceptr            gpu_mem;
+    dague_list_item_t   item;
+    CUdeviceptr         gpu_mem;
+    moesi_copy_t        moesi;
 };
 
 
@@ -196,24 +162,13 @@ int dague_gpu_kernel_fini(dague_context_t* dague_context,
                           char *kernelname);
 
 /*
- * Data coherency and movement
+ * Data movement
  */
-int dague_gpu_data_elt_write_owner( moesi_map_t gpu_map,
-                                    uint32_t key );
-
-int dague_gpu_data_get_elt( moesi_map_t gpu_map,
-                            uint32_t key,
-                            memory_elem_t **pmem_elem );
-
-int dague_gpu_update_data_version( moesi_map_t gpu_map, uint32_t key );
-
 int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
                                    dague_execution_context_t *this_task,
                                    int *array_of_eltsize,
                                    int  move_data_count );
-/**
- *
- */
+
 int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              int32_t type,
                              dague_data_pair_t* task_data,
@@ -221,7 +176,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              CUstream stream );
 
 /**
- *
+ * Progress
  */
 typedef int (*advance_task_function_t)(gpu_device_t* gpu_device,
                                        dague_gpu_context_t* task,

@@ -14,6 +14,7 @@
 #include "profiling.h"
 #include "execution_unit.h"
 #include "arena.h"
+#include "moesi.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
@@ -483,14 +484,8 @@ int dague_gpu_data_register( dague_context_t *dague_context,
     int i;
     (void)eltsize;
 
-    if( NULL != data->moesi_map ) {
-        /*TODO: check that __dague_active_gpu didn't changed, if it 
-         * changed, check that the discarded maps are empty */
-        DEBUG3(("GPU:\tregister ddesc %p, already registered\n", data));
-        return 0;
-    } 
-    data->moesi_map = calloc(nbelem, sizeof(memory_elem_t*));
-    DEBUG3(("GPU:\tregister ddesc %p, with %d tiles of size %zu (map at %p)\n", data, nbelem, eltsize, data->moesi_map));
+    moesi_map_create(&data->moesi_map, nbelem, __dague_active_gpu);
+    DEBUG2(("GPU:\tregister ddesc %p, with %d tiles of size %zu (moesi %p at %p)\n", data, nbelem, eltsize, &data->moesi_map, data->moesi_map));
     
     for(i = 0; i < __dague_active_gpu; i++) {
         size_t thread_gpu_mem;
@@ -545,7 +540,6 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                                         break;
                                     }) );
             nb_allocations++;
-            gpu_elem->generic.memory_elem = NULL;
             dague_ulist_fifo_push( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
         }
@@ -621,93 +615,9 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
                                 {continue;} );
     }
 
-    if( NULL != ddesc->moesi_map ) {
-        free(ddesc->moesi_map);
-        ddesc->moesi_map = NULL;
-    }
-
+    moesi_map_destroy(&ddesc->moesi_map);
     return 0;
 }
-
-/**
- * Release data usage on a tile.
- */
-int dague_gpu_update_data_version( moesi_map_t gpu_map, uint32_t key )
-{
-    memory_elem_t* mem_elem;
-
-    if( (NULL == gpu_map) || (NULL == gpu_map[key]))
-        return 0;
-
-    mem_elem = gpu_map[key];
-    if( DAGUE_DATA_SHARED == mem_elem->coherency_state ) {
-        int i;
-        for( i = 0; i < __dague_active_gpu; i++ ) {
-            if( NULL == mem_elem->device_elem[i] ) continue;
-            mem_elem->device_elem[i]->coherency_state = DAGUE_DATA_INVALID;
-        }
-        mem_elem->coherency_state = DAGUE_DATA_OWNED;
-        mem_elem->device_owner = -1;
-    }
-    mem_elem->version++;
-    return 0;
-}
-
-/**
- * Return the owner of a tile. If the returned value is negative
- * the tile is not yet located on any device, otherwise it indicate
- * the device index.
- */
-int dague_gpu_data_elt_write_owner( moesi_map_t gpu_map,
-                                    uint32_t key )
-{
-    memory_elem_t* this_elem;
-    gpu_elem_t* gpu_elem;
-    int i;
-
-    if( (NULL == gpu_map) || (NULL == (this_elem = gpu_map[key])) ) {
-        return -1;
-    }
-    for( i = 0; i < __dague_active_gpu; i++ ) {
-        if( NULL == (gpu_elem = (gpu_elem_t*)(this_elem->device_elem[i])) )
-            continue;
-        if( DAGUE_DATA_INVALID == gpu_elem->generic.coherency_state )
-            continue;
-        return i;
-    }
-    return -2;
-}
-
-
-/**
- * Extract and return the memory element used for handling a specific
- * tile. Devices will have to add their own data to the device_elem array.
- */
-int dague_gpu_data_get_elt( moesi_map_t gpu_map,
-                            uint32_t key,
-                            memory_elem_t **pmem_elem )
-{
-    memory_elem_t **where_from, *this_elem = NULL;
-    int rc = 0;  /* the tile already existed */
-
-    where_from = &(gpu_map[key]);
-    if( NULL == (this_elem = *where_from) ) {
-        this_elem = (memory_elem_t*)calloc(1, sizeof(memory_elem_t) + (__dague_active_gpu-1) * sizeof(gpu_elem_t*));
-        this_elem->key             = key;
-        this_elem->main_memory     = NULL;
-        this_elem->device_owner    = -1;
-        this_elem->coherency_state = DAGUE_DATA_INVALID;
-        rc = 1;  /* the tile has just been created */
-        if( 0 == dague_atomic_cas( where_from, NULL, this_elem ) ) {
-            free(this_elem);
-            rc = 0;  /* the tile already existed */
-            this_elem = *where_from;
-        }
-    }
-    *pmem_elem = this_elem;
-    return rc;
-}
-
 
 /**
  * Try to find memory space to move all data on the GPU. We attach a device_elem to
@@ -725,7 +635,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
                                    int  move_data_count )
 {
     gpu_elem_t* temp_loc[MAX_PARAM_COUNT], *gpu_elem, *lru_gpu_elem;
-    memory_elem_t* mem_elem;
+    moesi_master_t* master;
     int eltsize = 0, i, j;
     (void)array_of_eltsize;
     (void)eltsize;
@@ -734,10 +644,10 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
      * Parse all the input and output flows of data and ensure all have
      * corresponding data on the GPU available.
      */
-    for( i = 0;  NULL != (mem_elem = this_task->data[i].mem2dev_data); i++ ) {
+    for( i = 0;  NULL != (master = this_task->data[i].mem2dev_data); i++ ) {
         temp_loc[i] = NULL;
 
-        gpu_elem = (gpu_elem_t*)mem_elem->device_elem[gpu_device->index];
+        gpu_elem = (gpu_elem_t*)master->device_copies[gpu_device->index];
         if( NULL != gpu_elem ) continue;
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
@@ -756,7 +666,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
             lru_gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop(gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
                 /* Make sure we all remaining temporary locations are set to NULL */
-                for( ;  NULL != (mem_elem = this_task->data[i].mem2dev_data); temp_loc[i++] = NULL );
+                for( ;  NULL != (master = this_task->data[i].mem2dev_data); temp_loc[i++] = NULL );
                 break;  /* Go and cleanup */
             }
             DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)lru_gpu_elem);
@@ -765,7 +675,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
              * protocol between here and the dague_gpu_data_stage_in, where the readers don't necessarily
              * always remove the data from the LRU.
              */
-            if( 0 != lru_gpu_elem->generic.readers ) {
+            if( 0 != lru_gpu_elem->moesi.readers ) {
                 goto find_another_data;
             }
             /* Make sure the new GPU element is clean and ready to be used */
@@ -816,7 +726,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
          */
         for( i = 0; NULL != this_task->data[i].mem2dev_data; i++ ) {
             if( NULL == temp_loc[i] ) continue;
-            dague_list_push_back(gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[i]);
+            dague_ulist_lifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[i]);
         }
         return -2;
     }
@@ -843,41 +753,8 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     void* memptr = ADATA(task_data->data);
     uint32_t key = task_data->mem2dev_data->key;
     int transfer_required = 0;
-    int i;
     (void)key;
 
-    if( ACCESS_READ & type ) gpu_elem->generic.readers++;
-    /* The tile is already available on this particular GPU */
-    if( DAGUE_DATA_INVALID == gpu_elem->generic.coherency_state ) {
-        if( ACCESS_READ & type ) transfer_required = 1;
-        /* Update the coherency state of the others versions */
-        if( ACCESS_WRITE & type ) {
-            mem_elem->coherency_state = DAGUE_DATA_OWNED;
-            mem_elem->device_owner = gpu_device->index;
-            for( i = 0; i < __dague_active_gpu; i++ ) {
-                if( NULL == mem_elem->device_elem[i] ) continue;
-                mem_elem->device_elem[i]->coherency_state = DAGUE_DATA_INVALID;
-            }
-            gpu_elem->generic.coherency_state = DAGUE_DATA_OWNED;
-            gpu_elem->generic.version = mem_elem->version;
-        } else if( ACCESS_READ & type ) {
-            gpu_elem->generic.coherency_state = DAGUE_DATA_SHARED;
-            if( DAGUE_DATA_OWNED == mem_elem->coherency_state ) {
-                transfer_required = 1;
-            }
-            mem_elem->coherency_state = DAGUE_DATA_SHARED;
-        }
-    } else {
-        if( DAGUE_DATA_OWNED != gpu_elem->generic.coherency_state ) { /* if I own it there is nothing to do */
-            if( ACCESS_WRITE & type ) {
-                gpu_elem->generic.coherency_state = DAGUE_DATA_OWNED;
-                mem_elem->device_owner = gpu_device->index;
-                /* Update the coherency state of the others versions */
-            } else {
-                /* The data is shared or exclusive and I'm doing a read */
-            }
-        }
-    }
     /* If the data will be accessed in write mode, remove it from any lists
      * until the task is completed.
      */
@@ -885,12 +762,10 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
-    /* The version on the GPU doesn't match the one in memory. Let the
-     * upper level know a transfer is required.
-     */
+
+    transfer_required = moesi_prepare_tranfer_to_device(gpu_elem->moesi.map, key, gpu_device->index, type);
     gpu_device->required_data_in += length;
-    assert( mem_elem->version >= gpu_elem->generic.version );
-    if( transfer_required || (mem_elem->version > gpu_elem->generic.version) ) {
+    if( transfer_required ) {
         cudaError_t status;
 
         DEBUG3(("GPU:\tMove data %x (%p:%p) to GPU %d\n",
@@ -902,7 +777,6 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                                   return -1; } );
         gpu_device->transferred_data_in += length;
         gpu_elem->generic.memory_elem->main_memory = memptr;
-        gpu_elem->generic.version = mem_elem->version;
         /* TODO: take ownership of the data */
         return 1;
     }
