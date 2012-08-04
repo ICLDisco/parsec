@@ -211,21 +211,21 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
      * if the kernel swap A and B it won't work
      */
     moesi_get_master(args->ddescA->moesi_map, GEMM_KEY(args->ddescA, args->Am, args->An ),
-                           &(this_task->data[0].mem2dev_data));
-    if( NULL == (this_task->data[0].mem2dev_data)->device_copies[gpu_device->index])
+                           &(this_task->data[0].moesi_master));
+    if( NULL == (this_task->data[0].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
 
     moesi_get_master(args->ddescB->moesi_map, GEMM_KEY(args->ddescB, args->Bm, args->Bn ),
-                           &(this_task->data[1].mem2dev_data));
-    if( NULL == (this_task->data[1].mem2dev_data)->device_copies[gpu_device->index])
+                           &(this_task->data[1].moesi_master));
+    if( NULL == (this_task->data[1].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
 
     moesi_get_master(args->ddescC->moesi_map, GEMM_KEY(args->ddescC, args->Cm, args->Cn ),
-                           &(this_task->data[2].mem2dev_data));
-    if( NULL == (this_task->data[2].mem2dev_data)->device_copies[gpu_device->index])
+                           &(this_task->data[2].moesi_master));
+    if( NULL == (this_task->data[2].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
 
-    this_task->data[3].mem2dev_data =  NULL;  /* last element */
+    this_task->data[3].moesi_master =  NULL;  /* last element */
 
     if( 0 != move_data_count ) { /* Try to reserve enough room for all data */
         sizeloc[0] = args->sizeA;
@@ -241,9 +241,9 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
         }
     }
 
-    assert( NULL != gpu_elem_obtain_from_master(this_task->data[0].mem2dev_data, gpu_device->index) );
-    assert( NULL != gpu_elem_obtain_from_master(this_task->data[1].mem2dev_data, gpu_device->index) );
-    assert( NULL != gpu_elem_obtain_from_master(this_task->data[2].mem2dev_data, gpu_device->index) );
+    assert( NULL != gpu_elem_obtain_from_master(this_task->data[0].moesi_master, gpu_device->index) );
+    assert( NULL != gpu_elem_obtain_from_master(this_task->data[1].moesi_master, gpu_device->index) );
+    assert( NULL != gpu_elem_obtain_from_master(this_task->data[2].moesi_master, gpu_device->index) );
 
 #if defined(DAGUE_PROF_TRACE)
     if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN )
@@ -293,9 +293,9 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 
     cuda_zgemm_t cuda_zgemm = (cuda_zgemm_t) gpu_device->function;
 
-    gpu_elem_A = gpu_elem_obtain_from_master(this_task->data[0].mem2dev_data, gpu_device->index);
-    gpu_elem_B = gpu_elem_obtain_from_master(this_task->data[1].mem2dev_data, gpu_device->index);
-    gpu_elem_C = gpu_elem_obtain_from_master(this_task->data[2].mem2dev_data, gpu_device->index);
+    gpu_elem_A = gpu_elem_obtain_from_master(this_task->data[0].moesi_master, gpu_device->index);
+    gpu_elem_B = gpu_elem_obtain_from_master(this_task->data[1].moesi_master, gpu_device->index);
+    gpu_elem_C = gpu_elem_obtain_from_master(this_task->data[2].moesi_master, gpu_device->index);
     d_A = gpu_elem_A->gpu_mem_ptr;
     d_B = gpu_elem_B->gpu_mem_ptr;
     d_C = gpu_elem_C->gpu_mem_ptr;
@@ -347,7 +347,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
     cudaError_t status;
 
     for( i = 0; NULL != this_task->function->in[i]; i++ ) {
-        gpu_elem = gpu_elem_obtain_from_master(this_task->data[i].mem2dev_data, gpu_device->index);
+        gpu_elem = gpu_elem_obtain_from_master(this_task->data[i].moesi_master, gpu_device->index);
         if( this_task->function->in[i]->access_type & ACCESS_READ ) {
             gpu_elem->moesi.readers--; assert(gpu_elem->moesi.readers >= 0);
             if( (0 == gpu_elem->moesi.readers) &&
@@ -358,7 +358,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             }
         }
         if( this_task->function->in[i]->access_type & ACCESS_WRITE ) {
-            gpu_elem = gpu_elem_obtain_from_master(this_task->data[i].mem2dev_data, gpu_device->index);
+            gpu_elem = gpu_elem_obtain_from_master(this_task->data[i].moesi_master, gpu_device->index);
 
             /* Stage the transfer of the data back to main memory */
             gpu_device->required_data_out += args->sizeC;
@@ -366,7 +366,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             assert( ((dague_list_item_t*)gpu_elem)->list_prev == (dague_list_item_t*)gpu_elem );
 
             if( args->pushout ) {  /* n == (k + 1) */
-                DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index, this_task->function->in[i]->name, this_task->data[i].mem2dev_data->key));
+                DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index, this_task->function->in[i]->name, this_task->data[i].moesi_master->key));
 #if defined(DAGUE_PROF_TRACE)
                 if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
                     dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start,
@@ -403,7 +403,7 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
     moesi_master_t* master;
     int i;
 
-    for( i = 0; NULL != (master = this_task->data[i].mem2dev_data); i++ ) {
+    for( i = 0; NULL != (master = this_task->data[i].moesi_master); i++ ) {
         if( !(this_task->function->in[i]->access_type & ACCESS_WRITE) ) continue;
 
         gpu_elem = gpu_elem_obtain_from_master(master, gpu_device->index);

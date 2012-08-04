@@ -644,7 +644,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
      * Parse all the input and output flows of data and ensure all have
      * corresponding data on the GPU available.
      */
-    for( i = 0;  NULL != (master = this_task->data[i].mem2dev_data); i++ ) {
+    for( i = 0;  NULL != (master = this_task->data[i].moesi_master); i++ ) {
         temp_loc[i] = NULL;
 
         if( NULL != master->device_copies[gpu_device->index] ) continue;
@@ -665,7 +665,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
             lru_gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop(gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
                 /* Make sure all remaining temporary locations are set to NULL */
-                for( ;  NULL != (master = this_task->data[i].mem2dev_data); temp_loc[i++] = NULL );
+                for( ;  NULL != (master = this_task->data[i].moesi_master); temp_loc[i++] = NULL );
                 break;  /* Go and cleanup */
             }
             DAGUE_LIST_ITEM_SINGLETON(lru_gpu_elem);
@@ -686,8 +686,8 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                 if( NULL != lru_gpu_elem->moesi.master ) {
                     moesi_master_t* oldmaster = lru_gpu_elem->moesi.master;
                     /* Let's check we're not trying to steal one of our own data */
-                    for( j = 0; NULL != this_task->data[j].mem2dev_data; j++ ) {
-                        if( this_task->data[j].mem2dev_data == oldmaster ) {
+                    for( j = 0; NULL != this_task->data[j].moesi_master; j++ ) {
+                        if( this_task->data[j].moesi_master == oldmaster ) {
                             temp_loc[j] = lru_gpu_elem;
                             goto find_another_data;
                         }
@@ -723,7 +723,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         /* We can't find enough room on the GPU. Insert the tiles in the begining of
          * the LRU (in order to be reused asap) and return without scheduling the task.
          */
-        for( i = 0; NULL != this_task->data[i].mem2dev_data; i++ ) {
+        for( i = 0; NULL != this_task->data[i].moesi_master; i++ ) {
             if( NULL == temp_loc[i] ) continue;
             dague_ulist_lifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[i]);
         }
@@ -747,7 +747,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              size_t length,
                              CUstream stream )
 {
-    moesi_master_t* master = task_data->mem2dev_data;
+    moesi_master_t* master = task_data->moesi_master;
     uint32_t key = master->key;
     gpu_elem_t* gpu_elem = gpu_elem_obtain_from_master(master, gpu_device->index);
     void* memptr = ADATA(task_data->data);
