@@ -601,7 +601,8 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
             free( gpu_elem );
         }
         while( NULL != (gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop( gpu_device->gpu_mem_owned_lru )) ) {
-            WARNING(("Owned data %d still on GPU memory\n", gpu_elem->generic.memory_elem->key));
+            if( DAGUE_DATA_OWNED == gpu_elem->generic.memory_elem->coherency_state )
+                WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n", i, gpu_elem->generic.memory_elem->key));
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
             cuMemFree( gpu_elem->gpu_mem );
 #else
