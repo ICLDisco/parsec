@@ -483,14 +483,14 @@ int dague_gpu_data_register( dague_context_t *dague_context,
     int i;
     (void)eltsize;
 
-    if( NULL != data->gpu_moesi_map ) {
+    if( NULL != data->moesi_map ) {
         /*TODO: check that __dague_active_gpu didn't changed, if it 
          * changed, check that the discarded maps are empty */
         DEBUG3(("GPU:\tregister ddesc %p, already registered\n", data));
         return 0;
     } 
-    data->gpu_moesi_map = calloc(nbelem, sizeof(memory_elem_t*));
-    DEBUG3(("GPU:\tregister ddesc %p, with %d tiles of size %zu (map at %p)\n", data, nbelem, eltsize, data->gpu_moesi_map));
+    data->moesi_map = calloc(nbelem, sizeof(memory_elem_t*));
+    DEBUG3(("GPU:\tregister ddesc %p, with %d tiles of size %zu (map at %p)\n", data, nbelem, eltsize, data->moesi_map));
     
     for(i = 0; i < __dague_active_gpu; i++) {
         size_t thread_gpu_mem;
@@ -585,11 +585,6 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
     CUresult status;
     int i;
 
-    if( NULL != ddesc->gpu_moesi_map ) {
-        free(ddesc->gpu_moesi_map);
-        ddesc->gpu_moesi_map = NULL;
-    }
-
     for(i = 0; i < __dague_active_gpu; i++) {
         if( NULL == (gpu_device = gpu_enabled_devices[i]) ) continue;
 
@@ -625,13 +620,18 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
                                 {continue;} );
     }
 
+    if( NULL != ddesc->moesi_map ) {
+        free(ddesc->moesi_map);
+        ddesc->moesi_map = NULL;
+    }
+
     return 0;
 }
 
 /**
  * Release data usage on a tile.
  */
-int dague_gpu_update_data_version( gpu_moesi_map_t gpu_map, uint32_t key )
+int dague_gpu_update_data_version( moesi_map_t gpu_map, uint32_t key )
 {
     memory_elem_t* mem_elem;
 
@@ -657,7 +657,7 @@ int dague_gpu_update_data_version( gpu_moesi_map_t gpu_map, uint32_t key )
  * the tile is not yet located on any device, otherwise it indicate
  * the device index.
  */
-int dague_gpu_data_elt_write_owner( gpu_moesi_map_t gpu_map,
+int dague_gpu_data_elt_write_owner( moesi_map_t gpu_map,
                                     uint32_t key )
 {
     memory_elem_t* this_elem;
@@ -682,7 +682,7 @@ int dague_gpu_data_elt_write_owner( gpu_moesi_map_t gpu_map,
  * Extract and return the memory element used for handling a specific
  * tile. Devices will have to add their own data to the device_elem array.
  */
-int dague_gpu_data_get_elt( gpu_moesi_map_t gpu_map,
+int dague_gpu_data_get_elt( moesi_map_t gpu_map,
                             uint32_t key,
                             memory_elem_t **pmem_elem )
 {

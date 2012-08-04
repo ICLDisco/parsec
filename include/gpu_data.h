@@ -159,7 +159,7 @@ struct _memory_elem {
     dague_device_elem_t*   device_elem[1];
 };
 
-typedef memory_elem_t** gpu_moesi_map_t;
+typedef memory_elem_t** moesi_map_t;
 
 /**
  * Particular overloading of the generic device type
@@ -198,14 +198,14 @@ int dague_gpu_kernel_fini(dague_context_t* dague_context,
 /*
  * Data coherency and movement
  */
-int dague_gpu_data_elt_write_owner( gpu_moesi_map_t gpu_map,
+int dague_gpu_data_elt_write_owner( moesi_map_t gpu_map,
                                     uint32_t key );
 
-int dague_gpu_data_get_elt( gpu_moesi_map_t gpu_map,
+int dague_gpu_data_get_elt( moesi_map_t gpu_map,
                             uint32_t key,
                             memory_elem_t **pmem_elem );
 
-int dague_gpu_update_data_version( gpu_moesi_map_t gpu_map, uint32_t key );
+int dague_gpu_update_data_version( moesi_map_t gpu_map, uint32_t key );
 
 int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
                                    dague_execution_context_t *this_task,
