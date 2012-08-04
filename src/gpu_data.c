@@ -558,7 +558,6 @@ int dague_gpu_data_register( dague_context_t *dague_context,
 
         if( gpu_device->memory == NULL ) {
             WARNING(("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!\n", dague_context->my_rank, i));
-            /*dague_gpu_1gpu_fini( ... );*/
             continue;
         }
         DEBUG3(( "GPU:\tAllocate %u segment of size %d on the GPU memory\n", nb_allocations, GPU_MALLOC_UNIT_SIZE ));
@@ -592,16 +591,24 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
 #else
             gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
 #endif
+            if( ddesc->map == gpu_elem->moesi.master->map ) {
+                gpu_elem->moesi.master->device_copies[i] = NULL;
+            }
             free( gpu_elem );
         }
         while( NULL != (gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop( gpu_device->gpu_mem_owned_lru )) ) {
-            if( MOESI_OWNED == gpu_elem->moesi.master->coherency_state )
+            if( MOESI_OWNED == gpu_elem->moesi.coherency_state ) {
                 WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n", i, gpu_elem->moesi.master->key));
+                assert( gpu_elem->moesi.master->owner_device == i );
+            }
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
             cuMemFree( gpu_elem->gpu_mem_ptr );
 #else
             gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
 #endif
+            if( ddesc->map == gpu_elem->moesi.master->map ) {
+                gpu_elem->moesi.master->device_copies[i] = NULL;
+            }
             free( gpu_elem );
         }
 
