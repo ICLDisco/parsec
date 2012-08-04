@@ -294,8 +294,8 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     cuda_zgemm_t cuda_zgemm = (cuda_zgemm_t) gpu_device->function;
 
     gpu_elem_A = gpu_elem_obtain_from_master(this_task->data[0].mem2dev_data, gpu_device->index);
-    gpu_elem_B = gpu_elem_obtain_from_master(this_task->data[1].mem2dev_data, gpu_device->index)
-    gpu_elem_C = gpu_elem_obtain_from_master(this_task->data[2].mem2dev_data, gpu_device->index)
+    gpu_elem_B = gpu_elem_obtain_from_master(this_task->data[1].mem2dev_data, gpu_device->index);
+    gpu_elem_C = gpu_elem_obtain_from_master(this_task->data[2].mem2dev_data, gpu_device->index);
     d_A = gpu_elem_A->gpu_mem_ptr;
     d_B = gpu_elem_B->gpu_mem_ptr;
     d_C = gpu_elem_C->gpu_mem_ptr;
@@ -374,7 +374,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                                            NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
                 /* Move the data back into main memory */
-                status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[2].data), gpu_elem->gpu_mem, args->sizeC, stream );
+                status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[2].data), gpu_elem->gpu_mem_ptr, args->sizeC, stream );
                 DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
                                         { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[2]->name,
                                                   (void*)gpu_elem->gpu_mem_ptr, (void*)ADATA(this_task->data[2].data)));
@@ -410,7 +410,7 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
         assert( MOESI_OWNED == gpu_elem->moesi.coherency_state );
         gpu_elem->moesi.coherency_state = MOESI_SHARED;
         master->version = gpu_elem->moesi.version;
-        master->device_owner = -1;
+        master->owner_device = -1;
 
 #if defined(DAGUE_PROF_TRACE)
         if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN )
