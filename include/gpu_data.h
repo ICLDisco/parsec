@@ -136,7 +136,7 @@ struct _gpu_elem {
     moesi_copy_t        moesi;
 };
 
-static inline void gpu_elem_construct(dague_gpu_elem_t* gpu_elem, moesi_master_t* master) {
+static inline void gpu_elem_construct(gpu_elem_t* gpu_elem, moesi_master_t* master) {
     DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
     gpu_elem->moesi.master = master;
     gpu_elem->moesi.device_private = gpu_elem;
