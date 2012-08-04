@@ -526,7 +526,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             gpu_elem = (gpu_elem_t*)calloc(1, sizeof(gpu_elem_t));
             DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
 
-            cuda_status = (cudaError_t)cuMemAlloc( &(gpu_elem->gpu_mem), eltsize);
+            cuda_status = (cudaError_t)cuMemAlloc( &(gpu_elem->gpu_mem_ptr), eltsize);
             DAGUE_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
                                     ({
 #if CUDA_VERSION < 3020
@@ -588,19 +588,19 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
         /* Free memory on GPU */
         while( NULL != (gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop( gpu_device->gpu_mem_lru )) ) {
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-            cuMemFree( gpu_elem->gpu_mem );
+            cuMemFree( gpu_elem->gpu_mem_ptr );
 #else
-            gpu_free( gpu_device->memory, (void*)(gpu_elem->gpu_mem) );
+            gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
 #endif
             free( gpu_elem );
         }
         while( NULL != (gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop( gpu_device->gpu_mem_owned_lru )) ) {
             if( MOESI_OWNED == gpu_elem->moesi.master->coherency_state )
-                WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n", i, gpu_elem->generic.memory_elem->key));
+                WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n", i, gpu_elem->moesi.master->key));
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-            cuMemFree( gpu_elem->gpu_mem );
+            cuMemFree( gpu_elem->gpu_mem_ptr );
 #else
-            gpu_free( gpu_device->memory, (void*)(gpu_elem->gpu_mem) );
+            gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
 #endif
             free( gpu_elem );
         }
@@ -694,7 +694,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
                     }
 
                     oldmaster->device_copies[gpu_device->index] = NULL;
-                    DEBUG3(("GPU[%d]:\tRepurpose moesi copy %p to mirror block %p (in task %s:i) instead of %p\n", gpu_device->index, lru_gpu_mem, master, this_task->function->name, i, oldmaster));
+                    DEBUG3(("GPU[%d]:\tRepurpose moesi copy %p to mirror block %p (in task %s:i) instead of %p\n", gpu_device->index, lru_gpu_elem, master, this_task->function->name, i, oldmaster));
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
                     gpu_free( gpu_device->memory, (void*)(lru_gpu_elem->gpu_mem) );
@@ -711,7 +711,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
         assert( 0 == gpu_elem->moesi.readers );
         master->device_copies[gpu_device->index] = &gpu_elem->moesi;
         gpu_elem->moesi.master = master;
-        gpu_elem->moesi.coherency_state = DAGUE_DATA_INVALID;
+        gpu_elem->moesi.coherency_state = MOESI_INVALID;
         gpu_elem->moesi.version = 0;
         move_data_count--;
         temp_loc[i] = gpu_elem;
@@ -749,7 +749,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
 {
     moesi_master_t* master = task_data->mem2dev_data;
     uint32_t key = master->key;
-    gpu_elem_t* gpu_elem = (gpu_elem_t*)master->device_elem[gpu_device->index]->device_private;
+    gpu_elem_t* gpu_elem = (gpu_elem_t*)master->device_copies[gpu_device->index]->device_private;
     void* memptr = ADATA(task_data->data);
     int transfer_required = 0;
 
@@ -761,17 +761,17 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
 
-    transfer_required = moesi_prepare_tranfer_to_device(gpu_elem->moesi.map, key, gpu_device->index, type);
+    transfer_required = moesi_prepare_tranfer_to_device(master->map, key, gpu_device->index, type);
     gpu_device->required_data_in += length;
     if( transfer_required ) {
         cudaError_t status;
 
         DEBUG3(("GPU:\tMove data %x (%p:%p) to GPU %d\n",
-                mem_elem->key, memptr, (void*)gpu_elem->gpu_mem_ptr, gpu_device->device_index));
+                key, memptr, (void*)gpu_elem->gpu_mem_ptr, gpu_device->device_index));
         /* Push data into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( gpu_elem->gpu_mem_ptr, memptr, length, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device ", status,
-                                { WARNING(("<<%p>> -> <<%p>> [%d]\n", memptr, (void*)(long)gpu_elem->gpu_mem, length));
+                                { WARNING(("<<%p>> -> <<%p>> [%d]\n", memptr, (void*)(long)gpu_elem->gpu_mem_ptr, length));
                                   return -1; } );
         gpu_device->transferred_data_in += length;
         master->mem_ptr = memptr;
