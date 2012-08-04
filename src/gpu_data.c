@@ -761,7 +761,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
 
-    transfer_required = moesi_prepare_tranfer_to_device(master->map, key, gpu_device->index, type);
+    transfer_required = moesi_prepare_transfer_to_device(master->map, key, gpu_device->index, (uint8_t)type);
     gpu_device->required_data_in += length;
     if( transfer_required ) {
         cudaError_t status;
