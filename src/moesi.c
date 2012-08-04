@@ -18,10 +18,11 @@ void moesi_map_create(moesi_map_t** pmap, int nmasters, int ndevices) {
         return;
     }
     else {
-        assert(nmasters > 0);
+        assert( nmasters > 0 );
+        assert( nmasters < UINT16_MAX ); assert( ndevices < UINT16_MAX );
         map = calloc(1, sizeof(moesi_map_t) + (nmasters-1)*sizeof(moesi_master_t*));
-        map->nmasters = nmasters;
-        map->ndevices = ndevices;
+        map->nmasters = (uint16_t)nmasters;
+        map->ndevices = (uint16_t)ndevices;
         *pmap = map;
         DEBUG3(("  Moesi:\tMap %p created (m=%d, d=%d)\n", pmap, nmasters, ndevices));
     }
@@ -137,7 +138,7 @@ int moesi_get_master(moesi_map_t* map, moesi_key_t key, moesi_master_t** pmaster
     if( NULL == (master = *from) ) {
         master = (moesi_master_t*)calloc(1, sizeof(moesi_master_t) + (map->ndevices-1)*sizeof(moesi_copy_t*));
         master->key             = key;
-        master->master_ptr      = NULL;
+        master->mem_ptr         = NULL;
         master->owner_device    = -1;
         master->coherency_state = MOESI_INVALID;
         rc = 1;  /* the tile has just been created */

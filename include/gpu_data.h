@@ -132,10 +132,16 @@ typedef struct _gpu_elem           gpu_elem_t;
  */
 struct _gpu_elem {
     dague_list_item_t   item;
-    CUdeviceptr         gpu_mem;
+    CUdeviceptr         gpu_mem_ptr;
     moesi_copy_t        moesi;
 };
 
+static inline void gpu_elem_construct(dague_gpu_elem_t* gpu_elem, moesi_master_t* master) {
+    DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
+    gpu_elem->moesi.master = master;
+    gpu_elem->moesi.device_private = gpu_elem;
+}
+#define gpu_elem_destruct(gpu_elem)
 
 typedef enum {
     DAGUE_READ       = ACCESS_READ,

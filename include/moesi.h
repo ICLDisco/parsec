@@ -43,7 +43,8 @@ struct _moesi_map {
  * It can be found based on a unique key.
  */
 struct _moesi_master {
-    void*               master_ptr;
+    void*               mem_ptr;
+    moesi_map_t*        map;
     moesi_key_t         key;
     moesi_coherency_t   coherency_state;
     uint16_t            owner_device;
@@ -56,12 +57,11 @@ struct _moesi_master {
  * particular device.
  */
 struct _moesi_copy {
-    dague_list_item_t   item;
-    moesi_map_t*        map;
+    void*               device_private;
+    moesi_master_t*     master;
     moesi_coherency_t   coherency_state;
     int16_t             readers;
     uint32_t            version;
-    void*               device_private;
 };
 
 
