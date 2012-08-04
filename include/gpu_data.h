@@ -143,6 +143,14 @@ static inline void gpu_elem_construct(gpu_elem_t* gpu_elem, moesi_master_t* mast
 }
 #define gpu_elem_destruct(gpu_elem)
 
+static inline gpu_elem_t* gpu_elem_obtain_from_master(moesi_master_t* master, int device) {
+    moesi_copy_t* copy = master->device_copies[device];
+    if( NULL == copy ) return NULL;
+    assert( copy->master == master );
+    return copy->device_private;
+}
+
+
 typedef enum {
     DAGUE_READ       = ACCESS_READ,
     DAGUE_WRITE      = ACCESS_WRITE,
@@ -170,10 +178,10 @@ int dague_gpu_kernel_fini(dague_context_t* dague_context,
 /*
  * Data movement
  */
-int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
-                                   dague_execution_context_t *this_task,
-                                   int *array_of_eltsize,
-                                   int  move_data_count );
+int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
+                                         dague_execution_context_t *this_task,
+                                         int *array_of_eltsize,
+                                         int  move_data_count );
 
 int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              int32_t type,

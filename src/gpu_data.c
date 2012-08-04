@@ -629,10 +629,10 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
  *    0: All gpu_mem/mem_elem have been initialized
  *   -2: The task needs to rescheduled
  */
-int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
-                                   dague_execution_context_t *this_task,
-                                   int *array_of_eltsize,
-                                   int  move_data_count )
+int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
+                                         dague_execution_context_t *this_task,
+                                         int *array_of_eltsize,
+                                         int  move_data_count )
 {
     gpu_elem_t* temp_loc[MAX_PARAM_COUNT], *gpu_elem, *lru_gpu_elem;
     moesi_master_t* master;
@@ -749,7 +749,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
 {
     moesi_master_t* master = task_data->mem2dev_data;
     uint32_t key = master->key;
-    gpu_elem_t* gpu_elem = (gpu_elem_t*)master->device_copies[gpu_device->index]->device_private;
+    gpu_elem_t* gpu_elem = gpu_elem_obtain_from_master(master, gpu_device->index);
     void* memptr = ADATA(task_data->data);
     int transfer_required = 0;
 

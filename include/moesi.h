@@ -69,8 +69,29 @@ struct _moesi_copy {
 void moesi_map_create(moesi_map_t** map, int nmasters, int ndevices);
 void moesi_map_destroy(moesi_map_t** map);
 
-int moesi_write_owner(moesi_map_t* map, moesi_key_t key);
-int moesi_get_master(moesi_map_t* map, moesi_key_t key, moesi_master_t** master);
-int moesi_update_version(moesi_map_t* map, moesi_key_t key);
+/**
+ * Return (and create if necessary) the master entry used for handling 
+ * MOESI protocol on a specific data block. 
+ * Devices will have to add their own entries for copies they make in the 
+ * moesi_copies array.
+ */
+int moesi_get_master(moesi_map_t* map, moesi_key_t key, moesi_master_t** pmaster);
+
+/**
+ * Return the device index of a device that contains an up-to-date 
+ * version of the data block. 
+ * If the returned value is negative, the master copy is authoritative. 
+ */
+int moesi_locate_device_with_valid_copy(moesi_map_t* map, moesi_key_t key);
+
+/**
+ * Prepares the transfer of a data (refered by key in the moesi map) to the device. 
+ * The function returns !0 if the data needs to be staged in. 
+ * The state of the MOESI map is updated accordingly. 
+ * The moesi_copy must be filled for the target device. 
+ */
+int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int device, uint8_t access_mode);
+
+
 
 #endif

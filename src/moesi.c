@@ -41,12 +41,7 @@ void moesi_map_destroy(moesi_map_t** pmap) {
 }
 
 
-/**
- * Return the device index of a device that contains an up-to-date 
- * version of the data block. 
- * If the returned value is negative, the master copy is authoritative. 
- */
-int moesi_locate_authoritative_copy(moesi_map_t* map, moesi_key_t key) {
+int moesi_locate_device_with_valid_copy(moesi_map_t* map, moesi_key_t key) {
     moesi_master_t* master;
     moesi_copy_t* copy;
     int i;
@@ -126,11 +121,6 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
 }
 
 
-/**
- * Return (and create if necessary) the master entry used for handling 
- * a specific data block. 
- * Devices will have to add their own entries to the moesi_copies array.
- */
 int moesi_get_master(moesi_map_t* map, moesi_key_t key, moesi_master_t** pmaster) {
     moesi_master_t **from, *master = NULL;
     int rc = 0; /* the tile already existed */
