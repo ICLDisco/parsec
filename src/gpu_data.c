@@ -647,7 +647,8 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
     for( i = 0;  NULL != (master = this_task->data[i].moesi_master); i++ ) {
         temp_loc[i] = NULL;
 
-        if( NULL != master->device_copies[gpu_device->index] ) continue;
+        gpu_elem = gpu_elem_obtain_from_master(master, gpu_device->index);
+        if( NULL != gpu_elem ) continue;
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         gpu_elem = (gpu_elem_t*)calloc(1, sizeof(gpu_elem_t));
