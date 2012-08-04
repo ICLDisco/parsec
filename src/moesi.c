@@ -11,7 +11,7 @@
 
 void moesi_map_create(moesi_map_t** pmap, int nmasters, int ndevices) {
     moesi_map_t* map = *pmap;
-    if(NULL != map) {
+    if( NULL != map ) {
         assert(nmasters <= map->nmasters);
         assert(ndevices <= map->ndevices);
         DEBUG3(("  Moesi:\tMap %p already exists (m=%d, d=%d): it does not need to be updated to hold (m=%d, d=%d)\n", pmap, map->nmasters, map->ndevices, nmasters, ndevices));
@@ -30,9 +30,23 @@ void moesi_map_create(moesi_map_t** pmap, int nmasters, int ndevices) {
 
 void moesi_map_destroy(moesi_map_t** pmap) {
     moesi_map_t* map = *pmap;
-    if(NULL != map) {
-        DEBUG3(("  Moesi:\tMap %p destroyed\n", pmap));
+    if( NULL != map ) {
+        int i;
+        for( i = 0; i < map->nmasters; i++ ) {
+            if( NULL != map->masters[i] ) {
+#ifdef DAGUE_DEBUG
+                int d;
+                for( d = 0; d < map->ndevices; d++ ) {
+                    if( NULL != map->masters[i]->device_copies[d] ) {
+                        WARNING(("  Moesi:\tpossible memory leak, moesi_copy_t %p is still in the moesi map %p but it is deallocated\n", map->masters[i]->device_copies[d], map));
+                    }
+                }
+#endif                
+                free(map->masters[i]);
+            }
+        }
         free(map);
+        DEBUG3(("  Moesi:\tMap %p destroyed\n", pmap));
         *pmap = NULL;
     }
     else {
