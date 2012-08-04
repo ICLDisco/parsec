@@ -16,7 +16,7 @@ typedef struct dague_remote_deps_t dague_remote_deps_t;
 typedef struct dague_arena_t dague_arena_t;
 typedef struct dague_arena_chunk_t dague_arena_chunk_t;
 typedef struct dague_data_pair_t dague_data_pair_t;
-typedef struct _moesi_master    moesi_master_t;
+typedef struct _moesi_master moesi_master_t;
 
 #ifdef HAVE_PAPI
 #define MAX_EVENTS 3
@@ -123,6 +123,7 @@ struct dague_function {
     dague_functionkey_fn_t      *key;
     char                        *body;
 };
+
 
 struct dague_data_pair_t {
     struct data_repo_entry   *data_repo;

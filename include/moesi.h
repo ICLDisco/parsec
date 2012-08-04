@@ -12,8 +12,6 @@
  */
 
 #include "dague_config.h"
-#include "dague_internal.h"
-#include "list_item.h"
 
 typedef uint8_t moesi_coherency_t;
 #define    MOESI_INVALID   ((uint8_t)0x0)
@@ -26,6 +24,8 @@ typedef struct _moesi_copy      moesi_copy_t;
 typedef struct _moesi_map       moesi_map_t;
 
 typedef uint32_t moesi_key_t;
+
+#include "dague_internal.h"
 
 /**
  * A moesi map contains an array of pointers to all the moesi master 

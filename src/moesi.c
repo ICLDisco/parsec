@@ -142,6 +142,7 @@ int moesi_get_master(moesi_map_t* map, moesi_key_t key, moesi_master_t** pmaster
     from = &(map->masters[key]);
     if( NULL == (master = *from) ) {
         master = (moesi_master_t*)calloc(1, sizeof(moesi_master_t) + (map->ndevices-1)*sizeof(moesi_copy_t*));
+        master->map             = map;
         master->key             = key;
         master->mem_ptr         = NULL;
         master->owner_device    = -1;
