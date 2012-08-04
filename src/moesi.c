@@ -72,6 +72,7 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
     assert( NULL != map );
     assert( NULL != map->masters[key] );
     master = map->masters[key];
+    assert( UINT16_MAX > device );
     assert( NULL != master->device_copies[device] );
     copy = master->device_copies[device];
     
@@ -83,7 +84,7 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
         if( ACCESS_WRITE & access_mode ) {
             assert( MOESI_OWNED != master->coherency_state ); /* 2 writters on the same data: wrong JDF */
             master->coherency_state = MOESI_OWNED;
-            master->owner_device = device;
+            master->owner_device = (uint16_t)device;
             for( i = 0; i < map->ndevices; i++ ) {
                 if( NULL == master->device_copies[i] ) continue;
                 master->device_copies[i]->coherency_state = MOESI_INVALID;
@@ -106,7 +107,7 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
         else {
             if( ACCESS_WRITE & access_mode ) {
                 copy->coherency_state = MOESI_OWNED;
-                master->owner_device = device;
+                master->owner_device = (uint16_t)device;
                 /* Update the coherency state of the others versions */
             } else {
                 /* The data is shared or exclusive and I'm doing a read */
