@@ -92,6 +92,11 @@ int moesi_locate_device_with_valid_copy(moesi_map_t* map, moesi_key_t key);
  */
 int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int device, uint8_t access_mode);
 
+/**
+ * The master copy is accessed in WRITE mode, invalidate all shared copies
+ */
+int moesi_master_update(moesi_map_t *map, moesi_key_t key);
+
 
 
 #endif

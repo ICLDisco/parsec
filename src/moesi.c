@@ -142,10 +142,8 @@ int moesi_get_master(moesi_map_t* map, moesi_key_t key, moesi_master_t** pmaster
     return rc;
 }
 
-/**
- * Invalidate all copies and restore the master as the authoritative version
- */
-int moesi_master_updated(moesi_map_t *map, moesi_key_t key) {
+
+int moesi_master_update(moesi_map_t *map, moesi_key_t key) {
     moesi_master_t* master;
 
     if( (NULL == map) || (NULL == (master = map->masters[key])) )
