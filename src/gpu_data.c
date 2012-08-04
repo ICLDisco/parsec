@@ -524,7 +524,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                 break;
 #endif
             gpu_elem = (gpu_elem_t*)calloc(1, sizeof(gpu_elem_t));
-            DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
+            gpu_elem_construct(gpu_elem, NULL);
 
             cuda_status = (cudaError_t)cuMemAlloc( &(gpu_elem->gpu_mem_ptr), eltsize);
             DAGUE_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
