@@ -574,7 +574,6 @@ int dague_gpu_data_register( dague_context_t *dague_context,
 int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
 {
     gpu_device_t* gpu_device;
-    gpu_elem_t* gpu_elem;
     CUresult status;
     int i;
 
@@ -585,32 +584,42 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxPushCurrent ", status,
                                 {continue;} );
         /* Free memory on GPU */
-        while( NULL != (gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop( gpu_device->gpu_mem_lru )) ) {
+        DAGUE_ULIST_ITERATOR(gpu_device->gpu_mem_lru, item, {    
+            gpu_elem_t* gpu_elem = (gpu_elem_t*)item;
+            moesi_master_t* master = gpu_elem->moesi.master;
+            DEBUG3(("Considering suppresion of %p, attached to master %p, if in map %p", gpu_elem, master, ddesc->moesi_map));
+            if( !master || master->map == ddesc->moesi_map ) {
+                DEBUG3(("  Suppressing %p\n", gpu_elem));
+                if( master ) master->device_copies[i] = NULL;
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-            cuMemFree( gpu_elem->gpu_mem_ptr );
+                cuMemFree( gpu_elem->gpu_mem_ptr );
 #else
-            gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
+                gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
 #endif
-            if( ddesc->map == gpu_elem->moesi.master->map ) {
-                gpu_elem->moesi.master->device_copies[i] = NULL;
+                item = dague_ulist_remove(gpu_device->gpu_mem_lru, item);
+                free(gpu_elem);
             }
-            free( gpu_elem );
-        }
-        while( NULL != (gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop( gpu_device->gpu_mem_owned_lru )) ) {
-            if( MOESI_OWNED == gpu_elem->moesi.coherency_state ) {
-                WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n", i, gpu_elem->moesi.master->key));
-                assert( gpu_elem->moesi.master->owner_device == i );
-            }
+        });
+        DAGUE_ULIST_ITERATOR(gpu_device->gpu_mem_owned_lru, item, {    
+            gpu_elem_t* gpu_elem = (gpu_elem_t*)item;
+            moesi_master_t* master = gpu_elem->moesi.master;
+            DEBUG3(("Considering suppresion of %p, attached to master %p, if in map %p", gpu_elem, master, ddesc->moesi_map));
+            if( !master || master->map == ddesc->moesi_map ) {
+                DEBUG3(("  Suppressing %p\n", gpu_elem));
+                if( master ) master->device_copies[i] = NULL;
+                if( MOESI_OWNED == gpu_elem->moesi.coherency_state ) {
+                    WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n", i, gpu_elem->moesi.master->key));
+                    assert( gpu_elem->moesi.master->owner_device == i );
+                }
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-            cuMemFree( gpu_elem->gpu_mem_ptr );
+                cuMemFree( gpu_elem->gpu_mem_ptr );
 #else
-            gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
+                gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
 #endif
-            if( ddesc->map == gpu_elem->moesi.master->map ) {
-                gpu_elem->moesi.master->device_copies[i] = NULL;
+                item = dague_ulist_remove(gpu_device->gpu_mem_owned_lru, item);
+                free(gpu_elem);
             }
-            free( gpu_elem );
-        }
+        });
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         gpu_malloc_fini( gpu_device->memory );
