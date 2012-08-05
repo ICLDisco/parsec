@@ -91,7 +91,7 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
         if( ACCESS_READ & access_mode ) transfer_required = -1;
         /* Update the coherency state of the others versions */
         if( ACCESS_WRITE & access_mode ) {
-            assert( MOESI_OWNED != master->coherency_state ); /* 2 writters on the same data: wrong JDF */
+            //assert( MOESI_OWNED != master->coherency_state ); /* 2 writters on the same data: wrong JDF */
             master->coherency_state = MOESI_OWNED;
             master->owner_device = (uint16_t)device;
             for( i = 0; i < map->ndevices; i++ ) {
