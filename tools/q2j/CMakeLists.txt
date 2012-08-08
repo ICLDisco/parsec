@@ -1,20 +1,14 @@
 ### Look for OMEGA
 option(DAGUE_Q2J
   "Build the JDF generator" ON)
-set(FOUND_OMEGA false)
 if(DAGUE_Q2J)
-  message(STATUS "Looking for DAGUE_OMEGA_DIR to enable DAGUE_Q2J")
-  if(DAGUE_OMEGA_DIR)
-    message(STATUS "DAGUE_OMEGA_DIR found in ${DAGUE_OMEGA_DIR}")
-    set(FOUND_OMEGA true)
-  else(DAGUE_OMEGA_DIR)
-    message(WARNING "DAGUE_OMEGA_DIR not set: disabling DAGUE_Q2J")
-    set(DAGUE_Q2J false)
-    set(FOUND_OMEGA false)
-  endif(DAGUE_OMEGA_DIR)
+  find_package(OMEGA QUIET)
 endif(DAGUE_Q2J)
 
-if(FOUND_OMEGA)
+if(OMEGA_FOUND)
+  include_directories(${OMEGA_INCLUDE_DIR})
+
+
   BISON_TARGET(dague_q2j_yacc src/q2j.y ${CMAKE_CURRENT_BINARY_DIR}/q2j.y.c)
   FLEX_TARGET(dague_q2j_flex src/q2j.l  ${CMAKE_CURRENT_BINARY_DIR}/q2j.l.c)
   ADD_FLEX_BISON_DEPENDENCY(dague_q2j_flex dague_q2j_yacc)
@@ -29,10 +23,9 @@ if(FOUND_OMEGA)
   include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR})
 
   add_executable(q2j src/omega_interface.cpp src/driver.c src/utility.c src/symtab.c ${BISON_dague_q2j_yacc_OUTPUTS} ${FLEX_dague_q2j_flex_OUTPUTS})
-  set_target_properties(q2j PROPERTIES COMPILE_FLAGS "-I${DAGUE_OMEGA_DIR}/omega_lib/include -I${DAGUE_OMEGA_DIR}/basic/include")
   set_target_properties(q2j PROPERTIES LINKER_LANGUAGE CXX)
-  set_target_properties(q2j PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
-  target_link_libraries(q2j -lm "${DAGUE_OMEGA_DIR}/omega_lib/obj/libomega.a")
+  set_target_properties(q2j PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS} ${OMEGA_LIBRARIES}")
+  target_link_libraries(q2j m omega)
   
   install(TARGETS q2j RUNTIME DESTINATION bin)
-endif(FOUND_OMEGA)
+endif(OMEGA_FOUND)
