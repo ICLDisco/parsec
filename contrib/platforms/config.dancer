@@ -72,7 +72,7 @@ if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_GPU_WITH_CUDA=OFF.*
 fi
 
 if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 ]; then 
-  Q2J="-DDAGUE_OMEGA_DIR=${OMEGA_DIR}"
+  Q2J="-DOMEGA_DIR=${OMEGA_DIR}"
 fi
 
 if [ "${PLASMA_DIR}" ]; then
