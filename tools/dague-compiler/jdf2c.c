@@ -3629,8 +3629,6 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                     "%s%s  const int %s_%s = %s;\n",
                                     prefix, indent(nbopen),
                                     prefix, indent(nbopen), targetf->fname, def->name, dump_expr((void**)def->expr, &linfo));
-            string_arena_add_string(sa_close,
-                                    "%s%s  }\n", prefix, indent(nbopen));
             nbopen++;
             string_arena_add_string(sa_open, "%s%s  %s.locals[%d].value = %s_%s;\n",
                                     prefix, indent(nbopen), var, i,
@@ -3645,8 +3643,6 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                         "%s%s  int %s_%s;\n",
                                         prefix, indent(nbopen),
                                         prefix, indent(nbopen), targetf->fname, nl->name);
-                string_arena_add_string(sa_close,
-                                        "%s%s  }\n", prefix, indent(nbopen));
                 nbopen++;
 
                 string_arena_add_string(sa_open,
@@ -3656,8 +3652,6 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                         targetf->fname, nl->name, dump_expr((void**)el->jdf_ta2, &info), targetf->fname, nl->name);
                 string_arena_add_string(sa_open, "%s) {\n",
                                         dump_expr((void**)el->jdf_ta3, &info));
-                string_arena_add_string(sa_close,
-                                        "%s%s  }\n", prefix, indent(nbopen));
                 nbopen++;
             } else {
                 string_arena_add_string(sa_open,
@@ -3665,8 +3659,6 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                         "%s%s  const int %s_%s = %s;\n",
                                         prefix, indent(nbopen),
                                         prefix, indent(nbopen), targetf->fname, nl->name, dump_expr((void**)el, &info));
-                string_arena_add_string(sa_close,
-                                        "%s%s  }\n", prefix, indent(nbopen));
                 nbopen++;
             }
 
@@ -3678,15 +3670,12 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                 string_arena_add_string(sa_open, " && (%s_%s <= (%s)) ) {\n",
                                         targetf->fname, nl->name,
                                         dump_expr((void**)def->expr->jdf_ta2, &linfo));
-                string_arena_add_string(sa_close, "%s%s  }\n",
-                                        prefix, indent(nbopen));
                 nbopen++;
             } else {
                 string_arena_add_string(sa_open,
                                         "%s%s  if( (%s_%s == (%s)) ) {\n",
                                         prefix, indent(nbopen), targetf->fname, nl->name,
                                         dump_expr((void**)def->expr, &linfo));
-                string_arena_add_string(sa_close, "%s%s  }\n", prefix, indent(nbopen));
                 nbopen++;
             }
 
@@ -3761,6 +3750,10 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                             prefix, indent(nbopen), calltext,
                             prefix, indent(nbopen));
 
+    for(i=nbopen; i>0; i--) {
+        string_arena_add_string(sa_close, "%s%s  }\n", prefix, indent(nbopen));
+        nbopen--;
+    }
     string_arena_add_string(sa_open, "%s", string_arena_get_string(sa_close));
 
     string_arena_free(sa_close);
