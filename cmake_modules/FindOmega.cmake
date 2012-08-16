@@ -20,11 +20,10 @@
 #
 ##########
 
-include(CheckIncludeFiles)
 
 if( OMEGA_DIR )
   if( NOT OMEGA_INCLUDE_DIR )
-    set(OMEGA_INCLUDE_DIR "${OMEGA_DIR}/omega_lib/include ${DAGUE_OMEGA_DIR}/basic/include")
+    set(OMEGA_INCLUDE_DIR ${OMEGA_DIR}/omega_lib/include ${OMEGA_DIR}/basic/include)
   endif( NOT OMEGA_INCLUDE_DIR )
   if( NOT OMEGA_LIBRARIES )
     set(OMEGA_LIBRARIES "${OMEGA_DIR}/omega_lib/obj")
@@ -41,17 +40,18 @@ if( NOT OMEGA_LINKER_FLAGS )
   set(OMEGA_LINKER_FLAGS)
 endif( NOT OMEGA_LINKER_FLAGS )
 
+include(CheckIncludeFileCXX)
 list(APPEND CMAKE_REQUIRED_INCLUDES ${OMEGA_INCLUDE_DIR})
 message(STATUS "Looking for omega.h in ${CMAKE_REQUIRED_INCLUDES}")
-check_include_file(omega.h FOUND_OMEGA_INCLUDE)
-if(FOUND_OMEGA_INCLUDE)
-  message(STATUS "OMEGA include files found at ${OMEGA_INCLUDE_DIR}")
-  check_library_exists("omega" setTraceType ${OMEGA_LIBRARIES} FOUND_OMEGA_LIB)
+message(STATUS "OMEGA include files found at ${OMEGA_INCLUDE_DIR}")
+find_library(OMEGA_LIB omega
+            PATHS ${OMEGA_LIBRARIES}
+            DOC "Where the Omega  libraries are")
+check_library_exists(${OMEGA_LIB} omega:initializeProblem ${OMEGA_LIBRARIES} FOUND_OMEGA_LIB)
   if( FOUND_OMEGA_LIB )
     set(OMEGA_LIBRARY "${OMEGA_LIBRARIES}/libomega.a")
     set(OMEGA_LIBRARIES "-L${OMEGA_LIBRARIES} -lomega")
   endif( FOUND_OMEGA_LIB )
-endif(FOUND_OMEGA_INCLUDE)
 
 if(FOUND_OMEGA_INCLUDE AND FOUND_OMEGA_LIB)
   set(OMEGA_FOUND TRUE)

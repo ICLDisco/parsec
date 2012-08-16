@@ -2,7 +2,7 @@
 option(DAGUE_Q2J
   "Build the JDF generator" ON)
 if(DAGUE_Q2J)
-  find_package(OMEGA QUIET)
+  find_package(Omega)
 endif(DAGUE_Q2J)
 
 if(OMEGA_FOUND)
