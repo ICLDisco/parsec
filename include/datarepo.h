@@ -211,6 +211,7 @@ static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_
                      e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
         dague_atomic_unlock(&repo->heads[h].lock);
     }
+    (void)eu;
 }
 
 #if defined(DAGUE_DEBUG_VERBOSE3)
