@@ -45,7 +45,7 @@ add_test(dgeqrf_p3 ${SHM_TEST_CMD} ./testing_dgeqrf_param -N 4000 -t 200 -i 32 -
 #
 # Distributed Memory Testings
 #
-set(MPI_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 8 -hostfile /etc/hostfile -bynode)
+set(MPI_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 8 --default-hostfile /etc/hostfile -bynode)
 if( MPI_FOUND )
   # Check MPI
   add_test(mpi_test   ${MPI_TEST_CMD} /bin/true)
