@@ -36,82 +36,25 @@ nbmaxthrd [type = "int" default="( dague_imax( 1, dague_imin( A->cores - 1, 48 )
 minMNT    [type = "int" default="( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )" hidden=on]
 
 /************************************************************************************
- *                      Tiles 2 panel (Reduction version)
- *
- *  All Gemm from step k-1 on panel n have to be finished before
- *  to apply getrf or swptrsm on panel n
- ************************************************************************************/
-/* tile2panel(k, n) [profile = off] */
-/* k = 1..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 ) */
-/* n = k..descA.nt-1 */
-
-/* :A(k, n) */
-
-/* CTL  ctl <- ctlf gemm(k-1, k..descA.mt-1, n) */
-/*          -> (n == k ) ? ctl getrf(k) : ctl swptrsm(k, n) */
-
-/************************************************************************************
  *                      Tiles 2 panel (Forward)                                     *
  *            step k on tile(m, n) is done when tile2panel(k, m, n) is released     *
  ************************************************************************************/
-tile2panel(k, m, n) [profile = off]
-  k = 0..minMNT
-  m = k+1..descA.mt-1
-  n = k+1..descA.nt-1
+tile2panel(k, n) [profile = off]
+  k = 0   .. minMNT-1
+  n = k+1 .. descA.nt-1
   ntrd = inline_c %{ return nbthreads( k+1 ); %}
 
-  :A(k, n)
+  :A(k+1, n)
 
-  CTL  ctl1 <- ctl gemm(k, m, n)
-  CTL  ctl2 <- (m > k+1        ) ? ctl2 tile2panel(k, m-1, n)
-            -> (m < descA.mt-1 )  ? ctl2 tile2panel(k, m+1, n)
-            -> ((m == descA.mt-1 ) && (n == k+1)) ? ctl  getrf(k+1, 0..ntrd)
-            -> ((m == descA.mt-1 ) && (n >  k+1)) ? ctl  swptrsm(k+1, n)
-            -> ( m == descA.mt-1 ) ? ctl1 subm2panel(k, n)
+  CTL  ctl <- ctl gemm(k, k+1..descA.mt-1, n)
+           -> (n == (k+1)) ? ctl getrf(k+1, 0..ntrd)
+           -> (n >  (k+1)) ? ctl swptrsm(k+1, n)
+           -> ctl swpback(k+1, k)
 
   ;descA.nt-n-1
 BODY
 {
-    printlog("tile2panel( %d, %d, %d )\n", k, m, n);
-}
-END
-
-/************************************************************************************
- *                    Submatrix 2 panel (backward)
- *
- * All the GEMM applied to the submatrix at step k-1 have to performed
- * before to do backward substitution from step k on previous panel
- *
- ************************************************************************************/
-/* subm2panel(k, n) [profile = off] */
-/* k = 1..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 ) */
-
-/* :A(k, k-1) */
-
-/* CTL  ctl1 <- ctlb gemm(k-1, k..descA.mt-1, k+1..descA.nt-1) */
-/*           -> ctl swpback(k, k-1) */
-/* BODY */
-/*      printlog("tile2panel( %d, %d, %d )\n",  m, n, k); */
-/* END */
-
-/************************************************************************************
- *                    Submatrix 2 panel (backward)                                  *
- *       Step k on panel n is is done when subm2panel(k,n) is released              *
- ************************************************************************************/
-subm2panel(k, n) [profile = off]
-  k = 0..minMNT
-  n = k+1..descA.nt-1
-
-  :A(k, n)
-
-  CTL  ctl1 <- ctl2 tile2panel(k, descA.mt-1, n)
-  CTL  ctl2 <- (n > k+1) ? ctl2 subm2panel(k, n-1)
-            -> (n < descA.nt-1) ? ctl2 subm2panel(k, n+1) : ctl swpback(k+1, k)
-
-  ;0
-BODY
-{
-    printlog("subm2panel( %d, %d )\n", k, n);
+    printlog("tile2panel( %d, %d )\n", k, n);
 }
 END
 
@@ -163,7 +106,7 @@ getrf(k, t) [high_priority = on]
              -> ((t==0) && (k > 0)         )   ? IPIV bcastback(k)                  [type = PIVOT]
 //           -> ((t==0) && (k > 0)         )   ? IPIV swpback(k, 0 .. k-1)          [type = PIVOT]
 
-  CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, descA.mt-1, k)
+  CTL   ctl  <- (k > 0) ? ctl tile2panel(k-1, k)
              -> (t == 0) && (k < descA.mt-1) ? ctl GEMM_A_in(k, k+1..descA.mt-1)
 
 /* Priority */
@@ -237,7 +180,7 @@ swptrsm(k, n)
           /* <- A(k..descA.mt-1, n) : C gemm(k-1, k..descA.mt-1, n) */
              -> (k < descA.mt-1) ? B gemm(k, k+1..descA.mt-1, n)
              -> A(k, n)
-  CTL   ctl  <- ( k > 0 ) ? ctl2 tile2panel(k-1, descA.mt-1, n)
+  CTL   ctl  <- ( k > 0 ) ? ctl tile2panel(k-1, n)
 
 /* Priority */
 ;descA.nt-n-1
@@ -314,7 +257,7 @@ gemm(k, m, n)
            -> ( k+1 == n ) && ( k+1 <  m ) ? A GEMM_A_in(k+1, m)
            -> ( k+1 <  n ) && ( k+1 == m ) ? B swptrsm(k+1, n)
            -> ( k+1 <  n ) && ( k+1 <  m ) ? C gemm(k+1, m, n)
-  CTL  ctl -> ctl1 tile2panel(k, m, n)
+  CTL  ctl -> (k < minMNT) ? ctl tile2panel(k, n)
 
     /* Priority */
 ;descA.nt-n-1
@@ -370,9 +313,9 @@ swpback(k, n)
   RW    A    <- A(k, n)
              -> A(k, n)
 
-  CTL   ctl  <- (n == (k-1)) ? ctl2 subm2panel(k-1, descA.nt-1)
-             <- (n <  (k-1)) ? ctl  swpback(k-1, n)
-             -> (k < minMNT) ? ctl  swpback(k+1, n)
+  CTL   ctl  <- (n == (k-1)) ? ctl tile2panel(n, k..descA.nt-1)
+             <- (n <  (k-1)) ? ctl swpback(k-1, n)
+             -> (k < minMNT) ? ctl swpback(k+1, n)
 
 /* Priority */
 ;0
