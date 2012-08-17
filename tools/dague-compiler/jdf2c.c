@@ -1283,7 +1283,8 @@ static void jdf_generate_symbols( const jdf_t *jdf, const jdf_def_list_t *def, c
     string_arena_free(sa);
 }
 
-static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const char *tname, const char *fname, const jdf_expr_t *params)
+static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const char *tname, const char *fname, const jdf_expr_t *params,
+                                            const jdf_def_list_t *context)
 {
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
@@ -1293,68 +1294,69 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const char *tname,
     const jdf_function_entry_t *f;
     const jdf_name_list_t *pl;
     int i;
+    assignment_info_t ai;
 
     for(f = jdf->functions; f != NULL; f = f->next) {
         if(!strcmp(tname, f->fname))
             break;
     }
-    
     assert(f != NULL);
 
     coutput("static inline int %s_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)__dague_object_parent;\n"
             "  int   __nb_found = 0;\n"
-            "  (void)__dague_object;\n", 
-            fname, 
+            "  (void)__dague_object;\n",
+            fname,
             jdf_basename, jdf_basename);
 
-    i = 0;
-    for(le = params, pl = f->parameters; NULL != le; pl = pl->next, le = le->next) {
-        i++;
-    }
-    coutput("  assignment_t asscp[%d];\n", i);
+    /* i = 0; */
+    /* for(le = params, pl = f->parameters; NULL != le; pl = pl->next, le = le->next) { */
+    /*     i++; */
+    /* } */
 
     info1.sa = sa1;
     info1.prefix = "";
-    info1.assignments = "asscp";
+    info1.assignments = "assignments";
 
     info2.sa = sa2;
     info2.prefix = "";
-    info2.assignments = "asscp";
+    info2.assignments = "assignments";
 
     info3.sa = sa3;
     info3.prefix = "";
-    info3.assignments = "asscp";
+    info3.assignments = "assignments";
 
-    for(le = params, pl = f->parameters; NULL != le; pl = pl->next, le = le->next) {
-        coutput("  int %s;\n", pl->name);
-    }
-
-    coutput("  (void)assignments;\n"
-            "  (void)asscp;\n");
+    ai.sa = sa2;
+    ai.idx = 0;
+    ai.holder = "assignments";
+    ai.expr = NULL;
+    coutput( "%s",
+             UTIL_DUMP_LIST(sa1, context, next,
+                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
+    coutput( "%s\n",
+             UTIL_DUMP_LIST_FIELD(sa2, context, next, name, dump_string, NULL,
+                                  "  ", "(void)", "; ", ";"));
 
     i = 0;
-    for(pl = f->parameters, le = params; NULL != le; pl = pl->next, le = le->next) { 
+    for(pl = f->parameters, le = params; NULL != le; pl = pl->next, le = le->next) {
         if( le->op == JDF_RANGE ) {
-            coutput("%s  for(%s  = %s;\n"
-                    "%s      %s <= %s;\n"
-                    "%s      %s += %s) {\n"
-                    "%s    asscp[%d].value = %s;\n",
-                    indent(i), pl->name, dump_expr( (void**)le->jdf_ta1, &info1 ),
-                    indent(i), pl->name, dump_expr( (void**)le->jdf_ta2, &info2 ),
-                    indent(i), pl->name, dump_expr( (void**)le->jdf_ta3, &info3 ),
-                    indent(i), i, pl->name);
-            i++;
-        } else {
-            coutput("%s  %s = %s;\n"
-                    "%s  asscp[%d].value = %s;\n", 
-                    indent(i), pl->name, dump_expr( (void**)le, &info1 ),
-                    indent(i), i, pl->name);
+            coutput("%s  {\n"
+                    "%s    int %s_%s;\n"
+                    "%s    for(%s_%s  = %s;\n"
+                    "%s        %s_%s <= %s;\n"
+                    "%s        %s_%s += %s) {\n",
+                    indent(i),
+                    indent(i), f->fname, pl->name,
+                    indent(i), f->fname, pl->name, dump_expr( (void**)le->jdf_ta1, &info1 ),
+                    indent(i), f->fname, pl->name, dump_expr( (void**)le->jdf_ta2, &info2 ),
+                    indent(i), f->fname, pl->name, dump_expr( (void**)le->jdf_ta3, &info3 ));
+            i+=2;
         }
     }
     coutput("%s  __nb_found++;\n", indent(i));
-    for(; i > 0; i--) {
+    i--;
+    for(; i > -1; i--) {
         coutput("%s  }\n", indent(i));
     }
     coutput("  return __nb_found;\n"
@@ -1397,7 +1399,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
             string_arena_add_string(sa2, "&ctl_gather_compute_for_dep_%s",
                                     depname);
             //                                                         skip the & at the beginning
-            jdf_generate_ctl_gather_compute(jdf, call->func_or_mem, string_arena_get_string(sa2)+1, call->parameters);
+            jdf_generate_ctl_gather_compute(jdf, call->func_or_mem, string_arena_get_string(sa2)+1, call->parameters, context);
             ret = 0;
         } else {
             string_arena_add_string(sa2, "NULL");
