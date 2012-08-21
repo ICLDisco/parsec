@@ -793,7 +793,6 @@ static void do_rename_ivar(char *iv_str, char *new_name, node_t *node){
 
     if( IDENTIFIER == node->type ){
        if( strcmp(node->u.var_name, iv_str) == 0 ){
-//printf("Changing %s of parent %s:%s to %s\n",tree_to_str(node), DA_type_name(node->parent), tree_to_str(node->parent), new_name);
            node->u.var_name = new_name;
        }
     }
@@ -1098,8 +1097,8 @@ int replace_induction_variable_in_body(node_t *node, node_t *ivar, node_t *repla
         int i;
         for(i=0; i<node->u.kids.kid_count; ++i){
             ret = replace_induction_variable_in_body(node->u.kids.kids[i], ivar, replacement);
-            // If this kid is the induction variable, then let's replace it
-            if( ret ){
+            // If this kid is the induction variable, but not as a member of a struct, or union, then let's replace it
+            if( ret && (S_U_MEMBER != node->type) ){
                 node->u.kids.kids[i] = replacement;
             }
         }
@@ -1978,6 +1977,8 @@ const char *type_to_symbol(int type){
             return "!=";
         case COMMA_EXPR:
             return ",";
+        case S_U_MEMBER:
+            return "STRUCT_or_UNION";
     }
     return "???";
 }
