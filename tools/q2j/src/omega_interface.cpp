@@ -81,6 +81,7 @@ static inline bool is_phony_Exit_task(task_t *task);
 static bool inline is_enclosed_by_else(node_t *node, node_t *branch);
 static inline void flip_sign(expr_t *exp);
 static inline bool is_negative(expr_t *exp);
+const char *type_to_str(int type);
 
 #if 0
 void dump_all_uses(und_t *def, var_t *head){
@@ -209,6 +210,16 @@ void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<s
         case INTCONSTANT:
             handle.update_const(sign*DA_int_val(node));
             break;
+        case EXPR:
+            if( MINUS == DA_exp_lhs(node)->type ){
+                handle.update_const(sign*DA_int_val(DA_exp_rhs(node)));
+                break;
+            }else{
+                fprintf(stderr,"expr_to_Omega_coef(): Can't turn arbitrary expression into Omega expression.\n");
+                fprintf(stderr,"expr:%s\n", tree_to_str(node));
+                assert(0);
+            }
+            break;
         case S_U_MEMBER:
             var_name = tree_to_str(node);
         case IDENTIFIER:
@@ -240,8 +251,9 @@ void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<s
             expr_to_Omega_coef(node->u.kids.kids[1], handle, -sign, vars, R);
             break;
         default:
-            fprintf(stderr,"expr_to_Omega_coef(): Can't turn type \"%d (%x)\" into Omega expression.\n",node->type, node->type);
-            exit(-1);
+            fprintf(stderr,"expr_to_Omega_coef(): Can't turn type \"%s (%d %x)\" into Omega expression.\n", type_to_str(node->type), node->type, node->type);
+            fprintf(stderr,"expr:%s\n", tree_to_str(node));
+            assert(0);
     }
     return;
 }
@@ -295,12 +307,13 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
     Variable_ID ivar;
     GEQ_Handle imax;
     F_And *new_and;
+    node_t *lhs;
 
     switch( node->type ){
         case L_AND:
             new_and = R_root->add_and();
-            process_end_condition(node->u.kids.kids[0], new_and, ivars, lb, R);
-            process_end_condition(node->u.kids.kids[1], new_and, ivars, lb, R);
+            process_end_condition(DA_kid(node,0), new_and, ivars, lb, R);
+            process_end_condition(DA_kid(node,1), new_and, ivars, lb, R);
             break;
 // TODO: handle logical or (L_OR) as well.
 //F_Or *or1 = R_root->add_or();
@@ -320,6 +333,12 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
             }
             break;
         case LE:
+#if defined(DEBUG_Q2J)
+            fprintf(stderr,"DEBUG: This is correct, but why did canonicalization not convert this econd to LT?\n");
+            dump_tree(node);
+            assert(0);
+#endif
+
             ivar = ivars[DA_var_name(DA_rel_lhs(node))];
             imax = R_root->add_GEQ();
             expr_to_Omega_coef(DA_rel_rhs(node), imax, 1, ivars, R);
@@ -333,7 +352,7 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
             break;
         default:
             fprintf(stderr,"ERROR: process_end_condition() cannot deal with node of type: %s in: \"%s\"\n", DA_type_name(node),tree_to_str(node) );
-            exit(-1);
+            assert(0);
     }
 
 }
