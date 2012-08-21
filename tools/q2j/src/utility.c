@@ -27,6 +27,10 @@
 #define TASK_IN  0
 #define TASK_OUT 1
 
+#define IVAR_NOT_FOUND 0
+#define IVAR_IS_LEFT   1
+#define IVAR_IS_RIGHT -1
+
 extern char *q2j_input_file_name;
 extern int _q2j_generate_line_numbers;
 
@@ -71,6 +75,11 @@ static void add_exit_task_loops(matrix_variable_t *list, node_t *node);
 static matrix_variable_t *quark_find_all_matrices(node_t *node);
 static int is_definition_seen(dague_list_t *var_def_list, char *param);
 static void mark_definition_as_seen(dague_list_t *var_def_list, char *param);
+static int is_acceptable_econd(node_t *node, char *ivar);
+static int is_id_or_mul(node_t *node, char *ivar);
+static int is_decrementing(node_t *node);
+void convert_loop_from_decr_to_incr(node_t *node);
+int replace_induction_variable_in_body(node_t *node, node_t *ivar, node_t *replacement);
 
 //#if 0
 void dump_und(und_t *und){
@@ -853,7 +862,7 @@ void rename_induction_variables(node_t *node){
     }
 
     switch( node->type ){
-        case FOR: // TODO: we should also deal "while" and "do-while"
+        case FOR:
             iv_node = DA_loop_induction_variable(node);
             iv_str = DA_var_name(iv_node);
 
@@ -955,19 +964,82 @@ char *append_to_string(char *str, const char *app, const char *fmt, size_t add_l
 }
 
 
+static int is_id_or_mul(node_t *node, char *ivar){
+    /* If it's the induction variable, we are good */
+    if( IDENTIFIER == node->type ){
+        char *name = DA_var_name(node);
+        if( (NULL != name) && !strcmp(ivar, name) ){
+            return 1;
+        }
+    }
+    /* If it's a multiplication, check if it includes the induction variable. */
+    /* If so, we are good */
+    if( (MUL == node->type) ){
+        if( is_id_or_mul( DA_rel_lhs(node), ivar) || is_id_or_mul( DA_rel_rhs(node), ivar) ){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int is_acceptable_econd(node_t *node, char *ivar){
+    node_t *kid;
+
+    assert( NULL != ivar );
+
+    /* Make sure this is a comparison expression */
+    if( !DA_is_rel(node) ){
+        return IVAR_NOT_FOUND;
+    }
+
+    /* Examine the left hand side of the expression */
+    kid = DA_rel_lhs(node);
+    if( is_id_or_mul(kid, ivar) ){
+        return IVAR_IS_LEFT;
+    }
+    /* Examine the right hand side of the expression */
+    kid = DA_rel_rhs(node);
+    if( is_id_or_mul(kid, ivar) ){
+        return IVAR_IS_RIGHT;
+    }
+
+    return IVAR_NOT_FOUND;
+}
+
 
 static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
-    node_t *tmp;
+    node_t *tmp=NULL;
+    int ivar_side;
+    node_t *lhs, *rhs;
 
-    if( (IDENTIFIER != DA_rel_lhs(node)->type) && (IDENTIFIER != DA_rel_rhs(node)->type) ){
+    ivar_side = is_acceptable_econd(node, DA_var_name(ivar));
+    if( IVAR_NOT_FOUND == ivar_side ){
+        switch( node->type ){
+            case L_AND:
+                lhs = _DA_canonicalize_for_econd(DA_kid(node,0),ivar);
+                rhs = _DA_canonicalize_for_econd(DA_kid(node,1),ivar);
+                if( NULL == lhs || NULL == rhs ){
+                    break;
+                }
+                tmp = DA_create_B_expr(L_AND, lhs, rhs);
+                return tmp;
+            case L_OR:
+                lhs = _DA_canonicalize_for_econd(DA_kid(node,0),ivar);
+                rhs = _DA_canonicalize_for_econd(DA_kid(node,1),ivar);
+                if( NULL == lhs || NULL == rhs ){
+                    break;
+                }
+                tmp = DA_create_B_expr(L_OR, lhs, rhs);
+                return tmp;
+        }
         printf("Cannot canonicalize end condition of for() loop: ");
         dump_tree(*node, 0);
         printf("\n");
-        return NULL;
+        assert(0);
     }
 
     // If the variable is on the left hand side
-    if( (IDENTIFIER == DA_rel_lhs(node)->type) && !strcmp(ivar->u.var_name, (DA_rel_lhs(node)->u.var_name)) ){
+    if( IVAR_IS_LEFT == ivar_side ){
         switch( node->type ){
             case LT:  // since the var is in the left, do nothing, that's the canonical form.
                 return node;
@@ -977,12 +1049,13 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
                 tmp = DA_create_relation(LT, DA_rel_lhs(node), tmp);
                 return tmp;
 
-            case GE:  // subtract one from the RHS and convert GE to GT
+            // If the variable is on the left and we have a GE or GT,
+            // then we are in a loop that uses a decrementing modifier.
+            case GE:  // subtract one from the RHS to convert GE to GT
                 tmp = DA_create_B_expr(SUB, DA_rel_rhs(node), DA_create_Int_const(1));
-                tmp = DA_create_relation(GT, DA_rel_lhs(node), tmp);
-                // call myself again to flip the GT to LT
-                tmp = _DA_canonicalize_for_econd(tmp, ivar);
                 return tmp;
+            case GT:  // There is nothing I can do here, convert_loop_from_decr_to_incr() will take care of this.
+                return node;
 
             default: 
                 printf("Cannot canonicalize end condition of for() loop: ");
@@ -990,7 +1063,7 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
                 printf("\n");
                 break;
         }
-    }else if( (IDENTIFIER == DA_rel_rhs(node)->type) && !strcmp(ivar->u.var_name, (DA_rel_rhs(node)->u.var_name)) ){
+    }else if( IVAR_IS_RIGHT == ivar_side ){
         // If the variable is on the RHS, flip the relation operator, exchange LHS and RHS and call myself again.
         tmp = DA_create_relation(DA_flip_rel_op(node->type), DA_rel_rhs(node), DA_rel_lhs(node));
         tmp = _DA_canonicalize_for_econd(tmp, ivar);
@@ -1001,9 +1074,111 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
 }
 
 
+int replace_induction_variable_in_body(node_t *node, node_t *ivar, node_t *replacement){
+    int ret;
+
+    if( IDENTIFIER == node->type ){
+        char *str1 = DA_var_name(ivar);
+        char *str2 = DA_var_name(node);
+        if( (NULL != str1) && (NULL != str2) && !strcmp(str1, str2) ){
+            return 1;
+        }
+    }
+
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            ret = replace_induction_variable_in_body(tmp, ivar, replacement);
+            // The induction variable should never appear as a top level
+            // statement inside the body of the loop.  Only as a leaf of an subtree.
+            assert( !ret );
+        }
+    }else{
+        int i;
+        for(i=0; i<node->u.kids.kid_count; ++i){
+            ret = replace_induction_variable_in_body(node->u.kids.kids[i], ivar, replacement);
+            // If this kid is the induction variable, then let's replace it
+            if( ret ){
+                node->u.kids.kids[i] = replacement;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int is_decrementing(node_t *node){
+    int rslt = 0;
+    node_t *modifier = DA_for_modifier(node);
+
+    switch(modifier->type){
+        case EXPR: // ++ or --
+            if( (INC_OP == DA_exp_lhs(modifier)->type) || (INC_OP == DA_exp_rhs(modifier)->type) ){
+                rslt = 0;
+            }else if( (DEC_OP == DA_exp_lhs(modifier)->type) || (DEC_OP == DA_exp_rhs(modifier)->type) ){
+                rslt = 1;
+            }
+            break;
+        case ADD_ASSIGN: // +=
+            rslt = 0;
+            break;
+        case SUB_ASSIGN: // -=
+            rslt = 1;
+            break;
+        default:
+            printf("Cannot analyze modifier type \"%s\" of for() loop: ", DA_type_name(modifier));
+            dump_tree(*node, 0);
+            printf("\n");
+            assert(0);
+    }
+    return rslt;
+}
+
+/*
+ * This function assumes that the loop end-condition has already
+ * been canonicalized to "ivar < B" or "ivar > B" form.
+ */
+void convert_loop_from_decr_to_incr(node_t *loop){
+    node_t *n0, *n1;
+    node_t *ivar, *lb, *ub, *new_ub;
+    node_t *scond, *econd, *incr, *expr;
+
+    // extract the three parts of the current for() loop
+    n0 = DA_for_scond(loop);
+    n1 = DA_for_econd(loop);
+
+    // get the induction variable of the loop
+    ivar = DA_assgn_lhs(n0);
+    // get the upper bound of the loop, from the starting condition
+    ub = DA_assgn_rhs(n0);
+    // get the lower bound of the loop, from the ending condition
+    lb = DA_assgn_rhs(n1);
+
+    // compute the new upper bound (ub-lb), given that the
+    // canonicalized loop will have zero as its lower bound.
+    new_ub = DA_create_B_expr( SUB, ub, lb );
+
+    scond = DA_create_B_expr( ASSIGN, ivar, DA_create_Int_const(0) );
+    econd = DA_create_B_expr( LT,     ivar, new_ub );
+    incr  = DA_create_B_expr( EXPR,   ivar, DA_create_Unary(INC_OP) );
+
+    // These are macros that expand to struct fields, so we can assign to them
+    DA_for_scond(loop)    = scond;
+    DA_for_econd(loop)    = econd;
+    DA_for_modifier(loop) = incr;
+
+    // We need to replace all occurances of the induction variable (ivar)
+    // in the body of this loop with ub-ivar, where ub is the
+    // starting condition of the original loop, not the new_ub.
+    expr = DA_create_B_expr( SUB, ub, ivar );
+    replace_induction_variable_in_body(DA_for_body(loop), ivar, expr);
+
+    return;
+}
+
 /* TODO: This needs a lot more work to become a general canonicalization function */
 int DA_canonicalize_for(node_t *node){
-    node_t *ivar, *econd, *tmp;
+    node_t *ivar, *tmp;
 
     if( FOR != node->type){
         return 0;
@@ -1021,35 +1196,19 @@ int DA_canonicalize_for(node_t *node){
         return 0;
     }
 
-    // Extract the end condition and make sure it's a relation.
-    econd = DA_for_econd(node);
-    if( !DA_is_rel(econd) ){
-        return 0;
-    }
-
     // Canonicalize the end condition (the middle statement of the for)
-    tmp = _DA_canonicalize_for_econd(econd, ivar);
+    tmp = _DA_canonicalize_for_econd(DA_for_econd(node), ivar);
     if( NULL == tmp ){
         return 0;
     }
-
-//#error "HERE"
-// turn: 
-// for(i=B; i><E1 && i><E2; i+=S) into:
-//
-// U1 = abs(E1-B) / abs(S);
-// if( abs(E1-B) % abs(S) )
-//     U1 += 1;
-// U2 = abs(E2-B) / abs(S);
-// if( abs(E2-B) % abs(S) )
-//     U2 += 1;
-// for(ii=0; ii<U1 && ii<U2; ii++){
-//     i = B+ii*S;
-// }
-// i = B+ii*S;
-//  
-
     DA_for_econd(node) = tmp;
+
+    // Check if the loop is incrementing or decrementing the induction variable
+    // for(i=LB; i<UB; i++) or for(i=UB; i>LB; i--)
+    // If it is the latter, convert it into the former
+    if( is_decrementing(node) ){
+        convert_loop_from_decr_to_incr(node);
+    }
 
     return 1;
 }
@@ -1198,6 +1357,48 @@ node_t *DA_create_Exit(){
     return node_to_ptr(rslt);
 }
 
+node_t *DA_exp_to_ind(node_t *node){
+    node_t *lhs, *rhs;
+    switch(node->type){
+        case MUL:
+            lhs = node->u.kids.kids[0];
+            rhs = node->u.kids.kids[1];
+
+            assert( INTCONSTANT == lhs->type || INTCONSTANT == rhs->type );
+            if( INTCONSTANT == lhs->type ){
+                return rhs;
+            }else{
+                return lhs;
+            }
+    }
+
+    return node;
+}
+
+/* 
+ * This function expects to find something like
+ * "3*x", or "x*3" in which case it returns "3".
+ * If it finds anything else, it returns 1
+ */
+int DA_exp_to_const(node_t *node){
+    node_t *lhs, *rhs;
+    switch(node->type){
+        case MUL:
+            lhs = node->u.kids.kids[0];
+            rhs = node->u.kids.kids[1];
+
+            assert( INTCONSTANT == lhs->type || INTCONSTANT == rhs->type );
+            if( INTCONSTANT == lhs->type ){
+                return DA_int_val(lhs);
+            }else if( INTCONSTANT == rhs->type ){
+                return DA_int_val(rhs);
+            }
+    }
+
+    return 1;
+}
+
+
 int DA_flip_rel_op(int type){
     switch(type){
         case LT:
@@ -1272,19 +1473,6 @@ int DA_is_loop(node_t *node){
     return 0;
 }
 
-/*
- * If the node is a variable, return it's name.
- */
-char *DA_var_name(node_t *node){
-    if( NULL == node )
-        return NULL;
-
-    switch(node->type){
-        case IDENTIFIER:
-            return node->u.var_name;
-    }
-    return NULL;
-}
 
 static int DA_quark_LOCALITY_FLAG(node_t *node){
     int rslt1, rslt2;
@@ -1690,16 +1878,16 @@ node_t *DA_loop_induction_variable(node_t *loop){
         case FOR:
             n0 = DA_for_scond(loop);
             n1 = DA_for_econd(loop);
-            n2 = DA_for_incrm(loop);
+            n2 = DA_for_modifier(loop);
             assert( (NULL != n0) && (NULL != n1) && (NULL != n2) );
             if( ASSIGN != n0->type ){
                 fprintf(stderr,"Don't know how to extract induction variable from type: %s\n",DA_type_name(n0));
-                return NULL;
+                assert(0);
             }
             tmp = DA_assgn_lhs(n0);
             if( IDENTIFIER != tmp->type ){
                 fprintf(stderr,"Don't know how to deal with LHS of type: %s\n",DA_type_name(tmp));
-                return NULL;
+                assert(0);
             }
 
             return tmp;
@@ -1815,8 +2003,11 @@ static char *find_definition(char *var_name, node_t *node){
         for(curr=node->prev; NULL!=curr; curr=curr->prev){
             if( ASSIGN == curr->type ){
                 tmp = DA_assgn_lhs(curr);
-                if( IDENTIFIER == tmp->type && !strcmp(DA_var_name(tmp), var_name) ){
-                    return tree_to_str( curr );
+                if( IDENTIFIER == tmp->type ){
+                    char *name = DA_var_name(tmp);
+                    if( (NULL != name) && !strcmp(name, var_name) ){
+                        return tree_to_str( curr );
+                    }
                 }
             }
         }
@@ -2304,6 +2495,9 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
 
             case INC_OP:
                 return strdup("++");
+
+            case DEC_OP:
+                return strdup("--");
 
             case SIZEOF:
                 str = strdup("sizeof(");

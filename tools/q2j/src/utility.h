@@ -62,6 +62,8 @@ node_t *DA_loop_ub(node_t *node);
 node_t *DA_if_condition(node_t *node);
 node_t *DA_if_then_body(node_t *node);
 node_t *DA_if_else_body(node_t *node);
+node_t *DA_exp_to_ind(node_t *node);
+int     DA_exp_to_const(node_t *node);
 
 node_t *DA_create_ID(char *name);
 node_t *DA_create_Int_const(int64_t val);
@@ -116,15 +118,18 @@ void dump_und(und_t *und);
 #define DA_assgn_rhs(_N_)  DA_kid((_N_), 1)
 #define DA_rel_lhs(_N_)    DA_kid((_N_), 0)
 #define DA_rel_rhs(_N_)    DA_kid((_N_), 1)
+#define DA_exp_lhs(_N_)    DA_kid((_N_), 0)
+#define DA_exp_rhs(_N_)    DA_kid((_N_), 1)
 #define DA_for_body(_N_)   DA_kid((_N_), 3)
 #define DA_for_scond(_N_)  DA_kid((_N_), 0)
 #define DA_for_econd(_N_)  DA_kid((_N_), 1)
-#define DA_for_incrm(_N_)  DA_kid((_N_), 2)
+#define DA_for_modifier(_N_)  DA_kid((_N_), 2)
 #define DA_while_cond(_N_) DA_kid((_N_), 0)
 #define DA_while_body(_N_) DA_kid((_N_), 1)
 #define DA_do_cond(_N_)    DA_kid((_N_), 0)
 #define DA_do_body(_N_)    DA_kid((_N_), 1)
-#define DA_func_name(_N_)  (( DA_kid((_N_), 0)->type == IDENTIFIER ) ? DA_kid((_N_), 0)->u.var_name : NULL)
+#define DA_func_name(_N_)  (( (NULL!=(_N_)) && (DA_kid((_N_), 0)->type == IDENTIFIER) ) ? DA_kid((_N_), 0)->u.var_name : NULL)
+#define DA_var_name(_N_)   (( (NULL!=(_N_)) && ((_N_)->type == IDENTIFIER) ) ? (_N_)->u.var_name : NULL)
 #define DA_int_val(_N_)    ((_N_)->const_val.i64_value)
 
 
