@@ -16,6 +16,7 @@ int _q2j_verbose_warnings      = 0;
 int _q2j_add_phony_tasks       = 0;
 int _q2j_finalize_antideps     = 0;
 int _q2j_generate_line_numbers = 0;
+int _q2j_dump_mapping          = 0;
 extern FILE *yyin;
 
 void usage(char *pname);
@@ -37,6 +38,8 @@ int main(int argc, char **argv){
                 _q2j_generate_line_numbers = 1;
             }else if( !strcmp(argv[argc],"-anti") ){
                 _q2j_finalize_antideps = 1;
+            }else if( !strcmp(argv[argc],"-mapping") ){
+                _q2j_dump_mapping = 1;
             }else if( !strcmp(argv[argc],"-v") ){
                 _q2j_verbose_warnings = 1;
             }else{

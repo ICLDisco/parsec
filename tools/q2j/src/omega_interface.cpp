@@ -50,6 +50,7 @@ extern int _q2j_produce_shmem_jdf;
 extern int _q2j_verbose_warnings;
 extern int _q2j_add_phony_tasks;
 extern int _q2j_finalize_antideps;
+extern int _q2j_dump_mapping;
 
 #if 0
 extern void dump_und(und_t *und);
@@ -3611,50 +3612,51 @@ static Relation process_and_print_execution_space(node_t *node){
 static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps){
     set<dep_t *>::iterator it;
     map<string, string> pseudo_vars;
-
+    
    // Create a mapping between pseudo_variables and actual variables
 
    // OUTGOING
     for (it=out_deps.begin(); it!=out_deps.end(); it++){
-       dep_t *dep = *it;
-       // WARNING: This is needed by Omega. If you remove it you get strange
-       // assert() calls being triggered inside the Omega library.
-       (void)(*dep->rel).print_with_subs_to_string(false);
-
-       if( NULL != dep->src->task ){
-           pseudo_vars[dep->src->var_symname] = tree_to_str(dep->src);
-       }
-       if( NULL != dep->dst ){
-           pseudo_vars[dep->dst->var_symname] = tree_to_str(dep->dst);
-       }
-   }
-
-   // INCOMING
-   for (it=in_deps.begin(); it!=in_deps.end(); it++){
-       dep_t *dep = *it;
-       // WARNING: This is needed by Omega. If you remove it you get strange
-       // assert() calls being triggered inside the Omega library.
-       (void)(*dep->rel).print_with_subs_to_string(false);
-
-       Q2J_ASSERT( NULL != dep->dst);
-       pseudo_vars[dep->dst->var_symname] = tree_to_str(dep->dst);
-
-       if( NULL != dep->src->task ){
-           pseudo_vars[dep->src->var_symname] = tree_to_str(dep->src);
-       }
-   }
-
-   // Dump the map.
-   map<string, string>::iterator pvit;
-   for (pvit=pseudo_vars.begin(); pvit!=pseudo_vars.end(); pvit++){
-       /*
-        * JDF & QUARK specific optimization:
-        * Add the keyword "data_" infront of the matrix to
-        * differentiate the matrix from the struct.
-        */
-       printf("  /* %s == data_%s */\n",(pvit->first).c_str(), (pvit->second).c_str());
-   }
-
+        dep_t *dep = *it;
+        // WARNING: This is needed by Omega. If you remove it you get strange
+        // assert() calls being triggered inside the Omega library.
+        (void)(*dep->rel).print_with_subs_to_string(false);
+        
+        if( NULL != dep->src->task ){
+            pseudo_vars[dep->src->var_symname] = tree_to_str(dep->src);
+        }
+        if( NULL != dep->dst ){
+            pseudo_vars[dep->dst->var_symname] = tree_to_str(dep->dst);
+        }
+    }
+    
+    // INCOMING
+    for (it=in_deps.begin(); it!=in_deps.end(); it++){
+        dep_t *dep = *it;
+        // WARNING: This is needed by Omega. If you remove it you get strange
+        // assert() calls being triggered inside the Omega library.
+        (void)(*dep->rel).print_with_subs_to_string(false);
+        
+        Q2J_ASSERT( NULL != dep->dst);
+        pseudo_vars[dep->dst->var_symname] = tree_to_str(dep->dst);
+        
+        if( NULL != dep->src->task ){
+            pseudo_vars[dep->src->var_symname] = tree_to_str(dep->src);
+        }
+    }
+    
+    // Dump the map.
+    if( _q2j_dump_mapping ){
+        map<string, string>::iterator pvit;
+        for (pvit=pseudo_vars.begin(); pvit!=pseudo_vars.end(); pvit++){
+            /*
+             * JDF & QUARK specific optimization:
+             * Add the keyword "data_" infront of the matrix to
+             * differentiate the matrix from the struct.
+             */
+            printf("  /* %s == data%s */\n",(pvit->first).c_str(), (pvit->second).c_str());
+        }
+    }
 }
 
 // We are assuming that all leaves will be kids of a MUL or a DIV, or they will be an INTCONSTANT
