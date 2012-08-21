@@ -17,6 +17,13 @@ int _q2j_add_phony_tasks       = 0;
 int _q2j_finalize_antideps     = 0;
 int _q2j_generate_line_numbers = 0;
 int _q2j_dump_mapping          = 0;
+
+/* 
+ * Add the keyword _q2j_data_prefix infront of the matrix name to
+ * differentiate the matrix from the data used in the kernels.
+ */
+char *_q2j_data_prefix = "data";
+
 extern FILE *yyin;
 
 void usage(char *pname);

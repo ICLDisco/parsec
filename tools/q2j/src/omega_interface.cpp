@@ -51,6 +51,7 @@ extern int _q2j_verbose_warnings;
 extern int _q2j_add_phony_tasks;
 extern int _q2j_finalize_antideps;
 extern int _q2j_dump_mapping;
+extern char *_q2j_data_prefix;
 
 #if 0
 extern void dump_und(und_t *und);
@@ -3011,7 +3012,7 @@ void print_types_of_formal_parameters(node_t *root){
         for(sym=scope->symbols; NULL!=sym; sym=sym->next){
             if( !strcmp(sym->var_type, "PLASMA_desc") ){
                 printf("desc%-5s [type = \"PLASMA_desc\"]\n",sym->var_name);
-                printf("data%-5s [type = \"dague_ddesc_t *\"]\n",sym->var_name);
+                printf("%s%-5s [type = \"dague_ddesc_t *\"]\n", _q2j_data_prefix, sym->var_name);
             }else{
                 printf("%-9s [type = \"%s\"]\n",sym->var_name, sym->var_type);
             }
@@ -3651,10 +3652,10 @@ static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps){
         for (pvit=pseudo_vars.begin(); pvit!=pseudo_vars.end(); pvit++){
             /*
              * JDF & QUARK specific optimization:
-             * Add the keyword "data_" infront of the matrix to
+             * Add the keyword "data" infront of the matrix to
              * differentiate the matrix from the struct.
              */
-            printf("  /* %s == data%s */\n",(pvit->first).c_str(), (pvit->second).c_str());
+            printf("  /* %s == %s%s */\n",(pvit->first).c_str(), _q2j_data_prefix, (pvit->second).c_str());
         }
     }
 }
@@ -4160,17 +4161,20 @@ static char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond
 
     //char *data_str = tree_to_str(data_element);
     char *data_str = tree_to_str_with_substitutions(data_element, solved_vars);
-    ptask_str = append_to_string(ptask_str, data_str, "\n  : data_%s\n\n",12+strlen(data_str));
+    ptask_str = append_to_string(ptask_str, _q2j_data_prefix, "\n  : %s", 5+strlen(_q2j_data_prefix));
+    ptask_str = append_to_string(ptask_str, data_str, "%s\n\n", 2+strlen(data_str));
     if( !strcmp(inout,"in") ){
         ptask_str = append_to_string(ptask_str, var_pseudoname, "  RW %s",5+strlen(var_pseudoname));
-        ptask_str = append_to_string(ptask_str, data_str, " <- data_%s\n",11+strlen(data_str));
+        ptask_str = append_to_string(ptask_str, _q2j_data_prefix, " <- %s", 4+strlen(_q2j_data_prefix));
+        ptask_str = append_to_string(ptask_str, data_str, "%s\n", 1+strlen(data_str));
         ptask_str = append_to_string(ptask_str, var_pseudoname, "       -> %s",10+strlen(var_pseudoname));
         ptask_str = append_to_string(ptask_str, parent_task_name, " %s\n",2+strlen(parent_task_name));
     }else{
         ptask_str = append_to_string(ptask_str, var_pseudoname, "  RW %s",5+strlen(var_pseudoname));
         ptask_str = append_to_string(ptask_str, var_pseudoname, " <- %s", 4+strlen(var_pseudoname));
         ptask_str = append_to_string(ptask_str, parent_task_name, " %s\n",2+strlen(parent_task_name));
-        ptask_str = append_to_string(ptask_str, data_str, "        -> data_%s\n",17+strlen(data_str));
+        ptask_str = append_to_string(ptask_str, _q2j_data_prefix, "        -> %s", 11+strlen(_q2j_data_prefix));
+        ptask_str = append_to_string(ptask_str, data_str, "%s\n", 11+strlen(data_str));
     }
     ptask_str = append_to_string(ptask_str,"BODY\n/* nothing */\nEND\n", NULL, 0);
 
@@ -4347,10 +4351,10 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
                      }else{
                          /*
                           * JDF & QUARK specific optimization:
-                          * Add the keyword "data_" infront of the matrix to
+                          * Add the keyword _q2j_data_prefix in front of the matrix to
                           * differentiate the matrix from the struct.
                           */
-                         printf("data_%s", tree_to_str(dep->dst));
+                         printf("%s%s", _q2j_data_prefix, tree_to_str(dep->dst));
                      }
                  }
                  printf("\n");
