@@ -32,6 +32,7 @@
 #define IVAR_IS_RIGHT -1
 
 extern char *q2j_input_file_name;
+extern char *_q2j_data_prefix;
 extern int _q2j_generate_line_numbers;
 
 static dague_list_t _dague_pool_list;
@@ -658,9 +659,9 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
 
             // Build a string that matches the name of the upper bound for PLASMA matrices.
             switch(dim){
-                case 0:  asprintf(&(tmp_str), "desc_%s.mt", curr_matrix);
+                case 0:  asprintf(&(tmp_str), "desc%s.mt", curr_matrix);
                          break;
-                case 1:  asprintf(&(tmp_str), "desc_%s.nt", curr_matrix);
+                case 1:  asprintf(&(tmp_str), "desc%s.nt", curr_matrix);
                          break;
                 default: fprintf(stderr,"FATAL ERROR in add_phony_INOUT_task_loops(): Currently only 2D matrices are supported\n");
                          abort();
@@ -2053,28 +2054,34 @@ static int isArrayIn(node_t *task_node, int index){
 node_t *print_default_task_placement(node_t *task_node){
     int i;
 
+    /*
+     * First loop to search LOCALITY flag
+     */
     for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
         if( isArrayOut(task_node, i) && isArrayLocal(task_node, i) ){
             node_t *data_element = task_node->u.kids.kids[i];
              /*
               * JDF & QUARK specific optimization:
-              * Add the keyword "data_" infront of the matrix to
+              * Add the keyword _q2j_data_prefix infront of the matrix to
               * differentiate the matrix from the struct.
               */
-            printf("  : data_%s\n",tree_to_str(data_element));
+            printf("  : %s%s\n", _q2j_data_prefix, tree_to_str(data_element));
             return data_element;
         }
     }
 
+    /*
+     * If no LOCALITY flag, the first output data is used for locality
+     */
     for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
         if( isArrayOut(task_node, i) ){
             node_t *data_element = task_node->u.kids.kids[i];
              /*
               * JDF & QUARK specific optimization:
-              * Add the keyword "data_" infront of the matrix to
+              * Add the keyword _q2j_data_prefix infront of the matrix to
               * differentiate the matrix from the struct.
               */
-            printf("  : data_%s\n",tree_to_str(data_element));
+            printf("  : %s%s\n", _q2j_data_prefix, tree_to_str(data_element));
             return data_element;
         }
     }
@@ -2337,10 +2344,11 @@ char *quark_tree_to_body(node_t *node){
             kernel_call = append_to_string( kernel_call, symname, NULL, 0);
             /*
              * JDF & QUARK specific optimization:
-             * Add the keyword "data_" infront of the matrix to
+             * Add the keyword _q2j_data_prefix infront of the matrix to
              * differentiate the matrix from the struct.
              */
-            kernel_call = append_to_string( kernel_call, param, " /* data_%s */", 12+strlen(param));
+            kernel_call = append_to_string( kernel_call, _q2j_data_prefix, " /* %s", 4+strlen(_q2j_data_prefix));
+            kernel_call = append_to_string( kernel_call, param, "%s */", 3+strlen(param));
         }
 
         // Add the parameter to the string of the printlog.  If the parameter is an array, we need to
@@ -2454,13 +2462,13 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
                 }
                 /*
                  * JDF & QUARK specific optimization:
-                 * Add the keyword "desc_" infront of the variable to
+                 * Add the keyword "desc" infront of the variable to
                  * differentiate the matrix from the struct.
                  */
                 if( (NULL == node->parent) || (ARRAY != node->parent->type) ){
                     char *type = st_type_of_variable(node->u.var_name, node->symtab);
                     if( (NULL != type) && !strcmp("PLASMA_desc", type) ){
-                        str = strdup("desc_");
+                        str = strdup("desc");
                     }
                 }
 
