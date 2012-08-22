@@ -63,7 +63,6 @@ static void dump_full_und(und_t *und);
 
 static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
 static list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t *>incm_edges, Relation S, node_t *reference_data_element);
-static char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_t *data_element, char *var_pseudoname, int ptask_count, const char *inout);
 static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps);
 static Relation process_and_print_execution_space(node_t *node);
 static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
@@ -3418,52 +3417,51 @@ printf("========================================================================
     // Print all edges.
 
     edge_it = outgoing_edges.begin();
-    for( ;edge_it != outgoing_edges.end(); ++edge_it ){
-	    task_t *src_task;
-	    char *task_name;
-	    set<dep_t *> deps;
+    for( ;edge_it != outgoing_edges.end(); ++edge_it ) {
+        task_t *src_task;
+        char *task_name;
+        set<dep_t *> deps;
 
-	    task_name = edge_it->first;
-	    deps = edge_it->second;
+        task_name = edge_it->first;
+        deps = edge_it->second;
 
-	    // Get the source task from the dependencies
-	    if( !deps.empty() ){
-	        src_task = (*deps.begin())->src->task;
-	    }else{
-	        // If there are no outgoing deps, get the source task from the incoming dependencies
-	        set<dep_t *> in_deps = incoming_edges[task_name];
-	        if( !in_deps.empty() ){
-		    src_task = (*in_deps.begin())->src->task;
-	        }else{
-		    // If there are no incoming and no outgoing deps, skip this task
-		    continue;
-	        }
-	    }
+        // Get the source task from the dependencies
+        if( !deps.empty() ){
+            src_task = (*deps.begin())->src->task;
+        }else{
+            // If there are no outgoing deps, get the source task from the incoming dependencies
+            set<dep_t *> in_deps = incoming_edges[task_name];
+            if( !in_deps.empty() ){
+                src_task = (*in_deps.begin())->src->task;
+            }else{
+                // If there are no incoming and no outgoing deps, skip this task
+                continue;
+            }
+        }
 
-	    // If the source task is NOT the ENTRY, then dump all the info
-	    if( NULL != src_task ){
+        // If the source task is NOT the ENTRY, then dump all the info
+        if( NULL != src_task ){
 
-	        jdfoutput("\n\n%s( ",task_name);
-	        for(int i=0; NULL != src_task->ind_vars[i]; ++i){
-		    if( i ) jdfoutput(", ");
-		    jdfoutput("%s", src_task->ind_vars[i]);
-	        }
-	        jdfoutput(")\n");
+            jdfoutput("\n\n%s( ",task_name);
+            for(int i=0; NULL != src_task->ind_vars[i]; ++i){
+                if( i ) jdfoutput(", ");
+                jdfoutput("%s", src_task->ind_vars[i]);
+            }
+            jdfoutput(")\n");
     
-	        Relation S_es = process_and_print_execution_space(src_task->task_node);
+            Relation S_es = process_and_print_execution_space(src_task->task_node);
 
-	        node_t *reference_data_element = quark_get_locality(src_task->task_node);
-                print_default_task_placement(reference_data_element);
+            node_t *reference_data_element = quark_get_locality(src_task->task_node);
+            print_default_task_placement(reference_data_element);
 
-                if( _q2j_dump_mapping ) {
-                    print_pseudo_variables(deps, incoming_edges[task_name]);
-                }
-	        list <char *>ptask_list = print_edges_and_create_pseudotasks(deps, incoming_edges[task_name], S_es, reference_data_element);
-	        S_es.Null();
-	        printf("\n");
+            if( _q2j_dump_mapping ) {
+                print_pseudo_variables(deps, incoming_edges[task_name]);
+            }
+            list <char *>ptask_list = print_edges_and_create_pseudotasks(deps, incoming_edges[task_name], S_es, reference_data_element);
+            S_es.Null();
 
-	        // If this task has no name, then it's probably a phony task, so ignore it.
-	        if( (NULL != src_task->task_name) ){
+            // If this task has no name, then it's probably a phony task, so ignore it.
+            if( (NULL != src_task->task_name) ){
                 map<char *, set<dep_t *> >::iterator synch_edge_it;
                 bool have_synch_edges = false;
 
@@ -3478,37 +3476,34 @@ printf("========================================================================
 
                 // Only print the anti-dependencies block, if there are any anti-dependencies.
                 if( have_synch_edges ){
-	                printf("  /*\n  Anti-dependencies:\n");
-                }
-
-                for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
-                    char *tmp_task_name = synch_edge_it->first;
-                    if( strcmp(tmp_task_name, src_task->task_name ) )
-                               continue;
-                    set<dep_t *> synch_dep_set = synch_edge_it->second;
-                    set<dep_t *>::iterator synch_dep_it;
-
-                    // Traverse all the entries of the set stored in synch_edges[ this task's name ] and print them
-                    for(synch_dep_it=synch_dep_set.begin(); synch_dep_it!=synch_dep_set.end(); ++synch_dep_it){
-                        node_t *use = (*synch_dep_it)->src;
-                        assert(use->task == src_task);
-                        node_t *sink = (*synch_dep_it)->dst;
-                        Relation ad_r = *((*synch_dep_it)->rel);
-                        char *n1 = use->task->task_name;
-                        char *n2 = sink->task->task_name;
-                        printf("  ANTI edge from %s:%s to %s:%s ",n1, tree_to_str(use), n2, tree_to_str(sink));
-                        ad_r.print_with_subs();
+                    jdfoutput("  /*\n  Anti-dependencies:\n");
+                    
+                    for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
+                        char *tmp_task_name = synch_edge_it->first;
+                        if( strcmp(tmp_task_name, src_task->task_name ) )
+                            continue;
+                        set<dep_t *> synch_dep_set = synch_edge_it->second;
+                        set<dep_t *>::iterator synch_dep_it;
+                        
+                        // Traverse all the entries of the set stored in synch_edges[ this task's name ] and print them
+                        for(synch_dep_it=synch_dep_set.begin(); synch_dep_it!=synch_dep_set.end(); ++synch_dep_it){
+                            node_t *use = (*synch_dep_it)->src;
+                            assert(use->task == src_task);
+                            node_t *sink = (*synch_dep_it)->dst;
+                            Relation ad_r = *((*synch_dep_it)->rel);
+                            char *n1 = use->task->task_name;
+                            char *n2 = sink->task->task_name;
+                            jdfoutput("  ANTI edge from %s:%s to %s:%s ",n1, tree_to_str(use), n2, tree_to_str(sink));
+                            ad_r.print_with_subs();
+                        }
                     }
-                }
 
-                if( have_synch_edges ){
-                    printf("\n  */\n\n");
+                    jdfoutput("  */\n");
                 }
 
             }else{
                 printf("DEBUG: unnamed task.\n");
             }
-
 
             print_body(src_task->task_node);
 
@@ -4112,6 +4107,124 @@ static string _expr_tree_to_str(expr_t *exp){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
+void print_header() {
+    
+    jdfoutput("extern \"C\" %%{\n"
+              "/*\n"
+              " *  Copyright (c) 2010\n"
+              " *\n"
+              " *  The University of Tennessee and The University\n"
+              " *  of Tennessee Research Foundation.  All rights\n"
+              " *  reserved.\n"
+              " *\n"
+              " * @precisions normal z -> s d c\n"
+              " *\n"
+              " */\n"
+              "#define PRECISION_z\n"
+              "\n"
+              "#include <plasma.h>\n"
+              "#include <core_blas.h>\n"
+              "\n"
+              "#include \"dague.h\"\n"
+              "#include \"data_distribution.h\"\n"
+              "#include \"data_dist/matrix/precision.h\"\n"
+              "#include \"data_dist/matrix/matrix.h\"\n"
+              "#include \"dplasma/lib/memory_pool.h\"\n"
+              "#include \"dplasma/lib/dplasmajdf.h\"\n"
+              "\n"
+              "%%}\n\n");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+void print_types_of_formal_parameters(node_t *root){
+    char *pool_decl;
+    symtab_t *scope;
+    q2j_symbol_t *sym;
+
+    scope = root->symtab;
+    do{
+        for(sym=scope->symbols; NULL!=sym; sym=sym->next){
+            if( !strcmp(sym->var_type, "PLASMA_desc") ){
+                jdfoutput("desc%-5s [type = \"tiled_matrix_desc_t\"]\n"
+                          "%s%-5s [type = \"dague_ddesc_t *\"]\n",
+                          sym->var_name,
+                          _q2j_data_prefix, sym->var_name);
+            } else {
+                jdfoutput("%-9s [type = \"%s\"]\n",
+                          sym->var_name, sym->var_type);
+            }
+        }
+        scope = scope->parent;
+    } while(NULL != scope);
+
+    /*
+     * Create pool declarations
+     */
+    string_arena_t *sa = create_pool_declarations();
+    jdfoutput( "%s", string_arena_get_string( sa ) );
+    string_arena_free( sa );
+    return;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+void print_default_task_placement(node_t *task_node)
+{
+    string_arena_t *sa = string_arena_new(16);
+    jdfoutput("  : %s\n\n", dump_data(sa, task_node));
+    string_arena_free(sa);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+bool need_pseudotask(node_t *ref1, node_t *ref2){
+    bool need_ptask = false;
+    char *comm_mtrx, *refr_mtrx;
+
+    if( _q2j_produce_shmem_jdf )
+        return false;
+
+    comm_mtrx = tree_to_str(DA_array_base(ref1));
+    refr_mtrx = tree_to_str(DA_array_base(ref2));
+
+    // If the matrices are different and not co-located, we need a pseudo-task.
+    if( strcmp(comm_mtrx,refr_mtrx) 
+        && ( q2j_colocated_map.find(comm_mtrx) == q2j_colocated_map.end() 
+             || q2j_colocated_map.find(refr_mtrx) == q2j_colocated_map.end() 
+             || q2j_colocated_map[comm_mtrx].compare(q2j_colocated_map[refr_mtrx]) ) ){
+        need_ptask = true;
+    }else{
+        // If the element we are communicating is not the same as the reference element, we also need a pseudo-task.
+        int count = DA_array_dim_count(ref1);
+        if( DA_array_dim_count(ref2) != count ){
+            fprintf(stderr,"Matrices with different dimension counts detected \"%s\" and \"%s\"."
+                           " This should never happen in DPLASMA\n",
+                           tree_to_str(ref1), tree_to_str(ref2));
+            need_ptask = true;
+        }
+
+        for(int i=0; i<count && !need_ptask; i++){
+            char *a = tree_to_str(DA_array_index(ref1, i));
+            char *b = tree_to_str(DA_array_index(ref2, i));
+            if( strcmp(a,b) )
+                need_ptask = true;
+            free(a);
+            free(b);
+        }
+    }
+    free(comm_mtrx);
+    free(refr_mtrx);
+
+    if( need_ptask && _q2j_add_phony_tasks ){
+        fprintf(stderr,"WARNING: Both phony tasks (e.g. DAGUE_IN_A) and pseudo-tasks (e.g. zunmqr_in_data_T1) are being generated.");
+    }
+
+    return need_ptask;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
 static char *create_pseudotask(task_t *parent_task,
                                Relation S_es, Relation cond,
                                node_t *data_element,
@@ -4269,55 +4382,13 @@ static char *create_pseudotask(task_t *parent_task,
     return string_arena_get_string(sa_pseudotask);
 }
 
-
-bool need_pseudotask(node_t *ref1, node_t *ref2){
-    bool need_ptask = false;
-    char *comm_mtrx, *refr_mtrx;
-
-    if( _q2j_produce_shmem_jdf )
-        return false;
-
-    comm_mtrx = tree_to_str(DA_array_base(ref1));
-    refr_mtrx = tree_to_str(DA_array_base(ref2));
-
-    // If the matrices are different and not co-located, we need a pseudo-task.
-    if( strcmp(comm_mtrx,refr_mtrx) 
-        && ( q2j_colocated_map.find(comm_mtrx) == q2j_colocated_map.end() 
-             || q2j_colocated_map.find(refr_mtrx) == q2j_colocated_map.end() 
-             || q2j_colocated_map[comm_mtrx].compare(q2j_colocated_map[refr_mtrx]) ) ){
-        need_ptask = true;
-    }else{
-        // If the element we are communicating is not the same as the reference element, we also need a pseudo-task.
-        int count = DA_array_dim_count(ref1);
-        if( DA_array_dim_count(ref2) != count ){
-            fprintf(stderr,"Matrices with different dimension counts detected \"%s\" and \"%s\"."
-                           " This should never happen in DPLASMA\n",
-                           tree_to_str(ref1), tree_to_str(ref2));
-            need_ptask = true;
-        }
-
-        for(int i=0; i<count && !need_ptask; i++){
-            char *a = tree_to_str(DA_array_index(ref1, i));
-            char *b = tree_to_str(DA_array_index(ref2, i));
-            if( strcmp(a,b) )
-                need_ptask = true;
-            free(a);
-            free(b);
-        }
-    }
-    free(comm_mtrx);
-    free(refr_mtrx);
-
-    if( need_ptask && _q2j_add_phony_tasks ){
-        fprintf(stderr,"WARNING: Both phony tasks (e.g. DAGUE_IN_A) and pseudo-tasks (e.g. zunmqr_in_data_T1) are being generated.");
-    }
-
-    return need_ptask;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 //
-list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, node_t *reference_data_element){
+list<char *> print_edges_and_crerate_pseudotasks(set<dep_t *>outg_deps,
+                                                 set<dep_t *>incm_deps,
+                                                 Relation S_es,
+                                                 node_t *reference_data_element)
+{
     int pseudotask_count = 0;
     task_t *this_task;
     set<dep_t *>::iterator dep_it;
@@ -4469,10 +4540,6 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
              // is treated independently.
              cond_list = simplify_conditions_and_split_disjunctions(*dep->rel, S_es);
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
-                 string cond = expr_tree_to_str(cond_it->first);
-                 bool printed_condition = false;
-
-                 // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
 
                  // Conditions for this output
                  jdfoutput("%s-> %s", indent(nbspaces, 1), dump_conditions(sa, &cond_list, &cond_it ));
@@ -4505,81 +4572,9 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
 #endif
             }
         }
-
     }
 
     string_arena_free(sa);
     string_arena_free(sa2);
     return ptask_list;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-void print_header() {
-    
-    jdfoutput("extern \"C\" %%{\n"
-              "/*\n"
-              " *  Copyright (c) 2010\n"
-              " *\n"
-              " *  The University of Tennessee and The University\n"
-              " *  of Tennessee Research Foundation.  All rights\n"
-              " *  reserved.\n"
-              " *\n"
-              " * @precisions normal z -> s d c\n"
-              " *\n"
-              " */\n"
-              "#define PRECISION_z\n"
-              "\n"
-              "#include <plasma.h>\n"
-              "#include <core_blas.h>\n"
-              "\n"
-              "#include \"dague.h\"\n"
-              "#include \"data_distribution.h\"\n"
-              "#include \"data_dist/matrix/precision.h\"\n"
-              "#include \"data_dist/matrix/matrix.h\"\n"
-              "#include \"dplasma/lib/memory_pool.h\"\n"
-              "#include \"dplasma/lib/dplasmajdf.h\"\n"
-              "\n"
-              "%%}\n\n");
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-void print_types_of_formal_parameters(node_t *root){
-    char *pool_decl;
-    symtab_t *scope;
-    q2j_symbol_t *sym;
-
-    scope = root->symtab;
-    do{
-        for(sym=scope->symbols; NULL!=sym; sym=sym->next){
-            if( !strcmp(sym->var_type, "PLASMA_desc") ){
-                jdfoutput("desc%-5s [type = \"tiled_matrix_desc_t\"]\n"
-                          "%s%-5s [type = \"dague_ddesc_t *\"]\n",
-                          sym->var_name,
-                          _q2j_data_prefix, sym->var_name);
-            } else {
-                jdfoutput("%-9s [type = \"%s\"]\n",
-                          sym->var_name, sym->var_type);
-            }
-        }
-        scope = scope->parent;
-    } while(NULL != scope);
-
-    /*
-     * Create pool declarations
-     */
-    string_arena_t *sa = create_pool_declarations();
-    jdfoutput( "%s", string_arena_get_string( sa ) );
-    string_arena_free( sa );
-    return;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-void print_default_task_placement(node_t *task_node)
-{
-    string_arena_t *sa = string_arena_new(16);
-    jdfoutput("  : %s\n\n", dump_data(sa, task_node));
-    string_arena_free(sa);
 }
