@@ -2388,8 +2388,8 @@ void compute_TC_of_transitive_relation_of_cycle(list<tg_node_t *> cycle_list){
 
 #if defined(DEBUG_ANTI)
     printf("Checking TC viability\n");
-    fflush(stdout);
 #endif // DEBUG_ANTI
+    fflush(stdout);
     if( pid=fork() ){ // parent
         int status;
         waitpid(pid, &status, 0);
