@@ -157,6 +157,61 @@ void dump_UorD(node_t *node){
 }
 #endif
 
+
+/**
+ * dump_data:
+ *   JDF & QUARK specific optimization
+ *   Add the keyword _q2j_data_prefix in front of the matrix to
+ *   differentiate the matrix from the struct.
+ */
+char *dump_data(string_arena_t *sa, node_t *n)
+{
+    string_arena_init(sa);
+    string_arena_add_string( sa, "%s%s", 
+                             _q2j_data_prefix,
+                             tree_to_str(n) );
+    return string_arena_get_string(sa);
+}
+
+/**
+ * dump_data:
+ *   Generates a string of conditions with the one given and the
+ *   negation of all the previous ones.
+ */
+char *dump_conditions(string_arena_t *sa,
+                      list< pair<expr_t *,Relation> > *cond_list,
+                      list< pair<expr_t *, Relation> >::iterator *cond_it)
+{
+    list< pair<expr_t *, Relation> >::iterator cond_it2;
+    string cond = expr_tree_to_str((*cond_it)->first);
+    bool printed_condition = false;
+          
+    string_arena_init(sa);
+
+    // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
+
+    // For each condition that resulted from spliting a disjunction, negate
+    // all the other parts of the disjunction
+    for(cond_it2 = (*cond_list).begin(); cond_it2 != *cond_it; cond_it2++){
+        string cond2 = expr_tree_to_str(cond_it2->first);
+        if( !cond2.empty() ){
+            if( printed_condition )
+                string_arena_add_string(sa, "& ");
+            string_arena_add_string(sa, "(!(%s)) ", cond2.c_str());
+            printed_condition = true;
+        }
+    }
+    if( !cond.empty() ){
+        if( printed_condition )
+            string_arena_add_string(sa, "& ");
+        string_arena_add_string(sa, "%s ? ", cond.c_str() );
+    }else if( printed_condition ){
+        string_arena_add_string(sa, "? ");
+    }
+
+    return string_arena_get_string(sa);
+}
+
 static inline bool is_phony_Entry_task(task_t *task){
     char *name = task->task_name;
     return (strstr(name, "DAGUE_IN_") == name);
@@ -3460,7 +3515,7 @@ printf("========================================================================
             // Print all the pseudo-tasks that were created by print_edges_and_create_pseudotasks()
             list <char *>::iterator ptask_it;
             for(ptask_it=ptask_list.begin(); ptask_it!=ptask_list.end(); ++ptask_it){
-                printf("\n/*\n * Pseudo-task\n */\n%s\n",*ptask_it);
+                printf("%s\n",*ptask_it);
             }
         }
     }
@@ -3623,15 +3678,14 @@ static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps){
     }
     
     // Dump the map.
+    string_arena_t *sa = string_arena_new(16);
     map<string, string>::iterator pvit;
     for (pvit=pseudo_vars.begin(); pvit!=pseudo_vars.end(); pvit++){
-        /*
-         * JDF & QUARK specific optimization:
-         * Add the keyword "data" infront of the matrix to
-         * differentiate the matrix from the struct.
-         */
-       jdfoutput("  /* %s == %s%s */\n",(pvit->first).c_str(), _q2j_data_prefix, (pvit->second).c_str());
+        jdfoutput("  /* %s == %s */\n",
+                  (pvit->first).c_str(),
+                  (pvit->second).c_str() );
     }
+    string_arena_free(sa);
 }
 
 // We are assuming that all leaves will be kids of a MUL or a DIV, or they will be an INTCONSTANT
@@ -4058,14 +4112,31 @@ static string _expr_tree_to_str(expr_t *exp){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-static char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_t *data_element, char *var_pseudoname, int ptask_count, const char *inout){
-    int var_count;
-    char *parent_task_name, *pseudotask_name;
-    char *formal_parameters = NULL, *parent_formal_parameters = NULL;
-    char *ptask_str = NULL, *mtrx_name;
+static char *create_pseudotask(task_t *parent_task,
+                               Relation S_es, Relation cond,
+                               node_t *data_element,
+                               char *var_pseudoname, 
+                               int ptask_count, const char *inout,
+                               string_arena_t *sa_pseudotask_name,
+                               string_arena_t *sa_pseudotask )
+{
+    int var_count, firstfp, firstpfp;
+    char *mtrx_name;
+    char *data_str;
+
     Relation newS_es;
     set <const char *> prev_vars;
     str_pair_t *solved_vars;
+    string_arena_t *sa1, *sa2;
+    string_arena_t *sa_exec_space;
+    string_arena_t *sa_formal_param;
+    string_arena_t *sa_parent_formal_param;
+
+    sa1 = string_arena_new(64);
+    sa2 = string_arena_new(64);
+    sa_exec_space   = string_arena_new(64);
+    sa_formal_param = string_arena_new(64);
+    sa_parent_formal_param = string_arena_new(64);
 
     mtrx_name = tree_to_str(DA_array_base(data_element));
 
@@ -4083,6 +4154,7 @@ static char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond
     var_count = 0;
 
     // We start with the parameters in order to discover which ones should be included.
+    firstpfp = 1; firstfp = 1;
     for(int i=0; NULL != parent_task->ind_vars[i]; ++i){
         const char *var_name = parent_task->ind_vars[i];
         expr_t *solution = solveExpressionTreeForVar(relation_to_tree(newS_es), var_name, copy(newS_es));
@@ -4094,25 +4166,39 @@ static char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond
             solved_vars[var_count].str2 = solution_str;
             var_count++;
 
-            if( NULL != parent_formal_parameters )
-                parent_formal_parameters = append_to_string(parent_formal_parameters, ",", NULL, 0);
-            parent_formal_parameters = append_to_string(parent_formal_parameters, solution_str, NULL, 0);
-        }else{
-            ptask_str = append_to_string(ptask_str, var_name, "  %s = ", 5+strlen(var_name)); 
-            ptask_str = append_to_string(ptask_str, find_bounds_of_var(relation_to_tree(newS_es), var_name, prev_vars, copy(newS_es)), NULL, 0);
+            if( !firstpfp ) {
+                string_arena_add_string(sa_parent_formal_param, ", %s", 
+                                        solution_str );
+            } else {
+                string_arena_add_string(sa_parent_formal_param, "%s", 
+                                        solution_str );
+            }
+        } else {
+            string_arena_add_string( sa_exec_space, "  %s = %s\n",
+                                     var_name, find_bounds_of_var(relation_to_tree(newS_es), var_name,
+                                                                  prev_vars, copy(newS_es)) );
 
             // the following code is for generating the string for the caller (the real task)
-            if( NULL != formal_parameters )
-                formal_parameters = append_to_string(formal_parameters, ",", NULL, 0);
-            formal_parameters = append_to_string(formal_parameters, var_name, NULL, 0);
-            ptask_str = append_to_string(ptask_str, "\n", NULL, 0);
+            if( !firstfp ) {
+                string_arena_add_string(sa_formal_param, ", %s", 
+                                        var_name );
+            } else {
+                string_arena_add_string(sa_formal_param, "%s", 
+                                        var_name );
+                firstfp = 0;
+            }
 
-            if( NULL != parent_formal_parameters )
-                parent_formal_parameters = append_to_string(parent_formal_parameters, ",", NULL, 0);
-            parent_formal_parameters = append_to_string(parent_formal_parameters, var_name, NULL, 0);
+            if( !firstpfp ) {
+                string_arena_add_string(sa_parent_formal_param, ", %s", 
+                                        var_name );
+            } else {
+                string_arena_add_string(sa_parent_formal_param, "%s", 
+                                        var_name );
+            }
 
             prev_vars.insert(var_name);
         }
+        firstpfp = 0;
     }
 
     // Delete the "previous variables" set, to clean up some memory
@@ -4122,40 +4208,65 @@ static char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond
 
     // Now that we know which parameters define the execution space of this pseudo-task, we can print the pseudo-task
     // in the body of the real task, and complete the "header" of the pseudo-task string.
-
+    //
     // create_pseudotask() was called by print_edges_and_create_pseudotasks(), so if we print here
     // the string will end up at the right place in the body of the real task.
-    asprintf( &pseudotask_name , "%s_%s_data_%s%d(%s)",parent_task->task_name, inout, mtrx_name, ptask_count, formal_parameters);
-    printf("%s %s\n",var_pseudoname, pseudotask_name);
 
-    // Put the name and parameters of the pseudo-task in the beginning of the string.
-    ptask_str = append_to_string(pseudotask_name, ptask_str, "\n%s", 1+strlen(ptask_str)); 
+    // Create pseudotask name
+    string_arena_init(sa_pseudotask_name);
+    string_arena_add_string( sa_pseudotask_name, "%s %s_%s_data_%s%d(%s)",
+                             var_pseudoname,
+                             parent_task->task_name, inout, mtrx_name,
+                             ptask_count,
+                             string_arena_get_string( sa_formal_param ) );
 
-    asprintf( &parent_task_name , "%s(%s)",parent_task->task_name, parent_formal_parameters);
+    // Parent task name with variable name
+    string_arena_init(sa1);
+    string_arena_add_string( sa1, "%s %s(%s)",
+                             var_pseudoname,
+                             parent_task->task_name,
+                             string_arena_get_string( sa_parent_formal_param ) );
 
-    //char *data_str = tree_to_str(data_element);
-    char *data_str = tree_to_str_with_substitutions(data_element, solved_vars);
-    ptask_str = append_to_string(ptask_str, _q2j_data_prefix, "\n  : %s", 5+strlen(_q2j_data_prefix));
-    ptask_str = append_to_string(ptask_str, data_str, "%s\n\n", 2+strlen(data_str));
-    if( !strcmp(inout,"in") ){
-        ptask_str = append_to_string(ptask_str, var_pseudoname, "  RW %s",5+strlen(var_pseudoname));
-        ptask_str = append_to_string(ptask_str, _q2j_data_prefix, " <- %s", 4+strlen(_q2j_data_prefix));
-        ptask_str = append_to_string(ptask_str, data_str, "%s\n", 1+strlen(data_str));
-        ptask_str = append_to_string(ptask_str, var_pseudoname, "       -> %s",10+strlen(var_pseudoname));
-        ptask_str = append_to_string(ptask_str, parent_task_name, " %s\n",2+strlen(parent_task_name));
-    }else{
-        ptask_str = append_to_string(ptask_str, var_pseudoname, "  RW %s",5+strlen(var_pseudoname));
-        ptask_str = append_to_string(ptask_str, var_pseudoname, " <- %s", 4+strlen(var_pseudoname));
-        ptask_str = append_to_string(ptask_str, parent_task_name, " %s\n",2+strlen(parent_task_name));
-        ptask_str = append_to_string(ptask_str, _q2j_data_prefix, "        -> %s", 11+strlen(_q2j_data_prefix));
-        ptask_str = append_to_string(ptask_str, data_str, "%s\n", 11+strlen(data_str));
-    }
-    ptask_str = append_to_string(ptask_str,"BODY\n/* nothing */\nEND\n", NULL, 0);
+    // Data string
+    string_arena_init(sa2);
+    string_arena_add_string( sa2, "%s%s", _q2j_data_prefix,
+                             tree_to_str_with_substitutions(data_element, solved_vars) );
+    data_str = string_arena_get_string(sa2);
 
-    free(parent_task_name);
+    // Pseudo Task
+    int is_input = !strcmp(inout,"in");
+    string_arena_init(sa_pseudotask);
+    string_arena_add_string(sa_pseudotask, 
+                            "\n/*\n * Pseudo-task\n */"
+                            "\n%s [profile = off]"
+                            "\n  /* Execution Space */"
+                            "\n%s"
+                            "\n  /* Locality */"
+                            "\n  :%s\n"
+                            "\n  RW %s <- %s"
+                            "\n     %s -> %s\n"
+                            "\nBODY"
+                            "\n{"
+                            "\n    /* nothing */"
+                            "\n}"
+                            "\nEND\n",
+                            string_arena_get_string(sa_pseudotask_name) + strlen(var_pseudoname)+1,
+                            string_arena_get_string(sa_exec_space),
+                            data_str,
+                            var_pseudoname,
+                            is_input ? data_str : string_arena_get_string(sa1),
+                            indent(strlen(var_pseudoname), 1),
+                            is_input ? string_arena_get_string(sa1) : data_str );
+    
     free(mtrx_name);
 
-    return ptask_str;
+    string_arena_free(sa1);
+    string_arena_free(sa2);
+    string_arena_free(sa_exec_space);
+    string_arena_free(sa_formal_param);
+    string_arena_free(sa_parent_formal_param);
+
+    return string_arena_get_string(sa_pseudotask);
 }
 
 
@@ -4170,7 +4281,10 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     refr_mtrx = tree_to_str(DA_array_base(ref2));
 
     // If the matrices are different and not co-located, we need a pseudo-task.
-    if( strcmp(comm_mtrx,refr_mtrx) && ( q2j_colocated_map.find(comm_mtrx) == q2j_colocated_map.end() || q2j_colocated_map.find(refr_mtrx) == q2j_colocated_map.end() || q2j_colocated_map[comm_mtrx].compare(q2j_colocated_map[refr_mtrx]) ) ){
+    if( strcmp(comm_mtrx,refr_mtrx) 
+        && ( q2j_colocated_map.find(comm_mtrx) == q2j_colocated_map.end() 
+             || q2j_colocated_map.find(refr_mtrx) == q2j_colocated_map.end() 
+             || q2j_colocated_map[comm_mtrx].compare(q2j_colocated_map[refr_mtrx]) ) ){
         need_ptask = true;
     }else{
         // If the element we are communicating is not the same as the reference element, we also need a pseudo-task.
@@ -4201,40 +4315,6 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     return need_ptask;
 }
 
-char *dump_conditions(string_arena_t *sa,
-                      list< pair<expr_t *,Relation> > *cond_list,
-                      list< pair<expr_t *, Relation> >::iterator *cond_it)
-{
-    list< pair<expr_t *, Relation> >::iterator cond_it2;
-    string cond = expr_tree_to_str((*cond_it)->first);
-    bool printed_condition = false;
-          
-    string_arena_init(sa);
-
-    // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
-
-    // For each condition that resulted from spliting a disjunction, negate
-    // all the other parts of the disjunction
-    for(cond_it2 = (*cond_list).begin(); cond_it2 != *cond_it; cond_it2++){
-        string cond2 = expr_tree_to_str(cond_it2->first);
-        if( !cond2.empty() ){
-            if( printed_condition )
-                string_arena_add_string(sa, "& ");
-            string_arena_add_string(sa, "(!(%s)) ", cond2.c_str());
-            printed_condition = true;
-        }
-    }
-    if( !cond.empty() ){
-        if( printed_condition )
-            string_arena_add_string(sa, "& ");
-        string_arena_add_string(sa, "%s ? ", cond.c_str() );
-    }else if( printed_condition ){
-        string_arena_add_string(sa, "? ");
-    }
-
-    return string_arena_get_string(sa);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, node_t *reference_data_element){
@@ -4245,8 +4325,9 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
     map<char *, set<dep_t *> > incm_map, outg_map;
     list<char *> ptask_list;
     int nbspaces = 0;
-    string_arena_t *sa;
-    sa = string_arena_new(64);
+    string_arena_t *sa, *sa2;
+    sa  = string_arena_new(64);
+    sa2 = string_arena_new(64);
 
     if( outg_deps.empty() && incm_deps.empty() ){
         return ptask_list;
@@ -4326,50 +4407,50 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
                  if ( (dep_it!=ideps.begin()) || (cond_it != cond_list.begin()) )
                      jdfoutput("%s", indent(nbspaces, 1)); 
                  
-                 /* Conditions for this input */
+                 // Conditions for this input
                  jdfoutput("<- %s", dump_conditions(sa, &cond_list, &cond_it ));
 
-                 /* Name of the input */
+                 // Source of the input
                  if( NULL != src_task ){
-                     jdfoutput("%s %s(%s) ",
-                               dep->src->var_symname,
-                               src_task->task_name,
-                               dump_actual_parameters(sa, dep, relation_to_tree(cond_it->second), SOURCE) );
+                     string_arena_add_string(sa, "%s %s(%s)",
+                                             dep->src->var_symname,
+                                             src_task->task_name,
+                                             dump_actual_parameters(sa2, dep, 
+                                                                    relation_to_tree(cond_it->second),
+                                                                    SOURCE) );
                  }else{ // ENTRY
                      if( need_pseudotask(dep->dst, reference_data_element) ){
-                         ptask_list.push_back( create_pseudotask(this_task, S_es, cond_it->second, dep->dst, var_pseudoname, pseudotask_count++, "in") );
+                         create_pseudotask(this_task,
+                                           S_es, cond_it->second,
+                                           dep->dst, var_pseudoname, pseudotask_count++,
+                                           "in", sa, sa2 );
+                         ptask_list.push_back( strdup(string_arena_get_string(sa2)) );
                      }else{
-                         /*
-                          * JDF & QUARK specific optimization:
-                          * Add the keyword _q2j_data_prefix in front of the matrix to
-                          * differentiate the matrix from the struct.
-                          */
-                         jdfoutput("%s%s", _q2j_data_prefix, tree_to_str(dep->dst));
+                         dump_data(sa, dep->dst);
                      }
                  }
-                 jdfoutput("\n");
+                 jdfoutput("%s\n", string_arena_get_string(sa) );
 #ifdef DEBUG_2
-                 if( NULL != src_task ){
-                     jdfoutput_dbg("%s// %s -> %s ", indent(nbspaces, 1), src_task->task_name, tree_to_str(dep->dst));
-                 }else{
-                     jdfoutput_dbg("%s// ENTRY -> %s ", indent(nbspaces, 1), tree_to_str(dep->dst));
-                 }
+                 jdfoutput_dbg("%s// %s -> %s ", indent(nbspaces, 1),
+                               (NULL != src_task) ? src_task->task_name, "ENTRY" );
                  (*dep->rel).print_with_subs(stdout);
 #endif
              }
-
         }
 
         if(insert_fake_read){
             Relation emptyR;
             dep_t *dep = *(odeps.begin());
-            jdfoutput("<- ");
             if( need_pseudotask(dep->src, reference_data_element) ){
-                //printf("[[ data_%s ]]", tree_to_str(dep->src));
-                ptask_list.push_back( create_pseudotask(this_task, S_es, emptyR, dep->src, var_pseudoname, pseudotask_count++, "in") );
+                create_pseudotask(this_task,
+                                  S_es, emptyR,
+                                  dep->src, var_pseudoname, pseudotask_count++,
+                                  "in", sa, sa2 );
+                ptask_list.push_back( strdup(string_arena_get_string(sa2)) );
             }else{
-                jdfoutput("%s%s\n", _q2j_data_prefix, tree_to_str(dep->src));
+                dump_data(sa, dep->dst);
             }
+            jdfoutput("%s<- %s\n", indent(nbspaces, 1), string_arena_get_string(sa) );
         }
 
         // print the outgoing edges
@@ -4393,32 +4474,33 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
 
                  // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
 
-                 /* Conditions for this input */
+                 // Conditions for this output
                  jdfoutput("%s-> %s", indent(nbspaces, 1), dump_conditions(sa, &cond_list, &cond_it ));
 
+                 // Destination of the output
                  node_t *sink = dep->dst;
-                 if( NULL == sink ){
-                     // EXIT
-
+                 if( NULL != sink ){
+                     string_arena_add_string(sa, "%s %s(%s)",
+                                             sink->var_symname, sink->task->task_name,
+                                             dump_actual_parameters(sa2, dep, 
+                                                                    relation_to_tree(cond_it->second),
+                                                                    SINK) );
+                 } else { // EXIT
                      if( need_pseudotask(dep->src, reference_data_element) ){
-                         //printf("[[ data_%s ]]", tree_to_str(dep->src));
-                         ptask_list.push_back( create_pseudotask(this_task, S_es, cond_it->second, dep->src, var_pseudoname, pseudotask_count++, "out") );
+                         create_pseudotask(this_task,
+                                           S_es, cond_it->second,
+                                           dep->src, var_pseudoname, pseudotask_count++,
+                                           "out", sa, sa2 );
+                         ptask_list.push_back( strdup(string_arena_get_string(sa2)) );
                      }else{
-                         /*
-                          * JDF & QUARK specific optimization:
-                          * Add the keyword "data_" infront of the matrix to
-                          * differentiate the matrix from the struct.
-                          */
-                         printf("data_%s",tree_to_str(dep->src));
+                         dump_data(sa, dep->dst);
                      }
-                 }else{
-                     jdfoutput("%s %s(%s) ",
-                               sink->var_symname, sink->task->task_name,
-                               dump_actual_parameters(sa, dep, relation_to_tree(cond_it->second), SINK));
                  }
-                 printf("\n");
+                 jdfoutput("%s\n", string_arena_get_string(sa));
 #ifdef DEBUG_2
-                 printf("       // ");
+                 jdfoutput_dbg("%s// %s -> %s ", indent(nbspaces, 1),
+                               tree_to_str(dep->src), 
+                               (NULL != sink ) ? sink->task->task_name : "EXIT" );
                  (*dep->rel).print_with_subs(stdout);
 #endif
             }
@@ -4427,6 +4509,7 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
     }
 
     string_arena_free(sa);
+    string_arena_free(sa2);
     return ptask_list;
 }
 
@@ -4494,12 +4577,9 @@ void print_types_of_formal_parameters(node_t *root){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void print_default_task_placement(node_t *task_node){
-    
-    /*
-     * JDF & QUARK specific optimization:
-     * Add the keyword _q2j_data_prefix infront of the matrix to
-     * differentiate the matrix from the struct.
-     */
-    jdfoutput("  : %s%s\n\n", _q2j_data_prefix, tree_to_str(task_node));
+void print_default_task_placement(node_t *task_node)
+{
+    string_arena_t *sa = string_arena_new(16);
+    jdfoutput("  : %s\n\n", dump_data(sa, task_node));
+    string_arena_free(sa);
 }
