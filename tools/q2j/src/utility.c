@@ -135,16 +135,16 @@ void dump_und(und_t *und){
     name = tree_to_str(und->node);
 
     switch( und->rw ){
-        case UND_READ:
-            printf("%s R type:%d", name, und->type);
-            break;
-        case UND_WRITE:
-            printf("%s W type:%d", name, und->type);
-            break;
-        case UND_RW:
-            printf("%s RW type:%d", name, und->type);
-            break;
-   }
+    case UND_READ:
+        printf("%s R type:%d", name, und->type);
+        break;
+    case UND_WRITE:
+        printf("%s W type:%d", name, und->type);
+        break;
+    case UND_RW:
+        printf("%s RW type:%d", name, und->type);
+        break;
+    }
 
 }
 
@@ -153,7 +153,7 @@ void dump_all_unds(void){
     und_t *und;
     node_t *tmp;
 
-printf("###############\n");
+    printf("###############\n");
     for(var=var_head; NULL != var; var=var->next){
         for(und=var->und; NULL != und ; und=und->next){
             dump_und(und);
@@ -168,7 +168,7 @@ printf("###############\n");
             printf("\n");
         }
     }
-printf("###############\n");
+    printf("###############\n");
 }
 //#endif
 
@@ -387,7 +387,6 @@ void dump_tree(node_t node, int off){
     free(str);
     return;
 }
-
 
 static char *numToSymName(int num){
     char str[4] = {0,0,0,0};

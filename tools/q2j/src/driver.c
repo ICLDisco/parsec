@@ -36,6 +36,8 @@ void usage(char *pname){
 
 int main(int argc, char **argv){
 
+    _q2j_output = stdout;
+
     while(--argc > 0){
         if( argv[argc][0] == '-' ){
             if( !strcmp(argv[argc],"-shmem") ){
@@ -64,7 +66,11 @@ int main(int argc, char **argv){
         return -1;
     }
     
-    _q2j_output = stdout;
+/*     _q2j_output = fopen("output.jdf", "w"); */
+/*     if( NULL == _q2j_output ){ */
+/*         fprintf(stderr,"Cannot open file \"%s\"\n", q2j_input_file_name); */
+/*         return -1; */
+/*     } */
 
     (void)st_init_symtab();
     return yyparse();
