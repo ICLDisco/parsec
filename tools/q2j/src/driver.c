@@ -17,6 +17,7 @@ int _q2j_add_phony_tasks       = 0;
 int _q2j_finalize_antideps     = 0;
 int _q2j_generate_line_numbers = 0;
 int _q2j_dump_mapping          = 0;
+FILE *_q2j_output;
 
 /* 
  * Add the keyword _q2j_data_prefix infront of the matrix name to
@@ -62,6 +63,9 @@ int main(int argc, char **argv){
         fprintf(stderr,"Cannot open file \"%s\"\n",q2j_input_file_name);
         return -1;
     }
+    
+    _q2j_output = stdout;
+
     (void)st_init_symtab();
     return yyparse();
 }

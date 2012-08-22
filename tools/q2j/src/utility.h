@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include "node_struct.h"
+#include "string_arena.h"
 
 BEGIN_C_DECLS
 
@@ -41,7 +42,9 @@ struct _expr_t{
         long int int_const;
     } value;
 };
-    
+
+char *indent(int n, int size);
+void jdfoutput(const char *format, ...);    
 
 // AST utility functions
 int    DA_is_if(node_t *node);
@@ -86,8 +89,8 @@ void convert_OUTPUT_to_INOUT(node_t *node);
 void add_entry_and_exit_task_loops(node_t *node);
 
 char *quark_tree_to_body(node_t *node);
-node_t *print_default_task_placement(node_t *task_node);
-char *create_pool_declarations(void);
+node_t *quark_get_locality(node_t *node);
+string_arena_t *create_pool_declarations(void);
 
 
 // yacc utility

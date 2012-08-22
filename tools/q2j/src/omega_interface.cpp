@@ -4,8 +4,11 @@
  *                         reserved.
  */
 
-
 #include "dague_config.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include "string_arena.h"
 #include "node_struct.h"
 #include "utility.h"
 #include "q2j.y.h"
@@ -84,6 +87,15 @@ static bool inline is_enclosed_by_else(node_t *node, node_t *branch);
 static inline void flip_sign(expr_t *exp);
 static inline bool is_negative(expr_t *exp);
 const char *type_to_str(int type);
+
+////////////////////////////////////////////////////////////////////////////////
+//
+void print_header();
+void print_types_of_formal_parameters(node_t *root);
+void print_default_task_placement(node_t *task_node);
+
+////////////////////////////////////////////////////////////////////////////////
+//
 
 #if 0
 void dump_all_uses(und_t *def, var_t *head){
@@ -1686,9 +1698,11 @@ static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void print_actual_parameters(dep_t *dep, expr_t *rel_exp, int type){
+char *dump_actual_parameters(string_arena_t *sa, dep_t *dep, expr_t *rel_exp, int type){
     Relation R = copy(*(dep->rel));
     set <const char *> vars_in_bounds;
+    
+    string_arena_init(sa);
 
     int dst_count = R.n_inp();
     for(int i=0; i<dst_count; i++){
@@ -1698,17 +1712,16 @@ void print_actual_parameters(dep_t *dep, expr_t *rel_exp, int type){
 
     dst_count = R.n_out();
     for(int i=0; i<dst_count; i++){
-        if( i ) printf(", ");
+        if( i ) string_arena_add_string( sa, ", " );
         const char *var_name = strdup(R.output_var(i+1)->char_name());
 
         expr_t *solution = solveExpressionTreeForVar(copy_tree(rel_exp), var_name, R);
-        if( NULL != solution )
-            printf("%s", expr_tree_to_str(solution));
-        else
-            printf("%s", find_bounds_of_var(copy_tree(rel_exp), var_name, vars_in_bounds, R));
+        string_arena_add_string( sa, "%s",
+                                ( NULL != solution ) ? expr_tree_to_str(solution)
+                                : find_bounds_of_var(copy_tree(rel_exp), var_name, vars_in_bounds, R));
         free((void *)var_name);
     }
-    return;
+    return string_arena_get_string(sa);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2110,35 +2123,6 @@ void print_body(node_t *task_node){
     printf("%s\n", quark_tree_to_body(task_node));
     printf("}\nEND\n");
 }
-
-
-void print_header(){
-    printf("extern \"C\" %%{\n"
-           "/*\n"
-           " *  Copyright (c) 2010\n"
-           " *\n"
-           " *  The University of Tennessee and The University\n"
-           " *  of Tennessee Research Foundation.  All rights\n"
-           " *  reserved.\n"
-           " *\n"
-           " * @precisions normal z -> s d c\n"
-           " *\n"
-           " */\n"
-           "#define PRECISION_z\n"
-           "\n"
-           "#include <plasma.h>\n"
-           "#include <core_blas.h>\n"
-           "\n"
-           "#include \"dague.h\"\n"
-           "#include \"data_distribution.h\"\n"
-           "#include \"data_dist/matrix/precision.h\"\n"
-           "#include \"data_dist/matrix/matrix.h\"\n"
-           "#include \"dplasma/lib/memory_pool.h\"\n"
-           "#include \"dplasma/lib/dplasmajdf.h\"\n"
-           "\n"
-           "%%}\n\n");
-}
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3017,36 +3001,6 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
     return resulting_map;
 }
 
-
-
-////////////////////////////////////////////////////////////////////////////////
-//
-void print_types_of_formal_parameters(node_t *root){
-    char *pool_decl;
-    symtab_t *scope;
-    q2j_symbol_t *sym;
-
-    scope = root->symtab;
-    do{
-        for(sym=scope->symbols; NULL!=sym; sym=sym->next){
-            if( !strcmp(sym->var_type, "PLASMA_desc") ){
-                printf("desc%-5s [type = \"PLASMA_desc\"]\n",sym->var_name);
-                printf("%s%-5s [type = \"dague_ddesc_t *\"]\n", _q2j_data_prefix, sym->var_name);
-            }else{
-                printf("%-9s [type = \"%s\"]\n",sym->var_name, sym->var_type);
-            }
-        }
-        scope = scope->parent;
-    }while(NULL != scope);
-
-    pool_decl = create_pool_declarations();
-    if( NULL != pool_decl ){
-        printf("%s", pool_decl);
-        free(pool_decl);
-    }
-    return;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 void interrogate_omega(node_t *root, var_t *head){
@@ -3434,24 +3388,24 @@ printf("========================================================================
 	    // If the source task is NOT the ENTRY, then dump all the info
 	    if( NULL != src_task ){
 
-	        printf("\n\n%s(",task_name);
+	        jdfoutput("\n\n%s( ",task_name);
 	        for(int i=0; NULL != src_task->ind_vars[i]; ++i){
-		    if( i ) printf(",");
-		    printf("%s", src_task->ind_vars[i]);
+		    if( i ) jdfoutput(", ");
+		    jdfoutput("%s", src_task->ind_vars[i]);
 	        }
-	        printf(")\n");
+	        jdfoutput(")\n");
     
 	        Relation S_es = process_and_print_execution_space(src_task->task_node);
-	        printf("\n");
-	        node_t *reference_data_element = print_default_task_placement(src_task->task_node);
-	        printf("\n");
-	        print_pseudo_variables(deps, incoming_edges[task_name]);
-	        printf("\n");
+
+	        node_t *reference_data_element = quark_get_locality(src_task->task_node);
+                print_default_task_placement(reference_data_element);
+
+                if( _q2j_dump_mapping ) {
+                    print_pseudo_variables(deps, incoming_edges[task_name]);
+                }
 	        list <char *>ptask_list = print_edges_and_create_pseudotasks(deps, incoming_edges[task_name], S_es, reference_data_element);
 	        S_es.Null();
 	        printf("\n");
-
-
 
 	        // If this task has no name, then it's probably a phony task, so ignore it.
 	        if( (NULL != src_task->task_name) ){
@@ -3522,6 +3476,8 @@ void store_global_invariant(node_t *invar_expr){
     q2j_global_invariants.insert(invar_expr);
 }
 
+/* UNUSED */
+#if 0
 static const char *econd_tree_to_ub(node_t *econd){
     stringstream ss;
     char *a, *b;
@@ -3549,6 +3505,7 @@ static const char *econd_tree_to_ub(node_t *econd){
             exit(-1);
     }
 }
+#endif
 
 static Relation process_and_print_execution_space(node_t *node){
     int i;
@@ -3557,7 +3514,6 @@ static Relation process_and_print_execution_space(node_t *node){
     map<string, Variable_ID> vars;
     Relation S;
 
-    printf("  /* Execution space */\n");
     for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
         params.push_front(tmp);
     }
@@ -3576,7 +3532,6 @@ static Relation process_and_print_execution_space(node_t *node){
 
         params.pop_front();
     }
-
 
     // Bound all induction variables of the loops enclosing the USE
     // using the loop bounds. Also demand that "LB <= UB" (or "LB < UB")
@@ -3605,18 +3560,20 @@ static Relation process_and_print_execution_space(node_t *node){
     (void)S.print_with_subs_to_string(false);
 
     // Print the execution space based on the bounds that exist in the relation.
+    jdfoutput("  /* Execution space */\n");
     set<const char *> prev_vars;
     for(i=1; i<=S.n_set(); i++){
         const char *var_name = strdup(S.set_var(i)->char_name());
-
-        printf("  %s = ", var_name);
         expr_t *solution = solveExpressionTreeForVar(relation_to_tree(S), var_name, S);
+
+        jdfoutput("  %s = ", var_name);
         if( NULL != solution )
-            printf("%s\n", expr_tree_to_str(solution));
+            jdfoutput("%s\n", expr_tree_to_str(solution));
         else
-            printf("%s\n", find_bounds_of_var(relation_to_tree(S), var_name, prev_vars, S));
+            jdfoutput("%s\n", find_bounds_of_var(relation_to_tree(S), var_name, prev_vars, S));
         prev_vars.insert(var_name);
     }
+    jdfoutput("\n");
 
     // Do some memory clean-up
     while(!prev_vars.empty()){
@@ -3666,16 +3623,14 @@ static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps){
     }
     
     // Dump the map.
-    if( _q2j_dump_mapping ){
-        map<string, string>::iterator pvit;
-        for (pvit=pseudo_vars.begin(); pvit!=pseudo_vars.end(); pvit++){
-            /*
-             * JDF & QUARK specific optimization:
-             * Add the keyword "data" infront of the matrix to
-             * differentiate the matrix from the struct.
-             */
-            printf("  /* %s == %s%s */\n",(pvit->first).c_str(), _q2j_data_prefix, (pvit->second).c_str());
-        }
+    map<string, string>::iterator pvit;
+    for (pvit=pseudo_vars.begin(); pvit!=pseudo_vars.end(); pvit++){
+        /*
+         * JDF & QUARK specific optimization:
+         * Add the keyword "data" infront of the matrix to
+         * differentiate the matrix from the struct.
+         */
+       jdfoutput("  /* %s == %s%s */\n",(pvit->first).c_str(), _q2j_data_prefix, (pvit->second).c_str());
     }
 }
 
@@ -4246,6 +4201,39 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     return need_ptask;
 }
 
+char *dump_conditions(string_arena_t *sa,
+                      list< pair<expr_t *,Relation> > *cond_list,
+                      list< pair<expr_t *, Relation> >::iterator *cond_it)
+{
+    list< pair<expr_t *, Relation> >::iterator cond_it2;
+    string cond = expr_tree_to_str((*cond_it)->first);
+    bool printed_condition = false;
+          
+    string_arena_init(sa);
+
+    // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
+
+    // For each condition that resulted from spliting a disjunction, negate
+    // all the other parts of the disjunction
+    for(cond_it2 = (*cond_list).begin(); cond_it2 != *cond_it; cond_it2++){
+        string cond2 = expr_tree_to_str(cond_it2->first);
+        if( !cond2.empty() ){
+            if( printed_condition )
+                string_arena_add_string(sa, "& ");
+            string_arena_add_string(sa, "(!(%s)) ", cond2.c_str());
+            printed_condition = true;
+        }
+    }
+    if( !cond.empty() ){
+        if( printed_condition )
+            string_arena_add_string(sa, "& ");
+        string_arena_add_string(sa, "%s ? ", cond.c_str() );
+    }else if( printed_condition ){
+        string_arena_add_string(sa, "? ");
+    }
+
+    return string_arena_get_string(sa);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -4256,6 +4244,9 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
     set<char *> vars;
     map<char *, set<dep_t *> > incm_map, outg_map;
     list<char *> ptask_list;
+    int nbspaces = 0;
+    string_arena_t *sa;
+    sa = string_arena_new(64);
 
     if( outg_deps.empty() && incm_deps.empty() ){
         return ptask_list;
@@ -4288,17 +4279,18 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
         char *var_pseudoname = *var_it;
         set<dep_t *>ideps = incm_map[var_pseudoname];
         set<dep_t *>odeps = outg_map[var_pseudoname];
+        const char *access;
 
         if( !ideps.empty() && !odeps.empty() ){
-            printf("  RW    ");
+            access = "RW";
         }else if( !ideps.empty() ){
-            printf("  READ  ");
+            access = "READ";
         }else if( !odeps.empty() ){
             /* 
              * DAGuE does not like write-only variables, so make it RW and make
              * it read from the data matrix tile that corresponds to this variable.
              */
-            printf("  RW    ");
+            access = "RW";
             insert_fake_read = true;
         }else{
             Q2J_ASSERT(0);
@@ -4310,13 +4302,14 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
             fprintf(stderr,"WARNING: Number of outgoing edges (%lu) for variable \"%s\" exceeds %d\n", odeps.size(), var_pseudoname, MAX_DEP_OUT_COUNT);
 
         // Print the pseudoname
-        printf("%s",var_pseudoname);
+        jdfoutput("  %-5s %-4s ", access, var_pseudoname);
+        nbspaces = 13;
 
         // print the incoming edges
         for (dep_it=ideps.begin(); dep_it!=ideps.end(); dep_it++){
              dep_t *dep = *dep_it;
              list< pair<expr_t *,Relation> > cond_list;
-             list< pair<expr_t *, Relation> >::iterator cond_it, cond_it2;
+             list< pair<expr_t *, Relation> >::iterator cond_it;
              string cond;
 
              // Needed by Omega
@@ -4328,42 +4321,20 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
              // is treated independently.
              cond_list = simplify_conditions_and_split_disjunctions(*dep->rel, S_es);
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
-                 string cond = expr_tree_to_str(cond_it->first);
-                 bool printed_condition = false;
-
-                 if ( dep_it!=ideps.begin() || cond_it != cond_list.begin() )
-                     printf("         ");
-                 printf(" <- ");
-
                  task_t *src_task = dep->src->task;
-
                  
-                 // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
+                 if ( (dep_it!=ideps.begin()) || (cond_it != cond_list.begin()) )
+                     jdfoutput("%s", indent(nbspaces, 1)); 
+                 
+                 /* Conditions for this input */
+                 jdfoutput("<- %s", dump_conditions(sa, &cond_list, &cond_it ));
 
-                 // For each condition that resulted from spliting a disjunction, negate
-                 // all the other parts of the disjunction
-                 for(cond_it2 = cond_list.begin(); cond_it2 != cond_it; cond_it2++){
-                     string cond2 = expr_tree_to_str(cond_it2->first);
-                     if( !cond2.empty() ){
-                         if( printed_condition )
-                             printf(" & ");
-                         printf("(!(%s))",cond2.c_str());
-                         printed_condition = true;
-                     }
-                 }
-                 if( !cond.empty() ){
-                     if( printed_condition )
-                         printf(" & ");
-                     printf("%s ? ",cond.c_str());
-                 }else if( printed_condition ){
-                     printf(" ? ");
-                 }
-
+                 /* Name of the input */
                  if( NULL != src_task ){
-                     printf("%s ", dep->src->var_symname);
-                     printf("%s(",src_task->task_name);
-                     print_actual_parameters(dep, relation_to_tree(cond_it->second), SOURCE);
-                     printf(") ");
+                     jdfoutput("%s %s(%s) ",
+                               dep->src->var_symname,
+                               src_task->task_name,
+                               dump_actual_parameters(sa, dep, relation_to_tree(cond_it->second), SOURCE) );
                  }else{ // ENTRY
                      if( need_pseudotask(dep->dst, reference_data_element) ){
                          ptask_list.push_back( create_pseudotask(this_task, S_es, cond_it->second, dep->dst, var_pseudoname, pseudotask_count++, "in") );
@@ -4373,15 +4344,15 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
                           * Add the keyword _q2j_data_prefix in front of the matrix to
                           * differentiate the matrix from the struct.
                           */
-                         printf("%s%s", _q2j_data_prefix, tree_to_str(dep->dst));
+                         jdfoutput("%s%s", _q2j_data_prefix, tree_to_str(dep->dst));
                      }
                  }
-                 printf("\n");
+                 jdfoutput("\n");
 #ifdef DEBUG_2
                  if( NULL != src_task ){
-                     printf("          // %s -> %s ",src_task->task_name, tree_to_str(dep->dst));
+                     jdfoutput_dbg("%s// %s -> %s ", indent(nbspaces, 1), src_task->task_name, tree_to_str(dep->dst));
                  }else{
-                     printf("          // ENTRY -> %s ", tree_to_str(dep->dst));
+                     jdfoutput_dbg("%s// ENTRY -> %s ", indent(nbspaces, 1), tree_to_str(dep->dst));
                  }
                  (*dep->rel).print_with_subs(stdout);
 #endif
@@ -4392,17 +4363,12 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
         if(insert_fake_read){
             Relation emptyR;
             dep_t *dep = *(odeps.begin());
-            printf(" <- ");
-             /*
-              * JDF & QUARK specific optimization:
-              * Add the keyword "data_" infront of the matrix to
-              * differentiate the matrix from the struct.
-              */
+            jdfoutput("<- ");
             if( need_pseudotask(dep->src, reference_data_element) ){
                 //printf("[[ data_%s ]]", tree_to_str(dep->src));
                 ptask_list.push_back( create_pseudotask(this_task, S_es, emptyR, dep->src, var_pseudoname, pseudotask_count++, "in") );
             }else{
-                printf("data_%s\n",tree_to_str(dep->src));
+                jdfoutput("%s%s\n", _q2j_data_prefix, tree_to_str(dep->src));
             }
         }
 
@@ -4410,7 +4376,7 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
         for (dep_it=odeps.begin(); dep_it!=odeps.end(); dep_it++){
              dep_t *dep = *dep_it;
              list< pair<expr_t *,Relation> > cond_list;
-             list< pair<expr_t *,Relation> >::iterator cond_it, cond_it2;
+             list< pair<expr_t *,Relation> >::iterator cond_it;
              string cond;
 
              // Needed by Omega
@@ -4425,29 +4391,10 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
                  string cond = expr_tree_to_str(cond_it->first);
                  bool printed_condition = false;
 
-                 printf("         ");
-                 printf(" -> ");
-
                  // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
 
-                 // For each condition that resulted from spliting a disjunction, negate
-                 // all the other parts of the disjunction
-                 for(cond_it2 = cond_list.begin(); cond_it2 != cond_it; cond_it2++){
-                     string cond2 = expr_tree_to_str(cond_it2->first);
-                     if( !cond2.empty() ){
-                         if( printed_condition )
-                             printf(" & ");
-                         printf("(!(%s))",cond2.c_str());
-                         printed_condition = true;
-                     }
-                 }
-                 if( !cond.empty() ){
-                     if( printed_condition )
-                         printf(" & ");
-                     printf("%s ? ",cond.c_str());
-                 }else if( printed_condition ){
-                     printf(" ? ");
-                 }
+                 /* Conditions for this input */
+                 jdfoutput("%s-> %s", indent(nbspaces, 1), dump_conditions(sa, &cond_list, &cond_it ));
 
                  node_t *sink = dep->dst;
                  if( NULL == sink ){
@@ -4465,9 +4412,9 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
                          printf("data_%s",tree_to_str(dep->src));
                      }
                  }else{
-                     printf("%s %s(",sink->var_symname, sink->task->task_name);
-                     print_actual_parameters(dep, relation_to_tree(cond_it->second), SINK);
-                     printf(") ");
+                     jdfoutput("%s %s(%s) ",
+                               sink->var_symname, sink->task->task_name,
+                               dump_actual_parameters(sa, dep, relation_to_tree(cond_it->second), SINK));
                  }
                  printf("\n");
 #ifdef DEBUG_2
@@ -4479,6 +4426,80 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
 
     }
 
+    string_arena_free(sa);
     return ptask_list;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+void print_header() {
+    
+    jdfoutput("extern \"C\" %%{\n"
+              "/*\n"
+              " *  Copyright (c) 2010\n"
+              " *\n"
+              " *  The University of Tennessee and The University\n"
+              " *  of Tennessee Research Foundation.  All rights\n"
+              " *  reserved.\n"
+              " *\n"
+              " * @precisions normal z -> s d c\n"
+              " *\n"
+              " */\n"
+              "#define PRECISION_z\n"
+              "\n"
+              "#include <plasma.h>\n"
+              "#include <core_blas.h>\n"
+              "\n"
+              "#include \"dague.h\"\n"
+              "#include \"data_distribution.h\"\n"
+              "#include \"data_dist/matrix/precision.h\"\n"
+              "#include \"data_dist/matrix/matrix.h\"\n"
+              "#include \"dplasma/lib/memory_pool.h\"\n"
+              "#include \"dplasma/lib/dplasmajdf.h\"\n"
+              "\n"
+              "%%}\n\n");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+void print_types_of_formal_parameters(node_t *root){
+    char *pool_decl;
+    symtab_t *scope;
+    q2j_symbol_t *sym;
+
+    scope = root->symtab;
+    do{
+        for(sym=scope->symbols; NULL!=sym; sym=sym->next){
+            if( !strcmp(sym->var_type, "PLASMA_desc") ){
+                jdfoutput("desc%-5s [type = \"tiled_matrix_desc_t\"]\n"
+                          "%s%-5s [type = \"dague_ddesc_t *\"]\n",
+                          sym->var_name,
+                          _q2j_data_prefix, sym->var_name);
+            } else {
+                jdfoutput("%-9s [type = \"%s\"]\n",
+                          sym->var_name, sym->var_type);
+            }
+        }
+        scope = scope->parent;
+    } while(NULL != scope);
+
+    /*
+     * Create pool declarations
+     */
+    string_arena_t *sa = create_pool_declarations();
+    jdfoutput( "%s", string_arena_get_string( sa ) );
+    string_arena_free( sa );
+    return;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+void print_default_task_placement(node_t *task_node){
+    
+    /*
+     * JDF & QUARK specific optimization:
+     * Add the keyword _q2j_data_prefix infront of the matrix to
+     * differentiate the matrix from the struct.
+     */
+    jdfoutput("  : %s%s\n\n", _q2j_data_prefix, tree_to_str(task_node));
+}

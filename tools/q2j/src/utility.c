@@ -34,6 +34,7 @@
 extern char *q2j_input_file_name;
 extern char *_q2j_data_prefix;
 extern int _q2j_generate_line_numbers;
+extern FILE *_q2j_output;
 
 static dague_list_t _dague_pool_list;
 static var_t *var_head=NULL;
@@ -81,6 +82,47 @@ static int is_id_or_mul(node_t *node, char *ivar);
 static int is_decrementing(node_t *node);
 void convert_loop_from_decr_to_incr(node_t *node);
 int replace_induction_variable_in_body(node_t *node, node_t *ivar, node_t *replacement);
+
+/**
+ * This function is not thread-safe, not reentrant, and not pure. As such it
+ * cannot be used twice on the same call to any oter function (including
+ * printf's and friends). However, as a side effect, when it is called with
+ * the same value for n, it is safe to be used in any of the previously
+ * mentioned scenarios.
+ */
+char *indent(int n, int size)
+{
+    static char *istr    = NULL;
+    static int   istrlen = 0;
+    int i;
+
+    if( n * size + 1 > istrlen ) {
+        istrlen = n * size + 1;
+        istr = (char*)realloc(istr, istrlen);
+    }
+
+    for(i = 0; i < n * size; i++)
+        istr[i] = ' ';
+    istr[i] = '\0';
+    return istr;
+}
+
+#if defined(__GNUC__)
+void jdfoutput(const char *format, ...) __attribute__((format(printf,1,2)));
+#endif
+void jdfoutput(const char *format, ...)
+{
+    va_list ap;
+    int len;
+
+    va_start(ap, format);
+    len = vfprintf(_q2j_output, format, ap);
+    va_end(ap);
+
+    if( len == -1 ) {
+        fprintf(stderr, "Unable to ouptut a string\n");
+    }
+}
 
 //#if 0
 void dump_und(und_t *und){
@@ -533,6 +575,39 @@ static matrix_variable_t *quark_find_all_matrices(node_t *node){
     }
 
     return matrix_variable_list_head;
+}
+
+/* 
+ * Take the first OUT or INOUT array variable and make it the data element that
+ * this task should have affinity to.
+ * It would be much better if we found which tile this task writes most times into,
+ * instead of the first write, to reduce unnecessary communication.
+ */
+node_t *quark_get_locality(node_t *task_node){
+    int i;
+
+    /*
+     * First loop to search LOCALITY flag
+     */
+    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+        if( isArrayOut(task_node, i) && isArrayLocal(task_node, i) ){
+            node_t *data_element = task_node->u.kids.kids[i];
+            return data_element;
+        }
+    }
+
+    /*
+     * If no LOCALITY flag, the first output data is used for locality
+     */
+    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+        if( isArrayOut(task_node, i) ){
+            node_t *data_element = task_node->u.kids.kids[i];
+            return data_element;
+        }
+    }
+
+    fprintf(stderr,"WARNING: task: \"%s\" does not alter any memory regions!", task_node->task->task_name);
+    return NULL;
 }
 
 /* 
@@ -2046,51 +2121,6 @@ static int isArrayIn(node_t *task_node, int index){
     return 0;
 }
 
-/* 
- * Take the first OUT or INOUT array variable and make it the data element that
- * this task should have affinity to.
- * It would be much better if we found which tile this task writes most times into,
- * instead of the first write, to reduce unnecessary communication.
- */
-node_t *print_default_task_placement(node_t *task_node){
-    int i;
-
-    /*
-     * First loop to search LOCALITY flag
-     */
-    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
-        if( isArrayOut(task_node, i) && isArrayLocal(task_node, i) ){
-            node_t *data_element = task_node->u.kids.kids[i];
-             /*
-              * JDF & QUARK specific optimization:
-              * Add the keyword _q2j_data_prefix infront of the matrix to
-              * differentiate the matrix from the struct.
-              */
-            printf("  : %s%s\n", _q2j_data_prefix, tree_to_str(data_element));
-            return data_element;
-        }
-    }
-
-    /*
-     * If no LOCALITY flag, the first output data is used for locality
-     */
-    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
-        if( isArrayOut(task_node, i) ){
-            node_t *data_element = task_node->u.kids.kids[i];
-             /*
-              * JDF & QUARK specific optimization:
-              * Add the keyword _q2j_data_prefix infront of the matrix to
-              * differentiate the matrix from the struct.
-              */
-            printf("  : %s%s\n", _q2j_data_prefix, tree_to_str(data_element));
-            return data_element;
-        }
-    }
-
-    fprintf(stderr,"WARNING: task: \"%s\" does not alter any memory regions!", task_node->task->task_name);
-    return NULL;
-}
-
 static char *int_to_str(int num){
     int lg, i = 1;
     char *str;
@@ -2141,18 +2171,20 @@ static char *size_to_pool_name(char *size_str){
     return pool_name;
 }
 
-char *create_pool_declarations(){
-    char *result = NULL;
-
+string_arena_t *create_pool_declarations(){
+    string_arena_t *sa = NULL;
+    
+    sa = string_arena_new(64);
     DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
-    {
-        var_def_item_t *true_item = (var_def_item_t *)list_item;
-       
-        result = append_to_string(result, true_item->def, NULL, 0);
-        result = append_to_string(result, true_item->var, " [type = \"dague_memory_pool_t *\" size = \"%s\"]\n", 47+strlen(true_item->var));
-    });
-    return result;
+                         {
+                             var_def_item_t *true_item = (var_def_item_t *)list_item;
+                             string_arena_add_string(sa, "%s [type = \"dague_memory_pool_t *\" size = \"%s\"]\n",
+                                                     true_item->def,
+                                                     true_item->var);
+                         });
+    return sa;
 }
+
 
 /* 
  * Traverse the list of variable definitions to see if we have stored a definition for a given variable.
