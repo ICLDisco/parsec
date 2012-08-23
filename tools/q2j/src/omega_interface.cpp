@@ -15,7 +15,6 @@
 #include "q2j.y.h"
 #include "omega_interface.h"
 #include "omega.h"
-#include "jdf.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -66,6 +65,12 @@ static void dump_full_und(und_t *und);
 #endif
 
 void jdf_register_globals(jdf_t *jdf, node_t *root);
+static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
+                                           jdf_function_entry_t *parent_task,
+                                           Relation S_es, Relation cond,
+                                           node_t *data_element,
+                                           char *var_pseudoname, 
+                                           int ptask_count, const char *inout );
 
 static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
 static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
@@ -4126,6 +4131,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 e->properties->expr       = q2jmalloc(jdf_expr_t, 1);
                 e->properties->properties = NULL;
                 e->properties->lineno     = 0;
+                e->properties->expr->next    = NULL;
                 e->properties->expr->op      = JDF_STRING;
                 e->properties->expr->jdf_var = strdup("dague_ddesc_t *");
 
@@ -4143,6 +4149,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 e2->properties[0].expr       = q2jmalloc(jdf_expr_t, 1);
                 e2->properties[0].properties = NULL;
                 e2->properties[0].lineno     = 0;
+                e2->properties[0].expr->next    = NULL;
                 e2->properties[0].expr->op      = JDF_STRING;
                 e2->properties[0].expr->jdf_var = strdup("tiled_matrix_desc_t");
 
@@ -4151,6 +4158,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 e2->properties[1].expr       = q2jmalloc(jdf_expr_t, 1);
                 e2->properties[1].properties = NULL;
                 e2->properties[1].lineno     = 0;
+                e2->properties[1].expr->next    = NULL;
                 e2->properties[1].expr->op      = JDF_STRING;
                 e2->properties[1].expr->jdf_var = strdup("on");
 
@@ -4162,6 +4170,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 e2->properties[2].expr       = q2jmalloc(jdf_expr_t, 1);
                 e2->properties[2].properties = NULL;
                 e2->properties[2].lineno     = 0;
+                e2->properties[2].expr->next    = NULL;
                 e2->properties[2].expr->op      = JDF_STRING;
                 e2->properties[2].expr->jdf_var = strdup(string_arena_get_string(sa));
 
@@ -4182,6 +4191,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 e->properties->expr       = q2jmalloc(jdf_expr_t, 1);
                 e->properties->properties = NULL;
                 e->properties->lineno     = 0;
+                e->properties->expr->next    = NULL;
                 e->properties->expr->op      = JDF_STRING;
                 e->properties->expr->jdf_var = strdup(sym->var_type);
             }
@@ -4341,6 +4351,278 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     }
 
     return need_ptask;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
+                                          jdf_function_entry_t *parent_task,
+                                          Relation S_es, Relation cond,
+                                          node_t *data_element,
+                                          char *var_pseudoname, 
+                                          int ptask_count, const char *inout )
+{
+    int var_count;
+    char *data_str;
+
+    Relation newS_es;
+    set <const char *> prev_vars;
+    str_pair_t *solved_vars;
+    string_arena_t *sa1, *sa2;
+
+    jdf_function_entry_t *pseudotask;
+    jdf_def_list_t  *last_definition;
+    jdf_name_list_t *last_param;
+    jdf_name_list_t *last_parent_param;
+    jdf_expr_t *parent_parameters = NULL;
+    jdf_expr_t *last_parent_parameters;
+
+    jdf_dep_t *input, *output;
+    jdf_call_t *parent_call;
+
+    int is_input = !strcmp(inout,"in");
+
+    pseudotask = q2jmalloc(jdf_function_entry_t, 1);
+    pseudotask->fname       = NULL;
+    pseudotask->parameters  = NULL;
+    pseudotask->flags       = is_input ? JDF_FUNCTION_FLAG_CAN_BE_STARTUP : 0;
+    pseudotask->properties  = NULL;
+    pseudotask->definitions = NULL;
+    pseudotask->simcost     = NULL;
+    pseudotask->predicate   = NULL;
+    pseudotask->dataflow    = NULL;
+    pseudotask->priority    = NULL;
+    pseudotask->body        = strdup(
+        "\nBODY"
+        "\n{"
+        "\n    /* nothing */"
+        "\n}"
+        "\nEND\n" );
+
+    sa1 = string_arena_new(64);
+    sa2 = string_arena_new(64);
+
+    // Create pseudotask name
+    string_arena_add_string( sa1, "%s_%s_data_%s%d",
+                             parent_task->fname, inout,
+                             tree_to_str(DA_array_base(data_element)),
+                             ptask_count );
+    pseudotask->fname = strdup( string_arena_get_string(sa1) );
+    
+    // Add the profile property
+    pseudotask->properties = q2jmalloc(jdf_def_list_t, 1);
+    pseudotask->properties->next       = NULL;
+    pseudotask->properties->name       = strdup("profile");
+    pseudotask->properties->expr       = q2jmalloc(jdf_expr_t, 1);
+    pseudotask->properties->properties = NULL;
+    pseudotask->properties->lineno     = 0;
+    pseudotask->properties->expr->next    = NULL;
+    pseudotask->properties->expr->op      = JDF_STRING;
+    pseudotask->properties->expr->jdf_var = strdup("off");
+
+    // Locality
+    if( !cond.is_null() ){
+        newS_es = Intersection(copy(S_es), Domain(copy(cond)));
+        newS_es.simplify(2,2);
+    }else{
+        newS_es = copy(S_es);
+    }
+
+    // Find the maximum number of variable substitutions we might need and add one for the termination flag.
+    JDF_COUNT_LIST_ENTRIES( parent_task->parameters, jdf_name_list_t, next, var_count);
+    solved_vars = (str_pair_t *)calloc(var_count+1, sizeof(str_pair_t));
+    var_count = 0;
+
+    // There is at least one parameter
+    assert( parent_task->parameters != NULL );
+
+    for(jdf_name_list_t *var = parent_task->parameters;
+        var != NULL; var = var->next ) {
+        const char *var_name = var->name;
+        expr_t *solution = solveExpressionTreeForVar(relation_to_tree(newS_es), var_name, copy(newS_es));
+        // If there is a solution it means that this parameter has a fixed value and not a range.
+        // That means that there is no point in including it as a parameter of the pseudo-task.
+        if( NULL != solution ){
+            const char *solution_str = expr_tree_to_str(solution);
+            solved_vars[var_count].str1 = var_name;
+            solved_vars[var_count].str2 = solution_str;
+            var_count++;
+
+            /* Add the expression to the parent call */
+            {
+                jdf_expr_t *e = q2jmalloc(jdf_expr_t, 1);
+
+                e->next    = NULL;
+                e->op      = JDF_VAR;
+                e->jdf_var = strdup(solution_str);
+
+                if (parent_parameters == NULL) {
+                    parent_parameters = e;
+                } else {
+                    last_parent_parameters->next = e;
+                }
+                last_parent_parameters = e;
+            }
+        } else {
+
+            /* Update the execution space */
+            {
+                jdf_def_list_t *d = q2jmalloc(jdf_def_list_t, 1);
+                d->next       = NULL;
+                d->name       = strdup(var_name);
+                d->expr       = q2jmalloc(jdf_expr_t, 1);
+                d->properties = NULL;
+                d->lineno     = 0;
+                d->expr->next    = NULL;
+                d->expr->op      = JDF_VAR;
+                d->expr->jdf_var = strdup( find_bounds_of_var(relation_to_tree(newS_es), var_name,
+                                                                          prev_vars, copy(newS_es)) );
+
+                if (pseudotask->definitions == NULL) {
+                    pseudotask->definitions = d;
+                } else {
+                    last_definition->next = d;
+                }
+                last_definition = d;
+            }
+            /* Add the parameter */
+            {
+                jdf_name_list_t *n = q2jmalloc(jdf_name_list_t, 1);
+                n->name = strdup(var_name);
+                if (pseudotask->parameters == NULL) {
+                    pseudotask->parameters = n;
+                } else {
+                    last_param->next = n;
+                }
+                last_param = n;
+            }
+            /* Add the expression to the parent call */
+            {
+                jdf_expr_t *e = q2jmalloc(jdf_expr_t, 1);
+
+                e->next    = NULL;
+                e->op      = JDF_STRING;
+                e->jdf_var = strdup(var_name);
+
+                if (parent_parameters == NULL) {
+                    parent_parameters = e;
+                } else {
+                    last_parent_parameters->next = e;
+                }
+                last_parent_parameters = e;
+            }
+            prev_vars.insert(var_name);
+        }
+    }
+
+    // Delete the "previous variables" set, to clean up some memory
+    while(!prev_vars.empty()){
+        prev_vars.erase(prev_vars.begin());
+    }
+
+    // Now that we know which parameters define the execution space of
+    // this pseudo-task, we can finish to generate the pseudo-task
+    //
+
+    // Data string
+    string_arena_init(sa2);
+    string_arena_add_string( sa2, "%s%s", _q2j_data_prefix,
+                             tree_to_str_with_substitutions(data_element, solved_vars) );
+    data_str = string_arena_get_string(sa2);
+
+    // Add the predicate for locality 
+    pseudotask->predicate = q2jmalloc(jdf_call_t, 1);
+    pseudotask->predicate->var         = strdup(data_str);
+    pseudotask->predicate->func_or_mem = NULL;
+    pseudotask->predicate->parameters  = NULL;
+
+    // Add the 2 dataflows
+    pseudotask->dataflow = q2jmalloc(jdf_dataflow_t, 1);
+    pseudotask->dataflow->next = NULL;
+    pseudotask->dataflow->varname     = strdup(var_pseudoname);
+    pseudotask->dataflow->deps        = q2jmalloc(jdf_dep_t, 2);
+    pseudotask->dataflow->access_type = JDF_VAR_TYPE_READ;
+    pseudotask->dataflow->lineno      = 0;
+
+    input  =  pseudotask->dataflow->deps;
+    output = (pseudotask->dataflow->deps)+1;
+
+    // Input 
+    input->next   = output;
+    input->type   = JDF_DEP_TYPE_IN;
+    input->guard  = q2jmalloc(jdf_guarded_call_t, 1);
+    input->datatype.simple = 1;
+    input->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
+    input->datatype.nb_elt->next = NULL;
+    input->datatype.nb_elt->op   = JDF_CST;
+    input->datatype.nb_elt->jdf_cst = 1;
+    input->lineno = 0;
+    
+    input->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
+    input->guard->guard      = NULL;
+    input->guard->properties = NULL;
+    input->guard->calltrue   = q2jmalloc(jdf_call_t, 1);
+    input->guard->callfalse  = NULL;
+    
+    if (is_input) {
+        input->guard->calltrue->var         = strdup(data_str);
+        input->guard->calltrue->func_or_mem = NULL;
+        input->guard->calltrue->parameters  = NULL;
+    } else {
+        input->guard->calltrue->var         = strdup(var_pseudoname);
+        input->guard->calltrue->func_or_mem = parent_task->fname;
+        input->guard->calltrue->parameters  = parent_parameters;
+    }
+    
+    // Output 
+    output->next   = NULL;
+    output->type   = JDF_DEP_TYPE_OUT;
+    output->guard  = q2jmalloc(jdf_guarded_call_t, 1);
+    output->datatype.simple = 1;
+    output->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
+    output->datatype.nb_elt->next = NULL;
+    output->datatype.nb_elt->op   = JDF_CST;
+    output->datatype.nb_elt->jdf_cst = 1;
+    output->lineno = 0;
+
+    output->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
+    output->guard->guard      = NULL;
+    output->guard->properties = NULL;
+    output->guard->calltrue   = q2jmalloc(jdf_call_t, 1);
+    output->guard->callfalse  = NULL;
+    
+    if (!is_input) {
+        input->guard->calltrue->var         = strdup(data_str);
+        input->guard->calltrue->func_or_mem = NULL;
+        input->guard->calltrue->parameters  = NULL;
+    } else {
+        input->guard->calltrue->var         = strdup(var_pseudoname);
+        input->guard->calltrue->func_or_mem = parent_task->fname;
+        input->guard->calltrue->parameters  = parent_parameters;
+    }
+
+    // Create the dependency to the pseudo task for the parent_function
+    parent_call = q2jmalloc(jdf_call_t, 1);
+    parent_call->var         = strdup(var_pseudoname);
+    parent_call->func_or_mem = pseudotask->fname;
+    parent_call->parameters = q2jmalloc(jdf_expr_t, 1);
+
+    last_param = pseudotask->parameters;
+    last_parent_parameters = parent_call->parameters;
+    while ( last_param != NULL ) {
+        last_parent_parameters->op      = JDF_VAR;
+        last_parent_parameters->jdf_var = last_param->name;
+        
+        if ( last_param->next != NULL )
+            last_parent_parameters->next = q2jmalloc(jdf_expr_t, 1);
+        last_param = last_param->next;
+        last_parent_parameters = last_parent_parameters->next;
+    }
+    
+    string_arena_free(sa1);
+    string_arena_free(sa2);
+
+    return parent_call;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4614,6 +4896,11 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
                                            dep->dst, var_pseudoname, pseudotask_count++,
                                            "in", sa, sa2 );
                          ptask_list.push_back( strdup(string_arena_get_string(sa2)) );
+                         
+                         jdf_register_pseudotask( &_q2j_jdf, this_node->function,
+                                                  S_es, cond_it->second,
+                                                  dep->dst, var_pseudoname,
+                                                  pseudotask_count, "in" ); 
                      }else{
                          dump_data(sa, dep->dst);
                      }
@@ -4636,6 +4923,10 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
                                   dep->src, var_pseudoname, pseudotask_count++,
                                   "in", sa, sa2 );
                 ptask_list.push_back( strdup(string_arena_get_string(sa2)) );
+                jdf_register_pseudotask( &_q2j_jdf, this_node->function,
+                                         S_es, emptyR,
+                                         dep->src, var_pseudoname,
+                                         pseudotask_count, "in" ); 
             }else{
                 dump_data(sa, dep->dst);
             }
@@ -4677,6 +4968,10 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
                                            dep->src, var_pseudoname, pseudotask_count++,
                                            "out", sa, sa2 );
                          ptask_list.push_back( strdup(string_arena_get_string(sa2)) );
+                         jdf_register_pseudotask( &_q2j_jdf, this_node->function,
+                                                  S_es, cond_it->second,
+                                                  dep->src, var_pseudoname,
+                                                  pseudotask_count, "in" ); 
                      }else{
                          dump_data(sa, dep->dst);
                      }
