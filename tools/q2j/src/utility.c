@@ -39,6 +39,7 @@ extern char *q2j_input_file_name;
 extern char *_q2j_data_prefix;
 extern int _q2j_generate_line_numbers;
 extern FILE *_q2j_output;
+extern jdf_t _q2j_jdf;
 
 static dague_list_t _dague_pool_list;
 static var_t *var_head=NULL;
@@ -150,6 +151,47 @@ void dump_und(und_t *und){
         break;
     }
 
+}
+
+jdf_function_entry_t *jdf_register_function( jdf_t        *jdf,
+                                             const char   *fname,
+                                             const node_t *node )
+{
+    jdf_function_entry_t *f;
+    node_t *tmp;
+
+#ifdef DEBUG
+    if ( jdf->functions != NULL ) {
+        jdf_function_entry_t *f2 = jdf->functions;
+        do {
+            assert( strcmp(fname, f2->fname ) != 0 );
+            f2 = f2->next;
+        } while( f2 != NULL );
+    }
+#endif
+
+    f = q2jmalloc(jdf_function_entry_t, 1);
+    f->fname = strdup(fname);
+    f->parameters  = NULL;
+    f->properties  = NULL;
+    f->definitions = NULL;
+    f->simcost     = NULL;
+    f->predicate   = NULL;
+    f->dataflow    = NULL;
+    f->priority    = NULL;
+    f->body        = NULL;
+    
+    for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+        jdf_name_list_t *n = q2jmalloc(jdf_name_list_t, 1);
+        n->next = f->parameters;
+        n->name = DA_var_name(DA_loop_induction_variable(tmp));
+        f->parameters = n;
+    }
+
+    f->next = jdf->functions;
+    jdf->functions = f;
+
+    return f;
 }
 
 void dump_all_unds(void){
@@ -457,8 +499,10 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
     }
 
     if( FCALL == node->type ){
+        char *fname;
         int kid_count;
         task_t *task;
+        jdf_function_entry_t *f;
 
         if( strcmp("QUARK_Insert_Task", DA_kid(node,0)->u.var_name) ){
             return;
@@ -468,12 +512,12 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
 
         // QUARK specific code. The task is the second parameter.
         if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
+            fname = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), 
+                                             mult_kernel_occ ? (int32_t)node->lineno : -1 );
+            
+            f = jdf_register_function( &_q2j_jdf, fname, node );
             task = (task_t *)calloc(1, sizeof(task_t));
-            if( mult_kernel_occ ){
-                task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), (int32_t)node->lineno );
-            }else{
-                task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), -1 );
-            }
+            task->task_name = fname;
             task->task_node = node;
             task->ind_vars = (char **)calloc(1+node->loop_depth, sizeof(char *));
             i=node->loop_depth-1;
@@ -481,20 +525,25 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
                 task->ind_vars[i] = DA_var_name(DA_loop_induction_variable(tmp));
                 --i;
             }
+
             node->task = task;
-        }else{
+            node->function = f;
+
+        } else {
 #if defined(DEBUG)
             printf("WARNING: probably there is something wrong with this QUARK_Insert_Task().\n");
 #endif
             return;
         }
 
+        assert(f != NULL);
         for(i=1; i<kid_count; ++i){
             node_t *tmp = node->u.kids.kids[i];
 
             // Record USE of DEF
             if( ARRAY == tmp->type ){
                 tmp->task = task;
+                tmp->function = f;
                 tmp->var_symname = numToSymName(symbolic_name_count++);
                 node_t *qual = node->u.kids.kids[i+1];
                 add_variable_use_or_def( tmp, DA_quark_INOUT(qual), DA_quark_TYPE(qual), _task_count );
@@ -518,7 +567,6 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             quark_record_uses_defs_and_pools(node->u.kids.kids[i], mult_kernel_occ);
         }
     }
-
 }
 
 

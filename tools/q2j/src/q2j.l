@@ -15,6 +15,7 @@ IS			(u|U|l|L)*
 #include "dague_config.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "jdf.h"
 #include "node_struct.h"
 #include "parse_utility.h"
 #include "symtab.h"

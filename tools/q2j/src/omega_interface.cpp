@@ -3090,15 +3090,14 @@ void interrogate_omega(node_t *root, var_t *head){
         for(und=var->und; NULL != und ; und=und->next){
             if(is_und_write(und)){
                 node_t *def = und->node;
-                flow_sources[def] = create_dep_relations(und, var, DEP_FLOW, exit_node);
-                output_sources[def] = create_dep_relations(und, var, DEP_OUT, exit_node);
+                flow_sources[def]   = create_dep_relations(und, var, DEP_FLOW, exit_node);
+                output_sources[def] = create_dep_relations(und, var, DEP_OUT,  exit_node);
             }
             if(is_und_read(und) && !is_phony_Entry_task(und->node->task) && !is_phony_Exit_task(und->node->task)){
                 node_t *use = und->node;
                 anti_sources[use] = create_dep_relations(und, var, DEP_ANTI, exit_node);
             }
         }
-
 
         // Minimize the flow dependencies (also known as true dependencies, or read-after-write)
         // by factoring in the output dependencies (also known as write-after-write).

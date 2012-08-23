@@ -65,8 +65,11 @@ int main(int argc, char **argv){
     _q2j_jdf.prologue  = NULL;
     _q2j_jdf.epilogue  = NULL;
     _q2j_jdf.globals   = NULL;
-    _q2j_jdf.functions = NULL;
     _q2j_jdf.global_properties = NULL;
+    _q2j_jdf.functions = NULL;
+    _q2j_jdf.data      = NULL;
+    _q2j_jdf.datatypes = NULL;
+    _q2j_jdf.inline_c_functions = NULL;
 
     yyin = fopen(q2j_input_file_name, "r");
     if( NULL == yyin ){

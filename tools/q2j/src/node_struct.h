@@ -82,6 +82,7 @@ struct _node{
     symtab_t *symtab;
 
     task_t *task;
+    jdf_function_entry_t *function;
 
     uint64_t trip_count;
     uint64_t loop_depth;
