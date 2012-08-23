@@ -4356,11 +4356,11 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
 ////////////////////////////////////////////////////////////////////////////////
 //
 static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
-                                          jdf_function_entry_t *parent_task,
-                                          Relation S_es, Relation cond,
-                                          node_t *data_element,
-                                          char *var_pseudoname, 
-                                          int ptask_count, const char *inout )
+                                           jdf_function_entry_t *parent_task,
+                                           Relation S_es, Relation cond,
+                                           node_t *data_element,
+                                           char *var_pseudoname, 
+                                           int ptask_count, const char *inout )
 {
     int var_count;
     char *data_str;
