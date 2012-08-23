@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "symtab.h"
+#include "jdf.h"
 
 extern int yyparse (void);
 char *q2j_input_file_name      = NULL;
@@ -18,6 +19,7 @@ int _q2j_finalize_antideps     = 0;
 int _q2j_generate_line_numbers = 0;
 int _q2j_dump_mapping          = 0;
 FILE *_q2j_output;
+jdf_t _q2j_jdf;
 
 /* 
  * Add the keyword _q2j_data_prefix infront of the matrix name to
@@ -59,6 +61,12 @@ int main(int argc, char **argv){
             q2j_input_file_name = argv[argc];
         }
     }
+
+    _q2j_jdf.prologue  = NULL;
+    _q2j_jdf.epilogue  = NULL;
+    _q2j_jdf.globals   = NULL;
+    _q2j_jdf.functions = NULL;
+    _q2j_jdf.global_properties = NULL;
 
     yyin = fopen(q2j_input_file_name, "r");
     if( NULL == yyin ){

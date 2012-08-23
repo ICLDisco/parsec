@@ -8,12 +8,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include "jdf.h"
 #include "string_arena.h"
 #include "node_struct.h"
 #include "utility.h"
 #include "q2j.y.h"
 #include "omega_interface.h"
 #include "omega.h"
+#include "jdf.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -56,11 +58,14 @@ extern int _q2j_finalize_antideps;
 extern int _q2j_dump_mapping;
 extern char *_q2j_data_prefix;
 extern FILE *_q2j_output;
+extern jdf_t _q2j_jdf;
 
 #if 0
 extern void dump_und(und_t *und);
 static void dump_full_und(und_t *und);
 #endif
+
+void jdf_register_globals(jdf_t *jdf, node_t *root);
 
 static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
 static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
@@ -936,7 +941,6 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
 void declare_global_vars(node_t *node){
     map<string, Free_Var_Decl *> tmp_map;
     node_t *tmp;
-
 
     if( FOR == node->type ){
         set <char *> ind_names;
@@ -3061,6 +3065,7 @@ void interrogate_omega(node_t *root, var_t *head){
 
     print_header();
     print_types_of_formal_parameters(root);
+    jdf_register_globals(&_q2j_jdf, root);
 
     declare_global_vars(root);
 
@@ -4080,6 +4085,120 @@ void print_header() {
               "#include \"dplasma/lib/dplasmajdf.h\"\n"
               "\n"
               "%%}\n\n");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+void jdf_register_globals(jdf_t *jdf, node_t *root)
+{
+    char *pool_decl;
+    symtab_t *scope;
+    q2j_symbol_t *sym;
+    jdf_global_entry_t *prev, *e, *e2;
+    string_arena_t *sa;
+    
+    sa = string_arena_new(64);
+    assert(jdf->globals == NULL);
+
+    scope = root->symtab;
+    do{
+        for(sym=scope->symbols; NULL!=sym; sym=sym->next){
+            
+            if( !strcmp(sym->var_type, "PLASMA_desc") ){
+                e = q2jmalloc(jdf_global_entry_t, 2);
+                e2 = e+1;
+
+                /* Data */
+                string_arena_add_string(sa, "%s%s", _q2j_data_prefix, sym->var_name);
+
+                e->next       = e2;
+                e->name       = strdup(string_arena_get_string(sa));
+                e->properties = q2jmalloc(jdf_def_list_t, 1);
+                e->expression = NULL;
+                e->lineno     = 0;
+
+                e->properties->next       = NULL;
+                e->properties->name       = strdup("type");
+                e->properties->expr       = q2jmalloc(jdf_expr_t, 1);
+                e->properties->properties = NULL;
+                e->properties->lineno     = 0;
+                e->properties->expr->op      = JDF_STRING;
+                e->properties->expr->jdf_var = strdup("dague_ddesc_t *");
+
+                /* Descriptor */
+                string_arena_init(sa);
+                string_arena_add_string(sa, "desc%s", sym->var_name);
+                e2->next       = NULL;
+                e2->name       = strdup(string_arena_get_string(sa));
+                e2->properties = q2jmalloc(jdf_def_list_t, 3);
+                e2->expression = NULL;
+                e2->lineno     = 0;
+
+                e2->properties[0].next       = (e2->properties)+1;
+                e2->properties[0].name       = strdup("type");
+                e2->properties[0].expr       = q2jmalloc(jdf_expr_t, 1);
+                e2->properties[0].properties = NULL;
+                e2->properties[0].lineno     = 0;
+                e2->properties[0].expr->op      = JDF_STRING;
+                e2->properties[0].expr->jdf_var = strdup("tiled_matrix_desc_t");
+
+                e2->properties[1].next       = (e2->properties)+2;
+                e2->properties[1].name       = strdup("hidden");
+                e2->properties[1].expr       = q2jmalloc(jdf_expr_t, 1);
+                e2->properties[1].properties = NULL;
+                e2->properties[1].lineno     = 0;
+                e2->properties[1].expr->op      = JDF_STRING;
+                e2->properties[1].expr->jdf_var = strdup("on");
+
+                string_arena_init(sa);
+                string_arena_add_string(sa, "*((tiled_matrix_desc_t*)%s%s)", 
+                                        _q2j_data_prefix, sym->var_name);
+                e2->properties[2].next       = NULL;
+                e2->properties[2].name       = strdup("default");
+                e2->properties[2].expr       = q2jmalloc(jdf_expr_t, 1);
+                e2->properties[2].properties = NULL;
+                e2->properties[2].lineno     = 0;
+                e2->properties[2].expr->op      = JDF_STRING;
+                e2->properties[2].expr->jdf_var = strdup(string_arena_get_string(sa));
+
+            } else {
+                e = q2jmalloc(jdf_global_entry_t, 1);
+
+                /* Data */
+                string_arena_add_string(sa, "%s%s", _q2j_data_prefix, sym->var_name);
+
+                e->next       = NULL;
+                e->name       = strdup(sym->var_name);
+                e->properties = q2jmalloc(jdf_def_list_t, 1);
+                e->expression = NULL;
+                e->lineno     = 0;
+
+                e->properties->next       = NULL;
+                e->properties->name       = strdup("type");
+                e->properties->expr       = q2jmalloc(jdf_expr_t, 1);
+                e->properties->properties = NULL;
+                e->properties->lineno     = 0;
+                e->properties->expr->op      = JDF_STRING;
+                e->properties->expr->jdf_var = strdup(sym->var_type);
+            }
+
+            if (jdf->globals == NULL) {
+                jdf->globals = e;
+            } else {
+                prev->next = e;
+            }
+            prev = e;
+        }
+        scope = scope->parent;
+    } while(NULL != scope);
+
+    /*
+     * Create pool declarations
+     */
+    jdf_register_pools( jdf );
+
+    string_arena_free(sa);
+    return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

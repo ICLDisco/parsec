@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include "node_struct.h"
 #include "string_arena.h"
+#include "jdf.h"
 
 BEGIN_C_DECLS
 
@@ -43,8 +44,11 @@ struct _expr_t{
     } value;
 };
 
+#define q2jmalloc(type, nbelem)  (type*)calloc(nbelem, sizeof(type))
+
 char *indent(int n, int size);
 void jdfoutput(const char *format, ...);    
+void jdf_register_pools(jdf_t *jdf );
 
 // AST utility functions
 int    DA_is_if(node_t *node);

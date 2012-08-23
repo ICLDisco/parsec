@@ -13,8 +13,12 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stddef.h>
+#include <stdarg.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+
+#include "jdf.h"
+#include "string_arena.h"
 
 #include "node_struct.h"
 #include "q2j.y.h"
@@ -2182,6 +2186,52 @@ string_arena_t *create_pool_declarations(){
                                                      true_item->var);
                          });
     return sa;
+}
+
+void jdf_register_pools( jdf_t *jdf )
+{
+    jdf_global_entry_t *prev;
+
+    if ( jdf->globals != NULL ) {
+        prev = jdf->globals;
+        while( prev->next != NULL )
+            prev = prev->next;
+    }
+
+    DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
+                         {
+                             var_def_item_t *true_item = (var_def_item_t *)list_item;
+                             jdf_global_entry_t *e = q2jmalloc(jdf_global_entry_t, 1);
+                             e->next       = NULL;
+                             e->name       = true_item->def;
+                             e->properties = q2jmalloc(jdf_def_list_t, 2);
+                             e->expression = NULL;
+                             e->lineno     = 0;
+
+                             e->properties[0].next       = (e->properties)+1;
+                             e->properties[0].name       = strdup("type");
+                             e->properties[0].expr       = q2jmalloc(jdf_expr_t, 1);
+                             e->properties[0].properties = NULL;
+                             e->properties[0].lineno     = 0;
+                             e->properties[0].expr->op      = JDF_STRING;
+                             e->properties[0].expr->jdf_var = strdup("dague_memory_pool_t *");
+                             
+                             e->properties[1].next       = NULL;
+                             e->properties[1].name       = strdup("type");
+                             e->properties[1].expr       = q2jmalloc(jdf_expr_t, 1);
+                             e->properties[1].properties = NULL;
+                             e->properties[1].lineno     = 0;
+                             e->properties[1].expr->op      = JDF_STRING;
+                             e->properties[1].expr->jdf_var = strdup(true_item->var);
+
+                             if ( jdf->globals == NULL) {
+                                  jdf->globals = e;
+                             } else {
+                                 prev->next = e;
+                             }
+                             prev = e;
+                         });
+    return;
 }
 
 
