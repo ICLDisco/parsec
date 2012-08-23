@@ -83,8 +83,8 @@ static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *ro
 static map<string, Free_Var_Decl *> global_vars;
 static list< pair<expr_t *, Relation> > simplify_conditions_and_split_disjunctions(Relation R, Relation S_es);
 expr_t *relation_to_tree( Relation R );
-static inline bool is_phony_Entry_task(task_t *task);
-static inline bool is_phony_Exit_task(task_t *task);
+static inline bool is_phony_Entry_task(node_t *task);
+static inline bool is_phony_Exit_task(node_t *task);
 static bool inline is_enclosed_by_else(node_t *node, node_t *branch);
 static inline void flip_sign(expr_t *exp);
 static inline bool is_negative(expr_t *exp);
@@ -218,13 +218,13 @@ char *dump_conditions(string_arena_t *sa,
     return string_arena_get_string(sa);
 }
 
-static inline bool is_phony_Entry_task(task_t *task){
-    char *name = task->task_name;
+static inline bool is_phony_Entry_task(node_t *task){
+    char *name = task->function->fname;
     return (strstr(name, "DAGUE_IN_") == name);
 }
 
-static inline bool is_phony_Exit_task(task_t *task){
-    char *name = task->task_name;
+static inline bool is_phony_Exit_task(node_t *task){
+    char *name = task->function->fname;
     return (strstr(name, "DAGUE_OUT_") == name);
 }
 
@@ -749,7 +749,7 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         char *var_name, *def_name;
  
         // skip anti-dependencies that go to the phony output task.
-        if( DEP_ANTI == dep_type && is_phony_Exit_task(und->node->task) ){
+        if( DEP_ANTI == dep_type && is_phony_Exit_task(und->node) ){
             continue;
         }
    
@@ -876,8 +876,8 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             if( _q2j_verbose_warnings ){
                 fprintf(stderr,"WARNING: In create_dep_relations() ");
                 fprintf(stderr,"Destination is before Source and they do not have a common enclosing loop:\n");
-                fprintf(stderr,"WARNING: Destination:%s %s\n", tree_to_str(use), use->task->task_name );
-                fprintf(stderr,"WARNING: Source:%s %s\n", tree_to_str(def), def->task->task_name);
+                fprintf(stderr,"WARNING: Destination:%s %s\n", tree_to_str(use), use->function->fname);
+                fprintf(stderr,"WARNING: Source:%s %s\n",      tree_to_str(def), def->function->fname);
             }
             continue;
         }
@@ -2664,27 +2664,27 @@ void create_node(map<char *, tg_node_t *> &task_to_node, dep_t *dep, int edge_ty
     if( (ENTRY == src->type) || (NULL == dst) )
         return;
 
-    Q2J_ASSERT(src->task);
-    Q2J_ASSERT(src->task->task_name);
-    Q2J_ASSERT(dst->task);
-    Q2J_ASSERT(dst->task->task_name);
+    Q2J_ASSERT(src->function);
+    Q2J_ASSERT(src->function->fname);
+    Q2J_ASSERT(dst->function);
+    Q2J_ASSERT(dst->function->fname);
 
     // See if we there is already a node in the graph for the source of this control edge.
-    tg_node_t *src_nd = find_node_in_graph(src->task->task_name, task_to_node);
+    tg_node_t *src_nd = find_node_in_graph(src->function->fname, task_to_node);
     if( NULL == src_nd ){
         src_nd = new tg_node_t();
-        src_nd->task_name = strdup(src->task->task_name);
-        task_to_node[src->task->task_name] = src_nd;
+        src_nd->task_name = strdup(src->function->fname);
+        task_to_node[src->function->fname] = src_nd;
     }
     // Now that we have a graph node, add the edge to it
     tg_edge_t *new_edge = (tg_edge_t *)calloc(1, sizeof(tg_edge_t));
     new_edge->type = edge_type;
     new_edge->R = new Relation(*(dep->rel));
-    tg_node_t *dst_nd = find_node_in_graph(dst->task->task_name, task_to_node);
+    tg_node_t *dst_nd = find_node_in_graph(dst->function->fname, task_to_node);
     if( NULL == dst_nd ){
         dst_nd = new tg_node_t();
-        dst_nd->task_name = strdup(dst->task->task_name);
-        task_to_node[dst->task->task_name] = dst_nd;
+        dst_nd->task_name = strdup(dst->function->fname);
+        task_to_node[dst->function->fname] = dst_nd;
     }
     new_edge->dst = dst_nd;
     src_nd->edges.push_back(new_edge);
@@ -2728,13 +2728,13 @@ void copy_task_graph_node_except_edge(tg_node_t *org_nd, map<char *, tg_node_t *
         tg_edge_t *tmp_edge = *it;
 
         // Just being paranoid.
-        Q2J_ASSERT(dep->src->task);
-        Q2J_ASSERT(dep->src->task->task_name);
-        Q2J_ASSERT(dep->dst->task);
-        Q2J_ASSERT(dep->dst->task->task_name);
+        Q2J_ASSERT(dep->src->function);
+        Q2J_ASSERT(dep->src->function->fname);
+        Q2J_ASSERT(dep->dst->function);
+        Q2J_ASSERT(dep->dst->function->fname);
 
-        if( !strcmp(new_nd->task_name, dep->src->task->task_name) &&
-            !strcmp(tmp_edge->dst->task_name, dep->dst->task->task_name) && 
+        if( !strcmp(new_nd->task_name, dep->src->function->fname) &&
+            !strcmp(tmp_edge->dst->task_name, dep->dst->function->fname) && 
             (EDGE_ANTI == tmp_edge->type) &&
             are_relations_equivalent(tmp_edge->R, dep->rel) ) {
             continue;
@@ -2763,14 +2763,14 @@ void update_synch_edge_on_graph(map<char *, tg_node_t *> task_to_node, dep_t *de
     tg_node_t *src_task;
 
     // Find the task in the graph or die.
-    map<char *, tg_node_t *>::iterator t_it = task_to_node.find(dep->src->task->task_name);
+    map<char *, tg_node_t *>::iterator t_it = task_to_node.find(dep->src->function->fname);
     assert( t_it != task_to_node.end() );
     src_task = t_it->second;
 
     // Get the name of the destination task of the synch edge we are trying to update.
-    assert(dep->dst->task);
-    assert(dep->dst->task->task_name);
-    char *dst_name = dep->dst->task->task_name;
+    assert(dep->dst->function);
+    assert(dep->dst->function->fname);
+    char *dst_name = dep->dst->function->fname;
 
     // Traverse the list of edges that start from the source task looking for the one to update.
     for (list<tg_edge_t *>::iterator e_it = src_task->edges.begin(); e_it != src_task->edges.end(); e_it++){
@@ -2803,15 +2803,15 @@ void update_synch_edge_on_graph(map<char *, tg_node_t *> task_to_node, dep_t *de
 void create_copy_of_graph_excluding_edge(map<char *, tg_node_t *> task_to_node, dep_t *dep, tg_node_t **new_source_node, tg_node_t **new_sink_node){
     map<char *, tg_node_t *> tmp_task_to_node;
     tg_node_t *new_src_nd, *new_snk_nd;
-    task_t *src_task, *dst_task;
+    node_t *src_node, *dst_node;
 
     // Make sure the dep argument contains what we think it does.
-    src_task = dep->src->task;
-    dst_task = dep->dst->task;
-    Q2J_ASSERT(src_task);
-    Q2J_ASSERT(src_task->task_name);
-    Q2J_ASSERT(dst_task);
-    Q2J_ASSERT(dst_task->task_name);
+    src_node = dep->src;
+    dst_node = dep->dst;
+    Q2J_ASSERT(src_node->function);
+    Q2J_ASSERT(src_node->function->fname);
+    Q2J_ASSERT(dst_node->function);
+    Q2J_ASSERT(dst_node->function->fname);
 
     // Make a copy of the graph one node at a time.
     map<char *, tg_node_t *>::iterator it;
@@ -2821,9 +2821,9 @@ void create_copy_of_graph_excluding_edge(map<char *, tg_node_t *> task_to_node, 
     }
 
     // Find the node that constitutes the source of this dependency in the new graph.
-    new_src_nd = find_node_in_graph(src_task->task_name, tmp_task_to_node);
+    new_src_nd = find_node_in_graph(src_node->function->fname, tmp_task_to_node);
     Q2J_ASSERT(new_src_nd);
-    new_snk_nd = find_node_in_graph(dst_task->task_name, tmp_task_to_node);
+    new_snk_nd = find_node_in_graph(dst_node->function->fname, tmp_task_to_node);
     Q2J_ASSERT(new_snk_nd);
 
     *new_source_node = new_src_nd;
@@ -2836,7 +2836,7 @@ void create_copy_of_graph_excluding_edge(map<char *, tg_node_t *> task_to_node, 
 
 map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps){
     map<char *, set<dep_t *> > resulting_map;
-    task_t *src_task, *dst_task;
+    jdf_function_entry_t *src_task, *dst_task;
 
     // For every anti-edge, repeat the same steps.
     set<dep_t *>::iterator it_a;
@@ -2845,10 +2845,10 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
         dep_t *dep_pruned;
         dep_t *dep = *it_a;
 
-        if( NULL == dep->src->task ){ continue; } /* ENTRY */
-        src_task = dep->src->task;
+        if( NULL == dep->src->function ){ continue; } /* ENTRY */
+        src_task = dep->src->function;
         if( NULL == dep->dst ){ continue; } /* EXIT */
-        dst_task = dep->dst->task;
+        dst_task = dep->dst->function;
         Q2J_ASSERT(dst_task);
 
         dep_pruned = (dep_t *)calloc(1,sizeof(dep_t));
@@ -2857,20 +2857,22 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
         dep_pruned->rel = dep->rel;
 
 #if defined(DEBUG_ANTI)
-        //printf("-- DEBUG: processing anti: from %s to %s: %s",dep->src->task->task_name, dep->dst->task->task_name, (const char *)dep->rel->print_with_subs_to_string(false));
+        //printf("-- DEBUG: processing anti: from %s to %s: %s", 
+        //       dep->src->function->fname, dep->dst->function->fname,
+        //       (const char *)dep->rel->print_with_subs_to_string(false));
 #endif /* defined(DEBUG_ANTI) */
 
         // For every flow edge that has the same src and dst as this anti-edge,
         // subtract the flow from the anti.
         set<dep_t *>::iterator it_f;
         for (it_f=flow_deps.begin(); it_f!=flow_deps.end(); it_f++){
-            task_t *src_task_f, *dst_task_f;
+            jdf_function_entry_t *src_task_f, *dst_task_f;
             dep_t *dep_f = *it_f;
 
-            if( NULL == dep_f->src->task ){ continue; } /* ENTRY */
-            src_task_f = dep_f->src->task;
+            if( NULL == dep_f->src->function ){ continue; } /* ENTRY */
+            src_task_f = dep_f->src->function;
             if( NULL == dep_f->dst ){ continue; } /* EXIT */
-            dst_task_f = dep_f->dst->task;
+            dst_task_f = dep_f->dst->function;
             Q2J_ASSERT(dst_task_f);
 
             if( (src_task_f == src_task) && (dst_task_f == dst_task) ){
@@ -2893,13 +2895,14 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
 
             // See if the source task already has a set of sync edges. If so, merge the old set with the new.
             map<char *, set<dep_t *> >::iterator edge_it;
-            edge_it = resulting_map.find(src_task->task_name);
+            char *src_name = src_task->fname;
+            edge_it = resulting_map.find(src_name);
             if( edge_it != resulting_map.end() ){
                 set<dep_t *>tmp_set;
-                tmp_set = resulting_map[src_task->task_name];
+                tmp_set = resulting_map[src_name];
                 pruned_dep_set.insert(tmp_set.begin(), tmp_set.end());
             }
-            resulting_map[src_task->task_name] = pruned_dep_set;
+            resulting_map[src_name] = pruned_dep_set;
         }
     }
 
@@ -3093,7 +3096,7 @@ void interrogate_omega(node_t *root, var_t *head){
                 flow_sources[def]   = create_dep_relations(und, var, DEP_FLOW, exit_node);
                 output_sources[def] = create_dep_relations(und, var, DEP_OUT,  exit_node);
             }
-            if(is_und_read(und) && !is_phony_Entry_task(und->node->task) && !is_phony_Exit_task(und->node->task)){
+            if(is_und_read(und) && !is_phony_Entry_task(und->node) && !is_phony_Exit_task(und->node)){
                 node_t *use = und->node;
                 anti_sources[use] = create_dep_relations(und, var, DEP_ANTI, exit_node);
             }
@@ -3119,9 +3122,9 @@ void interrogate_omega(node_t *root, var_t *head){
 #endif
                 task_name = strdup("ENTRY");
             }else{
-                task_name = def->task->task_name;
+                task_name = def->function->fname;
 #ifdef DEBUG_2
-                printf("\n[[ %s(",def->task->task_name);
+                printf("\n[[ %s(",def->function->fname);
                 for(int i=0; NULL != def->task->ind_vars[i]; ++i){
                     if( i ) printf(",");
                     printf("%s", def->task->ind_vars[i]);
@@ -3147,7 +3150,7 @@ void interrogate_omega(node_t *root, var_t *head){
 
 #ifdef DEBUG_2
                 if( EXIT != sink->type){
-                    printf("    => [[ %s(",sink->task->task_name);
+                    printf("    => [[ %s(",sink->function->fname);
                     for(int i=0; NULL != sink->task->ind_vars[i]; ++i){
                     if( i ) printf(",");
                     printf("%s", sink->task->ind_vars[i]);
@@ -3250,7 +3253,7 @@ void interrogate_omega(node_t *root, var_t *head){
                     }else{
                         dep->dst = sink;
 #ifdef DEBUG_2
-                        printf("    => [[ %s(",sink->task->task_name);
+                        printf("    => [[ %s(",sink->function->fname);
                         for(int i=0; NULL != sink->task->ind_vars[i]; ++i){
                             if( i ) printf(",");
                             printf("%s", sink->task->ind_vars[i]);
@@ -3315,13 +3318,13 @@ printf("========================================================================
             dep->rel = new Relation(Rai);
             dep_set.insert(dep);
 
-//printf("Inserting anti-dep %s::%s -> %s::%s\n",use->task->task_name, tree_to_str(use), sink->task->task_name, tree_to_str(sink));
+//printf("Inserting anti-dep %s::%s -> %s::%s\n",use->function->fname, tree_to_str(use), sink->function->fname, tree_to_str(sink));
 
         }
 
         // see if the current task already has some synch edges and if so merge them with the new ones.
         map<char *, set<dep_t *> >::iterator edge_it;
-        char *task_name = use->task->task_name;
+        char *task_name = use->function->fname;
         edge_it = synch_edges.find(task_name);
         if( edge_it != synch_edges.end() ){
             set<dep_t *>tmp_set;
@@ -3365,12 +3368,11 @@ printf("========================================================================
 	}
 
 #ifdef DEBUG_2
-	task_t *src_task = (*outgoing_deps.begin())->src->task;
-
-	if( NULL == src_task )
+        node_t *src_node = (*outgoing_deps.begin())->src
+	if( NULL == src_node->function )
 	    printf("ENTRY \n");
 	else
-	    printf("%s \n",src_task->task_name);
+	    printf("%s \n", src_node->function->fname);
 #endif
 
 	set<dep_t *>::iterator it;
@@ -3384,7 +3386,7 @@ printf("========================================================================
 	    }
 
 	    node_t *sink = dep->dst;
-	    task_name = sink->task->task_name;
+	    task_name = sink->function->fname;
 
 	    // Create the incoming edge by inverting the outgoing one.
 	    dep_t *new_dep = (dep_t *)calloc(1, sizeof(dep_t));
@@ -3417,6 +3419,7 @@ printf("========================================================================
     edge_it = outgoing_edges.begin();
     for( ;edge_it != outgoing_edges.end(); ++edge_it ) {
         task_t *src_task;
+        jdf_function_entry_t *src_task_jdf;
         char *task_name;
         set<dep_t *> deps;
 
@@ -3426,11 +3429,13 @@ printf("========================================================================
         // Get the source task from the dependencies
         if( !deps.empty() ){
             src_task = (*deps.begin())->src->task;
+            src_task_jdf = (*deps.begin())->src->function;
         }else{
             // If there are no outgoing deps, get the source task from the incoming dependencies
             set<dep_t *> in_deps = incoming_edges[task_name];
             if( !in_deps.empty() ){
                 src_task = (*in_deps.begin())->src->task;
+                src_task_jdf = (*in_deps.begin())->src->function;
             }else{
                 // If there are no incoming and no outgoing deps, skip this task
                 continue;
@@ -3459,14 +3464,14 @@ printf("========================================================================
             S_es.Null();
 
             // If this task has no name, then it's probably a phony task, so ignore it.
-            if( (NULL != src_task->task_name) ){
+            if( (NULL != src_task_jdf->fname) ){
                 map<char *, set<dep_t *> >::iterator synch_edge_it;
                 bool have_synch_edges = false;
 
                 // see if there are any synchronization edges for this task.
                 for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
                     char *tmp_task_name = synch_edge_it->first;
-                    if( !strcmp(tmp_task_name, src_task->task_name ) ){
+                    if( !strcmp(tmp_task_name, src_task_jdf->fname ) ){
                         have_synch_edges = true;
                         break;
                     }
@@ -3478,7 +3483,7 @@ printf("========================================================================
                     
                     for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
                         char *tmp_task_name = synch_edge_it->first;
-                        if( strcmp(tmp_task_name, src_task->task_name ) )
+                        if( strcmp(tmp_task_name, src_task_jdf->fname ) )
                             continue;
                         set<dep_t *> synch_dep_set = synch_edge_it->second;
                         set<dep_t *>::iterator synch_dep_it;
@@ -3490,8 +3495,8 @@ printf("========================================================================
                             assert(use->task == src_task);
                             node_t *sink = (*synch_dep_it)->dst;
                             Relation ad_r = *((*synch_dep_it)->rel);
-                            char *n1 = use->task->task_name;
-                            char *n2 = sink->task->task_name;
+                            char *n1 = use->function->fname;
+                            char *n2 = sink->function->fname;
                             jdfoutput("  ANTI edge from %s:%s to %s:%s ", n1, tree_to_str(use), n2, tree_to_str(sink));
                             relation = ad_r.print_with_subs_to_string();
                             jdfoutput("%s", relation.c_str());
@@ -4340,7 +4345,7 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-static char *create_pseudotask(task_t *parent_task,
+static char *create_pseudotask(node_t *parent_task,
                                Relation S_es, Relation cond,
                                node_t *data_element,
                                char *var_pseudoname, 
@@ -4376,15 +4381,14 @@ static char *create_pseudotask(task_t *parent_task,
     }
 
     // Find the maximum number of variable substitutions we might need and add one for the termination flag.
-    for(var_count=0; NULL != parent_task->ind_vars[var_count]; ++var_count)
-        /* nothing */;
+    JDF_COUNT_LIST_ENTRIES( parent_task->function->parameters, jdf_name_list_t, next, var_count);
     solved_vars = (str_pair_t *)calloc(var_count+1, sizeof(str_pair_t));
     var_count = 0;
 
     // We start with the parameters in order to discover which ones should be included.
     firstpfp = 1; firstfp = 1;
-    for(int i=0; NULL != parent_task->ind_vars[i]; ++i){
-        const char *var_name = parent_task->ind_vars[i];
+    for(int i=0; NULL != parent_task->task->ind_vars[i]; ++i){
+        const char *var_name = parent_task->task->ind_vars[i];
         expr_t *solution = solveExpressionTreeForVar(relation_to_tree(newS_es), var_name, copy(newS_es));
         // If there is a solution it means that this parameter has a fixed value and not a range.
         // That means that there is no point in including it as a parameter of the pseudo-task.
@@ -4444,7 +4448,7 @@ static char *create_pseudotask(task_t *parent_task,
     string_arena_init(sa_pseudotask_name);
     string_arena_add_string( sa_pseudotask_name, "%s %s_%s_data_%s%d(%s)",
                              var_pseudoname,
-                             parent_task->task_name, inout, mtrx_name,
+                             parent_task->function->fname, inout, mtrx_name,
                              ptask_count,
                              string_arena_get_string( sa_formal_param ) );
 
@@ -4452,7 +4456,7 @@ static char *create_pseudotask(task_t *parent_task,
     string_arena_init(sa1);
     string_arena_add_string( sa1, "%s %s(%s)",
                              var_pseudoname,
-                             parent_task->task_name,
+                             parent_task->function->fname,
                              string_arena_get_string( sa_parent_formal_param ) );
 
     // Data string
@@ -4505,7 +4509,7 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
                                                 node_t *reference_data_element)
 {
     int pseudotask_count = 0;
-    task_t *this_task;
+    node_t *this_node;
     set<dep_t *>::iterator dep_it;
     set<char *> vars;
     map<char *, set<dep_t *> > incm_map, outg_map;
@@ -4519,8 +4523,7 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
         return ptask_list;
     }
 
-    this_task = (*outg_deps.begin())->src->task;
-
+    this_node = (*outg_deps.begin())->src;
 
     // Group the edges based on the variable they flow into or from
     for (dep_it=incm_deps.begin(); dep_it!=incm_deps.end(); dep_it++){
@@ -4588,7 +4591,7 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
              // is treated independently.
              cond_list = simplify_conditions_and_split_disjunctions(*dep->rel, S_es);
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
-                 task_t *src_task = dep->src->task;
+                 node_t *src_node = dep->src;
                  
                  if ( (dep_it!=ideps.begin()) || (cond_it != cond_list.begin()) )
                      jdfoutput("%s", indent(nbspaces, 1)); 
@@ -4597,16 +4600,16 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
                  jdfoutput("<- %s", dump_conditions(sa, &cond_list, &cond_it ));
 
                  // Source of the input
-                 if( NULL != src_task ){
+                 if( NULL != src_node->function ){
                      string_arena_add_string(sa, "%s %s(%s)",
-                                             dep->src->var_symname,
-                                             src_task->task_name,
+                                             src_node->var_symname,
+                                             src_node->function->fname,
                                              dump_actual_parameters(sa2, dep, 
                                                                     relation_to_tree(cond_it->second),
                                                                     SOURCE) );
                  }else{ // ENTRY
                      if( need_pseudotask(dep->dst, reference_data_element) ){
-                         create_pseudotask(this_task,
+                         create_pseudotask(this_node,
                                            S_es, cond_it->second,
                                            dep->dst, var_pseudoname, pseudotask_count++,
                                            "in", sa, sa2 );
@@ -4618,7 +4621,7 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
                  jdfoutput("%s\n", string_arena_get_string(sa) );
 #ifdef DEBUG_2
                  jdfoutput_dbg("%s// %s -> %s ", indent(nbspaces, 1),
-                               (NULL != src_task) ? src_task->task_name, "ENTRY" );
+                               (NULL != src_node->function) ? src_node->function->fname, "ENTRY" );
                  (*dep->rel).print_with_subs(stdout);
 #endif
              }
@@ -4628,7 +4631,7 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
             Relation emptyR;
             dep_t *dep = *(odeps.begin());
             if( need_pseudotask(dep->src, reference_data_element) ){
-                create_pseudotask(this_task,
+                create_pseudotask(this_node,
                                   S_es, emptyR,
                                   dep->src, var_pseudoname, pseudotask_count++,
                                   "in", sa, sa2 );
@@ -4663,13 +4666,13 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
                  node_t *sink = dep->dst;
                  if( NULL != sink ){
                      string_arena_add_string(sa, "%s %s(%s)",
-                                             sink->var_symname, sink->task->task_name,
+                                             sink->var_symname, sink->function->fname,
                                              dump_actual_parameters(sa2, dep, 
                                                                     relation_to_tree(cond_it->second),
                                                                     SINK) );
                  } else { // EXIT
                      if( need_pseudotask(dep->src, reference_data_element) ){
-                         create_pseudotask(this_task,
+                         create_pseudotask(this_node,
                                            S_es, cond_it->second,
                                            dep->src, var_pseudoname, pseudotask_count++,
                                            "out", sa, sa2 );

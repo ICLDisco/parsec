@@ -60,7 +60,6 @@ typedef struct type_node{
 }type_node_t;
 
 struct _task_t{
-    char *task_name;
     node_t *task_node;
     char ** ind_vars;
 };

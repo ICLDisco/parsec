@@ -517,7 +517,6 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             
             f = jdf_register_function( &_q2j_jdf, fname, node );
             task = (task_t *)calloc(1, sizeof(task_t));
-            task->task_name = fname;
             task->task_node = node;
             task->ind_vars = (char **)calloc(1+node->loop_depth, sizeof(char *));
             i=node->loop_depth-1;
@@ -657,7 +656,7 @@ node_t *quark_get_locality(node_t *task_node){
         }
     }
 
-    fprintf(stderr,"WARNING: task: \"%s\" does not alter any memory regions!", task_node->task->task_name);
+    fprintf(stderr,"WARNING: task: \"%s\" does not alter any memory regions!", task_node->function->fname);
     return NULL;
 }
 
