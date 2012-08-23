@@ -797,3 +797,195 @@ int jdf_sanity_checks( jdf_warning_mask_t mask )
         return -1;
     return rcsum;
 }
+
+static int jdf_expr_complete_unparse( const jdf_expr_t *e, FILE *out );
+
+static int jdf_expr_unparse_bop(const jdf_expr_t *a1, const char *op, const jdf_expr_t *a2, FILE *out)
+{
+    int err = 0;
+    fprintf(out, "(");
+    err = jdf_expr_complete_unparse(a1, out);
+    if( err < 0 )
+        return err;
+    fprintf(out, ") %s (", op);
+    err = jdf_expr_complete_unparse(a2, out);
+    fprintf(out, ")");
+    return err;    
+}
+
+static int jdf_expr_complete_unparse( const jdf_expr_t *e, FILE *out )
+{
+    int err = 0;
+
+    switch( e->op ) {
+    case JDF_EQUAL:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "=", e->jdf_ba2, out);
+        break;
+
+    case JDF_NOTEQUAL:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "!=", e->jdf_ba2, out);
+        break;
+
+    case JDF_AND:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "&&", e->jdf_ba2, out);
+        break;
+
+    case JDF_OR:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "||", e->jdf_ba2, out);
+        break;
+
+    case JDF_XOR:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "^", e->jdf_ba2, out);
+        break;
+
+    case JDF_LESS:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "<", e->jdf_ba2, out);
+        break;
+
+    case JDF_LEQ:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "<=", e->jdf_ba2, out);
+        break;
+
+    case JDF_MORE:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, ">", e->jdf_ba2, out);
+        break;
+
+    case JDF_MEQ:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, ">=", e->jdf_ba2, out);
+        break;
+
+    case JDF_NOT:
+        fprintf(out, "!(");
+        err = jdf_expr_complete_unparse(e->jdf_ua, out);
+        fprintf(out, ")");
+        break;
+
+    case JDF_PLUS:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "+", e->jdf_ba2, out);
+        break;
+
+    case JDF_MINUS:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "-", e->jdf_ba2, out);
+        break;
+
+    case JDF_TIMES:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "*", e->jdf_ba2, out);
+        break;
+
+    case JDF_DIV:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "/", e->jdf_ba2, out);
+        break;
+
+    case JDF_MODULO:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "%", e->jdf_ba2, out);
+        break;
+
+    case JDF_SHL:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "<<", e->jdf_ba2, out);
+        break;
+
+    case JDF_SHR:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, ">>", e->jdf_ba2, out);
+        break;
+
+    case JDF_RANGE:
+        err = jdf_expr_unparse_bop(e->jdf_ba1, "..", e->jdf_ba2, out);
+        break;
+
+    case JDF_TERNARY:
+        fprintf(out, "(");
+        err = jdf_expr_complete_unparse(e->jdf_ta1, out);
+        fprintf(out, ") ? (");
+        err |= jdf_expr_complete_unparse(e->jdf_ta2, out);
+        fprintf(out, ")");
+        if( e->jdf_ta3 ) {
+            fprintf(out, ":(");
+            err |= jdf_expr_complete_unparse(e->jdf_ta3, out);
+            fprintf(out, ")");
+        }
+        break;
+
+    case JDF_VAR:
+        fprintf(out, "%s", e->jdf_var);
+        break;
+
+    case JDF_STRING:
+        fprintf(out, "\"%s\"", e->jdf_var);
+        break;
+
+    case JDF_CST:
+        fprintf(out, "%d", e->jdf_cst);
+        break;
+
+    case JDF_C_CODE:
+        fprintf(out, "inline_c %%{ %s %%}", e->jdf_c_code.code);
+        break;
+    }
+
+    return err;
+}
+
+static int jdf_properties_unparse( const jdf_def_list_t *properties, FILE *out )
+{
+    const jdf_def_list_t *dl;
+    int err = 0;
+
+    if( properties == NULL )
+        return err;
+    
+    fprintf(out, "[");
+    for(dl = properties; dl != NULL; dl = dl->next) {
+        fprintf(out, "%s = ", dl->name);
+        err = jdf_expr_complete_unparse(dl->expr, out);
+        if( err < 0 )
+            return err;
+        if( dl->next != NULL )
+            fprintf(out, " ");
+    }
+    fprintf(out, "]");
+    return err;
+}
+
+static int jdf_global_entry_unparse( const jdf_global_entry_t *e, FILE *out )
+{
+    int err = 0;
+
+    if( NULL == e )
+        return err;
+
+    if( e->expression != NULL ) {
+        fprintf(out, "%s = ", e->name);
+        err = jdf_expr_complete_unparse( e->expression, out );
+        if (err < 0 )
+            return err;
+    } else {
+        fprintf(out, "%s", e->name);
+    }
+    err = jdf_properties_unparse( e->properties, out );
+
+    if( err >= 0 )
+        err = jdf_global_entry_unparse( e, out );
+    return err;
+}
+
+int jdf_unparse( const jdf_t *jdf, FILE *out )
+{
+    int err = 0;
+
+    if( jdf->prologue && jdf->prologue->external_code )
+        fprintf(out, "extern \"C\" {\n%s\n}\n", jdf->prologue->external_code );
+    else {
+        fprintf(stderr, 
+                "**Warning** Malformed JDF structure: a prologue is mandatory in the grammar...\n");
+        err = 1;
+    }
+
+    err = jdf_global_entry_unparse( jdf->globals, out );
+    if( err < 0 )
+        return err;
+
+    if( jdf->epilogue && jdf->epilogue->external_code )
+        fprintf(out, "extern \"C\" {\n%s\n}\n", jdf->epilogue->external_code );
+
+    return err;
+}
