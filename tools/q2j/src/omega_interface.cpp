@@ -4098,6 +4098,34 @@ void print_header() {
               "%%}\n\n");
 }
 
+jdf_call_t *jdf_generate_call_for_data(node_t *data,
+                                       str_pair_t *subs)
+{
+    jdf_call_t *call;
+    char *str = NULL;
+    int i;
+    
+    assert( (data != NULL) && (data->type == ARRAY) );
+    
+    // Add the predicate for locality 
+    call = q2jmalloc(jdf_call_t, 1);
+    call->var         = NULL;
+    call->func_or_mem = tree_to_str_with_substitutions(data->u.kids.kids[0], subs);
+    call->parameters  = q2jmalloc( jdf_expr_t, 1);
+
+    // TODO: need to be replaced by correct expression
+    for(i=1; i<data->u.kids.kid_count; ++i){
+        if( i > 1 ) 
+            str = append_to_string( str, ",", NULL, 0);
+        str = append_to_string( str, tree_to_str_with_substitutions(data->u.kids.kids[i], subs), NULL, 0 );
+    }
+    
+    call->parameters->next = NULL;
+    call->parameters->op   = JDF_VAR;
+    call->parameters->jdf_var = strdup(str);
+        
+    return call;
+}
 ////////////////////////////////////////////////////////////////////////////////
 //
 void jdf_register_prologue(jdf_t *jdf)
@@ -4151,6 +4179,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 e2 = e+1;
 
                 /* Data */
+                string_arena_init(sa);
                 string_arena_add_string(sa, "%s%s", _q2j_data_prefix, sym->var_name);
 
                 e->next       = e2;
@@ -4211,6 +4240,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 e = q2jmalloc(jdf_global_entry_t, 1);
 
                 /* Data */
+                string_arena_init(sa);
                 string_arena_add_string(sa, "%s%s", _q2j_data_prefix, sym->var_name);
 
                 e->next       = NULL;
@@ -4426,11 +4456,7 @@ static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     pseudotask->dataflow    = NULL;
     pseudotask->priority    = NULL;
     pseudotask->body        = strdup(
-        "\nBODY"
-        "\n{"
-        "\n    /* nothing */"
-        "\n}"
-        "\nEND\n" );
+        "    /* nothing */" );
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -4450,7 +4476,7 @@ static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     pseudotask->properties->properties = NULL;
     pseudotask->properties->lineno     = 0;
     pseudotask->properties->expr->next    = NULL;
-    pseudotask->properties->expr->op      = JDF_STRING;
+    pseudotask->properties->expr->op      = JDF_VAR;
     pseudotask->properties->expr->jdf_var = strdup("off");
 
     // Find the maximum number of variable substitutions we might need and add one for the termination flag.
@@ -4533,7 +4559,7 @@ static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
                 jdf_expr_t *e = q2jmalloc(jdf_expr_t, 1);
 
                 e->next    = NULL;
-                e->op      = JDF_STRING;
+                e->op      = JDF_VAR;
                 e->jdf_var = strdup(var_name);
 
                 if (parent_parameters == NULL) {
@@ -4563,10 +4589,7 @@ static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     data_str = string_arena_get_string(sa2);
 
     // Add the predicate for locality 
-    pseudotask->predicate = q2jmalloc(jdf_call_t, 1);
-    pseudotask->predicate->var         = strdup(data_str);
-    pseudotask->predicate->func_or_mem = NULL;
-    pseudotask->predicate->parameters  = NULL;
+    pseudotask->predicate = jdf_generate_call_for_data( data_element, solved_vars );
 
     // Add the 2 dataflows
     pseudotask->dataflow = q2jmalloc(jdf_dataflow_t, 1);
@@ -4593,14 +4616,13 @@ static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     input->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
     input->guard->guard      = NULL;
     input->guard->properties = NULL;
-    input->guard->calltrue   = q2jmalloc(jdf_call_t, 1);
+    input->guard->calltrue   = NULL;
     input->guard->callfalse  = NULL;
     
     if (is_input) {
-        input->guard->calltrue->var         = strdup(data_str);
-        input->guard->calltrue->func_or_mem = NULL;
-        input->guard->calltrue->parameters  = NULL;
+        input->guard->calltrue = pseudotask->predicate;
     } else {
+        input->guard->calltrue = q2jmalloc(jdf_call_t, 1);
         input->guard->calltrue->var         = strdup(var_pseudoname);
         input->guard->calltrue->func_or_mem = parent_task->fname;
         input->guard->calltrue->parameters  = parent_parameters;
@@ -4620,17 +4642,16 @@ static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     output->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
     output->guard->guard      = NULL;
     output->guard->properties = NULL;
-    output->guard->calltrue   = q2jmalloc(jdf_call_t, 1);
+    output->guard->calltrue   = NULL;
     output->guard->callfalse  = NULL;
     
     if (!is_input) {
-        input->guard->calltrue->var         = strdup(data_str);
-        input->guard->calltrue->func_or_mem = NULL;
-        input->guard->calltrue->parameters  = NULL;
+        output->guard->calltrue = pseudotask->predicate;
     } else {
-        input->guard->calltrue->var         = strdup(var_pseudoname);
-        input->guard->calltrue->func_or_mem = parent_task->fname;
-        input->guard->calltrue->parameters  = parent_parameters;
+        output->guard->calltrue = q2jmalloc(jdf_call_t, 1);
+        output->guard->calltrue->var         = strdup(var_pseudoname);
+        output->guard->calltrue->func_or_mem = parent_task->fname;
+        output->guard->calltrue->parameters  = parent_parameters;
     }
 
     // Create the dependency to the pseudo task for the parent_function
