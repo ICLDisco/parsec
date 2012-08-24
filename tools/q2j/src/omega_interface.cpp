@@ -387,7 +387,6 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
     Variable_ID ivar;
     GEQ_Handle imax;
     F_And *new_and;
-    node_t *lhs;
 
     switch( node->type ){
         case L_AND:
@@ -439,7 +438,6 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
 
 
 void process_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, Relation &R){
-    Variable_ID ivar;
     GEQ_Handle cond;
     EQ_Handle econd;
     F_And *new_and;
@@ -498,7 +496,7 @@ static bool inline is_enclosed_by_else(node_t *node, node_t *branch){
     prev = node;
 
     for(curr=node->parent; curr != branch; prev = curr, curr = curr->parent)
-        0; /* just walk up the tree to find which side of the if-then-else is the ancestor of "node" */
+        (void)0; /* just walk up the tree to find which side of the if-then-else is the ancestor of "node" */
 
     Q2J_ASSERT( curr && (curr == branch) && DA_is_if(curr) );
 
@@ -2431,7 +2429,8 @@ void compute_TC_of_transitive_relation_of_cycle(list<tg_node_t *> cycle_list){
 #endif // DEBUG_ANTI
     fflush(stdout);
     fflush(_q2j_output);
-    if( pid=fork() ){ // parent
+    pid = fork();
+    if( pid ){ // parent
         int status;
         waitpid(pid, &status, 0);
         if( WIFEXITED(status) && (0 == WEXITSTATUS(status)) ){
@@ -2881,7 +2880,8 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
             Q2J_ASSERT(dst_task_f);
 
             if( (src_task_f == src_task) && (dst_task_f == dst_task) ){
-                Relation ra, rb, *rptr;
+                Relation ra, rb;
+                //Relation *rptr;
                 //rptr = dep_pruned->rel; /* save the pointer so we can free it */
                 ra = *(dep_pruned->rel);
                 rb = *(dep_f->rel);
@@ -3803,7 +3803,6 @@ static string _expr_tree_to_str(expr_t *exp){
     stringstream ss, ssL, ssR;
     unsigned int skipSymbol=0, first=1;
     unsigned int r_needs_paren = 0, l_needs_paren = 0;
-    size_t j;
     set<expr_t *> pos, neg;
     set<expr_t *>::iterator it;
     string str;
@@ -4100,7 +4099,6 @@ void print_header() {
 //
 void jdf_register_globals(jdf_t *jdf, node_t *root)
 {
-    char *pool_decl;
     symtab_t *scope;
     q2j_symbol_t *sym;
     jdf_global_entry_t *prev, *e, *e2;
@@ -4218,7 +4216,6 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
 ////////////////////////////////////////////////////////////////////////////////
 //
 void print_types_of_formal_parameters(node_t *root){
-    char *pool_decl;
     symtab_t *scope;
     q2j_symbol_t *sym;
 
@@ -4371,9 +4368,8 @@ static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     string_arena_t *sa1, *sa2;
 
     jdf_function_entry_t *pseudotask;
-    jdf_def_list_t  *last_definition;
     jdf_name_list_t *last_param;
-    jdf_name_list_t *last_parent_param;
+    jdf_def_list_t  *last_definition;
     jdf_expr_t *parent_parameters = NULL;
     jdf_expr_t *last_parent_parameters;
 
@@ -4383,6 +4379,8 @@ static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     int is_input = !strcmp(inout,"in");
 
     pseudotask = q2jmalloc(jdf_function_entry_t, 1);
+    pseudotask->next        = jdf->functions;
+    jdf->functions = pseudotask;
     pseudotask->fname       = NULL;
     pseudotask->parameters  = NULL;
     pseudotask->flags       = is_input ? JDF_FUNCTION_FLAG_CAN_BE_STARTUP : 0;
@@ -4420,14 +4418,6 @@ static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     pseudotask->properties->expr->op      = JDF_STRING;
     pseudotask->properties->expr->jdf_var = strdup("off");
 
-    // Locality
-    if( !cond.is_null() ){
-        newS_es = Intersection(copy(S_es), Domain(copy(cond)));
-        newS_es.simplify(2,2);
-    }else{
-        newS_es = copy(S_es);
-    }
-
     // Find the maximum number of variable substitutions we might need and add one for the termination flag.
     JDF_COUNT_LIST_ENTRIES( parent_task->parameters, jdf_name_list_t, next, var_count);
     solved_vars = (str_pair_t *)calloc(var_count+1, sizeof(str_pair_t));
@@ -4435,6 +4425,13 @@ static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
 
     // There is at least one parameter
     assert( parent_task->parameters != NULL );
+
+    if( !cond.is_null() ){
+        newS_es = Intersection(copy(S_es), Domain(copy(cond)));
+        newS_es.simplify(2,2);
+    }else{
+        newS_es = copy(S_es);
+    }
 
     for(jdf_name_list_t *var = parent_task->parameters;
         var != NULL; var = var->next ) {
@@ -4783,6 +4780,185 @@ static char *create_pseudotask(node_t *parent_task,
     return string_arena_get_string(sa_pseudotask);
 }
 
+/**
+ * dump_data:
+ *   Generates a string of conditions with the one given and the
+ *   negation of all the previous ones.
+ */
+jdf_expr_t *jdf_generate_expr_from_conditions(list< pair<expr_t *, Relation> > *cond_list,
+                                              list< pair<expr_t *, Relation> >::iterator *cond_it)
+{
+    list< pair<expr_t *, Relation> >::iterator cond_it2;
+    string cond = expr_tree_to_str((*cond_it)->first);
+    bool printed_condition = false;
+    string_arena_t *sa;
+    
+    jdf_expr_t *expr = NULL;
+
+    sa = string_arena_new(64);
+
+    // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
+
+    // For each condition that resulted from spliting a disjunction, negate
+    // all the other parts of the disjunction
+    for(cond_it2 = (*cond_list).begin(); cond_it2 != *cond_it; cond_it2++){
+        string cond2 = expr_tree_to_str(cond_it2->first);
+        if( !cond2.empty() ){
+            if( printed_condition )
+                string_arena_add_string(sa, "& ");
+            string_arena_add_string(sa, "(!(%s)) ", cond2.c_str());
+            printed_condition = true;
+        }
+    }
+    if( !cond.empty() ){
+        if( printed_condition )
+            string_arena_add_string(sa, "& ");
+        string_arena_add_string(sa, "%s", cond.c_str() );
+    }
+
+    if ( !strcmp( "", string_arena_get_string(sa) ) ) {
+        expr = q2jmalloc(jdf_expr_t, 1);
+        expr->next = NULL;
+        expr->op = JDF_VAR;
+        expr->jdf_var = strdup( string_arena_get_string(sa) );
+    }
+
+    string_arena_free(sa);
+    return expr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+jdf_expr_t *jdf_generate_call_parameters( dep_t *dep, expr_t *rel_exp )
+{
+    string_arena_t *sa;
+    jdf_expr_t *parameters = NULL;
+    jdf_expr_t *param;
+    int i, dst_count;
+
+    Relation R = copy(*(dep->rel));
+    set <const char *> vars_in_bounds;
+    
+    sa = string_arena_new(16);
+
+    dst_count = R.n_inp();
+    for(i=0; i<dst_count; i++){
+        const char *var_name = strdup(R.input_var(i+1)->char_name());
+        vars_in_bounds.insert(var_name);
+    }
+
+    dst_count = R.n_out();
+    
+    if (dst_count > 0)
+        parameters = q2jmalloc(jdf_expr_t, dst_count);
+    param = parameters;
+
+    for(i=0; i<dst_count; i++, param++){
+        const char *var_name = strdup(R.output_var(i+1)->char_name());
+        expr_t *solution = solveExpressionTreeForVar(copy_tree(rel_exp), var_name, R);
+
+        string_arena_add_string( sa, "%s",
+                                ( NULL != solution ) ? expr_tree_to_str(solution)
+                                : find_bounds_of_var(copy_tree(rel_exp), var_name, vars_in_bounds, R));
+        free((void *)var_name);
+        
+        param->next = i < (dst_count-1) ? param+1 : NULL;
+        param->op = JDF_VAR;
+        param->jdf_var = strdup( string_arena_get_string(sa) );
+    }
+
+    string_arena_free(sa);
+    return parameters;
+}
+
+jdf_dep_t *jdf_register_input_deps( set<dep_t*> ideps,
+                                    Relation    S_es,
+                                    node_t *reference_data_element,
+                                    jdf_function_entry_t *this_function,
+                                    jdf_dataflow_t *dataflow,
+                                    int *pseudotask_count)
+{
+    set<dep_t *>::iterator dep_it;
+    jdf_dep_t *dep = dataflow->deps;
+    string_arena_t *sa;
+    sa  = string_arena_new(16);
+
+    // print the incoming edges
+    for (dep_it=ideps.begin(); dep_it!=ideps.end(); dep_it++ ){
+        node_t   *src = (*dep_it)->src;
+        node_t   *dst = (*dep_it)->dst;
+        Relation *rel = (*dep_it)->rel;
+        
+        list< pair<expr_t *, Relation> > cond_list;
+        list< pair<expr_t *, Relation> >::iterator cond_it;
+        
+        // Needed by Omega
+        (void)(*rel).print_with_subs_to_string(false);
+        
+        // check that the input dependency has a destination
+        Q2J_ASSERT( NULL != dst);
+        
+        // If the condition has disjunctions (logical OR operators) then split them so that each one
+        // is treated independently.
+        cond_list = simplify_conditions_and_split_disjunctions(*rel, S_es);
+        for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
+            jdf_expr_t *dep_expr;
+            jdf_call_t *dep_call;
+
+            if ( dep == NULL ) {
+                dataflow->deps = q2jmalloc(jdf_dep_t, 1);
+                dep = dataflow->deps;
+            } else {
+                dep->next = q2jmalloc(jdf_dep_t, 1);
+                dep = dep->next;
+            }
+            
+            dep->type = JDF_DEP_TYPE_IN; 
+            dep->guard = q2jmalloc( jdf_guarded_call_t, 1);
+            dep->datatype.simple = 1;
+            dep->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
+            dep->datatype.nb_elt->next    = NULL;
+            dep->datatype.nb_elt->op      = JDF_CST;
+            dep->datatype.nb_elt->jdf_cst = 1;
+            dep->lineno = 0;
+            
+            // Generate the dep_expr
+            dep_expr = jdf_generate_expr_from_conditions( &cond_list, &cond_it );
+            
+            // Generate the dep_call
+            if( NULL != src->function ){
+                dep_call = q2jmalloc(jdf_call_t, 1);
+                dep_call->var         = strdup(src->var_symname);
+                dep_call->func_or_mem = src->function->fname;
+                dep_call->parameters  = jdf_generate_call_parameters(*dep_it, 
+                                                                     relation_to_tree(cond_it->second));
+            } else { // ENTRY
+                if( need_pseudotask(dst, reference_data_element) ){
+                    dep_call = jdf_register_pseudotask( &_q2j_jdf, this_function,
+                                                        S_es, cond_it->second,
+                                                        dst, dataflow->varname,
+                                                        (*pseudotask_count)++, "in" ); 
+                } else {
+                    dep_call = q2jmalloc(jdf_call_t, 1);
+                    dep_call->var         = strdup(dump_data(sa, dst));
+                    dep_call->func_or_mem = NULL;
+                    dep_call->parameters  = NULL;
+                }
+            }
+            
+            // guarded call
+            dep->guard->guard_type = dep_expr == NULL ? JDF_GUARD_UNCONDITIONAL : JDF_GUARD_BINARY;
+            dep->guard->guard      = dep_expr;
+            dep->guard->properties = NULL; /*TODO: get datatype */
+            dep->guard->calltrue   = dep_call;
+            dep->guard->callfalse  = NULL;
+        }
+    }
+
+    string_arena_free(sa);
+    return dep;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
@@ -4790,13 +4966,15 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
                                                 Relation S_es,
                                                 node_t *reference_data_element)
 {
-    int pseudotask_count = 0;
+    int i, pseudotask_count = 0;
     node_t *this_node;
     set<dep_t *>::iterator dep_it;
     set<char *> vars;
     map<char *, set<dep_t *> > incm_map, outg_map;
     list<char *> ptask_list;
     int nbspaces = 0;
+    jdf_dataflow_t *dataflows, *dataflow;
+    jdf_dep_t *dep;
     string_arena_t *sa, *sa2;
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -4823,40 +5001,67 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
         fprintf(stderr,"WARNING: Number of variables (%lu) exceeds %d\n", vars.size(), MAX_PARAM_COUNT);
     }
 
+    // Malloc and chain the dataflow
+    dataflows = q2jmalloc( jdf_dataflow_t, vars.size() );
+    for (i=0; i< (int)(vars.size()-1); i++) {
+        dataflows[i].next = &(dataflows[i+1]);
+    }
+    dataflow = dataflows;
 
     // For each variable print all the incoming and the outgoing edges
     set<char *>::iterator var_it;
-    for (var_it=vars.begin(); var_it!=vars.end(); var_it++){
+    for (var_it=vars.begin(); var_it!=vars.end(); var_it++, dataflow = dataflow->next ){
         bool insert_fake_read = false;
         char *var_pseudoname = *var_it;
         set<dep_t *>ideps = incm_map[var_pseudoname];
         set<dep_t *>odeps = outg_map[var_pseudoname];
+        int nb_ideps, nb_odeps, nb_deps;
         const char *access;
 
-        if( !ideps.empty() && !odeps.empty() ){
+        nb_ideps = ideps.size();
+        nb_odeps = odeps.size();
+        nb_deps = nb_ideps + nb_odeps;
+
+        assert( dataflow != NULL );
+        dataflow->varname = strdup( var_pseudoname );
+        dataflow->lineno = 0;
+        dataflow->deps = NULL;
+        
+        if( nb_ideps > 0 && nb_odeps > 0 ){
+            dataflow->access_type = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
             access = "RW";
-        }else if( !ideps.empty() ){
+        }else if( nb_ideps > 0 ){
+            dataflow->access_type = JDF_VAR_TYPE_READ;
             access = "READ";
-        }else if( !odeps.empty() ){
+        }else if( nb_odeps > 0 ){
             /* 
              * DAGuE does not like write-only variables, so make it RW and make
              * it read from the data matrix tile that corresponds to this variable.
              */
+            dataflow->access_type = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
             access = "RW";
             insert_fake_read = true;
         }else{
             Q2J_ASSERT(0);
         }
 
-        if( ideps.size() > MAX_DEP_IN_COUNT )
-            fprintf(stderr,"WARNING: Number of incoming edges (%lu) for variable \"%s\" exceeds %d\n", ideps.size(), var_pseudoname, MAX_DEP_IN_COUNT);
-        if( odeps.size() > MAX_DEP_OUT_COUNT )
-            fprintf(stderr,"WARNING: Number of outgoing edges (%lu) for variable \"%s\" exceeds %d\n", odeps.size(), var_pseudoname, MAX_DEP_OUT_COUNT);
+        if( nb_ideps > MAX_DEP_IN_COUNT )
+            fprintf(stderr,"WARNING: Number of incoming edges (%d) for variable \"%s\" exceeds %d\n",
+                    nb_ideps, var_pseudoname, MAX_DEP_IN_COUNT);
+        if( nb_odeps > MAX_DEP_OUT_COUNT )
+            fprintf(stderr,"WARNING: Number of outgoing edges (%d) for variable \"%s\" exceeds %d\n",
+                    nb_odeps, var_pseudoname, MAX_DEP_OUT_COUNT);
 
         // Print the pseudoname
         jdfoutput("  %-5s %-4s ", access, var_pseudoname);
         nbspaces = 13;
 
+        dep = jdf_register_input_deps( ideps, S_es, 
+                                       reference_data_element, 
+                                       this_node->function, 
+                                       dataflow,
+                                       &pseudotask_count );
+        
         // print the incoming edges
         for (dep_it=ideps.begin(); dep_it!=ideps.end(); dep_it++){
              dep_t *dep = *dep_it;
@@ -4896,11 +5101,6 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
                                            dep->dst, var_pseudoname, pseudotask_count++,
                                            "in", sa, sa2 );
                          ptask_list.push_back( strdup(string_arena_get_string(sa2)) );
-                         
-                         jdf_register_pseudotask( &_q2j_jdf, this_node->function,
-                                                  S_es, cond_it->second,
-                                                  dep->dst, var_pseudoname,
-                                                  pseudotask_count, "in" ); 
                      }else{
                          dump_data(sa, dep->dst);
                      }
