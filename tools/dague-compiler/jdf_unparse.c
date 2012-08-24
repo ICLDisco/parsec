@@ -178,12 +178,13 @@ static int jdf_global_entry_unparse( const jdf_global_entry_t *e, FILE *out )
         if (err < 0 )
             return err;
     } else {
-        fprintf(out, "%s", e->name);
+        fprintf(out, "%s ", e->name);
     }
     err = jdf_properties_unparse( e->properties, out );
+    fprintf(out, "\n", e->name);
 
     if( err >= 0 )
-        err = jdf_global_entry_unparse( e, out );
+        err = jdf_global_entry_unparse( e->next, out );
     return err;
 }
 
