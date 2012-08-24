@@ -15,7 +15,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
 
   include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 
-  add_executable(daguepp main.c jdf.c jdf2c.c ${BISON_dague_yacc_OUTPUTS} ${FLEX_dague_flex_OUTPUTS})
+  add_executable(daguepp main.c jdf.c jdf2c.c jdf_unparse.c ${BISON_dague_yacc_OUTPUTS} ${FLEX_dague_flex_OUTPUTS})
   set_target_properties(daguepp PROPERTIES LINKER_LANGUAGE C)
   set_target_properties(daguepp PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
   target_link_libraries(daguepp -lm)
