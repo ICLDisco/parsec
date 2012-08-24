@@ -64,6 +64,7 @@ extern void dump_und(und_t *und);
 static void dump_full_und(und_t *und);
 #endif
 
+void jdf_register_prologue(jdf_t *jdf);
 void jdf_register_globals(jdf_t *jdf, node_t *root);
 static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
                                            jdf_function_entry_t *parent_task,
@@ -3073,6 +3074,8 @@ void interrogate_omega(node_t *root, var_t *head){
 
     print_header();
     print_types_of_formal_parameters(root);
+
+    jdf_register_prologue(&_q2j_jdf);
     jdf_register_globals(&_q2j_jdf, root);
 
     declare_global_vars(root);
@@ -3448,7 +3451,7 @@ printf("========================================================================
         }
 
         // If the source task is NOT the ENTRY, then dump all the info
-        if( NULL != src_task ){
+        if( NULL != src_task_jdf ){
 
             jdfoutput("\n\n%s( ",task_name);
             for(int i=0; NULL != src_task->ind_vars[i]; ++i){
@@ -4093,6 +4096,38 @@ void print_header() {
               "#include \"dplasma/lib/dplasmajdf.h\"\n"
               "\n"
               "%%}\n\n");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+void jdf_register_prologue(jdf_t *jdf)
+{
+    if ( jdf->prologue == NULL ){
+        jdf->prologue = q2jmalloc(jdf_external_entry_t, 1);
+        jdf->prologue->external_code = strdup(
+            "/*\n"
+            " *  Copyright (c) 2010\n"
+            " *\n"
+            " *  The University of Tennessee and The University\n"
+            " *  of Tennessee Research Foundation.  All rights\n"
+            " *  reserved.\n"
+            " *\n"
+            " * @precisions normal z -> s d c\n"
+            " *\n"
+            " */\n"
+            "#define PRECISION_z\n"
+            "\n"
+            "#include <plasma.h>\n"
+            "#include <core_blas.h>\n"
+            "\n"
+            "#include \"dague.h\"\n"
+            "#include \"data_distribution.h\"\n"
+            "#include \"data_dist/matrix/precision.h\"\n"
+            "#include \"data_dist/matrix/matrix.h\"\n"
+            "#include \"dplasma/lib/memory_pool.h\"\n"
+            "#include \"dplasma/lib/dplasmajdf.h\"\n");
+        jdf->prologue->lineno = 0;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
