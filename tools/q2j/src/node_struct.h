@@ -60,7 +60,6 @@ typedef struct type_node{
 }type_node_t;
 
 struct _task_t{
-    char *task_name;
     node_t *task_node;
     char ** ind_vars;
 };
@@ -82,6 +81,7 @@ struct _node{
     symtab_t *symtab;
 
     task_t *task;
+    jdf_function_entry_t *function;
 
     uint64_t trip_count;
     uint64_t loop_depth;

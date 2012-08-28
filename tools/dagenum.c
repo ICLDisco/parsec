@@ -221,9 +221,13 @@ static void display_node_list(nl_t *s)
     printf("\n");
 }
 
+static unsigned long long int nbdone = 0;
+
 static void display_node_array(node_t **word, int len)
 {
     int i;
+    nbdone++;
+    if(nbdone == 1000000) exit(0);
     for(i = 0; i < len; i++) {
         printf("%s#%s# ", word[i]->tname, word[i]->accesses);
     }

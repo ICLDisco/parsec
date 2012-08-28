@@ -61,6 +61,14 @@ typedef struct jdf {
     struct jdf_expr           *inline_c_functions;
 } jdf_t;
 
+/**
+ * dumps a jdf_t structure into a file. The output should be parsable by the current grammar.
+ *
+ * @param [IN]    jdf: the jdf to output
+ * @param [INOUT] out: the file to output to
+ */
+int jdf_unparse( const jdf_t *jdf, FILE *out );
+
 extern jdf_t current_jdf;
 
 /** A prologue/epilogue is a c-code that is dumped as-is with a #line directive

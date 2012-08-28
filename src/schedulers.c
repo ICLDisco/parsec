@@ -38,6 +38,7 @@ static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
     dague_dequeue_chain_back( (dague_dequeue_t*)store, elt );
 }
 
+#ifdef HAVE_HWLOC
 /** In case of hierarchical bounded buffer, define
  *  the wrappers to functions
  */
@@ -46,7 +47,7 @@ static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
     /* Store is a hbbbuffer */
     dague_hbbuffer_push_all( (dague_hbbuffer_t*)store, elt );
 }
-
+#endif
 
 /*********************************************************************/
 /*************************** List of Trees ***************************/

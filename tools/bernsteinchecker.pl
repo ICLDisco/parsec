@@ -2,7 +2,7 @@
 
 use Data::Dumper;
 
-my ($lineok, $linefound);
+#my ($lineok, $linefound);
 
 sub parse_access {
   my ($MEM) = @_;
@@ -36,7 +36,7 @@ sub parse_access {
 while ( <> ) {
   my $line = $_;
   my $warncleanup = 0;
-  $linefound++;
+#  $linefound++;
   chomp $line;
   my $data = {};
   my @exec = split / /, $line;
@@ -154,8 +154,8 @@ while ( <> ) {
     }
   }
 
-  $lineok++;
-  print "OK: " . $lineok . "/" . $linefound . "( = " .(100.0 * $lineok)/$linefound . "%)\n";
+#  $lineok++;
+#  print "OK: " . $lineok . "/" . $linefound . "( = " .(100.0 * $lineok)/$linefound . "%)\r";
 
   $warncleanup = 1;
  CLEANUP:

@@ -24,9 +24,7 @@
 #include "mpi.h"
 #endif /*HAVE_MPI */
 
-#if defined(DAGUE_GPU_WITH_CUDA) && 0
-#include "dague_cuda_ddesc.h"
-#endif
+#include "moesi.h"
 
 typedef struct dague_ddesc {
     uint32_t myrank;  /**< process rank */
@@ -35,9 +33,7 @@ typedef struct dague_ddesc {
     uint32_t (*rank_of)(struct dague_ddesc *mat, ...);   /* return the rank of the process owning the data  */
     void *   (*data_of)(struct dague_ddesc *mat, ...);   /* return the pointer to the data possessed locally */
     int32_t  (*vpid_of)(struct dague_ddesc *mat, ...);   /* return the virtual process ID of data possessed locally */
-#if defined(DAGUE_GPU_WITH_CUDA) && 0
-    struct dague_ddesc_cuda_t cuda;
-#endif
+    moesi_map_t* moesi_map; /* the map that tracks accesses to replicates of memory blocks */
 #ifdef DAGUE_PROF_TRACE
     uint32_t (*data_key)(struct dague_ddesc *mat, ...); /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
     int (*key_to_string)(struct dague_ddesc *mat, uint32_t datakey, char * buffer, uint32_t buffer_size); /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */

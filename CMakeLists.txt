@@ -483,6 +483,7 @@ set(SRCS
   src/schedulers.c 
   src/dague.c 
   src/arena.c
+  src/moesi.c
   src/remote_dep.c 
   src/debug.c 
   src/bindthread.c 

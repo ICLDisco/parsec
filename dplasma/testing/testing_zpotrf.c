@@ -62,19 +62,17 @@ int main(int argc, char ** argv)
 
     /* load the GPU kernel */
 #if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0)
-        {
-            if(loud > 3) printf("+++ Load GPU kernel ... ");
-            if(0 != gpu_kernel_init_zgemm(dague))
-                {
-                    printf("XXX Unable to load GPU kernel.\n");
-                    exit(3);
-                }
-            dague_gpu_data_register(dague,
-                                    (dague_ddesc_t*)&ddescA,
-                                    MT*NT, MB*NB*sizeof(dague_complex64_t) );
-            if(loud > 3) printf("Done\n");
+    if(iparam[IPARAM_NGPUS] > 0) {
+        if(loud > 3) printf("+++ Load GPU kernel ... ");
+        if(0 != gpu_kernel_init_zgemm(dague)) {
+            printf("XXX Unable to load GPU kernel.\n");
+            exit(3);
         }
+        dague_gpu_data_register(dague,
+                                (dague_ddesc_t*)&ddescA,
+                                MT*NT, MB*NB*sizeof(dague_complex64_t) );
+        if(loud > 3) printf("Done\n");
+    }
 #endif
 
     PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf,
@@ -84,7 +82,7 @@ int main(int argc, char ** argv)
     dplasma_zpotrf_Destruct( DAGUE_zpotrf );
 #if defined(HAVE_CUDA)
     if(iparam[IPARAM_NGPUS] > 0) {
-        dague_gpu_data_unregister();
+        dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
         dague_gpu_kernel_fini(dague, "zgemm");
     }
 #endif
@@ -95,7 +93,6 @@ int main(int argc, char ** argv)
     }
     if( !info && check ) {
         /* Check the factorization */
-fprintf(stderr, "A%d\n", rank);
         PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
             sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
                                        nodes, cores, rank, MB, NB, LDA, N, 0, 0,
@@ -106,15 +103,14 @@ fprintf(stderr, "A%d\n", rank);
         ret |= check_factorization( dague, (rank == 0) ? loud : 0, uplo,
                                     (tiled_matrix_desc_t *)&ddescA,
                                     (tiled_matrix_desc_t *)&ddescA0);
+
         /* Check the solution */
-fprintf(stderr, "B%d\n", rank);
         PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
             two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
 
-fprintf(stderr, "C%d\n", rank);
         PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
             two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
@@ -126,22 +122,21 @@ fprintf(stderr, "C%d\n", rank);
                        (tiled_matrix_desc_t *)&ddescA,
                        (tiled_matrix_desc_t *)&ddescX );
 
-
         ret |= check_solution( dague, (rank == 0) ? loud : 0, uplo,
                                (tiled_matrix_desc_t *)&ddescA0,
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
 
         /* Cleanup */
-        dague_data_free(ddescA0.mat);
+        dague_data_free(ddescA0.mat); ddescA0.mat = NULL;
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0 );
-        dague_data_free(ddescB.mat);
+        dague_data_free(ddescB.mat); ddescB.mat = NULL;
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescB );
-        dague_data_free(ddescX.mat);
+        dague_data_free(ddescX.mat); ddescX.mat = NULL;
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX );
     }
 
-    dague_data_free(ddescA.mat);
+    dague_data_free(ddescA.mat); ddescA.mat = NULL;
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
 
     cleanup_dague(dague, iparam);
@@ -162,13 +157,11 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
     double eps = LAPACKE_dlamch_work('e');
     PLASMA_enum side;
 
-fprintf(stderr, "D%d\n", twodA->grid.rank);
     PASTE_CODE_ALLOCATE_MATRIX(L1, 1,
         sym_two_dim_block_cyclic, (&L1, matrix_ComplexDouble,
                                    A->super.nodes, A->super.cores, twodA->grid.rank,
                                    A->mb, A->nb, M, N, 0, 0,
                                    M, N, twodA->grid.rows, uplo));
-fprintf(stderr, "E%d\n", twodA->grid.rank);
     PASTE_CODE_ALLOCATE_MATRIX(L2, 1,
         two_dim_block_cyclic, (&L2, matrix_ComplexDouble, matrix_Tile,
                                A->super.nodes, A->super.cores, twodA->grid.rank,
@@ -222,9 +215,9 @@ fprintf(stderr, "E%d\n", twodA->grid.rank);
         info_factorization = 0;
     }
 
-    dague_data_free(L1.mat);
+    dague_data_free(L1.mat); L1.mat = NULL;
     dague_ddesc_destroy( (dague_ddesc_t*)&L1);
-    dague_data_free(L2.mat);
+    dague_data_free(L2.mat); L2.mat = NULL;
     dague_ddesc_destroy( (dague_ddesc_t*)&L2);
 
     return info_factorization;
@@ -278,3 +271,4 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
 
     return info_solution;
 }
+
