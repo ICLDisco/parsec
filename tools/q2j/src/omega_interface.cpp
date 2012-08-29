@@ -75,6 +75,13 @@ static jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
                                            node_t *data_element,
                                            char *var_pseudoname, 
                                            int ptask_count, const char *inout );
+void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t *this_function,
+                                               set<dep_t *>outg_deps,
+                                               set<dep_t *>incm_deps,
+                                               Relation S_es,
+                                               node_t *reference_data_element);
+void jdf_register_body(jdf_function_entry_t *this_function,
+                       node_t *task_node);
 
 static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
 static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
@@ -3472,6 +3479,10 @@ printf("========================================================================
             if( _q2j_dump_mapping ) {
                 print_pseudo_variables(deps, incoming_edges[task_name]);
             }
+
+            jdf_register_dependencies_and_pseudotasks(src_task_jdf,
+                                                      deps, incoming_edges[task_name],
+                                                      S_es, reference_data_element);
             list <char *>ptask_list = print_edges_and_create_pseudotasks(deps, incoming_edges[task_name], S_es, reference_data_element);
             S_es.Null();
 
@@ -3523,6 +3534,7 @@ printf("========================================================================
             }
 
             print_body(src_task->task_node);
+            jdf_register_body(src_task_jdf, src_task->task_node);
 
             // Print all the pseudo-tasks that were created by print_edges_and_create_pseudotasks()
             list <char *>::iterator ptask_it;
@@ -4584,7 +4596,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 e2->properties = jdf_create_properties_list( "default", JDF_STRING,
                                                              string_arena_get_string(sa),
                                                              e2->properties);
-                e2->properties = jdf_create_properties_list( "hidden", JDF_VAR,    "on",             e2->properties);
+                e2->properties = jdf_create_properties_list( "hidden", JDF_VAR,    "on",                  e2->properties);
                 e2->properties = jdf_create_properties_list( "type",   JDF_STRING, "tiled_matrix_desc_t", e2->properties);
 
             } else {
@@ -5208,19 +5220,134 @@ void jdf_register_output_deps( set<dep_t*> odeps,
 
 ////////////////////////////////////////////////////////////////////////////////
 //
+void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t *this_function,
+                                               set<dep_t *>outg_deps,
+                                               set<dep_t *>incm_deps,
+                                               Relation S_es,
+                                               node_t *reference_data_element)
+{
+    int i, pseudotask_count = 0;
+    set<dep_t *>::iterator dep_it;
+    set<char *> vars;
+    map<char *, set<dep_t *> > incm_map, outg_map;
+    jdf_dataflow_t *dataflows, *dataflow;
+
+    if( outg_deps.empty() && incm_deps.empty() ){
+        return;
+    }
+
+    // Group the edges based on the variable they flow into or from
+    for (dep_it=incm_deps.begin(); dep_it!=incm_deps.end(); dep_it++){
+           char *symname = (*dep_it)->dst->var_symname;
+           incm_map[symname].insert(*dep_it);
+           vars.insert(symname);
+    }
+    for (dep_it=outg_deps.begin(); dep_it!=outg_deps.end(); dep_it++){
+           char *symname = (*dep_it)->src->var_symname;
+           outg_map[symname].insert(*dep_it);
+           vars.insert(symname);
+    }
+
+    if( vars.size() > MAX_PARAM_COUNT ){
+        fprintf(stderr,"WARNING: Number of variables (%lu) exceeds %d\n", vars.size(), MAX_PARAM_COUNT);
+    }
+
+    // Malloc and chain the dataflow
+    dataflows = q2jmalloc( jdf_dataflow_t, vars.size() );
+    for (i=0; i< (int)(vars.size()-1); i++) {
+        dataflows[i].next = &(dataflows[i+1]);
+    }
+
+    this_function->dataflow = dataflows;
+    dataflow = dataflows;
+
+    // For each variable print all the incoming and the outgoing edges
+    set<char *>::iterator var_it;
+    for (var_it=vars.begin(); var_it!=vars.end(); var_it++, dataflow = dataflow->next ){
+        bool insert_fake_read = false;
+        char *var_pseudoname = *var_it;
+        set<dep_t *>ideps = incm_map[var_pseudoname];
+        set<dep_t *>odeps = outg_map[var_pseudoname];
+        int nb_ideps, nb_odeps, nb_deps;
+
+        nb_ideps = ideps.size();
+        nb_odeps = odeps.size();
+        nb_deps = nb_ideps + nb_odeps;
+
+        assert( dataflow != NULL );
+        dataflow->varname = strdup( var_pseudoname );
+        dataflow->lineno = 0;
+        dataflow->deps = NULL;
+        
+        if( nb_ideps > 0 && nb_odeps > 0 ){
+            dataflow->access_type = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
+        }else if( nb_ideps > 0 ){
+            dataflow->access_type = JDF_VAR_TYPE_READ;
+        }else if( nb_odeps > 0 ){
+            /* 
+             * DAGuE does not like write-only variables, so make it RW and make
+             * it read from the data matrix tile that corresponds to this variable.
+             */
+            dataflow->access_type = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
+            insert_fake_read = true;
+        }else{
+            Q2J_ASSERT(0);
+        }
+
+        if( nb_ideps > MAX_DEP_IN_COUNT )
+            fprintf(stderr,"WARNING: Number of incoming edges (%d) for variable \"%s\" exceeds %d\n",
+                    nb_ideps, var_pseudoname, MAX_DEP_IN_COUNT);
+        if( nb_odeps > MAX_DEP_OUT_COUNT )
+            fprintf(stderr,"WARNING: Number of outgoing edges (%d) for variable \"%s\" exceeds %d\n",
+                    nb_odeps, var_pseudoname, MAX_DEP_OUT_COUNT);
+
+        jdf_register_input_deps( ideps, S_es, 
+                                 reference_data_element, 
+                                 this_function, 
+                                 dataflow,
+                                 &pseudotask_count );
+
+        if(insert_fake_read){
+            jdf_register_fake_read( S_es,
+                                    reference_data_element,
+                                    this_function,
+                                    dataflow, (*(odeps.begin()))->dst,
+                                    &pseudotask_count );
+        }
+
+        jdf_register_output_deps( odeps, S_es, 
+                                  reference_data_element, 
+                                  this_function, 
+                                  dataflow,
+                                  &pseudotask_count );
+        
+    }
+
+    return;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+void jdf_register_body(jdf_function_entry_t *this_function,
+                       node_t *task_node)
+{
+    this_function->body = strdup( quark_tree_to_body(task_node) );
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
 list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
                                                 set<dep_t *>incm_deps,
                                                 Relation S_es,
                                                 node_t *reference_data_element)
 {
-    int i, pseudotask_count = 0;
+    int pseudotask_count = 0;
     node_t *this_node;
     set<dep_t *>::iterator dep_it;
     set<char *> vars;
     map<char *, set<dep_t *> > incm_map, outg_map;
     list<char *> ptask_list;
     int nbspaces = 0;
-    jdf_dataflow_t *dataflows, *dataflow;
     string_arena_t *sa, *sa2;
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -5247,18 +5374,9 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
         fprintf(stderr,"WARNING: Number of variables (%lu) exceeds %d\n", vars.size(), MAX_PARAM_COUNT);
     }
 
-    // Malloc and chain the dataflow
-    dataflows = q2jmalloc( jdf_dataflow_t, vars.size() );
-    for (i=0; i< (int)(vars.size()-1); i++) {
-        dataflows[i].next = &(dataflows[i+1]);
-    }
-
-    this_node->function->dataflow = dataflows;
-    dataflow = dataflows;
-
     // For each variable print all the incoming and the outgoing edges
     set<char *>::iterator var_it;
-    for (var_it=vars.begin(); var_it!=vars.end(); var_it++, dataflow = dataflow->next ){
+    for (var_it=vars.begin(); var_it!=vars.end(); var_it++ ){
         bool insert_fake_read = false;
         char *var_pseudoname = *var_it;
         set<dep_t *>ideps = incm_map[var_pseudoname];
@@ -5270,23 +5388,15 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
         nb_odeps = odeps.size();
         nb_deps = nb_ideps + nb_odeps;
 
-        assert( dataflow != NULL );
-        dataflow->varname = strdup( var_pseudoname );
-        dataflow->lineno = 0;
-        dataflow->deps = NULL;
-        
         if( nb_ideps > 0 && nb_odeps > 0 ){
-            dataflow->access_type = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
             access = "RW";
         }else if( nb_ideps > 0 ){
-            dataflow->access_type = JDF_VAR_TYPE_READ;
             access = "READ";
         }else if( nb_odeps > 0 ){
             /* 
              * DAGuE does not like write-only variables, so make it RW and make
              * it read from the data matrix tile that corresponds to this variable.
              */
-            dataflow->access_type = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
             access = "RW";
             insert_fake_read = true;
         }else{
@@ -5303,26 +5413,6 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
         // Print the pseudoname
         jdfoutput("  %-5s %-4s ", access, var_pseudoname);
         nbspaces = 13;
-
-        jdf_register_input_deps( ideps, S_es, 
-                                 reference_data_element, 
-                                 this_node->function, 
-                                 dataflow,
-                                 &pseudotask_count );
-
-        if(insert_fake_read){
-            jdf_register_fake_read( S_es,
-                                    reference_data_element,
-                                    this_node->function,
-                                    dataflow, (*(odeps.begin()))->dst,
-                                    &pseudotask_count );
-        }
-
-        jdf_register_output_deps( odeps, S_es, 
-                                  reference_data_element, 
-                                  this_node->function, 
-                                  dataflow,
-                                  &pseudotask_count );
 
         // print the incoming edges
         for (dep_it=ideps.begin(); dep_it!=ideps.end(); dep_it++){

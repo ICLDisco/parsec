@@ -188,9 +188,21 @@ jdf_function_entry_t *jdf_register_function( jdf_t        *jdf,
         f->parameters = n;
     }
 
+#if 0
     f->next = jdf->functions;
     jdf->functions = f;
-
+#else
+    {
+        jdf_function_entry_t *n = jdf->functions;
+        if (jdf->functions == NULL )
+            jdf->functions = f;
+        else {
+            while (n->next != NULL)
+                n = n->next;
+            n->next = f;
+        }
+    }
+#endif
     return f;
 }
 
