@@ -178,7 +178,7 @@ static int jdf_global_entry_unparse( const jdf_global_entry_t *e, FILE *out )
         if (err < 0 )
             return err;
     } else {
-        fprintf(out, "%s ", e->name);
+        fprintf(out, "%-9s ", e->name);
     }
     err = jdf_properties_unparse( e->properties, out );
     fprintf(out, "\n");
@@ -318,7 +318,7 @@ static int jdf_deps_unparse( const jdf_dep_t *deps, FILE *out )
     if( deps->next == NULL ) 
         return err;
 
-    fprintf(out, "       ");
+    fprintf(out, "           ");
     return jdf_deps_unparse( deps->next, out );
 }
 
@@ -336,13 +336,13 @@ static int jdf_dataflow_unparse( const jdf_dataflow_t *dataflow, FILE *out )
     } else if( dataflow->access_type == JDF_VAR_TYPE_WRITE ) {
         fprintf(out, "WRITE ");
     } else if( dataflow->access_type == (JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE) ) {
-        fprintf(out,"RW    ");
+        fprintf(out, "RW    ");
     } else {
         fprintf(stderr, "Improbable flow access type %d is not CTL, READ, WRITE or RW\n", dataflow->access_type);
         return -1;
     }
 
-    fprintf(out, "%s ", dataflow->varname);
+    fprintf(out, "%-4s ", dataflow->varname);
 
     err = jdf_deps_unparse( dataflow->deps, out );
     if( err < 0 )
@@ -362,15 +362,17 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
     fprintf(out, ")");
     if( err < 0 )
         return err;
+    fprintf(out, " ");
     err = jdf_properties_unparse(f->properties, out);
     if(err < 0)
         return err;
     fprintf(out, "\n");
 
+    fprintf(out, "  /* Execution Space */\n");
     err = jdf_def_list_unparse(f->definitions, out, "\n");
     if( err < 0 )
         return err;
-    fprintf(out, "\n\n");
+    fprintf(out, "\n");
 
     if( f->simcost ) {
         fprintf(out, "SIMCOST ");
@@ -381,6 +383,7 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
     }
     fprintf(out, "\n");
 
+    fprintf(out, "  /* Locality */\n");
     fprintf(out, ": ");
     err = jdf_call_unparse(f->predicate, out);
     fprintf(out, "\n");
@@ -403,7 +406,9 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
     fprintf(out, "\n");
 
     fprintf(out, "BODY\n");
+    fprintf(out, "{\n");
     fprintf(out, "%s\n", f->body);
+    fprintf(out, "}\n");
     fprintf(out, "END\n\n");
 
     return jdf_function_entry_unparse( f->next, out );
@@ -420,22 +425,22 @@ int jdf_unparse( const jdf_t *jdf, FILE *out )
                 "**Warning** Malformed JDF structure: a prologue is mandatory in the grammar...\n");
         err = 1;
     }
-    fprintf(out, "\n\n");
+    fprintf(out, "\n");
 
     err = jdf_global_entry_unparse( jdf->globals, out );
     if( err < 0 )
         return err;
-    fprintf(out, "\n\n");
+    fprintf(out, "\n");
 
     err = jdf_properties_unparse( jdf->global_properties, out );
     if( err < 0 )
         return err;
-    fprintf(out, "\n\n");
+    fprintf(out, "\n");
 
     err = jdf_function_entry_unparse( jdf->functions, out );
     if( err < 0 )
         return err;
-    fprintf(out, "\n\n");
+    fprintf(out, "\n");
     
     if( jdf->epilogue && jdf->epilogue->external_code )
         fprintf(out, "extern \"C\" {\n%s\n}\n", jdf->epilogue->external_code );
