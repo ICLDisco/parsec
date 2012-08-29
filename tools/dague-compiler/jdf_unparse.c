@@ -318,7 +318,7 @@ static int jdf_deps_unparse( const jdf_dep_t *deps, FILE *out )
     if( deps->next == NULL ) 
         return err;
 
-    fprintf(out, "           ");
+    fprintf(out, "             ");
     return jdf_deps_unparse( deps->next, out );
 }
 
@@ -330,13 +330,13 @@ static int jdf_dataflow_unparse( const jdf_dataflow_t *dataflow, FILE *out )
         return err;
 
     if( dataflow->access_type == JDF_VAR_TYPE_CTL ) {
-        fprintf(out, "CTL   ");
+        fprintf(out, "  CTL   ");
     } else if( dataflow->access_type == JDF_VAR_TYPE_READ ) {
-        fprintf(out, "READ  ");
+        fprintf(out, "  READ  ");
     } else if( dataflow->access_type == JDF_VAR_TYPE_WRITE ) {
-        fprintf(out, "WRITE ");
+        fprintf(out, "  WRITE ");
     } else if( dataflow->access_type == (JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE) ) {
-        fprintf(out, "RW    ");
+        fprintf(out, "  RW    ");
     } else {
         fprintf(stderr, "Improbable flow access type %d is not CTL, READ, WRITE or RW\n", dataflow->access_type);
         return -1;
@@ -368,8 +368,9 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
         return err;
     fprintf(out, "\n");
 
-    fprintf(out, "  /* Execution Space */\n");
-    err = jdf_def_list_unparse(f->definitions, out, "\n");
+    fprintf(out, "  /* Execution Space */\n  ");
+    err = jdf_def_list_unparse(f->definitions, out, "\n  ");
+    fprintf(out, "\n");
     if( err < 0 )
         return err;
     fprintf(out, "\n");
@@ -380,11 +381,11 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
         fprintf(out, "\n");
         if( err < 0 )
             return err;
+        fprintf(out, "\n");
     }
-    fprintf(out, "\n");
 
     fprintf(out, "  /* Locality */\n");
-    fprintf(out, ": ");
+    fprintf(out, "  : ");
     err = jdf_call_unparse(f->predicate, out);
     fprintf(out, "\n");
     if( err < 0 )
@@ -402,8 +403,8 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
         fprintf(out, "\n");
         if( err < 0 )
             return err;
+        fprintf(out, "\n");
     }
-    fprintf(out, "\n");
 
     fprintf(out, "BODY\n");
     fprintf(out, "{\n");
