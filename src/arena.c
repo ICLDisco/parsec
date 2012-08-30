@@ -66,6 +66,7 @@ void dague_arena_destruct(dague_arena_t* arena)
     dague_lifo_destruct(&arena->lifo);
 }
 
+void* dague_arena_get(dague_arena_t* arena, size_t count);
 dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count)
 {
     dague_list_item_t* item;
@@ -183,8 +184,6 @@ dague_arena_chunk_t* dague_arena_nolock_get(dague_arena_t* arena, size_t count)
 
     return (dague_arena_chunk_t*) (((ptrdiff_t) chunk) | 1);
 }
-
-
 
 void dague_arena_release(dague_arena_chunk_t* ptr)
 {

@@ -5,8 +5,8 @@
  */
 
 
-#ifndef _DATA_DISTRIBUTION_H_ 
-#define _DATA_DISTRIBUTION_H_ 
+#ifndef _DATA_DISTRIBUTION_H_
+#define _DATA_DISTRIBUTION_H_
 
 #include "dague_config.h"
 #include "profiling.h"
@@ -24,43 +24,43 @@
 #include "mpi.h"
 #endif /*HAVE_MPI */
 
-#include "moesi.h"
+typedef struct _dague_data dague_data_t;
+typedef struct _dague_data_copy dague_data_copy_t;
+typedef uint32_t dague_data_key_t;
 
 typedef struct dague_ddesc {
     uint32_t myrank;  /**< process rank */
     uint32_t cores;   /**< number of cores used for computation per node */
     uint32_t nodes;   /**< number of nodes involved in the computation */
-    uint32_t (*rank_of)(struct dague_ddesc *mat, ...);   /* return the rank of the process owning the data  */
-    void *   (*data_of)(struct dague_ddesc *mat, ...);   /* return the pointer to the data possessed locally */
-    int32_t  (*vpid_of)(struct dague_ddesc *mat, ...);   /* return the virtual process ID of data possessed locally */
-    moesi_map_t* moesi_map; /* the map that tracks accesses to replicates of memory blocks */
+    dague_data_key_t (*data_key)(struct dague_ddesc *mat, ...); /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
+    uint32_t (*rank_of)(struct dague_ddesc *mat, ...);                        /* return the rank of the process owning the data  */
+    uint32_t (*rank_of_key)(struct dague_ddesc *mat, dague_data_key_t key);
+    dague_data_t* (*data_of)(struct dague_ddesc *mat, ...);                   /* return the pointer to the data possessed locally */
+    dague_data_t* (*data_of_key)(struct dague_ddesc *mat, dague_data_key_t key);
+    int32_t  (*vpid_of)(struct dague_ddesc *mat, ...);                        /* return the virtual process ID of data possessed locally */
+    int32_t  (*vpid_of_key)(struct dague_ddesc *mat, dague_data_key_t key);
+    int (*key_to_string)(struct dague_ddesc *mat, dague_data_key_t key, char * buffer, uint32_t buffer_size); /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
+    char      *key_base;
 #ifdef DAGUE_PROF_TRACE
-    uint32_t (*data_key)(struct dague_ddesc *mat, ...); /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
-    int (*key_to_string)(struct dague_ddesc *mat, uint32_t datakey, char * buffer, uint32_t buffer_size); /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
-    char      *key_dim;
-    char      *key;
+    char      *key_dim;  /* TODO: Do we really need this field */
 #endif /* DAGUE_PROF_TRACE */
 } dague_ddesc_t;
 
 static inline void dague_ddesc_destroy(dague_ddesc_t *d)
 {
 #if defined(DAGUE_PROF_TRACE)
-    if( NULL != d->key_dim )
-        free(d->key_dim);
+    if( NULL != d->key_dim ) free(d->key_dim);
     d->key_dim = NULL;
-
-    if( NULL != d->key )
-        free(d->key);
-    d->key = NULL;
-#else
-    (void)d;
 #endif
+    if( NULL != d->key_base ) free(d->key_base);
+    d->key_base = NULL;
 }
 
 #if defined(DAGUE_PROF_TRACE)
+/* TODO: Fix me pleaseeeeeee */
 #define dague_ddesc_set_key(d, k) do {                                  \
         char dim[strlen(k) + strlen( (d)->key_dim ) + 4];               \
-        (d)->key = strdup(k);                                           \
+        (d)->key_base = strdup(k);                                      \
         sprintf(dim, "%s%s", k, (d)->key_dim);                          \
         dague_profiling_add_information( "DIMENSION", dim );            \
     } while(0)

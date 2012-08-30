@@ -846,6 +846,14 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                 DEBUG3(("  Task %s is immediate and will be executed ASAP\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, new_context)));
                 __dague_execute(eu_context, new_context);
                 __dague_complete_execution(eu_context, new_context);
+#if 0 /* TODO */
+                SET_HIGHEST_PRIORITY(new_context, dague_execution_context_priority_comparator);
+                DAGUE_LIST_ITEM_SINGLETON(&(new_context->list_item));
+                if( NULL != (*pimmediate_ring) ) {
+                    (void)dague_list_item_ring_push( (dague_list_item_t*)(*pimmediate_ring), &new_context->list_item );
+                }
+                *pimmediate_ring = new_context;
+#endif
             } else {
                 *pready_ring = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(*pready_ring),
                                                                                              &new_context->list_item,

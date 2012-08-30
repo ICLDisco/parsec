@@ -149,9 +149,11 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     TYPE##_t DDESC;                                                     \
     if(COND) {                                                          \
         TYPE##_init INIT_PARAMS;                                        \
-        DDESC.mat = dague_data_allocate((size_t)DDESC.super.nb_local_tiles * \
-                                        (size_t)DDESC.super.bsiz *      \
-                                        (size_t)dague_datadist_getsizeoftype(DDESC.super.mtype)); \
+        TYPE##_data_attach((DDESC),                                     \
+                           dague_data_allocate((size_t)DDESC.super.nb_local_tiles * \
+                                               (size_t)DDESC.super.bsiz * \
+                                               (size_t)dague_datadist_getsizeoftype(DDESC.super.mtype)), \
+                           0);                                          \
         dague_ddesc_set_key((dague_ddesc_t*)&DDESC, #DDESC);            \
     }
 
