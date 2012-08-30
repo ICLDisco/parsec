@@ -41,7 +41,7 @@ void moesi_map_destroy(moesi_map_t** pmap) {
                         WARNING(("  Moesi:\tpossible memory leak, moesi_copy_t %p is still in the moesi map %p but it is deallocated\n", map->masters[i]->device_copies[d], map));
                     }
                 }
-#endif                
+#endif
                 free(map->masters[i]);
             }
         }
