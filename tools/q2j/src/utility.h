@@ -44,6 +44,8 @@ struct _expr_t{
     } value;
 };
 
+#define Q2J_ASSERT(_X_) assert((_X_));
+
 #define q2jmalloc(type, nbelem)  (type*)calloc(nbelem, sizeof(type))
 
 char *indent(int n, int size);
