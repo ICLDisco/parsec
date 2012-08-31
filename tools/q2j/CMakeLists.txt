@@ -32,6 +32,7 @@ if(FOUND_OMEGA)
   add_executable(q2j 
       src/omega_interface.cpp
       src/jdfoutput.cpp
+      src/jdfregister.cpp
       src/driver.c
       src/utility.c
       src/symtab.c      

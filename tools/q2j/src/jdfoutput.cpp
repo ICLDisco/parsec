@@ -21,20 +21,13 @@
 #include "q2j.y.h"
 #include "omega.h"
 #include "utility.h"
+#include "jdfoutput.h"
 #include "omega_interface.h"
 
 extern char *_q2j_data_prefix;
 extern FILE *_q2j_output;
 
-////////////////////////////////////////////////////////////////////////////////
-//
-void print_header();
-void print_types_of_formal_parameters(node_t *root);
-void print_default_task_placement(node_t *task_node);
-Relation process_and_print_execution_space(jdf_function_entry_t *function, node_t *node);
-void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps);
-list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t *>incm_edges, Relation S, node_t *reference_data_element);
-void print_body(node_t *task_node);
+string_arena_t *create_pool_declarations();
 
 ////////////////////////////////////////////////////////////////////////////////
 //

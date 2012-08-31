@@ -19,6 +19,7 @@ struct _dep_t{
     Relation *rel;
 };
 
+expr_t *copy_tree(expr_t *root);
 const char *expr_tree_to_str(expr_t *exp);
 expr_t *relation_to_tree( Relation R );
 expr_t *solveExpressionTreeForVar(expr_t *exp, const char *var_name, Relation R);

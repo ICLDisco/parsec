@@ -2277,7 +2277,7 @@ void jdf_register_pools( jdf_t *jdf )
                              e->properties[0].expr->jdf_var = strdup("dague_memory_pool_t *");
                              
                              e->properties[1].next       = NULL;
-                             e->properties[1].name       = strdup("type");
+                             e->properties[1].name       = strdup("size");
                              e->properties[1].expr       = q2jmalloc(jdf_expr_t, 1);
                              e->properties[1].properties = NULL;
                              e->properties[1].lineno     = 0;
@@ -2293,7 +2293,6 @@ void jdf_register_pools( jdf_t *jdf )
                          });
     return;
 }
-
 
 /* 
  * Traverse the list of variable definitions to see if we have stored a definition for a given variable.
