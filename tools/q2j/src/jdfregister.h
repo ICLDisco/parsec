@@ -40,5 +40,12 @@ void jdf_register_anti_dependencies( jdf_function_entry_t *this_function,
 void jdf_register_body(jdf_function_entry_t *this_function,
                        node_t *task_node);
 
+void jdf_register_function(jdf_function_entry_t       *this_function,
+                           node_t                     *this_node,
+                           node_t                     *reference_data_element,
+                           Relation                    S_es,
+                           set<dep_t *>               &outg_deps,
+                           set<dep_t *>               &incm_deps,
+                           map<char *, set<dep_t *> > &synch_edges);
 
 #endif /* _JDFREGISTER_H_ */

@@ -26,6 +26,7 @@
 
 extern char *_q2j_data_prefix;
 extern FILE *_q2j_output;
+extern int _q2j_dump_mapping;
 
 string_arena_t *create_pool_declarations();
 
@@ -587,4 +588,48 @@ void print_body(node_t *task_node)
                "}\n"
                "END\n", 
                quark_tree_to_body(task_node));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+void print_function(jdf_function_entry_t       *this_function,
+                    task_t                     *this_task,
+                    node_t                     *reference_data_element,
+                    Relation                    S_es,
+                    set<dep_t *>               &outg_deps,
+                    set<dep_t *>               &incm_deps,
+                    map<char *, set<dep_t *> > &synch_edges)
+{
+    list <char *>::iterator ptask_it;
+    list <char *>ptask_list;
+    int i;
+    char *task_name;
+
+    task_name = this_function->fname;
+   
+    jdfoutput("\n\n%s( ",task_name);
+    for(i=0; NULL != this_task->ind_vars[i]; ++i){
+        if( i ) jdfoutput(", ");
+        jdfoutput("%s", this_task->ind_vars[i]);
+    }
+    jdfoutput(")\n");
+    
+    print_execution_space(S_es);
+    print_default_task_placement(reference_data_element);
+    
+    if( _q2j_dump_mapping ) {
+        print_pseudo_variables(outg_deps, incm_deps);
+    }
+    
+    ptask_list = print_edges_and_create_pseudotasks(outg_deps, incm_deps, S_es, reference_data_element);
+    
+    if( NULL != this_function->fname )
+        print_antidependencies( this_function, synch_edges );
+    
+    print_body(this_task->task_node);
+    
+    // Print all the pseudo-tasks that were created by print_edges_and_create_pseudotasks()
+    for(ptask_it=ptask_list.begin(); ptask_it!=ptask_list.end(); ++ptask_it){
+        jdfoutput("%s\n",*ptask_it);
+    }
 }

@@ -3463,22 +3463,19 @@ printf("========================================================================
     for( ;edge_it != outgoing_edges.end(); ++edge_it ) {
         task_t *src_task;
         jdf_function_entry_t *this_function;
-        char *task_name;
-        set<dep_t *> deps;
-
-        task_name = edge_it->first;
-        deps = edge_it->second;
+        char *task_name        = edge_it->first;
+        set<dep_t *> outg_deps = edge_it->second;
+        set<dep_t *> incm_deps = incoming_edges[task_name];
 
         // Get the source task from the dependencies
-        if( !deps.empty() ){
-            src_task = (*deps.begin())->src->task;
-            this_function = (*deps.begin())->src->function;
+        if( !outg_deps.empty() ){
+            src_task      = (*outg_deps.begin())->src->task;
+            this_function = (*outg_deps.begin())->src->function;
         }else{
             // If there are no outgoing deps, get the source task from the incoming dependencies
-            set<dep_t *> in_deps = incoming_edges[task_name];
-            if( !in_deps.empty() ){
-                src_task = (*in_deps.begin())->src->task;
-                this_function = (*in_deps.begin())->src->function;
+            if( !incm_deps.empty() ){
+                src_task      = (*incm_deps.begin())->src->task;
+                this_function = (*incm_deps.begin())->src->function;
             }else{
                 // If there are no incoming and no outgoing deps, skip this task
                 continue;
@@ -3497,48 +3494,21 @@ printf("========================================================================
                 printf("DEBUG: unnamed task.\n");
 
             if (_q2j_direct_output) {
-                list <char *>::iterator ptask_it;
-                list <char *>ptask_list;
-                int i;
-
-                jdfoutput("\n\n%s( ",task_name);
-                for(i=0; NULL != src_task->ind_vars[i]; ++i){
-                    if( i ) jdfoutput(", ");
-                    jdfoutput("%s", src_task->ind_vars[i]);
-                }
-                jdfoutput(")\n");
-    
-                print_execution_space(S_es);
-                print_default_task_placement(reference_data_element);
-                
-                if( _q2j_dump_mapping ) {
-                    print_pseudo_variables(deps, incoming_edges[task_name]);
-                }
- 
-                ptask_list = print_edges_and_create_pseudotasks(deps, incoming_edges[task_name], S_es, reference_data_element);
-                
-                if( NULL != this_function->fname )
-                    print_antidependencies( this_function, synch_edges );
-
-                print_body(src_task->task_node);
-                
-                // Print all the pseudo-tasks that were created by print_edges_and_create_pseudotasks()
-                for(ptask_it=ptask_list.begin(); ptask_it!=ptask_list.end(); ++ptask_it){
-                    jdfoutput("%s\n",*ptask_it);
-                }
-                
-           } else {
-                jdf_register_definitions( this_function, S_es );
-                this_function->predicate = jdf_generate_call_for_data(reference_data_element, NULL);
-
-                jdf_register_dependencies_and_pseudotasks(this_function,
-                                                          deps, incoming_edges[task_name],
-                                                          S_es, reference_data_element);
-
-                if( NULL != this_function->fname )
-                    jdf_register_anti_dependencies( this_function, synch_edges );
-
-                jdf_register_body(this_function, src_task->task_node);
+                print_function(this_function,
+                               src_task,
+                               reference_data_element,
+                               S_es,
+                               outg_deps,
+                               incm_deps,
+                               synch_edges);
+            } else {
+                jdf_register_function(this_function,
+                                      src_task->task_node,
+                                      reference_data_element,
+                                      S_es,
+                                      outg_deps,
+                                      incm_deps,
+                                      synch_edges);
             }
 
             S_es.Null();

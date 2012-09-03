@@ -19,4 +19,12 @@ void print_antidependencies( jdf_function_entry_t *this_function,
                              map<char *, set<dep_t *> > synch_edges );
 void print_body(node_t *task_node);
 
+void print_function(jdf_function_entry_t       *this_function,
+                    task_t                     *this_task,
+                    node_t                     *reference_data_element,
+                    Relation                    S_es,
+                    set<dep_t *>               &outg_deps,
+                    set<dep_t *>               &incm_deps,
+                    map<char *, set<dep_t *> > &synch_edges);
+
 #endif

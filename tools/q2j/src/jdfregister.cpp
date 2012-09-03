@@ -1082,3 +1082,24 @@ void jdf_register_body(jdf_function_entry_t *this_function,
     this_function->body = strdup( quark_tree_to_body(task_node) );
 }
 
+
+void jdf_register_function(jdf_function_entry_t       *this_function,
+                           node_t                     *this_node,
+                           node_t                     *reference_data_element,
+                           Relation                    S_es,
+                           set<dep_t *>               &outg_deps,
+                           set<dep_t *>               &incm_deps,
+                           map<char *, set<dep_t *> > &synch_edges)
+{
+    jdf_register_definitions( this_function, S_es );
+    this_function->predicate = jdf_generate_call_for_data(reference_data_element, NULL);
+    
+    jdf_register_dependencies_and_pseudotasks(this_function,
+                                              outg_deps, incm_deps,
+                                              S_es, reference_data_element);
+    
+    if( NULL != this_function->fname )
+        jdf_register_anti_dependencies( this_function, synch_edges );
+    
+    jdf_register_body(this_function, this_node);
+}
