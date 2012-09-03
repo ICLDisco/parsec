@@ -3103,12 +3103,15 @@ void interrogate_omega(node_t *root, var_t *head){
     map<char *, set<dep_t *> > outgoing_edges;
     map<char *, set<dep_t *> > incoming_edges;
     map<char *, set<dep_t *> > synch_edges;
+    bool _q2j_direct_output = false;
 
-    print_header();
-    print_types_of_formal_parameters(root);
-
-    jdf_register_prologue(&_q2j_jdf);
-    jdf_register_globals(&_q2j_jdf, root);
+    if (_q2j_direct_output) {
+        print_header();
+        print_types_of_formal_parameters(root);
+    } else {
+        jdf_register_prologue(&_q2j_jdf);
+        jdf_register_globals(&_q2j_jdf, root);
+    }
 
     declare_global_vars(root);
 
@@ -3459,7 +3462,7 @@ printf("========================================================================
     edge_it = outgoing_edges.begin();
     for( ;edge_it != outgoing_edges.end(); ++edge_it ) {
         task_t *src_task;
-        jdf_function_entry_t *src_task_jdf;
+        jdf_function_entry_t *this_function;
         char *task_name;
         set<dep_t *> deps;
 
@@ -3469,13 +3472,13 @@ printf("========================================================================
         // Get the source task from the dependencies
         if( !deps.empty() ){
             src_task = (*deps.begin())->src->task;
-            src_task_jdf = (*deps.begin())->src->function;
+            this_function = (*deps.begin())->src->function;
         }else{
             // If there are no outgoing deps, get the source task from the incoming dependencies
             set<dep_t *> in_deps = incoming_edges[task_name];
             if( !in_deps.empty() ){
                 src_task = (*in_deps.begin())->src->task;
-                src_task_jdf = (*in_deps.begin())->src->function;
+                this_function = (*in_deps.begin())->src->function;
             }else{
                 // If there are no incoming and no outgoing deps, skip this task
                 continue;
@@ -3483,53 +3486,62 @@ printf("========================================================================
         }
 
         // If the source task is NOT the ENTRY, then dump all the info
-        if( NULL != src_task_jdf ){
+        if( NULL != this_function ){
 
-            jdfoutput("\n\n%s( ",task_name);
-            for(int i=0; NULL != src_task->ind_vars[i]; ++i){
-                if( i ) jdfoutput(", ");
-                jdfoutput("%s", src_task->ind_vars[i]);
-            }
-            jdfoutput(")\n");
-    
             Relation S_es = process_execution_space(src_task->task_node);
-            //Relation S_es = jdf_register_definitions(src_task_jdf, src_task->task_node);
-            
-            print_execution_space(S_es);
-            jdf_register_definitions( src_task_jdf, S_es );
-
             node_t *reference_data_element = quark_get_locality(src_task->task_node);
-            print_default_task_placement(reference_data_element);
-            src_task_jdf->predicate = jdf_generate_call_for_data(reference_data_element, NULL);
 
-            if( _q2j_dump_mapping ) {
-                print_pseudo_variables(deps, incoming_edges[task_name]);
-            }
-
-            jdf_register_dependencies_and_pseudotasks(src_task_jdf,
-                                                      deps, incoming_edges[task_name],
-                                                      S_es, reference_data_element);
-            list <char *>ptask_list = print_edges_and_create_pseudotasks(deps, incoming_edges[task_name], S_es, reference_data_element);
-            S_es.Null();
-
-            // If this task has no name, then it's probably a phony task, so ignore it.
-            if( (NULL != src_task_jdf->fname) ){
-
-                jdf_register_anti_dependencies( src_task_jdf, synch_edges );
-                print_antidependencies( src_task_jdf, synch_edges );
-
-            }else{
+            // If this task has no name, then it's probably a phony task, so ignore it
+            // for anti-dependencies
+            if( NULL == this_function->fname )
                 printf("DEBUG: unnamed task.\n");
+
+            if (_q2j_direct_output) {
+                list <char *>::iterator ptask_it;
+                list <char *>ptask_list;
+                int i;
+
+                jdfoutput("\n\n%s( ",task_name);
+                for(i=0; NULL != src_task->ind_vars[i]; ++i){
+                    if( i ) jdfoutput(", ");
+                    jdfoutput("%s", src_task->ind_vars[i]);
+                }
+                jdfoutput(")\n");
+    
+                print_execution_space(S_es);
+                print_default_task_placement(reference_data_element);
+                
+                if( _q2j_dump_mapping ) {
+                    print_pseudo_variables(deps, incoming_edges[task_name]);
+                }
+ 
+                ptask_list = print_edges_and_create_pseudotasks(deps, incoming_edges[task_name], S_es, reference_data_element);
+                
+                if( NULL != this_function->fname )
+                    print_antidependencies( this_function, synch_edges );
+
+                print_body(src_task->task_node);
+                
+                // Print all the pseudo-tasks that were created by print_edges_and_create_pseudotasks()
+                for(ptask_it=ptask_list.begin(); ptask_it!=ptask_list.end(); ++ptask_it){
+                    jdfoutput("%s\n",*ptask_it);
+                }
+                
+           } else {
+                jdf_register_definitions( this_function, S_es );
+                this_function->predicate = jdf_generate_call_for_data(reference_data_element, NULL);
+
+                jdf_register_dependencies_and_pseudotasks(this_function,
+                                                          deps, incoming_edges[task_name],
+                                                          S_es, reference_data_element);
+
+                if( NULL != this_function->fname )
+                    jdf_register_anti_dependencies( this_function, synch_edges );
+
+                jdf_register_body(this_function, src_task->task_node);
             }
 
-            print_body(src_task->task_node);
-            jdf_register_body(src_task_jdf, src_task->task_node);
-
-            // Print all the pseudo-tasks that were created by print_edges_and_create_pseudotasks()
-            list <char *>::iterator ptask_it;
-            for(ptask_it=ptask_list.begin(); ptask_it!=ptask_list.end(); ++ptask_it){
-                jdfoutput("%s\n",*ptask_it);
-            }
+            S_es.Null();
         }
     }
 }
