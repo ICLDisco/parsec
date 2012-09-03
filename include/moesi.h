@@ -63,8 +63,6 @@ struct _moesi_copy {
     uint32_t            version;
 };
 
-
-
 void moesi_map_create(moesi_map_t** map, int nmasters, int ndevices);
 void moesi_map_destroy(moesi_map_t** map);
 
@@ -96,7 +94,5 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
  * The master copy is accessed in WRITE mode, invalidate all shared copies
  */
 int moesi_master_update(moesi_map_t *map, moesi_key_t key);
-
-
 
 #endif
