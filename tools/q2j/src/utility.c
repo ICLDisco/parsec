@@ -38,6 +38,7 @@
 extern char *q2j_input_file_name;
 extern char *_q2j_data_prefix;
 extern int _q2j_generate_line_numbers;
+extern int _q2j_direct_output;
 extern FILE *_q2j_output;
 extern jdf_t _q2j_jdf;
 
@@ -739,7 +740,8 @@ void analyze_deps(node_t *node){
     quark_record_uses_defs_and_pools(node, mult);
     //dump_all_unds();
     interrogate_omega(node, var_head);
-    jdf_unparse( &_q2j_jdf, stdout );
+    if (!_q2j_direct_output)
+        jdf_unparse( &_q2j_jdf, stdout );
 }
 
 

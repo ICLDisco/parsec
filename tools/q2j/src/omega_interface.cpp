@@ -48,6 +48,7 @@ extern int _q2j_verbose_warnings;
 extern int _q2j_add_phony_tasks;
 extern int _q2j_finalize_antideps;
 extern int _q2j_dump_mapping;
+extern int _q2j_direct_output;
 extern char *_q2j_data_prefix;
 extern FILE *_q2j_output;
 extern jdf_t _q2j_jdf;
@@ -3103,7 +3104,6 @@ void interrogate_omega(node_t *root, var_t *head){
     map<char *, set<dep_t *> > outgoing_edges;
     map<char *, set<dep_t *> > incoming_edges;
     map<char *, set<dep_t *> > synch_edges;
-    bool _q2j_direct_output = false;
 
     if (_q2j_direct_output) {
         print_header();
