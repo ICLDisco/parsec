@@ -341,47 +341,28 @@ char *create_pseudotask(node_t *parent_task,
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
-                                                set<dep_t *>incm_deps,
+list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
+                                                node_t *reference_data_element,
                                                 Relation S_es,
-                                                node_t *reference_data_element)
+                                                set<char *>                &vars,
+                                                map<char *, set<dep_t *> > &outg_map,
+                                                map<char *, set<dep_t *> > &incm_map)
 {
     int pseudotask_count = 0;
-    node_t *this_node;
-    set<dep_t *>::iterator dep_it;
-    set<char *> vars;
-    map<char *, set<dep_t *> > incm_map, outg_map;
     list<char *> ptask_list;
     int nbspaces = 0;
     string_arena_t *sa, *sa2;
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    if( outg_deps.empty() && incm_deps.empty() ){
+    if( outg_map.empty() && incm_map.empty() ){
         return ptask_list;
-    }
-
-    this_node = (*outg_deps.begin())->src;
-
-    // Group the edges based on the variable they flow into or from
-    for (dep_it=incm_deps.begin(); dep_it!=incm_deps.end(); dep_it++){
-           char *symname = (*dep_it)->dst->var_symname;
-           incm_map[symname].insert(*dep_it);
-           vars.insert(symname);
-    }
-    for (dep_it=outg_deps.begin(); dep_it!=outg_deps.end(); dep_it++){
-           char *symname = (*dep_it)->src->var_symname;
-           outg_map[symname].insert(*dep_it);
-           vars.insert(symname);
-    }
-
-    if( vars.size() > MAX_PARAM_COUNT ){
-        fprintf(stderr,"WARNING: Number of variables (%lu) exceeds %d\n", vars.size(), MAX_PARAM_COUNT);
     }
 
     // For each variable print all the incoming and the outgoing edges
     set<char *>::iterator var_it;
     for (var_it=vars.begin(); var_it!=vars.end(); var_it++ ){
+        set<dep_t *>::iterator dep_it;
         bool insert_fake_read = false;
         char *var_pseudoname = *var_it;
         set<dep_t *>ideps = incm_map[var_pseudoname];
@@ -596,8 +577,9 @@ void print_function(jdf_function_entry_t       *this_function,
                     task_t                     *this_task,
                     node_t                     *reference_data_element,
                     Relation                    S_es,
-                    set<dep_t *>               &outg_deps,
-                    set<dep_t *>               &incm_deps,
+                    set<char *>                &vars,
+                    map<char *, set<dep_t *> > &outg_map,
+                    map<char *, set<dep_t *> > &incm_map,
                     map<char *, set<dep_t *> > &synch_edges)
 {
     list <char *>::iterator ptask_it;
@@ -617,11 +599,14 @@ void print_function(jdf_function_entry_t       *this_function,
     print_execution_space(S_es);
     print_default_task_placement(reference_data_element);
     
-    if( _q2j_dump_mapping ) {
-        print_pseudo_variables(outg_deps, incm_deps);
-    }
+//     if( _q2j_dump_mapping ) {
+//         print_pseudo_variables(outg_deps, incm_deps);
+//     }
     
-    ptask_list = print_edges_and_create_pseudotasks(outg_deps, incm_deps, S_es, reference_data_element);
+    ptask_list = print_edges_and_create_pseudotasks( this_task->task_node,
+                                                     reference_data_element,
+                                                     S_es,
+                                                     vars, outg_map, incm_map);
     
     if( NULL != this_function->fname )
         print_antidependencies( this_function, synch_edges );

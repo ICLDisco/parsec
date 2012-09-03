@@ -3484,9 +3484,28 @@ printf("========================================================================
 
         // If the source task is NOT the ENTRY, then dump all the info
         if( NULL != this_function ){
-
+            set<char *> vars;
+            map<char *, set<dep_t *> > incm_map, outg_map;
+            set<dep_t *>::iterator dep_it;
+            
             Relation S_es = process_execution_space(src_task->task_node);
             node_t *reference_data_element = quark_get_locality(src_task->task_node);
+
+            // Group the edges based on the variable they flow into or from
+            for (dep_it=incm_deps.begin(); dep_it!=incm_deps.end(); dep_it++){
+                char *symname = (*dep_it)->dst->var_symname;
+                incm_map[symname].insert(*dep_it);
+                vars.insert(symname);
+            }
+            for (dep_it=outg_deps.begin(); dep_it!=outg_deps.end(); dep_it++){
+                char *symname = (*dep_it)->src->var_symname;
+                outg_map[symname].insert(*dep_it);
+                vars.insert(symname);
+            }
+            
+            if( vars.size() > MAX_PARAM_COUNT ){
+                fprintf(stderr,"WARNING: Number of variables (%lu) exceeds %d\n", vars.size(), MAX_PARAM_COUNT);
+            }
 
             // If this task has no name, then it's probably a phony task, so ignore it
             // for anti-dependencies
@@ -3498,16 +3517,14 @@ printf("========================================================================
                                src_task,
                                reference_data_element,
                                S_es,
-                               outg_deps,
-                               incm_deps,
+                               vars, outg_map, incm_map,
                                synch_edges);
             } else {
                 jdf_register_function(this_function,
                                       src_task->task_node,
                                       reference_data_element,
                                       S_es,
-                                      outg_deps,
-                                      incm_deps,
+                                      vars, outg_map, incm_map,
                                       synch_edges);
             }
 

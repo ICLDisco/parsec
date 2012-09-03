@@ -26,11 +26,12 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
                                     char *var_pseudoname, 
                                     int ptask_count, const char *inout );
 
-void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t *this_function,
-                                               set<dep_t *>outg_deps,
-                                               set<dep_t *>incm_deps,
-                                               Relation S_es,
-                                               node_t *reference_data_element);
+void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t       *this_function,
+                                               node_t                     *reference_data_element,
+                                               Relation                    S_es,
+                                               set<char *>                &vars,
+                                               map<char *, set<dep_t *> > &outg_map,
+                                               map<char *, set<dep_t *> > &incm_map);
 
 void jdf_register_anti_dependency( dep_t *dep );
 
@@ -44,8 +45,9 @@ void jdf_register_function(jdf_function_entry_t       *this_function,
                            node_t                     *this_node,
                            node_t                     *reference_data_element,
                            Relation                    S_es,
-                           set<dep_t *>               &outg_deps,
-                           set<dep_t *>               &incm_deps,
+                           set<char *>                &vars,
+                           map<char *, set<dep_t *> > &outg_map,
+                           map<char *, set<dep_t *> > &incm_map,
                            map<char *, set<dep_t *> > &synch_edges);
 
 #endif /* _JDFREGISTER_H_ */

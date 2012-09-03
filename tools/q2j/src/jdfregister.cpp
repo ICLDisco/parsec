@@ -855,36 +855,18 @@ void jdf_register_output_deps( set<dep_t*> odeps,
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t *this_function,
-                                               set<dep_t *>outg_deps,
-                                               set<dep_t *>incm_deps,
-                                               Relation S_es,
-                                               node_t *reference_data_element)
+void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t       *this_function,
+                                               node_t                     *reference_data_element,
+                                               Relation                    S_es,
+                                               set<char *>                &vars,
+                                               map<char *, set<dep_t *> > &outg_map,
+                                               map<char *, set<dep_t *> > &incm_map)
 {
     int i, pseudotask_count = 0;
-    set<dep_t *>::iterator dep_it;
-    set<char *> vars;
-    map<char *, set<dep_t *> > incm_map, outg_map;
     jdf_dataflow_t *dataflows, *dataflow;
 
-    if( outg_deps.empty() && incm_deps.empty() ){
+    if( outg_map.empty() && incm_map.empty() ){
         return;
-    }
-
-    // Group the edges based on the variable they flow into or from
-    for (dep_it=incm_deps.begin(); dep_it!=incm_deps.end(); dep_it++){
-           char *symname = (*dep_it)->dst->var_symname;
-           incm_map[symname].insert(*dep_it);
-           vars.insert(symname);
-    }
-    for (dep_it=outg_deps.begin(); dep_it!=outg_deps.end(); dep_it++){
-           char *symname = (*dep_it)->src->var_symname;
-           outg_map[symname].insert(*dep_it);
-           vars.insert(symname);
-    }
-
-    if( vars.size() > MAX_PARAM_COUNT ){
-        fprintf(stderr,"WARNING: Number of variables (%lu) exceeds %d\n", vars.size(), MAX_PARAM_COUNT);
     }
 
     // Malloc and chain the dataflow
@@ -1087,16 +1069,17 @@ void jdf_register_function(jdf_function_entry_t       *this_function,
                            node_t                     *this_node,
                            node_t                     *reference_data_element,
                            Relation                    S_es,
-                           set<dep_t *>               &outg_deps,
-                           set<dep_t *>               &incm_deps,
+                           set<char *>                &vars,
+                           map<char *, set<dep_t *> > &outg_map,
+                           map<char *, set<dep_t *> > &incm_map,
                            map<char *, set<dep_t *> > &synch_edges)
 {
     jdf_register_definitions( this_function, S_es );
     this_function->predicate = jdf_generate_call_for_data(reference_data_element, NULL);
     
     jdf_register_dependencies_and_pseudotasks(this_function,
-                                              outg_deps, incm_deps,
-                                              S_es, reference_data_element);
+                                              reference_data_element, S_es,
+                                              vars, outg_map, incm_map);
     
     if( NULL != this_function->fname )
         jdf_register_anti_dependencies( this_function, synch_edges );
