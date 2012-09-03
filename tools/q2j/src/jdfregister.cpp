@@ -1018,19 +1018,23 @@ void jdf_register_anti_dependency( dep_t *dep )
     // Reverse the relation 
     dep2.src = dep->src;
     dep2.dst = dep->dst;
-    Relation ad_r = Inverse(copy(*(dep->rel)));
-    (void)(ad_r).print_with_subs_to_string(false);
-
-    dep2.rel = &ad_r;
-    dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( &dep2, 
-                                                                                 relation_to_tree( copy(ad_r) ) );
+    Relation ad_r1 = *rel;
+    Relation ad_r2 = Inverse(copy(*rel));
+    (void)(ad_r1).print_with_subs_to_string(false);
+    (void)(ad_r2).print_with_subs_to_string(false);
 
 #ifdef DEBUG
     {
-        const char *str_rel = ad_r.print_with_subs_to_string();
-        fprintf(stderr, "Anti-dependency: %s\n", str_rel);
+        const char *str_rel1 = ad_r1.print_with_subs_to_string();
+        const char *str_rel2 = ad_r2.print_with_subs_to_string();
+        fprintf(stderr, "Anti-dependency: => %s\n", str_rel1);
+        fprintf(stderr, "                 <= %s\n", str_rel2);
     }
 #endif
+
+    dep2.rel = &ad_r2;
+    dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( &dep2, 
+                                                                                 relation_to_tree( copy(ad_r2) ) );
 
     dataflow->next = dst->dataflow;
     dst->dataflow  = dataflow;
