@@ -739,7 +739,7 @@ void analyze_deps(node_t *node){
     quark_record_uses_defs_and_pools(node, mult);
     //dump_all_unds();
     interrogate_omega(node, var_head);
-    jdf_unparse( &_q2j_jdf, stderr );
+    jdf_unparse( &_q2j_jdf, stdout );
 }
 
 
