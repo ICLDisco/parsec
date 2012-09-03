@@ -540,6 +540,43 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps,
     return ptask_list;
 }
 
+void print_antidependencies( jdf_function_entry_t *this_function,
+                             map<char *, set<dep_t *> > synch_edges )
+{
+    map<char *, set<dep_t *> >::iterator synch_edge_it;
+    bool has_synch_edges = false;
+    
+    for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
+        if( strcmp( synch_edge_it->first, this_function->fname ) )
+            continue;
+
+        set<dep_t *> synch_dep_set = synch_edge_it->second;
+        set<dep_t *>::iterator synch_dep_it;
+
+        if ( !has_synch_edges) {
+            jdfoutput("  /*\n  Anti-dependencies:\n");
+            has_synch_edges = true;
+        }
+        
+        // Traverse all the entries of the set stored in synch_edges[ this task's name ] and print them
+        for(synch_dep_it=synch_dep_set.begin(); synch_dep_it!=synch_dep_set.end(); ++synch_dep_it){
+            string relation;
+            node_t *use  = (*synch_dep_it)->src;
+            assert(use->function == this_function);
+            node_t *sink  = (*synch_dep_it)->dst;
+            Relation ad_r = *((*synch_dep_it)->rel);
+            char *n1 = use->function->fname;
+            char *n2 = sink->function->fname;
+            jdfoutput("  ANTI edge from %s:%s to %s:%s ", n1, tree_to_str(use), n2, tree_to_str(sink));
+            relation = ad_r.print_with_subs_to_string();
+            jdfoutput("%s", relation.c_str());
+        }
+    }
+
+    if( has_synch_edges )
+        jdfoutput("  */\n");
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 void print_body(node_t *task_node)

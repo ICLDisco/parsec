@@ -1054,6 +1054,26 @@ void jdf_register_anti_dependency( dep_t *dep )
     dst->dataflow  = dataflow;
 }
 
+void jdf_register_anti_dependencies( jdf_function_entry_t *this_function,
+                                     map<char *, set<dep_t *> > synch_edges )
+{
+    map<char *, set<dep_t *> >::iterator synch_edge_it;
+
+    for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
+        if( strcmp( synch_edge_it->first, this_function->fname ) )
+            continue;
+        set<dep_t *> synch_dep_set = synch_edge_it->second;
+        set<dep_t *>::iterator synch_dep_it;
+        
+        // Traverse all the entries of the set stored in synch_edges[ this task's name ] and print them
+        for(synch_dep_it=synch_dep_set.begin(); synch_dep_it!=synch_dep_set.end(); ++synch_dep_it){
+            assert(((*synch_dep_it)->src)->function == this_function);
+            
+            jdf_register_anti_dependency( (*synch_dep_it) );
+        }
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 void jdf_register_body(jdf_function_entry_t *this_function,

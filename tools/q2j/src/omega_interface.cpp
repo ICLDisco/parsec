@@ -3514,59 +3514,9 @@ printf("========================================================================
 
             // If this task has no name, then it's probably a phony task, so ignore it.
             if( (NULL != src_task_jdf->fname) ){
-                map<char *, set<dep_t *> >::iterator synch_edge_it;
-                bool have_synch_edges = false;
 
-                // see if there are any synchronization edges for this task.
-                for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
-                    char *tmp_task_name = synch_edge_it->first;
-                    if( !strcmp(tmp_task_name, src_task_jdf->fname ) ){
-                        have_synch_edges = true;
-                        break;
-                    }
-                }
-
-                // Only print the anti-dependencies block, if there are any anti-dependencies.
-                if( have_synch_edges ){
-                    jdfoutput("  /*\n  Anti-dependencies:\n");
-                    
-                    for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
-                        char *tmp_task_name = synch_edge_it->first;
-                        if( strcmp(tmp_task_name, src_task_jdf->fname ) )
-                            continue;
-                        set<dep_t *> synch_dep_set = synch_edge_it->second;
-                        set<dep_t *>::iterator synch_dep_it;
-                        
-                        // Traverse all the entries of the set stored in synch_edges[ this task's name ] and print them
-                        for(synch_dep_it=synch_dep_set.begin(); synch_dep_it!=synch_dep_set.end(); ++synch_dep_it){
-                            string relation;
-                            node_t *use = (*synch_dep_it)->src;
-                            assert(use->task == src_task);
-                            node_t *sink = (*synch_dep_it)->dst;
-                            Relation ad_r = *((*synch_dep_it)->rel);
-                            char *n1 = use->function->fname;
-                            char *n2 = sink->function->fname;
-                            jdfoutput("  ANTI edge from %s:%s to %s:%s ", n1, tree_to_str(use), n2, tree_to_str(sink));
-                            relation = ad_r.print_with_subs_to_string();
-                            jdfoutput("%s", relation.c_str());
-                        }
-                    }
-                    jdfoutput("  */\n");
-
-                    for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
-                        if( strcmp( synch_edge_it->first, src_task_jdf->fname ) )
-                            continue;
-                        set<dep_t *> synch_dep_set = synch_edge_it->second;
-                        set<dep_t *>::iterator synch_dep_it;
-                        
-                        // Traverse all the entries of the set stored in synch_edges[ this task's name ] and print them
-                        for(synch_dep_it=synch_dep_set.begin(); synch_dep_it!=synch_dep_set.end(); ++synch_dep_it){
-                            assert(((*synch_dep_it)->src)->task == src_task);
-
-                            jdf_register_anti_dependency( (*synch_dep_it) );
-                        }
-                    }
-                }
+                jdf_register_anti_dependencies( src_task_jdf, synch_edges );
+                print_antidependencies( src_task_jdf, synch_edges );
 
             }else{
                 printf("DEBUG: unnamed task.\n");

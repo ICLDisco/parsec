@@ -34,6 +34,9 @@ void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t *this_functi
 
 void jdf_register_anti_dependency( dep_t *dep );
 
+void jdf_register_anti_dependencies( jdf_function_entry_t *this_function,
+                                     map<char *, set<dep_t *> > synch_edges );
+
 void jdf_register_body(jdf_function_entry_t *this_function,
                        node_t *task_node);
 
