@@ -11,10 +11,6 @@ jdf_call_t*
 jdf_generate_call_for_data(node_t *data,
                            str_pair_t *subs);
 
-jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
-                                                const char   *fname,
-                                                const node_t *node );
-
 void jdf_register_prologue(jdf_t *jdf);
 void jdf_register_globals( jdf_t *jdf, node_t *root);
 void jdf_register_epilogue(jdf_t *jdf);

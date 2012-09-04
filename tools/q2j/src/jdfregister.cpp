@@ -29,59 +29,6 @@ extern jdf_t _q2j_jdf;
 
 void jdf_register_pools( jdf_t *jdf );
 
-jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
-                                                const char   *fname,
-                                                const node_t *node )
-{
-    jdf_function_entry_t *f;
-    node_t *tmp;
-
-#ifdef DEBUG
-    if ( jdf->functions != NULL ) {
-        jdf_function_entry_t *f2 = jdf->functions;
-        do {
-            assert( strcmp(fname, f2->fname ) != 0 );
-            f2 = f2->next;
-        } while( f2 != NULL );
-    }
-#endif
-
-    f = q2jmalloc(jdf_function_entry_t, 1);
-    f->fname = strdup(fname);
-    f->parameters  = NULL;
-    f->properties  = NULL;
-    f->definitions = NULL;
-    f->simcost     = NULL;
-    f->predicate   = NULL;
-    f->dataflow    = NULL;
-    f->priority    = NULL;
-    f->body        = NULL;
-
-    for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
-        jdf_name_list_t *n = q2jmalloc(jdf_name_list_t, 1);
-        n->next = f->parameters;
-        n->name = DA_var_name(DA_loop_induction_variable(tmp));
-        f->parameters = n;
-    }
-
-#if 0
-    f->next = jdf->functions;
-    jdf->functions = f;
-#else
-    {
-        jdf_function_entry_t *n = jdf->functions;
-        if (jdf->functions == NULL )
-            jdf->functions = f;
-        else {
-            while (n->next != NULL)
-                n = n->next;
-            n->next = f;
-        }
-    }
-#endif
-    return f;
-}
-
 jdf_def_list_t*
 jdf_create_properties_list( const char* name,
                             jdf_expr_operand_t op,
