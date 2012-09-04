@@ -284,7 +284,7 @@ static int jdf_guarded_call_unparse(const jdf_guarded_call_t *g, FILE *out)
         return err;
         break;
     default:
-        fprintf(stderr, "Improbable guard type %d (neither a unconditional, binary or ternary)\n", g->guard_type);
+        fprintf(stderr, "Improbable guard type %d (neither a unconditional, binary or ternary)\n", (int)(g->guard_type));
         return -1;
     }
 }

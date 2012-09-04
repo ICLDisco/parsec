@@ -154,59 +154,6 @@ void dump_und(und_t *und){
 
 }
 
-jdf_function_entry_t *jdf_register_function( jdf_t        *jdf,
-                                             const char   *fname,
-                                             const node_t *node )
-{
-    jdf_function_entry_t *f;
-    node_t *tmp;
-
-#ifdef DEBUG
-    if ( jdf->functions != NULL ) {
-        jdf_function_entry_t *f2 = jdf->functions;
-        do {
-            assert( strcmp(fname, f2->fname ) != 0 );
-            f2 = f2->next;
-        } while( f2 != NULL );
-    }
-#endif
-
-    f = q2jmalloc(jdf_function_entry_t, 1);
-    f->fname = strdup(fname);
-    f->parameters  = NULL;
-    f->properties  = NULL;
-    f->definitions = NULL;
-    f->simcost     = NULL;
-    f->predicate   = NULL;
-    f->dataflow    = NULL;
-    f->priority    = NULL;
-    f->body        = NULL;
-    
-    for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
-        jdf_name_list_t *n = q2jmalloc(jdf_name_list_t, 1);
-        n->next = f->parameters;
-        n->name = DA_var_name(DA_loop_induction_variable(tmp));
-        f->parameters = n;
-    }
-
-#if 0
-    f->next = jdf->functions;
-    jdf->functions = f;
-#else
-    {
-        jdf_function_entry_t *n = jdf->functions;
-        if (jdf->functions == NULL )
-            jdf->functions = f;
-        else {
-            while (n->next != NULL)
-                n = n->next;
-            n->next = f;
-        }
-    }
-#endif
-    return f;
-}
-
 void dump_all_unds(void){
     var_t *var;
     und_t *und;
@@ -528,7 +475,7 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             fname = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), 
                                              mult_kernel_occ ? (int32_t)node->lineno : -1 );
             
-            f = jdf_register_function( &_q2j_jdf, fname, node );
+            f = jdf_register_addfunction( &_q2j_jdf, fname, node );
             task = (task_t *)calloc(1, sizeof(task_t));
             task->task_node = node;
             task->ind_vars = (char **)calloc(1+node->loop_depth, sizeof(char *));
