@@ -11,6 +11,7 @@
 #include "jdf.h"
 
 extern int yyparse (void);
+
 char *q2j_input_file_name      = NULL;
 int _q2j_produce_shmem_jdf     = 0;
 int _q2j_verbose_warnings      = 0;
@@ -74,7 +75,7 @@ int main(int argc, char **argv){
 
     yyin = fopen(q2j_input_file_name, "r");
     if( NULL == yyin ){
-        fprintf(stderr,"Cannot open file \"%s\"\n",q2j_input_file_name);
+        fprintf(stderr,"Cannot open file \"%s\"\n", q2j_input_file_name);
         return -1;
     }
     
@@ -85,5 +86,13 @@ int main(int argc, char **argv){
 /*     } */
 
     (void)st_init_symtab();
-    return yyparse();
+    if( yyparse() > 0 ) {
+        exit(1);
+    }
+    fclose( yyin );
+
+    if (_q2j_output != stdout)
+        fclose(_q2j_output);
+
+    return EXIT_SUCCESS;
 }
