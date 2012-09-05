@@ -994,6 +994,7 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->deps->datatype.nb_elt->jdf_cst = 1;
     dataflow->deps->lineno = 0;
     
+    (void)(*dep->rel).print_with_subs_to_string(false);
     expr = relation_to_tree(*rel);
     dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
     dataflow->deps->guard->guard      = NULL;
@@ -1035,24 +1036,22 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->deps->guard->calltrue->func_or_mem = src->fname;
 
     // Reverse the relation 
+    Relation inv = *dep->rel;
     dep2.src = dep->src;
     dep2.dst = dep->dst;
-    Relation ad_r1 = *rel;
-    Relation ad_r2 = Inverse(copy(*rel));
-    (void)(ad_r1).print_with_subs_to_string(false);
-    (void)(ad_r2).print_with_subs_to_string(false);
+    dep2.rel = new Relation( Inverse(inv) );
+
+    (void)(*dep2.rel).print_with_subs_to_string(false);
+    expr = relation_to_tree( *dep2.rel );
+    dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( &dep2, expr );
+    clean_tree(expr);
 
 #ifdef DEBUG
     {
-        std::cerr << "Anti-dependency: " << src->fname << " => " << dst->fname << " " << ad_r1.print_with_subs_to_string();
-        std::cerr << "                 " << dst->fname << " => " << src->fname << " " << ad_r2.print_with_subs_to_string();
+        std::cerr << "Anti-dependency: " << src->fname << " => " << dst->fname << " " << (*dep->rel).print_with_subs_to_string();
+        std::cerr << "                 " << dst->fname << " => " << src->fname << " " << (*dep2.rel).print_with_subs_to_string();
     }
 #endif
-
-    dep2.rel = &ad_r2;
-    expr = relation_to_tree(ad_r2);
-    dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( &dep2, expr );
-    clean_tree(expr);
 
     dataflow->next = dst->dataflow;
     dst->dataflow  = dataflow;
