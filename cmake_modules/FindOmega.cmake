@@ -46,6 +46,10 @@ message(STATUS "Looking for omega.h in ${CMAKE_REQUIRED_INCLUDES}")
 check_include_file(omega.h FOUND_OMEGA_INCLUDE)
 if(FOUND_OMEGA_INCLUDE)
   message(STATUS "OMEGA include files found at ${OMEGA_INCLUDE_DIR}")
+find_library(HWLOC_LIB hwloc
+        PATHS ${HWLOC_LIBRARY_DIR}
+      DOC "Where the HWLOC  libraries are")
+
   check_library_exists("omega" setTraceType ${OMEGA_LIBRARIES} FOUND_OMEGA_LIB)
   if( FOUND_OMEGA_LIB )
     set(OMEGA_LIBRARY "${OMEGA_LIBRARIES}/libomega.a")
