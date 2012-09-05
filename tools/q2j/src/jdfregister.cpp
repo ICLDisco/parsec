@@ -1025,10 +1025,8 @@ void jdf_register_anti_dependency( dep_t *dep )
 
 #ifdef DEBUG
     {
-        const char *str_rel1 = ad_r1.print_with_subs_to_string();
-        const char *str_rel2 = ad_r2.print_with_subs_to_string();
-        fprintf(stderr, "Anti-dependency: => %s\n", str_rel1);
-        fprintf(stderr, "                 <= %s\n", str_rel2);
+        std::cerr << "Anti-dependency: => " << ad_r1.print_with_subs_to_string();
+        std::cerr << "                 <= " << ad_r2.print_with_subs_to_string();
     }
 #endif
 
