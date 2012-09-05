@@ -22,6 +22,7 @@ struct _dep_t{
 expr_t *copy_tree(expr_t *root);
 const char *expr_tree_to_str(expr_t *exp);
 expr_t *relation_to_tree( Relation R );
+void clean_tree(expr_t *root);
 expr_t *solveExpressionTreeForVar(expr_t *exp, const char *var_name, Relation R);
 const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R);
 list< pair<expr_t *, Relation> > simplify_conditions_and_split_disjunctions(Relation R, Relation S_es);

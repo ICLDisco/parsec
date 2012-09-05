@@ -306,7 +306,8 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     for(jdf_name_list_t *var = parent_task->parameters;
         var != NULL; var = var->next ) {
         const char *var_name = var->name;
-        expr_t *solution = solveExpressionTreeForVar(relation_to_tree(newS_es), var_name, copy(newS_es));
+        expr_t *expr = relation_to_tree(newS_es);
+        expr_t *solution = solveExpressionTreeForVar(expr, var_name, copy(newS_es));
         // If there is a solution it means that this parameter has a fixed value and not a range.
         // That means that there is no point in including it as a parameter of the pseudo-task.
         if( NULL != solution ){
@@ -342,8 +343,8 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
                 d->lineno     = 0;
                 d->expr->next    = NULL;
                 d->expr->op      = JDF_VAR;
-                d->expr->jdf_var = strdup( find_bounds_of_var(relation_to_tree(newS_es), var_name,
-                                                                          prev_vars, copy(newS_es)) );
+                d->expr->jdf_var = strdup( find_bounds_of_var(expr, var_name,
+                                                              prev_vars, copy(newS_es)) );
 
                 if (pseudotask->definitions == NULL) {
                     pseudotask->definitions = d;
@@ -380,6 +381,8 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
             }
             prev_vars.insert(var_name);
         }
+        clean_tree(expr);
+        clean_tree(solution);
     }
 
     // Delete the "previous variables" set, to clean up some memory
@@ -504,7 +507,8 @@ void jdf_register_definitions( jdf_function_entry_t *this_function,
     // Print the execution space based on the bounds that exist in the relation.
     for(i=1; i<=S_es.n_set(); i++){
         const char *var_name = strdup(S_es.set_var(i)->char_name());
-        expr_t *solution = solveExpressionTreeForVar(relation_to_tree(S_es), var_name, S_es);
+        expr_t *e = relation_to_tree(S_es);
+        expr_t *solution = solveExpressionTreeForVar(e, var_name, S_es);
 
         definitions[i-1].name = strdup(var_name);
         definitions[i-1].expr = q2jmalloc(jdf_expr_t, 1);
@@ -518,8 +522,11 @@ void jdf_register_definitions( jdf_function_entry_t *this_function,
         } else {            
             definitions[i-1].expr->next    = NULL;
             definitions[i-1].expr->op      = JDF_VAR;
-            definitions[i-1].expr->jdf_var = strdup( find_bounds_of_var(relation_to_tree(S_es), var_name, prev_vars, S_es) );
+            definitions[i-1].expr->jdf_var = strdup( find_bounds_of_var(e, var_name, prev_vars, S_es) );
         }
+
+        clean_tree(e);
+        clean_tree(solution);
         prev_vars.insert(var_name);
     }
 
@@ -681,11 +688,12 @@ void jdf_register_input_deps( set<dep_t*> ideps,
             
             // Generate the dep_call
             if( NULL != src->function ){
+                expr_t *e = relation_to_tree(cond_it->second);
                 dep_call = q2jmalloc(jdf_call_t, 1);
                 dep_call->var         = strdup(src->var_symname);
                 dep_call->func_or_mem = src->function->fname;
-                dep_call->parameters  = jdf_generate_call_parameters(*dep_it, 
-                                                                     relation_to_tree(cond_it->second));
+                dep_call->parameters  = jdf_generate_call_parameters(*dep_it, e );
+                clean_tree(e);
             } else { // ENTRY
                 if( need_pseudotask(dst, reference_data_element) ){
                     dep_call = jdf_register_pseudotask( &_q2j_jdf, this_function,
@@ -703,6 +711,10 @@ void jdf_register_input_deps( set<dep_t*> ideps,
             dep->guard->properties = NULL; /*TODO: get datatype */
             dep->guard->calltrue   = dep_call;
             dep->guard->callfalse  = NULL;
+        }
+
+        for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
+            clean_tree( (*cond_it).first );
         }
     }
 
@@ -825,11 +837,12 @@ void jdf_register_output_deps( set<dep_t*> odeps,
             
             // Generate the dep_call
             if( NULL != dst ){
+                expr_t *e = relation_to_tree(cond_it->second);
                 dep_call = q2jmalloc(jdf_call_t, 1);
                 dep_call->var         = strdup(dst->var_symname);
                 dep_call->func_or_mem = dst->function->fname;
-                dep_call->parameters  = jdf_generate_call_parameters(*dep_it, 
-                                                                     relation_to_tree(cond_it->second));
+                dep_call->parameters  = jdf_generate_call_parameters(*dep_it, e);
+                clean_tree(e);
             } else { // EXIT
                 if( need_pseudotask(src, reference_data_element) ){
                     dep_call = jdf_register_pseudotask( &_q2j_jdf, this_function,
@@ -847,6 +860,10 @@ void jdf_register_output_deps( set<dep_t*> odeps,
             dep->guard->properties = NULL; /*TODO: get datatype */
             dep->guard->calltrue   = dep_call;
             dep->guard->callfalse  = NULL;
+        }
+
+        for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
+            clean_tree( (*cond_it).first );
         }
     }
 
@@ -953,6 +970,7 @@ void jdf_register_anti_dependency( dep_t *dep )
     jdf_function_entry_t *dst = dep->dst->function;
     Relation             *rel = dep->rel;
     dep_t dep2;
+    expr_t *expr;
 
     sa = string_arena_new(8);
     string_arena_add_string( sa, "ctl%d", nb_ctl_dep );
@@ -976,6 +994,7 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->deps->datatype.nb_elt->jdf_cst = 1;
     dataflow->deps->lineno = 0;
     
+    expr = relation_to_tree(*rel);
     dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
     dataflow->deps->guard->guard      = NULL;
     dataflow->deps->guard->properties = NULL;
@@ -983,8 +1002,8 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->deps->guard->calltrue = q2jmalloc(jdf_call_t, 1);
     dataflow->deps->guard->calltrue->var         = strdup(string_arena_get_string(sa));
     dataflow->deps->guard->calltrue->func_or_mem = dst->fname;
-    dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( dep, 
-                                                                                 relation_to_tree(*rel));
+    dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( dep, expr );
+    clean_tree(expr);
 
     dataflow->next = src->dataflow;
     src->dataflow  = dataflow;
@@ -1031,8 +1050,9 @@ void jdf_register_anti_dependency( dep_t *dep )
 #endif
 
     dep2.rel = &ad_r2;
-    dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( &dep2, 
-                                                                                 relation_to_tree( copy(ad_r2) ) );
+    expr = relation_to_tree(ad_r2);
+    dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( &dep2, expr );
+    clean_tree(expr);
 
     dataflow->next = dst->dataflow;
     dst->dataflow  = dataflow;

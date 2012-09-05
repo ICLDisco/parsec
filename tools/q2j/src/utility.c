@@ -2480,6 +2480,8 @@ char *quark_tree_to_body(node_t *node){
             // Every SCRATCH parameter will need a different buffer from the pool,
             // regardles of how many pools the buffers will belong to.
             pool_buf_count++;
+
+            free(id);
         }else{
             char *symname = node->u.kids.kids[i]->var_symname;
             assert(NULL != symname);

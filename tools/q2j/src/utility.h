@@ -39,7 +39,7 @@ struct _expr_t{
     expr_t *l;
     expr_t *r;
     union {
-        const char *name;
+        char *name;
         long int int_const;
     } value;
 };

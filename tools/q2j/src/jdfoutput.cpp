@@ -103,14 +103,18 @@ void print_execution_space(Relation S)
     jdfoutput("  /* Execution space */\n");
     for(i=1; i<=S.n_set(); i++){
         const char *var_name = strdup(S.set_var(i)->char_name());
-        expr_t *solution = solveExpressionTreeForVar(relation_to_tree(S), var_name, S);
+        expr_t *e = relation_to_tree(S);
+        expr_t *solution = solveExpressionTreeForVar(e, var_name, S);
 
         jdfoutput("  %s = ", var_name);
         if( NULL != solution )
             jdfoutput("%s\n", expr_tree_to_str(solution));
         else
-            jdfoutput("%s\n", find_bounds_of_var(relation_to_tree(S), var_name, prev_vars, S));
+            jdfoutput("%s\n", find_bounds_of_var(e, var_name, prev_vars, S));
         prev_vars.insert(var_name);
+
+        clean_tree(e);
+        clean_tree(solution);
     }
     jdfoutput("\n");
 
@@ -227,7 +231,8 @@ char *create_pseudotask(node_t *parent_task,
     firstpfp = 1; firstfp = 1;
     for(int i=0; NULL != parent_task->task->ind_vars[i]; ++i){
         const char *var_name = parent_task->task->ind_vars[i];
-        expr_t *solution = solveExpressionTreeForVar(relation_to_tree(newS_es), var_name, copy(newS_es));
+        expr_t *e = relation_to_tree(newS_es);
+        expr_t *solution = solveExpressionTreeForVar(e, var_name, copy(newS_es));
         // If there is a solution it means that this parameter has a fixed value and not a range.
         // That means that there is no point in including it as a parameter of the pseudo-task.
         if( NULL != solution ){
@@ -245,7 +250,7 @@ char *create_pseudotask(node_t *parent_task,
             }
         } else {
             string_arena_add_string( sa_exec_space, "  %s = %s\n",
-                                     var_name, find_bounds_of_var(relation_to_tree(newS_es), var_name,
+                                     var_name, find_bounds_of_var(e, var_name,
                                                                   prev_vars, copy(newS_es)) );
 
             // the following code is for generating the string for the caller (the real task)
@@ -266,6 +271,8 @@ char *create_pseudotask(node_t *parent_task,
                                         var_name );
             }
 
+            clean_tree(e);
+            clean_tree(solution);
             prev_vars.insert(var_name);
         }
         firstpfp = 0;
@@ -427,11 +434,12 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
                  // Source of the input
                  string_arena_init(sa);
                  if( NULL != src_node->function ){
+                     expr_t *e = relation_to_tree(cond_it->second);
                      string_arena_add_string(sa, "%s %s(%s)",
                                              src_node->var_symname,
                                              src_node->function->fname,
-                                             dump_actual_parameters(sa2, dep, 
-                                                                    relation_to_tree(cond_it->second)) );
+                                             dump_actual_parameters(sa2, dep, e) );
+                     clean_tree(e);
                  }else{ // ENTRY
                      if( need_pseudotask(dep->dst, reference_data_element) ){
                          create_pseudotask(this_node,
@@ -449,6 +457,10 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
                                (NULL != src_node->function) ? src_node->function->fname, "ENTRY" );
                  (*dep->rel).print_with_subs(stdout);
 #endif
+             }
+             
+             for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
+                 clean_tree( (*cond_it).first );
              }
         }
 
@@ -483,18 +495,19 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
              // is treated independently.
              cond_list = simplify_conditions_and_split_disjunctions(*dep->rel, S_es);
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
-
+                 
                  // Conditions for this output
                  jdfoutput("%s-> %s", indent(nbspaces, 1), dump_conditions(sa, &cond_list, &cond_it ));
-
+                 
                  // Destination of the output
                  node_t *sink = dep->dst;
                  string_arena_init(sa);
                  if( NULL != sink ){
+                     expr_t *e = relation_to_tree(cond_it->second);
                      string_arena_add_string(sa, "%s %s(%s)",
                                              sink->var_symname, sink->function->fname,
-                                             dump_actual_parameters(sa2, dep, 
-                                                                    relation_to_tree(cond_it->second)) );
+                                             dump_actual_parameters(sa2, dep, e));
+                     clean_tree(e);
                  } else { // EXIT
                      if( need_pseudotask(dep->src, reference_data_element) ){
                          create_pseudotask(this_node,
@@ -513,7 +526,11 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
                                (NULL != sink ) ? sink->task->task_name : "EXIT" );
                  (*dep->rel).print_with_subs(stdout);
 #endif
-            }
+             }
+
+             for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
+                 clean_tree( (*cond_it).first );
+             }
         }
     }
 

@@ -1045,6 +1045,20 @@ expr_t *copy_tree(expr_t *root){
     return e;
 }
 
+void clean_tree(expr_t *root){
+    if( NULL == root )
+        return;
+        
+    clean_tree(root->l);
+    clean_tree(root->r);
+    if( IDENTIFIER == root->type )
+        free( root->value.name );
+
+    free(root);
+    root = NULL;
+    return;
+}
+
 // WARNING: This function is destructive in that it actually changes
 // the nodes of the tree.  If you need your original tree intact,
 // you should pass it a copy of the tree.
@@ -2150,6 +2164,9 @@ list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relat
         result.push_back(new_p);
     }
 
+    for(cj_it = tmp.begin(); cj_it != tmp.end(); cj_it++){
+        clean_tree( (*cj_it).first );
+    }
     return result;
 }
 
@@ -3433,7 +3450,7 @@ printf("========================================================================
 	    // Create the incoming edge by inverting the outgoing one.
 	    dep_t *new_dep = (dep_t *)calloc(1, sizeof(dep_t));
 	    Relation inv = *dep->rel;
-	    new_dep->rel = new Relation(Inverse(copy(inv)));
+	    new_dep->rel = new Relation( Inverse(inv) );
 	    new_dep->src = dep->src;
 	    new_dep->dst = dep->dst;
 
@@ -3528,6 +3545,24 @@ printf("========================================================================
             }
 
             S_es.Null();
+        }
+    }
+
+    // Clean the incoming edges
+    {
+        map<char *, set<dep_t *> >::iterator map_it;
+        for(map_it =  incoming_edges.begin(); 
+            map_it != incoming_edges.end();
+            map_it++) {
+
+            set<dep_t *>::iterator dep_it;
+            set<dep_t *> incm_deps = (*map_it).second;
+            
+            for(dep_it =  incm_deps.begin(); 
+                dep_it != incm_deps.end();
+                dep_it++) {
+                delete ( (*dep_it)->rel );
+            }
         }
     }
 }
