@@ -1044,8 +1044,8 @@ void jdf_register_anti_dependency( dep_t *dep )
 
 #ifdef DEBUG
     {
-        std::cerr << "Anti-dependency: => " << ad_r1.print_with_subs_to_string();
-        std::cerr << "                 <= " << ad_r2.print_with_subs_to_string();
+        std::cerr << "Anti-dependency: " << src->fname << " => " << dst->fname << " " << ad_r1.print_with_subs_to_string();
+        std::cerr << "                 " << dst->fname << " => " << src->fname << " " << ad_r2.print_with_subs_to_string();
     }
 #endif
 
