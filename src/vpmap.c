@@ -236,6 +236,8 @@ int vpmap_init_from_file(const char *filename)
               if ( mpi_num == rank ){
                 nbvp++;
             }
+        }else if( (line[0] == ':') && (rank == 0) ){
+            nbvp++;
         }
     }
 #else
@@ -246,6 +248,7 @@ int vpmap_init_from_file(const char *filename)
         }
     }
 #endif
+
 
     if( nbvp == 0 ) {
         /* If no description is available for the MPI process, create a single monothread VP */
@@ -275,11 +278,12 @@ int vpmap_init_from_file(const char *filename)
         while( getline(&line, &nline, f) != -1 ) {
             if( NULL != strchr(line, ':') ) {
 #if defined(HAVE_MPI)
-               if (line[0] != ':')
-                   mpi_num=0;
-               else
-                   mpi_num = strtod(line, NULL);
-               if ( mpi_num == rank ){
+                if (line[0] == ':')
+                    mpi_num=0;
+                else
+                    mpi_num = strtod(line, NULL);
+
+                if ( mpi_num == rank ){
 #endif
                     nbth=0;
                     if( NULL != (th_arg = strchr(line, ':'))) {
