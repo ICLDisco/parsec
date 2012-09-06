@@ -740,8 +740,9 @@ void analyze_deps(node_t *node){
     quark_record_uses_defs_and_pools(node, mult);
     //dump_all_unds();
     interrogate_omega(node, var_head);
-    if (!_q2j_direct_output)
+    if (!_q2j_direct_output){
         jdf_unparse( &_q2j_jdf, stdout );
+    }
 }
 
 
@@ -2949,7 +2950,6 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
 
     return str;
 }
-
 
 node_t *node_to_ptr(node_t node){
     node_t *tmp = (node_t *)calloc(1, sizeof(node_t));

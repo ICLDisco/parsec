@@ -3111,6 +3111,40 @@ Relation process_execution_space( node_t *node )
     return S;
 }
 
+static void clean_edges(map<char *, set<dep_t *> > &edges)
+{
+    map<char *, set<dep_t *> >::iterator map_it;
+    for(map_it =  edges.begin(); 
+        map_it != edges.end();
+        map_it++) {
+        
+        set<dep_t *>::iterator dep_it;
+        set<dep_t *> deps = (*map_it).second;
+        
+        for(dep_it =  deps.begin(); 
+            dep_it != deps.end();
+            dep_it++) {
+            delete ( (*dep_it)->rel );
+            free(*dep_it);
+        }
+
+        deps.clear();
+    }
+    edges.clear();
+}
+
+static void clean_sources(map<node_t *, map<node_t *, Relation> > &sources)
+{
+    map<node_t *, map<node_t *, Relation> >::iterator map_it;
+    for(map_it =  sources.begin(); 
+        map_it != sources.end();
+        map_it++) {
+        
+        map_it->second.clear();
+    }
+    sources.clear();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 void interrogate_omega(node_t *root, var_t *head){
@@ -3341,8 +3375,11 @@ void interrogate_omega(node_t *root, var_t *head){
     }
 
 #ifdef DEBUG_2
-printf("================================================================================\n");
+    printf("================================================================================\n");
 #endif
+ 
+    clean_sources(flow_sources);
+    clean_sources(output_sources);
 
     // For every USE that is the source of anti dependencies
     map<node_t *, map<node_t *, Relation> >::iterator anti_src_it;
@@ -3393,6 +3430,7 @@ printf("========================================================================
         synch_edges[task_name] = dep_set;
     }
 
+    clean_sources(anti_sources);
 
     set<dep_t *> ctrl_deps = edge_map_to_dep_set(synch_edges);
     set<dep_t *> flow_deps = edge_map_to_dep_set(outgoing_edges);
@@ -3548,39 +3586,9 @@ printf("========================================================================
         }
     }
 
-    // Clean the incoming edges
-    {
-        map<char *, set<dep_t *> >::iterator map_it;
-        for(map_it =  incoming_edges.begin(); 
-            map_it != incoming_edges.end();
-            map_it++) {
-
-            set<dep_t *>::iterator dep_it;
-            set<dep_t *> incm_deps = (*map_it).second;
-            
-            for(dep_it =  incm_deps.begin(); 
-                dep_it != incm_deps.end();
-                dep_it++) {
-                delete ( (*dep_it)->rel );
-            }
-        }
-    }
-
-    // Clean the synch_edges
-    {
-        map<char *, set<dep_t *> >::iterator synch_edge_it;
-        for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
-            set<dep_t *>::iterator dep_it;
-            set<dep_t *> deps = (*synch_edge_it).second;
-            
-            for(dep_it =  deps.begin(); 
-                dep_it != deps.end();
-                dep_it++) {
-                delete ( (*dep_it)->rel );
-                free(*dep_it);
-            }
-        }
-    }
+    clean_edges( incoming_edges );
+    clean_edges( outgoing_edges );
+    clean_edges( synch_edges );
 }
 
 void add_colocated_data_info(char *a, char *b){
