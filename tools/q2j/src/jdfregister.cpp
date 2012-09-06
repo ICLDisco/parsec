@@ -43,7 +43,7 @@ jdf_create_properties_list( const char* name,
     property->name   = strdup(name);
     property->lineno = 0;
 
-    e = new(jdf_expr_t);
+    e = q2jmalloc(jdf_expr_t, 1);
     e->op = op;
     e->jdf_var = strdup(default_char);
 
