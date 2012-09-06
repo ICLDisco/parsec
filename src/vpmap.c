@@ -217,6 +217,7 @@ int vpmap_init_from_file(const char *filename)
 
     f = fopen(filename, "r");
     if( NULL == f ) {
+        STATUS(("File %s can't be open (default thread binding).\n", filename));
         return -1;
     }
 
@@ -272,10 +273,13 @@ int vpmap_init_from_file(const char *filename)
         rewind(f);
         v = 0;
         while( getline(&line, &nline, f) != -1 ) {
-            if( NULL != strchr(line, ':') && (line[0] != ':')) {
+            if( NULL != strchr(line, ':') ) {
 #if defined(HAVE_MPI)
-                mpi_num = strtod(line, NULL);
-                if ( mpi_num == rank ){
+               if (line[0] != ':')
+                   mpi_num=0;
+               else
+                   mpi_num = strtod(line, NULL);
+               if ( mpi_num == rank ){
 #endif
                     nbth=0;
                     if( NULL != (th_arg = strchr(line, ':'))) {
