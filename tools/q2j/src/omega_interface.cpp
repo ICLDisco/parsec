@@ -3565,6 +3565,22 @@ printf("========================================================================
             }
         }
     }
+
+    // Clean the synch_edges
+    {
+        map<char *, set<dep_t *> >::iterator synch_edge_it;
+        for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
+            set<dep_t *>::iterator dep_it;
+            set<dep_t *> deps = (*synch_edge_it).second;
+            
+            for(dep_it =  deps.begin(); 
+                dep_it != deps.end();
+                dep_it++) {
+                delete ( (*dep_it)->rel );
+                free(*dep_it);
+            }
+        }
+    }
 }
 
 void add_colocated_data_info(char *a, char *b){
