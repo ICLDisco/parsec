@@ -221,10 +221,11 @@ int vpmap_init_from_file(const char *filename)
     }
 
     nbvp = 0;
-#if defined(HAVE_MPI)
-    double mpi_num = -1;
+
     char * th_arg = NULL;
     char * binding = NULL;
+#if defined(HAVE_MPI)
+    double mpi_num = -1;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     /* Count the number of line describing a VP for the process rank */
