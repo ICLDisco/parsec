@@ -1,4 +1,4 @@
-#!/bin/bash
+ #!/bin/bash
 rm -rf CMakeCache.txt CMakeFiles
 
 USER_OPTIONS="$* "
@@ -38,7 +38,7 @@ elif [ "x${USER}" = "xmfaverge" ]; then
   else
       DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-intel -DSCOTCH_DIR=/opt/scotch"
   fi
-  #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
+#USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
   USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
   USER_OPTIONS+=" -DDAGUE_Q2J=ON"
   USER_OPTIONS+=" -DDPLASMA_PRECISIONS=s;d;c;z"
