@@ -38,6 +38,7 @@
 extern char *q2j_input_file_name;
 extern char *_q2j_data_prefix;
 extern int _q2j_generate_line_numbers;
+extern int _q2j_direct_output;
 extern FILE *_q2j_output;
 extern jdf_t _q2j_jdf;
 
@@ -151,47 +152,6 @@ void dump_und(und_t *und){
         break;
     }
 
-}
-
-jdf_function_entry_t *jdf_register_function( jdf_t        *jdf,
-                                             const char   *fname,
-                                             const node_t *node )
-{
-    jdf_function_entry_t *f;
-    node_t *tmp;
-
-#ifdef DEBUG
-    if ( jdf->functions != NULL ) {
-        jdf_function_entry_t *f2 = jdf->functions;
-        do {
-            assert( strcmp(fname, f2->fname ) != 0 );
-            f2 = f2->next;
-        } while( f2 != NULL );
-    }
-#endif
-
-    f = q2jmalloc(jdf_function_entry_t, 1);
-    f->fname = strdup(fname);
-    f->parameters  = NULL;
-    f->properties  = NULL;
-    f->definitions = NULL;
-    f->simcost     = NULL;
-    f->predicate   = NULL;
-    f->dataflow    = NULL;
-    f->priority    = NULL;
-    f->body        = NULL;
-    
-    for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
-        jdf_name_list_t *n = q2jmalloc(jdf_name_list_t, 1);
-        n->next = f->parameters;
-        n->name = DA_var_name(DA_loop_induction_variable(tmp));
-        f->parameters = n;
-    }
-
-    f->next = jdf->functions;
-    jdf->functions = f;
-
-    return f;
 }
 
 void dump_all_unds(void){
@@ -488,6 +448,59 @@ static char *quark_call_to_task_name( char *call_name, int32_t lineno ){
     return task_name;
 }
 
+static jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
+                                                       const char   *fname,
+                                                       const node_t *node )
+{
+    jdf_function_entry_t *f;
+    node_t *tmp;
+
+#ifdef DEBUG
+    if ( jdf->functions != NULL ) {
+        jdf_function_entry_t *f2 = jdf->functions;
+        do {
+            assert( strcmp(fname, f2->fname ) != 0 );
+            f2 = f2->next;
+        } while( f2 != NULL );
+    }
+#endif
+
+    f = q2jmalloc(jdf_function_entry_t, 1);
+    f->fname = strdup(fname);
+    f->parameters  = NULL;
+    f->properties  = NULL;
+    f->definitions = NULL;
+    f->simcost     = NULL;
+    f->predicate   = NULL;
+    f->dataflow    = NULL;
+    f->priority    = NULL;
+    f->body        = NULL;
+
+    for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+        jdf_name_list_t *n = q2jmalloc(jdf_name_list_t, 1);
+        n->next = f->parameters;
+        n->name = DA_var_name(DA_loop_induction_variable(tmp));
+        f->parameters = n;
+    }
+
+#if 0
+    f->next = jdf->functions;
+    jdf->functions = f;
+#else
+    {
+        jdf_function_entry_t *n = jdf->functions;
+        if (jdf->functions == NULL )
+            jdf->functions = f;
+        else {
+            while (n->next != NULL)
+                n = n->next;
+            n->next = f;
+        }
+    }
+#endif
+    return f;
+}
+
 static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
     static int symbolic_name_count = 0;
     int i;
@@ -515,7 +528,7 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             fname = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), 
                                              mult_kernel_occ ? (int32_t)node->lineno : -1 );
             
-            f = jdf_register_function( &_q2j_jdf, fname, node );
+            f = jdf_register_addfunction( &_q2j_jdf, fname, node );
             task = (task_t *)calloc(1, sizeof(task_t));
             task->task_node = node;
             task->ind_vars = (char **)calloc(1+node->loop_depth, sizeof(char *));
@@ -727,6 +740,9 @@ void analyze_deps(node_t *node){
     quark_record_uses_defs_and_pools(node, mult);
     //dump_all_unds();
     interrogate_omega(node, var_head);
+    if (!_q2j_direct_output){
+        jdf_unparse( &_q2j_jdf, stdout );
+    }
 }
 
 
@@ -2264,7 +2280,7 @@ void jdf_register_pools( jdf_t *jdf )
                              e->properties[0].expr->jdf_var = strdup("dague_memory_pool_t *");
                              
                              e->properties[1].next       = NULL;
-                             e->properties[1].name       = strdup("type");
+                             e->properties[1].name       = strdup("size");
                              e->properties[1].expr       = q2jmalloc(jdf_expr_t, 1);
                              e->properties[1].properties = NULL;
                              e->properties[1].lineno     = 0;
@@ -2280,7 +2296,6 @@ void jdf_register_pools( jdf_t *jdf )
                          });
     return;
 }
-
 
 /* 
  * Traverse the list of variable definitions to see if we have stored a definition for a given variable.
@@ -2466,6 +2481,8 @@ char *quark_tree_to_body(node_t *node){
             // Every SCRATCH parameter will need a different buffer from the pool,
             // regardles of how many pools the buffers will belong to.
             pool_buf_count++;
+
+            free(id);
         }else{
             char *symname = node->u.kids.kids[i]->var_symname;
             assert(NULL != symname);
@@ -2933,7 +2950,6 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
 
     return str;
 }
-
 
 node_t *node_to_ptr(node_t node){
     node_t *tmp = (node_t *)calloc(1, sizeof(node_t));

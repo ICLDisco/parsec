@@ -39,10 +39,12 @@ struct _expr_t{
     expr_t *l;
     expr_t *r;
     union {
-        const char *name;
+        char *name;
         long int int_const;
     } value;
 };
+
+#define Q2J_ASSERT(_X_) assert((_X_));
 
 #define q2jmalloc(type, nbelem)  (type*)calloc(nbelem, sizeof(type))
 
