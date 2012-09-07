@@ -12,7 +12,7 @@
 #include "debug.h"
 
 #define DEFAULT_NB_CORE 128
-
+#define MAX_STR_SIZE 12
 /**
  * These structures are used by the from_hardware and from_file
  * to store the whole vp map
@@ -322,6 +322,7 @@ int vpmap_init_from_file(const char *filename)
     vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_datamap;
     vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_datamap;
     vpmap_get_core_affinity = vpmap_get_core_affinity_datamap;
+
     return 0;
 }
 
@@ -522,50 +523,57 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             while( option != NULL && option[0] != '\0'  && cmp < nbth ) {
 
                 /* first core of the remaining list to parse*/
-                arg = strtol(option, &option, 10);
+                arg = (int) strtol(option, &option, 10);
                 if( (arg < nb_real_cores) && (arg > -1) ) {
                     core_tab[cmp]=arg;
                     cmp++;
+
                 } else {
-                    WARNING(("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n Binding restored to default\n", arg, nb_real_cores-1));
+                    WARNING(("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n", arg, nb_real_cores-1));
                 }
 
-                /* parse a core range */
                 if( NULL != (position = strpbrk(option, ",-"))) {
+                    /* parse a core range */
                     if( position[0] == '-' ) {
                         /* core range */
                         position++;
-                        next_arg = strtol(position, &position, 10);
-
+                        next_arg = (int) strtol(position, &position, 10);
                         for(t=arg+1; t<=next_arg; t++)
                             if( (t < nb_real_cores) && (t > -1) ) {
                                 core_tab[cmp]=t;
                                 cmp++;
                                 if (cmp == nbth)
                                     break;
+                            } else {
+                                WARNING(("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n", t, nb_real_cores-1));
                             }
-                        option++; /* skip the - and folowing number  */
-                        option++;
                     }
                 }
-                if( '\0' == option[0])
-                    option=NULL;
-                else
-                    /*skip the comma */
-                    option++;
+
+                /* next potential argument is following a comma */
+                option = strchr(option, ',');
+                if( NULL != option)
+                    option++;   /* skip the comma */
             }
         }
 
 #if defined(DAGUE_DEBUG_VERBOSE)
-        char tmp[nbth];
+        char tmp[MAX_STR_SIZE];
         char* str = tmp;
         size_t offset;
+        int length=0;
+
         for(t=0; t<nbth; t++){
-            if(core_tab[t]==-1)
+            if( core_tab[t]==-1 )
                 break;
             offset = sprintf(str, "%i ", core_tab[t]);
+            length += offset;
+            if( length > MAX_STR_SIZE-3){
+                sprintf(str, "...\0");
+                break;
+            }
             str += offset;
-        }
+         }
         DEBUG(( "binding defined by the parsed list: %s \n", tmp));
 #endif /* DAGUE_DEBUG */
 
