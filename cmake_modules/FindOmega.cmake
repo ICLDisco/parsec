@@ -40,40 +40,36 @@ if( NOT OMEGA_LINKER_FLAGS )
   set(OMEGA_LINKER_FLAGS)
 endif( NOT OMEGA_LINKER_FLAGS )
 
-include(CheckIncludeFileCXX)
-list(APPEND CMAKE_REQUIRED_INCLUDES ${OMEGA_INCLUDE_DIR})
-message(STATUS "Looking for omega.h in ${CMAKE_REQUIRED_INCLUDES}")
-message(STATUS "OMEGA include files found at ${OMEGA_INCLUDE_DIR}")
-find_library(OMEGA_LIB omega
-            PATHS ${OMEGA_LIBRARIES}
+find_library(OMEGA_LIBRARY omega
+            PATHS "${OMEGA_LIBRARIES}"
             DOC "Where the Omega  libraries are")
-check_library_exists(${OMEGA_LIB} omega:initializeProblem ${OMEGA_LIBRARIES} FOUND_OMEGA_LIB)
-  if( FOUND_OMEGA_LIB )
-    set(OMEGA_LIBRARY "${OMEGA_LIBRARIES}/libomega.a")
-    set(OMEGA_LIBRARIES "-L${OMEGA_LIBRARIES} -lomega")
-  endif( FOUND_OMEGA_LIB )
+set(OMEGA_LIBRARIES "-L${OMEGA_LIBRARIES} -lomega")
 
-if(FOUND_OMEGA_INCLUDE AND FOUND_OMEGA_LIB)
-  set(OMEGA_FOUND TRUE)
-else(FOUND_OMEGA_INCLUDE AND FOUND_OMEGA_LIB)
-  set(OMEGA_FOUND FALSE)
-endif(FOUND_OMEGA_INCLUDE AND FOUND_OMEGA_LIB)
+include(CheckCXXSourceCompiles)
+list(APPEND CMAKE_REQUIRED_INCLUDES ${OMEGA_INCLUDE_DIR})
+list(APPEND CMAKE_REQUIRED_LIBRARIES ${OMEGA_LIBRARIES})
+check_cxx_source_compiles("#include <omega.h>
+int main(void) { Relation R; R.is_set(); return 0;}" OMEGA_FOUND)
 
-if(NOT OMEGA_FIND_QUIETLY)
-  if(OMEGA_FOUND)
-    message(STATUS "A library with OMEGA API found.")
-    set(HAVE_OMEGA 1)
-  else(OMEGA_FOUND)
-    if(OMEGA_FIND_REQUIRED)
-      message(FATAL_ERROR
-        "A required library with OMEGA API not found. Please specify library location "
-        "using OMEGA_DIR or a combination of OMEGA_INCLUDE_DIR and OMEGA_LIBRARIES "
-        "or by setting OMEGA_DIR")
-    else(OMEGA_FIND_REQUIRED)
+
+if(OMEGA_FOUND)
+  if(NOT OMEGA_FIND_QUIETLY)
+    message(STATUS "A library with OMEGA API found: ${OMEGA_LIBRARIES}.")
+  endif(NOT OMEGA_FIND_QUIETLY)
+  set(HAVE_OMEGA 1)
+else(OMEGA_FOUND)
+  if(OMEGA_FIND_REQUIRED)
+    message(FATAL_ERROR
+      "A required library with OMEGA API not found. Please specify library location "
+      "using OMEGA_DIR or a combination of OMEGA_INCLUDE_DIR and OMEGA_LIBRARIES "
+      "or by setting OMEGA_DIR")
+  else(OMEGA_FIND_REQUIRED)
+    if(NOT OMEGA_FIND_QUIETLY)
       message(STATUS
-        "A required library with OMEGA API not found. Please specify library location "
+        "An optional library with OMEGA API not found. Please specify library location "
         "using OMEGA_DIR or a combination of OMEGA_INCLUDE_DIR and OMEGA_LIBRARIES "
-        "or by setting OMEGA_DIR")
-    endif(OMEGA_FIND_REQUIRED)
-  endif(OMEGA_FOUND)
-endif(NOT OMEGA_FIND_QUIETLY)
+        "or by setting OMEGA_DIR."
+        "Options depending on Omega will be disabled.")
+    endif(NOT OMEGA_FIND_QUIETLY)
+  endif(OMEGA_FIND_REQUIRED)
+endif(OMEGA_FOUND)
