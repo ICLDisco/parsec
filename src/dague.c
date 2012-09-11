@@ -92,7 +92,6 @@ static void dague_statistics(char* str)
         STATUS(("Block Output Operations     : %10ld\n", (current.ru_oublock - _dague_rusage.ru_oublock)));
         STATUS(("=============================================================\n"));
     }
-
     _dague_rusage_first_call = !_dague_rusage_first_call;
     _dague_rusage = current;
     return;
@@ -136,7 +135,9 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
     DEBUG2(("VP %i : bind thread %i.%i on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto));
-    //    printf("VP %i : bind thread %i.%i  on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto);
+    // STEPH:: 
+    //printf("VP %i : bind thread %i.%i  on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto); 
+
 
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
@@ -164,10 +165,14 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #endif
 
     /* The main thread of VP 0 will go back to the user level */
-    if( DAGUE_THREAD_IS_MASTER(eu) )
-        return NULL;
-
+    if( DAGUE_THREAD_IS_MASTER(eu) ) {
+        // STEPH::  
+        vpmap_display_map(stderr);   
+        return NULL; 
+    }
+    
     return __dague_progress(eu);
+    
 }
 
 static void dague_vp_init( dague_vp_t *vp,
@@ -201,7 +206,9 @@ static void dague_vp_init( dague_vp_t *vp,
         startup[t].nb_cores = nb_cores;
         if( vpmap_get_nb_cores_affinity(vp->vp_id, t) == 1 )
             vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto);
-        else
+        else if( vpmap_get_nb_cores_affinity(vp->vp_id, t) > 1 )
+            printf("multiple core to bind on... for now, do nothing\n");
+        else 
             startup[t].bindto= -1;
     }
 }
@@ -1092,32 +1099,16 @@ void dague_object_unregister( dague_object_t* object )
 /**< Print DAGuE usage message */
 void dague_usage(void)
 {
-    STATUS(("\n"
-            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n"
-            " --dague_bind        : define a set of core for the thread binding\n"
-            "                       accepted values:\n"
-            "                        - a core list          (exp: --dague_bind=[+]1,3,5-6)\n"
-            "                        - a hexadecimal mask   (exp: --dague_bind=[+]0xff012)\n"
-            "                        - a binding range expression: [+][start]:[end]:[step] \n"
-            "                          -> define a round-robin one thread per core distribution from start (default 0)\n"
-            "                             to end (default physical core number) by step (default 1)\n"
-            "                             (exp: --dague_bind=[+]1:7:2  bind the 6 first threads on the cores 1 3 5 2 4 6\n"
-            "                             while extra threads remain unbound)\n"
-            "                       if starts with \"+\", the communication thread will be executed on the core subset\n\n"
-            "    This option can also be used with a file (--dague_bind=file:filename) containing the mapping description for\n"
-            "    each process (as a core list, a hexadecimal mask or a binding range expression).\n"
-            "    It might be useful when multiple MPI processes per node are involved and then need distinct thread bindings.\n\n"
-            "    Warning:: The dague_bind option rely on hwloc. The core numerotation is defined between 0 and the number of cores\n Be careful when used with cgroups\n\n."
-            " --dague_bind_comm   : define the core the communication thread will be bound on (prevail over --dague_bind)\n"
+    fprintf(stderr,"\n"
+            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n\n" 
+            "     --dague_bind_comm   : define the core the communication thread will be bound on\n"
             "\n"
-
-
-
-            /* " --dague_verbose     : extra verbose output\n" */
-            /* " --dague_papi        : enable PAPI\n" */
-            " --dague_help         : this message\n"
+            "     Warning:: The binding options rely on hwloc. The core numerotation is defined between 0 and the number of cores.\n"
+            "     Be careful when used with cgroups.\n"
             "\n"
-            ));
+            "     --dague_help         : this message\n"
+            "\n"
+            );
 }
 
 

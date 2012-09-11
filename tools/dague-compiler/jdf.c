@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "jdf.h"
 
@@ -797,3 +798,4 @@ int jdf_sanity_checks( jdf_warning_mask_t mask )
         return -1;
     return rcsum;
 }
+

@@ -27,11 +27,11 @@ typedef uint32_t moesi_key_t;
 #include "dague_internal.h"
 
 /**
- * A moesi map contains an array of pointers to all the moesi master 
- * representing the locally (on rank) stored blocks. 
+ * A moesi map contains an array of pointers to all the moesi master
+ * representing the locally (on rank) stored blocks.
  * Blocks that are not locally stored have a NULL master
  */
-struct _moesi_map { 
+struct _moesi_map {
     uint16_t nmasters;
     uint16_t ndevices;
     moesi_master_t* masters[1];
@@ -52,7 +52,7 @@ struct _moesi_master {
 };
 
 /**
- * a moesi copy represent a specific copy of a master block on a 
+ * a moesi copy represent a specific copy of a master block on a
  * particular device.
  */
 struct _moesi_copy {
@@ -63,39 +63,36 @@ struct _moesi_copy {
     uint32_t            version;
 };
 
-
-
 void moesi_map_create(moesi_map_t** map, int nmasters, int ndevices);
 void moesi_map_destroy(moesi_map_t** map);
 
 /**
- * Return (and create if necessary) the master entry used for handling 
- * MOESI protocol on a specific data block. 
- * Devices will have to add their own entries for copies they make in the 
+ * Return (and create if necessary) the master entry used for handling
+ * MOESI protocol on a specific data block.
+ * Devices will have to add their own entries for copies they make in the
  * moesi_copies array.
  */
 int moesi_get_master(moesi_map_t* map, moesi_key_t key, moesi_master_t** pmaster);
 
 /**
- * Return the device index of a device that contains an up-to-date 
- * version of the data block. 
- * If the returned value is negative, the master copy is authoritative. 
+ * Return the device index of a device that contains an up-to-date
+ * version of the data block.
+ * If the returned value is negative, the master copy is authoritative.
  */
 int moesi_locate_device_with_valid_copy(moesi_map_t* map, moesi_key_t key);
 
 /**
- * Prepares the transfer of a data (refered by key in the moesi map) to the device. 
- * The function returns !0 if the data needs to be staged in. 
- * The state of the MOESI map is updated accordingly. 
- * The moesi_copy must be filled for the target device. 
+ * Prepares the transfer of a data (refered by key in the moesi map) to the device.
+ * The function returns !0 if the data needs to be staged in.
+ * The state of the MOESI map is updated accordingly.
+ * The moesi_copy must be filled for the target device.
  */
-int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int device, uint8_t access_mode);
+int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int device,
+                                     uint8_t access_mode);
 
 /**
  * The master copy is accessed in WRITE mode, invalidate all shared copies
  */
 int moesi_master_update(moesi_map_t *map, moesi_key_t key);
-
-
 
 #endif

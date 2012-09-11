@@ -92,7 +92,6 @@ void dague_prof_grapher_init(const char *base_filename, int rank, int size, int 
       cs = cs/10;
     }
     asprintf(&format, "%%s-%%0%dd.dot", l10);
-    filename = malloc(strlen(base_filename) + 16);
     asprintf(&filename, format, base_filename, rank);
     free(format);
 #else
@@ -104,8 +103,9 @@ void dague_prof_grapher_init(const char *base_filename, int rank, int size, int 
         WARNING(("Grapher:\tunable to create %s (%s) -- DOT graphing disabled\n", filename, strerror(errno)));
         free(filename);
         return;
+    } else {
+        free(filename);
     }
-
     fprintf(grapher_file, "digraph G {\n");
     fflush(grapher_file);
 

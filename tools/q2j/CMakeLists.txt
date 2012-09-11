@@ -21,8 +21,19 @@ if(OMEGA_FOUND)
   SET_SOURCE_FILES_PROPERTIES(${FLEX_dague_q2j_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS} -w")
 
   include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR})
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../dague-compiler)
 
-  add_executable(q2j src/omega_interface.cpp src/driver.c src/utility.c src/symtab.c ${BISON_dague_q2j_yacc_OUTPUTS} ${FLEX_dague_q2j_flex_OUTPUTS})
+  add_executable(q2j 
+      src/omega_interface.cpp
+      src/jdfoutput.cpp
+      src/jdfregister.cpp
+      src/driver.c
+      src/utility.c
+      src/symtab.c      
+      ../dague-compiler/jdf_unparse.c
+      ${BISON_dague_q2j_yacc_OUTPUTS}
+      ${FLEX_dague_q2j_flex_OUTPUTS}
+  )
   set_target_properties(q2j PROPERTIES LINKER_LANGUAGE CXX)
   set_target_properties(q2j PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS} ${OMEGA_LIBRARIES}")
   target_link_libraries(q2j m omega)
