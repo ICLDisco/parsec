@@ -129,7 +129,6 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         char function_name[FILENAME_MAX];
 
         gpu_device = gpu_enabled_devices[i];
-		assert( NULL == zgemm_functions[dindex] );
 
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status, {continue;} );
@@ -180,14 +179,14 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
                                 {continue;} );
 
         gpu_device->index = (uint8_t)dindex;
-		zgemm_functions[dindex] = fn;
+        zgemm_functions[dindex] = (cuda_zgemm_t)fn;
         gpu_enabled_devices[dindex++] = gpu_device;
-	}
+    }
 
     /* Update the number of GPUs available */
     dague_data_enable_gpu( dindex );
     ndevices = dindex;
-	assert( nbgpus == ndevices ); /* the code for when some devices can load some functions but not others is not yet correct, blanket protection against this */
+    assert( nbgpus == ndevices ); /* the code for when some devices can load some functions but not others is not yet correct, blanket protection against this */
 
     return 0;
 }
