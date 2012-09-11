@@ -64,7 +64,6 @@ typedef struct _gpu_device {
     CUcontext  ctx;
     CUmodule   hcuModule;
     CUfunction hcuFunction;
-    void   *function;
     uint8_t index;
     uint8_t device_index;
     uint8_t major;
