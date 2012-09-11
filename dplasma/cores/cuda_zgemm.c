@@ -179,7 +179,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
                                 {continue;} );
 
-        gpu_device->index = (uint8_t)dindex;printf("FN %p\n", fn);
+        gpu_device->index = (uint8_t)dindex;
         zgemm_functions[dindex] = (cuda_zgemm_t)fn;
         gpu_enabled_devices[dindex++] = gpu_device;
     }
