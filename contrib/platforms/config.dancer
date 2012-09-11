@@ -1,4 +1,4 @@
- #!/bin/bash
+#!/bin/bash
 rm -rf CMakeCache.txt CMakeFiles
 
 USER_OPTIONS="$* "
@@ -11,7 +11,7 @@ MPI_DIR=${MPI_DIR:="/opt/ompi"}
 HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
 GTG_DIR=${GTG_DIR:="/opt/gtg"}
 CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
-OMEGA_DIR=${OMEGA_DIR:="/opt/Omega/"}
+OMEGA_DIR=${OMEGA_DIR:="/opt/Omega"}
 if [ "x${CC}" = "xgcc" ]; then
     PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-gcc"}
 else
@@ -38,7 +38,7 @@ elif [ "x${USER}" = "xmfaverge" ]; then
   else
       DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-intel -DSCOTCH_DIR=/opt/scotch"
   fi
-#USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
+  #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
   USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
   USER_OPTIONS+=" -DDAGUE_Q2J=ON"
   USER_OPTIONS+=" -DDPLASMA_PRECISIONS=s;d;c;z"
@@ -72,7 +72,7 @@ if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_GPU_WITH_CUDA=OFF.*
 fi
 
 if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 ]; then 
-  Q2J="-DDAGUE_OMEGA_DIR=${OMEGA_DIR}"
+  Q2J="-DOMEGA_DIR=${OMEGA_DIR}"
 fi
 
 if [ "${PLASMA_DIR}" ]; then
