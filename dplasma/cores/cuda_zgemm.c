@@ -32,6 +32,8 @@ typedef void (*cuda_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,
                                CUstream stream );
 
+cuda_zgemm_t* zgemm_functions;
+
 #define FORCE_UNDEFINED_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
 extern cuda_zgemm_t magmablas_zgemm_SM11;
 FORCE_UNDEFINED_SYMBOL(magmablas_zgemm_SM11)
@@ -116,16 +118,18 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
     (void)dague_context;
 
     nbgpus = dague_active_gpu();
-    //gpu_active_devices = (gpu_device_t** )calloc(nbgpus, sizeof(gpu_device_t*));
+    zgemm_functions = calloc(nbgpus, sizeof(cuda_zgemm_t));
+
     for( i = dindex = 0; i < nbgpus; i++ ) {
         gpu_device_t* gpu_device;
         CUresult status;
+        void* fn;
         void* dlh;
         char library_name[FILENAME_MAX];
         char function_name[FILENAME_MAX];
 
         gpu_device = gpu_enabled_devices[i];
-        gpu_device->function = NULL;
+		assert( NULL == zgemm_functions[dindex] );
 
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status, {continue;} );
@@ -150,22 +154,22 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
             DEBUG3(("Could not find %s dynamic library (%s)\n", library_name, dlerror()));
         }
         else {
-            gpu_device->function = dlsym(dlh, function_name);
+            fn = dlsym(dlh, function_name);
             dlclose(dlh);
         }
 
         /* Couldn't load from dynamic libs, try static */
-        if(NULL == gpu_device->function) {
+        if(NULL == fn) {
             DEBUG3(("No dynamic function %s found, loading from statically linked\n", function_name));
             dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
             if(NULL == dlh) ERROR(("Error parsing static libs: %s\n", dlerror()));
-            gpu_device->function = dlsym(dlh, function_name);
-            if(env && gpu_device->function) WARNING(("Internal static function %s used (because library %s didn't loaded correctly)\n", function_name, library_name));
+            fn = dlsym(dlh, function_name);
+            if(env && fn) WARNING(("Internal static function %s used (because library %s didn't loaded correctly)\n", function_name, library_name));
             dlclose(dlh);
         }
 
         /* Still not found?? skip this GPU */
-        if(NULL == gpu_device->function) {
+        if(NULL == fn) {
             STATUS(("No function %s found for GPU %d\n", function_name, i));
             status = cuCtxPopCurrent(NULL);
             continue;
@@ -176,12 +180,14 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
                                 {continue;} );
 
         gpu_device->index = (uint8_t)dindex;
+		zgemm_functions[dindex] = fn;
         gpu_enabled_devices[dindex++] = gpu_device;
-    }
+	}
 
     /* Update the number of GPUs available */
     dague_data_enable_gpu( dindex );
     ndevices = dindex;
+	assert( nbgpus == ndevices ); /* the code for when some devices can load some functions but not others is not yet correct, blanket protection against this */
 
     return 0;
 }
@@ -291,7 +297,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     char tmp[MAX_TASK_STRLEN];
 #endif
 
-    cuda_zgemm_t cuda_zgemm = (cuda_zgemm_t) gpu_device->function;
+    cuda_zgemm_t cuda_zgemm = zgemm_functions[gpu_device->index];
 
     gpu_elem_A = gpu_elem_obtain_from_master(this_task->data[0].moesi_master, gpu_device->index);
     gpu_elem_B = gpu_elem_obtain_from_master(this_task->data[1].moesi_master, gpu_device->index);
