@@ -60,16 +60,14 @@ if(OMEGA_FOUND)
 else(OMEGA_FOUND)
   if(OMEGA_FIND_REQUIRED)
     message(FATAL_ERROR
-      "A required library with OMEGA API not found. Please specify library location "
-      "using OMEGA_DIR or a combination of OMEGA_INCLUDE_DIR and OMEGA_LIBRARIES "
-      "or by setting OMEGA_DIR")
+        "An required library with OMEGA API not found.\n    Please specify library location "
+        "using OMEGA_DIR or a combination of OMEGA_INCLUDE_DIR and OMEGA_LIBRARIES.\n")
   else(OMEGA_FIND_REQUIRED)
     if(NOT OMEGA_FIND_QUIETLY)
       message(STATUS
-        "An optional library with OMEGA API not found. Please specify library location "
-        "using OMEGA_DIR or a combination of OMEGA_INCLUDE_DIR and OMEGA_LIBRARIES "
-        "or by setting OMEGA_DIR."
-        "Options depending on Omega will be disabled.")
+        "An optional library with OMEGA API not found.\n    Please specify library location "
+        "using OMEGA_DIR or a combination of OMEGA_INCLUDE_DIR and OMEGA_LIBRARIES.\n"
+        "    Options depending on Omega will be disabled.")
     endif(NOT OMEGA_FIND_QUIETLY)
   endif(OMEGA_FIND_REQUIRED)
 endif(OMEGA_FOUND)
