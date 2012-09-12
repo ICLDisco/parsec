@@ -133,11 +133,13 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
 
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status, {continue;} );
+        int major = gpu_device->major, minor = gpu_device->minor;
 
-        snprintf(function_name, FILENAME_MAX, "magmablas_zgemm_SM%d%d", gpu_device->major, gpu_device->minor);
+    retry_lesser_sm_version:
+        snprintf(function_name, FILENAME_MAX, "magmablas_zgemm_SM%d%d", major, minor);
         env = getenv("DAGUE_CUCORES_LIB");
         if(NULL == env) {
-            snprintf(library_name,  FILENAME_MAX, "libdplasma_cucores_sm%d%d.so",  gpu_device->major, gpu_device->minor);
+            snprintf(library_name,  FILENAME_MAX, "libdplasma_cucores_sm%d%d.so",  major, minor);
         }
         else {
             snprintf(library_name,  FILENAME_MAX, "%s", env);
@@ -171,6 +173,14 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         /* Still not found?? skip this GPU */
         if(NULL == fn) {
             STATUS(("No function %s found for GPU %d\n", function_name, i));
+            if(minor > 0) {
+                minor--;
+                goto retry_lesser_sm_version;
+            } else
+            {
+                major--; minor = 9;
+                if(major > 0) goto retry_lesser_sm_version;
+            }
             status = cuCtxPopCurrent(NULL);
             continue;
         }
