@@ -9,6 +9,10 @@
 
 #include "dague_config.h"
 
+#if defined(c_plusplus) || defined(__cplusplus)
+list< pair<expr_t *, Relation> > simplify_conditions_and_split_disjunctions(Relation R, Relation S_es);
+#endif  /* defined(c_plusplus) || defined(__cplusplus) */
+
 BEGIN_C_DECLS
 
 #if defined(Already_Included_Omega)
@@ -25,7 +29,6 @@ expr_t *relation_to_tree( Relation R );
 void clean_tree(expr_t *root);
 expr_t *solveExpressionTreeForVar(expr_t *exp, const char *var_name, Relation R);
 const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R);
-list< pair<expr_t *, Relation> > simplify_conditions_and_split_disjunctions(Relation R, Relation S_es);
 bool need_pseudotask(node_t *ref1, node_t *ref2);
 
 char *dump_data(string_arena_t *sa, node_t *n);
@@ -33,7 +36,6 @@ char *dump_actual_parameters(string_arena_t *sa, dep_t *dep, expr_t *rel_exp);
 char *dump_conditions(string_arena_t *sa,
                       list< pair<expr_t *,Relation> > *cond_list,
                       list< pair<expr_t *, Relation> >::iterator *cond_it);
-
 #endif
 
 void interrogate_omega(node_t *node, var_t *head);
