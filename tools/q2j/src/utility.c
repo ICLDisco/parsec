@@ -2253,7 +2253,7 @@ string_arena_t *create_pool_declarations(){
 
 void jdf_register_pools( jdf_t *jdf )
 {
-    jdf_global_entry_t *prev;
+    jdf_global_entry_t *prev = jdf->globals;
 
     if ( jdf->globals != NULL ) {
         prev = jdf->globals;
