@@ -298,7 +298,6 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
 
     if( !cond.is_null() ){
         newS_es = Intersection(copy(S_es), Domain(copy(cond)));
-        newS_es.simplify(2,2);
     }else{
         newS_es = copy(S_es);
     }
