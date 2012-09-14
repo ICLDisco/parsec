@@ -399,7 +399,7 @@ static char *numToSymName(int num){
 
     assert(num<2600);
 
-    // capital i ("I") has a special meaning in some contexts (sqrt(-1)), so skip it.
+    // capital i ("I") has a special meaning in some contexts (I^2==-1), so skip it.
     if(num>=8)
         num++;
 

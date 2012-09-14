@@ -268,7 +268,7 @@ void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<s
             break;
         case EXPR:
             if( MINUS == DA_exp_lhs(node)->type ){
-                handle.update_const(sign*DA_int_val(DA_exp_rhs(node)));
+                handle.update_const(-sign*DA_int_val(DA_exp_rhs(node)));
                 break;
             }else{
                 fprintf(stderr,"expr_to_Omega_coef(): Can't turn arbitrary expression into Omega expression.\n");

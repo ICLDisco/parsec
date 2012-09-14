@@ -217,7 +217,6 @@ char *create_pseudotask(node_t *parent_task,
 
     if( !cond.is_null() ){
         newS_es = Intersection(copy(S_es), Domain(copy(cond)));
-        newS_es.simplify(2,2);
     }else{
         newS_es = copy(S_es);
     }
