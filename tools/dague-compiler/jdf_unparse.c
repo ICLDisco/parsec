@@ -155,7 +155,7 @@ static int jdf_def_list_unparse( const jdf_def_list_t *defs, FILE *out, const ch
         if( err < 0 )
             return err;
         if( dl->next != NULL )
-            fprintf(out, sep);
+            fprintf(out, "%s", sep);
     }
     return err;
 }
