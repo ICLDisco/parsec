@@ -3397,7 +3397,7 @@ void interrogate_omega(node_t *root, var_t *head){
             node_t *sink = ad_it->first;
             // Skip self-edges that cannot be carried by loops.
             if( sink == use ){
-                // TODO: If the induction variables of ALL loops the enclose this use/def 
+                // TODO: If the induction variables of ALL loops the enclose this use/def
                 // TODO: appear in the indices of the matrix reference, then this cannot
                 // TODO: be a loop carried dependency.  If there is at least one enclosing
                 // TODO: loop for which this matrix reference is loop invariant, then we

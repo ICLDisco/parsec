@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -32,8 +32,8 @@ string_arena_t *create_pool_declarations();
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void print_header() {
-    
+void print_header(void)
+{
     jdfoutput("extern \"C\" %%{\n"
               "/*\n"
               " *  Copyright (c) 2010\n"

@@ -1393,7 +1393,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
         if( NULL != le ) {
             /* At least one range in input: must be a control gather */
             if( flow->access_type != JDF_VAR_TYPE_CTL ) {
-                jdf_fatal(dep->lineno, "This dependency features a range as input but is not a Control dependency\n");
+                jdf_fatal(JDF_OBJECT_LINENO(dep), "This dependency features a range as input but is not a Control dependency\n");
                 exit(1);
             }
             string_arena_add_string(sa2, "&ctl_gather_compute_for_dep_%s",
@@ -1512,18 +1512,18 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
             psa = sa_dep_out;
             sep = sep_out;
         } else {
-            jdf_fatal(dl->lineno, "This dependency is neither a DEP_IN or a DEP_OUT?\n");
+            jdf_fatal(JDF_OBJECT_LINENO(dl), "This dependency is neither a DEP_IN or a DEP_OUT?\n");
             exit(1);
         }
 
         if( dl->guard->guard_type == JDF_GUARD_UNCONDITIONAL ) {
-            sprintf(depname, "%s%s_dep%d_atline_%d", prefix, flow->varname, depid, dl->lineno);
+            sprintf(depname, "%s%s_dep%d_atline_%d", prefix, flow->varname, depid, JDF_OBJECT_LINENO(dl));
             sprintf(condname, "NULL");
             indepnorange = jdf_generate_dependency(jdf, flow, dl, dl->guard->calltrue, depname, condname, context) && indepnorange;
             string_arena_add_string(psa, "%s&%s", sep, depname);
             sprintf(sep, ", ");
         } else if( dl->guard->guard_type == JDF_GUARD_BINARY ) {
-            sprintf(depname, "%s%s_dep%d_atline_%d", prefix, flow->varname, depid, dl->lineno);
+            sprintf(depname, "%s%s_dep%d_atline_%d", prefix, flow->varname, depid, JDF_OBJECT_LINENO(dl));
             sprintf(condname, "expr_of_cond_for_%s", depname);
             jdf_generate_expression(jdf, context, dl->guard->guard, condname);
             sprintf(condname, "&expr_of_cond_for_%s", depname);
@@ -1533,7 +1533,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
         } else if( dl->guard->guard_type == JDF_GUARD_TERNARY ) {
             jdf_expr_t not;
 
-            sprintf(depname, "%s%s_dep%d_iftrue_atline_%d", prefix, flow->varname, depid, dl->lineno);
+            sprintf(depname, "%s%s_dep%d_iftrue_atline_%d", prefix, flow->varname, depid, JDF_OBJECT_LINENO(dl));
             sprintf(condname, "expr_of_cond_for_%s", depname);
             jdf_generate_expression(jdf, context, dl->guard->guard, condname);
             sprintf(condname, "&expr_of_cond_for_%s", depname);
@@ -1541,7 +1541,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
             string_arena_add_string(psa, "%s&%s", sep, depname);
             sprintf(sep, ", ");
 
-            sprintf(depname, "%s%s_dep%d_iffalse_atline_%d", prefix, flow->varname, depid, dl->lineno);
+            sprintf(depname, "%s%s_dep%d_iffalse_atline_%d", prefix, flow->varname, depid, JDF_OBJECT_LINENO(dl));
             sprintf(condname, "expr_of_cond_for_%s", depname);
             not.op = JDF_NOT;
             not.jdf_ua = dl->guard->guard;
@@ -2247,7 +2247,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
         use_mask &= mask_ok;
     }
     if( jdf_property_get_int(f->properties, "mask_deps", 0) && (use_mask == 0) ) {
-        jdf_warn(f->lineno,
+        jdf_warn(JDF_OBJECT_LINENO(f),
                  "In task %s, mask_deps was requested, but this method cannot be provided\n"
                  "  Either the function uses too many flows to store in a mask\n"
                  "  Or it uses control gather, which must be counted\n"
@@ -2912,29 +2912,29 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             switch( dl->guard->guard_type ) {
             case JDF_GUARD_UNCONDITIONAL:
                 if( 0 != cond_index ) coutput("    else {\n");
-                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, flow->lineno, fname, flow,
+                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow,
                                                        (0 != cond_index ? "  " : "") );
                 if( 0 != cond_index ) coutput("    }\n");
                 goto done_with_input;
             case JDF_GUARD_BINARY:
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, flow->lineno, fname, flow, "  " );
+                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow, "  " );
                 coutput("    }\n");
                 cond_index++;
                 break;
             case JDF_GUARD_TERNARY:
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, flow->lineno, fname, flow, "  " );
+                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow, "  " );
                 coutput("    } else {\n");
-                jdf_generate_code_call_initialization( jdf, dl->guard->callfalse, flow->lineno, fname, flow, "  " );
+                jdf_generate_code_call_initialization( jdf, dl->guard->callfalse, JDF_OBJECT_LINENO(flow), fname, flow, "  " );
                 coutput("    }\n");
                 goto done_with_input;
             }
         }
         if ( check ) {
-            jdf_fatal(flow->lineno,
+            jdf_fatal(JDF_OBJECT_LINENO(flow),
                       "During code generation: unable to find an input flow for variable %s marked as RW or READ\n",
                       flow->varname );
         }
@@ -2942,7 +2942,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     else if ( flow->access_type & JDF_VAR_TYPE_WRITE ) {
         for(dl = flow->deps; dl != NULL; dl = dl->next) {
             if ( dl->type != JDF_DEP_TYPE_OUT ) {
-                jdf_fatal(flow->lineno,
+                jdf_fatal(JDF_OBJECT_LINENO(flow),
                           "During code generation: unable to find an output flow for variable %s marked as WRITE\n",
                           flow->varname );
                 break;
@@ -2953,14 +2953,14 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             switch( dl->guard->guard_type ) {
             case JDF_GUARD_UNCONDITIONAL:
                 if( 0 != cond_index ) coutput("    else {\n");
-                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, flow->lineno, fname, flow, "  ",
+                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow, "  ",
                                                        string_arena_get_string(sa2), 1 );
                 if( 0 != cond_index ) coutput("    }\n");
                 goto done_with_input;
             case JDF_GUARD_BINARY:
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, flow->lineno, fname, flow, "  ",
+                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow, "  ",
                                                        string_arena_get_string(sa2), 1 );
                 coutput("    }\n");
                 cond_index++;
@@ -2968,10 +2968,10 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             case JDF_GUARD_TERNARY:
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, flow->lineno, fname, flow, "  ",
+                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow, "  ",
                                                        string_arena_get_string(sa2), 1 );
                 coutput("    } else {\n");
-                jdf_generate_code_call_init_output( jdf, dl->guard->callfalse, flow->lineno, fname, flow, "  ",
+                jdf_generate_code_call_init_output( jdf, dl->guard->callfalse, JDF_OBJECT_LINENO(flow), fname, flow, "  ",
                                                        string_arena_get_string(sa2), 1 );
                 coutput("    }\n");
                 goto done_with_input;
@@ -3193,7 +3193,7 @@ static int jdf_property_get_int( const jdf_def_list_t* properties, const char* p
         if( JDF_CST == expr->op )
             return expr->jdf_cst;
         printf("Warning: property %s defined at line %d only support ON/OFF\n",
-               prop_name, property->lineno);
+               prop_name, JDF_OBJECT_LINENO(property));
     }
     return ret_if_not_found;  /* ON by default */
 }
@@ -3874,7 +3874,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
 
                         string_arena_add_string(sa_coutput,
                                                 "%s",
-                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, dl->lineno, 
+                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl), 
                                                                             "    ", "nc") );
                     } else {
                         flowtomem = 1;
@@ -3888,7 +3888,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                                 "%s"
                                                 "    }\n",
                                                 dump_expr((void**)dl->guard->guard, &info),
-                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, dl->lineno, 
+                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl), 
                                                                             "      ", "nc") );
                     } else {
                         flowtomem = 1;
@@ -3902,7 +3902,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                                 "%s"
                                                 "    }",
                                                 dump_expr((void**)dl->guard->guard, &info),
-                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, dl->lineno, 
+                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl), 
                                                                             "      ", "nc"));
 
                         depnb++;
@@ -3916,7 +3916,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                                     " else {\n"
                                                     "%s"
                                                     "    }\n",
-                                                    jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, dl->lineno, 
+                                                    jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, JDF_OBJECT_LINENO(dl), 
                                                                                 "      ", "nc") );
                         } else {
                             string_arena_add_string(sa_coutput,
@@ -3935,7 +3935,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                                     "%s"
                                                     "    }\n",
                                                     dump_expr((void**)dl->guard->guard, &info),
-                                                    jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, dl->lineno, 
+                                                    jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, JDF_OBJECT_LINENO(dl), 
                                                                                 "      ", "nc") );
                         } else {
                             flowtomem = 1;

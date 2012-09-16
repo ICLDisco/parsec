@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -41,7 +41,7 @@ jdf_create_properties_list( const char* name,
     property         = q2jmalloc(jdf_def_list_t, 1);
     property->next   = next;
     property->name   = strdup(name);
-    property->lineno = 0;
+    JDF_OBJECT_SET(property, NULL, 0, NULL);
 
     e = q2jmalloc(jdf_expr_t, 1);
     e->op = op;
@@ -65,7 +65,7 @@ jdf_create_global_entry_list( const char         *name,
     global_entry->properties = properties;
     global_entry->expression = expression;
     global_entry->name   = strdup(name);
-    global_entry->lineno = 0;
+    JDF_OBJECT_SET(global_entry, NULL, 0, NULL);
 
     return global_entry;
 }
@@ -78,15 +78,15 @@ jdf_generate_call_for_data(node_t *data,
     jdf_call_t *call;
     char *str = NULL;
     int i;
-    
+
     assert( (data != NULL) && (data->type == ARRAY) );
-    
+
     sa = string_arena_new(16);
     string_arena_add_string( sa, "%s%s",
-                             _q2j_data_prefix, 
+                             _q2j_data_prefix,
                              tree_to_str_with_substitutions(data->u.kids.kids[0], subs) );
 
-    // Add the predicate for locality 
+    // Add the predicate for locality
     call = q2jmalloc(jdf_call_t, 1);
     call->var         = NULL;
     call->func_or_mem = strdup(string_arena_get_string(sa));
@@ -94,15 +94,15 @@ jdf_generate_call_for_data(node_t *data,
 
     // TODO: need to be replaced by correct expression
     for(i=1; i<data->u.kids.kid_count; ++i){
-        if( i > 1 ) 
+        if( i > 1 )
             str = append_to_string( str, ",", NULL, 0);
         str = append_to_string( str, tree_to_str_with_substitutions(data->u.kids.kids[i], subs), NULL, 0 );
     }
-    
+
     call->parameters->next = NULL;
     call->parameters->op   = JDF_VAR;
     call->parameters->jdf_var = strdup(str);
-        
+
     string_arena_free(sa);
     return call;
 }
@@ -135,7 +135,7 @@ void jdf_register_prologue(jdf_t *jdf)
             "#include \"data_dist/matrix/matrix.h\"\n"
             "#include \"dplasma/lib/memory_pool.h\"\n"
             "#include \"dplasma/lib/dplasmajdf.h\"\n");
-        jdf->prologue->lineno = 0;
+        JDF_OBJECT_SET(jdf->prologue, NULL, 0, NULL);
     }
 }
 
@@ -147,7 +147,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
     q2j_symbol_t *sym;
     jdf_global_entry_t *prev, *e, *e2;
     string_arena_t *sa;
-    
+
     sa = string_arena_new(64);
     assert(jdf->globals == NULL);
 
@@ -167,7 +167,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 e->name       = strdup(string_arena_get_string(sa));
                 e->properties = jdf_create_properties_list( "type", JDF_STRING, "dague_ddesc_t *", e->properties);
                 e->expression = NULL;
-                e->lineno     = 0;
+                JDF_OBJECT_SET(e, NULL, 0, NULL);
 
                 /* Descriptor */
                 string_arena_init(sa);
@@ -176,10 +176,10 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 e2->name       = strdup(string_arena_get_string(sa));
                 e2->properties = NULL;
                 e2->expression = NULL;
-                e2->lineno     = 0;
+                JDF_OBJECT_SET(e2, NULL, 0, NULL);
 
                 string_arena_init(sa);
-                string_arena_add_string(sa, "*((tiled_matrix_desc_t*)%s%s)", 
+                string_arena_add_string(sa, "*((tiled_matrix_desc_t*)%s%s)",
                                         _q2j_data_prefix, sym->var_name);
 
                 // Inverse order
@@ -202,7 +202,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 e->name       = strdup(sym->var_name);
                 e->properties = jdf_create_properties_list( "type", JDF_STRING, sym->var_type, e->properties);
                 e->expression = NULL;
-                e->lineno     = 0;
+                JDF_OBJECT_SET(e, NULL, 0, NULL);
             }
 
             if (jdf->globals == NULL) {
@@ -230,7 +230,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
                                     jdf_function_entry_t *parent_task,
                                     Relation S_es, Relation cond,
                                     node_t *data_element,
-                                    char *var_pseudoname, 
+                                    char *var_pseudoname,
                                     int ptask_count, const char *inout )
 {
     int var_count;
@@ -276,14 +276,14 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
                              tree_to_str(DA_array_base(data_element)),
                              ptask_count );
     pseudotask->fname = strdup( string_arena_get_string(sa1) );
-    
+
     // Add the profile property
     pseudotask->properties = q2jmalloc(jdf_def_list_t, 1);
+    JDF_OBJECT_SET(pseudotask->properties, NULL, 0, NULL);
     pseudotask->properties->next       = NULL;
     pseudotask->properties->name       = strdup("profile");
     pseudotask->properties->expr       = q2jmalloc(jdf_expr_t, 1);
     pseudotask->properties->properties = NULL;
-    pseudotask->properties->lineno     = 0;
     pseudotask->properties->expr->next    = NULL;
     pseudotask->properties->expr->op      = JDF_VAR;
     pseudotask->properties->expr->jdf_var = strdup("off");
@@ -339,7 +339,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
                 d->name       = strdup(var_name);
                 d->expr       = q2jmalloc(jdf_expr_t, 1);
                 d->properties = NULL;
-                d->lineno     = 0;
+                JDF_OBJECT_SET(d, NULL, 0, NULL);
                 d->expr->next    = NULL;
                 d->expr->op      = JDF_VAR;
                 d->expr->jdf_var = strdup( find_bounds_of_var(expr, var_name,
@@ -399,7 +399,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
                              tree_to_str_with_substitutions(data_element, solved_vars) );
     data_str = string_arena_get_string(sa2);
 
-    // Add the predicate for locality 
+    // Add the predicate for locality
     pseudotask->predicate = jdf_generate_call_for_data( data_element, solved_vars );
 
     // Add the 2 dataflows
@@ -408,12 +408,12 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     pseudotask->dataflow->varname     = strdup(var_pseudoname);
     pseudotask->dataflow->deps        = q2jmalloc(jdf_dep_t, 2);
     pseudotask->dataflow->access_type = JDF_VAR_TYPE_READ;
-    pseudotask->dataflow->lineno      = 0;
+    JDF_OBJECT_SET(pseudotask->dataflow, NULL, 0, NULL);
 
     input  =  pseudotask->dataflow->deps;
     output = (pseudotask->dataflow->deps)+1;
 
-    // Input 
+    // Input
     input->next   = output;
     input->type   = JDF_DEP_TYPE_IN;
     input->guard  = q2jmalloc(jdf_guarded_call_t, 1);
@@ -422,14 +422,14 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     input->datatype.nb_elt->next = NULL;
     input->datatype.nb_elt->op   = JDF_CST;
     input->datatype.nb_elt->jdf_cst = 1;
-    input->lineno = 0;
-    
+    JDF_OBJECT_SET(input, NULL, 0, NULL);
+
     input->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
     input->guard->guard      = NULL;
     input->guard->properties = NULL;
     input->guard->calltrue   = NULL;
     input->guard->callfalse  = NULL;
-    
+
     if (is_input) {
         input->guard->calltrue = pseudotask->predicate;
     } else {
@@ -438,8 +438,8 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
         input->guard->calltrue->func_or_mem = parent_task->fname;
         input->guard->calltrue->parameters  = parent_parameters;
     }
-    
-    // Output 
+
+    // Output
     output->next   = NULL;
     output->type   = JDF_DEP_TYPE_OUT;
     output->guard  = q2jmalloc(jdf_guarded_call_t, 1);
@@ -448,14 +448,14 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     output->datatype.nb_elt->next = NULL;
     output->datatype.nb_elt->op   = JDF_CST;
     output->datatype.nb_elt->jdf_cst = 1;
-    output->lineno = 0;
+    JDF_OBJECT_SET(output, NULL, 0, NULL);
 
     output->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
     output->guard->guard      = NULL;
     output->guard->properties = NULL;
     output->guard->calltrue   = NULL;
     output->guard->callfalse  = NULL;
-    
+
     if (!is_input) {
         output->guard->calltrue = pseudotask->predicate;
     } else {
@@ -476,13 +476,13 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     while ( last_param != NULL ) {
         last_parent_parameters->op      = JDF_VAR;
         last_parent_parameters->jdf_var = last_param->name;
-        
+
         if ( last_param->next != NULL )
             last_parent_parameters->next = q2jmalloc(jdf_expr_t, 1);
         last_param = last_param->next;
         last_parent_parameters = last_parent_parameters->next;
     }
-    
+
     string_arena_free(sa1);
     string_arena_free(sa2);
 
@@ -512,13 +512,13 @@ void jdf_register_definitions( jdf_function_entry_t *this_function,
         definitions[i-1].name = strdup(var_name);
         definitions[i-1].expr = q2jmalloc(jdf_expr_t, 1);
         definitions[i-1].properties = NULL;
-        definitions[i-1].lineno = 0;
+        JDF_OBJECT_SET(&definitions[i-1], NULL, 0, NULL);
 
         if( NULL != solution ) {
             definitions[i-1].expr->next    = NULL;
             definitions[i-1].expr->op      = JDF_VAR;
             definitions[i-1].expr->jdf_var = strdup( expr_tree_to_str(solution) );
-        } else {            
+        } else {
             definitions[i-1].expr->next    = NULL;
             definitions[i-1].expr->op      = JDF_VAR;
             definitions[i-1].expr->jdf_var = strdup( find_bounds_of_var(e, var_name, prev_vars, S_es) );
@@ -550,7 +550,6 @@ jdf_expr_t *jdf_generate_expr_from_conditions(list< pair<expr_t *, Relation> > *
     string cond = expr_tree_to_str((*cond_it)->first);
     bool printed_condition = false;
     string_arena_t *sa;
-    
     jdf_expr_t *expr = NULL;
 
     sa = string_arena_new(64);
@@ -596,7 +595,7 @@ jdf_expr_t *jdf_generate_call_parameters( dep_t *dep, expr_t *rel_exp )
 
     Relation R = copy(*(dep->rel));
     set <const char *> vars_in_bounds;
-    
+
     sa = string_arena_new(16);
 
     dst_count = R.n_inp();
@@ -606,7 +605,7 @@ jdf_expr_t *jdf_generate_call_parameters( dep_t *dep, expr_t *rel_exp )
     }
 
     dst_count = R.n_out();
-    
+
     if (dst_count > 0)
         parameters = q2jmalloc(jdf_expr_t, dst_count);
     param = parameters;
@@ -620,7 +619,7 @@ jdf_expr_t *jdf_generate_call_parameters( dep_t *dep, expr_t *rel_exp )
                                 ( NULL != solution ) ? expr_tree_to_str(solution)
                                 : find_bounds_of_var(copy_tree(rel_exp), var_name, vars_in_bounds, R));
         free((void *)var_name);
-        
+
         param->next = i < (dst_count-1) ? param+1 : NULL;
         param->op = JDF_VAR;
         param->jdf_var = strdup( string_arena_get_string(sa) );
@@ -647,16 +646,16 @@ void jdf_register_input_deps( set<dep_t*> ideps,
         node_t   *src = (*dep_it)->src;
         node_t   *dst = (*dep_it)->dst;
         Relation *rel = (*dep_it)->rel;
-        
+
         list< pair<expr_t *, Relation> > cond_list;
         list< pair<expr_t *, Relation> >::iterator cond_it;
-        
+
         // Needed by Omega
         (void)(*rel).print_with_subs_to_string(false);
-        
+
         // check that the input dependency has a destination
         Q2J_ASSERT( NULL != dst);
-        
+
         // If the condition has disjunctions (logical OR operators) then split them so that each one
         // is treated independently.
         cond_list = simplify_conditions_and_split_disjunctions(*rel, S_es);
@@ -671,20 +670,20 @@ void jdf_register_input_deps( set<dep_t*> ideps,
                 dep->next = q2jmalloc(jdf_dep_t, 1);
                 dep = dep->next;
             }
-            
+
             dep->next = NULL;
-            dep->type = JDF_DEP_TYPE_IN; 
+            dep->type = JDF_DEP_TYPE_IN;
             dep->guard = q2jmalloc( jdf_guarded_call_t, 1);
             dep->datatype.simple = 1;
             dep->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
             dep->datatype.nb_elt->next    = NULL;
             dep->datatype.nb_elt->op      = JDF_CST;
             dep->datatype.nb_elt->jdf_cst = 1;
-            dep->lineno = 0;
-            
+            JDF_OBJECT_SET(dep, NULL, 0, NULL);
+
             // Generate the dep_expr
             dep_expr = jdf_generate_expr_from_conditions( &cond_list, &cond_it );
-            
+
             // Generate the dep_call
             if( NULL != src->function ){
                 expr_t *e = relation_to_tree(cond_it->second);
@@ -698,12 +697,12 @@ void jdf_register_input_deps( set<dep_t*> ideps,
                     dep_call = jdf_register_pseudotask( &_q2j_jdf, this_function,
                                                         S_es, cond_it->second,
                                                         dst, dataflow->varname,
-                                                        (*pseudotask_count)++, "in" ); 
+                                                        (*pseudotask_count)++, "in" );
                 } else {
                     dep_call = jdf_generate_call_for_data( dst, NULL );
                 }
             }
-            
+
             // guarded call
             dep->guard->guard_type = dep_expr == NULL ? JDF_GUARD_UNCONDITIONAL : JDF_GUARD_BINARY;
             dep->guard->guard      = dep_expr;
@@ -743,26 +742,26 @@ void jdf_register_fake_read( Relation S_es,
         dataflow->deps = q2jmalloc(jdf_dep_t, 1);
         dep = dataflow->deps;
     }
-            
+
     dep->next = NULL;
-    dep->type = JDF_DEP_TYPE_IN; 
+    dep->type = JDF_DEP_TYPE_IN;
     dep->guard = q2jmalloc( jdf_guarded_call_t, 1);
     dep->datatype.simple = 1;
     dep->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
     dep->datatype.nb_elt->next    = NULL;
     dep->datatype.nb_elt->op      = JDF_CST;
     dep->datatype.nb_elt->jdf_cst = 1;
-    dep->lineno = 0;
-            
+    JDF_OBJECT_SET(dep, NULL, 0, NULL);
+
     if( need_pseudotask(dst, reference_data_element) ){
         dep_call = jdf_register_pseudotask( &_q2j_jdf, this_function,
                                             S_es, emptyR,
                                             dst, dataflow->varname,
-                                            (*pseudotask_count)++, "in" ); 
+                                            (*pseudotask_count)++, "in" );
     } else {
         dep_call = jdf_generate_call_for_data( dst, NULL );
     }
-            
+
     // guarded call
     dep->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
     dep->guard->guard      = NULL;
@@ -790,22 +789,22 @@ void jdf_register_output_deps( set<dep_t*> odeps,
             dep = dep->next;
         }
     }
-            
+
     // print the incoming edges
     for (dep_it=odeps.begin(); dep_it!=odeps.end(); dep_it++ ){
         node_t   *src = (*dep_it)->src;
         node_t   *dst = (*dep_it)->dst;
         Relation *rel = (*dep_it)->rel;
-        
+
         list< pair<expr_t *, Relation> > cond_list;
         list< pair<expr_t *, Relation> >::iterator cond_it;
-        
+
         // Needed by Omega
         (void)(*rel).print_with_subs_to_string(false);
-        
+
         // check that the input dependency has a destination
         Q2J_ASSERT( NULL != src );
-        
+
         // If the condition has disjunctions (logical OR operators) then split them so that each one
         // is treated independently.
         cond_list = simplify_conditions_and_split_disjunctions(*rel, S_es);
@@ -820,20 +819,20 @@ void jdf_register_output_deps( set<dep_t*> odeps,
                 dep->next = q2jmalloc(jdf_dep_t, 1);
                 dep = dep->next;
             }
-            
+
             dep->next = NULL;
-            dep->type = JDF_DEP_TYPE_OUT; 
+            dep->type = JDF_DEP_TYPE_OUT;
             dep->guard = q2jmalloc( jdf_guarded_call_t, 1);
             dep->datatype.simple = 1;
             dep->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
             dep->datatype.nb_elt->next    = NULL;
             dep->datatype.nb_elt->op      = JDF_CST;
             dep->datatype.nb_elt->jdf_cst = 1;
-            dep->lineno = 0;
-            
+            JDF_OBJECT_SET(dep, NULL, 0, NULL);
+
             // Generate the dep_expr
             dep_expr = jdf_generate_expr_from_conditions( &cond_list, &cond_it );
-            
+
             // Generate the dep_call
             if( NULL != dst ){
                 expr_t *e = relation_to_tree(cond_it->second);
@@ -847,12 +846,12 @@ void jdf_register_output_deps( set<dep_t*> odeps,
                     dep_call = jdf_register_pseudotask( &_q2j_jdf, this_function,
                                                         S_es, cond_it->second,
                                                         src, dataflow->varname,
-                                                        (*pseudotask_count)++, "out" ); 
+                                                        (*pseudotask_count)++, "out" );
                 } else {
                     dep_call = jdf_generate_call_for_data( src, NULL );
                 }
             }
-            
+
             // guarded call
             dep->guard->guard_type = dep_expr == NULL ? JDF_GUARD_UNCONDITIONAL : JDF_GUARD_BINARY;
             dep->guard->guard      = dep_expr;
@@ -909,15 +908,15 @@ void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t       *this_
 
         assert( dataflow != NULL );
         dataflow->varname = strdup( var_pseudoname );
-        dataflow->lineno = 0;
+        JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
         dataflow->deps = NULL;
-        
+
         if( nb_ideps > 0 && nb_odeps > 0 ){
             dataflow->access_type = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
         }else if( nb_ideps > 0 ){
             dataflow->access_type = JDF_VAR_TYPE_READ;
         }else if( nb_odeps > 0 ){
-            /* 
+            /*
              * DAGuE does not like write-only variables, so make it RW and make
              * it read from the data matrix tile that corresponds to this variable.
              */
@@ -934,9 +933,9 @@ void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t       *this_
             fprintf(stderr,"WARNING: Number of outgoing edges (%d) for variable \"%s\" exceeds %d\n",
                     nb_odeps, var_pseudoname, MAX_DEP_OUT_COUNT);
 
-        jdf_register_input_deps( ideps, S_es, 
-                                 reference_data_element, 
-                                 this_function, 
+        jdf_register_input_deps( ideps, S_es,
+                                 reference_data_element,
+                                 this_function,
                                  dataflow,
                                  &pseudotask_count );
 
@@ -948,12 +947,11 @@ void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t       *this_
                                     &pseudotask_count );
         }
 
-        jdf_register_output_deps( odeps, S_es, 
-                                  reference_data_element, 
-                                  this_function, 
+        jdf_register_output_deps( odeps, S_es,
+                                  reference_data_element,
+                                  this_function,
                                   dataflow,
                                   &pseudotask_count );
-        
     }
 
     return;
@@ -981,7 +979,7 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->varname     = strdup(string_arena_get_string(sa));
     dataflow->deps        = q2jmalloc(jdf_dep_t, 1);
     dataflow->access_type = JDF_VAR_TYPE_CTL;
-    dataflow->lineno      = 0;
+    JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
 
     dataflow->deps->next   = NULL;
     dataflow->deps->type   = JDF_DEP_TYPE_OUT;
@@ -991,8 +989,8 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->deps->datatype.nb_elt->next = NULL;
     dataflow->deps->datatype.nb_elt->op   = JDF_CST;
     dataflow->deps->datatype.nb_elt->jdf_cst = 1;
-    dataflow->deps->lineno = 0;
-    
+    JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
+
     (void)(*dep->rel).print_with_subs_to_string(false);
     expr = relation_to_tree(*rel);
     dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
@@ -1014,7 +1012,7 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->varname     = strdup(string_arena_get_string(sa));
     dataflow->deps        = q2jmalloc(jdf_dep_t, 1);
     dataflow->access_type = JDF_VAR_TYPE_CTL;
-    dataflow->lineno      = 0;
+    JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
 
     dataflow->deps->next   = NULL;
     dataflow->deps->type   = JDF_DEP_TYPE_IN;
@@ -1024,8 +1022,8 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->deps->datatype.nb_elt->next = NULL;
     dataflow->deps->datatype.nb_elt->op   = JDF_CST;
     dataflow->deps->datatype.nb_elt->jdf_cst = 1;
-    dataflow->deps->lineno = 0;
-    
+    JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
+
     dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
     dataflow->deps->guard->guard      = NULL;
     dataflow->deps->guard->properties = NULL;
@@ -1034,7 +1032,7 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->deps->guard->calltrue->var         = strdup(string_arena_get_string(sa));
     dataflow->deps->guard->calltrue->func_or_mem = src->fname;
 
-    // Reverse the relation 
+    // Reverse the relation
     Relation inv = *dep->rel;
     dep2.src = dep->src;
     dep2.dst = dep->dst;
@@ -1066,11 +1064,11 @@ void jdf_register_anti_dependencies( jdf_function_entry_t *this_function,
             continue;
         set<dep_t *> synch_dep_set = synch_edge_it->second;
         set<dep_t *>::iterator synch_dep_it;
-        
+
         // Traverse all the entries of the set stored in synch_edges[ this task's name ] and print them
         for(synch_dep_it=synch_dep_set.begin(); synch_dep_it!=synch_dep_set.end(); ++synch_dep_it){
             assert(((*synch_dep_it)->src)->function == this_function);
-            
+
             jdf_register_anti_dependency( (*synch_dep_it) );
         }
     }
@@ -1096,13 +1094,13 @@ void jdf_register_function(jdf_function_entry_t       *this_function,
 {
     jdf_register_definitions( this_function, S_es );
     this_function->predicate = jdf_generate_call_for_data(reference_data_element, NULL);
-    
+
     jdf_register_dependencies_and_pseudotasks(this_function,
                                               reference_data_element, S_es,
                                               vars, outg_map, incm_map);
-    
+
     if( NULL != this_function->fname )
         jdf_register_anti_dependencies( this_function, synch_edges );
-    
+
     jdf_register_body(this_function, this_node);
 }
