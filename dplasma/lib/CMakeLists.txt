@@ -50,7 +50,7 @@ set(JDF
   zgetrf_hincpiv.jdf
   zgetrf_hpp.jdf
   zgetrf_hpp2.jdf
-  #zgetrf_qrf.jdf
+  zgetrf_qrf.jdf
   zungqr.jdf
   zlange_inf_cyclic.jdf
   zlange_one_cyclic.jdf
