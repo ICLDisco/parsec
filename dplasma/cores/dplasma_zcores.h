@@ -9,6 +9,11 @@
 #ifndef _DPLASMA_Z_CORES_H
 #define _DPLASMA_Z_CORES_H
 
+#include "dague.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include <plasma.h>
+
 int blgchase_ztrdv2(int NT, int N, int NB,
                    dague_complex64_t *A1, dague_complex64_t *A2,
                    dague_complex64_t *V1, dague_complex64_t *TAU1,

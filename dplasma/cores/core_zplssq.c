@@ -16,7 +16,7 @@
 #include <math.h>
 #include <lapacke.h>
 //#include "common.h"
-#include "plasma.h"
+#include <plasma.h>
 #include "cblas.h"
 #include "core_blas.h"
 
