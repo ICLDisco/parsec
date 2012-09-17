@@ -39,20 +39,20 @@ dague_object_t* dplasma_zgetrf_hpp2_New( qr_piv_t *qrpiv,
                                    INFO);
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->p_work, ib * LT->nb * sizeof(Dague_Complex64_t) );
+    dague_private_memory_init( object->p_work, ib * LT->nb * sizeof(dague_complex64_t) );
 
     object->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->p_tau, LT->nb * sizeof(Dague_Complex64_t) );
+    dague_private_memory_init( object->p_tau, LT->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zgetrf_hpp2_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
+                            A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
     /* Upper triangular part of tile with diagonal */
     dplasma_add2arena_upper( object->arenas[DAGUE_zgetrf_hpp2_UPPER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(Dague_Complex64_t),
+                             A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 1 );
 
@@ -64,13 +64,13 @@ dague_object_t* dplasma_zgetrf_hpp2_New( qr_piv_t *qrpiv,
 
     /* Lower triangular part of tile without diagonal */
     dplasma_add2arena_lower( object->arenas[DAGUE_zgetrf_hpp2_LOWER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(Dague_Complex64_t),
+                             A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Little T */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_hpp2_LITTLE_T_ARENA],
-                                 LT->mb*LT->nb*sizeof(Dague_Complex64_t),
+                                 LT->mb*LT->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, LT->mb, LT->nb, -1);
 

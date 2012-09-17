@@ -32,7 +32,7 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
 
     /* A and B */
     dplasma_add2arena_tile( dague_trsmpl->arenas[DAGUE_ztrsmpl_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
+                            A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
@@ -44,7 +44,7 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
 
     /* L */
     dplasma_add2arena_rectangle( dague_trsmpl->arenas[DAGUE_ztrsmpl_SMALL_L_ARENA],
-                                 L->mb*L->nb*sizeof(Dague_Complex64_t),
+                                 L->mb*L->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, L->mb, L->nb, -1);
 
@@ -99,7 +99,7 @@ dplasma_ztrsmpl_sd_New(const tiled_matrix_desc_t *A,
 
     /* A and B */
     dplasma_add2arena_tile( dague_trsmpl_sd->arenas[DAGUE_ztrsmpl_sd_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
+                            A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
@@ -111,7 +111,7 @@ dplasma_ztrsmpl_sd_New(const tiled_matrix_desc_t *A,
 
     /* L */
     dplasma_add2arena_rectangle( dague_trsmpl_sd->arenas[DAGUE_ztrsmpl_sd_L_PIVOT_ARENA],
-                                 L->mb*L->nb*sizeof(Dague_Complex64_t),
+                                 L->mb*L->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, L->mb, L->nb, -1);
 
