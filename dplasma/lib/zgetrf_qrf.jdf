@@ -112,10 +112,9 @@ END
  ********************************************************************************************/
 
 swptrsm_u(k, n)
-
   /* Execution space */
-  k = 0   .. ( ( descA.mt < descA.nt ) ? descA.mt-1 : descA.nt-1)
-  n = k+1 .. descA.nt-1
+  k = 0..( ( descA.mt < descA.nt ) ? descA.mt-1 : descA.nt-1)
+  n = k+1..descA.nt-1
 
   did_lu = inline_c %{ return lu_tab[k-1]; %}
 
@@ -126,9 +125,9 @@ swptrsm_u(k, n)
   READ  IP   <- IP zgetrf(k)                                                                       [type = PIVOT]
   RW    C    <- A selector(k, k, n )
              -> A(k, n)
-             -> ( k <  (descA.mt-1) ) ? V zgemm(k, (k+1)..(descA.mt-1), n)
-  CTL   ctl  <- ( k > 0 ) && (did_lu == 1) ? ctl tile2panel_lu(k-1, k, n )
-             <- ( k > 0 ) && (did_lu != 1) ? ctl tile2panel_qr(k-1, k, n )
+             -> ( k <  (descA.mt-1) ) ? V zgemm(k, (k+1)..(descA.mt-1), n)  
+  CTL   ctl  <- ( k > 0 )  ? ctl tile2panel(k-1, k, n )
+
 
 /* Priority */
 ;descA.nt-n-1
@@ -279,7 +278,7 @@ zgemm(k, m, n)
   RW   C  <- A selector(k, m, n)
           -> ((m == k+1) && (n == k+1)) ? A zlufacto(k+1) : A selector(k+1, m, n)
 
-  CTL ctl  -> ( type == 0 ) ? ctl tile2panel_lu(k, m, n)
+  CTL ctl  -> ( type == 0 ) ? ctl tile2panel(k, m, n)
 
 ; descA.nt-n-1
 BODY
@@ -300,15 +299,8 @@ BODY
              m, k, T, descLT.mb, m, k, H, ldam);
 
     DRYRUN(
-         if ( type == 0 ) {
-
-           CORE_zgemm(
-               PlasmaNoTrans, PlasmaNoTrans,
-               tempmm, tempnn, descA.mb,
-               -1., H /*A(m, k)*/, ldam,
-                    V /*A(p, n)*/, ldap,
-               1.,  C /*A(m, n)*/, ldam );
-
+         if ( type == 0 ) { 
+             /* GEMM already applied by SWPTRSM */
          } else {
              void *p_elem_A = dague_private_memory_pop( p_work );
 
@@ -373,8 +365,7 @@ zgeqrt(k, i)
   /* A == A(m, k) */
   /* T == T(m, k) */
 
-  RW    A <- ( 0 == k ) ? A(m, k)
-          <- ( k > 0  ) ? A selector(k, m, k )
+  RW    A <- A selector(k, m, k )
           -> A zgeqrt_typechange(k, i)
           //-> (descA.nt-1 > k) ? A zunmqr(k, i, (k+1)..(descA.nt-1))
           -> ( k == descA.mt-1 ) ? A(m, k)                                     [type = UPPER_TILE]
@@ -415,6 +406,23 @@ BODY
 
 END
 
+
+zgeqrt_typechange(k, i) [profile = off]
+  /* Execution space */
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
+  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
+
+  : A(m, k)
+
+  RW A <- A zgeqrt(k, i)
+       -> ( descA.nt-1 > k ) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
+       -> A(m, k)                                                  [type = LOWER_TILE]
+BODY
+ /* Nothing */
+END
+
+
 /*
  * UNMQR (see GEQRT)
  */
@@ -436,8 +444,7 @@ zunmqr(k, i, n)
 
   READ  A <- A zgeqrt_typechange(k, i)                              [type = LOWER_TILE]
   READ  T <- T zgeqrt(k, i)                                         [type = LITTLE_T]
-  RW    C <- ( 0 == k ) ? A(m, n)
-          <- ( k >  0 ) ? A selector(k, m, n)
+  RW    C <- A selector(k, m, n)
           -> ( k == descA.mt-1 ) ? A(m, n)
           -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ? A1 zttmqr(k, nextm, n)
           -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ? A2 zttmqr(k, m,     n)
@@ -519,8 +526,7 @@ zttqrt(k, m)
           -> (   nextp != descA.mt ) ? A1 zttqrt(k, nextp )                     [type = UPPER_TILE]
           -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)          [type = UPPER_TILE]
           -> ( ( nextp == descA.mt ) & (p != k) ) ? A2 zttqrt(k, p)             [type = UPPER_TILE]
-  RW   A2 <- ( (type == 0) && (k     == 0        ) ) ? A(m, k)                  /* type 0 = DPLASMA_QR_KILLED_BY_TS */
-          <- ( (type == 0) && (k     != 0        ) ) ? A selector(k, m, k )      /* type 0 = DPLASMA_QR_KILLED_BY_TS */
+  RW   A2 <- (type == 0)                             ? A selector(k, m, k )     /* type 0 = DPLASMA_QR_KILLED_BY_TS */
           <- ( (type != 0) && (prevm == descA.mt ) ) ? A  zgeqrt(k, im )        /* type 0 = DPLASMA_QR_KILLED_BY_TS */
           <- ( (type != 0) && (prevm != descA.mt ) ) ? A1 zttqrt(k, prevm )     /* type 0 = DPLASMA_QR_KILLED_BY_TS */
           -> A(m, k)
@@ -624,8 +630,7 @@ zttmqr(k, m, n)
           -> (   nextp != descA.mt ) ? A1 zttmqr( k, nextp, n)
           -> ( ( nextp == descA.mt ) & ( p == k ) ) ? A zttmqr_out_A1(p, n)
           -> ( ( nextp == descA.mt ) & ( p != k ) ) ? A2 zttmqr( k, p, n )
-  RW   A2 <- ( (type  == 0 ) && (k     == 0        ) ) ? A(m, n)                   /* type 0 = DPLASMA_QR_KILLED_BY_TS */
-          <- ( (type  == 0 ) && (k     != 0        ) ) ? A selector(k, m, n )     /* type 0 = DPLASMA_QR_KILLED_BY_TS */
+  RW   A2 <- (type  == 0 )                           ? A selector(k, m, n )      /* type 0 = DPLASMA_QR_KILLED_BY_TS */
           <- ( (type  != 0 ) && (prevm == descA.mt ) ) ? C  zunmqr(k, im, n)       /* type 0 = DPLASMA_QR_KILLED_BY_TS */
           <- ( (type  != 0 ) && (prevm != descA.mt ) ) ? A1 zttmqr(k, prevm, n )   /* type 0 = DPLASMA_QR_KILLED_BY_TS */
           -> ((m == k+1) && (n == k+1)) ? A zlufacto(k+1) : A selector(k+1, m, n)
@@ -633,7 +638,7 @@ zttmqr(k, m, n)
   READ  V <- A2 zttqrt(k, m)
   READ  T <- T  zttqrt(k, m) [type = LITTLE_T]
 
-  CTL ctl  -> ( type == 0 ) ? ctl tile2panel_qr(k, m, n)
+  CTL ctl  -> ( type == 0 ) ? ctl tile2panel(k, m, n)
 
     ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
 
@@ -689,7 +694,7 @@ END
  *                      Tile 2 panel (Forward)                                      *
  *         Insure that step k on panel n is done before to start step k+1           *
  ************************************************************************************/
-tile2panel_lu(k, m, n) [ profile = off ]
+tile2panel(k, m, n) [ profile = off ]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
@@ -700,40 +705,15 @@ tile2panel_lu(k, m, n) [ profile = off ]
   i        = inline_c %{ return dplasma_qr_geti( pivfct, k+1, p ); %}
   s        = inline_c %{ return dplasma_qr_getsize( pivfct, k+1, i ); %}
   ms       = inline_c %{ return p + (s-1)*param_p; %}
+  did_lu   = inline_c %{ return lu_tab[k]; %}
 
   :A(m, n)
 
-  CTL  ctli <- (m < ms) ? ctli tile2panel_lu(k, m+param_p, n)
-            -> (m > p ) ? ctli tile2panel_lu(k, m-param_p, n)
+  CTL  ctli <- (m < ms) ? ctli tile2panel(k, m+param_p, n)
+            -> (m > p ) ? ctli tile2panel(k, m-param_p, n)
 
-  CTL  ctl  <- (type == 0) ? ctl zgemm(k, m, n)
-            /* Protect step k+1 */
-            -> ( (m == p) & (n == k+1) ) ? ctl zlufacto(k+1)
-            -> ( (m == p) & (n >  k+1) ) ? ctl swptrsm_u(k+1, i, n)
-
-  ;descA.nt-n-1
-BODY
-    printlog("\nthread %d VP %d tile2panel( k = %d, m = %d, n = %d ) type = %d\n", context->th_id, context->virtual_process->vp_id, k, m, n, type);
-END
-
-tile2panel_qr(k, m, n) [ profile = off ]
-  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
-  m = k+1..descA.mt-1
-  n = k+1..descA.nt-1
-
-  type     = inline_c %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
-  nexttype = inline_c %{ return dplasma_qr_gettype( pivfct, k+1, m ); %}
-  p        = inline_c %{ return nexttype == 0 ? dplasma_qr_currpiv(pivfct, m, k+1 ) : m; %}
-  i        = inline_c %{ return dplasma_qr_geti( pivfct, k+1, p ); %}
-  s        = inline_c %{ return dplasma_qr_getsize( pivfct, k+1, i ); %}
-  ms       = inline_c %{ return p + (s-1)*param_p; %}
-
-  :A(m, n)
-
-  CTL  ctli <- (m < ms) ? ctli tile2panel_qr(k, m+param_p, n)
-            -> (m > p ) ? ctli tile2panel_qr(k, m-param_p, n)
-
-  CTL  ctl  <- (type == 0) ? ctl zttmqr(k, m, n)
+  CTL  ctl  <- ( (type == 0) && (did_lu == 1) ) ? ctl zgemm(k, m, n)
+            <- ( (type == 0) && (did_lu != 1) ) ? ctl zttmqr(k, m, n)
             /* Protect step k+1 */
             -> ( (m == p) & (n == k+1) ) ? ctl zlufacto(k+1)
             -> ( (m == p) & (n >  k+1) ) ? ctl swptrsm_u(k+1, i, n)
@@ -752,26 +732,25 @@ zlufacto(k)
   : A(k, k)
 
   RW    A    <- (k == 0) ? A(k,k)
-             <- ((k!=0)&&(did_lu == 1)) ? C zgemm(k-1,k,k)
+             <- ((k!=0)&&(did_lu == 1)) ? C zgemm(k-1,k,k) 
              <- ((k!=0)&&(did_lu != 1)) ? A2 zttmqr(k-1,k,k)
-                         -> A zsetchoice(k)
+			 -> A zsetchoice(k)
 
   RW    IP   <- IPIV(k, k)                                                                       [type = PIVOT]
              -> IPIV(k, k)                                                                       [type = PIVOT]
-             -> IP zsetchoice(k)                                                                                                         [type = PIVOT]
+             -> IP zsetchoice(k)										                         [type = PIVOT]
 
   RW    SAV  <- SAV(k, k)
              -> SAV zsetchoice(k)
 
-  CTL   ctl  <- ( (k != 0)&&(did_lu == 1) ) ? ctl tile2panel_lu(k-1,k,k)
-             <- ( (k != 0)&&(did_lu != 1) ) ? ctl tile2panel_qr(k-1,k,k)
-
+  CTL   ctl  <- ( k != 0 ) ? ctl tile2panel(k-1,k,k) 
+            
 ; descA.nt-k-1
 BODY
 {
-    /* On fait une copie du A et on fait le LU directement sur A */
+    /* On fait une copie du A et on fait le LU directement sur A */   
 }
-END
+END   
 
 
 zsetchoice(k)
@@ -781,10 +760,10 @@ zsetchoice(k)
   : A(k, k)
 
   RW    A    <- A zlufacto(k)
-                         -> A selector(k,k,k)
+			 -> A selector(k,k,k)
 
   RW    IP   <- IP zlufacto(k)                                                                     [type = PIVOT]
-                         -> IP selector(k,k,k)                                                                                                             [type = PIVOT]
+			 -> IP selector(k,k,k)												                   [type = PIVOT]
 
   RW    SAV  <- SAV zlufacto(k)
              -> SAV(k,k)
@@ -793,9 +772,9 @@ zsetchoice(k)
 ; descA.nt-k-1
 BODY
 {
-    /* On récolte les conditions number et on fait le choix */
+    /* On récolte les conditions number et on fait le choix */   
 }
-END
+END  
 
 
 selector(k,m,n)
@@ -817,14 +796,14 @@ selector(k,m,n)
             <- ( (k!=0)&&(did_lu != 1)&&(k==m)&&(k==n) ) ? A zsetchoice(k)
             <- ( (k!=0)&&(did_lu != 1)&&(k!=m)         ) ? A2 zttmqr(k-1,m,n)
             <- ( (k!=0)&&(did_lu != 1)&&(k!=n)         ) ? A2 zttmqr(k-1,m,n)
-            -> ( (do_lu == 1)&&(k==n)&&(k==m)    ) ? A zgetrf(k)
+            -> ( (do_lu == 1)&&(k==n)&&(k==m)    ) ? A zgetrf(k) 
             -> ( (do_lu == 1)&&(k==n)&&(k!=m)    ) ? C ztrsm_l(k,m)
             -> ( (do_lu == 1)&&(k!=n)&&(k==m)    ) ? C swptrsm_u(k,n)
             -> ( (do_lu == 1)&&(k!=n)&&(k!=m)    ) ? C zgemm(k,m,n)
-            -> ( (do_lu == 0)&&(k==n)&&(type==0) ) ? A zgeqrt(k,i)
-            -> ( (do_lu == 0)&&(k==n)&&(type!=0) ) ? A2 zttqrt(k,m)
-            -> ( (do_lu == 0)&&(k!=n)&&(type==0) ) ? C zunmqr(k,i,n)
-            -> ( (do_lu == 0)&&(k!=n)&&(type!=0) ) ? A2 zttmqr(k,m,n)
+            -> ( (do_lu == 0)&&(k==n)&&(type==0) ) ? A zgeqrt(k,i) 
+            -> ( (do_lu == 0)&&(k==n)&&(type!=0) ) ? A2 zttqrt(k,m) 
+            -> ( (do_lu == 0)&&(k!=n)&&(type==0) ) ? C zunmqr(k,i,n) 
+            -> ( (do_lu == 0)&&(k!=n)&&(type!=0) ) ? A2 zttmqr(k,m,n) 
 
   RW    IP  <- ( (m==k)&&(n==k)&&(do_lu == 1) ) ? IP zsetchoice(k)
             -> ( (m==k)&&(n==k)&&(do_lu == 1) ) ? IP zgetrf(k)
@@ -832,6 +811,6 @@ selector(k,m,n)
 ; descA.nt-k-1
 BODY
 {
-    /* Nothing */
+    /* Nothing */   
 }
-END
+END  
