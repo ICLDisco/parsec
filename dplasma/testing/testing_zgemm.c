@@ -234,8 +234,8 @@ static int check_solution( dague_context_t *dague, int loud,
     double eps, result;
     double *work;
     int Am, An, Bm, Bn;
-    Dague_Complex64_t mzone = (Dague_Complex64_t)-1.0;
-    Dague_Complex64_t *A, *B, *Cinit, *Cfinal;
+    dague_complex64_t mzone = (dague_complex64_t)-1.0;
+    dague_complex64_t *A, *B, *Cinit, *Cfinal;
 
     int M   = ddescC->super.m;
     int N   = ddescC->super.n;
@@ -258,10 +258,10 @@ static int check_solution( dague_context_t *dague, int loud,
     }
 
     work  = (double *)malloc(max(K,max(M, N))* sizeof(double));
-    A     = (Dague_Complex64_t *)malloc((ddescA->super.lm)*(ddescA->super.n)*sizeof(Dague_Complex64_t));
-    B     = (Dague_Complex64_t *)malloc((ddescB->super.lm)*(ddescB->super.n)*sizeof(Dague_Complex64_t));
-    Cinit = (Dague_Complex64_t *)malloc((ddescC->super.lm)*(ddescC->super.n)*sizeof(Dague_Complex64_t));
-    Cfinal= (Dague_Complex64_t *)malloc((ddescC->super.lm)*(ddescC->super.n)*sizeof(Dague_Complex64_t));
+    A     = (dague_complex64_t *)malloc((ddescA->super.lm)*(ddescA->super.n)*sizeof(dague_complex64_t));
+    B     = (dague_complex64_t *)malloc((ddescB->super.lm)*(ddescB->super.n)*sizeof(dague_complex64_t));
+    Cinit = (dague_complex64_t *)malloc((ddescC->super.lm)*(ddescC->super.n)*sizeof(dague_complex64_t));
+    Cfinal= (dague_complex64_t *)malloc((ddescC->super.lm)*(ddescC->super.n)*sizeof(dague_complex64_t));
 
     twoDBC_ztolapack( ddescA,      A,      LDA );
     twoDBC_ztolapack( ddescB,      B,      LDB );

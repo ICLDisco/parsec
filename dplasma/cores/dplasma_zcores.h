@@ -17,7 +17,7 @@ int blgchase_ztrdv2(int NT, int N, int NB,
 
 int CORE_zgetrf_rectil_1thrd(const PLASMA_desc A, int *IPIV);
 void dplasmacore_zgetrf_rectil_init(void);
-int dplasmacore_zgetrf_rectil(volatile Dague_Complex64_t *amax1buf,
+int dplasmacore_zgetrf_rectil(volatile dague_complex64_t *amax1buf,
                               const tiled_matrix_desc_t *A, int *IPIV, int *info);
 
 int CORE_zplssq(int M, int N,
