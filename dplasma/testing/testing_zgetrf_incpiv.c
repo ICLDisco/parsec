@@ -86,7 +86,7 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
+    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
     if ( check ) {
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA,
