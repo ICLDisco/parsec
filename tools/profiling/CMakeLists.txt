@@ -5,6 +5,9 @@ add_executable(dbp2xml dbp2xml.c dbpreader.c)
 set_target_properties(dbp2xml PROPERTIES LINKER_LANGUAGE C)
 set_target_properties(dbp2xml PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
 
+
+find_package(GTG QUIET)
+
 if(GTG_FOUND)
   add_executable(dbp2paje dbp2paje.c dbpreader.c)
   set_target_properties(dbp2xml PROPERTIES LINKER_LANGUAGE C)

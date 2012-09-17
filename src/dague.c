@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -41,8 +41,8 @@
 #include <cuda_runtime_api.h>
 #endif
 
-dague_allocate_data_t dague_data_allocate = malloc;
-dague_free_data_t     dague_data_free = free;
+dague_data_allocate_t dague_data_allocate = malloc;
+dague_data_free_t     dague_data_free = free;
 
 #if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
 int MEMALLOC_start_key, MEMALLOC_end_key;
@@ -92,7 +92,6 @@ static void dague_statistics(char* str)
         STATUS(("Block Output Operations     : %10ld\n", (current.ru_oublock - _dague_rusage.ru_oublock)));
         STATUS(("=============================================================\n"));
     }
-
     _dague_rusage_first_call = !_dague_rusage_first_call;
     _dague_rusage = current;
     return;
@@ -136,7 +135,9 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
     DEBUG2(("VP %i : bind thread %i.%i on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto));
-    //    printf("VP %i : bind thread %i.%i  on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto);
+    // STEPH:: 
+    //printf("VP %i : bind thread %i.%i  on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto); 
+
 
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
@@ -164,10 +165,14 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #endif
 
     /* The main thread of VP 0 will go back to the user level */
-    if( DAGUE_THREAD_IS_MASTER(eu) )
-        return NULL;
-
+    if( DAGUE_THREAD_IS_MASTER(eu) ) {
+        // STEPH::  
+        vpmap_display_map(stderr);   
+        return NULL; 
+    }
+    
     return __dague_progress(eu);
+    
 }
 
 static void dague_vp_init( dague_vp_t *vp,
@@ -201,20 +206,19 @@ static void dague_vp_init( dague_vp_t *vp,
         startup[t].nb_cores = nb_cores;
         if( vpmap_get_nb_cores_affinity(vp->vp_id, t) == 1 )
             vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto);
-        else
+        else if( vpmap_get_nb_cores_affinity(vp->vp_id, t) > 1 )
+            printf("multiple core to bind on... for now, do nothing\n");
+        else 
             startup[t].bindto= -1;
     }
 }
 
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
-    int argc = (*pargc);
-    int nb_vp;
-    int p, t, nb_total_comp_threads;
+    int argc = 0, nb_vp, p, t, nb_total_comp_threads;
     char** argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
-
 
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
@@ -298,7 +302,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* HAVE_HWLOC_BITMAP */
 #endif
 
-    {
+    if( NULL != pargc ) {
         int index = 0;
         /* Check for the upper level arguments */
         while(1) {
@@ -501,6 +505,7 @@ int dague_fini( dague_context_t** pcontext )
 #endif
 
     dague_object_empty_repository();
+    debug_mark_purge_all_history();
 
     free(context);
     *pcontext = NULL;
@@ -511,11 +516,11 @@ int dague_fini( dague_context_t** pcontext )
  * Resolve all IN() dependencies for this particular instance of execution.
  */
 static dague_dependency_t
-dague_check_IN_dependencies( const dague_object_t *dague_object,
-                             const dague_execution_context_t* exec_context )
+dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
+                                       const dague_execution_context_t* exec_context )
 {
     const dague_function_t* function = exec_context->function;
-    int i, j, mask, active;
+    int i, j, active;
     const dague_flow_t* flow;
     const dep_t* dep;
     dague_dependency_t ret = 0;
@@ -526,20 +531,28 @@ dague_check_IN_dependencies( const dague_object_t *dague_object,
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->in[i]); i++ ) {
         flow = function->in[i];
-        /* this param has no dependency condition satisfied */
-#if defined(DAGUE_SCHED_DEPS_MASK)
-        mask = (1 << flow->flow_index);
-#else
-        mask = 1;
-#endif
+
+        /**
+         * Controls and data have different logic:
+         * Flows can depend conditionally on multiple input or control.
+         * It is assumed that in the data case, one input will always become true.
+         *  So, the Input dependency is already solved if one is found with a true cond,
+         *      and depend only on the data.
+         *
+         * On the other hand, if all conditions for the control are false,
+         *  it is assumed that no control should be expected.
+         */
         if( ACCESS_NONE == flow->access_type ) {
-            active = mask;
+            active = (1 << flow->flow_index);
+            /* Control case: resolved unless we find at least one input control */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
                     assert( dep->cond->op == EXPR_OP_INLINE );
                     if( 0 == dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                        /* Cannot use control gather magic with the USE_DEPS_MASK */
+                        assert( NULL == dep->ctl_gather_nb );
                         continue;
                     }
                 }
@@ -547,6 +560,7 @@ dague_check_IN_dependencies( const dague_object_t *dague_object,
                 break;
             }
         } else {
+            /* Data case: resolved only if we found a data already ready */
             active = 0;
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
@@ -558,8 +572,86 @@ dague_check_IN_dependencies( const dague_object_t *dague_object,
                             continue;
                         }
                     }
-                    active = mask;
+                    active = (1 << flow->flow_index);
                     break;
+                }
+            }
+        }
+        ret |= active;
+    }
+    return ret;
+}
+
+static dague_dependency_t
+dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
+                                          const dague_execution_context_t* exec_context )
+{
+    const dague_function_t* function = exec_context->function;
+    int i, j, active;
+    const dague_flow_t* flow;
+    const dep_t* dep;
+    dague_dependency_t ret = 0;
+
+    if( !(function->flags & DAGUE_HAS_CTL_GATHER) &&
+        !(function->flags & DAGUE_HAS_IN_IN_DEPENDENCIES) ) {
+        /* If the number of goal does not depend on this particular task instance,
+         * it is pre-computed by the daguepp compiler
+         */
+        return function->dependencies_goal;
+    }
+
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->in[i]); i++ ) {
+        flow = function->in[i];
+
+        /**
+         * Controls and data have different logic:
+         * Flows can depend conditionally on multiple input or control.
+         * It is assumed that in the data case, one input will always become true.
+         *  So, the Input dependency is already solved if one is found with a true cond,
+         *      and depend only on the data.
+         *
+         * On the other hand, if all conditions for the control are false,
+         *  it is assumed that no control should be expected.
+         */
+        active = 0;
+        if( ACCESS_NONE == flow->access_type ) {
+            /* Control case: just count how many must be resolved */
+            for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
+                dep = flow->dep_in[j];
+                if( NULL != dep->cond ) {
+                    /* Check if the condition apply on the current setting */
+                    assert( dep->cond->op == EXPR_OP_INLINE );
+                    if( dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                        if( NULL == dep->ctl_gather_nb)
+                            active++;
+                        else {
+                            assert( dep->ctl_gather_nb->op == EXPR_OP_INLINE );
+                            active += dep->ctl_gather_nb->inline_func(dague_object, exec_context->locals);
+                        }
+                    }
+                } else {
+                    if( NULL == dep->ctl_gather_nb)
+                        active++;
+                    else {
+                        assert( dep->ctl_gather_nb->op == EXPR_OP_INLINE );
+                        active += dep->ctl_gather_nb->inline_func(dague_object, exec_context->locals);
+                    }
+                }
+            }
+        } else {
+            /* Data case: count all that do not have a direct dependence on a data */
+            for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
+                dep = flow->dep_in[j];
+                if( dep->dague->nb_parameters != 0 ) {  /* we don't count memory locations */
+                    if( NULL != dep->cond ) {
+                        /* Check if the condition apply on the current setting */
+                        assert( dep->cond->op == EXPR_OP_INLINE );
+                        if( dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                            active++;
+                        }
+                    } else {
+                        active++;
+                    }
                 }
             }
         }
@@ -586,6 +678,102 @@ static dague_dependency_t *find_deps(dague_object_t *dague_object,
     return &(deps->u.dependencies[exec_context->locals[exec_context->function->params[p]->context_index].value - deps->min]);
 }
 
+static int dague_update_deps_with_counter( dague_object_t *dague_object,
+                                           dague_execution_context_t* restrict exec_context,
+                                           dague_dependency_t *deps )
+{
+    dague_dependency_t dep_new_value, dep_cur_value;
+
+    if( 0 == *deps ) {
+        dep_new_value = dague_check_IN_dependencies_with_counter( dague_object, exec_context ) - 1;
+        if( dague_atomic_cas( deps, 0, dep_new_value ) == 1 )
+            dep_cur_value = dep_new_value;
+        else
+            dep_cur_value = dague_atomic_dec_32b( deps );
+    } else {
+        dep_cur_value = dague_atomic_dec_32b( deps );
+    }
+
+#if defined(DAGUE_DEBUG)
+    {
+        char tmp[MAX_TASK_STRLEN];
+        if( (uint32_t)dep_cur_value > (uint32_t)-128) {
+            ERROR(("function %s as reached an improbable dependency count of %u\n",
+                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), dep_cur_value ));
+        }
+    
+        DEBUG3(("Task %s has a current dependencies count of %d (remaining). It %s using the mask approach\n",
+                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
+                dep_cur_value,
+                (dep_cur_value == 0) ? "becomes ready" : "stays there waiting"));
+    }
+#endif /* DAGUE_DEBUG */
+
+    return dep_cur_value == 0;
+}
+
+static int dague_update_deps_with_mask( dague_object_t *dague_object,
+                                        dague_execution_context_t* restrict exec_context,
+                                        dague_dependency_t *deps,
+                                        const dague_execution_context_t* restrict origin,
+                                        const dague_flow_t* restrict origin_flow,
+                                        const dague_flow_t* restrict dest_flow )
+{
+#if defined(DAGUE_DEBUG_VERBOSE3) || defined(DAGUE_DEBUG)
+    char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
+#endif
+    dague_dependency_t dep_new_value, dep_cur_value;
+    const dague_function_t* function = exec_context->function;
+
+#if defined(DAGUE_DEBUG)
+    if( (*deps) & (1 << dest_flow->flow_index) ) {
+        ERROR(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
+               dest_flow->flow_index, dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, origin), origin_flow->name,
+               *deps,
+               dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, exec_context),  dest_flow->name ));
+    }
+#else
+    (void) origin; (void) origin_flow;
+#endif
+
+    assert( 0 == (*deps & (1 << dest_flow->flow_index)) );
+
+    dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | (1 << dest_flow->flow_index);
+    /* Mark the dependencies and check if this particular instance can be executed */
+    if( !(DAGUE_DEPENDENCIES_IN_DONE & (*deps)) ) {
+        dep_new_value |= dague_check_IN_dependencies_with_mask( dague_object, exec_context );
+#ifdef DAGUE_DEBUG_VERBOSE3
+        if( dep_new_value != 0 ) {
+            DEBUG3(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
+        }
+#endif /* DAGUE_DEBUG */
+    }
+
+    dep_cur_value = dague_atomic_bor( deps, dep_new_value );
+
+#if defined(DAGUE_DEBUG)
+    if( (dep_cur_value & function->dependencies_goal) == function->dependencies_goal ) {
+        int success;
+        dague_dependency_t tmp_mask;
+        tmp_mask = *deps;
+        success = dague_atomic_cas( deps,
+                                    tmp_mask, (tmp_mask | DAGUE_DEPENDENCIES_TASK_DONE) );
+        if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
+            ERROR(("Task %s scheduled twice (second time by %s)!!!\n",
+                   dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
+                   dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, origin)));
+        }
+    }
+#endif
+
+    DEBUG3(("Task %s has a current dependencies of 0x%x and a goal of 0x%x -- It %s using the mask approach\n",
+            dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
+            dep_cur_value, function->dependencies_goal,
+            ((dep_cur_value & function->dependencies_goal) == function->dependencies_goal) ?
+            "becomes ready" : "stays there waiting"));
+    return (dep_cur_value & function->dependencies_goal) == function->dependencies_goal;
+}
+
 /**
  * Release the OUT dependencies for a single instance of a task. No ranges are
  * supported and the task is supposed to be valid (no input/output tasks) and
@@ -598,73 +786,27 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_context_t* restrict exec_context,
                                           const dague_flow_t* restrict dest_flow,
                                           data_repo_entry_t* dest_repo_entry,
-                                          dague_execution_context_t** pready_list )
+                                          dague_execution_context_t** pready_ring)
 {
     const dague_function_t* function = exec_context->function;
-    dague_dependency_t dep_new_value, dep_cur_value, *deps;
+    dague_dependency_t *deps;
+    int completed;
 #if defined(DAGUE_DEBUG_VERBOSE2)
     char tmp[MAX_TASK_STRLEN];
 #endif
 
     (void)eu_context;
-    DEBUG2(("Activate dependencies for %s priority %d\n",
-            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), exec_context->priority));
+    DEBUG2(("Activate dependencies for %s flags = 0x%04x\n",
+            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), function->flags));
     deps = find_deps(dague_object, exec_context);
 
-#if !defined(DAGUE_SCHED_DEPS_MASK)
-
-    if( 0 == *deps ) {
-        dep_new_value = 1 + dague_check_IN_dependencies( dague_object, exec_context );
-        if( dague_atomic_cas( deps, 0, dep_new_value ) == 1 )
-            dep_cur_value = dep_new_value;
-        else
-            dep_cur_value = dague_atomic_inc_32b( deps );
+    if( function->flags & DAGUE_USE_DEPS_MASK ) {
+        completed = dague_update_deps_with_mask(dague_object, exec_context, deps, origin, origin_flow, dest_flow);
     } else {
-        dep_cur_value = dague_atomic_inc_32b( deps );
+        completed = dague_update_deps_with_counter(dague_object, exec_context, deps);
     }
 
-#if defined(DAGUE_DEBUG)
-    if( dep_cur_value > function->dependencies_goal ) {
-        ERROR(("function %s as reached a dependency count of %d, higher than the goal dependencies count of %d\n",
-               dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), dep_cur_value, function->dependencies_goal));
-    }
-#endif /* DAGUE_DEBUG */
-
-    if( dep_cur_value == function->dependencies_goal ) {
-
-#else  /* defined(DAGUE_SCHED_DEPS_MASK) */
-
-#if defined(DAGUE_DEBUG)
-        if( (*deps) & (1 << dest_flow->flow_index) ) {
-            char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
-
-            ERROR(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
-                   dest_flow->flow_index, dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, origin), origin_flow->name,
-                   *deps,
-                   dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, exec_context),  dest_flow->name ));
-        }
-#else
-        (void) origin; (void) origin_flow;
-#endif
-    assert( 0 == (*deps & (1 << dest_flow->flow_index)) );
-
-    dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | (1 << dest_flow->flow_index);
-    /* Mark the dependencies and check if this particular instance can be executed */
-    if( !(DAGUE_DEPENDENCIES_IN_DONE & (*deps)) ) {
-        dep_new_value |= dague_check_IN_dependencies( dague_object, exec_context );
-#ifdef DAGUE_DEBUG_VERBOSE3
-        if( dep_new_value != 0 ) {
-            DEBUG3(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
-        }
-#endif /* DAGUE_DEBUG */
-    }
-
-    dep_cur_value = dague_atomic_bor( deps, dep_new_value );
-
-    if( (dep_cur_value & function->dependencies_goal) == function->dependencies_goal ) {
-
-#endif /* defined(DAGUE_SCHED_DEPS_MASK) */
-
+    if( completed ) {
         dague_prof_grapher_dep(origin, exec_context, 1, origin_flow, dest_flow);
 
 #if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
@@ -683,6 +825,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             }
         }
 #endif  /* defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK) */
+
+        DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
 
         /* This service is ready to be executed as all dependencies
          * are solved.  Queue it into the ready_list passed as an
@@ -714,8 +858,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                    exec_context->priority));
 
             /* TODO: change this to the real number of input dependencies */
-            memset( new_context->data, 0, sizeof(dague_data_pair_t) * MAX_PARAM_COUNT );
             assert( dest_flow->flow_index <= MAX_PARAM_COUNT );
+            memset( new_context->data, 0, sizeof(dague_data_pair_t) * MAX_PARAM_COUNT );
             /**
              * Save the data_repo and the pointer to the data for later use. This will prevent the
              * engine from atomically locking the hash table for at least one of the flow
@@ -723,25 +867,22 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
              */
             new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
             new_context->data[(int)dest_flow->flow_index].data      = origin->data[(int)origin_flow->flow_index].data;
-            dague_list_add_single_elem_by_priority( pready_list, new_context );
+            if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
+                DEBUG3(("  Task %s is immediate and will be executed ASAP\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, new_context)));
+                __dague_execute(eu_context, new_context);
+                __dague_complete_execution(eu_context, new_context);
+            } else {
+                *pready_ring = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(*pready_ring),
+                                                                                             &new_context->list_item,
+                                                                                             dague_execution_context_priority_comparator );
+            }
         }
 
-        DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
-
     } else { /* Service not ready */
-
         dague_prof_grapher_dep(origin, exec_context, 0, origin_flow, dest_flow);
 
-#if defined(DAGUE_SCHED_DEPS_MASK)
-        DEBUG2(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
-                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), (int)function->dependencies_goal,
-               (int)(dep_cur_value & DAGUE_DEPENDENCIES_BITMASK),
-               (int)(dep_cur_value)));
-#else
-        DEBUG2(("  => Service %s not yet ready (requires %d dependencies, %d done)\n",
-                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
-               (int)function->dependencies_goal, dep_cur_value));
-#endif
+        DEBUG2(("  => Service %s not yet ready\n",
+                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context)));
     }
 
     return 0;
@@ -774,9 +915,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
-            void* data;
-
-            data = is_read_only(oldcontext, out_index, outdep_index);
+            void* data = is_read_only(oldcontext, out_index, outdep_index);
             if(NULL != data) {
                 arg->deps->msg.which &= ~(1 << out_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
@@ -794,6 +933,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             _array_pos = dst_rank / (8 * sizeof(uint32_t));
             _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
+            assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
                 arg->remote_deps->output[out_index].type = arena;
@@ -802,6 +942,13 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                 arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[out_index].count++;
                 arg->remote_deps_count++;
+            } else {
+                /* The bit is already flipped. This means either that we reached the same peer
+                 * several times with the same operation (broadcast), or that we reached the
+                 * same peer with two operations that dispatch the same output dependency
+                 * (aka. the same data) using distinct communication paths due to different
+                 * outdep index.
+                 */
             }
             if(newcontext->priority > arg->remote_deps->max_priority) arg->remote_deps->max_priority = newcontext->priority;
         }
@@ -846,6 +993,7 @@ char* dague_snprintf_execution_context( char* str, size_t size,
     const dague_function_t* function = task->function;
     unsigned int ip, index = 0;
 
+    assert( NULL != task->dague_object );
     index += snprintf( str + index, size - index, "%s", function->name );
     if( index >= size ) return str;
     for( ip = 0; ip < function->nb_parameters; ip++ ) {
@@ -854,7 +1002,7 @@ char* dague_snprintf_execution_context( char* str, size_t size,
                            task->locals[function->params[ip]->context_index].value );
         if( index >= size ) return str;
     }
-    index += snprintf(str + index, size - index, ")<%d>", task->priority);
+    index += snprintf(str + index, size - index, ")<%d>{%u}", task->priority, task->dague_object->object_id );
 
     return str;
 }
@@ -902,6 +1050,7 @@ int dague_get_complete_callback( const dague_object_t* dague_object,
 static volatile uint32_t object_array_lock = 0;
 static dague_object_t** object_array = NULL;
 static uint32_t object_array_size = 1, object_array_pos = 0;
+#define NOOBJECT ((void*)-1)
 
 static void dague_object_empty_repository(void)
 {
@@ -938,12 +1087,31 @@ int dague_object_register( dague_object_t* object )
     if( index >= object_array_size ) {
         object_array_size *= 2;
         object_array = (dague_object_t**)realloc(object_array, object_array_size * sizeof(dague_object_t*) );
+#if defined(DAGUE_DEBUG)
+        {
+            unsigned int i;
+            for(i = index; i < object_array_size; i++)
+                object_array[i] = NOOBJECT;
+        }
+#endif
     }
     object_array[index] = object;
     object->object_id = index;
     dague_atomic_unlock( &object_array_lock );
     (void)dague_remote_dep_new_object( object );
     return (int)index;
+}
+
+/**< Unregister the object with the engine. */
+void dague_object_unregister( dague_object_t* object )
+{
+    dague_atomic_lock( &object_array_lock );
+    assert( object->object_id < object_array_size );
+    assert( object_array[object->object_id] == object );
+    assert( object->nb_local_tasks == 0 );
+    assert( object->nb_local_tasks == 0 );
+    object_array[object->object_id] = NOOBJECT;
+    dague_atomic_unlock( &object_array_lock );
 }
 
 /**< This function is called in a body only.
@@ -964,32 +1132,16 @@ void dague_object_terminate( dague_object_t *object )
 /**< Print DAGuE usage message */
 void dague_usage(void)
 {
-    STATUS(("\n"
-            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n"
-            " --dague_bind        : define a set of core for the thread binding\n"
-            "                       accepted values:\n"
-            "                        - a core list          (exp: --dague_bind=[+]1,3,5-6)\n"
-            "                        - a hexadecimal mask   (exp: --dague_bind=[+]0xff012)\n"
-            "                        - a binding range expression: [+][start]:[end]:[step] \n"
-            "                          -> define a round-robin one thread per core distribution from start (default 0)\n"
-            "                             to end (default physical core number) by step (default 1)\n"
-            "                             (exp: --dague_bind=[+]1:7:2  bind the 6 first threads on the cores 1 3 5 2 4 6\n"
-            "                             while extra threads remain unbound)\n"
-            "                       if starts with \"+\", the communication thread will be executed on the core subset\n\n"
-            "    This option can also be used with a file (--dague_bind=file:filename) containing the mapping description for\n"
-            "    each process (as a core list, a hexadecimal mask or a binding range expression).\n"
-            "    It might be useful when multiple MPI processes per node are involved and then need distinct thread bindings.\n\n"
-            "    Warning:: The dague_bind option rely on hwloc. The core numerotation is defined between 0 and the number of cores\n Be careful when used with cgroups\n\n."
-            " --dague_bind_comm   : define the core the communication thread will be bound on (prevail over --dague_bind)\n"
+    fprintf(stderr,"\n"
+            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n\n" 
+            "     --dague_bind_comm   : define the core the communication thread will be bound on\n"
             "\n"
-
-
-
-            /* " --dague_verbose     : extra verbose output\n" */
-            /* " --dague_papi        : enable PAPI\n" */
-            " --dague_help         : this message\n"
+            "     Warning:: The binding options rely on hwloc. The core numerotation is defined between 0 and the number of cores.\n"
+            "     Be careful when used with cgroups.\n"
             "\n"
-            ));
+            "     --dague_help         : this message\n"
+            "\n"
+            );
 }
 
 

@@ -387,6 +387,9 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
     int ret, i, whereto;
 
     exec_context.dague_object = dague_object_lookup( origin->msg.object_id );
+#if defined(DAGUE_DEBUG)
+    exec_context.priority = 0;
+#endif
     assert(exec_context.dague_object); /* Future: for composition, store this in a list to be considered upon creation of the DO*/
     exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
     for( i = 0; i < exec_context.function->nb_definitions; i++)
@@ -600,6 +603,7 @@ static void remote_dep_mpi_profiling_init(void)
         dague_execution_context_t __exec_context;                       \
         dague_object_t *__object = dague_object_lookup( ctx.object_id ); \
         __exec_context.function = __object->functions_array[ ctx.function_id ]; \
+        __exec_context.dague_object = __object;                         \
         memcpy(&__exec_context.locals, ctx.locals, MAX_LOCAL_COUNT * sizeof(assignment_t)); \
         dague_snprintf_execution_context(__info.func, 16, &__exec_context);      \
         __info.rank_src = src;                                          \
@@ -791,7 +795,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         if(NULL == deps->output[k].type) {
             DEBUG2((" CTL\t%s\tparam %d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             msg->which ^= (1<<k);
-            remote_dep_complete_one_and_cleanup(deps);
+            remote_dep_complete_and_cleanup(deps, 1);
             continue;
         }
 
@@ -802,7 +806,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
             DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             msg->which ^= (1<<k);
             MPI_Pack(ADATA(deps->output[k].data), deps->output[k].nbelt, deps->output[k].type->opaque_dtt, packed_buffer, DEP_EAGER_BUFFER_SIZE, &packed, dep_comm);
-            remote_dep_complete_one_and_cleanup(deps);
+            remote_dep_complete_and_cleanup(deps, 1);
         }
     }
 
@@ -824,7 +828,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
 
 static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
 {
-#ifdef DAGUE_DEBUG_VERBOSE1
+#ifdef DAGUE_DEBUG_VERBOSE2
     char tmp[MAX_TASK_STRLEN];
 #endif
     MPI_Status *status;
@@ -1040,7 +1044,7 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, in
     if( 0 == task->which ) {
         remote_dep_dec_flying_messages(deps->dague_object, eu_context->virtual_process->dague_context);
     }
-    remote_dep_complete_one_and_cleanup(deps);
+    remote_dep_complete_and_cleanup(deps, 1);
     if( 0 == task->which ) {
         free(item);
         dep_pending_put_array[i] = NULL;
@@ -1254,20 +1258,20 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
 #  ifdef DAGUE_DEBUG_VERBOSE2
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s nbelt %d extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), i, k, task->deps, ADATA(data), type_name, nbdtt, deps->output[k].type->elem_size * nbdtt, msg.tag+k));
+#  endif
         TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from,
                             eu_context->virtual_process->dague_context->my_rank, deps->msg);
-#  endif /* defined(DAGUE_PROF_TRACE) */
+        DEBUG_MARK_DTA_MSG_START_RECV(from, data, msg.tag+k);
         MPI_Irecv(ADATA(data), nbdtt,
                   dtt, from, msg.tag+k, dep_comm,
                   &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
-        DEBUG_MARK_DTA_MSG_START_RECV(from, data, msg.tag+k);
 #endif
     }
     if(msg.which)
     {
         TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Data_ctl_sk, get,
                             from, eu_context->virtual_process->dague_context->my_rank, (*task)); 
-       DAGUE_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, datakey_count, datakey_dtt);
+        DAGUE_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, datakey_count, datakey_dtt);
         MPI_Send(&msg, datakey_count, datakey_dtt, from,
                  REMOTE_DEP_GET_DATA_TAG, dep_comm);
         assert(NULL == dep_pending_recv_array[i]);
@@ -1370,5 +1374,3 @@ int remote_dep_bind_thread(dague_context_t* context){
 #endif /* NO HAVE_HWLOC */
     return 0;
 }
-
-

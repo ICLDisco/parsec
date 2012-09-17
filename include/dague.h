@@ -17,10 +17,10 @@ typedef struct dague_execution_unit      dague_execution_unit_t;    /**< Each vi
 typedef struct dague_vp                  dague_vp_t;                /**< Each MPI process includes multiple virtual processes (and a single comm. thread) */
 typedef struct dague_context_t           dague_context_t;           /**< The general context that holds all the threads of dague for this MPI process */
 
-typedef void* (*dague_allocate_data_t)(size_t matrix_size);
-typedef void (*dague_free_data_t)(void *data);
-extern dague_allocate_data_t dague_data_allocate;
-extern dague_free_data_t     dague_data_free;
+typedef void* (*dague_data_allocate_t)(size_t matrix_size);
+typedef void (*dague_data_free_t)(void *data);
+extern dague_data_allocate_t dague_data_allocate;
+extern dague_data_free_t     dague_data_free;
 
 typedef void (*dague_startup_fn_t)(dague_context_t *context,
                                    dague_object_t *dague_object,

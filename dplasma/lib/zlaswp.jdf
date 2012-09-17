@@ -36,33 +36,33 @@ inc       [type = "int"]
  *                              SWAP                                                *
  ************************************************************************************/
 
-IPIV_in(k) [profile = off]
-  k = 0..descIP.mt-1
+LASWP_IPIV_in(k) [profile = off]
+  k = 0..descIP.nt-1
 
-:IPIV(k, 0)
+:IPIV(0, k)
 
-READ IP <- IPIV(k, 0)                     [type = PIVOT]
-        -> IPIV laswp(k, 0..descA.nt-1)   [type = PIVOT]
+READ IP <- IPIV(0, k)                     [type = PIVOT]
+        -> IPIV LASWP_laswp(k, 0..descA.nt-1)   [type = PIVOT]
 
 BODY
     /**/
 END
 
 
-laswp(k, n)
+LASWP_laswp(k, n)
   /* Execution space */
-  k = 0..descIP.mt-1
+  k = 0..descIP.nt-1
   n = 0..descA.nt-1
 
   /* Locality */
   :A(k, n)
 
   READ  A    <- A(k, n)
-  READ  IPIV <- IP IPIV_in(k)                              [type = PIVOT]
-  CTL   ctl  <- ( (inc > 0) && (k > 0 )          ) ? ctl laswp(k-1, n)
-             <- ( (inc < 0) && (k < descIP.mt-1 )) ? ctl laswp(k+1, n)
-             -> ( (inc > 0) && (k < descIP.mt-1 )) ? ctl laswp(k+1, n)
-             -> ( (inc < 0) && (k > 0 )          ) ? ctl laswp(k-1, n)
+  READ  IPIV <- IP LASWP_IPIV_in(k)                              [type = PIVOT]
+  CTL   ctl  <- ( (inc > 0) && (k > 0 )          ) ? ctl LASWP_laswp(k-1, n)
+             <- ( (inc < 0) && (k < descIP.nt-1 )) ? ctl LASWP_laswp(k+1, n)
+             -> ( (inc > 0) && (k < descIP.nt-1 )) ? ctl LASWP_laswp(k+1, n)
+             -> ( (inc < 0) && (k > 0 )          ) ? ctl LASWP_laswp(k-1, n)
 
 BODY
 

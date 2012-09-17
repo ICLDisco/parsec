@@ -27,7 +27,7 @@
 #include <linux/unistd.h>
 #endif  /* defined(HAVE_SCHED_SETAFFINITY) */
 #if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
-#define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), NULL)
+#define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), -1, NULL)
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
@@ -81,6 +81,7 @@ int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context
 {
     int remaining;
 
+    assert( dague_object->nb_local_tasks != 0 );
     remaining = dague_atomic_dec_32b( &(dague_object->nb_local_tasks) );
     if( 0 == remaining ) {
         /* A dague object has been completed. Call the attached callback if
@@ -257,10 +258,10 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
         if( exec_context != NULL ) {
-			  // DEBUG PETER
-			  assert(NULL != exec_context->function);
-			  misses_in_a_row = 0;
-
+            // DEBUG PETER
+            assert(NULL != exec_context->function);
+            misses_in_a_row = 0;
+                          
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
             {
                 uint32_t my_idx = dague_atomic_inc_32b(&sched_priority_trace_counter);
@@ -273,10 +274,10 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             }
 #endif
 
-				// MY MODS
-				TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
-				TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
-
+            // MY MODS
+            TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
+            TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
+            
             /* We're good to go ... */
             if( 0 == __dague_execute( eu_context, exec_context ) ) {
                 __dague_complete_execution( eu_context, exec_context );

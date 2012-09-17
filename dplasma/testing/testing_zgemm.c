@@ -10,9 +10,12 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
-                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB,
-                          Dague_Complex64_t beta, two_dim_block_cyclic_t *ddescC, two_dim_block_cyclic_t *ddescCfinal);
+static int check_solution( dague_context_t *dague, int loud,
+                           PLASMA_enum transA, PLASMA_enum transB,
+                           dague_complex64_t alpha, int Am, int An, int Aseed,
+                                                    int Bm, int Bn, int Bseed,
+                           dague_complex64_t beta,  int M,  int N,  int Cseed,
+                           two_dim_block_cyclic_t *ddescCfinal );
 
 int main(int argc, char ** argv)
 {
@@ -23,7 +26,7 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
     iparam_default_ibnbmb(iparam, 0, 200, 200);
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
+#if defined(HAVE_CUDA) && 1
     iparam[IPARAM_NGPUS] = 0;
 #endif
     /* Initialize DAGuE */
@@ -34,8 +37,8 @@ int main(int argc, char ** argv)
 
     int tA = PlasmaNoTrans;
     int tB = PlasmaNoTrans;
-    Dague_Complex64_t alpha =  0.51;
-    Dague_Complex64_t beta  = -0.42;
+    dague_complex64_t alpha =  0.51;
+    dague_complex64_t beta  = -0.42;
 
     LDA = max(LDA, max(M, K));
     LDB = max(LDB, max(K, N));
@@ -65,6 +68,27 @@ int main(int argc, char ** argv)
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC, 2873);
         if(loud > 2) printf("Done\n");
 
+    /* load the GPU kernel */
+#if defined(HAVE_CUDA)
+        if(iparam[IPARAM_NGPUS] > 0) {
+            if(loud > 3) printf("+++ Load GPU kernel ... ");
+            if(0 != gpu_kernel_init_zgemm(dague)) {
+                printf("XXX Unable to load GPU kernel.\n");
+                exit(3);
+            }
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescC,
+                                    MT*NT, MB*NB*sizeof(dague_complex64_t));
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescA,
+                                    MT*KT, MB*NB*sizeof(dague_complex64_t));
+            dague_gpu_data_register(dague,
+                                    (dague_ddesc_t*)&ddescB,
+                                    KT*NT, MB*NB*sizeof(dague_complex64_t));
+            if(loud > 3) printf("Done\n");
+        }
+#endif
+
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgemm,
                                            (tA, tB, alpha,
@@ -77,6 +101,15 @@ int main(int argc, char ** argv)
         PASTE_CODE_PROGRESS_KERNEL(dague, zgemm);
 
         dplasma_zgemm_Destruct( DAGUE_zgemm );
+
+#if defined(HAVE_CUDA) 
+        if(iparam[IPARAM_NGPUS] > 0) {
+            dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
+            dague_gpu_data_unregister((dague_ddesc_t*)&ddescB);
+            dague_gpu_data_unregister((dague_ddesc_t*)&ddescC);
+            dague_gpu_kernel_fini(dague, "zgemm");
+        }
+#endif
 
         dague_data_free(ddescA.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
@@ -139,10 +172,10 @@ int main(int argc, char ** argv)
                 /* Create GEMM DAGuE */
                 if(loud) printf("Compute ... ... ");
                 dplasma_zgemm(dague, trans[tA], trans[tB],
-                              (Dague_Complex64_t)alpha,
+                              (dague_complex64_t)alpha,
                               (tiled_matrix_desc_t *)&ddescA,
                               (tiled_matrix_desc_t *)&ddescB,
-                              (Dague_Complex64_t)beta,
+                              (dague_complex64_t)beta,
                               (tiled_matrix_desc_t *)&ddescC);
                 if(loud) printf("Done\n");
 
@@ -189,9 +222,12 @@ int main(int argc, char ** argv)
 /*------------------------------------------------------------------------
  *  Check the accuracy of the solution
  */
-static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
-                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB,
-                          Dague_Complex64_t beta, two_dim_block_cyclic_t *ddescC, two_dim_block_cyclic_t *ddescCfinal )
+static int check_solution( dague_context_t *dague, int loud,
+                           PLASMA_enum transA, PLASMA_enum transB,
+                           dague_complex64_t alpha, int Am, int An, int Aseed,
+                                                    int Bm, int Bn, int Bseed,
+                           dague_complex64_t beta,  int M,  int N,  int Cseed,
+                           two_dim_block_cyclic_t *ddescCfinal )
 {
     int info_solution;
     double Anorm, Bnorm, Cinitnorm, Cdplasmanorm, Clapacknorm, Rnorm;
@@ -237,27 +273,42 @@ static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
     Cinitnorm    = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M,  N,  Cinit,  LDC, work);
     Cdplasmanorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M,  N,  Cfinal, LDC, work);
 
-    cblas_zgemm(CblasColMajor,
-                (CBLAS_TRANSPOSE)transA, (CBLAS_TRANSPOSE)transB,
-                M, N, K, CBLAS_SADDR(alpha), A, LDA, B, LDB,
-                CBLAS_SADDR(beta), Cinit, LDC);
+    if ( rank == 0 ) {
+        cblas_zgemm(CblasColMajor,
+                    (CBLAS_TRANSPOSE)transA, (CBLAS_TRANSPOSE)transB,
+                    M, N, K,
+                    CBLAS_SADDR(alpha), ddescA.mat, LDA,
+                                        ddescB.mat, LDB,
+                    CBLAS_SADDR(beta),  ddescC.mat, LDC );
+    }
 
     Clapacknorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, Cinit, LDC, work);
 
-    cblas_zaxpy(LDC * N, CBLAS_SADDR(mzone), Cinit, 1, Cfinal, 1);
-    Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, Cfinal, LDC, work);
+    dplasma_zgeadd( dague, PlasmaUpperLower, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
+                                                   (tiled_matrix_desc_t*)&ddescC );
 
-    if (getenv("DPLASMA_TESTING_VERBOSE"))
-        printf("Rnorm %e, Anorm %e, Bnorm %e, Cinit %e, Cdplasmanorm %e, Clapacknorm %e\n",
-               Rnorm, Anorm, Bnorm, Cinitnorm, Cdplasmanorm, Clapacknorm);
+    Rnorm = dplasma_zlange( dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&ddescC);
 
-    result = Rnorm / ((Anorm + Bnorm + Cinitnorm) * max(M,N) * eps);
-    if (  isinf(Clapacknorm) || isinf(Cdplasmanorm) || isnan(result) || isinf(result) || (result > 10.0) ) {
-        info_solution = 1;
+    if ( rank == 0 ) {
+        if ( loud > 2 ) {
+            printf("  ||A||_inf = %e, ||B||_inf = %e, ||C||_inf = %e\n"
+                   "  ||lapack(a*A*B+b*C)||_inf = %e, ||dplasma(a*A*B+b*C)||_inf = %e, ||R||_m = %e\n",
+                   Anorm, Bnorm, Cinitnorm, Clapacknorm, Cdplasmanorm, Rnorm);
+        }
+
+        result = Rnorm / ((Anorm + Bnorm + Cinitnorm) * max(M,N) * eps);
+        if (  isinf(Clapacknorm) || isinf(Cdplasmanorm) ||
+              isnan(result) || isinf(result) || (result > 10.0) ) {
+            info_solution = 1;
+        }
+        else {
+            info_solution = 0;
+        }
     }
-    else{
-        info_solution = 0;
-    }
+
+#if defined(HAVE_MPI)
+    MPI_Bcast(&info_solution, 1, MPI_INT, 0, MPI_COMM_WORLD);
+#endif
 
     free(work);
     free(A);

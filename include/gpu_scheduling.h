@@ -18,7 +18,6 @@
 #include <errno.h>
 #include "lifo.h"
 
-extern dague_gpu_data_map_t dague_gpu_map;
 extern volatile uint32_t dague_cpu_counter;
 extern gpu_device_t** gpu_enabled_devices;
 

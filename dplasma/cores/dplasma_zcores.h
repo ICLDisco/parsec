@@ -10,9 +10,9 @@
 #define _DPLASMA_Z_CORES_H
 
 int blgchase_ztrdv2(int NT, int N, int NB,
-                   Dague_Complex64_t *A1, Dague_Complex64_t *A2,
-                   Dague_Complex64_t *V1, Dague_Complex64_t *TAU1,
-                   Dague_Complex64_t *V2, Dague_Complex64_t *TAU2,
+                   dague_complex64_t *A1, dague_complex64_t *A2,
+                   dague_complex64_t *V1, dague_complex64_t *TAU1,
+                   dague_complex64_t *V2, dague_complex64_t *TAU2,
                    int sweep, int id, int blktile);
 
 int CORE_zgetrf_rectil_1thrd(const PLASMA_desc A, int *IPIV);
@@ -21,7 +21,7 @@ int dplasmacore_zgetrf_rectil(volatile Dague_Complex64_t *amax1buf,
                               const tiled_matrix_desc_t *A, int *IPIV, int *info);
 
 int CORE_zplssq(int M, int N,
-                Dague_Complex64_t *A, int LDA,
+                dague_complex64_t *A, int LDA,
                 double *scale, double *sumsq);
 
 #endif /* _DPLASMA_Z_CORES_ */

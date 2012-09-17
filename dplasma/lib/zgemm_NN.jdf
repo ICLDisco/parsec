@@ -20,6 +20,11 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
+#if defined(HAVE_CUDA)
+#include "gpu_data.h"
+#include "dplasma/cores/cuda_zgemm.h"
+extern int *gpu_counter;
+#endif  /* defined(HAVE_CUDA) */
 %}
 
 /*
@@ -28,8 +33,8 @@ extern "C" %{
 transA [type = int]
 transB [type = int]
 
-alpha  [type = Dague_Complex64_t]
-beta   [type = Dague_Complex64_t]
+alpha  [type = dague_complex64_t]
+beta   [type = dague_complex64_t]
 
 descA [type = "tiled_matrix_desc_t"]
 A     [type = "dague_ddesc_t *"]
@@ -91,13 +96,38 @@ READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC.mt-1) % descC.
 RW   C <- (k == 0)            ? C(m, n) : C GEMM( m, n, k-1 )
        -> (k == (descA.nt-1)) ? C(m, n) : C GEMM( m, n, k+1 )
 BODY
-        Dague_Complex64_t lbeta = (k == 0) ? beta : (Dague_Complex64_t)1.0;
+        dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
         int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
         int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
         int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
         int ldam = BLKLDD(descA, m);
         int ldbk = BLKLDD(descB, k);
         int ldcm = BLKLDD(descC, m);
+
+#if defined(HAVE_CUDA)
+    if( dague_active_gpu() > 0 ) {
+        int rc;
+
+        if( 0 == (rc = gpu_zgemm( context, this_task, 
+                                  ( n == k+1 ),
+                                  transA, transB,
+                                  tempmm, tempnn, tempkk,
+                                  alpha, m, k, &descA, ldam,
+                                         k, n, &descB, ldbk,
+                                  lbeta, m, n, &descC, ldcm)) )
+            goto FIN;
+        if( -1 == rc ) {
+            /* The task is pending in the device, and will be subsequently completed */
+            return -1;
+        }
+        if( -2 == rc ) {
+            /* The GPU failed to execute this task, but the task was already rescheduled */
+	        fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
+	        exit(2);
+        }
+    }
+    moesi_master_update( descC.super.moesi_map, GEMM_KEY( &descC, m, n) );
+#endif  /* defined(HAVE_CUDA) */
 
         DRYRUN(
             CORE_zgemm(
@@ -108,14 +138,19 @@ BODY
                 lbeta, C /*C(m, n)*/, ldcm);
             );
 
-        printlog("thread %d VP %d gemm( %d, %d, %d )\n"
+        printlog("gemm( %d, %d, %d )\n"
                  "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
-                 context->th_id, context->virtual_process->vp_id, m, n, k,
+                 m, n, k,
                  plasma_const( transA ), plasma_const( transB ), 
                  tempmm, tempnn, tempkk,
                  creal(alpha), m, k, ldam,
                                k, n, ldbk,
                  creal(lbeta), m, n, ldcm );
+
+#if defined(HAVE_CUDA)
+FIN:
+#endif  /* defined(HAVE_CUDA) */
+
 END
 
 extern "C" %{

@@ -27,13 +27,13 @@ int main(int argc, char *argv[])
     world = 1;
     rank = 0;
 #endif
-    cores = 8;
+    cores = 1;
     dague = dague_init(cores, &argc, &argv);
 
     size = 256;
     nb   = 4 * world;
 
-    ddescA = create_and_distribute_data(rank, world, cores, size);
+    ddescA = create_and_distribute_data(rank, world, cores, size, 1);
     dague_ddesc_set_key(ddescA, "A");
     
     rtt = rtt_new(ddescA, size, nb);

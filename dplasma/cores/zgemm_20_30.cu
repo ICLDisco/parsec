@@ -149,9 +149,9 @@
 
 extern "C" void
 GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
-                                 Dague_Complex64_t alpha, Dague_Complex64_t *d_A, int lda,
-                                                          Dague_Complex64_t *d_B, int ldb,
-                                 Dague_Complex64_t beta,  Dague_Complex64_t *d_C, int ldc,
+                                 dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
+                                                          dague_complex64_t *d_B, int ldb,
+                                 dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,
                                  CUstream stream )
 {
     if (m<=0 || n<=0 || k<=0)
@@ -222,9 +222,9 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
     tex_ref_B.addressMode[0] = cudaAddressModeClamp;
     
     // Bind A and B to texture references
-    assert(cudaBindTexture(&offsetA, tex_ref_A, d_A, sizeA*sizeof(Dague_Complex64_t)) 
+    assert(cudaBindTexture(&offsetA, tex_ref_A, d_A, sizeA*sizeof(dague_complex64_t)) 
            == cudaSuccess);
-    assert(cudaBindTexture(&offsetB, tex_ref_B, d_B, sizeB*sizeof(Dague_Complex64_t))
+    assert(cudaBindTexture(&offsetB, tex_ref_B, d_B, sizeB*sizeof(dague_complex64_t))
            == cudaSuccess);
 #endif
 

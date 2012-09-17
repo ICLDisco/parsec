@@ -25,7 +25,6 @@ extern "C" %{
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
-extern dague_gpu_data_map_t dague_gpu_map;
 #endif  /* defined(HAVE_CUDA) */
 %}
 
@@ -58,7 +57,7 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 
 BODY
 #if defined(HAVE_CUDA)
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, k, k) );
+    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, k, k) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
@@ -74,8 +73,8 @@ BODY
          );
 
     printlog(
-             "thread %d VP %d CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d)\n",
-             context->th_id, context->virtual_process->vp_id, k,
+             "CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d)\n",
+             k,
              plasma_const(uplo), tempkm, k, k, T, descA.mb );
 END
 
@@ -105,7 +104,7 @@ RW    C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, k)
 
 BODY
 #if defined(HAVE_CUDA)
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, m, k) );
+    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, m, k) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
@@ -115,12 +114,12 @@ BODY
         CORE_ztrsm(
             PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit,
             tempmm, descA.nb,
-            (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
+            (dague_complex64_t)1.0, T /*A(k, k)*/, ldak,
                                     C /*A(m, k)*/, ldam);
         );
 
-    printlog("thread %d VP %d CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
-             context->th_id, context->virtual_process->vp_id, m, k,
+    printlog("CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
+             m, k,
              plasma_const( PlasmaRight ), plasma_const( PlasmaLower ),
              plasma_const( PlasmaConjTrans ), plasma_const( PlasmaNonUnit ),
              tempmm, descA.nb,
@@ -152,7 +151,7 @@ RW    T <- (k == 0)   ? A(m, m)    : T HERK(k-1, m)
 
 BODY
 #if defined(HAVE_CUDA)
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, m, m) );
+    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, m, m) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m*descA.mb : descA.mb;
@@ -166,8 +165,8 @@ BODY
             (double) 1.0, T /*A(m, m)*/, ldam);
         );
     printlog(
-             "thread %d VP %d CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             context->th_id, context->virtual_process->vp_id, k, m,
+             "CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+             k, m,
              plasma_const( PlasmaLower ), plasma_const( PlasmaNoTrans ),
              tempmm, descA.mb,
              -1.0, m, k, A, ldam,
@@ -210,9 +209,9 @@ BODY
                                   ( n == k+1 ),
                                   PlasmaNoTrans, PlasmaConjTrans,
                                   tempmm, descA.mb, descA.mb,
-                                  (Dague_Complex64_t)-1.0, m, k, &descA, ldam,
+                                  (dague_complex64_t)-1.0, m, k, &descA, ldam,
                                                            n, k, &descA, ldan,
-                                  (Dague_Complex64_t) 1.0, m, n, &descA, ldam)) )
+                                  (dague_complex64_t) 1.0, m, n, &descA, ldam)) )
             goto FIN;
         if( -1 == rc ) {
             /* The task is pending in the device, and will be subsequently completed */
@@ -224,19 +223,19 @@ BODY
 	    exit(2);
         }
     }
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, m, n) );
+    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, m, n) );
 #endif  /* defined(HAVE_CUDA) */
 
     DRYRUN(
         CORE_zgemm(
             PlasmaNoTrans, PlasmaConjTrans,
             tempmm, descA.mb, descA.mb,
-            (Dague_Complex64_t)-1.0, A /*A(m, k)*/, ldam,
+            (dague_complex64_t)-1.0, A /*A(m, k)*/, ldam,
                                      B /*A(n, k)*/, ldan,
-            (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam);
+            (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
         );
-    printlog("thread %d VP %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n,
+    printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+             k, m, n,
              plasma_const( PlasmaNoTrans ),  plasma_const( PlasmaConjTrans ),
              tempmm, descA.mb, descA.mb,
              -1.0, m, k, A, ldam,

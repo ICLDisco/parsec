@@ -93,7 +93,7 @@ int main(int argc, char ** argv)
 
 #if defined(DAGUE_SIM)
     if ( rank == 0 ) {
-        Dague_Complex64_t *mat = ddescA.mat;
+        dague_complex64_t *mat = ddescA.mat;
 
         if (0)
         {

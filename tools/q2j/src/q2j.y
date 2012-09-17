@@ -11,6 +11,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include "jdf.h"
 #include "node_struct.h"
 #include "utility.h"
 #include "omega_interface.h"

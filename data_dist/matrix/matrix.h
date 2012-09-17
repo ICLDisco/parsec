@@ -36,8 +36,8 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
     case matrix_Integer       : return sizeof(int);
     case matrix_RealFloat     : return sizeof(float);
     case matrix_RealDouble    : return sizeof(double);
-    case matrix_ComplexFloat  : return sizeof(Dague_Complex32_t);
-    case matrix_ComplexDouble : return sizeof(Dague_Complex64_t);
+    case matrix_ComplexFloat  : return sizeof(dague_complex32_t);
+    case matrix_ComplexDouble : return sizeof(dague_complex64_t);
     default:
         return -1;
     }
@@ -82,6 +82,7 @@ static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
 {
     assert( vpmap_get_nb_vp() > 0 );
     assert( pos <= tdesc->nb_local_tiles );
+    (void)tdesc;
     return pos % vpmap_get_nb_vp();
 }
 

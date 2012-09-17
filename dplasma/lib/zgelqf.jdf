@@ -28,8 +28,8 @@ A      [type = "dague_ddesc_t *"]
 descT  [type = "tiled_matrix_desc_t"]
 T      [type = "dague_ddesc_t *" aligned=A]
 ib     [type = "int"]
-p_work [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*ib*descT.nb)"]
-p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)   *descT.nb)"]
+p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*ib*descT.nb)"]
+p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)   *descT.nb)"]
 
 
 zgelqt_typechange(k)
@@ -87,9 +87,9 @@ BODY
          dague_private_memory_push( p_work, p_elem_B );
          );
 
-  printlog("thread %d VP %d CORE_zgelqt(%d)\n"
+  printlog("CORE_zgelqt(%d)\n"
            "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-  context->th_id, context->virtual_process->vp_id, k, k, k, A, k, k, B);
+           k, k, k, A, k, k, B);
 END
 
 zunmlq(k,m)
@@ -134,9 +134,9 @@ BODY
          );
 
 
-  printlog("thread %d  VP %d CORE_zunmlq(%d, %d)\n"
+  printlog("CORE_zunmlq(%d, %d)\n"
            "\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldam, p_elem_A, descT.nb)\n",
-  context->th_id, context->virtual_process->vp_id, k, m, k, k, C, k, k, D, m, k, E);
+  k, m, k, k, C, k, k, D, m, k, E);
 
 END
 
@@ -184,9 +184,9 @@ BODY
          dague_private_memory_push( p_work, p_elem_B );
          );
 
-  printlog("thread %d VP %d CORE_ztslqt(%d, %d)\n"
+  printlog("CORE_ztslqt(%d, %d)\n"
            "\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-  context->th_id, context->virtual_process->vp_id, k, n, k, k, F, k, n, G, k, n, H);
+  k, n, k, k, F, k, n, G, k, n, H);
 
 END
 
@@ -258,9 +258,9 @@ BODY
          dague_private_memory_push( p_work, p_elem_A );
          );
 
-  printlog("thread  %d VP %d  CORE_ztsmlq(%d, %d, %d)\n"
+  printlog("CORE_ztsmlq(%d, %d, %d)\n"
            "\t(PlasmaRight, PlasmaConjTrans, tempmm, descA.nb, tempmm, tempnn, descA.mb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-  context->th_id, context->virtual_process->vp_id, k, n, m1, m1, k, J, m1, n, K, k, n, L, k, n, M);
+           k, n, m1, m1, k, J, m1, n, K, k, n, L, k, n, M);
 
 END
 

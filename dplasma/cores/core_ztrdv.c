@@ -29,36 +29,36 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define  DLARFG      zlarfg_
-extern void DLARFG(int *N, Dague_Complex64_t *ALPHA, Dague_Complex64_t *X, int *INCX, Dague_Complex64_t *TAU);
+extern void DLARFG(int *N, dague_complex64_t *ALPHA, dague_complex64_t *X, int *INCX, dague_complex64_t *TAU);
 
-void band_to_trd_vmpi1(int N, int NB, Dague_Complex64_t *A, int LDA);
-void band_to_trd_vmpi2(int N, int NB, Dague_Complex64_t *A, int LDA);
-void band_to_trd_v8seq(int N, int NB, Dague_Complex64_t *A, int LDA, int INgrsiz, int INthgrsiz);
-int TRD_seqgralgtype(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Complex64_t *C, Dague_Complex64_t *S, int i, int j, int m, int grsiz, int BAND);
-int blgchase_ztrdv1(int NT, int N, int NB, Dague_Complex64_t *A, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int sweep, int id, int blktile);
-int blgchase_ztrdv2(int NT, int N, int NB, Dague_Complex64_t *A1, Dague_Complex64_t *A2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, Dague_Complex64_t *V2, Dague_Complex64_t *TAU2, int sweep, int id, int blktile);
+void band_to_trd_vmpi1(int N, int NB, dague_complex64_t *A, int LDA);
+void band_to_trd_vmpi2(int N, int NB, dague_complex64_t *A, int LDA);
+void band_to_trd_v8seq(int N, int NB, dague_complex64_t *A, int LDA, int INgrsiz, int INthgrsiz);
+int TRD_seqgralgtype(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *C, dague_complex64_t *S, int i, int j, int m, int grsiz, int BAND);
+int blgchase_ztrdv1(int NT, int N, int NB, dague_complex64_t *A, dague_complex64_t *V, dague_complex64_t *TAU, int sweep, int id, int blktile);
+int blgchase_ztrdv2(int NT, int N, int NB, dague_complex64_t *A1, dague_complex64_t *A2, dague_complex64_t *V1, dague_complex64_t *TAU1, dague_complex64_t *V2, dague_complex64_t *TAU2, int sweep, int id, int blktile);
 
 int CORE_zlarfx2(int side, int N,
-                Dague_Complex64_t V,
-                Dague_Complex64_t TAU,
-                Dague_Complex64_t *C1, int LDC1,
-                Dague_Complex64_t *C2, int LDC2);
+                dague_complex64_t V,
+                dague_complex64_t TAU,
+                dague_complex64_t *C1, int LDC1,
+                dague_complex64_t *C2, int LDC2);
 
 int CORE_zlarfx2c(int uplo,
-                Dague_Complex64_t V,
-                Dague_Complex64_t TAU,
-                Dague_Complex64_t *C1,
-                Dague_Complex64_t *C2,
-                Dague_Complex64_t *C3);
+                dague_complex64_t V,
+                dague_complex64_t TAU,
+                dague_complex64_t *C1,
+                dague_complex64_t *C2,
+                dague_complex64_t *C3);
 
-static void CORE_zhbtelr(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_Complex64_t *A2, int LDA2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, int st, int ed);
-static void CORE_zhbtrce(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_Complex64_t *A2, int LDA2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, Dague_Complex64_t *V2, Dague_Complex64_t *TAU2, int st, int ed, int edglob);
-static void CORE_zhbtlrx(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_Complex64_t *A2, int LDA2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, int st, int ed);
+static void CORE_zhbtelr(int N, int NB, dague_complex64_t *A1, int LDA1, dague_complex64_t *A2, int LDA2, dague_complex64_t *V1, dague_complex64_t *TAU1, int st, int ed);
+static void CORE_zhbtrce(int N, int NB, dague_complex64_t *A1, int LDA1, dague_complex64_t *A2, int LDA2, dague_complex64_t *V1, dague_complex64_t *TAU1, dague_complex64_t *V2, dague_complex64_t *TAU2, int st, int ed, int edglob);
+static void CORE_zhbtlrx(int N, int NB, dague_complex64_t *A1, int LDA1, dague_complex64_t *A2, int LDA2, dague_complex64_t *V1, dague_complex64_t *TAU1, int st, int ed);
 
-static void DLARFX_C(char side, int N, Dague_Complex64_t V, Dague_Complex64_t TAU, Dague_Complex64_t *C, int LDC);
-static void TRD_type1bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int st, int ed);
-static void TRD_type2bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int st, int ed);
-static void TRD_type3bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int st, int ed);
+static void DLARFX_C(char side, int N, dague_complex64_t V, dague_complex64_t TAU, dague_complex64_t *C, int LDC);
+static void TRD_type1bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *V, dague_complex64_t *TAU, int st, int ed);
+static void TRD_type2bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *V, dague_complex64_t *TAU, int st, int ed);
+static void TRD_type3bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *V, dague_complex64_t *TAU, int st, int ed);
 
 
 
@@ -66,14 +66,14 @@ static void TRD_type3bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Com
 
 
 int CORE_zlarfx2(int side, int N,
-                Dague_Complex64_t V,
-                Dague_Complex64_t TAU,
-                Dague_Complex64_t *C1, int LDC1,
-                Dague_Complex64_t *C2, int LDC2)
+                dague_complex64_t V,
+                dague_complex64_t TAU,
+                dague_complex64_t *C1, int LDC1,
+                dague_complex64_t *C2, int LDC2)
 {
-    static Dague_Complex64_t zzero = 0.0;
+    static dague_complex64_t zzero = 0.0;
     int    J;
-    Dague_Complex64_t V2, T2, SUM;
+    dague_complex64_t V2, T2, SUM;
 
     /* Quick return */
     /*
@@ -111,14 +111,14 @@ int CORE_zlarfx2(int side, int N,
  *
  **/
 int CORE_zlarfx2c(int uplo,
-                Dague_Complex64_t V,
-                Dague_Complex64_t TAU,
-                Dague_Complex64_t *C1,
-                Dague_Complex64_t *C2,
-                Dague_Complex64_t *C3)
+                dague_complex64_t V,
+                dague_complex64_t TAU,
+                dague_complex64_t *C1,
+                dague_complex64_t *C2,
+                dague_complex64_t *C3)
 {
-    static Dague_Complex64_t zzero = 0.0;
-    Dague_Complex64_t T2, SUM, TEMP;
+    static dague_complex64_t zzero = 0.0;
+    dague_complex64_t T2, SUM, TEMP;
 
     /* Quick return */
     if (TAU == zzero)
@@ -199,9 +199,9 @@ int CORE_zlarfx2c(int uplo,
 ///////////////////////////////////////////////////////////
 //                  DLARFX en C 
 ///////////////////////////////////////////////////////////
-static void DLARFX_C(char side, int N, Dague_Complex64_t V, Dague_Complex64_t TAU, Dague_Complex64_t *C, int LDC)
+static void DLARFX_C(char side, int N, dague_complex64_t V, dague_complex64_t TAU, dague_complex64_t *C, int LDC)
 {
- Dague_Complex64_t T2, SUM, TEMP;
+ dague_complex64_t T2, SUM, TEMP;
  int    J, pt;
 
 /*
@@ -270,7 +270,7 @@ static void DLARFX_C(char side, int N, Dague_Complex64_t V, Dague_Complex64_t TA
 ///////////////////////////////////////////////////////////
 //                  TYPE 1-BAND Householder
 ///////////////////////////////////////////////////////////
-static void CORE_zhbtelr(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_Complex64_t *A2, int LDA2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, int st, int ed) {
+static void CORE_zhbtelr(int N, int NB, dague_complex64_t *A1, int LDA1, dague_complex64_t *A2, int LDA2, dague_complex64_t *V1, dague_complex64_t *TAU1, int st, int ed) {
   int    J1, J2, KDM1, LDX;
   int    len, len1, len2, t1ed, t2st;
   int    i, IONE, ITWO; 
@@ -344,11 +344,11 @@ static void CORE_zhbtelr(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_C
 ///////////////////////////////////////////////////////////
 //                  TYPE 2-BAND Householder
 ///////////////////////////////////////////////////////////
-static void CORE_zhbtrce(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_Complex64_t *A2, int LDA2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, Dague_Complex64_t *V2, Dague_Complex64_t *TAU2, int st, int ed, int edglob) {
+static void CORE_zhbtrce(int N, int NB, dague_complex64_t *A1, int LDA1, dague_complex64_t *A2, int LDA2, dague_complex64_t *V1, dague_complex64_t *TAU1, dague_complex64_t *V2, dague_complex64_t *TAU2, int st, int ed, int edglob) {
   int    J1, J2, J3, KDM1, LDX, pt;
   int    len, len1, len2, t1ed, t2st, iglob;
   int    i, IONE, ITWO; 
-  Dague_Complex64_t V,T,SUM;
+  dague_complex64_t V,T,SUM;
   IONE=1;
   ITWO=2; 
 
@@ -454,7 +454,7 @@ static void CORE_zhbtrce(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_C
 ///////////////////////////////////////////////////////////
 //                  TYPE 1-BAND Householder
 ///////////////////////////////////////////////////////////
-static void CORE_zhbtlrx(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_Complex64_t *A2, int LDA2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, int st, int ed) {
+static void CORE_zhbtlrx(int N, int NB, dague_complex64_t *A1, int LDA1, dague_complex64_t *A2, int LDA2, dague_complex64_t *V1, dague_complex64_t *TAU1, int st, int ed) {
   int    J1, J2, KDM1, LDX;
   int    len, len1, len2, t1ed, t2st;
   int    i;
@@ -535,7 +535,7 @@ static void CORE_zhbtlrx(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_C
 #define A(m,n)   &(A[((m)-(n)) + LDA*((n)-1)])
 #define V(m)     &(V[m-1])
 #define TAU(m)   &(TAU[m-1])
-static void TRD_type1bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int st, int ed) {
+static void TRD_type1bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *V, dague_complex64_t *TAU, int st, int ed) {
   int    J1, J2, len, LDX;
   int    i, IONE, ITWO; 
   IONE=1;
@@ -583,7 +583,7 @@ static void TRD_type1bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Com
 #define A(m,n)   &(A[((m)-(n)) + LDA*((n)-1)])
 #define V(m)     &(V[m-1])
 #define TAU(m)   &(TAU[m-1])
-static void TRD_type2bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int st, int ed) {
+static void TRD_type2bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *V, dague_complex64_t *TAU, int st, int ed) {
   int    J1, J2, J3, KDM2, len, LDX;
   int    i, IONE, ITWO; 
   IONE=1;
@@ -643,7 +643,7 @@ static void TRD_type2bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Com
 #define A(m,n)   &(A[((m)-(n)) + LDA*((n)-1)])
 #define V(m)     &(V[m-1])
 #define TAU(m)   &(TAU[m-1])
-static void TRD_type3bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int st, int ed) {
+static void TRD_type3bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *V, dague_complex64_t *TAU, int st, int ed) {
   int    J1, J2, len, LDX;
   int    i;
   (void)NB;
@@ -678,7 +678,7 @@ static void TRD_type3bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Com
 ///////////////////////////////////////////////////////////
 //                  grouping sched wrapper call
 ///////////////////////////////////////////////////////////
-int TRD_seqgralgtype(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Complex64_t *C, Dague_Complex64_t *S, int i, int j, int m, int grsiz, int BAND) {
+int TRD_seqgralgtype(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *C, dague_complex64_t *S, int i, int j, int m, int grsiz, int BAND) {
   int    k,shift=3;
   int    myid,colpt,stind,edind,blklastind,stepercol;
   (void) BAND;
@@ -737,20 +737,20 @@ return 0;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                  REDUCTION BAND TO TRIDIAG
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void band_to_trd_v8seq(int N, int NB, Dague_Complex64_t *A, int LDA, int INgrsiz, int INthgrsiz) {
+void band_to_trd_v8seq(int N, int NB, dague_complex64_t *A, int LDA, int INgrsiz, int INthgrsiz) {
   int myid, grsiz, shift, stt, st, ed, stind, edind, BAND;
   int blklastind, colpt;
   int stepercol,mylastid;
-  Dague_Complex64_t *C, *S;
+  dague_complex64_t *C, *S;
   int i,j,m;
   int thgrsiz, thgrnb, thgrid, thed;
   int INFO;
   INFO=-1;
   BAND = 0;
-  C   = malloc(N*sizeof(Dague_Complex64_t));
-  S   = malloc(N*sizeof(Dague_Complex64_t));
-  memset(C,0,N*sizeof(Dague_Complex64_t));
-  memset(S,0,N*sizeof(Dague_Complex64_t));
+  C   = malloc(N*sizeof(dague_complex64_t));
+  S   = malloc(N*sizeof(dague_complex64_t));
+  memset(C,0,N*sizeof(dague_complex64_t));
+  memset(S,0,N*sizeof(dague_complex64_t));
 
   grsiz   = INgrsiz;
   thgrsiz = INthgrsiz;
@@ -816,7 +816,7 @@ void band_to_trd_v8seq(int N, int NB, Dague_Complex64_t *A, int LDA, int INgrsiz
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int blgchase_ztrdv1(int NT, int N, int NB, Dague_Complex64_t *A, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int sweep, int id, int blktile) {
+int blgchase_ztrdv1(int NT, int N, int NB, dague_complex64_t *A, dague_complex64_t *V, dague_complex64_t *TAU, int sweep, int id, int blktile) {
   int    /*edloc,*/ stloc, st, ed, KDM1, LDA;
 
   (void)NT;
@@ -861,14 +861,14 @@ int blgchase_ztrdv1(int NT, int N, int NB, Dague_Complex64_t *A, Dague_Complex64
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void band_to_trd_vmpi1(int N, int NB, Dague_Complex64_t *A, int LDA) {
+void band_to_trd_vmpi1(int N, int NB, dague_complex64_t *A, int LDA) {
   int NT;
-  Dague_Complex64_t *V, *TAU;
+  dague_complex64_t *V, *TAU;
   int blktile, S, id, sweep;
-  V   = malloc(N*sizeof(Dague_Complex64_t));
-  TAU = malloc(N*sizeof(Dague_Complex64_t));
-  memset(V,0,N*sizeof(Dague_Complex64_t));
-  memset(TAU,0,N*sizeof(Dague_Complex64_t));
+  V   = malloc(N*sizeof(dague_complex64_t));
+  TAU = malloc(N*sizeof(dague_complex64_t));
+  memset(V,0,N*sizeof(dague_complex64_t));
+  memset(TAU,0,N*sizeof(dague_complex64_t));
 
 
   NT = N/NB;
@@ -895,7 +895,7 @@ void band_to_trd_vmpi1(int N, int NB, Dague_Complex64_t *A, int LDA) {
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int blgchase_ztrdv2(int NT, int N, int NB, Dague_Complex64_t *A1, Dague_Complex64_t *A2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, Dague_Complex64_t *V2, Dague_Complex64_t *TAU2, int sweep, int id, int blktile) {
+int blgchase_ztrdv2(int NT, int N, int NB, dague_complex64_t *A1, dague_complex64_t *A2, dague_complex64_t *V1, dague_complex64_t *TAU1, dague_complex64_t *V2, dague_complex64_t *TAU2, int sweep, int id, int blktile) {
   int    edloc, stloc, st, ed, KDM1, LDA;
 
   KDM1   = NB-1;
@@ -935,14 +935,14 @@ int blgchase_ztrdv2(int NT, int N, int NB, Dague_Complex64_t *A1, Dague_Complex6
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void band_to_trd_vmpi2(int N, int NB, Dague_Complex64_t *A, int LDA) {
+void band_to_trd_vmpi2(int N, int NB, dague_complex64_t *A, int LDA) {
     int NT;
-    Dague_Complex64_t *V, *TAU;
+    dague_complex64_t *V, *TAU;
     int blktile, S, id, sweep;
-    V   = malloc(N*sizeof(Dague_Complex64_t));
-    TAU = malloc(N*sizeof(Dague_Complex64_t));
-    memset(V,0,N*sizeof(Dague_Complex64_t));
-    memset(TAU,0,N*sizeof(Dague_Complex64_t));
+    V   = malloc(N*sizeof(dague_complex64_t));
+    TAU = malloc(N*sizeof(dague_complex64_t));
+    memset(V,0,N*sizeof(dague_complex64_t));
+    memset(TAU,0,N*sizeof(dague_complex64_t));
 
 
     NT = N/NB;

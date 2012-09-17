@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -21,30 +21,30 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-static void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, Dague_Complex64_t *M )
+static void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, dague_complex64_t *M )
 {
     int tempmm = ( m == descA.mt-1 ) ? descA.m - m*descA.mb : descA.mb;
     int tempnn = ( n == descA.nt-1 ) ? descA.n - n*descA.nb : descA.nb;
     int ldam = BLKLDD( descA, m );
-    
+
     int ii, jj;
-    
+
     fflush(stdout);
     for(ii=0; ii<tempmm; ii++) {
         if ( ii == 0 )
             fprintf(stdout, "(%2d, %2d) :", m, n);
         else
-            fprintf(stdout, "          "); 
+            fprintf(stdout, "          ");
         for(jj=0; jj<tempnn; jj++) {
 #if defined(PRECISION_z) || defined(PRECISION_c)
-            fprintf(stdout, " (%e, %e)", 
+            fprintf(stdout, " (%e, %e)",
                     creal( M[jj*ldam + ii] ),
                     cimag( M[jj*ldam + ii] ));
 #else
             fprintf(stdout, " %e", M[jj*ldam + ii]);
 #endif
         }
-        fprintf(stdout, "\n"); 
+        fprintf(stdout, "\n");
     }
     fflush(stdout);
     usleep(1000);
@@ -83,9 +83,9 @@ PRINT_F(k) [profile = off]
   // Parameters
 READ A   <- dataA(m, n)
 CTL  ctl <- (k > 0 )      ? ctl PRINT_F(k-1)
-         -> (k < sizef-1) ? ctl PRINT_F(k+1) 
+         -> (k < sizef-1) ? ctl PRINT_F(k+1)
 BODY
-  DRYRUN( dplasma_zprint_tile( m, n, descA, (Dague_Complex64_t *)A ); )
+  DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); )
 END
 
 
@@ -106,7 +106,7 @@ READ  A   <- dataA(m, n)
 CTL   ctl <- (k > 0 )      ? ctl PRINT_L(k-1)
           -> (k < sizel-1) ? ctl PRINT_L(k+1)
 BODY
-  DRYRUN( dplasma_zprint_tile( m, n, descA, (Dague_Complex64_t *)A ); )
+  DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); )
 END
 
 /*
@@ -126,7 +126,7 @@ READ  A   <- dataA(m, n)
 CTL   ctl <- (k > 0 )      ? ctl PRINT_U(k-1)
           -> (k < sizeu-1) ? ctl PRINT_U(k+1)
 BODY
-  DRYRUN( dplasma_zprint_tile( m, n, descA, (Dague_Complex64_t *)A ); )
+  DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); )
 END
 
 extern "C" %{

@@ -172,11 +172,20 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
     dague_progress(DAGUE);                                              \
-    if(loud > 2) TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n", \
-                               nb_local_tasks,                          \
-                               nb_local_tasks/time_elapsed));           \
-    SYNC_TIME_PRINT(rank, (#KERNEL " computation N= %d NB= %d : %f gflops\n", N, NB, \
-                           gflops = (flops/1e9)/(sync_time_elapsed)));  \
+    if( loud > 2 )                                                      \
+        TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n",    \
+                          nb_local_tasks,                               \
+                          nb_local_tasks/time_elapsed));                \
+    SYNC_TIME_PRINT(rank, (#KERNEL " computation PxQ= %d %d N= %d NB= %d : %f gflops\n", \
+                           P, Q, N, NB,                                 \
+                           gflops=(flops/1e9)/sync_time_elapsed));      \
+    if(loud >= 5 && rank == 0) {                                        \
+        printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n" \
+               "                 encoding=\"none\" compression=\"none\">\n" \
+               "%g\n"                                                   \
+               "</DartMeasurement>\n",                                  \
+               gflops);                                                 \
+    }                                                                   \
     (void)gflops;
 
 

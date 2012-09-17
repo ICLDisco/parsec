@@ -88,9 +88,9 @@ BODY
          dague_private_memory_push( pool_0, p_elem_A );
          );
 
-  printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(side, trans, tempkm, tempnn, tempkmin, ib, \n"
+  printlog("CORE_zunmqr(%d, %d)\n\t(side, trans, tempkm, tempnn, tempkmin, ib, \n"
            "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, B(%d,%d)[%p], ldbk, p_elem_A, descT.nb)\n",
-  context->th_id, context->virtual_process->vp_id, k, n, k, k, A, k, k, T, k, n, B);
+  k, n, k, k, A, k, k, T, k, n, B);
 
 END
 
@@ -191,9 +191,9 @@ BODY
          dague_private_memory_push( pool_0, p_elem_A );
          );
 
-  printlog("thread %d VP %d CORE_ztsmqr(%d, %d, %d)\n\t(side, trans, descB.mb, tempnn, tempmm, tempnn, tempkmin, ib, \n"
+  printlog("CORE_ztsmqr(%d, %d, %d)\n\t(side, trans, descB.mb, tempnn, tempmm, tempnn, tempkmin, ib, \n"
            "\tB(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-  context->th_id, context->virtual_process->vp_id, k, m, n, k, n, D, m, n, E, m, k, V, m, k, T);
+  k, m, n, k, n, D, m, n, E, m, k, V, m, k, T);
 
 END
 

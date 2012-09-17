@@ -35,7 +35,7 @@ dplasma_zpotrf_New(PLASMA_enum uplo, tiled_matrix_desc_t *A, int *info)
     ((struct dague_zpotrf_Lrl_object*)dague_zpotrf)->PRI_CHANGE = dplasma_aux_get_priority_limit( "POTRF", A );
 
     dplasma_add2arena_tile(((dague_zpotrf_Url_object_t*)dague_zpotrf)->arenas[DAGUE_zpotrf_Url_DEFAULT_ARENA],
-                           A->mb*A->nb*sizeof(Dague_Complex64_t),
+                           A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
 
@@ -106,7 +106,7 @@ dplasma_zpotrfl_New(const PLASMA_enum looking, PLASMA_enum uplo,
     ((struct dague_zpotrf_Lrl_object*)dague_zpotrf)->PRI_CHANGE = dplasma_aux_get_priority_limit( "POTRF", A );
 
     dplasma_add2arena_tile(((dague_zpotrf_Url_object_t*)dague_zpotrf)->arenas[DAGUE_zpotrf_Url_DEFAULT_ARENA],
-                           A->mb*A->nb*sizeof(Dague_Complex64_t),
+                           A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
 

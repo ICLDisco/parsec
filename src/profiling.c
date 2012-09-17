@@ -324,6 +324,9 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
     }
 #else
     res = (dague_profiling_buffer_t*)malloc(event_buffer_size);
+#if !defined(NDEBUG)
+    memset(res, 0, event_buffer_size);
+#endif
     if( NULL == res ) {
         fprintf(stderr, "Warning profiling system: unable to allocate new profiling buffer: %s. Events trace will be truncated.\n",
                 strerror(errno));
@@ -369,6 +372,8 @@ static void write_down_existing_buffer(dague_profiling_buffer_t *buffer,
     (void)count;
     if( NULL == buffer )
         return;
+    assert( count > 0 );
+    memset( &(buffer->buffer[count]), 0, event_avail_space - count );
 #if defined(DAGUE_PROFILING_USE_MMAP)
     if( munmap(buffer, event_buffer_size) == -1 ) {
         fprintf(stderr, "Warning profiling system: unmap of the events backend file at %p failed: %s\n",
@@ -379,7 +384,7 @@ static void write_down_existing_buffer(dague_profiling_buffer_t *buffer,
         fprintf(stderr, "Warning profiling system: seek in the events backend file at %"PRId64" failed: %s. Events trace will be truncated.\n",
                 buffer->this_buffer_file_offset, strerror(errno));
     } else {
-        if( write(file_backend_fd, buffer, event_buffer_size) != event_buffer_size ) {
+        if( (size_t)(write(file_backend_fd, buffer, event_buffer_size)) != event_buffer_size ) {
             fprintf(stderr, "Warning profiling system: write in the events backend file at %"PRId64" failed: %s. Events trace will be truncated.\n",
                      buffer->this_buffer_file_offset, strerror(errno));
         }
@@ -409,11 +414,11 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
     } else {
         old_buffer->next_buffer_file_offset = off;
     }
+    write_down_existing_buffer( old_buffer, context->next_event_position );
+
     context->current_events_buffer = new_buffer;
     context->current_events_buffer_offset = off;
     context->next_event_position = 0;
-
-    write_down_existing_buffer( old_buffer, context->next_event_position );
 
     pthread_mutex_unlock( &file_backend_lock );
 
@@ -515,8 +520,8 @@ static int64_t dump_global_infos(int *nbinfos)
         ib = (dague_profiling_info_buffer_t *)&(b->buffer[pos]);
         ib->info_size = is;
         ib->value_size = vs;
-        memcpy(ib->info_and_value, i->key, ib->info_size);
-        memcpy(ib->info_and_value + ib->info_size, i->value, ib->value_size);
+        memcpy(ib->info_and_value + 0,  i->key,   is);
+        memcpy(ib->info_and_value + is, i->value, vs);
         nb++;
         nbthis++;
         pos += sizeof(dague_profiling_info_buffer_t) + is + vs - 1;
@@ -534,7 +539,8 @@ static int64_t dump_dictionary(int *nbdico)
     dague_profiling_buffer_t *b, *n;
     dague_profiling_key_buffer_t *kb;
     dague_profiling_key_t *k;
-    int nb, nbthis, cs, i;
+    unsigned int i;
+    int nb, nbthis, cs;
     int pos;
     int64_t first_off;
 

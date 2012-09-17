@@ -16,6 +16,7 @@ typedef struct dague_remote_deps_t dague_remote_deps_t;
 typedef struct dague_arena_t dague_arena_t;
 typedef struct dague_arena_chunk_t dague_arena_chunk_t;
 typedef struct dague_data_pair_t dague_data_pair_t;
+typedef struct _moesi_master moesi_master_t;
 
 #ifdef HAVE_PAPI
 #define MAX_EVENTS 3
@@ -91,6 +92,8 @@ typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object, co
 #define DAGUE_HAS_IN_STRONG_DEPENDENCIES 0x0004
 #define DAGUE_HIGH_PRIORITY_TASK         0x0008
 #define DAGUE_IMMEDIATE_TASK             0x0010
+#define DAGUE_USE_DEPS_MASK              0x0020
+#define DAGUE_HAS_CTL_GATHER             0X0040
 
 struct dague_function {
     const char                  *name;
@@ -111,18 +114,21 @@ struct dague_function {
 #endif
     dague_hook_t                *hook;
     dague_hook_t                *complete_execution;
+#ifdef DAGUE_GPU_WITH_CUDA
+    dague_hook_t                *cuda_hook;
+    dague_hook_t                *cuda_complete_execution;
+#endif
     dague_traverse_function_t   *iterate_successors;
     dague_release_deps_t        *release_deps;
     dague_functionkey_fn_t      *key;
     char                        *body;
 };
 
+
 struct dague_data_pair_t {
     struct data_repo_entry   *data_repo;
     dague_arena_chunk_t      *data;
-#if defined(HAVE_CUDA)
-    struct _memory_elem      *mem2dev_data;
-#endif  /* defined(HAVE_CUDA) */
+    moesi_master_t           *moesi_master;
 };
 
 /**
@@ -198,10 +204,10 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu,
 
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_unit_t* eu_context,
-                                          const dague_execution_context_t* restrict origin,
-                                          const dague_flow_t* restrict origin_flow,
-                                          dague_execution_context_t* restrict exec_context,
-                                          const dague_flow_t* restrict dest_flow,
+                                          const dague_execution_context_t* origin,
+                                          const dague_flow_t* origin_flow,
+                                          dague_execution_context_t* exec_context,
+                                          const dague_flow_t* dest_flow,
                                           struct data_repo_entry* dest_repo_entry,
                                           dague_execution_context_t** pready_list );
 

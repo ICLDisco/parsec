@@ -124,7 +124,7 @@ dplasma_zherk_New( const PLASMA_enum uplo,
     }
 
     dplasma_add2arena_tile(((dague_zherk_LN_object_t*)object)->arenas[DAGUE_zherk_LN_DEFAULT_ARENA],
-                           C->mb*C->nb*sizeof(Dague_Complex64_t),
+                           C->mb*C->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, C->mb);
 

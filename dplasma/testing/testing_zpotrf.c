@@ -54,49 +54,25 @@ int main(int argc, char ** argv)
                                    nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, uplo));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
-        sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                   N, N, P, uplo));
-
-    PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
-        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
-                               N, NRHS, SMB, SNB, P));
-
-    PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
-        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
-                               N, NRHS, SMB, SNB, P));
-
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), uplo,
                     (tiled_matrix_desc_t *)&ddescA, 1358);
-    if ( check ) {
-        dplasma_zlacpy( dague, uplo,
-                        (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescA0 );
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
-        dplasma_zlacpy( dague, PlasmaUpperLower,
-                        (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
-    }
     if(loud > 3) printf("Done\n");
 
     /* load the GPU kernel */
 #if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0)
-        {
-            if(loud > 3) printf("+++ Load GPU kernel ... ");
-            if(0 != gpu_kernel_init_zgemm(dague))
-                {
-                    printf("XXX Unable to load GPU kernel.\n");
-                    exit(3);
-                }
-            dague_gpu_data_register(dague,
-                                    (dague_ddesc_t*)&ddescA,
-                                    MT*NT, MB*NB*sizeof(Dague_Complex64_t) );
-            if(loud > 3) printf("Done\n");
+    if(iparam[IPARAM_NGPUS] > 0) {
+        if(loud > 3) printf("+++ Load GPU kernel ... ");
+        if(0 != gpu_kernel_init_zgemm(dague)) {
+            printf("XXX Unable to load GPU kernel.\n");
+            exit(3);
         }
+        dague_gpu_data_register(dague,
+                                (dague_ddesc_t*)&ddescA,
+                                MT*NT, MB*NB*sizeof(dague_complex64_t) );
+        if(loud > 3) printf("Done\n");
+    }
 #endif
 
     PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf,
@@ -104,48 +80,66 @@ int main(int argc, char ** argv)
     PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf);
 
     dplasma_zpotrf_Destruct( DAGUE_zpotrf );
+#if defined(HAVE_CUDA)
+    if(iparam[IPARAM_NGPUS] > 0) {
+        dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
+        dague_gpu_kernel_fini(dague, "zgemm");
+    }
+#endif
 
-    if ( info != 0 ) {
-        if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info);
+    if( 0 == rank && info != 0 ) {
+        printf("-- Factorization is suspicious (info = %d) ! \n", info);
         ret |= 1;
     }
-    else if ( check ) {
+    if( !info && check ) {
+        /* Check the factorization */
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
+            sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
+                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                       N, N, P, uplo));
+        dplasma_zplghe( dague, (double)(N), uplo,
+                        (tiled_matrix_desc_t *)&ddescA0, 1358);
+
+        ret |= check_factorization( dague, (rank == 0) ? loud : 0, uplo,
+                                    (tiled_matrix_desc_t *)&ddescA,
+                                    (tiled_matrix_desc_t *)&ddescA0);
+
+        /* Check the solution */
+        PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
+            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                                   N, NRHS, SMB, SNB, P));
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
+
+        PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
+            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                                   N, NRHS, SMB, SNB, P));
+        dplasma_zlacpy( dague, PlasmaUpperLower,
+                        (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
 
         dplasma_zpotrs(dague, uplo,
                        (tiled_matrix_desc_t *)&ddescA,
                        (tiled_matrix_desc_t *)&ddescX );
 
-        /* Check the solution */
-        ret |= check_factorization( dague, (rank == 0) ? loud : 0, uplo,
-                                    (tiled_matrix_desc_t *)&ddescA,
-                                    (tiled_matrix_desc_t *)&ddescA0);
-
         ret |= check_solution( dague, (rank == 0) ? loud : 0, uplo,
                                (tiled_matrix_desc_t *)&ddescA0,
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
-    }
 
-    if ( check ) {
-        dague_data_free(ddescA0.mat);
+        /* Cleanup */
+        dague_data_free(ddescA0.mat); ddescA0.mat = NULL;
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0 );
-        dague_data_free(ddescB.mat);
+        dague_data_free(ddescB.mat); ddescB.mat = NULL;
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescB );
-        dague_data_free(ddescX.mat);
+        dague_data_free(ddescX.mat); ddescX.mat = NULL;
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX );
     }
 
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        dague_gpu_data_unregister();
-        dague_gpu_kernel_fini(dague, "zgemm");
-    }
-#endif
-    cleanup_dague(dague, iparam);
-
-    dague_data_free(ddescA.mat);
+    dague_data_free(ddescA.mat); ddescA.mat = NULL;
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
 
+    cleanup_dague(dague, iparam);
     return ret;
 }
 
@@ -221,9 +215,9 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
         info_factorization = 0;
     }
 
-    dague_data_free(L1.mat);
+    dague_data_free(L1.mat); L1.mat = NULL;
     dague_ddesc_destroy( (dague_ddesc_t*)&L1);
-    dague_data_free(L2.mat);
+    dague_data_free(L2.mat); L2.mat = NULL;
     dague_ddesc_destroy( (dague_ddesc_t*)&L2);
 
     return info_factorization;
@@ -277,3 +271,4 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
 
     return info_solution;
 }
+

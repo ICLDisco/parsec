@@ -27,25 +27,27 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
                                     double *result )
 {
     int m, n, mb, nb, elt;
-    two_dim_block_cyclic_t *W;
+    two_dim_block_cyclic_t *Wcol;
+    two_dim_block_cyclic_t *Welt;
     dague_object_t *dague_zlange = NULL;
 
     /* Create the workspace */
-    W = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
+    Wcol = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
+    Welt = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
 
     /* Warning: Pb with smb/snb when mt/nt lower than P/Q */
     switch( ntype ) {
     case PlasmaFrobeniusNorm:
         mb = 2;
         nb = 1;
-        m  = dague_imax(A->mt, P) * mb;
+        m  = A->mt * mb;
         n  = Q;
         elt = 2;
         break;
     case PlasmaInfNorm:
         mb = A->mb;
         nb = 1;
-        m  = dague_imax(A->mt, P) * mb;
+        m  = A->mt * mb;
         n  = Q;
         elt = 1;
         break;
@@ -60,14 +62,14 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
     default:
         mb = 1;
         nb = 1;
-        m  = dague_imax(A->mt, P);
+        m  = A->mt;
         n  = Q;
         elt = 1;
     }
 
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
-        (*W), two_dim_block_cyclic,
-        (W, matrix_RealDouble, matrix_Tile,
+        (*Wcol), two_dim_block_cyclic,
+        (Wcol, matrix_RealDouble, matrix_Tile,
          A->super.nodes, A->super.cores, A->super.myrank,
          mb,  nb,   /* Dimesions of the tile                */
          m,   n,    /* Dimensions of the matrix             */
@@ -75,29 +77,39 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
          m,   n,    /* Dimensions of the submatrix          */
          1, 1, P));
 
+    PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
+        (*Welt), two_dim_block_cyclic,
+        (Welt, matrix_RealDouble, matrix_Tile,
+         A->super.nodes, A->super.cores, A->super.myrank,
+         elt,   1,  /* Dimesions of the tile                */
+         elt*P, Q,  /* Dimensions of the matrix             */
+         0,     0,  /* Starting points (not important here) */
+         elt*P, Q,  /* Dimensions of the submatrix          */
+         1, 1, P));
+
     /* Create the DAG */
     switch( ntype ) {
     case PlasmaFrobeniusNorm:
         dague_zlange = (dague_object_t*)dague_zlange_frb_cyclic_new(
-            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)W, result);
+            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)Wcol, (dague_ddesc_t*)Welt, result);
         break;
     case PlasmaInfNorm:
         dague_zlange = (dague_object_t*)dague_zlange_inf_cyclic_new(
-            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)W, result);
+            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)Wcol, (dague_ddesc_t*)Welt, result);
         break;
     case PlasmaOneNorm:
         dague_zlange = (dague_object_t*)dague_zlange_one_cyclic_new(
-            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)W, result);
+            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)Wcol, (dague_ddesc_t*)Welt, result);
         break;
     case PlasmaMaxNorm:
     default:
         dague_zlange = (dague_object_t*)dague_zlange_max_cyclic_new(
-            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)W, result);
+            P, Q, (dague_ddesc_t*)A, (dague_ddesc_t*)Wcol, (dague_ddesc_t*)Welt, result);
     }
 
     /* Set the datatypes */
     dplasma_add2arena_tile(((dague_zlange_inf_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_inf_cyclic_DEFAULT_ARENA],
-                           A->mb*A->nb*sizeof(Dague_Complex64_t),
+                           A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
     dplasma_add2arena_rectangle(((dague_zlange_inf_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_inf_cyclic_COL_ARENA],
@@ -114,11 +126,17 @@ void
 dplasma_zlange_Destruct( dague_object_t *o )
 {
     dague_zlange_inf_cyclic_object_t *dague_zlange = (dague_zlange_inf_cyclic_object_t *)o;
-    two_dim_block_cyclic_t *W = (two_dim_block_cyclic_t*)(dague_zlange->W);
+    two_dim_block_cyclic_t *Wcol, *Welt;
 
-    dague_data_free( W->mat );
-    dague_ddesc_destroy( dague_zlange->W );
-    free( dague_zlange->W );
+    Wcol = (two_dim_block_cyclic_t*)(dague_zlange->Wcol);
+    dague_data_free( Wcol->mat );
+    dague_ddesc_destroy( dague_zlange->Wcol );
+    free( dague_zlange->Wcol );
+
+    Welt = (two_dim_block_cyclic_t*)(dague_zlange->Welt);
+    dague_data_free( Welt->mat );
+    dague_ddesc_destroy( dague_zlange->Welt );
+    free( dague_zlange->Welt );
 
     dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_DEFAULT_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_inf_cyclic_COL_ARENA]->opaque_dtt) );

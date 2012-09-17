@@ -27,7 +27,7 @@ side  [type = "PLASMA_enum"]
 uplo  [type = "PLASMA_enum"]
 trans [type = "PLASMA_enum"]
 diag  [type = "PLASMA_enum"]
-alpha [type = "Dague_Complex64_t"]
+alpha [type = "dague_complex64_t"]
 descA [type = "tiled_matrix_desc_t"]
 A     [type = "dague_ddesc_t *"]
 descB [type = "tiled_matrix_desc_t"]
@@ -52,7 +52,7 @@ BODY
 
   int tempkm = ((k)==(descB.mt-1)) ? (descB.m-(k*descB.mb)) : descB.mb;
   int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
-  Dague_Complex64_t lalpha = ((k)==(0)) ? (alpha) : (Dague_Complex64_t)(1.0);
+  dague_complex64_t lalpha = ((k)==(0)) ? (alpha) : (dague_complex64_t)(1.0);
   int lda = BLKLDD( descA, k );
   int ldb = BLKLDD( descB, k );
 
@@ -63,9 +63,9 @@ BODY
                  B /* B(k,n) */, ldb );
          );
 
-  printlog("thread %d VP %d CORE_ztrsm(%d, %d)\n"
+  printlog("CORE_ztrsm(%d, %d)\n"
              "\t(side, uplo, trans, diag, tempkm, tempnn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-               context->th_id, context->virtual_process->vp_id, k, n, k, k, A, k, n, B);
+               k, n, k, k, A, k, n, B);
 
 END
 
@@ -104,7 +104,7 @@ zgemm(k,m,n1)
 
 BODY
 
-  Dague_Complex64_t lalpha = ((k)==(0)) ? (alpha) : (Dague_Complex64_t)(1.0);
+  dague_complex64_t lalpha = ((k)==(0)) ? (alpha) : (dague_complex64_t)(1.0);
   int tempmm = ((m) ==(descB.mt-1)) ? (descB.m-( m*descB.mb)) : descB.mb;
   int tempnn = ((n1)==(descB.nt-1)) ? (descB.n-(n1*descB.nb)) : descB.nb;
   int lda  = BLKLDD( descA, m );
@@ -118,9 +118,9 @@ BODY
                          D /* B(k,n1) */, ldbk,
                  lalpha, E /* B(m,n1) */, ldb );
          );
-  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("CORE_zgemm(%d, %d, %d)\n"
          "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descB.mb, mzone, A(%d,%d)[%p], lda, B(%d,%d)[%p], descB.mb, lalpha, B(%d,%d)[%p], ldb)\n",
-           context->th_id, context->virtual_process->vp_id, k, m, n1, m, k, C, k, n1, D, m, n1, E);
+           k, m, n1, m, k, C, k, n1, D, m, n1, E);
 END
 
 /*

@@ -87,7 +87,7 @@
 dague_object_t*
 dplasma_ztrsm_New(const PLASMA_enum side,  const PLASMA_enum uplo,
                   const PLASMA_enum trans, const PLASMA_enum diag,
-                  const Dague_Complex64_t alpha,
+                  const dague_complex64_t alpha,
                   const tiled_matrix_desc_t *A,
                   tiled_matrix_desc_t *B )
 {
@@ -148,7 +148,7 @@ dplasma_ztrsm_New(const PLASMA_enum side,  const PLASMA_enum uplo,
     }
 
     dplasma_add2arena_tile(((dague_ztrsm_LLN_object_t*)dague_trsm)->arenas[DAGUE_ztrsm_LLN_DEFAULT_ARENA],
-                           A->mb*A->nb*sizeof(Dague_Complex64_t),
+                           A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
 
@@ -215,7 +215,7 @@ int
 dplasma_ztrsm( dague_context_t *dague,
                const PLASMA_enum side, const PLASMA_enum uplo,
                const PLASMA_enum trans, const PLASMA_enum diag,
-               const Dague_Complex64_t alpha,
+               const dague_complex64_t alpha,
                const tiled_matrix_desc_t *A,
                tiled_matrix_desc_t *B)
 {

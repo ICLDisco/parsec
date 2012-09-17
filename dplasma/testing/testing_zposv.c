@@ -97,7 +97,7 @@ int main(int argc, char ** argv)
             }
             dague_gpu_data_register(dague,
                                     (dague_ddesc_t*)&ddescA,
-                                    MT*NT, MB*NB*sizeof(Dague_Complex64_t) );
+                                    MT*NT, MB*NB*sizeof(dague_complex64_t) );
             if(loud > 3) printf("Done\n");
         }
 #endif
@@ -244,7 +244,7 @@ int main(int argc, char ** argv)
 
 #if defined(HAVE_CUDA)
         if(iparam[IPARAM_NGPUS] > 0) {
-            dague_gpu_data_unregister();
+            dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
         }
 #endif
 

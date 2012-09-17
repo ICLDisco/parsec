@@ -41,7 +41,7 @@
  *         On exit, A has been set accordingly.
  *
  **/
-dague_object_t* dplasma_zlaset_New( PLASMA_enum uplo, Dague_Complex64_t alpha, Dague_Complex64_t beta,
+dague_object_t* dplasma_zlaset_New( PLASMA_enum uplo, dague_complex64_t alpha, dague_complex64_t beta,
                                     tiled_matrix_desc_t *A )
 {
     dague_zlaset_object_t* object;
@@ -50,7 +50,7 @@ dague_object_t* dplasma_zlaset_New( PLASMA_enum uplo, Dague_Complex64_t alpha, D
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zlaset_DEFAULT_ARENA], 
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
+                            A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
     
@@ -58,7 +58,7 @@ dague_object_t* dplasma_zlaset_New( PLASMA_enum uplo, Dague_Complex64_t alpha, D
 }
 
 int dplasma_zlaset( dague_context_t *dague, 
-                    PLASMA_enum uplo, Dague_Complex64_t alpha, Dague_Complex64_t beta,
+                    PLASMA_enum uplo, dague_complex64_t alpha, dague_complex64_t beta,
                     tiled_matrix_desc_t *A) 
 {
     dague_object_t *dague_zlaset = NULL;
