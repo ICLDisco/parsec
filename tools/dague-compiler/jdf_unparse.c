@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2012     The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -18,7 +24,7 @@ static int jdf_expr_unparse_bop(const jdf_expr_t *a1, const char *op, const jdf_
     fprintf(out, ") %s (", op);
     err = jdf_expr_complete_unparse(a2, out);
     fprintf(out, ")");
-    return err;    
+    return err;
 }
 
 static int jdf_expr_complete_unparse( const jdf_expr_t *e, FILE *out )
@@ -142,14 +148,14 @@ static int jdf_def_list_unparse( const jdf_def_list_t *defs, FILE *out, const ch
 {
     const jdf_def_list_t *dl;
     int err = 0;
-    
+
     for(dl = defs; dl != NULL; dl = dl->next) {
         fprintf(out, "%s = ", dl->name);
         err = jdf_expr_complete_unparse(dl->expr, out);
         if( err < 0 )
             return err;
         if( dl->next != NULL )
-            fprintf(out, sep);
+            fprintf(out, "%s", sep);
     }
     return err;
 }
@@ -238,7 +244,7 @@ static int jdf_datatransfer_type_unparse(jdf_datatransfer_type_t dt, FILE *out)
         if( dt.u.complex_expr != NULL ) {
             fprintf(out, "[type_index = ");
             err = jdf_expr_complete_unparse(dt.u.complex_expr, out);
-            if( err >= 0 && 
+            if( err >= 0 &&
                 dt.nb_elt != NULL &&
                 dt.nb_elt->op != JDF_CST &&
                 dt.nb_elt->jdf_cst != 1 ) {
@@ -315,7 +321,7 @@ static int jdf_deps_unparse( const jdf_dep_t *deps, FILE *out )
         return err;
     fprintf(out, "\n");
 
-    if( deps->next == NULL ) 
+    if( deps->next == NULL )
         return err;
 
     fprintf(out, "             ");
@@ -391,7 +397,7 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
     if( err < 0 )
         return err;
     fprintf(out, "\n");
-    
+
     err = jdf_dataflow_unparse( f->dataflow, out );
     if( err < 0 )
         return err;
@@ -422,7 +428,7 @@ int jdf_unparse( const jdf_t *jdf, FILE *out )
     if( jdf->prologue && jdf->prologue->external_code )
         fprintf(out, "extern \"C\" %%{\n%s\n%%}\n", jdf->prologue->external_code );
     else {
-        fprintf(stderr, 
+        fprintf(stderr,
                 "**Warning** Malformed JDF structure: a prologue is mandatory in the grammar...\n");
         err = 1;
     }
@@ -442,7 +448,7 @@ int jdf_unparse( const jdf_t *jdf, FILE *out )
     if( err < 0 )
         return err;
     fprintf(out, "\n");
-    
+
     if( jdf->epilogue && jdf->epilogue->external_code )
         fprintf(out, "extern \"C\" {\n%s\n}\n", jdf->epilogue->external_code );
 

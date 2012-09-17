@@ -399,7 +399,7 @@ static char *numToSymName(int num){
 
     assert(num<2600);
 
-    // capital i ("I") has a special meaning in some contexts (sqrt(-1)), so skip it.
+    // capital i ("I") has a special meaning in some contexts (I^2==-1), so skip it.
     if(num>=8)
         num++;
 
@@ -753,7 +753,6 @@ static void add_entry_task_loops(matrix_variable_t *list, node_t *node){
 static void add_exit_task_loops(matrix_variable_t *list, node_t *node){
     add_phony_INOUT_task_loops(list, node, TASK_OUT);
 }
-        
 
 static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, int task_type){
     int i, dim;
@@ -2253,7 +2252,7 @@ string_arena_t *create_pool_declarations(){
 
 void jdf_register_pools( jdf_t *jdf )
 {
-    jdf_global_entry_t *prev;
+    jdf_global_entry_t *prev = jdf->globals;
 
     if ( jdf->globals != NULL ) {
         prev = jdf->globals;
@@ -2269,13 +2268,13 @@ void jdf_register_pools( jdf_t *jdf )
                              e->name       = true_item->def;
                              e->properties = q2jmalloc(jdf_def_list_t, 2);
                              e->expression = NULL;
-                             e->lineno     = 0;
+                             JDF_OBJECT_SET(e, NULL, 0, NULL);
 
                              e->properties[0].next       = (e->properties)+1;
                              e->properties[0].name       = strdup("type");
                              e->properties[0].expr       = q2jmalloc(jdf_expr_t, 1);
                              e->properties[0].properties = NULL;
-                             e->properties[0].lineno     = 0;
+                             JDF_OBJECT_SET(&(e->properties[0]), NULL, 0, NULL);
                              e->properties[0].expr->op      = JDF_STRING;
                              e->properties[0].expr->jdf_var = strdup("dague_memory_pool_t *");
                              
@@ -2283,7 +2282,7 @@ void jdf_register_pools( jdf_t *jdf )
                              e->properties[1].name       = strdup("size");
                              e->properties[1].expr       = q2jmalloc(jdf_expr_t, 1);
                              e->properties[1].properties = NULL;
-                             e->properties[1].lineno     = 0;
+                             JDF_OBJECT_SET(&(e->properties[1]), NULL, 0, NULL);
                              e->properties[1].expr->op      = JDF_STRING;
                              e->properties[1].expr->jdf_var = strdup(true_item->var);
 

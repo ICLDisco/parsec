@@ -268,7 +268,7 @@ void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<s
             break;
         case EXPR:
             if( MINUS == DA_exp_lhs(node)->type ){
-                handle.update_const(sign*DA_int_val(DA_exp_rhs(node)));
+                handle.update_const(-sign*DA_int_val(DA_exp_rhs(node)));
                 break;
             }else{
                 fprintf(stderr,"expr_to_Omega_coef(): Can't turn arbitrary expression into Omega expression.\n");
@@ -3397,7 +3397,7 @@ void interrogate_omega(node_t *root, var_t *head){
             node_t *sink = ad_it->first;
             // Skip self-edges that cannot be carried by loops.
             if( sink == use ){
-                // TODO: If the induction variables of ALL loops the enclose this use/def 
+                // TODO: If the induction variables of ALL loops the enclose this use/def
                 // TODO: appear in the indices of the matrix reference, then this cannot
                 // TODO: be a loop carried dependency.  If there is at least one enclosing
                 // TODO: loop for which this matrix reference is loop invariant, then we

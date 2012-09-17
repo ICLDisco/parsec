@@ -372,6 +372,7 @@ static void write_down_existing_buffer(dague_profiling_buffer_t *buffer,
     (void)count;
     if( NULL == buffer )
         return;
+    assert( count > 0 );
     memset( &(buffer->buffer[count]), 0, event_avail_space - count );
 #if defined(DAGUE_PROFILING_USE_MMAP)
     if( munmap(buffer, event_buffer_size) == -1 ) {
@@ -413,11 +414,11 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
     } else {
         old_buffer->next_buffer_file_offset = off;
     }
+    write_down_existing_buffer( old_buffer, context->next_event_position );
+
     context->current_events_buffer = new_buffer;
     context->current_events_buffer_offset = off;
     context->next_event_position = 0;
-
-    write_down_existing_buffer( old_buffer, context->next_event_position );
 
     pthread_mutex_unlock( &file_backend_lock );
 

@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
          ddescA.super.lm, ddescA.super.ln, ddescA.super.i, ddescA.super.j,
          ddescA.super.m, ddescA.super.n);
 
-    dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA, 1358);
+    dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA, 3872);
 
     if( check ) {
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);

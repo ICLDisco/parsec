@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010 - 2011
+ *  Copyright (c) 2010
  *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
@@ -17,174 +17,146 @@ extern "C" %{
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
+
 %}
 
-/* Globals
- * GRIDrows, GRIDcols, NB, SIZE
- */
-side  [type = "PLASMA_enum"]
-uplo  [type = "PLASMA_enum"]
-trans [type = "PLASMA_enum"]
-diag  [type = "PLASMA_enum"]
+side      [type = "PLASMA_enum"]
+uplo      [type = "PLASMA_enum"]
+trans     [type = "PLASMA_enum"]
+diag      [type = "PLASMA_enum"]
+alpha     [type = "dague_complex64_t"]
+dataA     [type = "dague_ddesc_t *"]
+descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+dataB     [type = "dague_ddesc_t *"]
+descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
 
-alpha[type = dague_complex64_t]
 
-Am   [type = int]
-An   [type = int]
-Amb  [type = int]
-Anb  [type = int]
-Amt  [type = int]
-Ant  [type = int]
+ztrmm(m, n) 
+  /* Execution Space */
+  m = 0..(descB.mt-1)
+  n = 0..(descB.nt-1)
 
-Bm   [type = int]
-Bn   [type = int]
-Bmb  [type = int]
-Bnb  [type = int]
-Bmt  [type = int]
-Bnt  [type = int]
+  /* Locality */
+  : dataB((descB.mt-1)-m,n)
 
-/**************************************************
- *                      TRMM                      *
- **************************************************/
-TRMM_IN(m)  [profile = off]
-m = 0..Bmt-1
-
-: A(m, m)
-
-READ A <- A(m, m)
-       -> A TRMM(m, 0..Bnt-1)
+  CTL   ctl0 <- ctl0 zgemm(0..m-1, n, descB.mt-m-1)
+  READ  A    <- A ztrmm_in_data_A0(m, n)
+  RW    B    <- dataB((descB.mt-1)-m,n)
+             -> E zgemm(m, n, 0)
 
 BODY
-  /* Nothing */
-  printlog("trmm_in( %d )\n", m);
+{
+  int tempmm = (((descB.mt-1)-m)==(descB.mt-1)) ? (descB.m-(((descB.mt-1)-m)*descB.mb)) : descB.mb;
+  int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
+  int lda = BLKLDD( descA, (descB.mt-1)-m );
+  int ldb = BLKLDD( descB, (descB.mt-1)-m );
+
+  printlog("CORE_ztrmm(%d, %d)\n"
+           "\t(side, uplo, trans, diag, tempmm, tempnn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
+  m, n, (descB.mt-1)-m, (descB.mt-1)-m, A, (descB.mt-1)-m, n, B);
+  DRYRUN(
+
+    CORE_ztrmm(side, uplo, trans, 
+	diag, tempmm, tempnn, 
+	alpha, A /* dataA((descB.mt-1)-m,(descB.mt-1)-m) */, lda, 
+	B /* dataB((descB.mt-1)-m,n) */, ldb );
+  );
+
+}
 END
 
-TRMM(m, n)
+ztrmm_in_data_A0(m, n) [profile = off]
+  /* Execution Space */
+  m = 0..(descB.mt-1)
+  n = 0..(descB.nt-1)
 
-// Execution space
-m = 0..Bmt-1
-n = 0..Bnt-1
+  /* Locality */
+  : dataA((descB.mt-1)-m,(descB.mt-1)-m)
 
-// Parallel partitioning
-: B(m, n)
-
-// Parameters
-READ  A   <- A TRMM_IN(m)
-RW    B   <- B(m, n)
-          -> (m == 0)     ? B(m, n)   : C GEMM(m, n, m-1)
-CTL   ctl <- (m != Bmt-1) ? ctl1 GOK(m+1, n, m)
+  READ  A    <- dataA((descB.mt-1)-m,(descB.mt-1)-m)
+             -> A ztrmm(m, n)
 
 BODY
-     int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
-     int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
-     DRYRUN(
-	  CORE_ztrmm(
-              side, uplo, trans, diag,
-              tempmm, tempnn,
-              alpha, A /*A(m, m)*/, Amb,
-                     B /*B(m, n)*/, Bmb)
-          );
-
-     printlog("CORE_ztrmm( %d, %d )\n"
-              "    ( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-              m, n,
-              plasma_const(side), plasma_const(uplo), plasma_const(trans), plasma_const(diag),
-              tempmm, tempnn,
-              creal(alpha), m, m, A, Amb,
-                     m, n, B, Bmb);
+{
+    /* nothing */
+}
 END
 
-/**************************************************
- *                      GEMM                      *
- **************************************************/
-GEMM_INA(m, k)  [profile = off]
-m = 0..Bmt-1
-k = 0..m-1
+zgemm(m, n, k) 
+  /* Execution Space */
+  m = 0..(descB.mt-1)
+  n = 0..(descB.nt-1)
+  k = 0..(descB.mt-m-2)
 
-:A(k, m)
+  /* Locality */
+  : dataB((descB.mt-1)-m,n)
 
-READ A <- A(k, m)
-       -> A GEMM(m, 0..Bnt-1, k)
+  CTL   ctl0 -> ctl0 ztrmm(descB.mt-k-1, n)
+  READ  C    <- C zgemm_in_data_A0(m, n, k)
+  READ  D    <- D zgemm_in_data_B1(m, n, k)
+  RW    E    <- ((0==k)) ? B ztrmm(m, n)
+             <- ((k>=1)) ? E zgemm(m, n, k-1)
+             -> (((2+m+k)==descB.mt) & (k>=1)) ? dataB((descB.mt-1)-m,n)
+             -> ((descB.mt>=(k+m+3))) ? E zgemm(m, n, k+1)
 
 BODY
-  /* Nothing */
-  printlog("gemm_inA( %d, %d )\n", m, k);
+{
+  int tempmm = (((descB.mt-1)-m)==(descB.mt-1)) ? (descB.m-(((descB.mt-1)-m)*descB.mb)) : descB.mb;
+  int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
+  int ldb = BLKLDD( descB, (descB.mt-1)-m );
+
+  printlog("CORE_zgemm(%d, %d, %d)\n"
+           "\t(trans, PlasmaNoTrans, tempmm, tempnn, descB.mb, alpha, A(%d,%d)[%p], descA.mb, B(%d,%d)[%p], descB.mb, 1.000000, B(%d,%d)[%p], ldb)\n",
+  m, n, k, k, (descB.mt-1)-m, C, k, n, D, (descB.mt-1)-m, n, E);
+  DRYRUN(
+
+    CORE_zgemm(trans, PlasmaNoTrans, tempmm, 
+	tempnn, descB.mb, alpha, 
+	C /* dataA(k,(descB.mt-1)-m) */, descA.mb, D /* dataB(k,n) */, 
+	descB.mb, 1.000000, E /* dataB((descB.mt-1)-m,n) */, 
+	ldb );
+  );
+
+}
 END
 
+zgemm_in_data_B1(m, n, k) [profile = off]
+  /* Execution Space */
+  m = 0..(descB.mt-1)
+  n = 0..(descB.nt-1)
+  k = 0..(descB.mt-m-2)
 
-GEMM_INB(k, n)  [profile = off]
-k = 0..Bmt-2
-n = 0..Bnt-1
+  /* Locality */
+  : dataB(k,n)
 
-:B(k, n)
-
-READ B <- B(k, n)
-       -> B GEMM(k+1..Bmt-1, n, k)
+  READ  D    <- dataB(k,n)
+             -> D zgemm(m, n, k)
 
 BODY
-  /* Nothing */
-  printlog("gemm_inB( %d, %d )\n", k, n);
+{
+    /* nothing */
+}
 END
 
-// Name
-GEMM(m, n, k)
+zgemm_in_data_A0(m, n, k) [profile = off]
+  /* Execution Space */
+  m = 0..(descB.mt-1)
+  n = 0..(descB.nt-1)
+  k = 0..(descB.mt-m-2)
 
-// Execution space
-m = 1..Bmt-1
-n = 0..Bnt-1
-k = 0..m-1
+  /* Locality */
+  : dataA(k,(descB.mt-1)-m)
 
-// Parallel partitioning
-: B(m, n)
+  READ  C    <- dataA(k,(descB.mt-1)-m)
+             -> C zgemm(m, n, k)
 
-// Parameters
-READ  A   <- A GEMM_INA(m, k) /* Read A(k, m) */
-READ  B   <- B GEMM_INB(k, n) 
-RW    C   <- (k == m-1) ? B TRMM(m, n) : C GEMM(m, n, k+1)
-          -> (k == 0)   ? B(m, n)      : C GEMM(m, n, k-1)
-CTL   ctl -> ctl2 GOK(m, n, k)
 BODY
-     int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
-     int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
-     DRYRUN(
-            CORE_zgemm(
-		  trans, PlasmaNoTrans,
-                  tempmm, tempnn, Bmb,
-		  alpha, A, Amb,
-		         B, Bmb,
-		  (dague_complex64_t)1.0, C, Bmb)
-	   );
-
-      printlog("gemm( %d, %d, %d )\n"
-	       "    ( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       m, n, k,
-               plasma_const(trans), plasma_const( PlasmaNoTrans ),
-               tempmm, tempnn, Bmb,
-	       creal(alpha), k, m, A, Bmb, k, n, B, Bmb,
-	       (float)1.0, m, n, C, Bmb);
-
+{
+    /* nothing */
+}
 END
 
-/**************************************************
- *                      GOK                       *
- **************************************************/
-// Name
-GOK(m, n, k)  [profile = off]
 
-// Execution space
-m = 1..Bmt-1
-n = 0..Bnt-1
-k = 0..m-1
-
-// Parallel partitioning
-: B(m, n)
-
-// Parameters
-CTL   ctl1 <- (m != Bmt-1) ? ctl1 GOK(m+1, n, k)
-           -> (m-1 == k)   ? ctl TRMM(k, n) : ctl1 GOK(m-1, n, k)
-CTL   ctl2 <- ctl GEMM(m, n, k)
-BODY
-      /* Fake task to guaranty the end of all gemm using B(m, n) before to start TRMM */
-     printlog("gok( %d, %d, %d )\n", m, n, k);
-END

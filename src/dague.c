@@ -811,8 +811,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
         DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
 
-        /* This service is ready to be executed as all dependencies are solved. Queue it into the
-         * ready_list passed as an argument.
+        /* This service is ready to be executed as all dependencies
+         * are solved.  Queue it into the ready_list passed as an
+         * argument.
          */
         {
 #if defined(DAGUE_DEBUG_VERBOSE1)
