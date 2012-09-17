@@ -90,7 +90,7 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
+    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescLT);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescLT2);
     qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t *)&ddescA,
