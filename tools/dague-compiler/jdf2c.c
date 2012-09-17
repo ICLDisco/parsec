@@ -3565,7 +3565,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     jdf_name_list_t *nl;
     expr_info_t info, linfo;
     string_arena_t *sa2, *sa1, *sa_close;
-    int i, nbopen, rc;
+    int i, nbopen;
     char *p;
 
     string_arena_init(sa_open);
@@ -3620,7 +3620,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
              * If we have to execute code possibly comming from the user then we need to instantiate
              * the entire stack of the target function, including the local definitions.
              */
-            assert(el == NULL);
+            //assert(el == NULL);
             string_arena_add_string(sa_open,
                                     "%s%s{\n"
                                     "%s%s  const int %s_%s = %s;\n",

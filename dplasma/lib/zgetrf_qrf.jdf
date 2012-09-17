@@ -112,9 +112,10 @@ END
  ********************************************************************************************/
 
 swptrsm_u(k, n)
+
   /* Execution space */
-  k = 0..( ( descA.mt < descA.nt ) ? descA.mt-1 : descA.nt-1)
-  n = k+1..descA.nt-1
+  k = 0   .. ( ( descA.mt < descA.nt ) ? descA.mt-1 : descA.nt-1)
+  n = k+1 .. descA.nt-1
 
   did_lu = inline_c %{ return lu_tab[k-1]; %}
 
@@ -125,7 +126,7 @@ swptrsm_u(k, n)
   READ  IP   <- IP zgetrf(k)                                                                       [type = PIVOT]
   RW    C    <- A selector(k, k, n )
              -> A(k, n)
-             -> ( k <  (descA.mt-1) ) ? V zgemm(k, (k+1)..(descA.mt-1), n)  
+             -> ( k <  (descA.mt-1) ) ? V zgemm(k, (k+1)..(descA.mt-1), n)
   CTL   ctl  <- ( k > 0 ) && (did_lu == 1) ? ctl tile2panel_lu(k-1, k, n )
              <- ( k > 0 ) && (did_lu != 1) ? ctl tile2panel_qr(k-1, k, n )
 
@@ -751,26 +752,26 @@ zlufacto(k)
   : A(k, k)
 
   RW    A    <- (k == 0) ? A(k,k)
-             <- ((k!=0)&&(did_lu == 1)) ? C zgemm(k-1,k,k) 
+             <- ((k!=0)&&(did_lu == 1)) ? C zgemm(k-1,k,k)
              <- ((k!=0)&&(did_lu != 1)) ? A2 zttmqr(k-1,k,k)
-			 -> A zsetchoice(k)
+                         -> A zsetchoice(k)
 
   RW    IP   <- IPIV(k, k)                                                                       [type = PIVOT]
              -> IPIV(k, k)                                                                       [type = PIVOT]
-             -> IP zsetchoice(k)										                         [type = PIVOT]
+             -> IP zsetchoice(k)                                                                                                         [type = PIVOT]
 
   RW    SAV  <- SAV(k, k)
              -> SAV zsetchoice(k)
 
-  CTL   ctl  <- ( (k != 0)&&(did_lu == 1) ) ? ctl tile2panel_lu(k-1,k,k) 
+  CTL   ctl  <- ( (k != 0)&&(did_lu == 1) ) ? ctl tile2panel_lu(k-1,k,k)
              <- ( (k != 0)&&(did_lu != 1) ) ? ctl tile2panel_qr(k-1,k,k)
 
 ; descA.nt-k-1
 BODY
 {
-    /* On fait une copie du A et on fait le LU directement sur A */   
+    /* On fait une copie du A et on fait le LU directement sur A */
 }
-END   
+END
 
 
 zsetchoice(k)
@@ -780,10 +781,10 @@ zsetchoice(k)
   : A(k, k)
 
   RW    A    <- A zlufacto(k)
-			 -> A selector(k,k,k)
+                         -> A selector(k,k,k)
 
   RW    IP   <- IP zlufacto(k)                                                                     [type = PIVOT]
-			 -> IP selector(k,k,k)												                   [type = PIVOT]
+                         -> IP selector(k,k,k)                                                                                                             [type = PIVOT]
 
   RW    SAV  <- SAV zlufacto(k)
              -> SAV(k,k)
@@ -792,9 +793,9 @@ zsetchoice(k)
 ; descA.nt-k-1
 BODY
 {
-    /* On récolte les conditions number et on fait le choix */   
+    /* On récolte les conditions number et on fait le choix */
 }
-END  
+END
 
 
 selector(k,m,n)
@@ -816,14 +817,14 @@ selector(k,m,n)
             <- ( (k!=0)&&(did_lu != 1)&&(k==m)&&(k==n) ) ? A zsetchoice(k)
             <- ( (k!=0)&&(did_lu != 1)&&(k!=m)         ) ? A2 zttmqr(k-1,m,n)
             <- ( (k!=0)&&(did_lu != 1)&&(k!=n)         ) ? A2 zttmqr(k-1,m,n)
-            -> ( (do_lu == 1)&&(k==n)&&(k==m)    ) ? A zgetrf(k) 
+            -> ( (do_lu == 1)&&(k==n)&&(k==m)    ) ? A zgetrf(k)
             -> ( (do_lu == 1)&&(k==n)&&(k!=m)    ) ? C ztrsm_l(k,m)
             -> ( (do_lu == 1)&&(k!=n)&&(k==m)    ) ? C swptrsm_u(k,n)
             -> ( (do_lu == 1)&&(k!=n)&&(k!=m)    ) ? C zgemm(k,m,n)
-            -> ( (do_lu == 0)&&(k==n)&&(type==0) ) ? A zgeqrt(k,i) 
-            -> ( (do_lu == 0)&&(k==n)&&(type!=0) ) ? A2 zttqrt(k,m) 
-            -> ( (do_lu == 0)&&(k!=n)&&(type==0) ) ? C zunmqr(k,i,n) 
-            -> ( (do_lu == 0)&&(k!=n)&&(type!=0) ) ? A2 zttmqr(k,m,n) 
+            -> ( (do_lu == 0)&&(k==n)&&(type==0) ) ? A zgeqrt(k,i)
+            -> ( (do_lu == 0)&&(k==n)&&(type!=0) ) ? A2 zttqrt(k,m)
+            -> ( (do_lu == 0)&&(k!=n)&&(type==0) ) ? C zunmqr(k,i,n)
+            -> ( (do_lu == 0)&&(k!=n)&&(type!=0) ) ? A2 zttmqr(k,m,n)
 
   RW    IP  <- ( (m==k)&&(n==k)&&(do_lu == 1) ) ? IP zsetchoice(k)
             -> ( (m==k)&&(n==k)&&(do_lu == 1) ) ? IP zgetrf(k)
@@ -831,6 +832,6 @@ selector(k,m,n)
 ; descA.nt-k-1
 BODY
 {
-    /* Nothing */   
+    /* Nothing */
 }
-END  
+END
