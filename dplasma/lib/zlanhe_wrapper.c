@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @precisions normal z -> s d c
+ * @precisions normal z -> z c
  *
  */
 #include "dague_internal.h"
@@ -180,8 +180,10 @@ double dplasma_zlanhe( dague_context_t *dague,
 #endif
 }
 
+#if 0
 void
 dplasma_zlanhe_Destruct( dague_object_t *o )
 {
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
+#endif

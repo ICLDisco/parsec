@@ -90,6 +90,7 @@ typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object, co
 #define DAGUE_HAS_OUT_OUT_DEPENDENCIES   0x0002
 #define DAGUE_HAS_IN_STRONG_DEPENDENCIES 0x0004
 #define DAGUE_HIGH_PRIORITY_TASK         0x0008
+#define DAGUE_IMMEDIATE_TASK             0x0010
 
 struct dague_function {
     const char                  *name;
@@ -219,26 +220,5 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 } while (0)
 
 #define dague_execution_context_priority_comparator offsetof(dague_execution_context_t, priority)
-
-static inline dague_execution_context_t*
-dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_execution_context_t* elem )
-{
-    if( NULL == *list ) {
-        DAGUE_LIST_ITEM_SINGLETON(elem);
-        *list = elem;
-    } else {
-        dague_execution_context_t* position = *list;
-        while( elem->priority <= position->priority ) {
-            position = DAGUE_LIST_ITEM_NEXT(position);
-            if( position == (*list) ) break;
-        }
-        dague_list_item_ring_push((dague_list_item_t*)position,
-                                  (dague_list_item_t*)elem);
-        if( elem->priority > (*list)->priority ) {
-            *list = elem;
-        }
-    }
-    return *list;
-}
 
 #endif  /* DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED */

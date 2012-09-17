@@ -2159,8 +2159,6 @@ char *quark_tree_to_body(node_t *node){
                 char *var_str = tree_to_str(arr->u.kids.kids[ii]);
                 printSuffix = append_to_string( printSuffix, var_str, ", %s", 2+strlen(var_str));
             }
-            // Mathieu said we should print the DAGuE alias symbol, not the array base name.
-            // printSuffix = append_to_string( printSuffix, base_name, ", %s", 2+strlen(base_name));
             char *alias = arr->var_symname;
             printSuffix = append_to_string( printSuffix, alias, ", %s", 2+strlen(base_name));
         }else{

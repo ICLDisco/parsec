@@ -22,12 +22,12 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA)
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
 extern dague_gpu_data_map_t dague_gpu_map;
-#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) */
 %}
 
 /* Globals
@@ -58,9 +58,9 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 //; (k >= (descA.nt - PRI_CHANGE)) ? (descA.nt - k + 7) * (descA.nt - k + 2) * (descA.nt - k) / 6 : 0
 
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(k, k) );
-#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
+#if defined(HAVE_CUDA)
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, k, k) );
+#endif  /* defined(HAVE_CUDA) */
 
     int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
     int iinfo = 0;
@@ -105,9 +105,9 @@ RW    C <- (k == 0) ? A(k, n) : C GEMM(k-1, k, n)
 //;  (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n - k) * ((descA.nt - n - k + 1) / 2 + 2) - 1 + (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 : 0
 
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(k, n) );
-#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
+#if defined(HAVE_CUDA)
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, k, n) );
+#endif  /* defined(HAVE_CUDA) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
@@ -152,9 +152,9 @@ RW    T <- (k == 0)   ? A(n, n)    : T HERK(k-1, n)
 //; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 + descA.nt - n + k + 1 : 0
 
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(n, n) );
-#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
+#if defined(HAVE_CUDA)
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, n, n) );
+#endif  /* defined(HAVE_CUDA) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n*descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
@@ -202,13 +202,19 @@ RW    C <- (k == 0)   ? A(m, n)      : C GEMM(k-1, m, n)
 BODY
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
-    int ldan = BLKLDD( descA, n );
+    int ldam = BLKLDD( descA, m );
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA)
     if( dague_active_gpu() > 0 ) {
         int rc;
 
-        if( 0 == (rc = gpu_zgemm( context, this_task, uplo )) )
+        if( 0 == (rc = gpu_zgemm( context, this_task, 
+                                  ( m == k+1 ),
+                                  PlasmaConjTrans, PlasmaNoTrans,
+                                  descA.mb, tempnn, descA.mb,
+                                  (Dague_Complex64_t)-1.0, k, m, &descA, ldak,
+                                                           k, n, &descA, ldak,
+                                  (Dague_Complex64_t) 1.0, m, n, &descA, ldam)) )
             goto FIN;
         if( -1 == rc ) {
             /* We're done, but the task has been already destroyed */
@@ -219,11 +225,9 @@ BODY
 	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
 	    exit(2);
         }
-        /* Continue with the task on the cores */
-        device_load[0] -= device_weight[0];  /* lessen the load on the CPUs */
     }
-    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY(m, n) );
-#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
+    dague_gpu_update_data_version( &dague_gpu_map, GEMM_KEY( &descA, m, n) );
+#endif  /* defined(HAVE_CUDA) */
 
     DRYRUN(
         CORE_zgemm(
@@ -231,7 +235,7 @@ BODY
             descA.mb, tempnn, descA.nb,
             (Dague_Complex64_t)-1.0, A /*A(k, m)*/, ldak,
                                      B /*A(k, n)*/, ldak,
-            (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldan);
+            (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldam);
         );
     printlog("thread %d VP %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n,
@@ -239,9 +243,9 @@ BODY
              descA.mb, tempnn, descA.nb,
              -1.0, k, m, A, ldak,
                    k, n, B, ldak,
-              1.0, m, n, C, ldan);
+              1.0, m, n, C, ldam);
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA)
 FIN:
 #endif
 END

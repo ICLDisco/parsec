@@ -84,11 +84,19 @@ void dague_prof_grapher_init(const char *base_filename, int rank, int size, int 
     int t;
 
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
+    char *format;
+    int l10 = 0;
+    int cs=size;
+    while(cs > 0) {
+      l10++;
+      cs = cs/10;
+    }
+    asprintf(&format, "%%s-%%0%dd.dot", l10);
     filename = malloc(strlen(base_filename) + 16);
-    snprintf(filename, strlen(base_filename) + 16, "%s-%d.dot", base_filename, rank);
+    asprintf(&filename, format, base_filename, rank);
+    free(format);
 #else
-    filename = malloc(strlen(base_filename) + 16);
-    snprintf(filename, strlen(base_filename) + 16, "%s.dot", base_filename);
+    asprintf(&filename, "%s.dot", base_filename);
 #endif
 
     grapher_file = fopen(filename, "w");

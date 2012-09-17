@@ -76,7 +76,7 @@ zhetrf2_nopiv(k)
           <- (0==k) & (desc_A.mt>=2) ? data_A(k,k)
           -> (desc_A.mt>=(k+2)) ? O ztrmdm(k) 
           -> (desc_A.mt>=(k+2)) ? G zhedrk(k, (k+1)..(desc_A.mt-1)) 
-          -> (desc_A.mt>=(k+2)) ? H magic(k, (k+1)..(desc_A.mt-1)) 
+          -> (desc_A.mt>=(k+3)) ? H magic(k, (k+2)..(desc_A.mt-1)) 
           -> (desc_A.mt>=(k+2)) ? C ztrsm(k, (k+1)..(desc_A.mt-1)) 
 
 BODY
@@ -251,7 +251,7 @@ END
 magic(k,m1)
   /* Execution space */
   k = 0..(desc_A.mt-2)
-  m1 = (k+1)..(desc_A.mt-1)
+  m1 = (k+2)..(desc_A.mt-1)
 
   : data_A(k,k)
 

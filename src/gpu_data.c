@@ -66,7 +66,6 @@ static void* dague_allocate_data_gpu(size_t matrix_size)
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                 {} );
-        printf("Allocate %lu bytes on GPU\n", matrix_size);
     } else {
         mat = malloc( matrix_size );
     }
@@ -143,13 +142,21 @@ int dague_cuda_own_GPU_key_end;
  */
 gpu_device_t** gpu_enabled_devices = NULL;
 
+/* Dirty selection for now */
+float gpu_speeds[2][2] ={
+    /* C1060, C2050 */
+    { 622.08, 1030.4 },
+    {  77.76,  515.2 }
+};
+
 int dague_gpu_init(dague_context_t *dague_context,
                    int* puse_gpu,
-                   int dague_show_detailed_capabilities)
+                   int dague_show_detailed_capabilities )
 {
     int ndevices, i, j, k, dindex, nb_cores;
     float total_perf;
     CUresult status;
+    int isdouble = 0;
 
     if( (*puse_gpu) == -1 ) {
         return -1;  /* Nothing to do around here */
@@ -167,10 +174,6 @@ int dague_gpu_init(dague_context_t *dague_context,
         return -1;
     }
 
-    for( i = nb_cores = 0; i < dague_context->nb_vp; i++ )
-        nb_cores += dague_context->virtual_processes[i]->nb_cores;
-    total_perf = nb_cores * (float)22620000 * 4;
-
 #if defined(DAGUE_PROF_TRACE)
     dague_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
                                             0, NULL,
@@ -185,9 +188,20 @@ int dague_gpu_init(dague_context_t *dague_context,
 
     gpu_enabled_devices = (gpu_device_t**)calloc(ndevices, sizeof(gpu_device_t*));
 
-    device_load = (float*)calloc(ndevices+1, sizeof(float));  /* 0 for the cores */
+    device_load   = (float*)calloc(ndevices+1, sizeof(float));  /* 0 for the cores */
     device_weight = (float*)calloc(ndevices+1, sizeof(float));
-    for( i = 0; i < (ndevices+1); i++ ) device_weight[i] = total_perf / nb_cores;
+
+    memset( device_load, 0, (ndevices+1 )* sizeof(float) );
+    
+    for( i = nb_cores = 0; i < dague_context->nb_vp; i++ )
+        nb_cores += dague_context->virtual_processes[i]->nb_cores;
+
+    /* Theoritical perf in double 
+     * 2.27 is the frequency of dancer */
+    total_perf = (float)nb_cores * 2.27f * 4.f;
+    if ( ! isdouble )
+        total_perf *= 2;
+    device_weight[0] = total_perf;
 
     for( i = dindex = 0; i < ndevices; i++ ) {
 #if CUDA_VERSION >= 3020
@@ -215,9 +229,14 @@ int dague_gpu_init(dague_context_t *dague_context,
         status = cuDeviceGetAttribute( &concurrency, CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
 
-        device_weight[i+1] = ((float)devProps.maxThreadsPerBlock * (float)devProps.clockRate) * (float)2.0;
+        if ( isdouble )
+            device_weight[i+1] = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
+        else
+            device_weight[i+1] = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
+
+        //device_weight[i+1] = ((float)devProps.maxThreadsPerBlock * (float)devProps.clockRate) * 2;
         total_perf += device_weight[i+1];
-        device_weight[i+1] *= (concurrency == 1 ? 2 : 1);
+        //device_weight[i+1] *= (concurrency == 1 ? 2 : 1);
 
         /* Allow fine grain selection of the GPU's */
         if( !((1 << i) & __dague_gpu_mask) ) continue;
@@ -290,8 +309,8 @@ int dague_gpu_init(dague_context_t *dague_context,
             exec_stream->end          = 0;
             exec_stream->fifo_pending = (dague_list_t*)malloc( sizeof(dague_list_t) );
             dague_list_construct( exec_stream->fifo_pending );
-            exec_stream->tasks  = (struct dague_execution_context_t**)malloc(exec_stream->max_events
-                                                                             * sizeof(struct dague_execution_context_t*));
+            exec_stream->tasks  = (dague_gpu_context_t**)malloc(exec_stream->max_events
+                                                                       * sizeof(dague_gpu_context_t*));
             exec_stream->events = (CUevent*)malloc(exec_stream->max_events * sizeof(CUevent));
             /* and the corresponding events */
             for( k = 0; k < exec_stream->max_events; k++ ) {
@@ -316,14 +335,24 @@ int dague_gpu_init(dague_context_t *dague_context,
 #endif  /* defined(PROFILING) */
         dindex++;
     }
+
     /* Compute the weight of each device including the cores */
+    DEBUG(("Global Theoritical performance: %2.4f\n", total_perf ));
     for( i = 0; i < (ndevices+1); i++ ) {
-        device_weight[i] = (total_perf / device_weight[i]);
         if( 0 == i )
-            printf("CPU             ->ratio %2.4f\n", device_weight[i]);
+            DEBUG(("CPU             ->ratio %2.4e (%2.4e)\n",
+                   device_weight[i],
+                   device_weight[i] / nb_cores ));
         else
-            printf("Device index %2d ->ratio %2.4f\n", i-1, device_weight[i]);
+            DEBUG(("Device index %2d ->ratio %2.4e\n", 
+                   i-1, device_weight[i]));
+        device_weight[i] = (total_perf / device_weight[i]);
     }
+
+    // Set the initial load of the cores to twice their weight, so that GPU will offload on CPU only if the work goes over that 
+    device_load[0] = device_weight[0] * 2;
+    // Now we set the weight to only one core
+    device_weight[0] = device_weight[0] / nb_cores;
 
     dague_data_enable_gpu( ndevices );
     return 0;
@@ -468,8 +497,6 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                                     }) );
             nb_allocations++;
             gpu_elem->generic.memory_elem = NULL;
-            assert( ((dague_list_item_t*)gpu_elem)->list_next == (dague_list_item_t*)gpu_elem );
-            assert( ((dague_list_item_t*)gpu_elem)->list_prev == (dague_list_item_t*)gpu_elem );
             dague_ulist_fifo_push( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
         }
@@ -728,6 +755,7 @@ int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
         mem_elem->device_elem[gpu_device->index] = (dague_device_elem_t*)gpu_elem;
         gpu_elem->generic.memory_elem = mem_elem;
         gpu_elem->generic.coherency_state = DAGUE_DATA_INVALID;
+        gpu_elem->generic.version = 0;
         move_data_count--;
         temp_loc[i] = gpu_elem;
         dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
@@ -806,13 +834,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
      * until the task is completed.
      */
     if( ACCESS_WRITE & type ) {
-#if defined(DAGUE_DEBUG)
-        if( NULL != ((dague_list_item_t*)gpu_elem)->belong_to )
-            dague_ulist_remove( (dague_list_t*)(((dague_list_item_t*)gpu_elem)->belong_to),
-                                (dague_list_item_t*)gpu_elem);
-#else
-        dague_ulist_remove( gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_elem);
-#endif  /* defined(DAGUE_DEBUG) */
+        dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
     /* The version on the GPU doesn't match the one in memory. Let the
@@ -856,8 +878,8 @@ static inline dague_list_item_t* dague_fifo_push_ordered( dague_list_t* fifo,
 int progress_stream( gpu_device_t* gpu_device,
                      dague_gpu_exec_stream_t* exec_stream,
                      advance_task_function_t progress_fct,
-                     dague_execution_context_t* task,
-                     dague_execution_context_t** out_task )
+                     dague_gpu_context_t* task,
+                     dague_gpu_context_t** out_task )
 {
     int saved_rc = 0, temp_rc = 0, rc;
     *out_task = NULL;
@@ -869,7 +891,7 @@ int progress_stream( gpu_device_t* gpu_device,
   grab_a_task:
     if( NULL == exec_stream->tasks[exec_stream->start] ) {
         /* get the best task */
-        task = (dague_execution_context_t*)dague_ulist_fifo_pop(exec_stream->fifo_pending);
+        task = (dague_gpu_context_t*)dague_ulist_fifo_pop(exec_stream->fifo_pending);
     }
     if( NULL == task ) {
         /* No more room on the event list or no tasks. Keep moving */
@@ -884,7 +906,7 @@ int progress_stream( gpu_device_t* gpu_device,
         /* No more room on the GPU. Push the task back on the queue and check the completion queue. */
         DAGUE_FIFO_PUSH(exec_stream->fifo_pending, (dague_list_item_t*)task);
         DEBUG2(( "GPU: Reschedule %s(task %p) priority %d: no room available on the GPU for data\n",
-                 task->function->name, (void*)task, task->priority ));
+                 task->ec->function->name, (void*)task->ec, task->ec->priority ));
     } else {
         /**
          * Do not skip the cuda event generation. The problem is that some of the inputs
@@ -896,7 +918,7 @@ int progress_stream( gpu_device_t* gpu_device,
         exec_stream->tasks[exec_stream->start] = task;
         exec_stream->start = (exec_stream->start + 1) % exec_stream->max_events;
         DEBUG3(( "GPU: Submitted %s(task %p) priority %d\n",
-                 task->function->name, (void*)task, task->priority ));
+                 task->ec->function->name, (void*)task->ec, task->ec->priority ));
     }
     task = NULL;
 
@@ -905,8 +927,8 @@ int progress_stream( gpu_device_t* gpu_device,
         rc = cuEventQuery(exec_stream->events[exec_stream->end]);
         if( CUDA_SUCCESS == rc ) {
             /* Save the task for the next step */
-            *out_task = exec_stream->tasks[exec_stream->end];
-            DEBUG3(("GPU: Complete %s(task %p)\n", task->function->name, (void*)*out_task ));
+            task = *out_task = exec_stream->tasks[exec_stream->end];
+            DEBUG3(("GPU: Complete %s(task %p)\n", task->ec->function->name, (void*)task ));
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
             saved_rc = temp_rc;

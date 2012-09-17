@@ -45,8 +45,13 @@ extern int dague_cuda_own_GPU_key_end;
 
 extern float *device_load, *device_weight;
 
+typedef struct __dague_gpu_context {
+    dague_list_item_t          list_item;
+    dague_execution_context_t *ec;
+} dague_gpu_context_t;
+
 typedef struct __dague_gpu_exec_stream {
-    struct dague_execution_context_t **tasks;
+    struct __dague_gpu_context **tasks;
     CUevent *events;
     CUstream cuda_stream;
     int32_t max_events;  /* number of potential events, and tasks */
@@ -60,6 +65,7 @@ typedef struct _gpu_device {
     CUcontext  ctx;
     CUmodule   hcuModule;
     CUfunction hcuFunction;
+    void   *function;
     uint8_t index;
     uint8_t device_index;
     uint8_t major;
@@ -226,14 +232,14 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
  *
  */
 typedef int (*advance_task_function_t)(gpu_device_t* gpu_device,
-                                       dague_execution_context_t* task,
+                                       dague_gpu_context_t* task,
                                        CUstream cuda_stream);
 
 int progress_stream( gpu_device_t* gpu_device,
                      dague_gpu_exec_stream_t* exec_stream,
                      advance_task_function_t progress_fct,
-                     dague_execution_context_t* task,
-                     dague_execution_context_t** out_task );
+                     dague_gpu_context_t* task,
+                     dague_gpu_context_t** out_task );
 
 /**
  * Compute the adapted unit

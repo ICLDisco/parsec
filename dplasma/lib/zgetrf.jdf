@@ -32,7 +32,7 @@ descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
 IPIV      [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
-nbmaxthrd [type = "int" default="( dague_imin( A->cores, 48 ) )" hidden=on] /* 48 is the actual limit of the kernel */
+nbmaxthrd [type = "int" default="( dague_imax( 1, dague_imin( A->cores - 1, 48 ) ) )" hidden=on] /* 48 is the actual limit of the kernel */
 minMNT    [type = "int" default="( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )" hidden=on]
 
 /************************************************************************************
@@ -304,7 +304,7 @@ gemm(k,m,n)
   /* Locality */
 :A(m, n)
 
-READ  A  <- A GEMM_A_in(k, m)
+  READ  A  <- A GEMM_A_in(k, m)
   READ  B  <- B swptrsm(k, n)
   RW    C  <- ( k   == 0 ) ? A(m, n) : C gemm(k-1, m, n)
            -> ( k+1 == n ) && ( k+1 == m ) ? A getrf(k+1, 0..ntrd)

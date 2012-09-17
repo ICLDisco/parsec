@@ -234,6 +234,7 @@ void tile_to_block_double(scalapack_info_t * info, int row, int col)
          
     src = info->Ddesc->super.rank_of((dague_ddesc_t *)(info->Ddesc), row, col);
     dest = twoDBC_get_rank( info->Ddesc, info->process_grid_rows, row, col);
+    dec = -1;
 
     if (INT_MAX == src)
         return;
@@ -275,6 +276,11 @@ void tile_to_block_double(scalapack_info_t * info, int row, int col)
             MPI_Send(bdl, 1, info->MPI_Dague_full_block, dest, 0, MPI_COMM_WORLD );
         }
     } else if (dest == info->Ddesc->super.myrank) {  /* process have to receive the block */
+        GRIDrows = info->process_grid_rows;
+        GRIDcols = info->Ddesc->super.nodes / GRIDrows;
+        il = row / GRIDrows;
+        jl = col / GRIDcols;
+        dec = (info->Ddesc->nb * (int)info->sca_desc[8] * jl) + (info->Ddesc->mb * il);
         lapack = (double*) &(((double*)(info->sca_mat))[ dec ]);
         if (row + 1 == info->Ddesc->mt) {
             if( col + 1 == info->Ddesc->nt) {
