@@ -3979,10 +3979,12 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
     assignment_info_t ai;
+    int rc;
 
     assert(JDF_OP_IS_C_CODE(expr->op));
-    asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
-             jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
+    rc = asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
+                  jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
+    (void)rc;
     coutput("static inline int %s(const dague_object_t *__dague_object_parent, const assignment_t *assignments)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)__dague_object_parent;\n"
