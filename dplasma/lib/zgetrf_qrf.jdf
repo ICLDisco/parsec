@@ -755,7 +755,7 @@ zsetchoice(k)
 ; descA.nt-k-1
 BODY
 {
-    /* On récolte les conditions number et on fait le choix */
+    /* TODO: We collect the condition numbers and compute the choice*/
 
     int ldak = BLKLDD( descA, k );
     int ldsavk = BLKLDD( descSAV, k );
