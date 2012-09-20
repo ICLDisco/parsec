@@ -41,6 +41,7 @@ set(JDF
   ztrsmpl_hincpiv.jdf
   ztrsmpl_hpp.jdf
   ztrsmpl_hpp2.jdf
+  ztrsmpl_qrf.jdf
   zgeqrf.jdf
   zgelqf.jdf
   zherbt_L.jdf
@@ -118,7 +119,8 @@ set(SOURCES
   zgetrf_hincpiv_wrapper.c
   zgetrf_hpp_wrapper.c
   zgetrf_hpp2_wrapper.c
-  #zgetrf_qrf_wrapper.c
+  zgetrf_qrf_wrapper.c
+  ztrsmpl_qrf_wrapper.c
   zungqr_param_wrapper.c
   zgelqf_wrapper.c
   zherbt_wrapper.c

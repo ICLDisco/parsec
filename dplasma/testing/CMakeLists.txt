@@ -24,7 +24,7 @@ set(TESTS
   testing_zgetrf_hincpiv.c
   testing_zgetrf_hpp.c
   testing_zgetrf_hpp2.c
-  #testing_zgetrf_qrf.c
+  testing_zgetrf_qrf.c
   testing_zgelqf.c
   testing_zherbt.c
   testing_zhbrdt.c
