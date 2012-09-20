@@ -35,6 +35,7 @@ PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
 descA   [type = "tiled_matrix_desc_t"]
 A       [type = "dague_ddesc_t *"]
 IPIV    [type = "dague_ddesc_t *" aligned=A]
+descSAV [type = "tiled_matrix_desc_t"]
 SAV     [type = "dague_ddesc_t *" aligned=A]
 descLT  [type = "tiled_matrix_desc_t"]
 LT      [type = "dague_ddesc_t *" aligned=A]
@@ -84,7 +85,7 @@ zgetrf(k)
 
 ; descA.nt-k-1
 BODY
-  /* Nothing */
+  /* Nothing (LU factorization already done by lu_facto)*/
 END
 
 
@@ -671,6 +672,8 @@ zlufacto(k)
  /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   did_lu = inline_c %{ return lu_tab[k-1]; %}
+  s      = inline_c %{ return ceil((descA.mt-k)/param_p); %}
+  ks     = inline_c %{ return k + (s-1)*param_p; %}
 
   : A(k, k)
 
@@ -691,7 +694,42 @@ zlufacto(k)
 ; descA.nt-k-1
 BODY
 {
-    /* On fait une copie du A et on fait le LU directement sur A */   
+    /* Copy A in SAV and do the LU factorization on A */ 
+
+    int iinfo = 0;
+    int tempn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int tempm = (s-1) * descA.mb +
+        (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
+    int ldak = BLKLDD( descA, k );
+    int ldsavk = BLKLDD( descSAV, k );
+
+    printlog("\nthread %d VP %d zlufacto( k=%d)\n",
+             context->th_id, context->virtual_process->vp_id, k);
+
+    DRYRUN(
+        /* Set local IPIV to 0 before generation
+         * Better here than a global initialization for locality
+         * and it's also done in parallel */
+
+		CORE_zlacpy(PlasmaUpperLower, s*descA.mb, descA.nb,
+                    A, ldak,
+                    SAV, ldsavk);
+
+        memset(IP, 0, dague_imin(tempn, tempm) * sizeof(int) );
+
+        PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                               descA.mb, descA.nb, descA.mb * descA.nb,
+                                               s*descA.mb, descA.nb, 0, 0,
+                                               tempm, tempn );
+        pdescA.mat = A;
+
+        iinfo = CORE_zgetrf_rectil_1thrd( pdescA, IP );
+
+        if ( iinfo != 0 ) {
+            *INFO = k * descA.mb + iinfo; /* Should return if enter here */
+            fprintf(stderr, "zlufacto(%d) failed => %d\n", k, *INFO );
+        }
+           );
 }
 END   
 
@@ -699,6 +737,8 @@ END
 zsetchoice(k)
  /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  s      = inline_c %{ return ceil((descA.mt-k)/param_p); %}
+  ks     = inline_c %{ return k + (s-1)*param_p; %}
 
   : A(k, k)
 
@@ -715,7 +755,26 @@ zsetchoice(k)
 ; descA.nt-k-1
 BODY
 {
-    /* On récolte les conditions number et on fait le choix */   
+    /* On récolte les conditions number et on fait le choix */
+
+    int ldak = BLKLDD( descA, k );
+    int ldsavk = BLKLDD( descSAV, k );
+
+    DRYRUN(
+         int cond = 0;
+
+         cond = rand() % 2;
+
+         if (cond == 1)
+             lu_tab[k] = 1;
+         else{
+             lu_tab[k] = 0;
+
+             CORE_zlacpy(PlasmaUpperLower, s*descA.mb, descA.nb,
+                    SAV, ldsavk,
+                    A, ldak);
+             }
+          );
 }
 END  
 

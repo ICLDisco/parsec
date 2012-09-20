@@ -33,7 +33,7 @@ dague_object_t* dplasma_zgetrf_qrf_New( qr_piv_t *qrpiv,
 
     object = dague_zgetrf_qrf_new( *A,  (dague_ddesc_t*)A,
                                    (dague_ddesc_t*)IPIV,
-                                   (dague_ddesc_t*)SAV,
+                                   *SAV, (dague_ddesc_t*)SAV,
                                    *LT, (dague_ddesc_t*)LT,
 								   lu_tab,
                                    qrpiv, ib,
