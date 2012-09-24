@@ -779,6 +779,7 @@ static int dplasma_high_binary_nextpiv(const qr_subpiv_t *arg, const int p, cons
         return arg->ldd;
 };
 
+
 static int dplasma_high_binary_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
 {
     int offset = p - k;
@@ -1113,6 +1114,25 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
     }
 };
 
+/**
+ *  dplasma_qr_nextpiv - Computes the next row killed by the row p, after
+ *  it has kill the row start.
+ *
+ * @param[in] p
+ *         Line used as killer
+ *
+ * @param[in] k
+ *         Factorization step
+ *
+ * @param[in] start
+ *         Starting point to search the next line killed by p after start
+ *         start must be equal to A.mt to find the first row killed by p.
+ *         if start != A.mt, start must be killed by p
+ *
+ * @return:
+ *   - -1 if start doesn't respect the previous conditions
+ *   -  m, the following row killed by p if it exists, A->mt otherwise
+ */
 int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 {
     int tmp, ls, lp, nextp;
@@ -1227,6 +1247,24 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
         }
 }
 
+/**
+ *  dplasma_qr_prevpiv - Computes the previous row killed by the row p, before
+ *  to kill the row start.
+ *
+ * @param[in] p
+ *         Line used as killer
+ *
+ * @param[in] k
+ *         Factorization step
+ *
+ * @param[in] start
+ *         Starting point to search the previous line killed by p before start
+ *         start must be killed by p, and start must be greater or equal to p
+ *
+ * @return:
+ *   - -1 if start doesn't respect the previous conditions
+ *   -  m, the previous row killed by p if it exists, A->mt otherwise
+ */
 int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
 {
     int tmp, ls, lp, nextp;

@@ -361,7 +361,7 @@ static int dplasma_high_flat_flat_prevpiv(const qr_subpiv_t *arg, const int pivo
             else
                 return min( pivot + ((arg->ldd -1- pivot)/(arg->p * arg->p)) * arg->p * arg->p, arg->ldd); //todo here
 
-    if ( (pivot + (arg->p - 1) * arg->p) >= arg->ldd ) 
+    if ( (pivot + (arg->p - 1) * arg->p) >= arg->ldd )
         return arg->ldd;
     else
         return pivot + (arg->p - 1) * arg->p;
@@ -561,10 +561,10 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A,
     int low_mt, minMN, sq_p;
     qr_piv_t *qrpiv = (qr_piv_t*) malloc( sizeof(qr_piv_t) );
     (void)a; (void)domino; (void)tsrr;
- 
+
     p = max( p, 1 );
     sq_p = (int)sqrt((double)p);
-    
+
     assert( p == (sq_p * sq_p) );
 
     qrpiv->desc = A;
