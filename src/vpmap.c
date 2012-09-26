@@ -569,7 +569,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             offset = sprintf(str, "%i ", core_tab[t]);
             length += offset;
             if( length > MAX_STR_SIZE-3){
-                sprintf(str, "...\0");
+                sprintf(str, "...");
                 break;
             }
             str += offset;
