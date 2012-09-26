@@ -41,7 +41,8 @@ foreach( treel ${alltreel} )
   endforeach()
 endforeach()
 
-set(allP 4 9 16 81)         # --qr_p  Fix the size of the distributed tree
+set(allP 1 4 9 16 81)         # --qr_p  Fix the size of the distributed tree
+set(allQ 2 4 9 16 81)         # --qr_p  Fix the size of the distributed tree
 #set(allM 1 2 3 4 5 10 13 17 25 26 58 128)
 #set(allN 1 2 3 4 5 10 13 17 25 26 58 128)
 set(allM 3 4 10 17 25 128) #1 3 4 10 17 25 128)
@@ -55,10 +56,12 @@ set(allN 1 2 5 13 26 58)
 #endforeach()
 
 foreach( p ${allP} )
-   foreach( m ${allM} )
+  foreach( q ${allQ} )
+    foreach( m ${allM} )
       foreach( n ${allN} )
-        add_test(sys_pivgen_p${p}_m${m}_n${n} ./testing_dpivgen -M ${m} -N ${n} --treel=0 --qr_a=1 --qr_p=${p} --treeh=0 --domino=0)
-        add_test(sys_qrparam_p${p}_m${m}_n${n} ./testing_dgeqrf_param -t 1 -i 1 -M ${m} -N ${n} --treel=0 --qr_a=1 --qr_p=${p} --treeh=0 --domino=0)
+        add_test(sys_pivgen_p${p}_q${q}_m${m}_n${n}  ./testing_dpivgen                -M ${m} -N ${n} --qr_a=${q} --qr_p=${p})
+        add_test(sys_qrparam_p${p}_q${q}_m${m}_n${n} ./testing_dgeqrf_param -t 1 -i 1 -M ${m} -N ${n} --qr_a=${q} --qr_p=${p})
       endforeach()
-   endforeach()
+    endforeach()
+  endforeach()
 endforeach()

@@ -75,6 +75,8 @@ struct qr_subpiv_s {
     int domino;
 };
 
+qr_piv_t *dplasma_systolic_init( tiled_matrix_desc_t *A,
+                                 int p, int q );
 qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_hlvl,
                                int a, int p, int domino, int tsrr );
 void      dplasma_pivgen_finalize( qr_piv_t *qrpiv );
