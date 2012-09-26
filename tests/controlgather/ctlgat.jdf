@@ -9,6 +9,7 @@ extern "C" %{
 #endif
 %}
 
+A          [type = "dague_ddesc_t*"]
 NT
 WS
 
