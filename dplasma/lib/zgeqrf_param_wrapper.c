@@ -45,20 +45,20 @@ dague_object_t* dplasma_zgeqrf_param_New( qr_piv_t *qrpiv,
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
     
-    dplasma_add2arena_tile( object->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA], 
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
+/*     dplasma_add2arena_tile( object->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA],  */
+/*                             A->mb*A->nb*sizeof(dague_complex64_t), */
+/*                             DAGUE_ARENA_ALIGNMENT_SSE, */
+/*                             MPI_DOUBLE_COMPLEX, A->mb ); */
     dplasma_add2arena_tile( object->arenas[DAGUE_zgeqrf_param_UPPER_TILE_ARENA], 
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
     /* Lower triangular part of tile without diagonal */
-/*     dplasma_add2arena_lower( object->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA], */
-/*                              A->mb*A->nb*sizeof(dague_complex64_t), */
-/*                              DAGUE_ARENA_ALIGNMENT_SSE, */
-/*                              MPI_DOUBLE_COMPLEX, A->mb, 0 ); */
+    dplasma_add2arena_lower( object->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(dague_complex64_t),
+                             DAGUE_ARENA_ALIGNMENT_SSE,
+                             MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Upper triangular part of tile with diagonal */
 /*     dplasma_add2arena_upper( object->arenas[DAGUE_zgeqrf_param_UPPER_TILE_ARENA], */
