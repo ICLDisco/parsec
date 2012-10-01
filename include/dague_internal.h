@@ -66,6 +66,10 @@ typedef int (dague_release_deps_t)(struct dague_execution_unit*,
                                    dague_execution_context_t*,
                                    uint32_t,
                                    struct dague_remote_deps_t *);
+#if defined(DAGUE_SIM)
+typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
+#endif
+typedef void (dague_task_fct_t)(dague_execution_context_t *exec_context);
 
 typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit *eu,
                                                          dague_execution_context_t *newcontext,
@@ -82,9 +86,6 @@ typedef void (dague_traverse_function_t)(struct dague_execution_unit *,
                                          dague_ontask_function_t *,
                                          void *);
 
-#if defined(DAGUE_SIM)
-typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
-#endif
 typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object, const assignment_t *assignments);
 
 #define DAGUE_HAS_IN_IN_DEPENDENCIES     0x0001
@@ -112,6 +113,7 @@ struct dague_function {
 #if defined(DAGUE_SIM)
     dague_sim_cost_fct_t        *sim_cost_fct;
 #endif
+    dague_task_fct_t            *data_lookup;
     dague_hook_t                *hook;
     dague_hook_t                *complete_execution;
 #ifdef DAGUE_GPU_WITH_CUDA
