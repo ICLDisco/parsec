@@ -22,7 +22,7 @@ static uint32_t rank_of(dague_ddesc_t *desc, ...)
     va_end(ap);
 
     assert( k < dat->size && k >= 0 );
-
+    (void)dat;
     return k;
 }
 
@@ -37,7 +37,7 @@ static int32_t vpid_of(dague_ddesc_t *desc, ...)
     va_end(ap);
 
     assert( k < dat->size && k >= 0 );
-
+    (void)k; (void)dat;
     return 0;
 }
 
@@ -52,7 +52,7 @@ static void *data_of(dague_ddesc_t *desc, ...)
     va_end(ap);
 
     assert( k < dat->size && k >= 0 );
-
+    (void)k;
     return (void*)dat->data;
 } 
 
