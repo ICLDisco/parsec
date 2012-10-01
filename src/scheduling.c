@@ -278,11 +278,17 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
             TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
             
-            /* We're good to go ... */
-            if( 0 == __dague_execute( eu_context, exec_context ) ) {
-                __dague_complete_execution( eu_context, exec_context );
+            switch( exec_context->function->data_lookup( exec_context ) ) {
+            case DAGUE_LOOKUP_DONE:
+                /* We're good to go ... */
+                if( 0 == __dague_execute( eu_context, exec_context ) ) {
+                    __dague_complete_execution( eu_context, exec_context );
+                }
+                nbiterations++;
+                break;
+            default:
+                assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
-            nbiterations++;
 
         } else {
             misses_in_a_row++;

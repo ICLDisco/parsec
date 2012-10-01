@@ -69,7 +69,14 @@ typedef int (dague_release_deps_t)(struct dague_execution_unit*,
 #if defined(DAGUE_SIM)
 typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
 #endif
-typedef void (dague_task_fct_t)(dague_execution_context_t *exec_context);
+
+/**
+ * Return codes for data_lookup functions:
+ *  DAGUE_LOOKUP_DONE: all data is ready to be used.
+ */
+#define DAGUE_LOOKUP_DONE 1
+
+typedef int (dague_task_fct_t)(dague_execution_context_t *exec_context);
 
 typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit *eu,
                                                          dague_execution_context_t *newcontext,

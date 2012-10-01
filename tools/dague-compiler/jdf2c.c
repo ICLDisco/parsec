@@ -3275,7 +3275,7 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
     ai.idx = 0;
     ai.holder = "this_task->locals";
     ai.expr = NULL;
-    coutput("static void %s(dague_execution_context_t *this_task)\n"
+    coutput("static int %s(dague_execution_context_t *this_task)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)this_task->dague_object;\n"
             "  assignment_t tass[MAX_PARAM_COUNT];\n"
@@ -3301,7 +3301,7 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
     if( strlen( string_arena_get_string( sa_test ) ) != 0 )
         coutput("  /** Check if some lookups are to be done **/\n"
                 "  if( %s )\n"
-                "    return;\n"
+                "    return DAGUE_LOOKUP_DONE;\n"
                 "\n",
                 string_arena_get_string( sa_test ));
     
@@ -3309,7 +3309,8 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
     }
-    coutput("}\n\n");
+    coutput("  return DAGUE_LOOKUP_DONE;\n"
+            "}\n\n");
     string_arena_free(sa);
     string_arena_free(sa2);
     string_arena_free(sa_test);
@@ -3355,10 +3356,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     output = UTIL_DUMP_LIST(sa, f->dataflow, next,
                             dump_data_initalization_from_data_array, &ifda, "", "", "", "");
     if( 0 != strlen(output) ) {
-        coutput("  /** Call the data lookup function in case data lookup has not been done previously */\n"
-                "  this_task->function->data_lookup( this_task );\n"
-                "\n"
-                "  /** Declare the variables that will hold the data, and all the accounting for each */\n"
+        coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
                 "%s\n",
                 output);
     }
