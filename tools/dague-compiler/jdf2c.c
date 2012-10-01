@@ -33,6 +33,7 @@ static const char *jdf_cfilename;
 /** Optional declarations of local functions */
 static int jdf_expr_depends_on_symbol(const char *varname, const jdf_expr_t *expr);
 static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
+static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix);
 
@@ -511,26 +512,86 @@ static char *dump_dataflow_var_ptr(void **elem, void *arg)
 /**
  * dump_data_declaration:
  *  Takes the pointer to a flow *f, let say that f->varname == "A",
- *  this produces a string like void *A = NULL;\n
- *  dague_arena_chunk_t *gT = NULL;\n  data_repo_entry_t *eT = NULL;\n
+ *  this produces a string like
+ *  dague_arena_chunk_t *gT;\n  data_repo_entry_t *eT;\n
+ *  and stores in sa_test the test to check
+ *  whether this data is looked up or not.
  */
+typedef struct {
+    string_arena_t *sa;
+    string_arena_t *sa_test;
+    int index;
+} dump_data_declaration_info_t;
 static char *dump_data_declaration(void **elem, void *arg)
 {
-    string_arena_t *sa = (string_arena_t*)arg;
+    dump_data_declaration_info_t *info = (dump_data_declaration_info_t*)arg;
+    string_arena_t *sa = info->sa;
     jdf_dataflow_t *f = (jdf_dataflow_t*)elem;
     char *varname = f->varname;
 
-    if(f->access_type == JDF_VAR_TYPE_CTL)
+    if(f->access_type == JDF_VAR_TYPE_CTL) {
+        info->index++;
         return NULL;
+    }
 
     string_arena_init(sa);
 
     string_arena_add_string(sa,
-                            "  void *%s = NULL; (void)%s;\n"
-                            "  dague_arena_chunk_t *g%s = NULL; (void)g%s;\n"
-                            "  data_repo_entry_t *e%s = NULL; (void)e%s;\n",
-                            varname, varname, varname,
+                            "  dague_arena_chunk_t *g%s;\n"
+                            "  data_repo_entry_t *e%s = NULL; /**< repo entries can be NULL for memory data */\n",
+                            varname,
+                            varname);
+
+    if( strlen( string_arena_get_string(info->sa_test) ) == 0 ) {
+        string_arena_add_string(info->sa_test,
+                                "(this_task->data[%d].data != NULL)",
+                                info->index);
+    } else {
+        string_arena_add_string(info->sa_test,
+                                " &&\n"
+                                "      (this_task->data[%d].data != NULL)",
+                                info->index);
+    }
+    info->index++;
+
+    return string_arena_get_string(sa);
+}
+
+/**
+ * dump_data_initalization_from_data_array:
+ *  Takes the pointer to a flow *f, let say that f->varname == "A",
+ *  this produces a string like 
+ *  dague_arena_chunk_t *gA = this_task->data[id].data;\n  
+ *  data_repo_entry_t *eA = this_task->data[id].data_repo; (void)eA;\n
+ *  void *A = ADATA(gA); (void)A;\n
+ */
+typedef struct init_from_data_array_info {
+    string_arena_t *sa;
+    int idx;
+} init_from_data_array_info_t;
+
+static char *dump_data_initalization_from_data_array(void **elem, void *arg)
+{
+    init_from_data_array_info_t *ifda = (init_from_data_array_info_t*)arg;
+    string_arena_t *sa = ifda->sa;
+    jdf_dataflow_t *f = (jdf_dataflow_t*)elem;
+    char *varname = f->varname;
+
+    if(f->access_type == JDF_VAR_TYPE_CTL) {
+        ifda->idx++;
+        return NULL;
+    }
+
+    string_arena_init(sa);
+
+    string_arena_add_string(sa,
+                            "  dague_arena_chunk_t *g%s = this_task->data[%d].data;\n"
+                            "  data_repo_entry_t   *e%s = this_task->data[%d].data_repo; (void)e%s;\n"
+                            "  void *%s = ADATA(g%s); (void)%s;\n",
+                            varname, ifda->idx,
+                            varname, ifda->idx, varname,
                             varname, varname, varname);
+    ifda->idx++;
 
     return string_arena_get_string(sa);
 }
@@ -2293,6 +2354,10 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     jdf_generate_code_release_deps(jdf, f, prefix);
     string_arena_add_string(sa, "  .release_deps = %s,\n", prefix);
 
+    sprintf(prefix, "data_lookup_of_%s_%s", jdf_basename, f->fname);
+    jdf_generate_code_data_lookup(jdf, f, prefix);
+    string_arena_add_string(sa, "  .data_lookup = %s,\n", prefix);
+
     sprintf(prefix, "hook_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_hook(jdf, f, prefix);
     string_arena_add_string(sa, "  .hook = %s,\n", prefix);
@@ -2889,10 +2954,8 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
         coutput("    /* this_task->data[%u] is a control flow */\n", flow_index);
         return;
     }
-    coutput( "  e%s = this_task->data[%u].data_repo;\n"
-             "  g%s = this_task->data[%u].data;\n"
+    coutput( "  g%s = this_task->data[%u].data;\n"
              "  if( NULL == g%s ) {\n",
-             flow->varname, flow_index,
              flow->varname, flow_index,
              flow->varname);
 
@@ -2982,11 +3045,9 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
  done_with_input:
     coutput("    this_task->data[%u].data = g%s;\n"
             "    this_task->data[%u].data_repo = e%s;\n"
-            "  }\n"
-            "  %s = ADATA(g%s);\n",
+            "  }\n",
             flow_index, flow->varname,
-            flow_index, flow->varname,
-            flow->varname, flow->varname);
+            flow_index, flow->varname);
     string_arena_free(sa);
     string_arena_free(sa2);
 }
@@ -3198,6 +3259,62 @@ static int jdf_property_get_int( const jdf_def_list_t* properties, const char* p
     return ret_if_not_found;  /* ON by default */
 }
 
+static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
+{
+    char* output;
+    string_arena_t *sa, *sa2, *sa_test;
+    assignment_info_t ai;
+    jdf_dataflow_t *fl;
+    dump_data_declaration_info_t dinfo;
+    int di;
+
+    sa  = string_arena_new(64);
+    sa2 = string_arena_new(64);
+    sa_test = string_arena_new(64);
+    ai.sa = sa2;
+    ai.idx = 0;
+    ai.holder = "this_task->locals";
+    ai.expr = NULL;
+    coutput("static void %s(dague_execution_context_t *this_task)\n"
+            "{\n"
+            "  const __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)this_task->dague_object;\n"
+            "  assignment_t tass[MAX_PARAM_COUNT];\n"
+            "  (void)__dague_object; (void)tass;\n"
+            "%s",
+            name, jdf_basename, jdf_basename,
+            UTIL_DUMP_LIST(sa, f->definitions, next,
+                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
+    coutput("%s\n",
+            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
+                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+    dinfo.sa = sa2;
+    dinfo.sa_test = sa_test;
+    dinfo.index = 0;
+    output = UTIL_DUMP_LIST(sa, f->dataflow, next,
+                            dump_data_declaration, &dinfo, "", "", "", "");
+    if( 0 != strlen(output) ) {
+        coutput("  /** Declare the variables that will hold the data */\n"
+                "%s\n",
+                output);
+    }
+
+    if( strlen( string_arena_get_string( sa_test ) ) != 0 )
+        coutput("  /** Check if some lookups are to be done **/\n"
+                "  if( %s )\n"
+                "    return;\n"
+                "\n",
+                string_arena_get_string( sa_test ));
+    
+    coutput("  /** Lookup the input data, and store them in the context if any */\n");
+    for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+        jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
+    }
+    coutput("}\n\n");
+    string_arena_free(sa);
+    string_arena_free(sa2);
+    string_arena_free(sa_test);
+}
+
 static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
     string_arena_t *sa, *sa2, *sa3;
@@ -3205,6 +3322,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     assignment_info_t ai;
     jdf_dataflow_t *fl;
     int di, profile_on;
+    char* output;
+    init_from_data_array_info_t ifda;
 
     /* If the function has the property profile turned off do not generate the profiling code */
     profile_on = jdf_property_get_int(f->properties, "profile", 1);
@@ -3230,28 +3349,18 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
-    {
-        char* output = UTIL_DUMP_LIST(sa, f->dataflow, next,
-                                      dump_data_declaration, sa2, "", "", "", "");
-        if( 0 != strlen(output) )
-            coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
-                    "%s\n",
-                    output);
-    }
 
-    coutput("  /** Lookup the input data, and store them in the context if any */\n");
-    for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
-
-        if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
-
-        jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
-        coutput("#if defined(DAGUE_SIM)\n"
-                "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
-                "    __dague_simulation_date =  e%s->sim_exec_date;\n"
-                "#endif\n",
-                fl->varname,
-                fl->varname,
-                fl->varname);
+    ifda.sa = sa2;
+    ifda.idx = 0;
+    output = UTIL_DUMP_LIST(sa, f->dataflow, next,
+                            dump_data_initalization_from_data_array, &ifda, "", "", "", "");
+    if( 0 != strlen(output) ) {
+        coutput("  /** Call the data lookup function in case data lookup has not been done previously */\n"
+                "  this_task->function->data_lookup( this_task );\n"
+                "\n"
+                "  /** Declare the variables that will hold the data, and all the accounting for each */\n"
+                "%s\n",
+                output);
     }
 
     coutput("  /** Store pointer used in the function for antidependencies detection */\n"
