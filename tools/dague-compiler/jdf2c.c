@@ -3643,7 +3643,11 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     }
     coutput("    for(__vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; __vp_id++) {\n"
             "      if( NULL == arg.ready_lists[__vp_id] ) continue;\n"
-            "      __dague_schedule(vps[__vp_id]->execution_units[0], arg.ready_lists[__vp_id]);\n"
+            "      if(__vp_id == eu->virtual_process->vp_id) {\n"
+            "        __dague_schedule(eu, arg.ready_lists[__vp_id]);\n"
+            "      } else {\n"
+            "        __dague_schedule(vps[__vp_id]->execution_units[0], arg.ready_lists[__vp_id]);\n"
+            "      }\n"
             "      arg.ready_lists[__vp_id] = NULL;\n"
             "    }\n"
             "    free(arg.ready_lists);\n"
