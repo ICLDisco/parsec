@@ -116,7 +116,7 @@ static inline void *gpu_malloc(gpu_malloc_t *gdata, int nb_units)
     segment_t *s, *n;
 
     for(s = gdata->allocated_segments; s->next != NULL; s = s->next) {
-        if ( s->nb_free >= nb_units ) {
+        if ( s->nb_free > nb_units ) {
             assert(nb_units > 0);
 
             n = gdata->free_segments;
