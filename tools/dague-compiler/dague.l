@@ -91,14 +91,7 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
                           yylval.string = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
                           return EXTERN_DECL;
                       }
-inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}                                                  {
-                          int start;
-                          for(start = 8; yytext[start] != '{'; start++) /* nothing */ ;
-			  start++;
-                          yylval.string = extern_code( yytext + start, strlen(yytext)-start-2 );
-			  return EXTERN_DECL;
-                      }
-<properties>inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}                                      {
+<INITIAL,properties>inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}                                                  {
                           int start;
                           for(start = 8; yytext[start] != '{'; start++) /* nothing */ ;
 			  start++;
