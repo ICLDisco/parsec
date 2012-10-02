@@ -35,6 +35,7 @@ typedef void (*dague_hbbuffer_parent_push_fct_t)(void *store, dague_list_item_t 
 struct dague_hbbuffer_t {
     size_t size;       /**< the size of the buffer, in number of void* */
     size_t ideal_fill; /**< hint on the number of elements that should be there to increase parallelism */
+	unsigned int assoc_core_num; // only exists for scheduler instrumentation
     void    *parent_store; /**< pointer to this buffer parent store */
     /** function to push element to the parent store */
     dague_hbbuffer_parent_push_fct_t parent_push_fct;
