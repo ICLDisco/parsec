@@ -67,7 +67,7 @@ WHITE         [\f\t\v ]
                           current_lineno++;
                           return BODY;
                       }
-extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}                          {
+extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}                          {
                           int lstart, lend, bstart, skip_line = 0;
                           /* This assumes that no extern language rightfully has a "
                            * in its name, which is also an assumption of the lexer anyway */
