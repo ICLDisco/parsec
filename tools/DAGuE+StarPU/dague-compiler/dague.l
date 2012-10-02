@@ -2,7 +2,7 @@
 
 %{
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -22,7 +22,7 @@ static char *extern_code(char *base, int len)
 {
    char *res;
    int rp, rlen;
-
+   
    rlen = len + 16 + strlen(yyfilename);
    res = (char*)calloc(1, rlen);
 
@@ -65,25 +65,40 @@ WHITE         [\f\t\v ]
                           while( *b != '\n' ) b++;
                           yylval.string = extern_code( b+1, strlen(b+1) - 3 );
                           current_lineno++;
-                          return BODY;
+                          return BODY; 
                       }
-extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}                          {
-                          int lstart, lend, bstart, skip_line = 0;
-                          /* This assumes that no extern language rightfully has a "
-                           * in its name, which is also an assumption of the lexer anyway */
+[bB][oO][dD][yY]{WHITE}[cC][uU][dD][aA]{WHITE}*"\n"([^E]|([eE][^N])|([eE][nN][^D]))+[eE][nN][dD]                       {
+                          char *b = yytext + 4;
+                          while( *b != '\n' ) b++;
+                          yylval.string = extern_code( b+1, strlen(b+1) - 3 );
+                          current_lineno++;
+                          return GPU;
+                      }
+[pP][eE][rR][fF]{WHITE}[mM][oO][dD][eE][lL]{WHITE}*"\n"([^E]|([eE][^N])|([eE][nN][^D]))+[eE][nN][dD]                       {
+                          char *b = yytext + 4;
+                          while( *b != '\n' ) b++;
+                          yylval.string = extern_code( b+1, strlen(b+1) - 3 );
+                          current_lineno++;
+                          return MODEL;
+                      }
 
+extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}                          {
+                          int lstart, lend, bstart, skip_line = 0;
+                          /* This assumes that no extern language rightfully has a " 
+                           * in its name, which is also an assumption of the lexer anyway */
+                          
                           /* find the beginning of the language */
                           for(lstart = 0; yytext[lstart] != '"'; lstart++) /* nothing */;
                           lstart++;
-
+                          
                           /* find the end of the language */
                           for(lend = lstart + 1; yytext[lend] != '"'; lend++) /* nothing */;
                           assert( (yytext[lstart] == 'C') && ((lend-lstart) == 1) );
-
+                          
                           /* Search for the start of the body */
                           for(bstart = lend + 1; yytext[bstart] != '{'; bstart++ ) /* nothing */;
                           bstart++;
-                          while( yytext[bstart] != '\n' ) bstart++;
+                          while( yytext[bstart] != '\n' ) bstart++; 
                           bstart++;
                           for( lend = 0; lend <= bstart; lend++ )
                               if( yytext[lend] == '\n' ) skip_line++;
@@ -91,7 +106,7 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
                           yylval.string = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
                           return EXTERN_DECL;
                       }
-<INITIAL,properties>inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}                                                  {
+inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}                                                  {
                           int start;
                           for(start = 8; yytext[start] != '{'; start++) /* nothing */ ;
 			  start++;
@@ -100,7 +115,7 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
                       }
 SIMCOST               { return SIMCOST; }
 <*>"/*"               { yy_push_state(comment);                            }
-<comment>[^*\n]*      {  /* Eat up non '*'s */                             }
+<comment>[^*\n]*      {  /* Eat up non '*'s */                             } 
 <comment>"*"+[^*/\n]* {  /* Eat '*'s not followed by a '/' */              }
 <comment>"*"+"/"      { yy_pop_state();  /* Done with the comment BLOCK */ }
 <*>{WHITE}+           {  /* Eat multiple white-spaces */                   }
@@ -129,19 +144,7 @@ WO                    { yylval.number = JDF_VAR_TYPE_WRITE;
                         return PROPERTIES_OFF;                             }
 <properties>[oO][nN]  { yylval.number = 1;
                         return INT;                                        }
-<properties>[tT][rR][uU][eE] {
-                        yylval.number = 1;
-                        return INT;                                        }
-<properties>[yY][eE][sS] {
-                        yylval.number = 1;
-                        return INT;                                        }
-<properties>[oO][fF][fF] {
-                        yylval.number = 0;
-                        return INT;                                        }
-<properties>[fF][aA][lL][sS][eE] {
-                        yylval.number = 0;
-                        return INT;                                        }
-<properties>[nN][oO] {  yylval.number = 0;
+<properties>[oO][fF][fF] { yylval.number = 0;
                         return INT;                                        }
 <*>"("                { return OPEN_PAR;                                   }
 <*>")"                { return CLOSE_PAR;                                  }

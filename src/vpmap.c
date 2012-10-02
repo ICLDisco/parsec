@@ -569,7 +569,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             offset = sprintf(str, "%i ", core_tab[t]);
             length += offset;
             if( length > MAX_STR_SIZE-3){
-                sprintf(str, "...\0");
+                sprintf(str, "...");
                 break;
             }
             str += offset;
@@ -585,7 +585,8 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
     }
     return 0;
 #else
-    WARNING(("the binding defined has been ignored (requires a build with HWLOC with bitmap support).\n"));
+    (void)vp; (void)nbth; (void)binding;
+	WARNING(("the binding defined has been ignored (requires a build with HWLOC with bitmap support).\n"));
     return -1;
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 }

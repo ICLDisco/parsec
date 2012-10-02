@@ -32,7 +32,7 @@ typedef uint32_t moesi_key_t;
  * Blocks that are not locally stored have a NULL master
  */
 struct _moesi_map {
-    uint16_t nmasters;
+    int      nmasters;
     uint16_t ndevices;
     moesi_master_t* masters[1];
 };

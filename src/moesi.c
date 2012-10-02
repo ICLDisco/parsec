@@ -14,14 +14,15 @@ void moesi_map_create(moesi_map_t** pmap, int nmasters, int ndevices) {
     if( NULL != map ) {
         assert(nmasters <= map->nmasters);
         assert(ndevices <= map->ndevices);
-        DEBUG3(("  Moesi:\tMap %p already exists (m=%d, d=%d): it does not need to be updated to hold (m=%d, d=%d)\n", pmap, map->nmasters, map->ndevices, nmasters, ndevices));
+        DEBUG3(("  Moesi:\tMap %p already exists (m=%d, d=%d): it does not need to be updated to hold (m=%d, d=%d)\n",
+                pmap, map->nmasters, map->ndevices, nmasters, ndevices));
         return;
     }
     else {
         assert( nmasters > 0 );
-        assert( nmasters < UINT16_MAX ); assert( ndevices < UINT16_MAX );
+        assert( ndevices < UINT16_MAX );
         map = calloc(1, sizeof(moesi_map_t) + (nmasters-1)*sizeof(moesi_master_t*));
-        map->nmasters = (uint16_t)nmasters;
+        map->nmasters = nmasters;
         map->ndevices = (uint16_t)ndevices;
         *pmap = map;
         DEBUG3(("  Moesi:\tMap %p created (m=%d, d=%d)\n", pmap, nmasters, ndevices));
