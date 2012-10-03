@@ -520,8 +520,9 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             while( free_mem > (initial_free_mem - how_much_we_allocate) ) {
                 gpu_elem_t* gpu_elem;
                 cudaError_t cuda_status;
-#if 1
-                if( mem_elem_per_gpu> 10 )
+#if 0
+                /* Enable to stress the GPU memory subsystem and the coherence protocol */
+                if( mem_elem_per_gpu > 10 )
                     break;
 #endif
                 gpu_elem = (gpu_elem_t*)calloc(1, sizeof(gpu_elem_t));
