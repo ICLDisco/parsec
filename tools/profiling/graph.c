@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <gvc.h>
+#include <graphviz/gvc.h>
 
 typedef struct {
     node_info_t   info;
@@ -300,18 +300,6 @@ int add_edges_from_dotfile(const char *filename)
 
     fclose(f);
     return e;
-}
-
-static char *statusstr(int status_bits)
-{
-    static char str[8];
-    snprintf(str, 8, "%c%c%c%c%c",
-             status_bits & STATUS_RUNNING ? 'R' : '-',
-             status_bits & STATUS_ENABLED ? 'E' : '-',
-             status_bits & STATUS_READY ?   'Y' : '-',
-             status_bits & STATUS_DONE ?    'D' : '-',
-             status_bits & (~(STATUS_RUNNING | STATUS_ENABLED | STATUS_READY | STATUS_DONE)) ? '*' : ' ');
-    return str;
 }
 
 static void update_node_display(unsigned int node);
