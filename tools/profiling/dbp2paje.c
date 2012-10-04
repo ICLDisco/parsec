@@ -409,7 +409,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                           const char *cont_mpi_name,
                           const char *cont_thread_name )
 {
-    unsigned int key, broken = 0;
+    unsigned int key;
     uint64_t start, end;
     int s;
     char keyid[64];
@@ -474,7 +474,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                 
                 progress_bar_event_to_output();
 
-                broken = merge_event( &consolidated_events, cev ) || broken;
+                merge_event( &consolidated_events, cev );
                 dbp_iterator_delete(nit);
             }
         }
@@ -483,12 +483,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     }
     dbp_iterator_delete(pit);
 
-    if( broken ) {
-        steps_end_dates = step_height(&consolidated_events, &nb_steps);
-    } else {
-        nb_steps = 1;
-        steps_end_dates = (uint64_t*)calloc(1, sizeof(uint64_t));
-    }
+    steps_end_dates = step_height(&consolidated_events, &nb_steps);
     for(s = 0; s < nb_steps; s++) {
         sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
         addContainer(0.00000, cont_step_name, "CT_S", cont_thread_name, " ", "");
