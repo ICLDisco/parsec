@@ -476,8 +476,7 @@ int dague_gpu_fini( void )
 int dague_gpu_data_register( dague_context_t *dague_context,
                              dague_ddesc_t   *data,
                              int              nbelem, /* Could be a function of the dague_desc_t */
-                             size_t           eltsize
-                             )
+                             size_t           eltsize )
 {
     gpu_device_t* gpu_device;
     CUresult status;
@@ -489,13 +488,13 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             data, nbelem, eltsize, &data->moesi_map, data->moesi_map));
 
     for(i = 0; i < __dague_active_gpu; i++) {
-        size_t thread_gpu_mem;
+        size_t how_much_we_allocate;
 #if CUDA_VERSION < 3020
-        unsigned int total_mem, free_mem;
+        unsigned int total_mem, free_mem, initial_free_mem;
 #else
-        size_t total_mem, free_mem;
+        size_t total_mem, free_mem, initial_free_mem;
 #endif  /* CUDA_VERSION < 3020 */
-        uint32_t nb_allocations = 0;
+        uint32_t mem_elem_per_gpu = 0;
 
         if( NULL == (gpu_device = gpu_enabled_devices[i]) ) continue;
 
@@ -507,9 +506,10 @@ int dague_gpu_data_register( dague_context_t *dague_context,
          * It appears that CUDA allocate the memory in chunks of 1MB,
          * so we need to adapt to this.
          */
-        cuMemGetInfo( &free_mem, &total_mem );
-        /* We allocate 9/10 of the total memory */
-        thread_gpu_mem = (total_mem - total_mem / 10);
+        cuMemGetInfo( &initial_free_mem, &total_mem );
+        free_mem = initial_free_mem;
+        /* We allocate 9/10 of the available memory */
+        how_much_we_allocate = (9 * initial_free_mem) / 10;
 
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         if( dague_ulist_is_empty(gpu_device->gpu_mem_lru) ) {
@@ -517,11 +517,12 @@ int dague_gpu_data_register( dague_context_t *dague_context,
              * We allocate a bunch of tiles that will be used
              * during the computations
              */
-            while( free_mem > (total_mem - thread_gpu_mem) ) {
+            while( free_mem > (initial_free_mem - how_much_we_allocate) ) {
                 gpu_elem_t* gpu_elem;
                 cudaError_t cuda_status;
 #if 0
-                if( nb_allocations > (uint32_t)(nbelem/2*3) )
+                /* Enable to stress the GPU memory subsystem and the coherence protocol */
+                if( mem_elem_per_gpu > 10 )
                     break;
 #endif
                 gpu_elem = (gpu_elem_t*)calloc(1, sizeof(gpu_elem_t));
@@ -541,23 +542,23 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                                             free( gpu_elem );
                                             break;
                                         }) );
-                nb_allocations++;
+                mem_elem_per_gpu++;
                 dague_ulist_fifo_push( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
                 cuMemGetInfo( &free_mem, &total_mem );
             }
-            if( 0 == nb_allocations ) {
+            if( 0 == mem_elem_per_gpu ) {
                 WARNING(("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!\n",
                          dague_context->my_rank, i));
                 continue;
             }
-            DEBUG3(( "GPU:\tAllocate %u tiles on the GPU memory\n", nb_allocations ));
+            DEBUG3(( "GPU:\tAllocate %u tiles on the GPU memory\n", mem_elem_per_gpu ));
         }
 #else
         /*
          * We allocate all the memory on the GPU and we use our memory management
          */
-        nb_allocations = (thread_gpu_mem + GPU_MALLOC_UNIT_SIZE - 1 ) / GPU_MALLOC_UNIT_SIZE ;
-        gpu_device->memory = gpu_malloc_init( nb_allocations, GPU_MALLOC_UNIT_SIZE );
+        mem_elem_per_gpu = (how_much_we_allocate + GPU_MALLOC_UNIT_SIZE - 1 ) / GPU_MALLOC_UNIT_SIZE ;
+        gpu_device->memory = gpu_malloc_init( mem_elem_per_gpu, GPU_MALLOC_UNIT_SIZE );
 
         if( gpu_device->memory == NULL ) {
             WARNING(("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!\n",
@@ -565,7 +566,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             continue;
         }
         DEBUG3(( "GPU:\tAllocate %u segment of size %d on the GPU memory\n",
-                 nb_allocations, GPU_MALLOC_UNIT_SIZE ));
+                 mem_elem_per_gpu, GPU_MALLOC_UNIT_SIZE ));
 #endif
 
         status = cuCtxPopCurrent(NULL);

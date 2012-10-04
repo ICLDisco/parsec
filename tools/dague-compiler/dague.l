@@ -1,5 +1,3 @@
-%option nounput
-
 %{
 /*
  * Copyright (c) 2009-2012 The University of Tennessee and The University
@@ -17,6 +15,7 @@
 
 extern char *yyfilename;
 extern int current_lineno;
+
 
 static char *extern_code(char *base, int len)
 {
@@ -48,9 +47,16 @@ static char *extern_code(char *base, int len)
 
 char string_buf[MAX_STR_CONST];
 char *string_buf_ptr;
-%}
 
-%option stack
+#define YY_USER_ACTION yylloc->first_line = yylloc->last_line = yylineno; \
+    yylloc->first_column = yycolumn; yylloc->last_column = yycolumn + yyleng - 1; \
+    yycolumn += yyleng;
+
+%}
+/*%option debug*/
+%option bison-bridge bison-locations
+%option noyywrap yylineno
+%option reentrant stack
 
 WHITE         [\f\t\v ]
 
@@ -63,7 +69,7 @@ WHITE         [\f\t\v ]
 [bB][oO][dD][yY]{WHITE}*"\n"([^E]|([eE][^N])|([eE][nN][^D]))+[eE][nN][dD]                       {
                           char *b = yytext + 4;
                           while( *b != '\n' ) b++;
-                          yylval.string = extern_code( b+1, strlen(b+1) - 3 );
+                          yylval->string = extern_code( b+1, strlen(b+1) - 3 );
                           current_lineno++;
                           return BODY;
                       }
@@ -88,60 +94,60 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
                           for( lend = 0; lend <= bstart; lend++ )
                               if( yytext[lend] == '\n' ) skip_line++;
                           current_lineno += skip_line;
-                          yylval.string = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
+                          yylval->string = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
                           return EXTERN_DECL;
                       }
-<INITIAL,properties>inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}                                                  {
+<INITIAL,properties>inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}            {
                           int start;
                           for(start = 8; yytext[start] != '{'; start++) /* nothing */ ;
 			  start++;
-                          yylval.string = extern_code( yytext + start, strlen(yytext)-start-2 );
+                          yylval->string = extern_code( yytext + start, strlen(yytext)-start-2 );
 			  return EXTERN_DECL;
                       }
 SIMCOST               { return SIMCOST; }
-<*>"/*"               { yy_push_state(comment);                            }
+<*>"/*"               { yy_push_state(comment, yyscanner);                 }
 <comment>[^*\n]*      {  /* Eat up non '*'s */                             }
 <comment>"*"+[^*/\n]* {  /* Eat '*'s not followed by a '/' */              }
-<comment>"*"+"/"      { yy_pop_state();  /* Done with the comment BLOCK */ }
+<comment>"*"+"/"      { yy_pop_state(yyscanner);  /* Done with the comment BLOCK */ }
 <*>{WHITE}+           {  /* Eat multiple white-spaces */                   }
-<*>[0-9]+             { yylval.number = atol(yytext);
+<*>[0-9]+             { yylval->number = atol(yytext);
                         return INT;                                        }
-CTL                   { yylval.number = JDF_VAR_TYPE_CTL;
+CTL                   { yylval->number = JDF_VAR_TYPE_CTL;
                         return DEPENDENCY_TYPE;                            }
-RW                    { yylval.number = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
+RW                    { yylval->number = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
-READ                  { yylval.number = JDF_VAR_TYPE_READ;
+READ                  { yylval->number = JDF_VAR_TYPE_READ;
                         return DEPENDENCY_TYPE;                            }
-RO                    { yylval.number = JDF_VAR_TYPE_READ;
+RO                    { yylval->number = JDF_VAR_TYPE_READ;
                         return DEPENDENCY_TYPE;                            }
-WRITE                 { yylval.number = JDF_VAR_TYPE_WRITE;
+WRITE                 { yylval->number = JDF_VAR_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
-WO                    { yylval.number = JDF_VAR_TYPE_WRITE;
+WO                    { yylval->number = JDF_VAR_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
-"->"                  { yylval.dep_type = JDF_DEP_TYPE_OUT;
+"->"                  { yylval->dep_type = JDF_DEP_TYPE_OUT;
                         return ARROW;                                      }
-"<-"                  { yylval.dep_type = JDF_DEP_TYPE_IN;
+"<-"                  { yylval->dep_type = JDF_DEP_TYPE_IN;
                         return ARROW;                                      }
-"\["                  { yylval.property = NULL;
-                        yy_push_state(properties);
+"\["                  { yylval->property = NULL;
+                        yy_push_state(properties, yyscanner);
                         return PROPERTIES_ON;                              }
-<properties>"\]"      { yy_pop_state();
+<properties>"\]"      { yy_pop_state(yyscanner);
                         return PROPERTIES_OFF;                             }
-<properties>[oO][nN]  { yylval.number = 1;
+<properties>[oO][nN]  { yylval->number = 1;
                         return INT;                                        }
 <properties>[tT][rR][uU][eE] {
-                        yylval.number = 1;
+                        yylval->number = 1;
                         return INT;                                        }
 <properties>[yY][eE][sS] {
-                        yylval.number = 1;
+                        yylval->number = 1;
                         return INT;                                        }
 <properties>[oO][fF][fF] {
-                        yylval.number = 0;
+                        yylval->number = 0;
                         return INT;                                        }
 <properties>[fF][aA][lL][sS][eE] {
-                        yylval.number = 0;
+                        yylval->number = 0;
                         return INT;                                        }
-<properties>[nN][oO] {  yylval.number = 0;
+<properties>[nN][oO] {  yylval->number = 0;
                         return INT;                                        }
 <*>"("                { return OPEN_PAR;                                   }
 <*>")"                { return CLOSE_PAR;                                  }
@@ -170,15 +176,15 @@ WO                    { yylval.number = JDF_VAR_TYPE_WRITE;
 <*>","                { return COMMA;                                      }
 
 <dstr>\"              { /* saw closing quote - all done */
-                        yy_pop_state();
+                        yy_pop_state(yyscanner);
                         *string_buf_ptr = '\0';
                         /* return string constant token type and
                         * value to parser
                         */
-                        yylval.string = string_buf;
+                        yylval->string = string_buf;
                         return STRING;                                     }
 <*>\"                 { string_buf_ptr = string_buf;
-                        yy_push_state(dstr);                               }
+                        yy_push_state(dstr, yyscanner);                    }
 
 <dstr>\n              {
                         /* error - unterminated string constant */
@@ -219,6 +225,9 @@ WO                    { yylval.number = JDF_VAR_TYPE_WRITE;
 <*>{WHITE}*\n         { current_lineno++;                                  }
 <*>"//".*\n           { current_lineno++;                                  }
 <*>[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)* {
-                        yylval.string = strdup(yytext);
+                        yylval->string = strdup(yytext);
                         return VAR;                                        }
 %%
+
+#include "main.c"
+

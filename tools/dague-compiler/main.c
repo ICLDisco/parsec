@@ -7,9 +7,9 @@
 #include "jdf.h"
 #include "jdf2c.h"
 
-extern int yyparse();
+#include "dague.y.h"
+
 extern int current_lineno;
-extern FILE *yyin;
 extern int yydebug;
 char *yyfilename;
 
@@ -188,14 +188,18 @@ static void parse_args(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     int rc;
+    yyscan_t scanner;
 
     parse_args(argc, argv);
+    yylex_init( &scanner );
+    yyset_debug( 1, scanner );
     if( strcmp(JDF_COMPILER_GLOBAL_ARGS.input, DEFAULTS.input) ) {
-        yyin = fopen(JDF_COMPILER_GLOBAL_ARGS.input, "r");
-        if( yyin == NULL ) {
+        FILE* my_file = fopen(JDF_COMPILER_GLOBAL_ARGS.input, "r");
+        if( my_file == NULL ) {
             fprintf(stderr, "unable to open input file %s: %s\n", JDF_COMPILER_GLOBAL_ARGS.input, strerror(errno));
             exit(1);
         }
+        yyset_in( my_file, scanner );
         yyfilename = strdup(JDF_COMPILER_GLOBAL_ARGS.input);
     } else {
         yyfilename = strdup("(stdin)");
@@ -203,9 +207,10 @@ int main(int argc, char *argv[])
 
     jdf_prepare_parsing();
 
-    if( yyparse() > 0 ) {
+    if( yyparse(scanner) > 0 ) {
         exit(1);
     }
+    yylex_destroy( scanner );
 
     rc = jdf_sanity_checks( JDF_COMPILER_GLOBAL_ARGS.wmask );
     if(rc < 0)
@@ -226,5 +231,5 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-	return 0;
+    return 0;
 }

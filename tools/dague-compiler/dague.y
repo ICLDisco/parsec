@@ -15,26 +15,22 @@
  * Better error handling
  */
 #define YYERROR_VERBOSE 1
+struct yyscan_t;
 
 #include "dague.y.h"
-
-extern int yyparse(void);
-extern int yylex(void);
 
 extern int current_lineno;
 
 static jdf_expr_t *inline_c_functions = NULL;
 
-static void yyerror(const char *str)
+static void yyerror(YYLTYPE *locp,
+                    struct yyscan_t* yyscanner,
+                    char const *msg)
 {
-    fprintf(stderr, "parse error at line %d: %s\n", current_lineno, str);
-}
-
-int yywrap(void);
-
-int yywrap(void)
-{
-    return 1;
+    fprintf(stderr, "parse error at %d.%d-%d.%d: %s\n",
+            locp->first_line, locp->first_column,
+            locp->last_line, locp->last_column,
+            msg);
 }
 
 #define new(type)  (type*)calloc(1, sizeof(type))
@@ -182,7 +178,12 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %left COMMA
 
 %debug
-
+%defines
+%locations
+%pure-parser
+%error-verbose
+%parse-param {struct yyscan_t *yycontrol}
+%lex-param   {struct yyscan_t *yycontrol}
 %%
 jdf_file:       prologue jdf epilogue
                 {
