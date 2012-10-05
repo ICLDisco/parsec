@@ -62,6 +62,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
                 lalpha, (cuDoubleComplex*)d_A, lda,
                         (cuDoubleComplex*)d_B, ldb,
                 lbeta,  (cuDoubleComplex*)d_C, ldc); 
+    assert( CUBLAS_STATUS_SUCCESS == cublasGetError() );
 
 #else
     cudaStream_t current_stream;
@@ -75,6 +76,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
                    &lalpha, (cuDoubleComplex*)d_A, lda,
                             (cuDoubleComplex*)d_B, ldb,
                    &lbeta,  (cuDoubleComplex*)d_C, ldc); 
+    assert( CUBLAS_STATUS_SUCCESS == cublasGetError() );
 
     cublasSetStream_v2 ( handle, &saved_stream );
 #endif
