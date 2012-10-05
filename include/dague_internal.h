@@ -106,10 +106,10 @@ typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object, co
 struct dague_function {
     const char                  *name;
     uint16_t                     flags;
-    uint16_t                     function_id;
+    uint16_t                     function_id;  /**< index in the dependency and in the function array */
+
     uint8_t                      nb_parameters;
     uint8_t                      nb_definitions;
-    int16_t                      deps;  /**< This is the index of the dependency array in the __DAGUE_object_t */
     dague_dependency_t           dependencies_goal;
     const symbol_t              *params[MAX_LOCAL_COUNT];
     const symbol_t              *locals[MAX_LOCAL_COUNT];

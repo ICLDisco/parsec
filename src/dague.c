@@ -564,7 +564,7 @@ dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
             active = 0;
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
-                if( dep->dague->nb_parameters == 0 ) {  /* this is only true for memory locations */
+                if( dep->function_id == -1 ) {  /* this is only true for memory locations */
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
@@ -642,7 +642,7 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
             /* Data case: count all that do not have a direct dependence on a data */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
-                if( dep->dague->nb_parameters != 0 ) {  /* we don't count memory locations */
+                if( dep->function_id != -1 ) {  /* we don't count memory locations */
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
@@ -666,7 +666,7 @@ static dague_dependency_t *find_deps(dague_object_t *dague_object,
     dague_dependencies_t *deps;
     int p;
 
-    deps = dague_object->dependencies_array[exec_context->function->deps];
+    deps = dague_object->dependencies_array[exec_context->function->function_id];
     assert( NULL != deps );
 
     for(p = 0; p < exec_context->function->nb_parameters - 1; p++) {
@@ -701,7 +701,7 @@ static int dague_update_deps_with_counter( dague_object_t *dague_object,
             ERROR(("function %s as reached an improbable dependency count of %u\n",
                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), dep_cur_value ));
         }
-    
+
         DEBUG3(("Task %s has a current dependencies count of %d (remaining). It %s using the mask approach\n",
                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
                 dep_cur_value,
@@ -995,7 +995,7 @@ void dague_destruct_dependencies(dague_dependencies_t* d)
     int i;
     if( (d != NULL) && (d->flags & DAGUE_DEPENDENCIES_FLAG_NEXT) ) {
         for(i = d->min; i <= d->max; i++)
-            if( NULL != d->u.next[i-d->min] )
+            if( NULL != d->u.next[i - d->min] )
                 dague_destruct_dependencies(d->u.next[i-d->min]);
     }
     free(d);
