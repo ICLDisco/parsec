@@ -215,6 +215,11 @@ jdf:            jdf function
                 {
                     jdf_expr_t *el, *pl;
 
+                    if( NULL == current_jdf.functions ) {
+                        $2->function_id = 0;
+                    } else {
+                        $2->function_id = current_jdf.functions->function_id + 1;
+                    }
                     $2->next = current_jdf.functions;
                     current_jdf.functions = $2;
                     if( NULL != inline_c_functions) {
@@ -664,9 +669,9 @@ expr_range: expr_complete RANGE expr_complete
             {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_RANGE;
-                  e->jdf_ta1 = $1;
-                  e->jdf_ta2 = $3;
-                  e->jdf_ta3 = new(jdf_expr_t);
+                  e->jdf_ta1 = $1;               /* from */
+                  e->jdf_ta2 = $3;               /* to */
+                  e->jdf_ta3 = new(jdf_expr_t);  /* step */
                   e->jdf_ta3->op = JDF_CST;
                   e->jdf_ta3->jdf_cst = 1;
                   $$ = e;
@@ -675,9 +680,9 @@ expr_range: expr_complete RANGE expr_complete
             {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_RANGE;
-                  e->jdf_ta1 = $1;
-                  e->jdf_ta2 = $3;
-                  e->jdf_ta3 = $5;
+                  e->jdf_ta1 = $1;  /* from */
+                  e->jdf_ta2 = $3;  /* to */
+                  e->jdf_ta3 = $5;  /* step */
                   $$ = e;
             }
           | expr_complete

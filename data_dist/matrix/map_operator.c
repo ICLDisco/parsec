@@ -139,7 +139,7 @@ static const expr_t expr_of_p1_for_flow_of_map_operator_dep_in = {
 };
 static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
-    .dague = &dague_map_operator,
+    .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
     .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
     .call_params = {
@@ -160,7 +160,7 @@ static const expr_t expr_of_p1_for_flow_of_map_operator_dep_out = {
 };
 static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
-    .dague = &dague_map_operator,
+    .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
     .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
     .call_params = {
@@ -340,7 +340,6 @@ static int complete_hook(dague_execution_unit_t *context,
 
 static const dague_function_t dague_map_operator = {
     .name = "map_operator",
-    .deps = 0,
     .flags = 0x0,
     .function_id = 0,
     .dependencies_goal = 0x1,
