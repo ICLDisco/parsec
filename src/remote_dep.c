@@ -203,7 +203,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     remote_deps->msg.deps = (uintptr_t) remote_deps;
     remote_deps->msg.object_id   = exec_context->dague_object->object_id;
     remote_deps->msg.function_id = function->function_id;
-    for(i = 0; i < function->nb_definitions; i++) {
+    for(i = 0; i < function->nb_locals; i++) {
         remote_deps->msg.locals[i] = exec_context->locals[i];
     }
 

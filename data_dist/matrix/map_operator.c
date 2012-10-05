@@ -343,7 +343,7 @@ static const dague_function_t dague_map_operator = {
     .flags = 0x0,
     .function_id = 0,
     .dependencies_goal = 0x1,
-    .nb_definitions = 2,
+    .nb_locals = 2,
     .nb_parameters = 2,
     .params = { &symb_row, &symb_column },
     .locals = { &symb_row, &symb_column },
@@ -357,7 +357,7 @@ static const dague_function_t dague_map_operator = {
     .complete_execution = complete_hook,
 };
 
-static void dague_map_operator_startup_fn(dague_context_t *context, 
+static void dague_map_operator_startup_fn(dague_context_t *context,
                                           dague_object_t *dague_object,
                                           dague_execution_context_t** startup_list)
 {
