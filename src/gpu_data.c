@@ -517,7 +517,9 @@ int dague_gpu_data_register( dague_context_t *dague_context,
              * We allocate a bunch of tiles that will be used
              * during the computations
              */
-            while( free_mem > (initial_free_mem - how_much_we_allocate) ) {
+            while( (free_mem > eltsize ) 
+                   && (initial_free_mem - how_much_we_allocate) 
+                   && !(mem_elem_per_gpu > (uint32_t)(nbelem/2*3)) ) {
                 gpu_elem_t* gpu_elem;
                 cudaError_t cuda_status;
 #if 0
