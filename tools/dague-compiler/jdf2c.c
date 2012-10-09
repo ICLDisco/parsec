@@ -1955,6 +1955,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     int nesting, idx;
     expr_info_t info1, info2, info3;
 
+    (void)jdf;
+
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
     sa3 = string_arena_new(64);
