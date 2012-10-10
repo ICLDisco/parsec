@@ -341,7 +341,7 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simula
                     e->fname             = $1;
                     e->parameters        = $3;
                     e->properties        = $5;
-                    e->definitions       = $6;
+                    e->locals            = $6;
                     e->simcost           = $7;
                     e->predicate         = $8;
                     e->dataflow          = $9;
