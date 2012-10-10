@@ -118,6 +118,12 @@ void dague_data_disable_gpu( void );
  */
 int dague_active_gpu(void);
 
+/**
+ * Debugging functions.
+ */
+void dump_exec_stream(dague_gpu_exec_stream_t* exec_stream);
+void dump_GPU_state(gpu_device_t* gpu_device);
+
 /****************************************************
  ** GPU-DATA Specific Starts Here **
  ****************************************************/
