@@ -1109,18 +1109,17 @@ void dague_object_unregister( dague_object_t* object )
     assert( object->object_id < object_array_size );
     assert( object_array[object->object_id] == object );
     assert( object->nb_local_tasks == 0 );
-    assert( object->nb_local_tasks == 0 );
     object_array[object->object_id] = NOOBJECT;
     dague_atomic_unlock( &object_array_lock );
 }
 
 /**< This function is called in a body only.
  *   It sets the current task as the last task.
- *   The current implemenation has limitations: it assumes that 
+ *   The current implemenation has limitations: it assumes that
  *   no other task of the object is running, and it assumes that
  *   all tasks that are cancelled were never started (i.e. no
  *   input dependency for these tasks was ever true).
- * 
+ *
  *   Update this comment and the comment in the header file
  *   if some limitations are relieved.
  */
