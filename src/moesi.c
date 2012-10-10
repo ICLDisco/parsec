@@ -187,7 +187,7 @@ static char dump_moesi_codex(moesi_coherency_t state)
     return 'X';
 }
 
-void dump_moesi_copy( moesi_copy_t* copy )
+void moesi_dump_moesi_copy( moesi_copy_t* copy )
 {
     moesi_master_t* master = copy->master;
 

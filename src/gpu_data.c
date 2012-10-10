@@ -889,61 +889,6 @@ int progress_stream( gpu_device_t* gpu_device,
     return saved_rc;
 }
 
-
-void dump_exec_stream(dague_gpu_exec_stream_t* exec_stream)
-{
-    char task_str[128];
-    int i;
-
-    printf( "Dump GPU exec stream %p [events = %d, start = %d, end = %d, executed = %d]\n",
-            exec_stream, exec_stream->max_events, exec_stream->start, exec_stream->end,
-            exec_stream->executed);
-    for( i = 0; i < exec_stream->max_events; i++ ) {
-        if( NULL == exec_stream->tasks[i] ) continue;
-        printf( "    %d: %s\n", i, dague_snprintf_execution_context(task_str, 128, exec_stream->tasks[i]->ec));
-    }
-    /* Don't yet dump the fifo_pending queue */
-}
-
-void dump_GPU_state(gpu_device_t* gpu_device)
-{
-    int i;
-
-    printf("\n\n");
-    printf("Device %d:%d (%p)\n", gpu_device->device_index, gpu_device->index, gpu_device);
-    printf("\tpeer mask %x executed tasks %d max streams %d\n",
-           gpu_device->peer_access_mask, gpu_device->executed_tasks, gpu_device->max_exec_streams);
-    printf("\tstats transferred [in %lu out %lu] required [in %lu out %lu]\n",
-           gpu_device->transferred_data_in, gpu_device->transferred_data_out,
-           gpu_device->required_data_in, gpu_device->required_data_out);
-    for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
-        dump_exec_stream(&gpu_device->exec_stream[i]);
-    }
-    if( !dague_ulist_is_empty(gpu_device->gpu_mem_lru) ) {
-        printf("#\n# LRU list\n#\n");
-        i = 0;
-        DAGUE_LIST_ITERATOR(gpu_device->gpu_mem_lru, item,
-                            {
-                                gpu_elem_t* gpu_elem = (gpu_elem_t*)item;
-                                printf("  %d. elem %p GPU mem %p\n", i, gpu_elem, (void*)(uintptr_t)gpu_elem->gpu_mem_ptr);
-                                dump_moesi_copy(&gpu_elem->moesi);
-                                i++;
-                            });
-    };
-    if( !dague_ulist_is_empty(gpu_device->gpu_mem_owned_lru) ) {
-        printf("#\n# Owned LRU list\n#\n");
-        i = 0;
-        DAGUE_LIST_ITERATOR(gpu_device->gpu_mem_owned_lru, item,
-                            {
-                                gpu_elem_t* gpu_elem = (gpu_elem_t*)item;
-                                printf("  %d. elem %p GPU mem %p\n", i, gpu_elem, (void*)(uintptr_t)gpu_elem->gpu_mem_ptr);
-                                dump_moesi_copy(&gpu_elem->moesi);
-                                i++;
-                            });
-    };
-    printf("\n\n");
-}
-
 void dague_compute_best_unit( uint64_t length, float* updated_value, char** best_unit )
 {
     float measure = (float)length;
@@ -1086,4 +1031,59 @@ int dague_gpu_kernel_fini(dague_context_t* dague_context,
 
     return 0;
 }
+
+void dump_exec_stream(dague_gpu_exec_stream_t* exec_stream)
+{
+    char task_str[128];
+    int i;
+
+    printf( "Dump GPU exec stream %p [events = %d, start = %d, end = %d, executed = %d]\n",
+            exec_stream, exec_stream->max_events, exec_stream->start, exec_stream->end,
+            exec_stream->executed);
+    for( i = 0; i < exec_stream->max_events; i++ ) {
+        if( NULL == exec_stream->tasks[i] ) continue;
+        printf( "    %d: %s\n", i, dague_snprintf_execution_context(task_str, 128, exec_stream->tasks[i]->ec));
+    }
+    /* Don't yet dump the fifo_pending queue */
+}
+
+void dump_GPU_state(gpu_device_t* gpu_device)
+{
+    int i;
+
+    printf("\n\n");
+    printf("Device %d:%d (%p)\n", gpu_device->device_index, gpu_device->index, gpu_device);
+    printf("\tpeer mask %x executed tasks %d max streams %d\n",
+           gpu_device->peer_access_mask, gpu_device->executed_tasks, gpu_device->max_exec_streams);
+    printf("\tstats transferred [in %lu out %lu] required [in %lu out %lu]\n",
+           gpu_device->transferred_data_in, gpu_device->transferred_data_out,
+           gpu_device->required_data_in, gpu_device->required_data_out);
+    for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
+        dump_exec_stream(&gpu_device->exec_stream[i]);
+    }
+    if( !dague_ulist_is_empty(gpu_device->gpu_mem_lru) ) {
+        printf("#\n# LRU list\n#\n");
+        i = 0;
+        DAGUE_LIST_ITERATOR(gpu_device->gpu_mem_lru, item,
+                            {
+                                gpu_elem_t* gpu_elem = (gpu_elem_t*)item;
+                                printf("  %d. elem %p GPU mem %p\n", i, gpu_elem, (void*)(uintptr_t)gpu_elem->gpu_mem_ptr);
+                                moesi_dump_moesi_copy(&gpu_elem->moesi);
+                                i++;
+                            });
+    };
+    if( !dague_ulist_is_empty(gpu_device->gpu_mem_owned_lru) ) {
+        printf("#\n# Owned LRU list\n#\n");
+        i = 0;
+        DAGUE_LIST_ITERATOR(gpu_device->gpu_mem_owned_lru, item,
+                            {
+                                gpu_elem_t* gpu_elem = (gpu_elem_t*)item;
+                                printf("  %d. elem %p GPU mem %p\n", i, gpu_elem, (void*)(uintptr_t)gpu_elem->gpu_mem_ptr);
+                                moesi_dump_moesi_copy(&gpu_elem->moesi);
+                                i++;
+                            });
+    };
+    printf("\n\n");
+}
+
 #endif /* HAVE_CUDA */
