@@ -95,4 +95,9 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
  */
 int moesi_master_update(moesi_map_t *map, moesi_key_t key);
 
+/**
+ * Debugging functions.
+ */
+extern void moesi_dump_moesi_copy( moesi_copy_t* copy );
+
 #endif
