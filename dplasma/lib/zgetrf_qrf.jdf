@@ -631,7 +631,7 @@ END
  ************************************************************************************/
 
 tile2panel(k, n) [ profile = off ]
-  k = 0   .. minMNT
+  k = 0   .. minMNT-1
   n = k+2 .. descA.nt-1
 
   did_lu = inline_c %{ return lu_tab[k];   %}
@@ -717,7 +717,7 @@ BODY
     int ldak = BLKLDD(descA, k);
 
     printlog("CORE_zgetrf_rec(%d)\n"
-             "\t(%d, %d, A(%d,%d)[%p], %d, IP(%d)[%p])",
+             "\t(%d, %d, A(%d,%d)[%p], IP(%d)[%p])",
              k, tempm, tempkn, k, k, A, k, IP);
 
     DRYRUN(
@@ -772,7 +772,7 @@ zsetchoice(k)
              -> A selector(k,k,k)
 
   RW    IP   <- IP zlufacto(k)                      [type = PIVOT]
-             -> IP selector(k,k,k)	            [type = PIVOT]
+             -> IP selector(k,k,k)              [type = PIVOT]
 
   CTL   ctl  -> ctl selector(k, k..descA.mt-1, k..descA.nt-1)
 

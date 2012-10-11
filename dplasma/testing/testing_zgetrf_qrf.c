@@ -62,10 +62,6 @@ int main(int argc, char ** argv)
                                two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
                                                       nodes, cores, rank, MB, 1, M, NT, 0, 0,
                                                       M, NT, SMB, SNB, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescSAV, 1,
-                               two_dim_block_cyclic, (&ddescSAV, matrix_ComplexDouble, matrix_Tile,
-                                                      nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                                      M, N, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
                                two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
                                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0,
@@ -145,7 +141,6 @@ int main(int argc, char ** argv)
                              (tiled_matrix_desc_t *)&ddescA,
                              (tiled_matrix_desc_t *)&ddescX,
                              (tiled_matrix_desc_t *)&ddescIPIV,
-                             (tiled_matrix_desc_t*)&ddescSAV,
                              (tiled_matrix_desc_t *)&ddescLT,
                              lu_tab,
                              &info);
@@ -167,7 +162,6 @@ int main(int argc, char ** argv)
                                  (tiled_matrix_desc_t *)&ddescA,
                                  (tiled_matrix_desc_t *)&ddescInvA,
                                  (tiled_matrix_desc_t *)&ddescIPIV,
-                                 (tiled_matrix_desc_t*)&ddescSAV,
                                  (tiled_matrix_desc_t *)&ddescLT,
                                  lu_tab,
                                  &info);
@@ -203,8 +197,6 @@ int main(int argc, char ** argv)
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
-    dague_data_free(ddescSAV.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescSAV);
     dague_data_free(ddescLT.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescLT);
     dague_data_free(ddescIPIV.mat);
