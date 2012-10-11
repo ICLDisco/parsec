@@ -26,9 +26,9 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
-    int lu_tab = 0;
+    int *lu_tab;
     int info = 0;
-    int ret = 0;
+    int i, ret = 0;
     qr_piv_t *qrpiv;
 
     /* Set defaults for non argv iparams */
@@ -89,6 +89,10 @@ int main(int argc, char ** argv)
                                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                                       M, N, SMB, SNB, P));
 
+    lu_tab = (int *)malloc( dague_imin(MT, NT)*sizeof(int) );
+    for(i=0; i< dague_imin(MT, NT); i++)
+        lu_tab[i] = -1;
+
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
@@ -121,9 +125,8 @@ int main(int argc, char ** argv)
                               (qrpiv,
                                (tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescIPIV,
-                               (tiled_matrix_desc_t*)&ddescSAV,
                                (tiled_matrix_desc_t*)&ddescLT,
-                               &lu_tab,
+                               lu_tab,
                                &info));
     /* lets rock! */
     PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_qrf);
@@ -144,7 +147,7 @@ int main(int argc, char ** argv)
                              (tiled_matrix_desc_t *)&ddescIPIV,
                              (tiled_matrix_desc_t*)&ddescSAV,
                              (tiled_matrix_desc_t *)&ddescLT,
-                             &lu_tab,
+                             lu_tab,
                              &info);
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                       (tiled_matrix_desc_t *)&ddescA,
@@ -166,7 +169,7 @@ int main(int argc, char ** argv)
                                  (tiled_matrix_desc_t *)&ddescIPIV,
                                  (tiled_matrix_desc_t*)&ddescSAV,
                                  (tiled_matrix_desc_t *)&ddescLT,
-                                 &lu_tab,
+                                 lu_tab,
                                  &info);
             dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                           (tiled_matrix_desc_t *)&ddescA,
