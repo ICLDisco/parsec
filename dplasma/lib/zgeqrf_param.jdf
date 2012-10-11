@@ -60,9 +60,6 @@ pivfct [type = "qr_piv_t*"]
 ib     [type = "int"]
 p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descT.nb))"]
 p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descT.nb))"]
-param_p[type = int default="pivfct->p" hidden=on]
-param_a[type = int default="pivfct->a" hidden=on]
-param_d[type = int default="pivfct->domino" hidden=on]
 
 zgeqrt_typechange(k, i) [profile = off]
   /* Execution space */
@@ -74,7 +71,7 @@ zgeqrt_typechange(k, i) [profile = off]
 
   RW A <- A zgeqrt(k, i)
        -> ( descA.nt-1 > k ) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
-       -> A(m, k)                                                  [type = LOWER_TILE]
+       //       -> A(m, k)                                                  [type = LOWER_TILE]
 BODY
     /* Nothing */
 END

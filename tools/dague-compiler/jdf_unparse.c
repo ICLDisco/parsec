@@ -307,7 +307,7 @@ static int jdf_deps_unparse( const jdf_dep_t *deps, FILE *out )
     } else if( deps->type == JDF_DEP_TYPE_OUT ) {
         fprintf(out, "-> ");
     } else {
-        fprintf(stderr, "Improbable dependency type %d is not IN xor OUT\n",
+        fprintf(stderr, "Improbable dependency type %x is not IN xor OUT\n",
                 deps->type);
         return -1;
     }
@@ -344,7 +344,7 @@ static int jdf_dataflow_unparse( const jdf_dataflow_t *dataflow, FILE *out )
     } else if( dataflow->access_type == (JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE) ) {
         fprintf(out, "  RW    ");
     } else {
-        fprintf(stderr, "Improbable flow access type %d is not CTL, READ, WRITE or RW\n", dataflow->access_type);
+        fprintf(stderr, "Improbable flow access type %x is not CTL, READ, WRITE or RW\n", dataflow->access_type);
         return -1;
     }
 
@@ -375,7 +375,7 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
     fprintf(out, "\n");
 
     fprintf(out, "  /* Execution Space */\n  ");
-    err = jdf_def_list_unparse(f->definitions, out, "\n  ");
+    err = jdf_def_list_unparse(f->locals, out, "\n  ");
     fprintf(out, "\n");
     if( err < 0 )
         return err;

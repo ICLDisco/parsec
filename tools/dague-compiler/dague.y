@@ -15,26 +15,22 @@
  * Better error handling
  */
 #define YYERROR_VERBOSE 1
+struct yyscan_t;
 
 #include "dague.y.h"
-
-extern int yyparse(void);
-extern int yylex(void);
 
 extern int current_lineno;
 
 static jdf_expr_t *inline_c_functions = NULL;
 
-static void yyerror(const char *str)
+static void yyerror(YYLTYPE *locp,
+                    struct yyscan_t* yyscanner,
+                    char const *msg)
 {
-    fprintf(stderr, "parse error at line %d: %s\n", current_lineno, str);
-}
-
-int yywrap(void);
-
-int yywrap(void)
-{
-    return 1;
+    fprintf(stderr, "parse error at %d.%d-%d.%d: %s\n",
+            locp->first_line, locp->first_column,
+            locp->last_line, locp->last_column,
+            msg);
 }
 
 #define new(type)  (type*)calloc(1, sizeof(type))
@@ -182,7 +178,12 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %left COMMA
 
 %debug
-
+%defines
+%locations
+%pure-parser
+%error-verbose
+%parse-param {struct yyscan_t *yycontrol}
+%lex-param   {struct yyscan_t *yycontrol}
 %%
 jdf_file:       prologue jdf epilogue
                 {
@@ -214,6 +215,11 @@ jdf:            jdf function
                 {
                     jdf_expr_t *el, *pl;
 
+                    if( NULL == current_jdf.functions ) {
+                        $2->function_id = 0;
+                    } else {
+                        $2->function_id = current_jdf.functions->function_id + 1;
+                    }
                     $2->next = current_jdf.functions;
                     current_jdf.functions = $2;
                     if( NULL != inline_c_functions) {
@@ -335,7 +341,7 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simula
                     e->fname             = $1;
                     e->parameters        = $3;
                     e->properties        = $5;
-                    e->definitions       = $6;
+                    e->locals            = $6;
                     e->simcost           = $7;
                     e->predicate         = $8;
                     e->dataflow          = $9;
@@ -663,9 +669,9 @@ expr_range: expr_complete RANGE expr_complete
             {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_RANGE;
-                  e->jdf_ta1 = $1;
-                  e->jdf_ta2 = $3;
-                  e->jdf_ta3 = new(jdf_expr_t);
+                  e->jdf_ta1 = $1;               /* from */
+                  e->jdf_ta2 = $3;               /* to */
+                  e->jdf_ta3 = new(jdf_expr_t);  /* step */
                   e->jdf_ta3->op = JDF_CST;
                   e->jdf_ta3->jdf_cst = 1;
                   $$ = e;
@@ -674,9 +680,9 @@ expr_range: expr_complete RANGE expr_complete
             {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_RANGE;
-                  e->jdf_ta1 = $1;
-                  e->jdf_ta2 = $3;
-                  e->jdf_ta3 = $5;
+                  e->jdf_ta1 = $1;  /* from */
+                  e->jdf_ta2 = $3;  /* to */
+                  e->jdf_ta3 = $5;  /* step */
                   $$ = e;
             }
           | expr_complete

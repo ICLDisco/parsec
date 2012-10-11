@@ -66,6 +66,17 @@ typedef int (dague_release_deps_t)(struct dague_execution_unit*,
                                    dague_execution_context_t*,
                                    uint32_t,
                                    struct dague_remote_deps_t *);
+#if defined(DAGUE_SIM)
+typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
+#endif
+
+/**
+ * Return codes for data_lookup functions:
+ *  DAGUE_LOOKUP_DONE: all data is ready to be used.
+ */
+#define DAGUE_LOOKUP_DONE 1
+
+typedef int (dague_task_fct_t)(dague_execution_context_t *exec_context);
 
 typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit *eu,
                                                          dague_execution_context_t *newcontext,
@@ -82,9 +93,6 @@ typedef void (dague_traverse_function_t)(struct dague_execution_unit *,
                                          dague_ontask_function_t *,
                                          void *);
 
-#if defined(DAGUE_SIM)
-typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
-#endif
 typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object, const assignment_t *assignments);
 
 #define DAGUE_HAS_IN_IN_DEPENDENCIES     0x0001
@@ -98,10 +106,10 @@ typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object, co
 struct dague_function {
     const char                  *name;
     uint16_t                     flags;
-    uint16_t                     function_id;
+    int16_t                      function_id;  /**< index in the dependency and in the function array */
+
     uint8_t                      nb_parameters;
-    uint8_t                      nb_definitions;
-    int16_t                      deps;  /**< This is the index of the dependency array in the __DAGUE_object_t */
+    uint8_t                      nb_locals;
     dague_dependency_t           dependencies_goal;
     const symbol_t              *params[MAX_LOCAL_COUNT];
     const symbol_t              *locals[MAX_LOCAL_COUNT];
@@ -112,12 +120,9 @@ struct dague_function {
 #if defined(DAGUE_SIM)
     dague_sim_cost_fct_t        *sim_cost_fct;
 #endif
+    dague_task_fct_t            *data_lookup;
     dague_hook_t                *hook;
     dague_hook_t                *complete_execution;
-#ifdef DAGUE_GPU_WITH_CUDA
-    dague_hook_t                *cuda_hook;
-    dague_hook_t                *cuda_complete_execution;
-#endif
     dague_traverse_function_t   *iterate_successors;
     dague_release_deps_t        *release_deps;
     dague_functionkey_fn_t      *key;

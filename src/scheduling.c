@@ -48,21 +48,6 @@ int __dague_execute( dague_execution_unit_t* eu_context,
                      dague_execution_context_t* exec_context )
 {
     const dague_function_t* function = exec_context->function;
-#if defined(DAGUE_DEBUG)
-    {
-        const struct dague_flow* flow;
-        int set_parameters, i;
-
-        for( i = set_parameters = 0; NULL != (flow = exec_context->function->in[i]); i++ ) {
-            if( (NULL != exec_context->data[flow->flow_index].data_repo) &&
-                (ACCESS_NONE != flow->access_type)) {
-                set_parameters++;
-                assert( NULL != exec_context->data[flow->flow_index].data );
-            }
-        }
-        assert( set_parameters <= 1 );
-    }
-# endif
 #ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[MAX_TASK_STRLEN];
     DEBUG(( "thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id, dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context))); 
@@ -278,11 +263,17 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
             TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
             
-            /* We're good to go ... */
-            if( 0 == __dague_execute( eu_context, exec_context ) ) {
-                __dague_complete_execution( eu_context, exec_context );
+            switch( exec_context->function->data_lookup( exec_context ) ) {
+            case DAGUE_LOOKUP_DONE:
+                /* We're good to go ... */
+                if( 0 == __dague_execute( eu_context, exec_context ) ) {
+                    __dague_complete_execution( eu_context, exec_context );
+                }
+                nbiterations++;
+                break;
+            default:
+                assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
-            nbiterations++;
 
         } else {
             misses_in_a_row++;

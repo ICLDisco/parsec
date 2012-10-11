@@ -139,7 +139,7 @@ static const expr_t expr_of_p1_for_flow_of_map_operator_dep_in = {
 };
 static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
-    .dague = &dague_map_operator,
+    .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
     .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
     .call_params = {
@@ -160,7 +160,7 @@ static const expr_t expr_of_p1_for_flow_of_map_operator_dep_out = {
 };
 static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
-    .dague = &dague_map_operator,
+    .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
     .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
     .call_params = {
@@ -340,11 +340,10 @@ static int complete_hook(dague_execution_unit_t *context,
 
 static const dague_function_t dague_map_operator = {
     .name = "map_operator",
-    .deps = 0,
     .flags = 0x0,
     .function_id = 0,
     .dependencies_goal = 0x1,
-    .nb_definitions = 2,
+    .nb_locals = 2,
     .nb_parameters = 2,
     .params = { &symb_row, &symb_column },
     .locals = { &symb_row, &symb_column },
@@ -358,7 +357,7 @@ static const dague_function_t dague_map_operator = {
     .complete_execution = complete_hook,
 };
 
-static void dague_map_operator_startup_fn(dague_context_t *context, 
+static void dague_map_operator_startup_fn(dague_context_t *context,
                                           dague_object_t *dague_object,
                                           dague_execution_context_t** startup_list)
 {

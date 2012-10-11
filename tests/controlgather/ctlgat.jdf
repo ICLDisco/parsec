@@ -9,6 +9,7 @@ extern "C" %{
 #endif
 %}
 
+A          [type = "dague_ddesc_t*"]
 NT
 WS
 
@@ -22,8 +23,8 @@ CTL X -> X TC(0)
 ; 0
 
 BODY
-	MY_RANK(r);
-	printf("%d: TA(%d)\n", r, k);
+    MY_RANK(r);
+    printf("%d: TA(%d)\n", r, k);
 END
 
 TB(k)
@@ -36,8 +37,8 @@ CTL X -> Y TC(0)
 ; 0
 
 BODY
-	MY_RANK(r);
-	printf("%d: TB(%d)\n", r, k);
+    MY_RANK(r);
+    printf("%d: TB(%d)\n", r, k);
 END
 
 TC(k)
@@ -51,6 +52,8 @@ CTL Y <- X TB(0..NT-1)
 ; 0
 
 BODY
-	MY_RANK(r);
-	printf("%d: TC(%d)\n", r, k);
+    MY_RANK(r);
+    printf("%d: TC(%d)\n", r, k);
 END
+extern "C" %{
+%}

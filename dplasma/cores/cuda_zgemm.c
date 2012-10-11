@@ -390,10 +390,10 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                                            NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
                 /* Move the data back into main memory */
-                status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[2].data), gpu_elem->gpu_mem_ptr, args->sizeC, stream );
+                status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[i].data), gpu_elem->gpu_mem_ptr, args->sizeC, stream );
                 DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
-                                        { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[2]->name,
-                                                  (void*)gpu_elem->gpu_mem_ptr, (void*)ADATA(this_task->data[2].data)));
+                                        { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[i]->name,
+                                                  (void*)gpu_elem->gpu_mem_ptr, (void*)ADATA(this_task->data[i].data)));
                                           return_code = -2;
                                           goto release_and_return_error;} );
                 gpu_device->transferred_data_out += args->sizeC; /* TODO: not hardcoded, use datatype size */
