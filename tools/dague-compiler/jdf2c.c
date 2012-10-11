@@ -1483,7 +1483,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
             strcmp( pf->fname, call->func_or_mem);
             pf = pf->next) /* nothing */;
         if( NULL == pf ) {
-            printf("Error: Can't identify the target function for the call at %s.jdf:%d: %s %s\n",
+            fprintf(stderr, "Error: Can't identify the target function for the call at %s.jdf:%d: %s %s\n",
                    jdf_basename, call->super.lineno, call->var, call->func_or_mem);
             exit(-1);
         }
@@ -3701,6 +3701,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     expr_info_t info, linfo;
     string_arena_t *sa2, *sa1, *sa_close;
     int i, nbopen;
+    int nbparam_given, nbparam_required;
     char *p;
 
     string_arena_init(sa_open);
@@ -3736,6 +3737,23 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     string_arena_add_string(sa_open, "%s%s%s.function = (const dague_function_t*)&%s_%s;\n",
                             prefix, indent(nbopen), var, jdf_basename, targetf->fname);
+
+    nbparam_given = 0;
+    for(el = call->parameters; el != NULL; el = el->next) {
+        nbparam_given++;
+    }
+
+    nbparam_required = 0;
+    for(nl = targetf->parameters; nl != NULL; nl = nl->next) {
+        nbparam_required++;
+    }
+
+    if( nbparam_given != nbparam_required ){
+        fprintf(stderr,
+                "Internal Error: Wrong number of arguments when calling %s at line %d (%d instead of %d)\n",
+                targetf->fname, JDF_OBJECT_LINENO(flow), nbparam_given, nbparam_required );
+        assert( nbparam_given == nbparam_required );
+    }
 
     for(def = targetf->locals, i = 0;
         def != NULL;
