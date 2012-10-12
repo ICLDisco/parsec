@@ -1128,11 +1128,20 @@ void dague_object_terminate( dague_object_t *object )
     object->nb_local_tasks = 1;
 }
 
+/**< Unregister the object with the engine. */
+void dague_object_dec_nbtask( dague_object_t* object, uint32_t nb_tasks )
+{
+    dague_atomic_lock( &object_array_lock );
+    assert( object->nb_local_tasks >= nb_tasks );
+    object->nb_local_tasks -= nb_tasks;
+    dague_atomic_unlock( &object_array_lock );
+}
+
 /**< Print DAGuE usage message */
 void dague_usage(void)
 {
     fprintf(stderr,"\n"
-            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n\n" 
+            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n\n"
             "     --dague_bind_comm   : define the core the communication thread will be bound on\n"
             "\n"
             "     Warning:: The binding options rely on hwloc. The core numerotation is defined between 0 and the number of cores.\n"
