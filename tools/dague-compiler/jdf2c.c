@@ -807,6 +807,9 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
                                 f->fname, f->fname, nbdata);
     }
 
+    string_arena_add_string(sa, "  fprintf(stderr, \"%s %%d\\n\", %s_nblocal_tasks);\n",
+                            f->fname, f->fname);
+
     return string_arena_get_string(sa);
 }
 
