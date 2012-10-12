@@ -142,14 +142,13 @@ BODY
 {
     int s  = ceil((descA.mt-k)/param_p);
     int ks = k + (s-1)*param_p;
-
     int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int tempnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
     int tempm  = (s-1) * descA.mb +
         (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
     int ldak = BLKLDD(descA, k);
 
-    printlog("zswptrsm_hpp( k=%d, n=%d )", k, n );
+    printlog("swptrsm_u( k=%d, n=%d )", k, n );
 
     DRYRUN(
 
@@ -943,7 +942,6 @@ BODY
         }
 
         dague_object_dec_nbtask( this_task->dague_object, nb_tasks );
-
     }
 }
 END
