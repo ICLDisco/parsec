@@ -47,6 +47,7 @@ descLT  [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)LT)" hidd
 descB   [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)B)"  hidden=on]
 
 param_p [type = int default="((two_dim_block_cyclic_t*)A)->grid.rows" hidden=on ]
+param_q [type = int default="((two_dim_block_cyclic_t*)A)->grid.cols" hidden=on ]
 minMNT  [type = int default="dague_imin( __dague_object->super.descA.mt-1, __dague_object->super.descA.nt-1 )" hidden=on ]
 
 /*===========================================================================================
@@ -77,9 +78,6 @@ swptrsm_u(k, n)
   k = 0 .. minMNT
   n = 0 .. descB.nt-1
 
-  s  = inline_c %{ return ceil((descB.mt-k)/param_p); %}
-  ks = inline_c %{ return k + (s-1)*param_p; %}
-
   /* Locality */
   : B(k, n)
 
@@ -96,6 +94,8 @@ swptrsm_u(k, n)
 
 BODY
 {
+    int s  = ceil((descA.mt-k)/param_p);
+    int ks = k + (s-1)*param_p;
     int tempkm = (k == (descB.mt-1)) ? (descB.m - k * descB.mb) : descB.mb;
     int tempnn = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
     int tempm  = (s-1) * descB.mb +
@@ -103,7 +103,7 @@ BODY
     int ldak = BLKLDD(descA, k);
     int ldbk = BLKLDD(descB, k);
 
-    printlog("zswptrsm_u(k=%d, n=%d)", k, n);
+    printlog("swptrsm_u(k=%d, n=%d)", k, n);
 
     DRYRUN(
 
@@ -167,8 +167,6 @@ zgemm(k, m, n)
            -> A selector(k+1, m, n)
 
   CTL  ctl -> (diagdom == 0) ? ctl tile2panel(k, n)
-
-  CTL  ctlterm -> (k == minMNT) ? ctl terminate(minMNT)
 
 ; descB.nt-n-1
 
@@ -246,6 +244,11 @@ zunmqr(k, i, n)
 
 BODY
 {
+    printlog("CORE_zunmqr(%d, %d, %d)\n"
+             "\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, \n"
+             "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, A(%d,%d)[%p], ldam, p_elem_A, descLT.nb)",
+             k, m, n, m, k, A, m, k, T, m, n, C);
+
     DRYRUN(
         void *p_elem_B = dague_private_memory_pop( p_work );
 
@@ -261,16 +264,11 @@ BODY
             tempAmm, tempnn, tempkmin, ib,
             A /* A(m, k) */, ldam,
             T /* T(m, k) */, descLT.mb,
-            C /* A(m, n) */, ldbm,
+            C /* B(m, n) */, ldbm,
             p_elem_B, descLT.nb );
 
         dague_private_memory_push( p_work, p_elem_B );
            );
-
-    printlog("CORE_zunmqr(%d, %d, %d)\n"
-             "\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, \n"
-             "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, A(%d,%d)[%p], ldam, p_elem_A, descLT.nb)",
-             k, m, n, m, k, A, m, k, T, m, n, C);
 }
 END
 
@@ -365,18 +363,18 @@ BODY
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
             CORE_ztsmqr(
                 PlasmaLeft, PlasmaConjTrans,
-                descB.mb, tempnn, tempmm, tempnn, tempkn, ib,
-                A1 /* A(p, n) */, ldbp,
-                A2 /* A(m, n) */, ldbm,
+                descA.mb, tempnn, tempmm, tempnn, tempkn, ib,
+                A1 /* B(p, n) */, ldbp,
+                A2 /* B(m, n) */, ldbm,
                 V  /* A(m, k) */, ldam,
                 T  /* T(m, k) */, descLT.mb,
                 p_elem_B, ldwork );
         } else {
             CORE_zttmqr(
                 PlasmaLeft, PlasmaConjTrans,
-                descB.mb, tempnn, tempmm, tempnn, tempkn, ib,
-                A1 /* A(p, n) */, ldbp,
-                A2 /* A(m, n) */, ldbm,
+                descA.mb, tempnn, tempmm, tempnn, tempkn, ib,
+                A1 /* B(p, n) */, ldbp,
+                A2 /* B(m, n) */, ldbm,
                 V  /* A(m, k) */, ldam,
                 T  /* T(m, k) */, descLT.mb,
                 p_elem_B, ldwork );
@@ -413,7 +411,7 @@ BODY
 END
 
 zttmqr_out_A1(k, n) [profile = off]
-  k = 0 .. minMNT
+  k = 0 .. minMNT-1
   n = 0 .. descB.nt-1
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
 
@@ -421,8 +419,6 @@ zttmqr_out_A1(k, n) [profile = off]
 
   RW A <- A1 zttmqr( k, prevp, n )
        -> B(k, n)
-
-  CTL  ctlterm ->  (k == minMNT) ? ctl terminate(0)
 
 BODY
 /* nothing */
@@ -500,31 +496,117 @@ inputs(k)
   : A(k, k)
 
   CTL  ctl -> (do_lu == 1) ? ctl swptrsm_u_in( k )
-           -> (do_lu == 1) ? ctl zgemm_in( k, k+1..descA.mt-1 )
+           -> (do_lu == 1) && (k < minMNT) ? ctl zgemm_in( k, k+1..descA.mt-1 )
            -> (do_lu != 1) ? ctl zunmqr_in(k, 0..nbqr )
-           -> (do_lu != 1) ? ctl zttmqr_in(k, k+1..descA.mt-1 )
+           -> (do_lu != 1) && (k < minMNT) ? ctl zttmqr_in(k, k+1..descA.mt-1 )
 
 BODY
 {
-    /* Terminate */
-    dague_object_terminate( this_task->dague_object );
+    /* Nothing */
 }
 END
 
-terminate(k)
-  /* Execution space */
-  k = 0 .. 0
+cleantasks(p, q)
+  p = 0 .. inline_c %{ return dague_imin(param_p, descA.mt)-1; %}
+  q = 0 .. inline_c %{ return dague_imin(param_q, dague_imax(descA.nt, descB.nt))-1; %}
 
-  last_lu = inline_c %{ return lu_tab[minMNT]; %}
+  :A(p, q)
 
-  : A(minMNT, minMNT)
-
-  CTL   ctl <- (last_lu == 1) ? ctlterm zgemm( minMNT, descB.mt-1, 0..descB.nt-1)
-            <- (last_lu != 1) ? ctlterm zttmqr_out_A1(minMNT, 0..descB.nt-1)
+  CTL ctl <- 0 ? ctl cleantasks(p, q)
 
 BODY
 {
-    /* Terminate */
-    dague_object_terminate( this_task->dague_object );
+    int k, m, n;
+    int nb_tasks = 0;
+
+    for(k=0; k<=minMNT; k++){
+        if (lu_tab[k] == 1) {
+            /* /\* geqrt + geqrt_typechange + unmqr *\/ */
+            /* { */
+            /*     int nbgeqrt_total = dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ); */
+            /*     int geqrt_i; */
+            /*     int unmqr_n; */
+
+            /*     for(geqrt_i=0; geqrt_i < nbgeqrt_total; geqrt_i++) { */
+            /*         int geqrt_m = dplasma_qr_getm(pivfct, k, geqrt_i); */
+
+            /*         if (zgeqrt_pred(k, geqrt_i, geqrt_m, -1)) */
+            /*             nb_tasks += 2; */
+
+            /*         for(unmqr_n=k+1; unmqr_n<descA.nt; unmqr_n++) { */
+            /*             if (zunmqr_pred(k, geqrt_i, unmqr_n, geqrt_m, -1)) { */
+            /*                 nb_tasks++; */
+            /*             } */
+            /*         } */
+            /*     } */
+            /* } */
+
+            /* /\* ttqrt + ttmqr *\/ */
+            /* { */
+            /*     int ttqrt_m, ttmqr_n; */
+
+            /*     for(ttqrt_m=k+1; ttqrt_m < descA.mt; ttqrt_m++) { */
+
+            /*         if (zttqrt_pred(k, ttqrt_m, -1, -1, -1, -1, -1, -1, -1)) { */
+            /*             nb_tasks++; */
+            /*         } */
+
+            /*         for(ttmqr_n=k+1; ttmqr_n<descA.nt; ttmqr_n++) { */
+            /*             if (zttmqr_pred(k, ttqrt_m, ttmqr_n, -1, -1, -1, -1, */
+            /*                             -1, -1, -1, -1, -1, -1)) { */
+            /*                 nb_tasks++; */
+            /*             } */
+            /*         } */
+            /*     } */
+            /* } */
+
+            /* /\* ttqrt_out + ttmqr_out *\/ */
+            /* { */
+            /*     if ( k < minMNT ) { */
+            /*         int ttmqr_n; */
+
+            /*         if (zttqrt_out_A1_pred(k, -1)) { */
+            /*             nb_tasks++; */
+            /*         } */
+
+            /*         for(ttmqr_n=k+1; ttmqr_n<descA.nt; ttmqr_n++) { */
+            /*             if (zttmqr_out_A1_pred(k, ttmqr_n, -1)) { */
+            /*                 nb_tasks++; */
+            /*             } */
+            /*         } */
+            /*     } */
+            /*     if ( descA.mt > descA.nt && k > descA.nt ) { */
+            /*         if (zttqrt_out_A1_pred(k, -1)) { */
+            /*             nb_tasks++; */
+            /*         } */
+            /*     } */
+hg             /* } */
+
+        } else {
+            /*
+             * LU
+             */
+            if (swptrsm_u_in_pred(k))
+                nb_tasks++;
+
+            for(n=0; n<descB.nt; n++) {
+                if (swptrsm_u_pred(k, n))
+                    nb_tasks++;
+            }
+
+            for(m=k+1; m<descB.mt; m++) {
+                if (zgemm_in_pred(k, m))
+                    nb_tasks++;
+
+                for(n=0; n<descB.nt; n++) {
+                    if (zgemm_pred(k, m, n, -1))
+                        nb_tasks++;
+                }
+            }
+        }
+        dague_object_dec_nbtask( this_task->dague_object, nb_tasks );
+        nb_tasks = 0;
+    }
+
 }
 END
