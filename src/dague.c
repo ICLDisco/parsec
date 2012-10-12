@@ -1380,6 +1380,30 @@ void dague_object_unregister( dague_object_t* object )
     dague_atomic_unlock( &object_array_lock );
 }
 
+/**< This function is called in a body only.
+ *   It sets the current task as the last task.
+ *   The current implemenation has limitations: it assumes that
+ *   no other task of the object is running, and it assumes that
+ *   all tasks that are cancelled were never started (i.e. no
+ *   input dependency for these tasks was ever true).
+ *
+ *   Update this comment and the comment in the header file
+ *   if some limitations are relieved.
+ */
+void dague_object_terminate( dague_object_t *object )
+{
+    object->nb_local_tasks = 1;
+}
+
+/**< Unregister the object with the engine. */
+void dague_object_dec_nbtask( dague_object_t* object, uint32_t nb_tasks )
+{
+    dague_atomic_lock( &object_array_lock );
+    assert( object->nb_local_tasks >= nb_tasks );
+    object->nb_local_tasks -= nb_tasks;
+    dague_atomic_unlock( &object_array_lock );
+}
+
 /**< Print DAGuE usage message */
 void dague_usage(void)
 {
