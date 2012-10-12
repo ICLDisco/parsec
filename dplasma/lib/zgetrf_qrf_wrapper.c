@@ -12,6 +12,7 @@
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include "zgetrf_qrf.h"
 
@@ -29,12 +30,14 @@ dague_object_t* dplasma_zgetrf_qrf_New( qr_piv_t *qrpiv,
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
      * it should be passed as a parameter as in getrf
      */
+    int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
+    double *W = (double*)malloc((A->mt/P)*sizeof(double));
 
     object = dague_zgetrf_qrf_new( (dague_ddesc_t*)A,
                                    (dague_ddesc_t*)IPIV,
                                    (dague_ddesc_t*)LT,
-                   lu_tab,
-                                   qrpiv, ib,
+                                   lu_tab,
+                                   qrpiv, ib, W,
                                    NULL, NULL,
                                    INFO);
 
@@ -73,6 +76,11 @@ dague_object_t* dplasma_zgetrf_qrf_New( qr_piv_t *qrpiv,
                                  LT->mb*LT->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, LT->mb, LT->nb, -1);
+
+    /* EltDouble */
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_ELTdouble_ARENA],
+                                 2 * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_DOUBLE, 2, 1, -1);
 
     return (dague_object_t*)object;
 }
