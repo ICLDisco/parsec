@@ -67,6 +67,8 @@ static inline set<expr_t *> find_all_GEs_with_var(const char *var_name, expr_t *
 static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t *exp, int constr_type);
 static bool is_expr_simple(const expr_t *exp);
 static string _expr_tree_to_str(expr_t *exp);
+static inline const char *dump_expr_tree_to_str(expr_t *exp);
+static string _dump_expr(expr_t *exp);
 static int expr_tree_contains_var(expr_t *root, const char *var_name);
 static int expr_tree_contains_only_vars_in_set(expr_t *root, set<const char *>vars);
 static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F_And *R_root, map<string, Variable_ID> ivars, Relation &R);
@@ -964,8 +966,15 @@ long int getVarCoeff(expr_t *root, const char * var_name){
                 return root->r->value.int_const;
             }else{
                 fprintf(stderr,"ERROR: getVarCoeff(): malformed expression: \"%s\"\n",expr_tree_to_str(root));
-                exit(-1);
+                Q2J_ASSERT(0);
             }
+            break; // although control can never reach this point
+
+        case IDENTIFIER:
+            if( !strcmp(var_name, root->value.name) )
+                return 1;
+            fprintf(stderr,"ERROR: getVarCoeff(): tree: \"%s\" does not contain variable: \"%s\"\n",expr_tree_to_str(root), var_name);
+            Q2J_ASSERT(0);
             break; // although control can never reach this point
 
         default:
@@ -975,7 +984,7 @@ long int getVarCoeff(expr_t *root, const char * var_name){
                 return getVarCoeff(root->r, var_name);
             }else{
                 fprintf(stderr,"ERROR: getVarCoeff(): tree: \"%s\" does not contain variable: \"%s\"\n",expr_tree_to_str(root), var_name);
-                exit(-1);
+                Q2J_ASSERT(0);
             }
             break; // although control can never reach this point
     }
@@ -1214,6 +1223,7 @@ int expr_tree_contains_var(expr_t *root, const char *var_name){
     return 0;
 }
 
+
 const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R){
     char *lb = NULL, *ub = NULL;
     stringstream ss;
@@ -1229,6 +1239,7 @@ const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char
     set<expr_t *>::iterator e_it;
     for(e_it=ges.begin(); e_it!=ges.end(); e_it++){
         int exp_has_output_vars = 0;
+        bool expression_becomes_simpler = true;
 
         expr_t *ge_exp = *e_it;
         int c = getVarCoeff(ge_exp, var_name);
@@ -1237,9 +1248,31 @@ const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char
         expr_t *rslt_exp = solveConstraintForVar(ge_exp, var_name);
 
         if( !R.is_set() ){
+            while( expression_becomes_simpler ){
+                expression_becomes_simpler = false;
+                for(int i=0; i<R.n_out(); i++){
+                    const char *ovar = R.output_var(i+1)->char_name();
+                    if( expr_tree_contains_var(ge_exp, ovar) ){
+                        // If the bound contains an output variable, try to solve the original
+                        // expression for that output variable and substitute the solution in the bound.
+                        set<expr_t *>::iterator tmp_e_it;
+                        expr_t *solution_exp = NULL;
+                        solution_exp = solveExpressionTreeForVar(exp, ovar, R);
+                        if( NULL != solution_exp ){
+                            expression_becomes_simpler = true;
+                            substitute_exp_for_var(solution_exp, ovar, ge_exp);
+                        }
+                    }
+                }
+            }
+
+            // Solve again, now that we got rid of as many output variables as we could.
+            rslt_exp = solveConstraintForVar(ge_exp, var_name);
+
             for(int i=0; i<R.n_out(); i++){
                 const char *ovar = R.output_var(i+1)->char_name();
                 if( expr_tree_contains_var(rslt_exp, ovar) ){
+                    // If the bound still contains output variables, it means we could not get rid of all of them.
                     exp_has_output_vars = 1;
                     break;
                 }
@@ -1513,6 +1546,7 @@ void multiplyTreeByConstant(expr_t *exp, int c){
             break;
 
         case ADD:
+        case SUB:
             multiplyTreeByConstant(exp->l, c);
             multiplyTreeByConstant(exp->r, c);
             break;
@@ -1536,7 +1570,7 @@ static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *ro
     cnstr = find_all_EQs_with_var(var_name, root);
     ges = find_all_GEs_with_var(var_name, root);
     cnstr.insert(ges.begin(), ges.end());
-    
+
     set<expr_t *>::iterator e_it;
     for(e_it=cnstr.begin(); e_it!=cnstr.end(); e_it++){
         int c;
@@ -1560,7 +1594,6 @@ static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *ro
         }else{
             Q2J_ASSERT(0);
         }
-
     }
     return;
 }
@@ -2070,7 +2103,10 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
                 // Make sure this variable is global
                 map<string, Free_Var_Decl *>::iterator g_it;
                 g_it = global_vars.find(var_name);
-                Q2J_ASSERT( g_it != global_vars.end() );
+                if( global_vars.end() == g_it ){
+                    fprintf(stderr,"    Variable \"%s\" was expected to be global, but it is not\n", var_name.c_str());
+                    Q2J_ASSERT( 0 )
+                }
                 // And get a reference to the local version of the variable in S_tmp.
                 all_vars[var_name] = S_tmp.get_local(g_it->second);
             }
@@ -3781,6 +3817,49 @@ static inline bool is_negative(expr_t *exp){
     return false;
 }
 
+// This is for debugging, it's not pretty.
+static inline const char *dump_expr_tree_to_str(expr_t *exp){
+    string str;
+    str = _dump_expr(exp);
+    return strdup(str.c_str());
+}
+
+static string _dump_expr(expr_t *exp){
+    string str;
+    stringstream ss;
+
+    if( NULL == exp )
+        return "";
+
+    switch( exp->type ){
+        case IDENTIFIER:
+            str = string(exp->value.name);
+            return str;
+
+        case INTCONSTANT:
+            ss << exp->value.int_const;
+            return ss.str();
+
+        case EQ_OP:
+        case GE:
+        case L_AND:
+        case L_OR:
+        case ADD:
+        case SUB:
+        case DIV:
+        case MUL:
+            ss << "(" << _dump_expr(exp->l) << ")" << type_to_symbol(exp->type) << "(" << _dump_expr(exp->r) << ")";
+            return ss.str();
+
+        default:
+            ss << "{" << exp->type << "}";
+            return ss.str();
+    }
+    return string();
+}
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
 const char *expr_tree_to_str(expr_t *exp){
     string str;
     str = _expr_tree_to_str(exp);
