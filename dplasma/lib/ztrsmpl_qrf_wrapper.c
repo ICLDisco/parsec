@@ -16,12 +16,11 @@
 #include "ztrsmpl_qrf.h"
 
 dague_object_t* dplasma_ztrsmpl_qrf_New( qr_piv_t *qrpiv,
-                                            tiled_matrix_desc_t *A,
-                                            tiled_matrix_desc_t *B,
-                                            tiled_matrix_desc_t *IPIV,
-                                            tiled_matrix_desc_t *LT,
-											int* lu_tab,
-                                            int* INFO)
+                                         tiled_matrix_desc_t *A,
+                                         tiled_matrix_desc_t *IPIV,
+                                         tiled_matrix_desc_t *LT,
+                                         tiled_matrix_desc_t *B,
+                                         int *lu_tab)
 {
     dague_ztrsmpl_qrf_object_t* object;
     int ib = LT->mb;
@@ -32,13 +31,12 @@ dague_object_t* dplasma_ztrsmpl_qrf_New( qr_piv_t *qrpiv,
      */
 
     object = dague_ztrsmpl_qrf_new((dague_ddesc_t*)A,
-					               (dague_ddesc_t*)B,
                                    (dague_ddesc_t*)IPIV,
                                    (dague_ddesc_t*)LT,
-								   lu_tab,
+                                   (dague_ddesc_t*)B,
+                                   lu_tab,
                                    qrpiv, ib,
-                                   NULL, NULL,
-                                   INFO);
+                                   NULL, NULL);
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( object->p_work, ib * LT->nb * sizeof(dague_complex64_t) );
@@ -74,17 +72,16 @@ dague_object_t* dplasma_ztrsmpl_qrf_New( qr_piv_t *qrpiv,
 }
 
 int dplasma_ztrsmpl_qrf( dague_context_t *dague,
-                            qr_piv_t *qrpiv,
-                            tiled_matrix_desc_t *A,
-                            tiled_matrix_desc_t *B,
-                            tiled_matrix_desc_t *IPIV,
-                            tiled_matrix_desc_t *LT,
-                            int* lu_tab,
-                            int* INFO )
+                         qr_piv_t *qrpiv,
+                         tiled_matrix_desc_t *A,
+                         tiled_matrix_desc_t *IPIV,
+                         tiled_matrix_desc_t *LT,
+                         tiled_matrix_desc_t *B,
+                         int *lu_tab)
 {
     dague_object_t *dague_ztrsmpl_qrf = NULL;
 
-    dague_ztrsmpl_qrf = dplasma_ztrsmpl_qrf_New(qrpiv, A, B, IPIV, LT, lu_tab, INFO);
+    dague_ztrsmpl_qrf = dplasma_ztrsmpl_qrf_New(qrpiv, A, IPIV, LT, B, lu_tab);
 
     dague_enqueue(dague, (dague_object_t*)dague_ztrsmpl_qrf);
     dplasma_progress(dague);
