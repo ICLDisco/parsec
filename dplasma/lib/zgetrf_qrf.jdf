@@ -46,6 +46,7 @@ descA   [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)A)"  hidd
 descLT  [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)LT)" hidden=on]
 
 param_p [type = int default="((two_dim_block_cyclic_t*)A)->grid.rows" hidden=on ]
+param_q [type = int default="((two_dim_block_cyclic_t*)A)->grid.cols" hidden=on ]
 minMNT  [type = int default="dague_imin( __dague_object->super.descA.mt-1, __dague_object->super.descA.nt-1 )"    hidden=on ]
 
 /*===========================================================================================
@@ -84,8 +85,7 @@ zgetrf(k)
 BODY
 {
     /* Nothing (LU factorization already done by lu_facto)*/
-    printlog("\nthread %d VP %d zgetrf( k=%d)\n",
-             context->th_id, context->virtual_process->vp_id, k);
+    printlog("zgetrf( k=%d )\n", k);
 }
 END
 
@@ -107,7 +107,7 @@ BODY
 
     if ( k == minMNT ){
         fprintf(stderr, "Terminate with a GETRF\n" );
-        dague_object_terminate( this_task->dague_object );
+        //dague_object_terminate( this_task->dague_object );
     }
 }
 END
@@ -123,9 +123,6 @@ swptrsm_u(k, n)
   /* Execution space */
   k = 0   .. minMNT
   n = k+1 .. descA.nt-1
-
-  s      = inline_c %{ return ceil((descA.mt-k)/param_p); %}
-  ks     = inline_c %{ return k + (s-1)*param_p; %}
 
   /* Locality */
   : A(k, n)
@@ -143,14 +140,16 @@ swptrsm_u(k, n)
 
 BODY
 {
+    int s  = ceil((descA.mt-k)/param_p);
+    int ks = k + (s-1)*param_p;
+
     int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int tempnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
     int tempm  = (s-1) * descA.mb +
         (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
     int ldak = BLKLDD(descA, k);
 
-    printlog("\nthread %d VP %d zswptrsm_hpp",
-             context->th_id, context->virtual_process->vp_id);
+    printlog("zswptrsm_hpp( k=%d, n=%d )", k, n );
 
     DRYRUN(
 
@@ -254,8 +253,7 @@ BODY
     int ldam = BLKLDD( descA, m );
     int ldak = BLKLDD( descA, k );
 
-    printlog("\nthread %d VP %d zgemm( k=%d, m=%d, n=%d)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n);
+    printlog("zgemm( k=%d, m=%d, n=%d)\n", k, m, n);
 
     DRYRUN(
         CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
@@ -312,8 +310,7 @@ BODY
     int tempkn = (k==(descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
     int ldam   = BLKLDD( descA, m );
 
-    printlog("\nthread %d VP %d zgeqrt( k=%d, i=%d)\n",
-             context->th_id, context->virtual_process->vp_id, k, i);
+    printlog("zgeqrt( k=%d, i=%d)\n", k, i);
 
     DRYRUN(
         void *p_elem_A = dague_private_memory_pop( p_tau  );
@@ -333,9 +330,9 @@ BODY
     if ( descA.mt-1 == k )
         ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
-    printlog("thread %d VP %d CORE_zgeqrt(%d, %d)\n"
-             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, m, k, A, m, k, T);
+    printlog("CORE_zgeqrt(%d, %d)\n"
+             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)",
+             k, m, m, k, A, m, k, T);
 }
 END
 
@@ -357,7 +354,7 @@ BODY
     /* Nothing */
     if ( k == minMNT ){
         fprintf(stderr, "Terminate with a GEQRF\n");
-        dague_object_terminate( this_task->dague_object );
+        //dague_object_terminate( this_task->dague_object );
     }
 }
 END
@@ -409,10 +406,10 @@ BODY
         dague_private_memory_push( p_work, p_elem_A );
            );
 
-    printlog("thread %d VP %d CORE_zunmqr(%d, %d, %d)\n"
+    printlog("CORE_zunmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, \n"
-             "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, A(%d,%d)[%p], ldam, p_elem_A, descLT.nb)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n, m, k, A, m, k, T, m, n, C);
+             "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, A(%d,%d)[%p], ldam, p_elem_A, descLT.nb)",
+             k, m, n, m, k, A, m, k, T, m, n, C);
 }
 END
 
@@ -497,9 +494,9 @@ BODY
     if ( ( ( nextp == descA.mt ) & (p == k) ) )
         ((PLASMA_Complex64_t*)A1)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
-    printlog("thread %d VP %d CORE_zttqrt(%d, %d)\n"
-             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, p, k, A1, m, k, A2, m, k, T);
+    printlog("CORE_zttqrt(%d, %d)\n"
+             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, p_elem_B)",
+             k, m, p, k, A1, m, k, A2, m, k, T);
 }
 END
 
@@ -599,10 +596,10 @@ BODY
 
            );
 
-    printlog("thread %d VP %d CORE_zttmqr(%d, %d, %d)\n"
+    printlog("CORE_zttmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
-             "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
+             "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)",
+             k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 }
 END
 
@@ -763,9 +760,6 @@ zsetchoice(k)
  /* Execution space */
   k = 0 .. minMNT
 
-  s  = inline_c %{ return ceil((descA.mt-k)/param_p); %}
-  ks = inline_c %{ return k + (s-1)*param_p; %}
-
   : A(k, k)
 
   RW    A    <- A zlufacto(k)
@@ -784,12 +778,11 @@ zsetchoice(k)
 BODY
 {
     /* TODO: We collect the condition numbers and compute the choice*/
-    printlog("\nthread %d VP %d zsetchoice( k=%d )\n",
-             context->th_id, context->virtual_process->vp_id, k);
+    printlog("zsetchoice( k=%d )\n", k);
 
     DRYRUN(
         int cond = 0;
-        cond = rand() % 2;
+        //cond = rand() % 2;
 
         if (cond == 1) {
             lu_tab[k] = 1;
@@ -860,5 +853,97 @@ BODY
         }
            );
 
+    if((m >= descA.mt-param_p) && (n >= descA.nt-param_q)) {
+        int nb_tasks = 0;
+        if (do_lu == 1) {
+            /* geqrt + geqrt_typechange + unmqr */
+            {
+                int nbgeqrt_total = dplasma_qr_getnbgeqrf( pivfct, k, descA.mt );
+                int geqrt_i;
+                int unmqr_n;
+
+                for(geqrt_i=0; geqrt_i < nbgeqrt_total; geqrt_i++) {
+                    int geqrt_m = dplasma_qr_getm(pivfct, k, geqrt_i);
+
+                    if (zgeqrt_pred(k, geqrt_i, geqrt_m, -1))
+                        nb_tasks += 2;
+
+                    for(unmqr_n=k+1; unmqr_n<descA.nt; unmqr_n++) {
+                        if (zunmqr_pred(k, geqrt_i, unmqr_n, geqrt_m, -1)) {
+                            nb_tasks++;
+                        }
+                    }
+                }
+            }
+
+            /* ttqrt + ttmqr */
+            {
+                int ttqrt_m, ttmqr_n;
+
+                for(ttqrt_m=k+1; ttqrt_m < descA.mt; ttqrt_m++) {
+
+                    if (zttqrt_pred(k, ttqrt_m, -1, -1, -1, -1, -1, -1, -1)) {
+                        nb_tasks++;
+                    }
+
+                    for(ttmqr_n=k+1; ttmqr_n<descA.nt; ttmqr_n++) {
+                        if (zttmqr_pred(k, ttqrt_m, ttmqr_n, -1, -1, -1, -1,
+                                        -1, -1, -1, -1, -1, -1)) {
+                            nb_tasks++;
+                        }
+                    }
+                }
+            }
+
+            /* ttqrt_out + ttmqr_out */
+            {
+                if ( k < minMNT ) {
+                    int ttmqr_n;
+
+                    if (zttqrt_out_A1_pred(k, -1)) {
+                        nb_tasks++;
+                    }
+
+                    for(ttmqr_n=k+1; ttmqr_n<descA.nt; ttmqr_n++) {
+                        if (zttmqr_out_A1_pred(k, ttmqr_n, -1)) {
+                            nb_tasks++;
+                        }
+                    }
+                }
+                if ( descA.mt > descA.nt && k > descA.nt ) {
+                    if (zttqrt_out_A1_pred(k, -1)) {
+                        nb_tasks++;
+                    }
+                }
+            }
+
+        } else {
+            /*
+             * LU
+             */
+            int getrf_m, getrf_n;
+
+            if (zgetrf_pred(k))
+                nb_tasks += 2;
+
+            for(getrf_n=k+1; getrf_n< descA.nt; getrf_n++) {
+                if (swptrsm_u_pred(k, getrf_n))
+                    nb_tasks++;
+            }
+
+            for(getrf_m=k+1; getrf_m< descA.mt; getrf_m++) {
+                if (ztrsm_l_pred(k, getrf_m, 0))
+                    nb_tasks++;
+
+                for(getrf_n=k+1; getrf_n< descA.nt; getrf_n++) {
+                    if (zgemm_pred(k, getrf_m, getrf_n, 0))
+                        nb_tasks++;
+                }
+            }
+        }
+
+        dague_object_dec_nbtask( this_task->dague_object, nb_tasks );
+
+    }
 }
 END
