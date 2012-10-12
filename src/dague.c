@@ -1125,14 +1125,12 @@ void dague_object_unregister( dague_object_t* object )
  */
 void dague_object_terminate( dague_object_t *object )
 {
-    fprintf(stderr, "Still %d tasks to execute\n", object->nb_local_tasks );
     object->nb_local_tasks = 1;
 }
 
 /**< Unregister the object with the engine. */
 void dague_object_dec_nbtask( dague_object_t* object, uint32_t nb_tasks )
 {
-    fprintf(stderr, "Reduce by %u tasks\n", nb_tasks );
     dague_atomic_lock( &object_array_lock );
     assert( object->nb_local_tasks >= nb_tasks );
     object->nb_local_tasks -= nb_tasks;
