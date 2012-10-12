@@ -120,6 +120,10 @@ BODY
             tempkm, tempnn,
             1., A /*A(m, k)*/, ldak,
                 C /*B(m, n)*/, ldbk);
+
+     if (k == minMNT)
+		dague_object_terminate( this_task->dague_object );
+
            );
 }
 END
@@ -516,71 +520,42 @@ cleantasks(p, q)
 
 BODY
 {
-    int k, m, n;
+    int k, m, n, i;
     int nb_tasks = 0;
 
     for(k=0; k<=minMNT; k++){
         if (lu_tab[k] == 1) {
-            /* /\* geqrt + geqrt_typechange + unmqr *\/ */
-            /* { */
-            /*     int nbgeqrt_total = dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ); */
-            /*     int geqrt_i; */
-            /*     int unmqr_n; */
+            /*
+             * QR
+             */
+			int nb_qr = dplasma_qr_getnbgeqrf( pivfct, k, descA.mt );
 
-            /*     for(geqrt_i=0; geqrt_i < nbgeqrt_total; geqrt_i++) { */
-            /*         int geqrt_m = dplasma_qr_getm(pivfct, k, geqrt_i); */
+            for(n=0; n<descB.nt; n++) {
+                if ((zttmqr_out_A1_pred(k, n, -1)) && (k != minMNT))
+                    nb_tasks++;
 
-            /*         if (zgeqrt_pred(k, geqrt_i, geqrt_m, -1)) */
-            /*             nb_tasks += 2; */
+				for(i=0; i<nb_qr; i++) {
+                    int m = dplasma_qr_getm( pivfct, k, i );
+                    if (zunmqr_pred(k, i, n, m, -1))
+                        nb_tasks++;
+                }
 
-            /*         for(unmqr_n=k+1; unmqr_n<descA.nt; unmqr_n++) { */
-            /*             if (zunmqr_pred(k, geqrt_i, unmqr_n, geqrt_m, -1)) { */
-            /*                 nb_tasks++; */
-            /*             } */
-            /*         } */
-            /*     } */
-            /* } */
+                for(m=k+1; m<descB.mt; m++) {
+                    if (zttmqr_pred(k, m, n, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1))
+                        nb_tasks++;
+                }
+            }
 
-            /* /\* ttqrt + ttmqr *\/ */
-            /* { */
-            /*     int ttqrt_m, ttmqr_n; */
+            for(m=k+1; m<descB.mt; m++) {
+                if (zttmqr_in_pred(k, m))
+                    nb_tasks++;
+            }
 
-            /*     for(ttqrt_m=k+1; ttqrt_m < descA.mt; ttqrt_m++) { */
-
-            /*         if (zttqrt_pred(k, ttqrt_m, -1, -1, -1, -1, -1, -1, -1)) { */
-            /*             nb_tasks++; */
-            /*         } */
-
-            /*         for(ttmqr_n=k+1; ttmqr_n<descA.nt; ttmqr_n++) { */
-            /*             if (zttmqr_pred(k, ttqrt_m, ttmqr_n, -1, -1, -1, -1, */
-            /*                             -1, -1, -1, -1, -1, -1)) { */
-            /*                 nb_tasks++; */
-            /*             } */
-            /*         } */
-            /*     } */
-            /* } */
-
-            /* /\* ttqrt_out + ttmqr_out *\/ */
-            /* { */
-            /*     if ( k < minMNT ) { */
-            /*         int ttmqr_n; */
-
-            /*         if (zttqrt_out_A1_pred(k, -1)) { */
-            /*             nb_tasks++; */
-            /*         } */
-
-            /*         for(ttmqr_n=k+1; ttmqr_n<descA.nt; ttmqr_n++) { */
-            /*             if (zttmqr_out_A1_pred(k, ttmqr_n, -1)) { */
-            /*                 nb_tasks++; */
-            /*             } */
-            /*         } */
-            /*     } */
-            /*     if ( descA.mt > descA.nt && k > descA.nt ) { */
-            /*         if (zttqrt_out_A1_pred(k, -1)) { */
-            /*             nb_tasks++; */
-            /*         } */
-            /*     } */
-hg             /* } */
+			for(i=0; i<nb_qr; i++) {
+                int m = dplasma_qr_getm( pivfct, k, i );
+                if (zunmqr_in_pred(k, i, m))
+                    nb_tasks++;
+            }
 
         } else {
             /*

@@ -653,9 +653,10 @@ END
 
 copypanel(k, m) [ profile = off ]
   k = 0 .. minMNT
-  m = k .. descA.mt-1 .. param_p
+  m = k .. descA.mt-1
 
   did_lu  = inline_c %{ return ( k > 0 ) ? lu_tab[k-1] : -1; %}
+  diagdom = inline_c %{ return ((m-k)%param_p == 0) ? 0 : 1; %}
 
   :A(m, k)
 
@@ -665,22 +666,28 @@ copypanel(k, m) [ profile = off ]
              -> (m == k) ? A zlufacto(k)
              -> (m != k) ? A selector(k, m, k)
 
-  WRITE Acpy -> Acpy selector(k, m, k)
+  WRITE Acpy -> (diagdom == 0) ? Acpy selector(k, m, k)
 
-  CTL  ctl   -> ctl zlufacto(k)
+  CTL  ctl   -> (diagdom == 0) ? ctl zlufacto(k)
 
   ;descA.nt-k-1
 
 BODY
 {
-    int tempmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
-    int tempkn = (k==(descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
-    int ldak = BLKLDD( descA, k );
+    if (diagdom == 0) {
+        /*The tiles of the first node have to be copied*/
+        int tempmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+        int tempkn = (k==(descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+        int ldak = BLKLDD( descA, k );
 
-    CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
-                A,    ldak,
-                Acpy, descA.mb);
+        CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
+                    A,    ldak,
+                    Acpy, descA.mb);
+     } else{
+        /*We need the 1-norm of the other tiles*/
 
+
+    }
     printlog("copypanel( k = %d )\n", k );
 }
 END
@@ -780,7 +787,7 @@ BODY
     printlog("zsetchoice( k=%d )\n", k);
 
     DRYRUN(
-        int cond = 0;
+        int cond = 1;
         //cond = rand() % 2;
 
         if (cond == 1) {
