@@ -139,11 +139,10 @@ int main(int argc, char ** argv)
          */
         dplasma_ztrsmpl_qrf( dague, qrpiv,
                              (tiled_matrix_desc_t *)&ddescA,
-                             (tiled_matrix_desc_t *)&ddescX,
                              (tiled_matrix_desc_t *)&ddescIPIV,
                              (tiled_matrix_desc_t *)&ddescLT,
-                             lu_tab,
-                             &info);
+                             (tiled_matrix_desc_t *)&ddescX,
+                             lu_tab);
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                       (tiled_matrix_desc_t *)&ddescA,
                       (tiled_matrix_desc_t *)&ddescX);
@@ -160,11 +159,10 @@ int main(int argc, char ** argv)
         if ( check_inv ) {
             dplasma_ztrsmpl_qrf( dague, qrpiv,
                                  (tiled_matrix_desc_t *)&ddescA,
-                                 (tiled_matrix_desc_t *)&ddescInvA,
                                  (tiled_matrix_desc_t *)&ddescIPIV,
                                  (tiled_matrix_desc_t *)&ddescLT,
-                                 lu_tab,
-                                 &info);
+                                 (tiled_matrix_desc_t *)&ddescInvA,
+                                 lu_tab);
             dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                           (tiled_matrix_desc_t *)&ddescA,
                           (tiled_matrix_desc_t *)&ddescInvA);
@@ -201,6 +199,7 @@ int main(int argc, char ** argv)
     dague_ddesc_destroy((dague_ddesc_t*)&ddescLT);
     dague_data_free(ddescIPIV.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
+    free(lu_tab);
 
     return ret;
 }
