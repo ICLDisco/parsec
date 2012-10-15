@@ -97,6 +97,8 @@ BODY
     int s  = ceil((descA.mt-k)/param_p);
     int ks = k + (s-1)*param_p;
     int tempkm = (k == (descB.mt-1)) ? (descB.m - k * descB.mb) : descB.mb;
+    int tempAnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
+    int tempmin = dague_imin( tempkm, tempAnn );
     int tempnn = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
     int tempm  = (s-1) * descB.mb +
         (( ks == descB.mt-1 ) ? descB.m - ks * descB.mb : descB.mb);
@@ -113,7 +115,7 @@ BODY
                                                tempm, tempnn );
         pdescB.mat = (void*)C;
 
-        CORE_zlaswp_ontile( pdescB, 1, tempkm, IP, 1 );
+        CORE_zlaswp_ontile( pdescB, 1, tempmin, IP, 1 );
 
         CORE_ztrsm(
             PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
