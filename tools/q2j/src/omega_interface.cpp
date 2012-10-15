@@ -162,45 +162,6 @@ char *dump_data(string_arena_t *sa, node_t *n)
     return string_arena_get_string(sa);
 }
 
-/**
- * dump_data:
- *   Generates a string of conditions with the one given and the
- *   negation of all the previous ones.
- */
-char *dump_conditions(string_arena_t *sa,
-                      list< pair<expr_t *,Relation> > *cond_list,
-                      list< pair<expr_t *, Relation> >::iterator *cond_it)
-{
-    list< pair<expr_t *, Relation> >::iterator cond_it2;
-    string cond = expr_tree_to_str((*cond_it)->first);
-    bool printed_condition = false;
-          
-    string_arena_init(sa);
-
-    // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
-
-    // For each condition that resulted from spliting a disjunction, negate
-    // all the other parts of the disjunction
-    for(cond_it2 = (*cond_list).begin(); cond_it2 != *cond_it; cond_it2++){
-        string cond2 = expr_tree_to_str(cond_it2->first);
-        if( !cond2.empty() ){
-            if( printed_condition )
-                string_arena_add_string(sa, "& ");
-            string_arena_add_string(sa, "(!(%s)) ", cond2.c_str());
-            printed_condition = true;
-        }
-    }
-    if( !cond.empty() ){
-        if( printed_condition )
-            string_arena_add_string(sa, "& ");
-        string_arena_add_string(sa, "%s ? ", cond.c_str() );
-    }else if( printed_condition ){
-        string_arena_add_string(sa, "? ");
-    }
-
-    return string_arena_get_string(sa);
-}
-
 static inline bool is_phony_Entry_task(node_t *task){
     char *name = task->function->fname;
     return (strstr(name, "DAGUE_IN_") == name);
@@ -2157,6 +2118,8 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
 list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relation R, Relation S_es){
     stringstream ss;
     set<expr_t *> simpl_conj;
+    Relation inter_of_compl;
+    bool is_first = true;
 
     list< pair<expr_t *, Relation> > tmp, result;
     list< pair<expr_t *, Relation> >::iterator cj_it;
@@ -2165,8 +2128,23 @@ list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relat
         pair<expr_t *, Relation> p;
         Relation tmpR = Relation(copy(R), *di);
         tmpR.simplify(2,2);
+        if( is_first ){
+            is_first = false;
+            inter_of_compl = Complement(copy(tmpR));
+        }else{
+            // Keep a copy of tmpR, because we will ruin tmpR and we need it just a few lines down.
+            Relation current_R = tmpR;
+            // Intersect tmpR with the intersection of the complements of all previous Relations.
+            tmpR = Intersection(copy(inter_of_compl), tmpR);
+            tmpR.simplify(2,2);
+            // Add the complement of the current R to the mix for the next iteration.
+            inter_of_compl = Intersection(inter_of_compl, Complement(current_R));
+        }
+        // The call to print_with_subs_to_string() is seemingly useless, but is needed for Omega to generate
+        // internal strings and whatnot, that otherwise it doesn't. In other words do _not_ remove it.
+        (void)tmpR.print_with_subs_to_string(false);
+
         p.first = relation_to_tree(tmpR);
-        tmpR.simplify(2,2);
         p.second = tmpR;
         tmp.push_back(p);
     }

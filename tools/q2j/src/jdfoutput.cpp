@@ -428,7 +428,7 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
                      jdfoutput("%s", indent(nbspaces, 1)); 
                  
                  // Conditions for this input
-                 jdfoutput("<- %s", dump_conditions(sa, &cond_list, &cond_it ));
+                 jdfoutput("<- %s", strdup(expr_tree_to_str(cond_it->first)) );
 
                  // Source of the input
                  string_arena_init(sa);
@@ -496,7 +496,7 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
                  
                  // Conditions for this output
-                 jdfoutput("%s-> %s", indent(nbspaces, 1), dump_conditions(sa, &cond_list, &cond_it ));
+                 jdfoutput("%s-> %s", indent(nbspaces, 1), strdup(expr_tree_to_str(cond_it->first)) );
                  
                  // Destination of the output
                  node_t *sink = dep->dst;

@@ -538,49 +538,17 @@ void jdf_register_locals( jdf_function_entry_t *this_function,
     return;
 }
 
-/**
- * dump_data:
- *   Generates a string of conditions with the one given and the
- *   negation of all the previous ones.
- */
-jdf_expr_t *jdf_generate_expr_from_conditions(list< pair<expr_t *, Relation> > *cond_list,
-                                              list< pair<expr_t *, Relation> >::iterator *cond_it)
+
+jdf_expr_t *jdf_generate_condition_str( expr_t *cond_exp)
 {
-    list< pair<expr_t *, Relation> >::iterator cond_it2;
-    string cond = expr_tree_to_str((*cond_it)->first);
-    bool printed_condition = false;
-    string_arena_t *sa;
     jdf_expr_t *expr = NULL;
-
-    sa = string_arena_new(64);
-
-    // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
-
-    // For each condition that resulted from spliting a disjunction, negate
-    // all the other parts of the disjunction
-    for(cond_it2 = (*cond_list).begin(); cond_it2 != *cond_it; cond_it2++){
-        string cond2 = expr_tree_to_str(cond_it2->first);
-        if( !cond2.empty() ){
-            if( printed_condition )
-                string_arena_add_string(sa, "& ");
-            string_arena_add_string(sa, "(!(%s)) ", cond2.c_str());
-            printed_condition = true;
-        }
-    }
+    string cond = expr_tree_to_str(cond_exp);
     if( !cond.empty() ){
-        if( printed_condition )
-            string_arena_add_string(sa, "& ");
-        string_arena_add_string(sa, "%s", cond.c_str() );
-    }
-
-    if ( strcmp( "", string_arena_get_string(sa) ) ) {
         expr = q2jmalloc(jdf_expr_t, 1);
         expr->next = NULL;
         expr->op = JDF_VAR;
-        expr->jdf_var = strdup( string_arena_get_string(sa) );
+        expr->jdf_var = strdup(cond.c_str());
     }
-
-    string_arena_free(sa);
     return expr;
 }
 
@@ -682,7 +650,7 @@ void jdf_register_input_deps( set<dep_t*> ideps,
             JDF_OBJECT_SET(dep, NULL, 0, NULL);
 
             // Generate the dep_expr
-            dep_expr = jdf_generate_expr_from_conditions( &cond_list, &cond_it );
+            dep_expr = jdf_generate_condition_str( cond_it->first );
 
             // Generate the dep_call
             if( NULL != src->function ){
@@ -831,7 +799,7 @@ void jdf_register_output_deps( set<dep_t*> odeps,
             JDF_OBJECT_SET(dep, NULL, 0, NULL);
 
             // Generate the dep_expr
-            dep_expr = jdf_generate_expr_from_conditions( &cond_list, &cond_it );
+            dep_expr = jdf_generate_condition_str( cond_it->first );
 
             // Generate the dep_call
             if( NULL != dst ){
