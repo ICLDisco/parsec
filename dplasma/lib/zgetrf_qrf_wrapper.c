@@ -114,10 +114,12 @@ dplasma_zgetrf_qrf_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_PIVOT_ARENA     ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_LOWER_TILE_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_LITTLE_T_ARENA  ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_ELTdouble_ARENA ]->opaque_dtt) );
 
     dague_private_memory_fini( dague_zgetrf_qrf->p_work );
     dague_private_memory_fini( dague_zgetrf_qrf->p_tau  );
 
+    free( dague_zgetrf_qrf->W );
     free( dague_zgetrf_qrf->p_work );
     free( dague_zgetrf_qrf->p_tau  );
 
