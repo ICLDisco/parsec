@@ -345,6 +345,21 @@ char *create_pseudotask(node_t *parent_task,
     return string_arena_get_string(sa_pseudotask);
 }
 
+char *generate_condition_str(expr_t *exp){
+    string cond;
+    string_arena_t *sa;
+
+    sa  = string_arena_new(64);
+    string_arena_init(sa);
+
+    cond = expr_tree_to_str(exp);
+    if( !cond.empty() ){
+        string_arena_add_string(sa, "%s ? ",cond.c_str());
+    }
+
+    return string_arena_get_string(sa);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
@@ -428,7 +443,7 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
                      jdfoutput("%s", indent(nbspaces, 1)); 
                  
                  // Conditions for this input
-                 jdfoutput("<- %s", strdup(expr_tree_to_str(cond_it->first)) );
+                 jdfoutput("<- %s", generate_condition_str(cond_it->first) );
 
                  // Source of the input
                  string_arena_init(sa);
@@ -496,7 +511,7 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
                  
                  // Conditions for this output
-                 jdfoutput("%s-> %s", indent(nbspaces, 1), strdup(expr_tree_to_str(cond_it->first)) );
+                 jdfoutput("%s-> %s", indent(nbspaces, 1), generate_condition_str(cond_it->first) );
                  
                  // Destination of the output
                  node_t *sink = dep->dst;

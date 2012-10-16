@@ -1761,10 +1761,10 @@ char *dump_actual_parameters(string_arena_t *sa, dep_t *dep, expr_t *rel_exp){
         if( i ) string_arena_add_string( sa, ", " );
         const char *var_name = strdup(R.output_var(i+1)->char_name());
 
-        expr_t *solution = solveExpressionTreeForVar(/*copy_tree*/(rel_exp), var_name, R);
+        expr_t *solution = solveExpressionTreeForVar(copy_tree(rel_exp), var_name, R);
         string_arena_add_string( sa, "%s",
                                 ( NULL != solution ) ? expr_tree_to_str(solution)
-                                : find_bounds_of_var(/*copy_tree*/(rel_exp), var_name, vars_in_bounds, R));
+                                : find_bounds_of_var(copy_tree(rel_exp), var_name, vars_in_bounds, R));
         free((void *)var_name);
     }
     return string_arena_get_string(sa);
