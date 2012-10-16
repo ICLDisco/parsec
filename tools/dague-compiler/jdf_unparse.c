@@ -375,7 +375,7 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
     fprintf(out, "\n");
 
     fprintf(out, "  /* Execution Space */\n  ");
-    err = jdf_def_list_unparse(f->definitions, out, "\n  ");
+    err = jdf_def_list_unparse(f->locals, out, "\n  ");
     fprintf(out, "\n");
     if( err < 0 )
         return err;

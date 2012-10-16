@@ -469,7 +469,7 @@ static jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
     f->fname = strdup(fname);
     f->parameters  = NULL;
     f->properties  = NULL;
-    f->definitions = NULL;
+    f->locals      = NULL;
     f->simcost     = NULL;
     f->predicate   = NULL;
     f->dataflow    = NULL;
@@ -2277,7 +2277,7 @@ void jdf_register_pools( jdf_t *jdf )
                              JDF_OBJECT_SET(&(e->properties[0]), NULL, 0, NULL);
                              e->properties[0].expr->op      = JDF_STRING;
                              e->properties[0].expr->jdf_var = strdup("dague_memory_pool_t *");
-                             
+
                              e->properties[1].next       = NULL;
                              e->properties[1].name       = strdup("size");
                              e->properties[1].expr       = q2jmalloc(jdf_expr_t, 1);
@@ -2296,7 +2296,7 @@ void jdf_register_pools( jdf_t *jdf )
     return;
 }
 
-/* 
+/*
  * Traverse the list of variable definitions to see if we have stored a definition for a given variable.
  * Return the value one if "param" is in the list and the value zero if it is not.
  */
@@ -2315,7 +2315,7 @@ static int is_definition_seen(dague_list_t *var_def_list, char *param){
 }
 
 
-/* 
+/*
  * Add in the list of variable definitions an entry for the given parameter (the definition
  * itself is unnecessary, as we are using this list as a bitmask, in is_definition_seen().)
  */

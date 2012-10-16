@@ -12,7 +12,7 @@
  *               Blocking interface
  */
 /* Level 3 Blas */
-void dplasma_zgemm( dague_context_t *dague, const int transA, const int transB,
+int  dplasma_zgemm( dague_context_t *dague, const int transA, const int transB,
                     const dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
                     const dague_complex64_t beta,  tiled_matrix_desc_t* C);
 int  dplasma_zhemm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum uplo,

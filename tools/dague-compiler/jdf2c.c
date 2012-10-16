@@ -394,7 +394,7 @@ static char* dump_predicate(void** elem, void *arg)
     string_arena_init(sa);
     string_arena_add_string(sa, "%s_pred(%s) ",
                             f->fname,
-                            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name,
+                            UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
                                                  dump_string, NULL,
                                                  "", "", ", ", ""));
     expr_info.sa = sa3;
@@ -1459,8 +1459,9 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
             }
             string_arena_add_string(sa2, "&ctl_gather_compute_for_dep_%s",
                                     depname);
-            //                                                         skip the & at the beginning
-            jdf_generate_ctl_gather_compute(jdf, call->func_or_mem, string_arena_get_string(sa2)+1, call->parameters, context);
+            /* skip the & at the beginning */
+            jdf_generate_ctl_gather_compute(jdf, call->func_or_mem,
+                                            string_arena_get_string(sa2)+1, call->parameters, context);
             ret = 0;
         } else {
             string_arena_add_string(sa2, "NULL");
@@ -1471,17 +1472,31 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
     string_arena_add_string(sa,
                             "static const dep_t %s = {\n"
                             "  .cond = %s,\n"
-                            "  .dague = &%s_%s,\n"
                             "  .ctl_gather_nb = %s,\n",
                             depname,
                             condname,
-                            jdf_basename, call->func_or_mem,
                             string_arena_get_string(sa2));
 
-    if( call->var != NULL ) {
-            string_arena_add_string(sa,
-                                    "  .flow = &flow_of_%s_%s_for_%s,\n",
-                                    jdf_basename, call->func_or_mem, call->var);
+    if( NULL != call->var ) {
+        jdf_function_entry_t* pf;
+        for(pf = jdf->functions;
+            strcmp( pf->fname, call->func_or_mem);
+            pf = pf->next) /* nothing */;
+        if( NULL == pf ) {
+            printf("Error: Can't identify the target function for the call at %s.jdf:%d: %s %s\n",
+                   jdf_basename, call->super.lineno, call->var, call->func_or_mem);
+            exit(-1);
+        }
+        string_arena_add_string(sa,
+                                "  .function_id = %d, /* %s_%s */\n",
+                                (NULL != pf ? pf->function_id : -1), jdf_basename, call->func_or_mem);
+        string_arena_add_string(sa,
+                                "  .flow = &flow_of_%s_%s_for_%s,\n",
+                                jdf_basename, call->func_or_mem, call->var);
+    } else {
+        string_arena_add_string(sa,
+                                "  .function_id = %d, /* %s_%s */\n",
+                                -1, jdf_basename, call->func_or_mem);
     }
 
     /* First, we handle the datatransfer type */
@@ -1540,20 +1555,14 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
                                   jdf_dataflow_t *flow, const char *prefix, uint32_t flow_index,
                                   int *has_control_gather )
 {
+    char *sym_type, *access_type, *depname, *condname, *sep;
+    int alldeps_type, depid, indepnorange = 1;
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa_dep_in = string_arena_new(64);
     string_arena_t *sa_dep_out = string_arena_new(64);
     string_arena_t *psa;
-    int alldeps_type;
     jdf_dep_t *dl;
-    char *sym_type;
-    char *access_type;
-    int depid;
-    char *depname;
-    char *condname;
     char sep_in[3], sep_out[3];
-    char *sep;
-    int   indepnorange = 1;
 
     (void)jdf;
 
@@ -1788,9 +1797,6 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
     return (0 == already_added) ? NULL : string_arena_get_string(sa);
 }
 
-// PETER this is of interest with regard to tasks generated outside of release_dep_fct
-// This needs to be fixed - it will stop the segfault
-// at the very least, we should be adding an empty string
 static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
     string_arena_t *sa1, *sa2, *sa3;
@@ -1817,9 +1823,9 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "  new_context = &new_context_holder;\n"
             "  assignments = new_context->locals;\n",
             fname, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
+            UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
                                  "  int32_t ", " ", " = -1,", " = -1;"),
-            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
+            UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name, dump_string, NULL,
                                  "  ", "(void)", "; ", ";"));
 
     string_arena_init(sa1);
@@ -1845,7 +1851,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     nesting = 0;
     idx = 0;
-    for(dl = f->definitions; dl != NULL; dl = dl->next, idx++) {
+    for(dl = f->locals; dl != NULL; dl = dl->next, idx++) {
         if(dl->expr->op == JDF_RANGE) {
             coutput("%s  for(%s = %s;\n"
                     "%s      %s <= %s;\n"
@@ -1862,7 +1868,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
         }
     }
     coutput("%s  if( !%s_pred(%s) ) continue;\n",
-            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
+            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
                                                             dump_string, NULL,
                                                             "", "", ", ", ""));
     /**
@@ -1886,7 +1892,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
                                             "", "", ", ", ""),
             indent(nesting));
 
-    JDF_COUNT_LIST_ENTRIES(f->definitions, jdf_def_list_t, next, nbdefinitions);
+    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nbdefinitions);
     coutput("%s  /* Copy only the valid elements from new_context to new_dynamic one */\n"
             "%s  new_dynamic_context->dague_object = new_context->dague_object;\n"
             "%s  new_dynamic_context->function     = new_context->function;\n"
@@ -1947,7 +1953,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     jdf_def_list_t *dl;
     jdf_name_list_t *pl;
     int nesting, idx;
-    const jdf_function_entry_t *pf;
     expr_info_t info1, info2, info3;
 
     sa1 = string_arena_new(64);
@@ -1961,7 +1966,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             "  int nb_tasks = 0;\n"
             "%s",
             fname, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
+            UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
                                  "  int32_t ", " ", ",", ";\n"));
     coutput("%s"
             "%s",
@@ -1973,7 +1978,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("  (void)__dague_object;\n");
     if( NULL != f->parameters->next ) {
         for(pl = f->parameters; pl != NULL; pl = pl->next ) {
-            for(dl = f->definitions; dl != NULL; dl = dl->next) {
+            for(dl = f->locals; dl != NULL; dl = dl->next) {
                 if(!strcmp(pl->name, dl->name))
                     break;
             }
@@ -2005,7 +2010,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
     idx = 0;
     nesting = 0;
-    for(dl = f->definitions; dl != NULL; dl = dl->next ) {
+    for(dl = f->locals; dl != NULL; dl = dl->next ) {
         if(dl->expr->op == JDF_RANGE) {
             coutput("%s  for(%s = %s;\n"
                     "%s      %s <= %s;\n"
@@ -2026,7 +2031,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     string_arena_init(sa1);
     coutput("%s  if( !%s_pred(%s) ) continue;\n"
             "%s  nb_tasks++;\n",
-            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
+            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
                                                             dump_string, NULL,
                                                             "", "", ", ", ""),
             indent(nesting));
@@ -2062,7 +2067,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
         nesting = 0;
         idx = 0;
-        for(dl = f->definitions; dl != NULL; dl = dl->next) {
+        for(dl = f->locals; dl != NULL; dl = dl->next) {
 
             for(pl = f->parameters; pl != NULL; pl = pl->next) {
                 if(!strcmp(pl->name, dl->name))
@@ -2095,7 +2100,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
         coutput("%s  if( %s_pred(%s) ) {\n"
                 "%s    /* We did find one! Allocate the dependencies array. */\n",
-                indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name,
+                indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
                                                                 dump_string, NULL,
                                                                 "", "", ", ", ""),
                 indent(nesting));
@@ -2103,7 +2108,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         string_arena_init(sa1);
         string_arena_add_string(sa1, "dep");
         for(pl = f->parameters; pl != NULL; pl = pl->next) {
-            for(dl = f->definitions; dl != NULL; dl = dl->next) {
+            for(dl = f->locals; dl != NULL; dl = dl->next) {
                 if(!strcmp(pl->name, dl->name))
                     break;
             }
@@ -2133,7 +2138,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     /* Quiet the compiler by using the varibales */
     if( NULL != f->parameters->next ) {
         for(pl = f->parameters; pl != NULL; pl = pl->next) {
-            for(dl = f->definitions; dl != NULL; dl = dl->next) {
+            for(dl = f->locals; dl != NULL; dl = dl->next) {
                 if(!strcmp(pl->name, dl->name))
                     break;
             }
@@ -2148,17 +2153,13 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     string_arena_free(sa2);
     string_arena_free(sa3);
 
-    for(nesting = 0, pf = jdf->functions;
-        strcmp( pf->fname, f->fname);
-        nesting++, pf = pf->next) /* nothing */;
-
     coutput("\n"
             "  __dague_object->super.super.dependencies_array[%d] = dep;\n"
             "  __dague_object->super.super.nb_local_tasks += nb_tasks;\n"
             "  return nb_tasks;\n"
             "}\n"
             "\n",
-            nesting);
+            f->function_id);
 }
 
 static void jdf_generate_simulation_cost_fct(const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix)
@@ -2181,12 +2182,12 @@ static void jdf_generate_simulation_cost_fct(const jdf_t *jdf, const jdf_functio
             "  const dague_object_t *__dague_object = (const dague_object_t*)this_task->dague_object;\n"
             "%s"
             "  (void)__dague_object;\n",
-            prefix, UTIL_DUMP_LIST(sa1, f->definitions, next,
+            prefix, UTIL_DUMP_LIST(sa1, f->locals, next,
                                    dump_local_assignments, &ai, "", "  ", "\n", "\n"));
 
     string_arena_init(sa);
     coutput("%s",
-            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
+            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
     string_arena_init(sa);
@@ -2202,7 +2203,7 @@ static void jdf_generate_simulation_cost_fct(const jdf_t *jdf, const jdf_functio
     string_arena_free(sa1);
 }
 
-static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entry_t *f, int dep_index )
+static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entry_t *f)
 {
     string_arena_t *sa, *sa2;
     int nbparameters, nbdefinitions;
@@ -2217,7 +2218,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     sa2 = string_arena_new(64);
 
     JDF_COUNT_LIST_ENTRIES(f->parameters, jdf_name_list_t, next, nbparameters);
-    JDF_COUNT_LIST_ENTRIES(f->definitions, jdf_def_list_t, next, nbdefinitions);
+    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nbdefinitions);
 
     inputmask = 0;
     nbinput = 0;
@@ -2257,36 +2258,34 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     string_arena_add_string(sa,
                             "static const dague_function_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
-                            "  .deps = %d,\n"
                             "  .function_id = %d,\n"
                             "  .nb_parameters = %d,\n"
-                            "  .nb_definitions = %d,\n",
+                            "  .nb_locals = %d,\n",
                             jdf_basename, f->fname,
                             f->fname,
-                            dep_index,
-                            dep_index,
+                            f->function_id,
                             nbparameters,
                             nbdefinitions);
 
     prefix = (char*)malloc(strlen(f->fname) + strlen(jdf_basename) + 32);
 
     sprintf(prefix, "symb_%s_%s_", jdf_basename, f->fname);
-    jdf_generate_symbols(jdf, f->definitions, prefix);
+    jdf_generate_symbols(jdf, f->locals, prefix);
     sprintf(prefix, "&symb_%s_%s_", jdf_basename, f->fname);
     string_arena_add_string(sa, "  .params = { %s },\n",
                             UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name, dump_string, NULL,
                                                  "", prefix, ", ", ""));
     string_arena_add_string(sa, "  .locals = { %s },\n",
-                            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
+                            UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name, dump_string, NULL,
                                                  "", prefix, ", ", ""));
 
     sprintf(prefix, "pred_of_%s_%s_as_expr", jdf_basename, f->fname);
-    jdf_generate_predicate_expr(jdf, f->definitions, f->fname, prefix);
+    jdf_generate_predicate_expr(jdf, f->locals, f->fname, prefix);
     string_arena_add_string(sa, "  .pred = &%s,\n", prefix);
 
     if( NULL != f->priority ) {
         sprintf(prefix, "priority_of_%s_%s_as_expr", jdf_basename, f->fname);
-        jdf_generate_expression(jdf, f->definitions, f->priority, prefix);
+        jdf_generate_expression(jdf, f->locals, f->priority, prefix);
         string_arena_add_string(sa, "  .priority = &%s,\n", prefix);
     } else {
         string_arena_add_string(sa, "  .priority = NULL,\n");
@@ -2304,7 +2303,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     sprintf(prefix, "flow_of_%s_%s_for_", jdf_basename, f->fname);
     has_control_gather = 0;
     for(i = 0, fl = f->dataflow; fl != NULL; fl = fl->next, i++) {
-        mask_ok = jdf_generate_dataflow(jdf, f->definitions, fl, prefix, (uint32_t)i, &has_control_gather);
+        mask_ok = jdf_generate_dataflow(jdf, f->locals, fl, prefix, (uint32_t)i, &has_control_gather);
         use_mask &= mask_ok;
     }
     if( jdf_property_get_int(f->properties, "mask_deps", 0) && (use_mask == 0) ) {
@@ -2336,7 +2335,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                                 jdf_property_get_int(f->properties, "immediate", 0) ? " | DAGUE_IMMEDIATE_TASK" : "",
                                 inputmask);
     } else {
-        string_arena_add_string(sa, 
+        string_arena_add_string(sa,
                                 "  .flags = %s%s%s%s,\n"
                                 "  .dependencies_goal = %d,\n",
                                 (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
@@ -2406,10 +2405,29 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
     sa = string_arena_new(64);
     string_arena_add_string(sa, "static const dague_function_t *%s_functions[] = {\n",
                             jdf_basename);
-    for(i = 0, f = jdf->functions; NULL != f; f = f->next, i++) {
-        jdf_generate_one_function(jdf, f, i);
-        string_arena_add_string(sa, "  &%s_%s%s\n",
-                                jdf_basename, f->fname, f->next != NULL ? "," : "");
+    /* We need to put the function in the array based on their function_id */
+    {
+        jdf_function_entry_t** array;
+        int max_id;
+
+        for(max_id = 0, f = jdf->functions; NULL != f; f = f->next) {
+            jdf_generate_one_function(jdf, f);
+            if( max_id < f->function_id ) max_id = f->function_id;
+        }
+        max_id++;  /* allow one more space */
+        array = (jdf_function_entry_t**)malloc(max_id * sizeof(jdf_function_entry_t*));
+        for(i = 0; i < max_id; array[i] = NULL, i++);
+        for(f = jdf->functions; NULL != f; f = f->next)
+            array[f->function_id] = f;
+        for(i = 0; i < max_id; array[i] = NULL, i++) {
+            if( NULL == (f = array[i]) ) {
+                string_arena_add_string(sa, "  NULL%s\n",
+                                        i != (max_id - 1) ? "," : "");
+            } else {
+                string_arena_add_string(sa, "  &%s_%s%s\n",
+                                        jdf_basename, f->fname, i != (max_id - 1) ? "," : "");
+            }
+        }
     }
     string_arena_add_string(sa, "};\n\n");
     coutput("%s", string_arena_get_string(sa));
@@ -2417,6 +2435,7 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
     string_arena_free(sa);
 }
 
+#if 0
 static char *dump_pseudodague(void **elem, void *arg)
 {
     string_arena_t *sa = (string_arena_t *)arg;
@@ -2426,16 +2445,16 @@ static char *dump_pseudodague(void **elem, void *arg)
                             "static const dague_function_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
                             "  .flags = 0x0,\n"
+                            "  .function_id = -1,\n"
                             "  .dependencies_goal = 0x0,\n"
                             "  .nb_parameters = 0,\n"
-                            "  .nb_definitions = 0,\n"
+                            "  .nb_locals = 0,\n"
                             "  .params = { NULL, },\n"
                             "  .locals = { NULL, },\n"
                             "  .pred = NULL,\n"
                             "  .in = { NULL, },\n"
                             "  .out = { NULL, },\n"
                             "  .priority = NULL,\n"
-                            "  .deps = -1,\n"
                             "  .hook = NULL,\n"
                             "  .release_deps = NULL,\n"
                             "  .body = NULL,\n"
@@ -2443,6 +2462,7 @@ static char *dump_pseudodague(void **elem, void *arg)
                             jdf_basename, name, name);
     return string_arena_get_string(sa);
 }
+#endif
 
 static void jdf_generate_predeclarations( const jdf_t *jdf )
 {
@@ -2459,10 +2479,12 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
                     jdf_basename, f->fname);
         }
     }
+#if 0
     coutput("/** Declarations of the pseudo-dague_function_t objects for data */\n"
             "%s\n",
             UTIL_DUMP_LIST_FIELD(sa2, jdf->data, next, dname,
                                  dump_pseudodague, sa, "", "", "", ""));
+#endif
     string_arena_free(sa);
     string_arena_free(sa2);
     coutput("/** Predeclarations of the parameters */\n");
@@ -2708,7 +2730,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     info.assignments = "assignments";
 
     idx = 0;
-    for(dl = f->definitions; dl != NULL; dl = dl->next) {
+    for(dl = f->locals; dl != NULL; dl = dl->next) {
         string_arena_init(sa);
 
         if( definition_is_parameter(f, dl) != NULL ) {
@@ -2740,7 +2762,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     string_arena_free(prec);
 
     string_arena_init(sa);
-    for(dl = f->definitions; dl != NULL; dl = dl->next) {
+    for(dl = f->locals; dl != NULL; dl = dl->next) {
         if( definition_is_parameter(f, dl) != NULL ) {
             coutput("  __h += (%s - %s_min)%s;\n", dl->name, dl->name, string_arena_get_string(sa));
             string_arena_add_string(sa, " * %s_range", dl->name);
@@ -2813,7 +2835,7 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   infosrc.prefix = "";
   infosrc.assignments = "assignments";
 
-  for(idx = 0, dl = f->definitions; dl != NULL; idx++, dl = dl->next) {
+  for(idx = 0, dl = f->locals; dl != NULL; idx++, dl = dl->next) {
       /* Is this definition a parameter or a value? */
       /* If it is a parameter, find the corresponding param in the call */
       for(el = params, pl = f->parameters; pl != NULL; el = el->next, pl = pl->next) {
@@ -3282,10 +3304,10 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
             "  (void)__dague_object; (void)tass;\n"
             "%s",
             name, jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST(sa, f->definitions, next,
+            UTIL_DUMP_LIST(sa, f->locals, next,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
     coutput("%s\n",
-            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
+            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
     dinfo.sa = sa2;
     dinfo.sa_test = sa_test;
@@ -3304,7 +3326,7 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
                 "    return DAGUE_LOOKUP_DONE;\n"
                 "\n",
                 string_arena_get_string( sa_test ));
-    
+
     coutput("  /** Lookup the input data, and store them in the context if any */\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
@@ -3345,10 +3367,10 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "#endif\n"
             "%s",
             name, jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST(sa, f->definitions, next,
+            UTIL_DUMP_LIST(sa, f->locals, next,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
     coutput("%s\n",
-            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
+            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
     ifda.sa = sa2;
@@ -3423,11 +3445,11 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "  (void)context; (void)__dague_object;\n"
             "%s",
             name, jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST(sa, f->definitions, next,
+            UTIL_DUMP_LIST(sa, f->locals, next,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
 
     coutput("%s\n",
-            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
+            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
     if( profile_on ) {
@@ -3471,11 +3493,11 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
 
     coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS ) {\n"
             "%s",
-            UTIL_DUMP_LIST(sa1, f->definitions, next,
+            UTIL_DUMP_LIST(sa1, f->locals, next,
                            dump_local_assignments, &ai, "", "    ", "\n", "\n"));
     /* Quiet the unused variable warnings */
     coutput("%s\n",
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
+            UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
                                  dump_string, NULL, "   ", " (void)", ";", ";\n"));
 
     info.prefix = "";
@@ -3712,13 +3734,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     string_arena_add_string(sa_open, "%s%s%s.function = (const dague_function_t*)&%s_%s;\n",
                             prefix, indent(nbopen), var, jdf_basename, targetf->fname);
-    /*
-    for(el = call->parameters, nl = targetf->parameters, i = 0, def = targetf->definitions;
-        el != NULL && nl != NULL;
-        el = el->next, nl = nl->next, i++, def = def->next) {
-    */
 
-    for(def = targetf->definitions, i = 0;
+    for(def = targetf->locals, i = 0;
         def != NULL;
         def = def->next, i++) {
 
@@ -3734,7 +3751,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
             /* This definition is not a parameter: just dump it's computation. */
             /**
              * If we have to execute code possibly comming from the user then we need to instantiate
-             * the entire stack of the target function, including the local definitions.
+             * the entire stack of the target function, including the local variables.
              */
             assert(el == NULL);
             string_arena_add_string(sa_open,
@@ -3913,10 +3930,10 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             "  (void)rank_src; (void)rank_dst; (void)__dague_object; (void)vpid_dst; (void)__nb_elt;\n",
             name,
             jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST(sa1, f->definitions, next,
+            UTIL_DUMP_LIST(sa1, f->locals, next,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
     coutput("%s",
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
+            UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
     coutput("  nc.dague_object = this_task->dague_object;\n"
@@ -4111,10 +4128,10 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
         ai.holder = "assignments";
         ai.expr = NULL;
         coutput("%s\n",
-                UTIL_DUMP_LIST(sa2, expr->jdf_c_code.function_context->definitions, next,
+                UTIL_DUMP_LIST(sa2, expr->jdf_c_code.function_context->locals, next,
                                dump_local_assignments, &ai, "", "  ", "\n", "\n"));
          coutput("%s\n",
-                UTIL_DUMP_LIST_FIELD(sa2, expr->jdf_c_code.function_context->definitions, next, name,
+                UTIL_DUMP_LIST_FIELD(sa2, expr->jdf_c_code.function_context->locals, next, name,
                                      dump_string, NULL, "", "  (void)", ";", ";\n"));
     } else {
         coutput("  /* This inline C function was declared in the global context: no variables */\n"
