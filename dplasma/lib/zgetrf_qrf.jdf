@@ -149,7 +149,7 @@ swptrsm_u(k, n)
 
 BODY
 {
-    int s  = ceil((descA.mt-k)/param_p);
+    int s  = (descA.mt-k+param_p-1) / param_p;
     int ks = k + (s-1)*param_p;
     int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int tempnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
@@ -714,7 +714,6 @@ END
 zlufacto(k)
   /* Execution space */
   k = 0 .. minMNT
-  p = inline_c %{ return dague_imin(param_p, descA.mt-k)-1; %}
 
   : A(k, k)
 
@@ -731,9 +730,8 @@ zlufacto(k)
 ; descA.nt-k-1
 BODY
 {
-    int s  = ceil((descA.mt-k)/param_p);
+    int s  = (descA.mt-k+param_p-1) / param_p;
     int ks = k + (s-1)*param_p;
-
     int tempm = (s-1) * descA.mb +
         (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
     int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
