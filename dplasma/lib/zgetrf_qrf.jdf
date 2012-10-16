@@ -113,11 +113,6 @@ BODY
 {
     /* Nothing */
     printlog("zgetrf_typechange(k=%d)\n", k);
-
-    if ( k == minMNT ){
-        fprintf(stderr, "Terminate with a GETRF\n" );
-        //dague_object_terminate( this_task->dague_object );
-    }
 }
 END
 
@@ -360,10 +355,6 @@ zgeqrt_typechange(k, i) [profile = off]
 BODY
 {
     /* Nothing */
-    if ( k == minMNT ){
-        fprintf(stderr, "Terminate with a GEQRF\n");
-        //dague_object_terminate( this_task->dague_object );
-    }
 }
 END
 
@@ -850,7 +841,7 @@ setchoice(k, p, h)
        -> (h <  hmax) ? B setchoice(k, (p+2*pui)%pmax, h+1)     [type = ELTdouble]
 
        /* Broadcast the information to the row */
-       -> (h == hmax) ? B setchoice_update(k, p, 1..qmax-1)     [type = ELTdouble]
+       -> (h == hmax) ? B setchoice_update(k, p, 1..param_q-1)     [type = ELTdouble]
 
   /*
    * Release local choic
@@ -868,7 +859,7 @@ BODY
     double *norm2 = (double*)B;
 
     /* TODO: We collect the condition numbers and compute the choice*/
-    printlog("setchoice( k=%d )\n", k);
+    printlog("setchoice( k=%d, p=%d, h=%d )\n", k, p, h);
 
     DRYRUN(
         /* The received buffer contains the diagonal line */
@@ -881,18 +872,17 @@ BODY
         norm1[1] += norm2[1];
         norm2[1] = norm1[1];
 
-
         if (h == hmax) {
             int cond = 1;
             //cond = rand() % 2;
 
             if (cond == 1) {
                 lu_tab[k] = 1;
-                fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
+                //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
             }
             else {
                 lu_tab[k] = 0;
-                fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
+                //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
             }
         }
            );
@@ -904,15 +894,15 @@ setchoice_update(k, p, q)
   k = 0 .. minMNT
 
   pmax = inline_c %{ return dague_imin(param_p, descA.mt-k)-1; %}
-  qmax = inline_c %{ return dague_imin(param_q, descA.nt-k)-1; %}
+
   p = 0 .. pmax
-  q = 1 .. qmax
+  q = 1 .. param_q-1
 
   hmax = inline_c %{ return dague_log2( pmax ); %}
 
   : A(k+p, k+q)
 
-  RW B <- B setchoice(k, p, hmax )   [type = ELTdouble]
+  RW B <- B setchoice(k, p, hmax)   [type = ELTdouble]
 
   /*
    * Release local choice
@@ -935,11 +925,11 @@ BODY
 
         if (cond == 1) {
             lu_tab[k] = 1;
-            fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
+            //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
         }
         else {
             lu_tab[k] = 0;
-            fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
+            //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
         }
            );
 }

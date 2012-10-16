@@ -483,8 +483,8 @@ selector(k,m,n)
 BODY
 {
     /* Nothing */
-    fprintf(stderr, "selector(%d, %d, %d) => lu_tak[%d] = %d\n",
-            k, m, n, k, do_lu);
+    printlog("selector(%d, %d, %d) => lu_tak[%d] = %d\n",
+             k, m, n, k, do_lu);
 
 }
 END
