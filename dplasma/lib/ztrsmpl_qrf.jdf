@@ -136,8 +136,8 @@ swptrsm_u_in(k)   [profile = off]
   RW A  <- A(k,k)
         -> A swptrsm_u(k, 0..descB.nt-1)
 
-  RW IP <- IPIV(k,k)
-        -> IP swptrsm_u(k, 0..descB.nt-1)
+  RW IP <- IPIV(k,k)                         [type = PIVOT]
+        -> IP swptrsm_u(k, 0..descB.nt-1)    [type = PIVOT]
 
   CTL ctl <- ctl inputs(k)
 
@@ -283,11 +283,11 @@ zunmqr_in(k,i)  [profile = off]
 
   : A(m, k)
 
-  RW A <- A(m,k)
-       -> A zunmqr(k, i, 0..descB.nt-1)
+  RW A <- A(m,k)                           [type = LOWER_TILE]
+       -> A zunmqr(k, i, 0..descB.nt-1)    [type = LOWER_TILE]
 
-  RW T <- LT(m,k)
-       -> T zunmqr(k, i, 0..descB.nt-1)
+  RW T <- LT(m,k)                          [type = LITTLE_T]
+       -> T zunmqr(k, i, 0..descB.nt-1)    [type = LITTLE_T]
 
   CTL ctl <- ctl inputs(k)
 
@@ -400,8 +400,8 @@ zttmqr_in(k,m)  [profile = off]
   RW A <- A(m,k)
        -> V zttmqr(k, m, 0..descB.nt-1)
 
-  RW T <- LT(m,k)
-       -> T zttmqr(k, m, 0..descB.nt-1)
+  RW T <- LT(m,k)                           [type = LITTLE_T]
+       -> T zttmqr(k, m, 0..descB.nt-1)     [type = LITTLE_T]
 
   CTL ctl <- ctl inputs(k)
 
@@ -483,6 +483,9 @@ selector(k,m,n)
 BODY
 {
     /* Nothing */
+    fprintf(stderr, "selector(%d, %d, %d) => lu_tak[%d] = %d\n",
+            k, m, n, k, do_lu);
+
 }
 END
 
@@ -513,7 +516,7 @@ cleantasks(p, q)
 
   :A(p, q)
 
-  CTL ctl <- 0 ? ctl cleantasks(p, q)
+  CTL ctl <- 0 ? ctl cleantasks(p, q) /* Unused: it's here to avoid compilation problems */
 
 BODY
 {
