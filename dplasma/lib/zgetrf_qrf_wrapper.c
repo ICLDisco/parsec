@@ -31,7 +31,7 @@ dague_object_t* dplasma_zgetrf_qrf_New( qr_piv_t *qrpiv,
      * it should be passed as a parameter as in getrf
      */
     int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
-    double *W = (double*)malloc((A->mt/P)*sizeof(double));
+    double *W = (double*)malloc((A->mt/P+1)*sizeof(double));
 
     object = dague_zgetrf_qrf_new( (dague_ddesc_t*)A,
                                    (dague_ddesc_t*)IPIV,
