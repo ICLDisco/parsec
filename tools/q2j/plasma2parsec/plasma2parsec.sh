@@ -1,49 +1,68 @@
 #!/bin/sh
 
-echo $1
+q2j=../q2j
 
-# Change include
-sed -i 's/common\.h/core.h/' $1
+generatejdf()
+{
+    src=/tmp/$1
+    dstcpp=/tmp/`echo $1 | sed 's/pz/z/' | sed 's/\.c/\.cpp/'`
+    dstjdf=`echo $1 | sed 's/pz/z/' | sed 's/\.c/\.jdf/'`
 
-# Change BLKADDR
-sed -i 's/BLKADDR(\([A-Z0-9a-z]*\), PLASMA_Complex64_t, \([a-z]*\), \([a-z]*\))/\1[\2][\3]/' $1
+    echo $dstjdf
+    echo "  Prepare the file"
+    cp $1 $src
 
-# Remove PLASMA_sequence and request for function call
-sed -i '{N;s/\(.*plasma_pz.*(.*\),\s*\n\s*PLASMA_sequence \*sequence, PLASMA_request \*request)/\1)/}' $1
+    # Change include
+    sed -i 's/common\.h/core.h/' $src
 
-sed -i '/Task_Flag/d' $1
+    # Change BLKADDR
+    echo "  Replace BLKADDR macros"
+    sed -i 's/BLKADDR(\([A-Z0-9a-z]*\), PLASMA_Complex64_t, \([a-z]*\), \([a-z]*\))/\1[\2][\3]/' $src
 
-sed -i '/plasma_context_t \*plasma;/d' $1
-sed -i '/ plasma = plasma_context_self();/d' $1
-sed -i '{N;/if (sequence->status != PLASMA_SUCCESS).*\n.*return;/d}' $1
+    # Remove PLASMA_sequence and request for function call
+    sed -i '{N;s/\(.*plasma_pz.*(.*\),\s*\n\s*PLASMA_sequence \*sequence, PLASMA_request \*request)/\1)/}' $src
+    sed -i '/Task_Flag/d' $src
+    sed -i '/plasma_context_t \*plasma;/d' $src
+    sed -i '/ plasma = plasma_context_self();/d' $src
+    sed -i '{N;/if (sequence->status != PLASMA_SUCCESS).*\n.*return;/d}' $src
 
-destcpp=`echo $1 | sed 's/pz/z/' | sed 's/\.c/\.cpp/'` 
-destjdf=`echo $1 | sed 's/pz/z/' | sed 's/\.c/\.jdf/'` 
-cpp -P -E $1 -o $destcpp
+    echo "  Precompile the file to get the correct input format"
+    cpp -I. -P -E $src -o $dstcpp
 
-sed -i '/#pragma/d' $destcpp
+    sed -i '/#pragma/d' $dstcpp
 
-../q2j -anti $destcpp > $destjdf
+    echo "  Generate the jdf file"
+    $q2j -anti $dstcpp > $dstjdf
 
-# Replace PLASMA_Complex64_t by Dague
-sed -i 's/PLASMA_Complex/dague_complex/g' $destjdf
+    echo "   Postprocessing"
+    # Replace PLASMA_Complex64_t by Dague
+    sed -i 's/PLASMA_Complex/dague_complex/g' $dstjdf
 
-# Replace PLASMA_desc by tiled_matrix_desc_t
-#sed -i 's/PLASMA_desc/tiled_matrix_desc_t/g' $destjdf
+    # Replace PLASMA_desc by tiled_matrix_desc_t
+    #sed -i 's/PLASMA_desc/tiled_matrix_desc_t/g' $dstjdf
 
-# # Convert desc_X to desc 
-# sed -i 's/desc_\([A-Z0-9]*[ .,]\)/desc\1/g' $destjdf
+    # Convert desc_X to desc
+    # sed -i 's/desc_\([A-Z0-9]*[ .,]\)/desc\1/g' $dstjdf
 
-# # Convert data_X to X
-# sed -i 's/data_\([A-Z0-9]*[ (]\)/data\1/g' $destjdf
+    # Convert data_X to X
+    # sed -i 's/data_\([A-Z0-9]*[ (]\)/data\1/g' $dstjdf
 
-# Remove extra parentheses
-sed -i 's/(\(desc[A-Z0-9]*\.[mn][bt]\))/\1/g' $destjdf
-sed -i 's/(\(desc[A-Z0-9]*\.[mn]\))/\1/g' $destjdf
+    # Remove extra parentheses
+    sed -i 's/(\(desc[A-Z0-9]*\.[mn][bt]\))/\1/g' $dstjdf
+    sed -i 's/(\(desc[A-Z0-9]*\.[mn]\))/\1/g' $dstjdf
 
-# Remove #line to avoid confusion during compilation
-sed -i '/#line/d' $destjdf
+    # Remove #line to avoid confusion during compilation
+    sed -i '/#line/d' $dstjdf
 
-# Remove sequence and request (should be an option)
-sed -i '/PLASMA_sequence/d' $destjdf
-sed -i '/PLASMA_request/d' $destjdf
+    # Remove sequence and request (should be an option)
+    sed -i '/PLASMA_sequence/d' $dstjdf
+    sed -i '/PLASMA_request/d' $dstjdf
+
+    rm -f $src $dstcpp
+}
+
+for i in $*
+do
+    generatejdf $i
+done
+
