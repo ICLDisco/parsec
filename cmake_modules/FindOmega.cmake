@@ -40,10 +40,9 @@ list(APPEND CMAKE_REQUIRED_LIBRARIES ${OMEGA_LIBRARIES})
 check_cxx_source_compiles("#include <omega.h>
     int main(void) { Relation R; R.is_set(); return 0;}" OMEGA_FOUND)
 
+
 if(OMEGA_FOUND)
-  if(NOT OMEGA_FIND_QUIETLY)
-    message(STATUS "A library with OMEGA API found: [${OMEGA_LIBRARIES}], [${OMEGA_INCLUDE_DIRS}].")
-  endif(NOT OMEGA_FIND_QUIETLY)
+  find_package_message(OMEGA "Found OMEGA: ${OMEGA_LIBRARIES}" "[${OMEGA_LIBRARIES}] [${OMEGA_INCLUDE_DIRS}]" )
   set(HAVE_OMEGA 1)
 else(OMEGA_FOUND)
   if(OMEGA_FIND_REQUIRED)
