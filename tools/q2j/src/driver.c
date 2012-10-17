@@ -19,7 +19,7 @@ int _q2j_add_phony_tasks       = 0;
 int _q2j_finalize_antideps     = 0;
 int _q2j_generate_line_numbers = 0;
 int _q2j_dump_mapping          = 0;
-int _q2j_direct_output         = 1;
+int _q2j_direct_output         = 0;
 FILE *_q2j_output;
 jdf_t _q2j_jdf;
 

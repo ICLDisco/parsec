@@ -706,7 +706,6 @@ static char *dump_globals_init(void **elem, void *arg)
     jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
     string_arena_t *sa = (string_arena_t*)arg;
     jdf_expr_t *prop = jdf_find_property( global->properties, "default", NULL );
-    expr_info_t info;
 
     string_arena_init(sa);
     /* We might have a default value */
@@ -719,12 +718,8 @@ static char *dump_globals_init(void **elem, void *arg)
         if( NULL == prop )
             string_arena_add_string(sa, "__dague_object->super.%s = %s;", global->name, global->name);
     } else {
-        info.sa = string_arena_new(8);
-        info.prefix = "";
-        info.assignments = "assignments";
-        string_arena_add_string(sa, "__dague_object->super.%s = %s;",
-                                global->name, dump_expr((void**)prop, &info));
-        string_arena_free(info.sa);
+        /* Has been initialized by dump_hidden_globals_init */
+        string_arena_add_string(sa, "__dague_object->super.%s = %s;", global->name, global->name);
     }
 
     return string_arena_get_string(sa);
@@ -776,6 +771,52 @@ static char* dump_typed_globals(void **elem, void *arg)
     string_arena_free(info.sa);
 
     return string_arena_get_string(sa);
+}
+
+/**
+ * dump_hidden_globals_init:
+ *  Takes a pointer to a global variables and generate the code used to initialize
+ *  the global variable during *_New. If the variable is not marked as hidden
+ *  the output code will not be generated.
+ */
+static char *dump_hidden_globals_init(void **elem, void *arg)
+{
+    jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
+    string_arena_t *sa = (string_arena_t*)arg;
+    jdf_expr_t *hidden   = jdf_find_property( global->properties, "hidden", NULL );
+    jdf_expr_t* type_str = jdf_find_property( global->properties, "type",   NULL );
+    expr_info_t info1, info2;
+
+    string_arena_init(sa);
+
+    /* The property is hidden */
+    if (NULL != hidden) {
+        jdf_expr_t *prop = jdf_find_property( global->properties, "default", NULL );
+
+        /* We might have a default value */
+        if( NULL == prop ) prop = global->expression;
+
+        /* No default value ? */
+        if( NULL == prop ) return NULL;
+
+        info1.sa = string_arena_new(8);
+        info1.prefix = "";
+        info1.assignments = "assignments";
+
+        info2.sa = string_arena_new(8);
+        info2.prefix = "";
+        info2.assignments = "assignments";
+
+        string_arena_add_string(sa, "%s %s = %s;",
+                                (NULL == type_str ? "int" : dump_expr((void**)type_str, &info1)),
+                                global->name,
+                                dump_expr((void**)prop, &info2));
+        string_arena_free(info1.sa);
+        string_arena_free(info2.sa);
+
+        return string_arena_get_string(sa);
+    }
+    return NULL;
 }
 
 static char *dump_data_repository_constructor(void **elem, void *arg)
@@ -2598,6 +2639,15 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     coutput("  __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)calloc(1, sizeof(__dague_%s_internal_object_t));\n",
             jdf_basename, jdf_basename, jdf_basename);
+
+    string_arena_init(sa1);
+    string_arena_init(sa2);
+    {
+        coutput("  /* Dump the hidden parameters */\n"
+                "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
+                                     dump_hidden_globals_init, sa2, "", "  ", "\n", "\n"));
+    }
+
 
     string_arena_init(sa1);
     coutput("  int i;\n"
