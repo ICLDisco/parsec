@@ -681,7 +681,7 @@ BODY
     int i = (m - k) / param_p;
     int tempmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
     int tempkn = (k==(descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
-    int ldak = BLKLDD( descA, m );
+    int ldam = BLKLDD( descA, m );
 
     printlog("copypanel( k = %d )\n", k );
 
