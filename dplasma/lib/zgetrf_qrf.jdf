@@ -681,7 +681,7 @@ BODY
     int i = (m - k) / param_p;
     int tempmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
     int tempkn = (k==(descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
-    int ldak = BLKLDD( descA, k );
+    int ldak = BLKLDD( descA, m );
 
     printlog("copypanel( k = %d )\n", k );
 
@@ -689,13 +689,13 @@ BODY
         if (diagdom == 0) {
             /*The tiles of the first node have to be copied*/
             CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
-                        A,    ldak,
+                        A,    ldam,
                         Acpy, descA.mb);
         } else{
             /*We need the 1-norm of the other tiles*/
             W[i] = LAPACKE_zlange_work(
                 LAPACK_COL_MAJOR, '1',
-                tempmm, tempkn, A, ldak, NULL);
+                tempmm, tempkn, A, ldam, NULL);
         }
            );
 }
@@ -871,21 +871,23 @@ BODY
 
         norm1[1] += norm2[1];
         norm2[1] = norm1[1];
+           );
 
-        if (h == hmax) {
-            int cond = 1;
-            //cond = rand() % 2;
+    if (h == hmax) {
+        int cond = 0;
+        //cond = rand() % 2;
 
-            if (cond == 1) {
-                lu_tab[k] = 1;
-                //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
-            }
+        if (cond == 1) {
+            lu_tab[k] = 1;
+            //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
+        }
             else {
                 lu_tab[k] = 0;
                 //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
             }
-        }
-           );
+    }
+
+    norm2[0] = lu_tab[k];
 }
 END
 
@@ -919,19 +921,8 @@ BODY
     /* TODO: We collect the condition numbers and compute the choice*/
     printlog("setchoice( k=%d )\n", k);
 
-    DRYRUN(
-        int cond = 1;
-        //cond = rand() % 2;
-
-        if (cond == 1) {
-            lu_tab[k] = 1;
-            //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
-        }
-        else {
-            lu_tab[k] = 0;
-            //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
-        }
-           );
+    double *norm2 = (double*)B;
+    lu_tab[k] = norm2[0];
 }
 END
 
@@ -990,11 +981,11 @@ BODY
         if( do_lu != 1 && diagdom == 0) {
             int tempmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
             int tempkn = (k==(descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
-            int ldak = BLKLDD( descA, k );
+            int ldam = BLKLDD( descA, m );
 
             CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
                         Acpy, descA.mb,
-                        A,    ldak);
+                        A,    ldam);
         }
            );
 
