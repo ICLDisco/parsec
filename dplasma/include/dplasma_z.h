@@ -51,6 +51,7 @@ int    dplasma_zgeqrf_param( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matr
 int    dplasma_zgelqf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 int    dplasma_zungqr( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *Q);
 int    dplasma_zungqr_param( dague_context_t *dague, qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *Q);
+int    dplasma_zunmqr( dague_context_t *dague, PLASMA_enum side, PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *B);
 
 int    dplasma_zgeadd( dague_context_t *dague, PLASMA_enum uplo, dague_complex64_t alpha, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 int    dplasma_zlacpy( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
@@ -106,6 +107,7 @@ dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A);
 dague_object_t* dplasma_zpotrf_New( PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
 dague_object_t* dplasma_zungqr_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *Q);
 dague_object_t* dplasma_zungqr_param_New(qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *Q);
+dague_object_t* dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *B);
 
 /* Lapack variants */
 dague_object_t* dplasma_zgetrf_incpiv_sd_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *LIPIV, int* INFO);
@@ -163,6 +165,7 @@ void dplasma_zhbrdt_Destruct( dague_object_t* o );
 void dplasma_zpotrf_Destruct( dague_object_t *o );
 void dplasma_zungqr_Destruct( dague_object_t *o );
 void dplasma_zungqr_param_Destruct( dague_object_t *o );
+void dplasma_zunmqr_Destruct( dague_object_t *o );
 
 void dplasma_zgeadd_Destruct( dague_object_t *o );
 void dplasma_zlacpy_Destruct( dague_object_t *o );
