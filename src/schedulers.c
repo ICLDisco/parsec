@@ -84,14 +84,14 @@ static int init_tree_queues(  dague_context_t *master )
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
 
-        SYSTEM_NEIGHBOR = vp->nb_cores; // defined for instrumentation
+        SYSTEM_NEIGHBOR = vp->nb_cores * master->nb_vp; // defined for instrumentation
 
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_units[t];
             sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
             eu->scheduler_object = sched_obj;
             sched_obj->choice_count = 0;
-            sched_obj->neighbor_stats = calloc(vp->nb_cores + 1, sizeof(neighbor_statistic)); // use calloc to set all counts to zero
+            sched_obj->neighbor_stats = calloc(master->nb_vp * vp->nb_cores + 1, sizeof(neighbor_statistic)); // use calloc to set all counts to zero
 
              if( eu->th_id == 0 ) {
                  sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
@@ -112,7 +112,7 @@ static int init_tree_queues(  dague_context_t *master )
             /* Each thread creates its own "local" queue, connected to the shared dequeue */
             sched_obj->task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper,
                                                         (void*)sched_obj->system_queue);
-            sched_obj->task_queue->assoc_core_num = t; // stored for instrumentation
+            sched_obj->task_queue->assoc_core_num = p * vp->nb_cores + t; // stored for instrumentation
             sched_obj->hierarch_queues[0] = sched_obj->task_queue;
         }
 
@@ -297,7 +297,7 @@ static void finalize_tree_queues( dague_context_t *master )
 
             int u = 0;
             printf("    ");
-            for (u = 0; u < sched_obj->nb_hierarch_queues; u++) {
+            for (u = 0; u < master->nb_vp * vp->nb_cores; u++) {
 	            printf("%4u ", sched_obj->neighbor_stats[u].steal_count);
             }
             printf("%4u\n", sched_obj->neighbor_stats[SYSTEM_NEIGHBOR].steal_count);
@@ -445,7 +445,7 @@ static int init_local_flat_queues(  dague_context_t *master )
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
-        SYSTEM_NEIGHBOR = vp->nb_cores; // defined for instrumentation
+        SYSTEM_NEIGHBOR = master->nb_vp * vp->nb_cores; // defined for instrumentation
 
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_units[t];
@@ -455,7 +455,7 @@ static int init_local_flat_queues(  dague_context_t *master )
             eu->scheduler_object = sched_obj;
 
             sched_obj->choice_count = 0;
-            sched_obj->neighbor_stats = calloc(vp->nb_cores + 1, sizeof(neighbor_statistic)); // use calloc to set all counts to zero
+            sched_obj->neighbor_stats = calloc(master->nb_vp * vp->nb_cores + 1, sizeof(neighbor_statistic)); // use calloc to set all counts to zero
     
             if( eu->th_id == 0 ) {
                 sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
@@ -478,7 +478,7 @@ static int init_local_flat_queues(  dague_context_t *master )
             /* Each thread creates its own "local" queue, connected to the shared dequeue */
             sched_obj->task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper, 
                                                         (void*)sched_obj->system_queue);
-            sched_obj->task_queue->assoc_core_num = t; // stored for instrumentation
+            sched_obj->task_queue->assoc_core_num = p * vp->nb_cores + t; // stored for instrumentation
             sched_obj->hierarch_queues[0] = sched_obj->task_queue;
             DEBUG((" Core %d:%d: Task queue is %p (that's 0-preferred queue)\n",  p, t, sched_obj->task_queue));
         }
@@ -731,7 +731,7 @@ static void finalize_local_flat_queues( dague_context_t *master )
 
             int u = 0;
             printf("    ");
-            for (u = 0; u < sched_obj->nb_hierarch_queues; u++) {
+            for (u = 0; u < master->nb_vp * vp->nb_cores; u++) {
 	            printf("%4u ", sched_obj->neighbor_stats[u].steal_count);
             }
             printf("%4u\n", sched_obj->neighbor_stats[SYSTEM_NEIGHBOR].steal_count);
