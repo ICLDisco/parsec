@@ -6,7 +6,7 @@ if(DAGUE_Q2J)
 endif(DAGUE_Q2J)
 
 if(OMEGA_FOUND)
-  include_directories(${OMEGA_INCLUDE_DIR})
+  include_directories(${OMEGA_INCLUDE_DIRS})
 
 
   BISON_TARGET(dague_q2j_yacc src/q2j.y ${CMAKE_CURRENT_BINARY_DIR}/q2j.y.c)
@@ -35,8 +35,7 @@ if(OMEGA_FOUND)
       ${FLEX_dague_q2j_flex_OUTPUTS}
   )
   set_target_properties(q2j PROPERTIES LINKER_LANGUAGE CXX)
-  set_target_properties(q2j PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS} ${OMEGA_LIBRARIES}")
-  target_link_libraries(q2j m omega)
+  target_link_libraries(q2j m ${OMEGA_LIBRARIES})
   
   install(TARGETS q2j RUNTIME DESTINATION bin)
 endif(OMEGA_FOUND)

@@ -12,7 +12,7 @@
 
 #include "debug.h"
 #include "atomic.h"
-#include "lifo.h"
+#include "list_item.h"
 #include <stdlib.h>
 
 /**
@@ -55,6 +55,8 @@ dague_execution_context_t* heap_split_and_steal(dague_heap_t ** heap_ptr, dague_
  * Insertion is O(lg n), as we know exactly how to get to the next insertion point,
  * and the tree is manually balanced.
  * Overall build is O(n lg n)
+ * 
+ * Destroys elem->list_item next and prev. 
  */
 void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
 {
@@ -177,6 +179,7 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
             if (heap->top->list_item.list_next /* right */ == NULL) {
                 /* but doesn't have right child, so still not splitting */
                 heap->top = (dague_execution_context_t*)heap->top->list_item.list_prev; // left
+                heap->priority = heap->top->priority;
                 /* set up doubly-linked singleton list in here, as DEFAULT scenario */
                 heap->list_item.list_prev = (dague_list_item_t*)*heap_ptr;
                 heap->list_item.list_next = (dague_list_item_t*)*heap_ptr;

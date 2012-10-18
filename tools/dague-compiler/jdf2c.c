@@ -1954,9 +1954,6 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
         coutput("%s  new_dynamic_context->priority = __dague_object->super.super.object_priority;\n", indent(nesting));
     }
 
-    // PETER insert data locality info
-    coutput("%s  new_dynamic_context->flowname = \"%s\";\n",
-	    indent(nesting), f->dataflow->varname);
     {
         struct jdf_dataflow *dataflow = f->dataflow;
         for(idx = 0; NULL != dataflow; idx++, dataflow = dataflow->next ) {
@@ -3907,11 +3904,6 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                             UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next,
                                            dump_expr, (void**)&linfo,
                                            "", "", ", ", ""));
-
-    // PETER locality insertion
-    string_arena_add_string(sa_open,
-                            "%s%s  %s.flowname = \"%s\";\n",
-                            prefix, indent(nbopen), var, flow->varname);
 
     if( NULL != targetf->priority ) {
         string_arena_add_string(sa_open,
