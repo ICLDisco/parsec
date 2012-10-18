@@ -238,6 +238,17 @@ static inline int dague_hbbuffer_is_empty(dague_hbbuffer_t *b)
     return 1;
 }
 
+/* local declaration of dague_heap struct for debug printing */
+/* real definition in maxheap.h */
+typedef struct dague_heap_hh {
+    dague_list_item_t list_item;
+    unsigned int size;          
+    unsigned int priority;
+    dague_execution_context_t * top;
+} dague_heap_h;
+// TODO: this is a hack, but is necessary until someone decides to remove the incompatible print
+// statement from pop_best.
+
 static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b, 
                                                          off_t priority_offset)
 {
@@ -265,13 +276,22 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
 
     } while( dague_atomic_cas( &b->items[best_idx], (uintptr_t) best_elt, (uintptr_t) NULL ) == 0 );
 
+
     /** Removes the element from the buffer. */
 #if defined(DAGUE_DEBUG_VERBOSE3)
     if( best_elt != NULL ) {
         char tmp[MAX_TASK_STRLEN];
-        DEBUG3(("HBB:\tFound best element %s in local queue %p at position %d\n", 
-                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)best_elt), 
-                b, best_idx));
+        if (priority_offset == offsetof(dague_heap_h, priority)) {
+	        DEBUG3(("HBB:\tFound best element %s in local queue %p at position %d\n",
+	                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)((dague_heap_h*)best_elt)->top),
+	                b, best_idx));
+        }
+        // TODO these print statements are the reason for the dague_heap_h hack above.
+        else {
+	        DEBUG3(("HBB:\tFound best element %s in local queue %p at position %d\n",
+	                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)best_elt),
+	                b, best_idx));
+        }
     }
 #endif
 

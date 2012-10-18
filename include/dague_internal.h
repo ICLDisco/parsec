@@ -149,7 +149,6 @@ struct dague_data_pair_t {
     dague_object_t          *dague_object;               \
     const  dague_function_t *function;                   \
     int32_t                  priority;                   \
-    char *                   flowname;                   \
     assignment_t             locals[MAX_LOCAL_COUNT];
 
 struct dague_minimal_execution_context_t {

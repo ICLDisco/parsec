@@ -218,19 +218,40 @@ static int schedule_tree_queues( dague_execution_unit_t* eu_context,
     dague_execution_context_t * next;
     dague_heap_t* heap = heap_create();
     dague_heap_t* first_h = heap;
-    char * flowname = cur->flowname;
+    int matches = 0;
+    int i, j;
+
+    // do data_lookup
+    if (cur->function->data_lookup(cur) != DAGUE_LOOKUP_DONE)
+	    assert(0);
+
     while (1) {
+        // check next element before insertion, which destroys next and prev
         next = (dague_execution_context_t*)cur->list_item.list_next;
-        heap_insert(heap, cur);
         assert(next != NULL);
-        if (next == cur /* looped */ || next == new_context /* looped */)
-            break;
+
+        heap_insert(heap, cur);
+
+        if (next == cur /* looped */ || next == new_context /* looped */) {
+	        break; // we're done
+        }
+
+        // compare data.... if we have at least one similar data item, then group
+        if (next->function->data_lookup(next) != DAGUE_LOOKUP_DONE)
+	        assert(0);
+        matches = 0;
+        for (i = 0; i < MAX_PARAM_COUNT; i++) {
+	        for (j = 0; j < MAX_PARAM_COUNT; j++) {
+		        if (cur->data[i].data != NULL && cur->data[i].data == next->data[j].data)
+			        matches++;
+	        }
+        }
+
         cur = next;
-        // separate startup tasks
-        if (cur->flowname == NULL || flowname == NULL || strncmp(cur->flowname, flowname, 10) != 0) {
+        
+        if (!matches) {
             // make new heap
             dague_heap_t * new_heap = heap_create();
-            flowname = cur->flowname;
             heap->list_item.list_next->list_prev = (dague_list_item_t*)new_heap;
             new_heap->list_item.list_prev = (dague_list_item_t*)heap;
             new_heap->list_item.list_next = (dague_list_item_t*)heap->list_item.list_next;
@@ -238,16 +259,9 @@ static int schedule_tree_queues( dague_execution_unit_t* eu_context,
             heap = new_heap;
         }
     }
-    // i think this is where i should be actually creating
-    // the heaps. set size to zero, perhaps, to verify that these are heaps
-    // and not raw dague_execution_contexts
+
     dague_hbbuffer_push_all( LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)first_h );
-#if defined(DAGUE_PROF_TRACE)
-    // PETER this is where we're ADDING things to the queue! (not removing them!!!)
-    // somehow we need to do something differently here so that we keep different groups separate
-    TAKE_TIME(eu_context->eu_profile, queue_add_begin, 0);
-    TAKE_TIME(eu_context->eu_profile, queue_add_end, 0);
-#endif
+
     return 0;
 }
 
