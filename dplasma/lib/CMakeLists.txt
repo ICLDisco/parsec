@@ -53,6 +53,7 @@ set(JDF
   zgetrf_hpp2.jdf
   zgetrf_qrf.jdf
   zungqr.jdf
+  zunmqr_LC.jdf zunmqr_RN.jdf # zunmqr_LN.jdf zunmqr_RC.jdf
   zlange_inf_cyclic.jdf
   zlange_one_cyclic.jdf
   zlange_max_cyclic.jdf
@@ -126,6 +127,7 @@ set(SOURCES
   zherbt_wrapper.c
   zhbrdt_wrapper.c
   zungqr_wrapper.c
+  zunmqr_wrapper.c
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"

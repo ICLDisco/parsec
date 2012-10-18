@@ -368,10 +368,13 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
     fprintf(out, ")");
     if( err < 0 )
         return err;
-    fprintf(out, " ");
-    err = jdf_properties_unparse(f->properties, out);
-    if(err < 0)
-        return err;
+
+    if (f->properties != NULL) {
+        fprintf(out, " ");
+        err = jdf_properties_unparse(f->properties, out);
+        if(err < 0)
+            return err;
+    }
     fprintf(out, "\n");
 
     fprintf(out, "  /* Execution Space */\n  ");
