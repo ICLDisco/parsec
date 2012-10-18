@@ -119,7 +119,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 #if defined(DAGUE_PROF_TRACE)
         if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN )
             dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end,
-                                   (unsigned long)this_task, this_task->dague_object->object_id,
+                                   (unsigned long)this_task->ec, this_task->ec->dague_object->object_id,
                                    NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
         DEBUG2(( "GPU[%1d]:\tExecute %s priority %d\n", gpu_device->device_index,
@@ -170,11 +170,13 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
          */
         this_task = next_task;
         next_task = NULL;
-#if defined(DAGUE_PROF_TRACE)
-        if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
-            /* TODO: this is innacurate, a unique key ID per stageout data is necessary */
-            dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end,
-                                   (unsigned long)this_task, this_task->ec->dague_object->object_id,
+#if defined(DAGUE_PROF_TRACE)                                                    
+         if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
+            /* TODO: this is innacurate, a unique key ID per stageout data is nec    essary */
+            dague_profiling_trace( gpu_device->profiling, 
+                                   dague_cuda_moveout_key_end,
+                                   (unsigned long)this_task->ec, 
+                                   this_task->ec->dague_object->object_id,
                                    NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
         goto complete_task;
