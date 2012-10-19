@@ -109,7 +109,7 @@ BODY
         int rc;
 
         if( 0 == (rc = gpu_zgemm( context, this_task, 
-                                  ( n == k+1 ),
+                                  ( k == descA.nt-1 ),
                                   transA, transB,
                                   tempmm, tempnn, tempkk,
                                   alpha, m, k, &descA, ldam,
