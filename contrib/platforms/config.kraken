@@ -55,3 +55,4 @@ export CC CXX FC
 
 echo cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${USER_OPTIONS} ${LOCATION}
 cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${USER_OPTIONS} ${LOCATION}
+

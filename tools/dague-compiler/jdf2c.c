@@ -706,7 +706,6 @@ static char *dump_globals_init(void **elem, void *arg)
     jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
     string_arena_t *sa = (string_arena_t*)arg;
     jdf_expr_t *prop = jdf_find_property( global->properties, "default", NULL );
-    expr_info_t info;
 
     string_arena_init(sa);
     /* We might have a default value */
@@ -719,12 +718,8 @@ static char *dump_globals_init(void **elem, void *arg)
         if( NULL == prop )
             string_arena_add_string(sa, "__dague_object->super.%s = %s;", global->name, global->name);
     } else {
-        info.sa = string_arena_new(8);
-        info.prefix = "";
-        info.assignments = "assignments";
-        string_arena_add_string(sa, "__dague_object->super.%s = %s;",
-                                global->name, dump_expr((void**)prop, &info));
-        string_arena_free(info.sa);
+        /* Has been initialized by dump_hidden_globals_init */
+        string_arena_add_string(sa, "__dague_object->super.%s = %s;", global->name, global->name);
     }
 
     return string_arena_get_string(sa);
@@ -776,6 +771,52 @@ static char* dump_typed_globals(void **elem, void *arg)
     string_arena_free(info.sa);
 
     return string_arena_get_string(sa);
+}
+
+/**
+ * dump_hidden_globals_init:
+ *  Takes a pointer to a global variables and generate the code used to initialize
+ *  the global variable during *_New. If the variable is not marked as hidden
+ *  the output code will not be generated.
+ */
+static char *dump_hidden_globals_init(void **elem, void *arg)
+{
+    jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
+    string_arena_t *sa = (string_arena_t*)arg;
+    jdf_expr_t *hidden   = jdf_find_property( global->properties, "hidden", NULL );
+    jdf_expr_t* type_str = jdf_find_property( global->properties, "type",   NULL );
+    expr_info_t info1, info2;
+
+    string_arena_init(sa);
+
+    /* The property is hidden */
+    if (NULL != hidden) {
+        jdf_expr_t *prop = jdf_find_property( global->properties, "default", NULL );
+
+        /* We might have a default value */
+        if( NULL == prop ) prop = global->expression;
+
+        /* No default value ? */
+        if( NULL == prop ) return NULL;
+
+        info1.sa = string_arena_new(8);
+        info1.prefix = "";
+        info1.assignments = "assignments";
+
+        info2.sa = string_arena_new(8);
+        info2.prefix = "";
+        info2.assignments = "assignments";
+
+        string_arena_add_string(sa, "%s %s = %s;",
+                                (NULL == type_str ? "int" : dump_expr((void**)type_str, &info1)),
+                                global->name,
+                                dump_expr((void**)prop, &info2));
+        string_arena_free(info1.sa);
+        string_arena_free(info2.sa);
+
+        return string_arena_get_string(sa);
+    }
+    return NULL;
 }
 
 static char *dump_data_repository_constructor(void **elem, void *arg)
@@ -1483,7 +1524,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
             strcmp( pf->fname, call->func_or_mem);
             pf = pf->next) /* nothing */;
         if( NULL == pf ) {
-            printf("Error: Can't identify the target function for the call at %s.jdf:%d: %s %s\n",
+            fprintf(stderr, "Error: Can't identify the target function for the call at %s.jdf:%d: %s %s\n",
                    jdf_basename, call->super.lineno, call->var, call->func_or_mem);
             exit(-1);
         }
@@ -1913,9 +1954,6 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
         coutput("%s  new_dynamic_context->priority = __dague_object->super.super.object_priority;\n", indent(nesting));
     }
 
-    // PETER insert data locality info
-    coutput("%s  new_dynamic_context->flowname = \"%s\";\n",
-	    indent(nesting), f->dataflow->varname);
     {
         struct jdf_dataflow *dataflow = f->dataflow;
         for(idx = 0; NULL != dataflow; idx++, dataflow = dataflow->next ) {
@@ -1954,6 +1992,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     jdf_name_list_t *pl;
     int nesting, idx;
     expr_info_t info1, info2, info3;
+
+    (void)jdf;
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -2596,6 +2636,15 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     coutput("  __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)calloc(1, sizeof(__dague_%s_internal_object_t));\n",
             jdf_basename, jdf_basename, jdf_basename);
+
+    string_arena_init(sa1);
+    string_arena_init(sa2);
+    {
+        coutput("  /* Dump the hidden parameters */\n"
+                "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
+                                     dump_hidden_globals_init, sa2, "", "  ", "\n", "\n"));
+    }
+
 
     string_arena_init(sa1);
     coutput("  int i;\n"
@@ -3699,6 +3748,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     expr_info_t info, linfo;
     string_arena_t *sa2, *sa1, *sa_close;
     int i, nbopen;
+    int nbparam_given, nbparam_required;
     char *p;
 
     string_arena_init(sa_open);
@@ -3734,6 +3784,23 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     string_arena_add_string(sa_open, "%s%s%s.function = (const dague_function_t*)&%s_%s;\n",
                             prefix, indent(nbopen), var, jdf_basename, targetf->fname);
+
+    nbparam_given = 0;
+    for(el = call->parameters; el != NULL; el = el->next) {
+        nbparam_given++;
+    }
+
+    nbparam_required = 0;
+    for(nl = targetf->parameters; nl != NULL; nl = nl->next) {
+        nbparam_required++;
+    }
+
+    if( nbparam_given != nbparam_required ){
+        fprintf(stderr,
+                "Internal Error: Wrong number of arguments when calling %s at line %d (%d instead of %d)\n",
+                targetf->fname, JDF_OBJECT_LINENO(flow), nbparam_given, nbparam_required );
+        assert( nbparam_given == nbparam_required );
+    }
 
     for(def = targetf->locals, i = 0;
         def != NULL;
@@ -3837,11 +3904,6 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                             UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next,
                                            dump_expr, (void**)&linfo,
                                            "", "", ", ", ""));
-
-    // PETER locality insertion
-    string_arena_add_string(sa_open,
-                            "%s%s  %s.flowname = \"%s\";\n",
-                            prefix, indent(nbopen), var, flow->varname);
 
     if( NULL != targetf->priority ) {
         string_arena_add_string(sa_open,

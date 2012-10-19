@@ -384,16 +384,17 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             if( args->pushout ) {  /* n == (k + 1) */
                 DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index, this_task->function->in[i]->name, this_task->data[i].moesi_master->key));
 #if defined(DAGUE_PROF_TRACE)
+                /* TODO: this is innacurate, a unique key ID per stageout data is necessary */
                 if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
                     dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start,
                                            (unsigned long)this_task, this_task->dague_object->object_id,
                                            NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
                 /* Move the data back into main memory */
-                status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[2].data), gpu_elem->gpu_mem_ptr, args->sizeC, stream );
+                status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[i].data), gpu_elem->gpu_mem_ptr, args->sizeC, stream );
                 DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
-                                        { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[2]->name,
-                                                  (void*)gpu_elem->gpu_mem_ptr, (void*)ADATA(this_task->data[2].data)));
+                                        { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[i]->name,
+                                                  (void*)gpu_elem->gpu_mem_ptr, (void*)ADATA(this_task->data[i].data)));
                                           return_code = -2;
                                           goto release_and_return_error;} );
                 gpu_device->transferred_data_out += args->sizeC; /* TODO: not hardcoded, use datatype size */
@@ -428,12 +429,6 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
         master->version = gpu_elem->moesi.version;
         master->owner_device = -1;
 
-#if defined(DAGUE_PROF_TRACE)
-        if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN )
-            dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end,
-                                   (unsigned long)this_task, this_task->dague_object->object_id,
-                                   NULL );
-#endif  /* defined(DAGUE_PROF_TRACE) */
         if( args->pushout ) {  /* n == (k  + 1) */
             dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
         } else {

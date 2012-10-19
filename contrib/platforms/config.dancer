@@ -11,7 +11,7 @@ MPI_DIR=${MPI_DIR:="/opt/ompi"}
 HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
 GTG_DIR=${GTG_DIR:="/opt/gtg"}
 CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
-OMEGA_DIR=${OMEGA_DIR:="/opt/Omega"}
+OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
 if [ "x${CC}" = "xgcc" ]; then
     PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-gcc"}
 else

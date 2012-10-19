@@ -18,7 +18,7 @@ endif()
 find_package(Graphviz QUIET)
 
 if(GRAPHVIZ_FOUND)
-  include_directories("${GRAPHVIZ_INCLUDE_DIR}")
+  include_directories(${GRAPHVIZ_INCLUDE_DIR})
 
   add_executable(testgraph testgraph.c graph.c)
   set_target_properties(testgraph PROPERTIES LINKER_LANGUAGE C)
@@ -27,7 +27,7 @@ if(GRAPHVIZ_FOUND)
   find_package(GD QUIET)
 
   if(GD_FOUND AND GD_SUPPORTS_PNG AND GD_SUPPORTS_GIF)
-    include_directories("${GD_INCLUDE_DIR}")
+    include_directories(${GD_INCLUDE_DIR})
 
     add_executable(dbp-dot2png dbp-dot2png.c dbpreader.c graph.c animation.c)
     set_target_properties(dbp-dot2png PROPERTIES LINKER_LANGUAGE C)

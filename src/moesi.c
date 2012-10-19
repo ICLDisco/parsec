@@ -178,3 +178,22 @@ int moesi_master_update(moesi_map_t *map, moesi_key_t key) {
     return 0;    
 }
 
+static char dump_moesi_codex(moesi_coherency_t state)
+{
+    if( MOESI_INVALID   == state ) return 'I';
+    if( MOESI_OWNED     == state ) return 'O';
+    if( MOESI_EXCLUSIVE == state ) return 'E';
+    if( MOESI_SHARED    == state ) return 'S';
+    return 'X';
+}
+
+void moesi_dump_moesi_copy( moesi_copy_t* copy )
+{
+    moesi_master_t* master = copy->master;
+
+    printf("device_private %p coherency %c readers %d version %u\n"
+           "  master %p [mem_ptr %p map %p key %u coherency %c owner %d version %u]\n",
+           copy->device_private, dump_moesi_codex(copy->coherency_state), copy->readers, copy->version,
+           copy->master, master->mem_ptr, master->map, master->key, dump_moesi_codex(master->coherency_state), master->owner_device, master->version);
+}
+

@@ -27,6 +27,11 @@ elif [ "x$USER" == "xbosilca" ]; then
 	if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 ]; then 
 	  Q2J="-DOMEGA_DIR=${OMEGA_DIR}"
 	fi
+
+elif [ "x$USER" == "xadanalis" ]; then 
+	OMEGA_DIR="/Users/adanalis/Desktop/Research/PLASMA_Distributed/Related_Stuff/Omega"
+	MY_OPTS="-DBUILD_DPLASMA=OFF -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_WITH_MPI=OFF -DOMEGA_DIR=${OMEGA_DIR}"
+
 else
 	PLASMA_DIR=/opt/plasma
 fi
