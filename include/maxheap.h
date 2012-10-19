@@ -83,7 +83,6 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
         // now the bitmask is two places farther than we want it, so back down
         bitmask = bitmask >> 2;
 
-        DEBUG3(("MH:\tbitmask: %x level counter %d\n", bitmask, level_counter));
         parents[--level_counter] = heap->top;
         // now move through tree
         while (bitmask > 1) {
@@ -91,21 +90,17 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
             parents[--level_counter] = parent; // save parent
             bitmask = bitmask >> 1;
         }
-        if (bitmask & size) {
-	        DEBUG3(("MH:\tnext/right of item %p where top is %p\n", parent, heap->top));
+        if (bitmask & size)
             parent->list_item.list_next = (dague_list_item_t*)elem;
-        }
-        else {
-	        DEBUG3(("MH:\tprev/left (%p) of item %p where top is %p\n", &parent->list_item.list_prev, parent, heap->top));
+        else 
             parent->list_item.list_prev = (dague_list_item_t*)elem;
-        }
 
         // now bubble up to preserve max heap org.
         while (level_counter < parents_size &&
                parents[level_counter] != NULL &&
                elem->priority > parents[level_counter]->priority) {
             parent = parents[level_counter];
-            DEBUG3(("MH:\tcomparing priority (%d) of parent %p and elem %p (%d)\n", parent->priority, parent, elem, elem->priority));
+            DEBUG3(("MH:\tswapping parent %p and elem %p (priorities: %d and %d)\n", parent, elem, parent->priority, elem->priority));
             /* first, fix our grandparent, if necessary */
             if (level_counter + 1 < parents_size && parents[level_counter + 1] != NULL) {
                 dague_execution_context_t * grandparent = parents[level_counter + 1];
@@ -181,7 +176,7 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
         to_use = heap->top; // this will always be what we return, even if it's NULL, if a valid heap was passed
         if (heap->top->list_item.list_prev == NULL) {
             /* no left child, so 'top' is the only node */
-	        DEBUG3(("MH:\tno left child for item %p (right child %p), Destroying heap %p\n", heap->top, heap->top->list_item.list_next, heap));
+	        DEBUG3(("MH:\tDestroying heap %p\n", heap->top, heap->top->list_item.list_next, heap));
             heap->top = NULL;
             heap_destroy(heap_ptr);
             assert(*heap_ptr == NULL);
