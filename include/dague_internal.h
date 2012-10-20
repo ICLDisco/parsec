@@ -11,6 +11,7 @@
 #include "list_item.h"
 #include "dague_description_structures.h"
 #include "dague.h"
+#include "profiling.h"
 
 typedef struct dague_remote_deps_t dague_remote_deps_t;
 typedef struct dague_arena_t dague_arena_t;
@@ -149,14 +150,21 @@ struct dague_data_pair_t {
     dague_object_t          *dague_object;               \
     const  dague_function_t *function;                   \
     int32_t                  priority;                   \
-    assignment_t             locals[MAX_LOCAL_COUNT];
 
 struct dague_minimal_execution_context_t {
     DAGUE_MINIMAL_EXECUTION_CONTEXT
+#if defined(DAGUE_PROF_TRACE)
+    dague_profile_ddesc_info_t prof_info;
+#endif /* defined(DAGUE_PROF_TRACE) */
+    assignment_t            locals[MAX_LOCAL_COUNT];
 } dague_minimal_execution_context_t;
 
 struct dague_execution_context_t {
     DAGUE_MINIMAL_EXECUTION_CONTEXT
+#if defined(DAGUE_PROF_TRACE)
+    dague_profile_ddesc_info_t prof_info;
+#endif /* defined(DAGUE_PROF_TRACE) */
+    assignment_t            locals[MAX_LOCAL_COUNT];
 #if defined(DAGUE_SIM)
     int                     sim_exec_date;
 #endif
@@ -167,17 +175,34 @@ struct dague_execution_context_t {
  * Profiling data.
  */
 #if defined(DAGUE_PROF_TRACE)
+
 extern int schedule_poll_begin, schedule_poll_end;
 extern int schedule_push_begin, schedule_push_end;
 extern int schedule_sleep_begin, schedule_sleep_end;
 extern int queue_add_begin, queue_add_end;
 extern int queue_remove_begin, queue_remove_end;
+extern int device_delegate_begin, device_delegate_end;
 
 #define DAGUE_PROF_FUNC_KEY_START(dague_object, function_index) \
     (dague_object)->profiling_array[2 * (function_index)]
 #define DAGUE_PROF_FUNC_KEY_END(dague_object, function_index) \
     (dague_object)->profiling_array[1 + 2 * (function_index)]
-#endif
+
+#define DAGUE_TASK_PROF_TRACE(PROFILE, KEY, TASK)                       \
+    do {                                                                \
+        dague_profiling_trace((PROFILE),                                \
+                              (KEY),                                    \
+                              (TASK)->function->key((TASK)->dague_object, (TASK)->locals), \
+                              (TASK)->dague_object->object_id, (void*)&(TASK)->prof_info); \
+    } while (0)
+#define DAGUE_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \
+    if(!!(COND)) {                                           \
+        DAGUE_TASK_PROF_TRACE((PROFILE), (KEY), (TASK));     \
+    }
+#else
+#define DAGUE_TASK_TRACE(CONTEXT, KEY, TASK)
+#define DAGUE_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)
+#endif  /* defined(DAGUE_PROF_TRACE) */
 
 
 /**

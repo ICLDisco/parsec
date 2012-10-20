@@ -1038,6 +1038,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
     houtput("#include <dague.h>\n"
+            "#include <data_distribution.h>\n"
             "#include <debug.h>\n"
             "#include <assert.h>\n\n");
 
@@ -1101,17 +1102,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#define DAGUE_%s_NB_DATA %d\n"
             "#if defined(DAGUE_PROF_TRACE)\n"
             "int %s_profiling_array[2*DAGUE_%s_NB_FUNCTIONS] = {-1};\n"
-            "#define TAKE_TIME(context, key, eid, refdesc, refid) do {   \\\n"
-            "   dague_profile_ddesc_info_t info;                         \\\n"
-            "   info.desc = (dague_ddesc_t*)refdesc;                     \\\n"
-            "   info.id = refid;                                         \\\n"
-            "   dague_profiling_trace(context->eu_profile,               \\\n"
-            "                         __dague_object->super.super.profiling_array[(key)],\\\n"
-            "                         eid, __dague_object->super.super.object_id, (void*)&info);\\\n"
-            "  } while(0);\n"
-            "#else\n"
-            "#define TAKE_TIME(context, key, id, refdesc, refid)\n"
-            "#endif\n"
+            "#endif  /* defined(DAGUE_PROF_TRACE) */\n"
             "#include \"dague_prof_grapher.h\"\n"
             "#include <mempool.h>\n"
             "#if defined(DAGUE_PROF_PTR_FILE)\n"
@@ -3380,6 +3371,28 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
     }
+
+    coutput("  /** Generate profiling information */\n");
+    /* If the function has the property profile turned off do not generate the profiling code */
+    if( jdf_property_get_int(f->properties, "profile", 1) ) {
+        string_arena_t *sa3 = string_arena_new(64);
+        expr_info_t linfo;
+
+        linfo.prefix = "";
+        linfo.sa = sa2;
+        linfo.assignments = "this_task->locals";
+
+        coutput( "#if defined(DAGUE_PROF_TRACE)\n"
+                 "  this_task->prof_info.desc = (dague_ddesc_t*)__dague_object->super.%s;\n"
+                 "  this_task->prof_info.id   = ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
+                 "#endif  /* defined(DAGUE_PROF_TRACE) */\n",
+                 f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
+                 UTIL_DUMP_LIST(sa3, f->predicate->parameters, next,
+                                dump_expr, (void**)&linfo,
+                                "", "", ", ", "") );
+        string_arena_free(sa3);
+    }
+
     coutput("  return DAGUE_LOOKUP_DONE;\n"
             "}\n\n");
     string_arena_free(sa);
@@ -3389,8 +3402,7 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
 
 static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
-    string_arena_t *sa, *sa2, *sa3;
-    expr_info_t linfo;
+    string_arena_t *sa, *sa2;
     assignment_info_t ai;
     jdf_dataflow_t *fl;
     int di, profile_on;
@@ -3464,19 +3476,11 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
 
     jdf_generate_code_dry_run_before(jdf, f);
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
-    if( profile_on ) {
-        sa3 = string_arena_new(64);
-        linfo.prefix = "";
-        linfo.sa = sa2;
-        linfo.assignments = "this_task->locals";
 
-        coutput("  TAKE_TIME(context, 2*this_task->function->function_id, %s_hash( __dague_object, this_task->locals), __dague_object->super.%s, ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s) );\n",
-                f->fname,
-                f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
-                UTIL_DUMP_LIST(sa3, f->predicate->parameters, next,
-                               dump_expr, (void**)&linfo,
-                               "", "", ", ", "") );
-        string_arena_free(sa3);
+    if( profile_on ) {
+        coutput("  DAGUE_TASK_PROF_TRACE(context->eu_profile,\n"
+                "                        this_task->dague_object->profiling_array[2*this_task->function->function_id],\n"
+                "                        this_task);\n");
     }
     coutput("%s\n", f->body);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
@@ -3502,8 +3506,9 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
     if( profile_on ) {
-        coutput("  TAKE_TIME(context,2*this_task->function->function_id+1, %s_hash( __dague_object, this_task->locals ), NULL, 0);\n",
-                f->fname);
+        coutput("  DAGUE_TASK_PROF_TRACE(context->eu_profile,\n"
+                "                        this_task->dague_object->profiling_array[2*this_task->function->function_id+1],\n"
+                "                        this_task);\n");
     }
     jdf_generate_code_papi_events_after(jdf, f);
 
