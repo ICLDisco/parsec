@@ -200,7 +200,7 @@ extern int device_delegate_begin, device_delegate_end;
         DAGUE_TASK_PROF_TRACE((PROFILE), (KEY), (TASK));     \
     }
 #else
-#define DAGUE_TASK_TRACE(CONTEXT, KEY, TASK)
+#define DAGUE_TASK_PROF_TRACE(CONTEXT, KEY, TASK)
 #define DAGUE_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
