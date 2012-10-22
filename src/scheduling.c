@@ -44,17 +44,39 @@ static sched_priority_trace_t sched_priority_trace[DAGUE_SCHED_MAX_PRIORITY_TRAC
 static uint32_t sched_priority_trace_counter;
 #endif
 
+int __dague_progress_task( dague_execution_unit_t* eu_context,
+                           dague_execution_context_t* task )
+{
+    switch(task->status) {
+        case DAGUE_TASK_STATUS_NONE:
+#ifdef DAGUE_DEBUG_VERBOSE1
+            char tmp[MAX_TASK_STRLEN];
+            DEBUG(( "thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id, dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task))); 
+#endif
+        return -1;
+
+        case DAGUE_TASK_STATUS_PREPARE_INPUT:
+        case DAGUE_TASK_STATUS_EVAL:
+        case DAGUE_TASK_STATUS_HOOK:
+        case DAGUE_TASK_STATUS_PREPARE_OUTPUT:
+        case DAGUE_TASK_STATUS_COMPLETE:
+            break;
+    }
+    return -1;
+}
+
 int __dague_execute( dague_execution_unit_t* eu_context,
                      dague_execution_context_t* exec_context )
 {
     const dague_function_t* function = exec_context->function;
+    assert( function->nb_incarnations > 0 );
 #ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[MAX_TASK_STRLEN];
     DEBUG(( "thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id, dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context)));
 #endif
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 
-    return function->hook( eu_context, exec_context );
+    return function->incarnations[0].hook( eu_context, exec_context );
 }
 
 static inline int all_tasks_done(dague_context_t* context)
@@ -167,6 +189,9 @@ inline int __dague_complete_execution( dague_execution_unit_t *eu_context,
 {
     int rc = 0;
 
+    if( NULL != exec_context->function->prepare_output ) {
+        exec_context->function->prepare_output( eu_context, exec_context );
+    }
     if( NULL != exec_context->function->complete_execution )
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
@@ -262,8 +287,8 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             // MY MODS
             TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
             TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
-
-            switch( exec_context->function->data_lookup( exec_context ) ) {
+            
+            switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
             case DAGUE_LOOKUP_DONE:
                 /* We're good to go ... */
                 if( 0 == __dague_execute( eu_context, exec_context ) ) {

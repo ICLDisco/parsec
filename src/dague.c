@@ -841,9 +841,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                    *deps,
                    exec_context->priority));
 
-            /* TODO: change this to the real number of input dependencies */
-            assert( dest_flow->flow_index <= MAX_PARAM_COUNT );
-            memset( new_context->data, 0, sizeof(dague_data_pair_t) * MAX_PARAM_COUNT );
+            assert( dest_flow->flow_index <= new_context->function->nb_in);
+            memset( new_context->data, 0, sizeof(dague_data_pair_t) * new_context->function->nb_in);
             /**
              * Save the data_repo and the pointer to the data for later use. This will prevent the
              * engine from atomically locking the hash table for at least one of the flow
@@ -934,7 +933,8 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                  * outdep index.
                  */
             }
-            if(newcontext->priority > arg->remote_deps->max_priority) arg->remote_deps->max_priority = newcontext->priority;
+            if(newcontext->priority > arg->remote_deps->max_priority)
+                arg->remote_deps->max_priority = newcontext->priority;
         }
     }
 #else
