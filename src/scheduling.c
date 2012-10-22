@@ -44,6 +44,9 @@ static sched_priority_trace_t sched_priority_trace[DAGUE_SCHED_MAX_PRIORITY_TRAC
 static uint32_t sched_priority_trace_counter;
 #endif
 
+/**
+ *
+ */
 int __dague_progress_task( dague_execution_unit_t* eu_context,
                            dague_execution_context_t* task )
 {
@@ -51,14 +54,23 @@ int __dague_progress_task( dague_execution_unit_t* eu_context,
         case DAGUE_TASK_STATUS_NONE:
 #ifdef DAGUE_DEBUG_VERBOSE1
             char tmp[MAX_TASK_STRLEN];
-            DEBUG(( "thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id, dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task))); 
+            DEBUG(("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
+                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task))); 
 #endif
         return -1;
 
         case DAGUE_TASK_STATUS_PREPARE_INPUT:
+            task->status = DAGUE_TASK_STATUS_EVAL;
+            break;
         case DAGUE_TASK_STATUS_EVAL:
+            task->status = DAGUE_TASK_STATUS_HOOK;
+            break;
         case DAGUE_TASK_STATUS_HOOK:
+            task->status = DAGUE_TASK_STATUS_PREPARE_OUTPUT;
+            break;
         case DAGUE_TASK_STATUS_PREPARE_OUTPUT:
+            task->status = DAGUE_TASK_STATUS_COMPLETE;
+            break;
         case DAGUE_TASK_STATUS_COMPLETE:
             break;
     }
@@ -72,7 +84,8 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     assert( function->nb_incarnations > 0 );
 #ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[MAX_TASK_STRLEN];
-    DEBUG(( "thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id, dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context)));
+    DEBUG(("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
+           dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context)));
 #endif
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 
