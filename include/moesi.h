@@ -32,7 +32,7 @@ typedef uint32_t moesi_key_t;
  * Blocks that are not locally stored have a NULL master
  */
 struct _moesi_map {
-    uint16_t nmasters;
+    int      nmasters;
     uint16_t ndevices;
     moesi_master_t* masters[1];
 };
@@ -94,5 +94,10 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
  * The master copy is accessed in WRITE mode, invalidate all shared copies
  */
 int moesi_master_update(moesi_map_t *map, moesi_key_t key);
+
+/**
+ * Debugging functions.
+ */
+extern void moesi_dump_moesi_copy( moesi_copy_t* copy );
 
 #endif

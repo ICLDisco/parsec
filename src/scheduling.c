@@ -44,32 +44,52 @@ static sched_priority_trace_t sched_priority_trace[DAGUE_SCHED_MAX_PRIORITY_TRAC
 static uint32_t sched_priority_trace_counter;
 #endif
 
+/**
+ *
+ */
+int __dague_progress_task( dague_execution_unit_t* eu_context,
+                           dague_execution_context_t* task )
+{
+    switch(task->status) {
+        case DAGUE_TASK_STATUS_NONE:
+#ifdef DAGUE_DEBUG_VERBOSE1
+            char tmp[MAX_TASK_STRLEN];
+            DEBUG(("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
+                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task))); 
+#endif
+        return -1;
+
+        case DAGUE_TASK_STATUS_PREPARE_INPUT:
+            task->status = DAGUE_TASK_STATUS_EVAL;
+            break;
+        case DAGUE_TASK_STATUS_EVAL:
+            task->status = DAGUE_TASK_STATUS_HOOK;
+            break;
+        case DAGUE_TASK_STATUS_HOOK:
+            task->status = DAGUE_TASK_STATUS_PREPARE_OUTPUT;
+            break;
+        case DAGUE_TASK_STATUS_PREPARE_OUTPUT:
+            task->status = DAGUE_TASK_STATUS_COMPLETE;
+            break;
+        case DAGUE_TASK_STATUS_COMPLETE:
+            break;
+    }
+    return -1;
+}
+
 int __dague_execute( dague_execution_unit_t* eu_context,
                      dague_execution_context_t* exec_context )
 {
     const dague_function_t* function = exec_context->function;
-#if defined(DAGUE_DEBUG)
-    {
-        const struct dague_flow* flow;
-        int set_parameters, i;
-
-        for( i = set_parameters = 0; NULL != (flow = exec_context->function->in[i]); i++ ) {
-            if( (NULL != exec_context->data[flow->flow_index].data_repo) &&
-                (ACCESS_NONE != flow->access_type)) {
-                set_parameters++;
-                assert( NULL != exec_context->data[flow->flow_index].data );
-            }
-        }
-        assert( set_parameters <= 1 );
-    }
-# endif
+    assert( function->nb_incarnations > 0 );
 #ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[MAX_TASK_STRLEN];
-    DEBUG(( "thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id, dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context))); 
+    DEBUG(("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
+           dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context)));
 #endif
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 
-    return function->hook( eu_context, exec_context );
+    return function->incarnations[0].hook( eu_context, exec_context );
 }
 
 static inline int all_tasks_done(dague_context_t* context)
@@ -128,8 +148,8 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
         int set_parameters, i;
         char tmp[MAX_TASK_STRLEN];
 
-		  // PETER it seems like this while loop mostly verifies
-		  // that nothing is terrible wrong?
+                  // PETER it seems like this while loop mostly verifies
+                  // that nothing is terrible wrong?
         do {
             for( i = set_parameters = 0; NULL != (flow = context->function->in[i]); i++ ) {
                 if( ACCESS_NONE == flow->access_type ) continue;
@@ -145,7 +165,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                 ERROR(( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
                         dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__));
             }
-            DEBUG2(( "thread %d of VP %d Schedules %s\n", 
+            DEBUG2(( "thread %d of VP %d Schedules %s\n",
                     eu_context->th_id, eu_context->virtual_process->vp_id,
                     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context) ));
             context = (dague_execution_context_t*)context->list_item.list_next;
@@ -182,6 +202,9 @@ inline int __dague_complete_execution( dague_execution_unit_t *eu_context,
 {
     int rc = 0;
 
+    if( NULL != exec_context->function->prepare_output ) {
+        exec_context->function->prepare_output( eu_context, exec_context );
+    }
     if( NULL != exec_context->function->complete_execution )
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
@@ -261,7 +284,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             // DEBUG PETER
             assert(NULL != exec_context->function);
             misses_in_a_row = 0;
-                          
+
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
             {
                 uint32_t my_idx = dague_atomic_inc_32b(&sched_priority_trace_counter);
@@ -278,11 +301,17 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
             TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
             
-            /* We're good to go ... */
-            if( 0 == __dague_execute( eu_context, exec_context ) ) {
-                __dague_complete_execution( eu_context, exec_context );
+            switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
+            case DAGUE_LOOKUP_DONE:
+                /* We're good to go ... */
+                if( 0 == __dague_execute( eu_context, exec_context ) ) {
+                    __dague_complete_execution( eu_context, exec_context );
+                }
+                nbiterations++;
+                break;
+            default:
+                assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
-            nbiterations++;
 
         } else {
             misses_in_a_row++;
@@ -327,12 +356,12 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         priority_trace = fopen(priority_trace_fname, "w");
         if( NULL != priority_trace ) {
             uint32_t my_idx;
-            fprintf(priority_trace, 
+            fprintf(priority_trace,
                     "#Step\tPriority\tThread\tVP\n"
                     "#Tasks are ordered in execution order\n");
             for(my_idx = 0; my_idx < MIN(sched_priority_trace_counter, DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER); my_idx++) {
-                fprintf(priority_trace, "%d\t%d\t%d\t%d\n", 
-                        sched_priority_trace[my_idx].step, sched_priority_trace[my_idx].priority, 
+                fprintf(priority_trace, "%d\t%d\t%d\t%d\n",
+                        sched_priority_trace[my_idx].step, sched_priority_trace[my_idx].priority,
                         sched_priority_trace[my_idx].thread_id, sched_priority_trace[my_idx].vp_id);
             }
             fclose(priority_trace);
@@ -370,7 +399,7 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
             }
         }
     }
-    
+
     free(startup_list);
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
@@ -396,7 +425,7 @@ int dague_wait( dague_context_t* context )
 {
     int ret = 0;
     (void)dague_remote_dep_on(context);
-    
+
     ret = (int)(long)__dague_progress( context->virtual_processes[0]->execution_units[0] );
 
     context->__dague_internal_finalization_counter++;
@@ -408,11 +437,10 @@ int dague_progress(dague_context_t* context)
 {
     int ret = 0;
     (void)dague_remote_dep_on(context);
-    
+
     ret = (int)(long)__dague_progress( context->virtual_processes[0]->execution_units[0] );
-    
+
     context->__dague_internal_finalization_counter++;
     (void)dague_remote_dep_off(context);
     return ret;
 }
-

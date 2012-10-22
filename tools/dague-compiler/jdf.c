@@ -53,8 +53,8 @@ static int jdf_sanity_check_global_redefinitions(void)
     for(g1 = current_jdf.globals; g1 != NULL; g1 = g1->next) {
         for(g2 = g1->next; g2 != NULL; g2 = g2->next) {
             if( !strcmp(g1->name, g2->name) ) {
-                jdf_fatal(g2->lineno, "Global %s is redefined here (previous definition was on line %d)\n",
-                          g1->name, g1->lineno);
+                jdf_fatal(JDF_OBJECT_LINENO(g2), "Global %s is redefined here (previous definition was on line %d)\n",
+                          g1->name, JDF_OBJECT_LINENO(g1));
                 rc = -1;
             }
         }
@@ -74,15 +74,15 @@ static int jdf_sanity_check_global_masked(void)
         for(f = current_jdf.functions; f != NULL; f = f->next) {
             for(n = f->parameters; n != NULL; n = n->next) {
                 if( !strcmp(n->name, g->name) ) {
-                    jdf_warn(f->lineno, "Global %s defined line %d is masked by the local parameter %s of function %s\n",
-                             g->name, g->lineno, n->name, f->fname);
+                    jdf_warn(JDF_OBJECT_LINENO(f), "Global %s defined line %d is masked by the local parameter %s of function %s\n",
+                             g->name, JDF_OBJECT_LINENO(g), n->name, f->fname);
                     rc++;
                 }
             }
-            for(d = f->definitions; d != NULL; d = d->next) {
+            for(d = f->locals; d != NULL; d = d->next) {
                 if( !strcmp(d->name, g->name) ) {
-                    jdf_warn(d->lineno, "Global %s defined line %d is masked by the local definition of %s in function %s\n",
-                             g->name, g->lineno, d->name, f->fname);
+                    jdf_warn(JDF_OBJECT_LINENO(d), "Global %s defined line %d is masked by the local definition of %s in function %s\n",
+                             g->name, JDF_OBJECT_LINENO(g), d->name, f->fname);
                     rc++;
                 }
             }
@@ -108,7 +108,7 @@ static int jdf_sanity_check_expr_bound_before_global(jdf_expr_t *e, jdf_global_e
             }
         }
         if( g2 == g1 ) {
-            jdf_fatal(g1->lineno, "Global %s is defined using variable %s (in %s) which is unbound at this time\n",
+            jdf_fatal(JDF_OBJECT_LINENO(g1), "Global %s is defined using variable %s (in %s) which is unbound at this time\n",
                       g1->name, vc, e->jdf_var);
             rc = -1;
         }
@@ -160,13 +160,13 @@ static int jdf_sanity_check_function_redefinitions(void)
     for(f1 = current_jdf.functions; f1 != NULL; f1 = f1->next) {
         for(f2 = f1->next; f2 != NULL; f2 = f2->next) {
             if( !strcmp(f1->fname, f2->fname) ) {
-                jdf_fatal(f2->lineno, "Function %s is redefined here (previous definition was on line %d)\n",
-                          f1->fname, f1->lineno);
+                jdf_fatal(JDF_OBJECT_LINENO(f2), "Function %s is redefined here (previous definition was on line %d)\n",
+                          f1->fname, JDF_OBJECT_LINENO(f1));
                 rc = -1;
             }
         }
     }
-    return rc;    
+    return rc;
 }
 
 static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
@@ -181,10 +181,10 @@ static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
         pi = 1;
         for(p = f->parameters; p != NULL; p = p->next, pi++) {
             found_def = 0;
-            for(d = f->definitions; d != NULL; d = d->next) {
+            for(d = f->locals; d != NULL; d = d->next) {
                 if( 0 == strcmp(d->name, p->name) ) {
                     if( found_def ) {
-                        jdf_fatal(f->lineno, "The definition of %s (%dth parameter of function %s) appears more than once.\n",
+                        jdf_fatal(JDF_OBJECT_LINENO(f), "The definition of %s (%dth parameter of function %s) appears more than once.\n",
                                   p->name, pi, f->fname);
                         rc = -1;
                     } else {
@@ -193,14 +193,14 @@ static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
                 }
             }
             if( !found_def ) {
-                jdf_fatal(f->lineno, "Parameter %s of function %s is declared but no range is associated to it\n",
+                jdf_fatal(JDF_OBJECT_LINENO(f), "Parameter %s of function %s is declared but no range is associated to it\n",
                           p->name, f->fname);
                 rc = -1;
             }
         }
 
         pi = 1;
-        for(d=f->definitions; d!= NULL; d = d->next, pi++) {
+        for(d = f->locals; d!= NULL; d = d->next, pi++) {
             found_def = 0;
             for(p = f->parameters; p != NULL; p = p->next) {
                 if( strcmp(d->name, p->name) == 0 ) {
@@ -210,13 +210,13 @@ static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
             }
             if( found_def == 0 ) {
                 if( d->expr->op == JDF_RANGE ) {
-                    jdf_warn(f->lineno, "Definition %d of function %s for %s is a range, but not a parameter of the function.\n"
+                    jdf_warn(JDF_OBJECT_LINENO(f), "Definition %d of function %s for %s is a range, but not a parameter of the function.\n"
                              "  If this range allows for more than one value, that would make multiple functions %s with the same name.\n",
                              pi, f->fname, d->name, f->fname);
                 }
                 for(d2 = d->next; d2!=NULL; d2=d2->next) {
                     if( !strcmp(d->name, d2->name) ) {
-                        jdf_fatal(f->lineno, "The definition of %s in function %s appears more than once.\n",
+                        jdf_fatal(JDF_OBJECT_LINENO(f), "The definition of %s in function %s appears more than once.\n",
                                   d->name, f->fname);
                         rc = -1;
                     }
@@ -246,13 +246,13 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
             }
         }
         if( g == NULL ) {
-            for(d2 = f->definitions; d2 != d; d2 = d2->next) {
+            for(d2 = f->locals; d2 != d; d2 = d2->next) {
                 if( !strcmp( vc, d2->name ) ) {
                     break;
                 }
             }
             if( d2 == d ) {
-                jdf_fatal(d->lineno, "Local %s is defined using variable %s (in %s) which is unbound at this time\n",
+                jdf_fatal(JDF_OBJECT_LINENO(d), "Local %s is defined using variable %s (in %s) which is unbound at this time\n",
                           d->name,  vc, e->jdf_var);
                 rc = -1;
             }
@@ -291,7 +291,7 @@ static int jdf_sanity_check_definition_unbound(void)
     jdf_def_list_t *d;
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
-        for(d = f->definitions; d != NULL; d = d->next) {
+        for(d = f->locals; d != NULL; d = d->next) {
             if( jdf_sanity_check_expr_bound_before_definition(d->expr, f, d) < 0 )
                 rc = -1;
         }
@@ -318,13 +318,13 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
             }
         }
         if( g == NULL ) {
-            for(d = f->definitions; d != NULL; d = d->next) {
+            for(d = f->locals; d != NULL; d = d->next) {
                 if( !strcmp( vc, d->name ) ) {
                     break;
                 }
             }
             if( d == NULL ) {
-                jdf_fatal(f->lineno, "%s of function %s is defined using variable %s (in %s) which is unbound at this time\n",
+                jdf_fatal(JDF_OBJECT_LINENO(f), "%s of function %s is defined using variable %s (in %s) which is unbound at this time\n",
                           kind, f->fname, vc, e->jdf_var);
                 rc = -1;
             }
@@ -393,7 +393,7 @@ static int jdf_sanity_check_dataflow_expressions_unbound(void)
                 snprintf(kind, 128, 
                          "Guard of dependency %d\n"
                          "  of dataflow number %d (variable %s) at line %d", 
-                         j, i,  flow->varname, flow->lineno);
+                         j, i,  flow->varname, JDF_OBJECT_LINENO(flow));
                 if( (dep->guard->guard_type != JDF_GUARD_UNCONDITIONAL) && 
                     (jdf_sanity_check_expr_bound(dep->guard->guard, kind, f) < 0) )
                     rc = -1;
@@ -402,7 +402,7 @@ static int jdf_sanity_check_dataflow_expressions_unbound(void)
                     snprintf(kind, 128, 
                              "Parameter %d of dependency %d\n"
                              "  of dataflow number %d (variable %s) at line %d", 
-                             k, j, i, flow->varname, flow->lineno);
+                             k, j, i, flow->varname, JDF_OBJECT_LINENO(flow));
                     if( jdf_sanity_check_expr_bound(e, kind, f) < 0 )
                         rc = -1;
                     k++;
@@ -413,7 +413,7 @@ static int jdf_sanity_check_dataflow_expressions_unbound(void)
                         snprintf(kind, 128, 
                                  "Parameter %d of dependency %d (when guard false)\n"
                                  "  of dataflow number %d (variable %s) at line %d", 
-                                 k, j, i,  flow->varname, flow->lineno);
+                                 k, j, i,  flow->varname, JDF_OBJECT_LINENO(flow));
                         if( jdf_sanity_check_expr_bound(e, kind, f) < 0 )
                             rc = -1;
                         k++;
@@ -440,19 +440,19 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
                 for(dep = flow->deps; dep != NULL; dep = dep->next) {
                     if( !strcmp(dep->guard->calltrue->func_or_mem, f1->fname) &&
                         (dep->guard->calltrue->var == NULL) ) {
-                        jdf_fatal(dep->lineno, 
+                        jdf_fatal(JDF_OBJECT_LINENO(dep), 
                                   "%s is the name of a function (defined line %d):\n"
                                   "  it cannot be also used as a memory reference in function %s\n",
-                                  f1->fname, f1->lineno, f2->fname);
+                                  f1->fname, JDF_OBJECT_LINENO(f1), f2->fname);
                         rc = -1;
                     }
                     if( dep->guard->guard_type == JDF_GUARD_TERNARY &&
                         !strcmp(dep->guard->callfalse->func_or_mem, f1->fname) &&
                         (dep->guard->callfalse->var == NULL) ) {
-                        jdf_fatal(dep->lineno, 
+                        jdf_fatal(JDF_OBJECT_LINENO(dep), 
                                   "%s is the name of a function (defined line %d):\n"
                                   "  it cannot be also used as a memory reference in function %s\n",
-                                  f1->fname, f1->lineno, f2->fname);
+                                  f1->fname, JDF_OBJECT_LINENO(f1), f2->fname);
                         rc = -1;
                     }
                 }
@@ -485,10 +485,10 @@ static int jdf_sanity_check_in_out_flow_match( jdf_function_entry_t* fout,
 
         /* Did we found the right out dependency? */
         if( NULL == flowin ) {
-            jdf_fatal(flowout->lineno, 
+            jdf_fatal(JDF_OBJECT_LINENO(flowout), 
                       "Function %s has no data named %s,\n"
                       "  but dependency %s:%s (line %d) references it\n",
-                      fin->fname, callout->var, fout->fname, flowout->varname, flowout->lineno);
+                      fin->fname, callout->var, fout->fname, flowout->varname, JDF_OBJECT_LINENO(flowout));
             return -1;
         }
 
@@ -506,15 +506,15 @@ static int jdf_sanity_check_in_out_flow_match( jdf_function_entry_t* fout,
             }
         }
         if( matched ) return 0;  /* we found it */
-        jdf_fatal(flowout->lineno,
+        jdf_fatal(JDF_OBJECT_LINENO(flowout),
                   "Function %s dependency %s toward %s:%s not matched on the %s side\n",
                   fout->fname, flowout->varname, fin->fname, callout->var, fin->fname);
         return -1;
     }
-    jdf_fatal(flowout->lineno, 
+    jdf_fatal(JDF_OBJECT_LINENO(flowout), 
               "There is no function named %s,\n"
               "  but dependency %s:%s (lineno %d) references it\n",
-              callout->func_or_mem, fout->fname, flowout->varname, flowout->lineno );
+              callout->func_or_mem, fout->fname, flowout->varname, JDF_OBJECT_LINENO(flowout));
     return -1;
 }
 
@@ -546,7 +546,7 @@ static int jdf_sanity_check_dataflow_unexisting_data(void)
                     matched = jdf_sanity_check_in_out_flow_match( f1, flow1, call );
                     if( matched )
                         break;
-                }                
+                }
                 j++;
             }
             if( matched ) return -1;
@@ -574,12 +574,12 @@ static int jdf_sanity_check_control(void)
             /* For each CONTROL dependency */
             for( dep = flow->deps; dep != NULL; dep = dep->next, j++ ) {
                 if( (dep->guard->calltrue->var == NULL) ||
-                    ((dep->guard->guard_type == JDF_GUARD_TERNARY) && 
+                    ((dep->guard->guard_type == JDF_GUARD_TERNARY) &&
                      (dep->guard->callfalse->var == NULL)) ) {
                     rc++;
-                    jdf_fatal(flow->lineno, 
+                    jdf_fatal(JDF_OBJECT_LINENO(flow),
                               "In function %s:%d the control of dependency #%d of flow %s(#%d) cannot refer to data\n",
-                              func->fname, flow->lineno, j, flow->varname, i );
+                              func->fname, JDF_OBJECT_LINENO(flow), j, flow->varname, i );
                 }
             }
         }
@@ -618,7 +618,7 @@ static int compute_canonical_data_location(const char *name, const jdf_expr_t *p
             /* Canonical representation exists */
             /* Check it is well formed */
             if ( align->op != JDF_VAR ) {
-                jdf_warn(g->lineno, "Attribute Aligned on variable %s is malformed: expected an identifier, got something else. Attribute ignored.\n",
+                jdf_warn(JDF_OBJECT_LINENO(g), "Attribute Aligned on variable %s is malformed: expected an identifier, got something else. Attribute ignored.\n",
                          name);
             } else {
                 ret = 0;
@@ -675,7 +675,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
             plist.next = NULL;
             condstr = malloc_and_dump_jdf_expr_list(&plist);
 
-            jdf_warn(dep->lineno,
+            jdf_warn(JDF_OBJECT_LINENO(dep),
                      "Function %s runs on a node depending on data %s%s%s%s, but refers directly (as %s) to data %s%s%s%s, if %s is true.\n"
                      "  This is a potential direct remote memory reference.\n"
                      "  To remove this warning, %s should be syntaxically equal to %s, or marked as aligned to %s\n"
@@ -689,7 +689,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
 
             free(condstr);
         } else {
-            jdf_warn(dep->lineno,
+            jdf_warn(JDF_OBJECT_LINENO(dep),
                      "Function %s runs on a node depending on data %s%s%s%s, but refers directly (as %s) to data %s%s%s%s.\n"
                      "  This is a potential direct remote memory reference.\n"
                      "  To remove this warning, %s should be syntaxically equal to %s, or marked as aligned to %s\n"

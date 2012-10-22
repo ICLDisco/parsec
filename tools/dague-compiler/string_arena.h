@@ -7,7 +7,7 @@ typedef struct string_arena {
     int   size;
 } string_arena_t;
 
-static string_arena_t *string_arena_new(int base_size)
+static inline string_arena_t *string_arena_new(int base_size)
 {
     string_arena_t *sa;
     sa = (string_arena_t*)calloc(1, sizeof(string_arena_t));
@@ -21,7 +21,7 @@ static string_arena_t *string_arena_new(int base_size)
     return sa;
 }
 
-static void string_arena_free(string_arena_t *sa)
+static inline void string_arena_free(string_arena_t *sa)
 {
     free(sa->ptr);
     sa->pos  = -1;
@@ -30,9 +30,9 @@ static void string_arena_free(string_arena_t *sa)
 }
 
 #if defined(__GNUC__)
-static void string_arena_add_string(string_arena_t *sa, const char *format, ...) __attribute__((format(printf,2,3)));
+static inline void string_arena_add_string(string_arena_t *sa, const char *format, ...) __attribute__((format(printf,2,3)));
 #endif
-static void string_arena_add_string(string_arena_t *sa, const char *format, ...)
+static inline void string_arena_add_string(string_arena_t *sa, const char *format, ...)
 {
     va_list ap, ap2;
     int length;
@@ -64,13 +64,13 @@ static void string_arena_add_string(string_arena_t *sa, const char *format, ...)
     va_end(ap);
 }
 
-static void string_arena_init(string_arena_t *sa)
+static inline void string_arena_init(string_arena_t *sa)
 {
     sa->pos = 0;
     sa->ptr[0] = '\0';
 }
 
-static char *string_arena_get_string(string_arena_t *sa)
+static inline char *string_arena_get_string(string_arena_t *sa)
 {
     return sa->ptr;
 }

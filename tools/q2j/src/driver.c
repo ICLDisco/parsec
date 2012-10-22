@@ -11,6 +11,7 @@
 #include "jdf.h"
 
 extern int yyparse (void);
+
 char *q2j_input_file_name      = NULL;
 int _q2j_produce_shmem_jdf     = 0;
 int _q2j_verbose_warnings      = 0;
@@ -18,6 +19,7 @@ int _q2j_add_phony_tasks       = 0;
 int _q2j_finalize_antideps     = 0;
 int _q2j_generate_line_numbers = 0;
 int _q2j_dump_mapping          = 0;
+int _q2j_direct_output         = 0;
 FILE *_q2j_output;
 jdf_t _q2j_jdf;
 
@@ -73,7 +75,7 @@ int main(int argc, char **argv){
 
     yyin = fopen(q2j_input_file_name, "r");
     if( NULL == yyin ){
-        fprintf(stderr,"Cannot open file \"%s\"\n",q2j_input_file_name);
+        fprintf(stderr,"Cannot open file \"%s\"\n", q2j_input_file_name);
         return -1;
     }
     
@@ -84,5 +86,13 @@ int main(int argc, char **argv){
 /*     } */
 
     (void)st_init_symtab();
-    return yyparse();
+    if( yyparse() > 0 ) {
+        exit(1);
+    }
+    fclose( yyin );
+
+    if (_q2j_output != stdout)
+        fclose(_q2j_output);
+
+    return EXIT_SUCCESS;
 }

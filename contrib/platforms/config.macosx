@@ -1,6 +1,7 @@
 #!/bin/sh
 rm -rf CMakeCache.txt CMakeFiles
 
+Q2J=""
 SOURCE=`dirname $0`/../../
 
 if [ "x$USER" == "xbouteill" ]; then 
@@ -10,7 +11,7 @@ if [ "x$USER" == "xbouteill" ]; then
 	export CC=gcc-4
 	export CXX=g++-4
 	PLASMA_DIR=$HOME/dague/plasma
-	MY_OPTS="-DBUILD_64bits=ON"
+	MY_OPTS="-DBUILD_64bits=ON -DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug"
 
 elif [ "x$USER" == "xherault" ]; then
 	PLASMA_DIR=/Users/herault/Documents/Recherche/plasma/plasma-installer
@@ -22,9 +23,21 @@ elif [ "x$USER" == "xbosilca" ]; then
 	PLASMA_DIR=${HOME}/opt/PLASMA/plasma-svn/
 	MY_OPTS="-DBUILD_64bits=ON -DDAGUE_GPU_WITH_CUDA=OFF ${HWLOC_OPTS}"
 
+	OMEGA_DIR=${OMEGA_DIR:="/Users/bosilca/tools/Omega/binary"}
+	if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 ]; then 
+	  Q2J="-DOMEGA_DIR=${OMEGA_DIR}"
+	fi
+
+elif [ "x$USER" == "xadanalis" ]; then 
+	OMEGA_DIR="/Users/adanalis/Desktop/Research/PLASMA_Distributed/Related_Stuff/Omega"
+	MY_OPTS="-DBUILD_DPLASMA=OFF -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_WITH_MPI=OFF -DOMEGA_DIR=${OMEGA_DIR}"
+
 else
 	PLASMA_DIR=/opt/plasma
 fi
 
-echo cmake ${SOURCE} -Wdev -DPLASMA_DIR=${PLASMA_DIR} ${MY_OPTS}
-cmake ${SOURCE} -Wdev -DPLASMA_DIR=${PLASMA_DIR} ${MY_OPTS}
+
+CMD="cmake ${SOURCE} -Wdev -DPLASMA_DIR=${PLASMA_DIR} ${Q2J} ${MY_OPTS}"
+echo $CMD
+$CMD
+

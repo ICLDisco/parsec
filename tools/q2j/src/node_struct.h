@@ -26,22 +26,22 @@
 #define EXIT        0x1011 // 4113
 
 #define EXPR        0x1100 // 4352
-#define ADD         0x1101
-#define SUB         0x1102
-#define MUL         0x1103
-#define DIV         0x1104
-#define MOD         0x1105
-#define B_AND       0x1106
-#define B_XOR       0x1107
-#define B_OR        0x1108
-#define LSHIFT      0x1109
-#define RSHIFT      0x110a
-#define LT          0x110b
-#define GT          0x110c
-#define LE          0x110d
-#define GE          0x111e
-#define DEREF       0x111f
-#define S_U_MEMBER  0x1110
+#define ADD         0x1101 // 4353
+#define SUB         0x1102 // 4354
+#define MUL         0x1103 // 4355
+#define DIV         0x1104 // 4356
+#define MOD         0x1105 // 4357
+#define B_AND       0x1106 // 4358
+#define B_XOR       0x1107 // 4359
+#define B_OR        0x1108 // 4360
+#define LSHIFT      0x1109 // 4361
+#define RSHIFT      0x110a // 4362
+#define LT          0x110b // 4363
+#define GT          0x110c // 4364
+#define LE          0x110d // 4365
+#define GE          0x111e // 4366
+#define DEREF       0x111f // 4367
+#define S_U_MEMBER  0x1110 // 4368
 #define COMMA_EXPR  0x1111 // 4369
 
 #define BLOCK       0xFFFF // 65535

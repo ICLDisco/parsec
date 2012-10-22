@@ -81,14 +81,14 @@ void* __dague_progress(dague_execution_unit_t* eu_context);
  */
 int __dague_execute( dague_execution_unit_t*, dague_execution_context_t*);
 /**
- * Signal the termination of the execution context to all dependencies of 
- * its dependencies.  
- * 
+ * Signal the termination of the execution context to all dependencies of
+ * its dependencies.
+ *
  * @param [IN]  The execution context of the finished task.
  * @param [IN]  The task to be completed
  *
  * @return 0    If the dependencies have successfully been signaled.
- * @return -1   If something went wrong. 
+ * @return -1   If something went wrong.
  */
 int __dague_complete_execution( dague_execution_unit_t *eu_context,
                               dague_execution_context_t *exec_context );
@@ -99,8 +99,6 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
  * Otherwise, just update the dague_object.
  */
 int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context);
-
-
 
 typedef struct {
     char* name;
@@ -120,4 +118,3 @@ typedef struct {
 void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *scheduler );
 
 #endif  /* _DAGUE_scheduling_h */
-

@@ -38,9 +38,6 @@ pivfct [type = "qr_piv_t*"]
 ib     [type = "int" ]
 p_work [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descT1.nb)"]
 minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : descA.nt )" ]
-param_p[type = "int" hidden=on default="pivfct->p"]
-param_a[type = "int" hidden=on default="pivfct->a"]
-param_d[type = "int" hidden=on default="pivfct->domino"]
 
 /*
  * For explanations on zungqr_param.jdf, look at zgeqrf_param.jdf

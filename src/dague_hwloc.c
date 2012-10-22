@@ -35,6 +35,7 @@ int dague_hwloc_init(void)
         hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_SOCKET);
         hwloc_topology_load(topology);
         first_init = 0;
+
     }
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
@@ -105,7 +106,6 @@ int dague_hwloc_master_id( int level, int processor_id )
 #endif
     }
 #endif  /* defined(HAVE_HWLOC) */
-
     return -1;
 }
 

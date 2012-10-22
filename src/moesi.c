@@ -14,14 +14,15 @@ void moesi_map_create(moesi_map_t** pmap, int nmasters, int ndevices) {
     if( NULL != map ) {
         assert(nmasters <= map->nmasters);
         assert(ndevices <= map->ndevices);
-        DEBUG3(("  Moesi:\tMap %p already exists (m=%d, d=%d): it does not need to be updated to hold (m=%d, d=%d)\n", pmap, map->nmasters, map->ndevices, nmasters, ndevices));
+        DEBUG3(("  Moesi:\tMap %p already exists (m=%d, d=%d): it does not need to be updated to hold (m=%d, d=%d)\n",
+                pmap, map->nmasters, map->ndevices, nmasters, ndevices));
         return;
     }
     else {
         assert( nmasters > 0 );
-        assert( nmasters < UINT16_MAX ); assert( ndevices < UINT16_MAX );
+        assert( ndevices < UINT16_MAX );
         map = calloc(1, sizeof(moesi_map_t) + (nmasters-1)*sizeof(moesi_master_t*));
-        map->nmasters = (uint16_t)nmasters;
+        map->nmasters = nmasters;
         map->ndevices = (uint16_t)ndevices;
         *pmap = map;
         DEBUG3(("  Moesi:\tMap %p created (m=%d, d=%d)\n", pmap, nmasters, ndevices));
@@ -175,5 +176,24 @@ int moesi_master_update(moesi_map_t *map, moesi_key_t key) {
     }
     master->version++;
     return 0;    
+}
+
+static char dump_moesi_codex(moesi_coherency_t state)
+{
+    if( MOESI_INVALID   == state ) return 'I';
+    if( MOESI_OWNED     == state ) return 'O';
+    if( MOESI_EXCLUSIVE == state ) return 'E';
+    if( MOESI_SHARED    == state ) return 'S';
+    return 'X';
+}
+
+void moesi_dump_moesi_copy( moesi_copy_t* copy )
+{
+    moesi_master_t* master = copy->master;
+
+    printf("device_private %p coherency %c readers %d version %u\n"
+           "  master %p [mem_ptr %p map %p key %u coherency %c owner %d version %u]\n",
+           copy->device_private, dump_moesi_codex(copy->coherency_state), copy->readers, copy->version,
+           copy->master, master->mem_ptr, master->map, master->key, dump_moesi_codex(master->coherency_state), master->owner_device, master->version);
 }
 

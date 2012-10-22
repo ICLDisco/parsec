@@ -44,13 +44,16 @@
 dague_data_allocate_t dague_data_allocate = malloc;
 dague_data_free_t     dague_data_free = free;
 
-#if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
+#if defined(DAGUE_PROF_TRACE)
+#if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
 int MEMALLOC_start_key, MEMALLOC_end_key;
 int schedule_poll_begin, schedule_poll_end;
 int schedule_push_begin, schedule_push_end;
 int schedule_sleep_begin, schedule_sleep_end;
 int queue_add_begin, queue_add_end;
 int queue_remove_begin, queue_remove_end;
+#endif  /* defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS) */
+int device_delegate_begin, device_delegate_end;
 #endif  /* DAGUE_PROF_TRACE */
 
 #ifdef HAVE_HWLOC
@@ -92,7 +95,6 @@ static void dague_statistics(char* str)
         STATUS(("Block Output Operations     : %10ld\n", (current.ru_oublock - _dague_rusage.ru_oublock)));
         STATUS(("=============================================================\n"));
     }
-
     _dague_rusage_first_call = !_dague_rusage_first_call;
     _dague_rusage = current;
     return;
@@ -136,7 +138,6 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
     DEBUG2(("VP %i : bind thread %i.%i on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto));
-    //    printf("VP %i : bind thread %i.%i  on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto);
 
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
@@ -164,8 +165,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #endif
 
     /* The main thread of VP 0 will go back to the user level */
-    if( DAGUE_THREAD_IS_MASTER(eu) )
+    if( DAGUE_THREAD_IS_MASTER(eu) ) {
+        vpmap_display_map(stderr);
         return NULL;
+    }
 
     return __dague_progress(eu);
 }
@@ -201,6 +204,8 @@ static void dague_vp_init( dague_vp_t *vp,
         startup[t].nb_cores = nb_cores;
         if( vpmap_get_nb_cores_affinity(vp->vp_id, t) == 1 )
             vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto);
+        else if( vpmap_get_nb_cores_affinity(vp->vp_id, t) > 1 )
+            printf("multiple core to bind on... for now, do nothing\n");
         else
             startup[t].bindto= -1;
     }
@@ -373,6 +378,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                                             0, NULL,
                                             &queue_remove_begin, &queue_remove_end);
 #  endif /* DAGUE_PROF_TRACE_SCHEDULING_EVENTS */
+    dague_profiling_add_dictionary_keyword( "Device delegate", "fill:#EAE7C6",
+                                            0, NULL,
+                                            &device_delegate_begin, &device_delegate_end);
 #endif  /* DAGUE_PROF_TRACE */
 
     if( nb_total_comp_threads > 1 ) {
@@ -557,7 +565,7 @@ dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
             active = 0;
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
-                if( dep->dague->nb_parameters == 0 ) {  /* this is only true for memory locations */
+                if( dep->function_id == -1 ) {  /* this is only true for memory locations */
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
@@ -635,7 +643,7 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
             /* Data case: count all that do not have a direct dependence on a data */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
-                if( dep->dague->nb_parameters != 0 ) {  /* we don't count memory locations */
+                if( dep->function_id != -1 ) {  /* we don't count memory locations */
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
@@ -659,7 +667,7 @@ static dague_dependency_t *find_deps(dague_object_t *dague_object,
     dague_dependencies_t *deps;
     int p;
 
-    deps = dague_object->dependencies_array[exec_context->function->deps];
+    deps = dague_object->dependencies_array[exec_context->function->function_id];
     assert( NULL != deps );
 
     for(p = 0; p < exec_context->function->nb_parameters - 1; p++) {
@@ -694,7 +702,7 @@ static int dague_update_deps_with_counter( dague_object_t *dague_object,
             ERROR(("function %s as reached an improbable dependency count of %u\n",
                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), dep_cur_value ));
         }
-    
+
         DEBUG3(("Task %s has a current dependencies count of %d (remaining). It %s using the mask approach\n",
                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
                 dep_cur_value,
@@ -804,8 +812,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
         DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
 
-        /* This service is ready to be executed as all dependencies are solved. Queue it into the
-         * ready_list passed as an argument.
+        /* This service is ready to be executed as all dependencies
+         * are solved.  Queue it into the ready_list passed as an
+         * argument.
          */
         {
 #if defined(DAGUE_DEBUG_VERBOSE1)
@@ -832,9 +841,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                    *deps,
                    exec_context->priority));
 
-            /* TODO: change this to the real number of input dependencies */
-            assert( dest_flow->flow_index <= MAX_PARAM_COUNT );
-            memset( new_context->data, 0, sizeof(dague_data_pair_t) * MAX_PARAM_COUNT );
+            assert( dest_flow->flow_index <= new_context->function->nb_in);
+            memset( new_context->data, 0, sizeof(dague_data_pair_t) * new_context->function->nb_in);
             /**
              * Save the data_repo and the pointer to the data for later use. This will prevent the
              * engine from atomically locking the hash table for at least one of the flow
@@ -933,7 +941,8 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                  * outdep index.
                  */
             }
-            if(newcontext->priority > arg->remote_deps->max_priority) arg->remote_deps->max_priority = newcontext->priority;
+            if(newcontext->priority > arg->remote_deps->max_priority)
+                arg->remote_deps->max_priority = newcontext->priority;
         }
     }
 #else
@@ -995,7 +1004,7 @@ void dague_destruct_dependencies(dague_dependencies_t* d)
     int i;
     if( (d != NULL) && (d->flags & DAGUE_DEPENDENCIES_FLAG_NEXT) ) {
         for(i = d->min; i <= d->max; i++)
-            if( NULL != d->u.next[i-d->min] )
+            if( NULL != d->u.next[i - d->min] )
                 dague_destruct_dependencies(d->u.next[i-d->min]);
     }
     free(d);
@@ -1100,32 +1109,16 @@ void dague_object_unregister( dague_object_t* object )
 /**< Print DAGuE usage message */
 void dague_usage(void)
 {
-    STATUS(("\n"
-            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n"
-            " --dague_bind        : define a set of core for the thread binding\n"
-            "                       accepted values:\n"
-            "                        - a core list          (exp: --dague_bind=[+]1,3,5-6)\n"
-            "                        - a hexadecimal mask   (exp: --dague_bind=[+]0xff012)\n"
-            "                        - a binding range expression: [+][start]:[end]:[step] \n"
-            "                          -> define a round-robin one thread per core distribution from start (default 0)\n"
-            "                             to end (default physical core number) by step (default 1)\n"
-            "                             (exp: --dague_bind=[+]1:7:2  bind the 6 first threads on the cores 1 3 5 2 4 6\n"
-            "                             while extra threads remain unbound)\n"
-            "                       if starts with \"+\", the communication thread will be executed on the core subset\n\n"
-            "    This option can also be used with a file (--dague_bind=file:filename) containing the mapping description for\n"
-            "    each process (as a core list, a hexadecimal mask or a binding range expression).\n"
-            "    It might be useful when multiple MPI processes per node are involved and then need distinct thread bindings.\n\n"
-            "    Warning:: The dague_bind option rely on hwloc. The core numerotation is defined between 0 and the number of cores\n Be careful when used with cgroups\n\n."
-            " --dague_bind_comm   : define the core the communication thread will be bound on (prevail over --dague_bind)\n"
+    fprintf(stderr,"\n"
+            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n\n" 
+            "     --dague_bind_comm   : define the core the communication thread will be bound on\n"
             "\n"
-
-
-
-            /* " --dague_verbose     : extra verbose output\n" */
-            /* " --dague_papi        : enable PAPI\n" */
-            " --dague_help         : this message\n"
+            "     Warning:: The binding options rely on hwloc. The core numerotation is defined between 0 and the number of cores.\n"
+            "     Be careful when used with cgroups.\n"
             "\n"
-            ));
+            "     --dague_help         : this message\n"
+            "\n"
+            );
 }
 
 

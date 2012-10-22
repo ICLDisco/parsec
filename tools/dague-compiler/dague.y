@@ -15,26 +15,22 @@
  * Better error handling
  */
 #define YYERROR_VERBOSE 1
+struct yyscan_t;
 
 #include "dague.y.h"
-
-extern int yyparse(void);
-extern int yylex(void);
 
 extern int current_lineno;
 
 static jdf_expr_t *inline_c_functions = NULL;
 
-static void yyerror(const char *str)
+static void yyerror(YYLTYPE *locp,
+                    struct yyscan_t* yyscanner,
+                    char const *msg)
 {
-    fprintf(stderr, "parse error at line %d: %s\n", current_lineno, str);
-}
-
-int yywrap(void);
-
-int yywrap(void)
-{
-    return 1;
+    fprintf(stderr, "parse error at %d.%d-%d.%d: %s\n",
+            locp->first_line, locp->first_column,
+            locp->last_line, locp->last_column,
+            msg);
 }
 
 #define new(type)  (type*)calloc(1, sizeof(type))
@@ -48,10 +44,10 @@ jdf_create_properties_list( const char* name,
     jdf_def_list_t* property;
     jdf_expr_t *e;
 
-    property         = new(jdf_def_list_t);
-    property->next   = next;
-    property->name   = strdup(name);
-    property->lineno = current_lineno;
+    property                    = new(jdf_def_list_t);
+    property->next              = next;
+    property->name              = strdup(name);
+    JDF_OBJECT_LINENO(property) = current_lineno;
 
     if( NULL != default_char ) {
         e = new(jdf_expr_t);
@@ -79,11 +75,11 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     }
     /* not found, create */
     data = new(jdf_data_entry_t);
-    data->dname    = strdup(dname);
-    data->lineno   = current_lineno;
-    data->nbparams = -1;
-    data->next     = jdf->data;
-    jdf->data = data;
+    data->dname             = strdup(dname);
+    JDF_OBJECT_LINENO(data) = current_lineno;
+    data->nbparams          = -1;
+    data->next              = jdf->data;
+    jdf->data               = data;
     /* Check if there is a global with the same name */
     while( NULL != global ) {
         if( !strcmp(global->name, data->dname) ) {
@@ -100,13 +96,13 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
         global = global->next;
     }
     assert(NULL == global);
-    global             = new(jdf_global_entry_t);
-    global->name       = strdup(data->dname);
-    global->properties = jdf_create_properties_list( "type", 0, "dague_ddesc_t*", NULL );
-    global->data       = data;
-    global->expression = NULL;
-    global->lineno     = current_lineno;
-    data->global       = global;
+    global                    = new(jdf_global_entry_t);
+    global->name              = strdup(data->dname);
+    global->properties        = jdf_create_properties_list( "type", 0, "dague_ddesc_t*", NULL );
+    global->data              = data;
+    global->expression        = NULL;
+    JDF_OBJECT_LINENO(global) = current_lineno;
+    data->global              = global;
     /* Chain it with the other globals */
     global->next = jdf->globals;
     jdf->globals = global;
@@ -182,7 +178,12 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %left COMMA
 
 %debug
-
+%defines
+%locations
+%pure-parser
+%error-verbose
+%parse-param {struct yyscan_t *yycontrol}
+%lex-param   {struct yyscan_t *yycontrol}
 %%
 jdf_file:       prologue jdf epilogue
                 {
@@ -196,14 +197,14 @@ prologue:       EXTERN_DECL
                 {
                     $$ = new(jdf_external_entry_t);
                     $$->external_code = $1;
-                    $$->lineno = current_lineno;
+                    JDF_OBJECT_LINENO($$) = current_lineno;
                 }
         ;
 epilogue:       EXTERN_DECL
                 {
                     $$ = new(jdf_external_entry_t);
                     $$->external_code = $1;
-                    $$->lineno = current_lineno;
+                    JDF_OBJECT_LINENO($$) = current_lineno;
                 }
         |
                 {
@@ -214,6 +215,11 @@ jdf:            jdf function
                 {
                     jdf_expr_t *el, *pl;
 
+                    if( NULL == current_jdf.functions ) {
+                        $2->function_id = 0;
+                    } else {
+                        $2->function_id = current_jdf.functions->function_id + 1;
+                    }
                     $2->next = current_jdf.functions;
                     current_jdf.functions = $2;
                     if( NULL != inline_c_functions) {
@@ -232,11 +238,11 @@ jdf:            jdf function
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
                     jdf_expr_t *el;
 
-                    e->next       = NULL;
-                    e->name       = $2;
-                    e->properties = $5;
-                    e->expression = $4;
-                    e->lineno     = current_lineno;
+                    e->next              = NULL;
+                    e->name              = $2;
+                    e->properties        = $5;
+                    e->expression        = $4;
+                    JDF_OBJECT_LINENO(e) = current_lineno;
                     if( current_jdf.globals == NULL ) {
                         current_jdf.globals = e;
                     } else {
@@ -257,11 +263,11 @@ jdf:            jdf function
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
                     jdf_expr_t *el;
 
-                    e->next       = NULL;
-                    e->name       = $2;
-                    e->properties = $3;
-                    e->expression = NULL;
-                    e->lineno     = current_lineno;
+                    e->next              = NULL;
+                    e->name              = $2;
+                    e->properties        = $3;
+                    e->expression        = NULL;
+                    JDF_OBJECT_LINENO(e) = current_lineno;
                     if( current_jdf.globals == NULL ) {
                         current_jdf.globals = e;
                     } else {
@@ -312,19 +318,19 @@ properties:   PROPERTIES_ON properties_list PROPERTIES_OFF
 properties_list: VAR ASSIGNMENT expr_complete properties_list
               {
                  jdf_def_list_t* assign = new(jdf_def_list_t);
-                 assign->next = $4;
-                 assign->name = strdup($1);
-                 assign->expr = $3;
-                 assign->lineno = current_lineno;
+                 assign->next              = $4;
+                 assign->name              = strdup($1);
+                 assign->expr              = $3;
+                 JDF_OBJECT_LINENO(assign) = current_lineno;
                  $$ = assign;
               }
        | VAR ASSIGNMENT expr_complete
              {
                  jdf_def_list_t* assign = new(jdf_def_list_t);
-                 assign->next = NULL;
-                 assign->name = strdup($1);
-                 assign->expr = $3;
-                 assign->lineno = current_lineno;
+                 assign->next              = NULL;
+                 assign->name              = strdup($1);
+                 assign->expr              = $3;
+                 JDF_OBJECT_LINENO(assign) = current_lineno;
                  $$ = assign;
              }
        ;
@@ -332,17 +338,17 @@ properties_list: VAR ASSIGNMENT expr_complete properties_list
 function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simulation_cost partitioning dataflow_list priority BODY
                 {
                     jdf_function_entry_t *e = new(jdf_function_entry_t);
-                    e->fname = $1;
-                    e->parameters = $3;
-                    e->properties = $5;
-                    e->definitions = $6;
-                    e->simcost = $7;
-                    e->predicate = $8;
-                    e->dataflow = $9;
-                    e->priority = $10;
-                    e->body = $11;
+                    e->fname             = $1;
+                    e->parameters        = $3;
+                    e->properties        = $5;
+                    e->locals            = $6;
+                    e->simcost           = $7;
+                    e->predicate         = $8;
+                    e->dataflow          = $9;
+                    e->priority          = $10;
+                    e->body              = $11;
 
-                    e->lineno  = current_lineno;
+                    JDF_OBJECT_LINENO(e) = current_lineno;
 
                     $$ = e;
                 }
@@ -374,21 +380,21 @@ execution_space:
                 VAR ASSIGNMENT expr_range properties execution_space
                 {
                     jdf_def_list_t *l = new(jdf_def_list_t);
-                    l->name       = $1;
-                    l->expr       = $3;
-                    l->lineno     = current_lineno;
-                    l->properties = $4;
-                    l->next       = $5;
+                    l->name              = $1;
+                    l->expr              = $3;
+                    JDF_OBJECT_LINENO(l) = current_lineno;
+                    l->properties        = $4;
+                    l->next              = $5;
                     $$ = l;
                 }
          |      VAR ASSIGNMENT expr_range properties
                 {
                     jdf_def_list_t *l = new(jdf_def_list_t);
-                    l->name       = $1;
-                    l->expr       = $3;
-                    l->lineno     = current_lineno;
-                    l->properties = $4;
-                    l->next       = NULL;
+                    l->name              = $1;
+                    l->expr              = $3;
+                    JDF_OBJECT_LINENO(l) = current_lineno;
+                    l->properties        = $4;
+                    l->next              = NULL;
                     $$ = l;
                 }
          ;
@@ -415,12 +421,12 @@ partitioning:   COLON VAR OPEN_PAR expr_list CLOSE_PAR
                   if( data->nbparams != -1 ) {
                       if( data->nbparams != nbparams ) {
                           jdf_fatal(current_lineno, "Data %s used with %d parameters at line %d while used with %d parameters line %d\n",
-                                    $2, nbparams, current_lineno, data->nbparams, data->lineno);
+                                    $2, nbparams, current_lineno, data->nbparams, JDF_OBJECT_LINENO(data));
                           YYERROR;
                       }
                   } else {
-                      data->nbparams = nbparams;
-                      data->lineno = current_lineno;
+                      data->nbparams          = nbparams;
+                      JDF_OBJECT_LINENO(data) = current_lineno;
                   }
                   $$ = c;
               }
@@ -448,10 +454,10 @@ optional_access_type :
 dataflow:       optional_access_type VAR dependencies
                 {
                     jdf_dataflow_t *flow = new(jdf_dataflow_t);
-                    flow->access_type = $1;
-                    flow->varname     = $2;
-                    flow->deps        = $3;
-                    flow->lineno      = current_lineno;
+                    flow->access_type       = $1;
+                    flow->varname           = $2;
+                    flow->deps              = $3;
+                    JDF_OBJECT_LINENO(flow) = current_lineno;
 
                     $$ = flow;
                 }
@@ -540,7 +546,7 @@ dependency:   ARROW guarded_call properties
                   } else {
                       d->datatype.nb_elt = expr_simple;
                   }
-                  d->lineno = current_lineno;
+                  JDF_OBJECT_LINENO(d) = current_lineno;
 
                   $$ = d;
               }
@@ -616,12 +622,12 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
                   if( data->nbparams != -1 ) {
                       if( data->nbparams != nbparams ) {
                           jdf_fatal(current_lineno, "Data %s used with %d parameters at line %d while used with %d parameters line %d\n",
-                                    $1, nbparams, current_lineno, data->nbparams, data->lineno);
+                                    $1, nbparams, current_lineno, data->nbparams, JDF_OBJECT_LINENO(data));
                           YYERROR;
                       }
                   } else {
-                      data->nbparams = nbparams;
-                      data->lineno = current_lineno;
+                      data->nbparams          = nbparams;
+                      JDF_OBJECT_LINENO(data) = current_lineno;
                   }
               }
        ;
@@ -663,9 +669,9 @@ expr_range: expr_complete RANGE expr_complete
             {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_RANGE;
-                  e->jdf_ta1 = $1;
-                  e->jdf_ta2 = $3;
-                  e->jdf_ta3 = new(jdf_expr_t);
+                  e->jdf_ta1 = $1;               /* from */
+                  e->jdf_ta2 = $3;               /* to */
+                  e->jdf_ta3 = new(jdf_expr_t);  /* step */
                   e->jdf_ta3->op = JDF_CST;
                   e->jdf_ta3->jdf_cst = 1;
                   $$ = e;
@@ -674,9 +680,9 @@ expr_range: expr_complete RANGE expr_complete
             {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_RANGE;
-                  e->jdf_ta1 = $1;
-                  e->jdf_ta2 = $3;
-                  e->jdf_ta3 = $5;
+                  e->jdf_ta1 = $1;  /* from */
+                  e->jdf_ta2 = $3;  /* to */
+                  e->jdf_ta3 = $5;  /* step */
                   $$ = e;
             }
           | expr_complete

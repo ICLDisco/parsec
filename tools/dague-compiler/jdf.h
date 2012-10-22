@@ -16,6 +16,12 @@ void jdf_prepare_parsing(void);
 void jdf_warn(int lineno, const char *format, ...);
 void jdf_fatal(int lineno, const char *format, ...);
 
+typedef struct jdf_object_t {
+    int lineno;
+    char* filename;
+    char* comment;
+} jdf_object_t;
+
 /**
  * Checks the sanity of the current_jdf.
  *
@@ -51,6 +57,7 @@ extern jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS;
  * Toplevel structure: four linked lists: prologues, epilogues, globals and functions
  */
 typedef struct jdf {
+    struct jdf_object_t       super;
     struct jdf_external_entry *prologue;
     struct jdf_external_entry *epilogue;
     struct jdf_global_entry   *globals;
@@ -75,20 +82,20 @@ extern jdf_t current_jdf;
  *  We remember the line number in the JDF file where this external code was found
  */
 typedef struct jdf_external_entry {
+    struct jdf_object_t       super;
     char                      *external_code;
-    int                        lineno;
 } jdf_external_entry_t;
 
 /** A global is a variable name, optionally an expression to define it,
  *  and a line number associated with it for error printing purposes
  */
 typedef struct jdf_global_entry {
+    struct jdf_object_t      super;
     struct jdf_global_entry *next;
     char                    *name;
     struct jdf_def_list     *properties;
     struct jdf_expr         *expression;
     struct jdf_data_entry   *data;
-    int                      lineno;
 } jdf_global_entry_t;
 
 /** A JDF function is the complex object described below
@@ -100,27 +107,27 @@ typedef unsigned int jdf_flags_t;
 #define JDF_FUNCTION_FLAG_CAN_BE_STARTUP  ((jdf_flags_t)(1 << 1))
 
 typedef struct jdf_function_entry {
+    struct jdf_object_t        super;
     struct jdf_function_entry *next;
-
     char                      *fname;
     struct jdf_name_list      *parameters;
     jdf_flags_t                flags;
-    struct jdf_def_list       *definitions;
+    int32_t                    function_id;
+    struct jdf_def_list       *locals;
     struct jdf_call           *predicate;
     struct jdf_dataflow       *dataflow;
     struct jdf_expr           *priority;
     struct jdf_expr           *simcost;
     struct jdf_def_list       *properties;
     char                      *body;
-    int                        lineno;
 } jdf_function_entry_t;
 
 typedef struct jdf_data_entry {
+    struct jdf_object_t      super;
     struct jdf_data_entry   *next;
     char                    *dname;
     struct jdf_global_entry *global;
     int                      nbparams;
-    int                      lineno;
 } jdf_data_entry_t;
 
 /*******************************************************************/
@@ -133,11 +140,11 @@ typedef struct jdf_name_list {
 } jdf_name_list_t;
 
 typedef struct jdf_def_list {
+    struct jdf_object_t  super;
     struct jdf_def_list *next;
     char                *name;
     struct jdf_expr     *expr;
     struct jdf_def_list *properties;
-    int                  lineno;
 } jdf_def_list_t;
 
 typedef struct jdf_dataflow jdf_dataflow_t;
@@ -147,11 +154,11 @@ typedef unsigned int jdf_access_type_t;
 #define JDF_VAR_TYPE_READ  ((jdf_access_type_t)(1<<0))
 #define JDF_VAR_TYPE_WRITE ((jdf_access_type_t)(1<<1))
 struct jdf_dataflow {
+    struct jdf_object_t       super;
     jdf_dataflow_t           *next;
     char                     *varname;
     struct jdf_dep           *deps;
     jdf_access_type_t         access_type;
-    int                       lineno;
 };
 
 typedef unsigned int jdf_dep_type_t;
@@ -168,11 +175,11 @@ typedef struct jdf_datatransfer_type {
 } jdf_datatransfer_type_t;
 
 struct jdf_dep {
+    struct jdf_object_t      super;
     jdf_dep_t               *next;
     jdf_dep_type_t           type;
     struct jdf_guarded_call *guard;
     jdf_datatransfer_type_t  datatype;
-    int                      lineno;
 };
 
 typedef enum { JDF_GUARD_UNCONDITIONAL,
@@ -180,7 +187,8 @@ typedef enum { JDF_GUARD_UNCONDITIONAL,
                JDF_GUARD_TERNARY } jdf_guard_type_t;
 
 typedef struct jdf_guarded_call {
-    jdf_guard_type_t         guard_type;
+    struct jdf_object_t       super;
+    jdf_guard_type_t          guard_type;
     struct jdf_expr          *guard;
     struct jdf_def_list      *properties;
     struct jdf_call          *calltrue;
@@ -188,6 +196,7 @@ typedef struct jdf_guarded_call {
 } jdf_guarded_call_t;
 
 typedef struct jdf_call {
+    struct jdf_object_t       super;
     char                     *var;
     char                     *func_or_mem;
     struct jdf_expr          *parameters;
@@ -234,6 +243,7 @@ typedef enum { JDF_EQUAL,
                                     JDF_OP_IS_C_CODE(op)) )
 
 typedef struct jdf_expr {
+    struct jdf_object_t           super;
     struct jdf_expr              *next;
     jdf_expr_operand_t            op;
     union {
@@ -296,5 +306,18 @@ char *malloc_and_dump_jdf_expr_list( const jdf_expr_t *e );
  * @return the expr on the left side of the = otherwise.
  */
 jdf_expr_t* jdf_find_property( const jdf_def_list_t* properties, const char* property_name, jdf_def_list_t** property );
+
+/**
+ * Macros to handle the basic information for the jdf_object_t.
+*/
+#define JDF_OBJECT_SET( OBJ, FILENAME, LINENO, COMMENT )       \
+    do {                                                       \
+       (OBJ)->super.filename = (FILENAME);  /* no copy here */ \
+       (OBJ)->super.lineno   = (LINENO);                       \
+       (OBJ)->super.comment  = (COMMENT);                      \
+    } while (0)
+#define JDF_OBJECT_LINENO( OBJ )   ((OBJ)->super.lineno)
+#define JDF_OBJECT_FILENAME( OBJ ) ((OBJ)->super.filename)
+#define JDF_OBJECT_COMMENT( OBJ )  ((OBJ)->super.comment)
 
 #endif
