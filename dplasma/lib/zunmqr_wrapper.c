@@ -24,7 +24,7 @@ static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_zunmqr_New - Overwrites the general M-by-N matrix C with Q*C, where
+ *  dplasma_zunmqr_New - Overwrites the general M-by-N matrix B with Q*B, where
  *  Q is an orthogonal matrix (unitary in the complex case) defined as the
  *  product of elementary reflectors returned by PLASMA_zgeqrf. Q is of order M.
  *
@@ -53,8 +53,8 @@ static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
  *          Descriptor of the auxiliary factorization data, computed
  *          by dplasma_zgeqrf.
  *
- * @param[out] Q
- *          Descriptor of the M-by-N matrix Q returned.
+ * @param[out] B
+ *          Descriptor of the M-by-N matrix B returned.
  *
  *******************************************************************************
  *
