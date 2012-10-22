@@ -304,7 +304,7 @@ tools/profiling/xml2traces/xml2traces
 tools/profiling/dbp2paje
 tools/profiling/dbp2xml
 ImportExecutables\.cmake
-config
+config$
 tests/branching/branching
 tests/branching/branching\.c
 tests/branching/branching\.h

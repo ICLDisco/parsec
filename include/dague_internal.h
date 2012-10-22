@@ -11,6 +11,7 @@
 #include "list_item.h"
 #include "dague_description_structures.h"
 #include "dague.h"
+#include "profiling.h"
 
 typedef struct dague_remote_deps_t dague_remote_deps_t;
 typedef struct dague_arena_t dague_arena_t;
@@ -61,7 +62,6 @@ typedef enum  {
     DAGUE_ITERATE_CONTINUE
 } dague_ontask_iterate_t;
 
-typedef int (dague_hook_t)(struct dague_execution_unit*, dague_execution_context_t*);
 typedef int (dague_release_deps_t)(struct dague_execution_unit*,
                                    dague_execution_context_t*,
                                    uint32_t,
@@ -76,8 +76,9 @@ typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context
  */
 #define DAGUE_LOOKUP_DONE 1
 
-typedef int (dague_task_fct_t)(dague_execution_context_t *exec_context);
-
+/**
+ *
+ */
 typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit *eu,
                                                          dague_execution_context_t *newcontext,
                                                          dague_execution_context_t *oldcontext,
@@ -87,13 +88,42 @@ typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_
                                                          dague_arena_t* arena,
                                                          int nb_elt,
                                                          void *param);
+/**
+ *
+ */
 typedef void (dague_traverse_function_t)(struct dague_execution_unit *,
                                          dague_execution_context_t *,
                                          uint32_t,
                                          dague_ontask_function_t *,
                                          void *);
 
-typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object, const assignment_t *assignments);
+/**
+ *
+ */
+typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object,
+                                          const assignment_t *assignments);
+/**
+ * Create an execution context tailored for representing this specified
+ * class of tasks.
+ */
+typedef int (dague_create_function_t)(struct dague_execution_unit*,
+                                      const struct dague_function* task_class,
+                                      dague_execution_context_t** task);
+
+/**
+ *
+ */
+typedef float (dague_evaluate_function_t)(const dague_execution_context_t* task);
+
+/**
+ * 
+ */
+typedef int (dague_hook_t)(struct dague_execution_unit*, dague_execution_context_t*);
+
+/**
+ *
+ */
+typedef int (dague_task_fct_t)(dague_execution_context_t *exec_context);
 
 #define DAGUE_HAS_IN_IN_DEPENDENCIES     0x0001
 #define DAGUE_HAS_OUT_OUT_DEPENDENCIES   0x0002
@@ -103,13 +133,23 @@ typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object, co
 #define DAGUE_USE_DEPS_MASK              0x0020
 #define DAGUE_HAS_CTL_GATHER             0X0040
 
+typedef struct __dague_internal_incarnation {
+    dague_evaluate_function_t *evaluate;
+    dague_hook_t              *hook;
+} __dague_chore_t;
+
 struct dague_function {
     const char                  *name;
-    uint16_t                     flags;
-    int16_t                      function_id;  /**< index in the dependency and in the function array */
 
+    uint16_t                     flags;
+    uint8_t                      function_id;  /**< index in the dependency and in the function array */
+    uint8_t                      nb_incarnations;
+
+    uint8_t                      nb_in;
+    uint8_t                      nb_out;
     uint8_t                      nb_parameters;
     uint8_t                      nb_locals;
+
     dague_dependency_t           dependencies_goal;
     const symbol_t              *params[MAX_LOCAL_COUNT];
     const symbol_t              *locals[MAX_LOCAL_COUNT];
@@ -117,16 +157,20 @@ struct dague_function {
     const dague_flow_t          *in[MAX_PARAM_COUNT];
     const dague_flow_t          *out[MAX_PARAM_COUNT];
     const expr_t                *priority;
+
+    dague_create_function_t     *init;
+    dague_functionkey_fn_t      *key;
 #if defined(DAGUE_SIM)
     dague_sim_cost_fct_t        *sim_cost_fct;
 #endif
-    dague_task_fct_t            *data_lookup;
-    dague_hook_t                *hook;
-    dague_hook_t                *complete_execution;
+    dague_hook_t                *prepare_input;
+    const __dague_chore_t       *incarnations;
+    dague_hook_t                *prepare_output;
+
     dague_traverse_function_t   *iterate_successors;
     dague_release_deps_t        *release_deps;
-    dague_functionkey_fn_t      *key;
-    char                        *body;
+    dague_hook_t                *complete_execution;
+    dague_hook_t                *fini;
 };
 
 
@@ -135,6 +179,17 @@ struct dague_data_pair_t {
     dague_arena_chunk_t      *data;
     moesi_master_t           *moesi_master;
 };
+
+/**
+ * Description of the state of the task. It indicates what will be the next
+ * next stage in the life-time of a task to be executed.
+ */
+#define DAGUE_TASK_STATUS_NONE           0x00
+#define DAGUE_TASK_STATUS_PREPARE_INPUT  0x01
+#define DAGUE_TASK_STATUS_EVAL           0x02
+#define DAGUE_TASK_STATUS_HOOK           0x03
+#define DAGUE_TASK_STATUS_PREPARE_OUTPUT 0x04
+#define DAGUE_TASK_STATUS_COMPLETE       0x05
 
 /**
  * The minimal execution context contains only the smallest amount of information
@@ -149,14 +204,24 @@ struct dague_data_pair_t {
     dague_object_t          *dague_object;               \
     const  dague_function_t *function;                   \
     int32_t                  priority;                   \
-    assignment_t             locals[MAX_LOCAL_COUNT];
+    uint8_t                  status;                     \
+    uint8_t                  hook_id;                    \
+    uint8_t                  unused[2];
 
 struct dague_minimal_execution_context_t {
     DAGUE_MINIMAL_EXECUTION_CONTEXT
+#if defined(DAGUE_PROF_TRACE)
+    dague_profile_ddesc_info_t prof_info;
+#endif /* defined(DAGUE_PROF_TRACE) */
+    assignment_t            locals[MAX_LOCAL_COUNT];
 } dague_minimal_execution_context_t;
 
 struct dague_execution_context_t {
     DAGUE_MINIMAL_EXECUTION_CONTEXT
+#if defined(DAGUE_PROF_TRACE)
+    dague_profile_ddesc_info_t prof_info;
+#endif /* defined(DAGUE_PROF_TRACE) */
+    assignment_t            locals[MAX_LOCAL_COUNT];
 #if defined(DAGUE_SIM)
     int                     sim_exec_date;
 #endif
@@ -167,17 +232,34 @@ struct dague_execution_context_t {
  * Profiling data.
  */
 #if defined(DAGUE_PROF_TRACE)
+
 extern int schedule_poll_begin, schedule_poll_end;
 extern int schedule_push_begin, schedule_push_end;
 extern int schedule_sleep_begin, schedule_sleep_end;
 extern int queue_add_begin, queue_add_end;
 extern int queue_remove_begin, queue_remove_end;
+extern int device_delegate_begin, device_delegate_end;
 
 #define DAGUE_PROF_FUNC_KEY_START(dague_object, function_index) \
     (dague_object)->profiling_array[2 * (function_index)]
 #define DAGUE_PROF_FUNC_KEY_END(dague_object, function_index) \
     (dague_object)->profiling_array[1 + 2 * (function_index)]
-#endif
+
+#define DAGUE_TASK_PROF_TRACE(PROFILE, KEY, TASK)                       \
+    do {                                                                \
+        dague_profiling_trace((PROFILE),                                \
+                              (KEY),                                    \
+                              (TASK)->function->key((TASK)->dague_object, (TASK)->locals), \
+                              (TASK)->dague_object->object_id, (void*)&(TASK)->prof_info); \
+    } while (0)
+#define DAGUE_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \
+    if(!!(COND)) {                                           \
+        DAGUE_TASK_PROF_TRACE((PROFILE), (KEY), (TASK));     \
+    }
+#else
+#define DAGUE_TASK_PROF_TRACE(CONTEXT, KEY, TASK)
+#define DAGUE_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)
+#endif  /* defined(DAGUE_PROF_TRACE) */
 
 
 /**
