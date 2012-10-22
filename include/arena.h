@@ -71,11 +71,7 @@ int dague_arena_construct_ex(dague_arena_t* arena,
 void dague_arena_destruct(dague_arena_t* arena);
 
 void* dague_arena_get(dague_arena_t* arena, size_t count);
-void* dague_arena_nolock_get(dague_arena_t* arena, size_t count);
-#define dague_uarena_get(arena, count) dague_arena_nolock_get(arena, count)
 void dague_arena_release(dague_arena_t* arena, void* ptr);
-void dague_arena_nolock_release(dague_arena_t* arena, void* ptr);
-#define dague_uarena_release(ptr) dague_arena_nolock_release(ptr)
 
 #endif /* __USE_ARENA_H__ */
 
