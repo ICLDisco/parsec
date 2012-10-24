@@ -6,7 +6,7 @@ extern "C" %{
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
  *
- * @precisions normal z -> s d c
+ * @precisions normal z -> z c
  *
  */
 #define PRECISION_z

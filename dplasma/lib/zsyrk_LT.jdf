@@ -6,7 +6,7 @@ extern "C" %{
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
  *
- * @precisions normal z -> z c
+ * @precisions normal z -> z c d s
  *
  */
 #define PRECISION_z
@@ -26,15 +26,15 @@ extern "C" %{
 
 uplo [type = "PLASMA_enum"]
 trans [type = "PLASMA_enum"]
-alpha [type = "double"]
+alpha [type = "dague_complex64_t"]
 descA [type = "tiled_matrix_desc_t"]
 A [type = "dague_ddesc_t *"]
-beta [type = "double"]
+beta [type = "dague_complex64_t"]
 descC [type = "tiled_matrix_desc_t"]
 C [type = "dague_ddesc_t *"]
 
 
-zherk(n,k)
+zsyrk(n,k)
   /* Execution space */
   n = 0..(descC.nt-1)
   k = 0..(descA.mt-1)
@@ -44,12 +44,12 @@ zherk(n,k)
   /* A == A(k,n) */
   /* B == C(n,n) */
 
-  READ  A <- A zherk_in_A0(n,k)
+  READ  A <- A zsyrk_in_A0(n,k)
 
   RW    B <- (0==k) ? C(n,n)
-          <- (k>=1) ? B zherk(n, k-1)
+          <- (k>=1) ? B zsyrk(n, k-1)
           -> (descA.mt==(k+1)) ? C(n,n)
-          -> (descA.mt>=(k+2)) ? B zherk(n, k+1)
+          -> (descA.mt>=(k+2)) ? B zsyrk(n, k+1)
 
   /*
   Anti-dependencies:
@@ -61,17 +61,17 @@ BODY
   int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
   int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
   int ldak = BLKLDD( descA, k );
-  double dbeta = (k == 0 ) ? beta : (double)1.;
+  dague_complex64_t dbeta = (k == 0 ) ? beta : (dague_complex64_t)1.;
   int ldcn = BLKLDD( descC, n );
 
   DRYRUN(
 
-    CORE_zherk(uplo, trans, tempnn,
+    CORE_zsyrk(uplo, trans, tempnn,
         tempkm, alpha, A /* A(k,n) */,
         ldak, dbeta, B /* C(n,n) */,
         ldcn );  );
 
-  printlog("CORE_zherk(%d, %d)\n"
+  printlog("CORE_zsyrk(%d, %d)\n"
            "\t(uplo, trans, tempnn, tempkm, alpha, A(%d,%d)[%p], ldak, dbeta, C(%d,%d)[%p], ldcn)\n",
   n, k, k, n, A, n, n, B);
 
@@ -80,14 +80,14 @@ END
 /*
  * Pseudo-task
  */
-zherk_in_A0(n,k) [profile = off]
+zsyrk_in_A0(n,k) [profile = off]
   n = 0..(descC.nt-1)
   k = 0..(descA.mt-1)
 
   : A(k,n)
 
   RW A <- A(k,n)
-       -> A zherk(n,k)
+       -> A zsyrk(n,k)
 BODY
 /* nothing */
 END

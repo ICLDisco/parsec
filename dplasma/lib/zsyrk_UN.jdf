@@ -6,7 +6,7 @@ extern "C" %{
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
  *
- * @precisions normal z -> z c
+ * @precisions normal z -> z c d s
  *
  */
 #define PRECISION_z
@@ -26,15 +26,15 @@ extern "C" %{
 
 uplo [type = "PLASMA_enum"]
 trans [type = "PLASMA_enum"]
-alpha [type = "double"]
+alpha [type = "dague_complex64_t"]
 descA [type = "tiled_matrix_desc_t"]
 A [type = "dague_ddesc_t *"]
-beta [type = "double"]
+beta [type = "dague_complex64_t"]
 descC [type = "tiled_matrix_desc_t"]
 C [type = "dague_ddesc_t *"]
 
 
-zherk(n,k)
+zsyrk(n,k)
   /* Execution space */
   n = 0..(descC.nt-1)
   k = 0..(descA.nt-1)
@@ -44,12 +44,12 @@ zherk(n,k)
   /* A == A(n,k) */
   /* B == C(n,n) */
 
-  READ  A <- A zherk_in_A0(n,k)
+  READ  A <- A zsyrk_in_A0(n,k)
 
   RW    B <- (0==k) ? C(n,n)
-          <- (k>=1) ? B zherk(n, k-1)
+          <- (k>=1) ? B zsyrk(n, k-1)
           -> (descA.nt==(1+k)) ? C(n,n)
-          -> (descA.nt>=(2+k)) ? B zherk(n, k+1)
+          -> (descA.nt>=(2+k)) ? B zsyrk(n, k+1)
 
   /*
   Anti-dependencies:
@@ -61,17 +61,17 @@ BODY
   int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
   int ldan = BLKLDD( descA, n );
-  double dbeta = (k == 0 ) ? beta : (double)1.;
+  dague_complex64_t dbeta = (k == 0 ) ? beta : (dague_complex64_t)1.;
   int ldcn = BLKLDD( descC, n );
 
   DRYRUN(
 
-    CORE_zherk(uplo, trans, tempnn,
+    CORE_zsyrk(uplo, trans, tempnn,
         tempkn, alpha, A /* A(n,k) */,
         ldan, dbeta, B /* C(n,n) */,
         ldcn );  );
 
-  printlog("CORE_zherk(%d, %d)\n"
+  printlog("CORE_zsyrk(%d, %d)\n"
            "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, dbeta, C(%d,%d)[%p], ldcn)\n",
   n, k, n, k, A, n, n, B);
 
@@ -80,14 +80,14 @@ END
 /*
  * Pseudo-task
  */
-zherk_in_A0(n,k) [profile = off]
+zsyrk_in_A0(n,k) [profile = off]
   n = 0..(descC.nt-1)
   k = 0..(descA.nt-1)
 
   : A(n,k)
 
   RW A <- A(n,k)
-       -> A zherk(n,k)
+       -> A zsyrk(n,k)
 BODY
 /* nothing */
 END
@@ -133,14 +133,14 @@ BODY
 
   DRYRUN(
 
-    CORE_zgemm(trans, PlasmaConjTrans, tempnn,
+    CORE_zgemm(trans, PlasmaTrans, tempnn,
         tempmm, tempkn, zalpha,
         C /* A(n,k1) */, ldan, D /* A(m,k1) */,
         ldam, zbeta, E /* C(n,m) */,
         ldcn );  );
 
   printlog("CORE_zgemm(%d, %d, %d)\n"
-           "\t(trans, PlasmaConjTrans, tempnn, tempmm, tempkn, zalpha, A(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, zbeta, C(%d,%d)[%p], ldcn)\n",
+           "\t(trans, PlasmaTrans, tempnn, tempmm, tempkn, zalpha, A(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, zbeta, C(%d,%d)[%p], ldcn)\n",
   n, m, k1, n, k1, C, m, k1, D, n, m, E);
 
 END

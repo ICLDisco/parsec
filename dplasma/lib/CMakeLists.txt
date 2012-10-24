@@ -26,6 +26,7 @@ set(JDF
   zgemm_NN.jdf zgemm_TN.jdf zgemm_NT.jdf zgemm_TT.jdf
   zhemm.jdf zsymm.jdf
   zherk_LN.jdf zherk_LT.jdf zherk_UN.jdf zherk_UT.jdf
+  zsyrk_LN.jdf zsyrk_LT.jdf zsyrk_UN.jdf zsyrk_UT.jdf
   zher2k_LN.jdf zher2k_LC.jdf zher2k_UN.jdf zher2k_UC.jdf
   zsyr2k_LN.jdf zsyr2k_LT.jdf zsyr2k_UN.jdf zsyr2k_UT.jdf
   ztrsm_LLN.jdf ztrsm_LLT.jdf ztrsm_LUN.jdf ztrsm_LUT.jdf ztrsm_RLN.jdf ztrsm_RLT.jdf ztrsm_RUN.jdf ztrsm_RUT.jdf

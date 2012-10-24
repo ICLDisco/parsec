@@ -98,10 +98,10 @@
 dague_object_t*
 dplasma_zsyr2k_New( const PLASMA_enum uplo,
                     const PLASMA_enum trans,
-                    const double alpha,
+                    const dague_complex64_t alpha,
                     const tiled_matrix_desc_t* A,
                     const tiled_matrix_desc_t* B,
-                    const double beta,
+                    const dague_complex64_t beta,
                     tiled_matrix_desc_t* C)
 {
     dague_object_t* object;
@@ -206,10 +206,10 @@ int
 dplasma_zsyr2k( dague_context_t *dague,
                 const PLASMA_enum uplo,
                 const PLASMA_enum trans,
-                const double alpha,
+                const dague_complex64_t alpha,
                 const tiled_matrix_desc_t *A,
                 const tiled_matrix_desc_t *B,
-                const double beta,
+                const dague_complex64_t beta,
                 tiled_matrix_desc_t *C)
 {
     dague_object_t *dague_zsyr2k = NULL;

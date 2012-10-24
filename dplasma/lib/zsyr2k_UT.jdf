@@ -30,7 +30,7 @@ dataA     [type = "dague_ddesc_t *"]
 descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 dataB     [type = "dague_ddesc_t *"]
 descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
-beta      [type = "double"]
+beta      [type = "dague_complex64_t"]
 dataC     [type = "dague_ddesc_t *"]
 descC     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
 
@@ -56,7 +56,7 @@ BODY
   int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
   int ldak = BLKLDD( descA, k );
   int ldbk = BLKLDD( descB, k );
-  double dbeta = ((k)==(0)) ? (beta) : (1.000000);
+  dague_complex64_t dbeta = ((k)==(0)) ? (beta) : (1.000000);
   int ldcn = BLKLDD( descC, n );
 
   printlog("CORE_zsyr2k(%d, %d)\n"
