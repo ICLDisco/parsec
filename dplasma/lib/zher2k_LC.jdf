@@ -35,7 +35,7 @@ dataC     [type = "dague_ddesc_t *"]
 descC     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
 
 
-zher2k_25(n, k)
+zher2k_24(n, k)
   /* Execution Space */
   n = 0..(descC.nt-1)
   k = 0..(descA.mt-1)
@@ -43,12 +43,12 @@ zher2k_25(n, k)
   /* Locality */
   : dataC(n,n)
 
-  READ  A    <- A zher2k_25_in_data_A0(n, k)
-  READ  B    <- B zher2k_25_in_data_B1(n, k)
-  RW    C    <- ((0==k)) ? dataC(n,n)
-             <- ((k>=1)) ? C zher2k_25(n, k-1)
-             -> ((descA.mt==(k+1))) ? dataC(n,n)
-             -> ((descA.mt>=(k+2))) ? C zher2k_25(n, k+1)
+  READ  A    <- A zher2k_24_in_data_A0(n, k)
+  READ  B    <- B zher2k_24_in_data_B1(n, k)
+  RW    C    <- ((k>=1)) ? C zher2k_24(n, k-1)
+             <- ((0==k)) ? dataC(n,n)
+             -> ((descA.mt>=(k+2))) ? C zher2k_24(n, k+1)
+             -> ((descA.mt==(1+k))) ? dataC(n,n)
 
 BODY
 {
@@ -73,7 +73,7 @@ BODY
 }
 END
 
-zher2k_25_in_data_B1(n, k) [profile = off]
+zher2k_24_in_data_B1(n, k) [profile = off]
   /* Execution Space */
   n = 0..(descC.nt-1)
   k = 0..(descA.mt-1)
@@ -82,7 +82,7 @@ zher2k_25_in_data_B1(n, k) [profile = off]
   : dataB(k,n)
 
   READ  B    <- dataB(k,n)
-             -> B zher2k_25(n, k)
+             -> B zher2k_24(n, k)
 
 BODY
 {
@@ -90,7 +90,7 @@ BODY
 }
 END
 
-zher2k_25_in_data_A0(n, k) [profile = off]
+zher2k_24_in_data_A0(n, k) [profile = off]
   /* Execution Space */
   n = 0..(descC.nt-1)
   k = 0..(descA.mt-1)
@@ -99,7 +99,7 @@ zher2k_25_in_data_A0(n, k) [profile = off]
   : dataA(k,n)
 
   READ  A    <- dataA(k,n)
-             -> A zher2k_25(n, k)
+             -> A zher2k_24(n, k)
 
 BODY
 {
@@ -107,20 +107,20 @@ BODY
 }
 END
 
-zgemm_35(n, m, k1)
+zgemm_34(n, m, k1)
   /* Execution Space */
-  n = 0..inline_c %{ return dague_imin((descC.mt-2),(descC.nt-1)); %}
+  n = 0..inline_c %{ return dague_imin((descC.nt-1),(descC.mt-2)); %}
   m = (n+1)..(descC.mt-1)
   k1 = 0..(descA.mt-1)
 
   /* Locality */
   : dataC(m,n)
 
-  READ  D    <- D zgemm_35_in_data_A0(n, m, k1)
-  READ  E    <- E zgemm_35_in_data_B1(n, m, k1)
+  READ  D    <- D zgemm_34_in_data_A0(n, m, k1)
+  READ  E    <- E zgemm_34_in_data_B1(n, m, k1)
   RW    F    <- ((0==k1)) ? dataC(m,n)
-             <- ((k1>=1)) ? J zgemm_36(n, m, k1-1)
-             -> J zgemm_36(n, m, k1)
+             <- ((k1>=1)) ? J zgemm_35(n, m, k1-1)
+             -> J zgemm_35(n, m, k1)
 
 BODY
 {
@@ -129,7 +129,7 @@ BODY
   int tempkm = ((k1)==(descA.mt-1)) ? (descA.m-(k1*descA.mb)) : descA.mb;
   int ldak = BLKLDD( descA, k1 );
   int ldbk = BLKLDD( descB, k1 );
-  dague_complex64_t zbeta = ((k1)==(0)) ? ((dague_complex64_t)beta) : (zone);
+  dague_complex64_t zbeta = ((k1)==(0)) ? ((dague_complex64_t)beta) : (1.000000);
   int ldcm = BLKLDD( descC, m );
 
   printlog("CORE_zgemm(%d, %d, %d)\n"
@@ -147,7 +147,7 @@ BODY
 }
 END
 
-zgemm_35_in_data_B1(n, m, k1) [profile = off]
+zgemm_34_in_data_B1(n, m, k1) [profile = off]
   /* Execution Space */
   n = 0..inline_c %{ return dague_imin((descC.nt-1),(descC.mt-2)); %}
   m = (n+1)..(descC.mt-1)
@@ -157,7 +157,7 @@ zgemm_35_in_data_B1(n, m, k1) [profile = off]
   : dataB(k1,n)
 
   READ  E    <- dataB(k1,n)
-             -> E zgemm_35(n, m, k1)
+             -> E zgemm_34(n, m, k1)
 
 BODY
 {
@@ -165,7 +165,7 @@ BODY
 }
 END
 
-zgemm_35_in_data_A0(n, m, k1) [profile = off]
+zgemm_34_in_data_A0(n, m, k1) [profile = off]
   /* Execution Space */
   n = 0..inline_c %{ return dague_imin((descC.nt-1),(descC.mt-2)); %}
   m = (n+1)..(descC.mt-1)
@@ -175,7 +175,7 @@ zgemm_35_in_data_A0(n, m, k1) [profile = off]
   : dataA(k1,m)
 
   READ  D    <- dataA(k1,m)
-             -> D zgemm_35(n, m, k1)
+             -> D zgemm_34(n, m, k1)
 
 BODY
 {
@@ -183,20 +183,20 @@ BODY
 }
 END
 
-zgemm_36(n, m, k1)
+zgemm_35(n, m, k1)
   /* Execution Space */
-  n = 0..inline_c %{ return dague_imin((descC.nt-1),(descC.mt-2)); %}
+  n = 0..inline_c %{ return dague_imin((descC.mt-2),(descC.nt-1)); %}
   m = (n+1)..(descC.mt-1)
   k1 = 0..(descA.mt-1)
 
   /* Locality */
   : dataC(m,n)
 
-  READ  G    <- G zgemm_36_in_data_B0(n, m, k1)
-  READ  H    <- H zgemm_36_in_data_A1(n, m, k1)
-  RW    J    <- F zgemm_35(n, m, k1)
-             -> ((descA.mt>=(2+k1))) ? F zgemm_35(n, m, k1+1)
-             -> ((descA.mt==(k1+1))) ? dataC(m,n)
+  READ  G    <- G zgemm_35_in_data_B0(n, m, k1)
+  READ  H    <- H zgemm_35_in_data_A1(n, m, k1)
+  RW    J    <- F zgemm_34(n, m, k1)
+             -> ((descA.mt==(1+k1))) ? dataC(m,n)
+             -> ((descA.mt>=(2+k1))) ? F zgemm_34(n, m, k1+1)
 
 BODY
 {
@@ -205,25 +205,24 @@ BODY
   int tempkm = ((k1)==(descA.mt-1)) ? (descA.m-(k1*descA.mb)) : descA.mb;
   int ldbk = BLKLDD( descB, k1 );
   int ldak = BLKLDD( descA, k1 );
-  dague_complex64_t zone = (dague_complex64_t)1.000000;
   int ldcm = BLKLDD( descC, m );
 
   printlog("CORE_zgemm(%d, %d, %d)\n"
-           "\t(trans, PlasmaNoTrans, tempmm, tempnn, tempkm, alpha, B(%d,%d)[%p], ldbk, A(%d,%d)[%p], ldak, zone, C(%d,%d)[%p], ldcm)\n",
+           "\t(trans, PlasmaNoTrans, tempmm, tempnn, tempkm, alpha, B(%d,%d)[%p], ldbk, A(%d,%d)[%p], ldak, 1.000000, C(%d,%d)[%p], ldcm)\n",
   n, m, k1, k1, m, G, k1, n, H, m, n, J);
   DRYRUN(
 
     CORE_zgemm(trans, PlasmaNoTrans, tempmm, 
 	tempnn, tempkm, alpha, 
 	G /* dataB(k1,m) */, ldbk, H /* dataA(k1,n) */, 
-	ldak, zone, J /* dataC(m,n) */, 
+	ldak, 1.000000, J /* dataC(m,n) */, 
 	ldcm );
   );
 
 }
 END
 
-zgemm_36_in_data_A1(n, m, k1) [profile = off]
+zgemm_35_in_data_A1(n, m, k1) [profile = off]
   /* Execution Space */
   n = 0..inline_c %{ return dague_imin((descC.mt-2),(descC.nt-1)); %}
   m = (n+1)..(descC.mt-1)
@@ -233,7 +232,7 @@ zgemm_36_in_data_A1(n, m, k1) [profile = off]
   : dataA(k1,n)
 
   READ  H    <- dataA(k1,n)
-             -> H zgemm_36(n, m, k1)
+             -> H zgemm_35(n, m, k1)
 
 BODY
 {
@@ -241,7 +240,7 @@ BODY
 }
 END
 
-zgemm_36_in_data_B0(n, m, k1) [profile = off]
+zgemm_35_in_data_B0(n, m, k1) [profile = off]
   /* Execution Space */
   n = 0..inline_c %{ return dague_imin((descC.nt-1),(descC.mt-2)); %}
   m = (n+1)..(descC.mt-1)
@@ -251,7 +250,7 @@ zgemm_36_in_data_B0(n, m, k1) [profile = off]
   : dataB(k1,m)
 
   READ  G    <- dataB(k1,m)
-             -> G zgemm_36(n, m, k1)
+             -> G zgemm_35(n, m, k1)
 
 BODY
 {
