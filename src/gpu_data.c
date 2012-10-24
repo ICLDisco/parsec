@@ -308,11 +308,12 @@ int dague_gpu_init(dague_context_t *dague_context,
             (dague_gpu_exec_stream_t*)malloc(gpu_device->max_exec_streams
                                              * sizeof(dague_gpu_exec_stream_t));
         for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
+            cudaError_t cudastatus;
             dague_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
 
             /* Allocate the stream */
-            status = cuStreamCreate( &(exec_stream->cuda_stream), 0 );
-            DAGUE_CUDA_CHECK_ERROR( "cuStreamCreate ", status,
+            cudastatus = cudaStreamCreate( &(exec_stream->cuda_stream) );
+            DAGUE_CUDA_CHECK_ERROR( "cudaStreamCreate ", cudastatus,
                                     {break;} );
             exec_stream->max_events   = DAGUE_MAX_EVENTS_PER_STREAM;
             exec_stream->executed     = 0;
@@ -471,7 +472,7 @@ int dague_gpu_fini( void )
             free(exec_stream->tasks); exec_stream->tasks = NULL;
             free(exec_stream->fifo_pending); exec_stream->fifo_pending = NULL;
             /* Release the stream */
-            cuStreamDestroy( exec_stream->cuda_stream );
+            cudaStreamDestroy( exec_stream->cuda_stream );
         }
 
         status = cuCtxDestroy( gpu_device->ctx );
@@ -919,6 +920,22 @@ int progress_stream( gpu_device_t* gpu_device,
             DAGUE_CUDA_CHECK_ERROR( "cuEventQuery ", rc,
                                     {return -1;} );
         }
+#if 0
+        else {
+            static cudaEvent_t ev = NULL;
+            static double first = 0.0;
+            static double last = 0.0;
+            double new = MPI_Wtime();
+            if(exec_stream->events[exec_stream->end] != ev) {
+                first = new;
+                ev = exec_stream->events[exec_stream->end];
+                printf("%p : %f\tNEW\tsince last poll (on the prev. event)\n", ev, first - last);
+            } else {
+                printf("%p : %f\tsame\tsince last poll (on the same event)\tTOTAL: %f\n", ev, new - last, new - first);
+            }
+            last = new;
+        }
+#endif
     }
     return saved_rc;
 }

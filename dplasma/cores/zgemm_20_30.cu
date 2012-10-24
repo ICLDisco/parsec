@@ -55,9 +55,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
 #endif
 
 #if (__CUDA_API_VERSION < 4000)
-    
     cublasSetKernelStream( stream );
-
     cublasZgemm(TRANSA, TRANSB, m, n, k, 
                 lalpha, (cuDoubleComplex*)d_A, lda,
                         (cuDoubleComplex*)d_B, ldb,
