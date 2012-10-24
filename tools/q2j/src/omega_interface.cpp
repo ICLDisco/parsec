@@ -28,7 +28,6 @@
 //#define DEBUG_ANTI
 
 static map<string, string> q2j_colocated_map;
-static set<node_t *> q2j_global_invariants;
 
 #define DEP_FLOW  0x1
 #define DEP_OUT   0x2
@@ -61,7 +60,7 @@ static void dump_full_und(und_t *und);
 ////////////////////////////////////////////////////////////////////////////////
 //
 static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
-static Relation process_execution_space(node_t *node);
+static Relation process_execution_space(node_t *node, node_t *func);
 static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
 static inline set<expr_t *> find_all_GEs_with_var(const char *var_name, expr_t *exp);
 static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t *exp, int constr_type);
@@ -72,6 +71,7 @@ static string _dump_expr(expr_t *exp);
 static int expr_tree_contains_var(expr_t *root, const char *var_name);
 static int expr_tree_contains_only_vars_in_set(expr_t *root, set<const char *>vars);
 static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F_And *R_root, map<string, Variable_ID> ivars, Relation &R);
+static void add_invariants_to_Omega_relation(F_And *R_root, Relation &R, node_t *func);
 const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R);
 static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Relation R);
 static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *root);
@@ -416,12 +416,14 @@ void process_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> iv
             econd = R_root->add_EQ();
             expr_to_Omega_coef(DA_rel_rhs(node), econd, 1, ivars, R);
             expr_to_Omega_coef(DA_rel_lhs(node), econd, -1, ivars, R);
+            break;
         case NE_OP:
             neg = R_root->add_not();
             new_and = neg->add_and();
             econd = new_and->add_EQ();
             expr_to_Omega_coef(DA_rel_rhs(node), econd, 1, ivars, R);
             expr_to_Omega_coef(DA_rel_lhs(node), econd, -1, ivars, R);
+            break;
         default:
             fprintf(stderr,"ERROR: process_condition() cannot deal with node of type: %s in: \"%s\"\n", DA_type_name(node),tree_to_str(node) );
             exit(-1);
@@ -450,6 +452,68 @@ static bool inline is_enclosed_by_else(node_t *node, node_t *branch){
 }
 
 
+static void add_invariants_to_Omega_relation(F_And *R_root, Relation &R, node_t *func){
+    map<string, Free_Var_Decl *>::iterator g_it;
+    map<string, Variable_ID> empty;
+    node_t *inv_exp;
+    char **known_vars;
+    int count;
+
+    // If there are no pragma directives associated with this function, our work here is done.
+    if( NULL == func->pragmas )
+        return;
+
+    // Count the number of "known" variables.
+    count = 0;
+    for(g_it=global_vars.begin(); g_it != global_vars.end(); g_it++ )
+        count++;
+
+    known_vars = (char **)calloc(count+1, sizeof(char *));
+    count = 0;
+
+    // We only consider the global variables to be known.
+    for(g_it=global_vars.begin(); g_it != global_vars.end(); g_it++ ){
+        known_vars[count++] = strdup((*g_it).first.c_str());
+    }
+
+    // For every pragma directive that describes an invariant
+    for(inv_exp=func->pragmas; NULL != inv_exp; inv_exp = inv_exp->next){
+
+        // Check if the condition has variables we don't know how to deal with.
+        if( !DA_tree_contains_only_known_vars(inv_exp, known_vars) ){
+            fprintf(stderr,"ERROR: invariant expression: \"%s\" contains unknown variables.\n",tree_to_str(inv_exp));
+            fprintf(stderr,"ERROR: known global variables are listed below:\n");
+            for(int i=0; i<count; i++)
+                fprintf(stderr,"       %s\n",known_vars[i]);
+            exit(-1);
+        }
+
+        // Create the actual condition in the Omega relation "R".  
+        // Since the invariants that come from pragma directives should only
+        // global variables, we pass an empty set for the input variables.
+        process_condition(inv_exp, R_root, empty, R);
+    }
+
+    // Do some memory clean-up
+    while(count){
+        free(known_vars[--count]);
+    }
+    free(known_vars);
+
+    // Let's keep the around by default, they don't take up that much space.
+#if defined(CLEAN_PRAGMAS)
+    inv_exp=func->pragmas;
+    while( NULL != inv_exp ){
+        node_t *tmp = inv_exp->next;
+        free(inv_exp);
+        inv_exp = tmp;
+    }
+    func->pragmas = NULL;
+#endif // CLEAN_PRAGMAS
+
+    return;
+}
+
 static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F_And *R_root, map<string, Variable_ID> ivars, Relation &R){
     map<string, Free_Var_Decl *>::iterator g_it;
     char **known_vars;
@@ -471,17 +535,17 @@ static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F
         known_vars[count++] = strdup(var_name);
     }
 
-    // We allso consider the global variables to be known.
+    // We also consider the global variables to be known.
     for(g_it=global_vars.begin(); g_it != global_vars.end(); g_it++ ){
         known_vars[count++] = strdup((*g_it).first.c_str());
     }
 
     // Check if the condition has variables we don't know how to deal with.
     if( !DA_tree_contains_only_known_vars(DA_if_condition(node), known_vars) ){
-        fprintf(stderr,"WARNING: if statement: \"%s\" contains unknown variables, so it will be ignored\n",tree_to_str(DA_if_condition(node)));
-        fprintf(stderr,"WARNING: known variables are listed below:\n");
+        fprintf(stderr,"ERROR: if statement: \"%s\" contains unknown variables.\n",tree_to_str(DA_if_condition(node)));
+        fprintf(stderr,"ERROR: known variables are listed below:\n");
         for(int i=0; i<count; i++)
-            fprintf(stderr,"%s\n",known_vars[i]);
+            fprintf(stderr,"       %s\n",known_vars[i]);
         exit(-1);
     }
 
@@ -503,7 +567,7 @@ static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F
     return;
 }
 
-Relation create_exit_relation(node_t *exit, node_t *def){
+Relation create_exit_relation(node_t *exit, node_t *def, node_t *func){
     int i, src_var_count, dst_var_count;
     node_t *tmp, *use;
     char **def_ind_names;
@@ -562,6 +626,9 @@ Relation create_exit_relation(node_t *exit, node_t *def){
         convert_if_condition_to_Omega_relation(tmp, in_else, R_root, ivars, R);
     }
 
+    // Add any conditions that have been provided by the developer as invariants
+    add_invariants_to_Omega_relation(R_root, R, func);
+
     // Add equalities between corresponding input and output array indexes
     int count = DA_array_dim_count(def);
     for(i=0; i<count; i++){
@@ -576,7 +643,7 @@ Relation create_exit_relation(node_t *exit, node_t *def){
     return R;
 }
 
-map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int dep_type){
+map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int dep_type, node_t *func){
     int i, src_var_count, dst_var_count;
     und_t *und;
     node_t *tmp, *def, *use;
@@ -646,6 +713,9 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
             convert_if_condition_to_Omega_relation(tmp, in_else, R_root, ovars, R);
         }
 
+        // Add any conditions that have been provided by the developer as invariants
+        add_invariants_to_Omega_relation(R_root, R, func);
+
         // Add equalities between corresponding input and output array indexes
         int count = DA_array_dim_count(use);
         for(i=0; i<count; i++){
@@ -673,7 +743,7 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
 //
 // The variable names and comments in this function abuse the terms "def" and "use".
 // It would be more acurate to use the terms "source" and "destination" for the edges.
-map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep_type, node_t *exit_node){
+map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep_type, node_t *exit_node, node_t *func){
     int i, after_def = 0;
     int src_var_count, dst_var_count;
     und_t *und;
@@ -797,6 +867,9 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             convert_if_condition_to_Omega_relation(tmp, in_else, R_root, ovars, R);
         }
 
+        // Add any conditions that have been provided by the developer as invariants
+        add_invariants_to_Omega_relation(R_root, R, func);
+
         // Add inequalities of the form (m'>=m || n'>=n || ...) or the form (m'>m || n'>n || ...) if the DU chain is
         // "normal", or loop carried, respectively. The outermost enclosing loop HAS to be k'>=k, it is not
         // part of the "or" conditions.  In the loop carried deps, the outer most loop is ALSO in the "or" conditions,
@@ -873,7 +946,7 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
     }
 
     if( DEP_FLOW==dep_type ){
-        dep_edges[exit_node] = create_exit_relation(exit_node, def);
+        dep_edges[exit_node] = create_exit_relation(exit_node, def, func);
     }
 
     return dep_edges;
@@ -3069,7 +3142,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-Relation process_execution_space( node_t *node )
+Relation process_execution_space( node_t *node, node_t *func )
 {
     int i;
     node_t *tmp;
@@ -3112,13 +3185,16 @@ Relation process_execution_space( node_t *node )
         // Form the Omega expression for the upper bound
         process_end_condition(DA_for_econd(tmp), S_root, vars, NULL, S);
 
+        // Demand that LB <= UB
         GEQ_Handle lb_le_ub = S_root->add_GEQ();
         process_end_condition(DA_for_econd(tmp), S_root, vars, DA_loop_lb(tmp), S);
         
     }
 
+    // Add any conditions that have been provided by the developer as invariants
+    add_invariants_to_Omega_relation(S_root, S, func);
+
     // Ask Omega to simplify the Relation for us.
-    //S.simplify(2,2);
     S.simplify();
     (void)S.print_with_subs_to_string(false);
 
@@ -3161,7 +3237,7 @@ static void clean_sources(map<node_t *, map<node_t *, Relation> > &sources)
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void interrogate_omega(node_t *root, var_t *head){
+void interrogate_omega(node_t *func, var_t *head){
     var_t *var;
     und_t *und;
     map<node_t *, map<node_t *, Relation> > flow_sources, output_sources, anti_sources;
@@ -3171,13 +3247,13 @@ void interrogate_omega(node_t *root, var_t *head){
 
     if (_q2j_direct_output) {
         print_header();
-        print_types_of_formal_parameters(root);
+        print_types_of_formal_parameters(func);
     } else {
         jdf_register_prologue(&_q2j_jdf);
-        jdf_register_globals(&_q2j_jdf, root);
+        jdf_register_globals(&_q2j_jdf, func);
     }
 
-    declare_global_vars(root);
+    declare_global_vars(func);
 
     node_t *entry = DA_create_Entry();
     node_t *exit_node = DA_create_Exit();
@@ -3193,19 +3269,19 @@ void interrogate_omega(node_t *root, var_t *head){
         flow_sources.clear();
         output_sources.clear();
         // Create flow edges starting from the ENTRY
-        flow_sources[entry]   = create_entry_relations(entry, var, DEP_FLOW);
-        output_sources[entry] = create_entry_relations(entry, var, DEP_OUT);
+        flow_sources[entry]   = create_entry_relations(entry, var, DEP_FLOW, func);
+        output_sources[entry] = create_entry_relations(entry, var, DEP_OUT, func);
 
         // For each DEF create all flow and output edges and for each USE create all anti edges.
         for(und=var->und; NULL != und ; und=und->next){
             if(is_und_write(und)){
                 node_t *def = und->node;
-                flow_sources[def]   = create_dep_relations(und, var, DEP_FLOW, exit_node);
-                output_sources[def] = create_dep_relations(und, var, DEP_OUT,  exit_node);
+                flow_sources[def]   = create_dep_relations(und, var, DEP_FLOW, exit_node, func);
+                output_sources[def] = create_dep_relations(und, var, DEP_OUT,  exit_node, func);
             }
             if(is_und_read(und) && !is_phony_Entry_task(und->node) && !is_phony_Exit_task(und->node)){
                 node_t *use = und->node;
-                anti_sources[use] = create_dep_relations(und, var, DEP_ANTI, exit_node);
+                anti_sources[use] = create_dep_relations(und, var, DEP_ANTI, exit_node, func);
             }
         }
 
@@ -3525,7 +3601,8 @@ printf("========================================================================
 #endif
 
     //////////////////////////////////////////////////////////////////////////////////////////
-    // Print all edges.
+    // Now all data edges have been generated. Print them, or populate a tree in memory
+    // in order to work on converting the anti-dependencies into CTL edges.
 
     edge_it = outgoing_edges.begin();
     for( ;edge_it != outgoing_edges.end(); ++edge_it ) {
@@ -3556,7 +3633,7 @@ printf("========================================================================
             map<char *, set<dep_t *> > incm_map, outg_map;
             set<dep_t *>::iterator dep_it;
             
-            Relation S_es = process_execution_space(src_task->task_node);
+            Relation S_es = process_execution_space(src_task->task_node, func);
             node_t *reference_data_element = quark_get_locality(src_task->task_node);
 
             // Group the edges based on the variable they flow into or from
@@ -3610,41 +3687,6 @@ void add_colocated_data_info(char *a, char *b){
     q2j_colocated_map[string(a)] = string(b);
 }
 
-
-void store_global_invariant(node_t *invar_expr){
-    q2j_global_invariants.insert(invar_expr);
-}
-
-/* UNUSED */
-#if 0
-static const char *econd_tree_to_ub(node_t *econd){
-    stringstream ss;
-    char *a, *b;
-        
-    switch( econd->type ){
-        case L_AND:
-            a = strdup( econd_tree_to_ub(econd->u.kids.kids[0]) );
-            b = strdup( econd_tree_to_ub(econd->u.kids.kids[1]) );
-            ss << "( (" << a << " < " << b << ")? " << a << " : " << b << " )";
-            free(a);
-            free(b);
-            return strdup(ss.str().c_str());
-// TODO: handle logical or (L_OR) as well.
-
-        case LE:
-            ss << tree_to_str(DA_rel_rhs(econd));
-            return strdup(ss.str().c_str());
-
-        case LT:
-            ss << tree_to_str(DA_rel_rhs(econd)) << "-1";
-            return strdup(ss.str().c_str());
-
-        default:
-            fprintf(stderr,"ERROR: econd_tree_to_ub() cannot deal with node of type: %d\n",econd->type);
-            exit(-1);
-    }
-}
-#endif
 
 // We are assuming that all leaves will be kids of a MUL or a DIV, or they will be an INTCONSTANT
 // Conversely we are assuming that all MUL and DIV nodes will have ONLY leaves as kids.
