@@ -50,12 +50,13 @@ static uint32_t sched_priority_trace_counter;
 int __dague_progress_task( dague_execution_unit_t* eu_context,
                            dague_execution_context_t* task )
 {
+    (void)eu_context;
     switch(task->status) {
         case DAGUE_TASK_STATUS_NONE:
 #ifdef DAGUE_DEBUG_VERBOSE1
             char tmp[MAX_TASK_STRLEN];
             DEBUG(("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
-                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task))); 
+                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task)));
 #endif
         return -1;
 
