@@ -158,9 +158,9 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <string> STRUCT
 %type <string> TYPEDEF
 %type <string> PRAGMA
-%type <string> DIR_DAGUE_DATA_COLOCATED
-%type <string> DIR_DAGUE_INVARIANT
-%type <string> DIR_DAGUE_TASK_START
+%type <string> DIR_PARSEC_DATA_COLOCATED
+%type <string> DIR_PARSEC_INVARIANT
+%type <string> DIR_PARSEC_TASK_START
 %type <string> TYPE_NAME
 %type <string> UNION
 %type <string> UNSIGNED
@@ -201,7 +201,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %token XOR_ASSIGN OR_ASSIGN TYPE_NAME
 
 %token TYPEDEF PRAGMA EXTERN STATIC AUTO REGISTER
-%token DIR_DAGUE_DATA_COLOCATED DIR_DAGUE_INVARIANT DIR_DAGUE_TASK_START
+%token DIR_PARSEC_DATA_COLOCATED DIR_PARSEC_INVARIANT DIR_PARSEC_TASK_START
 %token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
 %token INT8 INT16 INT32 INT64 UINT8 UINT16 UINT32 UINT64 INTPTR UINTPTR INTMAX UINTMAX
 %token PLASMA_COMPLEX32_T PLASMA_COMPLEX64_T PLASMA_ENUM PLASMA_REQUEST PLASMA_DESC PLASMA_SEQUENCE
@@ -699,62 +699,53 @@ typedef_specifier
 	;
 
 pragma_options
-	: IDENTIFIER
-          {
-          }
-	| IDENTIFIER ':' pragma_options
-          {
-          }
+	: IDENTIFIER { }
+	| IDENTIFIER ':' pragma_options { }
 	;
 
 task_arguments
-	: pragma_options
-	  {
-	  }
-	| pragma_options ',' task_arguments
-	  {
-	  }
+	: pragma_options { }
+	| pragma_options ',' task_arguments { }
 	;
 
 pragma_parameters
 	: IDENTIFIER
-          { 
-              node_t *tmp;
-              tmp = node_to_ptr($1);
-              tmp->prev = NULL;
-              tmp->next = NULL;
-              $$.next = tmp;
-          } 
+      { 
+          node_t *tmp;
+          tmp = node_to_ptr($1);
+          tmp->prev = NULL;
+          tmp->next = NULL;
+          $$.next = tmp;
+      } 
 	| BIN_MASK
-          { 
-              node_t *tmp;
-              tmp = node_to_ptr($1);
-              tmp->prev = NULL;
-              tmp->next = NULL;
-              $$.next = tmp;
-          } 
+      { 
+          node_t *tmp;
+          tmp = node_to_ptr($1);
+          tmp->prev = NULL;
+          tmp->next = NULL;
+          $$.next = tmp;
+      } 
 	| IDENTIFIER pragma_parameters
 	  {
-              node_t *tmp;
-              tmp = node_to_ptr($1);
-              tmp->next = NULL;
-              tmp->prev = $2.next;
-              tmp->prev->next = tmp;
-              $$.next = tmp;
+          node_t *tmp;
+          tmp = node_to_ptr($1);
+          tmp->next = NULL;
+          tmp->prev = $2.next;
+          tmp->prev->next = tmp;
+          $$.next = tmp;
 	  }
 	;
 
 pragma_specifier
-	: PRAGMA IDENTIFIER pragma_parameters
+	: PRAGMA IDENTIFIER pragma_parameters { }
+	| PRAGMA DIR_PARSEC_INVARIANT expression
 	  {
+	      // store_global_invariant(node_to_ptr($3));
+	      add_pending_invariant(node_to_ptr($3));
 	  }
-	| PRAGMA DIR_DAGUE_INVARIANT expression
+	| PRAGMA DIR_PARSEC_DATA_COLOCATED pragma_parameters
 	  {
-	      store_global_invariant(node_to_ptr($3));
-	  }
-	| PRAGMA DIR_DAGUE_DATA_COLOCATED pragma_parameters
-	  {
-              //#pragma DAGUE_DATA_COLOCATED T A
+              //#pragma PARSEC_DATA_COLOCATED T A
               //int i=0;
               node_t *tmp, *reference;
 
@@ -774,9 +765,9 @@ pragma_specifier
               add_colocated_data_info(reference->u.var_name, reference->u.var_name);
               //printf(") is co-located with %s\n",tmp->u.var_name);
 	  }
-	| PRAGMA DIR_DAGUE_TASK_START IDENTIFIER task_arguments
+	| PRAGMA DIR_PARSEC_TASK_START IDENTIFIER task_arguments
 	  {
-              //#pragma DAGUE_TASK_START  TASK_NAME  PARAM[:PSEUDONAME]:(IN|OUT|INOUT|SCRATCH)[:TYPE_NAME] [, ...]
+              //#pragma PARSEC_TASK_START  TASK_NAME  PARAM[:PSEUDONAME]:(IN|OUT|INOUT|SCRATCH)[:TYPE_NAME] [, ...]
 	  }
 	;
 
@@ -1000,6 +991,8 @@ direct_declarator
 	| direct_declarator '(' parameter_type_list ')'
           {
               $1.symtab = st_get_current_st();
+              /* Here we loose the parameter_type_list, but we are not using it anyway */
+              $$ = $1;
           }
 	| direct_declarator '(' identifier_list ')'
 	| direct_declarator '(' ')'
@@ -1105,7 +1098,11 @@ statement
 	| selection_statement
 	| iteration_statement
 	| jump_statement
-        | pragma_specifier
+/*
+ If we are to support pragma directives inside the body of a function
+ we have to create a pragma scope type of hierarchy.
+    | pragma_specifier 
+*/
 	;
 
 labeled_statement
@@ -1314,6 +1311,7 @@ translation_unit
 external_declaration
 	: function_definition
           {
+              associate_pending_pragmas_with_function(&($1));
               rename_induction_variables(&($1));
               convert_OUTPUT_to_INOUT(&($1));
               if( _q2j_add_phony_tasks )
@@ -1332,35 +1330,43 @@ external_declaration
               /* do nothing */
           }
 	| pragma_specifier
-          {
+      {
               /* do nothing */
-          }
+      }
 	;
 
 function_definition
 	: declaration_specifiers declarator declaration_list compound_statement
           {
-              $$ = $4;
-//              printf("%s %s %s{\n",$1, $2, $3);
-	      DA_parentize(node_to_ptr($4));
+              node_t *ptr;
+              ptr = DA_create_B_expr(FUNC, node_to_ptr($2), node_to_ptr($4));
+              ptr->symtab = $4.symtab;
+              DA_parentize(ptr);
+              $$ = *ptr;
           }
 	| declaration_specifiers declarator compound_statement
           {
-              $$ = $3;
-//              printf("%s %s{\n",$1, $2);
-	      DA_parentize(node_to_ptr($3));
+              node_t *ptr;
+              ptr = DA_create_B_expr(FUNC, node_to_ptr($2), node_to_ptr($3));
+              ptr->symtab = $3.symtab;
+              DA_parentize(ptr);
+              $$ = *ptr;
           }
 	| declarator declaration_list compound_statement
           {
-              $$ = $3;
-//              printf("%s %s{\n",$1, $2);
-	      DA_parentize(node_to_ptr($3));
+              node_t *ptr;
+              ptr = DA_create_B_expr(FUNC, node_to_ptr($1), node_to_ptr($3));
+              ptr->symtab = $3.symtab;
+              DA_parentize(ptr);
+              $$ = *ptr;
           }
 	| declarator compound_statement
           {
-              $$ = $2;
-//              printf("%s{\n",$1);
-	      DA_parentize(node_to_ptr($2));
+              node_t *ptr;
+              ptr = DA_create_B_expr(FUNC, node_to_ptr($1), node_to_ptr($2));
+              ptr->symtab = $2.symtab;
+              DA_parentize(ptr);
+              $$ = *ptr;
           }
 	;
 

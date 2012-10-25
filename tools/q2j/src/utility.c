@@ -46,6 +46,8 @@ static dague_list_t _dague_pool_list;
 static var_t *var_head=NULL;
 static int _ind_depth=0;
 static int _task_count=0;
+static node_t *_q2j_pending_invariants_head=NULL;
+
 // For the JDF generation we need to emmit some things in special ways,
 // (i.e. arrays in FORTRAN notation) and this "variable" will never need
 // to be changed.  However if we need to use the code to generate proper "C"
@@ -66,6 +68,7 @@ typedef struct var_def_item {
     char *def;
 } var_def_item_t;
 
+static void set_symtab_in_tree(symtab_t *symtab, node_t *node);
 static void do_parentize(node_t *node, int off);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
 static void do_if_parentize(node_t *node, node_t *enclosing_if);
@@ -1076,6 +1079,51 @@ void convert_OUTPUT_to_INOUT(node_t *node){
     }
 }
 
+void add_pending_invariant(node_t *node){
+
+    if(NULL == node)
+        return;
+
+    node->next = _q2j_pending_invariants_head;
+    if( NULL != _q2j_pending_invariants_head ){
+        _q2j_pending_invariants_head->prev = node;
+    }
+    _q2j_pending_invariants_head = node;
+
+    return;
+}
+
+
+void set_symtab_in_tree(symtab_t *symtab, node_t *node){
+    int i;
+    /* Set the symtab of this node (whatever type it is) */
+    node->symtab = symtab;
+
+    /* Go to the siblings, or children of this node */
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            set_symtab_in_tree(symtab, tmp);
+        }
+    }else{
+        for(i=0; i<node->u.kids.kid_count; ++i){
+            set_symtab_in_tree(symtab, DA_kid(node,i));
+        }
+    }
+}
+
+void associate_pending_pragmas_with_function(node_t *function){
+    node_t *curr;
+
+    function->pragmas = _q2j_pending_invariants_head;
+    for(curr=_q2j_pending_invariants_head; curr!=NULL; curr=curr->next){
+        set_symtab_in_tree(function->symtab, curr);
+    }
+    /* Reset the pending invariants so the next function does not seem them as well. */
+    _q2j_pending_invariants_head = NULL;
+
+    return;
+}
 
 // poor man's asprintf().
 char *append_to_string(char *str, const char *app, const char *fmt, size_t add_length){

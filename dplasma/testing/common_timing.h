@@ -8,7 +8,7 @@
 extern double time_elapsed;
 extern double sync_time_elapsed;
 
-#ifdef HAVE_MPI
+#if defined( HAVE_MPI)
 # define get_cur_time() MPI_Wtime()
 #else
 static inline double get_cur_time(void)

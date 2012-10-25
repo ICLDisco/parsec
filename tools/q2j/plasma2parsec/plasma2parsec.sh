@@ -26,6 +26,16 @@ generatejdf()
     sed -i '/ plasma = plasma_context_self();/d' $src
     sed -i '{N;/if (sequence->status != PLASMA_SUCCESS).*\n.*return;/d}' $src
 
+    # Remove zone, mzone, done, mdone
+    sed -i '/PLASMA_Complex64_t *zone/d'  $src
+    sed -i '/PLASMA_Complex64_t *mzone/d' $src
+    sed -i '/PLASMA_Complex64_t *done/d'  $src
+    sed -i '/PLASMA_Complex64_t *mdone/d' $src
+    sed -i 's/mzone/-1/g'  $src
+    sed -i 's/zone/1./g'   $src
+    sed -i 's/mdone/-1./g' $src
+    sed -i 's/done/1./g'   $src
+
     echo "  Precompile the file to get the correct input format"
     cpp -I. -P -E $src -o $dstcpp
 

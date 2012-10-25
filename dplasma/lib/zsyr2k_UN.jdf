@@ -1,0 +1,261 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> z c d s
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+%}
+
+uplo      [type = "PLASMA_enum"]
+trans     [type = "PLASMA_enum"]
+alpha     [type = "dague_complex64_t"]
+dataA     [type = "dague_ddesc_t *"]
+descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+dataB     [type = "dague_ddesc_t *"]
+descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
+beta      [type = "dague_complex64_t"]
+dataC     [type = "dague_ddesc_t *"]
+descC     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
+
+
+zsyr2k_22(n, k)
+  /* Execution Space */
+  n = 0..(descC.nt-1)
+  k = 0..(descA.nt-1)
+
+  /* Locality */
+  : dataC(n,n)
+
+  READ  A    <- A zsyr2k_22_in_data_A0(n, k)
+  READ  B    <- B zsyr2k_22_in_data_B1(n, k)
+  RW    C    <- ((0==k)) ? dataC(n,n)
+             <- ((k>=1)) ? C zsyr2k_22(n, k-1)
+             -> ((descA.nt==(1+k))) ? dataC(n,n)
+             -> ((descA.nt>=(2+k))) ? C zsyr2k_22(n, k+1)
+
+BODY
+{
+  int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
+  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
+  int ldan = BLKLDD( descA, n );
+  int ldbn = BLKLDD( descB, n );
+  dague_complex64_t dbeta = ((k)==(0)) ? (beta) : (1.000000);
+  int ldcn = BLKLDD( descC, n );
+
+  printlog("CORE_zsyr2k(%d, %d)\n"
+           "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, B(%d,%d)[%p], ldbn, dbeta, C(%d,%d)[%p], ldcn)\n",
+  n, k, n, k, A, n, k, B, n, n, C);
+  DRYRUN(
+
+    CORE_zsyr2k(uplo, trans, tempnn, 
+	tempkn, alpha, A /* dataA(n,k) */, 
+	ldan, B /* dataB(n,k) */, ldbn, 
+	dbeta, C /* dataC(n,n) */, ldcn );
+  );
+
+}
+END
+
+zsyr2k_22_in_data_B1(n, k) [profile = off]
+  /* Execution Space */
+  n = 0..(descC.nt-1)
+  k = 0..(descA.nt-1)
+
+  /* Locality */
+  : dataB(n,k)
+
+  READ  B    <- dataB(n,k)
+             -> B zsyr2k_22(n, k)
+
+BODY
+{
+    /* nothing */
+}
+END
+
+zsyr2k_22_in_data_A0(n, k) [profile = off]
+  /* Execution Space */
+  n = 0..(descC.nt-1)
+  k = 0..(descA.nt-1)
+
+  /* Locality */
+  : dataA(n,k)
+
+  READ  A    <- dataA(n,k)
+             -> A zsyr2k_22(n, k)
+
+BODY
+{
+    /* nothing */
+}
+END
+
+zgemm_31(n, m, k1)
+  /* Execution Space */
+  n = 0..inline_c %{ return dague_imin((descC.mt-2),(descC.nt-1)); %}
+  m = (n+1)..(descC.mt-1)
+  k1 = 0..(descA.nt-1)
+
+  /* Locality */
+  : dataC(n,m)
+
+  READ  D    <- D zgemm_31_in_data_A0(n, m, k1)
+  READ  E    <- E zgemm_31_in_data_B1(n, m, k1)
+  RW    F    <- ((0==k1)) ? dataC(n,m)
+             <- ((k1>=1)) ? J zgemm_32(n, m, k1-1)
+             -> J zgemm_32(n, m, k1)
+
+BODY
+{
+  int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
+  int tempmm = ((m)==(descC.mt-1)) ? (descC.m-(m*descC.mb)) : descC.mb;
+  int tempkn = ((k1)==(descA.nt-1)) ? (descA.n-(k1*descA.nb)) : descA.nb;
+  int ldan = BLKLDD( descA, n );
+  int ldbm = BLKLDD( descB, m );
+  dague_complex64_t zbeta = ((k1)==(0)) ? ((dague_complex64_t)beta) : (1.000000);
+  int ldcn = BLKLDD( descC, n );
+
+  printlog("CORE_zgemm(%d, %d, %d)\n"
+           "\t(trans, PlasmaTrans, tempnn, tempmm, tempkn, alpha, A(%d,%d)[%p], ldan, B(%d,%d)[%p], ldbm, zbeta, C(%d,%d)[%p], ldcn)\n",
+  n, m, k1, n, k1, D, m, k1, E, n, m, F);
+  DRYRUN(
+
+    CORE_zgemm(trans, PlasmaTrans, tempnn, 
+	tempmm, tempkn, alpha, 
+	D /* dataA(n,k1) */, ldan, E /* dataB(m,k1) */, 
+	ldbm, zbeta, F /* dataC(n,m) */, 
+	ldcn );
+  );
+
+}
+END
+
+zgemm_31_in_data_B1(n, m, k1) [profile = off]
+  /* Execution Space */
+  n = 0..inline_c %{ return dague_imin((descC.mt-2),(descC.nt-1)); %}
+  m = (n+1)..(descC.mt-1)
+  k1 = 0..(descA.nt-1)
+
+  /* Locality */
+  : dataB(m,k1)
+
+  READ  E    <- dataB(m,k1)
+             -> E zgemm_31(n, m, k1)
+
+BODY
+{
+    /* nothing */
+}
+END
+
+zgemm_31_in_data_A0(n, m, k1) [profile = off]
+  /* Execution Space */
+  n = 0..inline_c %{ return dague_imin((descC.mt-2),(descC.nt-1)); %}
+  m = (n+1)..(descC.mt-1)
+  k1 = 0..(descA.nt-1)
+
+  /* Locality */
+  : dataA(n,k1)
+
+  READ  D    <- dataA(n,k1)
+             -> D zgemm_31(n, m, k1)
+
+BODY
+{
+    /* nothing */
+}
+END
+
+zgemm_32(n, m, k1)
+  /* Execution Space */
+  n = 0..inline_c %{ return dague_imin((descC.mt-2),(descC.nt-1)); %}
+  m = (n+1)..(descC.mt-1)
+  k1 = 0..(descA.nt-1)
+
+  /* Locality */
+  : dataC(n,m)
+
+  READ  G    <- G zgemm_32_in_data_B0(n, m, k1)
+  READ  H    <- H zgemm_32_in_data_A1(n, m, k1)
+  RW    J    <- F zgemm_31(n, m, k1)
+             -> ((descA.nt>=(2+k1))) ? F zgemm_31(n, m, k1+1)
+             -> ((descA.nt==(k1+1))) ? dataC(n,m)
+
+BODY
+{
+  int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
+  int tempmm = ((m)==(descC.mt-1)) ? (descC.m-(m*descC.mb)) : descC.mb;
+  int tempkn = ((k1)==(descA.nt-1)) ? (descA.n-(k1*descA.nb)) : descA.nb;
+  int ldan = BLKLDD( descA, n );
+  int ldam = BLKLDD( descA, m );
+  int ldcn = BLKLDD( descC, n );
+
+  printlog("CORE_zgemm(%d, %d, %d)\n"
+           "\t(trans, PlasmaTrans, tempnn, tempmm, tempkn, alpha, B(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, 1.000000, C(%d,%d)[%p], ldcn)\n",
+  n, m, k1, n, k1, G, m, k1, H, n, m, J);
+  DRYRUN(
+
+    CORE_zgemm(trans, PlasmaTrans, tempnn, 
+	tempmm, tempkn, alpha, 
+	G /* dataB(n,k1) */, ldan, H /* dataA(m,k1) */, 
+	ldam, 1.000000, J /* dataC(n,m) */, 
+	ldcn );
+  );
+
+}
+END
+
+zgemm_32_in_data_A1(n, m, k1) [profile = off]
+  /* Execution Space */
+  n = 0..inline_c %{ return dague_imin((descC.nt-1),(descC.mt-2)); %}
+  m = (n+1)..(descC.mt-1)
+  k1 = 0..(descA.nt-1)
+
+  /* Locality */
+  : dataA(m,k1)
+
+  READ  H    <- dataA(m,k1)
+             -> H zgemm_32(n, m, k1)
+
+BODY
+{
+    /* nothing */
+}
+END
+
+zgemm_32_in_data_B0(n, m, k1) [profile = off]
+  /* Execution Space */
+  n = 0..inline_c %{ return dague_imin((descC.nt-1),(descC.mt-2)); %}
+  m = (n+1)..(descC.mt-1)
+  k1 = 0..(descA.nt-1)
+
+  /* Locality */
+  : dataB(n,k1)
+
+  READ  G    <- dataB(n,k1)
+             -> G zgemm_32(n, m, k1)
+
+BODY
+{
+    /* nothing */
+}
+END
+
+

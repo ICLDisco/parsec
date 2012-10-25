@@ -145,8 +145,7 @@ struct dague_function {
     uint8_t                      function_id;  /**< index in the dependency and in the function array */
     uint8_t                      nb_incarnations;
 
-    uint8_t                      nb_in;
-    uint8_t                      nb_out;
+    uint8_t                      nb_flows;
     uint8_t                      nb_parameters;
     uint8_t                      nb_locals;
 
