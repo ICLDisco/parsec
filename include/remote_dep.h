@@ -55,11 +55,11 @@ struct remote_dep_output_param {
   *   "subtle" relation with remote_deps_allocation_init in
   *  remote_dep.c
   */
-    void*                 data;
-    struct dague_arena_t* type;
-    uint32_t              nbelt;
-    uint32_t*             rank_bits;
-    uint32_t              count;
+    struct dague_arena_chunk*    data;
+    struct dague_arena_t*        type;
+    uint32_t                     nbelt;
+    uint32_t*                    rank_bits;
+    uint32_t                     count;
 };
 
 struct dague_remote_deps_t {

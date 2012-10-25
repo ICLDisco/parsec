@@ -29,9 +29,10 @@ typedef struct _dague_data_copy dague_data_copy_t;
 typedef uint32_t dague_data_key_t;
 
 typedef struct dague_ddesc {
-    uint32_t myrank;  /**< process rank */
-    uint32_t cores;   /**< number of cores used for computation per node */
-    uint32_t nodes;   /**< number of nodes involved in the computation */
+    uint32_t            myrank;    /**< process rank */
+    uint32_t            cores;     /**< number of cores used for computation per node */
+    uint32_t            nodes;     /**< number of nodes involved in the computation */
+
     dague_data_key_t (*data_key)(struct dague_ddesc *mat, ...); /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
     uint32_t (*rank_of)(struct dague_ddesc *mat, ...);                        /* return the rank of the process owning the data  */
     uint32_t (*rank_of_key)(struct dague_ddesc *mat, dague_data_key_t key);

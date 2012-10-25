@@ -15,7 +15,7 @@
 
 typedef struct dague_remote_deps_t dague_remote_deps_t;
 typedef struct dague_arena_t dague_arena_t;
-typedef struct dague_arena_chunk_t dague_arena_chunk_t;
+typedef struct dague_arena_chunk dague_arena_chunk_t;
 typedef struct dague_data_pair_t dague_data_pair_t;
 typedef struct _moesi_master moesi_master_t;
 
@@ -175,9 +175,9 @@ struct dague_function {
 
 
 struct dague_data_pair_t {
-    struct data_repo_entry   *data_repo;
-    dague_arena_chunk_t      *data;
-    moesi_master_t           *moesi_master;
+    struct data_repo_entry    *data_repo;
+    struct dague_arena_chunk  *data;
+    moesi_master_t            *moesi_master;
 };
 
 /**

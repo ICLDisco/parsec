@@ -28,7 +28,6 @@ typedef uint8_t dague_data_coherency_t;
  * pointers to the versions managed by each supported devices.
  */
 struct _dague_data {
-    struct dague_ddesc*      data_desc;
     dague_arena_t*           arena;
     uint32_t                 nb_elts;          /* number of elements of the memory layout */
     dague_data_key_t         key;

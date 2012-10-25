@@ -49,8 +49,9 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
 
 typedef struct tiled_matrix_desc_t {
     dague_ddesc_t super;
-    enum matrix_type    mtype;      /**< precision of the matrix */
-    enum matrix_storage storage;    /**< storage of the matrix   */
+    struct _dague_data** data_map;   /**< map of the data */
+    enum matrix_type     mtype;      /**< precision of the matrix */
+    enum matrix_storage  storage;    /**< storage of the matrix   */
     int dtype;          /**< Distribution type of descriptor      */
     int tileld;         /**< leading dimension of each tile (Should be a function depending on the row) */
     int mb;             /**< number of rows in a tile */

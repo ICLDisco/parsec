@@ -962,7 +962,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
              * Thus, if the ref count is not increased here, the data might dissapear
              * before it become useless.
              */
-            AREF( arg->output_entry->data[out_index] );
+            CHUNK_RETAIN( arg->output_entry->data[out_index] );
         }
         arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
                                                                  eu, oldcontext,

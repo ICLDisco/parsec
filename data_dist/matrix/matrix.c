@@ -43,16 +43,16 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->super.nodes = nodes;    
     tdesc->super.cores = cores;
     tdesc->super.myrank = myrank;
-    tdesc->super.moesi_map = NULL;
 
     /* Matrix properties */
-    tdesc->mtype   = mtyp;
-    tdesc->storage = storage;
-    tdesc->dtype   = tiled_matrix_desc_type | dtype;
-    tdesc->tileld  = (storage == matrix_Tile) ? mb : lm;
-    tdesc->mb      = mb;
-    tdesc->nb      = nb;
-    tdesc->bsiz    = mb * nb;
+    tdesc->data_map = NULL;
+    tdesc->mtype    = mtyp;
+    tdesc->storage  = storage;
+    tdesc->dtype    = tiled_matrix_desc_type | dtype;
+    tdesc->tileld   = (storage == matrix_Tile) ? mb : lm;
+    tdesc->mb       = mb;
+    tdesc->nb       = nb;
+    tdesc->bsiz     = mb * nb;
 
     /* Large matrix parameters */
     tdesc->lm = lm;
@@ -136,8 +136,10 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
  * Writes the data into the file filename
  * Sequential function per node
  */
-int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
+int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
+{
     dague_ddesc_t *ddesc = &(tdesc->super);
+    dague_data_t* data;
     FILE *tmpf;
     char *buf;
     int i, j, k;
@@ -154,7 +156,8 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    buf = ddesc->data_of( ddesc, i, j );
+                    data = ddesc->data_of( ddesc, i, j );
+                    buf = CHUNK_DATA(data);
                     fwrite(buf, eltsize, tdesc->bsiz, tmpf );
                 }
             }
@@ -162,7 +165,8 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    buf = ddesc->data_of( ddesc, i, j );
+                    data = ddesc->data_of( ddesc, i, j );
+                    buf = CHUNK_DATA(data);
                     for (k=0; k<tdesc->nb; k++) {
                         fwrite(buf, eltsize, tdesc->mb, tmpf );
                         buf += eltsize * tdesc->lm;
@@ -182,6 +186,7 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
  */
 int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
     dague_ddesc_t *ddesc = &(tdesc->super);
+    dague_data_t* data;
     FILE *tmpf;
     char *buf;
     int i, j, k, ret;
@@ -198,7 +203,8 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    buf = ddesc->data_of( ddesc, i, j );
+                    data = ddesc->data_of( ddesc, i, j );
+                    buf = CHUNK_DATA(data);
                     ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
                     if ( ret !=  tdesc->bsiz ) {
                         fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
@@ -211,8 +217,9 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    buf = ddesc->data_of( ddesc, i, j );
-                    for (k=0; k<tdesc->nb; k++) {
+                    data = ddesc->data_of( ddesc, i, j );
+                    buf = CHUNK_DATA(data);
+                    for (k=0; k < tdesc->nb; k++) {
                         ret = fread(buf, eltsize, tdesc->mb, tmpf );
                         if ( ret !=  tdesc->mb ) {
                             fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",

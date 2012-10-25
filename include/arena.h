@@ -30,7 +30,6 @@ struct dague_arena_t
     size_t alignment;                        /* alignment to be respected, elem_size should be >> alignment, prefix size is the minimum alignment */
     size_t elem_size;                        /* size of one element (unpacked in memory, aka extent) */
     dague_remote_dep_datatype_t opaque_dtt;  /* the appropriate type for the network engine to send an element */
-    /* TODO */
     dague_lifo_t lifo;
     volatile int32_t used;                   /* elements currently out of the arena */
     int32_t max_used;                        /* maximum size of the arena in elements */
@@ -44,11 +43,12 @@ struct dague_arena_t
 
 /* The fields are ordered so that important list_item_t fields are not
  * damaged when using them as arena chunks */
-struct dague_arena_chunk_t {
-    uint64_t keeper_of_the_seven_keys;
-    void* data;
+struct dague_arena_chunk {
+    dague_arena_t* origin;
     size_t count;
+    uint32_t refcount;
     int32_t cache_friendly_emptyness;
+    void* data;
 };
 
 /* for SSE, 16 is mandatory, most cache are 64 bit aligned */
@@ -70,8 +70,18 @@ int dague_arena_construct_ex(dague_arena_t* arena,
                              int32_t max_released);
 void dague_arena_destruct(dague_arena_t* arena);
 
-void* dague_arena_get(dague_arena_t* arena, size_t count);
-void dague_arena_release(dague_arena_t* arena, void* ptr);
+dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count);
+void dague_arena_release(dague_arena_chunk_t* ptr);
+
+#define CHUNK_RETAIN(CHK) \
+    (CHK)->refcount++;
+#define CHUNK_RELEASE(CHK) \
+    if( --((CHK)->refcount) == 0 ) { \
+        dague_arena_release(CHK); \
+    }
+
+#define CHUNK_DATA(CHK) \
+    (assert(NULL != ((CHK)->data)), (CHK)->data)
 
 #endif /* __USE_ARENA_H__ */
 

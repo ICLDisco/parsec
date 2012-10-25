@@ -126,10 +126,8 @@ dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count)
 }
 
 
-void dague_arena_release(dague_arena_chunk_t* ptr)
+void dague_arena_release(dague_arena_chunk_t* chunk)
 {
-    dague_arena_chunk_t* chunk = DAGUE_ARENA_PREFIX(ptr);
-    assert(DAGUE_ARENA_IS_PTR(ptr));
     dague_arena_t* arena = chunk->origin;
     assert(NULL != arena);
     assert(0 == (((uintptr_t)arena)%sizeof(uintptr_t))); /* is it aligned */
