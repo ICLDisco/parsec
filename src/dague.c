@@ -841,8 +841,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                    *deps,
                    exec_context->priority));
 
-            assert( dest_flow->flow_index <= new_context->function->nb_in);
-            memset( new_context->data, 0, sizeof(dague_data_pair_t) * new_context->function->nb_in);
+            assert( dest_flow->flow_index <= new_context->function->nb_flows);
+            memset( new_context->data, 0, sizeof(dague_data_pair_t) * new_context->function->nb_flows);
             /**
              * Save the data_repo and the pointer to the data for later use. This will prevent the
              * engine from atomically locking the hash table for at least one of the flow
