@@ -56,7 +56,7 @@ BODY
   int tempkn = (k==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
   int ldan = BLKLDD( descA, n );
   int ldbn = BLKLDD( descB, n );
-  dague_complex64_t dbeta = (k==0) ? (beta) : (1.);
+  dague_complex64_t dbeta = (k==0) ? beta : (dague_complex64_t)(1.);
   int ldcn = BLKLDD( descC, n );
 
   printlog("CORE_zsyr2k(%d, %d)\n"
@@ -129,7 +129,7 @@ BODY
   int tempkn = (k1==(descA.nt-1)) ? (descA.n-(k1*descA.nb)) : descA.nb;
   int ldan = BLKLDD( descA, n );
   int ldbm = BLKLDD( descB, m );
-  dague_complex64_t zbeta = (k1==0) ? ((dague_complex64_t)beta) : (1.);
+  dague_complex64_t zbeta = (k1==0) ? beta : (dague_complex64_t)(1.);
   int ldcn = BLKLDD( descC, n );
 
   printlog("CORE_zgemm(%d, %d, %d)\n"
