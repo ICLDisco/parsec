@@ -176,6 +176,19 @@ dplasma_zhemm( dague_context_t *dague,
         dplasma_error("PLASMA_zhemm", "illegal value of uplo");
         return -2;
     }
+    if ( (A->m != A->n) ) {
+        dplasma_error("PLASMA_zhemm", "illegal size of matrix A which should be square");
+        return -4;
+    }
+    if ( (B->m != C->m) || (B->n != C->n) ) {
+        dplasma_error("PLASMA_zhemm", "illegal sizes of matrices B and C");
+        return -5;
+    }
+    if ( ((side == PlasmaLeft) && (A->n != C->m)) ||
+         ((side == PlasmaRight) && (A->n != C->n)) ) {
+        dplasma_error("PLASMA_zhemm", "illegal size of matrixs A");
+        return -6;
+    }
 
     dague_zhemm = dplasma_zhemm_New(side, uplo,
                                     alpha, A, B,
