@@ -132,7 +132,7 @@ dplasma_zsyr2k_New( const PLASMA_enum uplo,
         }
         else {
             object = (dague_object_t*)
-                dague_zsyr2k_UN_new(uplo, trans,
+                dague_zsyr2k_UT_new(uplo, trans,
                                     alpha, (dague_ddesc_t*)A,
                                            (dague_ddesc_t*)B,
                                     beta,  (dague_ddesc_t*)C);
