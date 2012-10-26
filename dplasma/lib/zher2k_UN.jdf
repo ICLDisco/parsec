@@ -52,11 +52,11 @@ zher2k_22(n, k)
 
 BODY
 {
-  int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
+  int tempnn = (n==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
+  int tempkn = (k==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
   int ldan = BLKLDD( descA, n );
   int ldbn = BLKLDD( descB, n );
-  double dbeta = ((k)==(0)) ? (beta) : (1.000000);
+  double dbeta = (k == 0 ? beta : 1.);
   int ldcn = BLKLDD( descC, n );
 
   printlog("CORE_zher2k(%d, %d)\n"
@@ -124,12 +124,12 @@ zgemm_31(n, m, k1)
 
 BODY
 {
-  int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
-  int tempmm = ((m)==(descC.mt-1)) ? (descC.m-(m*descC.mb)) : descC.mb;
-  int tempkn = ((k1)==(descA.nt-1)) ? (descA.n-(k1*descA.nb)) : descA.nb;
+  int tempnn = (n==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
+  int tempmm = (m==(descC.mt-1)) ? (descC.m-(m*descC.mb)) : descC.mb;
+  int tempkn = (k1==(descA.nt-1)) ? (descA.n-(k1*descA.nb)) : descA.nb;
   int ldan = BLKLDD( descA, n );
   int ldbm = BLKLDD( descB, m );
-  dague_complex64_t zbeta = ((k1)==(0)) ? ((dague_complex64_t)beta) : (1.000000);
+  dague_complex64_t zbeta = (k1 == 0 ? (dague_complex64_t)beta : 1.);
   int ldcn = BLKLDD( descC, n );
 
   printlog("CORE_zgemm(%d, %d, %d)\n"
@@ -200,22 +200,22 @@ zgemm_32(n, m, k1)
 
 BODY
 {
-  int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
-  int tempmm = ((m)==(descC.mt-1)) ? (descC.m-(m*descC.mb)) : descC.mb;
-  int tempkn = ((k1)==(descA.nt-1)) ? (descA.n-(k1*descA.nb)) : descA.nb;
+  int tempnn = (n==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
+  int tempmm = (m==(descC.mt-1)) ? (descC.m-(m*descC.mb)) : descC.mb;
+  int tempkn = (k1==(descA.nt-1)) ? (descA.n-(k1*descA.nb)) : descA.nb;
   int ldan = BLKLDD( descA, n );
   int ldam = BLKLDD( descA, m );
   int ldcn = BLKLDD( descC, n );
 
   printlog("CORE_zgemm(%d, %d, %d)\n"
-           "\t(trans, PlasmaConjTrans, tempnn, tempmm, tempkn, alpha, B(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, 1.000000, C(%d,%d)[%p], ldcn)\n",
+           "\t(trans, PlasmaConjTrans, tempnn, tempmm, tempkn, alpha, B(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, 1., C(%d,%d)[%p], ldcn)\n",
   n, m, k1, n, k1, G, m, k1, H, n, m, J);
   DRYRUN(
 
     CORE_zgemm(trans, PlasmaConjTrans, tempnn, 
 	tempmm, tempkn, alpha, 
 	G /* dataB(n,k1) */, ldan, H /* dataA(m,k1) */, 
-	ldam, 1.000000, J /* dataC(n,m) */, 
+	ldam, 1., J /* dataC(n,m) */, 
 	ldcn );
   );
 
