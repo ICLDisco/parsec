@@ -19,6 +19,8 @@ add_test(dlange ${SHM_TEST_CMD} ./testing_dlange -N 1500 -t 233 -x -v=5)
 add_test(dtrmm ${SHM_TEST_CMD} ./testing_dtrmm -N 1500 -x -v=5)
 add_test(dtrsm ${SHM_TEST_CMD} ./testing_dtrsm -N 1500 -x -v=5)
 add_test(dgemm ${SHM_TEST_CMD} ./testing_dgemm -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
+add_test(dsymm ${SHM_TEST_CMD} ./testing_dsymm -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
+add_test(csymm ${SHM_TEST_CMD} ./testing_chemm -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
 
 # LAPACK shared memory
 add_test(dpotrf     ${SHM_TEST_CMD} ./testing_dpotrf -N 4000 -x -v=5)
@@ -58,6 +60,8 @@ if( MPI_FOUND )
   add_test(mpi_dtrmm         ${MPI_TEST_CMD} ./testing_dtrmm         -p 2 -N 1500 -x -v=5)
   add_test(mpi_dtrsm         ${MPI_TEST_CMD} ./testing_dtrsm         -p 4 -N 1500 -x -v=5)
   add_test(mpi_dgemm         ${MPI_TEST_CMD} ./testing_dgemm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
+  add_test(mpi_dsymm         ${MPI_TEST_CMD} ./testing_dsymm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
+  add_test(mpi_csymm         ${MPI_TEST_CMD} ./testing_csymm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
 
   add_test(mpi_dpotrf        ${MPI_TEST_CMD} ./testing_dpotrf        -p 2 -N 4000 -x -v=5)
 if (CUDA_FOUND)

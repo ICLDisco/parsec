@@ -40,12 +40,12 @@ plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 plasma_left    [type="PLASMA_enum" hidden=on default=PlasmaLeft  ]
 plasma_right   [type="PLASMA_enum" hidden=on default=PlasmaRight ]
+c [type="int" hidden=on default="( (side == PlasmaLeft) ? ((uplo == PlasmaLower) ? 0 : 1 ) : ((uplo == PlasmaLower) ? 2 : 3) )" ]
 
 symm_in_A(m, n) [profile = off]
 // Execution space
 m = 0 .. descA.mt-1
 n = ((uplo == plasma_upper) ? m : 0) .. ((uplo == plasma_upper) ? descA.nt-1 : m)
-c = ( (side == plasma_left) ? ((uplo == plasma_lower) ? 0 : 1 ) : ((uplo == plasma_lower) ? 2 : 3) )
 
 : A(m, n)
 
@@ -62,7 +62,6 @@ symm_in_B(m, n) [profile = off]
 // Execution space
 m = 0 .. descB.mt-1
 n = 0 .. descB.nt-1
-c = ( (side == plasma_left) ? ((uplo == plasma_lower) ? 0 : 1 ) : ((uplo == plasma_lower) ? 2 : 3) )
 
 : B(m, n)
 
@@ -79,9 +78,6 @@ SYMM(m, n, k)
 m = 0 .. descC.mt-1
 n = 0 .. descC.nt-1
 k = 0 .. (side == plasma_left ) ? descC.mt-1 : descC.nt-1
-c = ( (side == plasma_left) ? ((uplo == plasma_lower) ? 0 : 1 ) : ((uplo == plasma_lower) ? 2 : 3) )
-
-/* k = ( (side == plasma_left) ? ((uplo == plasma_lower) ? 0 : m+1 ) : ((uplo == plasma_lower) ? n+1 : 0) ) .. ( (side == plasma_left) ? ((uplo == plasma_lower) ? m-1 : descC.mt-1 ) : ((uplo == plasma_lower) ? descC.nt-1 : n-1) ) */
 
 // Parallel partitioning
 : C(m, n)
@@ -94,9 +90,9 @@ READ  A <- (c == 0) && (k <= m) ? A symm_in_A(m, k)
         <- (c == 1) && (k >  m) ? A symm_in_A(m, k)
         <- (c == 2) || (c == 3) ? B symm_in_B(m, k)
 READ  B <- (c == 2) && (k <= n) ? A symm_in_A(n, k)
-        <- (c == 2) && (k <= n) ? A symm_in_A(k, n)
+        <- (c == 2) && (k >  n) ? A symm_in_A(k, n)
         <- (c == 3) && (k <= n) ? A symm_in_A(k, n)
-        <- (c == 3) && (k <= n) ? A symm_in_A(n, k)
+        <- (c == 3) && (k >  n) ? A symm_in_A(n, k)
         <- (c == 0) || (c == 1) ? B symm_in_B(k, n)
 RW    C <- ( k == 0 ) ? C(m, n) : C SYMM( m, n, k-1 )
         -> ( ( (side == plasma_left) && (k == descC.mt-1) ) || ( (side == plasma_right) && (k == descC.nt-1) ) ) ? C( m, n ) : C SYMM(m, n, k+1)
