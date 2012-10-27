@@ -175,8 +175,7 @@ struct dague_function {
 
 struct dague_data_pair_t {
     struct data_repo_entry    *data_repo;
-    struct dague_arena_chunk  *data;
-    moesi_master_t            *moesi_master;
+    struct _dague_data        *data;
 };
 
 /**

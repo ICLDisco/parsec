@@ -11,7 +11,7 @@
 /* types used to compute alignment  */
 union _internal_chunk_prefix_t {
     dague_list_item_t item;
-    dague_arena_chunk_t prefix;
+    dague_arena_chunk_t chunk;
 };
 #define DAGUE_ARENA_MIN_ALIGNMENT(align) ((ptrdiff_t)(align*((sizeof(union _internal_chunk_prefix_t)-1)/align+1)))
 
@@ -115,14 +115,13 @@ dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count)
     }
 
     chunk->origin = arena;
-    chunk->refcount = 1;
     chunk->count = count;
     chunk->data = DAGUE_ALIGN_PTR( ((ptrdiff_t)chunk + sizeof(union _internal_chunk_prefix_t)),
                                    arena->alignment, void* );
     assert(0 == (((ptrdiff_t)chunk->data) % arena->alignment));
     assert((arena->elem_size + (ptrdiff_t)chunk->data)  <= (size + (ptrdiff_t)item));
 
-    return (dague_arena_chunk_t*) (((ptrdiff_t) chunk) | 1);
+    return chunk;
 }
 
 
@@ -131,7 +130,6 @@ void dague_arena_release(dague_arena_chunk_t* chunk)
     dague_arena_t* arena = chunk->origin;
     assert(NULL != arena);
     assert(0 == (((uintptr_t)arena)%sizeof(uintptr_t))); /* is it aligned */
-    assert(0 == chunk->refcount);
 
     if(chunk->count > 1 || arena->released >= arena->max_released) {
         DEBUG3(("Arena:\tdeallocate a tile of size %zu x %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",

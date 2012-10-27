@@ -28,12 +28,11 @@ typedef uint8_t dague_data_coherency_t;
  * pointers to the versions managed by each supported devices.
  */
 struct _dague_data {
-    dague_arena_t*           arena;
-    uint32_t                 nb_elts;          /* number of elements of the memory layout */
-    dague_data_key_t         key;
+    uint32_t                 version;
     dague_data_coherency_t   coherency_state;
     uint16_t                 owner_device;
-    uint32_t                 version;
+    dague_data_key_t         key;
+    uint32_t                 nb_elts;          /* number of elements of the memory layout */
     struct _dague_data_copy* device_copies[1]; /* this array allocated according to the number of devices
                                                 (dague_supported_number_of_devices). It points to the most recent
                                                 version of the data. */
@@ -47,17 +46,26 @@ typedef uint8_t dague_data_flag_t;
  */
 struct _dague_data_copy {
     volatile uint32_t        refcount;
-    struct _dague_data_copy* older;
-    struct _dague_data*      original;
-    dague_data_coherency_t   coherency_state;
+
     uint8_t                  device_index;
     dague_data_flag_t        flags;
+    dague_data_coherency_t   coherency_state;
+    /* int8_t */
+
     int16_t                  readers;
+    /* int16_t */
+
     uint32_t                 version;
+
+    struct _dague_data_copy* older;
+    struct _dague_data*      original;
     void*                    device_private;
 };
 
-static inline uint32_t dague_data_copy_ref(dague_data_copy_t* data)
+/**
+ * Increase the refcount of this copy of the data.
+ */
+static inline uint32_t dague_data_copy_retain(dague_data_copy_t* data)
 {
     return dague_atomic_inc_32b(&data->refcount);
 }
@@ -67,29 +75,10 @@ static inline uint32_t dague_data_copy_ref(dague_data_copy_t* data)
  * 0 the upper level is in charge of cleaning up and releasing all content
  * of the copy.
  */
-static inline uint32_t dague_data_copy_unref(dague_data_copy_t* data)
+static inline uint32_t dague_data_copy_release(dague_data_copy_t* data)
 {
     return dague_atomic_dec_32b(&data->refcount);
-}
-
-static inline dague_data_copy_t* dague_data_copy_detach(dague_data_copy_t* data)
-{
-    dague_data_t* original = data->original;
-    dague_data_copy_t* recent = original->device_copies[data->device_index];
-
-    assert( 0 == data->readers );
-    assert( data->version == data->original->version );
-    assert( NULL == data->device_private );
-
-    /* remove this copy from the chain */
-    if( recent == data ) {
-        original->device_copies[data->device_index] = data->older;
-    } else {
-        while( recent->older != data ) recent = recent->older;
-        recent->older = data->older;
-        data->older = NULL;
-    }
-    return original->device_copies[data->device_index];
+    /* TODO: Move the copy back to the CPU before destroying it */
 }
 
 #endif  /* DATA_H_HAS_BEEN_INCLUDED */

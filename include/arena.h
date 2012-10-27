@@ -46,8 +46,6 @@ struct dague_arena_t
 struct dague_arena_chunk {
     dague_arena_t* origin;
     size_t count;
-    uint32_t refcount;
-    int32_t cache_friendly_emptyness;
     void* data;
 };
 
@@ -72,13 +70,6 @@ void dague_arena_destruct(dague_arena_t* arena);
 
 dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count);
 void dague_arena_release(dague_arena_chunk_t* ptr);
-
-#define CHUNK_RETAIN(CHK) \
-    (CHK)->refcount++;
-#define CHUNK_RELEASE(CHK) \
-    if( --((CHK)->refcount) == 0 ) { \
-        dague_arena_release(CHK); \
-    }
 
 #define CHUNK_DATA(CHK) \
     (assert(NULL != ((CHK)->data)), (CHK)->data)
