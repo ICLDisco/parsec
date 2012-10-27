@@ -82,7 +82,7 @@ dplasma_zhemm_New( const PLASMA_enum side,
                    const dague_complex64_t alpha,
                    const tiled_matrix_desc_t* A,
                    const tiled_matrix_desc_t* B,
-                   const double beta,
+                   const dague_complex64_t beta,
                    tiled_matrix_desc_t* C)
 {
     dague_zhemm_object_t* object;
@@ -162,7 +162,7 @@ dplasma_zhemm( dague_context_t *dague,
                const dague_complex64_t alpha,
                const tiled_matrix_desc_t *A,
                const tiled_matrix_desc_t *B,
-               const double beta,
+               const dague_complex64_t beta,
                tiled_matrix_desc_t *C)
 {
     dague_object_t *dague_zhemm = NULL;
