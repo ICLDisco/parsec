@@ -106,6 +106,16 @@ dplasma_zher2k_New( const PLASMA_enum uplo,
 {
     dague_object_t* object;
 
+    /* Check input arguments */
+    if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
+        dplasma_error("PLASMA_zher2k", "illegal value of uplo");
+        return NULL;
+    }
+    if (trans != PlasmaConjTrans && trans != PlasmaNoTrans ) {
+        dplasma_error("dplasma_zher2k", "illegal value of trans");
+        return NULL;
+    }
+
     if ( uplo == PlasmaLower ) {
         if ( trans == PlasmaNoTrans ) {
             object = (dague_object_t*)
