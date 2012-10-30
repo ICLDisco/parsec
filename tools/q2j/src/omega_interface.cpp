@@ -64,6 +64,8 @@ static Relation process_execution_space(node_t *node, node_t *func);
 static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
 static inline set<expr_t *> find_all_GEs_with_var(const char *var_name, expr_t *exp);
 static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t *exp, int constr_type);
+static bool eliminate_variable(expr_t *constraint, expr_t *exp, const char *var, Relation R);
+static void eliminate_variables_that_have_solutions(expr_t *constraint, expr_t *exp, set<const char *> vars_in_bounds, Relation R);
 static bool is_expr_simple(const expr_t *exp);
 static string _expr_tree_to_str(expr_t *exp);
 static inline const char *dump_expr_tree_to_str(expr_t *exp);
@@ -1139,7 +1141,7 @@ void flipSignOfTree(expr_t *root){
 // WARNING: This function is destructive in that it actually changes
 // the nodes of the tree e_src.  If you need your original tree intact,
 // you should pass it a copy of the tree.
-expr_t *moveToOtherSideOfEQ(expr_t *e_src, expr_t *e_dst){
+expr_t *move_to_other_side_of_EQ(expr_t *e_src, expr_t *e_dst){
     expr_t *e;
 
     if( (INTCONSTANT == e_src->type) && (0 == e_src->value.int_const) )
@@ -1154,7 +1156,7 @@ expr_t *moveToOtherSideOfEQ(expr_t *e_src, expr_t *e_dst){
     return e;
 }
 
-expr_t *solveConstraintForVar(expr_t *constr_exp, const char *var_name){
+expr_t *solve_constraint_for_var(expr_t *constr_exp, const char *var_name){
     expr_t *e, *e_other;
     long int c;
 
@@ -1182,14 +1184,14 @@ expr_t *solveConstraintForVar(expr_t *constr_exp, const char *var_name){
         // Else removeVarFromTree() returned an expression with the variable removed and we need
         // to move it to the other side.
         if( c < 0 )
-            e = moveToOtherSideOfEQ(e_other, e);
+            e = move_to_other_side_of_EQ(e_other, e);
         else
-            e = moveToOtherSideOfEQ(e, e_other);
+            e = move_to_other_side_of_EQ(e, e_other);
     }
 
     c = labs(c);
     if( c != 1 ){
-        fprintf(stderr,"WARNING: solveConstraintForVar() resulted in the generation of a DIV. This has not been tested thoroughly\n");
+        fprintf(stderr,"WARNING: solve_constraint_for_var() resulted in the generation of a DIV. This has not been tested thoroughly\n");
         expr_t *e_cns = (expr_t *)calloc( 1, sizeof(expr_t) );
         e_cns->type = INTCONSTANT;
         e_cns->value.int_const = c;
@@ -1258,10 +1260,65 @@ int expr_tree_contains_var(expr_t *root, const char *var_name){
 }
 
 
+bool eliminate_variable(expr_t *constraint, expr_t *exp, const char *var, Relation R){
+
+    if( !expr_tree_contains_var(constraint, var) ){
+        return false;
+    }
+
+    // If the constraint contains the variable, try to solve the original
+    // expression for that variable and substitute the solution in the constraint.
+    expr_t *solution_exp = solve_expression_tree_for_var(exp, var, R);
+    if( NULL != solution_exp ){
+        substitute_exp_for_var(solution_exp, var, constraint);
+        return true;
+    }
+
+    return false;
+}
+
+void eliminate_variables_that_have_solutions(expr_t *constraint, expr_t *exp, set<const char *> vars_in_bounds, Relation R){
+    bool expression_becomes_simpler = true;
+    if( !R.is_set() ){
+        return;
+    }
+
+    // Eliminate output variables
+    while( expression_becomes_simpler ){
+        expression_becomes_simpler = false;
+        for(int i=0; i<R.n_out(); i++){
+            const char *ovar = R.output_var(i+1)->char_name();
+            expression_becomes_simpler = eliminate_variable(constraint, exp, ovar, R);
+        }
+    }
+
+    // Eliminate input variables
+    expression_becomes_simpler = true;
+    while( expression_becomes_simpler ){
+        expression_becomes_simpler = false;
+        for(int i=0; i<R.n_inp(); i++){
+            const char *ivar = R.input_var(i+1)->char_name();
+            // Check if this input variable is acceptable as part of a solution
+            bool ivar_is_ok = false;
+            set<const char *>::iterator it;
+            for ( it=vars_in_bounds.begin() ; it != vars_in_bounds.end(); it++ ){
+                if( !strcmp(*it, ivar) ){
+                    ivar_is_ok = true;
+                    break;
+                }
+            }
+            if( ivar_is_ok ) continue;
+            // If the variable is not ok, try to eliminate it.
+            expression_becomes_simpler = eliminate_variable(constraint, exp, ivar, R);
+        }
+    }
+
+}
+
 const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R){
     char *lb = NULL, *ub = NULL;
     stringstream ss;
-    set<expr_t *> ges = find_all_GEs_with_var(var_name, exp);
+    set<expr_t *> ge_contraints = find_all_GEs_with_var(var_name, exp);
     bool is_lb_simple = false, is_ub_simple = false;
     bool is_lb_C = false, is_ub_C = false;
 
@@ -1271,51 +1328,25 @@ const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char
     }
 
     set<expr_t *>::iterator e_it;
-    for(e_it=ges.begin(); e_it!=ges.end(); e_it++){
-        int exp_has_output_vars = 0;
-        bool expression_becomes_simpler = true;
-
-        expr_t *ge_exp = *e_it;
-        int c = getVarCoeff(ge_exp, var_name);
+    for(e_it=ge_contraints.begin(); e_it!=ge_contraints.end(); e_it++){
+        expr_t *rslt_exp;
+        expr_t *constraint = *e_it;
+        int c = getVarCoeff(constraint, var_name);
         Q2J_ASSERT(c);
 
-        expr_t *rslt_exp = solveConstraintForVar(ge_exp, var_name);
+        rslt_exp = solve_constraint_for_var(constraint, var_name);
 
-        if( !R.is_set() ){
-            while( expression_becomes_simpler ){
-                expression_becomes_simpler = false;
-                for(int i=0; i<R.n_out(); i++){
-                    const char *ovar = R.output_var(i+1)->char_name();
-                    if( expr_tree_contains_var(ge_exp, ovar) ){
-                        // If the bound contains an output variable, try to solve the original
-                        // expression for that output variable and substitute the solution in the bound.
-                        set<expr_t *>::iterator tmp_e_it;
-                        expr_t *solution_exp = NULL;
-                        solution_exp = solveExpressionTreeForVar(exp, ovar, R);
-                        if( NULL != solution_exp ){
-                            expression_becomes_simpler = true;
-                            substitute_exp_for_var(solution_exp, ovar, ge_exp);
-                        }
-                    }
-                }
-            }
-
-            // Solve again, now that we got rid of as many output variables as we could.
-            rslt_exp = solveConstraintForVar(ge_exp, var_name);
-
-            for(int i=0; i<R.n_out(); i++){
-                const char *ovar = R.output_var(i+1)->char_name();
-                if( expr_tree_contains_var(rslt_exp, ovar) ){
-                    // If the bound still contains output variables, it means we could not get rid of all of them.
-                    exp_has_output_vars = 1;
-                    break;
-                }
-            }
+        // If the expression has variables we don't want it to contain, we must try to eliminate them
+        if( !expr_tree_contains_only_vars_in_set(rslt_exp, vars_in_bounds) ){
+            eliminate_variables_that_have_solutions(constraint, exp, vars_in_bounds, R);
+            // Solve again, now that we got rid of as many variables as we could.
+            rslt_exp = solve_constraint_for_var(constraint, var_name);
         }
 
-        // If the expression has output variables, or variables we don't want it to contain, we need to ignore it
-        if( exp_has_output_vars || !expr_tree_contains_only_vars_in_set(rslt_exp, vars_in_bounds) )
+        // If the expression still has variables we don't want it to contain, we need to ignore it
+        if( !expr_tree_contains_only_vars_in_set(rslt_exp, vars_in_bounds) ){
             continue;
+        }
 
         if( c > 0 ){ // then lower bound
             if( NULL == lb ){
@@ -1414,7 +1445,7 @@ expr_t *createGEZero(expr_t *exp){
 // This function uses the transitivity of the ">=" operator to eliminate variables from
 // the GEs.  As an example, if we are trying to eliminate X from: X-a>=0 && b-X-1>=0 we
 // solve for "X" and get: b-1>=X && X>=a which due to transitivity gives us: b-1>=a
-expr_t *eliminateVarUsingTransitivity(expr_t *exp, const char *var_name, Relation R){
+expr_t *eliminate_var_using_transitivity(expr_t *exp, const char *var_name, Relation R){
     set<expr_t *> ges;
     set<expr_t *> ubs, lbs;
     set<expr_t *>::iterator it;
@@ -1427,7 +1458,7 @@ expr_t *eliminateVarUsingTransitivity(expr_t *exp, const char *var_name, Relatio
         int c = getVarCoeff(ge_exp, var_name);
         Q2J_ASSERT(c);
 
-        expr_t *rslt_exp = solveConstraintForVar(ge_exp, var_name);
+        expr_t *rslt_exp = solve_constraint_for_var(ge_exp, var_name);
 
         if( c > 0 ){ // then lower bound
             lbs.insert( copy_tree(rslt_exp) );
@@ -1443,7 +1474,7 @@ expr_t *eliminateVarUsingTransitivity(expr_t *exp, const char *var_name, Relatio
     for(it=ubs.begin(); it!=ubs.end(); it++){
         set<expr_t *>::iterator lb_it;
         for(lb_it=lbs.begin(); lb_it!=lbs.end(); lb_it++){
-            expr_t *new_e = moveToOtherSideOfEQ(*lb_it, *it);
+            expr_t *new_e = move_to_other_side_of_EQ(*lb_it, *it);
             new_e = createGEZero(new_e);
 
             expr_t *e = (expr_t *)calloc( 1, sizeof(expr_t) );
@@ -1458,7 +1489,7 @@ expr_t *eliminateVarUsingTransitivity(expr_t *exp, const char *var_name, Relatio
     return exp;
 }
 
-expr_t *solveExpressionTreeForVar(expr_t *exp, const char *var_name, Relation R){
+expr_t *solve_expression_tree_for_var(expr_t *exp, const char *var_name, Relation R){
     set<expr_t *> eqs;
     expr_t *rslt_exp;
 
@@ -1643,7 +1674,7 @@ static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Rel
         int exp_has_output_vars = 0;
 
         eq_exp = *e_it;
-        rslt_exp = solveConstraintForVar(eq_exp, var_name);
+        rslt_exp = solve_constraint_for_var(eq_exp, var_name);
 
         if( R.is_set() )
             return rslt_exp;
@@ -1834,7 +1865,7 @@ char *dump_actual_parameters(string_arena_t *sa, dep_t *dep, expr_t *rel_exp){
         if( i ) string_arena_add_string( sa, ", " );
         const char *var_name = strdup(R.output_var(i+1)->char_name());
 
-        expr_t *solution = solveExpressionTreeForVar(copy_tree(rel_exp), var_name, R);
+        expr_t *solution = solve_expression_tree_for_var(copy_tree(rel_exp), var_name, R);
         string_arena_add_string( sa, "%s",
                                 ( NULL != solution ) ? expr_tree_to_str(solution)
                                 : find_bounds_of_var(copy_tree(rel_exp), var_name, vars_in_bounds, R));
@@ -2031,7 +2062,7 @@ void findAllConstraints(expr_t *tree, set<expr_t *> &eq_set){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void findAllVars(expr_t *e, set<string> &var_set){
+void find_all_vars(expr_t *e, set<string> &var_set){
 
     if( NULL == e )
         return;
@@ -2042,8 +2073,8 @@ void findAllVars(expr_t *e, set<string> &var_set){
             break;
 
         default:
-            findAllVars(e->l, var_set);
-            findAllVars(e->r, var_set);
+            find_all_vars(e->l, var_set);
+            find_all_vars(e->r, var_set);
             break;
     }
     return ;
@@ -2117,7 +2148,7 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
 
         // Create a new Set
         set<string>vars;
-        findAllVars(e, vars);
+        find_all_vars(e, vars);
         S_tmp = Relation(S_es.n_set());
 
         for(int i=1; i<=S_es.n_set(); i++){
@@ -2234,13 +2265,13 @@ list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relat
             const char *ovar = strdup(R.output_var(i+1)->char_name());
             // If we find the variable in an EQ then we solve for the variable and
             // substitute the solution for the variable everywhere in the conjunction.
-            expr_t *solution = solveExpressionTreeForVar(cur_exp, ovar, R);
+            expr_t *solution = solve_expression_tree_for_var(cur_exp, ovar, R);
             if( NULL != solution ){
                 substitute_exp_for_var(solution, ovar, cur_exp);
             }else{
                 // If the variable is in no EQs but it's in GEs, we have to use transitivity
                 // to eliminate it.  For example: X-a>=0 && b-X-1>=0 => b-1>=X && X>=a => b-1>=a
-                cur_exp = eliminateVarUsingTransitivity(cur_exp, ovar, R);
+                cur_exp = eliminate_var_using_transitivity(cur_exp, ovar, R);
             }
             free((void *)ovar);
         }
