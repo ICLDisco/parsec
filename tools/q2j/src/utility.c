@@ -2125,58 +2125,6 @@ void dump_for(node_t *node){
 }
 
 
-const char *type_to_symbol(int type){
-    switch(type){
-        case ADD:
-            return "+";
-        case SUB:
-            return "-";
-        case MUL:
-            return "*";
-        case DIV:
-            return "/";
-        case MOD:
-            return "%";
-        case B_AND:
-            return "&";
-        case B_XOR:
-            return "^";
-        case B_OR:
-            return "|";
-        case L_AND:
-            if( JDF_NOTATION )
-                return "&";
-            else
-                return "&&";
-        case L_OR:
-            if( JDF_NOTATION )
-                return "|";
-            else
-                return "||";
-        case LSHIFT:
-            return "<<";
-        case RSHIFT:
-            return ">>";
-        case LT:
-            return "<";
-        case GT:
-            return ">";
-        case LE:
-            return "<=";
-        case GE:
-            return ">=";
-        case EQ_OP:
-            return "==";
-        case NE_OP:
-            return "!=";
-        case COMMA_EXPR:
-            return ",";
-        case S_U_MEMBER:
-            return "STRUCT_or_UNION";
-    }
-    return "???";
-}
-
 static int isSimpleVar(char *name){
     int i, len;
 
@@ -3002,6 +2950,100 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
     }
 
     return str;
+}
+
+
+const char *type_to_str(int type){
+
+    switch(type){
+        case EMPTY: return "EMPTY";
+        case INTCONSTANT: return "INTCONSTANT";
+        case IDENTIFIER: return "IDENTIFIER";
+        case ADDR_OF: return "ADDR_OF";
+        case STAR: return "STAR";
+        case PLUS: return "PLUS";
+        case MINUS: return "MINUS";
+        case TILDA: return "TILDA";
+        case BANG: return "BANG";
+        case ASSIGN: return "ASSIGN";
+        case COND: return "COND";
+        case ARRAY: return "ARRAY";
+        case FCALL: return "FCALL";
+        case ENTRY: return "ENTRY";
+        case EXIT: return "EXIT";
+        case EXPR: return "EXPR";
+        case ADD: return "ADD";
+        case SUB: return "SUB";
+        case MUL: return "MUL";
+        case DIV: return "DIV";
+        case MOD: return "MOD";
+        case B_AND: return "B_AND";
+        case B_XOR: return "B_XOR";
+        case B_OR: return "B_OR";
+        case LSHIFT: return "LSHIFT";
+        case RSHIFT: return "RSHIFT";
+        case LT: return "LT";
+        case GT: return "GT";
+        case LE: return "LE";
+        case GE: return "GE";
+        case DEREF: return "DEREF";
+        case S_U_MEMBER: return "S_U_MEMBER";
+        case COMMA_EXPR: return "COMMA_EXPR";
+        case BLOCK: return "BLOCK";
+        default: return "???";
+    }
+}
+
+const char *type_to_symbol(int type){
+    switch(type){
+        case ADD:
+            return "+";
+        case SUB:
+            return "-";
+        case MUL:
+            return "*";
+        case DIV:
+            return "/";
+        case MOD:
+            return "%";
+        case B_AND:
+            return "&";
+        case B_XOR:
+            return "^";
+        case B_OR:
+            return "|";
+        case L_AND:
+            if( JDF_NOTATION )
+                return "&";
+            else
+                return "&&";
+        case L_OR:
+            if( JDF_NOTATION )
+                return "|";
+            else
+                return "||";
+        case LSHIFT:
+            return "<<";
+        case RSHIFT:
+            return ">>";
+        case LT:
+            return "<";
+        case GT:
+            return ">";
+        case LE:
+            return "<=";
+        case GE:
+            return ">=";
+        case EQ_OP:
+            return "==";
+        case NE_OP:
+            return "!=";
+        case COMMA_EXPR:
+            return ",";
+        case S_U_MEMBER:
+            return "STRUCT_or_UNION";
+    }
+    return "???";
 }
 
 node_t *node_to_ptr(node_t node){

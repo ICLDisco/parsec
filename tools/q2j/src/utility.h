@@ -118,6 +118,7 @@ void assign_UnD_to_tasks(node_t *node);
 char *append_to_string(char *str, const char *app, const char *fmt, size_t add_length);
 char *tree_to_str(node_t *node);
 char *tree_to_str_with_substitutions(node_t *node, str_pair_t *solved_vars);
+const char *type_to_str(int type);
 const char *type_to_symbol(int type);
 void dump_tree(node_t node, int offset);
 void dump_for(node_t *node);

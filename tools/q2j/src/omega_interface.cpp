@@ -27,6 +27,8 @@
 
 //#define DEBUG_ANTI
 
+#define PRAGMAS_DECLARE_GLOBALS
+
 static map<string, string> q2j_colocated_map;
 static map<string, node_t *> _q2j_variable_names;
 
@@ -75,16 +77,18 @@ static int expr_tree_contains_var(expr_t *root, const char *var_name);
 static int expr_tree_contains_only_vars_in_set(expr_t *root, set<const char *>vars);
 static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F_And *R_root, map<string, Variable_ID> ivars, Relation &R);
 static void add_invariants_to_Omega_relation(F_And *R_root, Relation &R, node_t *func);
-const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R);
 static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Relation R);
 static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *root);
-static map<string, Free_Var_Decl *> global_vars;
 static inline bool is_phony_Entry_task(node_t *task);
 static inline bool is_phony_Exit_task(node_t *task);
 static bool inline is_enclosed_by_else(node_t *node, node_t *branch);
 static inline void flip_sign(expr_t *exp);
 static inline bool is_negative(expr_t *exp);
-const char *type_to_str(int type);
+static void _declare_global_vars(node_t *node);
+static inline void declare_global_vars(node_t *node);
+static void declare_globals_in_tree(node_t *node, set <char *> ind_names);
+
+static map<string, Free_Var_Decl *> global_vars;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -175,7 +179,7 @@ static inline bool is_phony_Exit_task(node_t *task){
     return (strstr(name, "DAGUE_OUT_") == name);
 }
 
-void declare_globals_in_tree(node_t *node, set <char *> ind_names){
+static void declare_globals_in_tree(node_t *node, set <char *> ind_names){
     char *var_name = NULL;
 
     switch( node->type ){
@@ -483,6 +487,7 @@ static void add_invariants_to_Omega_relation(F_And *R_root, Relation &R, node_t 
     for(inv_exp=func->pragmas; NULL != inv_exp; inv_exp = inv_exp->next){
 
         // Check if the condition has variables we don't know how to deal with.
+        // If PRAGMAS_DECLARE_GLOBALS is defined, then the followin check is somewhat useless.
         if( !DA_tree_contains_only_known_vars(inv_exp, known_vars) ){
             fprintf(stderr,"ERROR: invariant expression: \"%s\" contains unknown variables.\n",tree_to_str(inv_exp));
             fprintf(stderr,"ERROR: known global variables are listed below:\n");
@@ -956,8 +961,7 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
 }
 
 
-void declare_global_vars(node_t *node){
-    map<string, Free_Var_Decl *> tmp_map;
+static void _declare_global_vars(node_t *node){
     node_t *tmp;
 
     if( FOR == node->type ){
@@ -980,16 +984,28 @@ void declare_global_vars(node_t *node){
 
     if( BLOCK == node->type ){
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
-            declare_global_vars(tmp);
+            _declare_global_vars(tmp);
         }
     }else{
         int i;
         for(i=0; i<node->u.kids.kid_count; ++i){
-            declare_global_vars(node->u.kids.kids[i]);
+            _declare_global_vars(node->u.kids.kids[i]);
         }
     }
 
     return;
+}
+
+static inline void declare_global_vars(node_t *func){
+    node_t *tmp;
+
+    _declare_global_vars(func);
+
+#if defined(PRAGMAS_DECLARE_GLOBALS)
+    for(tmp=func->pragmas; NULL != tmp; tmp = tmp->next){
+        declare_globals_in_tree(tmp, set <char *>());
+    }
+#endif // PRAGMAS_DECLARE_GLOBALS
 }
 
 long int getVarCoeff(expr_t *root, const char * var_name){
@@ -3805,48 +3821,6 @@ static void groupExpressionBasedOnSign(expr_t *exp, set<expr_t *> &pos, set<expr
     }
     return;
 }
-
-const char *type_to_str(int type){
-
-    switch(type){
-        case EMPTY: return "EMPTY";
-        case INTCONSTANT: return "INTCONSTANT";
-        case IDENTIFIER: return "IDENTIFIER";
-        case ADDR_OF: return "ADDR_OF";
-        case STAR: return "STAR";
-        case PLUS: return "PLUS";
-        case MINUS: return "MINUS";
-        case TILDA: return "TILDA";
-        case BANG: return "BANG";
-        case ASSIGN: return "ASSIGN";
-        case COND: return "COND";
-        case ARRAY: return "ARRAY";
-        case FCALL: return "FCALL";
-        case ENTRY: return "ENTRY";
-        case EXIT: return "EXIT";
-        case EXPR: return "EXPR";
-        case ADD: return "ADD";
-        case SUB: return "SUB";
-        case MUL: return "MUL";
-        case DIV: return "DIV";
-        case MOD: return "MOD";
-        case B_AND: return "B_AND";
-        case B_XOR: return "B_XOR";
-        case B_OR: return "B_OR";
-        case LSHIFT: return "LSHIFT";
-        case RSHIFT: return "RSHIFT";
-        case LT: return "LT";
-        case GT: return "GT";
-        case LE: return "LE";
-        case GE: return "GE";
-        case DEREF: return "DEREF";
-        case S_U_MEMBER: return "S_U_MEMBER";
-        case COMMA_EXPR: return "COMMA_EXPR";
-        case BLOCK: return "BLOCK";
-        default: return "???";
-    }
-}
-
 
 static bool is_expr_simple(const expr_t *exp){
     switch( exp->type ){
