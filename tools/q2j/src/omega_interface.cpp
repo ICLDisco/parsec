@@ -28,6 +28,7 @@
 //#define DEBUG_ANTI
 
 static map<string, string> q2j_colocated_map;
+static map<string, node_t *> _q2j_variable_names;
 
 #define DEP_FLOW  0x1
 #define DEP_OUT   0x2
@@ -3716,8 +3717,42 @@ printf("========================================================================
 void add_colocated_data_info(char *a, char *b){
     Q2J_ASSERT( (NULL != a) && (NULL != b) );
     q2j_colocated_map[string(a)] = string(b);
+    return;
 }
 
+void add_variable_naming_convention(char *func_name, node_t *var_list){
+    Q2J_ASSERT(func_name);
+    _q2j_variable_names[string(func_name)] = var_list;
+    return;
+}
+
+char *get_variable_name(char *func_name, int num){
+    node_t *var_list;
+    map<string, node_t *>::iterator it;
+    string str;
+
+    // If the function name is null, our job here is done.
+    if( NULL == func_name)
+        return NULL;
+
+    Q2J_ASSERT(num>=0);
+    str = string(func_name);
+    // Check that the function exists in the map with the naming conventions.
+    it = _q2j_variable_names.find(str);
+    if( it == _q2j_variable_names.end() )
+        return NULL;
+
+    var_list = it->second;
+    // traverse the list following the "prev" pointer, because
+    // that's how it was chained in the parser.
+    for(; NULL != var_list; var_list=var_list->prev){
+        if( 0 == num )
+            return DA_var_name(var_list);
+        num--;
+    }
+    // If we reached the end of the list, then we are out of names
+    return NULL;
+}
 
 // We are assuming that all leaves will be kids of a MUL or a DIV, or they will be an INTCONSTANT
 // Conversely we are assuming that all MUL and DIV nodes will have ONLY leaves as kids.

@@ -118,8 +118,8 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <node> initializer
 %type <node> pragma_parameters
 %type <node> pragma_specifier
-%type <node> pragma_options
-%type <node> task_arguments
+//%type <node> pragma_options
+//%type <node> task_arguments
 
 %type <string> abstract_declarator
 %type <type_node> parameter_declaration
@@ -698,15 +698,19 @@ typedef_specifier
 	  }
 	;
 
+/*
 pragma_options
 	: IDENTIFIER { }
 	| IDENTIFIER ':' pragma_options { }
 	;
+*/
 
+/*
 task_arguments
 	: pragma_options { }
 	| pragma_options ',' task_arguments { }
 	;
+*/
 
 pragma_parameters
 	: IDENTIFIER
@@ -717,6 +721,7 @@ pragma_parameters
           tmp->next = NULL;
           $$.next = tmp;
       } 
+/*
 	| BIN_MASK
       { 
           node_t *tmp;
@@ -725,6 +730,7 @@ pragma_parameters
           tmp->next = NULL;
           $$.next = tmp;
       } 
+*/
 	| IDENTIFIER pragma_parameters
 	  {
           node_t *tmp;
@@ -737,10 +743,15 @@ pragma_parameters
 	;
 
 pragma_specifier
-	: PRAGMA IDENTIFIER pragma_parameters { }
+	: PRAGMA IDENTIFIER pragma_parameters 
+      {
+          /* #pragma ztstrf U A L IPIV */
+          node_t *tmp;
+          int i=0;
+          add_variable_naming_convention($2.u.var_name, $3.next);
+      }
 	| PRAGMA DIR_PARSEC_INVARIANT expression
 	  {
-	      // store_global_invariant(node_to_ptr($3));
 	      add_pending_invariant(node_to_ptr($3));
 	  }
 	| PRAGMA DIR_PARSEC_DATA_COLOCATED pragma_parameters
@@ -765,10 +776,12 @@ pragma_specifier
               add_colocated_data_info(reference->u.var_name, reference->u.var_name);
               //printf(") is co-located with %s\n",tmp->u.var_name);
 	  }
+/*
 	| PRAGMA DIR_PARSEC_TASK_START IDENTIFIER task_arguments
 	  {
               //#pragma PARSEC_TASK_START  TASK_NAME  PARAM[:PSEUDONAME]:(IN|OUT|INOUT|SCRATCH)[:TYPE_NAME] [, ...]
 	  }
+*/
 	;
 
 declaration_specifiers
@@ -1310,64 +1323,64 @@ translation_unit
 
 external_declaration
 	: function_definition
-          {
-              associate_pending_pragmas_with_function(&($1));
-              rename_induction_variables(&($1));
-              convert_OUTPUT_to_INOUT(&($1));
-              if( _q2j_add_phony_tasks )
-                  add_entry_and_exit_task_loops(&($1));
-              analyze_deps(&($1));
-          }
+      {
+          associate_pending_pragmas_with_function(&($1));
+          rename_induction_variables(&($1));
+          convert_OUTPUT_to_INOUT(&($1));
+          if( _q2j_add_phony_tasks )
+              add_entry_and_exit_task_loops(&($1));
+          analyze_deps(&($1));
+      }
 	| declaration
-          {
-              // Here is where the global scope variables were declared
-              static node_t tmp;
-              tmp.type=EMPTY;
-              $$=tmp;
-          }
+      {
+          // Here is where the global scope variables were declared
+          static node_t tmp;
+          tmp.type=EMPTY;
+          $$=tmp;
+      }
     | typedef_specifier
-          {
-              /* do nothing */
-          }
+      {
+          /* do nothing */
+      }
 	| pragma_specifier
       {
-              /* do nothing */
+          /* do nothing */
       }
 	;
 
 function_definition
 	: declaration_specifiers declarator declaration_list compound_statement
-          {
-              node_t *ptr;
-              ptr = DA_create_B_expr(FUNC, node_to_ptr($2), node_to_ptr($4));
-              ptr->symtab = $4.symtab;
-              DA_parentize(ptr);
-              $$ = *ptr;
-          }
+      {
+          node_t *ptr;
+          ptr = DA_create_B_expr(FUNC, node_to_ptr($2), node_to_ptr($4));
+          ptr->symtab = $4.symtab;
+          DA_parentize(ptr);
+          $$ = *ptr;
+      }
 	| declaration_specifiers declarator compound_statement
-          {
-              node_t *ptr;
-              ptr = DA_create_B_expr(FUNC, node_to_ptr($2), node_to_ptr($3));
-              ptr->symtab = $3.symtab;
-              DA_parentize(ptr);
-              $$ = *ptr;
-          }
+      {
+          node_t *ptr;
+          ptr = DA_create_B_expr(FUNC, node_to_ptr($2), node_to_ptr($3));
+          ptr->symtab = $3.symtab;
+          DA_parentize(ptr);
+          $$ = *ptr;
+      }
 	| declarator declaration_list compound_statement
-          {
-              node_t *ptr;
-              ptr = DA_create_B_expr(FUNC, node_to_ptr($1), node_to_ptr($3));
-              ptr->symtab = $3.symtab;
-              DA_parentize(ptr);
-              $$ = *ptr;
-          }
+      {
+          node_t *ptr;
+          ptr = DA_create_B_expr(FUNC, node_to_ptr($1), node_to_ptr($3));
+          ptr->symtab = $3.symtab;
+          DA_parentize(ptr);
+          $$ = *ptr;
+      }
 	| declarator compound_statement
-          {
-              node_t *ptr;
-              ptr = DA_create_B_expr(FUNC, node_to_ptr($1), node_to_ptr($2));
-              ptr->symtab = $2.symtab;
-              DA_parentize(ptr);
-              $$ = *ptr;
-          }
+      {
+          node_t *ptr;
+          ptr = DA_create_B_expr(FUNC, node_to_ptr($1), node_to_ptr($2));
+          ptr->symtab = $2.symtab;
+          DA_parentize(ptr);
+          $$ = *ptr;
+      }
 	;
 
 %%

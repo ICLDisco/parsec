@@ -397,10 +397,16 @@ void dump_tree(node_t node, int off){
     return;
 }
 
-static char *numToSymName(int num){
+static char *numToSymName(int num, char *fname){
     char str[4] = {0,0,0,0};
+    char *sym_name;
 
     assert(num<2600);
+
+    sym_name = get_variable_name(fname, num);
+    if( NULL != sym_name ){
+        return sym_name;
+    }
 
     // capital i ("I") has a special meaning in some contexts (I^2==-1), so skip it.
     if(num>=8)
@@ -505,7 +511,7 @@ static jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
 }
 
 static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
-    static int symbolic_name_count = 0;
+    int symbolic_name_count = 0;
     int i;
     static int pool_initialized = 0;
 
@@ -559,7 +565,7 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             if( ARRAY == tmp->type ){
                 tmp->task = task;
                 tmp->function = f;
-                tmp->var_symname = numToSymName(symbolic_name_count++);
+                tmp->var_symname = numToSymName(symbolic_name_count++, fname);
                 node_t *qual = node->u.kids.kids[i+1];
                 add_variable_use_or_def( tmp, DA_quark_INOUT(qual), DA_quark_TYPE(qual), _task_count );
             }
@@ -2516,7 +2522,7 @@ char *quark_tree_to_body(node_t *node){
             }
         }else if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "SCRATCH") ){
             char *pool_name = size_to_pool_name( tree_to_str(node->u.kids.kids[i-1]) );
-            char *id = numToSymName(pool_buf_count);
+            char *id = numToSymName(pool_buf_count, NULL);
             param = append_to_string( param, id, "p_elem_%s", 7+strlen(id));
             pool_pop = append_to_string( pool_pop, param, "  void *%s = ", 16+strlen(param));
             pool_pop = append_to_string( pool_pop, pool_name, "dague_private_memory_pop( %s );\n", 31+strlen(pool_name));

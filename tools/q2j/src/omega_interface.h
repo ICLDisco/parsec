@@ -40,6 +40,8 @@ char *dump_conditions(string_arena_t *sa,
 
 void interrogate_omega(node_t *node, var_t *head);
 void add_colocated_data_info(char *a, char *b);
+void add_variable_naming_convention(char *func_name, node_t *var_list);
+char *get_variable_name(char *func_name, int num);
 
 END_C_DECLS
 
