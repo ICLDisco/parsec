@@ -1296,37 +1296,48 @@ bool eliminate_variable(expr_t *constraint, expr_t *exp, const char *var, Relati
 
 void eliminate_variables_that_have_solutions(expr_t *constraint, expr_t *exp, set<const char *> vars_in_bounds, Relation R){
     bool expression_becomes_simpler = true;
-    if( !R.is_set() ){
-        return;
-    }
+    int var_count;
 
-    // Eliminate output variables
-    while( expression_becomes_simpler ){
-        expression_becomes_simpler = false;
-        for(int i=0; i<R.n_out(); i++){
-            const char *ovar = R.output_var(i+1)->char_name();
-            expression_becomes_simpler = eliminate_variable(constraint, exp, ovar, R);
+    if( !R.is_set() ){
+        // Eliminate output variables
+        while( expression_becomes_simpler ){
+            expression_becomes_simpler = false;
+            for(int i=0; i<R.n_out(); i++){
+                const char *ovar = R.output_var(i+1)->char_name();
+                expression_becomes_simpler = eliminate_variable(constraint, exp, ovar, R);
+            }
         }
     }
 
-    // Eliminate input variables
+    if( R.is_set() ){
+        var_count = R.n_set();
+    }else{
+        var_count = R.n_inp();
+    }
+
+    // Eliminate input variables if it's a Relation, or just variables is it's a Set (as in the execution space).
     expression_becomes_simpler = true;
     while( expression_becomes_simpler ){
         expression_becomes_simpler = false;
-        for(int i=0; i<R.n_inp(); i++){
-            const char *ivar = R.input_var(i+1)->char_name();
-            // Check if this input variable is acceptable as part of a solution
-            bool ivar_is_ok = false;
+        for(int i=0; i<var_count; i++){
+            const char *var;
+            if( R.is_set() ){
+                var = R.set_var(i+1)->char_name();
+            }else{
+                var = R.input_var(i+1)->char_name();
+            }
+            // Check if this variable is acceptable as part of a solution
+            bool var_is_ok = false;
             set<const char *>::iterator it;
             for ( it=vars_in_bounds.begin() ; it != vars_in_bounds.end(); it++ ){
-                if( !strcmp(*it, ivar) ){
-                    ivar_is_ok = true;
+                if( !strcmp(*it, var) ){
+                    var_is_ok = true;
                     break;
                 }
             }
-            if( ivar_is_ok ) continue;
+            if( var_is_ok ) continue;
             // If the variable is not ok, try to eliminate it.
-            expression_becomes_simpler = eliminate_variable(constraint, exp, ivar, R);
+            expression_becomes_simpler = eliminate_variable(constraint, exp, var, R);
         }
     }
 
