@@ -33,7 +33,7 @@ typedef void* dague_remote_dep_datatype_t;
 #define DAGUE_ACTION_RECV_INIT_REMOTE_DEPS      0x4000
 #define DAGUE_ACTION_RELEASE_REMOTE_DEPS        (DAGUE_ACTION_SEND_INIT_REMOTE_DEPS | DAGUE_ACTION_SEND_REMOTE_DEPS)
 
-typedef struct remote_dep_wire_activate_t
+typedef struct remote_dep_wire_activate_s
 {
     remote_dep_datakey_t deps;
     remote_dep_datakey_t which;
@@ -43,38 +43,38 @@ typedef struct remote_dep_wire_activate_t
     assignment_t locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
 
-typedef struct remote_dep_wire_get_t
+typedef struct remote_dep_wire_get_s
 {
     remote_dep_datakey_t deps;
     remote_dep_datakey_t which;
     remote_dep_datakey_t tag;
 } remote_dep_wire_get_t;
 
-struct remote_dep_output_param {
+struct remote_dep_output_param_s {
 /** Never change this structure without understanding the
   *   "subtle" relation with remote_deps_allocation_init in
   *  remote_dep.c
   */
-    struct dague_arena_chunk*    data;
-    struct dague_arena_t*        type;
-    uint32_t                     nbelt;
-    uint32_t*                    rank_bits;
-    uint32_t                     count;
+    struct dague_data_s    *data;
+    struct dague_arena_s   *type;
+    uint32_t                 nbelt;
+    uint32_t                 count;
+    uint32_t               *rank_bits;
 };
 
-struct dague_remote_deps_t {
-    dague_list_item_t               item;
-    struct dague_lifo_t*            origin;  /**< The memory arena where the data pointer is comming from */
-    struct dague_object*            dague_object;  /**< dague object generating this data transfer */
-    remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
-    int                             root;    /**< The root of the control message */
-    int                             from;    /**< From whom we received the control */
-    int                             max_priority;
-    uint32_t                        output_count;
-    uint32_t                        output_sent_count;
-    uint32_t*                       remote_dep_fw_mask;  /**< list of peers already notified about
-                                                           * the control sequence (only used for control messages) */
-    struct remote_dep_output_param  output[1];
+struct dague_remote_deps_s {
+    dague_list_item_t           item;
+    dague_lifo_t               *origin;  /**< The memory arena where the data pointer is comming from */
+    struct dague_object_s      *dague_object;  /**< dague object generating this data transfer */
+    remote_dep_wire_activate_t  msg;     /**< A copy of the message control */
+    int                         root;    /**< The root of the control message */
+    int                         from;    /**< From whom we received the control */
+    int                         max_priority;
+    uint32_t                    output_count;
+    uint32_t                    output_sent_count;
+    uint32_t                   *remote_dep_fw_mask;  /**< list of peers already notified about
+                                                             * the control sequence (only used for control messages) */
+    struct remote_dep_output_param_s  output[1];
 };
 /* { item .. remote_dep_fw_mask (points to fw_mask_bitfield),
  *   output[0] .. output[max_deps < MAX_PARAM_COUNT],
@@ -87,9 +87,9 @@ struct dague_remote_deps_t {
 
 typedef struct {
     dague_lifo_t freelist;
-    uint32_t            max_dep_count;
-    uint32_t            max_nodes_number;
-    uint32_t            elem_size;
+    uint32_t     max_dep_count;
+    uint32_t     max_nodes_number;
+    uint32_t     elem_size;
 } dague_remote_dep_context_t;
 
 extern dague_remote_dep_context_t dague_remote_dep_context;

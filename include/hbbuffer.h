@@ -15,7 +15,7 @@
 #include "lifo.h"
 #include "list.h"
 
-typedef struct dague_hbbuffer_t dague_hbbuffer_t;
+typedef struct dague_hbbuffer_s dague_hbbuffer_t;
 
 /**
  * Hierarchical Bounded Buffers:
@@ -32,7 +32,7 @@ typedef struct dague_hbbuffer_t dague_hbbuffer_t;
  */
 typedef void (*dague_hbbuffer_parent_push_fct_t)(void *store, dague_list_item_t *elt);
 
-struct dague_hbbuffer_t {
+struct dague_hbbuffer_s {
     size_t size;       /**< the size of the buffer, in number of void* */
     size_t ideal_fill; /**< hint on the number of elements that should be there to increase parallelism */
     void    *parent_store; /**< pointer to this buffer parent store */

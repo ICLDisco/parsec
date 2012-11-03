@@ -11,8 +11,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
-typedef struct dague_list_item_t {
-    volatile struct dague_list_item_t* list_next;
+typedef struct dague_list_item_s {
+    volatile struct dague_list_item_s* list_next;
     /**
      * This field is __very__ special and should be handled with extreme
      * care. It is used to avoid the ABA problem when atomic operations
@@ -22,7 +22,7 @@ typedef struct dague_list_item_t {
      * cacheline false sharing
      */
     uint64_t keeper_of_the_seven_keys;
-    volatile struct dague_list_item_t* list_prev;
+    volatile struct dague_list_item_s* list_prev;
 #if defined(DAGUE_DEBUG)
     volatile int32_t refcount;
     volatile void* belong_to;

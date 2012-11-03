@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -20,6 +20,7 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "matrix.h"
+#include "data.h"
 
 /***************************************************************************//**
  *  Internal static descriptor initializer (PLASMA code)
@@ -157,7 +158,7 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = CHUNK_DATA(data);
+                    buf = DAGUE_DATA_GET_PTR(data);
                     fwrite(buf, eltsize, tdesc->bsiz, tmpf );
                 }
             }
@@ -166,7 +167,7 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = CHUNK_DATA(data);
+                    buf = DAGUE_DATA_GET_PTR(data);
                     for (k=0; k<tdesc->nb; k++) {
                         fwrite(buf, eltsize, tdesc->mb, tmpf );
                         buf += eltsize * tdesc->lm;
@@ -184,7 +185,8 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
  * Read the data from the file filename
  * Sequential function per node
  */
-int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
+int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
+{
     dague_ddesc_t *ddesc = &(tdesc->super);
     dague_data_t* data;
     FILE *tmpf;
@@ -204,7 +206,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = CHUNK_DATA(data);
+                    buf = DAGUE_DATA_GET_PTR(data);
                     ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
                     if ( ret !=  tdesc->bsiz ) {
                         fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
@@ -218,7 +220,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = CHUNK_DATA(data);
+                    buf = DAGUE_DATA_GET_PTR(data);
                     for (k=0; k < tdesc->nb; k++) {
                         ret = fread(buf, eltsize, tdesc->mb, tmpf );
                         if ( ret !=  tdesc->mb ) {

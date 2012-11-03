@@ -8,6 +8,7 @@
 #define DATA_H_HAS_BEEN_INCLUDED
 
 #include "dague_internal.h"
+#include "atomic.h"
 
 /**
  * This is a variable changed only once, and contains the total number of
@@ -27,13 +28,13 @@ typedef uint8_t dague_data_coherency_t;
  * each unique data that can be handled by the system. It contains
  * pointers to the versions managed by each supported devices.
  */
-struct _dague_data {
-    uint32_t                 version;
-    dague_data_coherency_t   coherency_state;
-    uint16_t                 owner_device;
-    dague_data_key_t         key;
-    uint32_t                 nb_elts;          /* number of elements of the memory layout */
-    struct _dague_data_copy* device_copies[1]; /* this array allocated according to the number of devices
+struct dague_data_s {
+    uint32_t                  version;
+    dague_data_coherency_t    coherency_state;
+    uint16_t                  owner_device;
+    dague_data_key_t          key;
+    uint32_t                  nb_elts;          /* number of elements of the memory layout */
+    struct dague_data_copy_s* device_copies[1]; /* this array allocated according to the number of devices
                                                 (dague_supported_number_of_devices). It points to the most recent
                                                 version of the data. */
 };
@@ -44,7 +45,7 @@ typedef uint8_t dague_data_flag_t;
 /**
  * This structure represent a device copy of a dague_data_t.
  */
-struct _dague_data_copy {
+struct dague_data_copy_s {
     volatile uint32_t        refcount;
 
     uint8_t                  device_index;
@@ -80,5 +81,14 @@ static inline uint32_t dague_data_copy_release(dague_data_copy_t* data)
     return dague_atomic_dec_32b(&data->refcount);
     /* TODO: Move the copy back to the CPU before destroying it */
 }
+
+/**
+ *
+ */
+static inline void* dague_data_get_mem_ptr(dague_data_t* data)
+{
+    return data->device_copies[0]->device_private;
+}
+#define DAGUE_DATA_GET_PTR(DATA) dague_data_get_mem_ptr(DATA)
 
 #endif  /* DATA_H_HAS_BEEN_INCLUDED */

@@ -9,8 +9,8 @@
 #include "remote_dep.h"
 #include "matrix.h"
 #include "dague_prof_grapher.h"
-#include <scheduling.h>
-#include <datarepo.h>
+#include "scheduling.h"
+#include "datarepo.h"
 
 #if defined(DAGUE_PROF_TRACE)
 int dague_map_operator_profiling_array[2] = {-1};
@@ -178,7 +178,7 @@ static const dague_flow_t flow_of_map_operator = {
 };
 
 static dague_ontask_iterate_t
-add_task_to_list(struct dague_execution_unit *eu_context,
+add_task_to_list(struct dague_execution_unit_s *eu_context,
                  dague_execution_context_t *newcontext,
                  dague_execution_context_t *oldcontext,
                  int flow_index, int outdep_index,
@@ -292,11 +292,11 @@ static int data_lookup(dague_execution_unit_t *context,
     (void)context;
 
     if( NULL != __dague_object->super.src ) {
-        this_task->data[0].data = (dague_arena_chunk_t*) src(k,n);
+        this_task->data[0].data = src(k,n);
         this_task->data[0].data_repo = NULL;
     }
     if( NULL != __dague_object->super.dest ) {
-        this_task->data[1].data = (dague_arena_chunk_t*) dest(k,n);
+        this_task->data[1].data = dest(k,n);
         this_task->data[1].data_repo = NULL;
     }
     return 0;

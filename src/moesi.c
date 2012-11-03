@@ -9,8 +9,9 @@
 #include "debug.h"
 #include "atomic.h"
 
-void moesi_map_create(moesi_map_t** pmap, int nmasters, int ndevices) {
-    moesi_map_t* map = *pmap;
+void moesi_map_create(dague_moesi_map_t** pmap, int nmasters, int ndevices)
+{
+    dague_moesi_map_t* map = *pmap;
     if( NULL != map ) {
         assert(nmasters <= map->nmasters);
         assert(ndevices <= map->ndevices);
@@ -21,7 +22,7 @@ void moesi_map_create(moesi_map_t** pmap, int nmasters, int ndevices) {
     else {
         assert( nmasters > 0 );
         assert( ndevices < UINT16_MAX );
-        map = calloc(1, sizeof(moesi_map_t) + (nmasters-1)*sizeof(moesi_master_t*));
+        map = calloc(1, sizeof(dague_moesi_map_t) + (nmasters-1)*sizeof(dague_moesi_master_t*));
         map->nmasters = nmasters;
         map->ndevices = (uint16_t)ndevices;
         *pmap = map;
@@ -29,8 +30,9 @@ void moesi_map_create(moesi_map_t** pmap, int nmasters, int ndevices) {
     }
 }
 
-void moesi_map_destroy(moesi_map_t** pmap) {
-    moesi_map_t* map = *pmap;
+void moesi_map_destroy(dague_moesi_map_t** pmap)
+{
+    dague_moesi_map_t* map = *pmap;
     if( NULL != map ) {
         int i;
         for( i = 0; i < map->nmasters; i++ ) {
@@ -56,9 +58,10 @@ void moesi_map_destroy(moesi_map_t** pmap) {
 }
 
 
-int moesi_locate_device_with_valid_copy(moesi_map_t* map, moesi_key_t key) {
-    moesi_master_t* master;
-    moesi_copy_t* copy;
+int moesi_locate_device_with_valid_copy(dague_moesi_map_t* map, dague_moesi_key_t key)
+{
+    dague_moesi_master_t* master;
+    dague_moesi_copy_t* copy;
     int i;
 
     if( (NULL == map) || (NULL == (master = map->masters[key])) )
@@ -74,9 +77,10 @@ int moesi_locate_device_with_valid_copy(moesi_map_t* map, moesi_key_t key) {
     return -2;
 }
 
-int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int device, uint8_t access_mode) {
-    moesi_master_t* master;
-    moesi_copy_t* copy;
+int moesi_prepare_transfer_to_device(dague_moesi_map_t* map, dague_moesi_key_t key, int device, uint8_t access_mode)
+{
+    dague_moesi_master_t* master;
+    dague_moesi_copy_t* copy;
     int i, transfer_required = 0;
     
     assert( NULL != map );
@@ -136,13 +140,15 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
 }
 
 
-int moesi_get_master(moesi_map_t* map, moesi_key_t key, moesi_master_t** pmaster) {
-    moesi_master_t **from, *master = NULL;
+int moesi_get_master(dague_moesi_map_t* map, dague_moesi_key_t key, dague_moesi_master_t** pmaster)
+{
+    dague_moesi_master_t **from, *master = NULL;
     int rc = 0; /* the tile already existed */
 
     from = &(map->masters[key]);
     if( NULL == (master = *from) ) {
-        master = (moesi_master_t*)calloc(1, sizeof(moesi_master_t) + (map->ndevices-1)*sizeof(moesi_copy_t*));
+        master = (dague_moesi_master_t*)calloc(1, sizeof(dague_moesi_master_t) +
+                                                  (map->ndevices-1) * sizeof(dague_moesi_copy_t*));
         master->map             = map;
         master->key             = key;
         master->mem_ptr         = NULL;
@@ -159,8 +165,9 @@ int moesi_get_master(moesi_map_t* map, moesi_key_t key, moesi_master_t** pmaster
 }
 
 
-int moesi_master_update(moesi_map_t *map, moesi_key_t key) {
-    moesi_master_t* master;
+int moesi_master_update(dague_moesi_map_t *map, dague_moesi_key_t key)
+{
+    dague_moesi_master_t* master;
 
     if( (NULL == map) || (NULL == (master = map->masters[key])) )
         return 0;
@@ -178,7 +185,7 @@ int moesi_master_update(moesi_map_t *map, moesi_key_t key) {
     return 0;    
 }
 
-static char dump_moesi_codex(moesi_coherency_t state)
+static char dump_moesi_codex(dague_moesi_coherency_t state)
 {
     if( MOESI_INVALID   == state ) return 'I';
     if( MOESI_OWNED     == state ) return 'O';
@@ -187,13 +194,14 @@ static char dump_moesi_codex(moesi_coherency_t state)
     return 'X';
 }
 
-void moesi_dump_moesi_copy( moesi_copy_t* copy )
+void moesi_dump_moesi_copy(dague_moesi_copy_t* copy)
 {
-    moesi_master_t* master = copy->master;
+    dague_moesi_master_t* master = copy->master;
 
     printf("device_private %p coherency %c readers %d version %u\n"
            "  master %p [mem_ptr %p map %p key %u coherency %c owner %d version %u]\n",
            copy->device_private, dump_moesi_codex(copy->coherency_state), copy->readers, copy->version,
-           copy->master, master->mem_ptr, master->map, master->key, dump_moesi_codex(master->coherency_state), master->owner_device, master->version);
+           copy->master, master->mem_ptr, master->map, master->key,
+           dump_moesi_codex(master->coherency_state), master->owner_device, master->version);
 }
 

@@ -20,7 +20,7 @@
  *  that should happen in parallel.
  */
 
-typedef struct dague_thread_profiling_t dague_thread_profiling_t;
+typedef struct dague_thread_profiling_s dague_thread_profiling_t;
 
 /**
  * Initializes the profiling engine. Call this ONCE per process.

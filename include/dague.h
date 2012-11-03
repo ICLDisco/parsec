@@ -9,13 +9,13 @@
 
 #include "dague_config.h"
 
-typedef struct dague_function            dague_function_t;
-typedef struct dague_object              dague_object_t;
-typedef struct dague_execution_context_t dague_execution_context_t;
-typedef struct dague_dependencies_t      dague_dependencies_t;
-typedef struct dague_execution_unit      dague_execution_unit_t;    /**< Each virtual process includes multiple execution units (posix threads + local data) */
-typedef struct dague_vp                  dague_vp_t;                /**< Each MPI process includes multiple virtual processes (and a single comm. thread) */
-typedef struct dague_context_t           dague_context_t;           /**< The general context that holds all the threads of dague for this MPI process */
+typedef struct dague_function_s          dague_function_t;
+typedef struct dague_object_s            dague_object_t;
+typedef struct dague_execution_context_s dague_execution_context_t;
+typedef struct dague_dependencies_s      dague_dependencies_t;
+typedef struct dague_execution_unit_s    dague_execution_unit_t;    /**< Each virtual process includes multiple execution units (posix threads + local data) */
+typedef struct dague_vp_s                dague_vp_t;                /**< Each MPI process includes multiple virtual processes (and a single comm. thread) */
+typedef struct dague_context_s           dague_context_t;           /**< The general context that holds all the threads of dague for this MPI process */
 
 typedef void* (*dague_data_allocate_t)(size_t matrix_size);
 typedef void (*dague_data_free_t)(void *data);
@@ -28,7 +28,7 @@ typedef void (*dague_startup_fn_t)(dague_context_t *context,
 typedef int (*dague_completion_cb_t)(dague_object_t* dague_object, void*);
 typedef void (*dague_destruct_object_fn_t)(dague_object_t* dague_object);
 
-struct dague_object {
+struct dague_object_s {
     /** All dague_object_t structures hold these two arrays **/
     uint32_t                   object_id;
     volatile uint32_t          nb_local_tasks;

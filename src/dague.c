@@ -830,7 +830,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
              */
             memcpy( ((char*)new_context) + sizeof(dague_list_item_t),
                     ((char*)exec_context) + sizeof(dague_list_item_t),
-                    sizeof(dague_minimal_execution_context_t) - sizeof(dague_list_item_t) );
+                    sizeof(struct dague_minimal_execution_context_s) - sizeof(dague_list_item_t) );
             new_context->mempool_owner = mpool;
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
 

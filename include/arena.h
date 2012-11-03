@@ -25,8 +25,7 @@
 #define DAGUE_ALIGN_PTR(x,a,t) ((t)DAGUE_ALIGN((uintptr_t)x, a, uintptr_t))
 #define DAGUE_ALIGN_PAD_AMOUNT(x,s) ((~((uintptr_t)(x))+1) & ((uintptr_t)(s)-1))
 
-struct dague_arena_t
-{
+struct dague_arena_s {
     size_t alignment;                        /* alignment to be respected, elem_size should be >> alignment, prefix size is the minimum alignment */
     size_t elem_size;                        /* size of one element (unpacked in memory, aka extent) */
     dague_remote_dep_datatype_t opaque_dtt;  /* the appropriate type for the network engine to send an element */
@@ -43,7 +42,7 @@ struct dague_arena_t
 
 /* The fields are ordered so that important list_item_t fields are not
  * damaged when using them as arena chunks */
-struct dague_arena_chunk {
+struct dague_arena_chunk_s {
     dague_arena_t* origin;
     size_t count;
     void* data;

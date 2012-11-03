@@ -17,7 +17,7 @@
 /** DAGuE Binary Profile format. */
 
 #define DAGUE_PROFILING_EVENT_HAS_INFO     0x0001
-typedef struct dague_profiling_output_base_event_t {
+typedef struct dague_profiling_output_base_event_s {
     uint16_t        key;
     uint16_t        flags;
     uint32_t        object_id;
@@ -25,7 +25,7 @@ typedef struct dague_profiling_output_base_event_t {
     dague_time_t    timestamp;
 } dague_profiling_output_base_event_t;
 
-typedef struct dague_profiling_output_t {
+typedef struct dague_profiling_output_s {
     dague_profiling_output_base_event_t event;
     char                                info[1];
 } dague_profiling_output_t;
@@ -35,7 +35,7 @@ typedef struct dague_profiling_output_t {
 #define PROFILING_BUFFER_TYPE_THREAD      3
 #define PROFILING_BUFFER_TYPE_GLOBAL_INFO 4
 #define PROFILING_BUFFER_TYPE_HEADER      5
-typedef struct dague_profiling_buffer {
+typedef struct dague_profiling_buffer_s {
     int64_t  this_buffer_file_offset;    /* Used by the malloc / write method. MUST BE THE FIRST ELEMENT */
     int64_t  next_buffer_file_offset;
     union {
@@ -93,13 +93,13 @@ typedef struct {
     /* Padding to align on profile_buffer_size -- required to allow for mmaping of buffers */
 } dague_profiling_binary_file_header_t;
 
-typedef struct dague_profiling_info {
+typedef struct dague_profiling_info_s {
     struct dague_profiling_info *next;
     char              *key;
     char              *value;
 } dague_profiling_info_t;
 
-struct dague_thread_profiling_t {
+struct dague_thread_profiling_s {
     dague_list_item_t        list;
     int64_t                  next_event_position; /* When in write mode, points to the next available storage byte
                                                    *   in current_events_buffer */

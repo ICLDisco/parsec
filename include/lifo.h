@@ -11,7 +11,7 @@
 
 #include "list_item.h"
 
-typedef struct dague_lifo_t dague_lifo_t;
+typedef struct dague_lifo_s dague_lifo_t;
 
 static inline void 
 dague_lifo_construct( dague_lifo_t* lifo ); 
@@ -53,7 +53,7 @@ dague_lifo_nolock_pop(dague_lifo_t* lifo);
 #include <stdlib.h>
 #include "atomic.h"
 
-struct dague_lifo_t {
+struct dague_lifo_s {
     dague_list_item_t *lifo_head;
     dague_list_item_t *lifo_ghost;
 };
@@ -223,7 +223,7 @@ static inline void dague_lifo_destruct( dague_lifo_t *lifo )
 
 #include "list.h"
 
-struct dague_lifo_t {
+struct dague_lifo_s {
     dague_list_t list;
 };
 
