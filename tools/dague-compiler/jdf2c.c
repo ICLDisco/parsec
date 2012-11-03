@@ -513,7 +513,7 @@ static char *dump_dataflow_var_ptr(void **elem, void *arg)
  * dump_data_declaration:
  *  Takes the pointer to a flow *f, let say that f->varname == "A",
  *  this produces a string like
- *  dague_arena_chunk_t *gT;\n  data_repo_entry_t *eT;\n
+ *  dague_data_t *gT;\n  data_repo_entry_t *eT;\n
  *  and stores in sa_test the test to check
  *  whether this data is looked up or not.
  */
@@ -537,7 +537,7 @@ static char *dump_data_declaration(void **elem, void *arg)
     string_arena_init(sa);
 
     string_arena_add_string(sa,
-                            "  dague_arena_chunk_t *g%s;\n"
+                            "  dague_data_t *g%s;\n"
                             "  data_repo_entry_t *e%s = NULL; /**< repo entries can be NULL for memory data */\n",
                             varname,
                             varname);
@@ -561,7 +561,7 @@ static char *dump_data_declaration(void **elem, void *arg)
  * dump_data_initalization_from_data_array:
  *  Takes the pointer to a flow *f, let say that f->varname == "A",
  *  this produces a string like 
- *  dague_arena_chunk_t *gA = this_task->data[id].data;\n  
+ *  dague_data_t *gA = this_task->data[id].data;\n  
  *  data_repo_entry_t *eA = this_task->data[id].data_repo; (void)eA;\n
  *  void *A = ADATA(gA); (void)A;\n
  */
@@ -585,7 +585,7 @@ static char *dump_data_initalization_from_data_array(void **elem, void *arg)
     string_arena_init(sa);
 
     string_arena_add_string(sa,
-                            "  dague_arena_chunk_t *g%s = this_task->data[%d].data;\n"
+                            "  dague_data_t *g%s = this_task->data[%d].data;\n"
                             "  data_repo_entry_t   *e%s = this_task->data[%d].data_repo; (void)e%s;\n"
                             "  void *%s = ADATA(g%s); (void)%s;\n",
                             varname, ifda->idx,
@@ -2979,7 +2979,7 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
                 spaces, f->varname, call->func_or_mem, call->func_or_mem,
                 spaces, f->varname, f->varname, dataindex);
     } else {
-        coutput("%s    g%s = (dague_arena_chunk_t*) %s(%s);\n",
+        coutput("%s    g%s = %s(%s);\n",
                 spaces, f->varname, call->func_or_mem,
                 UTIL_DUMP_LIST(sa, call->parameters, next,
                                dump_expr, (void**)&info, "", "", ", ", ""));
@@ -3746,7 +3746,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "\n");
 
     coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n"
-            "    struct dague_vp** vps = eu->virtual_process->dague_context->virtual_processes;\n");
+            "    struct dague_vp_s** vps = eu->virtual_process->dague_context->virtual_processes;\n");
     if( 0 != has_output_data ) {
         coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n",
                 f->fname);
