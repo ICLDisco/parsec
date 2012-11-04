@@ -9,6 +9,7 @@
 #define _DATA_DISTRIBUTION_H_
 
 #include "dague_config.h"
+#include "dague/types.h"
 #include "profiling.h"
 
 #if defined(HAVE_STDARG_H)
@@ -23,10 +24,6 @@
 #ifdef HAVE_MPI
 #include "mpi.h"
 #endif /*HAVE_MPI */
-
-typedef struct dague_data_s dague_data_t;
-typedef struct dague_data_copy_s dague_data_copy_t;
-typedef uint32_t dague_data_key_t;
 
 typedef struct dague_ddesc {
     uint32_t            myrank;    /**< process rank */

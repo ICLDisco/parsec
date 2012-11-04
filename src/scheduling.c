@@ -8,7 +8,6 @@
 #include "dague_internal.h"
 #include "schedulers.h"
 #include "profiling.h"
-#include "remote_dep.h"
 #include "stats.h"
 #include "datarepo.h"
 #include "execution_unit.h"

@@ -563,7 +563,7 @@ static char *dump_data_declaration(void **elem, void *arg)
  *  this produces a string like 
  *  dague_data_t *gA = this_task->data[id].data;\n  
  *  data_repo_entry_t *eA = this_task->data[id].data_repo; (void)eA;\n
- *  void *A = ADATA(gA); (void)A;\n
+ *  void *A = DAGUE_DATA_GET_PTR(gA); (void)A;\n
  */
 typedef struct init_from_data_array_info {
     string_arena_t *sa;
@@ -587,7 +587,7 @@ static char *dump_data_initalization_from_data_array(void **elem, void *arg)
     string_arena_add_string(sa,
                             "  dague_data_t *g%s = this_task->data[%d].data;\n"
                             "  data_repo_entry_t   *e%s = this_task->data[%d].data_repo; (void)e%s;\n"
-                            "  void *%s = ADATA(g%s); (void)%s;\n",
+                            "  void *%s = DAGUE_DATA_GET_PTR(g%s); (void)%s;\n",
                             varname, ifda->idx,
                             varname, ifda->idx, varname,
                             varname, varname, varname);
@@ -1094,6 +1094,9 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#include <scheduling.h>\n"
             "#include <remote_dep.h>\n"
             "#include <datarepo.h>\n"
+            "#include <data.h>\n"
+            "#include <dague_prof_grapher.h>\n"
+            "#include <mempool.h>\n"
             "#if defined(HAVE_PAPI)\n"
             "#include <papime.h>\n"
             "#endif\n"
@@ -1103,8 +1106,6 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#if defined(DAGUE_PROF_TRACE)\n"
             "int %s_profiling_array[2*DAGUE_%s_NB_FUNCTIONS] = {-1};\n"
             "#endif  /* defined(DAGUE_PROF_TRACE) */\n"
-            "#include \"dague_prof_grapher.h\"\n"
-            "#include <mempool.h>\n"
             "#if defined(DAGUE_PROF_PTR_FILE)\n"
             "static FILE *pointers_file;\n"
             "#endif /*defined(DAGUE_PROF_PTR_FILE) */\n",
@@ -3180,7 +3181,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
 
         string_arena_init(sa2);
         create_datatype_to_integer_code(sa2, datatype);
-        coutput("%s  if( ADATA(this_task->data[%d].data) != %s(%s) ) {\n"
+        coutput("%s  if( DAGUE_DATA_GET_PTR(this_task->data[%d].data) != %s(%s) ) {\n"
                 "%s    int __arena_index = %s;\n"
                 "%s    int __dtt_nb = %s;\n"
                 "%s    assert( (__arena_index>=0) && (__arena_index < __dague_object->super.arenas_size) );\n"

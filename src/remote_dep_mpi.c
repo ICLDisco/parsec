@@ -25,7 +25,7 @@ static int remote_dep_get_datatypes(dague_remote_deps_t* origin);
 static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin);
 
 static int remote_dep_nothread_send(dague_execution_unit_t* eu_context, int rank, dague_remote_deps_t* deps);
-static int remote_dep_nothread_memcpy(dague_arena_chunk_t *dst, dague_arena_chunk_t *src,
+static int remote_dep_nothread_memcpy(dague_data_t *dst, dague_data_t *src,
                                       const dague_remote_dep_datatype_t datatype, int nbelt);
 
 static int remote_dep_bind_thread(dague_context_t* context);
@@ -94,8 +94,8 @@ typedef union dep_cmd_t
     } new_object;
     struct {
         dague_object_t*             dague_object;
-        dague_arena_chunk_t*        source;
-        void*                       destination;
+        dague_data_t*               source;
+        dague_data_t*               destination;
         dague_remote_dep_datatype_t datatype;
         int                         nbelt;
     } memcpy;
@@ -336,8 +336,8 @@ static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
 
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_object_t* dague_object,
-                             void *dst,
-                             dague_arena_chunk_t *src,
+                             dague_data_t *dst,
+                             dague_data_t *src,
                              dague_remote_dep_datatype_t datatype,
                              int nbelt)
 {
@@ -526,7 +526,7 @@ static int remote_dep_nothread_send( dague_execution_unit_t* eu_context,
     return 0;
 }
 
-static int remote_dep_nothread_memcpy(dague_arena_chunk_t *dst, dague_arena_chunk_t *src,
+static int remote_dep_nothread_memcpy(dague_data_t *dst, dague_data_t *src,
                                       const dague_remote_dep_datatype_t datatype,
                                       int nbelt)
 {

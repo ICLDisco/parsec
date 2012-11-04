@@ -16,11 +16,12 @@
 #endif
 
 #include "dague_config.h"
+#include "dague_internal.h"
+#include "data.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "matrix.h"
-#include "data.h"
 
 /***************************************************************************//**
  *  Internal static descriptor initializer (PLASMA code)

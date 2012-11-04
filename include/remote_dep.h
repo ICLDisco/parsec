@@ -172,7 +172,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 /* Memcopy a particular data using datatype specification */
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_object_t* dague_object,
-                             void *dst, dague_arena_chunk_t *src,
+                             struct dague_data_s *dst, struct dague_data_s *src,
                              const dague_remote_dep_datatype_t datatype,
                              int nbelt);
 

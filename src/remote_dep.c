@@ -1,13 +1,15 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague_config.h"
+#include "dague_internal.h"
 #include "remote_dep.h"
 #include "scheduling.h"
 #include "execution_unit.h"
+#include "data.h"
 #include <stdio.h>
 
 #ifdef DISTRIBUTED

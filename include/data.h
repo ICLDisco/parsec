@@ -8,6 +8,7 @@
 #define DATA_H_HAS_BEEN_INCLUDED
 
 #include "dague_internal.h"
+#include "dague/types.h"
 #include "atomic.h"
 
 /**
@@ -15,7 +16,7 @@
  * devices allowed to keep copies of a data. It is updated during the
  * initialization of the system and never changed after (!)
  */
-uint32_t dague_supported_number_of_devices;
+extern uint32_t dague_supported_number_of_devices;
 
 typedef uint8_t dague_data_coherency_t;
 #define    DATA_COHERENCY_INVALID   ((dague_data_coherency_t)0x0)
@@ -53,8 +54,7 @@ struct dague_data_copy_s {
     dague_data_coherency_t   coherency_state;
     /* int8_t */
 
-    int16_t                  readers;
-    /* int16_t */
+    int32_t                  readers;
 
     uint32_t                 version;
 
@@ -70,6 +70,7 @@ static inline uint32_t dague_data_copy_retain(dague_data_copy_t* data)
 {
     return dague_atomic_inc_32b(&data->refcount);
 }
+#define DAGUE_DATA_COPY_RETAIN(DATA) dague_data_copy_retain(DATA)
 
 /**
  * Decrease the refcount of this copy of the data. If the refcount reach
@@ -81,9 +82,21 @@ static inline uint32_t dague_data_copy_release(dague_data_copy_t* data)
     return dague_atomic_dec_32b(&data->refcount);
     /* TODO: Move the copy back to the CPU before destroying it */
 }
+#define DAGUE_DATA_COPY_RELEASE(DATA) dague_data_copy_release(DATA)
 
 /**
- *
+ * Return the device private pointer for a datacopy.
+ */
+static inline void* dague_data_copy_get_ptr(dague_data_copy_t* data)
+{
+    return data->device_private;
+}
+#define DAGUE_DATA_COPY_GET_PTR(DATA) dague_data_copy_get_ptr(DATA)
+
+/**
+ * Return the pointer in main memory corresponding to a data. In same
+ * instances this pointer might not exist, in case the data resides
+ * only on specific devices.
  */
 static inline void* dague_data_get_mem_ptr(dague_data_t* data)
 {
