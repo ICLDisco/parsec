@@ -13,7 +13,7 @@ set(TESTS
   testing_zhemm.c
   testing_zsymm.c
   testing_zherk.c
-#  testing_zsyrk.c
+  testing_zsyrk.c
   testing_ztrmm.c
   testing_ztrsm.c
   #
