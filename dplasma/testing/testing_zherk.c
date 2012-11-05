@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @precisions normal z -> z c
+ * @precisions normal z -> z c d s
  *
  */
 
@@ -102,8 +102,9 @@ int main(int argc, char ** argv)
                                            N, N, P, uplo[u]));
 
             for (t=0; t<2; t++) {
+#if defined(PRECISION_z) || defined(PRECISION_c)
                 if (t==1) t++;
-
+#endif
                 /* initializing matrix structure */
                 int Am = ( trans[t] == PlasmaNoTrans ? N : K );
                 int An = ( trans[t] == PlasmaNoTrans ? K : N );
@@ -213,7 +214,7 @@ static int check_solution( dague_context_t *dague, int loud,
                     beta,  ddescC.mat, LDC);
     }
 
-    Clapacknorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
+    Clapacknorm = dplasma_zlanhe( dague, PlasmaMaxNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
 
     dplasma_zgeadd( dague, uplo, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
                                        (tiled_matrix_desc_t*)&ddescC );
