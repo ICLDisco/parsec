@@ -202,7 +202,7 @@ dplasma_zherk( dague_context_t *dague,
         dplasma_error("PLASMA_zherk", "illegal value of uplo");
         return -1;
     }
-    if (trans != PlasmaConjTrans && trans != PlasmaTrans ) {
+    if (trans != PlasmaConjTrans && trans != PlasmaNoTrans ) {
         dplasma_error("dplasma_zherk", "illegal value of trans");
         return -2;
     }
