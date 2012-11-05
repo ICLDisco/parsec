@@ -7,7 +7,7 @@
 #include "dague_config.h"
 #include "dague_internal.h"
 #include "remote_dep.h"
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 
 #if defined(HAVE_ERRNO_H)
 #include <errno.h>

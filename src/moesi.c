@@ -7,7 +7,7 @@
 #include "dague_config.h"
 #include "moesi.h"
 #include "debug.h"
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 
 void moesi_map_create(dague_moesi_map_t** pmap, int nmasters, int ndevices)
 {

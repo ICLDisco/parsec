@@ -14,7 +14,7 @@ typedef struct data_repo_head_s  data_repo_head_t;
 typedef struct data_repo_s       data_repo_t;
 
 #include <stdlib.h>
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 #include "stats.h"
 #include "debug.h"
 #include "execution_unit.h"

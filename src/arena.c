@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
+#include <dague_config.h>
 #include "arena.h"
-#include "atomic.h"
 #include "lifo.h"
 
 /* types used to compute alignment  */

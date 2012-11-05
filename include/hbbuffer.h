@@ -10,7 +10,7 @@
 #include "dague_config.h"
 #include "dague_internal.h"
 #include "debug.h"
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 #include <stdlib.h>
 #include "lifo.h"
 #include "list.h"

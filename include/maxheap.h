@@ -11,7 +11,7 @@
 #include "dague_internal.h"
 
 #include "debug.h"
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 #include "list_item.h"
 #include <stdlib.h>
 

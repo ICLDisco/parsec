@@ -9,7 +9,7 @@
 
 #include "dague_internal.h"
 #include "dague/types.h"
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 
 /**
  * This is a variable changed only once, and contains the total number of

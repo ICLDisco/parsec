@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -14,7 +14,7 @@
 #ifndef DAGUE_LIST_H_HAS_BEEN_INCLUDED
 #define DAGUE_LIST_H_HAS_BEEN_INCLUDED
 
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 #include "list_item.h"
 
 typedef struct dague_list_t {

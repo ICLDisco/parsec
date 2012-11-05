@@ -16,7 +16,7 @@
 #include "debug.h"
 #include "stats.h"
 
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 #include "lifo.h"
 
 #include "remote_dep.h"

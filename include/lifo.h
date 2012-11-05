@@ -51,7 +51,7 @@ dague_lifo_nolock_pop(dague_lifo_t* lifo);
 #ifdef DAGUE_DEBUG_LIFO_USE_ATOMICS
 
 #include <stdlib.h>
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 
 struct dague_lifo_s {
     dague_list_item_t *lifo_head;
