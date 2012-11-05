@@ -25,13 +25,8 @@ int main(int argc, char ** argv)
     int Aseed = 3872;
     int Bseed = 4674;
     int Cseed = 2873;
-    dague_complex64_t alpha = 3.5;
-    dague_complex64_t beta  = -2.8;
-
-#if defined(PRECISION_z) || defined(PRECISION_c)
-    alpha -= I * 4.2;
-    beta += I * 0.7;
-#endif
+    dague_complex64_t alpha =  3.5 - I * 4.2;
+    dague_complex64_t beta  = -2.8 + I * 0.7;
 
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
