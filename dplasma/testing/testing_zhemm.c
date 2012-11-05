@@ -126,9 +126,9 @@ int main(int argc, char ** argv)
                 /* Compute */
                 if (loud > 2) printf("Compute ... ... ");
                 dplasma_zhemm(dague, side[s], uplo[u],
-                              (dague_complex64_t)alpha, (tiled_matrix_desc_t *)&ddescA,
-                                                        (tiled_matrix_desc_t *)&ddescB,
-                              (dague_complex64_t)beta,  (tiled_matrix_desc_t *)&ddescC);
+                              alpha, (tiled_matrix_desc_t *)&ddescA,
+                                     (tiled_matrix_desc_t *)&ddescB,
+                              beta,  (tiled_matrix_desc_t *)&ddescC);
                 if (loud > 2) printf("Done\n");
 
                 /* Check the solution */
