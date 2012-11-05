@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @precisions normal z -> c d s
+ * @precisions normal z -> z c
  *
  */
 
@@ -101,7 +101,9 @@ int main(int argc, char ** argv)
                                            nodes, cores, rank, MB, NB, LDC, N, 0, 0,
                                            N, N, P, uplo[u]));
 
-            for (t=0; t<3; t++) {
+            for (t=0; t<2; t++) {
+                if (t==1) t++;
+
                 /* initializing matrix structure */
                 int Am = ( trans[t] == PlasmaNoTrans ? N : K );
                 int An = ( trans[t] == PlasmaNoTrans ? K : N );
