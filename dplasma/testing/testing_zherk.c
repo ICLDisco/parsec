@@ -36,6 +36,7 @@ int main(int argc, char ** argv)
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
+    M = N;
     LDC = max(LDC, N);
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check,
@@ -132,7 +133,7 @@ int main(int argc, char ** argv)
                 info_solution = check_solution(dague, rank == 0 ? loud : 0,
                                                uplo[u], trans[t],
                                                alpha, Am, An, Aseed,
-                                               beta,  M,  N,  Cseed,
+                                               beta,  N,  N,  Cseed,
                                                &ddescC);
 
                 if ( rank == 0 ) {

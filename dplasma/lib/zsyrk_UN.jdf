@@ -56,14 +56,13 @@ BODY
   int ldcn = BLKLDD( descC, n );
 
   printlog("CORE_zsyrk(%d, %d)\n"
-           "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, zbeta, C(%d,%d)[%p], ldcn)\n",
-  n, k, n, k, A, n, n, C);
+           "\t(uplo, trans, tempnn=%d, tempkn=%d, alpha, A(%d,%d)[%p], ldan=%d, zbeta, C(%d,%d)[%p], ldcn=%d)\n",
+           n, k, tempnn, tempkn, n, k, A, ldan, n, n, C, ldcn );
   DRYRUN(
 
-    CORE_zsyrk(uplo, trans, tempnn, 
-	tempkn, alpha, A /* dataA(n,k) */, 
-	ldan, zbeta, C /* dataC(n,n) */, 
-	ldcn );
+    CORE_zsyrk(uplo, trans, tempnn, tempkn,
+               alpha, A /* dataA(n,k) */, ldan,
+               zbeta, C /* dataC(n,n) */, ldcn );
   );
 
 }
