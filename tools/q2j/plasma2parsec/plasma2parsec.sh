@@ -26,10 +26,20 @@ generatejdf()
     sed -i '/ plasma = plasma_context_self();/d' $src
     sed -i '{N;/if (sequence->status != PLASMA_SUCCESS).*\n.*return;/d}' $src
 
+    # Remove zone, mzone, done, mdone
+    sed -i '/PLASMA_Complex64_t *zone/d'  $src
+    sed -i '/PLASMA_Complex64_t *mzone/d' $src
+    sed -i '/PLASMA_Complex64_t *done/d'  $src
+    sed -i '/PLASMA_Complex64_t *mdone/d' $src
+    sed -i 's/mzone/-1/g'  $src
+    sed -i 's/zone/1./g'   $src
+    sed -i 's/mdone/-1./g' $src
+    sed -i 's/done/1./g'   $src
+
     echo "  Precompile the file to get the correct input format"
     cpp -I. -P -E $src -o $dstcpp
 
-    sed -i '/#pragma/d' $dstcpp
+#    sed -i '/#pragma/d' $dstcpp
 
     echo "  Generate the jdf file"
     $q2j -anti $dstcpp > $dstjdf
@@ -37,9 +47,6 @@ generatejdf()
     echo "   Postprocessing"
     # Replace PLASMA_Complex64_t by Dague
     sed -i 's/PLASMA_Complex/dague_complex/g' $dstjdf
-
-    # Replace PLASMA_desc by tiled_matrix_desc_t
-    #sed -i 's/PLASMA_desc/tiled_matrix_desc_t/g' $dstjdf
 
     # Convert desc_X to desc
     # sed -i 's/desc_\([A-Z0-9]*[ .,]\)/desc\1/g' $dstjdf
@@ -51,14 +58,11 @@ generatejdf()
     sed -i 's/(\(desc[A-Z0-9]*\.[mn][bt]\))/\1/g' $dstjdf
     sed -i 's/(\(desc[A-Z0-9]*\.[mn]\))/\1/g' $dstjdf
 
-    # Remove #line to avoid confusion during compilation
-    sed -i '/#line/d' $dstjdf
-
     # Remove sequence and request (should be an option)
     sed -i '/PLASMA_sequence/d' $dstjdf
     sed -i '/PLASMA_request/d' $dstjdf
 
-    rm -f $src $dstcpp
+#    rm -f $src $dstcpp
 }
 
 for i in $*

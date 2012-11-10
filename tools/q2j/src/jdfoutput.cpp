@@ -104,7 +104,7 @@ void print_execution_space(Relation S)
     for(i=1; i<=S.n_set(); i++){
         const char *var_name = strdup(S.set_var(i)->char_name());
         expr_t *e = relation_to_tree(S);
-        expr_t *solution = solveExpressionTreeForVar(e, var_name, S);
+        expr_t *solution = solve_expression_tree_for_var(e, var_name, S);
 
         jdfoutput("  %s = ", var_name);
         if( NULL != solution )
@@ -231,7 +231,7 @@ char *create_pseudotask(node_t *parent_task,
     for(int i=0; NULL != parent_task->task->ind_vars[i]; ++i){
         const char *var_name = parent_task->task->ind_vars[i];
         expr_t *e = relation_to_tree(newS_es);
-        expr_t *solution = solveExpressionTreeForVar(e, var_name, copy(newS_es));
+        expr_t *solution = solve_expression_tree_for_var(e, var_name, copy(newS_es));
         // If there is a solution it means that this parameter has a fixed value and not a range.
         // That means that there is no point in including it as a parameter of the pseudo-task.
         if( NULL != solution ){

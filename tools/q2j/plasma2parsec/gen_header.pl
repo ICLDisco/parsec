@@ -28,7 +28,10 @@ sub ParseCore {
 
             $line =~ s/#define QUARK_(.*)\(.*/\1/;
             chomp $line;
-            $pragma .= $line;
+
+            my $fname = $line;
+            $fname =~ s/CORE_//;
+            $pragma .= $fname;
 
             $line = <M>;
             chomp $line;

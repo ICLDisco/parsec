@@ -44,8 +44,9 @@ static sched_priority_trace_t sched_priority_trace[DAGUE_SCHED_MAX_PRIORITY_TRAC
 static uint32_t sched_priority_trace_counter;
 #endif
 
+#if 0
 /**
- *
+ * Disabled by now.
  */
 int __dague_progress_task( dague_execution_unit_t* eu_context,
                            dague_execution_context_t* task )
@@ -76,6 +77,7 @@ int __dague_progress_task( dague_execution_unit_t* eu_context,
     }
     return -1;
 }
+#endif
 
 int __dague_execute( dague_execution_unit_t* eu_context,
                      dague_execution_context_t* exec_context )

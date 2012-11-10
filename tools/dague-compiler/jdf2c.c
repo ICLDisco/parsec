@@ -2318,16 +2318,14 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             "  .name = \"%s\",\n"
                             "  .function_id = %d,\n"
                             "  .nb_incarnations = %d,\n"
-                            "  .nb_in = %d,\n"
-                            "  .nb_out = %d,\n"
+                            "  .nb_flows = %d,\n"
                             "  .nb_parameters = %d,\n"
                             "  .nb_locals = %d,\n",
                             jdf_basename, f->fname,
                             f->fname,
                             f->function_id,
                             nb_incarnations,
-                            nb_input,
-                            nb_output,
+                            input_index,
                             nbparameters,
                             nbdefinitions);
 

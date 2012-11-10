@@ -6,7 +6,7 @@ extern "C" %{
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
  *
- * @precisions normal z -> z c
+ * @precisions normal z -> z c d s
  *
  */
 #define PRECISION_z
@@ -25,15 +25,15 @@ extern "C" %{
 
 uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
-alpha     [type = "double"]
+alpha     [type = "dague_complex64_t"]
 dataA     [type = "dague_ddesc_t *"]
 descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-beta      [type = "double"]
+beta      [type = "dague_complex64_t"]
 dataC     [type = "dague_ddesc_t *"]
 descC     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
 
 
-zherk(n, k)
+zsyrk(n, k)
   /* Execution Space */
   n = 0..(descC.nt-1)
   k = 0..(descA.nt-1)
@@ -41,10 +41,10 @@ zherk(n, k)
   /* Locality */
   : dataC(n,n)
 
-  READ  A    <- A zherk_in_data_A0(n, k)
-  RW    C    <- ((k>=1)) ? C zherk(n, k-1)
-             <- ((0==k)) ? dataC(n,n)
-             -> ((descA.nt>=(k+2))) ? C zherk(n, k+1)
+  READ  A    <- A zsyrk_in_data_A0(n, k)
+  RW    C    <- ((0==k)) ? dataC(n,n)
+             <- ((k>=1)) ? C zsyrk(n, k-1)
+             -> ((descA.nt>=(2+k))) ? C zsyrk(n, k+1)
              -> ((descA.nt==(k+1))) ? dataC(n,n)
 
 BODY
@@ -52,24 +52,23 @@ BODY
   int tempnn = (n==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
   int tempkn = (k==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
   int ldan = BLKLDD( descA, n );
-  double dbeta = (k==0) ? beta : ((double)1.);
+  dague_complex64_t zbeta = (k==0) ? beta : ((dague_complex64_t)1.);
   int ldcn = BLKLDD( descC, n );
 
-  printlog("CORE_zherk(%d, %d)\n"
-           "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, dbeta, C(%d,%d)[%p], ldcn)\n",
-  n, k, n, k, A, n, n, C);
+  printlog("CORE_zsyrk(%d, %d)\n"
+           "\t(uplo, trans, tempnn=%d, tempkn=%d, alpha, A(%d,%d)[%p], ldan=%d, zbeta, C(%d,%d)[%p], ldcn=%d)\n",
+           n, k, tempnn, tempkn, n, k, A, ldan, n, n, C, ldcn );
   DRYRUN(
 
-    CORE_zherk(uplo, trans, tempnn, 
-	tempkn, alpha, A /* dataA(n,k) */, 
-	ldan, dbeta, C /* dataC(n,n) */, 
-	ldcn );
+    CORE_zsyrk(uplo, trans, tempnn, tempkn,
+               alpha, A /* dataA(n,k) */, ldan,
+               zbeta, C /* dataC(n,n) */, ldcn );
   );
 
 }
 END
 
-zherk_in_data_A0(n, k) [profile = off]
+zsyrk_in_data_A0(n, k) [profile = off]
   /* Execution Space */
   n = 0..(descC.nt-1)
   k = 0..(descA.nt-1)
@@ -78,7 +77,7 @@ zherk_in_data_A0(n, k) [profile = off]
   : dataA(n,k)
 
   READ  A    <- dataA(n,k)
-             -> A zherk(n, k)
+             -> A zsyrk(n, k)
 
 BODY
 {
@@ -93,36 +92,35 @@ zgemm(n, m, k)
   k = 0..(descA.nt-1)
 
   /* Locality */
-  : dataC(m,n)
+  : dataC(n,m)
 
   READ  A    <- A zgemm_in_data_A0(n, m, k)
   READ  B    <- B zgemm_in_data_A1(n, m, k)
-  RW    C    <- ((0==k)) ? dataC(m,n)
+  RW    C    <- ((0==k)) ? dataC(n,m)
              <- ((k>=1)) ? C zgemm(n, m, k-1)
-             -> ((descA.nt==(k+1))) ? dataC(m,n)
              -> ((descA.nt>=(k+2))) ? C zgemm(n, m, k+1)
+             -> ((descA.nt==(k+1))) ? dataC(n,m)
 
 BODY
 {
-  int tempmm = ((m)==(descC.mt-1)) ? (descC.m-(m*descC.mb)) : descC.mb;
   int tempnn = (n==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
+  int tempmm = ((m)==(descC.mt-1)) ? (descC.m-(m*descC.mb)) : descC.mb;
   int tempkn = (k==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
-  dague_complex64_t zalpha = (dague_complex64_t)alpha;
-  int ldam = BLKLDD( descA, m );
   int ldan = BLKLDD( descA, n );
-  dague_complex64_t zbeta = (k==0) ? ((dague_complex64_t)beta) : ((double)1.);
-  int ldcm = BLKLDD( descC, m );
+  int ldam = BLKLDD( descA, m );
+  dague_complex64_t zbeta = (k==0) ? beta : (dague_complex64_t)1.;
+  int ldcn = BLKLDD( descC, n );
 
   printlog("CORE_zgemm(%d, %d, %d)\n"
-           "\t(trans, PlasmaConjTrans, tempmm, tempnn, tempkn, zalpha, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldan, zbeta, C(%d,%d)[%p], ldcm)\n",
-  n, m, k, m, k, A, n, k, B, m, n, C);
+           "\t(trans, PlasmaTrans, tempnn, tempmm, tempkn, zalpha, A(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, zbeta, C(%d,%d)[%p], ldcn)\n",
+  n, m, k, n, k, A, m, k, B, n, m, C);
   DRYRUN(
 
-    CORE_zgemm(trans, PlasmaConjTrans, tempmm, 
-	tempnn, tempkn, zalpha, 
-	A /* dataA(m,k) */, ldam, B /* dataA(n,k) */, 
-	ldan, zbeta, C /* dataC(m,n) */, 
-	ldcm );
+    CORE_zgemm(trans, PlasmaTrans, tempnn, 
+	tempmm, tempkn, alpha, 
+	A /* dataA(n,k) */, ldan, B /* dataA(m,k) */, 
+	ldam, zbeta, C /* dataC(n,m) */, 
+	ldcn );
   );
 
 }
@@ -135,9 +133,9 @@ zgemm_in_data_A1(n, m, k) [profile = off]
   k = 0..(descA.nt-1)
 
   /* Locality */
-  : dataA(n,k)
+  : dataA(m,k)
 
-  READ  B    <- dataA(n,k)
+  READ  B    <- dataA(m,k)
              -> B zgemm(n, m, k)
 
 BODY
@@ -153,9 +151,9 @@ zgemm_in_data_A0(n, m, k) [profile = off]
   k = 0..(descA.nt-1)
 
   /* Locality */
-  : dataA(m,k)
+  : dataA(n,k)
 
-  READ  A    <- dataA(m,k)
+  READ  A    <- dataA(n,k)
              -> A zgemm(n, m, k)
 
 BODY

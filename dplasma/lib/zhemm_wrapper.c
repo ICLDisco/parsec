@@ -82,7 +82,7 @@ dplasma_zhemm_New( const PLASMA_enum side,
                    const dague_complex64_t alpha,
                    const tiled_matrix_desc_t* A,
                    const tiled_matrix_desc_t* B,
-                   const double beta,
+                   const dague_complex64_t beta,
                    tiled_matrix_desc_t* C)
 {
     dague_zhemm_object_t* object;
@@ -162,19 +162,32 @@ dplasma_zhemm( dague_context_t *dague,
                const dague_complex64_t alpha,
                const tiled_matrix_desc_t *A,
                const tiled_matrix_desc_t *B,
-               const double beta,
+               const dague_complex64_t beta,
                tiled_matrix_desc_t *C)
 {
     dague_object_t *dague_zhemm = NULL;
 
     /* Check input arguments */
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
-        dplasma_error("PLASMA_zhemm", "illegal value of side");
+        dplasma_error("dplasma_zhemm", "illegal value of side");
         return -1;
     }
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
-        dplasma_error("PLASMA_zhemm", "illegal value of uplo");
+        dplasma_error("dplasma_zhemm", "illegal value of uplo");
         return -2;
+    }
+    if ( (A->m != A->n) ) {
+        dplasma_error("dplasma_zhemm", "illegal size of matrix A which should be square");
+        return -4;
+    }
+    if ( (B->m != C->m) || (B->n != C->n) ) {
+        dplasma_error("dplasma_zhemm", "illegal sizes of matrices B and C");
+        return -5;
+    }
+    if ( ((side == PlasmaLeft) && (A->n != C->m)) ||
+         ((side == PlasmaRight) && (A->n != C->n)) ) {
+        dplasma_error("dplasma_zhemm", "illegal size of matrix A");
+        return -6;
     }
 
     dague_zhemm = dplasma_zhemm_New(side, uplo,
