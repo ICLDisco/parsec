@@ -645,7 +645,7 @@
         sizeof(PLASMA_Complex64_t)*m*n*L, (A),        INOUT | GATHERV,\
         sizeof(PLASMA_Complex64_t)*L,     (NULL),     SCRATCH,\
         0);}
-#pragma zshift
+#pragma zshift A
 
 #define QUARK_CORE_zssssm(quark, task_flags, m1, n1, m2, n2, k, ib, nb, A1, lda1, A2, lda2, L1, ldl1, L2, ldl2, IPIV) {\
     QUARK_Insert_Task((quark), CORE_zssssm_quark, (task_flags),\

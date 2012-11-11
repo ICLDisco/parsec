@@ -265,6 +265,7 @@ dplasma/testing/testing_[sdc]hebut\.c$
 dplasma/testing/testing_[sdc]heev\.c$
 dplasma/testing/testing_[sdc]hemm\.c$
 dplasma/testing/testing_[sdc]herbt\.c$
+dplasma/testing/testing_[sdc]herk\.c$
 dplasma/testing/testing_[sdc]lange\.c$
 dplasma/testing/testing_[sdc]pivgen\.c$
 dplasma/testing/testing_[sdc]posv\.c$
@@ -275,6 +276,7 @@ dplasma/testing/testing_[sdc]sybut\.c$
 dplasma/testing/testing_[sdc]syev\.c$
 dplasma/testing/testing_[sdc]symm\.c$
 dplasma/testing/testing_[sdc]syrbt\.c$
+dplasma/testing/testing_[sdc]syrk\.c$
 dplasma/testing/testing_[sdc]trmm\.c$
 dplasma/testing/testing_[sdc]trsm\.c$
 dplasma/testing/testing_[sdcz]gelqf$
@@ -291,6 +293,7 @@ dplasma/testing/testing_[sdcz]hebut$
 dplasma/testing/testing_[sdcz]heev$
 dplasma/testing/testing_[sdcz]hemm$
 dplasma/testing/testing_[sdcz]herbt$
+dplasma/testing/testing_[sdcz]herk$
 dplasma/testing/testing_[sdcz]lange$
 dplasma/testing/testing_[sdcz]pivgen$
 dplasma/testing/testing_[sdcz]posv$
@@ -299,8 +302,9 @@ dplasma/testing/testing_[sdcz]print$
 dplasma/testing/testing_[sdcz]sbrdt$
 dplasma/testing/testing_[sdcz]sybut$
 dplasma/testing/testing_[sdcz]syev$
-dplasma/testing/testing_[sdcz]zymm$
+dplasma/testing/testing_[sdcz]symm$
 dplasma/testing/testing_[sdcz]syrbt$
+dplasma/testing/testing_[sdcz]syrk$
 dplasma/testing/testing_[sdcz]trmm$
 dplasma/testing/testing_[sdcz]trsm$
 tests/operator
