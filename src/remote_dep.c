@@ -250,7 +250,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
                         if(ACCESS_NONE != exec_context->function->out[i]->access_type)
                         {
-                            CHUNK_RETAIN(remote_deps->output[i].data);
+                            DAGUE_DATA_COPY_RETAIN(remote_deps->output[i].data);
                         }
                         if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
                         {

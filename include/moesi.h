@@ -19,8 +19,9 @@ typedef uint8_t dague_moesi_coherency_t;
 #define    MOESI_EXCLUSIVE ((uint8_t)0x2)
 #define    MOESI_SHARED    ((uint8_t)0x4)
 
-typedef struct dague_moesi_copy_s  dague_moesi_copy_t;
-typedef struct dague_moesi_map_s   dague_moesi_map_t;
+typedef struct dague_moesi_copy_s   dague_moesi_copy_t;
+typedef struct dague_moesi_map_s    dague_moesi_map_t;
+typedef struct dague_moesi_master_s dague_moesi_master_t;
 
 typedef uint32_t dague_moesi_key_t;
 

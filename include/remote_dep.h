@@ -55,11 +55,11 @@ struct remote_dep_output_param_s {
   *   "subtle" relation with remote_deps_allocation_init in
   *  remote_dep.c
   */
-    struct dague_data_s    *data;
-    struct dague_arena_s   *type;
-    uint32_t                 nbelt;
-    uint32_t                 count;
-    uint32_t               *rank_bits;
+    struct dague_data_copy_s *data;
+    struct dague_arena_s     *type;
+    uint32_t                  nbelt;
+    uint32_t                  count;
+    uint32_t                 *rank_bits;
 };
 
 struct dague_remote_deps_s {
@@ -172,7 +172,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 /* Memcopy a particular data using datatype specification */
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_object_t* dague_object,
-                             struct dague_data_s *dst, struct dague_data_s *src,
+                             struct dague_data_copy_s* dst, struct dague_data_copy_s* src,
                              const dague_remote_dep_datatype_t datatype,
                              int nbelt);
 

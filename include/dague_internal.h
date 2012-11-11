@@ -8,6 +8,7 @@
 #define DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
+#include "dague/types.h"
 #include "list_item.h"
 #include "dague_description_structures.h"
 #include "dague.h"
@@ -17,7 +18,6 @@ typedef struct dague_remote_deps_s dague_remote_deps_t;
 typedef struct dague_arena_s dague_arena_t;
 typedef struct dague_arena_chunk_s dague_arena_chunk_t;
 typedef struct dague_data_pair_s dague_data_pair_t;
-typedef struct dague_moesi_master_s dague_moesi_master_t;
 
 #ifdef HAVE_PAPI
 #define MAX_EVENTS 3
@@ -174,7 +174,7 @@ struct dague_function_s {
 
 struct dague_data_pair_s {
     struct data_repo_entry_s    *data_repo;
-    struct dague_data_s         *data;
+    struct dague_data_copy_s    *data;
 };
 
 /**

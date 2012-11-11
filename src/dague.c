@@ -17,6 +17,7 @@
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
 
+#include "data.h"
 #include "list.h"
 #include "scheduling.h"
 #include "barrier.h"
@@ -962,7 +963,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
              * Thus, if the ref count is not increased here, the data might dissapear
              * before it become useless.
              */
-            CHUNK_RETAIN( arg->output_entry->data[out_index] );
+            DAGUE_DATA_COPY_RETAIN( arg->output_entry->data[out_index] );
         }
         arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
                                                                  eu, oldcontext,

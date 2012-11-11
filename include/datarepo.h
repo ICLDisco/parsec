@@ -74,16 +74,16 @@ typedef struct data_repo_s       data_repo_t;
 #define data_repo_next_entry     data_repo_next_item.list_next
 
 struct data_repo_entry_s {
-    dague_list_item_t       data_repo_next_item;
-    dague_thread_mempool_t *data_repo_mempool_owner;
-    volatile uint32_t       usagecnt;
-    volatile uint32_t       usagelmt;
-    volatile uint32_t       retained;
-    long int                key;
+    dague_list_item_t         data_repo_next_item;
+    dague_thread_mempool_t   *data_repo_mempool_owner;
+    volatile uint32_t         usagecnt;
+    volatile uint32_t         usagelmt;
+    volatile uint32_t         retained;
+    long int                  key;
 #if defined(DAGUE_SIM)
-    int                     sim_exec_date;
+    int                       sim_exec_date;
 #endif
-    struct dague_data_s    *data[1];
+    struct dague_data_copy_s *data[1];
 };
 
 struct data_repo_head_s {

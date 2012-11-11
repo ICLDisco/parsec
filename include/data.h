@@ -93,15 +93,4 @@ static inline void* dague_data_copy_get_ptr(dague_data_copy_t* data)
 }
 #define DAGUE_DATA_COPY_GET_PTR(DATA) dague_data_copy_get_ptr(DATA)
 
-/**
- * Return the pointer in main memory corresponding to a data. In same
- * instances this pointer might not exist, in case the data resides
- * only on specific devices.
- */
-static inline void* dague_data_get_mem_ptr(dague_data_t* data)
-{
-    return data->device_copies[0]->device_private;
-}
-#define DAGUE_DATA_GET_PTR(DATA) dague_data_get_mem_ptr(DATA)
-
 #endif  /* DATA_H_HAS_BEEN_INCLUDED */
