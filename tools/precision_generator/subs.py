@@ -252,6 +252,8 @@ subs = {
     ('cublasS',     'cublasD',     'cublasS',     'cublasD'    ),
     ('cublasS',     'cublasD',     'cublasC',     'cublasZ'    ),
     ('example_s',   'example_d',   'example_c',   'example_z'  ),
+    ('FLOPS_SSY',   'FLOPS_DSY',   'FLOPS_CHE',   'FLOPS_ZHE'  ),
+    ('FLOPS_S',     'FLOPS_D',     'FLOPS_C',     'FLOPS_Z'    ),
     ('lapack_s',    'lapack_d',    'lapack_c',    'lapack_z'   ),
     ('PLASMA_s',    'PLASMA_d',    'PLASMA_c',    'PLASMA_z'   ),
     ('PLASMA_S',    'PLASMA_D',    'PLASMA_C',    'PLASMA_Z'   ),
