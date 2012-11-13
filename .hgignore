@@ -188,6 +188,7 @@ dplasma/lib/[sdcz]hbrdt\.[ch]$
 dplasma/lib/[sdcz]sbrdt\.[ch]$
 dplasma/lib/[sdcz]laset\.[ch]$
 dplasma/lib/[sdcz]lange_.*_cyclic\.[ch]$
+dplasma/lib/[sdcz]lansy\.[ch]$
 dplasma/lib/[sdcz]laswp\.[ch]$
 dplasma/lib/[sdcz]plrnt\.[ch]$
 dplasma/lib/[sdcz]plghe\.[ch]$
