@@ -53,6 +53,7 @@ set(JDF
   zlange_one_cyclic.jdf
   zlange_max_cyclic.jdf
   zlange_frb_cyclic.jdf
+  zlansy.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
