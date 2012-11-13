@@ -97,8 +97,8 @@
 
 #define FMULS_HETRF(__n) ((double)(__n) * (((1. / 6.) * (double)(__n) + 0.5) * (double)(__n) + (10. / 3.)))
 #define FADDS_HETRF(__n) ((double)(__n) * (((1. / 6.) * (double)(__n)      ) * (double)(__n) - (1.  / 6.)))
-#define FMULS_HETRF(__n) FMULS_SYTRF(__n)
-#define FADDS_HETRF(__n) FADDS_SYTRF(__n)
+#define FMULS_SYTRF(__n) FMULS_HETRF(__n)
+#define FADDS_SYTRF(__n) FADDS_HETRF(__n)
 //SSYTRI
 //SSYTRS
 
