@@ -134,6 +134,12 @@ option(DAGUE_PROF_DRY_BODY
 option(DAGUE_PROF_DRY_DEP
   "Disable calls to the actual data transport; remote dependencies are notified, but no data movement takes place" OFF)
 
+### Instrumentation Options
+option(PARSEC_INSTR
+  "Enable the use of the PaRSEC callback instrumentation system" ON)
+option(PARSEC_STEAL_INSTR
+   "Enable the counting of steals during runtime and a post-run count output in matrix form." ON)
+
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 include (CMakeDetermineSystem)
@@ -443,6 +449,17 @@ IF( BUILD_DAGUE )
   if( DAGUE_PROF_GRAPHER )
     list(APPEND EXTRA_SOURCES src/dague_prof_grapher.c)
   endif( DAGUE_PROF_GRAPHER )
+
+# For the moment, instrument.c should be included regardless, to preserve
+# compilation even when the system itself is deactivated.
+#  if( PARSEC_INSTR )
+  list(APPEND EXTRA_SOURCES src/instrument.c)
+#  endif( PARSEC_INSTR )
+
+  if (PARSEC_STEAL_INSTR)
+    list(APPEND EXTRA_SOURCES src/instru_steals.c)
+  endif(PARSEC_STEAL_INSTR)
+
 ENDIF( BUILD_DAGUE )
 
 #

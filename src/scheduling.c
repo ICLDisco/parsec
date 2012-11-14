@@ -13,6 +13,13 @@
 #include "datarepo.h"
 #include "execution_unit.h"
 #include "vpmap.h"
+#include "instrument.h"
+
+#define PARSEC_STEAL_INSTR
+
+#ifdef PARSEC_STEAL_INSTR // TODO this is temporary
+#include "instru_steals.h"
+#endif
 
 #include <signal.h>
 #if defined(HAVE_STRING_H)
@@ -88,11 +95,17 @@ static dague_scheduler_t scheduler = { "None", NULL, NULL, NULL, NULL, NULL };
 void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
 {
     if( NULL != scheduler.finalize ) {
+	    PARSEC_INSTRUMENT(SCHED_FINI, NULL, NULL, dague);
         scheduler.finalize( dague );
     }
     if( NULL != s ) {
         memcpy( &scheduler, s, sizeof(dague_scheduler_t) );
         scheduler.init( dague );
+#if defined(PARSEC_STEAL_INSTR)
+        // TODO this is temporary
+        register_instrument_callback(SCHED_INIT, init_instru_steals);
+#endif
+        PARSEC_INSTRUMENT(SCHED_INIT, NULL, NULL, dague);
     } else {
         memset( &scheduler, 0, sizeof(dague_scheduler_t) );
     }

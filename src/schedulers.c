@@ -15,6 +15,7 @@
 #include "remote_dep.h"
 #include "datarepo.h"
 #include "maxheap.h"
+#include "instrument.h"
 
 #if defined(DAGUE_PROF_TRACE) && 0
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), NULL)
@@ -81,17 +82,15 @@ static int init_tree_queues(  dague_context_t *master )
             return -1;
     }
 
+    SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores; // defined for instrumentation
+
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
-
-        SYSTEM_NEIGHBOR = vp->nb_cores * master->nb_vp; // defined for instrumentation
 
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_units[t];
             sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
             eu->scheduler_object = sched_obj;
-            sched_obj->choice_count = 0;
-            sched_obj->neighbor_stats = calloc(master->nb_vp * vp->nb_cores + 1, sizeof(neighbor_statistic)); // use calloc to set all counts to zero
 
              if( eu->th_id == 0 ) {
                  sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
@@ -173,27 +172,20 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
     dague_heap_t* heap = NULL;
     dague_heap_t* new_heap = NULL;
     dague_execution_context_t * exec_context = NULL;
-    int i;
-
-    LOCAL_QUEUES_OBJECT(eu_context)->choice_count++;
+    int i = 0;
 
     /*
      possible future improvement over using existing pop_best function:
      instead, i need to iterate manually over the buffer
      and choose a tree that has the highest value
      then take that task from that tree.
-     i may be able to alternate between splitting the tree
-     and just taking the top node, if it only has one child
-     no, don't think so. each time you split you get one node
-     with a single child, so there will always be a split.
      */
     heap = (dague_heap_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, dague_heap_priority_comparator);
     exec_context = heap_split_and_steal(&heap, &new_heap);
-    LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num].try_count++;
     if( NULL != heap )
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
     if (exec_context != NULL) {
-	    LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num].steal_count++;
+	    PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num);
 	    return exec_context;
     }
 
@@ -201,7 +193,6 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
     for(i = 1; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
         heap = (dague_heap_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i], dague_heap_priority_comparator);
         exec_context = heap_split_and_steal(&heap, &new_heap);
-        LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num].try_count++;
         if( NULL != heap ) {
             if (NULL != new_heap) {
                 /* turn two-element doubly-linked list
@@ -220,7 +211,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
             dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
         }
         if (exec_context != NULL) {
-	        LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num].steal_count++; // increment steal count
+	        PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
             return exec_context;
         }
     }
@@ -231,9 +222,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
     if (heap != NULL)
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
 
-    LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[SYSTEM_NEIGHBOR].try_count++;
-    if (exec_context != NULL)
-	    LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[SYSTEM_NEIGHBOR].steal_count++; // increment steal count
+    PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, SYSTEM_NEIGHBOR);
     return exec_context;
 }
 
@@ -308,16 +297,6 @@ static void finalize_tree_queues( dague_context_t *master )
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_units[t];
             sched_obj = LOCAL_QUEUES_OBJECT(eu);
-
-            int u = 0;
-            printf("    ");
-            for (u = 0; u < master->nb_vp * vp->nb_cores; u++) {
-	            printf("%4u ", sched_obj->neighbor_stats[u].steal_count);
-            }
-            printf("%4u\n", sched_obj->neighbor_stats[SYSTEM_NEIGHBOR].steal_count);
-
-            free(sched_obj->neighbor_stats);
-            sched_obj->neighbor_stats = NULL;
 
             if( eu->th_id == 0 ) {
                 dague_dequeue_destruct( sched_obj->system_queue );
