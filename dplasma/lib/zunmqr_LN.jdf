@@ -45,10 +45,10 @@ zunmqr(k, n)
 
   READ  A    <- A zunmqr_in_data_A0(k)   [type = LOWER_TILE]
   READ  T    <- T zunmqr_in_data_T1(k)   [type = LITTLE_T]
-  RW    C    <- ( k == 0 ) ? dataB(k,n)
-             <- ( k >  0 ) ? A2 ztsmqr(k-1, k, n)
-             -> ( k <  (descB.mt-1)) ? A1 ztsmqr(k, k+1, n)
-             -> ( k == (descB.mt-1)) ? dataB(k,n)
+  RW    C    -> ( k == 0 ) ? dataB(k,n)
+             -> ( k >  0 ) ? A2 ztsmqr(k-1, k, n)
+             <- ( k <  (descB.mt-1)) ? A1 ztsmqr(k, k+1, n)
+             <- ( k == (descB.mt-1)) ? dataB(k,n)
 
 BODY
 {
@@ -119,15 +119,15 @@ ztsmqr(k, m, n)
   /* Locality */
   : dataB(m,n)
 
-  RW    A1   <- ( m == (k+1) ) ? C  zunmqr(k, n)
-             <- ( m >  (k+1) ) ? A1 ztsmqr(k, m-1, n)
-             -> ( m <  (descB.mt-1) ) ? A1 ztsmqr(k, m+1, n)
-             -> ( m == (descB.mt-1) ) ? A1 ztsmqr_out_data_B0(k, n)
-  RW    A2   <- ( k == 0 ) ? dataB(m,n)
-             <- ( k >  0 ) ? A2 ztsmqr(k-1, m, n)
-             ->  (k == (descA.nt-1)) ? dataB(m,n)
-             -> ((k <  (descA.nt-1)) & (m == (k+1))) ? C  zunmqr(k+1, n)
-             -> ((k <  (descA.nt-1)) & (m >  (k+1))) ? A2 ztsmqr(k+1, m, n)
+  RW    A1   -> ( m == (k+1) ) ? C  zunmqr(k, n)
+             -> ( m >  (k+1) ) ? A1 ztsmqr(k, m-1, n)
+             <- ( m <  (descB.mt-1) ) ? A1 ztsmqr(k, m+1, n)
+             <- ( m == (descB.mt-1) ) ? A1 ztsmqr_out_data_B0(k, n)
+  RW    A2   -> ( k == 0 ) ? dataB(m,n)
+             -> ( k >  0 ) ? A2 ztsmqr(k-1, m, n)
+             <-  (k == (descA.nt-1)) ? dataB(m,n)
+             <- ((k <  (descA.nt-1)) & (m == (k+1))) ? C  zunmqr(k+1, n)
+             <- ((k <  (descA.nt-1)) & (m >  (k+1))) ? A2 ztsmqr(k+1, m, n)
   READ  V    <- V ztsmqr_in_data_A1(k, m)
   READ  T    <- T ztsmqr_in_data_T2(k, m)  [type = LITTLE_T]
 
