@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @precisions normal z -> c
+ * @precisions normal z -> z c
  *
  */
 #include "dague_internal.h"
@@ -20,7 +20,7 @@
  *
  * @ingroup PLASMA_Complex64_t
  *
- *  dplasm_zher2k_New - Performs one of the hermitian rank 2k operations
+ *  dplasma_zher2k_New - Performs one of the hermitian rank 2k operations
  *
  *    \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f],
  *    or
@@ -30,7 +30,7 @@
  *
  *    op( X ) = X  or op( X ) = conjg( X' )
  *
- *  where alpha and beta are real scalars, C is an n-by-n symmetric
+ *  where alpha and beta are real scalars, C is an n-by-n hermitian
  *  matrix and A and B are an n-by-k matrices the first case and k-by-n
  *  matrices in the second case.
  *
@@ -41,7 +41,7 @@
  *          = PlasmaLower: Lower triangle of C is stored.
  *
  * @param[in] trans
- *          Specifies whether the matrix A is transposed or conjugate transposed:
+ *          Specifies whether the matrix A is not transposed or conjugate transposed:
  *          = PlasmaNoTrans:   \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f]
  *          = PlasmaConjTrans: \f[ C = \alpha [ conjg( op( A )' ) \times op( B ) ] + conjg( \alpha ) [ conjg( op( B )' ) \times op( A ) ] + \beta C \f]
  *
@@ -98,7 +98,7 @@
 dague_object_t*
 dplasma_zher2k_New( const PLASMA_enum uplo,
                     const PLASMA_enum trans,
-                    const double alpha,
+                    const dague_complex64_t alpha,
                     const tiled_matrix_desc_t* A,
                     const tiled_matrix_desc_t* B,
                     const double beta,
@@ -108,11 +108,25 @@ dplasma_zher2k_New( const PLASMA_enum uplo,
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
-        dplasma_error("PLASMA_zher2k", "illegal value of uplo");
+        dplasma_error("dplasma_zher2k_New", "illegal value of uplo");
         return NULL;
     }
     if (trans != PlasmaConjTrans && trans != PlasmaNoTrans ) {
-        dplasma_error("dplasma_zher2k", "illegal value of trans");
+        dplasma_error("dplasma_zher2k_New", "illegal value of trans");
+        return NULL;
+    }
+
+    if ( C->m != C->n ) {
+        dplasma_error("dplasma_zher2k_New", "illegal descriptor C (C->m != C->n)");
+        return NULL;
+    }
+    if ( A->m != B->m || A->n != B->n ) {
+        dplasma_error("dplasma_zher2k_New", "illegal descriptor A or B, they must have the same dimensions");
+        return NULL;
+    }
+    if ( (( trans == PlasmaNoTrans ) && ( A->m != C->m ))
+         || (( trans != PlasmaNoTrans ) && ( A->n != C->m )) ) {
+        dplasma_error("dplasma_zher2k_New", "illegal sizes for the matrices");
         return NULL;
     }
 
@@ -216,7 +230,7 @@ int
 dplasma_zher2k( dague_context_t *dague,
                 const PLASMA_enum uplo,
                 const PLASMA_enum trans,
-                const double alpha,
+                const dague_complex64_t alpha,
                 const tiled_matrix_desc_t *A,
                 const tiled_matrix_desc_t *B,
                 const double beta,
@@ -226,12 +240,26 @@ dplasma_zher2k( dague_context_t *dague,
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
-        dplasma_error("PLASMA_zher2k", "illegal value of uplo");
+        dplasma_error("dplasma_zher2k", "illegal value of uplo");
         return -1;
     }
     if (trans != PlasmaConjTrans && trans != PlasmaNoTrans ) {
         dplasma_error("dplasma_zher2k", "illegal value of trans");
         return -2;
+    }
+
+    if ( A->m != B->m || A->n != B->n ) {
+        dplasma_error("dplasma_zher2k", "illegal descriptor A or B, they must have the same dimensions");
+        return -4;
+    }
+    if ( C->m != C->n ) {
+        dplasma_error("dplasma_zher2k", "illegal descriptor C (C->m != C->n)");
+        return -6;
+    }
+    if ( (( trans == PlasmaNoTrans ) && ( A->m != C->m ))
+         || (( trans != PlasmaNoTrans ) && ( A->n != C->m )) ) {
+        dplasma_error("dplasma_zher2k", "illegal sizes for the matrices");
+        return -6;
     }
 
     dague_zher2k = dplasma_zher2k_New(uplo, trans,

@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @precisions normal z -> c d s
+ * @precisions normal z -> z c d s
  *
  */
 #include "dague_internal.h"
@@ -20,11 +20,11 @@
  *
  * @ingroup PLASMA_Complex64_t
  *
- *  dplasm_zsyr2k_New - Performs one of the syrmitian rank 2k operations
+ *  dplasma_zsyr2k_New - Performs one of the symmetric rank 2k operations
  *
- *    \f[ C = \alpha [ op( A ) \times op( B )' ] + \alpha [ op( B ) \times op( A )' ] + \beta C \f],
+ *    \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + \alpha [ op( B ) \times conjg( op( A )' )] + \beta C \f],
  *    or
- *    \f[ C = \alpha [ op( A )' \times op( B ) ] + \alpha [ op( B )' \times op( A ) ] + \beta C \f],
+ *    \f[ C = \alpha [ conjg( op( A )' ) \times op( B ) ] + \alpha [ conjg( op( B )' ) \times op( A ) ] + \beta C \f],
  *
  *  wsyre op( X ) is one of
  *
@@ -41,9 +41,9 @@
  *          = PlasmaLower: Lower triangle of C is stored.
  *
  * @param[in] trans
- *          Specifies whetsyr the matrix A is transposed or conjugate transposed:
- *          = PlasmaNoTrans: \f[ C = \alpha [ op( A ) \times op( B )' ] + \alpha [ op( B ) \times op( A )' ] + \beta C \f]
- *          = PlasmaTrans:   \f[ C = \alpha [ op( A )' \times op( B ) ] + \alpha [ op( B )' \times op( A ) ] + \beta C \f]
+ *          Specifies whether the matrix A is not transposed or transposed:
+ *          = PlasmaNoTrans:   \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + \alpha [ op( B ) \times conjg( op( A )' )] + \beta C \f]
+ *          = PlasmaTrans: \f[ C = \alpha [ conjg( op( A )' ) \times op( B ) ] + \alpha [ conjg( op( B )' ) \times op( A ) ] + \beta C \f]
  *
  * @param[in] N
  *          N specifies the order of the matrix C. N must be at least zero.
@@ -57,19 +57,19 @@
  *
  * @param[in] A
  *          A is a LDA-by-ka matrix, where ka is K when trans = PlasmaNoTrans,
- *          and is N otsyrwise.
+ *          and is N otherwise.
  *
  * @param[in] LDA
  *          The leading dimension of the array A. LDA must be at least
- *          max( 1, N ), otsyrwise LDA must be at least max( 1, K ).
+ *          max( 1, N ), otherwise LDA must be at least max( 1, K ).
  *
  * @param[in] B
  *          B is a LDB-by-kb matrix, where kb is K when trans = PlasmaNoTrans,
- *          and is N otsyrwise.
+ *          and is N otherwise.
  *
  * @param[in] LDB
  *          The leading dimension of the array B. LDB must be at least
- *          max( 1, N ), otsyrwise LDB must be at least max( 1, K ).
+ *          max( 1, N ), otherwise LDB must be at least max( 1, K ).
  *
  * @param[in] beta
  *          beta specifies the scalar beta.
@@ -105,6 +105,30 @@ dplasma_zsyr2k_New( const PLASMA_enum uplo,
                     tiled_matrix_desc_t* C)
 {
     dague_object_t* object;
+
+    /* Check input arguments */
+    if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
+        dplasma_error("dplasma_zsyr2k_New", "illegal value of uplo");
+        return NULL;
+    }
+    if (trans != PlasmaTrans && trans != PlasmaNoTrans ) {
+        dplasma_error("dplasma_zsyr2k_New", "illegal value of trans");
+        return NULL;
+    }
+
+    if ( C->m != C->n ) {
+        dplasma_error("dplasma_zsyr2k_New", "illegal descriptor C (C->m != C->n)");
+        return NULL;
+    }
+    if ( A->m != B->m || A->n != B->n ) {
+        dplasma_error("dplasma_zsyr2k_New", "illegal descriptor A or B, they must have the same dimensions");
+        return NULL;
+    }
+    if ( (( trans == PlasmaNoTrans ) && ( A->m != C->m ))
+         || (( trans != PlasmaNoTrans ) && ( A->n != C->m )) ) {
+        dplasma_error("dplasma_zsyr2k_New", "illegal sizes for the matrices");
+        return NULL;
+    }
 
     if ( uplo == PlasmaLower ) {
         if ( trans == PlasmaNoTrans ) {
@@ -216,12 +240,26 @@ dplasma_zsyr2k( dague_context_t *dague,
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
-        dplasma_error("PLASMA_zsyr2k", "illegal value of uplo");
+        dplasma_error("dplasma_zsyr2k", "illegal value of uplo");
         return -1;
     }
-    if (trans != PlasmaNoTrans && trans != PlasmaTrans ) {
+    if (trans != PlasmaTrans && trans != PlasmaNoTrans ) {
         dplasma_error("dplasma_zsyr2k", "illegal value of trans");
         return -2;
+    }
+
+    if ( A->m != B->m || A->n != B->n ) {
+        dplasma_error("dplasma_zsyr2k", "illegal descriptor A or B, they must have the same dimensions");
+        return -4;
+    }
+    if ( C->m != C->n ) {
+        dplasma_error("dplasma_zsyr2k", "illegal descriptor C (C->m != C->n)");
+        return -6;
+    }
+    if ( (( trans == PlasmaNoTrans ) && ( A->m != C->m ))
+         || (( trans != PlasmaNoTrans ) && ( A->n != C->m )) ) {
+        dplasma_error("dplasma_zsyr2k", "illegal sizes for the matrices");
+        return -6;
     }
 
     dague_zsyr2k = dplasma_zsyr2k_New(uplo, trans,

@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @precisions normal z -> z c d s
+ * @precisions normal z -> z c
  *
  */
 
@@ -13,9 +13,11 @@
 
 static int check_solution( dague_context_t *dague, int loud,
                            PLASMA_enum uplo, PLASMA_enum trans,
-                           double alpha, int Am, int An, int Aseed,
-                           double beta,  int M,  int N,  int Cseed,
+                           dague_complex64_t alpha, int Am, int An, int Aseed, int Bseed,
+                           double beta,             int M,  int N,  int Cseed,
                            sym_two_dim_block_cyclic_t *ddescCfinal );
+
+#define dplasma_zprint(...) do{} while(0)
 
 int main(int argc, char ** argv)
 {
@@ -23,9 +25,10 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     int ret = 0;
     int Aseed = 3872;
+    int Bseed = 4674;
     int Cseed = 2873;
-    double alpha = 3.5;
-    double beta  = -2.8;
+    dague_complex64_t alpha = 3.5 - I * 4.2;
+    double beta = -2.8;
 
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
@@ -39,28 +42,25 @@ int main(int argc, char ** argv)
     M = N;
     LDC = max(LDC, N);
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check,
-        two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDC, N, 0, 0,
-                               N, N, SMB, SNB, P));
-
-    if (loud > 2) printf("Generate matrices ... ");
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, Cseed);
-    if (loud > 2) printf("Done\n");
-
     if(!check)
     {
         PLASMA_enum uplo  = PlasmaLower;
         PLASMA_enum trans = PlasmaNoTrans;
-        int Am = ( trans == PlasmaNoTrans ? N : K );
-        int An = ( trans == PlasmaNoTrans ? K : N );
-        LDA = max(LDA, Am);
+        int Am, An;
 
-        PASTE_CODE_FLOPS(FLOPS_ZHERK, ((DagDouble_t)K, (DagDouble_t)N));
+        Am = (trans == PlasmaNoTrans) ? N : K;
+        An = (trans == PlasmaNoTrans) ? K : N;
+
+        PASTE_CODE_FLOPS(FLOPS_ZHER2K, ((DagDouble_t)K, (DagDouble_t)N));
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
             two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
                                    nodes, cores, rank, MB, NB, LDA, An, 0, 0,
+                                   Am, An, SMB, SNB, P));
+
+        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
+            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDB, An, 0, 0,
                                    Am, An, SMB, SNB, P));
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
@@ -71,22 +71,26 @@ int main(int argc, char ** argv)
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA,  Aseed);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB,  Bseed);
         dplasma_zplghe( dague, 0., uplo, (tiled_matrix_desc_t *)&ddescC, Cseed);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zherk,
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zher2k,
                                   (uplo, trans,
                                    alpha, (tiled_matrix_desc_t *)&ddescA,
+                                          (tiled_matrix_desc_t *)&ddescB,
                                    beta,  (tiled_matrix_desc_t *)&ddescC));
 
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, zherk);
+        PASTE_CODE_PROGRESS_KERNEL(dague, zher2k);
 
-        dplasma_zherk_Destruct( DAGUE_zherk );
+        dplasma_zher2k_Destruct( DAGUE_zher2k );
 
         dague_data_free(ddescA.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+        dague_data_free(ddescB.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
         dague_data_free(ddescC.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
     }
@@ -116,33 +120,49 @@ int main(int argc, char ** argv)
                                            nodes, cores, rank, MB, NB, LDA, An, 0, 0,
                                            Am, An, SMB, SNB, P));
 
+                PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
+                    two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                                           nodes, cores, rank, MB, NB, LDA, An, 0, 0,
+                                           Am, An, SMB, SNB, P));
+
                 if (loud > 2) printf("Generate matrices ... ");
                 dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, Aseed);
-                dplasma_zlacpy( dague, uplo[u],
-                                (tiled_matrix_desc_t *)&ddescC2, (tiled_matrix_desc_t *)&ddescC );
+                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, Bseed);
+                dplasma_zplghe( dague, 0., uplo[u], (tiled_matrix_desc_t *)&ddescC, Cseed);
                 if (loud > 2) printf("Done\n");
+
+                printf("--- Matrix A ----\n");
+                dplasma_zprint(dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA);
+                printf("--- Matrix B ----\n");
+                dplasma_zprint(dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB);
+                printf("--- Matrix C ----\n");
+                dplasma_zprint(dague, uplo[u], (tiled_matrix_desc_t *)&ddescC);
 
                 /* Compute */
                 if (loud > 2) printf("Compute ... ... ");
-                dplasma_zherk(dague, uplo[u], trans[t],
+                dplasma_zher2k(dague, uplo[u], trans[t],
                               alpha, (tiled_matrix_desc_t *)&ddescA,
+                                     (tiled_matrix_desc_t *)&ddescB,
                               beta,  (tiled_matrix_desc_t *)&ddescC);
                 if (loud > 2) printf("Done\n");
+
+                printf("--- Matrix C final ----\n");
+                dplasma_zprint(dague, uplo[u], (tiled_matrix_desc_t *)&ddescC);
 
                 /* Check the solution */
                 info_solution = check_solution(dague, rank == 0 ? loud : 0,
                                                uplo[u], trans[t],
-                                               alpha, Am, An, Aseed,
+                                               alpha, Am, An, Aseed, Bseed,
                                                beta,  N,  N,  Cseed,
                                                &ddescC);
 
                 if ( rank == 0 ) {
                     if (info_solution == 0) {
-                        printf(" ---- TESTING ZHERK (%s, %s) ...... PASSED !\n",
+                        printf(" ---- TESTING ZHER2K (%s, %s) ...... PASSED !\n",
                                uplostr[u], transstr[t]);
                     }
                     else {
-                        printf(" ---- TESTING ZHERK (%s, %s) ... FAILED !\n",
+                        printf(" ---- TESTING ZHER2K (%s, %s) ... FAILED !\n",
                                uplostr[u], transstr[t]);
                         ret |= 1;
                     }
@@ -151,13 +171,12 @@ int main(int argc, char ** argv)
 
                 dague_data_free(ddescA.mat);
                 dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+                dague_data_free(ddescB.mat);
+                dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
             }
             dague_data_free(ddescC.mat);
             dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
         }
-
-        dague_data_free(ddescC2.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescC2);
     }
 
     cleanup_dague(dague, iparam);
@@ -175,12 +194,12 @@ int main(int argc, char ** argv)
  */
 static int check_solution( dague_context_t *dague, int loud,
                            PLASMA_enum uplo, PLASMA_enum trans,
-                           double alpha, int Am, int An, int Aseed,
-                           double beta,  int M,  int N,  int Cseed,
+                           dague_complex64_t alpha, int Am, int An, int Aseed, int Bseed,
+                           double beta,             int M,  int N,  int Cseed,
                            sym_two_dim_block_cyclic_t *ddescCfinal )
 {
     int info_solution;
-    double Anorm, Cinitnorm, Cdplasmanorm, Clapacknorm, Rnorm;
+    double Anorm, Bnorm, Cinitnorm, Cdplasmanorm, Clapacknorm, Rnorm;
     double eps, result;
     int MB = ddescCfinal->super.mb;
     int NB = ddescCfinal->super.nb;
@@ -195,25 +214,42 @@ static int check_solution( dague_context_t *dague, int loud,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
                                1, cores, rank, MB, NB, LDA, An, 0, 0,
                                Am, An, 1, 1, 1));
+    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
+        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Lapack,
+                               1, cores, rank, MB, NB, LDA, An, 0, 0,
+                               Am, An, 1, 1, 1));
     PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
         two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, matrix_Lapack,
                                1, cores, rank, MB, NB, LDC, N, 0, 0,
                                M, N, 1, 1, 1));
 
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, Aseed);
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC, Cseed );
+    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, Bseed);
+    dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescC, Cseed );
+
+                printf("--- Lapack A ----\n");
+                dplasma_zprint(dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA);
+                printf("--- Lapack B ----\n");
+                dplasma_zprint(dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB);
+                printf("--- Lapack C ----\n");
+                dplasma_zprint(dague, uplo, (tiled_matrix_desc_t *)&ddescC);
 
     Anorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA );
-    Cinitnorm    = dplasma_zlanhe( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
+    Bnorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescB );
+    Cinitnorm    = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
     Cdplasmanorm = dplasma_zlanhe( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)ddescCfinal );
 
     if ( rank == 0 ) {
-        cblas_zherk(CblasColMajor,
-                    (CBLAS_UPLO)uplo, (CBLAS_TRANSPOSE)trans,
-                    N, (trans == PlasmaNoTrans) ? An : Am,
-                    alpha, ddescA.mat, LDA,
-                    beta,  ddescC.mat, LDC);
+        cblas_zher2k(CblasColMajor,
+                     (CBLAS_UPLO)uplo, (CBLAS_TRANSPOSE)trans,
+                     N, (trans == PlasmaNoTrans) ? An : Am,
+                     CBLAS_SADDR(alpha), ddescA.mat, LDA,
+                                         ddescB.mat, LDA,
+                     beta,               ddescC.mat, LDC);
     }
+
+                printf("--- Lapack C Final ----\n");
+                dplasma_zprint(dague, uplo, (tiled_matrix_desc_t *)&ddescC);
 
     Clapacknorm = dplasma_zlanhe( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
 
@@ -226,9 +262,9 @@ static int check_solution( dague_context_t *dague, int loud,
 
     if ( rank == 0 ) {
         if ( loud > 2 ) {
-            printf("  ||A||_inf = %e, ||C||_inf = %e\n"
+            printf("  ||A||_inf = %e, ||B||_inf = %e, ||C||_inf = %e\n"
                    "  ||lapack(a*A*At+b*C)||_inf = %e, ||dplasma(a*A*At+b*C)||_inf = %e, ||R||_m = %e, res = %e\n",
-                   Anorm, Cinitnorm, Clapacknorm, Cdplasmanorm, Rnorm, result);
+                   Anorm, Bnorm, Cinitnorm, Clapacknorm, Cdplasmanorm, Rnorm, result);
         }
 
         if (  isinf(Clapacknorm) || isinf(Cdplasmanorm) ||
@@ -246,6 +282,8 @@ static int check_solution( dague_context_t *dague, int loud,
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+    dague_data_free(ddescB.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
     dague_data_free(ddescC.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
 

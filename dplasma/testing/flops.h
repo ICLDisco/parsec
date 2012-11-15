@@ -94,7 +94,11 @@
 
 //SPBTRF
 //SPBTRS
-//SSYTRF
+
+#define FMULS_HETRF(__n) ((double)(__n) * (((1. / 6.) * (double)(__n) + 0.5) * (double)(__n) + (10. / 3.)))
+#define FADDS_HETRF(__n) ((double)(__n) * (((1. / 6.) * (double)(__n)      ) * (double)(__n) - (1.  / 6.)))
+#define FMULS_SYTRF(__n) FMULS_HETRF(__n)
+#define FADDS_SYTRF(__n) FADDS_HETRF(__n)
 //SSYTRI
 //SSYTRS
 
@@ -249,6 +253,13 @@
 #define FLOPS_CPOTRS(__n, __nrhs) (6. * FMULS_POTRS((__n), (__nrhs)) + 2.0 * FADDS_POTRS((__n), (__nrhs)) )
 #define FLOPS_DPOTRS(__n, __nrhs) (     FMULS_POTRS((__n), (__nrhs)) +       FADDS_POTRS((__n), (__nrhs)) )
 #define FLOPS_SPOTRS(__n, __nrhs) (     FMULS_POTRS((__n), (__nrhs)) +       FADDS_POTRS((__n), (__nrhs)) )
+
+#define FLOPS_ZHETRF(__n) (6. * FMULS_HETRF((__n)) + 2.0 * FADDS_HETRF((__n)) )
+#define FLOPS_CHETRF(__n) (6. * FMULS_HETRF((__n)) + 2.0 * FADDS_HETRF((__n)) )
+#define FLOPS_ZSYTRF(__n) (6. * FMULS_SYTRF((__n)) + 2.0 * FADDS_SYTRF((__n)) )
+#define FLOPS_CSYTRF(__n) (6. * FMULS_SYTRF((__n)) + 2.0 * FADDS_SYTRF((__n)) )
+#define FLOPS_DSYTRF(__n) (     FMULS_SYTRF((__n)) +       FADDS_SYTRF((__n)) )
+#define FLOPS_SSYTRF(__n) (     FMULS_SYTRF((__n)) +       FADDS_SYTRF((__n)) )
 
 #define FLOPS_ZGEQRF(__m, __n) (6. * FMULS_GEQRF((__m), (__n)) + 2.0 * FADDS_GEQRF((__m), (__n)) )
 #define FLOPS_CGEQRF(__m, __n) (6. * FMULS_GEQRF((__m), (__n)) + 2.0 * FADDS_GEQRF((__m), (__n)) )
