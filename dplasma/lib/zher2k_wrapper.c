@@ -20,7 +20,7 @@
  *
  * @ingroup PLASMA_Complex64_t
  *
- *  dplasm_zher2k_New - Performs one of the hermitian rank 2k operations
+ *  dplasma_zher2k_New - Performs one of the hermitian rank 2k operations
  *
  *    \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f],
  *    or
@@ -30,7 +30,7 @@
  *
  *    op( X ) = X  or op( X ) = conjg( X' )
  *
- *  where alpha and beta are real scalars, C is an n-by-n symmetric
+ *  where alpha and beta are real scalars, C is an n-by-n hermitian
  *  matrix and A and B are an n-by-k matrices the first case and k-by-n
  *  matrices in the second case.
  *
@@ -41,7 +41,7 @@
  *          = PlasmaLower: Lower triangle of C is stored.
  *
  * @param[in] trans
- *          Specifies whether the matrix A is transposed or conjugate transposed:
+ *          Specifies whether the matrix A is not transposed or conjugate transposed:
  *          = PlasmaNoTrans:   \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f]
  *          = PlasmaConjTrans: \f[ C = \alpha [ conjg( op( A )' ) \times op( B ) ] + conjg( \alpha ) [ conjg( op( B )' ) \times op( A ) ] + \beta C \f]
  *
