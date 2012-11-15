@@ -133,6 +133,8 @@ dplasma/lib/[sdc]ungqr_param\.jdf$
 dplasma/lib/[sdc]orgqr_param\.jdf$
 dplasma/lib/[sdc]ungqr\.jdf$
 dplasma/lib/[sdc]orgqr\.jdf$
+dplasma/lib/[sdc]unmqr_[LR][NC]\.jdf$
+dplasma/lib/[sdc]ormqr_[LR][NC]\.jdf$
 dplasma/lib/[sdcz]gebut\.[ch]$
 dplasma/lib/[cz]hebut\.[ch]$
 dplasma/lib/[sdcz]sybut\.[ch]$
@@ -188,6 +190,7 @@ dplasma/lib/[sdcz]hbrdt\.[ch]$
 dplasma/lib/[sdcz]sbrdt\.[ch]$
 dplasma/lib/[sdcz]laset\.[ch]$
 dplasma/lib/[sdcz]lange_.*_cyclic\.[ch]$
+dplasma/lib/[sdcz]lansy\.[ch]$
 dplasma/lib/[sdcz]laswp\.[ch]$
 dplasma/lib/[sdcz]plrnt\.[ch]$
 dplasma/lib/[sdcz]plghe\.[ch]$
@@ -199,6 +202,8 @@ dplasma/lib/[sdcz]ungqr_param\.[ch]$
 dplasma/lib/[sdcz]orgqr_param\.[ch]$
 dplasma/lib/[sdcz]ungqr\.[ch]$
 dplasma/lib/[sdcz]orgqr\.[ch]$
+dplasma/lib/[sdcz]unmqr_[LR][NC]\.[ch]$
+dplasma/lib/[sdcz]ormqr_[LR][NC]\.[ch]$
 dplasma/lib/chebut_wrapper\.c$
 dplasma/lib/[sdc]sybut_wrapper\.c$
 dplasma/lib/chetrf_wrapper\.c$
@@ -246,6 +251,8 @@ dplasma/lib/[sdc]hbrdt_wrapper.c$
 dplasma/lib/[sdc]sbrdt_wrapper.c$
 dplasma/lib/[sdc]ungqr_wrapper.c$
 dplasma/lib/[sdc]orgqr_wrapper.c$
+dplasma/lib/[sdc]unmqr_wrapper.c$
+dplasma/lib/[sdc]ormqr_wrapper.c$
 dplasma/lib/TSQR\.c$
 dplasma/lib/TSQR\.h
 dplasma/lib/map2\.c$

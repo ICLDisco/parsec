@@ -15,10 +15,10 @@
 
 static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
 
-/*#include "zunmqr_LN.h"*/
+#include "zunmqr_LN.h"
 #include "zunmqr_LC.h"
 #include "zunmqr_RN.h"
-/*#include "zunmqr_RC.h"*/
+#include "zunmqr_RC.h"
 
 /***************************************************************************//**
  *
@@ -118,14 +118,11 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
      */
     if ( side == PlasmaLeft ) {
         if ( trans == PlasmaNoTrans ) {
-            fprintf(stderr, "zunmqr( Left, NoTrans ) is not implemented\n");
-            return NULL;
-
-            /* object = (dague_object_t*)dague_zunmqr_LN_new( side, trans, */
-            /*                                                (dague_ddesc_t*)A, */
-            /*                                                (dague_ddesc_t*)B, */
-            /*                                                (dague_ddesc_t*)T, */
-            /*                                                NULL); */
+            object = (dague_object_t*)dague_zunmqr_LN_new( side, trans,
+                                                           (dague_ddesc_t*)A,
+                                                           (dague_ddesc_t*)B,
+                                                           (dague_ddesc_t*)T,
+                                                           NULL);
         } else {
             object = (dague_object_t*)dague_zunmqr_LC_new( side, trans,
                                                            (dague_ddesc_t*)A,
@@ -141,13 +138,11 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
                                                            (dague_ddesc_t*)T,
                                                            NULL);
         } else {
-            fprintf(stderr, "zunmqr( Left, NoTrans ) is not implemented\n");
-            return NULL;
-            /* object = (dague_object_t*)dague_zunmqr_RC_new( side, trans, */
-            /*                                                (dague_ddesc_t*)A, */
-            /*                                                (dague_ddesc_t*)B, */
-            /*                                                (dague_ddesc_t*)T, */
-            /*                                                NULL); */
+            object = (dague_object_t*)dague_zunmqr_RC_new( side, trans,
+                                                           (dague_ddesc_t*)A,
+                                                           (dague_ddesc_t*)B,
+                                                           (dague_ddesc_t*)T,
+                                                           NULL);
         }
     }
 

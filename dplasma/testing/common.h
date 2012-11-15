@@ -53,6 +53,7 @@ enum iparam_t {
   IPARAM_SNB,          /* Number of columns in a super-tile */
   IPARAM_SMB,          /* Number of rows in a super-tile    */
   IPARAM_CHECK,        /* Checking activated or not         */
+  IPARAM_CHECKINV,     /* Inverse Checking activated or not */
   IPARAM_VERBOSE,      /* How much noise do we want?        */
   IPARAM_LOWLVL_TREE,  /* Tree used for reduction inside nodes  (specific to xgeqrf_param) */
   IPARAM_HIGHLVL_TREE, /* Tree used for reduction between nodes (specific to xgeqrf_param) */
@@ -93,13 +94,14 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int NT    = (N%NB==0) ? (N/NB) : (N/NB+1); \
   int KT    = (K%MB==0) ? (K/MB) : (K/MB+1); \
   int check = iparam[IPARAM_CHECK];\
+  int check_inv = iparam[IPARAM_CHECKINV];\
   int loud  = iparam[IPARAM_VERBOSE];\
   int scheduler = iparam[IPARAM_SCHEDULER];\
   int nb_local_tasks = 0;                                               \
   int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
   (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)KT;(void)SMB;(void)SNB;(void)check;(void)loud;\
-  (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;
+  (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;(void)check_inv;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
@@ -149,11 +151,9 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     TYPE##_t DDESC;                                                     \
     if(COND) {                                                          \
         TYPE##_init INIT_PARAMS;                                        \
-        TYPE##_data_attach((DDESC),                                     \
-                           dague_data_allocate((size_t)DDESC.super.nb_local_tiles * \
-                                               (size_t)DDESC.super.bsiz * \
-                                               (size_t)dague_datadist_getsizeoftype(DDESC.super.mtype)), \
-                           0);                                          \
+        DDESC.mat = dague_data_allocate((size_t)DDESC.super.nb_local_tiles * \
+                                        (size_t)DDESC.super.bsiz *      \
+                                        (size_t)dague_datadist_getsizeoftype(DDESC.super.mtype)); \
         dague_ddesc_set_key((dague_ddesc_t*)&DDESC, #DDESC);            \
     }
 
