@@ -11,14 +11,13 @@
 #include "flops.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-#include "dplasma/cores/cuda_sgemm.h"
-#endif
 
+#if defined(CHECK_B)
 static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
                            tiled_matrix_desc_t *ddescA,
                            tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX );
+#endif
 
 static int check_inverse( dague_context_t *dague, int loud, PLASMA_enum uplo,
                           tiled_matrix_desc_t *ddescA,
@@ -38,9 +37,6 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    iparam[IPARAM_NGPUS] = 0;
-#endif
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
@@ -216,6 +212,7 @@ int main(int argc, char ** argv)
     return ret;
 }
 
+#if defined(CHECK_B)
 /*
  * This function destroys B
  */
@@ -264,6 +261,7 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
 
     return info_solution;
 }
+#endif
 
 static int check_inverse( dague_context_t *dague, int loud, PLASMA_enum uplo,
                           tiled_matrix_desc_t *ddescA,

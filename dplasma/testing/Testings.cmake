@@ -1,52 +1,63 @@
 #
 # Shared Memory Testings
 #
-if (MPI_FOUND)
-  set(SHM_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 1 -hostfile /etc/hostfile -bynode)
-else()
-  unset(SHM_TEST_CMD )
-endif()
+# if (MPI_FOUND)
+#   set(SHM_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 1 -hostfile /etc/hostfile -bynode)
+# else()
+#   unset(SHM_TEST_CMD )
+# endif()
 
 # check the control in shared memory
 add_test(print  ${SHM_TEST_CMD} ./testing_dprint -N 40 -t 7 -x -v=5)
 
-# check the norms that are used in all other testings
-add_test(dlange ${SHM_TEST_CMD} ./testing_dlange -N 1500 -t 233 -x -v=5)
+#
+# Check BLAS/Lapack subroutines in shared memory
+#
+foreach(prec ${DPLASMA_PRECISIONS})
 
-# Need to add here check on lacpy (Tile => Lapack) and geadd
+  # check the norms that are used in all other testings
+  add_test(${prec}lange ${SHM_TEST_CMD} ./testing_${prec}lange -N 1500 -t 233 -x -v=5)
 
-# BLAS Shared memory
-add_test(dtrmm ${SHM_TEST_CMD} ./testing_dtrmm -N 1500 -x -v=5)
-add_test(dtrsm ${SHM_TEST_CMD} ./testing_dtrsm -N 1500 -x -v=5)
-add_test(dgemm ${SHM_TEST_CMD} ./testing_dgemm -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
-add_test(dsymm ${SHM_TEST_CMD} ./testing_dsymm -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
-add_test(csymm ${SHM_TEST_CMD} ./testing_csymm -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
-add_test(chemm ${SHM_TEST_CMD} ./testing_chemm -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
-add_test(dsyrk ${SHM_TEST_CMD} ./testing_dsyrk -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
-add_test(csyrk ${SHM_TEST_CMD} ./testing_csyrk -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
-add_test(cherk ${SHM_TEST_CMD} ./testing_cherk -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
+  # Need to add here check on lacpy (Tile => Lapack) and geadd
 
-# LAPACK shared memory
-add_test(dpotrf     ${SHM_TEST_CMD} ./testing_dpotrf -N 4000 -x -v=5)
+  # BLAS Shared memory
+  add_test(${prec}trmm  ${SHM_TEST_CMD} ./testing_${prec}trmm          -N 1500 -K 987 -t 56 -x -v=5)
+  add_test(${prec}trsm  ${SHM_TEST_CMD} ./testing_${prec}trsm          -N 1500 -K 987 -t 56 -x -v=5)
+  add_test(${prec}gemm  ${SHM_TEST_CMD} ./testing_${prec}gemm  -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
+  add_test(${prec}symm  ${SHM_TEST_CMD} ./testing_${prec}symm  -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
+  add_test(${prec}syrk  ${SHM_TEST_CMD} ./testing_${prec}syrk  -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
+  add_test(${prec}syr2k ${SHM_TEST_CMD} ./testing_${prec}syr2k -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
+
+  if ( "${prec}" STREQUAL "c" OR "${prec}" STREQUAL "z" )
+    add_test(${prec}hemm  ${SHM_TEST_CMD} ./testing_${prec}hemm  -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
+    add_test(${prec}herk  ${SHM_TEST_CMD} ./testing_${prec}herk  -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
+    add_test(${prec}her2k ${SHM_TEST_CMD} ./testing_${prec}her2k -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
+  endif()
+
+  # LAPACK shared memory
+  add_test(${prec}potrf     ${SHM_TEST_CMD} ./testing_${prec}potrf -N 4000 -x -v=5)
+  add_test(${prec}posv      ${SHM_TEST_CMD} ./testing_${prec}posv  -N 4000 -K 367 -x -v=5)
+
+  add_test(${prec}getrf        ${SHM_TEST_CMD} ./testing_${prec}getrf        -N 4000 -x -v=5)
+  add_test(${prec}getrf_incpiv ${SHM_TEST_CMD} ./testing_${prec}getrf_incpiv -N 4000 -x -v=5)
+  add_test(${prec}gesv_incpiv  ${SHM_TEST_CMD} ./testing_${prec}gesv_incpiv  -N 4000 -K 367 -x -v=5)
+  add_test(${prec}geqrf        ${SHM_TEST_CMD} ./testing_${prec}geqrf -N 4000 -x -v=5)
+  add_test(${prec}gelqf        ${SHM_TEST_CMD} ./testing_${prec}gelqf -N 4000 -x -v=5)
+  add_test(${prec}geqrf_p0     ${SHM_TEST_CMD} ./testing_${prec}geqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 0 --tsrr=0 -v=5)
+  add_test(${prec}geqrf_p1     ${SHM_TEST_CMD} ./testing_${prec}geqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 1 --tsrr=0 -v=5)
+  add_test(${prec}geqrf_p2     ${SHM_TEST_CMD} ./testing_${prec}geqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 2 --tsrr=0 -v=5)
+  add_test(${prec}geqrf_p3     ${SHM_TEST_CMD} ./testing_${prec}geqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 3 --tsrr=0 -v=5)
+
+endforeach()
+
+# Specific cases
+# Do we want to test them in all precisions ?
+add_test(dpotrf_pbq ${SHM_TEST_CMD} ./testing_dpotrf -N 4000 -x -v=5 -o PBQ)
 if (CUDA_FOUND)
   add_test(dpotrf_g1  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 1)
   add_test(dpotrf_g2  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 2)
 endif (CUDA_FOUND)
-add_test(dposv      ${SHM_TEST_CMD} ./testing_dposv  -N 4000 -x -v=5)
-add_test(dpotrf_pbq ${SHM_TEST_CMD} ./testing_dpotrf -N 4000 -x -v=5 -o PBQ)
-
-add_test(dgetrf        ${SHM_TEST_CMD} ./testing_dgetrf        -N 4000 -x -v=5)
-add_test(dgetrf_incpiv ${SHM_TEST_CMD} ./testing_dgetrf_incpiv -N 4000 -x -v=5)
-add_test(dgesv_incpiv  ${SHM_TEST_CMD} ./testing_dgesv_incpiv  -N 4000 -x -v=5)
-
-add_test(dgeqrf     ${SHM_TEST_CMD} ./testing_dgeqrf -N 4000 -x -v=5)
-add_test(dgelqf     ${SHM_TEST_CMD} ./testing_dgelqf -N 4000 -x -v=5)
 add_test(dgeqrf_pbq ${SHM_TEST_CMD} ./testing_dgeqrf -N 4000 -x -v=5 -o PBQ)
-
-add_test(dgeqrf_p0 ${SHM_TEST_CMD} ./testing_dgeqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 0 --tsrr=0 -v=5)
-add_test(dgeqrf_p1 ${SHM_TEST_CMD} ./testing_dgeqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 1 --tsrr=0 -v=5)
-add_test(dgeqrf_p2 ${SHM_TEST_CMD} ./testing_dgeqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 2 --tsrr=0 -v=5)
-add_test(dgeqrf_p3 ${SHM_TEST_CMD} ./testing_dgeqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 3 --tsrr=0 -v=5)
 
 #
 # Distributed Memory Testings
