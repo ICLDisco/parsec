@@ -1,6 +1,7 @@
 #!/bin/sh
 rm -rf CMakeCache.txt CMakeFiles
 USER_OPTIONS="$* "
+INSTALL_PREFIX=/lustre/scratch/$USER/dague-`date +%y%m%d.%s`
 
 ## Defaults for KRAKEN machine at NICS (Cray XT5)
 CC=${CC:="cc -DADD_"}
@@ -19,7 +20,7 @@ PLASMA_DIR=${PLASMA_DIR:="$OPT_DIR/plasma"}
 
 # Except if users provide custom versions for these libs, features are disabled
 if [ -n "$USER_OPTIONS" ]; then 
-  USER_OPTIONS="-DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_Q2J=OFF"
+  USER_OPTIONS="-DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_Q2J=OFF -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX"
 fi
 
 #####
