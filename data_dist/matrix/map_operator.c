@@ -139,7 +139,7 @@ static const expr_t expr_of_p1_for_flow_of_map_operator_dep_in = {
 };
 static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
-    .dague = &dague_map_operator,
+    .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
     .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
     .call_params = {
@@ -160,7 +160,7 @@ static const expr_t expr_of_p1_for_flow_of_map_operator_dep_out = {
 };
 static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
-    .dague = &dague_map_operator,
+    .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
     .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
     .call_params = {
@@ -282,29 +282,41 @@ static int release_deps(dague_execution_unit_t *eu,
     return 1;
 }
 
+static int data_lookup(dague_execution_unit_t *context,
+                       dague_execution_context_t *this_task)
+{
+    const __dague_map_operator_object_t *__dague_object = (__dague_map_operator_object_t*)this_task->dague_object;
+    int k = this_task->locals[0].value;
+    int n = this_task->locals[1].value;
+
+    (void)context;
+
+    if( NULL != __dague_object->super.src ) {
+        this_task->data[0].data = (dague_arena_chunk_t*) src(k,n);
+        this_task->data[0].data_repo = NULL;
+    }
+    if( NULL != __dague_object->super.dest ) {
+        this_task->data[1].data = (dague_arena_chunk_t*) dest(k,n);
+        this_task->data[1].data_repo = NULL;
+    }
+    return 0;
+}
+
 static int hook_of(dague_execution_unit_t *context,
                    dague_execution_context_t *this_task)
 {
     const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)this_task->dague_object;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
-    dague_arena_chunk_t *asrc = NULL, *adest = NULL;
     const void* src_data = NULL;
     void* dest_data = NULL;
 
     if( NULL != __dague_object->super.src ) {
-        asrc = (dague_arena_chunk_t*) src(k,n);
-        src_data = ADATA(asrc);
+        src_data = ADATA(this_task->data[0].data);
     }
     if( NULL != __dague_object->super.dest ) {
-        adest = (dague_arena_chunk_t*) dest(k,n);
-        dest_data = ADATA(adest);
+        dest_data = ADATA(this_task->data[1].data);
     }
-
-    this_task->data[0].data = asrc;
-    this_task->data[0].data_repo = NULL;
-    this_task->data[1].data = adest;
-    this_task->data[1].data_repo = NULL;
 
 #if !defined(DAGUE_PROF_DRY_BODY)
     TAKE_TIME(context, 2*this_task->function->function_id,
@@ -338,27 +350,36 @@ static int complete_hook(dague_execution_unit_t *context,
     return 0;
 }
 
+static __dague_chore_t __dague_map_chores = {
+    .evaluate = NULL,
+    .hook = hook_of,
+};
+
 static const dague_function_t dague_map_operator = {
     .name = "map_operator",
-    .deps = 0,
     .flags = 0x0,
     .function_id = 0,
-    .dependencies_goal = 0x1,
-    .nb_definitions = 2,
+    .nb_incarnations = 1,
     .nb_parameters = 2,
+    .nb_locals = 2,
+    .dependencies_goal = 0x1,
     .params = { &symb_row, &symb_column },
     .locals = { &symb_row, &symb_column },
     .pred = &pred_of_map_operator_all_as_expr,
     .priority = NULL,
     .in = { &flow_of_map_operator },
     .out = { &flow_of_map_operator },
+    .init = NULL,
+    .key = NULL,
+    .prepare_input = data_lookup,
+    .incarnations = &__dague_map_chores,
     .iterate_successors = iterate_successors,
     .release_deps = release_deps,
-    .hook = hook_of,
     .complete_execution = complete_hook,
+    .fini = NULL,
 };
 
-static void dague_map_operator_startup_fn(dague_context_t *context, 
+static void dague_map_operator_startup_fn(dague_context_t *context,
                                           dague_object_t *dague_object,
                                           dague_execution_context_t** startup_list)
 {

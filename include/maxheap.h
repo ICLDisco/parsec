@@ -12,7 +12,7 @@
 
 #include "debug.h"
 #include "atomic.h"
-#include "lifo.h"
+#include "list_item.h"
 #include <stdlib.h>
 
 /**
@@ -55,6 +55,8 @@ dague_execution_context_t* heap_split_and_steal(dague_heap_t ** heap_ptr, dague_
  * Insertion is O(lg n), as we know exactly how to get to the next insertion point,
  * and the tree is manually balanced.
  * Overall build is O(n lg n)
+ *
+ * Destroys elem->list_item next and prev.
  */
 void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
 {
@@ -64,9 +66,9 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
     elem->list_item.list_next = NULL;
     elem->list_item.list_prev = NULL;
 
-    if (heap->size == 1)
+    if (heap->size == 1) {
         heap->top = elem;
-    else {
+    } else {
         dague_execution_context_t * parent = heap->top;
         unsigned int bitmask = 1, size = heap->size;
         // prime the bitmask
@@ -94,10 +96,11 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
             parent->list_item.list_prev = (dague_list_item_t*)elem;
 
         // now bubble up to preserve max heap org.
-        while (level_counter < parents_size &&
-               parents[level_counter] != NULL &&
-               elem->priority > parents[level_counter]->priority) {
+        while( (level_counter < parents_size) &&
+               (parents[level_counter] != NULL) &&
+               (elem->priority > parents[level_counter]->priority) ) {
             parent = parents[level_counter];
+            DEBUG3(("MH:\tswapping parent %p and elem %p (priorities: %d and %d)\n", parent, elem, parent->priority, elem->priority));
             /* first, fix our grandparent, if necessary */
             if (level_counter + 1 < parents_size && parents[level_counter + 1] != NULL) {
                 dague_execution_context_t * grandparent = parents[level_counter + 1];
@@ -107,9 +110,6 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
                 else /* our grandparent's right child is our parent*/
                     grandparent->list_item.list_next = (dague_list_item_t*)elem;
             }
-            /* completely unnecessary, but I'm curious */
-            if (level_counter + 1 < parents_size && parents[level_counter + 1] == NULL)
-                printf("we definitely have an extra parents slot.\n");
 
             /* next, fix our parent */
             dague_list_item_t * parent_left  = (dague_list_item_t*)parent->list_item.list_prev;
@@ -128,12 +128,21 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
                 elem->list_item.list_next = (dague_list_item_t*)parent;
             }
 
+            if (parent == heap->top)
+                    heap->top = elem;
+
             level_counter++;
         }
     }
 
-    // set priority to top priority
+    /* set priority to top priority */
     heap->priority = heap->top->priority;
+
+#if defined(DAGUE_DEBUG)
+    char tmp[MAX_TASK_STRLEN];
+    DEBUG3(("MH:\tInserted exec C %s (%p) into maxheap %p of size %u\n",
+            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, elem), elem, heap, heap->size));
+#endif  /* defined(DAGUE_DEBUG) */
 }
 
 /*
@@ -169,19 +178,19 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
         to_use = heap->top; // this will always be what we return, even if it's NULL, if a valid heap was passed
         if (heap->top->list_item.list_prev == NULL) {
             /* no left child, so 'top' is the only node */
+            DEBUG3(("MH:\tDestroying heap %p\n", heap->top, heap->top->list_item.list_next, heap));
             heap->top = NULL;
             heap_destroy(heap_ptr);
             assert(*heap_ptr == NULL);
-        }
-        else { /* does have left child */
+        } else { /* does have left child */
             if (heap->top->list_item.list_next /* right */ == NULL) {
                 /* but doesn't have right child, so still not splitting */
                 heap->top = (dague_execution_context_t*)heap->top->list_item.list_prev; // left
+                heap->priority = heap->top->priority;
                 /* set up doubly-linked singleton list in here, as DEFAULT scenario */
                 heap->list_item.list_prev = (dague_list_item_t*)*heap_ptr;
                 heap->list_item.list_next = (dague_list_item_t*)*heap_ptr;
-            }
-            else { // heap has at least 3 nodes, so we should be actually splitting
+            } else { // heap has at least 3 nodes, so we should be actually splitting
                 (*new_heap_ptr) = heap_create();
                 (*new_heap_ptr)->top = (dague_execution_context_t*)heap->top->list_item.list_prev; // left
                 (*new_heap_ptr)->priority = (*new_heap_ptr)->top->priority;
@@ -193,11 +202,18 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
                 heap->list_item.list_next = (dague_list_item_t*)(*new_heap_ptr);
                 (*new_heap_ptr)->list_item.list_prev = (dague_list_item_t*)heap;
                 (*new_heap_ptr)->list_item.list_next = (dague_list_item_t*)heap;
+                DEBUG3(("MH:\tSplit heap %p into itself and heap %p\n", heap, *new_heap_ptr));
             }
         }
         to_use->list_item.list_next = (dague_list_item_t*)to_use; // safety's
         to_use->list_item.list_prev = (dague_list_item_t*)to_use; // sake
     }
+#if defined(DAGUE_DEBUG)
+    if (to_use != NULL) {
+        char tmp[MAX_TASK_STRLEN];
+        DEBUG3(("MH:\tStole exec C %s (%p) from heap %p\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, to_use), to_use, heap));
+    }
+#endif  /* defined(DAGUE_DEBUG) */
     return to_use;
 }
 

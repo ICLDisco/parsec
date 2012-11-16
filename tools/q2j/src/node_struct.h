@@ -39,10 +39,11 @@
 #define LT          0x110b // 4363
 #define GT          0x110c // 4364
 #define LE          0x110d // 4365
-#define GE          0x111e // 4366
-#define DEREF       0x111f // 4367
+#define GE          0x110e // 4366
+#define DEREF       0x110f // 4367
 #define S_U_MEMBER  0x1110 // 4368
 #define COMMA_EXPR  0x1111 // 4369
+#define FUNC        0x1112 // 4370
 
 #define BLOCK       0xFFFF // 65535
 
@@ -108,6 +109,8 @@ struct _node{
 
         char *var_name;
     }u;
+
+    node_t *pragmas;
 };
 
 #endif

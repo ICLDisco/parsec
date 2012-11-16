@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include "symtab.h"
 #include "jdf.h"
 
@@ -19,7 +20,7 @@ int _q2j_add_phony_tasks       = 0;
 int _q2j_finalize_antideps     = 0;
 int _q2j_generate_line_numbers = 0;
 int _q2j_dump_mapping          = 0;
-int _q2j_direct_output         = 1;
+int _q2j_direct_output         = 0;
 FILE *_q2j_output;
 jdf_t _q2j_jdf;
 
@@ -32,15 +33,112 @@ char *_q2j_data_prefix = "data";
 extern FILE *yyin;
 
 void usage(char *pname);
+static void read_conf_file(void);
+static char *read_line(FILE *ifp);
+static void parse_line(char *line);
 
 void usage(char *pname){
     fprintf(stderr,"Usage: %s [-shmem] [-phony_tasks] [-line_numbers] [-anti] [-v] file_name.c\n",pname);
     exit(1);
 }
 
+static char *read_line(FILE *ifp){
+    char *line, *rslt;
+    size_t len=128, i;
+    int c;
+
+    line = (char *)calloc(len,sizeof(int));
+
+    for(i=0; 1 ;i++){
+        c = getc(ifp);
+        if( '\n' == c || EOF == c || feof(ifp) )
+            break;
+        if( len-1 == i ){
+            len *= 2;
+            line = realloc(line, len);
+        }
+        line[i] = (char)c;
+    }
+    if( feof(ifp) )
+        return NULL;
+
+    line[i] = '\0';
+    rslt = strdup(line);
+    free(line);
+
+    return rslt;
+}
+
+static void parse_line(char *line){
+    char *key, *tmp;
+    int value;
+
+    assert( NULL != line );
+
+    tmp = strstr(line, "//");
+    /* If the line begins with a comment, our job here is done. */
+    if( tmp == line )
+        return;
+    /* Erase the comment from the line. */
+    if( NULL != tmp )
+        tmp = '\0';
+
+    /* The key cannot be larger than the whole line. */
+    key = (char *)calloc(strlen(line), sizeof(char));
+
+    /* Break the "key = value" formated input into two parts. */
+    sscanf(line, " %[^ =] = %d", key, &value);
+
+    if( !strlen(key) )
+        return;
+
+    if( !strcmp(key,"produce_shmem_jdf") ){
+        _q2j_produce_shmem_jdf = value;
+    }else if( !strcmp(key,"add_phony_tasks") ){
+        _q2j_add_phony_tasks = value;
+    }else if( !strcmp(key,"generate_line_numbers") ){
+        _q2j_generate_line_numbers = value;
+    }else if( !strcmp(key,"finalize_antideps") ){
+        _q2j_finalize_antideps = value;
+    }else if( !strcmp(key,"dump_mapping") ){
+        _q2j_dump_mapping = value;
+    }else if( !strcmp(key,"verbose_warnings") ){
+        _q2j_verbose_warnings = value;
+    }else if( !strcmp(key,"direct_output") ){
+        _q2j_direct_output = value;
+    }
+
+    /* ignore silently unrecognized keys */
+
+    return;
+}
+
+static void read_conf_file(){
+    char *line, *home, *path, *file_name=".q2jrc";
+    FILE *ifp;
+
+    home = getenv("HOME");
+    path = (char *)calloc(strlen(home)+strlen(file_name)+2, sizeof(char));
+    sprintf(path, "%s/%s", home, file_name);
+
+    ifp = fopen(path, "r");
+
+    /* If the file doesn't exist, or cannot be opened, ignore it silently. */
+    if( NULL == ifp )
+        return;
+
+    for( line = read_line(ifp); NULL != line; line = read_line(ifp) ){
+        parse_line(line);
+    }
+
+    return;
+}
+
 int main(int argc, char **argv){
 
     _q2j_output = stdout;
+
+    read_conf_file();
 
     while(--argc > 0){
         if( argv[argc][0] == '-' ){

@@ -45,27 +45,21 @@ FORCE_UNDEFINED_SYMBOL(magmablas_zgemm_SM20)
 static inline
 int gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
                            dague_gpu_context_t* this_task,
-                           CUstream stream );
+                           dague_gpu_exec_stream_t* gpu_stream);
 
 static inline
 int gpu_kernel_submit_zgemm( gpu_device_t* gpu_device,
                            dague_gpu_context_t* this_task,
-                           CUstream stream );
+                           dague_gpu_exec_stream_t* gpu_stream);
 
 static inline
 int gpu_kernel_pop_zgemm( gpu_device_t* gpu_device,
                            dague_gpu_context_t* this_task,
-                           CUstream stream );
+                           dague_gpu_exec_stream_t* gpu_stream);
 
 static inline
 int  gpu_kernel_epilog_zgemm( gpu_device_t* gpu_device,
                               dague_gpu_context_t* this_task );
-
-#if defined(DAGUE_PROF_TRACE)
-static inline
-void gpu_kernel_profile_zgemm( gpu_device_t        *gpu_device,
-                               dague_gpu_context_t *this_task );
-#endif
 
 typedef struct dague_zgemm_args_s {
     dague_gpu_context_t super;
@@ -81,35 +75,6 @@ typedef struct dague_zgemm_args_s {
 #include "gpu_scheduling.h"
 
 static int ndevices = 0;
-
-#if defined(DAGUE_PROF_TRACE)
-static inline
-void gpu_kernel_profile_zgemm( gpu_device_t        *gpu_device,
-                               dague_gpu_context_t *this_task )
-{
-    if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC ) {
-        dague_execution_context_t *ec   = this_task->ec;
-        dague_zgemm_args_t        *args = (dague_zgemm_args_t*)this_task;
-        dague_ddesc_t *ddesc = (dague_ddesc_t*)(args->ddescC);
-        int data_id =
-            ddesc->data_key(ddesc,
-                            args->Cm,
-                            args->Cn );
-
-        uint64_t task_id =
-            ec->function->key( ec->dague_object, ec->locals );
-
-        dague_profile_ddesc_info_t info;
-        info.desc = ddesc;
-        info.id = data_id;
-        dague_profiling_trace( gpu_device->profiling,
-                               DAGUE_PROF_FUNC_KEY_START(ec->dague_object,
-                                                         ec->function->function_id),
-                               task_id, ec->dague_object->object_id,
-                               (void*)&info);
-    }
-}
-#endif  /* defined(DAGUE_PROF_TRACE) */
 
 int gpu_kernel_init_zgemm( dague_context_t* dague_context )
 {
@@ -214,7 +179,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
 static inline int
 gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
                        dague_gpu_context_t *gpu_task,
-                       CUstream stream )
+                       dague_gpu_exec_stream_t* gpu_stream)
 {
     int ret, move_data_count = 0;
     int sizeloc[MAX_PARAM_COUNT];
@@ -261,30 +226,31 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
     assert( NULL != gpu_elem_obtain_from_master(this_task->data[1].moesi_master, gpu_device->index) );
     assert( NULL != gpu_elem_obtain_from_master(this_task->data[2].moesi_master, gpu_device->index) );
 
-#if defined(DAGUE_PROF_TRACE)
-    if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN )
-        dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_start,
-                               (unsigned long)this_task, this_task->dague_object->object_id,
-                               NULL );
-#endif  /* defined(DAGUE_PROF_TRACE) */
+    DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
+                             gpu_device->profiling,
+                             (-1 == gpu_stream->prof_event_key_start ? 
+                              DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
+                                                        this_task->function->function_id) :
+                              gpu_stream->prof_event_key_start),
+                             this_task);
 
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[0]->name, args->Am, args->An));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[0]->access_type,
-                                   &(this_task->data[0]), args->sizeA, stream );
+                                   &(this_task->data[0]), args->sizeA, gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[1]->name, args->Bm, args->Bn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[1]->access_type,
-                                   &(this_task->data[1]), args->sizeB, stream );
+                                   &(this_task->data[1]), args->sizeB, gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[2]->name, args->Cm, args->Cn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[2]->access_type,
-                                   &(this_task->data[2]), args->sizeC, stream );
+                                   &(this_task->data[2]), args->sizeC, gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
@@ -296,7 +262,7 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
 static inline int
 gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
                          dague_gpu_context_t *gpu_task,
-                         CUstream stream )
+                         dague_gpu_exec_stream_t* gpu_stream )
 {
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
@@ -320,16 +286,20 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
              this_task->priority ));
 
-#if defined(DAGUE_PROF_TRACE)
-    gpu_kernel_profile( gpu_device, gpu_task );
-#endif  /* defined(DAGUE_PROF_TRACE) */
+    DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
+                             gpu_device->profiling,
+                             (-1 == gpu_stream->prof_event_key_start ? 
+                              DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
+                                                        this_task->function->function_id) :
+                              gpu_stream->prof_event_key_start),
+                             this_task);
 
     status = cudaSuccess;
     cuda_zgemm( lapack_const(args->transA), lapack_const(args->transB), args->M, args->N, args->K,
                 args->alpha, (dague_complex64_t*)d_A, args->lda,
                              (dague_complex64_t*)d_B, args->ldb,
                 args->beta,  (dague_complex64_t*)d_C, args->ldc,
-                stream );
+                gpu_stream->cuda_stream );
 
     DAGUE_CUDA_CHECK_ERROR( "cuLaunchGridAsync ", status,
                               {return -1;} );
@@ -354,7 +324,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 static inline int
 gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                       dague_gpu_context_t *gpu_task,
-                      CUstream stream )
+                      dague_gpu_exec_stream_t* gpu_stream)
 {
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
@@ -383,17 +353,18 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
 
             if( args->pushout ) {  /* n == (k + 1) */
                 DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index, this_task->function->in[i]->name, this_task->data[i].moesi_master->key));
-#if defined(DAGUE_PROF_TRACE)
-                if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
-                    dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start,
-                                           (unsigned long)this_task, this_task->dague_object->object_id,
-                                           NULL );
-#endif  /* defined(DAGUE_PROF_TRACE) */
+                DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
+                                         gpu_device->profiling,
+                                         (-1 == gpu_stream->prof_event_key_start ? 
+                                          DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
+                                                                    this_task->function->function_id) :
+                                          gpu_stream->prof_event_key_start),
+                                         this_task);
                 /* Move the data back into main memory */
-                status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[2].data), gpu_elem->gpu_mem_ptr, args->sizeC, stream );
+                status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[i].data), gpu_elem->gpu_mem_ptr, args->sizeC, gpu_stream->cuda_stream );
                 DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
-                                        { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[2]->name,
-                                                  (void*)gpu_elem->gpu_mem_ptr, (void*)ADATA(this_task->data[2].data)));
+                                        { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[i]->name,
+                                                  (void*)gpu_elem->gpu_mem_ptr, (void*)ADATA(this_task->data[i].data)));
                                           return_code = -2;
                                           goto release_and_return_error;} );
                 gpu_device->transferred_data_out += args->sizeC; /* TODO: not hardcoded, use datatype size */
@@ -428,12 +399,6 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
         master->version = gpu_elem->moesi.version;
         master->owner_device = -1;
 
-#if defined(DAGUE_PROF_TRACE)
-        if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN )
-            dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end,
-                                   (unsigned long)this_task, this_task->dague_object->object_id,
-                                   NULL );
-#endif  /* defined(DAGUE_PROF_TRACE) */
         if( args->pushout ) {  /* n == (k  + 1) */
             dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
         } else {

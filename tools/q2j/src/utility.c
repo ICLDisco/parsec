@@ -46,6 +46,8 @@ static dague_list_t _dague_pool_list;
 static var_t *var_head=NULL;
 static int _ind_depth=0;
 static int _task_count=0;
+static node_t *_q2j_pending_invariants_head=NULL;
+
 // For the JDF generation we need to emmit some things in special ways,
 // (i.e. arrays in FORTRAN notation) and this "variable" will never need
 // to be changed.  However if we need to use the code to generate proper "C"
@@ -66,6 +68,7 @@ typedef struct var_def_item {
     char *def;
 } var_def_item_t;
 
+static void set_symtab_in_tree(symtab_t *symtab, node_t *node);
 static void do_parentize(node_t *node, int off);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
 static void do_if_parentize(node_t *node, node_t *enclosing_if);
@@ -394,10 +397,16 @@ void dump_tree(node_t node, int off){
     return;
 }
 
-static char *numToSymName(int num){
+static char *numToSymName(int num, char *fname){
     char str[4] = {0,0,0,0};
+    char *sym_name;
 
     assert(num<2600);
+
+    sym_name = get_variable_name(fname, num);
+    if( NULL != sym_name ){
+        return sym_name;
+    }
 
     // capital i ("I") has a special meaning in some contexts (I^2==-1), so skip it.
     if(num>=8)
@@ -469,7 +478,7 @@ static jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
     f->fname = strdup(fname);
     f->parameters  = NULL;
     f->properties  = NULL;
-    f->definitions = NULL;
+    f->locals      = NULL;
     f->simcost     = NULL;
     f->predicate   = NULL;
     f->dataflow    = NULL;
@@ -502,7 +511,7 @@ static jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
 }
 
 static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
-    static int symbolic_name_count = 0;
+    int symbolic_name_count = 0;
     int i;
     static int pool_initialized = 0;
 
@@ -556,7 +565,7 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             if( ARRAY == tmp->type ){
                 tmp->task = task;
                 tmp->function = f;
-                tmp->var_symname = numToSymName(symbolic_name_count++);
+                tmp->var_symname = numToSymName(symbolic_name_count++, fname);
                 node_t *qual = node->u.kids.kids[i+1];
                 add_variable_use_or_def( tmp, DA_quark_INOUT(qual), DA_quark_TYPE(qual), _task_count );
             }
@@ -1076,6 +1085,51 @@ void convert_OUTPUT_to_INOUT(node_t *node){
     }
 }
 
+void add_pending_invariant(node_t *node){
+
+    if(NULL == node)
+        return;
+
+    node->next = _q2j_pending_invariants_head;
+    if( NULL != _q2j_pending_invariants_head ){
+        _q2j_pending_invariants_head->prev = node;
+    }
+    _q2j_pending_invariants_head = node;
+
+    return;
+}
+
+
+void set_symtab_in_tree(symtab_t *symtab, node_t *node){
+    int i;
+    /* Set the symtab of this node (whatever type it is) */
+    node->symtab = symtab;
+
+    /* Go to the siblings, or children of this node */
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            set_symtab_in_tree(symtab, tmp);
+        }
+    }else{
+        for(i=0; i<node->u.kids.kid_count; ++i){
+            set_symtab_in_tree(symtab, DA_kid(node,i));
+        }
+    }
+}
+
+void associate_pending_pragmas_with_function(node_t *function){
+    node_t *curr;
+
+    function->pragmas = _q2j_pending_invariants_head;
+    for(curr=_q2j_pending_invariants_head; curr!=NULL; curr=curr->next){
+        set_symtab_in_tree(function->symtab, curr);
+    }
+    /* Reset the pending invariants so the next function does not seem them as well. */
+    _q2j_pending_invariants_head = NULL;
+
+    return;
+}
 
 // poor man's asprintf().
 char *append_to_string(char *str, const char *app, const char *fmt, size_t add_length){
@@ -2071,58 +2125,6 @@ void dump_for(node_t *node){
 }
 
 
-const char *type_to_symbol(int type){
-    switch(type){
-        case ADD:
-            return "+";
-        case SUB:
-            return "-";
-        case MUL:
-            return "*";
-        case DIV:
-            return "/";
-        case MOD:
-            return "%";
-        case B_AND:
-            return "&";
-        case B_XOR:
-            return "^";
-        case B_OR:
-            return "|";
-        case L_AND:
-            if( JDF_NOTATION )
-                return "&";
-            else
-                return "&&";
-        case L_OR:
-            if( JDF_NOTATION )
-                return "|";
-            else
-                return "||";
-        case LSHIFT:
-            return "<<";
-        case RSHIFT:
-            return ">>";
-        case LT:
-            return "<";
-        case GT:
-            return ">";
-        case LE:
-            return "<=";
-        case GE:
-            return ">=";
-        case EQ_OP:
-            return "==";
-        case NE_OP:
-            return "!=";
-        case COMMA_EXPR:
-            return ",";
-        case S_U_MEMBER:
-            return "STRUCT_or_UNION";
-    }
-    return "???";
-}
-
 static int isSimpleVar(char *name){
     int i, len;
 
@@ -2277,7 +2279,7 @@ void jdf_register_pools( jdf_t *jdf )
                              JDF_OBJECT_SET(&(e->properties[0]), NULL, 0, NULL);
                              e->properties[0].expr->op      = JDF_STRING;
                              e->properties[0].expr->jdf_var = strdup("dague_memory_pool_t *");
-                             
+
                              e->properties[1].next       = NULL;
                              e->properties[1].name       = strdup("size");
                              e->properties[1].expr       = q2jmalloc(jdf_expr_t, 1);
@@ -2296,7 +2298,7 @@ void jdf_register_pools( jdf_t *jdf )
     return;
 }
 
-/* 
+/*
  * Traverse the list of variable definitions to see if we have stored a definition for a given variable.
  * Return the value one if "param" is in the list and the value zero if it is not.
  */
@@ -2315,7 +2317,7 @@ static int is_definition_seen(dague_list_t *var_def_list, char *param){
 }
 
 
-/* 
+/*
  * Add in the list of variable definitions an entry for the given parameter (the definition
  * itself is unnecessary, as we are using this list as a bitmask, in is_definition_seen().)
  */
@@ -2468,7 +2470,7 @@ char *quark_tree_to_body(node_t *node){
             }
         }else if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "SCRATCH") ){
             char *pool_name = size_to_pool_name( tree_to_str(node->u.kids.kids[i-1]) );
-            char *id = numToSymName(pool_buf_count);
+            char *id = numToSymName(pool_buf_count, NULL);
             param = append_to_string( param, id, "p_elem_%s", 7+strlen(id));
             pool_pop = append_to_string( pool_pop, param, "  void *%s = ", 16+strlen(param));
             pool_pop = append_to_string( pool_pop, pool_name, "dague_private_memory_pop( %s );\n", 31+strlen(pool_name));
@@ -2948,6 +2950,100 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
     }
 
     return str;
+}
+
+
+const char *type_to_str(int type){
+
+    switch(type){
+        case EMPTY: return "EMPTY";
+        case INTCONSTANT: return "INTCONSTANT";
+        case IDENTIFIER: return "IDENTIFIER";
+        case ADDR_OF: return "ADDR_OF";
+        case STAR: return "STAR";
+        case PLUS: return "PLUS";
+        case MINUS: return "MINUS";
+        case TILDA: return "TILDA";
+        case BANG: return "BANG";
+        case ASSIGN: return "ASSIGN";
+        case COND: return "COND";
+        case ARRAY: return "ARRAY";
+        case FCALL: return "FCALL";
+        case ENTRY: return "ENTRY";
+        case EXIT: return "EXIT";
+        case EXPR: return "EXPR";
+        case ADD: return "ADD";
+        case SUB: return "SUB";
+        case MUL: return "MUL";
+        case DIV: return "DIV";
+        case MOD: return "MOD";
+        case B_AND: return "B_AND";
+        case B_XOR: return "B_XOR";
+        case B_OR: return "B_OR";
+        case LSHIFT: return "LSHIFT";
+        case RSHIFT: return "RSHIFT";
+        case LT: return "LT";
+        case GT: return "GT";
+        case LE: return "LE";
+        case GE: return "GE";
+        case DEREF: return "DEREF";
+        case S_U_MEMBER: return "S_U_MEMBER";
+        case COMMA_EXPR: return "COMMA_EXPR";
+        case BLOCK: return "BLOCK";
+        default: return "???";
+    }
+}
+
+const char *type_to_symbol(int type){
+    switch(type){
+        case ADD:
+            return "+";
+        case SUB:
+            return "-";
+        case MUL:
+            return "*";
+        case DIV:
+            return "/";
+        case MOD:
+            return "%";
+        case B_AND:
+            return "&";
+        case B_XOR:
+            return "^";
+        case B_OR:
+            return "|";
+        case L_AND:
+            if( JDF_NOTATION )
+                return "&";
+            else
+                return "&&";
+        case L_OR:
+            if( JDF_NOTATION )
+                return "|";
+            else
+                return "||";
+        case LSHIFT:
+            return "<<";
+        case RSHIFT:
+            return ">>";
+        case LT:
+            return "<";
+        case GT:
+            return ">";
+        case LE:
+            return "<=";
+        case GE:
+            return ">=";
+        case EQ_OP:
+            return "==";
+        case NE_OP:
+            return "!=";
+        case COMMA_EXPR:
+            return ",";
+        case S_U_MEMBER:
+            return "STRUCT_or_UNION";
+    }
+    return "???";
 }
 
 node_t *node_to_ptr(node_t node){

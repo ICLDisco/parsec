@@ -17,7 +17,6 @@ typedef struct symbol symbol_t;
 typedef struct dague_datatype dague_datatype_t;
 
 struct dague_object;
-struct dague_function;
 
 /**
  * Assignments
@@ -93,7 +92,7 @@ struct dague_datatype {
 struct dep {
     const expr_t                *cond;           /**< The runtime-evaluable condition on this dependency */
     const expr_t                *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
-    const struct dague_function *dague;          /**< Pointer to the dague function pointed by this dependency */
+    const int                    function_id;    /**< Index of the target dague function in the object function array */
     const expr_t                *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
     const dague_flow_t          *flow;           /**< Back pointer to the flow corresponding to this dependency */
     dague_datatype_t             datatype;       /**< Datatype associated with this dependency */

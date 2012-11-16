@@ -259,7 +259,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     pseudotask->parameters  = NULL;
     pseudotask->flags       = is_input ? JDF_FUNCTION_FLAG_CAN_BE_STARTUP : 0;
     pseudotask->properties  = NULL;
-    pseudotask->definitions = NULL;
+    pseudotask->locals      = NULL;
     pseudotask->simcost     = NULL;
     pseudotask->predicate   = NULL;
     pseudotask->dataflow    = NULL;
@@ -306,7 +306,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
         var != NULL; var = var->next ) {
         const char *var_name = var->name;
         expr_t *expr = relation_to_tree(newS_es);
-        expr_t *solution = solveExpressionTreeForVar(expr, var_name, copy(newS_es));
+        expr_t *solution = solve_expression_tree_for_var(expr, var_name, copy(newS_es));
         // If there is a solution it means that this parameter has a fixed value and not a range.
         // That means that there is no point in including it as a parameter of the pseudo-task.
         if( NULL != solution ){
@@ -345,8 +345,8 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
                 d->expr->jdf_var = strdup( find_bounds_of_var(expr, var_name,
                                                               prev_vars, copy(newS_es)) );
 
-                if (pseudotask->definitions == NULL) {
-                    pseudotask->definitions = d;
+                if (pseudotask->locals == NULL) {
+                    pseudotask->locals = d;
                 } else {
                     last_definition->next = d;
                 }
@@ -489,39 +489,39 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     return parent_call;
 }
 
-void jdf_register_definitions( jdf_function_entry_t *this_function,
-                               Relation S_es)
+void jdf_register_locals( jdf_function_entry_t *this_function,
+                          Relation S_es)
 {
-    jdf_def_list_t *definitions;
+    jdf_def_list_t *locals;
     set<const char *> prev_vars;
     int i;
 
-    // Malloc and chain the definitions
-    definitions = q2jmalloc( jdf_def_list_t, S_es.n_set() );
+    // Malloc and chain the locals
+    locals = q2jmalloc( jdf_def_list_t, S_es.n_set() );
     for (i=0; i< (int)(S_es.n_set()-1); i++) {
-        definitions[i].next = &(definitions[i+1]);
+        locals[i].next = &(locals[i+1]);
     }
-    this_function->definitions = definitions;
+    this_function->locals = locals;
 
     // Print the execution space based on the bounds that exist in the relation.
     for(i=1; i<=S_es.n_set(); i++){
         const char *var_name = strdup(S_es.set_var(i)->char_name());
         expr_t *e = relation_to_tree(S_es);
-        expr_t *solution = solveExpressionTreeForVar(e, var_name, S_es);
+        expr_t *solution = solve_expression_tree_for_var(e, var_name, S_es);
 
-        definitions[i-1].name = strdup(var_name);
-        definitions[i-1].expr = q2jmalloc(jdf_expr_t, 1);
-        definitions[i-1].properties = NULL;
-        JDF_OBJECT_SET(&definitions[i-1], NULL, 0, NULL);
+        locals[i-1].name = strdup(var_name);
+        locals[i-1].expr = q2jmalloc(jdf_expr_t, 1);
+        locals[i-1].properties = NULL;
+        JDF_OBJECT_SET(&locals[i-1], NULL, 0, NULL);
 
         if( NULL != solution ) {
-            definitions[i-1].expr->next    = NULL;
-            definitions[i-1].expr->op      = JDF_VAR;
-            definitions[i-1].expr->jdf_var = strdup( expr_tree_to_str(solution) );
+            locals[i-1].expr->next    = NULL;
+            locals[i-1].expr->op      = JDF_VAR;
+            locals[i-1].expr->jdf_var = strdup( expr_tree_to_str(solution) );
         } else {
-            definitions[i-1].expr->next    = NULL;
-            definitions[i-1].expr->op      = JDF_VAR;
-            definitions[i-1].expr->jdf_var = strdup( find_bounds_of_var(e, var_name, prev_vars, S_es) );
+            locals[i-1].expr->next    = NULL;
+            locals[i-1].expr->op      = JDF_VAR;
+            locals[i-1].expr->jdf_var = strdup( find_bounds_of_var(e, var_name, prev_vars, S_es) );
         }
 
         clean_tree(e);
@@ -538,49 +538,17 @@ void jdf_register_definitions( jdf_function_entry_t *this_function,
     return;
 }
 
-/**
- * dump_data:
- *   Generates a string of conditions with the one given and the
- *   negation of all the previous ones.
- */
-jdf_expr_t *jdf_generate_expr_from_conditions(list< pair<expr_t *, Relation> > *cond_list,
-                                              list< pair<expr_t *, Relation> >::iterator *cond_it)
+
+jdf_expr_t *jdf_generate_condition_str( expr_t *cond_exp)
 {
-    list< pair<expr_t *, Relation> >::iterator cond_it2;
-    string cond = expr_tree_to_str((*cond_it)->first);
-    bool printed_condition = false;
-    string_arena_t *sa;
     jdf_expr_t *expr = NULL;
-
-    sa = string_arena_new(64);
-
-    // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
-
-    // For each condition that resulted from spliting a disjunction, negate
-    // all the other parts of the disjunction
-    for(cond_it2 = (*cond_list).begin(); cond_it2 != *cond_it; cond_it2++){
-        string cond2 = expr_tree_to_str(cond_it2->first);
-        if( !cond2.empty() ){
-            if( printed_condition )
-                string_arena_add_string(sa, "& ");
-            string_arena_add_string(sa, "(!(%s)) ", cond2.c_str());
-            printed_condition = true;
-        }
-    }
+    string cond = expr_tree_to_str(cond_exp);
     if( !cond.empty() ){
-        if( printed_condition )
-            string_arena_add_string(sa, "& ");
-        string_arena_add_string(sa, "%s", cond.c_str() );
-    }
-
-    if ( strcmp( "", string_arena_get_string(sa) ) ) {
         expr = q2jmalloc(jdf_expr_t, 1);
         expr->next = NULL;
         expr->op = JDF_VAR;
-        expr->jdf_var = strdup( string_arena_get_string(sa) );
+        expr->jdf_var = strdup(cond.c_str());
     }
-
-    string_arena_free(sa);
     return expr;
 }
 
@@ -612,7 +580,7 @@ jdf_expr_t *jdf_generate_call_parameters( dep_t *dep, expr_t *rel_exp )
 
     for(i=0; i<dst_count; i++, param++){
         const char *var_name = strdup(R.output_var(i+1)->char_name());
-        expr_t *solution = solveExpressionTreeForVar(copy_tree(rel_exp), var_name, R);
+        expr_t *solution = solve_expression_tree_for_var(copy_tree(rel_exp), var_name, R);
 
         string_arena_init(sa);
         string_arena_add_string( sa, "%s",
@@ -682,7 +650,7 @@ void jdf_register_input_deps( set<dep_t*> ideps,
             JDF_OBJECT_SET(dep, NULL, 0, NULL);
 
             // Generate the dep_expr
-            dep_expr = jdf_generate_expr_from_conditions( &cond_list, &cond_it );
+            dep_expr = jdf_generate_condition_str( cond_it->first );
 
             // Generate the dep_call
             if( NULL != src->function ){
@@ -831,7 +799,7 @@ void jdf_register_output_deps( set<dep_t*> odeps,
             JDF_OBJECT_SET(dep, NULL, 0, NULL);
 
             // Generate the dep_expr
-            dep_expr = jdf_generate_expr_from_conditions( &cond_list, &cond_it );
+            dep_expr = jdf_generate_condition_str( cond_it->first );
 
             // Generate the dep_call
             if( NULL != dst ){
@@ -1092,7 +1060,7 @@ void jdf_register_function(jdf_function_entry_t       *this_function,
                            map<char *, set<dep_t *> > &incm_map,
                            map<char *, set<dep_t *> > &synch_edges)
 {
-    jdf_register_definitions( this_function, S_es );
+    jdf_register_locals( this_function, S_es );
     this_function->predicate = jdf_generate_call_for_data(reference_data_element, NULL);
 
     jdf_register_dependencies_and_pseudotasks(this_function,

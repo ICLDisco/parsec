@@ -363,60 +363,70 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
     if( NULL == f )
         return err;
 
-    fprintf(out, "%s(", f->fname);
-    err = jdf_name_list_unparse(f->parameters, out);
-    fprintf(out, ")");
-    if( err < 0 )
-        return err;
-    fprintf(out, " ");
-    err = jdf_properties_unparse(f->properties, out);
-    if(err < 0)
-        return err;
-    fprintf(out, "\n");
+    if( NULL != f->parameters &&
+        NULL != f->locals     &&
+        NULL != f->predicate  &&
+        NULL != f->dataflow   &&
+        NULL != f->body          ){
 
-    fprintf(out, "  /* Execution Space */\n  ");
-    err = jdf_def_list_unparse(f->definitions, out, "\n  ");
-    fprintf(out, "\n");
-    if( err < 0 )
-        return err;
-    fprintf(out, "\n");
+        fprintf(out, "%s(", f->fname);
+        err = jdf_name_list_unparse(f->parameters, out);
+        fprintf(out, ")");
+        if( err < 0 )
+            return err;
 
-    if( f->simcost ) {
-        fprintf(out, "SIMCOST ");
-        err = jdf_expr_complete_unparse( f->simcost, out );
+        if (f->properties != NULL) {
+            fprintf(out, " ");
+            err = jdf_properties_unparse(f->properties, out);
+            if(err < 0)
+                return err;
+        }
+        fprintf(out, "\n");
+
+        fprintf(out, "  /* Execution Space */\n  ");
+        err = jdf_def_list_unparse(f->locals, out, "\n  ");
         fprintf(out, "\n");
         if( err < 0 )
             return err;
         fprintf(out, "\n");
-    }
 
-    fprintf(out, "  /* Locality */\n");
-    fprintf(out, "  : ");
-    err = jdf_call_unparse(f->predicate, out);
-    fprintf(out, "\n");
-    if( err < 0 )
-        return err;
-    fprintf(out, "\n");
+        if( f->simcost ) {
+            fprintf(out, "SIMCOST ");
+            err = jdf_expr_complete_unparse( f->simcost, out );
+            fprintf(out, "\n");
+            if( err < 0 )
+                return err;
+            fprintf(out, "\n");
+        }
 
-    err = jdf_dataflow_unparse( f->dataflow, out );
-    if( err < 0 )
-        return err;
-    fprintf(out, "\n");
-
-    if( f->priority ) {
-        fprintf(out, "; ");
-        err = jdf_expr_complete_unparse( f->priority, out );
+        fprintf(out, "  /* Locality */\n");
+        fprintf(out, "  : ");
+        err = jdf_call_unparse(f->predicate, out);
         fprintf(out, "\n");
         if( err < 0 )
             return err;
         fprintf(out, "\n");
-    }
 
-    fprintf(out, "BODY\n");
-    fprintf(out, "{\n");
-    fprintf(out, "%s\n", f->body);
-    fprintf(out, "}\n");
-    fprintf(out, "END\n\n");
+        err = jdf_dataflow_unparse( f->dataflow, out );
+        if( err < 0 )
+            return err;
+        fprintf(out, "\n");
+
+        if( f->priority ) {
+            fprintf(out, "; ");
+            err = jdf_expr_complete_unparse( f->priority, out );
+            fprintf(out, "\n");
+            if( err < 0 )
+                return err;
+            fprintf(out, "\n");
+        }
+
+        fprintf(out, "BODY\n");
+        fprintf(out, "{\n");
+        fprintf(out, "%s\n", f->body);
+        fprintf(out, "}\n");
+        fprintf(out, "END\n\n");
+    }
 
     return jdf_function_entry_unparse( f->next, out );
 }

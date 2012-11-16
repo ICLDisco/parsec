@@ -112,7 +112,8 @@ typedef struct jdf_function_entry {
     char                      *fname;
     struct jdf_name_list      *parameters;
     jdf_flags_t                flags;
-    struct jdf_def_list       *definitions;
+    int32_t                    function_id;
+    struct jdf_def_list       *locals;
     struct jdf_call           *predicate;
     struct jdf_dataflow       *dataflow;
     struct jdf_expr           *priority;

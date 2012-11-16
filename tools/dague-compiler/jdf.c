@@ -79,7 +79,7 @@ static int jdf_sanity_check_global_masked(void)
                     rc++;
                 }
             }
-            for(d = f->definitions; d != NULL; d = d->next) {
+            for(d = f->locals; d != NULL; d = d->next) {
                 if( !strcmp(d->name, g->name) ) {
                     jdf_warn(JDF_OBJECT_LINENO(d), "Global %s defined line %d is masked by the local definition of %s in function %s\n",
                              g->name, JDF_OBJECT_LINENO(g), d->name, f->fname);
@@ -166,7 +166,7 @@ static int jdf_sanity_check_function_redefinitions(void)
             }
         }
     }
-    return rc;    
+    return rc;
 }
 
 static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
@@ -181,7 +181,7 @@ static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
         pi = 1;
         for(p = f->parameters; p != NULL; p = p->next, pi++) {
             found_def = 0;
-            for(d = f->definitions; d != NULL; d = d->next) {
+            for(d = f->locals; d != NULL; d = d->next) {
                 if( 0 == strcmp(d->name, p->name) ) {
                     if( found_def ) {
                         jdf_fatal(JDF_OBJECT_LINENO(f), "The definition of %s (%dth parameter of function %s) appears more than once.\n",
@@ -200,7 +200,7 @@ static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
         }
 
         pi = 1;
-        for(d=f->definitions; d!= NULL; d = d->next, pi++) {
+        for(d = f->locals; d!= NULL; d = d->next, pi++) {
             found_def = 0;
             for(p = f->parameters; p != NULL; p = p->next) {
                 if( strcmp(d->name, p->name) == 0 ) {
@@ -246,7 +246,7 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
             }
         }
         if( g == NULL ) {
-            for(d2 = f->definitions; d2 != d; d2 = d2->next) {
+            for(d2 = f->locals; d2 != d; d2 = d2->next) {
                 if( !strcmp( vc, d2->name ) ) {
                     break;
                 }
@@ -291,7 +291,7 @@ static int jdf_sanity_check_definition_unbound(void)
     jdf_def_list_t *d;
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
-        for(d = f->definitions; d != NULL; d = d->next) {
+        for(d = f->locals; d != NULL; d = d->next) {
             if( jdf_sanity_check_expr_bound_before_definition(d->expr, f, d) < 0 )
                 rc = -1;
         }
@@ -318,7 +318,7 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
             }
         }
         if( g == NULL ) {
-            for(d = f->definitions; d != NULL; d = d->next) {
+            for(d = f->locals; d != NULL; d = d->next) {
                 if( !strcmp( vc, d->name ) ) {
                     break;
                 }
@@ -546,7 +546,7 @@ static int jdf_sanity_check_dataflow_unexisting_data(void)
                     matched = jdf_sanity_check_in_out_flow_match( f1, flow1, call );
                     if( matched )
                         break;
-                }                
+                }
                 j++;
             }
             if( matched ) return -1;
@@ -574,10 +574,10 @@ static int jdf_sanity_check_control(void)
             /* For each CONTROL dependency */
             for( dep = flow->deps; dep != NULL; dep = dep->next, j++ ) {
                 if( (dep->guard->calltrue->var == NULL) ||
-                    ((dep->guard->guard_type == JDF_GUARD_TERNARY) && 
+                    ((dep->guard->guard_type == JDF_GUARD_TERNARY) &&
                      (dep->guard->callfalse->var == NULL)) ) {
                     rc++;
-                    jdf_fatal(JDF_OBJECT_LINENO(flow), 
+                    jdf_fatal(JDF_OBJECT_LINENO(flow),
                               "In function %s:%d the control of dependency #%d of flow %s(#%d) cannot refer to data\n",
                               func->fname, JDF_OBJECT_LINENO(flow), j, flow->varname, i );
                 }

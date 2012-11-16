@@ -87,8 +87,8 @@ BODY
     taui  = vi  + mbA;
     tauii = vii + mbA;
     
-    assert(NB+2 == nbA); 
-    assert(NB+1 == mbA);
+    assert(NB+2 == nbA); (void)nbA;
+    assert(NB+1 == mbA); (void)mbA;
     blgchase_ztrdv2( NT,
                     NT * NB,
                     NB,
@@ -130,8 +130,8 @@ BODY
     vi    = (dague_complex64_t*)A + mbA * NB;
     taui  = vi + mbA;
 
-    assert(NB+2 == nbA); 
-    assert(NB+1 == mbA);
+    assert(NB+2 == nbA); (void)nbA;
+    assert(NB+1 == mbA); (void)mbA;
     blgchase_ztrdv2( NT,
                     NT * NB,
                     NB,
