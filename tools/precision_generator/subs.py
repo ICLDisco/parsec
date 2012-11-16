@@ -206,6 +206,7 @@ subs = {
     ('ssyev','dsyev','cheev','zheev'),
     ('syrfb1','syrfb1','herfb1','herfb1'),
     ('lansy','lansy','lanhe','lanhe'),
+    ('syssq','syssq','hessq','hessq'),
     ('\*\*T','\*\*T','\*\*H','\*\*H'),
     ('BLAS_s','BLAS_d','BLAS_s','BLAS_d'),
     ('BLAS_s','BLAS_d','BLAS_c','BLAS_z'),

@@ -209,12 +209,6 @@ BODY
     int tempmm = ( m1 == (descA.mt-1) ) ? descA.m - m1 * descA.mb : descA.mb;
     int tempnn = ( n1 == (descA.nt-1) ) ? descA.n - n1 * descA.nb : descA.nb;
     int ldam = BLKLDD( descA, m );
-    int do_zhessq = 0;
-#if defined (PRECISION_z) || defined(PRECISION_c)
-    if (trans == PlasmaConjTrans) {
-        do_zhessq=1;
-    }
-#endif
 
     printlog("thread %d zlange STEP1(%d, %d)\n"
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
@@ -248,10 +242,10 @@ BODY
          */
         else if (ntype == PlasmaFrobeniusNorm) {
             if ( n == m ) {
-                if (do_zhessq) {
+                if (trans == PlasmaConjTrans) {
                     CORE_zhessq( uplo, tempmm, A, ldam, dW, dW+1);
-                } else
-                {
+                }
+                else {
                     CORE_zsyssq( uplo, tempmm, A, ldam, dW, dW+1);
                 }
             } else {
