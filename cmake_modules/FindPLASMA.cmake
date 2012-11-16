@@ -164,10 +164,18 @@ if(NOT PLASMA_FIND_QUIETLY)
   else(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
     if(PLASMA_FIND_REQUIRED)
       message(FATAL_ERROR
-        "A required library with PLASMA API not found. Please specify library location.")
+        "A required library with PLASMA API not found. Please specify library location.
+    PLASMA_CFLAGS       = [${PLASMA_CFLAGS}]
+    PLASMA_LDFLAGS      = [${PLASMA_LDFLAGS}]
+    PLASMA_INCLUDE_DIRS = [${PLASMA_INCLUDE_DIRS}]
+    PLASMA_LIBRARY_DIRS = [${PLASMA_LIBRARY_DIRS}]")
     else(PLASMA_FIND_REQUIRED)
       message(STATUS
-        "A library with PLASMA API not found. Please specify library location.")
+        "A library with PLASMA API not found. Please specify library location.
+    PLASMA_CFLAGS       = [${PLASMA_CFLAGS}]
+    PLASMA_LDFLAGS      = [${PLASMA_LDFLAGS}]
+    PLASMA_INCLUDE_DIRS = [${PLASMA_INCLUDE_DIRS}]
+    PLASMA_LIBRARY_DIRS = [${PLASMA_LIBRARY_DIRS}]")
     endif(PLASMA_FIND_REQUIRED)
   endif(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
 endif(NOT PLASMA_FIND_QUIETLY)

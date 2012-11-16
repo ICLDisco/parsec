@@ -35,7 +35,6 @@ if( NOT GTG_LINKER_FLAGS )
 endif( NOT GTG_LINKER_FLAGS )
 
 list(APPEND CMAKE_REQUIRED_INCLUDES ${GTG_INCLUDE_DIR})
-message(STATUS "Looking for GTG.h in ${CMAKE_REQUIRED_INCLUDES}")
 check_include_file(GTG.h FOUND_GTG_INCLUDE)
 if(FOUND_GTG_INCLUDE)
   message(STATUS "GTG include files found at ${GTG_INCLUDE_DIR}")

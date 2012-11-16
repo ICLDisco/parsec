@@ -10,7 +10,7 @@ FC=${FC:="ftn"}
 
 # A default source for supplementary software on Kraken. 
 # This links to software I compiled myself, customize to your needs
-OPT_DIR="~bouteill/.opt.kraken"
+OPT_DIR="/nics/c/home/bouteill/.opt.kraken"
 HWLOC_DIR=${HWLOC_DIR:="$OPT_DIR/hwloc"}
 #GTG_DIR=${GTG_DIR:="$OPT_DIR/gtg"}
 #CUDA_DIR=${CUDA_DIR:="$OPT_DIR/cuda"}
