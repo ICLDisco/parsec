@@ -166,7 +166,9 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* The main thread of VP 0 will go back to the user level */
     if( DAGUE_THREAD_IS_MASTER(eu) ) {
+#if defined(DAGUE_DEBUG_VERBOSE)
         vpmap_display_map(stderr);
+#endif
         return NULL;
     }
 
