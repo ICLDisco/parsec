@@ -54,8 +54,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
                                int nrst, int ncst, /* Super-tiling size */
                                int P )
 {
-    int temp;
-    int Q;
+    int temp, Q;
     dague_ddesc_t *o = &(Ddesc->super.super);
 #if defined(DAGUE_PROF_TRACE)
     o->data_key      = twoDBC_data_key;
@@ -65,7 +64,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 #endif
 
     /* Initialize the tiled_matrix descriptor */
-    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type, 
+    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type,
                             nodes, cores, myrank,
                             mb, nb, lm, ln, i, j, m, n );
 
@@ -108,6 +107,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 
     /* Total number of tiles stored locally */
     Ddesc->super.nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
+    Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
 
     /* set the methods */
     if( (nrst == 1) && (ncst == 1) ) {
@@ -115,7 +115,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         o->vpid_of      = twoDBC_vpid_of;
         o->data_of      = twoDBC_data_of;
     } else {
-#if defined(DAGUE_HARD_SUPERTILE) 
+#if defined(DAGUE_HARD_SUPERTILE)
         o->rank_of      = twoDBC_st_rank_of;
         o->vpid_of      = twoDBC_st_vpid_of;
         o->data_of      = twoDBC_st_data_of;
@@ -123,7 +123,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         two_dim_block_cyclic_supertiled_view(Ddesc, Ddesc, nrst, ncst);
 #endif /* DAGUE_HARD_SUPERTILE */
     }
-    
+
     DEBUG3(("two_dim_block_cyclic_init: \n"
            "      Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
@@ -220,9 +220,8 @@ static int32_t twoDBC_vpid_of(dague_ddesc_t *desc, ...)
 
 static dague_data_t* twoDBC_data_of(dague_ddesc_t *desc, ...)
 {
-    int m, n;
+    int m, n, position, local_m, local_n;
     size_t pos;
-    int local_m, local_n;
     va_list ap;
     two_dim_block_cyclic_t * Ddesc;
     Ddesc = (two_dim_block_cyclic_t *)desc;
@@ -249,20 +248,22 @@ static dague_data_t* twoDBC_data_of(dague_ddesc_t *desc, ...)
     local_n = n / Ddesc->grid.cols;
     assert( (n % Ddesc->grid.cols) == Ddesc->grid.crank );
 
+    position = Ddesc->nb_elem_r * local_n + local_m;
     if( Ddesc->super.storage == matrix_Tile ) {
-        pos = Ddesc->nb_elem_r * local_n + local_m;
+        pos = position;
         pos *= (size_t)Ddesc->super.bsiz;
     } else {
         pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm
             +  local_m * Ddesc->super.mb;
     }
 
-    pos *= dague_datadist_getsizeoftype(Ddesc->super.mtype);
-    return &(((char *) Ddesc->mat)[pos]);
+    return dague_matrix_create_data( &Ddesc->super,
+                                     (char*)Ddesc->mat + pos * dague_datadist_getsizeoftype(Ddesc->super.mtype),
+                                     position, (n * Ddesc->super.lmt) + m );
 }
 
 
-/**** 
+/****
  * Set of functions with Supertiled view of the distribution
  ****/
 
@@ -285,7 +286,7 @@ static inline unsigned int st_compute_m(two_dim_block_cyclic_t* desc, unsigned i
     p = desc->grid.rows;
     ps = desc->grid.strows;
     mt = desc->super.mt;
-    do { 
+    do {
         m = m-m%(p*ps) + (m%ps)*p + (m/ps)%p;
     } while(m >= mt);
     return m;
@@ -444,7 +445,7 @@ static int32_t twoDBC_st_vpid_of(dague_ddesc_t *desc, ...)
 static dague_data_t* twoDBC_st_data_of(dague_ddesc_t *desc, ...)
 {
     size_t pos;
-    int m, n, local_m, local_n;
+    int m, n, local_m, local_n, position;
     va_list ap;
     two_dim_block_cyclic_t * Ddesc;
     Ddesc = (two_dim_block_cyclic_t *)desc;
@@ -475,16 +476,18 @@ static dague_data_t* twoDBC_st_data_of(dague_ddesc_t *desc, ...)
     assert( n / Ddesc->grid.stcols == Ddesc->grid.crank);
     local_n += n % Ddesc->grid.stcols;
 
+    position = Ddesc->nb_elem_r * local_n + local_m;;
     if( Ddesc->super.storage == matrix_Tile ) {
-        pos = Ddesc->nb_elem_r * local_n + local_m;
+        pos = position;
         pos *= (size_t)Ddesc->super.bsiz;
     } else {
         pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm
             +  local_m * Ddesc->super.mb;
     }
 
-    pos *= dague_datadist_getsizeoftype(Ddesc->super.mtype);
-    return &(((char *) Ddesc->mat)[pos]);
+    return dague_matrix_create_data( &Ddesc->super,
+                                     (char*)Ddesc->mat + pos * dague_datadist_getsizeoftype(Ddesc->super.mtype),
+                                     position, (n * Ddesc->super.lmt) + m );
 }
 
 #endif /* DAGUE_HARD_SUPERTILE */

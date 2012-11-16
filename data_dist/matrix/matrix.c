@@ -42,9 +42,10 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     /* tdesc->A22 = (lm - lm%mb)*(     ln%nb) + tdesc->A12; */
 
     /* Super setup */
-    tdesc->super.nodes = nodes;    
+    tdesc->super.nodes = nodes;
     tdesc->super.cores = cores;
     tdesc->super.myrank = myrank;
+    tdesc->super.key_base = NULL;
 
     /* Matrix properties */
     tdesc->data_map = NULL;
@@ -99,7 +100,6 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
 #if defined(DAGUE_PROF_TRACE)
     asprintf(&(tdesc->super.key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
 #endif
-    return;
 }
 
 tiled_matrix_desc_t *

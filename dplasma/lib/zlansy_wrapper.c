@@ -201,11 +201,13 @@ dplasma_zlansy_Destruct( dague_object_t *o )
     dague_data_free( Wcol->mat );
     dague_ddesc_destroy( dague_zlansy->Wcol );
     free( dague_zlansy->Wcol );
+    dague_zlansy->Wcol = NULL;
 
     Welt = (two_dim_block_cyclic_t*)(dague_zlansy->Welt);
     dague_data_free( Welt->mat );
     dague_ddesc_destroy( dague_zlansy->Welt );
     free( dague_zlansy->Welt );
+    dague_zlansy->Welt = NULL;
 
     dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_DEFAULT_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_COL_ARENA]->opaque_dtt) );
@@ -264,8 +266,7 @@ double dplasma_zlansy( dague_context_t *dague,
 
     dague_zlansy = dplasma_zlansy_New(ntype, uplo, A, &result);
 
-    if ( dague_zlansy != NULL )
-    {
+    if ( dague_zlansy != NULL ) {
         dague_enqueue( dague, (dague_object_t*)dague_zlansy);
         dplasma_progress(dague);
         dplasma_zlansy_Destruct( dague_zlansy );

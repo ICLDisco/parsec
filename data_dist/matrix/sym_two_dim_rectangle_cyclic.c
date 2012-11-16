@@ -30,6 +30,7 @@
 #include <assert.h>
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "data.h"
 
 #if !defined(UINT_MAX)
 #define UINT_MAX (~0UL)
@@ -73,15 +74,13 @@ static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
     return res;
 }
 
-static void *sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
+static dague_data_t* sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
 {
-    int nb_elem, nb_elem_col, column;
-    size_t pos;
-    int m, n;
-    //int local_m, local_n;
-    //int local_lmt;
-    va_list ap;
+    int nb_elem, nb_elem_col, column, m, n;
     sym_two_dim_block_cyclic_t * Ddesc;
+    size_t pos;
+    va_list ap;
+
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
 
     /* Get coordinates */
@@ -135,8 +134,9 @@ static void *sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
         pos += (m / (Ddesc->grid.rows));
     }
 
-    pos *= Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype);
-    return &(((char *) Ddesc->mat)[pos]);
+    return dague_matrix_create_data( &Ddesc->super,
+                                     (char*)Ddesc->mat + pos * Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype),
+                                     pos, (n * Ddesc->super.lmt) + m );
 }
 
 static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
@@ -219,10 +219,9 @@ static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey
     column = datakey / Ddesc->super.lmt;
     row = datakey % Ddesc->super.lmt;
     res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
-    if (res < 0)
-        {
-            printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
-        }
+    if (res < 0) {
+        printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
+    }
     return res;
 }
 #endif /* DAGUE_PROF_TRACE */
@@ -251,7 +250,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     o->key           = NULL;
 #endif
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
-                            sym_two_dim_block_cyclic_type, 
+                            sym_two_dim_block_cyclic_type,
                             nodes, cores, myrank,
                             mb, nb, lm, ln, i, j, m, n );
 
@@ -299,10 +298,6 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
             }
     }
 
-    /*  printf("process %d(%d,%d) handles %d x %d tiles\n",
-        Ddesc->mpi_rank, Ddesc->grid.rrank, Ddesc->grid.crank, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
-
-    /* Allocate memory for matrices in block layout */
-    //printf("Process %u allocates %u tiles\n", myrank, total);
     Ddesc->super.nb_local_tiles = total;
+    Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
 }

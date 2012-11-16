@@ -47,19 +47,19 @@ typedef uint8_t dague_data_flag_t;
  * This structure represent a device copy of a dague_data_t.
  */
 struct dague_data_copy_s {
-    volatile uint32_t        refcount;
+    volatile uint32_t         refcount;
 
-    uint8_t                  device_index;
-    dague_data_flag_t        flags;
-    dague_data_coherency_t   coherency_state;
+    uint8_t                   device_index;
+    dague_data_flag_t         flags;
+    dague_data_coherency_t    coherency_state;
     /* int8_t */
 
-    int32_t                  readers;
+    int32_t                   readers;
 
-    uint32_t                 version;
+    uint32_t                  version;
 
-    struct _dague_data_copy* older;
-    struct _dague_data*      original;
+    struct dague_data_copy_s *older;
+    dague_data_t             *original;
     void*                    device_private;
 };
 

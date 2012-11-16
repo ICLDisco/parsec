@@ -3182,7 +3182,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
 
         string_arena_init(sa2);
         create_datatype_to_integer_code(sa2, datatype);
-        coutput("%s  if( DAGUE_DATA_COPY_GET_PTR(this_task->data[%d].data) != %s(%s) ) {\n"
+        coutput("%s  if( this_task->data[%d].data->original != %s(%s) ) {\n"
                 "%s    int __arena_index = %s;\n"
                 "%s    int __dtt_nb = %s;\n"
                 "%s    assert( (__arena_index>=0) && (__arena_index < __dague_object->super.arenas_size) );\n"
