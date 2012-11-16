@@ -13,59 +13,26 @@
 #
 ##########
 
-include(CheckIncludeFiles)
-
+find_package(PkgConfig QUIET)
 if( GTG_DIR )
-  if( NOT GTG_INCLUDE_DIR )
-    set(GTG_INCLUDE_DIR "${GTG_DIR}/include")
-  endif( NOT GTG_INCLUDE_DIR )
-  if( NOT GTG_LIBRARIES )
-    set(GTG_LIBRARIES "${GTG_DIR}/lib")
-  endif( NOT GTG_LIBRARIES )
-endif( GTG_DIR )
+  set(ENV{PKG_CONFIG_PATH} "${GTG_DIR}/lib/pkgconfig" $ENV{PKG_CONFIG_PATH})
+endif()
+pkg_check_modules(PC_GTG QUIET gtg)
+set(GTG_DEFINITIONS ${PC_GTG_CFLAGS_OTHER} )
 
-if( NOT GTG_INCLUDE_DIR )
-  set(GTG_INCLUDE_DIR)
-endif( NOT GTG_INCLUDE_DIR )
-if( NOT GTG_LIBRARIES )
-  set(GTG_LIBRARIES)
-endif( NOT GTG_LIBRARIES )
-if( NOT GTG_LINKER_FLAGS )
-  set(GTG_LINKER_FLAGS)
-endif( NOT GTG_LINKER_FLAGS )
+find_path(GTG_INCLUDE_DIR GTG.h
+          PATH ${GTG_DIR}/include
+          HINTS ${PC_GTG_INCLUDEDIR} ${PC_GTG_INCLUDE_DIRS} )
 
-list(APPEND CMAKE_REQUIRED_INCLUDES ${GTG_INCLUDE_DIR})
-check_include_file(GTG.h FOUND_GTG_INCLUDE)
-if(FOUND_GTG_INCLUDE)
-  message(STATUS "GTG include files found at ${GTG_INCLUDE_DIR}")
-  check_library_exists("gtg" setTraceType ${GTG_LIBRARIES} FOUND_GTG_LIB)
-  if( FOUND_GTG_LIB )
-    set(GTG_LIBRARY "${GTG_LIBRARIES}/libgtg.a")
-    set(GTG_LIBRARIES "-L${GTG_LIBRARIES} -lgtg")
-  endif( FOUND_GTG_LIB )
-endif(FOUND_GTG_INCLUDE)
+find_library(GTG_LIBRARY NAMES gtg
+             PATH ${GTG_DIR}/lib
+             HINTS ${PC_GTG_LIBDIR} ${PC_GTG_LIBRARY_DIRS} )
 
-if(FOUND_GTG_INCLUDE AND FOUND_GTG_LIB)
-  set(GTG_FOUND TRUE)
-else(FOUND_GTG_INCLUDE AND FOUND_GTG_LIB)
-  set(GTG_FOUND FALSE)
-endif(FOUND_GTG_INCLUDE AND FOUND_GTG_LIB)
+set(GTG_LIBRARIES ${GTG_LIBRARY} )
+set(GTG_INCLUDE_DIRS ${GTG_INCLUDE_DIR} )
 
-if(NOT GTG_FIND_QUIETLY)
-  if(GTG_FOUND)
-    message(STATUS "A library with GTG API found.")
-    set(HAVE_GTG 1)
-  else(GTG_FOUND)
-    if(GTG_FIND_REQUIRED)
-      message(FATAL_ERROR
-        "A required library with GTG API not found. Please specify library location "
-        "using GTG_DIR or a combination of GTG_INCLUDE_DIR and GTG_LIBRARIES "
-        "or by setting GTG_DIR")
-    else(GTG_FIND_REQUIRED)
-      message(STATUS
-        "A required library with GTG API not found. Please specify library location "
-        "using GTG_DIR or a combination of GTG_INCLUDE_DIR and GTG_LIBRARIES "
-        "or by setting GTG_DIR")
-    endif(GTG_FIND_REQUIRED)
-  endif(GTG_FOUND)
-endif(NOT GTG_FIND_QUIETLY)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(GTG DEFAULT_MSG 
+                                  GTG_LIBRARY GTG_INCLUDE_DIR )
+mark_as_advanced(GTG_INCLUDE_DIR GTG_LIBRARY )
+
