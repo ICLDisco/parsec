@@ -1,7 +1,16 @@
 #!/bin/sh
 rm -rf CMakeCache.txt CMakeFiles
-USER_OPTIONS="$* "
-INSTALL_PREFIX=/lustre/scratch/$USER/dague-`date +%y%m%d.%s`
+
+# paste some sensible user tunings for Kraken
+USER_OPTIONS="-DDAGUE_GPU_WITH_CUDA=OFF"
+if [ "debug" = "$1" ]; then 
+    shift
+    INSTALL_PREFIX=/lustre/scratch/$USER/dague-debug-`date +%y%m%d.%s`
+    USER_OPTIONS="$USER_OPTIONS -DDPLASMA_PRECISIONS=d -DCMAKE_BUILD_TYPE=Debug -DDAGUE_DEBUG=ON -DDAGUE_DEBUG_HISTORY=ON $* "
+else
+    INSTALL_PREFIX=/lustre/scratch/$USER/dague-`date +%y%m%d.%s`
+fi
+USER_OPTIONS="$USER_OPTIONS -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX $* "
 
 ## Defaults for KRAKEN machine at NICS (Cray XT5)
 CC=${CC:="cc -DADD_"}
@@ -18,10 +27,6 @@ HWLOC_DIR=${HWLOC_DIR:="$OPT_DIR/hwloc"}
 #OMEGA_DIR=${OMEGA_DIR:="$OPT_DIR/Omega/"}
 PLASMA_DIR=${PLASMA_DIR:="$OPT_DIR/plasma"}
 
-# Except if users provide custom versions for these libs, features are disabled
-if [ -n "$USER_OPTIONS" ]; then 
-  USER_OPTIONS="-DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_Q2J=OFF -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX"
-fi
 
 #####
 ## Cmake does not have a clean interface for FindXXX modules, everyone has a different flavor. Reconciliation.
@@ -34,7 +39,7 @@ if [ -n "$HWLOC_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_WITH_HWLOC=OFF.*") -
   HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
 fi
 
-if [ -f "$GTG_DIR/include/GTG.h" -a -f "$GTG_DIR/lib/libgtg.a" ]; then
+if [ -n "$GTG_DIR" -a -f "$GTG_DIR/include/GTG.h" -a -f "$GTG_DIR/lib/libgtg.a" ]; then
   GTG="-DGTG_DIR=${GTG_DIR}"
 fi
 
@@ -48,7 +53,7 @@ if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 
   Q2J="-DDAGUE_OMEGA_DIR=${OMEGA_DIR}"
 fi
 
-if [ "${PLASMA_DIR}" ]; then
+if [ -n "${PLASMA_DIR}" ]; then
   PLASMA="-DPLASMA_DIR=${PLASMA_DIR}"
 # If your system do not provide pkg-config or you don't have
 # a recent version of PLASMA (2.1.0 at least), then instead
