@@ -1,6 +1,10 @@
 #!/bin/bash
 rm -rf CMakeCache.txt CMakeFiles
 
+if [ "$1" = "debug" ]; then 
+  shift
+  DEBUG="-DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug -DDAGUE_DEBUG=ON -DDAGUE_DEBUG_HISTORY=ON"
+fi
 USER_OPTIONS="$* "
 
 ## Defaults for Dancer machine (Linux cluster)
@@ -12,11 +16,7 @@ HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
 GTG_DIR=${GTG_DIR:="/opt/gtg"}
 CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
 OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
-if [ "x${CC}" = "xgcc" ]; then
-    PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-gcc"}
-else
-    PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
-fi
+PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
 
 if [ "x$USER" = "xbosilca" ]; then
   if [ -x nvcc ]; then
@@ -41,7 +41,6 @@ elif [ "x${USER}" = "xmfaverge" ]; then
   #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
   USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
   USER_OPTIONS+=" -DDAGUE_Q2J=ON"
-  USER_OPTIONS+=" -DDPLASMA_PRECISIONS=s;d;c;z"
 
 elif [ "x$USER" = "xYOURSELF" ]; then
   PLASMA_DIR="SOMEWHERE"
@@ -75,7 +74,7 @@ if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 
   Q2J="-DOMEGA_DIR=${OMEGA_DIR}"
 fi
 
-if [ "${PLASMA_DIR}" ]; then
+if [ -n "${PLASMA_DIR}" ]; then
   PLASMA="-DPLASMA_DIR=${PLASMA_DIR}"
 # If your system do not provide pkg-config or you don't have
 # a recent version of PLASMA (2.1.0 at least), then instead
@@ -92,5 +91,5 @@ fi
 LOCATION=`dirname $0`/../../
 export CC CXX FC
 
-echo cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${USER_OPTIONS} ${LOCATION}
-cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${USER_OPTIONS} ${LOCATION}
+echo cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${DEBUG} ${USER_OPTIONS} ${LOCATION}
+cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${DEBUG} ${USER_OPTIONS} ${LOCATION}
