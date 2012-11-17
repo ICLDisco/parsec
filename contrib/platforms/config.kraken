@@ -44,7 +44,7 @@ if [ -n "$GTG_DIR" -a -f "$GTG_DIR/include/GTG.h" -a -f "$GTG_DIR/lib/libgtg.a" 
 fi
 
 if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_GPU_WITH_CUDA=OFF.*") -eq 0 ]; then 
-  export CUDA_BIN_PATH=${CUDA_DIR}
+  CUDA="-DCUDA_TOOLKIT_ROOT_DIR=${CUDA_DIR}"                                                              
 else
   CUDA="-DDAGUE_GPU_WITH_CUDA=OFF"
 fi
@@ -70,6 +70,6 @@ fi
 LOCATION=`dirname $0`/../../
 export CC CXX FC
 
-echo cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${USER_OPTIONS} ${LOCATION}
-cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${USER_OPTIONS} ${LOCATION}
+echo cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${CUDA} ${GTG} ${USER_OPTIONS} ${LOCATION}
+cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${CUDA} ${GTG} ${USER_OPTIONS} ${LOCATION}
 

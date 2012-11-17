@@ -16,37 +16,6 @@ PLASMA_DIR=${PLASMA_DIR:="/nics/c/home/bouteill/.opt.keeneland/plasma-2.4.6_inte
 FLEX_EXECUTABLE=${FLEX_EXECUTABLE:="/nics/c/home/bouteill/.opt.keeneland/flex-2.5.37/bin/flex"}
 USER_OPTIONS+="-DFLEX_EXECUTABLE=${FLEX_EXECUTABLE}"
 
-if [ "x$USER" = "xbosilca" ]; then
-  if [ -x nvcc ]; then
-    CUDA_DIR=`which nvcc`
-    CUDA_DIR=`dirname ${CUDA_DIR}`
-    CUDA_DIR=`dirname ${CUDA_DIR}`
-  fi
-#  CUDA_DIR="/opt/cuda-5.0.7/cuda"
-  HWLOC_DIR="/home/bosilca/opt/"
-  MPI_DIR="/home/bosilca/opt/mpi"
-  USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=ON"
-elif [ "x$USER" = "xherault" ]; then
-  #MPI="-DMPI_COMPILER=/usr/bin/mpicc"
-  USER_OPTIONS+="-DDAGUE_Q2J=ON"
-
-elif [ "x${USER}" = "xmfaverge" ]; then
-  if [ "x${CC}" = "xgcc" ]; then
-      DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-dbg -DSCOTCH_DIR=/opt/scotch-gf"
-  else
-      DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-intel -DSCOTCH_DIR=/opt/scotch"
-  fi
-  #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
-  USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
-  USER_OPTIONS+=" -DDAGUE_Q2J=ON"
-  USER_OPTIONS+=" -DDPLASMA_PRECISIONS=s;d;c;z"
-
-elif [ "x$USER" = "xYOURSELF" ]; then
-  PLASMA_DIR="SOMEWHERE"
-  USER_OPTIONS+="-DDAGUE_OPTION=ON"
-
-fi
-
 
 #####
 ## Cmake does not have a clean interface for FindXXX modules, everyone has a different flavor. Reconciliation.
@@ -66,15 +35,15 @@ if [ -f "$GTG_DIR/include/GTG.h" -a -f "$GTG_DIR/lib/libgtg.so" ]; then
 fi
 
 if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_GPU_WITH_CUDA=OFF.*") -eq 0 ]; then 
-  export CUDA_BIN_PATH=${CUDA_DIR}
+    CUDA="-DCUDA_TOOLKIT_ROOT_DIR=${CUDA_DIR}"
 fi
 
 if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 ]; then 
-  Q2J="-DOMEGA_DIR=${OMEGA_DIR}"
+    Q2J="-DOMEGA_DIR=${OMEGA_DIR}"
 fi
 
 if [ "${PLASMA_DIR}" ]; then
-  PLASMA="-DPLASMA_DIR=${PLASMA_DIR}"
+    PLASMA="-DPLASMA_DIR=${PLASMA_DIR}"
 # If your system do not provide pkg-config or you don't have
 # a recent version of PLASMA (2.1.0 at least), then instead
 # of using only -DPLASMA_DIR=... you should use
@@ -90,5 +59,5 @@ fi
 LOCATION=`dirname $0`/../../
 export CC CXX FC
 
-echo cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${USER_OPTIONS} ${LOCATION}
-cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${GTG} ${USER_OPTIONS} ${LOCATION}
+echo cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${CUDA} ${GTG} ${USER_OPTIONS} ${LOCATION}
+cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${CUDA} ${GTG} ${USER_OPTIONS} ${LOCATION}
