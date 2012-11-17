@@ -6,7 +6,7 @@ USER_OPTIONS="-DDAGUE_GPU_WITH_CUDA=OFF"
 if [ "debug" = "$1" ]; then 
     shift
     INSTALL_PREFIX=/lustre/scratch/$USER/dague-debug-`date +%y%m%d.%s`
-    USER_OPTIONS="$USER_OPTIONS -DDPLASMA_PRECISIONS=d -DCMAKE_BUILD_TYPE=Debug -DDAGUE_DEBUG=ON -DDAGUE_DEBUG_HISTORY=ON $* "
+    USER_OPTIONS="$USER_OPTIONS -DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug -DDAGUE_DEBUG=ON -DDAGUE_DEBUG_HISTORY=ON $* "
 else
     INSTALL_PREFIX=/lustre/scratch/$USER/dague-`date +%y%m%d.%s`
 fi
