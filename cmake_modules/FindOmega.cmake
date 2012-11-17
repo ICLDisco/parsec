@@ -18,10 +18,16 @@
 #
 ##########
 
-mark_as_advanced(OMEGA_INCLUDE_DIR OMEGA_SRC_INCLUDE_DIR OMEGA_DIR OMEGA_LIBRARY)
+mark_as_advanced(FORCE OMEGA_DIR OMEGA_INCLUDE_DIR OMEGA_SRC_INCLUDE_DIR OMEGA_LIBRARY)
 
-find_path(OMEGA_INCLUDE_DIR omega.h HINTS "${OMEGA_DIR}" PATH_SUFFIXES include/omega omega_lib/include) 
-find_path(OMEGA_SRC_INCLUDE_DIR basic/bool.h HINTS "${OMEGA_DIR}" PATH_SUFFIXES basic/include) 
+set(OMEGA_DIR "/opt/omega" CACHE PATH "Root directory containing Omega")
+
+find_path(OMEGA_INCLUDE_DIR omega.h 
+          HINTS "${OMEGA_DIR}" PATH_SUFFIXES include/omega omega_lib/include 
+          DOC "Omega includes" ) 
+find_path(OMEGA_SRC_INCLUDE_DIR basic/bool.h
+          HINTS "${OMEGA_DIR}" PATH_SUFFIXES basic/include
+          DOC "Omega includes in sources (only when Omega is not installed properly)" )
 if(OMEGA_SRC_INCLUDE_DIRS)
   set(OMEGA_INCLUDE_DIRS ${OMEGA_INCLUDE_DIR} ${OMEGA_SRC_INCLUDE_DIR})
 else()
@@ -41,6 +47,7 @@ find_package_handle_standard_args(OMEGA
     - using OMEGA_DIR [${OMEGA_DIR}]
     - or a combination of OMEGA_INCLUDE_DIR [${OMEGA_INCLUDE_DIR}] and OMEGA_LIBRARY [${OMEGA_LIBRARY}]"
                                   OMEGA_INCLUDE_DIR OMEGA_LIBRARY )
+
 
 if(OMEGA_FOUND)
   include(CheckCXXSourceCompiles)
