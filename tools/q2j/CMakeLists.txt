@@ -38,4 +38,10 @@ if(OMEGA_FOUND)
   target_link_libraries(q2j m ${OMEGA_LIBRARIES})
   
   install(TARGETS q2j RUNTIME DESTINATION bin)
+
+else(OMEGA_FOUND)
+    message(STATUS "An optional library with OMEGA API not found.
+  To prevent options depending on Omega from being disabled, please specify the library location
+    - using OMEGA_DIR [${OMEGA_DIR}]
+    - or a combination of OMEGA_INCLUDE_DIR [${OMEGA_INCLUDE_DIR}] and OMEGA_LIBRARY [${OMEGA_LIBRARY}]")
 endif(OMEGA_FOUND)

@@ -34,5 +34,5 @@ set(GTG_INCLUDE_DIRS ${GTG_INCLUDE_DIR} )
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(GTG DEFAULT_MSG 
                                   GTG_LIBRARY GTG_INCLUDE_DIR )
-mark_as_advanced(GTG_INCLUDE_DIR GTG_LIBRARY )
+mark_as_advanced(GTG_DIR GTG_INCLUDE_DIR GTG_LIBRARY )
 
