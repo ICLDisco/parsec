@@ -20,7 +20,7 @@
 
 mark_as_advanced(FORCE OMEGA_DIR OMEGA_INCLUDE_DIR OMEGA_SRC_INCLUDE_DIR OMEGA_LIBRARY)
 
-set(OMEGA_DIR "/opt/omega" CACHE PATH "Root directory containing Omega")
+set(OMEGA_DIR "" CACHE PATH "Root directory containing Omega")
 
 find_path(OMEGA_INCLUDE_DIR omega.h 
           HINTS "${OMEGA_DIR}" PATH_SUFFIXES include/omega omega_lib/include 
@@ -42,12 +42,11 @@ set(OMEGA_LIBRARIES ${OMEGA_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(OMEGA 
-"An optional library with OMEGA API not found.                                                                                       
-  To prevent options depending on Omega from being disabled, please specify the library location
+"Could NOT find Omega; Options depending on Omega will be disabled
+  if needed, please specify the library location
     - using OMEGA_DIR [${OMEGA_DIR}]
     - or a combination of OMEGA_INCLUDE_DIR [${OMEGA_INCLUDE_DIR}] and OMEGA_LIBRARY [${OMEGA_LIBRARY}]"
-                                  OMEGA_INCLUDE_DIR OMEGA_LIBRARY )
-
+  OMEGA_INCLUDE_DIR OMEGA_LIBRARY )
 
 if(OMEGA_FOUND)
   include(CheckCXXSourceCompiles)

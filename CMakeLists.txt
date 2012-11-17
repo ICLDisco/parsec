@@ -369,12 +369,12 @@ check_include_files(complex.h HAVE_COMPLEX_H)
 # Find optional packages
 #
 IF( BUILD_DAGUE )
-  find_package(HWLOC QUIET)
+  find_package(HWLOC)
   set(HAVE_HWLOC ${HWLOC_FOUND})
   if( HWLOC_FOUND )
     list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
-    list(APPEND EXTRA_LIBS ${HWLOC_LIB})
-    include_directories( ${HWLOC_INCLUDE_DIR} )
+    list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
+    include_directories( ${HWLOC_INCLUDE_DIRS} )
   endif (HWLOC_FOUND)
 
   if (DAGUE_DIST_WITH_MPI)
