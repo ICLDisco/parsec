@@ -1,12 +1,12 @@
 #!/bin/bash
 
-#if [ $(uname -m) = "x86_64"
-
+if [ $(uname -m) = "x86_64" ]; then
+	USER_OPTIONS+=" -DBUILD_64bits=ON"
+fi
 
 
 if [ "x$USER" == "xbouteill" ]; then 
     PLASMA_DIR=$HOME/dague/plasma
-    USER_OPTIONS+="-DBUILD_64bits=ON"
 
 elif [ "x$USER" == "xherault" ]; then
     #PLASMA_DIR=/Users/herault/Documents/Recherche/plasma/plasma-installer
@@ -17,7 +17,7 @@ elif [ "x$USER" == "xbosilca" ]; then
     HWLOC_DIR=/Users/bosilca/opt
     PLASMA_DIR=${HOME}/opt/PLASMA/plasma-svn/
     OMEGA_DIR=${OMEGA_DIR:="/Users/bosilca/tools/Omega/binary"}
-    USER_OPTIONS+=" -DBUILD_64bits=ON -DDAGUE_GPU_WITH_CUDA=OFF"
+    USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
 
 elif [ "x$USER" == "xadanalis" ]; then 
     OMEGA_DIR="/Users/adanalis/Desktop/Research/PLASMA_Distributed/Related_Stuff/Omega"
