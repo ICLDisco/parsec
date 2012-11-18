@@ -1,3 +1,4 @@
+#!/bin/bash
 
 # Parse command line arguments
 if [ "$1" = "debug" ]; then 
@@ -5,17 +6,27 @@ if [ "$1" = "debug" ]; then
   DEBUG="-DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug -DDAGUE_DEBUG=ON -DDAGUE_DEBUG_HISTORY=ON"
 fi
 
+function dirname_bin {
+  local _progname=$(which $1)
+  if [ -z "$_progname" ]; then
+	echo ""
+  else
+	echo $(dirname $(dirname $_progname))
+  fi
+}
+
+
 ## If not overriden, try to guess some meaningful defaults
 function guess_defaults {
-CC=${CC:="$(which icc)"}
-CXX=${CXX:="$(which icpc)"}
-FC=${FC:="$(which ifort)"}
-MPI_DIR=${MPI_DIR:="$(dirname $(dirname $(which mpicc)))"}
-HWLOC_DIR=${HWLOC_DIR:="$(dirname $(dirname $(which hwloc-ls)))"}
-GTG_DIR=${GTG_DIR:="$(pkg-config gtg --variable=prefix)"}
-CUDA_DIR=${CUDA_DIR:="$(dirname $(dirname $(which nvcc)))"}
-OMEGA_DIR=${OMEGA_DIR:="/opt/omega"} # wild guess, but no better way
-PLASMA_DIR=${PLASMA_DIR:="$(pkg-config plasma --variable=prefix)"}
+CC=${CC:=$(which icc)}
+CXX=${CXX:=$(which icpc)}
+FC=${FC:=$(which ifort)}
+MPI_DIR=${MPI_DIR:=$(dirname_bin mpicc)}
+HWLOC_DIR=${HWLOC_DIR:=$(dirname_bin hwloc-ls)}
+GTG_DIR=${GTG_DIR:=$(pkg-config gtg --variable=prefix)}
+CUDA_DIR=${CUDA_DIR:=$(dirname_bin nvcc)}
+OMEGA_DIR=${OMEGA_DIR:=/opt/omega} # wild guess, but no better way
+PLASMA_DIR=${PLASMA_DIR:=$(pkg-config plasma --variable=prefix)}
 }
 
 function run_cmake() {
