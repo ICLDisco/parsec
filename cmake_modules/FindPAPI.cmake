@@ -5,8 +5,6 @@
 # This module sets the following variables:
 #  PAPI_FOUND - set to true if a library implementing the PAPI interface
 #    is found
-#  PAPI_LINKER_FLAGS - uncached list of required linker flags (excluding -l
-#    and -L).
 #  PAPI_LIBRARIES - uncached list of libraries (using full path name) to
 #    link against to use PAPI
 #  PAPI_INCLUDE_DIR - directory where the PAPI header files are
@@ -17,6 +15,7 @@ mark_as_advanced(FORCE PAPI_DIR PAPI_INCLUDE_DIR PAPI_LIBRARY)
 set(PAPI_DIR "" CACHE PATH "Root directory containing the PAPI package")
 
 find_package(PkgConfig QUIET)
+
 if( PAPI_DIR )
   set(ENV{PKG_CONFIG_PATH} "${PAPI_DIR}/lib/pkgconfig" $ENV{PKG_CONFIG_PATH})
 endif()
