@@ -16,6 +16,9 @@
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
+#if defined(HAVE_AYUDAME)
+#include "dague/ayudame.h"
+#endif  /* defined(HAVE_AYUDAME) */
 
 #include "list.h"
 #include "scheduling.h"
@@ -420,6 +423,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     context->nb_nodes = dague_remote_dep_init(context);
     dague_statistics("DAGuE");
 
+    AYU_INIT();
     return context;
 }
 
@@ -473,6 +477,7 @@ int dague_fini( dague_context_t** pcontext )
         context->virtual_processes[p] = NULL;
     }
 
+    AYU_FINI();
 #ifdef DAGUE_PROF_TRACE
     dague_profiling_fini( );
 #endif  /* DAGUE_PROF_TRACE */
@@ -835,6 +840,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                     sizeof(dague_minimal_execution_context_t) - sizeof(dague_list_item_t) );
             new_context->mempool_owner = mpool;
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
+            AYU_ADD_TASK(new_context);
 
             DEBUG(("%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d\n",
                    dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
@@ -852,6 +858,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
              */
             new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
             new_context->data[(int)dest_flow->flow_index].data      = origin->data[(int)origin_flow->flow_index].data;
+            AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
+
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
                 DEBUG3(("  Task %s is immediate and will be executed ASAP\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, new_context)));
                 __dague_execute(eu_context, new_context);
