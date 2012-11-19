@@ -111,7 +111,6 @@ dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count)
         size = DAGUE_ALIGN(arena->elem_size * count + arena->alignment + sizeof(union _internal_chunk_prefix_u),
                            arena->alignment, size_t);
         chunk = (dague_arena_chunk_t*)arena->data_malloc( size );
-        item = (dague_list_item_t*)chunk; /* for the assert */
     }
 
     chunk->origin = arena;
@@ -119,7 +118,7 @@ dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count)
     chunk->data = DAGUE_ALIGN_PTR( ((ptrdiff_t)chunk + sizeof(union _internal_chunk_prefix_u)),
                                    arena->alignment, void* );
     assert(0 == (((ptrdiff_t)chunk->data) % arena->alignment));
-    assert((arena->elem_size + (ptrdiff_t)chunk->data)  <= (size + (ptrdiff_t)item));
+    assert((arena->elem_size + (ptrdiff_t)chunk->data)  <= (size + (ptrdiff_t)chunk));
 
     return chunk;
 }

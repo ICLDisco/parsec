@@ -1041,6 +1041,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#include <data_distribution.h>\n"
             "#include <data.h>\n"
             "#include <debug.h>\n"
+            "#include <dague/ayudame.h>\n"
             "#include <assert.h>\n\n");
 
     for( g = jdf->datatypes; NULL != g; g = g->next ) {
@@ -2185,9 +2186,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     string_arena_free(sa1);
     string_arena_free(sa2);
     string_arena_free(sa3);
-
-    coutput("\n"
-            "  __dague_object->super.super.dependencies_array[%d] = dep;\n"
+    coutput("\n  AYU_REGISTER_TASK(&%s_%s);\n", jdf_basename, f->fname);
+    coutput("  __dague_object->super.super.dependencies_array[%d] = dep;\n"
             "  __dague_object->super.super.nb_local_tasks += nb_tasks;\n"
             "  return nb_tasks;\n"
             "}\n"
@@ -3718,6 +3718,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     if( 0 != has_output_data )
         coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n"
                 "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, context->locals) );\n"
+                "    arg.output_entry->generator = (void*)context;  /* for AYU */\n"
                 "#if defined(DAGUE_SIM)\n"
                 "    assert(arg.output_entry->sim_exec_date == 0);\n"
                 "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"

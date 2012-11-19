@@ -623,14 +623,14 @@ static void remote_dep_mpi_profiling_init(void)
 
 #if defined(DAGUE_STATS)
 
-    #define DAGUE_STATACC_ACCUMULATE_MSG(counter, count, datatype) do {\
+#   define DAGUE_STATACC_ACCUMULATE_MSG(counter, count, datatype) do {\
         int _sa_size; \
         MPI_Pack_size(count, datatype, dep_comm, &_sa_size); \
         DAGUE_STATACC_ACCUMULATE(counter, 1); \
         DAGUE_STATACC_ACCUMULATE(counter_bytes_sent, _sa_size); \
     }
 #else
-    #define DAGUE_STATACC_ACCUMULATE_MSG(counter, count, datatype)
+#   define DAGUE_STATACC_ACCUMULATE_MSG(counter, count, datatype)
 #endif /* DAGUE_STATS */
 
 
