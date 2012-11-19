@@ -1040,9 +1040,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#include <dague.h>\n"
             "#include <data_distribution.h>\n"
             "#include <debug.h>\n"
-            "#if defined(HAVE_AYUDAME)\n"
             "#include <dague/ayudame.h>\n"
-            "#endif  /* defined(HAVE_AYUDAME) */\n"
             "#include <assert.h>\n\n");
 
     for( g = jdf->datatypes; NULL != g; g = g->next ) {

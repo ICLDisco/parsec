@@ -13,9 +13,7 @@
 #include "datarepo.h"
 #include "execution_unit.h"
 #include "vpmap.h"
-#if defined(HAVE_AYUDAME)
 #include "dague/ayudame.h"
-#endif  /* defined(HAVE_AYUDAME) */
 
 #include <signal.h>
 #if defined(HAVE_STRING_H)

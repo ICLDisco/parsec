@@ -16,9 +16,7 @@
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
-#if defined(HAVE_AYUDAME)
 #include "dague/ayudame.h"
-#endif  /* defined(HAVE_AYUDAME) */
 
 #include "list.h"
 #include "scheduling.h"
