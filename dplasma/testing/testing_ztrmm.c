@@ -24,6 +24,11 @@ int main(int argc, char ** argv)
     int ret = 0;
     int Aseed = 3872;
     int Cseed = 2873;
+    dague_complex64_t alpha = 3.5;
+
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    alpha -= I * 4.2;
+#endif
 
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
@@ -78,7 +83,6 @@ int main(int argc, char ** argv)
     {
         int s, u, t, d;
         int info_solution;
-        dague_complex64_t alpha = 3.5;
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescC2, 1,
             two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, matrix_Tile,
