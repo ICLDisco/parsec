@@ -14,6 +14,7 @@ int main( int argc, char** argv )
     dague_touch_object_t* object;
     two_dim_block_cyclic_t descA;
 
+    (void)argc; (void)argv;
     dague = dague_init(1, NULL, NULL);
     assert( NULL != dague );
 

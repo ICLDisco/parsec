@@ -183,8 +183,8 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
     dplasma_zgeadd( dague, uplo, -1.0, A0,
                     (tiled_matrix_desc_t*)&L2);
 
-    Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A0);
-    Rnorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo,
+    Anorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, A0);
+    Rnorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo,
                            (tiled_matrix_desc_t*)&L2);
 
     result = Rnorm / ( Anorm * N * eps ) ;
@@ -239,7 +239,7 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
     int N = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, ddescA);
+    Anorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, ddescA);
     Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
     Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
 

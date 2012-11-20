@@ -92,6 +92,7 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int SNB   = iparam[IPARAM_SNB];\
   int MT    = (M%MB==0) ? (M/MB) : (M/MB+1); \
   int NT    = (N%NB==0) ? (N/NB) : (N/NB+1); \
+  int KT    = (K%MB==0) ? (K/MB) : (K/MB+1); \
   int check = iparam[IPARAM_CHECK];\
   int check_inv = iparam[IPARAM_CHECKINV];\
   int loud  = iparam[IPARAM_VERBOSE];\
@@ -99,7 +100,7 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int nb_local_tasks = 0;                                               \
   int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
-  (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;\
+  (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)KT;(void)SMB;(void)SNB;(void)check;(void)loud;\
   (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;(void)check_inv;
 
 /* Define a double type which not pass through the precision generation process */

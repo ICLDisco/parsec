@@ -306,7 +306,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
         var != NULL; var = var->next ) {
         const char *var_name = var->name;
         expr_t *expr = relation_to_tree(newS_es);
-        expr_t *solution = solveExpressionTreeForVar(expr, var_name, copy(newS_es));
+        expr_t *solution = solve_expression_tree_for_var(expr, var_name, copy(newS_es));
         // If there is a solution it means that this parameter has a fixed value and not a range.
         // That means that there is no point in including it as a parameter of the pseudo-task.
         if( NULL != solution ){
@@ -507,7 +507,7 @@ void jdf_register_locals( jdf_function_entry_t *this_function,
     for(i=1; i<=S_es.n_set(); i++){
         const char *var_name = strdup(S_es.set_var(i)->char_name());
         expr_t *e = relation_to_tree(S_es);
-        expr_t *solution = solveExpressionTreeForVar(e, var_name, S_es);
+        expr_t *solution = solve_expression_tree_for_var(e, var_name, S_es);
 
         locals[i-1].name = strdup(var_name);
         locals[i-1].expr = q2jmalloc(jdf_expr_t, 1);
@@ -580,7 +580,7 @@ jdf_expr_t *jdf_generate_call_parameters( dep_t *dep, expr_t *rel_exp )
 
     for(i=0; i<dst_count; i++, param++){
         const char *var_name = strdup(R.output_var(i+1)->char_name());
-        expr_t *solution = solveExpressionTreeForVar(copy_tree(rel_exp), var_name, R);
+        expr_t *solution = solve_expression_tree_for_var(copy_tree(rel_exp), var_name, R);
 
         string_arena_init(sa);
         string_arena_add_string( sa, "%s",

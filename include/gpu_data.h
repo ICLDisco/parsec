@@ -26,7 +26,6 @@
 #define DAGUE_MAX_STREAMS            4
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
 
-
 #if defined(DAGUE_PROF_TRACE)
 #define DAGUE_PROFILE_CUDA_TRACK_DATA_IN  0x0001
 #define DAGUE_PROFILE_CUDA_TRACK_DATA_OUT 0x0002
@@ -57,6 +56,10 @@ typedef struct __dague_gpu_exec_stream {
     int32_t executed;    /* number of executed tasks */
     int32_t start, end;  /* circular buffer management start and end positions */
     dague_list_t *fifo_pending;
+#if defined(DAGUE_PROF_TRACE)
+    int prof_event_track_enable;
+    int prof_event_key_start, prof_event_key_end;
+#endif  /* defined(PROFILING) */
 } dague_gpu_exec_stream_t;
 
 typedef struct _gpu_device {
@@ -199,10 +202,10 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
  */
 typedef int (*advance_task_function_t)(gpu_device_t* gpu_device,
                                        dague_gpu_context_t* task,
-                                       CUstream cuda_stream);
+                                       dague_gpu_exec_stream_t* gpu_stream);
 
 int progress_stream( gpu_device_t* gpu_device,
-                     dague_gpu_exec_stream_t* exec_stream,
+                     dague_gpu_exec_stream_t* gpu_stream,
                      advance_task_function_t progress_fct,
                      dague_gpu_context_t* task,
                      dague_gpu_context_t** out_task );

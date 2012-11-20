@@ -369,12 +369,12 @@ check_include_files(complex.h HAVE_COMPLEX_H)
 # Find optional packages
 #
 IF( BUILD_DAGUE )
-  find_package(HWLOC QUIET)
+  find_package(HWLOC)
   set(HAVE_HWLOC ${HWLOC_FOUND})
   if( HWLOC_FOUND )
     list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
-    list(APPEND EXTRA_LIBS ${HWLOC_LIB})
-    include_directories( ${HWLOC_INCLUDE_DIR} )
+    list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
+    include_directories( ${HWLOC_INCLUDE_DIRS} )
   endif (HWLOC_FOUND)
 
   if (DAGUE_DIST_WITH_MPI)
@@ -443,6 +443,22 @@ IF( BUILD_DAGUE )
   if( DAGUE_PROF_GRAPHER )
     list(APPEND EXTRA_SOURCES src/dague_prof_grapher.c)
   endif( DAGUE_PROF_GRAPHER )
+
+  find_package(AYUDAME QUIET)
+  set(HAVE_AYUDAME ${AYUDAME_FOUND})
+#
+# If AYUDAME support is enabled it means we need to deal with weak symbols. On
+# MAC OS X we need to add a special linker flag or the applications will not
+# compile correctly.
+#
+  if(AYUDAME_FOUND)
+    include_directories( ${AYUDAME_INCLUDE_DIR} )
+    if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+      message(STATUS "Add '-undefined dynamic_lookup' to the linking flags")
+      SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -undefined dynamic_lookup")
+      SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -undefined dynamic_lookup")
+    endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  endif(AYUDAME_FOUND)
 ENDIF( BUILD_DAGUE )
 
 #

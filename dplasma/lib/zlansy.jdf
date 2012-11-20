@@ -1,0 +1,550 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ *
+ * This jdf returns the value of the infinity norm of a matrix A
+ * where the infinity norm  of a matrix is the maximum row sum.
+ *
+ * This jdf is optimized for 2D-Block cyclic distributed data with a grid
+ * P-by-Q.
+ * The first step sums the local data of each rows.
+ * The second finishes the sums on each rows. At the end of this step, all Q
+ * processes belonging to a row have the same data.
+ * The third step search the local maximum.
+ * The fourth step combines the local maxima together. At the end all processes
+ * owns the same value.
+ *
+ * The reductions are down by a pipeline folowed by a broadcast of the results.
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+#include <math.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/cores/dplasma_zcores.h"
+
+#define my_rank_of(m, n) (((dague_ddesc_t*)(__dague_object->super.dataA))->rank_of((dague_ddesc_t*)__dague_object->super.dataA, m, n))
+
+%}
+
+/* Globals
+ */
+P            [type = "int"]
+Q            [type = "int"]
+PQ           [type = "int" hidden=on default="P*Q"]
+ntype        [type = "PLASMA_enum"]
+uplo         [type = "PLASMA_enum"]
+trans        [type = "PLASMA_enum"]
+dataA        [type = "dague_ddesc_t *"]
+Wcol         [type = "dague_ddesc_t *"]
+Welt         [type = "dague_ddesc_t *"]
+norm         [type = "double *"]
+
+descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
+
+RWCOL(m, n) [profile = off]
+
+    // Execution space
+    m = 0 .. descA.mt-1
+    n = 0 .. PQ-1
+    hastile = inline_c %{
+        int nn = 0;
+        int r;
+        while (nn < descA.nt) {
+            if ( (uplo == PlasmaLower && m  < nn) ||
+                 (uplo == PlasmaUpper && nn < m ) )
+                r = my_rank_of( nn, m );
+            else
+                r = my_rank_of( m, nn );
+            if ( r == n )
+                break;
+            else
+                nn++;
+        }
+        return nn;
+        %}
+
+    // Parallel partitioning
+    :Wcol(m, n)
+
+    // Parameters
+    READ W <- Wcol(m, n)
+           -> (hastile <  descA.nt) ? W STEP1(m, hastile)  [type = COL]
+           -> (hastile == descA.nt) ? W STEP2(m, n      )  [type = COL]
+
+BODY
+{
+    DRYRUN(
+        /* Initialize W */
+        if (ntype == PlasmaMaxNorm) {
+            ((double *)W)[0] = 0.;
+        } else if (ntype == PlasmaFrobeniusNorm) {
+            ((double *)W)[0] = 0.;
+            ((double *)W)[1] = 1.;
+        } else {
+            int i;
+            for(i = 0; i < descA.mb; i++)
+                ((double *)W)[i] = 0.;
+        }
+           );
+}
+END
+
+RWELT(m, n) [profile = off]
+
+    // Execution space
+    m = 0 .. P-1
+    n = 0 .. Q-1
+    row = inline_c %{
+        return descA.mt-((descA.mt-m-1)%P)-1;
+        %}
+
+    // Parallel partitioning
+    :Welt(m, n)
+
+    // Parameters
+    READ W <- Welt(m, n)
+           -> (m <  descA.mt   ) ? W STEP3(row, n)  [type = ELT]
+           -> (m > (descA.mt-1)) ? W STEP4(m,   n)  [type = ELT]
+
+BODY
+{
+    DRYRUN(
+        /* Initialize Welt */
+        ((double *)W)[0] = 0.;
+        if (ntype == PlasmaFrobeniusNorm) {
+            ((double *)W)[1] = 1.;
+        }
+           );
+}
+END
+
+/**************************************************
+ *
+ *                    STEP 1
+ *
+ *  For j in [1,Q], W(m, j) = reduce( A(m, j+k*Q) )
+ *
+ **************************************************/
+STEP1(m,n)
+
+    // Execution space
+    m = 0 .. descA.mt-1
+    n = 0 .. descA.nt-1
+    m1 = inline_c %{
+    if ( (uplo == PlasmaLower && m < n) ||
+         (uplo == PlasmaUpper && n < m) )
+        return n;
+    else
+        return m;
+    %}
+    n1 = inline_c %{
+    if ( (uplo == PlasmaLower && m < n) ||
+         (uplo == PlasmaUpper && n < m) )
+        return m;
+    else
+        return n;
+    %}
+    lr = inline_c %{ return my_rank_of( m1, n1 ); %}
+    prevn = inline_c %{
+        int nn = n-1;
+        int r;
+        while (nn > -1) {
+            if ( (uplo == PlasmaLower && m  < nn) ||
+                 (uplo == PlasmaUpper && nn < m ) )
+                r = my_rank_of( nn, m );
+            else
+                r = my_rank_of( m, nn );
+            if ( r == lr )
+                break;
+            else
+                nn--;
+        }
+        return nn;
+    %}
+
+    nextn = inline_c %{
+        int nn = n+1;
+        int r;
+        while (nn < descA.nt) {
+            if ( (uplo == PlasmaLower && m  < nn) ||
+                 (uplo == PlasmaUpper && nn < m ) )
+                r = my_rank_of( nn, m );
+            else
+                r = my_rank_of( m, nn );
+            if ( r == lr )
+                break;
+            else
+                nn++;
+        }
+        return nn;
+    %}
+
+    // Parallel partitioning
+    :dataA(m1, n1)
+
+    // Parameters
+    READ A <-  dataA(m1, n1)
+    RW   W <-  ( prevn+1 > 0        ) ? W STEP1( m, prevn ) : W RWCOL( m, lr ) [type = COL]
+           ->  ( nextn   < descA.nt ) ? W STEP1( m, nextn ) : W STEP2( m, lr ) [type = COL]
+
+BODY
+{
+    int tempmm = ( m1 == (descA.mt-1) ) ? descA.m - m1 * descA.mb : descA.mb;
+    int tempnn = ( n1 == (descA.nt-1) ) ? descA.n - n1 * descA.nb : descA.nb;
+    int ldam = BLKLDD( descA, m );
+
+    printlog("thread %d zlange STEP1(%d, %d)\n"
+             "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
+             context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
+
+    DRYRUN(
+
+        double *dW = (double*)W;
+
+        /*
+         * Max norm
+         */
+        if (ntype == PlasmaMaxNorm) {
+            double lnorm = 0.;
+            if ( n == m ) {
+                if (trans == PlasmaConjTrans) {
+                    CORE_zlanhe(PlasmaMaxNorm, uplo, tempmm,
+                                A, ldam, NULL, &lnorm);
+                } else {
+                    CORE_zlansy(PlasmaMaxNorm, uplo, tempmm,
+                                A, ldam, NULL, &lnorm);
+                }
+            } else {
+                CORE_zlange(PlasmaMaxNorm, tempmm, tempnn,
+                            A, ldam, NULL, &lnorm);
+            }
+            *dW = ( lnorm > *dW ) ? lnorm : *dW;
+        }
+        /*
+         * Frobenius Norm
+         */
+        else if (ntype == PlasmaFrobeniusNorm) {
+            if ( n == m ) {
+                if (trans == PlasmaConjTrans) {
+                    CORE_zhessq( uplo, tempmm, A, ldam, dW, dW+1);
+                }
+                else {
+                    CORE_zsyssq( uplo, tempmm, A, ldam, dW, dW+1);
+                }
+            } else {
+                CORE_zplssq(tempmm, tempnn,
+                            A, ldam, dW, dW+1 );
+            }
+        }
+        /*
+         * Inf and One -norms
+         */
+        else {
+            if ( m == n ) {
+                CORE_dzasum(PlasmaRowwise, uplo,
+                            tempmm, tempnn,
+                            A, ldam, W);
+            } else {
+
+                /* !uplo side */
+                if ( (uplo == PlasmaLower && m < n) ||
+                     (uplo == PlasmaUpper && n < m) ) {
+                    CORE_dzasum(PlasmaColumnwise, PlasmaUpperLower,
+                                tempmm, tempnn,
+                                A, ldam, W);
+                    /* uplo side */
+                } else {
+                    CORE_dzasum(PlasmaRowwise, PlasmaUpperLower,
+                                tempmm, tempnn,
+                                A, ldam, W);
+                }
+            }
+        }
+            );
+}
+END
+
+/**************************************************
+ *                    STEP 2
+ *
+ *  For each j, W(m, j) = reduce( W(m, 0..Q-1) )
+ *
+ **************************************************/
+STEP2(m, n)
+
+    // Execution space
+    m = 0 .. descA.mt-1
+    n = 0 .. PQ-1
+    hadtile = inline_c %{
+        int nn = descA.nt-1;
+        int r;
+        while (nn > -1) {
+            if ( (uplo == PlasmaLower && m  < nn) ||
+                 (uplo == PlasmaUpper && nn < m ) )
+                r = my_rank_of( nn, m );
+            else
+                r = my_rank_of( m, nn );
+            if ( r == n )
+                break;
+            else
+                nn--;
+        }
+        return nn;
+        %}
+
+    // Parallel partitioning
+    :Wcol(m, n)
+
+    // Parameters
+    READ A <- ( n+Q < PQ )       ? W STEP2(m, n+Q)  : Wcol(m, n) /* Unused*/ [type = COL]
+    RW   W <- ((hadtile+1) == 0) ? W RWCOL(m, n )   : W STEP1(m, hadtile)    [type = COL]
+           -> ( n < Q )          ? W STEP2BIS(m, n) : A STEP2(m, n-Q)        [type = COL]
+
+BODY
+{
+    int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
+
+    printlog("thread %d zlange STEP2(%d, %d)\n"
+             "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
+             context->th_id, m, n, tempmm, m, n-1, m, n);
+
+    DRYRUN(
+        if(n+Q < PQ)
+        {
+            double *dA = (double*)A;
+            double *dW = (double*)W;
+
+            if (ntype == PlasmaMaxNorm) {
+                *dW = ( *dA > *dW ) ? *dA : *dW;
+            }
+            else if (ntype == PlasmaFrobeniusNorm) {
+                if ( dA[0] > 0. ){
+                    if( dW[0] < dA[0] ) {
+                        dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                        dW[0] = dA[0];
+                    } else {
+                        dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+                    }
+                }
+            }
+            else {
+                cblas_daxpy( tempmm, 1., dA, 1, dW, 1);
+            }
+        }
+           );
+}
+END
+
+/**************************************************
+ *                    STEP 2
+ *
+ *  For each j, W(m, j) = reduce( W(m, 0..Q-1) )
+ *
+ **************************************************/
+STEP2BIS(m, n)
+
+    // Execution space
+    m = 0 .. descA.mt-1
+    n = 0 .. Q-1
+
+    // Parallel partitioning
+    :Wcol(m, n)
+
+    // Parameters
+    READ A <- ( n == 0     ) ? Wcol(m, n) /* Unused */ : W STEP2BIS(m, n-1)   [type = COL]
+    RW   W <- W STEP2(m, n)                                                   [type = COL]
+           -> ( n == (Q-1) ) ? A STEP3(m, 0..Q-1)      : A STEP2BIS(m, n+1)   [type = COL]
+
+BODY
+{
+    int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
+
+    printlog("thread %d zlange STEP2(%d, %d)\n"
+             "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
+             context->th_id, m, n, tempmm, m, n-1, m, n);
+
+    DRYRUN(
+        if(n > 0)
+        {
+            double *dA = (double*)A;
+            double *dW = (double*)W;
+
+            if (ntype == PlasmaMaxNorm) {
+                *dW = ( *dA > *dW ) ? *dA : *dW;
+            }
+            else if (ntype == PlasmaFrobeniusNorm) {
+                if ( dA[0] > 0. ){
+                    if( dW[0] < dA[0] ) {
+                            dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                            dW[0] = dA[0];
+                    } else {
+                        dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+                    }
+                }
+            }
+            else {
+                cblas_daxpy( tempmm, 1., dA, 1, dW, 1);
+            }
+        }
+           );
+}
+END
+
+/**************************************************
+ *
+ *                    STEP3
+ *
+ * For m in 0..P-1, W(m, n) = max( W(m..mt[P], n ) )
+ *
+ **************************************************/
+STEP3(m, n)
+
+    // Execution space
+    m = 0 .. descA.mt-1
+    n = 0 .. Q-1
+
+    // Parallel partitioning
+    :Welt(m%P, n)
+
+    // Parameters
+    READ A <- W STEP2BIS(m, Q-1)                                         [type = COL]
+    RW   W <- (m < (descA.mt-P)) ? W STEP3( m+P, n ) : W RWELT( m%P, n ) [type = ELT]
+           -> (m < P           ) ? W STEP4( m,   n ) : W STEP3( m-P, n ) [type = ELT]
+
+BODY
+{
+    int tempmm = ( m == descA.mt-1) ? descA.m - m * descA.mb  : descA.mb;
+
+    printlog("thread %d zlange STEP3(%d, %d)\n",
+             context->th_id, m, n);
+
+    DRYRUN(
+        double *dA = (double*)A;
+        double *dW = (double*)W;
+
+        if (ntype == PlasmaMaxNorm){
+            if ( m < (descA.mt-P) ) {
+                *dW = ( *dA > *dW ) ? *dA : *dW;
+            } else {
+                *dW = *dA;
+            }
+        }
+        else if (ntype == PlasmaFrobeniusNorm) {
+            if( dW[0] < dA[0] ) {
+                dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                dW[0] = dA[0];
+            } else {
+                dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+            }
+        }
+        else {
+            double maxval = 0;
+            int i;
+
+            for(i = 0; i < tempmm; i++, dA++)
+                maxval = ( maxval > *dA ) ? maxval : *dA;
+
+            if ( m < (descA.mt-P) ) {
+                *dW = ( maxval > *dW ) ? maxval : *dW;
+            } else {
+                *dW = maxval;
+            }
+        }
+           );
+}
+END
+
+/**************************************************
+ *                    STEP 4
+ *
+ *  For each i, W(i, n) = max( W(0..P-1, n) )
+ *
+ **************************************************/
+STEP4(m,n)
+
+    // Execution space
+    m = 0..P-1
+    n = 0..Q-1
+
+    // Parallel partitioning
+    :Welt(m, n)
+
+    // Parameters
+    READ A <- ( m == 0 ) ? Welt(m, n) : W STEP4(m-1, n)                       [type = ELT]
+    RW   W <- ( m >  (descA.mt-1)) ? W RWELT( m, n)         : W STEP3(m,   n) [type = ELT]
+           -> ( m == (P-1)       ) ? W WRITE_RES(0..P-1, n) : A STEP4(m+1, n) [type = ELT]
+
+BODY
+{
+    printlog("thread %d zlange STEP4(%d, %d)\n",
+             context->th_id, m, n);
+
+    double *dA = (double*)A;
+    double *dW = (double*)W;
+    if(m > 0) {
+        if (ntype == PlasmaFrobeniusNorm) {
+            double  sqr;
+
+            if( dW[0] < dA[0] ) {
+                sqr = dW[0] / dA[0];
+                sqr = sqr * sqr;
+                dW[1] = dA[1] + sqr * dW[1];
+                dW[0] = dA[0];
+            } else {
+                sqr = dA[0] / dW[0];
+                sqr = sqr * sqr;
+                dW[1] = dW[1] + sqr * dA[1];
+            }
+        } else {
+            *dW = ( *dA > *dW ) ? *dA : *dW;
+        }
+    }
+}
+END
+
+/**************************************************
+ *                      STEP5                     *
+ **************************************************/
+WRITE_RES(m,n)
+
+    // Execution space
+    m = 0..P-1
+    n = 0..Q-1
+
+    // Parallel partitioning
+    :Welt(m, n)
+
+    // Parameters
+    READ W <- W STEP4( P-1, n )   [type = ELT]
+
+BODY
+{
+    printlog("thread %d zlange STORE RESULT(%d, %d)\n",
+             context->th_id, m, n);
+
+    double *dW = (double*)W;
+
+    if (ntype == PlasmaFrobeniusNorm) {
+        *norm = dW[0] * dplasma_dsqrt( dW[1] );
+    } else {
+        *norm = *dW;
+    }
+}
+END

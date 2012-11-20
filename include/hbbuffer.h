@@ -76,7 +76,7 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
         for(; (size_t)i < b->size; i++) {
             if( 0 == dague_atomic_cas(&b->items[i], (uintptr_t) NULL, (uintptr_t) elt) )
                 continue;
-            //DEBUG3(( "Push elem %p in local queue %p at position %d\n", elt, b, i ));
+            DEBUG3(( "HBB:\tPush elem %p in local queue %p at position %d\n", elt, b, i ));
             /* Found an empty space to push the first element. */
             nbelt++;
             break;
@@ -282,8 +282,8 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
     if( best_elt != NULL ) {
         char tmp[MAX_TASK_STRLEN];
         if (priority_offset == offsetof(dague_heap_h, priority)) {
-	        DEBUG3(("HBB:\tFound best element %s in local queue %p at position %d\n",
-	                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)((dague_heap_h*)best_elt)->top),
+	        DEBUG3(("HBB:\tFound best element %s in heap %p in local queue %p at position %d\n",
+	                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)((dague_heap_h*)best_elt)->top), best_elt,
 	                b, best_idx));
         }
         // TODO these print statements are the reason for the dague_heap_h hack above.
