@@ -1,10 +1,12 @@
 #
 # Check if the compiler supports __sync_bool_compare_and_swap.
 #
+if(NOT HAVE_COMPARE_AND_SWAP_32 AND NOT HAVE_COMPARE_AND_SWAP_64)
+    
+
 include(CheckCSourceCompiles)
 
-message(STATUS "Check if the compiler provides atomic operations directives")
-
+# Gcc style atomics?
 CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
@@ -34,6 +36,7 @@ if( DAGUE_ATOMIC_USE_GCC_32_BUILTINS )
         " DAGUE_ATOMIC_USE_GCC_64_BUILTINS)
 endif( DAGUE_ATOMIC_USE_GCC_32_BUILTINS )
 
+# Xlc style atomics?
 CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
@@ -63,6 +66,7 @@ if( DAGUE_ATOMIC_USE_XLC_32_BUILTINS )
         " DAGUE_ATOMIC_USE_XLC_64_BUILTINS)
 endif( DAGUE_ATOMIC_USE_XLC_32_BUILTINS )
 
+# MIPS style atomics?
 CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
@@ -90,6 +94,7 @@ if( DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
         " DAGUE_ATOMIC_USE_MIPOSPRO_64_BUILTINS)
 endif( DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
 
+# SUN OS style atomics? 
 CHECK_C_SOURCE_COMPILES("
       #include <atomic.h>
       #include <stdint.h>
@@ -119,6 +124,7 @@ if( DAGUE_ATOMIC_USE_SUN_32 )
         " DAGUE_ATOMIC_USE_SUN_64)
 endif( DAGUE_ATOMIC_USE_SUN_32 )
 
+# Apple style atomics?
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap32 HAVE_COMPARE_AND_SWAP_32)
   CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap64 HAVE_COMPARE_AND_SWAP_64)
@@ -143,4 +149,6 @@ endif( HAVE_COMPARE_AND_SWAP_64 )
 if( CMAKE_SIZEOF_VOID_P MATCHES "8" AND HAVE_COMPARE_AND_SWAP_32 AND NOT HAVE_COMPARE_AND_SWAP_64 )
   error( "64 bits OS with support for 32 bits atomics but without support for 64 bits atomics")
 endif( CMAKE_SIZEOF_VOID_P MATCHES "8" AND HAVE_COMPARE_AND_SWAP_32 AND NOT HAVE_COMPARE_AND_SWAP_64 )
+
+endif(NOT HAVE_COMPARE_AND_SWAP_32 AND NOT HAVE_COMPARE_AND_SWAP_64)
 

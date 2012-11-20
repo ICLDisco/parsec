@@ -76,10 +76,11 @@ typedef struct data_repo       data_repo_t;
 struct data_repo_entry {
     dague_list_item_t       data_repo_next_item;
     dague_thread_mempool_t* data_repo_mempool_owner;
+    void*                   generator;
+    uint64_t                key;
     volatile uint32_t       usagecnt;
     volatile uint32_t       usagelmt;
     volatile uint32_t       retained;
-    long int                key;
 #if defined(DAGUE_SIM)
     int                     sim_exec_date;
 #endif
@@ -107,7 +108,7 @@ static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, 
     return res;
 }
 
-static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int key)
+static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, uint64_t key)
 {
     data_repo_entry_t *e;
     int h = key % repo->nbentries;
@@ -127,7 +128,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
  * See comment near the structure definition.
  */
 static inline data_repo_entry_t*
-data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo, long int key)
+data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key)
 {
     data_repo_entry_t *e, *n;
     int h = key % repo->nbentries;
@@ -166,10 +167,10 @@ data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo,
 
 #if defined(DAGUE_DEBUG_VERBOSE3)
 # define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
-static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, long int key, const char *tablename, const char *file, int line)
+static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key, const char *tablename, const char *file, int line)
 #else
 # define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key)
-static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, long int key)
+static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key)
 #endif
 {
     data_repo_entry_t *e, *p;
@@ -216,10 +217,10 @@ static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_
 
 #if defined(DAGUE_DEBUG_VERBOSE3)
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
-static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt, const char *tablename, const char *file, int line)
+static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t usagelmt, const char *tablename, const char *file, int line)
 #else
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt)
-static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt)
+static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t usagelmt)
 #endif
 {
     data_repo_entry_t *e, *p;

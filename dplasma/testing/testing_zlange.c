@@ -15,6 +15,7 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     double *work = NULL;
+    double result;
     double normlap = 0.0;
     double normdag = 0.0;
     double eps = LAPACKE_dlamch_work('e');
@@ -72,22 +73,38 @@ int main(int argc, char ** argv)
             }
             if(loud > 2) printf("Done.\n");
 
-            if ( loud > 2 ) {
+            if ( loud > 3 ) {
                 printf( "%d: The norm %s of A is %e\n",
                         rank, normsstr[i], normdag);
             }
 
             if ( rank == 0 ) {
-                if ( loud > 2 ) {
-                    printf( "The LAPACK norm %s of A is %e\n",
-                            normsstr[i], normlap);
+                result = fabs(normdag - normlap) / (normlap * eps) ;
+
+                switch(norms[i]) {
+                case PlasmaMaxNorm:
+                    /* result should be perfectly equal */
+                    break;
+                case PlasmaInfNorm:
+                    /* Sum order on the line can differ */
+                    result = result / (double)N;
+                    break;
+                case PlasmaOneNorm:
+                    /* Sum order on the column can differ */
+                    result = result / (double)M;
+                    break;
+                case PlasmaFrobeniusNorm:
+                    /* Sum order on every element can differ */
+                    result = result / ((double)M * (double)N);
+                    break;
                 }
-                normdag = fabs(normdag - normlap) / normlap ;
-                if ( normdag < ( 10 * (double)N * eps ) ) {
+
+                if ( result < 1. ) {
                     printf(" ----- TESTING ZLANGE (%s) ... SUCCESS !\n", normsstr[i]);
                 } else {
+                    printf("       Ndag = %e, Nlap = %e\n", normdag, normlap );
+                    printf("       | Ndag - Nlap | / Nlap = %e\n", result);
                     printf(" ----- TESTING ZLANGE (%s) ... FAILED !\n", normsstr[i]);
-                    printf("       | Ndag - Nlap | / Nlap = %e\n", normdag);
                     ret |= 1;
                 }
             }
@@ -97,9 +114,8 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     }
 
-
     /*
-     * Symmetric cases LANSY/LANHE
+     * Symmetric cases LANSY
      */
     {
         /* matrix generation */
@@ -131,18 +147,33 @@ int main(int argc, char ** argv)
                 }
                 if(loud > 2) printf("Done.\n");
 
-                if ( loud > 2 ) {
+                if ( loud > 3 ) {
                     printf( "%d: The norm %s of A is %e\n",
                             rank, normsstr[i], normdag);
                 }
 
                 if ( rank == 0 ) {
-                    if ( loud > 2 ) {
-                        printf( "The LAPACK norm %s of A is %e\n",
-                                normsstr[i], normlap);
+                    result = fabs(normdag - normlap) / (normlap * eps);
+
+                    switch(norms[i]) {
+                    case PlasmaMaxNorm:
+                        /* result should be perfectly equal */
+                        break;
+                    case PlasmaInfNorm:
+                        /* Sum order on the line can differ */
+                        result = result / (double)N;
+                        break;
+                    case PlasmaOneNorm:
+                        /* Sum order on the column can differ */
+                        result = result / (double)M;
+                        break;
+                    case PlasmaFrobeniusNorm:
+                        /* Sum oreder on every element can differ */
+                        result = result / ((double)M * (double)N);
+                        break;
                     }
-                    normdag = fabs(normdag - normlap) / normlap ;
-                    if ( normdag < ( 10 * (double)N * eps ) ) {
+
+                    if ( result < 1. ) {
                         printf(" ----- TESTING ZLANSY (%s, %s) ... SUCCESS !\n", uplostr[u], normsstr[i]);
                     } else {
                         printf(" ----- TESTING ZLANSY (%s, %s) ... FAILED !\n", uplostr[u], normsstr[i]);
@@ -191,18 +222,33 @@ int main(int argc, char ** argv)
                 }
                 if(loud > 2) printf("Done.\n");
 
-                if ( loud > 2 ) {
+                if ( loud > 3 ) {
                     printf( "%d: The norm %s of A is %e\n",
                             rank, normsstr[i], normdag);
                 }
 
                 if ( rank == 0 ) {
-                    if ( loud > 2 ) {
-                        printf( "The LAPACK norm %s of A is %e\n",
-                                normsstr[i], normlap);
+                    result = fabs(normdag - normlap) / (normlap * eps);
+
+                    switch(norms[i]) {
+                    case PlasmaMaxNorm:
+                        /* result should be perfectly equal */
+                        break;
+                    case PlasmaInfNorm:
+                        /* Sum order on the line can differ */
+                        result = result / (double)N;
+                        break;
+                    case PlasmaOneNorm:
+                        /* Sum order on the column can differ */
+                        result = result / (double)M;
+                        break;
+                    case PlasmaFrobeniusNorm:
+                        /* Sum oreder on every element can differ */
+                        result = result / ((double)M * (double)N);
+                        break;
                     }
-                    normdag = fabs(normdag - normlap) / normlap ;
-                    if ( normdag < ( 10 * (double)N * eps ) ) {
+
+                    if ( result < 1. ) {
                         printf(" ----- TESTING ZLANHE (%s, %s) ... SUCCESS !\n", uplostr[u], normsstr[i]);
                     } else {
                         printf(" ----- TESTING ZLANHE (%s, %s) ... FAILED !\n", uplostr[u], normsstr[i]);
