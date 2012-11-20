@@ -112,7 +112,7 @@ END
 
 ztsmqr(k, m, n)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dague_imin((descB.mt-2),(descA.nt-1)); %}
+  k = 0     .. inline_c %{ return dague_imin((descB.mt-1),(descA.nt-1)); %}
   m = (k+1) .. (descB.mt-1)
   n = 0     .. (descB.nt-1)
 
@@ -203,8 +203,8 @@ ztsmqr_out_data_B0(k, n) [profile = off]
   /* Locality */
   : dataB(k,n)
 
-  READ  A1   <- A1 ztsmqr(k, descB.mt-1, n)
-             -> dataB(k,n)
+  READ  A1   -> A1 ztsmqr(k, descB.mt-1, n)
+             <- dataB(k,n)
 
 BODY
 {

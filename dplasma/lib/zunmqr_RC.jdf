@@ -201,8 +201,8 @@ ztsmqr_out_data_B0(k, m) [profile = off]
   /* Locality */
   : dataB(m,k)
 
-  READ  A1   <- A1 ztsmqr(k, descB.nt-1, m)
-             -> dataB(m,k)
+  READ  A1   -> A1 ztsmqr(k, descB.nt-1, m)
+             <- dataB(m,k)
 
 BODY
 {
