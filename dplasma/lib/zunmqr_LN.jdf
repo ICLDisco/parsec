@@ -143,7 +143,7 @@ BODY
 
     printlog("CORE_ztsmqr(%d, %d, %d)\n"
              "\t(side, trans, descB.mb, tempnn, tempmm, tempnn, tempkmin, ib, B(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-             k, m, n, k, n, A, m, n, A, m, k, V, m, k, T);
+             k, m, n, k, n, A1, m, n, A2, m, k, V, m, k, T);
 
     DRYRUN(
         void *p_elem_A = dague_private_memory_pop( pool_0 );
