@@ -1,27 +1,25 @@
 include(RulesPrecisions)
 
 macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
-  include_directories(.)
+  include_directories(. ${PLASMA_INCLUDE_DIRS})
 
   set(testings_addexec_CFLAGS "-DADD_")
-  foreach(arg ${PLASMA_CFLAGS})
-    set(testings_addexec_CFLAGS "${testings_addexec_CFLAGS} ${arg}")
-  endforeach(arg ${PLASMA_CFLAGS})
+  #foreach(arg ${PLASMA_CFLAGS})
+  #  set(testings_addexec_CFLAGS "${testings_addexec_CFLAGS} ${arg}")
+  #endforeach(arg ${PLASMA_CFLAGS})
 
-  set(testings_addexec_LDFLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-  set(testings_addexec_LIBS    "${EXTRA_LIBS}")
   # Set flags for compilation
   if( MPI_FOUND )
     set(testings_addexec_CFLAGS  "${MPI_COMPILE_FLAGS} ${testings_addexec_CFLAGS} -DUSE_MPI")
     set(testings_addexec_LDFLAGS "${MPI_LINK_FLAGS} ${testings_addexec_LDFLAGS}")
     set(testings_addexec_LIBS
       common-mpi dplasma-mpi dplasma_cores dague-mpi dague_distribution_matrix-mpi
-      ${testings_addexec_LIBS} ${MPI_LIBRARIES}
+      ${MPI_LIBRARIES} ${EXTRA_LIBS}
       )
   else ( MPI_FOUND )
-    set(testings_addexec_LIBS
+	set(testings_addexec_LIBS
       common dplasma dplasma_cores dague dague_distribution_matrix
-      ${testings_addexec_LIBS}
+      ${EXTRA_LIBS}
       )
   endif()
 
@@ -36,8 +34,8 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
     set_target_properties(${testings_addexec_EXEC} PROPERTIES
                             LINKER_LANGUAGE Fortran
                             COMPILE_FLAGS "${testings_addexec_CFLAGS}"
-                            LINK_FLAGS "${testings_addexec_LDFLAGS} ${CMAKE_EXE_EXPORTS_C_FLAG}")
-    target_link_libraries(${testings_addexec_EXEC} ${testings_addexec_LIBS} ${PLASMA_LDFLAGS} ${PLASMA_LIBRARIES})
+                            LINK_FLAGS "${testings_addexec_LDFLAGS} ${LOCAL_FORTRAN_LINK_FLAGS} ${CMAKE_EXE_EXPORTS_C_FLAG} ${PLASMA_LDFLAGS}")
+    target_link_libraries(${testings_addexec_EXEC} ${testings_addexec_LIBS} ${PLASMA_LIBRARIES})
     install(TARGETS ${testings_addexec_EXEC} RUNTIME DESTINATION bin)
     list(APPEND ${OUTPUTLIST} ${testings_addexec_EXEC})
   endforeach()
