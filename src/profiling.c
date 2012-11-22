@@ -165,9 +165,14 @@ int dague_profiling_init( const char *format, ... )
 #if defined(HAVE_MPI)
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
-    dague_start_time = take_time();
+    dague_profiling_start();
 
     return 0;
+}
+
+void dague_profiling_start(void)
+{
+    dague_start_time = take_time();
 }
 
 dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char *format, ...)

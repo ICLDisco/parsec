@@ -30,10 +30,10 @@ static inline double get_cur_time(void)
   printf print; \
 } while(0)
 
-
 #ifdef HAVE_MPI
 # define SYNC_TIME_START() do {                 \
         MPI_Barrier(MPI_COMM_WORLD);            \
+        dague_profiling_start();                \
         sync_time_elapsed = get_cur_time();     \
     } while(0)
 # define SYNC_TIME_STOP() do {                                  \
