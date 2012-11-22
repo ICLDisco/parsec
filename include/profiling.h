@@ -38,7 +38,7 @@ int dague_profiling_init( const char *format, ...);
 /**
  * Restart the timer marker.
  */
-void dague_profiling_start(void);
+int dague_profiling_start(void);
 
 /**
  * Add additional information about the current run, under the form key/value.

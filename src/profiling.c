@@ -172,7 +172,12 @@ int dague_profiling_init( const char *format, ... )
 
 void dague_profiling_start(void)
 {
+    static int __already_called = 0;
+
+    if( ++__already_called > 1 )
+        return -1;
     dague_start_time = take_time();
+    return 0;
 }
 
 dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char *format, ...)
