@@ -23,21 +23,6 @@
 
 #define NBFRAMES 200
 
-#if defined(DAGUE_DEBUG_VERBOSE1)
-#define DEBUG(ARGS) output ARGS
-#else
-#define DEBUG(ARGS) do {} while(0)
-#endif
-#define WARNING(ARGS) output ARGS
-
-static void output(const char *format, ...)
-{
-    va_list ap;
-    va_start(ap, format);
-    vfprintf(stderr, format, ap);
-    va_end(ap);
-}
-
 static void usage(const char *prg)
 {
     fprintf(stderr, 
