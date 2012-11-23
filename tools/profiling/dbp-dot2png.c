@@ -24,11 +24,11 @@
 #define NBFRAMES 200
 
 #if defined(DAGUE_DEBUG_VERBOSE1)
-#define DEBUG(toto) output toto
+#define DEBUG(ARGS) output ARGS
 #else
-#define DEBUG(toto) do {} while(0)
+#define DEBUG(ARGS) do {} while(0)
 #endif
-#define WARNING(toto) output toto
+#define WARNING(ARGS) output ARGS
 
 static void output(const char *format, ...)
 {
