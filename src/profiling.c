@@ -171,7 +171,7 @@ int dague_profiling_init( const char *format, ... )
     return 0;
 }
 
-void dague_profiling_start(void)
+int dague_profiling_start(void)
 {
     if( ++__already_called > 1 )
         return -1;
