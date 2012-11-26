@@ -22,6 +22,12 @@ static inline double get_cur_time(void)
 }
 #endif
 
+#if defined(DAGUE_PROF_TRACE)
+#define DAGUE_PROFILING_START() dague_profiling_start()
+#else
+#define DAGUE_PROFILING_START()
+#endif  /* defined(DAGUE_PROF_TRACE) */
+
 #define TIME_START() do { time_elapsed = get_cur_time(); } while(0)
 #define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; } while(0)
 #define TIME_PRINT(rank, print) do { \
@@ -30,10 +36,10 @@ static inline double get_cur_time(void)
   printf print; \
 } while(0)
 
-
 #ifdef HAVE_MPI
 # define SYNC_TIME_START() do {                 \
         MPI_Barrier(MPI_COMM_WORLD);            \
+        DAGUE_PROFILING_START();                \
         sync_time_elapsed = get_cur_time();     \
     } while(0)
 # define SYNC_TIME_STOP() do {                                  \
