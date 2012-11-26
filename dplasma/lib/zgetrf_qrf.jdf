@@ -56,7 +56,7 @@ descLT  [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)LT)" hidd
 
 param_p [type = int default="((two_dim_block_cyclic_t*)A)->grid.rows" hidden=on ]
 param_q [type = int default="((two_dim_block_cyclic_t*)A)->grid.cols" hidden=on ]
-minMNT  [type = int default="dague_imin( __dague_object->super.descA.mt-1, __dague_object->super.descA.nt-1 )"    hidden=on ]
+minMNT  [type = int default="dague_imin( descA.mt-1, descA.nt-1 )"    hidden=on ]
 
 /*===========================================================================================
 
@@ -106,7 +106,7 @@ zgetrf_typechange(k) [profile = off]
   : A(k, k)
 
   RW A <- A zgetrf(k)
-       -> ( k < (descA.mt-1) ) ? A ztrsm_l(k, k+1..descA.mt-1)        [type = UPPER_TILE]
+    -> ( k < (descA.mt-1) ) ? A ztrsm_l(k, k+1..descA.mt-1)       /* [type = UPPER_TILE]*/
 
 ; descA.nt-k-1
 BODY
@@ -298,9 +298,9 @@ zgeqrt(k, i)
 
   RW    A <- A selector(k, m, k )
           -> A zgeqrt_typechange(k, i)
-          ->  (k == descA.mt-1) ? A(m, k)                                    [type = UPPER_TILE]
-          -> ((k <  descA.mt-1) & (nextm != descA.mt)) ? A1 zttqrt(k, nextm) [type = UPPER_TILE]
-          -> ((k <  descA.mt-1) & (nextm == descA.mt)) ? A2 zttqrt(k, m)     [type = UPPER_TILE]
+          ->  (k == descA.mt-1) ? A(m, k)                                    /*[type = UPPER_TILE]*/
+          -> ((k <  descA.mt-1) & (nextm != descA.mt)) ? A1 zttqrt(k, nextm) /*[type = UPPER_TILE]*/
+          -> ((k <  descA.mt-1) & (nextm == descA.mt)) ? A2 zttqrt(k, m)     /*[type = UPPER_TILE]*/
   RW    T <- LT(m, k)                                                        [type = LITTLE_T]
           -> LT(m, k)                                                        [type = LITTLE_T]
           -> (descA.nt-1 > k) ? T zunmqr(k, i, (k+1)..(descA.nt-1))          [type = LITTLE_T]
@@ -351,7 +351,7 @@ zgeqrt_typechange(k, i) [profile = off]
 
   RW A <- A zgeqrt(k, i)
        -> ( descA.nt-1 > k ) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
-       -> A(m, k)                                                  [type = LOWER_TILE]
+       /*       -> A(m, k)                                                  [type = LOWER_TILE]*/
 BODY
 {
     /* Nothing */
@@ -442,10 +442,10 @@ zttqrt(k, m)
 
   : A(m, k)
 
-  RW   A1 <- (   prevp == descA.mt ) ? A  zgeqrt(k, ip ) : A1 zttqrt(k, prevp ) [type = UPPER_TILE]
-          -> (   nextp != descA.mt ) ? A1 zttqrt(k, nextp )                     [type = UPPER_TILE]
-          -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)          [type = UPPER_TILE]
-          -> ( ( nextp == descA.mt ) & (p != k) ) ? A2 zttqrt(k, p)             [type = UPPER_TILE]
+  RW   A1 <- (   prevp == descA.mt ) ? A  zgeqrt(k, ip ) : A1 zttqrt(k, prevp ) /*[type = UPPER_TILE]*/
+          -> (   nextp != descA.mt ) ? A1 zttqrt(k, nextp )                     /*[type = UPPER_TILE]*/
+          -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)          /*[type = UPPER_TILE]*/
+          -> ( ( nextp == descA.mt ) & (p != k) ) ? A2 zttqrt(k, p)             /*[type = UPPER_TILE]*/
   RW   A2 <- (type == 0)                             ? A selector(k, m, k )     /* type 0 = DPLASMA_QR_KILLED_BY_TS */
           <- ( (type != 0) && (prevm == descA.mt ) ) ? A zgeqrt(k, im )         /* type 0 = DPLASMA_QR_KILLED_BY_TS */
           <- ( (type != 0) && (prevm != descA.mt ) ) ? A1 zttqrt(k, prevm )     /* type 0 = DPLASMA_QR_KILLED_BY_TS */
@@ -505,8 +505,8 @@ zttqrt_out_A1(k) [profile = off]
 
   : A(k, k)
 
-  RW A <- A1 zttqrt( k, prevp ) [type = UPPER_TILE]
-       -> A(k, k)               [type = UPPER_TILE]
+  RW A <- A1 zttqrt( k, prevp ) /*[type = UPPER_TILE]*/
+       -> A(k, k)               /*[type = UPPER_TILE]*/
 BODY
 /* nothing */
 END
@@ -691,11 +691,15 @@ BODY
             CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
                         A,    ldam,
                         Acpy, descA.mb);
+
+            printf("copypanel ( %d ) => copy\n", k);
         } else{
             /*We need the 1-norm of the other tiles*/
             W[i] = LAPACKE_zlange_work(
                 LAPACK_COL_MAJOR, '1',
                 tempmm, tempkn, A, ldam, NULL);
+
+            printf("copypanel ( %d ) => norm\n", k);
         }
            );
 }
