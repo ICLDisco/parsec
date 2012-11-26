@@ -28,10 +28,7 @@ set(TESTS
   testing_zgesv_incpiv.c
   testing_zgeqrf.c
   testing_zgeqrf_param.c
-  testing_zgetrf_hincpiv.c
-  testing_zgetrf_hpp.c
-  testing_zgetrf_hpp2.c
-  testing_zgetrf_qrf.c
+  testing_zunmqr.c
   testing_zgelqf.c
   testing_zherbt.c
   testing_zhbrdt.c
@@ -39,6 +36,10 @@ set(TESTS
   testing_zlange.c
   testing_zprint.c
   #testing_zgesvd.c
+  testing_zgetrf_hincpiv.c
+  testing_zgetrf_hpp.c
+  testing_zgetrf_hpp2.c
+  testing_zgetrf_qrf.c
 )
 if( DPLASMA_DEBUG_QR_PIVGEN )
   list(APPEND TESTS testing_zpivgen.c)
