@@ -1,11 +1,11 @@
 #
 # Shared Memory Testings
 #
-# if (MPI_FOUND)
-#   set(SHM_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 1 -hostfile /etc/hostfile -bynode)
-# else()
-#   unset(SHM_TEST_CMD )
-# endif()
+if (MPI_FOUND)
+  set(SHM_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 1 -hostfile /etc/hostfile -bynode)
+else()
+  unset(SHM_TEST_CMD )
+endif()
 
 # check the control in shared memory
 add_test(print  ${SHM_TEST_CMD} ./testing_dprint -N 40 -t 7 -x -v=5)
@@ -60,6 +60,13 @@ endforeach()
 add_test(dpotrf_pbq ${SHM_TEST_CMD} ./testing_dpotrf -N 4000 -x -v=5 -o PBQ)
 add_test(dgeqrf_pbq ${SHM_TEST_CMD} ./testing_dgeqrf -N 4000 -x -v=5 -o PBQ)
 
+# The headnode lack GPUs so we need MPI in order to get the test to run on
+# one of the nodes.
+if (CUDA_FOUND AND MPI_FOUND)
+  add_test(dpotrf_g1  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 1)
+  add_test(dpotrf_g2  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 2)
+endif (CUDA_FOUND AND MPI_FOUND)
+
 #
 # Distributed Memory Testings
 #
@@ -103,10 +110,4 @@ endif (CUDA_FOUND)
   add_test(mpi_dgeqrf_p2     ${MPI_TEST_CMD} ./testing_dgeqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 2 --tsrr=0 -v=5)
   add_test(mpi_dgeqrf_p3     ${MPI_TEST_CMD} ./testing_dgeqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 3 --tsrr=0 -v=5)
 
-# The headnode lack GPUs so we need MPI in order to get the test to run on
-# one of the nodes.
-  if (CUDA_FOUND)
-    add_test(dpotrf_g1  ${MPI_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 1)
-    add_test(dpotrf_g2  ${MPI_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 2)
-  endif (CUDA_FOUND)
 endif( MPI_FOUND )
