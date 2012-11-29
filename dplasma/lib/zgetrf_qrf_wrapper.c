@@ -56,10 +56,17 @@ dague_object_t* dplasma_zgetrf_qrf_New( qr_piv_t *qrpiv,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
     /* Upper triangular part of tile with diagonal */
+#if defined(WITH_BUG)
     dplasma_add2arena_upper( object->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 1 );
+#else
+    dplasma_add2arena_tile( object->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA],
+                            A->mb*A->nb*sizeof(dague_complex64_t),
+                            DAGUE_ARENA_ALIGNMENT_SSE,
+                            MPI_DOUBLE_COMPLEX, A->mb );
+#endif
 
     /* IPIV */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_PIVOT_ARENA],
