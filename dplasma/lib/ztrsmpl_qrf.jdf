@@ -34,16 +34,18 @@ PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
 
 A       [type = "dague_ddesc_t *"]
 IPIV    [type = "dague_ddesc_t *" aligned=A]
-LT      [type = "dague_ddesc_t *" aligned=A]
+TS      [type = "dague_ddesc_t *" aligned=A]
+TT      [type = "dague_ddesc_t *" aligned=A]
 B       [type = "dague_ddesc_t *"]
 lu_tab  [type = "int*"]
 pivfct  [type = "qr_piv_t*"]
 ib      [type = "int"]
-p_work  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descLT.nb))"]
-p_tau   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descLT.nb))"]
+p_work  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descTS.nb))"]
+p_tau   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descTS.nb))"]
 
 descA   [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)A)"  hidden=on]
-descLT  [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)LT)" hidden=on]
+descTS  [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)TS)" hidden=on]
+descTT  [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)TT)" hidden=on]
 descB   [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)B)"  hidden=on]
 
 param_p [type = int default="((two_dim_block_cyclic_t*)A)->grid.rows" hidden=on ]
@@ -250,7 +252,7 @@ BODY
 {
     printlog("CORE_zunmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, \n"
-             "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, A(%d,%d)[%p], ldam, p_elem_A, descLT.nb)",
+             "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], descTS.mb, A(%d,%d)[%p], ldam, p_elem_A, descTS.nb)",
              k, m, n, m, k, A, m, k, T, m, n, C);
 
     DRYRUN(
@@ -265,9 +267,9 @@ BODY
             PlasmaLeft, PlasmaConjTrans,
             tempmm, tempnn, tempmm, ib,
             A /* A(m, k) */, ldam,
-            T /* T(m, k) */, descLT.mb,
+            T /* T(m, k) */, descTS.mb,
             C /* B(m, n) */, ldbm,
-            p_elem_B, descLT.nb );
+            p_elem_B, descTS.nb );
 
         dague_private_memory_push( p_work, p_elem_B );
            );
@@ -286,7 +288,7 @@ zunmqr_in(k,i)  [profile = off]
   RW A <- A(m,k)                           [type = LOWER_TILE]
        -> A zunmqr(k, i, 0..descB.nt-1)    [type = LOWER_TILE]
 
-  RW T <- LT(m,k)                          [type = LITTLE_T]
+  RW T <- TS(m,k)                          [type = LITTLE_T]
        -> T zunmqr(k, i, 0..descB.nt-1)    [type = LITTLE_T]
 
   CTL ctl <- ctl inputs(k)
@@ -368,7 +370,7 @@ BODY
                 A1 /* B(p, n) */, ldbp,
                 A2 /* B(m, n) */, ldbm,
                 V  /* A(m, k) */, ldam,
-                T  /* T(m, k) */, descLT.mb,
+                T  /* T(m, k) */, descTT.mb,
                 p_elem_B, ldwork );
         } else {
             CORE_zttmqr(
@@ -377,7 +379,7 @@ BODY
                 A1 /* B(p, n) */, ldbp,
                 A2 /* B(m, n) */, ldbm,
                 V  /* A(m, k) */, ldam,
-                T  /* T(m, k) */, descLT.mb,
+                T  /* T(m, k) */, descTT.mb,
                 p_elem_B, ldwork );
         }
         dague_private_memory_push( p_work, p_elem_B );
@@ -386,7 +388,7 @@ BODY
 
     printlog("CORE_zttmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
-             "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descLT.mb, p_elem_A, ldwork)",
+             "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descTT.mb, p_elem_A, ldwork)",
              k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 }
 END
@@ -400,7 +402,7 @@ zttmqr_in(k,m)  [profile = off]
   RW A <- A(m,k)
        -> V zttmqr(k, m, 0..descB.nt-1)
 
-  RW T <- LT(m,k)                           [type = LITTLE_T]
+  RW T <- TT(m,k)                           [type = LITTLE_T]
        -> T zttmqr(k, m, 0..descB.nt-1)     [type = LITTLE_T]
 
   CTL ctl <- ctl inputs(k)

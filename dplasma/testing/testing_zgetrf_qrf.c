@@ -54,8 +54,12 @@ int main(int argc, char ** argv)
                                two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
                                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                                       M, N, SMB, SNB, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescLT, 1,
-                               two_dim_block_cyclic, (&ddescLT, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(ddescTS, 1,
+                               two_dim_block_cyclic, (&ddescTS, matrix_ComplexDouble, matrix_Tile,
+                                                      nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+                                                      MT*IB, N, SMB, SNB, P));
+    PASTE_CODE_ALLOCATE_MATRIX(ddescTT, 1,
+                               two_dim_block_cyclic, (&ddescTT, matrix_ComplexDouble, matrix_Tile,
                                                       nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
                                                       MT*IB, N, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
@@ -92,7 +96,8 @@ int main(int argc, char ** argv)
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescLT);
+    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS);
+    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
     qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t *)&ddescA,
                                  iparam[IPARAM_LOWLVL_TREE],
                                  iparam[IPARAM_HIGHLVL_TREE],
@@ -121,7 +126,8 @@ int main(int argc, char ** argv)
                               (qrpiv,
                                (tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescIPIV,
-                               (tiled_matrix_desc_t*)&ddescLT,
+                               (tiled_matrix_desc_t*)&ddescTS,
+                               (tiled_matrix_desc_t*)&ddescTT,
                                lu_tab,
                                &info));
     /* lets rock! */
@@ -140,7 +146,8 @@ int main(int argc, char ** argv)
         dplasma_ztrsmpl_qrf( dague, qrpiv,
                              (tiled_matrix_desc_t *)&ddescA,
                              (tiled_matrix_desc_t *)&ddescIPIV,
-                             (tiled_matrix_desc_t *)&ddescLT,
+                             (tiled_matrix_desc_t *)&ddescTS,
+                             (tiled_matrix_desc_t *)&ddescTT,
                              (tiled_matrix_desc_t *)&ddescX,
                              lu_tab);
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
@@ -160,7 +167,8 @@ int main(int argc, char ** argv)
             dplasma_ztrsmpl_qrf( dague, qrpiv,
                                  (tiled_matrix_desc_t *)&ddescA,
                                  (tiled_matrix_desc_t *)&ddescIPIV,
-                                 (tiled_matrix_desc_t *)&ddescLT,
+                                 (tiled_matrix_desc_t *)&ddescTS,
+                                 (tiled_matrix_desc_t *)&ddescTT,
                                  (tiled_matrix_desc_t *)&ddescInvA,
                                  lu_tab);
             dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
@@ -195,8 +203,10 @@ int main(int argc, char ** argv)
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
-    dague_data_free(ddescLT.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescLT);
+    dague_data_free(ddescTS.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescTS);
+    dague_data_free(ddescTT.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescTT);
     dague_data_free(ddescIPIV.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
     free(lu_tab);

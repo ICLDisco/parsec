@@ -18,12 +18,13 @@
 dague_object_t* dplasma_ztrsmpl_qrf_New( qr_piv_t *qrpiv,
                                          tiled_matrix_desc_t *A,
                                          tiled_matrix_desc_t *IPIV,
-                                         tiled_matrix_desc_t *LT,
+                                         tiled_matrix_desc_t *TS,
+                                         tiled_matrix_desc_t *TT,
                                          tiled_matrix_desc_t *B,
                                          int *lu_tab)
 {
     dague_ztrsmpl_qrf_object_t* object;
-    int ib = LT->mb;
+    int ib = TS->mb;
 
     /*
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
@@ -32,17 +33,18 @@ dague_object_t* dplasma_ztrsmpl_qrf_New( qr_piv_t *qrpiv,
 
     object = dague_ztrsmpl_qrf_new((dague_ddesc_t*)A,
                                    (dague_ddesc_t*)IPIV,
-                                   (dague_ddesc_t*)LT,
+                                   (dague_ddesc_t*)TS,
+                                   (dague_ddesc_t*)TT,
                                    (dague_ddesc_t*)B,
                                    lu_tab,
                                    qrpiv, ib,
                                    NULL, NULL);
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->p_work, ib * LT->nb * sizeof(dague_complex64_t) );
+    dague_private_memory_init( object->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
 
     object->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->p_tau, LT->nb * sizeof(dague_complex64_t) );
+    dague_private_memory_init( object->p_tau, TS->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_ztrsmpl_qrf_DEFAULT_ARENA],
@@ -64,9 +66,9 @@ dague_object_t* dplasma_ztrsmpl_qrf_New( qr_piv_t *qrpiv,
 
     /* Little T */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_ztrsmpl_qrf_LITTLE_T_ARENA],
-                                 LT->mb*LT->nb*sizeof(dague_complex64_t),
+                                 TS->mb*TS->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, LT->mb, LT->nb, -1);
+                                 MPI_DOUBLE_COMPLEX, TS->mb, TS->nb, -1);
 
     return (dague_object_t*)object;
 }
@@ -75,13 +77,14 @@ int dplasma_ztrsmpl_qrf( dague_context_t *dague,
                          qr_piv_t *qrpiv,
                          tiled_matrix_desc_t *A,
                          tiled_matrix_desc_t *IPIV,
-                         tiled_matrix_desc_t *LT,
+                         tiled_matrix_desc_t *TS,
+                         tiled_matrix_desc_t *TT,
                          tiled_matrix_desc_t *B,
                          int *lu_tab)
 {
     dague_object_t *dague_ztrsmpl_qrf = NULL;
 
-    dague_ztrsmpl_qrf = dplasma_ztrsmpl_qrf_New(qrpiv, A, IPIV, LT, B, lu_tab);
+    dague_ztrsmpl_qrf = dplasma_ztrsmpl_qrf_New(qrpiv, A, IPIV, TS, TT, B, lu_tab);
 
     dague_enqueue(dague, (dague_object_t*)dague_ztrsmpl_qrf);
     dplasma_progress(dague);
