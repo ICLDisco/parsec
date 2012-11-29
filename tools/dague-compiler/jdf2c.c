@@ -826,10 +826,10 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
 
     string_arena_init(sa);
 
-    string_arena_add_string(sa, "  %s_nblocal_tasks = %s_%s_internal_init(__dague_object);\n"
-                                "  fprintf(stderr, \"%s %%d\\n\", %s_nblocal_tasks);\n",
-                            f->fname, jdf_basename, f->fname,
-                            f->fname, f->fname);
+    string_arena_add_string(sa, "  %s_nblocal_tasks = %s_%s_internal_init(__dague_object);\n"/*
+                                                                                              "  fprintf(stderr, \"%s %%d\\n\", %s_nblocal_tasks);\n"*/,
+                            f->fname, jdf_basename, f->fname/*,
+                                                             f->fname, f->fname*/);
 
     if( 0 == function_has_data_output(f) ) {
         string_arena_add_string(sa,
