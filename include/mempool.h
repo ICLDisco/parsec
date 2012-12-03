@@ -64,7 +64,10 @@ struct dague_thread_mempool_s {
                                  (char*)&(__pseudo_elt),                \
                                  nbthreads );                           \
         } while(0)
-void dague_mempool_construct( dague_mempool_t *mempool, size_t elt_size, size_t pool_offset, unsigned int nbthreads );
+void dague_mempool_construct( dague_mempool_t *mempool,
+                              size_t elt_size,
+                              size_t pool_offset,
+                              unsigned int nbthreads );
 
 /** dague_thread_mempool_allocate_when_empty
  *    Internal function.

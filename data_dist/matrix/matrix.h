@@ -88,8 +88,8 @@ static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
     return pos % vpmap_get_nb_vp();
 }
 
-struct dague_execution_unit;
-typedef int (*dague_operator_t)( struct dague_execution_unit *eu, const void* src, void* dst, void* op_data, ... );
+struct dague_execution_unit_s;
+typedef int (*dague_operator_t)( struct dague_execution_unit_s *eu, const void* src, void* dst, void* op_data, ... );
 
 extern struct dague_object_t*
 dague_map_operator_New(const tiled_matrix_desc_t* src,

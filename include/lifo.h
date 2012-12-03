@@ -227,13 +227,13 @@ struct dague_lifo_s {
     dague_list_t list;
 };
 
-#define DAGUE_LIFO_ITEM_ALLOC( elt, truesize ) ({                       \
-    (elt) = (__typeof__(elt)) malloc(truesize);                         \
-    assert( NULL != elt ); \
-    DAGUE_LIST_ITEM_CONSTRUCT(elt);                                     \
+#define DAGUE_LIFO_ITEM_ALLOC( elt, truesize ) ({   \
+    (elt) = (__typeof__(elt)) malloc(truesize);     \
+    assert( NULL != elt );                          \
+    DAGUE_LIST_ITEM_CONSTRUCT(elt);                 \
     (elt); })
-#define DAGUE_LIFO_ITEM_FREE( elt ) do {                                \
-    DAGUE_LIST_ITEM_DESTRUCT(elt);                                      \
+#define DAGUE_LIFO_ITEM_FREE( elt ) do {            \
+    DAGUE_LIST_ITEM_DESTRUCT(elt);                  \
     free(elt); } while(0)
 
 static inline void 

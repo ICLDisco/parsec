@@ -1060,7 +1060,11 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, in
     }
 }
 
-static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, char* packed_buffer, int unpacked )
+static void
+remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
+                              dague_remote_deps_t* deps,
+                              char* packed_buffer,
+                              int unpacked )
 {
 #ifdef DAGUE_DEBUG_VERBOSE2
     char tmp[MAX_TASK_STRLEN];
@@ -1087,7 +1091,9 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
         if((DEP_EAGER_BUFFER_SIZE - unpacked) > (size_t)dsize) {
             assert(NULL == deps->output[k].data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data) {
-                deps->output[k].data = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
+                deps->output[k].data = dague_data_copy_new(NULL, 0);
+                deps->output[k].data->device_private = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
+
                 DEBUG3(("MPI:\tMalloc new remote tile %p size %zu nbelt = %d\n",
                         deps->output[k].data, deps->output[k].type->elem_size, deps->output[k].nbelt));
                 assert(deps->output[k].data != NULL);
@@ -1101,11 +1107,12 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
         }
 
         /* Check if we have SHORT deps to satisfy quickly */
-        if( short_which & (1<<k) )
-        {
+        if( short_which & (1<<k) ) {
             assert(NULL == deps->output[k].data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data) {
-                deps->output[k].data = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
+                deps->output[k].data = dague_data_copy_new(NULL, 0);
+                deps->output[k].data->device_private = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
+
                 DEBUG3(("MPI:\tMalloc new remote tile %p size %zu nbelt = %d\n",
                         deps->output[k].data, deps->output[k].type->elem_size, deps->output[k].nbelt));
                 assert(deps->output[k].data != NULL);
@@ -1144,9 +1151,7 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
     if(deps->msg.which) {
         deps->msg.deps = datakey;
         dague_ulist_push_sorted(&dep_activates_fifo, (dague_list_item_t*)deps, rdep_prio);
-    }
-    else
-    {
+    } else {
         dague_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)deps);
     }
 

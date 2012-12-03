@@ -388,7 +388,7 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
     startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
 
     if( object->nb_local_tasks > 0 ) {
-        /* Update the number of pending dague objects */
+        /* Update the number of pending objects */
         dague_atomic_inc_32b( &(context->active_objects) );
 
         if( NULL != object->startup_hook ) {

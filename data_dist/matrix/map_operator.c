@@ -256,7 +256,7 @@ static int release_deps(dague_execution_unit_t *eu,
     int i;
 
     ready_list = (dague_execution_context_t **)calloc(sizeof(dague_execution_context_t *),
-                                                     vpmap_get_nb_vp());
+                                                      vpmap_get_nb_vp());
 
     iterate_successors(eu, this_task, action_mask, add_task_to_list, ready_list);
 
@@ -273,7 +273,8 @@ static int release_deps(dague_execution_unit_t *eu,
     }
 
     if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS) {
-        (void)AUNREF(this_task->data[0].data);
+        /*data_repo_entry_used_once( eu, TRSM_repo, this_task->data[0].data_repo->key );*/
+        (void)DAGUE_DATA_COPY_RELEASE(this_task->data[0].data);
     }
 
     free(ready_list);
@@ -292,11 +293,11 @@ static int data_lookup(dague_execution_unit_t *context,
     (void)context;
 
     if( NULL != __dague_object->super.src ) {
-        this_task->data[0].data = src(k,n);
+        this_task->data[0].data = dague_data_get_copy(src(k,n), 0);
         this_task->data[0].data_repo = NULL;
     }
     if( NULL != __dague_object->super.dest ) {
-        this_task->data[1].data = dest(k,n);
+        this_task->data[1].data = dague_data_get_copy(dest(k,n), 0);
         this_task->data[1].data_repo = NULL;
     }
     return 0;
@@ -312,10 +313,10 @@ static int hook_of(dague_execution_unit_t *context,
     void* dest_data = NULL;
 
     if( NULL != __dague_object->super.src ) {
-        src_data = ADATA(this_task->data[0].data);
+        src_data = DAGUE_DATA_COPY_GET_PTR(this_task->data[0].data);
     }
     if( NULL != __dague_object->super.dest ) {
-        dest_data = ADATA(this_task->data[1].data);
+        dest_data = DAGUE_DATA_COPY_GET_PTR(this_task->data[1].data);
     }
 
 #if !defined(DAGUE_PROF_DRY_BODY)

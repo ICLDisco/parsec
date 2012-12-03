@@ -19,6 +19,7 @@
 #endif /* HAVE_MPI */
 
 #include "dague.h"
+#include "data.h"
 #include "data_dist/matrix/tabular_distribution.h"
 
 /* tiles arranged in colum major*/
@@ -44,11 +45,14 @@ static uint32_t td_get_rank_for_tile(dague_ddesc_t * desc, ...)
 
 
 
-static void * td_get_local_tile(dague_ddesc_t * desc, ...)
+static dague_data_t* td_get_local_tile(dague_ddesc_t * desc, ...)
 {
     int res, m, n;
     tabular_distribution_t * Ddesc;
+    dague_data_t* data;
+    dague_data_copy_t* dcopy;
     va_list ap;
+
     Ddesc = (tabular_distribution_t *)desc;
     va_start(ap, desc);
     m = va_arg(ap, int);
@@ -64,8 +68,16 @@ static void * td_get_local_tile(dague_ddesc_t * desc, ...)
 #endif /* DISTRIBUTED */
 
     res = (Ddesc->super.lmt * n) + m;
+    if( NULL == Ddesc->tiles_table[res].data ) {
+        data = dague_data_new();
+        if(!dague_atomic_cas(&Ddesc->tiles_table[res].data, NULL, data)) {
+            
+        }
+        dcopy = dague_data_copy_new(Ddesc->tiles_table[res].data, 0);
+        dcopy->device_private = Ddesc->tiles_table[res].tile;
+    }
 
-    return  Ddesc->tiles_table[res].tile;
+    return  Ddesc->tiles_table[res].data;
 }
 
 static int32_t td_get_vpid(dague_ddesc_t *desc, ...)

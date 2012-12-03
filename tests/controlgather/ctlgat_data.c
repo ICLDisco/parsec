@@ -1,6 +1,7 @@
 #include "ctlgat_data.h"
 #include "stdarg.h"
 #include "data_distribution.h"
+#include "data.h"
 
 #include <assert.h>
 
@@ -8,7 +9,8 @@ typedef struct {
     dague_ddesc_t super;
     int   seg;
     int   size;
-    uint32_t* data;
+    struct dague_data_copy_s* data;
+    uint32_t* ptr;
 } my_datatype_t;
 
 static uint32_t rank_of(dague_ddesc_t *desc, ...)
@@ -41,7 +43,7 @@ static int32_t vpid_of(dague_ddesc_t *desc, ...)
     return 0;
 }
 
-static void *data_of(dague_ddesc_t *desc, ...)
+static dague_data_t* data_of(dague_ddesc_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -53,7 +55,11 @@ static void *data_of(dague_ddesc_t *desc, ...)
 
     assert( k < dat->size && k >= 0 );
     (void)k;
-    return (void*)dat->data;
+    if(NULL == dat->data) {
+        dat->data = dague_data_copy_new(NULL, 0);
+        dat->data->device_private = dat->ptr;
+    }
+    return (void*)(dat->data);
 } 
 
 #if defined(DAGUE_PROF_TRACE)
@@ -92,7 +98,8 @@ dague_ddesc_t *create_and_distribute_data(int rank, int world, int cores, int si
 
     m->size = size;
     m->seg  = seg;
-    m->data = (uint32_t*)calloc(seg * size, sizeof(uint32_t) );
+    m->data = NULL;
+    m->ptr = (uint32_t*)calloc(seg * size, sizeof(uint32_t) );
 
     return d;
 }
@@ -100,7 +107,10 @@ dague_ddesc_t *create_and_distribute_data(int rank, int world, int cores, int si
 void free_data(dague_ddesc_t *d)
 {
     my_datatype_t *m = (my_datatype_t*)d;
-    free(m->data);
+    if(NULL != m->data) {
+        dague_data_copy_release(m->data);
+    }
+    free(m->ptr);
     dague_ddesc_destroy(d);
     free(d);
 }

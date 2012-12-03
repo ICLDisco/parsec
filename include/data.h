@@ -63,6 +63,12 @@ struct dague_data_copy_s {
     void*                    device_private;
 };
 
+static inline dague_data_copy_t*
+dague_data_get_copy(dague_data_t* data, uint32_t device)
+{
+    return data->device_copies[device];
+}
+
 /**
  * Increase the refcount of this copy of the data.
  */
@@ -92,5 +98,24 @@ static inline void* dague_data_copy_get_ptr(dague_data_copy_t* data)
     return data->device_private;
 }
 #define DAGUE_DATA_COPY_GET_PTR(DATA) dague_data_copy_get_ptr(DATA)
+
+/**
+ * Allocate a new data structure set to INVALID and no attached copies.
+ */
+extern dague_data_t* dague_data_new(void);
+
+/**
+ * Force the release of a data (which become unavailable for further uses).
+ */
+extern void dague_data_delete(dague_data_t* data);
+
+/**
+ * Create the cop of the data passed as an argument for use on the specified
+ * device. The link between the copy and the original data is automatically
+ * created. If the data is NULL, an instance of the data with the default
+ * ownership will be created. In all cases, if a data copy is returned the
+ * reference count will be set to 1.
+ */
+extern dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint16_t device);
 
 #endif  /* DATA_H_HAS_BEEN_INCLUDED */

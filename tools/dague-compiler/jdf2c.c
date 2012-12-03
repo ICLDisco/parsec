@@ -3017,7 +3017,9 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
             }
         }
     }
-    coutput("%s    g%s = dague_arena_get(__dague_object->super.arenas[%s], %d);\n",
+    coutput("%s    g%s = dague_data_copy_new(NULL, 0);\n"
+            "%s    g%s->device_private = dague_arena_get(__dague_object->super.arenas[%s], %d);\n",
+            spaces, f->varname,
             spaces, f->varname, arena, count );
     return;
 }

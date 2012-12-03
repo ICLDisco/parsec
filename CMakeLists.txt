@@ -498,7 +498,8 @@ set(SRCS
   src/barrier.c 
   src/scheduling.c
   src/schedulers.c 
-  src/dague.c 
+  src/dague.c
+  src/data.c
   src/arena.c
   src/moesi.c
   src/remote_dep.c 
