@@ -9,6 +9,7 @@
 #include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
+#include "dplasmatypes.h"
 
 #define HIGH_TO_LOW 0
 #define LOW_TO_HIGH 1
