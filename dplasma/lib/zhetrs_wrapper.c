@@ -41,7 +41,7 @@ static void multilevel_zgebmm(dague_context_t *dague, tiled_matrix_desc_t* B, PL
             }
         }
 
-        dague_progress(dague);
+        dplasma_progress(dague);
 
         for(i_block=0; i_block < block_count; i_block++){
             for(j_block=0; j_block < block_count; j_block++){
