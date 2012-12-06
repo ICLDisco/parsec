@@ -23,21 +23,6 @@
 
 #define NBFRAMES 200
 
-#if defined(DAGUE_DEBUG_VERBOSE1)
-#define DEBUG(toto) output toto
-#else
-#define DEBUG(toto) do {} while(0)
-#endif
-#define WARNING(toto) output toto
-
-static void output(const char *format, ...)
-{
-    va_list ap;
-    va_start(ap, format);
-    vfprintf(stderr, format, ap);
-    va_end(ap);
-}
-
 static void usage(const char *prg)
 {
     fprintf(stderr, 

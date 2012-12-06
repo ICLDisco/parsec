@@ -24,7 +24,9 @@ extern int current_lineno;
 static jdf_expr_t *inline_c_functions = NULL;
 
 static void yyerror(YYLTYPE *locp,
+#if defined(YYPURE) && YYPURE
                     struct yyscan_t* yyscanner,
+#endif  /* defined(YYPURE) && YYPURE */
                     char const *msg)
 {
     fprintf(stderr, "parse error at %d.%d-%d.%d: %s\n",
@@ -178,9 +180,9 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %left COMMA
 
 %debug
-%defines
+/*%defines*/
+/*%pure-parser*/
 %locations
-%pure-parser
 %error-verbose
 %parse-param {struct yyscan_t *yycontrol}
 %lex-param   {struct yyscan_t *yycontrol}

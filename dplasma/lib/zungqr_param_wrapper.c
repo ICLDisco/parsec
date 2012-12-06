@@ -112,10 +112,10 @@ dplasma_zungqr_param_New( qr_piv_t *qrpiv,
      * it should be passed as a parameter as in getrf
      */
 
-    object = dague_zungqr_param_new( *A,  (dague_ddesc_t*)A,
-                                     *TS, (dague_ddesc_t*)TS,
-                                     *TT, (dague_ddesc_t*)TT,
-                                     *Q,  (dague_ddesc_t*)Q,
+    object = dague_zungqr_param_new( (dague_ddesc_t*)A,
+                                     (dague_ddesc_t*)TS,
+                                     (dague_ddesc_t*)TT,
+                                     (dague_ddesc_t*)Q,
                                      qrpiv, ib, NULL);
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));

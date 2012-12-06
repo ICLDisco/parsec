@@ -1,8 +1,6 @@
 #!/bin/bash
 
-if [ $(uname -m) = "x86_64" ]; then
-	USER_OPTIONS+=" -DBUILD_64bits=ON"
-fi
+USER_OPTIONS+=" -DCMAKE_OSX_ARCHITECTURES=$(uname -m)"
 
 
 if [ "x$USER" == "xbouteill" ]; then 
