@@ -60,6 +60,7 @@ precisions_rules_py(generated_jdf
                     "${JDF}"
                     PRECISIONS "${DPLASMA_PRECISIONS}")
 
+include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
 if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
   include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 #  foreach(src_file ${EXTRA_SOURCES})
