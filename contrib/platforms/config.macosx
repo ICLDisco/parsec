@@ -1,6 +1,6 @@
 #!/bin/bash
 
-USER_OPTIONS+=" -DCMAKE_OSX_ARCHITECTURES=$(uname -m)"
+#USER_OPTIONS+=" -DCMAKE_OSX_ARCHITECTURES=$(uname -m)"
 
 
 if [ "x$USER" == "xbouteill" ]; then 
@@ -15,7 +15,8 @@ elif [ "x$USER" == "xbosilca" ]; then
     HWLOC_DIR=/Users/bosilca/opt
     PLASMA_DIR=${HOME}/opt/PLASMA/plasma-svn/
     OMEGA_DIR=${OMEGA_DIR:="/Users/bosilca/tools/Omega/binary"}
-    USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF -DAYUDAME_DIR=/Users/bosilca/tools/temanejo-0.9.1"
+    USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
+#    USER_OPTIONS+="-DAYUDAME_DIR=/Users/bosilca/tools/temanejo-0.9.1"
 
 elif [ "x$USER" == "xadanalis" ]; then 
     OMEGA_DIR="/Users/adanalis/Desktop/Research/PLASMA_Distributed/Related_Stuff/Omega"
