@@ -26,17 +26,17 @@ extern "C" %{
 
 %}
 
-descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
-descT1 [type = "tiled_matrix_desc_t"]
-T1     [type = "dague_ddesc_t *" aligned=A]
-descT2 [type = "tiled_matrix_desc_t"]
-T2     [type = "dague_ddesc_t *" aligned=A]
-descQ  [type = "tiled_matrix_desc_t"]
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)A)"]
+TS     [type = "dague_ddesc_t *" aligned=A]
+descTS [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)TS)"]
+TT     [type = "dague_ddesc_t *" aligned=A]
+descTT [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)TT)"]
 Q      [type = "dague_ddesc_t *"]
+descQ  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)Q)"]
 pivfct [type = "qr_piv_t*"]
 ib     [type = "int" ]
-p_work [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descT1.nb)"]
+p_work [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descTS.nb)"]
 minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : descA.nt )" ]
 
 /*
@@ -106,7 +106,7 @@ BODY
                  A1 /* Q(p, n) */, ldqk,
                  A2 /* Q(m, n) */, ldqm,
                  V  /* A(m, k) */, ldam,
-                 T  /* T(m, k) */, descT2.mb,
+                 T  /* T(m, k) */, descTT.mb,
                  p_elem_A, ldwork );
          } else {
              CORE_zttmqr(
@@ -115,7 +115,7 @@ BODY
                  A1 /* Q(p, n) */, ldqk,
                  A2 /* Q(m, n) */, ldqm,
                  V  /* A(m, k) */, ldam,
-                 T  /* T(m, k) */, descT2.mb,
+                 T  /* T(m, k) */, descTT.mb,
                  p_elem_A, ldwork );
          }
 
@@ -164,9 +164,9 @@ zttmqr_in_T(k, m) [profile = off]
   k = 0..minMN-1
   m = k+1..descQ.mt-1
 
-  : T2(m, k)
+  : TT(m, k)
 
-  RW T <- T2(m, k)                       [type = LITTLE_T]
+  RW T <- TT(m, k)                       [type = LITTLE_T]
        -> T zttmqr(k, m, 0..descQ.nt-1)  [type = LITTLE_T]
 BODY
 /* nothing */
@@ -176,10 +176,10 @@ END
 zunmqr(k, i, n)
   /* Execution space */
   k = 0..minMN-1
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descQ.mt ) - 1; %}
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
   n = 0..descQ.nt-1
   m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
-  nextm = inline_c %{ return dplasma_qr_nextpiv( pivfct, m, k, descQ.mt); %}
+  nextm = inline_c %{ return dplasma_qr_nextpiv( pivfct, m, k, descA.mt); %}
 
   : Q(m, n)
 
@@ -202,7 +202,7 @@ BODY
          int tempAkn  = ( k == descA.nt-1 ) ? descA.n - k * descA.nb : descA.nb;
          int tempkm   = ( k == descQ.mt-1 ) ? descQ.m - k * descQ.mb : descQ.mb;
          int tempnn   = ( n == descQ.nt-1 ) ? descQ.n - n * descQ.nb : descQ.nb;
-         int tempkmin = ( tempAkn < tempAkm ) ? tempAkn : tempAkm ;
+         int tempkmin = dague_imin( tempAkn, tempAkm );
          int ldak = BLKLDD( descA, k );
          int ldqk = BLKLDD( descQ, k );
 
@@ -211,9 +211,9 @@ BODY
          CORE_zunmqr(PlasmaLeft, PlasmaNoTrans,
                      tempkm, tempnn, tempkmin, ib,
                      A /* A(k, k) */, ldak,
-                     T /* T(k, k) */, descT1.mb,
+                     T /* T(k, k) */, descTS.mb,
                      C /* Q(k, n) */, ldqk,
-                     p_elem_A, descT1.nb );
+                     p_elem_A, descTS.nb );
 
          dague_private_memory_push( p_work, p_elem_A );
          );
@@ -224,7 +224,7 @@ END
  */
 zunmqr_in_A(k, i) [profile = off]
   k = 0..minMN-1
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descQ.mt ) - 1; %}
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
   m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
 
   : A( m, k )
@@ -244,9 +244,9 @@ zunmqr_in_T(k, i) [profile = off]
   i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descQ.mt ) - 1; %}
   m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
 
-  : T1( m, k )
+  : TS( m, k )
 
-  RW T <- T1( m, k )                      [type = LITTLE_T]
+  RW T <- TS( m, k )                      [type = LITTLE_T]
        -> T zunmqr(k, i, 0..descQ.nt-1)   [type = LITTLE_T]
 BODY
 /* nothing */

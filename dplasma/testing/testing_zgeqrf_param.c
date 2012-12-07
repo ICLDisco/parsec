@@ -55,15 +55,6 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
 
-
-#if defined(DAGUE_PROF_TRACE)
-    ddescA.super.super.key = strdup("A");
-    ddescTS.super.super.key = strdup("TS");
-    ddescTT.super.super.key = strdup("TT");
-    ddescA0.super.super.key = strdup("A0");
-    ddescQ.super.super.key = strdup("Q");
-#endif
-
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
