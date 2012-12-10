@@ -15,7 +15,7 @@
 
 #include "zgeqrf_param.h"
 
-dague_object_t* dplasma_zgeqrf_param_New( qr_piv_t *qrpiv,
+dague_object_t* dplasma_zgeqrf_param_New( dplasma_qrtree_t *qrtree,
                                           tiled_matrix_desc_t *A,
                                           tiled_matrix_desc_t *TS,
                                           tiled_matrix_desc_t *TT )
@@ -31,7 +31,7 @@ dague_object_t* dplasma_zgeqrf_param_New( qr_piv_t *qrpiv,
     object = dague_zgeqrf_param_new( (dague_ddesc_t*)A,
                                      (dague_ddesc_t*)TS,
                                      (dague_ddesc_t*)TT,
-                                     qrpiv, ib, NULL, NULL);
+                                     *qrtree, ib, NULL, NULL);
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( object->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
@@ -67,14 +67,14 @@ dague_object_t* dplasma_zgeqrf_param_New( qr_piv_t *qrpiv,
 }
 
 int dplasma_zgeqrf_param( dague_context_t *dague,
-                          qr_piv_t *qrpiv,
+                          dplasma_qrtree_t *qrtree,
                           tiled_matrix_desc_t *A,
                           tiled_matrix_desc_t *TS,
                           tiled_matrix_desc_t *TT)
 {
     dague_object_t *dague_zgeqrf_param = NULL;
 
-    dague_zgeqrf_param = dplasma_zgeqrf_param_New(qrpiv, A, TS, TT);
+    dague_zgeqrf_param = dplasma_zgeqrf_param_New(qrtree, A, TS, TT);
 
     dague_enqueue(dague, (dague_object_t*)dague_zgeqrf_param);
     dplasma_progress(dague);

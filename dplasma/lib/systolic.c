@@ -8,67 +8,7 @@
  *
  * This file contains all the function to describe the dependencies
  * used in the Xgeqrf_param.jdf file.
- * The QR factorization done with this file relies on three levels:
- *     - the first one is using a flat tree with TS kernels. The
- *       height of this tree is defined by the parameter 'a'. If 'a'
- *       is set to A->mt, the factorization is identical to the one
- *       perform by PLASMA_zgeqrf.
- *       For all subdiagonal "macro-tiles", the line reduced is always
- *       the first.  For all diagonal "macro-tiles", the factorization
- *       performed is identical to the one performed by PLASMA_zgeqrf.
  *
- *     - the third level is using a reduction tree of size 'p'. By
- *       default, the parameter 'p' should be equal to the number of
- *       processors used for the computation, but can be set
- *       differently. (see further example). The type of tree used at
- *       this level is defined by the hlvl parameter. It can be flat
- *       or greedy.
- *       CODE DETAILS: This tree and all the function related to it
- *       are performing a QR factorization on a band matrix with 'p'
- *       the size of the band. All the functions take global indices
- *       as input and return global indices as output.
- *
- *     - Finally, a second 'low' level of reduction tree is applied.
- *       The size of this tree is induced by the parameters 'a' and 'p'
- *       from the first and third levels and is A->mt / ( p * a ). This
- *       tree is reproduced p times for each subset of tiles
- *       S_k = {i in [0, A->mt-1] \ i%p*a = k } with k in [0, p-1].
- *       The tree used for the reduction is defined by the llvl
- *       parameter and can be: flat, greedy, fibonacci or binary.
- *       CODE DETAILS: For commodity, the size of this tree is always
- *       ceil(A->mt / (p * a) ) inducing some extra tests in the code.
- *       All the functions related to this level of tree take as input
- *       the local indices in the A->mt / (p*a) matrix and the global
- *       k. They return the local index. The reductions are so
- *       performed on a trapezoidal matrices where the step is defined
- *       by a:
- *                                    <- min( lhlvl_mt, min( mt, nt ) ) ->
- *                                     __a__   a     a
- *                                    |     |_____
- *                                    |           |_____
- *                                    |                 |_____
- *        llvl_mt = ceil(MT/ (a*p))   |                       |_____
- *                                    |                             |_____
- *                                    |___________________________________|
- *
- *
- *
- *   At each step of the factorization, the lines of tiles are divided
- *   in 4 types:
- *     - QRPARAM_TILE_TS: They are the lines annihilated by a TS
- *     kernel, these lines are never used as an annihilator.  They are
- *     the lines i, with 1 < (i/p)%a < a and i > (k+1)*p
- *     - QRPARAM_TILE_LOCALTT: They are the lines used as annhilitor
- *     in the TS kernels annihiling the QRPARAM_TILE_TS lines.  They
- *     are themselves annihilated by the TT kernel of the low level
- *     reduction tree.  The roots of the local trees are the lines i,
- *     with i/p = k.
- *     - QRPARAM_TILE_DOMINO: These are the lines that are
- *     annhilihated with a domino effect in the band defined by (i/p)
- *     <= k and i >= k
- *     - QRPARAM_TILE_DISTTT: These are the lines annihilated by the
- *     high level tree to reduce communications.
- *     These lines are defined by (i-k)/p = 0.
  */
 #include <dague.h>
 #include <plasma.h>
@@ -82,13 +22,8 @@
 #include <string.h>
 #endif  /* defined(HAVE_STRING_H) */
 
-#ifndef min
-#define min(__a, __b) ( ( (__a) < (__b) ) ? (__a) : (__b) )
-#endif
-
-#ifndef max
-#define max(__a, __b) ( ( (__a) > (__b) ) ? (__a) : (__b) )
-#endif
+static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
+static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };
 
 #define PRINT_PIVGEN 0
 #ifdef PRINT_PIVGEN
@@ -96,65 +31,24 @@
 #else
 #define myassert(test) {assert((test)); return -1;}
 #endif
-#define VERSION 2
-
-/*
- * Common functions
- */
-int dplasma_qr_getnbgeqrf( const qr_piv_t *arg, const int k, const int gmt );
-int dplasma_qr_getm(       const qr_piv_t *arg, const int k, const int i   );
-int dplasma_qr_geti(       const qr_piv_t *arg, const int k, const int m   );
-int dplasma_qr_gettype(    const qr_piv_t *arg, const int k, const int m   );
-
-/* static void dplasma_qr_genperm   (       qr_piv_t *qrpiv ); */
-/* static int  dplasma_qr_getinvperm( const qr_piv_t *qrpiv, const int k, int m ); */
-
-/****************************************************
- *             Common ipiv
- ***************************************************
- *
- * Common prameters to the 4 following functions:
- *    a - Parameter a for the tunable QR
- *    p - Parameter p for the tunable QR
- *    k - Step k of the QR factorization
- *
- */
 
 #define nbextra1_formula ( (k % pa) > (pa - p) ) ? (-k)%pa + pa : 0
 
-/*
- * Extra parameter:
- *    gmt - Global number of tiles in a column of the complete distributed matrix
- * Return:
- *    The number of geqrt to execute in the panel k
- */
-int dplasma_qr_getnbgeqrf( const qr_piv_t *arg, const int k, const int gmt ) {
-    int pq = arg->p * arg->a;
-
-    return min( pq, gmt - k);
+int systolic_getnbgeqrf( const dplasma_qrtree_t *qrtree, int k )
+{
+    int pq = qrtree->p * qrtree->a;
+    return dague_imin( pq, qrtree->desc->mt - k);
 }
 
-/*
- * Extra parameter:
- *    i - indice of the geqrt in the continuous space
- * Return:
- *    The global indice m of the i th geqrt in the panel k
- */
-int dplasma_qr_getm( const qr_piv_t *arg, const int k, const int i )
+int systolic_getm( const dplasma_qrtree_t *qrtree, int k, int i )
 {
-    (void) arg;
+    (void)qrtree;
     return k+i;
 }
 
-/*
- * Extra parameter:
- *    m - The global indice m of a geqrt in the panel k
- * Return:
- *    The index i of the geqrt in the panel k
- */
-int dplasma_qr_geti( const qr_piv_t *arg, const int k, int m )
+int systolic_geti( const dplasma_qrtree_t *qrtree, int k, int m )
 {
-    (void) arg;
+    (void)qrtree;
     return m-k;
 }
 
@@ -167,9 +61,9 @@ int dplasma_qr_geti( const qr_piv_t *arg, const int k, int m )
  *      1 - if m is reduced thanks to the 2nd coordinate flat tree
  *      3 - if m is reduced thanks to the 1st coordinate flat tree
  */
-int dplasma_qr_gettype( const qr_piv_t *arg, const int k, const int m ) {
-    int p = arg->p;
-    int q = arg->a;
+int systolic_gettype( const dplasma_qrtree_t *qrtree, int k, int m ) {
+    int p = qrtree->p;
+    int q = qrtree->a;
     int pq = p * q;
 
     /* Local eliminations with a TS kernel */
@@ -190,13 +84,13 @@ int dplasma_qr_gettype( const qr_piv_t *arg, const int k, const int m ) {
  *   Generic functions currpiv,prevpiv,nextpiv
  *
  ***************************************************/
-int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
+int systolic_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
 {
-    int p = arg->p;
-    int q = arg->a;
+    int p = qrtree->p;
+    int q = qrtree->a;
     int pq = p * q;
 
-    switch( dplasma_qr_gettype( arg, k, m ) )
+    switch( systolic_gettype( qrtree, k, m ) )
     {
     case 0:
         return (m - k) % pq + k;
@@ -208,12 +102,12 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
         return k;
         break;
     default:
-        return arg->desc->mt;
+        return qrtree->desc->mt;
     }
 };
 
 /**
- *  dplasma_qr_nextpiv - Computes the next row killed by the row p, after
+ *  systolic_nextpiv - Computes the next row killed by the row p, after
  *  it has kill the row start.
  *
  * @param[in] p
@@ -231,64 +125,65 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
  *   - -1 if start doesn't respect the previous conditions
  *   -  m, the following row killed by p if it exists, A->mt otherwise
  */
-int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
+int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
 {
     int ls, lp, nextp;
-    int q = arg->a;
-    int p = arg->p;
+    int q = qrtree->a;
+    int p = qrtree->p;
     int pq = p * q;
+    int mt = qrtree->desc->mt;
 
     myassert( start > pivot && pivot >= k );
-    myassert( start == arg->desc->mt || pivot == dplasma_qr_currpiv( arg, start, k ) );
+    myassert( start == mt || pivot == systolic_currpiv( qrtree, k, start ) );
 
     /* TS level common to every case */
-    ls = (start < arg->desc->mt) ? dplasma_qr_gettype( arg, k, start ) : -1;
-    lp = dplasma_qr_gettype( arg, k, pivot );
+    ls = (start < mt) ? systolic_gettype( qrtree, k, start ) : -1;
+    lp = systolic_gettype( qrtree, k, pivot );
 
     switch( ls )
         {
         case -1:
 
             if ( lp == DPLASMA_QR_KILLED_BY_TS ) {
-                myassert( start == arg->desc->mt );
-                return arg->desc->mt;
+                myassert( start == mt );
+                return mt;
             }
 
         case DPLASMA_QR_KILLED_BY_TS:
 
-            if ( start == arg->desc->mt )
+            if ( start == mt )
                 nextp = pivot + pq;
             else
                 nextp = start + pq;
 
-            if ( nextp < arg->desc->mt )
+            if ( nextp < mt )
                 return nextp;
 
-            start = arg->desc->mt;
+            start = mt;
 
         case DPLASMA_QR_KILLED_BY_LOCALTREE:
 
             if (lp < DPLASMA_QR_KILLED_BY_DISTTREE)
-                return arg->desc->mt;
+                return mt;
 
-            if ( start == arg->desc->mt )
+            if ( start == mt )
                 nextp = pivot + p;
             else
                 nextp = start + p;
 
             if ( (nextp >= k + p) &&
                  (nextp < k + pq) &&
-                 (nextp < arg->desc->mt) )
+                 (nextp < mt) )
                 return nextp;
 
-            start = arg->desc->mt;
+            start = mt;
 
         case DPLASMA_QR_KILLED_BY_DISTTREE:
 
             if (pivot > k)
-                return arg->desc->mt;
+                return mt;
 
-            if ( start == arg->desc->mt )
+            if ( start == mt )
                 nextp = pivot + 1;
             else
                 nextp = start + 1;
@@ -297,12 +192,12 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
                 return nextp;
 
         default:
-            return arg->desc->mt;
+            return mt;
         }
 }
 
 /**
- *  dplasma_qr_prevpiv - Computes the previous row killed by the row p, before
+ *  systolic_prevpiv - Computes the previous row killed by the row p, before
  *  to kill the row start.
  *
  * @param[in] p
@@ -319,25 +214,26 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, const int k, int start)
  *   - -1 if start doesn't respect the previous conditions
  *   -  m, the previous row killed by p if it exists, A->mt otherwise
  */
-int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
+int systolic_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
 {
     int ls, lp, nextp;
     int rpivot;
-    int q = arg->a;
-    int p = arg->p;
+    int q = qrtree->a;
+    int p = qrtree->p;
     int pq = p * q;
+    int mt = qrtree->desc->mt;
 
     rpivot = pivot % pq; /* Staring index in this distribution               */
 
-    myassert( start >= pivot && pivot >= k && start < arg->desc->mt );
-    myassert( start == pivot || pivot == dplasma_qr_currpiv( arg, start, k ) );
+    myassert( start >= pivot && pivot >= k && start < mt );
+    myassert( start == pivot || pivot == systolic_currpiv( qrtree, k, start ) );
 
     /* TS level common to every case */
-    ls = dplasma_qr_gettype( arg, k, start );
-    lp = dplasma_qr_gettype( arg, k, pivot );
+    ls = systolic_gettype( qrtree, k, start );
+    lp = systolic_gettype( qrtree, k, pivot );
 
     if ( lp == DPLASMA_QR_KILLED_BY_TS )
-      return arg->desc->mt;
+      return mt;
 
     myassert( lp >= ls );
     switch( ls )
@@ -348,7 +244,7 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
                 if ( start == pivot ) {
                     nextp = start + p-1;
 
-                    while( pivot < nextp && nextp >= arg->desc->mt )
+                    while( pivot < nextp && nextp >= mt )
                         nextp--;
                 } else {
                     nextp = start - 1;
@@ -367,7 +263,7 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
                     nextp = start + (q-1) * p;
 
                     while( pivot < nextp &&
-                           nextp >= arg->desc->mt )
+                           nextp >= mt )
                         nextp -= p;
                 } else {
                     nextp = start - p;
@@ -383,20 +279,20 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
             /* Search for predecessor in TS tree */
             if ( lp > DPLASMA_QR_KILLED_BY_TS ) {
                 if ( start == pivot ) {
-                    nextp = arg->desc->mt - (arg->desc->mt - rpivot - 1)%pq - 1;
+                    nextp = mt - (mt - rpivot - 1)%pq - 1;
 
-                    while( pivot < nextp && nextp >= arg->desc->mt )
+                    while( pivot < nextp && nextp >= mt )
                         nextp -= pq;
                 } else {
                     nextp = start - pq;
                 }
-                assert(nextp < arg->desc->mt);
+                assert(nextp < mt);
                 if ( pivot < nextp )
                     return nextp;
             }
 
         default:
-            return arg->desc->mt;
+            return mt;
         }
 };
 
@@ -405,39 +301,29 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
  * Initialize/Finalize functions
  *
  ***************************************************/
-qr_piv_t *dplasma_systolic_init( tiled_matrix_desc_t *A,
-                                 int p, int q )
+void dplasma_systolic_init( dplasma_qrtree_t *qrtree,
+                            tiled_matrix_desc_t *A,
+                            int p, int q )
 {
-    qr_piv_t *qrpiv = (qr_piv_t*) malloc( sizeof(qr_piv_t) );
+    qrtree->getnbgeqrf = systolic_getnbgeqrf;
+    qrtree->getm       = systolic_getm;
+    qrtree->geti       = systolic_geti;
+    qrtree->gettype    = systolic_gettype;
+    qrtree->currpiv    = systolic_currpiv;
+    qrtree->nextpiv    = systolic_nextpiv;
+    qrtree->prevpiv    = systolic_prevpiv;
 
-    qrpiv->desc = A;
-    qrpiv->a = max( q, 1 );
-    qrpiv->p = max( p, 1 );
-    qrpiv->domino = 0;
-    qrpiv->tsrr = 0;
-    qrpiv->perm = NULL;
-    qrpiv->llvl = NULL;
-    qrpiv->hlvl = NULL;
+    qrtree->desc = A;
+    qrtree->a    = dague_imax( q, 1 );
+    qrtree->p    = dague_imax( p, 1 );
+    qrtree->args = NULL;
 
-    return qrpiv;
+    return;
 }
 
-void dplasma_pivgen_finalize( qr_piv_t *qrpiv )
+void dplasma_systolic_finalize( dplasma_qrtree_t *qrtree )
 {
-    if ( qrpiv->llvl != NULL) {
-        if ( qrpiv->llvl->ipiv != NULL )
-            free( qrpiv->llvl->ipiv );
-        free( qrpiv->llvl );
+    if ( qrtree->args != NULL) {
+        free( qrtree->args );
     }
-
-    if ( qrpiv->hlvl != NULL) {
-        if ( qrpiv->hlvl->ipiv != NULL )
-            free( qrpiv->hlvl->ipiv );
-        free( qrpiv->hlvl );
-    }
-
-    if ( qrpiv->perm != NULL )
-        free(qrpiv->perm);
-
-    free(qrpiv);
 }
