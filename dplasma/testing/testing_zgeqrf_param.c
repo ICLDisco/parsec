@@ -18,7 +18,7 @@ int main(int argc, char ** argv)
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
     int info_ortho = 0, info_facto = 0;
-    qr_piv_t *qrpiv;
+    dplasma_qrtree_t qrtree;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -65,14 +65,15 @@ int main(int argc, char ** argv)
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
     if(loud > 2) printf("Done\n");
 
-    qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t *)&ddescA,
-                                 iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
-                                 iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
-                                 iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR] );
+    dplasma_hqr_init( &qrtree,
+                      (tiled_matrix_desc_t *)&ddescA,
+                      iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
+                      iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
+                      iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR] );
 
     /* Create DAGuE */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param,
-                              (qrpiv,
+                              (&qrtree,
                                (tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescTS,
                                (tiled_matrix_desc_t*)&ddescTT));
@@ -129,7 +130,7 @@ int main(int argc, char ** argv)
             }
         }
 
-        printf("zgeqrf simulation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d M= %d N= %d : %d \n",
+        printf("zgeqrf HQR simulation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d M= %d N= %d : %d \n",
                iparam[IPARAM_NNODES],
                iparam[IPARAM_NCORES],
                iparam[IPARAM_P],
@@ -148,7 +149,7 @@ int main(int argc, char ** argv)
     }
 #else
     SYNC_TIME_PRINT(rank,
-                    ("zgeqrf computation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d M= %d N= %d : %f gflops\n",
+                    ("zgeqrf HQR computation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d M= %d N= %d : %f gflops\n",
                      iparam[IPARAM_NNODES],
                      iparam[IPARAM_NCORES],
                      iparam[IPARAM_P],
@@ -180,7 +181,7 @@ int main(int argc, char ** argv)
     if( check ) {
         if(loud > 2) printf("+++ Generate the Q ...");
         dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
-        dplasma_zungqr_param( dague, qrpiv,
+        dplasma_zungqr_param( dague, &qrtree,
                               (tiled_matrix_desc_t *)&ddescA,
                               (tiled_matrix_desc_t *)&ddescTS,
                               (tiled_matrix_desc_t *)&ddescTT,
@@ -201,7 +202,7 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
     }
 
-    dplasma_pivgen_finalize( qrpiv );
+    dplasma_hqr_finalize( &qrtree );
 
     cleanup_dague(dague, iparam);
 
