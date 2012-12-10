@@ -27,6 +27,7 @@ set(TESTS
   testing_zgetrf_incpiv_sd.c
   testing_zgesv_incpiv.c
   testing_zgeqrf.c
+  testing_zgeqrf_systolic.c
   testing_zgeqrf_param.c
   testing_zunmqr.c
   testing_zgelqf.c
