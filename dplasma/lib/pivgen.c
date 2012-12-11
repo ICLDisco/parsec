@@ -1195,7 +1195,7 @@ int hqr_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
  *   - -1 if start doesn't respect the previous conditions
  *   -  m, the following row killed by p if it exists, A->mt otherwise
  */
-int hqr_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
+static int hqr_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
 {
     hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
     int tmp, ls, lp, nextp;
@@ -1329,7 +1329,7 @@ int hqr_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
  *   - -1 if start doesn't respect the previous conditions
  *   -  m, the previous row killed by p if it exists, A->mt otherwise
  */
-int hqr_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
+static int hqr_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
 {
     hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
     int tmp, ls, lp, nextp;
@@ -1514,7 +1514,7 @@ static void hqr_genperm( dplasma_qrtree_t *qrtree )
     }
 }
 
-int hqr_getinvperm( const dplasma_qrtree_t *qrtree, int k, int m )
+static int hqr_getinvperm( const dplasma_qrtree_t *qrtree, int k, int m )
 {
     hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
     int gmt = qrtree->desc->mt + 1;

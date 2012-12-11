@@ -34,19 +34,19 @@ static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };
 
 #define nbextra1_formula ( (k % pa) > (pa - p) ) ? (-k)%pa + pa : 0
 
-int systolic_getnbgeqrf( const dplasma_qrtree_t *qrtree, int k )
+static int systolic_getnbgeqrf( const dplasma_qrtree_t *qrtree, int k )
 {
     int pq = qrtree->p * qrtree->a;
     return dague_imin( pq, qrtree->desc->mt - k);
 }
 
-int systolic_getm( const dplasma_qrtree_t *qrtree, int k, int i )
+static int systolic_getm( const dplasma_qrtree_t *qrtree, int k, int i )
 {
     (void)qrtree;
     return k+i;
 }
 
-int systolic_geti( const dplasma_qrtree_t *qrtree, int k, int m )
+static int systolic_geti( const dplasma_qrtree_t *qrtree, int k, int m )
 {
     (void)qrtree;
     return m-k;
@@ -61,7 +61,7 @@ int systolic_geti( const dplasma_qrtree_t *qrtree, int k, int m )
  *      1 - if m is reduced thanks to the 2nd coordinate flat tree
  *      3 - if m is reduced thanks to the 1st coordinate flat tree
  */
-int systolic_gettype( const dplasma_qrtree_t *qrtree, int k, int m ) {
+static int systolic_gettype( const dplasma_qrtree_t *qrtree, int k, int m ) {
     int p = qrtree->p;
     int q = qrtree->a;
     int pq = p * q;
@@ -84,7 +84,7 @@ int systolic_gettype( const dplasma_qrtree_t *qrtree, int k, int m ) {
  *   Generic functions currpiv,prevpiv,nextpiv
  *
  ***************************************************/
-int systolic_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
+static int systolic_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
 {
     int p = qrtree->p;
     int q = qrtree->a;
@@ -125,7 +125,7 @@ int systolic_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
  *   - -1 if start doesn't respect the previous conditions
  *   -  m, the following row killed by p if it exists, A->mt otherwise
  */
-int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
+static int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
 {
     int ls, lp, nextp;
     int q = qrtree->a;
@@ -214,7 +214,7 @@ int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start
  *   - -1 if start doesn't respect the previous conditions
  *   -  m, the previous row killed by p if it exists, A->mt otherwise
  */
-int systolic_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
+static int systolic_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
 {
     int ls, lp, nextp;
     int rpivot;
