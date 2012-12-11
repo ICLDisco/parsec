@@ -127,6 +127,12 @@ dplasma_zungqr_param_New( dplasma_qrtree_t *qrtree,
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
+    /* Upper triangular part of tile with diagonal */
+    dplasma_add2arena_upper( object->arenas[DAGUE_zungqr_param_UPPER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(dague_complex64_t),
+                             DAGUE_ARENA_ALIGNMENT_SSE,
+                             MPI_DOUBLE_COMPLEX, A->mb, 1 );
+
     /* Lower triangular part of tile without diagonal */
     dplasma_add2arena_lower( object->arenas[DAGUE_zungqr_param_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
@@ -169,6 +175,7 @@ dplasma_zungqr_param_Destruct( dague_object_t *o )
     dague_zungqr_param_object_t *dague_zungqr_param = (dague_zungqr_param_object_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_DEFAULT_ARENA   ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_UPPER_TILE_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_LOWER_TILE_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_LITTLE_T_ARENA  ]->opaque_dtt) );
 
