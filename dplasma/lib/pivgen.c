@@ -1106,7 +1106,7 @@ static void hqr_high_greedy_init(hqr_subpiv_t *arg, int minMN){
  *   Generic functions currpiv,prevpiv,nextpiv
  *
  ***************************************************/
-int hqr_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
+static int hqr_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
 {
     hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
     int tmp, tmpk, perm_m;
