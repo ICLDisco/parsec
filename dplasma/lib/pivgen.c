@@ -339,51 +339,6 @@ static int hqr_gettype( const dplasma_qrtree_t *qrtree, int k, int m ) {
     }
 }
 
-/*
- * Extra parameter:
- *      i - The index of the geqrt in the panel k
- * Return
- *     The size of domain in tiles
- *
- * Warning: It doesn't work with domino
- */
-int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i ) {
-    /*int a = arg -> a;
-    int p = arg -> p;
-    int mt = desc -> mt;
-    int nb_tile = arg->desc->mt - k;
-    int m = dplasma_qr_getm(arg, k, i);
-    int proc = m / p;
-
-    int i_proc =
-    int nb_tile_proc =
-
-
-
-    int q = nb_tile_proc / a;
-    int r = nb_tile_proc - q*a;
-
-    if (i_proc < r)
-        return a-1;
-    else
-        return a;*/
-
-    //printf("\nDébut du calcul de getsize( k=%d, i=%d)\n",k,i);
-    int p = arg -> p;
-    int mt = arg->desc->mt;
-    int m = dplasma_qr_getm(arg, k, i);
-    int size = 1;
-    int next = m + p;
-    //printf("\nDans getsize: p = %d, mt = %d, m = %d, next = %d\n",p,mt,m,next);
-    while (next < mt ? dplasma_qr_gettype(arg, k, next) == 0 : 0) {
-        next += p;
-        size++;
-    }
-    //printf("\ngetsize( k=%d, i=%d) = %d\n",k,i,size);
-    return size;
-}
-
-
 /****************************************************
  *                 HQR_LOW_FLAT_TREE
  ***************************************************/
@@ -1485,6 +1440,51 @@ static int hqr_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
 
 
 #if 0
+/*
+ * Extra parameter:
+ *      i - The index of the geqrt in the panel k
+ * Return
+ *     The size of domain in tiles
+ *
+ * Warning: It doesn't work with domino
+ */
+int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i ) {
+    /*int a = arg -> a;
+    int p = arg -> p;
+    int mt = desc -> mt;
+    int nb_tile = arg->desc->mt - k;
+    int m = dplasma_qr_getm(arg, k, i);
+    int proc = m / p;
+
+    int i_proc =
+    int nb_tile_proc =
+
+
+
+    int q = nb_tile_proc / a;
+    int r = nb_tile_proc - q*a;
+
+    if (i_proc < r)
+        return a-1;
+    else
+        return a;*/
+
+    //printf("\nDébut du calcul de getsize( k=%d, i=%d)\n",k,i);
+    int p = arg -> p;
+    int mt = arg->desc->mt;
+    int m = dplasma_qr_getm(arg, k, i);
+    int size = 1;
+    int next = m + p;
+    //printf("\nDans getsize: p = %d, mt = %d, m = %d, next = %d\n",p,mt,m,next);
+    while (next < mt ? dplasma_qr_gettype(arg, k, next) == 0 : 0) {
+        next += p;
+        size++;
+    }
+    //printf("\ngetsize( k=%d, i=%d) = %d\n",k,i,size);
+    return size;
+}
+
+
 int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m)
 {
     int next = dplasma_qr_nextpiv(arg, p, k, m);
