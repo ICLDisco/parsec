@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2012      The University of Tennessee and The University
+ * Copyright (c) 2011-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
@@ -15,7 +15,7 @@
 
 #include "zgetrf_hincpiv.h"
 
-dague_object_t* dplasma_zgetrf_hincpiv_New( qr_piv_t *qrpiv,
+dague_object_t* dplasma_zgetrf_hincpiv_New( dplasma_qrtree_t *qrtree,
                                             tiled_matrix_desc_t *A,
                                             tiled_matrix_desc_t *IPIV,
                                             tiled_matrix_desc_t *LT,
@@ -29,10 +29,10 @@ dague_object_t* dplasma_zgetrf_hincpiv_New( qr_piv_t *qrpiv,
      * it should be passed as a parameter as in getrf
      */
 
-    object = dague_zgetrf_hincpiv_new( *A,  (dague_ddesc_t*)A,
-                                            (dague_ddesc_t*)IPIV,
-                                       *LT, (dague_ddesc_t*)LT,
-                                       qrpiv, ib,
+    object = dague_zgetrf_hincpiv_new( (dague_ddesc_t*)A,
+                                       (dague_ddesc_t*)IPIV,
+                                       (dague_ddesc_t*)LT,
+                                       *qrtree, ib,
                                        NULL, NULL,
                                        INFO);
 
@@ -48,17 +48,17 @@ dague_object_t* dplasma_zgetrf_hincpiv_New( qr_piv_t *qrpiv,
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
-    /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( object->arenas[DAGUE_zgetrf_hincpiv_LOWER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             MPI_DOUBLE_COMPLEX, A->mb, 0 );
-
     /* Upper triangular part of tile with diagonal */
     dplasma_add2arena_upper( object->arenas[DAGUE_zgetrf_hincpiv_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 1 );
+
+    /* Lower triangular part of tile without diagonal */
+    dplasma_add2arena_lower( object->arenas[DAGUE_zgetrf_hincpiv_LOWER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(dague_complex64_t),
+                             DAGUE_ARENA_ALIGNMENT_SSE,
+                             MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Little T */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_hincpiv_SMALL_L_ARENA],
@@ -76,7 +76,7 @@ dague_object_t* dplasma_zgetrf_hincpiv_New( qr_piv_t *qrpiv,
 }
 
 int dplasma_zgetrf_hincpiv( dague_context_t *dague,
-                            qr_piv_t *qrpiv,
+                            dplasma_qrtree_t *qrtree,
                             tiled_matrix_desc_t *A,
                             tiled_matrix_desc_t *IPIV,
                             tiled_matrix_desc_t *LT,
@@ -84,7 +84,7 @@ int dplasma_zgetrf_hincpiv( dague_context_t *dague,
 {
     dague_object_t *dague_zgetrf_hincpiv = NULL;
 
-    dague_zgetrf_hincpiv = dplasma_zgetrf_hincpiv_New(qrpiv, A, IPIV, LT, INFO);
+    dague_zgetrf_hincpiv = dplasma_zgetrf_hincpiv_New(qrtree, A, IPIV, LT, INFO);
 
     dague_enqueue(dague, (dague_object_t*)dague_zgetrf_hincpiv);
     dplasma_progress(dague);
@@ -112,4 +112,3 @@ dplasma_zgetrf_hincpiv_Destruct( dague_object_t *o )
 
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
-
