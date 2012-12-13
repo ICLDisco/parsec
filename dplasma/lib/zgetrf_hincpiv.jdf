@@ -416,7 +416,7 @@ BODY
                 A1 /* A(p, n)  */, ldap,
                 A2 /* A(m, n)  */, ldam,
                 V  /* A(m, k)  */, ldam,
-                T  /* LT(m, k) */, descLT.mb,
+                L  /* LT(m, k) */, descLT.mb,
                 p_elem_A, ib );
 
             dague_private_memory_push( p_work, p_elem_A );
