@@ -6,7 +6,7 @@
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
@@ -16,7 +16,7 @@
 
 #include "zgetrf_qrf.h"
 
-dague_object_t* dplasma_zgetrf_qrf_New( qr_piv_t *qrpiv,
+dague_object_t* dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                                         tiled_matrix_desc_t *A,
                                         tiled_matrix_desc_t *IPIV,
                                         tiled_matrix_desc_t *TS,
@@ -39,7 +39,7 @@ dague_object_t* dplasma_zgetrf_qrf_New( qr_piv_t *qrpiv,
                                    (dague_ddesc_t*)TS,
                                    (dague_ddesc_t*)TT,
                                    lu_tab,
-                                   qrpiv, ib, W,
+                                   *qrtree, ib, W,
                                    NULL, NULL,
                                    INFO);
 
@@ -56,23 +56,10 @@ dague_object_t* dplasma_zgetrf_qrf_New( qr_piv_t *qrpiv,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
     /* Upper triangular part of tile with diagonal */
-#if defined(WITH_BUG)
     dplasma_add2arena_upper( object->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 1 );
-#else
-    dplasma_add2arena_tile( object->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
-#endif
-
-    /* IPIV */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_PIVOT_ARENA],
-                                 A->mb*sizeof(int),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_INT, A->mb, 1, -1 );
 
     /* Lower triangular part of tile without diagonal */
     dplasma_add2arena_lower( object->arenas[DAGUE_zgetrf_qrf_LOWER_TILE_ARENA],
@@ -86,6 +73,12 @@ dague_object_t* dplasma_zgetrf_qrf_New( qr_piv_t *qrpiv,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, TS->mb, TS->nb, -1);
 
+    /* IPIV */
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_PIVOT_ARENA],
+                                 A->mb*sizeof(int),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_INT, A->mb, 1, -1 );
+
     /* EltDouble */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_ELTdouble_ARENA],
                                  2 * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
@@ -95,7 +88,7 @@ dague_object_t* dplasma_zgetrf_qrf_New( qr_piv_t *qrpiv,
 }
 
 int dplasma_zgetrf_qrf( dague_context_t *dague,
-                        qr_piv_t *qrpiv,
+                        dplasma_qrtree_t *qrtree,
                         tiled_matrix_desc_t *A,
                         tiled_matrix_desc_t *IPIV,
                         tiled_matrix_desc_t *TS,
@@ -105,7 +98,7 @@ int dplasma_zgetrf_qrf( dague_context_t *dague,
 {
     dague_object_t *dague_zgetrf_qrf = NULL;
 
-    dague_zgetrf_qrf = dplasma_zgetrf_qrf_New(qrpiv, A, IPIV, TS, TT, lu_tab, INFO);
+    dague_zgetrf_qrf = dplasma_zgetrf_qrf_New(qrtree, A, IPIV, TS, TT, lu_tab, INFO);
 
     dague_enqueue(dague, (dague_object_t*)dague_zgetrf_qrf);
     dplasma_progress(dague);
