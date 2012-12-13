@@ -33,7 +33,7 @@ dague_object_t* dplasma_ztrsmpl_hincpiv_New( dplasma_qrtree_t *qrtree,
                                         (dague_ddesc_t*)IPIV,
                                         (dague_ddesc_t*)B,
                                         (dague_ddesc_t*)LT,
-                                        qrtree, ib,
+                                        *qrtree, ib,
                                         NULL, NULL,
                                         INFO);
 
@@ -50,7 +50,7 @@ dague_object_t* dplasma_ztrsmpl_hincpiv_New( dplasma_qrtree_t *qrtree,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
     /* Upper triangular part of tile with diagonal */
-    dplasma_add2arena_upper( object->arenas[DAGUE_zgetrf_hincpiv_UPPER_TILE_ARENA],
+    dplasma_add2arena_upper( object->arenas[DAGUE_ztrsmpl_hincpiv_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 1 );
@@ -86,7 +86,7 @@ void dplasma_ztrsmpl_hincpiv( dague_context_t *dague,
 {
     dague_object_t *dague_ztrsmpl_hincpiv = NULL;
 
-    dague_ztrsmpl_hincpiv = dplasma_ztrsmpl_hincpiv_New(qrpiv, A, IPIV, B, LT, INFO);
+    dague_ztrsmpl_hincpiv = dplasma_ztrsmpl_hincpiv_New(qrtree, A, IPIV, B, LT, INFO);
 
     dague_enqueue(dague, (dague_object_t*)dague_ztrsmpl_hincpiv);
     dplasma_progress(dague);
