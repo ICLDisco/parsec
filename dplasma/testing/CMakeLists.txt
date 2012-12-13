@@ -38,8 +38,8 @@ set(TESTS
   testing_zprint.c
   #testing_zgesvd.c
   testing_zgetrf_hincpiv.c
-  testing_zgetrf_hpp.c
-  testing_zgetrf_hpp2.c
+#  testing_zgetrf_hpp.c
+#  testing_zgetrf_hpp2.c
   testing_zgetrf_qrf.c
 )
 if( DPLASMA_DEBUG_QR_PIVGEN )

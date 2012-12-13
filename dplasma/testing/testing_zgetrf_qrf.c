@@ -29,7 +29,7 @@ int main(int argc, char ** argv)
     int *lu_tab;
     int info = 0;
     int i, ret = 0;
-    qr_piv_t *qrpiv;
+    dplasma_qrtree_t qrtree;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -98,13 +98,14 @@ int main(int argc, char ** argv)
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
-    qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t *)&ddescA,
-                                 iparam[IPARAM_LOWLVL_TREE],
-                                 iparam[IPARAM_HIGHLVL_TREE],
-                                 iparam[IPARAM_QR_TS_SZE],
-                                 P,/*iparam[IPARAM_QR_HLVL_SZE],*/
-                                 0 /*iparam[IPARAM_QR_DOMINO]*/,
-                                 0 /*iparam[IPARAM_QR_TSRR]  */);
+    dplasma_hqr_init( &qrtree,
+                      (tiled_matrix_desc_t *)&ddescA,
+                      iparam[IPARAM_LOWLVL_TREE],
+                      iparam[IPARAM_HIGHLVL_TREE],
+                      iparam[IPARAM_QR_TS_SZE],
+                      P,/*iparam[IPARAM_QR_HLVL_SZE],*/
+                      0 /*iparam[IPARAM_QR_DOMINO]*/,
+                      0 /*iparam[IPARAM_QR_TSRR]  */);
     if ( check ) {
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA,
@@ -123,7 +124,7 @@ int main(int argc, char ** argv)
     /* Create DAGuE */
     if(loud > 2) printf("+++ Computing getrf_qrf ... ");
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_qrf,
-                              (qrpiv,
+                              (&qrtree,
                                (tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescIPIV,
                                (tiled_matrix_desc_t*)&ddescTS,
@@ -143,12 +144,12 @@ int main(int argc, char ** argv)
         /*
          * First check with a right hand side
          */
-        dplasma_ztrsmpl_qrf( dague, qrpiv,
+        dplasma_ztrsmpl_qrf( dague, &qrtree,
                              (tiled_matrix_desc_t *)&ddescA,
                              (tiled_matrix_desc_t *)&ddescIPIV,
+                             (tiled_matrix_desc_t *)&ddescX,
                              (tiled_matrix_desc_t *)&ddescTS,
                              (tiled_matrix_desc_t *)&ddescTT,
-                             (tiled_matrix_desc_t *)&ddescX,
                              lu_tab);
         dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                       (tiled_matrix_desc_t *)&ddescA,
@@ -164,12 +165,12 @@ int main(int argc, char ** argv)
          * Second check with inverse
          */
         if ( check_inv ) {
-            dplasma_ztrsmpl_qrf( dague, qrpiv,
+            dplasma_ztrsmpl_qrf( dague, &qrtree,
                                  (tiled_matrix_desc_t *)&ddescA,
                                  (tiled_matrix_desc_t *)&ddescIPIV,
+                                 (tiled_matrix_desc_t *)&ddescInvA,
                                  (tiled_matrix_desc_t *)&ddescTS,
                                  (tiled_matrix_desc_t *)&ddescTT,
-                                 (tiled_matrix_desc_t *)&ddescInvA,
                                  lu_tab);
             dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                           (tiled_matrix_desc_t *)&ddescA,
@@ -198,7 +199,7 @@ int main(int argc, char ** argv)
         }
     }
 
-    dplasma_pivgen_finalize( qrpiv );
+    dplasma_hqr_finalize( &qrtree );
     cleanup_dague(dague, iparam);
 
     dague_data_free(ddescA.mat);
