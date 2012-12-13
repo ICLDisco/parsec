@@ -113,14 +113,21 @@ void dplasma_systolic_init( dplasma_qrtree_t *qrtree,
                             int p, int q );
 void dplasma_systolic_finalize( dplasma_qrtree_t *qrtree );
 
+void dplasma_hqr_init( dplasma_qrtree_t *qrtree,
+                       tiled_matrix_desc_t *A,
+                       int type_llvl, int type_hlvl,
+                       int a, int p, int domino, int tsrr );
+void dplasma_hqr_finalize( dplasma_qrtree_t *qrtree );
+
 #if 0
-int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i );
+int dplasma_qr_getsize(     const qr_piv_t *arg, const int k, const int i );
 int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m);
 int dplasma_qr_prevtriangle(const qr_piv_t *arg, int p, const int k, int m);
-int dplasma_qr_nbkill(const qr_piv_t *arg, const int k, const int m);
-int dplasma_qr_getkill(const qr_piv_t *arg, const int k, const int m, const int j);
-int dplasma_qr_getjkill(const qr_piv_t *arg, const int k, const int m, const int kill);
+int dplasma_qr_nbkill(      const qr_piv_t *arg, const int k, const int m);
+int dplasma_qr_getkill(     const qr_piv_t *arg, const int k, const int m, const int j);
+int dplasma_qr_getjkill(    const qr_piv_t *arg, const int k, const int m, const int kill);
 #endif
+
 
 /*
  * Debugging functions
