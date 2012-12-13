@@ -42,20 +42,16 @@ set(JDF
   ztrdsm.jdf
   zgetrf_incpiv.jdf zgetrf_incpiv_sd.jdf
   ztrsmpl.jdf ztrsmpl_sd.jdf
-  ztrsmpl_hincpiv.jdf
-  ztrsmpl_hpp.jdf
-  ztrsmpl_hpp2.jdf
-  ztrsmpl_qrf.jdf
   zgeqrf.jdf
   zgelqf.jdf
   zherbt_L.jdf
   zhbrdt.jdf
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
   zgeqrf_param.jdf zungqr_param.jdf
-  zgetrf_hincpiv.jdf
-  zgetrf_hpp.jdf
-  zgetrf_hpp2.jdf
-  zgetrf_qrf.jdf
+  zgetrf_hincpiv.jdf ztrsmpl_hincpiv.jdf
+#  zgetrf_hpp.jdf     ztrsmpl_hpp.jdf
+#  zgetrf_hpp2.jdf    ztrsmpl_hpp2.jdf
+  zgetrf_qrf.jdf     ztrsmpl_qrf.jdf
   zungqr.jdf
   zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
   zlange_inf_cyclic.jdf
@@ -95,9 +91,6 @@ set(SOURCES
   ztrsm_wrapper.c
   ztrmm_wrapper.c
   ztrsmpl_wrapper.c
-  ztrsmpl_hincpiv_wrapper.c
-  ztrsmpl_hpp_wrapper.c
-  ztrsmpl_hpp2_wrapper.c
   zsymm_wrapper.c
   # Lapack Auxiliary
   zgeadd_wrapper.c
@@ -126,11 +119,10 @@ set(SOURCES
   zgesv_incpiv_wrapper.c
   zgeqrf_wrapper.c
   zgeqrf_param_wrapper.c
-  zgetrf_hincpiv_wrapper.c
-  zgetrf_hpp_wrapper.c
-  zgetrf_hpp2_wrapper.c
-  zgetrf_qrf_wrapper.c
-  ztrsmpl_qrf_wrapper.c
+  zgetrf_hincpiv_wrapper.c ztrsmpl_hincpiv_wrapper.c
+#  zgetrf_hpp_wrapper.c     ztrsmpl_hpp_wrapper.c    
+#  zgetrf_hpp2_wrapper.c    ztrsmpl_hpp2_wrapper.c   
+  zgetrf_qrf_wrapper.c     ztrsmpl_qrf_wrapper.c
   zungqr_param_wrapper.c
   zgelqf_wrapper.c
   zherbt_wrapper.c
