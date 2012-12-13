@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
     int nbthreads = 0;
     int f, t;
     dbp_file_t *dbp_f;
-    dague_time_t mintime, maxtime;
+    dague_time_t mintime = ZERO_TIME, maxtime = ZERO_TIME;
     dbp_thread_t *dbp_t;
     const dbp_event_t *dbp_e;
     float delta;
