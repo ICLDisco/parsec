@@ -9,6 +9,7 @@ set(EXTRA_SOURCES
   dplasmatypes.c
   dplasmaaux.c
   pivgen.c
+  systolic.c
   pivgen_dbg.c
   map2_wrapper.c
   butterfly_map.c
