@@ -1093,9 +1093,6 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#include <scheduling.h>\n"
             "#include <remote_dep.h>\n"
             "#include <datarepo.h>\n"
-            "#if defined(HAVE_PAPI)\n"
-            "#include <papime.h>\n"
-            "#endif\n"
             "#include \"%s.h\"\n\n"
             "#define DAGUE_%s_NB_FUNCTIONS %d\n"
             "#define DAGUE_%s_NB_DATA %d\n"
@@ -3252,28 +3249,6 @@ static void jdf_generate_code_dry_run_after(const jdf_t *jdf, const jdf_function
 }
 
 
-static void jdf_generate_code_papi_events_before(const jdf_t *jdf, const jdf_function_entry_t *f)
-{
-    (void)jdf;
-    (void)f;
-
-    coutput("  /** PAPI events */\n"
-	    "#if defined(HAVE_PAPI)\n"
-	    "  papime_start_thread_counters();\n"
-	    "#endif\n");
-}
-
-static void jdf_generate_code_papi_events_after(const jdf_t *jdf, const jdf_function_entry_t *f)
-{
-    (void)jdf;
-    (void)f;
-
-    coutput("  /** PAPI events */\n"
-            "#if defined(HAVE_PAPI)\n"
-	    "  papime_stop_thread_counters();\n"
-	    "#endif\n");
-}
-
 static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_function_entry_t *f, const char* context_name)
 {
     (void)jdf;
@@ -3459,7 +3434,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "    context->largest_simulation_date = this_task->sim_exec_date;\n"
             "#endif\n");
 
-    jdf_generate_code_papi_events_before(jdf, f);
     jdf_generate_code_cache_awareness_update(jdf, f);
 
     jdf_generate_code_dry_run_before(jdf, f);
@@ -3505,7 +3479,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
         coutput("  TAKE_TIME(context,2*this_task->function->function_id+1, %s_hash( __dague_object, this_task->locals ), NULL, 0);\n",
                 f->fname);
     }
-    jdf_generate_code_papi_events_after(jdf, f);
 
     coutput("#if defined(DISTRIBUTED)\n"
             "  /** If not working on distributed, there is no risk that data is not in place */\n");

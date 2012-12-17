@@ -38,7 +38,6 @@ void init_instru_steals(dague_execution_unit_t * eu, dague_execution_context_t *
 
 	register_instrument_callback(SCHED_FINI, fini_instru_steals);
 	register_instrument_callback(SCHED_STEAL, count_steal);
-	printf("registered everything\n");
 }
 
 void fini_instru_steals(dague_execution_unit_t * eu, dague_execution_context_t * task, void * data) {
@@ -48,7 +47,6 @@ void fini_instru_steals(dague_execution_unit_t * eu, dague_execution_context_t *
 	int p, q = 0;
 	unsigned int i = 0;
 	// unregister things
-	printf("entering fini\n");
 	unregister_instrument_callback(SCHED_STEAL);
 
 	// print everything
@@ -71,12 +69,49 @@ void fini_instru_steals(dague_execution_unit_t * eu, dague_execution_context_t *
 	steals = NULL;
 }
 
+// PETER this is all a hack
+#include "hbbuffer.h"
+#include "list.h"
+#include "dequeue.h"
+typedef struct {
+    dague_dequeue_t   *system_queue;
+    dague_hbbuffer_t  *task_queue;
+    int                nb_hierarch_queues;
+    dague_hbbuffer_t **hierarch_queues;
+} local_queues_scheduler_object_t;
+#define LOCAL_QUEUES_OBJECT(eu_context) ((local_queues_scheduler_object_t*)(eu_context)->scheduler_object)
+#define NUM_EVENTS 2
+#include <papi.h>
 void count_steal(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data) {
 	unsigned int victim_core_num = (unsigned int)data;
 	if (task != NULL) 
 		steals[core_lookup(exec_unit)][victim_core_num]++;
 	else // starvation
 		steals[core_lookup(exec_unit)][victim_core_num + 1]++;
+
+	long long int values[NUM_EVENTS] = {0, 0};
+	int retval = PAPI_OK;
+	if ((retval = PAPI_stop_counters(values, NUM_EVENTS)) != PAPI_OK)
+		printf("can't stop event counters! %d %s\n", retval, PAPI_strerror(retval));
+	else {
+		unsigned int cur_core_num = LOCAL_QUEUES_OBJECT(exec_unit)->task_queue->assoc_core_num;
+		// add counters
+		if (cur_core_num == victim_core_num) {
+			exec_unit->self_counters[0] += values[0];
+			exec_unit->self_counters[1] += values[1];
+			exec_unit->self++;
+		}
+		else if (victim_core_num == 48 || victim_core_num == 49) {
+			exec_unit->other_counters[0] += values[0];
+			exec_unit->other_counters[1] += values[1];
+			exec_unit->other++;
+		}
+		else { // steal
+			exec_unit->steal_counters[0] += values[0];
+			exec_unit->steal_counters[1] += values[1];
+			exec_unit->steal++;
+		}
+	}
 }
 
 static unsigned int core_lookup(dague_execution_unit_t * eu) {

@@ -41,6 +41,13 @@ struct dague_execution_unit {
     int largest_simulation_date;
 #endif
 
+	long long int self_counters[2];
+	long long int steal_counters[2];
+	long long int other_counters[2];
+	int self;
+	int steal;
+	int other;
+
     struct dague_vp        *virtual_process;   /**< Backlink to the virtual process that holds this thread */
     dague_thread_mempool_t *context_mempool;
     dague_thread_mempool_t *datarepo_mempools[MAX_PARAM_COUNT+1];

@@ -7,6 +7,8 @@ typedef enum INSTRUMENT_FLAG {
 	SCHED_INIT,
 	SCHED_FINI,
 	SCHED_STEAL,
+	TASK_SELECT_BEFORE,
+	TASK_SELECT_AFTER,
 	PARSEC_SCHEDULED,
 	PARSEC_PROLOGUE,
 	PARSEC_BODY,
@@ -24,7 +26,7 @@ parsec_instrument_callback * register_instrument_callback(INSTRUMENT_FLAG method
 
 parsec_instrument_callback * unregister_instrument_callback(INSTRUMENT_FLAG method_flag);
 
-#define PARSEC_INSTR
+#define PARSEC_INSTR // TODO remove this and put into cmake or something
 
 #ifdef PARSEC_INSTR
 #define PARSEC_INSTRUMENT(method_flag, exec_unit, task, data)    \
@@ -32,7 +34,6 @@ parsec_instrument_callback * unregister_instrument_callback(INSTRUMENT_FLAG meth
 #else
 #define PARSEC_INSTRUMENT(method_flag, exec_unit, task, data)    \
 	do {} while (0);
-#error "whynot"
 #endif
 
 #endif

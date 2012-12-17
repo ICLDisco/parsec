@@ -23,22 +23,12 @@
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
 
-typedef struct {
-	unsigned int try_count;
-	unsigned int steal_count;
-	//	int L1_cache_misses;
-	//  int L2_cache_misses;
-	//  int L3_cache_misses;
-} neighbor_statistic;
-
 int SYSTEM_NEIGHBOR = 0; // define this during init
 
 typedef struct {
     dague_dequeue_t   *system_queue;
     dague_hbbuffer_t  *task_queue;
     int                nb_hierarch_queues;
-	unsigned int       choice_count;
-	neighbor_statistic *neighbor_stats;
     dague_hbbuffer_t **hierarch_queues;
 } local_queues_scheduler_object_t;
 
@@ -222,7 +212,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
     if (heap != NULL)
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
 
-    PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, SYSTEM_NEIGHBOR);
+    PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
     return exec_context;
 }
 
@@ -447,9 +437,6 @@ static int init_local_flat_queues(  dague_context_t *master )
             sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
             eu->scheduler_object = sched_obj;
 
-            sched_obj->choice_count = 0;
-            sched_obj->neighbor_stats = calloc(master->nb_vp * vp->nb_cores + 1, sizeof(neighbor_statistic)); // use calloc to set all counts to zero
-    
             if( eu->th_id == 0 ) {
                 sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
                 dague_dequeue_construct( sched_obj->system_queue );
@@ -616,40 +603,23 @@ static dague_execution_context_t *choose_job_local_queues( dague_execution_unit_
     dague_execution_context_t *exec_context = NULL;
     int i;
 
-    /* LOCAL_QUEUES_OBJECT(eu_context)->choice_count++; */
-
-    /* LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num].try_count++; */
-    /* exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, */
-    /*                                                                    dague_execution_context_priority_comparator); */
-
-    /* if (LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num == LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[0]->assoc_core_num) */
-	/*     printf("this is just strange...\n"); */
-
-    /* if( NULL != exec_context ) { */
-	/*     printf("stole a first order\n"); */
-    /*     LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num].steal_count++; */
-    /*     return exec_context; */
-    /* } */
-
     for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
         exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i],
                                                                            dague_execution_context_priority_comparator);
-        LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num].try_count++;
         if( NULL != exec_context ) {
-	        LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num].steal_count++; // increment steal count
             DEBUG3(("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
                     eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]));
+	        PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
             return exec_context;
         }
     }
 
     exec_context = (dague_execution_context_t *)dague_dequeue_try_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
-    LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[SYSTEM_NEIGHBOR].try_count++;
     if( NULL != exec_context ) {
-        LOCAL_QUEUES_OBJECT(eu_context)->neighbor_stats[SYSTEM_NEIGHBOR].steal_count++; // increment steal count
         DEBUG3(("LQ\t: %d:%d found task %p in its system queue %p\n",
                 eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue));
     }
+    PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
     return exec_context;
 }
 
@@ -721,26 +691,6 @@ static void finalize_local_flat_queues( dague_context_t *master )
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_units[t];
             sched_obj = LOCAL_QUEUES_OBJECT(eu);
-
-            int u = 0;
-            printf("    ");
-            for (u = 0; u < master->nb_vp * vp->nb_cores; u++) {
-	            printf("%4u ", sched_obj->neighbor_stats[u].steal_count);
-            }
-            printf("%4u\n", sched_obj->neighbor_stats[SYSTEM_NEIGHBOR].steal_count);
-
-            /* int u = 0; */
-            /* printf("    exec_unit %p, core #%u\n", eu, sched_obj->task_queue->assoc_core_num); */
-            /* for (u = 0; u < sched_obj->nb_hierarch_queues; u++) { */
-	        /*     printf("    steals/attempts from core %3d: %4u / %4u\n", u, sched_obj->neighbor_stats[u].steal_count, */
-	        /*            sched_obj->neighbor_stats[u].try_count); */
-            /* } */
-            /* printf("    steals/attempts from SYSTEM QUEUE: %4u / %4u\n", sched_obj->neighbor_stats[SYSTEM_NEIGHBOR].steal_count,  */
-            /*        sched_obj->neighbor_stats[SYSTEM_NEIGHBOR].try_count); */
-            /* printf("    starvation:       %4u\n\n", sched_obj->neighbor_stats[SYSTEM_NEIGHBOR].try_count - sched_obj->neighbor_stats[SYSTEM_NEIGHBOR].steal_count); */
-
-            free(sched_obj->neighbor_stats);
-            sched_obj->neighbor_stats = NULL;
 
             if( eu->th_id == 0 ) {
                 dague_dequeue_destruct( sched_obj->system_queue );

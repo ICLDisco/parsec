@@ -55,5 +55,4 @@ static void empty_callback(dague_execution_unit_t * exec_unit, dague_execution_c
 	(void) exec_unit;
 	(void) task;
 	(void) data;
-	printf("doing nothing\n");
 }

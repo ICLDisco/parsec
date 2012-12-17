@@ -15,9 +15,10 @@
 #include "vpmap.h"
 #include "instrument.h"
 
-#define PARSEC_STEAL_INSTR
 
-#ifdef PARSEC_STEAL_INSTR // TODO this is temporary
+#include "instru_cachemiss.h" // PETER this depends on PAPI as well as PARSEC_INSTRUMENT
+#define PARSEC_STEAL_INSTR // PETER move to build process
+#ifdef PARSEC_STEAL_INSTR // PETER this is temporary
 #include "instru_steals.h"
 #endif
 
@@ -102,7 +103,7 @@ void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
         memcpy( &scheduler, s, sizeof(dague_scheduler_t) );
         scheduler.init( dague );
 #if defined(PARSEC_STEAL_INSTR)
-        // TODO this is temporary
+        // TODO move this to some initialization routine
         register_instrument_callback(SCHED_INIT, init_instru_steals);
 #endif
         PARSEC_INSTRUMENT(SCHED_INIT, NULL, NULL, dague);
@@ -159,6 +160,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
      */
+    PARSEC_INSTRUMENT(PARSEC_SCHEDULED, eu_context, new_context, NULL);
 
     return ret;
 }
@@ -215,6 +217,10 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         my_barrier_counter = 1;
     }
 
+    // PETER put this in correct initialization place for PARSEC_INSTRUMENT stuff
+    register_instrument_callback(TASK_SELECT_BEFORE, start_papi_cache_miss_count);
+    //    register_instrument_callback(TASK_SELECT_AFTER, stop_papi_cache_miss_count);
+
     /* The main loop where all the threads will spend their time */
  wait_for_the_next_round:
     /* Wait until all threads are here and the main thread signal the begining of the work */
@@ -253,12 +259,12 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         }
 
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
+        PARSEC_INSTRUMENT(TASK_SELECT_BEFORE, eu_context, NULL, NULL);
         exec_context = scheduler.select_task(eu_context);
+        //        PARSEC_INSTRUMENT(TASK_SELECT_AFTER, eu_context, exec_context, NULL);
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
         if( exec_context != NULL ) {
-            // DEBUG PETER
-            assert(NULL != exec_context->function);
             misses_in_a_row = 0;
                           
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
@@ -344,6 +350,22 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         }
     }
 #endif  /* DAGUE_REPORT_STATISTICS */
+
+    // PETER hacky test code
+    printf("self %7lld %7lld steal %7lld %7lld other %7lld %7lld per: %4lld %4lld | %4lld %4lld | %4lld %4lld\n", 
+           eu_context->self_counters[0], 
+           eu_context->self_counters[1],
+           eu_context->steal_counters[0],
+           eu_context->steal_counters[1],
+           eu_context->other_counters[0],
+           eu_context->other_counters[1],
+           eu_context->self_counters[0] / eu_context->self,
+           eu_context->self_counters[1] / eu_context->self,
+           eu_context->steal_counters[0] / eu_context->steal,
+           eu_context->steal_counters[1] / eu_context->steal,
+           eu_context->other_counters[0] / eu_context->other,
+           eu_context->other_counters[1] / eu_context->other
+           );
 
     return (void*)((long)nbiterations);
 }

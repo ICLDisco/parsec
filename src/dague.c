@@ -138,7 +138,6 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     // STEPH:: 
     //printf("VP %i : bind thread %i.%i  on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto); 
 
-
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
         return NULL;
@@ -151,6 +150,17 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     eu->sched_nb_tasks_done = 0;
 #endif
+
+    // PETER init for counters
+    eu->self_counters[0] = 0;
+    eu->self_counters[1] = 0;
+    eu->self = 1;
+    eu->steal_counters[0] = 0;
+    eu->steal_counters[1] = 0;
+    eu->steal = 1;
+    eu->other_counters[0] = 0;
+    eu->other_counters[1] = 0;
+    eu->other = 1;
 
     eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
@@ -170,7 +180,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         vpmap_display_map(stderr);   
         return NULL; 
     }
-    
+
     return __dague_progress(eu);
     
 }
@@ -213,12 +223,19 @@ static void dague_vp_init( dague_vp_t *vp,
     }
 }
 
+#include <papi.h>
+
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
     int argc = 0, nb_vp, p, t, nb_total_comp_threads;
     char** argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
+
+    PAPI_library_init(PAPI_VER_CURRENT); // PETER: this has to happen before threads get created
+    int t_init = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self )); // PETER is this the right place? it needs protection
+    if (t_init != PAPI_OK)
+	    printf("PAPI Thread Init failed with error code %d (%s)!\n", t_init, PAPI_strerror(t_init));
 
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
@@ -278,7 +295,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     startup =
         (__dague_temporary_thread_initialization_t*)malloc(nb_total_comp_threads * sizeof(__dague_temporary_thread_initialization_t));
-
+    
     context->nb_vp = nb_vp;
     t = 0;
     for(p = 0; p < nb_vp; p++) {

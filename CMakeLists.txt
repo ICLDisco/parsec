@@ -428,15 +428,14 @@ IF( BUILD_DAGUE )
     endif (CUDA_FOUND)
   endif( DAGUE_GPU_WITH_CUDA )
 
-  if (DAGUE_PROF_PAPI)
+  if (PARSEC_STEAL_INSTR)
     find_package(PAPI REQUIRED)
     set(HAVE_PAPI ${PAPI_FOUND})
     if (PAPI_FOUND)
-      list(APPEND EXTRA_SOURCES src/papime.c)
       list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
       include_directories( ${PAPI_INCLUDE_DIR} )
     endif (PAPI_FOUND)
-  endif (DAGUE_PROF_PAPI)
+  endif (PARSEC_STEAL_INSTR)
   
   if( DAGUE_PROF_TRACE )
     list(APPEND EXTRA_SOURCES src/profiling.c)
@@ -459,6 +458,8 @@ IF( BUILD_DAGUE )
   if (PARSEC_STEAL_INSTR)
     list(APPEND EXTRA_SOURCES src/instru_steals.c)
   endif(PARSEC_STEAL_INSTR)
+
+  list(APPEND EXTRA_SOURCES src/instru_cachemiss.c) # PETER needs cleanup
 
 ENDIF( BUILD_DAGUE )
 
