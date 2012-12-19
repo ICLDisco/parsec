@@ -137,12 +137,15 @@ int main(int argc, char *argv[])
             lapack_const(PlasmaNoVec), lapack_const(uplo),
             N, A2, LDA, W1);
 
+#ifdef PRINTF_HEAVY
         printf("Eigenvalues original\n");
         for(i = 0; i < N; i++){
             printf("%f\n", W1[i]);
         }
         printf("\n");
+#endif
 
+/****** AURELIEN: Why do we convert that back to tile format, never used again */
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
 #if 0
         {
@@ -189,11 +192,13 @@ int main(int argc, char *argv[])
                lapack_const(PlasmaNoVec), lapack_const(uplo),
                N, A2, LDA, W2);
 
+#ifdef PRINTF_HEAVY
         printf("Eigenvalues computed\n");
         for (i = 0; i < N; i++){
             printf("%f \n", W2[i]);
         }
         printf("\n");
+#endif
 
         double eps = LAPACKE_dlamch_work('e');
         printf("\n");
