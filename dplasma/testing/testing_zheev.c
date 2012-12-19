@@ -18,6 +18,9 @@
 #define FADDS_ZHEEV(__n) (((__n) * (-8.0 / 3.0 + (__n) * (1.0 + 2.0 / 3.0 * (__n)))) - 4.0)
 #define FMULS_ZHEEV(__n) (((__n) * (-1.0 / 6.0 + (__n) * (5.0 / 2.0 + 2.0 / 3.0 * (__n)))) - 15.0)
 
+static int check_solution(int N, double *E1, double *E2, double eps);
+
+
 static inline double dplasma_fmax( double a, double b){
     return ( a > b ) ? a : b;
 }
