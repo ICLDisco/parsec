@@ -20,20 +20,12 @@
 
 static int check_solution(int N, double *E1, double *E2, double eps);
 
-
-static inline double dplasma_fmax( double a, double b){
-    return ( a > b ) ? a : b;
-}
-
-static int check_solution(int, double*, double*, double);
-
 int main(int argc, char *argv[])
 {
     int i, j;
     dague_context_t *dague;
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaLower;
-    PLASMA_desc *plasmaDescA;
 
      /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -51,79 +43,41 @@ int main(int argc, char *argv[])
     PLASMA_Init(1);
     PLASMA_Disable(PLASMA_AUTOTUNING);
     PLASMA_Set(PLASMA_TILE_SIZE, MB);
-
-    PLASMA_Complex64_t *A2 = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
-    double *W1             = (double *)malloc(N*sizeof(double));
-    double *W2             = (double *)malloc(N*sizeof(double));
-    double *D             = (double *)malloc(N*sizeof(double));
-    double *E             = (double *)malloc(N*sizeof(double));
-    int INFO;
-
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-         nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-         N, N, 1, 1, P))
-    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
-         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
-         nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
-         MT*IB, N, 1, 1, P))
-/*
+ 
+ /*
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
          sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
          nodes, cores, rank, MB, NB, LDA, N, 0, 0,
          N, N, P, uplo))
+*/
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+         nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+         N, N, 1, 1, P))
+    /* Fill A with randomness */
+    dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA, 3872);
+
+/*
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
          sym_two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble,
          nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
          MT*IB, N, P, uplo))
 */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1,
-        two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble, matrix_Tile,
-        nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
-        MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
+    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
+         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
+         nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+         MT*IB, N, 1, 1, P))
 
-    PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble,
-         ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz,
-         ddescA.super.lm, ddescA.super.ln, ddescA.super.i, ddescA.super.j,
-         ddescA.super.m, ddescA.super.n);
-
-    dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA, 3872);
-
-    if( check ) {
-        PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
-
-        /*
-        */
-        printf("A2 avant\n");
-        for (i = 0; i < N; i++){
-            for (j = 0; j < N; j++) {
-                //printf("%f+%fi ",
-                    //creal(A2[N*j+i]),
-                    //cimag(A2[N*j+i]));
-#if defined(PRECISION_d) || defined(PRECISION_s)
-                printf("%f ", A2[LDA*j+i] );
-#else
-                printf("(%f, %f)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
-#endif
-            }
-            printf("\n");
-        }
-
-        LAPACKE_zheev( LAPACK_COL_MAJOR,
-               lapack_const(PlasmaNoVec), lapack_const(uplo),
-               N, A2, LDA, W1);
-
-        printf("Eigenvalues original\n");
-        for(i = 0; i < N; i++){
-            printf("%f\n", W1[i]);
-        }
-        printf("\n");
-    }
-
+    /* REDUCTION OF A TO BAND */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt,
          (uplo, IB, (tiled_matrix_desc_t*)&ddescA, (tiled_matrix_desc_t*)&ddescT));
     PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
 
+    /* CONVERSION OF A INTO BAND STORAGE */
+    PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1,
+        two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble, matrix_Tile,
+        nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
+        MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
     SYNC_TIME_START();
     dague_diag_band_to_rect_object_t* DAGUE_diag_band_to_rect = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
             MT, NT, MB, NB, sizeof(matrix_ComplexDouble));
@@ -136,10 +90,59 @@ int main(int argc, char *argv[])
     dague_progress(dague);
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 
+    /* REDUCTION TO BIDIAGONAL FORM */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zhbrdt, ((tiled_matrix_desc_t*)&ddescBAND));
     PASTE_CODE_PROGRESS_KERNEL(dague, zhbrdt)
 
+
     if( check ) {
+        PLASMA_desc *plasmaDescA;
+        PLASMA_Complex64_t *A2  = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
+        double *W1              = (double *)malloc(N*sizeof(double));
+        double *W2              = (double *)malloc(N*sizeof(double));
+        double *D               = (double *)malloc(N*sizeof(double));
+        double *E               = (double *)malloc(N*sizeof(double));
+        int INFO;
+
+        /* Regenerate A (same random generator) into A0 */
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
+            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
+            nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+            N, N, 1, 1, P))
+        /* Fill A0 with the same randomness */
+        dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
+
+
+        PLASMA_Desc_Create(&plasmaDescA, ddescA0.mat, PlasmaComplexDouble,
+            ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
+            ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
+            ddescA0.super.m, ddescA0.super.n);
+        PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
+
+#ifdef PRINTF_HEAVY
+        printf("A2 avant\n");
+        for (i = 0; i < N; i++){
+            for (j = 0; j < N; j++) {
+#   if defined(PRECISION_d) || defined(PRECISION_s)
+                printf("%f ", A2[LDA*j+i] );
+#   else
+                printf("(%f, %f)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
+#   endif
+            }
+            printf("\n");
+        }
+#endif
+
+        LAPACKE_zheev( LAPACK_COL_MAJOR,
+            lapack_const(PlasmaNoVec), lapack_const(uplo),
+            N, A2, LDA, W1);
+
+        printf("Eigenvalues original\n");
+        for(i = 0; i < N; i++){
+            printf("%f\n", W1[i]);
+        }
+        printf("\n");
+
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
 #if 0
         {
@@ -163,20 +166,21 @@ int main(int argc, char *argv[])
         /* call eigensolver */
         dsterf_( &N, D, E, &INFO);
 
-        /*
-        */
+#ifdef PRINTF_HEAVY
         printf("A2 apres\n");
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
-#if defined(PRECISION_d) || defined(PRECISION_s)
+#   if defined(PRECISION_d) || defined(PRECISION_s)
                 printf("%f ", A2[LDA*j+i] );
-#else
+#   else
                 printf("(%f, %f)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
-#endif
+#   endif
             }
             printf("\n");
         }
+#endif
 
+/***** AURELIEN: AFTER THAT, I DON'T UNDERSTAND WHAT'S GOING ON */
         for (j = 0; j < N; j++)
             for (i = j+2; i < N; i++)
                 A2[LDA*j+i]=0.0;
@@ -184,7 +188,6 @@ int main(int argc, char *argv[])
         LAPACKE_zheev( LAPACK_COL_MAJOR,
                lapack_const(PlasmaNoVec), lapack_const(uplo),
                N, A2, LDA, W2);
-
 
         printf("Eigenvalues computed\n");
         for (i = 0; i < N; i++){
@@ -215,6 +218,7 @@ int main(int argc, char *argv[])
             printf(" - TESTING ZHEEV ..................... FAILED !\n");
             printf("************************************************\n");
         }
+        free(A2); free(W1); free(W2); free(D); free(E);
     }
 
     dplasma_zherbt_Destruct( DAGUE_zherbt );
@@ -223,7 +227,6 @@ int main(int argc, char *argv[])
 
     cleanup_dague(dague, iparam);
 
-    free(A2); free(W1); free(W2); free(D); free(E);
     dague_data_free(ddescBAND.mat);
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
@@ -237,6 +240,7 @@ int main(int argc, char *argv[])
 }
 
 
+#include "math.h"
 
 /*--------------------------------------------------------------
  * Check the solution
@@ -248,11 +252,11 @@ static int check_solution(int N, double *E1, double *E2, double eps)
     double *Residual = (double *)malloc(N*sizeof(double));
     double maxtmp;
     double maxel  = fabs(fabs(E1[0])-fabs(E2[0]));
-    double maxeig = dplasma_fmax(fabs(E1[0]), fabs(E2[0]));
+    double maxeig = fmax(fabs(E1[0]), fabs(E2[0]));
     for (i = 1; i < N; i++){
         Residual[i] = fabs(fabs(E1[i])-fabs(E2[i]));
-        maxtmp      = dplasma_fmax(fabs(E1[i]), fabs(E2[i]));
-        maxeig      = dplasma_fmax(maxtmp, maxeig);
+        maxtmp      = fmax(fabs(E1[i]), fabs(E2[i]));
+        maxeig      = fmax(maxtmp, maxeig);
         //printf("Residu: %f E1: %f E2: %f\n", Residual[i], E1[i], E2[i] );
         if (maxel < Residual[i])
            maxel =  Residual[i];
