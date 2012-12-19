@@ -112,6 +112,10 @@ int main(int argc, char *argv[])
         /* Fill A0 with the same randomness */
         dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
 
+        if( P*Q > 1 ) {
+            printf("CHECKS ARE NOT POSSIBLE IN DISTRIBUTED (YET)\n");
+            goto checkdone;
+        }
 
         PLASMA_Desc_Create(&plasmaDescA, ddescA0.mat, PlasmaComplexDouble,
             ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
@@ -225,7 +229,8 @@ int main(int argc, char *argv[])
         }
         free(A2); free(W1); free(W2); free(D); free(E);
     }
-
+    
+checkdone:
     dplasma_zherbt_Destruct( DAGUE_zherbt );
     DAGUE_INTERNAL_OBJECT_DESTRUCT( DAGUE_diag_band_to_rect );
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
