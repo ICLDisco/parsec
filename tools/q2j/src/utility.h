@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include "node_struct.h"
+#include "string_arena.h"
+#include "jdf.h"
 
 BEGIN_C_DECLS
 
@@ -37,11 +39,18 @@ struct _expr_t{
     expr_t *l;
     expr_t *r;
     union {
-        const char *name;
+        char *name;
         long int int_const;
     } value;
 };
-    
+
+#define Q2J_ASSERT(_X_) assert((_X_));
+
+#define q2jmalloc(type, nbelem)  (type*)calloc(nbelem, sizeof(type))
+
+char *indent(int n, int size);
+void jdfoutput(const char *format, ...);    
+void jdf_register_pools(jdf_t *jdf );
 
 // AST utility functions
 int    DA_is_if(node_t *node);
@@ -62,6 +71,8 @@ node_t *DA_loop_ub(node_t *node);
 node_t *DA_if_condition(node_t *node);
 node_t *DA_if_then_body(node_t *node);
 node_t *DA_if_else_body(node_t *node);
+node_t *DA_exp_to_ind(node_t *node);
+int     DA_exp_to_const(node_t *node);
 
 node_t *DA_create_ID(char *name);
 node_t *DA_create_Int_const(int64_t val);
@@ -82,14 +93,17 @@ int DA_tree_contains_only_known_vars(node_t *node, char **known_vars);
 
 void convert_OUTPUT_to_INOUT(node_t *node);
 void add_entry_and_exit_task_loops(node_t *node);
+void associate_pending_pragmas_with_function(node_t *function);
+
 
 char *quark_tree_to_body(node_t *node);
-node_t *print_default_task_placement(node_t *task_node);
-char *create_pool_declarations(void);
+node_t *quark_get_locality(node_t *node);
+string_arena_t *create_pool_declarations(void);
 
 
 // yacc utility
 node_t *node_to_ptr(node_t node);
+void add_pending_invariant(node_t *node);
 
 // Use/Def data structure utility functions
 und_t **get_variable_uses_and_defs(node_t *node);
@@ -104,28 +118,34 @@ void assign_UnD_to_tasks(node_t *node);
 char *append_to_string(char *str, const char *app, const char *fmt, size_t add_length);
 char *tree_to_str(node_t *node);
 char *tree_to_str_with_substitutions(node_t *node, str_pair_t *solved_vars);
+const char *type_to_str(int type);
 const char *type_to_symbol(int type);
 void dump_tree(node_t node, int offset);
 void dump_for(node_t *node);
 void dump_all_unds(void);
 void dump_und(und_t *und);
 
-#define DA_kid(_N_, _X_)   ((_N_)->u.kids.kids[(_X_)])
-#define DA_kid_count(_N_)   ((_N_)->u.kids.kid_count)
-#define DA_assgn_lhs(_N_)  DA_kid((_N_), 0)
-#define DA_assgn_rhs(_N_)  DA_kid((_N_), 1)
-#define DA_rel_lhs(_N_)    DA_kid((_N_), 0)
-#define DA_rel_rhs(_N_)    DA_kid((_N_), 1)
-#define DA_for_body(_N_)   DA_kid((_N_), 3)
-#define DA_for_scond(_N_)  DA_kid((_N_), 0)
-#define DA_for_econd(_N_)  DA_kid((_N_), 1)
-#define DA_for_incrm(_N_)  DA_kid((_N_), 2)
-#define DA_while_cond(_N_) DA_kid((_N_), 0)
-#define DA_while_body(_N_) DA_kid((_N_), 1)
-#define DA_do_cond(_N_)    DA_kid((_N_), 0)
-#define DA_do_body(_N_)    DA_kid((_N_), 1)
-#define DA_func_name(_N_)  (( DA_kid((_N_), 0)->type == IDENTIFIER ) ? DA_kid((_N_), 0)->u.var_name : NULL)
-#define DA_int_val(_N_)    ((_N_)->const_val.i64_value)
+#define DA_kid(_N_, _X_)      ((_N_)->u.kids.kids[(_X_)])
+#define DA_kid_count(_N_)     ((_N_)->u.kids.kid_count)
+#define DA_var_name(_N_)      (( (NULL!=(_N_)) && ((_N_)->type == IDENTIFIER) ) ? (_N_)->u.var_name : NULL)
+#define DA_int_val(_N_)       ((_N_)->const_val.i64_value)
+#define DA_assgn_lhs(_N_)     DA_kid((_N_), 0)
+#define DA_assgn_rhs(_N_)     DA_kid((_N_), 1)
+#define DA_rel_lhs(_N_)       DA_kid((_N_), 0)
+#define DA_rel_rhs(_N_)       DA_kid((_N_), 1)
+#define DA_exp_lhs(_N_)       DA_kid((_N_), 0)
+#define DA_exp_rhs(_N_)       DA_kid((_N_), 1)
+#define DA_func_body(_N_)     DA_kid((_N_), 1)
+#define DA_func_name(_N_)     DA_var_name( DA_kid((_N_), 0) )
+#define DA_for_body(_N_)      DA_kid((_N_), 3)
+#define DA_for_scond(_N_)     DA_kid((_N_), 0)
+#define DA_for_econd(_N_)     DA_kid((_N_), 1)
+#define DA_for_modifier(_N_)  DA_kid((_N_), 2)
+#define DA_while_cond(_N_)    DA_kid((_N_), 0)
+#define DA_while_body(_N_)    DA_kid((_N_), 1)
+#define DA_do_cond(_N_)       DA_kid((_N_), 0)
+#define DA_do_body(_N_)       DA_kid((_N_), 1)
+//#define DA_func_name(_N_)     (( (NULL!=(_N_)) && (DA_kid((_N_), 0)->type == IDENTIFIER) ) ? DA_kid((_N_), 0)->u.var_name : NULL)
 
 
 #define UND_IGNORE 0x0

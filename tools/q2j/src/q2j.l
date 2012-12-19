@@ -15,6 +15,7 @@ IS			(u|U|l|L)*
 #include "dague_config.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "jdf.h"
 #include "node_struct.h"
 #include "parse_utility.h"
 #include "symtab.h"
@@ -31,9 +32,9 @@ void cpp_comment();
 "/*"			{ comment(); }
 "//"			{ cpp_comment(); }
 
-"DAGUE_INVARIANT"	{ count(); return(DIR_DAGUE_INVARIANT); }
-"DAGUE_DATA_COLOCATED"	{ count(); return(DIR_DAGUE_DATA_COLOCATED); }
-"DAGUE_TASK_START"	{ count(); return(DIR_DAGUE_TASK_START); }
+"PARSEC_INVARIANT"	{ count(); return(DIR_PARSEC_INVARIANT); }
+"PARSEC_DATA_COLOCATED"	{ count(); return(DIR_PARSEC_DATA_COLOCATED); }
+"PARSEC_TASK_START"	{ count(); return(DIR_PARSEC_TASK_START); }
 "pragma"		{ count(); return(PRAGMA); }
 "break"			{ count(); return(BREAK); }
 "case"			{ count(); return(CASE); }

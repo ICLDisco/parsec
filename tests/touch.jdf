@@ -1,0 +1,41 @@
+extern "C" %{
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+%}
+
+A          [type = "two_dim_block_cyclic_t*"]
+NT         [type = int]
+
+STARTUP(k)
+
+  k = 0 .. NT
+: A(k,0)
+
+  WRITE A1 -> A2 TASK1(k)
+BODY
+  printf("STARTUP(%d)\n", k);
+END
+
+TASK1(k)
+  k = 0 .. NT
+: A(k,0)
+
+  WRITE A3 -> A1 TASK2(k)
+  RW    A1 <- A(k,0)
+           -> A2 TASK2(k)
+  READ  A2 <- A1 STARTUP(k)
+
+BODY
+  printf("TASKS1(%d)\n", k);
+END
+
+TASK2(k)
+  k = 0 .. NT
+: A(k,0)
+
+  READ A1 <- A3 TASK1(k)
+  RW   A2 <- A1 TASK1(k)
+          -> A(k, 0)
+
+BODY
+  printf("TASKS2(%d)\n", k);
+END

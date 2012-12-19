@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -28,7 +28,7 @@ extern "C" %{
 side   [type = PLASMA_enum]
 uplo   [type = PLASMA_enum]
 alpha  [type = dague_complex64_t]
-beta   [type = double]
+beta   [type = dague_complex64_t]
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
 descB  [type = "tiled_matrix_desc_t"]
@@ -40,13 +40,14 @@ plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 plasma_left    [type="PLASMA_enum" hidden=on default=PlasmaLeft  ]
 plasma_right   [type="PLASMA_enum" hidden=on default=PlasmaRight ]
+c [type="int" hidden=on default="( (side == PlasmaLeft) ? ((uplo == PlasmaLower) ? 0 : 1 ) : ((uplo == PlasmaLower) ? 2 : 3) )" ]
+
 
 hemm_in_A(m, n) [profile = off]
 // Execution space
 m = 0 .. descA.mt-1
 n = ((uplo == plasma_upper) ? m : 0) .. ((uplo == plasma_upper) ? descA.nt-1 : m)
-c = ( (side == plasma_left) ? ((uplo == plasma_lower) ? 0 : 1 ) : ((uplo == plasma_lower) ? 2 : 3) )
-    
+
 : A(m, n)
 
   RW A <- A(m, n)
@@ -62,8 +63,7 @@ hemm_in_B(m, n) [profile = off]
 // Execution space
 m = 0 .. descB.mt-1
 n = 0 .. descB.nt-1
-c = ( (side == plasma_left) ? ((uplo == plasma_lower) ? 0 : 1 ) : ((uplo == plasma_lower) ? 2 : 3) )
-    
+
 : B(m, n)
 
   RW B <- B(m, n)
@@ -79,25 +79,22 @@ HEMM(m, n, k)
 m = 0 .. descC.mt-1
 n = 0 .. descC.nt-1
 k = 0 .. (side == plasma_left ) ? descC.mt-1 : descC.nt-1
-c = ( (side == plasma_left) ? ((uplo == plasma_lower) ? 0 : 1 ) : ((uplo == plasma_lower) ? 2 : 3) )
-
-/* k = ( (side == plasma_left) ? ((uplo == plasma_lower) ? 0 : m+1 ) : ((uplo == plasma_lower) ? n+1 : 0) ) .. ( (side == plasma_left) ? ((uplo == plasma_lower) ? m-1 : descC.mt-1 ) : ((uplo == plasma_lower) ? descC.nt-1 : n-1) ) */
 
 // Parallel partitioning
 : C(m, n)
 
 // Parameters
 
-READ  A <- (c == 0) && (k <= m) ? A hemm_in_A(m, k) 
-        <- (c == 0) && (k >  m) ? A hemm_in_A(k, m) 
+READ  A <- (c == 0) && (k <= m) ? A hemm_in_A(m, k)
+        <- (c == 0) && (k >  m) ? A hemm_in_A(k, m)
         <- (c == 1) && (k <= m) ? A hemm_in_A(k, m)
-        <- (c == 1) && (k >  m) ? A hemm_in_A(m, k) 
-        <- (c == 2) || (c == 3) ? B hemm_in_B(m, k) 
+        <- (c == 1) && (k >  m) ? A hemm_in_A(m, k)
+        <- (c == 2) || (c == 3) ? B hemm_in_B(m, k)
 READ  B <- (c == 2) && (k <= n) ? A hemm_in_A(n, k)
-        <- (c == 2) && (k <= n) ? A hemm_in_A(k, n) 
+        <- (c == 2) && (k >  n) ? A hemm_in_A(k, n)
         <- (c == 3) && (k <= n) ? A hemm_in_A(k, n)
-        <- (c == 3) && (k <= n) ? A hemm_in_A(n, k) 
-        <- (c == 0) || (c == 1) ? B hemm_in_B(k, n) 
+        <- (c == 3) && (k >  n) ? A hemm_in_A(n, k)
+        <- (c == 0) || (c == 1) ? B hemm_in_B(k, n)
 RW    C <- ( k == 0 ) ? C(m, n) : C HEMM( m, n, k-1 )
         -> ( ( (side == plasma_left) && (k == descC.mt-1) ) || ( (side == plasma_right) && (k == descC.nt-1) ) ) ? C( m, n ) : C HEMM(m, n, k+1)
 BODY
@@ -134,17 +131,17 @@ BODY
             PLASMA_enum transr = (c == 3 && k > n) || (c == 2 && k < n) ? PlasmaConjTrans : PlasmaNoTrans;
             int tempk = (side == PlasmaLeft) ? (( k == descC.mt-1 ) ? descC.m - k * descC.mb : descC.mb)
                 :                              (( k == descC.nt-1 ) ? descC.n - k * descC.nb : descC.nb);
-            
-            int lda = (side == PlasmaRight) ? BLKLDD(descB, m) 
+
+            int lda = (side == PlasmaRight) ? BLKLDD(descB, m)
                 : ((c == 0 && k > m) || (c == 1 && k < m) ? BLKLDD(descA, k) : BLKLDD(descA, m) );
-            int ldb = (side == PlasmaLeft) ? BLKLDD(descB, k) 
+            int ldb = (side == PlasmaLeft) ? BLKLDD(descB, k)
                 : ((c == 3 && k > n) || (c == 2 && k < n) ? BLKLDD(descA, n) : BLKLDD(descA, k) );
 
             CORE_zgemm(
                 transl, transr,
                 tempmm, tempnn, tempk,
                 alpha, A, lda,
-                       B, ldb,  
+                       B, ldb,
                 zbeta, C, ldcm); /* ldc * Y */
         }
         );

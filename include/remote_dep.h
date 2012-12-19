@@ -119,6 +119,7 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     }
     remote_deps->max_priority = 0xffffffff;
     remote_deps->dague_object = NULL;
+    remote_deps->root         = -1;
     return remote_deps;
 }
 #define DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
@@ -127,10 +128,9 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     }
 /* This returns the deps to the freelist, no use counter */
 static inline void remote_deps_free(dague_remote_deps_t* deps) {
-    unsigned int count = 0;
-    int k = 0;
+    uint32_t k = 0, count = 0, a;
     while( count < deps->output_count ) {
-        for(uint32_t a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
+        for(a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
             deps->output[k].rank_bits[a] = 0;
         count += deps->output[k].count;
         deps->output[k].count = 0;

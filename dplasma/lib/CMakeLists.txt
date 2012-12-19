@@ -25,7 +25,10 @@ set(JDF
   zprint.jdf
   zgemm_NN.jdf zgemm_TN.jdf zgemm_NT.jdf zgemm_TT.jdf
   zhemm.jdf zsymm.jdf
-  zherk_LN.jdf zherk_LT.jdf zherk_UN.jdf zherk_UT.jdf
+  zherk_LN.jdf zherk_LC.jdf zherk_UN.jdf zherk_UC.jdf
+  zsyrk_LN.jdf zsyrk_LT.jdf zsyrk_UN.jdf zsyrk_UT.jdf
+  zher2k_LN.jdf zher2k_LC.jdf zher2k_UN.jdf zher2k_UC.jdf
+  zsyr2k_LN.jdf zsyr2k_LT.jdf zsyr2k_UN.jdf zsyr2k_UT.jdf
   ztrsm_LLN.jdf ztrsm_LLT.jdf ztrsm_LUN.jdf ztrsm_LUT.jdf ztrsm_RLN.jdf ztrsm_RLT.jdf ztrsm_RUN.jdf ztrsm_RUT.jdf
   ztrmm_LLN.jdf ztrmm_LLT.jdf ztrmm_LUN.jdf ztrmm_LUT.jdf ztrmm_RLN.jdf ztrmm_RLT.jdf ztrmm_RUN.jdf ztrmm_RUT.jdf
   zlaswp.jdf
@@ -45,10 +48,12 @@ set(JDF
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
   zgeqrf_param.jdf zungqr_param.jdf
   zungqr.jdf
+  zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
   zlange_inf_cyclic.jdf
   zlange_one_cyclic.jdf
   zlange_max_cyclic.jdf
   zlange_frb_cyclic.jdf
+  zlansy.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
@@ -57,7 +62,7 @@ precisions_rules_py(generated_jdf
 if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
   include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 #  foreach(src_file ${EXTRA_SOURCES})
-#    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.") 
+#    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.")
 #  endforeach()
 endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 
@@ -74,6 +79,9 @@ set(SOURCES
   zgemm_wrapper.c
   zhemm_wrapper.c
   zherk_wrapper.c
+  zsyrk_wrapper.c
+  zher2k_wrapper.c
+  zsyr2k_wrapper.c
   ztrsm_wrapper.c
   ztrmm_wrapper.c
   ztrsmpl_wrapper.c
@@ -110,6 +118,7 @@ set(SOURCES
   zherbt_wrapper.c
   zhbrdt_wrapper.c
   zungqr_wrapper.c
+  zunmqr_wrapper.c
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"

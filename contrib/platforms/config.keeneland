@@ -1,0 +1,19 @@
+#!/bin/bash
+echo "## Defaults for Keeneland machine (NSF Xsede GPU cluster)"
+
+CC=${CC:="icc"}
+CXX=${CXX:="icpc"}
+FC=${FC:="ifort"}
+#MPI_DIR=${MPI_DIR:="/opt/ompi"}
+HWLOC_DIR=${HWLOC_DIR:="/nics/c/home/bouteill/.opt.keeneland/hwloc-1.5.1"}
+#GTG_DIR=${GTG_DIR:="/opt/gtg"}
+#CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
+#OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
+PLASMA_DIR=${PLASMA_DIR:="/nics/c/home/bouteill/.opt.keeneland/plasma-2.4.6_intel"}
+FLEX_EXECUTABLE=${FLEX_EXECUTABLE:="/nics/c/home/bouteill/.opt.keeneland/flex-2.5.37/bin/flex"}
+USER_OPTIONS+="-DFLEX_EXECUTABLE=${FLEX_EXECUTABLE}"
+
+. $(dirname $0)/config.inc
+# guess_defaults  # No guesses on Keeneland.
+run_cmake $*
+

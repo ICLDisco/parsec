@@ -49,8 +49,8 @@ int main(int argc, char ** argv)
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), uplo,
-                    (tiled_matrix_desc_t *)&ddescA, 1358);
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
+                    (tiled_matrix_desc_t *)&ddescA, 3872);
+    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
     if(loud > 2) printf("Done\n");
 
     //    dplasma_zprint( dague, uplo, (tiled_matrix_desc_t *)&ddescA );

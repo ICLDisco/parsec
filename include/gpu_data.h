@@ -12,20 +12,19 @@
 
 #if defined(HAVE_CUDA)
 #include "list_item.h"
-#include "fifo.h"
+#include "list.h"
 #include "profiling.h"
+#include "moesi.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
 #include "gpu_malloc.h"
-#include "data_distribution.h"
 
 #define DAGUE_GPU_USE_PRIORITIES     1
 
 #define DAGUE_MAX_STREAMS            4
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
-
 
 #if defined(DAGUE_PROF_TRACE)
 #define DAGUE_PROFILE_CUDA_TRACK_DATA_IN  0x0001
@@ -57,6 +56,10 @@ typedef struct __dague_gpu_exec_stream {
     int32_t executed;    /* number of executed tasks */
     int32_t start, end;  /* circular buffer management start and end positions */
     dague_list_t *fifo_pending;
+#if defined(DAGUE_PROF_TRACE)
+    int prof_event_track_enable;
+    int prof_event_key_start, prof_event_key_end;
+#endif  /* defined(PROFILING) */
 } dague_gpu_exec_stream_t;
 
 typedef struct _gpu_device {
@@ -64,7 +67,6 @@ typedef struct _gpu_device {
     CUcontext  ctx;
     CUmodule   hcuModule;
     CUfunction hcuFunction;
-    void   *function;
     uint8_t index;
     uint8_t device_index;
     uint8_t major;
@@ -120,69 +122,41 @@ void dague_data_disable_gpu( void );
 int dague_active_gpu(void);
 
 /**
- * allocate a buffer to hold the data using GPU-compatible memory if needed
+ * Debugging functions.
  */
-void* dague_allocate_data( size_t matrix_size );
-
-/**
- * free a buffer allocated by dague_allocate_data
- */
-void dague_free_data(void *address);
+void dump_exec_stream(dague_gpu_exec_stream_t* exec_stream);
+void dump_GPU_state(gpu_device_t* gpu_device);
 
 /****************************************************
  ** GPU-DATA Specific Starts Here **
  ****************************************************/
 
-/**
- * Data coherency protocol based on MOESI.
- */
-#define    DAGUE_DATA_INVALID    ((uint8_t)0x0)
-#define    DAGUE_DATA_OWNED      ((uint8_t)0x1)
-#define    DAGUE_DATA_EXCLUSIVE  ((uint8_t)0x2)
-#define    DAGUE_DATA_SHARED     ((uint8_t)0x4)
-
-typedef uint8_t                    dague_data_coherency_t;
-typedef struct _dague_device_elem  dague_device_elem_t;
-typedef struct _memory_elem        memory_elem_t;
 typedef struct _gpu_elem           gpu_elem_t;
 
-/**
- * Generic type for all the devices.
- */
-struct _dague_device_elem {
-    dague_list_item_t      item;
-    dague_data_coherency_t coherency_state;
-    int16_t                readers;
-    uint32_t               version;
-    memory_elem_t*         memory_elem;
-};
-
-/**
- * A memory element targets a specific data. It can be found
- * based on a unique key.
- */
-struct _memory_elem {
-    uint32_t               key;
-    dague_data_coherency_t coherency_state;
-    uint16_t               device_owner;
-    uint32_t               version;
-    void*                  main_memory;
-    dague_device_elem_t*   device_elem[1];
-};
-
-typedef struct __dague_gpu_data_map {
-    dague_ddesc_t*  desc;
-    memory_elem_t** data_map;
-} dague_gpu_data_map_t;
 
 /**
  * Particular overloading of the generic device type
  * for GPUs.
  */
 struct _gpu_elem {
-    dague_device_elem_t    generic;
-    CUdeviceptr            gpu_mem;
+    dague_list_item_t   item;
+    CUdeviceptr         gpu_mem_ptr;
+    moesi_copy_t        moesi;
 };
+
+static inline void gpu_elem_construct(gpu_elem_t* gpu_elem, moesi_master_t* master) {
+    DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
+    gpu_elem->moesi.master = master;
+    gpu_elem->moesi.device_private = gpu_elem;
+}
+#define gpu_elem_destruct(gpu_elem)
+
+static inline gpu_elem_t* gpu_elem_obtain_from_master(moesi_master_t* master, int device) {
+    moesi_copy_t* copy = master->device_copies[device];
+    if( NULL == copy ) return NULL;
+    assert( copy->master == master );
+    return copy->device_private;
+}
 
 
 typedef enum {
@@ -192,6 +166,8 @@ typedef enum {
     DAGUE_WRITE_DONE = 0x8
 } dague_data_usage_type_t;
 
+#include "data_distribution.h"
+
 /*
  * Data [un]registering
  */
@@ -199,7 +175,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                              dague_ddesc_t   *data,
                              int              nbelem,
                              size_t           eltsize );
-int dague_gpu_data_unregister();
+int dague_gpu_data_unregister( dague_ddesc_t* data );
 
 /*
  * Init/Finalize kernel
@@ -208,24 +184,13 @@ int dague_gpu_kernel_fini(dague_context_t* dague_context,
                           char *kernelname);
 
 /*
- * Data coherency and movement
+ * Data movement
  */
-int dague_gpu_data_elt_write_owner( dague_gpu_data_map_t* gpu_map,
-                                    uint32_t key );
+int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
+                                         dague_execution_context_t *this_task,
+                                         int *array_of_eltsize,
+                                         int  move_data_count );
 
-int dague_gpu_data_get_elt( dague_gpu_data_map_t* gpu_map,
-                            uint32_t key,
-                            memory_elem_t **pmem_elem );
-
-int dague_gpu_update_data_version( dague_gpu_data_map_t* gpu_map, uint32_t key );
-
-int dague_gpu_find_space_for_elts( gpu_device_t* gpu_device,
-                                   dague_execution_context_t *this_task,
-                                   int *array_of_eltsize,
-                                   int  move_data_count );
-/**
- *
- */
 int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              int32_t type,
                              dague_data_pair_t* task_data,
@@ -233,14 +198,14 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              CUstream stream );
 
 /**
- *
+ * Progress
  */
 typedef int (*advance_task_function_t)(gpu_device_t* gpu_device,
                                        dague_gpu_context_t* task,
-                                       CUstream cuda_stream);
+                                       dague_gpu_exec_stream_t* gpu_stream);
 
 int progress_stream( gpu_device_t* gpu_device,
-                     dague_gpu_exec_stream_t* exec_stream,
+                     dague_gpu_exec_stream_t* gpu_stream,
                      advance_task_function_t progress_fct,
                      dague_gpu_context_t* task,
                      dague_gpu_context_t** out_task );

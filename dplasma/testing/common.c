@@ -95,6 +95,7 @@ void print_usage(void)
             " -s --SMB          : rows of tiles in a supertile (default: 1)\n"
             " -S --SNB          : columns of tiles in a supertile (default: 1)\n"
             " -x --check        : verify the results\n"
+            " -X --check_inv    : verify the results against the inverse\n"
             "\n"
             "    --qr_a         : Size of TS domain. (specific to xgeqrf_param)\n"
             "    --qr_p         : Size of the high level tree. (specific to xgeqrf_param)\n"
@@ -112,18 +113,26 @@ void print_usage(void)
             " -h --help         : this message\n"
             "\n"
             );
-    // TODO:: Should be moved with the other dague-specific options
     fprintf(stderr,
             " -V --vpmap        : select the virtual process map (default: flat map)\n"
             "                     Accepted values:\n"
-            "                       flat -- Flat Map: all cores defined with -c are under the same virtual process\n"
+            "                       flat  -- Flat Map: all cores defined with -c are under the same virtual process\n"
             "                       hwloc -- Hardware Locality based: threads up to -c are created and threads\n"
             "                                bound on cores that are under the same socket are also under the same\n"
             "                                virtual process\n"
-            "                       file:filename -- uses filename to load the virtual process map\n"
-            "                       rr:n:p:c -- create n virtual processes per real process, each virtual process with p\n"
-            "                                   threads bound in a round-robin fashion on the number of cores c (overloads the\n"
-            "                                   -c flag)\n"
+            "                       rr:n:p:c -- create n virtual processes per real process, each virtual process with p threads\n"
+            "                                   bound in a round-robin fashion on the number of cores c (overloads the -c flag)\n"
+            "                       file:filename -- uses filename to load the virtual process map. Each entry details a virtual\n"
+            "                                        process mapping using the semantic  [mpi_rank]:nb_thread:binding  with:\n"
+            "                                        - mpi_rank : the mpi process rank (empty if not relevant)\n"
+            "                                        - nb_thread : the number of threads under the virtual process\n"
+            "                                                      (overloads the -c flag)\n"
+            "                                        - binding : a set of cores for the thread binding. Accepted values are:\n"
+            "                                          -- a core list          (exp: 1,3,5-6)\n"
+            "                                          -- a hexadecimal mask   (exp: 0xff012)\n"
+            "                                          -- a binding range expression: [start];[end];[step] \n"
+            "                                             wich defines a round-robin one thread per core distribution from start\n"
+            "                                             (default 0) to end (default physical core number) by step (default 1)\n"
             "\n"
             "\n"
             "ENVIRONMENT\n"
@@ -132,7 +141,7 @@ void print_usage(void)
             dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:y:V:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -176,6 +185,8 @@ static struct option long_options[] =
     {"S",           required_argument,  0, 'S'},
     {"check",       no_argument,        0, 'x'},
     {"x",           no_argument,        0, 'x'},
+    {"check_inv",   no_argument,        0, 'X'},
+    {"X",           no_argument,        0, 'X'},
 
     {"qr_a",        required_argument,  0, '0'},
     {"qr_p",        required_argument,  0, '1'},
@@ -261,6 +272,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 's': iparam[IPARAM_SMB] = atoi(optarg); break;
             case 'S': iparam[IPARAM_SNB] = atoi(optarg); break;
 
+            case 'X': iparam[IPARAM_CHECKINV] = 1;
             case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break;
 
                 /* HQR parameters */

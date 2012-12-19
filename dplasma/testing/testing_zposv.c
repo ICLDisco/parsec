@@ -68,9 +68,9 @@ int main(int argc, char ** argv)
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
-                    (tiled_matrix_desc_t *)&ddescA0, 1358);
+                    (tiled_matrix_desc_t *)&ddescA0, 3872);
     dplasma_zplrnt( dague,
-                    (tiled_matrix_desc_t *)&ddescB, 3872);
+                    (tiled_matrix_desc_t *)&ddescB, 2354);
     if(loud > 2) printf("Done\n");
 
     for ( u=0; u<2; u++) {
@@ -244,7 +244,7 @@ int main(int argc, char ** argv)
 
 #if defined(HAVE_CUDA)
         if(iparam[IPARAM_NGPUS] > 0) {
-            dague_gpu_data_unregister();
+            dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
         }
 #endif
 
@@ -310,8 +310,8 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
     dplasma_zgeadd( dague, uplo, -1.0, A0,
                    (tiled_matrix_desc_t*)&L2);
 
-    Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A0);
-    Rnorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo,
+    Anorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, A0);
+    Rnorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo,
                            (tiled_matrix_desc_t*)&L2);
 
     result = Rnorm / ( Anorm * N * eps ) ;
@@ -374,7 +374,7 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
                                A->mb, A->nb, N, NRHS, 0, 0,
                                N, NRHS, twodB->grid.strows, twodB->grid.stcols, twodB->grid.rows));
 
-    Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A);
+    Anorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, A);
     Bnorm = dplasma_zlange(dague, PlasmaInfNorm, B);
     Xnorm = dplasma_zlange(dague, PlasmaInfNorm, X);
     dplasma_zlacpy( dague, PlasmaUpperLower, B, (tiled_matrix_desc_t *)&R );

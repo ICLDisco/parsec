@@ -231,7 +231,7 @@ int main(int argc, char ** argv)
          ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j,
          ddescT.super.m, ddescT.super.n);
 
-    dplasma_zplrnt(dague, (tiled_matrix_desc_t *)&ddescA, 3129);
+    dplasma_zplrnt(dague, (tiled_matrix_desc_t *)&ddescA, 3872);
 
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgerbb,
          (IB, *plasmaDescA, (tiled_matrix_desc_t*)&ddescA, *plasmaDescT, (tiled_matrix_desc_t*)&ddescT));

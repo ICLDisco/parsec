@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @precisions normal z -> s d c
+ * @precisions normal z -> z c
  *
  */
 #include "dague_internal.h"
@@ -12,9 +12,9 @@
 #include "dplasma/lib/dplasmatypes.h"
 
 #include "zherk_LN.h"
-#include "zherk_LT.h"
+#include "zherk_LC.h"
 #include "zherk_UN.h"
-#include "zherk_UT.h"
+#include "zherk_UC.h"
 
 /***************************************************************************//**
  *
@@ -98,28 +98,28 @@ dplasma_zherk_New( const PLASMA_enum uplo,
         if ( trans == PlasmaNoTrans ) {
             object = (dague_object_t*)
                 dague_zherk_LN_new(uplo, trans,
-                                   alpha, *A, (dague_ddesc_t*)A,
-                                   beta,  *C, (dague_ddesc_t*)C);
+                                   alpha, (dague_ddesc_t*)A,
+                                   beta,  (dague_ddesc_t*)C);
         }
         else {
             object = (dague_object_t*)
-                dague_zherk_LT_new(uplo, trans,
-                                   alpha, *A, (dague_ddesc_t*)A,
-                                   beta,  *C, (dague_ddesc_t*)C);
+                dague_zherk_LC_new(uplo, trans,
+                                   alpha, (dague_ddesc_t*)A,
+                                   beta,  (dague_ddesc_t*)C);
         }
     }
     else {
         if ( trans == PlasmaNoTrans ) {
             object = (dague_object_t*)
                 dague_zherk_UN_new(uplo, trans,
-                                   alpha, *A, (dague_ddesc_t*)A,
-                                   beta,  *C, (dague_ddesc_t*)C);
+                                   alpha, (dague_ddesc_t*)A,
+                                   beta,  (dague_ddesc_t*)C);
         }
         else {
             object = (dague_object_t*)
-                dague_zherk_UN_new(uplo, trans,
-                                   alpha, *A, (dague_ddesc_t*)A,
-                                   beta,  *C, (dague_ddesc_t*)C);
+                dague_zherk_UC_new(uplo, trans,
+                                   alpha, (dague_ddesc_t*)A,
+                                   beta,  (dague_ddesc_t*)C);
         }
     }
 
@@ -202,9 +202,18 @@ dplasma_zherk( dague_context_t *dague,
         dplasma_error("PLASMA_zherk", "illegal value of uplo");
         return -1;
     }
-    if (trans != PlasmaConjTrans && trans != PlasmaNoTrans && trans != PlasmaTrans ) {
+    if (trans != PlasmaConjTrans && trans != PlasmaNoTrans ) {
         dplasma_error("dplasma_zherk", "illegal value of trans");
         return -2;
+    }
+    if ( (C->m != C->n) ) {
+        dplasma_error("dplasma_zherk", "illegal size of matrix C which should be square");
+        return -6;
+    }
+    if ( ((trans == PlasmaNoTrans) && (A->m != C->m)) ||
+         ((trans != PlasmaNoTrans) && (A->n != C->m)) ) {
+        dplasma_error("dplasma_zherk", "illegal size of matrix A");
+        return -4;
     }
 
     dague_zherk = dplasma_zherk_New(uplo, trans,

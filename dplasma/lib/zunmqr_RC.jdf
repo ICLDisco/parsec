@@ -1,0 +1,213 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+%}
+
+side      [type = "PLASMA_enum"]
+trans     [type = "PLASMA_enum"]
+dataA     [type = "dague_ddesc_t *"]
+descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+dataB     [type = "dague_ddesc_t *"]
+descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
+dataT     [type = "dague_ddesc_t *"]
+descT     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
+ib        [type = "int" hidden = on default = "descT.mb" ]
+pool_0    [type = "dague_memory_pool_t *" size = "((sizeof(dague_complex64_t))*ib)*descT.nb"]
+
+
+zunmqr(k, m)
+  /* Execution Space */
+  k = 0 .. descA.nt-1
+  m = 0 .. descB.mt-1
+
+  /* Locality */
+  : dataB(m,k)
+
+  READ  A    <- A zunmqr_in_data_A0(k)   [type = LOWER_TILE]
+  READ  T    <- T zunmqr_in_data_T1(k)   [type = LITTLE_T]
+  RW    C    -> ( k == 0 ) ? dataB(m,k)
+             -> ( k >  0 ) ? A2 ztsmqr(k-1, k, m)
+             <- ( k <  (descB.nt-1)) ? A1 ztsmqr(k, k+1, m)
+             <- ( k == (descB.nt-1)) ? dataB(m,k)
+
+BODY
+{
+    int tempmm   = (m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
+    int tempkn   = (k == (descB.nt-1)) ? (descB.n - k * descB.nb) : descB.nb;
+    int tempkmin = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    int ldbm = BLKLDD( descB, m );
+
+    printlog("CORE_zunmqr(%d, %d)\n"
+             "\t(side, trans, tempmm, tempkn, tempkmin, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, B(%d,%d)[%p], ldbm, p_elem_A, descT.nb)\n",
+             k, m, k, k, A, k, k, T, m, k, C);
+
+    DRYRUN(
+        void *p_elem_A = dague_private_memory_pop( pool_0 );
+
+        CORE_zunmqr(side, trans, tempmm,
+                    tempkn, tempkmin, ib,
+                    A /* dataA(k,k) */, ldak,
+                    T /* dataT(k,k) */, descT.mb,
+                    C /* dataB(m,k) */, ldbm, 
+                    p_elem_A, descT.nb );
+
+        dague_private_memory_push( pool_0, p_elem_A );
+           );
+}
+END
+
+zunmqr_in_data_T1(k) [profile = off]
+  /* Execution Space */
+  k = 0 .. descA.nt-1
+
+  /* Locality */
+  : dataT(k,k)
+
+  READ  T    <- dataT(k,k)                      [type = LITTLE_T]
+             -> T zunmqr(k, 0 .. descB.mt-1)    [type = LITTLE_T]
+
+BODY
+{
+    /* nothing */
+}
+END
+
+zunmqr_in_data_A0(k) [profile = off]
+  /* Execution Space */
+  k = 0 .. descA.nt-1
+
+  /* Locality */
+  : dataA(k,k)
+
+  READ  A    <- dataA(k,k)                      [type = LOWER_TILE]
+             -> A zunmqr(k, 0 .. (descB.mt-1))  [type = LOWER_TILE]
+
+BODY
+{
+    /* nothing */
+}
+END
+
+ztsmqr(k, n, m)
+  /* Execution Space */
+  k = 0     .. inline_c %{ return dague_imin((descB.nt-2),(descA.nt-1)); %}
+  n = (k+1) .. (descB.nt-1)
+  m = 0     .. (descB.mt-1)
+
+  /* Locality */
+  : dataB(m,n)
+
+  RW    A1   -> ( n == (k+1) ) ? C  zunmqr(k, m)
+             -> ( n >  (k+1) ) ? A1 ztsmqr(k, n-1, m)
+             <- ( n <  (descB.nt-1) ) ? A1 ztsmqr(k, n+1, m)
+             <- ( n == (descB.nt-1) ) ? A1 ztsmqr_out_data_B0(k, m)
+  RW    A2   -> ( k == 0 ) ? dataB(m,n)
+             -> ( k >  0 ) ? A2 ztsmqr(k-1, n, m)
+             <-  (k == (descA.nt-1)) ? dataB(m,n)
+             <- ((k <  (descA.nt-1)) & (n == (k+1))) ? C  zunmqr(k+1, m)
+             <- ((k <  (descA.nt-1)) & (n >  (k+1))) ? A2 ztsmqr(k+1, n, m)
+  READ  V    <- V ztsmqr_in_data_A1(k, n)
+  READ  T    <- T ztsmqr_in_data_T2(k, n)  [type = LITTLE_T]
+
+BODY
+{
+    int tempnn   = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
+    int tempmm   = (m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
+    int tempkmin = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int ldbm = BLKLDD( descB, m );
+    int ldan = BLKLDD( descA, n );
+    int ldwork = descT.nb;
+
+    printlog("CORE_ztsmqr(%d, %d, %d)\n"
+             "\t(side, trans, tempmm, descB.nb, tempmm, tempnn, tempkmin, ib, B(%d,%d)[%p], ldbm, B(%d,%d)[%p], ldbm, A(%d,%d)[%p], ldan, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
+             k, n, m, m, k, A1, m, n, A2, n, k, V, n, k, T);
+
+    DRYRUN(
+        void *p_elem_A = dague_private_memory_pop( pool_0 );
+
+        CORE_ztsmqr(side, trans, tempmm, descB.nb,
+                    tempmm, tempnn, tempkmin, ib,
+                    A1 /* dataB(m,k) */, ldbm,
+                    A2 /* dataB(m,n) */, ldbm,
+                    V  /* dataA(n,k) */, ldan,
+                    T  /* dataT(n,k) */, descT.mb,
+                    p_elem_A, ldwork );
+
+        dague_private_memory_push( pool_0, p_elem_A );
+  );
+}
+END
+
+ztsmqr_in_data_T2(k, n) [profile = off]
+  /* Execution Space */
+  k = 0     .. inline_c %{ return dague_imin((descB.nt-2),(descA.nt-1)); %}
+  n = (k+1) .. (descB.nt-1)
+
+  /* Locality */
+  : dataT(n,k)
+
+  READ  T    <- dataT(n,k)                        [type = LITTLE_T]
+             -> T ztsmqr(k, n, 0 .. descB.mt-1)   [type = LITTLE_T]
+
+BODY
+{
+    /* nothing */
+}
+END
+
+ztsmqr_in_data_A1(k, n) [profile = off]
+  /* Execution Space */
+  k = 0     .. inline_c %{ return dague_imin((descB.nt-2),(descA.nt-1)); %}
+  n = (k+1) .. (descB.nt-1)
+
+  /* Locality */
+  : dataA(n,k)
+
+  READ  V    <- dataA(n,k)
+             -> V ztsmqr(k, n, 0 .. descB.mt-1)
+
+BODY
+{
+    /* nothing */
+}
+END
+
+ztsmqr_out_data_B0(k, m) [profile = off]
+  /* Execution Space */
+  k = 0 .. inline_c %{ return dague_imin((descB.nt-2),(descA.nt-1)); %}
+  m = 0 .. (descB.mt-1)
+
+  /* Locality */
+  : dataB(m,k)
+
+  READ  A1   -> A1 ztsmqr(k, descB.nt-1, m)
+             <- dataB(m,k)
+
+BODY
+{
+    /* nothing */
+}
+END
+
+

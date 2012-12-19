@@ -293,6 +293,7 @@ ELSE()
     SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g ${C_WFLAGS}" )
 ENDIF( HAVE_G3)
 SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
+SET( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
 
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
@@ -305,7 +306,7 @@ if(Threads_FOUND)
   set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CMAKE_THREAD_LIBS_INIT}")
   check_function_exists(pthread_create HAVE_PTHREAD)
   if(HAVE_PTHREAD)
-    set(EXTRA_LIBS "${EXTRA_LIBS};${CMAKE_THREAD_LIBS_INIT}")
+    list(APPEND EXTRA_LIBS ${CMAKE_THREAD_LIBS_INIT})
   endif(HAVE_PTHREAD)
 endif(Threads_FOUND)
 
@@ -323,7 +324,7 @@ if( NOT HAVE_TIMESPEC_TV_NSEC )
 endif( NOT HAVE_TIMESPEC_TV_NSEC )
 check_library_exists(rt clock_gettime "" HAVE_CLOCK_GETTIME)
 if( HAVE_CLOCK_GETTIME )
-  set(EXTRA_LIBS "${EXTRA_LIBS};rt")
+  list(APPEND EXTRA_LIBS rt)
 endif( HAVE_CLOCK_GETTIME )
 
 # stdlib, stdio, string, getopt, etc
@@ -368,12 +369,12 @@ check_include_files(complex.h HAVE_COMPLEX_H)
 # Find optional packages
 #
 IF( BUILD_DAGUE )
-  find_package(HWLOC QUIET)
+  find_package(HWLOC)
   set(HAVE_HWLOC ${HWLOC_FOUND})
   if( HWLOC_FOUND )
     list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
-    list(APPEND EXTRA_LIBS ${HWLOC_LIB})
-    include_directories( ${HWLOC_INCLUDE_DIR} )
+    list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
+    include_directories( ${HWLOC_INCLUDE_DIRS} )
   endif (HWLOC_FOUND)
 
   if (DAGUE_DIST_WITH_MPI)
@@ -405,7 +406,7 @@ IF( BUILD_DAGUE )
       endif(CUDA_VERSION VERSION_LESS "3.0")
       set(CUDA_BUILD_EMULATION OFF)
       include_directories(${CUDA_INCLUDE_DIRS})
-      list(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
+      #list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES} )
       list(APPEND EXTRA_SOURCES src/gpu_data.c)
       set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
       set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
@@ -442,6 +443,22 @@ IF( BUILD_DAGUE )
   if( DAGUE_PROF_GRAPHER )
     list(APPEND EXTRA_SOURCES src/dague_prof_grapher.c)
   endif( DAGUE_PROF_GRAPHER )
+
+  find_package(AYUDAME QUIET)
+  set(HAVE_AYUDAME ${AYUDAME_FOUND})
+#
+# If AYUDAME support is enabled it means we need to deal with weak symbols. On
+# MAC OS X we need to add a special linker flag or the applications will not
+# compile correctly.
+#
+  if(AYUDAME_FOUND)
+    include_directories( ${AYUDAME_INCLUDE_DIR} )
+    if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+      message(STATUS "Add '-undefined dynamic_lookup' to the linking flags")
+      SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -undefined dynamic_lookup")
+      SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -undefined dynamic_lookup")
+    endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  endif(AYUDAME_FOUND)
 ENDIF( BUILD_DAGUE )
 
 #
@@ -483,6 +500,7 @@ set(SRCS
   src/schedulers.c 
   src/dague.c 
   src/arena.c
+  src/moesi.c
   src/remote_dep.c 
   src/debug.c 
   src/bindthread.c 

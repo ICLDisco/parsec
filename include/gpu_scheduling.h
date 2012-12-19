@@ -18,7 +18,6 @@
 #include <errno.h>
 #include "lifo.h"
 
-extern dague_gpu_data_map_t dague_gpu_map;
 extern volatile uint32_t dague_cpu_counter;
 extern gpu_device_t** gpu_enabled_devices;
 
@@ -38,7 +37,6 @@ extern gpu_device_t** gpu_enabled_devices;
 #define gpu_kernel_epilog    GENERATE_NAME( gpu_kernel_epilog   , KERNEL_NAME )
 #define gpu_kernel_profile   GENERATE_NAME( gpu_kernel_profile  , KERNEL_NAME )
 #define gpu_kernel_scheduler GENERATE_NAME( gpu_kernel_scheduler, KERNEL_NAME )
-
 
 /**
  * Try to execute a kernel on a GPU.
@@ -91,7 +89,8 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
 #if defined(DAGUE_PROF_TRACE)
     if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
-        dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_start, (unsigned long)eu_context, PROFILE_OBJECT_ID_NULL, NULL );
+        dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_start,
+                               (unsigned long)eu_context, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
     status = (cudaError_t)cuCtxPushCurrent(saved_ctx);
@@ -114,7 +113,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     }
     this_task = next_task;
 
-    /* Task is ready to be executed */
+    /* Stage-in completed for this Task: it is ready to be executed */
     exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams - 2);  /* Choose an exec_stream */
     if( NULL != this_task ) {
         DEBUG2(( "GPU[%1d]:\tExecute %s priority %d\n", gpu_device->device_index,
@@ -128,16 +127,10 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     if( rc < 0 ) {
         if( -1 == rc )
             goto disable_gpu;
-    } else {
-        if( NULL != next_task ) {
-            this_task = next_task;
-#if defined(DAGUE_PROF_TRACE)
-            gpu_kernel_profile( gpu_device, this_task );
-#endif  /* defined(DAGUE_PROF_TRACE) */
-        }
-    }
+    } 
     this_task = next_task;
 
+    /* This task has completed its execution: we have to check if we schedule DtoN */
     if( NULL != this_task ) {
         DEBUG2(( "GPU[%1d]:\tPop data for %s priority %d\n", gpu_device->device_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
@@ -160,12 +153,6 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
          */
         this_task = next_task;
         next_task = NULL;
-#if defined(DAGUE_PROF_TRACE)
-        if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT )
-            dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end,
-                                   (unsigned long)this_task->ec, this_task->ec->dague_object->object_id,
-                                   NULL );
-#endif  /* defined(DAGUE_PROF_TRACE) */
         goto complete_task;
     }
     this_task = next_task;

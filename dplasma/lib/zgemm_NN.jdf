@@ -20,6 +20,11 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
+#if defined(HAVE_CUDA)
+#include "gpu_data.h"
+#include "dplasma/cores/cuda_zgemm.h"
+extern int *gpu_counter;
+#endif  /* defined(HAVE_CUDA) */
 %}
 
 /*
@@ -99,6 +104,31 @@ BODY
         int ldbk = BLKLDD(descB, k);
         int ldcm = BLKLDD(descC, m);
 
+#if defined(HAVE_CUDA)
+    if( dague_active_gpu() > 0 ) {
+        int rc;
+
+        if( 0 == (rc = gpu_zgemm( context, this_task, 
+                                  ( k == descA.nt-1 ),
+                                  transA, transB,
+                                  tempmm, tempnn, tempkk,
+                                  alpha, m, k, &descA, ldam,
+                                         k, n, &descB, ldbk,
+                                  lbeta, m, n, &descC, ldcm)) )
+            goto FIN;
+        if( -1 == rc ) {
+            /* The task is pending in the device, and will be subsequently completed */
+            return -1;
+        }
+        if( -2 == rc ) {
+            /* The GPU failed to execute this task, but the task was already rescheduled */
+	        fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
+	        exit(2);
+        }
+    }
+    moesi_master_update( descC.super.moesi_map, GEMM_KEY( &descC, m, n) );
+#endif  /* defined(HAVE_CUDA) */
+
         DRYRUN(
             CORE_zgemm(
                 transA, transB,
@@ -116,6 +146,11 @@ BODY
                  creal(alpha), m, k, ldam,
                                k, n, ldbk,
                  creal(lbeta), m, n, ldcm );
+
+#if defined(HAVE_CUDA)
+FIN:
+#endif  /* defined(HAVE_CUDA) */
+
 END
 
 extern "C" %{

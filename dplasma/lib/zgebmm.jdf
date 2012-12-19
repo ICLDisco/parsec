@@ -81,7 +81,7 @@ BODY
 
   type = segment_to_type_index(descA.seg_info, i, j);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
-  assert( type_exists );
+  assert( type_exists ); (void)type_exists;
   lda = descA.A_org->mb; /* This is the mb of the tile */
   segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
 

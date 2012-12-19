@@ -37,8 +37,8 @@ struct dague_arena_t
     int32_t max_released;                    /* when more that max elements are released, they are really freed instead of joining the lifo
                                               * some host hardware requires special allocation functions (Cuda, pinning,
                                               * Open CL, ...). Defaults are to use C malloc/free */
-    dague_allocate_data_t data_malloc;
-    dague_free_data_t data_free;
+    dague_data_allocate_t data_malloc;
+    dague_data_free_t data_free;
 };
 
 /* The fields are ordered so that important list_item_t fields are not
@@ -81,18 +81,25 @@ int dague_arena_construct_ex(dague_arena_t* arena,
 void dague_arena_destruct(dague_arena_t* arena);
 
 dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count);
+dague_arena_chunk_t* dague_arena_nolock_get(dague_arena_t* arena, size_t count);
+#define dague_uarena_get(arena, count) dague_arena_nolock_get(arena, count)
 void dague_arena_release(dague_arena_chunk_t* ptr);
+void dague_arena_nolock_release(dague_arena_chunk_t* ptr);
+#define dague_uarena_release(ptr) dague_arena_nolock_release(ptr)
 
-static inline uint32_t dague_arena_ref(dague_arena_chunk_t* ptr)
-{
+static inline uint32_t dague_arena_ref(dague_arena_chunk_t* ptr) {
     assert(DAGUE_ARENA_IS_PTR(ptr));
     return dague_atomic_inc_32b(&DAGUE_ARENA_PREFIX(ptr)->refcount);
 }
+static inline uint32_t dague_arena_nolock_ref(dague_arena_chunk_t* ptr) {
+    assert(DAGUE_ARENA_IS_PTR(ptr));
+    return ++DAGUE_ARENA_PREFIX(ptr)->refcount;
+}
+#define dague_uarena_ref(ptr) dague_arena_nolock_ref(ptr)
 #define DAGUE_ARENA_REF_DATA(ptr) (DAGUE_ARENA_IS_PTR(ptr) ? dague_arena_ref(ptr) : 1)
 #define AREF(ptr) DAGUE_ARENA_REF_DATA(ptr)
 
-static inline uint32_t dague_arena_unref(dague_arena_chunk_t* ptr)
-{
+static inline uint32_t dague_arena_unref(dague_arena_chunk_t* ptr) {
     uint32_t ret;
     assert(DAGUE_ARENA_IS_PTR(ptr));
     ret = dague_atomic_dec_32b(&DAGUE_ARENA_PREFIX(ptr)->refcount);
@@ -101,6 +108,16 @@ static inline uint32_t dague_arena_unref(dague_arena_chunk_t* ptr)
     }
     return ret;
 }
+static inline uint32_t dague_arena_nolock_unref(dague_arena_chunk_t* ptr) {
+    uint32_t ret;
+    assert(DAGUE_ARENA_IS_PTR(ptr));
+    ret = --DAGUE_ARENA_PREFIX(ptr)->refcount;
+    if(0 == ret) {
+        dague_arena_nolock_release(ptr);
+    }
+    return ret;
+}
+#define dague_uarena_unref(ptr) dague_arena_nolock_unref(ptr)
 #define DAGUE_ARENA_UNREF_DATA(ptr) (DAGUE_ARENA_IS_PTR(ptr) ? dague_arena_unref(ptr) : 1)
 #define AUNREF(ptr) DAGUE_ARENA_UNREF_DATA(ptr)
 

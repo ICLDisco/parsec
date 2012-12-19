@@ -13,8 +13,12 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stddef.h>
+#include <stdarg.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+
+#include "jdf.h"
+#include "string_arena.h"
 
 #include "node_struct.h"
 #include "q2j.y.h"
@@ -27,13 +31,23 @@
 #define TASK_IN  0
 #define TASK_OUT 1
 
+#define IVAR_NOT_FOUND 0
+#define IVAR_IS_LEFT   1
+#define IVAR_IS_RIGHT -1
+
 extern char *q2j_input_file_name;
+extern char *_q2j_data_prefix;
 extern int _q2j_generate_line_numbers;
+extern int _q2j_direct_output;
+extern FILE *_q2j_output;
+extern jdf_t _q2j_jdf;
 
 static dague_list_t _dague_pool_list;
 static var_t *var_head=NULL;
 static int _ind_depth=0;
 static int _task_count=0;
+static node_t *_q2j_pending_invariants_head=NULL;
+
 // For the JDF generation we need to emmit some things in special ways,
 // (i.e. arrays in FORTRAN notation) and this "variable" will never need
 // to be changed.  However if we need to use the code to generate proper "C"
@@ -54,6 +68,7 @@ typedef struct var_def_item {
     char *def;
 } var_def_item_t;
 
+static void set_symtab_in_tree(symtab_t *symtab, node_t *node);
 static void do_parentize(node_t *node, int off);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
 static void do_if_parentize(node_t *node, node_t *enclosing_if);
@@ -71,6 +86,52 @@ static void add_exit_task_loops(matrix_variable_t *list, node_t *node);
 static matrix_variable_t *quark_find_all_matrices(node_t *node);
 static int is_definition_seen(dague_list_t *var_def_list, char *param);
 static void mark_definition_as_seen(dague_list_t *var_def_list, char *param);
+static int is_acceptable_econd(node_t *node, char *ivar);
+static int is_id_or_mul(node_t *node, char *ivar);
+static int is_decrementing(node_t *node);
+void convert_loop_from_decr_to_incr(node_t *node);
+int replace_induction_variable_in_body(node_t *node, node_t *ivar, node_t *replacement);
+
+/**
+ * This function is not thread-safe, not reentrant, and not pure. As such it
+ * cannot be used twice on the same call to any oter function (including
+ * printf's and friends). However, as a side effect, when it is called with
+ * the same value for n, it is safe to be used in any of the previously
+ * mentioned scenarios.
+ */
+char *indent(int n, int size)
+{
+    static char *istr    = NULL;
+    static int   istrlen = 0;
+    int i;
+
+    if( n * size + 1 > istrlen ) {
+        istrlen = n * size + 1;
+        istr = (char*)realloc(istr, istrlen);
+    }
+
+    for(i = 0; i < n * size; i++)
+        istr[i] = ' ';
+    istr[i] = '\0';
+    return istr;
+}
+
+#if defined(__GNUC__)
+void jdfoutput(const char *format, ...) __attribute__((format(printf,1,2)));
+#endif
+void jdfoutput(const char *format, ...)
+{
+    va_list ap;
+    int len;
+
+    va_start(ap, format);
+    len = vfprintf(_q2j_output, format, ap);
+    va_end(ap);
+
+    if( len == -1 ) {
+        fprintf(stderr, "Unable to ouptut a string\n");
+    }
+}
 
 //#if 0
 void dump_und(und_t *und){
@@ -83,16 +144,16 @@ void dump_und(und_t *und){
     name = tree_to_str(und->node);
 
     switch( und->rw ){
-        case UND_READ:
-            printf("%s R type:%d", name, und->type);
-            break;
-        case UND_WRITE:
-            printf("%s W type:%d", name, und->type);
-            break;
-        case UND_RW:
-            printf("%s RW type:%d", name, und->type);
-            break;
-   }
+    case UND_READ:
+        printf("%s R type:%d", name, und->type);
+        break;
+    case UND_WRITE:
+        printf("%s W type:%d", name, und->type);
+        break;
+    case UND_RW:
+        printf("%s RW type:%d", name, und->type);
+        break;
+    }
 
 }
 
@@ -101,7 +162,7 @@ void dump_all_unds(void){
     und_t *und;
     node_t *tmp;
 
-printf("###############\n");
+    printf("###############\n");
     for(var=var_head; NULL != var; var=var->next){
         for(und=var->und; NULL != und ; und=und->next){
             dump_und(und);
@@ -116,7 +177,7 @@ printf("###############\n");
             printf("\n");
         }
     }
-printf("###############\n");
+    printf("###############\n");
 }
 //#endif
 
@@ -336,13 +397,18 @@ void dump_tree(node_t node, int off){
     return;
 }
 
-
-static char *numToSymName(int num){
+static char *numToSymName(int num, char *fname){
     char str[4] = {0,0,0,0};
+    char *sym_name;
 
     assert(num<2600);
 
-    // capital i ("I") has a special meaning in some contexts (sqrt(-1)), so skip it.
+    sym_name = get_variable_name(fname, num);
+    if( NULL != sym_name ){
+        return sym_name;
+    }
+
+    // capital i ("I") has a special meaning in some contexts (I^2==-1), so skip it.
     if(num>=8)
         num++;
 
@@ -391,8 +457,61 @@ static char *quark_call_to_task_name( char *call_name, int32_t lineno ){
     return task_name;
 }
 
+static jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
+                                                       const char   *fname,
+                                                       const node_t *node )
+{
+    jdf_function_entry_t *f;
+    node_t *tmp;
+
+#ifdef DEBUG
+    if ( jdf->functions != NULL ) {
+        jdf_function_entry_t *f2 = jdf->functions;
+        do {
+            assert( strcmp(fname, f2->fname ) != 0 );
+            f2 = f2->next;
+        } while( f2 != NULL );
+    }
+#endif
+
+    f = q2jmalloc(jdf_function_entry_t, 1);
+    f->fname = strdup(fname);
+    f->parameters  = NULL;
+    f->properties  = NULL;
+    f->locals      = NULL;
+    f->simcost     = NULL;
+    f->predicate   = NULL;
+    f->dataflow    = NULL;
+    f->priority    = NULL;
+    f->body        = NULL;
+
+    for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+        jdf_name_list_t *n = q2jmalloc(jdf_name_list_t, 1);
+        n->next = f->parameters;
+        n->name = DA_var_name(DA_loop_induction_variable(tmp));
+        f->parameters = n;
+    }
+
+#if 0
+    f->next = jdf->functions;
+    jdf->functions = f;
+#else
+    {
+        jdf_function_entry_t *n = jdf->functions;
+        if (jdf->functions == NULL )
+            jdf->functions = f;
+        else {
+            while (n->next != NULL)
+                n = n->next;
+            n->next = f;
+        }
+    }
+#endif
+    return f;
+}
+
 static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
-    static int symbolic_name_count = 0;
+    int symbolic_name_count = 0;
     int i;
     static int pool_initialized = 0;
 
@@ -402,8 +521,10 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
     }
 
     if( FCALL == node->type ){
+        char *fname;
         int kid_count;
         task_t *task;
+        jdf_function_entry_t *f;
 
         if( strcmp("QUARK_Insert_Task", DA_kid(node,0)->u.var_name) ){
             return;
@@ -413,12 +534,11 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
 
         // QUARK specific code. The task is the second parameter.
         if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
+            fname = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), 
+                                             mult_kernel_occ ? (int32_t)node->lineno : -1 );
+            
+            f = jdf_register_addfunction( &_q2j_jdf, fname, node );
             task = (task_t *)calloc(1, sizeof(task_t));
-            if( mult_kernel_occ ){
-                task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), (int32_t)node->lineno );
-            }else{
-                task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), -1 );
-            }
             task->task_node = node;
             task->ind_vars = (char **)calloc(1+node->loop_depth, sizeof(char *));
             i=node->loop_depth-1;
@@ -426,21 +546,26 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
                 task->ind_vars[i] = DA_var_name(DA_loop_induction_variable(tmp));
                 --i;
             }
+
             node->task = task;
-        }else{
+            node->function = f;
+
+        } else {
 #if defined(DEBUG)
             printf("WARNING: probably there is something wrong with this QUARK_Insert_Task().\n");
 #endif
             return;
         }
 
+        assert(f != NULL);
         for(i=1; i<kid_count; ++i){
             node_t *tmp = node->u.kids.kids[i];
 
             // Record USE of DEF
             if( ARRAY == tmp->type ){
                 tmp->task = task;
-                tmp->var_symname = numToSymName(symbolic_name_count++);
+                tmp->function = f;
+                tmp->var_symname = numToSymName(symbolic_name_count++, fname);
                 node_t *qual = node->u.kids.kids[i+1];
                 add_variable_use_or_def( tmp, DA_quark_INOUT(qual), DA_quark_TYPE(qual), _task_count );
             }
@@ -463,7 +588,6 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             quark_record_uses_defs_and_pools(node->u.kids.kids[i], mult_kernel_occ);
         }
     }
-
 }
 
 
@@ -523,6 +647,39 @@ static matrix_variable_t *quark_find_all_matrices(node_t *node){
     }
 
     return matrix_variable_list_head;
+}
+
+/* 
+ * Take the first OUT or INOUT array variable and make it the data element that
+ * this task should have affinity to.
+ * It would be much better if we found which tile this task writes most times into,
+ * instead of the first write, to reduce unnecessary communication.
+ */
+node_t *quark_get_locality(node_t *task_node){
+    int i;
+
+    /*
+     * First loop to search LOCALITY flag
+     */
+    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+        if( isArrayOut(task_node, i) && isArrayLocal(task_node, i) ){
+            node_t *data_element = task_node->u.kids.kids[i];
+            return data_element;
+        }
+    }
+
+    /*
+     * If no LOCALITY flag, the first output data is used for locality
+     */
+    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+        if( isArrayOut(task_node, i) ){
+            node_t *data_element = task_node->u.kids.kids[i];
+            return data_element;
+        }
+    }
+
+    fprintf(stderr,"WARNING: task: \"%s\" does not alter any memory regions!", task_node->function->fname);
+    return NULL;
 }
 
 /* 
@@ -592,6 +749,9 @@ void analyze_deps(node_t *node){
     quark_record_uses_defs_and_pools(node, mult);
     //dump_all_unds();
     interrogate_omega(node, var_head);
+    if (!_q2j_direct_output){
+        jdf_unparse( &_q2j_jdf, stdout );
+    }
 }
 
 
@@ -602,7 +762,6 @@ static void add_entry_task_loops(matrix_variable_t *list, node_t *node){
 static void add_exit_task_loops(matrix_variable_t *list, node_t *node){
     add_phony_INOUT_task_loops(list, node, TASK_OUT);
 }
-        
 
 static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, int task_type){
     int i, dim;
@@ -649,9 +808,9 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
 
             // Build a string that matches the name of the upper bound for PLASMA matrices.
             switch(dim){
-                case 0:  asprintf(&(tmp_str), "desc_%s.mt", curr_matrix);
+                case 0:  asprintf(&(tmp_str), "desc%s.mt", curr_matrix);
                          break;
-                case 1:  asprintf(&(tmp_str), "desc_%s.nt", curr_matrix);
+                case 1:  asprintf(&(tmp_str), "desc%s.nt", curr_matrix);
                          break;
                 default: fprintf(stderr,"FATAL ERROR in add_phony_INOUT_task_loops(): Currently only 2D matrices are supported\n");
                          abort();
@@ -783,7 +942,6 @@ static void do_rename_ivar(char *iv_str, char *new_name, node_t *node){
 
     if( IDENTIFIER == node->type ){
        if( strcmp(node->u.var_name, iv_str) == 0 ){
-//printf("Changing %s of parent %s:%s to %s\n",tree_to_str(node), DA_type_name(node->parent), tree_to_str(node->parent), new_name);
            node->u.var_name = new_name;
        }
     }
@@ -853,7 +1011,7 @@ void rename_induction_variables(node_t *node){
     }
 
     switch( node->type ){
-        case FOR: // TODO: we should also deal "while" and "do-while"
+        case FOR:
             iv_node = DA_loop_induction_variable(node);
             iv_str = DA_var_name(iv_node);
 
@@ -927,6 +1085,51 @@ void convert_OUTPUT_to_INOUT(node_t *node){
     }
 }
 
+void add_pending_invariant(node_t *node){
+
+    if(NULL == node)
+        return;
+
+    node->next = _q2j_pending_invariants_head;
+    if( NULL != _q2j_pending_invariants_head ){
+        _q2j_pending_invariants_head->prev = node;
+    }
+    _q2j_pending_invariants_head = node;
+
+    return;
+}
+
+
+void set_symtab_in_tree(symtab_t *symtab, node_t *node){
+    int i;
+    /* Set the symtab of this node (whatever type it is) */
+    node->symtab = symtab;
+
+    /* Go to the siblings, or children of this node */
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            set_symtab_in_tree(symtab, tmp);
+        }
+    }else{
+        for(i=0; i<node->u.kids.kid_count; ++i){
+            set_symtab_in_tree(symtab, DA_kid(node,i));
+        }
+    }
+}
+
+void associate_pending_pragmas_with_function(node_t *function){
+    node_t *curr;
+
+    function->pragmas = _q2j_pending_invariants_head;
+    for(curr=_q2j_pending_invariants_head; curr!=NULL; curr=curr->next){
+        set_symtab_in_tree(function->symtab, curr);
+    }
+    /* Reset the pending invariants so the next function does not seem them as well. */
+    _q2j_pending_invariants_head = NULL;
+
+    return;
+}
 
 // poor man's asprintf().
 char *append_to_string(char *str, const char *app, const char *fmt, size_t add_length){
@@ -955,19 +1158,82 @@ char *append_to_string(char *str, const char *app, const char *fmt, size_t add_l
 }
 
 
+static int is_id_or_mul(node_t *node, char *ivar){
+    /* If it's the induction variable, we are good */
+    if( IDENTIFIER == node->type ){
+        char *name = DA_var_name(node);
+        if( (NULL != name) && !strcmp(ivar, name) ){
+            return 1;
+        }
+    }
+    /* If it's a multiplication, check if it includes the induction variable. */
+    /* If so, we are good */
+    if( (MUL == node->type) ){
+        if( is_id_or_mul( DA_rel_lhs(node), ivar) || is_id_or_mul( DA_rel_rhs(node), ivar) ){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int is_acceptable_econd(node_t *node, char *ivar){
+    node_t *kid;
+
+    assert( NULL != ivar );
+
+    /* Make sure this is a comparison expression */
+    if( !DA_is_rel(node) ){
+        return IVAR_NOT_FOUND;
+    }
+
+    /* Examine the left hand side of the expression */
+    kid = DA_rel_lhs(node);
+    if( is_id_or_mul(kid, ivar) ){
+        return IVAR_IS_LEFT;
+    }
+    /* Examine the right hand side of the expression */
+    kid = DA_rel_rhs(node);
+    if( is_id_or_mul(kid, ivar) ){
+        return IVAR_IS_RIGHT;
+    }
+
+    return IVAR_NOT_FOUND;
+}
+
 
 static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
-    node_t *tmp;
+    node_t *tmp=NULL;
+    int ivar_side;
+    node_t *lhs, *rhs;
 
-    if( (IDENTIFIER != DA_rel_lhs(node)->type) && (IDENTIFIER != DA_rel_rhs(node)->type) ){
+    ivar_side = is_acceptable_econd(node, DA_var_name(ivar));
+    if( IVAR_NOT_FOUND == ivar_side ){
+        switch( node->type ){
+            case L_AND:
+                lhs = _DA_canonicalize_for_econd(DA_kid(node,0),ivar);
+                rhs = _DA_canonicalize_for_econd(DA_kid(node,1),ivar);
+                if( NULL == lhs || NULL == rhs ){
+                    break;
+                }
+                tmp = DA_create_B_expr(L_AND, lhs, rhs);
+                return tmp;
+            case L_OR:
+                lhs = _DA_canonicalize_for_econd(DA_kid(node,0),ivar);
+                rhs = _DA_canonicalize_for_econd(DA_kid(node,1),ivar);
+                if( NULL == lhs || NULL == rhs ){
+                    break;
+                }
+                tmp = DA_create_B_expr(L_OR, lhs, rhs);
+                return tmp;
+        }
         printf("Cannot canonicalize end condition of for() loop: ");
         dump_tree(*node, 0);
         printf("\n");
-        return NULL;
+        assert(0);
     }
 
     // If the variable is on the left hand side
-    if( (IDENTIFIER == DA_rel_lhs(node)->type) && !strcmp(ivar->u.var_name, (DA_rel_lhs(node)->u.var_name)) ){
+    if( IVAR_IS_LEFT == ivar_side ){
         switch( node->type ){
             case LT:  // since the var is in the left, do nothing, that's the canonical form.
                 return node;
@@ -977,12 +1243,13 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
                 tmp = DA_create_relation(LT, DA_rel_lhs(node), tmp);
                 return tmp;
 
-            case GE:  // subtract one from the RHS and convert GE to GT
+            // If the variable is on the left and we have a GE or GT,
+            // then we are in a loop that uses a decrementing modifier.
+            case GE:  // subtract one from the RHS to convert GE to GT
                 tmp = DA_create_B_expr(SUB, DA_rel_rhs(node), DA_create_Int_const(1));
-                tmp = DA_create_relation(GT, DA_rel_lhs(node), tmp);
-                // call myself again to flip the GT to LT
-                tmp = _DA_canonicalize_for_econd(tmp, ivar);
                 return tmp;
+            case GT:  // There is nothing I can do here, convert_loop_from_decr_to_incr() will take care of this.
+                return node;
 
             default: 
                 printf("Cannot canonicalize end condition of for() loop: ");
@@ -990,7 +1257,7 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
                 printf("\n");
                 break;
         }
-    }else if( (IDENTIFIER == DA_rel_rhs(node)->type) && !strcmp(ivar->u.var_name, (DA_rel_rhs(node)->u.var_name)) ){
+    }else if( IVAR_IS_RIGHT == ivar_side ){
         // If the variable is on the RHS, flip the relation operator, exchange LHS and RHS and call myself again.
         tmp = DA_create_relation(DA_flip_rel_op(node->type), DA_rel_rhs(node), DA_rel_lhs(node));
         tmp = _DA_canonicalize_for_econd(tmp, ivar);
@@ -1001,9 +1268,111 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
 }
 
 
+int replace_induction_variable_in_body(node_t *node, node_t *ivar, node_t *replacement){
+    int ret;
+
+    if( IDENTIFIER == node->type ){
+        char *str1 = DA_var_name(ivar);
+        char *str2 = DA_var_name(node);
+        if( (NULL != str1) && (NULL != str2) && !strcmp(str1, str2) ){
+            return 1;
+        }
+    }
+
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            ret = replace_induction_variable_in_body(tmp, ivar, replacement);
+            // The induction variable should never appear as a top level
+            // statement inside the body of the loop.  Only as a leaf of an subtree.
+            assert( !ret );
+        }
+    }else{
+        int i;
+        for(i=0; i<node->u.kids.kid_count; ++i){
+            ret = replace_induction_variable_in_body(node->u.kids.kids[i], ivar, replacement);
+            // If this kid is the induction variable, but not as a member of a struct, or union, then let's replace it
+            if( ret && (S_U_MEMBER != node->type) ){
+                node->u.kids.kids[i] = replacement;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int is_decrementing(node_t *node){
+    int rslt = 0;
+    node_t *modifier = DA_for_modifier(node);
+
+    switch(modifier->type){
+        case EXPR: // ++ or --
+            if( (INC_OP == DA_exp_lhs(modifier)->type) || (INC_OP == DA_exp_rhs(modifier)->type) ){
+                rslt = 0;
+            }else if( (DEC_OP == DA_exp_lhs(modifier)->type) || (DEC_OP == DA_exp_rhs(modifier)->type) ){
+                rslt = 1;
+            }
+            break;
+        case ADD_ASSIGN: // +=
+            rslt = 0;
+            break;
+        case SUB_ASSIGN: // -=
+            rslt = 1;
+            break;
+        default:
+            printf("Cannot analyze modifier type \"%s\" of for() loop: ", DA_type_name(modifier));
+            dump_tree(*node, 0);
+            printf("\n");
+            assert(0);
+    }
+    return rslt;
+}
+
+/*
+ * This function assumes that the loop end-condition has already
+ * been canonicalized to "ivar < B" or "ivar > B" form.
+ */
+void convert_loop_from_decr_to_incr(node_t *loop){
+    node_t *n0, *n1;
+    node_t *ivar, *lb, *ub, *new_ub;
+    node_t *scond, *econd, *incr, *expr;
+
+    // extract the three parts of the current for() loop
+    n0 = DA_for_scond(loop);
+    n1 = DA_for_econd(loop);
+
+    // get the induction variable of the loop
+    ivar = DA_assgn_lhs(n0);
+    // get the upper bound of the loop, from the starting condition
+    ub = DA_assgn_rhs(n0);
+    // get the lower bound of the loop, from the ending condition
+    lb = DA_assgn_rhs(n1);
+
+    // compute the new upper bound (ub-lb), given that the
+    // canonicalized loop will have zero as its lower bound.
+    new_ub = DA_create_B_expr( SUB, ub, lb );
+
+    scond = DA_create_B_expr( ASSIGN, ivar, DA_create_Int_const(0) );
+    econd = DA_create_B_expr( LT,     ivar, new_ub );
+    incr  = DA_create_B_expr( EXPR,   ivar, DA_create_Unary(INC_OP) );
+
+    // These are macros that expand to struct fields, so we can assign to them
+    DA_for_scond(loop)    = scond;
+    DA_for_econd(loop)    = econd;
+    DA_for_modifier(loop) = incr;
+
+    // We need to replace all occurances of the induction variable (ivar)
+    // in the body of this loop with ub-ivar, where ub is the
+    // starting condition of the original loop, not the new_ub.
+    expr = DA_create_B_expr( SUB, ub, ivar );
+    replace_induction_variable_in_body(DA_for_body(loop), ivar, expr);
+
+    return;
+}
+
 /* TODO: This needs a lot more work to become a general canonicalization function */
 int DA_canonicalize_for(node_t *node){
-    node_t *ivar, *econd, *tmp;
+    node_t *ivar, *tmp;
 
     if( FOR != node->type){
         return 0;
@@ -1021,35 +1390,19 @@ int DA_canonicalize_for(node_t *node){
         return 0;
     }
 
-    // Extract the end condition and make sure it's a relation.
-    econd = DA_for_econd(node);
-    if( !DA_is_rel(econd) ){
-        return 0;
-    }
-
     // Canonicalize the end condition (the middle statement of the for)
-    tmp = _DA_canonicalize_for_econd(econd, ivar);
+    tmp = _DA_canonicalize_for_econd(DA_for_econd(node), ivar);
     if( NULL == tmp ){
         return 0;
     }
-
-//#error "HERE"
-// turn: 
-// for(i=B; i><E1 && i><E2; i+=S) into:
-//
-// U1 = abs(E1-B) / abs(S);
-// if( abs(E1-B) % abs(S) )
-//     U1 += 1;
-// U2 = abs(E2-B) / abs(S);
-// if( abs(E2-B) % abs(S) )
-//     U2 += 1;
-// for(ii=0; ii<U1 && ii<U2; ii++){
-//     i = B+ii*S;
-// }
-// i = B+ii*S;
-//  
-
     DA_for_econd(node) = tmp;
+
+    // Check if the loop is incrementing or decrementing the induction variable
+    // for(i=LB; i<UB; i++) or for(i=UB; i>LB; i--)
+    // If it is the latter, convert it into the former
+    if( is_decrementing(node) ){
+        convert_loop_from_decr_to_incr(node);
+    }
 
     return 1;
 }
@@ -1198,6 +1551,48 @@ node_t *DA_create_Exit(){
     return node_to_ptr(rslt);
 }
 
+node_t *DA_exp_to_ind(node_t *node){
+    node_t *lhs, *rhs;
+    switch(node->type){
+        case MUL:
+            lhs = node->u.kids.kids[0];
+            rhs = node->u.kids.kids[1];
+
+            assert( INTCONSTANT == lhs->type || INTCONSTANT == rhs->type );
+            if( INTCONSTANT == lhs->type ){
+                return rhs;
+            }else{
+                return lhs;
+            }
+    }
+
+    return node;
+}
+
+/* 
+ * This function expects to find something like
+ * "3*x", or "x*3" in which case it returns "3".
+ * If it finds anything else, it returns 1
+ */
+int DA_exp_to_const(node_t *node){
+    node_t *lhs, *rhs;
+    switch(node->type){
+        case MUL:
+            lhs = node->u.kids.kids[0];
+            rhs = node->u.kids.kids[1];
+
+            assert( INTCONSTANT == lhs->type || INTCONSTANT == rhs->type );
+            if( INTCONSTANT == lhs->type ){
+                return DA_int_val(lhs);
+            }else if( INTCONSTANT == rhs->type ){
+                return DA_int_val(rhs);
+            }
+    }
+
+    return 1;
+}
+
+
 int DA_flip_rel_op(int type){
     switch(type){
         case LT:
@@ -1272,19 +1667,6 @@ int DA_is_loop(node_t *node){
     return 0;
 }
 
-/*
- * If the node is a variable, return it's name.
- */
-char *DA_var_name(node_t *node){
-    if( NULL == node )
-        return NULL;
-
-    switch(node->type){
-        case IDENTIFIER:
-            return node->u.var_name;
-    }
-    return NULL;
-}
 
 static int DA_quark_LOCALITY_FLAG(node_t *node){
     int rslt1, rslt2;
@@ -1690,16 +2072,16 @@ node_t *DA_loop_induction_variable(node_t *loop){
         case FOR:
             n0 = DA_for_scond(loop);
             n1 = DA_for_econd(loop);
-            n2 = DA_for_incrm(loop);
+            n2 = DA_for_modifier(loop);
             assert( (NULL != n0) && (NULL != n1) && (NULL != n2) );
             if( ASSIGN != n0->type ){
                 fprintf(stderr,"Don't know how to extract induction variable from type: %s\n",DA_type_name(n0));
-                return NULL;
+                assert(0);
             }
             tmp = DA_assgn_lhs(n0);
             if( IDENTIFIER != tmp->type ){
                 fprintf(stderr,"Don't know how to deal with LHS of type: %s\n",DA_type_name(tmp));
-                return NULL;
+                assert(0);
             }
 
             return tmp;
@@ -1743,56 +2125,6 @@ void dump_for(node_t *node){
 }
 
 
-const char *type_to_symbol(int type){
-    switch(type){
-        case ADD:
-            return "+";
-        case SUB:
-            return "-";
-        case MUL:
-            return "*";
-        case DIV:
-            return "/";
-        case MOD:
-            return "%";
-        case B_AND:
-            return "&";
-        case B_XOR:
-            return "^";
-        case B_OR:
-            return "|";
-        case L_AND:
-            if( JDF_NOTATION )
-                return "&";
-            else
-                return "&&";
-        case L_OR:
-            if( JDF_NOTATION )
-                return "|";
-            else
-                return "||";
-        case LSHIFT:
-            return "<<";
-        case RSHIFT:
-            return ">>";
-        case LT:
-            return "<";
-        case GT:
-            return ">";
-        case LE:
-            return "<=";
-        case GE:
-            return ">=";
-        case EQ_OP:
-            return "==";
-        case NE_OP:
-            return "!=";
-        case COMMA_EXPR:
-            return ",";
-    }
-    return "???";
-}
-
 static int isSimpleVar(char *name){
     int i, len;
 
@@ -1815,8 +2147,11 @@ static char *find_definition(char *var_name, node_t *node){
         for(curr=node->prev; NULL!=curr; curr=curr->prev){
             if( ASSIGN == curr->type ){
                 tmp = DA_assgn_lhs(curr);
-                if( IDENTIFIER == tmp->type && !strcmp(DA_var_name(tmp), var_name) ){
-                    return tree_to_str( curr );
+                if( IDENTIFIER == tmp->type ){
+                    char *name = DA_var_name(tmp);
+                    if( (NULL != name) && !strcmp(name, var_name) ){
+                        return tree_to_str( curr );
+                    }
                 }
             }
         }
@@ -1851,45 +2186,6 @@ static int isArrayIn(node_t *task_node, int index){
         }
     }
     return 0;
-}
-
-/* 
- * Take the first OUT or INOUT array variable and make it the data element that
- * this task should have affinity to.
- * It would be much better if we found which tile this task writes most times into,
- * instead of the first write, to reduce unnecessary communication.
- */
-node_t *print_default_task_placement(node_t *task_node){
-    int i;
-
-    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
-        if( isArrayOut(task_node, i) && isArrayLocal(task_node, i) ){
-            node_t *data_element = task_node->u.kids.kids[i];
-             /*
-              * JDF & QUARK specific optimization:
-              * Add the keyword "data_" infront of the matrix to
-              * differentiate the matrix from the struct.
-              */
-            printf("  : data_%s\n",tree_to_str(data_element));
-            return data_element;
-        }
-    }
-
-    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
-        if( isArrayOut(task_node, i) ){
-            node_t *data_element = task_node->u.kids.kids[i];
-             /*
-              * JDF & QUARK specific optimization:
-              * Add the keyword "data_" infront of the matrix to
-              * differentiate the matrix from the struct.
-              */
-            printf("  : data_%s\n",tree_to_str(data_element));
-            return data_element;
-        }
-    }
-
-    fprintf(stderr,"WARNING: task: \"%s\" does not alter any memory regions!", task_node->task->task_name);
-    return NULL;
 }
 
 static char *int_to_str(int num){
@@ -1942,20 +2238,67 @@ static char *size_to_pool_name(char *size_str){
     return pool_name;
 }
 
-char *create_pool_declarations(){
-    char *result = NULL;
-
+string_arena_t *create_pool_declarations(){
+    string_arena_t *sa = NULL;
+    
+    sa = string_arena_new(64);
     DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
-    {
-        var_def_item_t *true_item = (var_def_item_t *)list_item;
-       
-        result = append_to_string(result, true_item->def, NULL, 0);
-        result = append_to_string(result, true_item->var, " [type = \"dague_memory_pool_t *\" size = \"%s\"]\n", 47+strlen(true_item->var));
-    });
-    return result;
+                         {
+                             var_def_item_t *true_item = (var_def_item_t *)list_item;
+                             string_arena_add_string(sa, "%s [type = \"dague_memory_pool_t *\" size = \"%s\"]\n",
+                                                     true_item->def,
+                                                     true_item->var);
+                         });
+    return sa;
 }
 
-/* 
+void jdf_register_pools( jdf_t *jdf )
+{
+    jdf_global_entry_t *prev = jdf->globals;
+
+    if ( jdf->globals != NULL ) {
+        prev = jdf->globals;
+        while( prev->next != NULL )
+            prev = prev->next;
+    }
+
+    DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
+                         {
+                             var_def_item_t *true_item = (var_def_item_t *)list_item;
+                             jdf_global_entry_t *e = q2jmalloc(jdf_global_entry_t, 1);
+                             e->next       = NULL;
+                             e->name       = true_item->def;
+                             e->properties = q2jmalloc(jdf_def_list_t, 2);
+                             e->expression = NULL;
+                             JDF_OBJECT_SET(e, NULL, 0, NULL);
+
+                             e->properties[0].next       = (e->properties)+1;
+                             e->properties[0].name       = strdup("type");
+                             e->properties[0].expr       = q2jmalloc(jdf_expr_t, 1);
+                             e->properties[0].properties = NULL;
+                             JDF_OBJECT_SET(&(e->properties[0]), NULL, 0, NULL);
+                             e->properties[0].expr->op      = JDF_STRING;
+                             e->properties[0].expr->jdf_var = strdup("dague_memory_pool_t *");
+
+                             e->properties[1].next       = NULL;
+                             e->properties[1].name       = strdup("size");
+                             e->properties[1].expr       = q2jmalloc(jdf_expr_t, 1);
+                             e->properties[1].properties = NULL;
+                             JDF_OBJECT_SET(&(e->properties[1]), NULL, 0, NULL);
+                             e->properties[1].expr->op      = JDF_STRING;
+                             e->properties[1].expr->jdf_var = strdup(true_item->var);
+
+                             if ( jdf->globals == NULL) {
+                                  jdf->globals = e;
+                             } else {
+                                 prev->next = e;
+                             }
+                             prev = e;
+                         });
+    return;
+}
+
+/*
  * Traverse the list of variable definitions to see if we have stored a definition for a given variable.
  * Return the value one if "param" is in the list and the value zero if it is not.
  */
@@ -1974,7 +2317,7 @@ static int is_definition_seen(dague_list_t *var_def_list, char *param){
 }
 
 
-/* 
+/*
  * Add in the list of variable definitions an entry for the given parameter (the definition
  * itself is unnecessary, as we are using this list as a bitmask, in is_definition_seen().)
  */
@@ -2127,7 +2470,7 @@ char *quark_tree_to_body(node_t *node){
             }
         }else if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "SCRATCH") ){
             char *pool_name = size_to_pool_name( tree_to_str(node->u.kids.kids[i-1]) );
-            char *id = numToSymName(pool_buf_count);
+            char *id = numToSymName(pool_buf_count, NULL);
             param = append_to_string( param, id, "p_elem_%s", 7+strlen(id));
             pool_pop = append_to_string( pool_pop, param, "  void *%s = ", 16+strlen(param));
             pool_pop = append_to_string( pool_pop, pool_name, "dague_private_memory_pop( %s );\n", 31+strlen(pool_name));
@@ -2139,6 +2482,8 @@ char *quark_tree_to_body(node_t *node){
             // Every SCRATCH parameter will need a different buffer from the pool,
             // regardles of how many pools the buffers will belong to.
             pool_buf_count++;
+
+            free(id);
         }else{
             char *symname = node->u.kids.kids[i]->var_symname;
             assert(NULL != symname);
@@ -2146,10 +2491,11 @@ char *quark_tree_to_body(node_t *node){
             kernel_call = append_to_string( kernel_call, symname, NULL, 0);
             /*
              * JDF & QUARK specific optimization:
-             * Add the keyword "data_" infront of the matrix to
+             * Add the keyword _q2j_data_prefix infront of the matrix to
              * differentiate the matrix from the struct.
              */
-            kernel_call = append_to_string( kernel_call, param, " /* data_%s */", 12+strlen(param));
+            kernel_call = append_to_string( kernel_call, _q2j_data_prefix, " /* %s", 4+strlen(_q2j_data_prefix));
+            kernel_call = append_to_string( kernel_call, param, "%s */", 3+strlen(param));
         }
 
         // Add the parameter to the string of the printlog.  If the parameter is an array, we need to
@@ -2263,13 +2609,13 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
                 }
                 /*
                  * JDF & QUARK specific optimization:
-                 * Add the keyword "desc_" infront of the variable to
+                 * Add the keyword "desc" infront of the variable to
                  * differentiate the matrix from the struct.
                  */
                 if( (NULL == node->parent) || (ARRAY != node->parent->type) ){
                     char *type = st_type_of_variable(node->u.var_name, node->symtab);
                     if( (NULL != type) && !strcmp("PLASMA_desc", type) ){
-                        str = strdup("desc_");
+                        str = strdup("desc");
                     }
                 }
 
@@ -2304,6 +2650,9 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
 
             case INC_OP:
                 return strdup("++");
+
+            case DEC_OP:
+                return strdup("--");
 
             case SIZEOF:
                 str = strdup("sizeof(");
@@ -2603,6 +2952,99 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
     return str;
 }
 
+
+const char *type_to_str(int type){
+
+    switch(type){
+        case EMPTY: return "EMPTY";
+        case INTCONSTANT: return "INTCONSTANT";
+        case IDENTIFIER: return "IDENTIFIER";
+        case ADDR_OF: return "ADDR_OF";
+        case STAR: return "STAR";
+        case PLUS: return "PLUS";
+        case MINUS: return "MINUS";
+        case TILDA: return "TILDA";
+        case BANG: return "BANG";
+        case ASSIGN: return "ASSIGN";
+        case COND: return "COND";
+        case ARRAY: return "ARRAY";
+        case FCALL: return "FCALL";
+        case ENTRY: return "ENTRY";
+        case EXIT: return "EXIT";
+        case EXPR: return "EXPR";
+        case ADD: return "ADD";
+        case SUB: return "SUB";
+        case MUL: return "MUL";
+        case DIV: return "DIV";
+        case MOD: return "MOD";
+        case B_AND: return "B_AND";
+        case B_XOR: return "B_XOR";
+        case B_OR: return "B_OR";
+        case LSHIFT: return "LSHIFT";
+        case RSHIFT: return "RSHIFT";
+        case LT: return "LT";
+        case GT: return "GT";
+        case LE: return "LE";
+        case GE: return "GE";
+        case DEREF: return "DEREF";
+        case S_U_MEMBER: return "S_U_MEMBER";
+        case COMMA_EXPR: return "COMMA_EXPR";
+        case BLOCK: return "BLOCK";
+        default: return "???";
+    }
+}
+
+const char *type_to_symbol(int type){
+    switch(type){
+        case ADD:
+            return "+";
+        case SUB:
+            return "-";
+        case MUL:
+            return "*";
+        case DIV:
+            return "/";
+        case MOD:
+            return "%";
+        case B_AND:
+            return "&";
+        case B_XOR:
+            return "^";
+        case B_OR:
+            return "|";
+        case L_AND:
+            if( JDF_NOTATION )
+                return "&";
+            else
+                return "&&";
+        case L_OR:
+            if( JDF_NOTATION )
+                return "|";
+            else
+                return "||";
+        case LSHIFT:
+            return "<<";
+        case RSHIFT:
+            return ">>";
+        case LT:
+            return "<";
+        case GT:
+            return ">";
+        case LE:
+            return "<=";
+        case GE:
+            return ">=";
+        case EQ_OP:
+            return "==";
+        case NE_OP:
+            return "!=";
+        case COMMA_EXPR:
+            return ",";
+        case S_U_MEMBER:
+            return "STRUCT_or_UNION";
+    }
+    return "???";
+}
 
 node_t *node_to_ptr(node_t node){
     node_t *tmp = (node_t *)calloc(1, sizeof(node_t));

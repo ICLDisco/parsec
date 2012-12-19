@@ -1,30 +1,45 @@
-#!/bin/sh
-rm -rf CMakeCache.txt CMakeFiles
+#!/bin/bash
 
-SOURCE=`dirname $0`/../../
+USER_OPTIONS+=" -DCMAKE_OSX_ARCHITECTURES=$(uname -m)"
+
 
 if [ "x$USER" == "xbouteill" ]; then 
-	# the above line is necessary only when using gcc and gfortran 4.4
-	# from fink. If using stock gcc and hpc gfortran, or port,
-	# it is not necessary. 
-	export CC=gcc-4
-	export CXX=g++-4
-	PLASMA_DIR=$HOME/dague/plasma
-	MY_OPTS="-DBUILD_64bits=ON"
+    PLASMA_DIR=$HOME/dague/plasma
 
 elif [ "x$USER" == "xherault" ]; then
-	PLASMA_DIR=/Users/herault/Documents/Recherche/plasma/plasma-installer
+    #PLASMA_DIR=/Users/herault/Documents/Recherche/plasma/plasma-installer
     PLASMA_DIR=/Users/herault/Documents/Recherche/dague/plasma
-	MY_OPTS="-DHWLOC_DIR=/opt/local"
+    HWLOC_DIR=/opt/local
 
 elif [ "x$USER" == "xbosilca" ]; then 
-	HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt"
-	PLASMA_DIR=${HOME}/opt/PLASMA/plasma-svn/
-	MY_OPTS="-DBUILD_64bits=ON -DDAGUE_GPU_WITH_CUDA=OFF ${HWLOC_OPTS}"
+    HWLOC_DIR=/Users/bosilca/opt
+    PLASMA_DIR=${HOME}/opt/PLASMA/plasma-svn/
+    OMEGA_DIR=${OMEGA_DIR:="/Users/bosilca/tools/Omega/binary"}
+    USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF -DAYUDAME_DIR=/Users/bosilca/tools/temanejo-0.9.1"
 
-else
-	PLASMA_DIR=/opt/plasma
+elif [ "x$USER" == "xadanalis" ]; then 
+    OMEGA_DIR="/Users/adanalis/Desktop/Research/PLASMA_Distributed/Related_Stuff/Omega"
+    USER_OPTIONS+="-DBUILD_DPLASMA=OFF -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_WITH_MPI=OFF"
 fi
 
-echo cmake ${SOURCE} -Wdev -DPLASMA_DIR=${PLASMA_DIR} ${MY_OPTS}
-cmake ${SOURCE} -Wdev -DPLASMA_DIR=${PLASMA_DIR} ${MY_OPTS}
+
+. $(dirname $0)/config.inc
+guess_defaults
+# if icc is not found, detect the matching gcc/gfortran pair
+# OS X has no fortran by default, and flavor varies between fink, port, self installed, etc
+if [ ! -x "$FC" ]; then
+  GCCDIR=$(dirname $(which gfortran))
+  if [ -x "$GCCDIR/gcc" ]; then 
+    CC=$GCCDIR/gcc
+    CXX=$GCCDIR/g++
+    FC=$GCCDIR/gfortran
+  elif [ -x "$GCCDIR/gcc-4" ]; then
+    CC=$GCCDIR/gcc-4
+    CXX=$GCCDIR/g++-4
+    FC=$GCCDIR/gfortran
+  else
+    echo "Fortran compiler not found, going into cmake and hoping for the best"
+  fi
+fi
+run_cmake $*
+

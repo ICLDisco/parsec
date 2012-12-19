@@ -72,7 +72,7 @@ RWCOL(m, n) [profile = off]
 BODY
     DRYRUN(
         /* Initialize W */
-        ((double *)W)[0] = 0;
+        ((double *)W)[0] = 0.;
            );
 END
 
@@ -96,7 +96,7 @@ RWELT(m, n) [profile = off]
 BODY
     DRYRUN(
         /* Initialize W */
-        ((double *)W)[0] = 0;
+        ((double *)W)[0] = 0.;
            );
 END
 /**************************************************
@@ -121,10 +121,12 @@ STEP1(m,n)
            ->  ( n < Q           ) ? W STEP2( m, n   ) : W STEP1( m, n-Q ) [type = COL]
 
 BODY
-
+{
     int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
     int tempnn = ( n == (descA.nt-1) ) ? descA.n - n * descA.nb : descA.nb;
     int ldam = BLKLDD( descA, m );
+    double *dW = (double*)W;
+    double lnorm;
 
     printlog("thread %d zlange STEP1(%d, %d)\n"
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
@@ -133,10 +135,11 @@ BODY
     DRYRUN(
 
         CORE_zlange(PlasmaMaxNorm, tempmm, tempnn,
-                    A, ldam, NULL, W);
+                    A, ldam, NULL, &lnorm);
 
+        *dW = ( lnorm > *dW ) ? lnorm : *dW;
            );
-
+}
 END
 
 /**************************************************
@@ -171,6 +174,7 @@ BODY
             double *dA = (double*)A;
             double *dW = (double*)W;
             *dW = ( *dA > *dW ) ? *dA : *dW;
+
         }
            );
 

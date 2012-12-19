@@ -77,19 +77,19 @@
  *
  ******************************************************************************/
 dague_object_t*
-dplasma_zsymm_New( const PLASMA_enum side, 
+dplasma_zsymm_New( const PLASMA_enum side,
                    const PLASMA_enum uplo,
-                   const dague_complex64_t alpha, 
-                   const tiled_matrix_desc_t* A, 
+                   const dague_complex64_t alpha,
+                   const tiled_matrix_desc_t* A,
                    const tiled_matrix_desc_t* B,
-                   const double beta, 
+                   const dague_complex64_t beta,
                    tiled_matrix_desc_t* C)
 {
     dague_zsymm_object_t* object;
 
-    object = dague_zsymm_new(side, uplo, alpha, beta, 
-                             *A, (dague_ddesc_t*)A, 
-                             *B, (dague_ddesc_t*)B, 
+    object = dague_zsymm_new(side, uplo, alpha, beta,
+                             *A, (dague_ddesc_t*)A,
+                             *B, (dague_ddesc_t*)B,
                              *C, (dague_ddesc_t*)C);
 
     dplasma_add2arena_tile(object->arenas[DAGUE_zsymm_DEFAULT_ARENA],
@@ -156,28 +156,41 @@ dplasma_zsymm_Destruct( dague_object_t *o )
  *
  ******************************************************************************/
 int
-dplasma_zsymm( dague_context_t *dague, 
-               const PLASMA_enum side, 
+dplasma_zsymm( dague_context_t *dague,
+               const PLASMA_enum side,
                const PLASMA_enum uplo,
-               const dague_complex64_t alpha, 
-               const tiled_matrix_desc_t *A, 
+               const dague_complex64_t alpha,
+               const tiled_matrix_desc_t *A,
                const tiled_matrix_desc_t *B,
-               const double beta, 
+               const dague_complex64_t beta,
                tiled_matrix_desc_t *C)
 {
     dague_object_t *dague_zsymm = NULL;
 
     /* Check input arguments */
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
-        dplasma_error("PLASMA_zsymm", "illegal value of side");
+        dplasma_error("dplasma_zsymm", "illegal value of side");
         return -1;
     }
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
-        dplasma_error("PLASMA_zsymm", "illegal value of uplo");
+        dplasma_error("dplasma_zsymm", "illegal value of uplo");
         return -2;
     }
+    if ( (A->m != A->n) ) {
+        dplasma_error("dplasma_zhemm", "illegal size of matrix A which should be square");
+        return -4;
+    }
+    if ( (B->m != C->m) || (B->n != C->n) ) {
+        dplasma_error("dplasma_zhemm", "illegal sizes of matrices B and C");
+        return -5;
+    }
+    if ( ((side == PlasmaLeft) && (A->n != C->m)) ||
+         ((side == PlasmaRight) && (A->n != C->n)) ) {
+        dplasma_error("dplasma_zhemm", "illegal size of matrix A");
+        return -6;
+    }
 
-    dague_zsymm = dplasma_zsymm_New(side, uplo, 
+    dague_zsymm = dplasma_zsymm_New(side, uplo,
                                     alpha, A, B,
                                     beta, C);
 

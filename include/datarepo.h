@@ -38,13 +38,13 @@ typedef struct data_repo       data_repo_t;
  *       pushing thread is still exploring, and SEGFAULT will occur.
  *
  *  An alternative solution consisted in having a function that will compute how many
- *  times the element will be used at creation time, and keep this for the whole life 
+ *  times the element will be used at creation time, and keep this for the whole life
  *  of the entry without changing it. But this requires to write a specialized function
  *  dumped by the precompiler, that will do a loop on the predicates. This was ruled out.
  *
  *  The element can still be inserted in the table, counted for some data (not all),
  *  used by some tasks (not all), removed from the table, then re-inserted when a
- *  new data arrives that the previous tasks did not depend upon. 
+ *  new data arrives that the previous tasks did not depend upon.
  *
  *  Here is how it is used:
  *    the table is created with data_repo_create_nothreadsafe
@@ -52,9 +52,9 @@ typedef struct data_repo       data_repo_t;
  *    entries are created using data_repo_lookup_entry_and_create. This turns the retained flag on.
  *    The same thread that called data_repo_lookup_entry_and_create must eventually call
  *    data_repo_entry_addto_usage_limit to set the usage limit and remove the retained flag.
- *    Between the two calls, any thread can call data_repo_lookup_entry and 
+ *    Between the two calls, any thread can call data_repo_lookup_entry and
  *    data_repo_entry_used_once if the entry has been "used". When data_repo_entry_addto_usage_limit
- *    has been called the same number of times as data_repo_lookup_entry_and_create and data_repo_entry_used_once 
+ *    has been called the same number of times as data_repo_lookup_entry_and_create and data_repo_entry_used_once
  *    has been called N times where N is the sum of the usagelmt parameters of data_repo_lookup_entry_and_create,
  *    the entry is garbage collected from the hash table. Notice that the values pointed by the entry
  *    are not collected.
@@ -66,7 +66,7 @@ typedef struct data_repo       data_repo_t;
  *  and it must have a pointer to it's own mempool_thread_t.
  * Thus, we use the dague_list_item_t to point to the next fields,
  * althgough this is not done atomically at the datarepo level (not
- * needed) 
+ * needed)
  *
  * The following #define are here to help port the code.
  */
@@ -76,10 +76,11 @@ typedef struct data_repo       data_repo_t;
 struct data_repo_entry {
     dague_list_item_t       data_repo_next_item;
     dague_thread_mempool_t* data_repo_mempool_owner;
+    void*                   generator;
+    uint64_t                key;
     volatile uint32_t       usagecnt;
     volatile uint32_t       usagelmt;
     volatile uint32_t       retained;
-    long int                key;
 #if defined(DAGUE_SIM)
     int                     sim_exec_date;
 #endif
@@ -107,7 +108,7 @@ static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, 
     return res;
 }
 
-static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int key)
+static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, uint64_t key)
 {
     data_repo_entry_t *e;
     int h = key % repo->nbentries;
@@ -126,7 +127,8 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
  * you're done counting the number of references, otherwise the entry is non erasable.
  * See comment near the structure definition.
  */
-static inline data_repo_entry_t *data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo, long int key)
+static inline data_repo_entry_t*
+data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key)
 {
     data_repo_entry_t *e, *n;
     int h = key % repo->nbentries;
@@ -143,6 +145,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(dague_executi
     dague_atomic_unlock(&repo->heads[h].lock);
 
     n = (data_repo_entry_t*)dague_thread_mempool_allocate( eu->datarepo_mempools[repo->nbdata] );
+    n->data_repo_mempool_owner = eu->datarepo_mempools[repo->nbdata];
     n->key = key;
 #if defined(DAGUE_SIM)
     n->sim_exec_date = 0;
@@ -164,10 +167,10 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(dague_executi
 
 #if defined(DAGUE_DEBUG_VERBOSE3)
 # define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
-static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, long int key, const char *tablename, const char *file, int line)
+static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key, const char *tablename, const char *file, int line)
 #else
 # define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key)
-static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, long int key)
+static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key)
 #endif
 {
     data_repo_entry_t *e, *p;
@@ -193,7 +196,7 @@ static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_
 
     if( (e->usagelmt == r) && (0 == e->retained) ) {
         DEBUG3(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
-                     e, e->key, tablename, r, r, file, line));
+                e, e->key, tablename, r, r, file, line));
         if( NULL != p ) {
             p->data_repo_next_entry = e->data_repo_next_entry;
         } else {
@@ -202,21 +205,22 @@ static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_
         repo->heads[h].size--;
         dague_atomic_unlock(&repo->heads[h].lock);
 
-        dague_thread_mempool_free(eu->datarepo_mempools[repo->nbdata], e );
+        dague_thread_mempool_free(e->data_repo_mempool_owner, e );
         DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         DEBUG3(("entry %p/%ld of hash table %s has %u/%u usage count and %s retained: not freeing it, even if it's used at %s:%d\n",
                      e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
         dague_atomic_unlock(&repo->heads[h].lock);
     }
+    (void)eu;
 }
 
 #if defined(DAGUE_DEBUG_VERBOSE3)
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
-static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt, const char *tablename, const char *file, int line)
+static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t usagelmt, const char *tablename, const char *file, int line)
 #else
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt)
-static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt)
+static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t usagelmt)
 #endif
 {
     data_repo_entry_t *e, *p;
@@ -250,7 +254,7 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
         }
         repo->heads[h].size--;
         dague_atomic_unlock(&repo->heads[h].lock);
-        free(e);
+        dague_thread_mempool_free(e->data_repo_mempool_owner, e );
         DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         DEBUG3(("entry %p/%ld of hash table %s has a usage count of %u/%u and is %s retained at %s:%d\n",

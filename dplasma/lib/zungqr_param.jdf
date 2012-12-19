@@ -38,9 +38,6 @@ pivfct [type = "qr_piv_t*"]
 ib     [type = "int" ]
 p_work [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descT1.nb)"]
 minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : descA.nt )" ]
-param_p[type = "int" hidden=on default="pivfct->p"]
-param_a[type = "int" hidden=on default="pivfct->a"]
-param_d[type = "int" hidden=on default="pivfct->domino"]
 
 /*
  * For explanations on zungqr_param.jdf, look at zgeqrf_param.jdf
@@ -52,15 +49,15 @@ zttmqr(k, m, n)
   k     = 0..minMN-1
   m     = k+1..descQ.mt-1
   n     = 0..descQ.nt-1
-  p     = inline_c %{ return dplasma_qr_currpiv(pivfct, m, k);     %}
-  nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m);  %}
-  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m);  %}
-  prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m);  %}
-  type  = inline_c %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
-  type1 = inline_c %{ return dplasma_qr_gettype( pivfct, k+1, m ); %}
-  ip    = inline_c %{ return dplasma_qr_geti(    pivfct, k,   p ); %}
-  im    = inline_c %{ return dplasma_qr_geti(    pivfct, k,   m ); %}
-  im1   = inline_c %{ return dplasma_qr_geti(    pivfct, k+1, m ); %}
+  p     = inline_c %{ return dplasma_qr_currpiv(pivfct, m, k);    %}
+  nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
+  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m); %}
+  prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m); %}
+  type  = inline_c %{ return dplasma_qr_gettype(pivfct, k,   m ); %}
+  type1 = inline_c %{ return dplasma_qr_gettype(pivfct, k+1, m ); %}
+  ip    = inline_c %{ return dplasma_qr_geti(   pivfct, k,   p ); %}
+  im    = inline_c %{ return dplasma_qr_geti(   pivfct, k,   m ); %}
+  im1   = inline_c %{ return dplasma_qr_geti(   pivfct, k+1, m ); %}
 
   : Q(m, n)
 

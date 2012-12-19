@@ -12,9 +12,9 @@
  * @precisions normal z -> c d s
  *
  **/
+#include "dplasma_zcores.h"
 #include <math.h>
 #include <lapacke.h>
-#include "dplasma_zcores.h"
 //#include "common.h"
 #include "plasma.h"
 #include "cblas.h"

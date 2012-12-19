@@ -371,7 +371,7 @@ static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
     origin->dague_object = exec_context.dague_object;
     exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
 
-    for(int i = 0; i < exec_context.function->nb_definitions; i++)
+    for(int i = 0; i < exec_context.function->nb_locals; i++)
         exec_context.locals[i] = origin->msg.locals[i];
 
     return exec_context.function->release_deps(NULL, &exec_context,
@@ -392,7 +392,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
 #endif
     assert(exec_context.dague_object); /* Future: for composition, store this in a list to be considered upon creation of the DO*/
     exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
-    for( i = 0; i < exec_context.function->nb_definitions; i++)
+    for( i = 0; i < exec_context.function->nb_locals; i++)
         exec_context.locals[i] = origin->msg.locals[i];
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != (target = exec_context.function->out[i])); i++) {
@@ -620,14 +620,14 @@ static void remote_dep_mpi_profiling_init(void)
 
 #if defined(DAGUE_STATS)
 
-    #define DAGUE_STATACC_ACCUMULATE_MSG(counter, count, datatype) do {\
+#   define DAGUE_STATACC_ACCUMULATE_MSG(counter, count, datatype) do {\
         int _sa_size; \
         MPI_Pack_size(count, datatype, dep_comm, &_sa_size); \
         DAGUE_STATACC_ACCUMULATE(counter, 1); \
         DAGUE_STATACC_ACCUMULATE(counter_bytes_sent, _sa_size); \
     }
 #else
-    #define DAGUE_STATACC_ACCUMULATE_MSG(counter, count, datatype)
+#   define DAGUE_STATACC_ACCUMULATE_MSG(counter, count, datatype)
 #endif /* DAGUE_STATS */
 
 
@@ -1212,6 +1212,7 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dague
             remote_dep_mpi_recv_activate(eu_context, deps, buffer, unpacked);
             item = dague_ulist_remove(&dep_activates_noobj_fifo, item);
             free(item);
+            (void)rc;
         }
     }));
 }

@@ -1,0 +1,33 @@
+#!/bin/bash
+echo "## Defaults for KRAKEN machine at NICS (Cray XT5)"
+
+if [ "debug" = "$1" ]; then 
+    INSTALL_PREFIX=/lustre/scratch/$USER/dague-debug-`date +%y%m%d.%s`
+else
+    INSTALL_PREFIX=/lustre/scratch/$USER/dague-`date +%y%m%d.%s`
+fi
+USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF" #remove for XK6/7
+
+
+
+# A default source for supplementary software on Kraken. 
+# This links to software I compiled myself, customize to your needs
+OPT_DIR="/nics/c/home/bouteill/.opt.kraken"
+HWLOC_DIR=${HWLOC_DIR:="$OPT_DIR/hwloc"}
+PLASMA_DIR=${PLASMA_DIR:="$OPT_DIR/plasma"}
+#CUDA_DIR=${CUDA_DIR:="$OPT_DIR/cuda"}
+#OMEGA_DIR=${OMEGA_DIR:="$OPT_DIR/Omega/"}
+#GTG_DIR=${GTG_DIR:="$OPT_DIR/gtg"}
+
+# Compilers and MPI/BLAS
+CC=${CC:="cc -DADD_"}
+CXX=${CXX:="CC -DADD_"}
+FC=${FC:="ftn"}
+#MPI_DIR=${MPI_DIR:="$MPICH_DIR"}
+
+
+
+. $(dirname $0)/config.inc
+# guess_defaults # No guesses on the Kraken. 
+run_cmake $*
+

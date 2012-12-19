@@ -48,7 +48,7 @@ if (MPI_FOUND)
         scalapack_convert.c 
         )
     set_target_properties(dague_distribution_matrix-mpi PROPERTIES COMPILE_FLAGS
-                            "${MPI_COMPILE_FLAGS} -DUSE_MPI")
+                            "${MPI_COMPILE_FLAGS}")
     install(TARGETS dague_distribution_matrix-mpi ARCHIVE DESTINATION lib)
 else()
     add_library(dague_distribution_matrix STATIC 

@@ -324,7 +324,7 @@ gpu_stsmqr_internal_push( gpu_device_t* gpu_device,
                                   {printf("<<%p>> -> <<%p>> [%d]\n", (void*)A, (void*)(long)d_A, tile_size); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_in += tile_size;
     }
-    this_task->data[0].mem2dev_data->device_elem[gpu_device->index] = (struct gpu_elem_t *)gpu_elem_A;
+    this_task->data[0].moesi_master->device_elem[gpu_device->index] = (struct gpu_elem_t *)gpu_elem_A;
 
     on_gpu = gpu_qr_data_is_on_gpu(0, gpu_device, ddescA(this_task), DAGUE_READ, m, k, &gpu_elem_B);
     d_B = gpu_elem_B->gpu_mem;
@@ -337,7 +337,7 @@ gpu_stsmqr_internal_push( gpu_device_t* gpu_device,
                                   {printf("<<%p>> -> <<%p>>\n", (void*)B, (void*)(long)d_B); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_in += tile_size;
     }
-    this_task->data[1].mem2dev_data->device_elem[gpu_device->index] = (struct gpu_elem_t *)gpu_elem_B;
+    this_task->data[1].moesi_master->device_elem[gpu_device->index] = (struct gpu_elem_t *)gpu_elem_B;
 
     on_gpu = gpu_qr_data_is_on_gpu(0, gpu_device, ddescA(this_task), DAGUE_READ | DAGUE_WRITE, m, n, &gpu_elem_C);
     d_C = gpu_elem_C->gpu_mem;
@@ -350,7 +350,7 @@ gpu_stsmqr_internal_push( gpu_device_t* gpu_device,
                                   {printf("<<%p>> -> <<%p>>\n", (void*)C, (void*)(long)d_C); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_in += tile_size;
     }
-    this_task->data[2].mem2dev_data->device_elem[gpu_device->index] = (struct gpu_elem_t *)gpu_elem_C;
+    this_task->data[2].moesi_master->device_elem[gpu_device->index] = (struct gpu_elem_t *)gpu_elem_C;
 
 #if defined(DAGUE_PROF_TRACE)
     dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end, 0, PROFILE_OBJECT_ID_NULL, NULL );
@@ -372,9 +372,9 @@ gpu_stsmqr_internal_submit( gpu_device_t* gpu_device,
     float alpha = -1.0, beta = 1.0;
     int offset;
 
-    gpu_elem_A = (gpu_elem_t *)this_task->data[0].mem2dev_data->device_elem[gpu_device->index];
-    gpu_elem_B = (gpu_elem_t *)this_task->data[1].mem2dev_data->device_elem[gpu_device->index];
-    gpu_elem_C = (gpu_elem_t *)this_task->data[2].mem2dev_data->device_elem[gpu_device->index];
+    gpu_elem_A = (gpu_elem_t *)this_task->data[0].moesi_master->device_elem[gpu_device->index];
+    gpu_elem_B = (gpu_elem_t *)this_task->data[1].moesi_master->device_elem[gpu_device->index];
+    gpu_elem_C = (gpu_elem_t *)this_task->data[2].moesi_master->device_elem[gpu_device->index];
     d_A = gpu_elem_A->gpu_mem;
     d_B = gpu_elem_B->gpu_mem;
     d_C = gpu_elem_C->gpu_mem;
@@ -437,7 +437,7 @@ gpu_stsmqr_internal_pop( gpu_device_t* gpu_device,
     k = this_task->locals[0].value;
     n = this_task->locals[2].value;
 
-    gpu_elem_C = (gpu_elem_t *)this_task->data[2].mem2dev_data->device_elem[gpu_device->index];
+    gpu_elem_C = (gpu_elem_t *)this_task->data[2].moesi_master->device_elem[gpu_device->index];
     aC = this_task->data[2].data;
     d_C = gpu_elem_C->gpu_mem;
     C = ADATA(aC);

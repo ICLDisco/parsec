@@ -28,8 +28,8 @@
  ***********************************************************************/
 
 /*
- * Level 2 BLAS 
- */  
+ * Level 2 BLAS
+ */
 #define FMULS_GEMV(__m, __n) ((double)(__m) * (double)(__n) + 2. * (double)(__m))
 #define FADDS_GEMV(__m, __n) ((double)(__m) * (double)(__n)                     )
 
@@ -39,7 +39,7 @@
 #define FADDS_HEMV FADDS_SYMV
 
 /*
- * Level 3 BLAS 
+ * Level 3 BLAS
  */
 #define FMULS_GEMM(__m, __n, __k) ((double)(__m) * (double)(__n) * (double)(__k))
 #define FADDS_GEMM(__m, __n, __k) ((double)(__m) * (double)(__n) * (double)(__k))
@@ -94,7 +94,11 @@
 
 //SPBTRF
 //SPBTRS
-//SSYTRF
+
+#define FMULS_HETRF(__n) ((double)(__n) * (((1. / 6.) * (double)(__n) + 0.5) * (double)(__n) + (10. / 3.)))
+#define FADDS_HETRF(__n) ((double)(__n) * (((1. / 6.) * (double)(__n)      ) * (double)(__n) - (1.  / 6.)))
+#define FMULS_SYTRF(__n) FMULS_HETRF(__n)
+#define FADDS_SYTRF(__n) FADDS_HETRF(__n)
 //SSYTRI
 //SSYTRS
 
@@ -160,13 +164,13 @@
  ******************************************************************************/
 
 /*
- * Level 2 BLAS 
- */  
+ * Level 2 BLAS
+ */
 #define FLOPS_ZGEMV(__m, __n) (6. * FMULS_GEMV((__m), (__n)) + 2.0 * FADDS_GEMV((__m), (__n)) )
 #define FLOPS_CGEMV(__m, __n) (6. * FMULS_GEMV((__m), (__n)) + 2.0 * FADDS_GEMV((__m), (__n)) )
 #define FLOPS_DGEMV(__m, __n) (     FMULS_GEMV((__m), (__n)) +       FADDS_GEMV((__m), (__n)) )
 #define FLOPS_SGEMV(__m, __n) (     FMULS_GEMV((__m), (__n)) +       FADDS_GEMV((__m), (__n)) )
- 
+
 #define FLOPS_ZHEMV(__n) (6. * FMULS_HEMV((__n)) + 2.0 * FADDS_HEMV((__n)) )
 #define FLOPS_CHEMV(__n) (6. * FMULS_HEMV((__n)) + 2.0 * FADDS_HEMV((__n)) )
 
@@ -174,9 +178,9 @@
 #define FLOPS_CSYMV(__n) (6. * FMULS_SYMV((__n)) + 2.0 * FADDS_SYMV((__n)) )
 #define FLOPS_DSYMV(__n) (     FMULS_SYMV((__n)) +       FADDS_SYMV((__n)) )
 #define FLOPS_SSYMV(__n) (     FMULS_SYMV((__n)) +       FADDS_SYMV((__n)) )
- 
+
 /*
- * Level 3 BLAS 
+ * Level 3 BLAS
  */
 #define FLOPS_ZGEMM(__m, __n, __k) (6. * FMULS_GEMM((__m), (__n), (__k)) + 2.0 * FADDS_GEMM((__m), (__n), (__k)) )
 #define FLOPS_CGEMM(__m, __n, __k) (6. * FMULS_GEMM((__m), (__n), (__k)) + 2.0 * FADDS_GEMM((__m), (__n), (__k)) )
@@ -190,7 +194,7 @@
 #define FLOPS_CSYMM(__side, __m, __n) (6. * FMULS_SYMM(__side, (__m), (__n)) + 2.0 * FADDS_SYMM(__side, (__m), (__n)) )
 #define FLOPS_DSYMM(__side, __m, __n) (     FMULS_SYMM(__side, (__m), (__n)) +       FADDS_SYMM(__side, (__m), (__n)) )
 #define FLOPS_SSYMM(__side, __m, __n) (     FMULS_SYMM(__side, (__m), (__n)) +       FADDS_SYMM(__side, (__m), (__n)) )
- 
+
 #define FLOPS_ZHERK(__k, __n) (6. * FMULS_HERK((__k), (__n)) + 2.0 * FADDS_HERK((__k), (__n)) )
 #define FLOPS_CHERK(__k, __n) (6. * FMULS_HERK((__k), (__n)) + 2.0 * FADDS_HERK((__k), (__n)) )
 
@@ -198,7 +202,7 @@
 #define FLOPS_CSYRK(__k, __n) (6. * FMULS_SYRK((__k), (__n)) + 2.0 * FADDS_SYRK((__k), (__n)) )
 #define FLOPS_DSYRK(__k, __n) (     FMULS_SYRK((__k), (__n)) +       FADDS_SYRK((__k), (__n)) )
 #define FLOPS_SSYRK(__k, __n) (     FMULS_SYRK((__k), (__n)) +       FADDS_SYRK((__k), (__n)) )
- 
+
 #define FLOPS_ZHER2K(__k, __n) (6. * FMULS_HER2K((__k), (__n)) + 2.0 * FADDS_HER2K((__k), (__n)) )
 #define FLOPS_CHER2K(__k, __n) (6. * FMULS_HER2K((__k), (__n)) + 2.0 * FADDS_HER2K((__k), (__n)) )
 
@@ -206,17 +210,17 @@
 #define FLOPS_CSYR2K(__k, __n) (6. * FMULS_SYR2K((__k), (__n)) + 2.0 * FADDS_SYR2K((__k), (__n)) )
 #define FLOPS_DSYR2K(__k, __n) (     FMULS_SYR2K((__k), (__n)) +       FADDS_SYR2K((__k), (__n)) )
 #define FLOPS_SSYR2K(__k, __n) (     FMULS_SYR2K((__k), (__n)) +       FADDS_SYR2K((__k), (__n)) )
- 
+
 #define FLOPS_ZTRMM(__side, __m, __n) (6. * FMULS_TRMM(__side, (__m), (__n)) + 2.0 * FADDS_TRMM(__side, (__m), (__n)) )
 #define FLOPS_CTRMM(__side, __m, __n) (6. * FMULS_TRMM(__side, (__m), (__n)) + 2.0 * FADDS_TRMM(__side, (__m), (__n)) )
 #define FLOPS_DTRMM(__side, __m, __n) (     FMULS_TRMM(__side, (__m), (__n)) +       FADDS_TRMM(__side, (__m), (__n)) )
 #define FLOPS_STRMM(__side, __m, __n) (     FMULS_TRMM(__side, (__m), (__n)) +       FADDS_TRMM(__side, (__m), (__n)) )
- 
+
 #define FLOPS_ZTRSM(__side, __m, __n) (6. * FMULS_TRSM(__side, (__m), (__n)) + 2.0 * FADDS_TRSM(__side, (__m), (__n)) )
 #define FLOPS_CTRSM(__side, __m, __n) (6. * FMULS_TRSM(__side, (__m), (__n)) + 2.0 * FADDS_TRSM(__side, (__m), (__n)) )
 #define FLOPS_DTRSM(__side, __m, __n) (     FMULS_TRSM(__side, (__m), (__n)) +       FADDS_TRSM(__side, (__m), (__n)) )
 #define FLOPS_STRSM(__side, __m, __n) (     FMULS_TRSM(__side, (__m), (__n)) +       FADDS_TRSM(__side, (__m), (__n)) )
- 
+
 /*
  * Lapack
  */
@@ -249,6 +253,13 @@
 #define FLOPS_CPOTRS(__n, __nrhs) (6. * FMULS_POTRS((__n), (__nrhs)) + 2.0 * FADDS_POTRS((__n), (__nrhs)) )
 #define FLOPS_DPOTRS(__n, __nrhs) (     FMULS_POTRS((__n), (__nrhs)) +       FADDS_POTRS((__n), (__nrhs)) )
 #define FLOPS_SPOTRS(__n, __nrhs) (     FMULS_POTRS((__n), (__nrhs)) +       FADDS_POTRS((__n), (__nrhs)) )
+
+#define FLOPS_ZHETRF(__n) (6. * FMULS_HETRF((__n)) + 2.0 * FADDS_HETRF((__n)) )
+#define FLOPS_CHETRF(__n) (6. * FMULS_HETRF((__n)) + 2.0 * FADDS_HETRF((__n)) )
+#define FLOPS_ZSYTRF(__n) (6. * FMULS_SYTRF((__n)) + 2.0 * FADDS_SYTRF((__n)) )
+#define FLOPS_CSYTRF(__n) (6. * FMULS_SYTRF((__n)) + 2.0 * FADDS_SYTRF((__n)) )
+#define FLOPS_DSYTRF(__n) (     FMULS_SYTRF((__n)) +       FADDS_SYTRF((__n)) )
+#define FLOPS_SSYTRF(__n) (     FMULS_SYTRF((__n)) +       FADDS_SYTRF((__n)) )
 
 #define FLOPS_ZGEQRF(__m, __n) (6. * FMULS_GEQRF((__m), (__n)) + 2.0 * FADDS_GEQRF((__m), (__n)) )
 #define FLOPS_CGEQRF(__m, __n) (6. * FMULS_GEQRF((__m), (__n)) + 2.0 * FADDS_GEQRF((__m), (__n)) )

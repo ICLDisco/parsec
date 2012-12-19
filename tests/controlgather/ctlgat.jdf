@@ -1,0 +1,59 @@
+extern "C" %{
+#include "dague_config.h"
+
+#if defined(HAVE_MPI)
+#include <mpi.h>
+#define MY_RANK(r) int r; MPI_Comm_rank(MPI_COMM_WORLD, &r)
+#else
+#define MY_RANK(r) int r = 0
+#endif
+%}
+
+A          [type = "dague_ddesc_t*"]
+NT
+WS
+
+TA(k)
+
+k = 0 .. NT-1
+: A( k % WS )
+
+CTL X -> X TC(0)
+
+; 0
+
+BODY
+    MY_RANK(r);
+    printf("%d: TA(%d)\n", r, k);
+END
+
+TB(k)
+
+k = 0 .. NT-1
+: A( k % WS )
+
+CTL X -> Y TC(0)
+
+; 0
+
+BODY
+    MY_RANK(r);
+    printf("%d: TB(%d)\n", r, k);
+END
+
+TC(k)
+
+k = 0..0
+: A( 0 )
+
+CTL X <- X TA(0..NT-1)
+CTL Y <- X TB(0..NT-1)
+
+; 0
+
+BODY
+    MY_RANK(r);
+    printf("%d: TC(%d)\n", r, k);
+END
+extern "C" %{
+%}
