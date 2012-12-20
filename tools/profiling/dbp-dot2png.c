@@ -23,21 +23,6 @@
 
 #define NBFRAMES 200
 
-#if defined(DAGUE_DEBUG_VERBOSE1)
-#define DEBUG(toto) output toto
-#else
-#define DEBUG(toto) do {} while(0)
-#endif
-#define WARNING(toto) output toto
-
-static void output(const char *format, ...)
-{
-    va_list ap;
-    va_start(ap, format);
-    vfprintf(stderr, format, ap);
-    va_end(ap);
-}
-
 static void usage(const char *prg)
 {
     fprintf(stderr, 
@@ -113,7 +98,7 @@ int main(int argc, char *argv[])
     int nbthreads = 0;
     int f, t;
     dbp_file_t *dbp_f;
-    dague_time_t mintime, maxtime;
+    dague_time_t mintime = ZERO_TIME, maxtime = ZERO_TIME;
     dbp_thread_t *dbp_t;
     const dbp_event_t *dbp_e;
     float delta;

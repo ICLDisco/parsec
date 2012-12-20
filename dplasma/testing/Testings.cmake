@@ -1,11 +1,11 @@
 #
 # Shared Memory Testings
 #
-# if (MPI_FOUND)
-#   set(SHM_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 1 -hostfile /etc/hostfile -bynode)
-# else()
-#   unset(SHM_TEST_CMD )
-# endif()
+if (MPI_FOUND)
+  set(SHM_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 1 -hostfile /etc/hostfile -bynode)
+else()
+  unset(SHM_TEST_CMD )
+endif()
 
 # check the control in shared memory
 add_test(print  ${SHM_TEST_CMD} ./testing_dprint -N 40 -t 7 -x -v=5)
@@ -42,7 +42,11 @@ foreach(prec ${DPLASMA_PRECISIONS})
   add_test(${prec}getrf_incpiv ${SHM_TEST_CMD} ./testing_${prec}getrf_incpiv -N 4000 -x -v=5)
   add_test(${prec}gesv_incpiv  ${SHM_TEST_CMD} ./testing_${prec}gesv_incpiv  -N 4000 -K 367 -x -v=5)
   add_test(${prec}geqrf        ${SHM_TEST_CMD} ./testing_${prec}geqrf -N 4000 -x -v=5)
-  add_test(${prec}unmqr        ${SHM_TEST_CMD} ./testing_${prec}unmqr -M 2873 -N 1067 -K 987 -x -v=5)
+  if ( "${prec}" STREQUAL "c" OR "${prec}" STREQUAL "z" )
+    add_test(${prec}unmqr        ${SHM_TEST_CMD} ./testing_${prec}unmqr -M 2873 -N 1067 -K 987 -x -v=5)
+  else()
+    add_test(${prec}ormqr        ${SHM_TEST_CMD} ./testing_${prec}ormqr -M 2873 -N 1067 -K 987 -x -v=5)
+  endif()
   add_test(${prec}gelqf        ${SHM_TEST_CMD} ./testing_${prec}gelqf -N 4000 -x -v=5)
   add_test(${prec}geqrf_p0     ${SHM_TEST_CMD} ./testing_${prec}geqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 0 --tsrr=0 -v=5)
   add_test(${prec}geqrf_p1     ${SHM_TEST_CMD} ./testing_${prec}geqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 1 --tsrr=0 -v=5)
@@ -54,11 +58,14 @@ endforeach()
 # Specific cases
 # Do we want to test them in all precisions ?
 add_test(dpotrf_pbq ${SHM_TEST_CMD} ./testing_dpotrf -N 4000 -x -v=5 -o PBQ)
-if (CUDA_FOUND)
+add_test(dgeqrf_pbq ${SHM_TEST_CMD} ./testing_dgeqrf -N 4000 -x -v=5 -o PBQ)
+
+# The headnode lack GPUs so we need MPI in order to get the test to run on
+# one of the nodes.
+if (CUDA_FOUND AND MPI_FOUND)
   add_test(dpotrf_g1  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 1)
   add_test(dpotrf_g2  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 2)
-endif (CUDA_FOUND)
-add_test(dgeqrf_pbq ${SHM_TEST_CMD} ./testing_dgeqrf -N 4000 -x -v=5 -o PBQ)
+endif (CUDA_FOUND AND MPI_FOUND)
 
 #
 # Distributed Memory Testings

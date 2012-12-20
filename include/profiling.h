@@ -36,6 +36,11 @@ typedef struct dague_thread_profiling_t dague_thread_profiling_t;
 int dague_profiling_init( const char *format, ...);
 
 /**
+ * Restart the timer marker.
+ */
+int dague_profiling_start(void);
+
+/**
  * Add additional information about the current run, under the form key/value.
  * Used to store the value of the globals names and values in the current run
  */

@@ -77,7 +77,7 @@ int main(int argc, char ** argv)
 
         int Cm = (side[s] == PlasmaLeft) ? M : N;
         int Cn = (side[s] == PlasmaLeft) ? N : M;
-        int LDC = max(LDC, Cm);
+        LDC = max(LDC, Cm);
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
             two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, matrix_Tile,
