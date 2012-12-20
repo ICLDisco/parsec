@@ -1,11 +1,11 @@
 #
 # Shared Memory Testings
 #
-# if (MPI_FOUND)
-#   set(SHM_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 1 -hostfile /etc/hostfile -bynode)
-# else()
-#   unset(SHM_TEST_CMD )
-# endif()
+if (MPI_FOUND)
+  set(SHM_TEST_CMD mpirun -x LD_LIBRARY_PATH -np 1 -hostfile /etc/hostfile -bynode)
+else()
+  unset(SHM_TEST_CMD )
+endif()
 
 # check the control in shared memory
 add_test(print  ${SHM_TEST_CMD} ./testing_dprint -N 40 -t 7 -x -v=5)
@@ -58,11 +58,14 @@ endforeach()
 # Specific cases
 # Do we want to test them in all precisions ?
 add_test(dpotrf_pbq ${SHM_TEST_CMD} ./testing_dpotrf -N 4000 -x -v=5 -o PBQ)
-if (CUDA_FOUND)
+add_test(dgeqrf_pbq ${SHM_TEST_CMD} ./testing_dgeqrf -N 4000 -x -v=5 -o PBQ)
+
+# The headnode lack GPUs so we need MPI in order to get the test to run on
+# one of the nodes.
+if (CUDA_FOUND AND MPI_FOUND)
   add_test(dpotrf_g1  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 1)
   add_test(dpotrf_g2  ${SHM_TEST_CMD} ./testing_dpotrf -N 8000 -x -v=5 -g 2)
-endif (CUDA_FOUND)
-add_test(dgeqrf_pbq ${SHM_TEST_CMD} ./testing_dgeqrf -N 4000 -x -v=5 -o PBQ)
+endif (CUDA_FOUND AND MPI_FOUND)
 
 #
 # Distributed Memory Testings

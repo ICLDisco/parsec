@@ -263,6 +263,7 @@ dplasma/testing/testing_[sdc]gelqf\.c$
 dplasma/testing/testing_[sdc]gemm\.c$
 dplasma/testing/testing_[sdc]geqrf\.c$
 dplasma/testing/testing_[sdc]geqrf_param\.c$
+dplasma/testing/testing_[sdc]geqrf_systolic\.c$
 dplasma/testing/testing_[sdc]gesv_incpiv\.c$
 dplasma/testing/testing_[sdc]gesvd\.c$
 dplasma/testing/testing_[sdc]getrf\.c$
@@ -295,6 +296,7 @@ dplasma/testing/testing_[sdcz]gelqf$
 dplasma/testing/testing_[sdcz]gemm$
 dplasma/testing/testing_[sdcz]geqrf$
 dplasma/testing/testing_[sdcz]geqrf_param$
+dplasma/testing/testing_[sdcz]geqrf_systolic$
 dplasma/testing/testing_[sdcz]gesv_incpiv$
 dplasma/testing/testing_[sdcz]gesvd$
 dplasma/testing/testing_[sdcz]getrf$

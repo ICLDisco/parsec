@@ -37,6 +37,7 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
 static unsigned int dague_prof_keys_count, dague_prof_keys_number;
 static dague_profiling_key_t* dague_prof_keys;
 
+static int __already_called = 0;
 static dague_time_t dague_start_time;
 
 /* Process-global profiling list */
@@ -165,8 +166,16 @@ int dague_profiling_init( const char *format, ... )
 #if defined(HAVE_MPI)
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
-    dague_start_time = take_time();
+    dague_profiling_start();
 
+    return 0;
+}
+
+int dague_profiling_start(void)
+{
+    if( ++__already_called > 1 )
+        return -1;
+    dague_start_time = take_time();
     return 0;
 }
 
@@ -220,7 +229,7 @@ int dague_profiling_fini( void )
     dague_profiling_dictionary_flush();
     free(dague_prof_keys);
     dague_prof_keys_number = 0;
-
+    __already_called = 0;  /* Allow the profiling to be reinitialized */
     return 0;
 }
 
