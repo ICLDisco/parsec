@@ -3,7 +3,7 @@ include(RulesPrecisions)
 macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
   include_directories(. ${PLASMA_INCLUDE_DIRS})
 
-  set(testings_addexec_CFLAGS "-DADD_")
+  #set(testings_addexec_CFLAGS "-DADD_")
   #foreach(arg ${PLASMA_CFLAGS})
   #  set(testings_addexec_CFLAGS "${testings_addexec_CFLAGS} ${arg}")
   #endforeach(arg ${PLASMA_CFLAGS})
