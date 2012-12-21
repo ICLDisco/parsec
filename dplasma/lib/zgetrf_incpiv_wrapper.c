@@ -16,12 +16,12 @@
 #include "zgetrf_incpiv.h"
 #include "zgetrf_incpiv_sd.h"
 
-dague_object_t* dplasma_zgetrf_incpiv_New(tiled_matrix_desc_t *A,
+dague_handle_t* dplasma_zgetrf_incpiv_New(tiled_matrix_desc_t *A,
                                    tiled_matrix_desc_t *L,
                                    tiled_matrix_desc_t *IPIV,
                                    int *INFO)
 {
-    dague_zgetrf_incpiv_object_t *dague_getrf_incpiv;
+    dague_zgetrf_incpiv_handle_t *dague_getrf_incpiv;
 
     dague_getrf_incpiv = dague_zgetrf_incpiv_new( *A, (dague_ddesc_t*)A,
                                                   *L, (dague_ddesc_t*)L,
@@ -61,13 +61,13 @@ dague_object_t* dplasma_zgetrf_incpiv_New(tiled_matrix_desc_t *A,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, L->mb, L->nb, -1);
 
-    return (dague_object_t*)dague_getrf_incpiv;
+    return (dague_handle_t*)dague_getrf_incpiv;
 }
 
 void
-dplasma_zgetrf_incpiv_Destruct( dague_object_t *o )
+dplasma_zgetrf_incpiv_Destruct( dague_handle_t *o )
 {
-    dague_zgetrf_incpiv_object_t *dague_zgetrf_incpiv = (dague_zgetrf_incpiv_object_t *)o;
+    dague_zgetrf_incpiv_handle_t *dague_zgetrf_incpiv = (dague_zgetrf_incpiv_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_UPPER_TILE_ARENA]->opaque_dtt) );
@@ -78,13 +78,13 @@ dplasma_zgetrf_incpiv_Destruct( dague_object_t *o )
     dague_private_memory_fini( dague_zgetrf_incpiv->work_pool );
     free( dague_zgetrf_incpiv->work_pool );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgetrf_incpiv);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgetrf_incpiv);
 }
 
 int dplasma_zgetrf_incpiv( dague_context_t *dague, tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV )
 {
-    dague_object_t *dague_zgetrf_incpiv = NULL;
+    dague_handle_t *dague_zgetrf_incpiv = NULL;
 
     int info = 0;
     dague_zgetrf_incpiv = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
@@ -101,12 +101,12 @@ int dplasma_zgetrf_incpiv( dague_context_t *dague, tiled_matrix_desc_t *A,
 /*
  * Single data version grouping L and IPIV in L
  */
-dague_object_t* dplasma_zgetrf_incpiv_sd_New( tiled_matrix_desc_t *A,
+dague_handle_t* dplasma_zgetrf_incpiv_sd_New( tiled_matrix_desc_t *A,
                                        tiled_matrix_desc_t *L,
                                        int* INFO)
 {
     int Lmb = L->mb-1;
-    dague_zgetrf_incpiv_sd_object_t *dague_getrf_incpiv_sd;
+    dague_zgetrf_incpiv_sd_handle_t *dague_getrf_incpiv_sd;
 
     dague_getrf_incpiv_sd = dague_zgetrf_incpiv_sd_new( *A, (dague_ddesc_t*)A,
                                                         *L, (dague_ddesc_t*)L,
@@ -145,13 +145,13 @@ dague_object_t* dplasma_zgetrf_incpiv_sd_New( tiled_matrix_desc_t *A,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, L->mb, L->nb, -1);
 
-    return (dague_object_t*)dague_getrf_incpiv_sd;
+    return (dague_handle_t*)dague_getrf_incpiv_sd;
 }
 
 void
-dplasma_zgetrf_incpiv_sd_Destruct( dague_object_t *o )
+dplasma_zgetrf_incpiv_sd_Destruct( dague_handle_t *o )
 {
-    dague_zgetrf_incpiv_sd_object_t *dague_zgetrf_incpiv = (dague_zgetrf_incpiv_sd_object_t *)o;
+    dague_zgetrf_incpiv_sd_handle_t *dague_zgetrf_incpiv = (dague_zgetrf_incpiv_sd_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_sd_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_sd_UPPER_TILE_ARENA]->opaque_dtt) );
@@ -162,5 +162,5 @@ dplasma_zgetrf_incpiv_sd_Destruct( dague_object_t *o )
     dague_private_memory_fini( dague_zgetrf_incpiv->work_pool );
     free( dague_zgetrf_incpiv->work_pool );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgetrf_incpiv);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgetrf_incpiv);
 }

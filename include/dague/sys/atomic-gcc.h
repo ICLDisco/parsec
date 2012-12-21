@@ -49,14 +49,15 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
 }
 #endif
 
-#define DAGUE_ATOMIC_HAS_ATOMIC_INC_32B
-static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
+#define DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
+static inline int32_t dague_atomic_add_32(volatile int32_t* v, int32_t i)
 {
-    return __sync_add_and_fetch(location, (uint32_t)1);
+    return __sync_add_and_fetch(location, i);
 }
 
-#define DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B
-static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
+#define DAGUE_ATOMIC_HAS_ATOMIC_SUB_32B
+static inline int32_t dague_atomic_sub_32(volatile int32_t* v, int32_t i)
 {
-    return __sync_sub_and_fetch(location, (uint32_t)1);
+    return __sync_sub_and_fetch(location, i);
 }
+ 

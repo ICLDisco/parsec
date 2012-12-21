@@ -92,11 +92,11 @@ dague_operator_zgeadd(struct dague_execution_unit_s *eu,
  *          On exit, the matrix B with the M-by-N part overwrite by alpha*A+B
  *
  ******************************************************************************/
-dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, dague_complex64_t alpha,
+dague_handle_t* dplasma_zgeadd_New( PLASMA_enum uplo, dague_complex64_t alpha,
                                    tiled_matrix_desc_t *A,
                                    tiled_matrix_desc_t *B)
 {
-    dague_object_t* object;
+    dague_handle_t* object;
     zgeadd_args_t *params = (zgeadd_args_t*)malloc(sizeof(zgeadd_args_t));
 
     params->alpha = alpha;
@@ -115,11 +115,11 @@ int dplasma_zgeadd( dague_context_t *dague,
                    tiled_matrix_desc_t *A,
                    tiled_matrix_desc_t *B)
 {
-    dague_object_t *dague_zgeadd = NULL;
+    dague_handle_t *dague_zgeadd = NULL;
 
     dague_zgeadd = dplasma_zgeadd_New(uplo, alpha, A, B);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zgeadd);
+    dague_enqueue(dague, (dague_handle_t*)dague_zgeadd);
     dplasma_progress(dague);
 
     dplasma_zgeadd_Destruct( dague_zgeadd );
@@ -127,9 +127,9 @@ int dplasma_zgeadd( dague_context_t *dague,
 }
 
 void
-dplasma_zgeadd_Destruct( dague_object_t *o )
+dplasma_zgeadd_Destruct( dague_handle_t *o )
 {
-    dague_map2_object_t *dague_zgeadd = (dague_map2_object_t *)o;
+    dague_map2_handle_t *dague_zgeadd = (dague_map2_handle_t *)o;
     free(dague_zgeadd->op_args);
     dplasma_map2_Destruct( o );
 }

@@ -23,9 +23,9 @@ dplasma_zposv( dague_context_t *dague, const PLASMA_enum uplo,
     }
 
 #ifdef DAGUE_COMPOSITION
-    dague_object_t *dague_ztrsm1 = NULL;
-    dague_object_t *dague_ztrsm2 = NULL;
-    dague_object_t *dague_zpotrf = NULL;
+    dague_handle_t *dague_ztrsm1 = NULL;
+    dague_handle_t *dague_ztrsm2 = NULL;
+    dague_handle_t *dague_zpotrf = NULL;
 
     dague_zpotrf = dplasma_zpotrf_New(uplo, A, &info);
     if ( uplo == PlasmaUpper ) {

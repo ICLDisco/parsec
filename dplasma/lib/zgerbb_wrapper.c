@@ -16,11 +16,11 @@
 #include "zgerbb_1.h"
 #include "zgerbb_2.h"
 
-dague_object_t* dplasma_zgerbb_New( tiled_matrix_desc_t *A,
+dague_handle_t* dplasma_zgerbb_New( tiled_matrix_desc_t *A,
                                     tiled_matrix_desc_t *T,
                                     int ib )
 {
-    dague_object_t* __dague_object;
+    dague_handle_t* __dague_handle;
     dague_memory_pool_t *pool[2];
 
     if( A->m >= A->n ) {
@@ -29,41 +29,41 @@ dague_object_t* dplasma_zgerbb_New( tiled_matrix_desc_t *A,
         pool[1] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* tau */
         dague_private_memory_init( pool[1], zgerbb_1_pool_1_SIZE );
 
-        dague_sgerbb_1_object_t *obj = dague_sgerbb_1_new(PLASMA_desc desc_A,
+        dague_sgerbb_1_handle_t *obj = dague_sgerbb_1_new(PLASMA_desc desc_A,
                                                           A,
                                                           PLASMA_desc desc_T,
                                                           T,
                                                           pool[0], pool[1],
                                                           ib);
-        __dague_object = (dague_object_t*)obj;
+        __dague_handle = (dague_handle_t*)obj;
     } else {
         pool[0] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* tau */
         dague_private_memory_init( pool[0], zgerbb_2_pool_0_SIZE );
         pool[1] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* tau */
         dague_private_memory_init( pool[1], zgerbb_2_pool_1_SIZE );
 
-        dague_sgerbb_2_object_t *obj = dague_sgerbb_2_new(PLASMA_desc desc_A,
+        dague_sgerbb_2_handle_t *obj = dague_sgerbb_2_new(PLASMA_desc desc_A,
                                                           A,
                                                           PLASMA_desc desc_T,
                                                           T,
                                                           pool[0], pool[1],
                                                           ib);
-        __dague_object = (dague_object_t*)obj;
+        __dague_handle = (dague_handle_t*)obj;
     }
-    return __dague_object;
+    return __dague_handle;
 }
 
 void
-dplasma_zgerbb_Destruct( dague_object_t *o )
+dplasma_zgerbb_Destruct( dague_handle_t *o )
 {
-    dague_zgerbb_object_t *dague_zgerbb = (dague_zgerbb_object_t *)o;
+    dague_zgerbb_handle_t *dague_zgerbb = (dague_zgerbb_handle_t *)o;
 
     dague_private_memory_fini( dague_zgerbb->pool_0 );
     dague_private_memory_fini( dague_zgerbb->pool_1 );
     free( dague_zgerbb->p_work );
     free( dague_zgerbb->p_tau  );
  
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgerbb);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgerbb);
 }
 
 int dplasma_zgerbb( dague_context_t *dague, 
@@ -71,11 +71,11 @@ int dplasma_zgerbb( dague_context_t *dague,
                           tiled_matrix_desc_t *TS,
                           tiled_matrix_desc_t *TT) 
 {
-    dague_object_t *dague_zgerbb = NULL;
+    dague_handle_t *dague_zgerbb = NULL;
 
     dague_zgerbb = dplasma_zgerbb_New(A, TS, TT);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zgerbb);
+    dague_enqueue(dague, (dague_handle_t*)dague_zgerbb);
     dplasma_progress(dague);
 
     dplasma_zgerbb_Destruct( dague_zgerbb );

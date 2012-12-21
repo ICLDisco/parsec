@@ -16,12 +16,12 @@
 
 #include "zherbt_L.h"
 
-dague_object_t *
+dague_handle_t *
 dplasma_zherbt_New( PLASMA_enum uplo, int IB,
                     tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T)
 {
-    dague_zherbt_L_object_t *dague_zherbt = NULL;
+    dague_zherbt_L_handle_t *dague_zherbt = NULL;
     dague_memory_pool_t *pool[4];
 
     if( PlasmaLower != uplo ) {
@@ -56,12 +56,12 @@ dplasma_zherbt_New( PLASMA_enum uplo, int IB,
                                      MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
     }
 
-    return (dague_object_t*)dague_zherbt;
+    return (dague_handle_t*)dague_zherbt;
 }
 
-void dplasma_zherbt_Destruct( dague_object_t *o )
+void dplasma_zherbt_Destruct( dague_handle_t *o )
 {
-    dague_zherbt_L_object_t *dague_zherbt = (dague_zherbt_L_object_t *)o;
+    dague_zherbt_L_handle_t *dague_zherbt = (dague_zherbt_L_handle_t *)o;
 
     if( PlasmaLower == dague_zherbt->uplo ) {
 
@@ -77,6 +77,6 @@ void dplasma_zherbt_Destruct( dague_object_t *o )
         dague_private_memory_fini( dague_zherbt->pool_3 );
         free( dague_zherbt->pool_3 );
 
-        DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zherbt);
+        DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zherbt);
     }
 }

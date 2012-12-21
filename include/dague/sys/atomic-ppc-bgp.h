@@ -79,33 +79,34 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
     assert(0);  /* Not supported */
 }
 
-#define DAGUE_ATOMIC_HAS_ATOMIC_INC_32B
-static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
+#define DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
+static inline uint32_t dague_atomic_add_32b( volatile int32_t *location, int32_t i )
 {
-    register uint32_t old_val, tmp_val;
+    register int32_t old_val, tmp_val;
  
     _bgp_msync();
     do {
         old_val = _bgp_LoadReserved( location );
-        tmp_val = old_val + 1;
+        tmp_val = old_val + i;
     } while( !_bgp_StoreConditional( location, tmp_val ) );
  
     return( tmp_val );
 }
 
-#define DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B
-static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
+#define DAGUE_ATOMIC_HAS_ATOMIC_SUB_32B
+static inline uint32_t dague_atomic_sub_32b( volatile int32_t *location, int32_t i )
 {
-    register uint32_t old_val, tmp_val;
+    register int32_t old_val, tmp_val;
  
     _bgp_msync();
     do {
         old_val = _bgp_LoadReserved( location );
-        tmp_val = old_val - 1;
+        tmp_val = old_val - i;
     } while( !_bgp_StoreConditional( location, tmp_val ) );
  
     return( tmp_val );
 }
+
 
 #endif  /* DAGUE_ATOMIC_BGP_HAS_BEEN_INCLUDED */
 

@@ -17,9 +17,9 @@
 
 #include "zhbrdt.h"
 
-dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
+dague_handle_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
 {
-    dague_zhbrdt_object_t *dague_zhbrdt = NULL;
+    dague_zhbrdt_handle_t *dague_zhbrdt = NULL;
 
     dague_zhbrdt = dague_zhbrdt_new(A, A->mb-1);
 
@@ -27,11 +27,11 @@ dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
                                  (A->nb)*(A->mb)*sizeof(dague_complex64_t), 16,
                                  MPI_DOUBLE_COMPLEX, 
                                  A->mb, A->nb, -1 );
-    return (dague_object_t*)dague_zhbrdt;
+    return (dague_handle_t*)dague_zhbrdt;
 }
 
-void dplasma_zhbrdt_Destruct( dague_object_t* o )
+void dplasma_zhbrdt_Destruct( dague_handle_t* o )
 {
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 

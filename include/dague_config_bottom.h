@@ -33,6 +33,18 @@
 #define END_C_DECLS            /* empty */
 #endif
 
+#if DAGUE_HAVE_ATTRIBUTE_VISIBILITY
+#    define __dague_attribute_visibility__(a) __attribute__((__visibility__(a)))
+#else
+#    define __dague_attribute_visibility__(a)
+#endif
+
+#if DAGUE_HAVE_ATTRIBUTE_ALWAYS_INLINE
+#    define __dague_attribute_always_inline__ __attribute__((__always_inline__))
+#else
+#    define __dague_attribute_always_inline__
+#endif
+
 #if defined(HAVE_STDDEF_H)
 #include <stddef.h>
 #endif  /* HAVE_STDDEF_H */
@@ -108,5 +120,66 @@ typedef uint32_t dague_dependency_t;
 #define A_HIGHER_PRIORITY_THAN_B(a, b, off)     (COMPARISON_VAL((a), (off)) <  COMPARISON_VAL((b), (off)))
 #define SET_HIGHEST_PRIORITY(task, off)         (*((int*)(((uintptr_t)task)+off))) = 0xffffffff;
 #define SET_LOWEST_PRIORITY(task, off)          (*((int*)(((uintptr_t)task)+off))) = 0x7fffffff;
+#endif
+
+
+/***********************************************************************
+ *
+ * Windows library interface declaration code
+ *
+ **********************************************************************/
+#if !defined(__WINDOWS__)
+#  if defined(_WIN32) || defined(WIN32) || defined(WIN64)
+#    define __WINDOWS__
+#  endif
+#endif  /* !defined(__WINDOWS__) */
+
+#if defined(__WINDOWS__)
+
+#  if defined(_USRDLL)    /* building shared libraries (.DLL) */
+#    if defined(DAGUE_EXPORTS)
+#      define DAGUE_DECLSPEC        __declspec(dllexport)
+#      define DAGUE_MODULE_DECLSPEC
+#    else
+#      if defined(DAGUE_IMPORTS)
+#        define DAGUE_DECLSPEC      __declspec(dllimport)
+#      else
+#        define DAGUE_DECLSPEC
+#      endif  /*defined(DAGUE_IMPORTS)*/
+#      if defined(DAGUE_MODULE_EXPORTS)
+#        define DAGUE_MODULE_DECLSPEC __declspec(dllexport)
+#      else
+#        define DAGUE_MODULE_DECLSPEC __declspec(dllimport)
+#      endif  /* defined(DAGUE_MODULE_EXPORTS) */
+#    endif  /* defined(DAGUE_EXPORTS) */
+#  else          /* building static library */
+#    if defined(DAGUE_IMPORTS)
+#      define DAGUE_DECLSPEC        __declspec(dllimport)
+#    else
+#      define DAGUE_DECLSPEC
+#    endif  /* defined(DAGUE_IMPORTS) */
+#    define DAGUE_MODULE_DECLSPEC
+#  endif  /* defined(_USRDLL) */
+#  include "dague/win32/win_compat.h"
+#else
+#  if DAGUE_C_HAVE_VISIBILITY
+#    define DAGUE_DECLSPEC           __dague_attribute_visibility__("default")
+#    define DAGUE_MODULE_DECLSPEC    __dague_attribute_visibility__("default")
+#  else
+#    define DAGUE_DECLSPEC
+#    define DAGUE_MODULE_DECLSPEC
+#  endif
+#endif  /* defined(__WINDOWS__) */
+
+/*
+ * Set the compile-time path-separator on this system and variable separator
+ */
+#ifdef __WINDOWS__
+#define DAGUE_PATH_SEP "\\"
+#define DAGUE_ENV_SEP  ';'
+#define MAXPATHLEN _MAX_PATH
+#else
+#define DAGUE_PATH_SEP "/"
+#define DAGUE_ENV_SEP  ':'
 #endif
 

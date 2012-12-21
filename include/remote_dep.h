@@ -38,7 +38,7 @@ typedef struct remote_dep_wire_activate_s
     remote_dep_datakey_t deps;
     remote_dep_datakey_t which;
     remote_dep_datakey_t tag;
-    uint32_t             object_id;
+    uint32_t             handle_id;
     uint32_t             function_id;
     assignment_t locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
@@ -65,7 +65,7 @@ struct remote_dep_output_param_s {
 struct dague_remote_deps_s {
     dague_list_item_t           item;
     dague_lifo_t               *origin;  /**< The memory arena where the data pointer is comming from */
-    struct dague_object_s      *dague_object;  /**< dague object generating this data transfer */
+    struct dague_handle_s      *dague_handle;  /**< dague object generating this data transfer */
     remote_dep_wire_activate_t  msg;     /**< A copy of the message control */
     int                         root;    /**< The root of the control message */
     int                         from;    /**< From whom we received the control */
@@ -118,7 +118,7 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
         assert( (int)(ptr - (char*)remote_deps) == (int)(dague_remote_dep_context.elem_size - rank_bit_size));
     }
     remote_deps->max_priority = 0xffffffff;
-    remote_deps->dague_object = NULL;
+    remote_deps->dague_handle = NULL;
     remote_deps->root         = -1;
     return remote_deps;
 }
@@ -161,7 +161,7 @@ int dague_remote_dep_off(dague_context_t* context);
 int dague_remote_dep_progress(dague_execution_unit_t* eu_context);
 
 /* Inform the communication engine from the creation of new objects */
-int dague_remote_dep_new_object(dague_object_t* obj);
+int dague_remote_dep_new_object(dague_handle_t* handle);
 
 /* Send remote dependencies to target processes */
 int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
@@ -171,7 +171,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 
 /* Memcopy a particular data using datatype specification */
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
-                             dague_object_t* dague_object,
+                             dague_handle_t* dague_handle,
                              struct dague_data_copy_s* dst, struct dague_data_copy_s* src,
                              const dague_remote_dep_datatype_t datatype,
                              int nbelt);

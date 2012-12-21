@@ -145,3 +145,45 @@ static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 #endif  /* !defined(__IBMC__) */
 }
 
+#define DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
+static inline uint32_t dague_atomic_add_32b( volatile int32_t *location, int32_t i )
+{
+#if !defined(__IBMC__)
+   int32_t t;
+
+   __asm__ __volatile__(
+                        "1:   lwarx   %0, 0, %1    \n\t"
+                        "     addic   %0, %0,%2    \n\t"
+                        "     stwcx.  %0, 0, %1    \n\t"
+                        "     bne-    1b           \n\t"
+                        : "=&r" (t)
+                        : "r" (location), "r" (i)
+                        : "cc", "memory");
+
+   return t;
+#else
+   return i + __fetch_and_add( (volatile int*)location, i);
+#endif  /* !defined(__IBMC__) */
+}
+
+#define DAGUE_ATOMIC_HAS_ATOMIC_SUB_32B
+static inline uint32_t dague_atomic_sub_32b( volatile int32_t *location, int32_t i )
+{
+#if !defined(__IBMC__)
+   int32_t t;
+
+   __asm__ __volatile__(
+                        "1:   lwarx   %0, 0,%1     \n\t"
+                        "     subf    %0,%0,%2     \n\t"
+                        "     stwcx.  %0,0,%1      \n\t"
+                        "     bne-    1b           \n\t"
+                        : "=&r" (t)
+                        : "r" (location), "r" (i)
+                        : "cc", "memory");
+
+   return t;
+#else
+   return __fetch_and_add( (volatile int*)location, i) - i;
+#endif  /* !defined(__IBMC__) */
+}
+

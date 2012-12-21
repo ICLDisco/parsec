@@ -73,6 +73,11 @@ static inline uint64_t dague_atomic_bor_xxb( volatile void* location,
 #define dague_atomic_clear_mask(LOCATION, MASK)  dague_atomic_band((LOCATION), ~(MASK))
 
 #ifndef DAGUE_ATOMIC_HAS_ATOMIC_INC_32B
+#define DAGUE_ATOMIC_HAS_ATOMIC_INC_32B /* We now have it ! */
+
+#ifdef DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
+#define dague_atomic_inc_32b(l)  dague_atomic_add_32b(l, 1)
+#else
 static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
 {
     uint32_t l;
@@ -81,9 +86,15 @@ static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
     } while( !dague_atomic_cas_32b( location, l, l+1 ) );
     return l+1;
 }
+#endif  /* DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B */
 #endif  /* DAGUE_ATOMIC_HAS_ATOMIC_INC_32B */
 
 #ifndef DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B
+#define DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B /* We now have it ! */
+
+#ifdef DAGUE_ATOMIC_HAS_ATOMIC_SUB_32B
+#define dague_atomic_dec_32b(l)  dague_atomic_sub_32b(l, 1)
+#else
 static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 {
     uint32_t l;
@@ -92,21 +103,32 @@ static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
     } while( !dague_atomic_cas_32b( location, l, l-1 ) );
     return l-1;
 }
+#endif  /* DAGUE_ATOMIC_HAS_ATOMIC_SUB_32B */
 #endif  /* DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B */
 
-static inline void dague_atomic_lock( volatile uint32_t* atomic_lock )
+typedef volatile uint32_t dague_atomic_lock_t;
+
+/**
+ * Enumeration of lock states
+ */
+enum {
+    DAGUE_ATOMIC_UNLOCKED = 0,
+    DAGUE_ATOMIC_LOCKED   = 1
+};
+
+static inline void dague_atomic_lock( dague_atomic_lock_t* atomic_lock )
 {
     while( !dague_atomic_cas( atomic_lock, 0, 1) )
         /* nothing */;
 }
 
-static inline void dague_atomic_unlock( volatile uint32_t* atomic_lock )
+static inline void dague_atomic_unlock( dague_atomic_lock_t* atomic_lock )
 {
     dague_mfence();
     *atomic_lock = 0;
 }
 
-static inline long dague_atomic_trylock( volatile uint32_t* atomic_lock )
+static inline long dague_atomic_trylock( dague_atomic_lock_t* atomic_lock )
 {
     return dague_atomic_cas( atomic_lock, 0, 1 );
 }

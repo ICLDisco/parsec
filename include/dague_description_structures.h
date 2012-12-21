@@ -16,7 +16,7 @@ typedef struct dep_s dep_t;
 typedef struct symbol_s symbol_t;
 typedef struct dague_datatype_s dague_datatype_t;
 
-struct dague_object_s;
+struct dague_handle_s;
 
 /**
  * Assignments
@@ -32,7 +32,7 @@ struct assignment_s {
 #define EXPR_OP_RANGE_EXPR_INCREMENT  25
 #define EXPR_OP_INLINE                100
 
-typedef int (*expr_op_inline_func_t)(const struct dague_object_s *__dague_object_parent,
+typedef int (*expr_op_inline_func_t)(const struct dague_handle_s *__dague_handle_parent,
                                      const assignment_t *assignments);
 
 struct expr_s {
@@ -99,7 +99,7 @@ struct dep_s {
     dague_datatype_t             datatype;       /**< Datatype associated with this dependency */
 };
 
-void dep_dump(const dep_t *d, const struct dague_object_s *dague_object, const char *prefix);
+void dep_dump(const dep_t *d, const struct dague_handle_s *dague_handle, const char *prefix);
 
 /**
  * Parameters

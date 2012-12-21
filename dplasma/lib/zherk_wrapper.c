@@ -84,7 +84,7 @@
  * @sa dplasma_sherk_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zherk_New( const PLASMA_enum uplo,
                    const PLASMA_enum trans,
                    const double alpha,
@@ -92,17 +92,17 @@ dplasma_zherk_New( const PLASMA_enum uplo,
                    const double beta,
                    tiled_matrix_desc_t* C)
 {
-    dague_object_t* object;
+    dague_handle_t* object;
 
     if ( uplo == PlasmaLower ) {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_object_t*)
+            object = (dague_handle_t*)
                 dague_zherk_LN_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
         }
         else {
-            object = (dague_object_t*)
+            object = (dague_handle_t*)
                 dague_zherk_LC_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
@@ -110,20 +110,20 @@ dplasma_zherk_New( const PLASMA_enum uplo,
     }
     else {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_object_t*)
+            object = (dague_handle_t*)
                 dague_zherk_UN_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
         }
         else {
-            object = (dague_object_t*)
+            object = (dague_handle_t*)
                 dague_zherk_UC_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
         }
     }
 
-    dplasma_add2arena_tile(((dague_zherk_LN_object_t*)object)->arenas[DAGUE_zherk_LN_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((dague_zherk_LN_handle_t*)object)->arenas[DAGUE_zherk_LN_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, C->mb);
@@ -153,11 +153,11 @@ dplasma_zherk_New( const PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zherk_Destruct( dague_object_t *o )
+dplasma_zherk_Destruct( dague_handle_t *o )
 {
-    dague_zherk_LN_object_t *zherk_object = (dague_zherk_LN_object_t*)o;
+    dague_zherk_LN_handle_t *zherk_object = (dague_zherk_LN_handle_t*)o;
     dplasma_datatype_undefine_type( &(zherk_object->arenas[DAGUE_zherk_LN_DEFAULT_ARENA]->opaque_dtt) );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(zherk_object);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(zherk_object);
 }
 
 /***************************************************************************//**
@@ -195,7 +195,7 @@ dplasma_zherk( dague_context_t *dague,
                const double beta,
                tiled_matrix_desc_t *C)
 {
-    dague_object_t *dague_zherk = NULL;
+    dague_handle_t *dague_zherk = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {

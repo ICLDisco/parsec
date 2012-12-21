@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     int rank, world, cores;
     int size, nb;
     dague_ddesc_t *ddescA;
-    dague_object_t *branching;
+    dague_handle_t *branching;
 
 #if defined(HAVE_MPI)
     MPI_Init(&argc, &argv);

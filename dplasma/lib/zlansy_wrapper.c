@@ -70,7 +70,7 @@
  * @sa dplasma_slansy_New
  *
  ******************************************************************************/
-dague_object_t* dplasma_zlansy_New( PLASMA_enum ntype,
+dague_handle_t* dplasma_zlansy_New( PLASMA_enum ntype,
                                     PLASMA_enum uplo,
                                     const tiled_matrix_desc_t *A,
                                     double *result )
@@ -78,7 +78,7 @@ dague_object_t* dplasma_zlansy_New( PLASMA_enum ntype,
     int P, Q, m, n, mb, nb, elt;
     two_dim_block_cyclic_t *Wcol;
     two_dim_block_cyclic_t *Welt;
-    dague_object_t *dague_zlansy = NULL;
+    dague_handle_t *dague_zlansy = NULL;
 
     if ( (ntype != PlasmaMaxNorm) && (ntype != PlasmaOneNorm)
         && (ntype != PlasmaInfNorm) && (ntype != PlasmaFrobeniusNorm) ) {
@@ -148,7 +148,7 @@ dague_object_t* dplasma_zlansy_New( PLASMA_enum ntype,
          1, 1, P));
 
     /* Create the DAG */
-    dague_zlansy = (dague_object_t*)dague_zlansy_new(
+    dague_zlansy = (dague_handle_t*)dague_zlansy_new(
         P, Q, ntype, uplo, PlasmaTrans,
         (dague_ddesc_t*)A,
         (dague_ddesc_t*)Wcol,
@@ -156,18 +156,18 @@ dague_object_t* dplasma_zlansy_New( PLASMA_enum ntype,
         result);
 
     /* Set the datatypes */
-    dplasma_add2arena_tile(((dague_zlansy_object_t*)dague_zlansy)->arenas[DAGUE_zlansy_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((dague_zlansy_handle_t*)dague_zlansy)->arenas[DAGUE_zlansy_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
-    dplasma_add2arena_rectangle(((dague_zlansy_object_t*)dague_zlansy)->arenas[DAGUE_zlansy_COL_ARENA],
+    dplasma_add2arena_rectangle(((dague_zlansy_handle_t*)dague_zlansy)->arenas[DAGUE_zlansy_COL_ARENA],
                                 mb * nb * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
                                 MPI_DOUBLE, mb, nb, -1);
-    dplasma_add2arena_rectangle(((dague_zlansy_object_t*)dague_zlansy)->arenas[DAGUE_zlansy_ELT_ARENA],
+    dplasma_add2arena_rectangle(((dague_zlansy_handle_t*)dague_zlansy)->arenas[DAGUE_zlansy_ELT_ARENA],
                                 elt * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
                                 MPI_DOUBLE, elt, 1, -1);
 
-    return (dague_object_t*)dague_zlansy;
+    return (dague_handle_t*)dague_zlansy;
 }
 
 /***************************************************************************//**
@@ -192,9 +192,9 @@ dague_object_t* dplasma_zlansy_New( PLASMA_enum ntype,
  *
  ******************************************************************************/
 void
-dplasma_zlansy_Destruct( dague_object_t *o )
+dplasma_zlansy_Destruct( dague_handle_t *o )
 {
-    dague_zlansy_object_t *dague_zlansy = (dague_zlansy_object_t *)o;
+    dague_zlansy_handle_t *dague_zlansy = (dague_zlansy_handle_t *)o;
     two_dim_block_cyclic_t *Wcol, *Welt;
 
     Wcol = (two_dim_block_cyclic_t*)(dague_zlansy->Wcol);
@@ -213,7 +213,7 @@ dplasma_zlansy_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_COL_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_ELT_ARENA]->opaque_dtt) );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 /***************************************************************************//**
@@ -262,12 +262,12 @@ double dplasma_zlansy( dague_context_t *dague,
                        const tiled_matrix_desc_t *A)
 {
     double result;
-    dague_object_t *dague_zlansy = NULL;
+    dague_handle_t *dague_zlansy = NULL;
 
     dague_zlansy = dplasma_zlansy_New(ntype, uplo, A, &result);
 
     if ( dague_zlansy != NULL ) {
-        dague_enqueue( dague, (dague_object_t*)dague_zlansy);
+        dague_enqueue( dague, (dague_handle_t*)dague_zlansy);
         dplasma_progress(dague);
         dplasma_zlansy_Destruct( dague_zlansy );
     }

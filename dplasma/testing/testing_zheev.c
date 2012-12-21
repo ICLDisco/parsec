@@ -122,14 +122,14 @@ int main(int argc, char *argv[])
     PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
 
     SYNC_TIME_START();
-    dague_diag_band_to_rect_object_t* DAGUE_diag_band_to_rect = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
+    dague_diag_band_to_rect_handle_t* DAGUE_diag_band_to_rect = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
             MT, NT, MB, NB, sizeof(matrix_ComplexDouble));
     dague_arena_t* arena = DAGUE_diag_band_to_rect->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA];
     dplasma_add2arena_tile(arena,
                            MB*NB*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, MB);
-    dague_enqueue(dague, (dague_object_t*)DAGUE_diag_band_to_rect);
+    dague_enqueue(dague, (dague_handle_t*)DAGUE_diag_band_to_rect);
     dague_progress(dague);
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 
@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
     }
 
     dplasma_zherbt_Destruct( DAGUE_zherbt );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT( DAGUE_diag_band_to_rect );
+    DAGUE_INTERNAL_HANDLE_DESTRUCT( DAGUE_diag_band_to_rect );
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
 
     cleanup_dague(dague, iparam);

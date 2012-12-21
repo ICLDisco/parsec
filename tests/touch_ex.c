@@ -11,7 +11,7 @@
 int main( int argc, char** argv )
 {
     dague_context_t* dague;
-    dague_touch_object_t* object;
+    dague_touch_handle_t* object;
     two_dim_block_cyclic_t descA;
 
     (void)argc; (void)argv;
@@ -34,7 +34,7 @@ int main( int argc, char** argv )
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            NULL);  /* change for distributed cases */
 
-    dague_enqueue( dague, (dague_object_t*)object );
+    dague_enqueue( dague, (dague_handle_t*)object );
 
     dague_progress(dague);
 

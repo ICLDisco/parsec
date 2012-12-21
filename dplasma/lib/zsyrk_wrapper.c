@@ -84,7 +84,7 @@
  * @sa dplasma_ssyrk_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zsyrk_New( const PLASMA_enum uplo,
                    const PLASMA_enum trans,
                    const dague_complex64_t alpha,
@@ -92,17 +92,17 @@ dplasma_zsyrk_New( const PLASMA_enum uplo,
                    const dague_complex64_t beta,
                    tiled_matrix_desc_t* C)
 {
-    dague_object_t* object;
+    dague_handle_t* object;
 
     if ( uplo == PlasmaLower ) {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_object_t*)
+            object = (dague_handle_t*)
                 dague_zsyrk_LN_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
         }
         else {
-            object = (dague_object_t*)
+            object = (dague_handle_t*)
                 dague_zsyrk_LT_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
@@ -110,20 +110,20 @@ dplasma_zsyrk_New( const PLASMA_enum uplo,
     }
     else {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_object_t*)
+            object = (dague_handle_t*)
                 dague_zsyrk_UN_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
         }
         else {
-            object = (dague_object_t*)
+            object = (dague_handle_t*)
                 dague_zsyrk_UT_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
         }
     }
 
-    dplasma_add2arena_tile(((dague_zsyrk_LN_object_t*)object)->arenas[DAGUE_zsyrk_LN_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((dague_zsyrk_LN_handle_t*)object)->arenas[DAGUE_zsyrk_LN_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, C->mb);
@@ -153,11 +153,11 @@ dplasma_zsyrk_New( const PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zsyrk_Destruct( dague_object_t *o )
+dplasma_zsyrk_Destruct( dague_handle_t *o )
 {
-    dague_zsyrk_LN_object_t *zsyrk_object = (dague_zsyrk_LN_object_t*)o;
+    dague_zsyrk_LN_handle_t *zsyrk_object = (dague_zsyrk_LN_handle_t*)o;
     dplasma_datatype_undefine_type( &(zsyrk_object->arenas[DAGUE_zsyrk_LN_DEFAULT_ARENA]->opaque_dtt) );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(zsyrk_object);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(zsyrk_object);
 }
 
 /***************************************************************************//**
@@ -195,7 +195,7 @@ dplasma_zsyrk( dague_context_t *dague,
                const dague_complex64_t beta,
                tiled_matrix_desc_t *C)
 {
-    dague_object_t *dague_zsyrk = NULL;
+    dague_handle_t *dague_zsyrk = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {

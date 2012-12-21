@@ -50,17 +50,17 @@ static inline int remote_dep_is_forwarded( dague_execution_unit_t* eu_context, d
 
 
 /* make sure we don't leave before serving all data deps */
-static inline void remote_dep_inc_flying_messages(dague_object_t *dague_object, dague_context_t* ctx)
+static inline void remote_dep_inc_flying_messages(dague_handle_t *dague_handle, dague_context_t* ctx)
 {
-    assert( dague_object->nb_local_tasks > 0 );
-    dague_atomic_inc_32b( &(dague_object->nb_local_tasks) );
+    assert( dague_handle->nb_local_tasks > 0 );
+    dague_atomic_inc_32b( &(dague_handle->nb_local_tasks) );
     (void)ctx;
 }
 
 /* allow for termination when all deps have been served */
-static inline void remote_dep_dec_flying_messages(dague_object_t *dague_object, dague_context_t* ctx)
+static inline void remote_dep_dec_flying_messages(dague_handle_t *dague_handle, dague_context_t* ctx)
 {
-    __dague_complete_task(dague_object, ctx);
+    __dague_complete_task(dague_handle, ctx);
 }
 
 /* Mark that ncompleted of the remote deps are finished, and return the remote dep to
@@ -174,7 +174,7 @@ static inline int remote_dep_bcast_star_child(int me, int him)
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
 #endif
 
-int dague_remote_dep_new_object(dague_object_t* obj) {
+int dague_remote_dep_new_object(dague_handle_t* obj) {
     return remote_dep_new_object(obj);
 }
 
@@ -200,10 +200,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 #endif
 
     remote_dep_reset_forwarded(eu_context, remote_deps);
-    remote_deps->dague_object = exec_context->dague_object;
+    remote_deps->dague_handle = exec_context->dague_handle;
     remote_deps->output_count = remote_deps_count;
     remote_deps->msg.deps = (uintptr_t) remote_deps;
-    remote_deps->msg.object_id   = exec_context->dague_object->object_id;
+    remote_deps->msg.handle_id   = exec_context->dague_handle->handle_id;
     remote_deps->msg.function_id = function->function_id;
     for(i = 0; i < function->nb_locals; i++) {
         remote_deps->msg.locals[i] = exec_context->locals[i];
@@ -256,7 +256,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         {
                             continue;
                         }
-                        remote_dep_inc_flying_messages(exec_context->dague_object, eu_context->virtual_process->dague_context);
+                        remote_dep_inc_flying_messages(exec_context->dague_handle, eu_context->virtual_process->dague_context);
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
                     } else {

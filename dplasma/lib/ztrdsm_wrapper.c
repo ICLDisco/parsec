@@ -33,15 +33,15 @@
  *          \retval <0 if -i, the i-th argument had an illegal value
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
 {
-    dague_object_t *dague_trdsm = NULL; 
+    dague_handle_t *dague_trdsm = NULL; 
 
-    dague_trdsm = (dague_object_t*)dague_ztrdsm_new( *A, (dague_ddesc_t*)A,
+    dague_trdsm = (dague_handle_t*)dague_ztrdsm_new( *A, (dague_ddesc_t*)A,
                                                      *B, (dague_ddesc_t*)B );
 
-    dplasma_add2arena_tile(((dague_ztrdsm_object_t*)dague_trdsm)->arenas[DAGUE_ztrdsm_DEFAULT_ARENA], 
+    dplasma_add2arena_tile(((dague_ztrdsm_handle_t*)dague_trdsm)->arenas[DAGUE_ztrdsm_DEFAULT_ARENA], 
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
@@ -55,11 +55,11 @@ dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
  *          Object to destroy.
  ******************************************************************************/
 void
-dplasma_ztrdsm_Destruct( dague_object_t *o )
+dplasma_ztrdsm_Destruct( dague_handle_t *o )
 {
-    dague_ztrdsm_object_t *otrdsm = (dague_ztrdsm_object_t *)o;
+    dague_ztrdsm_handle_t *otrdsm = (dague_ztrdsm_handle_t *)o;
     dplasma_datatype_undefine_type( &(otrdsm->arenas[DAGUE_ztrdsm_DEFAULT_ARENA]->opaque_dtt) );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 /***************************************************************************//**
@@ -81,7 +81,7 @@ dplasma_ztrdsm( dague_context_t *dague,
                 const tiled_matrix_desc_t *A, 
                 tiled_matrix_desc_t *B)
 {
-    dague_object_t *dague_ztrdsm = NULL;
+    dague_handle_t *dague_ztrdsm = NULL;
 
     dague_ztrdsm = dplasma_ztrdsm_New(A, B);
 

@@ -133,16 +133,16 @@ int dague_profiling_dictionary_flush( void );
  *                      a couple (start, end) has
  *                        - the same key
  *                        - end is the next "end" event with the same key and the same non-null event_id and
- *                          non OBJECT_ID_NULL object_id as start in the event buffer of the thread context
+ *                          non OBJECT_ID_NULL handle_id as start in the event buffer of the thread context
  *                        - if no matching end is found, this is an error
- * @param [IN] object_id:
+ * @param [IN] handle_id:
  * @param [IN] info:    a pointer to an area of size info_length for this key (see
  *                        dague_profiling_add_dictionary_keyword)
  * @return 0 if success, -1 otherwise.
  * not thread safe
  */
 #define PROFILE_OBJECT_ID_NULL ((uint32_t)-1)
-int dague_profiling_trace( dague_thread_profiling_t* context, int key, uint64_t event_id, uint32_t object_id, void *info );
+int dague_profiling_trace( dague_thread_profiling_t* context, int key, uint64_t event_id, uint32_t handle_id, void *info );
 
 /**
  * Dump the current profile in the said filename.

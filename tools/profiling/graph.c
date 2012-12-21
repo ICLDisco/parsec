@@ -78,12 +78,12 @@ unsigned int find_node_by_task_name_and_parameters(const char *name, const char 
     return NID;
 }
 
-unsigned int find_node_by_task_name_and_object_id(const char *name, unsigned long long oid)
+unsigned int find_node_by_task_name_and_handle_id(const char *name, unsigned long long oid)
 {
     unsigned int i;
     for(i = 0; i < nb_nodes; i++) {
         if( !strcmp(name, nodes[i]->info.task_name) &&
-            (oid == nodes[i]->info.object_id) )
+            (oid == nodes[i]->info.handle_id) )
             return i;
     }
     return NID;
@@ -142,7 +142,7 @@ void add_key_nodes(void)
     ni.node = strdup("");
     ni.vp = strdup("");
     ni.thread = strdup("");
-    ni.object_id = 0;
+    ni.handle_id = 0;
     ni.priority = 0;
     nid = add_node(&ni);
 
@@ -152,7 +152,7 @@ void add_key_nodes(void)
     ni.node = strdup("");
     ni.vp = strdup("");
     ni.thread = strdup("");
-    ni.object_id = 0;
+    ni.handle_id = 0;
     ni.priority = 0;
     nid = add_node(&ni);
     set_node_status(nid, STATUS_RUNNING);
@@ -163,7 +163,7 @@ void add_key_nodes(void)
     ni.node = strdup("");
     ni.vp = strdup("");
     ni.thread = strdup("");
-    ni.object_id = 0;
+    ni.handle_id = 0;
     ni.priority = 0;
     nid = add_node(&ni);
     set_node_status(nid, STATUS_READY);
@@ -174,7 +174,7 @@ void add_key_nodes(void)
     ni.node = strdup("");
     ni.vp = strdup("");
     ni.thread = strdup("");
-    ni.object_id = 0;
+    ni.handle_id = 0;
     ni.priority = 0;
     nid = add_node(&ni);
     set_node_status(nid, STATUS_ENABLED);
@@ -185,7 +185,7 @@ void add_key_nodes(void)
     ni.node = strdup("");
     ni.vp = strdup("");
     ni.thread = strdup("");
-    ni.object_id = 0;
+    ni.handle_id = 0;
     ni.priority = 0;
     nid = add_node(&ni);
     set_node_status(nid, STATUS_DONE);
@@ -251,7 +251,7 @@ int add_nodes_from_dotfile(const char *filename, int fileidx,
             asprintf(&ni.node, "%d", fileidx);
             asprintf(&ni.vp, "%d", vp);
             asprintf(&ni.thread, "%d", thread);
-            ni.object_id = oid;
+            ni.handle_id = oid;
             ni.priority = priority;
             (void)object;
             

@@ -76,7 +76,7 @@
  * @sa dplasma_ssymm
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zsymm_New( const PLASMA_enum side,
                    const PLASMA_enum uplo,
                    const dague_complex64_t alpha,
@@ -85,7 +85,7 @@ dplasma_zsymm_New( const PLASMA_enum side,
                    const dague_complex64_t beta,
                    tiled_matrix_desc_t* C)
 {
-    dague_zsymm_object_t* object;
+    dague_zsymm_handle_t* object;
 
     object = dague_zsymm_new(side, uplo, alpha, beta,
                              *A, (dague_ddesc_t*)A,
@@ -97,7 +97,7 @@ dplasma_zsymm_New( const PLASMA_enum side,
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, C->mb);
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 /***************************************************************************//**
@@ -122,11 +122,11 @@ dplasma_zsymm_New( const PLASMA_enum side,
  *
  ******************************************************************************/
 void
-dplasma_zsymm_Destruct( dague_object_t *o )
+dplasma_zsymm_Destruct( dague_handle_t *o )
 {
-    dague_zsymm_object_t *zsymm_object = (dague_zsymm_object_t*)o;
+    dague_zsymm_handle_t *zsymm_object = (dague_zsymm_handle_t*)o;
     dplasma_datatype_undefine_type( &(zsymm_object->arenas[DAGUE_zsymm_DEFAULT_ARENA]->opaque_dtt) );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(zsymm_object);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(zsymm_object);
 }
 
 /***************************************************************************//**
@@ -165,7 +165,7 @@ dplasma_zsymm( dague_context_t *dague,
                const dague_complex64_t beta,
                tiled_matrix_desc_t *C)
 {
-    dague_object_t *dague_zsymm = NULL;
+    dague_handle_t *dague_zsymm = NULL;
 
     /* Check input arguments */
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
@@ -196,7 +196,7 @@ dplasma_zsymm( dague_context_t *dague,
 
     if ( dague_zsymm != NULL )
     {
-        dague_enqueue( dague, (dague_object_t*)dague_zsymm);
+        dague_enqueue( dague, (dague_handle_t*)dague_zsymm);
         dplasma_progress(dague);
         dplasma_zsymm_Destruct( dague_zsymm );
     }

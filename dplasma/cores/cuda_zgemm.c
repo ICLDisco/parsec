@@ -229,7 +229,7 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                              gpu_device->profiling,
                              (-1 == gpu_stream->prof_event_key_start ? 
-                              DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
+                              DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
                                                         this_task->function->function_id) :
                               gpu_stream->prof_event_key_start),
                              this_task);
@@ -289,7 +289,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                              gpu_device->profiling,
                              (-1 == gpu_stream->prof_event_key_start ? 
-                              DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
+                              DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
                                                         this_task->function->function_id) :
                               gpu_stream->prof_event_key_start),
                              this_task);
@@ -356,7 +356,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                                          gpu_device->profiling,
                                          (-1 == gpu_stream->prof_event_key_start ? 
-                                          DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
+                                          DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
                                                                     this_task->function->function_id) :
                                           gpu_stream->prof_event_key_start),
                                          this_task);

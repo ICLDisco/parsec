@@ -280,8 +280,8 @@ int stsmqr_cuda_fini(dague_context_t* dague_context)
     } while (0)
 
 //#include "generated/sgeqrf.h"
-//#define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrf_object_t*)(ec)->dague_object)->A))
-//#define ddescT(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrf_object_t*)(ec)->dague_object)->T))
+//#define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrf_handle_t*)(ec)->dague_handle)->A))
+//#define ddescT(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrf_handle_t*)(ec)->dague_handle)->T))
 #define ddescA(ec) (UGLY_A)
 #define ddescT(ec) (UGLY_T)
 
@@ -380,7 +380,7 @@ gpu_stsmqr_internal_submit( gpu_device_t* gpu_device,
     d_C = gpu_elem_C->gpu_mem;
 
 #if defined(DAGUE_PROF_TRACE)
-    dague_profiling_trace( gpu_device->profiling, this_task->dague_object->profiling_array[0 + 2 * this_task->function->function_id], 1, PROFILE_OBJECT_ID_NULL, NULL );
+    dague_profiling_trace( gpu_device->profiling, this_task->dague_handle->profiling_array[0 + 2 * this_task->function->function_id], 1, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PROFILING) */
     offset = 0;
     CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_B );
@@ -406,10 +406,10 @@ gpu_stsmqr_internal_submit( gpu_device_t* gpu_device,
                                              grid_width, grid_height, stream);
 
     DAGUE_CUDA_CHECK_ERROR( "cuLaunchGridAsync ", status,
-                              {return -1;} );
+                            {return -1;} );
 
 #if defined(DAGUE_PROF_TRACE)
-    dague_profiling_trace( gpu_device->profiling, this_task->dague_object->profiling_array[1 + 2 * this_task->function->function_id], 1, PROFILE_OBJECT_ID_NULL, NULL );
+    dague_profiling_trace( gpu_device->profiling, this_task->dague_handle->profiling_array[1 + 2 * this_task->function->function_id], 1, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PROFILING) */
     return 0;
 }

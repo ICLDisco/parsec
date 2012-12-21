@@ -18,10 +18,10 @@ static MPI_Datatype block;
  *
  * @return the dague object to schedule.
  */
-dague_object_t *ctlgat_new(dague_ddesc_t *A, int size, int nb)
+dague_handle_t *ctlgat_new(dague_ddesc_t *A, int size, int nb)
 {
     int worldsize;
-    dague_ctlgat_object_t *o = NULL;
+    dague_ctlgat_handle_t *o = NULL;
 #if defined(HAVE_MPI)
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 #else
@@ -30,7 +30,7 @@ dague_object_t *ctlgat_new(dague_ddesc_t *A, int size, int nb)
     
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, CTLGAT must do at least one round time trip of at least one byte\n");
-        return (dague_object_t*)o;
+        return (dague_handle_t*)o;
     }
 
     o = dague_ctlgat_new(A, nb, worldsize);
@@ -52,17 +52,17 @@ dague_object_t *ctlgat_new(dague_ddesc_t *A, int size, int nb)
     }
 #endif
 
-    return (dague_object_t*)o;
+    return (dague_handle_t*)o;
 }
 
 /**
  * @param [INOUT] o the dague object to destroy
  */
-void ctlgat_destroy(dague_object_t *o)
+void ctlgat_destroy(dague_handle_t *o)
 {
 #if defined(HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

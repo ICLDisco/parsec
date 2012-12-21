@@ -33,7 +33,7 @@
 int nbtasks = -1;
 int rank = 0, count = 1;
 
-static dague_object_t         *dague_QR = NULL;
+static dague_handle_t         *dague_QR = NULL;
 static two_dim_block_cyclic_t  rtop;
 #ifdef HAVE_MPI
 MPI_Datatype RTILE_T;
@@ -103,11 +103,11 @@ static dague_context_t *setup_tsqr( int* pargc
 
     dplasma_dplrnt(dague, (tiled_matrix_desc_t *)&rtop, 3129);
 
-    dague_QR = (dague_object_t*)
+    dague_QR = (dague_handle_t*)
         dague_TSQR_new( (dague_ddesc_t*)&rtop
                       , treeHeight // info->process2Power
                       );
-    dague_enqueue( dague, (dague_object_t*)dague_QR);
+    dague_enqueue( dague, (dague_handle_t*)dague_QR);
 
     printf( "%i> Task count:%u\n", rank, dague_QR->nb_local_tasks );
     return dague;

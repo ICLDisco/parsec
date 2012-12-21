@@ -909,7 +909,7 @@ int progress_stream( gpu_device_t* gpu_device,
             DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable,
                                      gpu_device->profiling,
                                      (-1 == exec_stream->prof_event_key_end ? 
-                                      DAGUE_PROF_FUNC_KEY_END(task->ec->dague_object,
+                                      DAGUE_PROF_FUNC_KEY_END(task->ec->dague_handle,
                                                               task->ec->function->function_id) :
                                       exec_stream->prof_event_key_end),
                                      task->ec);

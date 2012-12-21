@@ -30,7 +30,7 @@ main (int argc, char *argv[])
     int info;
     PLASMA_enum uplo = PlasmaLower;
     dague_ddesc_t *ddescA;
-    dague_object_t *cholesky;
+    dague_handle_t *cholesky;
     dague_execution_context_t *startup_list = NULL;
     struct timeval start;
     struct timeval end;

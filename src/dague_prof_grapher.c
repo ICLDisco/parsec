@@ -120,8 +120,8 @@ char *dague_prof_grapher_taskid(const dague_execution_context_t *exec_context, c
     const dague_function_t* function = exec_context->function;
     unsigned int i, index = 0;
 
-    assert( NULL!= exec_context->dague_object );
-    index += snprintf( tmp + index, length - index, "%s_%u", function->name, exec_context->dague_object->object_id );
+    assert( NULL!= exec_context->dague_handle );
+    index += snprintf( tmp + index, length - index, "%s_%u", function->name, exec_context->dague_handle->handle_id );
     for( i = 0; i < function->nb_parameters; i++ ) {
         index += snprintf( tmp + index, length - index, "_%d",
                            exec_context->locals[function->params[i]->context_index].value );

@@ -25,8 +25,8 @@ dplasma_zgetrs_incpiv(dague_context_t *dague,
     }
 
 #ifdef DAGUE_COMPOSITION
-    dague_object_t *dague_ztrsmpl = NULL;
-    dague_object_t *dague_ztrsm   = NULL;
+    dague_handle_t *dague_ztrsmpl = NULL;
+    dague_handle_t *dague_ztrsm   = NULL;
 
     dague_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
     dague_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);

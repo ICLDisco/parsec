@@ -91,29 +91,29 @@ static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
 struct dague_execution_unit_s;
 typedef int (*dague_operator_t)( struct dague_execution_unit_s *eu, const void* src, void* dst, void* op_data, ... );
 
-extern struct dague_object_t*
+extern struct dague_handle_t*
 dague_map_operator_New(const tiled_matrix_desc_t* src,
                        tiled_matrix_desc_t* dest,
                        dague_operator_t op,
                        void* op_data);
 
 extern void
-dague_map_operator_Destruct( struct dague_object_t* o );
+dague_map_operator_Destruct( struct dague_handle_t* o );
 
-extern struct dague_object_t*
+extern struct dague_handle_t*
 dague_reduce_col_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t operator,
                       void* op_data );
 
-extern void dague_reduce_col_Destruct( struct dague_object_t *o );
+extern void dague_reduce_col_Destruct( struct dague_handle_t *o );
 
-extern struct dague_object_t*
+extern struct dague_handle_t*
 dague_reduce_row_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t operator,
                       void* op_data );
-extern void dague_reduce_row_Destruct( struct dague_object_t *o );
+extern void dague_reduce_row_Destruct( struct dague_handle_t *o );
 
 /*
  * Macro to get the block leading dimension

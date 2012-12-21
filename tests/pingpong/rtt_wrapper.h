@@ -11,11 +11,11 @@
  *
  * @return the dague object to schedule.
  */
-dague_object_t *rtt_new(dague_ddesc_t *A, int size, int nb);
+dague_handle_t *rtt_new(dague_ddesc_t *A, int size, int nb);
 
 /**
  * @param [INOUT] o the dague object to destroy
  */
-void rtt_destroy(dague_object_t *o);
+void rtt_destroy(dague_handle_t *o);
 
 #endif 

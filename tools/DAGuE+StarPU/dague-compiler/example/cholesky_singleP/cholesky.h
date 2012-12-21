@@ -27,7 +27,7 @@
 #define DAGUE_cholesky_DEFAULT_ARENA    0
 
 typedef struct dague_cholesky_object {
-  dague_object_t super;
+  dague_handle_t super;
   /* The list of globals */
   dague_ddesc_t* A /* data A */;
   int NB;
@@ -42,10 +42,10 @@ typedef struct dague_cholesky_object {
   starpu_data_handle_t INFO_handle;
   /* The array of datatypes DEFAULT */
   dague_arena_t* arenas[1];
-} dague_cholesky_object_t;
+} dague_cholesky_handle_t;
 
-extern dague_cholesky_object_t *dague_cholesky_new(dague_ddesc_t* A /* data A */, int NB, int SIZE, PLASMA_enum uplo, int* INFO);
-extern void dague_cholesky_destroy( dague_cholesky_object_t *o );
+extern dague_cholesky_handle_t *dague_cholesky_new(dague_ddesc_t* A /* data A */, int NB, int SIZE, PLASMA_enum uplo, int* INFO);
+extern void dague_cholesky_destroy( dague_cholesky_handle_t *o );
 
 struct callback_args {
     dague_execution_unit_t     *exec_unit;

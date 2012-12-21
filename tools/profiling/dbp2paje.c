@@ -171,7 +171,7 @@ typedef struct {
     uint64_t        start;
     uint64_t        end;
     int             key;
-    uint32_t        object_id;
+    uint32_t        handle_id;
     const dbp_thread_t   *start_thread;
     const dbp_thread_t   *end_thread;
     size_t          start_info_size;
@@ -440,7 +440,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                 /* Argh, couldn't find the end in this trace */
                 WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
                          dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
-                         dbp_event_get_object_id(e), dbp_event_get_event_id(e),
+                         dbp_event_get_handle_id(e), dbp_event_get_event_id(e),
                          diff_time(relative, dbp_event_get_timestamp(e))));
                 
                 current_stat[ key ].nb_matcherror++;
@@ -461,7 +461,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                                                     dbp_event_info_len(e, dbp) +
                                                     dbp_event_info_len(g, dbp) );
                 cev->event_id = dbp_event_get_event_id(e);
-                cev->object_id = dbp_event_get_object_id(e);
+                cev->handle_id = dbp_event_get_handle_id(e);
                 cev->start = start;
                 cev->end = end;
                 cev->start_thread = dbp_iterator_thread(pit);

@@ -100,7 +100,7 @@ typedef void (dague_traverse_function_t)(struct dague_execution_unit_s *,
 /**
  *
  */
-typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object,
+typedef uint64_t (dague_functionkey_fn_t)(const dague_handle_t *dague_handle,
                                           const assignment_t *assignments);
 /**
  * Create an execution context tailored for representing this specified
@@ -198,7 +198,7 @@ struct dague_data_pair_s {
 #define DAGUE_MINIMAL_EXECUTION_CONTEXT              \
     dague_list_item_t              list_item;        \
     struct dague_thread_mempool_s *mempool_owner;    \
-    dague_object_t                *dague_object;     \
+    dague_handle_t                *dague_handle;     \
     const  dague_function_t       *function;         \
     int32_t                        priority;         \
     uint8_t                        status;           \
@@ -237,17 +237,17 @@ extern int queue_add_begin, queue_add_end;
 extern int queue_remove_begin, queue_remove_end;
 extern int device_delegate_begin, device_delegate_end;
 
-#define DAGUE_PROF_FUNC_KEY_START(dague_object, function_index) \
-    (dague_object)->profiling_array[2 * (function_index)]
-#define DAGUE_PROF_FUNC_KEY_END(dague_object, function_index) \
-    (dague_object)->profiling_array[1 + 2 * (function_index)]
+#define DAGUE_PROF_FUNC_KEY_START(dague_handle, function_index) \
+    (dague_handle)->profiling_array[2 * (function_index)]
+#define DAGUE_PROF_FUNC_KEY_END(dague_handle, function_index) \
+    (dague_handle)->profiling_array[1 + 2 * (function_index)]
 
 #define DAGUE_TASK_PROF_TRACE(PROFILE, KEY, TASK)                       \
     do {                                                                \
         dague_profiling_trace((PROFILE),                                \
                               (KEY),                                    \
-                              (TASK)->function->key((TASK)->dague_object, (TASK)->locals), \
-                              (TASK)->dague_object->object_id, (void*)&(TASK)->prof_info); \
+                              (TASK)->function->key((TASK)->dague_handle, (TASK)->locals), \
+                              (TASK)->dague_handle->handle_id, (void*)&(TASK)->prof_info); \
     } while (0)
 #define DAGUE_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \
     if(!!(COND)) {                                           \
@@ -285,7 +285,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_s *eu,
                                              int nb_elt,
                                              void *param);
 
-int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
+int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
                                           dague_execution_unit_t* eu_context,
                                           const dague_execution_context_t* origin,
                                           const dague_flow_t* origin_flow,
@@ -301,10 +301,10 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
  * most internal structues, while leaving the datatypes and the tasks management
  * buffers untouched. Instead, from the application layer call the _Destruct.
  */
-#define DAGUE_INTERNAL_OBJECT_DESTRUCT(OBJ)             \
+#define DAGUE_INTERNAL_HANDLE_DESTRUCT(OBJ)             \
     do {                                                \
-    dague_object_t* __obj = (dague_object_t*)(OBJ);     \
-    __obj->object_destructor(__obj);                    \
+    dague_handle_t* __obj = (dague_handle_t*)(OBJ);     \
+    __obj->destructor(__obj);                           \
     (OBJ) = NULL;                                       \
 } while (0)
 

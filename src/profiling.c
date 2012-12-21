@@ -435,7 +435,7 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
 }
 
 int dague_profiling_trace( dague_thread_profiling_t* context, int key,
-                           uint64_t event_id, uint32_t object_id, void *info )
+                           uint64_t event_id, uint32_t handle_id, void *info )
 {
     dague_profiling_output_t *this_event;
     size_t this_event_length;
@@ -470,7 +470,7 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key,
 
     this_event->event.key = (uint16_t)key;
     this_event->event.event_id = event_id;
-    this_event->event.object_id = object_id;
+    this_event->event.handle_id = handle_id;
     this_event->event.flags = 0;
 
     if( NULL != info ) {

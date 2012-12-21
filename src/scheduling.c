@@ -100,18 +100,18 @@ static inline int all_tasks_done(dague_context_t* context)
     return (context->active_objects == 0);
 }
 
-int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context)
+int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context)
 {
     int remaining;
 
-    assert( dague_object->nb_local_tasks != 0 );
-    remaining = dague_atomic_dec_32b( &(dague_object->nb_local_tasks) );
+    assert( dague_handle->nb_local_tasks != 0 );
+    remaining = dague_atomic_dec_32b( &(dague_handle->nb_local_tasks) );
     if( 0 == remaining ) {
         /* A dague object has been completed. Call the attached callback if
          * necessary, then update the main engine.
          */
-        if( NULL != dague_object->complete_cb ) {
-            (void)dague_object->complete_cb( dague_object, dague_object->complete_cb_data );
+        if( NULL != dague_handle->complete_cb ) {
+            (void)dague_handle->complete_cb( dague_handle, dague_handle->complete_cb_data );
         }
         dague_atomic_dec_32b( &(context->active_objects) );
         return 1;
@@ -209,7 +209,7 @@ inline int __dague_complete_execution( dague_execution_unit_t *eu_context,
     if( NULL != exec_context->function->complete_execution )
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
-    __dague_complete_task(exec_context->dague_object, eu_context->virtual_process->dague_context);
+    __dague_complete_task(exec_context->dague_handle, eu_context->virtual_process->dague_context);
     AYU_TASK_COMPLETE(exec_context);
 
     /* Succesfull execution. The context is ready to be released, all
@@ -374,7 +374,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     return (void*)((long)nbiterations);
 }
 
-int dague_enqueue( dague_context_t* context, dague_object_t* object)
+int dague_enqueue( dague_context_t* context, dague_handle_t* object)
 {
     dague_execution_context_t **startup_list;
     int p;

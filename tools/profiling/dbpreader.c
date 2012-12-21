@@ -83,9 +83,9 @@ uint64_t dbp_event_get_event_id(const dbp_event_t *e)
     return e->native->event.event_id;
 }
 
-uint32_t dbp_event_get_object_id(const dbp_event_t *e)
+uint32_t dbp_event_get_handle_id(const dbp_event_t *e)
 {
-    return e->native->event.object_id;
+    return e->native->event.handle_id;
 }
 
 dague_time_t dbp_event_get_timestamp(const dbp_event_t *e)
@@ -311,7 +311,7 @@ int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
     
     e = dbp_iterator_current( pos );
     while( NULL != e ) {
-        if( (dbp_event_get_object_id(e) == dbp_event_get_object_id(ref)) &&
+        if( (dbp_event_get_handle_id(e) == dbp_event_get_handle_id(ref)) &&
             (dbp_event_get_event_id(e) == dbp_event_get_event_id(ref)) &&
             (dbp_event_get_key(e) == END_KEY(BASE_KEY(dbp_event_get_key(ref)))) ) {
             if( dbp_event_get_event_id(e) != 0 ||

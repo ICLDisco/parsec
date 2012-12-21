@@ -39,7 +39,7 @@ static dague_ddesc_t pseudo_desc = {
 
 typedef struct {
     const char *command_name;
-    dague_object_t *(*create_function)(int argc, char **argv);
+    dague_handle_t *(*create_function)(int argc, char **argv);
 } create_function_t;
 
 #define TEST_SET(fname, vname) do {                                     \
@@ -179,7 +179,7 @@ static int dump_graph(const char *filename)
 int main(int argc, char *argv[])
 {
     int i;
-    dague_object_t *o;
+    dague_handle_t *o;
     dague_execution_context_t *startup;
     dague_list_item_t *s;
     dague_context_t *dague;

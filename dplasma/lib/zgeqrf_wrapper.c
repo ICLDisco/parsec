@@ -15,10 +15,10 @@
 
 #include "zgeqrf.h"
 
-dague_object_t* dplasma_zgeqrf_New( tiled_matrix_desc_t *A,
+dague_handle_t* dplasma_zgeqrf_New( tiled_matrix_desc_t *A,
                                     tiled_matrix_desc_t *T )
 {
-    dague_zgeqrf_object_t* object;
+    dague_zgeqrf_handle_t* object;
     int ib = T->mb;
     /*
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
@@ -58,16 +58,16 @@ dague_object_t* dplasma_zgeqrf_New( tiled_matrix_desc_t *A,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 int dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T)
 {
-    dague_object_t *dague_zgeqrf = NULL;
+    dague_handle_t *dague_zgeqrf = NULL;
 
     dague_zgeqrf = dplasma_zgeqrf_New(A, T);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zgeqrf);
+    dague_enqueue(dague, (dague_handle_t*)dague_zgeqrf);
     dplasma_progress(dague);
 
     dplasma_zgeqrf_Destruct( dague_zgeqrf );
@@ -75,9 +75,9 @@ int dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix
 }
 
 void
-dplasma_zgeqrf_Destruct( dague_object_t *o )
+dplasma_zgeqrf_Destruct( dague_handle_t *o )
 {
-    dague_zgeqrf_object_t *dague_zgeqrf = (dague_zgeqrf_object_t *)o;
+    dague_zgeqrf_handle_t *dague_zgeqrf = (dague_zgeqrf_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zgeqrf->arenas[DAGUE_zgeqrf_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgeqrf->arenas[DAGUE_zgeqrf_LOWER_TILE_ARENA]->opaque_dtt) );
@@ -89,6 +89,6 @@ dplasma_zgeqrf_Destruct( dague_object_t *o )
     free( dague_zgeqrf->p_work );
     free( dague_zgeqrf->p_tau  );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgeqrf);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgeqrf);
 }
 

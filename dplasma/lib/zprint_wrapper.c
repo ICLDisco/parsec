@@ -30,21 +30,21 @@ int dplasma_zprint( dague_context_t *dague,
                     PLASMA_enum uplo,
                     tiled_matrix_desc_t *A) 
 {
-    dague_zprint_object_t* object;
+    dague_zprint_handle_t* handle;
     
-    object = dague_zprint_new( uplo, *A, (dague_ddesc_t*)A);
+    handle = dague_zprint_new( uplo, *A, (dague_ddesc_t*)A);
 
     /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zprint_DEFAULT_ARENA], 
+    dplasma_add2arena_tile( handle->arenas[DAGUE_zprint_DEFAULT_ARENA], 
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
     
-    dague_enqueue(dague, (dague_object_t*)object);
+    dague_enqueue(dague, (dague_handle_t*)handle);
     dplasma_progress(dague);
 
-    dplasma_datatype_undefine_type( &(object->arenas[DAGUE_zprint_DEFAULT_ARENA]->opaque_dtt) );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT( object );
+    dplasma_datatype_undefine_type( &(handle->arenas[DAGUE_zprint_DEFAULT_ARENA]->opaque_dtt) );
+    DAGUE_INTERNAL_HANDLE_DESTRUCT( handle );
 
     return 0;
 }

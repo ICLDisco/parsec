@@ -8,10 +8,12 @@
 #define DAGUE_LIST_ITEM_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
+#include "dague/class/dague_object.h"
 #include <stdlib.h>
 #include <assert.h>
 
 typedef struct dague_list_item_s {
+    dague_object_t  super;
     volatile struct dague_list_item_s* list_next;
     /**
      * This field is __very__ special and should be handled with extreme
@@ -29,6 +31,7 @@ typedef struct dague_list_item_s {
 #endif  /* defined(DAGUE_DEBUG) */
 } dague_list_item_t;
 
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_list_item_t);
 
 static inline void
 dague_list_item_construct( dague_list_item_t* item )

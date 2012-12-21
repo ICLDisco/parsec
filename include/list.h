@@ -18,10 +18,12 @@
 #include "list_item.h"
 
 typedef struct dague_list_t {
+    dague_object_t     super;
     dague_list_item_t  ghost_element;
-    volatile uint32_t atomic_lock;
+    volatile uint32_t  atomic_lock;
 } dague_list_t;
 
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_list_t);
 
 static inline void dague_list_construct( dague_list_t* list );
 static inline void dague_list_destruct( dague_list_t* list );
@@ -168,10 +170,13 @@ dague_list_try_pop_back( dague_list_t* list );
 static inline void
 dague_list_push_front( dague_list_t* list,
                        dague_list_item_t* item );
+#define dague_list_prepend dague_list_push_front
+
 /** push item last in the list (mutex protected) */
 static inline void
 dague_list_push_back( dague_list_t* list,
                       dague_list_item_t* item );
+#define dague_list_append dague_list_push_back
 
 /** chains the collection of items first in the list (mutex protected)
  *    items->prev must point to the tail of the items collection */

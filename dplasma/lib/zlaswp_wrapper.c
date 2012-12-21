@@ -19,12 +19,12 @@
 PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
                              int lm, int ln, int i, int j, int m, int n);
 
-dague_object_t *
+dague_handle_t *
 dplasma_zlaswp_New(tiled_matrix_desc_t *A,
                    tiled_matrix_desc_t *IPIV,
                    int inc)
 {
-    dague_zlaswp_object_t *dague_laswp;
+    dague_zlaswp_handle_t *dague_laswp;
 
     dague_laswp = dague_zlaswp_new( *A,    (dague_ddesc_t*)A,
                                     *IPIV, (dague_ddesc_t*)IPIV,
@@ -42,18 +42,18 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_INT, 1, A->mb, -1 );
 
-    return (dague_object_t*)dague_laswp;
+    return (dague_handle_t*)dague_laswp;
 }
 
 void
-dplasma_zlaswp_Destruct( dague_object_t *o )
+dplasma_zlaswp_Destruct( dague_handle_t *o )
 {
-    dague_zlaswp_object_t *dague_zlaswp = (dague_zlaswp_object_t *)o;
+    dague_zlaswp_handle_t *dague_zlaswp = (dague_zlaswp_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zlaswp->arenas[DAGUE_zlaswp_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlaswp->arenas[DAGUE_zlaswp_PIVOT_ARENA     ]->opaque_dtt) );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zlaswp);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zlaswp);
 }
 
 int
@@ -62,11 +62,11 @@ dplasma_zlaswp( dague_context_t *dague,
                 tiled_matrix_desc_t *IPIV,
                 int inc)
 {
-    dague_object_t *dague_zlaswp = NULL;
+    dague_handle_t *dague_zlaswp = NULL;
 
     dague_zlaswp = dplasma_zlaswp_New(A, IPIV, inc);
 
-    dague_enqueue( dague, (dague_object_t*)dague_zlaswp);
+    dague_enqueue( dague, (dague_handle_t*)dague_zlaswp);
     dplasma_progress(dague);
 
     dplasma_zlaswp_Destruct( dague_zlaswp );
