@@ -134,7 +134,7 @@ static inline void remote_deps_free(dague_remote_deps_t* deps) {
             deps->output[k].rank_bits[a] = 0;
         count += deps->output[k].count;
         deps->output[k].count = 0;
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
         deps->output[k].data = NULL;
         deps->output[k].type = NULL;
         deps->output[k].nbelt = -1;
@@ -143,7 +143,7 @@ static inline void remote_deps_free(dague_remote_deps_t* deps) {
         assert(k < MAX_PARAM_COUNT);
     }
     assert(count == deps->output_count);
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     DEBUG(("remote_deps_free: sent_count=%u/%u\n", deps->output_sent_count, deps->output_count));
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif

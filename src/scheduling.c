@@ -144,10 +144,10 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 {
     int ret;
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     {
         dague_execution_context_t* context = new_context;
-        const struct dague_flow* flow;
+        const struct dague_flow_s* flow;
         int set_parameters, i;
         char tmp[MAX_TASK_STRLEN];
 
@@ -172,7 +172,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
             context = (dague_execution_context_t*)context->list_item.list_next;
         } while ( context != new_context );
     }
-# endif
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
 
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);

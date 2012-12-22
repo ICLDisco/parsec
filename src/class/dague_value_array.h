@@ -236,12 +236,9 @@ static inline int dague_value_array_append_item(dague_value_array_t *array, cons
 
 static inline int dague_value_array_remove_item(dague_value_array_t *array, size_t item_index)
 {
-#if DAGUE_ENABLE_DEBUG
     if (item_index >= array->array_size) {
-        dague_output(0, "dague_value_array_remove_item: invalid index %lu\n", (unsigned long)item_index);
         return DAGUE_ERR_BAD_PARAM;
     }
-#endif   
     memmove(array->array_items+(array->array_item_sizeof * item_index), 
             array->array_items+(array->array_item_sizeof * (item_index+1)),
             array->array_item_sizeof * (array->array_size - item_index - 1));

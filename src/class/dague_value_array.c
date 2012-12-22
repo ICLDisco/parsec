@@ -20,7 +20,6 @@
 
 #include "dague/class/dague_value_array.h"
 
-
 static void dague_value_array_construct(dague_value_array_t* array)
 {
     array->array_items = NULL;
@@ -45,12 +44,9 @@ OBJ_CLASS_INSTANCE(
 
 int dague_value_array_set_size(dague_value_array_t* array, size_t size)
 {
-#if DAGUE_ENABLE_DEBUG
     if(array->array_item_sizeof == 0) {
-        dague_output(0, "dague_value_array_set_size: item size must be initialized");
         return DAGUE_ERR_BAD_PARAM;
     }
-#endif
 
     if(size > array->array_alloc_size) {
         while(array->array_alloc_size < size)

@@ -191,7 +191,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
     assert(remote_deps_count);
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     /* make valgrind happy */
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
 #endif

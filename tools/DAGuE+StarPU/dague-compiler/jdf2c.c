@@ -1833,7 +1833,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
                     idx, idx);
         }
     }
-    coutput("#if defined(DAGUE_DEBUG)\n"
+    coutput("#if defined(DAGUE_DEBUG_ENABLE)\n"
             "%s  {\n"
             "%s    char tmp[128];\n"
             "%s    DEBUG((\"Add startup task %%s\\n\",\n"
@@ -3867,7 +3867,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     /*                                        "", "", ", ", "")); */
 
     string_arena_add_string(sa_open,
-                            "#if defined(DAGUE_DEBUG)\n"
+                            "#if defined(DAGUE_DEBUG_ENABLE)\n"
                             "%s%sif( NULL != eu ) {\n"
                             "%s%s  char tmp[128], tmp1[128];\n"
                             "%s%s  DEBUG((\"thread %%d release deps of %s:%%s to %s:%%s (from node %%d to %%d)\\n\", eu->eu_id,\n"

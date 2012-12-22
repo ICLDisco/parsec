@@ -179,7 +179,6 @@ int mca_param_init(void)
 
 int mca_param_recache_files(void)
 {
-    int id;
     char *files, *new_files = NULL;
 
     /* We may need this later */
@@ -206,9 +205,9 @@ int mca_param_recache_files(void)
     /* Initialize a parameter that says where MCA param files can
        be found */
 
-    id = mca_param_reg_string_name("mca", "param_files",
-                                        "Path for MCA configuration files containing default parameter values",
-                                        false, false, files, &new_files);
+    (void)mca_param_reg_string_name("mca", "param_files",
+                                    "Path for MCA configuration files containing default parameter values",
+                                    false, false, files, &new_files);
 
     read_files(new_files);
 #if defined(__WINDOWS__)
@@ -1101,7 +1100,7 @@ static int param_register(const char *type_name,
                 MCA_PARAM_TYPE_STRING == param.mbp_type) ||
                (MCA_PARAM_TYPE_STRING == array[i].mbp_type &&
                 MCA_PARAM_TYPE_INT    == param.mbp_type)) {
-#if DAGUE_ENABLE_DEBUG
+#if defined(DAGUE_DEBUG_ENABLE)
           dague_show_help("help-mca-param.txt", 
                          "re-register with different type",
                          true, array[i].mbp_full_name);
@@ -1765,7 +1764,7 @@ static void param_destructor(mca_param_t *p)
     /* mark this parameter as invalid */
     p->mbp_type = MCA_PARAM_TYPE_MAX;
 
-#if DAGUE_ENABLE_DEBUG
+#if defined(DAGUE_DEBUG_ENABLE)
     /* Cheap trick to reset everything to NULL */
     param_constructor(p);
 #endif

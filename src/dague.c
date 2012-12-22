@@ -701,7 +701,7 @@ static int dague_update_deps_with_counter( dague_handle_t *dague_handle,
         dep_cur_value = dague_atomic_dec_32b( deps );
     }
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     {
         char tmp[MAX_TASK_STRLEN];
         if( (uint32_t)dep_cur_value > (uint32_t)-128) {
@@ -714,7 +714,7 @@ static int dague_update_deps_with_counter( dague_handle_t *dague_handle,
                 dep_cur_value,
                 (dep_cur_value == 0) ? "becomes ready" : "stays there waiting"));
     }
-#endif /* DAGUE_DEBUG */
+#endif /* DAGUE_DEBUG_ENABLE */
 
     return dep_cur_value == 0;
 }
@@ -726,13 +726,13 @@ static int dague_update_deps_with_mask( dague_handle_t *dague_handle,
                                         const dague_flow_t* restrict origin_flow,
                                         const dague_flow_t* restrict dest_flow )
 {
-#if defined(DAGUE_DEBUG_VERBOSE3) || defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_VERBOSE3) || defined(DAGUE_DEBUG_ENABLE)
     char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
 #endif
     dague_dependency_t dep_new_value, dep_cur_value;
     const dague_function_t* function = exec_context->function;
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     if( (*deps) & (1 << dest_flow->flow_index) ) {
         ERROR(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
                dest_flow->flow_index, dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, origin), origin_flow->name,
@@ -753,12 +753,12 @@ static int dague_update_deps_with_mask( dague_handle_t *dague_handle,
         if( dep_new_value != 0 ) {
             DEBUG3(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
         }
-#endif /* DAGUE_DEBUG */
+#endif /* DAGUE_DEBUG_VERBOSE3 */
     }
 
     dep_cur_value = dague_atomic_bor( deps, dep_new_value );
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     if( (dep_cur_value & function->dependencies_goal) == function->dependencies_goal ) {
         int success;
         dague_dependency_t tmp_mask;
@@ -771,7 +771,7 @@ static int dague_update_deps_with_mask( dague_handle_t *dague_handle,
                    dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, origin)));
         }
     }
-#endif
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
 
     DEBUG3(("Task %s has a current dependencies of 0x%x and a goal of 0x%x -- It %s using the mask approach\n",
             dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
@@ -1088,13 +1088,13 @@ int dague_handle_register( dague_handle_t* object )
     if( index >= object_array_size ) {
         object_array_size *= 2;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
         {
             unsigned int i;
             for(i = index; i < object_array_size; i++)
                 object_array[i] = NOOBJECT;
         }
-#endif
+#endif  /* defined(DAGUE_DEBUG_ENABLE */
     }
     object_array[index] = object;
     object->handle_id = index;
@@ -1402,7 +1402,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             str += offset;
         }
         DEBUG(( "binding defined by the parsed list: %s \n", tmp));
-#endif /* DAGUE_DEBUG */
+#endif /* defined(DAGUE_DEBUG_VERBOSE) */
     }
     return 0;
 #else

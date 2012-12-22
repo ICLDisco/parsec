@@ -505,7 +505,7 @@ struct dague_output_stream_t {
                                                         char **olddir,
                                                         char **oldprefix);
     
-#if DAGUE_ENABLE_DEBUG
+#if defined(DAGUE_DEBUG_ENABLE)
     /**
      * Main macro for use in sending debugging output to output streams;
      * will be "compiled out" when DAGUE is configured without

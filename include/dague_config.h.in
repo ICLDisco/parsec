@@ -25,7 +25,7 @@
 /* debug */
 #define DAGUE_DEBUG_VERBOSE @DAGUE_DEBUG_VERBOSE@
 #cmakedefine DAGUE_DEBUG_HISTORY
-#cmakedefine DAGUE_DEBUG
+#cmakedefine DAGUE_DEBUG_ENABLE
 #cmakedefine DAGUE_DEBUG_LIFO_USE_ATOMICS
 #cmakedefine DAGUE_CALL_TRACE
 

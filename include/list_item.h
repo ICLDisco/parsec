@@ -25,10 +25,10 @@ typedef struct dague_list_item_s {
      */
     uint64_t keeper_of_the_seven_keys;
     volatile struct dague_list_item_s* list_prev;
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     volatile int32_t refcount;
     volatile void* belong_to;
-#endif  /* defined(DAGUE_DEBUG) */
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
 } dague_list_item_t;
 
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_list_item_t);
@@ -39,7 +39,7 @@ dague_list_item_construct( dague_list_item_t* item )
     item->list_prev = item;
     item->list_next = item;
     item->keeper_of_the_seven_keys = 0;
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     item->refcount = 0;
     item->belong_to = (void*)0xdeadbeef;
 #endif
@@ -58,7 +58,7 @@ dague_list_item_construct( dague_list_item_t* item )
 static inline dague_list_item_t*
 dague_list_item_singleton( dague_list_item_t* item )
 {
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     assert(0 == item->refcount);
     item->belong_to = item;
 #endif
@@ -70,14 +70,14 @@ dague_list_item_singleton( dague_list_item_t* item )
 
 /** Make a ring from a chain of items, starting with @first, ending with @last, @returns @first
  *    if first->last is not a valid chain of items, result is undetermined
- *    in DAGUE_DEBUG mode, attached items are detached, must be reattached if needed */
+ *    in DAGUE_DEBUG_ENABLE mode, attached items are detached, must be reattached if needed */
 static inline dague_list_item_t*
 dague_list_item_ring( dague_list_item_t* first, dague_list_item_t* last )
 {
     first->list_prev = last;
     last->list_next = first;
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     if( 1 == first->refcount )
     {   /* Pseudo detach the items if they had been attached */
         dague_list_item_t* item = first;
@@ -100,7 +100,7 @@ static inline dague_list_item_t*
 dague_list_item_ring_push( dague_list_item_t* ring,
                            dague_list_item_t* item )
 {
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     assert( 0 == item->refcount );
     assert( (void*)0xdeadbeef != ring->list_next );
     assert( (void*)0xdeadbeef != ring->list_prev );
@@ -120,7 +120,7 @@ dague_list_item_ring_merge( dague_list_item_t* ring1,
                             dague_list_item_t* ring2 )
 {
     volatile dague_list_item_t *tmp;
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     assert( (void*)0xdeadbeef != ring1->list_next );
     assert( (void*)0xdeadbeef != ring1->list_prev );
     assert( (void*)0xdeadbeef != ring2->list_next );
@@ -141,14 +141,14 @@ dague_list_item_ring_merge( dague_list_item_t* ring1,
 static inline dague_list_item_t*
 dague_list_item_ring_chop( dague_list_item_t* item )
 {
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     assert( (void*)0xdeadbeef != item->list_next );
     assert( (void*)0xdeadbeef != item->list_prev );
 #endif
     dague_list_item_t* ring = (dague_list_item_t*)item->list_next;
     item->list_prev->list_next = item->list_next;
     item->list_next->list_prev = item->list_prev;
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     if(item->refcount) item->refcount--;
     item->list_prev = (void*)0xdeadbeef;
     item->list_next = (void*)0xdeadbeef;
@@ -194,7 +194,7 @@ dague_list_item_ring_push_sorted( dague_list_item_t* ring,
 }
 
 /* This is debug helpers for list items accounting */
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
 #define DAGUE_ITEMS_VALIDATE(ITEMS)                                     \
     do {                                                                \
         dague_list_item_t *__end = (ITEMS);                             \
@@ -245,7 +245,7 @@ dague_list_item_ring_push_sorted( dague_list_item_t* ring,
 #define DAGUE_ITEM_ATTACH(LIST, ITEM) do { (void)(LIST); (void)(ITEM); } while(0)
 #define DAGUE_ITEMS_ATTACH(LIST, ITEMS) do { (void)(LIST); (void)(ITEMS); } while(0)
 #define DAGUE_ITEM_DETACH(ITEM) do { (void)(ITEM); } while(0)
-#endif  /* DAGUE_DEBUG */
+#endif  /* DAGUE_DEBUG_ENABLE */
 
 #endif
 

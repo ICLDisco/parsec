@@ -95,7 +95,7 @@ if(DAGUE_GPU_WITH_OPENCL)
 endif()
 
 ### Debug options
-option(DAGUE_DEBUG
+option(DAGUE_DEBUG_ENABLE
     "Enable extra paranoid checks" OFF)
 set   (DAGUE_DEBUG_VERBOSE 0 CACHE STRING
     "Controls the amount of verbose debug output spit on stderr (0,1,2,3)")

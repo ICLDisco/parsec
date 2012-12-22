@@ -391,7 +391,7 @@ dague_list_nolock_add_before( dague_list_t* list,
                               dague_list_item_t* position,
                               dague_list_item_t* new )
 {
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     assert( position->belong_to == list );
 #endif
     DAGUE_ITEM_ATTACH(list, new);
@@ -406,7 +406,7 @@ dague_list_nolock_add_after( dague_list_t* list,
                              dague_list_item_t* position,
                              dague_list_item_t* new )
 {
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     assert( position->belong_to == list );
 #endif
     DAGUE_ITEM_ATTACH(list, new);
@@ -422,7 +422,7 @@ dague_list_nolock_remove( dague_list_t* list,
                           dague_list_item_t* item)
 {
     assert( &list->ghost_element != item );
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     assert( list == item->belong_to );
 #else
     (void)list;

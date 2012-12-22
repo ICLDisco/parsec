@@ -37,7 +37,7 @@ void moesi_map_destroy(dague_moesi_map_t** pmap)
         int i;
         for( i = 0; i < map->nmasters; i++ ) {
             if( NULL != map->masters[i] ) {
-#ifdef DAGUE_DEBUG
+#ifdef DAGUE_DEBUG_ENABLE
                 int d;
                 for( d = 0; d < map->ndevices; d++ ) {
                     if( NULL != map->masters[i]->device_copies[d] ) {

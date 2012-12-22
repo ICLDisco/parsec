@@ -575,7 +575,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             str += offset;
          }
         DEBUG(( "binding defined by the parsed list: %s \n", tmp));
-#endif /* DAGUE_DEBUG */
+#endif /* DAGUE_DEBUG_VERBOSE */
 
         for(t=0; t<nbth; t++){
             map[vp].threads[t] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));

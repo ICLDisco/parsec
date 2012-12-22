@@ -388,9 +388,9 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
     int ret, i, whereto;
 
     exec_context.dague_handle = dague_handle_lookup( origin->msg.handle_id );
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     exec_context.priority = 0;
-#endif
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
     assert(exec_context.dague_handle); /* Future: for composition, store this in a list to be considered upon creation of the DO*/
     exec_context.function = exec_context.dague_handle->functions_array[origin->msg.function_id];
     for( i = 0; i < exec_context.function->nb_locals; i++)
@@ -403,7 +403,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
         if(origin->msg.deps & (1 << i)) {
             DEBUG3(("MPI:\tDATA %p released from %p[%d]\n", DAGUE_DATA_COPY_GET_PTR(origin->output[i].data), origin, i));
             exec_context.data[whereto].data = origin->output[i].data;
-#if defined(DAGUE_DEBUG) && defined(DAGUE_DEBUG_VERBOSE3)
+#if defined(DAGUE_DEBUG_ENABLE) && defined(DAGUE_DEBUG_VERBOSE3)
             if(origin->output[i].type) { /* no prints for CTL! */
                 char tmp[MAX_TASK_STRLEN];
                 void* _data = DAGUE_DATA_COPY_GET_PTR(exec_context.data[whereto].data);
@@ -702,7 +702,7 @@ static int remote_dep_mpi_init(dague_context_t* context)
         WARNING(("Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30); Lets assume any integer value is a valid MPI Tag.\n"));
     } else {
         MAX_MPI_TAG = *ub;
-#if defined( DAGUE_DEBUG_VERBOSE1 )
+#if defined(DAGUE_DEBUG_VERBOSE1)
         if( MAX_MPI_TAG < INT_MAX ) {
             WARNING(("MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
                     MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT));
