@@ -172,8 +172,9 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
      */
     heap = (dague_heap_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, dague_heap_priority_comparator);
     exec_context = heap_split_and_steal(&heap, &new_heap);
-    if( NULL != heap )
+    if( NULL != heap ) {
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
+    }
     if (exec_context != NULL) {
 	    PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num);
 	    return exec_context;
@@ -184,7 +185,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
         heap = (dague_heap_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i], dague_heap_priority_comparator);
         exec_context = heap_split_and_steal(&heap, &new_heap);
         if( NULL != heap ) {
-            if (NULL != new_heap) {
+	        if (NULL != new_heap) {
                 /* turn two-element doubly-linked list
                  (the default side effect of heap_split_and_steal)
                  into two singleton doubly-linked lists
@@ -215,6 +216,67 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
     PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
     return exec_context;
 }
+
+static dague_execution_context_t * choose_job_tree_queues_2( dague_execution_unit_t *eu_context )
+{
+    dague_heap_t* heap = NULL;
+    dague_heap_t* new_heap = NULL;
+    dague_execution_context_t * exec_context = NULL;
+    int i = 0;
+
+    /*
+     possible future improvement over using existing pop_best function:
+     instead, i need to iterate manually over the buffer
+     and choose a tree that has the highest value
+     then take that task from that tree.
+     */
+    heap = (dague_heap_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, dague_heap_priority_comparator);
+    exec_context = heap_remove(&heap);
+    if( NULL != heap ) {
+        dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
+    }
+    if (exec_context != NULL) {
+	    PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num);
+	    return exec_context;
+    }
+
+    // if we failed to find one in our queue
+    for(i = 1; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
+        heap = (dague_heap_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i], dague_heap_priority_comparator);
+        exec_context = heap_split_and_steal(&heap, &new_heap);
+        if( NULL != heap ) {
+	        if (NULL != new_heap) {
+                /* turn two-element doubly-linked list
+                 (the default side effect of heap_split_and_steal)
+                 into two singleton doubly-linked lists
+                 */
+                heap->list_item.list_next = (dague_list_item_t*)heap;
+                heap->list_item.list_prev = (dague_list_item_t*)heap;
+                new_heap->list_item.list_next = (dague_list_item_t*)new_heap;
+                new_heap->list_item.list_prev = (dague_list_item_t*)new_heap;
+
+                // put new heap back in neighboring queue
+                dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i], (dague_list_item_t*)new_heap);
+            }
+            // put old heap in our queue -- it's a singleton either way by this point
+            dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
+        }
+        if (exec_context != NULL) {
+	        PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
+            return exec_context;
+        }
+    }
+
+    // if nothing yet, then go to system queue
+    heap = (dague_heap_t *)dague_dequeue_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
+    exec_context = heap_split_and_steal(&heap, &new_heap);
+    if (heap != NULL)
+        dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
+
+    PARSEC_INSTRUMENT(SCHED_STEAL, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
+    return exec_context;
+}
+
 
 // TREE
 /*
