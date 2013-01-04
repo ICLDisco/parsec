@@ -244,302 +244,302 @@ struct dague_output_stream_t {
 
 };
 
-    /**
-     * Convenience typedef
-     */    
-    typedef struct dague_output_stream_t dague_output_stream_t;
+/**
+ * Convenience typedef
+ */    
+typedef struct dague_output_stream_t dague_output_stream_t;
 
-    /**
-     * Initializes the output stream system and opens a default
-     * "verbose" stream.
-     *
-     * @retval true Upon success.
-     * @retval false Upon failure.
-     *
-     * This should be the first function invoked in the output
-     * subsystem.  After this call, the default "verbose" stream is open
-     * and can be written to via calls to dague_output_verbose() and
-     * dague_output_error().
-     *
-     * By definition, the default verbose stream has a handle ID of 0,
-     * and has a verbose level of 0.
-     */
-    DAGUE_DECLSPEC bool dague_output_init(void);
+/**
+ * Initializes the output stream system and opens a default
+ * "verbose" stream.
+ *
+ * @retval true Upon success.
+ * @retval false Upon failure.
+ *
+ * This should be the first function invoked in the output
+ * subsystem.  After this call, the default "verbose" stream is open
+ * and can be written to via calls to dague_output_verbose() and
+ * dague_output_error().
+ *
+ * By definition, the default verbose stream has a handle ID of 0,
+ * and has a verbose level of 0.
+ */
+DAGUE_DECLSPEC bool dague_output_init(void);
     
-    /**
-     * Shut down the output stream system.
-     *
-     * Shut down the output stream system, including the default verbose
-     * stream.
-     */
-    DAGUE_DECLSPEC void dague_output_finalize(void);
+/**
+ * Shut down the output stream system.
+ *
+ * Shut down the output stream system, including the default verbose
+ * stream.
+ */
+DAGUE_DECLSPEC void dague_output_finalize(void);
 
-    /**
-     * Opens an output stream.
-     *
-     * @param lds A pointer to dague_output_stream_t describing what the
-     * characteristics of the output stream should be.
-     *
-     * This function opens an output stream and returns an integer
-     * handle.  The caller is responsible for maintaining the handle and
-     * using it in successive calls to DAGUE_OUTPUT(), dague_output(),
-     * dague_output_switch(), and dague_output_close().
-     *
-     * If lds is NULL, the default descriptions will be used, meaning
-     * that output will only be sent to stderr.
-     *
-     * It is safe to have multiple threads invoke this function
-     * simultaneously; their execution will be serialized in an
-     * unspecified manner.
-     *
-     * Be sure to see dague_output() for a description of what happens
-     * when open_open() / dague_output() is directed to send output to a
-     * file but the process session directory does not yet exist.
-     */
-    DAGUE_DECLSPEC int dague_output_open(dague_output_stream_t *lds);
+/**
+ * Opens an output stream.
+ *
+ * @param lds A pointer to dague_output_stream_t describing what the
+ * characteristics of the output stream should be.
+ *
+ * This function opens an output stream and returns an integer
+ * handle.  The caller is responsible for maintaining the handle and
+ * using it in successive calls to DAGUE_OUTPUT(), dague_output(),
+ * dague_output_switch(), and dague_output_close().
+ *
+ * If lds is NULL, the default descriptions will be used, meaning
+ * that output will only be sent to stderr.
+ *
+ * It is safe to have multiple threads invoke this function
+ * simultaneously; their execution will be serialized in an
+ * unspecified manner.
+ *
+ * Be sure to see dague_output() for a description of what happens
+ * when open_open() / dague_output() is directed to send output to a
+ * file but the process session directory does not yet exist.
+ */
+DAGUE_DECLSPEC int dague_output_open(dague_output_stream_t *lds);
 
-    /**
-     * Re-opens / redirects an output stream.
-     *
-     * @param output_id Stream handle to reopen
-     * @param lds A pointer to dague_output_stream_t describing what the
-     * characteristics of the reopened output stream should be.
-     *
-     * This function redirects an existing stream into a new [set of]
-     * location[s], as specified by the lds parameter.  If the output_id
-     * passed is invalid, this call is effectively the same as opening a
-     * new stream with a specific stream handle.
-     */
-    DAGUE_DECLSPEC int dague_output_reopen(int output_id, dague_output_stream_t *lds);
+/**
+ * Re-opens / redirects an output stream.
+ *
+ * @param output_id Stream handle to reopen
+ * @param lds A pointer to dague_output_stream_t describing what the
+ * characteristics of the reopened output stream should be.
+ *
+ * This function redirects an existing stream into a new [set of]
+ * location[s], as specified by the lds parameter.  If the output_id
+ * passed is invalid, this call is effectively the same as opening a
+ * new stream with a specific stream handle.
+ */
+DAGUE_DECLSPEC int dague_output_reopen(int output_id, dague_output_stream_t *lds);
     
-    /**
-     * Enables and disables output streams.
-     *
-     * @param output_id Stream handle to switch
-     * @param enable Boolean indicating whether to enable the stream
-     * output or not.
-     *
-     * @returns The previous enable state of the stream (true == enabled,
-     * false == disabled).
-     *
-     * The output of a stream can be temporarily disabled by passing an
-     * enable value to false, and later resumed by passing an enable
-     * value of true.  This does not close the stream -- it simply tells
-     * the dague_output subsystem to intercept and discard any output sent
-     * to the stream via DAGUE_OUTPUT() or dague_output() until the output
-     * is re-enabled.
-     */
-    DAGUE_DECLSPEC bool dague_output_switch(int output_id, bool enable);
+/**
+ * Enables and disables output streams.
+ *
+ * @param output_id Stream handle to switch
+ * @param enable Boolean indicating whether to enable the stream
+ * output or not.
+ *
+ * @returns The previous enable state of the stream (true == enabled,
+ * false == disabled).
+ *
+ * The output of a stream can be temporarily disabled by passing an
+ * enable value to false, and later resumed by passing an enable
+ * value of true.  This does not close the stream -- it simply tells
+ * the dague_output subsystem to intercept and discard any output sent
+ * to the stream via DAGUE_OUTPUT() or dague_output() until the output
+ * is re-enabled.
+ */
+DAGUE_DECLSPEC bool dague_output_switch(int output_id, bool enable);
 
-    /**
-     * \internal
-     *
-     * Reopens all existing output streams.
-     *
-     * This function should never be called by user applications; it is
-     * typically only invoked after a restart (i.e., in a new process)
-     * where output streams need to be re-initialized.
-     */
-    DAGUE_DECLSPEC void dague_output_reopen_all(void);
+/**
+ * \internal
+ *
+ * Reopens all existing output streams.
+ *
+ * This function should never be called by user applications; it is
+ * typically only invoked after a restart (i.e., in a new process)
+ * where output streams need to be re-initialized.
+ */
+DAGUE_DECLSPEC void dague_output_reopen_all(void);
 
-    /**
-     * Close an output stream.
-     *
-     * @param output_id Handle of the stream to close.
-     *
-     * Close an output stream.  No output will be sent to the stream
-     * after it is closed.  Be aware that output handles tend to be
-     * re-used; it is possible that after a stream is closed, if another
-     * stream is opened, it will get the same handle value.
-     */
-    DAGUE_DECLSPEC void dague_output_close(int output_id);
+/**
+ * Close an output stream.
+ *
+ * @param output_id Handle of the stream to close.
+ *
+ * Close an output stream.  No output will be sent to the stream
+ * after it is closed.  Be aware that output handles tend to be
+ * re-used; it is possible that after a stream is closed, if another
+ * stream is opened, it will get the same handle value.
+ */
+DAGUE_DECLSPEC void dague_output_close(int output_id);
 
-    /**
-     * Main function to send output to a stream.
-     *
-     * @param output_id Stream id returned from dague_output_open().
-     * @param format printf-style format string.
-     * @param varargs printf-style varargs list to fill the string
-     * specified by the format parameter.
-     *
-     * This is the main function to send output to custom streams (note
-     * that output to the default "verbose" stream is handled through
-     * dague_output_verbose() and dague_output_error()).
-     *
-     * It is never necessary to send a trailing "\n" in the strings to
-     * this function; some streams requires newlines, others do not --
-     * this function will append newlines as necessary.
-     *
-     * Verbosity levels are ignored in this function.
-     *
-     * Note that for output streams that are directed to files, the
-     * files are stored under the process' session directory.  If the
-     * session directory does not exist when dague_output() is invoked,
-     * the output will be discarded!  Once the session directory is
-     * created, dague_output() will automatically create the file and
-     * writing to it.
-     */
-    DAGUE_DECLSPEC void dague_output(int output_id, const char *format, ...);
+/**
+ * Main function to send output to a stream.
+ *
+ * @param output_id Stream id returned from dague_output_open().
+ * @param format printf-style format string.
+ * @param varargs printf-style varargs list to fill the string
+ * specified by the format parameter.
+ *
+ * This is the main function to send output to custom streams (note
+ * that output to the default "verbose" stream is handled through
+ * dague_output_verbose() and dague_output_error()).
+ *
+ * It is never necessary to send a trailing "\n" in the strings to
+ * this function; some streams requires newlines, others do not --
+ * this function will append newlines as necessary.
+ *
+ * Verbosity levels are ignored in this function.
+ *
+ * Note that for output streams that are directed to files, the
+ * files are stored under the process' session directory.  If the
+ * session directory does not exist when dague_output() is invoked,
+ * the output will be discarded!  Once the session directory is
+ * created, dague_output() will automatically create the file and
+ * writing to it.
+ */
+DAGUE_DECLSPEC void dague_output(int output_id, const char *format, ...);
     
-    /**
-     * Send output to a stream only if the passed verbosity level is
-     * high enough.
-     *
-     * @param output_id Stream id returned from dague_output_open().
-     * @param level Target verbosity level.
-     * @param format printf-style format string.
-     * @param varargs printf-style varargs list to fill the string
-     * specified by the format parameter.
-     *
-     * Output is only sent to the stream if the current verbosity level
-     * is greater than or equal to the level parameter.  This mechanism
-     * can be used to send "information" kinds of output to user
-     * applications, but only when the user has asked for a high enough
-     * verbosity level.
-     *
-     * It is never necessary to send a trailing "\n" in the strings to
-     * this function; some streams requires newlines, others do not --
-     * this function will append newlines as necessary.
-     *
-     * This function is really a convenience wrapper around checking the
-     * current verbosity level set on the stream, and if the passed
-     * level is less than or equal to the stream's verbosity level, this
-     * function will effectively invoke dague_output to send the output to
-     * the stream.
-     *
-     * @see dague_output_set_verbosity()
-     */
-    DAGUE_DECLSPEC void dague_output_verbose(int verbose_level, int output_id, 
-                                           const char *format, ...);
+/**
+ * Send output to a stream only if the passed verbosity level is
+ * high enough.
+ *
+ * @param output_id Stream id returned from dague_output_open().
+ * @param level Target verbosity level.
+ * @param format printf-style format string.
+ * @param varargs printf-style varargs list to fill the string
+ * specified by the format parameter.
+ *
+ * Output is only sent to the stream if the current verbosity level
+ * is greater than or equal to the level parameter.  This mechanism
+ * can be used to send "information" kinds of output to user
+ * applications, but only when the user has asked for a high enough
+ * verbosity level.
+ *
+ * It is never necessary to send a trailing "\n" in the strings to
+ * this function; some streams requires newlines, others do not --
+ * this function will append newlines as necessary.
+ *
+ * This function is really a convenience wrapper around checking the
+ * current verbosity level set on the stream, and if the passed
+ * level is less than or equal to the stream's verbosity level, this
+ * function will effectively invoke dague_output to send the output to
+ * the stream.
+ *
+ * @see dague_output_set_verbosity()
+ */
+DAGUE_DECLSPEC void dague_output_verbose(int verbose_level, int output_id, 
+                                         const char *format, ...);
 
-   /**
-    * Same as dague_output_verbose(), but takes a va_list form of varargs.
-    */
-    DAGUE_DECLSPEC void dague_output_vverbose(int verbose_level, int output_id, 
-                                            const char *format, va_list ap);
+/**
+ * Same as dague_output_verbose(), but takes a va_list form of varargs.
+ */
+DAGUE_DECLSPEC void dague_output_vverbose(int verbose_level, int output_id, 
+                                          const char *format, va_list ap);
 
-    /**    
-     * Send output to a string if the verbosity level is high enough.
-     *
-     * @param output_id Stream id returned from dague_output_open().
-     * @param level Target verbosity level.
-     * @param format printf-style format string.
-     * @param varargs printf-style varargs list to fill the string
-     * specified by the format parameter.
-     *
-     * Exactly the same as dague_output_verbose(), except the output it
-     * sent to a string instead of to the stream.  If the verbose
-     * level is not high enough, NULL is returned.  The caller is
-     * responsible for free()'ing the returned string.
-     */
-    DAGUE_DECLSPEC char *dague_output_string(int verbose_level, int output_id, 
-                                           const char *format, ...);
+/**    
+ * Send output to a string if the verbosity level is high enough.
+ *
+ * @param output_id Stream id returned from dague_output_open().
+ * @param level Target verbosity level.
+ * @param format printf-style format string.
+ * @param varargs printf-style varargs list to fill the string
+ * specified by the format parameter.
+ *
+ * Exactly the same as dague_output_verbose(), except the output it
+ * sent to a string instead of to the stream.  If the verbose
+ * level is not high enough, NULL is returned.  The caller is
+ * responsible for free()'ing the returned string.
+ */
+DAGUE_DECLSPEC char *dague_output_string(int verbose_level, int output_id, 
+                                         const char *format, ...);
 
-   /**
-    * Same as dague_output_string, but accepts a va_list form of varargs.
-    */
-    DAGUE_DECLSPEC char *dague_output_vstring(int verbose_level, int output_id, 
-                                            const char *format, va_list ap);
+/**
+ * Same as dague_output_string, but accepts a va_list form of varargs.
+ */
+DAGUE_DECLSPEC char *dague_output_vstring(int verbose_level, int output_id, 
+                                          const char *format, va_list ap);
 
-    /**
-     * Set the verbosity level for a stream.
-     *
-     * @param output_id Stream id returned from dague_output_open().
-     * @param level New verbosity level
-     *
-     * This function sets the verbosity level on a given stream.  It
-     * will be used for all future invocations of dague_output_verbose().
-     */
-    DAGUE_DECLSPEC void dague_output_set_verbosity(int output_id, int level);
+/**
+ * Set the verbosity level for a stream.
+ *
+ * @param output_id Stream id returned from dague_output_open().
+ * @param level New verbosity level
+ *
+ * This function sets the verbosity level on a given stream.  It
+ * will be used for all future invocations of dague_output_verbose().
+ */
+DAGUE_DECLSPEC void dague_output_set_verbosity(int output_id, int level);
 
-    /**
-     * Get the verbosity level for a stream
-     *
-     * @param output_id Stream id returned from dague_output_open()
-     * @returns Verbosity of stream
-     */
-    DAGUE_DECLSPEC int dague_output_get_verbosity(int output_id);
+/**
+ * Get the verbosity level for a stream
+ *
+ * @param output_id Stream id returned from dague_output_open()
+ * @returns Verbosity of stream
+ */
+DAGUE_DECLSPEC int dague_output_get_verbosity(int output_id);
 
-    /**
-     * Set characteristics for output files.
-     *
-     * @param dir Directory where output files will go
-     * @param olddir If non-NULL, the directory where output files
-     * were previously opened
-     * @param prefix Prefix of files in the output directory
-     * @param oldprefix If non-NULL, the old prefix
-     *
-     * This function controls the final filename used for all new
-     * output streams that request output files.  Specifically, when
-     * dague_output_stream_t::lds_want_file is true, the output
-     * filename will be of the form $dir/$prefix$suffix.
-     *
-     * The default value for the output directory is whatever is
-     * specified in the TMPDIR environment variable if it exists, or
-     * $HOME if it does not.  The default value for the prefix is
-     * "output-pid<pid>-" (where "<pid>" is replaced by the PID of the
-     * current process).
-     *
-     * If dir or prefix are NULL, new values are not set.  The strings
-     * represented by dir and prefix are copied into internal storage;
-     * it is safe to pass string constants or free() these values
-     * after dague_output_set_output_file_info() returns.
-     *
-     * If olddir or oldprefix are not NULL, copies of the old
-     * directory and prefix (respectively) are returned in these
-     * parameters.  The caller is responsible for calling (free) on
-     * these values.  This allows one to get the old values, output an
-     * output file in a specific directory and/or with a specific
-     * prefix, and then restore the old values.
-     *
-     * Note that this function only affects the creation of \em new
-     * streams -- streams that have already started writing to output
-     * files are not affected (i.e., their output files are not moved
-     * to the new directory).  More specifically, the dague_output
-     * system only opens/creates output files lazily -- so calling
-     * this function affects both new streams \em and any stream that
-     * was previously opened but had not yet output anything.
-     */
-    DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
-                                                        const char *prefix,
-                                                        char **olddir,
-                                                        char **oldprefix);
+/**
+ * Set characteristics for output files.
+ *
+ * @param dir Directory where output files will go
+ * @param olddir If non-NULL, the directory where output files
+ * were previously opened
+ * @param prefix Prefix of files in the output directory
+ * @param oldprefix If non-NULL, the old prefix
+ *
+ * This function controls the final filename used for all new
+ * output streams that request output files.  Specifically, when
+ * dague_output_stream_t::lds_want_file is true, the output
+ * filename will be of the form $dir/$prefix$suffix.
+ *
+ * The default value for the output directory is whatever is
+ * specified in the TMPDIR environment variable if it exists, or
+ * $HOME if it does not.  The default value for the prefix is
+ * "output-pid<pid>-" (where "<pid>" is replaced by the PID of the
+ * current process).
+ *
+ * If dir or prefix are NULL, new values are not set.  The strings
+ * represented by dir and prefix are copied into internal storage;
+ * it is safe to pass string constants or free() these values
+ * after dague_output_set_output_file_info() returns.
+ *
+ * If olddir or oldprefix are not NULL, copies of the old
+ * directory and prefix (respectively) are returned in these
+ * parameters.  The caller is responsible for calling (free) on
+ * these values.  This allows one to get the old values, output an
+ * output file in a specific directory and/or with a specific
+ * prefix, and then restore the old values.
+ *
+ * Note that this function only affects the creation of \em new
+ * streams -- streams that have already started writing to output
+ * files are not affected (i.e., their output files are not moved
+ * to the new directory).  More specifically, the dague_output
+ * system only opens/creates output files lazily -- so calling
+ * this function affects both new streams \em and any stream that
+ * was previously opened but had not yet output anything.
+ */
+DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
+                                                      const char *prefix,
+                                                      char **olddir,
+                                                      char **oldprefix);
     
 #if defined(DAGUE_DEBUG_ENABLE)
-    /**
-     * Main macro for use in sending debugging output to output streams;
-     * will be "compiled out" when DAGUE is configured without
-     * --enable-debug.
-     *
-     * @see dague_output()
-     */
+/**
+ * Main macro for use in sending debugging output to output streams;
+ * will be "compiled out" when DAGUE is configured without
+ * --enable-debug.
+ *
+ * @see dague_output()
+ */
 #define DAGUE_OUTPUT(a) dague_output a
     
-    /** 
-     * Macro for use in sending debugging output to the output
-     * streams.  Will be "compiled out" when DAGUE is configured
-     * without --enable-debug.
-     *
-     * @see dague_output_verbose()
-     */
+/** 
+ * Macro for use in sending debugging output to the output
+ * streams.  Will be "compiled out" when DAGUE is configured
+ * without --enable-debug.
+ *
+ * @see dague_output_verbose()
+ */
 #define DAGUE_OUTPUT_VERBOSE(a) dague_output_verbose a
 #else
-    /**
-     * Main macro for use in sending debugging output to output streams;
-     * will be "compiled out" when DAGUE is configured without
-     * --enable-debug.
-     *
-     * @see dague_output()
-     */
+/**
+ * Main macro for use in sending debugging output to output streams;
+ * will be "compiled out" when DAGUE is configured without
+ * --enable-debug.
+ *
+ * @see dague_output()
+ */
 #define DAGUE_OUTPUT(a)
     
-    /** 
-     * Macro for use in sending debugging output to the output
-     * streams.  Will be "compiled out" when DAGUE is configured
-     * without --enable-debug.
-     *
-     * @see dague_output_verbose()
-     */
+/** 
+ * Macro for use in sending debugging output to the output
+ * streams.  Will be "compiled out" when DAGUE is configured
+ * without --enable-debug.
+ *
+ * @see dague_output_verbose()
+ */
 #define DAGUE_OUTPUT_VERBOSE(a)
 #endif
 
