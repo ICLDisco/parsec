@@ -232,6 +232,16 @@ sub computeSpaceNode {
   $TASKS->{$ID}->{'T'} = $T;
 }
 
+sub ignored {
+  my ($k) = @_;
+  foreach my $y ( keys %{$ignore} ) {
+    if( $k =~ /$y/ ) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 sub onNodes {
   my $fct = shift;
   my @argv = @_;
@@ -248,7 +258,7 @@ sub onNodes {
       next if ($line =~ / -> /);
       my ($ID, $COLOR, $T, $V, $K, $P, $p);
       if( ($ID, $COLOR, $T, $V, $K, $P, $p) = ($line =~ /^([^ ]+) \[shape="[^"]+",style=filled,fillcolor="#(......)",fontcolor="black",label="<([0-9]+)\/([0-9]+)> ([^(]+)\(([^)]*)\)<([^>]+)>/) ) {
-	if( !exists($ignore->{$K}) ) {
+	if( !ignored($K) ) {
 	  $fct->($ID, $R, $V, $T, $K, $P, $p);
 	}
       } else {
