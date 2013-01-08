@@ -157,7 +157,7 @@ int dague_profiling_init( const char *format, ... )
         }
     }
 
-    dague_list_construct( &threads );
+    OBJ_CONSTRUCT( &threads, dague_list_t );
 
     dague_prof_keys = (dague_profiling_key_t*)calloc(128, sizeof(dague_profiling_key_t));
     dague_prof_keys_count = 0;
@@ -194,6 +194,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
         return NULL;
     }
 
+    OBJ_CONSTRUCT(res, dague_list_item_t);
     va_start(ap, format);
     vasprintf(&res->hr_id, format, ap);
     va_end(ap);
@@ -209,7 +210,6 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     res->current_events_buffer = NULL;
     res->thread_owner = pthread_self();
 
-    DAGUE_LIST_ITEM_CONSTRUCT( res );
     dague_list_fifo_push( &threads, (dague_list_item_t*)res );
 
     return res;
@@ -224,7 +224,7 @@ int dague_profiling_fini( void )
         free(t);
     }
     free(hr_id);
-    dague_list_destruct(&threads);
+    OBJ_DESTRUCT(&threads);
 
     dague_profiling_dictionary_flush();
     free(dague_prof_keys);

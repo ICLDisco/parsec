@@ -35,7 +35,7 @@ if(OMEGA_FOUND)
       ${FLEX_dague_q2j_flex_OUTPUTS}
   )
   set_target_properties(q2j PROPERTIES LINKER_LANGUAGE CXX)
-  target_link_libraries(q2j m ${OMEGA_LIBRARIES})
+  target_link_libraries(q2j m dague-base ${OMEGA_LIBRARIES})
   
   install(TARGETS q2j RUNTIME DESTINATION bin)
 endif(OMEGA_FOUND)

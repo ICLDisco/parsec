@@ -313,7 +313,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
             dague_remote_dep_context.max_dep_count * rankbits_size +
             /* One extra rankbit to track the delivery of Activates */
             rankbits_size;
-        dague_lifo_construct(&dague_remote_dep_context.freelist);
+        OBJ_CONSTRUCT(&dague_remote_dep_context.freelist, dague_lifo_t);
         dague_remote_dep_inited = 1;
     }
 
@@ -330,7 +330,7 @@ void remote_deps_allocation_fini(void)
         while(NULL != (rdeps = (dague_remote_deps_t*) dague_lifo_pop(&dague_remote_dep_context.freelist))) {
             free(rdeps);
         }
-        dague_lifo_destruct(&dague_remote_dep_context.freelist);
+        OBJ_DESTRUCT(&dague_remote_dep_context.freelist);
     }
     dague_remote_dep_inited = 0;
 }

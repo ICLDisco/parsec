@@ -15,16 +15,16 @@ static dague_lifo_t dague_data_copies_lifo;
 
 int dague_data_init(void)
 {
-    dague_lifo_construct(&dague_data_lifo);
-    dague_lifo_construct(&dague_data_copies_lifo);
+    OBJ_CONSTRUCT(&dague_data_lifo, dague_lifo_t);
+    OBJ_CONSTRUCT(&dague_data_copies_lifo, dague_lifo_t);
     dague_supported_number_of_devices = 1 + dague_active_gpu();
     return 0;
 }
 
 int dague_data_fini()
 {
-    dague_lifo_destruct(&dague_data_lifo);
-    dague_lifo_destruct(&dague_data_copies_lifo);
+    OBJ_DESTRUCT(&dague_data_lifo);
+    OBJ_DESTRUCT(&dague_data_copies_lifo);
     return 0;
 }
 

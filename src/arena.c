@@ -24,7 +24,7 @@ int dague_arena_construct(dague_arena_t* arena,
     if( (alignment <= 1) || (alignment & (alignment - 1)) )
         return -1;
 
-    dague_lifo_construct(&arena->lifo);
+    OBJ_CONSTRUCT(&arena->lifo, dague_lifo_t);
     arena->alignment = alignment;
     arena->elem_size = elem_size;
     arena->opaque_dtt = opaque_dtt;
@@ -63,7 +63,7 @@ void dague_arena_destruct(dague_arena_t* arena)
     while(NULL != (item = dague_lifo_pop(&arena->lifo))) {
         arena->data_free(item);
     }
-    dague_lifo_destruct(&arena->lifo);
+    OBJ_DESTRUCT(&arena->lifo);
 }
 
 dague_arena_chunk_t*
@@ -98,7 +98,7 @@ dague_arena_get(dague_arena_t* arena, size_t count)
                     sizeof(union _internal_chunk_prefix_u), DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
         } else {
             item = arena->data_malloc(size);
-            dague_list_item_construct(item);
+            OBJ_CONSTRUCT(item, dague_list_item_t);
             assert(NULL != item);
             DEBUG3(("Arena:\tallocate a new tile of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
                     arena->elem_size, arena, arena->alignment, item,

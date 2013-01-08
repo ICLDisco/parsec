@@ -678,7 +678,7 @@ static int read_threads(dbp_multifile_reader_t *dbp, int n, int fd, const dague_
             release_events_buffer( res->current_events_buffer );
             res->current_events_buffer = NULL;
         }
-        DAGUE_LIST_ITEM_CONSTRUCT( res );
+        OBJ_CONSTRUCT( res, dague_list_item_t );
         
         dbp->files[n].threads[head->nb_threads - nb].file = &(dbp->files[n]);
         dbp->files[n].threads[head->nb_threads - nb].profile = res;

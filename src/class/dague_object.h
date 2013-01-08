@@ -304,26 +304,26 @@ static inline dague_object_t *dague_obj_new_debug(dague_class_t* type, const cha
  * @param object        Pointer to the object
  */
 #if defined(DAGUE_DEBUG_ENABLE)
-#define OBJ_RELEASE(object)                                             \
-    do {                                                                \
+#define OBJ_RELEASE(object)                                     \
+    do {                                                        \
         assert(NULL != ((dague_object_t *) (object))->obj_class);        \
         assert(DAGUE_OBJ_MAGIC_ID == ((dague_object_t *) (object))->obj_magic_id); \
         if (0 == dague_obj_update((dague_object_t *) (object), -1)) {     \
-            OBJ_SET_MAGIC_ID((object), 0);                              \
+            OBJ_SET_MAGIC_ID((object), 0);                      \
             dague_obj_run_destructors((dague_object_t *) (object));       \
             OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
-            free(object);                                               \
-            object = NULL;                                              \
-        }                                                               \
+            free(object);                                       \
+            object = NULL;                                      \
+        }                                                       \
     } while (0)
 #else
-#define OBJ_RELEASE(object)                                             \
-    do {                                                                \
+#define OBJ_RELEASE(object)                                     \
+    do {                                                        \
         if (0 == dague_obj_update((dague_object_t *) (object), -1)) {     \
             dague_obj_run_destructors((dague_object_t *) (object));       \
-            free(object);                                               \
-            object = NULL;                                              \
-        }                                                               \
+            free(object);                                       \
+            object = NULL;                                      \
+        }                                                       \
     } while (0)
 #endif
 
@@ -340,15 +340,15 @@ do {                                                            \
     OBJ_CONSTRUCT_INTERNAL((object), OBJ_CLASS(type));          \
 } while (0)
 
-#define OBJ_CONSTRUCT_INTERNAL(object, type)                        \
-do {                                                                \
-    OBJ_SET_MAGIC_ID((object), DAGUE_OBJ_MAGIC_ID);              \
-    if (0 == (type)->cls_initialized) {                             \
-        dague_class_initialize((type));                              \
-    }                                                               \
-    ((dague_object_t *) (object))->obj_class = (type);               \
-    ((dague_object_t *) (object))->obj_reference_count = 1;          \
-    dague_obj_run_constructors((dague_object_t *) (object));          \
+#define OBJ_CONSTRUCT_INTERNAL(object, type)                    \
+do {                                                            \
+    OBJ_SET_MAGIC_ID((object), DAGUE_OBJ_MAGIC_ID);             \
+    if (0 == (type)->cls_initialized) {                         \
+        dague_class_initialize((type));                         \
+    }                                                           \
+    ((dague_object_t *) (object))->obj_class = (type);          \
+    ((dague_object_t *) (object))->obj_reference_count = 1;     \
+    dague_obj_run_constructors((dague_object_t *) (object));    \
     OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
 } while (0)
 
@@ -363,13 +363,13 @@ do {                                                                \
 do {                                                            \
     assert(DAGUE_OBJ_MAGIC_ID == ((dague_object_t *) (object))->obj_magic_id); \
     OBJ_SET_MAGIC_ID((object), 0);                              \
-    dague_obj_run_destructors((dague_object_t *) (object));       \
+    dague_obj_run_destructors((dague_object_t *) (object));     \
     OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
 } while (0)
 #else
 #define OBJ_DESTRUCT(object)                                    \
 do {                                                            \
-    dague_obj_run_destructors((dague_object_t *) (object));       \
+    dague_obj_run_destructors((dague_object_t *) (object));     \
     OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
 } while (0)
 #endif

@@ -51,7 +51,6 @@ static int dague_show_help_internal(const char *filename, const char *topic,
 dague_show_help_fn_t dague_show_help = dague_show_help_internal;
 dague_show_vhelp_fn_t dague_show_vhelp = dague_show_vhelp_internal;
 
-
 int dague_show_help_init(void)
 {
     dague_output_stream_t lds;

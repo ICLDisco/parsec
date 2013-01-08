@@ -28,6 +28,7 @@
 #include "dague_prof_grapher.h"
 #include "stats.h"
 #include "vpmap.h"
+#include "utils/mca_param.h"
 
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
@@ -221,6 +222,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     char** argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
+
+    mca_param_init();
 
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();

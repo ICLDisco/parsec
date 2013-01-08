@@ -25,9 +25,6 @@ typedef struct dague_list_t {
 
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_list_t);
 
-static inline void dague_list_construct( dague_list_t* list );
-static inline void dague_list_destruct( dague_list_t* list );
-
 /** lock the @list mutex, that same mutex is used by all
  *    mutex protected list operations */
 static inline void
@@ -42,7 +39,6 @@ static inline int dague_list_is_empty( dague_list_t* list );
 /** check if list is empty (not thread safe) */
 static inline int dague_list_nolock_is_empty( dague_list_t* list );
 #define dague_ulist_is_empty(list) dague_list_nolock_is_empty(list)
-
 
 /** Paste code to iterate on all items in the @LIST (front to back) (mutex protected)
  *    the @CODE_BLOCK code is applied to each item, which can be refered
@@ -305,23 +301,6 @@ dague_list_nolock_lifo_chain( dague_list_t* list, dague_list_item_t* items ) {
 #define _HEAD(LIST) ((LIST)->ghost_element.list_next)
 #define _TAIL(LIST) ((LIST)->ghost_element.list_prev)
 #define _GHOST(LIST) (&((list)->ghost_element))
-
-static inline void
-dague_list_construct( dague_list_t* list )
-{
-    dague_list_item_construct(_GHOST(list));
-    DAGUE_ITEM_ATTACH(list, _GHOST(list));
-    _HEAD(list) = _GHOST(list);
-    _TAIL(list) = _GHOST(list);
-    list->atomic_lock = 0;
-}
-
-static inline void
-dague_list_destruct( dague_list_t* list )
-{
-    assert(dague_list_is_empty(list));
-    dague_list_item_destruct(_GHOST(list));
-}
 
 static inline int
 dague_list_nolock_is_empty( dague_list_t* list )

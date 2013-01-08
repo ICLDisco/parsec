@@ -7,16 +7,12 @@
 #ifndef LIFO_H_HAS_BEEN_INCLUDED
 #define LIFO_H_HAS_BEEN_INCLUDED
 
-#include "dague_config.h"
-
+#include <dague_config.h>
+#include <dague/class/dague_object.h>
 #include "list_item.h"
 
 typedef struct dague_lifo_s dague_lifo_t;
-
-static inline void 
-dague_lifo_construct( dague_lifo_t* lifo ); 
-static inline void 
-dague_lifo_destruct( dague_lifo_t* lifo );
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_lifo_t);
 
 static inline int 
 dague_lifo_is_empty( dague_lifo_t* lifo );
@@ -54,8 +50,9 @@ dague_lifo_nolock_pop(dague_lifo_t* lifo);
 #include <dague/sys/atomic.h>
 
 struct dague_lifo_s {
+    dague_object_t     super;
+    dague_list_item_t  lifo_ghost;
     dague_list_item_t *lifo_head;
-    dague_list_item_t *lifo_ghost;
 };
 
 #define DAGUE_LIFO_ALIGNMENT_BITS  3
@@ -71,7 +68,7 @@ struct dague_lifo_s {
     if( 0 == posix_memalign((void**)&_elt,                          \
                             DAGUE_LIFO_ALIGNMENT, (truesize)) ) {   \
         assert( NULL != _elt );                                     \
-        dague_list_item_construct(_elt);                            \
+        OBJ_CONSTRUCT(_elt, dague_list_item_t);                     \
     }                                                               \
     (elt) = (__typeof__(elt))_elt;                                  \
 })
@@ -83,7 +80,7 @@ struct dague_lifo_s {
  * pointer is an atomic operation so we don't have to protect it. */
 static inline int dague_lifo_is_empty( dague_lifo_t* lifo )
 {
-    return ( (DAGUE_LIFO_PTR(lifo->lifo_head) == lifo->lifo_ghost) ? 1 : 0);
+    return ( (DAGUE_LIFO_PTR(lifo->lifo_head) == &lifo->lifo_ghost) ? 1 : 0);
 }
 static inline int dague_lifo_nolock_is_empty( dague_lifo_t* lifo )
 {
@@ -161,7 +158,7 @@ static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
 {
     dague_list_item_t *item, *save;
 
-    while(DAGUE_LIFO_PTR((item = lifo->lifo_head)) != lifo->lifo_ghost) {
+    while(DAGUE_LIFO_PTR((item = lifo->lifo_head)) != &lifo->lifo_ghost) {
         if( dague_atomic_cas(&(lifo->lifo_head),
                              (uintptr_t) item,
                              (uintptr_t) DAGUE_LIFO_PTR(item)->list_next ) )
@@ -170,7 +167,7 @@ static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
     }
     save = item;
     item = DAGUE_LIFO_PTR(item);
-    if( item == lifo->lifo_ghost ) return NULL;
+    if( item == &lifo->lifo_ghost ) return NULL;
     item->keeper_of_the_seven_keys = DAGUE_LIFO_CNT(save);
     DAGUE_ITEM_DETACH(item);
     return item;    
@@ -181,7 +178,7 @@ static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
     dague_list_item_t *item, *save;
 
     item = lifo->lifo_head;
-    if( DAGUE_LIFO_PTR(item) == lifo->lifo_ghost ) 
+    if( DAGUE_LIFO_PTR(item) == &lifo->lifo_ghost ) 
         return NULL;
         
     if( dague_atomic_cas(&(lifo->lifo_head),
@@ -205,26 +202,13 @@ static inline dague_list_item_t* dague_lifo_nolock_pop( dague_lifo_t* lifo )
     return item;
 }
 
-static inline void dague_lifo_construct( dague_lifo_t* lifo )
-{
-    DAGUE_LIFO_ITEM_ALLOC(lifo->lifo_ghost, sizeof(dague_list_item_t));
-    dague_list_item_construct(lifo->lifo_ghost);
-    DAGUE_ITEM_ATTACH(lifo, lifo->lifo_ghost);
-    lifo->lifo_head = lifo->lifo_ghost;
-}
-
-static inline void dague_lifo_destruct( dague_lifo_t *lifo )
-{
-    DAGUE_ITEM_DETACH(lifo->lifo_ghost);
-    DAGUE_LIFO_ITEM_FREE(lifo->lifo_ghost);
-}
-
 #else /* DAGUE_DEBUG_LIFO_USE_ATOMICS */
 
 #include "list.h"
 
 struct dague_lifo_s {
-    dague_list_t list;
+    dague_object_t super;
+    dague_list_t   list;
 };
 
 #define DAGUE_LIFO_ITEM_ALLOC( elt, truesize ) ({   \
@@ -235,16 +219,6 @@ struct dague_lifo_s {
 #define DAGUE_LIFO_ITEM_FREE( elt ) do {            \
     DAGUE_LIST_ITEM_DESTRUCT(elt);                  \
     free(elt); } while(0)
-
-static inline void 
-dague_lifo_construct( dague_lifo_t* lifo ) {
-    dague_list_construct((dague_list_t*)lifo);
-}
-
-static inline void
-dague_lifo_destruct( dague_lifo_t* lifo ) {
-    dague_list_destruct((dague_list_t*)lifo);
-}
 
 static inline int
 dague_lifo_is_empty( dague_lifo_t* lifo ) {

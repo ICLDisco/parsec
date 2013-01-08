@@ -1,6 +1,21 @@
 #
 #  Settings for targets
-# 
+#
+set(BASE_SOURCES
+  class/dague_object.c
+  class/dague_value_array.c
+  class/dague_list.c
+  class/dague_lifo.c
+  class/dague_dequeue.c
+  utils/os_path.c
+  utils/installdirs.c
+  utils/dague_environ.c
+  utils/argv.c
+  utils/output.c
+  utils/show_help.c
+  utils/mca_param.c
+)
+
 set(SOURCES 
   barrier.c 
   scheduling.c
@@ -14,16 +29,7 @@ set(SOURCES
   bindthread.c 
   mempool.c 
   vpmap.c
-  class/dague_object.c
-  class/dague_value_array.c
-  utils/os_path.c
-  utils/installdirs.c
-  utils/dague_environ.c
-  utils/argv.c
-  utils/output.c
-  utils/show_help.c
-  utils/mca_param.c
- ${EXTRA_SOURCES} 
+${EXTRA_SOURCES} 
 )
 
 if( HWLOC_FOUND )
@@ -57,15 +63,24 @@ list(APPEND SOURCES ${FLEX_show_help_flex_OUTPUTS})
 # Setup targets
 #
 if( BUILD_DAGUE )
+  add_library(dague-base STATIC ${BASE_SOURCES})
+  if (MPI_FOUND)
+    set_target_properties(dague-base PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+  else (MPI_FOUND)
+    set_target_properties(dague-base PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+  endif (MPI_FOUND)
+  target_link_libraries(dague-base ${EXTRA_LIBS})
+  install(TARGETS dague-base ARCHIVE DESTINATION lib)
+
   if (MPI_FOUND)
     add_library(dague-mpi STATIC ${SOURCES})
     set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-    target_link_libraries(dague-mpi ${EXTRA_LIBS})
+    target_link_libraries(dague-mpi dague-base ${EXTRA_LIBS})
     install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
   else (MPI_FOUND)
     add_library(dague STATIC ${SOURCES})
     set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-    target_link_libraries(dague ${EXTRA_LIBS})
+    target_link_libraries(dague dague-base ${EXTRA_LIBS})
     install(TARGETS dague ARCHIVE DESTINATION lib)
   endif (MPI_FOUND)
 ENDIF( BUILD_DAGUE )

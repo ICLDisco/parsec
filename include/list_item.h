@@ -33,22 +33,6 @@ typedef struct dague_list_item_s {
 
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_list_item_t);
 
-static inline void
-dague_list_item_construct( dague_list_item_t* item )
-{
-    item->list_prev = item;
-    item->list_next = item;
-    item->keeper_of_the_seven_keys = 0;
-#if defined(DAGUE_DEBUG_ENABLE)
-    item->refcount = 0;
-    item->belong_to = (void*)0xdeadbeef;
-#endif
-}
-#define DAGUE_LIST_ITEM_CONSTRUCT(item) dague_list_item_construct((dague_list_item_t*)item)
-
-#define dague_list_item_destruct(item) do {(void)(item);} while(0)
-#define DAGUE_LIST_ITEM_DESTRUCT(item) dague_list_item_destruct((dague_list_item_t*)item)
-
 #define DAGUE_LIST_ITEM_NEXT(item) ((__typeof__(item))(((dague_list_item_t*)(item))->list_next))
 #define DAGUE_LIST_ITEM_PREV(item) ((__typeof__(item))(((dague_list_item_t*)(item))->list_prev))
 

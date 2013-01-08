@@ -516,7 +516,7 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
     static int pool_initialized = 0;
 
     if ( !pool_initialized ) {
-        dague_list_construct(&_dague_pool_list);
+        OBJ_CONSTRUCT(&_dague_pool_list, dague_list_t);
         pool_initialized++;
     }
 
@@ -692,7 +692,7 @@ static inline int kernel_exists(char *task_name){
     static dague_list_t kernel_name_list;
 
     if ( !kernel_count_initialized ) {
-        dague_list_construct(&kernel_name_list);
+        OBJ_CONSTRUCT(&kernel_name_list, dague_list_t);
         kernel_count_initialized = 1;
     }
 
@@ -2352,7 +2352,7 @@ char *quark_tree_to_body(node_t *node){
     int pool_buf_count = 0;
 
     dague_list_t var_def_list;
-    dague_list_construct(&var_def_list);
+    OBJ_CONSTRUCT(&var_def_list, dague_list_t);
 
     assert( FCALL == node->type );
 
