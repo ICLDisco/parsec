@@ -924,7 +924,7 @@
         sizeof(PLASMA_Complex64_t)*ib*nb,    (NULL),          SCRATCH,\
         sizeof(int),                        &(ldwork), VALUE,\
         0);}
-#pragma ztsmqr A1 V T
+#pragma ztsmqr A1 A2 V T
 
 #define QUARK_CORE_ztsmqr_corner(quark, task_flags, m1, n1, m2, n2, m3, n3, k, ib, nb, A1, lda1, A2, lda2, A3, lda3, V, ldv, T, ldt) {\
     int ldwork = nb;\
@@ -1081,7 +1081,7 @@
         sizeof(PLASMA_Complex64_t)*ib*nb,    (NULL),          SCRATCH,\
         sizeof(int),                        &(ldwork),    VALUE,\
         0);}
-#pragma zttmqr A1 A2 T
+#pragma zttmqr A1 A2 V T
 
 #define QUARK_CORE_zttqrt(quark, task_flags, m, n, ib, nb, A1, lda1, A2, lda2, T, ldt) {\
     QUARK_Insert_Task((quark), CORE_zttqrt_quark, (task_flags),\
@@ -1097,7 +1097,7 @@
         sizeof(PLASMA_Complex64_t)*nb,       (NULL),          SCRATCH,\
         sizeof(PLASMA_Complex64_t)*ib*nb,    (NULL),          SCRATCH,\
         0);}
-#pragma zttqrt T
+#pragma zttqrt A1 A2 T
 
 #define QUARK_CORE_zunmlq(quark, task_flags, side, trans, m, n, k, ib, nb, A, lda, T, ldt, C, ldc) {\
     QUARK_Insert_Task((quark), CORE_zunmlq_quark, (task_flags),\
@@ -1135,5 +1135,5 @@
         sizeof(PLASMA_Complex64_t)*ib*nb,    (NULL),          SCRATCH,\
         sizeof(int),                        &(nb),    VALUE,\
         0);}
-#pragma zunmqr T C
+#pragma zunmqr A T C
 

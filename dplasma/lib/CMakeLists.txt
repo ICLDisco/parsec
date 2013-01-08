@@ -9,6 +9,7 @@ set(EXTRA_SOURCES
   dplasmatypes.c
   dplasmaaux.c
   pivgen.c
+  systolic.c
   pivgen_dbg.c
   map2_wrapper.c
   butterfly_map.c
@@ -48,20 +49,22 @@ set(JDF
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
   zgeqrf_param.jdf zungqr_param.jdf
   zungqr.jdf
-  zunmqr_LC.jdf zunmqr_RN.jdf # zunmqr_LN.jdf zunmqr_RC.jdf
+  zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
   zlange_inf_cyclic.jdf
   zlange_one_cyclic.jdf
   zlange_max_cyclic.jdf
   zlange_frb_cyclic.jdf
+  zlansy.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
                     PRECISIONS "${DPLASMA_PRECISIONS}")
 
+include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
 if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
   include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 #  foreach(src_file ${EXTRA_SOURCES})
-#    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.") 
+#    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-I.")
 #  endforeach()
 endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 

@@ -9,6 +9,7 @@
 #include "dague_internal.h"
 #include <plasma.h>
 #include "dplasma.h"
+#include "dplasmatypes.h"
 
 #define HIGH_TO_LOW 0
 #define LOW_TO_HIGH 1
@@ -41,7 +42,7 @@ static void multilevel_zgebmm(dague_context_t *dague, tiled_matrix_desc_t* B, PL
             }
         }
 
-        dague_progress(dague);
+        dplasma_progress(dague);
 
         for(i_block=0; i_block < block_count; i_block++){
             for(j_block=0; j_block < block_count; j_block++){

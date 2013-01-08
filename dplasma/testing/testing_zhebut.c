@@ -11,18 +11,15 @@
 #include "flops.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-#include "dplasma/cores/cuda_sgemm.h"
-#endif
 
-#if 0
+#if defined(CHECK_B)
 static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
                            tiled_matrix_desc_t *ddescA,
                            tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX );
 #endif
 
-static int check_inverse( dague_context_t *dague, int loud,
+static int check_inverse( dague_context_t *dague, int loud, PLASMA_enum uplo,
                           tiled_matrix_desc_t *ddescA,
                           tiled_matrix_desc_t *ddescInvA,
                           tiled_matrix_desc_t *ddescI );
@@ -35,19 +32,16 @@ int main(int argc, char ** argv)
     int ret = 0;
     int uplo = PlasmaLower;
     PLASMA_Complex64_t *U_but_vec;
+    DagDouble_t time_butterfly, time_facto, time_total;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    iparam[IPARAM_NGPUS] = 0;
-#endif
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
-    /* TODO: compute flops for butterfly */
-    PASTE_CODE_FLOPS(FLOPS_ZPOTRF, ((DagDouble_t)N));
+    PASTE_CODE_FLOPS(FLOPS_ZHETRF, ((DagDouble_t)N));
 
     /* initializing matrix structure */
     LDA = max( LDA, N );
@@ -65,7 +59,7 @@ int main(int argc, char ** argv)
                                    nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, uplo));
 
-#if 0
+#if defined(CHECK_B)
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
@@ -77,12 +71,12 @@ int main(int argc, char ** argv)
                                    N, NRHS, SMB, SNB, P));
 #endif
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescInvA, check,
+    PASTE_CODE_ALLOCATE_MATRIX(ddescInvA, check_inv,
         two_dim_block_cyclic, (&ddescInvA, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                N, N, SMB, SNB, P));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescI, check,
+    PASTE_CODE_ALLOCATE_MATRIX(ddescI, check_inv,
         two_dim_block_cyclic, (&ddescI, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                N, N, SMB, SNB, P));
@@ -91,114 +85,134 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(0), uplo,
                     (tiled_matrix_desc_t *)&ddescA, 1358);
-    if( check ){
-#if 0
-        dplasma_zplrnt( dague,
-                        (tiled_matrix_desc_t *)&ddescB, 3872);
-#endif
 
-        dplasma_zlacpy( dague, uplo, 
+    if( check ){
+        dplasma_zlacpy( dague, uplo,
                         (tiled_matrix_desc_t *)&ddescA,
                         (tiled_matrix_desc_t *)&ddescA0);
 
-#if 0
-        dplasma_zlacpy( dague, PlasmaUpperLower, 
+#if defined(CHECK_B)
+        dplasma_zplrnt( dague,
+                        (tiled_matrix_desc_t *)&ddescB, 3872);
+
+        dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB,
                         (tiled_matrix_desc_t *)&ddescX);
 #endif
-
-        dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescI);
-        dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescInvA);
+        if (check_inv) {
+            dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescInvA);
+            dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescI);
+        }
     }
     if(loud > 2) printf("Done\n");
 
+
     if(loud > 2) printf("+++ Computing Butterfly ... \n");
-
     SYNC_TIME_START();
-    if(loud) TIME_START();
-
-/*
-printf("Start\n");
-fflush(stdout);
-dplasma_zprint(dague, PlasmaLower, (tiled_matrix_desc_t *)&ddescA);
-*/
-
+    if (loud) TIME_START();
+    /*
+     printf("Start\n");
+     fflush(stdout);
+     dplasma_zprint(dague, uplo, (tiled_matrix_desc_t *)&ddescA);
+     */
     ret = dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, &U_but_vec, butterfly_level);
     if( ret < 0 )
         return ret;
+    /*
+     printf("After Butterfly\n");
+     fflush(stdout);
+     dplasma_zprint(dague, uplo, (tiled_matrix_desc_t *)&ddescA);
+     */
+    SYNC_TIME_PRINT(rank, ("zhebut computation N= %d NB= %d\n", N, NB));
 
-/*
-printf("After Butterfly\n");
-fflush(stdout);
-dplasma_zprint(dague, PlasmaLower, (tiled_matrix_desc_t *)&ddescA);
-*/
+    /* Backup butterfly time */
+    time_butterfly = sync_time_elapsed;
+    if(loud > 2) printf("... Done\n");
 
-    SYNC_TIME_PRINT(rank, ("zhebut computation N= %d NB= %d : %f gflops\n", N, NB,
-                    gflops = (flops/1e9)/(sync_time_elapsed)));
 
+    if(loud > 2) printf("+++ Computing Factorization ... \n");
     SYNC_TIME_START();
-
     dplasma_zhetrf(dague, (tiled_matrix_desc_t *)&ddescA);
 
+    /* WARNING: I'm not sure what you want to compute here ?
+     * but it looks incorrect because of the TIME_START missing */
     if(loud){
         TIME_PRINT(rank, ("zhetrf computed %d tasks,\trate %f task/s\n",
-                   nb_local_tasks,
-                   nb_local_tasks/time_elapsed));
+                          nb_local_tasks,
+                          nb_local_tasks/time_elapsed));
     }
 
     SYNC_TIME_PRINT(rank, ("zhetrf computation N= %d NB= %d : %f gflops\n", N, NB,
-                    gflops = (flops/1e9)/(sync_time_elapsed)));
+                           (gflops = (flops/1e9)/(sync_time_elapsed))));
+    if(loud > 2) printf(" ... Done.\n");
 
+    time_facto = sync_time_elapsed;
+    time_total = time_butterfly + time_facto;
+
+    if(0 == rank) {
+        printf( "zhebut+zhetrf computation : %f gflops (%02.2f%% / %02.2f%%)\n",
+                (gflops = (flops/1e9)/(time_total)),
+                time_butterfly / time_total * 100.,
+                time_facto     / time_total * 100.);
+    }
     (void)gflops;
-
-    if(loud > 2) printf("Done.\n");
 
     if ( info != 0 ) {
         if( rank == 0 && loud ) printf("-- The butterfly failed (info = %d) ! \n", info);
         ret |= 1;
-    }else if(check){
-        dplasma_zhetrs(dague, uplo, (const tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescInvA, U_but_vec, butterfly_level);
+    } else if(check) {
 
-/*
-dplasma_zprint(dague, PlasmaLower, (tiled_matrix_desc_t *)&ddescA);
-*/
-
-        //dplasma_zhetrs(dague, uplo, (const tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX);
-
-        /* Check the solution */
-        /*
-        ret |= check_factorization( dague, (rank == 0) ? loud : 0, uplo,
-                                    (tiled_matrix_desc_t *)&ddescA,
-                                    (tiled_matrix_desc_t *)&ddescA0);
-
-        */
+#if defined(CHECK_B)
+        dplasma_zhetrs(dague, uplo,
+                       (tiled_matrix_desc_t *)&ddescA,
+                       (tiled_matrix_desc_t *)&ddescX,
+                       U_but_vec, butterfly_level);
 
         /* Check the solution */
-#if 0
         ret |= check_solution( dague, (rank == 0) ? loud : 0, uplo,
                                (tiled_matrix_desc_t *)&ddescA0,
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
-#else
-        /* Check the solution against the inverse */
-        ret |= check_inverse(dague, (rank == 0) ? loud : 0,
-                             (tiled_matrix_desc_t *)&ddescA0,
-                             (tiled_matrix_desc_t *)&ddescInvA,
-                             (tiled_matrix_desc_t *)&ddescI);
+
+        dague_data_free(ddescB.mat);
+        dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
+
+        dague_data_free(ddescX.mat);
+        dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
 #endif
+
+        if (check_inv) {
+
+            fprintf(stderr, "Start hetrs\n");
+            dplasma_zhetrs(dague, uplo,
+                           (tiled_matrix_desc_t *)&ddescA,
+                           (tiled_matrix_desc_t *)&ddescInvA,
+                           U_but_vec, butterfly_level);
+
+            fprintf(stderr, "Start check_inv\n");
+            /* Check the solution against the inverse */
+            ret |= check_inverse(dague, (rank == 0) ? loud : 0, uplo,
+                                 (tiled_matrix_desc_t *)&ddescA0,
+                                 (tiled_matrix_desc_t *)&ddescInvA,
+                                 (tiled_matrix_desc_t *)&ddescI);
+
+            dague_data_free(ddescInvA.mat);
+            dague_ddesc_destroy( (dague_ddesc_t*)&ddescInvA);
+
+            dague_data_free(ddescI.mat);
+            dague_ddesc_destroy( (dague_ddesc_t*)&ddescI);
+        }
     }
 
     cleanup_dague(dague, iparam);
 
-    //FIXME: free and destroy all ddescs
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
 
     return ret;
 }
 
-
-#if 0
+#if defined(CHECK_B)
 /*
  * This function destroys B
  */
@@ -215,7 +229,7 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
     int N = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, ddescA);
+    Anorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, ddescA);
     Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
     Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
 
@@ -249,7 +263,7 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
 }
 #endif
 
-static int check_inverse( dague_context_t *dague, int loud,
+static int check_inverse( dague_context_t *dague, int loud, PLASMA_enum uplo,
                           tiled_matrix_desc_t *ddescA,
                           tiled_matrix_desc_t *ddescInvA,
                           tiled_matrix_desc_t *ddescI )
@@ -261,11 +275,11 @@ static int check_inverse( dague_context_t *dague, int loud,
     int m = ddescA->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm    = dplasma_zlanhe(dague, PlasmaMaxNorm, PlasmaLower, ddescA);
+    Anorm    = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, ddescA);
     InvAnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescInvA);
 
     /* Compute I - A*A^{-1} */
-    dplasma_zhemm( dague, PlasmaLeft, PlasmaLower, -1.0, ddescA, ddescInvA, 1.0, ddescI);
+    dplasma_zhemm( dague, PlasmaLeft, uplo, -1.0, ddescA, ddescInvA, 1.0, ddescI);
 
     Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescI);
 
@@ -292,4 +306,3 @@ static int check_inverse( dague_context_t *dague, int loud,
 
     return info_solution;
 }
-

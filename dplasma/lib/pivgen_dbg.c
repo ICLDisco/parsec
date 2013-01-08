@@ -90,43 +90,43 @@
 #define max(__a, __b) ( ( (__a) > (__b) ) ? (__a) : (__b) )
 #endif
 
-/* static int dplasma_qr_getinon0( const qr_piv_t *arg,  */
+/* static int dplasma_qrtree_getinon0( const qr_piv_t *arg,  */
 /*                                 const int k, int i, int mt ); */
 
 #define ENDCHECK( test, ret )                   \
     if ( !test )                                \
         return ret;
 
-int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
+int dplasma_qrtree_check( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree)
 {
     int minMN = min(A->mt, A->nt );
     int i, m, k, nb;
     int check;
 
-    int a = qrpiv->a;
-    int p = qrpiv->p;
+    int a = qrtree->a;
+    int p = qrtree->p;
 
     /*
      * Check Formula for NB geqrt
      */
     {
-        /* dplasma_qr_print_type( A, qrpiv ); */
-        /* dplasma_qr_print_nbgeqrt( A, qrpiv ); */
+        /* dplasma_qrtree_print_type( A, qrtree ); */
+        /* dplasma_qrtree_print_nbgeqrt( A, qrtree ); */
         check = 1;
         for (k=0; k<minMN; k++) {
             nb = 0;
             for (m=k; m < A->mt; m++) {
-              if ( dplasma_qr_gettype(qrpiv, k, m) > 0 )
+                if ( qrtree->gettype( qrtree, k, m ) > 0 )
                     nb++;
             }
 
-            if ( nb != dplasma_qr_getnbgeqrf( qrpiv, k, A->mt) ) {
+            if ( nb != qrtree->getnbgeqrf( qrtree, k ) ) {
                 check = 0;
                 printf(" ----------------------------------------------------\n"
                        "  - a = %d, p = %d, M = %d, N = %d\n"
                        "     Check number of geqrt:\n"
                        "       For k=%d => return %d instead of %d",
-                       a, p, A->mt, A->nt, k, dplasma_qr_getnbgeqrf( qrpiv, k, A->mt), nb );
+                       a, p, A->mt, A->nt, k, qrtree->getnbgeqrf( qrtree, k ), nb );
             }
         }
 
@@ -140,24 +140,24 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
         int prevm = -1;
         check = 1;
         for (k=0; k<minMN; k++) {
-            /* dplasma_qr_print_geqrt_k( A, qrpiv, k ); */
-            nb = dplasma_qr_getnbgeqrf( qrpiv, k, A->mt );
+            /* dplasma_qrtree_print_geqrt_k( A, qrtree, k ); */
+            nb = qrtree->getnbgeqrf( qrtree, k );
             prevm = -1;
             for (i=0; i < nb; i++) {
 
-                m = dplasma_qr_getm( qrpiv, k, i );
+                m = qrtree->getm( qrtree, k, i );
 
                 /*
                  * getm ahas to be the inverse of geti
                  */
-                if ( i != dplasma_qr_geti( qrpiv, k, m) ) {
+                if ( i != qrtree->geti( qrtree, k, m) ) {
                     check = 0;
                     printf(" ----------------------------------------------------\n"
                            "  - a = %d, p = %d, M = %d, N = %d\n"
                            "     Check indices of geqrt:\n"
                            "        getm( k=%d, i=%d ) => m = %d && geti( k=%d, m=%d ) => i = %d\n",
                            a, p, A->mt, A->nt,
-                           k, i, m, k, m, dplasma_qr_geti( qrpiv, k, m));
+                           k, i, m, k, m, qrtree->geti( qrtree, k, m));
                 }
                 /* tile before the diagonal are factorized and
                  * the m is a growing list (not true with round-robin inside TS)
@@ -171,13 +171,13 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
                            a, p, A->mt, A->nt, k, i, m);
                 }
 #if 0
-                else if ( m != dplasma_qr_getinon0( qrpiv, k, i, A->mt ) ) {
+                else if ( m != qrtree->getinon0( qrtree, k, i, A->mt ) ) {
                     check = 0;
                     printf(" ----------------------------------------------------\n"
                            "  - a = %d, p = %d, M = %d, N = %d\n"
                            "     Check indices of geqrt:\n"
                            "        getm( k=%d, i=%d ) => m = %d but should be %d",
-                           a, p, A->mt, A->nt, k, i, m, dplasma_qr_getinon0( qrpiv, k, i, A->mt));
+                           a, p, A->mt, A->nt, k, i, m, qrtree->getinon0( qrtree, k, i, A->mt));
                 }
 #endif
                 prevm = m;
@@ -197,12 +197,12 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
             for(m=k; m<A->mt; m++) {
                 nb = 0;
                 for(s=A->mt; s>k; s--) {
-                    if ( dplasma_qr_nextpiv(qrpiv, m, k, s) == A->mt )
+                    if ( qrtree->nextpiv(qrtree, k, m, s) == A->mt )
                         nb++;
                 }
                 if ( nb > 1 ) {
-                    dplasma_qr_print_next_k( A, qrpiv, k);
-                    dplasma_qr_print_prev_k( A, qrpiv, k);
+                    dplasma_qrtree_print_next_k( A, qrtree, k);
+                    dplasma_qrtree_print_prev_k( A, qrtree, k);
 
                     printf(" ----------------------------------------------------\n"
                            "  - a = %d, p = %d, M = %d, N = %d\n"
@@ -213,8 +213,8 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
                     return 3;
                 }
                 else if ( nb == 0 ) {
-                    dplasma_qr_print_next_k( A, qrpiv, k);
-                    dplasma_qr_print_prev_k( A, qrpiv, k);
+                    dplasma_qrtree_print_next_k( A, qrtree, k);
+                    dplasma_qrtree_print_prev_k( A, qrtree, k);
 
                     printf(" ----------------------------------------------------\n"
                            "  - a = %d, p = %d, M = %d, N = %d\n"
@@ -240,12 +240,12 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
             for(m=k; m<A->mt; m++) {
                 nb = 0;
                 for(s=k; s<A->mt; s++) {
-                    if ( dplasma_qr_prevpiv(qrpiv, m, k, s) == A->mt )
+                    if ( qrtree->prevpiv(qrtree, k, m, s) == A->mt )
                         nb++;
                 }
                 if ( nb > 1 ) {
-                    dplasma_qr_print_next_k( A, qrpiv, k);
-                    dplasma_qr_print_prev_k( A, qrpiv, k);
+                    dplasma_qrtree_print_next_k( A, qrtree, k);
+                    dplasma_qrtree_print_prev_k( A, qrtree, k);
 
                     printf(" ----------------------------------------------------\n"
                            "  - a = %d, p = %d, M = %d, N = %d\n"
@@ -256,8 +256,8 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
                     return 3;
                 }
                 else if ( nb == 0 ) {
-                    dplasma_qr_print_next_k( A, qrpiv, k);
-                    dplasma_qr_print_prev_k( A, qrpiv, k);
+                    dplasma_qrtree_print_next_k( A, qrtree, k);
+                    dplasma_qrtree_print_prev_k( A, qrtree, k);
 
                     printf(" ----------------------------------------------------\n"
                            "  - a = %d, p = %d, M = %d, N = %d\n"
@@ -284,15 +284,15 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
             for(m=k; m<A->mt; m++) {
 
                 do {
-                    next = dplasma_qr_nextpiv(qrpiv, m, k, start);
+                    next = qrtree->nextpiv(qrtree, k, m, start);
                     if ( next == A->mt )
-                        prev = dplasma_qr_prevpiv(qrpiv, m, k, m);
+                        prev = qrtree->prevpiv(qrtree, k, m, m);
                     else
-                        prev = dplasma_qr_prevpiv(qrpiv, m, k, next);
+                        prev = qrtree->prevpiv(qrtree, k, m, next);
 
                     if ( start != prev ) {
-                        dplasma_qr_print_next_k( A, qrpiv, k);
-                        dplasma_qr_print_prev_k( A, qrpiv, k);
+                        dplasma_qrtree_print_next_k( A, qrtree, k);
+                        dplasma_qrtree_print_prev_k( A, qrtree, k);
 
                         printf(" ----------------------------------------------------\n"
                                "  - a = %d, p = %d, M = %d, N = %d\n"
@@ -313,7 +313,7 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
     return 0;
 }
 
-void dplasma_qr_print_type( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
+void dplasma_qrtree_print_type( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree )
 {
     int minMN = min(A->mt, A->nt );
     int m, k;
@@ -325,7 +325,7 @@ void dplasma_qr_print_type( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
     for(m=0; m<A->mt; m++) {
         printf("%3d | ", m);
         for (k=0; k<min(minMN, m+1); k++) {
-            printf( "%3d ", dplasma_qr_gettype( qrpiv, k, m ) );
+            printf( "%3d ", qrtree->gettype( qrtree, k, m ) );
         }
         for (k=min(minMN, m+1); k<minMN; k++) {
             printf( "    " );
@@ -334,12 +334,12 @@ void dplasma_qr_print_type( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
         printf("    ");
         printf("%2d,%3d | ", rank, lmg);
         for (k=0; k<min(minMN, lmg+1); k++) {
-            printf( "%3d ", dplasma_qr_gettype( qrpiv, k, lmg) );
+            printf( "%3d ", qrtree->gettype( qrtree, k, lmg) );
         }
         for (k=min(minMN, lmg+1); k<minMN; k++) {
             printf( "    " );
         }
-        lm++; lmg+=qrpiv->p;
+        lm++; lmg+=qrtree->p;
         if ( lmg >= A->mt ) {
             rank++;
             lmg = rank;
@@ -349,7 +349,7 @@ void dplasma_qr_print_type( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
     }
 }
 
-void dplasma_qr_print_pivot( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
+void dplasma_qrtree_print_pivot( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree )
 {
     int minMN = min(A->mt, A->nt );
     int m, k;
@@ -360,7 +360,7 @@ void dplasma_qr_print_pivot( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
     for(m=0; m<A->mt; m++) {
         printf("%3d | ", m);
         for (k=0; k<min(minMN, m+1); k++) {
-            printf( "%3d ", dplasma_qr_currpiv(qrpiv, m, k) );
+            printf( "%3d ", qrtree->currpiv(qrtree, k, m) );
         }
         for (k=min(minMN, m+1); k<minMN; k++) {
             printf( "    " );
@@ -369,12 +369,12 @@ void dplasma_qr_print_pivot( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
         printf("    ");
         printf("%2d,%3d | ", rank, lmg);
         for (k=0; k<min(minMN, lmg+1); k++) {
-            printf( "%3d ", dplasma_qr_currpiv(qrpiv, lmg, k) );
+            printf( "%3d ", qrtree->currpiv(qrtree, k, lmg) );
         }
         for (k=min(minMN, lmg+1); k<minMN; k++) {
             printf( "    " );
         }
-        lm++; lmg+=qrpiv->p;
+        lm++; lmg+=qrtree->p;
         if ( lmg >= A->mt ) {
             rank++;
             lmg = rank;
@@ -384,7 +384,7 @@ void dplasma_qr_print_pivot( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
     }
 }
 
-void dplasma_qr_print_next_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
+void dplasma_qrtree_print_next_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k )
 {
     int m, s;
     printf("\n------------ Next (k = %d)--------------\n", k);
@@ -397,13 +397,13 @@ void dplasma_qr_print_next_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
     for(m=0; m<A->mt; m++) {
         printf("%3d | ", m);
         for(s=A->mt; s>0; s--) {
-            printf( "%3d ", dplasma_qr_nextpiv(qrpiv, m, k, s) );
+            printf( "%3d ", qrtree->nextpiv(qrtree, k, m, s) );
         }
         printf("\n");
     }
 }
 
-void dplasma_qr_print_prev_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
+void dplasma_qrtree_print_prev_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k )
 {
     int m, s;
     printf("\n------------ Prev (k = %d)--------------\n", k);
@@ -416,16 +416,17 @@ void dplasma_qr_print_prev_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
     for(m=0; m<A->mt; m++) {
         printf("%3d | ", m);
         for(s=A->mt; s>-1; s--) {
-            printf( "%3d ", dplasma_qr_prevpiv(qrpiv, m, k, s) );
+            printf( "%3d ", qrtree->prevpiv(qrtree, k, m, s) );
         }
         printf("\n");
     }
 }
 
-void dplasma_qr_print_perm( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
+void dplasma_qrtree_print_perm( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int *perm )
 {
     int minMN = min(A->mt, A->nt );
     int m, k;
+    (void)qrtree;
 
     printf("\n------------ Permutation --------------\n");
     for (k=0; k<minMN; k++) {
@@ -439,14 +440,14 @@ void dplasma_qr_print_perm( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
 
     for (m=0; m < A->mt+1; m++) {
         for (k=0; k<minMN; k++) {
-            printf( "%3d ", qrpiv->perm[ k*(A->mt+1) + m ] );
+            printf( "%3d ", perm[ k*(A->mt+1) + m ] );
         }
         printf( "\n" );
     }
     printf( "\n" );
 }
 
-void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
+void dplasma_qrtree_print_nbgeqrt( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree )
 {
     int minMN = min(A->mt, A->nt );
     int m, k, nb;
@@ -461,7 +462,7 @@ void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
     for (k=0; k<minMN; k++) {
         nb = 0;
         for (m=k; m < A->mt; m++) {
-            if ( dplasma_qr_gettype(qrpiv, k, m) > 0 )
+            if ( qrtree->gettype(qrtree, k, m) > 0 )
                 nb++;
         }
         printf( "%3d ", nb );
@@ -469,41 +470,42 @@ void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
     printf( "\n" );
     printf(" Formula: ");
     for (k=0; k<minMN; k++) {
-        printf( "%3d ", dplasma_qr_getnbgeqrf( qrpiv, k, A->mt) );
+        printf( "%3d ", qrtree->getnbgeqrf( qrtree, k ) );
     }
     printf( "\n" );
 }
 
-void dplasma_qr_print_geqrt_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
+void dplasma_qrtree_print_geqrt_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k )
 {
     int i, m, nb;
+    (void)A;
 
     printf("\n------------ Liste of geqrt for k = %d --------------\n", k);
 
     printf( "  m:");
-    nb = dplasma_qr_getnbgeqrf( qrpiv, k, A->mt );
+    nb = qrtree->getnbgeqrf( qrtree, k );
     for (i=0; i < nb; i++) {
-        m = dplasma_qr_getm( qrpiv, k, i );
-        if ( i == dplasma_qr_geti( qrpiv, k, m) )
+        m = qrtree->getm( qrtree, k, i );
+        if ( i == qrtree->geti( qrtree, k, m) )
             printf( "%3d ", m );
         else
-            printf( "x%2d ", dplasma_qr_geti( qrpiv, k, m) );
+            printf( "x%2d ", qrtree->geti( qrtree, k, m) );
     }
     printf( "\n" );
 }
 
 
-/* static int dplasma_qr_getinon0( const qr_piv_t *qrpiv,  */
+/* static int dplasma_qrtree_getinon0( const dplasma_qrtree_t *qrtree,  */
 /*                                 const int k, int i, int mt )  */
 /* { */
 /*     int j; */
 /*     for(j=k; j<mt; j++) { */
-/*         if ( dplasma_qr_gettype( qrpiv, k, j ) != 0 ) */
+/*         if ( dplasma_qrtree_gettype( qrtree, k, j ) != 0 ) */
 /*             i--; */
 /*         if ( i == -1 ) */
 /*             break; */
 /*     } */
-/*     return qrpiv->perm[k*(qrpiv->desc->mt+1) + j]; */
+/*     return qrtree->perm[k*(qrtree->desc->mt+1) + j]; */
 /* } */
 
 #define DAG_HEADER        "digraph G { orientation=portrait; \n"
@@ -531,7 +533,7 @@ char *color[] = {
 };
 #define DAG_NBCOLORS 7
 
-void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, char *filename )
+void dplasma_qrtree_print_dag( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, char *filename )
 {
     int *pos, *next, *done;
     int k, m, n, lpos, prev, length;
@@ -554,8 +556,8 @@ void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, char *filena
         int nb2reduce = A->mt - k - 1;
 
         for(m=k; m < A->mt; m++) {
-            fprintf(f, DAG_STARTNODE, m, A->mt, k, pos[m], m, color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
-            next[m] = dplasma_qr_nextpiv( qrpiv, m, k, A->mt);
+            fprintf(f, DAG_STARTNODE, m, A->mt, k, pos[m], m, color[ (m%qrtree->p) % DAG_NBCOLORS ]);
+            next[m] = qrtree->nextpiv( qrtree, k, m, A->mt);
         }
 
         while( nb2reduce > 0 ) {
@@ -570,27 +572,27 @@ void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, char *filena
                     pos[m] = lpos;
                     pos[n] = lpos;
 
-                    fprintf(f, DAG_NODE, m, n, k, pos[m], m, color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
+                    fprintf(f, DAG_NODE, m, n, k, pos[m], m, color[ (m%qrtree->p) % DAG_NBCOLORS ]);
 
-                    prev = dplasma_qr_prevpiv( qrpiv, m, k, n );
+                    prev = qrtree->prevpiv( qrtree, k, m, n );
                     fprintf(f, DAG_EDGE_PIV,
-                           m, prev, k,
-                           m, n,    k,
-                           color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
+                            m, prev, k,
+                            m, n,    k,
+                            color[ (m%qrtree->p) % DAG_NBCOLORS ]);
 
-                    prev = dplasma_qr_prevpiv( qrpiv, n, k, n );
-                    if ( dplasma_qr_gettype(qrpiv, k, n) == 0 )
+                    prev = qrtree->prevpiv( qrtree, k, n, n );
+                    if ( qrtree->gettype(qrtree, k, n) == 0 )
                         fprintf(f, DAG_EDGE_TS,
-                               n, prev, k,
-                               m, n, k,
-                               color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
+                                n, prev, k,
+                                m, n, k,
+                                color[ (m%qrtree->p) % DAG_NBCOLORS ]);
                     else
                         fprintf(f, DAG_EDGE_TT,
-                               n, prev, k,
-                               m, n, k,
-                               color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
+                                n, prev, k,
+                                m, n, k,
+                                color[ (m%qrtree->p) % DAG_NBCOLORS ]);
 
-                    next[m] = dplasma_qr_nextpiv( qrpiv, m, k, n);
+                    next[m] = qrtree->nextpiv( qrtree, k, m, n);
                     done[m] = done[n] = 1;
                     nb2reduce--;
                 }

@@ -204,8 +204,8 @@ static int check_solution( dague_context_t *dague, int loud,
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC, Cseed );
 
     Anorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA );
-    Cinitnorm    = dplasma_zlange( dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&ddescC );
-    Cdplasmanorm = dplasma_zlanhe( dague, PlasmaMaxNorm, uplo, (tiled_matrix_desc_t*)ddescCfinal );
+    Cinitnorm    = dplasma_zlanhe( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
+    Cdplasmanorm = dplasma_zlanhe( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)ddescCfinal );
 
     if ( rank == 0 ) {
         cblas_zherk(CblasColMajor,
@@ -215,7 +215,7 @@ static int check_solution( dague_context_t *dague, int loud,
                     beta,  ddescC.mat, LDC);
     }
 
-    Clapacknorm = dplasma_zlanhe( dague, PlasmaMaxNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
+    Clapacknorm = dplasma_zlanhe( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
 
     dplasma_zgeadd( dague, uplo, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
                                        (tiled_matrix_desc_t*)&ddescC );

@@ -86,6 +86,8 @@
 #cmakedefine HAVE_MPI
 #cmakedefine HAVE_MPI_20
 
+#cmakedefine HAVE_AYUDAME
+
 #if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
 #endif  /* !defined(_GNU_SOURCE) */
