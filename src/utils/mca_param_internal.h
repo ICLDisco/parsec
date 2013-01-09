@@ -1,24 +1,25 @@
+
 /*
  * Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2006 The University of Tennessee and The University
+ * Copyright (c) 2004-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
+ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
  * Copyright (c) 2008      Cisco Systems, Inc.  All rights reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  */
 
-/** 
- * @file 
+/**
+ * @file
  *
  * This is the private declarations for the MCA parameter system.
  * This file is internal to the MCA parameter system and should not
@@ -30,8 +31,8 @@
  * to generate internal documentation (by default, it is skipped).
  */
 
-#ifndef OPAL_MCA_BASE_PARAM_INTERNAL_H
-#define OPAL_MCA_BASE_PARAM_INTERNAL_H
+#ifndef DAGUE_MCA_BASE_PARAM_INTERNAL_H
+#define DAGUE_MCA_BASE_PARAM_INTERNAL_H
 
 #include "dague_config.h"
 
@@ -52,7 +53,7 @@ typedef union {
     int intval;
     /** String value */
     char *stringval;
-} mca_param_storage_t;
+} dague_mca_param_storage_t;
 
 
 /**
@@ -61,12 +62,12 @@ typedef union {
  * Entry for holding the information about an MCA parameter and its
  * default value.
  */
-struct mca_param_t {
-    /** Allow this to be an OPAL OBJ */
+struct dague_mca_param_t {
+    /** Allow this to be an OBJ */
     dague_object_t mbp_super;
 
     /** Enum indicating the type of the parameter (integer or string) */
-    mca_param_type_t mbp_type;
+    dague_mca_param_type_t mbp_type;
     /** String of the type name, or NULL */
     char *mbp_type_name;
     /** String of the component name */
@@ -78,14 +79,14 @@ struct mca_param_t {
     char *mbp_full_name;
 
     /** List of synonym names for this parameter.  This *must* be a
-        pointer (vs. a plain opal_list_t) because we copy this whole
+        pointer (vs. a plain dague_list_t) because we copy this whole
         struct into a new param for permanent storage
-        (opal_vale_array_append_item()), and the internal pointers in
-        the opal_list_t will be invalid when that happens.  Hence, we
-        simply keep a pointer to an external opal_list_t.  Synonyms
+        (dague_vale_array_append_item()), and the internal pointers in
+        the dague_list_t will be invalid when that happens.  Hence, we
+        simply keep a pointer to an external dague_list_t.  Synonyms
         are uncommon enough that this is not a big performance hit. */
     dague_list_t *mbp_synonyms;
-    
+
     /** Whether this is internal (not meant to be seen / modified by
         users) or not */
     bool mbp_internal;
@@ -106,33 +107,33 @@ struct mca_param_t {
     char *mbp_env_var_name;
 
     /** Default value of the parameter */
-    mca_param_storage_t mbp_default_value;
+    dague_mca_param_storage_t mbp_default_value;
 
     /** Whether or not we have a file value */
     bool mbp_file_value_set;
     /** Value of the parameter found in a file */
-    mca_param_storage_t mbp_file_value;
+    dague_mca_param_storage_t mbp_file_value;
     /** File the value came from */
     char *mbp_source_file;
 
     /** Whether or not we have an override value */
     bool mbp_override_value_set;
     /** Value of the parameter override set via API */
-    mca_param_storage_t mbp_override_value;
+    dague_mca_param_storage_t mbp_override_value;
 };
 /**
  * \internal
  *
  * Convenience typedef.
  */
-typedef struct mca_param_t mca_param_t;
+typedef struct dague_mca_param_t dague_mca_param_t;
 
 /**
  * \internal
  *
- * Object delcataion for mca_param_t
+ * Object delcataion for dague_mca_param_t
  */
-DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(mca_param_t);
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_mca_param_t);
 
 
 /**
@@ -140,10 +141,10 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(mca_param_t);
  *
  * Structure for holding param names and values read in from files.
  */
-struct mca_param_file_value_t {
-    /** Allow this to be an OPAL OBJ */
+struct dague_mca_param_file_value_t {
+    /** Allow this to be an OBJ */
     dague_list_item_t super;
-    
+
     /** Parameter name */
     char *mbpfv_param;
     /** Parameter value */
@@ -156,12 +157,12 @@ struct mca_param_file_value_t {
  *
  * Convenience typedef
  */
-typedef struct mca_param_file_value_t mca_param_file_value_t;
+typedef struct dague_mca_param_file_value_t dague_mca_param_file_value_t;
 
 /**
  * Object declaration for mca_param_file_value_t
  */
-DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(mca_param_file_value_t);
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_mca_param_file_value_t);
 
 
 /**
@@ -169,15 +170,15 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(mca_param_file_value_t);
  *
  * Global list of params and values read in from MCA parameter files
  */
-DAGUE_DECLSPEC extern dague_list_t mca_param_file_values;
+DAGUE_DECLSPEC extern dague_list_t dague_mca_param_file_values;
 
 /**
  * \internal
  *
  * Parse a parameter file.
  */
-DAGUE_DECLSPEC int mca_base_parse_paramfile(const char *paramfile);
+DAGUE_DECLSPEC int dague_mca_base_parse_paramfile(const char *paramfile);
 
 END_C_DECLS
-    
-#endif /* OPAL_MCA_BASE_PARAM_INTERNAL_H */
+
+#endif /* DAGUE_MCA_BASE_PARAM_INTERNAL_H */

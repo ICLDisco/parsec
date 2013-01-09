@@ -3,16 +3,16 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  */
 
 #ifndef DAGUE_MCA_INSTALLDIRS_INSTALLDIRS_H
 #define DAGUE_MCA_INSTALLDIRS_INSTALLDIRS_H
 
-#include "dague_config.h"
+#include <dague_config.h>
 
 BEGIN_C_DECLS
 
