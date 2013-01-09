@@ -429,7 +429,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     relative = dbp_reader_min_date(dbp);
 
     pit = dbp_iterator_new_from_thread( th );
-    dague_list_construct( &consolidated_events );
+    OBJ_CONSTRUCT( &consolidated_events, dague_list_t );
     while( (e = dbp_iterator_current(pit)) != NULL ) {
         if( KEY_IS_START( dbp_event_get_key(e) ) ) {
                 
@@ -519,7 +519,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
         progress_bar_event_output();
     }
 
-    dague_list_destruct( &consolidated_events );
+    OBJ_DESTRUCT( &consolidated_events );
     
     return 0;
 }
