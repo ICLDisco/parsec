@@ -7,14 +7,23 @@ set(BASE_SOURCES
   class/dague_list.c
   class/dague_lifo.c
   class/dague_dequeue.c
-  utils/os_path.c
   utils/installdirs.c
+  utils/os_path.c
   utils/dague_environ.c
   utils/argv.c
   utils/output.c
   utils/show_help.c
+  utils/keyval_parse.c
+  utils/mca_parse_paramfile.c
   utils/mca_param.c
 )
+FLEX_TARGET(show_help_flex utils/show_help_lex.l ${CMAKE_CURRENT_BINARY_DIR}/show_help_lex.l.c)
+SET_SOURCE_FILES_PROPERTIES(${FLEX_show_help_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS}")
+list(APPEND BASE_SOURCES ${FLEX_show_help_flex_OUTPUTS})
+
+FLEX_TARGET(keyval_flex utils/keyval_lex.l ${CMAKE_CURRENT_BINARY_DIR}/keyval_lex.l.c)
+SET_SOURCE_FILES_PROPERTIES(${FLEX_keyval_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS}")
+list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 
 set(SOURCES 
   barrier.c 
@@ -54,10 +63,6 @@ endif( DAGUE_PROF_STATS )
 if( DAGUE_PROF_GRAPHER )
   list(APPEND SOURCES dague_prof_grapher.c)
 endif( DAGUE_PROF_GRAPHER )
-
-FLEX_TARGET(show_help_flex utils/show_help_lex.l ${CMAKE_CURRENT_BINARY_DIR}/show_help_lex.l.c)
-SET_SOURCE_FILES_PROPERTIES(${FLEX_show_help_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS}")
-list(APPEND SOURCES ${FLEX_show_help_flex_OUTPUTS})
 
 #
 # Setup targets
