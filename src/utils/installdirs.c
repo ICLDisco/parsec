@@ -43,7 +43,7 @@ dague_install_dirs_t dague_install_dirs;
 
 #ifdef __WINDOWS__
 
-int
+static int
 dague_installdirs_windows(void)
 {
     /* check the env first */
