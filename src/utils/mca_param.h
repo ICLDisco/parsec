@@ -56,8 +56,11 @@
 #ifndef DAGUE_MCA_PARAM_H
 #define DAGUE_MCA_PARAM_H
 
-#include "dague_config.h"
-#include "dague/class/dague_object.h"
+#include <dague_config.h>
+#include <dague/class/dague_object.h>
+#if defined(HAVE_STDBOOL_H)
+#include <stdbool.h>
+#endif  /* defined(HAVE_STDBOOL_H) */
 #include "lifo.h"
 
 /**
