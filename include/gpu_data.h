@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,14 +7,14 @@
 #ifndef DAGUE_GPU_DATA_H_HAS_BEEN_INCLUDED
 #define DAGUE_GPU_DATA_H_HAS_BEEN_INCLUDED
 
-#include "dague_config.h"
+#include <dague_config.h>
 #include "dague_internal.h"
+#include <dague/class/dague_object.h>
 
 #if defined(HAVE_CUDA)
 #include "list_item.h"
 #include "list.h"
 #include "profiling.h"
-#include "moesi.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
@@ -131,40 +131,10 @@ void dump_GPU_state(gpu_device_t* gpu_device);
  ** GPU-DATA Specific Starts Here **
  ****************************************************/
 
-typedef struct _gpu_elem           gpu_elem_t;
-
-
 /**
- * Particular overloading of the generic device type
- * for GPUs.
+ * Overload the default data_copy_t with a GPU specialized type
  */
-struct _gpu_elem {
-    dague_list_item_t   item;
-    CUdeviceptr         gpu_mem_ptr;
-    moesi_copy_t        moesi;
-};
-
-static inline void gpu_elem_construct(gpu_elem_t* gpu_elem, moesi_master_t* master) {
-    DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
-    gpu_elem->moesi.master = master;
-    gpu_elem->moesi.device_private = gpu_elem;
-}
-#define gpu_elem_destruct(gpu_elem)
-
-static inline gpu_elem_t* gpu_elem_obtain_from_master(moesi_master_t* master, int device) {
-    moesi_copy_t* copy = master->device_copies[device];
-    if( NULL == copy ) return NULL;
-    assert( copy->master == master );
-    return copy->device_private;
-}
-
-
-typedef enum {
-    DAGUE_READ       = ACCESS_READ,
-    DAGUE_WRITE      = ACCESS_WRITE,
-    DAGUE_READ_DONE  = 0x4,
-    DAGUE_WRITE_DONE = 0x8
-} dague_data_usage_type_t;
+typedef dague_data_copy_t dague_gpu_data_copy_t;
 
 #include "data_distribution.h"
 

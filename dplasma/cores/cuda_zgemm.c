@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> z c d s
  *
  */
-#include "dague_config.h"
+#include <dague_config.h>
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <plasma.h>
@@ -177,36 +177,33 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
  *     -2: No more room on the GPU to move this data.
  */
 static inline int
-gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
-                       dague_gpu_context_t *gpu_task,
-                       dague_gpu_exec_stream_t* gpu_stream)
+gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
+                       dague_gpu_context_t     *gpu_task,
+                       dague_gpu_exec_stream_t *gpu_stream)
 {
-    int ret, move_data_count = 0;
+    int i, ret, move_data_count = 0;
     int sizeloc[MAX_PARAM_COUNT];
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
+    dague_data_t* data;
+    dague_data_copy_t* local;
 
-    /* WARNING: A has to be the first data,
-     *          B the second one and
-     *          C the third one.
-     * if the kernel swap A and B it won't work
-     */
-    moesi_get_master(args->ddescA->moesi_map, GEMM_KEY(args->ddescA, args->Am, args->An ),
-                           &(this_task->data[0].moesi_master));
-    if( NULL == (this_task->data[0].moesi_master)->device_copies[gpu_device->index])
-        move_data_count++;
-
-    moesi_get_master(args->ddescB->moesi_map, GEMM_KEY(args->ddescB, args->Bm, args->Bn ),
-                           &(this_task->data[1].moesi_master));
-    if( NULL == (this_task->data[1].moesi_master)->device_copies[gpu_device->index])
-        move_data_count++;
-
-    moesi_get_master(args->ddescC->moesi_map, GEMM_KEY(args->ddescC, args->Cm, args->Cn ),
-                           &(this_task->data[2].moesi_master));
-    if( NULL == (this_task->data[2].moesi_master)->device_copies[gpu_device->index])
-        move_data_count++;
-
-    this_task->data[3].moesi_master =  NULL;  /* last element */
+    for( i = 0; NULL != this_task->data[i].data; i++ ) {
+        data = this_task->data[i].data->original;
+        if( NULL == (local = dague_data_get_copy(data, gpu_device->index)) ) {
+            move_data_count++;
+        } else {
+            /**
+             * In case the data copy I got is not on my local device, swap the
+             * reference with the most recent version on the local device. Otherwise,
+             * use the original copy. This allow copy-on-write to work seamlesly.
+             */
+            if( this_task->data[i].data->device_index != gpu_device->index ) {
+                /* Attach the GPU copy to the task */
+                this_task->data[i].data = local;
+            }
+        }
+    }
 
     if( 0 != move_data_count ) { /* Try to reserve enough room for all data */
         sizeloc[0] = args->sizeA;
@@ -222,33 +219,36 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
         }
     }
 
-    assert( NULL != gpu_elem_obtain_from_master(this_task->data[0].moesi_master, gpu_device->index) );
-    assert( NULL != gpu_elem_obtain_from_master(this_task->data[1].moesi_master, gpu_device->index) );
-    assert( NULL != gpu_elem_obtain_from_master(this_task->data[2].moesi_master, gpu_device->index) );
+    assert( NULL != dague_data_copy_get_ptr(this_task->data[0].data) );
+    assert( NULL != dague_data_copy_get_ptr(this_task->data[1].data) );
+    assert( NULL != dague_data_copy_get_ptr(this_task->data[2].data) );
 
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                              gpu_device->profiling,
-                             (-1 == gpu_stream->prof_event_key_start ? 
+                             (-1 == gpu_stream->prof_event_key_start ?
                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
                                                         this_task->function->function_id) :
                               gpu_stream->prof_event_key_start),
                              this_task);
 
-    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[0]->name, args->Am, args->An));
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n",
+            gpu_device->device_index, this_task->function->in[0]->name, args->Am, args->An));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[0]->access_type,
                                    &(this_task->data[0]), args->sizeA, gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
-    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[1]->name, args->Bm, args->Bn));
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n",
+            gpu_device->device_index, this_task->function->in[1]->name, args->Bm, args->Bn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[1]->access_type,
                                    &(this_task->data[1]), args->sizeB, gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
-    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[2]->name, args->Cm, args->Cn));
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n",
+            gpu_device->device_index, this_task->function->in[2]->name, args->Cm, args->Cn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[2]->access_type,
                                    &(this_task->data[2]), args->sizeC, gpu_stream->cuda_stream );
     if( ret < 0 ) {
@@ -266,7 +266,6 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 {
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
-    gpu_elem_t *gpu_elem_A = NULL, *gpu_elem_B = NULL, *gpu_elem_C = NULL;
     CUdeviceptr d_A, d_B, d_C;
     cudaError_t status;
 #if defined(DAGUE_DEBUG_VERBOSE2)
@@ -275,12 +274,9 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 
     cuda_zgemm_t cuda_zgemm = zgemm_functions[gpu_device->index];
 
-    gpu_elem_A = gpu_elem_obtain_from_master(this_task->data[0].moesi_master, gpu_device->index);
-    gpu_elem_B = gpu_elem_obtain_from_master(this_task->data[1].moesi_master, gpu_device->index);
-    gpu_elem_C = gpu_elem_obtain_from_master(this_task->data[2].moesi_master, gpu_device->index);
-    d_A = gpu_elem_A->gpu_mem_ptr;
-    d_B = gpu_elem_B->gpu_mem_ptr;
-    d_C = gpu_elem_C->gpu_mem_ptr;
+    d_A = (CUdeviceptr)this_task->data[0].data->device_private;
+    d_B = (CUdeviceptr)this_task->data[1].data->device_private;
+    d_C = (CUdeviceptr)this_task->data[2].data->device_private;
 
     DEBUG2(( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->device_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
@@ -288,7 +284,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                              gpu_device->profiling,
-                             (-1 == gpu_stream->prof_event_key_start ? 
+                             (-1 == gpu_stream->prof_event_key_start ?
                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
                                                         this_task->function->function_id) :
                               gpu_stream->prof_event_key_start),
@@ -328,52 +324,56 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
 {
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
-    gpu_elem_t *gpu_elem = NULL;
+    dague_gpu_data_copy_t     *gpu_copy = NULL;
+    dague_data_t              *original;
     int return_code = 0, how_many = 0, i;
     cudaError_t status;
 
     for( i = 0; NULL != this_task->function->in[i]; i++ ) {
-        gpu_elem = gpu_elem_obtain_from_master(this_task->data[i].moesi_master, gpu_device->index);
+        gpu_copy = this_task->data[i].data;
         if( this_task->function->in[i]->access_type & ACCESS_READ ) {
-            gpu_elem->moesi.readers--; assert(gpu_elem->moesi.readers >= 0);
-            if( (0 == gpu_elem->moesi.readers) &&
+            gpu_copy->readers--; assert(gpu_copy->readers >= 0);
+            if( (0 == gpu_copy->readers) &&
                 !(this_task->function->in[i]->access_type & ACCESS_WRITE) ) {
-                dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
-                DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem); /* TODO: singleton instead? */
-                dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
+                dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
+                DAGUE_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
+                dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
             }
         }
         if( this_task->function->in[i]->access_type & ACCESS_WRITE ) {
-            gpu_elem = gpu_elem_obtain_from_master(this_task->data[i].moesi_master, gpu_device->index);
-
+            assert( gpu_copy == dague_data_get_copy(gpu_copy->original, gpu_device->index) );
             /* Stage the transfer of the data back to main memory */
             gpu_device->required_data_out += args->sizeC;
-            assert( ((dague_list_item_t*)gpu_elem)->list_next == (dague_list_item_t*)gpu_elem );
-            assert( ((dague_list_item_t*)gpu_elem)->list_prev == (dague_list_item_t*)gpu_elem );
+            assert( ((dague_list_item_t*)gpu_copy)->list_next == (dague_list_item_t*)gpu_copy );
+            assert( ((dague_list_item_t*)gpu_copy)->list_prev == (dague_list_item_t*)gpu_copy );
 
             if( args->pushout ) {  /* n == (k + 1) */
-                DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index, this_task->function->in[i]->name, this_task->data[i].moesi_master->key));
+                DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index,
+                        this_task->function->in[i]->name, this_task->data[i].data->original->key));
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                                          gpu_device->profiling,
-                                         (-1 == gpu_stream->prof_event_key_start ? 
+                                         (-1 == gpu_stream->prof_event_key_start ?
                                           DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
                                                                     this_task->function->function_id) :
                                           gpu_stream->prof_event_key_start),
                                          this_task);
-                /* Move the data back into main memory */
-                status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[i].data), gpu_elem->gpu_mem_ptr, args->sizeC, gpu_stream->cuda_stream );
+                /* TODO: Move the data back into main memory, but not always on the first device (!) */
+                original = gpu_copy->original;
+                status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
+                                                         (CUdeviceptr)gpu_copy->device_private,
+                                                         args->sizeC, gpu_stream->cuda_stream );
                 DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
                                         { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[i]->name,
-                                                  (void*)gpu_elem->gpu_mem_ptr, (void*)ADATA(this_task->data[i].data)));
-                                          return_code = -2;
-                                          goto release_and_return_error;} );
+                                                   gpu_copy->device_private, original->device_copies[0]->device_private));
+                                            return_code = -2;
+                                            goto release_and_return_error;} );
                 gpu_device->transferred_data_out += args->sizeC; /* TODO: not hardcoded, use datatype size */
                 how_many++;
             }
         }
     }
-    
- release_and_return_error:
+
+  release_and_return_error:
     return (return_code < 0 ? return_code : how_many);
 }
 
@@ -386,23 +386,23 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
 {
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
-    gpu_elem_t* gpu_elem;
-    moesi_master_t* master;
+    dague_gpu_data_copy_t     *gpu_copy;
+    dague_data_t              *original;
     int i;
 
-    for( i = 0; NULL != (master = this_task->data[i].moesi_master); i++ ) {
+    for( i = 0; NULL != (gpu_copy = this_task->data[i].data); i++ ) {
         if( !(this_task->function->in[i]->access_type & ACCESS_WRITE) ) continue;
 
-        gpu_elem = gpu_elem_obtain_from_master(master, gpu_device->index);
-        assert( MOESI_OWNED == gpu_elem->moesi.coherency_state );
-        gpu_elem->moesi.coherency_state = MOESI_SHARED;
-        master->version = gpu_elem->moesi.version;
-        master->owner_device = -1;
+        assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
+        gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
+        original = gpu_copy->original;
+        original->version = gpu_copy->version;
+        original->owner_device = -1;
 
         if( args->pushout ) {  /* n == (k  + 1) */
-            dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
+            dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
         } else {
-            dague_ulist_fifo_push(gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_elem);
+            dague_ulist_fifo_push(gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_copy);
         }
     }
     return 0;
@@ -438,7 +438,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     int which_gpu;
     dague_zgemm_args_t *gpu_task = (dague_zgemm_args_t*)malloc(sizeof(dague_zgemm_args_t));
 
-    DAGUE_LIST_ITEM_CONSTRUCT(gpu_task);
+    OBJ_CONSTRUCT(gpu_task, dague_list_item_t);
     gpu_task->super.ec = this_task;
     gpu_task->pushout  = pushout;
     gpu_task->alpha    = alpha;
@@ -465,8 +465,8 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     gpu_task->ddescC   = (dague_ddesc_t*)descC;
 
     /* We always schedule the task on the GPU owning the C tile. */
-    which_gpu = moesi_locate_device_with_valid_copy( descC->super.moesi_map, GEMM_KEY( descC, Cm, Cn) );
-    if( which_gpu < 0 ) {  /* this is the first time we see this tile.
+    which_gpu = this_task->data[2].data->original->owner_device;
+    if( which_gpu <= 0 ) {  /* this is the first time we see this tile.
                             * Let's decide which GPU will work on it. */
         int best_index = -1;  /* cores */
         /* There are 3 types of GEMMs kernels: the ones waiting on the

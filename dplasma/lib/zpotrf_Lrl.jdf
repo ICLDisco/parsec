@@ -56,9 +56,6 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 //; (k >= (descA.mt - PRI_CHANGE)) ? (descA.mt - k + 7) * (descA.mt - k + 2) * (descA.mt - k) / 6 : 0
 
 BODY
-#if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, k, k) );
-#endif  /* defined(HAVE_CUDA) */
 
     int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
     int ldak = BLKLDD( descA, k );
@@ -103,9 +100,6 @@ RW    C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, k)
 //;  (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m - k) * ((descA.mt - m - k + 1) / 2 + 2) - 1 + (descA.mt - m + 2) * (descA.mt - m + 1) * (descA.mt - m) / 6 : 0
 
 BODY
-#if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, m, k) );
-#endif  /* defined(HAVE_CUDA) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
     int ldak = BLKLDD( descA, k );
@@ -150,9 +144,6 @@ RW    T <- (k == 0)   ? A(m, m)    : T HERK(k-1, m)
 //; (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m + 2) * (descA.mt - m + 1) * (descA.mt - m) / 6 + descA.mt - m + k + 1 : 0
 
 BODY
-#if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, m, m) );
-#endif  /* defined(HAVE_CUDA) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m*descA.mb : descA.mb;
     int ldam = BLKLDD( descA, m );
@@ -223,7 +214,6 @@ BODY
             exit(2);
         }
     }
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, m, n) );
 #endif  /* defined(HAVE_CUDA) */
 
     DRYRUN(

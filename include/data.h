@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012      The University of Tennessee and The University
+ * Copyright (c) 2012-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,7 +8,7 @@
 #define DATA_H_HAS_BEEN_INCLUDED
 
 #include "dague_internal.h"
-#include "dague/types.h"
+#include <dague/types.h>
 #include <dague/sys/atomic.h>
 
 /**
@@ -30,15 +30,19 @@ typedef uint8_t dague_data_coherency_t;
  * pointers to the versions managed by each supported devices.
  */
 struct dague_data_s {
+    dague_list_item_t         super;
+
     uint32_t                  version;
     dague_data_coherency_t    coherency_state;
     uint16_t                  owner_device;
     dague_data_key_t          key;
     uint32_t                  nb_elts;          /* number of elements of the memory layout */
     struct dague_data_copy_s* device_copies[1]; /* this array allocated according to the number of devices
-                                                (dague_supported_number_of_devices). It points to the most recent
-                                                version of the data. */
+                                                 * (dague_supported_number_of_devices). It points to the most recent
+                                                 * version of the data.
+                                                 */
 };
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_t);
 
 typedef uint8_t dague_data_flag_t;
 #define DAGUE_DATA_FLAG_ARENA     ((dague_data_flag_t)0x01)
@@ -47,7 +51,7 @@ typedef uint8_t dague_data_flag_t;
  * This structure represent a device copy of a dague_data_t.
  */
 struct dague_data_copy_s {
-    volatile uint32_t         refcount;
+    dague_list_item_t         super;
 
     uint8_t                   device_index;
     dague_data_flag_t         flags;
@@ -62,6 +66,7 @@ struct dague_data_copy_s {
     dague_data_t             *original;
     void*                    device_private;
 };
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
 
 static inline dague_data_copy_t*
 dague_data_get_copy(dague_data_t* data, uint32_t device)
@@ -69,24 +74,16 @@ dague_data_get_copy(dague_data_t* data, uint32_t device)
     return data->device_copies[device];
 }
 
-/**
- * Increase the refcount of this copy of the data.
- */
-static inline uint32_t dague_data_copy_retain(dague_data_copy_t* data)
-{
-    return dague_atomic_inc_32b(&data->refcount);
-}
-#define DAGUE_DATA_COPY_RETAIN(DATA) dague_data_copy_retain(DATA)
-
+dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint16_t device);
 /**
  * Decrease the refcount of this copy of the data. If the refcount reach
  * 0 the upper level is in charge of cleaning up and releasing all content
  * of the copy.
  */
-static inline uint32_t dague_data_copy_release(dague_data_copy_t* data)
+static inline void dague_data_copy_release(dague_data_copy_t* data)
 {
-    return dague_atomic_dec_32b(&data->refcount);
     /* TODO: Move the copy back to the CPU before destroying it */
+    OBJ_RELEASE(data);
 }
 #define DAGUE_DATA_COPY_RELEASE(DATA) dague_data_copy_release(DATA)
 
@@ -110,12 +107,20 @@ extern dague_data_t* dague_data_new(void);
 extern void dague_data_delete(dague_data_t* data);
 
 /**
- * Create the cop of the data passed as an argument for use on the specified
- * device. The link between the copy and the original data is automatically
- * created. If the data is NULL, an instance of the data with the default
- * ownership will be created. In all cases, if a data copy is returned the
- * reference count will be set to 1.
+ * Attach a new copy corresponding to the specified device to a data. If a copy
+ * for the device is already attached, nothing will be done and an error code
+ * will be returned.
  */
-extern dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint16_t device);
+extern int dague_data_copy_attach(dague_data_t* data,
+                                  dague_data_copy_t* copy,
+                                  uint16_t device);
+extern int dague_data_copy_detach(dague_data_t* data,
+                                  dague_data_copy_t* copy,
+                                  uint16_t device);
+
+int dague_data_copy_ownership_to_device(dague_data_t* map,
+                                        uint16_t device,
+                                        uint8_t access_mode);
+extern void dague_dump_data_copy(dague_data_copy_t* copy);
 
 #endif  /* DATA_H_HAS_BEEN_INCLUDED */

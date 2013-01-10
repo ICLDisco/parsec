@@ -108,7 +108,7 @@ BODY
     if( dague_active_gpu() > 0 ) {
         int rc;
 
-        if( 0 == (rc = gpu_zgemm( context, this_task, 
+        if( 0 == (rc = gpu_zgemm( context, this_task,
                                   ( k == descA.nt-1 ),
                                   transA, transB,
                                   tempmm, tempnn, tempkk,
@@ -126,7 +126,6 @@ BODY
 	        exit(2);
         }
     }
-    moesi_master_update( descC.super.moesi_map, GEMM_KEY( &descC, m, n) );
 #endif  /* defined(HAVE_CUDA) */
 
         DRYRUN(
@@ -141,7 +140,7 @@ BODY
         printlog("gemm( %d, %d, %d )\n"
                  "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
                  m, n, k,
-                 plasma_const( transA ), plasma_const( transB ), 
+                 plasma_const( transA ), plasma_const( transB ),
                  tempmm, tempnn, tempkk,
                  creal(alpha), m, k, ldam,
                                k, n, ldbk,

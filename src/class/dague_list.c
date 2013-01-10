@@ -22,7 +22,7 @@ dague_list_item_construct( dague_list_item_t* item )
 #endif
 }
 
-OBJ_CLASS_INSTANCE(dague_list_item_t, dague_object_t, 
+OBJ_CLASS_INSTANCE(dague_list_item_t, dague_object_t,
                    dague_list_item_construct, NULL);
 
 /**
@@ -45,7 +45,7 @@ dague_list_destruct( dague_list_t* list )
     assert(dague_list_is_empty(list));
 }
 
-OBJ_CLASS_INSTANCE(dague_list_t, dague_object_t, 
+OBJ_CLASS_INSTANCE(dague_list_t, dague_object_t,
                    dague_list_construct, dague_list_destruct);
 
 

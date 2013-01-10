@@ -234,8 +234,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
 
-                    if((me == -1) && (rank >= eu_context->virtual_process->dague_context->my_rank))
-                    {
+                    if((me == -1) && (rank >= eu_context->virtual_process->dague_context->my_rank)) {
                         /* the next bit points after me, so I know my dense rank now */
                         me = ++him;
                         if(rank == eu_context->virtual_process->dague_context->my_rank) {
@@ -245,15 +244,12 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     }
                     him++;
 
-                    if(remote_dep_bcast_child(me, him))
-                    {
+                    if(remote_dep_bcast_child(me, him)) {
                         DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
-                        if(ACCESS_NONE != exec_context->function->out[i]->access_type)
-                        {
-                            DAGUE_DATA_COPY_RETAIN(remote_deps->output[i].data);
+                        if(ACCESS_NONE != exec_context->function->out[i]->access_type) {
+                            OBJ_RETAIN(remote_deps->output[i].data);
                         }
-                        if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
-                        {
+                        if(remote_dep_is_forwarded(eu_context, remote_deps, rank)) {
                             continue;
                         }
                         remote_dep_inc_flying_messages(exec_context->dague_handle, eu_context->virtual_process->dague_context);
@@ -271,11 +267,11 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     }
 
     /* Only the thread doing bcast forward can enter the following line.
-     * the same communication thread calls here and does the 
-     * sends that call complete_and_cleanup concurently. 
+     * the same communication thread calls here and does the
+     * sends that call complete_and_cleanup concurently.
      * Any other threads would create a race condition.
-     * This has to be done only if the receiver is a leaf in a broadcast. 
-     * The remote_deps has then been allocated in dague_release_dep_fct 
+     * This has to be done only if the receiver is a leaf in a broadcast.
+     * The remote_deps has then been allocated in dague_release_dep_fct
      * when we didn't knew yet if we forward the data or not.
      */
     if( skipped_count ) {

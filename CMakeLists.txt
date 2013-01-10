@@ -55,11 +55,11 @@ option(DAGUE_SCHED_REPORT_STATISTICS
   "Display statistics on the scheduling at the end of the run")
 
 mark_as_advanced(DAGUE_SCHED_CACHE_AWARE)
-cmake_dependent_option(DAGUE_SCHED_CACHE_AWARE 
+cmake_dependent_option(DAGUE_SCHED_CACHE_AWARE
   "Activate the cache awareness support (requires HWLOC)" OFF "HAVE_HWLOC" OFF)
 
 mark_as_advanced(DAGUE_SCHED_DEPS_MASK)
-option(DAGUE_SCHED_DEPS_MASK 
+option(DAGUE_SCHED_DEPS_MASK
   "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" ON)
 
 ### Distributed engine parameters
@@ -432,7 +432,7 @@ IF( BUILD_DAGUE )
       include_directories( ${PAPI_INCLUDE_DIR} )
     endif (PAPI_FOUND)
   endif (DAGUE_PROF_PAPI)
-  
+
   find_package(AYUDAME QUIET)
   set(HAVE_AYUDAME ${AYUDAME_FOUND})
 #

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -216,7 +216,7 @@ static void iterate_successors(dague_execution_unit_t *eu,
 
     nc.priority = 0;
     nc.data[0].data_repo = NULL;
-    nc.data[0].data_repo = NULL;
+    nc.data[1].data_repo = NULL;
     /* If this is the last n, try to move to the next k */
     for( ; k < (int)__dague_handle->super.src->nt; n = 0) {
         for( ; n < (int)__dague_handle->super.src->mt; n++ ) {
@@ -236,7 +236,7 @@ static void iterate_successors(dague_execution_unit_t *eu,
 
             ontask(eu, &nc, this_task, 0, 0,
                    __dague_handle->super.src->super.myrank,
-                   __dague_handle->super.src->super.myrank, 
+                   __dague_handle->super.src->super.myrank,
                    vpid,
                    NULL, -1, ontask_arg);
             return;
@@ -266,14 +266,19 @@ static int release_deps(dague_execution_unit_t *eu,
                 if( i == eu->virtual_process->vp_id )
                     __dague_schedule(eu, ready_list[i]);
                 else
-                    __dague_schedule(eu->virtual_process->dague_context->virtual_processes[i]->execution_units[0], 
+                    __dague_schedule(eu->virtual_process->dague_context->virtual_processes[i]->execution_units[0],
                                      ready_list[i]);
             }
         }
     }
 
     if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS) {
-        /*data_repo_entry_used_once( eu, TRSM_repo, this_task->data[0].data_repo->key );*/
+        /**
+         * There is no repo to be release in this instance, so instead just release the
+         * reference of the data copy.
+         *
+         * data_repo_entry_used_once( eu, this_task->data[0].data_repo, this_task->data[0].data_repo->key );
+         */
         (void)DAGUE_DATA_COPY_RELEASE(this_task->data[0].data);
     }
 
@@ -407,7 +412,7 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
                     ((dague_ddesc_t*)__dague_handle->super.src)->rank_of((dague_ddesc_t*)__dague_handle->super.src,
                                                                          k, n) )
                     continue;
-                
+
                 if( vpid != ((dague_ddesc_t*)__dague_handle->super.src)->vpid_of((dague_ddesc_t*)__dague_handle->super.src,
                                                                                  k, n) )
                     continue;
@@ -421,7 +426,7 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
                                  0, NULL, -1, (void*)&ready_list);
                 __dague_schedule( eu, ready_list );
                 count++;
-                if( count == context->virtual_processes[vpid]->nb_cores ) 
+                if( count == context->virtual_processes[vpid]->nb_cores )
                     goto done;
                 break;
             }

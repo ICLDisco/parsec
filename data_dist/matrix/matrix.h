@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -136,7 +136,7 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
         dague_data_copy_t* data_copy = (dague_data_copy_t*)malloc(sizeof(dague_data_copy_t));
         data = (dague_data_t*)malloc(sizeof(dague_data_t) + 0 * sizeof(struct dague_data_copy_s*));
 
-        data_copy->refcount = 0;
+        OBJ_CONSTRUCT(&data_copy->super, dague_list_item_t);
         data_copy->device_index = 0;
         data_copy->flags = 0;  /* not from an arena */
         data_copy->coherency_state = DATA_COHERENCY_OWNED;

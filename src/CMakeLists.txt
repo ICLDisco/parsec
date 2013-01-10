@@ -6,6 +6,7 @@ set(BASE_SOURCES
   class/dague_value_array.c
   class/dague_list.c
   class/dague_lifo.c
+  class/dague_fifo.c
   class/dague_dequeue.c
   utils/installdirs.c
   utils/os_path.c
@@ -25,20 +26,19 @@ FLEX_TARGET(keyval_flex utils/keyval_lex.l ${CMAKE_CURRENT_BINARY_DIR}/keyval_le
 SET_SOURCE_FILES_PROPERTIES(${FLEX_keyval_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS}")
 list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 
-set(SOURCES 
-  barrier.c 
+set(SOURCES
+  barrier.c
   scheduling.c
-  schedulers.c 
+  schedulers.c
   dague.c
   data.c
   arena.c
-  moesi.c
-  remote_dep.c 
-  debug.c 
-  bindthread.c 
-  mempool.c 
+  remote_dep.c
+  debug.c
+  bindthread.c
+  mempool.c
   vpmap.c
-${EXTRA_SOURCES} 
+${EXTRA_SOURCES}
 )
 
 if( HWLOC_FOUND )
@@ -51,7 +51,7 @@ endif (CUDA_FOUND)
 if (PAPI_FOUND)
   list(APPEND SOURCES papime.c)
 endif (PAPI_FOUND)
- 
+
 if( DAGUE_PROF_TRACE )
   list(APPEND SOURCES profiling.c)
 endif( DAGUE_PROF_TRACE )

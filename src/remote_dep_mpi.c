@@ -7,12 +7,13 @@
 /* /!\  THIS FILE IS NOT INTENDED TO BE COMPILED ON ITS OWN
  *      It should be included from remote_dep.c if HAVE_MPI is defined
  */
-#include "dague_config.h"
+#include <dague_config.h>
 
 #include <mpi.h>
 #include "profiling.h"
 #include "arena.h"
 #include "list.h"
+#include "data.h"
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
 
@@ -351,7 +352,7 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
     item->cmd.memcpy.destination  = dst;
     item->cmd.memcpy.datatype     = datatype;
     item->cmd.memcpy.nbelt        = nbelt;
-    DAGUE_DATA_COPY_RETAIN(src);
+    OBJ_RETAIN(src);
     remote_dep_inc_flying_messages(dague_handle, eu_context->virtual_process->dague_context);
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 }

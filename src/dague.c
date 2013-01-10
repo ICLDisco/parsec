@@ -974,7 +974,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
              * Thus, if the ref count is not increased here, the data might dissapear
              * before it become useless.
              */
-            DAGUE_DATA_COPY_RETAIN( arg->output_entry->data[out_index] );
+            OBJ_RETAIN( arg->output_entry->data[out_index] );
         }
         arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_handle,
                                                                  eu, oldcontext,
