@@ -188,7 +188,10 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     dague_data_t* data;
     dague_data_copy_t* local;
 
-    for( i = 0; NULL != this_task->data[i].data; i++ ) {
+    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+        if( !(this_task->function->in[0]->access_type & ACCESS_READ) )
+            continue;
+
         data = this_task->data[i].data->original;
         if( NULL == (local = dague_data_get_copy(data, gpu_device->index)) ) {
             move_data_count++;
@@ -390,9 +393,10 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
     dague_data_t              *original;
     int i;
 
-    for( i = 0; NULL != (gpu_copy = this_task->data[i].data); i++ ) {
+    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if( !(this_task->function->in[i]->access_type & ACCESS_WRITE) ) continue;
 
+        gpu_copy = this_task->data[i].data;
         assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
         gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
         original = gpu_copy->original;
