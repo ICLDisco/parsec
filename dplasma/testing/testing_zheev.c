@@ -18,6 +18,8 @@
 #define FADDS_ZHEEV(__n) (((__n) * (-8.0 / 3.0 + (__n) * (1.0 + 2.0 / 3.0 * (__n)))) - 4.0)
 #define FMULS_ZHEEV(__n) (((__n) * (-1.0 / 6.0 + (__n) * (5.0 / 2.0 + 2.0 / 3.0 * (__n)))) - 15.0)
 
+#undef PRINTF_HEAVY
+
 static int check_solution(int N, double *E1, double *E2, double eps);
 
 int main(int argc, char *argv[])
@@ -56,6 +58,9 @@ int main(int argc, char *argv[])
          N, N, 1, 1, P))
     /* Fill A with randomness */
     dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA, 3872);
+#ifdef PRINTF_HEAVY
+    dplasma_zprint( dague, uplo, &ddescA);
+#endif
 
 /*
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
@@ -111,47 +116,39 @@ int main(int argc, char *argv[])
 
         /* COMPUTE THE EIGENVALUES FROM DPLASMA (with LAPACK) */
         {
-            int k, sizearena = (NB+1)*(NB+2);
+            int k, sizearena = (MB+1)*(NB+2);
             PLASMA_Complex64_t* band = ddescBAND.mat;
             /* store resulting diag and lower diag D and E*/
-            for (k=0;k<NT-1;k++) {
-                for (j=0;j<NB;j++) {
-                    D[(k*NB)+j] = creal(band[(k*sizearena)+ LDA*j]);
-                    E[(k*NB)+j] = creal(band[(k*sizearena)+ LDA*j+1]);
+            for( k=0; k<NT-1; k++ ) {
+                for( j=0; j<NB; j++ ) {
+                    D[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j]);
+                    E[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j+1]);
                 }
             }
-            k=NT-1;
-            for (j=0;j<NB-1;j++) {
-                D[(k*NB)+j] = creal(band[(k*sizearena)+ LDA*j]);
-                E[(k*NB)+j] = creal(band[(k*sizearena)+ LDA*j+1]);
+            for( j=0; j<NB-1; j++ ) {
+                D[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j]);
+                E[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j+1]);
             }
-            D[(k*NB)+(NB-1)] = creal(band[(k*sizearena)+ LDA*(NB-1)]);
-            
-            /* call eigensolver */
-            dsterf_( &N, D, E, &INFO);
-        }
-
-#if 0
-/***** AURELIEN: AFTER THAT, I DON'T UNDERSTAND WHAT'S GOING ON */
-        PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
-
-        for (j = 0; j < N; j++)
-            for (i = j+2; i < N; i++)
-                A2[LDA*j+i]=0.0;
-
-        /* Computing eigenvalues */
-        LAPACKE_zheev( LAPACK_COL_MAJOR,
-               lapack_const(PlasmaNoVec), lapack_const(uplo),
-               N, A2, LDA, W2);
+            D[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j]);
 
 #ifdef PRINTF_HEAVY
-        printf("Eigenvalues computed\n");
-        for (i = 0; i < N; i++){
-            printf("%f \n", W2[i]);
+        dplasma_zprint(dague, PlasmaUpperLower, &ddescBAND);
+            
+        printf("############################\n"
+               "D= ");
+        for(i = 0; i < N; i++) {
+            printf("%f ", D[i]);
+        }
+        printf("\nE= ");
+        for(i = 0; i < N-1; i++) {
+            printf("%f ", E[i]);
         }
         printf("\n");
-#endif
-#endif
+#endif            
+            /* call eigensolver */
+            dsterf_( &N, D, E, &INFO);
+            assert( 0 == INFO );
+        }
 
         /* COMPUTE THE EIGENVALUES WITH LAPACK */
         /* Regenerate A (same random generator) into A0 */
@@ -168,7 +165,7 @@ int main(int argc, char *argv[])
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
 
 #ifdef PRINTF_HEAVY
-        printf("A0\n");
+        printf("########### A0 #############\n");
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
 #   if defined(PRECISION_d) || defined(PRECISION_s)
@@ -186,7 +183,7 @@ int main(int argc, char *argv[])
             N, A2, LDA, W1);
 
 #ifdef PRINTF_HEAVY
-        printf("A (after LAPACK direct eignesolver)\n");
+        printf("########### A (after LAPACK direct eignesolver)\n");
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
 #   if defined(PRECISION_d) || defined(PRECISION_s)
@@ -200,9 +197,10 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef PRINTF_HEAVY
-        printf("\nDPLASMA Eignevalues\n");
+        printf("\n###############\nDPLASMA Eignevalues\n");
         for(i = 0; i < N; i++) {
             printf("%f ", D[i]);
+        }
         printf("\nLAPACK Eigenvalues\n");
         for(i = 0; i < N; i++) {
             printf("%f ", W1[i]);
