@@ -24,22 +24,23 @@ unset(PLASMA_F_COMPILE_SUCCESS)
 
 # First we try to use pkg-config to find what we're looking for
 # in the directory specified by the PLASMA_DIR or PLASMA_PKG_DIR
-include(FindPkgConfig)
+find_package(PkgConfig QUIET)
 if(PLASMA_DIR)
   if(NOT PLASMA_PKG_DIR)
     set(PLASMA_PKG_DIR "${PLASMA_DIR}/lib/pkgconfig")
   endif(NOT PLASMA_PKG_DIR)
 endif(PLASMA_DIR)
 
-set(ENV{PKG_CONFIG_PATH} "${PLASMA_PKG_DIR}:$ENV{PKG_CONFIG_PATH}")
-pkg_search_module(PLASMA plasma)
 if(PKG_CONFIG_FOUND)
+  set(ENV{PKG_CONFIG_PATH} "${PLASMA_PKG_DIR}:$ENV{PKG_CONFIG_PATH}")
+  pkg_check_modules(PLASMA plasma)
+
   if(PLASMA_FOUND)
-    # 
+    #
     # There is a circular dependency in PLASMA between the libplasma and libcoreblas.
     # Unfortunately, this cannot be handled by pkg-config (as it remove the duplicates)
     # so we have to add it by hand.
-    # 
+    #
     list(APPEND PLASMA_LDFLAGS -lplasma)
     string(REGEX REPLACE ";" " " PLASMA_LDFLAGS "${PLASMA_LDFLAGS}")
   endif(PLASMA_FOUND)

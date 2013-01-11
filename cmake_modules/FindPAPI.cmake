@@ -17,7 +17,7 @@ set(PAPI_DIR "" CACHE PATH "Root directory containing the PAPI package")
 find_package(PkgConfig QUIET)
 
 if( PAPI_DIR )
-  set(ENV{PKG_CONFIG_PATH} "${PAPI_DIR}/lib/pkgconfig" $ENV{PKG_CONFIG_PATH})
+  set(ENV{PKG_CONFIG_PATH} "${PAPI_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
 endif()
 pkg_check_modules(PC_PAPI QUIET papi)
 set(PAPI_DEFINITIONS ${PC_PAPI_CFLAGS_OTHER} )
