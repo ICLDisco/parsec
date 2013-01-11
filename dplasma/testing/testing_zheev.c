@@ -103,95 +103,43 @@ int main(int argc, char *argv[])
         double *D               = (double *)malloc(N*sizeof(double));
         double *E               = (double *)malloc(N*sizeof(double));
         int INFO;
-
-        /* Regenerate A (same random generator) into A0 */
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
-            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
-            nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-            N, N, 1, 1, P))
-        /* Fill A0 with the same randomness */
-        dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
-
+        
         if( P*Q > 1 ) {
             printf("CHECKS ARE NOT POSSIBLE IN DISTRIBUTED (YET)\n");
             goto checkdone;
         }
 
-        PLASMA_Desc_Create(&plasmaDescA, ddescA0.mat, PlasmaComplexDouble,
-            ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
-            ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
-            ddescA0.super.m, ddescA0.super.n);
-        PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
-
-#ifdef PRINTF_HEAVY
-        printf("A2 avant\n");
-        for (i = 0; i < N; i++){
-            for (j = 0; j < N; j++) {
-#   if defined(PRECISION_d) || defined(PRECISION_s)
-                printf("%f ", A2[LDA*j+i] );
-#   else
-                printf("(%f, %f)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
-#   endif
-            }
-            printf("\n");
-        }
-#endif
-
-        LAPACKE_zheev( LAPACK_COL_MAJOR,
-            lapack_const(PlasmaNoVec), lapack_const(uplo),
-            N, A2, LDA, W1);
-
-#ifdef PRINTF_HEAVY
-        printf("Eigenvalues original\n");
-        for(i = 0; i < N; i++){
-            printf("%f\n", W1[i]);
-        }
-        printf("\n");
-#endif
-
-/****** AURELIEN: Why do we convert that back to tile format, never used again */
-        PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
-#if 0
+        /* COMPUTE THE EIGENVALUES FROM DPLASMA (with LAPACK) */
         {
-          int k, sizearena = (NB+1)*(NB+2);
-          /* store resulting diag and lower diag D and E*/
-          for (k=0;k<NT-1;k++) {
-            for (j=0;j<NB;j++) {
-              D[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j];
-              E[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j+1];
+            int k, sizearena = (NB+1)*(NB+2);
+            PLASMA_Complex64_t* band = ddescBAND.mat;
+            /* store resulting diag and lower diag D and E*/
+            for (k=0;k<NT-1;k++) {
+                for (j=0;j<NB;j++) {
+                    D[(k*NB)+j] = creal(band[(k*sizearena)+ LDA*j]);
+                    E[(k*NB)+j] = creal(band[(k*sizearena)+ LDA*j+1]);
+                }
             }
-          }
-          k=NT-1;
-          for (j=0;j<NB-1;j++) {
-            D[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j];
-            E[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j+1];
-          }
-          D[(k*NB)+(NB-1)] = ddescBAND.mat[(k*sizearena)+ LDA*(NB-1)];
-        }
-#endif
-
-        /* call eigensolver */
-        dsterf_( &N, D, E, &INFO);
-
-#ifdef PRINTF_HEAVY
-        printf("A2 apres\n");
-        for (i = 0; i < N; i++){
-            for (j = 0; j < N; j++) {
-#   if defined(PRECISION_d) || defined(PRECISION_s)
-                printf("%f ", A2[LDA*j+i] );
-#   else
-                printf("(%f, %f)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
-#   endif
+            k=NT-1;
+            for (j=0;j<NB-1;j++) {
+                D[(k*NB)+j] = creal(band[(k*sizearena)+ LDA*j]);
+                E[(k*NB)+j] = creal(band[(k*sizearena)+ LDA*j+1]);
             }
-            printf("\n");
+            D[(k*NB)+(NB-1)] = creal(band[(k*sizearena)+ LDA*(NB-1)]);
+            
+            /* call eigensolver */
+            dsterf_( &N, D, E, &INFO);
         }
-#endif
 
+#if 0
 /***** AURELIEN: AFTER THAT, I DON'T UNDERSTAND WHAT'S GOING ON */
+        PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
+
         for (j = 0; j < N; j++)
             for (i = j+2; i < N; i++)
                 A2[LDA*j+i]=0.0;
 
+        /* Computing eigenvalues */
         LAPACKE_zheev( LAPACK_COL_MAJOR,
                lapack_const(PlasmaNoVec), lapack_const(uplo),
                N, A2, LDA, W2);
@@ -200,6 +148,64 @@ int main(int argc, char *argv[])
         printf("Eigenvalues computed\n");
         for (i = 0; i < N; i++){
             printf("%f \n", W2[i]);
+        }
+        printf("\n");
+#endif
+#endif
+
+        /* COMPUTE THE EIGENVALUES WITH LAPACK */
+        /* Regenerate A (same random generator) into A0 */
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
+            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
+            1, cores, rank, MB, NB, LDA, N, 0, 0,
+            N, N, 1, 1, 1))
+        PLASMA_Desc_Create(&plasmaDescA, ddescA0.mat, PlasmaComplexDouble,
+            ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
+            ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
+            ddescA0.super.m, ddescA0.super.n);
+        /* Fill A2 with A0 again */
+        dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
+        PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
+
+#ifdef PRINTF_HEAVY
+        printf("A0\n");
+        for (i = 0; i < N; i++){
+            for (j = 0; j < N; j++) {
+#   if defined(PRECISION_d) || defined(PRECISION_s)
+                printf("%f ", A2[LDA*j+i] );
+#   else
+                printf("(%f, %f)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
+#   endif
+            }
+            printf("\n");
+        }
+#endif
+        /* Compute eigenvalues directly */
+        LAPACKE_zheev( LAPACK_COL_MAJOR,
+            lapack_const(PlasmaNoVec), lapack_const(uplo),
+            N, A2, LDA, W1);
+
+#ifdef PRINTF_HEAVY
+        printf("A (after LAPACK direct eignesolver)\n");
+        for (i = 0; i < N; i++){
+            for (j = 0; j < N; j++) {
+#   if defined(PRECISION_d) || defined(PRECISION_s)
+                printf("%f ", A2[LDA*j+i] );
+#   else
+                printf("(%f, %f)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
+#   endif
+            }
+            printf("\n");
+        }
+#endif
+
+#ifdef PRINTF_HEAVY
+        printf("\nDPLASMA Eignevalues\n");
+        for(i = 0; i < N; i++) {
+            printf("%f ", D[i]);
+        printf("\nLAPACK Eigenvalues\n");
+        for(i = 0; i < N; i++) {
+            printf("%f ", W1[i]);
         }
         printf("\n");
 #endif
@@ -215,7 +221,7 @@ int main(int argc, char *argv[])
         printf(" Computational tests pass if scaled residuals are less than 60.\n");
 
         /* Check the eigen solutions */
-        int info_solution = check_solution(N, W1, W2, eps);
+        int info_solution = check_solution(N, W1, D, eps);
 
         if (info_solution == 0) {
             printf("***************************************************\n");
