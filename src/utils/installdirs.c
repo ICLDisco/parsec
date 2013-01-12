@@ -25,7 +25,25 @@
 #include <dague/utils/installdirs.h>
 #include <dague/utils/os_path.h>
 
-dague_install_dirs_t dague_install_dirs;
+dague_install_dirs_t dague_install_dirs = {
+    NULL, /* prefix */
+    NULL, /* exec_prefix */
+    NULL, /* bindir */
+    NULL, /* sbindir */
+    NULL, /* libexecdir */
+    NULL, /* datarootdir */
+    NULL, /* datadir */
+    NULL, /* sysconfdir */
+    NULL, /* sharedstatedir */
+    NULL, /* localstatedir */
+    NULL, /* libdir */
+    NULL, /* includedir */
+    NULL, /* infodir */
+    NULL, /* mandir */
+    NULL, /* pkgdatadir */
+    NULL, /* pkglibdir */
+    NULL, /* pkgincludedir */
+};
 
 #define SET_FIELD(root, field, relative_dir)                              \
     do {                                                                  \

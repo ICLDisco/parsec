@@ -16,10 +16,11 @@
 
 BEGIN_C_DECLS
 
-/*
+/**
  * Most of this file is just for ompi_info.  The only public interface
  * once dague_init has been called is the opal_install_dirs structure
- * and the dague_install_dirs_expand() call */
+ * and the dague_install_dirs_expand() call
+ */
 struct dague_install_dirs_s {
     char* prefix;
     char* exec_prefix;
@@ -41,7 +42,9 @@ struct dague_install_dirs_s {
 };
 typedef struct dague_install_dirs_s dague_install_dirs_t;
 
-/* Install directories.  Only available after dague_init() */
+/**
+ * Install directories.  Only available after dague_init()
+ */
 DAGUE_DECLSPEC extern dague_install_dirs_t dague_install_dirs;
 
 END_C_DECLS
