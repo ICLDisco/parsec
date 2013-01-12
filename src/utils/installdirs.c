@@ -10,7 +10,7 @@
  *
  */
 
-#include "dague_config.h"
+#include <dague_config.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -21,9 +21,9 @@
 #include <stdbool.h>
 #endif  /* defined(HAVE_STDBOOL_H) */
 
-#include "dague/constants.h"
-#include "dague/utils/installdirs.h"
-#include "dague/utils/os_path.h"
+#include <dague/constants.h>
+#include <dague/utils/installdirs.h>
+#include <dague/utils/os_path.h>
 
 dague_install_dirs_t dague_install_dirs;
 
@@ -252,13 +252,6 @@ dague_installdirs_expand_internal(const char* input, bool is_setup)
 
     return retval;
 }
-
-#define CONDITIONAL_COPY(target, origin, field)                 \
-    do {                                                        \
-        if (origin.field != NULL && target.field == NULL) {     \
-            target.field = origin.field;                        \
-        }                                                       \
-    } while (0)
 
 int
 dague_installdirs_open(void)
