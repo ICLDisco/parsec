@@ -1,5 +1,5 @@
-#ifndef INSTRU_CACHEMISS_H
-#define INSTRU_CACHEMISS_H
+#ifndef CACHEMISS_H
+#define CACHEMISS_H
 #include "dague.h"
 #include <papi.h>
 

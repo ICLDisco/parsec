@@ -1,5 +1,5 @@
-#include "instru_steals.h"
-#include "instrument.h"
+#include "steals.h"
+#include "pins.h"
 #include "debug.h"
 #include "execution_unit.h"
 
@@ -13,7 +13,7 @@ static unsigned int core_lookup(dague_execution_unit_t * eu);
 /**
  NOTE: eu and task will be NULL under normal circumstances
  */
-void init_instru_steals(dague_execution_unit_t * eu, dague_execution_context_t * task, void * data) {
+void pins_init_steals(dague_execution_unit_t * eu, dague_execution_context_t * task, void * data) {
 	(void) eu;
 	(void) task;
 	unsigned int i, p, t = 0;
@@ -40,7 +40,7 @@ void init_instru_steals(dague_execution_unit_t * eu, dague_execution_context_t *
 	register_instrument_callback(SCHED_STEAL, count_steal);
 }
 
-void fini_instru_steals(dague_execution_unit_t * eu, dague_execution_context_t * task, void * data) {
+void pins_fini_steals(dague_execution_unit_t * eu, dague_execution_context_t * task, void * data) {
 	(void) eu;
 	(void) task;
 	(void) data;
