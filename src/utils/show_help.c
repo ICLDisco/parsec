@@ -5,15 +5,15 @@
  * Copyright (c) 2004-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
+ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
  * Copyright (c) 2008      Cisco Systems, Inc.  All rights reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  */
 
@@ -43,9 +43,9 @@ static char **search_dirs = NULL;
 /*
  * Local functions
  */
-static int dague_show_vhelp_internal(const char *filename, const char *topic, 
+static int dague_show_vhelp_internal(const char *filename, const char *topic,
                                     bool want_error_header, va_list arglist);
-static int dague_show_help_internal(const char *filename, const char *topic, 
+static int dague_show_help_internal(const char *filename, const char *topic,
                                    bool want_error_header, ...);
 
 dague_show_help_fn_t dague_show_help = dague_show_help_internal;
@@ -54,13 +54,13 @@ dague_show_vhelp_fn_t dague_show_vhelp = dague_show_vhelp_internal;
 int dague_show_help_init(void)
 {
     dague_output_stream_t lds;
-    
+
     OBJ_CONSTRUCT(&lds, dague_output_stream_t);
     lds.lds_want_stderr = true;
     output_stream = dague_output_open(&lds);
-    
+
     dague_argv_append_nosize(&search_dirs, dague_install_dirs.pkgdatadir);
-    
+
     return DAGUE_SUCCESS;
 }
 
@@ -68,12 +68,12 @@ int dague_show_help_finalize(void)
 {
     dague_output_close(output_stream);
     output_stream = -1;
-    
+
     /* destruct the search list */
     if (NULL != search_dirs) {
         dague_argv_free(search_dirs);
     };
-    
+
     return DAGUE_SUCCESS;
 }
 
@@ -136,13 +136,13 @@ static int open_file(const char *base, const char *topic)
     char *err_msg = NULL;
     size_t base_len;
     int i;
-    
+
     /* If no filename was supplied, use the default */
 
     if (NULL == base) {
         base = default_filename;
     }
-    
+
     /* if this is called prior to someone initializing the system,
      * then don't try to look
      */
@@ -271,7 +271,7 @@ static int load_array(char ***array, const char *filename, const char *topic)
     if (DAGUE_SUCCESS != (ret = open_file(filename, topic))) {
         return ret;
     }
-    
+
     ret = find_topic(filename, topic);
     if (DAGUE_SUCCESS == ret) {
         ret = read_topic(array);
@@ -287,7 +287,7 @@ static int load_array(char ***array, const char *filename, const char *topic)
     return ret;
 }
 
-char *dague_show_help_vstring(const char *filename, const char *topic, 
+char *dague_show_help_vstring(const char *filename, const char *topic,
                              bool want_error_header, va_list arglist)
 {
     int rc;
@@ -311,21 +311,21 @@ char *dague_show_help_vstring(const char *filename, const char *topic,
     return (DAGUE_SUCCESS == rc) ? output : NULL;
 }
 
-char *dague_show_help_string(const char *filename, const char *topic, 
+char *dague_show_help_string(const char *filename, const char *topic,
                             bool want_error_handler, ...)
 {
     char *output;
     va_list arglist;
 
     va_start(arglist, want_error_handler);
-    output = dague_show_help_vstring(filename, topic, want_error_handler, 
+    output = dague_show_help_vstring(filename, topic, want_error_handler,
                                     arglist);
     va_end(arglist);
 
     return output;
 }
 
-static int dague_show_vhelp_internal(const char *filename, const char *topic, 
+static int dague_show_vhelp_internal(const char *filename, const char *topic,
                                     bool want_error_header, va_list arglist)
 {
     char *output;
@@ -343,7 +343,7 @@ static int dague_show_vhelp_internal(const char *filename, const char *topic,
     return (NULL == output) ? DAGUE_ERROR : DAGUE_SUCCESS;
 }
 
-static int dague_show_help_internal(const char *filename, const char *topic, 
+static int dague_show_help_internal(const char *filename, const char *topic,
                                    bool want_error_header, ...)
 {
     va_list arglist;

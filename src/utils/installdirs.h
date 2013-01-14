@@ -43,6 +43,11 @@ struct dague_install_dirs_s {
 typedef struct dague_install_dirs_s dague_install_dirs_t;
 
 /**
+ * Initialize the installdirs and set the fields to their corresponding values.
+ */
+DAGUE_DECLSPEC extern int dague_installdirs_open(void);
+
+/**
  * Install directories.  Only available after dague_init()
  */
 DAGUE_DECLSPEC extern dague_install_dirs_t dague_install_dirs;

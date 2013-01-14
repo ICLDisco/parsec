@@ -29,6 +29,7 @@
 #include "stats.h"
 #include "vpmap.h"
 #include <dague/utils/mca_param.h>
+#include <dague/utils/installdirs.h>
 #include <dague/devices/device.h>
 
 #ifdef DAGUE_PROF_TRACE
@@ -224,6 +225,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
 
+    dague_installdirs_open();
     dague_mca_param_init();
 
 #if defined(HAVE_HWLOC)
@@ -297,7 +299,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
 #if defined(HAVE_HWLOC)
-    dague_hwloc_init();
     context->comm_th_core   = -1;
 #if defined(HAVE_HWLOC_BITMAP)
     context->comm_th_index_mask = hwloc_bitmap_alloc();

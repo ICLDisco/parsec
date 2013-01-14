@@ -303,39 +303,39 @@ dague_installdirs_open(void)
     dague_installdirs_from_env();
 
     /* expand out all the fields */
-    dague_install_dirs.prefix = 
+    dague_install_dirs.prefix =
         dague_installdirs_expand_internal(dague_install_dirs.prefix, true);
-    dague_install_dirs.exec_prefix = 
+    dague_install_dirs.exec_prefix =
         dague_installdirs_expand_internal(dague_install_dirs.exec_prefix, true);
-    dague_install_dirs.bindir = 
+    dague_install_dirs.bindir =
         dague_installdirs_expand_internal(dague_install_dirs.bindir, true);
-    dague_install_dirs.sbindir = 
+    dague_install_dirs.sbindir =
         dague_installdirs_expand_internal(dague_install_dirs.sbindir, true);
-    dague_install_dirs.libexecdir = 
+    dague_install_dirs.libexecdir =
         dague_installdirs_expand_internal(dague_install_dirs.libexecdir, true);
-    dague_install_dirs.datarootdir = 
+    dague_install_dirs.datarootdir =
         dague_installdirs_expand_internal(dague_install_dirs.datarootdir, true);
-    dague_install_dirs.datadir = 
+    dague_install_dirs.datadir =
         dague_installdirs_expand_internal(dague_install_dirs.datadir, true);
-    dague_install_dirs.sysconfdir = 
+    dague_install_dirs.sysconfdir =
         dague_installdirs_expand_internal(dague_install_dirs.sysconfdir, true);
-    dague_install_dirs.sharedstatedir = 
+    dague_install_dirs.sharedstatedir =
         dague_installdirs_expand_internal(dague_install_dirs.sharedstatedir, true);
-    dague_install_dirs.localstatedir = 
+    dague_install_dirs.localstatedir =
         dague_installdirs_expand_internal(dague_install_dirs.localstatedir, true);
-    dague_install_dirs.libdir = 
+    dague_install_dirs.libdir =
         dague_installdirs_expand_internal(dague_install_dirs.libdir, true);
-    dague_install_dirs.includedir = 
+    dague_install_dirs.includedir =
         dague_installdirs_expand_internal(dague_install_dirs.includedir, true);
-    dague_install_dirs.infodir = 
+    dague_install_dirs.infodir =
         dague_installdirs_expand_internal(dague_install_dirs.infodir, true);
-    dague_install_dirs.mandir = 
+    dague_install_dirs.mandir =
         dague_installdirs_expand_internal(dague_install_dirs.mandir, true);
-    dague_install_dirs.pkgdatadir = 
+    dague_install_dirs.pkgdatadir =
         dague_installdirs_expand_internal(dague_install_dirs.pkgdatadir, true);
-    dague_install_dirs.pkglibdir = 
+    dague_install_dirs.pkglibdir =
         dague_installdirs_expand_internal(dague_install_dirs.pkglibdir, true);
-    dague_install_dirs.pkgincludedir = 
+    dague_install_dirs.pkgincludedir =
         dague_installdirs_expand_internal(dague_install_dirs.pkgincludedir, true);
 
 #if 0
