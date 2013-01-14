@@ -13,13 +13,13 @@
 #include "datarepo.h"
 #include "execution_unit.h"
 #include "vpmap.h"
-#include "instrument.h"
+#include "pins/pins.h"
 
 
-#include "instru_cachemiss.h" // PETER this depends on PAPI as well as PARSEC_INSTRUMENT
+#include "pins/papi/cachemiss.h" // PETER this depends on PAPI as well as PINS
 #define PARSEC_STEAL_INSTR // PETER move to build process
 #ifdef PARSEC_STEAL_INSTR // PETER this is temporary
-#include "instru_steals.h"
+#include "pins/steals/steals.h"
 #endif
 #include "dague/ayudame.h"
 
@@ -134,7 +134,7 @@ static dague_scheduler_t scheduler = { "None", NULL, NULL, NULL, NULL, NULL };
 void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
 {
     if( NULL != scheduler.finalize ) {
-	    PARSEC_INSTRUMENT(SCHED_FINI, NULL, NULL, dague);
+	    PINS(SCHED_FINI, NULL, NULL, dague);
         scheduler.finalize( dague );
     }
     if( NULL != s ) {
@@ -142,9 +142,9 @@ void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
         scheduler.init( dague );
 #if defined(PARSEC_STEAL_INSTR)
         // TODO move this to some initialization routine
-        register_instrument_callback(SCHED_INIT, init_instru_steals);
+        PINS_REGISTER(SCHED_INIT, pins_init_steals);
 #endif
-        PARSEC_INSTRUMENT(SCHED_INIT, NULL, NULL, dague);
+        PINS(SCHED_INIT, NULL, NULL, dague);
     } else {
         memset( &scheduler, 0, sizeof(dague_scheduler_t) );
     }
@@ -196,7 +196,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
      */
-    PARSEC_INSTRUMENT(PARSEC_SCHEDULED, eu_context, new_context, NULL);
+    PINS(PARSEC_SCHEDULED, eu_context, new_context, NULL);
 
     return ret;
 }
@@ -257,9 +257,9 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         my_barrier_counter = 1;
     }
 
-    // PETER put this in correct initialization place for PARSEC_INSTRUMENT stuff
-    register_instrument_callback(TASK_SELECT_BEFORE, start_papi_cache_miss_count);
-    //    register_instrument_callback(TASK_SELECT_AFTER, stop_papi_cache_miss_count);
+    // PETER TODO put this in correct initialization place for PINS stuff
+    PINS_REGISTER(TASK_SELECT_BEFORE, start_papi_cache_miss_count);
+    //    PINS_REGISTER(TASK_SELECT_AFTER, stop_papi_cache_miss_count);
 
     /* The main loop where all the threads will spend their time */
  wait_for_the_next_round:
@@ -299,9 +299,9 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         }
 
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
-        PARSEC_INSTRUMENT(TASK_SELECT_BEFORE, eu_context, NULL, NULL);
+        PINS(TASK_SELECT_BEFORE, eu_context, NULL, NULL);
         exec_context = scheduler.select_task(eu_context);
-        //        PARSEC_INSTRUMENT(TASK_SELECT_AFTER, eu_context, exec_context, NULL);
+        //        PINS(TASK_SELECT_AFTER, eu_context, exec_context, NULL);
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
         if( exec_context != NULL ) {

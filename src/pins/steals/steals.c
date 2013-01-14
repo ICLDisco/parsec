@@ -1,5 +1,5 @@
 #include "steals.h"
-#include "pins.h"
+#include "../pins.h"
 #include "debug.h"
 #include "execution_unit.h"
 
@@ -36,7 +36,7 @@ void pins_init_steals(dague_execution_unit_t * eu, dague_execution_context_t * t
 		steals[i] = (unsigned int*)calloc(sizeof(int), num_cores + 2);
 	}
 
-	register_instrument_callback(SCHED_FINI, fini_instru_steals);
+	register_instrument_callback(SCHED_FINI, pins_fini_steals);
 	register_instrument_callback(SCHED_STEAL, count_steal);
 }
 
@@ -48,6 +48,7 @@ void pins_fini_steals(dague_execution_unit_t * eu, dague_execution_context_t * t
 	unsigned int i = 0;
 	// unregister things
 	unregister_instrument_callback(SCHED_STEAL);
+	unregister_instrument_callback(SCHED_FINI);
 
 	// print everything
 	for (p = 0; p < num_cores; p++) {

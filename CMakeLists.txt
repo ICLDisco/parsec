@@ -452,14 +452,14 @@ IF( BUILD_DAGUE )
 # For the moment, instrument.c should be included regardless, to preserve
 # compilation even when the system itself is deactivated.
 #  if( PARSEC_INSTR )
-  list(APPEND EXTRA_SOURCES src/instrument.c)
+  list(APPEND EXTRA_SOURCES src/pins/pins.c)
 #  endif( PARSEC_INSTR )
 
   if (PARSEC_STEAL_INSTR)
-    list(APPEND EXTRA_SOURCES src/instru_steals.c)
+    list(APPEND EXTRA_SOURCES src/pins/steals/steals.c)
   endif(PARSEC_STEAL_INSTR)
 
-  list(APPEND EXTRA_SOURCES src/instru_cachemiss.c) # PETER needs cleanup
+  list(APPEND EXTRA_SOURCES src/pins/papi/cachemiss.c) # PETER needs cleanup
 
   find_package(AYUDAME QUIET)
   set(HAVE_AYUDAME ${AYUDAME_FOUND})
