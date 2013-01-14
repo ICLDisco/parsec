@@ -182,15 +182,15 @@ int dague_mca_param_recache_files(void)
     /* We may need this later */
     home = (char*)dague_home_directory();
 
-#if DAGUE_WANT_HOME_CONFIG_FILES
+#if defined(DAGUE_WANT_HOME_CONFIG_FILES)
     asprintf(&files,
-             "%s"DAGUE_PATH_SEP".openmpi"DAGUE_PATH_SEP"mca-params.conf%c%s"DAGUE_PATH_SEP"openmpi-mca-params.conf",
+             "%s"DAGUE_PATH_SEP".dague"DAGUE_PATH_SEP"mca-params.conf%c%s"DAGUE_PATH_SEP"dague-mca-params.conf",
              home, DAGUE_ENV_SEP, dague_install_dirs.sysconfdir);
 #else
     asprintf(&files,
-             "%s"DAGUE_PATH_SEP"openmpi-mca-params.conf",
+             "%s"DAGUE_PATH_SEP"dague-mca-params.conf",
              dague_install_dirs.sysconfdir);
-#endif
+#endif  /* defined(DAGUE_WANT_HOME_CONFIG_FILES) */
 
     /* Initialize a parameter that says where MCA param files can
        be found */

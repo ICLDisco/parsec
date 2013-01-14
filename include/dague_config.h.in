@@ -77,6 +77,9 @@
 #cmakedefine ARCH_PPC
 #cmakedefine MAC_OS_X
 
+/* Configuration parameters */
+#cmakedefine DAGUE_WANT_HOME_CONFIG_FILES
+
 /* Optional packages */
 #cmakedefine HAVE_HWLOC
 #cmakedefine HAVE_HWLOC_BITMAP

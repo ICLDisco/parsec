@@ -44,6 +44,8 @@ option(BUILD_64bits
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
+option(DAGUE_WANT_HOME_CONFIG_FILES
+       "Should the runtime check for the parameter configuration file in the user home (\$HOME/.dague/mca-params.conf)" ON)
 
 ### Dague PP options
 set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
