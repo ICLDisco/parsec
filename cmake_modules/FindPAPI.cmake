@@ -23,12 +23,12 @@ pkg_check_modules(PC_PAPI QUIET papi)
 set(PAPI_DEFINITIONS ${PC_PAPI_CFLAGS_OTHER} )
 
 find_path(PAPI_INCLUDE_DIR papi.h
-          PATH ${PAPI_DIR}/include
+          PATHS ${PAPI_DIR}/include
           HINTS ${PC_PAPI_INCLUDEDIR} ${PC_PAPI_INCLUDE_DIRS} 
           DOC "Include path for PAPI")
 
 find_library(PAPI_LIBRARY NAMES papi
-             PATH ${PAPI_DIR}/lib
+             PATHS ${PAPI_DIR}/lib
              HINTS ${PC_PAPI_LIBDIR} ${PC_PAPI_LIBRARY_DIRS} 
              DOC "Library path for PAPI")
 
