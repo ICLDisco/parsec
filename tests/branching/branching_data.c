@@ -54,10 +54,10 @@ static dague_data_t* data_of(dague_ddesc_t *desc, ...)
         dat->data->device_private = dat->ptr;
     }
     return (void*)(dat->data);
-} 
+}
 
 #if defined(DAGUE_PROF_TRACE)
-static uint32_t data_key(struct dague_ddesc *desc, ...)
+static uint32_t data_key(dague_ddesc_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -83,7 +83,7 @@ dague_ddesc_t *create_and_distribute_data(int rank, int world, int cores, int si
     d->vpid_of = vpid_of;
 #if defined(DAGUE_PROF_TRACE)
     asprintf(&d->key_dim, "(%d)", size);
-    d->key = NULL;
+    d->key_base = NULL;
     d->data_key = data_key;
 #endif
 

@@ -188,8 +188,8 @@ static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
 
 
 #ifdef DAGUE_PROF_TRACE
-/* return a unique key (unique only for the specified dague_ddesc) associated to a data */
-static uint32_t sym_twoDBC_data_key(struct dague_ddesc *desc, ...)
+/* return a unique key (unique only for the specified dague_ddesc_t) associated to a data */
+static uint32_t sym_twoDBC_data_key(dague_ddesc_t *desc, ...)
 {
     unsigned int m, n;
     sym_two_dim_block_cyclic_t * Ddesc;
@@ -210,7 +210,7 @@ static uint32_t sym_twoDBC_data_key(struct dague_ddesc *desc, ...)
 }
 
 /* return a string meaningful for profiling about data */
-static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+static int  sym_twoDBC_key_to_string(dague_ddesc_t *desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
 {
     sym_two_dim_block_cyclic_t * Ddesc;
     unsigned int row, column;
@@ -247,7 +247,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     o->data_key      = sym_twoDBC_data_key;
     o->key_to_string = sym_twoDBC_key_to_string;
     o->key_dim       = NULL;
-    o->key           = NULL;
+    o->key_base      = NULL;
 #endif
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
                             sym_two_dim_block_cyclic_type,

@@ -94,9 +94,9 @@ typedef struct {
 } dague_profiling_binary_file_header_t;
 
 typedef struct dague_profiling_info_s {
-    struct dague_profiling_info *next;
-    char              *key;
-    char              *value;
+    struct dague_profiling_info_s *next;
+    char                          *key;
+    char                          *value;
 } dague_profiling_info_t;
 
 struct dague_thread_profiling_s {

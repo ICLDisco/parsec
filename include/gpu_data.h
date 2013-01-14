@@ -62,13 +62,22 @@ typedef struct __dague_gpu_exec_stream {
 #endif  /* defined(PROFILING) */
 } dague_gpu_exec_stream_t;
 
-typedef struct _gpu_device {
+typedef struct dague_device_s {
     dague_list_item_t item;
-    CUcontext  ctx;
-    CUmodule   hcuModule;
-    CUfunction hcuFunction;
-    uint8_t index;
+    uint64_t transferred_data_in;
+    uint64_t transferred_data_out;
+    uint64_t required_data_in;
+    uint64_t required_data_out;
+    uint64_t executed_tasks;
+#if defined(DAGUE_PROF_TRACE)
+    dague_thread_profiling_t *profiling;
+#endif  /* defined(PROFILING) */
     uint8_t device_index;
+} dague_device_t;
+
+typedef struct _gpu_device {
+    dague_device_t super;
+    uint8_t cuda_index;
     uint8_t major;
     uint8_t minor;
     int16_t max_exec_streams;
@@ -76,19 +85,14 @@ typedef struct _gpu_device {
                                 *   the device to access directly the memory of
                                 *   the index of the set bit device.
                                 */
+    CUcontext  ctx;
+    CUmodule   hcuModule;
+    CUfunction hcuFunction;
     dague_gpu_exec_stream_t* exec_stream;
-    int executed_tasks;
-    volatile uint32_t mutex;
-    dague_list_t pending;
-    uint64_t transferred_data_in;
-    uint64_t transferred_data_out;
-    uint64_t required_data_in;
-    uint64_t required_data_out;
     dague_list_t* gpu_mem_lru;
     dague_list_t* gpu_mem_owned_lru;
-#if defined(DAGUE_PROF_TRACE)
-    dague_thread_profiling_t *profiling;
-#endif  /* defined(PROFILING) */
+    volatile uint32_t mutex;
+    dague_list_t pending;
     gpu_malloc_t *memory;
 } gpu_device_t;
 

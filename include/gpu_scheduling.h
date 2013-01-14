@@ -99,7 +99,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
  check_in_deps:
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tPush data for %s priority %d\n", gpu_device->device_index,
+        DEBUG2(( "GPU[%1d]:\tPush data for %s priority %d\n", gpu_device->cuda_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
                  this_task->ec->priority ));
     }
@@ -116,7 +116,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     /* Stage-in completed for this Task: it is ready to be executed */
     exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams - 2);  /* Choose an exec_stream */
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tExecute %s priority %d\n", gpu_device->device_index,
+        DEBUG2(( "GPU[%1d]:\tExecute %s priority %d\n", gpu_device->cuda_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
                  this_task->ec->priority ));
     }
@@ -127,12 +127,12 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     if( rc < 0 ) {
         if( -1 == rc )
             goto disable_gpu;
-    } 
+    }
     this_task = next_task;
 
     /* This task has completed its execution: we have to check if we schedule DtoN */
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tPop data for %s priority %d\n", gpu_device->device_index,
+        DEBUG2(( "GPU[%1d]:\tPop data for %s priority %d\n", gpu_device->cuda_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
                  this_task->ec->priority ));
     }
@@ -161,7 +161,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     assert( NULL == this_task );
     this_task = (dague_gpu_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tGet from shared queue %s priority %d\n", gpu_device->device_index,
+        DEBUG2(( "GPU[%1d]:\tGet from shared queue %s priority %d\n", gpu_device->cuda_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
                  this_task->ec->priority ));
     }
@@ -169,15 +169,15 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
  complete_task:
     assert( NULL != this_task );
-    DEBUG2(( "GPU[%1d]:\tComplete %s priority %d\n", gpu_device->device_index,
+    DEBUG2(( "GPU[%1d]:\tComplete %s priority %d\n", gpu_device->cuda_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
              this_task->ec->priority ));
     /* Everything went fine so far, the result is correct and back in the main memory */
     DAGUE_LIST_ITEM_SINGLETON(this_task);
     gpu_kernel_epilog( gpu_device, this_task );
     __dague_complete_execution( eu_context, this_task->ec );
-    device_load[gpu_device->device_index+1] -= device_weight[gpu_device->device_index+1];
-    gpu_device->executed_tasks++;
+    device_load[gpu_device->super.device_index] -= device_weight[gpu_device->super.device_index];
+    gpu_device->super.executed_tasks++;
     free( this_task );
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     if( 0 == rc ) {  /* I was the last one */

@@ -97,12 +97,15 @@ static int32_t td_get_vpid(dague_ddesc_t *desc, ...)
 #endif /* DISTRIBUTED */
 
     res = (Ddesc->super.lmt * n) + m;
-    
+
     return  Ddesc->tiles_table[res].vpid;
 }
 
 #ifdef DAGUE_PROF_TRACE
-static uint32_t td_data_key(struct dague_ddesc *desc, ...) /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
+/**
+ * return a unique key (unique only for the specified dague_ddesc) associated to a data
+ */
+static uint32_t td_data_key(dague_ddesc_t *desc, ...)
 {
     int m, n;
     tabular_distribution_t * Ddesc;
@@ -115,7 +118,10 @@ static uint32_t td_data_key(struct dague_ddesc *desc, ...) /* return a unique ke
 
     return ((n * Ddesc->super.lmt) + m);
 }
-static int  td_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size) /* return a string meaningful for profiling about data */
+/**
+ * return a string meaningful for profiling about data
+ */
+static int  td_key_to_string(dague_ddesc_t * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
 {
     tabular_distribution_t * Ddesc;
     unsigned int row, column;
@@ -132,7 +138,14 @@ static int  td_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char *
 }
 #endif /* DAGUE_PROF_TRACE */
 
-void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int * table )
+void tabular_distribution_init(tabular_distribution_t * Ddesc,
+                               enum matrix_type mtype,
+                               unsigned int nodes, unsigned int cores, unsigned int myrank,
+                               unsigned int mb, unsigned int nb,
+                               unsigned int lm, unsigned int ln,
+                               unsigned int i, unsigned int j,
+                               unsigned int m, unsigned int n,
+                               unsigned int * table )
 {
     int res;
     unsigned int total = 0;
@@ -195,7 +208,7 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
 #ifdef DAGUE_PROF_TRACE
     Ddesc->super.super.data_key = td_data_key;
     Ddesc->super.super.key_to_string = td_key_to_string;
-    Ddesc->super.super.key = NULL;
+    Ddesc->super.super.key_base = NULL;
     asprintf(&Ddesc->super.super.key_dim, "(%d, %d)", Ddesc->super.mt, Ddesc->super.nt);
 #endif /* DAGUE_PROF_TRACE */
 

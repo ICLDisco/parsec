@@ -20,7 +20,7 @@ int dague_map_operator_profiling_array[2] = {-1};
    info.id = refid;                                         \
    dague_profiling_trace(context->eu_profile,               \
                          __dague_handle->super.super.profiling_array[(key)],\
-                         eid, __dague_handle->super.super.id, (void*)&info);  \
+                         eid, __dague_handle->super.super.handle_id, (void*)&info);  \
   } while(0);
 #else
 #define TAKE_TIME(context, key, id, refdesc, refid)

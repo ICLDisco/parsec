@@ -79,13 +79,13 @@ static int ndevices = 0;
 int gpu_kernel_init_zgemm( dague_context_t* dague_context )
 {
     char *env;
-    int i, dindex, nbgpus;
+    int i, nbgpus;
     (void)dague_context;
 
     nbgpus = dague_active_gpu();
     zgemm_functions = calloc(nbgpus, sizeof(cuda_zgemm_t));
 
-    for( i = dindex = 0; i < nbgpus; i++ ) {
+    for( i = 0; i < nbgpus; i++ ) {
         gpu_device_t* gpu_device;
         CUresult status;
         void* fn;
@@ -154,16 +154,8 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
                                 {continue;} );
 
-        gpu_device->index = (uint8_t)dindex;
-        zgemm_functions[dindex] = (cuda_zgemm_t)fn;
-        gpu_enabled_devices[dindex++] = gpu_device;
+        zgemm_functions[gpu_device->cuda_index] = (cuda_zgemm_t)fn;
     }
-
-    /* Update the number of GPUs available */
-    dague_data_enable_gpu( dindex );
-    ndevices = dindex;
-    assert( nbgpus == ndevices ); /* the code for when some devices can load some functions but not others is not yet correct, blanket protection against this */
-
     return 0;
 }
 
@@ -193,7 +185,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
             continue;
 
         data = this_task->data[i].data->original;
-        if( NULL == (local = dague_data_get_copy(data, gpu_device->index)) ) {
+        if( NULL == (local = dague_data_get_copy(data, gpu_device->super.device_index)) ) {
             move_data_count++;
         } else {
             /**
@@ -201,7 +193,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
              * reference with the most recent version on the local device. Otherwise,
              * use the original copy. This allow copy-on-write to work seamlesly.
              */
-            if( this_task->data[i].data->device_index != gpu_device->index ) {
+            if( this_task->data[i].data->device_index != gpu_device->super.device_index ) {
                 /* Attach the GPU copy to the task */
                 this_task->data[i].data = local;
             }
@@ -227,7 +219,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     assert( NULL != dague_data_copy_get_ptr(this_task->data[2].data) );
 
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
-                             gpu_device->profiling,
+                             gpu_device->super.profiling,
                              (-1 == gpu_stream->prof_event_key_start ?
                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
                                                         this_task->function->function_id) :
@@ -235,7 +227,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
                              this_task);
 
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n",
-            gpu_device->device_index, this_task->function->in[0]->name, args->Am, args->An));
+            gpu_device->cuda_index, this_task->function->in[0]->name, args->Am, args->An));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[0]->access_type,
                                    &(this_task->data[0]), args->sizeA, gpu_stream->cuda_stream );
     if( ret < 0 ) {
@@ -243,7 +235,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     }
 
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n",
-            gpu_device->device_index, this_task->function->in[1]->name, args->Bm, args->Bn));
+            gpu_device->cuda_index, this_task->function->in[1]->name, args->Bm, args->Bn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[1]->access_type,
                                    &(this_task->data[1]), args->sizeB, gpu_stream->cuda_stream );
     if( ret < 0 ) {
@@ -251,7 +243,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     }
 
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n",
-            gpu_device->device_index, this_task->function->in[2]->name, args->Cm, args->Cn));
+            gpu_device->cuda_index, this_task->function->in[2]->name, args->Cm, args->Cn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[2]->access_type,
                                    &(this_task->data[2]), args->sizeC, gpu_stream->cuda_stream );
     if( ret < 0 ) {
@@ -275,18 +267,18 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     char tmp[MAX_TASK_STRLEN];
 #endif
 
-    cuda_zgemm_t cuda_zgemm = zgemm_functions[gpu_device->index];
+    cuda_zgemm_t cuda_zgemm = zgemm_functions[gpu_device->cuda_index];
 
     d_A = (CUdeviceptr)this_task->data[0].data->device_private;
     d_B = (CUdeviceptr)this_task->data[1].data->device_private;
     d_C = (CUdeviceptr)this_task->data[2].data->device_private;
 
-    DEBUG2(( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->device_index,
+    DEBUG2(( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
              this_task->priority ));
 
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
-                             gpu_device->profiling,
+                             gpu_device->super.profiling,
                              (-1 == gpu_stream->prof_event_key_start ?
                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
                                                         this_task->function->function_id) :
@@ -344,17 +336,17 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             }
         }
         if( this_task->function->in[i]->access_type & ACCESS_WRITE ) {
-            assert( gpu_copy == dague_data_get_copy(gpu_copy->original, gpu_device->index) );
+            assert( gpu_copy == dague_data_get_copy(gpu_copy->original, gpu_device->super.device_index) );
             /* Stage the transfer of the data back to main memory */
-            gpu_device->required_data_out += args->sizeC;
+            gpu_device->super.required_data_out += args->sizeC;
             assert( ((dague_list_item_t*)gpu_copy)->list_next == (dague_list_item_t*)gpu_copy );
             assert( ((dague_list_item_t*)gpu_copy)->list_prev == (dague_list_item_t*)gpu_copy );
 
             if( args->pushout ) {  /* n == (k + 1) */
-                DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index,
+                DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->cuda_index,
                         this_task->function->in[i]->name, this_task->data[i].data->original->key));
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
-                                         gpu_device->profiling,
+                                         gpu_device->super.profiling,
                                          (-1 == gpu_stream->prof_event_key_start ?
                                           DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
                                                                     this_task->function->function_id) :
@@ -370,7 +362,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                                                    gpu_copy->device_private, original->device_copies[0]->device_private));
                                             return_code = -2;
                                             goto release_and_return_error;} );
-                gpu_device->transferred_data_out += args->sizeC; /* TODO: not hardcoded, use datatype size */
+                gpu_device->super.transferred_data_out += args->sizeC; /* TODO: not hardcoded, use datatype size */
                 how_many++;
             }
         }

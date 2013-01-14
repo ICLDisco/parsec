@@ -34,7 +34,7 @@ struct dague_data_s {
 
     uint32_t                  version;
     dague_data_coherency_t    coherency_state;
-    uint16_t                  owner_device;
+    int8_t                    owner_device;
     dague_data_key_t          key;
     uint32_t                  nb_elts;          /* number of elements of the memory layout */
     struct dague_data_copy_s* device_copies[1]; /* this array allocated according to the number of devices
@@ -53,7 +53,7 @@ typedef uint8_t dague_data_flag_t;
 struct dague_data_copy_s {
     dague_list_item_t         super;
 
-    uint8_t                   device_index;
+    int8_t                    device_index;
     dague_data_flag_t         flags;
     dague_data_coherency_t    coherency_state;
     /* int8_t */

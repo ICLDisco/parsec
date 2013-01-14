@@ -25,24 +25,25 @@
 #include "mpi.h"
 #endif /*HAVE_MPI */
 
-typedef struct dague_ddesc {
+typedef struct dague_ddesc_s dague_ddesc_t;
+struct dague_ddesc_s {
     uint32_t            myrank;    /**< process rank */
     uint32_t            cores;     /**< number of cores used for computation per node */
     uint32_t            nodes;     /**< number of nodes involved in the computation */
 
-    dague_data_key_t (*data_key)(struct dague_ddesc *mat, ...); /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
-    uint32_t (*rank_of)(struct dague_ddesc *mat, ...);                        /* return the rank of the process owning the data  */
-    uint32_t (*rank_of_key)(struct dague_ddesc *mat, dague_data_key_t key);
-    dague_data_t* (*data_of)(struct dague_ddesc *mat, ...);                   /* return the pointer to the data possessed locally */
-    dague_data_t* (*data_of_key)(struct dague_ddesc *mat, dague_data_key_t key);
-    int32_t  (*vpid_of)(struct dague_ddesc *mat, ...);                        /* return the virtual process ID of data possessed locally */
-    int32_t  (*vpid_of_key)(struct dague_ddesc *mat, dague_data_key_t key);
-    int (*key_to_string)(struct dague_ddesc *mat, dague_data_key_t key, char * buffer, uint32_t buffer_size); /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
+    dague_data_key_t (*data_key)(dague_ddesc_t *mat, ...); /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
+    uint32_t (*rank_of)(dague_ddesc_t *mat, ...);                        /* return the rank of the process owning the data  */
+    uint32_t (*rank_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
+    dague_data_t* (*data_of)(dague_ddesc_t *mat, ...);                   /* return the pointer to the data possessed locally */
+    dague_data_t* (*data_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
+    int32_t  (*vpid_of)(dague_ddesc_t *mat, ...);                        /* return the virtual process ID of data possessed locally */
+    int32_t  (*vpid_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
+    int (*key_to_string)(dague_ddesc_t *mat, dague_data_key_t key, char * buffer, uint32_t buffer_size); /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
     char      *key_base;
 #ifdef DAGUE_PROF_TRACE
     char      *key_dim;  /* TODO: Do we really need this field */
 #endif /* DAGUE_PROF_TRACE */
-} dague_ddesc_t;
+};
 
 static inline void dague_ddesc_destroy(dague_ddesc_t *d)
 {

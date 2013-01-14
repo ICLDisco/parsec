@@ -169,8 +169,8 @@ char *dague_profiling_strerror(void);
  */
 
 typedef struct {
-    struct dague_ddesc *desc;
-    uint32_t       id;
+    struct dague_ddesc_s *desc;
+    uint32_t              id;
 } dague_profile_ddesc_info_t;
 extern char *dague_profile_ddesc_key_to_string;
 

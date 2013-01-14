@@ -73,7 +73,7 @@ int stsmqr_cuda_init( dague_context_t* dague_context,
 
         gpu_device = gpu_enabled_devices[i];
 
-        status = cuDeviceGet( &hcuDevice, gpu_device->device_index );
+        status = cuDeviceGet( &hcuDevice, gpu_device->cuda_index );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {continue;} );
 
         status = cuDeviceComputeCapability( &major, &minor, hcuDevice);
@@ -230,7 +230,7 @@ int stsmqr_cuda_fini(dague_context_t* dague_context)
         compute_best_unit( transferred_in[i],  &best_data_in, &data_in_unit );
         compute_best_unit( transferred_out[i], &best_data_out, &data_out_unit );
         printf("|GPU:  %2d |%10d | %6.2f |%10.2f%2s | %6.2f |%10.2f%2s | %6.2f |\n",
-               gpu_device->device_index, gpu_counter[i], (gpu_counter[i]/gtotal)*100.00,
+               gpu_device->cuda_index, gpu_counter[i], (gpu_counter[i]/gtotal)*100.00,
                best_data_in, data_in_unit, (((float)transferred_in[i]) / required_in[i]) * 100.0,
                best_data_out, data_out_unit, (((float)transferred_out[i]) / required_out[i]) * 100.0 );
         gpu_active_devices[i] = NULL;
