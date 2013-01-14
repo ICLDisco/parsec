@@ -89,5 +89,6 @@ if( BUILD_DAGUE )
     target_link_libraries(dague dague-base ${EXTRA_LIBS})
     install(TARGETS dague ARCHIVE DESTINATION lib)
   endif (MPI_FOUND)
+  install(FILES utils/help-mca-param.txt DESTINATION share/dague)
 ENDIF( BUILD_DAGUE )
 
