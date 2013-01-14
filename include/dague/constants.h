@@ -17,7 +17,8 @@ enum {
     DAGUE_ERR_NOT_FOUND           = (DAGUE_ERR_BASE -  4),  /* not found (?) */
     DAGUE_ERR_BAD_PARAM           = (DAGUE_ERR_BASE -  5),  /* bad argument passed down to a function */
     DAGUE_EXISTS                  = (DAGUE_ERR_BASE -  6),  /* file/object exists */
-    DAGUE_ERR_VALUE_OUT_OF_BOUNDS = (DAGUE_ERR_BASE  - 7),
+    DAGUE_ERR_NOT_IMPLEMENTED     = (DAGUE_ERR_BASE -  7),  /* functionality not yet supported */
+    DAGUE_ERR_VALUE_OUT_OF_BOUNDS = (DAGUE_ERR_BASE  - 8),
 };
 
 #endif  /* DAGUE_CONSTANTS_H_HAS_BEEN_INCLUDED */
