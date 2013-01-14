@@ -16,7 +16,7 @@
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
-#include "dague/ayudame.h"
+#include <dague/ayudame.h>
 
 #include "data.h"
 #include "list.h"
@@ -28,7 +28,8 @@
 #include "dague_prof_grapher.h"
 #include "stats.h"
 #include "vpmap.h"
-#include "utils/mca_param.h"
+#include <dague/utils/mca_param.h>
+#include <dague/devices/device.h>
 
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
@@ -233,14 +234,12 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
      * - with hwloc if available
      * - with sysconf otherwise (hyperthreaded core number)
      */
-    if( nb_cores <= 0 )
-    {
+    if( nb_cores <= 0 ) {
 #if defined(HAVE_HWLOC)
         nb_cores=dague_hwloc_nb_real_cores();
 #else
         nb_cores= sysconf(_SC_NPROCESSORS_ONLN);
-        if(nb_cores== -1)
-        {
+        if(nb_cores== -1) {
             perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
             nb_cores= 1;
         }
@@ -281,8 +280,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                 nb_total_comp_threads, nb_cores);
     }
 
-    startup =
-        (__dague_temporary_thread_initialization_t*)malloc(nb_total_comp_threads * sizeof(__dague_temporary_thread_initialization_t));
+    startup = (__dague_temporary_thread_initialization_t*)
+        malloc(nb_total_comp_threads * sizeof(__dague_temporary_thread_initialization_t));
 
     context->nb_vp = nb_vp;
     t = 0;
@@ -359,9 +358,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* DAGUE_DEBUG_VERBOSE3 */
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
-    /* Initialize the barriers */
-    dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
-
 #if defined(DAGUE_PROF_TRACE)
     dague_profiling_init( "%s", (*pargv)[0] );
 
@@ -389,6 +385,17 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                                             0, NULL,
                                             &device_delegate_begin, &device_delegate_end);
 #endif  /* DAGUE_PROF_TRACE */
+
+    dague_devices_init();
+    /* By now let's add one device for the CPUs */
+    {
+        dague_device_t* cpus = (dague_device_t*)calloc(1, sizeof(dague_device_t));
+        dague_devices_add(cpus);
+    }
+    dague_devices_select(context);
+
+    /* Initialize the barriers */
+    dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
 
     if( nb_total_comp_threads > 1 ) {
         pthread_attr_t thread_attr;

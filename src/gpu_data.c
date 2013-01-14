@@ -6,6 +6,7 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
+#include <dague/utils/mca_param.h>
 
 #if defined(HAVE_CUDA)
 #include "dague.h"
@@ -160,31 +161,45 @@ float gpu_speeds[2][2] ={
     {  77.76,  515.2 }
 };
 
-int dague_gpu_init(dague_context_t *dague_context,
-                   int* puse_gpu,
-                   int dague_show_detailed_capabilities )
+int dague_gpu_init(dague_context_t *dague_context)
 {
+    int show_caps_index, show_caps = 0;
+    int use_cuda_index, use_cuda = 0;
     int ndevices, i, j, k, dindex, nb_cores;
     float total_perf;
     CUresult status;
     int isdouble = 0;
 
-    if( (*puse_gpu) == -1 ) {
+    use_cuda_index = dague_mca_param_find("dague", "device", "cuda");
+    if( 0 < use_cuda_index ) {
+        dague_mca_param_lookup_int(use_cuda_index, &use_cuda);
+    }
+    if( 0 == use_cuda ) {
         return -1;  /* Nothing to do around here */
     }
     status = cuInit(0);
-    DAGUE_CUDA_CHECK_ERROR( "cuInit ", status, {*puse_gpu = 0; return -1;} );
+    DAGUE_CUDA_CHECK_ERROR( "cuInit ", status,
+                            {
+                                if( 0 < use_cuda_index )
+                                    dague_mca_param_set_int(use_cuda_index, 0);
+                                return -1;
+                            } );
 
     cuDeviceGetCount( &ndevices );
 
-    if( ndevices > (*puse_gpu) )
-        ndevices = (*puse_gpu);
+    if( ndevices < use_cuda ) {
+        if( 0 < use_cuda_index )
+            dague_mca_param_set_int(use_cuda_index, ndevices);
+    }
     /* Update the number of GPU for the upper layer */
-    *puse_gpu = ndevices;
+    use_cuda = ndevices;
     if( 0 == ndevices ) {
         return -1;
     }
-
+    show_caps_index = dague_mca_param_find("dague", "device", "show_capabilities");
+    if(0 < show_caps_index) {
+        dague_mca_param_lookup_int(show_caps_index, &show_caps);
+    }
 #if defined(DAGUE_PROF_TRACE)
     dague_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
                                             0, NULL,
@@ -208,7 +223,7 @@ int dague_gpu_init(dague_context_t *dague_context,
         nb_cores += dague_context->virtual_processes[i]->nb_cores;
 
     /* TODO: Change this to a more generic approach */
-    /* Theoritical perf in double 2.27 is the frequency of dancer */
+    /* Theoretical perf in double 2.27 is the frequency of dancer */
     total_perf = (float)nb_cores * 2.27f * 4.f;
     if ( ! isdouble )
         total_perf *= 2;
@@ -252,7 +267,7 @@ int dague_gpu_init(dague_context_t *dague_context,
         /* Allow fine grain selection of the GPU's */
         if( !((1 << i) & __dague_gpu_mask) ) continue;
 
-        if( dague_show_detailed_capabilities ) {
+        if( show_caps ) {
             STATUS(("GPU Device %d (capability %d.%d): %s\n", i, major, minor, szName ));
             STATUS(("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock ));
             STATUS(("\tmaxThreadsDim      : [%d %d %d]\n", devProps.maxThreadsDim[0],

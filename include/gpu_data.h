@@ -10,11 +10,11 @@
 #include <dague_config.h>
 #include "dague_internal.h"
 #include <dague/class/dague_object.h>
+#include <dague/devices/device.h>
 
 #if defined(HAVE_CUDA)
 #include "list_item.h"
 #include "list.h"
-#include "profiling.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
@@ -62,19 +62,6 @@ typedef struct __dague_gpu_exec_stream {
 #endif  /* defined(PROFILING) */
 } dague_gpu_exec_stream_t;
 
-typedef struct dague_device_s {
-    dague_list_item_t item;
-    uint64_t transferred_data_in;
-    uint64_t transferred_data_out;
-    uint64_t required_data_in;
-    uint64_t required_data_out;
-    uint64_t executed_tasks;
-#if defined(DAGUE_PROF_TRACE)
-    dague_thread_profiling_t *profiling;
-#endif  /* defined(PROFILING) */
-    uint8_t device_index;
-} dague_device_t;
-
 typedef struct _gpu_device {
     dague_device_t super;
     uint8_t cuda_index;
@@ -107,10 +94,8 @@ typedef struct _gpu_device {
     }
 
 extern gpu_device_t** gpu_enabled_devices;
-int dague_gpu_init(dague_context_t *dague_context,
-                   int* puse_gpu,
-                   int dague_show_detailed_capabilities);
-int dague_gpu_fini( void );
+int dague_gpu_init(dague_context_t *dague_context);
+int dague_gpu_fini(void);
 
 /**
  * Enable and disale GPU-compatible memory if possible

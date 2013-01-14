@@ -525,7 +525,19 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 #endif
 
     TIME_START();
+
+#if defined(HAVE_CUDA)
+    /* if the use of GPUs is specified on the command line updated the environment
+     * prior to the runtime initialization.
+     */
+    if(iparam[IPARAM_NGPUS] > 0) {
+        char value[128];
+        snprintf(value, 128, "%d", iparam[IPARAM_NGPUS]);
+        setenv("dague_device_cuda", value, 1);
+    }
+#endif
     dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES], &argc, &argv);
+
     /* If the number of cores has not been defined as a parameter earlier
      update it with the default parameter computed in dague_init. */
     if(iparam[IPARAM_NCORES] <= 0)
@@ -537,18 +549,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
         iparam[IPARAM_NCORES] = nb_total_comp_threads;
     }
     print_arguments(iparam);
-
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0)
-    {
-        if(0 != dague_gpu_init(ctx, &iparam[IPARAM_NGPUS], 0))
-        {
-            fprintf(stderr, "xxx DAGuE is unable to initialize the CUDA environment.\n");
-            exit(3);
-        }
-    }
-#endif
-
 
 #if defined(DAGUE_PROF_GRAPHER)
     if(iparam[IPARAM_DOT] != 0) {
