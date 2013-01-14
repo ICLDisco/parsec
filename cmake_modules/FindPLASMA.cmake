@@ -19,39 +19,28 @@
 #     all the possibilities
 ##########
 
-
-
-get_property(_LANGUAGES_ GLOBAL PROPERTY ENABLED_LANGUAGES)
-if(NOT _LANGUAGES_ MATCHES Fortran)
-  if(PLASMA_FIND_REQUIRED)
-    message(FATAL_ERROR "Find PLASMA requires Fortran support so Fortran must be enabled.")
-  else(PLASMA_FIND_REQUIRED)
-    message(STATUS "Looking for PLASMA... - NOT found (Fortran not enabled)") #
-    return()
-  endif(PLASMA_FIND_REQUIRED)
-endif(NOT _LANGUAGES_ MATCHES Fortran)
-
 unset(PLASMA_C_COMPILE_SUCCESS)
 unset(PLASMA_F_COMPILE_SUCCESS)
 
 # First we try to use pkg-config to find what we're looking for
 # in the directory specified by the PLASMA_DIR or PLASMA_PKG_DIR
-include(FindPkgConfig)
+find_package(PkgConfig QUIET)
 if(PLASMA_DIR)
   if(NOT PLASMA_PKG_DIR)
     set(PLASMA_PKG_DIR "${PLASMA_DIR}/lib/pkgconfig")
   endif(NOT PLASMA_PKG_DIR)
 endif(PLASMA_DIR)
 
-set(ENV{PKG_CONFIG_PATH} "${PLASMA_PKG_DIR}:$ENV{PKG_CONFIG_PATH}")
-pkg_search_module(PLASMA plasma)
 if(PKG_CONFIG_FOUND)
+  set(ENV{PKG_CONFIG_PATH} "${PLASMA_PKG_DIR}:$ENV{PKG_CONFIG_PATH}")
+  pkg_check_modules(PLASMA plasma)
+
   if(PLASMA_FOUND)
-    # 
+    #
     # There is a circular dependency in PLASMA between the libplasma and libcoreblas.
     # Unfortunately, this cannot be handled by pkg-config (as it remove the duplicates)
     # so we have to add it by hand.
-    # 
+    #
     list(APPEND PLASMA_LDFLAGS -lplasma)
     string(REGEX REPLACE ";" " " PLASMA_LDFLAGS "${PLASMA_LDFLAGS}")
   endif(PLASMA_FOUND)
@@ -103,7 +92,6 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
 
   # Validate the library
   include(CheckCSourceCompiles)
-  include(CheckFortranFunctionExists)
 
   set(PLASMA_tmp_libraries ${CMAKE_REQUIRED_LIBRARIES})
   set(PLASMA_tmp_flags ${CMAKE_REQUIRED_FLAGS})
@@ -127,6 +115,16 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
     )
 
   if(NOT PLASMA_C_COMPILE_SUCCESS)
+    get_property(_LANGUAGES_ GLOBAL PROPERTY ENABLED_LANGUAGES)
+    if(NOT _LANGUAGES_ MATCHES Fortran)
+      if(PLASMA_FIND_REQUIRED)
+        message(FATAL_ERROR "Find PLASMA requires Fortran support so Fortran must be enabled.")
+      else(PLASMA_FIND_REQUIRED)
+        message(STATUS "Looking for PLASMA... - NOT found (Fortran not enabled)") #
+        return()
+      endif(PLASMA_FIND_REQUIRED)
+    endif(NOT _LANGUAGES_ MATCHES Fortran)
+    include(CheckFortranFunctionExists)
     list(APPEND CMAKE_REQUIRED_LIBRARIES ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
     check_c_source_compiles(
       "int main(int argc, char* argv[]) {
@@ -145,13 +143,11 @@ endif(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
 
 if(NOT PLASMA_FIND_QUIETLY)
   if(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
-    if(PLASMA_C_COMPILE_SUCCESS)
-      message(STATUS "A Library with PLASMA API found (using C compiler+linker).")
-    else(PLASMA_C_COMPILE_SUCCESS)
+    if(PLASMA_F_COMPILE_SUCCESS)
       set(PLASMA_REQUIRE_FORTRAN_LINKER TRUE)
       mark_as_advanced(PLASMA_REQUIRE_FORTRAN_LINKER)
       message(STATUS "A Library with PLASMA API found (using C compiler and Fortran linker).")
-    endif(PLASMA_C_COMPILE_SUCCESS)
+    endif(PLASMA_F_COMPILE_SUCCESS)
     string(REGEX REPLACE ";" " " PLASMA_LDFLAGS "${PLASMA_LDFLAGS}")
     set(PLASMA_FOUND TRUE)
     find_package_message(PLASMA
@@ -164,10 +160,18 @@ if(NOT PLASMA_FIND_QUIETLY)
   else(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
     if(PLASMA_FIND_REQUIRED)
       message(FATAL_ERROR
-        "A required library with PLASMA API not found. Please specify library location.")
+        "A required library with PLASMA API not found. Please specify library location.
+    PLASMA_CFLAGS       = [${PLASMA_CFLAGS}]
+    PLASMA_LDFLAGS      = [${PLASMA_LDFLAGS}]
+    PLASMA_INCLUDE_DIRS = [${PLASMA_INCLUDE_DIRS}]
+    PLASMA_LIBRARY_DIRS = [${PLASMA_LIBRARY_DIRS}]")
     else(PLASMA_FIND_REQUIRED)
       message(STATUS
-        "A library with PLASMA API not found. Please specify library location.")
+        "A library with PLASMA API not found. Please specify library location.
+    PLASMA_CFLAGS       = [${PLASMA_CFLAGS}]
+    PLASMA_LDFLAGS      = [${PLASMA_LDFLAGS}]
+    PLASMA_INCLUDE_DIRS = [${PLASMA_INCLUDE_DIRS}]
+    PLASMA_LIBRARY_DIRS = [${PLASMA_LIBRARY_DIRS}]")
     endif(PLASMA_FIND_REQUIRED)
   endif(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
 endif(NOT PLASMA_FIND_QUIETLY)

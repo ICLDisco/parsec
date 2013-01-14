@@ -308,11 +308,12 @@ int dague_gpu_init(dague_context_t *dague_context,
             (dague_gpu_exec_stream_t*)malloc(gpu_device->max_exec_streams
                                              * sizeof(dague_gpu_exec_stream_t));
         for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
+            cudaError_t cudastatus;
             dague_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
 
             /* Allocate the stream */
-            status = cuStreamCreate( &(exec_stream->cuda_stream), 0 );
-            DAGUE_CUDA_CHECK_ERROR( "cuStreamCreate ", status,
+            cudastatus = cudaStreamCreate( &(exec_stream->cuda_stream) );
+            DAGUE_CUDA_CHECK_ERROR( "cudaStreamCreate ", cudastatus,
                                     {break;} );
             exec_stream->max_events   = DAGUE_MAX_EVENTS_PER_STREAM;
             exec_stream->executed     = 0;
@@ -335,6 +336,11 @@ int dague_gpu_init(dague_context_t *dague_context,
                 DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
                                         {break;} );
             }
+#if defined(DAGUE_PROF_TRACE)
+            exec_stream->prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC;
+            exec_stream->prof_event_key_start    = -1;
+            exec_stream->prof_event_key_end      = -1;
+#endif  /* defined(DAGUE_PROF_TRACE) */
         }
 
         status = cuCtxPopCurrent(NULL);
@@ -363,6 +369,23 @@ int dague_gpu_init(dague_context_t *dague_context,
         else
             printf("Device index %2d ->ratio %2.4f\n", i-1, device_weight[i]);
     }
+#if defined(DAGUE_PROF_TRACE)
+    /**
+     * Reconfigure the stream 0 and 1 for input and outputs.
+     */
+    for( i = 0; i < ndevices; i++ ) {
+        gpu_device_t *gpu_device = gpu_enabled_devices[i];
+        if( NULL == gpu_device ) continue;
+        gpu_device->exec_stream[0].prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN;
+        gpu_device->exec_stream[0].prof_event_key_start    = dague_cuda_movein_key_start;
+        gpu_device->exec_stream[0].prof_event_key_end      = dague_cuda_movein_key_end;
+
+        gpu_device->exec_stream[1].prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT;
+        gpu_device->exec_stream[1].prof_event_key_start    = dague_cuda_moveout_key_start;
+        gpu_device->exec_stream[1].prof_event_key_end      = dague_cuda_moveout_key_end;
+    }
+#endif  /* defined(DAGUE_PROF_TRACE) */
+
 #if defined(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
     for( i = 0; i < ndevices; i++ ) {
         gpu_device_t *source_gpu, *target_gpu;
@@ -449,7 +472,7 @@ int dague_gpu_fini( void )
             free(exec_stream->tasks); exec_stream->tasks = NULL;
             free(exec_stream->fifo_pending); exec_stream->fifo_pending = NULL;
             /* Release the stream */
-            cuStreamDestroy( exec_stream->cuda_stream );
+            cudaStreamDestroy( exec_stream->cuda_stream );
         }
 
         status = cuCtxDestroy( gpu_device->ctx );
@@ -846,7 +869,11 @@ int progress_stream( gpu_device_t* gpu_device,
     DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)task);
 
     assert( NULL == exec_stream->tasks[exec_stream->start] );
-    rc = progress_fct( gpu_device, task, exec_stream->cuda_stream );
+    /**
+     * In case the task is succesfully progressed, the corresponding profiling
+     * event is triggered.
+     */
+    rc = progress_fct( gpu_device, task, exec_stream );
     if( 0 > rc ) {
         if( -1 == rc ) return -1;  /* Critical issue */
         assert(0); // want to debug this. It happens too often 
@@ -879,6 +906,13 @@ int progress_stream( gpu_device_t* gpu_device,
             DEBUG3(("GPU: Complete %s(task %p)\n", task->ec->function->name, (void*)task ));
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
+            DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable,
+                                     gpu_device->profiling,
+                                     (-1 == exec_stream->prof_event_key_end ? 
+                                      DAGUE_PROF_FUNC_KEY_END(task->ec->dague_object,
+                                                              task->ec->function->function_id) :
+                                      exec_stream->prof_event_key_end),
+                                     task->ec);
             task = NULL;  /* Try to schedule another task */
             goto grab_a_task;
         }
@@ -886,6 +920,22 @@ int progress_stream( gpu_device_t* gpu_device,
             DAGUE_CUDA_CHECK_ERROR( "cuEventQuery ", rc,
                                     {return -1;} );
         }
+#if 0
+        else {
+            static cudaEvent_t ev = NULL;
+            static double first = 0.0;
+            static double last = 0.0;
+            double new = MPI_Wtime();
+            if(exec_stream->events[exec_stream->end] != ev) {
+                first = new;
+                ev = exec_stream->events[exec_stream->end];
+                printf("%p : %f\tNEW\tsince last poll (on the prev. event)\n", ev, first - last);
+            } else {
+                printf("%p : %f\tsame\tsince last poll (on the same event)\tTOTAL: %f\n", ev, new - last, new - first);
+            }
+            last = new;
+        }
+#endif
     }
     return saved_rc;
 }

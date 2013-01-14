@@ -191,15 +191,21 @@ int main(int argc, char *argv[])
     yyscan_t scanner;
 
     parse_args(argc, argv);
+#if defined(HAVE_RECENT_LEX)
     yylex_init( &scanner );
     yyset_debug( 1, scanner );
+#endif  /* defined(HAVE_RECENT_LEX) */
     if( strcmp(JDF_COMPILER_GLOBAL_ARGS.input, DEFAULTS.input) ) {
         FILE* my_file = fopen(JDF_COMPILER_GLOBAL_ARGS.input, "r");
         if( my_file == NULL ) {
             fprintf(stderr, "unable to open input file %s: %s\n", JDF_COMPILER_GLOBAL_ARGS.input, strerror(errno));
             exit(1);
         }
+#if defined(HAVE_RECENT_LEX)
         yyset_in( my_file, scanner );
+#else
+        yyin = my_file;
+#endif  /* defined(HAVE_RECENT_LEX) */
         yyfilename = strdup(JDF_COMPILER_GLOBAL_ARGS.input);
     } else {
         yyfilename = strdup("(stdin)");
@@ -210,7 +216,9 @@ int main(int argc, char *argv[])
     if( yyparse(scanner) > 0 ) {
         exit(1);
     }
+#if defined(HAVE_RECENT_LEX)
     yylex_destroy( scanner );
+#endif  /* defined(HAVE_RECENT_LEX) */
 
     rc = jdf_sanity_checks( JDF_COMPILER_GLOBAL_ARGS.wmask );
     if(rc < 0)

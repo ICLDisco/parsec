@@ -11,12 +11,11 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-#include "data_distribution.h"
 
-/** 
+/**
  * Note about thread safety:
  *  Some functions are thread safe, others are not.
- *  the tracing function is not thread-safe: this is addressed here 
+ *  the tracing function is not thread-safe: this is addressed here
  *  by providing a thread-specific context for the only operation
  *  that should happen in parallel.
  */
@@ -37,6 +36,11 @@ typedef struct dague_thread_profiling_t dague_thread_profiling_t;
 int dague_profiling_init( const char *format, ...);
 
 /**
+ * Restart the timer marker.
+ */
+int dague_profiling_start(void);
+
+/**
  * Add additional information about the current run, under the form key/value.
  * Used to store the value of the globals names and values in the current run
  */
@@ -47,7 +51,7 @@ void dague_profiling_add_information( const char *key, const char *value );
  * This function must be called once per thread that will use the profiling
  * functions. This creates the profiling_thread_unit_t that must be passed to
  * the tracing function call. See note about thread safety.
- * 
+ *
  * @param [IN]  length: the length (in bytes) of the buffer queue to store events.
  * @param [IN]  format, ...: printf-like to associate a human-readable
  *                           definition of the calling thread
@@ -57,7 +61,7 @@ void dague_profiling_add_information( const char *key, const char *value );
 dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char *format, ...);
 
 /**
- * Releases all resources for the tracing. 
+ * Releases all resources for the tracing.
  * Thread contexts become invalid after this call.
  *
  * @return 0    if success, -1 otherwise.
@@ -100,18 +104,18 @@ int dague_profiling_change_profile_attribute( const char *format, ... );
  * @return 0    if success, -1 otherwie.
  * not thread safe
  */
-int dague_profiling_add_dictionary_keyword( const char* name, const char* attributes, 
+int dague_profiling_add_dictionary_keyword( const char* name, const char* attributes,
                                             size_t info_length,
                                             const char* convertor_code,
                                             int* key_start, int* key_end );
 
 /**
- * Empties the global dictionnary (usefull in conjunction with reset, if 
+ * Empties the global dictionnary (usefull in conjunction with reset, if
  * you want to redo an experiment.
  *
  * Emptying the dictionnary without reseting the profiling system will yield
  * undeterminate results
- * 
+ *
  * @return 0 if success, -1 otherwise.
  * not thread safe
  */
@@ -119,7 +123,7 @@ int dague_profiling_dictionary_flush( void );
 
 /**
  * Traces one event, without a reference tile
- * Not thread safe (but it takes a thread_context parameter, and threads should not share 
+ * Not thread safe (but it takes a thread_context parameter, and threads should not share
  * the same thread_context parameter anyway).
  *
  * @param [IN] context: a thread profiling context (should be the thread profiling context of the
@@ -128,10 +132,10 @@ int dague_profiling_dictionary_flush( void );
  * @param [IN] event_id:a (possibly unique) event identifier. Events are coupled together: start/end.
  *                      a couple (start, end) has
  *                        - the same key
- *                        - end is the next "end" event with the same key and the same non-null event_id and 
+ *                        - end is the next "end" event with the same key and the same non-null event_id and
  *                          non OBJECT_ID_NULL object_id as start in the event buffer of the thread context
  *                        - if no matching end is found, this is an error
- * @param [IN] object_id: 
+ * @param [IN] object_id:
  * @param [IN] info:    a pointer to an area of size info_length for this key (see
  *                        dague_profiling_add_dictionary_keyword)
  * @return 0 if success, -1 otherwise.
@@ -159,8 +163,8 @@ int dague_profiling_dump_dbp( const char* filename );
  */
 char *dague_profiling_strerror(void);
 
-/** 
- * Here are some helper functions, to be used 
+/**
+ * Here are some helper functions, to be used
  *  (appropriately) in dague_profiling_add_dictionary_keyword
  */
 

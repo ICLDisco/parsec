@@ -1,74 +1,41 @@
-# - Find PAPI library
+# - Find the PAPI library
 # This module finds an installed  lirary that implements the 
 # performance counter interface (PAPI) (see http://icl.cs.utk.edu/papi/).
 #
 # This module sets the following variables:
 #  PAPI_FOUND - set to true if a library implementing the PAPI interface
 #    is found
-#  PAPI_LINKER_FLAGS - uncached list of required linker flags (excluding -l
-#    and -L).
 #  PAPI_LIBRARIES - uncached list of libraries (using full path name) to
 #    link against to use PAPI
 #  PAPI_INCLUDE_DIR - directory where the PAPI header files are
 #
 ##########
 
-include(CheckIncludeFiles)
+mark_as_advanced(FORCE PAPI_DIR PAPI_INCLUDE_DIR PAPI_LIBRARY)
+set(PAPI_DIR "" CACHE PATH "Root directory containing the PAPI package")
 
-# If we only have the main PLASMA directory componse the include and
-# libraries path based on it.
+find_package(PkgConfig QUIET)
+
 if( PAPI_DIR )
-  if( NOT PAPI_INCLUDE_DIR )
-    set(PAPI_INCLUDE_DIR "${PAPI_DIR}/include")
-  endif( NOT PAPI_INCLUDE_DIR )
-  if( NOT PAPI_LIBRARIES )
-    set(PAPI_LIBRARIES "${PAPI_DIR}/lib")
-  endif( NOT PAPI_LIBRARIES )
-endif( PAPI_DIR )
+  set(ENV{PKG_CONFIG_PATH} "${PAPI_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+endif()
+pkg_check_modules(PC_PAPI QUIET papi)
+set(PAPI_DEFINITIONS ${PC_PAPI_CFLAGS_OTHER} )
 
-if( NOT PAPI_INCLUDE_DIR )
-  set(PAPI_INCLUDE_DIR)
-endif( NOT PAPI_INCLUDE_DIR )
-if( NOT PAPI_LIBRARIES )
-  set(PAPI_LIBRARIES)
-endif( NOT PAPI_LIBRARIES )
-if( NOT PAPI_LINKER_FLAGS )
-  set(PAPI_LINKER_FLAGS)
-endif( NOT PAPI_LINKER_FLAGS )
+find_path(PAPI_INCLUDE_DIR papi.h
+          PATH ${PAPI_DIR}/include
+          HINTS ${PC_PAPI_INCLUDEDIR} ${PC_PAPI_INCLUDE_DIRS} 
+          DOC "Include path for PAPI")
 
-list(APPEND CMAKE_REQUIRED_INCLUDES ${PAPI_INCLUDE_DIR})
-# message(STATUS "Looking for papi.h in ${CMAKE_REQUIRED_INCLUDES}")
-check_include_file(papi.h FOUND_PAPI_INCLUDE)
-if(FOUND_PAPI_INCLUDE)
-  message(STATUS "PAPI include files found at ${PAPI_INCLUDE_DIR}")
-  check_library_exists("papi" PAPI_library_init ${PAPI_LIBRARIES} FOUND_PAPI_LIB)
-  if( FOUND_PAPI_LIB )
-    set(PAPI_LIBRARY "${PAPI_LIBRARIES}/libpapi.a")
-    set(PAPI_LIBRARIES "-L${PAPI_LIBRARIES} -lpapi")
-  endif( FOUND_PAPI_LIB )
-endif(FOUND_PAPI_INCLUDE)
+find_library(PAPI_LIBRARY NAMES papi
+             PATH ${PAPI_DIR}/lib
+             HINTS ${PC_PAPI_LIBDIR} ${PC_PAPI_LIBRARY_DIRS} 
+             DOC "Library path for PAPI")
 
-if(FOUND_PAPI_INCLUDE AND FOUND_PAPI_LIB)
-  set(PAPI_FOUND TRUE)
-else(FOUND_PAPI_INCLUDE AND FOUND_PAPI_LIB)
-  set(PAPI_FOUND FALSE)
-endif(FOUND_PAPI_INCLUDE AND FOUND_PAPI_LIB)
+set(PAPI_LIBRARIES ${PAPI_LIBRARY} )
+set(PAPI_INCLUDE_DIRS ${PAPI_INCLUDE_DIR} )
 
-if(NOT PAPI_FIND_QUIETLY)
-  if(PAPI_FOUND)
-    message(STATUS "A library with PAPI API found.")
-    set(HAVE_PAPI 1)
-  else(PAPI_FOUND)
-    if(PAPI_FIND_REQUIRED)
-      message(FATAL_ERROR
-        "A required library with PAPI API not found. Please specify library location "
-        "using PAPI_DIR or a combination of PAPI_INCLUDE_DIR and PAPI_LIBRARIES "
-        "or by setting PAPI_DIR")
-    else(PAPI_FIND_REQUIRED)
-      message(STATUS
-        "A required library with PAPI API not found. Please specify library location "
-        "using PAPI_DIR or a combination of PAPI_INCLUDE_DIR and PAPI_LIBRARIES "
-        "or by setting PAPI_DIR")
-    endif(PAPI_FIND_REQUIRED)
-  endif(PAPI_FOUND)
-endif(NOT PAPI_FIND_QUIETLY)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(PAPI DEFAULT_MSG 
+                                  PAPI_LIBRARY PAPI_INCLUDE_DIR )
+
