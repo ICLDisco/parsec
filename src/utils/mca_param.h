@@ -62,7 +62,7 @@
 #if defined(HAVE_STDBOOL_H)
 #include <stdbool.h>
 #endif  /* defined(HAVE_STDBOOL_H) */
-#include "lifo.h"
+#include "list.h"
 
 /**
  * The types of MCA parameters.
