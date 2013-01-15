@@ -17,7 +17,6 @@ set(BASE_SOURCES
   utils/keyval_parse.c
   utils/mca_parse_paramfile.c
   utils/mca_param.c
-  devices/device.c
 )
 FLEX_TARGET(show_help_flex utils/show_help_lex.l ${CMAKE_CURRENT_BINARY_DIR}/show_help_lex.l.c)
 SET_SOURCE_FILES_PROPERTIES(${FLEX_show_help_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS}")
@@ -39,6 +38,7 @@ set(SOURCES
   bindthread.c
   mempool.c
   vpmap.c
+  devices/device.c
 ${EXTRA_SOURCES}
 )
 
