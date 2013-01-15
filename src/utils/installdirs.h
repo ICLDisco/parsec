@@ -48,6 +48,11 @@ typedef struct dague_install_dirs_s dague_install_dirs_t;
 DAGUE_DECLSPEC extern int dague_installdirs_open(void);
 
 /**
+ * Release all structures related to the install dirs.
+ */
+DAGUE_DECLSPEC extern int dague_installdirs_close(void);
+
+/**
  * Install directories.  Only available after dague_init()
  */
 DAGUE_DECLSPEC extern dague_install_dirs_t dague_install_dirs;
