@@ -83,7 +83,6 @@ int main(int argc, char ** argv)
 #if defined(HAVE_CUDA)
     if(iparam[IPARAM_NGPUS] > 0) {
         dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
-        dague_gpu_kernel_fini(dague, "zgemm");
     }
 #endif
 

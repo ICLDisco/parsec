@@ -130,12 +130,6 @@ int dague_gpu_data_register( dague_context_t *dague_context,
 int dague_gpu_data_unregister( dague_ddesc_t* data );
 
 /*
- * Init/Finalize kernel
- */
-int dague_gpu_kernel_fini(dague_context_t* dague_context,
-                          char *kernelname);
-
-/*
  * Data movement
  */
 int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,

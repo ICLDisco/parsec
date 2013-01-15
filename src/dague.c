@@ -391,9 +391,14 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     /* By now let's add one device for the CPUs */
     {
         dague_device_t* cpus = (dague_device_t*)calloc(1, sizeof(dague_device_t));
-        dague_devices_add(cpus);
+        cpus->name = "Whole machine";
+        dague_devices_add(context, cpus);
+        /* TODO: This is plain WRONG, but should work by now */
+        cpus->device_sweight = nb_total_comp_threads * 8 * 2.27;
+        cpus->device_dweight = nb_total_comp_threads * 4 * 2.27;
     }
     dague_devices_select(context);
+    dague_devices_freeze(context);
 
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );

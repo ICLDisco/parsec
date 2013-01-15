@@ -252,12 +252,6 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
     }
 
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        dague_gpu_kernel_fini(dague, "zgemm");
-    }
-#endif
-
     cleanup_dague(dague, iparam);
 
     dague_data_free(ddescA0.mat);

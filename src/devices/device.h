@@ -22,11 +22,15 @@ typedef int (*dague_device_support_f)(dague_device_t*, dague_handle_t*);
 
 struct dague_device_s {
     dague_list_item_t item;
+    struct dague_context_s* context;  /**< The DAGuE context this device belongs too */
+    char* name;  /**< Simple identified for the device */
     uint64_t transferred_data_in;
     uint64_t transferred_data_out;
     uint64_t required_data_in;
     uint64_t required_data_out;
     uint64_t executed_tasks;
+    float device_sweight;  /**< Number of single precision operations per second */
+    float device_dweight;  /**< Number of double precision operations per second */
 #if defined(DAGUE_PROF_TRACE)
     dague_thread_profiling_t *profiling;
 #endif  /* defined(PROFILING) */
@@ -53,20 +57,20 @@ extern int dague_devices_fini(void);
  * Parse the list of potential devices and see which one would succesfully load
  * and initialize in the current environment.
  */
-extern int dague_devices_select(dague_context_t* dague_context);
+extern int dague_devices_select(dague_context_t*);
 
 /**
  * This call mark the end of the configuration step, no devices can be registered
  * after this point. This gives a reference point regarding the number of available
  * (supported) devices.
  */
-extern int dague_devices_freeze(void);
+extern int dague_devices_freeze(dague_context_t*);
 
 /**
  * Declare a new device with the runtime. The device will later provide a list
  * of supported operations.
  */
-DAGUE_DECLSPEC int dague_devices_add(dague_device_t* device);
+DAGUE_DECLSPEC int dague_devices_add(dague_context_t*, dague_device_t*);
 
 /**
  * Retrieve a pointer to the registered device using the provided index.
