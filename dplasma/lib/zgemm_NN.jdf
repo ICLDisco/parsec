@@ -105,7 +105,7 @@ BODY
         int ldcm = BLKLDD(descC, m);
 
 #if defined(HAVE_CUDA)
-    if( dague_active_gpu() > 0 ) {
+    {  /* TODO: This should move in a CUDA BODY */
         int rc;
 
         if( 0 == (rc = gpu_zgemm( context, this_task,

@@ -74,7 +74,7 @@ int dague_data_init(void)
 {
     OBJ_CONSTRUCT(&dague_data_lifo, dague_lifo_t);
     OBJ_CONSTRUCT(&dague_data_copies_lifo, dague_lifo_t);
-    dague_supported_number_of_devices = 1 + dague_active_gpu();
+    dague_supported_number_of_devices = dague_devices_enabled();
     /**
      * This is a trick. Now that we know the number of available devices
      * we can update the size of the dague_data_t class to the correct value.

@@ -82,7 +82,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
     int i, nbgpus;
     (void)dague_context;
 
-    nbgpus = dague_active_gpu();
+    nbgpus = dague_devices_enabled();
     zgemm_functions = calloc(nbgpus, sizeof(cuda_zgemm_t));
 
     for( i = 0; i < nbgpus; i++ ) {

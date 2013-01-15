@@ -104,13 +104,6 @@ void dague_data_enable_gpu( int nbgpu );
 void dague_data_disable_gpu( void );
 
 /**
- * Returns the number of GPUs managed by the DAGuE runtime. This is
- * different than the number of GPUs in the system, as they get
- * enabled based on the GPU mask.
- */
-int dague_active_gpu(void);
-
-/**
  * Debugging functions.
  */
 void dump_exec_stream(dague_gpu_exec_stream_t* exec_stream);
@@ -173,9 +166,6 @@ int progress_stream( gpu_device_t* gpu_device,
  * Compute the adapted unit
  */
 void dague_compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
-#else
-
-int dague_active_gpu(void) { return 0; }
 
 #endif /* defined(HAVE_CUDA) */
 

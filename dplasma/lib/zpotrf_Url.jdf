@@ -195,10 +195,10 @@ BODY
     int ldam = BLKLDD( descA, m );
 
 #if defined(HAVE_CUDA)
-    if( dague_active_gpu() > 0 ) {
+    {  /* TODO: This should move to a CUDA BODY */
         int rc;
 
-        if( 0 == (rc = gpu_zgemm( context, this_task, 
+        if( 0 == (rc = gpu_zgemm( context, this_task,
                                   ( m == k+1 ),
                                   PlasmaConjTrans, PlasmaNoTrans,
                                   descA.mb, tempnn, descA.mb,

@@ -51,7 +51,7 @@ int stsmqr_cuda_init( dague_context_t* dague_context,
     UGLY_T = tileT;
     (void)UGLY_T;
 
-    ndevices = dague_active_gpu();
+    ndevices = dague_devices_enabled();
 #if DPLASMA_SCHEDULING
     gpu_set = (uint32_t*)calloc(UGLY_A->nt, sizeof(uint32_t));
     gpu_load = (int*)calloc(ndevices, sizeof(int));

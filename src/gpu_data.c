@@ -32,7 +32,6 @@
  */
 
 static int __dague_active_gpu = 0;
-static uint32_t __dague_gpu_mask = 0xffffffff;
 static CUcontext dague_allocate_on_gpu_context;
 static int dague_gpu_allocation_initialized = 0;
 
@@ -131,11 +130,6 @@ void dague_data_disable_gpu(void) {
     dague_data_free     = free;
 }
 
-int dague_active_gpu(void)
-{
-    return __dague_active_gpu;
-}
-
 #if defined(DAGUE_PROF_TRACE)
 /* Accepted values are: DAGUE_PROFILE_CUDA_TRACK_DATA_IN | DAGUE_PROFILE_CUDA_TRACK_DATA_OUT |
  *                      DAGUE_PROFILE_CUDA_TRACK_OWN | DAGUE_PROFILE_CUDA_TRACK_EXEC
@@ -164,19 +158,23 @@ float gpu_speeds[2][2] ={
 int dague_gpu_init(dague_context_t *dague_context)
 {
     int show_caps_index, show_caps = 0;
-    int use_cuda_index, use_cuda = 0;
+    int use_cuda_index, use_cuda;
+    int cuda_mask_index, cuda_mask;
     int ndevices, i, j, k, dindex, nb_cores;
     float total_perf;
     CUresult status;
     int isdouble = 0;
 
-    use_cuda_index = dague_mca_param_find("dague", "device", "cuda");
-    if( 0 < use_cuda_index ) {
-        dague_mca_param_lookup_int(use_cuda_index, &use_cuda);
-    }
+    use_cuda_index = dague_mca_param_reg_int_name("device_cuda", "enabled",
+                                                  "The number of CUDA device to enable for the next PaRSEC context",
+                                                  false, false, 0, &use_cuda);
     if( 0 == use_cuda ) {
         return -1;  /* Nothing to do around here */
     }
+
+    cuda_mask_index = dague_mca_param_reg_int_name("device_cuda", "mask",
+                                                   "The bitwise mask of CUDA devices to be enabled (default all)",
+                                                   false, false, 0xffffffff, &cuda_mask);
     status = cuInit(0);
     DAGUE_CUDA_CHECK_ERROR( "cuInit ", status,
                             {
@@ -196,7 +194,7 @@ int dague_gpu_init(dague_context_t *dague_context)
     if( 0 == ndevices ) {
         return -1;
     }
-    show_caps_index = dague_mca_param_find("dague", "device", "show_capabilities");
+    show_caps_index = dague_mca_param_find("device", "show", "capabilities");
     if(0 < show_caps_index) {
         dague_mca_param_lookup_int(show_caps_index, &show_caps);
     }
@@ -265,7 +263,7 @@ int dague_gpu_init(dague_context_t *dague_context)
         //device_weight[i+1] *= (concurrency == 1 ? 2 : 1);
 
         /* Allow fine grain selection of the GPU's */
-        if( !((1 << i) & __dague_gpu_mask) ) continue;
+        if( !((1 << i) & cuda_mask) ) continue;
 
         if( show_caps ) {
             STATUS(("GPU Device %d (capability %d.%d): %s\n", i, major, minor, szName ));
