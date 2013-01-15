@@ -495,7 +495,6 @@ int dague_fini( dague_context_t** pcontext )
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
 
-
 #if defined(HAVE_HWLOC_BITMAP)
     /* Release thread binding masks */
     hwloc_bitmap_free(context->comm_th_index_mask);
@@ -524,6 +523,9 @@ int dague_fini( dague_context_t** pcontext )
 
     dague_handle_empty_repository();
     debug_mark_purge_all_history();
+
+    dague_mca_param_finalize();
+    dague_installdirs_close();
 
     free(context);
     *pcontext = NULL;
