@@ -7,6 +7,7 @@
 
 #include "dague_config.h"
 #include <dague/devices/device.h>
+#include <dague/utils/mca_param.h>
 #include <dague/constants.h>
 
 #include <stdlib.h>
@@ -21,12 +22,23 @@ dague_device_t** dague_devices = NULL;
 
 int dague_devices_init(void)
 {
+    (void)dague_mca_param_reg_int_name("device", "show_capabilities",
+                                       "Show the detailed devices capabilities",
+                                       false, false, 0, NULL);
+    (void)dague_mca_param_reg_string_name("device", NULL,
+                                          "Comma delimited list of devices to be enabled",
+                                          false, false, "none", NULL);
+    (void)dague_mca_param_reg_int_name("device", "show_statistics",
+                                       "Show the detailed devices statistics upon exit",
+                                       false, false, 0, NULL);
     return DAGUE_ERR_NOT_IMPLEMENTED;
 }
 
 int dague_devices_fini(void)
 {
+#if defined(HAVE_CUDA)
     return dague_gpu_fini();
+#endif  /* defined(HAVE_CUDA) */
 }
 
 int dague_devices_freeze(void)
@@ -39,7 +51,11 @@ int dague_devices_freeze(void)
 
 int dague_devices_select(dague_context_t* dague_context)
 {
+#if defined(HAVE_CUDA)
     return dague_gpu_init(dague_context);
+#else
+    return DAGUE_SUCCESS;
+#endif  /* defined(HAVE_CUDA) */
 }
 
 int dague_devices_add(dague_device_t* device)
