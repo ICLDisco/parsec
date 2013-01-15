@@ -8,6 +8,7 @@
 #include "dague.h"
 #include "dague_hwloc.h"
 #include "execution_unit.h"
+#include <dague/utils/mca_param.h>
 
 #include "common.h"
 #include "common_timing.h"
@@ -531,9 +532,11 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
      * prior to the runtime initialization.
      */
     if(iparam[IPARAM_NGPUS] > 0) {
-        char value[128];
+        char *param, value[128];
+        param = dague_mca_param_env_var("device_cuda_enabled");
         snprintf(value, 128, "%d", iparam[IPARAM_NGPUS]);
-        setenv("dague_device_cuda", value, 1);
+        setenv(param, value, 1);
+        free(param);
     }
 #endif
     dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES], &argc, &argv);
