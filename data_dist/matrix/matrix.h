@@ -133,20 +133,13 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
     dague_data_t* data = matrix->data_map[pos];
 
     if( NULL == (data = matrix->data_map[pos]) ) {
-        dague_data_copy_t* data_copy = (dague_data_copy_t*)malloc(sizeof(dague_data_copy_t));
-        data = (dague_data_t*)malloc(sizeof(dague_data_t) + 0 * sizeof(struct dague_data_copy_s*));
+        dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);
+        data = OBJ_NEW(dague_data_t);
 
-        OBJ_CONSTRUCT(&data_copy->super, dague_list_item_t);
-        data_copy->device_index = 0;
-        data_copy->flags = 0;  /* not from an arena */
         data_copy->coherency_state = DATA_COHERENCY_OWNED;
-        data_copy->readers = 0;
-        data_copy->version = 0;
-        data_copy->older = NULL;
         data_copy->original = data;
         data_copy->device_private = ptr;
 
-        data->version = 0;
         data->coherency_state = DATA_COHERENCY_OWNED;
         data->owner_device = 0;
         data->key = key;
