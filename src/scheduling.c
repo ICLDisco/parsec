@@ -259,7 +259,9 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
     // PETER TODO put this in correct initialization place for PINS stuff
     PINS_REGISTER(TASK_SELECT_BEFORE, start_papi_cache_miss_count);
-    //    PINS_REGISTER(TASK_SELECT_AFTER, stop_papi_cache_miss_count);
+    PINS_REGISTER(TASK_SELECT_AFTER, stop_papi_cache_miss_count);
+    PINS_REGISTER(EXEC_BEGIN, start_papi_exec_count);
+    PINS_REGISTER(EXEC_FINI, stop_papi_exec_count);
 
     /* The main loop where all the threads will spend their time */
  wait_for_the_next_round:
@@ -299,7 +301,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         }
 
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
-        PINS(TASK_SELECT_BEFORE, eu_context, NULL, NULL);
+        //        PINS(TASK_SELECT_BEFORE, eu_context, NULL, NULL);
         exec_context = scheduler.select_task(eu_context);
         //        PINS(TASK_SELECT_AFTER, eu_context, exec_context, NULL);
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
@@ -323,6 +325,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
             TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
             
+            PINS(EXEC_BEGIN, eu_context, exec_context, NULL);
             switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
             case DAGUE_LOOKUP_DONE:
                 /* We're good to go ... */
@@ -334,6 +337,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
+            PINS(EXEC_FINI, eu_context, exec_context, NULL);
 
         } else {
             misses_in_a_row++;
@@ -392,6 +396,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 #endif  /* DAGUE_REPORT_STATISTICS */
 
     // PETER hacky test code
+    /*
     printf("self %7lld %7lld steal %7lld %7lld other %7lld %7lld per: %4lld %4lld | %4lld %4lld | %4lld %4lld\n", 
            eu_context->self_counters[0], 
            eu_context->self_counters[1],
@@ -405,6 +410,12 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
            eu_context->steal_counters[1] / eu_context->steal,
            eu_context->other_counters[0] / eu_context->other,
            eu_context->other_counters[1] / eu_context->other
+           );
+     */
+    printf("exec L1 %7lld L2 %7lld TLB %7lld\n", 
+           eu_context->exec_cache_misses[0], 
+           eu_context->exec_cache_misses[1],
+           eu_context->exec_tlb_misses
            );
 
     return (void*)((long)nbiterations);

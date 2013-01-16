@@ -44,9 +44,13 @@ struct dague_execution_unit {
 	long long int self_counters[2];
 	long long int steal_counters[2];
 	long long int other_counters[2];
+	long long int select_counters[2];
 	int self;
 	int steal;
 	int other;
+
+	long long int exec_cache_misses[2];
+	long long int exec_tlb_misses;
 
     struct dague_vp        *virtual_process;   /**< Backlink to the virtual process that holds this thread */
     dague_thread_mempool_t *context_mempool;

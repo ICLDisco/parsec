@@ -36,8 +36,8 @@ void pins_init_steals(dague_execution_unit_t * eu, dague_execution_context_t * t
 		steals[i] = (unsigned int*)calloc(sizeof(int), num_cores + 2);
 	}
 
-	register_instrument_callback(SCHED_FINI, pins_fini_steals);
-	register_instrument_callback(SCHED_STEAL, count_steal);
+	PINS_REGISTER(SCHED_FINI, pins_fini_steals);
+	PINS_REGISTER(SCHED_STEAL, count_steal);
 }
 
 void pins_fini_steals(dague_execution_unit_t * eu, dague_execution_context_t * task, void * data) {
@@ -47,8 +47,8 @@ void pins_fini_steals(dague_execution_unit_t * eu, dague_execution_context_t * t
 	int p, q = 0;
 	unsigned int i = 0;
 	// unregister things
-	unregister_instrument_callback(SCHED_STEAL);
-	unregister_instrument_callback(SCHED_FINI);
+	PINS_UNREGISTER(SCHED_STEAL);
+	PINS_UNREGISTER(SCHED_FINI);
 
 	// print everything
 	for (p = 0; p < num_cores; p++) {
@@ -121,7 +121,6 @@ static unsigned int core_lookup(dague_execution_unit_t * eu) {
 		if (eu == map[i])
 			return i;
 	}
-	DEBUG(("Core lookup in scheduling instrumentation failed. Returning 0.\n"));
 	return 0;
 }
 

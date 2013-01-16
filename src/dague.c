@@ -163,6 +163,13 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->other_counters[1] = 0;
     eu->other = 1;
 
+    eu->select_counters[0] = 0;
+    eu->select_counters[1] = 0;
+    
+    eu->exec_cache_misses[0] = 0;
+    eu->exec_cache_misses[1] = 0;
+    eu->exec_tlb_misses = 0;
+
     eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
         eu->datarepo_mempools[pi] = &(eu->virtual_process->datarepo_mempools[pi].thread_mempools[eu->th_id]);
