@@ -206,11 +206,11 @@ int main(int argc, char *argv[])
 #ifdef PRINTF_HEAVY
         printf("\n###############\nDPLASMA Eignevalues\n");
         for(i = 0; i < N; i++) {
-            printf("% 13.6g ", D[i]);
+            printf("% .14e", D[i]);
         }
         printf("\nLAPACK Eigenvalues\n");
         for(i = 0; i < N; i++) {
-            printf("% 13.6g ", W1[i]);
+            printf("% .14e ", W1[i]);
         }
         printf("\n");
 #endif
@@ -263,38 +263,31 @@ checkdone:
 
 #include "math.h"
 
-/*--------------------------------------------------------------
- * Check the solution
+/*------------------------------------------------------------
+ *  Check the eigenvalues 
  */
-
 static int check_solution(int N, double *E1, double *E2, double eps)
 {
     int info_solution, i;
-    double *Residual = (double *)malloc(N*sizeof(double));
+    double resid;
     double maxtmp;
-    double maxel  = fabs(fabs(E1[0])-fabs(E2[0]));
-    double maxeig = fmax(fabs(E1[0]), fabs(E2[0]));
+    double maxel = fabs( fabs(E1[0]) - fabs(E2[0]) );
+    double maxeig = max( fabs(E1[0]), fabs(E2[0]) );
     for (i = 1; i < N; i++){
-        Residual[i] = fabs(fabs(E1[i])-fabs(E2[i]));
-        maxtmp      = fmax(fabs(E1[i]), fabs(E2[i]));
-        maxeig      = fmax(maxtmp, maxeig);
-        //printf("Residu: %f E1: %f E2: %f\n", Residual[i], E1[i], E2[i] );
-        if (maxel < Residual[i])
-           maxel =  Residual[i];
+        resid   = fabs(fabs(E1[i])-fabs(E2[i]));
+        maxtmp  = max(fabs(E1[i]), fabs(E2[i]));
+
+        /* Update */
+        maxeig = max(maxtmp, maxeig);
+        maxel  = max(resid,  maxel );
     }
 
-    //printf("maxel: %.16f maxeig: %.16f \n", maxel, maxeig );
-
+    maxel = maxel / (maxeig * N * eps);
     printf(" ======================================================\n");
-    printf(" | D -  eigcomputed | / (|D| ulp)      : %15.3E \n",  maxel/(maxeig*eps) );
+    printf(" | D - eigcomputed | / (|D| * N * eps) : %15.3E \n",  maxel );
     printf(" ======================================================\n");
 
-
-    printf("============\n");
-    printf("Checking the eigenvalues of A\n");
-    if (isnan(maxel / eps) || isinf(maxel / eps) || ((maxel / (maxeig*eps)) > 100.0) ) {
-        //printf("isnan: %d %f %e\n", isnan(maxel / eps), maxel, eps );
-        //printf("isinf: %d %f %e\n", isinf(maxel / eps), maxel, eps );
+    if ( isnan(maxel) || isinf(maxel) || (maxel > 100) ) {
         printf("-- The eigenvalues are suspicious ! \n");
         info_solution = 1;
     }
@@ -302,8 +295,6 @@ static int check_solution(int N, double *E1, double *E2, double eps)
         printf("-- The eigenvalues are CORRECT ! \n");
         info_solution = 0;
     }
-
-    free(Residual);
     return info_solution;
 }
 
