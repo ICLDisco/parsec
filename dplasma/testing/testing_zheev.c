@@ -18,7 +18,7 @@
 #define FADDS_ZHEEV(__n) (((__n) * (-8.0 / 3.0 + (__n) * (1.0 + 2.0 / 3.0 * (__n)))) - 4.0)
 #define FMULS_ZHEEV(__n) (((__n) * (-1.0 / 6.0 + (__n) * (5.0 / 2.0 + 2.0 / 3.0 * (__n)))) - 15.0)
 
-#undef PRINTF_HEAVY
+#define PRINTF_HEAVY
 
 static int check_solution(int N, double *E1, double *E2, double eps);
 
@@ -77,6 +77,9 @@ int main(int argc, char *argv[])
     PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt,
          (uplo, IB, (tiled_matrix_desc_t*)&ddescA, (tiled_matrix_desc_t*)&ddescT));
     PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
+#ifdef PRINTF_HEAVY
+    dplasma_zprint( dague, uplo, &ddescA);
+#endif
 
     /* CONVERSION OF A INTO BAND STORAGE */
     PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1,
@@ -137,11 +140,11 @@ int main(int argc, char *argv[])
         printf("############################\n"
                "D= ");
         for(i = 0; i < N; i++) {
-            printf("%f ", D[i]);
+            printf("% 11.4g ", D[i]);
         }
         printf("\nE= ");
         for(i = 0; i < N-1; i++) {
-            printf("%f ", E[i]);
+            printf("% 11.4g ", E[i]);
         }
         printf("\n");
 #endif            
@@ -161,6 +164,7 @@ int main(int argc, char *argv[])
             ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
             ddescA0.super.m, ddescA0.super.n);
         /* Fill A2 with A0 again */
+        dplasma_zlaset( dague, PlasmaUpperLower, 0.0f, 0.0f, &ddescA0);
         dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
 
@@ -169,9 +173,9 @@ int main(int argc, char *argv[])
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
 #   if defined(PRECISION_d) || defined(PRECISION_s)
-                printf("%f ", A2[LDA*j+i] );
+                printf("% 11.4g ", A2[LDA*j+i] );
 #   else
-                printf("(%f, %f)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
+                printf("(%g, %g)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
 #   endif
             }
             printf("\n");
@@ -187,9 +191,9 @@ int main(int argc, char *argv[])
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
 #   if defined(PRECISION_d) || defined(PRECISION_s)
-                printf("%f ", A2[LDA*j+i] );
+                printf("% 11.4g ", A2[LDA*j+i] );
 #   else
-                printf("(%f, %f)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
+                printf("(%g, %g)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
 #   endif
             }
             printf("\n");
@@ -199,11 +203,11 @@ int main(int argc, char *argv[])
 #ifdef PRINTF_HEAVY
         printf("\n###############\nDPLASMA Eignevalues\n");
         for(i = 0; i < N; i++) {
-            printf("%f ", D[i]);
+            printf("% 13.6g ", D[i]);
         }
         printf("\nLAPACK Eigenvalues\n");
         for(i = 0; i < N; i++) {
-            printf("%f ", W1[i]);
+            printf("% 13.6g ", W1[i]);
         }
         printf("\n");
 #endif
