@@ -8,8 +8,8 @@
 
 #if defined(HAVE_CUDA)
 #include "dague_internal.h"
-#include "gpu_data.h"
-#include "gpu_malloc.h"
+#include <dague/devices/cuda/dev_cuda.h>
+#include <dague/devices/device_malloc.h>
 #include "profiling.h"
 #include "execution_unit.h"
 

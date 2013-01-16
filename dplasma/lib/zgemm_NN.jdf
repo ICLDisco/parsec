@@ -21,7 +21,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 
 #if defined(HAVE_CUDA)
-#include "gpu_data.h"
+#include <dague/devices/cuda/dev_cuda.h>
 #include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */

@@ -6,8 +6,8 @@
 
 #include "data.h"
 #include "lifo.h"
-#include "gpu_data.h"
 #include <dague/constants.h>
+#include <dague/devices/device.h>
 #include "data.h"
 
 /* TODO: create a consistent common infrastructure for the devices */

@@ -29,7 +29,7 @@
 #include <mpi.h>
 #endif
 #if defined(HAVE_CUDA)
-#include "gpu_data.h"
+#include <dague/devices/cuda/dev_cuda.h>
 #endif
 
 #include "dague_prof_grapher.h"

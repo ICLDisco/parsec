@@ -15,7 +15,6 @@
 #include <cuComplex.h>
 #endif
 #include "dague.h"
-#include "gpu_data.h"
 #include "execution_unit.h"
 #include "scheduling.h"
 #include "fifo.h"
@@ -72,7 +71,7 @@ typedef struct dague_zgemm_args_s {
     dague_ddesc_t *ddescA, *ddescB, *ddescC;
 } dague_zgemm_args_t;
 
-#include "gpu_scheduling.h"
+#include <dague/devices/cuda/cuda_scheduling.h>
 
 static int ndevices = 0;
 

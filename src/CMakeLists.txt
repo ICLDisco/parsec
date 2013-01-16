@@ -47,7 +47,7 @@ if( HWLOC_FOUND )
 endif( HWLOC_FOUND )
 
 if (CUDA_FOUND)
-  list(APPEND SOURCES gpu_data.c)
+  list(APPEND SOURCES devices/cuda/dev_cuda.c)
 endif (CUDA_FOUND)
 if (PAPI_FOUND)
   list(APPEND SOURCES papime.c)

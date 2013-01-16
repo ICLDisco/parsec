@@ -14,7 +14,7 @@
 
 #include <stdlib.h>
 
-#include "gpu_data.h"
+#include <dague/devices/cuda/dev_cuda.h>
 
 uint32_t dague_nb_devices = 0;
 static uint32_t dague_nb_max_devices = 0;

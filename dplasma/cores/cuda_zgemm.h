@@ -11,7 +11,7 @@
 #define _cuda_zgemm_h_
 
 #include "dague_config.h"
-#include "gpu_data.h"
+#include <dague/devices/cuda/dev_cuda.h>
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"

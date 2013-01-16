@@ -19,7 +19,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#include "gpu_malloc.h"
+#include <dague/devices/device_malloc.h>
 
 #define DAGUE_GPU_USE_PRIORITIES     1
 
