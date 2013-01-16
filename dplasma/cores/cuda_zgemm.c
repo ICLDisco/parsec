@@ -93,7 +93,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         char library_name[FILENAME_MAX];
         char function_name[FILENAME_MAX];
 
-        gpu_device = gpu_enabled_devices[i];
+        gpu_device = (gpu_device_t*)dague_devices_get(i);
         fn = NULL;
 
         status = cuCtxPushCurrent( gpu_device->ctx );
@@ -464,7 +464,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     which_gpu = this_task->data[2].data->original->owner_device;
     if( which_gpu <= 0 ) {  /* this is the first time we see this tile.
                             * Let's decide which GPU will work on it. */
-        int best_index = -1;  /* cores */
+        int best_index = 0;  /* default value: first CPU device */
         /* There are 3 types of GEMMs kernels: the ones waiting on the
          * execution contextes queues to be investigated, the current one
          * which is investigated for execution on the context of the current
@@ -472,22 +472,21 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
          * decision regarding the status of the current GEMM should be therefore
          * based only on the number of pending tasks on the GPUs.
          */
-        float weight, best_weight = device_load[0] + device_weight[0];
-        for( which_gpu = 0; which_gpu < ndevices; which_gpu++ ) {
-            weight = device_load[which_gpu+1] + device_weight[which_gpu+1];
+        float weight, best_weight = dague_device_load[0] + dague_device_sweight[0];
+        for( which_gpu = 1; which_gpu < ndevices; which_gpu++ ) {
+            weight = dague_device_load[which_gpu] + dague_device_sweight[which_gpu];
             if( best_weight > weight ) {
                 best_index = which_gpu;
                 best_weight = weight;
             }
         }
-        if( best_index == -1 ) {
-            dague_atomic_inc_32b( &dague_cpu_counter );
+        if( best_index == 0 ) {
             return -99;
         }
         which_gpu = best_index;
     }
     /* Update the load of the selected GPU */
-    device_load[which_gpu+1] += device_weight[which_gpu+1];
+    dague_device_load[which_gpu] += dague_device_sweight[which_gpu];
 
     return gpu_kernel_scheduler_zgemm( eu_context, (dague_gpu_context_t*)gpu_task, which_gpu );
 }

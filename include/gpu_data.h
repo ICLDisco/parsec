@@ -84,24 +84,17 @@ typedef struct _gpu_device {
 } gpu_device_t;
 
 #define DAGUE_CUDA_CHECK_ERROR( STR, ERROR, CODE )                      \
-    {                                                                   \
+    do {                                                                \
         cudaError_t __cuda_error = (cudaError_t) (ERROR);               \
         if( cudaSuccess != __cuda_error ) {                             \
             WARNING(( "%s:%d %s%s\n", __FILE__, __LINE__,               \
                     (STR), cudaGetErrorString(__cuda_error) ));         \
             CODE;                                                       \
         }                                                               \
-    }
+    } while(0)
 
-extern gpu_device_t** gpu_enabled_devices;
 int dague_gpu_init(dague_context_t *dague_context);
 int dague_gpu_fini(void);
-
-/**
- * Enable and disale GPU-compatible memory if possible
- */
-void dague_data_enable_gpu( int nbgpu );
-void dague_data_disable_gpu( void );
 
 /**
  * Debugging functions.

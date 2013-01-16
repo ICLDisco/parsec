@@ -18,9 +18,6 @@
 #include <errno.h>
 #include "lifo.h"
 
-extern volatile uint32_t dague_cpu_counter;
-extern gpu_device_t** gpu_enabled_devices;
-
 /**
  * Define functions names
  */
@@ -69,7 +66,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     char tmp[MAX_TASK_STRLEN];
 #endif
 
-    gpu_device = gpu_enabled_devices[which_gpu];
+    gpu_device = (gpu_device_t*)dague_devices_get(which_gpu);
 
     /* Check the GPU status */
     rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
@@ -176,7 +173,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     DAGUE_LIST_ITEM_SINGLETON(this_task);
     gpu_kernel_epilog( gpu_device, this_task );
     __dague_complete_execution( eu_context, this_task->ec );
-    device_load[gpu_device->super.device_index] -= device_weight[gpu_device->super.device_index];
+    dague_device_load[gpu_device->super.device_index] -= dague_device_sweight[gpu_device->super.device_index];
     gpu_device->super.executed_tasks++;
     free( this_task );
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );

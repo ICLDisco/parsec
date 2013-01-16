@@ -71,7 +71,7 @@ int stsmqr_cuda_init( dague_context_t* dague_context,
         int major, minor;
         char module_path[FILENAME_MAX];
 
-        gpu_device = gpu_enabled_devices[i];
+        gpu_device = (gpu_device_t*)dague_devices_get(i);
 
         status = cuDeviceGet( &hcuDevice, gpu_device->cuda_index );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {continue;} );

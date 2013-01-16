@@ -22,6 +22,11 @@ typedef int (*dague_device_support_f)(dague_device_t*, dague_handle_t*);
 
 struct dague_device_s {
     dague_list_item_t item;
+
+    /* Device Management Functions */
+    dague_device_fini_f device_fini;
+    dague_device_support_f device_support;
+
     struct dague_context_s* context;  /**< The DAGuE context this device belongs too */
     char* name;  /**< Simple identified for the device */
     uint64_t transferred_data_in;
@@ -40,6 +45,12 @@ struct dague_device_s {
 extern uint32_t dague_nb_devices;
 extern uint32_t dague_devices_mutex;
 extern dague_device_t** dague_devices;
+/**
+ * Temporary variables used for load-balancing purposes.
+ */
+extern float *dague_device_load;
+extern float *dague_device_sweight;
+extern float *dague_device_dweight;
 
 /**
  * Initialize the internal structures for managing external devices such as
