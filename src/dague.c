@@ -18,6 +18,7 @@
 #endif  /* defined(HAVE_GETOPT_H) */
 #include <dague/ayudame.h>
 
+#include <dague/utils/output.h>
 #include "data.h"
 #include "list.h"
 #include "scheduling.h"
@@ -227,6 +228,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     dague_installdirs_open();
     dague_mca_param_init();
+    dague_output_init();
 
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
@@ -387,11 +389,12 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                                             &device_delegate_begin, &device_delegate_end);
 #endif  /* DAGUE_PROF_TRACE */
 
-    dague_devices_init();
+    dague_devices_init(context);
     /* By now let's add one device for the CPUs */
     {
         dague_device_t* cpus = (dague_device_t*)calloc(1, sizeof(dague_device_t));
         cpus->name = "Whole machine";
+        cpus->type = DAGUE_DEV_CPU;
         dague_devices_add(context, cpus);
         /* TODO: This is plain WRONG, but should work by now */
         cpus->device_sweight = nb_total_comp_threads * 8 * 2.27;
@@ -399,6 +402,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
     dague_devices_select(context);
     dague_devices_freeze(context);
+
+    /* Init the data infrastructure. Must be done only after the freeze of the devices */
+    dague_data_init(context);
 
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
@@ -492,6 +498,8 @@ int dague_fini( dague_context_t** pcontext )
         context->virtual_processes[p] = NULL;
     }
 
+    dague_devices_fini(context);
+
     AYU_FINI();
 #ifdef DAGUE_PROF_TRACE
     dague_profiling_fini( );
@@ -531,6 +539,7 @@ int dague_fini( dague_context_t** pcontext )
 
     dague_mca_param_finalize();
     dague_installdirs_close();
+    dague_output_finalize();
 
     free(context);
     *pcontext = NULL;
