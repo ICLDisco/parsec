@@ -64,10 +64,10 @@ typedef struct __dague_gpu_exec_stream {
 
 typedef struct _gpu_device {
     dague_device_t super;
-    uint8_t cuda_index;
     uint8_t major;
     uint8_t minor;
-    int16_t max_exec_streams;
+    uint8_t cuda_index;
+    uint8_t max_exec_streams;
     int16_t peer_access_mask;  /**< A bit set to 1 represent the capability of
                                 *   the device to access directly the memory of
                                 *   the index of the set bit device.

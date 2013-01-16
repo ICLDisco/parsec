@@ -18,9 +18,9 @@
 
 uint32_t dague_nb_devices = 0;
 static uint32_t dague_nb_max_devices = 0;
-static uint32_t dague_devices_freezed = 0;
+static uint32_t dague_devices_are_freezed = 0;
 uint32_t dague_devices_mutex = 0;  /* unlocked */
-dague_device_t** dague_devices = NULL;
+static dague_device_t** dague_devices = NULL;
 
 /**
  * Temporary solution: Use the following two arrays to handle the weight and
@@ -32,7 +32,7 @@ float *dague_device_load = NULL;
 float *dague_device_sweight = NULL;
 float *dague_device_dweight = NULL;
 
-int dague_devices_init(void)
+int dague_devices_init(dague_context_t* dague_context)
 {
     (void)dague_mca_param_reg_int_name("device", "show_capabilities",
                                        "Show the detailed devices capabilities",
@@ -43,6 +43,7 @@ int dague_devices_init(void)
     (void)dague_mca_param_reg_int_name("device", "show_statistics",
                                        "Show the detailed devices statistics upon exit",
                                        false, false, 0, NULL);
+    (void)dague_context;
     return DAGUE_ERR_NOT_IMPLEMENTED;
 }
 
@@ -68,7 +69,7 @@ dague_compute_best_unit( uint64_t length, float* updated_value, char** best_unit
     return;
 }
 
-int dague_devices_fini(void)
+int dague_devices_fini(dague_context_t* dague_context)
 {
     dague_device_t *device;
     int show_stats_index, show_stats = 0;
@@ -77,6 +78,7 @@ int dague_devices_fini(void)
     show_stats_index = dague_mca_param_find("device", NULL, "show_statistics");
     if( 0 < show_stats_index )
         dague_mca_param_lookup_int(show_stats_index, &show_stats);
+    (void)dague_context;
     if( show_stats ) {
         int *device_counter;
         int i, total = 0;
@@ -97,9 +99,12 @@ int dague_devices_fini(void)
         required_in     = (uint64_t*)calloc(dague_nb_devices, sizeof(uint64_t));
         required_out    = (uint64_t*)calloc(dague_nb_devices, sizeof(uint64_t));
 
+        /**
+         * Save the statistics locally.
+         */
         for(i = 0; i < dague_nb_devices; i++) {
             if( NULL == (device = dague_devices[i]) ) continue;
-
+            assert( i == device->device_index );
             /* Save the statistics */
             device_counter[device->device_index]  += device->executed_tasks;
             transferred_in[device->device_index]  += device->transferred_data_in;
@@ -123,8 +128,8 @@ int dague_devices_fini(void)
 
         printf("-------------------------------------------------------------------------------------------------\n");
         printf("|         |                   |         Data In                |         Data Out               |\n");
-        printf("|PU % 5d |  # KERNEL |   %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
-               device->context->my_rank);
+        printf("|Rank %3d |  # KERNEL |   %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
+               dague_context->my_rank);
         printf("|---------|-----------|-------|------------|-------------------|------------|-------------------|\n");
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( NULL == (device = dague_devices[i]) ) continue;
@@ -174,7 +179,7 @@ int dague_devices_freeze(dague_context_t* dague_context)
 {
     float total_sperf = 0.0, total_dperf = 0.0;
 
-    if(dague_devices_freezed)
+    if(dague_devices_are_freezed)
         return -1;
     dague_device_load = (float*)calloc(dague_nb_devices, sizeof(float));
     dague_device_sweight = (float*)calloc(dague_nb_devices, sizeof(float));
@@ -201,8 +206,13 @@ int dague_devices_freeze(dague_context_t* dague_context)
                i, dague_device_sweight[i], dague_device_dweight[i]));
     }
 
-    dague_devices_freezed = 1;
+    dague_devices_are_freezed = 1;
     return 0;
+}
+
+int dague_devices_freezed(dague_context_t* context)
+{
+    return dague_devices_are_freezed;
 }
 
 int dague_devices_select(dague_context_t* dague_context)
@@ -216,7 +226,7 @@ int dague_devices_select(dague_context_t* dague_context)
 
 int dague_devices_add(dague_context_t* dague_context, dague_device_t* device)
 {
-    if( dague_devices_freezed ) {
+    if( dague_devices_are_freezed ) {
         return DAGUE_ERROR;
     }
     if( NULL != device->context ) {
@@ -241,7 +251,7 @@ int dague_devices_add(dague_context_t* dague_context, dague_device_t* device)
 
 dague_device_t* dague_devices_get(uint32_t device_index)
 {
-    if( device_index > dague_nb_devices )
+    if( device_index >= dague_nb_devices )
         return NULL;
     return dague_devices[device_index];
 }
@@ -266,9 +276,3 @@ int dague_device_remove(dague_device_t* device)
     dague_atomic_unlock(&dague_devices_mutex);  /* CRITICAL SECTION: BEGIN */
     return rc;
 }
-
-int dague_devices_enabled(void)
-{
-    return dague_nb_devices;
-}
-

@@ -14,6 +14,11 @@
 #endif  /* defined(DAGUE_PROF_TRACE) */
 #include "dague.h"
 
+#define DAGUE_DEV_CPU        0x01
+#define DAGUE_DEV_CUDA       0x02
+#define DAGUE_DEV_INTEL_PHI  0x03
+#define DAGUE_DEV_OPENCL     0x04
+
 typedef struct dague_device_s dague_device_t;
 
 typedef int (*dague_device_init_f)(dague_device_t*);
@@ -40,11 +45,11 @@ struct dague_device_s {
     dague_thread_profiling_t *profiling;
 #endif  /* defined(PROFILING) */
     uint8_t device_index;
+    uint8_t type;
 };
 
 extern uint32_t dague_nb_devices;
 extern uint32_t dague_devices_mutex;
-extern dague_device_t** dague_devices;
 /**
  * Temporary variables used for load-balancing purposes.
  */
@@ -57,12 +62,12 @@ extern float *dague_device_dweight;
  * accelerators and GPU. Memory nodes can as well be managed using the same
  * mechnism.
  */
-extern int dague_devices_init(void);
+extern int dague_devices_init(dague_context_t*);
 
 /**
  * The runtime will shutdown, all internal structures have to be destroyed.
  */
-extern int dague_devices_fini(void);
+extern int dague_devices_fini(dague_context_t*);
 
 /**
  * Parse the list of potential devices and see which one would succesfully load
@@ -76,6 +81,11 @@ extern int dague_devices_select(dague_context_t*);
  * (supported) devices.
  */
 extern int dague_devices_freeze(dague_context_t*);
+/**
+ * Return a positive value if the devices configurations has been freezed by a call
+ * to dague_devices_freeze().
+ */
+extern int dague_devices_freezed(dague_context_t*);
 
 /**
  * Declare a new device with the runtime. The device will later provide a list
@@ -100,6 +110,10 @@ DAGUE_DECLSPEC int dague_device_remove(dague_device_t* device);
  * number can change until dague_devices_freeze() is called, fact that mark the
  * end of the configuration stage.
  */
-DAGUE_DECLSPEC int dague_devices_enabled(void);
+static inline int dague_devices_enabled(void)
+{
+    return dague_nb_devices;
+}
+
 
 #endif  /* DAGUE_DEVICE_H_HAS_BEEN_INCLUDED */

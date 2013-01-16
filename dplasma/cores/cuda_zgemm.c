@@ -73,8 +73,6 @@ typedef struct dague_zgemm_args_s {
 
 #include <dague/devices/cuda/cuda_scheduling.h>
 
-static int ndevices = 0;
-
 int gpu_kernel_init_zgemm( dague_context_t* dague_context )
 {
     char *env;
@@ -93,6 +91,8 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context )
         char function_name[FILENAME_MAX];
 
         gpu_device = (gpu_device_t*)dague_devices_get(i);
+        /* Skip all non CUDA devices */
+        if( DAGUE_DEV_CUDA != gpu_device->super.type ) continue;
         fn = NULL;
 
         status = cuCtxPushCurrent( gpu_device->ctx );
@@ -430,9 +430,37 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
                                         int Bm, int Bn, const tiled_matrix_desc_t *descB, int ldb,
                dague_complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC, int ldc )
 {
-    int which_gpu;
-    dague_zgemm_args_t *gpu_task = (dague_zgemm_args_t*)malloc(sizeof(dague_zgemm_args_t));
+    int i, dev_index, data_index = 0;
+    dague_zgemm_args_t *gpu_task;
 
+    /* Step one: which write enabled data we will look at */
+    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+        if( this_task->function->in[i]->access_type & ACCESS_WRITE ) {
+            data_index = i;
+            break;
+        }
+    }
+    /* Which device is the owner of the data */
+    dev_index = this_task->data[data_index].data->original->owner_device;
+    if( dev_index <= 0 ) {  /* this is the first time we see this tile.
+                             * Let's decide which GPU will work on it. */
+        int best_index = 0;  /* default value: first CPU device */
+        float weight, best_weight = dague_device_load[0] + dague_device_sweight[0];
+        for( dev_index = 1; dev_index < dague_devices_enabled(); dev_index++ ) {
+            weight = dague_device_load[dev_index] + dague_device_sweight[dev_index];
+            if( best_weight > weight ) {
+                best_index = dev_index;
+                best_weight = weight;
+            }
+        }
+        dague_device_load[best_index] += dague_device_sweight[best_index];
+        if( best_index == 0 ) {
+            return -99;
+        }
+        dev_index = best_index;
+    }
+
+    gpu_task = (dague_zgemm_args_t*)malloc(sizeof(dague_zgemm_args_t));
     OBJ_CONSTRUCT(gpu_task, dague_list_item_t);
     gpu_task->super.ec = this_task;
     gpu_task->pushout  = pushout;
@@ -459,33 +487,5 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     gpu_task->ddescB   = (dague_ddesc_t*)descB;
     gpu_task->ddescC   = (dague_ddesc_t*)descC;
 
-    /* We always schedule the task on the GPU owning the C tile. */
-    which_gpu = this_task->data[2].data->original->owner_device;
-    if( which_gpu <= 0 ) {  /* this is the first time we see this tile.
-                            * Let's decide which GPU will work on it. */
-        int best_index = 0;  /* default value: first CPU device */
-        /* There are 3 types of GEMMs kernels: the ones waiting on the
-         * execution contextes queues to be investigated, the current one
-         * which is investigated for execution on the context of the current
-         * execution context, and the ones already queued on the GPUs. The
-         * decision regarding the status of the current GEMM should be therefore
-         * based only on the number of pending tasks on the GPUs.
-         */
-        float weight, best_weight = dague_device_load[0] + dague_device_sweight[0];
-        for( which_gpu = 1; which_gpu < ndevices; which_gpu++ ) {
-            weight = dague_device_load[which_gpu] + dague_device_sweight[which_gpu];
-            if( best_weight > weight ) {
-                best_index = which_gpu;
-                best_weight = weight;
-            }
-        }
-        if( best_index == 0 ) {
-            return -99;
-        }
-        which_gpu = best_index;
-    }
-    /* Update the load of the selected GPU */
-    dague_device_load[which_gpu] += dague_device_sweight[which_gpu];
-
-    return gpu_kernel_scheduler_zgemm( eu_context, (dague_gpu_context_t*)gpu_task, which_gpu );
+    return gpu_kernel_scheduler_zgemm( eu_context, (dague_gpu_context_t*)gpu_task, dev_index );
 }

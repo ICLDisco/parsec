@@ -22,15 +22,6 @@
 #include <cuda_runtime_api.h>
 #include <errno.h>
 
-/*
- *  dague_gpu_init()           : Initialize the ndevices GPU asked
- *  dague_gpu_kernel_init()    : Check which GPUs can execute the kernel and initialize function ptr
- *  dague_gpu_data_register()  : Register the dague_ddesc on which the gpu kernels will work
- *  dague_gpu_data_unregister(): Unregister the dague_ddesc on which the gpu kernels will work
- *  dague_gpu_fini()           : Show global data movment statistics and clean all GPUs
- *
- */
-
 #if defined(DAGUE_PROF_TRACE)
 /* Accepted values are: DAGUE_PROFILE_CUDA_TRACK_DATA_IN | DAGUE_PROFILE_CUDA_TRACK_DATA_OUT |
  *                      DAGUE_PROFILE_CUDA_TRACK_OWN | DAGUE_PROFILE_CUDA_TRACK_EXEC
@@ -262,6 +253,7 @@ int dague_gpu_init(dague_context_t *dague_context)
                                 {free(gpu_device); continue;} );
 
         gpu_device->cuda_index                 = (uint8_t)i;
+        gpu_device->super.type                 = DAGUE_DEV_CUDA;
         gpu_device->super.executed_tasks       = 0;
         gpu_device->super.transferred_data_in  = 0;
         gpu_device->super.transferred_data_out = 0;
@@ -308,6 +300,8 @@ int dague_gpu_init(dague_context_t *dague_context)
         int canAccessPeer;
 
         if( NULL == (source_gpu = (gpu_device_t*)dague_devices_get(i)) ) continue;
+        /* Skip all non CUDA devices */
+        if( DAGUE_DEV_CUDA != source_gpu->super.type ) continue;
 
         source_gpu->peer_access_mask = 0;
         status = cuDeviceGet( &source, source_gpu->cuda_index );
@@ -318,6 +312,8 @@ int dague_gpu_init(dague_context_t *dague_context)
 
         for( j = 0; j < ndevices; j++ ) {
             if( (NULL == (target_gpu = (gpu_device_t*)dague_devices_get(j))) || (i == j) ) continue;
+            /* Skip all non CUDA devices */
+            if( DAGUE_DEV_CUDA != target_gpu->super.type ) continue;
 
             status = cuDeviceGet( &target, target_gpu->cuda_index );
             DAGUE_CUDA_CHECK_ERROR( "No peer memory access: cuDeviceGet ", status, {continue;} );
@@ -370,6 +366,8 @@ int dague_gpu_data_register( dague_context_t *dague_context,
         uint32_t mem_elem_per_gpu = 0;
 
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
+        /* Skip all non CUDA devices */
+        if( DAGUE_DEV_CUDA != gpu_device->super.type ) continue;
 
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_data_register) cuCtxPushCurrent ", status,
@@ -471,6 +469,8 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
 
     for(i = 0; i < dague_nb_devices; i++) {
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
+        /* Skip all non CUDA devices */
+        if( DAGUE_DEV_CUDA != gpu_device->super.type ) continue;
 
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_data_unregister) cuCtxPushCurrent ", status,

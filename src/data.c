@@ -8,10 +8,10 @@
 #include "lifo.h"
 #include <dague/constants.h>
 #include <dague/devices/device.h>
+#include <dague/utils/output.h>
 #include "data.h"
 
 /* TODO: create a consistent common infrastructure for the devices */
-uint32_t dague_supported_number_of_devices = 1;
 static dague_lifo_t dague_data_lifo;
 static dague_lifo_t dague_data_copies_lifo;
 
@@ -25,7 +25,6 @@ static void dague_data_copy_construct(dague_data_copy_t* obj)
     obj->older            = NULL;
     obj->original         = NULL;
     obj->device_private   = NULL;
-
 }
 
 #if defined(DAGUE_DEBUG_ENABLE)
@@ -51,13 +50,13 @@ static void dague_data_construct(dague_data_t* obj )
     obj->owner_device     = -1;
     obj->key              = 0;
     obj->nb_elts          = 0;
-    for( uint32_t i = 0; i < dague_supported_number_of_devices;
+    for( uint32_t i = 0; i < dague_nb_devices;
          obj->device_copies[i] = NULL, i++ );
 }
 
 static void dague_data_destruct(dague_data_t* obj )
 {
-    for( uint32_t i = 0; i < dague_supported_number_of_devices; i++ )
+    for( uint32_t i = 0; i < dague_nb_devices; i++ )
         assert(NULL == obj->device_copies[i]);
 }
 
@@ -70,23 +69,27 @@ OBJ_CLASS_INSTANCE(dague_data_t, dague_list_item_t,
 #endif  /* defined(DAGUE_DEBUG_ENABLE) */
                    );
 
-int dague_data_init(void)
+int dague_data_init(dague_context_t* context)
 {
     OBJ_CONSTRUCT(&dague_data_lifo, dague_lifo_t);
     OBJ_CONSTRUCT(&dague_data_copies_lifo, dague_lifo_t);
-    dague_supported_number_of_devices = dague_devices_enabled();
     /**
      * This is a trick. Now that we know the number of available devices
      * we can update the size of the dague_data_t class to the correct value.
      */
-    dague_data_t_class.cls_sizeof += sizeof(dague_data_copy_t*) * dague_supported_number_of_devices;
+    if( !dague_devices_freezed(context) ) {
+        dague_output(0, "Canot configure the data infrastructure as the devices layer has not yet been freezed\n");
+        return DAGUE_ERROR;
+    }
+    dague_data_t_class.cls_sizeof += sizeof(dague_data_copy_t*) * dague_nb_devices;
     return 0;
 }
 
-int dague_data_fini()
+int dague_data_fini(dague_context_t* context)
 {
     OBJ_DESTRUCT(&dague_data_lifo);
     OBJ_DESTRUCT(&dague_data_copies_lifo);
+    (void)context;
     return 0;
 }
 
@@ -185,7 +188,7 @@ int dague_data_copy_ownership_to_device(dague_data_t* data,
             //assert( DATA_COHERENCY_OWNED != data->coherency_state ); /* 2 writters on the same data: wrong JDF */
             data->coherency_state = DATA_COHERENCY_OWNED;
             data->owner_device = (uint16_t)device;
-            for( i = 0; i < dague_supported_number_of_devices; i++ ) {
+            for( i = 0; i < dague_nb_devices; i++ ) {
                 if( NULL == data->device_copies[i] ) continue;
                 data->device_copies[i]->coherency_state = DATA_COHERENCY_INVALID;
             }
