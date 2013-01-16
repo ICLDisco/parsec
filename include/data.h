@@ -68,6 +68,12 @@ struct dague_data_copy_s {
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
 
+/**
+ * Initialize the DAGuE data infrastructure
+ */
+DAGUE_DECLSPEC int dague_data_init(dague_context_t* context);
+DAGUE_DECLSPEC int dague_data_fini(dague_context_t* context);
+
 static inline dague_data_copy_t*
 dague_data_get_copy(dague_data_t* data, uint32_t device)
 {
