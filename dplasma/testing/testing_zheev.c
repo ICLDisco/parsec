@@ -18,7 +18,7 @@
 #define FADDS_ZHEEV(__n) (((__n) * (-8.0 / 3.0 + (__n) * (1.0 + 2.0 / 3.0 * (__n)))) - 4.0)
 #define FMULS_ZHEEV(__n) (((__n) * (-1.0 / 6.0 + (__n) * (5.0 / 2.0 + 2.0 / 3.0 * (__n)))) - 15.0)
 
-#define PRINTF_HEAVY
+#undef PRINTF_HEAVY
 
 static int check_solution(int N, double *E1, double *E2, double eps);
 
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
         MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
     SYNC_TIME_START();
     dague_diag_band_to_rect_object_t* DAGUE_diag_band_to_rect = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
-            MT, NT, MB, NB, sizeof(matrix_ComplexDouble));
+            MT, NT, MB, NB, sizeof(dague_complex64_t));
     dague_arena_t* arena = DAGUE_diag_band_to_rect->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA];
     dplasma_add2arena_tile(arena,
                            MB*NB*sizeof(dague_complex64_t),
@@ -97,6 +97,9 @@ int main(int argc, char *argv[])
     dague_enqueue(dague, (dague_object_t*)DAGUE_diag_band_to_rect);
     dague_progress(dague);
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
+#ifdef PRINTF_HEAVY
+    dplasma_zprint(dague, PlasmaUpperLower, &ddescBAND);
+#endif
 
     /* REDUCTION TO BIDIAGONAL FORM */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zhbrdt, ((tiled_matrix_desc_t*)&ddescBAND));
@@ -164,7 +167,7 @@ int main(int argc, char *argv[])
             ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
             ddescA0.super.m, ddescA0.super.n);
         /* Fill A2 with A0 again */
-        dplasma_zlaset( dague, PlasmaUpperLower, 0.0f, 0.0f, &ddescA0);
+        dplasma_zlaset( dague, PlasmaUpperLower, 0.0, 0.0, &ddescA0);
         dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
 
