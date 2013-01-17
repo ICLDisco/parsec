@@ -272,14 +272,14 @@ static int check_solution(int N, double *E1, double *E2, double eps)
     double resid;
     double maxtmp;
     double maxel = fabs( fabs(E1[0]) - fabs(E2[0]) );
-    double maxeig = max( fabs(E1[0]), fabs(E2[0]) );
+    double maxeig = fmax( fabs(E1[0]), fabs(E2[0]) );
     for (i = 1; i < N; i++){
         resid   = fabs(fabs(E1[i])-fabs(E2[i]));
-        maxtmp  = max(fabs(E1[i]), fabs(E2[i]));
+        maxtmp  = fmax(fabs(E1[i]), fabs(E2[i]));
 
         /* Update */
-        maxeig = max(maxtmp, maxeig);
-        maxel  = max(resid,  maxel );
+        maxeig = fmax(maxtmp, maxeig);
+        maxel  = fmax(resid,  maxel );
     }
 
     maxel = maxel / (maxeig * N * eps);
