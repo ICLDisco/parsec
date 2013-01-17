@@ -24,13 +24,17 @@ typedef struct dague_device_s dague_device_t;
 typedef int (*dague_device_init_f)(dague_device_t*);
 typedef int (*dague_device_fini_f)(dague_device_t*);
 typedef int (*dague_device_support_f)(dague_device_t*, dague_handle_t*);
+typedef int (*dague_device_memory_register_f)(dague_device_t*, void*, size_t);
+typedef int (*dague_device_memory_unregister_f)(dague_device_t*, void*);
 
 struct dague_device_s {
     dague_list_item_t item;
 
     /* Device Management Functions */
-    dague_device_fini_f device_fini;
-    dague_device_support_f device_support;
+    dague_device_fini_f              device_fini;
+    dague_device_support_f           device_support;
+    dague_device_memory_register_f   device_memory_register;
+    dague_device_memory_unregister_f device_memory_unregister;
 
     struct dague_context_s* context;  /**< The DAGuE context this device belongs too */
     char* name;  /**< Simple identified for the device */
@@ -74,6 +78,16 @@ extern int dague_devices_fini(dague_context_t*);
  * and initialize in the current environment.
  */
 extern int dague_devices_select(dague_context_t*);
+
+/**
+ * Register a memory region with the underlying devices (if necessary).
+ */
+extern int dague_devices_memory_register(void*, size_t);
+
+/**
+ * Unregister a memory region with the underlying devices (if necessary).
+ */
+extern int dague_devices_memory_unregister(void*);
 
 /**
  * This call mark the end of the configuration step, no devices can be registered

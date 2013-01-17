@@ -415,6 +415,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                                         break;
                                      }) );
             gpu_elem->device_private = (void*)(long)device_ptr;
+            gpu_elem->device_index = gpu_device->super.device_index;
             mem_elem_per_gpu++;
             dague_ulist_fifo_push( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
