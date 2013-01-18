@@ -105,25 +105,36 @@ int main(int argc, char *argv[])
     PASTE_CODE_ENQUEUE_KERNEL(dague, zhbrdt, ((tiled_matrix_desc_t*)&ddescBAND));
     PASTE_CODE_PROGRESS_KERNEL(dague, zhbrdt)
 
-
     if( check ) {
-        PLASMA_desc *plasmaDescA;
-        PLASMA_Complex64_t *A2  = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
-        double *W1              = (double *)malloc(N*sizeof(double));
-        double *W2              = (double *)malloc(N*sizeof(double));
+        PLASMA_desc *plasmaDescA0;
+        PLASMA_Complex64_t *A0  = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
+        double *W0              = (double *)malloc(N*sizeof(double));
+        PLASMA_Complex64_t* band;
         double *D               = (double *)malloc(N*sizeof(double));
         double *E               = (double *)malloc(N*sizeof(double));
         int INFO;
         
+        /* COMPUTE THE EIGENVALUES FROM DPLASMA (with LAPACK) */
         if( P*Q > 1 ) {
-            printf("CHECKS ARE NOT POSSIBLE IN DISTRIBUTED (YET)\n");
-            goto checkdone;
+            /* We need to gather the distributed band on rank0 */
+            /*PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1, 
+                two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile, 
+                nodes, cores, rank, 2, N, 1, 1, 0, 0, 2, N, 1, 1, 1)); /* on rank 0 only */
+            /* LAcpy doesn't handle differing tile sizes, so lets get simple here */
+            PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1, 
+                two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
+                    1, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
+                    MB+1, (NB+2)*NT, 1, 1, 1 /* rank0 only */ ));
+            dplasma_zlacpy(dague, PlasmaUpperLower, &ddescBAND, &ddescW);
+            //dplasma_zprint(dague, PlasmaUpperLower, &ddescW);
+            band = ddescW.mat;
+        } 
+        else {
+            band = ddescBAND.mat;
         }
 
-        /* COMPUTE THE EIGENVALUES FROM DPLASMA (with LAPACK) */
-        {
+        { /* Extract the D (diagonal) and E (subdiag) vectors from the band */
             int k, sizearena = (MB+1)*(NB+2);
-            PLASMA_Complex64_t* band = ddescBAND.mat;
             /* store resulting diag and lower diag D and E*/
             for( k=0; k<NT-1; k++ ) {
                 for( j=0; j<NB; j++ ) {
@@ -162,23 +173,23 @@ int main(int argc, char *argv[])
             two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
             1, cores, rank, MB, NB, LDA, N, 0, 0,
             N, N, 1, 1, 1))
-        PLASMA_Desc_Create(&plasmaDescA, ddescA0.mat, PlasmaComplexDouble,
+        PLASMA_Desc_Create(&plasmaDescA0, ddescA0.mat, PlasmaComplexDouble,
             ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
             ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
             ddescA0.super.m, ddescA0.super.n);
-        /* Fill A2 with A0 again */
+        /* Fill A0 again */
         dplasma_zlaset( dague, PlasmaUpperLower, 0.0, 0.0, &ddescA0);
         dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
-        PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, LDA);
+        PLASMA_Tile_to_Lapack(plasmaDescA0, (void*)A0, LDA);
 
 #ifdef PRINTF_HEAVY
         printf("########### A0 #############\n");
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
 #   if defined(PRECISION_d) || defined(PRECISION_s)
-                printf("% 11.4g ", A2[LDA*j+i] );
+                printf("% 11.4g ", A0[LDA*j+i] );
 #   else
-                printf("(%g, %g)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
+                printf("(%g, %g)", creal(A0[LDA*j+i]), cimag(A0[LDA*j+i]));
 #   endif
             }
             printf("\n");
@@ -187,22 +198,23 @@ int main(int argc, char *argv[])
         /* Compute eigenvalues directly */
         LAPACKE_zheev( LAPACK_COL_MAJOR,
             lapack_const(PlasmaNoVec), lapack_const(uplo),
-            N, A2, LDA, W1);
+            N, A0, LDA, W0);
 
 #ifdef PRINTF_HEAVY
         printf("########### A (after LAPACK direct eignesolver)\n");
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
 #   if defined(PRECISION_d) || defined(PRECISION_s)
-                printf("% 11.4g ", A2[LDA*j+i] );
+                printf("% 11.4g ", A0[LDA*j+i] );
 #   else
-                printf("(%g, %g)", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
+                printf("(%g, %g)", creal(A0[LDA*j+i]), cimag(A0[LDA*j+i]));
 #   endif
             }
             printf("\n");
         }
 #endif
 
+        if( 0 == rank ) {
 #ifdef PRINTF_HEAVY
         printf("\n###############\nDPLASMA Eignevalues\n");
         for(i = 0; i < N; i++) {
@@ -210,7 +222,7 @@ int main(int argc, char *argv[])
         }
         printf("\nLAPACK Eigenvalues\n");
         for(i = 0; i < N; i++) {
-            printf("% .14e ", W1[i]);
+            printf("% .14e ", W0[i]);
         }
         printf("\n");
 #endif
@@ -226,7 +238,7 @@ int main(int argc, char *argv[])
         printf(" Computational tests pass if scaled residuals are less than 60.\n");
 
         /* Check the eigen solutions */
-        int info_solution = check_solution(N, W1, D, eps);
+        int info_solution = check_solution(N, W0, D, eps);
 
         if (info_solution == 0) {
             printf("***************************************************\n");
@@ -238,10 +250,10 @@ int main(int argc, char *argv[])
             printf(" - TESTING ZHEEV ..................... FAILED !\n");
             printf("************************************************\n");
         }
-        free(A2); free(W1); free(W2); free(D); free(E);
+        }
+        free(A0); free(W0); free(D); free(E);
     }
     
-checkdone:
     dplasma_zherbt_Destruct( DAGUE_zherbt );
     DAGUE_INTERNAL_OBJECT_DESTRUCT( DAGUE_diag_band_to_rect );
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
