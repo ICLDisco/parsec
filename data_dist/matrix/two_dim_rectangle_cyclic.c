@@ -43,7 +43,7 @@ static uint32_t twoDBC_data_key(dague_ddesc_t *desc, ...);
 static int  twoDBC_key_to_string(dague_ddesc_t * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
 #endif
 
-static twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
+static int twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
 {
     two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
     return device->device_memory_register(device,
@@ -52,7 +52,7 @@ static twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device
                                            dague_datadist_getsizeoftype(twodbc->super.mtype)));
 }
 
-static twoDBC_memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
+static int twoDBC_memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
 {
     two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
     return device->device_memory_unregister(device, twodbc->mat);

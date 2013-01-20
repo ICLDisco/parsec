@@ -54,11 +54,13 @@ static void dague_data_construct(dague_data_t* obj )
          obj->device_copies[i] = NULL, i++ );
 }
 
+#if defined(DAGUE_DEBUG_ENABLE)
 static void dague_data_destruct(dague_data_t* obj )
 {
     for( uint32_t i = 0; i < dague_nb_devices; i++ )
         assert(NULL == obj->device_copies[i]);
 }
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
 
 OBJ_CLASS_INSTANCE(dague_data_t, dague_list_item_t,
                    dague_data_construct,
@@ -174,7 +176,7 @@ int dague_data_copy_ownership_to_device(dague_data_t* data,
                                         uint8_t access_mode)
 {
     dague_data_copy_t* copy;
-    int i, transfer_required = 0;
+    uint32_t i, transfer_required = 0;
 
     copy = data->device_copies[device];
     assert( NULL != copy );

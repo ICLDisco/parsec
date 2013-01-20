@@ -80,8 +80,9 @@ int dague_devices_fini(dague_context_t* dague_context)
         dague_mca_param_lookup_int(show_stats_index, &show_stats);
     (void)dague_context;
     if( show_stats ) {
-        int *device_counter;
-        int i, total = 0;
+        int *device_counter, total = 0;
+        uint64_t total_data_in = 0,     total_data_out = 0;
+        uint64_t total_required_in = 0, total_required_out = 0;
         uint64_t *transferred_in, *transferred_out;
         uint64_t *required_in,    *required_out;
         float gtotal = 0.0;
@@ -89,8 +90,7 @@ int dague_devices_fini(dague_context_t* dague_context)
         float best_required_in, best_required_out;
         char *data_in_unit, *data_out_unit;
         char *required_in_unit, *required_out_unit;
-        uint64_t total_data_in = 0,     total_data_out = 0;
-        uint64_t total_required_in = 0, total_required_out = 0;
+        uint32_t i;
 
         /* GPU counter for GEMM / each */
         device_counter  = (int*)     calloc(dague_nb_devices, sizeof(int)     );
@@ -175,16 +175,17 @@ int dague_devices_fini(dague_context_t* dague_context)
 #endif  /* defined(HAVE_CUDA) */
 }
 
-int dague_devices_freeze(dague_context_t* dague_context)
+int dague_devices_freeze(dague_context_t* context)
 {
     float total_sperf = 0.0, total_dperf = 0.0;
+    (void)context;
 
     if(dague_devices_are_freezed)
         return -1;
     dague_device_load = (float*)calloc(dague_nb_devices, sizeof(float));
     dague_device_sweight = (float*)calloc(dague_nb_devices, sizeof(float));
     dague_device_dweight = (float*)calloc(dague_nb_devices, sizeof(float));
-    for( int i = 0; i < dague_nb_devices; i++ ) {
+    for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
         dague_device_t* device = dague_devices[i];
         if( NULL == device ) continue;
         dague_device_sweight[i] = device->device_sweight;
@@ -195,7 +196,7 @@ int dague_devices_freeze(dague_context_t* dague_context)
 
     /* Compute the weight of each device including the cores */
     DEBUG(("Global Theoritical performance: single %2.4f double %2.4f\n", total_sperf, total_dperf));
-    for( int i = 0; i < dague_nb_devices; i++ ) {
+    for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
         DEBUG(("Dev[%d]             ->ratio single %2.4e double %2.4e\n",
                i, dague_device_sweight[i], dague_device_dweight[i]));
 
@@ -212,11 +213,13 @@ int dague_devices_freeze(dague_context_t* dague_context)
 
 int dague_devices_freezed(dague_context_t* context)
 {
+    (void)context;
     return dague_devices_are_freezed;
 }
 
-int dague_devices_select(dague_context_t* dague_context)
+int dague_devices_select(dague_context_t* context)
 {
+    (void)context;
 #if defined(HAVE_CUDA)
     return dague_gpu_init(dague_context);
 #else
@@ -224,7 +227,7 @@ int dague_devices_select(dague_context_t* dague_context)
 #endif  /* defined(HAVE_CUDA) */
 }
 
-int dague_devices_add(dague_context_t* dague_context, dague_device_t* device)
+int dague_devices_add(dague_context_t* context, dague_device_t* device)
 {
     if( dague_devices_are_freezed ) {
         return DAGUE_ERROR;
@@ -244,7 +247,7 @@ int dague_devices_add(dague_context_t* dague_context, dague_device_t* device)
     dague_devices[dague_nb_devices] = device;
     device->device_index = dague_nb_devices;
     dague_nb_devices++;
-    device->context = dague_context;
+    device->context = context;
     dague_atomic_unlock(&dague_devices_mutex);  /* CRITICAL SECTION: END */
     return device->device_index;
 }

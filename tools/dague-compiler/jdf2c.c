@@ -1909,14 +1909,14 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     coutput("  /* Check device support */\n"
             "  __dague_handle->super.super.context = context;\n"
             "  __dague_handle->super.super.devices_mask = 0;  /* All devices support disabled by default */\n"
-            "  for( int _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
             "    dague_device_t* device = dague_devices_get(_i);\n"
             "    if((NULL == device) || (NULL == device->device_handle_register)) continue;\n"
             "    if( DAGUE_SUCCESS != device->device_handle_register(device, (dague_handle_t*)__dague_handle) ) continue;\n"
             "    __dague_handle->super.super.devices_mask |= (1 << _i);\n"
             "  }\n"
             "  /* Register all the data */\n"
-            "  for( int _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
             "    dague_device_t* device = dague_devices_get(_i);\n"
             "    if((NULL == device) || (NULL == device->device_memory_register)) continue;\n"
             "    if(!(__dague_handle->super.super.devices_mask & (1 << _i))) continue;\n"
@@ -2690,7 +2690,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             jdf_basename);
 
     coutput("  /* Unregister all the data */\n"
-            "  for( int _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
             "    dague_device_t* device = dague_devices_get(_i);\n"
             "    if((NULL == device) || (NULL == device->device_memory_unregister)) continue;\n"
             "    if(!(d->devices_mask & (1 << _i))) continue;\n"
@@ -2700,7 +2700,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
                            dump_data_unregister, sa1, "  ", "  ", "\n", "\n"));
 
     coutput("  /* Unregister the handle from the devices */\n"
-            "  for( int _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
             "    if(!(d->devices_mask & (1 << _i))) continue;\n"
             "    d->devices_mask ^= (1 << _i);\n"
             "    dague_device_t* device = dague_devices_get(_i);\n"

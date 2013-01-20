@@ -37,7 +37,7 @@
 #define UINT_MAX (~0UL)
 #endif
 
-static sym_twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
+static int sym_twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
 {
     sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
     return device->device_memory_register(device,
@@ -46,7 +46,7 @@ static sym_twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* de
                                            dague_datadist_getsizeoftype(sym_twodbc->super.mtype)));
 }
 
-static sym_twoDBC_memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
+static int sym_twoDBC_memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
 {
     sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
     return device->device_memory_unregister(device, sym_twodbc->mat);
