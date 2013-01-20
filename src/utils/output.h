@@ -268,7 +268,7 @@ typedef struct dague_output_stream_t dague_output_stream_t;
  * and has a verbose level of 0.
  */
 DAGUE_DECLSPEC bool dague_output_init(void);
-    
+
 /**
  * Shut down the output stream system.
  *
@@ -314,7 +314,7 @@ DAGUE_DECLSPEC int dague_output_open(dague_output_stream_t *lds);
  * new stream with a specific stream handle.
  */
 DAGUE_DECLSPEC int dague_output_reopen(int output_id, dague_output_stream_t *lds);
-    
+
 /**
  * Enables and disables output streams.
  *
@@ -383,7 +383,7 @@ DAGUE_DECLSPEC void dague_output_close(int output_id);
  * writing to it.
  */
 DAGUE_DECLSPEC void dague_output(int output_id, const char *format, ...);
-    
+
 /**
  * Send output to a stream only if the passed verbosity level is
  * high enough.
@@ -412,16 +412,16 @@ DAGUE_DECLSPEC void dague_output(int output_id, const char *format, ...);
  *
  * @see dague_output_set_verbosity()
  */
-DAGUE_DECLSPEC void dague_output_verbose(int verbose_level, int output_id, 
+DAGUE_DECLSPEC void dague_output_verbose(int verbose_level, int output_id,
                                          const char *format, ...);
 
 /**
  * Same as dague_output_verbose(), but takes a va_list form of varargs.
  */
-DAGUE_DECLSPEC void dague_output_vverbose(int verbose_level, int output_id, 
+DAGUE_DECLSPEC void dague_output_vverbose(int verbose_level, int output_id,
                                           const char *format, va_list ap);
 
-/**    
+/**
  * Send output to a string if the verbosity level is high enough.
  *
  * @param output_id Stream id returned from dague_output_open().
@@ -435,13 +435,13 @@ DAGUE_DECLSPEC void dague_output_vverbose(int verbose_level, int output_id,
  * level is not high enough, NULL is returned.  The caller is
  * responsible for free()'ing the returned string.
  */
-DAGUE_DECLSPEC char *dague_output_string(int verbose_level, int output_id, 
+DAGUE_DECLSPEC char *dague_output_string(int verbose_level, int output_id,
                                          const char *format, ...);
 
 /**
  * Same as dague_output_string, but accepts a va_list form of varargs.
  */
-DAGUE_DECLSPEC char *dague_output_vstring(int verbose_level, int output_id, 
+DAGUE_DECLSPEC char *dague_output_vstring(int verbose_level, int output_id,
                                           const char *format, va_list ap);
 
 /**
@@ -507,7 +507,7 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
                                                       const char *prefix,
                                                       char **olddir,
                                                       char **oldprefix);
-    
+
 #if defined(DAGUE_DEBUG_ENABLE)
 /**
  * Main macro for use in sending debugging output to output streams;
@@ -517,8 +517,8 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
  * @see dague_output()
  */
 #define DAGUE_OUTPUT(a) dague_output a
-    
-/** 
+
+/**
  * Macro for use in sending debugging output to the output
  * streams.  Will be "compiled out" when DAGUE is configured
  * without --enable-debug.
@@ -535,8 +535,8 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
  * @see dague_output()
  */
 #define DAGUE_OUTPUT(a)
-    
-/** 
+
+/**
  * Macro for use in sending debugging output to the output
  * streams.  Will be "compiled out" when DAGUE is configured
  * without --enable-debug.

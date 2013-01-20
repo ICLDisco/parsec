@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "dague/devices/device.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -42,6 +43,20 @@ static uint32_t twoDBC_data_key(dague_ddesc_t *desc, ...);
 static int  twoDBC_key_to_string(dague_ddesc_t * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
 #endif
 
+static twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
+{
+    two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
+    return device->device_memory_register(device,
+                                          twodbc->mat,
+                                          (twodbc->super.nb_local_tiles * twodbc->super.bsiz *
+                                           dague_datadist_getsizeoftype(twodbc->super.mtype)));
+}
+
+static twoDBC_memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
+{
+    two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
+    return device->device_memory_unregister(device, twodbc->mat);
+}
 
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
                                enum matrix_type mtype,
@@ -123,6 +138,8 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         two_dim_block_cyclic_supertiled_view(Ddesc, Ddesc, nrst, ncst);
 #endif /* DAGUE_HARD_SUPERTILE */
     }
+    o->register_memory   = twoDBC_memory_register;
+    o->unregister_memory = twoDBC_memory_unregister;
 
     DEBUG3(("two_dim_block_cyclic_init: \n"
            "      Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %d, \n"
@@ -138,9 +155,6 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
            P, Q));
 }
 
-
-
-
 /*
  *
  * Set of functions with no super-tiles
@@ -152,8 +166,7 @@ static uint32_t twoDBC_rank_of(dague_ddesc_t * desc, ...)
     unsigned int rr;
     unsigned int res;
     va_list ap;
-    two_dim_block_cyclic_t * Ddesc;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
+    two_dim_block_cyclic_t * Ddesc = (two_dim_block_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);

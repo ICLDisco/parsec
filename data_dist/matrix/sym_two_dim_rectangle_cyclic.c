@@ -30,11 +30,27 @@
 #include <assert.h>
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "dague/devices/device.h"
 #include "data.h"
 
 #if !defined(UINT_MAX)
 #define UINT_MAX (~0UL)
 #endif
+
+static sym_twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
+{
+    sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
+    return device->device_memory_register(device,
+                                          sym_twodbc->mat,
+                                          (sym_twodbc->super.nb_local_tiles * sym_twodbc->super.bsiz *
+                                           dague_datadist_getsizeoftype(sym_twodbc->super.mtype)));
+}
+
+static sym_twoDBC_memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
+{
+    sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
+    return device->device_memory_unregister(device, sym_twodbc->mat);
+}
 
 static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
 {
@@ -249,6 +265,8 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     o->key_dim       = NULL;
     o->key_base      = NULL;
 #endif
+    o->register_memory   = sym_twoDBC_memory_register;
+    o->unregister_memory = sym_twoDBC_memory_unregister;
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
                             sym_two_dim_block_cyclic_type,
                             nodes, cores, myrank,

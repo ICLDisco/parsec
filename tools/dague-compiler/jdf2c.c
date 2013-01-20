@@ -166,7 +166,8 @@ static char* dump_globals(void** elem, void *arg)
     string_arena_init(sa);
     if( NULL != global->data )
         return NULL;
-    string_arena_add_string(sa, "%s (__dague_handle->super.%s)", global->name, global->name );
+    string_arena_add_string(sa, "%s (__dague_handle->super.%s)",
+                            global->name, global->name );
     return string_arena_get_string(sa);
 }
 
@@ -726,6 +727,38 @@ static char *dump_globals_init(void **elem, void *arg)
 }
 
 /**
+ * dump_data_register / dump_data_unregister
+ *  Takes a pointer to a global variables and generate the code used to initialize
+ *  the global variable during *_New. If the variable has a default value or is
+ *  marked as hidden the output code will not be generated.
+ */
+static char *dump_data_register(void **elem, void *arg)
+{
+     jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
+     string_arena_t *sa = (string_arena_t*)arg;
+
+     if( NULL == global->data ) return NULL;
+
+     string_arena_init(sa);
+     string_arena_add_string(sa, "  ((dague_ddesc_t*)__dague_handle->super.%s)->register_memory((dague_ddesc_t*)__dague_handle->super.%s, device);\n",
+                             global->name, global->name);
+     return string_arena_get_string(sa);
+}
+
+static char *dump_data_unregister(void **elem, void *arg)
+{
+     jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
+     string_arena_t *sa = (string_arena_t*)arg;
+
+     if( NULL == global->data ) return NULL;
+
+     string_arena_init(sa);
+     string_arena_add_string(sa, "  ((dague_ddesc_t*)__dague_handle->super.%s)->unregister_memory((dague_ddesc_t*)__dague_handle->super.%s, device);\n",
+                             global->name, global->name);
+     return string_arena_get_string(sa);
+}
+
+/**
  * Print global variables that have (or not) a certain property.
  */
 typedef struct typed_globals_info {
@@ -1038,10 +1071,12 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
     houtput("#include <dague.h>\n"
+            "#include <dague/constants.h>\n"
             "#include <data_distribution.h>\n"
             "#include <data.h>\n"
             "#include <debug.h>\n"
             "#include <dague/ayudame.h>\n"
+            "#include <dague/devices/device.h> \n"
             "#include <assert.h>\n\n");
 
     for( g = jdf->datatypes; NULL != g; g = g->next ) {
@@ -1848,7 +1883,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     sa2 = string_arena_new(64);
     sa3 = string_arena_new(64);
 
-    coutput("static int %s(dague_context_t *context, const __dague_%s_internal_handle_t *__dague_handle, dague_execution_context_t** pready_list)\n"
+    coutput("static int %s(dague_context_t *context, __dague_%s_internal_handle_t *__dague_handle, dague_execution_context_t** pready_list)\n"
             "{\n"
             "  dague_execution_context_t* new_context, new_context_holder, *new_dynamic_context;\n"
             "  assignment_t *assignments = NULL;\n"
@@ -1867,6 +1902,31 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     string_arena_init(sa2);
     string_arena_init(sa3);
 
+    coutput("  new_context->dague_handle = (dague_handle_t*)__dague_handle;\n"
+            "  new_context->function = (const dague_function_t*)&%s_%s;\n",
+            jdf_basename, f->fname);
+
+    coutput("  /* Check device support */\n"
+            "  __dague_handle->super.super.context = context;\n"
+            "  __dague_handle->super.super.devices_mask = 0;  /* All devices support disabled by default */\n"
+            "  for( int _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "    dague_device_t* device = dague_devices_get(_i);\n"
+            "    if((NULL == device) || (NULL == device->device_handle_register)) continue;\n"
+            "    if( DAGUE_SUCCESS != device->device_handle_register(device, (dague_handle_t*)__dague_handle) ) continue;\n"
+            "    __dague_handle->super.super.devices_mask |= (1 << _i);\n"
+            "  }\n"
+            "  /* Register all the data */\n"
+            "  for( int _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "    dague_device_t* device = dague_devices_get(_i);\n"
+            "    if((NULL == device) || (NULL == device->device_memory_register)) continue;\n"
+            "    if(!(__dague_handle->super.super.devices_mask & (1 << _i))) continue;\n"
+            "  %s"
+            "  }\n",
+            UTIL_DUMP_LIST(sa1, jdf->globals, next,
+                           dump_data_register, sa2, "", "  ", "\n", "\n"));
+
+    coutput("  /* Parse all the inputs and generate the ready execution tasks */\n");
+
     info1.sa = sa1;
     info1.prefix = "";
     info1.assignments = "assignments";
@@ -1878,11 +1938,6 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     info3.sa = sa3;
     info3.prefix = "";
     info3.assignments = "assignments";
-
-    coutput("  new_context->dague_handle = (dague_handle_t*)__dague_handle;\n"
-            "  new_context->function = (const dague_function_t*)&%s_%s;\n"
-            "  /* Parse all the inputs and generate the ready execution tasks */\n",
-            jdf_basename, f->fname);
 
     nesting = 0;
     idx = 0;
@@ -2584,6 +2639,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
 static void jdf_generate_destructor( const jdf_t *jdf )
 {
     string_arena_t *sa = string_arena_new(64);
+    string_arena_t *sa1 = string_arena_new(64);
 
     coutput("static void %s_destructor( dague_%s_handle_t *o )\n"
             "{\n"
@@ -2633,6 +2689,25 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  d->dependencies_array = NULL;\n",
             jdf_basename);
 
+    coutput("  /* Unregister all the data */\n"
+            "  for( int _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "    dague_device_t* device = dague_devices_get(_i);\n"
+            "    if((NULL == device) || (NULL == device->device_memory_unregister)) continue;\n"
+            "    if(!(d->devices_mask & (1 << _i))) continue;\n"
+            "  %s"
+            "}\n",
+            UTIL_DUMP_LIST(sa, jdf->globals, next,
+                           dump_data_unregister, sa1, "  ", "  ", "\n", "\n"));
+
+    coutput("  /* Unregister the handle from the devices */\n"
+            "  for( int _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "    if(!(d->devices_mask & (1 << _i))) continue;\n"
+            "    d->devices_mask ^= (1 << _i);\n"
+            "    dague_device_t* device = dague_devices_get(_i);\n"
+            "    if((NULL == device) || (NULL == device->device_handle_unregister)) continue;\n"
+            "    if( DAGUE_SUCCESS != device->device_handle_unregister(device, d) ) continue;\n"
+            "  }\n");
+
     coutput("  dague_handle_unregister( d );\n"
             "  free(o);\n");
 
@@ -2640,6 +2715,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "\n");
 
     string_arena_free(sa);
+    string_arena_free(sa1);
 }
 
 static void jdf_generate_constructor( const jdf_t* jdf )

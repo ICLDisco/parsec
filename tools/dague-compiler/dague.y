@@ -100,6 +100,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     assert(NULL == global);
     global                    = new(jdf_global_entry_t);
     global->name              = strdup(data->dname);
+    printf("Create data %s\n", data->dname);
     global->properties        = jdf_create_properties_list( "type", 0, "dague_ddesc_t*", NULL );
     global->data              = data;
     global->expression        = NULL;

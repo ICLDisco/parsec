@@ -34,6 +34,8 @@ struct dague_handle_s {
     volatile uint32_t          nb_local_tasks;
     uint32_t                   nb_functions;
     int32_t                    priority;
+    uint32_t                   devices_mask;
+    dague_context_t           *context;
     dague_startup_fn_t         startup_hook;
     const dague_function_t**   functions_array;
 #if defined(DAGUE_PROF_TRACE)

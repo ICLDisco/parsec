@@ -25,20 +25,40 @@
 #include "mpi.h"
 #endif /*HAVE_MPI */
 
+struct dague_device_s;
+
 typedef struct dague_ddesc_s dague_ddesc_t;
+typedef int (*dague_memory_region_management_f)(dague_ddesc_t*, struct dague_device_s*);
+
 struct dague_ddesc_s {
     uint32_t            myrank;    /**< process rank */
     uint32_t            cores;     /**< number of cores used for computation per node */
     uint32_t            nodes;     /**< number of nodes involved in the computation */
 
-    dague_data_key_t (*data_key)(dague_ddesc_t *mat, ...); /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
-    uint32_t (*rank_of)(dague_ddesc_t *mat, ...);                        /* return the rank of the process owning the data  */
+    /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
+    dague_data_key_t (*data_key)(dague_ddesc_t *mat, ...);
+
+    /* return the rank of the process owning the data  */
+    uint32_t (*rank_of)(dague_ddesc_t *mat, ...);
     uint32_t (*rank_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
-    dague_data_t* (*data_of)(dague_ddesc_t *mat, ...);                   /* return the pointer to the data possessed locally */
+
+    /* return the pointer to the data possessed locally */
+    dague_data_t* (*data_of)(dague_ddesc_t *mat, ...);
     dague_data_t* (*data_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
-    int32_t  (*vpid_of)(dague_ddesc_t *mat, ...);                        /* return the virtual process ID of data possessed locally */
+
+    /* return the virtual process ID of data possessed locally */
+    int32_t  (*vpid_of)(dague_ddesc_t *mat, ...);
     int32_t  (*vpid_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
-    int (*key_to_string)(dague_ddesc_t *mat, dague_data_key_t key, char * buffer, uint32_t buffer_size); /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
+
+    /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
+    int (*key_to_string)(dague_ddesc_t *mat, dague_data_key_t key, char * buffer, uint32_t buffer_size);
+
+    /* Memory management function. They are used to register/unregister the data description
+     * with the active devices.
+     */
+    dague_memory_region_management_f register_memory;
+    dague_memory_region_management_f unregister_memory;
+
     char      *key_base;
 #ifdef DAGUE_PROF_TRACE
     char      *key_dim;  /* TODO: Do we really need this field */

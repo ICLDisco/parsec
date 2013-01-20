@@ -8,7 +8,6 @@
  */
 #include <dague_config.h>
 #include <stdlib.h>
-#include <dlfcn.h>
 #include <plasma.h>
 #include <core_blas.h>
 #if defined(PRECISION_z) || defined(PRECISION_c)
@@ -72,91 +71,6 @@ typedef struct dague_zgemm_args_s {
 } dague_zgemm_args_t;
 
 #include <dague/devices/cuda/cuda_scheduling.h>
-
-int gpu_kernel_init_zgemm( dague_context_t* dague_context )
-{
-    char *env;
-    int i, nbgpus;
-    (void)dague_context;
-
-    nbgpus = dague_devices_enabled();
-    zgemm_functions = calloc(nbgpus, sizeof(cuda_zgemm_t));
-
-    for( i = 0; i < nbgpus; i++ ) {
-        gpu_device_t* gpu_device;
-        CUresult status;
-        void* fn;
-        void* dlh;
-        char library_name[FILENAME_MAX];
-        char function_name[FILENAME_MAX];
-
-        gpu_device = (gpu_device_t*)dague_devices_get(i);
-        /* Skip all non CUDA devices */
-        if( DAGUE_DEV_CUDA != gpu_device->super.type ) continue;
-        fn = NULL;
-
-        status = cuCtxPushCurrent( gpu_device->ctx );
-        DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status, {continue;} );
-        int major = gpu_device->major, minor = gpu_device->minor;
-
-    retry_lesser_sm_version:
-        snprintf(function_name, FILENAME_MAX, "magmablas_zgemm_SM%d%d", major, minor);
-        env = getenv("DAGUE_CUCORES_LIB");
-        if(NULL == env) {
-            snprintf(library_name,  FILENAME_MAX, "libdplasma_cucores_sm%d%d.so",  major, minor);
-        }
-        else {
-            snprintf(library_name,  FILENAME_MAX, "%s", env);
-        }
-
-        dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
-        if(NULL == dlh) {
-            if(env) ERROR(("Could not find %s library: %s\n"
-                           "  It is derived from environment DAGUE_CUCORES_LIB=%s\n"
-                           "  To resolve this issue, set this variable to the correct path\n"
-                           "    ex: /path/libdplasma_cucores_sm20.so\n"
-                           "  Or unset it to use the default GPU kernels\n"
-                           , library_name, dlerror(), env));
-            DEBUG3(("Could not find %s dynamic library (%s)\n", library_name, dlerror()));
-        }
-        else {
-            fn = dlsym(dlh, function_name);
-            dlclose(dlh);
-        }
-
-        /* Couldn't load from dynamic libs, try static */
-        if(NULL == fn) {
-            DEBUG3(("No dynamic function %s found, loading from statically linked\n", function_name));
-            dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
-            if(NULL == dlh) ERROR(("Error parsing static libs: %s\n", dlerror()));
-            fn = dlsym(dlh, function_name);
-            if(env && fn) WARNING(("Internal static function %s used (because library %s didn't loaded correctly)\n", function_name, library_name));
-            dlclose(dlh);
-        }
-
-        /* Still not found?? skip this GPU */
-        if(NULL == fn) {
-            STATUS(("No function %s found for GPU %d\n", function_name, i));
-            if(minor > 0) {
-                minor--;
-                goto retry_lesser_sm_version;
-            } else
-            {
-                major--; minor = 9;
-                if(major > 0) goto retry_lesser_sm_version;
-            }
-            status = cuCtxPopCurrent(NULL);
-            continue;
-        }
-
-        status = cuCtxPopCurrent(NULL);
-        DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
-                                {continue;} );
-
-        zgemm_functions[gpu_device->cuda_index] = (cuda_zgemm_t)fn;
-    }
-    return 0;
-}
 
 /**
  *  This function schedule the move of all the data required for a
