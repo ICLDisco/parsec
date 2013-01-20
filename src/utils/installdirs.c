@@ -59,6 +59,17 @@ dague_install_dirs_t dague_install_dirs = {
         }                                                                 \
     } while (0)
 
+#define INSTALLDIRS_EXPAND_INTERNAL(field)                                \
+    do {                                                                  \
+        char* retval = dague_installdirs_expand_internal(dague_install_dirs.field, true); \
+        if(NULL != retval) {                                              \
+            if(NULL != dague_install_dirs.field)                          \
+                free(dague_install_dirs.field);                           \
+            dague_install_dirs.field = retval;                            \
+        }                                                                 \
+    } while (0)
+
+
 #ifdef __WINDOWS__
 
 static int
@@ -303,40 +314,23 @@ dague_installdirs_open(void)
     dague_installdirs_from_env();
 
     /* expand out all the fields */
-    dague_install_dirs.prefix =
-        dague_installdirs_expand_internal(dague_install_dirs.prefix, true);
-    dague_install_dirs.exec_prefix =
-        dague_installdirs_expand_internal(dague_install_dirs.exec_prefix, true);
-    dague_install_dirs.bindir =
-        dague_installdirs_expand_internal(dague_install_dirs.bindir, true);
-    dague_install_dirs.sbindir =
-        dague_installdirs_expand_internal(dague_install_dirs.sbindir, true);
-    dague_install_dirs.libexecdir =
-        dague_installdirs_expand_internal(dague_install_dirs.libexecdir, true);
-    dague_install_dirs.datarootdir =
-        dague_installdirs_expand_internal(dague_install_dirs.datarootdir, true);
-    dague_install_dirs.datadir =
-        dague_installdirs_expand_internal(dague_install_dirs.datadir, true);
-    dague_install_dirs.sysconfdir =
-        dague_installdirs_expand_internal(dague_install_dirs.sysconfdir, true);
-    dague_install_dirs.sharedstatedir =
-        dague_installdirs_expand_internal(dague_install_dirs.sharedstatedir, true);
-    dague_install_dirs.localstatedir =
-        dague_installdirs_expand_internal(dague_install_dirs.localstatedir, true);
-    dague_install_dirs.libdir =
-        dague_installdirs_expand_internal(dague_install_dirs.libdir, true);
-    dague_install_dirs.includedir =
-        dague_installdirs_expand_internal(dague_install_dirs.includedir, true);
-    dague_install_dirs.infodir =
-        dague_installdirs_expand_internal(dague_install_dirs.infodir, true);
-    dague_install_dirs.mandir =
-        dague_installdirs_expand_internal(dague_install_dirs.mandir, true);
-    dague_install_dirs.pkgdatadir =
-        dague_installdirs_expand_internal(dague_install_dirs.pkgdatadir, true);
-    dague_install_dirs.pkglibdir =
-        dague_installdirs_expand_internal(dague_install_dirs.pkglibdir, true);
-    dague_install_dirs.pkgincludedir =
-        dague_installdirs_expand_internal(dague_install_dirs.pkgincludedir, true);
+    INSTALLDIRS_EXPAND_INTERNAL(prefix);
+    INSTALLDIRS_EXPAND_INTERNAL(exec_prefix);
+    INSTALLDIRS_EXPAND_INTERNAL(bindir);
+    INSTALLDIRS_EXPAND_INTERNAL(sbindir);
+    INSTALLDIRS_EXPAND_INTERNAL(libexecdir);
+    INSTALLDIRS_EXPAND_INTERNAL(datarootdir);
+    INSTALLDIRS_EXPAND_INTERNAL(datadir);
+    INSTALLDIRS_EXPAND_INTERNAL(sysconfdir);
+    INSTALLDIRS_EXPAND_INTERNAL(sharedstatedir);
+    INSTALLDIRS_EXPAND_INTERNAL(localstatedir);
+    INSTALLDIRS_EXPAND_INTERNAL(libdir);
+    INSTALLDIRS_EXPAND_INTERNAL(includedir);
+    INSTALLDIRS_EXPAND_INTERNAL(infodir);
+    INSTALLDIRS_EXPAND_INTERNAL(mandir);
+    INSTALLDIRS_EXPAND_INTERNAL(pkgdatadir);
+    INSTALLDIRS_EXPAND_INTERNAL(pkglibdir);
+    INSTALLDIRS_EXPAND_INTERNAL(pkgincludedir);
 
 #if 0
     fprintf(stderr, "prefix:         %s\n", dague_install_dirs.prefix);

@@ -168,6 +168,14 @@ int dague_devices_fini(dague_context_t* dague_context)
         free(required_in);
         free(required_out);
     }
+    /* Free the local memory */
+    if(NULL != dague_device_load) free(dague_device_load);
+    dague_device_load = NULL;
+    if(NULL != dague_device_sweight) free(dague_device_sweight);
+    dague_device_sweight = NULL;
+    if(NULL != dague_device_dweight) free(dague_device_dweight);
+    dague_device_dweight = NULL;
+ 
 #if defined(HAVE_CUDA)
     return dague_gpu_fini();
 #else
@@ -182,8 +190,12 @@ int dague_devices_freeze(dague_context_t* context)
 
     if(dague_devices_are_freezed)
         return -1;
+
+    if(NULL != dague_device_load) free(dague_device_load);
     dague_device_load = (float*)calloc(dague_nb_devices, sizeof(float));
+    if(NULL != dague_device_sweight) free(dague_device_sweight);
     dague_device_sweight = (float*)calloc(dague_nb_devices, sizeof(float));
+    if(NULL != dague_device_dweight) free(dague_device_dweight);
     dague_device_dweight = (float*)calloc(dague_nb_devices, sizeof(float));
     for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
         dague_device_t* device = dague_devices[i];
