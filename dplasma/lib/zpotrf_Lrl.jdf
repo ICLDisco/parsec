@@ -187,6 +187,21 @@ RW    C <- (k == 0)   ? A(m, n)      : C GEMM(k-1, m, n)
 ; (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m) * (descA.mt - m) * (descA.mt - m) + 3 * ((2 * descA.mt) - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
 //;  (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m - n) * ((descA.mt - n - k + 1) / 2 + 2) - 1 + (descA.mt - m + 2) * (descA.mt - m + 1) * (descA.mt - m) / 6 + descA.mt - n + k + 1 : 0
 
+BODY [type = CUDA]
+    int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
+    int ldam = BLKLDD( descA, m );
+    int ldan = BLKLDD( descA, n );
+    int rc;
+
+    return gpu_zgemm(context, this_task,
+                     ( n == k+1 ),
+                     PlasmaNoTrans, PlasmaConjTrans,
+                     tempmm, descA.mb, descA.mb,
+                     (dague_complex64_t)-1.0, m, k, &descA, ldam,
+                                              n, k, &descA, ldan,
+                     (dague_complex64_t) 1.0, m, n, &descA, ldam);
+END
+
 BODY
     int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
     int ldam = BLKLDD( descA, m );
@@ -207,20 +222,4 @@ BODY
              -1.0, m, k, A, ldam,
                    n, k, B, ldan,
               1.0, m, n, C, ldam);
-END
-
-BODY [type = CUDA
-      require = zgemm]
-    int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
-    int ldam = BLKLDD( descA, m );
-    int ldan = BLKLDD( descA, n );
-    int rc;
-
-    return gpu_zgemm(context, this_task,
-                     ( n == k+1 ),
-                     PlasmaNoTrans, PlasmaConjTrans,
-                     tempmm, descA.mb, descA.mb,
-                     (dague_complex64_t)-1.0, m, k, &descA, ldam,
-                                              n, k, &descA, ldan,
-                     (dague_complex64_t) 1.0, m, n, &descA, ldam);
 END

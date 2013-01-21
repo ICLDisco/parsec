@@ -38,10 +38,7 @@
 /**
  * Try to execute a kernel on a GPU.
  *
- * Returns:
- *  0 - if the kernel should be executed by some other meaning (in this case the
- *         execution context is not released).
- * -1 - if the kernel is scheduled to be executed on a GPU.
+ * Returns: one of the dague_hook_return_t values
  */
 
 /**
@@ -52,10 +49,10 @@
  * been completed. Each type of stream (in, exec and out) has a pending FIFO,
  * where tasks ready to jump to the respective step are waiting.
  */
-static inline
-int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
-                          dague_gpu_context_t    *this_task,
-                          int which_gpu )
+static inline dague_hook_return_t
+gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
+                      dague_gpu_context_t    *this_task,
+                      int which_gpu )
 {
     gpu_device_t* gpu_device;
     CUcontext saved_ctx;
@@ -72,7 +69,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
     if( 1 != rc ) {  /* I'm not the only one messing with this GPU */
         dague_fifo_push( &(gpu_device->pending), (dague_list_item_t*)this_task );
-        return -1;
+        return DAGUE_HOOK_RETURN_ASYNC;
     }
 
     /**
@@ -92,7 +89,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
     status = (cudaError_t)cuCtxPushCurrent(saved_ctx);
     DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                            {return -2;} );
+                            {return DAGUE_HOOK_RETURN_DISABLE;} );
 
  check_in_deps:
     if( NULL != this_task ) {
@@ -188,8 +185,8 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
         dague_atomic_cas( &(gpu_device->ctx), NULL, saved_ctx );
 
         DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                                {return -1;} );
-        return -1;
+                                {return DAGUE_HOOK_RETURN_ASYNC;} );
+        return DAGUE_HOOK_RETURN_ASYNC;
     }
     this_task = next_task;
     goto fetch_task_from_shared_queue;
@@ -199,8 +196,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
      * cores, and disable the gpu.
      */
     printf("Critical issue related to the GPU discovered. Giving up\n");
-    exit(-20);
-    return -2;
+    return DAGUE_HOOK_RETURN_DISABLE;
 }
 
 #endif /* HAVE_CUDA */

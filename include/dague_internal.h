@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012     The University of Tennessee and The University
+ * Copyright (c) 2012-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -18,10 +18,6 @@ typedef struct dague_remote_deps_s dague_remote_deps_t;
 typedef struct dague_arena_s dague_arena_t;
 typedef struct dague_arena_chunk_s dague_arena_chunk_t;
 typedef struct dague_data_pair_s dague_data_pair_t;
-
-#ifdef HAVE_PAPI
-#define MAX_EVENTS 3
-#endif
 
 /* There is another loop after this one. */
 #define DAGUE_DEPENDENCIES_FLAG_NEXT       0x01
@@ -116,9 +112,18 @@ typedef int (dague_create_function_t)(struct dague_execution_unit_s*,
 typedef float (dague_evaluate_function_t)(const dague_execution_context_t* task);
 
 /**
- * 
+ *
  */
-typedef int (dague_hook_t)(struct dague_execution_unit_s*, dague_execution_context_t*);
+typedef enum dague_hook_return_e {
+    DAGUE_HOOK_RETURN_DONE    =  0,  /* This chore succeeded */
+    DAGUE_HOOK_RETURN_AGAIN   = -1,  /* Reschedule later */
+    DAGUE_HOOK_RETURN_NEXT    = -2,  /* Try next chore [if any] */
+    DAGUE_HOOK_RETURN_DISABLE = -3,  /* Disable the device, something went wrong */
+    DAGUE_HOOK_RETURN_ASYNC   = -4,  /* The task is outside our reach, the completion will
+                                      * be triggered asynchronously. */
+    DAGUE_HOOK_RETURN_ERROR   = -5,  /* Some other major error happened */
+} dague_hook_return_t;
+typedef dague_hook_return_t (dague_hook_t)(struct dague_execution_unit_s*, dague_execution_context_t*);
 
 /**
  *
@@ -134,6 +139,7 @@ typedef int (dague_task_fct_t)(dague_execution_context_t *exec_context);
 #define DAGUE_HAS_CTL_GATHER             0X0040
 
 typedef struct __dague_internal_incarnation_s {
+    char                      *type;
     dague_evaluate_function_t *evaluate;
     dague_hook_t              *hook;
 } __dague_chore_t;
@@ -203,7 +209,8 @@ struct dague_data_pair_s {
     int32_t                        priority;         \
     uint8_t                        status;           \
     uint8_t                        hook_id;          \
-    uint8_t                        unused[2];
+    uint8_t                        chore_id;         \
+    uint8_t                        unused;
 
 struct dague_minimal_execution_context_s {
     DAGUE_MINIMAL_EXECUTION_CONTEXT

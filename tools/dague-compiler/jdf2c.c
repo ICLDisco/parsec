@@ -1986,7 +1986,9 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     coutput("%s  /* Copy only the valid elements from new_context to new_dynamic one */\n"
             "%s  new_dynamic_context->dague_handle = new_context->dague_handle;\n"
             "%s  new_dynamic_context->function     = new_context->function;\n"
+            "%s  new_dynamic_context->chore_id     = 0;\n"
             "%s  memcpy(new_dynamic_context->locals, new_context->locals, %d*sizeof(assignment_t));\n",
+            indent(nesting),
             indent(nesting),
             indent(nesting),
             indent(nesting),
@@ -2298,16 +2300,27 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
                                         char* base_name,
                                         int*  nb_incarnations )
 {
-    (void)jdf; (void)f;
-    string_arena_add_string(sa,
-                            "static const __dague_chore_t __%s_chores = {\n"
-                            "  .evaluate = %s,\n"
-                            "  .hook     = hook_of_%s\n"
-                            "};\n\n",
-                            base_name,
-                            "NULL",
-                            base_name);
-    *nb_incarnations = 1;
+    jdf_body_t* body = f->bodies;
+    jdf_def_list_t* type_property;
+
+    (void)jdf;
+    *nb_incarnations = 0;
+    string_arena_add_string(sa, "static const __dague_chore_t __%s_chores[] ={\n", base_name);
+    do {
+        jdf_find_property(body->properties, "type", &type_property);
+        if( NULL == type_property) {
+            string_arena_add_string(sa, "    { .type     = \"%s\",\n", "default");
+            string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
+            string_arena_add_string(sa, "      .hook     = hook_of_%s },\n", base_name);
+        } else {
+            string_arena_add_string(sa, "    { .type     = \"%s\",\n", type_property->expr->jdf_var);
+            string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
+            string_arena_add_string(sa, "      .hook     = hook_of_%s_%s },\n", base_name, type_property->expr->jdf_var);
+        }
+        body = body->next;
+        (*nb_incarnations)++;
+    } while (NULL != body);
+    string_arena_add_string(sa, "};\n\n");
 }
 
 static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entry_t *f)
@@ -2445,7 +2458,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
 
     if( use_mask ) {
         string_arena_add_string(sa,
-                                "  .flags = %s%s%s|DAGUE_USE_DEPS_MASK,\n"
+                                "  .flags = %s%s%s | DAGUE_USE_DEPS_MASK,\n"
                                 "  .dependencies_goal = 0x%x,\n",
                                 (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
                                 has_in_in_dep ? " | DAGUE_HAS_IN_IN_DEPENDENCIES" : "",
@@ -2467,7 +2480,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     string_arena_add_string(sa, "  .fini = (dague_hook_t*)%s,\n", "NULL");
 
     sprintf(prefix, "%s_%s", jdf_basename, f->fname);
-    string_arena_add_string(sa, "  .incarnations = &__%s_chores,\n", prefix);
+    string_arena_add_string(sa, "  .incarnations = __%s_chores,\n", prefix);
 
     sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_iterate_successors(jdf, f, prefix);
@@ -3525,13 +3538,13 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                                    const jdf_body_t* body,
                                    const char *name)
 {
+    init_from_data_array_info_t ifda;
+    jdf_def_list_t* type_property;
     string_arena_t *sa, *sa2;
     assignment_info_t ai;
     jdf_dataflow_t *fl;
     int di, profile_on;
     char* output;
-    init_from_data_array_info_t ifda;
-    jdf_def_list_t* type_property;
 
     /**
      * If the function or the body has the "profile" property turned off
@@ -3642,7 +3655,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     }
     jdf_coutput_prettycomment('-', "END OF %s BODY", f->fname);
     jdf_generate_code_dry_run_after(jdf, f);
-    coutput("  return 0;\n"
+    coutput("  return DAGUE_HOOK_RETURN_DONE;\n"
             "}\n");
 
     if( NULL != type_property)

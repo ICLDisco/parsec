@@ -372,7 +372,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
         }
         dague_device_load[best_index] += dague_device_sweight[best_index];
         if( best_index == 0 ) {
-            return -99;
+            return DAGUE_HOOK_RETURN_NEXT;  /* Fall back */
         }
         dev_index = best_index;
     }

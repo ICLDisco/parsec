@@ -163,7 +163,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
 
     dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
     if(NULL == dlh) {
-        dague_output_verbose(0, dague_cuda_output_stream,
+        dague_output_verbose(5, dague_cuda_output_stream,
                              "Could not find %s dynamic library (%s)\n", library_name, dlerror());
         if(env) ERROR(("Could not find %s library: %s\n"
                        "  It is derived from environment DAGUE_CUCORES_LIB=%s\n"
@@ -175,7 +175,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
         fn = dlsym(dlh, function_name);
         /* Couldn't load from dynamic libs, try static */
         if(NULL == fn) {
-            dague_output_verbose(0, dague_cuda_output_stream,
+            dague_output_verbose(5, dague_cuda_output_stream,
                                  "No dynamic function %s found, trying from  statically linked\n",
                                  function_name);
             dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
