@@ -192,30 +192,6 @@ BODY
     int ldam = BLKLDD( descA, m );
     int ldan = BLKLDD( descA, n );
 
-#if defined(HAVE_CUDA)
-    {  /* TODO: This should move to a CUDA BODY */
-        int rc;
-
-        if( 0 == (rc = gpu_zgemm( context, this_task,
-                                  ( n == k+1 ),
-                                  PlasmaNoTrans, PlasmaConjTrans,
-                                  tempmm, descA.mb, descA.mb,
-                                  (dague_complex64_t)-1.0, m, k, &descA, ldam,
-                                                           n, k, &descA, ldan,
-                                  (dague_complex64_t) 1.0, m, n, &descA, ldam)) )
-            goto FIN;
-        if( -1 == rc ) {
-            /* The task is pending in the device, and will be subsequently completed */
-            return -1;
-        }
-        if( -2 == rc ) {
-            /* The GPU failed to execute this task, but the task was already rescheduled */
-            fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
-            exit(2);
-        }
-    }
-#endif  /* defined(HAVE_CUDA) */
-
     DRYRUN(
         CORE_zgemm(
             PlasmaNoTrans, PlasmaConjTrans,
@@ -231,9 +207,20 @@ BODY
              -1.0, m, k, A, ldam,
                    n, k, B, ldan,
               1.0, m, n, C, ldam);
+END
 
-#if defined(HAVE_CUDA)
-FIN:
-#endif  /* defined(HAVE_CUDA) */
+BODY [type = CUDA
+      require = zgemm]
+    int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
+    int ldam = BLKLDD( descA, m );
+    int ldan = BLKLDD( descA, n );
+    int rc;
 
+    return gpu_zgemm(context, this_task,
+                     ( n == k+1 ),
+                     PlasmaNoTrans, PlasmaConjTrans,
+                     tempmm, descA.mb, descA.mb,
+                     (dague_complex64_t)-1.0, m, k, &descA, ldam,
+                                              n, k, &descA, ldan,
+                     (dague_complex64_t) 1.0, m, n, &descA, ldam);
 END

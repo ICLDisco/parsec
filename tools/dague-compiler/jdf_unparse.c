@@ -367,7 +367,7 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
         NULL != f->locals     &&
         NULL != f->predicate  &&
         NULL != f->dataflow   &&
-        NULL != f->body          ){
+        NULL != f->bodies          ){
 
         fprintf(out, "%s(", f->fname);
         err = jdf_name_list_unparse(f->parameters, out);
@@ -421,11 +421,18 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
             fprintf(out, "\n");
         }
 
-        fprintf(out, "BODY\n");
-        fprintf(out, "{\n");
-        fprintf(out, "%s\n", f->body);
-        fprintf(out, "}\n");
-        fprintf(out, "END\n\n");
+        {
+            jdf_body_t* body = f->bodies;
+            do {  /* There must be at least one */
+                fprintf(out, "BODY\n");
+                jdf_properties_unparse(body->properties, out);
+                fprintf(out, "{\n");
+                fprintf(out, "%s\n", body->external_code);
+                fprintf(out, "}\n");
+                fprintf(out, "END\n\n");
+                body = body->next;
+            } while (NULL != body);
+        }
     }
 
     return jdf_function_entry_unparse( f->next, out );

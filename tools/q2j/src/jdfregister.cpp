@@ -264,8 +264,9 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     pseudotask->predicate   = NULL;
     pseudotask->dataflow    = NULL;
     pseudotask->priority    = NULL;
-    pseudotask->body        = strdup(
-        "    /* nothing */" );
+    pseudotask->bodies      = q2jmalloc(jdf_body_t, 1);
+    JDF_OBJECT_SET(pseudotask->bodies, NULL, 0, NULL);
+    pseudotask->bodies->external_code = strdup("    /* nothing */" );
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -1047,7 +1048,12 @@ void jdf_register_anti_dependencies( jdf_function_entry_t *this_function,
 void jdf_register_body(jdf_function_entry_t *this_function,
                        node_t *task_node)
 {
-    this_function->body = strdup( quark_tree_to_body(task_node) );
+    jdf_body_t *body = q2jmalloc(jdf_body_t, 1);
+
+    JDF_OBJECT_SET(body, NULL, 0, NULL);
+    body->external_code = strdup(quark_tree_to_body(task_node));
+    body->next = this_function->bodies;
+    this_function->bodies = body;
 }
 
 

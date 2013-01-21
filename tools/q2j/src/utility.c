@@ -483,7 +483,7 @@ static jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
     f->predicate   = NULL;
     f->dataflow    = NULL;
     f->priority    = NULL;
-    f->body        = NULL;
+    f->bodies      = NULL;
 
     for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
         jdf_name_list_t *n = q2jmalloc(jdf_name_list_t, 1);

@@ -32,7 +32,7 @@ static const char *jdf_cfilename;
 
 /** Optional declarations of local functions */
 static int jdf_expr_depends_on_symbol(const char *varname, const jdf_expr_t *expr);
-static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
+static void jdf_generate_code_hooks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix);
@@ -924,6 +924,7 @@ jdf_expr_t* jdf_find_property( const jdf_def_list_t* properties, const char* pro
 {
     const jdf_def_list_t* current = properties;
 
+    if( NULL != property ) *property = NULL;
     while( NULL != current ) {
         if( !strcmp(current->name, property_name) ) {
             if( NULL != property ) *property = (jdf_def_list_t*)current;
@@ -2482,7 +2483,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     string_arena_add_string(sa, "  .prepare_output = %s,\n", "NULL");
 
     sprintf(prefix, "hook_of_%s_%s", jdf_basename, f->fname);
-    jdf_generate_code_hook(jdf, f, prefix);
+    jdf_generate_code_hooks(jdf, f, prefix);
     string_arena_add_string(sa, "  .complete_execution = complete_%s,\n", prefix);
 
     if( NULL != f->simcost ) {
@@ -3519,7 +3520,10 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
     string_arena_free(sa_test);
 }
 
-static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
+static void jdf_generate_code_hook(const jdf_t *jdf,
+                                   const jdf_function_entry_t *f,
+                                   const jdf_body_t* body,
+                                   const char *name)
 {
     string_arena_t *sa, *sa2;
     assignment_info_t ai;
@@ -3527,9 +3531,35 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     int di, profile_on;
     char* output;
     init_from_data_array_info_t ifda;
+    jdf_def_list_t* type_property;
 
-    /* If the function has the property profile turned off do not generate the profiling code */
+    /**
+     * If the function or the body has the "profile" property turned off
+     * do not generate the profiling code.
+     */
     profile_on = jdf_property_get_int(f->properties, "profile", 1);
+    profile_on = jdf_property_get_int(body->properties, "profile", profile_on);
+
+    jdf_find_property(body->properties, "type", &type_property);
+    if(NULL != type_property) {
+        if(JDF_VAR != type_property->expr->op) {
+            expr_info_t ei;
+
+            ei.sa = string_arena_new(64);
+            ei.prefix = "";
+            ei.assignments = NULL;
+
+            jdf_fatal(body->super.lineno,
+                      "Type property set to unknown value for function %s in file %s:%d\n"
+                      "Currently set to [%s]<%d>\n",
+                      f->fname, body->super.filename, body->super.lineno,
+                      dump_expr((void**)type_property->expr, (void*)&ei), type_property->expr->op);
+            string_arena_free(ei.sa);
+            exit(1);
+        }
+    }
+    if( NULL != type_property)
+        coutput("#if defined(HAVE_%s)\n", type_property->expr->jdf_var);
 
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -3537,8 +3567,13 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     ai.idx = 0;
     ai.holder = "this_task->locals";
     ai.expr = NULL;
-    coutput("static int %s(dague_execution_unit_t *context, dague_execution_context_t *this_task)\n"
-            "{\n"
+    if(NULL == type_property)
+        coutput("static int %s(dague_execution_unit_t *context, dague_execution_context_t *this_task)\n", name);
+    else
+        coutput("static int %s_%s(dague_execution_unit_t *context, dague_execution_context_t *this_task)\n",
+                name, type_property->expr->jdf_var);
+
+    coutput("{\n"
             "  const __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
             "  assignment_t tass[MAX_PARAM_COUNT];\n"
             "  (void)context; (void)__dague_handle; (void)tass;\n"
@@ -3546,7 +3581,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "  int __dague_simulation_date = 0;\n"
             "#endif\n"
             "%s",
-            name, jdf_basename, jdf_basename,
+            jdf_basename, jdf_basename,
             UTIL_DUMP_LIST(sa, f->locals, next,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
     coutput("%s\n",
@@ -3601,17 +3636,45 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
                 "                        this_task->dague_handle->profiling_array[2*this_task->function->function_id],\n"
                 "                        this_task);\n");
     }
-    coutput("%s\n", f->body);
+    coutput("%s\n", body->external_code);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
         coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
     }
     jdf_coutput_prettycomment('-', "END OF %s BODY", f->fname);
     jdf_generate_code_dry_run_after(jdf, f);
-
-    ai.idx = 0;
     coutput("  return 0;\n"
-            "}\n"
-            "static int complete_%s(dague_execution_unit_t *context, dague_execution_context_t *this_task)\n"
+            "}\n");
+
+    if( NULL != type_property)
+        coutput("#endif  /*  defined(HAVE_%s) */\n", type_property->expr->jdf_var);
+
+    string_arena_free(sa);
+    string_arena_free(sa2);
+}
+
+static void
+jdf_generate_code_complete_hook(const jdf_t *jdf,
+                                const jdf_function_entry_t *f,
+                                const char *name)
+{
+    assignment_info_t ai;
+    string_arena_t *sa, *sa2;
+    int di, profile_on;
+    jdf_dataflow_t *fl;
+
+    /**
+     * If the function or the body has the "profile" property turned off
+     * do not generate the profiling code.
+     */
+    profile_on = jdf_property_get_int(f->properties, "profile", 1);
+
+    sa  = string_arena_new(64);
+    sa2 = string_arena_new(64);
+    ai.sa = sa2;
+    ai.idx = 0;
+    ai.holder = "this_task->locals";
+    ai.expr = NULL;
+    coutput("static int complete_%s(dague_execution_unit_t *context, dague_execution_context_t *this_task)\n"
             "{\n"
             "  const __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
             "  (void)context; (void)__dague_handle;\n"
@@ -3646,6 +3709,18 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "}\n\n");
     string_arena_free(sa);
     string_arena_free(sa2);
+}
+
+static void jdf_generate_code_hooks(const jdf_t *jdf,
+                                    const jdf_function_entry_t *f,
+                                    const char *name)
+{
+    jdf_body_t* body = f->bodies;
+    do {
+        jdf_generate_code_hook(jdf, f, body, name);
+        body = body->next;
+    } while (NULL != body);
+    jdf_generate_code_complete_hook(jdf, f, name);
 }
 
 static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_function_entry_t *f)
