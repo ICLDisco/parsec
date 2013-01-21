@@ -727,12 +727,12 @@ static char *dump_globals_init(void **elem, void *arg)
 }
 
 /**
- * dump_data_register / dump_data_unregister
+ * dump_data_name
  *  Takes a pointer to a global variables and generate the code used to initialize
  *  the global variable during *_New. If the variable has a default value or is
  *  marked as hidden the output code will not be generated.
  */
-static char *dump_data_register(void **elem, void *arg)
+static char *dump_data_name(void **elem, void *arg)
 {
      jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
      string_arena_t *sa = (string_arena_t*)arg;
@@ -740,21 +740,7 @@ static char *dump_data_register(void **elem, void *arg)
      if( NULL == global->data ) return NULL;
 
      string_arena_init(sa);
-     string_arena_add_string(sa, "  ((dague_ddesc_t*)__dague_handle->super.%s)->register_memory((dague_ddesc_t*)__dague_handle->super.%s, device);\n",
-                             global->name, global->name);
-     return string_arena_get_string(sa);
-}
-
-static char *dump_data_unregister(void **elem, void *arg)
-{
-     jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
-     string_arena_t *sa = (string_arena_t*)arg;
-
-     if( NULL == global->data ) return NULL;
-
-     string_arena_init(sa);
-     string_arena_add_string(sa, "  ((dague_ddesc_t*)__dague_handle->super.%s)->unregister_memory((dague_ddesc_t*)__dague_handle->super.%s, device);\n",
-                             global->name, global->name);
+     string_arena_add_string(sa, "%s", global->name);
      return string_arena_get_string(sa);
 }
 
@@ -1911,19 +1897,32 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "  __dague_handle->super.super.devices_mask = 0;  /* All devices support disabled by default */\n"
             "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
             "    dague_device_t* device = dague_devices_get(_i);\n"
-            "    if((NULL == device) || (NULL == device->device_handle_register)) continue;\n"
-            "    if( DAGUE_SUCCESS != device->device_handle_register(device, (dague_handle_t*)__dague_handle) ) continue;\n"
+            "    if(NULL == device) continue;\n"
+            "    if(NULL != device->device_handle_register)\n"
+            "      if( DAGUE_SUCCESS != device->device_handle_register(device, (dague_handle_t*)__dague_handle) ) continue;\n"
             "    __dague_handle->super.super.devices_mask |= (1 << _i);\n"
             "  }\n"
             "  /* Register all the data */\n"
             "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
-            "    dague_device_t* device = dague_devices_get(_i);\n"
-            "    if((NULL == device) || (NULL == device->device_memory_register)) continue;\n"
+            "    dague_device_t* device;\n"
+            "    dague_ddesc_t* dague_ddesc;\n"
             "    if(!(__dague_handle->super.super.devices_mask & (1 << _i))) continue;\n"
+            "    if((NULL == (device = dague_devices_get(_i))) || (NULL == device->device_memory_register)) continue;\n"
             "  %s"
             "  }\n",
             UTIL_DUMP_LIST(sa1, jdf->globals, next,
-                           dump_data_register, sa2, "", "  ", "\n", "\n"));
+                           dump_data_name, sa2, "",
+                           "  dague_ddesc = (dague_ddesc_t*)__dague_handle->super.",
+                           ";\n"
+                           "  if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
+                           "    __dague_handle->super.super.devices_mask &= ~(1 << _i);  /* disable the device */\n"
+                           "    continue;\n"
+                           "  }\n",
+                           ";\n"
+                           "  if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
+                           "    __dague_handle->super.super.devices_mask &= ~(1 << _i);  /* disable the device */\n"
+                           "    continue;\n"
+                           "  }\n"));
 
     coutput("  /* Parse all the inputs and generate the ready execution tasks */\n");
 
@@ -2691,13 +2690,17 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
     coutput("  /* Unregister all the data */\n"
             "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
-            "    dague_device_t* device = dague_devices_get(_i);\n"
-            "    if((NULL == device) || (NULL == device->device_memory_unregister)) continue;\n"
+            "    dague_device_t* device;\n"
+            "    dague_ddesc_t* dague_ddesc;\n"
             "    if(!(d->devices_mask & (1 << _i))) continue;\n"
+            "    if((NULL == (device = dague_devices_get(_i))) || (NULL == device->device_memory_unregister)) continue;\n"
             "  %s"
             "}\n",
             UTIL_DUMP_LIST(sa, jdf->globals, next,
-                           dump_data_unregister, sa1, "  ", "  ", "\n", "\n"));
+                           dump_data_name, sa1, "",
+                           "  dague_ddesc = (dague_ddesc_t*)__dague_handle->super.",
+                           ";\n  (void)dague_ddesc->register_memory(dague_ddesc, device);\n",
+                           ";\n  (void)dague_ddesc->register_memory(dague_ddesc, device);\n"));
 
     coutput("  /* Unregister the handle from the devices */\n"
             "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
