@@ -346,6 +346,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
 {
     int i, dev_index, data_index = 0;
     dague_zgemm_args_t *gpu_task;
+    dague_handle_t* handle = this_task->dague_handle;
 
     /* Step one: which write enabled data we will look at */
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
@@ -361,6 +362,8 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
         int best_index = 0;  /* default value: first CPU device */
         float weight, best_weight = dague_device_load[0] + dague_device_sweight[0];
         for( dev_index = 1; dev_index < dague_devices_enabled(); dev_index++ ) {
+            /* Skip the device if it is not configured */
+            if(!(handle->devices_mask & (1 << dev_index))) continue;
             weight = dague_device_load[dev_index] + dague_device_sweight[dev_index];
             if( best_weight > weight ) {
                 best_index = dev_index;
