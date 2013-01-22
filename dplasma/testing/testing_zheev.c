@@ -126,14 +126,14 @@ int main(int argc, char *argv[])
                     1, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
                     MB+1, (NB+2)*NT, 1, 1, 1 /* rank0 only */ ));
             dplasma_zlacpy(dague, PlasmaUpperLower, &ddescBAND, &ddescW);
-            //dplasma_zprint(dague, PlasmaUpperLower, &ddescW);
             band = ddescW.mat;
         } 
         else {
             band = ddescBAND.mat;
         }
 
-        { /* Extract the D (diagonal) and E (subdiag) vectors from the band */
+        if( 0 == rank ) {
+            /* Extract the D (diagonal) and E (subdiag) vectors from the band */
             int k, sizearena = (MB+1)*(NB+2);
             /* store resulting diag and lower diag D and E*/
             for( k=0; k<NT-1; k++ ) {
@@ -149,18 +149,16 @@ int main(int argc, char *argv[])
             D[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j]);
 
 #ifdef PRINTF_HEAVY
-        dplasma_zprint(dague, PlasmaUpperLower, &ddescBAND);
-            
-        printf("############################\n"
-               "D= ");
-        for(i = 0; i < N; i++) {
-            printf("% 11.4g ", D[i]);
-        }
-        printf("\nE= ");
-        for(i = 0; i < N-1; i++) {
-            printf("% 11.4g ", E[i]);
-        }
-        printf("\n");
+            printf("############################\n"
+                   "D= ");
+            for(i = 0; i < N; i++) {
+                printf("% 11.4g ", D[i]);
+            }
+            printf("\nE= ");
+            for(i = 0; i < N-1; i++) {
+                printf("% 11.4g ", E[i]);
+            }
+            printf("\n");
 #endif            
             /* call eigensolver */
             dsterf_( &N, D, E, &INFO);
@@ -173,14 +171,16 @@ int main(int argc, char *argv[])
             two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
             1, cores, rank, MB, NB, LDA, N, 0, 0,
             N, N, 1, 1, 1))
-        PLASMA_Desc_Create(&plasmaDescA0, ddescA0.mat, PlasmaComplexDouble,
-            ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
-            ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
-            ddescA0.super.m, ddescA0.super.n);
         /* Fill A0 again */
         dplasma_zlaset( dague, PlasmaUpperLower, 0.0, 0.0, &ddescA0);
         dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
-        PLASMA_Tile_to_Lapack(plasmaDescA0, (void*)A0, LDA);
+        /* Convert into Lapack format */
+        if( 0 == rank ) {
+            PLASMA_Desc_Create(&plasmaDescA0, ddescA0.mat, PlasmaComplexDouble,
+                ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
+                ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
+                ddescA0.super.m, ddescA0.super.n);
+            PLASMA_Tile_to_Lapack(plasmaDescA0, (void*)A0, LDA);
 
 #ifdef PRINTF_HEAVY
         printf("########### A0 #############\n");
@@ -214,7 +214,6 @@ int main(int argc, char *argv[])
         }
 #endif
 
-        if( 0 == rank ) {
 #ifdef PRINTF_HEAVY
         printf("\n###############\nDPLASMA Eignevalues\n");
         for(i = 0; i < N; i++) {
