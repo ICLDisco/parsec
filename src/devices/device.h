@@ -14,10 +14,12 @@
 #endif  /* defined(DAGUE_PROF_TRACE) */
 #include "dague.h"
 
+#define DAGUE_DEV_NONE       0x00
 #define DAGUE_DEV_CPU        0x01
 #define DAGUE_DEV_CUDA       0x02
 #define DAGUE_DEV_INTEL_PHI  0x03
 #define DAGUE_DEV_OPENCL     0x04
+#define DAGUE_DEV_MAX        0x05
 
 typedef struct dague_device_s dague_device_t;
 

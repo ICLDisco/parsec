@@ -139,7 +139,7 @@ typedef int (dague_task_fct_t)(dague_execution_context_t *exec_context);
 #define DAGUE_HAS_CTL_GATHER             0X0040
 
 typedef struct __dague_internal_incarnation_s {
-    char                      *type;
+    int32_t                    type;
     dague_evaluate_function_t *evaluate;
     dague_hook_t              *hook;
 } __dague_chore_t;
@@ -149,7 +149,6 @@ struct dague_function_s {
 
     uint16_t                     flags;
     uint8_t                      function_id;  /**< index in the dependency and in the function array */
-    uint8_t                      nb_incarnations;
 
     uint8_t                      nb_flows;
     uint8_t                      nb_parameters;

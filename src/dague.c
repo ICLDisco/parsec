@@ -393,7 +393,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     /* By now let's add one device for the CPUs */
     {
         dague_device_t* cpus = (dague_device_t*)calloc(1, sizeof(dague_device_t));
-        cpus->name = "Whole machine";
+        cpus->name = "default";
         cpus->type = DAGUE_DEV_CPU;
         dague_devices_add(context, cpus);
         /* TODO: This is plain WRONG, but should work by now */

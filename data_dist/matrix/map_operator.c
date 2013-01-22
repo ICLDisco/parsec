@@ -11,6 +11,7 @@
 #include "dague_prof_grapher.h"
 #include "scheduling.h"
 #include "datarepo.h"
+#include "dague/devices/device.h"
 
 #if defined(DAGUE_PROF_TRACE)
 int dague_map_operator_profiling_array[2] = {-1};
@@ -356,16 +357,19 @@ static int complete_hook(dague_execution_unit_t *context,
     return 0;
 }
 
-static __dague_chore_t __dague_map_chores = {
-    .evaluate = NULL,
-    .hook = hook_of,
+static __dague_chore_t __dague_map_chores[] = {
+    { .type     = DAGUE_DEV_CPU,
+      .evaluate = NULL,
+      .hook     = hook_of },
+    { .type     = DAGUE_DEV_NONE,
+      .evaluate = NULL,
+      .hook     = NULL },
 };
 
 static const dague_function_t dague_map_operator = {
     .name = "map_operator",
     .flags = 0x0,
     .function_id = 0,
-    .nb_incarnations = 1,
     .nb_parameters = 2,
     .nb_locals = 2,
     .dependencies_goal = 0x1,
@@ -378,7 +382,7 @@ static const dague_function_t dague_map_operator = {
     .init = NULL,
     .key = NULL,
     .prepare_input = data_lookup,
-    .incarnations = &__dague_map_chores,
+    .incarnations = __dague_map_chores,
     .iterate_successors = iterate_successors,
     .release_deps = release_deps,
     .complete_execution = complete_hook,

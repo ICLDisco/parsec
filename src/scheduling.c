@@ -86,8 +86,6 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     const dague_function_t* function = exec_context->function;
     int rc;
 
-    assert( function->nb_incarnations > 0 );
-
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
     AYU_TASK_RUN(eu_context->th_id, exec_context);
     /**
@@ -105,7 +103,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
         if( DAGUE_HOOK_RETURN_NEXT != rc )
             return rc;
         exec_context->chore_id++;
-    } while(exec_context->chore_id < function->nb_incarnations);
+    } while(NULL != function->incarnations[exec_context->chore_id].hook);
     /* We're out of luck, no more chores */
     return DAGUE_HOOK_RETURN_ERROR;
 }
