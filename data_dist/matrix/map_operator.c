@@ -195,7 +195,6 @@ add_task_to_list(struct dague_execution_unit_s *eu_context,
 
     memcpy( new_context, newcontext, sizeof(dague_execution_context_t) );
     new_context->mempool_owner = mpool;
-
     pready_list[vpid_dst] = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(pready_list[vpid_dst]),
                                                                                           (dague_list_item_t*)new_context,
                                                                                           dague_execution_context_priority_comparator );
@@ -216,6 +215,7 @@ static void iterate_successors(dague_execution_unit_t *eu,
     dague_execution_context_t nc;
 
     nc.priority = 0;
+    nc.chore_id = 0;
     nc.data[0].data_repo = NULL;
     nc.data[1].data_repo = NULL;
     /* If this is the last n, try to move to the next k */

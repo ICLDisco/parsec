@@ -2590,35 +2590,6 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
     string_arena_free(sa);
 }
 
-#if 0
-static char *dump_pseudodague(void **elem, void *arg)
-{
-    string_arena_t *sa = (string_arena_t *)arg;
-    char *name = *(char**)elem;
-    string_arena_init(sa);
-    string_arena_add_string(sa,
-                            "static const dague_function_t %s_%s = {\n"
-                            "  .name = \"%s\",\n"
-                            "  .flags = 0x0,\n"
-                            "  .function_id = -1,\n"
-                            "  .dependencies_goal = 0x0,\n"
-                            "  .nb_parameters = 0,\n"
-                            "  .nb_locals = 0,\n"
-                            "  .params = { NULL, },\n"
-                            "  .locals = { NULL, },\n"
-                            "  .pred = NULL,\n"
-                            "  .in = { NULL, },\n"
-                            "  .out = { NULL, },\n"
-                            "  .priority = NULL,\n"
-                            "  .hook = NULL,\n"
-                            "  .release_deps = NULL,\n"
-                            "  .body = NULL,\n"
-                            "};\n",
-                            jdf_basename, name, name);
-    return string_arena_get_string(sa);
-}
-#endif
-
 static void jdf_generate_predeclarations( const jdf_t *jdf )
 {
     jdf_function_entry_t *f;
@@ -4245,7 +4216,8 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
     coutput("  nc.dague_handle = this_task->dague_handle;\n"
-            "  nc.priority = this_task->priority;\n");
+            "  nc.priority     = this_task->priority;\n"
+            "  nc.chore_id     = 0;\n");
     coutput("#if defined(DISTRIBUTED)\n"
             "  rank_src = ((dague_ddesc_t*)__dague_handle->super.%s)->rank_of((dague_ddesc_t*)__dague_handle->super.%s, %s);\n"
             "#endif\n",
