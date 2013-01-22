@@ -138,15 +138,17 @@ int main(int argc, char *argv[])
             /* store resulting diag and lower diag D and E*/
             for( k=0; k<NT-1; k++ ) {
                 for( j=0; j<NB; j++ ) {
+                    if( (k*NB)+j >= N ) break;
                     D[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j]);
                     E[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j+1]);
                 }
             }
             for( j=0; j<NB-1; j++ ) {
+                if( (k*NB)+j >= N ) break;
                 D[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j]);
                 E[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j+1]);
             }
-            D[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j]);
+            if( (k*NB)+j < N ) D[(k*NB)+j] = creal(band[(k*sizearena)+ (MB+1)*j]);
 
 #ifdef PRINTF_HEAVY
             printf("############################\n"
