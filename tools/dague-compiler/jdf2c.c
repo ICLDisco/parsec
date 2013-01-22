@@ -1928,7 +1928,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "  for( uint32_t i = 0; i < __dague_handle->super.super.nb_functions; i++ ) {\n"
             "    dague_function_t* func = (dague_function_t*)__dague_handle->super.super.functions_array[i];\n"
             "    __dague_chore_t* chores = (__dague_chore_t*)func->incarnations;\n"
-            "    int index = 0;\n"
+            "    uint32_t index = 0;\n"
             "    for( uint32_t j = 0; NULL != chores[j].hook; j++ ) {\n"
             "      if(supported_dev[chores[j].type]) {\n"
             "          if( j != index ) chores[index] = chores[j];\n"
@@ -2678,7 +2678,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "{\n"
             "  dague_handle_t *d = (dague_handle_t *)o;\n"
             "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t*)o; (void)__dague_handle;\n"
-            "  int i;\n",
+            "  uint32_t i;\n",
             jdf_basename, jdf_basename,
             jdf_basename,
             jdf_basename);
@@ -2692,7 +2692,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  d->functions_array = NULL;\n"
             "  d->nb_functions = 0;\n");
 
-    coutput("  for(i =0; i < o->arenas_size; i++) {\n"
+    coutput("  for(i = 0; i < (uint32_t)o->arenas_size; i++) {\n"
             "    if( o->arenas[i] != NULL ) {\n"
             "      dague_arena_destruct(o->arenas[i]);\n"
             "      free(o->arenas[i]);\n"
@@ -2738,14 +2738,14 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             UTIL_DUMP_LIST(sa, jdf->globals, next,
                            dump_data_name, sa1, "",
                            "  dague_ddesc = (dague_ddesc_t*)__dague_handle->super.",
-                           ";\n  (void)dague_ddesc->register_memory(dague_ddesc, device);\n",
-                           ";\n  (void)dague_ddesc->register_memory(dague_ddesc, device);\n"));
+                           ";\n  (void)dague_ddesc->unregister_memory(dague_ddesc, device);\n",
+                           ";\n  (void)dague_ddesc->unregister_memory(dague_ddesc, device);\n"));
 
     coutput("  /* Unregister the handle from the devices */\n"
-            "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
-            "    if(!(d->devices_mask & (1 << _i))) continue;\n"
-            "    d->devices_mask ^= (1 << _i);\n"
-            "    dague_device_t* device = dague_devices_get(_i);\n"
+            "  for( i = 0; i < dague_nb_devices; i++ ) {\n"
+            "    if(!(d->devices_mask & (1 << i))) continue;\n"
+            "    d->devices_mask ^= (1 << i);\n"
+            "    dague_device_t* device = dague_devices_get(i);\n"
             "    if((NULL == device) || (NULL == device->device_handle_unregister)) continue;\n"
             "    if( DAGUE_SUCCESS != device->device_handle_unregister(device, d) ) continue;\n"
             "  }\n");
@@ -2803,7 +2803,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     /* Prepare the functions */
     coutput("  __dague_handle->super.super.functions_array = (const dague_function_t**)malloc(DAGUE_%s_NB_FUNCTIONS * sizeof(dague_function_t*));\n",
             jdf_basename);
-    coutput("  for( i = 0; i < __dague_handle->super.super.nb_functions; i++ ) {\n"
+    coutput("  for( i = 0; i < (int)__dague_handle->super.super.nb_functions; i++ ) {\n"
             "    dague_function_t* func;\n"
             "    __dague_handle->super.super.functions_array[i] = malloc(sizeof(dague_function_t));\n"
             "    memcpy((dague_function_t*)__dague_handle->super.super.functions_array[i], %s_functions[i], sizeof(dague_function_t));\n"
@@ -3576,8 +3576,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     jdf_def_list_t* type_property;
     string_arena_t *sa, *sa2;
     assignment_info_t ai;
-    jdf_dataflow_t *fl;
-    int di, profile_on;
+    int profile_on;
     char* output;
 
     /**
