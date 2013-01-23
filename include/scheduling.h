@@ -100,21 +100,12 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
  */
 int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context);
 
-typedef struct {
-    char* name;
-    int(*init)(dague_context_t* master);
-    int(*schedule_task)(dague_execution_unit_t* eu_context, dague_execution_context_t* new_context);
-    dague_execution_context_t *(*select_task)( dague_execution_unit_t *eu_context );
-    void(*display_stats)(dague_execution_unit_t* eu_context);
-    void(*finalize)(dague_context_t *master);
-} dague_scheduler_t;
-
 /**
- * Changes the scheduler.
+ * Loads the scheduler as selected using the MCA logic
  * You better not call this while some computation is in progress,
  *  i.e. it should be safe to call this when the main thread is not yet inside dague_progress,
  *  but *before* any call to dague_progress...
  */
-void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *scheduler );
+void dague_set_scheduler( dague_context_t *dague );
 
 #endif  /* _DAGUE_scheduling_h */

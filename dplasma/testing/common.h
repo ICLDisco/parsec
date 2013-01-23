@@ -37,7 +37,6 @@ enum iparam_t {
   IPARAM_RANK,         /* Rank                              */
   IPARAM_NNODES,       /* Number of nodes                   */
   IPARAM_NCORES,       /* Number of cores                   */
-  IPARAM_SCHEDULER,    /* What scheduler do we choose */
   IPARAM_NGPUS,        /* Number of GPUs                    */
   IPARAM_P,            /* Rows in the process grid          */
   IPARAM_Q,            /* Columns in the process grid       */
@@ -96,12 +95,11 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int check = iparam[IPARAM_CHECK];\
   int check_inv = iparam[IPARAM_CHECKINV];\
   int loud  = iparam[IPARAM_VERBOSE];\
-  int scheduler = iparam[IPARAM_SCHEDULER];\
   int nb_local_tasks = 0;                                               \
   int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
   (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)KT;(void)SMB;(void)SNB;(void)check;(void)loud;\
-  (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;(void)check_inv;
+  (void)nb_local_tasks; (void)butterfly_level;(void)check_inv;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;

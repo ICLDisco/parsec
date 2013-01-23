@@ -6,7 +6,8 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "schedulers.h"
+#include "src/mca/mca_repository.h"
+#include "src/mca/sched/sched.h"
 #include "profiling.h"
 #include "stats.h"
 #include "datarepo.h"
@@ -132,20 +133,28 @@ int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context
     return 0;
 }
 
+static dague_sched_module_t         *current_scheduler = NULL;
+static dague_sched_base_component_t *scheduler_component = NULL;
 
-static dague_scheduler_t scheduler = { "None", NULL, NULL, NULL, NULL, NULL };
-
-void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
+void dague_set_scheduler( dague_context_t *dague )
 {
-    if( NULL != scheduler.finalize ) {
-        scheduler.finalize( dague );
+    mca_base_component_t **scheds;
+
+    if( NULL != current_scheduler ) {
+        current_scheduler->module.remove( dague );
+        assert( NULL != scheduler_component );
+        mca_component_close( (mca_base_component_t*)scheduler_component );
     }
-    if( NULL != s ) {
-        memcpy( &scheduler, s, sizeof(dague_scheduler_t) );
-        scheduler.init( dague );
-    } else {
-        memset( &scheduler, 0, sizeof(dague_scheduler_t) );
-    }
+
+    scheds = mca_components_open_bytype( "sched" );
+    mca_components_query(scheds, 
+                         (mca_base_module_t**)&current_scheduler, 
+                         (mca_base_component_t**)&scheduler_component);
+    mca_components_close(scheds);
+
+    if( NULL != current_scheduler ) {
+        current_scheduler->module.install( dague );
+    } 
 }
 
 /**
@@ -190,7 +199,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
      */
-    ret = scheduler.schedule_task(eu_context, new_context);
+    ret = current_scheduler->module.schedule(eu_context, new_context);
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
      */
@@ -211,8 +220,8 @@ static inline unsigned long exponential_backoff(uint64_t k)
     return r * TIME_STEP;
 }
 
-inline int __dague_complete_execution( dague_execution_unit_t *eu_context,
-                                       dague_execution_context_t *exec_context )
+int __dague_complete_execution( dague_execution_unit_t *eu_context,
+                                dague_execution_context_t *exec_context )
 {
     int rc = 0;
 
@@ -267,8 +276,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         goto finalize_progress;
     }
 
-    if( NULL == scheduler.select_task ||
-        NULL == scheduler.schedule_task ) {
+    if( NULL == current_scheduler ) {
         fprintf(stderr, "DAGuE: Main thread entered dague_progress, while scheduler is not selected yet!\n");
         return (void *)-1;
     }
@@ -292,7 +300,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         }
 
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
-        exec_context = scheduler.select_task(eu_context);
+        exec_context = current_scheduler->module.select(eu_context);
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
         if( exec_context != NULL ) {
@@ -392,9 +400,8 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* object)
     dague_execution_context_t **startup_list;
     int p;
 
-    if( NULL == scheduler.schedule_task ) {
-        /* No scheduler selected yet. The default is 0 */
-        dague_set_scheduler( context, dague_schedulers_array[DAGUE_SCHEDULER_LFQ] );
+    if( NULL == current_scheduler) {
+        dague_set_scheduler( context );
     }
 
     /* These pointers need to be initialized to NULL; doing it with calloc */

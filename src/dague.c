@@ -33,6 +33,8 @@
 #include <dague/utils/installdirs.h>
 #include <dague/devices/device.h>
 
+#include "src/mca/mca_repository.h"
+
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
 #endif
@@ -230,6 +232,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_mca_param_init();
     dague_output_init();
 
+    mca_components_repository_init();
+    
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
@@ -490,7 +494,7 @@ int dague_fini( dague_context_t** pcontext )
 
     (void) dague_remote_dep_fini( context );
 
-    dague_set_scheduler( context, NULL );
+    dague_set_scheduler( context );
 
     for(p = 0; p < context->nb_vp; p++) {
         dague_vp_fini(context->virtual_processes[p]);

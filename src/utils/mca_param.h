@@ -64,6 +64,10 @@
 #endif  /* defined(HAVE_STDBOOL_H) */
 #include "list.h"
 
+#include "dague/constants.h"
+
+#warning included
+
 /**
  * The types of MCA parameters.
  */

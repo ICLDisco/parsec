@@ -26,10 +26,14 @@ FLEX_TARGET(keyval_flex utils/keyval_lex.l ${CMAKE_CURRENT_BINARY_DIR}/keyval_le
 SET_SOURCE_FILES_PROPERTIES(${FLEX_keyval_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS}")
 list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 
+# Read the Modular Components
+#   This must be read using include and not add_subdirectory because
+#   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
+include(mca/CMakeLists.txt)
+
 set(SOURCES
   barrier.c
   scheduling.c
-  schedulers.c
   dague.c
   data.c
   arena.c
@@ -39,7 +43,9 @@ set(SOURCES
   mempool.c
   vpmap.c
   devices/device.c
-${EXTRA_SOURCES}
+  mca/mca_repository.c
+  ${EXTRA_SOURCES}
+  ${MCA_EXTRA_SOURCES}
 )
 
 if( HWLOC_FOUND )

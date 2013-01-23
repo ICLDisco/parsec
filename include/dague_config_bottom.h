@@ -182,4 +182,3 @@ typedef uint32_t dague_dependency_t;
 #define DAGUE_PATH_SEP "/"
 #define DAGUE_ENV_SEP  ':'
 #endif
-

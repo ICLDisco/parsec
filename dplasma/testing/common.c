@@ -33,7 +33,6 @@
 #endif
 
 #include "dague_prof_grapher.h"
-#include "schedulers.h"
 #include "vpmap.h"
 
 /*******************************
@@ -230,23 +229,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
             case 'o':
-                if( !strcmp(optarg, "LFQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
-                else if( !strcmp(optarg, "LTQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LTQ;
-                else if( !strcmp(optarg, "AP") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_AP;
-                else if( !strcmp(optarg, "LHQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LHQ;
-                else if( !strcmp(optarg, "GD") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_GD;
-                else if( !strcmp(optarg, "PBQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_PBQ;
-                else {
-                    fprintf(stderr, "malformed scheduler value %s (accepted: LFQ AP LHQ GD PBQ LTQ). Reverting to default LFQ\n",
-                            optarg);
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
-                }
+                fprintf(stderr, "*** TODO: -o does not change the MCA selection logic yet. Work in Progress.\n");
                 break;
 
             case 'g':
@@ -567,7 +550,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     }
 #endif
 
-    dague_set_scheduler( ctx, dague_schedulers_array[ iparam[IPARAM_SCHEDULER] ] );
+    dague_set_scheduler( ctx );
 
     if(verbose > 2) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialized\n"));
     return ctx;
