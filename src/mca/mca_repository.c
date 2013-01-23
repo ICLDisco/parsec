@@ -31,7 +31,7 @@ mca_base_component_t **mca_components_open_bytype(char *type)
     char *param, **list;
     int idx;
     
-    idx = dague_mca_param_find("mca", type, "mca");
+    idx = dague_mca_param_find("mca", NULL, type);
     if( idx == DAGUE_ERROR ) {
         list = NULL;
     } else {
@@ -58,10 +58,6 @@ mca_base_component_t **mca_components_open_bytype(char *type)
             list[nb][i-n] = '\0';
             nb++;
             list[nb] = NULL;
-        }
-        if( list ) {
-            for(nb = 0; list[nb] != NULL; nb++)
-                printf("list[%d] = %s\n", nb, list[nb]);
         }
     }
 

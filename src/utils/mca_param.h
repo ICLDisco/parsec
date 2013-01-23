@@ -66,8 +66,6 @@
 
 #include "dague/constants.h"
 
-#warning included
-
 /**
  * The types of MCA parameters.
  */
