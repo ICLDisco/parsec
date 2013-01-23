@@ -104,6 +104,13 @@ static int dague_cuda_memory_register(dague_device_t* device, void* ptr, size_t 
 {
     gpu_device_t* gpu_device = (gpu_device_t*)device;
     CUresult status;
+    CUcontext ctx;
+
+    /* Atomically get the GPU context */
+    do {
+        ctx = gpu_device->ctx;
+        dague_atomic_cas( &(gpu_device->ctx), ctx, NULL );
+    } while( NULL == ctx );
 
     status = cuCtxPushCurrent( gpu_device->ctx );
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPushCurrent ", status,
