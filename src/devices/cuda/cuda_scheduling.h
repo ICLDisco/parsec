@@ -72,10 +72,6 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
         return DAGUE_HOOK_RETURN_ASYNC;
     }
 
-    /**
-     * There might be a small race condition here, between the moment when the previous
-     * owner of the GPU context release it, and the moment where I can get it.
-     */
     do {
         saved_ctx = gpu_device->ctx;
         dague_atomic_cas( &(gpu_device->ctx), saved_ctx, NULL );
