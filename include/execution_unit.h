@@ -41,6 +41,9 @@ struct dague_execution_unit {
     int largest_simulation_date;
 #endif
 
+	int ExecEventSet;
+	int StealEventSet;
+
 	long long int self_counters[2];
 	long long int steal_counters[2];
 	long long int other_counters[2];
@@ -48,6 +51,8 @@ struct dague_execution_unit {
 	int self;
 	int steal;
 	int other;
+
+	char count[5];
 
 	long long int exec_cache_misses[2];
 	long long int exec_tlb_misses;

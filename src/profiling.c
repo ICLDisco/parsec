@@ -408,6 +408,7 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
     dague_profiling_buffer_t *old_buffer;
     off_t off;
 
+    printf("LOCKING FILE BACKEND\n");
     pthread_mutex_lock( &file_backend_lock );
 
     new_buffer = allocate_empty_buffer(&off, PROFILING_BUFFER_TYPE_EVENTS);

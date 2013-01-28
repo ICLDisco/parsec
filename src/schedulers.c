@@ -176,7 +176,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
     }
     if (exec_context != NULL) {
-	    //PINS(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num);
+	    PINS(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num);
 	    return exec_context;
     }
 
@@ -202,7 +202,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
             dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
         }
         if (exec_context != NULL) {
-	        //      PINS(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
+	        PINS(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
             return exec_context;
         }
     }
@@ -213,7 +213,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
     if (heap != NULL)
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
 
-    //PINS(SCHED_STEAL, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
+    PINS(SCHED_STEAL, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
     return exec_context;
 }
 
@@ -236,7 +236,7 @@ static dague_execution_context_t * choose_job_tree_queues_2( dague_execution_uni
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
     }
     if (exec_context != NULL) {
-	    //	    PINS(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num);
+	    PINS(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num);
 	    return exec_context;
     }
 
@@ -262,7 +262,7 @@ static dague_execution_context_t * choose_job_tree_queues_2( dague_execution_uni
             dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
         }
         if (exec_context != NULL) {
-	        //	        PINS(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
+	        PINS(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
             return exec_context;
         }
     }
@@ -273,7 +273,7 @@ static dague_execution_context_t * choose_job_tree_queues_2( dague_execution_uni
     if (heap != NULL)
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
 
-    //    PINS(SCHED_STEAL, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
+    PINS(SCHED_STEAL, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
     return exec_context;
 }
 
@@ -671,7 +671,7 @@ static dague_execution_context_t *choose_job_local_queues( dague_execution_unit_
         if( NULL != exec_context ) {
             DEBUG3(("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
                     eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]));
-            //PINS(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
+            PINS(SCHED_STEAL, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
             return exec_context;
         }
     }
@@ -681,7 +681,7 @@ static dague_execution_context_t *choose_job_local_queues( dague_execution_unit_
         DEBUG3(("LQ\t: %d:%d found task %p in its system queue %p\n",
                 eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue));
     }
-    //PINS(SCHED_STEAL, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
+    PINS(SCHED_STEAL, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
     return exec_context;
 }
 

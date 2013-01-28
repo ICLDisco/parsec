@@ -18,6 +18,10 @@
 #endif  /* defined(HAVE_GETOPT_H) */
 #include "dague/ayudame.h"
 
+#include "pins/pins.h"
+#include "pins/papi/cachemiss.h"
+#include "pins/steals/steals.h"
+
 #include "list.h"
 #include "scheduling.h"
 #include "barrier.h"
@@ -152,23 +156,16 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->sched_nb_tasks_done = 0;
 #endif
 
-    // PETER init for counters
-    eu->self_counters[0] = 0;
-    eu->self_counters[1] = 0;
-    eu->self = 1;
-    eu->steal_counters[0] = 0;
-    eu->steal_counters[1] = 0;
-    eu->steal = 1;
-    eu->other_counters[0] = 0;
-    eu->other_counters[1] = 0;
-    eu->other = 1;
+    pins_thread_init_cachemiss(eu);
+    pins_thread_init_steals(eu);
 
-    eu->select_counters[0] = 0;
-    eu->select_counters[1] = 0;
-    
-    eu->exec_cache_misses[0] = 0;
-    eu->exec_cache_misses[1] = 0;
-    eu->exec_tlb_misses = 0;
+    // PETER PAPI INIT
+#if defined(PAPI_FOUND)
+    int rv;
+    rv = PAPI_register_thread();
+    if (rv != PAPI_OK) 
+	    DEBUG(("PAPI_register_thread failed with error %s\n", PAPI_strerror(rv)));
+#endif    
 
     eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
@@ -240,6 +237,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
 
+    // PETER TODO this needs some sort of ifdef protection
     PAPI_library_init(PAPI_VER_CURRENT); // PETER: this has to happen before threads get created
     int t_init = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self )); // PETER is this the right place? it needs protection
     if (t_init != PAPI_OK)
@@ -409,6 +407,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                                             0, NULL,
                                             &device_delegate_begin, &device_delegate_end);
 #endif  /* DAGUE_PROF_TRACE */
+
+    // PETER call all of the PINS init functions here for now
+    pins_init_cachemiss(context);
+    pins_init_steals(context);
 
     if( nb_total_comp_threads > 1 ) {
         pthread_attr_t thread_attr;

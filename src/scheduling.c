@@ -15,12 +15,11 @@
 #include "vpmap.h"
 #include "pins/pins.h"
 
-
+#ifdef PINS_ENABLE
 #include "pins/papi/cachemiss.h" // PETER this depends on PAPI as well as PINS
-#define PARSEC_STEAL_INSTR // PETER move to build process
-#ifdef PARSEC_STEAL_INSTR // PETER this is temporary
 #include "pins/steals/steals.h"
 #endif
+
 #include "dague/ayudame.h"
 
 #include <signal.h>
@@ -134,17 +133,13 @@ static dague_scheduler_t scheduler = { "None", NULL, NULL, NULL, NULL, NULL };
 void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
 {
     if( NULL != scheduler.finalize ) {
-	    PINS(SCHED_FINI, NULL, NULL, dague);
+	    // PETER TODO move this to a more appropriate finalization place
+	    pins_fini_steals(dague);
         scheduler.finalize( dague );
     }
     if( NULL != s ) {
         memcpy( &scheduler, s, sizeof(dague_scheduler_t) );
         scheduler.init( dague );
-#if defined(PARSEC_STEAL_INSTR)
-        // TODO move this to some initialization routine
-        PINS_REGISTER(SCHED_INIT, pins_init_steals);
-#endif
-        PINS(SCHED_INIT, NULL, NULL, dague);
     } else {
         memset( &scheduler, 0, sizeof(dague_scheduler_t) );
     }
@@ -205,6 +200,8 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 #define gettid() syscall(__NR_gettid)
 #endif /* HAVE_SCHED_SETAFFINITY */
 
+#include "src/pins/papi/cachemiss.h" // PETER remove after test
+
 #define TIME_STEP 5410
 #define MIN(x, y) ( (x)<(y)?(x):(y) )
 static inline unsigned long exponential_backoff(uint64_t k)
@@ -257,12 +254,6 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         my_barrier_counter = 1;
     }
 
-    // PETER TODO put this in correct initialization place for PINS stuff
-    PINS_REGISTER(TASK_SELECT_BEFORE, start_papi_cache_miss_count);
-    PINS_REGISTER(TASK_SELECT_AFTER, stop_papi_cache_miss_count);
-    PINS_REGISTER(EXEC_BEGIN, start_papi_exec_count);
-    PINS_REGISTER(EXEC_FINI, stop_papi_exec_count);
-
     /* The main loop where all the threads will spend their time */
  wait_for_the_next_round:
     /* Wait until all threads are here and the main thread signal the begining of the work */
@@ -301,9 +292,9 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         }
 
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
-        //        PINS(TASK_SELECT_BEFORE, eu_context, NULL, NULL);
+        PINS(TASK_SELECT_BEGIN, eu_context, NULL, NULL);
         exec_context = scheduler.select_task(eu_context);
-        //        PINS(TASK_SELECT_AFTER, eu_context, exec_context, NULL);
+        //        PINS(TASK_SELECT_FINI, eu_context, exec_context, NULL);
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
         if( exec_context != NULL ) {
