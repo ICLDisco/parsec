@@ -49,10 +49,12 @@ const dague_sched_base_component_t dague_sched_lhq_component = {
         sched_lhq_component_query, 
         /*< specific query to return the module and add it to the list of available modules */
         NULL, /*< No register: no parameters to the local hierarchical queue component */
+        "", /*< no reserve */
     },
     {
         /* The component has no metada */
-        MCA_BASE_METADATA_PARAM_NONE
+        MCA_BASE_METADATA_PARAM_NONE,
+        "", /*< no reserve */
     }
 };
 mca_base_component_t *sched_lhq_static_component(void)

@@ -49,12 +49,15 @@ const dague_sched_base_component_t dague_sched_ap_component = {
         sched_ap_component_query, 
         /*< specific query to return the module and add it to the list of available modules */
         NULL, /*< No register: no parameters to the absolute priority component */
+	"", /*< no reserve */
     },
     {
         /* The component has no metada */
-        MCA_BASE_METADATA_PARAM_NONE
+        MCA_BASE_METADATA_PARAM_NONE,
+        "", /*< no reserve */
     }
 };
+
 mca_base_component_t *sched_ap_static_component(void)
 {
     return (mca_base_component_t *)&dague_sched_ap_component;
