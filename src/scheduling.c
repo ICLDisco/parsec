@@ -136,25 +136,41 @@ int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context
 static dague_sched_module_t         *current_scheduler = NULL;
 static dague_sched_base_component_t *scheduler_component = NULL;
 
-void dague_set_scheduler( dague_context_t *dague )
+void dague_remove_scheduler( dague_context_t *dague )
 {
-    mca_base_component_t **scheds;
-
     if( NULL != current_scheduler ) {
         current_scheduler->module.remove( dague );
         assert( NULL != scheduler_component );
         mca_component_close( (mca_base_component_t*)scheduler_component );
+        current_scheduler = NULL;
+        scheduler_component = NULL;
     }
+}
+
+int dague_set_scheduler( dague_context_t *dague )
+{
+    mca_base_component_t **scheds;
+    dague_sched_module_t  *new_scheduler = NULL;
+    dague_sched_base_component_t *new_component = NULL;
 
     scheds = mca_components_open_bytype( "sched" );
     mca_components_query(scheds, 
-                         (mca_base_module_t**)&current_scheduler, 
-                         (mca_base_component_t**)&scheduler_component);
+                         (mca_base_module_t**)&new_scheduler, 
+                         (mca_base_component_t**)&new_component);
     mca_components_close(scheds);
 
-    if( NULL != current_scheduler ) {
-        current_scheduler->module.install( dague );
-    } 
+    if( NULL == new_scheduler ) {
+        return 0;
+    }
+    
+    dague_remove_scheduler( dague );
+    current_scheduler = new_scheduler;
+    scheduler_component = new_component;
+
+    DEBUG((" Installing %s\n", current_scheduler->component->base_version.mca_component_name));
+
+    current_scheduler->module.install( dague );
+    return 1;
 }
 
 /**

@@ -62,7 +62,25 @@ enum iparam_t {
   IPARAM_QR_TSRR,      /* Enable/disable the round-robin on TS domain */
   IPARAM_BUT_LEVEL,    /* Butterfly level */
   IPARAM_DOT,          /* Do we require to output the DOT file? */
+  IPARAM_SCHEDULER,    /* User-selected scheduler */
   IPARAM_SIZEOF
+};
+
+#define DAGUE_SCHEDULER_DEFAULT 0
+#define DAGUE_SCHEDULER_LFQ 1
+#define DAGUE_SCHEDULER_LTQ 2
+#define DAGUE_SCHEDULER_AP  3
+#define DAGUE_SCHEDULER_LHQ 4
+#define DAGUE_SCHEDULER_GD  5
+#define DAGUE_SCHEDULER_PBQ 6
+static char *DAGUE_SCHED_NAME[] = {
+    "", /* default */
+    "lfq",
+    "ltq",
+    "ap",
+    "lhq",
+    "gd",
+    "pbq"
 };
 
 void iparam_default_facto(int* iparam);

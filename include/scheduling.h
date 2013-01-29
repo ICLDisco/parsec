@@ -105,7 +105,17 @@ int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context
  * You better not call this while some computation is in progress,
  *  i.e. it should be safe to call this when the main thread is not yet inside dague_progress,
  *  but *before* any call to dague_progress...
+ *
+ *  @RETURN 1 if the new scheduler was succesfully installed
+ *          0 if it failed. In this case, the previous scheduler
+ *            is kept.
  */
-void dague_set_scheduler( dague_context_t *dague );
+int dague_set_scheduler( dague_context_t *dague );
+
+/**
+ *  Removes the current scheduler (cleanup)
+ */
+void dague_remove_scheduler( dague_context_t *dague );
+
 
 #endif  /* _DAGUE_scheduling_h */

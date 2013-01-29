@@ -448,6 +448,16 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     context->nb_nodes = dague_remote_dep_init(context);
     dague_statistics("DAGuE");
 
+    /* Load the default scheduler. User can change it afterward,
+     * but we need to ensure that one is loadable and here.
+     */
+    if( 0 == dague_set_scheduler( context ) ) {
+       /* TODO: handle memory leak / thread leak here: this is a fatal
+        * error for PaRSEC */
+        fprintf(stderr, "PaRSEC: unable to load any scheduler in init function. Fatal error.\n");
+        return NULL;
+    }
+
     AYU_INIT();
     return context;
 }
@@ -494,7 +504,7 @@ int dague_fini( dague_context_t** pcontext )
 
     (void) dague_remote_dep_fini( context );
 
-    dague_set_scheduler( context );
+    dague_remove_scheduler( context );
 
     for(p = 0; p < context->nb_vp; p++) {
         dague_vp_fini(context->virtual_processes[p]);
