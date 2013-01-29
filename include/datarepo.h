@@ -224,7 +224,7 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64
 #endif
 {
     data_repo_entry_t *e, *p;
-    uint32_t ov, nv;
+    int32_t ov, nv;
     int h = key % repo->nbentries;
 
     dague_atomic_lock(&repo->heads[h].lock);
