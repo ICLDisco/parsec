@@ -10,6 +10,11 @@
 #include "dague_config.h"
 #include <stdint.h>
 #include <unistd.h>
+
+/**
+ * If the compiler provides atomic primitives we prefer to use
+ * them instead of our own atomic assembly.
+ */
 #if defined(DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
 #  include "atomic-xlc.h"
 #elif defined(MAC_OS_X)
@@ -76,7 +81,7 @@ static inline uint64_t dague_atomic_bor_xxb( volatile void* location,
 #define DAGUE_ATOMIC_HAS_ATOMIC_INC_32B /* We now have it ! */
 
 #ifdef DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
-#define dague_atomic_inc_32b(l)  dague_atomic_add_32b(l, 1)
+#define dague_atomic_inc_32b(l)  dague_atomic_add_32b((int32_t*)l, 1)
 #else
 static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
 {
@@ -93,7 +98,7 @@ static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
 #define DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B /* We now have it ! */
 
 #ifdef DAGUE_ATOMIC_HAS_ATOMIC_SUB_32B
-#define dague_atomic_dec_32b(l)  dague_atomic_sub_32b(l, 1)
+#define dague_atomic_dec_32b(l)  dague_atomic_sub_32b((int32_t*)l, 1)
 #else
 static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 {
