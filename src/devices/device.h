@@ -123,5 +123,13 @@ static inline int dague_devices_enabled(void)
     return dague_nb_devices;
 }
 
+/**
+ * Helper function for pretty-print. Compute the adapted unit,
+ * annotated in human readable format ("K", "M", "G")
+ */
+void dague_compute_best_unit( uint64_t length,
+                              float* updated_value,
+                              char** best_unit );
+
 
 #endif  /* DAGUE_DEVICE_H_HAS_BEEN_INCLUDED */

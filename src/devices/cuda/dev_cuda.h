@@ -149,11 +149,6 @@ int progress_stream( gpu_device_t* gpu_device,
                      dague_gpu_context_t* task,
                      dague_gpu_context_t** out_task );
 
-/**
- * Compute the adapted unit
- */
-void dague_compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
-
 #endif /* defined(HAVE_CUDA) */
 
 #endif
