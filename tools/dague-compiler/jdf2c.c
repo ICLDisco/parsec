@@ -1874,7 +1874,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "{\n"
             "  dague_execution_context_t* new_context, new_context_holder, *new_dynamic_context;\n"
             "  assignment_t *assignments = NULL;\n"
-            "  int vpid, supported_dev[DAGUE_DEV_MAX] = {0};\n"
+            "  int vpid;\n"
             "%s\n"
             "%s\n"
             "  new_context = &new_context_holder;\n"
@@ -1888,58 +1888,6 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     string_arena_init(sa1);
     string_arena_init(sa2);
     string_arena_init(sa3);
-
-    coutput("  /* Check device support */\n"
-            "  __dague_handle->super.super.context = context;\n"
-            "  __dague_handle->super.super.devices_mask = 0;  /* All devices support disabled by default */\n"
-            "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
-            "    dague_device_t* device = dague_devices_get(_i);\n"
-            "    if(NULL == device) continue;\n"
-            "    if(NULL != device->device_handle_register)\n"
-            "      if( DAGUE_SUCCESS != device->device_handle_register(device, (dague_handle_t*)__dague_handle) ) continue;\n"
-            "    __dague_handle->super.super.devices_mask |= (1 << _i);\n"
-            "  }\n"
-            "  /* Register all the data */\n"
-            "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
-            "    dague_device_t* device;\n"
-            "    dague_ddesc_t* dague_ddesc;\n"
-            "    if(!(__dague_handle->super.super.devices_mask & (1 << _i))) continue;\n"
-            "    if(NULL == (device = dague_devices_get(_i))) continue;\n"
-            "    supported_dev[device->type]++;\n"
-            "    if(NULL == device->device_memory_register) continue;\n"
-            "  %s"
-            "  }\n",
-            UTIL_DUMP_LIST(sa1, jdf->globals, next,
-                           dump_data_name, sa2, "",
-                           "  dague_ddesc = (dague_ddesc_t*)__dague_handle->super.",
-                           ";\n"
-                           "  if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
-                           "    __dague_handle->super.super.devices_mask &= ~(1 << _i);  /* disable the device */\n"
-                           "    supported_dev[device->type]--;\n"
-                           "    continue;\n"
-                           "  }\n",
-                           ";\n"
-                           "  if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
-                           "    __dague_handle->super.super.devices_mask &= ~(1 << _i);  /* disable the device */\n"
-                           "    supported_dev[device->type]--;\n"
-                           "    continue;\n"
-                           "  }\n"));
-    coutput("  /* Remove all the chores without a backend device */\n"
-            "  for( uint32_t i = 0; i < __dague_handle->super.super.nb_functions; i++ ) {\n"
-            "    dague_function_t* func = (dague_function_t*)__dague_handle->super.super.functions_array[i];\n"
-            "    __dague_chore_t* chores = (__dague_chore_t*)func->incarnations;\n"
-            "    uint32_t index = 0;\n"
-            "    for( uint32_t j = 0; NULL != chores[j].hook; j++ ) {\n"
-            "      if(supported_dev[chores[j].type]) {\n"
-            "          if( j != index ) chores[index] = chores[j];\n"
-            "          index++;\n"
-            "      }\n"
-            "    }\n"
-            "    chores[index].type     = DAGUE_DEV_NONE;\n"
-            "    chores[index].evaluate = NULL;\n"
-            "    chores[index].hook     = NULL;\n"
-            "  }\n"
-            );
 
     coutput("  /* Parse all the inputs and generate the ready execution tasks */\n");
     coutput("  new_context->dague_handle = (dague_handle_t*)__dague_handle;\n"
@@ -2630,9 +2578,56 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
 
     coutput("static void %s_startup(dague_context_t *context, dague_handle_t *dague_handle, dague_execution_context_t** pready_list)\n"
             "{\n"
-            "%s\n"
-            "}\n",
+            "  uint32_t supported_dev = 0;\n"
+            "  __dague_%s_internal_handle_t* __dague_handle = (__dague_%s_internal_handle_t*)dague_handle;\n"
+            "  dague_handle->context = context;\n"
+            "  dague_handle->devices_mask = 0;  /* All devices support disabled by default */\n"
+            "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "    dague_device_t* device = dague_devices_get(_i);\n"
+            "    dague_ddesc_t* dague_ddesc;\n"
+            " \n"
+            "    if(NULL == device) continue;\n"
+            "    if(NULL != device->device_handle_register)\n"
+            "      if( DAGUE_SUCCESS != device->device_handle_register(device, (dague_handle_t*)dague_handle) ) continue;\n"
+            " \n"
+            "    if(NULL != device->device_memory_register) {  /* Register all the data */\n"
+            "%s"
+            "    }\n"
+            "    supported_dev |= (1 << device->type);\n"
+            "    dague_handle->devices_mask |= (1 << _i);\n"
+            "  }\n",
             jdf_basename,
+            jdf_basename, jdf_basename,
+            UTIL_DUMP_LIST(sa1, jdf->globals, next,
+                           dump_data_name, sa2, "",
+                           "      dague_ddesc = (dague_ddesc_t*)__dague_handle->super.",
+                           ";\n"
+                           "      if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
+                           "        continue;\n"
+                           "      }\n",
+                           ";\n"
+                           "      if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
+                           "        continue;\n"
+                           "      }\n"));
+    coutput("  /* Remove all the chores without a backend device */\n"
+            "  for( uint32_t i = 0; i < dague_handle->nb_functions; i++ ) {\n"
+            "    dague_function_t* func = (dague_function_t*)dague_handle->functions_array[i];\n"
+            "    __dague_chore_t* chores = (__dague_chore_t*)func->incarnations;\n"
+            "    uint32_t index = 0;\n"
+            "    for( uint32_t j = 0; NULL != chores[j].hook; j++ ) {\n"
+            "      if(supported_dev & (1 << chores[j].type)) {\n"
+            "          if( j != index ) chores[index] = chores[j];\n"
+            "          index++;\n"
+            "      }\n"
+            "    }\n"
+            "    chores[index].type     = DAGUE_DEV_NONE;\n"
+            "    chores[index].evaluate = NULL;\n"
+            "    chores[index].hook     = NULL;\n"
+            "  }\n"
+            );
+
+    coutput("%s\n"
+            "}\n",
             UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_startup_call, sa2,
                             "  ", jdf_basename, "\n  ", "") );
 
