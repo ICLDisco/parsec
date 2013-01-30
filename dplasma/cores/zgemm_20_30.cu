@@ -7,7 +7,7 @@
 
 
   @precisions normal z -> z c d s
-       
+
 */
 
 #if (CUDA_SM_VERSION == 20) || (CUDA_SM_VERSION == 30)
@@ -23,7 +23,7 @@
 
 #define PRECISION_z
 
-#if defined(PRECISION_z) || defined(PRECISION_c) 
+#if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
 #endif
 
@@ -40,13 +40,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #if 1
 extern "C" void
-GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
+GENERATE_SM_VERSION_NAME(ZGEMM)( char TRANSA, char TRANSB, int m, int n, int k,
                                  dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
                                                           dague_complex64_t *d_B, int ldb,
                                  dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,
                                  CUstream stream )
 {
-#if defined(PRECISION_z) || defined(PRECISION_c)    
+#if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex lalpha = make_cuDoubleComplex( creal(alpha), cimag(alpha) );
     cuDoubleComplex lbeta  = make_cuDoubleComplex( creal(beta),  cimag(beta)  );
 #else
@@ -191,7 +191,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
     =====================================================================    */
 
 extern "C" void
-GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
+GENERATE_SM_VERSION_NAME(ZGEMM)( char TRANSA, char TRANSB, int m, int n, int k,
                                  dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
                                                           dague_complex64_t *d_B, int ldb,
                                  dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,

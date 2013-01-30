@@ -76,9 +76,9 @@ typedef struct _gpu_device {
     CUmodule   hcuModule;
     CUfunction hcuFunction;
     dague_gpu_exec_stream_t* exec_stream;
-    dague_list_t* gpu_mem_lru;
-    dague_list_t* gpu_mem_owned_lru;
     volatile uint32_t mutex;
+    dague_list_t gpu_mem_lru;
+    dague_list_t gpu_mem_owned_lru;
     dague_list_t pending;
     gpu_malloc_t *memory;
 } gpu_device_t;

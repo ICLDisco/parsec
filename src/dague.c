@@ -233,7 +233,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_output_init();
 
     mca_components_repository_init();
-    
+
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
@@ -244,7 +244,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
      */
     if( nb_cores <= 0 ) {
 #if defined(HAVE_HWLOC)
-        nb_cores=dague_hwloc_nb_real_cores();
+        nb_cores = dague_hwloc_nb_real_cores();
 #else
         nb_cores= sysconf(_SC_NPROCESSORS_ONLN);
         if(nb_cores== -1) {

@@ -33,12 +33,12 @@ typedef void (*cuda_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
 cuda_zgemm_t* zgemm_functions;
 
 #define FORCE_UNDEFINED_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
-extern cuda_zgemm_t magmablas_zgemm_SM11;
-FORCE_UNDEFINED_SYMBOL(magmablas_zgemm_SM11)
-extern cuda_zgemm_t magmablas_zgemm_SM13;
-FORCE_UNDEFINED_SYMBOL(magmablas_zgemm_SM13)
-extern cuda_zgemm_t magmablas_zgemm_SM20;
-FORCE_UNDEFINED_SYMBOL(magmablas_zgemm_SM20)
+extern cuda_zgemm_t magmablas_ZGEMM_SM11;
+FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM11)
+extern cuda_zgemm_t magmablas_ZGEMM_SM13;
+FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM13)
+extern cuda_zgemm_t magmablas_ZGEMM_SM20;
+FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM20)
 
 static inline
 int gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
@@ -245,7 +245,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                 !(this_task->function->in[i]->access_type & ACCESS_WRITE) ) {
                 dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
                 DAGUE_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
-                dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+                dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
             }
         }
         if( this_task->function->in[i]->access_type & ACCESS_WRITE ) {
@@ -309,9 +309,9 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
         original->owner_device = -1;
 
         if( args->pushout ) {  /* n == (k  + 1) */
-            dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+            dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
         } else {
-            dague_ulist_fifo_push(gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_copy);
+            dague_ulist_fifo_push(&gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_copy);
         }
     }
     return 0;
