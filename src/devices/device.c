@@ -175,7 +175,7 @@ int dague_devices_fini(dague_context_t* dague_context)
     dague_device_sweight = NULL;
     if(NULL != dague_device_dweight) free(dague_device_dweight);
     dague_device_dweight = NULL;
- 
+
 #if defined(HAVE_CUDA)
     return dague_gpu_fini();
 #else
