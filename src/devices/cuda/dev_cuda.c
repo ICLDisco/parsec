@@ -741,13 +741,11 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
  */
 int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                                          dague_execution_context_t *this_task,
-                                         int *array_of_eltsize,
                                          int  move_data_count )
 {
     dague_gpu_data_copy_t* temp_loc[MAX_PARAM_COUNT], *gpu_elem, *lru_gpu_elem;
     dague_data_t* master;
     int eltsize = 0, i, j;
-    (void)array_of_eltsize;
     (void)eltsize;
 
     /**
@@ -765,7 +763,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         gpu_elem = OBJ_NEW(dague_data_copy_t);
 
-        eltsize = array_of_eltsize[i];
+        eltsize = master->nb_elts;
         eltsize = (eltsize + GPU_MALLOC_UNIT_SIZE - 1) / GPU_MALLOC_UNIT_SIZE;
 
     malloc_data:
@@ -857,37 +855,36 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              int32_t type,
                              dague_data_pair_t* task_data,
-                             size_t length,
                              CUstream stream )
 {
     dague_data_copy_t* in_elem = task_data->data;
-    dague_data_t* master = in_elem->original;
-    dague_gpu_data_copy_t* gpu_elem = master->device_copies[gpu_device->super.device_index];
+    dague_data_t* original = in_elem->original;
+    dague_gpu_data_copy_t* gpu_elem = original->device_copies[gpu_device->super.device_index];
     int transfer_required = 0;
 
     /* If the data will be accessed in write mode, remove it from any lists
      * until the task is completed.
      */
     if( ACCESS_WRITE & type ) {
-        dague_list_item_ring_chop((dague_list_item_t*)in_elem);
-        DAGUE_LIST_ITEM_SINGLETON(in_elem);
+        dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
+        DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
 
-    transfer_required = dague_data_copy_ownership_to_device(master, gpu_device->super.device_index, (uint8_t)type);
-    gpu_device->super.required_data_in += length;
+    transfer_required = dague_data_copy_ownership_to_device(original, gpu_device->super.device_index, (uint8_t)type);
+    gpu_device->super.required_data_in += original->nb_elts;
     if( transfer_required ) {
         cudaError_t status;
 
         DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                               "GPU:\tMove data %x (%p:%p) to GPU %d\n",
-                              master->key, in_elem->device_private, (void*)gpu_elem->device_private, gpu_device->cuda_index));
+                              original->key, in_elem->device_private, (void*)gpu_elem->device_private, gpu_device->cuda_index));
         /* Push data into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( (CUdeviceptr)gpu_elem->device_private,
-                                                 in_elem->device_private, length, stream );
+                                                 in_elem->device_private, original->nb_elts, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device ", status,
-                                { WARNING(("<<%p>> -> <<%p>> [%d]\n", in_elem->device_private, gpu_elem->device_private, length));
+                                { WARNING(("<<%p>> -> <<%p>> [%d]\n", in_elem->device_private, gpu_elem->device_private, original->nb_elts));
                                     return -1; } );
-        gpu_device->super.transferred_data_in += length;
+        gpu_device->super.transferred_data_in += original->nb_elts;
         /* TODO: take ownership of the data */
         return 1;
     }

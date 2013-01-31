@@ -66,7 +66,6 @@ typedef struct dague_zgemm_args_s {
     PLASMA_enum transA, transB;
     int M, N, K;
     int Am, An, lda, Bm, Bn, ldb, Cm, Cn, ldc;
-    size_t sizeA, sizeB, sizeC;
     dague_ddesc_t *ddescA, *ddescB, *ddescC;
 } dague_zgemm_args_t;
 
@@ -87,11 +86,10 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
                        dague_gpu_exec_stream_t *gpu_stream)
 {
     int i, ret, move_data_count = 0;
-    int sizeloc[MAX_PARAM_COUNT];
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
-    dague_data_t* data;
-    dague_data_copy_t* local;
+    dague_data_t              *data;
+    dague_data_copy_t         *local;
 
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if( !(this_task->function->in[0]->access_type & ACCESS_READ) )
@@ -114,13 +112,8 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     }
 
     if( 0 != move_data_count ) { /* Try to reserve enough room for all data */
-        sizeloc[0] = args->sizeA;
-        sizeloc[1] = args->sizeB;
-        sizeloc[2] = args->sizeC;
-
         ret = dague_gpu_data_reserve_device_space( gpu_device,
                                                    this_task,
-                                                   sizeloc,
                                                    move_data_count );
         if( ret < 0 ) {
             goto release_and_return_error;
@@ -142,7 +135,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n",
             gpu_device->cuda_index, this_task->function->in[0]->name, args->Am, args->An));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[0]->access_type,
-                                   &(this_task->data[0]), args->sizeA, gpu_stream->cuda_stream );
+                                   &(this_task->data[0]), gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
@@ -150,7 +143,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n",
             gpu_device->cuda_index, this_task->function->in[1]->name, args->Bm, args->Bn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[1]->access_type,
-                                   &(this_task->data[1]), args->sizeB, gpu_stream->cuda_stream );
+                                   &(this_task->data[1]), gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
@@ -158,7 +151,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n",
             gpu_device->cuda_index, this_task->function->in[2]->name, args->Cm, args->Cn));
     ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[2]->access_type,
-                                   &(this_task->data[2]), args->sizeC, gpu_stream->cuda_stream );
+                                   &(this_task->data[2]), gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
@@ -239,6 +232,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
 
     for( i = 0; NULL != this_task->function->in[i]; i++ ) {
         gpu_copy = this_task->data[i].data;
+        original = gpu_copy->original;
         if( this_task->function->in[i]->access_type & ACCESS_READ ) {
             gpu_copy->readers--; assert(gpu_copy->readers >= 0);
             if( (0 == gpu_copy->readers) &&
@@ -251,7 +245,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
         if( this_task->function->in[i]->access_type & ACCESS_WRITE ) {
             assert( gpu_copy == dague_data_get_copy(gpu_copy->original, gpu_device->super.device_index) );
             /* Stage the transfer of the data back to main memory */
-            gpu_device->super.required_data_out += args->sizeC;
+            gpu_device->super.required_data_out += original->nb_elts;
             assert( ((dague_list_item_t*)gpu_copy)->list_next == (dague_list_item_t*)gpu_copy );
             assert( ((dague_list_item_t*)gpu_copy)->list_prev == (dague_list_item_t*)gpu_copy );
 
@@ -269,13 +263,13 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                 original = gpu_copy->original;
                 status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
                                                          (CUdeviceptr)gpu_copy->device_private,
-                                                         args->sizeC, gpu_stream->cuda_stream );
+                                                         original->nb_elts, gpu_stream->cuda_stream );
                 DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
                                         { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[i]->name,
                                                    gpu_copy->device_private, original->device_copies[0]->device_private));
                                             return_code = -2;
                                             goto release_and_return_error;} );
-                gpu_device->super.transferred_data_out += args->sizeC; /* TODO: not hardcoded, use datatype size */
+                gpu_device->super.transferred_data_out += original->nb_elts; /* TODO: not hardcoded, use datatype size */
                 how_many++;
             }
         }
@@ -397,9 +391,6 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     gpu_task->Cm       = Cm;
     gpu_task->Cn       = Cn;
     gpu_task->ldc      = ldc;
-    gpu_task->sizeA    = sizeof(dague_complex64_t) * (size_t)lda * (( transA == PlasmaNoTrans ) ? K : M );
-    gpu_task->sizeB    = sizeof(dague_complex64_t) * (size_t)ldb * (( transB == PlasmaNoTrans ) ? N : K );
-    gpu_task->sizeC    = sizeof(dague_complex64_t) * (size_t)ldc * N;
     gpu_task->ddescA   = (dague_ddesc_t*)descA;
     gpu_task->ddescB   = (dague_ddesc_t*)descB;
     gpu_task->ddescC   = (dague_ddesc_t*)descC;

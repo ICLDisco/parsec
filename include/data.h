@@ -30,14 +30,14 @@ typedef uint8_t dague_data_coherency_t;
  * pointers to the versions managed by each supported devices.
  */
 struct dague_data_s {
-    dague_list_item_t         super;
+    dague_object_t            super;
 
     uint32_t                  version;
     dague_data_coherency_t    coherency_state;
     int8_t                    owner_device;
     dague_data_key_t          key;
     uint32_t                  nb_elts;          /* number of elements of the memory layout */
-    struct dague_data_copy_s* device_copies[1]; /* this array allocated according to the number of devices
+    struct dague_data_copy_s *device_copies[1]; /* this array allocated according to the number of devices
                                                  * (dague_supported_number_of_devices). It points to the most recent
                                                  * version of the data.
                                                  */

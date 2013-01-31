@@ -62,7 +62,7 @@ static void dague_data_destruct(dague_data_t* obj )
 }
 #endif  /* defined(DAGUE_DEBUG_ENABLE) */
 
-OBJ_CLASS_INSTANCE(dague_data_t, dague_list_item_t,
+OBJ_CLASS_INSTANCE(dague_data_t, dague_object_t,
                    dague_data_construct,
 #if defined(DAGUE_DEBUG_ENABLE)
                    dague_data_destruct
@@ -104,6 +104,8 @@ dague_data_t* dague_data_new(void)
     if( NULL == item ) {
         item = OBJ_NEW(dague_data_t);
         if( NULL == item ) return NULL;
+    } else {
+        OBJ_CONSTRUCT(item, dague_object_t);
     }
     return item;
 }

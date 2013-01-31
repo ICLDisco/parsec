@@ -127,13 +127,11 @@ int dague_gpu_data_unregister( dague_ddesc_t* data );
  */
 int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                                          dague_execution_context_t *this_task,
-                                         int *array_of_eltsize,
                                          int  move_data_count );
 
 int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              int32_t type,
                              dague_data_pair_t* task_data,
-                             size_t length,
                              CUstream stream );
 
 /**
