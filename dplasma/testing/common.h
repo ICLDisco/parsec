@@ -37,7 +37,6 @@ enum iparam_t {
   IPARAM_RANK,         /* Rank                              */
   IPARAM_NNODES,       /* Number of nodes                   */
   IPARAM_NCORES,       /* Number of cores                   */
-  IPARAM_SCHEDULER,    /* What scheduler do we choose */
   IPARAM_NGPUS,        /* Number of GPUs                    */
   IPARAM_P,            /* Rows in the process grid          */
   IPARAM_Q,            /* Columns in the process grid       */
@@ -63,7 +62,25 @@ enum iparam_t {
   IPARAM_QR_TSRR,      /* Enable/disable the round-robin on TS domain */
   IPARAM_BUT_LEVEL,    /* Butterfly level */
   IPARAM_DOT,          /* Do we require to output the DOT file? */
+  IPARAM_SCHEDULER,    /* User-selected scheduler */
   IPARAM_SIZEOF
+};
+
+#define DAGUE_SCHEDULER_DEFAULT 0
+#define DAGUE_SCHEDULER_LFQ 1
+#define DAGUE_SCHEDULER_LTQ 2
+#define DAGUE_SCHEDULER_AP  3
+#define DAGUE_SCHEDULER_LHQ 4
+#define DAGUE_SCHEDULER_GD  5
+#define DAGUE_SCHEDULER_PBQ 6
+static char *DAGUE_SCHED_NAME[] = {
+    "", /* default */
+    "lfq",
+    "ltq",
+    "ap",
+    "lhq",
+    "gd",
+    "pbq"
 };
 
 void iparam_default_facto(int* iparam);
@@ -96,12 +113,11 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int check = iparam[IPARAM_CHECK];\
   int check_inv = iparam[IPARAM_CHECKINV];\
   int loud  = iparam[IPARAM_VERBOSE];\
-  int scheduler = iparam[IPARAM_SCHEDULER];\
   int nb_local_tasks = 0;                                               \
   int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
   (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)KT;(void)SMB;(void)SNB;(void)check;(void)loud;\
-  (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;(void)check_inv;
+  (void)nb_local_tasks; (void)butterfly_level;(void)check_inv;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
@@ -159,7 +175,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
 
 #define PASTE_CODE_ENQUEUE_KERNEL(DAGUE, KERNEL, PARAMS)                \
     SYNC_TIME_START();                                                  \
-    dague_object_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS;     \
+    dague_handle_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS;     \
     dague_enqueue(DAGUE, DAGUE_##KERNEL);                               \
     nb_local_tasks = DAGUE_##KERNEL->nb_local_tasks;                    \
     if(loud) SYNC_TIME_PRINT(rank, ( #KERNEL " DAG creation: %d local tasks enqueued\n", nb_local_tasks));

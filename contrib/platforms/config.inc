@@ -3,7 +3,7 @@
 # Parse command line arguments
 if [ "$1" = "debug" ]; then 
   shift
-  DEBUG="-DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug -DDAGUE_DEBUG=ON -DDAGUE_DEBUG_HISTORY=ON"
+  DEBUG="-DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug -DDAGUE_DEBUG_ENABLE=ON -DDAGUE_DEBUG_HISTORY=ON"
 fi
 
 function dirname_bin {

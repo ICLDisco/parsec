@@ -36,7 +36,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 extern "C" void
-GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
+GENERATE_SM_VERSION_NAME(ZGEMM)( char TRANSA, char TRANSB, int m, int n, int k,
                                  dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
                                                           dague_complex64_t *d_B, int ldb,
                                  dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,

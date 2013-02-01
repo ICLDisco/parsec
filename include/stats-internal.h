@@ -39,7 +39,7 @@
 
 #else /* no C-magic */
 
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 
 #define DECLARE_STAT(name)                                   \
     extern volatile uint64_t dague_stats_##name##_max;     \

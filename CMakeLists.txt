@@ -44,6 +44,8 @@ option(BUILD_64bits
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
+option(DAGUE_WANT_HOME_CONFIG_FILES
+       "Should the runtime check for the parameter configuration file in the user home (\$HOME/.dague/mca-params.conf)" ON)
 
 ### Dague PP options
 set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
@@ -55,11 +57,11 @@ option(DAGUE_SCHED_REPORT_STATISTICS
   "Display statistics on the scheduling at the end of the run")
 
 mark_as_advanced(DAGUE_SCHED_CACHE_AWARE)
-cmake_dependent_option(DAGUE_SCHED_CACHE_AWARE 
+cmake_dependent_option(DAGUE_SCHED_CACHE_AWARE
   "Activate the cache awareness support (requires HWLOC)" OFF "HAVE_HWLOC" OFF)
 
 mark_as_advanced(DAGUE_SCHED_DEPS_MASK)
-option(DAGUE_SCHED_DEPS_MASK 
+option(DAGUE_SCHED_DEPS_MASK
   "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" ON)
 
 ### Distributed engine parameters
@@ -95,7 +97,7 @@ if(DAGUE_GPU_WITH_OPENCL)
 endif()
 
 ### Debug options
-option(DAGUE_DEBUG
+option(DAGUE_DEBUG_ENABLE
     "Enable extra paranoid checks" OFF)
 set   (DAGUE_DEBUG_VERBOSE 0 CACHE STRING
     "Controls the amount of verbose debug output spit on stderr (0,1,2,3)")
@@ -366,10 +368,14 @@ check_include_files(unistd.h HAVE_UNISTD_H)
 check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
 check_include_files(stddef.h HAVE_STDDEF_H)
+check_include_files(stdbool.h HAVE_STDBOOL_H)
 check_function_exists(getrusage HAVE_GETRUSAGE)
 check_include_files(limits.h HAVE_LIMITS_H)
 check_include_files(string.h HAVE_STRING_H)
 check_include_files(complex.h HAVE_COMPLEX_H)
+check_include_files(sys/param.h HAVE_SYS_PARAM_H)
+check_include_files(sys/types.h HAVE_SYS_TYPES_H)
+check_include_files(syslog.h HAVE_SYSLOG_H)
 
 #
 # Find optional packages
@@ -378,7 +384,6 @@ IF( BUILD_DAGUE )
   find_package(HWLOC)
   set(HAVE_HWLOC ${HWLOC_FOUND})
   if( HWLOC_FOUND )
-    list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
     include_directories( ${HWLOC_INCLUDE_DIRS} )
   endif (HWLOC_FOUND)
@@ -413,7 +418,6 @@ IF( BUILD_DAGUE )
       set(CUDA_BUILD_EMULATION OFF)
       include_directories(${CUDA_INCLUDE_DIRS})
       #list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES} )
-      list(APPEND EXTRA_SOURCES src/gpu_data.c)
       set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
       set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
       set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${CUDA_INCLUDE_DIRS}")
@@ -508,41 +512,9 @@ IF(CMAKE_CROSSCOMPILING)
 ELSE(CMAKE_CROSSCOMPILING)
   SET(daguepp_EXE daguepp)
 ENDIF(CMAKE_CROSSCOMPILING)
-#
-#  Settings for targets
-# 
-set(SRCS 
-  src/barrier.c 
-  src/scheduling.c
-  src/schedulers.c 
-  src/dague.c 
-  src/arena.c
-  src/moesi.c
-  src/remote_dep.c 
-  src/debug.c 
-  src/bindthread.c 
-  src/mempool.c 
-  src/vpmap.c
- ${EXTRA_SOURCES} 
-)
 
-#
-# Setup targets
-#
-if( BUILD_DAGUE )
-  if (MPI_FOUND)
-    add_library(dague-mpi STATIC ${SRCS})
-    set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-    target_link_libraries(dague-mpi ${EXTRA_LIBS})
-    install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
-  else (MPI_FOUND)
-    add_library(dague STATIC ${SRCS})
-    set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-    target_link_libraries(dague ${EXTRA_LIBS})
-    install(TARGETS dague ARCHIVE DESTINATION lib)
-  endif (MPI_FOUND)
-  add_subdirectory(data_dist)
-ENDIF( BUILD_DAGUE )
+add_subdirectory(dague)
+add_subdirectory(data_dist)
 
 #
 # Now continue with compiling the tests.

@@ -16,12 +16,14 @@
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
-#include "dague/ayudame.h"
+#include <dague/ayudame.h>
 
 #include "pins/pins.h"
 #include "pins/papi/cachemiss.h"
 #include "pins/steals/steals.h"
 
+#include <dague/utils/output.h>
+#include "data.h"
 #include "list.h"
 #include "scheduling.h"
 #include "barrier.h"
@@ -31,6 +33,11 @@
 #include "dague_prof_grapher.h"
 #include "stats.h"
 #include "vpmap.h"
+#include <dague/utils/mca_param.h>
+#include <dague/utils/installdirs.h>
+#include <dague/devices/device.h>
+
+#include "src/mca/mca_repository.h"
 
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
@@ -108,7 +115,7 @@ static void dague_statistics(char* str)
 static void dague_statistics(char* str) { (void)str; return; }
 #endif /* defined(HAVE_GETRUSAGE) */
 
-static void dague_object_empty_repository(void);
+static void dague_handle_empty_repository(void);
 
 typedef struct __dague_temporary_thread_initialization_t {
     dague_vp_t *virtual_process;
@@ -121,13 +128,13 @@ static int dague_parse_binding_parameter(void * optarg, dague_context_t* context
                                          __dague_temporary_thread_initialization_t* startup);
 static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* context);
 
-const dague_function_t* dague_find(const dague_object_t *dague_object, const char *fname)
+const dague_function_t* dague_find(const dague_handle_t *dague_handle, const char *fname)
 {
     unsigned int i;
     const dague_function_t* object;
 
-    for( i = 0; i < dague_object->nb_functions; i++ ) {
-        object = dague_object->functions_array[i];
+    for( i = 0; i < dague_handle->nb_functions; i++ ) {
+        object = dague_handle->functions_array[i];
         if( 0 == strcmp( object->name, fname ) ) {
             return object;
         }
@@ -243,6 +250,11 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if (t_init != PAPI_OK)
 	    printf("PAPI Thread Init failed with error code %d (%s)!\n", t_init, PAPI_strerror(t_init));
 
+    dague_installdirs_open();
+    dague_mca_param_init();
+    dague_output_init();
+    mca_components_repository_init();
+
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
@@ -251,14 +263,12 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
      * - with hwloc if available
      * - with sysconf otherwise (hyperthreaded core number)
      */
-    if( nb_cores <= 0 )
-    {
+    if( nb_cores <= 0 ) {
 #if defined(HAVE_HWLOC)
-        nb_cores=dague_hwloc_nb_real_cores();
+        nb_cores = dague_hwloc_nb_real_cores();
 #else
         nb_cores= sysconf(_SC_NPROCESSORS_ONLN);
-        if(nb_cores== -1)
-        {
+        if(nb_cores== -1) {
             perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
             nb_cores= 1;
         }
@@ -299,9 +309,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                 nb_total_comp_threads, nb_cores);
     }
 
-    startup =
-        (__dague_temporary_thread_initialization_t*)malloc(nb_total_comp_threads * sizeof(__dague_temporary_thread_initialization_t));
-    
+    startup = (__dague_temporary_thread_initialization_t*)
+        malloc(nb_total_comp_threads * sizeof(__dague_temporary_thread_initialization_t));
+
     context->nb_vp = nb_vp;
     t = 0;
     for(p = 0; p < nb_vp; p++) {
@@ -316,7 +326,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
 #if defined(HAVE_HWLOC)
-    dague_hwloc_init();
     context->comm_th_core   = -1;
 #if defined(HAVE_HWLOC_BITMAP)
     context->comm_th_index_mask = hwloc_bitmap_alloc();
@@ -377,9 +386,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* DAGUE_DEBUG_VERBOSE3 */
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
-    /* Initialize the barriers */
-    dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
-
 #if defined(DAGUE_PROF_TRACE)
     dague_profiling_init( "%s", (*pargv)[0] );
 
@@ -411,6 +417,26 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     // PETER call all of the PINS init functions here for now
     pins_init_cachemiss(context);
     pins_init_steals(context);
+
+    dague_devices_init(context);
+    /* By now let's add one device for the CPUs */
+    {
+        dague_device_t* cpus = (dague_device_t*)calloc(1, sizeof(dague_device_t));
+        cpus->name = "default";
+        cpus->type = DAGUE_DEV_CPU;
+        dague_devices_add(context, cpus);
+        /* TODO: This is plain WRONG, but should work by now */
+        cpus->device_sweight = nb_total_comp_threads * 8 * 2.27;
+        cpus->device_dweight = nb_total_comp_threads * 4 * 2.27;
+    }
+    dague_devices_select(context);
+    dague_devices_freeze(context);
+
+    /* Init the data infrastructure. Must be done only after the freeze of the devices */
+    dague_data_init(context);
+
+    /* Initialize the barriers */
+    dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
 
     if( nb_total_comp_threads > 1 ) {
         pthread_attr_t thread_attr;
@@ -446,6 +472,16 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     /* Introduce communication thread */
     context->nb_nodes = dague_remote_dep_init(context);
     dague_statistics("DAGuE");
+
+    /* Load the default scheduler. User can change it afterward,
+     * but we need to ensure that one is loadable and here.
+     */
+    if( 0 == dague_set_scheduler( context ) ) {
+       /* TODO: handle memory leak / thread leak here: this is a fatal
+        * error for PaRSEC */
+        fprintf(stderr, "PaRSEC: unable to load any scheduler in init function. Fatal error.\n");
+        return NULL;
+    }
 
     AYU_INIT();
     return context;
@@ -493,13 +529,15 @@ int dague_fini( dague_context_t** pcontext )
 
     (void) dague_remote_dep_fini( context );
 
-    dague_set_scheduler( context, NULL );
+    dague_remove_scheduler( context );
 
     for(p = 0; p < context->nb_vp; p++) {
         dague_vp_fini(context->virtual_processes[p]);
         free(context->virtual_processes[p]);
         context->virtual_processes[p] = NULL;
     }
+
+    dague_devices_fini(context);
 
     AYU_FINI();
 #ifdef DAGUE_PROF_TRACE
@@ -508,7 +546,6 @@ int dague_fini( dague_context_t** pcontext )
 
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
-
 
 #if defined(HAVE_HWLOC_BITMAP)
     /* Release thread binding masks */
@@ -536,8 +573,12 @@ int dague_fini( dague_context_t** pcontext )
     }
 #endif
 
-    dague_object_empty_repository();
+    dague_handle_empty_repository();
     debug_mark_purge_all_history();
+
+    dague_mca_param_finalize();
+    dague_installdirs_close();
+    dague_output_finalize();
 
     free(context);
     *pcontext = NULL;
@@ -548,7 +589,7 @@ int dague_fini( dague_context_t** pcontext )
  * Resolve all IN() dependencies for this particular instance of execution.
  */
 static dague_dependency_t
-dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
+dague_check_IN_dependencies_with_mask( const dague_handle_t *dague_handle,
                                        const dague_execution_context_t* exec_context )
 {
     const dague_function_t* function = exec_context->function;
@@ -582,7 +623,7 @@ dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
                     assert( dep->cond->op == EXPR_OP_INLINE );
-                    if( 0 == dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                    if( 0 == dep->cond->inline_func(dague_handle, exec_context->locals) ) {
                         /* Cannot use control gather magic with the USE_DEPS_MASK */
                         assert( NULL == dep->ctl_gather_nb );
                         continue;
@@ -600,7 +641,7 @@ dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
-                        if( 0 == dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                        if( 0 == dep->cond->inline_func(dague_handle, exec_context->locals) ) {
                             continue;
                         }
                     }
@@ -615,7 +656,7 @@ dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
 }
 
 static dague_dependency_t
-dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
+dague_check_IN_dependencies_with_counter( const dague_handle_t *dague_handle,
                                           const dague_execution_context_t* exec_context )
 {
     const dague_function_t* function = exec_context->function;
@@ -653,12 +694,12 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
                     assert( dep->cond->op == EXPR_OP_INLINE );
-                    if( dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                    if( dep->cond->inline_func(dague_handle, exec_context->locals) ) {
                         if( NULL == dep->ctl_gather_nb)
                             active++;
                         else {
                             assert( dep->ctl_gather_nb->op == EXPR_OP_INLINE );
-                            active += dep->ctl_gather_nb->inline_func(dague_object, exec_context->locals);
+                            active += dep->ctl_gather_nb->inline_func(dague_handle, exec_context->locals);
                         }
                     }
                 } else {
@@ -666,7 +707,7 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
                         active++;
                     else {
                         assert( dep->ctl_gather_nb->op == EXPR_OP_INLINE );
-                        active += dep->ctl_gather_nb->inline_func(dague_object, exec_context->locals);
+                        active += dep->ctl_gather_nb->inline_func(dague_handle, exec_context->locals);
                     }
                 }
             }
@@ -678,7 +719,7 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
-                        if( dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                        if( dep->cond->inline_func(dague_handle, exec_context->locals) ) {
                             active++;
                         }
                     } else {
@@ -692,13 +733,13 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
     return ret;
 }
 
-static dague_dependency_t *find_deps(dague_object_t *dague_object,
+static dague_dependency_t *find_deps(dague_handle_t *dague_handle,
                                      dague_execution_context_t* restrict exec_context)
 {
     dague_dependencies_t *deps;
     int p;
 
-    deps = dague_object->dependencies_array[exec_context->function->function_id];
+    deps = dague_handle->dependencies_array[exec_context->function->function_id];
     assert( NULL != deps );
 
     for(p = 0; p < exec_context->function->nb_parameters - 1; p++) {
@@ -710,14 +751,14 @@ static dague_dependency_t *find_deps(dague_object_t *dague_object,
     return &(deps->u.dependencies[exec_context->locals[exec_context->function->params[p]->context_index].value - deps->min]);
 }
 
-static int dague_update_deps_with_counter( dague_object_t *dague_object,
+static int dague_update_deps_with_counter( dague_handle_t *dague_handle,
                                            dague_execution_context_t* restrict exec_context,
                                            dague_dependency_t *deps )
 {
     dague_dependency_t dep_new_value, dep_cur_value;
 
     if( 0 == *deps ) {
-        dep_new_value = dague_check_IN_dependencies_with_counter( dague_object, exec_context ) - 1;
+        dep_new_value = dague_check_IN_dependencies_with_counter( dague_handle, exec_context ) - 1;
         if( dague_atomic_cas( deps, 0, dep_new_value ) == 1 )
             dep_cur_value = dep_new_value;
         else
@@ -726,7 +767,7 @@ static int dague_update_deps_with_counter( dague_object_t *dague_object,
         dep_cur_value = dague_atomic_dec_32b( deps );
     }
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     {
         char tmp[MAX_TASK_STRLEN];
         if( (uint32_t)dep_cur_value > (uint32_t)-128) {
@@ -739,25 +780,25 @@ static int dague_update_deps_with_counter( dague_object_t *dague_object,
                 dep_cur_value,
                 (dep_cur_value == 0) ? "becomes ready" : "stays there waiting"));
     }
-#endif /* DAGUE_DEBUG */
+#endif /* DAGUE_DEBUG_ENABLE */
 
     return dep_cur_value == 0;
 }
 
-static int dague_update_deps_with_mask( dague_object_t *dague_object,
+static int dague_update_deps_with_mask( dague_handle_t *dague_handle,
                                         dague_execution_context_t* restrict exec_context,
                                         dague_dependency_t *deps,
                                         const dague_execution_context_t* restrict origin,
                                         const dague_flow_t* restrict origin_flow,
                                         const dague_flow_t* restrict dest_flow )
 {
-#if defined(DAGUE_DEBUG_VERBOSE3) || defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_VERBOSE3) || defined(DAGUE_DEBUG_ENABLE)
     char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
 #endif
     dague_dependency_t dep_new_value, dep_cur_value;
     const dague_function_t* function = exec_context->function;
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     if( (*deps) & (1 << dest_flow->flow_index) ) {
         ERROR(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
                dest_flow->flow_index, dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, origin), origin_flow->name,
@@ -773,17 +814,17 @@ static int dague_update_deps_with_mask( dague_object_t *dague_object,
     dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | (1 << dest_flow->flow_index);
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_IN_DONE & (*deps)) ) {
-        dep_new_value |= dague_check_IN_dependencies_with_mask( dague_object, exec_context );
+        dep_new_value |= dague_check_IN_dependencies_with_mask( dague_handle, exec_context );
 #ifdef DAGUE_DEBUG_VERBOSE3
         if( dep_new_value != 0 ) {
             DEBUG3(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
         }
-#endif /* DAGUE_DEBUG */
+#endif /* DAGUE_DEBUG_VERBOSE3 */
     }
 
     dep_cur_value = dague_atomic_bor( deps, dep_new_value );
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     if( (dep_cur_value & function->dependencies_goal) == function->dependencies_goal ) {
         int success;
         dague_dependency_t tmp_mask;
@@ -796,7 +837,7 @@ static int dague_update_deps_with_mask( dague_object_t *dague_object,
                    dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, origin)));
         }
     }
-#endif
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
 
     DEBUG3(("Task %s has a current dependencies of 0x%x and a goal of 0x%x -- It %s using the mask approach\n",
             dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
@@ -811,7 +852,7 @@ static int dague_update_deps_with_mask( dague_object_t *dague_object,
  * supported and the task is supposed to be valid (no input/output tasks) and
  * local.
  */
-int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
+int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
                                           dague_execution_unit_t* eu_context,
                                           const dague_execution_context_t* restrict origin,
                                           const dague_flow_t* restrict origin_flow,
@@ -830,12 +871,12 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     (void)eu_context;
     DEBUG2(("Activate dependencies for %s flags = 0x%04x\n",
             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), function->flags));
-    deps = find_deps(dague_object, exec_context);
+    deps = find_deps(dague_handle, exec_context);
 
     if( function->flags & DAGUE_USE_DEPS_MASK ) {
-        completed = dague_update_deps_with_mask(dague_object, exec_context, deps, origin, origin_flow, dest_flow);
+        completed = dague_update_deps_with_mask(dague_handle, exec_context, deps, origin, origin_flow, dest_flow);
     } else {
-        completed = dague_update_deps_with_counter(dague_object, exec_context, deps);
+        completed = dague_update_deps_with_counter(dague_handle, exec_context, deps);
     }
 
     if( completed ) {
@@ -861,7 +902,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
              */
             memcpy( ((char*)new_context) + sizeof(dague_list_item_t),
                     ((char*)exec_context) + sizeof(dague_list_item_t),
-                    sizeof(dague_minimal_execution_context_t) - sizeof(dague_list_item_t) );
+                    sizeof(struct dague_minimal_execution_context_s) - sizeof(dague_list_item_t) );
             new_context->mempool_owner = mpool;
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
             AYU_ADD_TASK(new_context);
@@ -888,6 +929,14 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                 DEBUG3(("  Task %s is immediate and will be executed ASAP\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, new_context)));
                 __dague_execute(eu_context, new_context);
                 __dague_complete_execution(eu_context, new_context);
+#if 0 /* TODO */
+                SET_HIGHEST_PRIORITY(new_context, dague_execution_context_priority_comparator);
+                DAGUE_LIST_ITEM_SINGLETON(&(new_context->list_item));
+                if( NULL != (*pimmediate_ring) ) {
+                    (void)dague_list_item_ring_push( (dague_list_item_t*)(*pimmediate_ring), &new_context->list_item );
+                }
+                *pimmediate_ring = new_context;
+#endif
             } else {
                 *pready_ring = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(*pready_ring),
                                                                                              &new_context->list_item,
@@ -988,9 +1037,9 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
              * Thus, if the ref count is not increased here, the data might dissapear
              * before it become useless.
              */
-            AREF( arg->output_entry->data[out_index] );
+            OBJ_RETAIN( arg->output_entry->data[out_index] );
         }
-        arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
+        arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_handle,
                                                                  eu, oldcontext,
                                                                  oldcontext->function->out[out_index],
                                                                  newcontext,
@@ -1011,7 +1060,7 @@ char* dague_snprintf_execution_context( char* str, size_t size,
     const dague_function_t* function = task->function;
     unsigned int ip, index = 0;
 
-    assert( NULL != task->dague_object );
+    assert( NULL != task->dague_handle );
     index += snprintf( str + index, size - index, "%s", function->name );
     if( index >= size ) return str;
     for( ip = 0; ip < function->nb_parameters; ip++ ) {
@@ -1020,7 +1069,7 @@ char* dague_snprintf_execution_context( char* str, size_t size,
                            task->locals[function->params[ip]->context_index].value );
         if( index >= size ) return str;
     }
-    index += snprintf(str + index, size - index, ")<%d>{%u}", task->priority, task->dague_object->object_id );
+    index += snprintf(str + index, size - index, ")<%d>{%u}", task->priority, task->dague_handle->handle_id );
 
     return str;
 }
@@ -1039,12 +1088,12 @@ void dague_destruct_dependencies(dague_dependencies_t* d)
 /**
  *
  */
-int dague_set_complete_callback( dague_object_t* dague_object,
+int dague_set_complete_callback( dague_handle_t* dague_handle,
                                  dague_completion_cb_t complete_cb, void* complete_cb_data )
 {
-    if( NULL == dague_object->complete_cb ) {
-        dague_object->complete_cb      = complete_cb;
-        dague_object->complete_cb_data = complete_cb_data;
+    if( NULL == dague_handle->complete_cb ) {
+        dague_handle->complete_cb      = complete_cb;
+        dague_handle->complete_cb_data = complete_cb_data;
         return 0;
     }
     return -1;
@@ -1053,12 +1102,12 @@ int dague_set_complete_callback( dague_object_t* dague_object,
 /**
  *
  */
-int dague_get_complete_callback( const dague_object_t* dague_object,
+int dague_get_complete_callback( const dague_handle_t* dague_handle,
                                  dague_completion_cb_t* complete_cb, void** complete_cb_data )
 {
-    if( NULL != dague_object->complete_cb ) {
-        *complete_cb      = dague_object->complete_cb;
-        *complete_cb_data = dague_object->complete_cb_data;
+    if( NULL != dague_handle->complete_cb ) {
+        *complete_cb      = dague_handle->complete_cb;
+        *complete_cb_data = dague_handle->complete_cb_data;
         return 0;
     }
     return -1;
@@ -1066,11 +1115,11 @@ int dague_get_complete_callback( const dague_object_t* dague_object,
 
 /* TODO: Change this code to something better */
 static volatile uint32_t object_array_lock = 0;
-static dague_object_t** object_array = NULL;
+static dague_handle_t** object_array = NULL;
 static uint32_t object_array_size = 1, object_array_pos = 0;
 #define NOOBJECT ((void*)-1)
 
-static void dague_object_empty_repository(void)
+static void dague_handle_empty_repository(void)
 {
     dague_atomic_lock( &object_array_lock );
     free(object_array);
@@ -1081,21 +1130,21 @@ static void dague_object_empty_repository(void)
 }
 
 /**< Retrieve the local object attached to a unique object id */
-dague_object_t* dague_object_lookup( uint32_t object_id )
+dague_handle_t* dague_handle_lookup( uint32_t handle_id )
 {
-    dague_object_t *r;
+    dague_handle_t *r;
     dague_atomic_lock( &object_array_lock );
-    if( object_id > object_array_pos ) {
+    if( handle_id > object_array_pos ) {
         r = NULL;
     } else {
-        r = object_array[object_id];
+        r = object_array[handle_id];
     }
     dague_atomic_unlock( &object_array_lock );
     return r;
 }
 
 /**< Register the object with the engine. Create the unique identifier for the object */
-int dague_object_register( dague_object_t* object )
+int dague_handle_register( dague_handle_t* object )
 {
     uint32_t index;
 
@@ -1104,31 +1153,31 @@ int dague_object_register( dague_object_t* object )
 
     if( index >= object_array_size ) {
         object_array_size *= 2;
-        object_array = (dague_object_t**)realloc(object_array, object_array_size * sizeof(dague_object_t*) );
-#if defined(DAGUE_DEBUG)
+        object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
+#if defined(DAGUE_DEBUG_ENABLE)
         {
             unsigned int i;
             for(i = index; i < object_array_size; i++)
                 object_array[i] = NOOBJECT;
         }
-#endif
+#endif  /* defined(DAGUE_DEBUG_ENABLE */
     }
     object_array[index] = object;
-    object->object_id = index;
+    object->handle_id = index;
     dague_atomic_unlock( &object_array_lock );
     (void)dague_remote_dep_new_object( object );
     return (int)index;
 }
 
 /**< Unregister the object with the engine. */
-void dague_object_unregister( dague_object_t* object )
+void dague_handle_unregister( dague_handle_t* object )
 {
     dague_atomic_lock( &object_array_lock );
-    assert( object->object_id < object_array_size );
-    assert( object_array[object->object_id] == object );
+    assert( object->handle_id < object_array_size );
+    assert( object_array[object->handle_id] == object );
     assert( object->nb_local_tasks == 0 );
     assert( object->nb_local_tasks == 0 );
-    object_array[object->object_id] = NOOBJECT;
+    object_array[object->handle_id] = NOOBJECT;
     dague_atomic_unlock( &object_array_lock );
 }
 
@@ -1419,7 +1468,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             str += offset;
         }
         DEBUG(( "binding defined by the parsed list: %s \n", tmp));
-#endif /* DAGUE_DEBUG */
+#endif /* defined(DAGUE_DEBUG_VERBOSE) */
     }
     return 0;
 #else

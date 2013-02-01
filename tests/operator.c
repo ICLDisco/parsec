@@ -33,7 +33,7 @@ dague_operator_print_id( struct dague_execution_unit *eu,
 int main( int argc, char* argv[] )
 {
     dague_context_t* dague;
-    struct dague_object_t* object;
+    struct dague_handle_t* object;
     two_dim_block_cyclic_t ddescA;
     int cores = 4, world = 1, rank = 0;
     int mb = 100, nb = 100;
@@ -62,7 +62,7 @@ int main( int argc, char* argv[] )
                                     NULL,
                                     dague_operator_print_id,
                                     "A");
-    dague_enqueue(dague, (dague_object_t*)object);
+    dague_enqueue(dague, (dague_handle_t*)object);
 
     dague_progress(dague);
 

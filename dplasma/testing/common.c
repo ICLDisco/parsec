@@ -8,6 +8,7 @@
 #include "dague.h"
 #include "dague_hwloc.h"
 #include "execution_unit.h"
+#include <dague/utils/mca_param.h>
 
 #include "common.h"
 #include "common_timing.h"
@@ -28,11 +29,10 @@
 #include <mpi.h>
 #endif
 #if defined(HAVE_CUDA)
-#include "gpu_data.h"
+#include <dague/devices/cuda/dev_cuda.h>
 #endif
 
 #include "dague_prof_grapher.h"
-#include "schedulers.h"
 #include "vpmap.h"
 
 /*******************************
@@ -229,23 +229,23 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
             case 'o':
-                if( !strcmp(optarg, "LFQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
-                else if( !strcmp(optarg, "LTQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LTQ;
-                else if( !strcmp(optarg, "AP") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_AP;
-                else if( !strcmp(optarg, "LHQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LHQ;
-                else if( !strcmp(optarg, "GD") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_GD;
-                else if( !strcmp(optarg, "PBQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_PBQ;
-                else {
-                    fprintf(stderr, "malformed scheduler value %s (accepted: LFQ AP LHQ GD PBQ LTQ). Reverting to default LFQ\n",
-                            optarg);
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
-                }
+                 if( !strcmp(optarg, "LFQ") )
+                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
+                 else if( !strcmp(optarg, "LTQ") )
+                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LTQ;
+                 else if( !strcmp(optarg, "AP") )
+                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_AP;
+                 else if( !strcmp(optarg, "LHQ") )
+                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LHQ;
+                 else if( !strcmp(optarg, "GD") )
+                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_GD;
+                 else if( !strcmp(optarg, "PBQ") )
+                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_PBQ;
+                 else {
+                     fprintf(stderr, "malformed scheduler value %s (accepted: LFQ AP LHQ GD PBQ LTQ). Reverting to default scheduler.\n",
+                             optarg);
+                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_DEFAULT;
+                 }
                 break;
 
             case 'g':
@@ -525,7 +525,21 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 #endif
 
     TIME_START();
+
+#if defined(HAVE_CUDA)
+    /* if the use of GPUs is specified on the command line updated the environment
+     * prior to the runtime initialization.
+     */
+    if(iparam[IPARAM_NGPUS] > 0) {
+        char *param, value[128];
+        param = dague_mca_param_env_var("device_cuda_enabled");
+        snprintf(value, 128, "%d", iparam[IPARAM_NGPUS]);
+        setenv(param, value, 1);
+        free(param);
+    }
+#endif
     dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES], &argc, &argv);
+
     /* If the number of cores has not been defined as a parameter earlier
      update it with the default parameter computed in dague_init. */
     if(iparam[IPARAM_NCORES] <= 0)
@@ -537,18 +551,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
         iparam[IPARAM_NCORES] = nb_total_comp_threads;
     }
     print_arguments(iparam);
-
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0)
-    {
-        if(0 != dague_gpu_init(ctx, &iparam[IPARAM_NGPUS], 0))
-        {
-            fprintf(stderr, "xxx DAGuE is unable to initialize the CUDA environment.\n");
-            exit(3);
-        }
-    }
-#endif
-
 
 #if defined(DAGUE_PROF_GRAPHER)
     if(iparam[IPARAM_DOT] != 0) {
@@ -564,7 +566,17 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     }
 #endif
 
-    dague_set_scheduler( ctx, dague_schedulers_array[ iparam[IPARAM_SCHEDULER] ] );
+    if( iparam[IPARAM_SCHEDULER] != DAGUE_SCHEDULER_DEFAULT ) {
+        char *ignored;
+        (void)dague_mca_param_reg_string_name("mca", "sched", NULL,
+                                              false, false, 
+                                              DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]], 
+                                              &ignored);
+        if( 0 == dague_set_scheduler( ctx ) ) {
+            fprintf(stderr, "*** Warning: unable to select the scheduler %s. Default scheduler is maintained.\n",
+                    DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]]);
+        }
+    }
 
     if(verbose > 2) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialized\n"));
     return ctx;
@@ -584,13 +596,7 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
     dague_profiling_dump_dbp(filename);
     free(filename);
 #endif  /* DAGUE_PROF_TRACE */
-#if defined(HAVE_CUDA)
-    if( iparam[IPARAM_NGPUS] > 0 ) {
-        if( 0 != dague_gpu_fini() ) {
-            fprintf(stderr, "xxx DAGuE is unable to finalize the CUDA environment.\n");
-        }
-    }
-#endif  /* defined(HAVE_CUDA) */
+
     dague_fini(&dague);
 
 #if defined(DAGUE_PROF_GRAPHER)

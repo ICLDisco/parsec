@@ -606,10 +606,10 @@ static int compute_canonical_data_location(const char *name, const jdf_expr_t *p
 
     /* Find if this variable is in the globals list */
     for( g = current_jdf.globals; g != NULL; g = g->next ) {
-        if( !strcmp( g->name, name ) ) 
+        if( !strcmp( g->name, name ) )
             break;
     }
-    
+
     ret = 1;
     if( NULL != g ) {
         /* Find if it has a "aligned" property */

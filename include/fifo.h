@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -17,16 +17,7 @@
 #include "list.h"
 
 typedef dague_list_t dague_fifo_t;
-
-static inline void 
-dague_fifo_construct( dague_fifo_t* fifo ) {
-    dague_list_construct((dague_list_t*)fifo);
-}
-
-static inline void
-dague_fifo_destruct( dague_fifo_t* fifo ) {
-    dague_list_destruct((dague_list_t*)fifo);
-}
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_fifo_t);
 
 static inline int
 dague_fifo_is_empty( dague_fifo_t* fifo ) {

@@ -15,16 +15,17 @@
 /*
  * General distribution of data. Suppose exists a matrix in process of mpi rank 0
  */
-
+struct dague_data_s;
 
 /*******************************************************************
  * distributed data structure and basic functionalities
  *******************************************************************/
 
 typedef struct tile_elem {
-    uint32_t rank;
-    int32_t vpid;
-    void * tile;
+    uint32_t             rank;
+    int32_t              vpid;
+    struct dague_data_s* data;
+    void*                tile;
 } tile_elem_t;
 
 /* structure equivalent to PLASMA_desc, but for distributed matrix data
@@ -64,11 +65,24 @@ typedef struct tabular_distribution {
  * @param table mpi rank for each tile, column major ordering
  */
 
-void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int * table );
+void tabular_distribution_init(tabular_distribution_t* Ddesc,
+                               enum matrix_type mtype,
+                               unsigned int nodes,
+                               unsigned int cores,
+                               unsigned int myrank,
+                               unsigned int mb,
+                               unsigned int nb,
+                               unsigned int lm,
+                               unsigned int ln,
+                               unsigned int i,
+                               unsigned int j,
+                               unsigned int m,
+                               unsigned int n,
+                               unsigned int* table);
 
 
 
 
-unsigned int * create_2dbc(unsigned int size, unsigned int block, unsigned int nbproc, unsigned int Grow);
+unsigned int* create_2dbc(unsigned int size, unsigned int block, unsigned int nbproc, unsigned int Grow);
 
 #endif /* __TABULAR_DISTRIBUTION_H__ */

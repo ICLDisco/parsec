@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -14,17 +14,16 @@
 #ifndef DAGUE_LIST_H_HAS_BEEN_INCLUDED
 #define DAGUE_LIST_H_HAS_BEEN_INCLUDED
 
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 #include "list_item.h"
 
 typedef struct dague_list_t {
+    dague_object_t     super;
     dague_list_item_t  ghost_element;
-    volatile uint32_t atomic_lock;
+    volatile uint32_t  atomic_lock;
 } dague_list_t;
 
-
-static inline void dague_list_construct( dague_list_t* list );
-static inline void dague_list_destruct( dague_list_t* list );
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_list_t);
 
 /** lock the @list mutex, that same mutex is used by all
  *    mutex protected list operations */
@@ -40,7 +39,6 @@ static inline int dague_list_is_empty( dague_list_t* list );
 /** check if list is empty (not thread safe) */
 static inline int dague_list_nolock_is_empty( dague_list_t* list );
 #define dague_ulist_is_empty(list) dague_list_nolock_is_empty(list)
-
 
 /** Paste code to iterate on all items in the @LIST (front to back) (mutex protected)
  *    the @CODE_BLOCK code is applied to each item, which can be refered
@@ -168,10 +166,13 @@ dague_list_try_pop_back( dague_list_t* list );
 static inline void
 dague_list_push_front( dague_list_t* list,
                        dague_list_item_t* item );
+#define dague_list_prepend dague_list_push_front
+
 /** push item last in the list (mutex protected) */
 static inline void
 dague_list_push_back( dague_list_t* list,
                       dague_list_item_t* item );
+#define dague_list_append dague_list_push_back
 
 /** chains the collection of items first in the list (mutex protected)
  *    items->prev must point to the tail of the items collection */
@@ -301,23 +302,6 @@ dague_list_nolock_lifo_chain( dague_list_t* list, dague_list_item_t* items ) {
 #define _TAIL(LIST) ((LIST)->ghost_element.list_prev)
 #define _GHOST(LIST) (&((list)->ghost_element))
 
-static inline void
-dague_list_construct( dague_list_t* list )
-{
-    dague_list_item_construct(_GHOST(list));
-    DAGUE_ITEM_ATTACH(list, _GHOST(list));
-    _HEAD(list) = _GHOST(list);
-    _TAIL(list) = _GHOST(list);
-    list->atomic_lock = 0;
-}
-
-static inline void
-dague_list_destruct( dague_list_t* list )
-{
-    assert(dague_list_is_empty(list));
-    dague_list_item_destruct(_GHOST(list));
-}
-
 static inline int
 dague_list_nolock_is_empty( dague_list_t* list )
 {
@@ -386,7 +370,7 @@ dague_list_nolock_add_before( dague_list_t* list,
                               dague_list_item_t* position,
                               dague_list_item_t* new )
 {
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     assert( position->belong_to == list );
 #endif
     DAGUE_ITEM_ATTACH(list, new);
@@ -401,7 +385,7 @@ dague_list_nolock_add_after( dague_list_t* list,
                              dague_list_item_t* position,
                              dague_list_item_t* new )
 {
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     assert( position->belong_to == list );
 #endif
     DAGUE_ITEM_ATTACH(list, new);
@@ -417,7 +401,7 @@ dague_list_nolock_remove( dague_list_t* list,
                           dague_list_item_t* item)
 {
     assert( &list->ghost_element != item );
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     assert( list == item->belong_to );
 #else
     (void)list;

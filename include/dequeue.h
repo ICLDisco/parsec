@@ -18,16 +18,7 @@
 #include "list.h"
 
 typedef dague_list_t dague_dequeue_t;
-
-static inline void 
-dague_dequeue_construct( dague_dequeue_t* dequeue ) {
-    dague_list_construct((dague_list_t*)dequeue);
-}
-
-static inline void
-dague_dequeue_destruct( dague_dequeue_t* dequeue ) {
-    dague_list_destruct((dague_list_t*)dequeue);
-}
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_dequeue_t);
 
 static inline int 
 dague_dequeue_is_empty( dague_dequeue_t* dequeue ) {

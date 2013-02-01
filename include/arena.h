@@ -16,7 +16,7 @@
 #include "debug.h"
 #include "stats.h"
 
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 #include "lifo.h"
 
 #include "remote_dep.h"
@@ -25,12 +25,11 @@
 #define DAGUE_ALIGN_PTR(x,a,t) ((t)DAGUE_ALIGN((uintptr_t)x, a, uintptr_t))
 #define DAGUE_ALIGN_PAD_AMOUNT(x,s) ((~((uintptr_t)(x))+1) & ((uintptr_t)(s)-1))
 
-struct dague_arena_t
-{
-    dague_lifo_t lifo;
+struct dague_arena_s {
     size_t alignment;                        /* alignment to be respected, elem_size should be >> alignment, prefix size is the minimum alignment */
     size_t elem_size;                        /* size of one element (unpacked in memory, aka extent) */
     dague_remote_dep_datatype_t opaque_dtt;  /* the appropriate type for the network engine to send an element */
+    dague_lifo_t lifo;
     volatile int32_t used;                   /* elements currently out of the arena */
     int32_t max_used;                        /* maximum size of the arena in elements */
     volatile int32_t released;               /* elements currently not used but allocated */
@@ -43,13 +42,10 @@ struct dague_arena_t
 
 /* The fields are ordered so that important list_item_t fields are not
  * damaged when using them as arena chunks */
-struct dague_arena_chunk_t {
+struct dague_arena_chunk_s {
     dague_arena_t* origin;
-    uint64_t keeper_of_the_seven_keys;
-    void* data;
-    volatile uint32_t refcount;
     size_t count;
-    int32_t cache_friendly_emptyness;
+    void* data;
 };
 
 /* for SSE, 16 is mandatory, most cache are 64 bit aligned */
@@ -58,15 +54,6 @@ struct dague_arena_chunk_t {
 #define DAGUE_ARENA_ALIGNMENT_PTR sizeof(void*)
 #define DAGUE_ARENA_ALIGNMENT_SSE 16
 #define DAGUE_ARENA_ALIGNMENT_CL1 64
-
-#define DAGUE_ARENA_IS_PTR(ptr) (((ptrdiff_t) ptr) & (ptrdiff_t) 1)
-#define DAGUE_ARENA_PREFIX(ptr) ((dague_arena_chunk_t*)(((ptrdiff_t) ptr) & ~(ptrdiff_t) 1))
-#define DAGUE_ARENA_PTR(ptr) ((void*) (DAGUE_ARENA_PREFIX(ptr)->data))
-#define DAGUE_ARENA_DATA(ptr) (DAGUE_ARENA_IS_PTR(ptr) ? DAGUE_ARENA_PTR(ptr) : ptr)
-#define ADATA(ptr) DAGUE_ARENA_DATA(ptr)
-
-#define DAGUE_ARENA_DATA_SIZE(ptr) (DAGUE_ARENA_PREFIX(ptr)->elem_size)
-#define DAGUE_ARENA_DATA_TYPE(ptr) (DAGUE_ARENA_PREFIX(ptr)->origin->opaque_dtt)
 
 int dague_arena_construct(dague_arena_t* arena,
                           size_t elem_size,
@@ -77,50 +64,14 @@ int dague_arena_construct_ex(dague_arena_t* arena,
                              size_t alignment,
                              dague_remote_dep_datatype_t opaque_dtt,
                              int32_t max_used,
-                             int32_t max_released); 
+                             int32_t max_released);
 void dague_arena_destruct(dague_arena_t* arena);
 
 dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count);
-dague_arena_chunk_t* dague_arena_nolock_get(dague_arena_t* arena, size_t count);
-#define dague_uarena_get(arena, count) dague_arena_nolock_get(arena, count)
 void dague_arena_release(dague_arena_chunk_t* ptr);
-void dague_arena_nolock_release(dague_arena_chunk_t* ptr);
-#define dague_uarena_release(ptr) dague_arena_nolock_release(ptr)
 
-static inline uint32_t dague_arena_ref(dague_arena_chunk_t* ptr) {
-    assert(DAGUE_ARENA_IS_PTR(ptr));
-    return dague_atomic_inc_32b(&DAGUE_ARENA_PREFIX(ptr)->refcount);
-}
-static inline uint32_t dague_arena_nolock_ref(dague_arena_chunk_t* ptr) {
-    assert(DAGUE_ARENA_IS_PTR(ptr));
-    return ++DAGUE_ARENA_PREFIX(ptr)->refcount;
-}
-#define dague_uarena_ref(ptr) dague_arena_nolock_ref(ptr)
-#define DAGUE_ARENA_REF_DATA(ptr) (DAGUE_ARENA_IS_PTR(ptr) ? dague_arena_ref(ptr) : 1)
-#define AREF(ptr) DAGUE_ARENA_REF_DATA(ptr)
-
-static inline uint32_t dague_arena_unref(dague_arena_chunk_t* ptr) {
-    uint32_t ret;
-    assert(DAGUE_ARENA_IS_PTR(ptr));
-    ret = dague_atomic_dec_32b(&DAGUE_ARENA_PREFIX(ptr)->refcount);
-    if(0 == ret) {
-        dague_arena_release(ptr);
-    }
-    return ret;
-}
-static inline uint32_t dague_arena_nolock_unref(dague_arena_chunk_t* ptr) {
-    uint32_t ret;
-    assert(DAGUE_ARENA_IS_PTR(ptr));
-    ret = --DAGUE_ARENA_PREFIX(ptr)->refcount;
-    if(0 == ret) {
-        dague_arena_nolock_release(ptr);
-    }
-    return ret;
-}
-#define dague_uarena_unref(ptr) dague_arena_nolock_unref(ptr)
-#define DAGUE_ARENA_UNREF_DATA(ptr) (DAGUE_ARENA_IS_PTR(ptr) ? dague_arena_unref(ptr) : 1)
-#define AUNREF(ptr) DAGUE_ARENA_UNREF_DATA(ptr)
-
+#define CHUNK_DATA(CHK) \
+    (assert(NULL != ((CHK)->data)), (CHK)->data)
 
 #endif /* __USE_ARENA_H__ */
 

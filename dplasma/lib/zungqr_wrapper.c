@@ -56,12 +56,12 @@
  * @sa dplasma_zgeqrf_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zungqr_New( tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T,
                     tiled_matrix_desc_t *Q)
 {
-    dague_zungqr_object_t* object;
+    dague_zungqr_handle_t* object;
     int ib = T->mb;
 
     /* if ( !dplasma_check_desc(A) ) { */
@@ -119,7 +119,7 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 /***************************************************************************//**
@@ -144,9 +144,9 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zungqr_Destruct( dague_object_t *object )
+dplasma_zungqr_Destruct( dague_handle_t *object )
 {
-    dague_zungqr_object_t *dague_zungqr = (dague_zungqr_object_t *)object;
+    dague_zungqr_handle_t *dague_zungqr = (dague_zungqr_handle_t *)object;
 
     dplasma_datatype_undefine_type( &(dague_zungqr->arenas[DAGUE_zungqr_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zungqr->arenas[DAGUE_zungqr_LOWER_TILE_ARENA]->opaque_dtt) );
@@ -155,7 +155,7 @@ dplasma_zungqr_Destruct( dague_object_t *object )
     dague_private_memory_fini( dague_zungqr->p_work );
     free( dague_zungqr->p_work );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zungqr);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zungqr);
 }
 
 /***************************************************************************//**
@@ -191,7 +191,7 @@ dplasma_zungqr( dague_context_t *dague,
                 tiled_matrix_desc_t *T,
                 tiled_matrix_desc_t *Q )
 {
-    dague_object_t *dague_zungqr = NULL;
+    dague_handle_t *dague_zungqr = NULL;
 
     if (dague == NULL) {
         dplasma_error("dplasma_zungqr", "dplasma not initialized");
@@ -215,7 +215,7 @@ dplasma_zungqr( dague_context_t *dague,
 
     dague_zungqr = dplasma_zungqr_New(A, T, Q);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zungqr);
+    dague_enqueue(dague, (dague_handle_t*)dague_zungqr);
     dplasma_progress(dague);
 
     dplasma_zungqr_Destruct( dague_zungqr );

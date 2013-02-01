@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "dague/devices/device.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,23 +26,37 @@
 
 static uint32_t twoDBC_rank_of(dague_ddesc_t* ddesc, ...);
 static int32_t twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* twoDBC_data_of(dague_ddesc_t* ddesc, ...);
+static dague_data_t* twoDBC_data_of(dague_ddesc_t* ddesc, ...);
 
 static uint32_t twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...);
 static int32_t twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...);
+static dague_data_t* twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...);
 
 #if defined(DAGUE_HARD_SUPERTILE)
 static uint32_t twoDBC_st_rank_of(dague_ddesc_t* ddesc, ...);
 static int32_t twoDBC_st_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
+static dague_data_t* twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
 #endif
 
 #if defined(DAGUE_PROF_TRACE)
-static uint32_t twoDBC_data_key(struct dague_ddesc *desc, ...);
-static int  twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
+static uint32_t twoDBC_data_key(dague_ddesc_t *desc, ...);
+static int  twoDBC_key_to_string(dague_ddesc_t * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
 #endif
 
+static int twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
+{
+    two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
+    return device->device_memory_register(device,
+                                          twodbc->mat,
+                                          (twodbc->super.nb_local_tiles * twodbc->super.bsiz *
+                                           dague_datadist_getsizeoftype(twodbc->super.mtype)));
+}
+
+static int twoDBC_memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
+{
+    two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
+    return device->device_memory_unregister(device, twodbc->mat);
+}
 
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
                                enum matrix_type mtype,
@@ -54,18 +69,17 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
                                int nrst, int ncst, /* Super-tiling size */
                                int P )
 {
-    int temp;
-    int Q;
+    int temp, Q;
     dague_ddesc_t *o = &(Ddesc->super.super);
 #if defined(DAGUE_PROF_TRACE)
     o->data_key      = twoDBC_data_key;
     o->key_to_string = twoDBC_key_to_string;
     o->key_dim       = NULL;
-    o->key           = NULL;
+    o->key_base      = NULL;
 #endif
 
     /* Initialize the tiled_matrix descriptor */
-    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type, 
+    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type,
                             nodes, cores, myrank,
                             mb, nb, lm, ln, i, j, m, n );
 
@@ -108,6 +122,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 
     /* Total number of tiles stored locally */
     Ddesc->super.nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
+    Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
 
     /* set the methods */
     if( (nrst == 1) && (ncst == 1) ) {
@@ -115,7 +130,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         o->vpid_of      = twoDBC_vpid_of;
         o->data_of      = twoDBC_data_of;
     } else {
-#if defined(DAGUE_HARD_SUPERTILE) 
+#if defined(DAGUE_HARD_SUPERTILE)
         o->rank_of      = twoDBC_st_rank_of;
         o->vpid_of      = twoDBC_st_vpid_of;
         o->data_of      = twoDBC_st_data_of;
@@ -123,7 +138,9 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         two_dim_block_cyclic_supertiled_view(Ddesc, Ddesc, nrst, ncst);
 #endif /* DAGUE_HARD_SUPERTILE */
     }
-    
+    o->register_memory   = twoDBC_memory_register;
+    o->unregister_memory = twoDBC_memory_unregister;
+
     DEBUG3(("two_dim_block_cyclic_init: \n"
            "      Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
@@ -138,9 +155,6 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
            P, Q));
 }
 
-
-
-
 /*
  *
  * Set of functions with no super-tiles
@@ -152,8 +166,7 @@ static uint32_t twoDBC_rank_of(dague_ddesc_t * desc, ...)
     unsigned int rr;
     unsigned int res;
     va_list ap;
-    two_dim_block_cyclic_t * Ddesc;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
+    two_dim_block_cyclic_t * Ddesc = (two_dim_block_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -218,11 +231,10 @@ static int32_t twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     return vpid;
 }
 
-static void *twoDBC_data_of(dague_ddesc_t *desc, ...)
+static dague_data_t* twoDBC_data_of(dague_ddesc_t *desc, ...)
 {
-    int m, n;
+    int m, n, position, local_m, local_n;
     size_t pos;
-    int local_m, local_n;
     va_list ap;
     two_dim_block_cyclic_t * Ddesc;
     Ddesc = (two_dim_block_cyclic_t *)desc;
@@ -249,20 +261,22 @@ static void *twoDBC_data_of(dague_ddesc_t *desc, ...)
     local_n = n / Ddesc->grid.cols;
     assert( (n % Ddesc->grid.cols) == Ddesc->grid.crank );
 
+    position = Ddesc->nb_elem_r * local_n + local_m;
     if( Ddesc->super.storage == matrix_Tile ) {
-        pos = Ddesc->nb_elem_r * local_n + local_m;
+        pos = position;
         pos *= (size_t)Ddesc->super.bsiz;
     } else {
         pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm
             +  local_m * Ddesc->super.mb;
     }
 
-    pos *= dague_datadist_getsizeoftype(Ddesc->super.mtype);
-    return &(((char *) Ddesc->mat)[pos]);
+    return dague_matrix_create_data( &Ddesc->super,
+                                     (char*)Ddesc->mat + pos * dague_datadist_getsizeoftype(Ddesc->super.mtype),
+                                     position, (n * Ddesc->super.lmt) + m );
 }
 
 
-/**** 
+/****
  * Set of functions with Supertiled view of the distribution
  ****/
 
@@ -285,7 +299,7 @@ static inline unsigned int st_compute_m(two_dim_block_cyclic_t* desc, unsigned i
     p = desc->grid.rows;
     ps = desc->grid.strows;
     mt = desc->super.mt;
-    do { 
+    do {
         m = m-m%(p*ps) + (m%ps)*p + (m/ps)%p;
     } while(m >= mt);
     return m;
@@ -333,7 +347,7 @@ static int32_t twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...)
     return twoDBC_vpid_of(ddesc, m, n);
 }
 
-static void* twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...)
+static dague_data_t* twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...)
 {
     unsigned int m, n;
     two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)ddesc;
@@ -441,10 +455,10 @@ static int32_t twoDBC_st_vpid_of(dague_ddesc_t *desc, ...)
     return vpid;
 }
 
-static void *twoDBC_st_data_of(dague_ddesc_t *desc, ...)
+static dague_data_t* twoDBC_st_data_of(dague_ddesc_t *desc, ...)
 {
     size_t pos;
-    int m, n, local_m, local_n;
+    int m, n, local_m, local_n, position;
     va_list ap;
     two_dim_block_cyclic_t * Ddesc;
     Ddesc = (two_dim_block_cyclic_t *)desc;
@@ -475,16 +489,18 @@ static void *twoDBC_st_data_of(dague_ddesc_t *desc, ...)
     assert( n / Ddesc->grid.stcols == Ddesc->grid.crank);
     local_n += n % Ddesc->grid.stcols;
 
+    position = Ddesc->nb_elem_r * local_n + local_m;;
     if( Ddesc->super.storage == matrix_Tile ) {
-        pos = Ddesc->nb_elem_r * local_n + local_m;
+        pos = position;
         pos *= (size_t)Ddesc->super.bsiz;
     } else {
         pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm
             +  local_m * Ddesc->super.mb;
     }
 
-    pos *= dague_datadist_getsizeoftype(Ddesc->super.mtype);
-    return &(((char *) Ddesc->mat)[pos]);
+    return dague_matrix_create_data( &Ddesc->super,
+                                     (char*)Ddesc->mat + pos * dague_datadist_getsizeoftype(Ddesc->super.mtype),
+                                     position, (n * Ddesc->super.lmt) + m );
 }
 
 #endif /* DAGUE_HARD_SUPERTILE */
@@ -493,8 +509,8 @@ static void *twoDBC_st_data_of(dague_ddesc_t *desc, ...)
  * Common functions
  */
 #ifdef DAGUE_PROF_TRACE
-/* return a unique key (unique only for the specified dague_ddesc) associated to a data */
-static uint32_t twoDBC_data_key(struct dague_ddesc *desc, ...)
+/* return a unique key (unique only for the specified dague_ddesc_t) associated to a data */
+static uint32_t twoDBC_data_key(dague_ddesc_t *desc, ...)
 {
     unsigned int m, n;
     two_dim_block_cyclic_t * Ddesc;
@@ -515,7 +531,7 @@ static uint32_t twoDBC_data_key(struct dague_ddesc *desc, ...)
 }
 
 /* return a string meaningful for profiling about data */
-static int  twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+static int twoDBC_key_to_string(dague_ddesc_t * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
 {
     two_dim_block_cyclic_t * Ddesc;
     unsigned int row, column;

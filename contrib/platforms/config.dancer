@@ -16,7 +16,7 @@ PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
 if [ "x$USER" = "xbosilca" ]; then
   unset CUDA_DIR
 #  CUDA_DIR="/opt/cuda-5.0.7/cuda"
-  HWLOC_DIR="/home/bosilca/opt/"
+#  HWLOC_DIR="/home/bosilca/opt/"
   MPI_DIR="/home/bosilca/opt/mpi"
 
 #elif [ "x$USER" = "xherault" ]; then

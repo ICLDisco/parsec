@@ -17,7 +17,7 @@ static void dague_thread_mempool_construct( dague_thread_mempool_t *thread_mempo
                                             dague_mempool_t *mempool )
 {
     thread_mempool->parent = mempool;
-    dague_lifo_construct( &thread_mempool->mempool );
+    OBJ_CONSTRUCT(&thread_mempool->mempool, dague_lifo_t);
     thread_mempool->nb_elt = 0;
 }
 
@@ -26,7 +26,7 @@ static void dague_thread_mempool_destruct( dague_thread_mempool_t *thread_mempoo
     void *elt;
     while(NULL != (elt = dague_lifo_pop(&thread_mempool->mempool)))
         DAGUE_LIFO_ITEM_FREE(elt);
-    dague_lifo_destruct(&thread_mempool->mempool);
+    OBJ_DESTRUCT(&thread_mempool->mempool);
 }
 
 void dague_mempool_construct( dague_mempool_t *mempool, size_t elt_size, size_t pool_offset, unsigned int nbthreads )

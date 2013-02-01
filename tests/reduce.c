@@ -10,11 +10,11 @@
 
 #include <math.h>
 
-struct dague_reduce_object_t;
-typedef struct dague_reduce_object_t dague_reduce_object_t;
+struct dague_reduce_handle_t;
+typedef struct dague_reduce_handle_t dague_reduce_handle_t;
 
-extern dague_reduce_object_t *dague_reduce_new(dague_ddesc_t* R /* data R */, dague_ddesc_t* A /* data A */, int MT, int depth, void* ELEM_NEUTRE /* data ELEM_NEUTRE */);
-extern void dague_reduce_destroy( dague_reduce_object_t *o );
+extern dague_reduce_handle_t *dague_reduce_new(dague_ddesc_t* R /* data R */, dague_ddesc_t* A /* data A */, int MT, int depth, void* ELEM_NEUTRE /* data ELEM_NEUTRE */);
+extern void dague_reduce_destroy( dague_reduce_handle_t *o );
 
 #if 0
 static int dague_operator_print_id( struct dague_execution_unit *eu, void* data, void* op_data, ... )
@@ -35,7 +35,7 @@ static int dague_operator_print_id( struct dague_execution_unit *eu, void* data,
 int main( int argc, char* argv[] )
 {
     dague_context_t* dague;
-    struct dague_object_t* object;
+    struct dague_handle_t* object;
     two_dim_block_cyclic_t ddescA;
     int cores = 4, world = 1, rank = 0;
     int mb = 100, nb = 100;
@@ -58,12 +58,12 @@ int main( int argc, char* argv[] )
 
     dague_ddesc_set_key(&ddescA.super.super, "A");
 
-    object = (struct dague_object_t*)dague_reduce_new((dague_ddesc_t*)&ddescA,
+    object = (struct dague_handle_t*)dague_reduce_new((dague_ddesc_t*)&ddescA,
                                                     (dague_ddesc_t*)&ddescA,
                                                     ddescA.super.mt,
                                                     (int)ceil(log(ddescA.super.mt) / log(2.0)),
                                                     NULL);
-    dague_enqueue(dague, (dague_object_t*)object);
+    dague_enqueue(dague, (dague_handle_t*)object);
 
     dague_progress(dague);
 

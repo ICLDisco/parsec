@@ -31,8 +31,8 @@
  * Map operations
  */
 void dplasma_map2( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
-dague_object_t* dplasma_map2_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
-void dplasma_map2_Destruct( dague_object_t *o );
+dague_handle_t* dplasma_map2_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
+void dplasma_map2_Destruct( dague_handle_t *o );
 
 /**
  * No macro with the name max or min is acceptable as there is

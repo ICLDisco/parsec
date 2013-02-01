@@ -76,7 +76,7 @@ const dbp_thread_t *dbp_iterator_thread(const dbp_event_iterator_t *it);
 int dbp_event_get_key(const dbp_event_t *e);
 int dbp_event_get_flags(const dbp_event_t *e);
 uint64_t dbp_event_get_event_id(const dbp_event_t *e);
-uint32_t dbp_event_get_object_id(const dbp_event_t *e);
+uint32_t dbp_event_get_handle_id(const dbp_event_t *e);
 dague_time_t dbp_event_get_timestamp(const dbp_event_t *e);
 void *dbp_event_get_info(const dbp_event_t *e);
 int   dbp_event_info_len(const dbp_event_t *e, const dbp_multifile_reader_t *dbp);

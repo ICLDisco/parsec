@@ -100,6 +100,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     assert(NULL == global);
     global                    = new(jdf_global_entry_t);
     global->name              = strdup(data->dname);
+    printf("Create data %s\n", data->dname);
     global->properties        = jdf_create_properties_list( "type", 0, "dague_ddesc_t*", NULL );
     global->data              = data;
     global->expression        = NULL;
@@ -130,6 +131,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     jdf_guarded_call_t   *guarded_call;
     jdf_call_t           *call;
     jdf_expr_t           *expr;
+    jdf_body_t           *body;
 };
 
 %type <function>function
@@ -154,6 +156,8 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <number>optional_access_type
 %type <external_code>prologue
 %type <external_code>epilogue
+%type <body>body
+%type <body>bodies
 
 %type <string>VAR
 %type <string>EXTERN_DECL
@@ -165,7 +169,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <number>INT
 %type <number>DEPENDENCY_TYPE
 
-%token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY STRING SIMCOST
+%token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY_START BODY BODY_END STRING SIMCOST
 %token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK PROPERTIES_ON PROPERTIES_OFF
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE
@@ -337,7 +341,28 @@ properties_list: VAR ASSIGNMENT expr_complete properties_list
              }
        ;
 
-function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simulation_cost partitioning dataflow_list priority BODY
+body:         BODY_START properties BODY BODY_END
+             {
+                 jdf_body_t* body = new(jdf_body_t);
+                 body->properties = $2;
+                 body->next = NULL;
+                 body->external_code = $3;
+                 JDF_OBJECT_LINENO(body) = current_lineno;
+                 $$ = body;
+             }
+       ;
+bodies: body
+             {
+                 $$ = $1;
+             }
+       | body bodies
+             {
+                 jdf_body_t* body = $1;
+                 body->next = $2;
+                 $$ = $1;
+             }
+       ;
+function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simulation_cost partitioning dataflow_list priority bodies
                 {
                     jdf_function_entry_t *e = new(jdf_function_entry_t);
                     e->fname             = $1;
@@ -348,7 +373,7 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simula
                     e->predicate         = $8;
                     e->dataflow          = $9;
                     e->priority          = $10;
-                    e->body              = $11;
+                    e->bodies            = $11;
 
                     JDF_OBJECT_LINENO(e) = current_lineno;
 

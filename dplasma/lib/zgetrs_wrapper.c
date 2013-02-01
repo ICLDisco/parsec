@@ -26,9 +26,9 @@ dplasma_zgetrs(dague_context_t *dague,
     }
 
 #ifdef DAGUE_COMPOSITION
-    dague_object_t *dague_zlaswp = NULL;
-    dague_object_t *dague_ztrsm1 = NULL;
-    dague_object_t *dague_ztrsm2 = NULL;
+    dague_handle_t *dague_zlaswp = NULL;
+    dague_handle_t *dague_ztrsm1 = NULL;
+    dague_handle_t *dague_ztrsm2 = NULL;
 
     if ( trans == PlasmaNoTrans )
     {

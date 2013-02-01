@@ -157,7 +157,7 @@ int dague_profiling_init( const char *format, ... )
         }
     }
 
-    dague_list_construct( &threads );
+    OBJ_CONSTRUCT( &threads, dague_list_t );
 
     dague_prof_keys = (dague_profiling_key_t*)calloc(128, sizeof(dague_profiling_key_t));
     dague_prof_keys_count = 0;
@@ -194,6 +194,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
         return NULL;
     }
 
+    OBJ_CONSTRUCT(res, dague_list_item_t);
     va_start(ap, format);
     vasprintf(&res->hr_id, format, ap);
     va_end(ap);
@@ -209,7 +210,6 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     res->current_events_buffer = NULL;
     res->thread_owner = pthread_self();
 
-    DAGUE_LIST_ITEM_CONSTRUCT( res );
     dague_list_fifo_push( &threads, (dague_list_item_t*)res );
 
     return res;
@@ -224,7 +224,7 @@ int dague_profiling_fini( void )
         free(t);
     }
     free(hr_id);
-    dague_list_destruct(&threads);
+    OBJ_DESTRUCT(&threads);
 
     dague_profiling_dictionary_flush();
     free(dague_prof_keys);
@@ -436,7 +436,7 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
 }
 
 int dague_profiling_trace( dague_thread_profiling_t* context, int key,
-                           uint64_t event_id, uint32_t object_id, void *info )
+                           uint64_t event_id, uint32_t handle_id, void *info )
 {
     dague_profiling_output_t *this_event;
     size_t this_event_length;
@@ -471,7 +471,7 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key,
 
     this_event->event.key = (uint16_t)key;
     this_event->event.event_id = event_id;
-    this_event->event.object_id = object_id;
+    this_event->event.handle_id = handle_id;
     this_event->event.flags = 0;
 
     if( NULL != info ) {

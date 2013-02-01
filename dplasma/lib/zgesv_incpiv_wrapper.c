@@ -17,9 +17,9 @@ dplasma_zgesv_incpiv( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matr
     int info;
 
 #ifdef DAGUE_COMPOSITION
-    dague_object_t *dague_zgetrf  = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
-    dague_object_t *dague_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
-    dague_object_t *dague_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+    dague_handle_t *dague_zgetrf  = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
+    dague_handle_t *dague_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
+    dague_handle_t *dague_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
     dague_enqueue( dague, dague_zgetrf  );
     dague_enqueue( dague, dague_ztrsmpl );

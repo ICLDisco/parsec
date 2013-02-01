@@ -10,8 +10,8 @@
 #include "dague_config.h"
 #include "lifo.h"
 
-typedef struct dague_mempool dague_mempool_t;
-typedef struct dague_thread_mempool dague_thread_mempool_t;
+typedef struct dague_mempool_s dague_mempool_t;
+typedef struct dague_thread_mempool_s dague_thread_mempool_t;
 
 /**
  * each element that is allocated from a mempool must
@@ -28,7 +28,7 @@ typedef struct dague_thread_mempool dague_thread_mempool_t;
  * be chained using Lifos.
  */
 
-struct dague_mempool {
+struct dague_mempool_s {
     unsigned int            nb_thread_mempools;
     size_t                  elt_size;
     size_t                  pool_owner_offset;  /**< this is the offset to get to the thread_mempool_t 
@@ -37,7 +37,7 @@ struct dague_mempool {
     dague_thread_mempool_t *thread_mempools;
 };
 
-struct dague_thread_mempool {
+struct dague_thread_mempool_s {
     dague_mempool_t  *parent;    /**<  back pointer to the mempool */
     uint32_t nb_elt;             /**< this is the number of elements this thread
                                   *   has allocated since the creation of the pool */
@@ -64,7 +64,10 @@ struct dague_thread_mempool {
                                  (char*)&(__pseudo_elt),                \
                                  nbthreads );                           \
         } while(0)
-void dague_mempool_construct( dague_mempool_t *mempool, size_t elt_size, size_t pool_offset, unsigned int nbthreads );
+void dague_mempool_construct( dague_mempool_t *mempool,
+                              size_t elt_size,
+                              size_t pool_offset,
+                              unsigned int nbthreads );
 
 /** dague_thread_mempool_allocate_when_empty
  *    Internal function.

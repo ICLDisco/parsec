@@ -59,18 +59,18 @@ class dbpThread:
       self.id = int(threadNumber) # if it's not a number, it's wrong
 
 class dbpEvent:
-   def __init__(self, parentThread, key, flags, object_id, event_id, start, end):
+   def __init__(self, parentThread, key, flags, handle_id, event_id, start, end):
       self.thread = parentThread
       self.key = key
       self.flags = flags
-      self.object_id = object_id
+      self.handle_id = handle_id
       self.event_id = event_id
       self.start = start
       self.end = end
       self.duration = self.end - self.start
    def __str__(self):
       return 'key %d flags %d tid %d objID %s eventID %d start %d end %d duration %d' % (
-              self.key, self.flags, self.thread.id, self.object_id, self.event_id, self.start, self.end, self.duration)
+              self.key, self.flags, self.thread.id, self.handle_id, self.event_id, self.start, self.end, self.duration)
      
 
 # Cython code
@@ -147,7 +147,7 @@ cdef makeDbpThread(dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, 
             start = diff_time(reader_start, dbp_event_get_timestamp(event_s))
             end = diff_time(reader_start, dbp_event_get_timestamp(event_e))
             event = dbpEvent(thread, dbp_event_get_key(event_s), dbp_event_get_flags(event_s), 
-                             dbp_event_get_object_id(event_s), dbp_event_get_event_id(event_s), 
+                             dbp_event_get_handle_id(event_s), dbp_event_get_event_id(event_s), 
                              start, end)
             thread.events.append(event)
             dbp_iterator_delete(it_e)

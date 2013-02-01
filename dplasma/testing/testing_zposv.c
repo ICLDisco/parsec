@@ -90,11 +90,6 @@ int main(int argc, char ** argv)
         if(iparam[IPARAM_NGPUS] > 0)
         {
             if(loud > 3) printf("+++ Load GPU kernel ... ");
-            if(0 != gpu_kernel_init_zgemm(dague))
-            {
-                printf("XXX Unable to load GPU kernel.\n");
-                exit(3);
-            }
             dague_gpu_data_register(dague,
                                     (dague_ddesc_t*)&ddescA,
                                     MT*NT, MB*NB*sizeof(dague_complex64_t) );
@@ -251,12 +246,6 @@ int main(int argc, char ** argv)
         dague_data_free(ddescA.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
     }
-
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        dague_gpu_kernel_fini(dague, "zgemm");
-    }
-#endif
 
     cleanup_dague(dague, iparam);
 

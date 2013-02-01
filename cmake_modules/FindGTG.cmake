@@ -24,12 +24,12 @@ pkg_check_modules(PC_GTG QUIET gtg)
 set(GTG_DEFINITIONS ${PC_GTG_CFLAGS_OTHER} )
 
 find_path(GTG_INCLUDE_DIR GTG.h
-          PATH ${GTG_DIR}/include
+          PATHS ${GTG_DIR}/include
           HINTS ${PC_GTG_INCLUDEDIR} ${PC_GTG_INCLUDE_DIRS}
           DOC "Include path for GTG")
 
 find_library(GTG_LIBRARY NAMES gtg
-             PATH ${GTG_DIR}/lib
+             PATHS ${GTG_DIR}/lib
              HINTS ${PC_GTG_LIBDIR} ${PC_GTG_LIBRARY_DIRS}
              DOC "Library path for GTG")
 

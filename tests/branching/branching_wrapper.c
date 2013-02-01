@@ -18,13 +18,13 @@ static MPI_Datatype block;
  *
  * @return the dague object to schedule.
  */
-dague_object_t *branching_new(dague_ddesc_t *A, int size, int nb)
+dague_handle_t *branching_new(dague_ddesc_t *A, int size, int nb)
 {
-    dague_branching_object_t *o = NULL;
+    dague_branching_handle_t *o = NULL;
 
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, BRANCHING nb and size must be > 0\n");
-        return (dague_object_t*)o;
+        return (dague_handle_t*)o;
     }
 
     o = dague_branching_new(A, nb);
@@ -39,17 +39,17 @@ dague_object_t *branching_new(dague_ddesc_t *A, int size, int nb)
     }
 #endif
 
-    return (dague_object_t*)o;
+    return (dague_handle_t*)o;
 }
 
 /**
  * @param [INOUT] o the dague object to destroy
  */
-void branching_destroy(dague_object_t *o)
+void branching_destroy(dague_handle_t *o)
 {
 #if defined(HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

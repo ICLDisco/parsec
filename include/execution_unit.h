@@ -23,7 +23,7 @@
 /**
  *  Computational Thread-specific structure
  */
-struct dague_execution_unit {
+struct dague_execution_unit_s {
     int32_t   th_id;          /**< Internal thread identifier. A thread belongs to a vp */
     pthread_t pthread_id;     /**< POSIX thread identifier. */
 
@@ -57,7 +57,10 @@ struct dague_execution_unit {
 	long long int exec_cache_misses[2];
 	long long int exec_tlb_misses;
 
-    struct dague_vp        *virtual_process;   /**< Backlink to the virtual process that holds this thread */
+    struct dague_vp_s      *virtual_process;   /**< Backlink to the virtual process that holds this thread */
+    /**
+     * TODO: Why do we have the mempools both in the VP and in the execution unit?
+     */
     dague_thread_mempool_t *context_mempool;
     dague_thread_mempool_t *datarepo_mempools[MAX_PARAM_COUNT+1];
 };
@@ -65,7 +68,7 @@ struct dague_execution_unit {
 /**
  * Threads are grouped per virtual process
  */
-struct dague_vp {
+struct dague_vp_s {
     dague_context_t *dague_context; /**< backlink to the global context */
     int32_t vp_id;                  /**< virtual process identifier of this vp */
     int32_t nb_cores;               /**< number of cores for this vp */
@@ -89,7 +92,7 @@ struct dague_vp {
  * All virtual processes belong to a single physical
  * process
  */
-struct dague_context_t {
+struct dague_context_s {
     volatile int32_t __dague_internal_finalization_in_progress;
     volatile int32_t __dague_internal_finalization_counter;
     volatile uint32_t active_objects;
@@ -120,7 +123,7 @@ struct dague_context_t {
      * we will allocate more (as many as we need), so everything after this
      * field might be overwritten.
      */
-    struct dague_vp* virtual_processes[1];
+    struct dague_vp_s* virtual_processes[1];
 };
 
 #define DAGUE_THREAD_IS_MASTER(eu) ( ((eu)->th_id == 0) && ((eu)->virtual_process->vp_id == 0) )

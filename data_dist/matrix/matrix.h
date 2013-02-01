@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,6 +13,7 @@
 #include <assert.h>
 #include "precision.h"
 #include "data_distribution.h"
+#include "data.h"
 #include "vpmap.h"
 
 enum matrix_type {
@@ -49,8 +50,9 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
 
 typedef struct tiled_matrix_desc_t {
     dague_ddesc_t super;
-    enum matrix_type    mtype;      /**< precision of the matrix */
-    enum matrix_storage storage;    /**< storage of the matrix   */
+    dague_data_t**       data_map;   /**< map of the data */
+    enum matrix_type     mtype;      /**< precision of the matrix */
+    enum matrix_storage  storage;    /**< storage of the matrix   */
     int dtype;          /**< Distribution type of descriptor      */
     int tileld;         /**< leading dimension of each tile (Should be a function depending on the row) */
     int mb;             /**< number of rows in a tile */
@@ -86,36 +88,71 @@ static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
     return pos % vpmap_get_nb_vp();
 }
 
-struct dague_execution_unit;
-typedef int (*dague_operator_t)( struct dague_execution_unit *eu, const void* src, void* dst, void* op_data, ... );
+struct dague_execution_unit_s;
+typedef int (*dague_operator_t)( struct dague_execution_unit_s *eu, const void* src, void* dst, void* op_data, ... );
 
-extern struct dague_object_t*
+extern struct dague_handle_t*
 dague_map_operator_New(const tiled_matrix_desc_t* src,
                        tiled_matrix_desc_t* dest,
                        dague_operator_t op,
                        void* op_data);
 
 extern void
-dague_map_operator_Destruct( struct dague_object_t* o );
+dague_map_operator_Destruct( struct dague_handle_t* o );
 
-extern struct dague_object_t*
+extern struct dague_handle_t*
 dague_reduce_col_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t operator,
                       void* op_data );
 
-extern void dague_reduce_col_Destruct( struct dague_object_t *o );
+extern void dague_reduce_col_Destruct( struct dague_handle_t *o );
 
-extern struct dague_object_t*
+extern struct dague_handle_t*
 dague_reduce_row_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t operator,
                       void* op_data );
-extern void dague_reduce_row_Destruct( struct dague_object_t *o );
+extern void dague_reduce_row_Destruct( struct dague_handle_t *o );
 
 /*
  * Macro to get the block leading dimension
  */
 #define BLKLDD( _desc_, _m_ ) ( (_desc_).storage == matrix_Tile ? (_desc_).mb : (_desc_).lm )
+
+/**
+ * Helper functions to allocate and retrieve pointers to the dague_data_t and
+ * the corresponding copies.
+ */
+static inline dague_data_t*
+dague_matrix_create_data(tiled_matrix_desc_t* matrix,
+                         void* ptr,
+                         int pos,
+                         dague_data_key_t key)
+{
+    dague_data_t* data = matrix->data_map[pos];
+
+    if( NULL == (data = matrix->data_map[pos]) ) {
+        dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);
+        data = OBJ_NEW(dague_data_t);
+
+        data_copy->coherency_state = DATA_COHERENCY_OWNED;
+        data_copy->original = data;
+        data_copy->device_private = ptr;
+
+        data->coherency_state = DATA_COHERENCY_OWNED;
+        data->owner_device = 0;
+        data->key = key;
+        data->nb_elts = matrix->bsiz * dague_datadist_getsizeoftype(matrix->mtype);
+        data->device_copies[0] = data_copy;
+
+        if( !dague_atomic_cas(&matrix->data_map[pos], NULL, data) ) {
+            free(data_copy);
+            free(data);
+            data = matrix->data_map[pos];
+        }
+    }
+    return data;
+}
 
 #endif /* _MATRIX_H_  */

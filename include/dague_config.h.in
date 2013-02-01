@@ -25,7 +25,7 @@
 /* debug */
 #define DAGUE_DEBUG_VERBOSE @DAGUE_DEBUG_VERBOSE@
 #cmakedefine DAGUE_DEBUG_HISTORY
-#cmakedefine DAGUE_DEBUG
+#cmakedefine DAGUE_DEBUG_ENABLE
 #cmakedefine DAGUE_DEBUG_LIFO_USE_ATOMICS
 #cmakedefine DAGUE_CALL_TRACE
 
@@ -58,6 +58,9 @@
 #cmakedefine HAVE_VASPRINTF
 #cmakedefine HAVE_STDARG_H
 #cmakedefine HAVE_UNISTD_H
+#cmakedefine HAVE_SYS_PARAM_H
+#cmakedefine HAVE_SYS_TYPES_H
+#cmakedefine HAVE_SYSLOG_H
 #cmakedefine HAVE_VA_COPY
 #cmakedefine HAVE_UNDERSCORE_VA_COPY
 #cmakedefine HAVE_GETOPT_LONG
@@ -65,6 +68,7 @@
 #cmakedefine HAVE_GETOPT_H
 #cmakedefine HAVE_ERRNO_H
 #cmakedefine HAVE_STDDEF_H
+#cmakedefine HAVE_STDBOOL_H
 #cmakedefine HAVE_LIMITS_H
 #cmakedefine HAVE_STRING_H
 #cmakedefine HAVE_COMPLEX_H
@@ -72,6 +76,9 @@
 #cmakedefine ARCH_X86_64
 #cmakedefine ARCH_PPC
 #cmakedefine MAC_OS_X
+
+/* Configuration parameters */
+#cmakedefine DAGUE_WANT_HOME_CONFIG_FILES
 
 /* Optional packages */
 #cmakedefine HAVE_HWLOC
@@ -87,6 +94,8 @@
 #cmakedefine HAVE_MPI_20
 
 #cmakedefine HAVE_AYUDAME
+
+#define DAGUE_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 
 #if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE

@@ -28,7 +28,7 @@ static char *extern_code(char *base, int len)
    rp = 0;
    if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
      /**
-      * As each BODY is contiguous we only have to set the #line once.
+      * As each extern_code is contiguous we only have to set the #line once.
       */
      rp += snprintf(res + rp, rlen - rp, "#line %d \"%s\"\n", current_lineno, yyfilename);
   }
@@ -75,16 +75,11 @@ WHITE         [\f\t\v ]
 %x comment
 %x properties
 %x dstr
+%x body
+%x body_init
 
 %%
 
-[bB][oO][dD][yY]{WHITE}*"\n"([^E]|([eE][^N])|([eE][nN][^D]))+[eE][nN][dD]                       {
-                          char *b = yytext + 4;
-                          while( *b != '\n' ) b++;
-                          YYLVAL(string) = extern_code( b+1, strlen(b+1) - 3 );
-                          current_lineno++;
-                          return BODY;
-                      }
 extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}                          {
                           int lstart, lend, bstart, skip_line = 0;
                           /* This assumes that no extern language rightfully has a "
@@ -161,6 +156,24 @@ WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
                         return INT;                                        }
 <properties>[nN][oO] {  YYLVAL(number) = 0;
                         return INT;                                        }
+
+<INITIAL>[bB][oO][dD][yY] {
+                           YY_PUSH_STATE(body_init);
+                           return BODY_START;                               }
+<body_init>{WHITE}*[\[] {
+                           YY_PUSH_STATE(properties);
+                           return PROPERTIES_ON;                            }
+<body_init>{WHITE}*[^\[] {
+                           YY_POP_STATE();
+                           YY_PUSH_STATE(body);                             }
+<body>[eE][nN][dD]    {   YY_POP_STATE();
+                          return BODY_END;                                  }
+<body>([^E]|([eE][^N])|([eE][nN][^D]))+ {
+                          YYLVAL(string) = extern_code( yytext, strlen(yytext+1) );
+                          current_lineno++;
+                          return BODY;
+                      }
+
 <*>"("                { return OPEN_PAR;                                   }
 <*>")"                { return CLOSE_PAR;                                  }
 <*>"=="               { return EQUAL;                                      }

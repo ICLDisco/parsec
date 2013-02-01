@@ -6,9 +6,9 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "schedulers.h"
+#include "src/mca/mca_repository.h"
+#include "src/mca/sched/sched.h"
 #include "profiling.h"
-#include "remote_dep.h"
 #include "stats.h"
 #include "datarepo.h"
 #include "execution_unit.h"
@@ -59,12 +59,13 @@ static uint32_t sched_priority_trace_counter;
 int __dague_progress_task( dague_execution_unit_t* eu_context,
                            dague_execution_context_t* task )
 {
+    (void)eu_context;
     switch(task->status) {
         case DAGUE_TASK_STATUS_NONE:
 #ifdef DAGUE_DEBUG_VERBOSE1
             char tmp[MAX_TASK_STRLEN];
             DEBUG(("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
-                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task))); 
+                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task)));
 #endif
         return -1;
 
@@ -91,15 +92,28 @@ int __dague_execute( dague_execution_unit_t* eu_context,
                      dague_execution_context_t* exec_context )
 {
     const dague_function_t* function = exec_context->function;
-    assert( function->nb_incarnations > 0 );
-#ifdef DAGUE_DEBUG_VERBOSE1
-    char tmp[MAX_TASK_STRLEN];
-    DEBUG(("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
-           dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context)));
-#endif
+    int rc;
+
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
     AYU_TASK_RUN(eu_context->th_id, exec_context);
-    return function->incarnations[0].hook( eu_context, exec_context );
+    /**
+     * Try all the incarnation until one agree to execute.
+     */
+    do {
+#ifdef DAGUE_DEBUG_VERBOSE1
+        char tmp[MAX_TASK_STRLEN];
+        DEBUG(("thread %d of VP %d Execute %s[%d]\n",
+               eu_context->th_id, eu_context->virtual_process->vp_id,
+               dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
+               function->incarnation[exec_context->chore_id].type));
+#endif
+        rc = function->incarnations[exec_context->chore_id].hook( eu_context, exec_context );
+        if( DAGUE_HOOK_RETURN_NEXT != rc )
+            return rc;
+        exec_context->chore_id++;
+    } while(NULL != function->incarnations[exec_context->chore_id].hook);
+    /* We're out of luck, no more chores */
+    return DAGUE_HOOK_RETURN_ERROR;
 }
 
 static inline int all_tasks_done(dague_context_t* context)
@@ -107,19 +121,19 @@ static inline int all_tasks_done(dague_context_t* context)
     return (context->active_objects == 0);
 }
 
-int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context)
+int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context)
 {
     int remaining;
 
-    assert( dague_object->nb_local_tasks != 0 );
-    remaining = dague_atomic_dec_32b( &(dague_object->nb_local_tasks) );
-    //    printf("remaining local tasks: %d\n", dague_object->nb_local_tasks);
+    assert( dague_handle->nb_local_tasks != 0 );
+    remaining = dague_atomic_dec_32b( &(dague_handle->nb_local_tasks) );
+
     if( 0 == remaining ) {
         /* A dague object has been completed. Call the attached callback if
          * necessary, then update the main engine.
          */
-        if( NULL != dague_object->complete_cb ) {
-            (void)dague_object->complete_cb( dague_object, dague_object->complete_cb_data );
+        if( NULL != dague_handle->complete_cb ) {
+            (void)dague_handle->complete_cb( dague_handle, dague_handle->complete_cb_data );
         }
         dague_atomic_dec_32b( &(context->active_objects) );
         return 1;
@@ -127,22 +141,45 @@ int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context
     return 0;
 }
 
+static dague_sched_module_t         *current_scheduler = NULL;
+static dague_sched_base_component_t *scheduler_component = NULL;
 
-static dague_scheduler_t scheduler = { "None", NULL, NULL, NULL, NULL, NULL };
-
-void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
+void dague_remove_scheduler( dague_context_t *dague )
 {
-    if( NULL != scheduler.finalize ) {
-	    // PETER TODO move this to a more appropriate finalization place
-	    pins_fini_steals(dague);
-        scheduler.finalize( dague );
+    if( NULL != current_scheduler ) {
+        current_scheduler->module.remove( dague );
+        pins_fini_steals(dague); // PETER TODO where does this actually belong!?
+        assert( NULL != scheduler_component );
+        mca_component_close( (mca_base_component_t*)scheduler_component );
+        current_scheduler = NULL;
+        scheduler_component = NULL;
     }
-    if( NULL != s ) {
-        memcpy( &scheduler, s, sizeof(dague_scheduler_t) );
-        scheduler.init( dague );
-    } else {
-        memset( &scheduler, 0, sizeof(dague_scheduler_t) );
+}
+
+int dague_set_scheduler( dague_context_t *dague )
+{
+    mca_base_component_t **scheds;
+    dague_sched_module_t  *new_scheduler = NULL;
+    dague_sched_base_component_t *new_component = NULL;
+
+    scheds = mca_components_open_bytype( "sched" );
+    mca_components_query(scheds, 
+                         (mca_base_module_t**)&new_scheduler, 
+                         (mca_base_component_t**)&new_component);
+    mca_components_close(scheds);
+
+    if( NULL == new_scheduler ) {
+        return 0;
     }
+    
+    dague_remove_scheduler( dague );
+    current_scheduler = new_scheduler;
+    scheduler_component = new_component;
+
+    DEBUG((" Installing %s\n", current_scheduler->component->base_version.mca_component_name));
+
+    current_scheduler->module.install( dague );
+    return 1;
 }
 
 /**
@@ -154,10 +191,10 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 {
     int ret;
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     {
         dague_execution_context_t* context = new_context;
-        const struct dague_flow* flow;
+        const struct dague_flow_s* flow;
         int set_parameters, i;
         char tmp[MAX_TASK_STRLEN];
 
@@ -182,12 +219,12 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
             context = (dague_execution_context_t*)context->list_item.list_next;
         } while ( context != new_context );
     }
-# endif
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
 
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
      */
-    ret = scheduler.schedule_task(eu_context, new_context);
+    ret = current_scheduler->module.schedule(eu_context, new_context);
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
      */
@@ -211,8 +248,8 @@ static inline unsigned long exponential_backoff(uint64_t k)
     return r * TIME_STEP;
 }
 
-inline int __dague_complete_execution( dague_execution_unit_t *eu_context,
-                                       dague_execution_context_t *exec_context )
+int __dague_complete_execution( dague_execution_unit_t *eu_context,
+                                dague_execution_context_t *exec_context )
 {
     int rc = 0;
 
@@ -222,7 +259,7 @@ inline int __dague_complete_execution( dague_execution_unit_t *eu_context,
     if( NULL != exec_context->function->complete_execution )
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
-    __dague_complete_task(exec_context->dague_object, eu_context->virtual_process->dague_context);
+    __dague_complete_task(exec_context->dague_handle, eu_context->virtual_process->dague_context);
     AYU_TASK_COMPLETE(exec_context);
 
     /* Succesfull execution. The context is ready to be released, all
@@ -267,8 +304,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         goto finalize_progress;
     }
 
-    if( NULL == scheduler.select_task ||
-        NULL == scheduler.schedule_task ) {
+    if( NULL == current_scheduler ) {
         fprintf(stderr, "DAGuE: Main thread entered dague_progress, while scheduler is not selected yet!\n");
         return (void *)-1;
     }
@@ -293,8 +329,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
         PINS(TASK_SELECT_BEGIN, eu_context, NULL, NULL);
-        exec_context = scheduler.select_task(eu_context);
-        //        PINS(TASK_SELECT_FINI, eu_context, exec_context, NULL);
+        exec_context = current_scheduler->module.select(eu_context);
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
         if( exec_context != NULL ) {
@@ -412,21 +447,20 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     return (void*)((long)nbiterations);
 }
 
-int dague_enqueue( dague_context_t* context, dague_object_t* object)
+int dague_enqueue( dague_context_t* context, dague_handle_t* object)
 {
     dague_execution_context_t **startup_list;
     int p;
 
-    if( NULL == scheduler.schedule_task ) {
-        /* No scheduler selected yet. The default is 0 */
-        dague_set_scheduler( context, dague_schedulers_array[DAGUE_SCHEDULER_LFQ] );
+    if( NULL == current_scheduler) {
+        dague_set_scheduler( context );
     }
 
     /* These pointers need to be initialized to NULL; doing it with calloc */
     startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
 
     if( object->nb_local_tasks > 0 ) {
-        /* Update the number of pending dague objects */
+        /* Update the number of pending objects */
         dague_atomic_inc_32b( &(context->active_objects) );
 
         if( NULL != object->startup_hook ) {

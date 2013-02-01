@@ -20,8 +20,8 @@ dplasma_zpotrs(dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc
     }
 
 #ifdef DAGUE_COMPOSITION
-    dague_object_t *dague_ztrsm1 = NULL;
-    dague_object_t *dague_ztrsm2 = NULL;
+    dague_handle_t *dague_ztrsm1 = NULL;
+    dague_handle_t *dague_ztrsm2 = NULL;
 
     if ( uplo == PlasmaUpper ) {
       dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B);

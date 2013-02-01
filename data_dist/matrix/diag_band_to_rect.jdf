@@ -16,8 +16,8 @@ extern "C" %{
  * into a 1D cyclic rectangle                              *
  ***********************************************************/
 
-#define ddescA (__dague_object->super.A)
-#define ddescB (__dague_object->super.B)
+#define ddescA (__dague_handle->super.A)
+#define ddescB (__dague_handle->super.B)
 
 %}
 

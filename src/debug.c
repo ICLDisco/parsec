@@ -7,7 +7,7 @@
 #include "dague_config.h"
 #include "dague_internal.h"
 #include "remote_dep.h"
-#include "atomic.h"
+#include <dague/sys/atomic.h>
 
 #if defined(HAVE_ERRNO_H)
 #include <errno.h>
@@ -178,12 +178,12 @@ void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote
     char msg[512];
     int pos = 0;
     int len = 512;
-    dague_object_t *object;
+    dague_handle_t *object;
     const dague_function_t *f;
 
     pos += snprintf(msg+pos, len-pos, "Mark: emission of an activate message to %d\n", to);
     pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emision\n", b);
-    object = dague_object_lookup( m->object_id );
+    object = dague_handle_lookup( m->handle_id );
     f = object->functions_array[m->function_id];
     pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
     for(j = 0; j < f->nb_parameters; j++) {
@@ -205,12 +205,12 @@ void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remo
     char msg[512];
     int pos = 0;
     int len = 512;
-    dague_object_t *object;
+    dague_handle_t *object;
     const dague_function_t *f;
 
     pos += snprintf(msg+pos, len-pos, "Mark: reception of an activate message from %d\n", from);
     pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n", b);
-    object = dague_object_lookup( m->object_id );
+    object = dague_handle_lookup( m->handle_id );
     f = object->functions_array[m->function_id];
     pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
     for(j = 0; j < f->nb_parameters; j++) {

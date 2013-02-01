@@ -16,12 +16,12 @@
 #include "zgemm_TN.h"
 #include "zgemm_TT.h"
 
-dague_object_t*
+dague_handle_t*
 dplasma_zgemm_New( const int transA, const int transB,
                    const dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
                    const dague_complex64_t beta,  tiled_matrix_desc_t* C)
 {
-    dague_object_t* zgemm_object;
+    dague_handle_t* zgemm_object;
     dague_arena_t* arena;
 
     /* Check input arguments */
@@ -36,39 +36,39 @@ dplasma_zgemm_New( const int transA, const int transB,
 
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
-            dague_zgemm_NN_object_t* object;
+            dague_zgemm_NN_handle_t* object;
             object = dague_zgemm_NN_new(transA, transB, alpha, beta,
                                         *A, (dague_ddesc_t*)A,
                                         *B, (dague_ddesc_t*)B,
                                         *C, (dague_ddesc_t*)C);
             arena = object->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA];
-            zgemm_object = (dague_object_t*)object;
+            zgemm_object = (dague_handle_t*)object;
         } else {
-            dague_zgemm_NT_object_t* object;
+            dague_zgemm_NT_handle_t* object;
             object = dague_zgemm_NT_new(transA, transB, alpha, beta,
                                         *A, (dague_ddesc_t*)A,
                                         *B, (dague_ddesc_t*)B,
                                         *C, (dague_ddesc_t*)C);
             arena = object->arenas[DAGUE_zgemm_NT_DEFAULT_ARENA];
-            zgemm_object = (dague_object_t*)object;
+            zgemm_object = (dague_handle_t*)object;
         }
     } else {
         if( PlasmaNoTrans == transB ) {
-            dague_zgemm_TN_object_t* object;
+            dague_zgemm_TN_handle_t* object;
             object = dague_zgemm_TN_new(transA, transB, alpha, beta,
                                         *A, (dague_ddesc_t*)A,
                                         *B, (dague_ddesc_t*)B,
                                         *C, (dague_ddesc_t*)C);
             arena = object->arenas[DAGUE_zgemm_TN_DEFAULT_ARENA];
-            zgemm_object = (dague_object_t*)object;
+            zgemm_object = (dague_handle_t*)object;
         } else {
-            dague_zgemm_TT_object_t* object;
+            dague_zgemm_TT_handle_t* object;
             object = dague_zgemm_TT_new(transA, transB, alpha, beta,
                                         *A, (dague_ddesc_t*)A,
                                         *B, (dague_ddesc_t*)B,
                                         *C, (dague_ddesc_t*)C);
             arena = object->arenas[DAGUE_zgemm_TT_DEFAULT_ARENA];
-            zgemm_object = (dague_object_t*)object;
+            zgemm_object = (dague_handle_t*)object;
         }
     }
 
@@ -81,11 +81,11 @@ dplasma_zgemm_New( const int transA, const int transB,
 }
 
 void
-dplasma_zgemm_Destruct( dague_object_t *o )
+dplasma_zgemm_Destruct( dague_handle_t *o )
 {
-    dplasma_datatype_undefine_type( &(((dague_zgemm_NN_object_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(((dague_zgemm_NN_handle_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 int
@@ -95,7 +95,7 @@ dplasma_zgemm( dague_context_t *dague,
                                               const tiled_matrix_desc_t *B,
                const dague_complex64_t beta,        tiled_matrix_desc_t *C)
 {
-    dague_object_t *dague_zgemm = NULL;
+    dague_handle_t *dague_zgemm = NULL;
 
     /* Check input arguments */
     if ((transA != PlasmaNoTrans) && (transA != PlasmaTrans) && (transA != PlasmaConjTrans)) {
@@ -113,7 +113,7 @@ dplasma_zgemm( dague_context_t *dague,
 
     if ( dague_zgemm != NULL )
     {
-        dague_enqueue( dague, (dague_object_t*)dague_zgemm);
+        dague_enqueue( dague, (dague_handle_t*)dague_zgemm);
         dplasma_progress(dague);
         dplasma_zgemm_Destruct( dague_zgemm );
         return 0;

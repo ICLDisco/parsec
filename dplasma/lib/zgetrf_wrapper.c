@@ -25,11 +25,11 @@ PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
                              int lm, int ln, int i, int j, int m, int n);
 
 
-dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
+dague_handle_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
                                    tiled_matrix_desc_t *IPIV,
                                    int *INFO)
 {
-    dague_zgetrf_object_t *dague_getrf;
+    dague_zgetrf_handle_t *dague_getrf;
 
     if ( A->storage == matrix_Tile ) {
         CORE_zgetrf_rectil_init();
@@ -53,30 +53,30 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_INT, 1, A->mb, -1 );
 
-    return (dague_object_t*)dague_getrf;
+    return (dague_handle_t*)dague_getrf;
 }
 
 void
-dplasma_zgetrf_Destruct( dague_object_t *o )
+dplasma_zgetrf_Destruct( dague_handle_t *o )
 {
-    dague_zgetrf_object_t *dague_zgetrf = (dague_zgetrf_object_t *)o;
+    dague_zgetrf_handle_t *dague_zgetrf = (dague_zgetrf_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA     ]->opaque_dtt) );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgetrf);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgetrf);
 }
 
 int dplasma_zgetrf( dague_context_t *dague,
                     tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *IPIV )
 {
-    dague_object_t *dague_zgetrf = NULL;
+    dague_handle_t *dague_zgetrf = NULL;
 
     int info = 0;
     dague_zgetrf = dplasma_zgetrf_New(A, IPIV, &info);
 
-    dague_enqueue( dague, (dague_object_t*)dague_zgetrf);
+    dague_enqueue( dague, (dague_handle_t*)dague_zgetrf);
     dplasma_progress(dague);
 
     return info;

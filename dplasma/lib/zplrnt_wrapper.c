@@ -29,10 +29,10 @@
  *          The seed used in the random generation.
  *
  ******************************************************************************/
-dague_object_t* dplasma_zplrnt_New( tiled_matrix_desc_t *A,
+dague_handle_t* dplasma_zplrnt_New( tiled_matrix_desc_t *A,
                                     unsigned long long int seed)
 {
-    dague_zplrnt_object_t* object;
+    dague_zplrnt_handle_t* object;
 
     object = dague_zplrnt_new( seed, *A, (dague_ddesc_t*)A);
 
@@ -42,18 +42,18 @@ dague_object_t* dplasma_zplrnt_New( tiled_matrix_desc_t *A,
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 int dplasma_zplrnt( dague_context_t *dague,
                     tiled_matrix_desc_t *A,
                     unsigned long long int seed)
 {
-    dague_object_t *dague_zplrnt = NULL;
+    dague_handle_t *dague_zplrnt = NULL;
 
     dague_zplrnt = dplasma_zplrnt_New(A, seed);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zplrnt);
+    dague_enqueue(dague, (dague_handle_t*)dague_zplrnt);
     dplasma_progress(dague);
 
     dplasma_zplrnt_Destruct( dague_zplrnt );
@@ -61,9 +61,9 @@ int dplasma_zplrnt( dague_context_t *dague,
 }
 
 void
-dplasma_zplrnt_Destruct( dague_object_t *o )
+dplasma_zplrnt_Destruct( dague_handle_t *o )
 {
-    dague_zplrnt_object_t *dague_zplrnt = (dague_zplrnt_object_t *)o;
+    dague_zplrnt_handle_t *dague_zplrnt = (dague_zplrnt_handle_t *)o;
     dplasma_datatype_undefine_type( &(dague_zplrnt->arenas[DAGUE_zplrnt_DEFAULT_ARENA   ]->opaque_dtt) );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zplrnt);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zplrnt);
 }

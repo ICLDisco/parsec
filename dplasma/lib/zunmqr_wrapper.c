@@ -72,13 +72,13 @@ static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
  * @sa dplasma_zgeqrf_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
                     tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T,
                     tiled_matrix_desc_t *B)
 {
-    dague_object_t* object;
+    dague_handle_t* object;
     int Am, ib = T->mb;
 
     /* if ( !dplasma_check_desc(A) ) { */
@@ -118,13 +118,13 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
      */
     if ( side == PlasmaLeft ) {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_object_t*)dague_zunmqr_LN_new( side, trans,
+            object = (dague_handle_t*)dague_zunmqr_LN_new( side, trans,
                                                            (dague_ddesc_t*)A,
                                                            (dague_ddesc_t*)B,
                                                            (dague_ddesc_t*)T,
                                                            NULL);
         } else {
-            object = (dague_object_t*)dague_zunmqr_LC_new( side, trans,
+            object = (dague_handle_t*)dague_zunmqr_LC_new( side, trans,
                                                            (dague_ddesc_t*)A,
                                                            (dague_ddesc_t*)B,
                                                            (dague_ddesc_t*)T,
@@ -132,13 +132,13 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
         }
     } else {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_object_t*)dague_zunmqr_RN_new( side, trans,
+            object = (dague_handle_t*)dague_zunmqr_RN_new( side, trans,
                                                            (dague_ddesc_t*)A,
                                                            (dague_ddesc_t*)B,
                                                            (dague_ddesc_t*)T,
                                                            NULL);
         } else {
-            object = (dague_object_t*)dague_zunmqr_RC_new( side, trans,
+            object = (dague_handle_t*)dague_zunmqr_RC_new( side, trans,
                                                            (dague_ddesc_t*)A,
                                                            (dague_ddesc_t*)B,
                                                            (dague_ddesc_t*)T,
@@ -146,23 +146,23 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
         }
     }
 
-    ((dague_zunmqr_LC_object_t*)object)->pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( ((dague_zunmqr_LC_object_t*)object)->pool_0, ib * T->nb * sizeof(dague_complex64_t) );
+    ((dague_zunmqr_LC_handle_t*)object)->pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( ((dague_zunmqr_LC_handle_t*)object)->pool_0, ib * T->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( ((dague_zunmqr_LC_object_t*)object)->arenas[DAGUE_zunmqr_LC_DEFAULT_ARENA],
+    dplasma_add2arena_tile( ((dague_zunmqr_LC_handle_t*)object)->arenas[DAGUE_zunmqr_LC_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
     /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( ((dague_zunmqr_LC_object_t*)object)->arenas[DAGUE_zunmqr_LC_LOWER_TILE_ARENA],
+    dplasma_add2arena_lower( ((dague_zunmqr_LC_handle_t*)object)->arenas[DAGUE_zunmqr_LC_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( ((dague_zunmqr_LC_object_t*)object)->arenas[DAGUE_zunmqr_LC_LITTLE_T_ARENA],
+    dplasma_add2arena_rectangle( ((dague_zunmqr_LC_handle_t*)object)->arenas[DAGUE_zunmqr_LC_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
@@ -192,9 +192,9 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
  *
  ******************************************************************************/
 void
-dplasma_zunmqr_Destruct( dague_object_t *object )
+dplasma_zunmqr_Destruct( dague_handle_t *object )
 {
-    dague_zunmqr_LC_object_t *dague_zunmqr = (dague_zunmqr_LC_object_t *)object;
+    dague_zunmqr_LC_handle_t *dague_zunmqr = (dague_zunmqr_LC_handle_t *)object;
 
     dplasma_datatype_undefine_type( &(dague_zunmqr->arenas[DAGUE_zunmqr_LC_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zunmqr->arenas[DAGUE_zunmqr_LC_LOWER_TILE_ARENA]->opaque_dtt) );
@@ -203,7 +203,7 @@ dplasma_zunmqr_Destruct( dague_object_t *object )
     dague_private_memory_fini( dague_zunmqr->pool_0 );
     free( dague_zunmqr->pool_0 );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zunmqr);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zunmqr);
 }
 
 /***************************************************************************//**
@@ -240,7 +240,7 @@ dplasma_zunmqr( dague_context_t *dague,
                 tiled_matrix_desc_t *T,
                 tiled_matrix_desc_t *B )
 {
-    dague_object_t *dague_zunmqr = NULL;
+    dague_handle_t *dague_zunmqr = NULL;
     int Am;
 
     if (dague == NULL) {
@@ -282,7 +282,7 @@ dplasma_zunmqr( dague_context_t *dague,
 
     dague_zunmqr = dplasma_zunmqr_New(side, trans, A, T, B);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zunmqr);
+    dague_enqueue(dague, (dague_handle_t*)dague_zunmqr);
     dplasma_progress(dague);
 
     dplasma_zunmqr_Destruct( dague_zunmqr );

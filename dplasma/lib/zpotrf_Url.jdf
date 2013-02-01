@@ -23,7 +23,7 @@ extern "C" %{
 
 
 #if defined(HAVE_CUDA)
-#include "gpu_data.h"
+#include <dague/devices/cuda/dev_cuda.h>
 #include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */
@@ -57,9 +57,6 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 //; (k >= (descA.nt - PRI_CHANGE)) ? (descA.nt - k + 7) * (descA.nt - k + 2) * (descA.nt - k) / 6 : 0
 
 BODY
-#if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, k, k) );
-#endif  /* defined(HAVE_CUDA) */
 
     int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
     int iinfo = 0;
@@ -104,9 +101,6 @@ RW    C <- (k == 0) ? A(k, n) : C GEMM(k-1, k, n)
 //;  (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n - k) * ((descA.nt - n - k + 1) / 2 + 2) - 1 + (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 : 0
 
 BODY
-#if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, k, n) );
-#endif  /* defined(HAVE_CUDA) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
@@ -151,9 +145,6 @@ RW    T <- (k == 0)   ? A(n, n)    : T HERK(k-1, n)
 //; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 + descA.nt - n + k + 1 : 0
 
 BODY
-#if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, n, n) );
-#endif  /* defined(HAVE_CUDA) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n*descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
@@ -204,10 +195,10 @@ BODY
     int ldam = BLKLDD( descA, m );
 
 #if defined(HAVE_CUDA)
-    if( dague_active_gpu() > 0 ) {
+    {  /* TODO: This should move to a CUDA BODY */
         int rc;
 
-        if( 0 == (rc = gpu_zgemm( context, this_task, 
+        if( 0 == (rc = gpu_zgemm( context, this_task,
                                   ( m == k+1 ),
                                   PlasmaConjTrans, PlasmaNoTrans,
                                   descA.mb, tempnn, descA.mb,
@@ -225,7 +216,6 @@ BODY
 	    exit(2);
         }
     }
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, m, n) );
 #endif  /* defined(HAVE_CUDA) */
 
     DRYRUN(

@@ -1,13 +1,15 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague_config.h"
+#include "dague_internal.h"
 #include "remote_dep.h"
 #include "scheduling.h"
 #include "execution_unit.h"
+#include "data.h"
 #include <stdio.h>
 
 #ifdef DISTRIBUTED
@@ -48,17 +50,17 @@ static inline int remote_dep_is_forwarded( dague_execution_unit_t* eu_context, d
 
 
 /* make sure we don't leave before serving all data deps */
-static inline void remote_dep_inc_flying_messages(dague_object_t *dague_object, dague_context_t* ctx)
+static inline void remote_dep_inc_flying_messages(dague_handle_t *dague_handle, dague_context_t* ctx)
 {
-    assert( dague_object->nb_local_tasks > 0 );
-    dague_atomic_inc_32b( &(dague_object->nb_local_tasks) );
+    assert( dague_handle->nb_local_tasks > 0 );
+    dague_atomic_inc_32b( &(dague_handle->nb_local_tasks) );
     (void)ctx;
 }
 
 /* allow for termination when all deps have been served */
-static inline void remote_dep_dec_flying_messages(dague_object_t *dague_object, dague_context_t* ctx)
+static inline void remote_dep_dec_flying_messages(dague_handle_t *dague_handle, dague_context_t* ctx)
 {
-    __dague_complete_task(dague_object, ctx);
+    __dague_complete_task(dague_handle, ctx);
 }
 
 /* Mark that ncompleted of the remote deps are finished, and return the remote dep to
@@ -172,7 +174,7 @@ static inline int remote_dep_bcast_star_child(int me, int him)
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
 #endif
 
-int dague_remote_dep_new_object(dague_object_t* obj) {
+int dague_remote_dep_new_object(dague_handle_t* obj) {
     return remote_dep_new_object(obj);
 }
 
@@ -189,7 +191,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
     assert(remote_deps_count);
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     /* make valgrind happy */
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
 #endif
@@ -198,10 +200,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 #endif
 
     remote_dep_reset_forwarded(eu_context, remote_deps);
-    remote_deps->dague_object = exec_context->dague_object;
+    remote_deps->dague_handle = exec_context->dague_handle;
     remote_deps->output_count = remote_deps_count;
     remote_deps->msg.deps = (uintptr_t) remote_deps;
-    remote_deps->msg.object_id   = exec_context->dague_object->object_id;
+    remote_deps->msg.handle_id   = exec_context->dague_handle->handle_id;
     remote_deps->msg.function_id = function->function_id;
     for(i = 0; i < function->nb_locals; i++) {
         remote_deps->msg.locals[i] = exec_context->locals[i];
@@ -232,8 +234,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
 
-                    if((me == -1) && (rank >= eu_context->virtual_process->dague_context->my_rank))
-                    {
+                    if((me == -1) && (rank >= eu_context->virtual_process->dague_context->my_rank)) {
                         /* the next bit points after me, so I know my dense rank now */
                         me = ++him;
                         if(rank == eu_context->virtual_process->dague_context->my_rank) {
@@ -243,18 +244,15 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     }
                     him++;
 
-                    if(remote_dep_bcast_child(me, him))
-                    {
+                    if(remote_dep_bcast_child(me, him)) {
                         DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
-                        if(ACCESS_NONE != exec_context->function->out[i]->access_type)
-                        {
-                            AREF(remote_deps->output[i].data);
+                        if(ACCESS_NONE != exec_context->function->out[i]->access_type) {
+                            OBJ_RETAIN(remote_deps->output[i].data);
                         }
-                        if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
-                        {
+                        if(remote_dep_is_forwarded(eu_context, remote_deps, rank)) {
                             continue;
                         }
-                        remote_dep_inc_flying_messages(exec_context->dague_object, eu_context->virtual_process->dague_context);
+                        remote_dep_inc_flying_messages(exec_context->dague_handle, eu_context->virtual_process->dague_context);
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
                     } else {
@@ -269,11 +267,11 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     }
 
     /* Only the thread doing bcast forward can enter the following line.
-     * the same communication thread calls here and does the 
-     * sends that call complete_and_cleanup concurently. 
+     * the same communication thread calls here and does the
+     * sends that call complete_and_cleanup concurently.
      * Any other threads would create a race condition.
-     * This has to be done only if the receiver is a leaf in a broadcast. 
-     * The remote_deps has then been allocated in dague_release_dep_fct 
+     * This has to be done only if the receiver is a leaf in a broadcast.
+     * The remote_deps has then been allocated in dague_release_dep_fct
      * when we didn't knew yet if we forward the data or not.
      */
     if( skipped_count ) {
@@ -311,7 +309,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
             dague_remote_dep_context.max_dep_count * rankbits_size +
             /* One extra rankbit to track the delivery of Activates */
             rankbits_size;
-        dague_lifo_construct(&dague_remote_dep_context.freelist);
+        OBJ_CONSTRUCT(&dague_remote_dep_context.freelist, dague_lifo_t);
         dague_remote_dep_inited = 1;
     }
 
@@ -328,7 +326,7 @@ void remote_deps_allocation_fini(void)
         while(NULL != (rdeps = (dague_remote_deps_t*) dague_lifo_pop(&dague_remote_dep_context.freelist))) {
             free(rdeps);
         }
-        dague_lifo_destruct(&dague_remote_dep_context.freelist);
+        OBJ_DESTRUCT(&dague_remote_dep_context.freelist);
     }
     dague_remote_dep_inited = 0;
 }

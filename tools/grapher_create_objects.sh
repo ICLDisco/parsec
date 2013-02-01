@@ -29,7 +29,7 @@ onefile() {
     
     /bin/echo "#include \"dplasma/lib/$BASEFILE\""
     cat<<EOF
-static dague_object_t *${BASE}_create(int argc, char **argv)
+static dague_handle_t *${BASE}_create(int argc, char **argv)
 {
 EOF
     
@@ -38,7 +38,7 @@ EOF
     done
     
     cat <<EOF
-  dague_object_t *ret;
+  dague_handle_t *ret;
   int allset = 1;
   int i;
   for(i = 0; i < argc; i+= 2) {
@@ -60,7 +60,7 @@ EOF
     return NULL;
 
 EOF
-    /bin/echo -n "  ret = (dague_object_t*)dague_${BASE}_new"
+    /bin/echo -n "  ret = (dague_handle_t*)dague_${BASE}_new"
     
     V="("
     for m in $MAT; do

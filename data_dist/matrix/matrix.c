@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,6 +16,8 @@
 #endif
 
 #include "dague_config.h"
+#include "dague_internal.h"
+#include "data.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
@@ -40,19 +42,20 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     /* tdesc->A22 = (lm - lm%mb)*(     ln%nb) + tdesc->A12; */
 
     /* Super setup */
-    tdesc->super.nodes = nodes;    
+    tdesc->super.nodes = nodes;
     tdesc->super.cores = cores;
     tdesc->super.myrank = myrank;
-    tdesc->super.moesi_map = NULL;
+    tdesc->super.key_base = NULL;
 
     /* Matrix properties */
-    tdesc->mtype   = mtyp;
-    tdesc->storage = storage;
-    tdesc->dtype   = tiled_matrix_desc_type | dtype;
-    tdesc->tileld  = (storage == matrix_Tile) ? mb : lm;
-    tdesc->mb      = mb;
-    tdesc->nb      = nb;
-    tdesc->bsiz    = mb * nb;
+    tdesc->data_map = NULL;
+    tdesc->mtype    = mtyp;
+    tdesc->storage  = storage;
+    tdesc->dtype    = tiled_matrix_desc_type | dtype;
+    tdesc->tileld   = (storage == matrix_Tile) ? mb : lm;
+    tdesc->mb       = mb;
+    tdesc->nb       = nb;
+    tdesc->bsiz     = mb * nb;
 
     /* Large matrix parameters */
     tdesc->lm = lm;
@@ -97,7 +100,6 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
 #if defined(DAGUE_PROF_TRACE)
     asprintf(&(tdesc->super.key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
 #endif
-    return;
 }
 
 tiled_matrix_desc_t *
@@ -136,8 +138,10 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
  * Writes the data into the file filename
  * Sequential function per node
  */
-int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
+int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
+{
     dague_ddesc_t *ddesc = &(tdesc->super);
+    dague_data_t* data;
     FILE *tmpf;
     char *buf;
     int i, j, k;
@@ -154,7 +158,8 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    buf = ddesc->data_of( ddesc, i, j );
+                    data = ddesc->data_of( ddesc, i, j );
+                    buf = DAGUE_DATA_COPY_GET_PTR(data->device_copies[0]);
                     fwrite(buf, eltsize, tdesc->bsiz, tmpf );
                 }
             }
@@ -162,7 +167,8 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    buf = ddesc->data_of( ddesc, i, j );
+                    data = ddesc->data_of( ddesc, i, j );
+                    buf = DAGUE_DATA_COPY_GET_PTR(data->device_copies[0]);
                     for (k=0; k<tdesc->nb; k++) {
                         fwrite(buf, eltsize, tdesc->mb, tmpf );
                         buf += eltsize * tdesc->lm;
@@ -180,8 +186,10 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
  * Read the data from the file filename
  * Sequential function per node
  */
-int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
+int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
+{
     dague_ddesc_t *ddesc = &(tdesc->super);
+    dague_data_t* data;
     FILE *tmpf;
     char *buf;
     int i, j, k, ret;
@@ -198,7 +206,8 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    buf = ddesc->data_of( ddesc, i, j );
+                    data = ddesc->data_of( ddesc, i, j );
+                    buf = DAGUE_DATA_COPY_GET_PTR(data->device_copies[0]);
                     ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
                     if ( ret !=  tdesc->bsiz ) {
                         fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
@@ -211,8 +220,9 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    buf = ddesc->data_of( ddesc, i, j );
-                    for (k=0; k<tdesc->nb; k++) {
+                    data = ddesc->data_of( ddesc, i, j );
+                    buf = DAGUE_DATA_COPY_GET_PTR(data->device_copies[0]);
+                    for (k=0; k < tdesc->nb; k++) {
                         ret = fread(buf, eltsize, tdesc->mb, tmpf );
                         if ( ret !=  tdesc->mb ) {
                             fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",

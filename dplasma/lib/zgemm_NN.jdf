@@ -21,7 +21,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 
 #if defined(HAVE_CUDA)
-#include "gpu_data.h"
+#include <dague/devices/cuda/dev_cuda.h>
 #include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */
@@ -56,7 +56,7 @@ k = 0 .. descA.nt-1
 A <- A(m, k)
   -> A GEMM(m, 0, k)
 BODY
-    printlog("rank %u <- A(%d,%d)\n", __dague_object->super.A->myrank, m, k);
+    printlog("rank %u <- A(%d,%d)\n", __dague_handle->super.A->myrank, m, k);
 END
 
 /**************************************************
@@ -72,7 +72,7 @@ n = 0 .. descB.nt-1
 B <- B(k, n)
   -> B GEMM(0, n, k)
 BODY
-     printlog("rank %u <- B(%d,%d)\n", __dague_object->super.B->myrank, k, n);
+     printlog("rank %u <- B(%d,%d)\n", __dague_handle->super.B->myrank, k, n);
 END
 
 /**************************************************
@@ -105,10 +105,10 @@ BODY
         int ldcm = BLKLDD(descC, m);
 
 #if defined(HAVE_CUDA)
-    if( dague_active_gpu() > 0 ) {
+    {  /* TODO: This should move in a CUDA BODY */
         int rc;
 
-        if( 0 == (rc = gpu_zgemm( context, this_task, 
+        if( 0 == (rc = gpu_zgemm( context, this_task,
                                   ( k == descA.nt-1 ),
                                   transA, transB,
                                   tempmm, tempnn, tempkk,
@@ -126,7 +126,6 @@ BODY
 	        exit(2);
         }
     }
-    moesi_master_update( descC.super.moesi_map, GEMM_KEY( &descC, m, n) );
 #endif  /* defined(HAVE_CUDA) */
 
         DRYRUN(
@@ -141,7 +140,7 @@ BODY
         printlog("gemm( %d, %d, %d )\n"
                  "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
                  m, n, k,
-                 plasma_const( transA ), plasma_const( transB ), 
+                 plasma_const( transA ), plasma_const( transB ),
                  tempmm, tempnn, tempkk,
                  creal(alpha), m, k, ldam,
                                k, n, ldbk,

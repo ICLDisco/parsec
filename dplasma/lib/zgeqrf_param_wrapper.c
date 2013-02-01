@@ -15,12 +15,12 @@
 
 #include "zgeqrf_param.h"
 
-dague_object_t* dplasma_zgeqrf_param_New( dplasma_qrtree_t *qrtree,
+dague_handle_t* dplasma_zgeqrf_param_New( dplasma_qrtree_t *qrtree,
                                           tiled_matrix_desc_t *A,
                                           tiled_matrix_desc_t *TS,
                                           tiled_matrix_desc_t *TT )
 {
-    dague_zgeqrf_param_object_t* object;
+    dague_zgeqrf_param_handle_t* object;
     int ib = TS->mb;
 
     /*
@@ -63,7 +63,7 @@ dague_object_t* dplasma_zgeqrf_param_New( dplasma_qrtree_t *qrtree,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, TS->mb, TS->nb, -1);
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 int dplasma_zgeqrf_param( dague_context_t *dague,
@@ -72,11 +72,11 @@ int dplasma_zgeqrf_param( dague_context_t *dague,
                           tiled_matrix_desc_t *TS,
                           tiled_matrix_desc_t *TT)
 {
-    dague_object_t *dague_zgeqrf_param = NULL;
+    dague_handle_t *dague_zgeqrf_param = NULL;
 
     dague_zgeqrf_param = dplasma_zgeqrf_param_New(qrtree, A, TS, TT);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zgeqrf_param);
+    dague_enqueue(dague, (dague_handle_t*)dague_zgeqrf_param);
     dplasma_progress(dague);
 
     dplasma_zgeqrf_param_Destruct( dague_zgeqrf_param );
@@ -84,9 +84,9 @@ int dplasma_zgeqrf_param( dague_context_t *dague,
 }
 
 void
-dplasma_zgeqrf_param_Destruct( dague_object_t *o )
+dplasma_zgeqrf_param_Destruct( dague_handle_t *o )
 {
-    dague_zgeqrf_param_object_t *dague_zgeqrf_param = (dague_zgeqrf_param_object_t *)o;
+    dague_zgeqrf_param_handle_t *dague_zgeqrf_param = (dague_zgeqrf_param_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA]->opaque_dtt) );
@@ -98,5 +98,5 @@ dplasma_zgeqrf_param_Destruct( dague_object_t *o )
     free( dague_zgeqrf_param->p_work );
     free( dague_zgeqrf_param->p_tau  );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgeqrf_param);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgeqrf_param);
 }

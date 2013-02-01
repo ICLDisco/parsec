@@ -83,8 +83,8 @@ int main(int argc, char *argv[])
                     int rsrc = ddescA.super.super.rank_of(0,t);
                     if(rsrc == 0)
                         {
-                            PLASMA_Complex64_t* datain = ddescA.super.super.data_of(0,t);
-                            PLASMA_Complex64_t* dataout = ddescLA.super.super.data_of(0,t);
+                            PLASMA_Complex64_t* datain = dague_data_copy_get_ptr(dague_data_get_copy(ddescA.super.super.data_of(0,t), 0));
+                            PLASMA_Complex64_t* dataout = dague_data_copy_get_ptr(dague_data_get_copy(ddescLA.super.super.data_of(0,t), 0));
                             for(int n = 0; n < NB; n++) for(int m = 0; m < 2; m++)
                                                             {
                                                                 dataout[m+n*2] = datain[m+n*(MB+1)];
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
                         }
                     else
                         {
-                            PLASMA_Complex64_t* dataout = ddescLA.super.super.data_of(0,t);
+                            PLASMA_Complex64_t* dataout = dague_data_copy_get_ptr(dague_data_get_copy(ddescLA.super.super.data_of(0,t), 0));
                             MPI_Recv(dataout, 2*NB, MPI_DOUBLE_COMPLEX, rsrc, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                         }
                 }
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
                 for(int t = 0; t < NT; t++) {
                     if(ddescA.super.super.rank_of(0,t) == (uint32_t)rank)
                         {
-                            PLASMA_Complex64_t* datain = ddescA.super.super.data_of(0,t);
+                            PLASMA_Complex64_t* datain = dague_data_copy_get_ptr(dague_data_get_copy(ddescA.super.super.data_of(0,t), 0));
                             MPI_Send(datain, 1, bidiagband_dtt, 0, t, MPI_COMM_WORLD);
                         }
                 }

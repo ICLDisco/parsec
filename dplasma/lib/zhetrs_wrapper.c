@@ -16,7 +16,7 @@
 
 static void multilevel_zgebmm(dague_context_t *dague, tiled_matrix_desc_t* B, PLASMA_Complex64_t *U_but_vec, int level, int trans, int order, int *info){
     int cur_level, L;
-    dague_object_t **op;
+    dague_handle_t **op;
 
     for( L=0; L <= level; L++ ){
         int i_block, j_block, block_count;
@@ -33,7 +33,7 @@ static void multilevel_zgebmm(dague_context_t *dague, tiled_matrix_desc_t* B, PL
         fflush(stdout);
 #endif
 
-        op = (dague_object_t **)calloc( block_count*block_count, sizeof(dague_object_t *));
+        op = (dague_handle_t **)calloc( block_count*block_count, sizeof(dague_handle_t *));
 
         for(i_block=0; i_block < block_count; i_block++){
             for(j_block=0; j_block < block_count; j_block++){

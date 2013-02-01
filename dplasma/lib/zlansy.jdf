@@ -39,7 +39,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
-#define my_rank_of(m, n) (((dague_ddesc_t*)(__dague_object->super.dataA))->rank_of((dague_ddesc_t*)__dague_object->super.dataA, m, n))
+#define my_rank_of(m, n) (((dague_ddesc_t*)(__dague_handle->super.dataA))->rank_of((dague_ddesc_t*)__dague_handle->super.dataA, m, n))
 
 %}
 

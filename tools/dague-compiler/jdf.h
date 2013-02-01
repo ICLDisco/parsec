@@ -98,6 +98,16 @@ typedef struct jdf_global_entry {
     struct jdf_data_entry   *data;
 } jdf_global_entry_t;
 
+/**
+ * The definition of a BODY.
+ */
+typedef struct jdf_body {
+    struct jdf_object_t      super;
+    struct jdf_body         *next;
+    struct jdf_def_list     *properties;
+    char                    *external_code;
+} jdf_body_t;
+
 /** A JDF function is the complex object described below
  *  It uses a jdf_flags_t type for its flags
  */
@@ -119,7 +129,7 @@ typedef struct jdf_function_entry {
     struct jdf_expr           *priority;
     struct jdf_expr           *simcost;
     struct jdf_def_list       *properties;
-    char                      *body;
+    struct jdf_body           *bodies;
 } jdf_function_entry_t;
 
 typedef struct jdf_data_entry {

@@ -84,7 +84,7 @@ static int init_tree_queues(  dague_context_t *master )
 
              if( eu->th_id == 0 ) {
                  sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-                 dague_dequeue_construct( sched_obj->system_queue );
+                 OBJ_CONSTRUCT( &sched_obj->system_queue, dague_dequeue_t );
              } else {
                  sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_units[0])->system_queue;
              }
@@ -351,7 +351,7 @@ static void finalize_tree_queues( dague_context_t *master )
             sched_obj = LOCAL_QUEUES_OBJECT(eu);
 
             if( eu->th_id == 0 ) {
-                dague_dequeue_destruct( sched_obj->system_queue );
+                OBJ_RELEASE(sched_obj->system_queue);
                 free( sched_obj->system_queue );
             }
             sched_obj->system_queue = NULL;
@@ -409,7 +409,7 @@ static int init_global_dequeue( dague_context_t *master )
 
         for(p = 0; p < master->nb_vp; p++) {
             q = malloc(sizeof(dague_dequeue_t));
-            dague_dequeue_construct( q );
+            OBJ_CONSTRUCT(q, dague_dequeue_t);
 
             vp = master->virtual_processes[p];
             for(t = 0; t < vp->nb_cores; t++) {
@@ -451,7 +451,7 @@ static void finalize_global_dequeue( dague_context_t *master )
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_units[t];
             if( eu->th_id == 0 ) {
-                dague_dequeue_destruct( (dague_dequeue_t*)eu->scheduler_object );
+                OBJ_RELEASE(eu->scheduler_object);
                 free(eu->scheduler_object);
             }
             eu->scheduler_object = NULL;
@@ -501,7 +501,7 @@ static int init_local_flat_queues(  dague_context_t *master )
 
             if( eu->th_id == 0 ) {
                 sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-                dague_dequeue_construct( sched_obj->system_queue );
+                OBJ_CONSTRUCT(sched_obj->system_queue, dague_dequeue_t);
             } else {
                 sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_units[0])->system_queue;
             }
@@ -603,7 +603,7 @@ static int init_local_hier_queues( dague_context_t *master )
 
             if( eu->th_id == 0 ) {
                 sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-                dague_list_construct( sched_obj->system_queue );
+                OBJ_CONSTRUCT(sched_obj->system_queue, dague_list_t);
             } else {
                 sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_units[0])->system_queue;
             }
@@ -755,7 +755,7 @@ static void finalize_local_flat_queues( dague_context_t *master )
             sched_obj = LOCAL_QUEUES_OBJECT(eu);
 
             if( eu->th_id == 0 ) {
-                dague_dequeue_destruct( sched_obj->system_queue );
+                OBJ_RELEASE(sched_obj->system_queue);
                 free( sched_obj->system_queue );
             }
             sched_obj->system_queue = NULL;
@@ -838,7 +838,7 @@ static int init_absolute_priorities( dague_context_t *master )
             eu = vp->execution_units[t];
             if( eu->th_id == 0 ) {
                 eu->scheduler_object = (dague_list_t*)malloc(sizeof(dague_list_t));
-                dague_list_construct( (dague_list_t*)eu->scheduler_object );
+                OBJ_CONSTRUCT((dague_list_t*)eu->scheduler_object, dague_list_t);
             } else {
                 eu->scheduler_object = eu->virtual_process->execution_units[0]->scheduler_object;
             }
@@ -859,7 +859,7 @@ static void finalize_absolute_priorities( dague_context_t *master )
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_units[t];
             if( eu->th_id == 0 ) {
-                 dague_list_destruct( (dague_list_t*)eu->scheduler_object );
+                 OBJ_RELEASE(eu->scheduler_object);
                 free(eu->scheduler_object);
             }
             eu->scheduler_object = NULL;

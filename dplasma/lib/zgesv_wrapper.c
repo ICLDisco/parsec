@@ -21,10 +21,10 @@ dplasma_zgesv( dague_context_t *dague,
 #ifdef DAGUE_COMPOSITION
 #warning "Not implemented"
 
-    dague_object_t *dague_zgetrf = dplasma_zgetrf_New(A, IPIV, &info);
-    dague_object_t *dague_zlaswp = dplasma_zlaswp_New(B, IPIV, 1);
-    dague_object_t *dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, 1.0, A, B);
-    dague_object_t *dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+    dague_handle_t *dague_zgetrf = dplasma_zgetrf_New(A, IPIV, &info);
+    dague_handle_t *dague_zlaswp = dplasma_zlaswp_New(B, IPIV, 1);
+    dague_handle_t *dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, 1.0, A, B);
+    dague_handle_t *dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
     dague_enqueue( dague, dague_zgetrf  );
     dague_enqueue( dague, dague_zlaswp );

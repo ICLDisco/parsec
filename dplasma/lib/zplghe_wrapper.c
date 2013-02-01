@@ -39,11 +39,11 @@
  *          The seed used in the random generation.
  *
  ******************************************************************************/
-dague_object_t* dplasma_zplghe_New( double bump, PLASMA_enum uplo, 
+dague_handle_t* dplasma_zplghe_New( double bump, PLASMA_enum uplo, 
                                     tiled_matrix_desc_t *A,
                                     unsigned long long int seed)
 {
-    dague_zplghe_object_t* object;
+    dague_zplghe_handle_t* object;
     
     object = dague_zplghe_new( uplo, bump, seed, *A, (dague_ddesc_t*)A);
 
@@ -53,7 +53,7 @@ dague_object_t* dplasma_zplghe_New( double bump, PLASMA_enum uplo,
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
     
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 int dplasma_zplghe( dague_context_t *dague, 
@@ -61,11 +61,11 @@ int dplasma_zplghe( dague_context_t *dague,
                     tiled_matrix_desc_t *A,
                     unsigned long long int seed) 
 {
-    dague_object_t *dague_zplghe = NULL;
+    dague_handle_t *dague_zplghe = NULL;
 
     dague_zplghe = dplasma_zplghe_New(bump, uplo, A, seed);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zplghe);
+    dague_enqueue(dague, (dague_handle_t*)dague_zplghe);
     dplasma_progress(dague);
 
     dplasma_zplghe_Destruct( dague_zplghe );
@@ -73,10 +73,10 @@ int dplasma_zplghe( dague_context_t *dague,
 }
 
 void
-dplasma_zplghe_Destruct( dague_object_t *o )
+dplasma_zplghe_Destruct( dague_handle_t *o )
 {
-    dague_zplghe_object_t *dague_zplghe = (dague_zplghe_object_t *)o;
+    dague_zplghe_handle_t *dague_zplghe = (dague_zplghe_handle_t *)o;
     dplasma_datatype_undefine_type( &(dague_zplghe->arenas[DAGUE_zplghe_DEFAULT_ARENA]->opaque_dtt) );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zplghe);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zplghe);
 }
 

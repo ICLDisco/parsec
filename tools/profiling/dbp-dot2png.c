@@ -62,7 +62,7 @@ static void sample(const dbp_multifile_reader_t *dbp,
             dico = dbp_reader_get_dictionary(dbp, BASE_KEY(key));
             tname = dbp_dictionary_name(dico);
             oid = dbp_event_get_event_id(dbp_e);
-            node = find_node_by_task_name_and_object_id(tname, oid);
+            node = find_node_by_task_name_and_handle_id(tname, oid);
             
             if( NID != node ) {
                 if( KEY_IS_START(key) ) {

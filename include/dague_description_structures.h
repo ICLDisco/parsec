@@ -9,19 +9,19 @@
 
 #include "dague_config.h"
 
-typedef struct assignment assignment_t;
-typedef struct expr expr_t;
-typedef struct dague_flow dague_flow_t;
-typedef struct dep dep_t;
-typedef struct symbol symbol_t;
-typedef struct dague_datatype dague_datatype_t;
+typedef struct assignment_s assignment_t;
+typedef struct expr_s expr_t;
+typedef struct dague_flow_s dague_flow_t;
+typedef struct dep_s dep_t;
+typedef struct symbol_s symbol_t;
+typedef struct dague_datatype_s dague_datatype_t;
 
-struct dague_object;
+struct dague_handle_s;
 
 /**
  * Assignments
  */
-struct assignment {
+struct assignment_s {
     int value;
 };
 
@@ -32,16 +32,17 @@ struct assignment {
 #define EXPR_OP_RANGE_EXPR_INCREMENT  25
 #define EXPR_OP_INLINE                100
 
-typedef int (*expr_op_inline_func_t)(const struct dague_object *__dague_object_parent, const assignment_t *assignments);
+typedef int (*expr_op_inline_func_t)(const struct dague_handle_s *__dague_handle_parent,
+                                     const assignment_t *assignments);
 
-struct expr {
+struct expr_s {
     union {
         struct {
-            const struct expr *op1;
-            const struct expr *op2;
+            const struct expr_s *op1;
+            const struct expr_s *op2;
             union {
                 int cst;
-                const struct expr *expr;
+                const struct expr_s *expr;
             } increment;
         } range;
         expr_op_inline_func_t inline_func;
@@ -68,7 +69,7 @@ struct expr {
 #define ACCESS_WRITE    0x02
 #define ACCESS_RW       (ACCESS_READ | ACCESS_WRITE)
 
-struct dague_flow {
+struct dague_flow_s {
     char               *name;
     unsigned char       sym_type;
     unsigned char       access_type;
@@ -82,14 +83,14 @@ struct dague_flow {
  */
 #define MAX_CALL_PARAM_COUNT    MAX_PARAM_COUNT
 
-struct dague_datatype {
+struct dague_datatype_s {
     int index;
     int nb_elt;
     expr_op_inline_func_t index_fct;
     expr_op_inline_func_t nb_elt_fct;
 };
 
-struct dep {
+struct dep_s {
     const expr_t                *cond;           /**< The runtime-evaluable condition on this dependency */
     const expr_t                *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
     const int                    function_id;    /**< Index of the target dague function in the object function array */
@@ -98,7 +99,7 @@ struct dep {
     dague_datatype_t             datatype;       /**< Datatype associated with this dependency */
 };
 
-void dep_dump(const dep_t *d, const struct dague_object *dague_object, const char *prefix);
+void dep_dump(const dep_t *d, const struct dague_handle_s *dague_handle, const char *prefix);
 
 /**
  * Parameters
@@ -107,7 +108,7 @@ void dep_dump(const dep_t *d, const struct dague_object *dague_object, const cha
 #define DAGUE_SYMBOL_IS_GLOBAL      0x0001     /**> This symbol is a global one. */
 #define DAGUE_SYMBOL_IS_STANDALONE  0x0002     /**> standalone symbol, with dependencies only to global symbols */
 
-struct symbol {
+struct symbol_s {
     uint32_t        flags;           /*< mask of GLOBAL and STANDALONE */
     const char     *name;            /*< Name, used for debugging purposes */
     int             context_index;   /*< Location of this symbol's value in the execution_context->locals array */
