@@ -32,7 +32,6 @@ void pins_thread_init_cachemiss(dague_execution_unit_t * exec_unit) {
     exec_unit->exec_cache_misses[0] = 0;
     exec_unit->exec_cache_misses[1] = 0;
     exec_unit->exec_tlb_misses = 0;
-	
 
 	exec_unit->StealEventSet = PAPI_NULL;
 	if (PAPI_create_eventset(&exec_unit->StealEventSet) != PAPI_OK)
