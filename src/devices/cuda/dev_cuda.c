@@ -809,7 +809,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                                           gpu_device->cuda_index, lru_gpu_elem, master, this_task->function->name, i, oldmaster));
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-                    gpu_free( gpu_device->memory, (void*)(lru_gpu_elem->gpu_mem_ptr) );
+                    gpu_free( gpu_device->memory, (void*)(lru_gpu_elem->device_private) );
                     free(lru_gpu_elem);
                     goto malloc_data;
 #endif
