@@ -42,10 +42,7 @@ set(OMEGA_LIBRARIES ${OMEGA_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(OMEGA 
-"Could NOT find Omega; Options depending on Omega will be disabled
-  if needed, please specify the library location
-    - using OMEGA_DIR [${OMEGA_DIR}]
-    - or a combination of OMEGA_INCLUDE_DIR [${OMEGA_INCLUDE_DIR}] and OMEGA_LIBRARY [${OMEGA_LIBRARY}]"
+"Could NOT find Omega; Options depending on Omega will be disabled"
   OMEGA_INCLUDE_DIR OMEGA_LIBRARY )
 
 if(OMEGA_FOUND)
