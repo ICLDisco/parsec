@@ -285,9 +285,13 @@ CHECK_C_COMPILER_FLAG( "-Wextra" HAVE_WEXTRA )
 IF( HAVE_WEXTRA )
     SET( C_WFLAGS "${C_WFLAGS} -Wextra" )
 ENDIF( HAVE_WEXTRA )
+#
 # flags for the overly verbose icc
-CHECK_C_COMPILER_FLAG( "-wd424" HAVE_WD )
-IF( HAVE_WD )
+#
+STRING(REGEX MATCH ".*icc$" _match_icc ${CMAKE_C_COMPILER})
+if(_match_icc)
+  CHECK_C_COMPILER_FLAG( "-wd424" HAVE_WD )
+  IF( HAVE_WD )
     # 424: checks for duplicate ";"
     # 981: every volatile triggers a "unspecified evaluation order", obnoxious
     #      but might be useful for some debugging sessions. 
@@ -295,7 +299,8 @@ IF( HAVE_WD )
     #       files
     # 1572: cuda compares floats with 0.0f. 
     SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572" )
-ENDIF( HAVE_WD )
+  ENDIF( HAVE_WD )
+endif(_match_icc)
 CHECK_C_COMPILER_FLAG( "-g3" HAVE_G3 )
 IF( HAVE_G3 )
     SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g3 ${C_WFLAGS}" )
