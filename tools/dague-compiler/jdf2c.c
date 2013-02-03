@@ -3496,7 +3496,7 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
     if( strlen( string_arena_get_string( sa_test ) ) != 0 )
         coutput("  /** Check if some lookups are to be done **/\n"
                 "  if( %s )\n"
-                "    return DAGUE_LOOKUP_DONE;\n"
+                "    return DAGUE_HOOK_RETURN_DONE;\n"
                 "\n",
                 string_arena_get_string( sa_test ));
 
@@ -3526,7 +3526,7 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
         string_arena_free(sa3);
     }
 
-    coutput("  return DAGUE_LOOKUP_DONE;\n"
+    coutput("  return DAGUE_HOOK_RETURN_DONE;\n"
             "}\n\n");
     string_arena_free(sa);
     string_arena_free(sa2);

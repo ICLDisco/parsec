@@ -341,7 +341,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
             
             switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
-            case DAGUE_LOOKUP_DONE:
+            case DAGUE_HOOK_RETURN_DONE:
                 /* We're good to go ... */
                 if( 0 == __dague_execute( eu_context, exec_context ) ) {
                     __dague_complete_execution( eu_context, exec_context );

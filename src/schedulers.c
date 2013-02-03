@@ -222,8 +222,8 @@ static int schedule_tree_queues( dague_execution_unit_t* eu_context,
     int i, j;
 
     // do data_lookup
-    if (cur->function->prepare_input(eu_context, cur) != DAGUE_LOOKUP_DONE)
-	    assert(0);
+    if(DAGUE_HOOK_RETURN_DONE != cur->function->prepare_input(eu_context, cur))
+        assert(0);
 
     while (1) {
         // check next element before insertion, which destroys next and prev
@@ -237,8 +237,8 @@ static int schedule_tree_queues( dague_execution_unit_t* eu_context,
         }
 
         // compare data.... if we have at least one similar data item, then group
-        if (next->function->prepare_input(eu_context, next) != DAGUE_LOOKUP_DONE)
-	        assert(0);
+        if(DAGUE_HOOK_RETURN_DONE != next->function->prepare_input(eu_context, next))
+            assert(0);
         matches = 0;
         for (i = 0; i < MAX_PARAM_COUNT; i++) {
                 for (j = 0; j < MAX_PARAM_COUNT; j++) {

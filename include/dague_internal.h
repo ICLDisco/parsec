@@ -67,12 +67,6 @@ typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context
 #endif
 
 /**
- * Return codes for data_lookup functions:
- *  DAGUE_LOOKUP_DONE: all data is ready to be used.
- */
-#define DAGUE_LOOKUP_DONE 1
-
-/**
  *
  */
 typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit_s *eu,
@@ -115,9 +109,9 @@ typedef float (dague_evaluate_function_t)(const dague_execution_context_t* task)
  *
  */
 typedef enum dague_hook_return_e {
-    DAGUE_HOOK_RETURN_DONE    =  0,  /* This chore succeeded */
+    DAGUE_HOOK_RETURN_DONE    =  0,  /* This execution succeeded */
     DAGUE_HOOK_RETURN_AGAIN   = -1,  /* Reschedule later */
-    DAGUE_HOOK_RETURN_NEXT    = -2,  /* Try next chore [if any] */
+    DAGUE_HOOK_RETURN_NEXT    = -2,  /* Try next variant [if any] */
     DAGUE_HOOK_RETURN_DISABLE = -3,  /* Disable the device, something went wrong */
     DAGUE_HOOK_RETURN_ASYNC   = -4,  /* The task is outside our reach, the completion will
                                       * be triggered asynchronously. */
