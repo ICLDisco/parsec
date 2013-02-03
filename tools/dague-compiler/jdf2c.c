@@ -4535,5 +4535,16 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     if( NULL != hfile )
         fclose(hfile);
 
+#if defined(HAVE_INDENT)
+    {
+        char* command;
+
+        asprintf(&command, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c );
+        system(command);
+        asprintf(&command, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h );
+        system(command);
+    }
+#endif  /* defined(HAVE_INDENT) */
+
     return ret;
 }

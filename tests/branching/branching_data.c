@@ -97,7 +97,7 @@ void free_data(dague_ddesc_t *d)
 {
     my_datatype_t *m = (my_datatype_t*)d;
     if(NULL != m->data) {
-        dague_data_copy_release(m->data);
+        DAGUE_DATA_COPY_RELEASE(m->data);
     }
     free(m->ptr);
     dague_ddesc_destroy(d);

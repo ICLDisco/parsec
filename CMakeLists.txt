@@ -483,6 +483,18 @@ endif(NOT DAGUE_COMPILE_INPLACE)
 add_definitions(-DHAVE_CONFIG_H)
 
 #
+# Check if indent is available on the system.
+#
+set(HAVE_INDENT 0)
+FIND_PROGRAM(INDENT_EXECUTABLE indent DOC "path to the indent executable")
+MARK_AS_ADVANCED(INDENT_EXECUTABLE)
+SET(INDENT_OPTIONS "-bacc -bad -bap -bc -br -ncdb -c0 -cd80 -ci2 -i4 -lp -nut")
+MARK_AS_ADVANCED(INDENT_OPTIONS)
+if(INDENT_EXECUTABLE)
+  set(HAVE_INDENT 1)
+endif(INDENT_EXECUTABLE)
+
+#
 # First go for the tools.
 #
 set(daguepp_EXE "NOT-DEFINED")
