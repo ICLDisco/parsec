@@ -416,7 +416,7 @@ IF( BUILD_DAGUE )
   endif (MPI_FOUND)
 
   if( DAGUE_GPU_WITH_CUDA )
-    find_package(CUDA)
+    find_package(CUDA QUIET)
     set(HAVE_CUDA ${CUDA_FOUND})
     if (CUDA_FOUND)
       if(CUDA_VERSION VERSION_LESS "3.0")
