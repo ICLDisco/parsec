@@ -213,6 +213,7 @@ int main(int argc, char *argv[])
 
     jdf_prepare_parsing();
 
+    /*yydebug = 5;*/
     if( yyparse(scanner) > 0 ) {
         exit(1);
     }
