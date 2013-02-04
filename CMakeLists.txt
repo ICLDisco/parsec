@@ -137,10 +137,12 @@ option(DAGUE_PROF_DRY_DEP
   "Disable calls to the actual data transport; remote dependencies are notified, but no data movement takes place" OFF)
 
 ### Instrumentation Options
-option(PARSEC_INSTR
+option(PINS_ENABLE
   "Enable the use of the PaRSEC callback instrumentation system" ON)
-option(PARSEC_STEAL_INSTR
-   "Enable the counting of steals during runtime and a post-run count output in matrix form." ON)
+option(PINS_SCHED_STEALS
+   "Enable the counting of steals during scheduling and a post-run count output in matrix form." OFF)
+option(PINS_EXEC_MISSES
+   "Enable the counting of cache and TLB misses during task execution and a post-run count output in matrix form." OFF)
 
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
@@ -432,15 +434,26 @@ IF( BUILD_DAGUE )
     endif (CUDA_FOUND)
   endif( DAGUE_GPU_WITH_CUDA )
 
-  if (PARSEC_STEAL_INSTR)
+  if (PINS_SCHED_STEALS)
     find_package(PAPI REQUIRED)
     set(HAVE_PAPI ${PAPI_FOUND})
     if (PAPI_FOUND)
       list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
       include_directories( ${PAPI_INCLUDE_DIR} )
     endif (PAPI_FOUND)
-  endif (PARSEC_STEAL_INSTR)
+  endif (PINS_SCHED_STEALS)
   
+  if (PINS_EXEC_MISSES)
+    if (NOT PAPI_FOUND)
+      find_package(PAPI REQUIRED)
+      set(HAVE_PAPI ${PAPI_FOUND})
+      if (PAPI_FOUND)
+        list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
+        include_directories( ${PAPI_INCLUDE_DIR} )
+      endif (PAPI_FOUND)
+    endif (NOT PAPI_FOUND)
+  endif (PINS_EXEC_MISSES)
+
   if( DAGUE_PROF_TRACE )
     list(APPEND EXTRA_SOURCES src/profiling.c)
   endif( DAGUE_PROF_TRACE )
@@ -452,18 +465,6 @@ IF( BUILD_DAGUE )
   if( DAGUE_PROF_GRAPHER )
     list(APPEND EXTRA_SOURCES src/dague_prof_grapher.c)
   endif( DAGUE_PROF_GRAPHER )
-
-# For the moment, instrument.c should be included regardless, to preserve
-# compilation even when the system itself is deactivated.
-#  if( PARSEC_INSTR )
-  list(APPEND EXTRA_SOURCES src/pins/pins.c)
-#  endif( PARSEC_INSTR )
-
-  if (PARSEC_STEAL_INSTR)
-    list(APPEND EXTRA_SOURCES src/pins/steals/steals.c)
-  endif(PARSEC_STEAL_INSTR)
-
-  list(APPEND EXTRA_SOURCES src/pins/papi/cachemiss.c) # PETER needs cleanup
 
   find_package(AYUDAME QUIET)
   set(HAVE_AYUDAME ${AYUDAME_FOUND})

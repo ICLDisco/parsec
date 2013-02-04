@@ -163,10 +163,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->sched_nb_tasks_done = 0;
 #endif
 
-    pins_thread_init_cachemiss(eu);
-    pins_thread_init_steals(eu);
-
-    // PETER PAPI INIT
+    // PAPI INIT
 #if defined(PAPI_FOUND)
     int rv;
     rv = PAPI_register_thread();
@@ -244,11 +241,12 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
 
-    // PETER TODO this needs some sort of ifdef protection
+#if defined(HAVE_PAPI)
     PAPI_library_init(PAPI_VER_CURRENT); // PETER: this has to happen before threads get created
     int t_init = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self )); // PETER is this the right place? it needs protection
     if (t_init != PAPI_OK)
-	    printf("PAPI Thread Init failed with error code %d (%s)!\n", t_init, PAPI_strerror(t_init));
+	    DEBUG(("PAPI Thread Init failed with error code %d (%s)!\n", t_init, PAPI_strerror(t_init)));
+#endif
 
     dague_installdirs_open();
     dague_mca_param_init();
@@ -414,9 +412,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                                             &device_delegate_begin, &device_delegate_end);
 #endif  /* DAGUE_PROF_TRACE */
 
-    // PETER call all of the PINS init functions here for now
-    pins_init_cachemiss(context);
-    pins_init_steals(context);
+    /* Initialize Performance Instrumentation (PINS) */
+    pins_init(context);
 
     dague_devices_init(context);
     /* By now let's add one device for the CPUs */
@@ -1150,6 +1147,8 @@ int dague_handle_register( dague_handle_t* object )
 
     dague_atomic_lock( &object_array_lock );
     index = (uint32_t)++object_array_pos;
+
+    printf("%p %p\n", object, object->context);
 
     if( index >= object_array_size ) {
         object_array_size *= 2;

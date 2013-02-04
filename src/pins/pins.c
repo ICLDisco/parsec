@@ -26,6 +26,7 @@ parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins
 			if (pins_array[i] == NULL)
 				pins_array[i] = &empty_callback;
 		}
+		DEBUG(("Initialized PaRSEC PINS callbacks to empty_callback()"));
 	}
 	assert(cb != NULL);
 	if (method_flag >= 0 && method_flag < A_COUNT_NOT_A_FLAG) {
@@ -57,3 +58,4 @@ static void empty_callback(dague_execution_unit_t * exec_unit, dague_execution_c
 	(void) task;
 	(void) data;
 }
+

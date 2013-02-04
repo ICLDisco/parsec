@@ -13,11 +13,11 @@
 #include "datarepo.h"
 #include "execution_unit.h"
 #include "vpmap.h"
-#include "pins/pins.h"
+#include "src/pins/pins.h"
 
 #ifdef PINS_ENABLE
-#include "pins/papi/cachemiss.h" // PETER this depends on PAPI as well as PINS
-#include "pins/steals/steals.h"
+#include "src/pins/papi/cachemiss.h" // PETER this depends on PAPI as well as PINS
+#include "src/pins/steals/steals.h"
 #endif
 
 #include "dague/ayudame.h"
@@ -105,7 +105,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
         DEBUG(("thread %d of VP %d Execute %s[%d]\n",
                eu_context->th_id, eu_context->virtual_process->vp_id,
                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
-               function->incarnation[exec_context->chore_id].type));
+               function->incarnations[exec_context->chore_id].type));
 #endif
         rc = function->incarnations[exec_context->chore_id].hook( eu_context, exec_context );
         if( DAGUE_HOOK_RETURN_NEXT != rc )
@@ -148,7 +148,7 @@ void dague_remove_scheduler( dague_context_t *dague )
 {
     if( NULL != current_scheduler ) {
         current_scheduler->module.remove( dague );
-        pins_fini_steals(dague); // PETER TODO where does this actually belong!?
+        //        pins_fini_steals(dague); // PETER TODO where does this actually belong!?
         assert( NULL != scheduler_component );
         mca_component_close( (mca_base_component_t*)scheduler_component );
         current_scheduler = NULL;
@@ -228,7 +228,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
      */
-    PINS(PARSEC_SCHEDULED, eu_context, new_context, NULL);
+    //    PINS(PARSEC_SCHEDULED, eu_context, new_context, NULL);
 
     return ret;
 }
@@ -421,23 +421,6 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 #endif  /* DAGUE_REPORT_STATISTICS */
 
-    // PETER hacky test code
-    /*
-    printf("self %7lld %7lld steal %7lld %7lld other %7lld %7lld per: %4lld %4lld | %4lld %4lld | %4lld %4lld\n", 
-           eu_context->self_counters[0], 
-           eu_context->self_counters[1],
-           eu_context->steal_counters[0],
-           eu_context->steal_counters[1],
-           eu_context->other_counters[0],
-           eu_context->other_counters[1],
-           eu_context->self_counters[0] / eu_context->self,
-           eu_context->self_counters[1] / eu_context->self,
-           eu_context->steal_counters[0] / eu_context->steal,
-           eu_context->steal_counters[1] / eu_context->steal,
-           eu_context->other_counters[0] / eu_context->other,
-           eu_context->other_counters[1] / eu_context->other
-           );
-     */
     printf("exec L1 %7lld L2 %7lld TLB %7lld\n", 
            eu_context->exec_cache_misses[0], 
            eu_context->exec_cache_misses[1],

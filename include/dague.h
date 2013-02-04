@@ -41,6 +41,9 @@ struct dague_handle_s {
 #if defined(DAGUE_PROF_TRACE)
     const int*                 profiling_array;
 #endif  /* defined(DAGUE_PROF_TRACE) */
+#if defined(PINS_ENABLE)
+	unsigned int ***                   pins_data;
+#endif
     /* Completion callback. Triggered when the all tasks associated with
      * a particular dague object have been completed.
      */

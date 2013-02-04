@@ -39,6 +39,11 @@
 #cmakedefine DAGUE_PROF_DRY_BODY
 #cmakedefine DAGUE_PROF_DRY_DEP
 
+/* Instrumenting (PINS) */
+#cmakedefine PINS_ENABLE
+#cmakedefine PINS_EXEC_MISSES
+#cmakedefine PINS_SCHED_STEALS
+
 /* Simulating */
 #cmakedefine DAGUE_SIM
 

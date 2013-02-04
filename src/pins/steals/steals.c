@@ -8,20 +8,18 @@
 
 static unsigned int num_cores;
 static unsigned int ** steals;
-/* array map should preferably be replaced with a hash map */
-static dague_execution_unit_t ** map;
 
-static unsigned int core_lookup(dague_execution_unit_t * eu);
+#define THREAD_NUM(exec_unit) (exec_unit->virtual_process->vp_id *       \
+                              exec_unit->virtual_process->dague_context->nb_vp + \
+                              exec_unit->th_id )
 
 /**
  NOTE: eu and task will be NULL under normal circumstances
  */
 void pins_init_steals(dague_context_t * master) {
 	unsigned int i;
-	num_cores = master->nb_vp * master->virtual_processes[0]->nb_cores;
-
-	// set up map
-	map = (dague_execution_unit_t**)calloc(sizeof(dague_execution_unit_t *), num_cores);
+	for (i = 0; i < master->nb_vp; i++)
+		num_cores += master->virtual_processes[i]->nb_cores;
 
 	// set up counters
 	steals = (unsigned int**)calloc(sizeof(int *), num_cores);
@@ -29,7 +27,9 @@ void pins_init_steals(dague_context_t * master) {
 		steals[i] = (unsigned int*)calloc(sizeof(int), num_cores + 2);
 	}
 
-	//	PINS_REGISTER(SCHED_STEAL, count_steal);
+#ifdef PINS_SCHED_STEALS
+	PINS_REGISTER(SCHED_STEAL, count_steal);
+#endif
 }
 
 void pins_thread_init_steals(dague_execution_unit_t * exec_unit) {
@@ -48,20 +48,6 @@ void pins_thread_init_steals(dague_execution_unit_t * exec_unit) {
 
     exec_unit->select_counters[0] = 0;
     exec_unit->select_counters[1] = 0;
-
-    dague_context_t * master = exec_unit->virtual_process->dague_context;
-	for (p = 0; p < master->nb_vp; p++) {
-		vp = master->virtual_processes[p];
-		if (vp == exec_unit->virtual_process) {
-			for (t = 0; t < vp->nb_cores; t++) {
-				if (exec_unit == vp->execution_units[t]) {
-					map[p * vp->nb_cores + t] = vp->execution_units[t];
-					break;
-				}
-			}
-			break;
-		}
-	}
 }
 
 void pins_fini_steals(dague_context_t * master_context) {
@@ -109,9 +95,9 @@ void count_steal(dague_execution_unit_t * exec_unit, dague_execution_context_t *
 	// This section counts the steals (self, neighbor, system queue, starvation)
 	unsigned int victim_core_num = (unsigned int)data;
 	if (task != NULL) 
-		steals[core_lookup(exec_unit)][victim_core_num]++;
+		steals[THREAD_NUM(exec_unit)][victim_core_num]++;
 	else // starvation
-		steals[core_lookup(exec_unit)][victim_core_num + 1]++;
+		steals[THREAD_NUM(exec_unit)][victim_core_num + 1]++;
 
 	// the rest of this code is a more comprehensive (but hacky!) counter of PAPI events during steals
 	long long int values[NUM_STEAL_EVENTS];
