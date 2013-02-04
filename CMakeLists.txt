@@ -488,7 +488,11 @@ add_definitions(-DHAVE_CONFIG_H)
 set(HAVE_INDENT 0)
 FIND_PROGRAM(INDENT_EXECUTABLE indent DOC "path to the indent executable")
 MARK_AS_ADVANCED(INDENT_EXECUTABLE)
-SET(INDENT_OPTIONS "-bacc -bad -bap -bc -br -ncdb -c0 -cd80 -ci2 -i4 -lp -nut")
+# K&R (not supported on Mac), so we settle for less
+# -nbad -bap -bbo -nbc -br -brs -c33 -cd33 -ncdb -ce -ci4 -cli0
+# -cp33 -cs -d0 -di1 -nfc1 -nfca -hnl -i4 -ip0 -l75 -lp -npcs
+# -nprs -npsl -saf -sai -saw -nsc -nsob -nss
+SET(INDENT_OPTIONS "-nbad -bap -nbc -br -brs -c33 -cd33 -ncdb -ce -ci4 -cli0 -d0 -di1 -nfc1 -i4 -ip0 -l75 -lp -npcs -npsl -nsc -nsob")
 MARK_AS_ADVANCED(INDENT_OPTIONS)
 if(INDENT_EXECUTABLE)
   set(HAVE_INDENT 1)
