@@ -190,7 +190,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %left COMMA
 
 %debug
-%pure-parser
+/*%pure-parser*/
 %locations
 %error-verbose
 %parse-param {struct yyscan_t *yycontrol}

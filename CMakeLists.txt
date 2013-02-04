@@ -155,6 +155,7 @@ IF( BUILD_TOOLS )
   # Check for compiler tools
   find_package(BISON)
   find_package(FLEX)
+  set(HAVE_RECENT_LEX 0)
 ENDIF( BUILD_TOOLS )
 
 enable_language(Fortran OPTIONAL)
