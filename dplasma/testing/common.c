@@ -35,6 +35,16 @@
 #include "dague_prof_grapher.h"
 #include "vpmap.h"
 
+static char *DAGUE_SCHED_NAME[] = {
+    "", /* default */
+    "lfq",
+    "ltq",
+    "ap",
+    "lhq",
+    "gd",
+    "pbq"
+};
+
 /*******************************
  * globals and argv set values *
  *******************************/
