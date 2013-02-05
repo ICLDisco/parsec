@@ -425,8 +425,8 @@ dague_list_nolock_push_sorted( dague_list_t* list,
 {
     dague_list_item_t* position = NULL;
     DAGUE_ULIST_ITERATOR(list, pos, {
+        position = pos;
         if( A_LOWER_PRIORITY_THAN_B(new, pos, off) ) {
-            position = pos;
             break;
         }
     });
