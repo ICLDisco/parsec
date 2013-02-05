@@ -115,6 +115,22 @@ static uint32_t data_key(dague_ddesc_t *desc, ...)
     return (uint32_t)f;
 }
 
+static int
+memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
+{
+    my_datatype_t* m = (my_datatype_t*)desc;
+    return device->device_memory_register(device,
+                                          m->ptr,
+                                          m->frags * m->size * sizeof(uint8_t));
+}
+
+static int
+memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
+{
+    my_datatype_t* m = (my_datatype_t*)desc;
+    return device->device_memory_unregister(device, m->ptr);
+}
+
 dague_ddesc_t*
 create_and_distribute_data(int rank, int world, int frags, int size)
 {
@@ -124,12 +140,14 @@ create_and_distribute_data(int rank, int world, int frags, int size)
     d->myrank = rank;
     d->nodes  = world;
 
-    d->rank_of     = rank_of;
-    d->rank_of_key = rank_of_key;
-    d->data_of     = data_of;
-    d->data_of_key = data_of_key;
-    d->vpid_of     = vpid_of;
-    d->vpid_of_key = vpid_of_key;
+    d->rank_of           = rank_of;
+    d->rank_of_key       = rank_of_key;
+    d->data_of           = data_of;
+    d->data_of_key       = data_of_key;
+    d->vpid_of           = vpid_of;
+    d->vpid_of_key       = vpid_of_key;
+    d->register_memory   = memory_register;
+    d->unregister_memory = memory_unregister;
 
 #if defined(DAGUE_PROF_TRACE)
     asprintf(&d->key_dim, "(%d)", size);
