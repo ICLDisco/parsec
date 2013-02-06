@@ -423,7 +423,7 @@ dague_list_nolock_push_sorted( dague_list_t* list,
                                dague_list_item_t* new,
                                size_t off )
 {
-    dague_list_item_t* position = NULL;
+    dague_list_item_t* position = (dague_list_item_t*)list->ghost_element.list_next;
     DAGUE_ULIST_ITERATOR(list, pos, {
         position = pos;
         if( A_LOWER_PRIORITY_THAN_B(new, pos, off) ) {
