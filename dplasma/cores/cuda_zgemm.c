@@ -217,24 +217,29 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
     dague_gpu_data_copy_t     *gpu_copy;
     dague_data_t              *original;
+    const dague_flow_t        *flow;
     int return_code = 0, how_many = 0, i;
     cudaError_t status;
 
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
-        if(NULL == this_task->function->out[i]) continue;
+        /* Don't bother if there is no real data (aka. CTL) */
+        if(NULL == this_task->data[i].data) continue;
+        flow = this_task->function->in[i];
+        if(NULL == flow)
+            flow = this_task->function->out[i];
 
         original = this_task->data[i].data->original;
         gpu_copy = dague_data_get_copy(original, gpu_device->super.device_index);
-        if( this_task->function->out[i]->access_type & ACCESS_READ ) {
+        if( flow->access_type & ACCESS_READ ) {
             gpu_copy->readers--; assert(gpu_copy->readers >= 0);
             if( (0 == gpu_copy->readers) &&
-                !(this_task->function->out[i]->access_type & ACCESS_WRITE) ) {
+                !(flow->access_type & ACCESS_WRITE) ) {
                 dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
                 DAGUE_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
                 dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
             }
         }
-        if( this_task->function->out[i]->access_type & ACCESS_WRITE ) {
+        if( flow->access_type & ACCESS_WRITE ) {
             assert( gpu_copy == dague_data_get_copy(gpu_copy->original, gpu_device->super.device_index) );
             /* Stage the transfer of the data back to main memory */
             gpu_device->super.required_data_out += original->nb_elts;
@@ -285,9 +290,11 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
     int i;
 
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
-        if( !(this_task->function->out[i]->access_type & ACCESS_WRITE) ) continue;
+        if(NULL == this_task->function->out[i]) continue;
+        if(!(this_task->function->out[i]->access_type & ACCESS_WRITE)) continue;
 
-        gpu_copy = this_task->data[i].data;
+        original = this_task->data[i].data->original;
+        gpu_copy = dague_data_get_copy(original, gpu_device->super.device_index);
         assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
         gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
         original = gpu_copy->original;
