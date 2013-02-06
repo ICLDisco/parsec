@@ -153,7 +153,7 @@ gpu_kernel_epilog_bandwidth( gpu_device_t        *gpu_device,
     int i;
 
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
-        if(NULL != this_task->function->out[i]) continue;
+        if(NULL == this_task->function->out[i]) continue;
         if(!(this_task->function->out[i]->access_type & ACCESS_WRITE)) continue;
 
         original = this_task->data[i].data->original;
