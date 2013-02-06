@@ -2,11 +2,14 @@ extern "C" %{
 #include <dague.h>
 #include <data_distribution.h>
 #include <data.h>
-#include <stdarg.h>
+#include <dague/utils/mca_param.h>
 
 #include <assert.h>
+#include <stdarg.h>
 
 #include "bandwidth.h"
+
+#include "tests/pingpong/pingpong_gpu.h"
 
 typedef struct {
     dague_ddesc_t  super;
@@ -254,6 +257,7 @@ CTL  C -> C SYNC(t+1)
 ; (t * (NT-1)) + f
 
 BODY [type = CUDA]
+    bandwidth_cuda(context, this_task, gT);
     printf("PONG(%d, %d) -> CUDA\n", t, f);
 END
 
@@ -266,16 +270,14 @@ extern "C" %{
 int main(int argc, char *argv[])
 {
     dague_context_t* dague;
-    int rank, world, cores;
+    int rank, world, cores, ngpus = 0;
     int i, size, loops, frags;
     dague_ddesc_t *ddescA;
     dague_handle_t *bw_test;
 
     world = 1;
     rank = 0;
-
     cores = 1;
-    dague = dague_init(cores, &argc, &argv);
 
     loops = 10;
     frags = 1;
@@ -291,10 +293,33 @@ int main(int argc, char *argv[])
         if(0 == strcmp(argv[i], "-l")) {
             size = atoi(argv[i+1]); i++;
         }
+        /* GPU management */
+        if(0 == strcmp(argv[i], "-g")) {
+            ngpus = atoi(argv[i+1]); i++;
+        }
     }
     ddescA = create_and_distribute_data(rank, world, frags, size);
     dague_ddesc_set_key(ddescA, "A");
-    
+
+#if defined(HAVE_CUDA)
+    /* if the use of GPUs is specified on the command line updated the environment
+     * prior to the runtime initialization.
+     */
+    if(ngpus > 0) {
+        char *param, value[128];
+        param = dague_mca_param_env_var("device_cuda_enabled");
+        snprintf(value, 128, "%d", ngpus);
+        setenv(param, value, 1);
+        free(param);
+    }
+#endif
+
+    dague = dague_init(cores, &argc, &argv);
+
+#if defined(HAVE_CUDA)
+       dague_gpu_data_register(dague, ddescA, frags, size*sizeof(uint8_t));
+#endif
+
     bw_test = bandwidth_New(ddescA, loops, frags, world);
     dague_enqueue(dague, bw_test);
 

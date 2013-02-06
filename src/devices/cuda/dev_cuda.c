@@ -756,9 +756,10 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
      * Parse all the input and output flows of data and ensure all have
      * corresponding data on the GPU available.
      */
-    for( i = 0;  NULL != this_task->data[i].data; i++ ) {
-        temp_loc[i] = NULL;
+    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+        if(NULL == this_task->function->in[i]) continue;
 
+        temp_loc[i] = NULL;
         master = this_task->data[i].data->original;
         gpu_elem = dague_data_get_copy(master, gpu_device->super.device_index);
         /* There is already a copy on the device */
