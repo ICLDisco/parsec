@@ -187,12 +187,11 @@ int bandwidth_cuda(dague_execution_unit_t* eu_context,
     int i, data_index = 0;
     dague_handle_t* handle = this_task->dague_handle;
     dague_gpu_context_t* gpu_task;
-	
+
     gpu_task = (dague_gpu_context_t*)malloc(sizeof(dague_gpu_context_t));
     OBJ_CONSTRUCT(gpu_task, dague_list_item_t);
     gpu_task->ec = this_task;
 
-    printf("I am in bandwidth_cuda, nb %d\n", this_task->function->nb_parameters);
     return gpu_kernel_scheduler_bandwidth( eu_context, gpu_task, 1 );
 
 }
