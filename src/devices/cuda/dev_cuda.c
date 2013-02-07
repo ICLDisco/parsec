@@ -989,22 +989,6 @@ int progress_stream( gpu_device_t* gpu_device,
             DAGUE_CUDA_CHECK_ERROR( "cuEventQuery ", rc,
                                     {return -1;} );
         }
-#if 0
-        else {
-            static cudaEvent_t ev = NULL;
-            static double first = 0.0;
-            static double last = 0.0;
-            double new = MPI_Wtime();
-            if(exec_stream->events[exec_stream->end] != ev) {
-                first = new;
-                ev = exec_stream->events[exec_stream->end];
-                printf("%p : %f\tNEW\tsince last poll (on the prev. event)\n", ev, first - last);
-            } else {
-                printf("%p : %f\tsame\tsince last poll (on the same event)\tTOTAL: %f\n", ev, new - last, new - first);
-            }
-            last = new;
-        }
-#endif
     }
     return saved_rc;
 }
