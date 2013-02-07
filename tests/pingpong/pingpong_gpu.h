@@ -87,7 +87,7 @@ gpu_kernel_pop_bandwidth( gpu_device_t        *gpu_device,
     dague_gpu_data_copy_t     *gpu_copy;
     dague_data_t              *original;
     const dague_flow_t        *flow;
-    int return_code = 0, how_many = 0, i;
+    int return_code = 0, how_many = 0, i, first = 1;
     cudaError_t status;
 
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
@@ -117,13 +117,16 @@ gpu_kernel_pop_bandwidth( gpu_device_t        *gpu_device,
 
             DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->cuda_index,
                     this_task->function->out[i]->name, this_task->data[i].data->original->key));
-            DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
-                                     gpu_device->super.profiling,
-                                     (-1 == gpu_stream->prof_event_key_start ?
-                                      DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
-                                                                this_task->function->function_id) :
-                                      gpu_stream->prof_event_key_start),
-                                     this_task);
+            if(first) {
+                DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
+                                         gpu_device->super.profiling,
+                                         (-1 == gpu_stream->prof_event_key_start ?
+                                          DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
+                                                                    this_task->function->function_id) :
+                                          gpu_stream->prof_event_key_start),
+                                         this_task);
+                first = 0;
+            }
             /* TODO: Move the data back into main memory, but not always on the first device (!) */
             original = gpu_copy->original;
             status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
@@ -170,16 +173,26 @@ gpu_kernel_epilog_bandwidth( gpu_device_t        *gpu_device,
 }
 
 static int
-gpu_kernel_submit_bandwidth( gpu_device_t        *gpu_device,
-                             dague_gpu_context_t *gpu_task,
-                             dague_gpu_exec_stream_t* gpu_stream )
+gpu_kernel_submit_bandwidth( gpu_device_t            *gpu_device,
+                             dague_gpu_context_t     *gpu_task,
+                             dague_gpu_exec_stream_t *gpu_stream )
 {
-	return 0;
+    dague_execution_context_t *this_task = gpu_task->ec;
+
+    DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
+                             gpu_device->super.profiling,
+                             (-1 == gpu_stream->prof_event_key_start ?
+                              DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
+                                                        this_task->function->function_id) :
+                              gpu_stream->prof_event_key_start),
+                             this_task);
+    return 0;
 }
 
 #define KERNEL_NAME bandwidth
 #include <dague/devices/cuda/cuda_scheduling.h>
 
+static inline
 int bandwidth_cuda(dague_execution_unit_t* eu_context,
                    dague_execution_context_t* this_task,
                    dague_data_copy_t * A)
@@ -193,7 +206,6 @@ int bandwidth_cuda(dague_execution_unit_t* eu_context,
     gpu_task->ec = this_task;
 
     return gpu_kernel_scheduler_bandwidth( eu_context, gpu_task, 1 );
-
 }
 
 #endif /* _bandwidth_gpu_h_ */

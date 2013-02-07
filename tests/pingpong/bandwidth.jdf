@@ -192,7 +192,7 @@ void free_data(dague_ddesc_t *d)
 dague_handle_t *bandwidth_new(dague_ddesc_t *A, int loops, int frags, int size, int ws)
 {
     dague_bandwidth_handle_t *o = NULL;
-    
+
     if( (loops < 1) || (frags < 1) ) {
         fprintf(stderr, "To work, this test needs at lest 1 loop \n"
                         "  (instead of %d) and 1 frag (instead of %d)\n", loops, frags);
