@@ -383,7 +383,7 @@ typedef struct dague_compound_state_t {
     dague_object_t* objects_array[1];
 } dague_compound_state_t;
 
-int dague_composed_cb( dague_object_t* o, void* cbdata ) {
+static int dague_composed_cb( dague_object_t* o, void* cbdata ) {
     dague_object_t* compound = (dague_object_t*)cbdata;
     dague_compound_state_t* compound_state = (dague_compound_state_t*)compound->functions_array;
     int completed_objects = compound_state->completed_objects++;
@@ -396,9 +396,9 @@ int dague_composed_cb( dague_object_t* o, void* cbdata ) {
     return 0;
 }
 
-void dague_compound_startup( dague_context_t *context,
-                             dague_object_t *compound_object,
-                             dague_execution_context_t** startup_list) 
+static void dague_compound_startup( dague_context_t *context,
+                                    dague_object_t *compound_object,
+                                    dague_execution_context_t** startup_list)
 {
     assert( 0 == compound_object->nb_functions );
     int i;
