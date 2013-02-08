@@ -77,7 +77,7 @@ option(DAGUE_DIST_THREAD
   "Use an extra thread to progress the data movements" ON)
 option(DAGUE_DIST_PRIORITIES
   "Favor the communications that unlock the most prioritary tasks" ON)
-option(DAGUE_DIST_COLLECTIVES 
+option(DAGUE_DIST_COLLECTIVES
   "Use optimized asynchronous operations where collective communication pattern is detected" ON)
 set   (DAGUE_DIST_EAGER_LIMIT 0 CACHE STRING
   "Use the eager protocol (no flow control) for messages smaller than the limit in KB")
@@ -493,7 +493,7 @@ MARK_AS_ADVANCED(INDENT_EXECUTABLE)
 # -nbad -bap -bbo -nbc -br -brs -c33 -cd33 -ncdb -ce -ci4 -cli0
 # -cp33 -cs -d0 -di1 -nfc1 -nfca -hnl -i4 -ip0 -l75 -lp -npcs
 # -nprs -npsl -saf -sai -saw -nsc -nsob -nss
-SET(INDENT_OPTIONS "-nbad -bap -nbc -br -brs -c33 -cd33 -ncdb -ce -ci4 -cli0 -d0 -di1 -nfc1 -i4 -ip0 -l130 -lp -npcs -npsl -nsc -nsob")
+SET(INDENT_OPTIONS "-nbad -bap -nbc -br -brs -c33 -cd33 -ncdb -ce -ci4 -cli0 -d0 -di1 -nfc1 -i4 -ip0 -lp -npcs -npsl -nsc -nsob")
 MARK_AS_ADVANCED(INDENT_OPTIONS)
 if(INDENT_EXECUTABLE)
   set(HAVE_INDENT 1)
