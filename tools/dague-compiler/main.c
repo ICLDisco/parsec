@@ -24,7 +24,7 @@ jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { NULL, NULL, NULL, NULL, 
 
 static void usage(void)
 {
-    fprintf(stderr, 
+    fprintf(stderr,
             "Usage:\n"
             "  Compile a JDF into a DAGuE representation (.h and .c files)\n"
             "  --debug|-d         Enable bison debug output\n"
@@ -49,7 +49,7 @@ static void usage(void)
             DEFAULTS.input,
             DEFAULTS.output_c,
             DEFAULTS.output_h,
-            DEFAULTS.funcid);            
+            DEFAULTS.funcid);
 }
 
 static void parse_args(int argc, char *argv[])
@@ -94,22 +94,22 @@ static void parse_args(int argc, char *argv[])
             JDF_COMPILER_GLOBAL_ARGS.input = strdup(optarg);
             break;
         case 'C':
-            if( NULL != c) 
+            if( NULL != c)
                 free( c );
             c = strdup(optarg);
             break;
         case 'H':
-            if( NULL != h) 
+            if( NULL != h)
                 free( h );
             h = strdup(optarg);
             break;
         case 'o':
-            if( NULL != o) 
+            if( NULL != o)
                 free( o );
             o = strdup(optarg);
             break;
         case 'f':
-            if( NULL != f ) 
+            if( NULL != f )
                 free( f );
             f = strdup(optarg);
             break;
@@ -177,11 +177,11 @@ static void parse_args(int argc, char *argv[])
         f = NULL;
     }
 
-    if( NULL != c ) 
+    if( NULL != c )
         free(c);
-    if( NULL != h ) 
+    if( NULL != h )
         free(h);
-    if( NULL != o ) 
+    if( NULL != o )
         free(o);
 }
 
@@ -229,13 +229,13 @@ int main(int argc, char *argv[])
         (rc != 0) ) {
         return 1;
     }
-    
+
     /* Lets try to optimize the jdf */
     jdf_optimize( &current_jdf );
 
-    if( jdf2c(JDF_COMPILER_GLOBAL_ARGS.output_c, 
-              JDF_COMPILER_GLOBAL_ARGS.output_h, 
-              JDF_COMPILER_GLOBAL_ARGS.funcid, 
+    if( jdf2c(JDF_COMPILER_GLOBAL_ARGS.output_c,
+              JDF_COMPILER_GLOBAL_ARGS.output_h,
+              JDF_COMPILER_GLOBAL_ARGS.funcid,
               &current_jdf) < 0 ) {
         return 1;
     }
