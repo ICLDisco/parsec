@@ -173,9 +173,9 @@ dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint16_t device)
     return copy;
 }
 
-int dague_data_copy_ownership_to_device(dague_data_t* data,
-                                        uint16_t device,
-                                        uint8_t access_mode)
+int dague_data_transfer_ownership_to_copy(dague_data_t* data,
+                                          uint16_t device,
+                                          uint8_t access_mode)
 {
     dague_data_copy_t* copy;
     uint32_t i, transfer_required = 0;

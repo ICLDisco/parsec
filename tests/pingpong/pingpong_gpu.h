@@ -109,6 +109,7 @@ gpu_kernel_pop_bandwidth( gpu_device_t        *gpu_device,
             }
         }
         if( flow->access_type & ACCESS_WRITE ) {
+            gpu_copy->version++;  /* on to the next version */
             assert( gpu_copy == dague_data_get_copy(gpu_copy->original, gpu_device->super.device_index) );
             /* Stage the transfer of the data back to main memory */
             gpu_device->super.required_data_out += original->nb_elts;

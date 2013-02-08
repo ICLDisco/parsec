@@ -3689,15 +3689,15 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
     coutput("static int complete_%s(dague_execution_unit_t *context, dague_execution_context_t *this_task)\n"
             "{\n"
             "  const __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
-            "  (void)context; (void)__dague_handle;\n"
-            "%s",
-            name, jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST(sa, f->locals, next,
-                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
+            "  (void)context; (void)__dague_handle;\n",
+            name, jdf_basename, jdf_basename);
 
-    coutput("%s\n",
-            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
-                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+    for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+        if(JDF_VAR_TYPE_CTL == fl->access_type) continue;
+        if(fl->access_type & JDF_VAR_TYPE_WRITE) {
+            coutput("this_task->data[%d].data->version++;\n", di);
+        }
+    }
 
     if( profile_on ) {
         coutput("  DAGUE_TASK_PROF_TRACE(context->eu_profile,\n"

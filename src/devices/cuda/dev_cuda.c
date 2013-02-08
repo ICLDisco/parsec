@@ -875,7 +875,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
 
-    transfer_required = dague_data_copy_ownership_to_device(original, gpu_device->super.device_index, (uint8_t)type);
+    transfer_required = dague_data_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
     gpu_device->super.required_data_in += original->nb_elts;
     if( transfer_required ) {
         cudaError_t status;

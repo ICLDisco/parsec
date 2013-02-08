@@ -124,9 +124,9 @@ extern int dague_data_copy_detach(dague_data_t* data,
                                   dague_data_copy_t* copy,
                                   uint16_t device);
 
-int dague_data_copy_ownership_to_device(dague_data_t* map,
-                                        uint16_t device,
-                                        uint8_t access_mode);
+int dague_data_transfer_ownership_to_copy(dague_data_t* map,
+                                          uint16_t device,
+                                          uint8_t access_mode);
 extern void dague_dump_data_copy(dague_data_copy_t* copy);
 
 #endif  /* DATA_H_HAS_BEEN_INCLUDED */
