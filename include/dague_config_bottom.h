@@ -33,13 +33,13 @@
 #define END_C_DECLS            /* empty */
 #endif
 
-#if DAGUE_HAVE_ATTRIBUTE_VISIBILITY
+#if defined(DAGUE_HAVE_ATTRIBUTE_VISIBILITY)
 #    define __dague_attribute_visibility__(a) __attribute__((__visibility__(a)))
 #else
 #    define __dague_attribute_visibility__(a)
 #endif
 
-#if DAGUE_HAVE_ATTRIBUTE_ALWAYS_INLINE
+#if defined(DAGUE_HAVE_ATTRIBUTE_ALWAYS_INLINE)
 #    define __dague_attribute_always_inline__ __attribute__((__always_inline__))
 #else
 #    define __dague_attribute_always_inline__
@@ -162,7 +162,7 @@ typedef uint32_t dague_dependency_t;
 #  endif  /* defined(_USRDLL) */
 #  include "dague/win32/win_compat.h"
 #else
-#  if DAGUE_C_HAVE_VISIBILITY
+#  if defined(DAGUE_C_HAVE_VISIBILITY)
 #    define DAGUE_DECLSPEC           __dague_attribute_visibility__("default")
 #    define DAGUE_MODULE_DECLSPEC    __dague_attribute_visibility__("default")
 #  else

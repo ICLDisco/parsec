@@ -77,6 +77,9 @@
 #cmakedefine ARCH_PPC
 #cmakedefine MAC_OS_X
 
+#cmakedefine DAGUE_HAVE_ATTRIBUTE_VISIBILITY
+#cmakedefine DAGUE_HAVE_ATTRIBUTE_ALWAYS_INLINE
+
 /* Configuration parameters */
 #cmakedefine DAGUE_WANT_HOME_CONFIG_FILES
 
