@@ -6,8 +6,11 @@
 #include <data.h>
 #include <dague/devices/cuda/dev_cuda.h>
 #include <dague/devices/device_malloc.h>
+#include <dague/utils/output.h>
 #include <fifo.h>
 #include "scheduling.h"
+
+extern int dague_cuda_output_stream;
 
 static int
 gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
@@ -66,9 +69,10 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
         if(NULL == this_task->function->in[i]) continue;
         assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
 
-        DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d) on GPU\n",
-                gpu_device->cuda_index, this_task->function->in[i]->name,
-                (int)this_task->data[i].data->original.key));
+        DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
+                              "GPU[%1d]:\tIN  Data of %s(%d) on GPU\n",
+                              gpu_device->cuda_index, this_task->function->in[i]->name,
+                              (int)this_task->data[i].data_in->original->key));
         ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->access_type,
                                        &(this_task->data[i]), gpu_stream->cuda_stream );
         if( ret < 0 ) {
@@ -118,8 +122,9 @@ gpu_kernel_pop_bandwidth( gpu_device_t        *gpu_device,
             assert( ((dague_list_item_t*)gpu_copy)->list_next == (dague_list_item_t*)gpu_copy );
             assert( ((dague_list_item_t*)gpu_copy)->list_prev == (dague_list_item_t*)gpu_copy );
 
-            DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->cuda_index,
-                    this_task->function->out[i]->name, this_task->data[i].data->original->key));
+            DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
+                                  "GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->cuda_index,
+                                  this_task->function->out[i]->name, this_task->data[i].data_out->original->key));
             if(first) {
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                                          gpu_device->super.profiling,
@@ -162,10 +167,14 @@ gpu_kernel_epilog_bandwidth( gpu_device_t        *gpu_device,
         if(!(this_task->function->out[i]->access_type & ACCESS_WRITE)) continue;
 
         gpu_copy = this_task->data[i].data_out;
+        gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
         original = this_task->data[i].data_out->original;
-        original->coherency_state = DATA_COHERENCY_OWNED;
+        original->coherency_state = DATA_COHERENCY_SHARED;
         original->owner_device = 0;
-        original->device_copies[0]->version = gpu_copy->version;
+        original->device_copies[0]->coherency_state = DATA_COHERENCY_SHARED;
+
+        /* Use the CPU version now that we tranferred the ownership */
+        this_task->data[i].data_out = original->device_copies[0];
 
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
     }

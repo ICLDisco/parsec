@@ -230,7 +230,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
 
     /* Still not found?? skip this GPU */
     if(NULL == fn) {
-        dague_output_verbose(1, dague_cuda_output_stream,
+        dague_output_verbose(10, dague_cuda_output_stream,
                              "No function %s found for CUDA device %s\n",
                              function_name, gpu_device->super.name);
         index--;
@@ -633,7 +633,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                      dague_context->my_rank, i));
             continue;
         }
-        DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+        DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                               "GPU:\tAllocate %u tiles on the GPU memory\n", mem_elem_per_gpu ));
 #else
         if( NULL == gpu_device->memory ) {
@@ -648,7 +648,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                          dague_context->my_rank, i));
                 continue;
             }
-            DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+            DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                                   "GPU:\tAllocate %u segment of size %d on the GPU memory\n",
                                   mem_elem_per_gpu, GPU_MALLOC_UNIT_SIZE ));
         }
@@ -689,7 +689,7 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
         /* Free memory on GPU */
         DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_lru, item, {
                 dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
-                DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                                       "Considering suppresion of copy %p, attached to %p, in map %p",
                                       gpu_copy, gpu_copy->original, ddesc));
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
@@ -703,7 +703,7 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
         DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_owned_lru, item, {
                 dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
                 dague_data_t* original = gpu_copy->original;
-                DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                                       "Considering suppresion of owned copy %p, attached to %p, in map %p",
                                       gpu_copy, original, ddesc));
                 if( DATA_COHERENCY_OWNED == gpu_copy->coherency_state ) {
@@ -881,7 +881,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     if( transfer_required ) {
         cudaError_t status;
 
-        DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
+        DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
                               "GPU:\tMove data %x (%p:%p) to GPU %d requested\n",
                               original->key, in_elem->device_private, (void*)gpu_elem->device_private, gpu_device->cuda_index));
         /* Push data into the GPU */
@@ -946,7 +946,7 @@ int progress_stream( gpu_device_t* gpu_device,
         assert(0); // want to debug this. It happens too often
         /* No more room on the GPU. Push the task back on the queue and check the completion queue. */
         DAGUE_FIFO_PUSH(exec_stream->fifo_pending, (dague_list_item_t*)task);
-        DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
+        DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                               "GPU: Reschedule %s(task %p) priority %d: no room available on the GPU for data\n",
                               task->ec->function->name, (void*)task->ec, task->ec->priority ));
         saved_rc = rc;  /* keep the info for the upper layer */
@@ -973,7 +973,8 @@ int progress_stream( gpu_device_t* gpu_device,
             /* Save the task for the next step */
             task = *out_task = exec_stream->tasks[exec_stream->end];
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
-                                  "GPU: Event for task %s(task %p) encountered\n", task->ec->function->name, (void*)task ));
+                                  "GPU: Event for task %s(task %p) encountered\n",
+                                  task->ec->function->name, (void*)task->ec ));
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
             DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable,

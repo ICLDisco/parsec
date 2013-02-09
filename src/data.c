@@ -185,12 +185,14 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
                                           uint8_t access_mode)
 {
     dague_data_copy_t* copy;
-    uint32_t i, transfer_required = 0;
+    uint32_t i;
+    int valid_copy, transfer_required = 0;
 
     copy = data->device_copies[device];
     assert( NULL != copy );
 
     if( ACCESS_READ & access_mode ) copy->readers++;
+    valid_copy = data->owner_device;
 
     if( DATA_COHERENCY_INVALID == copy->coherency_state ) {
         if( ACCESS_READ & access_mode ) transfer_required = 1;
@@ -236,12 +238,13 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
             }
         }
     }
-
-    assert( data->version >= copy->version );
-    /* The version on the GPU doesn't match the one in memory. Let the
-     * upper level know a transfer is required.
-     */
-    transfer_required = transfer_required || (data->version > copy->version);
+    if(valid_copy >= 0) {
+        assert( data->device_copies[valid_copy]->version >= copy->version );
+        /* The version on the GPU doesn't match the one in memory. Let the
+         * upper level know a transfer is required.
+         */
+        transfer_required = transfer_required || (data->device_copies[valid_copy]->version > copy->version);
+    }
     if( transfer_required )
         copy->version = data->version;
     return transfer_required;
