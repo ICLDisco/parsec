@@ -334,7 +334,7 @@ void dague_output_close(int output_id)
         free_descriptor(output_id);
 
         /* If no one has the syslog open, we should close it */
-        
+
         for (i = 0; i < DAGUE_OUTPUT_MAX_STREAMS; ++i) {
             if (info[i].ldi_used && info[i].ldi_syslog) {
                 break;
@@ -821,7 +821,7 @@ static int make_string(char **no_newline_string, output_desc_t *ldi,
             snprintf(temp_str, temp_str_len, "%s%s%s\n",
                      ldi->ldi_prefix, *no_newline_string, ldi->ldi_suffix);
         } else {
-            snprintf(temp_str, temp_str_len, "%s%s%s", ldi->ldi_prefix, 
+            snprintf(temp_str, temp_str_len, "%s%s%s", ldi->ldi_prefix,
                      *no_newline_string, ldi->ldi_suffix);
         }
     } else if (NULL != ldi->ldi_prefix) {
@@ -829,7 +829,7 @@ static int make_string(char **no_newline_string, output_desc_t *ldi,
             snprintf(temp_str, temp_str_len, "%s%s\n",
                      ldi->ldi_prefix, *no_newline_string);
         } else {
-            snprintf(temp_str, temp_str_len, "%s%s", ldi->ldi_prefix, 
+            snprintf(temp_str, temp_str_len, "%s%s", ldi->ldi_prefix,
                      *no_newline_string);
         }
     } else if (NULL != ldi->ldi_suffix) {
@@ -837,7 +837,7 @@ static int make_string(char **no_newline_string, output_desc_t *ldi,
             snprintf(temp_str, temp_str_len, "%s%s\n",
                      *no_newline_string, ldi->ldi_suffix);
         } else {
-            snprintf(temp_str, temp_str_len, "%s%s", 
+            snprintf(temp_str, temp_str_len, "%s%s",
                      *no_newline_string, ldi->ldi_suffix);
         }
     } else {
@@ -847,10 +847,10 @@ static int make_string(char **no_newline_string, output_desc_t *ldi,
             snprintf(temp_str, temp_str_len, "%s", *no_newline_string);
         }
     }
-    
+
     return DAGUE_SUCCESS;
 }
-    
+
 /*
  * Do the actual output.  Take a va_list so that we can be called from
  * multiple different places, even functions that took "..." as input
@@ -895,15 +895,15 @@ static int output(int output_id, const char *format, va_list arglist)
 
         /* stdout output */
         if (ldi->ldi_stdout) {
-            write(fileno(stdout), out, (int)strlen(out)); 
+            write(fileno(stdout), out, (int)strlen(out));
             fflush(stdout);
         }
 
         /* stderr output */
         if (ldi->ldi_stderr) {
-            write((-1 == default_stderr_fd) ? 
+            write((-1 == default_stderr_fd) ?
                   fileno(stderr) : default_stderr_fd,
-                  out, (int)strlen(out)); 
+                  out, (int)strlen(out));
             fflush(stderr);
         }
 
@@ -918,16 +918,12 @@ static int output(int output_id, const char *format, va_list arglist)
                     ++ldi->ldi_file_num_lines_lost;
                 } else if (ldi->ldi_file_num_lines_lost > 0) {
                     char buffer[BUFSIZ];
-                    char *out = buffer;
                     memset(buffer, 0, BUFSIZ);
                     snprintf(buffer, BUFSIZ - 1,
                              "[WARNING: %d lines lost because the Open MPI process session directory did\n not exist when dague_output() was invoked]\n",
                              ldi->ldi_file_num_lines_lost);
-                   write(ldi->ldi_fd, buffer, (int)strlen(buffer));
+                    write(ldi->ldi_fd, buffer, (int)strlen(buffer));
                     ldi->ldi_file_num_lines_lost = 0;
-                    if (out != buffer) {
-                        free(out);
-                    }
                 }
             }
             if (ldi->ldi_fd != -1) {

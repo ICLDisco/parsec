@@ -21,19 +21,13 @@
 /** @file
  * This file presents the MCA parameter interface.
  *
- * Note that there are two scopes for MCA parameters: "normal" and
- * attributes.  Specifically, all MCA parameters are "normal" -- some
- * are special and may also be found on attributes on communicators,
- * datatypes, or windows.
- *
  * In general, these functions are intended to be used as follows:
  *
  * - Creating MCA parameters
  * -# Register a parameter, get an index back
  * - Using MCA parameters
  * -# Lookup a "normal" parameter value on a specific index, or
- * -# Lookup an attribute parameter on a specific index and
- *    communicator / datatype / window.
+ * -# Lookup an attribute parameter on a specific index
  *
  * MCA parameters can be defined in multiple different places.  As
  * such, parameters are \em resolved to find their value.  The order
