@@ -194,8 +194,8 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                 if( ACCESS_NONE == flow->access_type ) continue;
                 if( NULL != context->data[flow->flow_index].data_repo ) {
                     set_parameters++;
-                    if( NULL == context->data[flow->flow_index].data ) {
-                        ERROR(( "Task %s has flow %d data_repo != NULL but a data == NULL (%s:%d)\n",
+                    if( NULL == context->data[flow->flow_index].data_in ) {
+                        ERROR(( "Task %s has flow %d data_repo != NULL but an input data == NULL (%s:%d)\n",
                                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), flow->flow_index, __FILE__, __LINE__));
                     }
                 }

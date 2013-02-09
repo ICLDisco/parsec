@@ -164,7 +164,7 @@ gpu_kernel_epilog_bandwidth( gpu_device_t        *gpu_device,
         gpu_copy = this_task->data[i].data_out;
         original = this_task->data[i].data_out->original;
         original->coherency_state = DATA_COHERENCY_OWNED;
-        original->owner = 0;
+        original->owner_device = 0;
         original->device_copies[0]->version = gpu_copy->version;
 
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
