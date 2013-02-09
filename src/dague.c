@@ -401,7 +401,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         cpus->type = DAGUE_DEV_CPU;
         dague_devices_add(context, cpus);
         /* TODO: This is plain WRONG, but should work by now */
-        cpus->device_sweight = nb_total_comp_threads * 8 * 2.27;
+        cpus->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
         cpus->device_dweight = nb_total_comp_threads * 4 * 2.27;
     }
     dague_devices_select(context);
@@ -897,7 +897,7 @@ int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
              * for each execution context.
              */
             new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
-            new_context->data[(int)dest_flow->flow_index].data      = origin->data[(int)origin_flow->flow_index].data;
+            new_context->data[(int)dest_flow->flow_index].data_in   = origin->data[(int)origin_flow->flow_index].data_out;
             AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
@@ -1004,7 +1004,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
         if( ACCESS_NONE != target->access_type ) {
-            arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
+            arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data_out;
             arg->output_usage++;
             /* BEWARE: This increment is required to be done here. As the target task
              * bits are marked, another thread can now enable the task. Once schedulable

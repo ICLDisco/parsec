@@ -138,7 +138,7 @@ memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
     return device->device_memory_unregister(device, m->ptr);
 }
 
-dague_ddesc_t*
+static dague_ddesc_t*
 create_and_distribute_data(int rank, int world, int frags, int size)
 {
     my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
@@ -170,7 +170,8 @@ create_and_distribute_data(int rank, int world, int frags, int size)
     return d;
 }
 
-void free_data(dague_ddesc_t *d)
+static void
+free_data(dague_ddesc_t *d)
 {
     my_datatype_t *array = (my_datatype_t*)d;
     if(NULL != array->data) {
@@ -191,7 +192,8 @@ void free_data(dague_ddesc_t *d)
  *
  * @return the dague object to schedule.
  */
-dague_handle_t *bandwidth_new(dague_ddesc_t *A, int loops, int frags, int size, int ws)
+static dague_handle_t*
+bandwidth_new(dague_ddesc_t *A, int loops, int frags, int size, int ws)
 {
     dague_bandwidth_handle_t *o = NULL;
 
@@ -214,7 +216,8 @@ dague_handle_t *bandwidth_new(dague_ddesc_t *A, int loops, int frags, int size, 
     return (dague_handle_t*)o;
 }
 
-void bandwidth_destroy(dague_handle_t* handle)
+static void
+bandwidth_destroy(dague_handle_t* handle)
 {
     dague_bandwidth_handle_t * bw_handle = (dague_bandwidth_handle_t*)handle;
     bw_handle->arenas[DAGUE_bandwidth_DEFAULT_ARENA] = NULL;
@@ -224,7 +227,8 @@ void bandwidth_destroy(dague_handle_t* handle)
 /**
  * @param [INOUT] o the dague object to destroy
  */
-void bw_destroy(dague_handle_t *o)
+static void
+bw_destroy(dague_handle_t *o)
 {
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
@@ -278,7 +282,7 @@ CTL  C -> C SYNC(t+1)
 ; (t * (NT-1)) + f
 
 BODY [type = CUDA]
-    return bandwidth_cuda(context, this_task, gT);
+    return bandwidth_cuda(context, this_task);
 END
 
 BODY

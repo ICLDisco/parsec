@@ -14,7 +14,7 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
                            dague_gpu_context_t     *gpu_task,
                            dague_gpu_exec_stream_t *gpu_stream)
 {
-    int i, ret, move_data_count = 0;
+    int i, ret, space_needed = 0;
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_data_t              *original;
     dague_data_copy_t         *data, *local;
@@ -22,7 +22,7 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
 
-        data = this_task->data[i].data;
+        data = this_task->data[i].data_in;
         original = data->original;
         if( NULL != (local = dague_data_get_copy(original, gpu_device->super.device_index)) ) {
             /* Check the most up2date version of the data */
@@ -37,16 +37,18 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
                     assert(0);
                 }
             }
+            this_task->data[i].data_out = local;
+            continue;  /* space available on the device */
         }
         /* If the data is needed as an input load it up */
         if(this_task->function->in[i]->access_type & ACCESS_READ)
-            move_data_count++;
+            space_needed++;
     }
 
-    if( 0 != move_data_count ) { /* Try to reserve enough room for all data */
+    if( 0 != space_needed ) { /* Try to reserve enough room for all data */
         ret = dague_gpu_data_reserve_device_space( gpu_device,
                                                    this_task,
-                                                   move_data_count );
+                                                   space_needed );
         if( ret < 0 ) {
             goto release_and_return_error;
         }
@@ -62,7 +64,7 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
 
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
-        assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data) );
+        assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
 
         DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d) on GPU\n",
                 gpu_device->cuda_index, this_task->function->in[i]->name,
@@ -91,14 +93,15 @@ gpu_kernel_pop_bandwidth( gpu_device_t        *gpu_device,
     cudaError_t status;
 
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
-        /* Don't bother if there is no real data (aka. CTL) */
-        if(NULL == this_task->data[i].data) continue;
+        /* Don't bother if there is no real data (aka. CTL or no output) */
+        if(NULL == this_task->data[i].data_out) continue;
         flow = this_task->function->in[i];
         if(NULL == flow)
             flow = this_task->function->out[i];
 
-        original = this_task->data[i].data->original;
-        gpu_copy = dague_data_get_copy(original, gpu_device->super.device_index);
+        original = this_task->data[i].data_out->original;
+        gpu_copy = this_task->data[i].data_out;
+        assert(original == this_task->data[i].data_in->original);
         if( flow->access_type & ACCESS_READ ) {
             gpu_copy->readers--; assert(gpu_copy->readers >= 0);
             if( (0 == gpu_copy->readers) &&
@@ -109,7 +112,6 @@ gpu_kernel_pop_bandwidth( gpu_device_t        *gpu_device,
             }
         }
         if( flow->access_type & ACCESS_WRITE ) {
-            gpu_copy->version++;  /* on to the next version */
             assert( gpu_copy == dague_data_get_copy(gpu_copy->original, gpu_device->super.device_index) );
             /* Stage the transfer of the data back to main memory */
             gpu_device->super.required_data_out += original->nb_elts;
@@ -129,7 +131,6 @@ gpu_kernel_pop_bandwidth( gpu_device_t        *gpu_device,
                 first = 0;
             }
             /* TODO: Move the data back into main memory, but not always on the first device (!) */
-            original = gpu_copy->original;
             status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
                                                      (CUdeviceptr)gpu_copy->device_private,
                                                      original->nb_elts, gpu_stream->cuda_stream );
@@ -160,13 +161,11 @@ gpu_kernel_epilog_bandwidth( gpu_device_t        *gpu_device,
         if(NULL == this_task->function->out[i]) continue;
         if(!(this_task->function->out[i]->access_type & ACCESS_WRITE)) continue;
 
-        original = this_task->data[i].data->original;
-        gpu_copy = dague_data_get_copy(original, gpu_device->super.device_index);
-        assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
-        gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
-        original = gpu_copy->original;
-        original->version = gpu_copy->version;
-        original->owner_device = -1;
+        gpu_copy = this_task->data[i].data_out;
+        original = this_task->data[i].data_out->original;
+        original->coherency_state = DATA_COHERENCY_OWNED;
+        original->owner = 0;
+        original->device_copies[0]->version = gpu_copy->version;
 
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
     }
@@ -187,6 +186,7 @@ gpu_kernel_submit_bandwidth( gpu_device_t            *gpu_device,
                                                         this_task->function->function_id) :
                               gpu_stream->prof_event_key_start),
                              this_task);
+    (void)gpu_device; (void)gpu_stream; (void)this_task;
     return 0;
 }
 
@@ -195,11 +195,8 @@ gpu_kernel_submit_bandwidth( gpu_device_t            *gpu_device,
 
 static inline
 int bandwidth_cuda(dague_execution_unit_t* eu_context,
-                   dague_execution_context_t* this_task,
-                   dague_data_copy_t * A)
+                   dague_execution_context_t* this_task)
 {
-    int i, data_index = 0;
-    dague_handle_t* handle = this_task->dague_handle;
     dague_gpu_context_t* gpu_task;
 
     gpu_task = (dague_gpu_context_t*)malloc(sizeof(dague_gpu_context_t));

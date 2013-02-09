@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012      The University of Tennessee and The University
+ * Copyright (c) 2012-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -122,7 +122,7 @@ void dague_data_delete(dague_data_t* data)
 inline int
 dague_data_copy_attach(dague_data_t* data,
                        dague_data_copy_t* copy,
-                       uint16_t device)
+                       uint8_t device)
 {
     copy->device_index    = device;
     copy->original        = data;
@@ -135,7 +135,7 @@ dague_data_copy_attach(dague_data_t* data,
 
 int dague_data_copy_detach(dague_data_t* data,
                            dague_data_copy_t* copy,
-                           uint16_t device)
+                           uint8_t device)
 {
     dague_data_copy_t* obj = data->device_copies[device];
 
@@ -153,7 +153,7 @@ int dague_data_copy_detach(dague_data_t* data,
 /**
  *
  */
-dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint16_t device)
+dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint8_t device)
 {
     dague_data_copy_t* copy;
 
@@ -173,8 +173,15 @@ dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint16_t device)
     return copy;
 }
 
+/**
+ * Beware: Before calling this function the owner of the data must be
+ * saved in order to know where to transfer the data from. Once this
+ * function returns, the ownership is transfered based on the access
+ * mode and the knowledge about the location of the most up-to-date
+ * version of the data is lost.
+ */
 int dague_data_transfer_ownership_to_copy(dague_data_t* data,
-                                          uint16_t device,
+                                          uint8_t device,
                                           uint8_t access_mode)
 {
     dague_data_copy_t* copy;
@@ -186,18 +193,17 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
     if( ACCESS_READ & access_mode ) copy->readers++;
 
     if( DATA_COHERENCY_INVALID == copy->coherency_state ) {
-        if( ACCESS_READ & access_mode ) transfer_required = -1;
+        if( ACCESS_READ & access_mode ) transfer_required = 1;
         /* Update the coherency state of the others versions */
         if( ACCESS_WRITE & access_mode ) {
             //assert( DATA_COHERENCY_OWNED != data->coherency_state ); /* 2 writters on the same data: wrong JDF */
             data->coherency_state = DATA_COHERENCY_OWNED;
-            data->owner_device = (uint16_t)device;
+            data->owner_device = (uint8_t)device;
             for( i = 0; i < dague_nb_devices; i++ ) {
                 if( NULL == data->device_copies[i] ) continue;
                 data->device_copies[i]->coherency_state = DATA_COHERENCY_INVALID;
             }
             copy->coherency_state = DATA_COHERENCY_OWNED;
-            copy->version = data->version;
         }
         else if( ACCESS_READ & access_mode ) {
             if( DATA_COHERENCY_OWNED == data->coherency_state ) {
@@ -207,17 +213,26 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
             copy->coherency_state = DATA_COHERENCY_SHARED;
         }
     }
-    else { /* !DATA_COHERENCY_INVALID */
+    else { /* ! DATA_COHERENCY_INVALID */
+        /* I either own the data or have one of its valid copies */
         if( DATA_COHERENCY_OWNED == copy->coherency_state ) {
+            assert(DATA_COHERENCY_OWNED == data->coherency_state);
             assert( device == data->owner_device ); /* memory is owned, better be me otherwise 2 writters: wrong JDF */
         }
-        else {
+        else {  /* I have one of the valid copies */
+            assert(DATA_COHERENCY_SHARED == data->coherency_state);
             if( ACCESS_WRITE & access_mode ) {
-                copy->coherency_state = DATA_COHERENCY_OWNED;
-                data->owner_device = (uint16_t)device;
                 /* Update the coherency state of the others versions */
+                for( i = 0; i < dague_nb_devices; i++ ) {
+                    if( NULL == data->device_copies[i] ) continue;
+                    data->device_copies[i]->coherency_state = DATA_COHERENCY_INVALID;
+                }
+                copy->coherency_state = DATA_COHERENCY_OWNED;
+                data->coherency_state = DATA_COHERENCY_OWNED;
+                data->owner_device = (uint8_t)device;
             } else {
                 /* The data is shared or exclusive and I'm doing a read */
+                data->coherency_state = DATA_COHERENCY_SHARED;
             }
         }
     }
@@ -243,10 +258,17 @@ static char dump_coherency_codex(dague_data_coherency_t state)
 
 void dague_dump_data_copy(dague_data_copy_t* copy)
 {
-    dague_data_t* data = copy->original;
-
-    printf("data %p key %x owner %d state %c version %d\n"
-           "-  %d: copy %p state %c readers %d version %d\n",
-           data, data->key, data->owner_device, dump_coherency_codex(data->coherency_state), data->version,
+    printf("-  [%d]: copy %p state %c readers %d version %u\n",
            (int)copy->device_index, copy, dump_coherency_codex(copy->coherency_state), copy->readers, copy->version);
+}
+
+void dague_dump_data(dague_data_t* data)
+{
+    printf("data %p key %x owner %d state %c version %u\n",
+           data, data->key, data->owner_device, dump_coherency_codex(data->coherency_state), data->version);
+
+    for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
+        if( NULL != data->device_copies[i])
+            dague_dump_data_copy(data->device_copies[i]);
+    }
 }

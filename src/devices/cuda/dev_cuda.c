@@ -173,7 +173,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     status = cuCtxPushCurrent( gpu_device->ctx );
     DAGUE_CUDA_CHECK_ERROR( "(cuda_solve_handle_dependencies) cuCtxPushCurrent ", status, {continue;} );
 
-    for( i = 0, index = -1; i < sizeof(cuda_legal_compute_capabilitites); i++ ) {
+    for( i = 0, index = -1; i < (int)sizeof(cuda_legal_compute_capabilitites); i++ ) {
         if(cuda_legal_compute_capabilitites[i] == capability) {
             index = i;
             break;
@@ -288,6 +288,7 @@ dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
 static int
 dague_cuda_handle_unregister(dague_device_t* device, dague_handle_t* handle)
 {
+    (void)device; (void)handle;
     return DAGUE_SUCCESS;
 }
 
@@ -295,20 +296,19 @@ int dague_gpu_init(dague_context_t *dague_context)
 {
     int show_caps_index, show_caps = 0;
     int use_cuda_index, use_cuda;
-    int cuda_mask_index, cuda_mask;
-    int cuda_output_index, cuda_verbosity;
+    int cuda_mask, cuda_verbosity;
     int ndevices, i, j, k;
     CUresult status;
 
     use_cuda_index = dague_mca_param_reg_int_name("device_cuda", "enabled",
                                                   "The number of CUDA device to enable for the next PaRSEC context",
                                                   false, false, 0, &use_cuda);
-    cuda_mask_index = dague_mca_param_reg_int_name("device_cuda", "mask",
-                                                   "The bitwise mask of CUDA devices to be enabled (default all)",
-                                                   false, false, 0xffffffff, &cuda_mask);
-    cuda_output_index = dague_mca_param_reg_int_name("device_cuda", "verbose",
-                                                     "Set the verbosity level of the CUDA device (negative value turns all output off, higher is less verbose)\n",
-                                                     false, false, -1, &cuda_verbosity);
+    (void)dague_mca_param_reg_int_name("device_cuda", "mask",
+                                       "The bitwise mask of CUDA devices to be enabled (default all)",
+                                       false, false, 0xffffffff, &cuda_mask);
+    (void)dague_mca_param_reg_int_name("device_cuda", "verbose",
+                                       "Set the verbosity level of the CUDA device (negative value turns all output off, higher is less verbose)\n",
+                                       false, false, -1, &cuda_verbosity);
     if( 0 == use_cuda ) {
         return -1;  /* Nothing to do around here */
     }
@@ -531,7 +531,7 @@ int dague_gpu_init(dague_context_t *dague_context)
                 status = cuCtxEnablePeerAccess( target_gpu->ctx, 0 );
                 DAGUE_CUDA_CHECK_ERROR( "cuCtxEnablePeerAccess ", status,
                                         {continue;} );
-                source_gpu->peer_access_mask |= (int16_t)(1 << target_gpu->cuda_index);
+                source_gpu->peer_access_mask = (int16_t)(source_gpu->peer_access_mask | (int16_t)(1 << target_gpu->cuda_index));
             }
         }
         status = cuCtxPopCurrent(NULL);
@@ -561,8 +561,8 @@ int dague_gpu_data_register( dague_context_t *dague_context,
 {
     gpu_device_t* gpu_device;
     CUresult status;
-    int i;
-    (void)eltsize;
+    uint32_t i;
+    (void)eltsize; (void)data;
 
     for(i = 0; i < dague_nb_devices; i++) {
         size_t how_much_we_allocate;
@@ -676,7 +676,7 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
 {
     gpu_device_t* gpu_device;
     CUresult status;
-    int i;
+    uint32_t i;
 
     for(i = 0; i < dague_nb_devices; i++) {
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
@@ -689,10 +689,9 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
         /* Free memory on GPU */
         DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_lru, item, {
                 dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
-                dague_data_t* original = gpu_copy->original;
                 DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                       "Considering suppresion of copy %p, attached to %p, in map %p",
-                                      gpu_copy, original, ddesc));
+                                      gpu_copy, gpu_copy->original, ddesc));
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
                 cuMemFree( (CUdeviceptr)gpu_copy->device_private );
 #else
@@ -760,7 +759,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         if(NULL == this_task->function->in[i]) continue;
 
         temp_loc[i] = NULL;
-        master = this_task->data[i].data->original;
+        master = this_task->data[i].data_in->original;
         gpu_elem = dague_data_get_copy(master, gpu_device->super.device_index);
         /* There is already a copy on the device */
         if( NULL != gpu_elem ) continue;
@@ -780,7 +779,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
             lru_gpu_elem = (dague_gpu_data_copy_t*)dague_ulist_fifo_pop(&gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
                 /* Make sure all remaining temporary locations are set to NULL */
-                for( ;  NULL != this_task->data[i].data; temp_loc[i++] = NULL );
+                for( ;  i < this_task->function->nb_parameters; temp_loc[i++] = NULL );
                 break;  /* Go and cleanup */
             }
             DAGUE_LIST_ITEM_SINGLETON(lru_gpu_elem);
@@ -801,8 +800,9 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                 if( NULL != lru_gpu_elem->original ) {
                     dague_data_t* oldmaster = lru_gpu_elem->original;
                     /* Let's check we're not trying to steal one of our own data */
-                    for( j = 0; NULL != this_task->data[j].data; j++ ) {
-                        if( this_task->data[j].data->original == oldmaster ) {
+                    for( j = 0; j < this_task->function->nb_parameters; j++ ) {
+                        if( NULL == this_task->data[j].data_in ) continue;
+                        if( this_task->data[j].data_in->original == oldmaster ) {
                             temp_loc[j] = lru_gpu_elem;
                             goto find_another_data;
                         }
@@ -829,6 +829,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         gpu_elem->coherency_state = DATA_COHERENCY_INVALID;
         gpu_elem->version = 0;
         dague_data_copy_attach(master, gpu_elem, gpu_device->super.device_index);
+        this_task->data[i].data_out = gpu_elem;
         move_data_count--;
         temp_loc[i] = gpu_elem;
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
@@ -839,7 +840,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         /* We can't find enough room on the GPU. Insert the tiles in the begining of
          * the LRU (in order to be reused asap) and return without scheduling the task.
          */
-        for( i = 0; NULL != this_task->data[i].data; i++ ) {
+        for( i = 0; NULL != this_task->data[i].data_in; i++ ) {
             if( NULL == temp_loc[i] ) continue;
             dague_ulist_lifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[i]);
         }
@@ -862,9 +863,9 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              dague_data_pair_t* task_data,
                              CUstream stream )
 {
-    dague_data_copy_t* in_elem = task_data->data;
+    dague_data_copy_t* in_elem = task_data->data_in;
     dague_data_t* original = in_elem->original;
-    dague_gpu_data_copy_t* gpu_elem = original->device_copies[gpu_device->super.device_index];
+    dague_gpu_data_copy_t* gpu_elem = task_data->data_out;
     int transfer_required = 0;
 
     /* If the data will be accessed in write mode, remove it from any lists
@@ -1015,10 +1016,10 @@ void dump_GPU_state(gpu_device_t* gpu_device)
     printf("\n\n");
     printf("Device %d:%d (%p)\n", gpu_device->cuda_index, gpu_device->super.device_index, gpu_device);
     printf("\tpeer mask %x executed tasks %llu max streams %d\n",
-           gpu_device->peer_access_mask, gpu_device->super.executed_tasks, gpu_device->max_exec_streams);
+           gpu_device->peer_access_mask, (unsigned long long)gpu_device->super.executed_tasks, gpu_device->max_exec_streams);
     printf("\tstats transferred [in %llu out %llu] required [in %llu out %llu]\n",
-           gpu_device->super.transferred_data_in, gpu_device->super.transferred_data_out,
-           gpu_device->super.required_data_in, gpu_device->super.required_data_out);
+           (unsigned long long)gpu_device->super.transferred_data_in, (unsigned long long)gpu_device->super.transferred_data_out,
+           (unsigned long long)gpu_device->super.required_data_in, (unsigned long long)gpu_device->super.required_data_out);
     for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
         dump_exec_stream(&gpu_device->exec_stream[i]);
     }

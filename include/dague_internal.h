@@ -173,7 +173,8 @@ struct dague_function_s {
 
 struct dague_data_pair_s {
     struct data_repo_entry_s    *data_repo;
-    struct dague_data_copy_s    *data;
+    struct dague_data_copy_s    *data_in;
+    struct dague_data_copy_s    *data_out;
 };
 
 /**
