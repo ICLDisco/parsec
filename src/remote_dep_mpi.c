@@ -400,10 +400,10 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != (target = exec_context.function->out[i])); i++) {
         whereto = target->flow_index;
         exec_context.data[whereto].data_repo = NULL;
-        exec_context.data[whereto].data      = NULL;
+        exec_context.data[whereto].data_out  = NULL;
         if(origin->msg.deps & (1 << i)) {
             DEBUG3(("MPI:\tDATA %p released from %p[%d]\n", DAGUE_DATA_COPY_GET_PTR(origin->output[i].data), origin, i));
-            exec_context.data[whereto].data = origin->output[i].data;
+            exec_context.data[whereto].data_out = origin->output[i].data;
 #if defined(DAGUE_DEBUG_ENABLE) && defined(DAGUE_DEBUG_VERBOSE3)
             if(origin->output[i].type) { /* no prints for CTL! */
                 char tmp[MAX_TASK_STRLEN];
