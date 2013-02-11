@@ -979,7 +979,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
                 arg->remote_deps->output[out_index].type = arena;
                 arg->remote_deps->output[out_index].nbelt = nbelt;
-                arg->remote_deps->output[out_index].data = oldcontext->data[target->flow_index].data;
+                arg->remote_deps->output[out_index].data = oldcontext->data[target->flow_index].data_out;
                 arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[out_index].count++;
                 arg->remote_deps_count++;
