@@ -243,7 +243,7 @@ SYNC(t)
 
 t = 0 .. NT-1
 
-: A(t % WS, 0)
+: A(0)
 
 CTL C -> C PING(t, 0 .. NF-1)
       <- (t > 0) ? C PONG(t-1, 0 .. NF-1)
@@ -256,9 +256,9 @@ PING(t, f)
 t = 0 .. NT-1
 f = 0 .. NF-1
 
-: A(t % WS, f)
+: A(f)
 
-RW   T <- (t == 0) ? A(t % WS, f) : T PONG(t-1, f)
+RW   T <- (t == 0) ? A(f) : T PONG(t-1, f)
        -> T PONG(t, f)
 CTL  C <- C SYNC(t)
 
@@ -273,10 +273,10 @@ PONG(t, f)
 t = 0 .. NT-1
 f = 0 .. NF-1
 
-: A(t % WS, f)
+: A(f)
 
 RW   T <- T PING(t, f)
-       -> (t < NT) ? T PING(t+1, f) : A(t % WS, f)
+       -> (t < NT) ? T PING(t+1, f) : A(f)
 CTL  C -> C SYNC(t+1)
 
 ; (t * (NT-1)) + f
@@ -310,6 +310,9 @@ int main(int argc, char *argv[])
     size = 1024;
 
     for( i = 1; i < argc; i++ ) {
+        if(0 == strcmp(argv[i], "-c")) {
+            cores = atoi(argv[i+1]); i++;
+        }
         if(0 == strcmp(argv[i], "-n")) {
             loops = atoi(argv[i+1]); i++;
         }
@@ -346,11 +349,11 @@ int main(int argc, char *argv[])
     dague_gpu_data_register(dague, ddescA, frags, size*sizeof(uint8_t));
 #endif
 
-    for(i = 0; i < 10; i++) {
+    for(i = 0; i < 1; i++) {
         bw_test = bandwidth_new(ddescA, loops, frags, size, world);
 
-        gettimeofday(&tstart, NULL);
         dague_enqueue(dague, bw_test);
+        gettimeofday(&tstart, NULL);
         dague_progress(dague);
         gettimeofday(&tend, NULL);
 
