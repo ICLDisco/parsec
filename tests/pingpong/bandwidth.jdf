@@ -262,8 +262,6 @@ RW   T <- (t == 0) ? A(f) : T PONG(t-1, f)
        -> T PONG(t, f)
 CTL  C <- C SYNC(t)
 
-; (t * (NT-1)) + f
-
 BODY
 
 END
@@ -276,10 +274,8 @@ f = 0 .. NF-1
 : A(f)
 
 RW   T <- T PING(t, f)
-       -> (t < NT) ? T PING(t+1, f) : A(f)
+       -> (t < NT-1) ? T PING(t+1, f) : A(f)
 CTL  C -> C SYNC(t+1)
-
-; (t * (NT-1)) + f
 
 BODY [type = CUDA]
     return bandwidth_cuda(context, this_task);
@@ -349,19 +345,20 @@ int main(int argc, char *argv[])
     dague_gpu_data_register(dague, ddescA, frags, size*sizeof(uint8_t));
 #endif
 
-    for(i = 0; i < 1; i++) {
+    for(i = 0; i < 2; i++) {
         bw_test = bandwidth_new(ddescA, loops, frags, size, world);
 
-        dague_enqueue(dague, bw_test);
         gettimeofday(&tstart, NULL);
+        dague_enqueue(dague, bw_test);
         dague_progress(dague);
         gettimeofday(&tend, NULL);
 
-        t = (tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec);
-        assert(t > 0.0);
-        bw = ((double)loops * (double)frags * (double)size) / t * ((1000.0 * 1000.0) / (1024.0 * 1024.0));
-        printf("[%d, %d, %d, %08.4g] %4.8g MB/s\n", loops, frags, size, t / 1000000.0, bw);
-
+        if( 0 != i ) {
+            t = (tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec);
+            assert(t > 0.0);
+            bw = ((double)loops * (double)frags * (double)size) / t * ((1000.0 * 1000.0) / (1024.0 * 1024.0));
+            printf("[%d, %d, %d, %08.4g] %4.8g MB/s\n", loops, frags, size, t / 1000000.0, bw);
+        }
         bandwidth_destroy(bw_test);
     }
 
