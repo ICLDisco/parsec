@@ -70,7 +70,7 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
         assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
 
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
-                              "GPU[%1d]:\tIN  Data of %s(%d) on GPU\n",
+                              "GPU[%1d]:\tIN  Data of %s key %d on GPU\n",
                               gpu_device->cuda_index, this_task->function->in[i]->name,
                               (int)this_task->data[i].data_in->original->key));
         ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->access_type,
