@@ -356,7 +356,7 @@ int main(int argc, char *argv[])
         if( 0 != i ) {
             t = (tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec);
             assert(t > 0.0);
-            bw = ((double)loops * (double)frags * (double)size) / t * ((1000.0 * 1000.0) / (1024.0 * 1024.0));
+            bw = ((double)loops * (double)frags * (double)size) / t * ((1000.0 * 1000.0) / (1024.0 * 1024.0)) * 2.0;
             printf("[%d, %d, %d, %08.4g] %4.8g MB/s\n", loops, frags, size, t / 1000000.0, bw);
         }
         bandwidth_destroy(bw_test);
