@@ -3684,6 +3684,7 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
     string_arena_t *sa, *sa2;
     int di, profile_on;
     jdf_dataflow_t *fl;
+    assignment_info_t ai;
 
     /**
      * If the function or the body has the "profile" property turned off
@@ -3693,11 +3694,20 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
 
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
+    ai.sa = sa2;
+    ai.idx = 0;
+    ai.holder = "this_task->locals";
+    ai.expr = NULL;
     coutput("static int complete_%s(dague_execution_unit_t *context, dague_execution_context_t *this_task)\n"
             "{\n"
             "  const __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
+            "#if defined(DISTRIBUTED)\n"
+            "  %s"
+            "#endif  /* defined(DISTRIBUTED) */\n"
             "  (void)context; (void)__dague_handle;\n",
-            name, jdf_basename, jdf_basename);
+            name, jdf_basename, jdf_basename,
+            UTIL_DUMP_LIST(sa, f->locals, next,
+                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
 
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         if(JDF_VAR_TYPE_CTL == fl->access_type) continue;
@@ -3718,6 +3728,9 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         jdf_generate_code_flow_final_writes(jdf, fl, di);
     }
+    coutput("%s\n",
+            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
+                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
     coutput("#endif /* DISTRIBUTED */\n");
 
     jdf_generate_code_grapher_task_done(jdf, f, "this_task");
