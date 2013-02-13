@@ -421,12 +421,6 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 #endif  /* DAGUE_REPORT_STATISTICS */
 
-    printf("exec L1 %7lld L2 %7lld TLB %7lld\n", 
-           eu_context->exec_cache_misses[0], 
-           eu_context->exec_cache_misses[1],
-           eu_context->exec_tlb_misses
-           );
-
     return (void*)((long)nbiterations);
 }
 

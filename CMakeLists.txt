@@ -454,18 +454,6 @@ IF( BUILD_DAGUE )
     endif (NOT PAPI_FOUND)
   endif (PINS_EXEC_MISSES)
 
-  if( DAGUE_PROF_TRACE )
-    list(APPEND EXTRA_SOURCES src/profiling.c)
-  endif( DAGUE_PROF_TRACE )
-
-  if( DAGUE_PROF_STATS )
-    list(APPEND EXTRA_SOURCES src/stats.c)
-  endif( DAGUE_PROF_STATS )
-
-  if( DAGUE_PROF_GRAPHER )
-    list(APPEND EXTRA_SOURCES src/dague_prof_grapher.c)
-  endif( DAGUE_PROF_GRAPHER )
-
   find_package(AYUDAME QUIET)
   set(HAVE_AYUDAME ${AYUDAME_FOUND})
 #

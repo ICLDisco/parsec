@@ -41,9 +41,9 @@ struct dague_execution_unit_s {
     int largest_simulation_date;
 #endif
 
-	int ExecEventSet;
-	int StealEventSet;
-
+#if defined(HAVE_PAPI)
+	int papi_eventsets[2];
+#endif /* HAVE_PAPI */
 	long long int self_counters[2];
 	long long int steal_counters[2];
 	long long int other_counters[2];

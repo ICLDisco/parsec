@@ -171,6 +171,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 	    DEBUG(("PAPI_register_thread failed with error %s\n", PAPI_strerror(rv)));
 #endif    
 
+    pins_thread_init(eu);
+
     eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
         eu->datarepo_mempools[pi] = &(eu->virtual_process->datarepo_mempools[pi].thread_mempools[eu->th_id]);
@@ -1147,8 +1149,6 @@ int dague_handle_register( dague_handle_t* object )
 
     dague_atomic_lock( &object_array_lock );
     index = (uint32_t)++object_array_pos;
-
-    printf("%p %p\n", object, object->context);
 
     if( index >= object_array_size ) {
         object_array_size *= 2;

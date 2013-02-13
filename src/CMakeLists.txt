@@ -45,6 +45,12 @@ if( PINS_ENABLE )
   endif( PINS_EXEC_MISSES )
 endif( PINS_ENABLE )
 
+if( DAGUE_PROF_TRACE )
+  message(STATUS "in that block")
+  list(APPEND EXTRA_SOURCES profiling.c)
+endif( DAGUE_PROF_TRACE )
+
+
 set(SOURCES
   barrier.c
   scheduling.c
@@ -70,10 +76,6 @@ if (CUDA_FOUND)
   list(APPEND SOURCES devices/cuda/dev_cuda.c)
 endif (CUDA_FOUND)
 
-if( DAGUE_PROF_TRACE )
-  list(APPEND SOURCES profiling.c)
-endif( DAGUE_PROF_TRACE )
-
 if( DAGUE_PROF_STATS )
   list(APPEND SOURCES stats.c)
 endif( DAGUE_PROF_STATS )
@@ -81,6 +83,8 @@ endif( DAGUE_PROF_STATS )
 if( DAGUE_PROF_GRAPHER )
   list(APPEND SOURCES dague_prof_grapher.c)
 endif( DAGUE_PROF_GRAPHER )
+
+
 
 #
 # Setup targets

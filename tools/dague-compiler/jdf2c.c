@@ -2576,7 +2576,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
 
     coutput("static void %s_startup(dague_context_t *context, dague_handle_t *dague_handle, dague_execution_context_t** pready_list)\n"
             "{\n"
-            "  printf(\"startup: %%p %%p\\n\", context, dague_handle);\n"
             "  uint32_t supported_dev = 0;\n"
             "  __dague_%s_internal_handle_t* __dague_handle = (__dague_%s_internal_handle_t*)dague_handle;\n"
             "  dague_handle->context = context;\n"
