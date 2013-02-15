@@ -242,8 +242,8 @@ int main(int argc, char *argv[])
     threads = (pthread_t*)calloc(sizeof(pthread_t), nbthreads);
     times = (uint64_t*)calloc(sizeof(uint64_t), nbthreads);
 
-    dague_lifo_construct( &lifo1 );
-    dague_lifo_construct( &lifo2 );
+    OBJ_CONSTRUCT(&lifo1, dague_lifo_t);
+    OBJ_CONSTRUCT(&lifo2, dague_lifo_t);
 
     printf("Sequential test.\n");
 
