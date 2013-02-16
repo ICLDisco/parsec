@@ -5,8 +5,8 @@
  */
 
 
-#ifndef _PRECISION_H_ 
-#define _PRECISION_H_ 
+#ifndef _PRECISION_H_
+#define _PRECISION_H_
 
 /******************************************************************************
  * Dague Complex numbers
