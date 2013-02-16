@@ -54,10 +54,6 @@ struct dague_vp {
     int32_t vp_id;                  /**< virtual process identifier of this vp */
     int32_t nb_cores;               /**< number of cores for this vp */
 
-#if defined(DAGUE_SIM)
-    int largest_simulation_date;
-#endif
-
     dague_mempool_t context_mempool;
     dague_mempool_t datarepo_mempools[MAX_PARAM_COUNT+1];
 
@@ -84,7 +80,7 @@ struct dague_context_t {
 
     size_t remote_dep_fw_mask_sizeof; /* Size of the remote dep fw mask */
 
-    pthread_t *pthreads; /**< all POSIX threads used for computation are stored here in order 
+    pthread_t *pthreads; /**< all POSIX threads used for computation are stored here in order
                           *   threads[0] is uninitialized, this is the user's thread
                           *   threads[1] = thread for vp=0, th=1, if vp[0]->nbcores > 1
                           *   threads[n] = thread(vp=1, th=0) if vp[0]->nb_cores = n
@@ -92,6 +88,10 @@ struct dague_context_t {
                           */
 
     int32_t nb_vp; /**< number of virtual processes in this physical process */
+
+#if defined(DAGUE_SIM)
+    int largest_simulation_date;
+#endif
 
 #ifdef HAVE_HWLOC
     int comm_th_core;

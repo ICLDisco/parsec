@@ -303,7 +303,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             // MY MODS
             TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
             TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
-            
+
             switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
             case DAGUE_LOOKUP_DONE:
                 /* We're good to go ... */
@@ -326,16 +326,20 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
 #if defined(DAGUE_SIM)
     if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
-        int32_t my_idx;
+        dague_vp_t *vp;
+        int32_t my_vpid, my_idx;
         int largest_date = 0;
-        for(my_idx = 0; my_idx < dague_context->nb_cores; my_idx++) {
-            if( dague_context->execution_units[my_idx]->largest_simulation_date > largest_date )
-                largest_date = dague_context->execution_units[my_idx]->largest_simulation_date;
+        for(my_vpid = 0; my_vpid < dague_context->nb_vp; my_vpid++) {
+            vp = dague_context->virtual_processes[my_vpid];
+            for(my_idx = 0; my_idx < vp->nb_cores; my_idx++) {
+                if( vp->execution_units[my_idx]->largest_simulation_date > largest_date )
+                    largest_date = vp->execution_units[my_idx]->largest_simulation_date;
+            }
         }
         dague_context->largest_simulation_date = largest_date;
     }
     dague_barrier_wait( &(dague_context->barrier) );
-    eu_context ->largest_simulation_date = 0;
+    eu_context->largest_simulation_date = 0;
 #endif
 
     if( !DAGUE_THREAD_IS_MASTER(eu_context) ) {
