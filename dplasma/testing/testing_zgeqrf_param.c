@@ -141,7 +141,7 @@ int main(int argc, char ** argv)
                iparam[IPARAM_HIGHLVL_TREE],
                iparam[IPARAM_QR_DOMINO],
                iparam[IPARAM_QR_TSRR],
-               M, N,
+               MT, NT,
                dague_getsimulationdate( dague ));
     }
 #else
