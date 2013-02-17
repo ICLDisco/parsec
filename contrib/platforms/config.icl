@@ -7,9 +7,9 @@ echo "# Many parameters can be tuned (command line, env, etc)"
 echo "# Open this file to see what common variables are available"
 echo "#"
 # These are override variables you can set (here or in the env) to alter defaults
-CC=${CC:="/mnt/scratch/sw/intel/2011.6.233/bin/icc"}
-CXX=${CXX:="/mnt/scratch/sw/intel/2011.6.233/bin/icpc"}
-FC=${FC:="/mnt/scratch/sw/intel/2011.6.233/bin/ifort"}
+CC=${CC:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/bin/icc"}
+CXX=${CXX:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/bin/icpc"}
+FC=${FC:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/bin/ifort"}
 #MPI_DIR=${MPI_DIR:="/path/mpi"}
 #HWLOC_DIR=${HWLOC_DIR:="/path/hwloc"}
 #GTG_DIR=${GTG_DIR:="/path/gtg"}

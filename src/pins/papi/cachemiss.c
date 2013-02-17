@@ -1,3 +1,5 @@
+#include "dague_config.h"
+#ifdef HAVE_PAPI
 #include <papi.h>
 #include "cachemiss.h"
 #include <stdio.h>
@@ -117,7 +119,6 @@ void start_papi_exec_count(dague_execution_unit_t * exec_unit, dague_execution_c
 	    printf("cachemiss.c, start_papi_exec_count: can't start exec event counters! %d %s\n", rv, PAPI_strerror(rv));
 	else {
 		dague_profiling_trace(exec_unit->eu_profile, pins_prof_exec_misses_start, 0, -1, NULL);
-		printf("success start\n");
 	}
 		    
 }
@@ -131,7 +132,7 @@ void stop_papi_exec_count(dague_execution_unit_t * exec_unit, dague_execution_co
 		printf("cachemiss.c, stop_papi_exec_count: can't stop exec event counters! %d %s\n", rv, PAPI_strerror(rv));
 	else {
 		dague_profiling_trace(exec_unit->eu_profile, pins_prof_exec_misses_stop, 0, -1, &values[0]);
-		printf("success\n");
 	}
 }
 
+#endif
