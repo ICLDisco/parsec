@@ -132,6 +132,8 @@ if(PLASMA_FOUND)
     if(PLASMA_FIND_REQUIRED)
       message(FATAL_ERROR "Couln't find the plasma.h header in ${PLASMA_INCLUDE_DIRS}")
     endif(PLASMA_FIND_REQUIRED)
+    set(PLASMA_FOUND FALSE)
+    return()
   endif()
 
   # Validate the library
@@ -145,13 +147,13 @@ if(PLASMA_FOUND)
   # if CMAKE_REQUIRED_FLAGS is a list (separated by ;), only the first element of the list is passed to check_c_source_compile
   # Since PLASMA_LDFLAGS and PLASMA_CFLAGS hold lists, we convert them by hand to a string
   foreach(arg ${PLASMA_LDFLAGS})
-   set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
+    set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
   endforeach(arg ${PLASMA_LDFLAGS})
   foreach(arg ${PLASMA_CFLAGS})
-   set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
+    set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
   endforeach(arg ${PLASMA_CFLAGS})
   foreach(arg ${PLASMA_LIBRARY_DIRS})
-   set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -L${arg}")
+    set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -L${arg}")
   endforeach(arg ${PLASMA_CFLAGS})
 
   check_c_source_compiles(
@@ -168,6 +170,7 @@ if(PLASMA_FOUND)
         message(FATAL_ERROR "Find PLASMA requires Fortran support so Fortran must be enabled.")
       else(PLASMA_FIND_REQUIRED)
         message(STATUS "Looking for PLASMA... - NOT found (Fortran not enabled)") #
+        set(PLASMA_FOUND FALSE)
         return()
       endif(PLASMA_FIND_REQUIRED)
     endif(NOT _LANGUAGES_ MATCHES Fortran)
@@ -177,8 +180,18 @@ if(PLASMA_FOUND)
       "int main(int argc, char* argv[]) {
        PLASMA_dgeqrf(); return 0;
      }"
-     PLASMA_F_COMPILE_SUCCESS
-    )
+      PLASMA_F_COMPILE_SUCCESS
+      )
+
+    if(NOT PLASMA_F_COMPILE_SUCCESS)
+      if(PLASMA_FIND_REQUIRED)
+        message(FATAL_ERROR "Find PLASMA requires Fortran support so Fortran must be enabled.")
+      else(PLASMA_FIND_REQUIRED)
+        message(STATUS "Looking for PLASMA... - NOT found")
+        set(PLASMA_FOUND FALSE)
+        return()
+      endif(PLASMA_FIND_REQUIRED)
+    endif(NOT PLASMA_F_COMPILE_SUCCESS)
   endif(NOT PLASMA_C_COMPILE_SUCCESS)
 
   set(${CMAKE_REQUIRED_INCLUDES}  PLASMA_tmp_includes)
@@ -187,7 +200,7 @@ if(PLASMA_FOUND)
   unset(PLASMA_tmp_libraries)
   unset(PLASMA_tmp_includes)
   unset(PLASMA_tmp_flags)
-endif()
+endif(PLASMA_FOUND)
 
 if(NOT PLASMA_FIND_QUIETLY)
   set(PLASMA_status_message
