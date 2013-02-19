@@ -559,7 +559,7 @@ static char *dump_data_declaration(void **elem, void *arg)
 }
 
 /**
- * dump_data_initalization_from_data_array:
+ * dump_data_initialization_from_data_array:
  *  Takes the pointer to a flow *f, let say that f->varname == "A",
  *  this produces a string like
  *  dague_data_copy_t *gA = this_task->data[id].data_in;\n
@@ -570,7 +570,7 @@ typedef struct init_from_data_array_info {
     int idx;
 } init_from_data_array_info_t;
 
-static char *dump_data_initalization_from_data_array(void **elem, void *arg)
+static char *dump_data_initialization_from_data_array(void **elem, void *arg)
 {
     init_from_data_array_info_t *ifda = (init_from_data_array_info_t*)arg;
     string_arena_t *sa = ifda->sa;
@@ -586,8 +586,10 @@ static char *dump_data_initalization_from_data_array(void **elem, void *arg)
 
     string_arena_add_string(sa,
                             "  dague_data_copy_t *g%s = this_task->data[%d].data_in;\n"
+                            "  data_repo_entry_t *e%s = NULL;\n"
                             "  void *%s = DAGUE_DATA_COPY_GET_PTR(g%s); (void)%s;\n",
                             varname, ifda->idx,
+                            varname,
                             varname, varname, varname);
     ifda->idx++;
 
@@ -3615,7 +3617,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     ifda.sa = sa2;
     ifda.idx = 0;
     output = UTIL_DUMP_LIST(sa, f->dataflow, next,
-                            dump_data_initalization_from_data_array, &ifda, "", "", "", "");
+                            dump_data_initialization_from_data_array, &ifda, "", "", "", "");
     if( 0 != strlen(output) ) {
         coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
                 "%s\n",
@@ -3623,18 +3625,23 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     }
 
     coutput("  /** Lookup the input data, and store them in the context if any */\n");
-    for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+    {
+        jdf_dataflow_t *fl;
+        int di;
 
-        if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
+        for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 
-        jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
-        coutput("#if defined(DAGUE_SIM)\n"
-                "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
-                "    __dague_simulation_date =  e%s->sim_exec_date;\n"
-                "#endif\n",
-                fl->varname,
-                fl->varname,
-                fl->varname);
+            if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
+
+            jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
+            coutput("#if defined(DAGUE_SIM)\n"
+                    "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
+                    "    __dague_simulation_date =  e%s->sim_exec_date;\n"
+                    "#endif\n",
+                    fl->varname,
+                    fl->varname,
+                    fl->varname);
+        }
     }
 
     coutput("  /** Store pointer used in the function for antidependencies detection */\n"
