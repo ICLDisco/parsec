@@ -93,13 +93,14 @@ int main(int argc, char ** argv)
             FILE *f;
             int i, j;
 
-            asprintf(&filename, "simulation-%dx%d-a%d-p%d-l%d-h%d-d%d.dat",
+            asprintf(&filename, "simulation-%dx%d-a%d-p%d-l%d-h%d-d%d-rr%d.dat",
                      M, N,
                      iparam[IPARAM_QR_TS_SZE],
                      iparam[IPARAM_QR_HLVL_SZE],
                      iparam[IPARAM_LOWLVL_TREE],
                      iparam[IPARAM_HIGHLVL_TREE],
-                     iparam[IPARAM_QR_DOMINO]);
+                     iparam[IPARAM_QR_DOMINO],
+                     iparam[IPARAM_QR_TSRR]);
 
             f = fopen(filename, "w");
             for( i=0; i<M; i++ ) {
@@ -130,22 +131,18 @@ int main(int argc, char ** argv)
             }
         }
 
-        printf("zgeqrf HQR simulation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d M= %d N= %d : %d \n",
+        printf("zgeqrf HQR simulation NP= %d NC= %d P= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d MT= %d NT= %d : %d \n",
                iparam[IPARAM_NNODES],
                iparam[IPARAM_NCORES],
                iparam[IPARAM_P],
-               iparam[IPARAM_IB],
-               iparam[IPARAM_MB],
-               iparam[IPARAM_NB],
                iparam[IPARAM_QR_TS_SZE],
                iparam[IPARAM_QR_HLVL_SZE],
                iparam[IPARAM_LOWLVL_TREE],
                iparam[IPARAM_HIGHLVL_TREE],
                iparam[IPARAM_QR_DOMINO],
                iparam[IPARAM_QR_TSRR],
-               iparam[IPARAM_M],
-               iparam[IPARAM_N],
-               dague->largest_simulation_date);
+               MT, NT,
+               dague_getsimulationdate( dague ));
     }
 #else
     SYNC_TIME_PRINT(rank,
