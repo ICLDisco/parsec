@@ -98,7 +98,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
         DEBUG(("thread %d of VP %d Execute %s[%d]\n",
                eu_context->th_id, eu_context->virtual_process->vp_id,
                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
-               function->incarnation[exec_context->chore_id].type));
+               function->incarnations[exec_context->chore_id].type));
 #endif
         rc = function->incarnations[exec_context->chore_id].hook( eu_context, exec_context );
         if( DAGUE_HOOK_RETURN_NEXT != rc )
