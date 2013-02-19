@@ -3529,7 +3529,12 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
 
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         if(fl) {
-            if ( fl->access_type & JDF_VAR_TYPE_WRITE ) {
+            jdf_dep_t *dd;
+            for( dd = fl->deps; dd != NULL; dd = dd->next ) {
+                if( dd->type & JDF_DEP_TYPE_OUT )
+                    break;
+            }
+            if ( NULL != dd ) {
                 coutput("  this_task->data[%d].data_out = this_task->data[%d].data_in;\n",
                         di, di);
             } else {
