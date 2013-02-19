@@ -66,7 +66,7 @@ GENERATE_SM_VERSION_NAME(ZGEMM)( char TRANSA, char TRANSB, int m, int n, int k,
     cudaStream_t current_stream;
     cublasHandle_t handle = cublasGetCurrentCtx();
     
-    cublasGetStream_v2 ( handle, &saved_stream );
+    cublasGetStream_v2 ( handle, &current_stream );
     cublasSetStream_v2 ( handle, &stream );
 
     cublasZgemm_v2(handle, convertToOp(TRANSA), convertToOp(TRANSB),
@@ -76,7 +76,7 @@ GENERATE_SM_VERSION_NAME(ZGEMM)( char TRANSA, char TRANSB, int m, int n, int k,
                    &lbeta,  (cuDoubleComplex*)d_C, ldc); 
     assert( CUBLAS_STATUS_SUCCESS == cublasGetError() );
 
-    cublasSetStream_v2 ( handle, &saved_stream );
+    cublasSetStream_v2 ( handle, &current_stream );
 #endif
 }
 
