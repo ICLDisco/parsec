@@ -586,10 +586,8 @@ static char *dump_data_initialization_from_data_array(void **elem, void *arg)
 
     string_arena_add_string(sa,
                             "  dague_data_copy_t *g%s = this_task->data[%d].data_in;\n"
-                            "  data_repo_entry_t *e%s = NULL;\n"
                             "  void *%s = DAGUE_DATA_COPY_GET_PTR(g%s); (void)%s;\n",
                             varname, ifda->idx,
-                            varname,
                             varname, varname, varname);
     ifda->idx++;
 
@@ -3633,7 +3631,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
 
             if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
 
-            jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
             coutput("#if defined(DAGUE_SIM)\n"
                     "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
                     "    __dague_simulation_date =  e%s->sim_exec_date;\n"
