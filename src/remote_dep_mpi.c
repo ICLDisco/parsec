@@ -228,7 +228,7 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
     {
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
         DAGUE_LIST_ITEM_CONSTRUCT(item);
-        dague_context_t *ret;
+        void *ret;
 
         item->action = DEP_CTL;
         item->cmd.ctl.enable = -1;  /* turn off the MPI thread */
@@ -238,8 +238,8 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
         /* I am supposed to own the lock. Wake the MPI thread */
         pthread_cond_signal(&mpi_thread_condition);
         pthread_mutex_unlock(&mpi_thread_mutex);
-        pthread_join(dep_thread_id, (void**) &ret);
-        assert(ret == context);
+        pthread_join(dep_thread_id, &ret);
+        assert((dague_context_t*)ret == context);
     }
 
     dague_dequeue_destruct(&dep_cmd_queue);
