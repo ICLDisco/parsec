@@ -3414,7 +3414,6 @@ static int jdf_property_get_int( const jdf_def_list_t* properties, const char* p
 
 static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
-    char* output;
     string_arena_t *sa, *sa2, *sa_test;
     assignment_info_t ai;
     jdf_dataflow_t *fl;
