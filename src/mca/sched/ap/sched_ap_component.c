@@ -65,8 +65,10 @@ mca_base_component_t *sched_ap_static_component(void)
 
 static int sched_ap_component_query(mca_base_module_t **module, int *priority)
 {
+    /* module type should be: const mca_base_module_t ** */
+    void *ptr = (void*)&dague_sched_ap_module;
     *priority = 12;
-    *module = (mca_base_module_t *)&dague_sched_ap_module;
+    *module = (mca_base_module_t *)ptr;
     return MCA_SUCCESS;
 }
 
