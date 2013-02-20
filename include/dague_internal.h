@@ -302,12 +302,12 @@ int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
  * most internal structues, while leaving the datatypes and the tasks management
  * buffers untouched. Instead, from the application layer call the _Destruct.
  */
-#define DAGUE_INTERNAL_HANDLE_DESTRUCT(OBJ)             \
-    do {                                                \
-    dague_handle_t* __obj = (dague_handle_t*)(OBJ);     \
-    __obj->destructor(__obj);                           \
-    (OBJ) = NULL;                                       \
-} while (0)
+#define DAGUE_INTERNAL_HANDLE_DESTRUCT(OBJ)                            \
+    do {                                                               \
+        void* __obj = (void*)(OBJ);                                    \
+        ((dague_handle_t*)__obj)->destructor((dague_handle_t*)__obj);  \
+        (OBJ) = NULL;                                                  \
+    } while (0)
 
 #define dague_execution_context_priority_comparator offsetof(dague_execution_context_t, priority)
 
