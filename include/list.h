@@ -398,9 +398,8 @@ dague_list_nolock_remove( dague_list_t* list,
     assert( &list->ghost_element != item );
 #if defined(DAGUE_DEBUG_ENABLE)
     assert( list == item->belong_to );
-#else
-    (void)list;
 #endif
+    (void)list;
     dague_list_item_t* prev = (dague_list_item_t*)item->list_prev;
     item->list_prev->list_next = item->list_next;
     item->list_next->list_prev = item->list_prev;
