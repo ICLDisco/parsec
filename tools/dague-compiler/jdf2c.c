@@ -981,11 +981,11 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
         rs = 80 - length - ls;
     }
     coutput("/*");
-    for(i = 0; i < 80; i++)
+    for(i = 0; i < 5; i++)
         coutput("%c", marker);
-    coutput("*\n *%s%s", indent(ls/2), v);  /* indent drop two spaces */
-    coutput("%s*\n *", indent(rs/2));       /* dont merge these two calls. Read the comment on the indent function */
-    for(i = 0; i < 80; i++)
+    coutput("%s%s", indent(ls/2), v);  /* indent drop two spaces */
+    coutput("%s", indent(rs/2));       /* dont merge these two calls. Read the comment on the indent function */
+    for(i = 0; i < 5; i++)
         coutput("%c", marker);
     coutput("*/\n\n");
     free(v);
@@ -2590,34 +2590,30 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa1 = string_arena_new(64);
 
-    coutput("static void %s_destructor( dague_%s_handle_t *o )\n"
+    coutput("static void %s_destructor( __dague_%s_internal_handle_t *handle )\n"
             "{\n"
-            "  dague_handle_t *d = (dague_handle_t *)o;\n"
-            "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t*)o; (void)__dague_handle;\n"
             "  uint32_t i;\n",
-            jdf_basename, jdf_basename,
-            jdf_basename,
-            jdf_basename);
+            jdf_basename, jdf_basename);
 
-    coutput("  for( i = 0; i < d->nb_functions; i++ ) {\n"
-            "    dague_function_t* func = (dague_function_t*)d->functions_array[i];\n"
+    coutput("  for( i = 0; i < handle->super.super.nb_functions; i++ ) {\n"
+            "    dague_function_t* func = (dague_function_t*)handle->super.super.functions_array[i];\n"
             "    free((void*)func->incarnations);\n"
             "    free(func);"
             "  }\n"
-            "  free(d->functions_array);\n"
-            "  d->functions_array = NULL;\n"
-            "  d->nb_functions = 0;\n");
+            "  free(handle->super.super.functions_array);\n"
+            "  handle->super.super.functions_array = NULL;\n"
+            "  handle->super.super.nb_functions = 0;\n");
 
-    coutput("  for(i = 0; i < (uint32_t)o->arenas_size; i++) {\n"
-            "    if( o->arenas[i] != NULL ) {\n"
-            "      dague_arena_destruct(o->arenas[i]);\n"
-            "      free(o->arenas[i]);\n"
-            "      o->arenas[i] = NULL;\n"
+    coutput("  for(i = 0; i < (uint32_t)handle->super.arenas_size; i++) {\n"
+            "    if( handle->super.arenas[i] != NULL ) {\n"
+            "      dague_arena_destruct(handle->super.arenas[i]);\n"
+            "      free(handle->super.arenas[i]);\n"
+            "      handle->super.arenas[i] = NULL;\n"
             "    }\n"
             "  }\n"
-            "  free( o->arenas );\n"
-            "  o->arenas = NULL;\n"
-            "  o->arenas_size = 0;\n");
+            "  free( handle->super.arenas );\n"
+            "  handle->super.arenas = NULL;\n"
+            "  handle->super.arenas_size = 0;\n");
 
     coutput("  /* Destroy the data repositories for this object */\n");
     {
@@ -2625,7 +2621,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
             if( 0 != function_has_data_output(f) )
-                coutput("   data_repo_destroy_nothreadsafe(__dague_handle->%s_repository);\n",
+                coutput("   data_repo_destroy_nothreadsafe(handle->%s_repository);\n",
                         f->fname);
         }
     }
@@ -2636,38 +2632,38 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "#endif /*defined(DAGUE_PROF_PTR_FILE)*/\n" );
 
     coutput("  for(i = 0; i < DAGUE_%s_NB_FUNCTIONS; i++) {\n"
-            "    dague_destruct_dependencies( d->dependencies_array[i] );\n"
-            "    d->dependencies_array[i] = NULL;\n"
+            "    dague_destruct_dependencies( handle->super.super.dependencies_array[i] );\n"
+            "    handle->super.super.dependencies_array[i] = NULL;\n"
             "  }\n"
-            "  free( d->dependencies_array );\n"
-            "  d->dependencies_array = NULL;\n",
+            "  free( handle->super.super.dependencies_array );\n"
+            "  handle->super.super.dependencies_array = NULL;\n",
             jdf_basename);
 
     coutput("  /* Unregister all the data */\n"
             "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
             "    dague_device_t* device;\n"
             "    dague_ddesc_t* dague_ddesc;\n"
-            "    if(!(d->devices_mask & (1 << _i))) continue;\n"
+            "    if(!(handle->super.super.devices_mask & (1 << _i))) continue;\n"
             "    if((NULL == (device = dague_devices_get(_i))) || (NULL == device->device_memory_unregister)) continue;\n"
             "  %s"
             "}\n",
             UTIL_DUMP_LIST(sa, jdf->globals, next,
                            dump_data_name, sa1, "",
-                           "  dague_ddesc = (dague_ddesc_t*)__dague_handle->super.",
+                           "  dague_ddesc = (dague_ddesc_t*)handle->super.",
                            ";\n  (void)dague_ddesc->unregister_memory(dague_ddesc, device);\n",
                            ";\n  (void)dague_ddesc->unregister_memory(dague_ddesc, device);\n"));
 
     coutput("  /* Unregister the handle from the devices */\n"
             "  for( i = 0; i < dague_nb_devices; i++ ) {\n"
-            "    if(!(d->devices_mask & (1 << i))) continue;\n"
-            "    d->devices_mask ^= (1 << i);\n"
+            "    if(!(handle->super.super.devices_mask & (1 << i))) continue;\n"
+            "    handle->super.super.devices_mask ^= (1 << i);\n"
             "    dague_device_t* device = dague_devices_get(i);\n"
             "    if((NULL == device) || (NULL == device->device_handle_unregister)) continue;\n"
-            "    if( DAGUE_SUCCESS != device->device_handle_unregister(device, d) ) continue;\n"
+            "    if( DAGUE_SUCCESS != device->device_handle_unregister(device, &handle->super.super) ) continue;\n"
             "  }\n");
 
-    coutput("  dague_handle_unregister( d );\n"
-            "  free(o);\n");
+    coutput("  dague_handle_unregister( &handle->super.super );\n"
+            "  free(handle);\n");
 
     coutput("}\n"
             "\n");
