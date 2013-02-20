@@ -117,8 +117,12 @@ if(PLASMA_FOUND)
   # so we have to add it by hand.
   # Those parameters are also removed by pkg-config if they are present around mkl libs
   #
-  list(INSERT PLASMA_LIBRARIES 0 -Wl,--start-group)
-  list(APPEND PLASMA_LIBRARIES -Wl,--end-group)
+  if(HAVE_LINKER_GROUP)
+    list(INSERT PLASMA_LIBRARIES 0 -Wl,--start-group)
+    list(APPEND PLASMA_LIBRARIES -Wl,--end-group)
+  else()
+    list(APPEND PLASMA_LIBRARIES plasma)
+  endif()
 
   # Validate the include file <plasma.h>
   include(CheckIncludeFile)
