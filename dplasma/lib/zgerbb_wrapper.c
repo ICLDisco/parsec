@@ -67,9 +67,9 @@ dplasma_zgerbb_Destruct( dague_handle_t *o )
 }
 
 int dplasma_zgerbb( dague_context_t *dague, 
-                          tiled_matrix_desc_t *A, 
-                          tiled_matrix_desc_t *TS,
-                          tiled_matrix_desc_t *TT) 
+                    tiled_matrix_desc_t *A, 
+                    tiled_matrix_desc_t *TS,
+                    tiled_matrix_desc_t *TT) 
 {
     dague_handle_t *dague_zgerbb = NULL;
 
