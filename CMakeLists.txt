@@ -311,6 +311,9 @@ ENDIF( HAVE_G3)
 SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
 SET( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
 
+# Check if the linker has group. MacOS doesn't support it
+check_c_compiler_flag( "-Wl,--start-group -Wl,--end-group" HAVE_LINKER_GROUP )
+
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
