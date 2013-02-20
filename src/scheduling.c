@@ -150,22 +150,22 @@ void dague_remove_scheduler( dague_context_t *dague )
 int dague_set_scheduler( dague_context_t *dague )
 {
     mca_base_component_t **scheds;
-    dague_sched_module_t  *new_scheduler = NULL;
-    dague_sched_base_component_t *new_component = NULL;
+    mca_base_module_t    *new_scheduler = NULL;
+    mca_base_component_t *new_component = NULL;
 
     scheds = mca_components_open_bytype( "sched" );
-    mca_components_query(scheds, 
-                         (mca_base_module_t**)&new_scheduler, 
-                         (mca_base_component_t**)&new_component);
+    mca_components_query(scheds,
+                         &new_scheduler,
+                         &new_component);
     mca_components_close(scheds);
 
     if( NULL == new_scheduler ) {
         return 0;
     }
-    
+
     dague_remove_scheduler( dague );
-    current_scheduler = new_scheduler;
-    scheduler_component = new_component;
+    current_scheduler   = (dague_sched_module_t*)new_scheduler;
+    scheduler_component = (dague_sched_base_component_t*)new_component;
 
     DEBUG((" Installing %s\n", current_scheduler->component->base_version.mca_component_name));
 
