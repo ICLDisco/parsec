@@ -25,9 +25,11 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
 
+        this_task->data[i].data_out = NULL;  /* TODO: clean this up to segfault */
         data = this_task->data[i].data_in;
         original = data->original;
         if( NULL != (local = dague_data_get_copy(original, gpu_device->super.device_index)) ) {
+            this_task->data[i].data_out = local;
             /* Check the most up2date version of the data */
             if( data->device_index != gpu_device->super.device_index ) {
                 if(data->version <= local->version) {
@@ -40,7 +42,6 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
                     assert(0);
                 }
             }
-            this_task->data[i].data_out = local;
             continue;  /* space available on the device */
         }
         /* If the data is needed as an input load it up */
@@ -70,9 +71,9 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
         assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
 
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
-                              "GPU[%1d]:\tIN  Data of %s key %d on GPU\n",
+                              "GPU[%1d]:\tIN  Data of %s <%x> on GPU\n",
                               gpu_device->cuda_index, this_task->function->in[i]->name,
-                              (int)this_task->data[i].data_in->original->key));
+                              (int)this_task->data[i].data_out->original->key));
         ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->access_type,
                                        &(this_task->data[i]), gpu_stream->cuda_stream );
         if( ret < 0 ) {
@@ -166,9 +167,9 @@ gpu_kernel_epilog_bandwidth( gpu_device_t        *gpu_device,
         if(NULL == this_task->function->out[i]) continue;
         if(!(this_task->function->out[i]->access_type & ACCESS_WRITE)) continue;
 
-        gpu_copy = this_task->data[i].data_out;
+        gpu_copy = this_task->data[this_task->function->out[i]->flow_index].data_out;
+        original = gpu_copy->original;
         gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
-        original = this_task->data[i].data_out->original;
         original->coherency_state = DATA_COHERENCY_SHARED;
         original->owner_device = 0;
         original->device_copies[0]->coherency_state = DATA_COHERENCY_SHARED;
