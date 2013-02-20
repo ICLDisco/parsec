@@ -86,7 +86,8 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
                        dague_gpu_context_t     *gpu_task,
                        dague_gpu_exec_stream_t *gpu_stream)
 {
-    int i, ret, space_needed = 0;
+    int i, ret = 0;
+    int space_needed = 0;
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_data_t              *original;
     dague_data_copy_t         *data, *local;
