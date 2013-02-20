@@ -689,14 +689,17 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
         /* Free memory on GPU */
         DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_lru, item, {
                 dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
+                dague_data_t* original = gpu_copy->original;
                 DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
-                                      "Considering suppresion of copy %p, attached to %p, in map %p",
-                                      gpu_copy, gpu_copy->original, ddesc));
+                                      "Release copy %p, attached to %p, in map %p",
+                                      gpu_copy, original, ddesc));
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
                 cuMemFree( (CUdeviceptr)gpu_copy->device_private );
 #else
                 gpu_free( gpu_device->memory, (void*)gpu_copy->device_private );
 #endif
+                if( NULL != original )
+                    dague_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
                 item = dague_ulist_remove(&gpu_device->gpu_mem_lru, item);
                 OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
             });
@@ -704,7 +707,7 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
                 dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
                 dague_data_t* original = gpu_copy->original;
                 DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
-                                      "Considering suppresion of owned copy %p, attached to %p, in map %p",
+                                      "Release owned copy %p, attached to %p, in map %p",
                                       gpu_copy, original, ddesc));
                 if( DATA_COHERENCY_OWNED == gpu_copy->coherency_state ) {
                     WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n",
@@ -715,6 +718,7 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
 #else
                 gpu_free( gpu_device->memory, (void*)gpu_copy->device_private );
 #endif
+                dague_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
                 item = dague_ulist_remove(&gpu_device->gpu_mem_lru, item);
                 OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
             });
@@ -882,7 +886,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         cudaError_t status;
 
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
-                              "GPU:\tMove data %x (%p:%p) to GPU %d requested\n",
+                              "GPU:\tMove data <%x> (%p:%p) to GPU %d requested\n",
                               original->key, in_elem->device_private, (void*)gpu_elem->device_private, gpu_device->cuda_index));
         /* Push data into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( (CUdeviceptr)gpu_elem->device_private,
