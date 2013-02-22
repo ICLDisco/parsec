@@ -5,8 +5,8 @@
  */
 
 
-#ifndef _PRECISION_H_ 
-#define _PRECISION_H_ 
+#ifndef _PRECISION_H_
+#define _PRECISION_H_
 
 /******************************************************************************
  * Dague Complex numbers
@@ -57,11 +57,10 @@ extern dague_complex32_t cexpf (dague_complex32_t z);
 extern dague_complex32_t clogf (dague_complex32_t z);
 extern dague_complex32_t cpowf (dague_complex32_t z, dague_complex32_t w);
 
+#endif /* DAGUE_HAS_COMPLEX_H */
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* DAGUE_HAS_COMPLEX_H */
 
 #endif /* _PRECISION_H_ */

@@ -1488,17 +1488,20 @@ static void hqr_genperm( dplasma_qrtree_t *qrtree )
             }
 
             /* Last group of tiles */
-            if ( i < m ) {
-                int lp, la;
-                for(lp=0; lp<p; lp++) {
-                    la = mpa / p;
-                    if ( lp < mpa%p ) la++;
+            /* if ( i < m ) { */
+            /*     int lp, la; */
+            /*     for(lp=0; lp<p; lp++) { */
+            /*         la = mpa / p; */
+            /*         if ( lp < mpa%p ) la++; */
 
-                    for( j=lp; j<mpa && (i+j)<m; j+=p ) {
-                        perm[i+j] = i + ( j + p * (k%la) )%(p*la);
-                        assert(perm[i+j] < m);
-                    }
-                }
+            /*         for( j=lp; j<mpa && (i+j)<m; j+=p ) { */
+            /*             perm[i+j] = i + ( j + p * (k%la) )%(p*la); */
+            /*             assert(perm[i+j] < m); */
+            /*         } */
+            /*     } */
+            /* } */
+            for( ; i<m; i++) {
+                perm[i] = i;
             }
             perm[m] = m;
             perm += m+1;

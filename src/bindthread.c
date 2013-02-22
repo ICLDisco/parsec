@@ -45,7 +45,6 @@ int dague_bindthread(int cpu)
 
 #elif defined(HAVE_HWLOC)
     {
-
         cpu=dague_hwloc_bind_on_core_index(cpu);
         if(cpu == -1 ) {
             DEBUG(("Core binding on node %i failed\n", cpu));

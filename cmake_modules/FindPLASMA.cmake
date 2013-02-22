@@ -6,21 +6,23 @@
 # http://ac-archive.sourceforge.net/ac-archive/acx_blas.html).
 #
 # This module sets the following variables:
-#  PLASMA_FOUND - set to true if a library implementing the PLASMA interface
-#    is found
-#  PLASMA_PKG_DIR - Directory where the PLASMA pkg file is stored
-#  PLASMA_LIBRARIES - uncached list of libraries (using full path name) to
-#    link against to use PLASMA
-#  PLASMA_INCLUDE_DIRS - Directory where the PLASMA include files are located
-#  PLASMA_LINKER_FLAGS - uncached list of required linker flags (excluding -l
-#    and -L).
-#  PLASMA_STATIC  if set on this determines what kind of linkage we do (static)
-#  PLASMA_VENDOR  if set checks only the specified vendor, if not set checks
-#     all the possibilities
+#  PLASMA_FOUND - set to true if a library implementing the PLASMA
+#    interface is found
+#  PLASMA_PKG_DIR      - Directory where the PLASMA pkg file is stored
+#  PLASMA_LIBRARIES    - only the libraries (w/o the '-l')
+#  PLASMA_LIBRARY_DIRS - the paths of the libraries (w/o the '-L')
+#  PLASMA_LDFLAGS      - all required linker flags
+#  PLASMA_INCLUDE_DIRS - the '-I' preprocessor flags (w/o the '-I')
+#  PLASMA_CFLAGS       - all required cflags
+#
 ##########
 
 unset(PLASMA_C_COMPILE_SUCCESS)
 unset(PLASMA_F_COMPILE_SUCCESS)
+
+# if (PLASMA_FOUND)
+#   exit()
+# endif()
 
 # First we try to use pkg-config to find what we're looking for
 # in the directory specified by the PLASMA_DIR or PLASMA_PKG_DIR
@@ -30,82 +32,128 @@ if(PLASMA_DIR)
   endif(NOT PLASMA_PKG_DIR)
 endif(PLASMA_DIR)
 
-find_package(PkgConfig QUIET)
-if(PKG_CONFIG_FOUND)
-  set(ENV{PKG_CONFIG_PATH} "${PLASMA_PKG_DIR}:$ENV{PKG_CONFIG_PATH}")
-  pkg_check_modules(PLASMA plasma)
-
-  if(PLASMA_FOUND)
-    #
-    # There is a circular dependency in PLASMA between the libplasma and libcoreblas.
-    # Unfortunately, this cannot be handled by pkg-config (as it remove the duplicates)
-    # so we have to add it by hand.
-    #
-    list(APPEND PLASMA_LDFLAGS -lplasma)
-    string(REGEX REPLACE ";" " " PLASMA_LDFLAGS "${PLASMA_LDFLAGS}")
-  endif(PLASMA_FOUND)
-endif(PKG_CONFIG_FOUND)
+# find_package(PkgConfig QUIET)
+# if(PKG_CONFIG_FOUND)
+#   set(ENV{PKG_CONFIG_PATH} "${PLASMA_PKG_DIR}:$ENV{PKG_CONFIG_PATH}")
+#   pkg_check_modules(PLASMA plasma)
+# endif(PKG_CONFIG_FOUND)
 
 if(NOT PLASMA_FOUND)
   #
   # No pkg-config supported on this system. Hope the user provided
   # all the required variables in order to detect PLASMA. This include
   # either:
-  # - PLASMA_INCLUDE_DIRS, PLASMA_LDFLAGS or PLASMA_LIBRARIES
-  # - PLASMA_DIR and PLASMA_LIBRARIES
+  # - PLASMA_DIR: root dir to PLASMA installation
+  # - PLASMA_PKG_DIR: directory where the plasma.pc is installed
   #
-  if(NOT PLASMA_INCLUDE_DIRS)
-    if(NOT PLASMA_DIR)
+  if(NOT PLASMA_DIR AND NOT PLASMA_PKG_DIR)
+    if(PLASMA_FIND_REQUIRED)
+      message(FATAL_ERROR "pkg-config not available. You need to provide PLASMA_DIR or PLASMA_PKG_DIR")
+    else(PLASMA_FIND_REQUIRED)
+      message(STATUS "pkg-config not available. You need to provide PLASMA_DIR or PLASMA_PKG_DIR")
+    endif(PLASMA_FIND_REQUIRED)
+
+  else(NOT PLASMA_DIR AND NOT PLASMA_PKG_DIR)
+
+    if (PLASMA_PKG_DIR)
+      set(_plasma_pkg_file "${PLASMA_PKG_DIR}/plasma.pc")
+    else()
+      set(_plasma_pkg_file "${PLASMA_DIR}/lib/pkgconfig/plasma.pc")
+    endif()
+
+    if (NOT EXISTS ${_plasma_pkg_file})
       if(PLASMA_FIND_REQUIRED)
-        message(FATAL_ERROR "pkg-config not available. You need to provide PLASMA_DIR and PLASMA_LIBRARIES")
+        message(FATAL_ERROR "${_plasma_pkg_file} doesn't exist")
       else(PLASMA_FIND_REQUIRED)
-        message(STATUS "pkg-config not available. You need to provide PLASMA_DIR and PLASMA_LIBRARIES")
+        message(STATUS "${_plasma_pkg_file} doesn't exist")
       endif(PLASMA_FIND_REQUIRED)
-    endif(NOT PLASMA_DIR)
-    set(PLASMA_INCLUDE_DIRS "${PLASMA_DIR}/include")
-  endif(NOT PLASMA_INCLUDE_DIRS)
-  if(NOT PLASMA_LDFLAGS)
-    if(PLASMA_DIR)
-      file(STRINGS "${PLASMA_PKG_DIR}/plasma.pc" line REGEX "Libs:")
-      string(REGEX REPLACE "Libs:" "" PLASMA_LDFLAGS ${line}) 
-    else(PLASMA_DIR)
-      if(PLASMA_FIND_REQUIRED)
-        message(FATAL_ERROR "pkg-config not available. You need to provide PLASMA_DIR and PLASMA_LIBRARIES")
-      else(PLASMA_FIND_REQUIRED)
-        message(STATUS "pkg-config not available. You need to provide PLASMA_DIR and PLASMA_LIBRARIES")
-      endif(PLASMA_FIND_REQUIRED)
-    endif(PLASMA_DIR)
-  endif(NOT PLASMA_LDFLAGS)
+    else(NOT EXISTS ${_plasma_pkg_file})
+      file(STRINGS "${_plasma_pkg_file}" _cflags REGEX "Cflags:")
+      file(STRINGS "${_plasma_pkg_file}" _libs   REGEX "Libs:")
+
+      string(REGEX REPLACE "Cflags:" "" _cflags ${_cflags})
+      string(REGEX REPLACE "Libs:"   "" _libs   ${_libs}  )
+      string(REGEX REPLACE " +" ";" _cflags ${_cflags})
+      string(REGEX REPLACE " +" ";" _libs   ${_libs}  )
+
+      foreach(_cflag ${_cflags})
+        string(REGEX REPLACE "^-I(.*)" "\\1" _incdir "${_cflag}")
+        if ("${_cflag}" MATCHES "-I.*")
+          list(APPEND PLASMA_INCLUDE_DIRS ${_incdir})
+        endif()
+        list(APPEND PLASMA_CFLAGS ${_cflag})
+      endforeach()
+
+      foreach(_lib ${_libs})
+        string(REGEX REPLACE "^-L(.*)" "\\1" _libdir "${_lib}")
+        if ("${_lib}" MATCHES "-L.*")
+          list(APPEND PLASMA_LIBRARY_DIRS ${_libdir})
+        endif()
+
+        string(REGEX REPLACE "^-l(.*)" "\\1" _onelib "${_lib}")
+        if ("${_lib}" MATCHES "-l.*")
+          list(APPEND PLASMA_LIBRARIES ${_onelib})
+        endif()
+
+        list(APPEND PLASMA_LDFLAGS ${_lib})
+      endforeach()
+
+      list(REMOVE_DUPLICATES PLASMA_INCLUDE_DIRS)
+      list(REMOVE_DUPLICATES PLASMA_CFLAGS)
+      list(REMOVE_DUPLICATES PLASMA_LIBRARY_DIRS)
+      list(REMOVE_DUPLICATES PLASMA_LIBRARIES)
+      list(REMOVE_DUPLICATES PLASMA_LDFLAGS)
+
+    endif(NOT EXISTS ${_plasma_pkg_file})
+  endif(NOT PLASMA_DIR AND NOT PLASMA_PKG_DIR)
+  set(PLASMA_FOUND TRUE)
 endif(NOT PLASMA_FOUND)
 
-if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
-  set(PLASMA_SINCLUDE_DIRS ${PLASMA_INCLUDE_DIRS})
+if(PLASMA_FOUND)
+
+  #
+  # There is a circular dependency in PLASMA between the libplasma and libcoreblas.
+  # Unfortunately, this cannot be handled by pkg-config (as it remove the duplicates)
+  # so we have to add it by hand.
+  # Those parameters are also removed by pkg-config if they are present around mkl libs
+  #
+  list(INSERT PLASMA_LIBRARIES 0 -Wl,--start-group)
+  list(APPEND PLASMA_LIBRARIES -Wl,--end-group)
+
   # Validate the include file <plasma.h>
-  find_path(PLASMA_INCLUDE_DIRS
-    plasma.h
-    PATHS ${PLASMA_SINCLUDE_DIRS}
-    )
-  if(NOT PLASMA_INCLUDE_DIRS)
+  include(CheckIncludeFile)
+
+  set(PLASMA_tmp_includes ${CMAKE_REQUIRED_INCLUDES})
+  list(APPEND CMAKE_REQUIRED_INCLUDES ${PLASMA_INCLUDE_DIRS})
+
+  check_include_file(plasma.h PLASMA_PLASMA_H_FOUND)
+
+  if ( NOT PLASMA_PLASMA_H_FOUND )
     if(PLASMA_FIND_REQUIRED)
-      message(FATAL_ERROR "Couln't find the plasma.h header in ${PLASMA_SINCLUDE_DIRS}")
+      message(FATAL_ERROR "Couln't find the plasma.h header in ${PLASMA_INCLUDE_DIRS}")
     endif(PLASMA_FIND_REQUIRED)
-  endif(NOT PLASMA_INCLUDE_DIRS)
+    set(PLASMA_FOUND FALSE)
+    return()
+  endif()
 
   # Validate the library
   include(CheckCSourceCompiles)
 
   set(PLASMA_tmp_libraries ${CMAKE_REQUIRED_LIBRARIES})
-  set(PLASMA_tmp_flags ${CMAKE_REQUIRED_FLAGS})
+  set(PLASMA_tmp_flags     ${CMAKE_REQUIRED_FLAGS})
   list(APPEND CMAKE_REQUIRED_LIBRARIES ${PLASMA_LIBRARIES})
 
-# CMAKE_REQUIRED_FLAGS must be a string, not a list
-# if CMAKE_REQUIRED_FLAGS is a list (separated by ;), only the first element of the list is passed to check_c_source_compile
-# Since PLASMA_LDFLAGS and PLASMA_CFLAGS hold lists, we convert them by hand to a string
+  # CMAKE_REQUIRED_FLAGS must be a string, not a list
+  # if CMAKE_REQUIRED_FLAGS is a list (separated by ;), only the first element of the list is passed to check_c_source_compile
+  # Since PLASMA_LDFLAGS and PLASMA_CFLAGS hold lists, we convert them by hand to a string
   foreach(arg ${PLASMA_LDFLAGS})
-   set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
+    set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
   endforeach(arg ${PLASMA_LDFLAGS})
   foreach(arg ${PLASMA_CFLAGS})
-   set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
+    set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
+  endforeach(arg ${PLASMA_CFLAGS})
+  foreach(arg ${PLASMA_LIBRARY_DIRS})
+    set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -L${arg}")
   endforeach(arg ${PLASMA_CFLAGS})
 
   check_c_source_compiles(
@@ -122,6 +170,7 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
         message(FATAL_ERROR "Find PLASMA requires Fortran support so Fortran must be enabled.")
       else(PLASMA_FIND_REQUIRED)
         message(STATUS "Looking for PLASMA... - NOT found (Fortran not enabled)") #
+        set(PLASMA_FOUND FALSE)
         return()
       endif(PLASMA_FIND_REQUIRED)
     endif(NOT _LANGUAGES_ MATCHES Fortran)
@@ -131,18 +180,37 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
       "int main(int argc, char* argv[]) {
        PLASMA_dgeqrf(); return 0;
      }"
-     PLASMA_F_COMPILE_SUCCESS
-    )
+      PLASMA_F_COMPILE_SUCCESS
+      )
+
+    if(NOT PLASMA_F_COMPILE_SUCCESS)
+      if(PLASMA_FIND_REQUIRED)
+        message(FATAL_ERROR "Find PLASMA requires Fortran support so Fortran must be enabled.")
+      else(PLASMA_FIND_REQUIRED)
+        message(STATUS "Looking for PLASMA... - NOT found")
+        set(PLASMA_FOUND FALSE)
+        return()
+      endif(PLASMA_FIND_REQUIRED)
+    endif(NOT PLASMA_F_COMPILE_SUCCESS)
   endif(NOT PLASMA_C_COMPILE_SUCCESS)
 
+  set(${CMAKE_REQUIRED_INCLUDES}  PLASMA_tmp_includes)
   set(${CMAKE_REQUIRED_LIBRARIES} PLASMA_tmp_libraries)
-  set(${CMAKE_REQUIRED_FLAGS} PLASMA_tmp_flags)
+  set(${CMAKE_REQUIRED_FLAGS}     PLASMA_tmp_flags)
   unset(PLASMA_tmp_libraries)
   unset(PLASMA_tmp_includes)
   unset(PLASMA_tmp_flags)
-endif(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
+endif(PLASMA_FOUND)
 
 if(NOT PLASMA_FIND_QUIETLY)
+  set(PLASMA_status_message
+    "
+    PLASMA_CFLAGS       = [${PLASMA_CFLAGS}]
+    PLASMA_LDFLAGS      = [${PLASMA_LDFLAGS}]
+    PLASMA_INCLUDE_DIRS = [${PLASMA_INCLUDE_DIRS}]
+    PLASMA_LIBRARY_DIRS = [${PLASMA_LIBRARY_DIRS}]
+    PLASMA_LIBRARIES = [${PLASMA_LIBRARIES}]")
+
   if(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
     if(PLASMA_F_COMPILE_SUCCESS)
       set(PLASMA_REQUIRE_FORTRAN_LINKER TRUE)
@@ -152,37 +220,23 @@ if(NOT PLASMA_FIND_QUIETLY)
     string(REGEX REPLACE ";" " " PLASMA_LDFLAGS "${PLASMA_LDFLAGS}")
     set(PLASMA_FOUND TRUE)
     find_package_message(PLASMA
-      "Found PLASMA: ${PLASMA_LIBRARIES}
-    PLASMA_CFLAGS       = [${PLASMA_CFLAGS}]
-    PLASMA_LDFLAGS      = [${PLASMA_LDFLAGS}]
-    PLASMA_INCLUDE_DIRS = [${PLASMA_INCLUDE_DIRS}]
-    PLASMA_LIBRARY_DIRS = [${PLASMA_LIBRARY_DIRS}]"
+      "Found PLASMA: ${PLASMA_status_message}"
       "[${PLASMA_CFLAGS}][${PLASMA_LDFLAGS}][${PLASMA_INCLUDE_DIRS}][${PLASMA_LIBRARY_DIRS}]")
   else(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
     if(PLASMA_FIND_REQUIRED)
       message(FATAL_ERROR
-        "A required library with PLASMA API not found. Please specify library location.
-    PLASMA_CFLAGS       = [${PLASMA_CFLAGS}]
-    PLASMA_LDFLAGS      = [${PLASMA_LDFLAGS}]
-    PLASMA_INCLUDE_DIRS = [${PLASMA_INCLUDE_DIRS}]
-    PLASMA_LIBRARY_DIRS = [${PLASMA_LIBRARY_DIRS}]")
+        "A required library with PLASMA API not found. Please specify library location.${PLASMA_status_message}")
     else(PLASMA_FIND_REQUIRED)
       message(STATUS
-        "A library with PLASMA API not found. Please specify library location.
-    PLASMA_CFLAGS       = [${PLASMA_CFLAGS}]
-    PLASMA_LDFLAGS      = [${PLASMA_LDFLAGS}]
-    PLASMA_INCLUDE_DIRS = [${PLASMA_INCLUDE_DIRS}]
-    PLASMA_LIBRARY_DIRS = [${PLASMA_LIBRARY_DIRS}]")
+        "A library with PLASMA API not found. Please specify library location.${PLASMA_status_message}")
     endif(PLASMA_FIND_REQUIRED)
   endif(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
 endif(NOT PLASMA_FIND_QUIETLY)
 
 mark_as_advanced(PLASMA_PKG_DIR PLASMA_LIBRARIES PLASMA_INCLUDE_DIRS PLASMA_LINKER_FLAGS)
-set(PLASMA_DIR "${PLASMA_DIR}" CACHE PATH "Location of the PLASMA library" FORCE)
-set(PLASMA_PKG_DIR "${PLASMA_PKG_DIR}" CACHE PATH "Location of the PLASMA pkg-config decription file" FORCE)
-set(PLASMA_LINKER_FLAGS "${PLASMA_LINKER_FLAGS}" CACHE STRING "Linker flags to build with PLASMA" FORCE)
-set(PLASMA_INCLUDE_DIRS "${PLASMA_INCLUDE_DIRS}" CACHE PATH "PLASMA include directories" FORCE)
-set(PLASMA_LIBRARIES "${PLASMA_LIBRARIES}" CACHE STRING "libraries to link with PLASMA" FORCE)
+set(PLASMA_DIR          "${PLASMA_DIR}"          CACHE PATH   "Location of the PLASMA library" FORCE)
+set(PLASMA_PKG_DIR      "${PLASMA_PKG_DIR}"      CACHE PATH   "Location of the PLASMA pkg-config decription file" FORCE)
+#set(PLASMA_LIBRARIES "${PLASMA_LIBRARIES}" CACHE STRING "libraries to link with PLASMA" FORCE)
 
 unset(PLASMA_C_COMPILE_SUCCESS)
 unset(PLASMA_F_COMPILE_SUCCESS)

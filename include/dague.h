@@ -94,4 +94,7 @@ int dague_object_start( dague_object_t* object);
 /**< Print DAGuE usage message */
 void dague_usage(void);
 
+#if defined(DAGUE_SIM)
+int dague_getsimulationdate( dague_context_t *dague_context );
+#endif
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */
