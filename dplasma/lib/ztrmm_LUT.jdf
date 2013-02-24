@@ -48,24 +48,23 @@ ztrmm(m, n)
              -> E zgemm(m, n, 0)
 
 BODY
-{
-  int tempmm = (((descB.mt-1)-m)==(descB.mt-1)) ? (descB.m-(((descB.mt-1)-m)*descB.mb)) : descB.mb;
-  int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
-  int lda = BLKLDD( descA, (descB.mt-1)-m );
-  int ldb = BLKLDD( descB, (descB.mt-1)-m );
 
-  printlog("CORE_ztrmm(%d, %d)\n"
-           "\t(side, uplo, trans, diag, tempmm, tempnn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-  m, n, (descB.mt-1)-m, (descB.mt-1)-m, A, (descB.mt-1)-m, n, B);
-  DRYRUN(
+    int tempmm = (((descB.mt-1)-m)==(descB.mt-1)) ? (descB.m-(((descB.mt-1)-m)*descB.mb)) : descB.mb;
+    int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
+    int lda = BLKLDD( descA, (descB.mt-1)-m );
+    int ldb = BLKLDD( descB, (descB.mt-1)-m );
 
+    printlog("CORE_ztrmm(%d, %d)\n"
+             "\t(side, uplo, trans, diag, tempmm, tempnn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
+             m, n, (descB.mt-1)-m, (descB.mt-1)-m, A, (descB.mt-1)-m, n, B);
+
+#if !defined(DAGUE_DRY_RUN)
     CORE_ztrmm(side, uplo, trans, 
-	diag, tempmm, tempnn, 
-	alpha, A /* dataA((descB.mt-1)-m,(descB.mt-1)-m) */, lda, 
-	B /* dataB((descB.mt-1)-m,n) */, ldb );
-  );
+               diag, tempmm, tempnn, 
+               alpha, A /* dataA((descB.mt-1)-m,(descB.mt-1)-m) */, lda, 
+               B /* dataB((descB.mt-1)-m,n) */, ldb );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-}
 END
 
 ztrmm_in_data_A0(m, n) [profile = off]
@@ -80,9 +79,7 @@ ztrmm_in_data_A0(m, n) [profile = off]
              -> A ztrmm(m, n)
 
 BODY
-{
     /* nothing */
-}
 END
 
 zgemm(m, n, k) 
@@ -103,24 +100,23 @@ zgemm(m, n, k)
              -> ((descB.mt>=(k+m+3))) ? E zgemm(m, n, k+1)
 
 BODY
-{
-  int tempmm = (((descB.mt-1)-m)==(descB.mt-1)) ? (descB.m-(((descB.mt-1)-m)*descB.mb)) : descB.mb;
-  int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
-  int ldb = BLKLDD( descB, (descB.mt-1)-m );
 
-  printlog("CORE_zgemm(%d, %d, %d)\n"
-           "\t(trans, PlasmaNoTrans, tempmm, tempnn, descB.mb, alpha, A(%d,%d)[%p], descA.mb, B(%d,%d)[%p], descB.mb, 1.000000, B(%d,%d)[%p], ldb)\n",
-  m, n, k, k, (descB.mt-1)-m, C, k, n, D, (descB.mt-1)-m, n, E);
-  DRYRUN(
+    int tempmm = (((descB.mt-1)-m)==(descB.mt-1)) ? (descB.m-(((descB.mt-1)-m)*descB.mb)) : descB.mb;
+    int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
+    int ldb = BLKLDD( descB, (descB.mt-1)-m );
 
+    printlog("CORE_zgemm(%d, %d, %d)\n"
+             "\t(trans, PlasmaNoTrans, tempmm, tempnn, descB.mb, alpha, A(%d,%d)[%p], descA.mb, B(%d,%d)[%p], descB.mb, 1.000000, B(%d,%d)[%p], ldb)\n",
+             m, n, k, k, (descB.mt-1)-m, C, k, n, D, (descB.mt-1)-m, n, E);
+
+#if !defined(DAGUE_DRY_RUN)
     CORE_zgemm(trans, PlasmaNoTrans, tempmm, 
-	tempnn, descB.mb, alpha, 
-	C /* dataA(k,(descB.mt-1)-m) */, descA.mb, D /* dataB(k,n) */, 
-	descB.mb, 1.000000, E /* dataB((descB.mt-1)-m,n) */, 
-	ldb );
-  );
+               tempnn, descB.mb, alpha, 
+               C /* dataA(k,(descB.mt-1)-m) */, descA.mb, D /* dataB(k,n) */, 
+               descB.mb, 1.000000, E /* dataB((descB.mt-1)-m,n) */, 
+               ldb );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-}
 END
 
 zgemm_in_data_B1(m, n, k) [profile = off]
@@ -136,9 +132,7 @@ zgemm_in_data_B1(m, n, k) [profile = off]
              -> D zgemm(m, n, k)
 
 BODY
-{
     /* nothing */
-}
 END
 
 zgemm_in_data_A0(m, n, k) [profile = off]
@@ -154,9 +148,7 @@ zgemm_in_data_A0(m, n, k) [profile = off]
              -> C zgemm(m, n, k)
 
 BODY
-{
     /* nothing */
-}
 END
 
 

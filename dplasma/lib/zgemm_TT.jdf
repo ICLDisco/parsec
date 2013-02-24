@@ -92,31 +92,30 @@ READ B <- (m == 0)            ? B READ_B(n, k) : B GEMM( (m+descC.mt-1) % descC.
 RW   C <- (k == 0)            ? C(m, n) : C GEMM( m, n, k-1 )
        -> (k == (descA.mt-1)) ? C(m, n) : C GEMM( m, n, k+1 )
 BODY
-        dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
-        int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
-        int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
-        int tempkk = k == descA.mt-1 ? descA.m - k * descA.nb : descA.nb;
-        int ldak = BLKLDD(descA, k);
-        int ldbn = BLKLDD(descB, n);
-        int ldcm = BLKLDD(descC, m);
+    dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
+    int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
+    int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
+    int tempkk = k == descA.mt-1 ? descA.m - k * descA.nb : descA.nb;
+    int ldak = BLKLDD(descA, k);
+    int ldbn = BLKLDD(descB, n);
+    int ldcm = BLKLDD(descC, m);
 
-        DRYRUN(
-            CORE_zgemm(
-                transA, transB,
-                tempmm, tempnn, tempkk,
-                alpha, A /*A(k, m)*/, ldak,
-                       B /*B(n, k)*/, ldbn,
-                lbeta, C /*C(m, n)*/, ldcm);
-            );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(transA, transB,
+               tempmm, tempnn, tempkk,
+               alpha, A /*A(k, m)*/, ldak,
+                      B /*B(n, k)*/, ldbn,
+               lbeta, C /*C(m, n)*/, ldcm);
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-        printlog("gemm( %d, %d, %d )\n"
-                 "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
-                 m, n, k,
-                 plasma_const( transA ), plasma_const( transB ), 
-                 tempmm, tempnn, tempkk,
-                 creal(alpha), k, m, ldak,
-                               n, k, ldbn,
-                 creal(lbeta), m, n, ldcm);
+    printlog("gemm( %d, %d, %d )\n"
+             "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
+             m, n, k,
+             plasma_const( transA ), plasma_const( transB ), 
+             tempmm, tempnn, tempkk,
+             creal(alpha), k, m, ldak,
+                           n, k, ldbn,
+             creal(lbeta), m, n, ldcm);
 END
 
 extern "C" %{

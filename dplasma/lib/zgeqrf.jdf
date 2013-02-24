@@ -81,22 +81,22 @@ BODY
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ | DAGUE_WRITE, k, k );
 #endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
 
-    DRYRUN(
-        int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
-        int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
-        int ldak = BLKLDD( descA, k );
+#if !defined(DAGUE_DRY_RUN)
+    int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
+    int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
+    int ldak = BLKLDD( descA, k );
 
-        void *p_elem_A = dague_private_memory_pop( p_tau  );
-        void *p_elem_B = dague_private_memory_pop( p_work );
+    void *p_elem_A = dague_private_memory_pop( p_tau  );
+    void *p_elem_B = dague_private_memory_pop( p_work );
 
-        CORE_zgeqrt(tempkm, tempkn, ib,
-                    A /* A(k,k) */, ldak,
-                    B /* T(k,k) */, descT.mb,
-                    p_elem_A, p_elem_B );
+    CORE_zgeqrt(tempkm, tempkn, ib,
+                A /* A(k,k) */, ldak,
+                B /* T(k,k) */, descT.mb,
+                p_elem_A, p_elem_B );
 
-        dague_private_memory_push( p_tau , p_elem_A );
-        dague_private_memory_push( p_work, p_elem_B );
-           )
+    dague_private_memory_push( p_tau , p_elem_A );
+    dague_private_memory_push( p_work, p_elem_B );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
      printlog("CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
      k, k, k, A, k, k, B);
@@ -132,24 +132,24 @@ BODY
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ, k, k );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
-  void *p_elem_A = dague_private_memory_pop( p_work );
+    void *p_elem_A = dague_private_memory_pop( p_work );
 
-  DRYRUN(
-         int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
-         int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
-         int ldak = BLKLDD( descA, k );
+#if !defined(DAGUE_DRY_RUN)
+    int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
+    int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
+    int ldak = BLKLDD( descA, k );
 
-         CORE_zunmqr(PlasmaLeft, PlasmaConjTrans,
-                     tempkm, tempnn, tempkm, ib,
-                     C /* A(k,k) */, ldak,
-                     D /* T(k,k) */, descT.mb,
-                     E /* A(k,n) */, ldak,
-                     p_elem_A, descT.nb );
-         );
-  dague_private_memory_push( p_work, p_elem_A );
+    CORE_zunmqr(PlasmaLeft, PlasmaConjTrans,
+                tempkm, tempnn, tempkm, ib,
+                C /* A(k,k) */, ldak,
+                D /* T(k,k) */, descT.mb,
+                E /* A(k,n) */, ldak,
+                p_elem_A, descT.nb );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+    dague_private_memory_push( p_work, p_elem_A );
 
-  printlog("CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, p_elem_A, descT.nb)\n",
-  k, n, k, k, C, k, k, D, k, n, E);
+    printlog("CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, p_elem_A, descT.nb)\n",
+             k, n, k, k, C, k, k, D, k, n, E);
 
 END
 
@@ -198,27 +198,26 @@ BODY
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ | DAGUE_WRITE, m, k );
 #endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
 
-  void *p_elem_A = dague_private_memory_pop( p_tau  );
-  void *p_elem_B = dague_private_memory_pop( p_work );
+    void *p_elem_A = dague_private_memory_pop( p_tau  );
+    void *p_elem_B = dague_private_memory_pop( p_work );
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
+    int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+    int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
-         int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-         int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
-         int ldak = BLKLDD( descA, k );
-         int ldam = BLKLDD( descA, m );
+    CORE_ztsqrt(tempmm, tempkn, ib,
+                F /* A(k,k) */, ldak,
+                G /* A(m,k) */, ldam,
+                H /* T(m,k) */, descT.mb,
+                p_elem_A, p_elem_B );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+    dague_private_memory_push( p_tau , p_elem_A );
+    dague_private_memory_push( p_work, p_elem_B );
 
-         CORE_ztsqrt(tempmm, tempkn, ib,
-                     F /* A(k,k) */, ldak,
-                     G /* A(m,k) */, ldam,
-                     H /* T(m,k) */, descT.mb,
-                     p_elem_A, p_elem_B );
-         );
-  dague_private_memory_push( p_tau , p_elem_A );
-  dague_private_memory_push( p_work, p_elem_B );
-
-  printlog("CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
-  k, m, k, k, F, m, k, G, m, k, H);
+    printlog("CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+             k, m, k, k, F, m, k, G, m, k, H);
 
 END
 
@@ -267,15 +266,15 @@ ztsmqr(k,m,n1)
 
 BODY
 
-  void *p_elem_A;
+    void *p_elem_A;
 
-  DRYRUN(
-         int tempnn = ((n1)==((descA.nt)-1)) ? ((descA.n)-(n1*(descA.nb))) : (descA.nb);
-         int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-         int ldak = BLKLDD( descA, k );
-         int ldam = BLKLDD( descA, m );
-         int ldwork = ib;
-         );
+#if !defined(DAGUE_DRY_RUN)
+    int tempnn = ((n1)==((descA.nt)-1)) ? ((descA.n)-(n1*(descA.nb))) : (descA.nb);
+    int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
+    int ldwork = ib;
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ, m, k );
@@ -300,24 +299,24 @@ BODY
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, m, n1 );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
-  p_elem_A = dague_private_memory_pop( p_work );
-  DRYRUN(
-         CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans,
-                     descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-                     J /* A(k,n1) */, ldak,
-                     K /* A(m,n1) */, ldam,
-                     L /* A(m,k) */,  ldam,
-                     M /* T(m,k) */,  descT.mb,
-                     p_elem_A, ldwork );
-         );
-  dague_private_memory_push( p_work, p_elem_A );
+    p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans,
+                descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
+                J /* A(k,n1) */, ldak,
+                K /* A(m,n1) */, ldam,
+                L /* A(m,k) */,  ldam,
+                M /* T(m,k) */,  descT.mb,
+                p_elem_A, ldwork );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+    dague_private_memory_push( p_work, p_elem_A );
 
-  printlog("CORE_ztsmqr(%d, %d, %d)\n"
-           "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
-           "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-           k, m, n1,
-           k, n1, J, m, n1, K,
-           m, k,  L, m, k,  M);
+    printlog("CORE_ztsmqr(%d, %d, %d)\n"
+             "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
+             "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
+             k, m, n1,
+             k, n1, J, m, n1, K,
+             m, k,  L, m, k,  M);
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
 FIN:

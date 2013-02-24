@@ -41,15 +41,14 @@ ztrmdm(k)
 
 BODY
 
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
-  int ldak = desc_A.mb;
+    int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+    int ldak = desc_A.mb;
 
-  printlog("thread %d CORE_ztrmdm(%d)\n"
-           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-           context->th_id, k, k, k, A);
-  DRYRUN(
+    printlog("thread %d CORE_ztrmdm(%d)\n"
+             "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+             context->th_id, k, k, k, A);
+#if !defined(DAGUE_DRY_RUN)
     CORE_ztrmdm(PlasmaLower, tempkn, A /* desc_A(k,k) */, ldak );
-  );
-
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 END

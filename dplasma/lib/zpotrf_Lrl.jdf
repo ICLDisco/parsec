@@ -60,19 +60,17 @@ BODY
     int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
     int ldak = BLKLDD( descA, k );
 
-    DRYRUN(
-        int iinfo = 0;
-        CORE_zpotrf(
-            uplo, tempkm, T, ldak,
-            &iinfo );
-        if ( iinfo != 0 && *INFO == 0 )
-            *INFO = k*descA.mb+iinfo; /* Should return here */
-         );
+#if !defined(DAGUE_DRY_RUN)
+    int iinfo = 0;
+    CORE_zpotrf(uplo, tempkm, T, ldak, &iinfo );
+    if( iinfo != 0 && *INFO == 0 )
+        *INFO = k*descA.mb+iinfo; /* Should return here */
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-    printlog(
-             "CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d)\n",
+    printlog("CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d)\n",
              k,
              plasma_const(uplo), tempkm, k, k, T, descA.mb );
+
 END
 
 
@@ -104,13 +102,12 @@ BODY
     int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
-    DRYRUN(
-        CORE_ztrsm(
-            PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit,
-            tempmm, descA.nb,
-            (dague_complex64_t)1.0, T /*A(k, k)*/, ldak,
-                                    C /*A(m, k)*/, ldam);
-        );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit,
+               tempmm, descA.nb,
+               (dague_complex64_t)1.0, T /*A(k, k)*/, ldak,
+                                       C /*A(m, k)*/, ldam);
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
              m, k,
@@ -148,13 +145,13 @@ BODY
     int tempmm = m == descA.mt-1 ? descA.m - m*descA.mb : descA.mb;
     int ldam = BLKLDD( descA, m );
 
-    DRYRUN(
-        CORE_zherk(
-            PlasmaLower, PlasmaNoTrans,
-            tempmm, descA.mb,
-            (double)-1.0, A /*A(m, k)*/, ldam,
-            (double) 1.0, T /*A(m, m)*/, ldam);
-        );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zherk(PlasmaLower, PlasmaNoTrans,
+               tempmm, descA.mb,
+               (double)-1.0, A /*A(m, k)*/, ldam,
+               (double) 1.0, T /*A(m, m)*/, ldam);
+#endif  /* !defined(DAGUE_DRY_RUN) */
+
     printlog(
              "CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
              k, m,
@@ -206,14 +203,14 @@ BODY
     int ldam = BLKLDD( descA, m );
     int ldan = BLKLDD( descA, n );
 
-    DRYRUN(
-        CORE_zgemm(
-            PlasmaNoTrans, PlasmaConjTrans,
-            tempmm, descA.mb, descA.mb,
-            (dague_complex64_t)-1.0, A /*A(m, k)*/, ldam,
-                                     B /*A(n, k)*/, ldan,
-            (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
-        );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
+               tempmm, descA.mb, descA.mb,
+               (dague_complex64_t)-1.0, A /*A(m, k)*/, ldam,
+                                        B /*A(n, k)*/, ldan,
+               (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
+#endif  /* !defined(DAGUE_DRY_RUN) */
+
     printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
              k, m, n,
              plasma_const( PlasmaNoTrans ),  plasma_const( PlasmaConjTrans ),

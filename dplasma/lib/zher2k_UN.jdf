@@ -51,7 +51,6 @@ zher2k(n, k)
              -> (k == (descA.nt-1)) ? dataC(n,n)
 
 BODY
-{
     int tempnn = (n == (descC.nt-1)) ? (descC.n - n * descC.nb) : descC.nb;
     int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
     int ldan = BLKLDD( descA, n );
@@ -62,13 +61,12 @@ BODY
     printlog("CORE_zher2k(%d, %d)\n"
              "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, B(%d,%d)[%p], ldbn, dbeta, C(%d,%d)[%p], ldcn)\n",
              n, k, n, k, A, n, k, B, n, n, C);
-    DRYRUN(
-        CORE_zher2k(uplo, trans, tempnn, tempkn,
-                    alpha, A /* dataA(n,k) */, ldan,
-                           B /* dataB(n,k) */, ldbn,
-                    dbeta, C /* dataC(n,n) */, ldcn );
-           );
-}
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zher2k(uplo, trans, tempnn, tempkn,
+                alpha, A /* dataA(n,k) */, ldan,
+                       B /* dataB(n,k) */, ldbn,
+                dbeta, C /* dataC(n,n) */, ldcn );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 END
 
 zgemm_AB(m, n, k)
@@ -87,7 +85,6 @@ zgemm_AB(m, n, k)
              -> C zgemm_BA(m, n, k)
 
 BODY
-{
     int tempmm = (m == (descC.mt-1)) ? (descC.m - m * descC.mb) : descC.mb;
     int tempnn = (n == (descC.nt-1)) ? (descC.n - n * descC.nb) : descC.nb;
     int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
@@ -101,14 +98,13 @@ BODY
              m, n, k, tempmm, tempnn, tempkn,
              creal(alpha), cimag(alpha), m, k, A, ldam, n, k, B, ldbn,
              creal(zbeta), cimag(zbeta), m, n, C, ldcm);
-    DRYRUN(
-        CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
-                   tempmm, tempnn, tempkn,
-                   alpha, A /* dataA(m,k) */, ldam,
-                          B /* dataB(n,k) */, ldbn,
-                   zbeta, C /* dataC(m,n) */, ldcm );
-           );
-}
+#if !defined(DAGUE_DRY_RUN)
+     CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
+               tempmm, tempnn, tempkn,
+               alpha, A /* dataA(m,k) */, ldam,
+                      B /* dataB(n,k) */, ldbn,
+               zbeta, C /* dataC(m,n) */, ldcm );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 END
 
 zgemm_BA(m, n, k)
@@ -127,7 +123,6 @@ zgemm_BA(m, n, k)
              -> (k == (descA.nt-1)) ? dataC(m, n)
 
 BODY
-{
     int tempmm = (m == (descC.mt-1)) ? (descC.m - m * descC.mb) : descC.mb;
     int tempnn = (n == (descC.nt-1)) ? (descC.n - n * descC.nb) : descC.nb;
     int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
@@ -141,14 +136,13 @@ BODY
              creal(alpha), cimag(alpha), m, k, A, ldbm, n, k, B, ldan,
              creal(1.),    cimag(1.),    m, n, C, ldcm);
 
-    DRYRUN(
-        CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
-                   tempmm, tempnn, tempkn,
-                   conj(alpha), A /* dataB(m,k) */, ldbm,
-                                B /* dataA(n,k) */, ldan,
-                   1.,          C /* dataC(m,n) */, ldcm );
-           );
-}
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
+               tempmm, tempnn, tempkn,
+               conj(alpha), A /* dataB(m,k) */, ldbm,
+                            B /* dataA(n,k) */, ldan,
+               1.,          C /* dataC(m,n) */, ldcm );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 END
 
 in_data_A(m, n) [profile = off]
@@ -165,9 +159,7 @@ in_data_A(m, n) [profile = off]
              -> B zgemm_BA(0 .. m-1, m, n)
 
 BODY
-{
     /* nothing */
-}
 END
 
 in_data_B(m, n) [profile = off]
@@ -184,7 +176,5 @@ in_data_B(m, n) [profile = off]
              -> A zgemm_BA(m, m+1 .. descC.nt-1, n)
 
 BODY
-{
     /* nothing */
-}
 END

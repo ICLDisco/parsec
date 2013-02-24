@@ -109,19 +109,18 @@ BODY
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, TS(%d,%d)[%p], descTS.mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, m, m, k, A, m, k, TS);
 
-    DRYRUN(
-        void *p_elem_A = dague_private_memory_pop( p_tau  );
-        void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(DAGUE_DRY_RUN)
+    void *p_elem_A = dague_private_memory_pop( p_tau  );
+    void *p_elem_B = dague_private_memory_pop( p_work );
 
-        CORE_zgeqrt(tempmm, tempkn, ib,
-                    A /* A(m,k)  */, ldam,
-                    T /* TS(m,k) */, descTS.mb,
-                    p_elem_A, p_elem_B );
+    CORE_zgeqrt(tempmm, tempkn, ib,
+                A /* A(m,k)  */, ldam,
+                T /* TS(m,k) */, descTS.mb,
+                p_elem_A, p_elem_B );
 
-        dague_private_memory_push( p_tau, p_elem_A );
-        dague_private_memory_push( p_work, p_elem_B );
-
-           );
+    dague_private_memory_push( p_tau, p_elem_A );
+    dague_private_memory_push( p_work, p_elem_B );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 #if defined(DAGUE_SIM)
     if ( descA.mt-1 == k )
@@ -192,19 +191,18 @@ BODY
              "\t A(%d,%d)[%p], ldam, TS(%d,%d)[%p], descTS.mb, A(%d,%d)[%p], ldam, p_elem_A, descTS.nb)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, m, k, A, m, k, TS, m, n, C);
 
-    DRYRUN(
-           void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(DAGUE_DRY_RUN)
+    void *p_elem_A = dague_private_memory_pop( p_work );
 
-           CORE_zunmqr(
-                       PlasmaLeft, PlasmaConjTrans,
-                       tempmm, tempnn, tempmm, ib,
-                       A /* A(m, k)  */, ldam,
-                       T /* TS(m, k) */, descTS.mb,
-                       C /* A(m, n)  */, ldam,
-                       p_elem_A, descTS.nb );
+    CORE_zunmqr(PlasmaLeft, PlasmaConjTrans,
+                tempmm, tempnn, tempmm, ib,
+                A /* A(m, k)  */, ldam,
+                T /* TS(m, k) */, descTS.mb,
+                C /* A(m, n)  */, ldam,
+                p_elem_A, descTS.nb );
 
-           dague_private_memory_push( p_work, p_elem_A );
-           );
+    dague_private_memory_push( p_work, p_elem_A );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -270,29 +268,26 @@ BODY
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descTT.mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, m, p, k, A1, m, k, A2, m, k, T);
 
-    DRYRUN(
-           void *p_elem_A = dague_private_memory_pop( p_tau  );
-           void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(DAGUE_DRY_RUN)
+    void *p_elem_A = dague_private_memory_pop( p_tau  );
+    void *p_elem_B = dague_private_memory_pop( p_work );
 
-           if ( type == DPLASMA_QR_KILLED_BY_TS ) {
-             CORE_ztsqrt(
-                       tempmm, tempkn, ib,
-                       A1 /* A(p, k)  */, ldap,
-                       A2 /* A(m, k)  */, ldam,
-                       T  /* TT(m, k) */, descTT.mb,
-                       p_elem_A, p_elem_B );
-           } else {
-             CORE_zttqrt(
-                       tempmm, tempkn, ib,
-                       A1 /* A(p, k)  */, ldap,
-                       A2 /* A(m, k)  */, ldam,
-                       T  /* TT(m, k) */, descTT.mb,
-                       p_elem_A, p_elem_B );
-           }
-           dague_private_memory_push( p_tau , p_elem_A );
-           dague_private_memory_push( p_work, p_elem_B );
-
-           );
+    if ( type == DPLASMA_QR_KILLED_BY_TS ) {
+        CORE_ztsqrt(tempmm, tempkn, ib,
+                    A1 /* A(p, k)  */, ldap,
+                    A2 /* A(m, k)  */, ldam,
+                    T  /* TT(m, k) */, descTT.mb,
+                    p_elem_A, p_elem_B );
+    } else {
+        CORE_zttqrt(tempmm, tempkn, ib,
+                    A1 /* A(p, k)  */, ldap,
+                    A2 /* A(m, k)  */, ldam,
+                    T  /* TT(m, k) */, descTT.mb,
+                    p_elem_A, p_elem_B );
+    }
+    dague_private_memory_push( p_tau , p_elem_A );
+    dague_private_memory_push( p_work, p_elem_B );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 #if defined(DAGUE_SIM)
     ((PLASMA_Complex64_t*)A2)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
@@ -381,31 +376,28 @@ BODY
              "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descTT.mb, p_elem_A, ldwork)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
-    DRYRUN(
-           void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(DAGUE_DRY_RUN)
+    void *p_elem_A = dague_private_memory_pop( p_work );
 
-           if ( type == DPLASMA_QR_KILLED_BY_TS ) {
-             CORE_ztsmqr(
-               PlasmaLeft, PlasmaConjTrans,
-               descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-               A1 /* A(p, n)  */, ldap,
-               A2 /* A(m, n)  */, ldam,
-               V  /* A(m, k)  */, ldam,
-               T  /* TT(m, k) */, descTT.mb,
-               p_elem_A, ldwork );
-           } else {
-             CORE_zttmqr(
-               PlasmaLeft, PlasmaConjTrans,
-               descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-               A1 /* A(p, n)  */, ldap,
-               A2 /* A(m, n)  */, ldam,
-               V  /* A(m, k)  */, ldam,
-               T  /* TT(m, k) */, descTT.mb,
-               p_elem_A, ldwork );
-           }
-           dague_private_memory_push( p_work, p_elem_A );
-
-           );
+    if ( type == DPLASMA_QR_KILLED_BY_TS ) {
+        CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans,
+                    descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
+                    A1 /* A(p, n)  */, ldap,
+                    A2 /* A(m, n)  */, ldam,
+                    V  /* A(m, k)  */, ldam,
+                    T  /* TT(m, k) */, descTT.mb,
+                    p_elem_A, ldwork );
+    } else {
+        CORE_zttmqr(PlasmaLeft, PlasmaConjTrans,
+                    descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
+                    A1 /* A(p, n)  */, ldap,
+                    A2 /* A(m, n)  */, ldam,
+                    V  /* A(m, k)  */, ldam,
+                    T  /* TT(m, k) */, descTT.mb,
+                    p_elem_A, ldwork );
+    }
+    dague_private_memory_push( p_work, p_elem_A );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
