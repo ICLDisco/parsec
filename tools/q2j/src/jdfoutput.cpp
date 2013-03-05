@@ -599,7 +599,7 @@ void print_body(node_t *task_node)
                "%s\n"
                "}\n"
                "END\n", 
-               quark_tree_to_body(task_node));
+               tree_to_body(task_node));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

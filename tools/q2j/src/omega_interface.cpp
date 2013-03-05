@@ -62,8 +62,8 @@ static void dump_full_und(und_t *und);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
-static Relation process_execution_space(node_t *node, node_t *func);
+static int process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
+static Relation process_execution_space(node_t *node, node_t *func, int *status);
 static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
 static inline set<expr_t *> find_all_GEs_with_var(const char *var_name, expr_t *exp);
 static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t *exp, int constr_type);
@@ -227,7 +227,8 @@ static void declare_globals_in_tree(node_t *node, set <char *> ind_names){
 
 // the parameter "R" (of type "Relation") needs to be passed by reference, otherwise a copy
 // is passed every time the recursion goes deeper and the "handle" does not correspond to R.
-void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<string, Variable_ID> vars, Relation &R){
+int expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<string, Variable_ID> vars, Relation &R){
+    int status = Q2J_SUCCESS;
     map<string, Variable_ID>::iterator v_it;
     map<string, Free_Var_Decl *>::iterator g_it;
     char *var_name=NULL;
@@ -242,8 +243,8 @@ void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<s
                 break;
             }else{
                 fprintf(stderr,"expr_to_Omega_coef(): Can't turn arbitrary expression into Omega expression.\n");
-                fprintf(stderr,"expr:%s\n", tree_to_str(node));
-                assert(0);
+                fprintf(stderr,"    expr: %s\n", tree_to_str(node));
+                return Q2J_FAILED;
             }
             break;
         case S_U_MEMBER:
@@ -267,21 +268,33 @@ void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<s
                 break;
             }
             fprintf(stderr,"expr_to_Omega_coef(): Can't find \"%s\" in either induction, or global variables.\n", DA_var_name(node) );
-            exit(-1);
+            return Q2J_FAILED;
         case ADD:
-            expr_to_Omega_coef(node->u.kids.kids[0], handle, sign, vars, R);
-            expr_to_Omega_coef(node->u.kids.kids[1], handle, sign, vars, R);
+            status = expr_to_Omega_coef(node->u.kids.kids[0], handle, sign, vars, R);
+            if( Q2J_SUCCESS != status ){
+                return status;
+            }
+            status = expr_to_Omega_coef(node->u.kids.kids[1], handle, sign, vars, R);
+            if( Q2J_SUCCESS != status ){
+                return status;
+            }
             break;
         case SUB:
-            expr_to_Omega_coef(node->u.kids.kids[0], handle, sign, vars, R);
-            expr_to_Omega_coef(node->u.kids.kids[1], handle, -sign, vars, R);
+            status = expr_to_Omega_coef(node->u.kids.kids[0], handle, sign, vars, R);
+            if( Q2J_SUCCESS != status ){
+                return status;
+            }
+            status = expr_to_Omega_coef(node->u.kids.kids[1], handle, -sign, vars, R);
+            if( Q2J_SUCCESS != status ){
+                return status;
+            }
             break;
         default:
             fprintf(stderr,"expr_to_Omega_coef(): Can't turn type \"%s (%d %x)\" into Omega expression.\n", type_to_str(node->type), node->type, node->type);
             fprintf(stderr,"expr:%s\n", tree_to_str(node));
-            assert(0);
+            return Q2J_FAILED;
     }
-    return;
+    return status;
 }
 
 
@@ -300,26 +313,29 @@ node_t *find_closest_enclosing_loop(node_t *n1, node_t *n2){
     return NULL;
 }
 
-void add_array_subscript_equalities(Relation &R, F_And *R_root, map<string, Variable_ID> ivars, map<string, Variable_ID> ovars, node_t *def, node_t *use){
-    int i,count;
+int add_array_subscript_equalities(Relation &R, F_And *R_root, map<string, Variable_ID> ivars, map<string, Variable_ID> ovars, node_t *def, node_t *use){
+    int i,count, ret_val;
 
     count = DA_array_dim_count(def);
     if( DA_array_dim_count(use) != count ){
         fprintf(stderr,"add_array_subscript_equalities(): ERROR: Arrays in USE and DEF do not have the same number of subscripts.");
         fprintf(stderr,"USE: %s\n",tree_to_str(use));
         fprintf(stderr,"DEF: %s\n",tree_to_str(def));
-        Q2J_ASSERT(0);
+        return Q2J_FAILED;
     }
 
     for(i=0; i<count; i++){
         node_t *iv = DA_array_index(def, i);
         node_t *ov = DA_array_index(use, i);
         EQ_Handle hndl = R_root->add_EQ();
-        expr_to_Omega_coef(iv, hndl, 1, ivars, R);
-        expr_to_Omega_coef(ov, hndl, -1, ovars, R);
+        ret_val = expr_to_Omega_coef(iv, hndl, 1, ivars, R);
+        ret_val |= expr_to_Omega_coef(ov, hndl, -1, ovars, R);
+        if( Q2J_SUCCESS != ret_val ){
+            return ret_val;
+        }
     }
 
-    return;
+    return Q2J_SUCCESS;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -329,16 +345,23 @@ void add_array_subscript_equalities(Relation &R, F_And *R_root, map<string, Vari
 // where "k" is the induction variable and "Ei" are expressions of induction
 // variables, global variables and constants.
 //
-void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R){
+int process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R){
     Variable_ID ivar;
     GEQ_Handle imax;
     F_And *new_and;
+    int status = Q2J_SUCCESS;
 
     switch( node->type ){
         case L_AND:
             new_and = R_root->add_and();
-            process_end_condition(DA_kid(node,0), new_and, ivars, lb, R);
-            process_end_condition(DA_kid(node,1), new_and, ivars, lb, R);
+            status = process_end_condition(DA_kid(node,0), new_and, ivars, lb, R);
+            if( Q2J_SUCCESS != status ){
+                return status;
+            }
+            status = process_end_condition(DA_kid(node,1), new_and, ivars, lb, R);
+            if( Q2J_SUCCESS != status ){
+                return status;
+            }
             break;
 // TODO: handle logical or (L_OR) as well.
 //F_Or *or1 = R_root->add_or();
@@ -346,14 +369,26 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
         case LT:
             ivar = ivars[DA_var_name(DA_rel_lhs(node))];
             imax = R_root->add_GEQ();
-            expr_to_Omega_coef(DA_rel_rhs(node), imax, 1, ivars, R);
+            status = expr_to_Omega_coef(DA_rel_rhs(node), imax, 1, ivars, R);
+            if( Q2J_SUCCESS != status ){
+                fprintf(stderr,"process_end_condition() failed.\n");
+                return status;
+            }
             imax.update_coef(ivar,-1);
             imax.update_const(-1);
             if (lb != NULL ){ // Add the condition LB < UB
                 GEQ_Handle lb_ub;
                 lb_ub = R_root->add_GEQ();
-                expr_to_Omega_coef(DA_rel_rhs(node), lb_ub, 1, ivars, R);
-                expr_to_Omega_coef(lb, lb_ub, -1, ivars, R);
+                status = expr_to_Omega_coef(DA_rel_rhs(node), lb_ub, 1, ivars, R);
+                if( Q2J_SUCCESS != status ){
+                    fprintf(stderr,"process_end_condition() failed.\n");
+                    return status;
+                }
+                status = expr_to_Omega_coef(lb, lb_ub, -1, ivars, R);
+                if( Q2J_SUCCESS != status ){
+                    fprintf(stderr,"process_end_condition() failed.\n");
+                    return status;
+                }
                 lb_ub.update_const(-1);
             }
             break;
@@ -366,29 +401,44 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
 
             ivar = ivars[DA_var_name(DA_rel_lhs(node))];
             imax = R_root->add_GEQ();
-            expr_to_Omega_coef(DA_rel_rhs(node), imax, 1, ivars, R);
+            status = expr_to_Omega_coef(DA_rel_rhs(node), imax, 1, ivars, R);
+            if( Q2J_SUCCESS != status ){
+                fprintf(stderr,"process_end_condition() failed.\n");
+                return status;
+            }
             imax.update_coef(ivar,-1);
             if (lb != NULL ){ // Add the condition LB < UB
                 GEQ_Handle lb_ub;
                 lb_ub = R_root->add_GEQ();
-                expr_to_Omega_coef(DA_rel_rhs(node), lb_ub, 1, ivars, R);
-                expr_to_Omega_coef(lb, lb_ub, -1, ivars, R);
+                status = expr_to_Omega_coef(DA_rel_rhs(node), lb_ub, 1, ivars, R);
+                if( Q2J_SUCCESS != status ){
+                    fprintf(stderr,"process_end_condition() failed.\n");
+                    return status;
+                }
+                status = expr_to_Omega_coef(lb, lb_ub, -1, ivars, R);
+                if( Q2J_SUCCESS != status ){
+                    fprintf(stderr,"process_end_condition() failed.\n");
+                    return status;
+                }
             }
             break;
         default:
             fprintf(stderr,"ERROR: process_end_condition() cannot deal with node of type: %s in: \"%s\"\n", DA_type_name(node),tree_to_str(node) );
-            assert(0);
+            return Q2J_FAILED;
+            fprintf(stderr,"process_end_condition() failed.\n");
     }
 
+    return status;
 }
 
 
-void process_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, Relation &R){
+int process_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, Relation &R){
     GEQ_Handle cond;
     EQ_Handle econd;
     F_And *new_and;
     F_Or  *new_or;
     F_Not *neg;
+    int status = Q2J_SUCCESS;
 
     switch( node->type ){
         case L_AND:
@@ -410,32 +460,66 @@ void process_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> iv
             break;
         case LT:
             cond = R_root->add_GEQ();
-            expr_to_Omega_coef(DA_rel_rhs(node), cond, 1, ivars, R);
-            expr_to_Omega_coef(DA_rel_lhs(node), cond, -1, ivars, R);
+            status = expr_to_Omega_coef(DA_rel_rhs(node), cond, 1, ivars, R);
+            if( Q2J_SUCCESS != status ){
+                fprintf(stderr,"process_condition() failed.\n");
+                return status;
+            }
+            status = expr_to_Omega_coef(DA_rel_lhs(node), cond, -1, ivars, R);
+            if( Q2J_SUCCESS != status ){
+                fprintf(stderr,"process_condition() failed.\n");
+                return status;
+            }
             cond.update_const(-1);
             break;
         case LE:
             cond = R_root->add_GEQ();
-            expr_to_Omega_coef(DA_rel_rhs(node), cond, 1, ivars, R);
-            expr_to_Omega_coef(DA_rel_lhs(node), cond, -1, ivars, R);
+            status = expr_to_Omega_coef(DA_rel_rhs(node), cond, 1, ivars, R);
+            if( Q2J_SUCCESS != status ){
+                fprintf(stderr,"process_condition() failed.\n");
+                return status;
+            }
+            status = expr_to_Omega_coef(DA_rel_lhs(node), cond, -1, ivars, R);
+            if( Q2J_SUCCESS != status ){
+                fprintf(stderr,"process_condition() failed.\n");
+                return status;
+            }
             break;
         case EQ_OP:
             econd = R_root->add_EQ();
-            expr_to_Omega_coef(DA_rel_rhs(node), econd, 1, ivars, R);
-            expr_to_Omega_coef(DA_rel_lhs(node), econd, -1, ivars, R);
+            status = expr_to_Omega_coef(DA_rel_rhs(node), econd, 1, ivars, R);
+            if( Q2J_SUCCESS != status ){
+                fprintf(stderr,"process_condition() failed.\n");
+                return status;
+            }
+            status = expr_to_Omega_coef(DA_rel_lhs(node), econd, -1, ivars, R);
+            if( Q2J_SUCCESS != status ){
+                fprintf(stderr,"process_condition() failed.\n");
+                return status;
+            }
             break;
         case NE_OP:
             neg = R_root->add_not();
             new_and = neg->add_and();
             econd = new_and->add_EQ();
-            expr_to_Omega_coef(DA_rel_rhs(node), econd, 1, ivars, R);
-            expr_to_Omega_coef(DA_rel_lhs(node), econd, -1, ivars, R);
+            status = expr_to_Omega_coef(DA_rel_rhs(node), econd, 1, ivars, R);
+            if( Q2J_SUCCESS != status ){
+                fprintf(stderr,"process_condition() failed.\n");
+                return status;
+            }
+            status = expr_to_Omega_coef(DA_rel_lhs(node), econd, -1, ivars, R);
+            if( Q2J_SUCCESS != status ){
+                fprintf(stderr,"process_condition() failed.\n");
+                return status;
+            }
             break;
         default:
             fprintf(stderr,"ERROR: process_condition() cannot deal with node of type: %s in: \"%s\"\n", DA_type_name(node),tree_to_str(node) );
-            exit(-1);
+            fprintf(stderr,"process_condition() failed.\n");
+            return Q2J_FAILED;
     }
 
+    return status;
 }
 
 
@@ -575,7 +659,7 @@ static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F
     return;
 }
 
-Relation create_exit_relation(node_t *exit, node_t *def, node_t *func){
+Relation create_exit_relation(node_t *exit, node_t *def, node_t *func, int *status){
     int i, src_var_count, dst_var_count;
     node_t *tmp, *use;
     char **def_ind_names;
@@ -622,10 +706,18 @@ Relation create_exit_relation(node_t *exit, node_t *def, node_t *func){
 
         GEQ_Handle imin = R_root->add_GEQ();
         imin.update_coef(ivar,1);
-        expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ivars, R);
+        *status = expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ivars, R);
+        if( Q2J_SUCCESS != *status ){
+            fprintf(stderr,"create_exit_relation() failed.\n");
+            return R; // the return value here is bogus, but the caller should check the status.
+        }
 
         // Form the Omega expression for the upper bound
-        process_end_condition(DA_for_econd(tmp), R_root, ivars, NULL, R);
+        *status = process_end_condition(DA_for_econd(tmp), R_root, ivars, NULL, R);
+        if( Q2J_SUCCESS != *status ){
+            fprintf(stderr,"create_exit_relation() failed.\n");
+            return R; // the return value here is bogus, but the caller should check the status.
+        }
     }
 
     // Take into account all the conditions of all enclosing if() statements.
@@ -644,14 +736,18 @@ Relation create_exit_relation(node_t *exit, node_t *def, node_t *func){
         EQ_Handle hndl = R_root->add_EQ();
 
         hndl.update_coef(R.output_var(i+1), 1);
-        expr_to_Omega_coef(iv, hndl, -1, ivars, R);
+        *status = expr_to_Omega_coef(iv, hndl, -1, ivars, R);
+        if( Q2J_SUCCESS != *status ){
+            fprintf(stderr,"create_exit_relation() failed.\n");
+            return R; // the return value here is bogus, but the caller should check the status.
+        }
     }
 
     R.simplify(2,2);
     return R;
 }
 
-map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int dep_type, node_t *func){
+map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int dep_type, node_t *func, int *status){
     int i, src_var_count, dst_var_count;
     und_t *und;
     node_t *tmp, *def, *use;
@@ -709,10 +805,16 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
 
             GEQ_Handle imin = R_root->add_GEQ();
             imin.update_coef(ovar,1);
-            expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ovars, R);
+            *status = expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ovars, R);
+            if( Q2J_SUCCESS != *status ){
+                return dep_edges; // the return value here is bogus, but the caller should check the status.
+            }
 
             // Form the Omega expression for the upper bound
-            process_end_condition(DA_for_econd(tmp), R_root, ovars, NULL, R);
+            *status = process_end_condition(DA_for_econd(tmp), R_root, ovars, NULL, R);
+            if( Q2J_SUCCESS != *status ){
+                return dep_edges; // the return value here is bogus, but the caller should check the status.
+            }
         }
 
         // Take into account all the conditions of all enclosing if() statements.
@@ -731,7 +833,10 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
             EQ_Handle hndl = R_root->add_EQ();
 
             hndl.update_coef(R.input_var(i+1), 1);
-            expr_to_Omega_coef(ov, hndl, -1, ovars, R);
+            *status = expr_to_Omega_coef(ov, hndl, -1, ovars, R);
+            if( Q2J_SUCCESS != *status ){
+                return dep_edges; // the return value here is bogus, but the caller should check the status.
+            }
         }
 
         R.simplify(2,2);
@@ -751,7 +856,7 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
 //
 // The variable names and comments in this function abuse the terms "def" and "use".
 // It would be more acurate to use the terms "source" and "destination" for the edges.
-map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep_type, node_t *exit_node, node_t *func){
+map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep_type, node_t *exit_node, node_t *func, int *status){
     int i, after_def = 0;
     int src_var_count, dst_var_count;
     und_t *und;
@@ -843,10 +948,16 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
 
             GEQ_Handle imin = R_root->add_GEQ();
             imin.update_coef(ivar,1);
-            expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ivars, R);
+            *status = expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ivars, R);
+            if( Q2J_SUCCESS != *status ){
+                return dep_edges; // the return value here is bogus, but the caller should check the status.
+            }
 
             // Form the Omega expression for the upper bound
-            process_end_condition(DA_for_econd(tmp), R_root, ivars, NULL, R);
+            *status = process_end_condition(DA_for_econd(tmp), R_root, ivars, NULL, R);
+            if( Q2J_SUCCESS != *status ){
+                return dep_edges;
+            }
         }
 
         // Take into account all the conditions of all if() statements enclosing the DEF.
@@ -863,10 +974,16 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
 
             GEQ_Handle imin = R_root->add_GEQ();
             imin.update_coef(ovar,1);
-            expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ovars, R);
+            *status = expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ovars, R);
+            if( Q2J_SUCCESS != *status ){
+                return dep_edges; // the return value here is bogus, but the caller should check the status.
+            }
 
             // Form the Omega expression for the upper bound
-            process_end_condition(DA_for_econd(tmp), R_root, ovars, NULL, R);
+            *status = process_end_condition(DA_for_econd(tmp), R_root, ovars, NULL, R);
+            if( Q2J_SUCCESS != *status ){
+                return dep_edges;
+            } 
         }
 
         // Take into account all the conditions of all if() statements enclosing the USE.
@@ -940,7 +1057,10 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
 
         // Add equalities demanded by the array subscripts. For example is the DEF is A[k][k] and the
         // USE is A[m][n] then add (k=m && k=n).
-        add_array_subscript_equalities(R, R_root, ivars, ovars, def, use);
+        *status = add_array_subscript_equalities(R, R_root, ivars, ovars, def, use);
+        if( Q2J_SUCCESS != *status ){
+            return dep_edges;
+        } 
 
         R.simplify(2,2);
         if( R.is_upper_bound_satisfiable() || R.is_lower_bound_satisfiable() ){
@@ -954,7 +1074,10 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
     }
 
     if( DEP_FLOW==dep_type ){
-        dep_edges[exit_node] = create_exit_relation(exit_node, def, func);
+        dep_edges[exit_node] = create_exit_relation(exit_node, def, func, status);
+        if( Q2J_SUCCESS != *status ){
+            return dep_edges;
+        }
     }
 
     return dep_edges;
@@ -3201,7 +3324,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-Relation process_execution_space( node_t *node, node_t *func )
+Relation process_execution_space( node_t *node, node_t *func, int *status )
 {
     int i;
     node_t *tmp;
@@ -3239,14 +3362,23 @@ Relation process_execution_space( node_t *node, node_t *func )
 
         GEQ_Handle imin = S_root->add_GEQ();
         imin.update_coef(var,1);
-        expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, vars, S);
+        *status = expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, vars, S);
+        if( Q2J_SUCCESS != *status ){
+            return S; // the return value here is bogus, but the caller should check the status.
+        }
 
         // Form the Omega expression for the upper bound
-        process_end_condition(DA_for_econd(tmp), S_root, vars, NULL, S);
+        *status = process_end_condition(DA_for_econd(tmp), S_root, vars, NULL, S);
+        if( Q2J_SUCCESS != *status ){
+            return S; // the return value here is bogus, but the caller should check the status.
+        }
 
         // Demand that LB <= UB
         GEQ_Handle lb_le_ub = S_root->add_GEQ();
-        process_end_condition(DA_for_econd(tmp), S_root, vars, DA_loop_lb(tmp), S);
+        *status = process_end_condition(DA_for_econd(tmp), S_root, vars, DA_loop_lb(tmp), S);
+        if( Q2J_SUCCESS != *status ){
+            return S; // the return value here is bogus, but the caller should check the status.
+        }
         
     }
 
@@ -3296,7 +3428,8 @@ static void clean_sources(map<node_t *, map<node_t *, Relation> > &sources)
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void interrogate_omega(node_t *func, var_t *head){
+int interrogate_omega(node_t *func, var_t *head){
+    int status = Q2J_SUCCESS;
     var_t *var;
     und_t *und;
     map<node_t *, map<node_t *, Relation> > flow_sources, output_sources, anti_sources;
@@ -3328,19 +3461,39 @@ void interrogate_omega(node_t *func, var_t *head){
         flow_sources.clear();
         output_sources.clear();
         // Create flow edges starting from the ENTRY
-        flow_sources[entry]   = create_entry_relations(entry, var, DEP_FLOW, func);
-        output_sources[entry] = create_entry_relations(entry, var, DEP_OUT, func);
+        flow_sources[entry]   = create_entry_relations(entry, var, DEP_FLOW, func, &status);
+        if( Q2J_SUCCESS != status ){
+            fprintf(stderr,"create_entry_relations( DEP_FLOW ) failed.\n");
+            return status;
+        }
+        output_sources[entry] = create_entry_relations(entry, var, DEP_OUT, func, &status);
+        if( Q2J_SUCCESS != status ){
+            fprintf(stderr,"create_entry_relations( DEP_OUT ) failed.\n");
+            return status;
+        }
 
         // For each DEF create all flow and output edges and for each USE create all anti edges.
         for(und=var->und; NULL != und ; und=und->next){
             if(is_und_write(und)){
                 node_t *def = und->node;
-                flow_sources[def]   = create_dep_relations(und, var, DEP_FLOW, exit_node, func);
-                output_sources[def] = create_dep_relations(und, var, DEP_OUT,  exit_node, func);
+                flow_sources[def] = create_dep_relations(und, var, DEP_FLOW, exit_node, func, &status);
+                if( Q2J_SUCCESS != status ){
+                    fprintf(stderr,"create_dep_relations( DEP_FLOW ) failed.\n");
+                    return status;
+                }
+                output_sources[def] = create_dep_relations(und, var, DEP_OUT,  exit_node, func, &status);
+                if( Q2J_SUCCESS != status ){
+                    fprintf(stderr,"create_dep_relations( DEP_OUT ) failed.\n");
+                    return status;
+                }
             }
             if(is_und_read(und) && !is_phony_Entry_task(und->node) && !is_phony_Exit_task(und->node)){
                 node_t *use = und->node;
-                anti_sources[use] = create_dep_relations(und, var, DEP_ANTI, exit_node, func);
+                anti_sources[use] = create_dep_relations(und, var, DEP_ANTI, exit_node, func, &status);
+                if( Q2J_SUCCESS != status ){
+                    fprintf(stderr,"create_dep_relations( DEP_ANTI ) failed.\n");
+                    return status;
+                }
             }
         }
 
@@ -3692,8 +3845,12 @@ printf("========================================================================
             map<char *, set<dep_t *> > incm_map, outg_map;
             set<dep_t *>::iterator dep_it;
             
-            Relation S_es = process_execution_space(src_task->task_node, func);
-            node_t *reference_data_element = quark_get_locality(src_task->task_node);
+            Relation S_es = process_execution_space(src_task->task_node, func, &status);
+            if( Q2J_SUCCESS != status ){
+                fprintf(stderr,"process_execution_space() failed.\n");
+                return status;
+            }
+            node_t *reference_data_element = get_locality(src_task->task_node);
 
             // Group the edges based on the variable they flow into or from
             for (dep_it=incm_deps.begin(); dep_it!=incm_deps.end(); dep_it++){
@@ -3739,6 +3896,8 @@ printf("========================================================================
     clean_edges( incoming_edges );
     clean_edges( outgoing_edges );
     clean_edges( synch_edges );
+
+    return Q2J_SUCCESS;
 }
 
 void add_colocated_data_info(char *a, char *b){
