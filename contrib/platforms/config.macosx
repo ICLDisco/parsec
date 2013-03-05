@@ -19,8 +19,13 @@ elif [ "x$USER" == "xbosilca" ]; then
 #    USER_OPTIONS+="-DAYUDAME_DIR=/Users/bosilca/tools/temanejo-0.9.1"
 
 elif [ "x$USER" == "xadanalis" ]; then 
-    OMEGA_DIR="/Users/adanalis/Desktop/Research/PLASMA_Distributed/Related_Stuff/Omega"
+    #OMEGA_DIR="/Users/adanalis/Desktop/Research/PLASMA_Distributed/Related_Stuff/Omega"
+    OMEGA_DIR="/Users/adanalis/usr/local"
     USER_OPTIONS+="-DBUILD_DPLASMA=OFF -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_WITH_MPI=OFF"
+    GCCDIR=/opt/local/bin
+    CC=$GCCDIR/gcc-mp-4.7
+    CXX=$GCCDIR/g++-mp-4.7
+    FC=$GCCDIR/gfortran-mp-4.7
 fi
 
 

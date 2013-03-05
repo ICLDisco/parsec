@@ -3162,13 +3162,13 @@ char *tree_to_body(node_t *node){
     // Form the result by concatenating the strings we created in the right order.
     result = append_to_string(result, prefix, NULL, 0);
     result = append_to_string(result, printStr, "\n%s", 1+strlen(printStr));
-    result = append_to_string(result, "\n  DRYRUN(\n", NULL, 0);
+    result = append_to_string(result, "\n#if !defined(DAGUE_DRY_RUN)\n", NULL, 0);
     if( NULL != pool_pop )
         result = append_to_string(result, pool_pop, "  %s", 2+strlen(pool_pop) );
     result = append_to_string(result, kernel_call, "\n  %s", 3+strlen(kernel_call) );
     if( NULL != pool_push )
         result = append_to_string(result, pool_push, "\n\n  %s", 4+strlen(pool_push) );
-    result = append_to_string(result, "\n  );\n", NULL, 0); // close the DRYRUN
+    result = append_to_string(result, "\n#endif  /* !defined(DAGUE_DRY_RUN) */\n", NULL, 0); // close the DRYRUN
 
     // clean up the list of variables and their definitions
     var_def_item_t *item;
