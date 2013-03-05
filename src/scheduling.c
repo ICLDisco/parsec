@@ -198,6 +198,7 @@ static inline unsigned long exponential_backoff(uint64_t k)
     return r * TIME_STEP;
 }
 
+
 inline int __dague_complete_execution( dague_execution_unit_t *eu_context,
                                        dague_execution_context_t *exec_context )
 {
@@ -302,7 +303,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             // MY MODS
             TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
             TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
-            
+
             switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
             case DAGUE_LOOKUP_DONE:
                 /* We're good to go ... */
@@ -325,16 +326,20 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
 #if defined(DAGUE_SIM)
     if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
-        int32_t my_idx;
+        dague_vp_t *vp;
+        int32_t my_vpid, my_idx;
         int largest_date = 0;
-        for(my_idx = 0; my_idx < dague_context->nb_cores; my_idx++) {
-            if( dague_context->execution_units[my_idx]->largest_simulation_date > largest_date )
-                largest_date = dague_context->execution_units[my_idx]->largest_simulation_date;
+        for(my_vpid = 0; my_vpid < dague_context->nb_vp; my_vpid++) {
+            vp = dague_context->virtual_processes[my_vpid];
+            for(my_idx = 0; my_idx < vp->nb_cores; my_idx++) {
+                if( vp->execution_units[my_idx]->largest_simulation_date > largest_date )
+                    largest_date = vp->execution_units[my_idx]->largest_simulation_date;
+            }
         }
         dague_context->largest_simulation_date = largest_date;
     }
     dague_barrier_wait( &(dague_context->barrier) );
-    eu_context ->largest_simulation_date = 0;
+    eu_context->largest_simulation_date = 0;
 #endif
 
     if( !DAGUE_THREAD_IS_MASTER(eu_context) ) {
@@ -373,6 +378,80 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
     return (void*)((long)nbiterations);
 }
+
+/************ COMPOSITION OF DAGUE_OBJECTS ****************/
+typedef struct dague_compound_state_t {
+    dague_context_t* ctx;
+    int nb_objects;
+    int completed_objects;
+    dague_object_t* objects_array[1];
+} dague_compound_state_t;
+
+static int dague_composed_cb( dague_object_t* o, void* cbdata ) {
+    dague_object_t* compound = (dague_object_t*)cbdata;
+    dague_compound_state_t* compound_state = (dague_compound_state_t*)compound->functions_array;
+    int completed_objects = compound_state->completed_objects++;
+    assert( o == compound_state->objects_array[completed_objects] );
+    if( compound->nb_local_tasks-- ) {
+        assert( NULL != compound_state->objects_array[completed_objects+1] );
+        dague_enqueue(compound_state->ctx, 
+                      compound_state->objects_array[completed_objects+1]);
+    }
+    return 0;
+}
+
+static void dague_compound_startup( dague_context_t *context,
+                                    dague_object_t *compound_object,
+                                    dague_execution_context_t** startup_list)
+{
+    assert( 0 == compound_object->nb_functions );
+    int i;
+    dague_compound_state_t* compound_state = (dague_compound_state_t*)compound_object->functions_array;
+    dague_object_t* first = compound_state->objects_array[0];
+    assert( NULL != first );    
+    first->startup_hook(context, first, startup_list);
+    compound_state->ctx = context;    
+    compound_object->nb_local_tasks = compound_state->nb_objects;
+    for( i = 0; i < compound_state->nb_objects; i++ ) {
+        dague_object_t* o = compound_state->objects_array[i];
+        assert( NULL != o );
+        o->complete_cb = dague_composed_cb;
+        o->complete_cb_data = compound_object;
+    }
+}
+
+dague_object_t* dague_compose( dague_object_t* start, 
+                               dague_object_t* next ) 
+{
+    dague_object_t* compound = NULL;
+    dague_compound_state_t* compound_state = NULL;
+    
+    if( start->nb_functions == 0 ) {
+        compound = start;
+        compound_state = (dague_compound_state_t*)compound->functions_array;
+        compound_state->objects_array[compound_state->nb_objects++] = next;
+        /* make room for NULL terminating, if necessary */
+        if( 0 == (compound_state->nb_objects%16) ) {
+            compound_state = realloc(compound_state, sizeof(dague_compound_state_t) + 
+                            (1 + compound_state->nb_objects/16) * 16 * sizeof(void*));
+            compound->functions_array = (void*)compound_state;
+        }
+        compound_state->objects_array[compound_state->nb_objects] = NULL;
+    }
+    else {
+        compound = calloc(1, sizeof(dague_object_t));
+        compound->functions_array = malloc(sizeof(dague_compound_state_t) + 16 * sizeof(void*));
+        compound_state = (dague_compound_state_t*)compound->functions_array;
+        compound_state->objects_array[0] = start;
+        compound_state->objects_array[1] = next;
+        compound_state->objects_array[2] = NULL;
+        compound_state->completed_objects = 0;
+        compound_state->nb_objects = 2;
+        compound->startup_hook = dague_compound_startup;
+    }
+    return compound;
+}
+/** END: Composition ***/
 
 int dague_enqueue( dague_context_t* context, dague_object_t* object)
 {

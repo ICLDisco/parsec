@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -51,6 +51,11 @@ struct dague_object {
 const dague_function_t* dague_find(const dague_object_t *dague_object, const char *fname);
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
 int dague_fini( dague_context_t** pcontext );
+/* compose the two dague_objects into a composition dague_object. 
+ * The resulting compound dague_object is returned. 
+ * If start is already a composition, the same (updated) object may be returned.
+ */
+dague_object_t* dague_compose( dague_object_t* start, dague_object_t* next);
 int dague_enqueue( dague_context_t* context, dague_object_t* object);
 int dague_progress(dague_context_t* context);
 
@@ -99,4 +104,7 @@ void dague_object_dec_nbtask( dague_object_t* object, uint32_t nb_tasks );
 /**< Print DAGuE usage message */
 void dague_usage(void);
 
+#if defined(DAGUE_SIM)
+int dague_getsimulationdate( dague_context_t *dague_context );
+#endif
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

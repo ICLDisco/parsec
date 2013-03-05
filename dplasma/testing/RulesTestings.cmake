@@ -3,7 +3,7 @@ include(RulesPrecisions)
 macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
   include_directories(. ${PLASMA_INCLUDE_DIRS})
 
-  set(testings_addexec_CFLAGS "-DADD_")
+  #set(testings_addexec_CFLAGS "-DADD_")
   #foreach(arg ${PLASMA_CFLAGS})
   #  set(testings_addexec_CFLAGS "${testings_addexec_CFLAGS} ${arg}")
   #endforeach(arg ${PLASMA_CFLAGS})
@@ -35,7 +35,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
                             LINKER_LANGUAGE Fortran
                             COMPILE_FLAGS "${testings_addexec_CFLAGS}"
                             LINK_FLAGS "${testings_addexec_LDFLAGS} ${LOCAL_FORTRAN_LINK_FLAGS} ${CMAKE_EXE_EXPORTS_C_FLAG}")
-    target_link_libraries(${testings_addexec_EXEC} ${testings_addexec_LIBS} ${PLASMA_LDFLAGS} plasma)
+    target_link_libraries(${testings_addexec_EXEC} ${testings_addexec_LIBS} ${PLASMA_LIBRARIES})
     install(TARGETS ${testings_addexec_EXEC} RUNTIME DESTINATION bin)
     list(APPEND ${OUTPUTLIST} ${testings_addexec_EXEC})
   endforeach()

@@ -185,9 +185,6 @@ static void dague_vp_init( dague_vp_t *vp,
     data_repo_entry_t fake_entry;
 
     vp->nb_cores = nb_cores;
-#if defined(DAGUE_SIM)
-    vp->largest_simulation_date = 0;
-#endif /* DAGUE_SIM */
 
     dague_mempool_construct( &vp->context_mempool, sizeof(dague_execution_context_t),
                              ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
@@ -266,6 +263,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     context->active_objects = 0;
     context->my_rank        = 0;
 
+#if defined(DAGUE_SIM)
+    context->largest_simulation_date = 0;
+#endif /* DAGUE_SIM */
+
     /* TODO: nb_cores should depend on the vp_id */
     nb_total_comp_threads = 0;
     for(p = 0; p < nb_vp; p++) {
@@ -343,7 +344,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     /* update the index_core_free_mask according to the thread binding defined */
     for(t = 0; t < nb_total_comp_threads; t++)
-	hwloc_bitmap_clr(context->index_core_free_mask, startup[t].bindto);
+        hwloc_bitmap_clr(context->index_core_free_mask, startup[t].bindto);
 
 #if defined(DAGUE_DEBUG_VERBOSE3)
     {
@@ -1467,3 +1468,9 @@ static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* co
     return -1;
 #endif  /* HAVE_HWLOC */
 }
+
+#if defined(DAGUE_SIM)
+int dague_getsimulationdate( dague_context_t *dague_context ){
+    return dague_context->largest_simulation_date;
+}
+#endif

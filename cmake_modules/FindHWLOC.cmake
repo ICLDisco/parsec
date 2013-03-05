@@ -23,7 +23,7 @@ set(HWLOC_DIR "" CACHE PATH "Root directory containing HWLOC")
 
 find_package(PkgConfig QUIET)
 if( HWLOC_DIR )
-  set(ENV{PKG_CONFIG_PATH} "${HWLOC_DIR}/lib/pkgconfig" $ENV{PKG_CONFIG_PATH})
+  set(ENV{PKG_CONFIG_PATH} "${HWLOC_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
 endif()
 pkg_check_modules(PC_HWLOC QUIET hwloc)
 set(HWLOC_DEFINITIONS ${PC_HWLOC_CFLAGS_OTHER} )

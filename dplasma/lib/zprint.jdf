@@ -37,11 +37,11 @@ static void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, dague_
             fprintf(stdout, "          ");
         for(jj=0; jj<tempnn; jj++) {
 #if defined(PRECISION_z) || defined(PRECISION_c)
-            fprintf(stdout, " (%e, %e)",
+            fprintf(stdout, " (% e, % e)",
                     creal( M[jj*ldam + ii] ),
                     cimag( M[jj*ldam + ii] ));
 #else
-            fprintf(stdout, " %e", M[jj*ldam + ii]);
+            fprintf(stdout, " % e", M[jj*ldam + ii]);
 #endif
         }
         fprintf(stdout, "\n");
