@@ -3478,19 +3478,19 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
                 output);
     }
 
-    coutput("  /** Lookup the input data, and store them in the context if any */\n");
+    coutput("  /** Update staring simulation date */\n"
+            "#if defined(DAGUE_SIM)\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 
         if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
 
-        coutput("#if defined(DAGUE_SIM)\n"
-                "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
-                "    __dague_simulation_date =  e%s->sim_exec_date;\n"
-                "#endif\n",
+        coutput("  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
+                "    __dague_simulation_date =  e%s->sim_exec_date;\n",
                 fl->varname,
                 fl->varname,
                 fl->varname);
     }
+    coutput("#endif\n");
 
     coutput("  /** Store pointer used in the function for antidependencies detection */\n"
             "#if defined(DAGUE_PROF_PTR_FILE)\n"
