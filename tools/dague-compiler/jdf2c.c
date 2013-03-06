@@ -3483,7 +3483,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
 
         if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
 
-        jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
         coutput("#if defined(DAGUE_SIM)\n"
                 "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
                 "    __dague_simulation_date =  e%s->sim_exec_date;\n"
