@@ -57,6 +57,10 @@ void st_insert_new_variable(char *var, char *type){
     
     assert( NULL != _current_st );
 
+#ifdef DEBUG_1
+    printf("-- ST: inserting symbol \"%s\" with type \"%s\"\n",var,type);
+#endif //DEBUG_1
+
     // If this scope is empty, add the new variable to the head
     if( NULL == _current_st->symbols ){
         _current_st->symbols = create_symtab_entry(var, type);
@@ -80,12 +84,15 @@ void st_insert_new_variable(char *var, char *type){
 //
 void dump_st(symtab_t *scope){
     q2j_symbol_t *sym;
+    int off = 0;
 
     do{
         for(sym=scope->symbols; NULL!=sym; sym=sym->next){
+            printf("%*s", off, " ");
             printf("%s [type = \"%s\"]\n",sym->var_name, sym->var_type);
         }
         scope = scope->parent;
+        off += 4;
     }while(NULL != scope);
 
     return;

@@ -10,11 +10,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#undef NDEBUG
 #include <assert.h>
 #include <ctype.h>
 #include <stddef.h>
 #include <stdarg.h>
-#define __STDC_FORMAT_MACROS
+#define __S
 #include <inttypes.h>
 
 #include "jdf.h"
@@ -35,10 +36,12 @@
 #define IVAR_IS_LEFT   1
 #define IVAR_IS_RIGHT -1
 
+extern int  _q2j_annot_API;
 extern char *q2j_input_file_name;
 extern char *_q2j_data_prefix;
 extern int _q2j_generate_line_numbers;
 extern int _q2j_direct_output;
+extern int _q2j_check_unknown_functions;
 extern FILE *_q2j_output;
 extern jdf_t _q2j_jdf;
 
@@ -47,6 +50,11 @@ static var_t *var_head=NULL;
 static int _ind_depth=0;
 static int _task_count=0;
 static node_t *_q2j_pending_invariants_head=NULL;
+static void replace_subtree(node_t *new_var, node_t *old_var,
+                     node_t *new_i,  node_t *new_j,
+                     node_t *new_m,  node_t *new_n, 
+                     node_t *new_mt, node_t *new_nt,
+                     node_t *desc_prnt, int kid_num, node_t *root);
 
 // For the JDF generation we need to emmit some things in special ways,
 // (i.e. arrays in FORTRAN notation) and this "variable" will never need
@@ -72,7 +80,7 @@ static void set_symtab_in_tree(symtab_t *symtab, node_t *node);
 static void do_parentize(node_t *node, int off);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
 static void do_if_parentize(node_t *node, node_t *enclosing_if);
-static int DA_quark_INOUT(node_t *node);
+static int DA_INOUT(node_t *node);
 static int DA_quark_TYPE(node_t *node);
 static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar);
 static int is_var_repeating(char *iv_str, char **iv_names);
@@ -83,14 +91,21 @@ static int isArrayIn(node_t *task_node, int index);
 static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, int task_type);
 static void add_entry_task_loops(matrix_variable_t *list, node_t *node);
 static void add_exit_task_loops(matrix_variable_t *list, node_t *node);
-static matrix_variable_t *quark_find_all_matrices(node_t *node);
+static matrix_variable_t *find_all_matrices(node_t *node);
 static int is_definition_seen(dague_list_t *var_def_list, char *param);
 static void mark_definition_as_seen(dague_list_t *var_def_list, char *param);
 static int is_acceptable_econd(node_t *node, char *ivar);
 static int is_id_or_mul(node_t *node, char *ivar);
 static int is_decrementing(node_t *node);
+static void inline_function_body(node_t *func_body, node_t *call_site);
+static node_t *_DA_copy_tree(node_t *node);
+static void DA_delete_tree(node_t *node);
+static int is_insert_task_call(node_t *node);
+
+void inline_function_calls(node_t *node, node_t *func_list_head);
 void convert_loop_from_decr_to_incr(node_t *node);
 int replace_induction_variable_in_body(node_t *node, node_t *ivar, node_t *replacement);
+node_t *DA_copy_tree(node_t *node);
 
 /**
  * This function is not thread-safe, not reentrant, and not pure. As such it
@@ -133,53 +148,6 @@ void jdfoutput(const char *format, ...)
     }
 }
 
-//#if 0
-void dump_und(und_t *und){
-    char *name;
-
-    name = DA_var_name( DA_array_base(und->node));
-    if( NULL == name )
-        return;
-
-    name = tree_to_str(und->node);
-
-    switch( und->rw ){
-    case UND_READ:
-        printf("%s R type:%d", name, und->type);
-        break;
-    case UND_WRITE:
-        printf("%s W type:%d", name, und->type);
-        break;
-    case UND_RW:
-        printf("%s RW type:%d", name, und->type);
-        break;
-    }
-
-}
-
-void dump_all_unds(void){
-    var_t *var;
-    und_t *und;
-    node_t *tmp;
-
-    printf("###############\n");
-    for(var=var_head; NULL != var; var=var->next){
-        for(und=var->und; NULL != und ; und=und->next){
-            dump_und(und);
-            printf(" ");
-            for(tmp=und->node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
-                printf("%s:", DA_var_name(DA_loop_induction_variable(tmp)) );
-                printf("{ %s, ", tree_to_str(DA_loop_lb(tmp)) );
-                printf(" %s }", tree_to_str(DA_loop_ub(tmp)) );
-                if( NULL != tmp->enclosing_loop )
-                    printf(",  ");
-            }
-            printf("\n");
-        }
-    }
-    printf("###############\n");
-}
-//#endif
 
 void add_variable_use_or_def(node_t *node, int rw, int type, int task_count){
     var_t *var=NULL, *prev=NULL;
@@ -426,10 +394,13 @@ static char *numToSymName(int num, char *fname){
 
 
 /*
- * Turn "CORE_taskname_quark" into "taskname".  If lineno is non-negative
- * the result is "taskname_lineno" (where lineno is the number, not the string).
+ * If we are using the QUARK annotations then turn "CORE_taskname_quark" into "taskname",
+ * otherwise keep the taskname as is.  If lineno is non-negative the result is
+ * "taskname_lineno" (where lineno is the number, not the string).
+ *
+ * QUARK, or General annotation API is accepted.
  */
-static char *quark_call_to_task_name( char *call_name, int32_t lineno ){
+static char *call_to_task_name( char *call_name, int32_t lineno ){
     char *task_name, *end;
     ptrdiff_t len;
     uint32_t i, digits=1;
@@ -510,7 +481,10 @@ static jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
     return f;
 }
 
-static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
+/*
+ * QUARK, or General annotation API is accepted.
+ */
+static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
     int symbolic_name_count = 0;
     int i;
     static int pool_initialized = 0;
@@ -521,43 +495,69 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
     }
 
     if( FCALL == node->type ){
-        char *fname;
+        char *fname, *tmp_task_name;
         int kid_count;
         task_t *task;
         jdf_function_entry_t *f;
 
-        if( strcmp("QUARK_Insert_Task", DA_kid(node,0)->u.var_name) ){
-            return;
-        }
-
         kid_count = node->u.kids.kid_count;
 
-        // QUARK specific code. The task is the second parameter.
-        if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
-            fname = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), 
-                                             mult_kernel_occ ? (int32_t)node->lineno : -1 );
-            
-            f = jdf_register_addfunction( &_q2j_jdf, fname, node );
-            task = (task_t *)calloc(1, sizeof(task_t));
-            task->task_node = node;
-            task->ind_vars = (char **)calloc(1+node->loop_depth, sizeof(char *));
-            i=node->loop_depth-1;
-            for(node_t *tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
-                task->ind_vars[i] = DA_var_name(DA_loop_induction_variable(tmp));
-                --i;
+        if( !strcmp("QUARK_Insert_Task", DA_kid(node,0)->u.var_name) ){
+ 
+            if( (Q2J_ANN_QUARK != _q2j_annot_API) && (Q2J_ANN_UNSET != _q2j_annot_API) ){
+                fprintf(stderr,"ERROR: Mixed annotation APIs not supported.\n");
+                fprintf(stderr,"ERROR: Error occured while processing call:\n%s\n", tree_to_str(node) );
+                return;
+            }
+            _q2j_annot_API = Q2J_ANN_QUARK;
+
+            if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
+                tmp_task_name = DA_var_name(DA_kid(node,2));
+            } else {
+#if defined(DEBUG)
+                fprintf(stderr,"WARNING: probably there is something wrong with the QUARK_Insert_Task() in line %d. Ignoring it.\n", (int32_t)node->lineno);
+#endif
+                return;
             }
 
-            node->task = task;
-            node->function = f;
+        } else if( !strcmp("Insert_Task", DA_kid(node,0)->u.var_name) ){
+ 
+            if( (Q2J_ANN_GENER != _q2j_annot_API) && (Q2J_ANN_UNSET != _q2j_annot_API) ){
+                fprintf(stderr,"ERROR: Mixed annotation APIs not supported.\n");
+                fprintf(stderr,"ERROR: Error occured while processing call:\n%s\n", tree_to_str(node) );
+                return;
+            }
+            _q2j_annot_API = Q2J_ANN_GENER;
 
-        } else {
+            if( (kid_count > 0) && (IDENTIFIER == DA_kid(node,1)->type) ){
+                tmp_task_name = DA_var_name(DA_kid(node,1));
+            } else {
 #if defined(DEBUG)
-            printf("WARNING: probably there is something wrong with this QUARK_Insert_Task().\n");
+                fprintf(stderr,"WARNING: probably there is something wrong with the Insert_Task() in line %d. Ignoring it.\n", (int32_t)node->lineno);
 #endif
+                return;
+            }
+        } else {
+            /* If we found a function call that is not inserting a task, silently ignore it */
             return;
         }
 
-        assert(f != NULL);
+        fname = call_to_task_name( tmp_task_name, mult_kernel_occ ? (int32_t)node->lineno : -1 );
+            
+        f = jdf_register_addfunction( &_q2j_jdf, fname, node );
+        task = (task_t *)calloc(1, sizeof(task_t));
+        task->task_node = node;
+        task->ind_vars = (char **)calloc(1+node->loop_depth, sizeof(char *));
+        i=node->loop_depth-1;
+        for(node_t *tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+            task->ind_vars[i] = DA_var_name(DA_loop_induction_variable(tmp));
+            --i;
+        }
+
+        node->task = task;
+        node->function = f;
+        assert( NULL != f);
+
         for(i=1; i<kid_count; ++i){
             node_t *tmp = node->u.kids.kids[i];
 
@@ -567,12 +567,20 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
                 tmp->function = f;
                 tmp->var_symname = numToSymName(symbolic_name_count++, fname);
                 node_t *qual = node->u.kids.kids[i+1];
-                add_variable_use_or_def( tmp, DA_quark_INOUT(qual), DA_quark_TYPE(qual), _task_count );
+                add_variable_use_or_def( tmp, DA_INOUT(qual), DA_quark_TYPE(qual), _task_count );
             }
 
             // Record a pool (size_to_pool_name() will create an entry for each new pool)
             if( (i+1<node->u.kids.kid_count) && (i>1) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "SCRATCH") ){
-                (void)size_to_pool_name( tree_to_str(node->u.kids.kids[i-1]) );
+                node_t *size_node;
+                if( !strcmp("QUARK_Insert_Task", DA_kid(node,0)->u.var_name) ){
+                    size_node = node->u.kids.kids[i-1];
+                } else if( !strcmp("Insert_Task", DA_kid(node,0)->u.var_name) ){
+                    size_node = node->u.kids.kids[i];
+                } else {
+                    assert( 0 ); // I shouldn't be here, I have checked this if-then-else-if above
+                }
+                (void)size_to_pool_name( tree_to_str(size_node) );
             }
         }
         _task_count++;
@@ -581,22 +589,40 @@ static void quark_record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
     if( BLOCK == node->type ){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
-            quark_record_uses_defs_and_pools(tmp, mult_kernel_occ);
+            record_uses_defs_and_pools(tmp, mult_kernel_occ);
         }
     }else{
         for(i=0; i<node->u.kids.kid_count; ++i){
-            quark_record_uses_defs_and_pools(node->u.kids.kids[i], mult_kernel_occ);
+            record_uses_defs_and_pools(node->u.kids.kids[i], mult_kernel_occ);
         }
     }
 }
 
 
-static matrix_variable_t *quark_find_all_matrices(node_t *node){
+/*
+ * QUARK, or General annotation API is accepted.
+ */
+static int is_insert_task_call(node_t *node){
+    char *call_name = DA_func_name(node);
+
+    if( NULL == call_name )
+        return 0;
+
+    if( (Q2J_ANN_QUARK == _q2j_annot_API) && !strcmp("QUARK_Insert_Task", call_name) )
+        return 1;
+
+    if( (Q2J_ANN_GENER == _q2j_annot_API) && !strcmp("Insert_Task", call_name) )
+        return 1;
+
+    return 0;
+}
+
+static matrix_variable_t *find_all_matrices(node_t *node){
     static matrix_variable_t *matrix_variable_list_head = NULL;
     int i;
 
     if( FCALL == node->type ){
-        if( strcmp("QUARK_Insert_Task", DA_kid(node,0)->u.var_name) ){
+        if( !is_insert_task_call(node) ){
             return NULL;
         }
 
@@ -638,43 +664,55 @@ static matrix_variable_t *quark_find_all_matrices(node_t *node){
     if( BLOCK == node->type ){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
-            (void)quark_find_all_matrices(tmp);
+            (void)find_all_matrices(tmp);
         }
     }else{
         for(i=0; i< DA_kid_count(node); ++i){
-            (void)quark_find_all_matrices( DA_kid(node,i) );
+            (void)find_all_matrices( DA_kid(node,i) );
         }
     }
 
     return matrix_variable_list_head;
 }
 
-/* 
+/*
  * Take the first OUT or INOUT array variable and make it the data element that
  * this task should have affinity to.
  * It would be much better if we found which tile this task writes most times into,
  * instead of the first write, to reduce unnecessary communication.
+ *
+ * QUARK, or General annotation API is accepted.
  */
-node_t *quark_get_locality(node_t *task_node){
-    int i;
+node_t *get_locality(node_t *task_node){
+    int i, first, step;
+
+    if( Q2J_ANN_QUARK == _q2j_annot_API ){
+        first = QUARK_FIRST_VAR;
+        step  = QUARK_ELEMS_PER_LINE;
+    }else if( Q2J_ANN_GENER == _q2j_annot_API ){
+        first = 2;
+        step  = 2;
+    }else{
+        fprintf(stderr, "ERROR: Annotation API is unset. It should be either QUARK, or GENERAL.\n");
+assert(0);
+        return NULL;
+    }
 
     /*
      * First loop to search LOCALITY flag
      */
-    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+    for(i=first; i<task_node->u.kids.kid_count; i+=step){
         if( isArrayOut(task_node, i) && isArrayLocal(task_node, i) ){
-            node_t *data_element = task_node->u.kids.kids[i];
-            return data_element;
+            return DA_kid(task_node,i);
         }
     }
 
     /*
      * If no LOCALITY flag, the first output data is used for locality
      */
-    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+    for(i=first; i<task_node->u.kids.kid_count; i+=step){
         if( isArrayOut(task_node, i) ){
-            node_t *data_element = task_node->u.kids.kids[i];
-            return data_element;
+            return DA_kid(task_node,i);
         }
     }
 
@@ -704,21 +742,91 @@ static inline int kernel_exists(char *task_name){
     return 0;
 }
 
+/*
+ * QUARK, or General annotation API is accepted.
+ */
+void detect_annotation_mode(node_t *node){
+    int i;
+
+    if( FCALL == node->type ){
+        char *call_name = DA_func_name(node);
+
+        assert( call_name && "Function call has no name.");
+
+        if( !strcmp("QUARK_Insert_Task", call_name) ){
+            if( (Q2J_ANN_QUARK != _q2j_annot_API) && (Q2J_ANN_UNSET != _q2j_annot_API) ){
+                fprintf(stderr,"ERROR: Mixed annotation APIs not supported.\n");
+                fprintf(stderr,"ERROR: Error occured while processing call:\n%s\n", tree_to_str(node) );
+                assert(0);
+            }
+            _q2j_annot_API = Q2J_ANN_QUARK;
+
+        }else if( !strcmp("Insert_Task", call_name) ){
+            if( (Q2J_ANN_GENER != _q2j_annot_API) && (Q2J_ANN_UNSET != _q2j_annot_API) ){
+                fprintf(stderr,"ERROR: Mixed annotation APIs not supported.\n");
+                fprintf(stderr,"ERROR: Error occured while processing call:\n%s\n", tree_to_str(node) );
+                assert(0);
+            }
+            _q2j_annot_API = Q2J_ANN_GENER;
+
+        }
+
+        /* If the call has nothing to do with inserting tasks, ignore it silently. */
+        return;
+    }
+
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            detect_annotation_mode(tmp);
+        }
+    }else{
+        for(i=0; i< DA_kid_count(node); ++i){
+            detect_annotation_mode( DA_kid(node,i) );
+        }
+    }
+
+    return;
+}
+
+/*
+ * QUARK, or General annotation API is accepted.
+ */
 static inline int check_for_multiple_kernel_occurances(node_t *node){
     int i;
 
     if( FCALL == node->type ){
-        int kid_count;
+        int kid_count, task_pos;
+        char *call_name = DA_func_name(node);
 
-        if( strcmp("QUARK_Insert_Task", DA_kid(node,0)->u.var_name) ){
+        assert( call_name && "Function call has no name.");
+
+        if( !strcmp("QUARK_Insert_Task", call_name) ){
+            if( (Q2J_ANN_QUARK != _q2j_annot_API) && (Q2J_ANN_UNSET != _q2j_annot_API) ){
+                fprintf(stderr,"ERROR: Mixed annotation APIs not supported.\n");
+                fprintf(stderr,"ERROR: Error occured while processing call:\n%s\n", tree_to_str(node) );
+                return 0;
+            }
+            _q2j_annot_API = Q2J_ANN_QUARK;
+
+            task_pos = 2;
+        }else if( !strcmp("Insert_Task", call_name) ){
+            if( (Q2J_ANN_GENER != _q2j_annot_API) && (Q2J_ANN_UNSET != _q2j_annot_API) ){
+                fprintf(stderr,"ERROR: Mixed annotation APIs not supported.\n");
+                fprintf(stderr,"ERROR: Error occured while processing call:\n%s\n", tree_to_str(node) );
+                return 0;
+            }
+            _q2j_annot_API = Q2J_ANN_GENER;
+
+            task_pos = 1;
+        }else{
             return 0;
         }
 
         kid_count = node->u.kids.kid_count;
 
-        // QUARK specific code. The task is the second parameter.
-        if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
-            char *task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)), -1 );
+        if( (kid_count >= task_pos) && (IDENTIFIER == DA_kid(node, task_pos)->type) ){
+            char *task_name = call_to_task_name( DA_var_name(DA_kid(node, task_pos)), -1 );
             if( kernel_exists(task_name) ){
                 return 1;
             }
@@ -744,14 +852,15 @@ static inline int check_for_multiple_kernel_occurances(node_t *node){
     return 0;
 }
 
-void analyze_deps(node_t *node){
+int analyze_deps(node_t *node){
+    int ret_val;
     int mult = check_for_multiple_kernel_occurances(node);
-    quark_record_uses_defs_and_pools(node, mult);
-    //dump_all_unds();
-    interrogate_omega(node, var_head);
+    record_uses_defs_and_pools(node, mult);
+    ret_val = interrogate_omega(node, var_head);
     if (!_q2j_direct_output){
         jdf_unparse( &_q2j_jdf, stdout );
     }
+    return ret_val;
 }
 
 
@@ -763,6 +872,9 @@ static void add_exit_task_loops(matrix_variable_t *list, node_t *node){
     add_phony_INOUT_task_loops(list, node, TASK_OUT);
 }
 
+/*
+ * QUARK, or General annotation API is accepted.
+ */
 static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, int task_type){
     int i, dim;
     // FIXME: This will create variables with names like A.nt, but in the "real" code, these will be structure members. Is that ok?
@@ -770,6 +882,7 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
     matrix_variable_t *curr;
 
     assert( NULL != list );
+    assert( (Q2J_ANN_QUARK == _q2j_annot_API) || (Q2J_ANN_GENER == _q2j_annot_API) );
 
     container_block = NULL;
     if( BLOCK == node->type ){
@@ -788,6 +901,7 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
         char *curr_matrix = curr->matrix_name;
         int  matrix_rank  = curr->matrix_rank;
         char *tmp_str;
+        node_t *phony_var=NULL, *f_call=NULL;
         node_t *new_block, *tmp_block, *enclosing_loop = NULL;
 
         // Create a block to contain the loop nest.
@@ -840,32 +954,54 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
         // Create a call like this:
         // QUARK_Insert_Task( phony, CORE_TaskName_quark, phony,
         //                    phony, A(k,k), INOUT, 0 )
+        // or this:
+        // Insert_Task( TaskName
+        //              A(k,k), INOUT )
 
-        // Create a phony variable.
-        node_t *phony_var = DA_create_ID("phony");
+        if( Q2J_ANN_QUARK == _q2j_annot_API ){
+            // Create a phony variable.
+            phony_var = DA_create_ID("phony");
 
-        // Create a variable to hold the task name in QUARK specific format.
-        // WARNING: The string prefices DAGUE_IN_ and DAGUE_OUT_ are also used in 
-        // omega_interface.c:is_phony_Entry_task() and 
-        // omega_interface.c:is_phony_Exit_task()
-        // so don't change them without changing them there as well.
-        if( TASK_IN == task_type ){
-            asprintf(&(tmp_str), "CORE_DAGUE_IN_%s_quark", curr_matrix);
-        }else if( TASK_OUT == task_type ){
-            asprintf(&(tmp_str), "CORE_DAGUE_OUT_%s_quark", curr_matrix);
-        }else{
-            assert(0);
+            // Create a variable to hold the task name in QUARK specific format.
+            // WARNING: The string prefices DAGUE_IN_ and DAGUE_OUT_ are also used in 
+            // omega_interface.c:is_phony_Entry_task() and 
+            // omega_interface.c:is_phony_Exit_task()
+            // so don't change them without changing them there as well.
+            if( TASK_IN == task_type ){
+//FIXME: replace asprintf() with more portable code.
+                asprintf(&(tmp_str), "CORE_DAGUE_IN_%s_quark", curr_matrix);
+            }else if( TASK_OUT == task_type ){
+                asprintf(&(tmp_str), "CORE_DAGUE_OUT_%s_quark", curr_matrix);
+            }else{
+                assert(0);
+            }
+        }else if( Q2J_ANN_GENER == _q2j_annot_API ){
+            if( TASK_IN == task_type ){
+                asprintf(&(tmp_str), "DAGUE_IN_%s", curr_matrix);
+            }else if( TASK_OUT == task_type ){
+                asprintf(&(tmp_str), "DAGUE_OUT_%s", curr_matrix);
+            }else{
+                assert(0);
+            }
         }
+
         node_t *task_name_var = DA_create_ID(tmp_str);
         free(tmp_str);
 
         // Create the access to the matrix element.
         node_t *matrix_element = DA_create_ArrayAccess(curr_matrix, ind_vars[0], ind_vars[1], NULL);
 
-        // Create the function-call.
-        node_t *f_call = DA_create_Fcall("QUARK_Insert_Task", phony_var, task_name_var, phony_var,
-                                         phony_var, matrix_element, DA_create_ID("INOUT"),
-                                         DA_create_Int_const(0), NULL);
+        if( Q2J_ANN_QUARK == _q2j_annot_API ){
+            // Create the function-call.
+            f_call = DA_create_Fcall("QUARK_Insert_Task", phony_var, task_name_var, phony_var,
+                                             phony_var, matrix_element, DA_create_ID("INOUT"),
+                                             DA_create_Int_const(0), NULL);
+        }else if( Q2J_ANN_GENER == _q2j_annot_API ){
+            // Create the function-call.
+            f_call = DA_create_Fcall("Insert_Task", task_name_var,
+                                             matrix_element, DA_create_ID("INOUT"),
+                                             NULL);
+        }
         f_call->enclosing_loop = enclosing_loop;
 
         // Put the newly created FCALL into the BLOCK of the inner-most loop.
@@ -887,7 +1023,7 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
 void add_entry_and_exit_task_loops(node_t *node){
     matrix_variable_t *list;
 
-    list = quark_find_all_matrices(node);
+    list = find_all_matrices(node);
     add_entry_task_loops(list, node);
     add_exit_task_loops(list, node);
     DA_parentize(node);
@@ -1058,12 +1194,26 @@ void rename_induction_variables(node_t *node){
  * support tiles that do not originite in user's memory, and therefore there cannot
  * be a tile that is only OUTPUT without being IN (and therefore without being read
  * from a preallocated memory region).
+ *
+ * QUARK, or General annotation API is accepted.
  */
 void convert_OUTPUT_to_INOUT(node_t *node){
-    int i;
+    int i, first, step;
+
+    if( Q2J_ANN_QUARK == _q2j_annot_API ){
+        first = QUARK_FIRST_VAR;
+        step  = QUARK_ELEMS_PER_LINE;
+    }else if( Q2J_ANN_GENER == _q2j_annot_API ){
+        first = 2;
+        step  = 2;
+    }else{
+        fprintf(stderr, "ERROR: Annotation API is unset. It should be either QUARK, or GENERAL.\n");
+assert(0);
+        return;
+    }
 
     if( FCALL == node->type ){
-        for(i=QUARK_FIRST_VAR; i<node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+        for(i=first; i<node->u.kids.kid_count; i+=step){
             if( isArrayOut(node, i) && !isArrayIn(node, i) ){
                 node_t *flag = node->u.kids.kids[i+1];
                 flag = DA_create_B_expr(B_OR, flag, DA_create_ID("INPUT"));
@@ -1268,6 +1418,373 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
 }
 
 
+/* */
+node_t *DA_copy_tree(node_t *node){
+    node_t *new_node;
+
+    new_node = _DA_copy_tree(node);
+    DA_parentize(new_node);
+
+    return new_node;
+}
+
+/* 
+  This function copies a tree but messes up the following pointers
+  (they keep pointing to the old structures):
+     node_t *parent;
+     node_t *enclosing_loop;
+     node_t *enclosing_if;
+     task_t *task;
+     jdf_function_entry_t *function;
+
+ */
+static node_t *_DA_copy_tree(node_t *node){
+    node_t *tmp=NULL, *new_tmp=NULL, *new_node=NULL;
+
+    new_node = (node_t *)calloc(1, sizeof(node_t));
+    (void)memcpy(new_node, node, sizeof(node_t));
+
+    if( BLOCK == node->type ){
+        node_t *new_stmt = NULL;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+
+            new_stmt = _DA_copy_tree(tmp);
+
+            if(tmp == node->u.block.first){
+                new_node->u.block.first = new_stmt;
+            }else{
+                new_tmp->next = new_stmt;
+                new_stmt->prev = new_tmp;
+            }
+            new_tmp = new_stmt;
+        }
+        new_node->u.block.last = new_stmt;
+    }else if( DA_kid_count(node) > 0 ){
+        int i;
+        new_node->u.kids.kids = (node_t **)calloc(DA_kid_count(node), sizeof(node_t *));
+        for(i=0; i<DA_kid_count(node); ++i){
+            DA_kid(new_node,i) = _DA_copy_tree(DA_kid(node, i));
+        }
+    }
+    return new_node;
+}
+
+int find_in_tree(char *name, node_t *node){
+
+    if( IDENTIFIER == node->type ){
+        char *var_name = DA_var_name(node);
+        if( (NULL != var_name) && !strcmp(name, var_name) ){
+            return 1;
+        }
+    }
+
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            if( find_in_tree(name, tmp) )
+                printf("Found: %s\n",tree_to_str(node));
+        }
+    }else if( DA_kid_count(node) > 0 ){
+        int i;
+        for(i=0; i<DA_kid_count(node); ++i){
+            if( find_in_tree(name, DA_kid(node,i)) )
+                printf("Found: %s\n",tree_to_str(node));
+        }
+    }
+
+    return 0;
+}
+
+
+int replace_bounds_in_tree(node_t *new_var, node_t *old_var,
+                            node_t *new_i,  node_t *new_j,
+                            node_t *new_m,  node_t *new_n, 
+                            node_t *new_mt, node_t *new_nt,
+                            node_t *node){
+    int ret;
+
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            ret = replace_bounds_in_tree(new_var, old_var, new_i, new_j,
+                                   new_m, new_n, new_mt, new_nt, tmp);
+            if( ret ){
+                fprintf(stderr,"ERROR during inlining: A matrix reference should never be a top level statement\n");
+                fprintf(stderr,"Offending statement follows:\n");
+                fprintf(stderr,"%s\n",tree_to_str(tmp));
+                assert(0);
+            }
+        }
+    }else if( DA_kid_count(node) > 0 ){
+        int i;
+        for(i=0; i<DA_kid_count(node); ++i){
+            // If one of my direct kids is the desc we are looking for, stop looking and tell my parent
+            if( IDENTIFIER == DA_kid(node,i)->type && node->type != FUNC){
+                char *nm = DA_var_name(DA_kid(node,i));
+                char *old_nm = DA_var_name(old_var);
+                if( !strcmp(nm, old_nm) ){
+                    return 1;
+                }
+            }
+            ret = replace_bounds_in_tree(new_var, old_var, new_i, new_j,
+                                   new_m, new_n, new_mt, new_nt, DA_kid(node,i));
+            if( ret ){
+//                printf("Found %s inside a tree of type: %s\n",tree_to_str(DA_kid(node,i)), DA_type_name(node));
+                replace_subtree(new_var, old_var, new_i, new_j,
+                                new_m, new_n, new_mt, new_nt, DA_kid(node,i), i, node);
+//                printf("    Replaced it with: %s\n",tree_to_str(DA_kid(node,i)));
+            }
+        }
+    }
+
+    return 0;
+}
+
+void replace_subtree(node_t *new_var, node_t *old_var,
+                     node_t *new_i,  node_t *new_j,
+                     node_t *new_m,  node_t *new_n, 
+                     node_t *new_mt, node_t *new_nt,
+                     node_t *desc_prnt, int kid_num, node_t *root){
+
+    char *prop, *new_name;
+    node_t *tmp;
+
+    // Make sure we were called on the correct subtree.
+    assert( DA_kid(root,kid_num) == desc_prnt );
+    if( S_U_MEMBER == desc_prnt->type || ARRAY == desc_prnt->type ){
+        char *nm = DA_var_name(DA_kid(desc_prnt,0));
+        char *o_nm = DA_var_name(old_var);
+        assert( NULL != nm && NULL != o_nm && !strcmp(nm, o_nm) );
+    }else{
+        fprintf(stderr,"WARNING: replace_subtree() can not handle node %s of type %s. Skipping it.\n",
+                tree_to_str(desc_prnt), DA_type_name(desc_prnt) );
+        return;
+    }
+
+    switch( desc_prnt->type ){
+        case S_U_MEMBER:
+            prop = DA_var_name(DA_kid(desc_prnt,1));
+
+            if( !strcmp(prop,"m") )
+                DA_kid(root,kid_num) = new_m;
+            if( !strcmp(prop,"n") )
+                DA_kid(root,kid_num) = new_n;
+            if( !strcmp(prop,"mt") )
+                DA_kid(root,kid_num) = new_mt;
+            if( !strcmp(prop,"nt") )
+                DA_kid(root,kid_num) = new_nt;
+
+            // For "mb" and "nb" just change the name of the matrix to the new one.
+            if( !strcmp(prop,"mb") || !strcmp(prop,"nb") ){
+                DA_kid(desc_prnt,0) = new_var;
+            }
+
+            break;
+
+        case ARRAY:
+            new_name = DA_var_name(new_var);
+            DA_kid(desc_prnt,0) = DA_create_ID(new_name);
+            tmp = DA_create_B_expr(ADD, new_i, DA_kid(desc_prnt,1));
+            DA_kid(desc_prnt,1) = tmp;
+
+            tmp = DA_create_B_expr(ADD, new_j, DA_kid(desc_prnt,2));
+            DA_kid(desc_prnt,2) = tmp;
+
+            break;
+
+        default:
+            assert(0);
+    }
+}
+
+/* */
+/*
+- example
+
+call:
+  plasma_pzgeqrf_quark(
+            plasma_desc_submatrix(A, k*A.mb, k*A.nb, A.m-k*A.mb, tempkn),
+            plasma_desc_submatrix(T, k*T.mb, k*T.nb, T.m-k*T.mb, tempkn),
+            sequence, request);
+
+definition:
+  void plasma_pzgeqrf_quark(PLASMA_desc A, PLASMA_desc T,
+                          PLASMA_sequence *sequence, PLASMA_request *request)
+
+*/
+void inline_function_body(node_t *func_body, node_t *call_site){
+#if 0
+    char *fname;
+#endif
+    node_t *tmp_param, *new_body, *root;
+    int i;
+
+#if 0
+    printf(">> Found call:\n%s\n>> with actual parameters:\n",tree_to_str(call_site));
+    for(i=1; i<DA_kid_count(call_site); i++){
+        printf("[%d]:\n%s\n",i, tree_to_str(DA_kid(call_site,i)) );
+        fflush(stdout);
+    }
+    printf("-----------------------\n");
+#endif
+
+    // Create a copy of the function body and insert right after the call site
+    new_body = DA_copy_tree(func_body);
+    DA_insert_after(call_site->parent, call_site, DA_func_body(new_body));
+
+    // Convert the call site into a comment ( we will delete the call site later )
+    node_t *cmnt = DA_create_Comment(tree_to_str(call_site));
+    DA_insert_after(call_site->parent, call_site, cmnt);
+
+#if 0
+    fname = DA_func_name(new_body);
+    printf(">> Attempting to inline function \"%s\" with formal arguments:\n",fname);
+#endif
+
+    for(root=call_site; NULL != root->parent; root = root->parent)
+        /* nothing */;
+    rename_induction_variables(root);
+
+    i = 1; // the first actual parameter of a function call is kid 1, not 0
+    for(tmp_param=DA_func_params(new_body); NULL != tmp_param; tmp_param = tmp_param->next){
+        char *var_type_name = st_type_of_variable(DA_var_name(tmp_param), tmp_param->symtab);
+        if( NULL == var_type_name ){
+            printf("\n    >>> parameter %d: \"%s\" has no type\n",i,tree_to_str(tmp_param));
+            if( NULL == tmp_param->symtab){
+                printf("    --> parameter's symbol table is NULL\n");
+            }else{
+                printf("-->> dumping symbol table:\n");
+                dump_st(tmp_param->symtab);
+                printf("-->> done\n\n");
+            }
+            i++;
+            continue;
+        }
+#if 0
+        printf("    %s",tree_to_str(tmp_param));
+        printf(" [%s]\n", var_type_name);
+#endif
+
+        if( !strcmp("PLASMA_desc", var_type_name) ){
+            node_t *a_param = DA_kid(call_site,i);
+            if( a_param->type == FCALL ){
+                char *param_name = DA_func_name(a_param);
+                if( NULL != param_name && !strcmp("plasma_desc_submatrix", param_name) ){
+                    node_t *newDesc_mb, *newDesc_nb, *newDesc_i, *newDesc_j;
+                    node_t *newDesc_m, *newDesc_n, *newDesc_mt, *newDesc_nt;
+                    node_t *sub_desc = DA_kid(a_param,1);
+//                    printf("^^^^ param was a call to plasma_desc_submatrix( %s )\n", tree_to_str(sub_desc));
+
+                    newDesc_mb = DA_create_B_expr( S_U_MEMBER, sub_desc, DA_create_ID("mb") );
+                    newDesc_nb = DA_create_B_expr( S_U_MEMBER, sub_desc, DA_create_ID("nb") );
+                    newDesc_i  = DA_kid(a_param,2);
+                    newDesc_j  = DA_kid(a_param,3);
+                    newDesc_m  = DA_kid(a_param,4);
+                    newDesc_n  = DA_kid(a_param,5);
+
+                    newDesc_mt = DA_ADD(
+                                         DA_SUB( 
+                                                 DA_DIV(
+                                                         DA_SUB(
+                                                                 DA_ADD( newDesc_i, newDesc_m),
+                                                                 DA_create_Int_const(1)
+                                                               ),
+                                                         newDesc_mb
+                                                       ),
+                                                 DA_DIV( newDesc_i, newDesc_mb)
+                                               ),
+                                         DA_create_Int_const(1)
+                                       );
+                    
+                    newDesc_nt = DA_ADD(
+                                         DA_SUB( 
+                                                 DA_DIV(
+                                                         DA_SUB(
+                                                                 DA_ADD( newDesc_j, newDesc_n),
+                                                                 DA_create_Int_const(1)
+                                                               ),
+                                                         newDesc_nb
+                                                       ),
+                                                 DA_DIV( newDesc_j, newDesc_nb)
+                                               ),
+                                         DA_create_Int_const(1)
+                                       );
+
+                    replace_bounds_in_tree(sub_desc,
+                                           tmp_param,
+                                           newDesc_i, newDesc_j,
+                                           newDesc_m, newDesc_n,
+                                           newDesc_mt, newDesc_nt,
+                                           new_body);
+
+                    // node_t *newDesc_mt_simple = DA_DIV( newDesc_m, newDesc_mb );
+                    // node_t *newDesc_nt_simple = DA_DIV( newDesc_n, newDesc_nb );
+                }
+            }
+        }
+        i++;
+    }
+
+
+    DA_extract_from_block(call_site->parent, call_site);
+
+    printf("%s",tree_to_str(root));
+
+    printf("\n-----------------------------------------------------\n");
+    printf("-----------------------------------------------------\n");
+    fflush(stdout);
+}
+
+/*
+ * QUARK, or General annotation API is accepted.
+ */
+void inline_function_calls(node_t *node, node_t *func_list_head){
+    node_t *func_body;
+
+
+    if( FCALL == node->type ){
+        char *call_name = DA_func_name(node);
+
+        assert(NULL != call_name);
+        /*
+         * We treat QUARK_Insert_Task() and Insert_Task() not as arbitrary functions, but
+         * as the annotation for a task.
+         */
+        if( !strcmp("QUARK_Insert_Task", call_name) || !strcmp("Insert_Task", call_name) ){
+            return;
+        }
+
+        for(func_body=func_list_head; NULL != func_body; func_body = func_body->next){
+            char *func_name = DA_func_name(func_body);
+            assert( NULL != func_name );
+            if( !strcmp(call_name, func_name) ){
+                inline_function_body(func_body, node);
+                break;
+            }
+        }
+        if( (NULL == func_body) && _q2j_check_unknown_functions ){
+            /* If we didn't find a function body that corresponds to this call, and
+             * the user cares about this type of check, print a message */
+            fprintf(stderr,"Unknown function call: \"%s\"\n", call_name);
+        }
+    }
+
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            inline_function_calls(tmp, func_list_head);
+        }
+    }else{
+        int i;
+        for(i=0; i<node->u.kids.kid_count; ++i){
+            inline_function_calls(DA_kid(node, i), func_list_head);
+        }
+    }
+
+    return;
+}
+
+/* */
 int replace_induction_variable_in_body(node_t *node, node_t *ivar, node_t *replacement){
     int ret;
 
@@ -1431,6 +1948,13 @@ node_t *DA_create_ID(char *name){
     return node;
 }
 
+node_t *DA_create_Comment(char *text){
+    node_t *node = (node_t *)calloc(1,sizeof(node_t));
+    node->type = COMMENT;
+    node->u.var_name = text;
+    return node;
+}
+
 node_t *DA_create_B_expr(int type, node_t *kid0, node_t *kid1){
     node_t rslt;
     memset(&rslt, 0, sizeof(node_t));
@@ -1472,6 +1996,17 @@ node_t *DA_create_For(node_t *scond, node_t *econd, node_t *incr, node_t *body){
     node->u.kids.kids[1] = econd;
     node->u.kids.kids[2] = incr;
     node->u.kids.kids[3] = body;
+    return node;
+}
+
+node_t *DA_create_Func(node_t *name, node_t *params, node_t *body){
+    node_t *node = (node_t *)calloc(1,sizeof(node_t));
+    node->type = FUNC;
+    node->u.kids.kids = (node_t **)calloc(3, sizeof(node_t *));
+    node->u.kids.kid_count = 3;
+    node->u.kids.kids[0] = name;
+    node->u.kids.kids[1] = params;
+    node->u.kids.kids[2] = body;
     return node;
 }
 
@@ -1532,6 +2067,79 @@ void DA_insert_last(node_t *block, node_t *new_node){
     tmp->next = new_node;
 
     assert( NULL != block->u.block.first );
+    return;
+}
+
+void DA_insert_after(node_t *block, node_t *ref_node, node_t *new_node){
+    assert( NULL != ref_node );
+    new_node->prev = ref_node;
+    new_node->next = ref_node->next;
+    ref_node->next = new_node;
+    if( ref_node == block->u.block.last )
+        block->u.block.last = new_node;
+
+    return;
+}
+
+void DA_delete_tree(node_t *node){
+
+    if( IDENTIFIER == node->type || COMMENT == node->type ){
+        free(node->u.var_name);
+        free(node);
+        return;
+    }
+
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            DA_delete_tree(tmp);
+        }
+    }else{
+        int i;
+        if( 0 == node->u.kids.kid_count ){
+            free(node);
+            return;
+        }
+        for(i=0; i<node->u.kids.kid_count; ++i){
+            DA_delete_tree(DA_kid(node,i));
+        }
+    }
+}
+
+
+node_t *DA_extract_from_block(node_t *block, node_t *node){
+    assert( NULL != node );
+    if( NULL != node->prev ){
+        node->prev->next = node->next;
+    }else{
+        DA_block_first(block) = node->next;
+    }
+
+    if( NULL != node->next ){
+        node->next->prev = node->prev;
+    }else{
+        DA_block_last(block) = node->prev;
+    }
+
+    return node;
+}
+
+void DA_erase_from_block(node_t *block, node_t *node){
+
+    (void)DA_extract_from_block(block, node);
+    DA_delete_tree(node);
+
+    return;
+}
+
+void DA_insert_before(node_t *block, node_t *ref_node, node_t *new_node){
+    assert( NULL != ref_node );
+    new_node->next = ref_node;
+    new_node->prev = ref_node->prev;
+    ref_node->prev = new_node;
+    if( ref_node == block->u.block.first )
+        block->u.block.first = new_node;
+
     return;
 }
 
@@ -1730,7 +2338,7 @@ static int DA_quark_TYPE(node_t *node){
     return -1;
 }
 
-static int DA_quark_INOUT(node_t *node){
+static int DA_INOUT(node_t *node){
     int rslt1, rslt2;
     if( NULL == node )
         return -1;
@@ -1749,15 +2357,15 @@ static int DA_quark_INOUT(node_t *node){
             return UND_IGNORE;
 
         case B_OR:
-            rslt1 = DA_quark_INOUT(node->u.kids.kids[0]);
+            rslt1 = DA_INOUT(node->u.kids.kids[0]);
             if( rslt1 < 0 ) return -1;
-            rslt2 = DA_quark_INOUT(node->u.kids.kids[1]);
+            rslt2 = DA_INOUT(node->u.kids.kids[1]);
             if( rslt2 < 0 ) return -1;
 
             return rslt1 | rslt2;
 
         default:
-            fprintf(stderr,"DA_quark_INOUT(): unsupported flag type for dep\n");
+            fprintf(stderr,"DA_INOUT(): unsupported flag type for dep\n");
             exit(-1);
 
     }
@@ -2171,7 +2779,7 @@ static int isArrayLocal(node_t *task_node, int index){
 static int isArrayOut(node_t *task_node, int index){
     if( index+1 < task_node->u.kids.kid_count ){
         node_t *flag = task_node->u.kids.kids[index+1];
-        if( (UND_WRITE & DA_quark_INOUT(flag)) != 0 ){
+        if( (UND_WRITE & DA_INOUT(flag)) != 0 ){
             return 1;
         }
     }
@@ -2181,7 +2789,7 @@ static int isArrayOut(node_t *task_node, int index){
 static int isArrayIn(node_t *task_node, int index){
     if( index+1 < task_node->u.kids.kid_count ){
         node_t *flag = task_node->u.kids.kids[index+1];
-        if( (UND_READ & DA_quark_INOUT(flag)) != 0 ){
+        if( (UND_READ & DA_INOUT(flag)) != 0 ){
             return 1;
         }
     }
@@ -2333,7 +2941,7 @@ static void mark_definition_as_seen(dague_list_t *var_def_list, char *param){
 }
 
 /*
- * Traverse the tree containing the QUARK specific code and generate up to five strings.
+ * Traverse the tree containing the code and generate up to five strings.
  * prefix     : The variable declarations (and maybe initializations)
  * pool_pop   : The calls to dague_private_memory_pop() for SCRATCH parameters
  * kernel_call: The actual call to the kernel
@@ -2342,29 +2950,35 @@ static void mark_definition_as_seen(dague_list_t *var_def_list, char *param){
  * result     : The concatenation of all the above strings that will be returned
  *
  * The function returns one string containing these five strings concatenated.
+ *
+ * QUARK, or General annotation API is accepted.
  */
-char *quark_tree_to_body(node_t *node){
+char *tree_to_body(node_t *node){
     char *result=NULL, *kernel_call, *prefix=NULL, *tmp;
     char *printStr, *printSuffix;
     char *pool_pop = NULL;
     char *pool_push = NULL;
-    int i, j;
+    int i, j, first=-1, step=-1;
     int pool_buf_count = 0;
 
     dague_list_t var_def_list;
     dague_list_construct(&var_def_list);
 
     assert( FCALL == node->type );
+    assert( (Q2J_ANN_QUARK == _q2j_annot_API) || (Q2J_ANN_GENER == _q2j_annot_API) );
 
-    //dump_st(node->symtab);
+    if( Q2J_ANN_QUARK == _q2j_annot_API ){
+        // Get the name of the function called from the tree.
+        kernel_call = tree_to_str(DA_kid(node,2));
 
-    // Get the name of the function called from the tree.
-    kernel_call = tree_to_str(node->u.kids.kids[2]);
-
-    // Remove the suffix
-    tmp = strstr(kernel_call, "_quark");
-    if( NULL != tmp ){
-        *tmp = '\0';
+        // Remove the suffix
+        tmp = strstr(kernel_call, "_quark");
+        if( NULL != tmp ){
+            *tmp = '\0';
+        }
+    } else if( Q2J_ANN_GENER == _q2j_annot_API ){
+        // Get the name of the function called from the tree.
+        kernel_call = tree_to_str(DA_kid(node,1));
     }
 
     // Form the printlog string first, because it needs to use the function name in "kernel_call", and only
@@ -2405,11 +3019,19 @@ char *quark_tree_to_body(node_t *node){
             printSuffix = append_to_string( printSuffix, iv, ", %s", 2+strlen(iv));
     }
 
+
+    if( Q2J_ANN_QUARK == _q2j_annot_API ){
+        first = QUARK_FIRST_VAR;
+        step  = QUARK_ELEMS_PER_LINE;
+    }else if( Q2J_ANN_GENER == _q2j_annot_API ){
+        first = 2;
+        step  = 2;
+    }
     // Form the string for the actual function-call as well as the prefix, which is all
     // the definitions of the variables found in the call. Also generate declarations for
     // the variables based on their types.
     j=0;
-    for(i=QUARK_FIRST_VAR; i<node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+    for(i=first; i<node->u.kids.kid_count; i+=step){
         char *param;
         node_t *var_node;
         if( j > 0 ){
@@ -2419,32 +3041,37 @@ char *quark_tree_to_body(node_t *node){
         if( j && !(j%3) )
             kernel_call = append_to_string( kernel_call, "\n\t", NULL, 0);
 
-        // Get the next useful parameter and see if it's pass by VALUE (in which case we need to ignore the "&")
+        // Get the next useful parameter and see if it's pass by VALUE.
+        // If so, and if we are in QUARK mode, then we need to ignore the "&".
         param = NULL;
         var_node = NULL;
-        if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "VALUE") ){
-            if( EXPR == node->u.kids.kids[i]->type ){
-                node_t *exp_node = node->u.kids.kids[i];
-                // if the expression starts with "&", then take the remaining part of the expression (so, ignore the "&").
-                if( ADDR_OF == exp_node->u.kids.kids[0]->type ){
-                    var_node = exp_node->u.kids.kids[1];
-                    if( NULL != var_node ){
-                        param = tree_to_str(var_node);
-                    }else{
-                        fprintf(stderr,"WARNING: In quark_tree_to_body(), ADDR_OF node does not have an expression as kid\n");
-                        fprintf(stderr,"WARNING: dumping node:\n%s\n",tree_to_str(exp_node));
+        if( (i+1<DA_kid_count(node)) && !strcmp(tree_to_str(DA_kid(node, i+1)), "VALUE") ){
+            if( Q2J_ANN_QUARK == _q2j_annot_API ){
+                if( EXPR == DA_kid(node,i)->type ){
+                    node_t *exp_node = DA_kid(node,i);
+                    // if the expression starts with "&", then take the remaining part of the expression (so, ignore the "&").
+                    if( ADDR_OF == DA_kid(exp_node,0)->type ){
+                        var_node = DA_kid(exp_node,1);
                     }
                 }
+            }else if( Q2J_ANN_GENER == _q2j_annot_API ){
+                var_node  = DA_kid(node,i);
             }
 
-            if( NULL != var_node && NULL != param ){
-                // Find the type of the variable, so we can emmit a proper declaration (e.g. int x=3;).
+            if( NULL != var_node ){
+                param = tree_to_str(var_node);
+            }else{
+                fprintf(stderr,"WARNING: In tree_to_body(), unable to find variable in:\n%s\n", tree_to_str(node));
+            }
+
+            if( NULL != param ){
+                // Find the type of the variable, so we can emmit a proper declaration (e.g. int x;).
                 char *type_name = NULL;
                 if( IDENTIFIER == var_node->type && NULL != var_node->u.var_name && NULL != var_node->symtab){
                     type_name = st_type_of_variable(var_node->u.var_name, var_node->symtab);
 #ifdef EMMIT_WARNINGS
                     if( NULL == type_name ){
-                        printf("WARNING: %s has an ST but no type!\n", var_node->u.var_name);
+                        fprintf(stderr,"WARNING: %s has an ST but no type!\n", var_node->u.var_name);
 #  ifdef DEBUG_3
                     }else{
                         printf("%s is of type \"%s\"\n", var_node->u.var_name, type_name);
@@ -2467,10 +3094,20 @@ char *quark_tree_to_body(node_t *node){
                     }
                 }
                 kernel_call = append_to_string( kernel_call, param, NULL, 0);
+            }else{
+                fprintf(stderr,"WARNING: In tree_to_body(), could not convert variable to string in:\n%s\n", tree_to_str(node));
             }
-        }else if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "SCRATCH") ){
-            char *pool_name = size_to_pool_name( tree_to_str(node->u.kids.kids[i-1]) );
-            char *id = numToSymName(pool_buf_count, NULL);
+        }else if( (i+1<DA_kid_count(node)) && !strcmp(tree_to_str(DA_kid(node,i+1)), "SCRATCH") ){
+            char *pool_name, *id;
+            int size_arg_pos=-1;
+
+            if( Q2J_ANN_QUARK == _q2j_annot_API ){
+                size_arg_pos = i-1;
+            }else if( Q2J_ANN_GENER == _q2j_annot_API ){
+                size_arg_pos = i;
+            }
+            pool_name = size_to_pool_name( tree_to_str( DA_kid(node, size_arg_pos) ) );
+            id = numToSymName(pool_buf_count, NULL);
             param = append_to_string( param, id, "p_elem_%s", 7+strlen(id));
             pool_pop = append_to_string( pool_pop, param, "  void *%s = ", 16+strlen(param));
             pool_pop = append_to_string( pool_pop, pool_name, "dague_private_memory_pop( %s );\n", 31+strlen(pool_name));
@@ -2485,9 +3122,9 @@ char *quark_tree_to_body(node_t *node){
 
             free(id);
         }else{
-            char *symname = node->u.kids.kids[i]->var_symname;
+            char *symname = DA_kid(node,i)->var_symname;
             assert(NULL != symname);
-            param = tree_to_str(node->u.kids.kids[i]);
+            param = tree_to_str(DA_kid(node,i));
             kernel_call = append_to_string( kernel_call, symname, NULL, 0);
             /*
              * JDF & QUARK specific optimization:
@@ -2500,12 +3137,12 @@ char *quark_tree_to_body(node_t *node){
 
         // Add the parameter to the string of the printlog.  If the parameter is an array, we need to
         // do a little more work to print the pointer and the value of the indices instead of their names.
-        if( ARRAY == node->u.kids.kids[i]->type ){
-            node_t *arr = node->u.kids.kids[i];
-            char *base_name = tree_to_str(arr->u.kids.kids[0]);
+        if( ARRAY == DA_kid(node,i)->type ){
+            node_t *arr = DA_kid(node,i);
+            char *base_name = tree_to_str(DA_kid(arr,0));
             printStr = append_to_string( printStr, base_name, "%s(%%d,%%d)[%%p]", 11+strlen(base_name));
-            for(int ii=1; ii<arr->u.kids.kid_count; ii++){
-                char *var_str = tree_to_str(arr->u.kids.kids[ii]);
+            for(int ii=1; ii<DA_kid_count(arr); ii++){
+                char *var_str = tree_to_str(DA_kid(arr,ii));
                 printSuffix = append_to_string( printSuffix, var_str, ", %s", 2+strlen(var_str));
             }
             char *alias = arr->var_symname;
@@ -2525,13 +3162,13 @@ char *quark_tree_to_body(node_t *node){
     // Form the result by concatenating the strings we created in the right order.
     result = append_to_string(result, prefix, NULL, 0);
     result = append_to_string(result, printStr, "\n%s", 1+strlen(printStr));
-    result = append_to_string(result, "\n  DRYRUN(\n", NULL, 0);
+    result = append_to_string(result, "\n#if !defined(DAGUE_DRY_RUN)\n", NULL, 0);
     if( NULL != pool_pop )
         result = append_to_string(result, pool_pop, "  %s", 2+strlen(pool_pop) );
     result = append_to_string(result, kernel_call, "\n  %s", 3+strlen(kernel_call) );
     if( NULL != pool_push )
         result = append_to_string(result, pool_push, "\n\n  %s", 4+strlen(pool_push) );
-    result = append_to_string(result, "\n  );\n", NULL, 0); // close the DRYRUN
+    result = append_to_string(result, "\n#endif  /* !defined(DAGUE_DRY_RUN) */\n", NULL, 0); // close the DRYRUN
 
     // clean up the list of variables and their definitions
     var_def_item_t *item;
@@ -2565,7 +3202,8 @@ char *tree_to_str(node_t *node){
 }
 
 char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
-    int i, kid_count;
+    static int _in_fcall_args = 0;
+    int i, kid_count, total_len;
     char prfx[16], *str=NULL;
 
     if( NULL == node )
@@ -2597,7 +3235,7 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
         return str;
     }else{
         char *tmp, *lhs, *rhs;
-        int j, max_arg_len[4];
+        int j, base_name_len, max_arg_len[4];
 
         switch( node->type ){
             case IDENTIFIER:
@@ -2874,12 +3512,37 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
                 str = append_to_string( str, " );\n", NULL, 0);
                 return str;
 
+            case IF:
+                str = strdup("if( ");
+                str = append_to_string( str, tree_to_str_with_substitutions(DA_if_condition(node), subs), NULL, 0 );
+                str = append_to_string( str, " ){\n", NULL, 0);
+                _ind_depth += 4;
+                str = append_to_string( str, tree_to_str_with_substitutions(DA_if_then_body(node), subs), NULL, 0 );
+                _ind_depth -= 4;
+                if( NULL != DA_if_else_body(node) ){
+                    for(i=0; i<_ind_depth; i+=4){
+                        str = append_to_string(str, "    ", NULL, 0);
+                    }
+                    str = append_to_string( str, "}else{\n", NULL, 0);
+                    _ind_depth += 4;
+                    str = append_to_string( str, tree_to_str_with_substitutions(DA_if_else_body(node), subs), NULL, 0 );
+                    _ind_depth -= 4;
+                }
+                for(i=0; i<_ind_depth; i+=4){
+                    str = append_to_string(str, "    ", NULL, 0);
+                }
+                str = append_to_string( str, "}\n", NULL, 0);
+                return str;
+
             case FCALL:
                 for(j=1; j<=3; j++){
                     max_arg_len[j] = -1;
                     for(i=j; i<node->u.kids.kid_count; i+=3){
                         int tmp2;
-                        char *arg = tree_to_str_with_substitutions(node->u.kids.kids[i], subs);
+                        int save_value = _in_fcall_args;
+                        _in_fcall_args = 1;
+                        char *arg = tree_to_str_with_substitutions(DA_kid(node,i), subs);
+                        _in_fcall_args = save_value;
                     
                         tmp2 = strlen(arg);
                         free(arg);
@@ -2887,25 +3550,37 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
                             max_arg_len[j] = tmp2;
                     }
                 }
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+                str = tree_to_str_with_substitutions(DA_kid(node,0), subs);
                 str = append_to_string( str, "( ", NULL, 0);
-                for(i=1; i<node->u.kids.kid_count; ++i){
+                base_name_len = strlen(str);
+                total_len = base_name_len;
+                for(i=1; i<DA_kid_count(node); ++i){
+                    int len;
                     char fmt[32];
                     if( i > 1 )
                         str = append_to_string( str, ", ", NULL, 0);
-                    if( (i>1) && ((i-1)%3 == 0) ){
-                        char *ws = (char *)calloc(_ind_depth+4+1, sizeof(char));
-                        sprintf(ws, "\n%*s", _ind_depth+4, " ");
+                        total_len += 2;
+                    if( ( ((i>1) && ((i-1)%3 == 0)) || total_len > 120 ) && !_in_fcall_args ){
+                        char *ws = (char *)calloc(base_name_len+_ind_depth+2, sizeof(char));
+                        sprintf(ws, "\n%*s", base_name_len+_ind_depth, " ");
                         str = append_to_string(str, ws, NULL, 0);
+                        total_len = base_name_len+_ind_depth;
                         free(ws);
                     }
-                    if( i > 3 ){
-                        int len = max_arg_len[1+((i-1)%3)];
+
+                    if( _in_fcall_args ){
+                        char *substr = tree_to_str_with_substitutions(DA_kid(node,i), subs);
+                        str = append_to_string( str, substr, NULL, 0);
+                        total_len += strlen(substr);
+                    }else{
+                        len = max_arg_len[1+((i-1)%3)];
                         memset(fmt,0,32*sizeof(char));
                         sprintf(fmt,"%%-%ds",len);
-                        str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), fmt, len+1 );
-                    }else{
-                        str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0);
+                        int save_value = _in_fcall_args;
+                        _in_fcall_args = 1;
+                        str = append_to_string( str, tree_to_str_with_substitutions(DA_kid(node,i), subs), fmt, len+1 );
+                        _in_fcall_args = save_value;
+                        total_len += len;
                     }
                 }
                 str = append_to_string( str, " )", NULL, 0);
@@ -2915,27 +3590,61 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
                 str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 if( JDF_NOTATION ){
                     str = append_to_string( str, "(", NULL, 0);
-                    for(i=1; i<node->u.kids.kid_count; ++i){
+                    for(i=1; i<DA_kid_count(node); ++i){
                         if( i > 1 ) 
                             str = append_to_string( str, ",", NULL, 0);
-                        str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0 );
+                        str = append_to_string( str, tree_to_str_with_substitutions(DA_kid(node,i), subs), NULL, 0 );
                     }
                     str = append_to_string( str, ")", NULL, 0);
                 }else{
                     for(i=1; i<node->u.kids.kid_count; ++i){
                         str = append_to_string( str, "[", NULL, 0);
-                        str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0 );
+                        str = append_to_string( str, tree_to_str_with_substitutions(DA_kid(node,i), subs), NULL, 0 );
                         str = append_to_string( str, "]", NULL, 0);
                     }
 
                 }
                 return str;
 
+            case FUNC:
+                {
+                  node_t *tmp_param;
+                  str = tree_to_str_with_substitutions(DA_kid(node,0), subs);
+                  str = append_to_string( str, "(", NULL, 0);
+                  for(tmp_param=DA_func_params(node); NULL != tmp_param; tmp_param = tmp_param->next){
+                      char *type_name = st_type_of_variable(DA_var_name(tmp_param), tmp_param->symtab);
+                      if( tmp_param != DA_func_params(node) ){
+                          str = append_to_string( str, ", ", NULL, 0);
+                      }
+                      if( NULL != type_name)
+                          str = append_to_string( str, type_name, "%s ", 1+strlen(type_name));
+                      else
+                          str = append_to_string( str, "TYPE ", NULL, 0);
+                      str = append_to_string( str, DA_var_name(tmp_param), NULL, 0);
+                  }
+                  str = append_to_string( str, "){\n", NULL, 0);
+                  _ind_depth += 4;
+                  str = append_to_string( str, tree_to_str_with_substitutions(DA_func_body(node), subs), NULL, 0);
+                  _ind_depth -= 4;
+                  str = append_to_string( str, "}\n", NULL, 0);
+                  return str;
+                }
+            case COMMENT:
+                {
+                  char *cmnt_text = DA_comment_text(node);
+                  if( NULL != cmnt_text ){
+                      str = calloc(7+strlen(cmnt_text), sizeof(char));
+                      sprintf(str, "/* %s */", cmnt_text);
+                  }else{
+                      printf("--- WTF ---\n");
+                  }
+                  return str;
+                }
 
             default:
                 snprintf(prfx, 12, "|>%u<| ", node->type);
                 str = append_to_string(NULL, prfx, NULL, 0);
-                snprintf(prfx, 15, "kid_count: %d {{", kid_count);
+                snprintf(prfx, 16, "kid_count: %d {{", kid_count);
                 str = append_to_string(str, prfx, NULL, 0);
                 _ind_depth += 4;
                 for(i=0; i<kid_count; ++i){
@@ -2990,6 +3699,7 @@ const char *type_to_str(int type){
         case S_U_MEMBER: return "S_U_MEMBER";
         case COMMA_EXPR: return "COMMA_EXPR";
         case BLOCK: return "BLOCK";
+        case COMMENT: return "COMMENT";
         default: return "???";
     }
 }
@@ -3046,7 +3756,7 @@ const char *type_to_symbol(int type){
     return "???";
 }
 
-node_t *node_to_ptr(node_t node){
+inline node_t *node_to_ptr(node_t node){
     node_t *tmp = (node_t *)calloc(1, sizeof(node_t));
     *tmp = node;
     return tmp;
