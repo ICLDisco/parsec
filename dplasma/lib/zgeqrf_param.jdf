@@ -106,8 +106,8 @@ BODY
     int ldam   = BLKLDD( descA, m );
 
     printlog("thread %d VP %d CORE_zgeqrt(%d, %d)\n"
-             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, TS(%d,%d)[%p], descTS.mb, p_elem_A, p_elem_B)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, m, k, A, m, k, TS);
+             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, TS(%d,%d)[%p], TS.mb, p_elem_A, p_elem_B)\n",
+             context->th_id, context->virtual_process->vp_id, k, m, m, k, A, m, k, T);
 
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( p_tau  );
@@ -189,7 +189,7 @@ BODY
     printlog("thread %d VP %d CORE_zunmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, \n"
              "\t A(%d,%d)[%p], ldam, TS(%d,%d)[%p], descTS.mb, A(%d,%d)[%p], ldam, p_elem_A, descTS.nb)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n, m, k, A, m, k, TS, m, n, C);
+             context->th_id, context->virtual_process->vp_id, k, m, n, m, k, A, m, k, T, m, n, C);
 
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( p_work );
@@ -265,7 +265,7 @@ BODY
     int ldam = BLKLDD( descA, m );
 
     printlog("thread %d VP %d CORE_zttqrt(%d, %d)\n"
-             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descTT.mb, p_elem_A, p_elem_B)\n",
+             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, TT(%d,%d)[%p], descTT.mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, m, p, k, A1, m, k, A2, m, k, T);
 
 #if !defined(DAGUE_DRY_RUN)
@@ -373,7 +373,7 @@ BODY
 
     printlog("thread %d VP %d CORE_zttmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
-             "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descTT.mb, p_elem_A, ldwork)\n",
+             "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, TT(%d,%d)[%p], descTT.mb, p_elem_A, ldwork)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
 #if !defined(DAGUE_DRY_RUN)

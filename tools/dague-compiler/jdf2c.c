@@ -3484,12 +3484,13 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                                    const jdf_body_t* body,
                                    const char *name)
 {
-    init_from_data_array_info_t ifda;
     jdf_def_list_t* type_property;
     string_arena_t *sa, *sa2;
     assignment_info_t ai;
-    int profile_on;
+    jdf_dataflow_t *fl;
+    int di, profile_on;
     char* output;
+    init_from_data_array_info_t ifda;
 
     /**
      * If the function or the body has the "profile" property turned off
@@ -3556,23 +3557,19 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                 output);
     }
 
-    coutput("  /** Lookup the input data, and store them in the context if any */\n");
-    {
-        jdf_dataflow_t *fl;
-        int di, have_if = 0;
+    coutput("  /** Update staring simulation date */\n"
+            "#if defined(DAGUE_SIM)\n");
+    for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 
-        for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+        if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
 
-            if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
-
-            if( 0 == have_if ) { coutput("#if defined(DAGUE_SIM)\n"); have_if = 1; }
-            coutput("  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
-                    "    __dague_simulation_date =  e%s->sim_exec_date;\n",
-                    fl->varname, fl->varname,
-                    fl->varname);
-        }
-        if( have_if ) { coutput("#endif  /* defined(DAGUE_SIM) */\n"); }
+        coutput("  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
+                "    __dague_simulation_date =  e%s->sim_exec_date;\n",
+                fl->varname,
+                fl->varname,
+                fl->varname);
     }
+    coutput("#endif\n");
 
     coutput("  /** Store pointer used in the function for antidependencies detection */\n"
             "#if defined(DAGUE_PROF_PTR_FILE)\n"
