@@ -34,9 +34,8 @@ class multifile_reader:
       self.handle_counts = []
 
 class dbpDictEntry:
-   def __init__(self, id, name, attributes):
+   def __init__(self, id, attributes):
       self.id = id
-      self.name = name
       self.attributes = attributes
 
 class dbpFile:
@@ -102,9 +101,9 @@ class dbpEvent:
          row += ('{:>' + str(dbpEvent.__max_length__) + '}  ').format(value)
       return row
 
-# Cython code
+# Cython-y code
 
-# this is the public Python interface function. 
+# this is the public Python interface function. call it.
 cpdef readProfile(filenames):
    cdef char ** c_filenames = stringListToCStrings(filenames)
    cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
@@ -112,29 +111,30 @@ cpdef readProfile(filenames):
    cdef dbp_file_t * cfile
    cdef dbp_dictionary_t * cdict
 
-   for dce in range(reader.nb_dict_entries):
-       entry = makeDbpDictEntry(dbp, dce)
-       reader.dictionary[entry.name] = entry
+   reader.worldsize = dbp_reader_worldsize(dbp)
+
+   # create dictionary first, for later use while making Events
+   for index in range(reader.nb_dict_entries):
+      dico = dbp_reader_get_dictionary(dbp, index)
+      entry = dbpDictEntry(index, dbp_dictionary_attributes(dico))
+      reader.dictionary[dbp_dictionary_name(dico)] = entry
 
    # convert c to py
    for ifd in range(reader.nb_files):
       cfile = dbp_reader_get_file(dbp, ifd)
       file = dbpFile(reader, dbp_file_hr_id(cfile), dbp_file_get_name(cfile), dbp_file_get_rank(cfile))
-      for inf in range(dbp_file_nb_infos(cfile)):
-         file.infos.append(makeDbpInfo(reader, cfile, inf))
-      for t in range(dbp_file_nb_threads(cfile)):
-         file.threads.append(makeDbpThread(reader, dbp, cfile, t, file))
-
+      for index in range(dbp_file_nb_infos(cfile)):
+         cinfo = dbp_file_get_info(cfile, index)
+         key = dbp_info_get_key(cinfo)
+         value = dbp_info_get_value(cinfo)
+         file.infos.append(dbpInfo(key, value))
+      for thread in range(dbp_file_nb_threads(cfile)):
+         file.threads.append(makeDbpThread(reader, dbp, cfile, thread, file))
       reader.files.append(file)
 
-   reader.worldsize = dbp_reader_worldsize(dbp)
-
-#   for i in range(len(filenames)):
-#      free(c_filenames[i])
-#      c_filenames[i] = NULL
-   # also, free multifile_reader and associated event buffers?
    return reader
 
+# helper function for readProfile
 cdef char** stringListToCStrings(strings):
    cdef char ** c_argv
    strings = [bytes(x) for x in strings]
@@ -149,20 +149,7 @@ cdef char** stringListToCStrings(strings):
       free(c_argv)
    return c_argv
 
-cdef makeDbpInfo(reader, dbp_file_t * cfile, int             # not all events have info
-            # also, not all events have the same info.
-            # so this is where users must modify the code to translate
-            # their own info objects
-index):
-   cdef dbp_info_t * cinfo = dbp_file_get_info(cfile, index)
-   key = dbp_info_get_key(cinfo)
-   value = dbp_info_get_value(cinfo)
-   return dbpInfo(key, value)
-   
-cdef makeDbpDictEntry(dbp_multifile_reader_t * dbp, int index):
-   dico = dbp_reader_get_dictionary(dbp, index)
-   return dbpDictEntry(index, dbp_dictionary_name(dico), dbp_dictionary_attributes(dico))
-   
+# you can't call this. it will be called for you. call readProfile()
 cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, file):
    cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, index)
    cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
@@ -172,6 +159,7 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
    cdef dague_time_t reader_start = dbp_reader_min_date(dbp)
    cdef unsigned long long start, end
    cdef void * cinfo
+   cdef pins_cachemiss_info_t * cast_pins_info
 
    thread = dbpThread(file, index)
    if thread.id + 1 > reader.thread_count:
@@ -199,12 +187,18 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
             #####################################
             # not all events have info
             # also, not all events have the same info.
-            # so this is where users must modify the code to translate
+            # so this is where users must add code to translate
             # their own info objects
             cinfo = dbp_event_get_info(event_e)
             if cinfo != NULL:
                if event.key == reader.dictionary['EXEC_MISSES'].id:
-                  event.info = make_ExecMisses_EventInfo(cinfo)
+                  cast_pins_info = <pins_cachemiss_info_t *>cinfo
+                  event.info = dbp_ExecMisses_EventInfo(
+	                  cast_pins_info.kernel_type, 
+	                  cast_pins_info.th_id,
+	                  [cast_pins_info.values[x] for x in range(NUM_EXEC_EVENTS)])
+	       # elif event.key == reader.dictionary['<SOME OTHER TYPE WITH INFO>].id:
+                  # event.info = <write a function and a Python type to translate>
 
             thread.events.append(event)
             dbp_iterator_delete(it_e)
@@ -216,17 +210,9 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
    return thread
 
 ########################################################
-########### CUSTOM EVENT INFO SECTION ##################
-
-cdef make_ExecMisses_EventInfo(void * info):
-   cdef pins_cachemiss_info_t * cast_info = <pins_cachemiss_info_t *>info
-   if cast_info.values_len < 10: # sanity check
-      values_list = [cast_info.values[x] for x in range(cast_info.values_len)]
-   else:
-      values_list = None
-   return dbp_ExecMisses_EventInfo(cast_info.kernel_type, 
-                           cast_info.th_id,
-                           values_list)
+############## CUSTOM EVENT INFO SECTION ###############
+######### -- add a Python type to this section #########
+######### to allow for new 'info' types        #########
 
 class dbp_ExecMisses_EventInfo:
    def __init__(self, kernel_type, th_id, values):
