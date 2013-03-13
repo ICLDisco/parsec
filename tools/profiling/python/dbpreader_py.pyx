@@ -102,12 +102,6 @@ class dbpEvent:
          row += ('{:>' + str(dbpEvent.__max_length__) + '}  ').format(value)
       return row
 
-class dbp_ExecMisses_EventInfo:
-   def __init__(self, kernel_type, th_id, values):
-      self.kernel_type = kernel_type
-      self.th_id = th_id
-      self.values = values
-
 # Cython code
 
 # this is the public Python interface function. 
@@ -141,10 +135,6 @@ cpdef readProfile(filenames):
    # also, free multifile_reader and associated event buffers?
    return reader
 
-cdef intArrayToPython(int * array, int arrayLen):
-   ints = [int(array[x]) for x in range(arrayLen)]
-   return ints
-
 cdef char** stringListToCStrings(strings):
    cdef char ** c_argv
    strings = [bytes(x) for x in strings]
@@ -173,16 +163,6 @@ cdef makeDbpDictEntry(dbp_multifile_reader_t * dbp, int index):
    dico = dbp_reader_get_dictionary(dbp, index)
    return dbpDictEntry(index, dbp_dictionary_name(dico), dbp_dictionary_attributes(dico))
    
-cdef make_ExecMisses_EventInfo(void * info):
-   cdef pins_cachemiss_info_t * cast_info = <pins_cachemiss_info_t *>info
-   if cast_info.values_len < 10: # sanity check
-      values_list = [cast_info.values[x] for x in range(cast_info.values_len)]
-   else:
-      values_list = None
-   return dbp_ExecMisses_EventInfo(cast_info.kernel_type, 
-                           cast_info.th_id,
-                           values_list)
-
 cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, file):
    cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, index)
    cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
@@ -235,3 +215,21 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
    dbp_iterator_delete(it_s)
    return thread
 
+########################################################
+########### CUSTOM EVENT INFO SECTION ##################
+
+cdef make_ExecMisses_EventInfo(void * info):
+   cdef pins_cachemiss_info_t * cast_info = <pins_cachemiss_info_t *>info
+   if cast_info.values_len < 10: # sanity check
+      values_list = [cast_info.values[x] for x in range(cast_info.values_len)]
+   else:
+      values_list = None
+   return dbp_ExecMisses_EventInfo(cast_info.kernel_type, 
+                           cast_info.th_id,
+                           values_list)
+
+class dbp_ExecMisses_EventInfo:
+   def __init__(self, kernel_type, th_id, values):
+      self.kernel_type = kernel_type
+      self.th_id = th_id
+      self.values = values
