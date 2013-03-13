@@ -171,14 +171,16 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 	    DEBUG(("PAPI_register_thread failed with error %s\n", PAPI_strerror(rv)));
 #endif    
 
-    pins_thread_init(eu);
-
     eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
         eu->datarepo_mempools[pi] = &(eu->virtual_process->datarepo_mempools[pi].thread_mempools[eu->th_id]);
 
 #ifdef DAGUE_PROF_TRACE
     eu->eu_profile = dague_profiling_thread_init( 2*1024*1024, "DAGuE Thread %d of VP %d", eu->th_id, eu->virtual_process->vp_id );
+#endif
+
+#if defined(PINS_ENABLE)
+    pins_thread_init(eu);
 #endif
 
 #if defined(DAGUE_SIM)
@@ -193,7 +195,9 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         return NULL;
     }
 
-    return __dague_progress(eu);
+    void * rv = __dague_progress(eu);
+
+    return rv;
 }
 
 static void dague_vp_init( dague_vp_t *vp,

@@ -393,6 +393,12 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 
  finalize_progress:
+#if defined(PINS_ENABLE)
+    pins_thread_fini(eu_context);
+#endif /* PINS_ENABLE */
+
+
+
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     STATUS(("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
             eu_context->th_id, eu_context->virtual_process->vp_id, nbiterations, (long long unsigned int)found_local,

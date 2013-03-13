@@ -22,6 +22,20 @@ cdef extern from "os-spec-timing.h":
 
    unsigned long long diff_time(dague_time_t start, dague_time_t end)
 
+cdef extern from "dague/pins/papi/cachemiss.h":
+   ctypedef struct pins_cachemiss_info_t:
+      int handle_id
+      int kernel_type
+      int task_id
+      int th_id
+      int values_len
+      int values[4]
+
+# cdef extern from "pins_cachemiss_info.h":
+#    int * get_cachemiss_vals(void * info)
+#    char * get_cachemiss_fcn_name(void * info)
+#    int get_cachemiss_th_id(void * info)
+
 cdef extern from "dbpreader.h":
    ctypedef struct dbp_info_t:
       pass

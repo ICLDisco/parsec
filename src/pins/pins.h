@@ -20,6 +20,8 @@ typedef void (parsec_pins_callback)(dague_execution_unit_t * exec_unit, dague_ex
 
 void pins_init(dague_context_t * master_context); // impl provided by CMake
 void pins_handle_init(dague_handle_t * handle);   // impl provided by CMake
+void pins_thread_init(dague_execution_unit_t * exec_unit);   // impl provided by CMake
+void pins_thread_fini(dague_execution_unit_t * exec_unit);
 
 void parsec_pins(PINS_FLAG method_flag, dague_execution_unit_t * exec_unit, 
                  dague_execution_context_t * task, void * data);

@@ -70,7 +70,6 @@ static inline char* arprintf(const char* fmt, ...)
     } while(0)
 
 #   define ABORT() abort()
-	    /*
 #endif /* HAVE_MPI */
 
 #define STATUS(ARG) do { \

@@ -2868,7 +2868,6 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "}\n\n",
             jdf_basename);
 
-
     string_arena_free(sa1);
     string_arena_free(sa2);
 }

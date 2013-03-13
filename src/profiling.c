@@ -448,7 +448,7 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key,
     assert( this_event_length < event_avail_space );
     if( context->next_event_position + this_event_length > event_avail_space ) {
         if( switch_event_buffer(context) == -1 ) {
-            return -1;
+            return -2;
         }
     }
     /*
@@ -456,7 +456,7 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key,
             START_KEY(BASE_KEY(key)) == key ? "start" : "end",
             BASE_KEY(key),
             dague_prof_keys[ BASE_KEY(key) ].name,
-            id,
+            event_id,
             context->next_event_position, context->next_event_position+this_event_length,
             context->current_events_buffer_offset,
             context);
@@ -723,6 +723,8 @@ int dague_profiling_dump_dbp( const char* filename )
     int nb_threads = 0;
     dague_thread_profiling_t *t;
     int nb_infos, nb_dico;
+
+    printf("# dumping profiling\n"); // TODO PETER remove debug
 
     /* Flush existing events buffer, inconditionnally */
     DAGUE_LIST_ITERATOR(&threads, it, {
