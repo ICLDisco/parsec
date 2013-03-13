@@ -215,7 +215,39 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
 ######### to allow for new 'info' types        #########
 
 class dbp_ExecMisses_EventInfo:
+   __max_length__ = 0
    def __init__(self, kernel_type, th_id, values):
       self.kernel_type = kernel_type
       self.th_id = th_id
       self.values = values
+
+      # set global max length
+      for attr, val in vars(self).items():
+         if len(attr) > dbp_ExecMisses_EventInfo.__max_length__:
+            dbp_ExecMisses_EventInfo.__max_length__ = len(attr)
+         # values that we don't want printed generically
+         elif attr == 'values':
+            for value in val:
+               if len(str(value)) > dbp_ExecMisses_EventInfo.__max_length__:
+                  dbp_ExecMisses_EventInfo.__max_length__ = len(value)
+         elif len(str(val)) > dbp_ExecMisses_EventInfo.__max_length__:
+            dbp_ExecMisses_EventInfo.__max_length__ = len(str(val))
+
+   def row_header(self):
+      # first, establish max length
+      header = ''
+      length = str(dbp_ExecMisses_EventInfo.__max_length__)
+      header += ('{:>' + length + '}  ').format('kernel_type')
+      header += ('{:>' + length + '}  ').format('th_id')
+      header += ('{:>' + length + '}  ').format('values')
+      return header
+
+   def __repr__(self):
+      rv = ''
+      length = str(dbp_ExecMisses_EventInfo.__max_length__)
+      rv += ('{:>' + length + '}  ').format(self.kernel_type)
+      rv += ('{:>' + length + '}  ').format(self.th_id)
+      for value in self.values:
+         rv += ('{:>' + length + '}  ').format(value)
+      return rv
+
