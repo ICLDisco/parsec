@@ -30,6 +30,8 @@ class multifile_reader:
       self.nb_dict_entries = nb_dict_entries
       self.dictionary = {}
       self.files = []
+      self.thread_count = 0
+      self.handle_counts = []
 
 class dbpDictEntry:
    def __init__(self, id, name, attributes):
@@ -57,21 +59,49 @@ class dbpThread:
       self.file = parentFile
       self.events = []
       self.id = int(threadNumber) # if it's not a number, it's wrong
+   def __str__(self):
+      return str(self.id)
 
 class dbpEvent:
+   __max_length__ = 0
+   # keep the print order updated as attributes are added
+   print_order = ['handle_id', 'thread', 'key', 'event_id', 
+                  'flags', 'start', 'end', 'duration', 'info']
    def __init__(self, parentThread, key, flags, handle_id, event_id, start, end):
+      self.handle_id = handle_id
       self.thread = parentThread
       self.key = key
-      self.flags = flags
-      self.handle_id = handle_id
       self.event_id = event_id
+      self.flags = flags
       self.start = start
       self.end = end
       self.duration = self.end - self.start
-   def __str__(self):
-      return 'key %d flags %d tid %d objID %s eventID %d start %d end %d duration %d' % (
-              self.key, self.flags, self.thread.id, self.handle_id, self.event_id, self.start, self.end, self.duration)
-     
+      self.info = None
+      for attr, value in vars(self).items():
+         if len(attr) > dbpEvent.__max_length__:
+            dbpEvent.__max_length__ = len(attr)
+         # values that we don't want printed generically
+         elif attr == 'info':
+            value = 'Yes' if self.info else 'No'
+         if len(str(value)) > dbpEvent.__max_length__:
+            dbpEvent.__max_length__ = len(str(value))
+      
+   def row_header(self):
+      # first, establish max length
+      header = ''
+      for attr in dbpEvent.print_order:
+         header += ('{:>' + str(dbpEvent.__max_length__) + '}  ').format(attr)
+      return header
+   def __repr__(self):
+      row = ''
+      for attr in dbpEvent.print_order:
+         value = vars(self)[attr]
+         # values that we don't want printed generically
+         if attr == 'info':
+            value = 'Yes' if self.info else 'No'
+         row += ('{:>' + str(dbpEvent.__max_length__) + '}  ').format(value)
+      return row
+
 class dbp_ExecMisses_EventInfo:
    def __init__(self, kernel_type, th_id, values):
       self.kernel_type = kernel_type
@@ -129,7 +159,11 @@ cdef char** stringListToCStrings(strings):
       free(c_argv)
    return c_argv
 
-cdef makeDbpInfo(reader, dbp_file_t * cfile, int index):
+cdef makeDbpInfo(reader, dbp_file_t * cfile, int             # not all events have info
+            # also, not all events have the same info.
+            # so this is where users must modify the code to translate
+            # their own info objects
+index):
    cdef dbp_info_t * cinfo = dbp_file_get_info(cfile, index)
    key = dbp_info_get_key(cinfo)
    value = dbp_info_get_value(cinfo)
@@ -160,6 +194,8 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
    cdef void * cinfo
 
    thread = dbpThread(file, index)
+   if thread.id + 1 > reader.thread_count:
+      reader.thread_count = thread.id + 1
 
    while event_s is not NULL:
       if KEY_IS_START( dbp_event_get_key(event_s) ):
@@ -168,9 +204,17 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
             event_e = dbp_iterator_current(it_e)
             start = diff_time(reader_start, dbp_event_get_timestamp(event_s))
             end = diff_time(reader_start, dbp_event_get_timestamp(event_e))
-            event = dbpEvent(thread, dbp_event_get_key(event_s), dbp_event_get_flags(event_s), \
-                             dbp_event_get_handle_id(event_s), dbp_event_get_event_id(event_s), \
+            
+            event = dbpEvent(thread,
+                             dbp_event_get_key(event_s) / 2, # to match dictionary
+                             dbp_event_get_flags(event_s),
+                             dbp_event_get_handle_id(event_s), 
+                             dbp_event_get_event_id(event_s),
                              start, end)
+
+            while len(reader.handle_counts) < event.handle_id + 1:
+               reader.handle_counts.append(0)
+            reader.handle_counts[event.handle_id] += 1
 
             #####################################
             # not all events have info
@@ -178,9 +222,8 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
             # so this is where users must modify the code to translate
             # their own info objects
             cinfo = dbp_event_get_info(event_e)
-            event.info = None
             if cinfo != NULL:
-               if event.key/2 == reader.dictionary['EXEC_MISSES'].id:
+               if event.key == reader.dictionary['EXEC_MISSES'].id:
                   event.info = make_ExecMisses_EventInfo(cinfo)
 
             thread.events.append(event)
