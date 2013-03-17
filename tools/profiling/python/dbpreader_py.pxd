@@ -109,5 +109,6 @@ cdef extern from "dague/pins/papi/cachemiss.h":
    ctypedef struct pins_cachemiss_info_t:
       int kernel_type
       int th_id
-      int values[NUM_EXEC_EVENTS] # number is inconsequential
+      int values_len
+      long long values[NUM_EXEC_EVENTS] # number is inconsequential
 

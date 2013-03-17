@@ -135,10 +135,17 @@ void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 			pins_cachemiss_info_t info;
 			info.kernel_type = exec_context->function->function_id;
 			info.th_id = exec_unit->th_id;
-			info.values_len = NUM_EXEC_EVENTS;
-			printf("%d values len\n", info.values_len);
-			for(int i = 0; i < info.values_len; i++) 
+			for(int i = 0; i < NUM_EXEC_EVENTS; i++) 
 				info.values[i] = values[i];
+			info.values_len = NUM_EXEC_EVENTS; /* not *necessary*, but perhaps better for compatibility
+			                                    * with the Python dbpreader script in the long term,
+			                                    * since this will allow the reading of different structs.
+			                                    * presumably, a 'generic' Cython info reader could be created
+			                                    * that allows a set of ints and a set of long longs
+			                                    * to be automatically read if both lengths are included,
+			                                    * e.g. struct { int num_ints; int; int; int; int num_lls;
+			                                    * ll; ll; ll; ll; ll; ll } - the names could be assigned
+			                                    * after the fact by a knowledgeable end user */
 			dague_profiling_trace(exec_unit->eu_profile, pins_prof_exec_misses_stop, 
 			                      (*exec_context->function->key
 			                       )(exec_context->dague_handle, exec_context->locals), 

@@ -13,7 +13,7 @@ typedef struct pins_cachemiss_info_s {
 	int kernel_type;
 	int th_id;
 	int values_len;
-	int values[NUM_EXEC_EVENTS];
+	long long values[NUM_EXEC_EVENTS];
 } pins_cachemiss_info_t;
 
 void pins_init_cachemiss(dague_context_t * master_context);
