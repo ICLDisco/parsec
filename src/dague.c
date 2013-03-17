@@ -209,9 +209,6 @@ static void dague_vp_init( dague_vp_t *vp,
     data_repo_entry_t fake_entry;
 
     vp->nb_cores = nb_cores;
-#if defined(DAGUE_SIM)
-    vp->largest_simulation_date = 0;
-#endif /* DAGUE_SIM */
 
     dague_mempool_construct( &vp->context_mempool, sizeof(dague_execution_context_t),
                              ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
@@ -302,6 +299,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     context->active_objects = 0;
     context->my_rank        = 0;
 
+#if defined(DAGUE_SIM)
+    context->largest_simulation_date = 0;
+#endif /* DAGUE_SIM */
+
     /* TODO: nb_cores should depend on the vp_id */
     nb_total_comp_threads = 0;
     for(p = 0; p < nb_vp; p++) {
@@ -378,7 +379,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     /* update the index_core_free_mask according to the thread binding defined */
     for(t = 0; t < nb_total_comp_threads; t++)
-	hwloc_bitmap_clr(context->index_core_free_mask, startup[t].bindto);
+        hwloc_bitmap_clr(context->index_core_free_mask, startup[t].bindto);
 
 #if defined(DAGUE_DEBUG_VERBOSE3)
     {
@@ -429,7 +430,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         cpus->type = DAGUE_DEV_CPU;
         dague_devices_add(context, cpus);
         /* TODO: This is plain WRONG, but should work by now */
-        cpus->device_sweight = nb_total_comp_threads * 8 * 2.27;
+        cpus->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
         cpus->device_dweight = nb_total_comp_threads * 4 * 2.27;
     }
     dague_devices_select(context);
@@ -925,7 +926,7 @@ int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
              * for each execution context.
              */
             new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
-            new_context->data[(int)dest_flow->flow_index].data      = origin->data[(int)origin_flow->flow_index].data;
+            new_context->data[(int)dest_flow->flow_index].data_in   = origin->data[(int)origin_flow->flow_index].data_out;
             AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
@@ -1007,7 +1008,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
                 arg->remote_deps->output[out_index].type = arena;
                 arg->remote_deps->output[out_index].nbelt = nbelt;
-                arg->remote_deps->output[out_index].data = oldcontext->data[target->flow_index].data;
+                arg->remote_deps->output[out_index].data = oldcontext->data[target->flow_index].data_out;
                 arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[out_index].count++;
                 arg->remote_deps_count++;
@@ -1032,7 +1033,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
         if( ACCESS_NONE != target->access_type ) {
-            arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
+            arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data_out;
             arg->output_usage++;
             /* BEWARE: This increment is required to be done here. As the target task
              * bits are marked, another thread can now enable the task. Once schedulable
@@ -1188,7 +1189,7 @@ void dague_handle_unregister( dague_handle_t* object )
 void dague_usage(void)
 {
     fprintf(stderr,"\n"
-            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n\n" 
+            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n\n"
             "     --dague_bind_comm   : define the core the communication thread will be bound on\n"
             "\n"
             "     Warning:: The binding options rely on hwloc. The core numerotation is defined between 0 and the number of cores.\n"
@@ -1504,3 +1505,9 @@ static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* co
     return -1;
 #endif  /* HAVE_HWLOC */
 }
+
+#if defined(DAGUE_SIM)
+int dague_getsimulationdate( dague_context_t *dague_context ){
+    return dague_context->largest_simulation_date;
+}
+#endif

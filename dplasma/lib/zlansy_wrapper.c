@@ -195,25 +195,22 @@ void
 dplasma_zlansy_Destruct( dague_handle_t *o )
 {
     dague_zlansy_handle_t *dague_zlansy = (dague_zlansy_handle_t *)o;
-    two_dim_block_cyclic_t *Wcol, *Welt;
-
-    Wcol = (two_dim_block_cyclic_t*)(dague_zlansy->Wcol);
-    dague_data_free( Wcol->mat );
-    dague_ddesc_destroy( dague_zlansy->Wcol );
-    free( dague_zlansy->Wcol );
-    dague_zlansy->Wcol = NULL;
-
-    Welt = (two_dim_block_cyclic_t*)(dague_zlansy->Welt);
-    dague_data_free( Welt->mat );
-    dague_ddesc_destroy( dague_zlansy->Welt );
-    free( dague_zlansy->Welt );
-    dague_zlansy->Welt = NULL;
+    two_dim_block_cyclic_t *Wcol = (two_dim_block_cyclic_t*)(dague_zlansy->Wcol);
+    two_dim_block_cyclic_t *Welt = (two_dim_block_cyclic_t*)(dague_zlansy->Welt);
 
     dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_DEFAULT_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_COL_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_ELT_ARENA]->opaque_dtt) );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+
+    dague_data_free( Wcol->mat );
+    dague_ddesc_destroy( (dague_ddesc_t*)Wcol );
+    free( Wcol );
+
+    dague_data_free( Welt->mat );
+    dague_ddesc_destroy( (dague_ddesc_t*)Welt );
+    free( Welt );
 }
 
 /***************************************************************************//**

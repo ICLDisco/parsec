@@ -23,6 +23,8 @@ extern int yyget_lineno();
 void yyerror(const char *s);
 extern int yylex (void);
 extern int _q2j_add_phony_tasks;
+extern node_t *_q2j_func_list_head;
+extern char *q2j_input_file_name;
 
 type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 
@@ -173,8 +175,9 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <string> PLASMA_DESC
 %type <string> PLASMA_SEQUENCE
 
-%type <string> parameter_list
-%type <string> parameter_type_list
+%type <node> parameter_type_list
+%type <node> parameter_list
+
 %type <string> declaration_specifiers
 %type <string> typedef_specifier
 %type <string> direct_abstract_declarator
@@ -721,16 +724,6 @@ pragma_parameters
           tmp->next = NULL;
           $$.next = tmp;
       } 
-/*
-	| BIN_MASK
-      { 
-          node_t *tmp;
-          tmp = node_to_ptr($1);
-          tmp->prev = NULL;
-          tmp->next = NULL;
-          $$.next = tmp;
-      } 
-*/
 	| IDENTIFIER pragma_parameters
 	  {
           node_t *tmp;
@@ -852,35 +845,35 @@ storage_class_specifier
 
 type_specifier
 	: VOID
-	| CHAR
-	| SHORT
-	| INT
-	| LONG
-        | INT8
-        | INT16
-        | INT32
-        | INT64
-        | UINT8
-        | UINT16
-        | UINT32
-        | UINT64
-        | INTPTR
-        | UINTPTR
-        | INTMAX
-        | UINTMAX
-	| FLOAT
-	| DOUBLE
-	| SIGNED
-	| UNSIGNED
-	| struct_or_union_specifier
-	| enum_specifier
-        | PLASMA_COMPLEX32_T
-        | PLASMA_COMPLEX64_T
-        | PLASMA_ENUM
-        | PLASMA_REQUEST
-        | PLASMA_DESC
-        | PLASMA_SEQUENCE
-	| TYPE_NAME
+    | CHAR
+    | SHORT
+    | INT
+    | LONG
+    | INT8
+    | INT16
+    | INT32
+    | INT64
+    | UINT8
+    | UINT16
+    | UINT32
+    | UINT64
+    | INTPTR
+    | UINTPTR
+    | INTMAX
+    | UINTMAX
+    | FLOAT
+    | DOUBLE
+    | SIGNED
+    | UNSIGNED
+    | struct_or_union_specifier
+    | enum_specifier
+    | PLASMA_COMPLEX32_T
+    | PLASMA_COMPLEX64_T
+    | PLASMA_ENUM
+    | PLASMA_REQUEST
+    | PLASMA_DESC
+    | PLASMA_SEQUENCE
+    | TYPE_NAME
     
 	;
 
@@ -953,9 +946,10 @@ type_qualifier
 
 declarator
 	: pointer direct_declarator
-          {
-              $$ = $2;
-          }
+      {
+          // TODO: Maybe make changes in the symbol table?
+          $$ = $2;
+      }
 	| direct_declarator
 	;
 
@@ -1003,9 +997,18 @@ direct_declarator
           }
 	| direct_declarator '(' parameter_type_list ')'
           {
-              $1.symtab = st_get_current_st();
-              /* Here we loose the parameter_type_list, but we are not using it anyway */
-              $$ = $1;
+              /**
+               ** This is the rule for the declaration of the body of a function
+               **/
+              node_t *ptr, *head;
+
+              for(head=$3.next; NULL != head && NULL != head->prev; head=head->prev)
+                  /* just walk to the beginning */;
+
+              /* Type "TMP" should not survive in the final tree */
+              ptr = DA_create_B_expr(TMP, node_to_ptr($1), head);
+              $$ = *ptr;
+              $$.symtab = st_get_current_st();
           }
 	| direct_declarator '(' identifier_list ')'
 	| direct_declarator '(' ')'
@@ -1027,29 +1030,39 @@ type_qualifier_list
 parameter_type_list
 	: parameter_list
 	| parameter_list ',' ELLIPSIS
-          {
-              char *str = strdup($1);
-              $$ = append_to_string(str, "", ", ...", 5);
-          }
 	;
 
 parameter_list
 	: parameter_declaration
           {
+              node_t *tmp;
               (void)st_enter_new_scope();
-              st_insert_new_variable($1.var, $1.type);
+              st_insert_new_variable(tree_to_str($1.var), $1.type);
+
+              $1.var->symtab = st_get_current_st();
+              tmp = $1.var;
+              tmp->prev = NULL;
+              tmp->next = NULL;
+              $$.next = tmp;
           }
 	| parameter_list ',' parameter_declaration
           {
-              st_insert_new_variable($3.var, $3.type);
+              node_t *tmp;
+              st_insert_new_variable(tree_to_str($3.var), $3.type);
+              tmp = $3.var;
+              tmp->next = NULL;
+              tmp->prev = $1.next;
+              tmp->prev->next = tmp;
+              $$.next = tmp;
           }
 	;
+
 
 parameter_declaration
 	: declaration_specifiers declarator
           {
               $$.type = strdup($1);
-              $$.var = tree_to_str(&($2));
+              $$.var = node_to_ptr($2);
           }
 	| declaration_specifiers abstract_declarator
           {
@@ -1324,12 +1337,17 @@ translation_unit
 external_declaration
 	: function_definition
       {
+          node_t *tmp;
+          (void)st_exit_scope();
           associate_pending_pragmas_with_function(&($1));
-          rename_induction_variables(&($1));
-          convert_OUTPUT_to_INOUT(&($1));
-          if( _q2j_add_phony_tasks )
-              add_entry_and_exit_task_loops(&($1));
-          analyze_deps(&($1));
+          if( NULL == _q2j_func_list_head ){
+              _q2j_func_list_head = node_to_ptr($1);
+          }else{
+              for(tmp=_q2j_func_list_head; NULL != tmp->next; tmp = tmp->next){
+                  /* just walk down the list */;
+              }
+              tmp->next = node_to_ptr($1);
+          }
       }
 	| declaration
       {
@@ -1340,19 +1358,20 @@ external_declaration
       }
     | typedef_specifier
       {
-          /* do nothing */
+          /* do nothing, we added the type when we reduced the typedef */
       }
 	| pragma_specifier
       {
-          /* do nothing */
+          /* do nothing, we processed the pragma when we reduced it to pragma_specifier */
       }
 	;
 
 function_definition
 	: declaration_specifiers declarator declaration_list compound_statement
       {
+          /* This is the K&R style function declaration */
           node_t *ptr;
-          ptr = DA_create_B_expr(FUNC, node_to_ptr($2), node_to_ptr($4));
+          ptr = DA_create_Func(DA_kid(&($2),0), DA_kid(&($2),1), node_to_ptr($4));
           ptr->symtab = $4.symtab;
           DA_parentize(ptr);
           $$ = *ptr;
@@ -1360,23 +1379,25 @@ function_definition
 	| declaration_specifiers declarator compound_statement
       {
           node_t *ptr;
-          ptr = DA_create_B_expr(FUNC, node_to_ptr($2), node_to_ptr($3));
+          ptr = DA_create_Func(DA_kid(&($2),0), DA_kid(&($2),1), node_to_ptr($3));
           ptr->symtab = $3.symtab;
           DA_parentize(ptr);
           $$ = *ptr;
       }
 	| declarator declaration_list compound_statement
       {
+          /* This is the K&R style function declaration, for a function with an undefined type */
           node_t *ptr;
-          ptr = DA_create_B_expr(FUNC, node_to_ptr($1), node_to_ptr($3));
+          ptr = DA_create_Func(DA_kid(&($1),0), DA_kid(&($1),1), node_to_ptr($3));
           ptr->symtab = $3.symtab;
           DA_parentize(ptr);
           $$ = *ptr;
       }
 	| declarator compound_statement
       {
+          /* This is a function declaration, for a function with an undefined type */
           node_t *ptr;
-          ptr = DA_create_B_expr(FUNC, node_to_ptr($1), node_to_ptr($2));
+          ptr = DA_create_Func(DA_kid(&($1),0), DA_kid(&($1),1), node_to_ptr($2));
           ptr->symtab = $2.symtab;
           DA_parentize(ptr);
           $$ = *ptr;
@@ -1390,7 +1411,7 @@ extern int column;
 
 void yyerror(const char *s){
 	fflush(stdout);
-	fprintf(stderr,"Syntax error near line %d. %s\n", yyget_lineno(), s);
+	fprintf(stderr,"Syntax error near line %d in file %s. %s\n", yyget_lineno(), q2j_input_file_name, s);
 	exit(-1);
 }
 

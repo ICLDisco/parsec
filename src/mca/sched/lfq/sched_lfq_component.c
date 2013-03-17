@@ -64,8 +64,10 @@ mca_base_component_t *sched_lfq_static_component(void)
 
 static int sched_lfq_component_query(mca_base_module_t **module, int *priority)
 {
+    /* module type should be: const mca_base_module_t ** */
+    void *ptr = (void*)&dague_sched_lfq_module;
     *priority = 20;
-    *module = (mca_base_module_t *)&dague_sched_lfq_module;
+    *module = (mca_base_module_t *)ptr;
     return MCA_SUCCESS;
 }
 

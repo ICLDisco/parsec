@@ -104,47 +104,43 @@ BODY
     int tempnn = ( n == descC.nt-1 ) ? descC.n - n * descC.nb : descC.nb;
     int ldcm   = BLKLDD( descC, m );
 
-    DRYRUN(
-        if (side == PlasmaLeft && k == m) {
-            int ldam = BLKLDD( descA, m );
-            int ldbk = BLKLDD( descB, k );
+#if !defined(DAGUE_DRY_RUN)
+    if (side == PlasmaLeft && k == m) {
+        int ldam = BLKLDD( descA, m );
+        int ldbk = BLKLDD( descB, k );
 
-            CORE_zhemm(
-                side, uplo,
-                tempmm, tempnn,
-                alpha, A, ldam,
-                       B, ldbk,
-                zbeta, C, ldcm);
-        }
-        else if (side == PlasmaRight && k == n) {
-            int ldak = BLKLDD( descA, k );
-            int ldbm = BLKLDD( descB, m );
+        CORE_zhemm(side, uplo,
+                   tempmm, tempnn,
+                   alpha, A, ldam,
+                          B, ldbk,
+                   zbeta, C, ldcm);
+    } else if (side == PlasmaRight && k == n) {
+        int ldak = BLKLDD( descA, k );
+        int ldbm = BLKLDD( descB, m );
 
-            CORE_zhemm(
-                side, uplo,
-                tempmm, tempnn,
-                alpha, B, ldak,
-                       A, ldbm,
-                zbeta, C, ldcm);
-        } else {
-            PLASMA_enum transl = (c == 0 && k > m) || (c == 1 && k < m) ? PlasmaConjTrans : PlasmaNoTrans;
-            PLASMA_enum transr = (c == 3 && k > n) || (c == 2 && k < n) ? PlasmaConjTrans : PlasmaNoTrans;
-            int tempk = (side == PlasmaLeft) ? (( k == descC.mt-1 ) ? descC.m - k * descC.mb : descC.mb)
-                :                              (( k == descC.nt-1 ) ? descC.n - k * descC.nb : descC.nb);
+        CORE_zhemm(side, uplo,
+                   tempmm, tempnn,
+                   alpha, B, ldak,
+                          A, ldbm,
+                   zbeta, C, ldcm);
+    } else {
+        PLASMA_enum transl = (c == 0 && k > m) || (c == 1 && k < m) ? PlasmaConjTrans : PlasmaNoTrans;
+        PLASMA_enum transr = (c == 3 && k > n) || (c == 2 && k < n) ? PlasmaConjTrans : PlasmaNoTrans;
+        int tempk = (side == PlasmaLeft) ? (( k == descC.mt-1 ) ? descC.m - k * descC.mb : descC.mb)
+                                         : (( k == descC.nt-1 ) ? descC.n - k * descC.nb : descC.nb);
 
-            int lda = (side == PlasmaRight) ? BLKLDD(descB, m)
+        int lda = (side == PlasmaRight) ? BLKLDD(descB, m)
                 : ((c == 0 && k > m) || (c == 1 && k < m) ? BLKLDD(descA, k) : BLKLDD(descA, m) );
-            int ldb = (side == PlasmaLeft) ? BLKLDD(descB, k)
+        int ldb = (side == PlasmaLeft) ? BLKLDD(descB, k)
                 : ((c == 3 && k > n) || (c == 2 && k < n) ? BLKLDD(descA, n) : BLKLDD(descA, k) );
 
-            CORE_zgemm(
-                transl, transr,
-                tempmm, tempnn, tempk,
-                alpha, A, lda,
-                       B, ldb,
-                zbeta, C, ldcm); /* ldc * Y */
-        }
-        );
+        CORE_zgemm(transl, transr,
+                   tempmm, tempnn, tempk,
+                   alpha, A, lda,
+                          B, ldb,
+                   zbeta, C, ldcm); /* ldc * Y */
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
     printlog("hemm( %d, %d, %d )\n",
              /* "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n", */

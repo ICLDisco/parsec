@@ -60,9 +60,9 @@ RW    B <- B(m, n)
         -> B(m, n)
 BODY
 
-  DRYRUN(
-         operator( context, A, B, op_args, PlasmaUpperLower, m, n );
-      );
+#if !defined(DAGUE_DRY_RUN)
+  operator( context, A, B, op_args, PlasmaUpperLower, m, n );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
   printlog("thread %d VP %d map_l( %d, %d )\n",
            context->th_id, context->virtual_process->vp_id, m, n );
@@ -96,9 +96,9 @@ RW    B <- B(m, n)
         -> B(m, n)
 BODY
 
-  DRYRUN(
-         operator( context, A, B, op_args, PlasmaUpperLower, m, n );
-      );
+#if !defined(DAGUE_DRY_RUN)
+  operator( context, A, B, op_args, PlasmaUpperLower, m, n );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
   printlog("thread %d VP %d map_u( %d, %d )\n",
            context->th_id, context->virtual_process->vp_id, m, n );
@@ -131,9 +131,9 @@ RW    B <- B(k, k)
         -> B(k, k)
 BODY
 
-  DRYRUN(
-         operator( context, A, B, op_args, uplo, k, k );
-      );
+#if !defined(DAGUE_DRY_RUN)
+  operator( context, A, B, op_args, uplo, k, k );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
   printlog("thread %d VP %d map_diag( %d, %d )\n",
            context->th_id, context->virtual_process->vp_id, k, k );

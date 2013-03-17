@@ -67,12 +67,6 @@ typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context
 #endif
 
 /**
- * Return codes for data_lookup functions:
- *  DAGUE_LOOKUP_DONE: all data is ready to be used.
- */
-#define DAGUE_LOOKUP_DONE 1
-
-/**
  *
  */
 typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit_s *eu,
@@ -115,9 +109,9 @@ typedef float (dague_evaluate_function_t)(const dague_execution_context_t* task)
  *
  */
 typedef enum dague_hook_return_e {
-    DAGUE_HOOK_RETURN_DONE    =  0,  /* This chore succeeded */
+    DAGUE_HOOK_RETURN_DONE    =  0,  /* This execution succeeded */
     DAGUE_HOOK_RETURN_AGAIN   = -1,  /* Reschedule later */
-    DAGUE_HOOK_RETURN_NEXT    = -2,  /* Try next chore [if any] */
+    DAGUE_HOOK_RETURN_NEXT    = -2,  /* Try next variant [if any] */
     DAGUE_HOOK_RETURN_DISABLE = -3,  /* Disable the device, something went wrong */
     DAGUE_HOOK_RETURN_ASYNC   = -4,  /* The task is outside our reach, the completion will
                                       * be triggered asynchronously. */
@@ -179,7 +173,8 @@ struct dague_function_s {
 
 struct dague_data_pair_s {
     struct data_repo_entry_s    *data_repo;
-    struct dague_data_copy_s    *data;
+    struct dague_data_copy_s    *data_in;
+    struct dague_data_copy_s    *data_out;
 };
 
 /**
@@ -307,12 +302,12 @@ int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
  * most internal structues, while leaving the datatypes and the tasks management
  * buffers untouched. Instead, from the application layer call the _Destruct.
  */
-#define DAGUE_INTERNAL_HANDLE_DESTRUCT(OBJ)             \
-    do {                                                \
-    dague_handle_t* __obj = (dague_handle_t*)(OBJ);     \
-    __obj->destructor(__obj);                           \
-    (OBJ) = NULL;                                       \
-} while (0)
+#define DAGUE_INTERNAL_HANDLE_DESTRUCT(OBJ)                            \
+    do {                                                               \
+        void* __obj = (void*)(OBJ);                                    \
+        ((dague_handle_t*)__obj)->destructor((dague_handle_t*)__obj);  \
+        (OBJ) = NULL;                                                  \
+    } while (0)
 
 #define dague_execution_context_priority_comparator offsetof(dague_execution_context_t, priority)
 

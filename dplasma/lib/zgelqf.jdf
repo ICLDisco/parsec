@@ -74,18 +74,18 @@ BODY
   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
   int ldak = BLKLDD( descA, k );
 
-  DRYRUN(
-         void *p_elem_A = dague_private_memory_pop( p_tau );
-         void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(DAGUE_DRY_RUN)
+  void *p_elem_A = dague_private_memory_pop( p_tau );
+  void *p_elem_B = dague_private_memory_pop( p_work );
 
-         CORE_zgelqt(tempkm, tempkn, ib,
-                     A /* A(k,k) */, ldak,
-                     B /* T(k,k) */, descT.mb,
-                     p_elem_A, p_elem_B );
+  CORE_zgelqt(tempkm, tempkn, ib,
+              A /* A(k,k) */, ldak,
+              B /* T(k,k) */, descT.mb,
+              p_elem_A, p_elem_B );
 
-         dague_private_memory_push( p_tau, p_elem_A );
-         dague_private_memory_push( p_work, p_elem_B );
-         );
+  dague_private_memory_push( p_tau, p_elem_A );
+  dague_private_memory_push( p_work, p_elem_B );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
   printlog("CORE_zgelqt(%d)\n"
            "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
@@ -120,18 +120,18 @@ BODY
   int ldak = BLKLDD( descA, k );
   int ldam = BLKLDD( descA, m );
 
-  DRYRUN(
-         void *p_elem_A = dague_private_memory_pop( p_work );
+  void *p_elem_A = dague_private_memory_pop( p_work );
 
-         CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm,
-                     tempkn, tempkn, ib,
-                     C /* A(k,k) */, ldak,
-                     D /* T(k,k) */, descT.mb,
-                     E /* A(m,k) */, ldam,
-                     p_elem_A, descT.nb );
+#if !defined(DAGUE_DRY_RUN)
+  CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm,
+              tempkn, tempkn, ib,
+              C /* A(k,k) */, ldak,
+              D /* T(k,k) */, descT.mb,
+              E /* A(m,k) */, ldam,
+              p_elem_A, descT.nb );
 
-         dague_private_memory_push( p_work, p_elem_A );
-         );
+  dague_private_memory_push( p_work, p_elem_A );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 
   printlog("CORE_zunmlq(%d, %d)\n"
@@ -171,18 +171,18 @@ BODY
   int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
   int ldak = BLKLDD( descA, k );
 
-  DRYRUN(
-         void *p_elem_A = dague_private_memory_pop( p_tau );
-         void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(DAGUE_DRY_RUN)
+  void *p_elem_A = dague_private_memory_pop( p_tau );
+  void *p_elem_B = dague_private_memory_pop( p_work );
 
-         CORE_ztslqt(tempkm, tempnn, ib,
-                     F /* A(k,k) */, ldak,
-                     G /* A(k,n) */, ldak,
-                     H /* T(k,n) */, descT.mb,
-                     p_elem_A, p_elem_B );
-         dague_private_memory_push( p_tau, p_elem_A );
-         dague_private_memory_push( p_work, p_elem_B );
-         );
+  CORE_ztslqt(tempkm, tempnn, ib,
+              F /* A(k,k) */, ldak,
+              G /* A(k,n) */, ldak,
+              H /* T(k,n) */, descT.mb,
+              p_elem_A, p_elem_B );
+  dague_private_memory_push( p_tau, p_elem_A );
+  dague_private_memory_push( p_work, p_elem_B );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
   printlog("CORE_ztslqt(%d, %d)\n"
            "\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
@@ -244,19 +244,19 @@ BODY
   int ldak = BLKLDD( descA, k );
   int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : descT.nb;
 
-  DRYRUN(
-         void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(DAGUE_DRY_RUN)
+  void *p_elem_A = dague_private_memory_pop( p_work );
 
-         CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm,
-                     descA.nb, tempmm, tempnn, descA.mb, ib,
-                     J /* A(m1,k) */, ldam,
-                     K /* A(m1,n) */, ldam,
-                     L /* A(k, n) */, ldak,
-                     M /* T(k, n) */, descT.mb,
-                     p_elem_A, ldwork );
+  CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm,
+              descA.nb, tempmm, tempnn, descA.mb, ib,
+              J /* A(m1,k) */, ldam,
+              K /* A(m1,n) */, ldam,
+              L /* A(k, n) */, ldak,
+              M /* T(k, n) */, descT.mb,
+              p_elem_A, ldwork );
 
-         dague_private_memory_push( p_work, p_elem_A );
-         );
+  dague_private_memory_push( p_work, p_elem_A );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
   printlog("CORE_ztsmlq(%d, %d, %d)\n"
            "\t(PlasmaRight, PlasmaConjTrans, tempmm, descA.nb, tempmm, tempnn, descA.mb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",

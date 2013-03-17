@@ -42,7 +42,7 @@ dague_list_construct( dague_list_t* list )
 static inline void
 dague_list_destruct( dague_list_t* list )
 {
-    assert(dague_list_is_empty(list));
+    assert(dague_list_is_empty(list)); (void)list;
 }
 
 OBJ_CLASS_INSTANCE(dague_list_t, dague_object_t,

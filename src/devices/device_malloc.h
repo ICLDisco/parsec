@@ -46,6 +46,7 @@ static inline void gpu_malloc_error(const char *msg)
 static inline gpu_malloc_t *gpu_malloc_init(int _max_segment, size_t _unit_size)
 {
     gpu_malloc_t *gdata = (gpu_malloc_t*)malloc( sizeof(gpu_malloc_t) );
+    void *ptr = NULL;
     segment_t *s;
     cudaError_t rc;
     int i;
@@ -56,8 +57,9 @@ static inline gpu_malloc_t *gpu_malloc_init(int _max_segment, size_t _unit_size)
     gdata->unit_size          = _unit_size;
     gdata->max_segment        = _max_segment+2;
 
-    rc = (cudaError_t)cudaMalloc( (void**)(&(gdata->base)),
+    rc = (cudaError_t)cudaMalloc( &ptr,
                                   (_max_segment * gdata->unit_size) );
+    gdata->base = ptr;
     if( (cudaSuccess != rc) || (NULL == gdata->base) ) {
         gpu_malloc_error("unable to allocate backend memory\n");
         free(gdata);

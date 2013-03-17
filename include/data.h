@@ -80,7 +80,7 @@ dague_data_get_copy(dague_data_t* data, uint32_t device)
     return data->device_copies[device];
 }
 
-dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint16_t device);
+dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint8_t device);
 /**
  * Decrease the refcount of this copy of the data. If the refcount reach
  * 0 the upper level is in charge of cleaning up and releasing all content
@@ -119,14 +119,15 @@ extern void dague_data_delete(dague_data_t* data);
  */
 extern int dague_data_copy_attach(dague_data_t* data,
                                   dague_data_copy_t* copy,
-                                  uint16_t device);
+                                  uint8_t device);
 extern int dague_data_copy_detach(dague_data_t* data,
                                   dague_data_copy_t* copy,
-                                  uint16_t device);
+                                  uint8_t device);
 
-int dague_data_copy_ownership_to_device(dague_data_t* map,
-                                        uint16_t device,
-                                        uint8_t access_mode);
+int dague_data_transfer_ownership_to_copy(dague_data_t* map,
+                                          uint8_t device,
+                                          uint8_t access_mode);
 extern void dague_dump_data_copy(dague_data_copy_t* copy);
+extern void dague_dump_data(dague_data_t* copy);
 
 #endif  /* DATA_H_HAS_BEEN_INCLUDED */

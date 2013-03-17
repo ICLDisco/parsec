@@ -83,7 +83,7 @@ zttmqr(k, m, n)
   READ  T <- T zttmqr_in_T(k, m) [type = LITTLE_T]
 
 BODY
-{
+
     int tempnn  = ( n == descQ.nt-1 ) ? descQ.n - n * descQ.nb : descQ.nb;
     int tempmm  = ( m == descQ.mt-1 ) ? descQ.m - m * descQ.mb : descQ.mb;
     int tempAkn = ( k == descA.nt-1 ) ? descA.n - k * descA.nb : descA.nb;
@@ -102,30 +102,28 @@ BODY
              k, n, A1, m, n, A2,
              m, k, V,  m, k, T);
 
-    DRYRUN(
-        if ( type == DPLASMA_QR_KILLED_BY_TS ) {
-            CORE_ztsmqr(
-                PlasmaLeft, PlasmaNoTrans,
-                descQ.mb, tempnn, tempmm, tempnn, tempAkn, ib,
-                A1 /* Q(p, n) */, ldqk,
-                A2 /* Q(m, n) */, ldqm,
-                V  /* A(m, k) */, ldam,
-                T  /* T(m, k) */, descTT.mb,
-                p_elem_A, ldwork );
-        } else {
-            CORE_zttmqr(
-                PlasmaLeft, PlasmaNoTrans,
-                descQ.mb, tempnn, tempmm, tempnn, tempAkn, ib,
-                A1 /* Q(p, n) */, ldqk,
-                A2 /* Q(m, n) */, ldqm,
-                V  /* A(m, k) */, ldam,
-                 T  /* T(m, k) */, descTT.mb,
-                p_elem_A, ldwork );
-        }
-           );
+#if !defined(DAGUE_DRY_RUN)
+    if ( type == DPLASMA_QR_KILLED_BY_TS ) {
+        CORE_ztsmqr(PlasmaLeft, PlasmaNoTrans,
+                    descQ.mb, tempnn, tempmm, tempnn, tempAkn, ib,
+                    A1 /* Q(p, n) */, ldqk,
+                    A2 /* Q(m, n) */, ldqm,
+                    V  /* A(m, k) */, ldam,
+                    T  /* T(m, k) */, descTT.mb,
+                    p_elem_A, ldwork );
+    } else {
+        CORE_zttmqr(PlasmaLeft, PlasmaNoTrans,
+                    descQ.mb, tempnn, tempmm, tempnn, tempAkn, ib,
+                    A1 /* Q(p, n) */, ldqk,
+                    A2 /* Q(m, n) */, ldqm,
+                    V  /* A(m, k) */, ldam,
+                    T  /* T(m, k) */, descTT.mb,
+                    p_elem_A, ldwork );
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
     dague_private_memory_push( p_work, p_elem_A );
-}
+
 END
 
 /*
@@ -141,9 +139,7 @@ zttmqr_in_A1(k, n) [profile = off]
   RW A <- Q(k, n)
        -> A1 zttmqr( k, prevp, n )
 BODY
-{
     /* nothing */
-}
 END
 
 /*
@@ -161,9 +157,7 @@ zttmqr_in_V(k, m) [profile = off]
        -> (type == 0) ? V zttmqr(k, m, 0..descQ.nt-1)
        -> (type != 0) ? V zttmqr(k, m, 0..descQ.nt-1) [type = UPPER_TILE]
 BODY
-{
     /* nothing */
-}
 END
 
 
@@ -179,9 +173,7 @@ zttmqr_in_T(k, m) [profile = off]
   RW T <- TT(m, k)                       [type = LITTLE_T]
        -> T zttmqr(k, m, 0..descQ.nt-1)  [type = LITTLE_T]
 BODY
-{
     /* nothing */
-}
 END
 
 
@@ -213,7 +205,7 @@ zunmqr(k, i, n)
           -> ( k >  0 ) ? A2 zttmqr(k-1, m, n)
 
 BODY
-{
+
     int tempAkm  = ( k == descA.mt-1 ) ? descA.m - k * descA.mb : descA.mb;
     int tempAkn  = ( k == descA.nt-1 ) ? descA.n - k * descA.nb : descA.nb;
     int tempkm   = ( k == descQ.mt-1 ) ? descQ.m - k * descQ.mb : descQ.mb;
@@ -228,16 +220,16 @@ BODY
              "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
              k, n, k, k, A, k, k, T, k, n, C);
 
-    DRYRUN(
-        CORE_zunmqr(PlasmaLeft, PlasmaNoTrans,
-                    tempkm, tempnn, tempkmin, ib,
-                    A /* A(k, k) */, ldak,
-                    T /* T(k, k) */, descTS.mb,
-                    C /* Q(k, n) */, ldqk,
-                    p_elem_A, descTS.nb );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zunmqr(PlasmaLeft, PlasmaNoTrans,
+                tempkm, tempnn, tempkmin, ib,
+                A /* A(k, k) */, ldak,
+                T /* T(k, k) */, descTS.mb,
+                C /* Q(k, n) */, ldqk,
+                p_elem_A, descTS.nb );
+#endif  /* !defined(DAGUE_DRY_RUN) */
     dague_private_memory_push( p_work, p_elem_A );
-}
+
 END
 
 /*
@@ -253,11 +245,8 @@ zunmqr_in_A(k, i) [profile = off]
   RW A <- A( m, k )                       [type = LOWER_TILE]
        -> A zunmqr(k, i, 0..descQ.nt-1)   [type = LOWER_TILE]
 BODY
-{
     /* nothing */
-}
 END
-
 
 /*
  * Pseudo-task
@@ -272,7 +261,6 @@ zunmqr_in_T(k, i) [profile = off]
   RW T <- TS( m, k )                      [type = LITTLE_T]
        -> T zunmqr(k, i, 0..descQ.nt-1)   [type = LITTLE_T]
 BODY
-{
     /* nothing */
-}
 END
+

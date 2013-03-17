@@ -99,18 +99,18 @@ ztrdsm(k,n)
 
 BODY
 
-  int tempkm = ((k)==((desc_B.mt)-1)) ? ((desc_B.m)-(k*(desc_B.mb))) : (desc_B.mb);
-  int tempkn = ((n)==((desc_B.nt)-1)) ? ((desc_B.n)-(n*(desc_B.nb))) : (desc_B.nb);
-  int lda = BLKLDD( desc_A, k );
-  int ldb = BLKLDD( desc_B, k );
+    int tempkm = ((k)==((desc_B.mt)-1)) ? ((desc_B.m)-(k*(desc_B.mb))) : (desc_B.mb);
+    int tempkn = ((n)==((desc_B.nt)-1)) ? ((desc_B.n)-(n*(desc_B.nb))) : (desc_B.nb);
+    int lda = BLKLDD( desc_A, k );
+    int ldb = BLKLDD( desc_B, k );
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
     CORE_ztrdsm(tempkm, tempkn, A, lda, B, ldb );
-  );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-  printlog("thread %d CORE_ztrdsm(%d, %d)\n"
-           "\t(tempkm, tempkn, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-           context->th_id, k, n, k, k, A, k, n, B);
+    printlog("thread %d CORE_ztrdsm(%d, %d)\n"
+             "\t(tempkm, tempkn, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
+             context->th_id, k, n, k, k, A, k, n, B);
 
 END
 
@@ -126,6 +126,6 @@ ztrdsm_in_data_A0(k,n)
   RW A <- data_A(k,k)
        -> A ztrdsm(k,n)
 BODY
-/* nothing */
+    /* nothing */
 END
 

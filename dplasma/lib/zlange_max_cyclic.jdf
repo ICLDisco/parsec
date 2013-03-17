@@ -70,10 +70,12 @@ RWCOL(m, n) [profile = off]
            -> (n > (descA.nt-1)) ? W STEP2(m, n)    [type = COL]
 
 BODY
-    DRYRUN(
-        /* Initialize W */
-        ((double *)W)[0] = 0.;
-           );
+
+#if !defined(DAGUE_DRY_RUN)
+    /* Initialize W */
+    ((double *)W)[0] = 0.;
+#endif  /* !defined(DAGUE_DRY_RUN) */
+
 END
 
 RWELT(m, n) [profile = off]
@@ -94,10 +96,10 @@ RWELT(m, n) [profile = off]
            -> (m > (descA.mt-1)) ? W STEP4(m,   n)  [type = ELT]
 
 BODY
-    DRYRUN(
-        /* Initialize W */
-        ((double *)W)[0] = 0.;
-           );
+#if !defined(DAGUE_DRY_RUN)
+    /* Initialize W */
+    ((double *)W)[0] = 0.;
+#endif  /* !defined(DAGUE_DRY_RUN) */
 END
 /**************************************************
  *
@@ -121,7 +123,6 @@ STEP1(m,n)
            ->  ( n < Q           ) ? W STEP2( m, n   ) : W STEP1( m, n-Q ) [type = COL]
 
 BODY
-{
     int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
     int tempnn = ( n == (descA.nt-1) ) ? descA.n - n * descA.nb : descA.nb;
     int ldam = BLKLDD( descA, m );
@@ -132,14 +133,14 @@ BODY
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
              context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
 
-        CORE_zlange(PlasmaMaxNorm, tempmm, tempnn,
-                    A, ldam, NULL, &lnorm);
+    CORE_zlange(PlasmaMaxNorm, tempmm, tempnn,
+                A, ldam, NULL, &lnorm);
 
-        *dW = ( lnorm > *dW ) ? lnorm : *dW;
-           );
-}
+     *dW = ( lnorm > *dW ) ? lnorm : *dW;
+#endif  /* !defined(DAGUE_DRY_RUN) */
+
 END
 
 /**************************************************
@@ -168,15 +169,13 @@ BODY
              "\t( W(%d, %d) || W(%d, %d)\n",
              context->th_id, m, n, m, n-1, m, n);
 
-    DRYRUN(
-        if(n > 0)
-        {
-            double *dA = (double*)A;
-            double *dW = (double*)W;
-            *dW = ( *dA > *dW ) ? *dA : *dW;
-
-        }
-           );
+#if !defined(DAGUE_DRY_RUN)
+    if(n > 0) {
+        double *dA = (double*)A;
+        double *dW = (double*)W;
+        *dW = ( *dA > *dW ) ? *dA : *dW;
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -207,16 +206,16 @@ BODY
     printlog("thread %d zlange STEP3(%d, %d)\n",
              context->th_id, m, n);
 
-    DRYRUN(
-        double *dA = (double*)A;
-        double *dW = (double*)W;
+#if !defined(DAGUE_DRY_RUN)
+    double *dA = (double*)A;
+    double *dW = (double*)W;
 
-        if ( m < (descA.mt-P) ) {
-            *dW = ( *dA > *dW ) ? *dA : *dW;
-        } else {
-            *dW = *dA;
-        }
-           );
+    if ( m < (descA.mt-P) ) {
+        *dW = ( *dA > *dW ) ? *dA : *dW;
+    } else {
+        *dW = *dA;
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -245,14 +244,14 @@ BODY
     printlog("thread %d zlange STEP4(%d, %d)\n",
              context->th_id, m, n);
 
-    DRYRUN(
-        if(m > 0)
-        {
-            double *dA = (double*)A;
-            double *dW = (double*)W;
-            *dW = ( *dA > *dW ) ? *dA : *dW;
-        }
-           );
+#if !defined(DAGUE_DRY_RUN)
+    if(m > 0) {
+        double *dA = (double*)A;
+        double *dW = (double*)W;
+        *dW = ( *dA > *dW ) ? *dA : *dW;
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
+
 END
 
 /**************************************************
@@ -271,10 +270,8 @@ WRITE_RES(m,n)
     READ W <- W STEP4( P-1, n )   [type = ELT]
 
 BODY
-{
     printlog("thread %d zlange STORE RESULT(%d, %d)\n",
              context->th_id, m, n);
 
     *norm = *( (double*)W );
-}
 END

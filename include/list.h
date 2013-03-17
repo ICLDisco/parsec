@@ -340,30 +340,25 @@ dague_list_unlock( dague_list_t* list )
 #define _OPAQUE_LIST_ITERATOR_BEGIN_DEFINITION(list) (&((list)->ghost_element))
 #define _OPAQUE_LIST_ITERATOR_PREV_DEFINITION(ITEM)  ((dague_list_item_t*)ITEM->list_prev)
 
-#define _OPAQUE_LIST_ITERATOR_DEFINITION(list,ITEM,CODE) ({             \
+#define _OPAQUE_LIST_ITERATOR_DEFINITION(list,ITEM,CODE)                \
+do {                                                                    \
     dague_list_item_t* ITEM;                                            \
     dague_list_lock(list);                                              \
     for(ITEM = (dague_list_item_t*)(list)->ghost_element.list_next;     \
         ITEM != &((list)->ghost_element);                               \
         ITEM = (dague_list_item_t*)ITEM->list_next)                     \
-    {                                                                   \
-        CODE;                                                           \
-    }                                                                   \
+    { CODE; }                                                           \
     dague_list_unlock(list);                                            \
-    ITEM;                                                               \
-})                                                                      \
+} while(0)
 
-#define _OPAQUE_ULIST_ITERATOR_DEFINITION(list,ITEM,CODE) ({            \
+#define _OPAQUE_ULIST_ITERATOR_DEFINITION(list,ITEM,CODE)               \
+do {                                                                    \
     dague_list_item_t* ITEM;                                            \
     for(ITEM = (dague_list_item_t*)(list)->ghost_element.list_next;     \
         ITEM != &((list)->ghost_element);                               \
         ITEM = (dague_list_item_t*)ITEM->list_next)                     \
-    {                                                                   \
-        CODE;                                                           \
-    }                                                                   \
-    ITEM;                                                               \
-})
-
+    { CODE; }                                                           \
+} while(0)
 
 static inline void
 dague_list_nolock_add_before( dague_list_t* list,
@@ -403,9 +398,8 @@ dague_list_nolock_remove( dague_list_t* list,
     assert( &list->ghost_element != item );
 #if defined(DAGUE_DEBUG_ENABLE)
     assert( list == item->belong_to );
-#else
-    (void)list;
 #endif
+    (void)list;
     dague_list_item_t* prev = (dague_list_item_t*)item->list_prev;
     item->list_prev->list_next = item->list_next;
     item->list_next->list_prev = item->list_prev;
@@ -428,11 +422,14 @@ dague_list_nolock_push_sorted( dague_list_t* list,
                                dague_list_item_t* new,
                                size_t off )
 {
-    dague_list_item_t* position = DAGUE_ULIST_ITERATOR(list, pos,
-    {
-        if( A_LOWER_PRIORITY_THAN_B(new, pos, off) )
+    dague_list_item_t* position = (dague_list_item_t*)list->ghost_element.list_next;
+    DAGUE_ULIST_ITERATOR(list, pos, {
+        position = pos;
+        if( A_LOWER_PRIORITY_THAN_B(new, pos, off) ) {
             break;
+        }
     });
+    assert(NULL != position);
     dague_ulist_add_before(list, position, new);
 }
 

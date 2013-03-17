@@ -230,7 +230,7 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
     {
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
         OBJ_CONSTRUCT(item, dague_list_item_t);
-        dague_context_t *ret;
+        void *ret;
 
         item->action = DEP_CTL;
         item->cmd.ctl.enable = -1;  /* turn off the MPI thread */
@@ -240,8 +240,8 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
         /* I am supposed to own the lock. Wake the MPI thread */
         pthread_cond_signal(&mpi_thread_condition);
         pthread_mutex_unlock(&mpi_thread_mutex);
-        pthread_join(dep_thread_id, (void**) &ret);
-        assert(ret == context);
+        pthread_join(dep_thread_id, &ret);
+        assert((dague_context_t*)ret == context);
     }
 
     OBJ_DESTRUCT(&dep_cmd_queue);
@@ -400,17 +400,16 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != (target = exec_context.function->out[i])); i++) {
         whereto = target->flow_index;
         exec_context.data[whereto].data_repo = NULL;
-        exec_context.data[whereto].data      = NULL;
+        exec_context.data[whereto].data_out  = NULL;
         if(origin->msg.deps & (1 << i)) {
             DEBUG3(("MPI:\tDATA %p released from %p[%d]\n", DAGUE_DATA_COPY_GET_PTR(origin->output[i].data), origin, i));
-            exec_context.data[whereto].data = origin->output[i].data;
+            exec_context.data[whereto].data_out = origin->output[i].data;
 #if defined(DAGUE_DEBUG_ENABLE) && defined(DAGUE_DEBUG_VERBOSE3)
             if(origin->output[i].type) { /* no prints for CTL! */
                 char tmp[MAX_TASK_STRLEN];
-                void* _data = DAGUE_DATA_COPY_GET_PTR(exec_context.data[whereto].data);
-                DEBUG3(("MPI:\t%s: recv %p -> [0] %9.5f [1] %9.5f [2] %9.5f\n",
+                DEBUG3(("MPI:\t%s: recv { %p, %p, %p }\n",
                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &exec_context),
-                       _data, ((double*)_data)[0], ((double*)_data)[1], ((double*)_data)[2]));
+                       exec_context.data[whereto].data_repo, exec_context.data[whereto].data_in, exec_context.data[whereto].data_out));
             }
 #endif
         }

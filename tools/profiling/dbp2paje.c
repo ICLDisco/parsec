@@ -318,7 +318,7 @@ static uidentry_t *uidhash_lookup_create_entry(const char *long_uid)
         if( 0 == strcmp(n->long_uid, long_uid) )
             return n;
     }
-    
+
     n = (uidentry_t*)malloc( sizeof(uidentry_t) );
     n->long_uid = strdup(long_uid);
     asprintf(&n->uid, "%X", nextid++);
@@ -353,7 +353,7 @@ static int merge_event( dague_list_t *list, consolidated_event_t *cev )
                 ((next != NULL) && (cev->end > next->start) )) &&
                 (cev->start_thread == cev->end_thread) ) {
                 broken = 1;
-            } 
+            }
             dague_list_nolock_add_after( list,
                                          it,
                                          (dague_list_item_t*)cev );
@@ -376,7 +376,7 @@ static uint64_t *step_height(dague_list_t *list, int *level)
     int s, nb_steps = 0;
     static int allocated_dates = 0;
     static uint64_t *dates = NULL;
-    
+
     for( e = DAGUE_LIST_ITERATOR_FIRST(list);
          e != DAGUE_LIST_ITERATOR_END(list);
          e = DAGUE_LIST_ITERATOR_NEXT(e) ) {
@@ -432,7 +432,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     OBJ_CONSTRUCT( &consolidated_events, dague_list_t );
     while( (e = dbp_iterator_current(pit)) != NULL ) {
         if( KEY_IS_START( dbp_event_get_key(e) ) ) {
-                
+
             key = BASE_KEY(dbp_event_get_key(e));
             nit = dbp_iterator_find_matching_event_all_threads(pit);
 
@@ -442,7 +442,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                          dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
                          dbp_event_get_handle_id(e), dbp_event_get_event_id(e),
                          diff_time(relative, dbp_event_get_timestamp(e))));
-                
+
                 current_stat[ key ].nb_matcherror++;
             } else {
                 g = dbp_iterator_current(nit);
@@ -451,15 +451,16 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                     current_stat[ key ].nb_matchthreads++;
                 }
                 current_stat[ key ].nb_matchsuccess++;
-                
+
                 start = diff_time( relative, dbp_event_get_timestamp( e ) );
                 end = diff_time( relative, dbp_event_get_timestamp( g ) );
-                
+
                 assert( start <= end );
-                
+
                 cev = (consolidated_event_t*)malloc(sizeof(consolidated_event_t) +
                                                     dbp_event_info_len(e, dbp) +
                                                     dbp_event_info_len(g, dbp) );
+                OBJ_CONSTRUCT(&cev->super, dague_list_item_t);
                 cev->event_id = dbp_event_get_event_id(e);
                 cev->handle_id = dbp_event_get_handle_id(e);
                 cev->start = start;
@@ -471,7 +472,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                 cev->end_info_size = dbp_event_info_len(g, dbp);
                 memcpy(cev->infos, dbp_event_get_info( e ), cev->start_info_size);
                 memcpy(cev->infos + cev->start_info_size, dbp_event_get_info( g ), cev->end_info_size);
-                
+
                 progress_bar_event_to_output();
 
                 merge_event( &consolidated_events, cev );
@@ -503,7 +504,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
             sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
             pajeSetState2( ((double)cev->start) * 1e-3, "ST_TS", cont_step_name, keyid );
             pajeSetState2( ((double)cev->end) * 1e-3, "ST_TS", cont_step_name, "Wait");
-        } 
+        }
         if( cev->start_thread != cev->end_thread &&
             USERFLAGS.split_events_link ) {
             sprintf(linkid, "L-%d", linkuid);
@@ -662,16 +663,16 @@ int main(int argc, char *argv[])
     for(i = 0; i < dbp_reader_nb_files(dbp); i++) {
         int l;
         file = dbp_reader_get_file(dbp, i);
-        l = 3 + snprintf(NULL, 0, "#%s Rank %d/%d", 
-                         dbp_file_hr_id(file), 
-                         dbp_file_get_rank(file), 
+        l = 3 + snprintf(NULL, 0, "#%s Rank %d/%d",
+                         dbp_file_hr_id(file),
+                         dbp_file_get_rank(file),
                          dbp_reader_worldsize(dbp));
         if( l > stat_columns[0] )
             stat_columns[0] = l;
     }
-    
+
     dague_profiling_dump_paje( USERFLAGS.outfile, dbp );
-    
+
     progress_bar_end();
 
     for(k = 0 ; k < dbp_reader_nb_dictionary_entries(dbp); k = k+1 ) {

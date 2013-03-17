@@ -88,30 +88,30 @@ zgetrf(k)
 
 BODY
 
-  int iinfo = 0;
-  DRYRUN(
-         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-         int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-         int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%Bmb);*/
+    int iinfo = 0;
+#if !defined(DAGUE_DRY_RUN)
+    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+    int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+    int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%Bmb);*/
 
-         /* Set local IPIV to 0 before generation 
-          * Better here than a global initialization for locality 
-          * and it's also done in parallel */
-         memset(getIPIV(B), 0, min(tempkn, tempkm) * sizeof(int) );
+    /* Set local IPIV to 0 before generation 
+     * Better here than a global initialization for locality 
+     * and it's also done in parallel */
+    memset(getIPIV(B), 0, min(tempkn, tempkm) * sizeof(int) );
 
-         CORE_zgetrf(tempkm, tempkn, ib, 
-                     A /* A(k,k)    */, ldak, 
-                     getIPIV(B) /* IPIV(k,k) */, &iinfo );
+    CORE_zgetrf(tempkm, tempkn, ib, 
+                A /* A(k,k)    */, ldak, 
+                getIPIV(B) /* IPIV(k,k) */, &iinfo );
 
-         if ( (iinfo != 0) && (k == descA.mt-1) ) {
-             *INFO = k * descA.mb + iinfo; /* Should return if enter here */
-             fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
-         }
-         );
+    if ( (iinfo != 0) && (k == descA.mt-1) ) {
+        *INFO = k * descA.mb + iinfo; /* Should return if enter here */
+        fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-   printlog("  CORE_zgetrf(%d)\n"
-            "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, IPIV(%d,%d)[%p]) => info = %d\n",
-            k, k, k, A, k, k, B, k * descA.mb + iinfo);
+    printlog("  CORE_zgetrf(%d)\n"
+             "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, IPIV(%d,%d)[%p]) => info = %d\n",
+             k, k, k, A, k, k, B, k * descA.mb + iinfo);
 
 END
 
@@ -146,20 +146,20 @@ zgessm(k,n)
 
 BODY
 
-  DRYRUN(
-         int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-         int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+#if !defined(DAGUE_DRY_RUN)
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+    int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
 
-         CORE_zgessm(tempkm, tempnn, tempkm, ib, 
-                     getIPIV(C) /* IPIV(k,k) */, 
-                     D /* A(k,k) */, ldak, 
-                     E /* A(k,n) */, ldak );
-         );
-   printlog("  CORE_zgessm(%d, %d)\n"
-            "\t(tempkm, tempnn, tempkm, ib, IPIV(%d,%d)[%p], \n"
-            "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
-            k, n, k, k, getIPIV(C), k, k, D, k, n, E);
+    CORE_zgessm(tempkm, tempnn, tempkm, ib, 
+                getIPIV(C) /* IPIV(k,k) */, 
+                D /* A(k,k) */, ldak, 
+                E /* A(k,n) */, ldak );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+    printlog("  CORE_zgessm(%d, %d)\n"
+             "\t(tempkm, tempnn, tempkm, ib, IPIV(%d,%d)[%p], \n"
+             "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
+             k, n, k, k, getIPIV(C), k, k, D, k, n, E);
 
 END
 
@@ -212,36 +212,36 @@ ztstrf(k,m)
 
 BODY
 
-  DRYRUN(
-         int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-         int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-         int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
-         int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+#if !defined(DAGUE_DRY_RUN)
+    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+    int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
+    int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+    int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
 
-         int iinfo;
-         PLASMA_Complex64_t *work = dague_private_memory_pop(work_pool);
+    int iinfo;
+    PLASMA_Complex64_t *work = dague_private_memory_pop(work_pool);
 
-         memset(getIPIV(H), 0, min(tempkn, tempmm) * sizeof(int) );
-         CORE_ztstrf(tempmm, tempkn, ib, descL.nb, 
-                     F           /* A(k,k) */, ldak, 
-                     G           /* A(m,k) */, ldam, 
-                     getL(H)    /* L(m,k) */, descL.mb-1, 
-                     getIPIV(H) /* IPIV(m,k) */, 
-                     work, descL.nb, &iinfo );
-         dague_private_memory_push(work_pool, work);
+    memset(getIPIV(H), 0, min(tempkn, tempmm) * sizeof(int) );
+    CORE_ztstrf(tempmm, tempkn, ib, descL.nb, 
+                F           /* A(k,k) */, ldak, 
+                G           /* A(m,k) */, ldam, 
+                getL(H)    /* L(m,k) */, descL.mb-1, 
+                getIPIV(H) /* IPIV(m,k) */, 
+                work, descL.nb, &iinfo );
+    dague_private_memory_push(work_pool, work);
 
-         if ( (iinfo != 0) && (m == descA.mt-1) ) {
-             *INFO = k * descA.mb + iinfo; /* Should return if enter here */
-             fprintf(stderr, "ztstrf(%d, %d) failed => %d\n", m, k, *INFO );
-         }
-         );
+    if ( (iinfo != 0) && (m == descA.mt-1) ) {
+        *INFO = k * descA.mb + iinfo; /* Should return if enter here */
+        fprintf(stderr, "ztstrf(%d, %d) failed => %d\n", m, k, *INFO );
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-  printlog("  CORE_ztstrf(%d, %d)\n"
-           "\t(tempmm, tempkn, ib, descL.nb, \n"
-           "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, \n"
-           "\tL(%d,%d)[%p], descL.mb, IPIV(%d,%d)[%p], descL.nb)\n",
-           k, m, k, k, F, m, k, G, 
-           m, k, getL(H), m, k, getIPIV(H));
+    printlog("  CORE_ztstrf(%d, %d)\n"
+             "\t(tempmm, tempkn, ib, descL.nb, \n"
+             "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, \n"
+             "\tL(%d,%d)[%p], descL.mb, IPIV(%d,%d)[%p], descL.nb)\n",
+             k, m, k, k, F, m, k, G, 
+             m, k, getL(H), m, k, getIPIV(H));
 
 END
 
@@ -298,25 +298,25 @@ zssssm(k,m,n1)
 
 BODY
 
-  int tempmm = ((m) ==(descA.mt-1)) ? (descA.m -( m*descA.mb)) : (descA.mb);
-  int tempnn = ((n1)==(descA.nt-1)) ? (descA.n -(n1*descA.nb)) : (descA.nb);
-  int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
-  int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+    int tempmm = ((m) ==(descA.mt-1)) ? (descA.m -( m*descA.mb)) : (descA.mb);
+    int tempnn = ((n1)==(descA.nt-1)) ? (descA.n -(n1*descA.nb)) : (descA.nb);
+    int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+    int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
 
-  DRYRUN(
-         CORE_zssssm(descA.nb, tempnn, tempmm, tempnn, descA.nb, ib, 
-                     J          /* A(k,n1) */, ldak, 
-                     K          /* A(m,n1) */, ldam, 
-                     getL(L)    /* L(m,k) */,  descL.mb-1, 
-                     M          /* A(m,k) */,  ldam, 
-                     getIPIV(L) /* IPIV(m,k) */ );
-         );
-  printlog("  CORE_zssssm(%d, %d, %d)\n"
-           "\t(%d, %d, %d, %d, %d, %d, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, \n"
-           "\tL(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
-           k, m, n1, descA.nb, tempnn, tempmm, tempnn, descA.nb, ib, 
-           k, n1, J, ldak,     m, n1, K, ldam, 
-           m, k, getL(L), descL.mb-1, m, k,  M, ldam, 
-           m, k, getIPIV(L));
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zssssm(descA.nb, tempnn, tempmm, tempnn, descA.nb, ib, 
+                J          /* A(k,n1) */, ldak, 
+                K          /* A(m,n1) */, ldam, 
+                getL(L)    /* L(m,k) */,  descL.mb-1, 
+                M          /* A(m,k) */,  ldam, 
+                getIPIV(L) /* IPIV(m,k) */ );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+    printlog("  CORE_zssssm(%d, %d, %d)\n"
+             "\t(%d, %d, %d, %d, %d, %d, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, \n"
+             "\tL(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
+             k, m, n1, descA.nb, tempnn, tempmm, tempnn, descA.nb, ib, 
+             k, n1, J, ldak,     m, n1, K, ldam, 
+             m, k, getL(L), descL.mb-1, m, k,  M, ldam, 
+             m, k, getIPIV(L));
 
 END

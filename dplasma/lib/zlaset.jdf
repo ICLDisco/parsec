@@ -50,20 +50,21 @@ n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
 RW A <- A(m, n)
      -> A(m, n)
 BODY
-  int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-  int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
-  int ldam = BLKLDD( descA, m );
 
-        DRYRUN(
-               LAPACKE_zlaset_work(
-                   LAPACK_COL_MAJOR, 'A',
-                   tempmm, tempnn, alpha, alpha, A, ldam);
-               );
+    int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+    int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
+    int ldam = BLKLDD( descA, m );
 
-        printlog("laset( %d, %d )\n"
-                 "    ( %s, %d, %d, %f, %f, A(%d,%d), %d)\n",
-                 m, n, "Lower",
-                 tempmm, tempnn, creal(alpha), creal(beta), m, n, ldam);
+#if !defined(DAGUE_DRY_RUN)
+    LAPACKE_zlaset_work(LAPACK_COL_MAJOR, 'A',
+                        tempmm, tempnn, alpha, alpha, A, ldam);
+#endif  /* !defined(DAGUE_DRY_RUN) */
+
+    printlog("laset( %d, %d )\n"
+             "    ( %s, %d, %d, %f, %f, A(%d,%d), %d)\n",
+             m, n, "Lower",
+             tempmm, tempnn, creal(alpha), creal(beta), m, n, ldam);
+
 END
 
 LASET_U(m, n) [profile=off]
@@ -80,20 +81,21 @@ n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
 RW   A <- A(m, n)
        -> A(m, n)
 BODY
-  int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-  int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
-  int ldam = BLKLDD( descA, m );
 
-        DRYRUN(
-               LAPACKE_zlaset_work(
-                   LAPACK_COL_MAJOR, 'A',
-                   tempmm, tempnn, alpha, alpha, A, ldam);
-               );
+    int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+    int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
+    int ldam = BLKLDD( descA, m );
 
-        printlog("laset( %d, %d )\n"
-                 "    ( %s, %d, %d, %f, %f, A(%d,%d), %d)\n",
-                 m, n, "Upper",
-                 tempmm, tempnn, creal(alpha), creal(beta), m, n, ldam);
+#if !defined(DAGUE_DRY_RUN)
+    LAPACKE_zlaset_work(LAPACK_COL_MAJOR, 'A',
+                        tempmm, tempnn, alpha, alpha, A, ldam);
+#endif  /* !defined(DAGUE_DRY_RUN) */
+
+    printlog("laset( %d, %d )\n"
+             "    ( %s, %d, %d, %f, %f, A(%d,%d), %d)\n",
+             m, n, "Upper",
+             tempmm, tempnn, creal(alpha), creal(beta), m, n, ldam);
+
 END
 
 LASET_DIAG(k) [profile=off]
@@ -109,20 +111,21 @@ LASET_DIAG(k) [profile=off]
 RW  A <- A(k, k)
       -> A(k, k)
 BODY
-  int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
-  int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
-  int ldak = BLKLDD( descA, k );
 
-        DRYRUN(
-               LAPACKE_zlaset_work(
-                   LAPACK_COL_MAJOR, lapack_const( uplo ),
-                   tempkm, tempkn, alpha, beta, A, ldak);
-               );
+    int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
+    int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
+    int ldak = BLKLDD( descA, k );
 
-   printlog("laset_diag( %d )\n"
-           "    ( %s, %d, %d, %e, %e, A(%d,%d), %d)\n",
-           k, plasma_const( uplo ),
-            tempkm, tempkn, creal(alpha), creal(beta), k, k, ldak);
+#if !defined(DAGUE_DRY_RUN)
+    LAPACKE_zlaset_work(LAPACK_COL_MAJOR, lapack_const( uplo ),
+                        tempkm, tempkn, alpha, beta, A, ldak);
+#endif  /* !defined(DAGUE_DRY_RUN) */
+
+    printlog("laset_diag( %d )\n"
+             "    ( %s, %d, %d, %e, %e, A(%d,%d), %d)\n",
+             k, plasma_const( uplo ),
+             tempkm, tempkn, creal(alpha), creal(beta), k, k, ldak);
+
 END
 extern "C" %{
 

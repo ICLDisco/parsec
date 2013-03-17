@@ -82,6 +82,9 @@
 #cmakedefine ARCH_PPC
 #cmakedefine MAC_OS_X
 
+#cmakedefine DAGUE_HAVE_ATTRIBUTE_VISIBILITY
+#cmakedefine DAGUE_HAVE_ATTRIBUTE_ALWAYS_INLINE
+
 /* Configuration parameters */
 #cmakedefine DAGUE_WANT_HOME_CONFIG_FILES
 
@@ -100,6 +103,11 @@
 
 #cmakedefine HAVE_AYUDAME
 
+#cmakedefine HAVE_RECENT_LEX
+
+#cmakedefine HAVE_INDENT
+#define DAGUE_INDENT_PREFIX "@INDENT_EXECUTABLE@"
+#define DAGUE_INDENT_OPTIONS "@INDENT_OPTIONS@"
 #define DAGUE_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 
 #if !defined(_GNU_SOURCE)

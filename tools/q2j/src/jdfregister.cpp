@@ -1051,7 +1051,7 @@ void jdf_register_body(jdf_function_entry_t *this_function,
     jdf_body_t *body = q2jmalloc(jdf_body_t, 1);
 
     JDF_OBJECT_SET(body, NULL, 0, NULL);
-    body->external_code = strdup(quark_tree_to_body(task_node));
+    body->external_code = strdup(tree_to_body(task_node));
     body->next = this_function->bodies;
     this_function->bodies = body;
 }

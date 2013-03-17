@@ -64,8 +64,10 @@ mca_base_component_t *sched_gd_static_component(void)
 
 static int sched_gd_component_query(mca_base_module_t **module, int *priority)
 {
+    /* module type should be: const mca_base_module_t ** */
+    void *ptr = (void*)&dague_sched_gd_module;
     *priority = 10;
-    *module = (mca_base_module_t *)&dague_sched_gd_module;
+    *module = (mca_base_module_t *)ptr;
     return MCA_SUCCESS;
 }
 

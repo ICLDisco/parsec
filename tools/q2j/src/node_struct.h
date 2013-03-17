@@ -44,7 +44,9 @@
 #define S_U_MEMBER  0x1110 // 4368
 #define COMMA_EXPR  0x1111 // 4369
 #define FUNC        0x1112 // 4370
+#define COMMENT     0x1113 // 4371
 
+#define TMP         0xFFFE // 65534
 #define BLOCK       0xFFFF // 65535
 
 typedef struct str_pair{
@@ -57,7 +59,7 @@ typedef struct _node node_t;
 
 typedef struct type_node{
     char *type;
-    char *var;
+    node_t *var;
 }type_node_t;
 
 struct _task_t{

@@ -50,22 +50,22 @@ ztrsm(k,m)
 
 BODY
 
-  int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
-  int tempkn = ((k)==(0)) ? (descB.n-((descB.nt-1)*descB.nb)) : descB.nb;
-  dague_complex64_t lalpha = (k==0) ? alpha : (dague_complex64_t)1.0;
-  int lda = BLKLDD( descA, (descB.nt-1)-k );
-  int ldb = BLKLDD( descB, m );
+    int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
+    int tempkn = ((k)==(0)) ? (descB.n-((descB.nt-1)*descB.nb)) : descB.nb;
+    dague_complex64_t lalpha = (k==0) ? alpha : (dague_complex64_t)1.0;
+    int lda = BLKLDD( descA, (descB.nt-1)-k );
+    int ldb = BLKLDD( descB, m );
 
-  DRYRUN(
-        CORE_ztrsm(side, uplo, trans, diag,
-                 tempmm, tempkn, lalpha,
-                 A /* A((descB.nt-1)-k,(descB.nt-1)-k) */, lda,
-                 B /* B(m,(descB.nt-1)-k) */, ldb );
-         );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_ztrsm(side, uplo, trans, diag,
+               tempmm, tempkn, lalpha,
+               A /* A((descB.nt-1)-k,(descB.nt-1)-k) */, lda,
+               B /* B(m,(descB.nt-1)-k) */, ldb );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-  printlog("CORE_ztrsm(%d, %d)\n"
-           "\t(side, uplo, trans, diag, tempmm, tempkn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-           k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
+    printlog("CORE_ztrsm(%d, %d)\n"
+             "\t(side, uplo, trans, diag, tempmm, tempkn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
+             k, m, (descB.nt-1)-k, (descB.nt-1)-k, A, m, (descB.nt-1)-k, B);
   
 END
 
@@ -81,9 +81,8 @@ ztrsm_in_A0(k,m) [profile = off]
   RW A <- A((descB.nt-1)-k,(descB.nt-1)-k)
        -> A ztrsm(k,m)
 BODY
-/* nothing */
+    /* nothing */
 END
-
 
 zgemm(k,m,n)
   /* Execution space */
@@ -102,22 +101,22 @@ zgemm(k,m,n)
           -> ((k+1)==n) ? B ztrsm(n, m)
 BODY
 
-  int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
-  int tempkn = ((k)==(0)) ? (descB.n-((descB.nt-1)*descB.nb)) : descB.nb;
-  int ldb = BLKLDD( descB, m );
-  int lda = BLKLDD( descA, (descB.nt-1)-k );
-  dague_complex64_t lalpha = (k==0) ? alpha : (dague_complex64_t)1.0;
+    int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
+    int tempkn = ((k)==(0)) ? (descB.n-((descB.nt-1)*descB.nb)) : descB.nb;
+    int ldb = BLKLDD( descB, m );
+    int lda = BLKLDD( descA, (descB.nt-1)-k );
+    dague_complex64_t lalpha = (k==0) ? alpha : (dague_complex64_t)1.0;
 
-  DRYRUN(
-      CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
-                 tempmm, descB.nb, tempkn,
-                 -1.0,   C /* B(m,             (descB.nt-1)-k) */, ldb,
-                         D /* A((descB.nt-1)-k,(descB.nt-1)-n) */, lda,
-                 lalpha, E /* B(m,             (descB.nt-1)-n) */, ldb );
-         );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
+               tempmm, descB.nb, tempkn,
+               -1.0,   C /* B(m,             (descB.nt-1)-k) */, ldb,
+                       D /* A((descB.nt-1)-k,(descB.nt-1)-n) */, lda,
+               lalpha, E /* B(m,             (descB.nt-1)-n) */, ldb );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-  printlog("CORE_zgemm(%d, %d, %d)\n"
-           "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, descB.nb, tempkn, mzone, B(%d,%d)[%p], ldb, A(%d,%d)[%p], lda, lalpha, B(%d,%d)[%p], ldb)\n",
+    printlog("CORE_zgemm(%d, %d, %d)\n"
+             "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, descB.nb, tempkn, mzone, B(%d,%d)[%p], ldb, A(%d,%d)[%p], lda, lalpha, B(%d,%d)[%p], ldb)\n",
              k, m, n, m, (descB.nt-1)-k, C, (descB.nt-1)-k, (descB.nt-1)-n, D, m, (descB.nt-1)-n, E);
 
 END
@@ -135,6 +134,6 @@ zgemm_in_A0(k,m,n) [profile = off]
   RW D <- A((descB.nt-1)-k,(descB.nt-1)-n)
        -> D zgemm(k,m,n)
 BODY
-/* nothing */
+    /* nothing */
 END
 

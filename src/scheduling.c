@@ -159,22 +159,22 @@ void dague_remove_scheduler( dague_context_t *dague )
 int dague_set_scheduler( dague_context_t *dague )
 {
     mca_base_component_t **scheds;
-    dague_sched_module_t  *new_scheduler = NULL;
-    dague_sched_base_component_t *new_component = NULL;
+    mca_base_module_t    *new_scheduler = NULL;
+    mca_base_component_t *new_component = NULL;
 
     scheds = mca_components_open_bytype( "sched" );
-    mca_components_query(scheds, 
-                         (mca_base_module_t**)&new_scheduler, 
-                         (mca_base_component_t**)&new_component);
+    mca_components_query(scheds,
+                         &new_scheduler,
+                         &new_component);
     mca_components_close(scheds);
 
     if( NULL == new_scheduler ) {
         return 0;
     }
-    
+
     dague_remove_scheduler( dague );
-    current_scheduler = new_scheduler;
-    scheduler_component = new_component;
+    current_scheduler   = (dague_sched_module_t*)new_scheduler;
+    scheduler_component = (dague_sched_base_component_t*)new_component;
 
     DEBUG((" Installing %s\n", current_scheduler->component->base_version.mca_component_name));
 
@@ -203,8 +203,8 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                 if( ACCESS_NONE == flow->access_type ) continue;
                 if( NULL != context->data[flow->flow_index].data_repo ) {
                     set_parameters++;
-                    if( NULL == context->data[flow->flow_index].data ) {
-                        ERROR(( "Task %s has flow %d data_repo != NULL but a data == NULL (%s:%d)\n",
+                    if( NULL == context->data[flow->flow_index].data_in ) {
+                        ERROR(( "Task %s has flow %d data_repo != NULL but an input data == NULL (%s:%d)\n",
                                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), flow->flow_index, __FILE__, __LINE__));
                     }
                 }
@@ -350,10 +350,9 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             // MY MODS
             TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
             TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
-            
             PINS(EXEC_BEGIN, eu_context, exec_context, NULL);
             switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
-            case DAGUE_LOOKUP_DONE:
+            case DAGUE_HOOK_RETURN_DONE:
                 /* We're good to go ... */
                 if( 0 == __dague_execute( eu_context, exec_context ) ) {
                     __dague_complete_execution( eu_context, exec_context );
@@ -375,16 +374,20 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
 #if defined(DAGUE_SIM)
     if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
-        int32_t my_idx;
+        dague_vp_t *vp;
+        int32_t my_vpid, my_idx;
         int largest_date = 0;
-        for(my_idx = 0; my_idx < dague_context->nb_cores; my_idx++) {
-            if( dague_context->execution_units[my_idx]->largest_simulation_date > largest_date )
-                largest_date = dague_context->execution_units[my_idx]->largest_simulation_date;
+        for(my_vpid = 0; my_vpid < dague_context->nb_vp; my_vpid++) {
+            vp = dague_context->virtual_processes[my_vpid];
+            for(my_idx = 0; my_idx < vp->nb_cores; my_idx++) {
+                if( vp->execution_units[my_idx]->largest_simulation_date > largest_date )
+                    largest_date = vp->execution_units[my_idx]->largest_simulation_date;
+            }
         }
         dague_context->largest_simulation_date = largest_date;
     }
     dague_barrier_wait( &(dague_context->barrier) );
-    eu_context ->largest_simulation_date = 0;
+    eu_context->largest_simulation_date = 0;
 #endif
 
     if( !DAGUE_THREAD_IS_MASTER(eu_context) ) {

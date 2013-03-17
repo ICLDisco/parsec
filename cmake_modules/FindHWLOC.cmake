@@ -42,10 +42,7 @@ set(HWLOC_LIBRARIES ${HWLOC_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(HWLOC
-    "Could NOT find HWLOC; Options depending on HWLOC will be disabled
-  if needed, please specify the library location
-    - using HWLOC_DIR [${HWLOC_DIR}]
-    - or a combination of HWLOC_INCLUDE_DIR [${HWLOC_INCLUDE_DIR}] and HWLOC_LIBRARY [${HWLOC_LIBRARY}]"
+    "Could NOT find HWLOC; Options depending on HWLOC will be disabled"
     HWLOC_LIBRARY HWLOC_INCLUDE_DIR )
 
 if(HWLOC_FOUND)

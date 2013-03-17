@@ -73,15 +73,6 @@ enum iparam_t {
 #define DAGUE_SCHEDULER_LHQ 4
 #define DAGUE_SCHEDULER_GD  5
 #define DAGUE_SCHEDULER_PBQ 6
-static char *DAGUE_SCHED_NAME[] = {
-    "", /* default */
-    "lfq",
-    "ltq",
-    "ap",
-    "lhq",
-    "gd",
-    "pbq"
-};
 
 void iparam_default_facto(int* iparam);
 void iparam_default_solve(int* iparam);

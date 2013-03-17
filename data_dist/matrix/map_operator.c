@@ -232,8 +232,8 @@ static void iterate_successors(dague_execution_unit_t *eu,
             nc.locals[1].value = n;
             nc.function = &dague_map_operator /*this*/;
             nc.dague_handle = this_task->dague_handle;
-            nc.data[0].data = this_task->data[0].data;
-            nc.data[1].data = this_task->data[1].data;
+            nc.data[0].data_in = this_task->data[0].data_out;
+            nc.data[1].data_in = this_task->data[1].data_out;
 
             ontask(eu, &nc, this_task, 0, 0,
                    __dague_handle->super.src->super.myrank,
@@ -280,7 +280,7 @@ static int release_deps(dague_execution_unit_t *eu,
          *
          * data_repo_entry_used_once( eu, this_task->data[0].data_repo, this_task->data[0].data_repo->key );
          */
-        (void)DAGUE_DATA_COPY_RELEASE(this_task->data[0].data);
+        (void)DAGUE_DATA_COPY_RELEASE(this_task->data[0].data_in);
     }
 
     free(ready_list);
@@ -299,12 +299,14 @@ static int data_lookup(dague_execution_unit_t *context,
     (void)context;
 
     if( NULL != __dague_handle->super.src ) {
-        this_task->data[0].data = dague_data_get_copy(src(k,n), 0);
+        this_task->data[0].data_in   = dague_data_get_copy(src(k,n), 0);
         this_task->data[0].data_repo = NULL;
+        this_task->data[0].data_out  = NULL;
     }
     if( NULL != __dague_handle->super.dest ) {
-        this_task->data[1].data = dague_data_get_copy(dest(k,n), 0);
+        this_task->data[1].data_in   = dague_data_get_copy(dest(k,n), 0);
         this_task->data[1].data_repo = NULL;
+        this_task->data[1].data_out  = this_task->data[1].data_in;
     }
     return 0;
 }
@@ -319,10 +321,10 @@ static int hook_of(dague_execution_unit_t *context,
     void* dest_data = NULL;
 
     if( NULL != __dague_handle->super.src ) {
-        src_data = DAGUE_DATA_COPY_GET_PTR(this_task->data[0].data);
+        src_data = DAGUE_DATA_COPY_GET_PTR(this_task->data[0].data_in);
     }
     if( NULL != __dague_handle->super.dest ) {
-        dest_data = DAGUE_DATA_COPY_GET_PTR(this_task->data[1].data);
+        dest_data = DAGUE_DATA_COPY_GET_PTR(this_task->data[1].data_in);
     }
 
 #if !defined(DAGUE_PROF_DRY_BODY)
@@ -404,9 +406,9 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
     fake_context.dague_handle = dague_handle;
     fake_context.priority = 0;
     fake_context.data[0].data_repo = NULL;
-    fake_context.data[0].data      = NULL;
+    fake_context.data[0].data_in   = NULL;
     fake_context.data[1].data_repo = NULL;
-    fake_context.data[1].data      = NULL;
+    fake_context.data[1].data_in   = NULL;
     for( vpid = 0; vpid < vpmap_get_nb_vp(); vpid++ ) {
         /* If this is the last n, try to move to the next k */
         count = 0;

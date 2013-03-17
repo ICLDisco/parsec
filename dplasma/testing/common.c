@@ -35,6 +35,16 @@
 #include "dague_prof_grapher.h"
 #include "vpmap.h"
 
+static char *DAGUE_SCHED_NAME[] = {
+    "", /* default */
+    "lfq",
+    "ltq",
+    "ap",
+    "lhq",
+    "gd",
+    "pbq"
+};
+
 /*******************************
  * globals and argv set values *
  *******************************/
@@ -383,14 +393,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     if(iparam[IPARAM_MB] < 0) iparam[IPARAM_MB] = -iparam[IPARAM_MB];
     if(iparam[IPARAM_NB] == 0) iparam[IPARAM_NB] = iparam[IPARAM_MB];
     if(iparam[IPARAM_NB] < 0) iparam[IPARAM_NB] = -iparam[IPARAM_NB];
-    if(iparam[IPARAM_IB] > 0)
-    {
-        if(iparam[IPARAM_MB] % iparam[IPARAM_IB])
-        {
-            fprintf(stderr, "xxx IB=%d does not divide MB=%d or NB=%d\n", iparam[IPARAM_IB], iparam[IPARAM_MB], iparam[IPARAM_NB]);
- //           exit(2);
-        }
-    }
 
     /* No supertiling by default */
     if(-'p' == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = (iparam[IPARAM_M]/iparam[IPARAM_MB])/iparam[IPARAM_P];

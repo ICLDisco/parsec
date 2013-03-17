@@ -10,12 +10,17 @@
 #include <stdio.h>
 #include <assert.h>
 
+#include <dague_config.h>
 #include "jdf.h"
 #include "dague.y.h"
 
 extern char *yyfilename;
 extern int current_lineno;
 
+#if 0
+#define ECHO {fwrite("[", 1, 1, yyout);fwrite( yytext, yyleng, 1, yyout );fwrite("]", 1, 1, yyout);}
+#endif
+#define ECHO
 
 static char *extern_code(char *base, int len)
 {
@@ -66,8 +71,8 @@ typedef void* yyscan_t;
 %}
 /*%option debug*/
 /*%option bison-bridge bison-locations*/
-%option noyywrap yylineno
 /*%option reentrant*/
+%option noyywrap yylineno
 %option stack
 
 WHITE         [\f\t\v ]
@@ -102,103 +107,103 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
                               if( yytext[lend] == '\n' ) skip_line++;
                           current_lineno += skip_line;
                           YYLVAL(string) = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
-                          return EXTERN_DECL;
+                          ECHO; return EXTERN_DECL;
                       }
 <INITIAL,properties>inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}            {
                           int start;
                           for(start = 8; yytext[start] != '{'; start++) /* nothing */ ;
 			  start++;
                           YYLVAL(string) = extern_code( yytext + start, strlen(yytext)-start-2 );
-			  return EXTERN_DECL;
+			  ECHO; return EXTERN_DECL;
                       }
-SIMCOST               { return SIMCOST; }
+SIMCOST               { ECHO; return SIMCOST; }
 <*>"/*"               { YY_PUSH_STATE(comment);                            }
 <comment>[^*\n]*      {  /* Eat up non '*'s */                             }
 <comment>"*"+[^*/\n]* {  /* Eat '*'s not followed by a '/' */              }
 <comment>"*"+"/"      { YY_POP_STATE();  /* Done with the comment BLOCK */ }
 <*>{WHITE}+           {  /* Eat multiple white-spaces */                   }
 <*>[0-9]+             { YYLVAL(number) = atol(yytext);
-                        return INT;                                        }
+                        ECHO; return INT;                                  }
 CTL                   { YYLVAL(number) = JDF_VAR_TYPE_CTL;
-                        return DEPENDENCY_TYPE;                            }
+                        ECHO; return DEPENDENCY_TYPE;                      }
 RW                    { YYLVAL(number) = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
-                        return DEPENDENCY_TYPE;                            }
+                        ECHO; return DEPENDENCY_TYPE;                      }
 READ                  { YYLVAL(number) = JDF_VAR_TYPE_READ;
-                        return DEPENDENCY_TYPE;                            }
+                        ECHO; return DEPENDENCY_TYPE;                      }
 RO                    { YYLVAL(number) = JDF_VAR_TYPE_READ;
-                        return DEPENDENCY_TYPE;                            }
+                        ECHO; return DEPENDENCY_TYPE;                      }
 WRITE                 { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
-                        return DEPENDENCY_TYPE;                            }
+                        ECHO; return DEPENDENCY_TYPE;                      }
 WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
-                        return DEPENDENCY_TYPE;                            }
+                        ECHO; return DEPENDENCY_TYPE;                      }
 "->"                  { YYLVAL(dep_type) = JDF_DEP_TYPE_OUT;
-                        return ARROW;                                      }
+                        ECHO; return ARROW;                                }
 "<-"                  { YYLVAL(dep_type) = JDF_DEP_TYPE_IN;
-                        return ARROW;                                      }
+                        ECHO; return ARROW;                                }
 "\["                  { YYLVAL(property) = NULL;
                         YY_PUSH_STATE(properties);
-                        return PROPERTIES_ON;                              }
+                        ECHO; return PROPERTIES_ON;                        }
 <properties>"\]"      { YY_POP_STATE();
-                        return PROPERTIES_OFF;                             }
+                        ECHO; return PROPERTIES_OFF;                       }
 <properties>[oO][nN]  { YYLVAL(number) = 1;
-                        return INT;                                        }
+                        ECHO; return INT;                                  }
 <properties>[tT][rR][uU][eE] {
                         YYLVAL(number) = 1;
-                        return INT;                                        }
+                        ECHO; return INT;                                  }
 <properties>[yY][eE][sS] {
                         YYLVAL(number) = 1;
-                        return INT;                                        }
+                        ECHO; return INT;                                  }
 <properties>[oO][fF][fF] {
                         YYLVAL(number) = 0;
-                        return INT;                                        }
+                        ECHO; return INT;                                  }
 <properties>[fF][aA][lL][sS][eE] {
                         YYLVAL(number) = 0;
-                        return INT;                                        }
+                        ECHO; return INT;                                  }
 <properties>[nN][oO] {  YYLVAL(number) = 0;
-                        return INT;                                        }
+                        ECHO; return INT;                                  }
 
 <INITIAL>[bB][oO][dD][yY] {
                            YY_PUSH_STATE(body_init);
-                           return BODY_START;                               }
+                           ECHO; return BODY_START;                        }
 <body_init>{WHITE}*[\[] {
                            YY_PUSH_STATE(properties);
-                           return PROPERTIES_ON;                            }
+                           ECHO; return PROPERTIES_ON;                     }
 <body_init>{WHITE}*[^\[] {
                            YY_POP_STATE();
-                           YY_PUSH_STATE(body);                             }
+                           YY_PUSH_STATE(body);                            }
 <body>[eE][nN][dD]    {   YY_POP_STATE();
-                          return BODY_END;                                  }
+                          ECHO; return BODY_END;                           }
 <body>([^E]|([eE][^N])|([eE][nN][^D]))+ {
                           YYLVAL(string) = extern_code( yytext, strlen(yytext+1) );
                           current_lineno++;
-                          return BODY;
+                          ECHO; return BODY;
                       }
 
-<*>"("                { return OPEN_PAR;                                   }
-<*>")"                { return CLOSE_PAR;                                  }
-<*>"=="               { return EQUAL;                                      }
-<*>"\!="              { return NOTEQUAL;                                   }
-<*>\&\&?              { return AND;                                        }
-<*>\|\|?              { return OR;                                         }
-<*>"^"                { return XOR;                                        }
-<*>"<"                { return LESS;                                       }
-<*>"<="               { return LEQ;                                        }
-<*>">"                { return MORE;                                       }
-<*>">="               { return MEQ;                                        }
-<*>"\!"               { return NOT;                                        }
-<*>"\+"               { return PLUS;                                       }
-<*>"-"                { return MINUS;                                      }
-<*>"\*"               { return TIMES;                                      }
-<*>"/"                { return DIV;                                        }
-<*>"%"                { return MODULO;                                     }
-<*>"<<"               { return SHL;                                        }
-<*>">>"               { return SHR;                                        }
-<*>".."               { return RANGE;                                      }
-<*>"="                { return ASSIGNMENT;                                 }
-<*>"?"                { return QUESTION_MARK;                              }
-<*>":"                { return COLON;                                      }
-<*>";"                { return SEMICOLON;                                  }
-<*>","                { return COMMA;                                      }
+<*>"("                { ECHO; return OPEN_PAR;                             }
+<*>")"                { ECHO; return CLOSE_PAR;                            }
+<*>"=="               { ECHO; return EQUAL;                                }
+<*>"\!="              { ECHO; return NOTEQUAL;                             }
+<*>\&\&?              { ECHO; return AND;                                  }
+<*>\|\|?              { ECHO; return OR;                                   }
+<*>"^"                { ECHO; return XOR;                                  }
+<*>"<"                { ECHO; return LESS;                                 }
+<*>"<="               { ECHO; return LEQ;                                  }
+<*>">"                { ECHO; return MORE;                                 }
+<*>">="               { ECHO; return MEQ;                                  }
+<*>"\!"               { ECHO; return NOT;                                  }
+<*>"\+"               { ECHO; return PLUS;                                 }
+<*>"-"                { ECHO; return MINUS;                                }
+<*>"\*"               { ECHO; return TIMES;                                }
+<*>"/"                { ECHO; return DIV;                                  }
+<*>"%"                { ECHO; return MODULO;                               }
+<*>"<<"               { ECHO; return SHL;                                  }
+<*>">>"               { ECHO; return SHR;                                  }
+<*>".."               { ECHO; return RANGE;                                }
+<*>"="                { ECHO; return ASSIGNMENT;                           }
+<*>"?"                { ECHO; return QUESTION_MARK;                        }
+<*>":"                { ECHO; return COLON;                                }
+<*>";"                { ECHO; return SEMICOLON;                            }
+<*>","                { ECHO; return COMMA;                                }
 
 <dstr>\"              { /* saw closing quote - all done */
                         YY_POP_STATE();
@@ -207,7 +212,7 @@ WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
                         * value to parser
                         */
                         YYLVAL(string) = string_buf;
-                        return STRING;                                     }
+                        ECHO; return STRING;                               }
 <*>\"                 { string_buf_ptr = string_buf;
                         YY_PUSH_STATE(dstr);                               }
 
@@ -251,7 +256,7 @@ WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
 <*>"//".*\n           { current_lineno++;                                  }
 <*>[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)* {
                         YYLVAL(string) = strdup(yytext);
-                        return VAR;                                        }
+                        ECHO; return VAR;                                  }
 %%
 
 #include "main.c"

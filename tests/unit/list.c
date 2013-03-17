@@ -9,7 +9,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <inttypes.h>
-
+#if defined(HAVE_MPI)
+#include <mpi.h>
+#endif
+#if defined(HAVE_HWLOC)
+#include "dague_hwloc.h"
+#endif
 #include "list.h"
 #include "os-spec-timing.h"
 #include "bindthread.h"
@@ -44,7 +49,7 @@ static elt_t *create_elem(int base)
 
     r = rand() % 1024;
     elt = (elt_t*)malloc(r * sizeof(unsigned int) + sizeof(elt_t));
-    dague_list_item_construct(&elt->list);
+    OBJ_CONSTRUCT(&elt->list, dague_list_item_t);
     elt->base = base;
     elt->nbelt = r;
     for(j = 0; j < r; j++)
@@ -255,6 +260,13 @@ int main(int argc, char *argv[])
     int ch;
     char *m;
     
+#if defined(HAVE_MPI)
+    MPI_Init(&argc, &argv);
+#endif
+#if defined(HAVE_HWLOC)
+    dague_hwloc_init();
+#endif
+
     while( (ch = getopt(argc, argv, "c:n:N:h?")) != -1 ) {
         switch(ch) {
         case 'c':
@@ -286,8 +298,8 @@ int main(int argc, char *argv[])
     threads = (pthread_t*)calloc(sizeof(pthread_t), nbthreads);
     times = (uint64_t*)calloc(sizeof(uint64_t), nbthreads);
 
-    dague_list_construct( &l1 );
-    dague_list_construct( &l2 );
+    OBJ_CONSTRUCT( &l1, dague_list_t );
+    OBJ_CONSTRUCT( &l2, dague_list_t );
 
     printf("Sequential test.\n");
 
@@ -372,5 +384,11 @@ int main(int argc, char *argv[])
 
     printf(" - all tests passed\n");
 
+#if defined(HAVE_HWLOC)
+    dague_hwloc_fini();
+#endif  /* HAVE_HWLOC_BITMAP */
+#if defined(HAVE_MPI)
+    MPI_Finalized(&ch);
+#endif
     return 0;
 }

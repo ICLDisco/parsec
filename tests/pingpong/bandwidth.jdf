@@ -1,0 +1,379 @@
+extern "C" %{
+#include <dague.h>
+#include <data_distribution.h>
+#include <data.h>
+#include <dague/utils/mca_param.h>
+#include <arena.h>
+
+#include <assert.h>
+#include <stdarg.h>
+#include <sys/time.h>
+
+#include "bandwidth.h"
+
+#if defined(HAVE_CUDA)
+#include "tests/pingpong/pingpong_gpu.h"
+#endif  /* defined(HAVE_CUDA) */
+
+typedef struct {
+    dague_ddesc_t  super;
+    int            frags;
+    int            size;
+    dague_data_t **data;
+    uint8_t       *ptr;
+} my_datatype_t;
+
+/**
+ * This data is not distributed. A copy of the entire
+ * array is available on each node.
+ */
+static inline uint32_t
+rank_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    my_datatype_t *array = (my_datatype_t*)desc;
+    int f = (int)key; (void)f;
+
+    assert( (f < array->frags) && (f >= 0) );
+    return array->super.myrank;
+}
+
+static uint32_t
+rank_of(dague_ddesc_t *desc, ...)
+{
+    va_list ap;
+    int f;
+
+    va_start(ap, desc);
+    f = va_arg(ap, int);
+    va_end(ap);
+
+    return rank_of_key(desc, f);
+}
+
+static inline int32_t
+vpid_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    my_datatype_t *array = (my_datatype_t*)desc;
+    int f = (key);
+
+    assert( (f < array->size) && (f >= 0) );
+    (void)array; (void)f;
+    return 0;
+}
+
+static int32_t
+vpid_of(dague_ddesc_t *desc, ...)
+{
+    va_list ap;
+    int f;
+
+    va_start(ap, desc);
+    f = va_arg(ap, int);
+    va_end(ap);
+
+    return vpid_of_key(desc, f);
+}
+
+static inline dague_data_t* data_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    my_datatype_t *array = (my_datatype_t*)desc;
+    int f = (int)key;
+
+    assert( (f < array->size) && (f >= 0) );
+    (void)f;
+    if(NULL == array->data[f]) {
+        dague_data_t      *data;
+        dague_data_copy_t *copy;
+
+        array->data[f] = data = dague_data_new();
+        data->key = f;
+        data->nb_elts = array->size;
+
+        copy = dague_data_copy_new(array->data[f], 0 /* main memory */);
+        copy->device_private = array->ptr + f * array->size;
+    }
+    return (void*)(array->data[f]);
+}
+
+static dague_data_t* data_of(dague_ddesc_t *desc, ...)
+{
+    va_list ap;
+    int f;
+
+    va_start(ap, desc);
+    f = va_arg(ap, int);
+    va_end(ap);
+
+    return data_of_key(desc, f);
+}
+
+static uint32_t data_key(dague_ddesc_t *desc, ...)
+{
+    my_datatype_t *dat = (my_datatype_t*)desc;
+    va_list ap;
+    int f;
+
+    va_start(ap, desc);
+    f = va_arg(ap, int);
+    va_end(ap);
+
+    assert( (f < dat->size) && (f >= 0) );
+
+    return (uint32_t)f;
+}
+
+static int
+memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
+{
+    my_datatype_t* m = (my_datatype_t*)desc;
+    return device->device_memory_register(device,
+                                          m->ptr,
+                                          m->frags * m->size * sizeof(uint8_t));
+}
+
+static int
+memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
+{
+    my_datatype_t* m = (my_datatype_t*)desc;
+    return device->device_memory_unregister(device, m->ptr);
+}
+
+static dague_ddesc_t*
+create_and_distribute_data(int rank, int world, int frags, int size)
+{
+    my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
+    dague_ddesc_t *d = &(m->super);
+
+    d->myrank = rank;
+    d->nodes  = world;
+
+    d->rank_of           = rank_of;
+    d->rank_of_key       = rank_of_key;
+    d->data_of           = data_of;
+    d->data_of_key       = data_of_key;
+    d->vpid_of           = vpid_of;
+    d->vpid_of_key       = vpid_of_key;
+    d->register_memory   = memory_register;
+    d->unregister_memory = memory_unregister;
+
+#if defined(DAGUE_PROF_TRACE)
+    asprintf(&d->key_dim, "(%d)", size);
+#endif  /* defined(DAGUE_PROF_TRACE) */
+    d->key_base = strdup("A");
+    d->data_key = data_key;
+
+    m->frags = frags;
+    m->size  = size;
+    m->data  = (dague_data_t**)calloc(frags, sizeof(dague_data_t*));
+    m->ptr   = (uint8_t*)calloc(frags * size, sizeof(uint8_t));
+
+    return d;
+}
+
+static void
+free_data(dague_ddesc_t *d)
+{
+    my_datatype_t *array = (my_datatype_t*)d;
+    if(NULL != array->data) {
+        /* TODO: free each dague_data_t element */
+        free(array->data); array->data = NULL;
+    }
+    free(array->ptr); array->ptr = NULL;
+    dague_ddesc_destroy(d);
+    free(d);
+}
+
+/**
+ * @param [IN] A     the data, already distributed and allocated
+ * @param [IN] loops the number of iteration
+ * @param [IN] frags the number of fragments per iterations
+ * @param [IN] size  size of each local data element
+ * @param [IN] ws    the size of the group (1 by now)
+ *
+ * @return the dague object to schedule.
+ */
+static dague_handle_t*
+bandwidth_new(dague_ddesc_t *A, int loops, int frags, int size, int ws)
+{
+    dague_bandwidth_handle_t *o = NULL;
+
+    if( (loops < 1) || (frags < 1) ) {
+        fprintf(stderr, "To work, this test needs at lest 1 loop \n"
+                        "  (instead of %d) and 1 frag (instead of %d)\n", loops, frags);
+        return NULL;
+    }
+    if(size > ((my_datatype_t*)A)->size) {
+        fprintf(stderr, "The size (%d) must be smaller than the declared size of the data in the array (%d)\n",
+                size, ((my_datatype_t*)A)->size);
+        return NULL;
+    }
+
+    o = dague_bandwidth_new(A, loops, frags, ws);
+
+    dague_arena_construct(((dague_bandwidth_handle_t*)o)->arenas[DAGUE_bandwidth_DEFAULT_ARENA],
+                          size*sizeof(uint8_t), DAGUE_ARENA_ALIGNMENT_SSE, NULL);
+
+    return (dague_handle_t*)o;
+}
+
+static void
+bandwidth_destroy(dague_handle_t* handle)
+{
+    dague_bandwidth_handle_t * bw_handle = (dague_bandwidth_handle_t*)handle;
+    bw_handle->arenas[DAGUE_bandwidth_DEFAULT_ARENA] = NULL;
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(bw_handle);
+}
+
+/**
+ * @param [INOUT] o the dague object to destroy
+ */
+static void
+bw_destroy(dague_handle_t *o)
+{
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+}
+
+%}
+
+NT  /* number of turns */
+NF  /* number of simultaneous fragments */
+WS  /* worldsize: must be 1 by now */
+
+SYNC(t)
+
+t = 0 .. NT-1
+
+: A(0)
+
+CTL C -> C PING(t, 0 .. NF-1)
+      <- (t > 0) ? C PONG(t-1, 0 .. NF-1)
+BODY
+    /*printf("SYNC(%d)\n", t);*/
+END
+
+PING(t, f)
+
+t = 0 .. NT-1
+f = 0 .. NF-1
+
+: A(f)
+
+RW   T <- (t == 0) ? A(f) : T PONG(t-1, f)
+       -> T PONG(t, f)
+CTL  C <- C SYNC(t)
+
+BODY
+
+END
+
+PONG(t, f)
+
+t = 0 .. NT-1
+f = 0 .. NF-1
+
+: A(f)
+
+RW   T <- T PING(t, f)
+       -> (t < NT-1) ? T PING(t+1, f) : A(f)
+CTL  C -> C SYNC(t+1)
+
+BODY [type = CUDA]
+    return bandwidth_cuda(context, this_task);
+END
+
+BODY
+    printf("PONG(%d, %d)\n", t, f);
+END
+
+extern "C" %{
+
+int main(int argc, char *argv[])
+{
+    dague_context_t* dague;
+    int rank, world, cores, ngpus = 0;
+    int i, size, loops, frags;
+    dague_ddesc_t *ddescA;
+    dague_handle_t *bw_test;
+    struct timeval tstart, tend;
+    double t, bw;
+
+    world = 1;
+    rank = 0;
+    cores = 1;
+
+    loops = 10;
+    frags = 1;
+    size = 1024;
+
+    for( i = 1; i < argc; i++ ) {
+        if(0 == strcmp(argv[i], "-c")) {
+            cores = atoi(argv[i+1]); i++;
+        }
+        if(0 == strcmp(argv[i], "-n")) {
+            loops = atoi(argv[i+1]); i++;
+        }
+        if(0 == strcmp(argv[i], "-f")) {
+            frags = atoi(argv[i+1]); i++;
+        }
+        if(0 == strcmp(argv[i], "-l")) {
+            size = atoi(argv[i+1]); i++;
+        }
+        /* GPU management */
+        if(0 == strcmp(argv[i], "-g")) {
+            ngpus = atoi(argv[i+1]); i++;
+        }
+    }
+    ddescA = create_and_distribute_data(rank, world, frags, size);
+    dague_ddesc_set_key(ddescA, "A");
+
+#if defined(HAVE_CUDA)
+    /* if the use of GPUs is specified on the command line updated the environment
+     * prior to the runtime initialization.
+     */
+    if(ngpus > 0) {
+        char *param, value[128];
+        param = dague_mca_param_env_var("device_cuda_enabled");
+        snprintf(value, 128, "%d", ngpus);
+        setenv(param, value, 1);
+        free(param);
+    }
+#endif
+
+    dague = dague_init(cores, &argc, &argv);
+
+#if defined(HAVE_CUDA)
+    dague_gpu_data_register(dague, ddescA, frags, size*sizeof(uint8_t));
+#endif
+
+    for(i = 0; i < 2; i++) {
+        bw_test = bandwidth_new(ddescA, loops, frags, size, world);
+
+        gettimeofday(&tstart, NULL);
+        dague_enqueue(dague, bw_test);
+        dague_progress(dague);
+        gettimeofday(&tend, NULL);
+
+        if( 0 != i ) {
+            t = (tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec);
+            assert(t > 0.0);
+            bw = ((double)loops * (double)frags * (double)size) / t * ((1000.0 * 1000.0) / (1024.0 * 1024.0)) * 2.0;
+            printf("[%d, %d, %d, %08.4g] %4.8g MB/s\n", loops, frags, size, t / 1000000.0, bw);
+        }
+        bandwidth_destroy(bw_test);
+    }
+
+#if defined(DAGUE_PROF_TRACE)
+    {
+        char *pname;
+        asprintf(&pname, "bw-%d.profile", rank);
+        dague_profiling_dump_dbp(pname);
+        free(pname);
+    }
+#endif
+
+    dague_fini(&dague);
+    free_data(ddescA);
+
+    return 0;
+}
+%}

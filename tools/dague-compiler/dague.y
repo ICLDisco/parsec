@@ -11,6 +11,8 @@
 #include <assert.h>
 #include "jdf.h"
 
+#define YYDEBUG_LEXER_TEXT yytext
+
 /**
  * Better error handling
  */
@@ -29,10 +31,14 @@ static void yyerror(YYLTYPE *locp,
 #endif  /* defined(YYPURE) && YYPURE */
                     char const *msg)
 {
+    if(NULL != locp) {
     fprintf(stderr, "parse error at %d.%d-%d.%d: %s\n",
             locp->first_line, locp->first_column,
             locp->last_line, locp->last_column,
             msg);
+    } else {
+        fprintf(stderr, "parse error at unknown: %s\n ", msg);
+    }
 }
 
 #define new(type)  (type*)calloc(1, sizeof(type))
@@ -184,7 +190,6 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %left COMMA
 
 %debug
-/*%defines*/
 /*%pure-parser*/
 %locations
 %error-verbose

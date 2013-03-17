@@ -63,9 +63,17 @@ struct dague_lifo_s {
 #define DAGUE_LIFO_PTR( v )       ( (dague_list_item_t *) ( (uintptr_t)(v) & DAGUE_LIFO_PTRMASK ) )
 #define DAGUE_LIFO_VAL( p, c)     ( (dague_list_item_t *) ( ((uintptr_t)DAGUE_LIFO_PTR(p)) | DAGUE_LIFO_CNT(c) ) )
 
+/*
+ * http://stackoverflow.com/questions/10528280/why-is-the-below-code-giving-dereferencing-type-punned-pointer-will-break-stric
+ * 
+ * void * converts to any pointer type, and any pointer type converts
+ * to void *, but void ** does not convert to a pointer to some other
+ * type of pointer, nor do pointers to other pointer types convert to
+ * void **.
+ */
 #define DAGUE_LIFO_ITEM_ALLOC( elt, truesize ) ({                   \
-    dague_list_item_t *_elt = NULL;                                 \
-    if( 0 == posix_memalign((void**)&_elt,                          \
+    void *_elt = NULL;                                              \
+    if( 0 == posix_memalign(&_elt,                                  \
                             DAGUE_LIFO_ALIGNMENT, (truesize)) ) {   \
         assert( NULL != _elt );                                     \
         OBJ_CONSTRUCT(_elt, dague_list_item_t);                     \

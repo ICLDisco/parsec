@@ -66,27 +66,27 @@ LASWP_laswp(k, n)
 
 BODY
 
-  DRYRUN(
-         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-         int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-         int ldak = BLKLDD(descA, k);
+#if !defined(DAGUE_DRY_RUN)
+    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+    int ldak = BLKLDD(descA, k);
 
-         if ( descA.storage == matrix_Tile ) {
-             int tempk = k * descA.mb;
-             int tempm = descA.m - tempk;
-             PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                    descA.mb, descA.nb, descA.mb * descA.nb,
-                                                    ( descA.mt-k)*descA.mb, descA.nb, 0, 0,
-                                                    tempm, tempnn);
-             pdescA.mat = A;
-             CORE_zlaswp_ontile( pdescA, 1, tempkm, IPIV, 1);
-         } else {
-             CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc);
-         }
-         );
+    if ( descA.storage == matrix_Tile ) {
+        int tempk = k * descA.mb;
+        int tempm = descA.m - tempk;
+        PLASMA_desc pdescA = plasma_desc_init(PlasmaComplexDouble,
+                                              descA.mb, descA.nb, descA.mb * descA.nb,
+                                              ( descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                              tempm, tempnn);
+        pdescA.mat = A;
+        CORE_zlaswp_ontile( pdescA, 1, tempkm, IPIV, 1);
+    } else {
+        CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc);
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-   printlog("thread %d   CORE_zlaswp(%d, %d)\n"
-            "\t(%d, A(%d,%d)[%p], %d, %d, %d, IPIV(%d)[%p], %d)\n",
-            context->th_id, k, n, tempnn, k, n, A, ldak, 1, tempkm, k, IPIV, inc);
+    printlog("thread %d   CORE_zlaswp(%d, %d)\n"
+             "\t(%d, A(%d,%d)[%p], %d, %d, %d, IPIV(%d)[%p], %d)\n",
+             context->th_id, k, n, tempnn, k, n, A, ldak, 1, tempkm, k, IPIV, inc);
 
 END

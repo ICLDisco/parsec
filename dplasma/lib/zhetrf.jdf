@@ -81,29 +81,28 @@ zhetrf2_nopiv(k)
 
 BODY
 
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
-  int ib = DPLASMA_IB;
-  int ldak = desc_A.mb;
-  int ldwork = (tempkn+1)*ib;
+    int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+    int ib = DPLASMA_IB;
+    int ldak = desc_A.mb;
+    int ldwork = (tempkn+1)*ib;
 
-  printlog("thread %d CORE_zhetrf2_nopiv(%d)\n"
-           "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
-  context->th_id, k, tempkn, ib, k, k, A, ldak, ldwork);
+    printlog("thread %d CORE_zhetrf2_nopiv(%d)\n"
+             "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
+             context->th_id, k, tempkn, ib, k, k, A, ldak, ldwork);
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
     int info = 0;
     void *p_elem_A = dague_private_memory_pop( pool_0 );
     CORE_zhetrf2_nopiv(PlasmaLower, tempkn, ib, 
-	A /* data_A(k,k) */, ldak, p_elem_A, 
-	ldwork, &info );
+                       A /* data_A(k,k) */, ldak, p_elem_A, 
+                       ldwork, &info );
     if( 0 != (info) ){
         fprintf(stderr,">>>>>>>>>>>>\nzhetrf2_nopiv(%d): info=%d\n",k,info);
     }
     assert( 0 == info );
 
-
     dague_private_memory_push( pool_0, p_elem_A );
-  );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -123,30 +122,29 @@ zhetrf_nopiv(k)
 
 BODY
 
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
-  int ib = DPLASMA_IB;
-  int ldak = desc_A.mb;
-  int ldwork = (tempkn+1)*ib;
+    int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+    int ib = DPLASMA_IB;
+    int ldak = desc_A.mb;
+    int ldwork = (tempkn+1)*ib;
 
-  printlog("thread %d CORE_zhetrf_nopiv(%d)\n"
-           "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
-  context->th_id, k, tempkn, ib, k, k, B, ldak, ldwork);
+    printlog("thread %d CORE_zhetrf_nopiv(%d)\n"
+             "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
+             context->th_id, k, tempkn, ib, k, k, B, ldak, ldwork);
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
     int info = 0;
     void *p_elem_A = dague_private_memory_pop( pool_0 );
 
     CORE_zhetrf_nopiv(PlasmaLower, tempkn, ib, 
-	B /* data_A(k,k) */, ldak, p_elem_A, 
-	ldwork, &info );
+                      B /* data_A(k,k) */, ldak, p_elem_A, 
+                      ldwork, &info );
     if( 0 != info ){
         fprintf(stderr,">>>>>>>>>>>>\nzhetrf_nopiv(%d): info=%d\n",k,info);
     }
     assert( 0 == info );
 
-
     dague_private_memory_push( pool_0, p_elem_A );
-  );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -177,22 +175,22 @@ ztrsm(k,m)
 
 BODY
 
-  int tempmm = ((m)==((desc_A.mt)-1)) ? ((desc_A.m)-(m*(desc_A.mb))) : (desc_A.mb);
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
-  PLASMA_Complex64_t zone = (PLASMA_Complex64_t)1.000000;
-  int ldak = desc_A.mb;
-  int ldam = desc_A.mb;
+    int tempmm = ((m)==((desc_A.mt)-1)) ? ((desc_A.m)-(m*(desc_A.mb))) : (desc_A.mb);
+    int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+    PLASMA_Complex64_t zone = (PLASMA_Complex64_t)1.000000;
+    int ldak = desc_A.mb;
+    int ldam = desc_A.mb;
 
-  printlog("thread %d CORE_ztrsm(%d, %d)\n"
-           "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, tempkn, zone, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
-  context->th_id, k, m, k, k, C, m, k, D);
+    printlog("thread %d CORE_ztrsm(%d, %d)\n"
+             "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, tempkn, zone, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
+             context->th_id, k, m, k, k, C, m, k, D);
 
-  DRYRUN(
-
+#if !defined(DAGUE_DRY_RUN)
     CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaConjTrans, 
-	PlasmaNonUnit, tempmm, tempkn, 
-	zone, C /* data_A(k,k) */, ldak, 
-	D /* data_A(m,k) */, ldam );  );
+               PlasmaNonUnit, tempmm, tempkn, 
+               zone, C /* data_A(k,k) */, ldak, 
+               D /* data_A(m,k) */, ldam );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -222,28 +220,28 @@ zhedrk(k,m1)
 
 BODY
 
-  int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
-  int ib = 64;
-  int ldam = desc_A.mb;
-  int lwork = ((tempmm+1)*tempkn)+(ib*ib);
-  int ldak = desc_A.mb;
+    int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
+    int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+    int ib = 64;
+    int ldam = desc_A.mb;
+    int lwork = ((tempmm+1)*tempkn)+(ib*ib);
+    int ldak = desc_A.mb;
 
-  printlog("thread %d CORE_zhedrk(%d, %d)\n"
-           "\t(PlasmaLower, PlasmaNoTrans, tempmm, tempkn, ib, -1.000000, A(%d,%d)[%p], ldam, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
-  context->th_id, k, m1, m1, k, E, m1, m1, F, k, k, G);
+    printlog("thread %d CORE_zhedrk(%d, %d)\n"
+             "\t(PlasmaLower, PlasmaNoTrans, tempmm, tempkn, ib, -1.000000, A(%d,%d)[%p], ldam, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
+             context->th_id, k, m1, m1, k, E, m1, m1, F, k, k, G);
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( pool_1 );
 
     CORE_zhedrk(PlasmaLower, PlasmaNoTrans, tempmm, 
-	tempkn, ib, -1.000000, 
-	E /* data_A(m1,k) */, ldam, 1.000000, 
-	F /* data_A(m1,m1) */, ldam, G /* data_A(k,k) */, 
-	ldak+1, p_elem_A, lwork );
+                tempkn, ib, -1.000000, 
+                E /* data_A(m1,k) */, ldam, 1.000000, 
+                F /* data_A(m1,m1) */, ldam, G /* data_A(k,k) */, 
+                ldak+1, p_elem_A, lwork );
 
     dague_private_memory_push( pool_1, p_elem_A );
-  );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -293,30 +291,30 @@ zgemdm(k,m1,n)
 
 BODY
 
-  int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
-  int tempnn = ((n)==((desc_A.nt)-1)) ? ((desc_A.n)-(n*(desc_A.nb))) : (desc_A.nb);
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
-  PLASMA_Complex64_t mzone = (PLASMA_Complex64_t)-1.000000;
-  int ldam = desc_A.mb;
-  PLASMA_Complex64_t zone = (PLASMA_Complex64_t)1.000000;
-  int lwork = ((PlasmaNoTrans)==(PlasmaNoTrans)) ? ((tempmm+1)*tempkn) : ((tempnn+1)*tempkn);
-  int ldak = desc_A.mb;
+    int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
+    int tempnn = ((n)==((desc_A.nt)-1)) ? ((desc_A.n)-(n*(desc_A.nb))) : (desc_A.nb);
+    int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+    PLASMA_Complex64_t mzone = (PLASMA_Complex64_t)-1.000000;
+    int ldam = desc_A.mb;
+    PLASMA_Complex64_t zone = (PLASMA_Complex64_t)1.000000;
+    int lwork = ((PlasmaNoTrans)==(PlasmaNoTrans)) ? ((tempmm+1)*tempkn) : ((tempnn+1)*tempkn);
+    int ldak = desc_A.mb;
 
-  printlog("thread %d CORE_zgemdm(%d, %d, %d)\n"
-           "\t(PlasmaNoTrans, PlasmaConjTrans, tempmm, tempnn, tempkn, mzone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], desc_A.mb, zone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
-  context->th_id, k, m1, n, m1, k, K, n, k, L, m1, n, M, k, k, N);
+    printlog("thread %d CORE_zgemdm(%d, %d, %d)\n"
+             "\t(PlasmaNoTrans, PlasmaConjTrans, tempmm, tempnn, tempkn, mzone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], desc_A.mb, zone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
+             context->th_id, k, m1, n, m1, k, K, n, k, L, m1, n, M, k, k, N);
 
-  DRYRUN( 
+#if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( pool_1 );
 
     CORE_zgemdm(PlasmaNoTrans, PlasmaConjTrans, tempmm, 
-	tempnn, tempkn, mzone, 
-	K /* data_A(m1,k) */, ldam, L /* data_A(n,k) */, 
-	desc_A.mb, zone, M /* data_A(m1,n) */, 
-	ldam, N, ldak+1, p_elem_A, lwork );
+                tempnn, tempkn, mzone, 
+                K /* data_A(m1,k) */, ldam, L /* data_A(n,k) */, 
+                desc_A.mb, zone, M /* data_A(m1,n) */, 
+                ldam, N, ldak+1, p_elem_A, lwork );
 
     dague_private_memory_push( pool_1, p_elem_A );
-  ); 
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -336,17 +334,16 @@ ztrmdm(k1)
 
 BODY
 
-  int tempkn = ((k1)==((desc_A.nt)-1)) ? ((desc_A.n)-(k1*(desc_A.nb))) : (desc_A.nb);
-  int ldak = desc_A.mb;
+    int tempkn = ((k1)==((desc_A.nt)-1)) ? ((desc_A.n)-(k1*(desc_A.nb))) : (desc_A.nb);
+    int ldak = desc_A.mb;
 
-  printlog("thread %d CORE_ztrmdm(%d)\n"
-           "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, k1, k1, k1, O);
+    printlog("thread %d CORE_ztrmdm(%d)\n"
+             "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
+             context->th_id, k1, k1, k1, O);
 
-  DRYRUN(
-
+#if !defined(DAGUE_DRY_RUN)
     CORE_ztrmdm(PlasmaLower, tempkn, O /* data_A(k1,k1) */, ldak );
-  );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -372,6 +369,6 @@ GOK(k,m,n)  [profile = off]
   CTL ctl2 <- (n==k+1) ? ctl zhedrk(k,m)
 
 BODY
-     /* Synchronization thread */
-     printlog("thread %d gok( %d, %d, %d )\n", context->th_id, k, m, n);
+    /* Synchronization thread */
+    printlog("thread %d gok( %d, %d, %d )\n", context->th_id, k, m, n);
 END

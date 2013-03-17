@@ -64,23 +64,22 @@ READ  A <- A lacpy_l_in_Amn(m, n)
 RW    B <- B(m, n)
         -> B(m, n)
 BODY
-  int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-  int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
-  int ldam = BLKLDD( descA, m );
-  int ldbm = BLKLDD( descB, m );
+    int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+    int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
+    int ldam = BLKLDD( descA, m );
+    int ldbm = BLKLDD( descB, m );
 
-        DRYRUN(
-               LAPACKE_zlacpy_work(
-                   LAPACK_COL_MAJOR, 'A',
-                   tempmm, tempnn,
-                   A, ldam, B, ldbm);
-               );
+#if !defined(DAGUE_DRY_RUN)
+    LAPACKE_zlacpy_work(LAPACK_COL_MAJOR, 'A',
+                        tempmm, tempnn,
+                        A, ldam, B, ldbm);
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-        printlog("lacpy_l( %d, %d )\n"
-                 "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 m, n,
-                 plasma_const(uplo), tempmm, tempnn,
-                 m, n, ldam, m, n, ldbm);
+    printlog("lacpy_l( %d, %d )\n"
+             "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
+             m, n,
+             plasma_const(uplo), tempmm, tempnn,
+             m, n, ldam, m, n, ldbm);
 END
 
 
@@ -111,23 +110,22 @@ READ  A <- A lacpy_u_in_Amn(m, n)
 RW    B <- B(m, n)
         -> B(m, n)
 BODY
-  int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-  int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
-  int ldam = BLKLDD( descA, m );
-  int ldbm = BLKLDD( descB, m );
+    int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+    int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
+    int ldam = BLKLDD( descA, m );
+    int ldbm = BLKLDD( descB, m );
 
-        DRYRUN(
-               LAPACKE_zlacpy_work(
-                   LAPACK_COL_MAJOR, 'A',
-                   tempmm, tempnn,
-                   A, ldam, B, ldbm);
-               );
+#if !defined(DAGUE_DRY_RUN)
+    LAPACKE_zlacpy_work(LAPACK_COL_MAJOR, 'A',
+                        tempmm, tempnn,
+                        A, ldam, B, ldbm);
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-        printlog("lacpy_u( %d, %d )\n"
-                 "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 m, n,
-                 plasma_const(uplo), tempmm, tempnn,
-                 m, n, ldam, m, n, ldbm);
+    printlog("lacpy_u( %d, %d )\n"
+             "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
+             m, n,
+             plasma_const(uplo), tempmm, tempnn,
+             m, n, ldam, m, n, ldbm);
 END
 
 lacpy_diag_in_Akk(k)  [profile = off]
@@ -155,23 +153,22 @@ READ  A <- A lacpy_diag_in_Akk(k)
 RW    B <- B(k, k)
         -> B(k, k)
 BODY
-  int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
-  int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
-  int ldak = BLKLDD( descA, k );
-  int ldbk = BLKLDD( descB, k );
+    int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
+    int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
+    int ldak = BLKLDD( descA, k );
+    int ldbk = BLKLDD( descB, k );
 
-        DRYRUN(
-               LAPACKE_zlacpy_work(
-                   LAPACK_COL_MAJOR,
-                   lapack_const(uplo), tempkm, tempkn,
-                   A, ldak, B, ldbk);
-               );
+#if !defined(DAGUE_DRY_RUN)
+    LAPACKE_zlacpy_work(LAPACK_COL_MAJOR,
+                        lapack_const(uplo), tempkm, tempkn,
+                        A, ldak, B, ldbk);
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-        printlog("lacpy_diag( %d, %d )\n"
-                 "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 k, k,
-                 plasma_const(uplo), tempkm, tempkn,
-                 k, k, ldak, k, k, ldbk);
+    printlog("lacpy_diag( %d, %d )\n"
+             "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
+             k, k,
+             plasma_const(uplo), tempkm, tempkn,
+             k, k, ldak, k, k, ldbk);
 END
 extern "C" %{
 

@@ -123,41 +123,40 @@ BODY
              "\t(%d, %d, A(%d,%d)[%p], %d, IPIV(%d)[%p])",
              k, tempm, tempkn, k, k, A, ldak, k, IPIV);
 
-    DRYRUN(
-        int tempkm = k == descA.mt-1 ? tempm : descA.mb;
-        int nbthrd = nbthreads( k );
-        int info[3];
+#if !defined(DAGUE_DRY_RUN)
+    int tempkm = k == descA.mt-1 ? tempm : descA.mb;
+    int nbthrd = nbthreads( k );
+    int info[3];
 
-        /* Set local IPIV to 0 before generation
-         * Better here than a global initialization for locality
-         * and it's also done in parallel */
-        if ( t == 0 ) {
-            memset(IPIV, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
-            /*fprintf(stderr, "There are %d threads woking on it\n", nbthrd+1);*/
-        }
+    /* Set local IPIV to 0 before generation
+     * Better here than a global initialization for locality
+     * and it's also done in parallel */
+    if ( t == 0 ) {
+        memset(IPIV, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
+        /*fprintf(stderr, "There are %d threads woking on it\n", nbthrd+1);*/
+    }
 
-        info[1] = t;
-        info[2] = nbthrd+1;
+    info[1] = t;
+    info[2] = nbthrd+1;
 
-        if ( descA.storage == matrix_Tile ) {
-            PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                   descA.mb, descA.nb, descA.mb * descA.nb,
-                                                   (descA.mt-k)*descA.mb, descA.nb, 0, 0,
-                                                   tempm, tempkn);
-            pdescA.mat = A;
-            CORE_zgetrf_rectil( pdescA, IPIV, info );
+    if ( descA.storage == matrix_Tile ) {
+        PLASMA_desc pdescA = plasma_desc_init(PlasmaComplexDouble,
+                                              descA.mb, descA.nb, descA.mb * descA.nb,
+                                              (descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                              tempm, tempkn);
+        pdescA.mat = A;
+        CORE_zgetrf_rectil( pdescA, IPIV, info );
 
-        } else {
-            CORE_zgetrf_reclap(
-                tempm, tempkn,
-                A/*(k, k)*/, ldak, IPIV, info );
-        }
+    } else {
+        CORE_zgetrf_reclap(tempm, tempkn,
+                           A/*(k, k)*/, ldak, IPIV, info );
+    }
 
-        if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
-            *INFO = tempk + info[0]; /* Should return if enter here */
-            fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
-        }
-           );
+    if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
+        *INFO = tempk + info[0]; /* Should return if enter here */
+        fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -195,27 +194,26 @@ BODY
              "\t(%d, %d, A(%d,%d)[%p], B(%d,%d)[%p])",
              k, n, tempkm, tempnn, k, k, A, k, n, B);
 
-    DRYRUN(
-        if ( descA.storage == matrix_Tile ) {
-            int tempk = k * descA.mb;
-            int tempm = descA.m - tempk;
-            PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                   descA.mb, descA.nb, descA.mb * descA.nb,
-                                                   (descA.mt-k)*descA.mb, descA.nb, 0, 0,
-                                                   tempm, tempnn);
-            pdescA.mat = (void*)B;
+#if !defined(DAGUE_DRY_RUN)
+    if ( descA.storage == matrix_Tile ) {
+        int tempk = k * descA.mb;
+        int tempm = descA.m - tempk;
+        PLASMA_desc pdescA = plasma_desc_init(PlasmaComplexDouble,
+                                              descA.mb, descA.nb, descA.mb * descA.nb,
+                                              (descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                              tempm, tempnn);
+        pdescA.mat = (void*)B;
 
-            CORE_zlaswp_ontile(pdescA, 1, tempkm, IPIV, 1);
-        } else {
-            CORE_zlaswp( tempnn, B, descA.lm, 1, tempkm, IPIV, 1);
-        }
+        CORE_zlaswp_ontile(pdescA, 1, tempkm, IPIV, 1);
+    } else {
+        CORE_zlaswp( tempnn, B, descA.lm, 1, tempkm, IPIV, 1);
+    }
 
-        CORE_ztrsm(
-            PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
-            tempkm, tempnn,
-            1., A /*(k, k)*/, ldak,
-                B /*(k, n)*/, ldak);
-           );
+    CORE_ztrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+               tempkm, tempnn,
+               1., A /*(k, k)*/, ldak,
+                   B /*(k, n)*/, ldak);
+#endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -273,13 +271,13 @@ BODY
              "\t(%d, %d, %d, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, C(%d,%d)[%p], %d)",
              k, m, n, tempmm, tempnn, descA.mb, k, k, A, ldam, k, k, B, ldak, k, n, C, ldam);
 
-    DRYRUN(
-        CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
-                   tempmm, tempnn, descA.mb,
-                   -1., A /*(m, k)*/, ldam,
-                        B /*(k, n)*/, ldak,
-                   1.,  C /*(m, n)*/, ldam );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
+               tempmm, tempnn, descA.mb,
+               -1., A /*(m, k)*/, ldam,
+                    B /*(k, n)*/, ldak,
+               1.,  C /*(m, n)*/, ldam );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -331,19 +329,19 @@ BODY
              "\t(%d, A(%d,%d)[%p], %d, IPIV(%d)[%p])",
              k, n, descA.nb, k, n, A, ldak, k, IPIV);
 
-    DRYRUN(
-        if ( descA.storage == matrix_Tile ) {
-            int tempk  = k * descA.mb;
-            int tempm  = descA.m - tempk;
-            PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                   descA.mb, descA.nb, descA.mb * descA.nb,
-                                                   (descA.mt-k)*descA.mb, descA.nb, 0, 0,
-                                                   tempm, descA.nb);
-            pdescA.mat = (void*)A;
-            CORE_zlaswp_ontile(pdescA, 1, tempmin, IPIV, 1);
-        } else {
-            CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempmin, IPIV, 1 );
-        }
-           );
+#if !defined(DAGUE_DRY_RUN)
+    if ( descA.storage == matrix_Tile ) {
+        int tempk  = k * descA.mb;
+        int tempm  = descA.m - tempk;
+        PLASMA_desc pdescA = plasma_desc_init(PlasmaComplexDouble,
+                                              descA.mb, descA.nb, descA.mb * descA.nb,
+                                              (descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                              tempm, descA.nb);
+        pdescA.mat = (void*)A;
+        CORE_zlaswp_ontile(pdescA, 1, tempmin, IPIV, 1);
+    } else {
+        CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempmin, IPIV, 1 );
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
