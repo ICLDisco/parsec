@@ -18,9 +18,9 @@ void parsec_pins(PINS_FLAG method_flag,
 
 void pins_disable_registration(int disable) {
 	if (disable)
-		printf("PINS registration has been disabled.\n");
+		DEBUG3(("PINS registration is disabled.\n"));
 	else
-		printf("PINS registration has been re-enabled.\n");
+		DEBUG3(("PINS registration is enabled.\n"));
 	registration_disabled = disable;
 }
 
