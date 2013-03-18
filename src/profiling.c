@@ -724,8 +724,6 @@ int dague_profiling_dump_dbp( const char* filename )
     dague_thread_profiling_t *t;
     int nb_infos, nb_dico;
 
-    printf("# dumping profiling\n"); // TODO PETER remove debug
-
     /* Flush existing events buffer, inconditionnally */
     DAGUE_LIST_ITERATOR(&threads, it, {
         t = (dague_thread_profiling_t*)it;

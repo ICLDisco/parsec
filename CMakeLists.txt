@@ -144,7 +144,9 @@ option(PINS_ENABLE
 option(PINS_SCHED_STEALS
    "Enable the counting of steals during scheduling and a post-run count output in matrix form." OFF)
 option(PINS_EXEC_MISSES
-   "Enable the counting of cache and TLB misses during task execution and a post-run count output in matrix form." OFF)
+   "Enable the counting of cache and TLB misses during task execution and a post-run count output via the profiling (PROF_TRACE) system." OFF)
+option(PINS_SHARED_L3_MISSES
+   "Enable the counting of shared L3 cache misses for the entirety of thread execution and a post-run count output in text matrix form." OFF)
 
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
@@ -474,6 +476,17 @@ IF( BUILD_DAGUE )
       endif (PAPI_FOUND)
     endif (NOT PAPI_FOUND)
   endif (PINS_EXEC_MISSES)
+
+  if (PINS_SHARED_L3_MISSES)
+    if (NOT PAPI_FOUND)
+      find_package(PAPI REQUIRED)
+      set(HAVE_PAPI ${PAPI_FOUND})
+      if (PAPI_FOUND)
+        list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
+        include_directories( ${PAPI_INCLUDE_DIR} )
+      endif (PAPI_FOUND)
+    endif (NOT PAPI_FOUND)
+  endif (PINS_SHARED_L3_MISSES)
 
   find_package(AYUDAME QUIET)
   set(HAVE_AYUDAME ${AYUDAME_FOUND})

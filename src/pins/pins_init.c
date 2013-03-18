@@ -1,6 +1,8 @@
+#include "dague_config.h"
 #include "pins.h"
-#include "steals/steals.h"
+#include "papi/steals.h"
 #include "papi/cachemiss.h"
+#include "papi/shared_L3_misses.h"
 #include "execution_unit.h"
 #include "profiling.h"
 
@@ -24,83 +26,51 @@ void pins_init(dague_context_t * master_context) {
 #ifdef PINS_EXEC_MISSES	
 	pins_init_cachemiss(master_context);
 #endif // PINS_EXEC_MISSES
+
 #ifdef PINS_SCHED_STEALS
 	pins_init_steals(master_context);
 #endif // PINS_SCHED_STEALS
+
+#ifdef PINS_SHARED_L3_MISSES
+	pins_init_shared_L3_misses(master_context);
+#endif
+
 }
 
 void pins_thread_init(dague_execution_unit_t * exec_unit) {
-#ifdef PINS_ENABLE
+
 #ifdef PINS_EXEC_MISSES	
 	pins_thread_init_cachemiss(exec_unit);
 #endif // PINS_EXEC_MISSES
+
 #ifdef PINS_SCHED_STEALS
 	pins_thread_init_steals(exec_unit);
 #endif // PINS_SCHED_STEALS
-#ifdef HAVE_PAPI
-	unsigned int native;
-	if (exec_unit->th_id % 6 == 1) {
-		exec_unit->papi_eventsets[0] = PAPI_NULL;
-		if (PAPI_create_eventset(&exec_unit->papi_eventsets[0]) != PAPI_OK)
-			printf("couldn't create the PAPI event set for thread %d to measure L3 misses\n", exec_unit->th_id);
-		else {
-			if (PAPI_event_name_to_code("L3_CACHE_MISSES:ANY_READ", &native) != PAPI_OK)
-				printf("couldn't find L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE.\n");
-			if (PAPI_add_event(exec_unit->papi_eventsets[0], native) != PAPI_OK)
-				printf("couldn't add L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE.\n");
 
-			if (PAPI_event_name_to_code("L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE", &native) != PAPI_OK)
-				printf("couldn't find L3_CACHE_MISSES:READ_BLOCK_SHARED.\n");
-			if (PAPI_add_event(exec_unit->papi_eventsets[0], native) != PAPI_OK)
-				printf("couldn't add L3_CACHE_MISSES:READ_BLOCK_SHARED.\n");
-
-			if (PAPI_event_name_to_code("L3_CACHE_MISSES:READ_BLOCK_MODIFY", &native) != PAPI_OK)
-				printf("couldn't find DATA_CACHE_MISSES.\n");
-			if (PAPI_add_event(exec_unit->papi_eventsets[0], native) != PAPI_OK)
-				printf("couldn't add DATA_CACHE_MISSES.\n");
-
-			if (PAPI_event_name_to_code("L3_CACHE_MISSES:READ_BLOCK_SHARED", &native) != PAPI_OK)
-				printf("couldn't find PERF_COUNT_HW_INSTRUCTIONS.\n");
-			if (PAPI_add_event(exec_unit->papi_eventsets[0], native) != PAPI_OK)
-				printf("couldn't add PERF_COUNT_HW_INSTRUCTIONS.\n");
-
-			if (PAPI_start(exec_unit->papi_eventsets[0]) != PAPI_OK)
-				printf("couldn't start PAPI event set for thread %d to measure L3 misses\n", exec_unit->th_id);
-			else {
-				//				printf("# started PAPI event set %d for thread %d (%p) to measure L3 misses\n", exec_unit->papi_eventsets[0], exec_unit->th_id, exec_unit);
-				dague_profiling_trace(exec_unit->eu_profile, pins_prof_exec_misses_start, 45, 3, NULL);
-			}
-		}
-	}
-#endif /*HAVE_PAPI */
-#endif	
+	parsec_pins(THREAD_INIT, exec_unit, NULL, NULL);
 }
 
 void pins_thread_fini(dague_execution_unit_t * exec_unit) {
-#ifdef PINS_ENABLE
-#ifdef HAVE_PAPI
-	if (exec_unit->th_id % 6 == 1) {
-		long long int values[4];
-		int rv = PAPI_OK;
-		if ((rv = PAPI_stop(exec_unit->papi_eventsets[0], values)) != PAPI_OK) {
-			printf("couldn't stop PAPI event set %d for thread %d (%p) to measure L3 misses; ERROR:  %s\n", exec_unit->papi_eventsets[0], exec_unit->th_id, exec_unit, PAPI_strerror(rv));
-		}
-		else {
-			printf("%15lld %15lld %15lld %15lld\n", values[0], values[1], values[2], values[3]);
-		}
-	}
-#endif
-#endif	
+
+	parsec_pins(THREAD_FINI, exec_unit, NULL, NULL);
 }
 
 
 void pins_handle_init(dague_handle_t * handle) {
-#ifdef PINS_ENABLE
+
 #ifdef PINS_EXEC_MISSES	
 	pins_handle_init_cachemiss(handle);
 #endif // PINS_EXEC_MISSES
+
 #ifdef PINS_SCHED_STEALS
 	pins_handle_init_steals(handle);
 #endif // PINS_SCHED_STEALS
-#endif // PINS_ENABLE
+
+	parsec_pins(HANDLE_INIT, NULL, NULL, (void *)handle);
+}
+
+void pins_handle_fini(dague_handle_t * handle) {
+
+
+	parsec_pins(HANDLE_FINI, NULL, NULL, (void *)handle);
 }

@@ -3,6 +3,8 @@
 #include "pins.h"
 #include "debug.h"
 
+static int registration_disabled;
+
 parsec_pins_callback * pins_array[A_COUNT_NOT_A_FLAG] = { 0 };
 
 void empty_callback(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data);
@@ -12,6 +14,14 @@ void parsec_pins(PINS_FLAG method_flag,
                  dague_execution_context_t * task, 
                  void * data) {
     (*(pins_array[method_flag]))(exec_unit, task, data);
+}
+
+void pins_disable_registration(int disable) {
+	if (disable)
+		printf("PINS registration has been disabled.\n");
+	else
+		printf("PINS registration has been re-enabled.\n");
+	registration_disabled = disable;
 }
 
 /**
@@ -30,9 +40,15 @@ parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins
     }
     assert(cb != NULL);
     if (method_flag >= 0 && method_flag < A_COUNT_NOT_A_FLAG) {
-        parsec_pins_callback * prev = pins_array[method_flag];
-        pins_array[method_flag] = cb;
-        return prev;
+	    if (registration_disabled) {
+		    DEBUG3(("NOTE: PINS has been disabled by command line argument, causing this registration to fail."));
+		    return NULL;
+	    }
+	    else {
+		    parsec_pins_callback * prev = pins_array[method_flag];
+		    pins_array[method_flag] = cb;
+		    return prev;
+	    }
     }
     else {
         DEBUG(("WARNING: Attempted to use the invalid flag %d with PaRSEC Performance Instrumentation!\n", method_flag));
@@ -42,9 +58,15 @@ parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins
 
 parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag) {
     if (method_flag >= PARSEC_SCHEDULED && method_flag < A_COUNT_NOT_A_FLAG) {
-        parsec_pins_callback * prev = pins_array[method_flag];
-        pins_array[method_flag] = &empty_callback;
-        return prev;
+	    if (registration_disabled) {
+		    DEBUG3(("NOTE: PINS has been disabled by command line argument, causing this UN-registration to fail."));
+		    return NULL;
+	    }
+	    else {
+		    parsec_pins_callback * prev = pins_array[method_flag];
+		    pins_array[method_flag] = &empty_callback;
+		    return prev;
+	    }
     }
     else {
         DEBUG(("WARNING: Attempted to use the invalid flag %d with PaRSEC Performance Instrumentation!\n", method_flag));

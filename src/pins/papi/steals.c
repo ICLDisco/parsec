@@ -1,10 +1,10 @@
 #include "steals.h"
-#include "src/pins/pins.h"
+#include "dague/pins/pins.h"
 #include "debug.h"
 #include "execution_unit.h"
 #include <papi.h>
 
-#include "src/pins/papi/cachemiss.h"
+#include "cachemiss.h"
 
 static unsigned int num_cores;
 static unsigned int ** steals;
@@ -27,9 +27,8 @@ void pins_init_steals(dague_context_t * master) {
 		steals[i] = (unsigned int*)calloc(sizeof(int), num_cores + 2);
 	}
 
-#ifdef PINS_SCHED_STEALS
-	PINS_REGISTER(SCHED_STEAL, count_steal);
-#endif
+	PINS_REGISTER(TASK_SELECT_BEGIN, start_papi_steal_count);
+	PINS_REGISTER(TASK_SELECT_FINI, stop_papi_steal_count);
 }
 
 void pins_thread_init_steals(dague_execution_unit_t * exec_unit) {
@@ -60,7 +59,7 @@ void pins_fini_steals(dague_context_t * master_context) {
 	// print everything
 	for (p = 0; p < num_cores; p++) {
 		for (q = 0; q < num_cores + 2; q++) {
-			printf("%4u ", steals[p][q]);
+			printf("%6u ", steals[p][q]);
 		}
 		printf("\n");
 	}
@@ -89,9 +88,17 @@ typedef struct {
     dague_hbbuffer_t **hierarch_queues;
 } local_queues_scheduler_object_t;
 #define LOCAL_QUEUES_OBJECT(eu_context) ((local_queues_scheduler_object_t*)(eu_context)->scheduler_object)
-#define NUM_EVENTS 2
-#include <papi.h>
-void count_steal(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data) {
+// END HACK
+
+void start_papi_steal_count(dague_execution_unit_t * exec_unit, dague_execution_context_t * exec_context, void * data) {
+	(void)exec_context;
+	(void)data;
+	int rv;
+	if ((rv = PAPI_start(exec_unit->StealEventSet)) != PAPI_OK)
+		printf("%p steals.c, start_papi_steal_count: can't start steal event counters! %d %s\n", exec_unit, rv, PAPI_strerror(rv));
+}
+
+void stop_papi_steal_count(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data) {
 	// This section counts the steals (self, neighbor, system queue, starvation)
 	unsigned int victim_core_num = (unsigned int)data;
 	if (task != NULL) 
@@ -103,7 +110,7 @@ void count_steal(dague_execution_unit_t * exec_unit, dague_execution_context_t *
 	long long int values[NUM_STEAL_EVENTS];
 	int rv = PAPI_OK;
 	if ((rv = PAPI_stop(exec_unit->StealEventSet, values)) != PAPI_OK)
-		printf("steals.c, count_steal: can't stop steal event counters! %d %s\n", rv, PAPI_strerror(rv));
+		printf("steals.c, stop_papi_steal_count: can't stop steal event counters! %d %s\n", rv, PAPI_strerror(rv));
 	else {
 		unsigned int cur_core_num = LOCAL_QUEUES_OBJECT(exec_unit)->task_queue->assoc_core_num;
 		// add counters

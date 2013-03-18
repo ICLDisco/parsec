@@ -38,11 +38,14 @@ if( PINS_ENABLE )
   list(APPEND EXTRA_SOURCES pins/pins_init.c) # PETER would be nice to generate this file
   # specific PINS modules
   if( PINS_SCHED_STEALS )
-    list(APPEND EXTRA_SOURCES pins/steals/steals.c)
+    list(APPEND EXTRA_SOURCES pins/papi/steals.c)
   endif( PINS_SCHED_STEALS )
   if( PINS_EXEC_MISSES )
     list(APPEND EXTRA_SOURCES pins/papi/cachemiss.c) 
   endif( PINS_EXEC_MISSES )
+  if( PINS_SHARED_L3_MISSES )
+    list(APPEND EXTRA_SOURCES pins/papi/shared_L3_misses.c)
+  endif( PINS_SHARED_L3_MISSES )
 endif( PINS_ENABLE )
 
 if( DAGUE_PROF_TRACE )

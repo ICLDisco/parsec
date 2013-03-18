@@ -43,6 +43,7 @@
 #cmakedefine PINS_ENABLE
 #cmakedefine PINS_EXEC_MISSES
 #cmakedefine PINS_SCHED_STEALS
+#cmakedefine PINS_SHARED_L3_MISSES
 
 /* Simulating */
 #cmakedefine DAGUE_SIM

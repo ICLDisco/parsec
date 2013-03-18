@@ -4,34 +4,24 @@
 #include <stdio.h>
 #include "execution_unit.h"
 #include "profiling.h"
-#include "src/pins/pins.h"
-
-static int steal_events[NUM_STEAL_EVENTS] = {PAPI_L1_TCM, PAPI_L2_TCM};
-
-#define THREAD_NUM(exec_unit) (exec_unit->virtual_process->vp_id *       \
-                              exec_unit->virtual_process->dague_context->nb_vp + \
-                              exec_unit->th_id )
+#include "dague/pins/pins.h"
+#include "shared_L3_misses.h"
 
 void pins_init_cachemiss(dague_context_t * master_context) {
 	(void)master_context;
-    // PETER TODO put this in correct initialization place for PINS stuff
-#ifdef PINS_SCHED_STEALS
-	PINS_REGISTER(TASK_SELECT_BEGIN, start_papi_steal_count);
-#endif
 
-#ifdef PINS_EXEC_MISSES
 	PINS_REGISTER(EXEC_BEGIN, start_papi_exec_count);
 	PINS_REGISTER(EXEC_FINI, stop_papi_exec_count);
 	// PETER TODO add requirement for DAGUE_PROF_TRACE
 	dague_profiling_add_dictionary_keyword("EXEC_MISSES", "fill:#00FF00",
 	                                       sizeof(pins_cachemiss_info_t), NULL,
 	                                       &pins_prof_exec_misses_start, &pins_prof_exec_misses_stop);
-#endif
 }
 
 void pins_thread_init_cachemiss(dague_execution_unit_t * exec_unit) {
 	int rv = 0;
-	if (exec_unit->th_id % 6 != 1) {
+	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_FOR_L3 
+	    || !DO_L3_MEASUREMENTS) {
 		exec_unit->papi_eventsets[0] = PAPI_NULL;
 		exec_unit->papi_eventsets[1] = PAPI_NULL;
 		if (PAPI_create_eventset(&exec_unit->papi_eventsets[0]) != PAPI_OK)
@@ -74,38 +64,13 @@ void pins_handle_init_cachemiss(dague_handle_t * handle) {
 	 */
 }
 
-/*
-void start_papi_steal_count(dague_execution_unit_t * exec_unit, dague_execution_context_t * exec_context, void * data) {
-	(void)exec_context;
-	(void)data;
-	int rv;
-	if ((rv = PAPI_start(exec_unit->StealEventSet)) != PAPI_OK)
-		printf("%p cachemiss.c, start_papi_steal_count: can't start steal event counters! %d %s\n", exec_unit, rv, PAPI_strerror(rv));
-}
-
-// PETER this is currently done by SCHED_STEAL/count_steals in pins/steals/steals.c
-void stop_papi_steal_count(dague_execution_unit_t * exec_unit, dague_execution_context_t * exec_context, void * data) {
-	(void)exec_context;
-	(void)data;
-	long long int values[NUM_STEAL_EVENTS];
-	int rv;
-	printf("%p cachemiss.c, stop_papi_steal_count: this should not be running.\n", exec_unit);
-	if ((rv = PAPI_stop(exec_unit->StealEventSet, values)) != PAPI_OK)
-		printf("%p cachemiss.c, stop_papi_steal_count: can't stop steal event counters! %d %s\n", exec_unit, rv, PAPI_strerror(rv));
-	else {
-		// add counters
-		exec_unit->select_counters[0] += values[0];
-		exec_unit->select_counters[1] += values[1];
-	}
-}
- */
-
 void start_papi_exec_count(dague_execution_unit_t * exec_unit, 
                            dague_execution_context_t * exec_context, void * data) {
 	(void)exec_context;
 	(void)data;
 	int rv = PAPI_OK;
-	if (exec_unit->th_id % 6 != 1) {
+	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_FOR_L3 
+	    || !DO_L3_MEASUREMENTS) {
 		if ((rv = PAPI_start(exec_unit->papi_eventsets[0])) != PAPI_OK) {
 			printf("cachemiss.c, start_papi_exec_count: can't start "
 			       "exec event counters! %d %s\n", 
@@ -126,7 +91,8 @@ void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 	(void)data;
 	long long int values[NUM_EXEC_EVENTS];
 	int rv = PAPI_OK;
-	if (exec_unit->th_id % 6 != 1) {
+	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_FOR_L3 
+	    || !DO_L3_MEASUREMENTS) {
 		if ((rv = PAPI_stop(exec_unit->papi_eventsets[0], values)) != PAPI_OK) {
 			printf("cachemiss.c, stop_papi_exec_count: can't stop exec event counters! %d %s\n", 
 			       rv, PAPI_strerror(rv));

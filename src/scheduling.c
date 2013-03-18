@@ -15,11 +15,6 @@
 #include "vpmap.h"
 #include "src/pins/pins.h"
 
-#ifdef PINS_ENABLE
-#include "src/pins/papi/cachemiss.h" // PETER this depends on PAPI as well as PINS
-#include "src/pins/steals/steals.h"
-#endif
-
 #include "dague/ayudame.h"
 
 #include <signal.h>
@@ -237,8 +232,6 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 #define gettid() syscall(__NR_gettid)
 #endif /* HAVE_SCHED_SETAFFINITY */
 
-#include "src/pins/papi/cachemiss.h" // PETER remove after test
-
 #define TIME_STEP 5410
 #define MIN(x, y) ( (x)<(y)?(x):(y) )
 static inline unsigned long exponential_backoff(uint64_t k)
@@ -396,9 +389,8 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 
  finalize_progress:
-#if defined(PINS_ENABLE)
-    pins_thread_fini(eu_context);
-#endif /* PINS_ENABLE */
+    PINS_THREAD_FINI(eu_context);
+
 
 
 

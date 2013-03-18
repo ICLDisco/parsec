@@ -34,6 +34,7 @@
 
 #include "dague_prof_grapher.h"
 #include "vpmap.h"
+#include "dague/pins/pins.h"
 
 static char *DAGUE_SCHED_NAME[] = {
     "", /* default */
@@ -118,6 +119,7 @@ void print_usage(void)
             " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
             "    --dot          : create a dot output file (default: don't)\n"
+            "    --nopins       : disable the Performance Instrumentation system (if available)\n"
             "\n"
             " -v --verbose      : extra verbose output\n"
             " -h --help         : this message\n"
@@ -211,6 +213,7 @@ static struct option long_options[] =
     {"y",           required_argument,  0, 'y'},
 
     {"dot",         required_argument,  0, '.'},
+    {"nopins",      no_argument,        0, 'n'},
 
     {"verbose",     optional_argument,  0, 'v'},
     {"v",           optional_argument,  0, 'v'},
@@ -299,6 +302,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
 
             case '.': iparam[IPARAM_DOT] = 1; dot_filename = strdup(optarg); break;
+            case 'n': iparam[IPARAM_NOPINS] = 1; break;
 
             case 'v':
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
@@ -525,6 +529,8 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     if((verbose > 2) && (provided != MPI_THREAD_SERIALIZED))
         fprintf(stderr, "!!! DAGuE formally needs MPI_THREAD_SERIALIZED, but your MPI does not provide it. This is -usually- fine nonetheless\n");
 #endif
+
+    PINS_DISABLE_REGISTRATION(iparam[IPARAM_NOPINS]);
 
     TIME_START();
 

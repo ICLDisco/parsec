@@ -19,8 +19,6 @@
 #include <dague/ayudame.h>
 
 #include "pins/pins.h"
-#include "pins/papi/cachemiss.h"
-#include "pins/steals/steals.h"
 
 #include <dague/utils/output.h>
 #include "data.h"
@@ -179,9 +177,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->eu_profile = dague_profiling_thread_init( 2*1024*1024, "DAGuE Thread %d of VP %d", eu->th_id, eu->virtual_process->vp_id );
 #endif
 
-#if defined(PINS_ENABLE)
-    pins_thread_init(eu);
-#endif
+    PINS_THREAD_INIT(eu);
 
 #if defined(DAGUE_SIM)
     eu->largest_simulation_date = 0;
@@ -420,7 +416,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif  /* DAGUE_PROF_TRACE */
 
     /* Initialize Performance Instrumentation (PINS) */
-    pins_init(context);
+    PINS_INIT(context);
 
     dague_devices_init(context);
     /* By now let's add one device for the CPUs */
