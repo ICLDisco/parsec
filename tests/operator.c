@@ -9,7 +9,7 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 static int
-dague_operator_print_id( struct dague_execution_unit *eu,
+dague_operator_print_id( struct dague_execution_unit_s *eu,
                          const void* src,
                          void* dest,
                          void* op_data, ... )
