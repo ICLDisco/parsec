@@ -53,7 +53,7 @@ typedef uint8_t dague_data_flag_t;
 struct dague_data_copy_s {
     dague_list_item_t         super;
 
-    int8_t                    device_index;
+    int8_t                    device_index;         /**< Index in the original->device_copies array */
     dague_data_flag_t         flags;
     dague_data_coherency_t    coherency_state;
     /* int8_t */
@@ -62,9 +62,12 @@ struct dague_data_copy_s {
 
     uint32_t                  version;
 
-    struct dague_data_copy_s *older;
+    struct dague_data_copy_s *older;                 /**< unused yet */
     dague_data_t             *original;
-    void*                    device_private;
+    void*                    device_private;         /**< The pointer to the device-specific data.
+                                                      *   Overlay data distributions assume that arithmetic
+                                                      *   can be done on these pointers.
+                                                      */
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
 
