@@ -13,6 +13,7 @@
 
 typedef struct pins_cachemiss_info_s {
 	int kernel_type;
+	int vp_id;
 	int th_id;
 	int values_len;
 	long long values[NUM_EXEC_EVENTS];

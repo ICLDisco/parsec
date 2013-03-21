@@ -191,12 +191,23 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
             # their own info objects
             cinfo = dbp_event_get_info(event_e)
             if cinfo != NULL:
-               if event.key == reader.dictionary['EXEC_MISSES'].id:
+               if event.key == reader.dictionary['PINS_EXEC_PAPI_CORE'].id:
                   cast_pins_info = <pins_cachemiss_info_t *>cinfo
                   event.info = dbp_ExecMisses_EventInfo(
 	                  cast_pins_info.kernel_type, 
+                          cast_pins_info.vp_id,
 	                  cast_pins_info.th_id,
-	                  [cast_pins_info.values[x] for x in range(NUM_EXEC_EVENTS)])
+	                  [cast_pins_info.values[x] for x in range(cast_pins_info.values_len)])
+               elif event.key == reader.dictionary['PINS_TASK_SELECT'].id:
+                  cast_pins_info = <pins_task_select_info_t *>cinfo
+                  event.info = dbp_TaskSelect_EventInfo(
+                             cast_pins_info.kernel_type,
+                             cast_pins_info.vp_id,
+                             cast_pins_info.th_id,
+                             cast_pins_info.victim_vp_id,
+                             cast_pins_info.victim_th_id,
+                             cast_pins_info.exec_context,
+                             [cast_pins_info.values[x] for x in range(cast_pins_info.values_len)])
 	       # elif event.key == reader.dictionary['<SOME OTHER TYPE WITH INFO>].id:
                   # event.info = <write a function and a Python type to translate>
 
@@ -216,8 +227,9 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
 
 class dbp_ExecMisses_EventInfo:
    __max_length__ = 0
-   def __init__(self, kernel_type, th_id, values):
+   def __init__(self, kernel_type, vp_id, th_id, values):
       self.kernel_type = kernel_type
+      self.vp_id = vp_id
       self.th_id = th_id
       self.values = values
 
@@ -238,6 +250,7 @@ class dbp_ExecMisses_EventInfo:
       header = ''
       length = str(dbp_ExecMisses_EventInfo.__max_length__)
       header += ('{:>' + length + '}  ').format('kernel_type')
+      header += ('{:>' + length + '}  ').format('vp_id')
       header += ('{:>' + length + '}  ').format('th_id')
       header += ('{:>' + length + '}  ').format('values')
       return header
@@ -246,7 +259,64 @@ class dbp_ExecMisses_EventInfo:
       rv = ''
       length = str(dbp_ExecMisses_EventInfo.__max_length__)
       rv += ('{:>' + length + '}  ').format(self.kernel_type)
+      rv += ('{:>' + length + '}  ').format(self.vp_id)
       rv += ('{:>' + length + '}  ').format(self.th_id)
+      for value in self.values:
+         rv += ('{:>' + length + '}  ').format(value)
+      return rv
+
+class dbp_TaskSelect_EventInfo:
+   __max_length__ = 0
+   def __init__(self, kernel_type, vp_id, th_id, victim_vp_id, victim_th_id, exec_context, values):
+      self.kernel_type = kernel_type
+      self.vp_id = vp_id
+      self.th_id = th_id
+      self.victim_vp_id = victim_vp_id
+      self.victim_th_id = victim_th_id
+      self.exec_context = exec_context
+      self.values = values
+
+      # set global max length
+      for attr, val in vars(self).items():
+         if len(attr) > dbp_TaskSelect_EventInfo.__max_length__:
+            dbp_TaskSelect_EventInfo.__max_length__ = len(attr)
+         # values that we don't want printed generically
+         elif attr == 'values':
+            for value in val:
+               if len(str(value)) > dbp_TaskSelect_EventInfo.__max_length__:
+                  dbp_TaskSelect_EventInfo.__max_length__ = len(value)
+         elif len(str(val)) > dbp_TaskSelect_EventInfo.__max_length__:
+            dbp_TaskSelect_EventInfo.__max_length__ = len(str(val))
+
+   def isStarvation(self):
+      return self.exec_context == 0
+
+   def isSystemQueueSteal(self):
+      return self.victim_vp_id == SYSTEM_QUEUE_VP
+
+   def row_header(self):
+      # first, establish max length
+      header = ''
+      length = str(dbp_TaskSelect_EventInfo.__max_length__)
+      header += ('{:>' + length + '}  ').format('kernel_type')
+      header += ('{:>' + length + '}  ').format('vp_id')
+      header += ('{:>' + length + '}  ').format('th_id')
+      header += ('{:>' + length + '}  ').format('vict_vp_id')
+      header += ('{:>' + length + '}  ').format('vict_th_id')
+      header += ('{:>' + length + '}  ').format('exec_context')
+      header += ('{:>' + length + '}  ').format('values')
+      return header
+
+   def __repr__(self):
+      rv = ''
+      length = str(dbp_TaskSelect_EventInfo.__max_length__)
+      rv += ('{:>' + length + '}  ').format(self.kernel_type)
+      rv += ('{:>' + length + '}  ').format(self.vp_id)
+      rv += ('{:>' + length + '}  ').format(self.th_id)
+      rv += ('{:>' + length + '}  ').format(self.victim_vp_id)
+      rv += ('{:>' + length + '}  ').format(self.victim_th_id)
+      rv += ('{:>' + length + '}  ').format(self.exec_context)
+
       for value in self.values:
          rv += ('{:>' + length + '}  ').format(value)
       return rv

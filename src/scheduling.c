@@ -321,7 +321,6 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         }
 
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
-        PINS(TASK_SELECT_BEGIN, eu_context, NULL, NULL);
         exec_context = current_scheduler->module.select(eu_context);
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
@@ -355,7 +354,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
-            PINS(EXEC_FINI, eu_context, exec_context, NULL);
+            PINS(EXEC_END, eu_context, exec_context, NULL);
 
         } else {
             misses_in_a_row++;

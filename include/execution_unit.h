@@ -20,6 +20,13 @@
 #include "profiling.h"
 #include "barrier.h"
 
+/* for PAPI event sets in execution_unit */
+typedef enum PAPI_EVENTSETS {
+	EXEC_SET,
+	TASK_SELECT_SET,
+	EVENTSETS_COUNT
+} PAPI_EVENTSETS;
+
 /**
  *  Computational Thread-specific structure
  */
@@ -42,20 +49,8 @@ struct dague_execution_unit_s {
 #endif
 
 #if defined(HAVE_PAPI)
-	int papi_eventsets[2];
+	int papi_eventsets[EVENTSETS_COUNT];
 #endif /* HAVE_PAPI */
-	long long int self_counters[2];
-	long long int steal_counters[2];
-	long long int other_counters[2];
-	long long int select_counters[2];
-	int self;
-	int steal;
-	int other;
-
-	char count[5];
-
-	long long int exec_cache_misses[2];
-	long long int exec_tlb_misses;
 
     struct dague_vp_s      *virtual_process;   /**< Backlink to the virtual process that holds this thread */
     /**

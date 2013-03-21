@@ -17,7 +17,7 @@ extern parsec_pins_callback * pins_array[];
 
 void pins_init(dague_context_t * master_context) {
   int i = 0;
-  for (; i < A_COUNT_NOT_A_FLAG; i++) {
+  for (; i < PINS_FLAG_COUNT; i++) {
     if (pins_array[i] == NULL)
       pins_array[i] = &empty_callback;
   }
@@ -66,7 +66,11 @@ void pins_handle_init(dague_handle_t * handle) {
 }
 
 void pins_handle_fini(dague_handle_t * handle) {
-
+	/*
+#ifdef PINS_SCHED_STEALS
+	pins_handle_fini_steals(handle);
+#endif // PINS_SCHED_STEALS
+	 */
 
 	parsec_pins(HANDLE_FINI, NULL, NULL, (void *)handle);
 }

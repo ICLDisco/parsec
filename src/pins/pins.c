@@ -5,7 +5,7 @@
 
 static int registration_disabled;
 
-parsec_pins_callback * pins_array[A_COUNT_NOT_A_FLAG] = { 0 };
+parsec_pins_callback * pins_array[PINS_FLAG_COUNT] = { 0 };
 
 void empty_callback(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data);
 
@@ -32,14 +32,14 @@ void pins_disable_registration(int disable) {
 parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins_callback * cb) {
     if (!pins_array[0]) {
         int i = 0;
-        for (; i < A_COUNT_NOT_A_FLAG; i++) {
+        for (; i < PINS_FLAG_COUNT; i++) {
             if (pins_array[i] == NULL)
                 pins_array[i] = &empty_callback;
         }
         DEBUG(("Initialized PaRSEC PINS callbacks to empty_callback()"));
     }
     assert(cb != NULL);
-    if (method_flag >= 0 && method_flag < A_COUNT_NOT_A_FLAG) {
+    if (method_flag >= 0 && method_flag < PINS_FLAG_COUNT) {
 	    if (registration_disabled) {
 		    DEBUG3(("NOTE: PINS has been disabled by command line argument, causing this registration to fail."));
 		    return NULL;
@@ -57,7 +57,7 @@ parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins
 }
 
 parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag) {
-    if (method_flag >= PARSEC_SCHEDULED && method_flag < A_COUNT_NOT_A_FLAG) {
+    if (method_flag >= PARSEC_SCHEDULED && method_flag < PINS_FLAG_COUNT) {
 	    if (registration_disabled) {
 		    DEBUG3(("NOTE: PINS has been disabled by command line argument, causing this UN-registration to fail."));
 		    return NULL;

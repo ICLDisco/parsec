@@ -25,6 +25,8 @@
 #include "dague/mca/sched/sched_local_queues_utils.h"
 #include "dague/mca/sched/lfq/sched_lfq.h"
 #include "dequeue.h"
+#include "dague/pins/pins.h"
+static int SYSTEM_NEIGHBOR = 0;
 
 #if defined(DAGUE_PROF_TRACE) && 0
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), NULL)
@@ -96,6 +98,7 @@ static int sched_lfq_install( dague_context_t *master )
             /* Each thread creates its own "local" queue, connected to the shared dequeue */
             sched_obj->task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper,
                                                         (void*)sched_obj->system_queue);
+			sched_obj->task_queue->assoc_core_num = p * vp->nb_cores + t; // stored for PINS
             sched_obj->hierarch_queues[0] = sched_obj->task_queue;
             DEBUG((" Core %d:%d: Task queue is %p (that's 0-preferred queue)\n",  p, t, sched_obj->task_queue));
         }
@@ -154,10 +157,12 @@ static dague_execution_context_t *sched_lfq_select( dague_execution_unit_t *eu_c
 {
     dague_execution_context_t *exec_context = NULL;
     int i;
+    PINS(TASK_SELECT_BEGIN, eu_context, NULL, NULL);
 
     exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
                                                                        dague_execution_context_priority_comparator);
     if( NULL != exec_context ) {
+		PINS(TASK_SELECT_END, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num);
         return exec_context;
     }
     for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
@@ -166,6 +171,7 @@ static dague_execution_context_t *sched_lfq_select( dague_execution_unit_t *eu_c
         if( NULL != exec_context ) {
             DEBUG3(("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
                     eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]));
+			PINS(TASK_SELECT_END, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
             return exec_context;
         }
     }
@@ -175,7 +181,9 @@ static dague_execution_context_t *sched_lfq_select( dague_execution_unit_t *eu_c
         DEBUG3(("LQ\t: %d:%d found task %p in its system queue %p\n",
                 eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue));
     }
-    return exec_context;}
+	PINS(TASK_SELECT_END, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
+    return exec_context;
+}
 
 static int sched_lfq_schedule( dague_execution_unit_t* eu_context,
                               dague_execution_context_t* new_context )

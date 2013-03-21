@@ -7,9 +7,9 @@
 
 typedef enum PINS_FLAG {
 	TASK_SELECT_BEGIN,
-	TASK_SELECT_FINI,
+	TASK_SELECT_END,
 	EXEC_BEGIN,
-	EXEC_FINI,
+	EXEC_END,
 	/* what follows are
 	 * Special Events. 
 	 * They do not necessarily
@@ -24,7 +24,7 @@ typedef enum PINS_FLAG {
 	PARSEC_PROLOGUE,
 	PARSEC_RELEASE,
 	/* this one is not an event at all */
-	A_COUNT_NOT_A_FLAG
+	PINS_FLAG_COUNT
 } PINS_FLAG;
 
 typedef void (parsec_pins_callback)(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data); 

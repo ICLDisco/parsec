@@ -108,7 +108,22 @@ cdef extern from "dague/pins/papi/cachemiss.h":
 
    ctypedef struct pins_cachemiss_info_t:
       int kernel_type
+      int vp_id
       int th_id
       int values_len
       long long values[NUM_EXEC_EVENTS] # number is inconsequential
+
+cdef extern from "dague/pins/papi/steals.h":
+   enum: NUM_TASK_SELECT_EVENTS # allows us to grab the #define from the .h
+   enum: SYSTEM_QUEUE_VP
+
+   ctypedef struct pins_task_select_info_t:
+      int kernel_type
+      int vp_id
+      int th_id
+      int victim_vp_id
+      int victim_th_id
+      long long exec_context
+      int values_len
+      long long values[NUM_TASK_SELECT_EVENTS] # number is inconsequential
 
