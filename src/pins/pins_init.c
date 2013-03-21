@@ -62,10 +62,6 @@ void pins_handle_init(dague_handle_t * handle) {
 	pins_handle_init_cachemiss(handle);
 #endif // PINS_EXEC_MISSES
 
-#ifdef PINS_SCHED_STEALS
-	pins_handle_init_steals(handle);
-#endif // PINS_SCHED_STEALS
-
 	parsec_pins(HANDLE_INIT, NULL, NULL, (void *)handle);
 }
 

@@ -7,6 +7,9 @@
 #include "dague/pins/pins.h"
 #include "shared_L3_misses.h"
 
+static int pins_prof_exec_misses_start, pins_prof_exec_misses_stop;
+static int exec_events[NUM_EXEC_EVENTS] = {PAPI_RES_STL, PAPI_L2_DCH, PAPI_L2_DCM, PAPI_L1_ICM};
+
 void pins_init_cachemiss(dague_context_t * master_context) {
 	(void)master_context;
 
@@ -23,15 +26,12 @@ void pins_thread_init_cachemiss(dague_execution_unit_t * exec_unit) {
 	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_FOR_L3 
 	    || !DO_L3_MEASUREMENTS) {
 		exec_unit->papi_eventsets[0] = PAPI_NULL;
-		exec_unit->papi_eventsets[1] = PAPI_NULL;
 		if (PAPI_create_eventset(&exec_unit->papi_eventsets[0]) != PAPI_OK)
 			printf("cachemiss.c, pins_thread_init_cachemiss: failed to create ExecEventSet\n");
-		if ((rv = PAPI_add_events(exec_unit->papi_eventsets[0], exec_events, NUM_EXEC_EVENTS)) 
+ 		if ((rv = PAPI_add_events(exec_unit->papi_eventsets[0], exec_events, NUM_EXEC_EVENTS)) 
 		    != PAPI_OK)
 			printf("cachemiss.c, pins_thread_init_cachemiss: failed to add "
 			       "exec events to ExecEventSet. %d %s\n", rv, PAPI_strerror(rv));
-		if (PAPI_create_eventset(&exec_unit->papi_eventsets[1]) != PAPI_OK)
-			printf("cachemiss.c, pins_thread_init_cachemiss: failed to create StealEventSet\n");
 	}
 }
 
