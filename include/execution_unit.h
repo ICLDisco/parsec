@@ -20,13 +20,15 @@
 #include "profiling.h"
 #include "barrier.h"
 
+#ifdef HAVE_PAPI
 /* for PAPI event sets in execution_unit */
 typedef enum PAPI_EVENTSETS {
 	EXEC_PER_CORE_SET,
-	EXEC_PER_SOCKET_SET,
 	TASK_SELECT_SET,
+	PER_SOCKET_SET,
 	EVENTSETS_COUNT
 } PAPI_EVENTSETS;
+#endif // HAVE_PAPI
 
 /**
  *  Computational Thread-specific structure

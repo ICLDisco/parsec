@@ -18,6 +18,7 @@ set(BASE_SOURCES
   utils/mca_parse_paramfile.c
   utils/mca_param.c
 )
+
 FLEX_TARGET(show_help_flex utils/show_help_lex.l ${CMAKE_CURRENT_BINARY_DIR}/show_help_lex.l.c)
 SET_SOURCE_FILES_PROPERTIES(${FLEX_show_help_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS}")
 list(APPEND BASE_SOURCES ${FLEX_show_help_flex_OUTPUTS})
@@ -31,27 +32,9 @@ list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 #   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
 include(mca/CMakeLists.txt)
 
-### PINS (Performance Instrumentation system)
-# if( PINS_ENABLE )
-#   list(APPEND EXTRA_SOURCES pins/pins.c)
-#   list(APPEND EXTRA_SOURCES pins/pins_init.c) # PETER would be nice to generate this file
-#   # specific PINS modules
-#   if( PINS_SCHED_STEALS )
-#     list(APPEND EXTRA_SOURCES pins/papi/steals.c)
-#   endif( PINS_SCHED_STEALS )
-#   if( PINS_EXEC_MISSES )
-#     list(APPEND EXTRA_SOURCES pins/papi/cachemiss.c) 
-#   endif( PINS_EXEC_MISSES )
-#   if( PINS_SHARED_L3_MISSES )
-#     list(APPEND EXTRA_SOURCES pins/papi/shared_L3_misses.c)
-#   endif( PINS_SHARED_L3_MISSES )
-# endif( PINS_ENABLE )
-
 if( DAGUE_PROF_TRACE )
-  message(STATUS "in that block")
   list(APPEND EXTRA_SOURCES profiling.c)
 endif( DAGUE_PROF_TRACE )
-
 
 set(SOURCES
   barrier.c

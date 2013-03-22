@@ -25,7 +25,7 @@
 #include "dague/mca/sched/sched_local_queues_utils.h"
 #include "dague/mca/sched/lhq/sched_lhq.h"
 #include "dequeue.h"
-#include "dague/pins/pins.h"
+#include "dague/mca/pins/pins.h"
 static int SYSTEM_NEIGHBOR = 0;
 
 #if defined(DAGUE_PROF_TRACE) && 0

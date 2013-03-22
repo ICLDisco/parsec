@@ -13,7 +13,7 @@
 #include "datarepo.h"
 #include "execution_unit.h"
 #include "vpmap.h"
-#include "src/pins/pins.h"
+#include "src/mca/pins/pins.h"
 
 #include "dague/ayudame.h"
 

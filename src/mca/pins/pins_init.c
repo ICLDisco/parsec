@@ -1,8 +1,8 @@
 #include "dague_config.h"
 #include "pins.h"
-#include "papi/steals.h"
-#include "papi/cachemiss.h"
-#include "papi/shared_L3_misses.h"
+#include "dague/mca/pins/exec_papi_core/pins_exec_papi_core.h"
+#include "dague/mca/pins/exec_papi_sock/pins_exec_papi_sock.h"
+#include "dague/mca/pins/task_select_papi_core/pins_task_select_papi_core.h"
 #include "execution_unit.h"
 #include "profiling.h"
 

@@ -141,12 +141,12 @@ option(DAGUE_PROF_DRY_DEP
 ### Instrumentation Options
 option(PINS_ENABLE
   "Enable the use of the PaRSEC callback instrumentation system" ON)
-option(PINS_SCHED_STEALS
-   "Enable the counting of steals during scheduling and a post-run count output in matrix form." OFF)
-option(PINS_EXEC_MISSES
-   "Enable the counting of cache and TLB misses during task execution and a post-run count output via the profiling (PROF_TRACE) system." OFF)
-option(PINS_SHARED_L3_MISSES
-   "Enable the counting of shared L3 cache misses for the entirety of thread execution and a post-run count output in text matrix form." OFF)
+option(PINS_TASK_SELECT
+   "Enable the counting of task selection (thief, victim, type, etc.) during scheduling, and output via the profiling (PROF_TRACE) system." OFF)
+option(PINS_EXEC_PAPI_CORE
+   "Enable the counting of PAPI events (e.g., L1/L2 cache and TLB misses) per task execution, and output via the profiling (PROF_TRACE) system." OFF)
+option(PINS_THREAD_PAPI_SOCKET
+   "Enable the counting of PAPI events (e.g., L3 cache misses) per thread lifetime, and output in a post-run matrix format to STDOUT." OFF)
 
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
@@ -570,6 +570,10 @@ ENDIF ( BUILD_DPLASMA )
 IF( BUILD_TESTING AND BUILD_DAGUE )
   add_subdirectory(tests)
 ENDIF( BUILD_TESTING AND BUILD_DAGUE )
+
+if (NOT HAVE_PAPI)
+      message(ERROR "we don't have papi!?")
+endif (NOT HAVE_PAPI)
 
 # Configuration header
 configure_file (

@@ -34,7 +34,7 @@
 
 #include "dague_prof_grapher.h"
 #include "vpmap.h"
-#include "dague/pins/pins.h"
+#include "dague/mca/pins/pins.h"
 
 static char *DAGUE_SCHED_NAME[] = {
     "", /* default */

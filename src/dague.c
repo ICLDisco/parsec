@@ -18,7 +18,7 @@
 #endif  /* defined(HAVE_GETOPT_H) */
 #include <dague/ayudame.h>
 
-#include "pins/pins.h"
+#include "dague/mca/pins/pins.h"
 #ifdef HAVE_PAPI
 #include <papi.h>
 #endif

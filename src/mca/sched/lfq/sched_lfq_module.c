@@ -25,7 +25,7 @@
 #include "dague/mca/sched/sched_local_queues_utils.h"
 #include "dague/mca/sched/lfq/sched_lfq.h"
 #include "dequeue.h"
-#include "dague/pins/pins.h"
+#include "dague/mca/pins/pins.h"
 static int SYSTEM_NEIGHBOR = 0;
 
 #if defined(DAGUE_PROF_TRACE) && 0
@@ -67,6 +67,8 @@ static int sched_lfq_install( dague_context_t *master )
         return -1;
     }
     
+	SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores; // defined for instrumentation
+
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
 

@@ -1065,7 +1065,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
     coutput("#include <dague.h>\n"
             "#include <scheduling.h>\n"
-            "#include <src/pins/pins.h>\n"
+            "#include <dague/mca/pins/pins.h>\n"
             "#include <remote_dep.h>\n"
             "#include <datarepo.h>\n"
             "#include <data.h>\n"
