@@ -1,13 +1,6 @@
 #ifndef CACHEMISS_H
 #define CACHEMISS_H
-#include "dague_config.h"
 #include "dague.h"
-
-#ifdef PINS_SHARED_L3_MISSES
-#define DO_L3_MEASUREMENTS 1
-#else
-#define DO_L3_MEASUREMENTS 0
-#endif
 
 #define NUM_EXEC_EVENTS 4
 

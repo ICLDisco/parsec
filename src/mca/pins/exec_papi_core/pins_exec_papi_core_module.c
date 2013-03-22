@@ -1,11 +1,10 @@
 #include "dague_config.h"
-#include <papi.h>
+#include "dague/mca/pins/pins.h"
+#include "dague/mca/pins/pins_papi_utils.h"
 #include "cachemiss.h"
+#include <papi.h>
 #include <stdio.h>
-#include "execution_unit.h"
 #include "profiling.h"
-#include "dague/pins/pins.h"
-#include "shared_L3_misses.h"
 
 static int pins_prof_exec_papi_core_begin, pins_prof_exec_papi_core_end;
 static int exec_events[NUM_EXEC_EVENTS] = {PAPI_RES_STL, PAPI_L2_DCH, PAPI_L2_DCM, PAPI_L1_ICM};

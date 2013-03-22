@@ -19,6 +19,9 @@
 #include <dague/ayudame.h>
 
 #include "pins/pins.h"
+#ifdef HAVE_PAPI
+#include <papi.h>
+#endif
 
 #include <dague/utils/output.h>
 #include "data.h"
@@ -162,7 +165,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #endif
 
     // PAPI INIT
-#if defined(PAPI_FOUND)
+#if defined(HAVE_PAPI)
     int rv;
     rv = PAPI_register_thread();
     if (rv != PAPI_OK) 
@@ -191,9 +194,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         return NULL;
     }
 
-    void * rv = __dague_progress(eu);
-
-    return rv;
+    return __dague_progress(eu);
 }
 
 static void dague_vp_init( dague_vp_t *vp,
@@ -230,8 +231,6 @@ static void dague_vp_init( dague_vp_t *vp,
             startup[t].bindto= -1;
     }
 }
-
-#include <papi.h>
 
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {

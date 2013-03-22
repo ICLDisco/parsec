@@ -22,7 +22,8 @@
 
 /* for PAPI event sets in execution_unit */
 typedef enum PAPI_EVENTSETS {
-	EXEC_SET,
+	EXEC_PER_CORE_SET,
+	EXEC_PER_SOCKET_SET,
 	TASK_SELECT_SET,
 	EVENTSETS_COUNT
 } PAPI_EVENTSETS;

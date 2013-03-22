@@ -57,7 +57,7 @@ parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins
 }
 
 parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag) {
-    if (method_flag >= PARSEC_SCHEDULED && method_flag < PINS_FLAG_COUNT) {
+    if (method_flag >= 0 && method_flag < PINS_FLAG_COUNT) {
 	    if (registration_disabled) {
 		    DEBUG3(("NOTE: PINS has been disabled by command line argument, causing this UN-registration to fail."));
 		    return NULL;

@@ -1,10 +1,9 @@
 #include "dague_config.h"
-#include "shared_L3_misses.h"
-#include "cachemiss.h"
-#include <papi.h>
-#include <stdio.h>
-#include "execution_unit.h"
 #include "dague/pins/pins.h"
+#include "shared_L3_misses.h"
+#include "dague/mca/pins/pins_papi_utils.h"
+#include <stdio.h>
+#include <papi.h>
 
 static parsec_pins_callback * thread_init_prev; // courtesy calls to previously-registered cbs
 static parsec_pins_callback * thread_fini_prev;

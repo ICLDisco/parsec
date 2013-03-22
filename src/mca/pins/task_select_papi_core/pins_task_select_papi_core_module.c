@@ -45,8 +45,8 @@ void start_papi_steal_count(dague_execution_unit_t * exec_unit, dague_execution_
 		printf("%p steals.c, start_papi_steal_count: can't start steal event counters! %d %s\n", exec_unit, rv, PAPI_strerror(rv));
 	else
 		dague_profiling_trace(exec_unit->eu_profile, pins_prof_task_select_begin, 
-		                      NULL,
-		                      NULL, NULL);
+		                      45,
+		                      -2, NULL);
 }
 
 void stop_papi_steal_count(dague_execution_unit_t * exec_unit, dague_execution_context_t * exec_context, void * data) {
@@ -83,8 +83,8 @@ void stop_papi_steal_count(dague_execution_unit_t * exec_unit, dague_execution_c
 	}
 	
 	dague_profiling_trace(exec_unit->eu_profile, pins_prof_task_select_end, 
-	                      NULL,
-	                      NULL, 
+	                      45,
+	                      -2, 
 	                      (void *)&info);
 }
 
