@@ -1,22 +1,30 @@
-#include "pins_thread_papi_socket.h"
+#include "pins_papi_socket.h"
 #include "dague/mca/pins/pins.h"
 #include "dague/mca/pins/pins_papi_utils.h"
 #include <stdio.h>
 #include <papi.h>
 #include "execution_unit.h"
 
+static void start_papi_socket(dague_execution_unit_t * exec_unit, 
+                              dague_execution_context_t * exec_context, 
+                              void * data);
+static void stop_papi_socket(dague_execution_unit_t * exec_unit, 
+                             dague_execution_context_t * exec_context, 
+                             void * data);
+
 static parsec_pins_callback * thread_init_prev; // courtesy calls to previously-registered cbs
 static parsec_pins_callback * thread_fini_prev;
 // TODO PETER finish simplifying this code, then create component.c for all modules
-static char* task_select_events [NUM_THREAD_PAPI_SOCKET_EVENTS] = {};
+static char* select_events [NUM_SOCKET_EVENTS] = {};
 
-void pins_init_thread_papi_socket(dague_context_t * master_context) {
-	thread_init_prev = PINS_REGISTER(THREAD_INIT, start_thread_papi_socket);
-	thread_fini_prev = PINS_REGISTER(THREAD_FINI, stop_thread_papi_socket);
+void pins_init_papi_socket(dague_context_t * master_context) {
+	thread_init_prev = PINS_REGISTER(THREAD_INIT, start_papi_socket);
+	thread_fini_prev = PINS_REGISTER(THREAD_FINI, stop_papi_socket);
 }
 
-void start_thread_papi_socket(dague_execution_unit_t * exec_unit, 
-                          dague_execution_context_t * exec_context, void * data) {
+static void start_papi_socket(dague_execution_unit_t * exec_unit, 
+                              dague_execution_context_t * exec_context, 
+                              void * data) {
 	(void)exec_context;
 	(void)data;
 	unsigned int native;
@@ -61,21 +69,22 @@ void start_thread_papi_socket(dague_execution_unit_t * exec_unit,
 	}
 }
 
-void stop_thread_papi_socket(dague_execution_unit_t * exec_unit, 
-                         dague_execution_context_t * exec_context, void * data) {
+static void stop_papi_socket(dague_execution_unit_t * exec_unit, 
+                             dague_execution_context_t * exec_context, 
+                             void * data) {
 	(void)exec_context;
 	(void)data;
 	if (exec_unit->th_id % CORES_PER_SOCKET == WHICH_CORE_IN_SOCKET 
 	    && DO_SOCKET_MEASUREMENTS) {
-		long long int values[NUM_THREAD_PAPI_SOCKET_EVENTS];
+		long long int values[NUM_SOCKET_EVENTS];
 		int rv = PAPI_OK;
 		if ((rv = PAPI_stop(exec_unit->papi_eventsets[PER_SOCKET_SET], values)) != PAPI_OK) {
 			printf("couldn't stop PAPI event set %d for thread %d (%p) to measure L3 misses; ERROR:  %s\n", exec_unit->papi_eventsets[PER_SOCKET_SET], exec_unit->th_id, exec_unit, PAPI_strerror(rv));
 		}
 		else {
-			char * buf = calloc(sizeof(char), NUM_THREAD_PAPI_SOCKET_EVENTS * 20);
+			char * buf = calloc(sizeof(char), NUM_SOCKET_EVENTS * 20);
 			int inc = 0;
-			for (int i = 0; i < NUM_THREAD_PAPI_SOCKET_EVENTS; i++) {
+			for (int i = 0; i < NUM_SOCKET_EVENTS; i++) {
 				inc = snprintf(buf, 17, "%15lld ", values[i]);
 				buf = (char *)buf + inc;
 			}

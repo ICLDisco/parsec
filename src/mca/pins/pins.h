@@ -7,8 +7,8 @@
 #include "dague/mca/mca.h"
 
 typedef enum PINS_FLAG {
-	TASK_SELECT_BEGIN,
-	TASK_SELECT_END,
+	SELECT_BEGIN,
+	SELECT_END,
 	EXEC_BEGIN,
 	EXEC_END,
 	/* what follows are

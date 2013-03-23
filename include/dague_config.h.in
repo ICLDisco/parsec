@@ -41,9 +41,9 @@
 
 /* Instrumenting (PINS) */
 #cmakedefine PINS_ENABLE
-#cmakedefine PINS_EXEC_MISSES
-#cmakedefine PINS_SCHED_STEALS
-#cmakedefine PINS_SHARED_L3_MISSES
+#cmakedefine PINS_PAPI_EXEC
+#cmakedefine PINS_PAPI_SELECT
+#cmakedefine PINS_PAPI_SOCKET
 
 /* Simulating */
 #cmakedefine DAGUE_SIM

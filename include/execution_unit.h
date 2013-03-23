@@ -23,8 +23,8 @@
 #ifdef HAVE_PAPI
 /* for PAPI event sets in execution_unit */
 typedef enum PAPI_EVENTSETS {
-	EXEC_PER_CORE_SET,
-	TASK_SELECT_SET,
+	EXEC_SET,
+	SELECT_SET,
 	PER_SOCKET_SET,
 	EVENTSETS_COUNT
 } PAPI_EVENTSETS;

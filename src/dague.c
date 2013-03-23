@@ -164,8 +164,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->sched_nb_tasks_done = 0;
 #endif
 
-    // PAPI INIT
 #if defined(HAVE_PAPI)
+    // PAPI INIT
     int rv;
     rv = PAPI_register_thread();
     if (rv != PAPI_OK) 

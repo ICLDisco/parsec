@@ -158,7 +158,7 @@ static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_c
 	dague_heap_t* new_heap = NULL;
 	dague_execution_context_t * exec_context = NULL;
 	int i = 0;
-    PINS(TASK_SELECT_BEGIN, eu_context, NULL, NULL);
+    PINS(SELECT_BEGIN, eu_context, NULL, NULL);
 
 	/*
 	 possible future improvement over using existing pop_best function:
@@ -172,7 +172,7 @@ static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_c
 		dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
 	}
 	if (exec_context != NULL) {
-		PINS(TASK_SELECT_END, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num);
+		PINS(SELECT_END, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num);
 		return exec_context;
 	}
 
@@ -198,7 +198,7 @@ static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_c
 			dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
 		}
 		if (exec_context != NULL) {
-			PINS(TASK_SELECT_END, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
+			PINS(SELECT_END, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
 			return exec_context;
 		}
 	}
@@ -209,7 +209,7 @@ static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_c
 	if (heap != NULL)
 		dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
 
-	PINS(TASK_SELECT_END, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
+	PINS(SELECT_END, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
 		
 	return exec_context;
 }

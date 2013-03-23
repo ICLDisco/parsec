@@ -1,8 +1,8 @@
 #include "dague_config.h"
 #include "pins.h"
-#include "dague/mca/pins/exec_papi_core/pins_exec_papi_core.h"
-#include "dague/mca/pins/exec_papi_sock/pins_exec_papi_sock.h"
-#include "dague/mca/pins/task_select_papi_core/pins_task_select_papi_core.h"
+#include "dague/mca/pins/papi_exec/pins_papi_exec.h"
+#include "dague/mca/pins/papi_socket/pins_papi_socket.h"
+#include "dague/mca/pins/papi_select/pins_papi_select.h"
 #include "execution_unit.h"
 #include "profiling.h"
 
@@ -23,29 +23,29 @@ void pins_init(dague_context_t * master_context) {
   }
   DEBUG(("Initialized PaRSEC PINS callbacks to empty_callback()"));
 
-#ifdef PINS_EXEC_MISSES	
-	pins_init_cachemiss(master_context);
-#endif // PINS_EXEC_MISSES
+#ifdef PINS_PAPI_EXEC	
+	pins_init_papi_exec(master_context);
+#endif // PINS_PAPI_EXEC
 
-#ifdef PINS_SCHED_STEALS
-	pins_init_steals(master_context);
-#endif // PINS_SCHED_STEALS
+#ifdef PINS_PAPI_SELECT
+	pins_init_papi_select(master_context);
+#endif // PINS_PAPI_SELECT
 
-#ifdef PINS_SHARED_L3_MISSES
-	pins_init_shared_L3_misses(master_context);
+#ifdef PINS_PAPI_SOCKET
+	pins_init_papi_socket(master_context);
 #endif
 
 }
 
 void pins_thread_init(dague_execution_unit_t * exec_unit) {
 
-#ifdef PINS_EXEC_MISSES	
-	pins_thread_init_cachemiss(exec_unit);
-#endif // PINS_EXEC_MISSES
+#ifdef PINS_PAPI_EXEC	
+	pins_thread_init_papi_exec(exec_unit);
+#endif // PINS_PAPI_EXEC
 
-#ifdef PINS_SCHED_STEALS
-	pins_thread_init_steals(exec_unit);
-#endif // PINS_SCHED_STEALS
+#ifdef PINS_PAPI_SELECT
+	pins_thread_init_papi_select(exec_unit);
+#endif // PINS_PAPI_SELECT
 
 	parsec_pins(THREAD_INIT, exec_unit, NULL, NULL);
 }
@@ -58,18 +58,18 @@ void pins_thread_fini(dague_execution_unit_t * exec_unit) {
 
 void pins_handle_init(dague_handle_t * handle) {
 
-#ifdef PINS_EXEC_MISSES	
-	pins_handle_init_cachemiss(handle);
-#endif // PINS_EXEC_MISSES
+#ifdef PINS_PAPI_EXEC	
+	pins_handle_init_papi_exec(handle);
+#endif // PINS_PAPI_EXEC
 
 	parsec_pins(HANDLE_INIT, NULL, NULL, (void *)handle);
 }
 
 void pins_handle_fini(dague_handle_t * handle) {
 	/*
-#ifdef PINS_SCHED_STEALS
-	pins_handle_fini_steals(handle);
-#endif // PINS_SCHED_STEALS
+#ifdef PINS_PAPI_SELECT
+	pins_handle_fini_papi_select(handle);
+#endif // PINS_PAPI_SELECT
 	 */
 
 	parsec_pins(HANDLE_FINI, NULL, NULL, (void *)handle);
