@@ -314,14 +314,14 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
 					if (next != NULL && bubbler->priority < next->priority) {
 						if (parent != NULL) {
 							if (is_next)
-								parent->list_item.list_next = next;
+								parent->list_item.list_next = (dague_list_item_t *)next;
 							else
-								parent->list_item.list_prev = next;
+								parent->list_item.list_prev = (dague_list_item_t *)next;
 						}
-						bubbler->list_item.list_next = next->list_item.list_next;
-						bubbler->list_item.list_prev = next->list_item.list_prev;
-						next->list_item.list_next = bubbler;
-						next->list_item.list_prev = prev;
+						bubbler->list_item.list_next = (dague_list_item_t *)next->list_item.list_next;
+						bubbler->list_item.list_prev = (dague_list_item_t *)next->list_item.list_prev;
+						next->list_item.list_next = (dague_list_item_t *)bubbler;
+						next->list_item.list_prev = (dague_list_item_t *)prev;
 
 						parent = next;
 						is_next = 1;
@@ -329,14 +329,14 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
 					else if (prev != NULL && bubbler->priority < prev->priority) {
 						if (parent != NULL) {
 							if (is_next)
-								parent->list_item.list_next = prev;
+								parent->list_item.list_next = (dague_list_item_t *)prev;
 							else
-								parent->list_item.list_prev = prev;
+								parent->list_item.list_prev = (dague_list_item_t *)prev;
 						}
 						bubbler->list_item.list_next = prev->list_item.list_next;
 						bubbler->list_item.list_prev = prev->list_item.list_prev;
-						prev->list_item.list_prev = bubbler;
-						prev->list_item.list_next = next;
+						prev->list_item.list_prev = (dague_list_item_t *)bubbler;
+						prev->list_item.list_next = (dague_list_item_t *)next;
 
 						parent = prev;
 						is_next = 0;

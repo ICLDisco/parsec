@@ -1,10 +1,10 @@
 #ifndef PINS_PAPI_EXEC_H
 #define PINS_PAPI_EXEC_H
 
-#include "dague.h"
 #include "dague_config.h"
 #include "dague/mca/mca.h"
 #include "dague/mca/pins/pins.h"
+#include "dague.h"
 
 #define NUM_EXEC_EVENTS 4
 

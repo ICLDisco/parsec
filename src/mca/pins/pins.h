@@ -32,6 +32,8 @@ typedef enum PINS_FLAG {
 
 typedef void (parsec_pins_callback)(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data); 
 
+BEGIN_C_DECLS
+
 /*
  * Structures for pins components
  */
@@ -78,6 +80,8 @@ typedef struct {
 #define DAGUE_PINS_BASE_VERSION_2_0_0 \
     MCA_BASE_VERSION_2_0_0, \
     "pins", 2, 0, 0
+
+END_C_DECLS
 
 /*
  These functions should be each be called once at the appropriate lifecycle of the DAGuE Context
