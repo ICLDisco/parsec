@@ -25,8 +25,8 @@ int main(int argc, char **argv) {
     int mloc, nloc, n, m = 0, nb, nqrhs, nrhs;
     int i, j, k, info=0, seed;
     int descA[9], descB[9];
-    double *A=NULL, *Acpy=NULL, *B=NULL, *X=NULL, *R=NULL, eps, *work=NULL;
-    double AnormF, XnormF, RnormF, BnormF, residF=-1.0e+00;
+    double *A=NULL, *Acpy=NULL, *B=NULL, *X=NULL, eps, *work=NULL;
+    double AnormF, XnormF, RnormF, residF=-1.0e+00;
     double *tau=NULL;
     int lwork;
     int izero=0,ione=1;
@@ -137,18 +137,12 @@ int main(int argc, char **argv) {
 
         Acpy = (double *)malloc(mloc*nloc*sizeof(double)) ;
         if (Acpy==NULL){ printf("error of memory allocation Acpy on proc %dx%d\n",myrow,mycol); exit(0); }
-
-        if (mloc*nqrhs>0) {
-            R = (double *)malloc(mloc*nqrhs*sizeof(double)) ;
-            if (R==NULL){ printf("error of memory allocation R on proc %dx%d\n",myrow,mycol); exit(0); }
-        }
+        pdlacpy_( "All", &n, &n, A, &ione, &ione, descA, Acpy, &ione, &ione, descA );
 
         if (mloc*nqrhs>0) {
             X = (double *)malloc(mloc*nqrhs*sizeof(double)) ;
             if (X==NULL){ printf("error of memory allocation X on proc %dx%d\n",myrow,mycol); exit(0); }
         }
-
-        pdlacpy_( "All", &n, &n, A, &ione, &ione, descA, Acpy, &ione, &ione, descA );
         pdlacpy_( "All", &n, &nrhs, B, &ione, &ione, descB, X, &ione, &ione, descB );
 
     }
@@ -187,22 +181,19 @@ int main(int argc, char **argv) {
                   descA, tau, X, &ione, &ione, descB,
                   work, &lwork, &info );
         free(work); work=NULL;
-        
         pdtrsm_( "L", "U", "N", "N", &n, &nrhs, &pone, A, &ione, &ione, descA, X, &ione, &ione, descB );
         
-        pdlacpy_( "All", &n, &nrhs, B, &ione, &ione, descB, R   , &ione, &ione, descB );
         eps = pdlamch_( &ictxt, "Epsilon" );
-        pdgemm_( "N", "N", &n, &nrhs, &n, &pone, Acpy, &ione, &ione, descA, X, &ione, &ione, descB,
-                 &mone, R, &ione, &ione, descB);
         AnormF = pdlange_( "F", &n, &n, Acpy, &ione, &ione, descA, work);
         XnormF = pdlange_( "F", &n, &nrhs, X, &ione, &ione, descB, work);
-        RnormF = pdlange_( "F", &n, &nrhs, R, &ione, &ione, descB, work);
+        pdgemm_( "N", "N", &n, &nrhs, &n, &pone, Acpy, &ione, &ione, descA, X, &ione, &ione, descB,
+                 &mone, B, &ione, &ione, descB);
+        RnormF = pdlange_( "F", &n, &nrhs, B, &ione, &ione, descB, work);
         residF = RnormF / ( AnormF * XnormF * eps );
         
         free(Acpy);
         if ( B!=NULL ) free(B);
         if ( X!=NULL ) free(X);
-        if ( R!=NULL ) free(R);
     }
 
     GFLOPS = FLOPS_DGEQRF((double)m, (double)n)/1e+9/MPIelapsed;
