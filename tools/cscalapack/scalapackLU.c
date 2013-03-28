@@ -20,6 +20,7 @@ int main(int argc, char **argv) {
     int descA[9], descB[9];
     double *A=NULL, *B=NULL, *Acpy=NULL, *X=NULL, *work=NULL;
     double XnormF, AnormF, RnormF, residF = -1.0e+00;
+    double eps;
 /**/
     double elapsed, GFLOPS;
     double my_elapsed = 0.0e+00;
@@ -146,7 +147,8 @@ int main(int argc, char **argv) {
         { int i1=1; AnormF = pdlange_( "F", &n, &n, Acpy, &i1, &i1, descA, work); }
         { int i1=1; XnormF = pdlange_( "F", &n, &s, X, &i1, &i1, descB, work); }
         { int i1=1; RnormF = pdlange_( "F", &n, &s, B, &i1, &i1, descB, work); }
-        residF = RnormF / ( AnormF * XnormF );
+        eps = pdlamch_( &ictxt, "Epsilon" );
+        residF = RnormF / ( AnormF * XnormF * eps );
         
         if( X != NULL ) free( X );
         if( B != NULL ) free( B );

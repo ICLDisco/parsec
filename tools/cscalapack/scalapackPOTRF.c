@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     int my_info_facto, my_info_solve;
     int descA[9], descB[9];
     double *A=NULL, *B=NULL, *Acpy=NULL, *X=NULL, *work=NULL;
-    double XnormF, AnormF, RnormF, residF;
+    double XnormF, AnormF, RnormF, residF, eps;
 /**/
     double elapsed, GFLOPS;
     double my_elapsed;
@@ -131,7 +131,8 @@ int main(int argc, char **argv) {
         { int i1=1; AnormF = pdlansy_( "F", "L", &n, Acpy, &i1, &i1, descA, work); }
         { int i1=1; XnormF = pdlange_( "F", &n, &s, X, &i1, &i1, descB, work); }
         { int i1=1; RnormF = pdlange_( "F", &n, &s, B, &i1, &i1, descB, work); }
-        residF = RnormF / ( AnormF * XnormF );
+        eps = pdlamch( &ictxt, "Espilon" );
+        residF = RnormF / ( AnormF * XnormF * eps );
 
         free( X );
         free( B );
