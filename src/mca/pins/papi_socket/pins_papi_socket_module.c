@@ -5,6 +5,21 @@
 #include <papi.h>
 #include "execution_unit.h"
 
+static void pins_init_papi_socket(dague_context_t * master_context);
+static void pins_fini_papi_socket(dague_context_t * master_context);
+
+const dague_pins_module_t dague_pins_papi_socket_module = {
+    &dague_pins_papi_socket_component,
+    {
+	    pins_init_papi_socket,
+	    pins_fini_papi_socket,
+	    NULL,
+	    NULL,
+	    NULL,
+	    NULL
+    }
+};
+
 static void start_papi_socket(dague_execution_unit_t * exec_unit, 
                               dague_execution_context_t * exec_context, 
                               void * data);
@@ -15,18 +30,21 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
 static parsec_pins_callback * thread_init_prev; // courtesy calls to previously-registered cbs
 static parsec_pins_callback * thread_fini_prev;
 // TODO PETER finish simplifying this code, then create component.c for all modules
-static char* select_events [NUM_SOCKET_EVENTS] = {};
+static char* select_events [NUM_SOCKET_EVENTS] = {}; // not yet used
 
-void pins_init_papi_socket(dague_context_t * master_context) {
+static void pins_init_papi_socket(dague_context_t * master_context) {
 	thread_init_prev = PINS_REGISTER(THREAD_INIT, start_papi_socket);
 	thread_fini_prev = PINS_REGISTER(THREAD_FINI, stop_papi_socket);
+}
+
+static void pins_fini_papi_socket(dague_context_t * master_context) {
+	PINS_REGISTER(THREAD_INIT, thread_init_prev);
+	PINS_REGISTER(THREAD_FINI, thread_fini_prev);
 }
 
 static void start_papi_socket(dague_execution_unit_t * exec_unit, 
                               dague_execution_context_t * exec_context, 
                               void * data) {
-	(void)exec_context;
-	(void)data;
 	unsigned int native;
 	if (exec_unit->th_id % CORES_PER_SOCKET == WHICH_CORE_IN_SOCKET
 	    && DO_SOCKET_MEASUREMENTS) {

@@ -20,10 +20,6 @@ typedef struct select_info_s {
 	long long values[NUM_SELECT_EVENTS];
 } select_info_t;
 
-void pins_init_papi_select(dague_context_t * master_context);
-void pins_fini_papi_select(dague_context_t * master_context);
-void pins_thread_init_papi_select(dague_execution_unit_t * exec_unit);
-
 BEGIN_C_DECLS
 
 /**

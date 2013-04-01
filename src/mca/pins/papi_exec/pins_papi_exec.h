@@ -16,10 +16,6 @@ typedef struct papi_exec_info_s {
 	long long values[NUM_EXEC_EVENTS];
 } papi_exec_info_t;
 
-void pins_init_papi_exec(dague_context_t * master_context);
-void pins_handle_init_papi_exec(dague_handle_t * handle);
-void pins_thread_init_papi_exec(dague_execution_unit_t * exec_unit);
-
 BEGIN_C_DECLS
 
 /**

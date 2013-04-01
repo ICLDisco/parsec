@@ -7,6 +7,23 @@
 #include "profiling.h"
 #include "execution_unit.h"
 
+static void pins_init_papi_exec(dague_context_t * master_context);
+static void pins_fini_papi_exec(dague_context_t * master_context);
+static void pins_handle_init_papi_exec(dague_handle_t * handle);
+static void pins_thread_init_papi_exec(dague_execution_unit_t * exec_unit);
+
+const dague_pins_module_t dague_pins_papi_exec_module = {
+    &dague_pins_papi_exec_component,
+    {
+	    pins_init_papi_exec,
+	    pins_fini_papi_exec,
+	    NULL,
+	    NULL,
+	    pins_thread_init_papi_exec,
+	    NULL
+    }
+};
+
 static void start_papi_exec_count(dague_execution_unit_t * exec_unit, 
                                   dague_execution_context_t * exec_context, 
                                   void * data);
@@ -14,22 +31,31 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
                                  dague_execution_context_t * exec_context, 
                                  void * data);
 
+static parsec_pins_callback * exec_begin_prev; // courtesy calls to previously-registered cbs
+static parsec_pins_callback * exec_end_prev;
+
 static int pins_prof_papi_exec_begin, pins_prof_papi_exec_end;
 /* these should eventually be runtime-configurable */
 static int exec_events[NUM_EXEC_EVENTS] = {PAPI_RES_STL, PAPI_L2_DCH, PAPI_L2_DCM, PAPI_L1_ICM};
 
-void pins_init_papi_exec(dague_context_t * master_context) {
+static void pins_init_papi_exec(dague_context_t * master_context) {
 	(void)master_context;
 
-	PINS_REGISTER(EXEC_BEGIN, start_papi_exec_count);
-	PINS_REGISTER(EXEC_END, stop_papi_exec_count);
+	exec_begin_prev = PINS_REGISTER(EXEC_BEGIN, start_papi_exec_count);
+	exec_end_prev   = PINS_REGISTER(EXEC_END, stop_papi_exec_count);
 	// PETER TODO add requirement for DAGUE_PROF_TRACE
 	dague_profiling_add_dictionary_keyword("PINS_PAPI_EXEC", "fill:#00FF00",
 	                                       sizeof(papi_exec_info_t), NULL,
 	                                       &pins_prof_papi_exec_begin, &pins_prof_papi_exec_end);
 }
 
-void pins_thread_init_papi_exec(dague_execution_unit_t * exec_unit) {
+static void pins_fini_papi_exec(dague_context_t * master_context) {
+	// replace original registrant
+	PINS_REGISTER(EXEC_BEGIN, exec_begin_prev);
+	PINS_REGISTER(EXEC_END,   exec_end_prev);
+}
+
+static void pins_thread_init_papi_exec(dague_execution_unit_t * exec_unit) {
 	int rv = 0;
 	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET 
 	    || !DO_SOCKET_MEASUREMENTS) {
@@ -46,8 +72,6 @@ void pins_thread_init_papi_exec(dague_execution_unit_t * exec_unit) {
 static void start_papi_exec_count(dague_execution_unit_t * exec_unit, 
                                   dague_execution_context_t * exec_context, 
                                   void * data) {
-	(void)exec_context;
-	(void)data;
 	int rv = PAPI_OK;
 	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET 
 	    || !DO_SOCKET_MEASUREMENTS) {
@@ -62,7 +86,11 @@ static void start_papi_exec_count(dague_execution_unit_t * exec_unit,
 			                       )(exec_context->dague_handle, exec_context->locals), 
 			                      exec_context->dague_handle->handle_id, NULL);
 		}
-	} 
+	}
+	// keep the contract with the previous registrant
+	if (exec_begin_prev != NULL) {
+		(*exec_begin_prev)(exec_unit, exec_context, data);
+	}
 }
 
 static void stop_papi_exec_count(dague_execution_unit_t * exec_unit, 
@@ -103,6 +131,10 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 			                      exec_context->dague_handle->handle_id, 
 			                      (void *)&info);
 		}
+	}
+	// keep the contract with the previous registerer
+	if (exec_end_prev != NULL) {
+		(*exec_end_prev)(exec_unit, exec_context, data);
 	}
 }
 

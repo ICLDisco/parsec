@@ -4,10 +4,29 @@
 #include "debug.h"
 #include "execution_unit.h"
 
+static void pins_init_papi_select(dague_context_t * master_context);
+static void pins_fini_papi_select(dague_context_t * master_context);
+static void pins_thread_init_papi_select(dague_execution_unit_t * exec_unit);
+
+const dague_pins_module_t dague_pins_papi_select_module = {
+    &dague_pins_papi_select_component,
+    {
+	    pins_init_papi_select,
+	    pins_fini_papi_select,
+	    NULL,
+	    NULL,
+	    pins_thread_init_papi_select,
+	    NULL
+    }
+};
+
 static void start_papi_select_count(dague_execution_unit_t * exec_unit, 
                                     dague_execution_context_t * exec_context, void * data);
 static void stop_papi_select_count(dague_execution_unit_t * exec_unit, 
                                    dague_execution_context_t * exec_context, void * data);
+
+static parsec_pins_callback * select_begin_prev; // courtesy calls to previously-registered cbs
+static parsec_pins_callback * select_end_prev;
 
 static int pins_prof_select_begin, pins_prof_select_end;
 static int select_events[NUM_SELECT_EVENTS] = {PAPI_L2_TCM, PAPI_L2_DCM};
@@ -16,12 +35,17 @@ static int select_events[NUM_SELECT_EVENTS] = {PAPI_L2_TCM, PAPI_L2_DCM};
                               exec_unit->virtual_process->dague_context->nb_vp + \
                               exec_unit->th_id )
 
-void pins_init_papi_select(dague_context_t * master) {
-	PINS_REGISTER(SELECT_BEGIN, start_papi_select_count);
-	PINS_REGISTER(SELECT_END, stop_papi_select_count);
+static void pins_init_papi_select(dague_context_t * master) {
+	select_begin_prev = PINS_REGISTER(SELECT_BEGIN, start_papi_select_count);
+	select_end_prev   = PINS_REGISTER(SELECT_END,   stop_papi_select_count);
 }
 
-void pins_thread_init_papi_select(dague_execution_unit_t * exec_unit) {
+static void pins_fini_papi_select(dague_context_t * master) {
+	PINS_REGISTER(SELECT_BEGIN, select_begin_prev);
+	PINS_REGISTER(SELECT_END,   select_end_prev);
+}
+
+static void pins_thread_init_papi_select(dague_execution_unit_t * exec_unit) {
 	unsigned int p, t;
 	dague_vp_t * vp = NULL;
 	int rv;
@@ -58,6 +82,10 @@ static void start_papi_select_count(dague_execution_unit_t * exec_unit,
 		                      45,
 		                      -2, 
 		                      NULL);
+	}
+	// keep the contract with the previous registrant
+	if (select_begin_prev != NULL) {
+		(*select_begin_prev)(exec_unit, exec_context, data);
 	}
 }
 
@@ -103,5 +131,10 @@ static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
 	                      45,
 	                      -2, 
 	                      (void *)&info);
+
+	// keep the contract with the previous registrant
+	if (select_end_prev != NULL) {
+		(*select_end_prev)(exec_unit, exec_context, data);
+	}
 }
 

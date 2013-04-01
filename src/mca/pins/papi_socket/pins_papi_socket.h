@@ -8,8 +8,6 @@
 
 #define NUM_SOCKET_EVENTS 4
 
-void pins_init_papi_socket(dague_context_t * master_context);
-
 BEGIN_C_DECLS
 
 /**
