@@ -200,9 +200,9 @@ int main(int argc, char **argv) {
     GFLOPS_per_proc = GFLOPS / (((double) nprow)*((double) npcol));
 
     if ( iam==0 ){
-        printf("m\tn\tnrhs\tnb\tp\tq\tinfo\tresid\ttime(s)  \tGFLOPS/sec\tGFLOPS/sec/proc\n");
+        printf("M\tN\tNRHS\tNB\tP\tQ\tinfo\tresid\ttime(s)  \tGFLOPS/sec\tGFLOPS/sec/proc\n");
         if( do_validation ) {
-            printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%1.1f\t%f\t%f\t%f\n\n",
+            printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%1.4f\t%f\t%f\t%f\n\n",
                    m, n, nrhs, nb, nprow, npcol, info, residF, MPIelapsed, GFLOPS, GFLOPS_per_proc);
         } else {
             printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\tx.x\t%f\t%f\t%f\n\n",

@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
         { int i1=1; AnormF = pdlansy_( "F", "L", &n, Acpy, &i1, &i1, descA, work); }
         { int i1=1; XnormF = pdlange_( "F", &n, &s, X, &i1, &i1, descB, work); }
         { int i1=1; RnormF = pdlange_( "F", &n, &s, B, &i1, &i1, descB, work); }
-        eps = pdlamch( &ictxt, "Espilon" );
+        eps = pdlamch_( &ictxt, "Espilon" );
         residF = RnormF / ( AnormF * XnormF * eps );
 
         free( X );
