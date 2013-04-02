@@ -296,7 +296,11 @@ SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" 
 SET( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
 
 # Check if the linker has group. MacOS doesn't support it
-check_c_compiler_flag( "-Wl,--start-group -Wl,--end-group" HAVE_LINKER_GROUP )
+include(CheckCSourceRuns)
+set(CMAKE_REQUIRED_FLAGS_save "${CMAKE_REQUIRED_FLAGS}")
+set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Wl,--start-group -Wl,--end-group")
+check_c_source_runs( "int main() { return 0; }" HAVE_LINKER_GROUP )
+set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS_save}")
 
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
