@@ -45,8 +45,6 @@ OBJ_CLASS_INSTANCE(dague_data_copy_t, dague_list_item_t,
 
 static void dague_data_construct(dague_data_t* obj )
 {
-    obj->version          = 0;
-    obj->coherency_state  = DATA_COHERENCY_INVALID;
     obj->owner_device     = -1;
     obj->key              = 0;
     obj->nb_elts          = 0;
@@ -127,7 +125,9 @@ dague_data_copy_attach(dague_data_t* data,
     copy->device_index    = device;
     copy->original        = data;
     /* Atomically set the device copy */
-    if( !dague_atomic_cas(&data->device_copies[device], NULL, copy) ) {
+    copy->older = data->device_copies[device];
+    if( !dague_atomic_cas(&data->device_copies[device], copy->older, copy) ) {
+        copy->older = NULL;
         return DAGUE_ERROR;
     }
     return DAGUE_SUCCESS;
@@ -142,7 +142,7 @@ int dague_data_copy_detach(dague_data_t* data,
     if( obj != copy )
         return DAGUE_ERR_NOT_FOUND;
     /* Atomically set the device copy */
-    if( !dague_atomic_cas(&data->device_copies[device], copy, NULL) ) {
+    if( !dague_atomic_cas(&data->device_copies[device], copy, copy->older) ) {
         return DAGUE_ERROR;
     }
     copy->device_index    = 0;
@@ -174,6 +174,51 @@ dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint8_t device)
 }
 
 /**
+ * Find the corresponding copy of the data on the requested device. If the
+ * copy is not available in the access mode requested, a new version will
+ * be created. If no tranfer is required the correct version will be set
+ * into dest and the function returns 0. If a transfer is necessary, dest
+ * will contain the pointer to the copy to be tranferred to, and the function
+ * will return 1. All other cases should be considered as errors, and a
+ * negative value must be returned (corresponding to a specific DAGUE_
+ * error code.
+ */
+int dague_data_get_device_copy(dague_data_copy_t* source,
+                               dague_data_copy_t** dest,
+                               uint8_t device,
+                               uint8_t access_mode)
+{
+    dague_data_copy_t* copy, *newer;
+    dague_data_t* original;
+    int transfer = 0;
+
+    if( device == source->device_index ) {
+        *dest = source;
+        return 0;
+    }
+    original = source->original;
+    /* lock the original data */
+    newer = copy = original->device_copies[device];
+    while( NULL == copy ) {
+        if( source->version < copy->version ) {
+            newer = copy;
+            copy = copy->older;
+        } else
+            break;
+    }
+    if( NULL == copy ) {
+        *dest = copy = dague_data_copy_new(original, device);
+        transfer = 1;
+    } else if( source->version == copy->version ) {
+        *dest = copy;
+        return 0;
+    }
+
+    /* unlock the original data */
+    return 1;
+}
+
+/**
  * Beware: Before calling this function the owner of the data must be
  * saved in order to know where to transfer the data from. Once this
  * function returns, the ownership is transfered based on the access
@@ -198,8 +243,6 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
         if( ACCESS_READ & access_mode ) transfer_required = 1;
         /* Update the coherency state of the others versions */
         if( ACCESS_WRITE & access_mode ) {
-            //assert( DATA_COHERENCY_OWNED != data->coherency_state ); /* 2 writters on the same data: wrong JDF */
-            data->coherency_state = DATA_COHERENCY_OWNED;
             data->owner_device = (uint8_t)device;
             for( i = 0; i < dague_nb_devices; i++ ) {
                 if( NULL == data->device_copies[i] ) continue;
@@ -208,21 +251,16 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
             copy->coherency_state = DATA_COHERENCY_OWNED;
         }
         else if( ACCESS_READ & access_mode ) {
-            if( DATA_COHERENCY_OWNED == data->coherency_state ) {
-                transfer_required = 1; /* TODO: is this condition making sense? */
-            }
-            data->coherency_state = DATA_COHERENCY_SHARED;
+            transfer_required = 1; /* TODO: is this condition making sense? */
             copy->coherency_state = DATA_COHERENCY_SHARED;
         }
     }
     else { /* ! DATA_COHERENCY_INVALID */
         /* I either own the data or have one of its valid copies */
         if( DATA_COHERENCY_OWNED == copy->coherency_state ) {
-            assert(DATA_COHERENCY_OWNED == data->coherency_state);
             assert( device == data->owner_device ); /* memory is owned, better be me otherwise 2 writters: wrong JDF */
         }
         else {  /* I have one of the valid copies */
-            assert(DATA_COHERENCY_SHARED == data->coherency_state);
             if( ACCESS_WRITE & access_mode ) {
                 /* Update the coherency state of the others versions */
                 for( i = 0; i < dague_nb_devices; i++ ) {
@@ -230,11 +268,9 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
                     data->device_copies[i]->coherency_state = DATA_COHERENCY_INVALID;
                 }
                 copy->coherency_state = DATA_COHERENCY_OWNED;
-                data->coherency_state = DATA_COHERENCY_OWNED;
                 data->owner_device = (uint8_t)device;
             } else {
                 /* The data is shared or exclusive and I'm doing a read */
-                data->coherency_state = DATA_COHERENCY_SHARED;
             }
         }
     }
@@ -245,8 +281,6 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
          */
         transfer_required = transfer_required || (data->device_copies[valid_copy]->version > copy->version);
     }
-    if( transfer_required )
-        copy->version = data->version;
     return transfer_required;
 }
 
@@ -267,8 +301,7 @@ void dague_dump_data_copy(dague_data_copy_t* copy)
 
 void dague_dump_data(dague_data_t* data)
 {
-    printf("data %p key %x owner %d state %c version %u\n",
-           data, data->key, data->owner_device, dump_coherency_codex(data->coherency_state), data->version);
+    printf("data %p key %x owner %d\n", data, data->key, data->owner_device);
 
     for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
         if( NULL != data->device_copies[i])

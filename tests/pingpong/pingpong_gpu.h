@@ -170,7 +170,7 @@ gpu_kernel_epilog_bandwidth( gpu_device_t        *gpu_device,
         gpu_copy = this_task->data[this_task->function->out[i]->flow_index].data_out;
         original = gpu_copy->original;
         gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
-        original->coherency_state = DATA_COHERENCY_SHARED;
+        /*original->coherency_state = DATA_COHERENCY_SHARED;*/
         original->owner_device = 0;
         original->device_copies[0]->coherency_state = DATA_COHERENCY_SHARED;
 
