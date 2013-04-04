@@ -172,7 +172,6 @@ struct dague_function {
     dague_hook_t                *fini;
 };
 
-
 struct dague_data_pair_t {
     struct data_repo_entry   *data_repo;
     dague_arena_chunk_t      *data;

@@ -31,10 +31,6 @@ int main(int argc, char *argv[])
     cores = 8;
     dague = dague_init(cores, &argc, &argv);
 
-#if defined(DAGUE_PROF_GRAPHER)
-    dague_prof_grapher_init("branching", rank, world, cores);
-#endif
-
     size = 256;
     if(argc != 2) {
         nb   = 2;
