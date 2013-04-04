@@ -46,9 +46,11 @@ int main(int argc, char *argv[])
     dague_ddesc_set_key(ddescA, "A");
     
     branching = branching_new(ddescA, size, nb);
-    dague_enqueue(dague, branching);
+    if( NULL != branching ) {
+        dague_enqueue(dague, branching);
 
-    dague_progress(dague);
+        dague_progress(dague);
+    }
 
 #if defined(DAGUE_PROF_TRACE)
     {
