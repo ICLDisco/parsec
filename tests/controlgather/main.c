@@ -33,6 +33,10 @@ int main(int argc, char *argv[])
     size = 256;
     nb   = 4 * world;
 
+#if defined(DAGUE_PROF_GRAPHER)
+    dague_prof_grapher_init("ctlgat", rank, world, cores);
+#endif
+
     ddescA = create_and_distribute_data(rank, world, cores, size, 1);
     dague_ddesc_set_key(ddescA, "A");
     
