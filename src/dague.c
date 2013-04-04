@@ -301,7 +301,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
 #if defined(HAVE_HWLOC)
-    dague_hwloc_init();
     context->comm_th_core   = -1;
 #if defined(HAVE_HWLOC_BITMAP)
     context->comm_th_index_mask = hwloc_bitmap_alloc();
