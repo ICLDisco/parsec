@@ -7,8 +7,6 @@ static int registration_disabled;
 
 parsec_pins_callback * pins_array[PINS_FLAG_COUNT] = { 0 };
 
-void empty_callback(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data);
-
 void parsec_pins(PINS_FLAG method_flag, 
                  dague_execution_unit_t * exec_unit,
                  dague_execution_context_t * task, 
@@ -16,6 +14,7 @@ void parsec_pins(PINS_FLAG method_flag,
     (*(pins_array[method_flag]))(exec_unit, task, data);
 }
 
+/* convenience method provided 'just in case' */
 void pins_disable_registration(int disable) {
 	if (disable)
 		DEBUG3(("PINS registration is disabled.\n"));
@@ -34,14 +33,14 @@ parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins
         int i = 0;
         for (; i < PINS_FLAG_COUNT; i++) {
             if (pins_array[i] == NULL)
-                pins_array[i] = &empty_callback;
+                pins_array[i] = &pins_empty_callback;
         }
         DEBUG(("Initialized PaRSEC PINS callbacks to empty_callback()"));
     }
     assert(cb != NULL);
     if (method_flag >= 0 && method_flag < PINS_FLAG_COUNT) {
 	    if (registration_disabled) {
-		    DEBUG3(("NOTE: PINS has been disabled by command line argument, causing this registration to fail."));
+		    DEBUG2(("NOTE: PINS has been disabled by command line argument, causing this registration to fail."));
 		    return NULL;
 	    }
 	    else {
@@ -64,7 +63,7 @@ parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag) {
 	    }
 	    else {
 		    parsec_pins_callback * prev = pins_array[method_flag];
-		    pins_array[method_flag] = &empty_callback;
+		    pins_array[method_flag] = &pins_empty_callback;
 		    return prev;
 	    }
     }
@@ -74,7 +73,7 @@ parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag) {
     return NULL;
 }
 
-void empty_callback(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data) {
+void pins_empty_callback(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data) {
     // do nothing
     (void) exec_unit;
     (void) task;

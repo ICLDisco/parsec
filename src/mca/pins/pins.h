@@ -32,6 +32,8 @@ typedef enum PINS_FLAG {
 
 typedef void (parsec_pins_callback)(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data); 
 
+void pins_empty_callback(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data);
+
 BEGIN_C_DECLS
 
 /*
@@ -102,9 +104,13 @@ void parsec_pins(PINS_FLAG method_flag, dague_execution_unit_t * exec_unit,
 
 void pins_disable_registration(int disable);
 
+void set_allowable_pins_modules (const char * const modules[]);
+
 parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins_callback * cb);
 
 parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag);
+
+
 
 #ifdef PINS_ENABLE
 

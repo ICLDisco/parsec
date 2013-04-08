@@ -7,6 +7,9 @@
 #include "profiling.h"
 #include "execution_unit.h"
 
+/* these should eventually be runtime-configurable */
+static int exec_events[NUM_EXEC_EVENTS] = {PAPI_RES_STL, PAPI_L2_DCH, PAPI_L2_DCM, PAPI_L2_DCA};
+
 static void pins_init_papi_exec(dague_context_t * master_context);
 static void pins_fini_papi_exec(dague_context_t * master_context);
 static void pins_handle_init_papi_exec(dague_handle_t * handle);
@@ -35,8 +38,6 @@ static parsec_pins_callback * exec_begin_prev; // courtesy calls to previously-r
 static parsec_pins_callback * exec_end_prev;
 
 static int pins_prof_papi_exec_begin, pins_prof_papi_exec_end;
-/* these should eventually be runtime-configurable */
-static int exec_events[NUM_EXEC_EVENTS] = {PAPI_RES_STL, PAPI_L2_DCH, PAPI_L2_DCM, PAPI_L1_ICM};
 
 static void pins_init_papi_exec(dague_context_t * master_context) {
 	(void)master_context;
@@ -61,11 +62,11 @@ static void pins_thread_init_papi_exec(dague_execution_unit_t * exec_unit) {
 	    || !DO_SOCKET_MEASUREMENTS) {
 		exec_unit->papi_eventsets[EXEC_SET] = PAPI_NULL;
 		if (PAPI_create_eventset(&exec_unit->papi_eventsets[EXEC_SET]) != PAPI_OK)
-			printf("papi_exec.c, pins_thread_init_papi_exec: failed to create ExecEventSet\n");
+			DEBUG(("papi_exec.c, pins_thread_init_papi_exec: failed to create ExecEventSet\n"));
 		if ((rv = PAPI_add_events(exec_unit->papi_eventsets[EXEC_SET], exec_events, NUM_EXEC_EVENTS)) 
 		    != PAPI_OK)
-			printf("papi_exec.c, pins_thread_init_papi_exec: failed to add "
-			       "exec events to ExecEventSet. %d %s\n", rv, PAPI_strerror(rv));
+			DEBUG(("papi_exec.c, pins_thread_init_papi_exec: failed to add "
+			       "exec events to ExecEventSet. %d %s\n", rv, PAPI_strerror(rv)));
 	}
 }
 
@@ -76,15 +77,17 @@ static void start_papi_exec_count(dague_execution_unit_t * exec_unit,
 	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET 
 	    || !DO_SOCKET_MEASUREMENTS) {
 		if ((rv = PAPI_start(exec_unit->papi_eventsets[EXEC_SET])) != PAPI_OK) {
-			printf("papi_exec.c, start_papi_exec_count: can't start "
+			DEBUG(("papi_exec.c, start_papi_exec_count: can't start "
 			       "exec event counters! %d %s\n", 
-			       rv, PAPI_strerror(rv));
+			       rv, PAPI_strerror(rv)));
 		}
 		else {
+
 			dague_profiling_trace(exec_unit->eu_profile, pins_prof_papi_exec_begin, 
 			                      (*exec_context->function->key
 			                       )(exec_context->dague_handle, exec_context->locals), 
 			                      exec_context->dague_handle->handle_id, NULL);
+
 		}
 	}
 	// keep the contract with the previous registrant
@@ -103,8 +106,8 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET 
 	    || !DO_SOCKET_MEASUREMENTS) {
 		if ((rv = PAPI_stop(exec_unit->papi_eventsets[EXEC_SET], values)) != PAPI_OK) {
-			printf("papi_exec.c, stop_papi_exec_count: can't stop exec event counters! %d %s\n", 
-			       rv, PAPI_strerror(rv));
+			DEBUG(("papi_exec.c, stop_papi_exec_count: can't stop exec event counters! %d %s\n", 
+			       rv, PAPI_strerror(rv)));
 		}
 		else {
 			papi_exec_info_t info;
@@ -130,6 +133,7 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 			                       )(exec_context->dague_handle, exec_context->locals), 
 			                      exec_context->dague_handle->handle_id, 
 			                      (void *)&info);
+
 		}
 	}
 	// keep the contract with the previous registerer
@@ -138,31 +142,3 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 	}
 }
 
-void pins_handle_init_papi_exec(dague_handle_t * handle) {
-	/*
-	 int rv;
-	 int num_cores = 0;
-	 unsigned int i;
-	 for (i = 0; i < handle->context->nb_vp; i++)
-	 num_cores += handle->context->virtual_processes[i]->nb_cores;
-	
-	 for (i = 0; i < num_cores; i++) {
-	 handle->pins_data[i][EXEC_BEGIN] = calloc(sizeof(pins_papi_exec_data_t), 1);
-	 DATA(handle, i)->ExecEventSet = PAPI_NULL;
-	 if (PAPI_create_eventset(&(DATA(handle, i)->ExecEventSet)) != PAPI_OK)
-	 DEBUG(("papi_exec.c, pins_handle_init_papi_exec: failed to create ExecEventSet\n"));
-	 if ((rv = PAPI_add_events(DATA(handle, i)->ExecEventSet, exec_events, NUM_EXEC_EVENTS)) != PAPI_OK)
-	 DEBUG(("papi_exec.c, pins_handle_init_papi_exec: failed to add exec events to ExecEventSet. %d %s\n", rv, PAPI_strerror(rv)));
-	 DATA(handle, i)->exec_cache_misses[0] = 0; // technically unnecessary b/c calloc
-	 DATA(handle, i)->exec_cache_misses[1] = 0;
-	 DATA(handle, i)->exec_tlb_misses = 0;
-
-	 DATA(handle, i)->StealEventSet = PAPI_NULL;
-	 if (PAPI_create_eventset(&DATA(handle, i)->StealEventSet) != PAPI_OK)
-	 printf("papi_exec.c, pins_handle_init_papi_exec: failed to create StealEventSet\n");
-	 if (PAPI_add_events(DATA(handle, i)->StealEventSet, steal_events, NUM_STEAL_EVENTS) != PAPI_OK)
-	 printf("papi_exec.c, pins_handle_init_papi_exec: failed to add steal events to StealEventSet\n");
-        
-	 }	
-	 */
-}

@@ -571,10 +571,6 @@ IF( BUILD_TESTING AND BUILD_DAGUE )
   add_subdirectory(tests)
 ENDIF( BUILD_TESTING AND BUILD_DAGUE )
 
-if (NOT HAVE_PAPI)
-      message(ERROR "we don't have papi!?")
-endif (NOT HAVE_PAPI)
-
 # Configuration header
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config.h.in"
