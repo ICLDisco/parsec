@@ -259,9 +259,14 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             assert( ((dague_list_item_t*)gpu_copy)->list_next == (dague_list_item_t*)gpu_copy );
             assert( ((dague_list_item_t*)gpu_copy)->list_prev == (dague_list_item_t*)gpu_copy );
 
+            DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                                  "GPU[%1d]:\tOUT Data of %s\n", gpu_device->cuda_index, flow->name));
             if( args->pushout ) {  /* n == (k + 1) */
-                DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
-                                      "GPU[%1d]:\tOUT Data of %s\n", gpu_device->cuda_index, flow->name));
+                original = gpu_copy->original;
+                DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
+                                      "GPU:\tMove data <%x> from GPU %d %p -> %p requested\n",
+                                      original->key, gpu_device->cuda_index,
+                                      (void*)gpu_copy->device_private, original->device_copies[0]->device_private));
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                                          gpu_device->super.profiling,
                                          (-1 == gpu_stream->prof_event_key_start ?
@@ -270,7 +275,6 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                                           gpu_stream->prof_event_key_start),
                                          this_task);
                 /* TODO: Move the data back into main memory, but not always on the first device (!) */
-                original = gpu_copy->original;
                 status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
                                                          (CUdeviceptr)gpu_copy->device_private,
                                                          original->nb_elts, gpu_stream->cuda_stream );
@@ -311,9 +315,9 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
         assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
         gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
         original = gpu_copy->original;
-        original->version = gpu_copy->version;
         original->device_copies[0]->version = gpu_copy->version;
-        original->coherency_state = DATA_COHERENCY_SHARED;
+        /*original->version = gpu_copy->version;*/
+        /*original->coherency_state = DATA_COHERENCY_SHARED;*/
         if( args->pushout ) {  /* n == (k  + 1) */
             dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
         } else {

@@ -47,8 +47,7 @@ int dague_devices_init(dague_context_t* dague_context)
     return DAGUE_ERR_NOT_IMPLEMENTED;
 }
 
-static void
-dague_compute_best_unit( uint64_t length, float* updated_value, char** best_unit )
+void dague_compute_best_unit( uint64_t length, float* updated_value, char** best_unit )
 {
     float measure = (float)length;
 

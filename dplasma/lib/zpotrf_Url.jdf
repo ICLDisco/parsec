@@ -21,7 +21,6 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-
 #if defined(HAVE_CUDA)
 #include <dague/devices/cuda/dev_cuda.h>
 #include "dplasma/cores/cuda_zgemm.h"
@@ -185,34 +184,24 @@ RW    C <- (k == 0)   ? A(m, n)      : C GEMM(k-1, m, n)
 ; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - n - m - 3) * (n - m) + 6 * (n - k) : 1000000000
 //;  (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n - m) * ((descA.nt - m - k + 1) / 2 + 2) - 1 + (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 + descA.nt - m + k + 1 : 0
 
-BODY
+BODY [type = CUDA]
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-#if defined(HAVE_CUDA)
-    {  /* TODO: This should move to a CUDA BODY */
-        int rc;
+    return gpu_zgemm(context, this_task,
+                     ( m == k+1 ),
+                     PlasmaConjTrans, PlasmaNoTrans,
+                     descA.mb, tempnn, descA.mb,
+                     (dague_complex64_t)-1.0, k, m, &descA, ldak,
+                                              k, n, &descA, ldak,
+                     (dague_complex64_t) 1.0, m, n, &descA, ldam);
+END
 
-        if( 0 == (rc = gpu_zgemm( context, this_task,
-                                  ( m == k+1 ),
-                                  PlasmaConjTrans, PlasmaNoTrans,
-                                  descA.mb, tempnn, descA.mb,
-                                  (dague_complex64_t)-1.0, k, m, &descA, ldak,
-                                                           k, n, &descA, ldak,
-                                  (dague_complex64_t) 1.0, m, n, &descA, ldam)) )
-            goto FIN;
-        if( -1 == rc ) {
-            /* We're done, but the task has been already destroyed */
-            return -1;
-        }
-        if( -2 == rc ) {
-            /* The GPU failed to execute this task, but the task was already rescheduled */
-	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
-	    exit(2);
-        }
-    }
-#endif  /* defined(HAVE_CUDA) */
+BODY
+    int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zgemm(PlasmaConjTrans, PlasmaNoTrans,
@@ -229,8 +218,4 @@ BODY
              -1.0, k, m, A, ldak,
                    k, n, B, ldak,
               1.0, m, n, C, ldam);
-
-#if defined(HAVE_CUDA)
-FIN:
-#endif
 END

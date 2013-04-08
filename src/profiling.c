@@ -126,7 +126,7 @@ int dague_profiling_init( const char *format, ... )
         *(hr_id_basename-1) = '\0';
     }
 
-    sprintf(bpf_filename, "%s/.%s.prof-XXXXXX", hr_id_dir, hr_id_basename);
+    sprintf(bpf_filename, "%s.prof-XXXXXX", hr_id_basename);
     free(hr_id_dir);
     hr_id_dir = NULL;
     hr_id_basename = NULL;
