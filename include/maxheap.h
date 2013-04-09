@@ -328,7 +328,6 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
 				              * the initial value doesn't matter since we're at the top and have no parent. */
 				parent = NULL; 
 				while (1) {
-					if(heap->size-1 != get_size(heap->top)) printf("1 %d\n", get_size(heap->top)); // PETERDEBUG
 					dague_execution_context_t * next = (dague_execution_context_t*)bubbler->list_item.list_next;
 					dague_execution_context_t * prev = (dague_execution_context_t*)bubbler->list_item.list_prev;
 					// first, compare all three priorities to see which way to bubble, if any
@@ -381,8 +380,6 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
 		}
 		to_use->list_item.list_next = (dague_list_item_t*)to_use; // safety's
 		to_use->list_item.list_prev = (dague_list_item_t*)to_use; // sake
-		if (*heap_ptr != NULL)
-			assert(heap->size + 1 == temp_size);
 	}
 
 
