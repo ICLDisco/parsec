@@ -540,7 +540,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
          * during the computations
          */
         while( (free_mem > eltsize ) 
-               && (initial_free_mem - how_much_we_allocate) 
+               && ((total_mem - free_mem) < how_much_we_allocate)
                && !(mem_elem_per_gpu > (uint32_t)(nbelem/2*3)) ) {
             gpu_elem_t* gpu_elem;
             cudaError_t cuda_status;
@@ -561,8 +561,8 @@ int dague_gpu_data_register( dague_context_t *dague_context,
                                         size_t _free_mem, _total_mem;
 #endif  /* CUDA_VERSION < 3020 */
                                         cuMemGetInfo( &_free_mem, &_total_mem );
-                                        WARNING(("Per context: free mem %zu total mem %zu\n",
-                                                 _free_mem, _total_mem));
+                                        WARNING(("Per context: free mem %zu total mem %zu (allocated tiles %u)\n",
+                                                 _free_mem, _total_mem, mem_elem_per_gpu));
                                         free( gpu_elem );
                                         break;
                                      }) );
