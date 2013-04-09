@@ -23,7 +23,7 @@
 /* main struct holding size info and ID */
 typedef struct dague_heap {
 	dague_list_item_t list_item; /* to be compatible with the lists */
-	unsigned int size;           /* used only during building */
+	unsigned int size;           
 	unsigned int priority;
 	dague_execution_context_t * top;
 } dague_heap_t;
@@ -52,6 +52,7 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem);
 dague_execution_context_t* heap_split_and_steal(dague_heap_t ** heap_ptr, dague_heap_t ** new_heap_ptr);
 dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr);
 static int hiBit(unsigned int n);
+static int get_size(dague_execution_context_t * node); // for debug use only (recursive)
 
 /*
  * Insertion is O(lg n), as we know exactly how to get to the next insertion point,
@@ -186,14 +187,15 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
 			assert(*heap_ptr == NULL);
 		} else { /* does have left child */
 			if (heap->top->list_item.list_next /* right */ == NULL) {
+				assert(heap->size == 2);
 				/* but doesn't have right child, so still not splitting */
 				heap->top = (dague_execution_context_t*)heap->top->list_item.list_prev; // left
 				assert(heap->top->list_item.list_next == NULL);
 				assert(heap->top->list_item.list_prev == NULL);
-				assert(heap->size == 2);
 				heap->priority = heap->top->priority;
 				heap->size--; // should equal 1
 				/* set up doubly-linked singleton list in here, as DEFAULT scenario */
+				// PETER TODO this comment needs to be better, b/c I don't understand it anymore
 				heap->list_item.list_prev = (dague_list_item_t*)*heap_ptr;
 				heap->list_item.list_next = (dague_list_item_t*)*heap_ptr;
 			}
@@ -215,8 +217,6 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
 					(*new_heap_ptr)->size = (size & ~highBit) + twoBit;
 					heap->size = size - (*new_heap_ptr)->size - 1;
 				}
-				//                printf("%p sas: %u %u %u %p\n", heap, size, (*new_heap_ptr)->size, heap->size, *new_heap_ptr);
-
 				/* set up doubly-linked two-element list in here, as DEFAULT scenario */
 				heap->list_item.list_prev = (dague_list_item_t*)(*new_heap_ptr);
 				heap->list_item.list_next = (dague_list_item_t*)(*new_heap_ptr);
@@ -264,27 +264,43 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
 				heap->list_item.list_next = (dague_list_item_t*)*heap_ptr;
 			}
 			else { // heap has at least 3 nodes, so we do fancy removal
-				dague_execution_context_t * parent = heap->top;
-				unsigned int bitmask = 1, size = heap->size;
 				assert(heap->size >= 3);
-				// prime the bitmask
+				/*
+				 the strategy here is to find the 'last' node in the 'complete' heap 
+				 and swap it up to replace the top node (which is being removed), because
+				 it is the only node that can be moved without making the heap 'incomplete'.
+				 Once the swap is made, in order to preserve priority order, we then
+				 'bubble down' in the direction of the higher of any higher children.
+				 */
+				dague_execution_context_t * parent = heap->top;
+				unsigned int bitmask = 1;
+				unsigned int size = heap->size;
+				// this allows us to count the number of layers in the heap
 				while (bitmask <= size) 
 					bitmask = bitmask << 1;
+				/* at this point, the ith bit in bitmask tells us that we have i - 1 layers...
+				 * ...so we shift down one to get rid of the 'extra' layer,
+				 * and another to prepare for the following logic, which only 'moves'
+				 * through the heap until the second-to-last layer. 
+				 */
 				bitmask = bitmask >> 2;
-
-				// now move through tree
 				while (bitmask > 1) {
-					parent = (dague_execution_context_t*)((bitmask & size) ? parent->list_item.list_next : parent->list_item.list_prev);
+					/* the "bitmask & size" operation is a simple way of moving
+					 * through the heap one layer at a time in the direction of the
+					 * 'last' element in the 'complete' heap.
+					 */
+					parent = (dague_execution_context_t*)(
+					 (bitmask & size) ? parent->list_item.list_next : parent->list_item.list_prev);
 					bitmask = bitmask >> 1;
 				}
-				if (bitmask & size) { // LAST NODE IS 'NEXT'
-		            
+
+				if (bitmask & size) { // LAST NODE IS A 'NEXT' NODE
 					heap->top = (dague_execution_context_t*)parent->list_item.list_next;
 					// should ALWAYS be a leaf node
 					assert(heap->top != NULL);
 					assert(heap->top->list_item.list_next == NULL);
 					assert(heap->top->list_item.list_prev == NULL);
-					if (parent != to_use) { // if not a second-level node...
+					if (parent != to_use) { // if not a second-level-from-the-top node...
 						heap->top->list_item.list_next = to_use->list_item.list_next;
 						parent->list_item.list_next = NULL;
 					}
@@ -292,13 +308,15 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
 						heap->top->list_item.list_next = NULL;
 					heap->top->list_item.list_prev = to_use->list_item.list_prev;
 				}
-				else { // LAST NODE IS 'PREV'
+				else { // LAST NODE IS A 'PREV' NODE
 					heap->top = (dague_execution_context_t*)parent->list_item.list_prev;
 					// should ALWAYS be a leaf node
-					// isn't a second-level node, because otherwise size == 2
 					assert(heap->top != NULL);
 					assert(heap->top->list_item.list_next == NULL);
 					assert(heap->top->list_item.list_prev == NULL);
+					/* a prev node isn't on the second level from the top
+					 * (because otherwise size == 2), so we safely assume it has a parent 
+					 */
 					heap->top->list_item.list_next = to_use->list_item.list_next;
 					heap->top->list_item.list_prev = to_use->list_item.list_prev;
 					parent->list_item.list_prev = NULL;
@@ -306,44 +324,56 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
 
 				// now bubble down
 				dague_execution_context_t * bubbler = heap->top;
-				int is_next = 0;
-				parent = NULL;
+				int is_next; /* flag keeps track of whether we are 'prev' or 'next' to our current PARENT.
+				              * the initial value doesn't matter since we're at the top and have no parent. */
+				parent = NULL; 
 				while (1) {
+					if(heap->size-1 != get_size(heap->top)) printf("1 %d\n", get_size(heap->top)); // PETERDEBUG
 					dague_execution_context_t * next = (dague_execution_context_t*)bubbler->list_item.list_next;
 					dague_execution_context_t * prev = (dague_execution_context_t*)bubbler->list_item.list_prev;
-					if (next != NULL && bubbler->priority < next->priority) {
-						if (parent != NULL) {
-							if (is_next)
-								parent->list_item.list_next = (dague_list_item_t *)next;
-							else
-								parent->list_item.list_prev = (dague_list_item_t *)next;
-						}
-						bubbler->list_item.list_next = (dague_list_item_t *)next->list_item.list_next;
-						bubbler->list_item.list_prev = (dague_list_item_t *)next->list_item.list_prev;
-						next->list_item.list_next = (dague_list_item_t *)bubbler;
-						next->list_item.list_prev = (dague_list_item_t *)prev;
-
-						parent = next;
-						is_next = 1;
-					}
-					else if (prev != NULL && bubbler->priority < prev->priority) {
-						if (parent != NULL) {
+					// first, compare all three priorities to see which way to bubble, if any
+					if (prev != NULL && prev->priority > bubbler->priority && 
+					    (next == NULL || prev->priority >= next->priority)) {
+						// bubble toward (swap with) prev
+						if (parent) {
 							if (is_next)
 								parent->list_item.list_next = (dague_list_item_t *)prev;
 							else
 								parent->list_item.list_prev = (dague_list_item_t *)prev;
 						}
-						bubbler->list_item.list_next = prev->list_item.list_next;
+						else 
+							heap->top = prev;
+
 						bubbler->list_item.list_prev = prev->list_item.list_prev;
+						bubbler->list_item.list_next = prev->list_item.list_next;
 						prev->list_item.list_prev = (dague_list_item_t *)bubbler;
 						prev->list_item.list_next = (dague_list_item_t *)next;
 
+						is_next = 0; // b/c we will be our parent's PREV in the next round
 						parent = prev;
-						is_next = 0;
 					}
-					else {
+					else if (next != NULL && next->priority > bubbler->priority && 
+					         (prev == NULL || next->priority > prev->priority)) {
+						// bubble toward next
+						if (parent) {
+							if (is_next) 
+								parent->list_item.list_next = (dague_list_item_t *)next;
+							else 
+								parent->list_item.list_prev = (dague_list_item_t *)next;
+						}
+						else 
+							heap->top = next;
+
+						bubbler->list_item.list_prev = next->list_item.list_prev;
+						bubbler->list_item.list_next = next->list_item.list_next;
+						next->list_item.list_prev = (dague_list_item_t *)prev;
+						next->list_item.list_next = (dague_list_item_t *)bubbler;
+
+						is_next = 1; // b/c we will be our parent's NEXT in the next round
+						parent = next;
+					}
+					else // either both next and prev are NULL, or neither has a higher priority than bubbler
 						break;
-					}
 				}
 			}
 			heap->size--;
@@ -355,6 +385,7 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
 			assert(heap->size + 1 == temp_size);
 	}
 
+
 	return to_use;
 }
 
@@ -365,6 +396,17 @@ static int hiBit(unsigned int n) {
 	n |= (n >>  8);
 	n |= (n >> 16);
 	return n - (n >> 1);
+}
+
+/**
+ * An inefficient recursive count, just for debugging 
+ */
+static int get_size(dague_execution_context_t * node) {
+	if (node == NULL)
+		return 0;
+	else 
+		return 1 + get_size((dague_execution_context_t *)node->list_item.list_next) 
+			+ get_size((dague_execution_context_t *)node->list_item.list_prev);
 }
 
 #endif
