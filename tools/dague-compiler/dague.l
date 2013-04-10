@@ -168,14 +168,13 @@ WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
 <body_init>{WHITE}*[\[] {
                            YY_PUSH_STATE(properties);
                            ECHO; return PROPERTIES_ON;                     }
-<body_init>{WHITE}*[^\[] {
+<body_init>{WHITE}*\n {    current_lineno++;
                            YY_POP_STATE();
                            YY_PUSH_STATE(body);                            }
 <body>[eE][nN][dD]    {   YY_POP_STATE();
                           ECHO; return BODY_END;                           }
 <body>([^E]|([eE][^N])|([eE][nN][^D]))+ {
-                          YYLVAL(string) = extern_code( yytext, strlen(yytext+1) );
-                          current_lineno++;
+                          YYLVAL(string) = extern_code( yytext, strlen(yytext) );
                           ECHO; return BODY;
                       }
 
@@ -252,7 +251,7 @@ WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
                         while ( *yptr )
                             *string_buf_ptr++ = *yptr++;                   }
 
-<*>{WHITE}*\n         { current_lineno++;                                  }
+<*>\n                 { current_lineno++;                                  }
 <*>"//".*\n           { current_lineno++;                                  }
 <*>[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)* {
                         YYLVAL(string) = strdup(yytext);
