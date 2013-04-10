@@ -64,8 +64,6 @@ const char *diagstr[2]  = { "NonUnit", "Unit   " };
 const char *transstr[3] = { "N", "T", "H" };
 const char *normsstr[4] = { "Max", "One", "Inf", "Fro" };
 
-static char *dot_filename = NULL;
-
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
 
@@ -297,8 +295,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
 
                 /* Butterfly parameters */
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
-
-            case '.': iparam[IPARAM_DOT] = 1; dot_filename = strdup(optarg); break;
 
             case 'v':
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
@@ -554,20 +550,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     }
     print_arguments(iparam);
 
-#if defined(DAGUE_PROF_GRAPHER)
-    if(iparam[IPARAM_DOT] != 0) {
-        dague_prof_grapher_init(dot_filename, iparam[IPARAM_RANK], iparam[IPARAM_NNODES], iparam[IPARAM_NCORES]);
-    }
-#else
-    (void)dot_filename;
-    if(iparam[IPARAM_DOT] != 0) {
-        fprintf(stderr,
-                "************************************************************************************************\n"
-                "*** Warning: dot generation requested, but DAGUE configured with DAGUE_PROF_GRAPHER disabled ***\n"
-                "************************************************************************************************\n");
-    }
-#endif
-
     if( iparam[IPARAM_SCHEDULER] != DAGUE_SCHEDULER_DEFAULT ) {
         char *ignored;
         (void)dague_mca_param_reg_string_name("mca", "sched", NULL,
@@ -601,18 +583,9 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 
     dague_fini(&dague);
 
-#if defined(DAGUE_PROF_GRAPHER)
-    if(iparam[IPARAM_DOT] != 0) {
-        dague_prof_grapher_fini();
-    }
-#else
-    (void)iparam;
-#endif
-    if (dot_filename != NULL)
-        free(dot_filename);
-
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif
+    (void)iparam;
 }
 

@@ -3957,7 +3957,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     info.sa = sa2;
     info.prefix = "";
-    info.assignments = "assignments";
+    info.assignments = "nc.locals";
 
     sa_close = string_arena_new(64);
 

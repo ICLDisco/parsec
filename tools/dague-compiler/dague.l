@@ -67,13 +67,13 @@ extern YYSTYPE yylval;
 #define YY_POP_STATE()        yy_pop_state()
 typedef void* yyscan_t;
 #endif  /* defined(HAVE_RECENT_LEX) */
-
 %}
 /*%option debug*/
 /*%option bison-bridge bison-locations*/
 /*%option reentrant*/
 %option noyywrap yylineno
 %option stack
+/*%option debug*/
 
 WHITE         [\f\t\v ]
 
@@ -162,21 +162,20 @@ WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
 <properties>[nN][oO] {  YYLVAL(number) = 0;
                         ECHO; return INT;                                  }
 
-<INITIAL>[bB][oO][dD][yY] {
+<INITIAL>^{WHITE}*(?i:body) {
                            YY_PUSH_STATE(body_init);
-                           ECHO; return BODY_START;                        }
+                           return BODY_START;                              }
 <body_init>{WHITE}*[\[] {
                            YY_PUSH_STATE(properties);
-                           ECHO; return PROPERTIES_ON;                     }
+                           return PROPERTIES_ON;                           }
 <body_init>{WHITE}*\n {    current_lineno++;
                            YY_POP_STATE();
                            YY_PUSH_STATE(body);                            }
-<body>[eE][nN][dD]    {   YY_POP_STATE();
+<body>^{WHITE}*(?i:end) { YY_POP_STATE();
+                          YYLVAL(string) = extern_code( yytext, strlen(yytext) - 3 );
                           ECHO; return BODY_END;                           }
-<body>([^E]|([eE][^N])|([eE][nN][^D]))+ {
-                          YYLVAL(string) = extern_code( yytext, strlen(yytext) );
-                          ECHO; return BODY;
-                      }
+<body>[^\n]*          { yymore();}
+<body>{WHITE}*\n      { current_lineno++; yymore();}
 
 <*>"("                { ECHO; return OPEN_PAR;                             }
 <*>")"                { ECHO; return CLOSE_PAR;                            }

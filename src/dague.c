@@ -75,6 +75,8 @@ int device_delegate_begin, device_delegate_end;
 static int _dague_rusage_first_call = 1;
 static struct rusage _dague_rusage;
 
+static int dague_enable_dot = 0;
+
 static void dague_statistics(char* str)
 {
     struct rusage current;
@@ -165,7 +167,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         eu->datarepo_mempools[pi] = &(eu->virtual_process->datarepo_mempools[pi].thread_mempools[eu->th_id]);
 
 #ifdef DAGUE_PROF_TRACE
-    eu->eu_profile = dague_profiling_thread_init( 2*1024*1024, "DAGuE Thread %d of VP %d", eu->th_id, eu->virtual_process->vp_id );
+    eu->eu_profile = dague_profiling_thread_init( 2*1024*1024,
+                                                  "DAGuE Thread %d of VP %d",
+                                                  eu->th_id,
+                                                  eu->virtual_process->vp_id );
 #endif
 
 #if defined(DAGUE_SIM)
@@ -243,10 +248,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(HAVE_HWLOC)
         nb_cores = dague_hwloc_nb_real_cores();
 #else
-        nb_cores= sysconf(_SC_NPROCESSORS_ONLN);
-        if(nb_cores== -1) {
+        nb_cores = sysconf(_SC_NPROCESSORS_ONLN);
+        if(nb_cores == -1) {
             perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
-            nb_cores= 1;
+            nb_cores = 1;
         }
 #endif
     }
@@ -261,6 +266,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             {"dague_help",       no_argument,        NULL, 'h'},
             {"dague_bind",       optional_argument,  NULL, 'b'},
             {"dague_bind_comm",  optional_argument,  NULL, 'c'},
+#if defined(DAGUE_PROF_GRAPHER)
+            {"dague_dot",        no_argument,        &dague_enable_dot, 1},
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
             {0, 0, 0, 0}
         };
 #endif  /* defined(HAVE_GETOPT_LONG) */
@@ -367,7 +375,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
 #if defined(DAGUE_PROF_TRACE)
-    dague_profiling_init( "%s", (*pargv)[0] );
+        dague_profiling_init( "%s", (*pargv)[0] );
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
     dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
@@ -413,6 +421,17 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
+
+    if(dague_enable_dot) {
+#if defined(DAGUE_PROF_GRAPHER)
+        dague_prof_grapher_init((*pargv)[0], nb_total_comp_threads);
+#else
+        fprintf(stderr,
+                "************************************************************************************************\n"
+                "*** Warning: dot generation requested, but DAGUE configured with DAGUE_PROF_GRAPHER disabled ***\n"
+                "************************************************************************************************\n");
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
+    }
 
     if( nb_total_comp_threads > 1 ) {
         pthread_attr_t thread_attr;
@@ -474,7 +493,6 @@ static void dague_vp_fini( dague_vp_t *vp )
         free(vp->execution_units[i]);
         vp->execution_units[i] = NULL;
     }
-
 }
 
 /**
@@ -520,6 +538,11 @@ int dague_fini( dague_context_t** pcontext )
     dague_profiling_fini( );
 #endif  /* DAGUE_PROF_TRACE */
 
+    if(dague_enable_dot) {
+#if defined(DAGUE_PROF_GRAPHER)
+        dague_prof_grapher_fini();
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
+    }
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
 

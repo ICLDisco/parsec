@@ -167,7 +167,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 
 %type <string>VAR
 %type <string>EXTERN_DECL
-%type <string>BODY
+%type <string>BODY_END
 %type <dep_type>ARROW
 %type <number>PROPERTIES_ON
 %type <number>PROPERTIES_OFF
@@ -175,7 +175,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <number>INT
 %type <number>DEPENDENCY_TYPE
 
-%token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY_START BODY BODY_END STRING SIMCOST
+%token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY_START BODY_END STRING SIMCOST
 %token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK PROPERTIES_ON PROPERTIES_OFF
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE
@@ -346,7 +346,7 @@ properties_list: VAR ASSIGNMENT expr_complete properties_list
              }
        ;
 
-body:         BODY_START properties BODY BODY_END
+body:         BODY_START properties BODY_END
              {
                  jdf_body_t* body = new(jdf_body_t);
                  body->properties = $2;

@@ -191,8 +191,7 @@ int main(int argc, char ** argv)
                  iparam[IPARAM_HIGHLVL_TREE],
                  iparam[IPARAM_QR_DOMINO]);
 
-        if ( iparam[IPARAM_DOT] )
-            dplasma_qrtree_print_dag( (tiled_matrix_desc_t*)&ddescA, &qrtree, dot_filename );
+        /*dplasma_qrtree_print_dag( (tiled_matrix_desc_t*)&ddescA, &qrtree, dot_filename );*/
         ret = dplasma_qrtree_check( (tiled_matrix_desc_t*)&ddescA, &qrtree );
 
         /* dplasma_qrtree_print_pivot(   (tiled_matrix_desc_t*)&ddescA, &qrtree); */
