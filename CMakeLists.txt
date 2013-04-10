@@ -507,6 +507,16 @@ if(INDENT_EXECUTABLE)
 endif(INDENT_EXECUTABLE)
 
 #
+# Check if awk is available on the system.
+#
+set(HAVE_AWK 0)
+FIND_PROGRAM(AWK_EXECUTABLE awk DOC "path to the awk executable")
+MARK_AS_ADVANCED(AWK_EXECUTABLE)
+if(AWK_EXECUTABLE)
+  set(HAVE_AWK 1)
+endif(AWK_EXECUTABLE)
+
+#
 # First go for the tools.
 #
 set(daguepp_EXE "NOT-DEFINED")

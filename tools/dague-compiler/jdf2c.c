@@ -4508,10 +4508,34 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     {
         char* command;
 
+#if !defined(HAVE_AWK)
         asprintf(&command, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c );
         system(command);
         asprintf(&command, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h );
         system(command);
+#else
+        asprintf(&command, 
+                 "%s %s %s -st | "
+                 "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
+                 "> %s.indent.awk", 
+                 DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c,
+                 DAGUE_AWK_PREFIX, output_c, output_c,
+                 output_c);
+        system(command);
+        asprintf(&command, "%s.indent.awk", output_c);
+        rename(command, output_c);
+
+        asprintf(&command, 
+                 "%s %s %s -st | "
+                 "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
+                 "> %s.indent.awk", 
+                 DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h,
+                 DAGUE_AWK_PREFIX, output_h, output_h,
+                 output_h);
+        system(command);
+        asprintf(&command, "%s.indent.awk", output_h);
+        rename(command, output_h);
+#endif
     }
 #endif  /* defined(HAVE_INDENT) */
 
