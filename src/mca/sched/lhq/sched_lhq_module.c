@@ -21,7 +21,6 @@
 #include "dequeue.h"
 
 #include "dague/mca/sched/sched.h"
-#include "dague/mca/sched/sched_utils.h"
 #include "dague/mca/sched/sched_local_queues_utils.h"
 #include "dague/mca/sched/lhq/sched_lhq.h"
 #include "dequeue.h"
@@ -57,10 +56,6 @@ static int sched_lhq_install( dague_context_t *master )
     dague_execution_unit_t *eu;
     dague_vp_t *vp;
     local_queues_scheduler_object_t *sched_obj = NULL;
-
-    if( !no_scheduler_is_active( master ) ) {
-        return -1;
-    }
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];

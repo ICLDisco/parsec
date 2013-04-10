@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -147,6 +147,23 @@ void dague_remove_scheduler( dague_context_t *dague )
     }
 }
 
+static int no_scheduler_is_active( dague_context_t *master )
+{
+    int p, t;
+    dague_vp_t *vp;
+
+    for(p = 0; p < master->nb_vp; p++) {
+        vp = master->virtual_processes[p];
+        for(t = 0; t < vp->nb_cores; t++) {
+            if( vp->execution_units[t]->scheduler_object != NULL ) {
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+
 int dague_set_scheduler( dague_context_t *dague )
 {
     mca_base_component_t **scheds;
@@ -169,6 +186,7 @@ int dague_set_scheduler( dague_context_t *dague )
 
     DEBUG((" Installing %s\n", current_scheduler->component->base_version.mca_component_name));
 
+    assert( no_scheduler_is_active(dague) );
     current_scheduler->module.install( dague );
     return 1;
 }

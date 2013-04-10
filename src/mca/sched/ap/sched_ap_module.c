@@ -19,7 +19,6 @@
 #include "dague_internal.h"
 #include "debug.h"
 #include "dague/mca/sched/sched.h"
-#include "dague/mca/sched/sched_utils.h"
 #include "dague/mca/sched/ap/sched_ap.h"
 #include "dequeue.h"
 

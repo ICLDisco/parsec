@@ -21,7 +21,6 @@
 #include "dequeue.h"
 
 #include "dague/mca/sched/sched.h"
-#include "dague/mca/sched/sched_utils.h"
 #include "dague/mca/sched/sched_local_queues_utils.h"
 #include "dague/mca/sched/pbq/sched_pbq.h"
 #include "dequeue.h"
@@ -60,11 +59,6 @@ static int sched_pbq_install( dague_context_t *master )
     local_queues_scheduler_object_t *sched_obj = NULL;
     int hwloc_levels;
 
-
-    if( !no_scheduler_is_active( master ) ) {
-        return -1;
-    }
-    
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
 

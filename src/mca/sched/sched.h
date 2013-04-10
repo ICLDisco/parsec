@@ -1,5 +1,5 @@
 /*
- * Copyright (c)      2013 The University of Tennessee and The University
+ * Copyright (c) 2013      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -26,6 +26,7 @@
 
 #include "dague_config.h"
 #include "dague/mca/mca.h"
+#include "execution_unit.h"
 
 BEGIN_C_DECLS
 
