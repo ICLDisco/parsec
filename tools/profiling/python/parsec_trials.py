@@ -25,7 +25,7 @@ class Trial(object):
         return self.uniqueName()
 
 class TrialSet(list):
-    def __init__(self, ident, ex, N, cores=0, NB=0, IB=0, sched='LFQ'):
+    def __init__(self, ident, ex, N, cores=0, NB=0, IB=0, sched='LFQ', extra_args=[]):
         self.ident = ident
         self.cores = int(cores)
         self.ex = ex
@@ -38,7 +38,8 @@ class TrialSet(list):
         self.avgTime = 0.0
         self.Tstddev = 0.0
         self.timestamp = dt.datetime.now().isoformat(sep='_')
-        self.unix_time = time.time()
+        self.unix_time = int(time.time())
+        self.extra_args = extra_args
     def genCmd(self):
         cmd = 'testing_' + self.ex
         args = []
@@ -55,6 +56,7 @@ class TrialSet(list):
             if self.IB > 0: # don't define IB without defining NB
                 args.append('-IB')
                 args.append(str(self.IB))
+        args.extend(self.extra_args)
         return cmd, args
     def percentStdDev(self):
         return int(100*self.Gstddev/self.avgGflops) if self.avgGflops else 0
@@ -64,7 +66,7 @@ class TrialSet(list):
                  self.cores, self.NB, self.IB, self.Gstddev, self.avgGflops,
                  self.percentStdDev(), self.Tstddev, self.avgTime))
     def uniqueName(self):
-        return '{}_{:0>3}_{:_<6}_{:0>5}_{:0>4}_{:0>4}_{:_<3}_gfl{:0>3}_rsd{:0>3}_len{:0>3}_{:.2f}.set'.format(
+        return '{}_{:0>3}_{:_<6}_{:0>5}_{:0>4}_{:0>4}_{:_<3}_gfl{:0>3}_rsd{:0>3}_len{:0>3}_{}.set'.format(
             self.ident if self.ident else 'TRIALSET', self.cores,
             self.ex, self.N, self.NB, self.IB, self.sched,
             int(self.avgGflops), self.percentStdDev(), len(self), self.unix_time)

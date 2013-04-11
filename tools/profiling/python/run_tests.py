@@ -115,7 +115,7 @@ def run_trial_set_in_process(my_pipe):
             # replace trial set with clean one
             trial_set = TrialSet(trial_set.ident, trial_set.ex, trial_set.N,
                                  trial_set.cores, trial_set.NB,
-                                 trial_set.IB, trial_set.sched)
+                                 trial_set.IB, trial_set.sched, trial_set.extra_args)
     # be done.
     return 0
 
@@ -137,6 +137,7 @@ if __name__ == '__main__':
     #
     # customize this section to your heart's content!
     #
+    extra_args = [] # or, ['--mca-pins=papi_exec']
     # defaults for ig:
     execs = ['dpotrf'] #, 'dpotrf', 'dgeqrf' ]
     schedulers = ['AP', 'GD', 'LTQ', 'LFQ', 'PBQ']
@@ -195,8 +196,8 @@ if __name__ == '__main__':
                         for scheduler in schedulers:
                             if not os.path.isdir(outputBaseDir):
                                 os.mkdir(outputBaseDir)
-                            trial_set = TrialSet(hostname, ex, N,
-                                                 cores, NB, IB, scheduler)
+                            trial_set = TrialSet(hostname, ex, N, cores,
+                                                 NB, IB, scheduler, extra_args)
                             trial_sets.append(trial_set)
                             print(trial_sets[-1].uniqueName())
     # now run all trial sets
