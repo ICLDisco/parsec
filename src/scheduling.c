@@ -434,6 +434,13 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     return (void*)((long)nbiterations);
 }
 
+int32_t dague_set_priority( dague_handle_t* object, int32_t new_priority )
+{
+    int32_t old_priority = object->priority;
+    object->priority = new_priority;
+    return old_priority;
+}
+
 int dague_enqueue( dague_context_t* context, dague_handle_t* object)
 {
     dague_execution_context_t **startup_list;
