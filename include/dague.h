@@ -66,6 +66,14 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* handle);
 int dague_progress(dague_context_t* context);
 
 /**
+ * Compose sequentially two handles. If start is already a composed
+ * object, then next will be added sequentially to the list. These
+ * handles will execute one after another as if there were sequential. 
+ * The resulting compound dague_object is returned. 
+ */
+dague_handle_t* dague_compose(dague_handle_t* start, dague_handle_t* next);
+
+/**
  * HANDLE MANIPULATION FUNCTIONS.
  */
 

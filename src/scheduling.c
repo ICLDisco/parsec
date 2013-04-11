@@ -434,6 +434,82 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     return (void*)((long)nbiterations);
 }
 
+/************ COMPOSITION OF DAGUE_OBJECTS ****************/
+typedef struct dague_compound_state_t {
+    dague_context_t* ctx;
+    int nb_objects;
+    int completed_objects;
+    dague_handle_t* objects_array[1];
+} dague_compound_state_t;
+
+static int dague_composed_cb( dague_handle_t* o, void* cbdata )
+{
+    dague_handle_t* compound = (dague_handle_t*)cbdata;
+    dague_compound_state_t* compound_state = (dague_compound_state_t*)compound->functions_array;
+    int completed_objects = compound_state->completed_objects++;
+    assert( o == compound_state->objects_array[completed_objects] );
+    if( compound->nb_local_tasks-- ) {
+        assert( NULL != compound_state->objects_array[completed_objects+1] );
+        dague_enqueue(compound_state->ctx, 
+                      compound_state->objects_array[completed_objects+1]);
+    }
+    return 0;
+}
+
+static void dague_compound_startup( dague_context_t *context,
+                                    dague_handle_t *compound_object,
+                                    dague_execution_context_t** startup_list)
+{
+    dague_compound_state_t* compound_state = (dague_compound_state_t*)compound_object->functions_array;
+    dague_handle_t* first = compound_state->objects_array[0];
+    int i;
+
+    assert( 0 == compound_object->nb_functions );
+    assert( NULL != first );    
+    first->startup_hook(context, first, startup_list);
+    compound_state->ctx = context;    
+    compound_object->nb_local_tasks = compound_state->nb_objects;
+    for( i = 0; i < compound_state->nb_objects; i++ ) {
+        dague_handle_t* o = compound_state->objects_array[i];
+        assert( NULL != o );
+        o->complete_cb = dague_composed_cb;
+        o->complete_cb_data = compound_object;
+    }
+}
+
+dague_handle_t* dague_compose( dague_handle_t* start, 
+                               dague_handle_t* next ) 
+{
+    dague_handle_t* compound = NULL;
+    dague_compound_state_t* compound_state = NULL;
+    
+    if( start->nb_functions == 0 ) {
+        compound = start;
+        compound_state = (dague_compound_state_t*)compound->functions_array;
+        compound_state->objects_array[compound_state->nb_objects++] = next;
+        /* make room for NULL terminating, if necessary */
+        if( 0 == (compound_state->nb_objects%16) ) {
+            compound_state = realloc(compound_state, sizeof(dague_compound_state_t) + 
+                            (1 + compound_state->nb_objects/16) * 16 * sizeof(void*));
+            compound->functions_array = (void*)compound_state;
+        }
+        compound_state->objects_array[compound_state->nb_objects] = NULL;
+    }
+    else {
+        compound = calloc(1, sizeof(dague_handle_t));
+        compound->functions_array = malloc(sizeof(dague_compound_state_t) + 16 * sizeof(void*));
+        compound_state = (dague_compound_state_t*)compound->functions_array;
+        compound_state->objects_array[0] = start;
+        compound_state->objects_array[1] = next;
+        compound_state->objects_array[2] = NULL;
+        compound_state->completed_objects = 0;
+        compound_state->nb_objects = 2;
+        compound->startup_hook = dague_compound_startup;
+    }
+    return compound;
+}
+/** END: Composition ***/
+
 int32_t dague_set_priority( dague_handle_t* object, int32_t new_priority )
 {
     int32_t old_priority = object->priority;
