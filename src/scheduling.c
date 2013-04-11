@@ -454,6 +454,13 @@ dague_object_t* dague_compose( dague_object_t* start,
 }
 /** END: Composition ***/
 
+int32_t dague_set_priority( dague_object_t* object, int32_t new_priority )
+{
+    int32_t old_priority = object->object_priority;
+    object->object_priority = new_priority;
+    return old_priority;
+}
+
 int dague_enqueue( dague_context_t* context, dague_object_t* object)
 {
     dague_execution_context_t **startup_list;
