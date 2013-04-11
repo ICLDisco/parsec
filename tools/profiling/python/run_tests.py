@@ -8,29 +8,13 @@ import math
 import cPickle
 import online_math
 import glob
-from parsec_trials_2_0 import Trial, TrialSet
+from parsec_trials import Trial, TrialSet
 import subprocess
 from multiprocessing import Process, Pipe
+# also uses dbpreader_py, if available
 
-max_perc_sd = 3 # anything above this and we want to re-run
-max_stddev_fails = 4 # but don't re run too many times
-max_set_fails = 5
-max_total_fails = 40
-max_trial_attempts = 3
-pattern = re.compile("### TIMED\s(\d+\.\d+)\s+s.+?NB=\s+(\d+).+?(\d+\.\d+)\s+gflops\n(.*)", flags=re.DOTALL)
-
-# it would be nice to have different 'default experiment parameters'
-# for different machines (e.g. ig, zoot).
-#
-# even nicer would be a more configurable way of generating trial sets.
-# so that, for instance, I could specify different NB and IB params depending on
-# the scheduler
-#
-# not to mention, this would be a great way of having the script "re-do"
-# trial sets that had unacceptable levels of variation
-# by not saving the information to disk and simply re-running the trial set
-default_NBs = {'dgeqrf': 192, 'dpotrf': 256, 'dgetrf': 256 }
-default_IBdivs = {'dgeqrf': 8, 'dpotrf': 4, 'dgetrf': 8}
+pattern = re.compile("### TIMED\s(\d+\.\d+)\s+s.+?NB=\s+(\d+).+?(\d+\.\d+)\s+gflops\n(.*)",
+                     flags=re.DOTALL)
 
 def safe_unlink(files):
     for ufile in files:
@@ -39,13 +23,16 @@ def safe_unlink(files):
         except OSError:
             print('the file {} has apparently vanished.'.format(ufile))
 
+max_stddev_fails = 4 # but don't re run too many times
+max_perc_sd = 3 # anything above this and we want to re-run
+max_trial_attempts = 3
+
 def run_trial_set_in_process(my_pipe):
-    import dbpreader_py as dbpr
     trial_set = my_pipe.recv()
     stddev_fails = 0
     
     while True:
-        name = trial_set.name
+        ex = trial_set.ex
         N = trial_set.N
         cores = trial_set.cores
         NB = trial_set.NB
@@ -55,33 +42,42 @@ def run_trial_set_in_process(my_pipe):
             # in case of test executable crashes, prepare to run more than once
             for trial_attempts in range(max_trial_attempts): 
                 print("%s for %dx%d matrix on %d cores, NB = %d, IB = %d; sched = %s trial #%d" %
-                      (name, N, N, cores, NB, IB, sched, trialNum))
+                      (ex, N, N, cores, NB, IB, sched, trialNum))
                 cmd, args = trial_set.genCmd()
                 proc = subprocess.Popen([testingDir + os.sep + cmd] + args,
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                (stdout, stderr) = proc.communicate()
+                # RUN
+                (stdout, stderr) = proc.communicate() 
                 if len(stderr) != 0:
                     marker = randint(0, 99999)
                     print("AN ERROR OCCURRED %d" % marker)
                     sys.stderr.write(str(marker) + ':\n' + stderr + '\n')
                 match = pattern.match(stdout)
                 if match:
+                    # save successfully-parsed output
                     trial_set.NB = int(match.group(2))
                     gflops = float(match.group(3))
                     time = float(match.group(1))
                     extraOutput = match.group(4)
-                    print("   -----> gflops: %f time: %f NB:%d" % (gflops, time, trial_set.NB))
-                    trialObj = Trial(name, N, cores, NB, IB, sched, trialNum, gflops, time)
+                    print("   -----> gflops: %f time: %f NB:%d" %
+                          (gflops, time, trial_set.NB))
+                    trialObj = Trial(trial_set.ident, ex, N, cores, NB,
+                                     IB, sched, trialNum, gflops, time)
                     trialObj.extraOutput = extraOutput
                     sys.stdout.write(extraOutput)
                     # read and save profile, if it exists
-                    profiles = glob.glob(testingDir + os.sep + 'testing_' + name + '*.profile')
+                    profiles = glob.glob(testingDir + os.sep +
+                                         'testing_' + ex + '*.profile')
                     if len(profiles) > 0:
-                        trialObj.profile = dbpr.readProfile(profiles)
-                        # now delete the files to make room
-                        safe_unlink(profiles)
+                        try:
+                            import dbpreader_py as dbpr
+                            trialObj.profile = dbpr.readProfile(profiles)
+                            safe_unlink(profiles) # delete extra files now
+                        except ImportError:
+                            print('Unable to save profile; dbpreader is unavailable')
                     # and now pickle for posterity
-                    pickleFile = open(outputBaseDir + os.sep + trialObj.uniqueName(), 'w')
+                    pickleFile = open(outputBaseDir + os.sep +
+                                      trialObj.uniqueName(), 'w')
                     cPickle.dump(trialObj, pickleFile)
                     pickleFile.close()
                     trial_set.append(trialObj)
@@ -93,7 +89,7 @@ def run_trial_set_in_process(my_pipe):
         gflopsSet = []
         timeSet = []
         for trial in trial_set:
-            timeSet.append(trial.time)
+            timeSet.append(trial.walltime)
             gflopsSet.append(trial.gflops)
         trial_set.Gstddev, trial_set.avgGflops = online_math.online_variance_mean(gflopsSet)
         trial_set.Tstddev, trial_set.avgTime = online_math.online_variance_mean(timeSet)
@@ -117,28 +113,48 @@ def run_trial_set_in_process(my_pipe):
             safe_unlink([outputBaseDir + os.sep +
                          trial.uniqueName() for trial in trial_set])
             # replace trial set with clean one
-            trial_set = TrialSet(trial_set.name, trial_set.N,
+            trial_set = TrialSet(trial_set.ident, trial_set.ex, trial_set.N,
                                  trial_set.cores, trial_set.NB,
                                  trial_set.IB, trial_set.sched)
     # be done.
     return 0
 
+###########
+## MAIN
+###########
+
+# it would be nice to have different 'default experiment parameters'
+# for different machines (e.g. ig, zoot).
+#
+# even nicer would be a more configurable way of generating trial sets.
+# so that, for instance, I could specify different NB and IB params depending on
+# the scheduler
+default_NBs = {'dgeqrf': 192, 'dpotrf': 256, 'dgetrf': 256 }
+default_IBdivs = {'dgeqrf': 8, 'dpotrf': 4, 'dgetrf': 8}
+max_set_fails = 5
+
 if __name__ == '__main__':
-    names = ['dpotrf'] #, 'dpotrf', 'dgeqrf' ]
-    NBs = [180, 192, 200, 220, 256, 380]        # None to use defaults
-    NBs = [380]
-    IBdivs = None      # to use defaults
-    Ns = None        # to use generated defaults
+    #
+    # customize this section to your heart's content!
+    #
+    # defaults for ig:
+    execs = ['dpotrf'] #, 'dpotrf', 'dgeqrf' ]
+    schedulers = ['AP', 'GD', 'LTQ', 'LFQ', 'PBQ']
     minNumCores = 48 # default to using them all
     maxNumCores = 48
     numTrials = 4
-    schedulers = ['AP', 'GD', 'LTQ', 'LFQ', 'PBQ']
-    # overrides
-    IBdivs = [2,4,8] # [1,2,4,8,11] # None to use default per exec
+    NBs = [180, 192, 200, 220, 256, 380]        # None to use defaults
+    IBdivs = None    # use defaults
+    Ns = None        # generated based on tile size
     #
+    # overrides
+    #
+    IBdivs = [2,4,8] # [1,2,4,8,11] # None to use default per exec
     IBdivs = [2]
-    Ns = [10000]
-    Ns = None
+    NBs = [380]
+    #
+    # end param section
+    #
     
     if len(sys.argv) > 1:
         testingDir = sys.argv[1]
@@ -152,16 +168,19 @@ if __name__ == '__main__':
     # clean up old .profile files before testing
     safe_unlink(glob.glob(testingDir + os.sep + 'testing_*.profile'))
     
+    import socket
+    hostname = socket.gethostname().split('.')[0]
     trial_sets = []
+
     # first, generate intended trial sets:
-    for name in names:
+    for ex in execs:
         if not NBs:
-            NBs = [default_NBs[name]]
+            NBs = [default_NBs[ex]]
         for NB in NBs:
             if not Ns:
                 Ns = reversed(range(NB*10 * 2, NB*10 * 7, NB*10))
             if not IBdivs:
-                IBdivs = [default_IBdivs[name]]
+                IBdivs = [default_IBdivs[ex]]
             for IBdiv in IBdivs:
                 if IBdiv > 0:
                     if NB % IBdiv == 0:
@@ -171,24 +190,26 @@ if __name__ == '__main__':
                 else:
                     IB = 0
                 for N in Ns:
-                    sys.stderr.write("%s %d\n" % (name.upper(), N))   
+                    sys.stderr.write("%s %d\n" % (ex.upper(), N))   
                     for cores in range(minNumCores,maxNumCores + 1):
                         for scheduler in schedulers:
                             if not os.path.isdir(outputBaseDir):
                                 os.mkdir(outputBaseDir)
-                            trial_sets.append(TrialSet(name, N, cores, NB, IB, scheduler))
+                            trial_set = TrialSet(hostname, ex, N,
+                                                 cores, NB, IB, scheduler)
+                            trial_sets.append(trial_set)
                             print(trial_sets[-1].uniqueName())
     # now run all trial sets
     last_N = 0
-    last_name = ''
+    last_ex = ''
     total_fail_count = 0
     for set_num in range(len(trial_sets)):
-        if last_name is not trial_sets[set_num].name:
+        if last_ex is not trial_sets[set_num].ex:
             print('\n')
             print('############')
-            print(trial_sets[set_num].name)
+            print(trial_sets[set_num].ex)
             print('############')
-            last_name = trial_sets[set_num].name
+            last_ex = trial_sets[set_num].ex
         if last_N is not trial_sets[set_num].N:
             print('\n')
             print(' -_-_-_- {} -_-_-_- '.format(str(trial_sets[set_num].N)))
@@ -210,8 +231,8 @@ if __name__ == '__main__':
                 else:
                     fail_count += 1
                     if fail_count < max_set_fails:
-                        print('\nthe spawned process may have crashed. ' +
-                              'Exit code was {}. Retrying!'.format(p.exitcode))
+                        print('\n\nthe spawned process may have crashed. ' +
+                              'Exit code was {}. Retrying!\n'.format(p.exitcode))
                     else:
                         trial_set.failed = True
                         set_done = True
