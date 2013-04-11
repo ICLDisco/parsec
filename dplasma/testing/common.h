@@ -181,8 +181,8 @@ static inline int min(int a, int b) { return a < b ? a : b; }
         TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n",    \
                           nb_local_tasks,                               \
                           nb_local_tasks/time_elapsed));                \
-    SYNC_TIME_PRINT(rank, (#KERNEL " computation PxQ= %d %d N= %d NB= %d : %f gflops\n", \
-                           P, Q, N, NB,                                 \
+    SYNC_TIME_PRINT(rank, (#KERNEL " computation PxQ= %d %d N= %d NB= %d IB= %d : %f gflops\n", \
+                           P, Q, N, NB, IB, 							\
                            gflops=(flops/1e9)/sync_time_elapsed));      \
     if(loud >= 5 && rank == 0) {                                        \
         printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n" \

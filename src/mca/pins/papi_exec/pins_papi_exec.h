@@ -10,6 +10,7 @@
 
 typedef struct papi_exec_info_s {
 	int kernel_type;
+	char kernel_name[9];
 	int vp_id;
 	int th_id;
 	int values_len; 

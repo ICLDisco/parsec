@@ -45,7 +45,7 @@ static void pins_init_papi_exec(dague_context_t * master_context) {
 	exec_begin_prev = PINS_REGISTER(EXEC_BEGIN, start_papi_exec_count);
 	exec_end_prev   = PINS_REGISTER(EXEC_END, stop_papi_exec_count);
 	// PETER TODO add requirement for DAGUE_PROF_TRACE
-	dague_profiling_add_dictionary_keyword("PINS_PAPI_EXEC", "fill:#00FF00",
+	dague_profiling_add_dictionary_keyword("PINS_EXEC", "fill:#00FF00",
 	                                       sizeof(papi_exec_info_t), NULL,
 	                                       &pins_prof_papi_exec_begin, &pins_prof_papi_exec_end);
 }
@@ -112,6 +112,8 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 		else {
 			papi_exec_info_t info;
 			info.kernel_type = exec_context->function->function_id;
+			strncpy(info.kernel_name, exec_context->function->name, 8);
+			info.kernel_name[8] = '\0';
 			info.vp_id = exec_unit->virtual_process->vp_id;
 			info.th_id = exec_unit->th_id;
 			for(int i = 0; i < NUM_EXEC_EVENTS; i++) 

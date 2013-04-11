@@ -28,7 +28,7 @@
 #include "dague/mca/pins/pins.h"
 static int SYSTEM_NEIGHBOR = 0;
 
-#if defined(DAGUE_PROF_TRACE) && 0
+#if defined(DAGUE_PROF_TRACE)
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), NULL)
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
@@ -191,10 +191,10 @@ static int sched_lfq_schedule( dague_execution_unit_t* eu_context,
                               dague_execution_context_t* new_context )
 {
     dague_hbbuffer_push_all( LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)new_context );
-#if defined(DAGUE_PROF_TRACE)
-    TAKE_TIME(eu_context->eu_profile, queue_add_begin, 0);
-    TAKE_TIME(eu_context->eu_profile, queue_add_end, 0);
-#endif
+/* #if defined(DAGUE_PROF_TRACE) */
+/*     TAKE_TIME(eu_context->eu_profile, queue_add_begin, 0); */
+/*     TAKE_TIME(eu_context->eu_profile, queue_add_end, 0); */
+/* #endif */
     return 0;
 }
 
