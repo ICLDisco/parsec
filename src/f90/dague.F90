@@ -32,10 +32,10 @@ FUNCTION dague_init_f08(nbcores, argc, argv) &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_SIGNED_CHAR
     IMPORT dague_context_t
     IMPLICIT NONE
-    INTEGER(KIND=c_int), INTENT(IN)      :: nbcores
-    INTEGER(KIND=c_int), INTENT(INOUT)   :: argc
-    CHARACTER(KIND=C_SIGNED_CHAR),INTENT(IN)          :: argv(argc,*)
-    TYPE(dague_context_t)                :: dague_init_f08
+    INTEGER(KIND=c_int), VALUE, INTENT(IN)    :: nbcores
+    INTEGER(KIND=c_int), INTENT(INOUT)        :: argc
+    CHARACTER(KIND=C_SIGNED_CHAR),INTENT(IN)  :: argv(argc,*)
+    TYPE(dague_context_t)                     :: dague_init_f08
 END FUNCTION dague_init_f08
 END INTERFACE dague_init
 
@@ -67,9 +67,9 @@ SUBROUTINE dague_enqueue_f08(context, object, ierr) &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPORT dague_object_t, dague_context_t
     IMPLICIT NONE
-    TYPE(dague_context_t), INTENT(IN) :: context
-    TYPE(dague_object_t), INTENT(IN)  :: object
-    INTEGER(KIND=c_int), OPTIONAL, INTENT(OUT)    :: ierr
+    TYPE(dague_context_t), INTENT(IN)           :: context
+    TYPE(dague_object_t), INTENT(IN)            :: object
+    INTEGER(KIND=c_int), OPTIONAL, INTENT(OUT)  :: ierr
 END SUBROUTINE dague_enqueue_f08
 END INTERFACE dague_enqueue
 
@@ -91,9 +91,9 @@ SUBROUTINE dague_set_complete_callback_f08(object, complete_cb, &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPORT dague_object_t, dague_completion_cb
     IMPLICIT NONE
-    TYPE(dague_object_t), VALUE                :: object
+    TYPE(dague_object_t)                       :: object
     PROCEDURE(dague_completion_cb)             :: complete_cb
-    TYPE(C_PTR), VALUE, INTENT(IN)             :: complete_data
+    TYPE(C_PTR), INTENT(IN)                    :: complete_data
     INTEGER(KIND=c_int), OPTIONAL, INTENT(OUT) :: ierr
 END SUBROUTINE dague_set_complete_callback_f08
 END INTERFACE  dague_set_complete_callback
@@ -105,7 +105,7 @@ SUBROUTINE dague_get_complete_callback_f08(object, complete_cb, &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPORT dague_object_t, dague_completion_cb
     IMPLICIT NONE
-    TYPE(dague_object_t), VALUE                 :: object
+    TYPE(dague_object_t)                        :: object
     TYPE(C_PTR), INTENT(OUT)                    :: complete_cb
     TYPE(C_PTR), INTENT(OUT)                    :: complete_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT)  :: ierr
@@ -118,7 +118,7 @@ SUBROUTINE dague_object_start_f08(object, &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPORT dague_object_t
     IMPLICIT NONE
-    TYPE(dague_object_t), VALUE                :: object
+    TYPE(dague_object_t)                       :: object
     INTEGER(KIND=c_int), OPTIONAL, INTENT(OUT) :: ierr
 END SUBROUTINE dague_object_start_f08
 END INTERFACE  dague_object_start
@@ -129,8 +129,8 @@ SUBROUTINE dague_set_priority_f08(object, priority, &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPORT dague_object_t
     IMPLICIT NONE
-    TYPE(dague_object_t), VALUE                :: object
-    INTEGER(KIND=c_int), INTENT(IN)            :: priority
+    TYPE(dague_object_t)                       :: object
+    INTEGER(KIND=c_int), VALUE, INTENT(IN)     :: priority
     INTEGER(KIND=c_int), OPTIONAL, INTENT(OUT) :: ierr
 END SUBROUTINE dague_set_priority_f08
 END INTERFACE  dague_set_priority
