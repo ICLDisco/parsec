@@ -4,8 +4,8 @@ project (DAGUE C CXX Fortran)
 include(CMakeDependentOption)
 
 # The current version number
-set (DAGUE_VERSION_MAJOR 0)
-set (DAGUE_VERSION_MINOR 1)
+set (DAGUE_VERSION_MAJOR 1)
+set (DAGUE_VERSION_MINOR 0)
 
 # CTest system
 SET(DART_TESTING_TIMEOUT 120)
@@ -152,7 +152,9 @@ IF( BUILD_TOOLS )
   find_package(FLEX)
 ENDIF( BUILD_TOOLS )
 
+#
 # Fortran tricks
+#
 STRING(REGEX MATCH "Intel" _match_intel ${CMAKE_Fortran_COMPILER_ID})
 IF (_match_intel)
      MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
@@ -188,6 +190,28 @@ IF (_match_xlf)
   MESSAGE(STATUS "Add ${arch_flags} and -nofor_main to the Fortran linker.")
   SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} ${arch_flags} -nofor_main")
 ENDIF (_match_xlf)
+
+#
+# Even more Fortran tricks.
+#
+# FFLAGS depend on the compiler
+get_filename_component (Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
+
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+  # gfortran
+  set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3")
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-fno-f2c -O0 -g")
+elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+  # ifort (untested)
+  set (CMAKE_Fortran_FLAGS_RELEASE "-f77rtl -O3")
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-f77rtl -O0 -g")
+else (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+  message ("CMAKE_Fortran_COMPILER full path: " ${CMAKE_Fortran_COMPILER})
+  message ("Fortran compiler: " ${Fortran_COMPILER_NAME})
+  message ("No optimized Fortran compiler flags are known, we just try -O2...")
+  set (CMAKE_Fortran_FLAGS_RELEASE "-O2")
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g")
+endif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
 
 # check for the CPU we build for
 MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
@@ -532,6 +556,17 @@ if( BUILD_DAGUE )
     install(TARGETS dague ARCHIVE DESTINATION lib)
   endif (MPI_FOUND)
   add_subdirectory(data_dist)
+#
+# If we have support for F90 build the DAGuE module
+#
+  if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
+    include(FortranCInterface)
+    FortranCInterface_HEADER(src/f90/f2c_mangle.h
+                             MACRO_NAMESPACE "DAGUE_"
+                             SYMBOL_NAMESPACE "DAGUE_"
+                             SYMBOLS mysub mymod:my_sub)
+    add_subdirectory(src/f90)
+  endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
 
 #
@@ -550,6 +585,7 @@ configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
 install(FILES "${PROJECT_INCLUDE_DIR}/dague_config.h" DESTINATION include)
+install(FILES "include/dague.h" DESTINATION include)
 
 # pkg-config file
 configure_file (
