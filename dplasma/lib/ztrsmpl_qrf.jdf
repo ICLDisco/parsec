@@ -258,10 +258,13 @@ BODY
     DRYRUN(
         void *p_elem_B = dague_private_memory_pop( p_work );
 
-        int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+        int tempAmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+	int tempmm = (m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
         int tempnn = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
         int ldam   = BLKLDD( descA, m );
         int ldbm   = BLKLDD( descB, m );
+
+    //fprintf(stderr, "SOLVE: unmqr(k=%d, i=%d, n=%d, tempmm=%d, tempnn=%d, tempmm=%d, ldam=%d, ldbm=%d)\n",k,i,n,tempmm,tempnn,tempmm,ldam,ldbm);
 
         CORE_zunmqr(
             PlasmaLeft, PlasmaConjTrans,
@@ -357,6 +360,7 @@ BODY
 {
     int tempmm = (m==(descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
     int tempnn = (n==(descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
+    int tempAmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
     int ldbp = BLKLDD( descB, p );
     int ldam = BLKLDD( descA, m );
     int ldbm = BLKLDD( descB, m );
@@ -366,18 +370,20 @@ BODY
         void *p_elem_B = dague_private_memory_pop( p_work );
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
+    //fprintf(stderr, "SOLVE: tsmqr(k=%d, m=%d, n=%d, tempmm=%d, tempnn=%d, tempmm=%d, ldam=%d, ldbm=%d, ldbp=%d)\n",k,m,n,tempmm,tempnn,tempmm,ldam,ldbm,ldbp);
             CORE_ztsmqr(
                 PlasmaLeft, PlasmaConjTrans,
-                descA.mb, tempnn, tempmm, tempnn, tempmm, ib,
+                descB.mb, tempnn, tempmm, tempnn, tempAmm, ib,
                 A1 /* B(p, n) */, ldbp,
                 A2 /* B(m, n) */, ldbm,
                 V  /* A(m, k) */, ldam,
                 T  /* T(m, k) */, descTT.mb,
                 p_elem_B, ldwork );
         } else {
+    //fprintf(stderr, "SOLVE: ttmqr(k=%d, m=%d, n=%d, tempmm=%d, tempnn=%d, tempmm=%d, ldam=%d, ldbm=%d, ldbp=%d)\n",k,m,n,tempmm,tempnn,tempmm,ldam,ldbm,ldbp);
             CORE_zttmqr(
                 PlasmaLeft, PlasmaConjTrans,
-                descA.mb, tempnn, tempmm, tempnn, tempmm, ib,
+                descB.mb, tempnn, tempmm, tempnn, tempAmm, ib,
                 A1 /* B(p, n) */, ldbp,
                 A2 /* B(m, n) */, ldbm,
                 V  /* A(m, k) */, ldam,

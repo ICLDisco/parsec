@@ -210,8 +210,9 @@ int main(int argc, char ** argv)
     dague_ddesc_destroy((dague_ddesc_t*)&ddescTT);
     dague_data_free(ddescIPIV.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
+printf("--!!! free IPIV done ! \n");
     free(lu_tab);
-
+printf("--!!! free lu_tab done ! \n");
     return ret;
 }
 
@@ -249,11 +250,11 @@ static int check_solution( dague_context_t *dague, int loud,
     }
 
     if (  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 60.0) ) {
-        if( loud ) printf("-- Solution is suspicious ! \n");
+        if( loud ) printf("-- Solution with b is suspicious ! \n");
         info_solution = 1;
     }
     else{
-        if( loud ) printf("-- Solution is CORRECT ! \n");
+        if( loud ) printf("-- Solution with b is CORRECT ! \n");
         info_solution = 0;
     }
 
@@ -292,11 +293,11 @@ static int check_inverse( dague_context_t *dague, int loud,
     }
 
     if (  isnan(Rnorm) || isinf(Rnorm) || isnan(result) || isinf(result) || (result > 60.0) ) {
-        if( loud ) printf("-- Solution is suspicious ! \n");
+        if( loud ) printf("-- Solution with I is suspicious ! \n");
         info_solution = 1;
     }
     else{
-        if( loud ) printf("-- Solution is CORRECT ! \n");
+        if( loud ) printf("-- Solution with I is CORRECT ! \n");
         info_solution = 0;
     }
 

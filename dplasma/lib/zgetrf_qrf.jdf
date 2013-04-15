@@ -154,7 +154,7 @@ BODY
         (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
     int ldak = BLKLDD(descA, k);
 
-    printlog("swptrsm_u( k=%d, n=%d )", k, n );
+	printlog("swptrsm_u( k=%d, n=%d )", k, n );
 
     DRYRUN(
 
@@ -205,10 +205,12 @@ BODY
     int ldam = BLKLDD( descA, m );
     int ldak = BLKLDD( descA, k );
 
-    printlog("CORE_trsm_L(k=%d,m=%d,ldk=%d,ldm=%d,A(%d,%d))\n",
+
+
+   printlog("CORE_trsm_L(k=%d,m=%d,ldk=%d,ldm=%d,A(%d,%d))\n",
              tempkm, tempmm, ldak, ldam, m, k);
 
-    DRYRUN(
+    DRYRUN(    
          if ( type == 0 ) {
              /* TRSM already applied by GETRF */
          } else {
@@ -258,9 +260,11 @@ BODY
     int ldam = BLKLDD( descA, m );
     int ldak = BLKLDD( descA, k );
 
-    printlog("zgemm( k=%d, m=%d, n=%d)\n", k, m, n);
+   
+   printlog("zgemm( k=%d, m=%d, n=%d)\n", k, m, n);
 
     DRYRUN(
+    
         CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                    tempmm, tempnn, descA.mb,
                    -1., H /*(m, k)*/, ldam,
@@ -318,6 +322,8 @@ BODY
     printlog("zgeqrt( k=%d, i=%d)\n", k, i);
 
     DRYRUN(
+    //fprintf(stderr, "zgeqrt(k=%d, i=%d, tempmm=%d, tempkn=%d, ldam=%d)\n", k,i,tempmm,tempkn,ldam);   
+
         void *p_elem_A = dague_private_memory_pop( p_tau  );
         void *p_elem_B = dague_private_memory_pop( p_work );
 
@@ -395,9 +401,11 @@ BODY
         int tempnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
         int ldam   = BLKLDD( descA, m );
 
+   //fprintf(stderr, "zunmqr(k=%d, i=%d, n=%d, tempmm=%d, tempnn=%d, ldam=%d)\n",k,i,n,tempmm,tempnn,ldam);
+
         CORE_zunmqr(
             PlasmaLeft, PlasmaConjTrans,
-            tempmm, tempnn, dague_imin(tempmm, tempkn), ib,
+            tempmm, tempnn, tempmm /*dague_imin(tempmm, tempkn)*/, ib,
             A /* A(m, k) */, ldam,
             T /* T(m, k) */, descTS.mb,
             C /* A(m, n) */, ldam,
@@ -476,6 +484,8 @@ BODY
         void *p_elem_B = dague_private_memory_pop( p_work );
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
+
+    //fprintf(stderr, "ztsqrt(k=%d, m=%d, tempmm=%d, tempkn=%d, ldap=%d, ldam=%d)\n",k,m,tempmm,tempkn,ldap,ldam);
             CORE_ztsqrt(
                 tempmm, tempkn, ib,
                 A1 /* A(p, k) */, ldap,
@@ -483,6 +493,7 @@ BODY
                 T  /* T(m, k) */, descTT.mb,
                 p_elem_A, p_elem_B );
         } else {
+    //fprintf(stderr, "ttqrt(k=%d, m=%d, tempmm=%d, tempkn=%d, ldap=%d, ldam=%d)\n",k,m,tempmm,tempkn,ldap,ldam);
             CORE_zttqrt(
                 tempmm, tempkn, ib,
                 A1 /* A(p, k) */, ldap,
@@ -585,6 +596,7 @@ BODY
         void *p_elem_A = dague_private_memory_pop( p_work );
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
+   //fprintf(stderr, "tsmqr(k=%d, m=%d, n=%d, tempnn=%d, tempmm=%d, ldap=%d, ldam=%d)\n",k,m,n,tempnn,tempmm,ldap,ldam);
             CORE_ztsmqr(
                 PlasmaLeft, PlasmaConjTrans,
                 descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
@@ -594,6 +606,7 @@ BODY
                 T  /* T(m, k) */, descTT.mb,
                 p_elem_A, ldwork );
         } else {
+   //fprintf(stderr, "ttmqr(k=%d, m=%d, n=%d, tempnn=%d, tempmm=%d, ldap=%d, ldam=%d)\n",k,m,n,tempnn,tempmm,ldap,ldam);
             CORE_zttmqr(
                 PlasmaLeft, PlasmaConjTrans,
                 descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
@@ -743,7 +756,7 @@ BODY
     int ldak = BLKLDD(descA, k);
 
     printlog("CORE_zgetrf_rec(%d)\n"
-             "\t(%d, %d, A(%d,%d)[%p], IP(%d)[%p])",
+             "\t(%d, %d, A(%d,%d)[%p], IP(%d)[%p]) lu_facto",
              k, tempm, tempkn, k, k, A, k, IP);
 
     DRYRUN(
@@ -782,11 +795,20 @@ BODY
         }
 
         /*W[0] = condition number*/
+	#ifdef HIGHAM_CRITERIUM
+	LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W);
+	fprintf(stderr,"cond = %f\n",W[0]);
+	#endif
+
+	#ifdef MUMPS_CRITERIUM
+	
+	#endif
            );
 }
 END
 
 reduce_norm(k, p)
+/*Add the norm of all local tile before sending the information to others processors*/
   k = 0 .. minMNT
 
   pmax = inline_c %{ return dague_imin(param_p, descA.mt-k); %}
@@ -804,6 +826,10 @@ reduce_norm(k, p)
 
 BODY
 {
+
+    printlog("reduce_norm(k= %d, p= %d)\n",        
+             k, p);
+
     double *norm1 = (double*)W1;
     double *norm2 = (double*)W2;
 
@@ -818,7 +844,12 @@ BODY
         norm1[1] = 0.;
 
         for(i=0, m=k+p; m<descA.mt; m+=param_p, i++) {
+	#ifdef HIGHAM_CRITERIUM
             norm1[1] += W[i];
+	#endif
+	#ifdef MUMPS_CRITERIUM
+
+	#endif
         }
         norm2[0] = 0.;
         norm2[1] = norm1[1];
@@ -882,25 +913,43 @@ BODY
         } else {
             norm1[0] = norm2[0];
         }
-
+	#ifdef HIGHAM_CRITERIUM
         norm1[1] += norm2[1];
+	#endif
+	#ifdef MUMPS_CRITERIUM
         norm2[1] = norm1[1];
+	#endif
            );
 
     if (h == hmax) {
-        int cond = 0;
-        //cond = rand() % 2;
+        int cond = 1;
+
+        cond = rand() % 2;
+
+	#ifdef HIGHAM_CRITERIUM
+	fprintf(stderr,"norm2[0] = %f > %f = norm2[1]\n",norm2[0],norm2[1]);
+	if (norm2[0] > norm2[1]) {
+		cond = 1;
+	} else {
+		cond = 0;
+	}
+	#endif
+
+	#ifdef MUMPS_CRITERIUM
+
+
+	#endif
 
         if (cond == 1) {
             lu_tab[k] = 1;
-            //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
+            fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
         }
             else {
                 lu_tab[k] = 0;
-                //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
+                fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
             }
     }
-
+   
     norm2[0] = lu_tab[k];
 }
 END
@@ -933,7 +982,7 @@ setchoice_update(k, p, q)
 BODY
 {
     /* TODO: We collect the condition numbers and compute the choice*/
-    printlog("setchoice( k=%d )\n", k);
+    printlog("setchoice_update( k=%d, p= %d, q=%d )\n", k,p,q);
 
     double *norm2 = (double*)B;
     lu_tab[k] = norm2[0];
