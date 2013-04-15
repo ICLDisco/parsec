@@ -17,10 +17,26 @@ class Trial(object):
         self.timestamp = dt.datetime.now().isoformat(sep='_')
         self.unix_time = time.time()
         self.profile = None # may not have one
+    def getExec(self):
+        if self.ex:
+            return self.ex
+        elif self.name:
+            return self.name
+        elif self.executable:
+            return self.executable
+        else:
+            return None
+    def getSched(self):
+        if self.sched:
+            return self.sched
+        elif self.scheduler:
+            return self.scheduler
+        else:
+            return None
     def uniqueName(self):
-        return '{:_<6}_({}-{:0>3})_{:0>5}_{:0>4}_{:0>4}_{:_<3}_{:0>3}_{:0>3}_{:.2f}.trial'.format(
+        return '{:_<6}_({}-{:0>3})_{:0>5}_{:0>4}_{:0>4}_{:_<3}_{:0>3}_{:0>3}_{:.2f}'.format(
             self.ex, self.ident, self.cores, self.N, self.NB, self.IB,
-            self.sched, self.trialNum, int(self.gflops), self.unix_time)
+            self.sched, int(self.gflops), self.trialNum, self.unix_time)
     def __repr__(self):
         return self.uniqueName()
 
@@ -58,15 +74,23 @@ class TrialSet(list):
                 args.append(str(self.IB))
         args.extend(self.extra_args)
         return cmd, args
-    def percentStdDev(self):
-        return int(100*self.Gstddev/self.avgGflops) if self.avgGflops else 0
+    def percentStdDev(self, stddev=None, avg=None):
+        if not avg:
+            avg = self.avgGflops
+        if not stddev:
+            stddev = self.Gstddev
+        if avg == 0:
+            return 0
+        else:
+            return int(100*stddev/avg)
     def __str__(self):
-        return ("%s %s N:%d cores:%d nb:%d ib:%d --- gflops(stddev/avg[perc]): %f / %f [%d] --- time(stddev/avg): %f / %f" %
-                (self.ex, self.sched, self.N,
-                 self.cores, self.NB, self.IB, self.Gstddev, self.avgGflops,
-                 self.percentStdDev(), self.Tstddev, self.avgTime))
+        return ('{} {: <3} N: {: >5} cores: {: >3} nb: {: >4} ib: {: >4} '.format(
+            self.ex, self.sched, self.N, self.cores, self.NB, self.IB) +
+                ' @@@@@  time(sd/avg): {: >4.2f} / {: >5.1f} '.format(self.Tstddev, self.avgTime) +
+                ' #####  gflops(sd/avg[rsd]): {: >4.2f} / {: >5.1f} [{: >2d}]'.format(
+                 self.Gstddev, self.avgGflops, self.percentStdDev()))
     def uniqueName(self):
-        return '{}_{:0>3}_{:_<6}_{:0>5}_{:0>4}_{:0>4}_{:_<3}_gfl{:0>3}_rsd{:0>3}_len{:0>3}_{}.set'.format(
+        return '{}_{:0>3}_{:_<6}_{:0>5}_{:0>4}_{:0>4}_{:_<3}_gfl{:0>3}_rsd{:0>3}_len{:0>3}_{}'.format(
             self.ident if self.ident else 'TRIALSET', self.cores,
             self.ex, self.N, self.NB, self.IB, self.sched,
             int(self.avgGflops), self.percentStdDev(), len(self), self.unix_time)
