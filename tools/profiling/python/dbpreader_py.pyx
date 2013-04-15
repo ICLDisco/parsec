@@ -18,9 +18,11 @@ from parsec_profile import * # the pure Python classes
 
 # this is the public Python interface function. call it.
 cpdef readProfile(filenames):
-   cdef char ** c_filenames = stringListToCStrings(filenames)
-   cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
+#   cdef char ** c_filenames = stringListToCStrings(filenames)
+#   cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
+   cdef dbp_multifile_reader_t * dbp = dbp_reader_open_default_files()
    profile = multifile_reader(dbp_reader_nb_files(dbp), dbp_reader_nb_dictionary_entries(dbp))
+   print('PYX: finished reading')
    cdef dbp_file_t * cfile
    cdef dbp_dictionary_t * cdict
 
@@ -64,7 +66,7 @@ cdef char** stringListToCStrings(strings):
    return c_argv
 
 # you can't call this. it will be called for you. call readProfile()
-cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, file):
+cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, pfile):
    cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, index)
    cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
    cdef dbp_event_iterator_t * it_e
@@ -76,7 +78,7 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
    cdef papi_exec_info_t * cast_exec_info
    cdef select_info_t * cast_select_info
 
-   thread = dbpThread(file, index)
+   thread = dbpThread(pfile, index)
    if thread.id + 1 > reader.thread_count:
       reader.thread_count = thread.id + 1
 
@@ -134,10 +136,10 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
                   rs = 3
 
             thread.events.append(event)
-            dbp_iterator_delete(it_e)
+#            dbp_iterator_delete(it_e)
       dbp_iterator_next(it_s)
       event_s = dbp_iterator_current(it_s)
-
-   dbp_iterator_delete(it_s)
+   print('PYX: returning thread')
+#   dbp_iterator_delete(it_s)
    return thread
 

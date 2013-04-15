@@ -41,9 +41,6 @@
 
 /* Instrumenting (PINS) */
 #cmakedefine PINS_ENABLE
-#cmakedefine PINS_PAPI_EXEC
-#cmakedefine PINS_PAPI_SELECT
-#cmakedefine PINS_PAPI_SOCKET
 
 /* Simulating */
 #cmakedefine DAGUE_SIM

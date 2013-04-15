@@ -58,8 +58,7 @@ static void pins_fini_papi_exec(dague_context_t * master_context) {
 
 static void pins_thread_init_papi_exec(dague_execution_unit_t * exec_unit) {
 	int rv = 0;
-	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET 
-	    || !DO_SOCKET_MEASUREMENTS) {
+	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
 		exec_unit->papi_eventsets[EXEC_SET] = PAPI_NULL;
 		if (PAPI_create_eventset(&exec_unit->papi_eventsets[EXEC_SET]) != PAPI_OK)
 			DEBUG(("papi_exec.c, pins_thread_init_papi_exec: failed to create ExecEventSet\n"));
@@ -74,8 +73,7 @@ static void start_papi_exec_count(dague_execution_unit_t * exec_unit,
                                   dague_execution_context_t * exec_context, 
                                   void * data) {
 	int rv = PAPI_OK;
-	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET 
-	    || !DO_SOCKET_MEASUREMENTS) {
+	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
 		if ((rv = PAPI_start(exec_unit->papi_eventsets[EXEC_SET])) != PAPI_OK) {
 			DEBUG(("papi_exec.c, start_papi_exec_count: can't start "
 			       "exec event counters! %d %s\n", 
@@ -103,8 +101,7 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 	(void)data;
 	long long int values[NUM_EXEC_EVENTS];
 	int rv = PAPI_OK;
-	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET 
-	    || !DO_SOCKET_MEASUREMENTS) {
+	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
 		if ((rv = PAPI_stop(exec_unit->papi_eventsets[EXEC_SET], values)) != PAPI_OK) {
 			DEBUG(("papi_exec.c, stop_papi_exec_count: can't stop exec event counters! %d %s\n", 
 			       rv, PAPI_strerror(rv)));

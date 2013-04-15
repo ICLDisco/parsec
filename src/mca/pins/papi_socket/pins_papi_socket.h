@@ -6,7 +6,7 @@
 #include "dague/mca/mca.h"
 #include "dague/mca/pins/pins.h"
 
-#define NUM_SOCKET_EVENTS 4
+#define NUM_SOCKET_EVENTS 3
 
 BEGIN_C_DECLS
 

@@ -93,7 +93,7 @@ void pins_thread_init(dague_execution_unit_t * exec_unit) {
 }
 
 /**
- * Currently uncalled in the PaRSEC DPLAMSA testing executables
+ * called in scheduling.c, which is not ideal
  */
 void pins_thread_fini(dague_execution_unit_t * exec_unit) {
 	mca_base_component_t ** components = NULL;
@@ -208,6 +208,7 @@ void set_allowable_pins_modules (const char * const modules[]) {
 				if (NULL != allowable_modules[count]) {
 					strncpy(allowable_modules[count], modules[count], MAX_NAME_SIZE);
 					DEBUG(("Allowing PINS module %s\n", allowable_modules[count]));
+					printf("Allowing PINS module %s\n", allowable_modules[count]);
 				}
 				else {
 					DEBUG(("Memory allocation failed in "

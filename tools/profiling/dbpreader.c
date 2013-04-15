@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
@@ -847,6 +848,19 @@ dbp_multifile_reader_t *dbp_reader_open_files(int nbfiles, char *files[])
     (void)event_avail_space;
 
     dbp = open_files(nbfiles, files);
+    
+    return dbp;
+}
+
+dbp_multifile_reader_t *dbp_reader_open_default_files()
+{
+    dbp_multifile_reader_t *dbp;
+
+    (void)event_buffer_size;
+    (void)event_avail_space;
+	char * files[] = {"testing_dpotrf.profile"};
+
+    dbp = open_files(1, files);
     
     return dbp;
 }

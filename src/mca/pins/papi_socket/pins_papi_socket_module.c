@@ -29,8 +29,13 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
 
 static parsec_pins_callback * thread_init_prev; // courtesy calls to previously-registered cbs
 static parsec_pins_callback * thread_fini_prev;
-// TODO PETER finish simplifying this code, then create component.c for all modules
-static char* select_events [NUM_SOCKET_EVENTS] = {}; // not yet used
+
+static char* socket_events [NUM_SOCKET_EVENTS] = {"L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE",
+												  "L3_CACHE_MISSES:READ_BLOCK_SHARED",
+												  "L3_CACHE_MISSES:READ_BLOCK_MODIFY"
+												   };
+
+static int successful_events = 0;
 
 static void pins_init_papi_socket(dague_context_t * master_context) {
 	thread_init_prev = PINS_REGISTER(THREAD_INIT, start_papi_socket);
@@ -46,31 +51,22 @@ static void start_papi_socket(dague_execution_unit_t * exec_unit,
                               dague_execution_context_t * exec_context, 
                               void * data) {
 	unsigned int native;
-	if (exec_unit->th_id % CORES_PER_SOCKET == WHICH_CORE_IN_SOCKET
-	    && DO_SOCKET_MEASUREMENTS) {
+	if (exec_unit->th_id % CORES_PER_SOCKET == WHICH_CORE_IN_SOCKET) {
 		exec_unit->papi_eventsets[PER_SOCKET_SET] = PAPI_NULL;
 		if (PAPI_create_eventset(&exec_unit->papi_eventsets[PER_SOCKET_SET]) != PAPI_OK)
 			printf("couldn't create the PAPI event set for thread %d to measure L3 misses\n", exec_unit->th_id);
 		else {
-			if (PAPI_event_name_to_code("L3_CACHE_MISSES:ANY_READ", &native) != PAPI_OK)
-				printf("couldn't find L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE.\n");
-			if (PAPI_add_event(exec_unit->papi_eventsets[PER_SOCKET_SET], native) != PAPI_OK)
-				printf("couldn't add L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE.\n");
-
-			if (PAPI_event_name_to_code("L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE", &native) != PAPI_OK)
-				printf("couldn't find L3_CACHE_MISSES:READ_BLOCK_SHARED.\n");
-			if (PAPI_add_event(exec_unit->papi_eventsets[PER_SOCKET_SET], native) != PAPI_OK)
-				printf("couldn't add L3_CACHE_MISSES:READ_BLOCK_SHARED.\n");
-
-			if (PAPI_event_name_to_code("L3_CACHE_MISSES:READ_BLOCK_MODIFY", &native) != PAPI_OK)
-				printf("couldn't find DATA_CACHE_MISSES.\n");
-			if (PAPI_add_event(exec_unit->papi_eventsets[PER_SOCKET_SET], native) != PAPI_OK)
-				printf("couldn't add DATA_CACHE_MISSES.\n");
-
-			if (PAPI_event_name_to_code("L3_CACHE_MISSES:READ_BLOCK_SHARED", &native) != PAPI_OK)
-				printf("couldn't find PERF_COUNT_HW_INSTRUCTIONS.\n");
-			if (PAPI_add_event(exec_unit->papi_eventsets[PER_SOCKET_SET], native) != PAPI_OK)
-				printf("couldn't add PERF_COUNT_HW_INSTRUCTIONS.\n");
+			int i = 0;
+			int successful = 0;
+			for (i = 0; i < NUM_SOCKET_EVENTS; i++) {
+				if (PAPI_event_name_to_code(socket_events[i], &native) != PAPI_OK)
+					printf("papi_socket couldn't find event %s.\n", socket_events[i]);
+				else if (PAPI_add_event(exec_unit->papi_eventsets[PER_SOCKET_SET], native) != PAPI_OK)
+					printf("papi_socket couldn't add event %s.\n", socket_events[i]);
+				else
+					successful += 1;
+			}
+			successful_events = successful;
 
 			if (PAPI_start(exec_unit->papi_eventsets[PER_SOCKET_SET]) != PAPI_OK)
 				printf("couldn't start PAPI event set for thread %d to measure L3 misses\n", exec_unit->th_id);
@@ -92,20 +88,23 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
                              void * data) {
 	(void)exec_context;
 	(void)data;
-	if (exec_unit->th_id % CORES_PER_SOCKET == WHICH_CORE_IN_SOCKET 
-	    && DO_SOCKET_MEASUREMENTS) {
+	if (exec_unit->th_id % CORES_PER_SOCKET == WHICH_CORE_IN_SOCKET) {
 		long long int values[NUM_SOCKET_EVENTS];
 		int rv = PAPI_OK;
 		if ((rv = PAPI_stop(exec_unit->papi_eventsets[PER_SOCKET_SET], values)) != PAPI_OK) {
 			printf("couldn't stop PAPI event set %d for thread %d (%p) to measure L3 misses; ERROR:  %s\n", exec_unit->papi_eventsets[PER_SOCKET_SET], exec_unit->th_id, exec_unit, PAPI_strerror(rv));
 		}
 		else {
-			char * buf = calloc(sizeof(char), NUM_SOCKET_EVENTS * 20);
+			char * buf = calloc(sizeof(char), (successful_events + 1) * 20);
 			int inc = 0;
-			for (int i = 0; i < NUM_SOCKET_EVENTS; i++) {
-				inc = snprintf(buf, 17, "%15lld ", values[i]);
-				buf = (char *)buf + inc;
+			char * buf_ptr = buf;
+			long long int total = 0;
+			for (int i = 0; i < successful_events; i++) {
+				total += values[i];
+				inc = snprintf(buf_ptr, 17, "%15lld ", values[i]);
+				buf_ptr = (char *)buf_ptr + inc;
 			}
+			snprintf(buf_ptr, 21, "tot: %15lld", total);
 			printf("%s\n", buf);
 			free(buf);
 			buf = NULL;
