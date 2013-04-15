@@ -15,7 +15,7 @@ FC=${FC:="/mnt/scratch/sw/intel/2011.6.233/bin/ifort"}
 #GTG_DIR=${GTG_DIR:="/path/gtg"}
 CUDA_DIR=${CUDA_DIR:="/mnt/scratch/cuda-3.1"}
 #OMEGA_DIR=${OMEGA_DIR:="/path/omega"}
-PLASMA_DIR=${PLASMA_DIR:="home/bosilca/unstable/dplasma/PLASMA/build"}
+PLASMA_DIR=${PLASMA_DIR:="/home/bosilca/unstable/dplasma/PLASMA/build"}
 
 # This can be used to control auto detection of some packages
 #PKG_CONFIG_PATH=/some/package/lib/pkgconfig:$PKG_CONFIG_PATH
