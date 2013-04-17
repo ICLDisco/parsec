@@ -552,26 +552,13 @@ ELSE(CMAKE_CROSSCOMPILING)
   SET(daguepp_EXE daguepp)
 ENDIF(CMAKE_CROSSCOMPILING)
 
-<<<<<<< mine
 add_subdirectory(dague)
 add_subdirectory(data_dist)
-=======
+
 #
 # Setup targets
 #
 if( BUILD_DAGUE )
-  if (MPI_FOUND)
-    add_library(dague-mpi STATIC ${SRCS})
-    set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-    target_link_libraries(dague-mpi ${EXTRA_LIBS})
-    install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
-  else (MPI_FOUND)
-    add_library(dague STATIC ${SRCS})
-    set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-    target_link_libraries(dague ${EXTRA_LIBS})
-    install(TARGETS dague ARCHIVE DESTINATION lib)
-  endif (MPI_FOUND)
-  add_subdirectory(data_dist)
 #
 # If we have support for F90 build the DAGuE module
 #
@@ -584,7 +571,6 @@ if( BUILD_DAGUE )
     add_subdirectory(src/f90)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
->>>>>>> theirs
 
 #
 # Now continue with compiling the tests.
