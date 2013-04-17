@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <errno.h>
+#include <unistd.h>
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
@@ -216,16 +217,26 @@ static void dague_vp_init( dague_vp_t *vp,
     }
 }
 
+#define DEFAULT_APPNAME "app_name_XXXXXX"
+
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
     int argc = 0, nb_vp, p, t, nb_total_comp_threads;
-    char** argv = NULL;
+    char *app_name, **argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
 
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
+
+    if(NULL == pargc) {
+        app_name = (char*)malloc(strlen(DEFAULT_APPNAME));
+        strcpy(app_name, DEFAULT_APPNAME);
+        mktemp(app_name);
+    } else {
+        app_name = (*pargv)[0];
+    }
 
     /* Set a default the number of cores if not defined by parameters
      * - with hwloc if available
@@ -365,7 +376,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
 
 #if defined(DAGUE_PROF_TRACE)
-        dague_profiling_init( "%s", (*pargv)[0] );
+        dague_profiling_init( "%s", app_name );
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
     dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
@@ -394,7 +405,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     if(dague_enable_dot) {
 #if defined(DAGUE_PROF_GRAPHER)
-        dague_prof_grapher_init((*pargv)[0], nb_total_comp_threads);
+        dague_prof_grapher_init(app_name, nb_total_comp_threads);
 #else
         fprintf(stderr,
                 "************************************************************************************************\n"
