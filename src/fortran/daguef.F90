@@ -4,7 +4,7 @@
 !                         reserved.
 ! $COPYRIGHT$
 
-module daguef
+module dague_f08_interfaces
 
     use, intrinsic :: ISO_C_BINDING
 
@@ -27,30 +27,31 @@ END SUBROUTINE
 END INTERFACE
 
 INTERFACE dague_init
-FUNCTION dague_init_f08(nbcores) &
-         BIND(C, name="dague_init")
+SUBROUTINE dague_init_f08(nbcores, ctx, ierr) &
+         BIND(C, name="dague_init_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_SIGNED_CHAR
     IMPORT dague_context_t
     IMPLICIT NONE
-    INTEGER(KIND=c_int), VALUE, INTENT(IN)    :: nbcores
-    TYPE(dague_context_t)                     :: dague_init_f08
-END FUNCTION dague_init_f08
+    INTEGER(KIND=c_int), VALUE, INTENT(IN)     :: nbcores
+    TYPE(dague_context_t), INTENT(OUT)         :: ctx
+    INTEGER(KIND=c_int), OPTIONAL, INTENT(OUT) :: ierr
+END SUBROUTINE dague_init_f08
 END INTERFACE dague_init
 
 INTERFACE dague_fini
 SUBROUTINE dague_fini_f08(context,ierr) &
-           BIND(C, name="dague_fini")
+           BIND(C, name="dague_fini_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPORT dague_context_t
     IMPLICIT NONE
-    TYPE(dague_context_t), INTENT(INOUT) :: context
-    INTEGER(KIND=c_int), OPTIONAL, INTENT(OUT)       :: ierr
+    TYPE(dague_context_t), INTENT(INOUT)       :: context
+    INTEGER(KIND=c_int), OPTIONAL, INTENT(OUT) :: ierr
 END SUBROUTINE dague_fini_f08
 END INTERFACE dague_fini
 
 INTERFACE dague_compose
 FUNCTION dague_compose_f08(start, next) &
-         BIND(C, name="dague_compose")
+         BIND(C, name="dague_compose_f08")
     IMPORT dague_object_t
     IMPLICIT NONE
     TYPE(dague_object_t), INTENT(IN) :: start
@@ -61,7 +62,7 @@ END INTERFACE dague_compose
 
 INTERFACE dague_enqueue
 SUBROUTINE dague_enqueue_f08(context, object, ierr) &
-           BIND(C, name="dague_enqueue")
+           BIND(C, name="dague_enqueue_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPORT dague_object_t, dague_context_t
     IMPLICIT NONE
@@ -73,7 +74,7 @@ END INTERFACE dague_enqueue
 
 INTERFACE dague_progress
 SUBROUTINE dague_progress_f08(context, ierr) &
-           BIND(C, name="dague_progress")
+           BIND(C, name="dague_progress_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPORT dague_context_t
     IMPLICIT NONE
@@ -85,7 +86,7 @@ END INTERFACE dague_progress
 INTERFACE  dague_set_complete_callback
 SUBROUTINE dague_set_complete_callback_f08(object, complete_cb, &
                                            complete_data, ierr) &
-           BIND( C, name="dague_set_complete_callback")
+           BIND( C, name="dague_set_complete_callback_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPORT dague_object_t, dague_completion_cb
     IMPLICIT NONE
@@ -99,31 +100,20 @@ END INTERFACE  dague_set_complete_callback
 INTERFACE  dague_get_complete_callback
 SUBROUTINE dague_get_complete_callback_f08(object, complete_cb, &
                                            complete_data, ierr) &
-           BIND(C, name="dague_get_complete_callback")
+           BIND(C, name="dague_get_complete_callback_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPORT dague_object_t, dague_completion_cb
     IMPLICIT NONE
     TYPE(dague_object_t)                        :: object
-    TYPE(C_PTR), INTENT(OUT)                    :: complete_cb
+    PROCEDURE(dague_completion_cb)              :: complete_cb
     TYPE(C_PTR), INTENT(OUT)                    :: complete_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT)  :: ierr
 END SUBROUTINE dague_get_complete_callback_f08
 END INTERFACE  dague_get_complete_callback
 
-INTERFACE  dague_object_start
-SUBROUTINE dague_object_start_f08(object, &
-           ierr) BIND( C, name="dague_object_start")
-    USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
-    IMPORT dague_object_t
-    IMPLICIT NONE
-    TYPE(dague_object_t)                       :: object
-    INTEGER(KIND=c_int), OPTIONAL, INTENT(OUT) :: ierr
-END SUBROUTINE dague_object_start_f08
-END INTERFACE  dague_object_start
-
 INTERFACE  dague_set_priority
 SUBROUTINE dague_set_priority_f08(object, priority, &
-           ierr) BIND( C, name="dague_set_priority")
+           ierr) BIND( C, name="dague_set_priority_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPORT dague_object_t
     IMPLICIT NONE
@@ -133,5 +123,5 @@ SUBROUTINE dague_set_priority_f08(object, priority, &
 END SUBROUTINE dague_set_priority_f08
 END INTERFACE  dague_set_priority
 
-end module daguef
+end module dague_f08_interfaces
 
