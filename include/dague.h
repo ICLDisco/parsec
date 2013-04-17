@@ -88,8 +88,6 @@ dague_object_t* dague_object_lookup( uint32_t object_id );
 int dague_object_register( dague_object_t* object );
 /**< Unregister the object with the engine. */
 void dague_object_unregister( dague_object_t* object );
-/**< Start the dague execution and launch the ready tasks */
-int dague_object_start( dague_object_t* object);
 
 /**< Print DAGuE usage message */
 void dague_usage(void);
