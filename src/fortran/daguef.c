@@ -5,13 +5,10 @@
  */
 #include <dague.h>
 
-dague_context_t* dague_init_f08(int nbcores, int* ierr)
+void dague_init_f08(int nbcores, dague_context_t** context, int* ierr)
 {
-    dague_context_t* context;
-
-    context = dague_init(nbcores, NULL, NULL);
-    *ierr = (NULL == context) ? 0 : -1;
-    return context;
+    *context = dague_init(nbcores, NULL, NULL);
+    *ierr = (NULL == *context) ? 0 : -1;
 }
 
 void dague_fini_f08(dague_context_t** context, int* ierr)
