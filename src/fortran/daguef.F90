@@ -4,7 +4,7 @@
 !                         reserved.
 ! $COPYRIGHT$
 
-module dague_f08
+module daguef
 
     use, intrinsic :: ISO_C_BINDING
 
@@ -27,14 +27,12 @@ END SUBROUTINE
 END INTERFACE
 
 INTERFACE dague_init
-FUNCTION dague_init_f08(nbcores, argc, argv) &
+FUNCTION dague_init_f08(nbcores) &
          BIND(C, name="dague_init")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_SIGNED_CHAR
     IMPORT dague_context_t
     IMPLICIT NONE
     INTEGER(KIND=c_int), VALUE, INTENT(IN)    :: nbcores
-    INTEGER(KIND=c_int), INTENT(INOUT)        :: argc
-    CHARACTER(KIND=C_SIGNED_CHAR),INTENT(IN)  :: argv(argc,*)
     TYPE(dague_context_t)                     :: dague_init_f08
 END FUNCTION dague_init_f08
 END INTERFACE dague_init
@@ -135,5 +133,5 @@ SUBROUTINE dague_set_priority_f08(object, priority, &
 END SUBROUTINE dague_set_priority_f08
 END INTERFACE  dague_set_priority
 
-end module dague_f08
+end module daguef
 
