@@ -705,6 +705,7 @@ static char *dump_globals_init(void **elem, void *arg)
 {
     jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
     string_arena_t *sa = (string_arena_t*)arg;
+    jdf_expr_t *hidden = jdf_find_property( global->properties, "hidden", NULL );
     jdf_expr_t *prop = jdf_find_property( global->properties, "default", NULL );
 
     string_arena_init(sa);
@@ -713,13 +714,18 @@ static char *dump_globals_init(void **elem, void *arg)
 
     /* No default value ? */
     if( NULL == prop ) {
-        prop = jdf_find_property( global->properties, "hidden", NULL );
-        /* Hidden variable or not ? */
-        if( NULL == prop )
+        if( NULL == hidden ) /* Hidden variable or not ? */
             string_arena_add_string(sa, "__dague_object->super.%s = %s;", global->name, global->name);
     } else {
-        /* Has been initialized by dump_hidden_globals_init */
-        string_arena_add_string(sa, "__dague_object->super.%s = %s;", global->name, global->name);
+        expr_info_t info;
+        info.sa = string_arena_new(8);
+        info.prefix = "";
+        info.assignments = "assignments";
+
+        string_arena_add_string(sa, "__dague_object->super.%s = %s = %s;",
+                                global->name, global->name,
+                                dump_expr((void**)prop, &info));
+        string_arena_free(info.sa);
     }
 
     return string_arena_get_string(sa);
@@ -785,7 +791,7 @@ static char *dump_hidden_globals_init(void **elem, void *arg)
     string_arena_t *sa = (string_arena_t*)arg;
     jdf_expr_t *hidden   = jdf_find_property( global->properties, "hidden", NULL );
     jdf_expr_t* type_str = jdf_find_property( global->properties, "type",   NULL );
-    expr_info_t info1, info2;
+    expr_info_t info;
 
     string_arena_init(sa);
 
@@ -799,20 +805,14 @@ static char *dump_hidden_globals_init(void **elem, void *arg)
         /* No default value ? */
         if( NULL == prop ) return NULL;
 
-        info1.sa = string_arena_new(8);
-        info1.prefix = "";
-        info1.assignments = "assignments";
+        info.sa = string_arena_new(8);
+        info.prefix = "";
+        info.assignments = "assignments";
 
-        info2.sa = string_arena_new(8);
-        info2.prefix = "";
-        info2.assignments = "assignments";
-
-        string_arena_add_string(sa, "%s %s = %s;",
-                                (NULL == type_str ? "int" : dump_expr((void**)type_str, &info1)),
-                                global->name,
-                                dump_expr((void**)prop, &info2));
-        string_arena_free(info1.sa);
-        string_arena_free(info2.sa);
+        string_arena_add_string(sa, "%s %s;",
+                                (NULL == type_str ? "int" : dump_expr((void**)type_str, &info)),
+                                global->name);
+        string_arena_free(info.sa);
 
         return string_arena_get_string(sa);
     }
