@@ -1,4 +1,4 @@
-set(SOURCES daguef.F90)
+set(SOURCES daguef.F90 daguef.c)
 
 add_library(daguef STATIC ${SOURCES})
 set_target_properties(daguef PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")

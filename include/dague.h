@@ -89,8 +89,6 @@ dague_handle_t* dague_handle_lookup(uint32_t handle_id);
 int dague_handle_register(dague_handle_t* handle);
 /**< Unregister the object with the engine. */
 void dague_handle_unregister(dague_handle_t* handle);
-/**< Start the dague execution and launch the ready tasks */
-int dague_handle_start(dague_handle_t* handle);
 
 /**< Print DAGuE usage message */
 void dague_usage(void);
