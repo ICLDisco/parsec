@@ -9,7 +9,8 @@ typedef struct {
     dague_ddesc_t super;
     int   seg;
     int   size;
-    struct dague_data_copy_s* data;
+    struct dague_data_s     * data;
+    struct dague_data_copy_s* data_copy;
     uint32_t* ptr;
 } my_datatype_t;
 
@@ -56,10 +57,11 @@ static dague_data_t* data_of(dague_ddesc_t *desc, ...)
     assert( k < dat->size && k >= 0 );
     (void)k;
     if(NULL == dat->data) {
-        dat->data = dague_data_copy_new(NULL, 0);
-        dat->data->device_private = dat->ptr;
+        dat->data = dague_data_new();
+        dat->data_copy = dague_data_copy_new(dat->data, 0);
+        dat->data_copy->device_private = dat->ptr;
     }
-    return (void*)(dat->data);
+    return dat->data;
 }
 
 #if defined(DAGUE_PROF_TRACE)
@@ -98,7 +100,8 @@ dague_ddesc_t *create_and_distribute_data(int rank, int world, int cores, int si
 
     m->size = size;
     m->seg  = seg;
-    m->data = NULL;
+    m->data      = NULL;
+    m->data_copy = NULL;
     m->ptr = (uint32_t*)calloc(seg * size, sizeof(uint32_t) );
 
     return d;
@@ -107,10 +110,14 @@ dague_ddesc_t *create_and_distribute_data(int rank, int world, int cores, int si
 void free_data(dague_ddesc_t *d)
 {
     my_datatype_t *m = (my_datatype_t*)d;
-    if(NULL != m->data) {
-        DAGUE_DATA_COPY_RELEASE(m->data);
+    if(NULL != m->data_copy) {
+        DAGUE_DATA_COPY_RELEASE(m->data_copy);
+        dague_data_delete(m->data);
+        m->data_copy = NULL;
+        m->data = NULL;
     }
     free(m->ptr);
+    m->ptr = NULL;
     dague_ddesc_destroy(d);
     free(d);
 }
