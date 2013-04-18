@@ -1255,7 +1255,8 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
         assert(NULL == data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
         if(NULL == data) {
             data = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
-            DEBUG3(("MPI:\tMalloc new remote tile %p size %zu\n", data, deps->output[k].type->elem_size*deps->output[k].nbelt));
+            DEBUG3(("MPI:\tMalloc new remote tile %p size %zu in %p[%d]\n", data, deps->output[k].type->elem_size*deps->output[k].nbelt,
+                    deps, k));
             assert(data != NULL);
             deps->output[k].data = data;
         }
@@ -1268,7 +1269,11 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
 #else
 #  ifdef DAGUE_DEBUG_VERBOSE2
         MPI_Type_get_name(dtt, type_name, &len);
-        DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s nbelt %d extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), i, k, task->deps, data, type_name, nbdtt, deps->output[k].type->elem_size * nbdtt, msg.tag+k));
+        DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s nbelt %d extent %d using %p[%d]\t(tag=%d)\n", 
+                from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), i, k, 
+                task->deps, data, type_name, nbdtt,
+                deps, k,
+                deps->output[k].type->elem_size * nbdtt, msg.tag+k));
 #  endif
         TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from,
                             eu_context->virtual_process->dague_context->my_rank, deps->msg);
