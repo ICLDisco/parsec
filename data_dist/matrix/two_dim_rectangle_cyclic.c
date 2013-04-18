@@ -231,9 +231,49 @@ static int32_t twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     return vpid;
 }
 
+/*
+ * Do not change this function without updating the inverse function:
+ * twoDBC_position_to_coordinates()
+ * Other files (zhebut) depend on the inverse function.
+ */
+inline int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *Ddesc, int m, int n){
+    int position, local_m, local_n;
+
+    /* Compute the local tile row */
+    local_m = m / Ddesc->grid.rows;
+    assert( (m % Ddesc->grid.rows) == Ddesc->grid.rrank );
+
+    /* Compute the local column */
+    local_n = n / Ddesc->grid.cols;
+    assert( (n % Ddesc->grid.cols) == Ddesc->grid.crank );
+
+    position = Ddesc->nb_elem_r * local_n + local_m;
+
+    return position;
+}
+
+/*
+ * This is the inverse function of: twoDBC_coordinates_to_position()
+ * Please keep them in sync, other files (zhebut) depend on this function.
+ */
+inline void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *Ddesc, int position, int *m, int *n){
+    int local_m, local_n, sanity_check;
+
+    local_m = position%(Ddesc->nb_elem_r);
+    local_n = position/(Ddesc->nb_elem_r);
+
+    *m = local_m*(Ddesc->grid.rows) + Ddesc->grid.rrank;
+    *n = local_n*(Ddesc->grid.cols) + Ddesc->grid.crank;
+
+    sanity_check = twoDBC_coordinates_to_position(Ddesc, *m, *n);
+    assert( sanity_check == position );
+
+    return;
+}
+
 static dague_data_t* twoDBC_data_of(dague_ddesc_t *desc, ...)
 {
-    int m, n, position, local_m, local_n;
+    int m, n, position;
     size_t pos;
     va_list ap;
     two_dim_block_cyclic_t * Ddesc;
@@ -253,19 +293,14 @@ static dague_data_t* twoDBC_data_of(dague_ddesc_t *desc, ...)
     assert(desc->myrank == twoDBC_rank_of(desc, m, n));
 #endif
 
-    /* Compute the local tile row */
-    local_m = m / Ddesc->grid.rows;
-    assert( (m % Ddesc->grid.rows) == Ddesc->grid.rrank );
+    position = twoDBC_coordinates_to_position(Ddesc, m, n);
 
-    /* Compute the local column */
-    local_n = n / Ddesc->grid.cols;
-    assert( (n % Ddesc->grid.cols) == Ddesc->grid.crank );
-
-    position = Ddesc->nb_elem_r * local_n + local_m;
     if( Ddesc->super.storage == matrix_Tile ) {
         pos = position;
         pos *= (size_t)Ddesc->super.bsiz;
     } else {
+        int local_m = m / Ddesc->grid.rows;
+        int local_n = n / Ddesc->grid.cols;
         pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm
             +  local_m * Ddesc->super.mb;
     }

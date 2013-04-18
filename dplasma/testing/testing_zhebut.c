@@ -110,19 +110,11 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("+++ Computing Butterfly ... \n");
     SYNC_TIME_START();
     if (loud) TIME_START();
-    /*
-     printf("Start\n");
-     fflush(stdout);
-     dplasma_zprint(dague, uplo, (tiled_matrix_desc_t *)&ddescA);
-     */
-    ret = dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, &U_but_vec, butterfly_level);
+
+    ret = dplasma_zhebut(dague, &ddescA, &U_but_vec, butterfly_level);
     if( ret < 0 )
         return ret;
-    /*
-     printf("After Butterfly\n");
-     fflush(stdout);
-     dplasma_zprint(dague, uplo, (tiled_matrix_desc_t *)&ddescA);
-     */
+
     SYNC_TIME_PRINT(rank, ("zhebut computation N= %d NB= %d\n", N, NB));
 
     /* Backup butterfly time */
@@ -133,14 +125,6 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("+++ Computing Factorization ... \n");
     SYNC_TIME_START();
     dplasma_zhetrf(dague, (tiled_matrix_desc_t *)&ddescA);
-
-    /* WARNING: I'm not sure what you want to compute here ?
-     * but it looks incorrect because of the TIME_START missing */
-    if(loud){
-        TIME_PRINT(rank, ("zhetrf computed %d tasks,\trate %f task/s\n",
-                          nb_local_tasks,
-                          nb_local_tasks/time_elapsed));
-    }
 
     SYNC_TIME_PRINT(rank, ("zhetrf computation N= %d NB= %d : %f gflops\n", N, NB,
                            (gflops = (flops/1e9)/(sync_time_elapsed))));
@@ -165,14 +149,14 @@ int main(int argc, char ** argv)
 #if defined(CHECK_B)
         dplasma_zhetrs(dague, uplo,
                        (tiled_matrix_desc_t *)&ddescA,
-                       (tiled_matrix_desc_t *)&ddescX,
+                       (two_dim_block_cyclic_t *)&ddescX,
                        U_but_vec, butterfly_level);
 
         /* Check the solution */
         ret |= check_solution( dague, (rank == 0) ? loud : 0, uplo,
                                (tiled_matrix_desc_t *)&ddescA0,
                                (tiled_matrix_desc_t *)&ddescB,
-                               (tiled_matrix_desc_t *)&ddescX);
+                               (two_dim_block_cyclic_t *)&ddescX);
 
         dague_data_free(ddescB.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);

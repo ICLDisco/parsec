@@ -40,7 +40,7 @@ U      [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
 trans  [type = "int"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.two_DBC.super.mb*descA.A_org.two_DBC.super.nb)"]
 
 
 /*
@@ -75,6 +75,7 @@ BODY
   uintptr_t off_in_U, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
+  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.two_DBC);
 
   printlog( "GEBMM(%d, %d) (PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
              i, j, i, j, Atl);
@@ -82,8 +83,8 @@ BODY
   type = segment_to_type_index(descA.seg_info, i, j);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists ); (void)type_exists;
-  lda = descA.A_org->mb; /* This is the mb of the tile */
-  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
+  lda = tiled_A->mb; /* This is the mb of the tile */
+  segment_to_tile(&descA, tiled_A, i, j, &i_tile, &j_tile, &off_in_tile);
 
   /*
    * off_in_U is the beginning (vertically) of the segment as an absolute offest
@@ -91,7 +92,7 @@ BODY
    */
   off_in_U = i_tile*lda + off_in_tile%lda;
 
-  N = descA.A_org->lm;
+  N = tiled_A->lm;
   lvl = descA.level;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );

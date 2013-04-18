@@ -9,6 +9,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include "dague.h"
+//#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <plasma.h>
 #include <cblas.h>
 #include "dplasma.h"

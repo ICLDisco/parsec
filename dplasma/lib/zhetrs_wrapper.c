@@ -14,7 +14,7 @@
 #define HIGH_TO_LOW 0
 #define LOW_TO_HIGH 1
 
-static void multilevel_zgebmm(dague_context_t *dague, tiled_matrix_desc_t* B, PLASMA_Complex64_t *U_but_vec, int level, int trans, int order, int *info){
+static void multilevel_zgebmm(dague_context_t *dague, two_dim_block_cyclic_t* B, PLASMA_Complex64_t *U_but_vec, int level, int trans, int order, int *info){
     int cur_level, L;
     dague_handle_t **op;
 
@@ -55,7 +55,7 @@ static void multilevel_zgebmm(dague_context_t *dague, tiled_matrix_desc_t* B, PL
 }
 
 int
-dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, tiled_matrix_desc_t* B, PLASMA_Complex64_t *U_but_vec, int level)
+dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, two_dim_block_cyclic_t* B, PLASMA_Complex64_t *U_but_vec, int level)
 {
     int info;
 #if defined(DEBUG_BUTTERFLY)
@@ -75,7 +75,7 @@ dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, t
     multilevel_zgebmm(dague, B, U_but_vec, level, PlasmaConjTrans, HIGH_TO_LOW, &info);
 
     dplasma_ztrsm( dague, PlasmaLeft, uplo, (uplo == PlasmaUpper) ? PlasmaConjTrans : PlasmaNoTrans, PlasmaUnit, 1.0, A, B );
-    dplasma_ztrdsm( dague, A, B );
+    dplasma_ztrdsm( dague, A, (tiled_matrix_desc_t *)B );
     dplasma_ztrsm( dague, PlasmaLeft, uplo, (uplo == PlasmaUpper) ? PlasmaNoTrans : PlasmaConjTrans, PlasmaUnit, 1.0, A, B );
 
     // X = U_but_vec * X  (here X is B)
