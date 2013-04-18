@@ -8,7 +8,7 @@
 #include "profiling.h"
 
 static int allowable_modules_defined; // keeps them from being defined more than once
-static const char * const default_modules_array[] = {"papi_exec", NULL};
+static const char * const default_modules_array[] = {NULL};
 char ** allowable_modules; // this is the default/supplied module
 #define MAX_NAME_SIZE 40 // arbitrary string limit for 'safety'
 
@@ -28,7 +28,7 @@ void pins_init(dague_context_t * master_context) {
 	}
 	DEBUG(("Initialized PaRSEC PINS callbacks to pins_empty_callback()"));
 
-	set_allowable_pins_modules(default_modules_array);
+ 	set_allowable_pins_modules(default_modules_array);
 
 	mca_base_component_t ** components = NULL;
 	dague_pins_module_t * module = NULL;
@@ -208,7 +208,6 @@ void set_allowable_pins_modules (const char * const modules[]) {
 				if (NULL != allowable_modules[count]) {
 					strncpy(allowable_modules[count], modules[count], MAX_NAME_SIZE);
 					DEBUG(("Allowing PINS module %s\n", allowable_modules[count]));
-					printf("Allowing PINS module %s\n", allowable_modules[count]);
 				}
 				else {
 					DEBUG(("Memory allocation failed in "
