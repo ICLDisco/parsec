@@ -246,7 +246,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if(NULL == pargc) {
         app_name = (char*)malloc(strlen(DEFAULT_APPNAME));
         strcpy(app_name, DEFAULT_APPNAME);
-        mktemp(app_name);
+        mkstemp(app_name);
     } else {
         app_name = (*pargv)[0];
     }
