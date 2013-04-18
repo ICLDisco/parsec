@@ -1464,3 +1464,33 @@ int dague_getsimulationdate( dague_context_t *dague_context ){
     return dague_context->largest_simulation_date;
 }
 #endif
+
+/**
+ * Array based local data handling.
+ */
+#include "data_distribution.h"
+static uint32_t return_local_u(struct dague_ddesc *mat, ...) { return 0; (void)mat; };
+static int32_t  return_local_s(struct dague_ddesc *mat, ...) { return 0; (void)mat; };
+static void*    return_null(struct dague_ddesc *mat, ...) { return NULL; (void)mat; };
+static int key_to_string(struct dague_ddesc *mat, uint32_t datakey, char* buffer, uint32_t buffer_size)
+{
+  return snprintf( buffer, buffer_size, "%u ", datakey); (void)mat;
+}
+
+const dague_ddesc_t dague_static_local_data_ddesc = {
+      0, /* uint32_t myrank */
+      1, /* uint32_t cores */
+      1, /* uint32_t nodes */
+      return_local_u,  /* uint32_t (*rank_of)(struct dague_ddesc *mat, ...) */
+      return_null,   /* void *   (*data_of)(struct dague_ddesc *mat, ...) */
+      return_local_s,  /* int32_t  (*vpid_of)(struct dague_ddesc *mat, ...) */
+      NULL,  /*  moesi_map_t* moesi_map */
+#ifdef DAGUE_PROF_TRACE
+      return_local_u,  /* uint32_t (*data_key)(struct dague_ddesc *mat, ...) */
+      key_to_string, /* int (*key_to_string)(struct dague_ddesc *mat, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
+      NULL,  /* char      *key_dim */
+      NULL,  /* char      *key */
+#endif /* DAGUE_PROF_TRACE */
+};
+  
+

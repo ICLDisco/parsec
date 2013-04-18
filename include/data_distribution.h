@@ -42,6 +42,12 @@ typedef struct dague_ddesc {
 #endif /* DAGUE_PROF_TRACE */
 } dague_ddesc_t;
 
+/**
+ * Define a static data representation where all data are local
+ * on the current dague_context_t.
+ */
+extern const dague_ddesc_t dague_static_local_data_ddesc;
+
 static inline void dague_ddesc_destroy(dague_ddesc_t *d)
 {
 #if defined(DAGUE_PROF_TRACE)
