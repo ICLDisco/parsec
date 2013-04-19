@@ -32,7 +32,7 @@ dague_object_t* dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
      * it should be passed as a parameter as in getrf
      */
     int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
-    double *W = (double*)malloc((A->mt/P+1)*sizeof(double));
+    double *W = (double*)malloc(2*(A->nb)*sizeof(double));
 
     object = dague_zgetrf_qrf_new( (dague_ddesc_t*)A,
                                    (dague_ddesc_t*)IPIV,
@@ -81,8 +81,8 @@ dague_object_t* dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
 
     /* EltDouble */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_ELTdouble_ARENA],
-                                 2 * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE, 2, 1, -1);
+                                 2 * A->nb * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_DOUBLE, 2 * A->nb, 1, -1);
 
     return (dague_object_t*)object;
 }

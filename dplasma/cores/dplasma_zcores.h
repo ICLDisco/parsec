@@ -29,4 +29,6 @@ int CORE_zplssq(int M, int N,
                 dague_complex64_t *A, int LDA,
                 double *scale, double *sumsq);
 
+int CORE_zamax(PLASMA_enum storev, PLASMA_enum uplo, int M, int N, const PLASMA_Complex64_t *A, int lda, double *work);
+
 #endif /* _DPLASMA_Z_CORES_ */

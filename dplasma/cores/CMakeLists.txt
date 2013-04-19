@@ -89,6 +89,7 @@ set(SOURCES
   core_zhetrf_nopiv.c
   core_zhebut.c
   core_zplssq.c
+  core_zamax.c
   ${GPU_KERNEL_SOURCES}
 )
 precisions_rules_py(generated_files

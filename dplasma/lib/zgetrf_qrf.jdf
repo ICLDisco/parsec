@@ -10,6 +10,7 @@ extern "C" %{
  *
  */
 #define PRECISION_z
+#define HIGHAM_CRITERIUM
 
 #include "dague.h"
 #include <math.h>
@@ -719,11 +720,27 @@ BODY
                         A,    ldam,
                         Acpy, descA.mb);
         } else{
+	#ifdef HIGHAM_CRITERIUM
             /*We need the 1-norm of the other tiles*/
             W[i] = LAPACKE_zlange_work(
                 LAPACK_COL_MAJOR, '1',
                 tempmm, tempkn, A, ldam, NULL);
-        }
+	//fprintf(stderr, "Norme 1 = %f pour k=%d et m=%d\n",W[i],k,m);
+	#endif
+	#ifdef MUMPS_CRITERIUM
+	if (m-k < param_p) {
+		int j;
+		int p = m-k;
+		int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+		int s  = (descA.mt-k-p +param_p-1) / param_p;
+    		int ks = k + p + (s-1)*param_p;
+    		int tempm = (s-1) * descA.mb +
+        		(( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
+		CORE_zamax(LAPACK_COL_MAJOR, PlasmaUpperLower, tempm, tempkn, A, ldam,W);
+	}
+	#endif
+   
+   	}
            );
 }
 END
@@ -796,12 +813,14 @@ BODY
 
         /*W[0] = condition number*/
 	#ifdef HIGHAM_CRITERIUM
-	LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W);
-	fprintf(stderr,"cond = %f\n",W[0]);
+	LAPACKE_ztrcon(LAPACK_COL_MAJOR, '2', 'U', 'N', tempkn, A, ldak, W);
+        //LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, W);
+	//W[0] = 1/W[0];
+	//fprintf(stderr,"Cond = %f pour k = %d\n",W[0],k);
 	#endif
 
 	#ifdef MUMPS_CRITERIUM
-	
+	CORE_zamax(LAPACK_COL_MAJOR, PlasmaUpper, tempkn, tempkn, A, ldak,W);
 	#endif
            );
 }
@@ -830,30 +849,64 @@ BODY
     printlog("reduce_norm(k= %d, p= %d)\n",        
              k, p);
 
+
     double *norm1 = (double*)W1;
     double *norm2 = (double*)W2;
 
     if (p == 0) {
+	#ifdef HIGHAM_CRITERIUM
+	int i;
         norm1[0] = W[0];
-        norm1[1] = 0.;
         norm2[0] = W[0];
-        norm2[1] = 0.;
+	for(i=1; i < pmax; i++) {
+		norm1[i] = 0;
+		norm2[i] = 0;
+	}	
+	#endif
+
+	#ifdef MUMPS_CRITERIUM
+	int i;
+	int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+	for(i=0; i < 2*descA.nb; i++) {
+		norm1[i] = 0;
+		norm2[i] = 0;
+	}
+	for(i=0; i<tempkn; i++) {
+		norm1[descA.nb + i] = W[i];
+		norm2[descA.nb + i] = W[i];
+	}
+	#endif
     } else {
+	#ifdef HIGHAM_CRITERIUM
         int m, i;
         norm1[0] = 0.;
-        norm1[1] = 0.;
+	for(i=1; i < pmax; i++) {
+		norm1[i] = 0;
+		norm2[i] = 0;
+	}
+        norm1[p] = 0.;
 
         for(i=0, m=k+p; m<descA.mt; m+=param_p, i++) {
-	#ifdef HIGHAM_CRITERIUM
-            norm1[1] += W[i];
-	#endif
-	#ifdef MUMPS_CRITERIUM
-
-	#endif
+            norm1[p] += W[i];
         }
         norm2[0] = 0.;
-        norm2[1] = norm1[1];
+        norm2[p] = norm1[p];
+	#endif
+
+	#ifdef MUMPS_CRITERIUM
+	int i;
+	int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+	for(i=0; i < 2*descA.nb; i++) {
+		norm1[i] = 0;
+		norm2[i] = 0;
+	}
+	for(i=0; i<descA.nb; i++) {
+		norm1[i] = W[i];
+		norm2[i] = W[i];
+	}
+	#endif
     }
+    
 }
 END
 
@@ -907,19 +960,46 @@ BODY
     printlog("setchoice( k=%d, p=%d, h=%d )\n", k, p, h);
 
     DRYRUN(
+	int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+	int i;
+	#ifdef HIGHAM_CRITERIUM
+	//fprintf(stderr, "DEB Set_choise(k=%d, p=%d, h=%d) -> norm1 = [%f, %f, %f, %f, %f...] et norm2 = [%f, %f, %f, %f, %f...]\n",k,p,h,norm1[0],norm1[1],norm1[2],norm1[3],norm1[4],norm2[0],norm2[1],norm2[2],norm2[3],norm2[4]);
         /* The received buffer contains the diagonal line */
         if( (pui <= p) && (p < 2*pui) ) {
-            norm2[0] = norm1[0];
-        } else {
             norm1[0] = norm2[0];
+	//fprintf(stderr, "Tile p=%d received norm1[0]=%f at h=%d\n",p,norm1[0],h);
+        } else {
+            norm2[0] = norm1[0];
         }
-	#ifdef HIGHAM_CRITERIUM
-        norm1[1] += norm2[1];
+
+        for(i=1; i<pmax; i++) {
+		if (norm1[i] <= 0) {
+        		norm1[i] = norm2[i];
+		}
+		if (norm2[i] <= 0) {
+        		norm2[i] = norm1[i];
+		}
+	}
 	#endif
+
 	#ifdef MUMPS_CRITERIUM
-        norm2[1] = norm1[1];
+	/* The received buffer contains the diagonal line */
+        if( (pui <= p) && (p < 2*pui) ) {
+            for(i=0; i<tempkn; i++) {
+		norm1[descA.nb + i] = norm2[descA.nb + i];
+	    }
+	//fprintf(stderr, "Tile p=%d received norm1[0]=%f at h=%d\n",p,norm1[0],h);
+        } else {
+            for(i=0; i<tempkn; i++) {
+		norm2[descA.nb + i] = norm1[descA.nb + i];
+	    }
+        }
+	for(i=0; i<tempkn; i++) {
+		norm1[i] = norm1[i] < norm2[i] ? norm2[i] : norm1[i];
+		norm2[i] = norm1[i];
+	    }
 	#endif
-           );
+	//fprintf(stderr, "EN Set_choise(k=%d, p=%d, h=%d) -> norm1 = [%f, %f, %f, %f, %f...] et norm2 = [%f, %f, %f, %f, %f...]\n",k,p,h,norm1[0],norm1[1],norm1[2],norm1[3],norm1[4],norm2[0],norm2[1],norm2[2],norm2[3],norm2[4]);
 
     if (h == hmax) {
         int cond = 1;
@@ -927,8 +1007,16 @@ BODY
         cond = rand() % 2;
 
 	#ifdef HIGHAM_CRITERIUM
-	fprintf(stderr,"norm2[0] = %f > %f = norm2[1]\n",norm2[0],norm2[1]);
-	if (norm2[0] > norm2[1]) {
+	int i;
+	double sum_norm = 0;
+        for(i=1; i<pmax; i++) {
+		sum_norm += norm1[i];
+	}
+	
+
+	double alpha = 1.0;
+
+	if (alpha * norm1[0] > sum_norm) {
 		cond = 1;
 	} else {
 		cond = 0;
@@ -936,21 +1024,31 @@ BODY
 	#endif
 
 	#ifdef MUMPS_CRITERIUM
-
-
+	int i;
+	cond = 1;
+	for(i=0; i<tempkn; i++) {
+		if (norm1[i] > norm1[i + descA.nb]) {
+			cond = 0;
+		}
+	    }
 	#endif
 
         if (cond == 1) {
             lu_tab[k] = 1;
-            fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
         }
             else {
                 lu_tab[k] = 0;
-                fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
+
             }
+	if (p==0) {
+		//fprintf(stderr,"norm1[0] = %f > %f = sum_norm (k=%d, p=%d)\n",norm1[0],sum_norm,k,p);
+		fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
+	}
+
+	norm2[0] = lu_tab[k];
     }
    
-    norm2[0] = lu_tab[k];
+    );
 }
 END
 
