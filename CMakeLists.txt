@@ -141,12 +141,6 @@ option(DAGUE_PROF_DRY_DEP
 ### Instrumentation Options
 option(PINS_ENABLE
   "Enable the use of the PaRSEC callback instrumentation system" ON)
-option(PINS_PAPI_SELECT
-   "Enable the counting of task selection (thief, victim, type, etc.) during scheduling, and output via the profiling (PROF_TRACE) system." OFF)
-option(PINS_PAPI_EXEC
-   "Enable the counting of PAPI events (e.g., L1/L2 cache and TLB misses) per task execution, and output via the profiling (PROF_TRACE) system." OFF)
-option(PINS_PAPI_SOCKET
-   "Enable the counting of PAPI events (e.g., L3 cache misses) per thread lifetime, and output in a post-run matrix format to STDOUT." OFF)
 
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")

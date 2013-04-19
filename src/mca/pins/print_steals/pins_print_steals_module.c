@@ -38,38 +38,26 @@ static void pins_init_print_steals(dague_context_t * master) {
 	select_begin_prev = PINS_REGISTER(SELECT_BEGIN, start_print_steals_count);
 	select_end_prev   = PINS_REGISTER(SELECT_END,   stop_print_steals_count);
 	total_cores = master->nb_vp * master->virtual_processes[0]->nb_cores;
-	printf("init print steals; num cores: %d\n", total_cores);
-	// malloc counter arrays
-
-	/* for (int i = 0; i < master->nb_vp; i++) { */
-	/* 	for (int j = 0; j < master->virtual_processes[i]->nb_cores; j++) { */
-	/* 		master->virtual_processes[i]->execution_units[j]->steal_counters =  */
-	/* 			calloc(sizeof(long), total_cores + 2 ); /\* one extra for system queue,  */
-	/* 													   one extra for starvation *\/ */
-	/* 	} */
-	/* } */
 }
 
 static void pins_fini_print_steals(dague_context_t * master) {
 	PINS_REGISTER(SELECT_BEGIN, select_begin_prev);
 	PINS_REGISTER(SELECT_END,   select_end_prev);
-	printf("fini print steals\n");
 	// print and free counter arrays
 	int total_cores = master->nb_vp * master->virtual_processes[0]->nb_cores;
 	for (int i = 0; i < master->nb_vp; i++) {
 		for (int j = 0; j < master->virtual_processes[i]->nb_cores; j++) {
 			for (int k = 0; k < total_cores + 2; k++) {
-				printf("%10ld ", master->virtual_processes[i]->execution_units[j]->steal_counters[k]);
+				printf("%7ld ", master->virtual_processes[i]->execution_units[j]->steal_counters[k]);
 			}
 			printf("\n");
-//			free(master->virtual_processes[i]->execution_units[j]->steal_counters);
+			free(master->virtual_processes[i]->execution_units[j]->steal_counters);
 		}
 	}
 }
 
 static void pins_thread_init_print_steals(dague_execution_unit_t * exec_unit) {
 	// shouldn't need to do much of anything?
-	printf("callocing for core ...\n");
 	exec_unit->steal_counters = calloc(sizeof(long), total_cores + 2);
 }
 
