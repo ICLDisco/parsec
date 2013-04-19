@@ -58,6 +58,32 @@ void pins_init(dague_context_t * master_context) {
 /**
  * Ideally, there would be a pins_fini method as well.
  */
+void pins_fini(dague_context_t * master_context) {
+	mca_base_component_t ** components = NULL;
+	dague_pins_module_t * module = NULL;
+	int priority = -1;
+	int i = 0;
+
+	components = mca_components_open_bytype("pins");
+	while (components[i] != NULL) {
+		if (components[i]->mca_query_component != NULL) {
+			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
+			int j = 0;
+			while (allowable_modules[j] != NULL) {
+				if (NULL != module->module.init &&
+					0 == strncmp(module->component->base_version.mca_component_name, 
+				                 allowable_modules[j], MAX_NAME_SIZE)) {
+					module->module.fini(master_context);
+					DEBUG(("Fini'd PINS module %s.\n", 
+					       module->component->base_version.mca_component_name));
+				}
+				j++;
+			}
+		}
+		i++;
+	}
+}
+
 
 /**
  * pins_thread_init() should be called once per thread runtime of a PaRSEC execution.

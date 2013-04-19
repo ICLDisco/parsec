@@ -124,6 +124,8 @@ parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag);
 	pins_unregister_callback(method_flag)
 #define PINS_INIT(master_context) \
 	pins_init(master_context)
+#define PINS_FINI(master_context) \
+	pins_fini(master_context)
 #define PINS_THREAD_INIT(exec_unit) \
 	pins_thread_init(exec_unit)
 #define PINS_HANDLE_INIT(dague_handle) \
@@ -144,6 +146,8 @@ parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag);
 #define PINS_UNREGISTER(method_flag)                                    \
 	do {} while (0)
 #define PINS_INIT(master_context) \
+	do {} while (0)
+#define PINS_FINI(master_context) \
 	do {} while (0)
 #define PINS_THREAD_INIT(exec_unit) \
 	do {} while (0)
