@@ -56,6 +56,7 @@ static void pins_thread_init_papi_select(dague_execution_unit_t * exec_unit) {
 		       "failed to create SELECT event set\n");
 	}
 	if ((rv = PAPI_add_events(exec_unit->papi_eventsets[SELECT_SET], 
+
 	                          select_events, NUM_SELECT_EVENTS)) != PAPI_OK) {
 		printf("papi_select.c, pins_thread_init_papi_select: failed to add "
 		       "steal events to StealEventSet. %d %s\n", rv, PAPI_strerror(rv));
