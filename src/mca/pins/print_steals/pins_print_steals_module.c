@@ -77,7 +77,10 @@ static void stop_print_steals_count(dague_execution_unit_t * exec_unit,
 	unsigned int num_threads = (exec_unit->virtual_process->dague_context->nb_vp 
 	                            * exec_unit->virtual_process->nb_cores);
 
-	exec_unit->steal_counters[victim_core_num] += 1;
+	if (exec_context != NULL)
+		exec_unit->steal_counters[victim_core_num] += 1;
+	else
+		exec_unit->steal_counters[victim_core_num + 1] += 1;
 
 	// keep the contract with the previous registrant
 	if (select_end_prev != NULL) {
