@@ -1004,7 +1004,7 @@ BODY
     if (h == hmax) {
         int cond = 1;
 
-        cond = rand() % 2;
+        cond = k % 2;
 
 	#ifdef HIGHAM_CRITERIUM
 	int i;
