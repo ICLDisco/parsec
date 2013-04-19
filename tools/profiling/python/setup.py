@@ -8,7 +8,7 @@ from Cython.Distutils import build_ext, extension
 import os.path
 import sys
 
-build_dir_name = 'build' # change this for local usage
+build_dir_name = 'build_pins' # change this for local usage
 build_dir = '../../../../' + build_dir_name
 if build_dir and os.path.isdir(build_dir):
     config_h = build_dir + '/include/dague_config.h'
