@@ -508,6 +508,8 @@ int dague_fini( dague_context_t** pcontext )
     dague_context_t* context = *pcontext;
     int nb_total_comp_threads, t, p;
 
+    PINS_FINI(context);
+
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
