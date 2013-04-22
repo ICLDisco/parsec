@@ -30,7 +30,7 @@ class multifile_reader:
       self.dictionary = {}
       self.files = []
       self.thread_count = 0
-      self.handle_counts = []
+      self.handle_counts = [0, 0]
 
 class dbpDictEntry:
    def __init__(self, id, attributes):
@@ -66,11 +66,11 @@ class dbpEvent:
    print_order = ['handle_id', 'thread', 'key', 'event_id', 
                   'flags', 'start', 'end', 'duration', 'info']
    def __init__(self, parentThread, key, flags, handle_id, event_id, start, end):
-      self.handle_id = handle_id
       self.thread = parentThread
       self.key = key
-      self.event_id = event_id
       self.flags = flags
+      self.handle_id = handle_id
+      self.event_id = event_id
       self.start = start
       self.end = end
       self.duration = self.end - self.start
@@ -123,7 +123,7 @@ class dbp_Exec_EventInfo:
          elif attr == 'values':
             for value in val:
                if len(str(value)) > dbp_Exec_EventInfo.__max_length__:
-                  dbp_Exec_EventInfo.__max_length__ = len(value)
+                  dbp_Exec_EventInfo.__max_length__ = len(str(value))
          elif len(str(val)) > dbp_Exec_EventInfo.__max_length__:
             dbp_Exec_EventInfo.__max_length__ = len(str(val))
 
@@ -168,7 +168,7 @@ class dbp_Select_EventInfo:
          elif attr == 'values':
             for value in val:
                if len(str(value)) > dbp_Select_EventInfo.__max_length__:
-                  dbp_Select_EventInfo.__max_length__ = len(value)
+                  dbp_Select_EventInfo.__max_length__ = len(str(value))
          elif len(str(val)) > dbp_Select_EventInfo.__max_length__:
             dbp_Select_EventInfo.__max_length__ = len(str(val))
 

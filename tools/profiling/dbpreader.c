@@ -653,6 +653,7 @@ static int read_threads(dbp_multifile_reader_t *dbp, int n, int fd, const dague_
     nb = head->nb_threads;
     b = refer_events_buffer(fd, head->thread_offset);
     nbthis = b->this_buffer.nb_threads;
+    nb = 0;
     while( nb > 0 ) {
         assert(PROFILING_BUFFER_TYPE_THREAD == b->buffer_type);
         assert(nbthis > 0);
@@ -804,11 +805,13 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
         
         read_infos(dbp, n, &head);
 
+        /*
         if( read_threads(dbp, n, fd, &head) != 0 ) {
             fprintf(stderr, "unable to read all threads of profile %d in file %s. File ignored.\n",
                     n, dbp->files[n].filename);
             continue;
         }
+         */
 
         n++;
     }

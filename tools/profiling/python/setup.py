@@ -8,7 +8,7 @@ from Cython.Distutils import build_ext, extension
 import os.path
 import sys
 
-build_dir_name = 'cbtest' # change this for local usage
+build_dir_name = 'build_pins' # change this for local usage
 build_dir = '../../../../' + build_dir_name
 if build_dir and os.path.isdir(build_dir):
     config_h = build_dir + '/include/dague_config.h'
@@ -18,15 +18,18 @@ else:
     config_h = '../../../include/dague_config.h'
     libdaguebase = 'build/libdague-base.a'
 
-ext_modules = [Extension('dbpreader_py', 
-                         ['dbpreader_py.pyx', '../dbpreader.c'], 
+ext_modules = [Extension('py_dbpreader', 
+                         ['py_dbpreader.pyx', '../dbpreader.c'], 
                          extra_objects=[libdaguebase],
                          include_dirs=['../../../include', '../../..', '../', '/home/pgaultne/include/', build_dir + '/include'], 
-                         depends=['dbpreader_py.pxd', '../dbpreader.h', '../../../include/dbp.h', '../../../include/os-spec-timing.h', 
+                         depends=['setup.py', 'py_dbpreader.pyx', 'py_dbpreader.pxd', '../dbpreader.h', '../../../include/dbp.h', '../../../include/os-spec-timing.h', 
                                   '../../../dague/class/dague_object.h', config_h, '../../../dague/mca/pins/papi_socket/pins_papi_socket.h'], 
                          extra_compile_args=['-O0', '-g3'],
                          extra_link_args=["-g"],
                          libraries=['openblas'],
+#                          pyrex_gdb=True
+#                         library_dirs=['/mnt/scratch/sw/intel/composer_xe_2013/lib/intel64/'],
+#                         runtime_library_dirs=['/mnt/scratch/sw/intel/composer_xe_2013/lib/intel64/']
                          library_dirs=['/opt/local/lib'],
                          runtime_library_dirs=['/opt/local/lib']
                          )

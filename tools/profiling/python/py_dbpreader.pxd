@@ -51,9 +51,10 @@ cdef extern from "dbpreader.h":
    dbp_multifile_reader_t* dbp_reader_open_default_files()
    int dbp_reader_nb_files(dbp_multifile_reader_t * dbp)
    int dbp_reader_nb_dictionary_entries(dbp_multifile_reader_t * dbp)
-   int dbp_reader_worldsize(dbp_multifile_reader_t * dbp)   
+   int dbp_reader_worldsize(dbp_multifile_reader_t * dbp)
    void dbp_reader_close_files(dbp_multifile_reader_t * dbp)
-   dague_time_t dbp_reader_min_date(dbp_multifile_reader_t * dbp)   
+   void dbp_reader_dispose_reader(dbp_multifile_reader_t * dbp)
+   dague_time_t dbp_reader_min_date(dbp_multifile_reader_t * dbp)
 
    dbp_dictionary_t * dbp_reader_get_dictionary(dbp_multifile_reader_t * dbp, int did)
    char * dbp_dictionary_name(dbp_dictionary_t * dico)
@@ -90,7 +91,7 @@ cdef extern from "dbpreader.h":
 
    int dbp_event_get_key(dbp_event_t *e)
    int dbp_event_get_flags(dbp_event_t *e)
-   long long dbp_event_get_event_id(dbp_event_t *e)
+   long long int dbp_event_get_event_id(dbp_event_t *e)
    int dbp_event_get_handle_id(dbp_event_t *e)
    dague_time_t dbp_event_get_timestamp(dbp_event_t *e)
    void *dbp_event_get_info(dbp_event_t *e)
