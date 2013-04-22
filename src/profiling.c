@@ -148,7 +148,9 @@ int dague_profiling_init( const char *format, ... )
         assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
         profile_head = (dague_profiling_binary_file_header_t*)allocate_empty_buffer(&zero, PROFILING_BUFFER_TYPE_HEADER);
         if( NULL != profile_head ) {
-	        memcpy(profile_head->magick, DAGUE_PROFILING_MAGICK, strlen(DAGUE_PROFILING_MAGICK));
+            memcpy(profile_head->magick, DAGUE_PROFILING_MAGICK, strlen(DAGUE_PROFILING_MAGICK) + 1);
+            if (profile_head->magick[23] != '\0')
+                printf("this is a magick problem...\n");
             profile_head->byte_order = 0x0123456789ABCDEF;
             profile_head->profile_buffer_size = event_buffer_size;
             strncpy(profile_head->hr_id, hr_id, 128);
