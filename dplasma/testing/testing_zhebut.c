@@ -111,7 +111,7 @@ int main(int argc, char ** argv)
     SYNC_TIME_START();
     if (loud) TIME_START();
 
-    ret = dplasma_zhebut(dague, &ddescA, &U_but_vec, butterfly_level);
+    ret = dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, &U_but_vec, butterfly_level);
     if( ret < 0 )
         return ret;
 

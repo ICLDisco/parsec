@@ -40,7 +40,7 @@ U      [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
 trans  [type = "int"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.two_DBC.super.mb*descA.A_org.two_DBC.super.nb)"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
 
 
 /*
@@ -75,7 +75,7 @@ BODY
   uintptr_t off_in_U, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
-  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.two_DBC);
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 
   printlog( "GEBMM(%d, %d) (PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
              i, j, i, j, Atl);

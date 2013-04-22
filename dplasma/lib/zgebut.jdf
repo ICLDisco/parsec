@@ -60,7 +60,7 @@ Ubef   [type = "PLASMA_Complex64_t *"]
 Uaft   [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.sym_two_DBC.super.mb*descA.A_org.sym_two_DBC.super.nb)"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
 
 
 /*
@@ -95,7 +95,7 @@ BODY
   uintptr_t i_seg, j_seg, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
-  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.sym_two_DBC);
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 
   printlog("thread %d GEBUT(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
@@ -173,7 +173,7 @@ BODY
   int i_tile, j_tile;
   uintptr_t off_in_tile;
 #endif
-  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.sym_two_DBC);
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 
   printlog("thread %d GEBUT_Reader(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
@@ -227,7 +227,7 @@ BODY
   unsigned mb_tile, nb_tile, mb_seg, nb_seg, type;
   unsigned ii,jj;
 #endif
-  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.sym_two_DBC);
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 
   printlog("thread %d GEBUT_Writer(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
