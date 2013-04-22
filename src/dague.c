@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <errno.h>
+#include <unistd.h>
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
@@ -79,6 +80,8 @@ int device_delegate_begin, device_delegate_end;
 
 static int _dague_rusage_first_call = 1;
 static struct rusage _dague_rusage;
+
+static int dague_enable_dot = 0;
 
 static void dague_statistics(char* str)
 {
@@ -177,7 +180,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         eu->datarepo_mempools[pi] = &(eu->virtual_process->datarepo_mempools[pi].thread_mempools[eu->th_id]);
 
 #ifdef DAGUE_PROF_TRACE
-    eu->eu_profile = dague_profiling_thread_init( 2*1024*1024, "DAGuE Thread %d of VP %d", eu->th_id, eu->virtual_process->vp_id );
+    eu->eu_profile = dague_profiling_thread_init( 2*1024*1024,
+                                                  "DAGuE Thread %d of VP %d",
+                                                  eu->th_id,
+                                                  eu->virtual_process->vp_id );
 #endif
 
     PINS_THREAD_INIT(eu);
@@ -232,10 +238,12 @@ static void dague_vp_init( dague_vp_t *vp,
     }
 }
 
+#define DEFAULT_APPNAME "app_name_XXXXXX"
+
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
     int argc = 0, nb_vp, p, t, nb_total_comp_threads;
-    char** argv = NULL;
+    char *app_name, **argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
 
@@ -255,6 +263,14 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
 
+    if(NULL == pargc) {
+        app_name = (char*)malloc(strlen(DEFAULT_APPNAME));
+        strcpy(app_name, DEFAULT_APPNAME);
+        mkstemp(app_name);
+    } else {
+        app_name = (*pargv)[0];
+    }
+
     /* Set a default the number of cores if not defined by parameters
      * - with hwloc if available
      * - with sysconf otherwise (hyperthreaded core number)
@@ -263,10 +279,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(HAVE_HWLOC)
         nb_cores = dague_hwloc_nb_real_cores();
 #else
-        nb_cores= sysconf(_SC_NPROCESSORS_ONLN);
-        if(nb_cores== -1) {
+        nb_cores = sysconf(_SC_NPROCESSORS_ONLN);
+        if(nb_cores == -1) {
             perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
-            nb_cores= 1;
+            nb_cores = 1;
         }
 #endif
     }
@@ -281,6 +297,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             {"dague_help",       no_argument,        NULL, 'h'},
             {"dague_bind",       optional_argument,  NULL, 'b'},
             {"dague_bind_comm",  optional_argument,  NULL, 'c'},
+#if defined(DAGUE_PROF_GRAPHER)
+            {"dague_dot",        no_argument,        &dague_enable_dot, 1},
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
             {0, 0, 0, 0}
         };
 #endif  /* defined(HAVE_GETOPT_LONG) */
@@ -387,7 +406,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
 #if defined(DAGUE_PROF_TRACE)
-    dague_profiling_init( "%s", (*pargv)[0] );
+        dague_profiling_init( "%s", app_name );
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
     dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
@@ -436,6 +455,17 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
+
+    if(dague_enable_dot) {
+#if defined(DAGUE_PROF_GRAPHER)
+        dague_prof_grapher_init(app_name, nb_total_comp_threads);
+#else
+        fprintf(stderr,
+                "************************************************************************************************\n"
+                "*** Warning: dot generation requested, but DAGUE configured with DAGUE_PROF_GRAPHER disabled ***\n"
+                "************************************************************************************************\n");
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
+    }
 
     if( nb_total_comp_threads > 1 ) {
         pthread_attr_t thread_attr;
@@ -497,7 +527,6 @@ static void dague_vp_fini( dague_vp_t *vp )
         free(vp->execution_units[i]);
         vp->execution_units[i] = NULL;
     }
-
 }
 
 /**
@@ -545,6 +574,11 @@ int dague_fini( dague_context_t** pcontext )
     dague_profiling_fini( );
 #endif  /* DAGUE_PROF_TRACE */
 
+    if(dague_enable_dot) {
+#if defined(DAGUE_PROF_GRAPHER)
+        dague_prof_grapher_fini();
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
+    }
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
 
@@ -1508,3 +1542,60 @@ int dague_getsimulationdate( dague_context_t *dague_context ){
     return dague_context->largest_simulation_date;
 }
 #endif
+
+/**
+ * Array based local data handling.
+ */
+#include "data_distribution.h"
+static uint32_t return_local_u(dague_ddesc_t *unused, ...) { return 0; (void)unused; };
+static int32_t  return_local_s(dague_ddesc_t *unused, ...) { return 0; (void)unused; };
+static dague_data_t* return_data(dague_ddesc_t *unused, ...) { return NULL; (void)unused; };
+static uint32_t rank_of_key(dague_ddesc_t *unused, dague_data_key_t key)
+{
+    return 0; (void)unused; (void)key;
+}
+static dague_data_t* data_of_key(dague_ddesc_t *unused, dague_data_key_t key)
+{
+    return NULL; (void)unused; (void)key;
+}
+static int32_t  vpid_of_key(dague_ddesc_t *unused, dague_data_key_t key)
+{
+    return 0; (void)unused; (void)key;
+}
+static int key_to_string(dague_ddesc_t *unused, uint32_t datakey, char* buffer, uint32_t buffer_size)
+{
+  return snprintf( buffer, buffer_size, "%u ", datakey); (void)unused;
+}
+static dague_data_key_t data_key(dague_ddesc_t *mat, ...)
+{
+    return 0; (void)mat;
+}
+
+const dague_ddesc_t dague_static_local_data_ddesc = {
+      0, /* uint32_t myrank */
+      1, /* uint32_t cores */
+      1, /* uint32_t nodes */
+
+      data_key,  /* dague_data_key_t (*data_key)(dague_ddesc_t *mat, ...) */
+
+      return_local_u,  /* uint32_t (*rank_of)(struct dague_ddesc *, ...) */
+      rank_of_key,
+
+      return_data,   /* dague_data_t*   (*data_of)(struct dague_ddesc *, ...) */
+      data_of_key,
+
+      return_local_s,  /* int32_t  (*vpid_of)(struct dague_ddesc *, ...) */
+      vpid_of_key,
+
+      key_to_string, /* int (*key_to_string)(struct dague_ddesc *, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
+
+      NULL,  /* dague_memory_region_management_f register_memory */
+      NULL,  /* dague_memory_region_management_f unregister_memory */
+
+      NULL,  /* char      *key_base */
+#ifdef DAGUE_PROF_TRACE
+      NULL,  /* char      *key_dim */
+#endif /* DAGUE_PROF_TRACE */
+};
+  
+

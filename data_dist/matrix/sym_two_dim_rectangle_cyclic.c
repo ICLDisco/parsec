@@ -90,9 +90,10 @@ static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
     return res;
 }
 
+
 static dague_data_t* sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
 {
-    int nb_elem, nb_elem_col, column, m, n;
+    int m, n;
     sym_two_dim_block_cyclic_t * Ddesc;
     size_t pos;
     va_list ap;
@@ -116,39 +117,7 @@ static dague_data_t* sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
     assert( (Ddesc->uplo == MatrixLower && m>=n) ||
             (Ddesc->uplo == MatrixUpper && n>=m) );
 
-    pos = 0; /* current position (as number of tile) in the buffer */
-    column = Ddesc->grid.crank; /* tile column considered */
-
-    /**********************************/
-    if(Ddesc->uplo == MatrixLower ) {
-        nb_elem_col = (Ddesc->super.lmt) / (Ddesc->grid.rows); //nb of tile associated to that proc in a full column
-        if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
-            nb_elem_col++;
-
-        while(column != n) {
-            /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
-            nb_elem = column / (Ddesc->grid.rows);
-            if ( (column % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
-                nb_elem++;
-
-            pos += (nb_elem_col - nb_elem);
-            column += Ddesc->grid.cols;
-        }
-
-        pos += ((m - n) / (Ddesc->grid.rows));
-    } else {
-        while(column != n) {
-            /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
-            nb_elem = (column + 1) / (Ddesc->grid.rows);
-            if ( ( (column + 1) % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
-                nb_elem++;
-
-            pos += nb_elem;
-            column += Ddesc->grid.cols;
-        }
-
-        pos += (m / (Ddesc->grid.rows));
-    }
+    pos = sym_twoDBC_coordinates_to_position(Ddesc, m, n);
 
     return dague_matrix_create_data( &Ddesc->super,
                                      (char*)Ddesc->mat + pos * Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype),

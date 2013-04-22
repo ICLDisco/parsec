@@ -108,6 +108,9 @@
 #define DAGUE_INDENT_OPTIONS "@INDENT_OPTIONS@"
 #define DAGUE_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 
+#cmakedefine HAVE_AWK
+#define DAGUE_AWK_PREFIX "@AWK_EXECUTABLE@"
+
 #if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
 #endif  /* !defined(_GNU_SOURCE) */

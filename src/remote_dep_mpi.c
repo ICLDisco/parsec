@@ -402,7 +402,8 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
         exec_context.data[whereto].data_repo = NULL;
         exec_context.data[whereto].data_out  = NULL;
         if(origin->msg.deps & (1 << i)) {
-            DEBUG3(("MPI:\tDATA %p released from %p[%d]\n", DAGUE_DATA_COPY_GET_PTR(origin->output[i].data), origin, i));
+            DEBUG3(("MPI:\tDATA %p released from %p[%d]\n",
+                    origin->output[i].data != (void*)2 ? DAGUE_DATA_COPY_GET_PTR(origin->output[i].data) : NULL, origin, i));
             exec_context.data[whereto].data_out = origin->output[i].data;
 #if defined(DAGUE_DEBUG_ENABLE) && defined(DAGUE_DEBUG_VERBOSE3)
             if(origin->output[i].type) { /* no prints for CTL! */
@@ -1070,6 +1071,7 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
     char tmp[MAX_TASK_STRLEN];
 #endif
     int tag = (int)deps->msg.tag;
+    dague_data_t* data;
     remote_dep_datakey_t datakey = deps->msg.deps;
     deps->msg.deps = (remote_dep_datakey_t)deps;
     remote_dep_datakey_t short_which = remote_dep_mpi_short_which(&deps->msg);
@@ -1091,8 +1093,8 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
         if((DEP_EAGER_BUFFER_SIZE - unpacked) > (size_t)dsize) {
             assert(NULL == deps->output[k].data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data) {
-                deps->output[k].data = dague_data_copy_new(NULL, 0);
-                deps->output[k].data->device_private = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
+                data = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
+                deps->output[k].data = data->device_copies[0];
 
                 DEBUG3(("MPI:\tMalloc new remote tile %p size %zu nbelt = %d\n",
                         deps->output[k].data, deps->output[k].type->elem_size, deps->output[k].nbelt));
@@ -1110,8 +1112,8 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
         if( short_which & (1<<k) ) {
             assert(NULL == deps->output[k].data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data) {
-                deps->output[k].data = dague_data_copy_new(NULL, 0);
-                deps->output[k].data->device_private = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
+                data = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
+                deps->output[k].data = data->device_copies[0];
 
                 DEBUG3(("MPI:\tMalloc new remote tile %p size %zu nbelt = %d\n",
                         deps->output[k].data, deps->output[k].type->elem_size, deps->output[k].nbelt));
@@ -1141,7 +1143,9 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
         for(int k = 0; deps->msg.deps>>k; k++)
             if((1<<k) & deps->msg.deps)
                 DEBUG2(("MPI:\tHERE\t%d\tGet PREEND\t% -8s\ti=NA,k=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)\n",
-                       deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, datakey, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data), tag+k ));
+                       deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, datakey,
+                        deps->output[k].data != (void*)2 ? DAGUE_DATA_COPY_GET_PTR(deps->output[k].data) : NULL,
+                        tag+k ));
 #endif
         remote_dep_release(eu_context, deps);
     }
@@ -1238,7 +1242,8 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
     remote_dep_wire_get_t msg;
     remote_dep_wire_activate_t* task = &(deps->msg);
     int from = deps->from;
-    void* data;
+    dague_data_copy_t* data_copy;
+    dague_data_t *data;
 
     (void)eu_context;
     DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, (void*)task, task);
@@ -1251,13 +1256,15 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
         if( !((1<<k) & msg.which) ) continue;
         dtt = deps->output[k].type->opaque_dtt;
         nbdtt = deps->output[k].nbelt;
-        data = deps->output[k].data;
-        assert(NULL == data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
-        if(NULL == data) {
+        data_copy = deps->output[k].data;
+        assert(NULL == data_copy); /* we do not support in-place tiles now, make sure it doesn't happen yet */
+        if(NULL == data_copy) {
             data = dague_arena_get(deps->output[k].type, deps->output[k].nbelt);
-            DEBUG3(("MPI:\tMalloc new remote tile %p size %zu\n", data, deps->output[k].type->elem_size*deps->output[k].nbelt));
+            DEBUG3(("MPI:\tMalloc new remote tile %p size %zu in %p[%d]\n", data, deps->output[k].type->elem_size*deps->output[k].nbelt,
+                    deps, k));
             assert(data != NULL);
-            deps->output[k].data = data;
+            data_copy = data->device_copies[0];
+            deps->output[k].data = data_copy;
         }
 #ifdef DAGUE_PROF_DRY_DEP
         (void)dtt;
@@ -1268,12 +1275,16 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
 #else
 #  ifdef DAGUE_DEBUG_VERBOSE2
         MPI_Type_get_name(dtt, type_name, &len);
-        DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s nbelt %d extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), i, k, task->deps, data, type_name, nbdtt, deps->output[k].type->elem_size * nbdtt, msg.tag+k));
+        DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s nbelt %d extent %d using %p[%d]\t(tag=%d)\n", 
+                from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), i, k, 
+                task->deps, data_copy, type_name, nbdtt,
+                deps, k,
+                deps->output[k].type->elem_size * nbdtt, msg.tag+k));
 #  endif
         TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from,
                             eu_context->virtual_process->dague_context->my_rank, deps->msg);
-        DEBUG_MARK_DTA_MSG_START_RECV(from, data, msg.tag+k);
-        MPI_Irecv(data, nbdtt,
+        DEBUG_MARK_DTA_MSG_START_RECV(from, data_copy, msg.tag+k);
+        MPI_Irecv(data_copy->device_private, nbdtt,
                   dtt, from, msg.tag+k, dep_comm,
                   &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
 #endif

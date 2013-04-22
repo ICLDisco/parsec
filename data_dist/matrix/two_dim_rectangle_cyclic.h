@@ -85,6 +85,8 @@ void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
                                            two_dim_block_cyclic_t* origin,
                                            int rst, int cst );
 
+void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *Ddesc, int position, int *m, int *n);
+int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *Ddesc, int m, int n);
 
 #ifdef HAVE_MPI
 

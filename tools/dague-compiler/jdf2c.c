@@ -655,6 +655,7 @@ static char *dump_globals_init(void **elem, void *arg)
 {
     jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
     string_arena_t *sa = (string_arena_t*)arg;
+    jdf_expr_t *hidden = jdf_find_property( global->properties, "hidden", NULL );
     jdf_expr_t *prop = jdf_find_property( global->properties, "default", NULL );
 
     string_arena_init(sa);
@@ -663,13 +664,18 @@ static char *dump_globals_init(void **elem, void *arg)
 
     /* No default value ? */
     if( NULL == prop ) {
-        prop = jdf_find_property( global->properties, "hidden", NULL );
-        /* Hidden variable or not ? */
-        if( NULL == prop )
+        if( NULL == hidden ) /* Hidden variable or not ? */
             string_arena_add_string(sa, "__dague_handle->super.%s = %s;", global->name, global->name);
     } else {
-        /* Has been initialized by dump_hidden_globals_init */
-        string_arena_add_string(sa, "__dague_handle->super.%s = %s;", global->name, global->name);
+        expr_info_t info;
+        info.sa = string_arena_new(8);
+        info.prefix = "";
+        info.assignments = "assignments";
+
+        string_arena_add_string(sa, "__dague_handle->super.%s = %s = %s;",
+                                global->name, global->name,
+                                dump_expr((void**)prop, &info));
+        string_arena_free(info.sa);
     }
 
     return string_arena_get_string(sa);
@@ -753,7 +759,7 @@ static char *dump_hidden_globals_init(void **elem, void *arg)
     string_arena_t *sa = (string_arena_t*)arg;
     jdf_expr_t *hidden   = jdf_find_property( global->properties, "hidden", NULL );
     jdf_expr_t* type_str = jdf_find_property( global->properties, "type",   NULL );
-    expr_info_t info1, info2;
+    expr_info_t info;
 
     string_arena_init(sa);
 
@@ -767,20 +773,14 @@ static char *dump_hidden_globals_init(void **elem, void *arg)
         /* No default value ? */
         if( NULL == prop ) return NULL;
 
-        info1.sa = string_arena_new(8);
-        info1.prefix = "";
-        info1.assignments = "assignments";
+        info.sa = string_arena_new(8);
+        info.prefix = "";
+        info.assignments = "assignments";
 
-        info2.sa = string_arena_new(8);
-        info2.prefix = "";
-        info2.assignments = "assignments";
-
-        string_arena_add_string(sa, "%s %s = %s;",
-                                (NULL == type_str ? "int" : dump_expr((void**)type_str, &info1)),
-                                global->name,
-                                dump_expr((void**)prop, &info2));
-        string_arena_free(info1.sa);
-        string_arena_free(info2.sa);
+        string_arena_add_string(sa, "%s %s;",
+                                (NULL == type_str ? "int" : dump_expr((void**)type_str, &info)),
+                                global->name);
+        string_arena_free(info.sa);
 
         return string_arena_get_string(sa);
     }
@@ -3936,7 +3936,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     info.sa = sa2;
     info.prefix = "";
-    info.assignments = "assignments";
+    info.assignments = "nc.locals";
 
     sa_close = string_arena_new(64);
 
@@ -4487,10 +4487,34 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     {
         char* command;
 
+#if !defined(HAVE_AWK)
         asprintf(&command, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c );
         system(command);
         asprintf(&command, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h );
         system(command);
+#else
+        asprintf(&command, 
+                 "%s %s %s -st | "
+                 "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
+                 "> %s.indent.awk", 
+                 DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c,
+                 DAGUE_AWK_PREFIX, output_c, output_c,
+                 output_c);
+        system(command);
+        asprintf(&command, "%s.indent.awk", output_c);
+        rename(command, output_c);
+
+        asprintf(&command, 
+                 "%s %s %s -st | "
+                 "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
+                 "> %s.indent.awk", 
+                 DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h,
+                 DAGUE_AWK_PREFIX, output_h, output_h,
+                 output_h);
+        system(command);
+        asprintf(&command, "%s.indent.awk", output_h);
+        rename(command, output_h);
+#endif
     }
 #endif  /* defined(HAVE_INDENT) */
 

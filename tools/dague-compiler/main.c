@@ -18,7 +18,12 @@ static jdf_compiler_global_args_t DEFAULTS = {
     .output_c = "a.c",
     .output_h = "a.h",
     .funcid = "a",
-    .wmask = JDF_ALL_WARNINGS
+    .wmask = JDF_ALL_WARNINGS,
+#if defined(HAVE_INDENT) && !defined(HAVE_AWK)
+    .noline = 1 /*< By default, don't print the #line per default if can't fix the line numbers with awk */
+#else
+    .noline = 0 /*< Otherwise, go for it (without INDENT or with INDENT but without AWK, lines will be ok) */
+#endif
 };
 jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { NULL, NULL, NULL, NULL, 0x0, 0 };
 
@@ -38,6 +43,8 @@ static void usage(void)
             "                     The generated function will be called DAGuE_<ID>_new\n"
             "                     (default %s)\n"
             "  --noline           Do not dump the JDF line number in the .c output file\n"
+            "  --line             Force dumping the JDF line number in the .c output file\n"
+            "                     Default: %s\n"
             "\n"
             " Warning Options: Default is to print ALL warnings. You can disable the following:\n"
             "  --Werror           Exit with non zero value if at least one warning is encountered\n"
@@ -49,7 +56,8 @@ static void usage(void)
             DEFAULTS.input,
             DEFAULTS.output_c,
             DEFAULTS.output_h,
-            DEFAULTS.funcid);
+            DEFAULTS.funcid,
+            DEFAULTS.noline?"--noline":"--line");
 }
 
 static void parse_args(int argc, char *argv[])
@@ -58,7 +66,7 @@ static void parse_args(int argc, char *argv[])
     int wmasked = 0;
     int wmutexinput = 0;
     int wremoteref = 0;
-    int print_jdf_line = 0;
+    int print_jdf_line;
     int werror = 0;
     char *c = NULL;
     char *h = NULL;
@@ -76,12 +84,15 @@ static void parse_args(int argc, char *argv[])
         { "Wmutexin",      no_argument,     &wmutexinput,   1  },
         { "Wremoteref",    no_argument,      &wremoteref,   1  },
         { "Werror",        no_argument,          &werror,   1  },
-        { "noline",        no_argument,  &print_jdf_line,   1  },
+        { "noline",        no_argument,  &print_jdf_line,   0  },
+        { "line",          no_argument,  &print_jdf_line,   1  },
         { "help",          no_argument,             NULL,  'h' },
         { NULL,            0,                       NULL,   0  }
     };
 
     JDF_COMPILER_GLOBAL_ARGS.wmask = JDF_ALL_WARNINGS;
+
+    print_jdf_line = !DEFAULTS.noline;
 
     while( (ch = getopt_long(argc, argv, "d:i:C:H:o:f:h", longopts, NULL)) != -1) {
         switch(ch) {
@@ -123,9 +134,6 @@ static void parse_args(int argc, char *argv[])
             if( wremoteref ) {
                 JDF_COMPILER_GLOBAL_ARGS.wmask &= ~JDF_WARN_REMOTE_MEM_REFERENCE;
             }
-            if( print_jdf_line ) {
-                JDF_COMPILER_GLOBAL_ARGS.noline = 1;
-            }
             if( werror ) {
                 JDF_COMPILER_GLOBAL_ARGS.wmask |= JDF_WARNINGS_ARE_ERROR;
             }
@@ -136,6 +144,8 @@ static void parse_args(int argc, char *argv[])
             exit( (ch != 'h') );
         }
     }
+
+    JDF_COMPILER_GLOBAL_ARGS.noline = !print_jdf_line;
 
     if( NULL == JDF_COMPILER_GLOBAL_ARGS.input ) {
         JDF_COMPILER_GLOBAL_ARGS.input = DEFAULTS.input;

@@ -78,15 +78,18 @@ static char *unique_color(int index, int colorspace)
     return strdup(color);
 }
 
-void dague_prof_grapher_init(const char *base_filename, int rank, int size, int nb)
+void dague_prof_grapher_init(const char *base_filename, int nbthreads)
 {
     char *filename;
-    int t;
+    int t, size = 1, rank = 0;
 
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
     char *format;
-    int l10 = 0;
-    int cs=size;
+    int l10 = 0, cs;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(MPI_COMM_WORLD, &size);
+    cs = size;
     while(cs > 0) {
       l10++;
       cs = cs/10;
@@ -109,7 +112,7 @@ void dague_prof_grapher_init(const char *base_filename, int rank, int size, int 
     fprintf(grapher_file, "digraph G {\n");
     fflush(grapher_file);
 
-    nbfuncs = nb;
+    nbfuncs = nbthreads;
     colors = (char**)malloc(nbfuncs * sizeof(char*));
     for(t = 0; t < nbfuncs; t++)
         colors[t] = unique_color(rank * nbfuncs + t, size * nbfuncs);

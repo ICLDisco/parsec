@@ -19,7 +19,6 @@
 #include "dague_internal.h"
 #include "debug.h"
 #include "dague/mca/sched/sched.h"
-#include "dague/mca/sched/sched_utils.h"
 #include "dague/mca/sched/gd/sched_gd.h"
 #include "dequeue.h"
 #include "dague/mca/pins/pins.h"
@@ -50,25 +49,20 @@ static int sched_gd_install( dague_context_t *master )
     dague_vp_t *vp;
     dague_dequeue_t *q;
 
-	SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores; // defined for instrumentation
+    SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores; // defined for instrumentation
 
-    if( no_scheduler_is_active( master ) ) {
+    for(p = 0; p < master->nb_vp; p++) {
+        q = malloc(sizeof(dague_dequeue_t));
+        OBJ_CONSTRUCT( q, dague_dequeue_t );
 
-        for(p = 0; p < master->nb_vp; p++) {
-            q = malloc(sizeof(dague_dequeue_t));
-            OBJ_CONSTRUCT( q, dague_dequeue_t );
-
-            vp = master->virtual_processes[p];
-            for(t = 0; t < vp->nb_cores; t++) {
-                vp->execution_units[t]->scheduler_object = (void*)q;
-            }
-
+        vp = master->virtual_processes[p];
+        for(t = 0; t < vp->nb_cores; t++) {
+            vp->execution_units[t]->scheduler_object = (void*)q;
         }
 
-        return 0;
-    } else {
-        return -1;
     }
+
+    return 0;
 }
 
 static dague_execution_context_t *sched_gd_select( dague_execution_unit_t *eu_context )

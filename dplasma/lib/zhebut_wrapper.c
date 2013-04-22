@@ -9,6 +9,8 @@
 #include "dague_internal.h"
 #include <plasma.h>
 #include "data_dist/matrix/matrix.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
@@ -32,12 +34,18 @@
 #define DESTRUCT         0x1
 
 
+/*
+ ***************************************************
+ * RBT rank_of and data_of 
+ ***************************************************
+ */
 static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
     int m_seg, n_seg, m_tile, n_tile;
     uintptr_t offset;
     va_list ap;
     dague_seg_ddesc_t *segA;
     dague_ddesc_t *A;
+    tiled_matrix_desc_t *orgA_super;
 
     va_start(ap, desc);
     m_seg = va_arg(ap, int);
@@ -45,40 +53,34 @@ static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
     va_end(ap);
 
     segA = (dague_seg_ddesc_t *)desc;
-    A = (dague_ddesc_t *)(segA->A_org);
+    A = (dague_ddesc_t *)(segA->A_org.sym_two_DBC); 
 
-    segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
+    orgA_super = &(segA->A_org.sym_two_DBC->super);
 
-    /* TODO: if not distributed, return 0 */
+    segment_to_tile(segA, orgA_super, m_seg, n_seg, &m_tile, &n_tile, &offset);
 
+#if defined(DISTRIBUTED)
     return A->rank_of(A, m_tile, n_tile);
+#else
+    return 0;
+#endif
 }
 
 
 /*
- * Segments can be handled in two ways:
- * Case 1: The MPI datatype starts from the beginning of the tile (of the original ddesc) and
- *         uses an offset to get to the beginning of the data of the segment (and a stride).
- * Case 2: The MPI datatype starts from the beginning of the data of the segment (and uses a
- *         stride so it has mb as lda).
- *
- * In case 1, dague_rbt_data_of() should return a pointer to the beginning of the original tile,
- * i.e., it should return the same thing as data_of() of the original ddesc for the tile that
- * the given segment falls in.
- * In case 2, dague_rbt_data_of() should return a pointer to the beginning of the segment,
- * i.e. add the offset to the return value of data_of() of the original ddesc.
- * The choice between case 1 and case 2 is made in dplasma_datatype_define_subarray(), so
- * these two functions must always correspond.
- *
- * Currently we are using Case 2.
+ * The following code assumes that:
+ * + data_dist/matrix/sym_two_dim_rectange_cyclic.h:sym_twoDBC_coordinates_to_position() is up to date
  */
-static void *dague_rbt_data_of(dague_ddesc_t *desc, ...)
+static dague_data_t *dague_rbt_data_of(dague_ddesc_t *desc, ...)
 {
-    int m_seg, n_seg, m_tile, n_tile;
-    uintptr_t offset, data_start;
+    int m_seg, n_seg, m_tile, n_tile, position;
+    uintptr_t offset, seg_start;
     va_list ap;
     dague_seg_ddesc_t *segA;
     dague_ddesc_t *A;
+    sym_two_dim_block_cyclic_t *segA_super;
+    tiled_matrix_desc_t *orgA_super;
+    
 
     va_start(ap, desc);
     m_seg = va_arg(ap, int);
@@ -86,25 +88,111 @@ static void *dague_rbt_data_of(dague_ddesc_t *desc, ...)
     va_end(ap);
 
     segA = (dague_seg_ddesc_t *)desc;
-    A = (dague_ddesc_t *)(segA->A_org);
+    A = (dague_ddesc_t *)(segA->A_org.sym_two_DBC);
 
-    segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
+    segA_super = &(segA->super.sym_two_DBC);
+    orgA_super = &(segA->A_org.sym_two_DBC->super);
 
-    data_start = offset*sizeof(dague_complex64_t) + (uintptr_t)A->data_of(A, m_tile, n_tile);
+    segment_to_tile(segA, orgA_super, m_seg, n_seg, &m_tile, &n_tile, &offset);
+
+    dague_data_t *data = A->data_of(A, m_tile, n_tile);
+
+    seg_start = offset*sizeof(dague_complex64_t) + (uintptr_t)(DAGUE_DATA_COPY_GET_PTR(data->device_copies[0]));
 
     /*
-    fprintf(stderr, "Dataof (%d, %d) -> (%d, %d): %p + %llu * %u = %p\n",
-            m_seg, n_seg, m_tile, n_tile,
-            A->data_of(A, m_tile, n_tile), offset, sizeof(dague_complex64_t), data_start);
-    */
+     * Map the segment and tile into a position in the data_map[] array.
+     * DO NOT CHANGE this mapping without also changing the allocation of the data_map[] array in the _New() function.
+     */
+    int tile_position = sym_twoDBC_coordinates_to_position(segA_super, m_tile, n_tile);
+    int seg_off = m_seg%3 + (n_seg%3)*3; /* 3x3 is the maximum decomposition of a tile into segments */
+    position = 9*tile_position + seg_off;
 
-    return (void *)data_start;
+    int key = (n_tile*(orgA_super->mb)+m_tile)*9 + seg_off;
+    dague_data_t *rslt = dague_matrix_create_data(&(segA_super->super), (void *)seg_start, position, key);
+    return rslt;
 }
+
+/* 
+ ***************************************************
+ * BMM rank_of() and data_of()
+ ***************************************************
+ */
+static uint32_t dague_bmm_rank_of(dague_ddesc_t *desc, ...){
+    int m_seg, n_seg, m_tile, n_tile;
+    uintptr_t offset;
+    va_list ap;
+    dague_seg_ddesc_t *segA;
+    dague_ddesc_t *A;
+    tiled_matrix_desc_t *orgA_super;
+
+    va_start(ap, desc);
+    m_seg = va_arg(ap, int);
+    n_seg = va_arg(ap, int);
+    va_end(ap);
+
+    segA = (dague_seg_ddesc_t *)desc;
+    A = (dague_ddesc_t *)(segA->A_org.two_DBC); 
+
+    orgA_super = &(segA->A_org.two_DBC->super);
+
+    segment_to_tile(segA, orgA_super, m_seg, n_seg, &m_tile, &n_tile, &offset);
+
+#if defined(DISTRIBUTED)
+    return A->rank_of(A, m_tile, n_tile);
+#else
+    return 0;
+#endif
+}
+
+/*
+ * The following code assumes that:
+ * + data_dist/matrix/two_dim_rectange_cyclic.h:twoDBC_coordinates_to_position() is up to date
+ */
+static dague_data_t *dague_bmm_data_of(dague_ddesc_t *desc, ...)
+{
+    int m_seg, n_seg, m_tile, n_tile, position;
+    uintptr_t offset, seg_start;
+    va_list ap;
+    dague_seg_ddesc_t *segA;
+    dague_ddesc_t *A;
+    two_dim_block_cyclic_t *segA_super;
+    tiled_matrix_desc_t *orgA_super;
+
+    va_start(ap, desc);
+    m_seg = va_arg(ap, int);
+    n_seg = va_arg(ap, int);
+    va_end(ap);
+
+    segA = (dague_seg_ddesc_t *)desc;
+    A = (dague_ddesc_t *)(segA->A_org.two_DBC);
+
+    segA_super = &(segA->super.two_DBC);
+    orgA_super = &(segA->A_org.two_DBC->super);
+
+    segment_to_tile(segA, orgA_super, m_seg, n_seg, &m_tile, &n_tile, &offset);
+
+    dague_data_t *data = A->data_of(A, m_tile, n_tile);
+
+    seg_start = offset*sizeof(dague_complex64_t) + (uintptr_t)(DAGUE_DATA_COPY_GET_PTR(data->device_copies[0]));
+
+    /*
+     * Map the segment and tile into a position in the data_map[] array.
+     * DO NOT CHANGE this mapping without also changing the allocation of the data_map[] array in the _New() function.
+     */
+    int tile_position = twoDBC_coordinates_to_position(segA_super, m_tile, n_tile);
+    int seg_off = m_seg%3 + (n_seg%3)*3; /* 3x3 is the maximum decomposition of a tile into segments */
+    position = 9*tile_position + seg_off;
+
+    int key = (n_tile*(orgA_super->mb)+m_tile)*9 + seg_off;
+    dague_data_t *rslt = dague_matrix_create_data(&(segA_super->super), (void *)seg_start, position, key);
+    return rslt;
+}
+
 
 #if defined(HAVE_MPI)
 /*
- * Don't change this function without updating dague_rbt_data_of().
- * Look at the comments at dague_rbt_data_of() for details.
+ * Don't change this function (or rather how the data is packed) without updating
+ * the offset calculation in segment_to_tile() that is called in dague_rbt_data_of().
  */
 static int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype,
                                              unsigned int tile_mb,
@@ -133,42 +221,54 @@ static int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype
 #endif
 
 
-/* HE for Hermitian */
-
 /*
  * dplasma_zhebut_New()
+ * The input matrix A needs to be sym_two_dim_block_cyclic_t because of the way we map elements of
+ * the A->data_map[] to (m,n) coordinates in the matrix.
  */
 dague_handle_t*
-dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int *info)
+dplasma_zhebut_New( sym_two_dim_block_cyclic_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int *info)
 {
     dague_handle_t *dague_zhebut = NULL;
     dague_seg_ddesc_t *seg_descA;
     dague_memory_pool_t* pool_0;
     PLASMA_Complex64_t *U_before, *U_after;
-    int i, mt, nt, N;
+    tiled_matrix_desc_t *tiled_A = &(A->super);
+    int i, mt, nt, N, lcl_nt, lcl_seg_cnt;
 
     (void)info;
 
     seg_descA = (dague_seg_ddesc_t *)calloc(1, sizeof(dague_seg_ddesc_t));
 
-    /* copy the tiled_matrix_desc_t part of A into seg_descA */
-    memcpy(seg_descA, A, sizeof(tiled_matrix_desc_t));
+    memcpy(seg_descA, A, sizeof(sym_two_dim_block_cyclic_t));
     /* overwrite the rank_of() and data_of() */
     ((dague_ddesc_t *)seg_descA)->rank_of = dague_rbt_rank_of;
     ((dague_ddesc_t *)seg_descA)->data_of = dague_rbt_data_of;
     /* store a pointer to A itself */
-    seg_descA->A_org = A;
+    seg_descA->A_org.sym_two_DBC = A;
     /* store the level */
     seg_descA->level = level;
     /* store the segment info */
-    seg_descA->seg_info = dague_rbt_calculate_constants(A, level, i_block, j_block);
+    seg_descA->seg_info = dague_rbt_calculate_constants(tiled_A, level, i_block, j_block);
 
-    N  = A->lm;
+    /*
+     * Here we could iterate over all dague_data_t entries of A->data_map[] (that correspond to the local tiles)
+     * and create corresponding dague_data_t entries in seg_descA->data_map[] for the local segments
+     * (and there will probably be multiple segments per tile). However, we will do this in a per case
+     * basis inside the data_of() function.
+     */
+    lcl_nt = tiled_A->nb_local_tiles;
+    lcl_seg_cnt = 9*lcl_nt;
+
+    ((tiled_matrix_desc_t *)seg_descA)->nb_local_tiles = lcl_seg_cnt;
+    ((tiled_matrix_desc_t *)seg_descA)->data_map = (dague_data_t**)calloc(lcl_seg_cnt, sizeof(dague_data_t*));
+
+    N  = tiled_A->lm;
     mt = seg_descA->seg_info.tot_seg_cnt_m;
     nt = seg_descA->seg_info.tot_seg_cnt_n;
 
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(dague_complex64_t) );
+    dague_private_memory_init( pool_0, tiled_A->mb * tiled_A->nb * sizeof(dague_complex64_t) );
 
     U_before = &U_but_vec[level*N];
     U_after  = &U_but_vec[level*N];
@@ -188,7 +288,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
         if( type_exists ){
             arena = ((dague_zhebut_handle_t*)dague_zhebut)->arenas[i];
-            dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
+            dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, tiled_A->mb, tiled_A->nb,
                                               m_sz, n_sz, &newtype );
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
@@ -227,31 +327,39 @@ dplasma_zhebut_Destruct( dague_handle_t *o )
  * dplasma_zgebut_New()
  */
 dague_handle_t*
-dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int *info)
+dplasma_zgebut_New( sym_two_dim_block_cyclic_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int *info)
 {
     dague_handle_t *dague_zgebut = NULL;
     dague_seg_ddesc_t *seg_descA;
     dague_memory_pool_t *pool_0;
-    int i, mt, nt, N;
+    int i, mt, nt, N, lcl_nt, lcl_seg_cnt;
+    tiled_matrix_desc_t *tiled_A = &(A->super);
     PLASMA_Complex64_t *U_before, *U_after;
 
     (void)info;
 
     seg_descA = (dague_seg_ddesc_t *)calloc(1, sizeof(dague_seg_ddesc_t));
 
-    /* copy the tiled_matrix_desc_t part of A into seg_descA */
-    memcpy(seg_descA, A, sizeof(tiled_matrix_desc_t));
+    memcpy(seg_descA, A, sizeof(sym_two_dim_block_cyclic_t));
     /* overwrite the rank_of() and data_of() */
     ((dague_ddesc_t *)seg_descA)->rank_of = dague_rbt_rank_of;
     ((dague_ddesc_t *)seg_descA)->data_of = dague_rbt_data_of;
     /* store a pointer to A itself */
-    seg_descA->A_org = A;
+    seg_descA->A_org.sym_two_DBC = A;
     /* store the level */
     seg_descA->level = level;
     /* store the segment info */
-    seg_descA->seg_info = dague_rbt_calculate_constants(A, level, i_block, j_block);
+    seg_descA->seg_info = dague_rbt_calculate_constants(tiled_A, level, i_block, j_block);
 
-    N  = A->lm;
+    /* nb_local_tiles is in tiled_matrix_desc_t which is the super of sym_two_dim_block_cyclic_t */
+    lcl_nt = tiled_A->nb_local_tiles;
+    lcl_seg_cnt = 9*lcl_nt;
+
+    ((tiled_matrix_desc_t *)seg_descA)->nb_local_tiles = lcl_seg_cnt;
+    ((tiled_matrix_desc_t *)seg_descA)->data_map = (dague_data_t**)calloc(lcl_seg_cnt, sizeof(dague_data_t*));
+
+
+    N  = tiled_A->lm;
     mt = seg_descA->seg_info.tot_seg_cnt_m;
     nt = seg_descA->seg_info.tot_seg_cnt_n;
 
@@ -259,7 +367,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     U_after  = &U_but_vec[level*N];
 
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(dague_complex64_t) );
+    dague_private_memory_init( pool_0, tiled_A->mb * tiled_A->nb * sizeof(dague_complex64_t) );
 
     dague_zgebut = (dague_handle_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_before, U_after, nt, mt, pool_0);
 
@@ -275,7 +383,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
         if( type_exists ){
             arena = ((dague_zgebut_handle_t*)dague_zgebut)->arenas[i];
-            dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
+            dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, tiled_A->mb, tiled_A->nb,
                                               m_sz, n_sz, &newtype );
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
@@ -310,41 +418,43 @@ dplasma_zgebut_Destruct( dague_handle_t *o )
  * dplasma_zgebmm_New()
  */
 dague_handle_t*
-dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int trans, int *info)
+dplasma_zgebmm_New( two_dim_block_cyclic_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int trans, int *info)
 {
     dague_handle_t *dague_zgebmm = NULL;
     dague_seg_ddesc_t *seg_descA;
     dague_memory_pool_t *pool_0;
-    int i, mt, nt, N;
+    tiled_matrix_desc_t *tiled_A = &(A->super);
+    int i, mt, nt, N, lcl_nt, lcl_seg_cnt;
 
     (void)info;
 
     seg_descA = (dague_seg_ddesc_t *)calloc(1, sizeof(dague_seg_ddesc_t));
 
-    /* copy the tiled_matrix_desc_t part of A into seg_descA */
-    memcpy(seg_descA, A, sizeof(tiled_matrix_desc_t));
+    memcpy(seg_descA, A, sizeof(two_dim_block_cyclic_t));
     /* overwrite the rank_of() and data_of() */
-    ((dague_ddesc_t *)seg_descA)->rank_of = dague_rbt_rank_of;
-    ((dague_ddesc_t *)seg_descA)->data_of = dague_rbt_data_of;
+    ((dague_ddesc_t *)seg_descA)->rank_of = dague_bmm_rank_of;
+    ((dague_ddesc_t *)seg_descA)->data_of = dague_bmm_data_of;
     /* store a pointer to A itself */
-    seg_descA->A_org = A;
+    seg_descA->A_org.two_DBC = A;
     /* store the level */
     seg_descA->level = level;
     /* store the segment info */
-    seg_descA->seg_info = dague_rbt_calculate_constants(A, level, i_block, j_block);
+    seg_descA->seg_info = dague_rbt_calculate_constants(tiled_A, level, i_block, j_block);
 
-    /*
-    printf("Apllying zgebmm() in block %d,%d\n",i_block, j_block);
-    */
+    lcl_nt = tiled_A->nb_local_tiles;
+    lcl_seg_cnt = 9*lcl_nt;
 
-    N  = A->lm;
+    ((tiled_matrix_desc_t *)seg_descA)->nb_local_tiles = lcl_seg_cnt;
+    ((tiled_matrix_desc_t *)seg_descA)->data_map = (dague_data_t**)calloc(lcl_seg_cnt, sizeof(dague_data_t*));
+
+    N  = tiled_A->lm;
     U_but_vec = &U_but_vec[level*N];
 
     mt = seg_descA->seg_info.tot_seg_cnt_m;
     nt = seg_descA->seg_info.tot_seg_cnt_n;
 
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(dague_complex64_t) );
+    dague_private_memory_init( pool_0, tiled_A->mb * tiled_A->nb * sizeof(dague_complex64_t) );
 
     dague_zgebmm = (dague_handle_t *)dague_zgebmm_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_but_vec, nt, mt, trans, pool_0);
 
@@ -360,7 +470,7 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
         if( type_exists ){
             arena = ((dague_zgebmm_handle_t*)dague_zgebmm)->arenas[i];
-            dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
+            dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, tiled_A->mb, tiled_A->nb,
                                               m_sz, n_sz, &newtype );
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
@@ -397,7 +507,7 @@ dplasma_zgebmm_Destruct( dague_handle_t *o )
  * Blocking Interface
  */
 
-static dague_handle_t **iterate_ops(tiled_matrix_desc_t *A, int tmp_level,
+static dague_handle_t **iterate_ops(sym_two_dim_block_cyclic_t *A, int tmp_level,
                                     int target_level, int i_block, int j_block,
                                     dague_handle_t **subop,
                                     dague_context_t *dague,
@@ -449,7 +559,7 @@ static void RBT_zrandom(int N, PLASMA_Complex64_t *V)
 }
 
 
-int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Complex64_t **U_but_ptr, int levels)
+int dplasma_zhebut(dague_context_t *dague, sym_two_dim_block_cyclic_t *A, PLASMA_Complex64_t **U_but_ptr, int levels)
 {
     dague_handle_t **subop;
     PLASMA_Complex64_t *U_but_vec, beta;
@@ -457,7 +567,8 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Comple
     int info = 0;
     int nbhe = 1<<levels;
     int nbge = (1<<(levels-1))*((1<<levels)-1);
-    int final_nt = A->nt/(2*nbhe);
+    tiled_matrix_desc_t *tiled_A = &(A->super);
+    int final_nt = tiled_A->nt/(2*nbhe);
 #if defined(DEBUG_BUTTERFLY)
     int i;
 #endif
@@ -465,12 +576,12 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Comple
         fprintf(stderr,"Too many butterflies. Death by starvation.\n");
         return -1;
     }
-    if( A->ln%nbhe != 0 ){
-        fprintf(stderr,"Please use a matrix size that is divisible by %d\n - Current Matrix size=%d\n - Number of Hermitian Blocks for this level of RBT=%d\n", 2*nbhe, A->ln, nbhe);
+    if( tiled_A->ln%nbhe != 0 ){
+        fprintf(stderr,"Please use a matrix size that is divisible by %d\n - Current Matrix size=%d\n - Number of Hermitian Blocks for this level of RBT=%d\n", 2*nbhe, tiled_A->ln, nbhe);
         return -1;
     }
 
-    N = A->lm;
+    N = tiled_A->lm;
 
     subop = (dague_handle_t **)malloc((nbhe+nbge) * sizeof(dague_handle_t*));
     U_but_vec = (PLASMA_Complex64_t *)malloc( (levels+1)*N*sizeof(PLASMA_Complex64_t) );
@@ -489,13 +600,13 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Comple
     for(cur_level = levels; cur_level >=0; cur_level--){
         nbhe = 1<<cur_level;
         nbge = (1<<(cur_level-1))*((1<<cur_level)-1);
-        final_nt = A->nt/(2*nbhe);
+        final_nt = tiled_A->nt/(2*nbhe);
         if( final_nt == 0 ){
             fprintf(stderr,"Too many butterflies. Death by starvation.\n");
             return -1;
         }
-        if( A->ln%nbhe != 0 ){
-            fprintf(stderr,"Please use a matrix size that is divisible by %d\n - Current Matrix size=%d\n - Number of Hermitian Blocks for this level of RBT=%d\n", 2*nbhe, A->ln, nbhe);
+        if( tiled_A->ln%nbhe != 0 ){
+            fprintf(stderr,"Please use a matrix size that is divisible by %d\n - Current Matrix size=%d\n - Number of Hermitian Blocks for this level of RBT=%d\n", 2*nbhe, tiled_A->ln, nbhe);
             return -1;
         }
 

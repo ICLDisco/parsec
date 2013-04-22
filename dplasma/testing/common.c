@@ -65,11 +65,8 @@ const char *diagstr[2]  = { "NonUnit", "Unit   " };
 const char *transstr[3] = { "N", "T", "H" };
 const char *normsstr[4] = { "Max", "One", "Inf", "Fro" };
 
-static char *dot_filename = NULL;
 static char *mca_pins_optarg = NULL;
 static char ** delimited_string_to_strings(char * const string_of_strings, char delim);
-
-
 
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
@@ -122,7 +119,6 @@ void print_usage(void)
 
             " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
-            "    --dot          : create a dot output file (default: don't)\n"
             "    --mca-pins     : specify the Performance Instrumentation modules to be loaded (if available), separated by commas.\n"
             "\n"
             " -v --verbose      : extra verbose output\n"
@@ -216,7 +212,6 @@ static struct option long_options[] =
     {"butlvl",      required_argument,  0, 'y'},
     {"y",           required_argument,  0, 'y'},
 
-    {"dot",         required_argument,  0, '.'},
     {"mca-pins",    optional_argument,  0, 'm'},
 
     {"verbose",     optional_argument,  0, 'v'},
@@ -305,7 +300,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 /* Butterfly parameters */
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
 
-            case '.': iparam[IPARAM_DOT] = 1; dot_filename = strdup(optarg); break;
             case 'm': 
 	            iparam[IPARAM_PINS] = 1;
 	            mca_pins_optarg = optarg;
@@ -572,20 +566,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     }
     print_arguments(iparam);
 
-#if defined(DAGUE_PROF_GRAPHER)
-    if(iparam[IPARAM_DOT] != 0) {
-        dague_prof_grapher_init(dot_filename, iparam[IPARAM_RANK], iparam[IPARAM_NNODES], iparam[IPARAM_NCORES]);
-    }
-#else
-    (void)dot_filename;
-    if(iparam[IPARAM_DOT] != 0) {
-        fprintf(stderr,
-                "************************************************************************************************\n"
-                "*** Warning: dot generation requested, but DAGUE configured with DAGUE_PROF_GRAPHER disabled ***\n"
-                "************************************************************************************************\n");
-    }
-#endif
-
     if( iparam[IPARAM_SCHEDULER] != DAGUE_SCHEDULER_DEFAULT ) {
         char *ignored;
         (void)dague_mca_param_reg_string_name("mca", "sched", NULL,
@@ -619,19 +599,10 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 
     dague_fini(&dague);
 
-#if defined(DAGUE_PROF_GRAPHER)
-    if(iparam[IPARAM_DOT] != 0) {
-        dague_prof_grapher_fini();
-    }
-#else
-    (void)iparam;
-#endif
-    if (dot_filename != NULL)
-        free(dot_filename);
-
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif
+    (void)iparam;
 }
 
 /**

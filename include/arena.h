@@ -29,7 +29,8 @@ struct dague_arena_s {
     size_t alignment;                        /* alignment to be respected, elem_size should be >> alignment, prefix size is the minimum alignment */
     size_t elem_size;                        /* size of one element (unpacked in memory, aka extent) */
     dague_remote_dep_datatype_t opaque_dtt;  /* the appropriate type for the network engine to send an element */
-    dague_lifo_t lifo;
+    dague_lifo_t data_lifo;
+    dague_lifo_t area_lifo;
     volatile int32_t used;                   /* elements currently out of the arena */
     int32_t max_used;                        /* maximum size of the arena in elements */
     volatile int32_t released;               /* elements currently not used but allocated */
@@ -59,16 +60,10 @@ int dague_arena_construct(dague_arena_t* arena,
                           size_t elem_size,
                           size_t alignment,
                           dague_remote_dep_datatype_t opaque_dtt);
-int dague_arena_construct_ex(dague_arena_t* arena,
-                             size_t elem_size,
-                             size_t alignment,
-                             dague_remote_dep_datatype_t opaque_dtt,
-                             int32_t max_used,
-                             int32_t max_released);
 void dague_arena_destruct(dague_arena_t* arena);
 
-dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count);
-void dague_arena_release(dague_arena_chunk_t* ptr);
+dague_data_t* dague_arena_get(dague_arena_t* arena, size_t count);
+void dague_arena_release(dague_data_t* ptr);
 
 #define CHUNK_DATA(CHK) \
     (assert(NULL != ((CHK)->data)), (CHK)->data)

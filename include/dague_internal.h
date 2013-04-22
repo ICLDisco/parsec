@@ -14,10 +14,45 @@
 #include "dague.h"
 #include "profiling.h"
 
-typedef struct dague_remote_deps_s dague_remote_deps_t;
-typedef struct dague_arena_s dague_arena_t;
-typedef struct dague_arena_chunk_s dague_arena_chunk_t;
-typedef struct dague_data_pair_s dague_data_pair_t;
+typedef struct dague_function_s        dague_function_t;
+typedef struct dague_remote_deps_s     dague_remote_deps_t;
+typedef struct dague_arena_s           dague_arena_t;
+typedef struct dague_arena_chunk_s     dague_arena_chunk_t;
+typedef struct dague_data_pair_s       dague_data_pair_t;
+typedef struct dague_dependencies_s    dague_dependencies_t;
+/**< The most basic execution flow. Each virtual process includes
+ *   multiple execution units (posix threads + local data) */
+typedef struct dague_execution_unit_s  dague_execution_unit_t;
+/**< Each MPI process includes multiple virtual processes (and a
+ *   single comm. thread) */
+typedef struct dague_vp_s              dague_vp_t;
+
+typedef void (*dague_startup_fn_t)(dague_context_t *context,
+                                   dague_handle_t *dague_handle,
+                                   dague_execution_context_t** startup_list);
+typedef void (*dague_destruct_fn_t)(dague_handle_t* dague_handle);
+
+struct dague_handle_s {
+    /** All dague_handle_t structures hold these two arrays **/
+    uint32_t                   handle_id;
+    volatile uint32_t          nb_local_tasks;
+    uint32_t                   nb_functions;
+    int32_t                    priority;
+    uint32_t                   devices_mask;
+    dague_context_t           *context;
+    dague_startup_fn_t         startup_hook;
+    const dague_function_t**   functions_array;
+#if defined(DAGUE_PROF_TRACE)
+    const int*                 profiling_array;
+#endif  /* defined(DAGUE_PROF_TRACE) */
+    /* Completion callback. Triggered when the all tasks associated with
+     * a particular dague object have been completed.
+     */
+    dague_completion_cb_t      complete_cb;
+    void*                      complete_cb_data;
+    dague_destruct_fn_t        destructor;
+    dague_dependencies_t**     dependencies_array;
+};
 
 /* There is another loop after this one. */
 #define DAGUE_DEPENDENCIES_FLAG_NEXT       0x01
@@ -310,5 +345,15 @@ int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
     } while (0)
 
 #define dague_execution_context_priority_comparator offsetof(dague_execution_context_t, priority)
+
+/**
+ * Search the dague_handle_t for a function named fname, and return it if such
+ * a function exists. Returns NULL otherwise.
+ */
+const dague_function_t* dague_find(const dague_handle_t *dague_handle, const char *fname);
+
+#if defined(DAGUE_SIM)
+int dague_getsimulationdate( dague_context_t *dague_context );
+#endif
 
 #endif  /* DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED */
