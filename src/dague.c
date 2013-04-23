@@ -1472,10 +1472,12 @@ int dague_getsimulationdate( dague_context_t *dague_context ){
 static uint32_t return_local_u(struct dague_ddesc *mat, ...) { return 0; (void)mat; };
 static int32_t  return_local_s(struct dague_ddesc *mat, ...) { return 0; (void)mat; };
 static void*    return_null(struct dague_ddesc *mat, ...) { return NULL; (void)mat; };
+#ifdef DAGUE_PROF_TRACE
 static int key_to_string(struct dague_ddesc *mat, uint32_t datakey, char* buffer, uint32_t buffer_size)
 {
   return snprintf( buffer, buffer_size, "%u ", datakey); (void)mat;
 }
+#endif  /* DAGUE_PROF_TRACE */
 
 const dague_ddesc_t dague_static_local_data_ddesc = {
       0, /* uint32_t myrank */
