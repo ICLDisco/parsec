@@ -23,16 +23,25 @@ extern int current_lineno;
 
 static jdf_expr_t *inline_c_functions = NULL;
 
+/**
+ *
+ * http://oreilly.com/linux/excerpts/9780596155971/error-reporting-recovery.html
+ *
+ */
 static void yyerror(YYLTYPE *locp,
 #if defined(YYPURE) && YYPURE
                     struct yyscan_t* yyscanner,
 #endif  /* defined(YYPURE) && YYPURE */
                     char const *msg)
 {
-    fprintf(stderr, "parse error at %d.%d-%d.%d: %s\n",
-            locp->first_line, locp->first_column,
-            locp->last_line, locp->last_column,
-            msg);
+    if(locp->first_line) {
+        fprintf(stderr, "parse error at (%d) %d.%d-%d.%d: %s\n",
+                current_lineno, locp->first_line, locp->first_column,
+                locp->last_line, locp->last_column, msg);
+    } else {
+        fprintf(stderr, "parse error at (%d): %s\n",
+                current_lineno, msg);
+    }
 }
 
 #define new(type)  (type*)calloc(1, sizeof(type))
@@ -141,12 +150,12 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <dep>dependencies
 %type <dep>dependency
 %type <guarded_call>guarded_call
+%type <property>property
 %type <property>properties
 %type <property>properties_list
 %type <call>call
 %type <expr>expr_list
 %type <expr>expr_list_range
-%type <expr>expr_complete
 %type <expr>expr_range
 %type <expr>expr_simple
 %type <expr>priority
@@ -168,11 +177,12 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY STRING SIMCOST
 %token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK PROPERTIES_ON PROPERTIES_OFF
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
-%token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE
+%token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE OPTION
 
-%nonassoc EQUAL NOTEQUAL RANGE QUESTION_MARK COLON
+%nonassoc RANGE QUESTION_MARK COLON
 %nonassoc LESS LEQ MORE MEQ
 %right NOT
+%left EQUAL NOTEQUAL
 %left AND OR XOR
 %left MODULO SHL SHR
 %left PLUS MINUS
@@ -235,7 +245,7 @@ jdf:            jdf function
                         inline_c_functions = NULL;
                     }
                 }
-        |       jdf VAR ASSIGNMENT expr_complete properties
+        |       jdf VAR ASSIGNMENT expr_simple properties
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
                     jdf_expr_t *el;
@@ -285,14 +295,10 @@ jdf:            jdf function
                         inline_c_functions = NULL;
                     }
                 }
-        | jdf properties
+        | jdf OPTION property
                 {
-                    jdf_def_list_t *p;
-                    if( NULL != $2 ) {
-                        for(p = $2; p->next != NULL; p = p->next) /*nothing*/ ;
-                        p->next = current_jdf.global_properties;
-                        current_jdf.global_properties = $2;
-                    }
+                    $3->next = current_jdf.global_properties;
+                    current_jdf.global_properties = $3;
                 }
         |
                 {
@@ -317,24 +323,24 @@ properties:   PROPERTIES_ON properties_list PROPERTIES_OFF
               }
        ;
 
-properties_list: VAR ASSIGNMENT expr_complete properties_list
+property:     VAR ASSIGNMENT expr_simple
               {
-                 jdf_def_list_t* assign = new(jdf_def_list_t);
-                 assign->next              = $4;
-                 assign->name              = strdup($1);
-                 assign->expr              = $3;
-                 JDF_OBJECT_LINENO(assign) = current_lineno;
-                 $$ = assign;
+                  jdf_def_list_t* assign = new(jdf_def_list_t);
+                  assign->next              = NULL;
+                  assign->name              = strdup($1);
+                  assign->expr              = $3;
+                  JDF_OBJECT_LINENO(assign) = current_lineno;
+                  $$ = assign;
               }
-       | VAR ASSIGNMENT expr_complete
-             {
-                 jdf_def_list_t* assign = new(jdf_def_list_t);
-                 assign->next              = NULL;
-                 assign->name              = strdup($1);
-                 assign->expr              = $3;
-                 JDF_OBJECT_LINENO(assign) = current_lineno;
-                 $$ = assign;
-             }
+       ;
+
+properties_list: property properties_list
+              {
+                 $1->next = $2;
+                 $$       = $1;
+              }
+       | property
+              { $$ = $1; }
        ;
 
 function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simulation_cost partitioning dataflow_list priority BODY
@@ -402,7 +408,7 @@ execution_space:
          ;
 
 simulation_cost:
-                SIMCOST expr_complete
+                SIMCOST expr_simple
                 {
                     $$ = $2;
                 }
@@ -581,24 +587,6 @@ guarded_call: call
                   g->callfalse = $5;
                   $$ = g;
               }
-       |      expr_complete QUESTION_MARK call
-              {
-                  jdf_guarded_call_t *g = new(jdf_guarded_call_t);
-                  g->guard_type = JDF_GUARD_BINARY;
-                  g->guard = $1;
-                  g->calltrue = $3;
-                  g->callfalse = NULL;
-                  $$ = g;
-              }
-       |      expr_complete QUESTION_MARK call COLON call
-              {
-                  jdf_guarded_call_t *g = new(jdf_guarded_call_t);
-                  g->guard_type = JDF_GUARD_TERNARY;
-                  g->guard = $1;
-                  g->calltrue = $3;
-                  g->callfalse = $5;
-                  $$ = g;
-              }
        ;
 
 call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
@@ -634,7 +622,7 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
               }
        ;
 
-priority:     SEMICOLON expr_complete
+priority:     SEMICOLON expr_simple
               {
                     $$ = $2;
               }
@@ -667,7 +655,7 @@ expr_list:    expr_simple COMMA expr_list
               }
       ;
 
-expr_range: expr_complete RANGE expr_complete
+expr_range: expr_simple RANGE expr_simple
             {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_RANGE;
@@ -678,7 +666,7 @@ expr_range: expr_complete RANGE expr_complete
                   e->jdf_ta3->jdf_cst = 1;
                   $$ = e;
             }
-          | expr_complete RANGE expr_complete RANGE expr_complete
+          | expr_simple RANGE expr_simple RANGE expr_simple
             {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_RANGE;
@@ -687,31 +675,11 @@ expr_range: expr_complete RANGE expr_complete
                   e->jdf_ta3 = $5;  /* step */
                   $$ = e;
             }
-          | expr_complete
+          | expr_simple
             {
                   $$ = $1;
             }
           ;
-
-expr_complete: expr_simple
-               {
-                   $$ = $1;
-               }
-      |        EXTERN_DECL
-               {
-                   jdf_expr_t *ne;
-                   $$ = new(jdf_expr_t);
-                   $$->op = JDF_C_CODE;
-                   $$->jdf_c_code.code = $1;
-                   $$->jdf_c_code.lineno = current_lineno;
-                   /* This will  be set by the upper level parsing if necessary */
-                   $$->jdf_c_code.function_context = NULL;
-                   $$->jdf_c_code.fname = NULL;
-
-                   $$->next = inline_c_functions;
-                   inline_c_functions = $$;
-               }
-     ;
 
 expr_simple:  expr_simple EQUAL expr_simple
               {
@@ -875,6 +843,13 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_cst = $1;
                   $$ = e;
               }
+       |      MINUS INT
+              {
+                  jdf_expr_t *e = new(jdf_expr_t);
+                  e->op = JDF_CST;
+                  e->jdf_cst = -$2;
+                  $$ = e;
+              }
        |      STRING
               {
                   jdf_expr_t *e = new(jdf_expr_t);
@@ -882,7 +857,21 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_var = strdup($1);
                   $$ = e;
               }
-       ;
+       |      EXTERN_DECL
+              {
+                  jdf_expr_t *ne;
+                  $$ = new(jdf_expr_t);
+                  $$->op = JDF_C_CODE;
+                  $$->jdf_c_code.code = $1;
+                  $$->jdf_c_code.lineno = current_lineno;
+                  /* This will  be set by the upper level parsing if necessary */
+                  $$->jdf_c_code.function_context = NULL;
+                  $$->jdf_c_code.fname = NULL;
+
+                  $$->next = inline_c_functions;
+                  inline_c_functions = $$;
+              }
+        ;
 
 %%
 
