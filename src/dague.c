@@ -69,7 +69,8 @@ int device_delegate_begin, device_delegate_end;
 static int _dague_rusage_first_call = 1;
 static struct rusage _dague_rusage;
 
-static int dague_enable_dot = 0;
+static char *dague_enable_dot = NULL;
+static char *dague_app_name = NULL;
 
 static void dague_statistics(char* str)
 {
@@ -222,7 +223,7 @@ static void dague_vp_init( dague_vp_t *vp,
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
     int argc = 0, nb_vp, p, t, nb_total_comp_threads;
-    char *app_name, **argv = NULL;
+    char **argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
 
@@ -231,11 +232,11 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif  /* defined(HWLOC) */
 
     if(NULL == pargc) {
-        app_name = (char*)malloc(strlen(DEFAULT_APPNAME));
-        strcpy(app_name, DEFAULT_APPNAME);
-        mktemp(app_name);
+        dague_app_name = (char*)malloc(strlen(DEFAULT_APPNAME));
+        strcpy(dague_app_name, DEFAULT_APPNAME);
+        mktemp(dague_app_name);
     } else {
-        app_name = (*pargv)[0];
+        dague_app_name = (*pargv)[0];
     }
 
     /* Set a default the number of cores if not defined by parameters
@@ -265,7 +266,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             {"dague_bind",       optional_argument,  NULL, 'b'},
             {"dague_bind_comm",  optional_argument,  NULL, 'c'},
 #if defined(DAGUE_PROF_GRAPHER)
-            {"dague_dot",        no_argument,        &dague_enable_dot, 1},
+            {"dague_dot",        optional_argument,  NULL, '.'},
 #endif  /* defined(DAGUE_PROF_GRAPHER) */
             {0, 0, 0, 0}
         };
@@ -342,10 +343,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(HAVE_GETOPT_LONG)
             int option_index = 0;
 
-            ret = getopt_long (argc, argv, "p:b:c:v:",
+            ret = getopt_long (argc, argv, "p:b:c:v:.::",
                                long_options, &option_index);
 #else
-            ret = getopt (argc, argv, "p:b:c:");
+            ret = getopt (argc, argv, "p:b:c:.::");
 #endif  /* defined(HAVE_GETOPT_LONG) */
             if( -1 == ret ) break;  /* we're done */
 
@@ -353,6 +354,26 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             case 'h': dague_usage(); break;
             case 'c': dague_parse_comm_binding_parameter(optarg, context); break;
             case 'b': dague_parse_binding_parameter(optarg, context, startup); break;
+            case '.':
+                if( dague_enable_dot ) free( dague_enable_dot );
+                /** Could not make optional_argument work. Recoding its behavior... */ 
+                if( strlen( argv[optind-1] ) >= 2 && strncmp( argv[optind-1], "-.", 2) == 0) {
+                    /** Case one: using short argument -. */
+                    if( strlen( argv[optind-1] ) > 2 ) {
+                        dague_enable_dot = strdup( argv[optind-1] + 2 );
+                    } else {
+                        dague_enable_dot = strdup(dague_app_name);
+                    }
+                } else {
+                   /** Long argument type */
+                   if( (strlen( argv[optind-1] ) > 12) &&
+                       (strncmp( argv[optind-1], "--dague_dot=", 12 ) == 0 ) ) {
+                       dague_enable_dot = strdup( argv[optind-1]+12 );
+                   } else {
+                       dague_enable_dot = strdup(dague_app_name);
+                    }
+               }
+               break;
             }
         } while(1);
     }
@@ -376,7 +397,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
 
 #if defined(DAGUE_PROF_TRACE)
-        dague_profiling_init( "%s", app_name );
+        dague_profiling_init( "%s", dague_app_name );
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
     dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
@@ -405,7 +426,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     if(dague_enable_dot) {
 #if defined(DAGUE_PROF_GRAPHER)
-        dague_prof_grapher_init(app_name, nb_total_comp_threads);
+          dague_prof_grapher_init(dague_enable_dot, nb_total_comp_threads);
 #else
         fprintf(stderr,
                 "************************************************************************************************\n"
@@ -511,6 +532,8 @@ int dague_fini( dague_context_t** pcontext )
 #if defined(DAGUE_PROF_GRAPHER)
         dague_prof_grapher_fini();
 #endif  /* defined(DAGUE_PROF_GRAPHER) */
+        free(dague_enable_dot);
+        dague_enable_dot = NULL;
     }
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
