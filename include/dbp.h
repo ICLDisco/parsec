@@ -119,7 +119,7 @@ typedef struct {
     int32_t info_length;
 } dague_profiling_key_t;
 
-#define DAGUE_PROFILING_MAGICK "#DAGUE BINARY PROFILE  "
+#define DAGUE_PROFILING_MAGICK "#DAGUE BINARY PROFILE "
 
 /** here key is the key given to the USER */
 #define BASE_KEY(key)     ((key) >> 1)
