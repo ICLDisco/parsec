@@ -329,7 +329,7 @@ property:     VAR ASSIGNMENT expr_simple
                   assign->next              = NULL;
                   assign->name              = strdup($1);
                   assign->expr              = $3;
-                  JDF_OBJECT_LINENO(assign) = current_lineno;
+                  JDF_OBJECT_LINENO(assign) = JDF_OBJECT_LINENO($3);
                   $$ = assign;
               }
        ;
@@ -388,22 +388,22 @@ execution_space:
                 VAR ASSIGNMENT expr_range properties execution_space
                 {
                     jdf_def_list_t *l = new(jdf_def_list_t);
-                    l->name              = $1;
-                    l->expr              = $3;
-                    JDF_OBJECT_LINENO(l) = current_lineno;
-                    l->properties        = $4;
-                    l->next              = $5;
+                    l->name               = $1;
+                    l->expr               = $3;
+                    l->properties         = $4;
+                    l->next               = $5;
                     $$ = l;
+                    JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($3);
                 }
          |      VAR ASSIGNMENT expr_range properties
                 {
                     jdf_def_list_t *l = new(jdf_def_list_t);
-                    l->name              = $1;
-                    l->expr              = $3;
-                    JDF_OBJECT_LINENO(l) = current_lineno;
-                    l->properties        = $4;
-                    l->next              = NULL;
+                    l->name               = $1;
+                    l->expr               = $3;
+                    l->properties         = $4;
+                    l->next               = NULL;
                     $$ = l;
+                    JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($3);
                 }
          ;
 
@@ -434,9 +434,9 @@ partitioning:   COLON VAR OPEN_PAR expr_list CLOSE_PAR
                       }
                   } else {
                       data->nbparams          = nbparams;
-                      JDF_OBJECT_LINENO(data) = current_lineno;
                   }
                   $$ = c;
+                  JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($4);
               }
          ;
 
@@ -461,13 +461,13 @@ optional_access_type :
 
 dataflow:       optional_access_type VAR dependencies
                 {
-                    jdf_dataflow_t *flow = new(jdf_dataflow_t);
-                    flow->access_type       = $1;
-                    flow->varname           = $2;
-                    flow->deps              = $3;
-                    JDF_OBJECT_LINENO(flow) = current_lineno;
+                    jdf_dataflow_t *flow  = new(jdf_dataflow_t);
+                    flow->access_type     = $1;
+                    flow->varname         = $2;
+                    flow->deps            = $3;
 
                     $$ = flow;
+                    JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($3);
                 }
         ;
 
@@ -554,7 +554,7 @@ dependency:   ARROW guarded_call properties
                   } else {
                       d->datatype.nb_elt = expr_simple;
                   }
-                  JDF_OBJECT_LINENO(d) = current_lineno;
+                  JDF_OBJECT_LINENO(d) = JDF_OBJECT_LINENO($2);
 
                   $$ = d;
               }
@@ -568,6 +568,7 @@ guarded_call: call
                   g->calltrue = $1;
                   g->callfalse = NULL;
                   $$ = g;
+                  JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
               }
        |      expr_simple QUESTION_MARK call
               {
@@ -577,6 +578,7 @@ guarded_call: call
                   g->calltrue = $3;
                   g->callfalse = NULL;
                   $$ = g;
+                  JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
               }
        |      expr_simple QUESTION_MARK call COLON call
               {
@@ -586,6 +588,7 @@ guarded_call: call
                   g->calltrue = $3;
                   g->callfalse = $5;
                   $$ = g;
+                  JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
               }
        ;
 
@@ -596,6 +599,7 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
                   c->func_or_mem = $2;
                   c->parameters = $4;
                   $$ = c;
+                  JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($4);
               }
        |      VAR OPEN_PAR expr_list_range CLOSE_PAR
               {
@@ -617,8 +621,8 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
                       }
                   } else {
                       data->nbparams          = nbparams;
-                      JDF_OBJECT_LINENO(data) = current_lineno;
                   }
+                  JDF_OBJECT_LINENO(data) = JDF_OBJECT_LINENO($3);
               }
        ;
 
@@ -664,6 +668,7 @@ expr_range: expr_simple RANGE expr_simple
                   e->jdf_ta3 = new(jdf_expr_t);  /* step */
                   e->jdf_ta3->op = JDF_CST;
                   e->jdf_ta3->jdf_cst = 1;
+                  JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
                   $$ = e;
             }
           | expr_simple RANGE expr_simple RANGE expr_simple
@@ -674,6 +679,7 @@ expr_range: expr_simple RANGE expr_simple
                   e->jdf_ta2 = $3;  /* to */
                   e->jdf_ta3 = $5;  /* step */
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
             }
           | expr_simple
             {
@@ -688,6 +694,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple NOTEQUAL expr_simple
               {
@@ -696,6 +703,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple LESS expr_simple
               {
@@ -704,6 +712,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple LEQ expr_simple
               {
@@ -712,6 +721,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple MORE expr_simple
               {
@@ -720,6 +730,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple MEQ expr_simple
               {
@@ -728,6 +739,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple AND expr_simple
               {
@@ -736,6 +748,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple OR expr_simple
               {
@@ -744,6 +757,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple XOR expr_simple
               {
@@ -752,6 +766,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      NOT expr_simple
               {
@@ -759,10 +774,12 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->op = JDF_NOT;
                   e->jdf_ua = $2;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      OPEN_PAR expr_simple CLOSE_PAR
               {
                   $$ = $2;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple PLUS expr_simple
               {
@@ -771,6 +788,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple MINUS expr_simple
               {
@@ -779,6 +797,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple TIMES expr_simple
               {
@@ -787,6 +806,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple DIV expr_simple
               {
@@ -795,6 +815,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple MODULO expr_simple
               {
@@ -803,6 +824,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple SHL expr_simple
               {
@@ -811,6 +833,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple SHR expr_simple
               {
@@ -819,6 +842,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      expr_simple QUESTION_MARK expr_simple COLON expr_simple
               {
@@ -828,6 +852,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->jdf_ta1 = $3;
                   e->jdf_ta2 = $5;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      VAR
               {
@@ -835,6 +860,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->op = JDF_VAR;
                   e->jdf_var = strdup($1);
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      INT
               {
@@ -842,6 +868,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->op = JDF_CST;
                   e->jdf_cst = $1;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      MINUS INT
               {
@@ -849,6 +876,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->op = JDF_CST;
                   e->jdf_cst = -$2;
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      STRING
               {
@@ -856,6 +884,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   e->op = JDF_STRING;
                   e->jdf_var = strdup($1);
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        |      EXTERN_DECL
               {
@@ -870,6 +899,7 @@ expr_simple:  expr_simple EQUAL expr_simple
 
                   $$->next = inline_c_functions;
                   inline_c_functions = $$;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
         ;
 
