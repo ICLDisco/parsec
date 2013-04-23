@@ -159,8 +159,9 @@ WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
 <properties>[fF][aA][lL][sS][eE] {
                         YYLVAL(number) = 0;
                         return INT;                                        }
-<properties>[nN][oO] {  YYLVAL(number) = 0;
+<properties>[nN][oO]  { YYLVAL(number) = 0;
                         return INT;                                        }
+^%(?i:option)         { return OPTION;                                     }
 <*>"("                { return OPEN_PAR;                                   }
 <*>")"                { return CLOSE_PAR;                                  }
 <*>"=="               { return EQUAL;                                      }
