@@ -340,7 +340,8 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_remote_dep_datatype_t datatype,
                              int nbelt)
 {
-    assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
+    assert( dst );
+    assert( src );
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
     DAGUE_LIST_ITEM_CONSTRUCT(item);
     item->action = DEP_MEMCPY;
