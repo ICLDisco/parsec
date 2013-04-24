@@ -685,12 +685,13 @@ static int read_threads(dbp_multifile_reader_t *dbp, int n, int fd, const dague_
         dbp->files[n].threads[head->nb_threads - nb].file = &(dbp->files[n]);
         dbp->files[n].threads[head->nb_threads - nb].profile = res;
         
-        nbthis--;
-        nb--;
-        assert(nb >= 0);
         pos += sizeof(dague_profiling_thread_buffer_t) - sizeof(dague_profiling_info_buffer_t);
         pos += read_thread_infos( res, &dbp->files[n].threads[head->nb_threads-nb],
                                   br->nb_infos, (char*)br->infos );
+
+        nbthis--;
+        nb--;
+        assert(nb >= 0);
 
         if( nbthis == 0 && nb > 0 ) {
             assert( b->next_buffer_file_offset != -1 );
