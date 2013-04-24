@@ -10,7 +10,7 @@ extern "C" %{
  *
  */
 #define PRECISION_z
-#define HIGHAM_CRITERIUM
+#define MUMPS_CRITERIUM
 
 #include "dague.h"
 #include <math.h>
@@ -714,6 +714,9 @@ BODY
     printlog("copypanel( k=%d, m=%d )", k, m );
 
     DRYRUN(
+	dague_complex64_t *lA  = (dague_complex64_t*)A;
+	fprintf(stderr, "copypanel k=%d m=%d a00=%f a01=%f a10=%f a11=%f\n",k,m,lA[0],lA[1],lA[ldam],lA[ldam+1]);
+
         if (diagdom == 0) {
             /*The tiles of the first node have to be copied*/
             CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
@@ -725,7 +728,7 @@ BODY
             W[i] = LAPACKE_zlange_work(
                 LAPACK_COL_MAJOR, '1',
                 tempmm, tempkn, A, ldam, NULL);
-	//fprintf(stderr, "Norme 1 = %f pour k=%d et m=%d\n",W[i],k,m);
+	fprintf(stderr, "Norme 1 = %f pour k=%d et m=%d\n",W[i],k,m);
 	#endif
 	#ifdef MUMPS_CRITERIUM
 	if (m-k < param_p) {
@@ -736,7 +739,9 @@ BODY
     		int ks = k + p + (s-1)*param_p;
     		int tempm = (s-1) * descA.mb +
         		(( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
+		fprintf(stderr,"Enter zamax copypanel k=%d\n",k);
 		CORE_zamax(LAPACK_COL_MAJOR, PlasmaUpperLower, tempm, tempkn, A, ldam,W);
+		fprintf(stderr,"Exit zamax copypanel k=%d\n",k);
 	}
 	#endif
    
@@ -780,6 +785,7 @@ BODY
         int tempkm = k == descA.mt-1 ? tempm : descA.mb;
         //int nbthrd = nbthreads( k );
         int info[3];
+	fprintf(stderr, "DEB zlufacto k=%d\n", k);
 
         /* Set local IP to 0 before generation
          * Better here than a global initialization for locality
@@ -791,6 +797,12 @@ BODY
 
         info[1] = 0;
         info[2] = /*nbthrd+*/1;
+
+	#ifdef MUMPS_CRITERIUM
+	fprintf(stderr,"Enter zamax lufacto k=%d\n",k);
+	CORE_zamax(LAPACK_COL_MAJOR, PlasmaUpperLower, tempkn, tempkn, A, ldak,W);
+	fprintf(stderr,"Exit zamax lufacto k=%d\n",k);
+	#endif
 
         if ( descA.storage == matrix_Tile ) {
             PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
@@ -810,18 +822,22 @@ BODY
             *INFO = k * descA.mb + info[0]; /* Should return if enter here */
             fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
         }
-
+dague_complex64_t *lA  = (dague_complex64_t*)A;
         /*W[0] = condition number*/
 	#ifdef HIGHAM_CRITERIUM
-	LAPACKE_ztrcon(LAPACK_COL_MAJOR, '2', 'U', 'N', tempkn, A, ldak, W);
+	
+	fprintf(stderr, "affiche U k=%d a00=%f a01=%f a10=%f a11=%f tempkn=%d ldak=%d\n",k,lA[0],lA[1],lA[ldak],lA[ldak+1],tempkn,ldak);
+
+	LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W);
         //LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, W);
-	//W[0] = 1/W[0];
-	//fprintf(stderr,"Cond = %f pour k = %d\n",W[0],k);
+	W[0] = 1/W[0];
+	fprintf(stderr,"Cond = %f pour k = %d\n",W[0],k);
 	#endif
 
-	#ifdef MUMPS_CRITERIUM
-	CORE_zamax(LAPACK_COL_MAJOR, PlasmaUpper, tempkn, tempkn, A, ldak,W);
-	#endif
+
+	fprintf(stderr, "LU facto k=%d m=0 a00=%f a01=%f a10=%f a11=%f\n",k,lA[0],lA[1],lA[ldak],lA[ldak+1]);
+	fprintf(stderr, "FIN zlufacto k=%d\n", k);
+
            );
 }
 END
@@ -848,6 +864,8 @@ BODY
 
     printlog("reduce_norm(k= %d, p= %d)\n",        
              k, p);
+
+    fprintf(stderr, "DEB reduce_norme k=%d p=%d\n", k,p);
 
 
     double *norm1 = (double*)W1;
@@ -906,6 +924,8 @@ BODY
 	}
 	#endif
     }
+
+fprintf(stderr, "FIN reduce_norme k=%d p=%d\n", k,p);
     
 }
 END
@@ -930,9 +950,7 @@ setchoice(k, p, h)
   RW T <- (h == 0) ? W1 reduce_norm(k, p)                       [type = ELTdouble]
        <- (h >  0) ? T setchoice(k, p, h-1)                     [type = ELTdouble]
 
-       -> (h <  hmax) ? T setchoice(k, p, h+1)                  [type = ELTdouble]
-
-        /* Send T to the bottom */
+       -> (h <  hmax) ? T setchoice(k, p, h+1)                  [type = ELTdouble]     /* Send T to the bottom */
   RW B <- (h == 0) ? W2 reduce_norm(k, (pmax+p-pui)%pmax)       [type = ELTdouble]
        <- (h != 0) ? B setchoice(k, (pmax+p-pui)%pmax, h-1 )    [type = ELTdouble]
 
@@ -960,6 +978,8 @@ BODY
     printlog("setchoice( k=%d, p=%d, h=%d )\n", k, p, h);
 
     DRYRUN(
+    fprintf(stderr, "DEB setchoice k=%d p=%d h=%d\n", k,p,h);
+
 	int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
 	int i;
 	#ifdef HIGHAM_CRITERIUM
@@ -1026,12 +1046,15 @@ BODY
 	#ifdef MUMPS_CRITERIUM
 	int i;
 	cond = 1;
+	double alpha = 0.5;
 	for(i=0; i<tempkn; i++) {
-		if (norm1[i] > norm1[i + descA.nb]) {
+		if (norm1[i] > alpha * norm1[i + descA.nb]) {
 			cond = 0;
 		}
 	    }
 	#endif
+
+	cond = 1;
 
         if (cond == 1) {
             lu_tab[k] = 1;
@@ -1047,6 +1070,8 @@ BODY
 
 	norm2[0] = lu_tab[k];
     }
+
+fprintf(stderr, "FIN setchoice k=%d p=%d h=%d\n", k,p,h);
    
     );
 }
