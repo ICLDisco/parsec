@@ -149,14 +149,14 @@ int main(int argc, char ** argv)
 #if defined(CHECK_B)
         dplasma_zhetrs(dague, uplo,
                        (tiled_matrix_desc_t *)&ddescA,
-                       (two_dim_block_cyclic_t *)&ddescX,
+                       (tiled_matrix_desc_t *)&ddescX,
                        U_but_vec, butterfly_level);
 
         /* Check the solution */
         ret |= check_solution( dague, (rank == 0) ? loud : 0, uplo,
                                (tiled_matrix_desc_t *)&ddescA0,
                                (tiled_matrix_desc_t *)&ddescB,
-                               (two_dim_block_cyclic_t *)&ddescX);
+                               (tiled_matrix_desc_t *)&ddescX);
 
         dague_data_free(ddescB.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);

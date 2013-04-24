@@ -225,9 +225,11 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     PLASMA_Complex64_t *U_before, *U_after;
     int i, mt, nt, N, lcl_nt, lcl_seg_cnt;
 
-    (void)info;
-
-    assert( !(A->dtype & two_dim_block_cyclic_type) && (A->dtype & sym_two_dim_block_cyclic_type) );
+    if ( (A->dtype & two_dim_block_cyclic_type) || !(A->dtype & sym_two_dim_block_cyclic_type) ){
+        *info = 1;
+        fprintf(stderr,"dplasma_zhebut_New() can only operate on matrices of type \"sym_two_dim_block_cyclic_type\"\n");
+        return NULL;
+    }
 
     seg_descA = (dague_seg_ddesc_t *)calloc(1, sizeof(dague_seg_ddesc_t));
 
@@ -319,9 +321,11 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     dague_memory_pool_t *pool_0;
     int i, mt, nt, N, lcl_nt, lcl_seg_cnt;
     PLASMA_Complex64_t *U_before, *U_after;
-    (void)info;
 
-    assert( !(A->dtype & two_dim_block_cyclic_type) && (A->dtype & sym_two_dim_block_cyclic_type) );
+    if ( (A->dtype & two_dim_block_cyclic_type) || !(A->dtype & sym_two_dim_block_cyclic_type) ){
+        *info = 1;
+        return NULL;
+    }
 
     seg_descA = (dague_seg_ddesc_t *)calloc(1, sizeof(dague_seg_ddesc_t));
 
@@ -399,7 +403,7 @@ dplasma_zgebut_Destruct( dague_handle_t *o )
 }
 
 /*
- * dplasma_zgebmm_New() [two_dim]
+ * dplasma_zgebmm_New()
  */
 dague_handle_t*
 dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int trans, int *info)
@@ -409,7 +413,11 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     dague_memory_pool_t *pool_0;
     int i, mt, nt, N, lcl_nt, lcl_seg_cnt;
 
-    (void)info;
+    if ( !(A->dtype & two_dim_block_cyclic_type) || (A->dtype & sym_two_dim_block_cyclic_type) ){
+        *info = 1;
+        fprintf(stderr,"dplasma_zgebmm_New() can only operate on matrices of type \"two_dim_block_cyclic_type\"\n");
+        return NULL;
+    }
 
     seg_descA = (dague_seg_ddesc_t *)calloc(1, sizeof(dague_seg_ddesc_t));
 
@@ -485,6 +493,7 @@ dplasma_zgebmm_Destruct( dague_handle_t *o )
 }
 
 
+#define check_info(_X_) do{ if( _X_ == *info ){ return NULL; } }while(0)
 
 /*
  * Blocking Interface
@@ -504,12 +513,14 @@ static dague_handle_t **iterate_ops(tiled_matrix_desc_t *A, int tmp_level,
                 dplasma_zhebut_Destruct(*subop);
             }else{
                 *subop = dplasma_zhebut_New(A, U_but_vec, i_block, j_block, target_level, info);
+                check_info( 1 );
             }
         }else{
             if( destroy ){
                 dplasma_zgebut_Destruct(*subop);
             }else{
                 *subop = dplasma_zgebut_New(A, U_but_vec, i_block, j_block, target_level, info);
+                check_info( 1 );
             }
         }
         if( !destroy ){
@@ -519,13 +530,20 @@ static dague_handle_t **iterate_ops(tiled_matrix_desc_t *A, int tmp_level,
     }else{
         if( i_block == j_block ){
             subop = iterate_ops(A, tmp_level+1, target_level, 2*i_block,   2*j_block,   subop, dague, U_but_vec, destroy, info);
+            check_info( 1 );
             subop = iterate_ops(A, tmp_level+1, target_level, 2*i_block+1, 2*j_block,   subop, dague, U_but_vec, destroy, info);
+            check_info( 1 );
             subop = iterate_ops(A, tmp_level+1, target_level, 2*i_block+1, 2*j_block+1, subop, dague, U_but_vec, destroy, info);
+            check_info( 1 );
         }else{
             subop = iterate_ops(A, tmp_level+1, target_level, 2*i_block,   2*j_block,   subop, dague, U_but_vec, destroy, info);
+            check_info( 1 );
             subop = iterate_ops(A, tmp_level+1, target_level, 2*i_block+1, 2*j_block,   subop, dague, U_but_vec, destroy, info);
+            check_info( 1 );
             subop = iterate_ops(A, tmp_level+1, target_level, 2*i_block,   2*j_block+1, subop, dague, U_but_vec, destroy, info);
+            check_info( 1 );
             subop = iterate_ops(A, tmp_level+1, target_level, 2*i_block+1, 2*j_block+1, subop, dague, U_but_vec, destroy, info);
+            check_info( 1 );
         }
         return subop;
     }
@@ -566,6 +584,11 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Comple
 
     N = A->lm;
 
+    if ( (A->dtype & two_dim_block_cyclic_type) || !(A->dtype & sym_two_dim_block_cyclic_type) ){
+        fprintf(stderr,"dplasma_zhebut() can only operate on matrices of type \"sym_two_dim_block_cyclic_type\"\n");
+        return -1;
+    }
+
     subop = (dague_handle_t **)malloc((nbhe+nbge) * sizeof(dague_handle_t*));
     U_but_vec = (PLASMA_Complex64_t *)malloc( (levels+1)*N*sizeof(PLASMA_Complex64_t) );
     *U_but_ptr = U_but_vec;
@@ -600,8 +623,10 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Comple
 
         subop = (dague_handle_t **)malloc((nbhe+nbge) * sizeof(dague_handle_t*));
         (void)iterate_ops(A, 0, cur_level, 0, 0, subop, dague, U_but_vec, CREATE_N_ENQUEUE, &info);
+        if( 1 == info ){ return -1; };
         dplasma_progress(dague);
         (void)iterate_ops(A, 0, cur_level, 0, 0, subop, dague, NULL, DESTRUCT, &info);
+        if( 1 == info ){ return -1; };
         free(subop);
 
 #if defined(DEBUG_BUTTERFLY)
