@@ -1,15 +1,15 @@
 
 macro(dague_addtest lang target input)
   if(CMAKE_${lang}_COMPILER_WORKS)
+    list(APPEND EXTRA_LIBS m)
+
     if( MPI_FOUND )
       set(${target}_${lang}FLAGS  "${MPI_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
       set(${target}_LDFLAGS "${MPI_LINK_FLAGS} ${${target}_LDFLAGS}")
       set(${target}_LIBS    dague-mpi dague_distribution_matrix-mpi dague-base ${EXTRA_LIBS} ${${target}_LIBS} ${MPI_LIBRARIES})
     else ( MPI_FOUND )
-      list(APPEND EXTRA_LIBS m)
       set(${target}_LIBS    dague dague_distribution_matrix dague-base ${EXTRA_LIBS} ${${target}_LIBS})
     endif()
-
 
     add_executable(${target} ${input})
     set_target_properties(${target} PROPERTIES
