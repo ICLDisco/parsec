@@ -837,15 +837,11 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
         JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nbdata);
         string_arena_add_string(sa,
                                 "  %s_nblocal_tasks = %s_%s_internal_init(__dague_object);\n"
-                                "  if( 0 == %s_nblocal_tasks ) %s_nblocal_tasks = 10;\n"
                                 "  __dague_object->%s_repository = data_repo_create_nothreadsafe(\n"
-                                "          ((unsigned int)(%s_nblocal_tasks * 1.5)) > MAX_DATAREPO_HASH ?\n"
-                                "          MAX_DATAREPO_HASH :\n"
-                                "          ((unsigned int)(%s_nblocal_tasks * 1.5)), %d);\n",
+                                "          %s_nblocal_tasks, %d);\n",
                                 f->fname, jdf_basename, f->fname,
-                                f->fname, f->fname,
                                 f->fname,
-                                f->fname, f->fname, nbdata);
+                                f->fname, nbdata);
     }
 
     return string_arena_get_string(sa);
