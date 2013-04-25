@@ -176,7 +176,7 @@ WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
                           ECHO; return BODY_END;                           }
 <body>[^\n]*          { yymore();}
 <body>{WHITE}*\n      { current_lineno++; yymore();}
-
+^%(?i:option)         { ECHO; return OPTION;                               }
 <*>"("                { ECHO; return OPEN_PAR;                             }
 <*>")"                { ECHO; return CLOSE_PAR;                            }
 <*>"=="               { ECHO; return EQUAL;                                }

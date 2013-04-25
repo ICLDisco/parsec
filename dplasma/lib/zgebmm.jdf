@@ -33,7 +33,6 @@ extern void RBMM_zBTM( int mb, int nb, int lda, int off, int lvl, int N, int tra
 
 %}
 
-[DAGUE_ARENA_STRUT = 36]
 descA  [type = "dague_seg_ddesc_t"]
 A      [type = "dague_ddesc_t *"]
 U      [type = "PLASMA_Complex64_t *"]
@@ -42,6 +41,7 @@ mt     [type = "int"]
 trans  [type = "int"]
 pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
 
+%option DAGUE_ARENA_STRUT = 36
 
 /*
  *
