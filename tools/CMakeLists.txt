@@ -5,9 +5,9 @@ Add_Subdirectory(profiling)
 # to build these.
 #
 IF( NOT CMAKE_CROSSCOMPILING )
-    IF (MAKE_CXX_COMPILER_WORKS)
+    IF (CMAKE_CXX_COMPILER_WORKS)
         Add_Subdirectory(q2j)
-    ENDIF (MAKE_CXX_COMPILER_WORKS)
+    ENDIF (CMAKE_CXX_COMPILER_WORKS)
 
     add_custom_target(
           grapher_create_objects.c
