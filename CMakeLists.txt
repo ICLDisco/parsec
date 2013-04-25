@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project (DAGUE C CXX Fortran)
+project (DAGUE C)
 
 include(CMakeDependentOption)
 
@@ -431,6 +431,7 @@ IF( BUILD_DAGUE )
   endif(AYUDAME_FOUND)
 ENDIF( BUILD_DAGUE )
 
+enable_language(CXX OPTIONAL)
 enable_language(Fortran OPTIONAL)
 #
 # Fortran tricks
