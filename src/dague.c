@@ -218,7 +218,7 @@ static void dague_vp_init( dague_vp_t *vp,
     }
 }
 
-#define DEFAULT_APPNAME "app_name_XXXXXX"
+#define DEFAULT_APPNAME "app_name_%d"
 
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
@@ -232,11 +232,12 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif  /* defined(HWLOC) */
 
     if(NULL == pargc) {
-        dague_app_name = (char*)malloc(strlen(DEFAULT_APPNAME));
-        strcpy(dague_app_name, DEFAULT_APPNAME);
-        mktemp(dague_app_name);
+        int rc = asprintf( &dague_app_name, DEFAULT_APPNAME, (int)getpid() );
+        if (rc == -1) {
+	    dague_app_name = strdup( "app_name_XXXXXX" );
+        }
     } else {
-        dague_app_name = (*pargv)[0];
+        dague_app_name = strdup( (*pargv)[0] );
     }
 
     /* Set a default the number of cores if not defined by parameters
@@ -546,6 +547,11 @@ int dague_fini( dague_context_t** pcontext )
 
     dague_hwloc_fini();
 #endif  /* HAVE_HWLOC_BITMAP */
+
+    if (dague_app_name != NULL ) {
+       free(dague_app_name);
+       dague_app_name = NULL;
+    }
 
 #if defined(DAGUE_STATS)
     {
