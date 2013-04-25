@@ -835,6 +835,19 @@ static int dague_update_deps_with_mask( dague_object_t *dague_object,
     return (dep_cur_value & function->dependencies_goal) == function->dependencies_goal;
 }
 
+void dague_dependencies_mark_task_as_startup(dague_execution_context_t* restrict exec_context)
+{
+    const dague_function_t* function = exec_context->function;
+    dague_object_t *dague_object = exec_context->dague_object;
+    dague_dependency_t *deps = find_deps(dague_object, exec_context);
+
+    if( function->flags & DAGUE_USE_DEPS_MASK ) {
+        *deps = DAGUE_DEPENDENCIES_STARTUP_TASK | function->dependencies_goal;
+    } else {
+        *deps = 0;
+    }
+}
+
 /**
  * Release the OUT dependencies for a single instance of a task. No ranges are
  * supported and the task is supposed to be valid (no input/output tasks) and
@@ -1517,5 +1530,161 @@ const dague_ddesc_t dague_static_local_data_ddesc = {
       NULL,  /* char      *key */
 #endif /* DAGUE_PROF_TRACE */
 };
-  
 
+static int dague_expr_eval(const expr_t *expr, dague_execution_context_t *context)
+{
+    dague_object_t *object = context->dague_object;
+
+    assert( expr->op == EXPR_OP_INLINE );
+    return expr->inline_func(object, context->locals);
+}
+
+static int dague_debug_enumerate_next_in_execution_space(dague_execution_context_t *context,
+                                                         int param_depth)
+{
+    const dague_function_t *function = context->function;
+    int cur, max, incr, min;
+
+    if( param_depth == function->nb_parameters )
+        return 0;
+
+    if( param_depth < function->nb_parameters ) {
+        if( dague_debug_enumerate_next_in_execution_space(context, param_depth+1) )
+            return 1;
+    }
+    cur = context->locals[ function->params[param_depth]->context_index ].value;
+    max = dague_expr_eval(function->params[param_depth]->max, context);
+    if( function->params[param_depth]->expr_inc == NULL ) {
+        incr = function->params[param_depth]->cst_inc;
+    } else {
+        incr = dague_expr_eval(function->params[param_depth]->expr_inc, context);
+    }
+    if( cur + incr > max ) {
+        min = dague_expr_eval(function->params[param_depth]->min, context);
+        context->locals[ function->params[param_depth]->context_index ].value = min;
+        return 0;
+    }
+    context->locals[ function->params[param_depth]->context_index ].value = cur + incr;
+    return 1;
+}
+
+void dague_debug_print_local_expecting_tasks_for_function( dague_object_t *object,
+                                                           const dague_function_t *function,
+                                                           int show_remote,
+                                                           int show_startup,
+                                                           int show_complete,
+                                                           int *nlocal,
+                                                           int *nreleased,
+                                                           int *ntotal)
+{
+    dague_execution_context_t context;
+    dague_dependency_t *dep;
+    int pi, li;
+
+    DAGUE_LIST_ITEM_SINGLETON( &context.list_item );
+    context.mempool_owner = NULL;
+    context.dague_object = object;
+    context.function = function;
+    context.priority = -1;
+    context.status = DAGUE_TASK_STATUS_NONE;
+    context.hook_id = 0;
+    memset( context.data, 0, MAX_PARAM_COUNT * sizeof(dague_data_pair_t) );
+
+    *nlocal = 0;
+    *nreleased = 0;
+    *ntotal = 0;
+
+    /* For debugging purposes */
+    for(li = 0; li < MAX_LOCAL_COUNT; li++) {
+        context.locals[li].value = -1;
+    }
+
+    /* Starting point of the context space enumeration */
+    for( pi = 0; pi < function->nb_parameters; pi++) {
+        context.locals[function->params[pi]->context_index].value = dague_expr_eval(function->params[pi]->min,
+                                                                                    &context);
+    }
+
+    do {
+        char tmp[MAX_TASK_STRLEN];
+        (*ntotal)++;
+        if( dague_expr_eval(function->pred, &context) ) {
+            (*nlocal)++;
+            dep = find_deps(object, &context);
+            if( function->flags & DAGUE_USE_DEPS_MASK ) {
+                if( *dep & DAGUE_DEPENDENCIES_STARTUP_TASK ) {
+                    (*nreleased)++;
+                    if( show_startup )
+                        fprintf(stderr, "   Task %s is a local startup task\n",
+                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
+                } else {
+                    if((*dep & DAGUE_DEPENDENCIES_BITMASK) == function->dependencies_goal) {
+                        (*nreleased)++;
+                    }
+                    if( show_complete ||
+                        ((*dep & DAGUE_DEPENDENCIES_BITMASK) != function->dependencies_goal) ) {
+                        fprintf(stderr, "   Task %s is a local task with dependency 0x%08x (goal is 0x%08x) -- Flags: %s %s\n",
+                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
+                                *dep & DAGUE_DEPENDENCIES_BITMASK,
+                                function->dependencies_goal,
+                                *dep & DAGUE_DEPENDENCIES_TASK_DONE ? "TASK_DONE" : "",
+                                *dep & DAGUE_DEPENDENCIES_IN_DONE ? "IN_DONE" : "");
+                    }
+                }
+            } else {
+                if( *dep == 0 )
+                    (*nreleased)++;
+
+                if( (*dep != 0) || show_complete )
+                    fprintf(stderr, "   Task %s is a local task that must wait for %d more dependencies to complete -- using count method for this task (CTL gather)\n",
+                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
+                            *dep);
+            }
+        } else {
+            if( show_remote )
+                fprintf(stderr, "   Task %s is a remote task\n",
+                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
+        }
+    } while( dague_debug_enumerate_next_in_execution_space(&context, 0)  );
+}
+
+void dague_debug_print_local_expecting_tasks_for_object( dague_object_t *object,
+                                                         int show_remote, int show_startup, int show_complete)
+{
+    uint32_t fi;
+    int nlocal, ntotal, nreleased;
+    /* The object has not been initialized yet, or it has been completed */
+    if( object->dependencies_array == NULL )
+        return;
+
+    for(fi = 0; fi < object->nb_functions; fi++) {
+        fprintf(stderr, " Tasks of Function %u (%s):\n", fi, object->functions_array[fi]->name);
+        dague_debug_print_local_expecting_tasks_for_function( object, object->functions_array[fi],
+                                                              show_remote, show_startup, show_complete,
+                                                              &nlocal, &nreleased, &ntotal );
+        fprintf(stderr, " Total number of Tasks of Class %s: %d\n", object->functions_array[fi]->name, ntotal);
+        fprintf(stderr, " Local number of Tasks of Class %s: %d\n", object->functions_array[fi]->name, nlocal);
+        fprintf(stderr, " Number of Tasks of Class %s that have been released: %d\n", object->functions_array[fi]->name, nreleased);
+    }
+}
+
+void dague_debug_print_local_expecting_tasks( int show_remote, int show_startup, int show_complete )
+{
+    dague_object_t *object;
+    uint32_t oi;
+
+    dague_atomic_lock( &object_array_lock );
+    for( oi = 1; oi <= object_array_pos; oi++) {
+        object = object_array[ oi ];
+        if( object == NOOBJECT )
+            continue;
+        if( object == NULL )
+            continue;
+        fprintf(stderr, "Tasks of Object %u:\n", oi);
+        dague_debug_print_local_expecting_tasks_for_object( object,
+                                                            show_remote,
+                                                            show_startup,
+                                                            show_complete );
+    }
+    dague_atomic_unlock( &object_array_lock );
+}

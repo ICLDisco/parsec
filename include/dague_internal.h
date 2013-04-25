@@ -68,7 +68,8 @@ struct dague_object {
  */
 #define DAGUE_DEPENDENCIES_TASK_DONE      ((dague_dependency_t)(1<<31))
 #define DAGUE_DEPENDENCIES_IN_DONE        ((dague_dependency_t)(1<<30))
-#define DAGUE_DEPENDENCIES_BITMASK        (~(DAGUE_DEPENDENCIES_TASK_DONE|DAGUE_DEPENDENCIES_IN_DONE))
+#define DAGUE_DEPENDENCIES_STARTUP_TASK   ((dague_dependency_t)(1<<29))
+#define DAGUE_DEPENDENCIES_BITMASK        (~(DAGUE_DEPENDENCIES_TASK_DONE|DAGUE_DEPENDENCIES_IN_DONE|DAGUE_DEPENDENCIES_STARTUP_TASK))
 
 typedef union {
     dague_dependency_t    dependencies[1];
@@ -318,6 +319,8 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu,
                                              dague_arena_t* arena,
                                              int nb_elt,
                                              void *param);
+
+void dague_dependencies_mark_task_as_startup(dague_execution_context_t* restrict exec_context);
 
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_unit_t* eu_context,
