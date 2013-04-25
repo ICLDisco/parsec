@@ -434,7 +434,7 @@ ENDIF( BUILD_DAGUE )
 #
 # Fortran tricks
 #
-IF (MAKE_Fortran_COMPILER_WORKS)
+IF (CMAKE_Fortran_COMPILER_WORKS)
   STRING(REGEX MATCH "Intel" _match_intel ${CMAKE_Fortran_COMPILER_ID})
   IF (_match_intel)
     MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
@@ -492,7 +492,7 @@ IF (MAKE_Fortran_COMPILER_WORKS)
     set (CMAKE_Fortran_FLAGS_RELEASE "-O2")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g")
   endif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-ENDIF (MAKE_Fortran_COMPILER_WORKS)
+ENDIF (CMAKE_Fortran_COMPILER_WORKS)
 
 #
 ##
@@ -576,12 +576,7 @@ ENDIF( BUILD_DAGUE )
 #
 
 IF( BUILD_DPLASMA )
-  if(CMAKE_Fortran_COMPILER_WORKS)
-    add_subdirectory(dplasma)
-  else(CMAKE_Fortran_COMPILER_WORKS)
-    message(STATUS "DPLASMA support disabled due to lack of Fortran compiler")
-    set(BUILD_DPLASMA OFF)
-  endif(CMAKE_Fortran_COMPILER_WORKS)
+  add_subdirectory(dplasma)
 ENDIF ( BUILD_DPLASMA )
 IF( BUILD_TESTING AND BUILD_DAGUE )
   add_subdirectory(tests)
