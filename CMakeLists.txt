@@ -1,6 +1,9 @@
 cmake_minimum_required (VERSION 2.8)
 project (DAGUE C)
 
+enable_language(CXX OPTIONAL)
+enable_language(Fortran OPTIONAL)
+
 include(CMakeDependentOption)
 
 # The current version number
@@ -431,8 +434,6 @@ IF( BUILD_DAGUE )
   endif(AYUDAME_FOUND)
 ENDIF( BUILD_DAGUE )
 
-enable_language(CXX OPTIONAL)
-enable_language(Fortran OPTIONAL)
 #
 # Fortran tricks
 #
