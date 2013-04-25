@@ -248,11 +248,6 @@ void tile_to_segment(const dague_seg_ddesc_t *seg_ddesc, const tiled_matrix_desc
 
     /* sanity checks */
     assert( (*n_seg < seg.tot_seg_cnt_n) && (*m_seg < seg.tot_seg_cnt_m) );
-#if defined(DAGUE_DEBUG_ENABLE)
-    int m_t, n_t, off;
-    segment_to_tile(seg_ddesc, m_seg, n_seg, &m_t, &n_t, &off);
-    assert( (m_t == m_tile) && (n_t == n_tile) );
-#endif
 
     return;
 }
