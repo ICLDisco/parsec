@@ -2900,6 +2900,11 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   string_arena_init(sa);
   sa2 = string_arena_new(64);
 
+  for(dl = f->locals; dl != NULL; dl = dl->next) {
+    string_arena_add_string(sa, "%s  int %s%s; (void)%s%s;\n",
+                            indent(spaces), f->fname, dl->name, f->fname, dl->name);
+   }
+
   infodst.sa = sa2;
   infodst.prefix = f->fname;
   infodst.assignments = strdup(name);
@@ -2919,15 +2924,15 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
           /* It is a value. Let's dump it's expression in the destination context */
           string_arena_init(sa2);
           string_arena_add_string(sa,
-                                  "%s  %s[%d].value = %s;\n",
-                                  indent(spaces), name, idx, dump_expr((void**)dl->expr, &infodst));
+                                  "%s  %s[%d].value = %s%s = %s;\n",
+                                  indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)dl->expr, &infodst));
       } else {
           /* It is a parameter. Let's dump it's expression in the source context */
           assert(el != NULL);
           string_arena_init(sa2);
           string_arena_add_string(sa,
-                                  "%s  %s[%d].value = %s;\n",
-                                  indent(spaces), name, idx, dump_expr((void**)el, &infosrc));
+                                  "%s  %s[%d].value = %s%s = %s;\n",
+                                  indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)el, &infosrc));
       }
   }
 
