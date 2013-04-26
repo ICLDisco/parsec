@@ -320,7 +320,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu,
                                              int nb_elt,
                                              void *param);
 
-void dague_dependencies_mark_task_as_startup(dague_execution_context_t* restrict exec_context);
+void dague_dependencies_mark_task_as_startup(dague_execution_context_t* exec_context);
 
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_unit_t* eu_context,
