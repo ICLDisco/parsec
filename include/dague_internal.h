@@ -13,19 +13,19 @@
 #include "dague.h"
 #include "profiling.h"
 
-typedef struct dague_remote_deps_t dague_remote_deps_t;
-typedef struct dague_arena_t dague_arena_t;
-typedef struct dague_arena_chunk_t dague_arena_chunk_t;
-typedef struct dague_data_pair_t dague_data_pair_t;
-typedef struct _moesi_master moesi_master_t;
-typedef struct dague_function          dague_function_t;
+typedef struct dague_remote_deps_t     dague_remote_deps_t;
+typedef struct dague_arena_t           dague_arena_t;
+typedef struct dague_arena_chunk_t     dague_arena_chunk_t;
+typedef struct dague_data_pair_t       dague_data_pair_t;
+typedef struct _moesi_master           moesi_master_t;
+typedef struct dague_function_s        dague_function_t;
 typedef struct dague_dependencies_t    dague_dependencies_t;
 /**< The most basic execution flow. Each virtual process includes
  *   multiple execution units (posix threads + local data) */
 typedef struct dague_execution_unit    dague_execution_unit_t;
 /**< Each MPI process includes multiple virtual processes (and a
  *   single comm. thread) */
-typedef struct dague_vp                dague_vp_t;
+typedef struct dague_vp                 dague_vp_t;
 
 typedef void (*dague_startup_fn_t)(dague_context_t *context,
                                    dague_object_t *dague_object,
@@ -99,7 +99,7 @@ typedef enum  {
 typedef int (dague_release_deps_t)(struct dague_execution_unit*,
                                    dague_execution_context_t*,
                                    uint32_t,
-                                   struct dague_remote_deps_t *);
+                                   dague_remote_deps_t *);
 #if defined(DAGUE_SIM)
 typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
 #endif
@@ -141,7 +141,7 @@ typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object,
  * class of tasks.
  */
 typedef int (dague_create_function_t)(struct dague_execution_unit*,
-                                      const struct dague_function* task_class,
+                                      const dague_function_t* task_class,
                                       dague_execution_context_t** task);
 
 /**
@@ -172,7 +172,7 @@ typedef struct __dague_internal_incarnation {
     dague_hook_t              *hook;
 } __dague_chore_t;
 
-struct dague_function {
+struct dague_function_s {
     const char                  *name;
 
     uint16_t                     flags;

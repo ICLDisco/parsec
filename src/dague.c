@@ -1072,6 +1072,28 @@ char* dague_snprintf_execution_context( char* str, size_t size,
 
     return str;
 }
+/**
+ * Convert assignments to a string.
+ */
+char* dague_snprintf_assignments( char* str, size_t size,
+                                  const struct dague_function_s* function,
+                                  const struct assignment* locals)
+{
+    unsigned int ip, index = 0;
+
+    index += snprintf( str + index, size - index, "%s", function->name );
+    if( index >= size ) return str;
+    for( ip = 0; ip < function->nb_parameters; ip++ ) {
+        index += snprintf( str + index, size - index, "%s%d",
+                           (ip == 0) ? "(" : ", ",
+                           locals[function->params[ip]->context_index].value );
+        if( index >= size ) return str;
+    }
+    index += snprintf(str + index, size - index, ")" );
+
+    return str;
+}
+
 
 void dague_destruct_dependencies(dague_dependencies_t* d)
 {

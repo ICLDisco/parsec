@@ -101,7 +101,12 @@ void dague_usage(void);
 int32_t dague_set_priority( dague_object_t* object, int32_t new_priority );
 
 /* Dump functions */
+struct dague_function_s;
+struct assignment;
 char* dague_snprintf_execution_context( char* str, size_t size,
                                         const dague_execution_context_t* task);
+char* dague_snprintf_assignments( char* str, size_t size,
+                                  const struct dague_function_s* function,
+                                  const struct assignment* locals);
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

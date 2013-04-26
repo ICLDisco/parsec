@@ -2901,7 +2901,7 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   sa2 = string_arena_new(64);
 
   for(dl = f->locals; dl != NULL; dl = dl->next) {
-    string_arena_add_string(sa, "%s  int %s%s; (void)%s%s;\n",
+    string_arena_add_string(sa, "%sint %s%s; (void)%s%s;\n",
                             indent(spaces), f->fname, dl->name, f->fname, dl->name);
    }
 
@@ -2924,14 +2924,14 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
           /* It is a value. Let's dump it's expression in the destination context */
           string_arena_init(sa2);
           string_arena_add_string(sa,
-                                  "%s  %s[%d].value = %s%s = %s;\n",
+                                  "%s%s[%d].value = %s%s = %s;\n",
                                   indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)dl->expr, &infodst));
       } else {
           /* It is a parameter. Let's dump it's expression in the source context */
           assert(el != NULL);
           string_arena_init(sa2);
           string_arena_add_string(sa,
-                                  "%s  %s[%d].value = %s%s = %s;\n",
+                                  "%s%s[%d].value = %s%s = %s;\n",
                                   indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)el, &infosrc));
       }
   }
@@ -2977,6 +2977,17 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
             }
         }
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "tass", call));
+        coutput("#if defined(DAGUE_DEBUG_VERBOSE1)\n"
+                "%s    char tmp[128], tmp1[128];\n"
+                "%s    DEBUG((\"task %%s acquires flow %s from %s %%s\\n\",\n"
+                "%s           dague_snprintf_execution_context(tmp, 128, this_task),\n"
+                "%s           dague_snprintf_assignments(tmp1, 128, &%s_%s, tass)));\n"
+                "#endif  /* defined(DAGUE_DEBUG_VERBOSE1) */\n",
+                spaces,
+                spaces, f->varname, call->var,
+                spaces,
+                spaces, jdf_basename, call->func_or_mem);
+
         coutput("%s    e%s = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, tass ));\n"
                 "%s    g%s = e%s->data[%d];\n",
                 spaces, f->varname, call->func_or_mem, call->func_or_mem,
