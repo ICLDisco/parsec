@@ -1057,18 +1057,35 @@ char* dague_snprintf_execution_context( char* str, size_t size,
                                         const dague_execution_context_t* task)
 {
     const dague_function_t* function = task->function;
-    unsigned int ip, index = 0;
+    unsigned int i, ip, index = 0, is_param;
 
     assert( NULL != task->dague_object );
-    index += snprintf( str + index, size - index, "%s", function->name );
+    index += snprintf( str + index, size - index, "%s(", function->name );
     if( index >= size ) return str;
     for( ip = 0; ip < function->nb_parameters; ip++ ) {
         index += snprintf( str + index, size - index, "%s%d",
-                           (ip == 0) ? "(" : ", ",
+                           (ip == 0) ? "" : ", ",
                            task->locals[function->params[ip]->context_index].value );
         if( index >= size ) return str;
     }
-    index += snprintf(str + index, size - index, ")<%d>{%u}", task->priority, task->dague_object->object_id );
+    index += snprintf(str + index, size - index, ")[");
+    if( index >= size ) return str;
+
+    for( i = 0; i < function->nb_locals; i++ ) {
+        is_param = 0;
+        for( ip = 0; ip < function->nb_parameters; ip++ ) {
+            if(function->params[ip]->context_index == function->locals[i]->context_index) {
+                is_param = 1;
+                break;
+            }
+        }
+        index += snprintf( str + index, size - index,
+                           (is_param ? "%s%d" : "[%s%d]"),
+                           (i == 0) ? "" : ", ",
+                           task->locals[i].value );
+        if( index >= size ) return str;
+    }
+    index += snprintf(str + index, size - index, "]<%d>{%u}", task->priority, task->dague_object->object_id );
 
     return str;
 }

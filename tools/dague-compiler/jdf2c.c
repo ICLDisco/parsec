@@ -3898,7 +3898,6 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
             string_arena_add_string(sa_open, "%s%s  %s.locals[%d].value = %s_%s;\n",
                                     prefix, indent(nbopen), var, i,
                                     targetf->fname, def->name);
-
         } else {
             /* This definition is a parameter */
             assert(el != NULL);
