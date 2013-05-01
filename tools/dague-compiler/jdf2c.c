@@ -1252,49 +1252,65 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
     string_arena_free(sa3);
 }
 
-static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t *context,
-                                         const char *fname, const char *name)
+static void jdf_generate_affinity( const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
-    string_arena_t *sa = string_arena_new(64);
+    string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
     string_arena_t *sa3 = string_arena_new(64);
     string_arena_t *sa4 = string_arena_new(64);
     string_arena_t *sa5 = string_arena_new(64);
     assignment_info_t ai;
+    expr_info_t info;
+    const jdf_def_list_t *context = f->locals;
+    const jdf_call_t *data_affinity = f->predicate;
 
     (void)jdf;
 
-    ai.sa = sa3;
-    ai.idx = 0;
-    ai.holder = "assignments";
-    ai.expr = NULL;
-    coutput("static inline int %s_fct(const dague_handle_t *__dague_handle_parent, const assignment_t *assignments)\n"
+    if( data_affinity->var != NULL ) {
+        fprintf(stderr, "Internal Error: data affinity must reference a data, not a complete call (%s:%d).\n",
+                data_affinity->super.filename, data_affinity->super.lineno);
+        assert( NULL == data_affinity->var );
+    }
+
+    coutput("static inline dague_ddesc_t *%s(dague_execution_context_t *this_task,\n"
+            "                                dague_data_key_t *key)\n"
             "{\n"
-            "  const __dague_%s_internal_handle_t *__dague_handle = (const __dague_%s_internal_handle_t*)__dague_handle_parent;\n"
-            "%s\n"
+            "    const __dague_%s_internal_handle_t *__dague_handle = (const __dague_%s_internal_handle_t*)this_task->dague_handle;\n"
+            "    dague_ddesc_t *ret = (dague_ddesc_t *)__dague_handle->super.%s;\n",
+            name,
+            jdf_basename, jdf_basename,
+            data_affinity->func_or_mem);
+
+    info.sa = sa5;
+    info.prefix = "";
+    info.assignments = "this_task->locals";
+
+    ai.sa = sa2;
+    ai.idx = 0;
+    ai.holder = "this_task->locals";
+    ai.expr = NULL;
+    coutput("%s\n"
             "  /* Silent Warnings: should look into predicate to know what variables are usefull */\n"
             "  (void)__dague_handle;\n"
             "%s\n"
-            "  /* Compute Predicate */\n"
-            "  return %s_pred%s;\n"
-            "}\n", name, jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST(sa2, context, next,
+            "  /* Compute data key */\n"
+            "  *key = ((dague_ddesc_t*)__dague_handle->super.%s)->data_key((dague_ddesc_t*)__dague_handle->super.%s, %s);\n"
+            "  return ret;\n"
+            "}\n",
+            UTIL_DUMP_LIST(sa1, context, next,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"),
-            UTIL_DUMP_LIST_FIELD(sa5, context, next, name,
+            UTIL_DUMP_LIST_FIELD(sa3, context, next, name,
                                  dump_string, NULL, "", "  (void)", ";\n", ";"),
-            fname,
-            UTIL_DUMP_LIST_FIELD(sa4, context, next, name,
-                                 dump_string, NULL, "(", "", ", ", ")"));
-    string_arena_free(sa);
+            data_affinity->func_or_mem, data_affinity->func_or_mem,
+            UTIL_DUMP_LIST(sa4, data_affinity->parameters, next,
+                           dump_expr, (void*)&info,
+                           "", "", ", ", ""));
+
+    string_arena_free(sa1);
     string_arena_free(sa2);
     string_arena_free(sa3);
     string_arena_free(sa4);
     string_arena_free(sa5);
-
-    coutput("static const expr_t %s = {\n"
-            "  .op = EXPR_OP_INLINE,\n"
-            "  .inline_func = %s_fct\n"
-            "};\n", name, name);
 }
 
 static void jdf_generate_symbols( const jdf_t *jdf, const jdf_def_list_t *def, const char *prefix )
@@ -2323,9 +2339,9 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name, dump_string, NULL,
                                                  "", prefix, ", ", ""));
 
-    sprintf(prefix, "pred_of_%s_%s_as_expr", jdf_basename, f->fname);
-    jdf_generate_predicate_expr(jdf, f->locals, f->fname, prefix);
-    string_arena_add_string(sa, "  .pred = &%s,\n", prefix);
+    sprintf(prefix, "affinity_of_%s_%s", jdf_basename, f->fname);
+    jdf_generate_affinity(jdf, f, prefix);
+    string_arena_add_string(sa, "  .data_affinity = %s,\n", prefix);
 
     if( NULL != f->priority ) {
         sprintf(prefix, "priority_of_%s_%s_as_expr", jdf_basename, f->fname);

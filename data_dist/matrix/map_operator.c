@@ -111,21 +111,16 @@ static const symbol_t symb_column = {
     .flags = DAGUE_SYMBOL_IS_STANDALONE
 };
 
-static inline int pred_of_map_operator_all_as_expr_fct(const dague_handle_t *__dague_handle_parent,
-                                                const assignment_t *assignments)
+static inline dague_ddesc_t *affinity_of_map_operator(dague_execution_context_t *this_task,
+                                                      dague_data_key_t *key)
 {
-    const __dague_map_operator_handle_t *__dague_handle = (const __dague_map_operator_handle_t*)__dague_handle_parent;
-
-    /* Silent Warnings: should look into predicate to know what variables are usefull */
-    (void)__dague_handle;
-    (void)assignments;
-    /* Compute Predicate */
-    return 1;
+    const __dague_map_operator_handle_t *__dague_handle = (const __dague_map_operator_handle_t*)this_task->dague_handle;
+    dague_ddesc_t *ret = (dague_ddesc_t*)__dague_handle->super.src;
+    int k = this_task->locals[0].value;
+    int n = this_task->locals[1].value;
+    *key = ((dague_ddesc_t*)(__dague_handle->super.src))->data_key((dague_ddesc_t*)__dague_handle->super.src, k, n);
+    return ret;
 }
-static const expr_t pred_of_map_operator_all_as_expr = {
-    .op = EXPR_OP_INLINE,
-    .inline_func = pred_of_map_operator_all_as_expr_fct
-};
 
 static inline int
 expr_of_p1_for_flow_of_map_operator_dep_in_fct(const dague_handle_t *__dague_handle_parent,
@@ -377,7 +372,7 @@ static const dague_function_t dague_map_operator = {
     .dependencies_goal = 0x1,
     .params = { &symb_row, &symb_column },
     .locals = { &symb_row, &symb_column },
-    .pred = &pred_of_map_operator_all_as_expr,
+    .data_affinity = affinity_of_map_operator,
     .priority = NULL,
     .in = { &flow_of_map_operator },
     .out = { &flow_of_map_operator },

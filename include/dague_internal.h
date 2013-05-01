@@ -13,6 +13,7 @@
 #include "dague_description_structures.h"
 #include "dague.h"
 #include "profiling.h"
+#include "data_distribution.h"
 
 typedef struct dague_function_s        dague_function_t;
 typedef struct dague_remote_deps_s     dague_remote_deps_t;
@@ -157,6 +158,12 @@ typedef dague_hook_return_t (dague_hook_t)(struct dague_execution_unit_s*, dague
 /**
  *
  */
+typedef dague_ddesc_t *(dague_data_ref_fn_t)(dague_execution_context_t *exec_context,
+                                             dague_data_key_t *key);
+
+/**
+ *
+ */
 typedef int (dague_task_fct_t)(dague_execution_context_t *exec_context);
 
 #define DAGUE_HAS_IN_IN_DEPENDENCIES     0x0001
@@ -186,11 +193,11 @@ struct dague_function_s {
     dague_dependency_t           dependencies_goal;
     const symbol_t              *params[MAX_LOCAL_COUNT];
     const symbol_t              *locals[MAX_LOCAL_COUNT];
-    const expr_t                *pred;
     const dague_flow_t          *in[MAX_PARAM_COUNT];
     const dague_flow_t          *out[MAX_PARAM_COUNT];
     const expr_t                *priority;
 
+    dague_data_ref_fn_t         *data_affinity;
     dague_create_function_t     *init;
     dague_functionkey_fn_t      *key;
 #if defined(DAGUE_SIM)
