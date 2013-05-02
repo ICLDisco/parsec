@@ -29,7 +29,6 @@ struct dague_arena_s {
     size_t alignment;                        /* alignment to be respected, elem_size should be >> alignment, prefix size is the minimum alignment */
     size_t elem_size;                        /* size of one element (unpacked in memory, aka extent) */
     dague_remote_dep_datatype_t opaque_dtt;  /* the appropriate type for the network engine to send an element */
-    dague_lifo_t data_lifo;
     dague_lifo_t area_lifo;
     volatile int32_t used;                   /* elements currently out of the arena */
     int32_t max_used;                        /* maximum size of the arena in elements */
@@ -41,12 +40,13 @@ struct dague_arena_s {
     dague_data_free_t data_free;
 };
 
-/* The fields are ordered so that important list_item_t fields are not
- * damaged when using them as arena chunks */
 struct dague_arena_chunk_s {
+    dague_list_item_t item;                  /* chaining of this chunk when in an arena's free list.
+                                              *   SINGLETON when ( (not in free list) and (in debug mode) ) */
     dague_arena_t* origin;
-    size_t count;
-    void* data;
+    void*          data;
+    uint32_t refcount;
+    uint32_t count;
 };
 
 /* for SSE, 16 is mandatory, most cache are 64 bit aligned */

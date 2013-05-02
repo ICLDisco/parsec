@@ -2105,6 +2105,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s  }\n"
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
 
+    coutput("%s  dague_dependencies_mark_task_as_startup(new_dynamic_context);\n", indent(nesting));
+
     coutput("%s  pready_list[vpid] = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(pready_list[vpid]), (dague_list_item_t*)new_dynamic_context, dague_execution_context_priority_comparator );\n", indent(nesting));
 
     for(; nesting > 0; nesting--) {
@@ -3117,6 +3119,11 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   string_arena_init(sa);
   sa2 = string_arena_new(64);
 
+  for(dl = f->locals; dl != NULL; dl = dl->next) {
+    string_arena_add_string(sa, "%sint %s%s = -1; (void)%s%s;\n",
+                            indent(spaces), f->fname, dl->name, f->fname, dl->name);
+   }
+
   infodst.sa = sa2;
   infodst.prefix = f->fname;
   infodst.assignments = strdup(name);
@@ -3136,15 +3143,15 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
           /* It is a value. Let's dump it's expression in the destination context */
           string_arena_init(sa2);
           string_arena_add_string(sa,
-                                  "%s  %s[%d].value = %s;\n",
-                                  indent(spaces), name, idx, dump_expr((void**)dl->expr, &infodst));
+                                  "%s%s[%d].value = %s%s = %s;\n",
+                                  indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)dl->expr, &infodst));
       } else {
           /* It is a parameter. Let's dump it's expression in the source context */
           assert(el != NULL);
           string_arena_init(sa2);
           string_arena_add_string(sa,
-                                  "%s  %s[%d].value = %s;\n",
-                                  indent(spaces), name, idx, dump_expr((void**)el, &infosrc));
+                                  "%s%s[%d].value = %s%s = %s;\n",
+                                  indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)el, &infosrc));
       }
   }
 
@@ -3189,6 +3196,17 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
             }
         }
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "tass", call));
+        coutput("#if defined(DAGUE_DEBUG_VERBOSE1)\n"
+                "%s    char tmp[128], tmp1[128];\n"
+                "%s    DEBUG((\"task %%s acquires flow %s from %s %%s\\n\",\n"
+                "%s           dague_snprintf_execution_context(tmp, 128, this_task),\n"
+                "%s           dague_snprintf_assignments(tmp1, 128, &%s_%s, tass)));\n"
+                "#endif  /* defined(DAGUE_DEBUG_VERBOSE1) */\n",
+                spaces,
+                spaces, f->varname, call->var,
+                spaces,
+                spaces, jdf_basename, call->func_or_mem);
+
         coutput("%s    e%s = data_repo_lookup_entry( %s_repo, %s_hash( __dague_handle, tass ));\n"
                 "%s    g%s = e%s->data[%d];\n",
                 spaces, f->varname, call->func_or_mem, call->func_or_mem,
@@ -4185,7 +4203,6 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
             string_arena_add_string(sa_open, "%s%s  %s.locals[%d].value = %s_%s;\n",
                                     prefix, indent(nbopen), var, i,
                                     targetf->fname, def->name);
-
         } else {
             /* This definition is a parameter */
             assert(el != NULL);
