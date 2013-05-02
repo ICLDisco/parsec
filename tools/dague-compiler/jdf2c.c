@@ -2958,7 +2958,7 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   sa2 = string_arena_new(64);
 
   for(dl = f->locals; dl != NULL; dl = dl->next) {
-    string_arena_add_string(sa, "%sint %s%s; (void)%s%s;\n",
+    string_arena_add_string(sa, "%sint %s%s = -1; (void)%s%s;\n",
                             indent(spaces), f->fname, dl->name, f->fname, dl->name);
    }
 
