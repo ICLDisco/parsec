@@ -158,8 +158,13 @@ typedef dague_hook_return_t (dague_hook_t)(struct dague_execution_unit_s*, dague
 /**
  *
  */
-typedef dague_ddesc_t *(dague_data_ref_fn_t)(dague_execution_context_t *exec_context,
-                                             dague_data_key_t *key);
+typedef struct dague_data_ref_s {
+    dague_ddesc_t *ddesc;
+    dague_data_key_t key;
+} dague_data_ref_t;
+
+typedef int (dague_data_ref_fn_t)(dague_execution_context_t *exec_context,
+                                  dague_data_ref_t *ref);
 
 /**
  *
@@ -197,7 +202,9 @@ struct dague_function_s {
     const dague_flow_t          *out[MAX_PARAM_COUNT];
     const expr_t                *priority;
 
-    dague_data_ref_fn_t         *data_affinity;
+    dague_data_ref_fn_t         *initial_data;   /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
+    dague_data_ref_fn_t         *final_data;     /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
+    dague_data_ref_fn_t         *data_affinity;  /**< Populates an array of data references, of size 1 */
     dague_create_function_t     *init;
     dague_functionkey_fn_t      *key;
 #if defined(DAGUE_SIM)

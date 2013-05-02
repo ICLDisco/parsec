@@ -111,15 +111,49 @@ static const symbol_t symb_column = {
     .flags = DAGUE_SYMBOL_IS_STANDALONE
 };
 
-static inline dague_ddesc_t *affinity_of_map_operator(dague_execution_context_t *this_task,
-                                                      dague_data_key_t *key)
+static inline int affinity_of_map_operator(dague_execution_context_t *this_task,
+                                           dague_data_ref_t *ref)
 {
     const __dague_map_operator_handle_t *__dague_handle = (const __dague_map_operator_handle_t*)this_task->dague_handle;
-    dague_ddesc_t *ret = (dague_ddesc_t*)__dague_handle->super.src;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
-    *key = ((dague_ddesc_t*)(__dague_handle->super.src))->data_key((dague_ddesc_t*)__dague_handle->super.src, k, n);
-    return ret;
+    ref->ddesc = (dague_ddesc_t*)__dague_handle->super.src;
+    ref->key = ref->ddesc->data_key(ref->ddesc, k, n);
+    return 1;
+}
+
+static inline int initial_data_of_map_operator(dague_execution_context_t *this_task,
+                                               dague_data_ref_t *refs)
+{
+    int __flow_nb = 0;
+    dague_ddesc_t *__d;
+    const __dague_map_operator_handle_t *__dague_handle = (const __dague_map_operator_handle_t*)this_task->dague_handle;
+    int k = this_task->locals[0].value;
+    int n = this_task->locals[1].value;
+
+    __d = (dague_ddesc_t*)__dague_handle->super.src;
+    refs[__flow_nb].ddesc = __d;
+    refs[__flow_nb].key = __d->data_key(__d, k, n);
+    __flow_nb++;
+
+    return __flow_nb;
+}
+
+static inline int final_data_of_map_operator(dague_execution_context_t *this_task,
+                                             dague_data_ref_t *data_refs)
+{
+    int __flow_nb = 0;
+    dague_ddesc_t *__d;
+    const __dague_map_operator_handle_t *__dague_handle = (const __dague_map_operator_handle_t*)this_task->dague_handle;
+    int k = this_task->locals[0].value;
+    int n = this_task->locals[1].value;
+
+    __d = (dague_ddesc_t*)__dague_handle->super.dest;
+    data_refs[__flow_nb].ddesc = __d;
+    data_refs[__flow_nb].key = __d->data_key(__d, k, n);
+    __flow_nb++;
+
+    return __flow_nb;
 }
 
 static inline int
@@ -373,6 +407,8 @@ static const dague_function_t dague_map_operator = {
     .params = { &symb_row, &symb_column },
     .locals = { &symb_row, &symb_column },
     .data_affinity = affinity_of_map_operator,
+    .initial_data = initial_data_of_map_operator,
+    .final_data = final_data_of_map_operator,
     .priority = NULL,
     .in = { &flow_of_map_operator },
     .out = { &flow_of_map_operator },
