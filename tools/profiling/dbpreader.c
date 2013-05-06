@@ -653,7 +653,6 @@ static int read_threads(dbp_multifile_reader_t *dbp, int n, int fd, const dague_
     nb = head->nb_threads;
     b = refer_events_buffer(fd, head->thread_offset);
     nbthis = b->this_buffer.nb_threads;
-    nb = 0;
     while( nb > 0 ) {
         assert(PROFILING_BUFFER_TYPE_THREAD == b->buffer_type);
         assert(nbthis > 0);
