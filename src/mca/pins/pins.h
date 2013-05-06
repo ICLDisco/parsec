@@ -99,8 +99,8 @@ void pins_thread_fini(dague_execution_unit_t * exec_unit);
 /*
  the following functions are intended for public use wherever they are necessary
  */
-void parsec_pins(PINS_FLAG method_flag, dague_execution_unit_t * exec_unit, 
-                 dague_execution_context_t * task, void * data);
+void parsec_instrument(PINS_FLAG method_flag, dague_execution_unit_t * exec_unit, 
+					   dague_execution_context_t * task, void * data);
 
 void pins_disable_registration(int disable);
 
@@ -115,7 +115,7 @@ parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag);
 #ifdef PINS_ENABLE
 
 #define PINS(method_flag, exec_unit, task, data)                        \
-	parsec_pins(method_flag, exec_unit, task, data)
+	parsec_instrument(method_flag, exec_unit, task, data)
 #define PINS_DISABLE_REGISTRATION(boolean) \
 	pins_disable_registration(boolean)
 #define PINS_REGISTER(method_flag, cb)                                  \

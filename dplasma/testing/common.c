@@ -531,11 +531,9 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 #endif
 
 #ifdef PINS_ENABLE
-    if (iparam[IPARAM_PINS]) {
-	    char ** modules = delimited_string_to_strings(mca_pins_optarg, ',');
-	    set_allowable_pins_modules(modules); // by calling this, we override the defaults
-	    free(modules);
-    }
+	char ** modules = delimited_string_to_strings(mca_pins_optarg, ',');
+	set_allowable_pins_modules(modules); // by calling this, we limit allowable modules
+	free(modules);
 #endif // PINS_ENABLE
 
     TIME_START();

@@ -7,7 +7,7 @@ static int registration_disabled;
 
 parsec_pins_callback * pins_array[PINS_FLAG_COUNT] = { 0 };
 
-void parsec_pins(PINS_FLAG method_flag, 
+void parsec_instrument(PINS_FLAG method_flag, 
                  dague_execution_unit_t * exec_unit,
                  dague_execution_context_t * task, 
                  void * data) {
@@ -26,7 +26,7 @@ void pins_disable_registration(int disable) {
 /**
  The behavior of the PaRSEC PINS system is undefined if 
  pins_register_callback is not called at least once before 
- any call to parsec_pins.
+ any call to parsec_instrument.
  */
 parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins_callback * cb) {
     if (!pins_array[0]) {
