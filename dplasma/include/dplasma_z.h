@@ -8,6 +8,8 @@
 #ifndef _DPLASMA_Z_H_
 #define _DPLASMA_Z_H_
 
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+
 /***********************************************************
  *               Blocking interface
  */
