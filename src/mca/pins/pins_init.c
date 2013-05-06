@@ -10,8 +10,8 @@
 static int allowable_modules_in_use;  // allows all modules if not set
 static int allowable_modules_defined; // keeps them from being defined more than once
 static const char * const default_modules_array[] = {NULL};
-char ** allowable_modules; // this is the default/supplied module
-#define MAX_NAME_SIZE 40 // arbitrary string limit for 'safety'
+char ** allowable_modules;
+#define MAX_NAME_SIZE 40 // arbitrary module name limit for 'safety'
 
 extern parsec_pins_callback * pins_array[];
 
@@ -63,7 +63,7 @@ void pins_init(dague_context_t * master_context) {
 }
 
 /**
- * Ideally, there would be a pins_fini method as well.
+ * pins_fini must call fini methods of all modules
  */
 void pins_fini(dague_context_t * master_context) {
 	mca_base_component_t ** components = NULL;
@@ -71,8 +71,16 @@ void pins_fini(dague_context_t * master_context) {
 	int priority = -1;
 	int i = 0;
 
+        /*
+         * Call all fini methods in reverse order in order to preserve 
+         * cleanup semantics.
+         */
 	components = mca_components_open_bytype("pins");
-	while (components[i] != NULL) {
+	while (components[i] != NULL)
+            i++; // count
+        i--;
+
+        while (i >= 0) {
 		if (components[i]->mca_query_component != NULL) {
 			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
 			int j = 0;
@@ -92,7 +100,7 @@ void pins_fini(dague_context_t * master_context) {
 					   module->component->base_version.mca_component_name));
 			}
 		}
-		i++;
+		i--;
 	}
 }
 
@@ -142,8 +150,16 @@ void pins_thread_fini(dague_execution_unit_t * exec_unit) {
 	int priority = -1;
 	int i = 0;
 
+        /*
+         * Call all fini methods in reverse order in order to preserve 
+         * cleanup semantics.
+         */
 	components = mca_components_open_bytype("pins");
-	while (components[i] != NULL) {
+	while (components[i] != NULL)
+            i++; // count
+        i--;
+
+        while (i >= 0) {
 		if (components[i]->mca_query_component != NULL) {
 			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
 			int j = 0;
@@ -159,7 +175,7 @@ void pins_thread_fini(dague_execution_unit_t * exec_unit) {
 				module->module.thread_fini(exec_unit);
 			}
 		}
-		i++;
+		i--;
 	}
 
 	parsec_instrument(THREAD_FINI, exec_unit, NULL, NULL);
@@ -212,8 +228,16 @@ void pins_handle_fini(dague_handle_t * handle) {
 	int priority = -1;
 	int i = 0;
 
+        /*
+         * Call all fini methods in reverse order in order to preserve 
+         * cleanup semantics.
+         */
 	components = mca_components_open_bytype("pins");
-	while (components[i] != NULL) {
+	while (components[i] != NULL)
+            i++; // count
+        i--;
+
+        while (i >= 0) {
 		if (components[i]->mca_query_component != NULL) {
 			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
 			int j = 0;
@@ -229,7 +253,7 @@ void pins_handle_fini(dague_handle_t * handle) {
 				module->module.handle_fini(handle);
 			}
 		}
-		i++;
+		i--;
 	}
 
 	parsec_instrument(HANDLE_FINI, NULL, NULL, (void *)handle);

@@ -35,8 +35,6 @@ endif(PLASMA_DIR)
 find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
   set(ENV{PKG_CONFIG_PATH} "${PLASMA_PKG_DIR}:$ENV{PKG_CONFIG_PATH}")
-  message(WARNING "checking pkgconfig path for plasma...")
-
   pkg_check_modules(PLASMA plasma)
 endif(PKG_CONFIG_FOUND)
 
@@ -121,8 +119,6 @@ if(NOT PLASMA_FOUND)
   endif(NOT PLASMA_DIR AND NOT PLASMA_PKG_DIR)
   set(PLASMA_FOUND TRUE)
 else(NOT PLASMA_FOUND)
-  message(WARNING "SHOULD be here!")
-
   set(_cflags ${PLASMA_CFLAGS})
   set(PLASMA_CFLAGS "")
   foreach(_cflag ${_cflags})

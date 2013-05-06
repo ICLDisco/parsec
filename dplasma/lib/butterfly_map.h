@@ -2,8 +2,10 @@
 #define _RBT_MAPPING_H_
 #include "include/data_distribution.h"
 #include "data_dist/matrix/matrix.h"
+/*
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+*/
 
 typedef struct{
   int m;
@@ -28,19 +30,9 @@ typedef struct{
   int spn, mpn, epn;
 } seg_info_t;
 
-typedef union block_cyclic{
- sym_two_dim_block_cyclic_t sym_two_DBC;
- two_dim_block_cyclic_t two_DBC;
-} block_cyclic_t;
-
-typedef union block_cyclic_ptr{
- sym_two_dim_block_cyclic_t *sym_two_DBC;
- two_dim_block_cyclic_t *two_DBC;
-} block_cyclic_ptr_t;
-
 typedef struct dague_seg_ddesc{
- block_cyclic_t super;
- block_cyclic_ptr_t A_org;
+ tiled_matrix_desc_t super;
+ tiled_matrix_desc_t *A_org;
  seg_info_t seg_info;
  int level;
 }dague_seg_ddesc_t;

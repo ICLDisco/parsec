@@ -243,7 +243,6 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
 	dague_heap_t * heap = *heap_ptr;
 
 	if (heap != NULL) {
-		unsigned int temp_size = heap->size;
 		assert(heap->top != NULL); // this heap should have been destroyed
 		to_use = heap->top; // this will always be what we return, even if it's NULL, if a valid heap was passed
 		if (heap->top->list_item.list_prev == NULL) {

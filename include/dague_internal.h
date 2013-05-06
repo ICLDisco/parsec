@@ -13,6 +13,7 @@
 #include "dague_description_structures.h"
 #include "dague.h"
 #include "profiling.h"
+#include "data_distribution.h"
 
 typedef struct dague_function_s        dague_function_t;
 typedef struct dague_remote_deps_s     dague_remote_deps_t;
@@ -66,7 +67,8 @@ struct dague_handle_s {
  */
 #define DAGUE_DEPENDENCIES_TASK_DONE      ((dague_dependency_t)(1<<31))
 #define DAGUE_DEPENDENCIES_IN_DONE        ((dague_dependency_t)(1<<30))
-#define DAGUE_DEPENDENCIES_BITMASK        (~(DAGUE_DEPENDENCIES_TASK_DONE|DAGUE_DEPENDENCIES_IN_DONE))
+#define DAGUE_DEPENDENCIES_STARTUP_TASK   ((dague_dependency_t)(1<<29))
+#define DAGUE_DEPENDENCIES_BITMASK        (~(DAGUE_DEPENDENCIES_TASK_DONE|DAGUE_DEPENDENCIES_IN_DONE|DAGUE_DEPENDENCIES_STARTUP_TASK))
 
 typedef union {
     dague_dependency_t    dependencies[1];
@@ -157,6 +159,17 @@ typedef dague_hook_return_t (dague_hook_t)(struct dague_execution_unit_s*, dague
 /**
  *
  */
+typedef struct dague_data_ref_s {
+    dague_ddesc_t *ddesc;
+    dague_data_key_t key;
+} dague_data_ref_t;
+
+typedef int (dague_data_ref_fn_t)(dague_execution_context_t *exec_context,
+                                  dague_data_ref_t *ref);
+
+/**
+ *
+ */
 typedef int (dague_task_fct_t)(dague_execution_context_t *exec_context);
 
 #define DAGUE_HAS_IN_IN_DEPENDENCIES     0x0001
@@ -186,11 +199,13 @@ struct dague_function_s {
     dague_dependency_t           dependencies_goal;
     const symbol_t              *params[MAX_LOCAL_COUNT];
     const symbol_t              *locals[MAX_LOCAL_COUNT];
-    const expr_t                *pred;
     const dague_flow_t          *in[MAX_PARAM_COUNT];
     const dague_flow_t          *out[MAX_PARAM_COUNT];
     const expr_t                *priority;
 
+    dague_data_ref_fn_t         *initial_data;   /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
+    dague_data_ref_fn_t         *final_data;     /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
+    dague_data_ref_fn_t         *data_affinity;  /**< Populates an array of data references, of size 1 */
     dague_create_function_t     *init;
     dague_functionkey_fn_t      *key;
 #if defined(DAGUE_SIM)
@@ -320,6 +335,8 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_s *eu,
                                              dague_arena_t* arena,
                                              int nb_elt,
                                              void *param);
+
+void dague_dependencies_mark_task_as_startup(dague_execution_context_t* exec_context);
 
 int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
                                           dague_execution_unit_t* eu_context,

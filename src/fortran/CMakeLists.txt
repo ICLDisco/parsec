@@ -8,5 +8,4 @@ else (MPI_FOUND)
   target_link_libraries(daguef dague ${EXTRA_LIBS})
 endif (MPI_FOUND)
 install(TARGETS daguef ARCHIVE DESTINATION lib)
-install(FILES daguef.h DESTINATION include)
 
