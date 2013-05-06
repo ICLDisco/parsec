@@ -798,25 +798,22 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                 continue;
             }
             dbp->worldsize = head.worldsize;
-            
         }
-        
+
         dbp->files[n].hr_id = strdup(head.hr_id);
         dbp->files[n].rank = head.rank;
-        
+
         read_infos(dbp, n, &head);
 
-        /*
         if( read_threads(dbp, n, fd, &head) != 0 ) {
             fprintf(stderr, "unable to read all threads of profile %d in file %s. File ignored.\n",
                     n, dbp->files[n].filename);
             continue;
         }
-         */
 
         n++;
     }
-    
+
     if( dbp->worldsize > n ) {
         fprintf(stderr, "The profile in file %s has a world size of %d, but only %d files can be read in input. The trace will be truncated\n",
                         dbp->files[0].filename, dbp->worldsize, n);
@@ -840,7 +837,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
     dbp->nb_files = n;
     event_avail_space = event_buffer_size -
         ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
-    
+
     return dbp;
 }
 
@@ -852,19 +849,6 @@ dbp_multifile_reader_t *dbp_reader_open_files(int nbfiles, char *files[])
     (void)event_avail_space;
 
     dbp = open_files(nbfiles, files);
-    
-    return dbp;
-}
 
-dbp_multifile_reader_t *dbp_reader_open_default_files()
-{
-    dbp_multifile_reader_t *dbp;
-
-    (void)event_buffer_size;
-    (void)event_avail_space;
-	char * files[] = {"testing_dpotrf.profile"};
-
-    dbp = open_files(1, files);
-    
     return dbp;
 }

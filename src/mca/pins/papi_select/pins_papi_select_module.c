@@ -36,18 +36,18 @@ static int select_events[NUM_SELECT_EVENTS] = {PAPI_L2_TCM, PAPI_L2_DCM};
                                exec_unit->th_id )
 
 static void pins_init_papi_select(dague_context_t * master) {
+    (void) master;
     select_begin_prev = PINS_REGISTER(SELECT_BEGIN, start_papi_select_count);
     select_end_prev   = PINS_REGISTER(SELECT_END,   stop_papi_select_count);
 }
 
 static void pins_fini_papi_select(dague_context_t * master) {
+    (void) master;
     PINS_REGISTER(SELECT_BEGIN, select_begin_prev);
     PINS_REGISTER(SELECT_END,   select_end_prev);
 }
 
 static void pins_thread_init_papi_select(dague_execution_unit_t * exec_unit) {
-    unsigned int p, t;
-    dague_vp_t * vp = NULL;
     int rv;
 
     exec_unit->papi_eventsets[SELECT_SET] = PAPI_NULL;

@@ -12,7 +12,6 @@ static int exec_events[NUM_EXEC_EVENTS] = {PAPI_RES_STL, PAPI_L2_DCH, PAPI_L2_DC
 
 static void pins_init_papi_exec(dague_context_t * master_context);
 static void pins_fini_papi_exec(dague_context_t * master_context);
-static void pins_handle_init_papi_exec(dague_handle_t * handle);
 static void pins_thread_init_papi_exec(dague_execution_unit_t * exec_unit);
 
 const dague_pins_module_t dague_pins_papi_exec_module = {
@@ -41,16 +40,15 @@ static int pins_prof_papi_exec_begin, pins_prof_papi_exec_end;
 
 static void pins_init_papi_exec(dague_context_t * master_context) {
 	(void)master_context;
-
 	exec_begin_prev = PINS_REGISTER(EXEC_BEGIN, start_papi_exec_count);
 	exec_end_prev   = PINS_REGISTER(EXEC_END, stop_papi_exec_count);
-	// PETER TODO add requirement for DAGUE_PROF_TRACE
 	dague_profiling_add_dictionary_keyword("PINS_EXEC", "fill:#00FF00",
 	                                       sizeof(papi_exec_info_t), NULL,
 	                                       &pins_prof_papi_exec_begin, &pins_prof_papi_exec_end);
 }
 
 static void pins_fini_papi_exec(dague_context_t * master_context) {
+	(void)master_context;
 	// replace original registrant
 	PINS_REGISTER(EXEC_BEGIN, exec_begin_prev);
 	PINS_REGISTER(EXEC_END,   exec_end_prev);

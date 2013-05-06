@@ -35,9 +35,6 @@
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
 
-static int master_thread_progress_count; /* allows thread_init and thread_fini to be 
-                                              * singly paired for thread 0 (the master thread) */
-
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
 #define DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER 65536
 typedef struct {

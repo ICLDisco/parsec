@@ -35,8 +35,6 @@ endif(PLASMA_DIR)
 find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
   set(ENV{PKG_CONFIG_PATH} "${PLASMA_PKG_DIR}:$ENV{PKG_CONFIG_PATH}")
-  message(WARNING "checking pkgconfig path for plasma...")
-
   pkg_check_modules(PLASMA plasma)
 endif(PKG_CONFIG_FOUND)
 
