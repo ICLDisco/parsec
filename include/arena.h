@@ -41,15 +41,13 @@ struct dague_arena_t
     dague_data_free_t data_free;
 };
 
-/* The fields are ordered so that important list_item_t fields are not
- * damaged when using them as arena chunks */
 struct dague_arena_chunk_t {
+    dague_list_item_t item;                  /* chaining of this chunk when in an arena's free list.
+                                              *   SINGLETON when ( (not in free list) and (in debug mode) ) */
     dague_arena_t* origin;
-    uint64_t keeper_of_the_seven_keys;
     void* data;
-    volatile uint32_t refcount;
-    size_t count;
-    int32_t cache_friendly_emptyness;
+    uint32_t refcount;
+    uint32_t count;
 };
 
 /* for SSE, 16 is mandatory, most cache are 64 bit aligned */

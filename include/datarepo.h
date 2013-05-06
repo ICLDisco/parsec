@@ -99,9 +99,15 @@ struct data_repo {
     data_repo_head_t  heads[1];
 };
 
-static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, unsigned int nbdata)
+static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize_hint, unsigned int nbdata)
 {
-    data_repo_t *res = (data_repo_t*)calloc(1, sizeof(data_repo_t) + sizeof(data_repo_head_t) * hashsize);
+    unsigned int hashsize = hashsize_hint * 1.5;
+    data_repo_t *res;
+
+    if( hashsize == 0 ) hashsize = 1;
+    if( hashsize > MAX_DATAREPO_HASH ) hashsize = MAX_DATAREPO_HASH;
+
+    res = (data_repo_t*)calloc(1, sizeof(data_repo_t) + sizeof(data_repo_head_t) * hashsize);
     res->nbentries = hashsize;
     res->nbdata = nbdata;
     DAGUE_STAT_INCREASE(mem_hashtable, sizeof(data_repo_t) + sizeof(data_repo_head_t) * (hashsize-1) + STAT_MALLOC_OVERHEAD);

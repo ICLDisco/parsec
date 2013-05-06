@@ -157,8 +157,9 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                 if( NULL != context->data[flow->flow_index].data_repo ) {
                     set_parameters++;
                     if( NULL == context->data[flow->flow_index].data ) {
-                        ERROR(( "Task %s has flow %d data_repo != NULL but a data == NULL (%s:%d)\n",
-                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), flow->flow_index, __FILE__, __LINE__));
+                        DEBUG2(("Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)\n",
+                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context),
+                                flow->name, __FILE__, __LINE__));
                     }
                 }
             }
@@ -452,6 +453,13 @@ dague_object_t* dague_compose( dague_object_t* start,
     return compound;
 }
 /** END: Composition ***/
+
+int32_t dague_set_priority( dague_object_t* object, int32_t new_priority )
+{
+    int32_t old_priority = object->object_priority;
+    object->object_priority = new_priority;
+    return old_priority;
+}
 
 int dague_enqueue( dague_context_t* context, dague_object_t* object)
 {
