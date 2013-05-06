@@ -7,27 +7,27 @@
 #include "dague/mca/mca.h"
 
 typedef enum PINS_FLAG {
-	SELECT_BEGIN,
-	SELECT_END,
-	EXEC_BEGIN,
-	EXEC_END,
-	/* what follows are
-	 * Special Events. 
-	 * They do not necessarily
-	 * obey the 'exec unit, exec context'
-	 * contract. 
-	 */
-	THREAD_INIT,
-	THREAD_FINI,
-	HANDLE_INIT,
-	HANDLE_FINI,
-	/* inactive (no call in source code)
-	PARSEC_SCHEDULED,
-	PARSEC_PROLOGUE,
-	PARSEC_RELEASE,
-	 */
-	/* this one is not an event at all */
-	PINS_FLAG_COUNT
+    SELECT_BEGIN,    // called before scheduler begins looking for an available task
+    SELECT_END,      // called after scheduler has finished looking for an available task
+    EXEC_BEGIN,      // called before thread executes a task
+    EXEC_END,        // called before thread executes a task
+    /* what follows are
+     * Special Events. 
+     * They do not necessarily
+     * obey the 'exec unit, exec context'
+     * contract. 
+     */
+    THREAD_INIT,     // Provided as an option for modules to run work during thread init without using the MCA module registration system.
+    THREAD_FINI,     // Similar to above, for thread finalization.
+    HANDLE_INIT,     // Similar to {{{THREAD_INIT}}}, for handle initialization.
+    HANDLE_FINI,     // Similar to {{{THREAD_FINI}}}, for handle finalialization.
+    /* inactive but tentatively planned (no current call in PaRSEC runtime)
+     PARSEC_SCHEDULED,
+     PARSEC_PROLOGUE,
+     PARSEC_RELEASE,
+     */
+    /* this one is not an event at all */
+    PINS_FLAG_COUNT
 } PINS_FLAG;
 
 typedef void (parsec_pins_callback)(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data); 
@@ -63,7 +63,7 @@ struct dague_pins_base_module_1_0_0_t {
     dague_pins_base_module_init_fn_t        init;
     dague_pins_base_module_fini_fn_t        fini;
     dague_pins_base_module_handle_init_fn_t handle_init;
-	dague_pins_base_module_handle_fini_fn_t handle_fini;
+    dague_pins_base_module_handle_fini_fn_t handle_fini;
     dague_pins_base_module_thread_init_fn_t thread_init;
     dague_pins_base_module_thread_fini_fn_t thread_fini;
 };
@@ -79,9 +79,9 @@ typedef struct {
 /*
  * Macro for use in components that are of type pins, version 2.0.0
  */
-#define DAGUE_PINS_BASE_VERSION_2_0_0 \
-    MCA_BASE_VERSION_2_0_0, \
-    "pins", 2, 0, 0
+#define DAGUE_PINS_BASE_VERSION_2_0_0           \
+    MCA_BASE_VERSION_2_0_0,                     \
+        "pins", 2, 0, 0
 
 END_C_DECLS
 
@@ -114,49 +114,49 @@ parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag);
 
 #ifdef PINS_ENABLE
 
-#define PINS(method_flag, exec_unit, task, data)                        \
-	parsec_pins(method_flag, exec_unit, task, data)
-#define PINS_DISABLE_REGISTRATION(boolean) \
-	pins_disable_registration(boolean)
-#define PINS_REGISTER(method_flag, cb)                                  \
-	pins_register_callback(method_flag, cb)
-#define PINS_UNREGISTER(method_flag)                                    \
-	pins_unregister_callback(method_flag)
-#define PINS_INIT(master_context) \
-	pins_init(master_context)
-#define PINS_FINI(master_context) \
-	pins_fini(master_context)
-#define PINS_THREAD_INIT(exec_unit) \
-	pins_thread_init(exec_unit)
-#define PINS_HANDLE_INIT(dague_handle) \
-	pins_handle_init(dague_handle)
-#define PINS_THREAD_FINI(exec_unit) \
-	pins_thread_fini(exec_unit)
-#define PINS_HANDLE_FINI(dague_handle) \
-	pins_handle_fini(dague_handle)
+#define PINS(method_flag, exec_unit, task, data)        \
+    parsec_pins(method_flag, exec_unit, task, data)
+#define PINS_DISABLE_REGISTRATION(boolean)      \
+    pins_disable_registration(boolean)
+#define PINS_REGISTER(method_flag, cb)          \
+    pins_register_callback(method_flag, cb)
+#define PINS_UNREGISTER(method_flag)            \
+    pins_unregister_callback(method_flag)
+#define PINS_INIT(master_context)               \
+    pins_init(master_context)
+#define PINS_FINI(master_context)               \
+    pins_fini(master_context)
+#define PINS_THREAD_INIT(exec_unit)             \
+    pins_thread_init(exec_unit)
+#define PINS_HANDLE_INIT(dague_handle)          \
+    pins_handle_init(dague_handle)
+#define PINS_THREAD_FINI(exec_unit)             \
+    pins_thread_fini(exec_unit)
+#define PINS_HANDLE_FINI(dague_handle)          \
+    pins_handle_fini(dague_handle)
 
 #else // NOT PINS_ENABLE
 
-#define PINS(method_flag, exec_unit, task, data)    \
-	do {} while (0)
-#define PINS_DISABLE_REGISTRATION(boolean) \
-	do {} while(0)
-#define PINS_REGISTER(method_flag, cb)                                  \
-	do {} while (0)
-#define PINS_UNREGISTER(method_flag)                                    \
-	do {} while (0)
-#define PINS_INIT(master_context) \
-	do {} while (0)
-#define PINS_FINI(master_context) \
-	do {} while (0)
-#define PINS_THREAD_INIT(exec_unit) \
-	do {} while (0)
-#define PINS_HANDLE_INIT(dague_handle) \
-	do {} while (0)
-#define PINS_THREAD_FINI(exec_unit) \
-	do {} while (0)
-#define PINS_HANDLE_FINI(dague_handle) \
-	do {} while (0)
+#define PINS(method_flag, exec_unit, task, data)        \
+    do {} while (0)
+#define PINS_DISABLE_REGISTRATION(boolean)      \
+    do {} while(0)
+#define PINS_REGISTER(method_flag, cb)          \
+    do {} while (0)
+#define PINS_UNREGISTER(method_flag)            \
+    do {} while (0)
+#define PINS_INIT(master_context)               \
+    do {} while (0)
+#define PINS_FINI(master_context)               \
+    do {} while (0)
+#define PINS_THREAD_INIT(exec_unit)             \
+    do {} while (0)
+#define PINS_HANDLE_INIT(dague_handle)          \
+    do {} while (0)
+#define PINS_THREAD_FINI(exec_unit)             \
+    do {} while (0)
+#define PINS_HANDLE_FINI(dague_handle)          \
+    do {} while (0)
 
 #endif // PINS_ENABLE
 

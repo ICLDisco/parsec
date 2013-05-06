@@ -19,20 +19,17 @@ import gc
 
 # this is the public Python interface function. call it.
 cpdef readProfile(filenames):
-#   gc.disable()
-
-   cdef dbp_multifile_reader_t * dbp = dbp_reader_open_default_files()
-   return
-#   dbp_reader_close_files(dbp) # does nothing as of 2013-04-21
-   
-#   cdef char ** c_filenames = stringListToCStrings(filenames)
-#   cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
+   cdef char ** c_filenames = stringListToCStrings(filenames)
+   cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
+#   cdef dbp_multifile_reader_t * dbp = dbp_reader_open_default_files()
    profile = multifile_reader(dbp_reader_nb_files(dbp), dbp_reader_nb_dictionary_entries(dbp))
    print('PYX: finished reading')
    cdef dbp_file_t * cfile
    cdef dbp_dictionary_t * cdict
 
    profile.worldsize = dbp_reader_worldsize(dbp)
+
+   print('here we are...')
 
    # create dictionary first, for later use while making Events
    for index in range(profile.nb_dict_entries):
@@ -42,16 +39,19 @@ cpdef readProfile(filenames):
 
    # convert c to py
    for ifd in range(profile.nb_files):
+      print('file ' + str(ifd) + ' of ' + str(profile.nb_files)) 
       cfile = dbp_reader_get_file(dbp, ifd)
       pfile = dbpFile(profile, dbp_file_hr_id(cfile), dbp_file_get_name(cfile), dbp_file_get_rank(cfile))
       for index in range(dbp_file_nb_infos(cfile)):
+         print('info ' + str(index))
          cinfo = dbp_file_get_info(cfile, index)
          key = dbp_info_get_key(cinfo)
          value = dbp_info_get_value(cinfo)
          pfile.infos.append(dbpInfo(key, value))
-      # for thread_num in range(dbp_file_nb_threads(cfile)):
-      #    new_thr = makeDbpThread(profile, dbp, cfile, thread_num, pfile)
-      #    pfile.threads.append(new_thr)
+      for thread_num in range(dbp_file_nb_threads(cfile)):
+         print('thread ' + str(thread_num) + ' of ' + str(dbp_file_nb_threads(cfile)))
+         new_thr = makeDbpThread(profile, dbp, cfile, thread_num, pfile)
+         pfile.threads.append(new_thr)
       profile.files.append(pfile)
 
    dbp_reader_close_files(dbp) # does nothing as of 2013-04-21
@@ -78,20 +78,28 @@ cdef char** stringListToCStrings(strings):
 # you can't call this. it will be called for you. call readProfile()
 cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, pfile):
    cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, index)
+   print('got cthread ')
    cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
+   print('got iterator')
    cdef dbp_event_iterator_t * it_e = NULL
    cdef dbp_event_t * event_s = dbp_iterator_current(it_s)
+   print('got event')
    cdef dbp_event_t * event_e = NULL
    cdef dague_time_t reader_start = dbp_reader_min_date(dbp)
+   print('got min date')
    cdef unsigned long long start = 0
    cdef unsigned long long end = 0
    cdef void * cinfo = NULL
    cdef papi_exec_info_t * cast_exec_info = NULL
    cdef select_info_t * cast_select_info = NULL
 
+   print('make the thread ' + str(index))
+
    thread = dbpThread(pfile, index)
    if thread.id + 1 > reader.thread_count:
       reader.thread_count = thread.id + 1
+
+   print('one')
 
    while event_s != NULL:
       if KEY_IS_START( dbp_event_get_key(event_s) ):
@@ -105,14 +113,14 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
                event_flags = dbp_event_get_flags(event_s)
                event_handle_id = int(dbp_event_get_handle_id(event_s))
                event_id = int(dbp_event_get_event_id(event_s))
-#               print("{} {} {} {} {} {} {}".format(thread, event_key, event_flags, event_handle_id, event_id, start, end))
+               print("{} {} {} {} {} {} {}".format(thread, event_key, event_flags, event_handle_id, event_id, start, end))
                event = dbpEvent(thread,
                                 event_key,
                                 event_flags,
                                 event_handle_id,
                                 event_id,
                                 start, end)
-#               print('next?')
+               print('next?')
                while len(reader.handle_counts) < (event_handle_id + 1):
                   reader.handle_counts.extend([0])
                reader.handle_counts[event_handle_id] += 1

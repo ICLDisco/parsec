@@ -186,11 +186,11 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
                                                   eu->virtual_process->vp_id );
 #endif
 
-    PINS_THREAD_INIT(eu);
-
 #if defined(DAGUE_SIM)
     eu->largest_simulation_date = 0;
 #endif
+
+    PINS_THREAD_INIT(eu);
 
     /* The main thread of VP 0 will go back to the user level */
     if( DAGUE_THREAD_IS_MASTER(eu) ) {
@@ -535,9 +535,8 @@ static void dague_vp_fini( dague_vp_t *vp )
 int dague_fini( dague_context_t** pcontext )
 {
     dague_context_t* context = *pcontext;
-    int nb_total_comp_threads, t, p;
+    int nb_total_comp_threads, t, p, c;
 
-    PINS_FINI(context);
 
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {
@@ -548,6 +547,12 @@ int dague_fini( dague_context_t** pcontext )
     context->__dague_internal_finalization_in_progress = 1;
     dague_barrier_wait( &(context->barrier) );
 
+    for (p = 0; p < context->nb_vp; p++) {
+        for (c = 0; c < context->virtual_processes[p]->nb_cores; c++) {
+            PINS_THREAD_FINI(context->virtual_processes[p]->execution_units[c]);
+        }
+    }
+
     /* The first execution unit is for the master thread */
     if( nb_total_comp_threads > 1 ) {
         for(t = 1; t < nb_total_comp_threads; t++) {
@@ -556,6 +561,8 @@ int dague_fini( dague_context_t** pcontext )
         free(context->pthreads);
         context->pthreads = NULL;
     }
+
+    PINS_FINI(context);
 
     (void) dague_remote_dep_fini( context );
 
