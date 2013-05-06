@@ -25,7 +25,7 @@ dague_handle_t* dplasma_zgeqrf_New( tiled_matrix_desc_t *A,
      * it should be passed as a parameter as in getrf
      */
 
-    object = dague_zgeqrf_new( *A, (dague_ddesc_t*)A, *T, (dague_ddesc_t*)T,
+    object = dague_zgeqrf_new( (dague_ddesc_t*)A, (dague_ddesc_t*)T,
                                ib, NULL, NULL);
 
     object->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));

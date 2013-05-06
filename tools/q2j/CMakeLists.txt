@@ -23,19 +23,19 @@ if(OMEGA_FOUND)
   include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR})
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../dague-compiler)
 
-  add_executable(q2j 
+  add_executable(q2j
       src/omega_interface.cpp
       src/jdfoutput.cpp
       src/jdfregister.cpp
       src/driver.c
       src/utility.c
-      src/symtab.c      
+      src/symtab.c
       ../dague-compiler/jdf_unparse.c
       ${BISON_dague_q2j_yacc_OUTPUTS}
       ${FLEX_dague_q2j_flex_OUTPUTS}
   )
   set_target_properties(q2j PROPERTIES LINKER_LANGUAGE CXX)
   target_link_libraries(q2j m dague-base ${OMEGA_LIBRARIES})
-  
+
   install(TARGETS q2j RUNTIME DESTINATION bin)
 endif(OMEGA_FOUND)

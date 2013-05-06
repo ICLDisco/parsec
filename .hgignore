@@ -355,6 +355,8 @@ tools/profiling/dbp2paje
 tools/profiling/dbp2xml
 tools/profiling/xml2traces/xml2traces
 tools/q2j/examples/.*
+tools/q2j/plasma2parsec/pz.*\.c$
+tools/q2j/plasma2parsec/z.*\.jdf$
 tools/q2j/q2j
 tools/q2j/q2j\.l\.c
 tools/q2j/q2j\.y\.c

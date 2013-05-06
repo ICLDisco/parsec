@@ -222,10 +222,14 @@ static struct option long_options[] =
 };
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
-static void parse_arguments(int argc, char** argv, int* iparam)
+static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 {
     int opt = 0;
     int c;
+    int argc = *_argc;
+    char **argv = *_argv;
+    char *add_dot = NULL;
+
     do
     {
 #if defined(HAVE_GETOPT_LONG)
@@ -335,6 +339,10 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 }
                 break;
 
+            case '.':
+                add_dot = optarg;
+                break;
+
             case 'h': print_usage(); exit(0);
 
             case '?': /* getopt_long already printed an error message. */
@@ -343,6 +351,39 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 break; /* Assume anything else is dague/mpi stuff */
         }
     } while(-1 != c);
+
+    if( NULL != add_dot ) {
+        int i, has_dashdash = 0, has_daguedot = 0;
+        for(i = 1; i < argc; i++) {
+            if( !strcmp( argv[i], "--") ) {
+                has_dashdash = 1;
+            }
+            if( has_dashdash && !strncmp( argv[i], "--dague_dot", 11 ) ) {
+                has_daguedot = 1;
+                break;
+            }
+        }
+        if( !has_daguedot ) {
+            char **tmp;
+            int  tmpc;
+            if( !has_dashdash ) {
+                tmpc = *(_argc) + 2;
+                tmp = (char **)malloc((tmpc+1) * sizeof(char*));
+                tmp[ tmpc - 2 ] = strdup("--");
+            } else {
+                tmpc = *(_argc) + 1;
+                tmp = (char **)malloc((tmpc+1) * sizeof(char*));
+            }
+            for(i = 0; i < (*_argc);i++)
+                tmp[i] = (*_argv)[i];
+
+            asprintf( &tmp[ tmpc - 1 ], "--dague_dot=%s", add_dot );
+            tmp[ tmpc     ] = NULL;
+
+            *_argc = tmpc;
+            *_argv = tmp;
+        }
+    }
 
     int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
 
@@ -521,7 +562,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_RANK] = 0;
 #endif
-    parse_arguments(argc, argv, iparam);
+    parse_arguments(&argc, &argv, iparam);
     int verbose = iparam[IPARAM_VERBOSE];
     if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
 

@@ -8,8 +8,6 @@
 #ifndef _DPLASMA_Z_H_
 #define _DPLASMA_Z_H_
 
-#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 /***********************************************************
  *               Blocking interface
  */
@@ -78,7 +76,7 @@ int    dplasma_zplrnt( dague_context_t *dague,                                  
 /* Auxiliary routines */
 int  dplasma_zprint( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A);
 
-int dplasma_zhebut( dague_context_t *dague, sym_two_dim_block_cyclic_t *A, PLASMA_Complex64_t **U_but_ptr, int level);
+int dplasma_zhebut( dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Complex64_t **U_but_ptr, int level);
 int dplasma_zhetrf(dague_context_t *dague, tiled_matrix_desc_t *A);
 
 /***********************************************************
@@ -152,9 +150,9 @@ dague_handle_t* dplasma_zplrnt_New(                                           ti
  * Under development
  */
 /* Low-level nonblocking butterfly interface */
-dague_handle_t* dplasma_zgebmm_New( two_dim_block_cyclic_t *A, PLASMA_Complex64_t *U_but_vec, int it, int jt, int level, int trans, int *info);
-dague_handle_t* dplasma_zgebut_New( sym_two_dim_block_cyclic_t *A, PLASMA_Complex64_t *U_but_vec, int it, int jt, int level, int *info);
-dague_handle_t* dplasma_zhebut_New( sym_two_dim_block_cyclic_t *A, PLASMA_Complex64_t *U_but_vec, int it, int jt, int level, int *info);
+dague_handle_t* dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int it, int jt, int level, int trans, int *info);
+dague_handle_t* dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int it, int jt, int level, int *info);
+dague_handle_t* dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int it, int jt, int level, int *info);
 
 
 /* Low-level nonblocking LDL interface */

@@ -1,5 +1,7 @@
 
 macro(dague_addtest lang target input)
+  list(APPEND EXTRA_LIBS m)
+
   if(CMAKE_${lang}_COMPILER_WORKS)
     if( MPI_FOUND )
       set(${target}_${lang}FLAGS  "${MPI_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")

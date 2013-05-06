@@ -57,16 +57,15 @@ void BFT_zQBR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N
           PLASMA_Complex64_t *C, PLASMA_Complex64_t *Ubefore, PLASMA_Complex64_t *Uafter, int is_transpose, int is_diagonal );
 %}
 
-
-[DAGUE_ARENA_STRUT = 36]
 descA  [type = "dague_seg_ddesc_t"]
 A      [type = "dague_ddesc_t *"]
 Ubef   [type = "PLASMA_Complex64_t *"]
 Uaft   [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.sym_two_DBC.super.mb*descA.A_org.sym_two_DBC.super.nb)"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
 
+%option DAGUE_ARENA_STRUT = 36
 
 /*
  *
@@ -99,7 +98,7 @@ BODY
   uintptr_t i_seg, j_seg, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_br;
-  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.sym_two_DBC);
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 
   printlog("HEBUT_Diag(%d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
@@ -202,7 +201,7 @@ BODY
   uintptr_t i_seg, j_seg, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
-  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.sym_two_DBC);
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 
   printlog("HEBUT_Lower(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
@@ -307,8 +306,8 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
-  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.sym_two_DBC);
 
   printlog("HEBUT_Reader_TL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
@@ -364,6 +363,7 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
 
   printlog("HEBUT_Reader_BL(%d, %d)\n"
@@ -418,8 +418,8 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
-  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.sym_two_DBC);
 
   printlog("HEBUT_Reader_BR(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
@@ -470,8 +470,8 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
-  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.sym_two_DBC);
 
   printlog("HEBUT_Writer_TL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
@@ -524,8 +524,8 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
-  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.sym_two_DBC);
 
   printlog("HEBUT_Writer_BL(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
@@ -576,8 +576,8 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
+  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
-  tiled_matrix_desc_t *tiled_A = (tiled_matrix_desc_t *)(descA.A_org.sym_two_DBC);
 
   printlog("HEBUT_Writer_BR(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
