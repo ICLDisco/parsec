@@ -210,9 +210,7 @@ int main(int argc, char ** argv)
     dague_ddesc_destroy((dague_ddesc_t*)&ddescTT);
     dague_data_free(ddescIPIV.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
-printf("--!!! free IPIV done ! \n");
     free(lu_tab);
-printf("--!!! free lu_tab done ! \n");
     return ret;
 }
 
