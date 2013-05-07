@@ -118,15 +118,18 @@ int main(int argc, char *argv[])
         /* COMPUTE THE EIGENVALUES FROM DPLASMA (with LAPACK) */
         if( P*Q > 1 ) {
             /* We need to gather the distributed band on rank0 */
-            /*PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1, 
+#if 0
+            /* LAcpy doesn't handle differing tile sizes, so lets get simple here */
+			PASTE_CODE_ALLOCATE_MATRIXddescW, 1, 
                 two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile, 
                 nodes, cores, rank, 2, N, 1, 1, 0, 0, 2, N, 1, 1, 1)); /* on rank 0 only */
-            /* LAcpy doesn't handle differing tile sizes, so lets get simple here */
-            PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1, 
+#else
+			PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1, 
                 two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
                     1, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
                     MB+1, (NB+2)*NT, 1, 1, 1 /* rank0 only */ ));
-            dplasma_zlacpy(dague, PlasmaUpperLower, &ddescBAND, &ddescW);
+#endif
+			dplasma_zlacpy(dague, PlasmaUpperLower, &ddescBAND.super, &ddescW.super);
             band = ddescW.mat;
         } 
         else {
@@ -175,7 +178,7 @@ int main(int argc, char *argv[])
             1, cores, rank, MB, NB, LDA, N, 0, 0,
             N, N, 1, 1, 1))
         /* Fill A0 again */
-        dplasma_zlaset( dague, PlasmaUpperLower, 0.0, 0.0, &ddescA0);
+        dplasma_zlaset( dague, PlasmaUpperLower, 0.0, 0.0, &ddescA0.super);
         dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
         /* Convert into Lapack format */
         if( 0 == rank ) {

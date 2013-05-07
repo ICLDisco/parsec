@@ -54,8 +54,6 @@ const char *diagstr[2]  = { "NonUnit", "Unit   " };
 const char *transstr[3] = { "N", "T", "H" };
 const char *normsstr[4] = { "Max", "One", "Inf", "Fro" };
 
-static char *dot_filename = NULL;
-
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
 
@@ -210,10 +208,14 @@ static struct option long_options[] =
 };
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
-static void parse_arguments(int argc, char** argv, int* iparam)
+static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 {
     int opt = 0;
     int c;
+    int argc = *_argc;
+    char **argv = *_argv;
+    char *add_dot = NULL;
+
     do
     {
 #if defined(HAVE_GETOPT_LONG)
@@ -288,8 +290,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 /* Butterfly parameters */
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
 
-            case '.': iparam[IPARAM_DOT] = 1; dot_filename = strdup(optarg); break;
-
             case 'v':
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
                 else        iparam[IPARAM_VERBOSE] = 2;
@@ -321,6 +321,10 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 }
                 break;
 
+            case '.':
+                add_dot = optarg;
+                break;
+
             case 'h': print_usage(); exit(0);
 
             case '?': /* getopt_long already printed an error message. */
@@ -329,6 +333,39 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 break; /* Assume anything else is dague/mpi stuff */
         }
     } while(-1 != c);
+
+    if( NULL != add_dot ) {
+        int i, has_dashdash = 0, has_daguedot = 0;
+        for(i = 1; i < argc; i++) {
+            if( !strcmp( argv[i], "--") ) {
+                has_dashdash = 1;
+            }
+            if( has_dashdash && !strncmp( argv[i], "--dague_dot", 11 ) ) {
+                has_daguedot = 1;
+                break;
+            }
+        }
+        if( !has_daguedot ) {
+            char **tmp;
+            int  tmpc;
+            if( !has_dashdash ) {
+                tmpc = *(_argc) + 2;
+                tmp = (char **)malloc((tmpc+1) * sizeof(char*));
+                tmp[ tmpc - 2 ] = strdup("--");
+            } else {
+                tmpc = *(_argc) + 1;
+                tmp = (char **)malloc((tmpc+1) * sizeof(char*));
+            }
+            for(i = 0; i < (*_argc);i++)
+                tmp[i] = (*_argv)[i];
+
+            asprintf( &tmp[ tmpc - 1 ], "--dague_dot=%s", add_dot );
+            tmp[ tmpc     ] = NULL;
+
+            *_argc = tmpc;
+            *_argv = tmp;
+        }
+    }
 
     int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
 
@@ -383,14 +420,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     if(iparam[IPARAM_MB] < 0) iparam[IPARAM_MB] = -iparam[IPARAM_MB];
     if(iparam[IPARAM_NB] == 0) iparam[IPARAM_NB] = iparam[IPARAM_MB];
     if(iparam[IPARAM_NB] < 0) iparam[IPARAM_NB] = -iparam[IPARAM_NB];
-    if(iparam[IPARAM_IB] > 0)
-    {
-        if(iparam[IPARAM_MB] % iparam[IPARAM_IB])
-        {
-            fprintf(stderr, "xxx IB=%d does not divide MB=%d or NB=%d\n", iparam[IPARAM_IB], iparam[IPARAM_MB], iparam[IPARAM_NB]);
- //           exit(2);
-        }
-    }
 
     /* No supertiling by default */
     if(-'p' == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = (iparam[IPARAM_M]/iparam[IPARAM_MB])/iparam[IPARAM_P];
@@ -515,7 +544,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_RANK] = 0;
 #endif
-    parse_arguments(argc, argv, iparam);
+    parse_arguments(&argc, &argv, iparam);
     int verbose = iparam[IPARAM_VERBOSE];
     if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
 
@@ -549,21 +578,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     }
 #endif
 
-
-#if defined(DAGUE_PROF_GRAPHER)
-    if(iparam[IPARAM_DOT] != 0) {
-        dague_prof_grapher_init(dot_filename, iparam[IPARAM_RANK], iparam[IPARAM_NNODES], iparam[IPARAM_NCORES]);
-    }
-#else
-    (void)dot_filename;
-    if(iparam[IPARAM_DOT] != 0) {
-        fprintf(stderr,
-                "************************************************************************************************\n"
-                "*** Warning: dot generation requested, but DAGUE configured with DAGUE_PROF_GRAPHER disabled ***\n"
-                "************************************************************************************************\n");
-    }
-#endif
-
     dague_set_scheduler( ctx, dague_schedulers_array[ iparam[IPARAM_SCHEDULER] ] );
 
     if(verbose > 2) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialized\n"));
@@ -593,18 +607,9 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 #endif  /* defined(HAVE_CUDA) */
     dague_fini(&dague);
 
-#if defined(DAGUE_PROF_GRAPHER)
-    if(iparam[IPARAM_DOT] != 0) {
-        dague_prof_grapher_fini();
-    }
-#else
-    (void)iparam;
-#endif
-    if (dot_filename != NULL)
-        free(dot_filename);
-
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif
+    (void)iparam;
 }
 

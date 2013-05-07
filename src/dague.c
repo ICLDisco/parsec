@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <errno.h>
+#include <unistd.h>
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
@@ -67,6 +68,9 @@ int device_delegate_begin, device_delegate_end;
 
 static int _dague_rusage_first_call = 1;
 static struct rusage _dague_rusage;
+
+static char *dague_enable_dot = NULL;
+static char *dague_app_name = NULL;
 
 static void dague_statistics(char* str)
 {
@@ -158,7 +162,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         eu->datarepo_mempools[pi] = &(eu->virtual_process->datarepo_mempools[pi].thread_mempools[eu->th_id]);
 
 #ifdef DAGUE_PROF_TRACE
-    eu->eu_profile = dague_profiling_thread_init( 2*1024*1024, "DAGuE Thread %d of VP %d", eu->th_id, eu->virtual_process->vp_id );
+    eu->eu_profile = dague_profiling_thread_init( 2*1024*1024,
+                                                  "DAGuE Thread %d of VP %d",
+                                                  eu->th_id,
+                                                  eu->virtual_process->vp_id );
 #endif
 
 #if defined(DAGUE_SIM)
@@ -211,10 +218,12 @@ static void dague_vp_init( dague_vp_t *vp,
     }
 }
 
+#define DEFAULT_APPNAME "app_name_%d"
+
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
     int argc = 0, nb_vp, p, t, nb_total_comp_threads;
-    char** argv = NULL;
+    char **argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
 
@@ -222,20 +231,27 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
 
+    if(NULL == pargc) {
+        int rc = asprintf( &dague_app_name, DEFAULT_APPNAME, (int)getpid() );
+        if (rc == -1) {
+	    dague_app_name = strdup( "app_name_XXXXXX" );
+        }
+    } else {
+        dague_app_name = strdup( (*pargv)[0] );
+    }
+
     /* Set a default the number of cores if not defined by parameters
      * - with hwloc if available
      * - with sysconf otherwise (hyperthreaded core number)
      */
-    if( nb_cores <= 0 )
-    {
+    if( nb_cores <= 0 ) {
 #if defined(HAVE_HWLOC)
-        nb_cores=dague_hwloc_nb_real_cores();
+        nb_cores = dague_hwloc_nb_real_cores();
 #else
-        nb_cores= sysconf(_SC_NPROCESSORS_ONLN);
-        if(nb_cores== -1)
-        {
+        nb_cores = sysconf(_SC_NPROCESSORS_ONLN);
+        if(nb_cores == -1) {
             perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
-            nb_cores= 1;
+            nb_cores = 1;
         }
 #endif
     }
@@ -250,6 +266,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             {"dague_help",       no_argument,        NULL, 'h'},
             {"dague_bind",       optional_argument,  NULL, 'b'},
             {"dague_bind_comm",  optional_argument,  NULL, 'c'},
+#if defined(DAGUE_PROF_GRAPHER)
+            {"dague_dot",        optional_argument,  NULL, '.'},
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
             {0, 0, 0, 0}
         };
 #endif  /* defined(HAVE_GETOPT_LONG) */
@@ -295,7 +314,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
 #if defined(HAVE_HWLOC)
-    dague_hwloc_init();
     context->comm_th_core   = -1;
 #if defined(HAVE_HWLOC_BITMAP)
     context->comm_th_index_mask = hwloc_bitmap_alloc();
@@ -326,10 +344,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(HAVE_GETOPT_LONG)
             int option_index = 0;
 
-            ret = getopt_long (argc, argv, "p:b:c:v:",
+            ret = getopt_long (argc, argv, "p:b:c:v:.::",
                                long_options, &option_index);
 #else
-            ret = getopt (argc, argv, "p:b:c:");
+            ret = getopt (argc, argv, "p:b:c:.::");
 #endif  /* defined(HAVE_GETOPT_LONG) */
             if( -1 == ret ) break;  /* we're done */
 
@@ -337,6 +355,26 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             case 'h': dague_usage(); break;
             case 'c': dague_parse_comm_binding_parameter(optarg, context); break;
             case 'b': dague_parse_binding_parameter(optarg, context, startup); break;
+            case '.':
+                if( dague_enable_dot ) free( dague_enable_dot );
+                /** Could not make optional_argument work. Recoding its behavior... */ 
+                if( strlen( argv[optind-1] ) >= 2 && strncmp( argv[optind-1], "-.", 2) == 0) {
+                    /** Case one: using short argument -. */
+                    if( strlen( argv[optind-1] ) > 2 ) {
+                        dague_enable_dot = strdup( argv[optind-1] + 2 );
+                    } else {
+                        dague_enable_dot = strdup(dague_app_name);
+                    }
+                } else {
+                   /** Long argument type */
+                   if( (strlen( argv[optind-1] ) > 12) &&
+                       (strncmp( argv[optind-1], "--dague_dot=", 12 ) == 0 ) ) {
+                       dague_enable_dot = strdup( argv[optind-1]+12 );
+                   } else {
+                       dague_enable_dot = strdup(dague_app_name);
+                    }
+               }
+               break;
             }
         } while(1);
     }
@@ -360,7 +398,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
 
 #if defined(DAGUE_PROF_TRACE)
-    dague_profiling_init( "%s", (*pargv)[0] );
+        dague_profiling_init( "%s", dague_app_name );
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
     dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
@@ -386,6 +424,17 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                                             0, NULL,
                                             &device_delegate_begin, &device_delegate_end);
 #endif  /* DAGUE_PROF_TRACE */
+
+    if(dague_enable_dot) {
+#if defined(DAGUE_PROF_GRAPHER)
+          dague_prof_grapher_init(dague_enable_dot, nb_total_comp_threads);
+#else
+        fprintf(stderr,
+                "************************************************************************************************\n"
+                "*** Warning: dot generation requested, but DAGUE configured with DAGUE_PROF_GRAPHER disabled ***\n"
+                "************************************************************************************************\n");
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
+    }
 
     if( nb_total_comp_threads > 1 ) {
         pthread_attr_t thread_attr;
@@ -437,7 +486,6 @@ static void dague_vp_fini( dague_vp_t *vp )
         free(vp->execution_units[i]);
         vp->execution_units[i] = NULL;
     }
-
 }
 
 /**
@@ -481,6 +529,13 @@ int dague_fini( dague_context_t** pcontext )
     dague_profiling_fini( );
 #endif  /* DAGUE_PROF_TRACE */
 
+    if(dague_enable_dot) {
+#if defined(DAGUE_PROF_GRAPHER)
+        dague_prof_grapher_fini();
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
+        free(dague_enable_dot);
+        dague_enable_dot = NULL;
+    }
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
 
@@ -492,6 +547,11 @@ int dague_fini( dague_context_t** pcontext )
 
     dague_hwloc_fini();
 #endif  /* HAVE_HWLOC_BITMAP */
+
+    if (dague_app_name != NULL ) {
+       free(dague_app_name);
+       dague_app_name = NULL;
+    }
 
 #if defined(DAGUE_STATS)
     {
@@ -781,6 +841,19 @@ static int dague_update_deps_with_mask( dague_object_t *dague_object,
     return (dep_cur_value & function->dependencies_goal) == function->dependencies_goal;
 }
 
+void dague_dependencies_mark_task_as_startup(dague_execution_context_t* restrict exec_context)
+{
+    const dague_function_t* function = exec_context->function;
+    dague_object_t *dague_object = exec_context->dague_object;
+    dague_dependency_t *deps = find_deps(dague_object, exec_context);
+
+    if( function->flags & DAGUE_USE_DEPS_MASK ) {
+        *deps = DAGUE_DEPENDENCIES_STARTUP_TASK | function->dependencies_goal;
+    } else {
+        *deps = 0;
+    }
+}
+
 /**
  * Release the OUT dependencies for a single instance of a task. No ranges are
  * supported and the task is supposed to be valid (no input/output tasks) and
@@ -984,21 +1057,60 @@ char* dague_snprintf_execution_context( char* str, size_t size,
                                         const dague_execution_context_t* task)
 {
     const dague_function_t* function = task->function;
-    unsigned int ip, index = 0;
+    unsigned int i, ip, index = 0, is_param;
 
     assert( NULL != task->dague_object );
+    index += snprintf( str + index, size - index, "%s(", function->name );
+    if( index >= size ) return str;
+    for( ip = 0; ip < function->nb_parameters; ip++ ) {
+        index += snprintf( str + index, size - index, "%s%d",
+                           (ip == 0) ? "" : ", ",
+                           task->locals[function->params[ip]->context_index].value );
+        if( index >= size ) return str;
+    }
+    index += snprintf(str + index, size - index, ")[");
+    if( index >= size ) return str;
+
+    for( i = 0; i < function->nb_locals; i++ ) {
+        is_param = 0;
+        for( ip = 0; ip < function->nb_parameters; ip++ ) {
+            if(function->params[ip]->context_index == function->locals[i]->context_index) {
+                is_param = 1;
+                break;
+            }
+        }
+        index += snprintf( str + index, size - index,
+                           (is_param ? "%s%d" : "[%s%d]"),
+                           (i == 0) ? "" : ", ",
+                           task->locals[i].value );
+        if( index >= size ) return str;
+    }
+    index += snprintf(str + index, size - index, "]<%d>{%u}", task->priority, task->dague_object->object_id );
+
+    return str;
+}
+/**
+ * Convert assignments to a string.
+ */
+char* dague_snprintf_assignments( char* str, size_t size,
+                                  const struct dague_function_s* function,
+                                  const struct assignment* locals)
+{
+    unsigned int ip, index = 0;
+
     index += snprintf( str + index, size - index, "%s", function->name );
     if( index >= size ) return str;
     for( ip = 0; ip < function->nb_parameters; ip++ ) {
         index += snprintf( str + index, size - index, "%s%d",
                            (ip == 0) ? "(" : ", ",
-                           task->locals[function->params[ip]->context_index].value );
+                           locals[function->params[ip]->context_index].value );
         if( index >= size ) return str;
     }
-    index += snprintf(str + index, size - index, ")<%d>{%u}", task->priority, task->dague_object->object_id );
+    index += snprintf(str + index, size - index, ")" );
 
     return str;
 }
+
 
 void dague_destruct_dependencies(dague_dependencies_t* d)
 {
@@ -1433,3 +1545,191 @@ int dague_getsimulationdate( dague_context_t *dague_context ){
     return dague_context->largest_simulation_date;
 }
 #endif
+
+/**
+ * Array based local data handling.
+ */
+#include "data_distribution.h"
+static uint32_t return_local_u(struct dague_ddesc *mat, ...) { return 0; (void)mat; };
+static int32_t  return_local_s(struct dague_ddesc *mat, ...) { return 0; (void)mat; };
+static void*    return_null(struct dague_ddesc *mat, ...) { return NULL; (void)mat; };
+#ifdef DAGUE_PROF_TRACE
+static int key_to_string(struct dague_ddesc *mat, uint32_t datakey, char* buffer, uint32_t buffer_size)
+{
+  return snprintf( buffer, buffer_size, "%u ", datakey); (void)mat;
+}
+#endif  /* DAGUE_PROF_TRACE */
+
+const dague_ddesc_t dague_static_local_data_ddesc = {
+      0, /* uint32_t myrank */
+      1, /* uint32_t cores */
+      1, /* uint32_t nodes */
+      return_local_u,  /* uint32_t (*rank_of)(struct dague_ddesc *mat, ...) */
+      return_null,   /* void *   (*data_of)(struct dague_ddesc *mat, ...) */
+      return_local_s,  /* int32_t  (*vpid_of)(struct dague_ddesc *mat, ...) */
+      NULL,  /*  moesi_map_t* moesi_map */
+#ifdef DAGUE_PROF_TRACE
+      return_local_u,  /* uint32_t (*data_key)(struct dague_ddesc *mat, ...) */
+      key_to_string, /* int (*key_to_string)(struct dague_ddesc *mat, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
+      NULL,  /* char      *key_dim */
+      NULL,  /* char      *key */
+#endif /* DAGUE_PROF_TRACE */
+};
+
+static int dague_expr_eval(const expr_t *expr, dague_execution_context_t *context)
+{
+    dague_object_t *object = context->dague_object;
+
+    assert( expr->op == EXPR_OP_INLINE );
+    return expr->inline_func(object, context->locals);
+}
+
+static int dague_debug_enumerate_next_in_execution_space(dague_execution_context_t *context,
+                                                         int param_depth)
+{
+    const dague_function_t *function = context->function;
+    int cur, max, incr, min;
+
+    if( param_depth == function->nb_parameters )
+        return 0;
+
+    if( param_depth < function->nb_parameters ) {
+        if( dague_debug_enumerate_next_in_execution_space(context, param_depth+1) )
+            return 1;
+    }
+    cur = context->locals[ function->params[param_depth]->context_index ].value;
+    max = dague_expr_eval(function->params[param_depth]->max, context);
+    if( function->params[param_depth]->expr_inc == NULL ) {
+        incr = function->params[param_depth]->cst_inc;
+    } else {
+        incr = dague_expr_eval(function->params[param_depth]->expr_inc, context);
+    }
+    if( cur + incr > max ) {
+        min = dague_expr_eval(function->params[param_depth]->min, context);
+        context->locals[ function->params[param_depth]->context_index ].value = min;
+        return 0;
+    }
+    context->locals[ function->params[param_depth]->context_index ].value = cur + incr;
+    return 1;
+}
+
+void dague_debug_print_local_expecting_tasks_for_function( dague_object_t *object,
+                                                           const dague_function_t *function,
+                                                           int show_remote,
+                                                           int show_startup,
+                                                           int show_complete,
+                                                           int *nlocal,
+                                                           int *nreleased,
+                                                           int *ntotal)
+{
+    dague_execution_context_t context;
+    dague_dependency_t *dep;
+    int pi, li;
+
+    DAGUE_LIST_ITEM_SINGLETON( &context.list_item );
+    context.mempool_owner = NULL;
+    context.dague_object = object;
+    context.function = function;
+    context.priority = -1;
+    context.status = DAGUE_TASK_STATUS_NONE;
+    context.hook_id = 0;
+    memset( context.data, 0, MAX_PARAM_COUNT * sizeof(dague_data_pair_t) );
+
+    *nlocal = 0;
+    *nreleased = 0;
+    *ntotal = 0;
+
+    /* For debugging purposes */
+    for(li = 0; li < MAX_LOCAL_COUNT; li++) {
+        context.locals[li].value = -1;
+    }
+
+    /* Starting point of the context space enumeration */
+    for( pi = 0; pi < function->nb_parameters; pi++) {
+        context.locals[function->params[pi]->context_index].value = dague_expr_eval(function->params[pi]->min,
+                                                                                    &context);
+    }
+
+    do {
+        char tmp[MAX_TASK_STRLEN];
+        (*ntotal)++;
+        if( dague_expr_eval(function->pred, &context) ) {
+            (*nlocal)++;
+            dep = find_deps(object, &context);
+            if( function->flags & DAGUE_USE_DEPS_MASK ) {
+                if( *dep & DAGUE_DEPENDENCIES_STARTUP_TASK ) {
+                    (*nreleased)++;
+                    if( show_startup )
+                        fprintf(stderr, "   Task %s is a local startup task\n",
+                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
+                } else {
+                    if((*dep & DAGUE_DEPENDENCIES_BITMASK) == function->dependencies_goal) {
+                        (*nreleased)++;
+                    }
+                    if( show_complete ||
+                        ((*dep & DAGUE_DEPENDENCIES_BITMASK) != function->dependencies_goal) ) {
+                        fprintf(stderr, "   Task %s is a local task with dependency 0x%08x (goal is 0x%08x) -- Flags: %s %s\n",
+                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
+                                *dep & DAGUE_DEPENDENCIES_BITMASK,
+                                function->dependencies_goal,
+                                *dep & DAGUE_DEPENDENCIES_TASK_DONE ? "TASK_DONE" : "",
+                                *dep & DAGUE_DEPENDENCIES_IN_DONE ? "IN_DONE" : "");
+                    }
+                }
+            } else {
+                if( *dep == 0 )
+                    (*nreleased)++;
+
+                if( (*dep != 0) || show_complete )
+                    fprintf(stderr, "   Task %s is a local task that must wait for %d more dependencies to complete -- using count method for this task (CTL gather)\n",
+                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
+                            *dep);
+            }
+        } else {
+            if( show_remote )
+                fprintf(stderr, "   Task %s is a remote task\n",
+                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
+        }
+    } while( dague_debug_enumerate_next_in_execution_space(&context, 0)  );
+}
+
+void dague_debug_print_local_expecting_tasks_for_object( dague_object_t *object,
+                                                         int show_remote, int show_startup, int show_complete)
+{
+    uint32_t fi;
+    int nlocal, ntotal, nreleased;
+    /* The object has not been initialized yet, or it has been completed */
+    if( object->dependencies_array == NULL )
+        return;
+
+    for(fi = 0; fi < object->nb_functions; fi++) {
+        fprintf(stderr, " Tasks of Function %u (%s):\n", fi, object->functions_array[fi]->name);
+        dague_debug_print_local_expecting_tasks_for_function( object, object->functions_array[fi],
+                                                              show_remote, show_startup, show_complete,
+                                                              &nlocal, &nreleased, &ntotal );
+        fprintf(stderr, " Total number of Tasks of Class %s: %d\n", object->functions_array[fi]->name, ntotal);
+        fprintf(stderr, " Local number of Tasks of Class %s: %d\n", object->functions_array[fi]->name, nlocal);
+        fprintf(stderr, " Number of Tasks of Class %s that have been released: %d\n", object->functions_array[fi]->name, nreleased);
+    }
+}
+
+void dague_debug_print_local_expecting_tasks( int show_remote, int show_startup, int show_complete )
+{
+    dague_object_t *object;
+    uint32_t oi;
+
+    dague_atomic_lock( &object_array_lock );
+    for( oi = 1; oi <= object_array_pos; oi++) {
+        object = object_array[ oi ];
+        if( object == NOOBJECT )
+            continue;
+        if( object == NULL )
+            continue;
+        fprintf(stderr, "Tasks of Object %u:\n", oi);
+        dague_debug_print_local_expecting_tasks_for_object( object,
+                                                            show_remote,
+                                                            show_startup,
+                                                            show_complete );
+    }
+    dague_atomic_unlock( &object_array_lock );
+}

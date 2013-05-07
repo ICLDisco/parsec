@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012     The University of Tennessee and The University
+ * Copyright (c) 2012-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,11 +13,44 @@
 #include "dague.h"
 #include "profiling.h"
 
-typedef struct dague_remote_deps_t dague_remote_deps_t;
-typedef struct dague_arena_t dague_arena_t;
-typedef struct dague_arena_chunk_t dague_arena_chunk_t;
-typedef struct dague_data_pair_t dague_data_pair_t;
-typedef struct _moesi_master moesi_master_t;
+typedef struct dague_remote_deps_t     dague_remote_deps_t;
+typedef struct dague_arena_t           dague_arena_t;
+typedef struct dague_arena_chunk_t     dague_arena_chunk_t;
+typedef struct dague_data_pair_t       dague_data_pair_t;
+typedef struct _moesi_master           moesi_master_t;
+typedef struct dague_function_s        dague_function_t;
+typedef struct dague_dependencies_t    dague_dependencies_t;
+/**< The most basic execution flow. Each virtual process includes
+ *   multiple execution units (posix threads + local data) */
+typedef struct dague_execution_unit    dague_execution_unit_t;
+/**< Each MPI process includes multiple virtual processes (and a
+ *   single comm. thread) */
+typedef struct dague_vp                 dague_vp_t;
+
+typedef void (*dague_startup_fn_t)(dague_context_t *context,
+                                   dague_object_t *dague_object,
+                                   dague_execution_context_t** startup_list);
+typedef void (*dague_destruct_object_fn_t)(dague_object_t* dague_object);
+
+struct dague_object {
+    /** All dague_object_t structures hold these two arrays **/
+    uint32_t                   object_id;
+    volatile uint32_t          nb_local_tasks;
+    uint32_t                   nb_functions;
+    int32_t                    object_priority;
+    dague_startup_fn_t         startup_hook;
+    const dague_function_t**   functions_array;
+#if defined(DAGUE_PROF_TRACE)
+    const int*                 profiling_array;
+#endif  /* defined(DAGUE_PROF_TRACE) */
+    /* Completion callback. Triggered when the all tasks associated with
+     * a particular dague object have been completed.
+     */
+    dague_completion_cb_t      complete_cb;
+    void*                      complete_cb_data;
+    dague_destruct_object_fn_t object_destructor;
+    dague_dependencies_t**     dependencies_array;
+};
 
 #ifdef HAVE_PAPI
 #define MAX_EVENTS 3
@@ -35,7 +68,8 @@ typedef struct _moesi_master moesi_master_t;
  */
 #define DAGUE_DEPENDENCIES_TASK_DONE      ((dague_dependency_t)(1<<31))
 #define DAGUE_DEPENDENCIES_IN_DONE        ((dague_dependency_t)(1<<30))
-#define DAGUE_DEPENDENCIES_BITMASK        (~(DAGUE_DEPENDENCIES_TASK_DONE|DAGUE_DEPENDENCIES_IN_DONE))
+#define DAGUE_DEPENDENCIES_STARTUP_TASK   ((dague_dependency_t)(1<<29))
+#define DAGUE_DEPENDENCIES_BITMASK        (~(DAGUE_DEPENDENCIES_TASK_DONE|DAGUE_DEPENDENCIES_IN_DONE|DAGUE_DEPENDENCIES_STARTUP_TASK))
 
 typedef union {
     dague_dependency_t    dependencies[1];
@@ -65,7 +99,7 @@ typedef enum  {
 typedef int (dague_release_deps_t)(struct dague_execution_unit*,
                                    dague_execution_context_t*,
                                    uint32_t,
-                                   struct dague_remote_deps_t *);
+                                   dague_remote_deps_t *);
 #if defined(DAGUE_SIM)
 typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
 #endif
@@ -107,7 +141,7 @@ typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object,
  * class of tasks.
  */
 typedef int (dague_create_function_t)(struct dague_execution_unit*,
-                                      const struct dague_function* task_class,
+                                      const dague_function_t* task_class,
                                       dague_execution_context_t** task);
 
 /**
@@ -138,7 +172,7 @@ typedef struct __dague_internal_incarnation {
     dague_hook_t              *hook;
 } __dague_chore_t;
 
-struct dague_function {
+struct dague_function_s {
     const char                  *name;
 
     uint16_t                     flags;
@@ -171,7 +205,6 @@ struct dague_function {
     dague_hook_t                *complete_execution;
     dague_hook_t                *fini;
 };
-
 
 struct dague_data_pair_t {
     struct data_repo_entry   *data_repo;
@@ -287,6 +320,8 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu,
                                              int nb_elt,
                                              void *param);
 
+void dague_dependencies_mark_task_as_startup(dague_execution_context_t* exec_context);
+
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_unit_t* eu_context,
                                           const dague_execution_context_t* origin,
@@ -311,5 +346,15 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 } while (0)
 
 #define dague_execution_context_priority_comparator offsetof(dague_execution_context_t, priority)
+
+/**
+ * Search the dague_object_t for a function named fname, and return it if such
+ * a function exists. Returns NULL otherwise.
+ */
+const dague_function_t* dague_find(const dague_object_t *dague_object, const char *fname);
+
+#if defined(DAGUE_SIM)
+int dague_getsimulationdate( dague_context_t *dague_context );
+#endif
 
 #endif  /* DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED */

@@ -1047,7 +1047,7 @@ void jdf_register_anti_dependencies( jdf_function_entry_t *this_function,
 void jdf_register_body(jdf_function_entry_t *this_function,
                        node_t *task_node)
 {
-    this_function->body = strdup( quark_tree_to_body(task_node) );
+    this_function->body = strdup( tree_to_body(task_node) );
 }
 
 

@@ -31,10 +31,6 @@ int main(int argc, char *argv[])
     cores = 8;
     dague = dague_init(cores, &argc, &argv);
 
-#if defined(DAGUE_PROF_GRAPHER)
-    dague_prof_grapher_init("branching", rank, world, cores);
-#endif
-
     size = 256;
     if(argc != 2) {
         nb   = 2;
@@ -46,9 +42,11 @@ int main(int argc, char *argv[])
     dague_ddesc_set_key(ddescA, "A");
     
     branching = branching_new(ddescA, size, nb);
-    dague_enqueue(dague, branching);
+    if( NULL != branching ) {
+        dague_enqueue(dague, branching);
 
-    dague_progress(dague);
+        dague_progress(dague);
+    }
 
 #if defined(DAGUE_PROF_TRACE)
     {

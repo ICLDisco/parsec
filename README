@@ -1,0 +1,29 @@
+PaRSEC is a generic framework for architecture aware scheduling and management
+of micro-tasks on distributed many-core heterogeneous
+architectures. Applications we consider can be expressed as a Direct Acyclic
+Graph of tasks with labeled edges designating data dependencies. PaRSEC assigns
+computation threads to the cores, overlaps communications and computations and
+uses a dynamic, fully-distributed scheduler based on architectural features such
+as NUMA nodes and algorithmic features such as data reuse.
+
+Several high level languages are proposed to expose the DAG from the
+applications. You can either build the DAG as you go, by using a mechanism
+called dynamic task generation (DTG), or use the JDF language to expose a
+compact problem-size independent format that can be queried on-demand to
+discover data dependencies in a totally distributed fashion.
+
+The framework includes libraries, a runtime system, and development tools to
+help application developers tackle the difficult task of porting their
+applications to highly heterogeneous and diverse environment.
+
+Please read the INSTALL file for the software dependencies and the installation
+instructions. The README and INSTALL files included here might be slightly
+out-of-date, the most current version can always be found in our wiki
+(https://bitbucket.org/bosilca/dague.public/wiki/Home).
+
+If you are interested in this project and want to join the users community, our
+mailman will be happy to accept you on the project user (moderated) mailing list
+at https://lists.eecs.utk.edu/mailman/listinfo/dplasma-users.
+
+Happy hacking,
+  The PaRSEC team.
