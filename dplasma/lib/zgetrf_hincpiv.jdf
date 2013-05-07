@@ -272,7 +272,7 @@ BODY
              "\t LT(%d,%d)[%p], descLT.mb=%d, descLT.nb=%d)\n",
              k, m, p, nextp, prevp, prevm, type, ip, im,
              tempmm, tempkn, ib, descLT.nb,
-             p, k, A, ldap, m, k, C, ldam, m, k, L, descLT.mb, descLT.nb);
+             p, k, A1, ldap, m, k, A2, ldam, m, k, L, descLT.mb, descLT.nb);
 
     DRYRUN(
         void *p_elem_B = dague_private_memory_pop( p_work );
@@ -394,8 +394,8 @@ BODY
              "\t LT(%d,%d)[%p], descLT.mb=%d, A(%d,%d)[%p], ldam = %d)\n",
              k, m, n, p, nextp, prevp, prevm, type, type1, ip, im, im1,
              descA.mb, tempnn, tempmm, tempnn, ib,
-             p, n, V, ldap, m, n, C, ldam,
-             m, k, L, descLT.mb, m, k, H, ldam);
+             p, n, A1, ldap, m, n, A2, ldam,
+             m, k, L, descLT.mb, m, k, V, ldam);
 
     DRYRUN(
 

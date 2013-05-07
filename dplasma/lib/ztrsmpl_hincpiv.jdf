@@ -175,8 +175,8 @@ BODY
              "\t LT(%d,%d)[%p], descLT.mb=%d, A(%d,%d)[%p], %d)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, p, nextp, prevp, prevm, type, type1, ip, im, im1,
              descB.mb, tempnn, tempmm, tempnn, tempkn, ib,
-             p, n, V, ldbp, m, n, C, ldbm,
-             m, k, L, descLT.mb, m, k, H, ldam);
+             p, n, A1, ldbp, m, n, A2, ldbm,
+             m, k, L, descLT.mb, m, k, V, ldam);
 
     DRYRUN(
 
