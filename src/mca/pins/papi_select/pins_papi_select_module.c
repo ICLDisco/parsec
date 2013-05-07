@@ -52,14 +52,14 @@ static void pins_thread_init_papi_select(dague_execution_unit_t * exec_unit) {
 
     exec_unit->papi_eventsets[SELECT_SET] = PAPI_NULL;
     if (PAPI_create_eventset(&exec_unit->papi_eventsets[SELECT_SET]) != PAPI_OK) {
-        printf("papi_select.c, pins_thread_init_papi_select: "
-               "failed to create SELECT event set\n");
+        DEBUG(("papi_select.c, pins_thread_init_papi_select: "
+               "failed to create SELECT event set\n"));
     }
     if ((rv = PAPI_add_events(exec_unit->papi_eventsets[SELECT_SET], 
 
                               select_events, NUM_SELECT_EVENTS)) != PAPI_OK) {
-        printf("papi_select.c, pins_thread_init_papi_select: failed to add "
-               "steal events to StealEventSet. %d %s\n", rv, PAPI_strerror(rv));
+        DEBUG(("papi_select.c, pins_thread_init_papi_select: failed to add "
+               "steal events to StealEventSet. %d %s\n", rv, PAPI_strerror(rv)));
     }
     dague_profiling_add_dictionary_keyword("PINS_SELECT", "fill:#0000FF",
                                            sizeof(select_info_t), NULL,
@@ -73,9 +73,9 @@ static void start_papi_select_count(dague_execution_unit_t * exec_unit,
     (void)data;
     int rv;
     if ((rv = PAPI_start(exec_unit->papi_eventsets[SELECT_SET])) != PAPI_OK) {
-        printf("%p papi_select.c, start_papi_select_count: "
+        DEBUG(("%p papi_select.c, start_papi_select_count: "
                "can't start SELECT event counters! %d %s\n", 
-               exec_unit, rv, PAPI_strerror(rv));
+               exec_unit, rv, PAPI_strerror(rv)));
     }
     else {
         dague_profiling_trace(exec_unit->eu_profile, 
@@ -97,10 +97,15 @@ static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
     unsigned int num_threads = (exec_unit->virtual_process->dague_context->nb_vp 
                                 * exec_unit->virtual_process->nb_cores);
     select_info_t info;
-    if (exec_context) 
+    if (exec_context) {
         info.kernel_type = exec_context->function->function_id;
-    else
+		strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
+		info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
+	}
+    else {
         info.kernel_type = 0;
+		info.kernel_name[0] = '\0';
+	}
     info.vp_id = exec_unit->virtual_process->vp_id;
     info.th_id = exec_unit->th_id;
     info.victim_vp_id = -1; // currently unavailable from scheduler queue object
@@ -113,9 +118,9 @@ static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
     long long int values[NUM_SELECT_EVENTS];
     int rv = PAPI_OK;
     if ((rv = PAPI_stop(exec_unit->papi_eventsets[SELECT_SET], values)) != PAPI_OK) {
-        printf("papi_select.c, stop_papi_select_count: "
+        DEBUG(("papi_select.c, stop_papi_select_count: "
                "can't stop SELECT event counters! %d %s\n", 
-               rv, PAPI_strerror(rv));
+               rv, PAPI_strerror(rv)));
         // default values
         for (int i = 0; i < NUM_SELECT_EVENTS; i++)
             info.values[i] = -1;

@@ -107,10 +107,11 @@ cdef extern from "dbpreader.h":
 
 cdef extern from "dague/mca/pins/papi_exec/pins_papi_exec.h":
    enum: NUM_EXEC_EVENTS # allows us to grab the #define from the .h
+   enum: KERNEL_NAME_SIZE
 
    ctypedef struct papi_exec_info_t:
       int kernel_type
-      char kernel_name[9]
+      char kernel_name[KERNEL_NAME_SIZE]
       int vp_id
       int th_id
       int values_len
@@ -119,9 +120,11 @@ cdef extern from "dague/mca/pins/papi_exec/pins_papi_exec.h":
 cdef extern from "dague/mca/pins/papi_select/pins_papi_select.h":
    enum: NUM_TASK_SELECT_EVENTS # allows us to grab the #define from the .h
    enum: SYSTEM_QUEUE_VP
+   enum: KERNEL_NAME_SIZE
 
    ctypedef struct select_info_t:
       int kernel_type
+      char kernel_name[KERNEL_NAME_SIZE]
       int vp_id
       int th_id
       int victim_vp_id
