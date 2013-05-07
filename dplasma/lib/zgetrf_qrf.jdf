@@ -11,6 +11,7 @@ extern "C" %{
  */
 #define PRECISION_z
 //#define MUMPS_CRITERIUM
+#define HIGHAM_CRITERIUM
 
 #include "dague.h"
 #include <math.h>
@@ -804,6 +805,8 @@ BODY
             CORE_zgetrf_rectil( pdescA, IP, info );
 
         } else {
+            /* Not implemented */
+            assert( 0 );
             CORE_zgetrf_reclap(
                 tempm, tempkn,
                 A/*(k, k)*/, ldak, IP, info );
@@ -820,11 +823,11 @@ BODY
             /* fprintf(stderr, "affiche U k=%d a00=%f a01=%f a10=%f a11=%f tempkn=%d ldak=%d\n", */
             /*         k,lA[0],lA[1],lA[ldak],lA[ldak+1],tempkn,ldak); */
 
-            LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W);
+            LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W );
             //LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, W);
 
             W[0] = 1. / W[0];
-            fprintf(stderr,"Cond = %f pour k = %d\n",W[0],k);
+            fprintf(stderr,"zlufacto( k=%d ): Cond= %f\n", k, W[0]);
         }
 #endif
 
@@ -865,32 +868,23 @@ BODY
 
 #if defined(HIGHAM_CRITERIUM)
     {
-        int i;
+        memset( W1, 0, pmax * sizeof(double) );
+
         if (p == 0) {
             norm1[0] = W[0];
-            norm2[0] = W[0];
-            for(i=1; i < pmax; i++) {
-                norm1[i] = 0;
-            norm2[i] = 0;
-            }
-        } else {
-            int m;
-            norm1[0] = 0.;
-            for(i=1; i < pmax; i++) {
-                norm1[i] = 0;
-                norm2[i] = 0;
-            }
-            norm1[p] = 0.;
-            
+        }
+        else {
+            int i, m;
+
             for(i=0, m=k+p; m<descA.mt; m+=param_p, i++) {
                 norm1[p] += W[i];
             }
-            norm2[0] = 0.;
-            norm2[p] = norm1[p];
         }
-    }
-#elif defined(MUMPS_CRITERIUM)
 
+        memcpy( W2, W1, pmax * sizeof(double) );
+    }
+
+#elif defined(MUMPS_CRITERIUM)
     {
         int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
         int i;
@@ -898,25 +892,23 @@ BODY
         if (p == 0) {
             for(i=0; i < 2*descA.nb; i++) {
                 norm1[i] = 0;
-                norm2[i] = 0;
             }
             for(i=0; i<tempkn; i++) {
                 norm1[descA.nb + i] = W[i];
-                norm2[descA.nb + i] = W[i];
             }
         } else {
             for(i=0; i < 2*descA.nb; i++) {
                 norm1[i] = 0;
-                norm2[i] = 0;
             }
             for(i=0; i<descA.nb; i++) {
                 norm1[i] = W[i];
-                norm2[i] = W[i];
             }
         }
-    }
 
+        memcpy( W2, W1, 2 * descA.nb * sizeof(double) );
+    }
 #endif
+
     printlog("END of reduce_norm( k=%d, p=%d )\n", k, p);
 
 }
@@ -942,13 +934,14 @@ setchoice(k, p, h)
        <- (h >  0) ? T setchoice(k, p, h-1)                     [type = ELTdouble]
 
        -> (h <  hmax) ? T setchoice(k, p, h+1)                  [type = ELTdouble]     /* Send T to the bottom */
+
   RW B <- (h == 0) ? W2 reduce_norm(k, (pmax+p-pui)%pmax)       [type = ELTdouble]
        <- (h != 0) ? B setchoice(k, (pmax+p-pui)%pmax, h-1 )    [type = ELTdouble]
 
        -> (h <  hmax) ? B setchoice(k, (p+2*pui)%pmax, h+1)     [type = ELTdouble]
 
        /* Broadcast the information to the row */
-       -> (h == hmax) ? B setchoice_update(k, p, 1..param_q-1)     [type = ELTdouble]
+       -> (h == hmax) ? B setchoice_update(k, p, 1..param_q-1)  [type = ELTdouble]
 
   /*
    * Release local choice
@@ -972,7 +965,6 @@ BODY
     printlog("setchoice( k=%d, p=%d, h=%d )\n", k, p, h);
 
     DRYRUN(
-        fprintf(stderr, "DEB setchoice k=%d p=%d h=%d\n", k,p,h);
 
 #if defined(HIGHAM_CRITERIUM)
         {
@@ -986,14 +978,14 @@ BODY
             }
 
             for(i=1; i<pmax; i++) {
-                if (norm1[i] <= 0) {
+                if (norm1[i] <= 0.) {
                     norm1[i] = norm2[i];
-                }
-                if (norm2[i] <= 0) {
+                } else {
                     norm2[i] = norm1[i];
                 }
             }
         }
+
 #elif defined(MUMPS_CRITERIUM)
         {
             int i;
@@ -1015,6 +1007,7 @@ BODY
         }
 #endif
 
+        /* Last level of the reduction: let's take the decision */
         if (h == hmax) {
             int cond = 1;
 
@@ -1027,6 +1020,9 @@ BODY
                 for(i=1; i<pmax; i++) {
                     sum_norm += norm1[i];
                 }
+
+                fprintf(stderr, "setchoice( k=%d, p=%d, h=%d ): cond=%e, sum=%e\n",
+                        k, p, h, norm1[0], sum_norm);
 
                 if ((alpha * norm1[0]) > sum_norm) {
                     cond = 1;
