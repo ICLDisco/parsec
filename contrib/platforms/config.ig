@@ -9,6 +9,7 @@ echo "#"
 # Options passed on the command line are appended to this variable
 USER_OPTIONS+=" -DDPLASMA_SCHED_HWLOC=ON"
 USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
+USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
 USER_OPTIONS+=" -DPYTHON_LIBRARIES:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/lib/libpython2.7.so"
 USER_OPTIONS+=" -DPYTHON_INCLUDE_DIRS:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/include"
 USER_OPTIONS+=" -DPYTHON_EXECUTABLE:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/bin/python"
