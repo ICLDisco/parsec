@@ -10,7 +10,7 @@ extern "C" %{
  *
  */
 #define PRECISION_z
-#define MUMPS_CRITERIUM
+#define HIGHAM_CRITERIUM
 
 #include "dague.h"
 #include <math.h>
