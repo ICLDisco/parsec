@@ -37,7 +37,7 @@ def safe_unlink(files):
 # so that, for instance, I could specify different NB and IB params depending on
 # the scheduler
 default_NBs = {'dgeqrf': 192, 'dpotrf': 256, 'dgetrf': 256 }
-default_IBdivs = {'dgeqrf': 8, 'dpotrf': 4, 'dgetrf': 8}
+default_IBdivs = {'dgeqrf': 8, 'dpotrf': 0, 'dgetrf': 0}
 ####### global parameter deftauls
 max_set_fails = 5
 do_trials = 4
@@ -48,10 +48,10 @@ def generate_trial_sets(write_pending=True):
     #
     extra_args = [] # or, ['--mca-pins=papi_exec']
     # defaults for ig:
-    execs = ['dgeqrf'] #, 'dpotrf', 'dgeqrf' ]
+    execs = ['dpotrf'] #, 'dpotrf', 'dgeqrf' ]
     schedulers = ['AP', 'GD', 'LTQ', 'LFQ', 'PBQ']
-    minNumCores = 48 # default to using them all
-    maxNumCores = 48
+    minNumCores = 0 # default to using them all
+    maxNumCores = 0
     maxN = 22000
     NBs = [160, 188, 200, 216, 256]
     IBdivs = None    # use defaults
@@ -72,6 +72,8 @@ def generate_trial_sets(write_pending=True):
     #
     # end param section
     #
+
+    IBdivs_orig = IBdivs
     
     import socket
     hostname = socket.gethostname().split('.')[0]
@@ -97,8 +99,12 @@ def generate_trial_sets(write_pending=True):
                     Ns = Ns[1:]
             for N in Ns:
                 sys.stderr.write("%s %d\n" % (ex.upper(), N))   
-                if not IBdivs:
+                if not IBdivs_orig:
                     IBdivs = [default_IBdivs[ex]]
+                elif 'potrf' in ex or 'getrf' in ex:
+                    IBdivs = [0] # because they don't use IB
+                else:
+                    IBdivs = IBdivs_orig
                 for IBdiv in IBdivs:
                     if IBdiv > 0:
                         if NB % IBdiv == 0:
@@ -310,11 +316,12 @@ def read_profile_in_process(pipe, profiles):
     profile = None
     if len(profiles) > 0:
         try:
-            import dbpreader_py as dbpr
+            import py_dbpreader as dbpr
             profile = dbpr.readProfile(profiles)
             safe_unlink(profiles) # delete extra files now
-        except ImportError:
-            print('Unable to save profile; dbpreader is unavailable')
+        except ImportError as iex:
+            print('Unable to save profile; dbpreader is unavailable:')
+            print(iex)
     pipe.send(profile)
     return 0
     
