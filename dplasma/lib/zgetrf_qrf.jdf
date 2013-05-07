@@ -1022,7 +1022,9 @@ BODY
 
                 cond = 1;
                 for(i=0; i<tempkn; i++) {
-                    if (norm1[i] > (alpha * normA[i])) {
+                    if ((alpha * normA[i]) > norm1[i]) {
+                        fprintf(stderr, "setchoice( k=%d, p=%d, h=%d ): max(|A_%d|)=%e, A_%d%d=%e\n",
+                                k, p, h, i, norm1[i], i, i, normA[i]);
                         cond = 0;
                         break;
                     }
