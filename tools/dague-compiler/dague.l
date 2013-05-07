@@ -62,29 +62,29 @@ extern YYSTYPE yylval;
 #define YY_POP_STATE()        yy_pop_state()
 typedef void* yyscan_t;
 #endif  /* defined(HAVE_RECENT_LEX) */
-
 %}
 /*%option debug*/
 /*%option bison-bridge bison-locations*/
 %option noyywrap yylineno
 /*%option reentrant*/
 %option stack
+/*%option debug*/
 
 WHITE         [\f\t\v ]
 
 %x comment
 %x properties
 %x dstr
+%s body
 
 %%
-
-[bB][oO][dD][yY]{WHITE}*"\n"([^E]|([eE][^N])|([eE][nN][^D]))+[eE][nN][dD]                       {
-                          char *b = yytext + 4;
-                          while( *b != '\n' ) b++;
-                          YYLVAL(string) = extern_code( b+1, strlen(b+1) - 3 );
-                          current_lineno++;
-                          return BODY;
+^{WHITE}*(?i:body)    { YY_PUSH_STATE(body); }
+<body>^{WHITE}*(?i:end)      { YY_POP_STATE();
+                        YYLVAL(string) = extern_code( yytext, strlen(yytext) - 3 );
+                        return BODY;
                       }
+<body>[^\n]*          { yymore();}
+<body>{WHITE}*\n      { current_lineno++; yymore();}
 extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}                          {
                           int lstart, lend, bstart, skip_line = 0;
                           /* This assumes that no extern language rightfully has a "
@@ -159,8 +159,9 @@ WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
 <properties>[fF][aA][lL][sS][eE] {
                         YYLVAL(number) = 0;
                         return INT;                                        }
-<properties>[nN][oO] {  YYLVAL(number) = 0;
+<properties>[nN][oO]  { YYLVAL(number) = 0;
                         return INT;                                        }
+^%(?i:option)         { return OPTION;                                     }
 <*>"("                { return OPEN_PAR;                                   }
 <*>")"                { return CLOSE_PAR;                                  }
 <*>"=="               { return EQUAL;                                      }

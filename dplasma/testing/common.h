@@ -62,7 +62,6 @@ enum iparam_t {
   IPARAM_QR_DOMINO,    /* Enable/disable the domino between the upper and the lower tree (specific to xgeqrf_param) */
   IPARAM_QR_TSRR,      /* Enable/disable the round-robin on TS domain */
   IPARAM_BUT_LEVEL,    /* Butterfly level */
-  IPARAM_DOT,          /* Do we require to output the DOT file? */
   IPARAM_SIZEOF
 };
 

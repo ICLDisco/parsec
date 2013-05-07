@@ -1,11 +1,13 @@
 cmake_minimum_required (VERSION 2.8)
-project (DAGUE C CXX Fortran)
+project (DAGUE C)
+enable_language(CXX OPTIONAL)
+enable_language(Fortran OPTIONAL)
 
 include(CMakeDependentOption)
 
 # The current version number
-set (DAGUE_VERSION_MAJOR 0)
-set (DAGUE_VERSION_MINOR 1)
+set (DAGUE_VERSION_MAJOR 1)
+set (DAGUE_VERSION_MINOR 0)
 
 # CTest system
 SET(DART_TESTING_TIMEOUT 120)
@@ -152,43 +154,6 @@ IF( BUILD_TOOLS )
   find_package(FLEX)
 ENDIF( BUILD_TOOLS )
 
-# Fortran tricks
-STRING(REGEX MATCH "Intel" _match_intel ${CMAKE_Fortran_COMPILER_ID})
-IF (_match_intel)
-     MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
-     SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -nofor_main")
-ENDIF (_match_intel)
-
-STRING(REGEX MATCH "PGI$" _match_pgi ${CMAKE_Fortran_COMPILER_ID})
-IF (_match_pgi)
-    MESSAGE(STATUS "Add -Mnomain to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -Mnomain -Bstatic")
-ENDIF (_match_pgi)
-
-STRING(REGEX MATCH ".*xlc$" _match_xlc ${CMAKE_C_COMPILER})
-IF (_match_xlc)
-     MESSAGE(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
-ENDIF (_match_xlc)
-STRING(REGEX MATCH "XL" _match_xlc ${CMAKE_C_COMPILER_ID})
-IF (_match_xlc AND BUILD_64bits)
-     MESSAGE(STATUS "Add -q64 to the C compiler/linker.")
-     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -q64")
-ENDIF (_match_xlc AND BUILD_64bits)
-
-STRING(REGEX MATCH ".*xlf$" _match_xlf ${CMAKE_Fortran_COMPILER})
-IF (_match_xlf)
-     MESSAGE(ERROR "Please use the thread-safe version of the xlf compiler (xlf_r)")
-ENDIF (_match_xlf)
-STRING(REGEX MATCH "XL$" _match_xlf ${CMAKE_Fortran_COMPILER_ID})
-IF (_match_xlf)
-  SET(arch_flags "-q32")
-  IF(BUILD_64bits)
-     SET(arch_flags "-q64")
-  ENDIF(BUILD_64bits)
-  MESSAGE(STATUS "Add ${arch_flags} and -nofor_main to the Fortran linker.")
-  SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} ${arch_flags} -nofor_main")
-ENDIF (_match_xlf)
-
 # check for the CPU we build for
 MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
 STRING(REGEX MATCH "(i.86-*)|(athlon-*)|(pentium-*)" _mach_x86 ${CMAKE_SYSTEM_PROCESSOR})
@@ -296,7 +261,11 @@ SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" 
 SET( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
 
 # Check if the linker has group. MacOS doesn't support it
-check_c_compiler_flag( "-Wl,--start-group -Wl,--end-group" HAVE_LINKER_GROUP )
+include(CheckCSourceRuns)
+set(CMAKE_REQUIRED_FLAGS_save "${CMAKE_REQUIRED_FLAGS}")
+set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Wl,--start-group -Wl,--end-group")
+check_c_source_runs( "int main() { return 0; }" HAVE_LINKER_GROUP )
+set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS_save}")
 
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
@@ -465,6 +434,69 @@ IF( BUILD_DAGUE )
 ENDIF( BUILD_DAGUE )
 
 #
+# Fortran tricks
+#
+IF (CMAKE_Fortran_COMPILER_WORKS)
+  STRING(REGEX MATCH "Intel" _match_intel ${CMAKE_Fortran_COMPILER_ID})
+  IF (_match_intel)
+    MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
+    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -nofor_main")
+  ENDIF (_match_intel)
+
+  STRING(REGEX MATCH "PGI$" _match_pgi ${CMAKE_Fortran_COMPILER_ID})
+  IF (_match_pgi)
+    MESSAGE(STATUS "Add -Mnomain to the Fortran linker.")
+    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -Mnomain -Bstatic")
+  ENDIF (_match_pgi)
+
+  STRING(REGEX MATCH ".*xlc$" _match_xlc ${CMAKE_C_COMPILER})
+  IF (_match_xlc)
+    MESSAGE(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
+  ENDIF (_match_xlc)
+  STRING(REGEX MATCH "XL" _match_xlc ${CMAKE_C_COMPILER_ID})
+  IF (_match_xlc AND BUILD_64bits)
+    MESSAGE(STATUS "Add -q64 to the C compiler/linker.")
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -q64")
+  ENDIF (_match_xlc AND BUILD_64bits)
+
+  STRING(REGEX MATCH ".*xlf$" _match_xlf ${CMAKE_Fortran_COMPILER})
+  IF (_match_xlf)
+    MESSAGE(ERROR "Please use the thread-safe version of the xlf compiler (xlf_r)")
+  ENDIF (_match_xlf)
+  STRING(REGEX MATCH "XL$" _match_xlf ${CMAKE_Fortran_COMPILER_ID})
+  IF (_match_xlf)
+    SET(arch_flags "-q32")
+    IF(BUILD_64bits)
+      SET(arch_flags "-q64")
+    ENDIF(BUILD_64bits)
+    MESSAGE(STATUS "Add ${arch_flags} and -nofor_main to the Fortran linker.")
+    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} ${arch_flags} -nofor_main")
+  ENDIF (_match_xlf)
+
+#
+# Even more Fortran tricks.
+#
+# FFLAGS depend on the compiler
+
+  if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    # gfortran
+    set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3")
+    set (CMAKE_Fortran_FLAGS_DEBUG   "-fno-f2c -O0 -g")
+  elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+    # ifort (untested)
+    set (CMAKE_Fortran_FLAGS_RELEASE "-f77rtl -O3")
+    set (CMAKE_Fortran_FLAGS_DEBUG   "-f77rtl -O0 -g")
+  else (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    get_filename_component (Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
+    message ("CMAKE_Fortran_COMPILER full path: " ${CMAKE_Fortran_COMPILER})
+    message ("Fortran compiler: " ${Fortran_COMPILER_NAME})
+    message ("No optimized Fortran compiler flags are known, we just try -O2...")
+    set (CMAKE_Fortran_FLAGS_RELEASE "-O2")
+    set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g")
+  endif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+ENDIF (CMAKE_Fortran_COMPILER_WORKS)
+
+#
 ##
 ###
 # Finished detecting the system, lets do our own things now
@@ -528,6 +560,17 @@ if( BUILD_DAGUE )
     install(TARGETS dague ARCHIVE DESTINATION lib)
   endif (MPI_FOUND)
   add_subdirectory(data_dist)
+#
+# If we have support for F90 build the DAGuE module
+#
+  if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
+    include(FortranCInterface)
+    FortranCInterface_HEADER(src/fortran/f2c_mangle.h
+                             MACRO_NAMESPACE "DAGUE_"
+                             SYMBOL_NAMESPACE "dague_"
+                             SYMBOLS mysub daguef:my_sub)
+    add_subdirectory(src/fortran)
+  endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
 
 #
@@ -546,6 +589,7 @@ configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
 install(FILES "${PROJECT_INCLUDE_DIR}/dague_config.h" DESTINATION include)
+install(FILES "include/dague.h" DESTINATION include)
 
 # pkg-config file
 configure_file (
