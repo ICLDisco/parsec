@@ -174,21 +174,14 @@ int main(int argc, char *argv[])
 {
     dbp_multifile_reader_t *dbp;
     int i = 0;
-    for (; i < 40; i++) {
 
     dbp = dbp_reader_open_files(argc-1, argv+1);
-    if( NULL == dbp ) {
-	    printf("failed at something...\n");
-        return 1;
-    }
-    printf("did one\n");
 
     dump_xml( "out.xml", dbp);
 
     dbp_reader_close_files(dbp);
     free(dbp);
     dbp = NULL;
-    }
 
     return 0;
 }
