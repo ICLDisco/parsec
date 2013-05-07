@@ -39,6 +39,8 @@ int dague_log2(int n) {
     return i;
 }
 
+#define nbthreads( __s ) (dague_imin( ((__s) + 3 ) /  4, nbmaxthrd ) - 1)
+
 %}
 
 A        [type = "dague_ddesc_t *"]
@@ -59,9 +61,10 @@ descA    [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)A)"  hid
 descTS   [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)TS)" hidden=on]
 descTT   [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)TT)" hidden=on]
 
-param_p  [type = int default="((two_dim_block_cyclic_t*)A)->grid.rows" hidden=on ]
-param_q  [type = int default="((two_dim_block_cyclic_t*)A)->grid.cols" hidden=on ]
-minMNT   [type = int default="dague_imin( descA.mt-1, descA.nt-1 )"    hidden=on ]
+param_p   [type = int default="((two_dim_block_cyclic_t*)A)->grid.rows" hidden=on ]
+param_q   [type = int default="((two_dim_block_cyclic_t*)A)->grid.cols" hidden=on ]
+minMNT    [type = int default="dague_imin( descA.mt-1, descA.nt-1 )"    hidden=on ]
+nbmaxthrd [type = "int" default="( dague_imax( 1, dague_imin( A->cores - 1, 48 ) ) )" hidden=on] /* 48 is the actual limit of the kernel */
 
 /*===========================================================================================
 
@@ -82,7 +85,7 @@ minMNT   [type = int default="dague_imin( descA.mt-1, descA.nt-1 )"    hidden=on
 
 zgetrf(k)
   /* Execution space */
-  k = 0 .. minMNT
+  k  = 0 .. minMNT
 
   : A(k, k)
 
@@ -663,18 +666,20 @@ copypanel(k, m) [ profile = off ]
 
   did_lu  = inline_c %{ return ( k > 0 ) ? lu_tab[k-1] : -1; %}
   diagdom = inline_c %{ return (m-k)%param_p; %}
+  s       = inline_c %{ return (descA.mt-k+param_p-1) / param_p; %}
+  nbthrd  = inline_c %{ return nbthreads( s ); %}
 
   :A(m, k)
 
   RW   A     <- (k == 0) ? A(m, k)
              <- (k >  0) && (did_lu == 1) ? C  zgemm( k-1,m,k)
              <- (k >  0) && (did_lu != 1) ? A2 zttmqr(k-1,m,k)
-             -> (m == k) ? A zlufacto(k)
+             -> (m == k) ? A zlufacto(k, 0..nbthrd)
              -> (m != k) ? A selector(k, m, k)
 
   WRITE Acpy -> (diagdom == 0) ? Acpy selector(k, m, k)
 
-  CTL  ctl   -> (diagdom == 0) ? ctl zlufacto(k)
+  CTL  ctl   -> (diagdom == 0) ? ctl zlufacto(k, 0..nbthrd)
              -> (diagdom != 0) ? ctl reduce_norm(k, diagdom)
 
   ;descA.nt-k-1
@@ -743,27 +748,30 @@ END
  *          Factorize the panel stored on the node owning the diagonal tile
  ************************************************************************************/
 
-zlufacto(k)
+zlufacto(k, t)
   /* Execution space */
-  k = 0 .. minMNT
+  k  = 0 .. minMNT
+  s  = inline_c %{ return (descA.mt-k+param_p-1) / param_p; %}
+  nbthrd = inline_c %{ return nbthreads( s ); %}
+  t  = 0 .. nbthrd
 
   : A(k, k)
 
   RW    A    <- A copypanel(k, k)
-             -> A selector(k, k, k)
+             -> (t == 0) ? A selector(k, k, k)
 
-  RW    IP   <- IPIV(k, k)                       [type = PIVOT]
-             -> IPIV(k, k)                       [type = PIVOT]
-             -> IP selector(k, k, k)             [type = PIVOT]
+  RW    IP   <- IPIV(k, k)                                  [type = PIVOT]
+             -> (t == 0) ? IPIV(k, k)                       [type = PIVOT]
+             -> (t == 0) ? IP selector(k, k, k)             [type = PIVOT]
 
   CTL   ctl  <- ctl copypanel(k, k..descA.mt-1..param_p)
-             -> ctl reduce_norm(k, 0)
+             -> (t == 0) ? ctl reduce_norm(k, 0)
 
 ; descA.nt-k-1
+
 BODY
 {
     /* dague_complex64_t *lA  = (dague_complex64_t*)A; */
-    int s  = (descA.mt-k+param_p-1) / param_p;
     int ks = k + (s-1)*param_p;
     int tempm = (s-1) * descA.mb +
         (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
@@ -776,8 +784,6 @@ BODY
 
     DRYRUN(
         int tempkm = k == descA.mt-1 ? tempm : descA.mb;
-        int t = 0;
-        int nbthrd = 0; /* nbthreads( k ); */
         int info[3];
         fprintf(stderr, "DEB zlufacto k=%d\n", k);
 
@@ -819,7 +825,7 @@ BODY
             fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
         }
 
-        if (criteria == HIGHAM_CRITERIUM)
+        if ( (t == 0) && (criteria == HIGHAM_CRITERIUM))
         {
             /* Compute the condition number of U */
             LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W );
@@ -849,7 +855,7 @@ reduce_norm(k, p)
   WRITE W1 -> T setchoice(k, p,          0) [type = ELTdouble]
   WRITE W2 -> B setchoice(k, (p+1)%pmax, 0) [type = ELTdouble]
 
-  CTL ctl <- (p == 0) ? ctl zlufacto(k)
+  CTL ctl <- (p == 0) ? ctl zlufacto(k, 0)
           <- (p != 0) ? ctl copypanel(k, k+p..descA.mt-1..param_p)
 
 BODY
@@ -1091,7 +1097,7 @@ selector(k,m,n)
 
   : A(m,n)
 
-  RW   A   <-   ((k == n) && (k == m)) ? A zlufacto(k)
+  RW   A   <-   ((k == n) && (k == m)) ? A zlufacto(k, 0)
            <-   ((k == n) && (k != m)) ? A copypanel(k, m)
            <-   ((k != n) && (k == 0)) ? A(m, n)
            <-   ((k != n) && (k != 0) && (did_lu == 1)) ? C  zgemm( k-1,m,n)
@@ -1107,7 +1113,7 @@ selector(k,m,n)
            -> ( (do_lu != 1) && (k != n) && (type != 0) ) ? C  zunmqr(k,i,n)
            -> ( (do_lu != 1) && (k != n) && (type == 0) ) ? A2 zttmqr(k,m,n)
 
-  RW   IP  <- ((k == m) && (k == n)) ? IP zlufacto(k)
+  RW   IP  <- ((k == m) && (k == n)) ? IP zlufacto(k, 0)
            <- ((k != m) || (k != n)) ? IPIV(m,n) /* unused */
            -> ((m == k) && (n == k) && (do_lu == 1) ) ? IP zgetrf(k)
 

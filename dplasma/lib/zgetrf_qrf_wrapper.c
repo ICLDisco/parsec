@@ -16,6 +16,9 @@
 
 #include "zgetrf_qrf.h"
 
+void CORE_zgetrf_reclap_init(void);
+void CORE_zgetrf_rectil_init(void);
+
 dague_object_t* dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                                         tiled_matrix_desc_t *A,
                                         tiled_matrix_desc_t *IPIV,
@@ -33,6 +36,12 @@ dague_object_t* dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
      */
     int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
     double *W = (double*)malloc(2*(A->nb)*sizeof(double));
+
+    if ( A->storage == matrix_Tile ) {
+        CORE_zgetrf_rectil_init();
+    } else {
+        CORE_zgetrf_reclap_init();
+    }
 
     object = dague_zgetrf_qrf_new( (dague_ddesc_t*)A,
                                    (dague_ddesc_t*)IPIV,
