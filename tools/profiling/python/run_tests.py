@@ -66,8 +66,8 @@ def generate_trial_sets(write_pending=True):
     IBdivs = [2, 4]
     NBs = [168, 188, 256, 380, 400]        # None to use defaults
 
-    Ns = [15360]
-    NBs = [192]
+#    Ns = [15360]
+    NBs = [180, 200, 360, 380]
     IBdivs = [1,2,8]
     #
     # end param section
@@ -173,7 +173,7 @@ def spawn_trial_set_processes(trial_sets, testingDir = '.'):
                     trial_set.failed = True
                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                     print('the trial set {} failed '.format(trial_set.uniqueName()) +
-                          'to successfully execute after {} failures.'.format(failed_count))
+                          'to successfully execute after {} failures.'.format(fail_count))
 
 def run_trial_set_in_process(my_pipe, testingDir='.'):
     trial_set = my_pipe.recv()
@@ -226,14 +226,11 @@ def run_trial_set_in_process(my_pipe, testingDir='.'):
                         try:
                             my_end, their_end = Pipe()
                             p = Process(target=read_profile_in_process, args=(their_end,profiles))
-                            print('trying to read profile...')
                             p.start()
                             while p.is_alive():
                                 if my_end.poll(1):
                                     trialObj.profile = my_end.recv()
-                                    print('received profile!')
                             if my_end.poll(1):
-                                print('received profile 2!')
                                 trialObj.profile = my_end.recv()
                             p.join()
                             if p.exitcode != 0 or trialObj.profile == None:
@@ -254,7 +251,7 @@ def run_trial_set_in_process(my_pipe, testingDir='.'):
                     break # no more attempts are needed - we got what we came for
                 else:
                     sys.stderr.write("results not properly parsed: %s\n" % stdout)
-                    print('\nWe\'ll just try this one again...\n')
+                    print('\nWe\'ll just try this one again.\n')
         # done with trials in set. now calculate statistics
         gflopsSet = []
         timeSet = []
@@ -313,10 +310,8 @@ def read_profile_in_process(pipe, profiles):
     profile = None
     if len(profiles) > 0:
         try:
-            print('reading.......')
             import dbpreader_py as dbpr
             profile = dbpr.readProfile(profiles)
-            print('read! returning...' )
             safe_unlink(profiles) # delete extra files now
         except ImportError:
             print('Unable to save profile; dbpreader is unavailable')

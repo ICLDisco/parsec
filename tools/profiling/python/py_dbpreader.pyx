@@ -26,8 +26,6 @@ cpdef readProfile(filenames):
 
    profile.worldsize = dbp_reader_worldsize(dbp)
 
-   print('here we are...')
-
    # create dictionary first, for later use while making Events
    for index in range(profile.nb_dict_entries):
       cdict = dbp_reader_get_dictionary(dbp, index)
@@ -36,11 +34,9 @@ cpdef readProfile(filenames):
 
    # convert c to py
    for ifd in range(profile.nb_files):
-      print('file ' + str(ifd) + ' of ' + str(profile.nb_files)) 
       cfile = dbp_reader_get_file(dbp, ifd)
       pfile = dbpFile(profile, dbp_file_hr_id(cfile), dbp_file_get_name(cfile), dbp_file_get_rank(cfile))
       for index in range(dbp_file_nb_infos(cfile)):
-         print('info ' + str(index))
          cinfo = dbp_file_get_info(cfile, index)
          key = dbp_info_get_key(cinfo)
          value = dbp_info_get_value(cinfo)
@@ -74,28 +70,20 @@ cdef char** stringListToCStrings(strings):
 # you can't call this. it will be called for you. call readProfile()
 cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, pfile):
    cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, index)
-   print('got cthread ')
    cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
-   print('got iterator')
    cdef dbp_event_iterator_t * it_e = NULL
    cdef dbp_event_t * event_s = dbp_iterator_current(it_s)
-   print('got event')
    cdef dbp_event_t * event_e = NULL
    cdef dague_time_t reader_start = dbp_reader_min_date(dbp)
-   print('got min date')
    cdef unsigned long long start = 0
    cdef unsigned long long end = 0
    cdef void * cinfo = NULL
    cdef papi_exec_info_t * cast_exec_info = NULL
    cdef select_info_t * cast_select_info = NULL
 
-   print('make the thread ' + str(index))
-
    thread = dbpThread(pfile, index)
    if thread.id + 1 > reader.thread_count:
       reader.thread_count = thread.id + 1
-
-   print('one')
 
    while event_s != NULL:
       if KEY_IS_START( dbp_event_get_key(event_s) ):

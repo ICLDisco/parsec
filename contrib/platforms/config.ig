@@ -23,7 +23,8 @@ CC=${CC:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/bin/intel64/icc"}
 CXX=${CXX:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/bin/intel64/icpc"}
 FC=${FC:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/bin/intel64/ifort"}
 MKL=${MKL:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/mkl"}
-CFLAGS=${CFLAGS:="-g3 -fPIC"}
+CMAKE_C_FLAGS=${CMAKE_C_FLAGS:="-g3 -fPIC"}
+CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS:="-g3 -fPIC"}
 CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH:="$HOME/enthought_7.3.2_x64/"}
 CMAKE_FIND_ROOT_PATH=${CMAKE_FIND_ROOT_PATH="$HOME/enthought_7.3.2_x64/"}
 PLASMADIR=${PLASMA_DIR:="/home/bosilca/unstable/dplasma/PLASMA/build/"}
