@@ -160,7 +160,7 @@ BODY
         (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
     int ldak = BLKLDD(descA, k);
 
-        printlog("swptrsm_u( k=%d, n=%d )", k, n );
+    printlog("swptrsm_u( k=%d, n=%d )", k, n );
 
     DRYRUN(
 
@@ -210,8 +210,8 @@ BODY
     int ldak = BLKLDD( descA, k );
     int type = ((m-k)%(param_p) == 0) ? 0 : 1;
 
-    printlog("ztrsm_l( k=%d, m=%d, ldk=%d, ldm=%d, A(%d,%d))\n",
-             tempkm, tempmm, ldak, ldam, m, k);
+    printlog("ztrsm_l( k=%d, m=%d ) [M=%d, N=%d, ldk=%d, ldm=%d, A(%d,%d)]\n",
+             k, m, tempkm, tempmm, ldak, ldam, m, k);
 
     DRYRUN(
          if ( type == 0 ) {
@@ -714,7 +714,7 @@ BODY
                     LAPACK_COL_MAJOR, '1',
                     tempmm, tempkn, A, ldam, NULL);
 
-                fprintf(stderr, "copypanel( k=%d, m=%d ): ||A||_1 = %e\n", k, m, W[i]);
+                //fprintf(stderr, "copypanel( k=%d, m=%d ): ||A||_1 = %e\n", k, m, W[i]);
             }
             else if (criteria == MUMPS_CRITERIUM)
             {
@@ -778,14 +778,13 @@ BODY
     int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
     int ldak = BLKLDD(descA, k);
 
-    printlog("CORE_zgetrf_rec(%d)\n"
+    printlog("zlufacto( k=%d, t=%d ) [nbthrd=%d]\n"
              "\t(%d, %d, A(%d,%d)[%p], IP(%d)[%p]) lu_facto",
-             k, tempm, tempkn, k, k, A, k, IP);
+             k, t, nbthrd, tempm, tempkn, k, k, A, k, IP);
 
     DRYRUN(
         int tempkm = k == descA.mt-1 ? tempm : descA.mb;
         int info[3];
-        fprintf(stderr, "DEB zlufacto k=%d\n", k);
 
         /* Set local IP to 0 before generation
          * Better here than a global initialization for locality
@@ -794,7 +793,7 @@ BODY
             memset(IP, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
         }
 
-        info[1] = 0;
+        info[1] = t;
         info[2] = nbthrd+1;
 
         if (criteria == MUMPS_CRITERIUM)
@@ -1000,8 +999,8 @@ BODY
                     sum_norm += norm1[i];
                 }
 
-                fprintf(stderr, "setchoice( k=%d, p=%d, h=%d ): cond=%e, sum=%e\n",
-                        k, p, h, norm1[0], sum_norm);
+                /* fprintf(stderr, "setchoice( k=%d, p=%d, h=%d ): cond=%e, sum=%e\n", */
+                /*         k, p, h, norm1[0], sum_norm); */
 
                 if ((alpha * norm1[0]) > sum_norm) {
                     cond = 1;
@@ -1016,8 +1015,8 @@ BODY
                 cond = 1;
                 for(i=0; i<tempkn; i++) {
                     if ((alpha * normA[i]) > norm1[i]) {
-                        fprintf(stderr, "setchoice( k=%d, p=%d, h=%d ): max(|A_%d|)=%e, A_%d%d=%e\n",
-                                k, p, h, i, norm1[i], i, i, normA[i]);
+                        /* fprintf(stderr, "setchoice( k=%d, p=%d, h=%d ): max(|A_%d|)=%e, A_%d%d=%e\n", */
+                        /*         k, p, h, i, norm1[i], i, i, normA[i]); */
                         cond = 0;
                         break;
                     }
@@ -1026,7 +1025,7 @@ BODY
             else
             {
                 /* By default, we switch at each iteration */
-                cond = k%2;
+                cond = 1; //k%2;
             }
 
             lu_tab[k] = cond;
@@ -1037,8 +1036,6 @@ BODY
 
             norm2[0] = lu_tab[k];
         }
-
-        fprintf(stderr, "FIN setchoice k=%d p=%d h=%d\n", k, p, h);
            );
 }
 END
@@ -1211,21 +1208,25 @@ BODY
              */
             int getrf_m, getrf_n;
 
-            if (zgetrf_pred(k))
+            if (zgetrf_pred(k)) {
                 nb_tasks += 2;
+            }
 
             for(getrf_n=k+1; getrf_n< descA.nt; getrf_n++) {
-                if (swptrsm_u_pred(k, getrf_n))
+                if (swptrsm_u_pred(k, getrf_n)) {
                     nb_tasks++;
+                }
             }
 
             for(getrf_m=k+1; getrf_m< descA.mt; getrf_m++) {
-                if (ztrsm_l_pred(k, getrf_m))
+                if (ztrsm_l_pred(k, getrf_m)) {
                     nb_tasks++;
+                }
 
                 for(getrf_n=k+1; getrf_n< descA.nt; getrf_n++) {
-                    if (zgemm_pred(k, getrf_m, getrf_n, 0))
+                    if (zgemm_pred(k, getrf_m, getrf_n, 0)) {
                         nb_tasks++;
+                    }
                 }
             }
         }
