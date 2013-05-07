@@ -129,7 +129,7 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t*)&ddescIPIV,
                                (tiled_matrix_desc_t*)&ddescTS,
                                (tiled_matrix_desc_t*)&ddescTT,
-                               lu_tab,
+                               2, 0.5, lu_tab,
                                &info));
     /* lets rock! */
     PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_qrf);

@@ -28,6 +28,15 @@
 #define DPLASMA_GREEDY1P_TREE   4
 
 /*
+ * Enum criteria for LU/QR algorithm
+ */
+enum criteria_e {
+    DEFAULT_CRITERIUM = 0,
+    HIGHAM_CRITERIUM  = 1,
+    MUMPS_CRITERIUM   = 2
+};
+
+/*
  * Map operations
  */
 void dplasma_map2( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
@@ -42,7 +51,6 @@ void dplasma_map2_Destruct( dague_object_t *o );
 #undef imin
 static inline int imax(int32_t a, int32_t b) { return a > b ? a : b; }
 static inline int imin(int32_t a, int32_t b) { return a < b ? a : b; }
-
 
 /* sqrt function */
 #define dplasma_zsqrt csqrt
