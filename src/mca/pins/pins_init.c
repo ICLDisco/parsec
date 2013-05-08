@@ -300,3 +300,30 @@ void set_allowable_pins_modules (const char * const modules[]) {
 		DEBUG3(("PINS modules have already been set and cannot be set again.\n"));
 	}
 }
+
+int is_pins_module_enabled(char * name) {
+	mca_base_component_t ** components = NULL;
+	dague_pins_module_t * module = NULL;
+	int priority = -1;
+	int i = 0;
+
+	components = mca_components_open_bytype("pins");
+	while (components[i] != NULL) {
+		if (components[i]->mca_query_component != NULL) {
+			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
+			int j = 0;
+			while (allowable_modules_in_use && allowable_modules[j] != NULL) {
+				if ((!allowable_modules_in_use || 
+					0 == strncmp(module->component->base_version.mca_component_name, 
+				                 allowable_modules[j], MAX_NAME_SIZE)) && 
+					0 == strncmp(module->component->base_version.mca_component_name,
+								 name, MAX_NAME_SIZE)) {
+					return 1; // yes, enabled
+				}
+				j++;
+			}
+		}
+		i++;
+	}
+	return 0; // no, not enabled
+}

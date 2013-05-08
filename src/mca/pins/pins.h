@@ -106,6 +106,8 @@ void pins_disable_registration(int disable);
 
 void set_allowable_pins_modules (const char * const modules[]);
 
+int is_pins_module_enabled(char * module_name);
+
 parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins_callback * cb);
 
 parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag);

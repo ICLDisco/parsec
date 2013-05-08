@@ -36,11 +36,16 @@ static char* socket_events [NUM_SOCKET_EVENTS] = {"L3_CACHE_MISSES:READ_BLOCK_EX
 };
 
 static int successful_events = 0;
+static int pins_prof_papi_socket_begin, pins_prof_papi_socket_end;
 
 static void pins_init_papi_socket(dague_context_t * master_context) {
     (void) master_context;
     thread_init_prev = PINS_REGISTER(THREAD_INIT, start_papi_socket);
     thread_fini_prev = PINS_REGISTER(THREAD_FINI, stop_papi_socket);
+	dague_profiling_add_dictionary_keyword("PINS_SOCKET", "fill:#00AAFF",
+	                                       sizeof(papi_socket_info_t), NULL,
+	                                       &pins_prof_papi_socket_begin, &pins_prof_papi_socket_end);
+
 }
 
 static void pins_fini_papi_socket(dague_context_t * master_context) {
@@ -56,28 +61,28 @@ static void start_papi_socket(dague_execution_unit_t * exec_unit,
     if (exec_unit->th_id % CORES_PER_SOCKET == WHICH_CORE_IN_SOCKET) {
         exec_unit->papi_eventsets[PER_SOCKET_SET] = PAPI_NULL;
         if (PAPI_create_eventset(&exec_unit->papi_eventsets[PER_SOCKET_SET]) != PAPI_OK)
-            printf("couldn't create the PAPI event set for thread %d to measure L3 misses\n", exec_unit->th_id);
+            DEBUG(("couldn't create the PAPI event set for thread %d to measure L3 misses\n", 
+				   exec_unit->th_id));
         else {
             int i = 0;
             int successful = 0;
             for (i = 0; i < NUM_SOCKET_EVENTS; i++) {
                 if (PAPI_event_name_to_code(socket_events[i], &native) != PAPI_OK)
-                    printf("papi_socket couldn't find event %s.\n", socket_events[i]);
-                else if (PAPI_add_event(exec_unit->papi_eventsets[PER_SOCKET_SET], native) != PAPI_OK)
-                    printf("papi_socket couldn't add event %s.\n", socket_events[i]);
+                    DEBUG(("papi_socket couldn't find event %s.\n", socket_events[i]));
+                else if (PAPI_add_event(exec_unit->papi_eventsets[PER_SOCKET_SET], native) 
+						 != PAPI_OK)
+                    DEBUG(("papi_socket couldn't add event %s.\n", socket_events[i]));
                 else
                     successful += 1;
             }
             successful_events = successful;
 
             if (PAPI_start(exec_unit->papi_eventsets[PER_SOCKET_SET]) != PAPI_OK)
-                printf("couldn't start PAPI event set for thread %d to measure L3 misses\n", exec_unit->th_id);
+                DEBUG(("couldn't start PAPI event set for thread %d to measure L3 misses\n", 
+					   exec_unit->th_id));
             else {
-                // printf("# started PAPI event set %d for thread %d (%p) to measure L3 misses\n", exec_unit->papi_eventsets[0], exec_unit->th_id, exec_unit);
-                // dague_profiling_trace(exec_unit->eu_profile, pins_prof_exec_misses_start, 45, 3, NULL);
-                // this call to profiling trace is useless since we currently can't send the END event before the profile is dumped
-
-                // as of 2013-05-06, this could be re-enabled and stored in the .profile instead of being printed
+                dague_profiling_trace(exec_unit->eu_profile, 
+									  pins_prof_papi_socket_begin, 45, 3, NULL);
             }
         }
     }
@@ -96,7 +101,9 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
         long long int values[NUM_SOCKET_EVENTS];
         int rv = PAPI_OK;
         if ((rv = PAPI_stop(exec_unit->papi_eventsets[PER_SOCKET_SET], values)) != PAPI_OK) {
-            printf("couldn't stop PAPI event set %d for thread %d (%p) to measure L3 misses; ERROR:  %s\n", exec_unit->papi_eventsets[PER_SOCKET_SET], exec_unit->th_id, exec_unit, PAPI_strerror(rv));
+            DEBUG(("couldn't stop PAPI event set %d for thread %d (%p) to measure L3 misses; ERROR:  %s\n",
+				   exec_unit->papi_eventsets[PER_SOCKET_SET], 
+				   exec_unit->th_id, exec_unit, PAPI_strerror(rv)));
         }
         else {
             char * buf = calloc(sizeof(char), (successful_events + 1) * 20);
@@ -112,6 +119,18 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
             printf("%s\n", buf);
             free(buf);
             buf = NULL;
+
+			papi_socket_info_t info;
+			info.kernel_type = exec_context->function->function_id;
+			strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
+			info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
+			info.vp_id = exec_unit->virtual_process->vp_id;
+			info.th_id = exec_unit->th_id;
+			for(int i = 0; i < NUM_SOCKET_EVENTS; i++) 
+				info.values[i] = values[i];
+			info.values_len = NUM_SOCKET_EVENTS; 
+			dague_profiling_trace(exec_unit->eu_profile, 
+								  pins_prof_papi_socket_end, 45, 3, (void *)&info);
         }
     }
     // call previous callback, if any

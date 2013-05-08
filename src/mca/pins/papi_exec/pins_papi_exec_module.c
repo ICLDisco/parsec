@@ -36,6 +36,8 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 static parsec_pins_callback * exec_begin_prev; // courtesy calls to previously-registered cbs
 static parsec_pins_callback * exec_end_prev;
 
+static int papi_socket_enabled; // defaults to false
+
 static int pins_prof_papi_exec_begin, pins_prof_papi_exec_end;
 
 static void pins_init_papi_exec(dague_context_t * master_context) {
@@ -45,6 +47,8 @@ static void pins_init_papi_exec(dague_context_t * master_context) {
 	dague_profiling_add_dictionary_keyword("PINS_EXEC", "fill:#00FF00",
 	                                       sizeof(papi_exec_info_t), NULL,
 	                                       &pins_prof_papi_exec_begin, &pins_prof_papi_exec_end);
+
+	papi_socket_enabled = is_pins_module_enabled("papi_socket");
 }
 
 static void pins_fini_papi_exec(dague_context_t * master_context) {
@@ -56,7 +60,8 @@ static void pins_fini_papi_exec(dague_context_t * master_context) {
 
 static void pins_thread_init_papi_exec(dague_execution_unit_t * exec_unit) {
 	int rv = 0;
-	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
+	if (!papi_socket_enabled || 
+		exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
 		exec_unit->papi_eventsets[EXEC_SET] = PAPI_NULL;
 		if (PAPI_create_eventset(&exec_unit->papi_eventsets[EXEC_SET]) != PAPI_OK)
 			DEBUG(("papi_exec.c, pins_thread_init_papi_exec: failed to create ExecEventSet\n"));
@@ -71,7 +76,8 @@ static void start_papi_exec_count(dague_execution_unit_t * exec_unit,
                                   dague_execution_context_t * exec_context, 
                                   void * data) {
 	int rv = PAPI_OK;
-	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
+	if (!papi_socket_enabled || 
+		exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
 		if ((rv = PAPI_start(exec_unit->papi_eventsets[EXEC_SET])) != PAPI_OK) {
 			DEBUG(("papi_exec.c, start_papi_exec_count: can't start "
 			       "exec event counters! %d %s\n", 
@@ -99,7 +105,8 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 	(void)data;
 	long long int values[NUM_EXEC_EVENTS];
 	int rv = PAPI_OK;
-	if (exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
+	if (!papi_socket_enabled ||
+		exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
 		if ((rv = PAPI_stop(exec_unit->papi_eventsets[EXEC_SET], values)) != PAPI_OK) {
 			DEBUG(("papi_exec.c, stop_papi_exec_count: can't stop exec event counters! %d %s\n", 
 			       rv, PAPI_strerror(rv)));
