@@ -588,7 +588,6 @@ BODY
             }
         }
         dague_object_dec_nbtask( this_task->dague_object, nb_tasks );
-        nb_tasks = 0;
     }
 
 }

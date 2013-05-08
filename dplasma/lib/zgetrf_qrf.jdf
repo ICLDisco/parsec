@@ -1030,9 +1030,9 @@ BODY
 
             lu_tab[k] = cond;
 
-            if ( p == 0 ) {
-                fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
-            }
+            /* if ( p == 0 ) { */
+            /*     fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] ); */
+            /* } */
 
             norm2[0] = lu_tab[k];
         }

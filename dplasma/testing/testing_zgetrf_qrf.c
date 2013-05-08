@@ -136,6 +136,23 @@ int main(int argc, char ** argv)
     dplasma_zgetrf_qrf_Destruct( DAGUE_zgetrf_qrf );
     if(loud > 2) printf("Done.\n");
 
+    /* Compute percentage of LU/QR */
+    {
+        int i, nblu, nbqr;
+        nblu = 0;
+        nbqr = dague_imin(MT, NT);
+        for(i=0; i<nbqr; i++) {
+            nblu += lu_tab[i];
+        }
+        nbqr -= nblu;
+
+        if (loud > 3 || (rank == 0 && loud)) { 
+            printf("[%d] LU/QR repartition: %d(%.2f) LU / %d(%.2f) QR \n", rank,
+                   nblu, 100. * (double)nblu / (double)(nblu+nbqr),
+                   nbqr, 100. * (double)nbqr / (double)(nblu+nbqr));
+        }
+    }
+
     if ( info != 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );
         ret |= 1;
