@@ -31,13 +31,13 @@ static inline int dague_atomic_bor_32b( volatile uint32_t* location,
                                         uint32_t mask )
 {
     register uint32_t old_val, tmp_val;
- 
-    _bgp_msync(); 
+
+    _bgp_msync();
     do {
         old_val = _bgp_LoadReserved( location );
         tmp_val = old_val | mask;
     } while( !_bgp_StoreConditional( location, tmp_val ) );
- 
+
     return( tmp_val );
 }
 
@@ -45,13 +45,13 @@ static inline int dague_atomic_band_32b( volatile uint32_t* location,
                                           uint32_t mask )
 {
     register uint32_t old_val, tmp_val;
- 
-    _bgp_msync(); 
+
+    _bgp_msync();
     do {
         old_val = _bgp_LoadReserved( location );
         tmp_val = old_val & mask;
     } while( !_bgp_StoreConditional( location, tmp_val ) );
- 
+
     return( tmp_val );
 }
 
@@ -60,7 +60,7 @@ static inline int dague_atomic_cas_32b( volatile uint32_t* location,
                                         uint32_t new_value )
 {
     uint32_t tmp_val;
- 
+
     do {
         tmp_val = _bgp_LoadReserved( location );
         if( old_value != tmp_val ) {
@@ -68,7 +68,7 @@ static inline int dague_atomic_cas_32b( volatile uint32_t* location,
             return( 0 );
         }
     } while( !_bgp_StoreConditional(location, new_value ) );
- 
+
     return( 1 );
 }
 
@@ -83,13 +83,13 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
 static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
 {
     register uint32_t old_val, tmp_val;
- 
+
     _bgp_msync();
     do {
         old_val = _bgp_LoadReserved( location );
         tmp_val = old_val + 1;
     } while( !_bgp_StoreConditional( location, tmp_val ) );
- 
+
     return( tmp_val );
 }
 
@@ -97,13 +97,27 @@ static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
 static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 {
     register uint32_t old_val, tmp_val;
- 
+
     _bgp_msync();
     do {
         old_val = _bgp_LoadReserved( location );
         tmp_val = old_val - 1;
     } while( !_bgp_StoreConditional( location, tmp_val ) );
- 
+
+    return( tmp_val );
+}
+
+#define DAGUE_ATOMIC_HAS_ATOMIC_add_32B
+static inline uint32_t dague_atomic_add_32b( volatile uint32_t *location, int32_t d )
+{
+    register uint32_t old_val, tmp_val;
+
+    _bgp_msync();
+    do {
+        old_val = _bgp_LoadReserved( location );
+        tmp_val = (uint32_t((int32_t)old_val + d);
+    } while( !_bgp_StoreConditional( location, tmp_val ) );
+
     return( tmp_val );
 }
 
