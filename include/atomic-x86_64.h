@@ -79,3 +79,15 @@ static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
     return (*location);
 }
 
+/*
+ * TO TEST on a x86_64: untested assembler code *
+ #define DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
+ static inline uint32_t atomic_add( volatile uint32_t *location, int32_t d )
+ {
+    __asm__ __volatile__(
+                         "lock; addl %1,%0"
+                         :"=m" (*(location))
+                         :"ir" d, "m" (*(location)));
+    return (*location);
+ }
+ */

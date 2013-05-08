@@ -94,6 +94,18 @@ static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 }
 #endif  /* DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B */
 
+#ifndef DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
+static inline uint32_t dague_atomic_add_32b( volatile uint32_t *location, int32_t d )
+{
+    uint32_t l, n;
+    do {
+        l = *location;
+        n = (uint32_t)((int32_t)l + d);
+    } while( !dague_atomic_cas_32b( location, l, n ) );
+    return n;
+}
+#endif /* DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B */
+
 static inline void dague_atomic_lock( volatile uint32_t* atomic_lock )
 {
     while( !dague_atomic_cas( atomic_lock, 0, 1) )

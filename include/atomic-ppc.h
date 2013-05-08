@@ -145,3 +145,10 @@ static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 #endif  /* !defined(__IBMC__) */
 }
 
+#if defined(__IBMC__)
+#define DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
+static inline uint32_t dague_atomic_add_32b( volatile uint32_t *location, int32_t d )
+{
+    return __fetch_and_add( (volatile int*)location, d) + d;
+}
+#endif /* defined(__IBMC__) */
