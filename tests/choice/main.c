@@ -32,10 +32,6 @@ int main(int argc, char *argv[])
     cores = 1;
     dague = dague_init(cores, &argc, &argv);
 
-#if defined(DAGUE_PROF_GRAPHER)
-    dague_prof_grapher_init("choice", rank, world, cores);
-#endif
-
     size = 256;
     if(argc < 2) {
         nb   = 2;
@@ -65,10 +61,6 @@ int main(int argc, char *argv[])
 #endif
 
     dague_fini(&dague);
-
-#if defined(DAGUE_PROF_GRAPHER)
-    dague_prof_grapher_fini();
-#endif
 
     for(size = 0; size < world; size++) {
         if( rank == size ) {
