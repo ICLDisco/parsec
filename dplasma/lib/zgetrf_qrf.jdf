@@ -162,8 +162,6 @@ BODY
 
     printlog("swptrsm_u( k=%d, n=%d )", k, n );
 
-    DRYRUN(
-
         PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
                                                descA.mb, descA.nb, descA.mb * descA.nb,
                                                s*descA.mb, descA.nb, 0, 0,
@@ -177,7 +175,6 @@ BODY
             tempkm, tempnn,
             1., A /*A(m, k)*/, ldak,
                 C /*A(m, n)*/, ldak);
-           );
 }
 END
 
@@ -213,7 +210,6 @@ BODY
     printlog("ztrsm_l( k=%d, m=%d ) [M=%d, N=%d, ldk=%d, ldm=%d, A(%d,%d)]\n",
              k, m, tempkm, tempmm, ldak, ldam, m, k);
 
-    DRYRUN(
          if ( type == 0 ) {
              /* TRSM already applied by GETRF */
          } else {
@@ -223,7 +219,6 @@ BODY
                 1.0, A /*A(k, k)*/, ldak,
                      C /*A(m, k)*/, ldam );
          }
-           );
 }
 END
 
@@ -263,14 +258,11 @@ BODY
 
     printlog("zgemm( k=%d, m=%d, n=%d )\n", k, m, n);
 
-    DRYRUN(
-
         CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                    tempmm, tempnn, descA.mb,
                    -1., H /*(m, k)*/, ldam,
                         V /*(k, n)*/, ldak,
                    1.,  C /*(m, n)*/, ldam );
-           );
 }
 END
 
@@ -319,7 +311,6 @@ BODY
 
     printlog("zgeqrt( k=%d, i=%d )\n", k, i);
 
-    DRYRUN(
         void *p_elem_A = dague_private_memory_pop( p_tau  );
         void *p_elem_B = dague_private_memory_pop( p_work );
 
@@ -330,8 +321,6 @@ BODY
 
         dague_private_memory_push( p_tau, p_elem_A );
         dague_private_memory_push( p_work, p_elem_B );
-
-           );
 
     printlog("CORE_zgeqrt(%d, %d)\n"
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descTS.mb, p_elem_A, p_elem_B)",
@@ -393,7 +382,6 @@ BODY
              "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], descTS.mb, A(%d,%d)[%p], ldam, p_elem_A, descTS.nb)",
              tempmm, tempnn, tempnn, ib, k, m, n, m, k, A, m, k, T, m, n, C);
 
-    DRYRUN(
         void *p_elem_A = dague_private_memory_pop( p_work );
 
         CORE_zunmqr(
@@ -405,7 +393,6 @@ BODY
             p_elem_A, descTS.nb );
 
         dague_private_memory_push( p_work, p_elem_A );
-           );
 }
 END
 
@@ -468,7 +455,7 @@ BODY
     printlog("zttqrt( k=%d, m=%d ) [ type=%d ]\n"
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descTT.mb, p_elem_A, p_elem_B)",
              k, m, type, p, k, A1, m, k, A2, m, k, T);
-    DRYRUN(
+
         void *p_elem_A = dague_private_memory_pop( p_tau  );
         void *p_elem_B = dague_private_memory_pop( p_work );
 
@@ -489,8 +476,6 @@ BODY
         }
         dague_private_memory_push( p_tau , p_elem_A );
         dague_private_memory_push( p_work, p_elem_B );
-
-           );
 
 }
 END
@@ -573,7 +558,6 @@ BODY
              "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descTT.mb, p_elem_A, ldwork)",
              k, m, n, type, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
-    DRYRUN(
         void *p_elem_A = dague_private_memory_pop( p_work );
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
@@ -597,7 +581,6 @@ BODY
         }
         dague_private_memory_push( p_work, p_elem_A );
 
-           );
 }
 END
 
@@ -655,7 +638,7 @@ END
 
 
 /************************************************************************************
- *                              Copypanel
+ *                              Copypane
  *  On first node  : Backup the tile of the panel in case we have to switch back to QR
  *  On other nodes : Computes informations related to the criteria
  ************************************************************************************/
@@ -692,7 +675,6 @@ BODY
 
     printlog("copypanel( k=%d, m=%d )", k, m );
 
-    DRYRUN(
         if (diagdom == 0) {
             /* The tiles of the first node have to be copied */
             CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
@@ -739,7 +721,6 @@ BODY
                 }
             }
         }
-           );
 }
 END
 
@@ -782,7 +763,6 @@ BODY
              "\t(%d, %d, A(%d,%d)[%p], IP(%d)[%p]) lu_facto",
              k, t, nbthrd, tempm, tempkn, k, k, A, k, IP);
 
-    DRYRUN(
         int tempkm = k == descA.mt-1 ? tempm : descA.mb;
         int info[3];
 
@@ -832,7 +812,6 @@ BODY
 
             W[0] = 1. / W[0];
         }
-           );
 }
 END
 
@@ -851,8 +830,8 @@ reduce_norm(k, p)
 
   : A(k+p, k)
 
-  WRITE W1 -> T setchoice(k, p,          0) [type = ELTdouble]
-  WRITE W2 -> B setchoice(k, (p+1)%pmax, 0) [type = ELTdouble]
+  WRITE W1 -> T setchoice(k, p,          0) [type = ReduceVec]
+  WRITE W2 -> B setchoice(k, (p+1)%pmax, 0) [type = ReduceVec]
 
   CTL ctl <- (p == 0) ? ctl zlufacto(k, 0)
           <- (p != 0) ? ctl copypanel(k, k+p..descA.mt-1..param_p)
@@ -917,18 +896,18 @@ setchoice(k, p, h)
   : A(k+p, k)
 
         /* Local forward of T */
-  RW T <- (h == 0) ? W1 reduce_norm(k, p)                       [type = ELTdouble]
-       <- (h >  0) ? T setchoice(k, p, h-1)                     [type = ELTdouble]
+  RW T <- (h == 0) ? W1 reduce_norm(k, p)                       [type = ReduceVec]
+       <- (h >  0) ? T setchoice(k, p, h-1)                     [type = ReduceVec]
 
-       -> (h <  hmax) ? T setchoice(k, p, h+1)                  [type = ELTdouble]     /* Send T to the bottom */
+       -> (h <  hmax) ? T setchoice(k, p, h+1)                  [type = ReduceVec]     /* Send T to the bottom */
 
-  RW B <- (h == 0) ? W2 reduce_norm(k, (pmax+p-pui)%pmax)       [type = ELTdouble]
-       <- (h != 0) ? B setchoice(k, (pmax+p-pui)%pmax, h-1 )    [type = ELTdouble]
+  RW B <- (h == 0) ? W2 reduce_norm(k, (pmax+p-pui)%pmax)       [type = ReduceVec]
+       <- (h != 0) ? B setchoice(k, (pmax+p-pui)%pmax, h-1 )    [type = ReduceVec]
 
-       -> (h <  hmax) ? B setchoice(k, (p+2*pui)%pmax, h+1)     [type = ELTdouble]
+       -> (h <  hmax) ? B setchoice(k, (p+2*pui)%pmax, h+1)     [type = ReduceVec]
 
        /* Broadcast the information to the row */
-       -> (h == hmax) ? B setchoice_update(k, p, 1..param_q-1)  [type = ELTdouble]
+  WRITE choice -> (h == hmax) ? B setchoice_update(k, p, 1..param_q-1)  [type = CHOICE]
 
   /*
    * Release local choice
@@ -951,8 +930,6 @@ BODY
 
     /* TODO: We collect the condition numbers and compute the choice*/
     printlog("setchoice( k=%d, p=%d, h=%d )\n", k, p, h);
-
-    DRYRUN(
 
         if (criteria == HIGHAM_CRITERIUM)
         {
@@ -1022,6 +999,14 @@ BODY
                     }
                 }
             }
+            else if (criteria == LU_ONLY_CRITERIUM)
+            {
+                cond = 1;
+            }
+            else if (criteria == QR_ONLY_CRITERIUM)
+            {
+                cond = 0;
+            }
             else
             {
                 /* By default, we switch at each iteration */
@@ -1034,9 +1019,8 @@ BODY
             /*     fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] ); */
             /* } */
 
-            norm2[0] = lu_tab[k];
+            ((int*)choice)[0] = lu_tab[k];
         }
-           );
 }
 END
 
@@ -1053,7 +1037,7 @@ setchoice_update(k, p, q)
 
   : A(k+p, k+q)
 
-  RW B <- B setchoice(k, p, hmax)   [type = ELTdouble]
+  RW B <- choice setchoice(k, p, hmax)   [type = CHOICE]
 
   /*
    * Release local choice
@@ -1070,8 +1054,8 @@ BODY
     /* TODO: We collect the condition numbers and compute the choice*/
     printlog("setchoice_update( k=%d, p= %d, q=%d )\n", k,p,q);
 
-    double *norm2 = (double*)B;
-    lu_tab[k] = norm2[0];
+    int *choice = (int*)B;
+    lu_tab[k] = choice[0];
 }
 END
 
@@ -1110,9 +1094,9 @@ selector(k,m,n)
            -> ( (do_lu != 1) && (k != n) && (type != 0) ) ? C  zunmqr(k,i,n)
            -> ( (do_lu != 1) && (k != n) && (type == 0) ) ? A2 zttmqr(k,m,n)
 
-  RW   IP  <- ((k == m) && (k == n)) ? IP zlufacto(k, 0)
-           <- ((k != m) || (k != n)) ? IPIV(m,n) /* unused */
-           -> ((m == k) && (n == k) && (do_lu == 1) ) ? IP zgetrf(k)
+  RW   IP  <- ((k == m) && (k == n)) ? IP zlufacto(k, 0)               [type = PIVOT]
+           <- ((k != m) || (k != n)) ? IPIV(m,n) /* unused */          [type = PIVOT]
+           -> ((k == m) && (k == n) && (do_lu == 1) ) ? IP zgetrf(k)   [type = PIVOT]
 
   READ Acpy <- (diagdom == 0) ? Acpy copypanel(k, m) : A(m, n)
             <- (diagdom != 0) ? A(m, n) /* Unused */
@@ -1126,17 +1110,15 @@ BODY
     printlog("selector( k=%d, m=%d, n=%d) type=%d, didlu=%d, dolu=%d",
              k, m, n, type, did_lu, do_lu);
 
-    DRYRUN(
-        if( do_lu != 1 && diagdom == 0) {
-            int tempmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
-            int tempkn = (k==(descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
-            int ldam = BLKLDD( descA, m );
+    if( do_lu != 1 && diagdom == 0) {
+        int tempmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+        int tempkn = (k==(descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+        int ldam = BLKLDD( descA, m );
 
-            CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
-                        Acpy, descA.mb,
-                        A,    ldam);
-        }
-           );
+        CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
+                    Acpy, descA.mb,
+                    A,    ldam);
+    }
 
     if((m >= descA.mt-param_p) && (n >= descA.nt-param_q)) {
         int nb_tasks = 0;

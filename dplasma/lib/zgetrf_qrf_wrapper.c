@@ -29,13 +29,21 @@ dague_object_t* dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
 {
     dague_zgetrf_qrf_object_t* object;
     int ib = TS->mb;
+    size_t sizeW = 1;
+    size_t sizeReduceVec = 1;
 
     /*
-     * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
-     * it should be passed as a parameter as in getrf
+     * Compute W size according to criteria used.
      */
-    int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
-    double *W = (double*)malloc(2*(A->nb)*sizeof(double));
+    if (criteria == HIGHAM_CRITERIUM) {
+        int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
+        sizeReduceVec = P;
+        sizeW = (A->mt + P - 1) / P;
+    }
+    else if (criteria == MUMPS_CRITERIUM) {
+        sizeReduceVec = 2 * A->nb;
+        sizeW         =     A->nb;
+    }
 
     if ( A->storage == matrix_Tile ) {
         CORE_zgetrf_rectil_init();
@@ -49,8 +57,10 @@ dague_object_t* dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                                    (dague_ddesc_t*)TT,
                                    lu_tab, *qrtree,
                                    ib, criteria, alpha,
-                                   W, NULL, NULL,
+                                   NULL, NULL, NULL,
                                    INFO);
+
+    object->W = (double*)malloc(sizeW * sizeof(double));
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( object->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
@@ -64,23 +74,11 @@ dague_object_t* dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
-    /* Upper triangular part of tile with diagonal */
-    dplasma_add2arena_upper( object->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             MPI_DOUBLE_COMPLEX, A->mb, 1 );
-
     /* Lower triangular part of tile without diagonal */
     dplasma_add2arena_lower( object->arenas[DAGUE_zgetrf_qrf_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 0 );
-
-    /* Little T */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_LITTLE_T_ARENA],
-                                 TS->mb*TS->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, TS->mb, TS->nb, -1);
 
     /* IPIV */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_PIVOT_ARENA],
@@ -88,10 +86,27 @@ dague_object_t* dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_INT, A->mb, 1, -1 );
 
-    /* EltDouble */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_ELTdouble_ARENA],
-                                 2 * A->nb * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE, 2 * A->nb, 1, -1);
+    /* Upper triangular part of tile with diagonal */
+    dplasma_add2arena_upper( object->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(dague_complex64_t),
+                             DAGUE_ARENA_ALIGNMENT_SSE,
+                             MPI_DOUBLE_COMPLEX, A->mb, 1 );
+
+    /* Little T */
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_LITTLE_T_ARENA],
+                                 TS->mb*TS->nb*sizeof(dague_complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_DOUBLE_COMPLEX, TS->mb, TS->nb, -1);
+
+    /* ReduceVec */
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_ReduceVec_ARENA],
+                                 sizeReduceVec * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_DOUBLE, sizeReduceVec, 1, -1);
+
+    /* Choice */
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgetrf_qrf_CHOICE_ARENA],
+                                 sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_INT, 1, 1, -1);
 
     return (dague_object_t*)object;
 }
@@ -122,11 +137,12 @@ dplasma_zgetrf_qrf_Destruct( dague_object_t *o )
     dague_zgetrf_qrf_object_t *dague_zgetrf_qrf = (dague_zgetrf_qrf_object_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_PIVOT_ARENA     ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_LOWER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_PIVOT_ARENA     ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_LITTLE_T_ARENA  ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_ELTdouble_ARENA ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_ReduceVec_ARENA ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_CHOICE_ARENA    ]->opaque_dtt) );
 
     dague_private_memory_fini( dague_zgetrf_qrf->p_work );
     dague_private_memory_fini( dague_zgetrf_qrf->p_tau  );
