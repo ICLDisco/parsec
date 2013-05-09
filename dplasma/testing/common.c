@@ -56,6 +56,7 @@ const char *normsstr[4] = { "Max", "One", "Inf", "Fro" };
 
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
+double alpha = 1.;
 
 /**********************************
  * Command line arguments
@@ -102,7 +103,11 @@ void print_usage(void)
             "    --treel        : Tree used for low level reduction inside nodes. (specific to xgeqrf_param)\n"
             "    --treeh        : Tree used for high level reduction between nodes, only if qr_p > 1. (specific to xgeqrf_param)\n"
             "                      (0: Flat, 1: Greedy, 2: Fibonacci, 3: Binary)\n"
-
+            "\n"
+            "    --criteria     : Choice of the criteria to switch between LU and QR\n"
+            "                      (0: Alternate, 1: Higham, 2: MUMPS (specific to xgetrf_qrf)\n"
+            " -a --alpha        : Threshold to swith back to QR. (specific to xgetrf_qrf)\n"
+            "\n"
             " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
             "    --dot          : create a dot output file (default: don't)\n"
@@ -139,7 +144,7 @@ void print_usage(void)
             dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -194,6 +199,9 @@ static struct option long_options[] =
     {"tsrr",        required_argument,  0, 'r'},
     {"treel",       required_argument,  0, 'l'},
     {"treeh",       required_argument,  0, 'L'},
+
+    {"criteria",    required_argument,  0, '1'},
+    {"alpha",       required_argument,  0, 'a'},
 
     {"butlvl",      required_argument,  0, 'y'},
     {"y",           required_argument,  0, 'y'},
@@ -286,6 +294,9 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;
             case 'L': iparam[IPARAM_HIGHLVL_TREE] = atoi(optarg); break;
+
+                /* GETRF/QRF parameters */
+            case 'a': alpha = atof(optarg); break;
 
                 /* Butterfly parameters */
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
