@@ -117,22 +117,32 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
                       event_key == reader.dictionary['PINS_EXEC'].id):
                      cast_exec_info = <papi_exec_info_t *>cinfo
                      event.info = dbp_Exec_EventInfo(
-                             cast_exec_info.kernel_type,
-                             str(cast_exec_info.kernel_name),
-                             cast_exec_info.vp_id,
-                             cast_exec_info.th_id,
-                             [cast_exec_info.values[x] for x in range(cast_exec_info.values_len)])
+                        cast_exec_info.kernel_type,
+                        str(cast_exec_info.kernel_name),
+                        cast_exec_info.vp_id,
+                        cast_exec_info.th_id,
+                        [cast_exec_info.values[x] for x in range(cast_exec_info.values_len)])
                   elif (reader.dictionary.get('PINS_SELECT', None) and
                         event_key == reader.dictionary['PINS_SELECT'].id):
                      cast_select_info = <select_info_t *>cinfo
                      event.info = dbp_Select_EventInfo(
-                                cast_select_info.kernel_type,
-                                cast_select_info.vp_id,
-                                cast_select_info.th_id,
-                                cast_select_info.victim_vp_id,
-                                cast_select_info.victim_th_id,
-                                cast_select_info.exec_context,
-                                [cast_select_info.values[x] for x in range(cast_select_info.values_len)])
+                        cast_select_info.kernel_type,
+                        str(cast_select_info.kernel_name),
+                        cast_select_info.vp_id,
+                        cast_select_info.th_id,
+                        cast_select_info.victim_vp_id,
+                        cast_select_info.victim_th_id,
+                        cast_select_info.exec_context,
+                        [cast_select_info.values[x] for x in range(cast_select_info.values_len)])
+                  elif (reader.dictionary.get('PINS_SOCKET', None) and
+                        event_key == reader.dictionary['PINS_SOCKET'].id):
+                     cast_socket_info = <papi_socket_info_t *>cinfo
+                     event.info = dbp_Socket_EventInfo(
+                        cast_socket_info.kernel_type,
+                        str(cast_exec_info.kernel_name),
+                        cast_socket_info.vp_id,
+                        cast_socket_info.th_id,
+                        [cast_socket_info.values[x] for x in range(cast_socket_info.values_len)])
                   # elif event.key == reader.dictionary['<SOME OTHER TYPE WITH INFO>'].id:
                      # event.info = <write a function and a Python type to translate>
                   else:

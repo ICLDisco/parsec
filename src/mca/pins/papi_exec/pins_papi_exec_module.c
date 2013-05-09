@@ -8,7 +8,7 @@
 #include "execution_unit.h"
 
 /* these should eventually be runtime-configurable */
-static int exec_events[NUM_EXEC_EVENTS] = {PAPI_RES_STL, PAPI_L2_DCH, PAPI_L2_DCM, PAPI_L2_DCA};
+static int exec_events[NUM_EXEC_EVENTS] = {PAPI_L1_DCM, PAPI_L2_DCH, PAPI_L2_DCM, PAPI_L2_DCA};
 
 static void pins_init_papi_exec(dague_context_t * master_context);
 static void pins_fini_papi_exec(dague_context_t * master_context);
@@ -63,12 +63,17 @@ static void pins_thread_init_papi_exec(dague_execution_unit_t * exec_unit) {
 	if (!papi_socket_enabled || 
 		exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
 		exec_unit->papi_eventsets[EXEC_SET] = PAPI_NULL;
-		if (PAPI_create_eventset(&exec_unit->papi_eventsets[EXEC_SET]) != PAPI_OK)
-			DEBUG(("papi_exec.c, pins_thread_init_papi_exec: failed to create ExecEventSet\n"));
-		if ((rv = PAPI_add_events(exec_unit->papi_eventsets[EXEC_SET], exec_events, NUM_EXEC_EVENTS)) 
+		if ((rv = PAPI_create_eventset(&exec_unit->papi_eventsets[EXEC_SET])) != PAPI_OK)
+            printf("papi_exec_module.c, pins_thread_init_papi_exec: "
+				   "thread %d couldn't create the PAPI event set "
+				   "to measure L1/L2 misses; ERROR: %s\n", 
+				   exec_unit->th_id, PAPI_strerror(rv));
+		if ((rv = PAPI_add_events(exec_unit->papi_eventsets[EXEC_SET], 
+								  exec_events, NUM_EXEC_EVENTS)) 
 		    != PAPI_OK)
-			DEBUG(("papi_exec.c, pins_thread_init_papi_exec: failed to add "
-			       "exec events to ExecEventSet. %d %s\n", rv, PAPI_strerror(rv)));
+			printf("papi_exec.c, pins_thread_init_papi_exec: thread %d failed to add "
+			       "exec events to EXEC eventset; ERROR: %s\n", 
+				   exec_unit->th_id, PAPI_strerror(rv));
 	}
 }
 
@@ -79,12 +84,11 @@ static void start_papi_exec_count(dague_execution_unit_t * exec_unit,
 	if (!papi_socket_enabled || 
 		exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
 		if ((rv = PAPI_start(exec_unit->papi_eventsets[EXEC_SET])) != PAPI_OK) {
-			DEBUG(("papi_exec.c, start_papi_exec_count: can't start "
-			       "exec event counters! %d %s\n", 
-			       rv, PAPI_strerror(rv)));
+			printf("papi_exec.c, start_papi_exec_count: thread %d can't start "
+			       "exec event counters! %s\n", 
+			       exec_unit->th_id, PAPI_strerror(rv));
 		}
-		else {
-
+		else { // handle, 
 			dague_profiling_trace(exec_unit->eu_profile, pins_prof_papi_exec_begin, 
 			                      (*exec_context->function->key
 			                       )(exec_context->dague_handle, exec_context->locals), 
@@ -108,8 +112,10 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 	if (!papi_socket_enabled ||
 		exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
 		if ((rv = PAPI_stop(exec_unit->papi_eventsets[EXEC_SET], values)) != PAPI_OK) {
-			DEBUG(("papi_exec.c, stop_papi_exec_count: can't stop exec event counters! %d %s\n", 
-			       rv, PAPI_strerror(rv)));
+			printf("papi_exec_module.c, stop_papi_exec_count: "
+				   "thread %d can't stop exec event counters! "
+				   "ERROR: %s\n", 
+			       exec_unit->th_id, PAPI_strerror(rv));
 		}
 		else {
 			papi_exec_info_t info;

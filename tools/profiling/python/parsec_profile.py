@@ -151,8 +151,9 @@ class dbp_Exec_EventInfo:
 
 class dbp_Select_EventInfo:
    __max_length__ = 0
-   def __init__(self, kernel_type, vp_id, th_id, victim_vp_id, victim_th_id, exec_context, values):
+   def __init__(self, kernel_type, kernel_name, vp_id, th_id, victim_vp_id, victim_th_id, exec_context, values):
       self.kernel_type = kernel_type
+      self.kernel_name = kernel_name
       self.vp_id = vp_id
       self.th_id = th_id
       self.victim_vp_id = victim_vp_id
@@ -183,6 +184,7 @@ class dbp_Select_EventInfo:
       header = ''
       length = str(dbp_Select_EventInfo.__max_length__)
       header += ('{:>' + length + '}  ').format('kernel_type')
+      header += ('{:>' + length + '}  ').format('kernel_name')
       header += ('{:>' + length + '}  ').format('vp_id')
       header += ('{:>' + length + '}  ').format('th_id')
       header += ('{:>' + length + '}  ').format('vict_vp_id')
@@ -195,12 +197,56 @@ class dbp_Select_EventInfo:
       rv = ''
       length = str(dbp_Select_EventInfo.__max_length__)
       rv += ('{:>' + length + '}  ').format(self.kernel_type)
+      rv += ('{:>' + length + '}  ').format(self.kernel_name)
       rv += ('{:>' + length + '}  ').format(self.vp_id)
       rv += ('{:>' + length + '}  ').format(self.th_id)
       rv += ('{:>' + length + '}  ').format(self.victim_vp_id)
       rv += ('{:>' + length + '}  ').format(self.victim_th_id)
       rv += ('{:>' + length + '}  ').format(self.exec_context)
 
+      for value in self.values:
+         rv += ('{:>' + length + '}  ').format(value)
+      return rv
+
+class dbp_Socket_EventInfo:
+   __max_length__ = 0
+   def __init__(self, kernel_type, kernel_name, vp_id, th_id, values):
+      self.kernel_type = kernel_type
+      self.kernel_name = kernel_name
+      self.vp_id = vp_id
+      self.th_id = th_id
+      self.values = values
+
+      # set global max length
+      for attr, val in vars(self).items():
+         if len(attr) > dbp_Socket_EventInfo.__max_length__:
+            dbp_Socket_EventInfo.__max_length__ = len(attr)
+         # values that we don't want printed generically
+         elif attr == 'values':
+            for value in val:
+               if len(str(value)) > dbp_Socket_EventInfo.__max_length__:
+                  dbp_Socket_EventInfo.__max_length__ = len(str(value))
+         elif len(str(val)) > dbp_Socket_EventInfo.__max_length__:
+            dbp_Socket_EventInfo.__max_length__ = len(str(val))
+
+   def row_header(self):
+      # first, establish max length
+      header = ''
+      length = str(dbp_Socket_EventInfo.__max_length__)
+      header += ('{:>' + length + '}  ').format('kernel_type')
+      header += ('{:>' + length + '}  ').format('kernel_name')
+      header += ('{:>' + length + '}  ').format('vp_id')
+      header += ('{:>' + length + '}  ').format('th_id')
+      header += ('{:>' + length + '}  ').format('values')
+      return header
+
+   def __repr__(self):
+      rv = ''
+      length = str(dbp_Socket_EventInfo.__max_length__)
+      rv += ('{:>' + length + '}  ').format(self.kernel_type)
+      rv += ('{:>' + length + '}  ').format(self.kernel_name)
+      rv += ('{:>' + length + '}  ').format(self.vp_id)
+      rv += ('{:>' + length + '}  ').format(self.th_id)
       for value in self.values:
          rv += ('{:>' + length + '}  ').format(value)
       return rv
