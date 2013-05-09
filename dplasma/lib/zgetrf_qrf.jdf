@@ -1025,7 +1025,7 @@ BODY
             else
             {
                 /* By default, we switch at each iteration */
-                cond = 1; //k%2;
+                cond = k%2;
             }
 
             lu_tab[k] = cond;
