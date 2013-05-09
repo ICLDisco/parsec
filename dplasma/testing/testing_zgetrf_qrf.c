@@ -30,6 +30,7 @@ int main(int argc, char ** argv)
     int info = 0;
     int i, ret = 0;
     dplasma_qrtree_t qrtree;
+    extern double alpha;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -129,7 +130,7 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t*)&ddescIPIV,
                                (tiled_matrix_desc_t*)&ddescTS,
                                (tiled_matrix_desc_t*)&ddescTT,
-                               2, 0.5, lu_tab,
+                               iparam[IPARAM_QR_HLVL_SZE], alpha, lu_tab,
                                &info));
     /* lets rock! */
     PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_qrf);
@@ -138,6 +139,15 @@ int main(int argc, char ** argv)
 
     /* Compute percentage of LU/QR */
     {
+#if defined(HAVE_MPI)
+        {
+            int *lu_tab2 = (int*)malloc( MT*sizeof(int) );
+            MPI_Allreduce ( lu_tab, lu_tab2, MT, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+            memcpy( lu_tab, lu_tab2, MT*sizeof(int) );
+            free(lu_tab2);
+        }
+#endif
+
         int i, nblu, nbqr;
         nblu = 0;
         nbqr = dague_imin(MT, NT);
@@ -146,7 +156,7 @@ int main(int argc, char ** argv)
         }
         nbqr -= nblu;
 
-        if (loud > 3 || (rank == 0 && loud)) { 
+        if (loud > 3 || (rank == 0 && loud)) {
             printf("[%d] LU/QR repartition: %d(%.2f) LU / %d(%.2f) QR \n", rank,
                    nblu, 100. * (double)nblu / (double)(nblu+nbqr),
                    nbqr, 100. * (double)nbqr / (double)(nblu+nbqr));
