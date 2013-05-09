@@ -538,30 +538,30 @@ BODY
              */
             int nb_qr = qrtree.getnbgeqrf( &qrtree, k );
 
-            for(n=0; n<descB.nt; n++) {
-                if ((zttmqr_out_A1_pred(k, n, -1)) && (k != descB.mt-1))
+            for(i=0; i<nb_qr; i++) {
+                int m = qrtree.getm( &qrtree, k, i);
+                if (zunmqr_in_pred(k, i, m))
                     nb_tasks++;
 
-                for(i=0; i<nb_qr; i++) {
-                    int m = qrtree.getm( &qrtree, k, i);
+                for(n=0; n<descB.nt; n++) {
                     if (zunmqr_pred(k, i, n, m, -1))
                         nb_tasks++;
                 }
+            }
 
-                for(m=k+1; m<descB.mt; m++) {
+
+            for(m=k+1; m<descB.mt; m++) {
+                if (zttmqr_in_pred(k, m, -1))
+                    nb_tasks++;
+
+                for(n=0; n<descB.nt; n++) {
                     if (zttmqr_pred(k, m, n, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1))
                         nb_tasks++;
                 }
             }
 
-            for(m=k+1; m<descB.mt; m++) {
-                if (zttmqr_in_pred(k, m, -1))
-                    nb_tasks++;
-            }
-
-            for(i=0; i<nb_qr; i++) {
-                int m = qrtree.getm( &qrtree, k, i);
-                if (zunmqr_in_pred(k, i, m))
+            for(n=0; n<descB.nt; n++) {
+                if ((zttmqr_out_A1_pred(k, n, -1)) && (k != descB.mt-1))
                     nb_tasks++;
             }
 
@@ -587,8 +587,8 @@ BODY
                 }
             }
         }
-        dague_object_dec_nbtask( this_task->dague_object, nb_tasks );
     }
+    dague_object_dec_nbtask( this_task->dague_object, nb_tasks );
 
 }
 END
