@@ -348,17 +348,15 @@ zttmqr(k, m, n)
 
   READ T  <- T zttmqr_in(k,m)                                                        [type = LITTLE_T]
 
-  CTL  ctl     ->  (k < descB.mt-1) && (diagdom == 0) ? ctl tile2panel(k, n)
+  CTL ctl ->  (k < (descB.mt-1)) && (diagdom == 0) ? ctl tile2panel(k, n)
 
   ; descB.nt-n-1
 
 BODY
 {
-    int tempAmm = ( m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
-    int tempAkn = ( k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
-    int tempmin = dague_imin( tempAmm, tempAkn );
-    int tempmm  = ( m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
-    int tempnn  = ( n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
+    int tempkn = ( k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int tempmm = ( m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
+    int tempnn = ( n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
     int ldbp = BLKLDD( descB, p );
     int ldam = BLKLDD( descA, m );
     int ldbm = BLKLDD( descB, m );
@@ -370,7 +368,7 @@ BODY
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
             CORE_ztsmqr(
                 PlasmaLeft, PlasmaConjTrans,
-                descB.mb, tempnn, tempmm, tempnn, tempmin, ib,
+                descB.mb, tempnn, tempmm, tempnn, tempkn, ib,
                 A1 /* B(p, n) */, ldbp,
                 A2 /* B(m, n) */, ldbm,
                 V  /* A(m, k) */, ldam,
@@ -379,7 +377,7 @@ BODY
         } else {
             CORE_zttmqr(
                 PlasmaLeft, PlasmaConjTrans,
-                descB.mb, tempnn, tempmm, tempnn, tempmin, ib,
+                descB.mb, tempnn, tempmm, tempnn, tempkn, ib,
                 A1 /* B(p, n) */, ldbp,
                 A2 /* B(m, n) */, ldbm,
                 V  /* A(m, k) */, ldam,
