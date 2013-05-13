@@ -561,7 +561,6 @@ int dague_fini( dague_context_t** pcontext )
     dague_context_t* context = *pcontext;
     int nb_total_comp_threads, t, p, c;
 
-
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
@@ -577,6 +576,22 @@ int dague_fini( dague_context_t** pcontext )
         }
     }
 
+    PINS_FINI(context);
+
+#ifdef DAGUE_PROF_TRACE
+	/* dump the profiling */
+    char* filename = NULL;
+#if defined(HAVE_MPI)
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    asprintf(&filename, "%s.%d.profile", dague->app_name, rank);
+#else
+    asprintf(&filename, "%s.profile", dague_app_name);
+#endif
+    dague_profiling_dump_dbp(filename);
+    free(filename);
+#endif  /* DAGUE_PROF_TRACE */
+
     /* The first execution unit is for the master thread */
     if( nb_total_comp_threads > 1 ) {
         for(t = 1; t < nb_total_comp_threads; t++) {
@@ -585,8 +600,6 @@ int dague_fini( dague_context_t** pcontext )
         free(context->pthreads);
         context->pthreads = NULL;
     }
-
-    PINS_FINI(context);
 
     (void) dague_remote_dep_fini( context );
 

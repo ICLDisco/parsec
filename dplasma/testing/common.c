@@ -623,19 +623,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 
 void cleanup_dague(dague_context_t* dague, int *iparam)
 {
-#ifdef DAGUE_PROF_TRACE
-    char* filename = NULL;
-#if defined(HAVE_MPI)
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    asprintf(&filename, "%s.%d.profile", argvzero, rank);
-#else
-    asprintf(&filename, "%s.profile", argvzero);
-#endif
-    dague_profiling_dump_dbp(filename);
-    free(filename);
-#endif  /* DAGUE_PROF_TRACE */
-
     dague_fini(&dague);
 
 #ifdef HAVE_MPI

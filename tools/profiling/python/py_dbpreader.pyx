@@ -136,6 +136,7 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
                         [cast_select_info.values[x] for x in range(cast_select_info.values_len)])
                   elif (reader.dictionary.get('PINS_SOCKET', None) and
                         event_key == reader.dictionary['PINS_SOCKET'].id):
+                     print('got a socket')
                      cast_socket_info = <papi_socket_info_t *>cinfo
                      event.info = dbp_Socket_EventInfo(
                         cast_socket_info.vp_id,
@@ -144,6 +145,7 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
                   # elif event.key == reader.dictionary['<SOME OTHER TYPE WITH INFO>'].id:
                      # event.info = <write a function and a Python type to translate>
                   else:
+#                     print('got something else: ' + str(event_key)))
                      unused = None
 
                thread.events.append(event)

@@ -94,8 +94,8 @@ static void start_papi_socket(dague_execution_unit_t * exec_unit,
 					   "%d to measure L3 misses; ERROR: %s\n", 
 					   exec_unit->th_id, PAPI_strerror(rv));
             else {
-                dague_profiling_trace(exec_unit->eu_profile, 
-									  pins_prof_papi_socket_begin, 45, 3, NULL);
+                rv = dague_profiling_trace(exec_unit->eu_profile, 
+										   pins_prof_papi_socket_begin, 45, 45, NULL);
             }
         }
     }
@@ -141,8 +141,8 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
 			for(int i = 0; i < NUM_SOCKET_EVENTS; i++) 
 				info.values[i] = values[i];
 			info.values_len = NUM_SOCKET_EVENTS; 
-			dague_profiling_trace(exec_unit->eu_profile, 
-								  pins_prof_papi_socket_end, 45, 3, (void *)&info);
+			inc = dague_profiling_trace(exec_unit->eu_profile, 
+								  pins_prof_papi_socket_end, 45, 45, (void *)&info);
         }
     }
     // call previous callback, if any
