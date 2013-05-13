@@ -10,8 +10,6 @@
 #define KERNEL_NAME_SIZE 9
 
 typedef struct papi_socket_info_s {
-	int kernel_type;
-	char kernel_name[KERNEL_NAME_SIZE];
 	int vp_id;
 	int th_id;
 	int values_len; 

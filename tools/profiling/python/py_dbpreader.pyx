@@ -138,8 +138,6 @@ cdef makeDbpThread(reader, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int
                         event_key == reader.dictionary['PINS_SOCKET'].id):
                      cast_socket_info = <papi_socket_info_t *>cinfo
                      event.info = dbp_Socket_EventInfo(
-                        cast_socket_info.kernel_type,
-                        str(cast_exec_info.kernel_name),
                         cast_socket_info.vp_id,
                         cast_socket_info.th_id,
                         [cast_socket_info.values[x] for x in range(cast_socket_info.values_len)])

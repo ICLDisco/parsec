@@ -30,9 +30,11 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
 static parsec_pins_callback * thread_init_prev; // courtesy calls to previously-registered cbs
 static parsec_pins_callback * thread_fini_prev;
 
-static char* socket_events [NUM_SOCKET_EVENTS] = {"L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE",
-                                                  "L3_CACHE_MISSES:READ_BLOCK_SHARED",
-                                                  "L3_CACHE_MISSES:READ_BLOCK_MODIFY"
+static char * L3_misses_basename = "L3_CACHE_MISSES:READ_BLOCK_";
+
+static char* socket_events [NUM_SOCKET_EVENTS] = {"EXCLUSIVE",
+                                                  "SHARED",
+                                                  "MODIFY"
 };
 
 static int successful_events = 0;
@@ -71,13 +73,19 @@ static void start_papi_socket(dague_execution_unit_t * exec_unit,
             int i = 0;
             int successful = 0;
             for (i = 0; i < NUM_SOCKET_EVENTS; i++) {
-                if (PAPI_event_name_to_code(socket_events[i], &native) != PAPI_OK)
-                    DEBUG(("papi_socket couldn't find event %s.\n", socket_events[i]));
+				// this supports having split (shorter) names for other uses
+				char * name = calloc(strlen(socket_events[i]) + strlen(L3_misses_basename) + 1, 1);
+				strcpy(name, L3_misses_basename);
+				strcat(name, socket_events[i]);
+                if (PAPI_event_name_to_code(name, &native) != PAPI_OK)
+                    printf("papi_socket couldn't find event %s.\n", name);
                 else if (PAPI_add_event(exec_unit->papi_eventsets[PER_SOCKET_SET], native) 
 						 != PAPI_OK)
-                    DEBUG(("papi_socket couldn't add event %s.\n", socket_events[i]));
+                    printf("papi_socket couldn't add event %s.\n", name);
                 else
                     successful += 1;
+				free(name);
+				name = NULL;
             }
             successful_events = successful;
 
@@ -113,13 +121,13 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
 				   PAPI_strerror(rv));
         }
         else {
-            char * buf = calloc(sizeof(char), (successful_events + 1) * 20);
+            char * buf = calloc(sizeof(char), (successful_events + 1) * 31);
             int inc = 0;
             char * buf_ptr = buf;
             long long int total = 0;
             for (int i = 0; i < successful_events; i++) {
                 total += values[i];
-                inc = snprintf(buf_ptr, 17, "%15lld ", values[i]);
+                inc = snprintf(buf_ptr, 28, "%s: %15lld ", socket_events[i], values[i]);
                 buf_ptr = (char *)buf_ptr + inc;
             }
             snprintf(buf_ptr, 21, "tot: %15lld", total);
@@ -128,9 +136,6 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
             buf = NULL;
 
 			papi_socket_info_t info;
-			info.kernel_type = exec_context->function->function_id;
-			strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
-			info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
 			info.vp_id = exec_unit->virtual_process->vp_id;
 			info.th_id = exec_unit->th_id;
 			for(int i = 0; i < NUM_SOCKET_EVENTS; i++) 

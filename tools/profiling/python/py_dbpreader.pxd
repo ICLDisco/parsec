@@ -135,11 +135,8 @@ cdef extern from "dague/mca/pins/papi_select/pins_papi_select.h":
 
 cdef extern from "dague/mca/pins/papi_socket/pins_papi_socket.h":
    enum: NUM_SOCKET_EVENTS # allows us to grab the #define from the .h
-   enum: KERNEL_NAME_SIZE
 
    ctypedef struct papi_socket_info_t:
-      int kernel_type
-      char kernel_name[KERNEL_NAME_SIZE]
       int vp_id
       int th_id
       int values_len

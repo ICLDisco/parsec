@@ -5,6 +5,8 @@ echo "# Many parameters can be tuned (command line, env, etc)"
 echo "# Open this file to see what common variables are available"
 echo "#"
 
+HOSTNAME=`/bin/uname -n`
+
 # This option permits setting arbitrary options to cmake
 # Options passed on the command line are appended to this variable
 USER_OPTIONS+=" -DDPLASMA_SCHED_HWLOC=ON"
@@ -13,10 +15,11 @@ USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
 USER_OPTIONS+=" -DPYTHON_LIBRARIES:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/lib/libpython2.7.so"
 USER_OPTIONS+=" -DPYTHON_INCLUDE_DIRS:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/include"
 USER_OPTIONS+=" -DPYTHON_EXECUTABLE:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/bin/python"
-USER_OPTIONS+=" -DPAPI_DIR=/home/pgaultne"
+USER_OPTIONS+=" -DPAPI_DIR=/home/pgaultne/sw/$HOSTNAME"
 USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 USER_OPTIONS+=" -DPINS_ENABLE=ON"
 USER_OPTIONS+=" -DDAGUE_PROF_TRACE=ON"
+USER_OPTIONS+=" -DCORES_PER_SOCKET=6"
 
 # These are override variables you can set (here or in the env) to alter defaults
 CC=${CC:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/bin/intel64/icc"}
@@ -28,7 +31,7 @@ CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS:="-g3 -fPIC"}
 CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH:="$HOME/enthought_7.3.2_x64/"}
 CMAKE_FIND_ROOT_PATH=${CMAKE_FIND_ROOT_PATH="$HOME/enthought_7.3.2_x64/"}
 PLASMADIR=${PLASMA_DIR:="/home/bosilca/unstable/dplasma/PLASMA/build/"}
-PAPI_DIR=${PAPI_DIR:="/home/pgaultne"}
+PAPI_DIR=${PAPI_DIR:="/home/pgaultne/sw/$HOSTNAME"}
 HWLOC_DIR=${HWLOC_DIR:="/home/bosilca/opt/64"}
 #MPI_DIR=${MPI_DIR:="/path/mpi"}
 #HWLOC_DIR=${HWLOC_DIR:="/path/hwloc"}

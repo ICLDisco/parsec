@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 
 # this is PYTHON-ONLY interface to
@@ -210,9 +211,7 @@ class dbp_Select_EventInfo:
 
 class dbp_Socket_EventInfo:
    __max_length__ = 0
-   def __init__(self, kernel_type, kernel_name, vp_id, th_id, values):
-      self.kernel_type = kernel_type
-      self.kernel_name = kernel_name
+   def __init__(self, vp_id, th_id, values):
       self.vp_id = vp_id
       self.th_id = th_id
       self.values = values
@@ -233,8 +232,6 @@ class dbp_Socket_EventInfo:
       # first, establish max length
       header = ''
       length = str(dbp_Socket_EventInfo.__max_length__)
-      header += ('{:>' + length + '}  ').format('kernel_type')
-      header += ('{:>' + length + '}  ').format('kernel_name')
       header += ('{:>' + length + '}  ').format('vp_id')
       header += ('{:>' + length + '}  ').format('th_id')
       header += ('{:>' + length + '}  ').format('values')
@@ -243,8 +240,6 @@ class dbp_Socket_EventInfo:
    def __repr__(self):
       rv = ''
       length = str(dbp_Socket_EventInfo.__max_length__)
-      rv += ('{:>' + length + '}  ').format(self.kernel_type)
-      rv += ('{:>' + length + '}  ').format(self.kernel_name)
       rv += ('{:>' + length + '}  ').format(self.vp_id)
       rv += ('{:>' + length + '}  ').format(self.th_id)
       for value in self.values:
