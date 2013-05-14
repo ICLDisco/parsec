@@ -46,7 +46,7 @@ struct dague_handle_s {
 #if defined(DAGUE_PROF_TRACE)
     const int*                 profiling_array;
 #endif  /* defined(DAGUE_PROF_TRACE) */
-    /* Completion callback. Triggered when the all tasks associated with
+    /* Completion callback. Triggered when all the tasks associated with
      * a particular dague object have been completed.
      */
     dague_completion_cb_t      complete_cb;
