@@ -40,22 +40,13 @@ int main(int argc, char *argv[])
 
     ddescA = create_and_distribute_data(rank, world, cores, size);
     dague_ddesc_set_key(ddescA, "A");
-    
+
     branching = branching_new(ddescA, size, nb);
     if( NULL != branching ) {
         dague_enqueue(dague, branching);
 
         dague_progress(dague);
     }
-
-#if defined(DAGUE_PROF_TRACE)
-    {
-        char *pname;
-        asprintf(&pname, "rtt-%d.profile", rank);
-        dague_profiling_dump_dbp(pname);
-        free(pname);
-    }
-#endif
 
     dague_fini(&dague);
 
@@ -67,7 +58,7 @@ int main(int argc, char *argv[])
 
 #ifdef HAVE_MPI
     MPI_Finalize();
-#endif    
-    
+#endif
+
     return 0;
 }

@@ -24,25 +24,31 @@ typedef struct dague_thread_profiling_s dague_thread_profiling_t;
 
 /**
  * Initializes the profiling engine. Call this ONCE per process.
- *
- * This functions uses the format / ... arguments to create a string
- * that identifies the experiment.
- *
- * @param [IN]  format, ...: printf-like parameters to associate a human-readable
- *                           definition of the current experiment
- * @return 0    if success, -1 otherwise
  * not thread safe
  */
-int dague_profiling_init( const char *format, ...);
+int dague_profiling_init(void);
 
 /**
- * Restart the timer marker.
+ * Set the reference time to now in the profiling system.
+ * Optionally called before any even is traced.
+ * Not thread safe.
  */
-int dague_profiling_start(void);
+void dague_profiling_start(void);
+
+/**
+ * Releases all resources for the tracing.
+ * Thread contexts become invalid after this call.
+ * Must be called after the dbp_dump if a dbp_start was called.
+ *
+ * @return 0    if success, -1 otherwise.
+ * not thread safe
+ */
+int dague_profiling_fini( void );
 
 /**
  * Add additional information about the current run, under the form key/value.
  * Used to store the value of the globals names and values in the current run
+ * Not thread safe.
  */
 void dague_profiling_add_information( const char *key, const char *value );
 
@@ -59,35 +65,6 @@ void dague_profiling_add_information( const char *key, const char *value );
  * thread safe
  */
 dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char *format, ...);
-
-/**
- * Releases all resources for the tracing.
- * Thread contexts become invalid after this call.
- *
- * @return 0    if success, -1 otherwise.
- * not thread safe
- */
-int dague_profiling_fini( void );
-
-/**
- * Removes all current logged events. Prefer this to fini / init if you want
- * to do a new profiling with the same thread contexts. This does not
- * invalidate the current thread contexts.
- *
- * @return 0 if succes, -1 otherwise
- * not thread safe
- */
-int dague_profiling_reset( void );
-
-/**
- * Changes the Human Readable description of the whole profile
- * (can be usefull with reset)
- *
- * @param [IN] format, ... printf-like arguments
- * @return 0 if success, -1 otherwise
- * not thread safe
- */
-int dague_profiling_change_profile_attribute( const char *format, ... );
 
 /**
  * Inserts a new keyword in the dictionnary
@@ -110,11 +87,10 @@ int dague_profiling_add_dictionary_keyword( const char* name, const char* attrib
                                             int* key_start, int* key_end );
 
 /**
- * Empties the global dictionnary (usefull in conjunction with reset, if
- * you want to redo an experiment.
+ * Empties the global dictionnary
  *
- * Emptying the dictionnary without reseting the profiling system will yield
- * undeterminate results
+ * Emptying the dictionnary between a dbp_start and a dbp_end will yield
+ * undeterminate results.
  *
  * @return 0 if success, -1 otherwise.
  * not thread safe
@@ -139,19 +115,34 @@ int dague_profiling_dictionary_flush( void );
  * @param [IN] info:    a pointer to an area of size info_length for this key (see
  *                        dague_profiling_add_dictionary_keyword)
  * @return 0 if success, -1 otherwise.
- * not thread safe
+ * not thread safe (if two threads share a same thread_context. Safe per thread_context)
  */
 #define PROFILE_OBJECT_ID_NULL ((uint32_t)-1)
 int dague_profiling_trace( dague_thread_profiling_t* context, int key, uint64_t event_id, uint32_t handle_id, void *info );
 
 /**
- * Dump the current profile in the said filename.
+ * Open the profile file given as a parameter to store the
+ * next events.
  *
- * @param [IN] filename: the name of the target file to create.
+ * @param [IN] basefile: the base name of the target file to create
+ *                       the file actually created will be <basefile>-%d.profile
+ * @param [IN] hr_info: human readable global information associated with this
+ *                      profile. Used "uniquely" identify the experiment, and
+ *                      check that all separate profile files correspond to a same
+ *                      experiment.
+ * @return 0 if success, -1 otherwise.
+ * not thread safe.
+ */
+int dague_profiling_dbp_start( const char *basefile, const char *hr_info );
+
+/**
+ * Dump the current profile; finishes the file opened with dbp_start.
+ * Every single dbp_start should have a matching dbp_dump.
+ *
  * @return 0 if success, -1 otherwise
  * not thread safe
  */
-int dague_profiling_dump_dbp( const char* filename );
+int dague_profiling_dbp_dump( void );
 
 /**
  * Returns a char * (owned by dague_profiling library)

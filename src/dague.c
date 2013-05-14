@@ -173,6 +173,9 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
                                                   "DAGuE Thread %d of VP %d",
                                                   eu->th_id,
                                                   eu->virtual_process->vp_id );
+    if( NULL == eu->eu_profile ) {
+        fprintf(stderr, "*** %s\n", dague_profiling_strerror());
+    }
 #endif
 
 #if defined(DAGUE_SIM)
@@ -408,31 +411,35 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
 #if defined(DAGUE_PROF_TRACE)
-        dague_profiling_init( "%s", dague_app_name );
+    if( dague_profiling_init( ) == 0 ) {
+        if( dague_profiling_dbp_start( basename(dague_app_name), dague_app_name ) != 0 ) {
+            fprintf(stderr, "*** %s. Profile deactivated.\n", dague_profiling_strerror());
+        }
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
-    dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
-                                            0, NULL,
-                                            &MEMALLOC_start_key, &MEMALLOC_end_key);
-    dague_profiling_add_dictionary_keyword( "Sched POLL", "fill:#8A0886",
-                                            0, NULL,
-                                            &schedule_poll_begin, &schedule_poll_end);
-    dague_profiling_add_dictionary_keyword( "Sched PUSH", "fill:#F781F3",
-                                            0, NULL,
-                                            &schedule_push_begin, &schedule_push_end);
-    dague_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
-                                            0, NULL,
-                                            &schedule_sleep_begin, &schedule_sleep_end);
-    dague_profiling_add_dictionary_keyword( "Queue ADD", "fill:#767676",
-                                            0, NULL,
-                                            &queue_add_begin, &queue_add_end);
-    dague_profiling_add_dictionary_keyword( "Queue REMOVE", "fill:#B9B243",
-                                            0, NULL,
-                                            &queue_remove_begin, &queue_remove_end);
+        dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
+                                                0, NULL,
+                                                &MEMALLOC_start_key, &MEMALLOC_end_key);
+        dague_profiling_add_dictionary_keyword( "Sched POLL", "fill:#8A0886",
+                                                0, NULL,
+                                                &schedule_poll_begin, &schedule_poll_end);
+        dague_profiling_add_dictionary_keyword( "Sched PUSH", "fill:#F781F3",
+                                                0, NULL,
+                                                &schedule_push_begin, &schedule_push_end);
+        dague_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
+                                                0, NULL,
+                                                &schedule_sleep_begin, &schedule_sleep_end);
+        dague_profiling_add_dictionary_keyword( "Queue ADD", "fill:#767676",
+                                                0, NULL,
+                                                &queue_add_begin, &queue_add_end);
+        dague_profiling_add_dictionary_keyword( "Queue REMOVE", "fill:#B9B243",
+                                                0, NULL,
+                                                &queue_remove_begin, &queue_remove_end);
 #  endif /* DAGUE_PROF_TRACE_SCHEDULING_EVENTS */
-    dague_profiling_add_dictionary_keyword( "Device delegate", "fill:#EAE7C6",
-                                            0, NULL,
-                                            &device_delegate_begin, &device_delegate_end);
+        dague_profiling_add_dictionary_keyword( "Device delegate", "fill:#EAE7C6",
+                                                0, NULL,
+                                                &device_delegate_begin, &device_delegate_end);
+    }
 #endif  /* DAGUE_PROF_TRACE */
 
     dague_devices_init(context);
@@ -568,7 +575,9 @@ int dague_fini( dague_context_t** pcontext )
 
     AYU_FINI();
 #ifdef DAGUE_PROF_TRACE
-    dague_profiling_fini( );
+    if( 0 != dague_profiling_fini( ) ) {
+        fprintf(stderr, "*** %s\n", dague_profiling_strerror());
+    }
 #endif  /* DAGUE_PROF_TRACE */
 
     if(dague_enable_dot) {
@@ -1702,8 +1711,7 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
 {
     dague_execution_context_t context;
     dague_dependency_t *dep;
-    dague_ddesc_t *ref;
-    dague_data_key_t key;
+    dague_data_ref_t ref;
     int pi, li;
 
     DAGUE_LIST_ITEM_SINGLETON( &context.list_item );
@@ -1733,8 +1741,8 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
     do {
         char tmp[MAX_TASK_STRLEN];
         (*ntotal)++;
-        ref = function->data_affinity(&context, &key);
-        if( ref->rank_of_key(ref, key) == ref->myrank ) {
+        function->data_affinity(&context, &ref);
+        if( ref.ddesc->rank_of_key(ref.ddesc, ref.key) == ref.ddesc->myrank ) {
             (*nlocal)++;
             dep = find_deps(handle, &context);
             if( function->flags & DAGUE_USE_DEPS_MASK ) {

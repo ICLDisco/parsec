@@ -20,6 +20,9 @@
 #include <sys/mman.h>
 #endif
 #include <inttypes.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "profiling.h"
 #include "dbp.h"
@@ -37,8 +40,8 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
 static unsigned int dague_prof_keys_count, dague_prof_keys_number;
 static dague_profiling_key_t* dague_prof_keys;
 
-static int __already_called = 0;
 static dague_time_t dague_start_time;
+static int          start_called = 0;
 
 /* Process-global profiling list */
 static dague_list_t threads;
@@ -46,6 +49,7 @@ static char *hr_id = NULL;
 static dague_profiling_info_t *dague_profiling_infos = NULL;
 
 static char *dague_profiling_last_error = NULL;
+static int   dague_profiling_raise_error = 0;
 
 /* File backend globals. */
 static pthread_mutex_t file_backend_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -59,6 +63,17 @@ static int file_backend_extendable;
 
 static dague_profiling_binary_file_header_t *profile_head = NULL;
 static char *bpf_filename = NULL;
+
+static void set_last_error(const char *format, ...)
+{
+    va_list ap;
+    if( dague_profiling_last_error )
+        free(dague_profiling_last_error);
+    va_start(ap, format);
+    vasprintf(&dague_profiling_last_error, format, ap);
+    va_end(ap);
+    dague_profiling_raise_error = 1;
+}
 
 char *dague_profiling_strerror(void)
 {
@@ -75,87 +90,10 @@ void dague_profiling_add_information( const char *key, const char *value )
     dague_profiling_infos = n;
 }
 
-int dague_profiling_change_profile_attribute( const char *format, ... )
+int dague_profiling_init( void )
 {
-    va_list ap;
-
-    if( hr_id != NULL ) {
-        free(hr_id);
-    }
-
-    va_start(ap, format);
-    vasprintf(&hr_id, format, ap);
-    va_end(ap);
-
-    return 0;
-}
-
-int dague_profiling_init( const char *format, ... )
-{
-    va_list ap;
-    char *c, *hr_id_basename, *hr_id_dir;
     dague_profiling_buffer_t dummy_events_buffer;
     long ps;
-    int rank = 0;
-    int worldsize = 1;
-    int64_t zero;
-
-#if defined(HAVE_MPI)
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
-#endif
-
-    if( hr_id != NULL ) {
-        ERROR(("dague_profiling_init: profiling already initialized"));
-        return -1;
-    }
-
-    va_start(ap, format);
-    vasprintf(&hr_id, format, ap);
-    va_end(ap);
-
-    bpf_filename = (char*)malloc(strlen(hr_id) + 16);
-
-    hr_id_dir = strdup(hr_id);
-    hr_id_basename = hr_id_dir;
-    for(c = hr_id_dir; *c != '\0'; c++) {
-        if( *c == '/' )
-            hr_id_basename = c+1;
-    }
-    if( hr_id_basename != hr_id_dir ) {
-        *(hr_id_basename-1) = '\0';
-    }
-
-    sprintf(bpf_filename, "%s.prof-XXXXXX", hr_id_basename);
-    free(hr_id_dir);
-    hr_id_dir = NULL;
-    hr_id_basename = NULL;
-
-    file_backend_fd = mkstemp(bpf_filename);
-    if( -1 == file_backend_fd ) {
-        fprintf(stderr, "Warning profiling system: unable to create temporary backend file %s: %s. Events not logged.\n",
-                bpf_filename, strerror(errno));
-        free(bpf_filename);
-        bpf_filename = NULL;
-        file_backend_extendable = 0;
-    } else {
-        file_backend_extendable = 1;
-        ps = sysconf(_SC_PAGESIZE);
-        event_buffer_size = ps * ((MINIMAL_EVENT_BUFFER_SIZE + ps) / ps);
-        event_avail_space = event_buffer_size - 
-            ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
-
-        assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
-        profile_head = (dague_profiling_binary_file_header_t*)allocate_empty_buffer(&zero, PROFILING_BUFFER_TYPE_HEADER);
-        if( NULL != profile_head ) {
-	        memcpy(profile_head->magick, DAGUE_PROFILING_MAGICK, strlen(DAGUE_PROFILING_MAGICK) + 1);
-            profile_head->byte_order = 0x0123456789ABCDEF;
-            profile_head->profile_buffer_size = event_buffer_size;
-            strncpy(profile_head->hr_id, hr_id, 128);
-            profile_head->rank = rank;
-            profile_head->worldsize = worldsize;
-        }
-    }
 
     OBJ_CONSTRUCT( &threads, dague_list_t );
 
@@ -163,19 +101,21 @@ int dague_profiling_init( const char *format, ... )
     dague_prof_keys_count = 0;
     dague_prof_keys_number = 128;
 
+    file_backend_extendable = 1;
+    ps = sysconf(_SC_PAGESIZE);
+    event_buffer_size = ps * ((MINIMAL_EVENT_BUFFER_SIZE + ps) / ps);
+    event_avail_space = event_buffer_size -
+        ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
+
+    assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
+
+    /* default start time is time of call of profiling init.
+     * Can be reset once explicitly by the user. */
 #if defined(HAVE_MPI)
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
-    dague_profiling_start();
-
-    return 0;
-}
-
-int dague_profiling_start(void)
-{
-    if( ++__already_called > 1 )
-        return -1;
     dague_start_time = take_time();
+
     return 0;
 }
 
@@ -190,7 +130,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
      */
     res = (dague_thread_profiling_t*)malloc( sizeof(dague_thread_profiling_t) + length );
     if( NULL == res ) {
-        ERROR(("dague_profiling_thread_init: unable to allocate %u bytes", length));
+        set_last_error("Profiling system: dague_profiling_thread_init: unable to allocate %u bytes", length);
         return NULL;
     }
 
@@ -215,10 +155,77 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     return res;
 }
 
+void dague_profiling_start(void)
+{
+    if(start_called)
+        return;
+
+#if defined(HAVE_MPI)
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+    start_called = 1;
+    dague_start_time = take_time();
+}
+
+int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
+{
+    int rank = 0;
+    int worldsize = 1;
+    uint64_t zero;
+
+#if defined(HAVE_MPI)
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
+#endif
+
+    bpf_filename = (char*)malloc(strlen(basefile) + 16);
+
+    sprintf(bpf_filename, "%s-%d.profile", basefile, rank);
+
+    /* be permisive when creating / overwriting the file:
+     * the user's umask will restrict the rights to the user's preferred default */
+    file_backend_fd = open(bpf_filename, O_RDWR|O_CREAT|O_TRUNC,
+                           S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
+    if( -1 == file_backend_fd ) {
+        set_last_error("Profiling system: error: Unable to create backend file %s: %s. Events not logged.\n",
+                       bpf_filename, strerror(errno));
+        free(bpf_filename);
+        bpf_filename = NULL;
+        file_backend_extendable = 0;
+        return -1;
+    } else {
+        profile_head = (dague_profiling_binary_file_header_t*)allocate_empty_buffer(&zero, PROFILING_BUFFER_TYPE_HEADER);
+        if( NULL != profile_head ) {
+            memcpy(profile_head->magick, DAGUE_PROFILING_MAGICK, strlen(DAGUE_PROFILING_MAGICK) + 1);
+            profile_head->byte_order = 0x0123456789ABCDEF;
+            profile_head->profile_buffer_size = event_buffer_size;
+            strncpy(profile_head->hr_id, hr_info, 128);
+            profile_head->rank = rank;
+            profile_head->worldsize = worldsize;
+
+            /* Reset the error system */
+            set_last_error("Profiling system: success");
+            dague_profiling_raise_error = 0;
+
+            /* It's fine to re-reset the event date: we're back with a zero-length event set */
+            start_called = 0;
+            return 0;
+        } else {
+            return -1;
+        }
+    }
+}
+
 int dague_profiling_fini( void )
 {
     dague_thread_profiling_t *t;
-    
+
+    if( bpf_filename ) {
+        if( 0 != dague_profiling_dbp_dump() ) {
+            return -1;
+        }
+    }
+
     while( (t = (dague_thread_profiling_t*)dague_ulist_fifo_pop(&threads)) ) {
         free(t->hr_id);
         free(t);
@@ -229,20 +236,6 @@ int dague_profiling_fini( void )
     dague_profiling_dictionary_flush();
     free(dague_prof_keys);
     dague_prof_keys_number = 0;
-    __already_called = 0;  /* Allow the profiling to be reinitialized */
-    return 0;
-}
-
-int dague_profiling_reset( void )
-{
-    dague_thread_profiling_t *t;
-    
-    DAGUE_LIST_ITERATOR(&threads, it, {
-        t = (dague_thread_profiling_t*)it;
-        t->next_event_position = 0;
-        /* TODO: should reset the backend file / recreate it */
-    });
-
     return 0;
 }
 
@@ -269,7 +262,7 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
     }
     if( -1 == pos ) {
         if( dague_prof_keys_count == dague_prof_keys_number ) {
-            ERROR(("dague_profiling_add_dictionary_keyword: Number of keyword limits reached"));
+            set_last_error("Profiling system: error: dague_profiling_add_dictionary_keyword: Number of keyword limits reached");
             return -1;
         }
         pos = dague_prof_keys_count;
@@ -279,7 +272,7 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
     dague_prof_keys[pos].name = strdup(key_name);
     dague_prof_keys[pos].attributes = strdup(attributes);
     dague_prof_keys[pos].info_length = info_length;
-    if( NULL != convertor_code ) 
+    if( NULL != convertor_code )
         dague_prof_keys[pos].convertor = strdup(convertor_code);
     else
         dague_prof_keys[pos].convertor = NULL;
@@ -314,8 +307,6 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
     }
 
     if( ftruncate(file_backend_fd, file_backend_next_offset+event_buffer_size) == -1 ) {
-        fprintf(stderr, "Warning profiling system: resize of the events backend file failed: %s. Events trace will be truncated.\n",
-                strerror(errno));
         file_backend_extendable = 0;
         *offset = -1;
         return NULL;
@@ -325,8 +316,6 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
     res = mmap(NULL, event_buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, file_backend_fd, file_backend_next_offset);
 
     if( MAP_FAILED == res ) {
-        fprintf(stderr, "Warning profiling system: remap of the events backend file failed: %s. Events trace will be truncated.\n",
-                strerror(errno));
         file_backend_extendable = 0;
         *offset = -1;
         return NULL;
@@ -337,8 +326,6 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
     memset(res, 0, event_buffer_size);
 #endif
     if( NULL == res ) {
-        fprintf(stderr, "Warning profiling system: unable to allocate new profiling buffer: %s. Events trace will be truncated.\n",
-                strerror(errno));
         file_backend_extendable = 0;
         *offset = -1;
         return NULL;
@@ -451,16 +438,7 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key,
             return -1;
         }
     }
-    /*
-    fprintf(stderr, "%s event of key %d (%s) id %lu is event %ld->%ld in buffer @%ld of profiling context %p\n",
-            START_KEY(BASE_KEY(key)) == key ? "start" : "end",
-            BASE_KEY(key),
-            dague_prof_keys[ BASE_KEY(key) ].name,
-            id,
-            context->next_event_position, context->next_event_position+this_event_length,
-            context->current_events_buffer_offset,
-            context);
-    */
+
     this_event = (dague_profiling_output_t *)&context->current_events_buffer->buffer[context->next_event_position];
     assert( context->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
     context->current_events_buffer->this_buffer.nb_events++;
@@ -498,7 +476,7 @@ static int64_t dump_global_infos(int *nbinfos)
 
     b = allocate_empty_buffer(&first_off, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
     if( NULL == b ) {
-        fprintf(stderr, "Profiling System Warning: Unable to dump the global infos\n");
+        set_last_error("Profiling system: error: Unable to dump the global infos -- buffer allocation error\n");
         *nbinfos = 0;
         return -1;
     }
@@ -514,7 +492,7 @@ static int64_t dump_global_infos(int *nbinfos)
             b->this_buffer.nb_infos = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
             if( NULL == n ) {
-                fprintf(stderr, "Profiling System Warning: Global Infos will be truncated to %d infos only\n", nb);
+                set_last_error("Profiling System: error: Global Infos will be truncated to %d infos only -- buffer allocation error\n", nb);
                 *nbinfos = nb;
                 return first_off;
             }
@@ -560,7 +538,7 @@ static int64_t dump_dictionary(int *nbdico)
 
     b = allocate_empty_buffer(&first_off, PROFILING_BUFFER_TYPE_DICTIONARY);
     if( NULL == b ) {
-        fprintf(stderr, "Profiling System Warning: Unable to dump the dictionary\n");
+        set_last_error("Profiling System: error: Unable to dump the dictionary -- buffer allocation error\n");
         *nbdico = 0;
         return -1;
     }
@@ -579,7 +557,7 @@ static int64_t dump_dictionary(int *nbdico)
             b->this_buffer.nb_dictionary_entries = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_DICTIONARY);
             if( NULL == n ) {
-                fprintf(stderr, "Profiling System Warning: Dictionnary will be truncated to %d entries only\n", nb);
+                set_last_error("Profiling system: error: Dictionnary will be truncated to %d entries only -- buffer allocation error\n", nb);
                 *nbdico = nb;
                 return first_off;
             }
@@ -622,8 +600,8 @@ static size_t thread_size(dague_thread_profiling_t *thread)
         ks = strlen(i->key);
         vs = strlen(i->value);
         if( s + ks + vs + sizeof(dague_profiling_info_buffer_t) - 1 > event_avail_space ) {
-            fprintf(stderr, "Profiling System Warning: unable to save info %s of thread %s, info ignored\n",
-                    i->key, thread->hr_id);
+            set_last_error("Profiling system: warning: unable to save info %s of thread %s, info ignored\n",
+                           i->key, thread->hr_id);
             continue;
         }
         s += ks + vs + sizeof(dague_profiling_info_buffer_t) - 1;
@@ -651,7 +629,7 @@ static int64_t dump_thread(int *nbth)
 
     b = allocate_empty_buffer(&off, PROFILING_BUFFER_TYPE_THREAD);
     if( NULL == b ) {
-        fprintf(stderr, "Profiling System Warning: Unable to dump some thread profiles\n");
+        set_last_error("Profiling system: error: Unable to dump some thread profiles -- buffer allocation error\n");
         *nbth = 0;
         return -1;
     }
@@ -670,7 +648,7 @@ static int64_t dump_thread(int *nbth)
             b->this_buffer.nb_threads = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_THREAD);
             if( NULL == n ) {
-                fprintf(stderr, "Profiling System Warning: Threads will be truncated to %d tnreads only\n", nb);
+                set_last_error("Profiling system: error: Threads will be truncated to %d threads only -- buffer allocation error\n", nb);
                 *nbth = nb;
                 return off;
             }
@@ -718,11 +696,16 @@ static int64_t dump_thread(int *nbth)
     return off;
 }
 
-int dague_profiling_dump_dbp( const char* filename )
+int dague_profiling_dbp_dump( void )
 {
     int nb_threads = 0;
     dague_thread_profiling_t *t;
     int nb_infos, nb_dico;
+
+    if( NULL == bpf_filename ) {
+        set_last_error("Profiling system: User Error: dague_profiling_dbp_dump before dague_profiling_dbp_start()");
+        return -1;
+    }
 
     /* Flush existing events buffer, inconditionnally */
     DAGUE_LIST_ITERATOR(&threads, it, {
@@ -733,23 +716,16 @@ int dague_profiling_dump_dbp( const char* filename )
         }
     });
 
-    if( rename(bpf_filename, filename) == -1 ) {
-        fprintf(stderr, "Warning Profiling System: Unable to rename events file %s in %s: %s\n",
-                bpf_filename, filename, strerror(errno));
-        unlink(bpf_filename);
-        free(bpf_filename);
-    } else {
-        profile_head->dictionary_offset = dump_dictionary(&nb_dico);
-        profile_head->dictionary_size = nb_dico;
+    profile_head->dictionary_offset = dump_dictionary(&nb_dico);
+    profile_head->dictionary_size = nb_dico;
 
-        profile_head->info_offset = dump_global_infos(&nb_infos);
-        profile_head->info_size = nb_infos;
+    profile_head->info_offset = dump_global_infos(&nb_infos);
+    profile_head->info_size = nb_infos;
 
-        profile_head->thread_offset = dump_thread(&nb_threads);
-        profile_head->nb_threads = nb_threads;
+    profile_head->thread_offset = dump_thread(&nb_threads);
+    profile_head->nb_threads = nb_threads;
 
-        profile_head->start_time = dague_start_time;
-    }
+    profile_head->start_time = dague_start_time;
 
     /* The head is now complete. Last flush. */
     write_down_existing_buffer((dague_profiling_buffer_t *)profile_head,
@@ -760,7 +736,12 @@ int dague_profiling_dump_dbp( const char* filename )
     close(file_backend_fd);
     file_backend_fd = -1;
     file_backend_extendable = 0;
+    free(bpf_filename);
+    bpf_filename = NULL;
     pthread_mutex_unlock(&file_backend_lock);
+
+    if( dague_profiling_raise_error )
+        return -1;
 
     return 0;
 }
