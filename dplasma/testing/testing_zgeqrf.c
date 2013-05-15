@@ -119,13 +119,10 @@ int main(int argc, char ** argv)
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescX, 2354);
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescX, (tiled_matrix_desc_t *)&ddescB );
-        dplasma_zunmqr( dague, PlasmaLeft, PlasmaConjTrans,
+        dplasma_zgeqrs( dague,
                        (tiled_matrix_desc_t *)&ddescA,
                        (tiled_matrix_desc_t *)&ddescT,
                        (tiled_matrix_desc_t *)&ddescX);
-        dplasma_ztrsm( dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
-                      (tiled_matrix_desc_t *)&ddescA,
-                      (tiled_matrix_desc_t *)&ddescX);
         if(loud > 2) printf("Done\n");
 
         /* Check the orthogonality, factorization and the solution */
