@@ -16,91 +16,171 @@
 # pure Python
 
 class d_time:
-   def __init__(self, seconds, nsec):
-      self.sec = seconds
-      self.nsec = nsec
-   def diff(self, time):
-      return d_time(time.sec - self.sec, time.nsec - self.nsec)
-   def abs(self):
-      return self.sec * 1000000000 + self.nsec
+    def __init__(self, seconds, nsec):
+        self.sec = seconds
+        self.nsec = nsec
+    def diff(self, time):
+        return d_time(time.sec - self.sec, time.nsec - self.nsec)
+    def abs(self):
+        return self.sec * 1000000000 + self.nsec
 
 class multifile_reader:
-   def __init__(self, nb_files, nb_dict_entries):
-      self.nb_files = nb_files
-      self.nb_dict_entries = nb_dict_entries
-      self.dictionary = {}
-      self.files = []
-      self.thread_count = 0
-      self.handle_counts = [0, 0]
+    def __init__(self, nb_files, nb_dict_entries):
+        self.nb_files = nb_files
+        self.nb_dict_entries = nb_dict_entries
+        self.dictionary = {}
+        self.dict_key_to_name = {}
+        self.files = []
+        self.thread_count = 0
+        self.handle_counts = [0, 0]
+        self.event_type_stats = dict()
 
 class dbpDictEntry:
-   def __init__(self, id, attributes):
-      self.id = id
-      self.attributes = attributes
+    def __init__(self, key, attributes):
+        self.key = key
+        self.attributes = attributes
 
 class dbpFile:
-   def __init__(self, parent, hr_id, filename, rank):
-      self.parent = parent
-      self.hr_id = hr_id
-      self.filename = filename
-      self.rank = rank
-      self.infos = []
-      self.threads = []
-      # NOTE: maybe collect statistics on timing stuff later
+    def __init__(self, parent, hr_id, filename, rank):
+        self.parent = parent
+        self.hr_id = hr_id
+        self.filename = filename
+        self.rank = rank
+        self.infos = []
+        self.threads = []
+        # NOTE: maybe collect statistics on timing stuff later
 
 class dbpInfo:
-   def __init__(self, key, value):
-      self.key = key
-      self.value = value
+    def __init__(self, ikey, value):
+        self.key = ikey
+        self.value = value
 
 class dbpThread:
-   def __init__(self, parentFile, threadNumber):
-      self.file = parentFile
-      self.events = []
-      self.id = int(threadNumber) # if it's not a number, it's wrong
-   def __str__(self):
-      return str(self.id)
+    def __init__(self, parentFile, threadNumber):
+        self.file = parentFile
+        self.events = []
+        self.id = int(threadNumber) # if it's not a number, it's wrong
+    def __str__(self):
+        return str(self.id)
 
 class dbpEvent:
-   __max_length__ = 0
-   # keep the print order updated as attributes are added
-   print_order = ['handle_id', 'thread', 'key', 'event_id', 
-                  'flags', 'start', 'end', 'duration', 'info']
-   def __init__(self, parentThread, key, flags, handle_id, event_id, start, end):
-      self.thread = parentThread
-      self.key = key
-      self.flags = flags
-      self.handle_id = handle_id
-      self.event_id = event_id
-      self.start = start
-      self.end = end
-      self.duration = self.end - self.start
-      self.info = None
-      for attr, value in vars(self).items():
-         if len(attr) > dbpEvent.__max_length__:
-            dbpEvent.__max_length__ = len(attr)
-         # values that we don't want printed generically
-         elif attr == 'info':
-            value = 'Yes' if self.info else 'No'
-         if len(str(value)) > dbpEvent.__max_length__:
-            dbpEvent.__max_length__ = len(str(value))
+    __max_length__ = 0
+    # keep the print order updated as attributes are added
+    print_order = ['handle_id', 'thread', 'key', 'event_id', 
+                   'flags', 'start', 'end', 'duration', 'info']
+    def __init__(self, parentThread, key, flags, handle_id, event_id, start, end):
+        self.thread = parentThread
+        self.key = key
+        self.flags = flags
+        self.handle_id = handle_id
+        self.event_id = event_id
+        self.start = start
+        self.end = end
+        self.duration = self.end - self.start
+        self.info = None
+        for attr, value in vars(self).items():
+            if len(attr) > dbpEvent.__max_length__:
+                dbpEvent.__max_length__ = len(attr)
+            # values that we don't want printed generically
+            elif attr == 'info':
+                value = 'Yes' if self.info else 'No'
+            if len(str(value)) > dbpEvent.__max_length__:
+                dbpEvent.__max_length__ = len(str(value))
 
-   def row_header(self):
-      # first, establish max length
-      header = ''
-      for attr in dbpEvent.print_order:
-         header += ('{:>' + str(dbpEvent.__max_length__) + '}  ').format(attr)
-      return header
-   def __repr__(self):
-      row = ''
-      for attr in dbpEvent.print_order:
-         value = vars(self)[attr]
-         # values that we don't want printed generically
-         if attr == 'info':
-            value = 'Yes' if self.info else 'No'
-         row += ('{:>' + str(dbpEvent.__max_length__) + '}  ').format(value)
-      return row
+    def row_header(self):
+        # first, establish max length
+        header = ''
+        for attr in dbpEvent.print_order:
+            header += ('{:>' + str(dbpEvent.__max_length__) + '}  ').format(attr)
+        return header
+    def __repr__(self):
+        row = ''
+        for attr in dbpEvent.print_order:
+            value = vars(self)[attr]
+            # values that we don't want printed generically
+            if attr == 'info':
+                value = 'Yes' if self.info else 'No'
+            row += ('{:>' + str(dbpEvent.__max_length__) + '}  ').format(value)
+        return row
 
+class PapiStats(object):
+    def __init__(self):
+        self.duration = 0
+        self.count = 0
+    def __repr__(self):
+        return '{:20d} {:15d}'.format(self.duration, self.count)
+    @staticmethod
+    def header():
+        return ('{:>20} {:>15}').format('DURATION', 'COUNT')
+
+class ExecSelectStats(PapiStats):
+    def __init__(self, kernel_name):
+        super(ExecSelectStats, self).__init__()
+        self.kernel_name = kernel_name
+        self.res_stalls = 0
+        self.l2_hits = 0
+        self.l2_misses = 0
+        self.l2_accesses = 0
+        self.l1_misses = 0
+    def __repr__(self):
+        if self.count == 0:
+            self.count = 1
+        rs = '{:>16} '.format(self.kernel_name) + str(super(ExecSelectStats, self).__repr__())
+        rs += ' {:12.0f} {:12.0f} {:12.0f} {:12.0f}'.format(
+            float(self.l1_misses)/self.count,
+            float(self.l2_hits)/self.count,
+            float(self.l2_misses)/self.count,
+            float(self.l2_accesses)/self.count,
+        )
+        return rs
+    @staticmethod
+    def header():
+        rs = '{:>16} '.format('KERNEL') + str(PapiStats.header())
+        rs += ' {:>12} {:>12} {:>12} {:>12}'.format(
+            'L1M/CT', 'L2H/CT', 'L2M/CT', 'L2A/CT')
+        return rs
+
+class SocketStats(PapiStats):
+    name = 'L3'
+    def __init__(self):
+        super(SocketStats, self).__init__()
+        self.l3_exc_misses = 0
+        self.l3_shr_misses = 0
+        self.l3_mod_misses = 0
+    def __repr__(self):
+        rs = '{:>16} '.format('L3') + str(super(SocketStats, self).__repr__())
+        rs += (' {:12.0f} {:12.0f} {:12.0f} {:12.0f}').format(
+            float(self.l3_shr_misses)/self.count,
+            float(self.l3_mod_misses)/self.count,
+            float(self.l3_exc_misses)/self.count,
+            float(self.l3_exc_misses + self.l3_shr_misses
+                  + self.l3_mod_misses)/self.count
+        )
+        return rs
+    @staticmethod
+    def header():
+        rs = '{:>16} '.format('SOCKET') + str(PapiStats.header())
+        rs += (' {:>12} {:>12} {:>12} {:>12}').format(
+            'L3_SH_M/CT', 'L3_MOD_M/CT', 'L3_EX_M/CT', 'L3_TOT_M/CT')
+        return rs
+        
+class EventStats(object):
+    def __init__(self, name, dict_key):
+        self.event_name = name
+        self.dict_key = dict_key
+        self.count = 0
+        self.duration = 0
+        self.papi_stats = dict()
+
+    def __repr__(self):
+        rs = '{:16} {:20d} {:15d}'.format(
+           self.event_name, self.duration, self.count
+        )
+        return rs
+    @staticmethod
+    def header():
+        return ('{:16} {:>20} {:>15}').format(
+            'EVT_NAME', 'DURATION', 'COUNT')
 
 ########################################################
 ############## CUSTOM EVENT INFO SECTION ###############
@@ -108,141 +188,141 @@ class dbpEvent:
 ######### to allow for new 'info' types        #########
 
 class dbp_Exec_EventInfo:
-   __max_length__ = 0
-   def __init__(self, kernel_type, kernel_name, vp_id, th_id, values):
-      self.kernel_type = kernel_type
-      self.kernel_name = kernel_name
-      self.vp_id = vp_id
-      self.th_id = th_id
-      self.values = values
+    __max_length__ = 0
+    def __init__(self, kernel_type, kernel_name, vp_id, th_id, values):
+        self.kernel_type = kernel_type
+        self.kernel_name = kernel_name
+        self.vp_id = vp_id
+        self.th_id = th_id
+        self.values = values
 
-      # set global max length
-      for attr, val in vars(self).items():
-         if len(attr) > dbp_Exec_EventInfo.__max_length__:
-            dbp_Exec_EventInfo.__max_length__ = len(attr)
-         # values that we don't want printed generically
-         elif attr == 'values':
-            for value in val:
-               if len(str(value)) > dbp_Exec_EventInfo.__max_length__:
-                  dbp_Exec_EventInfo.__max_length__ = len(str(value))
-         elif len(str(val)) > dbp_Exec_EventInfo.__max_length__:
-            dbp_Exec_EventInfo.__max_length__ = len(str(val))
+        # set global max length
+        for attr, val in vars(self).items():
+            if len(attr) > dbp_Exec_EventInfo.__max_length__:
+                dbp_Exec_EventInfo.__max_length__ = len(attr)
+            # values that we don't want printed generically
+            elif attr == 'values':
+                for value in val:
+                    if len(str(value)) > dbp_Exec_EventInfo.__max_length__:
+                        dbp_Exec_EventInfo.__max_length__ = len(str(value))
+            elif len(str(val)) > dbp_Exec_EventInfo.__max_length__:
+                dbp_Exec_EventInfo.__max_length__ = len(str(val))
 
-   def row_header(self):
-      # first, establish max length
-      header = ''
-      length = str(dbp_Exec_EventInfo.__max_length__)
-      header += ('{:>' + length + '}  ').format('kernel_type')
-      header += ('{:>' + length + '}  ').format('kernel_name')
-      header += ('{:>' + length + '}  ').format('vp_id')
-      header += ('{:>' + length + '}  ').format('th_id')
-      header += ('{:>' + length + '}  ').format('values')
-      return header
+    def row_header(self):
+        # first, establish max length
+        header = ''
+        length = str(dbp_Exec_EventInfo.__max_length__)
+        header += ('{:>' + length + '}  ').format('kernel_type')
+        header += ('{:>' + length + '}  ').format('kernel_name')
+        header += ('{:>' + length + '}  ').format('vp_id')
+        header += ('{:>' + length + '}  ').format('th_id')
+        header += ('{:>' + length + '}  ').format('values')
+        return header
 
-   def __repr__(self):
-      rv = ''
-      length = str(dbp_Exec_EventInfo.__max_length__)
-      rv += ('{:>' + length + '}  ').format(self.kernel_type)
-      rv += ('{:>' + length + '}  ').format(self.kernel_name)
-      rv += ('{:>' + length + '}  ').format(self.vp_id)
-      rv += ('{:>' + length + '}  ').format(self.th_id)
-      for value in self.values:
-         rv += ('{:>' + length + '}  ').format(value)
-      return rv
+    def __repr__(self):
+        rv = ''
+        length = str(dbp_Exec_EventInfo.__max_length__)
+        rv += ('{:>' + length + '}  ').format(self.kernel_type)
+        rv += ('{:>' + length + '}  ').format(self.kernel_name)
+        rv += ('{:>' + length + '}  ').format(self.vp_id)
+        rv += ('{:>' + length + '}  ').format(self.th_id)
+        for value in self.values:
+            rv += ('{:>' + length + '}  ').format(value)
+        return rv
 
 class dbp_Select_EventInfo:
-   __max_length__ = 0
-   def __init__(self, kernel_type, kernel_name, vp_id, th_id, victim_vp_id, victim_th_id, exec_context, values):
-      self.kernel_type = kernel_type
-      self.kernel_name = kernel_name
-      self.vp_id = vp_id
-      self.th_id = th_id
-      self.victim_vp_id = victim_vp_id
-      self.victim_th_id = victim_th_id
-      self.exec_context = exec_context
-      self.values = values
+    __max_length__ = 0
+    def __init__(self, kernel_type, kernel_name, vp_id, th_id, victim_vp_id, victim_th_id, exec_context, values):
+        self.kernel_type = kernel_type
+        self.kernel_name = kernel_name
+        self.vp_id = vp_id
+        self.th_id = th_id
+        self.victim_vp_id = victim_vp_id
+        self.victim_th_id = victim_th_id
+        self.exec_context = exec_context
+        self.values = values
 
-      # set global max length
-      for attr, val in vars(self).items():
-         if len(attr) > dbp_Select_EventInfo.__max_length__:
-            dbp_Select_EventInfo.__max_length__ = len(attr)
-         # values that we don't want printed generically
-         elif attr == 'values':
-            for value in val:
-               if len(str(value)) > dbp_Select_EventInfo.__max_length__:
-                  dbp_Select_EventInfo.__max_length__ = len(str(value))
-         elif len(str(val)) > dbp_Select_EventInfo.__max_length__:
-            dbp_Select_EventInfo.__max_length__ = len(str(val))
+        # set global max length
+        for attr, val in vars(self).items():
+            if len(attr) > dbp_Select_EventInfo.__max_length__:
+                dbp_Select_EventInfo.__max_length__ = len(attr)
+            # values that we don't want printed generically
+            elif attr == 'values':
+                for value in val:
+                    if len(str(value)) > dbp_Select_EventInfo.__max_length__:
+                        dbp_Select_EventInfo.__max_length__ = len(str(value))
+            elif len(str(val)) > dbp_Select_EventInfo.__max_length__:
+                dbp_Select_EventInfo.__max_length__ = len(str(val))
 
-   def isStarvation(self):
-      return self.exec_context == 0
+    def isStarvation(self):
+        return self.exec_context == 0
 
-   def isSystemQueueSteal(self):
-      return self.victim_vp_id == SYSTEM_QUEUE_VP
+    def isSystemQueueSteal(self):
+        return self.victim_vp_id == SYSTEM_QUEUE_VP
 
-   def row_header(self):
-      # first, establish max length
-      header = ''
-      length = str(dbp_Select_EventInfo.__max_length__)
-      header += ('{:>' + length + '}  ').format('kernel_type')
-      header += ('{:>' + length + '}  ').format('kernel_name')
-      header += ('{:>' + length + '}  ').format('vp_id')
-      header += ('{:>' + length + '}  ').format('th_id')
-      header += ('{:>' + length + '}  ').format('vict_vp_id')
-      header += ('{:>' + length + '}  ').format('vict_th_id')
-      header += ('{:>' + length + '}  ').format('exec_context')
-      header += ('{:>' + length + '}  ').format('values')
-      return header
+    def row_header(self):
+        # first, establish max length
+        header = ''
+        length = str(dbp_Select_EventInfo.__max_length__)
+        header += ('{:>' + length + '}  ').format('kernel_type')
+        header += ('{:>' + length + '}  ').format('kernel_name')
+        header += ('{:>' + length + '}  ').format('vp_id')
+        header += ('{:>' + length + '}  ').format('th_id')
+        header += ('{:>' + length + '}  ').format('vict_vp_id')
+        header += ('{:>' + length + '}  ').format('vict_th_id')
+        header += ('{:>' + length + '}  ').format('exec_context')
+        header += ('{:>' + length + '}  ').format('values')
+        return header
 
-   def __repr__(self):
-      rv = ''
-      length = str(dbp_Select_EventInfo.__max_length__)
-      rv += ('{:>' + length + '}  ').format(self.kernel_type)
-      rv += ('{:>' + length + '}  ').format(self.kernel_name)
-      rv += ('{:>' + length + '}  ').format(self.vp_id)
-      rv += ('{:>' + length + '}  ').format(self.th_id)
-      rv += ('{:>' + length + '}  ').format(self.victim_vp_id)
-      rv += ('{:>' + length + '}  ').format(self.victim_th_id)
-      rv += ('{:>' + length + '}  ').format(self.exec_context)
+    def __repr__(self):
+        rv = ''
+        length = str(dbp_Select_EventInfo.__max_length__)
+        rv += ('{:>' + length + '}  ').format(self.kernel_type)
+        rv += ('{:>' + length + '}  ').format(self.kernel_name)
+        rv += ('{:>' + length + '}  ').format(self.vp_id)
+        rv += ('{:>' + length + '}  ').format(self.th_id)
+        rv += ('{:>' + length + '}  ').format(self.victim_vp_id)
+        rv += ('{:>' + length + '}  ').format(self.victim_th_id)
+        rv += ('{:>' + length + '}  ').format(self.exec_context)
 
-      for value in self.values:
-         rv += ('{:>' + length + '}  ').format(value)
-      return rv
+        for value in self.values:
+            rv += ('{:>' + length + '}  ').format(value)
+        return rv
 
 class dbp_Socket_EventInfo:
-   __max_length__ = 0
-   def __init__(self, vp_id, th_id, values):
-      self.vp_id = vp_id
-      self.th_id = th_id
-      self.values = values
+    __max_length__ = 0
+    def __init__(self, vp_id, th_id, values):
+        self.vp_id = vp_id
+        self.th_id = th_id
+        self.values = values
 
-      # set global max length
-      for attr, val in vars(self).items():
-         if len(attr) > dbp_Socket_EventInfo.__max_length__:
-            dbp_Socket_EventInfo.__max_length__ = len(attr)
-         # values that we don't want printed generically
-         elif attr == 'values':
-            for value in val:
-               if len(str(value)) > dbp_Socket_EventInfo.__max_length__:
-                  dbp_Socket_EventInfo.__max_length__ = len(str(value))
-         elif len(str(val)) > dbp_Socket_EventInfo.__max_length__:
-            dbp_Socket_EventInfo.__max_length__ = len(str(val))
+        # set global max length
+        for attr, val in vars(self).items():
+            if len(attr) > dbp_Socket_EventInfo.__max_length__:
+                dbp_Socket_EventInfo.__max_length__ = len(attr)
+            # values that we don't want printed generically
+            elif attr == 'values':
+                for value in val:
+                    if len(str(value)) > dbp_Socket_EventInfo.__max_length__:
+                        dbp_Socket_EventInfo.__max_length__ = len(str(value))
+            elif len(str(val)) > dbp_Socket_EventInfo.__max_length__:
+                dbp_Socket_EventInfo.__max_length__ = len(str(val))
 
-   def row_header(self):
-      # first, establish max length
-      header = ''
-      length = str(dbp_Socket_EventInfo.__max_length__)
-      header += ('{:>' + length + '}  ').format('vp_id')
-      header += ('{:>' + length + '}  ').format('th_id')
-      header += ('{:>' + length + '}  ').format('values')
-      return header
+    def row_header(self):
+        # first, establish max length
+        header = ''
+        length = str(dbp_Socket_EventInfo.__max_length__)
+        header += ('{:>' + length + '}  ').format('vp_id')
+        header += ('{:>' + length + '}  ').format('th_id')
+        header += ('{:>' + length + '}  ').format('values')
+        return header
 
-   def __repr__(self):
-      rv = ''
-      length = str(dbp_Socket_EventInfo.__max_length__)
-      rv += ('{:>' + length + '}  ').format(self.vp_id)
-      rv += ('{:>' + length + '}  ').format(self.th_id)
-      for value in self.values:
-         rv += ('{:>' + length + '}  ').format(value)
-      return rv
+    def __repr__(self):
+        rv = ''
+        length = str(dbp_Socket_EventInfo.__max_length__)
+        rv += ('{:>' + length + '}  ').format(self.vp_id)
+        rv += ('{:>' + length + '}  ').format(self.th_id)
+        for value in self.values:
+            rv += ('{:>' + length + '}  ').format(value)
+        return rv
 
