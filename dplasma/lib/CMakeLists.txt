@@ -54,6 +54,7 @@ set(JDF
   zgetrf_qrf.jdf     ztrsmpl_qrf.jdf
   zungqr.jdf
   zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
+  zunmqr_param_LC.jdf
   zlange_inf_cyclic.jdf
   zlange_one_cyclic.jdf
   zlange_max_cyclic.jdf
@@ -121,15 +122,19 @@ set(SOURCES
   zgeqrf_wrapper.c
   zgeqrf_param_wrapper.c
   zgetrf_hincpiv_wrapper.c ztrsmpl_hincpiv_wrapper.c
-#  zgetrf_hpp_wrapper.c     ztrsmpl_hpp_wrapper.c    
-#  zgetrf_hpp2_wrapper.c    ztrsmpl_hpp2_wrapper.c   
+#  zgetrf_hpp_wrapper.c     ztrsmpl_hpp_wrapper.c
+#  zgetrf_hpp2_wrapper.c    ztrsmpl_hpp2_wrapper.c
   zgetrf_qrf_wrapper.c     ztrsmpl_qrf_wrapper.c
   zungqr_param_wrapper.c
+  zgeqrs_wrapper.c
+  zgeqrs_param_wrapper.c
   zgelqf_wrapper.c
   zherbt_wrapper.c
   zhbrdt_wrapper.c
   zungqr_wrapper.c
+  zungqr_param_wrapper.c
   zunmqr_wrapper.c
+  zunmqr_param_wrapper.c
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"

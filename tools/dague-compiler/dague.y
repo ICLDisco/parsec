@@ -34,7 +34,7 @@ static void yyerror(YYLTYPE *locp,
 #endif  /* defined(YYPURE) && YYPURE */
                     char const *msg)
 {
-    if(locp->first_line) {
+    if((NULL != locp) && locp->first_line) {
         fprintf(stderr, "parse error at (%d) %d.%d-%d.%d: %s\n",
                 current_lineno, locp->first_line, locp->first_column,
                 locp->last_line, locp->last_column, msg);
