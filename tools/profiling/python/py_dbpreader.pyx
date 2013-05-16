@@ -168,9 +168,9 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                                 cast_socket_info.th_id,
                                 [cast_socket_info.values[x] for x
                                  in range(cast_socket_info.values_len)])
-                            if not stats.papi_stats.get(SocketStats.name, None):
-                                stats.papi_stats[SocketStats.name] = SocketStats()
-                            pstats = stats.papi_stats[SocketStats.name]
+                            if not stats.papi_stats.get(SocketStats.class_name, None):
+                                stats.papi_stats[SocketStats.class_name] = SocketStats()
+                            pstats = stats.papi_stats[SocketStats.class_name]
                             pstats.count += 1
                             pstats.duration += event.duration
                             pstats.l3_exc_misses  += event.info.values[0]

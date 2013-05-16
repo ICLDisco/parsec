@@ -50,12 +50,12 @@ def generate_trial_sets(write_pending=True, extra_args = []):
     # customize this section to your heart's content!
     #
     # defaults for ig:
-    execs = ['dgetrf'] #, 'dgetrf_incpiv'] #, 'dpotrf', 'dgeqrf' ]
+    execs = ['dpotrf'] #, 'dgetrf_incpiv'] #, 'dpotrf', 'dgeqrf' ]
     schedulers = ['AP', 'GD', 'LTQ', 'LFQ', 'PBQ']
     minNumCores = 0 # default to using them all
     maxNumCores = 0
-    minN = 8000
-    maxN = 17000
+    minN = 6000
+    maxN = 21400
     NBs = [160, 188, 200, 216, 256]
     IBdivs = None    # use defaults
     Ns = None        # generated based on tile size
@@ -63,15 +63,15 @@ def generate_trial_sets(write_pending=True, extra_args = []):
     #
     # overrides
     #
-    IBdivs = [1,2,4,8,11] # None to use default per exec
+#    IBdivs = [1,2,4,8,11] # None to use default per exec
 
-    IBdivs = [2, 4]
-    NBs = [168, 188, 256, 380, 400]        # None to use defaults
+#    IBdivs = [2, 4]
+    NBs = [180, 380, 400]        # None to use defaults
 
 #    Ns = [15360]
 #    NBs = [180, 200, 360, 380]
-    NBs = [256]
-    IBdivs = [1,2,8]
+#    NBs = [256]
+#    IBdivs = [1,2,8]
     IBdivs = [0]
     #
     # end customizable param section
@@ -296,17 +296,22 @@ def run_trial_set_in_process(my_pipe, testingDir='.'):
             variance, trial_set.avgTime = online_math.online_variance_mean(timeSet)
             trial_set.Tstddev = math.sqrt(variance)
             print(trial_set) # realtime progress report
-            trial_set.pickle(outputBaseDir + os.sep + trial_set.uniqueName() + '.set')
-            safe_unlink([outputBaseDir + os.sep +
-                         trial.uniqueName() + '.trial'
-                         for trial in trial_set],
-                        report_error=False)
-            # move 'pending' to 'rerun' in case a later re-run of the entire group is necessary
-            if os.path.exists(outputBaseDir + os.sep + pending_filename):
-                shutil.move(outputBaseDir + os.sep + pending_filename,
-                            outputBaseDir + os.sep +
-                            pending_filename.replace('pending', 'rerun'))
-            set_finished = True
+            while not set_finished:
+                try:
+                    trial_set.pickle(outputBaseDir + os.sep + trial_set.uniqueName() + '.set')
+                    # move 'pending' to 'rerun' in case a later re-run of the entire group is necessary
+                    if os.path.exists(outputBaseDir + os.sep + pending_filename):
+                        shutil.move(outputBaseDir + os.sep + pending_filename,
+                                    outputBaseDir + os.sep +
+                                    pending_filename.replace('pending', 'rerun'))
+                    safe_unlink([outputBaseDir + os.sep +
+                                 trial.uniqueName() + '.trial'
+                                 for trial in trial_set],
+                                report_error=False)
+                    set_finished = True
+                except KeyboardInterrupt:
+                    print('Currently writing files. Cannot interrupt.')
+                    
         elif stddev_fails < max_stddev_fails: # no good, try again
             stddev_fails += 1
             extra_trials.extend(trial_set[:])
@@ -398,12 +403,19 @@ if __name__ == '__main__':
     safe_unlink(glob.glob(testingDir + os.sep + 'testing_*.profile'))
 
     if generate or list_only:
-        trial_sets = generate_trial_sets(write_pending = not list_only,
+        generate_trial_sets(write_pending = not list_only,
                                          extra_args = extra_args)
     if use_rerun or use_pending:
         pickles = []
         if use_rerun:
-            pickles.extend(glob.glob(outputBaseDir + os.sep + 'rerun.*'))
+            while use_rerun:
+                try:
+                    reruns = glob.glob(outputBaseDir + os.sep + 'rerun.*')
+                    for rerun in reruns:
+                        shutil.move(rerun, rerun.replace('rerun', 'pending'))
+                    use_rerun = False # we're done with it now
+                except KeyboardInterrupt:
+                    print('Currently moving files. Cannot interrupt.')
         if use_pending:
             pickles.extend(glob.glob(outputBaseDir + os.sep + 'pending.*'))
         if use_files:
@@ -419,5 +431,4 @@ if __name__ == '__main__':
         trial_sets.sort(key = lambda tset: (tset.sched))
         trial_sets.sort(key = lambda tset: (tset.ex, tset.N, tset.NB, tset.IB), reverse=True)
             
-    if not (list_only):
         spawn_trial_set_processes(trial_sets, testingDir = testingDir)
