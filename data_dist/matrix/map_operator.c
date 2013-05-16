@@ -517,17 +517,5 @@ dague_map_operator_New(const tiled_matrix_desc_t* src,
 
 void dague_map_operator_Destruct( struct dague_handle_t* o )
 {
-#if defined(DAGUE_PROF_TRACE)
-    char* filename = NULL;
-#if defined(HAVE_MPI)
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    asprintf(&filename, "%s.%d.profile", "operator", rank);
-#else
-    asprintf(&filename, "%s.profile", "operator");
-#endif
-    dague_profiling_dump_dbp(filename);
-    free(filename);
-#endif  /* defined(DAGUE_PROF_TRACE) */
     (void)o;
 }
