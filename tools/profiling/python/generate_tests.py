@@ -102,11 +102,11 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
                                 os.mkdir(output_base_dir)
                             trial_set = TrialSet(hostname, ex, N, cores,
                                                  NB, IB, scheduler, extra_args)
-                            print(trial_set.uniqueName() + ' ' + str(extra_args))
+                            print(trial_set.shared_name() + ' ' + str(extra_args))
                             if not list_only:
                                 # save planned file in case everything dies
                                 trial_set.pickle(output_base_dir + os.sep + 'pending.' +
-                                                 trial_set.name())
+                                                 trial_set.shared_name())
                             trial_sets.append(trial_set)
     return trial_sets
     

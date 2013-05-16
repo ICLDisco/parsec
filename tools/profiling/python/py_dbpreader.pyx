@@ -8,10 +8,10 @@
 #
 # Be SURE to build this against the same version of Python as you have built Cython itself.
 # Contrasting versions will likely lead to odd errors about Unicode functions.
-
 import sys
 from libc.stdlib cimport malloc, free
-from parsec_profile import * # the pure Python classes
+from profiling      import * # the pure Python classes
+from profiling_info import * # the pure Python classes representing custom INFO structs
 
 # this is the public Python interface function. call it.
 cpdef readProfile(filenames):
@@ -128,9 +128,9 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                                 cast_exec_info.th_id,
                                 [cast_exec_info.values[x] for x
                                  in range(cast_exec_info.values_len)])
-                            if not stats.papi_stats.get(kernel_name, None):
-                                stats.papi_stats[kernel_name] = ExecSelectStats(kernel_name)
-                            pstats = stats.papi_stats[kernel_name]
+                            if not stats.exec_stats.get(kernel_name, None):
+                                stats.exec_stats[kernel_name] = ExecSelectStats(kernel_name)
+                            pstats = stats.exec_stats[kernel_name]
                             pstats.count += 1
                             pstats.duration += event.duration
                             pstats.l1_misses += event.info.values[0]
@@ -151,9 +151,9 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                                 cast_select_info.exec_context,
                                 [cast_select_info.values[x] for x
                                  in range(cast_select_info.values_len)])
-                            if not stats.papi_stats.get(kernel_name, None):
-                                stats.papi_stats[kernel_name] = ExecSelectStats(kernel_name)
-                            pstats = stats.papi_stats[kernel_name]
+                            if not stats.select_stats.get(kernel_name, None):
+                                stats.select_stats[kernel_name] = ExecSelectStats(kernel_name)
+                            pstats = stats.select_stats[kernel_name]
                             pstats.count += 1
                             pstats.duration += event.duration
                             pstats.l1_misses += event.info.values[0]
@@ -168,9 +168,9 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                                 cast_socket_info.th_id,
                                 [cast_socket_info.values[x] for x
                                  in range(cast_socket_info.values_len)])
-                            if not stats.papi_stats.get(SocketStats.class_name, None):
-                                stats.papi_stats[SocketStats.class_name] = SocketStats()
-                            pstats = stats.papi_stats[SocketStats.class_name]
+                            if not stats.socket_stats.get(SocketStats.class_name, None):
+                                stats.socket_stats[SocketStats.class_name] = SocketStats()
+                            pstats = stats.socket_stats[SocketStats.class_name]
                             pstats.count += 1
                             pstats.duration += event.duration
                             pstats.l3_exc_misses  += event.info.values[0]

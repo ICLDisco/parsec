@@ -3,7 +3,10 @@ import time
 import cPickle
 
 class Trial(object):
-    def __init__(self, ident, ex, N, cores, NB, IB, sched, trialNum, gflops, walltime):
+    class_version = 1.0 # added a version
+    class_version = 1.1 # renamed some attributes
+    def __init__(self, ident, ex, N, cores, NB, IB, sched, trial_num, perf, walltime):
+        self.__version__ = self.__class__.class_version
         self.ident = ident
         self.ex = ex
         self.N = int(N)
@@ -11,40 +14,46 @@ class Trial(object):
         self.NB = int(NB)
         self.IB = int(IB)
         self.sched = sched
-        self.trialNum = int(trialNum)
-        self.gflops = float(gflops)
-        self.walltime = walltime
-        self.extraOutput = ''
-        self.timestamp = dt.datetime.now().isoformat(sep='_')
-        self.unix_time = int(time.time())
+        self.trial_num = int(trial_num)
+        self.perf = float(perf)
+        self.time = walltime
+        self.extra_output = ''
+        self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
+        self.unix_timestamp = int(time.time())
         self.profile = None # may not have one
-    def timestamp(self):
-        self.timestamp = dt.datetime.now().isoformat(sep='_')
-        self.unix_time = int(time.time())
-    def getExec(self):
-        if self.ex:
-            return self.ex
-        elif self.name:
-            return self.name
-        elif self.executable:
-            return self.executable
-        else:
-            return None
-    def getSched(self):
-        if self.sched:
-            return self.sched
-        elif self.scheduler:
-            return self.scheduler
-        else:
-            return None
-    def uniqueName(self):
+        self.profile_event_stats = None
+    def stamp_time(self):
+        self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
+        self.unix_timestamp = int(time.time())
+    def unique_name(self):
         return '{:_<6}_({}-{:0>3})_{:0>5}_{:0>4}_{:0>4}_{:_<3}_{:0>3}_{:0>3}_{:.2f}'.format(
             self.ex, self.ident, self.cores, self.N, self.NB, self.IB,
-            self.sched, int(self.gflops), self.trialNum, self.unix_time)
+            self.sched, int(self.perf), self.trial_num, self.unix_timestamp)
     def __repr__(self):
         return self.uniqueName()
+    def __setstate__(self, dictionary): # the unpickler shim
+        self.__dict__.update(dictionary)
+        if not hasattr(self, '__version__'):
+            self.__version__ = 1.0
+            if hasattr(self, 'name'):
+                self.ex = self.name
+            elif hasattr(self, 'executable'):
+                self.ex = self.executable
+            if hasattr(self, 'scheduler'):
+                self.sched = self.scheduler
+            if not hasattr(self, 'ident'):
+                self.ident = 'NO_ID'
+        if self.__version__ < 1.1:
+            self.perf = self.gflops
+            self.time = self.walltime
+            self.unix_timestamp = self.unix_time
+            self.iso_timestamp = self.timestamp
+            self.extra_output = self.extraOutput
+            self.__version__ = 1.1
 
 class TrialSet(list):
+    class_version = 1.0 # added a version
+    class_version = 1.1 # renamed various attributes
     # class members
     __unloaded_profile_token__ = 'not loaded'
     @staticmethod
@@ -76,6 +85,7 @@ class TrialSet(list):
             trial.profile = profile
 
     def __init__(self, ident, ex, N, cores=0, NB=0, IB=0, sched='LFQ', extra_args=[]):
+        self.__version__ = self.__class__.class_version
         self.ident = ident
         self.cores = int(cores)
         self.ex = ex
@@ -83,17 +93,17 @@ class TrialSet(list):
         self.NB = int(NB)
         self.IB = int(IB)
         self.sched = sched
-        self.avgGflops = 0.0
-        self.Gstddev = 0.0
-        self.avgTime = 0.0
-        self.Tstddev = 0.0
-        self.timestamp = dt.datetime.now().isoformat(sep='_')
-        self.unix_time = int(time.time())
+        self.perf_avg = 0.0
+        self.perf_sdv = 0.0
+        self.time_avg = 0.0
+        self.time_sdv = 0.0
+        self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
+        self.unix_timestamp = int(time.time())
         self.extra_args = extra_args
-    def new_timestamp(self):
-        self.timestamp = dt.datetime.now().isoformat(sep='_')
-        self.unix_time = int(time.time())
-    def genCmd(self):
+    def stamp_time(self):
+        self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
+        self.unix_timestamp = int(time.time())
+    def generate_cmd(self):
         cmd = 'testing_' + self.ex
         args = []
         args.append('-N')
@@ -112,11 +122,11 @@ class TrialSet(list):
         if self.extra_args:
             args.extend(self.extra_args)
         return cmd, args
-    def percentStdDev(self, stddev=None, avg=None):
+    def percent_sdv(self, stddev=None, avg=None):
         if not avg:
-            avg = self.avgGflops
+            avg = self.perf_avg
         if not stddev:
-            stddev = self.Gstddev
+            stddev = self.perf_sdv
         if avg == 0:
             return 0
         else:
@@ -124,15 +134,32 @@ class TrialSet(list):
     def __str__(self):
         return ('{} {: <3} N: {: >5} cores: {: >3} nb: {: >4} ib: {: >4} '.format(
             self.ex, self.sched, self.N, self.cores, self.NB, self.IB) +
-                ' @@@@@  time(sd/avg): {: >4.2f} / {: >5.1f} '.format(self.Tstddev, self.avgTime) +
+                ' @@@@@  time(sd/avg): {: >4.2f} / {: >5.1f} '.format(self.time_sdv, self.time_avg) +
                 ' #####  gflops(sd/avg[rsd]): {: >4.2f} / {: >5.1f} [{: >2d}]'.format(
-                 self.Gstddev, self.avgGflops, self.percentStdDev()))
+                 self.perf_sdv, self.perf_avg, self.percent_sdv()))
+    def shared_name(self):
+        return '{}_{:0>3}_{:_<6}_N{:0>5}_n{:0>4}_i{:0>4}_{:_<3}'.format(
+            self.ident, self.cores,
+            self.ex, self.N, self.NB, self.IB, self.sched)
     def name(self):
-        return '{}_{:0>3}_{:_<6}_N{:0>5}_n{:0>4}_i{:0>4}_{:_<3}_gfl{:0>3}_rsd{:0>3}_len{:0>3}'.format(
-            self.ident if self.ident else 'TRIALSET', self.cores,
-            self.ex, self.N, self.NB, self.IB, self.sched,
-            int(self.avgGflops), self.percentStdDev(), len(self))
-    def uniqueName(self):
-        return self.name() + '_' + str(self.unix_time)
+        return self.shared_name() + '_gfl{:0>3}_rsd{:0>3}_len{:0>3}'.format(
+            int(self.perf_avg), self.percent_sdv(), len(self))
+    def unique_name(self):
+        return self.name() + '_' + str(self.unix_timestamp)
+    def __setstate__(self, dictionary): # the unpickler shim
+        self.__dict__.update(dictionary)
+        if not hasattr(self, '__version__'):
+            if not hasattr(self, 'ident'):
+                self.ident = 'NO_ID'
+            self.__version__ = 1.0
+        if self.__version__ < 1.1:
+            self.perf_avg = self.avgGflops
+            self.perf_sdv = self.Gstddev
+            self.time_avg = self.avgTime
+            self.time_sdv = self.Tstddev
+            self.unix_timestamp = self.unix_time
+            self.iso_timestamp = self.timestamp
+            self.__version__ = 1.1
+            
 
 
