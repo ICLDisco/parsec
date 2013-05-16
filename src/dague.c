@@ -19,6 +19,11 @@
 #endif  /* defined(HAVE_GETOPT_H) */
 #include <dague/ayudame.h>
 
+#include "dague/mca/pins/pins.h"
+#ifdef HAVE_PAPI
+#include <papi.h>
+#endif
+
 #include <dague/utils/output.h>
 #include "data.h"
 #include "list.h"
@@ -150,7 +155,6 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
     DEBUG2(("VP %i : bind thread %i.%i on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto));
-
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
         return NULL;
@@ -163,6 +167,15 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     eu->sched_nb_tasks_done = 0;
 #endif
+
+#if defined(HAVE_PAPI)
+    // PAPI INIT
+    int rv;
+    rv = PAPI_register_thread();
+    if (rv != PAPI_OK) 
+	    DEBUG(("PAPI_register_thread failed with error %s\n", PAPI_strerror(rv)));
+//	printf("PAPI_register_thread %d: %s\n", eu->th_id, PAPI_strerror(rv));
+#endif    
 
     eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
@@ -181,6 +194,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #if defined(DAGUE_SIM)
     eu->largest_simulation_date = 0;
 #endif
+
+    PINS_THREAD_INIT(eu);
 
     /* The main thread of VP 0 will go back to the user level */
     if( DAGUE_THREAD_IS_MASTER(eu) ) {
@@ -237,10 +252,17 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
 
+#if defined(HAVE_PAPI)
+    PAPI_library_init(PAPI_VER_CURRENT); // PETER: this has to happen before threads get created
+	PAPI_set_debug(PAPI_VERB_ECONT);
+    int t_init = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self )); // PETER is this the right place? it needs protection
+    if (t_init != PAPI_OK)
+	    DEBUG(("PAPI Thread Init failed with error code %d (%s)!\n", t_init, PAPI_strerror(t_init)));
+#endif
+
     dague_installdirs_open();
     dague_mca_param_init();
     dague_output_init();
-
     mca_components_repository_init();
 
 #if defined(HAVE_HWLOC)
@@ -442,6 +464,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
 #endif  /* DAGUE_PROF_TRACE */
 
+    /* Initialize Performance Instrumentation (PINS) */
+    PINS_INIT(context);
+
     dague_devices_init(context);
     /* By now let's add one device for the CPUs */
     {
@@ -541,7 +566,7 @@ static void dague_vp_fini( dague_vp_t *vp )
 int dague_fini( dague_context_t** pcontext )
 {
     dague_context_t* context = *pcontext;
-    int nb_total_comp_threads, t, p;
+    int nb_total_comp_threads, t, p, c;
 
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {
@@ -551,6 +576,18 @@ int dague_fini( dague_context_t** pcontext )
     /* Now wait until every thread is back */
     context->__dague_internal_finalization_in_progress = 1;
     dague_barrier_wait( &(context->barrier) );
+
+    for (p = 0; p < context->nb_vp; p++) {
+        for (c = 0; c < context->virtual_processes[p]->nb_cores; c++) {
+            PINS_THREAD_FINI(context->virtual_processes[p]->execution_units[c]);
+        }
+    }
+
+    PINS_FINI(context);
+
+#ifdef DAGUE_PROF_TRACE
+    dague_profiling_dbp_dump();
+#endif  /* DAGUE_PROF_TRACE */
 
     /* The first execution unit is for the master thread */
     if( nb_total_comp_threads > 1 ) {

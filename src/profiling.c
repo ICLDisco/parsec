@@ -435,10 +435,9 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key,
     assert( this_event_length < event_avail_space );
     if( context->next_event_position + this_event_length > event_avail_space ) {
         if( switch_event_buffer(context) == -1 ) {
-            return -1;
+            return -2;
         }
     }
-
     this_event = (dague_profiling_output_t *)&context->current_events_buffer->buffer[context->next_event_position];
     assert( context->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
     context->current_events_buffer->this_buffer.nb_events++;

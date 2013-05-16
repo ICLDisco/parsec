@@ -23,13 +23,18 @@ pkg_check_modules(PC_PAPI QUIET papi)
 set(PAPI_DEFINITIONS ${PC_PAPI_CFLAGS_OTHER} )
 
 find_path(PAPI_INCLUDE_DIR papi.h
-          PATHS ${PAPI_DIR}/include
-          HINTS ${PC_PAPI_INCLUDEDIR} ${PC_PAPI_INCLUDE_DIRS} 
+          PATHS ${PAPI_DIR}/include ENV PAPI_INCLUDE_DIR
+          HINTS ${PC_PAPI_INCLUDEDIR} ${PC_PAPI_INCLUDE_DIRS} ${PAPI_DIR}/include
           DOC "Include path for PAPI")
+
+#get_cmake_property(_variableNames VARIABLES)
+#foreach (_variableName ${_variableNames})
+#    message(STATUS "${_variableName}=${${_variableName}}")
+#endforeach()
 
 find_library(PAPI_LIBRARY NAMES papi
              PATHS ${PAPI_DIR}/lib
-             HINTS ${PC_PAPI_LIBDIR} ${PC_PAPI_LIBRARY_DIRS} 
+             HINTS ${PC_PAPI_LIBDIR} ${PC_PAPI_LIBRARY_DIRS} ${PAPI_DIR}/lib
              DOC "Library path for PAPI")
 
 set(PAPI_LIBRARIES ${PAPI_LIBRARY} )

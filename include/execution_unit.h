@@ -20,6 +20,16 @@
 #include "profiling.h"
 #include "barrier.h"
 
+#ifdef HAVE_PAPI
+/* for PAPI event sets in execution_unit */
+typedef enum PAPI_EVENTSETS {
+	EXEC_SET,
+	SELECT_SET,
+	PER_SOCKET_SET,
+	EVENTSETS_COUNT
+} PAPI_EVENTSETS;
+#endif // HAVE_PAPI
+
 /**
  *  Computational Thread-specific structure
  */
@@ -40,6 +50,14 @@ struct dague_execution_unit_s {
 #if defined(DAGUE_SIM)
     int largest_simulation_date;
 #endif
+
+#if defined(HAVE_PAPI)
+	int papi_eventsets[EVENTSETS_COUNT];
+#endif /* HAVE_PAPI */
+
+#if defined(PINS_ENABLE) 
+	long * steal_counters; // this is for Stephanie and print_steals PINS module
+#endif // PINS_ENABLE
 
     struct dague_vp_s      *virtual_process;   /**< Backlink to the virtual process that holds this thread */
     /**

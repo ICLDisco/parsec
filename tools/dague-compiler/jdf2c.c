@@ -1061,14 +1061,12 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
     coutput("#include <dague.h>\n"
             "#include <scheduling.h>\n"
+            "#include <dague/mca/pins/pins.h>\n"
             "#include <remote_dep.h>\n"
             "#include <datarepo.h>\n"
             "#include <data.h>\n"
             "#include <dague_prof_grapher.h>\n"
             "#include <mempool.h>\n"
-            "#if defined(HAVE_PAPI)\n"
-            "#include <papime.h>\n"
-            "#endif\n"
             "#include \"%s.h\"\n\n"
             "#define DAGUE_%s_NB_FUNCTIONS %d\n"
             "#define DAGUE_%s_NB_DATA %d\n"
@@ -2707,6 +2705,12 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "  uint32_t supported_dev = 0;\n"
             "  __dague_%s_internal_handle_t* __dague_handle = (__dague_%s_internal_handle_t*)dague_handle;\n"
             "  dague_handle->context = context;\n"
+            "  /* Create the PINS DATA pointers if PINS is enabled */\n"
+            "#  if defined(PINS_ENABLE)\n"
+            "  __dague_handle->super.super.context = context;\n"
+            "  (void)pins_handle_init(&__dague_handle->super.super);\n"
+            "#  endif /* defined(PINS_ENABLE) */\n"
+            " \n"
             "  dague_handle->devices_mask = 0;  /* All devices support disabled by default */\n"
             "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
             "    dague_device_t* device = dague_devices_get(_i);\n"
@@ -2985,7 +2989,6 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     coutput("  return (dague_%s_handle_t*)__dague_handle;\n"
             "}\n\n",
             jdf_basename);
-
 
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -3522,28 +3525,6 @@ static void jdf_generate_code_dry_run_after(const jdf_t *jdf, const jdf_function
 }
 
 
-static void jdf_generate_code_papi_events_before(const jdf_t *jdf, const jdf_function_entry_t *f)
-{
-    (void)jdf;
-    (void)f;
-
-    coutput("  /** PAPI events */\n"
-	    "#if defined(HAVE_PAPI)\n"
-	    "  papime_start_thread_counters();\n"
-	    "#endif\n");
-}
-
-static void jdf_generate_code_papi_events_after(const jdf_t *jdf, const jdf_function_entry_t *f)
-{
-    (void)jdf;
-    (void)f;
-
-    coutput("  /** PAPI events */\n"
-            "#if defined(HAVE_PAPI)\n"
-	    "  papime_stop_thread_counters();\n"
-	    "#endif\n");
-}
-
 static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_function_entry_t *f, const char* context_name)
 {
     (void)jdf;
@@ -3790,7 +3771,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
             "    context->largest_simulation_date = this_task->sim_exec_date;\n"
             "#endif\n");
 
-    jdf_generate_code_papi_events_before(jdf, f);
     jdf_generate_code_cache_awareness_update(jdf, f);
 
     jdf_generate_code_dry_run_before(jdf, f);
@@ -3862,7 +3842,6 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
                 "                        this_task->dague_handle->profiling_array[2*this_task->function->function_id+1],\n"
                 "                        this_task);\n");
     }
-    jdf_generate_code_papi_events_after(jdf, f);
 
     coutput("#if defined(DISTRIBUTED)\n"
             "  /** If not working on distributed, there is no risk that data is not in place */\n");

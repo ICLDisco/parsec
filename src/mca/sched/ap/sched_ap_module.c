@@ -21,6 +21,8 @@
 #include "dague/mca/sched/sched.h"
 #include "dague/mca/sched/ap/sched_ap.h"
 #include "dequeue.h"
+#include "dague/mca/pins/pins.h"
+static int SYSTEM_NEIGHBOR = 0;
 
 /*
  * Module functions
@@ -47,6 +49,8 @@ static int sched_ap_install( dague_context_t *master )
     dague_vp_t *vp;
     dague_execution_unit_t *eu;
 
+	SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores; // defined for instrumentation
+
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
         for(t = 0; t < vp->nb_cores; t++) {
@@ -65,7 +69,11 @@ static int sched_ap_install( dague_context_t *master )
 
 static dague_execution_context_t *sched_ap_select( dague_execution_unit_t *eu_context )
 {
-    return (dague_execution_context_t*)dague_list_pop_front((dague_list_t*)eu_context->scheduler_object);
+    PINS(SELECT_BEGIN, eu_context, NULL, NULL);
+	dague_execution_context_t * context = 
+		(dague_execution_context_t*)dague_list_pop_front((dague_list_t*)eu_context->scheduler_object);
+    PINS(SELECT_END, eu_context, context, (void *)SYSTEM_NEIGHBOR);
+	return context;
 }
 
 static int sched_ap_schedule( dague_execution_unit_t* eu_context,

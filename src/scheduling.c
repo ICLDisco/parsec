@@ -13,6 +13,8 @@
 #include "datarepo.h"
 #include "execution_unit.h"
 #include "vpmap.h"
+#include "src/mca/pins/pins.h"
+
 #include "dague/ayudame.h"
 
 #include <signal.h>
@@ -120,6 +122,7 @@ int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context
 
     assert( dague_handle->nb_local_tasks != 0 );
     remaining = dague_atomic_dec_32b( &(dague_handle->nb_local_tasks) );
+
     if( 0 == remaining ) {
         /* A dague object has been completed. Call the attached callback if
          * necessary, then update the main engine.
@@ -140,6 +143,7 @@ void dague_remove_scheduler( dague_context_t *dague )
 {
     if( NULL != current_scheduler ) {
         current_scheduler->module.remove( dague );
+        //        pins_fini_steals(dague); // PETER TODO where does this actually belong!?
         assert( NULL != scheduler_component );
         mca_component_close( (mca_base_component_t*)scheduler_component );
         current_scheduler = NULL;
@@ -238,6 +242,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
      */
+    //    PINS(PARSEC_SCHEDULED, eu_context, new_context, NULL);
 
     return ret;
 }
@@ -339,8 +344,6 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
         if( exec_context != NULL ) {
-            // DEBUG PETER
-            assert(NULL != exec_context->function);
             misses_in_a_row = 0;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
@@ -358,7 +361,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             // MY MODS
             TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
             TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
-
+            PINS(EXEC_BEGIN, eu_context, exec_context, NULL);
             switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
             case DAGUE_HOOK_RETURN_DONE:
                 /* We're good to go ... */
@@ -370,6 +373,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
+            PINS(EXEC_END, eu_context, exec_context, NULL);
 
         } else {
             misses_in_a_row++;
@@ -403,6 +407,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 
  finalize_progress:
+
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     STATUS(("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
             eu_context->th_id, eu_context->virtual_process->vp_id, nbiterations, (long long unsigned int)found_local,

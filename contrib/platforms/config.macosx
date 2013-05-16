@@ -26,6 +26,10 @@ elif [ "x$USER" == "xadanalis" ]; then
     CC=$GCCDIR/gcc-mp-4.7
     CXX=$GCCDIR/g++-mp-4.7
     FC=$GCCDIR/gfortran-mp-4.7
+
+elif [ "x$USER" == "xpetergaultney" ]; then 
+    USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_WITH_MPI=OFF -DDPLASMA_PRECISIONS=d -DPINS_ENABLE=ON"
+    PLASMA_DIR=${HOME}/workspace/plasma_2_5_0
 fi
 
 

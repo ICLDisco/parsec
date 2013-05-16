@@ -48,11 +48,13 @@ cdef extern from "dbpreader.h":
    char * dbp_info_get_value(dbp_info_t * info)
 
    dbp_multifile_reader_t* dbp_reader_open_files(int nbfiles, char * files[])
+   dbp_multifile_reader_t* dbp_reader_open_default_files() # this one is for debugging only
    int dbp_reader_nb_files(dbp_multifile_reader_t * dbp)
    int dbp_reader_nb_dictionary_entries(dbp_multifile_reader_t * dbp)
-   int dbp_reader_worldsize(dbp_multifile_reader_t * dbp)   
+   int dbp_reader_worldsize(dbp_multifile_reader_t * dbp)
    void dbp_reader_close_files(dbp_multifile_reader_t * dbp)
-   dague_time_t dbp_reader_min_date(dbp_multifile_reader_t * dbp)   
+   void dbp_reader_dispose_reader(dbp_multifile_reader_t * dbp)
+   dague_time_t dbp_reader_min_date(dbp_multifile_reader_t * dbp)
 
    dbp_dictionary_t * dbp_reader_get_dictionary(dbp_multifile_reader_t * dbp, int did)
    char * dbp_dictionary_name(dbp_dictionary_t * dico)
@@ -89,7 +91,7 @@ cdef extern from "dbpreader.h":
 
    int dbp_event_get_key(dbp_event_t *e)
    int dbp_event_get_flags(dbp_event_t *e)
-   long long dbp_event_get_event_id(dbp_event_t *e)
+   long long int dbp_event_get_event_id(dbp_event_t *e)
    int dbp_event_get_handle_id(dbp_event_t *e)
    dague_time_t dbp_event_get_timestamp(dbp_event_t *e)
    void *dbp_event_get_info(dbp_event_t *e)
@@ -97,3 +99,46 @@ cdef extern from "dbpreader.h":
 
    # DEBUG
    void dbp_file_print(dbp_file_t* file)
+
+########################################################
+############## CUSTOM EVENT INFO SECTION ###############
+### --- add a function and/or a type to this section ###
+#### to allow for new 'info' types                ######
+
+cdef extern from "dague/mca/pins/papi_exec/pins_papi_exec.h":
+   enum: NUM_EXEC_EVENTS # allows us to grab the #define from the .h
+   enum: KERNEL_NAME_SIZE
+
+   ctypedef struct papi_exec_info_t:
+      int kernel_type
+      char kernel_name[KERNEL_NAME_SIZE]
+      int vp_id
+      int th_id
+      int values_len
+      long long values[NUM_EXEC_EVENTS] # number is inconsequential
+
+cdef extern from "dague/mca/pins/papi_select/pins_papi_select.h":
+   enum: NUM_TASK_SELECT_EVENTS # allows us to grab the #define from the .h
+   enum: SYSTEM_QUEUE_VP
+   enum: KERNEL_NAME_SIZE
+
+   ctypedef struct select_info_t:
+      int kernel_type
+      char kernel_name[KERNEL_NAME_SIZE]
+      int vp_id
+      int th_id
+      int victim_vp_id
+      int victim_th_id
+      long long exec_context
+      int values_len
+      long long values[NUM_TASK_SELECT_EVENTS] # number is inconsequential
+
+cdef extern from "dague/mca/pins/papi_socket/pins_papi_socket.h":
+   enum: NUM_SOCKET_EVENTS # allows us to grab the #define from the .h
+
+   ctypedef struct papi_socket_info_t:
+      int vp_id
+      int th_id
+      int values_len
+      long long values[NUM_SOCKET_EVENTS] # number is inconsequential
+

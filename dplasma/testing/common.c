@@ -34,6 +34,7 @@
 
 #include "dague_prof_grapher.h"
 #include "vpmap.h"
+#include "dague/mca/pins/pins.h"
 
 static char *DAGUE_SCHED_NAME[] = {
     "", /* default */
@@ -63,6 +64,9 @@ const char *uplostr[2]  = { "Upper", "Lower" };
 const char *diagstr[2]  = { "NonUnit", "Unit   " };
 const char *transstr[3] = { "N", "T", "H" };
 const char *normsstr[4] = { "Max", "One", "Inf", "Fro" };
+
+static char *mca_pins_optarg = NULL;
+static char ** delimited_string_to_strings(char * const string_of_strings, char delim);
 
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
@@ -115,7 +119,7 @@ void print_usage(void)
 
             " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
-            "    --dot          : create a dot output file (default: don't)\n"
+            "    --mca-pins     : specify the Performance Instrumentation modules to be loaded (if available), separated by commas.\n"
             "\n"
             " -v --verbose      : extra verbose output\n"
             " -h --help         : this message\n"
@@ -149,7 +153,7 @@ void print_usage(void)
             dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:m::"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -208,7 +212,7 @@ static struct option long_options[] =
     {"butlvl",      required_argument,  0, 'y'},
     {"y",           required_argument,  0, 'y'},
 
-    {"dot",         required_argument,  0, '.'},
+    {"mca-pins",    optional_argument,  0, 'm'},
 
     {"verbose",     optional_argument,  0, 'v'},
     {"v",           optional_argument,  0, 'v'},
@@ -236,7 +240,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
         (void) opt;
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
-        //       printf("%c: %s = %s\n", c, long_options[opt].name, optarg);
+        // printf("%c: %s = %s\n", c, long_options[opt].name, optarg);
         switch(c)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
@@ -300,6 +304,10 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 /* Butterfly parameters */
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
 
+            case 'm': 
+	            iparam[IPARAM_PINS] = 1;
+	            mca_pins_optarg = optarg;
+	            break;
             case 'v':
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
                 else        iparam[IPARAM_VERBOSE] = 2;
@@ -563,6 +571,12 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
         fprintf(stderr, "!!! DAGuE formally needs MPI_THREAD_SERIALIZED, but your MPI does not provide it. This is -usually- fine nonetheless\n");
 #endif
 
+#ifdef PINS_ENABLE
+	char ** modules = delimited_string_to_strings(mca_pins_optarg, ',');
+	set_allowable_pins_modules(modules); // by calling this, we limit allowable modules
+	free(modules);
+#endif // PINS_ENABLE
+
     TIME_START();
 
 #if defined(HAVE_CUDA)
@@ -617,3 +631,39 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
     (void)iparam;
 }
 
+/**
+ * Modifies array in-place by replacing delimiters with null terminator,
+ * then returns an array of pointers to the individual strings, plus one
+ * NULL pointer, which will serve as the end marker of the array.
+ * Provided initial string must be null-terminated.
+ *
+ * free() may be called on the returned pointer once the user is done with it.
+ * Note, however, that if the other string was also dynamically allocated, 
+ * it must still be free()d separately.
+ */
+static char ** delimited_string_to_strings(char * const string_of_strings, char delim) {
+	if (string_of_strings != NULL) {
+		char ** array = NULL;
+		// first, count
+		int count = 1;
+		char * pch = NULL;
+		pch = strchr(string_of_strings, delim);
+		for (; NULL != pch; count++)
+			pch = strchr(pch + sizeof(char), delim);
+		array = calloc(sizeof(char *), (count + 1));
+		// then, replace delims with \0 and put pointers in array
+		int i = 0;
+		pch = string_of_strings;
+		do {
+			array[i] = pch;
+			pch = strchr(array[i], delim);
+			if (pch != NULL) {
+				*pch = '\0';
+				pch += sizeof(char);
+			}
+		} while (++i < count);
+		return array;
+	}
+	else
+		return calloc(sizeof(char *), 1);
+}

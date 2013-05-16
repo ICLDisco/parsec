@@ -138,6 +138,13 @@ option(DAGUE_PROF_DRY_BODY
 option(DAGUE_PROF_DRY_DEP
   "Disable calls to the actual data transport; remote dependencies are notified, but no data movement takes place" OFF)
 
+### Instrumentation Options
+option(PINS_ENABLE
+  "Enable the use of the PaRSEC callback instrumentation system" ON)
+SET(CORES_PER_SOCKET 6 CACHE STRING 
+  "This is a temporary configuration parameter until dague-hwloc enables dynamic determination of this number.") # default for ig.icl
+mark_as_advanced(CORES_PER_SOCKET)
+
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 include (CMakeDetermineSystem)
@@ -403,15 +410,6 @@ IF( BUILD_DAGUE )
       set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
     endif (CUDA_FOUND)
   endif( DAGUE_GPU_WITH_CUDA )
-
-  if (DAGUE_PROF_PAPI)
-    find_package(PAPI REQUIRED)
-    set(HAVE_PAPI ${PAPI_FOUND})
-    if (PAPI_FOUND)
-      list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
-      include_directories( ${PAPI_INCLUDE_DIR} )
-    endif (PAPI_FOUND)
-  endif (DAGUE_PROF_PAPI)
 
   find_package(AYUDAME QUIET)
   set(HAVE_AYUDAME ${AYUDAME_FOUND})

@@ -173,15 +173,15 @@ static int dump_xml( const char* filename, const dbp_multifile_reader_t *dbp )
 int main(int argc, char *argv[])
 {
     dbp_multifile_reader_t *dbp;
+    int i = 0;
 
     dbp = dbp_reader_open_files(argc-1, argv+1);
-    if( NULL == dbp ) {
-        return 1;
-    }
 
     dump_xml( "out.xml", dbp);
 
     dbp_reader_close_files(dbp);
+    free(dbp);
+    dbp = NULL;
 
     return 0;
 }

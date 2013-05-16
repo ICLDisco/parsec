@@ -18,6 +18,7 @@ set(BASE_SOURCES
   utils/mca_parse_paramfile.c
   utils/mca_param.c
 )
+
 FLEX_TARGET(show_help_flex utils/show_help_lex.l ${CMAKE_CURRENT_BINARY_DIR}/show_help_lex.l.c)
 SET_SOURCE_FILES_PROPERTIES(${FLEX_show_help_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS}")
 list(APPEND BASE_SOURCES ${FLEX_show_help_flex_OUTPUTS})
@@ -30,6 +31,10 @@ list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 #   This must be read using include and not add_subdirectory because
 #   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
 include(mca/CMakeLists.txt)
+
+if( DAGUE_PROF_TRACE )
+  list(APPEND EXTRA_SOURCES profiling.c)
+endif( DAGUE_PROF_TRACE )
 
 set(SOURCES
   barrier.c
@@ -55,13 +60,6 @@ endif( HWLOC_FOUND )
 if (CUDA_FOUND)
   list(APPEND SOURCES devices/cuda/dev_cuda.c)
 endif (CUDA_FOUND)
-if (PAPI_FOUND)
-  list(APPEND SOURCES papime.c)
-endif (PAPI_FOUND)
-
-if( DAGUE_PROF_TRACE )
-  list(APPEND SOURCES profiling.c)
-endif( DAGUE_PROF_TRACE )
 
 if( DAGUE_PROF_STATS )
   list(APPEND SOURCES stats.c)
@@ -70,6 +68,8 @@ endif( DAGUE_PROF_STATS )
 if( DAGUE_PROF_GRAPHER )
   list(APPEND SOURCES dague_prof_grapher.c)
 endif( DAGUE_PROF_GRAPHER )
+
+
 
 #
 # Setup targets

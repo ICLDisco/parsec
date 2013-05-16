@@ -64,6 +64,7 @@ int
 dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, tiled_matrix_desc_t* B, PLASMA_Complex64_t *U_but_vec, int level)
 {
     int info;
+    two_dim_block_cyclic_t * B_cast = NULL;
 #if defined(DEBUG_BUTTERFLY)
     int i;
 #endif
@@ -72,13 +73,20 @@ dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, t
         dplasma_error("dplasma_zhetrs", "illegal value for \"uplo\".  Only PlasmaLower is currently supported");
     }
 
+    if ((B->dtype & two_dim_block_cyclic_type) && ! (B->dtype & sym_two_dim_block_cyclic_type)) {
+        dplasma_error("dplasma_zhetrs", "illegal type for 'B'. Should be two dim block cyclic.");
+    }
+    else {
+        B_cast = (two_dim_block_cyclic_t *)B;
+    }
+
 #if defined(DEBUG_BUTTERFLY)
     for(i=0; i<A->lm; i++){
         printf("U[%d]: %lf\n",i,creal(U_but_vec[i]));
     }
 #endif
     // B = U_but_vec^T * B 
-    multilevel_zgebmm(dague, B, U_but_vec, level, PlasmaConjTrans, HIGH_TO_LOW, &info);
+    multilevel_zgebmm(dague, B_cast, U_but_vec, level, PlasmaConjTrans, HIGH_TO_LOW, &info);
 
     if ( 1 == info ){
         fprintf(stderr,"dplasma_zhetrs() requires matrix B to be of type \"two_dim_block_cyclic_type\"\n");
@@ -90,7 +98,7 @@ dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, t
     dplasma_ztrsm( dague, PlasmaLeft, uplo, (uplo == PlasmaUpper) ? PlasmaNoTrans : PlasmaConjTrans, PlasmaUnit, 1.0, A, B );
 
     // X = U_but_vec * X  (here X is B)
-    multilevel_zgebmm(dague, B, U_but_vec, level, PlasmaNoTrans, LOW_TO_HIGH, &info);
+    multilevel_zgebmm(dague, B_cast, U_but_vec, level, PlasmaNoTrans, LOW_TO_HIGH, &info);
 
     if ( 1 == info ){
         fprintf(stderr,"dplasma_zhetrs() requires matrix B to be of type \"two_dim_block_cyclic_type\"\n");
