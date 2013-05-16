@@ -14,131 +14,19 @@ from parsec_trials import Trial, TrialSet
 import subprocess
 from multiprocessing import Process, Pipe
 from parsec_profile import *
-# also uses dbpreader_py, if available
+# also uses py_dbpreader, if available
 
 ##### global failure settings for trial set
-max_stddev_fails = 8 # don't re run too many times
-max_rsd = 4 # anything above this and we want to re-run
+max_rsd = 2 # anything above this and we want to re-run
+max_stddev_fails = 8 # don't re-run too many times
+max_set_fails = 5
 max_trial_attempts = 20
+do_trials = 4
 
 pattern = re.compile(".*### TIMED\s(\d+\.\d+)\s+s.+?NB=\s+(\d+).+?(\d+\.\d+)\s+gflops\n(.*)",
                      flags=re.DOTALL)
 
-def safe_unlink(files, report_error = True):
-    for ufile in files:
-        try:
-            os.unlink(ufile) # no need to have them hanging around anymore
-        except OSError:
-            if report_error:
-                print('the file {} has apparently vanished.'.format(ufile))
-
-####### global parameter defaults for ig            
-# it would be nice to have different 'default experiment parameters'
-# for different machines (e.g. ig, zoot).
-#
-# even nicer would be a more configurable way of generating trial sets.
-# so that, for instance, I could specify different NB and IB params depending on
-# the scheduler
-default_NBs = {'dgeqrf': 192, 'dpotrf': 256, 'dgetrf': 256 }
-default_IBdivs = {'dgeqrf': 8, 'dpotrf': 0, 'dgetrf': 0}
-####### global parameter defaults
-max_set_fails = 5
-do_trials = 4
-
-def generate_trial_sets(write_pending=True, extra_args = []):
-    #
-    # customize this section to your heart's content!
-    #
-    # defaults for ig:
-    execs = ['dpotrf'] #, 'dgetrf_incpiv'] #, 'dpotrf', 'dgeqrf' ]
-    schedulers = ['AP', 'GD', 'LTQ', 'LFQ', 'PBQ']
-    minNumCores = 0 # default to using them all
-    maxNumCores = 0
-    minN = 6000
-    maxN = 21400
-    NBs = [160, 188, 200, 216, 256]
-    IBdivs = None    # use defaults
-    Ns = None        # generated based on tile size
-    N_hi_mult = 20
-    #
-    # overrides
-    #
-#    IBdivs = [1,2,4,8,11] # None to use default per exec
-
-#    IBdivs = [2, 4]
-    NBs = [180, 380, 400]        # None to use defaults
-
-#    Ns = [15360]
-#    NBs = [180, 200, 360, 380]
-#    NBs = [256]
-#    IBdivs = [1,2,8]
-    IBdivs = [0]
-    #
-    # end customizable param section
-    #
-
-    IBdivs_orig = IBdivs
-    
-    import socket
-    hostname = socket.gethostname().split('.')[0]
-    trial_sets = []
-
-    if not Ns:
-        generated_Ns = True
-    else:
-        generated_Ns = False
-    # first, generate intended trial sets:
-    for ex in execs:
-        if not NBs:
-            NBs = [default_NBs[ex]]
-        for NB in NBs:
-            if generated_Ns:
-                if NB >= 256:
-                    fact = NB
-                else:
-                    fact = 2 * NB
-                Ns = list(range(NB*8 * N_hi_mult, minN, -fact*8))
-                while Ns[0] >= maxN: # cutoff
-                    Ns = Ns[1:]
-            for N in Ns:
-                sys.stderr.write("%s %d\n" % (ex.upper(), N))   
-                if not IBdivs_orig:
-                    IBdivs = [default_IBdivs[ex]]
-                elif 'potrf' in ex or 'getrf' in ex:
-                    IBdivs = [0] # because they don't use IB
-                else:
-                    IBdivs = IBdivs_orig
-                for IBdiv in IBdivs:
-                    if IBdiv > 0:
-                        if NB % IBdiv == 0:
-                            IB = NB / IBdiv
-                        else:
-                            continue # this one's not a fair combo
-                    else:
-                        IB = 0
-                    for cores in range(minNumCores,maxNumCores + 1):
-                        if cores == 0 and os.path.exists('/proc/cpuinfo'):
-                            temp = subprocess.check_output(['grep',  '-c', '^processor',
-                                                            '/proc/cpuinfo'])
-                            try:
-                                temp_int = int(temp)
-                                cores = temp_int
-                            except:
-                                cores = 0 # didn't work, so back to default
-                        for scheduler in schedulers:
-                            if not os.path.isdir(outputBaseDir):
-                                os.mkdir(outputBaseDir)
-                            trial_set = TrialSet(hostname, ex, N, cores,
-                                                 NB, IB, scheduler, extra_args)
-                            print(trial_set.uniqueName() + ' ' + str(extra_args))
-                            if write_pending:
-                                # save planned file in case everything dies
-                                trial_set.pickle(outputBaseDir + os.sep + 'pending.' +
-                                                 trial_set.name())
-                            trial_sets.append(trial_set)
-    return trial_sets
-
-def spawn_trial_set_processes(trial_sets, testingDir = '.'):
+def spawn_trial_set_processes(trial_sets, exe_dir='.', output_base_dir='.'):
     last_N = 0
     last_ex = ''
     total_fail_count = 0
@@ -160,7 +48,8 @@ def spawn_trial_set_processes(trial_sets, testingDir = '.'):
             trial_set = trial_sets[set_num]
             try:
                 my_end, their_end = Pipe()
-                p = Process(target=run_trial_set_in_process, args=(their_end, testingDir))
+                p = Process(target=run_trial_set_in_process,
+                            args=(their_end, exe_dir, output_base_dir))
                 p.start()
                 my_end.send(trial_set)
                 while p.is_alive():
@@ -190,13 +79,11 @@ def spawn_trial_set_processes(trial_sets, testingDir = '.'):
                     print('the trial set {} failed '.format(trial_set.uniqueName()) +
                           'to successfully execute after {} failures.'.format(fail_count))
 
-def run_trial_set_in_process(my_pipe, testingDir='.'):
+def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
     trial_set = my_pipe.recv()
     stddev_fails = 0
     set_finished = False
     extra_trials = []
-    # get this before any stats or sizes get added
-    # this should someday be made more robust
     pending_filename = 'pending.' + trial_set.name()
     
     while not set_finished:
@@ -213,7 +100,7 @@ def run_trial_set_in_process(my_pipe, testingDir='.'):
                 print("%s for %dx%d matrix on %d cores, NB = %d, IB = %d; sched = %s Xargs = %s trial #%d" %
                       (ex, N, N, cores, NB, IB, sched, str(trial_set.extra_args), trialNum))
                 cmd, args = trial_set.genCmd()
-                proc = subprocess.Popen([testingDir + os.sep + cmd] + args,
+                proc = subprocess.Popen([exe_dir + os.sep + cmd] + args,
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 # RUN
                 (stdout, stderr) = proc.communicate() 
@@ -236,30 +123,9 @@ def run_trial_set_in_process(my_pipe, testingDir='.'):
                     if not os.environ.get('SUPPRESS_EXTRA_OUTPUT', None):
                        sys.stdout.write(extraOutput)
                     # read and save profile, if it exists
-                    profiles = glob.glob(testingDir + os.sep +
+                    profiles = glob.glob(os.getcwd() + os.sep +
                                          'testing_' + ex + '*.profile')
                     if len(profiles) > 0:
-                        # if False:
-                        #     try:
-                        #         my_end, their_end = Pipe()
-                        #         p = Process(target=read_profile_in_process, args=(their_end,profiles))
-                        #         p.start()
-                        #         while p.is_alive():
-                        #             if my_end.poll(1):
-                        #                 trialObj.profile = my_end.recv()
-                        #         if my_end.poll(1):
-                        #             trialObj.profile = my_end.recv()
-                        #         p.join()
-                        #         if p.exitcode != 0 or trialObj.profile == None:
-                        #             print('\n\nProfile-reading process may have failed. return code from process was {}\n'.format(p.exitcode))
-                        #             print('profile null? {}'.format(trialObj.profile == None))
-                        #             continue
-                        #     except Exception:
-                        #         import traceback
-                        #         traceback.print_exc()
-                        #         print('Unable to save profile.')
-                        #         continue
-                        # else:
                         # read profile in current process since dbpreader is now fixed
                         try:
                             import py_dbpreader as dbpr
@@ -270,11 +136,6 @@ def run_trial_set_in_process(my_pipe, testingDir='.'):
                         except ImportError as iex:
                             print('Unable to save profile; dbpreader is unavailable:')
                             print(iex)
-                    # saving this file takes unnecessarily long
-                    # pickleFile = open(outputBaseDir + os.sep +
-                    #                   trialObj.uniqueName() +'.trial', 'w')
-                    # cPickle.dump(trialObj, pickleFile)
-                    # pickleFile.close()
                     trial_set.append(trialObj)
                     break # no more attempts are needed - we got what we came for
                 else:
@@ -298,13 +159,13 @@ def run_trial_set_in_process(my_pipe, testingDir='.'):
             print(trial_set) # realtime progress report
             while not set_finished:
                 try:
-                    trial_set.pickle(outputBaseDir + os.sep + trial_set.uniqueName() + '.set')
+                    trial_set.pickle(output_base_dir + os.sep + trial_set.uniqueName() + '.set')
                     # move 'pending' to 'rerun' in case a later re-run of the entire group is necessary
-                    if os.path.exists(outputBaseDir + os.sep + pending_filename):
-                        shutil.move(outputBaseDir + os.sep + pending_filename,
-                                    outputBaseDir + os.sep +
+                    if os.path.exists(output_base_dir + os.sep + pending_filename):
+                        shutil.move(output_base_dir + os.sep + pending_filename,
+                                    output_base_dir + os.sep +
                                     pending_filename.replace('pending', 'rerun'))
-                    safe_unlink([outputBaseDir + os.sep +
+                    safe_unlink([output_base_dir + os.sep +
                                  trial.uniqueName() + '.trial'
                                  for trial in trial_set],
                                 report_error=False)
@@ -332,7 +193,7 @@ def run_trial_set_in_process(my_pipe, testingDir='.'):
             trial_set.avgGflops = avgGflops
             variance, trial_set.avgTime = online_math.online_variance_mean(timeSet)
             trial_set.Tstddev = math.sqrt(variance)
-            trial_set.pickle(outputBaseDir + os.sep +
+            trial_set.pickle(output_base_dir + os.sep +
                              trial_set.uniqueName() + '.warn')
             # leave the pending pickle so it can be easily identified
             # as never having completed later on
@@ -340,95 +201,51 @@ def run_trial_set_in_process(my_pipe, testingDir='.'):
     # be done.
     return 0
 
-def read_profile_in_process(pipe, profiles):
-    profile = None
-    if len(profiles) > 0:
+def safe_unlink(files, report_error = True):
+    for ufile in files:
         try:
-            import py_dbpreader as dbpr
-            profile = dbpr.readProfile(profiles)
-            safe_unlink(profiles) # delete extra files now
-        except ImportError as iex:
-            print('Unable to save profile; dbpreader is unavailable:')
-            print(iex)
-    pipe.send(profile)
-    return 0
-    
-    
+            os.unlink(ufile) # no need to have them hanging around anymore
+        except OSError:
+            if report_error:
+                print('the file {} has apparently vanished.'.format(ufile))
 
-    
 ###########
 ## MAIN
 ###########
-
 if __name__ == '__main__':
-    list_only = False
-    use_pending = False
-    use_rerun = False
-    use_files = False
-    generate = False
-    extra_args = None
-    
-    if len(sys.argv) > 1:
-        testingDir = sys.argv[1]
-    else:
-        testingDir = '.'
-    if len(sys.argv) > 2:
-        outputBaseDir = sys.argv[2]
-    else:
-        outputBaseDir = '/mnt/scratch/pgaultne'
-    if len(sys.argv) > 3:
-        if 'l' in sys.argv[3].lower():
-            list_only = True
-        if 'p' in sys.argv[3].lower():
-            use_pending = True
-        if 'r' in sys.argv[3].lower():
-            use_rerun = True
-        if 'g' in sys.argv[3].lower():
-            generate = True
-        if 'f' in sys.argv[3].lower():
-            use_files = True
-    if len(sys.argv) > 4 and not use_files:
-        if sys.argv[4].lower() == '-l2':
-            extra_args = ['--mca-pins=papi_exec']
-        elif sys.argv[4].lower() == '-l3':
-            extra_args = ['--mca-pins=papi_socket']
-        elif sys.argv[4].lower() == '-lboth':
-            extra_args = ['--mca-pins=papi_socket,papi_exec']
-        elif sys.argv[4].lower() == '-X':
-            extra_args = []
-        else:
-            extra_args = sys.argv[4:]
-            
+    extra_args = []
+    pickles = []
+    try:
+        exe_dir = sys.argv[1]
+        output_base_dir = sys.argv[2]
+        for arg in sys.argv[3:]:
+            if os.path.exists(arg):
+                pickles.append(arg)
+            else:
+                extra_args.append(arg)
+    except:
+        print('Usage: run_tests.py EXECUTABLE_DIRECTORY ' +
+              'OUTPUT_DIRECTORY TEST_PICKLES_TO_RUN ' +
+              '[EXTRA ARGUMENTS TO TEST EXECUTABLE]')
+        sys.exit(-1)
+        
     # clean up old .profile files before testing
-    safe_unlink(glob.glob(testingDir + os.sep + 'testing_*.profile'))
+    safe_unlink(glob.glob(exe_dir + os.sep + 'testing_*.profile'))
 
-    if generate or list_only:
-        generate_trial_sets(write_pending = not list_only,
-                                         extra_args = extra_args)
-    if use_rerun or use_pending:
-        pickles = []
-        if use_rerun:
-            while use_rerun:
-                try:
-                    reruns = glob.glob(outputBaseDir + os.sep + 'rerun.*')
-                    for rerun in reruns:
-                        shutil.move(rerun, rerun.replace('rerun', 'pending'))
-                    use_rerun = False # we're done with it now
-                except KeyboardInterrupt:
-                    print('Currently moving files. Cannot interrupt.')
-        if use_pending:
-            pickles.extend(glob.glob(outputBaseDir + os.sep + 'pending.*'))
-        if use_files:
-            pickles.extend(sys.argv[4:])
-        trial_sets = []
-        for pickle in pickles:
-            pfile = open(pickle, 'r')
-            trial_set = cPickle.load(pfile)
+    if 'None' in extra_args:
+        extra_args = None
+    
+    trial_sets = []
+    for pickle in pickles:
+        trial_set = TrialSet.unpickle(pickle)
+        if extra_args == None or len(extra_args) > 0:
             trial_set.extra_args = extra_args
-            trial_set.new_timestamp() # timestamp the run time
-            trial_sets.append(trial_set)
-            pfile.close()
-        trial_sets.sort(key = lambda tset: (tset.sched))
-        trial_sets.sort(key = lambda tset: (tset.ex, tset.N, tset.NB, tset.IB), reverse=True)
+        trial_set.new_timestamp() # timestamp the run time
+        trial_sets.append(trial_set)
+
+    trial_sets.sort(key = lambda tset: (tset.sched))
+    # run the longer ones first
+    trial_sets.sort(key = lambda tset: (tset.ex, tset.N, tset.NB, tset.IB), reverse=True)
             
-        spawn_trial_set_processes(trial_sets, testingDir = testingDir)
+    spawn_trial_set_processes(trial_sets, exe_dir = exe_dir)
+
