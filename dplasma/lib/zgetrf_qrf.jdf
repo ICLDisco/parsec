@@ -340,6 +340,9 @@ zgeqrt_typechange(k, i) [profile = off]
   RW A <- A zgeqrt(k, i)
        -> ( descA.nt-1 > k ) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
        -> A(m, k)                                                  [type = LOWER_TILE]
+
+  ; descA.nt-k-1
+
 BODY
 {
     /* Nothing */
@@ -488,6 +491,9 @@ zttqrt_out_A1(k) [profile = off]
 
   RW A <- A1 zttqrt( k, prevp ) [type = UPPER_TILE]
        -> A(k, k)               [type = UPPER_TILE]
+
+  ; descA.nt-k-1
+
 BODY
 {
     /* nothing */
@@ -593,6 +599,9 @@ zttmqr_out_A1(k, n) [profile = off]
 
   RW A <- A1 zttmqr( k, prevp, n )
        -> A(k, n)
+
+  ; descA.nt-n-1
+
 BODY
 {
     /* nothing */
@@ -665,7 +674,7 @@ copypanel(k, m) [ profile = off ]
   CTL  ctl   -> (diagdom == 0) ? ctl zlufacto(k, 0..nbthrd)
              -> (diagdom != 0) ? ctl reduce_norm(k, diagdom)
 
-  ;descA.nt-k-1
+  ;descA.nt
 
 BODY
 {
@@ -748,7 +757,7 @@ zlufacto(k, t)
   CTL   ctl  <- ctl copypanel(k, k..descA.mt-1..param_p)
              -> (t == 0) ? ctl reduce_norm(k, 0)
 
-; descA.nt-k-1
+; descA.nt
 
 BODY
 {
@@ -836,6 +845,8 @@ reduce_norm(k, p)
   CTL ctl <- (p == 0) ? ctl zlufacto(k, 0)
           <- (p != 0) ? ctl copypanel(k, k+p..descA.mt-1..param_p)
 
+ ; descA.nt
+
 BODY
 {
     double *norm1 = (double*)W1;
@@ -917,7 +928,7 @@ setchoice(k, p, h)
   /* Free tile2panel from previous step */
   CTL  ctl2 -> (h == hmax) && (p == 0) && (k > 0) ? ctl2 tile2panel(k-1, k+param_q..descA.nt-1..param_q)
 
-  ; descA.nt-k-1
+  ; descA.nt
 
 BODY
 {
@@ -1047,7 +1058,7 @@ setchoice_update(k, p, q)
   /* Free tile2panel from previous step */
   CTL  ctl2 -> (p == 0) && (k > 0) ? ctl2 tile2panel(k-1, k+q..descA.nt-1..param_q)
 
-  ; descA.nt-k-1
+  ; descA.nt
 
 BODY
 {
@@ -1104,7 +1115,8 @@ selector(k,m,n)
   CTL  ctl  <- (q == 0) ? ctl setchoice(k, p, hmax)
             <- (q != 0) ? ctl setchoice_update(k, p, q)
 
-  ; descA.nt-k-1
+  ; descA.nt
+
 BODY
 {
     printlog("selector( k=%d, m=%d, n=%d) type=%d, didlu=%d, dolu=%d",
