@@ -2165,7 +2165,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         }
     }
 
-    /* Quiet the compiler by using the varibales */
+    /* Quiet the compiler by using the variables */
     if( NULL != f->parameters->next ) {
         for(pl = f->parameters; pl != NULL; pl = pl->next) {
             for(dl = f->locals; dl != NULL; dl = dl->next) {
@@ -2901,7 +2901,7 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   sa2 = string_arena_new(64);
 
   for(dl = f->locals; dl != NULL; dl = dl->next) {
-    string_arena_add_string(sa, "%sint %s%s; (void)%s%s;\n",
+    string_arena_add_string(sa, "%sint %s%s = 0xdeadbeef; (void)%s%s;\n",
                             indent(spaces), f->fname, dl->name, f->fname, dl->name);
    }
 
@@ -3297,9 +3297,9 @@ static void jdf_generate_code_papi_events_before(const jdf_t *jdf, const jdf_fun
     (void)f;
 
     coutput("  /** PAPI events */\n"
-	    "#if defined(HAVE_PAPI)\n"
-	    "  papime_start_thread_counters();\n"
-	    "#endif\n");
+            "#if defined(HAVE_PAPI)\n"
+            "  papime_start_thread_counters();\n"
+            "#endif\n");
 }
 
 static void jdf_generate_code_papi_events_after(const jdf_t *jdf, const jdf_function_entry_t *f)
@@ -3309,8 +3309,8 @@ static void jdf_generate_code_papi_events_after(const jdf_t *jdf, const jdf_func
 
     coutput("  /** PAPI events */\n"
             "#if defined(HAVE_PAPI)\n"
-	    "  papime_stop_thread_counters();\n"
-	    "#endif\n");
+            "  papime_stop_thread_counters();\n"
+            "#endif\n");
 }
 
 static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_function_entry_t *f, const char* context_name)
@@ -4241,7 +4241,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
     assert(JDF_OP_IS_C_CODE(expr->op));
     rc = asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
                   jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
-    (void)rc;
+    assert( rc != -1 );
     coutput("static inline int %s(const dague_object_t *__dague_object_parent, const assignment_t *assignments)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)__dague_object_parent;\n"
