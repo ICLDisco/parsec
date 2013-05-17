@@ -200,10 +200,8 @@ void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc,
         for(m = 0; m < Ddesc->super.lmt; m++) {
             p = ((n * Ddesc->super.lmt) + m);
             table->elems[p].rank = (int)floor(((double)Ddesc->super.super.nodes * (double)rand_r(&rankseed)) / (double)RAND_MAX);
-            fprintf(stderr, "rank %d, %d -> [%d] %d\n", m, n, p, table->elems[p].rank );
             if( table->elems[p].rank == Ddesc->super.super.myrank ) {
                 table->elems[p].vpid = (int)floor(((double)nbvp * (double)rand_r(&vpseed)) / (double)RAND_MAX);
-                fprintf(stderr, "vpid %d, %d -> [%d] %d\n", m, n, p, table->elems[p].vpid );
                 table->elems[p].tile = dague_data_allocate( (size_t)Ddesc->super.bsiz *
                                                             (size_t)dague_datadist_getsizeoftype(Ddesc->super.mtype) );
             } else {
