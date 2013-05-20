@@ -200,6 +200,8 @@ float gpu_speeds[2][2] ={
     {  77.76,  515.2 }
 };
 
+int dague_gpu_data_verbose = 0;
+
 int dague_gpu_init(dague_context_t *dague_context,
                    int* puse_gpu,
                    int dague_show_detailed_capabilities )
@@ -214,6 +216,7 @@ int dague_gpu_init(dague_context_t *dague_context,
     }
     status = cuInit(0);
     DAGUE_CUDA_CHECK_ERROR( "cuInit ", status, {*puse_gpu = 0; return -1;} );
+    dague_gpu_data_verbose = dague_show_detailed_capabilities;
 
     cuDeviceGetCount( &ndevices );
 
@@ -410,10 +413,12 @@ int dague_gpu_init(dague_context_t *dague_context,
             DEBUG(("Device index %2d ->ratio %2.4e\n",
                    i-1, device_weight[i]));
         device_weight[i] = (total_perf / device_weight[i]);
-        if( 0 == i )
-            printf("CPU             ->ratio %2.4f\n", device_weight[i]);
-        else
-            printf("Device index %2d ->ratio %2.4f\n", i-1, device_weight[i]);
+        if( dague_show_detailed_capabilities ) {
+            if( 0 == i )
+                STATUS(("CPU             ->ratio %2.4f\n", device_weight[i]));
+            else
+                STATUS(("Device index %2d ->ratio %2.4f\n", i-1, device_weight[i]));
+        }
     }
 #if defined(DAGUE_PROF_TRACE)
     /**
@@ -1073,59 +1078,58 @@ int dague_gpu_kernel_fini(dague_context_t* dague_context,
     if( 0 == total_data_out ) total_data_out = 1;
     gtotal = (float)total + (float)dague_cpu_counter;
 
-    printf("-------------------------------------------------------------------------------------------------\n");
-    printf("|         |                   |         Data In                |         Data Out               |\n");
-    printf("|PU % 5d |  # %5s  |   %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
-           dague_context->my_rank, kernelname);
-    printf("|---------|-----------|-------|------------|-------------------|------------|-------------------|\n");
-    for( i = 0; i < __dague_active_gpu; i++ ) {
-        CUdevice hcuDevice;
-        char szName[256];
+    if(dague_gpu_data_verbose) {
+        printf("-------------------------------------------------------------------------------------------------\n");
+        printf("|         |                   |         Data In                |         Data Out               |\n");
+        printf("|PU % 5d |  # %5s  |   %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
+                 dague_context->my_rank, kernelname);
+        printf("|---------|-----------|-------|------------|-------------------|------------|-------------------|\n");
+        for( i = 0; i < __dague_active_gpu; i++ ) {
+            CUdevice hcuDevice;
+            char szName[256];
 
-        gpu_device = gpu_enabled_devices[i];
+            gpu_device = gpu_enabled_devices[i];
 
-        dague_compute_best_unit( required_in[i],     &best_required_in,  &required_in_unit  );
-        dague_compute_best_unit( required_out[i],    &best_required_out, &required_out_unit );
-        dague_compute_best_unit( transferred_in[i],  &best_data_in,      &data_in_unit      );
-        dague_compute_best_unit( transferred_out[i], &best_data_out,     &data_out_unit     );
+            dague_compute_best_unit( required_in[i],     &best_required_in,  &required_in_unit  );
+            dague_compute_best_unit( required_out[i],    &best_required_out, &required_out_unit );
+            dague_compute_best_unit( transferred_in[i],  &best_data_in,      &data_in_unit      );
+            dague_compute_best_unit( transferred_out[i], &best_data_out,     &data_out_unit     );
 
-        status = cuDeviceGet( &hcuDevice, gpu_device->device_index );
-        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {continue;} );
-        status = cuDeviceGetName( szName, 256, hcuDevice );
-        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetName ", status, {continue;} );
+            status = cuDeviceGet( &hcuDevice, gpu_device->device_index );
+            DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {continue;} );
+            status = cuDeviceGetName( szName, 256, hcuDevice );
+            DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetName ", status, {continue;} );
 
-        printf("|  GPU %2d |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) | %s\n",
-               gpu_device->device_index, gpu_counter[i], (gpu_counter[i]/gtotal)*100.00,
-               best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
-               (((double)transferred_in[i])  / (double)required_in[i] ) * 100.0,
-               best_required_out, required_out_unit, best_data_out, data_out_unit,
-               (((double)transferred_out[i]) / (double)required_out[i]) * 100.0, szName );
+            printf("|  GPU %2d |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) | %s\n",
+                   gpu_device->device_index, gpu_counter[i], (gpu_counter[i]/gtotal)*100.00,
+                   best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
+                   (((double)transferred_in[i])  / (double)required_in[i] ) * 100.0,
+                   best_required_out, required_out_unit, best_data_out, data_out_unit,
+                   (((double)transferred_out[i]) / (double)required_out[i]) * 100.0, szName );
+        }
+        printf("|---------|-----------|-------|------------|-------------------|------------|-------------------|\n");
+
+        dague_compute_best_unit( total_required_in,  &best_required_in,  &required_in_unit  );
+        dague_compute_best_unit( total_required_out, &best_required_out, &required_out_unit );
+        dague_compute_best_unit( total_data_in,      &best_data_in,      &data_in_unit      );
+        dague_compute_best_unit( total_data_out,     &best_data_out,     &data_out_unit     );
+
+        printf("|All GPUs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) |\n",
+                total, (total/gtotal)*100.00,
+                best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
+                ((double)total_data_in  / (double)total_required_in ) * 100.0,
+                best_required_out, required_out_unit, best_data_out, data_out_unit,
+                ((double)total_data_out / (double)total_required_out) * 100.0);
+        printf("|All CPUs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) |\n",
+                (int)dague_cpu_counter, (dague_cpu_counter / gtotal)*100.00,
+                0.0, " ", 0.0, " ", 0.0, 0.0, " ", 0.0, " ", 0.0);
+        printf("-------------------------------------------------------------------------------------------------\n");
     }
-
-    printf("|---------|-----------|-------|------------|-------------------|------------|-------------------|\n");
-
-    dague_compute_best_unit( total_required_in,  &best_required_in,  &required_in_unit  );
-    dague_compute_best_unit( total_required_out, &best_required_out, &required_out_unit );
-    dague_compute_best_unit( total_data_in,      &best_data_in,      &data_in_unit      );
-    dague_compute_best_unit( total_data_out,     &best_data_out,     &data_out_unit     );
-
-    printf("|All GPUs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) |\n",
-           total, (total/gtotal)*100.00,
-           best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
-           ((double)total_data_in  / (double)total_required_in ) * 100.0,
-           best_required_out, required_out_unit, best_data_out, data_out_unit,
-           ((double)total_data_out / (double)total_required_out) * 100.0);
-    printf("|All CPUs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) |\n",
-           (int)dague_cpu_counter, (dague_cpu_counter / gtotal)*100.00,
-           0.0, " ", 0.0, " ", 0.0, 0.0, " ", 0.0, " ", 0.0);
-    printf("-------------------------------------------------------------------------------------------------\n");
-
     free(gpu_counter);
     free(transferred_in);
     free(transferred_out);
     free(required_in);
     free(required_out);
-
     return 0;
 }
 
