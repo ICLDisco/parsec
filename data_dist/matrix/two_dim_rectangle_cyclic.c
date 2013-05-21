@@ -109,6 +109,10 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     /* Total number of tiles stored locally */
     Ddesc->super.nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
 
+    /* Update llm and lln */
+    Ddesc->super.llm = Ddesc->nb_elem_r * mb;
+    Ddesc->super.lln = Ddesc->nb_elem_c * nb;
+
     /* set the methods */
     if( (nrst == 1) && (ncst == 1) ) {
         o->rank_of      = twoDBC_rank_of;
@@ -253,7 +257,7 @@ static void *twoDBC_data_of(dague_ddesc_t *desc, ...)
         pos = Ddesc->nb_elem_r * local_n + local_m;
         pos *= (size_t)Ddesc->super.bsiz;
     } else {
-        pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm
+        pos = (local_n * Ddesc->super.nb) * Ddesc->super.llm
             +  local_m * Ddesc->super.mb;
     }
 
@@ -479,7 +483,7 @@ static void *twoDBC_st_data_of(dague_ddesc_t *desc, ...)
         pos = Ddesc->nb_elem_r * local_n + local_m;
         pos *= (size_t)Ddesc->super.bsiz;
     } else {
-        pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm
+        pos = (local_n * Ddesc->super.nb) * Ddesc->super.llm
             +  local_m * Ddesc->super.mb;
     }
 

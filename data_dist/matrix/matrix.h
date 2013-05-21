@@ -60,6 +60,8 @@ typedef struct tiled_matrix_desc_t {
     int ln;             /**< number of columns of the entire matrix */
     int lmt;            /**< number of tile rows of the entire matrix - derived parameter */
     int lnt;            /**< number of tile columns of the entire matrix - derived parameter */
+    int llm;            /**< number of rows of the matrix stored localy - derived parameter */
+    int lln;            /**< number of columns of the matrix stored localy - derived parameter */
     int i;              /**< row index to the beginning of the submatrix */
     int j;              /**< column indes to the beginning of the submatrix */
     int m;              /**< number of rows of the submatrix */
@@ -116,6 +118,6 @@ extern void dague_reduce_row_Destruct( struct dague_object_t *o );
 /*
  * Macro to get the block leading dimension
  */
-#define BLKLDD( _desc_, _m_ ) ( (_desc_).storage == matrix_Tile ? (_desc_).mb : (_desc_).lm )
+#define BLKLDD( _desc_, _m_ ) ( (_desc_).storage == matrix_Tile ? (_desc_).mb : (_desc_).llm )
 
 #endif /* _MATRIX_H_  */
