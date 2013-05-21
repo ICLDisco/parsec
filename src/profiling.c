@@ -29,6 +29,7 @@
 #include "data_distribution.h"
 #include "debug.h"
 #include "fifo.h"
+#include "dague_hwloc.h"
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
@@ -194,6 +195,8 @@ int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
         file_backend_extendable = 0;
         return -1;
     } else {
+        char *xmlbuffer;
+        int buflen;
         profile_head = (dague_profiling_binary_file_header_t*)allocate_empty_buffer(&zero, PROFILING_BUFFER_TYPE_HEADER);
         if( NULL != profile_head ) {
             memcpy(profile_head->magick, DAGUE_PROFILING_MAGICK, strlen(DAGUE_PROFILING_MAGICK) + 1);
@@ -209,6 +212,12 @@ int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
 
             /* It's fine to re-reset the event date: we're back with a zero-length event set */
             start_called = 0;
+
+            if( dague_hwloc_export_topology(&buflen, &xmlbuffer) != -1 &&
+                buflen > 0 ) {
+                dague_profiling_add_information("HWLOC-XML", xmlbuffer);
+                dague_hwloc_free_xml_buffer(xmlbuffer);
+            }
             return 0;
         } else {
             return -1;
@@ -465,8 +474,9 @@ static int64_t dump_global_infos(int *nbinfos)
     dague_profiling_info_buffer_t *ib;
     dague_profiling_info_t *i;
     int nb, nbthis, is, vs;
-    int pos;
+    int pos, tc, vpos;
     int64_t first_off;
+    char *value;
 
     if( NULL == dague_profiling_infos ) {
         *nbinfos = 0;
@@ -487,7 +497,7 @@ static int64_t dump_global_infos(int *nbinfos)
         is = strlen(i->key);
         vs = strlen(i->value);
 
-        if( pos + sizeof(dague_profiling_info_buffer_t) + is + vs - 1 >= event_avail_space ) {
+        if( pos + sizeof(dague_profiling_info_buffer_t) + is - 1 >= event_avail_space ) {
             b->this_buffer.nb_infos = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
             if( NULL == n ) {
@@ -501,16 +511,50 @@ static int64_t dump_global_infos(int *nbinfos)
             b = n;
             pos = 0;
             nbthis = 0;
-
         }
+
+        /* The key must fit in event_avail_space */
+        if( sizeof(dague_profiling_info_buffer_t) + is - 1 > event_avail_space ) {
+            set_last_error("Profiling System: error: Key of size %d does not fit in an entire file segment of %d bytes\n",
+                           is, event_avail_space);
+            nb++;
+            continue;
+        }
+
+        nbthis++;
+
         ib = (dague_profiling_info_buffer_t *)&(b->buffer[pos]);
         ib->info_size = is;
         ib->value_size = vs;
         memcpy(ib->info_and_value + 0,  i->key,   is);
-        memcpy(ib->info_and_value + is, i->value, vs);
+
+        pos += sizeof(dague_profiling_info_buffer_t) + is - 1;
+
+        vpos = 0;
+        value = ib->info_and_value + is;
+        while( vpos < vs ) {
+            tc = (event_avail_space - pos) < (vs-vpos) ? (event_avail_space - pos) : (vs-vpos);
+            memcpy(value, i->value + vpos, tc);
+            vpos += tc;
+            pos += tc;
+            if( pos == event_avail_space ) {
+                b->this_buffer.nb_infos = nbthis;
+                n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
+                if( NULL == n ) {
+                    set_last_error("Profiling System: error: Global Infos will be truncated to %d infos only -- buffer allocation error\n", nb);
+                    *nbinfos = nb;
+                    return first_off;
+                }
+
+                write_down_existing_buffer(b, pos);
+
+                b = n;
+                pos = 0;
+                nbthis = 0;
+                value = (char*)&(b->buffer[pos]);
+            }
+        }
         nb++;
-        nbthis++;
-        pos += sizeof(dague_profiling_info_buffer_t) + is + vs - 1;
     }
 
     b->this_buffer.nb_infos = nbthis;

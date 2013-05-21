@@ -6,11 +6,16 @@ set_target_properties(dbp2xml PROPERTIES LINKER_LANGUAGE C)
 set_target_properties(dbp2xml PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
 target_link_libraries(dbp2xml dague-base ${GTG_LIBRARIES})
 
+add_executable(dbpinfos dbpinfos.c dbpreader.c)
+set_target_properties(dbpinfos PROPERTIES LINKER_LANGUAGE C)
+set_target_properties(dbpinfos PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
+target_link_libraries(dbpinfos dague-base ${GTG_LIBRARIES})
+
 find_package(GTG)
 
 if(GTG_FOUND)
   add_executable(dbp2paje dbp2paje.c dbpreader.c)
-  set_target_properties(dbp2xml PROPERTIES LINKER_LANGUAGE C)
+  set_target_properties(dbp2paje PROPERTIES LINKER_LANGUAGE C)
   include_directories(${GTG_INCLUDE_DIR})
   target_link_libraries(dbp2paje dague-base ${GTG_LIBRARIES})
 endif()
