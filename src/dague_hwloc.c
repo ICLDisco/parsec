@@ -50,6 +50,35 @@ int dague_hwloc_fini(void)
     return 0;
 }
 
+int dague_hwloc_export_topology(int *buflen, char **xmlbuffer)
+{
+#if defined(HAVE_HWLOC)
+    if( first_init == 0 ) {
+        return hwloc_topology_export_xmlbuffer(topology, xmlbuffer, buflen);
+    } else {
+        *buflen = 0;
+        *xmlbuffer = NULL;
+        return -1;
+    }
+#else
+    *buflen = 0;
+    *xmlbuffer = NULL;
+    return -1;
+#endif
+}
+
+void dague_hwloc_free_xml_buffer(char *xmlbuffer)
+{
+    if( NULL == xmlbuffer )
+        return;
+
+#if defined(HAVE_HWLOC)
+    if( first_init == 0 ) {
+        hwloc_free_xmlbuffer(topology, xmlbuffer);
+    }
+#endif
+}
+
 int dague_hwloc_distance( int id1, int id2 )
 {
 #if defined(HAVE_HWLOC)
