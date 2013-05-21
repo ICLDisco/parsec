@@ -9,6 +9,7 @@ endif()
 include(RulesTestings.cmake)
 
 set(TESTS
+  testing_zdist.c
   testing_zgemm.c
   testing_zhemm.c
   testing_zsymm.c
