@@ -31,6 +31,7 @@ int main(int argc, char ** argv)
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
     int ret = 0;
+    int seed;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -52,13 +53,18 @@ int main(int argc, char ** argv)
         check = 0;
     }
 
+    if( rank == 0 ) {
+        seed=getpid();
+    }
+    MPI_Bcast(&seed, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
+
     LDA = max(M, LDA);
     /* initializing matrix structure */
     two_dim_tabular_t ddescA;
     two_dim_tabular_init(&ddescA, matrix_ComplexDouble,
                          nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                          M, N, NULL);
-    two_dim_tabular_set_random_table(&ddescA, 8129);
+    two_dim_tabular_set_random_table(&ddescA, seed);
     dague_ddesc_set_key((dague_ddesc_t*)&ddescA, "ddescA");
 
     two_dim_tabular_t ddescT;
