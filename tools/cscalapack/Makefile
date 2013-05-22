@@ -1,6 +1,6 @@
 MPICC=mpicc
 MPIF77=mpif77
-CFLAGS="-Wall"
+CFLAGS=-Wall -g
 CC=$(MPICC)
 LD=mpif77
 SMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack95_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_sequential -lmkl_intel_lp64 -lmkl_core 

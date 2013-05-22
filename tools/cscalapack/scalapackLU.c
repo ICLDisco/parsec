@@ -78,6 +78,8 @@ static void init_random_matrix(double *A,
                 Ab =  &A[ (jloc-1)*mloc + (iloc-1) ];
                 tempm = (i+mb > m) ? (m%mb) : (mb);
                 tempn = (j+nb > n) ? (n%nb) : (nb);
+                tempm = (m - i ) > mb ? mb : (m-i + 1);
+                tempn = (n - j ) > nb ? nb : (n-j + 1);
                 CORE_dplrnt( tempm, tempn, Ab, mloc,
                              m, mb*( (i-1)/mb ), nb*( (j-1)/nb ), seed);
             }
@@ -147,7 +149,7 @@ int main(int argc, char **argv) {
     { int i0=0; nloc = numroc_( &n, &nb, &mycol, &i0, &npcol ); }
 
     { int i0=0; descinit_( descA, &n, &n, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info ); }
-    ippiv = calloc(n+n, sizeof(int));
+    ippiv = calloc(mloc+n, sizeof(int));
 
     A = (double *)malloc(mloc*nloc*sizeof(double)) ;
 
@@ -190,7 +192,8 @@ int main(int argc, char **argv) {
 
     if( my_info_facto < 0 ) {
         fprintf(stderr, "Factorization failed on proc (%d, %d): info = %d\n", myrow, mycol, my_info_facto);
-        MPI_Abort(MPI_COMM_WORLD, 1);
+        MPI_Finalize();
+        exit(1);
     }
 
     MPI_Allreduce( &my_elapsed, &elapsed, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
@@ -199,6 +202,7 @@ int main(int argc, char **argv) {
     if( my_info_facto != 0 ) {
         printf("***Facto failed: info = %d\n", my_info_facto);
         MPI_Finalize();
+        exit(1);
     }
 
     GFLOPS = 2.0*(((double) n)*((double) n)*((double) n))/1e+9/elapsed/3.0;
@@ -244,7 +248,8 @@ int main(int argc, char **argv) {
 
         if( my_info_solve < 0 ) {
             fprintf(stderr, "Solve failed on proc (%d, %d): info = %d\n", myrow, mycol, my_info_solve);
-            MPI_Abort(MPI_COMM_WORLD, 1);
+            MPI_Finalize();
+            exit(1);
         }
 
         MPI_Allreduce( &my_info_solve, &info_solve, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
@@ -252,6 +257,7 @@ int main(int argc, char **argv) {
         if( my_info_solve != 0 ) {
             printf("***Solve failed: info = %d\n", my_info_solve);
             MPI_Finalize();
+            exit(1);
         }
 
         { int i1=1; double pone=1.00e+00, mone = -1.00e+00; pdgemm_( "N", "N", &n, &s, &n, &mone, Acpy, &i1, &i1, descA, X, &i1, &i1, descB,
