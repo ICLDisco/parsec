@@ -33,6 +33,7 @@
 
 #include "flops.h"
 
+/* Update PASTE_CODE_PROGRESS_KERNEL below if you change this list */
 enum iparam_t {
   IPARAM_RANK,         /* Rank                              */
   IPARAM_NNODES,       /* Number of nodes                   */
@@ -171,6 +172,27 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     nb_local_tasks = DAGUE_##KERNEL->nb_local_tasks;                    \
     if(loud) SYNC_TIME_PRINT(rank, ( #KERNEL " DAG creation: %d local tasks enqueued\n", nb_local_tasks));
 
+#if defined(DAGUE_PROF_TRACE)
+static void profiling_save_dinfo(const char *key, double value)
+{
+    char *svalue;
+    asprintf(&svalue, "%g", value);
+    dague_profiling_add_information(key, svalue);
+    free(svalue);
+}
+#define PROFILING_SAVE_dINFO(key, double_value) profiling_save_dinfo(key, double_value)
+static void profiling_save_iinfo(const char *key, int value)
+{
+    char *svalue;
+    asprintf(&svalue, "%d", value);
+    dague_profiling_add_information(key, svalue);
+    free(svalue);
+}
+#define PROFILING_SAVE_iINFO(key, integer_value) profiling_save_iinfo(key, integer_value)
+#else
+#define PROFILING_SAVE_dINFO(key, double_value) do {} while(0)
+#define PROFILING_SAVE_iINFO(key, integer_value) do {} while(0)
+#endif
 
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
     SYNC_TIME_START();                                                  \
@@ -183,6 +205,38 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     SYNC_TIME_PRINT(rank, (#KERNEL " computation PxQ= %d %d N= %d NB= %d IB= %d : %f gflops\n", \
                            P, Q, N, NB, IB, 							\
                            gflops=(flops/1e9)/sync_time_elapsed));      \
+    PROFILING_SAVE_dINFO("TIME_ELAPSED", time_elapsed);                 \
+    PROFILING_SAVE_dINFO("SYNC_TIME_ELAPSED", sync_time_elapsed);       \
+    PROFILING_SAVE_dINFO("GFLOPS", gflops);                             \
+    PROFILING_SAVE_iINFO("PARAM_RANK", iparam[IPARAM_RANK]);            \
+    PROFILING_SAVE_iINFO("PARAM_NNODES", iparam[IPARAM_NNODES]);        \
+    PROFILING_SAVE_iINFO("PARAM_NCORES", iparam[IPARAM_NCORES]);        \
+    PROFILING_SAVE_iINFO("PARAM_NGPUS", iparam[IPARAM_NGPUS]);          \
+    PROFILING_SAVE_iINFO("PARAM_P", iparam[IPARAM_P]);                  \
+    PROFILING_SAVE_iINFO("PARAM_Q", iparam[IPARAM_Q]);                  \
+    PROFILING_SAVE_iINFO("PARAM_M", iparam[IPARAM_M]);                  \
+    PROFILING_SAVE_iINFO("PARAM_N", iparam[IPARAM_N]);                  \
+    PROFILING_SAVE_iINFO("PARAM_K", iparam[IPARAM_K]);                  \
+    PROFILING_SAVE_iINFO("PARAM_LDA", iparam[IPARAM_LDA]);              \
+    PROFILING_SAVE_iINFO("PARAM_LDB", iparam[IPARAM_LDB]);              \
+    PROFILING_SAVE_iINFO("PARAM_LDC", iparam[IPARAM_LDC]);              \
+    PROFILING_SAVE_iINFO("PARAM_IB", iparam[IPARAM_IB]);                \
+    PROFILING_SAVE_iINFO("PARAM_NB", iparam[IPARAM_NB]);                \
+    PROFILING_SAVE_iINFO("PARAM_MB", iparam[IPARAM_MB]);                \
+    PROFILING_SAVE_iINFO("PARAM_SNB", iparam[IPARAM_SNB]);              \
+    PROFILING_SAVE_iINFO("PARAM_SMB", iparam[IPARAM_SMB]);              \
+    PROFILING_SAVE_iINFO("PARAM_CHECK", iparam[IPARAM_CHECK]);          \
+    PROFILING_SAVE_iINFO("PARAM_CHECKINV", iparam[IPARAM_CHECKINV]);    \
+    PROFILING_SAVE_iINFO("PARAM_VERBOSE", iparam[IPARAM_VERBOSE]);      \
+    PROFILING_SAVE_iINFO("PARAM_LOWLVL_TREE", iparam[IPARAM_LOWLVL_TREE]); \
+    PROFILING_SAVE_iINFO("PARAM_HIGHLVL_TREE", iparam[IPARAM_HIGHLVL_TREE]); \
+    PROFILING_SAVE_iINFO("PARAM_QR_TS_SZE", iparam[IPARAM_QR_TS_SZE]);  \
+    PROFILING_SAVE_iINFO("PARAM_QR_HLVL_SZE", iparam[IPARAM_QR_HLVL_SZE]); \
+    PROFILING_SAVE_iINFO("PARAM_QR_DOMINO", iparam[IPARAM_QR_DOMINO]);  \
+    PROFILING_SAVE_iINFO("PARAM_QR_TSRR", iparam[IPARAM_QR_TSRR]);      \
+    PROFILING_SAVE_iINFO("PARAM_BUT_LEVEL", iparam[IPARAM_BUT_LEVEL]);  \
+    PROFILING_SAVE_iINFO("PARAM_PINS", iparam[IPARAM_PINS]);            \
+    PROFILING_SAVE_iINFO("PARAM_SCHEDULER", iparam[IPARAM_SCHEDULER]);  \
     if(loud >= 5 && rank == 0) {                                        \
         printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n" \
                "                 encoding=\"none\" compression=\"none\">\n" \
