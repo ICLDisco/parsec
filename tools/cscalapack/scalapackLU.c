@@ -78,8 +78,8 @@ static void init_random_matrix(double *A,
                 Ab =  &A[ (jloc-1)*mloc + (iloc-1) ];
                 tempm = (i+mb > m) ? (m%mb) : (mb);
                 tempn = (j+nb > n) ? (n%nb) : (nb);
-                tempm = (m - i ) > mb ? mb : (m-i + 1);
-                tempn = (n - j ) > nb ? nb : (n-j + 1);
+                tempm = (m - i +1) > mb ? mb : (m-i + 1);
+                tempn = (n - j +1) > nb ? nb : (n-j + 1);
                 CORE_dplrnt( tempm, tempn, Ab, mloc,
                              m, mb*( (i-1)/mb ), nb*( (j-1)/nb ), seed);
             }
