@@ -178,13 +178,11 @@ void two_dim_tabular_set_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *tab
 void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc,
                                       unsigned int seed)
 {
-    int rank;
-    int vp, nbvp;
+    int nbvp;
     unsigned int rankseed, vpseed;
     uint32_t nbtiles;
     two_dim_td_table_t *table;
-    unsigned int m, n, p;
-    void *tile;
+    int m, n, p;
 
     nbtiles = Ddesc->super.lmt * Ddesc->super.lnt;
 
@@ -216,13 +214,10 @@ void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc,
 
 void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabular_t *Dst)
 {
-    int rank;
-    int vp, nbvp;
-    unsigned int rankseed, vpseed;
+    int nbvp;
     uint32_t nbtiles;
     two_dim_td_table_t *table;
-    unsigned int m, n, p;
-    void *tile;
+    int m, n, p;
 
     /* Safety check: check that we can indeed clone the structure */
     assert( Src->super.lmt == Dst->super.lmt );
