@@ -18,15 +18,94 @@
 #define min(_a, _b) ( (_a) > (_b) ? (_b) : (_a) )
 #endif
 
+#define Rnd64_A 6364136223846793005ULL
+#define Rnd64_C 1ULL
+#define RndF_Mul 5.4210108624275222e-20f
+#define RndD_Mul 5.4210108624275222e-20
+#define NBELEM 1
+
+static unsigned long long int
+Rnd64_jump(unsigned long long int n, unsigned long long int seed ) {
+    unsigned long long int a_k, c_k, ran;
+    int i;
+
+    a_k = Rnd64_A;
+    c_k = Rnd64_C;
+
+    ran = seed;
+    for (i = 0; n; n >>= 1, ++i) {
+        if (n & 1)
+            ran = a_k * ran + c_k;
+        c_k *= (a_k + 1);
+        a_k *= a_k;
+    }
+
+    return ran;
+}
+
+void CORE_dplrnt( int m, int n, double *A, int lda,
+                  int bigM, int m0, int n0, unsigned long long int seed )
+{
+    double *tmp = A;
+    int64_t i, j;
+    unsigned long long int ran, jump;
+
+    jump = (unsigned long long int)m0 + (unsigned long long int)n0 * (unsigned long long int)bigM;
+
+    for (j=0; j<n; ++j ) {
+        ran = Rnd64_jump( NBELEM*jump, seed );
+        for (i = 0; i < m; ++i) {
+            *tmp = 0.5f - ran * RndF_Mul;
+            ran  = Rnd64_A * ran + Rnd64_C;
+            tmp++;
+        }
+        tmp  += lda-i;
+        jump += bigM;
+    }
+}
+
+static void init_random_matrix(double *A,
+                               int m, int n,
+                               int mb, int nb,
+                               int myrow, int mycol,
+                               int nprow, int npcol,
+                               int mloc,
+                               int seed)
+{
+    int i, j;
+    int idum1, idum2, iloc, jloc, i0=0;
+    int tempm, tempn;
+    double *Ab;
+
+    for (i = 1; i <= m; i += mb) {
+        for (j = 1; j <= n; j += nb) {
+            if ( ( myrow == indxg2p_( &i, &mb, &idum1, &i0, &nprow ) ) &&
+                 ( mycol == indxg2p_( &j, &nb, &idum1, &i0, &npcol ) ) ){
+                iloc = indxg2l_( &i, &mb, &idum1, &idum2, &nprow );
+                jloc = indxg2l_( &j, &nb, &idum1, &idum2, &npcol );
+
+                Ab =  &A[ (jloc-1)*mloc + (iloc-1) ];
+                tempm = (i+mb > m) ? (m%mb) : (mb);
+                tempn = (j+nb > n) ? (n%nb) : (nb);
+                tempm = (m - i +1) > mb ? mb : (m-i + 1);
+                tempn = (n - j +1) > nb ? nb : (n-j + 1);
+                CORE_dplrnt( tempm, tempn, Ab, mloc,
+                             m, mb*( (i-1)/mb ), nb*( (j-1)/nb ), seed);
+            }
+        }
+    }
+}
+
+
 int main(int argc, char **argv) {
     int iam, nprocs, do_validation = 0;
     int myrank_mpi, nprocs_mpi;
     int ictxt, nprow, npcol, myrow, mycol;
     int mloc, nloc, n, m = 0, nb, nqrhs, nrhs;
-    int i, j, k, info=0, seed;
+    int i, info, iseed, verif,s;
     int descA[9], descB[9];
     double *A=NULL, *Acpy=NULL, *B=NULL, *X=NULL, eps, *work=NULL;
-    double AnormF, XnormF, RnormF, residF=-1.0e+00;
+    double XnormI, AnormI, RnormI, BnormI, resid = -1.0e+00;
     double *tau=NULL;
     int lwork;
     int izero=0,ione=1;
@@ -38,7 +117,7 @@ int main(int argc, char **argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank_mpi);
     MPI_Comm_size(MPI_COMM_WORLD, &nprocs_mpi);
     /**/
-    n = 100; nrhs = 1; nprow = 1; npcol = 1; nb = 64;
+    n = 1000; nprow = 1; npcol = 1; nb = 64; s = 1; verif = 0; iseed = 3872;
     for( i = 1; i < argc; i++ ) {
         if( strcmp( argv[i], "-n" ) == 0 ) {
             n      = atoi(argv[i+1]);
@@ -64,8 +143,12 @@ int main(int argc, char **argv) {
             nb     = atoi(argv[i+1]);
             i++;
         }
-        if( strcmp( argv[i], "-v" ) == 0 ) {
-            do_validation = 1;
+        if( strcmp( argv[i], "-verif" ) == 0 ) {
+            verif = 1;
+        }
+        if( strcmp( argv[i], "-seed" ) == 0 ) {
+            iseed = atoi(argv[i+1]);
+            i++;
         }
     }
     /**/
@@ -102,21 +185,19 @@ int main(int argc, char **argv) {
 
     { int i0=0; descinit_( descA, &m, &n, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info ); }
 
-    seed = iam*n*max(m, nrhs); srand(seed);
-
     A = (double *)malloc(mloc*nloc*sizeof(double)) ;
 
-    k = 0;
-    for (i = 0; i < mloc; i++) {
-        for (j = 0; j < nloc; j++) {
-            A[k] = ((double) rand()) / ((double) RAND_MAX) - 0.5 ;
-            k++;    
-        }
-    }
+    init_random_matrix(A,
+                       n, n,
+                       nb, nb,
+                       myrow, mycol,
+                       nprow, npcol,
+                       mloc,
+                       iseed);
 
     descinit_( descA, &m, &n, &nb, &nb, &izero, &izero, &ictxt, &mloc, &info );
 
-    if( do_validation ) {
+    if( verif == 1 ) {
 
         { int i0=0; nqrhs = numroc_( &nrhs, &nb, &mycol, &i0, &npcol ); }
 
@@ -125,15 +206,29 @@ int main(int argc, char **argv) {
             if (B==NULL){ printf("error of memory allocation B on proc %dx%d\n",myrow,mycol); exit(0); }
         }
 
-        k = 0;
-        for (i = 0; i < mloc; i++) {
-            for (j = 0; j < nqrhs; j++) {
-                B[k] = ((double) rand()) / ((double) RAND_MAX) - 0.5 ;
-                k++;    
-            }
-        }
+	init_random_matrix(B,
+                           n, s,
+                           nb, nb,
+                           myrow, mycol,
+                           nprow, npcol,
+                           mloc,
+                           iseed + 1);
+
 
         descinit_( descB, &n, &nrhs, &nb, &nb, &izero, &izero, &ictxt, &mloc, &info );
+
+       {
+            /* For Norm Inf, LWORK >= Mp0, where Mp0 = ... */
+            int i1=1;
+            int i0=0;
+            int iarow = indxg2p_( &i1, &nb, &myrow, &i0, &nprow);
+            int Mp0 = numroc_( &n, &nb, &myrow, &iarow, &nprow );
+            work = (double*)malloc(Mp0 * sizeof(double));
+        }
+
+        { int i1=1; BnormI = pdlange_( "I", &n, &s, B, &i1, &i1, descB, work); }
+        if(iam == 0)
+            printf("||B||oo = %e, ", BnormI);
 
         Acpy = (double *)malloc(mloc*nloc*sizeof(double)) ;
         if (Acpy==NULL){ printf("error of memory allocation Acpy on proc %dx%d\n",myrow,mycol); exit(0); }
@@ -165,7 +260,7 @@ int main(int argc, char **argv) {
     MPIelapsed=MPIt2-MPIt1;
     free(work); work = NULL;
 
-    if( do_validation ) {
+    if( verif == 1 ) {
 
         lwork = -1;
         work = (double *)malloc(sizeof(double)) ;
@@ -184,12 +279,28 @@ int main(int argc, char **argv) {
         pdtrsm_( "L", "U", "N", "N", &n, &nrhs, &pone, A, &ione, &ione, descA, X, &ione, &ione, descB );
         
         eps = pdlamch_( &ictxt, "Epsilon" );
-        AnormF = pdlange_( "F", &n, &n, Acpy, &ione, &ione, descA, work);
-        XnormF = pdlange_( "F", &n, &nrhs, X, &ione, &ione, descB, work);
-        pdgemm_( "N", "N", &n, &nrhs, &n, &pone, Acpy, &ione, &ione, descA, X, &ione, &ione, descB,
+
+	pdgemm_( "N", "N", &n, &nrhs, &n, &pone, Acpy, &ione, &ione, descA, X, &ione, &ione, descB,
                  &mone, B, &ione, &ione, descB);
-        RnormF = pdlange_( "F", &n, &nrhs, B, &ione, &ione, descB, work);
-        residF = RnormF / ( AnormF * XnormF * eps );
+
+       {
+            /* For Norm Inf, LWORK >= Mp0, where Mp0 = ... */
+            int i1=1;
+            int i0=0;
+            int iarow = indxg2p_( &i1, &nb, &myrow, &i0, &nprow);
+            int Mp0 = numroc_( &n, &nb, &myrow, &iarow, &nprow );
+            work = (double*)malloc(Mp0 * sizeof(double));
+        }
+
+        { int i1=1; AnormI = pdlange_( "I", &n, &n, Acpy, &i1, &i1, descA, work); }
+        { int i1=1; XnormI = pdlange_( "I", &n, &s, X, &i1, &i1, descB, work); }
+        { int i1=1; RnormI = pdlange_( "I", &n, &s, B, &i1, &i1, descB, work); }
+
+ 	if(iam == 0)
+            printf("||A||oo = %e, ||X||oo = %e, ||R||oo = %e\n", AnormI, XnormI, RnormI);
+
+
+        resid = RnormI / ( ( AnormI * XnormI + BnormI ) * n * eps );
         
         free(Acpy);
         if ( B!=NULL ) free(B);
@@ -201,9 +312,9 @@ int main(int argc, char **argv) {
 
     if ( iam==0 ){
         printf("M\tN\tNRHS\tNB\tP\tQ\tinfo\tresid\ttime(s)  \tGFLOPS/sec\tGFLOPS/sec/proc\n");
-        if( do_validation ) {
-            printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%1.4f\t%f\t%f\t%f\n\n",
-                   m, n, nrhs, nb, nprow, npcol, info, residF, MPIelapsed, GFLOPS, GFLOPS_per_proc);
+        if( verif == 1 ) {
+            printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%10e\t%f\t%f\t%f\n\n",
+                   m, n, nrhs, nb, nprow, npcol, info, resid, MPIelapsed, GFLOPS, GFLOPS_per_proc);
         } else {
             printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\tx.x\t%f\t%f\t%f\n\n",
                    m, n, nrhs, nb, nprow, npcol, info, MPIelapsed, GFLOPS, GFLOPS_per_proc);
