@@ -9,42 +9,48 @@
 # Be SURE to build this against the same version of Python as you have built Cython itself.
 # Contrasting versions will likely lead to odd errors about Unicode functions.
 import sys
+from operator import attrgetter
 from libc.stdlib cimport malloc, free
 from profiling      import * # the pure Python classes
 from profiling_info import * # the pure Python classes representing custom INFO structs
+
+MAX_BELIEVABLE_HANDLE_COUNT = 100
 
 # this is the public Python interface function. call it.
 cpdef readProfile(filenames):
     cdef char ** c_filenames = stringListToCStrings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
-    profile = multifile_reader(dbp_reader_nb_files(dbp), dbp_reader_nb_dictionary_entries(dbp))
+    
+    nb_files = dbp_reader_nb_files(dbp)
+    nb_dict_entries = dbp_reader_nb_dictionary_entries(dbp)
     cdef dbp_file_t * cfile
     cdef dbp_dictionary_t * cdict
 
-    profile.worldsize = dbp_reader_worldsize(dbp)
+    profile = Profile()
+    profile.worldsize = dbp_reader_worldsize(dbp) # what does this even do?
 
     # create dictionary first, for later use while making Events
-    for key in range(profile.nb_dict_entries):
+    for key in range(nb_dict_entries):
         cdict = dbp_reader_get_dictionary(dbp, key)
-        entry = dbpDictEntry(key, dbp_dictionary_attributes(cdict))
         event_name = dbp_dictionary_name(cdict)
-        profile.dictionary[event_name] = entry
-        profile.dict_key_to_name[entry.key] = event_name
-        profile.event_type_stats[event_name] = EventStats(event_name, key)
-        
+        profile.dict_key_to_name[key] = event_name
+        profile.dictionary[event_name] = dbpDictEntry(profile, key,
+                                                      dbp_dictionary_attributes(cdict))
     # convert c to py
-    for ifd in range(profile.nb_files):
+    for ifd in range(nb_files):
         cfile = dbp_reader_get_file(dbp, ifd)
-        pfile = dbpFile(profile, dbp_file_hr_id(cfile), dbp_file_get_name(cfile), dbp_file_get_rank(cfile))
+        rank = dbp_file_get_rank(cfile)
+        pfile = dbpFile(profile, dbp_file_hr_id(cfile),
+                        dbp_file_get_name(cfile), rank)
         for index in range(dbp_file_nb_infos(cfile)):
             cinfo = dbp_file_get_info(cfile, index)
             key = dbp_info_get_key(cinfo)
             value = dbp_info_get_value(cinfo)
             pfile.infos.append(dbpInfo(key, value))
-        for thread_num in range(dbp_file_nb_threads(cfile)):
-            new_thr = makeDbpThread(profile, dbp, cfile, thread_num, pfile)
+        for thread_id in range(dbp_file_nb_threads(cfile)):
+            new_thr = makeDbpThread(profile, dbp, cfile, thread_id, pfile)
             pfile.threads.append(new_thr)
-        profile.files.append(pfile)
+        profile.files[rank] = pfile
 
     dbp_reader_close_files(dbp) # does nothing as of 2013-04-21
 #   dbp_reader_dispose_reader(dbp)
@@ -74,16 +80,14 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
     cdef dbp_event_iterator_t * it_e = NULL
     cdef dbp_event_t * event_s = dbp_iterator_current(it_s)
     cdef dbp_event_t * event_e = NULL
-    cdef dague_time_t reader_start = dbp_reader_min_date(dbp)
-    cdef unsigned long long start = 0
+    cdef dague_time_t reader_begin = dbp_reader_min_date(dbp)
+    cdef unsigned long long begin = 0
     cdef unsigned long long end = 0
     cdef void * cinfo = NULL
     cdef papi_exec_info_t * cast_exec_info = NULL
     cdef select_info_t * cast_select_info = NULL
 
     thread = dbpThread(pfile, index)
-    if thread.id + 1 > profile.thread_count:
-        profile.thread_count = thread.id + 1
 
     while event_s != NULL:
         if KEY_IS_START( dbp_event_get_key(event_s) ):
@@ -91,8 +95,8 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
             if it_e != NULL:
                 event_e = dbp_iterator_current(it_e)
                 if event_e != NULL:
-                    start = diff_time(reader_start, dbp_event_get_timestamp(event_s))
-                    end = diff_time(reader_start, dbp_event_get_timestamp(event_e))
+                    begin = diff_time(reader_begin, dbp_event_get_timestamp(event_s))
+                    end = diff_time(reader_begin, dbp_event_get_timestamp(event_e))
                     event_key = int(dbp_event_get_key(event_s)) / 2 # to match dictionary
                     event_flags = dbp_event_get_flags(event_s)
                     event_handle_id = int(dbp_event_get_handle_id(event_s))
@@ -102,14 +106,16 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                                      event_flags,
                                      event_handle_id,
                                      event_id,
-                                     start, end)
-                    stats = profile.event_type_stats[profile.dict_key_to_name[event_key]]
-                    stats.count += 1
-                    stats.duration += event.duration
+                                     begin, end)
+                    event_name = profile.dict_key_to_name[event_key]
                     
-                    while len(profile.handle_counts) < (event_handle_id + 1):
-                        profile.handle_counts.extend([0])
-                    profile.handle_counts[event_handle_id] += 1
+                    if event_handle_id not in profile.handles:
+                        profile.handles[event_handle_id] = dbpHandle(profile, event_handle_id)
+                    
+                    stats = profile.dictionary[event_name].stats
+                    stats.count += 1
+                    stats.total_duration += event.duration
+                    
                     #####################################
                     # not all events have info
                     # also, not all events have the same info.
@@ -117,7 +123,7 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                     # their own info objects
                     cinfo = dbp_event_get_info(event_e)
                     if cinfo != NULL:
-                        if (profile.dictionary.get('PINS_EXEC', None) and
+                        if ('PINS_EXEC' in profile.dictionary and
                             event_key == profile.dictionary['PINS_EXEC'].key):
                             cast_exec_info = <papi_exec_info_t *>cinfo
                             kernel_name = str(cast_exec_info.kernel_name)
@@ -128,16 +134,18 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                                 cast_exec_info.th_id,
                                 [cast_exec_info.values[x] for x
                                  in range(cast_exec_info.values_len)])
-                            if not stats.exec_stats.get(kernel_name, None):
+                            if kernel_name not in stats.exec_stats:
                                 stats.exec_stats[kernel_name] = ExecSelectStats(kernel_name)
                             pstats = stats.exec_stats[kernel_name]
                             pstats.count += 1
-                            pstats.duration += event.duration
+                            pstats.total_duration += event.duration
                             pstats.l1_misses += event.info.values[0]
                             pstats.l2_hits += event.info.values[1]
                             pstats.l2_misses += event.info.values[2]
                             pstats.l2_accesses += event.info.values[3]
-                        elif (profile.dictionary.get('PINS_SELECT', None) and
+                            # if kernel_name == 'POTRF':
+                            #     print('PYDBPR found POTRF ' + str(pstats.count) + ' ' + str(event_key))
+                        elif ('PINS_SELECT' in profile.dictionary and
                               event_key == profile.dictionary['PINS_SELECT'].key):
                             cast_select_info = <select_info_t *>cinfo
                             kernel_name = str(cast_exec_info.kernel_name)
@@ -151,16 +159,16 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                                 cast_select_info.exec_context,
                                 [cast_select_info.values[x] for x
                                  in range(cast_select_info.values_len)])
-                            if not stats.select_stats.get(kernel_name, None):
+                            if kernel_name not in stats.select_stats:
                                 stats.select_stats[kernel_name] = ExecSelectStats(kernel_name)
                             pstats = stats.select_stats[kernel_name]
                             pstats.count += 1
-                            pstats.duration += event.duration
+                            pstats.total_duration += event.duration
                             pstats.l1_misses += event.info.values[0]
                             pstats.l2_hits += event.info.values[1]
                             pstats.l2_misses += event.info.values[2]
                             pstats.l2_accesses += event.info.values[3]
-                        elif (profile.dictionary.get('PINS_SOCKET', None) and
+                        elif ('PINS_SOCKET' in profile.dictionary and
                               event_key == profile.dictionary['PINS_SOCKET'].key):
                             cast_socket_info = <papi_socket_info_t *>cinfo
                             event.info = dbp_Socket_EventInfo(
@@ -168,22 +176,43 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                                 cast_socket_info.th_id,
                                 [cast_socket_info.values[x] for x
                                  in range(cast_socket_info.values_len)])
-                            if not stats.socket_stats.get(SocketStats.class_name, None):
+                            if SocketStats.class_name not in stats.socket_stats:
                                 stats.socket_stats[SocketStats.class_name] = SocketStats()
                             pstats = stats.socket_stats[SocketStats.class_name]
                             pstats.count += 1
-                            pstats.duration += event.duration
+                            pstats.total_duration += event.duration
                             pstats.l3_exc_misses  += event.info.values[0]
                             pstats.l3_shr_misses += event.info.values[1]
                             pstats.l3_mod_misses += event.info.values[2]
+                        elif ('PINS_L12_EXEC' in profile.dictionary and
+                              event_key == profile.dictionary['PINS_L12_EXEC'].key):
+                            cast_L12_info = <papi_L12_exec_info_t *>cinfo
+                            
+                            something = None
+                        elif ('PINS_L12_SELECT' in profile.dictionary and
+                              event_key == profile.dictionary['PINS_L12_SELECT'].key):
+                            something_else = None
                         # elif event.key == profile.dictionary['<SOME OTHER TYPE WITH INFO>'].key:
                             # event.info = <write a function and a Python type to translate>
-
-                    thread.events.append(event)
+                        else:
+                            dont_print = True
+                            # print('missed an info for event key ' + event_name )
+                    # event constructed. add it everywhere it belongs.
+                    thread.append(event)
+                    profile.handles[event_handle_id].append(event)
+                    profile.dictionary[event_name].append(event)
+                    profile.append(event)
+                    
                 dbp_iterator_delete(it_e)
                 it_e = NULL
         dbp_iterator_next(it_s)
         event_s = dbp_iterator_current(it_s)
+        
     dbp_iterator_delete(it_s)
     it_s = NULL
+    thread.sort(key = attrgetter('begin'))
+    # now that they're sorted, compute the wasted time
+    thread.begin = thread[0].begin
+    thread.end = thread[-1].end
+    thread.duration = thread.end - thread.begin
     return thread

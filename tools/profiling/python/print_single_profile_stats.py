@@ -6,6 +6,17 @@ from pretty_print_profile_stats import *
 import py_dbpreader as pread
 import os, sys
 
+import time
+
+class Timer:
+    def __enter__(self):
+        self.start = time.clock()
+        return self
+    
+    def __exit__(self, *args):
+        self.end = time.clock()
+        self.interval = self.end - self.start
+
 if __name__ == '__main__':
     filenames = []
     task_focus = [] # print only these tasks
@@ -13,19 +24,26 @@ if __name__ == '__main__':
         if os.path.exists(arg):
             filenames.append(arg)
         else:
-            task_focus.append(arg)
+            task_focus.append(arg.lower())
+            
+    profile = None
+    with Timer() as t:
+        profile = pread.readProfile(filenames)
+    print(t.interval)
 
-    profile = pread.readProfile(filenames)
-    print(profile.handle_counts)
+    with Timer() as t:
+        cPickle.dump(profile, open('raw.pickle', 'w'), protocol=cPickle.HIGHEST_PROTOCOL)
+    print(t.interval)
+    
+    print('handle counts: ' + str(profile.get_handle_counts()))
 
-    event_stats = profile.event_type_stats
     printers = []
 
     total_stats = ExecSelectStats('TOTAL')
-    for key, stats in event_stats.iteritems():
+    for key, event_type in profile.dictionary.iteritems():
         if key == 'PINS_EXEC': # or key == 'PINS_SELECT':
-            for pkey, pstats in stats.exec_stats.iteritems():
-                if pkey in task_focus or 'all' in task_focus:
+            for pkey, pstats in event_type.stats.exec_stats.iteritems():
+                if pkey.lower() in task_focus or 'all' in task_focus:
                     new_printer = LinePrinter()
                     new_printer.append(pstats)
                     new_printer.sorter = pstats
@@ -38,18 +56,19 @@ if __name__ == '__main__':
 
     total_stats = SocketStats()
     total_count = 0
-    for key, stats in event_stats.iteritems():
+    for key, event_type in profile.dictionary.iteritems():
         if key != 'PINS_EXEC' and key != 'PINS_SELECT':
-            total_count += stats.count
-    for key, stats in event_stats.iteritems():
+            total_count += event_type.stats.count
+    for key, event_type in profile.dictionary.iteritems():
         if key == 'PINS_SOCKET':
-            for pkey, pstats in stats.socket_stats.iteritems():
+            for pkey, pstats in event_type.stats.socket_stats.iteritems():
                 pstats.count = total_count
                 total_stats += pstats
-    total_printer = LinePrinter()
-    total_printer.append(total_stats)
-    total_printer.sorter = total_stats
-    printers.append(total_printer)
+    if total_stats.count > 0:
+        total_printer = LinePrinter()
+        total_printer.append(total_stats)
+        total_printer.sorter = total_stats
+        printers.append(total_printer)
     
     printers.sort(key = lambda x: (x.sorter.name))
     if len(printers) == 0:
@@ -67,3 +86,6 @@ if __name__ == '__main__':
             print(printer.row())
         print(printers[-1].row_header())
 
+    with Timer() as t:
+        profile.pickle('test.pickle')
+    print(t.interval)

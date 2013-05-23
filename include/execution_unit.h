@@ -52,6 +52,7 @@ struct dague_execution_unit_s {
 #endif
 
 #if defined(HAVE_PAPI)
+	long long int papi_last_read[5]; // TODO: magic number
 	int papi_eventsets[EVENTSETS_COUNT];
 #endif /* HAVE_PAPI */
 

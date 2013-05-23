@@ -9,70 +9,156 @@
 # of cross-process format, such as a pickle.
 
 import copy
+import cPickle
 
-class d_time:
-    def __init__(self, seconds, nsec):
-        self.sec = seconds
-        self.nsec = nsec
-    def diff(self, time):
-        return d_time(time.sec - self.sec, time.nsec - self.nsec)
-    def abs(self):
-        return self.sec * 1000000000 + self.nsec
+class Profile(list): # contains Events
+    class_version = 1.0 # created as replacement for multifile_reader on 2013-05-22
+    @staticmethod
+    def unpickle(filepath, load_events=True):
+        f = open(filepath, 'r')
+        profile = cPickle.load(f)
+        if load_events:
+            # load event list, sort them into appropriate bins
+            profile = cPickle.load(f) # the second pickle contains all the events
+        f.close()
+        return profile
+    def pickle(self, filepath, protocol=cPickle.HIGHEST_PROTOCOL):
+        f = open(filepath, 'w')
+        # 1: dump object with events removed
+        cPickle.dump(self.get_eventless_pickle(), f, protocol)
+        # 2: dump entire object with all references intact
+        cPickle.dump(self, f, protocol)
+        f.close()
+    def get_eventless_pickle(self):
+        # backup and remove all events
+        all_events = self[:]
+        del self[:]
+        event_type_events = dict()
+        for key, value in self.dictionary.iteritems():
+            event_type_events[key] = value[:]
+            del value[:]
+        handle_events = dict()
+        for key, handle in self.handles.iteritems():
+            handle_events[key] = handle[:]
+            del handle[:]
+        file_threads = dict()
+        for key, pf in self.files.iteritems():
+            file_threads[key] = dict()
+            for thread in pf.threads:
+                file_threads[key] = thread[:]
+                del thread[:]
+        # create deep copy
+        small_pickle = copy.deepcopy(self)
+        # restore all events
+        self.extend(all_events)
+        for key, value in self.dictionary.iteritems():
+            value.extend(event_type_events[key])
+        for key, handle in self.handles.iteritems():
+            handle.extend(handle_events[key])
+        for key, pf in self.files.iteritems():
+            for thread in pf.threads:
+                thread.extend(file_threads[key])
+        return small_pickle # return deep copy
+        
+    def __init__(self):
+        self.__version__ = self.__class__.class_version
+        self.dictionary = dict()
+        self.dict_key_to_name = dict()
+        self.files = dict()
+        self.handles = dict()
+    def get_handle_counts(self):
+        handle_counts = dict()
+        for key, value in self.handles.iteritems():
+            handle_counts[key] = len(value)
+        return handle_counts
+    def __setstate__(self, dictionary):
+        self.__dict__.update(dictionary)
+        if not hasattr(self, '__version__'):
+            self.__version__ = 1.0
 
-class multifile_reader:
-    def __init__(self, nb_files, nb_dict_entries):
-        self.nb_files = nb_files
-        self.nb_dict_entries = nb_dict_entries
-        self.dictionary = {}
-        self.dict_key_to_name = {}
-        self.files = []
-        self.thread_count = 0
-        self.handle_counts = [0, 0]
-        self.event_type_stats = dict()
-
-class dbpDictEntry:
-    def __init__(self, key, attributes):
+class dbpDictEntry(list): # contains Events
+    class_version = 1.0
+    def __init__(self, profile, key, attributes):
+        self.__version__ = self.__class__.class_version
+        self.profile = profile
         self.key = key
         self.attributes = attributes
+        self.stats = EventStats(self.profile.dict_key_to_name[key])
+    def __setstate__(self, dictionary):
+        self.__dict__.update(dictionary)
+        if not hasattr(self, '__version__'):
+            self.__version__ = 1.0
 
-class dbpFile:
-    def __init__(self, parent, hr_id, filename, rank):
-        self.parent = parent
-        self.hr_id = hr_id
-        self.filename = filename
+class dbpFile(object):
+    class_version = 1.0
+    class_version = 1.1 # hr_id->ex_name
+    def __init__(self, parent, ex_name, filename, rank):
+        self.__version__ = self.__class__.class_version
+        self.profile = parent
         self.rank = rank
-        self.infos = []
-        self.threads = []
+        self.ex_name = ex_name
+        self.filename = filename
+        self.infos = list()
+        self.threads = list()
+    def __setstate__(self, dictionary):
+        self.__dict__.update(dictionary)
+        if not hasattr(self, '__version__'):
+            self.__version__ = 1.0
+        if self.__version__ < 1.1:
+            self.ex_name = self.hr_id
+            del self['hr_id']
+            self.__version__ = 1.1
 
-class dbpInfo:
+class dbpInfo(object):
+    class_version = 1.0
     def __init__(self, ikey, value):
+        self.__version__ = self.__class__.class_version
         self.key = ikey
         self.value = value
 
-class dbpThread:
-    def __init__(self, parentFile, threadNumber):
-        self.file = parentFile
-        self.events = []
-        self.id = int(threadNumber) # if it's not a number, it's wrong
+class dbpHandle(list): # contains Events
+    class_version = 1.0
+    def __init__(self, profile, id):
+        self.__version__ = self.__class__.class_version
+        self.profile = profile
+        self.id = id
+        
+class dbpThread(list): # contains Events
+    class_version = 1.0
+    class_version = 1.1 # turned it into a list
+    def __init__(self, parent_file, thread_number):
+        self.__version__ = self.__class__.class_version
+        self.file = parent_file
+        self.id = int(thread_number) # if it's not a number, it's wrong
     def __str__(self):
         return str(self.id)
+    def __setstate__(self, dictionary):
+        self.__dict__.update(dictionary)
+        if not hasattr(self, '__version__'):
+            self.__version__ = 1.0
+        if self.__version__ < 1.1:
+            self.extend(self.events)
+            del self['events']
+            self.__version__ = 1.1
 
-class dbpEvent:
+class dbpEvent(object):
     class_version = 1.0
+    class_version = 1.1 # renamed 'start' to 'begin'
     __max_length__ = 0
     # keep the print order updated as attributes are added
-    print_order = ['handle_id', 'thread', 'key', 'event_id', 
-                   'flags', 'start', 'end', 'duration', 'info']
-    def __init__(self, parentThread, key, flags, handle_id, event_id, start, end):
+    print_order = ['handle_id', 'thread_id', 'event_id', 'key',  
+                   'flags', 'begin', 'end', 'duration', 'info']
+    def __init__(self, thread, key, flags, handle_id, event_id, begin, end):
         self.__version__ = self.__class__.class_version
-        self.thread = parentThread
-        self.key = key
-        self.flags = flags
+        self.file_rank = thread.file.rank
+        self.thread_id = thread.id
         self.handle_id = handle_id
         self.event_id = event_id
-        self.start = start
+        self.key = key
+        self.flags = flags
+        self.begin = begin
         self.end = end
-        self.duration = self.end - self.start
+        self.duration = self.end - self.begin
         self.info = None
         for attr, value in vars(self).items():
             if attr[:2] == '__':
@@ -101,23 +187,27 @@ class dbpEvent:
         return header
     def __repr__(self):
         return self.row()
-
-
-
+    def __setstate__(self, dictionary):
+        self.__dict__.update(dictionary)
+        if not hasattr(self, '__version__'):
+            self.__version__ = 1.0
+        if self.__version__ < 1.1:
+            self.begin = self.start
+            
 class EventStats(object):
     class_version = 1.0 # added versioning
     class_version = 1.1 # separated 'papi_stats' into socket_stats, exec_stats, select_stats
+    class_version = 1.2 # duration->total_duration
     @classmethod
     def class_row_header(cls):
         return ('{:16} {:>15} {:>12}').format(
             'EVT_NAME', 'COUNT','DURATION/CT')
     ############
-    def __init__(self, name, dict_key):
+    def __init__(self, name):
         self.__version__ = self.__class__.class_version
-        self.event_name = name
-        self.dict_key = dict_key
+        self.name = name
         self.count = 0
-        self.duration = 0
+        self.total_duration = 0
         self.socket_stats = {} # hashed by nothing, really... TODO: should this be a single item?
         self.exec_stats = {}   # hashed by task name
         self.select_stats = {} # hashed by task name
@@ -165,3 +255,46 @@ class EventStats(object):
                     else:
                         self.socket_stats[key] = stats
             self.__version__ = 1.1
+        if self.__version__ < 1.2:
+            self.total_duration = self.duration
+            del self['duration']
+            self.name = self.event_name
+            del self['event_name']
+            self.__version__ = 1.2
+            
+
+
+
+# this is the old class. it has been superseded by Profile
+class multifile_reader(list): # contains Events
+    class_version = 1.0
+    class_version = 1.1 # added handle dict and handle counts is now a dict
+    def __init__(self):
+        self.__version__ = self.__class__.class_version
+        self.dictionary = {}
+        self.dict_key_to_name = {}
+        self.files = []
+        self.handles = dict()
+        self.stats = ProfileStats()
+    def __setstate__(self, dictionary):
+        self.__dict__.update(dictionary)
+        if not hasattr(dictionary, '__version__'):
+            self.__version__ = 1.0
+        if self.__version__ < 1.1:
+            self.handles = dict()
+            bak_handle_counts = self.handle_counts
+            self.handle_counts = dict()
+            for index, count in enumerate(bak_handle_counts):
+                self.handle_counts[index] = count
+
+# not sure if this gets used?
+class d_time(object):
+    def __init__(self, seconds, nsec):
+        self.sec = seconds
+        self.nsec = nsec
+    def diff(self, time):
+        return d_time(time.sec - self.sec, time.nsec - self.nsec)
+    def abs(self):
+        return self.sec * 1000000000 + self.nsec
+
+                

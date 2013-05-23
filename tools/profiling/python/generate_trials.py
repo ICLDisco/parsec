@@ -5,6 +5,7 @@ import os
 import math
 import cPickle
 from parsec_trials import Trial, TrialSet
+import subprocess
 
 ####### global parameter defaults for ig            
 # it would be nice to have different 'default experiment parameters'
@@ -22,12 +23,12 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
     # customize this section to your heart's content!
     #
     # defaults for ig:
-    execs = ['dpotrf'] #, 'dgetrf_incpiv'] #, 'dpotrf', 'dgeqrf' ]
+    execs = ['dgetrf'] #, 'dgetrf_incpiv'] #, 'dpotrf', 'dgeqrf' ]
     schedulers = ['AP', 'GD', 'LTQ', 'LFQ', 'PBQ']
     minNumCores = 0 # default to using them all
     maxNumCores = 0
-    minN = 6000
-    maxN = 21400
+    minN = 7000
+    maxN = 21000
     NBs = [160, 188, 200, 216, 256]
     IBdivs = None    # use defaults
     Ns = None        # generated based on tile size
@@ -42,7 +43,7 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
 
 #    Ns = [15360]
 #    NBs = [180, 200, 360, 380]
-#    NBs = [256]
+    NBs = [256]
 #    IBdivs = [1,2,8]
     IBdivs = [0]
     #
@@ -116,16 +117,18 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
 if __name__ == '__main__':
     list_only = False
     extra_args = []
-
+    output_base_dir = '.'
+    
     try:
-        output_base_dir = sys.argv[1]
-        for arg in sys.argv[2:]:
+        for arg in sys.argv[1:]:
             if arg == '-l':
                 list_only = True
+            elif os.path.isdir(arg):
+                output_base_dir = arg
             else:
                 extra_args.append(arg)
     except:
-        print('Usage: run_tests.py OUTPUT_DIRECTORY' +
+        print('Usage: generate_tests.py [OUTPUT_DIRECTORY]' +
               ' -[l]' +
               ' [EXTRA ARGUMENTS TO TEST EXECUTABLE]')
         sys.exit(-1)

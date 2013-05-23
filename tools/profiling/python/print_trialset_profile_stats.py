@@ -33,14 +33,14 @@ if __name__ == '__main__':
     for trial_set in trial_sets:
         total_stats = ExecSelectStats('TOTAL')
         for trial in trial_set[:]:
+            print(trial.profile.get_handle_counts())
             printer = LinePrinter()
             printer.append(ItemPrinter(trial.ex, 'EXEC', length=14))
             printer.append(ItemPrinter(trial.N, 'N', length=7))
             printer.append(ItemPrinter(trial.sched, 'SCHD', length=5))
-            event_stats = trial.profile_event_stats
-            for key, stats in event_stats.iteritems():
+            for key, event_type in trial.profile.dictionary.iteritems():
                 if key == 'PINS_EXEC': # or key == 'PINS_SELECT':
-                    for pkey, pstats in stats.exec_stats.iteritems():
+                    for pkey, pstats in event_type.stats.exec_stats.iteritems():
                         if pkey in task_focus or 'all' in task_focus:
                             new_printer = copy.deepcopy(printer)
                             new_printer.append(pstats)
@@ -81,13 +81,12 @@ if __name__ == '__main__':
             printer.append(ItemPrinter(trial.ex, 'EXEC', length=14))
             printer.append(ItemPrinter(trial.N, 'N', length=7))
             printer.append(ItemPrinter(trial.sched, 'SCHD', length=5))
-            event_stats = trial.profile_event_stats
-            for key, stats in event_stats.iteritems():
+            for key, event_type in trial.profile.dictionary.iteritems():
                 if key != 'PINS_EXEC' and key != 'PINS_SELECT':
-                    total_count += stats.count
-            for key, stats in event_stats.iteritems():
+                    total_count += event_type.stats.count
+            for key, stats in trial.profile.dictionary.iteritems():
                 if key == 'PINS_SOCKET':
-                    for pkey, pstats in stats.socket_stats.iteritems():
+                    for pkey, pstats in event_type.stats.socket_stats.iteritems():
                         pstats.count = total_count
                         # no need to print individual trials - just get total
                         # new_printer = copy.deepcopy(printer)

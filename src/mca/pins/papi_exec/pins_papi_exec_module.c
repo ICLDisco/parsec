@@ -88,7 +88,7 @@ static void start_papi_exec_count(dague_execution_unit_t * exec_unit,
 			       "exec event counters! %s\n", 
 			       exec_unit->th_id, PAPI_strerror(rv));
 		}
-		else { // handle, 
+		else { 
 			dague_profiling_trace(exec_unit->eu_profile, pins_prof_papi_exec_begin, 
 			                      (*exec_context->function->key
 			                       )(exec_context->dague_handle, exec_context->locals), 
@@ -138,12 +138,14 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
 			 * after the fact by a knowledgeable end user */
 			info.values_len = NUM_EXEC_EVENTS; 
 
-			dague_profiling_trace(exec_unit->eu_profile, pins_prof_papi_exec_end, 
+			rv = dague_profiling_trace(exec_unit->eu_profile, pins_prof_papi_exec_end, 
 			                      (*exec_context->function->key
 			                       )(exec_context->dague_handle, exec_context->locals), 
 			                      exec_context->dague_handle->handle_id, 
 			                      (void *)&info);
-
+			if (rv) {
+				printf("failed to save PINS_EXEC event to profiling system %d\n", rv);
+			}
 		}
 	}
 	// keep the contract with the previous registerer

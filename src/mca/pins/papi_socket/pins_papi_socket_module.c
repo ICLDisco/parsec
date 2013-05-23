@@ -95,7 +95,7 @@ static void start_papi_socket(dague_execution_unit_t * exec_unit,
 					   exec_unit->th_id, PAPI_strerror(rv));
             else {
                 rv = dague_profiling_trace(exec_unit->eu_profile, 
-										   pins_prof_papi_socket_begin, 45, 45, NULL);
+										   pins_prof_papi_socket_begin, 45, 0, NULL);
             }
         }
     }
@@ -142,7 +142,7 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
 				info.values[i] = values[i];
 			info.values_len = NUM_SOCKET_EVENTS; 
 			inc = dague_profiling_trace(exec_unit->eu_profile, 
-								  pins_prof_papi_socket_end, 45, 45, (void *)&info);
+								  pins_prof_papi_socket_end, 45, 0, (void *)&info);
         }
     }
     // call previous callback, if any

@@ -31,6 +31,9 @@ def spawn_trial_set_processes(trial_sets, exe_dir='.', output_base_dir='.'):
     last_N = 0
     last_ex = ''
     total_fail_count = 0
+    if not os.path.exists(output_base_dir):
+        os.makedirs(output_base_dir)
+    
     for set_num in range(len(trial_sets)):
         if last_ex != trial_sets[set_num].ex:
             print('\n')
@@ -85,7 +88,7 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
     stddev_fails = 0
     set_finished = False
     extra_trials = []
-    pending_filename = 'pending.' + trial_set.name()
+    pending_filename = 'pending.' + trial_set.shared_name()
     
     while not set_finished:
         # abbrevs
@@ -118,9 +121,9 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
                     extra_output = match.group(4)
                     print("   -----> gflops: %f time: %f NB:%d" %
                           (perf, time, trial_set.NB))
-                    trialObj = Trial(trial_set.ident, ex, N, cores, NB,
+                    trial = Trial(trial_set.ident, ex, N, cores, NB,
                                      IB, sched, trialNum, perf, time)
-                    trialObj.extra_output = extra_output
+                    trial.extra_output = extra_output
                     if not os.environ.get('SUPPRESS_EXTRA_OUTPUT', None):
                        sys.stdout.write(extra_output)
                     # read and save profile, if it exists
@@ -130,14 +133,12 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
                         # read profile in current process since dbpreader is now fixed
                         try:
                             import py_dbpreader as dbpr
-                            profile = dbpr.readProfile(profiles)
-                            trialObj.profile = profile
-                            trialObj.profile_event_stats = profile.event_type_stats
+                            trial.profile = dbpr.readProfile(profiles)
                             safe_unlink(profiles) # delete binary profile(s)
                         except ImportError as iex:
                             print('Unable to save profile; dbpreader is unavailable:')
                             print(iex)
-                    trial_set.append(trialObj)
+                    trial_set.append(trial)
                     break # no more attempts are needed - we got what we came for
                 else:
                     sys.stderr.write("results not properly parsed: %s\n" % stdout)
@@ -217,9 +218,18 @@ if __name__ == '__main__':
     extra_args = []
     pickles = []
     try:
-        exe_dir = sys.argv[1]
-        output_base_dir = sys.argv[2]
-        for arg in sys.argv[3:]:
+        argn = 1
+        if os.path.isdir(sys.argv[argn]):
+            exe_dir = sys.argv[argn]
+            argn += 1
+        else:
+            exe_dir = '.'
+        if not os.path.isfile(sys.argv[argn]):
+            output_base_dir = sys.argv[argn]
+            argn += 1
+        else:
+            output_base_dir = '.'
+        for arg in sys.argv[argn:]:
             if os.path.exists(arg):
                 pickles.append(arg)
             else:
@@ -248,5 +258,5 @@ if __name__ == '__main__':
     # run the longer ones first
     trial_sets.sort(key = lambda tset: (tset.ex, tset.N, tset.NB, tset.IB), reverse=True)
             
-    spawn_trial_set_processes(trial_sets, exe_dir = exe_dir)
+    spawn_trial_set_processes(trial_sets, exe_dir = exe_dir, output_base_dir=output_base_dir)
 

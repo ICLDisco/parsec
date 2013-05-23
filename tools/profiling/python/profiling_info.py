@@ -172,6 +172,48 @@ class dbp_Socket_EventInfo:
     def __repr__(self):
         return self.row()
 
+class dbp_L123_EventInfo:
+    class_version = 1.0
+    __max_length__ = 0
+    def __init__(self, vp_id, th_id, values):
+        self.__version__ = self.__class__.class_version
+        self.vp_id = vp_id
+        self.th_id = th_id
+        self.values = values
+
+        # set global max length
+        for attr, val in vars(self).items():
+            if attr[:2] == '__':
+                continue # skip special vars
+            # values that we don't want printed generically
+            elif attr == 'values':
+                for value in val:
+                    if len(str(value)) > dbp_Socket_EventInfo.__max_length__:
+                        dbp_Socket_EventInfo.__max_length__ = len(str(value))
+            elif len(str(val)) > dbp_Socket_EventInfo.__max_length__:
+                dbp_Socket_EventInfo.__max_length__ = len(str(val))
+            # base case
+            elif len(attr) > dbp_Socket_EventInfo.__max_length__:
+                dbp_Socket_EventInfo.__max_length__ = len(attr)
+    def row(self):
+        row = ''
+        length = str(dbp_Socket_EventInfo.__max_length__)
+        row += ('{:>' + length + '}  ').format(self.vp_id)
+        row += ('{:>' + length + '}  ').format(self.th_id)
+        for value in self.values:
+            row += ('{:>' + length + '}  ').format(value)
+        return row
+    def row_header(self):
+        # first, establish max length
+        header = ''
+        length = str(dbp_Socket_EventInfo.__max_length__)
+        header += ('{:>' + length + '}  ').format('vp_id')
+        header += ('{:>' + length + '}  ').format('th_id')
+        header += ('{:>' + length + '}  ').format('values')
+        return header
+    def __repr__(self):
+        return self.row()
+
 ########################################################
 ############## CUSTOM INFO STATS SECTION ###############
 ######### -- add a Python type to this section #########
@@ -186,10 +228,10 @@ class PapiStats(object):
     def __init__(self, name):
         self.__version__ = self.__class__.class_version
         self.name = name
-        self.duration = 0
+        self.total_duration = 0
         self.count = 0
     def row(self):
-        return '{:15d} {:12.0f}'.format(self.count, self.duration/float(self.count))
+        return '{:15d} {:12.0f}'.format(self.count, self.total_duration/float(self.count))
     def row_header(self):
         return self.class_row_header()
     def __repr__(self):
@@ -265,6 +307,8 @@ class SocketStats(PapiStats):
         self.l3_shr_misses = 0
         self.l3_mod_misses = 0
     def row(self):
+        if self.count == 0:
+            self.count = 1
         row = '{:>16} '.format(self.name) + super(SocketStats, self).row()
         row += (' {:12.0f} {:12.0f} {:12.0f} {:12.0f}').format(
             float(self.l3_shr_misses)/self.count,

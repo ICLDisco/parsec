@@ -7,21 +7,23 @@ class Trial(object):
     class_version = 1.1 # renamed some attributes
     def __init__(self, ident, ex, N, cores, NB, IB, sched, trial_num, perf, walltime):
         self.__version__ = self.__class__.class_version
-        self.ident = ident
+        # parameters
         self.ex = ex
         self.N = int(N)
         self.cores = int(cores)
         self.NB = int(NB)
         self.IB = int(IB)
         self.sched = sched
+        # identifiers
+        self.ident = ident
         self.trial_num = int(trial_num)
+        self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
+        self.unix_timestamp = int(time.time())
+        # output
         self.perf = float(perf)
         self.time = walltime
         self.extra_output = ''
-        self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
-        self.unix_timestamp = int(time.time())
         self.profile = None # may not have one
-        self.profile_event_stats = None
     def stamp_time(self):
         self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
         self.unix_timestamp = int(time.time())
@@ -34,7 +36,6 @@ class Trial(object):
     def __setstate__(self, dictionary): # the unpickler shim
         self.__dict__.update(dictionary)
         if not hasattr(self, '__version__'):
-            self.__version__ = 1.0
             if hasattr(self, 'name'):
                 self.ex = self.name
             elif hasattr(self, 'executable'):
@@ -43,6 +44,7 @@ class Trial(object):
                 self.sched = self.scheduler
             if not hasattr(self, 'ident'):
                 self.ident = 'NO_ID'
+            self.__version__ = 1.0
         if self.__version__ < 1.1:
             self.perf = self.gflops
             self.time = self.walltime
@@ -54,8 +56,9 @@ class Trial(object):
 class TrialSet(list):
     class_version = 1.0 # added a version
     class_version = 1.1 # renamed various attributes
+    class_version = 1.2 # changed profile pickling method
     # class members
-    __unloaded_profile_token__ = 'not loaded'
+    __unloaded_profile_token__ = 'not loaded' # old
     @staticmethod
     def unpickle(filepath, load_profile=True):
         f = open(filepath, 'r')
@@ -63,7 +66,9 @@ class TrialSet(list):
         if load_profile:
             # load profiles, assign them to trials
             for trial in trial_set:
-                if trial.profile == TrialSet.__unloaded_profile_token__:
+                if (trial.profile == TrialSet.__unloaded_profile_token__ # old
+                    or len(trial.profile) == 0): # new
+                    # load full profile
                     trial.profile = cPickle.load(f)
         f.close()
         return trial_set
@@ -74,32 +79,36 @@ class TrialSet(list):
         for trial in self:
             profile_backups.append(trial.profile)
             if trial.profile:
-                trial.profile = TrialSet.__unloaded_profile_token__
+                trial.profile = trial.profile.get_eventless_pickle()
         cPickle.dump(self, f, protocol)
         for profile in profile_backups:
             if profile: # don't dump the Nones
                 cPickle.dump(profile, f, protocol)
-        f.close()
         # restore profiles because the user isn't necessarily done with them
         for trial, profile in zip(self, profile_backups):
             trial.profile = profile
+        f.close()
 
     def __init__(self, ident, ex, N, cores=0, NB=0, IB=0, sched='LFQ', extra_args=[]):
         self.__version__ = self.__class__.class_version
-        self.ident = ident
+        # basic parameters (always present)
         self.cores = int(cores)
         self.ex = ex
         self.N = int(N)
         self.NB = int(NB)
         self.IB = int(IB)
         self.sched = sched
+        # extra parameters (could eventually be split into true Python parameters)
+        self.extra_args = extra_args
+        # identifiers
+        self.ident = ident
+        self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
+        self.unix_timestamp = int(time.time())
+        # stats
         self.perf_avg = 0.0
         self.perf_sdv = 0.0
         self.time_avg = 0.0
         self.time_sdv = 0.0
-        self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
-        self.unix_timestamp = int(time.time())
-        self.extra_args = extra_args
     def stamp_time(self):
         self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
         self.unix_timestamp = int(time.time())
