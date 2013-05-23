@@ -64,6 +64,13 @@ cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
             for thread in f.threads:
                 thread.sort(key = attrgetter(sort_key))
                 for name, event_type in thread.event_types.iteritems():
+                    event_type.sort(key = attrgetter(sort_key))
+                    for index, event in enumerate(event_type):
+                        if index > 0:
+                            if event_type[index - 1].end > event.begin:
+                                print('these {} events overlap!'.format(name))
+                                print(event_type[index - 1])
+                                print(event)
                     make_duration_stats(event_type)
     profile.is_sorted = do_sort
         
@@ -187,7 +194,7 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                         elif ('PINS_SELECT' in profile.event_types and
                               event_key == profile.event_types['PINS_SELECT'].key):
                             cast_select_info = <select_info_t *>cinfo
-                            kernel_name = str(cast_exec_info.kernel_name)
+                            kernel_name = str(cast_select_info.kernel_name)
                             event.info = dbp_Select_EventInfo(
                                 cast_select_info.kernel_type,
                                 kernel_name,
@@ -203,10 +210,7 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                             pstats = global_stats.select_stats[kernel_name]
                             pstats.count += 1
                             pstats.total_duration += event.duration
-                            pstats.l1_misses += event.info.values[0]
-                            pstats.l2_hits += event.info.values[1]
-                            pstats.l2_misses += event.info.values[2]
-                            pstats.l2_accesses += event.info.values[3]
+                            pstats.l2_misses += event.info.values[1]
                         elif ('PINS_SOCKET' in profile.event_types and
                               event_key == profile.event_types['PINS_SOCKET'].key):
                             cast_socket_info = <papi_socket_info_t *>cinfo
@@ -302,6 +306,6 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
 
     thread.duration = thread.end - thread.begin
     for event_name, event_type in thread.event_types.iteritems():
-        event_type.stats.starvation = float(event_type.stats.total_duration) / thread.duration
+        event_type.stats.starvation = 1.0 - float(event_type.stats.total_duration) / thread.duration
         
     return thread

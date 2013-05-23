@@ -261,7 +261,8 @@ static void read_papi_L12_select_count_end(dague_execution_unit_t * exec_unit,
 	}
     else {
         info.kernel_type = 0;
-		strncpy(info.kernel_name, "< STARVED >", KERNEL_NAME_SIZE);
+		strncpy(info.kernel_name, "<STARVED>", KERNEL_NAME_SIZE - 1);
+		info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
 	}
     info.vp_id = exec_unit->virtual_process->vp_id;
     info.th_id = exec_unit->th_id;

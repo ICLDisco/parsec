@@ -192,6 +192,8 @@ class dbpEvent(object):
                 value = 'Yes' if self.info else 'No'
             if len(str(value)) > dbpEvent.__max_length__:
                 dbpEvent.__max_length__ = len(str(value))
+        if (self.duration < 0):
+            print(self)
     def row(self):
         row = ''
         for attr in dbpEvent.print_order:
@@ -236,7 +238,7 @@ class EventStats(object):
         self.select_stats = {} # hashed by task name
     def row(self):
         row = '{:16} {:15d} {:12.0f}'.format(
-           self.event_name, self.count, self.duration/float(self.count)
+           self.name, self.count, self.total_duration/float(self.count)
         )
         return row
     def row_header(self):
