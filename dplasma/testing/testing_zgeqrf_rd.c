@@ -53,10 +53,11 @@ int main(int argc, char ** argv)
         check = 0;
     }
 
-    if( rank == 0 ) {
-        seed=getpid();
-    }
-    MPI_Bcast(&seed, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
+    seed = getpid();
+#if defined(HAVE_MPI)
+    /* If we are in a distributed run, broadcast the seed of rank 0 */
+    MPI_Bcast(&seed, 1, MPI_INT, 0, MPI_COMM_WORLD);
+#endif  /* defined(HAVE_MPI) */
 
     LDA = max(M, LDA);
     /* initializing matrix structure */
