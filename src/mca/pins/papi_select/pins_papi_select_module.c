@@ -104,7 +104,7 @@ static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
 	}
     else {
         info.kernel_type = 0;
-		info.kernel_name[0] = '\0';
+		strncpy(info.kernel_name, "< STARVED >", KERNEL_NAME_SIZE);
 	}
     info.vp_id = exec_unit->virtual_process->vp_id;
     info.th_id = exec_unit->th_id;

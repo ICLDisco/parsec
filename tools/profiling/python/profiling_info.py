@@ -72,7 +72,8 @@ class dbp_Exec_EventInfo:
 class dbp_Select_EventInfo:
     class_version = 1.0
     __max_length__ = 0
-    def __init__(self, kernel_type, kernel_name, vp_id, th_id, victim_vp_id, victim_th_id, exec_context, values):
+    def __init__(self, kernel_type, kernel_name, vp_id, th_id,
+                 victim_vp_id, victim_th_id, exec_context, values):
         self.__version__ = self.__class__.class_version
         self.kernel_type = kernel_type
         self.kernel_name = kernel_name
@@ -306,6 +307,8 @@ class SocketStats(PapiStats):
         self.l3_exc_misses = 0
         self.l3_shr_misses = 0
         self.l3_mod_misses = 0
+        self.l1_misses = 0
+        self.l2_misses = 0
     def row(self):
         if self.count == 0:
             self.count = 1

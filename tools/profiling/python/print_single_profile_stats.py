@@ -29,43 +29,70 @@ if __name__ == '__main__':
     profile = None
     with Timer() as t:
         profile = pread.readProfile(filenames)
+        # profile = Profile.unpickle('test.pickle', load_events=False)
     print(t.interval)
 
-    with Timer() as t:
-        cPickle.dump(profile, open('raw.pickle', 'w'), protocol=cPickle.HIGHEST_PROTOCOL)
-    print(t.interval)
+    # with Timer() as t:
+    #     cPickle.dump(profile, open('raw.pickle', 'w'), protocol=cPickle.HIGHEST_PROTOCOL)
+    # print(t.interval)
     
     print('handle counts: ' + str(profile.get_handle_counts()))
 
     printers = []
 
-    total_stats = ExecSelectStats('TOTAL')
-    for key, event_type in profile.dictionary.iteritems():
-        if key == 'PINS_EXEC': # or key == 'PINS_SELECT':
+    total_exec_stats = ExecSelectStats('TOTAL E')
+    total_exec_name = None
+    total_select_stats = ExecSelectStats('TOTAL S')
+    total_select_name = None
+    for name, event_type in profile.event_types.iteritems():
+        if name[:4] == 'PINS' and 'EXEC' in name:
+            total_exec_name = name
             for pkey, pstats in event_type.stats.exec_stats.iteritems():
                 if pkey.lower() in task_focus or 'all' in task_focus:
                     new_printer = LinePrinter()
+                    new_printer.append(ItemPrinter(name, 'EVENT', length=17))
                     new_printer.append(pstats)
                     new_printer.sorter = pstats
                     printers.append(new_printer)
-                total_stats += pstats
-    total_printer = LinePrinter()
-    total_printer.append(total_stats)
-    total_printer.sorter = total_stats
-    printers.append(total_printer)
+                total_exec_stats += pstats
+        if name[:4] == 'PINS' and 'SELECT' in name:
+            total_select_name = name
+            for pkey, pstats in event_type.stats.select_stats.iteritems():
+                if pkey.lower() in task_focus or 'all' in task_focus:
+                    new_printer = LinePrinter()
+                    new_printer.append(ItemPrinter(name, 'EVENT', length=17))
+                    new_printer.append(pstats)
+                    new_printer.sorter = pstats
+                    printers.append(new_printer)
+                total_select_stats += pstats
+    if total_exec_name:
+        total_printer = LinePrinter()
+        total_printer.append(ItemPrinter(total_exec_name, 'EVENT', length=17))
+        total_printer.append(total_exec_stats)
+        total_printer.sorter = total_exec_stats
+        printers.append(total_printer)
+    if total_select_name:
+        total_printer = LinePrinter()
+        total_printer.append(ItemPrinter(total_select_name, 'EVENT', length=17))
+        total_printer.append(total_select_stats)
+        total_printer.sorter = total_select_stats
+        printers.append(total_printer)
 
     total_stats = SocketStats()
     total_count = 0
-    for key, event_type in profile.dictionary.iteritems():
-        if key != 'PINS_EXEC' and key != 'PINS_SELECT':
+    total_name = None
+    for name, event_type in profile.event_types.iteritems():
+        if name[:4] != 'PINS':
             total_count += event_type.stats.count
-    for key, event_type in profile.dictionary.iteritems():
-        if key == 'PINS_SOCKET':
+    for name, event_type in profile.event_types.iteritems():
+        if name in ['PINS_L123', 'PINS_SOCKET']:
+            total_name = name
             for pkey, pstats in event_type.stats.socket_stats.iteritems():
                 pstats.count = total_count
                 total_stats += pstats
     if total_stats.count > 0:
         total_printer = LinePrinter()
+        total_printer.append(ItemPrinter(total_name, 'EVENT', length=17))
         total_printer.append(total_stats)
         total_printer.sorter = total_stats
         printers.append(total_printer)
@@ -86,6 +113,7 @@ if __name__ == '__main__':
             print(printer.row())
         print(printers[-1].row_header())
 
-    with Timer() as t:
-        profile.pickle('test.pickle')
-    print(t.interval)
+    if not profile.is_eventless():
+        with Timer() as t:
+            profile.pickle('test.pickle')
+        print(t.interval)

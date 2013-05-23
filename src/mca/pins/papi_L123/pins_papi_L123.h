@@ -8,7 +8,7 @@
 
 #define NUM_L12_EVENTS 2
 #define SYSTEM_QUEUE_VP -2
-#define KERNEL_NAME_SIZE 9
+#define KERNEL_NAME_SIZE 12
 
 typedef struct papi_L123_info_s {
 	int vp_id;

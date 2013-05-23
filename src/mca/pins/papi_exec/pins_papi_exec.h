@@ -7,7 +7,7 @@
 #include "dague.h"
 
 #define NUM_EXEC_EVENTS 4
-#define KERNEL_NAME_SIZE 9
+#define KERNEL_NAME_SIZE 12
 
 typedef struct papi_exec_info_s {
 	int kernel_type;

@@ -8,7 +8,7 @@
 # and stored the profile in this format in some sort
 # of cross-process format, such as a pickle.
 
-import copy
+import copy, sys
 import cPickle
 
 class Profile(list): # contains Events
@@ -25,16 +25,40 @@ class Profile(list): # contains Events
     def pickle(self, filepath, protocol=cPickle.HIGHEST_PROTOCOL):
         f = open(filepath, 'w')
         # 1: dump object with events removed
-        cPickle.dump(self.get_eventless_pickle(), f, protocol)
+        cPickle.dump(self.get_eventless(), f, protocol)
         # 2: dump entire object with all references intact
         cPickle.dump(self, f, protocol)
         f.close()
-    def get_eventless_pickle(self):
-        # backup and remove all events
+    def __init__(self):
+        self.__version__ = self.__class__.class_version
+        self.event_types = dict()
+        self.type_key_to_name = dict()
+        self.files = dict()
+        self.handles = dict()
+    def get_handle_counts(self):
+        if self.is_eventless():
+            return self.handle_counts
+        self.handle_counts = dict()
+        for key, value in self.handles.iteritems():
+            self.handle_counts[key] = len(value)
+        return self.handle_counts
+    def __setstate__(self, dictionary):
+        self.__dict__.update(dictionary)
+        if not hasattr(self, '__version__'):
+            self.__version__ = 1.0
+    def is_eventless(self):
+        for key, handle  in self.handles.iteritems():
+            if len(handle) > 0:
+                return False
+        return True
+    def get_eventless(self):
+        # generate event-dependent statistics
+        self.get_handle_counts()
+        # backup and remove all events from their containers
         all_events = self[:]
         del self[:]
         event_type_events = dict()
-        for key, value in self.dictionary.iteritems():
+        for key, value in self.event_types.iteritems():
             event_type_events[key] = value[:]
             del value[:]
         handle_events = dict()
@@ -42,48 +66,41 @@ class Profile(list): # contains Events
             handle_events[key] = handle[:]
             del handle[:]
         file_threads = dict()
-        for key, pf in self.files.iteritems():
-            file_threads[key] = dict()
+        file_threads_types = dict()
+        for rank, pf in self.files.iteritems():
+            file_threads[rank] = dict()
+            file_threads_types[rank] = dict()
             for thread in pf.threads:
-                file_threads[key] = thread[:]
+                file_threads[rank][thread.id] = thread[:]
                 del thread[:]
+                file_threads_types[rank][thread.id] = dict()
+                for name, event_type in thread.event_types.iteritems():
+                    file_threads_types[rank][thread.id][name] = event_type[:]
+                    del event_type[:]
+                
         # create deep copy
         small_pickle = copy.deepcopy(self)
         # restore all events
         self.extend(all_events)
-        for key, value in self.dictionary.iteritems():
+        for key, value in self.event_types.iteritems():
             value.extend(event_type_events[key])
         for key, handle in self.handles.iteritems():
             handle.extend(handle_events[key])
-        for key, pf in self.files.iteritems():
+        for rank, pf in self.files.iteritems():
             for thread in pf.threads:
-                thread.extend(file_threads[key])
+                thread.extend(file_threads[rank][thread.id])
+                for name, event_type in thread.event_types.iteritems():
+                    event_type.extend(file_threads_types[rank][thread.id][name])
         return small_pickle # return deep copy
-        
-    def __init__(self):
-        self.__version__ = self.__class__.class_version
-        self.dictionary = dict()
-        self.dict_key_to_name = dict()
-        self.files = dict()
-        self.handles = dict()
-    def get_handle_counts(self):
-        handle_counts = dict()
-        for key, value in self.handles.iteritems():
-            handle_counts[key] = len(value)
-        return handle_counts
-    def __setstate__(self, dictionary):
-        self.__dict__.update(dictionary)
-        if not hasattr(self, '__version__'):
-            self.__version__ = 1.0
 
-class dbpDictEntry(list): # contains Events
+class dbpEventType(list): # contains Events
     class_version = 1.0
     def __init__(self, profile, key, attributes):
         self.__version__ = self.__class__.class_version
         self.profile = profile
         self.key = key
         self.attributes = attributes
-        self.stats = EventStats(self.profile.dict_key_to_name[key])
+        self.stats = EventStats(self.profile.type_key_to_name[key])
     def __setstate__(self, dictionary):
         self.__dict__.update(dictionary)
         if not hasattr(self, '__version__'):
@@ -122,6 +139,7 @@ class dbpHandle(list): # contains Events
         self.__version__ = self.__class__.class_version
         self.profile = profile
         self.id = id
+        self.event_types = dict()
         
 class dbpThread(list): # contains Events
     class_version = 1.0
@@ -130,6 +148,10 @@ class dbpThread(list): # contains Events
         self.__version__ = self.__class__.class_version
         self.file = parent_file
         self.id = int(thread_number) # if it's not a number, it's wrong
+        self.event_types = dict()
+        self.begin = sys.maxint
+        self.end = 0
+        self.duration = 0
     def __str__(self):
         return str(self.id)
     def __setstate__(self, dictionary):
@@ -208,6 +230,7 @@ class EventStats(object):
         self.name = name
         self.count = 0
         self.total_duration = 0
+        self.starvation = 0.0
         self.socket_stats = {} # hashed by nothing, really... TODO: should this be a single item?
         self.exec_stats = {}   # hashed by task name
         self.select_stats = {} # hashed by task name

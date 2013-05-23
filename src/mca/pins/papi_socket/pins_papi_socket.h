@@ -7,7 +7,6 @@
 #include "dague/mca/pins/pins.h"
 
 #define NUM_SOCKET_EVENTS 3
-#define KERNEL_NAME_SIZE 9
 
 typedef struct papi_socket_info_s {
 	int vp_id;

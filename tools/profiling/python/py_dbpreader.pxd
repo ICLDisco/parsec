@@ -146,7 +146,7 @@ cdef extern from "dague/mca/pins/papi_L123/pins_papi_L123.h":
    enum: SYSTEM_QUEUE_VP
    enum: KERNEL_NAME_SIZE
 
-   ctypedef struct pins_L12_select_info_t:
+   ctypedef struct papi_L12_select_info_t:
       int kernel_type
       char kernel_name[KERNEL_NAME_SIZE]
       int vp_id

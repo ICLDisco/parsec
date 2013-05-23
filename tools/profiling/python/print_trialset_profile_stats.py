@@ -38,7 +38,7 @@ if __name__ == '__main__':
             printer.append(ItemPrinter(trial.ex, 'EXEC', length=14))
             printer.append(ItemPrinter(trial.N, 'N', length=7))
             printer.append(ItemPrinter(trial.sched, 'SCHD', length=5))
-            for key, event_type in trial.profile.dictionary.iteritems():
+            for key, event_type in trial.profile.event_types.iteritems():
                 if key == 'PINS_EXEC': # or key == 'PINS_SELECT':
                     for pkey, pstats in event_type.stats.exec_stats.iteritems():
                         if pkey in task_focus or 'all' in task_focus:
@@ -81,10 +81,10 @@ if __name__ == '__main__':
             printer.append(ItemPrinter(trial.ex, 'EXEC', length=14))
             printer.append(ItemPrinter(trial.N, 'N', length=7))
             printer.append(ItemPrinter(trial.sched, 'SCHD', length=5))
-            for key, event_type in trial.profile.dictionary.iteritems():
+            for key, event_type in trial.profile.event_types.iteritems():
                 if key != 'PINS_EXEC' and key != 'PINS_SELECT':
                     total_count += event_type.stats.count
-            for key, stats in trial.profile.dictionary.iteritems():
+            for key, stats in trial.profile.event_types.iteritems():
                 if key == 'PINS_SOCKET':
                     for pkey, pstats in event_type.stats.socket_stats.iteritems():
                         pstats.count = total_count
