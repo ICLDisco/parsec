@@ -276,8 +276,9 @@ void set_allowable_pins_modules (const char * const modules[]) {
 		allowable_modules_in_use = 1; // if this function hasn't been called, 
 		while (modules[count] != NULL) 
 			count++;
-		allowable_modules = calloc(sizeof(char *), count);
+		allowable_modules = calloc(sizeof(char *), count + 1);
 		if (allowable_modules != NULL) {
+			allowable_modules[count] = NULL;
 			for (count--; count >= 0; count--) {
 				allowable_modules[count] = calloc(sizeof(char), MAX_NAME_SIZE + 1);
 				if (NULL != allowable_modules[count]) {
