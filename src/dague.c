@@ -434,9 +434,26 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
 #if defined(DAGUE_PROF_TRACE)
     if( dague_profiling_init( ) == 0 ) {
+        int i, l;
+        char *cmdline_info;
+
         if( dague_profiling_dbp_start( basename(dague_app_name), dague_app_name ) != 0 ) {
             fprintf(stderr, "*** %s. Profile deactivated.\n", dague_profiling_strerror());
         }
+
+        l = 0;
+        for(i = 0; i < *pargc; i++) {
+            l += strlen( (*pargv)[i] ) + 1;
+        }
+        cmdline_info = (char*)calloc(sizeof(char), l + 1);
+        l = 0;
+        for(i = 0; i < *pargc; i++) {
+            sprintf(cmdline_info + l, "%s ", (*pargv)[i]);
+            l += strlen( (*pargv)[i] ) + 1;
+        }
+        cmdline_info[l] = '\0';
+        dague_profiling_add_information("CMDLINE", cmdline_info);
+        free(cmdline_info);
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
         dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",

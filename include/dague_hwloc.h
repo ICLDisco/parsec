@@ -71,6 +71,22 @@ extern int dague_hwloc_nb_real_cores();
 int dague_hwloc_bind_on_core_index(int cpu_index);
 
 /**
+ * Exports the loaded topology to an XML buffer.
+ * @param [OUT] buflen: the size of the buffer as allocated by the function
+ * @param [OUT] xmlbuffer: the buffer containing an XML representation.
+ *              this buffer should then be freed using dague_hwloc_free_xml_buffer
+ *
+ * @return -1 if an error
+ */
+int dague_hwloc_export_topology(int *buflen, char **xmlbuffer);
+
+/**
+ * Frees memory allocated by dague_hwloc_export_topology
+ * @param [IN] xmlbuffer: the buffer to free.
+ */
+void dague_hwloc_free_xml_buffer(char *xmlbuffer);
+
+/**
  * Bind the current thread according the mask of index mask_index.
  *
  */

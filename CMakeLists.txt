@@ -58,10 +58,6 @@ mark_as_advanced(DAGUE_SCHED_REPORT_STATISTICS)
 option(DAGUE_SCHED_REPORT_STATISTICS
   "Display statistics on the scheduling at the end of the run")
 
-mark_as_advanced(DAGUE_SCHED_CACHE_AWARE)
-cmake_dependent_option(DAGUE_SCHED_CACHE_AWARE
-  "Activate the cache awareness support (requires HWLOC)" OFF "HAVE_HWLOC" OFF)
-
 mark_as_advanced(DAGUE_SCHED_DEPS_MASK)
 option(DAGUE_SCHED_DEPS_MASK
   "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" ON)
@@ -140,8 +136,12 @@ option(DAGUE_PROF_DRY_DEP
 
 ### Instrumentation Options
 option(PINS_ENABLE
-  "Enable the use of the PaRSEC callback instrumentation system" ON)
-SET(CORES_PER_SOCKET 6 CACHE STRING 
+  "Enable the use of the PaRSEC callback instrumentation system (requires DAGUE_PROF_TRACE)" ON)
+# if( PINS_ENABLE AND NOT DAGUE_PROF_TRACE )
+#  message(WARNING "PINS Instrumentation System requires to enable DAGUE_PROF_TRACE. Forcing profiling system on.")
+#  SET(DAGUE_PROF_TRACE ON CACHE BOOL "Enable the generation of the profiling information during execution" FORCE)
+# endif( PINS_ENABLE AND NOT DAGUE_PROF_TRACE )
+SET(CORES_PER_SOCKET 6 CACHE STRING
   "This is a temporary configuration parameter until dague-hwloc enables dynamic determination of this number.") # default for ig.icl
 mark_as_advanced(CORES_PER_SOCKET)
 
