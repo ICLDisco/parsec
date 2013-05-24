@@ -57,7 +57,6 @@ static inline int time_less( dague_time_t start, dague_time_t end )
 }
 #define ZERO_TIME 0
 #elif defined(__X86)
-#warning using uint64_t as dague_time_t
 typedef uint64_t dague_time_t;
 static inline dague_time_t take_time(void)
 {
