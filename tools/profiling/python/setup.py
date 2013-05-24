@@ -37,9 +37,18 @@ else:
 ext_modules = [Extension('py_dbpreader', 
                          ['py_dbpreader.pyx', '../dbpreader.c'], 
                          extra_objects=[libdaguebase],
-                         include_dirs=['../../../include', '../../..', '../', '/home/pgaultne/include/', build_dir + '/include'], 
-                         depends=['setup.py', 'py_dbpreader.pyx', 'py_dbpreader.pxd', '../dbpreader.h', '../../../include/dbp.h', '../../../include/os-spec-timing.h', 
-                                  '../../../dague/class/dague_object.h', config_h, '../../../dague/mca/pins/papi_socket/pins_papi_socket.h'], 
+                         include_dirs=['../../../include', '../../..', '../',
+                                       '/home/pgaultne/include/', build_dir + '/include'], 
+                         depends=['setup.py', 'py_dbpreader.pyx', 'py_dbpreader.pxd',
+                                  'profiling.py', 'profiling_info.py',
+                                  '../dbpreader.h', '../../../include/dbp.h',
+                                  '../../../include/os-spec-timing.h', 
+                                  '../../../dague/class/dague_object.h', config_h,
+                                  '../../../dague/mca/pins/papi_exec/pins_papi_exec.h'
+                                  '../../../dague/mca/pins/papi_socket/pins_papi_socket.h'
+                                  '../../../dague/mca/pins/papi_select/pins_papi_select.h'
+                                  '../../../dague/mca/pins/papi_L123/pins_papi_L123.h'
+                              ], 
                          extra_compile_args=['-O0', '-g3'],
                          extra_link_args=["-g"],
 #                          pyrex_gdb=True

@@ -81,7 +81,7 @@ static void start_papi_select_count(dague_execution_unit_t * exec_unit,
         dague_profiling_trace(exec_unit->eu_profile, 
                               pins_prof_select_begin, 
                               45,
-                              -2, 
+                              0, 
                               NULL);
     }
     // keep the contract with the previous registrant
@@ -104,7 +104,8 @@ static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
 	}
     else {
         info.kernel_type = 0;
-		info.kernel_name[0] = '\0';
+		strncpy(info.kernel_name, "<STARVED>", KERNEL_NAME_SIZE - 1);
+		info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
 	}
     info.vp_id = exec_unit->virtual_process->vp_id;
     info.th_id = exec_unit->th_id;
@@ -135,7 +136,7 @@ static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
     dague_profiling_trace(exec_unit->eu_profile, 
                           pins_prof_select_end, 
                           45,
-                          -2, 
+                          0, 
                           (void *)&info);
 
     // keep the contract with the previous registrant

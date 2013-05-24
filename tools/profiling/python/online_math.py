@@ -10,7 +10,6 @@ import shutil
 import re
 import math
 import glob
-import events
 
 class dataSet(list):
     stdDev = 0.0

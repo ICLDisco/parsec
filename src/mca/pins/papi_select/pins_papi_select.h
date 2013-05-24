@@ -8,7 +8,7 @@
 
 #define NUM_SELECT_EVENTS 2
 #define SYSTEM_QUEUE_VP -2
-#define KERNEL_NAME_SIZE 9
+#define KERNEL_NAME_SIZE 12
 
 typedef struct select_info_s {
 	int kernel_type;
