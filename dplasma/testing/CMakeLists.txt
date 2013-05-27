@@ -54,7 +54,5 @@ testings_addexec(targets "${DPLASMA_PRECISIONS}" "${TESTS}")
 #   set_target_properties(${target} PROPERTIES COMPILE_FLAGS "${${target}_COMPILE_FLAGS} -DLLT_LL")
 # endforeach()
 
-Add_Subdirectory(TSQR)
-
 # Define Testings
 include(Testings.cmake)
