@@ -78,36 +78,39 @@ if( MPI_FOUND )
   # check the control in shared memory
   add_test(mpi_print         ${MPI_TEST_CMD} ./testing_dprint        -p 2 -N 40 -t 7 -x -v=5)
 
-  add_test(mpi_dlange        ${MPI_TEST_CMD} ./testing_dlange        -p 4 -N 1500 -t 233 -x -v=5)
+  foreach(prec ${DPLASMA_PRECISIONS})
+    add_test(mpi_${prec}lange        ${MPI_TEST_CMD} ./testing_${prec}lange        -p 4 -N 1500 -t 233 -x -v=5)
 
-  add_test(mpi_dtrmm         ${MPI_TEST_CMD} ./testing_dtrmm         -p 2 -N 1500 -x -v=5)
-  add_test(mpi_dtrsm         ${MPI_TEST_CMD} ./testing_dtrsm         -p 4 -N 1500 -x -v=5)
-  add_test(mpi_dgemm         ${MPI_TEST_CMD} ./testing_dgemm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
+    add_test(mpi_${prec}trmm         ${MPI_TEST_CMD} ./testing_${prec}trmm         -p 2 -N 1500 -x -v=5)
+    add_test(mpi_${prec}trsm         ${MPI_TEST_CMD} ./testing_${prec}trsm         -p 4 -N 1500 -x -v=5)
+    add_test(mpi_${prec}gemm         ${MPI_TEST_CMD} ./testing_${prec}gemm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
+
+    add_test(mpi_${prec}potrf        ${MPI_TEST_CMD} ./testing_${prec}potrf        -p 2 -N 4000 -x -v=5)
+    if (CUDA_FOUND)
+      add_test(mpi_${prec}potrf_g1     ${MPI_TEST_CMD} -mca btl_openib_flags 1 ./testing_${prec}potrf        -p 2 -N 8000 -x -v=5 -g 1)
+    endif (CUDA_FOUND)
+    add_test(mpi_${prec}posv         ${MPI_TEST_CMD} ./testing_${prec}posv         -p 4 -N 4000 -x -v=5)
+    add_test(mpi_${prec}potrf_pbq    ${MPI_TEST_CMD} ./testing_${prec}potrf        -p 2 -N 4000 -x -v=5 -o PBQ)
+
+    add_test(mpi_${prec}getrf        ${MPI_TEST_CMD} ./testing_${prec}getrf        -p 1 -N 4000 -x -v=5)
+    add_test(mpi_${prec}getrf_incpiv ${MPI_TEST_CMD} ./testing_${prec}getrf_incpiv -p 4 -N 4000 -x -v=5)
+    add_test(mpi_${prec}gesv_incpiv  ${MPI_TEST_CMD} ./testing_${prec}gesv_incpiv  -p 4 -N 4000 -x -v=5)
+
+    add_test(mpi_${prec}geqrf        ${MPI_TEST_CMD} ./testing_${prec}geqrf        -p 4 -N 4000 -x -v=5)
+    add_test(mpi_${prec}gelqf        ${MPI_TEST_CMD} ./testing_${prec}gelqf        -p 4 -N 4000 -x -v=5)
+    add_test(mpi_${prec}geqrf_pbq    ${MPI_TEST_CMD} ./testing_${prec}geqrf        -p 4 -N 4000 -x -v=5 -o PBQ)
+
+    add_test(mpi_${prec}geqrf_p0     ${MPI_TEST_CMD} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 0 --tsrr=0 -v=5)
+    add_test(mpi_${prec}geqrf_p1     ${MPI_TEST_CMD} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 1 --tsrr=0 -v=5)
+    add_test(mpi_${prec}geqrf_p2     ${MPI_TEST_CMD} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 2 --tsrr=0 -v=5)
+    add_test(mpi_${prec}geqrf_p3     ${MPI_TEST_CMD} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 3 --tsrr=0 -v=5)
+endforeach()
+
   add_test(mpi_dsymm         ${MPI_TEST_CMD} ./testing_dsymm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
   add_test(mpi_csymm         ${MPI_TEST_CMD} ./testing_csymm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
   add_test(mpi_chemm         ${MPI_TEST_CMD} ./testing_chemm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
   add_test(mpi_dsyrk         ${MPI_TEST_CMD} ./testing_dsyrk         -p 4 -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
   add_test(mpi_csyrk         ${MPI_TEST_CMD} ./testing_csyrk         -p 4 -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
   add_test(mpi_cherk         ${MPI_TEST_CMD} ./testing_cherk         -p 4 -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
-
-  add_test(mpi_dpotrf        ${MPI_TEST_CMD} ./testing_dpotrf        -p 2 -N 4000 -x -v=5)
-if (CUDA_FOUND)
-  add_test(mpi_dpotrf_g1     ${MPI_TEST_CMD} -mca btl_openib_flags 1 ./testing_dpotrf        -p 2 -N 8000 -x -v=5 -g 1)
-endif (CUDA_FOUND)
-  add_test(mpi_dposv         ${MPI_TEST_CMD} ./testing_dposv         -p 4 -N 4000 -x -v=5)
-  add_test(mpi_dpotrf_pbq    ${MPI_TEST_CMD} ./testing_dpotrf        -p 2 -N 4000 -x -v=5 -o PBQ)
-
-  add_test(mpi_dgetrf        ${MPI_TEST_CMD} ./testing_dgetrf        -p 1 -N 4000 -x -v=5)
-  add_test(mpi_dgetrf_incpiv ${MPI_TEST_CMD} ./testing_dgetrf_incpiv -p 4 -N 4000 -x -v=5)
-  add_test(mpi_dgesv_incpiv  ${MPI_TEST_CMD} ./testing_dgesv_incpiv  -p 4 -N 4000 -x -v=5)
-
-  add_test(mpi_dgeqrf        ${MPI_TEST_CMD} ./testing_dgeqrf        -p 4 -N 4000 -x -v=5)
-  add_test(mpi_dgelqf        ${MPI_TEST_CMD} ./testing_dgelqf        -p 4 -N 4000 -x -v=5)
-  add_test(mpi_dgeqrf_pbq    ${MPI_TEST_CMD} ./testing_dgeqrf        -p 4 -N 4000 -x -v=5 -o PBQ)
-
-  add_test(mpi_dgeqrf_p0     ${MPI_TEST_CMD} ./testing_dgeqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 0 --tsrr=0 -v=5)
-  add_test(mpi_dgeqrf_p1     ${MPI_TEST_CMD} ./testing_dgeqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 1 --tsrr=0 -v=5)
-  add_test(mpi_dgeqrf_p2     ${MPI_TEST_CMD} ./testing_dgeqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 2 --tsrr=0 -v=5)
-  add_test(mpi_dgeqrf_p3     ${MPI_TEST_CMD} ./testing_dgeqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 3 --tsrr=0 -v=5)
 
 endif( MPI_FOUND )

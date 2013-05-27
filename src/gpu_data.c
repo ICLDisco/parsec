@@ -53,13 +53,28 @@ static void* dague_gpu_data_allocate(size_t matrix_size)
 
     if( __dague_active_gpu ) {
         CUresult status;
-
-        status = cuCtxPushCurrent( dague_allocate_on_gpu_context );
-        DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
-                                {
-                                    ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
-                                } );
-
+        if( dague_gpu_allocation_initialized ) { 
+            status = cuCtxPushCurrent( dague_allocate_on_gpu_context );
+            DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
+                                    {
+                                        ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
+                                    } );
+        }
+        else {
+            int rc;
+            gpu_device_t* gpu_device = gpu_enabled_devices[0];
+            assert( gpu_device != NULL );
+            /* Check the GPU status */
+            rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
+            if( rc != 1 ) {
+                ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
+            }
+            status = cuCtxPushCurrent( gpu_device->ctx );
+            DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
+                                    {
+                                        ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
+                                    } );
+        }
         status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
         DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuMemHostAlloc failed ", status,
                                 {
@@ -68,6 +83,10 @@ static void* dague_gpu_data_allocate(size_t matrix_size)
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                 {} );
+        if( !dague_gpu_allocation_initialized ) {
+            gpu_device_t* gpu_device = gpu_enabled_devices[0];
+            dague_atomic_dec_32b( &(gpu_device->mutex) );
+        }
     } else {
         mat = malloc( matrix_size );
     }
@@ -88,12 +107,30 @@ static void dague_gpu_data_free(void *dta)
 
     if( NULL == dta ) return;
 
-    if( dague_gpu_allocation_initialized ) {
+    if( __dague_active_gpu ) {
         CUresult status;
-
-        status = cuCtxPushCurrent( dague_allocate_on_gpu_context );
-        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                                { goto clib_free; } );
+        if( dague_gpu_allocation_initialized ) {
+            status = cuCtxPushCurrent( dague_allocate_on_gpu_context );
+            DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
+                                    {
+                                        ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
+                                    } );
+        }
+        else {
+            int rc;
+            gpu_device_t* gpu_device = gpu_enabled_devices[0];
+            assert( gpu_device != NULL );
+            /* Check the GPU status */
+            rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
+            if( rc != 1 ) {
+                ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
+            }
+            status = cuCtxPushCurrent( gpu_device->ctx );
+            DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
+                                    {
+                                        ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
+                                    } );
+        }
 
         status = cuMemHostGetFlags( &flags, dta );
         DAGUE_CUDA_CHECK_ERROR( "cuMemHostGetFlags ", status,
@@ -107,9 +144,12 @@ static void dague_gpu_data_free(void *dta)
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "cuCtxPopCurrent ", status,
                                 {} );
+        if( !dague_gpu_allocation_initialized ) {
+            gpu_device_t* gpu_device = gpu_enabled_devices[0];
+            dague_atomic_dec_32b( &(gpu_device->mutex) );
+        }
     }
 
- clib_free:
     if( call_free ) free( dta );
 }
 
@@ -160,6 +200,8 @@ float gpu_speeds[2][2] ={
     {  77.76,  515.2 }
 };
 
+int dague_gpu_data_verbose = 0;
+
 int dague_gpu_init(dague_context_t *dague_context,
                    int* puse_gpu,
                    int dague_show_detailed_capabilities )
@@ -174,6 +216,7 @@ int dague_gpu_init(dague_context_t *dague_context,
     }
     status = cuInit(0);
     DAGUE_CUDA_CHECK_ERROR( "cuInit ", status, {*puse_gpu = 0; return -1;} );
+    dague_gpu_data_verbose = dague_show_detailed_capabilities;
 
     cuDeviceGetCount( &ndevices );
 
@@ -223,7 +266,7 @@ int dague_gpu_init(dague_context_t *dague_context,
         gpu_device_t* gpu_device;
         CUdevprop devProps;
         char szName[256];
-        int major, minor, concurrency;
+        int major, minor, concurrency, computemode;
         CUdevice hcuDevice;
 
         status = cuDeviceGet( &hcuDevice, i );
@@ -240,6 +283,9 @@ int dague_gpu_init(dague_context_t *dague_context,
         status = cuDeviceGetAttribute( &concurrency, CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
 
+        status = cuDeviceGetAttribute( &computemode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, hcuDevice );
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
+        
         if ( isdouble )
             device_weight[i+1] = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
         else
@@ -266,6 +312,7 @@ int dague_gpu_init(dague_context_t *dague_context,
             STATUS(("\tregsPerBlock       : %d\n", devProps.regsPerBlock ));
             STATUS(("\tclockRate          : %d\n", devProps.clockRate ));
             STATUS(("\tconcurrency        : %s\n", (concurrency == 1 ? "yes" : "no") ));
+            STATUS(("\tcomputeMode        : %d\n", computemode ));
         }
         status = cuDeviceTotalMem( &total_mem, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceTotalMem ", status, {continue;} );
@@ -277,13 +324,15 @@ int dague_gpu_init(dague_context_t *dague_context,
         gpu_device->minor = (uint8_t)minor;
 
         if( dague_gpu_allocation_initialized == 0 ) {
-            status = cuCtxCreate( &dague_allocate_on_gpu_context, 0 /*CU_CTX_BLOCKING_SYNC*/, hcuDevice );
-            DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxCreate ", status,
-                                    {free(gpu_device); gpu_enabled_devices[dindex] = NULL; continue;} );
-            status = cuCtxPopCurrent(NULL);
-            DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
-                                    {free(gpu_device); gpu_enabled_devices[dindex] = NULL; continue;} );
-            dague_gpu_allocation_initialized = 1;
+            if( computemode == CU_COMPUTEMODE_DEFAULT || computemode == CU_COMPUTEMODE_EXCLUSIVE_PROCESS ) {
+                status = cuCtxCreate( &dague_allocate_on_gpu_context, 0 /*CU_CTX_BLOCKING_SYNC*/, hcuDevice );
+                DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxCreate ", status,
+                                        {free(gpu_device); gpu_enabled_devices[dindex] = NULL; continue;} );
+                status = cuCtxPopCurrent(NULL);
+                DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
+                                        {free(gpu_device); gpu_enabled_devices[dindex] = NULL; continue;} );
+                dague_gpu_allocation_initialized = 1;
+            }
         }
 
         gpu_device->index                = (uint8_t)dindex;
@@ -364,10 +413,12 @@ int dague_gpu_init(dague_context_t *dague_context,
             DEBUG(("Device index %2d ->ratio %2.4e\n",
                    i-1, device_weight[i]));
         device_weight[i] = (total_perf / device_weight[i]);
-        if( 0 == i )
-            printf("CPU             ->ratio %2.4f\n", device_weight[i]);
-        else
-            printf("Device index %2d ->ratio %2.4f\n", i-1, device_weight[i]);
+        if( dague_show_detailed_capabilities ) {
+            if( 0 == i )
+                STATUS(("CPU             ->ratio %2.4f\n", device_weight[i]));
+            else
+                STATUS(("Device index %2d ->ratio %2.4f\n", i-1, device_weight[i]));
+        }
     }
 #if defined(DAGUE_PROF_TRACE)
     /**
@@ -1027,59 +1078,58 @@ int dague_gpu_kernel_fini(dague_context_t* dague_context,
     if( 0 == total_data_out ) total_data_out = 1;
     gtotal = (float)total + (float)dague_cpu_counter;
 
-    printf("-------------------------------------------------------------------------------------------------\n");
-    printf("|         |                   |         Data In                |         Data Out               |\n");
-    printf("|PU % 5d |  # %5s  |   %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
-           dague_context->my_rank, kernelname);
-    printf("|---------|-----------|-------|------------|-------------------|------------|-------------------|\n");
-    for( i = 0; i < __dague_active_gpu; i++ ) {
-        CUdevice hcuDevice;
-        char szName[256];
+    if(dague_gpu_data_verbose) {
+        printf("-------------------------------------------------------------------------------------------------\n");
+        printf("|         |                   |         Data In                |         Data Out               |\n");
+        printf("|PU % 5d |  # %5s  |   %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
+                 dague_context->my_rank, kernelname);
+        printf("|---------|-----------|-------|------------|-------------------|------------|-------------------|\n");
+        for( i = 0; i < __dague_active_gpu; i++ ) {
+            CUdevice hcuDevice;
+            char szName[256];
 
-        gpu_device = gpu_enabled_devices[i];
+            gpu_device = gpu_enabled_devices[i];
 
-        dague_compute_best_unit( required_in[i],     &best_required_in,  &required_in_unit  );
-        dague_compute_best_unit( required_out[i],    &best_required_out, &required_out_unit );
-        dague_compute_best_unit( transferred_in[i],  &best_data_in,      &data_in_unit      );
-        dague_compute_best_unit( transferred_out[i], &best_data_out,     &data_out_unit     );
+            dague_compute_best_unit( required_in[i],     &best_required_in,  &required_in_unit  );
+            dague_compute_best_unit( required_out[i],    &best_required_out, &required_out_unit );
+            dague_compute_best_unit( transferred_in[i],  &best_data_in,      &data_in_unit      );
+            dague_compute_best_unit( transferred_out[i], &best_data_out,     &data_out_unit     );
 
-        status = cuDeviceGet( &hcuDevice, gpu_device->device_index );
-        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {continue;} );
-        status = cuDeviceGetName( szName, 256, hcuDevice );
-        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetName ", status, {continue;} );
+            status = cuDeviceGet( &hcuDevice, gpu_device->device_index );
+            DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {continue;} );
+            status = cuDeviceGetName( szName, 256, hcuDevice );
+            DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetName ", status, {continue;} );
 
-        printf("|  GPU %2d |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) | %s\n",
-               gpu_device->device_index, gpu_counter[i], (gpu_counter[i]/gtotal)*100.00,
-               best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
-               (((double)transferred_in[i])  / (double)required_in[i] ) * 100.0,
-               best_required_out, required_out_unit, best_data_out, data_out_unit,
-               (((double)transferred_out[i]) / (double)required_out[i]) * 100.0, szName );
+            printf("|  GPU %2d |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) | %s\n",
+                   gpu_device->device_index, gpu_counter[i], (gpu_counter[i]/gtotal)*100.00,
+                   best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
+                   (((double)transferred_in[i])  / (double)required_in[i] ) * 100.0,
+                   best_required_out, required_out_unit, best_data_out, data_out_unit,
+                   (((double)transferred_out[i]) / (double)required_out[i]) * 100.0, szName );
+        }
+        printf("|---------|-----------|-------|------------|-------------------|------------|-------------------|\n");
+
+        dague_compute_best_unit( total_required_in,  &best_required_in,  &required_in_unit  );
+        dague_compute_best_unit( total_required_out, &best_required_out, &required_out_unit );
+        dague_compute_best_unit( total_data_in,      &best_data_in,      &data_in_unit      );
+        dague_compute_best_unit( total_data_out,     &best_data_out,     &data_out_unit     );
+
+        printf("|All GPUs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) |\n",
+                total, (total/gtotal)*100.00,
+                best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
+                ((double)total_data_in  / (double)total_required_in ) * 100.0,
+                best_required_out, required_out_unit, best_data_out, data_out_unit,
+                ((double)total_data_out / (double)total_required_out) * 100.0);
+        printf("|All CPUs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) |\n",
+                (int)dague_cpu_counter, (dague_cpu_counter / gtotal)*100.00,
+                0.0, " ", 0.0, " ", 0.0, 0.0, " ", 0.0, " ", 0.0);
+        printf("-------------------------------------------------------------------------------------------------\n");
     }
-
-    printf("|---------|-----------|-------|------------|-------------------|------------|-------------------|\n");
-
-    dague_compute_best_unit( total_required_in,  &best_required_in,  &required_in_unit  );
-    dague_compute_best_unit( total_required_out, &best_required_out, &required_out_unit );
-    dague_compute_best_unit( total_data_in,      &best_data_in,      &data_in_unit      );
-    dague_compute_best_unit( total_data_out,     &best_data_out,     &data_out_unit     );
-
-    printf("|All GPUs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) |\n",
-           total, (total/gtotal)*100.00,
-           best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
-           ((double)total_data_in  / (double)total_required_in ) * 100.0,
-           best_required_out, required_out_unit, best_data_out, data_out_unit,
-           ((double)total_data_out / (double)total_required_out) * 100.0);
-    printf("|All CPUs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) |\n",
-           (int)dague_cpu_counter, (dague_cpu_counter / gtotal)*100.00,
-           0.0, " ", 0.0, " ", 0.0, 0.0, " ", 0.0, " ", 0.0);
-    printf("-------------------------------------------------------------------------------------------------\n");
-
     free(gpu_counter);
     free(transferred_in);
     free(transferred_out);
     free(required_in);
     free(required_out);
-
     return 0;
 }
 

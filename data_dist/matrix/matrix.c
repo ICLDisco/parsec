@@ -40,7 +40,7 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     /* tdesc->A22 = (lm - lm%mb)*(     ln%nb) + tdesc->A12; */
 
     /* Super setup */
-    tdesc->super.nodes = nodes;    
+    tdesc->super.nodes = nodes;
     tdesc->super.cores = cores;
     tdesc->super.myrank = myrank;
     tdesc->super.moesi_map = NULL;
@@ -68,14 +68,18 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->lm = tdesc->lmt * tdesc->mb;
     tdesc->ln = tdesc->lnt * tdesc->nb;
 
+    /* Locally stored matrix dimensions */
+    tdesc->llm = tdesc->lm;
+    tdesc->lln = tdesc->ln;
+
     /* WARNING: This has to be removed when padding will be removed */
 #if defined(HAVE_MPI)
     if ( storage == matrix_Lapack ) {
-        if ( tdesc->lm %mb != 0 ) {
+        if ( tdesc->lm % mb != 0 ) {
             fprintf(stderr, "In distributed with Lapack storage, lm has to be a multiple of mb\n");
             MPI_Abort(MPI_COMM_WORLD, 2);
         }
-        if ( tdesc->ln %nb != 0 ) {
+        if ( tdesc->ln % nb != 0 ) {
             fprintf(stderr, "In distributed with Lapack storage, ln has to be a multiple of nb\n");
             MPI_Abort(MPI_COMM_WORLD, 2);
         }

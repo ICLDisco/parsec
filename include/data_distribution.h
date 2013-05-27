@@ -5,8 +5,8 @@
  */
 
 
-#ifndef _DATA_DISTRIBUTION_H_ 
-#define _DATA_DISTRIBUTION_H_ 
+#ifndef _DATA_DISTRIBUTION_H_
+#define _DATA_DISTRIBUTION_H_
 
 #include "dague_config.h"
 #include "profiling.h"
