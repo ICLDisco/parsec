@@ -14,13 +14,130 @@ extern "C" %{
 #include <plasma.h>
 #include <core_blas.h>
 
-
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
+#define MATRIX_HADAMARD 1
+#define MATRIX_PARTER   3
+#define MATRIX_RIS      4
+#define MATRIX_MINIJ    24
+#define MATRIX_HILBERT  35
+#define MATRIX_LOTKIN   36
+
+static inline int dague_imin(int a, int b);
+
+void CORE_zplrnt_perso( int M, int N, dague_complex64_t *A, int LDA,
+                        int gM, int m0, int n0, int type )
+{
+    int i, j;
+
+    switch( type ) {
+    case MATRIX_HADAMARD:
+    {
+        int tmp = gM;
+        int nbone;
+        while ( tmp > 1 ) {
+            if( tmp % 2 != 0 ) {
+                fprintf(stderr, "The Hadamard matrix cannot be initialized on matrices which are not 2**k - by - 2**k\n");
+                exit(-1);
+            }
+            tmp /= 2;
+        }
+
+        for (j=0; j<N; j++) {
+            for (i=0; i<M; i++) {
+                tmp = ((m0 + i) & (n0 + j));
+                nbone = 0;
+                while ( tmp != 0 )
+                {
+                    nbone += ( tmp & 1 );
+                    tmp >>= 1;
+                }
+                A[j*LDA+i] = 1 - 2 * ( nbone % 2 );
+            }
+        }
+    }
+    break;
+
+    case MATRIX_PARTER:
+    {
+        double tmp = m0 - n0 + .5;
+        for (j=0; j<N; j++) {
+            for (i=0; i<M; i++) {
+                A[j*LDA+i] = 1. / ( tmp + i - j );
+            }
+        }
+    }
+    break;
+
+    case MATRIX_RIS:
+    {
+        double tmp = gM - m0 - n0 + 1.5;
+        for (j=0; j<N; j++) {
+            for (i=0; i<M; i++) {
+                A[j*LDA+i] = .5 / (  tmp - i - j );
+            }
+        }
+    }
+    break;
+
+    case MATRIX_MINIJ:
+    {
+        fprintf(stderr, "To check with Matlab. Is it (i,j) starting at (0,0) or (1,1) ???\n");
+        for (j=0; j<N; j++) {
+            for (i=0; i<M; i++) {
+                A[j*LDA+i] = (double) dague_imin( m0+i, n0+j );
+            }
+        }
+    }
+    break;
+
+    case MATRIX_HILBERT:
+    {
+        for (j=0; j<N; j++) {
+            for (i=0; i<M; i++) {
+                A[j*LDA+i] = 1. / ( m0 + n0 + i + j + 1.);
+            }
+        }
+    }
+    break;
+
+    case MATRIX_LOTKIN:
+    {
+        if (m0 == 0) {
+            for (j=0; j<N; j++) {
+                A[j*LDA] = 1.;
+                for (i=1; i<M; i++) {
+                    A[j*LDA+i] = 1. / ( m0 + n0 + i + j + 1.);
+                }
+            }
+        } else {
+            for (j=0; j<N; j++) {
+                for (i=0; i<M; i++) {
+                    A[j*LDA+i] = 1. / ( m0 + n0 + i + j + 1.);
+                }
+            }
+        }
+    }
+    break;
+
+    default:
+        for (j=0; j<N; j++) {
+            for (i=0; i<M; i++) {
+                A[j*LDA+i] = 1;
+            }
+        }
+
+        if ( m0 == n0 ) {
+            for (i=0; i< dague_imin(M, N); i++) {
+                A[i*LDA+i] = 10;
+            }
+        }
+    }
+}
 %}
 
 /*
@@ -44,48 +161,25 @@ n = 0 .. descA.nt-1
 RW A <- A(m, n)
      -> A(m, n)
 BODY
-  int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-  int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
-  int minmn = tempmm > tempnn ? tempnn : tempmm;
-  int ldam = BLKLDD( descA, m );
-  dague_complex64_t *lA  = (dague_complex64_t*)A;
+{
+    int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+    int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
+    int ldam = BLKLDD( descA, m );
+    int m0 = m*descA.mb;
+    int n0 = n*descA.nb;
 
+    DRYRUN(
+        CORE_zplrnt_perso(
+            tempmm, tempnn, A, ldam,
+            descA.m, m0, n0, MATRIX_HADAMARD );
+           );
 
- 
-		int i;
-		int j;
-		if (m>n) {
-		        for (i=0; i< tempmm; i++) {
-				for (j=0; j< tempnn; j++) {
-					lA[j*ldam+i] = 1;
-				}
-			}
-		}
-		if (m<n) {
-		        for (i=0; i< tempmm; i++) {
-				for (j=0; j< tempnn; j++) {
-					lA[j*ldam+i] = 1;
-				}
-			}
-		} 
-		if (m==n) {
-		        for (i=0; i< tempmm; i++) {
-				for (j=0; j< tempnn; j++) {
-					lA[j*ldam+i] = 1;
-				}
-			}
-			for (i=0; i< minmn; i++) {
-				lA[i*ldam+i] = 10;
-			}
-		}        
-
-               
-
-        printlog("plrnt( %d, %d )\n"
-                 "    ( %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 m, n, tempmm, tempnn,
-                 m, n, ldam,
-                 descA.m, m*descA.mb, n*descA.nb, seed);
+    printlog("zplrnt_perso( %d, %d )\n"
+             "    ( %d, %d, A(%d,%d), %d, %d, %d, %d, %d)\n",
+             m, n, tempmm, tempnn,
+             m, n, ldam,
+             descA.m, m0, n0, 1);
+}
 END
 
 extern "C" %{
