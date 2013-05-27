@@ -12,26 +12,26 @@ HOSTNAME=`/bin/uname -n`
 USER_OPTIONS+=" -DDPLASMA_SCHED_HWLOC=ON"
 USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
 USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
-USER_OPTIONS+=" -DPYTHON_LIBRARIES:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/lib/libpython2.7.so"
-USER_OPTIONS+=" -DPYTHON_INCLUDE_DIRS:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/include"
-USER_OPTIONS+=" -DPYTHON_EXECUTABLE:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/bin/python"
-USER_OPTIONS+=" -DPAPI_DIR=/home/pgaultne/sw/$HOSTNAME"
+USER_OPTIONS+=" -DPYTHON_LIBRARIES:FILEPATH=$HOME/enthought_7.3.2_x64/lib/libpython2.7.so"
+USER_OPTIONS+=" -DPYTHON_INCLUDE_DIRS:FILEPATH=$HOME/enthought_7.3.2_x64/include"
+USER_OPTIONS+=" -DPYTHON_EXECUTABLE:FILEPATH=$HOME/enthought_7.3.2_x64/bin/python"
+USER_OPTIONS+=" -DPAPI_DIR=$HOME/sw/$HOSTNAME"
 USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 USER_OPTIONS+=" -DPINS_ENABLE=ON"
 USER_OPTIONS+=" -DDAGUE_PROF_TRACE=ON"
 USER_OPTIONS+=" -DCORES_PER_SOCKET=6"
 
 # These are override variables you can set (here or in the env) to alter defaults
-CC=${CC:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/bin/intel64/icc"}
-CXX=${CXX:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/bin/intel64/icpc"}
-FC=${FC:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/bin/intel64/ifort"}
-MKL=${MKL:="/mnt/scratch/sw/intel/composer_xe_2013.2.146/mkl"}
+CC=${CC:="/mnt/scratch/sw/intel/composer_xe_2013/bin/icc"}
+CXX=${CXX:="/mnt/scratch/sw/intel/composer_xe_2013/bin/icpc"}
+FC=${FC:="/mnt/scratch/sw/intel/composer_xe_2013/bin/ifort"}
+MKL=${MKL:="/mnt/scratch/sw/intel/composer_xe_2013/mkl"}
 CMAKE_C_FLAGS=${CMAKE_C_FLAGS:="-g3 -fPIC"}
 CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS:="-g3 -fPIC"}
 CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH:="$HOME/enthought_7.3.2_x64/"}
 CMAKE_FIND_ROOT_PATH=${CMAKE_FIND_ROOT_PATH="$HOME/enthought_7.3.2_x64/"}
 PLASMADIR=${PLASMA_DIR:="/home/bosilca/unstable/dplasma/PLASMA/build/"}
-PAPI_DIR=${PAPI_DIR:="/home/pgaultne/sw/$HOSTNAME"}
+PAPI_DIR=${PAPI_DIR:="$HOME/sw/$HOSTNAME"}
 HWLOC_DIR=${HWLOC_DIR:="/home/bosilca/opt/64"}
 #MPI_DIR=${MPI_DIR:="/path/mpi"}
 #HWLOC_DIR=${HWLOC_DIR:="/path/hwloc"}
@@ -59,5 +59,5 @@ run_cmake $*
 # export CMAKE_FIND_ROOT_PATH=$HOME/enthought_7.3.2_x64/
 # PLASMADIR="/home/bosilca/unstable/dplasma/PLASMA/build/"
 
-# echo "cmake -G "Unix Makefiles" ./ -DPLASMA_DIR=${PLASMADIR} -DHWLOC_DIR=/home/bosilca/opt/64/ -DDPLASMA_SCHED_HWLOC=ON ${LOCATION} -DDAGUE_DIST_WITH_MPI=OFF -DPAPI_DIR=/home/pgaultne"
-# cmake -G "Unix Makefiles" ./ -DPLASMA_DIR=${PLASMADIR} -DHWLOC_DIR=/home/bosilca/opt/64/ -DDPLASMA_SCHED_HWLOC=ON ${LOCATION} -DDAGUE_DIST_WITH_MPI=OFF -DPAPI_DIR=/home/pgaultne -DPYTHON_EXECUTABLE:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/bin/python -DPYTHON_INCLUDE_DIRS:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/include/ -DPYTHON_LIBRARIES:FILEPATH=/home/pgaultne/enthought_7.3.2_x64/lib/libpython2.7.so
+# echo "cmake -G "Unix Makefiles" ./ -DPLASMA_DIR=${PLASMADIR} -DHWLOC_DIR=/home/bosilca/opt/64/ -DDPLASMA_SCHED_HWLOC=ON ${LOCATION} -DDAGUE_DIST_WITH_MPI=OFF -DPAPI_DIR=$HOME"
+# cmake -G "Unix Makefiles" ./ -DPLASMA_DIR=${PLASMADIR} -DHWLOC_DIR=/home/bosilca/opt/64/ -DDPLASMA_SCHED_HWLOC=ON ${LOCATION} -DDAGUE_DIST_WITH_MPI=OFF -DPAPI_DIR=$HOME -DPYTHON_EXECUTABLE:FILEPATH=$HOME/enthought_7.3.2_x64/bin/python -DPYTHON_INCLUDE_DIRS:FILEPATH=$HOME/enthought_7.3.2_x64/include/ -DPYTHON_LIBRARIES:FILEPATH=$HOME/enthought_7.3.2_x64/lib/libpython2.7.so
