@@ -16,11 +16,6 @@
 /* Functions specific to QR */
 #include "dplasma_qr_pivgen.h"
 
-#include "dplasma/include/dplasma_s.h"
-#include "dplasma/include/dplasma_d.h"
-#include "dplasma/include/dplasma_c.h"
-#include "dplasma/include/dplasma_z.h"
-
 #define DPLASMA_FLAT_TREE       0
 #define DPLASMA_GREEDY_TREE     1
 #define DPLASMA_FIBONACCI_TREE  2
@@ -36,6 +31,51 @@ enum criteria_e {
     MUMPS_CRITERIUM   = 2,
     LU_ONLY_CRITERIUM = 3,
     QR_ONLY_CRITERIUM = 4
+};
+
+/*
+ * Type of matrices that can be generated with zplrnt_perso
+ */
+enum matrix_init_e {
+    MATRIX_RANDOM   = 0,
+    MATRIX_HADAMARD = 1,
+    MATRIX_HOUSE    = 2,   /* TODO */
+    MATRIX_PARTER   = 3,
+    MATRIX_RIS      = 4,
+    MATRIX_KMS      = 5,
+    MATRIX_TOEPPEN  = 6,   /* Unavailable */
+    MATRIX_CONDEX   = 7,   /* TODO */
+    MATRIX_MOLER    = 8,   /* Unavailable */
+    MATRIX_CIRCUL   = 9,   /* TODO */
+    MATRIX_RANDCORR = 10,  /* Unavailable */
+    MATRIX_POISSON  = 11,  /* Unavailable */
+    MATRIX_HANKEL   = 12,  /* TODO */
+    MATRIX_JORDBLOC = 13,  /* Unavailable */
+    MATRIX_COMPAN   = 14,  /* TODO */
+    MATRIX_PEI      = 15,  /* Unavailable */
+    MATRIX_RANDCOLU = 16,  /* Unavailable */
+    MATRIX_SPRANDN  = 17,  /* Unavailable */
+    MATRIX_RIEMANN  = 18,
+    MATRIX_COMPAR   = 19,  /* Unavailable */
+    MATRIX_TRIDIAG  = 20,  /* Unavailable */
+    MATRIX_CHEBSPEC = 21,  /* Unavailable */
+    MATRIX_LEHMER   = 22,
+    MATRIX_TOEPPD   = 23,  /* TODO */
+    MATRIX_MINIJ    = 24,
+    MATRIX_RANDSVD  = 25,  /* Unavailable */
+    MATRIX_FORSYTHE = 26,  /* Unavailable */
+    MATRIX_FIEDLER  = 27,  /* TODO */
+    MATRIX_DORR     = 28,  /* TODO */
+    MATRIX_DEMMEL   = 29,
+    MATRIX_CHEBVAND = 30,  /* TODO */
+    MATRIX_INVHESS  = 31,
+    MATRIX_PROLATE  = 32,  /* TODO */
+    MATRIX_FRANK    = 33,  /* Unavailable */
+    MATRIX_CAUCHY   = 34,
+    MATRIX_HILB     = 35,
+    MATRIX_LOTKIN   = 36,
+    MATRIX_KAHAN    = 37,  /* TODO */
+    MATRIX_ORTHOGO  = 38,
 };
 
 /*
@@ -59,5 +99,10 @@ static inline int imin(int32_t a, int32_t b) { return a < b ? a : b; }
 #define dplasma_csqrt csqrtf
 #define dplasma_dsqrt sqrt
 #define dplasma_ssqrt sqrtf
+
+#include "dplasma/include/dplasma_s.h"
+#include "dplasma/include/dplasma_d.h"
+#include "dplasma/include/dplasma_c.h"
+#include "dplasma/include/dplasma_z.h"
 
 #endif /* _DPLASMA_H_ */

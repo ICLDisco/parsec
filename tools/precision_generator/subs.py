@@ -213,6 +213,7 @@ subs = {
     ('','','CBLAS_SADDR','CBLAS_SADDR'),
     ('CblasTrans','CblasTrans','CblasConjTrans','CblasConjTrans'),
     ('REAL','DOUBLE_PRECISION','COMPLEX','COMPLEX_16'),
+    ('powf', 'pow', 'cpowf','cpow'),
     ('fabsf','fabs','fabsf','fabs'),
     ('fabsf','fabs','cabsf','cabs'),
     ('fmaxf','fmax','fmaxf','fmax'),

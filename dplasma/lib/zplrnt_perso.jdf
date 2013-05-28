@@ -24,30 +24,22 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define MATRIX_HADAMARD 1
-#define MATRIX_PARTER   3
-#define MATRIX_RIS      4
-#define MATRIX_KMS      5
-#define MATRIX_MOLER    8
-#define MATRIX_RIEMANN  18
-#define MATRIX_LEHMER   22
-#define MATRIX_MINIJ    24
-#define MATRIX_DEMMEL   29
-#define MATRIX_INVHESS  31
-#define MATRIX_CAUCHY   34
-#define MATRIX_HILBERT  35
-#define MATRIX_LOTKIN   36
-#define MATRIX_ORTHOGO  38
-
 static inline int dague_imin(int a, int b);
 
-void CORE_zplrnt_perso( int M, int N, dague_complex64_t *A, int LDA,
-                        int gM, int gN, int m0, int n0, int type,
+void CORE_zplrnt_perso( enum matrix_init_e type,
+                        int M, int N, dague_complex64_t *A, int LDA,
+                        int gM, int gN, int m0, int n0,
                         unsigned long long int seed )
 {
     int i, j;
 
     switch( type ) {
+    case MATRIX_RANDOM:
+    {
+        CORE_zplrnt( M, N, A, LDA, gM, m0, n0, seed );
+    }
+    break;
+
     case MATRIX_HADAMARD:
     {
         int tmp = gM;
@@ -244,7 +236,7 @@ void CORE_zplrnt_perso( int M, int N, dague_complex64_t *A, int LDA,
     }
     break;
 
-    case MATRIX_HILBERT:
+    case MATRIX_HILB:
     {
         dague_complex64_t tmp = (dague_complex64_t)( m0 + n0 + 1. );
         for (j=0; j<N; j++) {
@@ -305,9 +297,10 @@ void CORE_zplrnt_perso( int M, int N, dague_complex64_t *A, int LDA,
 /*
  * Globals
  */
+type   [type = "enum matrix_init_e" ]
 seed   [type = "unsigned long long int" ]
-descA  [type = "tiled_matrix_desc_t"]
-A      [type = "dague_ddesc_t *"]
+dataA  [type = "dague_ddesc_t *"]
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 
 PLRNT_PERSO(m, n)  [profile = off]
 
@@ -316,12 +309,12 @@ m = 0 .. descA.mt-1
 n = 0 .. descA.nt-1
 
 // Parallel partitioning
-: A(m, n)
+: dataA(m, n)
 
 // Parameters
 
-RW A <- A(m, n)
-     -> A(m, n)
+RW A <- dataA(m, n)
+     -> dataA(m, n)
 BODY
 {
     int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
@@ -332,9 +325,8 @@ BODY
 
     DRYRUN(
         CORE_zplrnt_perso(
-            tempmm, tempnn, A, ldam,
-            descA.m, descA.n, m0, n0,
-            MATRIX_HADAMARD, seed );
+            type, tempmm, tempnn, A, ldam,
+            descA.m, descA.n, m0, n0, seed );
            );
 
     printlog("zplrnt_perso( %d, %d )\n"

@@ -30,11 +30,12 @@
  *
  ******************************************************************************/
 dague_object_t* dplasma_zplrnt_perso_New( tiled_matrix_desc_t *A,
-                                    unsigned long long int seed)
+                                          enum matrix_init_e type,
+                                          unsigned long long int seed )
 {
     dague_zplrnt_perso_object_t* object;
 
-    object = dague_zplrnt_perso_new( seed, *A, (dague_ddesc_t*)A);
+    object = dague_zplrnt_perso_new( type, seed, (dague_ddesc_t*)A );
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zplrnt_perso_DEFAULT_ARENA],
@@ -46,12 +47,13 @@ dague_object_t* dplasma_zplrnt_perso_New( tiled_matrix_desc_t *A,
 }
 
 int dplasma_zplrnt_perso( dague_context_t *dague,
-                    tiled_matrix_desc_t *A,
-                    unsigned long long int seed)
+                          tiled_matrix_desc_t *A,
+                          enum matrix_init_e type,
+                          unsigned long long int seed )
 {
     dague_object_t *dague_zplrnt_perso = NULL;
 
-    dague_zplrnt_perso = dplasma_zplrnt_perso_New(A, seed);
+    dague_zplrnt_perso = dplasma_zplrnt_perso_New( A, type, seed );
 
     dague_enqueue(dague, (dague_object_t*)dague_zplrnt_perso);
     dplasma_progress(dague);
@@ -64,6 +66,6 @@ void
 dplasma_zplrnt_perso_Destruct( dague_object_t *o )
 {
     dague_zplrnt_perso_object_t *dague_zplrnt_perso = (dague_zplrnt_perso_object_t *)o;
-    dplasma_datatype_undefine_type( &(dague_zplrnt_perso->arenas[DAGUE_zplrnt_perso_DEFAULT_ARENA   ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zplrnt_perso->arenas[DAGUE_zplrnt_perso_DEFAULT_ARENA]->opaque_dtt) );
     DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zplrnt_perso);
 }
