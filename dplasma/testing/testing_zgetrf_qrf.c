@@ -96,7 +96,7 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, random_seed);
+    dplasma_zplrnt_perso( dague, (tiled_matrix_desc_t *)&ddescA, matrix_init, random_seed );
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
     dplasma_hqr_init( &qrtree,

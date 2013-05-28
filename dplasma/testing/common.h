@@ -60,6 +60,7 @@ enum iparam_t {
   IPARAM_QR_TS_SZE,    /* Size of TS domain                     (specific to xgeqrf_param) */
   IPARAM_QR_HLVL_SZE,  /* Size of the high level tree           (specific to xgeqrf_param) */
   IPARAM_RANDOM_SEED,  /* Seed for the pseudo-random generators */
+  IPARAM_MATRIX_INIT,  /* Matrix generator type */
   IPARAM_QR_DOMINO,    /* Enable/disable the domino between the upper and the lower tree (specific to xgeqrf_param) */
   IPARAM_QR_TSRR,      /* Enable/disable the round-robin on TS domain */
   IPARAM_BUT_LEVEL,    /* Butterfly level */
@@ -98,11 +99,12 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int loud  = iparam[IPARAM_VERBOSE];\
   int scheduler = iparam[IPARAM_SCHEDULER];\
   int random_seed = iparam[IPARAM_RANDOM_SEED];\
+  int matrix_init = iparam[IPARAM_MATRIX_INIT];\
   int nb_local_tasks = 0;                                               \
   int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
   (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)KT;(void)SMB;(void)SNB;(void)check;(void)loud;\
-  (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;(void)check_inv;(void)random_seed;
+  (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;(void)check_inv;(void)random_seed;(void)matrix_init;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;

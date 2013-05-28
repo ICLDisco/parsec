@@ -106,8 +106,9 @@ void print_usage(void)
             "\n"
             "    --criteria     : Choice of the criteria to switch between LU and QR\n"
             "                      (0: Alternate, 1: Higham, 2: MUMPS (specific to xgetrf_qrf)\n"
-            "    --seed         : Set the seed for pseudo-random generator\n"
             " -a --alpha        : Threshold to swith back to QR. (specific to xgetrf_qrf)\n"
+            "    --seed         : Set the seed for pseudo-random generator\n"
+            " -m --mtx          : Set the matrix generator (Default: 0, random)\n"
             "\n"
             " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
@@ -145,7 +146,7 @@ void print_usage(void)
             dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:m:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -202,8 +203,9 @@ static struct option long_options[] =
     {"treeh",       required_argument,  0, 'L'},
 
     {"criteria",    required_argument,  0, '1'},
-    {"seed",        required_argument,  0, 'R'},
     {"alpha",       required_argument,  0, 'a'},
+    {"seed",        required_argument,  0, 'R'},
+    {"mtx",         required_argument,  0, 'm'},
 
     {"butlvl",      required_argument,  0, 'y'},
     {"y",           required_argument,  0, 'y'},
@@ -228,6 +230,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 
     /* Default seed */
     iparam[IPARAM_RANDOM_SEED] = 3872;
+    iparam[IPARAM_MATRIX_INIT] = MATRIX_RANDOM;
 
     do
     {
@@ -295,6 +298,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
 
             case 'R': iparam[IPARAM_RANDOM_SEED]  = atoi(optarg); break;
+            case 'm': iparam[IPARAM_MATRIX_INIT]  = atoi(optarg); break;
 
             case 'd': iparam[IPARAM_QR_DOMINO]    = atoi(optarg) ? 1 : 0; break;
             case 'r': iparam[IPARAM_QR_TSRR]      = atoi(optarg) ? 1 : 0; break;
