@@ -17,11 +17,15 @@ enable_testing()
 set(MPI_TEST_CMD
       "mpirun" CACHE STRING
       "A command to run distributed memory testings")
-string(REPLACE " " ";" MPI_TEST_CMD_LIST ${MPI_TEST_CMD})
+if( "${MPI_TEST_CMD}" STREQUAL "" )
+    MESSAGE(WARNING "MPI tests will most likely not work, MPI_TEST_CMD is not set")
+endif()
+string(REPLACE " " ";" MPI_TEST_CMD_LIST "${MPI_TEST_CMD}")
+
 set(SHM_TEST_CMD
       "" CACHE STRING
       "A command to run shared memory testings")
-string(REPLACE " " ";" SHM_TEST_CMD_LIST ${SHM_TEST_CMD})
+string(REPLACE " " ";" SHM_TEST_CMD_LIST "${SHM_TEST_CMD}")
 
 #####
 # ccmake tunable parameters
