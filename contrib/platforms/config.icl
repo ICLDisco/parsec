@@ -22,8 +22,16 @@ PLASMA_DIR=${PLASMA_DIR:="/home/bosilca/unstable/dplasma/PLASMA/build"}
 
 # This option permits setting arbitrary options to cmake
 # Options passed on the command line are appended to this variable
-USER_OPTIONS+="" 
+USER_OPTIONS+=""
 
+if [ "x${USER}" = "xsmoreaud" ]; then
+  unset CUDA_DIR
+  USER_OPTIONS+="-DDAGUE_GPU_WITH_CUDA=OFF "
+
+  PAPI_DIR=${PAPI_DIR:="/mnt/scratch/sw/papi-5.0.1"}
+  USER_OPTIONS+="-DPINS_ENABLE=ON "
+  USER_OPTIONS+="-DPAPI_DIR=$PAPI_DIR "
+fi
 
 . $(dirname $0)/config.inc
 guess_defaults

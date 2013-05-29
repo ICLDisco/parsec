@@ -31,6 +31,9 @@ elif [ "x${USER}" = "xmfaverge" ]; then
   #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
   USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
 
+elif [ "x${USER}" = "xsmoreaud" ]; then
+  USER_OPTIONS+="-DDAGUE_GPU_WITH_CUDA=OFF "
+
 elif [ "x$USER" = "xYOURSELF" ]; then
   PLASMA_DIR="SOMEWHERE"
   USER_OPTIONS+="-DDAGUE_OPTION=ON"

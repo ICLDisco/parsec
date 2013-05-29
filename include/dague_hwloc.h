@@ -71,6 +71,17 @@ extern int dague_hwloc_nb_real_cores();
 int dague_hwloc_bind_on_core_index(int cpu_index);
 
 /**
+ * Return the logical socket index for a core index (hwloc numbering).
+ */
+int dague_hwloc_socket_id(int core_id);
+
+/**
+ * Return the logical NUMA node index for a core index (hwloc numbering).
+ */
+int dague_hwloc_numa_id(int core_id);
+
+
+/**
  * Exports the loaded topology to an XML buffer.
  * @param [OUT] buflen: the size of the buffer as allocated by the function
  * @param [OUT] xmlbuffer: the buffer containing an XML representation.

@@ -31,8 +31,6 @@ int dague_hwloc_init(void)
 #if defined(HAVE_HWLOC)
     if ( first_init ) {
         hwloc_topology_init(&topology);
-        hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_NODE);
-        hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_SOCKET);
         hwloc_topology_load(topology);
         first_init = 0;
 
@@ -138,6 +136,38 @@ int dague_hwloc_master_id( int level, int processor_id )
     return -1;
 }
 
+int dague_hwloc_socket_id(int core_id )
+{
+#if defined(HAVE_HWLOC)
+    hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
+    hwloc_obj_t socket = NULL;
+    if ((socket = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_SOCKET, core)) != NULL)
+    {
+        return socket->logical_index;
+
+    }else{
+        return -1;
+    }
+#endif  /* defined(HAVE_HWLOC) */
+    return -1;
+}
+
+int dague_hwloc_numa_id(int core_id )
+{
+#if defined(HAVE_HWLOC)
+    hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
+    hwloc_obj_t node = NULL;
+    if ((node = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_NODE, core)) != NULL)
+    {
+        return node->logical_index;
+
+    }else{
+        return -1;
+    }
+#endif  /* defined(HAVE_HWLOC) */
+    return -1;
+}
+
 unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
 #if defined(HAVE_HWLOC)
@@ -210,7 +240,7 @@ int dague_hwloc_bind_on_core_index(int cpu_index)
 {
 #if defined(HAVE_HWLOC)
     hwloc_obj_t      obj;      /* Hwloc object    */
-    hwloc_cpuset_t   cpuset;   /* HwLoc cpuset    */
+    hwloc_cpuset_t   cpuset;   /* Hwloc cpuset    */
 
     /* Get the core of index cpu_index */
     obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);

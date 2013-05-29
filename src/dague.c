@@ -163,6 +163,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->virtual_process = startup->virtual_process;
     eu->scheduler_object = NULL;
     startup->virtual_process->execution_units[startup->th_id] = eu;
+    eu->core_id          = startup->bindto;
+    eu->socket_id        = dague_hwloc_socket_id(startup->bindto);
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     eu->sched_nb_tasks_done = 0;
@@ -172,10 +174,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     // PAPI INIT
     int rv;
     rv = PAPI_register_thread();
-    if (rv != PAPI_OK) 
+    if (rv != PAPI_OK)
 	    DEBUG(("PAPI_register_thread failed with error %s\n", PAPI_strerror(rv)));
 //	printf("PAPI_register_thread %d: %s\n", eu->th_id, PAPI_strerror(rv));
-#endif    
+#endif
 
     eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
