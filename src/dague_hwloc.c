@@ -26,6 +26,8 @@ int first_init = 1;
 #define HWLOC_GET_PARENT(OBJ)  (OBJ)->father
 #endif  /* defined(HAVE_HWLOC_PARENT_MEMBER) */
 
+#define MIN(x, y) ( (x)<(y)?(x):(y) )
+
 int dague_hwloc_init(void)
 {
 #if defined(HAVE_HWLOC)
@@ -97,6 +99,9 @@ int dague_hwloc_distance( int id1, int id2 )
     return 0;
 }
 
+/* Previously use for the vpmap initialisation form hardware.
+ * Should be obsolete as we now rely on the native hwloc topology to extrat the vp dedistribution.
+ */
 int dague_hwloc_master_id( int level, int processor_id )
 {
 #if defined(HAVE_HWLOC)
@@ -136,38 +141,9 @@ int dague_hwloc_master_id( int level, int processor_id )
     return -1;
 }
 
-int dague_hwloc_socket_id(int core_id )
-{
-#if defined(HAVE_HWLOC)
-    hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
-    hwloc_obj_t socket = NULL;
-    if ((socket = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_SOCKET, core)) != NULL)
-    {
-        return socket->logical_index;
-
-    }else{
-        return -1;
-    }
-#endif  /* defined(HAVE_HWLOC) */
-    return -1;
-}
-
-int dague_hwloc_numa_id(int core_id )
-{
-#if defined(HAVE_HWLOC)
-    hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
-    hwloc_obj_t node = NULL;
-    if ((node = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_NODE, core)) != NULL)
-    {
-        return node->logical_index;
-
-    }else{
-        return -1;
-    }
-#endif  /* defined(HAVE_HWLOC) */
-    return -1;
-}
-
+/* Previously use for the vpmap initialisation form hardware.
+ * Should be obsolete as we now rely on the native hwloc topology to extrat the vp dedistribution.
+ */
 unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
 #if defined(HAVE_HWLOC)
@@ -187,16 +163,6 @@ unsigned int dague_hwloc_nb_cores( int level, int master_id )
     }
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
-}
-
-
-int dague_hwloc_nb_levels(void)
-{
-#if defined(HAVE_HWLOC)
-    return hwloc_get_type_depth(topology, HWLOC_OBJ_CORE);
-#else
-    return -1;
-#endif  /* defined(HAVE_HWLOC) */
 }
 
 
@@ -233,6 +199,81 @@ int dague_hwloc_nb_real_cores()
 #else
     return -1;
 #endif
+}
+
+
+int dague_hwloc_core_first_hrwd_ancestor_depth()
+{
+#if defined(HAVE_HWLOC)
+    int level = MIN(hwloc_get_type_depth(topology, HWLOC_OBJ_NODE),hwloc_get_type_depth(topology, HWLOC_OBJ_SOCKET));
+    assert(level < hwloc_get_type_depth(topology, HWLOC_OBJ_CORE));
+    return level;
+#endif  /* defined(HAVE_HWLOC) */
+    return -1;
+}
+
+int dague_hwloc_get_nb_objects(int level)
+{
+#if defined(HAVE_HWLOC)
+    return hwloc_get_nbobjs_by_depth(topology, level);
+#endif  /* defined(HAVE_HWLOC) */
+    return -1;
+}
+
+
+int dague_hwloc_socket_id(int core_id )
+{
+#if defined(HAVE_HWLOC)
+    hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
+    hwloc_obj_t socket = NULL;
+    if ((socket = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_SOCKET, core)) != NULL)
+    {
+        return socket->logical_index;
+
+    }else{
+        return -1;
+    }
+#endif  /* defined(HAVE_HWLOC) */
+    return -1;
+}
+
+int dague_hwloc_numa_id(int core_id )
+{
+#if defined(HAVE_HWLOC)
+    hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
+    hwloc_obj_t node = NULL;
+    if ((node = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_NODE, core)) != NULL)
+    {
+        return node->logical_index;
+
+    }else{
+        return -1;
+    }
+#endif  /* defined(HAVE_HWLOC) */
+    return -1;
+}
+
+unsigned int dague_hwloc_nb_cores_per_obj( int level, int index )
+{
+#if defined(HAVE_HWLOC)
+    hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, index);
+    assert( obj != NULL );
+    return hwloc_get_nbobjs_inside_cpuset_by_type(topology, obj->cpuset, HWLOC_OBJ_CORE);
+#else
+    return -1;
+#endif  /* defined(HAVE_HWLOC) */
+}
+
+
+
+
+int dague_hwloc_nb_levels(void)
+{
+#if defined(HAVE_HWLOC)
+    return hwloc_get_type_depth(topology, HWLOC_OBJ_CORE);
+#else
+    return -1;
+#endif  /* defined(HAVE_HWLOC) */
 }
 
 

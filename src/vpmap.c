@@ -142,66 +142,49 @@ static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores)
 int vpmap_init_from_hardware_affinity(void)
 {
 #if defined(HAVE_HWLOC)
-    int nblevels;
-    int m, v, p, t;
-    int *mperc;
+    int v, t, c;
 
     dague_hwloc_init();
 
-    if( (nblevels = dague_hwloc_nb_levels()) <= 0 ||
-        (nbcores = dague_hwloc_nb_real_cores()) <= 0 )
-        return -1;
+    /* Compute the number of VP according to the number of objects at the
+     * lowest level between sockets and NUMA nodes */
+    int level = dague_hwloc_core_first_hrwd_ancestor_depth();
+    nbvp = dague_hwloc_get_nb_objects(level);
 
-    /* Take the maximal level */
-    if( nblevels > 1 )
-        nblevels = 1;
+    if (nbvp > 0 ) {
+        map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));
 
-    mperc = (int*)calloc(sizeof(int), nbcores);
-    nbvp = 0;
+        /* Define the VP map:
+         * threads are distributed in order on the cores (hwloc numbering, ensure locality)
+         */
+        c=0;
+        for(v = 0; v < nbvp; v++) {
+            nbthreadspervp = dague_hwloc_nb_cores_per_obj(level, v);
+            map[v].nbthreads = nbthreadspervp;
+            map[v].threads = (vpmap_thread_t**)calloc(nbthreadspervp, sizeof(vpmap_thread_t*));
 
-    for(p = 0; p < nbcores; p++) {
-        m = dague_hwloc_master_id(nblevels, p);
-        // STEPH:: assert doesn't pass on Nautilus : dague_hwloc_master_id must be checked
-        //printf("m = dague_hwloc_master_id(nblevels = %i, p= %i) ----> %i \n", nblevels, p, m);
-        assert( m >= 0 && m < nbcores );
-        if( mperc[m] == 0 ) {
-            nbvp++;
-        }
-        mperc[m]++;
-    }
-
-    map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));
-
-    v = 0;
-    for(p = 0; p < nbcores; p++) {
-        if( mperc[p] != 0 ) {
-            map[v].nbthreads = mperc[p];
-            map[v].threads = (vpmap_thread_t**)calloc(mperc[p], sizeof(vpmap_thread_t*));
-            t = 0;
-            for(m = 0; m < nbcores; m++) {
-                if( dague_hwloc_master_id(nblevels, m) == p ) {
-                    map[v].threads[t] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
-                    map[v].threads[t]->nbcores = 1;
-                    map[v].threads[t]->cores[0] = m;
-                    t++;
-                }
+            for(t = 0; t < nbthreadspervp; t++) {
+                map[v].threads[t] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
+                map[v].threads[t]->nbcores = 1;
+                map[v].threads[t]->cores[0] = c;
+                c++;
             }
-            v++;
         }
+
+        vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_datamap;
+        vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_datamap;
+        vpmap_get_core_affinity = vpmap_get_core_affinity_datamap;
+
+        return 0;
+    }else{
+        vpmap_init_from_flat(dague_hwloc_nb_real_cores());
+        return 0;
     }
-
-    free(mperc);
-
-    vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_datamap;
-    vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_datamap;
-    vpmap_get_core_affinity = vpmap_get_core_affinity_datamap;
-
-return 0;
 #else
-return -1;
+    return -1;
 #endif
-}
 
+}
 
 
 int vpmap_init_from_file(const char *filename)

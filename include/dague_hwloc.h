@@ -80,6 +80,26 @@ int dague_hwloc_socket_id(int core_id);
  */
 int dague_hwloc_numa_id(int core_id);
 
+/**
+ * Return the depth of the first core hardware ancestor: NUMA node or socket.
+ */
+int dague_hwloc_core_first_hrwd_ancestor_depth();
+
+/**
+ * Return the number of hwloc objects at the "level" depth.
+ */
+int dague_hwloc_get_nb_objects(int level);
+
+/**
+ * Return the number of hwloc objects at the "level" depth.
+ */
+int dague_hwloc_get_nb_objects(int level);
+
+
+/**
+ * Find the number of core under the object number index at the topology depth level.
+ */
+unsigned int dague_hwloc_nb_cores_per_obj( int level, int index );
 
 /**
  * Exports the loaded topology to an XML buffer.
