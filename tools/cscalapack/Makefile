@@ -7,12 +7,18 @@ SMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack95_lp64 -lmkl_blacs_o
 # Old MKL < 11.xx
 #TMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack -lmkl_blacs_openmpi_lp64 -lmkl -lmkl_gf_lp64 -lmkl_core -lguide -lpthread
 # New MKL > 11.xx
-TMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack95_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_gnu_thread -lmkl_intel_lp64 -lmkl_core -fopenmp -lpthread
+TMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack95_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_intel_thread -lmkl_intel_lp64 -lmkl_core -liomp5 -lpthread -lm
 TLIBS=$(TMKL)
 SLIBS=$(SMKL)
-TARGETS=scadpotrf scadgetrf scadgeqrf tscadpotrf tscadgetrf tscadgeqrf
+TARGETS=scadpotrf scadgetrf scadgeqrf tscadpotrf tscadgetrf tscadgeqrf pdsyev tpdsyev
 
 all: $(TARGETS)
+
+pdsyev: pdsyev.o
+	$(LD) -o $@ $^ $(SLIBS)
+
+tpdsyev: pdsyev.o
+	$(LD) -o $@ $^ $(TLIBS)
 
 scaspotrf: scalapackSPOTRF.o
 	$(LD) -o $@ $^ $(SLIBS)
