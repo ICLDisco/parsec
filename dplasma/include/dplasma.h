@@ -30,7 +30,8 @@ enum criteria_e {
     HIGHAM_CRITERIUM  = 1,
     MUMPS_CRITERIUM   = 2,
     LU_ONLY_CRITERIUM = 3,
-    QR_ONLY_CRITERIUM = 4
+    QR_ONLY_CRITERIUM = 4,
+    RANDOM_CRITERIUM = 5
 };
 
 /*

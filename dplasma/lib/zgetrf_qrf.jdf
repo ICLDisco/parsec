@@ -1018,11 +1018,48 @@ BODY
             {
                 cond = 0;
             }
+            else if (criteria == RANDOM_CRITERIUM)
+            {
+                int lu_tab_val(int deb, int fin, int nb_lu, int rec_depth, int index)
+                {
+                        if (deb == fin)
+                        {
+                            return (nb_lu != 0);
+                        }
+                        else
+                        {
+                           int new_fin = 0;
+                           if ((fin - deb + 1) % 2 == 0)
+                               new_fin = deb - 1 + (fin - deb + 1) / 2;
+                           else
+                               new_fin = deb - 1 + (fin - deb) / 2 + (rec_depth % 2);
+                           int new_nb_lu = 0;
+                           if ((nb_lu % 2) == 0)
+                               new_nb_lu = nb_lu/2;
+                           else
+                               new_nb_lu = (nb_lu-1)/2 + (rec_depth % 2);
+                           if (index <= new_fin)
+                               return lu_tab_val(deb, new_fin, new_nb_lu, rec_depth+1, index);
+                           else
+                               return lu_tab_val(new_fin+1, fin, nb_lu - new_nb_lu, rec_depth+1, index);
+                       }
+                }
+                int nb_lu = ((minMNT+1) * alpha)/100;
+                cond = lu_tab_val(0, minMNT, nb_lu, 0, k);
+            }
             else
             {
                 /* By default, we switch at each iteration */
                 cond = k%2;
             }
+
+            /*!!!! test de mettre une étape de QR au début pour les matrices difficiles !!!!!*/
+            /*if ((alpha > 0) && (alpha < 99999))
+               if ((k <= 2) || (k >= minMNT-1))
+                     cond = 0;
+
+
+            cond = k%2; */
 
             lu_tab[k] = cond;
 

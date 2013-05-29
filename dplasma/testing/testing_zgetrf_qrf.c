@@ -156,10 +156,16 @@ int main(int argc, char ** argv)
         }
         nbqr -= nblu;
 
-        if (loud > 3 || (rank == 0 && loud)) {
+        // if (loud > 3 || (rank == 0 && loud)) {
+        if (rank == 0 && loud) {
             printf("[%d] LU/QR repartition: %d(%.2f) LU / %d(%.2f) QR \n", rank,
                    nblu, 100. * (double)nblu / (double)(nblu+nbqr),
                    nbqr, 100. * (double)nbqr / (double)(nblu+nbqr));
+            printf("[%d] lu_tab: ", rank);
+            for(i=0; i<dague_imin(MT, NT); i++) {
+                printf("%d ", lu_tab[i]);
+            }
+            printf("\n");
         }
     }
 
