@@ -14,9 +14,9 @@ int main(int argc, char **argv) {
     int iam, nprocs;
     int myrank_mpi, nprocs_mpi;
     int ictxt, nprow, npcol, myrow, mycol;
-    int nb, n, s, mloc, nloc, sloc;
-    int i, j, k, info_facto, info_solve, info, iseed, verif;
-    int my_info_facto, my_info_solve;
+    int nb, n, mloc, nloc;
+    int i, j, k, info_facto, info, iseed, verif;
+    int my_info_facto;
     int descA[9];
     double *A=NULL, *W=NULL;
 /**/
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank_mpi);
     MPI_Comm_size(MPI_COMM_WORLD, &nprocs_mpi);
 
-    n = 100; nprow = 1; npcol = 1; nb = 64; s = 1; verif = 1;
+    n = 100; nprow = 1; npcol = 1; nb = 64; verif = 1;
     for( i = 1; i < argc; i++ ) {
         if( strcmp( argv[i], "-n" ) == 0 ) {
             n      = atoi(argv[i+1]);
@@ -103,8 +103,8 @@ int main(int argc, char **argv) {
     GFLOPS = NAN;
 
     if ( iam == 0 ){
-        printf("********************** N * S * NB * NP * P * Q *    T  * Gflops * R *\n");
-        printf("SCAL HEEV            %6d %3d %4d %3d %3d %3d %6.2f %6.2lf %d\n", n, s, nb, nprocs, nprow, npcol, elapsed, GFLOPS, info_facto);
+        printf("********************** N * NB * NP * P * Q *      T * Gflops * R *\n");
+        printf("SCAL HEEV         % 6d % 4d % 4d % 3d % 3d % 8.2f % 8.2lf % 3d\n", n, nb, nprocs, nprow, npcol, elapsed, GFLOPS, info_facto);
     }
 
     free( A ); free(W);
