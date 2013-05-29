@@ -116,20 +116,21 @@ int main(int argc, char *argv[])
         int INFO;
         
         /* COMPUTE THE EIGENVALUES FROM DPLASMA (with LAPACK) */
+        SYNC_TIME_START();
         if( P*Q > 1 ) {
             /* We need to gather the distributed band on rank0 */
 #if 0
             /* LAcpy doesn't handle differing tile sizes, so lets get simple here */
-			PASTE_CODE_ALLOCATE_MATRIXddescW, 1, 
+            PASTE_CODE_ALLOCATE_MATRIXddescW, 1, 
                 two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile, 
                 nodes, cores, rank, 2, N, 1, 1, 0, 0, 2, N, 1, 1, 1)); /* on rank 0 only */
 #else
-			PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1, 
+            PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1, 
                 two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
                     1, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
                     MB+1, (NB+2)*NT, 1, 1, 1 /* rank0 only */ ));
 #endif
-			dplasma_zlacpy(dague, PlasmaUpperLower, &ddescBAND.super, &ddescW.super);
+            dplasma_zlacpy(dague, PlasmaUpperLower, &ddescBAND.super, &ddescW.super);
             band = ddescW.mat;
         } 
         else {
@@ -170,6 +171,7 @@ int main(int argc, char *argv[])
             dsterf_( &N, D, E, &INFO);
             assert( 0 == INFO );
         }
+        SYNC_TIME_PRINT( rank, ("Dplasma Stage3: dsterf\n"));
 
         /* COMPUTE THE EIGENVALUES WITH LAPACK */
         /* Regenerate A (same random generator) into A0 */
@@ -177,84 +179,84 @@ int main(int argc, char *argv[])
             two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
             1, cores, rank, MB, NB, LDA, N, 0, 0,
             N, N, 1, 1, 1))
+        PLASMA_Desc_Create(&plasmaDescA0, ddescA0.mat, PlasmaComplexDouble,
+            ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
+            ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
+            ddescA0.super.m, ddescA0.super.n);
         /* Fill A0 again */
         dplasma_zlaset( dague, PlasmaUpperLower, 0.0, 0.0, &ddescA0.super);
         dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
         /* Convert into Lapack format */
         if( 0 == rank ) {
-            PLASMA_Desc_Create(&plasmaDescA0, ddescA0.mat, PlasmaComplexDouble,
-                ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
-                ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
-                ddescA0.super.m, ddescA0.super.n);
             PLASMA_Tile_to_Lapack(plasmaDescA0, (void*)A0, LDA);
+#ifdef PRINTF_HEAVY
+            printf("########### A0 #############\n");
+            for (i = 0; i < N; i++){
+                for (j = 0; j < N; j++) {
+#   if defined(PRECISION_d) || defined(PRECISION_s)
+                    printf("% 11.4g ", A0[LDA*j+i] );
+#   else
+                    printf("(%g, %g)", creal(A0[LDA*j+i]), cimag(A0[LDA*j+i]));
+#   endif
+                }
+                printf("\n");
+            }
+#endif
+            /* Compute eigenvalues directly */
+            TIME_START();
+            LAPACKE_zheev( LAPACK_COL_MAJOR,
+                lapack_const(PlasmaNoVec), lapack_const(uplo),
+                N, A0, LDA, W0);
+            TIME_PRINT(rank, ("LAPACK HEEV\n"));
+#ifdef PRINTF_HEAVY
+            printf("########### A (after LAPACK direct eignesolver)\n");
+            for (i = 0; i < N; i++){
+                for (j = 0; j < N; j++) {
+#   if defined(PRECISION_d) || defined(PRECISION_s)
+                    printf("% 11.4g ", A0[LDA*j+i] );
+#   else
+                    printf("(%g, %g)", creal(A0[LDA*j+i]), cimag(A0[LDA*j+i]));
+#   endif
+                }
+                printf("\n");
+            }
+#endif
 
 #ifdef PRINTF_HEAVY
-        printf("########### A0 #############\n");
-        for (i = 0; i < N; i++){
-            for (j = 0; j < N; j++) {
-#   if defined(PRECISION_d) || defined(PRECISION_s)
-                printf("% 11.4g ", A0[LDA*j+i] );
-#   else
-                printf("(%g, %g)", creal(A0[LDA*j+i]), cimag(A0[LDA*j+i]));
-#   endif
+            printf("\n###############\nDPLASMA Eignevalues\n");
+            for(i = 0; i < N; i++) {
+                printf("% .14e", D[i]);
+            }
+            printf("\nLAPACK Eigenvalues\n");
+            for(i = 0; i < N; i++) {
+                printf("% .14e ", W0[i]);
             }
             printf("\n");
-        }
 #endif
-        /* Compute eigenvalues directly */
-        LAPACKE_zheev( LAPACK_COL_MAJOR,
-            lapack_const(PlasmaNoVec), lapack_const(uplo),
-            N, A0, LDA, W0);
 
-#ifdef PRINTF_HEAVY
-        printf("########### A (after LAPACK direct eignesolver)\n");
-        for (i = 0; i < N; i++){
-            for (j = 0; j < N; j++) {
-#   if defined(PRECISION_d) || defined(PRECISION_s)
-                printf("% 11.4g ", A0[LDA*j+i] );
-#   else
-                printf("(%g, %g)", creal(A0[LDA*j+i]), cimag(A0[LDA*j+i]));
-#   endif
-            }
+            double eps = LAPACKE_dlamch_work('e');
             printf("\n");
-        }
-#endif
+            printf("------ TESTS FOR PLASMA ZHEEV ROUTINE -------  \n");
+            printf("        Size of the Matrix %d by %d\n", N, N);
+            printf("\n");
+            printf(" The matrix A is randomly generated for each test.\n");
+            printf("============\n");
+            printf(" The relative machine precision (eps) is to be %e \n",eps);
+            printf(" Computational tests pass if scaled residuals are less than 60.\n");
 
-#ifdef PRINTF_HEAVY
-        printf("\n###############\nDPLASMA Eignevalues\n");
-        for(i = 0; i < N; i++) {
-            printf("% .14e", D[i]);
-        }
-        printf("\nLAPACK Eigenvalues\n");
-        for(i = 0; i < N; i++) {
-            printf("% .14e ", W0[i]);
-        }
-        printf("\n");
-#endif
+            /* Check the eigen solutions */
+            int info_solution = check_solution(N, W0, D, eps);
 
-        double eps = LAPACKE_dlamch_work('e');
-        printf("\n");
-        printf("------ TESTS FOR PLASMA ZHEEV ROUTINE -------  \n");
-        printf("        Size of the Matrix %d by %d\n", N, N);
-        printf("\n");
-        printf(" The matrix A is randomly generated for each test.\n");
-        printf("============\n");
-        printf(" The relative machine precision (eps) is to be %e \n",eps);
-        printf(" Computational tests pass if scaled residuals are less than 60.\n");
-
-        /* Check the eigen solutions */
-        int info_solution = check_solution(N, W0, D, eps);
-
-        if (info_solution == 0) {
-            printf("***************************************************\n");
-            printf(" ---- TESTING ZHEEV ..................... PASSED !\n");
-            printf("***************************************************\n");
-        }
-        else {
-            printf("************************************************\n");
-            printf(" - TESTING ZHEEV ..................... FAILED !\n");
-            printf("************************************************\n");
-        }
+            if (info_solution == 0) {
+                printf("***************************************************\n");
+                printf(" ---- TESTING ZHEEV ..................... PASSED !\n");
+                printf("***************************************************\n");
+            }
+            else {
+                printf("************************************************\n");
+                printf(" - TESTING ZHEEV ..................... FAILED !\n");
+                printf("************************************************\n");
+            }
         }
         free(A0); free(W0); free(D); free(E);
     }
