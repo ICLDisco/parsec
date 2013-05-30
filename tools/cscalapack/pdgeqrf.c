@@ -45,7 +45,7 @@ int main( int argc, char **argv ) {
     int m, n, nb, s, mloc, nloc;
     double *A=NULL; int descA[9];
     double *tau=NULL;
-    double residF;
+    double resid;
     double telapsed, gflops, pgflops;
 
     setup_params( params, argc, argv );
@@ -79,7 +79,7 @@ int main( int argc, char **argv ) {
       telapsed = t2-t1;
       free(work);
     }
-    residF = check_solution( params, A, tau );
+    resid = check_solution( params, A, tau );
 
     if( 0 != iam ) 
         MPI_Reduce( &telapsed, NULL, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
@@ -89,7 +89,7 @@ int main( int argc, char **argv ) {
         pgflops = gflops/(((double)nprow)*((double)npcol));
         printf( "### PDGEQRF ###\n"
                 "#%4sx%-4s %7s %7s %4s %4s # %10s %10s %10s %11s\n", "P", "Q", "M", "N", "NB", "NRHS", "resid", "time(s)", "gflops", "gflops/pxq" );
-        printf( " %4d %-4d %7d %7d %4d %4d   %10.3e %10.3g %10.3g %11.3g\n", nprow, npcol, m, n, nb, s, residF, telapsed, gflops, pgflops );
+        printf( " %4d %-4d %7d %7d %4d %4d   %10.3e %10.3g %10.3g %11.3g\n", nprow, npcol, m, n, nb, s, resid, telapsed, gflops, pgflops );
     }
 
     free( A ); A = NULL;
@@ -116,7 +116,7 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
         double *A=NULL; int descA[9];
         double *B=NULL; int descB[9];
         double *X=NULL;
-        double eps, Anorm, Xnorm, Rnorm;
+        double eps, Anorm, Bnorm, Xnorm, Rnorm;
         
         Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol );
         mloc = numroc_( &m, &nb, &myrow, &i0, &nprow );
@@ -162,7 +162,6 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
           free( work );
         }
         eps = pdlamch_( &ictxt, "Epsilon" );
-        printf(" Anorm=%e\tXnorm=%e\tRnorm=%e\teps=%e\n", Anorm, Xnorm, Rnorm, eps);
         resid = Rnorm / ( (Bnorm + Anorm * Xnorm) * fmax(m, n) * eps );
         free( A ); free( B ); free( X );
     }
