@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include <mpi.h>
-#include <sys/time.h>
 #include <math.h>
 #include "myscalapack.h"
 #include "../../dplasma/testing/flops.h"
@@ -22,197 +22,230 @@
 static int i0=0, i1=1;
 static double m1=-1e0, p1=1e0;
 
+typedef enum {
+    PARAM_BLACS_CTX, 
+    PARAM_RANK, 
+    PARAM_P, 
+    PARAM_Q, 
+    PARAM_LOCP, 
+    PARAM_LOCQ, 
+    PARAM_M, 
+    PARAM_N, 
+    PARAM_NB, 
+    PARAM_SEED, 
+    PARAM_VALIDATE, 
+    PARAM_NRHS
+} params_enum_t;
+
+static void setup_params( int params[], int argc, char* argv[] );
+static void random_matrix( double *M, int mloc, int nloc, int seed );
+static double check_solution( int params[], double *Aqr, double *tau );
 
 
-
-int main(int argc, char **argv) {
-    int iam, nprocs, do_validation = 1;
-    int myrank_mpi, nprocs_mpi;
-    int ictxt, nprow, npcol, myrow, mycol;
-    int mloc, nloc, n, m = 0, nb, nqrhs, nrhs;
-    int i, j, k, info=0, seed;
-    int descA[9], descB[9];
-    double *A=NULL, *Acpy=NULL, *B=NULL, *X=NULL, eps, *work=NULL;
-    double AnormF, XnormF, RnormF, residF=-1.0e+00;
+int main( int argc, char **argv ) {
+    int params[12];
+    int info;
+    int ictxt, nprow, npcol, myrow, mycol, iam;
+    int m, n, nb, nrhs, mloc, nloc;
+    double *A=NULL; int descA[9];
     double *tau=NULL;
-    int lwork;
-    /**/
-    double MPIt1, MPIt2, MPIelapsed, GFLOPS, GFLOPS_per_proc ;
-    /**/
-    MPI_Init( &argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myrank_mpi);
-    MPI_Comm_size(MPI_COMM_WORLD, &nprocs_mpi);
-    /**/
-    n = 100; nrhs = 1; nprow = 1; npcol = 1; nb = 64;
+    double residF;
+    double telapsed, gflops, pgflops;
+
+    setup_params( params, argc, argv );
+    ictxt   = params[PARAM_BLACS_CTX];
+    iam     = params[PARAM_RANK];
+    m       = params[PARAM_M];
+    n       = params[PARAM_N];
+    nb      = params[PARAM_NB];
+    nrhs    = params[PARAM_NRHS];
+    
+    
+    Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol );
+    mloc = numroc_( &m, &nb, &myrow, &i0, &nprow );
+    nloc = numroc_( &n, &nb, &mycol, &i0, &npcol );
+    descinit_( descA, &m, &n, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info );
+    assert( 0 == info );
+    A = malloc( sizeof(double)*mloc*nloc );
+    random_matrix( A, mloc, nloc, iam*n*max(m,nrhs) );
+    tau = malloc( sizeof(double)*min(m,n) );
+
+    { double *work=NULL; int lwork=-1; double getlwork;
+      double t1, t2;
+      pdgeqrf_( &m, &n, A, &i1, &i1, descA, tau, &getlwork, &lwork, &info );
+      assert( 0 == info );
+      lwork = (int)getlwork;
+      work = malloc( sizeof(double)*lwork );
+      t1 = MPI_Wtime();
+      pdgeqrf_( &m, &n, A, &i1, &i1, descA, tau, work, &lwork, &info );
+      assert( 0 == info );
+      t2 = MPI_Wtime();
+      telapsed = t2-t1;
+      free(work);
+    }
+    residF = check_solution( params, A, tau );
+
+    if( 0 != iam ) 
+        MPI_Reduce( &telapsed, NULL, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
+    else {
+        MPI_Reduce( MPI_IN_PLACE, &telapsed, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
+        gflops = FLOPS_DGEQRF((double)m, (double)n)/1e+9/telapsed;
+        pgflops = gflops/(((double)nprow)*((double)npcol));
+        printf( "### PDGEQRF ###\n"
+                "#%4sx%-4s %7s %7s %4s %4s # %4s %10s %10s %10s %11s\n", "P", "Q", "M", "N", "NB", "NRHS", "info", "resid", "time(s)", "gflops", "gflops/pxq" );
+        printf( " %4d %-4d %7d %7d %4d %4d   %-4d %10.3e %10.3g %10.3g %11.3g\n", nprow, npcol, m, n, nb, nrhs, info, residF, telapsed, gflops, pgflops );
+    }
+
+    free( A ); A = NULL;
+    free( tau ); tau = NULL;
+
+    Cblacs_exit( 0 );
+    return 0;
+}
+
+
+static double check_solution( int params[], double* Aqr, double *tau ) {
+    double residF = NAN;
+
+    if( params[PARAM_VALIDATE] ) {
+        int info;
+        int ictxt   = params[PARAM_BLACS_CTX],
+            nprow   = params[PARAM_P], 
+            npcol   = params[PARAM_Q],
+            myrow   = params[PARAM_LOCP],
+            mycol   = params[PARAM_LOCQ],
+            iam     = params[PARAM_RANK];
+        int m       = params[PARAM_M],
+            n       = params[PARAM_N],
+            nb      = params[PARAM_NB],
+            nrhs    = params[PARAM_NRHS];
+        int mloc, nloc, nrhsloc;
+        double *A=NULL; int descA[9];
+        double *B=NULL; int descB[9];
+        double *X=NULL;
+        double eps, AnormF, XnormF, RnormF;
+        
+        mloc = numroc_( &m, &nb, &myrow, &i0, &nprow );
+        nloc = numroc_( &n, &nb, &mycol, &i0, &npcol );
+        nrhsloc = numroc_( &nrhs, &nb, &mycol, &i0, &npcol );
+
+        /* recreate A */
+        descinit_( descA, &m, &n, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info );
+        assert( 0 == info );
+        A = malloc( sizeof(double)*mloc*nloc );
+        random_matrix( A, mloc, nloc, iam*n*max(m,nrhs) );
+        /* create B and copy it to X */
+        descinit_( descB, &n, &nrhs, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info );
+        assert( 0 == info );
+        B = malloc( sizeof(double)*mloc*nrhsloc );
+        X = malloc( sizeof(double)*mloc*nrhsloc );
+        random_matrix( B, mloc, nrhsloc, 0 );
+        pdlacpy_( "All", &n, &nrhs, B, &i1, &i1, descB, X, &i1, &i1, descB );
+
+        /* Compute X from Aqr */
+        { double *work=NULL; int lwork=-1; double getlwork;
+          pdormqr_( "L", "T", &n, &nrhs, &n, Aqr, &i1, &i1,
+                    descA, tau, X, &i1, &i1, descB,
+                    &getlwork, &lwork, &info );
+          lwork = (int)getlwork;
+          work = malloc( sizeof(double)*lwork );
+          pdormqr_( "L", "T", &n, &nrhs, &n, Aqr, &i1, &i1,
+                    descA, tau, X, &i1, &i1, descB,
+                    work, &lwork, &info );
+          free(work);
+        }
+        pdtrsm_( "L", "U", "N", "N", &n, &nrhs, &p1, Aqr, &i1, &i1, descA, X, &i1, &i1, descB );
+        /* Compute B-AX */
+        pdgemm_( "N", "N", &n, &nrhs, &n, &p1, A, &i1, &i1, descA, X, &i1, &i1, descB,
+                 &m1, B, &i1, &i1, descB );
+        AnormF = pdlange_( "F", &n, &n, A, &i1, &i1, descA, NULL );
+        XnormF = pdlange_( "F", &n, &nrhs, X, &i1, &i1, descB, NULL );
+        RnormF = pdlange_( "F", &n, &nrhs, B, &i1, &i1, descB, NULL );
+        eps = pdlamch_( &ictxt, "Epsilon" );
+        residF = RnormF / ( AnormF * XnormF * eps );
+        free( A ); free( B ); free( X );
+    }
+    return residF;
+}
+
+
+
+static void random_matrix( double* M, int mloc, int nloc, int seed ) {
+    int i, j, k = 0;
+    if( seed ) srand( seed );
+    for( i = 0; i < mloc; i++ ) {
+        for( j = 0; j < nloc; j++ ) {
+            M[k] = ((double)rand()) / ((double)RAND_MAX) - 0.5;
+            k++;
+        }
+    }
+}
+
+
+static void setup_params( int params[], int argc, char* argv[] ) {
+    int i;
+    int ictxt, iam, nprocs, p, q;
+    MPI_Init( &argc, &argv );
+    Cblacs_pinfo( &iam, &nprocs );
+    Cblacs_get( -1, 0, &ictxt );
+
+    p = 1;
+    q = 1;
+    params[PARAM_M]         = 0;
+    params[PARAM_N]         = 1000;
+    params[PARAM_NB]        = 64;
+    params[PARAM_SEED]      = 0;
+    params[PARAM_VALIDATE]  = 1;
+    params[PARAM_NRHS]      = 1;
+
     for( i = 1; i < argc; i++ ) {
-        if( strcmp( argv[i], "-n" ) == 0 ) {
-            n      = atoi(argv[i+1]);
-            i++;
-        }
-        if( strcmp( argv[i], "-m" ) == 0 ) {
-            m      = atoi(argv[i+1]);
-            i++;
-        }
-        if( strcmp( argv[i], "-s" ) == 0 ) {
-            nrhs   = atoi(argv[i+1]);
-            i++;
-        }
         if( strcmp( argv[i], "-p" ) == 0 ) {
-            nprow  = atoi(argv[i+1]);
+            p = atoi(argv[i+1]);
             i++;
         }
         if( strcmp( argv[i], "-q" ) == 0 ) {
-            npcol  = atoi(argv[i+1]);
+            q = atoi(argv[i+1]);
             i++;
         }
-        if( strcmp( argv[i], "-b" ) == 0 ) {
-            nb     = atoi(argv[i+1]);
+        if( strcmp( argv[i], "-m" ) == 0 ) {
+            params[PARAM_M] = atoi(argv[i+1]);
+            i++;
+        }
+        if( strcmp( argv[i], "-n" ) == 0 ) {
+            params[PARAM_N] = atoi(argv[i+1]);
+            i++;
+        }
+        if( strcmp( argv[i], "-nb" ) == 0 ) {
+            params[PARAM_NB] = atoi(argv[i+1]);
             i++;
         }
         if( strcmp( argv[i], "-x" ) == 0 ) {
-            do_validation = 0;
+            params[PARAM_VALIDATE] = 0;
+        }
+        if( strcmp( argv[i], "-nrhs" ) == 0 ) {
+            params[PARAM_NRHS] = atoi(argv[i+1]);
+            i++;
         }
     }
-    /**/
-    if( nb>n )
-        nb = n;
-    if( m==0 )
-        m = n;
-    if( do_validation && (m != n) ) {
-        fprintf(stderr, "### WARNING: Unable to validate on a non-square matrix. Cancelling validation.\n");
-        do_validation = 0;
+    /* Validity checks etc. */
+    if( params[PARAM_NB] > params[PARAM_N] )
+        params[PARAM_NB] = params[PARAM_N];
+    if( 0 == params[PARAM_M] )
+        params[PARAM_M] = params[PARAM_N];
+    if( params[PARAM_P] * params[PARAM_Q] > nprocs ) {
+        if( 0 == iam )
+            fprintf( stderr, "### ERROR: we do not have enough processes available to make a p-by-q process grid ###\n"
+                             "###   Bye-bye                                                                      ###\n" );
+        Cblacs_abort( ictxt, 1 );
     }
-    if( nprow*npcol > nprocs_mpi ) {
-        if( 0 == myrank_mpi )
-            fprintf(stderr, "### ERROR: we do not have enough processes available to make a p-by-q process grid ###\n"
-                            "###   Bye-bye                                                                      ###\n");
-        MPI_Abort(MPI_COMM_WORLD, 1);
+    if( params[PARAM_VALIDATE] && (params[PARAM_M] != params[PARAM_N]) ) {
+        if( 0 == iam )
+            fprintf( stderr, "### WARNING: Unable to validate on a non-square matrix. Canceling validation.\n" );
+        params[PARAM_VALIDATE] = 0;
     }
-    /**/
-    /* no idea why I have problem with Cblacs on my computer, I am using blacsF77 interface here .... */
-    blacs_pinfo_( &iam, &nprocs ) ;
-    { int im1 = -1; int i0 = 0; blacs_get_( &im1, &i0, &ictxt ); }
-    blacs_gridinit_( &ictxt, "R", &nprow, &npcol );
-    blacs_gridinfo_( &ictxt, &nprow, &npcol, &myrow, &mycol );
-
-    //Cblacs_pinfo( &iam, &nprocs ) ;
-    //Cblacs_get( -1, 0, &ictxt );
-    //Cblacs_gridinit( &ictxt, "Row", nprow, npcol );
-    //Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol );
-
-    /**/
-
-    { int i0=0; mloc = numroc_( &m, &nb, &myrow, &i0, &nprow ); }
-    { int i0=0; nloc = numroc_( &n, &nb, &mycol, &i0, &npcol ); }
-    { int i0=0; descinit_( descA, &m, &n, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info ); }
-
-    A = malloc(mloc*nloc*sizeof(double)) ;
-    seed = iam*n*max(m, nrhs); srand(seed);
-    k = 0;
-    for (i = 0; i < mloc; i++) {
-        for (j = 0; j < nloc; j++) {
-            A[k] = ((double) rand()) / ((double) RAND_MAX) - 0.5 ;
-            k++;    
-        }
-    }
-
-
-
-
-
-    if( do_validation ) {
-        { int i0=0; nqrhs = numroc_( &nrhs, &nb, &mycol, &i0, &npcol ); }
-
-        if (mloc*nqrhs>0) {
-            B = malloc(mloc*nqrhs*sizeof(double)) ;
-            if (B==NULL){ printf("error of memory allocation B on proc %dx%d\n",myrow,mycol); exit(0); }
-        }
-
-        k = 0;
-        for (i = 0; i < mloc; i++) {
-            for (j = 0; j < nqrhs; j++) {
-                B[k] = ((double) rand()) / ((double) RAND_MAX) - 0.5 ;
-                k++;    
-            }
-        }
-
-        descinit_( descB, &n, &nrhs, &nb, &nb, &izero, &izero, &ictxt, &mloc, &info );
-
-        Acpy = malloc(mloc*nloc*sizeof(double)) ;
-        if (Acpy==NULL){ printf("error of memory allocation Acpy on proc %dx%d\n",myrow,mycol); exit(0); }
-        pdlacpy_( "All", &n, &n, A, &ione, &ione, descA, Acpy, &ione, &ione, descA );
-
-        if (mloc*nqrhs>0) {
-            X = malloc(mloc*nqrhs*sizeof(double)) ;
-            if (X==NULL){ printf("error of memory allocation X on proc %dx%d\n",myrow,mycol); exit(0); }
-        }
-        pdlacpy_( "All", &n, &nrhs, B, &ione, &ione, descB, X, &ione, &ione, descB );
-
-    }
-
-    /**/
-    tau = (double *)malloc(min(m, n)*sizeof(double)) ;
-    lwork = -1;
-    work = (double *)malloc(sizeof(double)) ;
-    if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
-    pdgeqrf_( &m, &n, A, &ione, &ione, descA, tau, work, &lwork, &info );
-    lwork = (int) work[0];
-    free(work); work = NULL;
-    work = (double *)malloc(lwork*sizeof(double)) ;
-    if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
-    /**/        
-    MPIt1 = MPI_Wtime();
-    pdgeqrf_( &m, &n, A, &ione, &ione, descA, tau, work, &lwork, &info );
-    /**/
-    MPIt2 = MPI_Wtime();
-    MPIelapsed=MPIt2-MPIt1;
-    free(work); work = NULL;
-
-    if( do_validation ) {
-        lwork = -1;
-        work = (double *)malloc(sizeof(double)) ;
-        if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
-        pdormqr_( "L", "T", &n, &nrhs, &n, A, &ione, &ione,
-                  descA, tau, X, &ione, &ione, descB,
-                  work, &lwork, &info );
-        lwork = (int) work[0];
-        free(work); work = NULL;
-        work = (double *)malloc(lwork*sizeof(double)) ;
-        if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
-        pdormqr_( "L", "T", &n, &nrhs, &n, A, &ione, &ione,
-                  descA, tau, X, &ione, &ione, descB,
-                  work, &lwork, &info );
-        free(work); work=NULL;
-        pdtrsm_( "L", "U", "N", "N", &n, &nrhs, &pone, A, &ione, &ione, descA, X, &ione, &ione, descB );
-        
-        eps = pdlamch_( &ictxt, "Epsilon" );
-        AnormF = pdlange_( "F", &n, &n, Acpy, &ione, &ione, descA, work);
-        XnormF = pdlange_( "F", &n, &nrhs, X, &ione, &ione, descB, work);
-        pdgemm_( "N", "N", &n, &nrhs, &n, &pone, Acpy, &ione, &ione, descA, X, &ione, &ione, descB,
-                 &mone, B, &ione, &ione, descB);
-        RnormF = pdlange_( "F", &n, &nrhs, B, &ione, &ione, descB, work);
-        residF = RnormF / ( AnormF * XnormF * eps );
-        
-        free(Acpy);
-        if ( B!=NULL ) free(B);
-        if ( X!=NULL ) free(X);
-    }
-    else residF = NAN;
-
-    GFLOPS = FLOPS_DGEQRF((double)m, (double)n)/1e+9/MPIelapsed;
-    GFLOPS_per_proc = GFLOPS / (((double) nprow)*((double) npcol));
-
-    if ( iam==0 ){
-        printf("### PDGETRF ###\n"
-               "#%4sx%-4s %7s %7s %4s %4s # %4s %10s %10s %10s %11s\n", "P", "Q", "M", "N", "NB", "RHS", "info", "resid", "time(s)", "gflops", "gflops/pxq");
-        printf(" %4d %-4d %7d %7d %4d %4d   %-4d %10.3e %10.3g %10.3g %11.3g\n", nprow, npcol, m, n, nb, nrhs, info, residF, MPIelapsed, GFLOPS, GFLOPS_per_proc);
-    }
-
-    free(A); A = NULL;
-    free(tau); tau = NULL;
-
-    { int i0=0; blacs_gridexit_( &i0 ); }
-    //{ int i0=0; blacs_exit_( &i0 ); } // OK, so that should be done, nevermind ...
-    MPI_Finalize();
-    exit(0);
+    Cblacs_gridinit( &ictxt, "Row", p, q );
+    params[PARAM_BLACS_CTX] = ictxt;
+    params[PARAM_RANK] = iam;
+    params[PARAM_P] = p;
+    params[PARAM_Q] = q;
 }
