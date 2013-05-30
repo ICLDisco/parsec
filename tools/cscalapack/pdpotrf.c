@@ -150,7 +150,7 @@ static void random_matrix( double* M, int descM[], int seed, double diagbump ) {
 
     pdlaset_( "All", &m, &n, &p0, &diagbump, M, &i1, &i1, descM );
 
-    { int ictxt = descM[8];
+    { int ictxt = descM[1];
       int nprow, npcol, myrow, mycol;
       int mloc, nloc;
       int i, j, k = 0;
