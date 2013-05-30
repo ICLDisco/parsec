@@ -144,13 +144,13 @@ static double check_solution( int params[], double* Allt ) {
 
 /* not that smart..., if only pdmatgen was available */
 static void random_matrix( double* M, int descM[], int seed, double diagbump ) {
-    int m     = descM[1],
-        n     = descM[2],
-        nb    = descM[3];
+    int m     = descM[2],
+        n     = descM[3],
+        nb    = descM[5];
 
     pdlaset_( "All", &m, &n, &p0, &diagbump, M, &i1, &i1, descM );
 
-    { int ictxt = descM[7];
+    { int ictxt = descM[8];
       int nprow, npcol, myrow, mycol;
       int mloc, nloc;
       int i, j, k = 0;
