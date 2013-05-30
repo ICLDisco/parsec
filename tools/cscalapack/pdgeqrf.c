@@ -135,7 +135,11 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
         X = malloc( sizeof(double)*mloc*sloc );
         random_matrix( B, descB, -1, 0e0 );
         pdlacpy_( "All", &n, &s, B, &i1, &i1, descB, X, &i1, &i1, descB );
-
+        { double *work = malloc( sizeof(double)*mloc );
+          Anorm = pdlange_( "I", &n, &n, A, &i1, &i1, descA, work );
+          Bnorm = pdlange_( "I", &n, &s, B, &i1, &i1, descB, work );
+          free( work );
+        }
         /* Compute X from Aqr */
         { double *work=NULL; int lwork=-1; double getlwork;
           pdormqr_( "L", "T", &n, &s, &n, Aqr, &i1, &i1,
@@ -153,14 +157,13 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
         pdgemm_( "N", "N", &n, &s, &n, &m1, A, &i1, &i1, descA, X, &i1, &i1, descB,
                  &p1, B, &i1, &i1, descB );
         { double *work = malloc( sizeof(double)*mloc );
-          Anorm = pdlange_( "I", &n, &n, A, &i1, &i1, descA, work );
           Xnorm = pdlange_( "I", &n, &s, X, &i1, &i1, descB, work );
           Rnorm = pdlange_( "I", &n, &s, B, &i1, &i1, descB, work );
           free( work );
         }
         eps = pdlamch_( &ictxt, "Epsilon" );
         printf(" Anorm=%e\tXnorm=%e\tRnorm=%e\teps=%e\n", Anorm, Xnorm, Rnorm, eps);
-        resid = Rnorm / ( Anorm * Xnorm * fmax(m, n) * eps );
+        resid = Rnorm / ( (Bnorm + Anorm * Xnorm) * fmax(m, n) * eps );
         free( A ); free( B ); free( X );
     }
     return resid;
