@@ -10,6 +10,7 @@
 #include <string.h>
 #include <mpi.h>
 #include <sys/time.h>
+#include <math.h>
 #include "myscalapack.h"
 #include "../../dplasma/testing/flops.h"
 
@@ -18,8 +19,14 @@
 #define min(_a, _b) ( (_a) > (_b) ? (_b) : (_a) )
 #endif
 
+static int i0=0, i1=1;
+static double m1=-1e0, p1=1e0;
+
+
+
+
 int main(int argc, char **argv) {
-    int iam, nprocs, do_validation = 0;
+    int iam, nprocs, do_validation = 1;
     int myrank_mpi, nprocs_mpi;
     int ictxt, nprow, npcol, myrow, mycol;
     int mloc, nloc, n, m = 0, nb, nqrhs, nrhs;
@@ -29,8 +36,6 @@ int main(int argc, char **argv) {
     double AnormF, XnormF, RnormF, residF=-1.0e+00;
     double *tau=NULL;
     int lwork;
-    int izero=0,ione=1;
-    double mone=(-1.0e0),pone=(1.0e0);
     /**/
     double MPIt1, MPIt2, MPIelapsed, GFLOPS, GFLOPS_per_proc ;
     /**/
@@ -48,7 +53,7 @@ int main(int argc, char **argv) {
             m      = atoi(argv[i+1]);
             i++;
         }
-        if( strcmp( argv[i], "-nrhs" ) == 0 ) {
+        if( strcmp( argv[i], "-s" ) == 0 ) {
             nrhs   = atoi(argv[i+1]);
             i++;
         }
@@ -60,28 +65,28 @@ int main(int argc, char **argv) {
             npcol  = atoi(argv[i+1]);
             i++;
         }
-        if( strcmp( argv[i], "-nb" ) == 0 ) {
+        if( strcmp( argv[i], "-b" ) == 0 ) {
             nb     = atoi(argv[i+1]);
             i++;
         }
-        if( strcmp( argv[i], "-v" ) == 0 ) {
-            do_validation = 1;
+        if( strcmp( argv[i], "-x" ) == 0 ) {
+            do_validation = 0;
         }
     }
     /**/
-    if (nb>n)
+    if( nb>n )
         nb = n;
-    if(m==0)
+    if( m==0 )
         m = n;
-    if(do_validation && (m != n) ) {
-        fprintf(stderr, "Unable to validate on a non-square matrix. Cancelling validation.\n");
+    if( do_validation && (m != n) ) {
+        fprintf(stderr, "### WARNING: Unable to validate on a non-square matrix. Cancelling validation.\n");
         do_validation = 0;
     }
-    if (nprow*npcol>nprocs_mpi){
-        if (myrank_mpi==0)
-            printf(" **** ERROR : we do not have enough processes available to make a p-by-q process grid ***\n");
-        printf(" **** Bye-bye                                                                         ***\n");
-        MPI_Finalize(); exit(1);
+    if( nprow*npcol > nprocs_mpi ) {
+        if( 0 == myrank_mpi )
+            fprintf(stderr, "### ERROR: we do not have enough processes available to make a p-by-q process grid ###\n"
+                            "###   Bye-bye                                                                      ###\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     /**/
     /* no idea why I have problem with Cblacs on my computer, I am using blacsF77 interface here .... */
@@ -99,13 +104,10 @@ int main(int argc, char **argv) {
 
     { int i0=0; mloc = numroc_( &m, &nb, &myrow, &i0, &nprow ); }
     { int i0=0; nloc = numroc_( &n, &nb, &mycol, &i0, &npcol ); }
-
     { int i0=0; descinit_( descA, &m, &n, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info ); }
 
+    A = malloc(mloc*nloc*sizeof(double)) ;
     seed = iam*n*max(m, nrhs); srand(seed);
-
-    A = (double *)malloc(mloc*nloc*sizeof(double)) ;
-
     k = 0;
     for (i = 0; i < mloc; i++) {
         for (j = 0; j < nloc; j++) {
@@ -114,14 +116,15 @@ int main(int argc, char **argv) {
         }
     }
 
-    descinit_( descA, &m, &n, &nb, &nb, &izero, &izero, &ictxt, &mloc, &info );
+
+
+
 
     if( do_validation ) {
-
         { int i0=0; nqrhs = numroc_( &nrhs, &nb, &mycol, &i0, &npcol ); }
 
         if (mloc*nqrhs>0) {
-            B = (double *)malloc(mloc*nqrhs*sizeof(double)) ;
+            B = malloc(mloc*nqrhs*sizeof(double)) ;
             if (B==NULL){ printf("error of memory allocation B on proc %dx%d\n",myrow,mycol); exit(0); }
         }
 
@@ -135,12 +138,12 @@ int main(int argc, char **argv) {
 
         descinit_( descB, &n, &nrhs, &nb, &nb, &izero, &izero, &ictxt, &mloc, &info );
 
-        Acpy = (double *)malloc(mloc*nloc*sizeof(double)) ;
+        Acpy = malloc(mloc*nloc*sizeof(double)) ;
         if (Acpy==NULL){ printf("error of memory allocation Acpy on proc %dx%d\n",myrow,mycol); exit(0); }
         pdlacpy_( "All", &n, &n, A, &ione, &ione, descA, Acpy, &ione, &ione, descA );
 
         if (mloc*nqrhs>0) {
-            X = (double *)malloc(mloc*nqrhs*sizeof(double)) ;
+            X = malloc(mloc*nqrhs*sizeof(double)) ;
             if (X==NULL){ printf("error of memory allocation X on proc %dx%d\n",myrow,mycol); exit(0); }
         }
         pdlacpy_( "All", &n, &nrhs, B, &ione, &ione, descB, X, &ione, &ione, descB );
@@ -166,7 +169,6 @@ int main(int argc, char **argv) {
     free(work); work = NULL;
 
     if( do_validation ) {
-
         lwork = -1;
         work = (double *)malloc(sizeof(double)) ;
         if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
@@ -195,19 +197,15 @@ int main(int argc, char **argv) {
         if ( B!=NULL ) free(B);
         if ( X!=NULL ) free(X);
     }
+    else residF = NAN;
 
     GFLOPS = FLOPS_DGEQRF((double)m, (double)n)/1e+9/MPIelapsed;
     GFLOPS_per_proc = GFLOPS / (((double) nprow)*((double) npcol));
 
     if ( iam==0 ){
-        printf("M\tN\tNRHS\tNB\tP\tQ\tinfo\tresid\ttime(s)  \tGFLOPS/sec\tGFLOPS/sec/proc\n");
-        if( do_validation ) {
-            printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%1.4f\t%f\t%f\t%f\n\n",
-                   m, n, nrhs, nb, nprow, npcol, info, residF, MPIelapsed, GFLOPS, GFLOPS_per_proc);
-        } else {
-            printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\tx.x\t%f\t%f\t%f\n\n",
-                   m, n, nrhs, nb, nprow, npcol, info, MPIelapsed, GFLOPS, GFLOPS_per_proc);
-        }
+        printf("### PDGETRF ###\n"
+               "#%4sx%-4s %7s %7s %4s %4s # %4s %10s %10s %10s %11s\n", "P", "Q", "M", "N", "NB", "RHS", "info", "resid", "time(s)", "gflops", "gflops/pxq");
+        printf(" %4d %-4d %7d %7d %4d %4d   %-4d %10.3e %10.3g %10.3g %11.3g\n", nprow, npcol, m, n, nb, nrhs, info, residF, MPIelapsed, GFLOPS, GFLOPS_per_proc);
     }
 
     free(A); A = NULL;

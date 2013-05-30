@@ -10,37 +10,16 @@ SMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack95_lp64 -lmkl_blacs_o
 TMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack95_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_intel_thread -lmkl_intel_lp64 -lmkl_core -liomp5 -lpthread -lm
 TLIBS=$(TMKL)
 SLIBS=$(SMKL)
-TARGETS=scadpotrf scadgetrf scadgeqrf tscadpotrf tscadgetrf tscadgeqrf pdsyev tpdsyev
+TARGETS=pdpotrf tpdpotrf pdgetrf tpdgetrf pdgeqrf tpdgeqrf pdsyev tpdsyev
 
 all: $(TARGETS)
 
-pdsyev: pdsyev.o
-	$(LD) -o $@ $^ $(SLIBS)
-
-tpdsyev: pdsyev.o
+t%: %.o
 	$(LD) -o $@ $^ $(TLIBS)
 
-scaspotrf: scalapackSPOTRF.o
+p%: p%.o
 	$(LD) -o $@ $^ $(SLIBS)
-
-scadpotrf: scalapackPOTRF.o
-	$(LD) -o $@ $^ $(SLIBS)
-
-scadgetrf: scalapackLU.o
-	$(LD) -o $@ $^ $(SLIBS)
-
-scadgeqrf: scalapackQR.o
-	$(LD) -o $@ $^ $(SLIBS)
-
-tscadpotrf: scalapackPOTRF.o
-	$(LD) -o $@ $^ $(TLIBS)
-
-tscadgetrf: scalapackLU.o
-	$(LD) -o $@ $^ $(TLIBS)
-
-tscadgeqrf: scalapackQR.o
-	$(LD) -o $@ $^ $(TLIBS)
 
 clean:
-	rm *.o $(TARGETS)
+	$(RM) *.o $(TARGETS)
 

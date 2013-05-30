@@ -65,23 +65,23 @@ extern void blacs_exit_( int *error_code);
 
 extern void pdgeqrf_( int *m, int *n, double *a, int *ia, int *ja, int *desca, double *tau, double *work, int *lwork, int *info );
 extern void pdormqr_( char *side, char *trans, int *m, int *n, int *k, double *a, int *ia,
-		int *ja, int *desca, double *tau, double *c, int *ic, int *jc, int *descc, double *work, int *lwork, int *info );
+                      int *ja, int *desca, double *tau, double *c, int *ic, int *jc, int *descc, double *work, int *lwork, int *info );
 extern void pdtrsm_ ( char *side, char *uplo, char *transa, char *diag, int *m, int *n, double *alpha, double *a, int *ia,
-		int *ja, int *desca, double *b, int *ib, int *jb, int *descb );
+                      int *ja, int *desca, double *b, int *ib, int *jb, int *descb );
 
 extern float  pslange_( char *norm, int *m, int *n, float     *A, int *ia, int *ja, int *descA, float *work);
 extern double pdlange_( char *norm, int *m, int *n, double    *A, int *ia, int *ja, int *descA, double *work);
 
 
 extern void pslacpy_( char *uplo, int *m, int *n, float     *A, int *ia, int *ja, int *descA,
-                                                    float     *B, int *ib, int *jb, int *descB);
+                                                  float     *B, int *ib, int *jb, int *descB);
 extern void pdlacpy_( char *uplo, int *m, int *n, double     *A, int *ia, int *ja, int *descA,
-                                                    double     *B, int *ib, int *jb, int *descB);
+                                                  double     *B, int *ib, int *jb, int *descB);
 
 extern void psgesv_( int *n, int *nrhs, float     *A, int *ia, int *ja, int *descA, int *ipiv,
-                                          float     *B, int *ib, int *jb, int *descB, int *info);
+                                        float     *B, int *ib, int *jb, int *descB, int *info);
 extern void pdgesv_( int *n, int *nrhs, double    *A, int *ia, int *ja, int *descA, int *ipiv,
-                                          double    *B, int *ib, int *jb, int *descB, int *info);
+                                        double    *B, int *ib, int *jb, int *descB, int *info);
 
 extern void psgemm_( char *transa, char *transb, int *M, int *N, int *K,
                                           float     *alpha,
@@ -136,7 +136,7 @@ extern int indxg2p_( int *indxglob, int *nb, int *iproc, int *isrcproc, int *npr
 extern int indxg2l_( int *indxglob, int *nb, int *iproc, int *isrcproc, int *nprocs);
 extern int numroc_( int *n, int *nb, int *iproc, int *isrcproc, int *nprocs);
 extern void descinit_( int *desc, int *m, int *n, int *mb, int *nb, int *irsrc, int *icsrc,
-				int *ictxt, int *lld, int *info);
+                       int *ictxt, int *lld, int *info);
 
 extern void   pdgetrf_ ( int* m, int *n, double *a, int *i1, int *i2, int *desca, int* ipiv, int *info );
 extern void   pdgetrs_ ( char* trans, int* n, int* nrhs, double* A, int* ia, int* ja, int* descA, int* ippiv, double* B, int* ib, int* jb, int* descB, int* info);
