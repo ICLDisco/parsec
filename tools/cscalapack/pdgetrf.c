@@ -45,7 +45,7 @@ int main( int argc, char **argv ) {
     int m, n, nb, s, mloc, nloc;
     double *A=NULL; int descA[9];
     int    *ippiv=NULL;
-    double residF;
+    double resid;
     double telapsed, gflops, pgflops;
 
     setup_params( params, argc, argv );
@@ -72,7 +72,7 @@ int main( int argc, char **argv ) {
       t2 = MPI_Wtime();
       telapsed = t2-t1;
     }
-    residF = check_solution( params, A, ippiv );
+    resid = check_solution( params, A, ippiv );
 
     if( 0 != iam ) 
         MPI_Reduce( &telapsed, NULL, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
@@ -82,7 +82,7 @@ int main( int argc, char **argv ) {
         pgflops = gflops/(((double)nprow)*((double)npcol));
         printf( "### PDGETRF ###\n"
                 "#%4sx%-4s %7s %7s %4s %4s # %10s %10s %10s %11s\n", "P", "Q", "M", "N", "NB", "NRHS", "resid", "time(s)", "gflops", "gflops/PxQ" );
-        printf( " %4d %-4d %7d %7d %4d %4d   %10.3e %10.3g %10.3g %11.3g\n", nprow, npcol, m, n, nb, s, residF, telapsed, gflops, pgflops );
+        printf( " %4d %-4d %7d %7d %4d %4d   %10.3e %10.3g %10.3g %11.3g\n", nprow, npcol, m, n, nb, s, resid, telapsed, gflops, pgflops );
     }
 
     free( A ); A = NULL;
@@ -94,7 +94,7 @@ int main( int argc, char **argv ) {
 
 
 static double check_solution( int params[], double* Alu, int *ippiv ) {
-    double residF = NAN;
+    double resid = NAN;
 
     if( params[PARAM_VALIDATE] ) {
         int info;
@@ -109,7 +109,7 @@ static double check_solution( int params[], double* Alu, int *ippiv ) {
         double *A=NULL; int descA[9];
         double *B=NULL; int descB[9];
         double *X=NULL;
-        double eps, AnormF, XnormF, RnormF;
+        double eps, Anorm, Bnorm, Xnorm, Rnorm;
         
         Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol );
         mloc = numroc_( &m, &nb, &myrow, &i0, &nprow );
@@ -128,20 +128,27 @@ static double check_solution( int params[], double* Alu, int *ippiv ) {
         X = malloc( sizeof(double)*mloc*sloc );
         random_matrix( B, descB, -1, 0e0 );
         pdlacpy_( "All", &n, &s, B, &i1, &i1, descB, X, &i1, &i1, descB );
+        { double *work = malloc( sizeof(double)*mloc );
+          Anorm = pdlange_( "I", &n, &n, A, &i1, &i1, descA, work );
+          Bnorm = pdlange_( "I", &n, &s, B, &i1, &i1, descB, work );
+          free( work );
+        }
         /* Compute X from Alu */
         pdgetrs_( "N", &n, &s, Alu, &i1, &i1, descA, ippiv, X, &i1, &i1, descB, &info );
         assert( 0 == info );
         /* Compute B-AX */
         pdgemm_( "N", "N", &n, &s, &n, &m1, A, &i1, &i1, descA, X, &i1, &i1, descB,
                  &p1, B, &i1, &i1, descB );
-        AnormF = pdlange_( "F", &n, &n, A, &i1, &i1, descA, NULL );
-        XnormF = pdlange_( "F", &n, &s, X, &i1, &i1, descB, NULL );
-        RnormF = pdlange_( "F", &n, &s, B, &i1, &i1, descB, NULL );
+        { double *work = malloc( sizeof(double)*mloc );
+          Xnorm = pdlange_( "I", &n, &s, X, &i1, &i1, descB, work );
+          Rnorm = pdlange_( "I", &n, &s, B, &i1, &i1, descB, work );
+          free( work );
+        }
         eps = pdlamch_( &ictxt, "Epsilon" );
-        residF = RnormF / ( AnormF * XnormF * eps );
+        resid = Rnorm / ( (Bnorm + Anorm * Xnorm) * fmax(m, n) * eps );
         free( A ); free( B ); free( X );
     }
-    return residF;
+    return resid;
 }
 
 
