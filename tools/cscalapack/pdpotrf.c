@@ -125,7 +125,8 @@ static double check_solution( int params[], double* Allt ) {
         X = malloc( sizeof(double)*mloc*sloc );
         random_matrix( B, descB, -1, 0e0 );
         pdlacpy_( "All", &n, &s, B, &i1, &i1, descB, X, &i1, &i1, descB );
-        { double *work = malloc( sizeof(double)*mloc );
+        { double ldw = nb*ceil(ceil(mloc/(double)nb)/(ilcm_(nprow,npcol)/nprow));
+          double *work = malloc( sizeof(double)*(2*nloc + mloc + ldw) );
           Anorm = pdlansy_( "I", "L", &n, A, &i1, &i1, descA, work );
           Bnorm = pdlange_( "I", &n, &s, B, &i1, &i1, descB, work );
           free( work );
