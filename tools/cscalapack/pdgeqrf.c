@@ -156,6 +156,7 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
         XnormF = pdlange_( "F", &n, &s, X, &i1, &i1, descB, NULL );
         RnormF = pdlange_( "F", &n, &s, B, &i1, &i1, descB, NULL );
         eps = pdlamch_( &ictxt, "Epsilon" );
+        printf(" Anorm=%e\tXnorm=%e\tRnorm=%e\teps=%e\n", AnormF, XnormF, RnormF, eps);
         residF = RnormF / ( AnormF * XnormF * eps );
         free( A ); free( B ); free( X );
     }

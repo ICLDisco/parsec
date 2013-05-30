@@ -125,7 +125,7 @@ static double check_solution( int params[], double* Allt ) {
         X = malloc( sizeof(double)*mloc*sloc );
         random_matrix( B, descB, -1, 0e0 );
         pdlacpy_( "All", &n, &s, B, &i1, &i1, descB, X, &i1, &i1, descB );
-        /* Compute X from Alu */
+        /* Compute X from Allt */
         pdpotrs_( "L", &n, &s, Allt, &i1, &i1, descA, X, &i1, &i1, descB, &info );
         assert( 0 == info );
         /* Compute B-AX */
