@@ -133,6 +133,7 @@ extern void pdlawrite_( char **filenam, int *m, int *n, double *A, int *ia, int 
 extern float pslamch_( int *ictxt, char *cmach);
 extern double pdlamch_( int *ictxt, char *cmach);
 
+extern int ilcm_( int *a, int *b );
 extern int indxg2p_( int *indxglob, int *nb, int *iproc, int *isrcproc, int *nprocs);
 extern int indxg2l_( int *indxglob, int *nb, int *iproc, int *isrcproc, int *nprocs);
 extern int numroc_( int *n, int *nb, int *iproc, int *isrcproc, int *nprocs);
