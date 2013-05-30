@@ -101,7 +101,7 @@ int main( int argc, char **argv ) {
 
 
 static double check_solution( int params[], double* Aqr, double *tau ) {
-    double residF = NAN;
+    double resid = NAN;
 
     if( params[PARAM_VALIDATE] ) {
         int info;
@@ -116,7 +116,7 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
         double *A=NULL; int descA[9];
         double *B=NULL; int descB[9];
         double *X=NULL;
-        double eps, AnormF, XnormF, RnormF;
+        double eps, Anorm, Xnorm, Rnorm;
         
         Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol );
         mloc = numroc_( &m, &nb, &myrow, &i0, &nprow );
@@ -152,15 +152,18 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
         /* Compute B-AX */
         pdgemm_( "N", "N", &n, &s, &n, &m1, A, &i1, &i1, descA, X, &i1, &i1, descB,
                  &p1, B, &i1, &i1, descB );
-        AnormF = pdlange_( "F", &n, &n, A, &i1, &i1, descA, NULL );
-        XnormF = pdlange_( "F", &n, &s, X, &i1, &i1, descB, NULL );
-        RnormF = pdlange_( "F", &n, &s, B, &i1, &i1, descB, NULL );
+        { double *work = malloc( sizeof(double)*mloc );
+          Anorm = pdlange_( "I", &n, &n, A, &i1, &i1, descA, work );
+          Xnorm = pdlange_( "I", &n, &s, X, &i1, &i1, descB, work );
+          Rnorm = pdlange_( "I", &n, &s, B, &i1, &i1, descB, work );
+          free( work );
+        }
         eps = pdlamch_( &ictxt, "Epsilon" );
-        printf(" Anorm=%e\tXnorm=%e\tRnorm=%e\teps=%e\n", AnormF, XnormF, RnormF, eps);
-        residF = RnormF / ( AnormF * XnormF * eps );
+        printf(" Anorm=%e\tXnorm=%e\tRnorm=%e\teps=%e\n", Anorm, Xnorm, Rnorm, eps);
+        resid = Rnorm / ( Anorm * Xnorm * fmax(m, n) * eps );
         free( A ); free( B ); free( X );
     }
-    return residF;
+    return resid;
 }
 
 
