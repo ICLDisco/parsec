@@ -25,10 +25,6 @@ static double m1=-1e0, p1=1e0;
 typedef enum {
     PARAM_BLACS_CTX, 
     PARAM_RANK, 
-    PARAM_P, 
-    PARAM_Q, 
-    PARAM_LOCP, 
-    PARAM_LOCQ, 
     PARAM_M, 
     PARAM_N, 
     PARAM_NB, 
@@ -43,7 +39,7 @@ static double check_solution( int params[], double *Aqr, double *tau );
 
 
 int main( int argc, char **argv ) {
-    int params[12];
+    int params[8];
     int info;
     int ictxt, nprow, npcol, myrow, mycol, iam;
     int m, n, nb, nrhs, mloc, nloc;
@@ -110,21 +106,19 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
     if( params[PARAM_VALIDATE] ) {
         int info;
         int ictxt   = params[PARAM_BLACS_CTX],
-            nprow   = params[PARAM_P], 
-            npcol   = params[PARAM_Q],
-            myrow   = params[PARAM_LOCP],
-            mycol   = params[PARAM_LOCQ],
             iam     = params[PARAM_RANK];
         int m       = params[PARAM_M],
             n       = params[PARAM_N],
             nb      = params[PARAM_NB],
             nrhs    = params[PARAM_NRHS];
+        int nprow, npcol, myrow, mycol;
         int mloc, nloc, nrhsloc;
         double *A=NULL; int descA[9];
         double *B=NULL; int descB[9];
         double *X=NULL;
         double eps, AnormF, XnormF, RnormF;
         
+        Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol );
         mloc = numroc_( &m, &nb, &myrow, &i0, &nprow );
         nloc = numroc_( &n, &nb, &mycol, &i0, &npcol );
         nrhsloc = numroc_( &nrhs, &nb, &mycol, &i0, &npcol );
@@ -139,7 +133,7 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
         assert( 0 == info );
         B = malloc( sizeof(double)*mloc*nrhsloc );
         X = malloc( sizeof(double)*mloc*nrhsloc );
-        random_matrix( B, mloc, nrhsloc, 0 );
+        random_matrix( B, mloc, nrhsloc, -1 );
         pdlacpy_( "All", &n, &nrhs, B, &i1, &i1, descB, X, &i1, &i1, descB );
 
         /* Compute X from Aqr */
@@ -172,7 +166,7 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
 
 static void random_matrix( double* M, int mloc, int nloc, int seed ) {
     int i, j, k = 0;
-    if( seed ) srand( seed );
+    if( seed >= 0 ) srand( seed );
     for( i = 0; i < mloc; i++ ) {
         for( j = 0; j < nloc; j++ ) {
             M[k] = ((double)rand()) / ((double)RAND_MAX) - 0.5;
@@ -232,7 +226,7 @@ static void setup_params( int params[], int argc, char* argv[] ) {
         params[PARAM_NB] = params[PARAM_N];
     if( 0 == params[PARAM_M] )
         params[PARAM_M] = params[PARAM_N];
-    if( params[PARAM_P] * params[PARAM_Q] > nprocs ) {
+    if( p*q > nprocs ) {
         if( 0 == iam )
             fprintf( stderr, "### ERROR: we do not have enough processes available to make a p-by-q process grid ###\n"
                              "###   Bye-bye                                                                      ###\n" );
@@ -246,6 +240,5 @@ static void setup_params( int params[], int argc, char* argv[] ) {
     Cblacs_gridinit( &ictxt, "Row", p, q );
     params[PARAM_BLACS_CTX] = ictxt;
     params[PARAM_RANK] = iam;
-    params[PARAM_P] = p;
-    params[PARAM_Q] = q;
 }
+
