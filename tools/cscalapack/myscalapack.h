@@ -49,12 +49,13 @@
 #define blacs_exit_     blacs_exit
 #endif
 
-extern void Cblacs_pinfo( int* mypnum, int* nprocs);
-extern void Cblacs_get( int context, int request, int* value);
-extern int  Cblacs_gridinit( int* context, char * order, int np_row, int np_col);
-extern void Cblacs_gridinfo( int context, int*  np_row, int* np_col, int*  my_row, int*  my_col);
-extern void Cblacs_gridexit( int context);
-extern void Cblacs_exit( int error_code);
+extern void Cblacs_pinfo( int* mypnum, int* nprocs );
+extern void Cblacs_get( int context, int request, int* value );
+extern int  Cblacs_gridinit( int* context, char * order, int np_row, int np_col );
+extern void Cblacs_gridinfo( int context, int*  np_row, int* np_col, int*  my_row, int*  my_col );
+extern void Cblacs_gridexit( int context );
+extern void Cblacs_exit( int error_code );
+extern void Cblacs_abort( int context, int error_code );
 
 extern void blacs_pinfo_( int *mypnum, int *nprocs);
 extern void blacs_get_( int *context, int *request, int* value);
