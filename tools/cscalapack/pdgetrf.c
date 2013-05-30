@@ -1,177 +1,249 @@
-// /usr/local/bin/mpirun -np 8 ./scalapackChInv -p 2 -q 4 -n 8000 -nb 200
+/*
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2010      University of Denver, Colorado.
+ */
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <assert.h>
-#include <math.h>
-#include <sys/time.h>
 #include <mpi.h>
+#include <math.h>
 #include "myscalapack.h"
+#include "../../dplasma/testing/flops.h"
 
-int main(int argc, char **argv) {
-    int iam, nprocs;
-    int myrank_mpi, nprocs_mpi;
-    int ictxt, nprow, npcol, myrow, mycol;
-    int nb, n, s, mloc, nloc, sloc;
-    int i, j, k, info_facto, info_solve, info, iseed, verif;
-    int my_info_facto, my_info_solve;
-    int *ippiv;
-    int descA[9], descB[9];
-    double *A=NULL, *B=NULL, *Acpy=NULL, *X=NULL, *work=NULL;
-    double XnormF, AnormF, RnormF, residF = -1.0e+00;
-    double eps;
-/**/
-    double elapsed, GFLOPS;
-    double my_elapsed = 0.0e+00;
-/**/
+#ifndef max
+#define max(_a, _b) ( (_a) < (_b) ? (_b) : (_a) )
+#define min(_a, _b) ( (_a) > (_b) ? (_b) : (_a) )
+#endif
 
-    MPI_Init( &argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myrank_mpi);
-    MPI_Comm_size(MPI_COMM_WORLD, &nprocs_mpi);
+static int i0=0, i1=1;
+static double m1=-1e0, p1=1e0;
 
-    n = 100; nprow = 1; npcol = 1; nb = 64; s = 1; verif = 1;
-    for( i = 1; i < argc; i++ ) {
-        if( strcmp( argv[i], "-n" ) == 0 ) {
-            n      = atoi(argv[i+1]);
-            i++;
-        }
-        if( strcmp( argv[i], "-nrhs" ) == 0 ) {
-            s      = atoi(argv[i+1]);
-            i++;
-        }
-        if( strcmp( argv[i], "-p" ) == 0 ) {
-            nprow  = atoi(argv[i+1]);
-            i++;
-        }
-        if( strcmp( argv[i], "-q" ) == 0 ) {
-            npcol  = atoi(argv[i+1]);
-            i++;
-        }
-        if( strcmp( argv[i], "-nb" ) == 0 ) {
-            nb     = atoi(argv[i+1]);
-            i++;
-        }
-        if( strcmp( argv[i], "-verif" ) == 0 ) {
-            verif  = atoi(argv[i+1]);
-            i++;
-        }
-    }
+typedef enum {
+    PARAM_BLACS_CTX, 
+    PARAM_RANK, 
+    PARAM_M, 
+    PARAM_N, 
+    PARAM_NB, 
+    PARAM_SEED, 
+    PARAM_VALIDATE, 
+    PARAM_NRHS
+} params_enum_t;
 
-    /* no idea why I have problem with Cblacs on my computer, I am using blacsF77 interface here .... */
-    blacs_pinfo_( &iam, &nprocs ) ;
-    { int im1 = -1; int i0 = 0; blacs_get_( &im1, &i0, &ictxt ); }
-    blacs_gridinit_( &ictxt, "R", &nprow, &npcol );
-    blacs_gridinfo_( &ictxt, &nprow, &npcol, &myrow, &mycol );
+static void setup_params( int params[], int argc, char* argv[] );
+static void random_matrix( double *M, int descM[], int seed, double diagbump );
+static double check_solution( int params[], double *Alu, int *ippiv );
 
-    { int i0=0; mloc = numroc_( &n, &nb, &myrow, &i0, &nprow ); }
-    { int i0=0; nloc = numroc_( &n, &nb, &mycol, &i0, &npcol ); }
 
-    { int i0=0; descinit_( descA, &n, &n, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info ); }
-    ippiv = calloc(n+n, sizeof(int));
+int main( int argc, char **argv ) {
+    int params[8];
+    int info;
+    int ictxt, nprow, npcol, myrow, mycol, iam;
+    int m, n, nb, s, mloc, nloc;
+    double *A=NULL; int descA[9];
+    int    *ippiv=NULL;
+    double residF;
+    double telapsed, gflops, pgflops;
+
+    setup_params( params, argc, argv );
+    ictxt = params[PARAM_BLACS_CTX];
+    iam   = params[PARAM_RANK];
+    m     = params[PARAM_M];
+    n     = params[PARAM_N];
+    nb    = params[PARAM_NB];
+    s     = params[PARAM_NRHS];
     
-    A = (double *)malloc(mloc*nloc*sizeof(double)) ;
+    Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol );
+    mloc = numroc_( &m, &nb, &myrow, &i0, &nprow );
+    nloc = numroc_( &n, &nb, &mycol, &i0, &npcol );
+    descinit_( descA, &m, &n, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info );
+    assert( 0 == info );
+    A = malloc( sizeof(double)*mloc*nloc );
+    random_matrix( A, descA, iam*n*max(m,s), 0e0 );
+    ippiv = malloc( sizeof(int)*2*n );
 
-    iseed = iam*mloc*nloc; srand(iseed);
-    k = 0;
-    for (i = 0; i < mloc; i++) {
-        for (j = 0; j < nloc; j++) {
-            A[k] = ((double) rand()) / ((double) RAND_MAX) - 0.5 ;
-            k++;
-        }
+    { double t1, t2;
+      t1 = MPI_Wtime();
+      pdgetrf_( &m, &n, A, &i1, &i1, descA, ippiv, &info );
+      assert( 0 == info );
+      t2 = MPI_Wtime();
+      telapsed = t2-t1;
+    }
+    residF = check_solution( params, A, ippiv );
+
+    if( 0 != iam ) 
+        MPI_Reduce( &telapsed, NULL, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
+    else {
+        MPI_Reduce( MPI_IN_PLACE, &telapsed, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
+        gflops = FLOPS_DGETRF((double)m, (double)n)/1e+9/telapsed;
+        pgflops = gflops/(((double)nprow)*((double)npcol));
+        printf( "### PDGETRF ###\n"
+                "#%4sx%-4s %7s %7s %4s %4s # %10s %10s %10s %11s\n", "P", "Q", "M", "N", "NB", "NRHS", "resid", "time(s)", "gflops", "gflops/PxQ" );
+        printf( " %4d %-4d %7d %7d %4d %4d   %10.3e %10.3g %10.3g %11.3g\n", nprow, npcol, m, n, nb, s, residF, telapsed, gflops, pgflops );
     }
 
-#if 0 /* A is not diagonal dominant in LU, lets the pivoting do its office */
-    /* not that smart..., could used pdgeadd and pdlaset as well or pdmatgen */
-    for (i = 1; i <= n; i++) {
-        int idum1, idum2, iloc, jloc, i0=0;
-        if ( ( myrow == indxg2p_( &i, &nb, &idum1, &i0, &nprow ) )
-        &&   ( mycol == indxg2p_( &i, &nb, &idum1, &i0, &npcol ) ) ){
-            iloc = indxg2l_( &i, &nb, &idum1, &idum2, &nprow );
-            jloc = indxg2l_( &i, &nb, &idum1, &idum2, &npcol );
-            A[ (jloc-1)*mloc + (iloc-1) ] += ((double) n);
-        }
+    free( A ); A = NULL;
+    free( ippiv ); ippiv = NULL;
+
+    Cblacs_exit( 0 );
+    return 0;
+}
+
+
+static double check_solution( int params[], double* Alu, int *ippiv ) {
+    double residF = NAN;
+
+    if( params[PARAM_VALIDATE] ) {
+        int info;
+        int ictxt = params[PARAM_BLACS_CTX],
+            iam   = params[PARAM_RANK];
+        int m     = params[PARAM_M],
+            n     = params[PARAM_N],
+            nb    = params[PARAM_NB],
+            s     = params[PARAM_NRHS];
+        int nprow, npcol, myrow, mycol;
+        int mloc, nloc, sloc;
+        double *A=NULL; int descA[9];
+        double *B=NULL; int descB[9];
+        double *X=NULL;
+        double eps, AnormF, XnormF, RnormF;
         
-    }
-#endif
+        Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol );
+        mloc = numroc_( &m, &nb, &myrow, &i0, &nprow );
+        nloc = numroc_( &n, &nb, &mycol, &i0, &npcol );
+        sloc = numroc_( &s, &nb, &mycol, &i0, &npcol );
 
-#if 0    /* PDMATGEN is part of the testing, it is not in the general lib...*/
-    {int i0 = 0; int seed = 800;
-    pdmatgen_ (&ictxt, "N", "N", &n, &n, &nb, &nb, A, descA+8, descA+6, descA+7, &seed,
-               &i0, &mloc, &i0, &nloc, &myrow, &mycol, &nprow, &npcol); }
-#endif
-
-    if (verif==1){
-        Acpy = (double *)malloc(mloc*nloc*sizeof(double)) ;
-        { int i1=1; pdlacpy_( "A", &n, &n, A, &i1, &i1, descA, Acpy, &i1, &i1, descA ); }
-    }
-
-
-    my_elapsed =- MPI_Wtime();
-    { int i1=1; pdgetrf_( &n, &n, A, &i1, &i1, descA, ippiv, &my_info_facto ); }
-    my_elapsed += MPI_Wtime();
-
-    MPI_Allreduce( &my_elapsed, &elapsed, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce( &my_info_facto, &info_facto, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-
-    GFLOPS = 2.0*(((double) n)*((double) n)*((double) n))/1e+9/elapsed/3.0;
-
-    if (verif == 1)
-      {
-        { int i0=0; sloc = numroc_( &s, &nb, &mycol, &i0, &npcol ); }
-        { int i0=0; descinit_( descB, &n, &s, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info ); }
-            
-        if (mloc*sloc > 0) 
-          {
-            B = (double *)malloc(mloc*sloc*sizeof(double)) ;
-          }
-        k = 0;
-        for (i = 0; i < mloc; i++) {
-          for (j = 0; j < sloc; j++) {
-            B[k] = ((double) rand()) / ((double) RAND_MAX) - 0.5 ;
-            k++;
-          }
-        }
-        
-        if (mloc*sloc > 0) 
-          {
-            X = (double *)malloc(mloc*sloc*sizeof(double)) ;
-          }
-        { int i1=1; pdlacpy_( "A", &n, &s, B, &i1, &i1, descB, X, &i1, &i1, descB ); }
-        
-        { int i1=1; pdgetrs_( "N", &n, &s, A, &i1, &i1, descA, ippiv, X, &i1, &i1, descB, &my_info_solve ); }
-        MPI_Allreduce( &my_info_solve, &info_solve, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-        
-        { int i1=1; double pone=1.00e+00, mone = -1.00e+00; pdgemm_( "N", "N", &n, &s, &n, &mone, Acpy, &i1, &i1, descA, X, &i1, &i1, descB,
-                                         &pone, B, &i1, &i1, descB); }
-        { int i1=1; AnormF = pdlange_( "F", &n, &n, Acpy, &i1, &i1, descA, work); }
-        { int i1=1; XnormF = pdlange_( "F", &n, &s, X, &i1, &i1, descB, work); }
-        { int i1=1; RnormF = pdlange_( "F", &n, &s, B, &i1, &i1, descB, work); }
+        /* recreate A */
+        descinit_( descA, &m, &n, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info );
+        assert( 0 == info );
+        A = malloc( sizeof(double)*mloc*nloc );
+        random_matrix( A, descA, iam*n*max(m,s), 0e0 );
+        /* create B and copy it to X */
+        descinit_( descB, &n, &s, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info );
+        assert( 0 == info );
+        B = malloc( sizeof(double)*mloc*sloc );
+        X = malloc( sizeof(double)*mloc*sloc );
+        random_matrix( B, descB, -1, 0e0 );
+        pdlacpy_( "All", &n, &s, B, &i1, &i1, descB, X, &i1, &i1, descB );
+        /* Compute X from Alu */
+        pdgetrs_( "N", &n, &s, Alu, &i1, &i1, descA, ippiv, X, &i1, &i1, descB, &info );
+        assert( 0 == info );
+        /* Compute B-AX */
+        pdgemm_( "N", "N", &n, &s, &n, &m1, A, &i1, &i1, descA, X, &i1, &i1, descB,
+                 &p1, B, &i1, &i1, descB );
+        AnormF = pdlange_( "F", &n, &n, A, &i1, &i1, descA, NULL );
+        XnormF = pdlange_( "F", &n, &s, X, &i1, &i1, descB, NULL );
+        RnormF = pdlange_( "F", &n, &s, B, &i1, &i1, descB, NULL );
         eps = pdlamch_( &ictxt, "Epsilon" );
         residF = RnormF / ( AnormF * XnormF * eps );
-        
-        if( X != NULL ) free( X );
-        if( B != NULL ) free( B );
-        
-        if ( iam == 0 ){
-          printf("**********************     N * S * NB * NP * P * Q *   T     * Gflops * Norm   * Rf * Rs *\n");
-          printf("SCAL GETRF            %6d %3d %4d %4d %3d %3d %6.2f %6.2lf %6.2e %d %d\n", n, s, nb, nprocs, nprow, npcol, elapsed, GFLOPS, residF, info_facto, info_solve);
-        }
-           
-      } else {
-        
-        if ( iam == 0 ){
-            printf("********************** N * S * NB * NP * P * Q *    T  * Gflops * R *\n");
-            printf("SCAL GETRF            %6d %3d %4d %3d %3d %3d %6.2f %6.2lf %d\n", n, s, nb, nprocs, nprow, npcol, elapsed, GFLOPS, info_facto);
-        }
+        free( A ); free( B ); free( X );
+    }
+    return residF;
+}
+
+
+/* not that smart..., if only pdmatgen was available */
+static void random_matrix( double* M, int descM[], int seed, double diagbump ) {
+    int m     = descM[1],
+        n     = descM[2],
+        nb    = descM[3];
+
+    pdlaset_( "All", &m, &n, &p0, &diagbump, M, &i1, &i1, descM );
+
+    { int ictxt = descM[7];
+      int nprow, npcol, myrow, mycol;
+      int mloc, nloc;
+      int i, j, k = 0;
+
+      Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol );
+      mloc = numroc_( &m, &nb, &myrow, &i0, &nprow );
+      nloc = numroc_( &n, &nb, &mycol, &i0, &npcol );
+      if( seed >= 0 ) srand( seed );
+      for( i = 0; i < mloc; i++ ) {
+          for( j = 0; j < nloc; j++ ) {
+              M[k] += ((double)rand()) / ((double)RAND_MAX) - 0.5;
+              k++;
+          }
       }
+    }
+}
 
-      if(verif == 1)
-        free( Acpy );
-      
-    free( A );
 
-    //{ int i0=0; blacs_exit_( &i0 ); } // OK, so that should be done, nevermind ...
-    MPI_Finalize();
-    return 0;
+static void setup_params( int params[], int argc, char* argv[] ) {
+    int i;
+    int ictxt, iam, nprocs, p, q;
+    MPI_Init( &argc, &argv );
+    Cblacs_pinfo( &iam, &nprocs );
+    Cblacs_get( -1, 0, &ictxt );
+
+    p = 1;
+    q = 1;
+    params[PARAM_M]         = 0;
+    params[PARAM_N]         = 1000;
+    params[PARAM_NB]        = 64;
+    params[PARAM_SEED]      = 0;
+    params[PARAM_VALIDATE]  = 1;
+    params[PARAM_NRHS]      = 1;
+
+    for( i = 1; i < argc; i++ ) {
+        if( strcmp( argv[i], "-p" ) == 0 ) {
+            p = atoi(argv[i+1]);
+            i++;
+            continue;
+        }
+        if( strcmp( argv[i], "-q" ) == 0 ) {
+            q = atoi(argv[i+1]);
+            i++;
+            continue;
+        }
+        if( strcmp( argv[i], "-n" ) == 0 ) {
+            params[PARAM_N] = atoi(argv[i+1]);
+            i++;
+            continue;
+        }
+        if( strcmp( argv[i], "-b" ) == 0 ) {
+            params[PARAM_NB] = atoi(argv[i+1]);
+            i++;
+            continue;
+        }
+        if( strcmp( argv[i], "-x" ) == 0 ) {
+            params[PARAM_VALIDATE] = 0;
+            continue;
+        }
+        if( strcmp( argv[i], "-s" ) == 0 ) {
+            params[PARAM_NRHS] = atoi(argv[i+1]);
+            i++;
+            continue;
+        }
+        fprintf( stderr, "### USAGE: %s [-p NUM][-q NUM][-n NUM][-b NUM][-x][-s NUM]\n"
+                         "#     -p: number of rows in the PxQ process grid\n"
+                         "#     -q: number of columns in the PxQ process grid\n"
+                         "#     -n: dimension of the matrix (NxN)\n"
+                         "#     -b: block size (NB)\n"
+                         "#     -s: number of right hand sides for backward error computation (NRHS)\n"
+                         "#     -x: disable verification\n", argv[0] );
+        Cblacs_abort( ictxt, i );
+    }
+    /* Validity checks etc. */
+    if( params[PARAM_NB] > params[PARAM_N] )
+        params[PARAM_NB] = params[PARAM_N];
+    if( 0 == params[PARAM_M] )
+        params[PARAM_M] = params[PARAM_N];
+    if( p*q > nprocs ) {
+        if( 0 == iam )
+            fprintf( stderr, "### ERROR: we do not have enough processes available to make a p-by-q process grid ###\n"
+                             "###   Bye-bye                                                                      ###\n" );
+        Cblacs_abort( ictxt, 1 );
+    }
+    if( params[PARAM_VALIDATE] && (params[PARAM_M] != params[PARAM_N]) ) {
+        if( 0 == iam )
+            fprintf( stderr, "### WARNING: Unable to validate on a non-square matrix. Canceling validation.\n" );
+        params[PARAM_VALIDATE] = 0;
+    }
+    Cblacs_gridinit( &ictxt, "Row", p, q );
+    params[PARAM_BLACS_CTX] = ictxt;
+    params[PARAM_RANK] = iam;
 }
