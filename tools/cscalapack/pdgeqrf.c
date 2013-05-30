@@ -20,7 +20,7 @@
 #endif
 
 static int i0=0, i1=1;
-static double m1=-1e0, p1=1e0;
+static double m1=-1e0, p0=0e0, p1=1e0;
 
 typedef enum {
     PARAM_BLACS_CTX, 
@@ -34,7 +34,7 @@ typedef enum {
 } params_enum_t;
 
 static void setup_params( int params[], int argc, char* argv[] );
-static void random_matrix( double* M, int descM[], int seed, double diagbump ) {
+static void random_matrix( double* M, int descM[], int seed, double diagbump );
 static double check_solution( int params[], double *Aqr, double *tau );
 
 
@@ -169,6 +169,7 @@ static void random_matrix( double* M, int descM[], int seed, double diagbump ) {
         n     = descM[2],
         nb    = descM[3];
 
+    assert( 0 );
     pdlaset_( "All", &m, &n, &p0, &diagbump, M, &i1, &i1, descM );
 
     { int ictxt = descM[7];

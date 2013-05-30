@@ -20,7 +20,7 @@
 #endif
 
 static int i0=0, i1=1;
-static double m1=-1e0, p1=1e0;
+static double m1=-1e0, p0=0e0, p1=1e0;
 
 typedef enum {
     PARAM_BLACS_CTX, 

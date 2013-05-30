@@ -1,6 +1,6 @@
 MPICC=mpicc
 MPIF77=mpif77
-CFLAGS="-Wall"
+CFLAGS+=-Wall
 CC=$(MPICC)
 LD=mpif77
 SMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack95_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_sequential -lmkl_intel_lp64 -lmkl_core 
@@ -15,10 +15,10 @@ TARGETS=pdpotrf tpdpotrf pdgetrf tpdgetrf pdgeqrf tpdgeqrf pdsyev tpdsyev
 all: $(TARGETS)
 
 t%: %.o
-	$(LD) -o $@ $^ $(TLIBS)
+	$(LD) $(LDFLAGS)	-o $@ $^ $(TLIBS)
 
 p%: p%.o
-	$(LD) -o $@ $^ $(SLIBS)
+	$(LD) $(LDFLAGS)	-o $@ $^ $(SLIBS)
 
 clean:
 	$(RM) *.o $(TARGETS)
