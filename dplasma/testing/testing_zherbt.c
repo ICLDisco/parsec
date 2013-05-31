@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
          two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
                                 nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                N, N, 1, 1, P))
+                                N, N, SMB, SNB, P))
 
     PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble,
          ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz,
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
          two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
          nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
-         MT*IB, N, 1, 1, P))
+         MT*IB, N, SMB, SNB, P))
 
     PLASMA_enum uplo = PlasmaLower;
 
