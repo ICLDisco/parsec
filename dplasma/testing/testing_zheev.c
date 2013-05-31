@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
          two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
          nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
-         MT*IB, N, 1, 1, P))
+         MT*IB, N, SMB, SMB, P))
 
     /* REDUCTION OF A TO BAND */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt,
