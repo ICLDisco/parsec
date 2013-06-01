@@ -35,6 +35,29 @@ pool_2 [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.
 pool_1 [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.nb*ib)"]
 pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.nb)"]
 
+
+bcast_zgeqrt(k)
+  k = 0..(descA.nt)-1-1
+  : A(k+1,k)
+  READ A <- A zgeqrt(k)
+         -> (descA.mt>=(k+3)) ? F zunmqr(k, (k+2)..(descA.mt-1))
+  READ B <- B zgeqrt(k) [type=LITTLE_T]
+         -> (descA.mt>=(k+3)) ? G zunmqr(k, (k+2)..(descA.mt-1)) [type = LITTLE_T]  
+BODY
+ /* */
+END
+
+zgeqrt_to_zherfb(k)
+  k = 0..(descA.nt)-1-1
+  : A(k+1,k)
+  READ A <- A zgeqrt(k)
+         -> C zherfb(k)
+  READ B <- B zgeqrt(k) [type=LITTLE_T]
+         -> D zherfb(k) [type=LITTLE_T]
+BODY
+ /* */
+END
+
 zgeqrt(k)
   /* Execution space */
   k = 0..(descA.nt)-1-1
@@ -55,14 +78,14 @@ zgeqrt(k)
           <- (0==k) ? A(k+1,k)
           <- (k>=1) & ((1+k)>=descA.mt) ? A(k+1,k)
           <- (k>=1) & (descA.mt>=(k+3)) ? M ztsmqr_hetra1(k+1-2, descA.mt-1, k+1)
-          -> C zherfb(k)
+          -> A zgeqrt_to_zherfb(k)
           -> ((k+2)>=descA.mt) ? A(k+1,k)
-          -> (descA.mt>=(k+3)) ? F zunmqr(k, (k+2)..(descA.mt-1))
+          -> A bcast_zgeqrt(k)
           -> (descA.mt>=(k+3)) ? J ztsqrt(k, k+2)
   RW    B <- T(k+1,k)  [type = LITTLE_T]
           -> T(k+1,k)  [type = LITTLE_T]
-          -> D zherfb(k)   [type = LITTLE_T]
-          -> (descA.mt>=(k+3)) ? G zunmqr(k, (k+2)..(descA.mt-1))   [type = LITTLE_T]
+          -> B zgeqrt_to_zherfb(k)   [type = LITTLE_T]
+          -> B bcast_zgeqrt(k)   [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -106,8 +129,8 @@ zherfb(k)
   /* U == A(k+1,k+1) */
   /* W == A(m1,m1) */
 
-  READ  C <- A zgeqrt(k)
-  READ  D <- B zgeqrt(k)   [type = LITTLE_T]
+  READ  C <- A zgeqrt_to_zherfb(k)
+  READ  D <- B zgeqrt_to_zherfb(k)   [type = LITTLE_T]
   RW    E <- (0==k) ? A(k+1,k+1)
           <- (k>=1) & ((k+1)>=descA.mt) ? A(k+1,k+1)
           <- (k>=1) & (descA.mt>=(k+2)) ? W ztsmqr_corner(k+1-2, k+1)
@@ -157,8 +180,8 @@ zunmqr(k,m)
   /* Q == A(j,k+1) */
   /* V == A(m1,k+1) */
 
-  READ  F <- A zgeqrt(k)
-  READ  G <- B zgeqrt(k)   [type = LITTLE_T]
+  READ  F <- A bcast_zgeqrt(k)
+  READ  G <- B bcast_zgeqrt(k)  [type = LITTLE_T]
   RW    H <- (0==k) ? A(m,k+1)
           <- (k>=1) ? N ztsmqr_hetra1(k+1-2, m, k+1)
           -> (m>=(k+3)) ? Q ztsmqr(k, k+2, m)
@@ -208,6 +231,20 @@ BODY
           k, m1, k+1, k, J);
 END
 
+bcast_ztsqrt(k,m1)
+  k = 0..(descA.nt)-1-1
+  m1 = k+2..descA.mt-1
+  : A(m1,k)
+  READ K <- K ztsqrt(k,m1)
+         -> (m1>=(3+k)) ? O ztsmqr_hetra1(k, m1, (k+2)..(m1-1))
+         -> (descA.mt>=(2+m1)) ? S ztsmqr(k, m1, (m1+1)..(descA.mt-1))
+  READ L <- L ztsqrt(k,m1) [type=LITTLE_T]
+         -> (descA.mt>=(m1+2)) ? T ztsmqr(k, m1, (m1+1)..(descA.mt-1))   [type = LITTLE_T]
+         -> (m1>=(k+3)) ? P ztsmqr_hetra1(k, m1, (k+2)..(m1-1))    [type = LITTLE_T]
+BODY
+ /* */
+END
+
 ztsqrt(k,m1)
   /* Execution space */
   k = 0..(descA.nt)-1-1
@@ -235,15 +272,13 @@ ztsqrt(k,m1)
   RW    K <- ((m1+1)==descA.mt) & (k>=1) ? V ztsmqr_corner(k-1, descA.mt-1)
           <- (0==k) ? A(m1,k)
           <- (descA.mt>=(m1+2)) & (k>=1) ? M ztsmqr_hetra1(k-1, descA.mt-1, m1)
-          -> (m1>=(3+k)) ? O ztsmqr_hetra1(k, m1, (k+2)..(m1-1))
-          -> (descA.mt>=(2+m1)) ? S ztsmqr(k, m1, (m1+1)..(descA.mt-1))
+          -> K bcast_ztsqrt(k, m1)
           -> X ztsmqr_corner(k, m1)
           -> A(m1,k)
   RW    L <- T(m1,k)   [type = LITTLE_T]
+          -> L bcast_ztsqrt(k, m1) [type = LITTLE_T]
           -> Y ztsmqr_corner(k, m1)    [type = LITTLE_T]
-          -> (descA.mt>=(m1+2)) ? T ztsmqr(k, m1, (m1+1)..(descA.mt-1))   [type = LITTLE_T]
           -> T(m1,k)   [type = LITTLE_T]
-          -> (m1>=(k+3)) ? P ztsmqr_hetra1(k, m1, (k+2)..(m1-1))    [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -319,8 +354,8 @@ ztsmqr_hetra1(k,m1,i)
           -> (i>=(k+3)) & (descA.nt>=(3+k)) ? R ztsmqr(k+1, i, m1)
           -> (descA.nt==(k+2)) ? N ztsmqr_hetra1_out_A0(k,m1,i)
           -> (i==(k+2)) & (descA.nt>=(i+1)) ? H zunmqr(i-1, m1)
-  READ  O <- K ztsqrt(k, m1)
-  READ  P <- L ztsqrt(k, m1)    [type = LITTLE_T]
+  READ  O <- K bcast_ztsqrt(k, m1)
+  READ  P <- L bcast_ztsqrt(k, m1)    [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -390,8 +425,8 @@ ztsmqr(k,m1,j)
   RW    R <- (k>=1) ? N ztsmqr_hetra1(k-1, j, m1)
           <- (0==k) ? R ztsmqr_in_A0(k,m1,j)
           -> N ztsmqr_hetra1(k, j, m1)
-  READ  S <- K ztsqrt(k, m1)
-  READ  T <- L ztsqrt(k, m1)    [type = LITTLE_T]
+  READ  S <- K bcast_ztsqrt(k, m1)
+  READ  T <- L bcast_ztsqrt(k, m1)    [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
