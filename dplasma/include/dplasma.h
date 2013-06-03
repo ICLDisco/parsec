@@ -40,7 +40,7 @@ enum criteria_e {
 enum matrix_init_e {
     MATRIX_RANDOM   = 0,
     MATRIX_HADAMARD = 1,
-    MATRIX_HOUSE    = 2,   /* TODO */
+    MATRIX_HOUSE    = 2,
     MATRIX_PARTER   = 3,
     MATRIX_RIS      = 4,
     MATRIX_KMS      = 5,
