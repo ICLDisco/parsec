@@ -32,6 +32,7 @@ set(JDF
   zsyr2k_LN.jdf zsyr2k_LT.jdf zsyr2k_UN.jdf zsyr2k_UT.jdf
   ztrsm_LLN.jdf ztrsm_LLT.jdf ztrsm_LUN.jdf ztrsm_LUT.jdf ztrsm_RLN.jdf ztrsm_RLT.jdf ztrsm_RUN.jdf ztrsm_RUT.jdf
   ztrmm_LLN.jdf ztrmm_LLT.jdf ztrmm_LUN.jdf ztrmm_LUT.jdf ztrmm_RLN.jdf ztrmm_RLT.jdf ztrmm_RUN.jdf ztrmm_RUT.jdf
+  zger.jdf
   zlaswp.jdf
   zpotrf_Url.jdf zpotrf_Lrl.jdf
   zgebmm.jdf
@@ -93,6 +94,8 @@ set(SOURCES
   ztrmm_wrapper.c
   ztrsmpl_wrapper.c
   zsymm_wrapper.c
+  # Level 2 Blas
+  zger_wrapper.c
   # Lapack Auxiliary
   zgeadd_wrapper.c
   zlacpy_wrapper.c
