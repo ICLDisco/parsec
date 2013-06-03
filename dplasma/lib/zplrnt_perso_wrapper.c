@@ -8,7 +8,11 @@
  */
 #include "dague_internal.h"
 #include <plasma.h>
+#include <core_blas.h>
+#include <lapacke.h>
+#include <math.h>
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/vector_two_dim_cyclic.h"
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
@@ -58,40 +62,38 @@ int dplasma_zplrnt_perso( dague_context_t *dague,
     case MATRIX_HOUSE:
     {
         two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
-        two_dim_block_cyclic_t V, T;
-        tiled_matrix_desc_t *subA;
-        two_dim_block_cyclic_init( &V, matrix_ComplexDouble, matrix_Tile,
-                                   A->super.nodes, A->super.cores, A->super.myrank,
-                                   A->mb, A->nb, A->m, 1, 0, 0, A->m, 1,
-                                   twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows );
+        vector_two_dim_cyclic_t V;
+        dague_complex64_t *Vmat, tau;
+
+        vector_two_dim_cyclic_init( &V, matrix_ComplexDouble, matrix_Tile,
+                                    A->super.nodes, A->super.cores, A->super.myrank,
+                                    A->mb, A->m, 0, A->m, twodA->grid.strows, 1 );
         V.mat = dague_data_allocate((size_t)V.super.nb_local_tiles *
                                     (size_t)V.super.bsiz *
                                     (size_t)dague_datadist_getsizeoftype(V.super.mtype));
         dague_ddesc_set_key((dague_ddesc_t*)&V, "V");
+        Vmat = (dague_complex64_t*)(V.mat);
 
-        two_dim_block_cyclic_init( &T, matrix_ComplexDouble, matrix_Tile,
-                                   A->super.nodes, A->super.cores, A->super.myrank,
-                                   32, A->nb, ( A->m + 31 ) / 32, 1, 0, 0, ( A->m + 31 ) / 32, 1,
-                                   twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows );
-        T.mat = dague_data_allocate((size_t)T.super.nb_local_tiles *
-                                    (size_t)T.super.bsiz *
-                                    (size_t)dague_datadist_getsizeoftype(T.super.mtype));
-        dague_ddesc_set_key((dague_ddesc_t*)&T, "T");
-
+        /* generate random vector */
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&V, 3456 );
-        dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&T);
 
-        subA = tiled_matrix_submatrix( A, 0, 0, A->m, 1 );
+        /* generate householder vector */
+        /* Could be done in // for one vector */
+        if (A->super.myrank == 0) {
+            LAPACKE_zlarfg( A->m, Vmat, Vmat+1, 1, &tau );
+            Vmat[0] = 1.;
+        }
 
-        dplasma_zlacpy( dague, PlasmaUpperLower,
-                        (tiled_matrix_desc_t *)&V, subA );
-        free( subA );
-        dplasma_zgeqrf( dague, (tiled_matrix_desc_t *)&V, (tiled_matrix_desc_t *)&T );
-        dplasma_zungqr( dague,
-                        (tiled_matrix_desc_t *)&V,
-                        (tiled_matrix_desc_t *)&T,
-                        (tiled_matrix_desc_t *)&A );
+#if defined(HAVE_MPI)
+        MPI_Bcast( &tau, 1, MPI_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD );
+#endif
 
+        /* Compute the Householder matrix I - tau v * v' */
+        dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., A);
+        dplasma_zger( dague, -tau,
+                      (tiled_matrix_desc_t*)&V,
+                      (tiled_matrix_desc_t*)&V,
+                      A );
     }
     break;
 
