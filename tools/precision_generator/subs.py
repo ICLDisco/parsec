@@ -196,6 +196,7 @@ subs = {
     ('slacpy','dlacpy','slacpy','dlacpy'),
     ('slaset','dlaset','slaset','dlaset'),
     ('sscal','dscal','csscal','zdscal'),
+    ('sger','dger','cger','zger'),
     ('ger','ger','gerc','gerc'),
     ('ger','ger','geru','geru'),
     ('symm','symm','hemm','hemm'),
