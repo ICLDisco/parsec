@@ -71,6 +71,8 @@ dplasma/lib/[sdc]geqrf\.jdf$
 dplasma/lib/[sdc]geqrf_param\.jdf$
 dplasma/lib/[sdc]geqrf_param_wrapper.c$
 dplasma/lib/[sdc]geqrf_wrapper.c$
+dplasma/lib/[sdc]geqrs_param_wrapper.c$
+dplasma/lib/[sdc]geqrs_wrapper.c$
 dplasma/lib/[sdc]gesv.*_wrapper.c$
 dplasma/lib/[sdc]getrf.*\.jdf$
 dplasma/lib/[sdc]getrf.*_wrapper.c$
@@ -169,6 +171,8 @@ dplasma/lib/[sdc]ungqr_param_wrapper.c$
 dplasma/lib/[sdc]ungqr_wrapper.c$
 dplasma/lib/[sdc]unmqr_[LR][NC]\.jdf$
 dplasma/lib/[sdc]unmqr_wrapper.c$
+dplasma/lib/[sdc]unmqr_param_[LR][NC]\.jdf$
+dplasma/lib/[sdc]unmqr_param_wrapper.c$
 dplasma/lib/[sdcz]geadd\.[ch]$
 dplasma/lib/[sdcz]gebut\.[ch]$
 dplasma/lib/[sdcz]gelqf\.[ch]$
@@ -234,6 +238,7 @@ dplasma/lib/[sdcz]trsmpl_sd\.[ch]$
 dplasma/lib/[sdcz]ungqr\.[ch]$
 dplasma/lib/[sdcz]ungqr_param\.[ch]$
 dplasma/lib/[sdcz]unmqr_[LR][NC]\.[ch]$
+dplasma/lib/[sdcz]unmqr_param_[LR][NC]\.[ch]$
 dplasma/lib/[zcds]gebmm\.[ch]$
 dplasma/lib/chebut\.jdf$
 dplasma/lib/chetrf\.jdf$
