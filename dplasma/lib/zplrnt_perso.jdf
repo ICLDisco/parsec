@@ -278,6 +278,31 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
     }
     break;
 
+    case MATRIX_WILKINSON:
+    {
+        if ( gM != gN ) {
+            fprintf(stderr, "Parter Matrix requires square matrices\n");
+            exit(-1);
+        }
+
+        for (i=0; i<M;i++) {
+            for (j=0; j<N;j++) {
+                int ii, jj;
+                ii = n0 + i;
+                jj = m0 + j;
+                if (ii == jj)
+                     A[j*LDA+i] =  (dague_complex64_t) (gN - 2*(gN-1.-ii < ii ? gN-1.-ii : ii) -1.) / 2.;
+                else if (ii == jj+1)
+                     A[j*LDA+i] = (dague_complex64_t)1.;
+                else if (ii == jj-1)
+                     A[j*LDA+i] = (dague_complex64_t)1.;
+                else
+                     A[j*LDA+i] = (dague_complex64_t)0.;
+           }
+       } 
+    }
+    break;
+
     default:
         for (j=0; j<N; j++) {
             for (i=0; i<M; i++) {
