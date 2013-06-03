@@ -11,7 +11,7 @@ CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
 OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
 PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
 
-
+TESTCMD="-DMPI_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode\" -DSHM_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode -np 1\""
 
 if [ "x$USER" = "xbosilca" ]; then
   unset CUDA_DIR
