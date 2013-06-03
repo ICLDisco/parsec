@@ -78,8 +78,8 @@ enum matrix_init_e {
     MATRIX_KAHAN     = 37,  /* TODO */
     MATRIX_ORTHOGO   = 38,
     MATRIX_WILKINSON = 39,
-    MATRIX_FOSTER    = 40, /* TODO */
-    MATRIX_WRIGHT    = 41, /* TODO */
+    MATRIX_FOSTER    = 40,
+    MATRIX_WRIGHT    = 41,
 };
 
 /*
