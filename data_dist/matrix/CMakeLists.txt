@@ -34,6 +34,7 @@ set(sources
         grid_2Dcyclic.c
         two_dim_rectangle_cyclic.c
         sym_two_dim_rectangle_cyclic.c
+        vector_two_dim_cyclic.c
         reduce_wrapper.c
         ${generated_files}
         ${generated_jdf}

@@ -27,8 +27,8 @@ typedef struct grid_2Dcyclic {
     int rrank;      /**< process row rank in the process grid - derived parameter */
     int rloc;       /**< number of row of tiles  handled by this process - derived parameter */
     int cloc;       /**< number of column of tiles handled by this process - derived parameter */
-    int vp_q;       /**< number of cols used for data distribution by the VP */
     int vp_p;       /**< number of rows used for data distribution by the VP */
+    int vp_q;       /**< number of cols used for data distribution by the VP */
 } grid_2Dcyclic_t;
 
 /************************************************
