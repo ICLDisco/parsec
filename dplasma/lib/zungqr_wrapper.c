@@ -93,10 +93,10 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
      * it should be passed as a parameter as in getrf
      */
-    object = dague_zungqr_new( *A, (dague_ddesc_t*)A,
-                               *T, (dague_ddesc_t*)T,
-                               *Q, (dague_ddesc_t*)Q,
-                               ib, NULL);
+    object = dague_zungqr_new( (dague_ddesc_t*)A,
+                               (dague_ddesc_t*)T,
+                               (dague_ddesc_t*)Q,
+                               NULL);
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( object->p_work, ib * T->nb * sizeof(dague_complex64_t) );
