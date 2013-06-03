@@ -1,0 +1,110 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+%}
+
+/*
+ * Globals
+ */
+trans [type = int]
+alpha [type = dague_complex64_t]
+dataX [type = "dague_ddesc_t *"]
+descX [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataX)"]
+dataY [type = "dague_ddesc_t *"]
+descY [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataY)"]
+dataA [type = "dague_ddesc_t *"]
+descA [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+
+/**************************************************
+ *                       READ_X                   *
+ **************************************************/
+READ_X(m)  [profile = off]
+
+m = 0 .. descX.mt-1
+
+: dataX(m, 0)
+
+READ X <- dataX(m, 0)               [type = VECTOR]
+       -> X GER(m, 0..descA.nt-1)   [type = VECTOR]
+BODY
+     printlog("rank %u <- X(%d)\n", dataX->myrank, m );
+END
+
+/**************************************************
+ *                       READ_Y                   *
+ **************************************************/
+READ_Y(m)  [profile = off]
+
+m = 0 .. descY.mt-1
+
+: dataY(m, 0)
+
+READ Y <- dataY(m, 0)               [type = VECTOR]
+       -> Y GER(0..descA.mt-1, m)   [type = VECTOR]
+BODY
+     printlog("rank %u <- Y(%d)\n", dataY->myrank, m );
+END
+
+/**************************************************
+ *                       GEMM                     *
+ **************************************************/
+GER(m, n)
+
+// Execution space
+m = 0 .. descA.mt-1
+n = 0 .. descA.nt-1
+
+// Parallel partitioning
+: dataA(m, n)
+
+// Parameters
+READ X <- X READ_X(m)  [type = VECTOR]
+READ Y <- Y READ_Y(n)  [type = VECTOR]
+RW   A <- dataA(m, n)
+       -> dataA(m, n)
+BODY
+{
+    int tempmm = (m == descA.mt-1) ? descA.m - m * descA.mb : descA.mb;
+    int tempnn = (n == descA.nt-1) ? descA.n - n * descA.nb : descA.nb;
+    int ldam = BLKLDD(descA, m);
+
+#if !defined(DAGUE_DRY_RUN)
+    if ( trans == PlasmaConjTrans ){
+        cblas_zgerc( CblasColMajor, tempmm, tempnn, CBLAS_SADDR(alpha),
+                     X, 1, Y, 1, A, ldam );
+    } else if (trans == PlasmaTrans ) {
+        cblas_zgeru( CblasColMajor, tempmm, tempnn, CBLAS_SADDR(alpha),
+                     X, 1, Y, 1, A, ldam );
+    } else {
+        fprintf(stderr, "zger.jdf: Error with trans parameter\n");
+    }
+#endif
+
+    printlog("gerc( %d, %d )\n"
+             "    ( %d, %d, %e, %p, %d, %p, %d, %p, %d)\n",
+             m, n, tempmm, tempnn, alpha, X, 1, Y, 1, A, ldam );
+}
+END
+
+extern "C" %{
+
+%}
