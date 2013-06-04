@@ -155,6 +155,34 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
     }
     break;
 
+    case MATRIX_HANKEL:
+    {
+        dague_complex64_t *lA = A;
+        unsigned long long int seedc = seed;
+        unsigned long long int seedr = seed + 17; /* 17 is a complete arbitrary choice */
+
+        int jj;
+        for (j=0,jj=n0; j<N; j++,jj++) {
+            /* Upper Left triangle */
+            if ( (m0 + M + jj) <= gM ) {
+                CORE_zplrnt( M, 1, lA, LDA, gM, m0 + jj, 0, seedc );
+            }
+            /* Lower Right triangle */
+            else if ( m0 > (gM-jj-1) ) {
+                CORE_zplrnt( M, 1, lA, LDA, gM, m0 - gM + jj + 1, 0, seedr );
+            }
+            /* Covering the SW-NE diagonal */
+            else {
+                /* Rows before gN - jj included  */
+                CORE_zplrnt( gM - jj - m0, 1, lA, LDA, gM, jj+m0, 0, seedc );
+                /* Rows after gN -jj excluded */
+                CORE_zplrnt( M + jj + m0 - gM, 1, lA + gM-jj-m0, LDA, gM, 1, 0, seedr );
+            }
+            lA += LDA;
+        }
+    }
+    break;
+
     case MATRIX_RIEMANN:
     {
         int ii, jj;
