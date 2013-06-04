@@ -130,6 +130,31 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
     }
     break;
 
+    case MATRIX_CIRCUL:
+    {
+        dague_complex64_t *lA = A;
+        int jj;
+        for (j=0,jj=n0; j<N; j++,jj++) {
+            if ( m0 >= jj ) {
+                CORE_zplrnt( M, 1, lA, LDA, gM, m0 - jj, 0, seed );
+            }
+            else if ( (m0 + M) <= jj ) {
+                CORE_zplrnt( M, 1, lA, LDA, gM, (gM + m0 - jj) % gM, 0, seed );
+            } else {
+                assert( jj - m0 + M - j == M );
+                assert( jj - m0 > 0 );
+                assert( M - j > 0 );
+
+                /* Over the diagonal */
+                CORE_zplrnt( jj - m0, 1, lA, LDA, gM, (gM + m0 - jj) % gM, 0, seed );
+                /* Under the diagonal */
+                CORE_zplrnt( M - j, 1, lA + (jj - m0), LDA, gM, 0, 0, seed );
+            }
+            lA += LDA;
+        }
+    }
+    break;
+
     case MATRIX_RIEMANN:
     {
         int ii, jj;
@@ -284,7 +309,7 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
             fprintf(stderr, "Wilkinson Matrix requires square matrices\n");
             exit(-1);
         }
-        
+
         int ii, jj;
         for (j=0,jj=n0; j<N; j++,jj++) {
             for (i=0,ii=m0; i<M; i++,ii++) {
