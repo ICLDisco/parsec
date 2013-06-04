@@ -85,9 +85,9 @@ RW   A <- ( m == k )                ? dataA(m, n)
 
 BODY
 {
+    dague_complex64_t *lA = (dague_complex64_t*)A;
     double *W     = (double*)R;
     double *theta = W + descA.mb;
-    double *lA    = (dague_complex64_t*)A;
 
     int tempmm = (m == descA.mt-1) ? descA.m - m * descA.mb : descA.mb;
     int tempnn = (n == descA.nt-1) ? descA.n - n * descA.nb : descA.nb;
