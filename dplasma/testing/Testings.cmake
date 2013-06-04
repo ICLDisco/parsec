@@ -86,7 +86,7 @@ if( MPI_FOUND )
   SET_TESTS_PROPERTIES("mpi_dgemm" PROPERTIES DEPENDS "mpi_test")
 
   add_test(mpi_dsymm         ${MPI_TEST_CMD_LIST} ./testing_dsymm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
-  SET_TESTS_PROPERTIES("mpi_dsym" PROPERTIES DEPENDS "mpi_test")
+  SET_TESTS_PROPERTIES("mpi_dsymm" PROPERTIES DEPENDS "mpi_test")
 
   add_test(mpi_csymm         ${MPI_TEST_CMD_LIST} ./testing_csymm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
   SET_TESTS_PROPERTIES("mpi_csymm" PROPERTIES DEPENDS "mpi_test")
