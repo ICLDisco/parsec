@@ -1,0 +1,117 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#define pi (3.1415926535897932384626433832795028841971693992)
+
+#include <math.h>
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "dplasma.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+static inline int dague_imin(int a, int b);
+
+%}
+
+/*
+ * Globals
+ */
+seed   [type = "unsigned long long int" ]
+dataA  [type = "dague_ddesc_t *"]
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+
+/**************************************************
+ *                       READ_X                   *
+ **************************************************/
+GEN_RANDOM(m)  [profile = off]
+
+m = 0 .. descA.mt-1
+
+: dataA(m, 0)
+
+    WRITE R -> R PLRNT(m, 0..descA.nt-1, m)  [type = VECTOR]
+
+BODY
+{
+    double *W = (double*)R;
+    int i;
+
+    CORE_dplrnt( descA.mb, 2, W, descA.mb, descA.m, m * descA.mb + 1, 0, seed );
+
+    /* Translate values to [0. ; 1.]*/
+    for(i=0; i<2*descA.mb; i++, W++) {
+        *W += 0.5;
+    }
+}
+END
+
+/**************************************************
+ *                       GEMM                     *
+ **************************************************/
+PLRNT(m, n, k)
+
+// Execution space
+m = 0 .. descA.mt-1
+n = 0 .. descA.nt-1
+k = 0 .. descA.mt-1
+
+// Parallel partitioning
+: dataA(m, n)
+
+// Parameters
+RW   R <- ( m == k ) ? R GEN_RANDOM(m)                                                [type = VECTOR]
+       <- ( m != k )                       ? R PLRNT(          (m+1)%descA.mt, n, k)  [type = VECTOR]
+       -> ( (descA.mt+m-1)%descA.mt != k ) ? R PLRNT( (descA.mt+m-1)%descA.mt, n, k)  [type = VECTOR]
+
+RW   A <- ( m == k )                ? dataA(m, n)
+       <- ( m != k )                ? A PLRNT( m, n, (descA.mt+k-1)%descA.mt )
+       -> ( ((k+1)%descA.mt) == m ) ? dataA(m, n)
+       -> ( ((k+1)%descA.mt) != m ) ? A PLRNT( m, n,          (k+1)%descA.mt )
+
+BODY
+{
+    double *W     = (double*)R;
+    double *theta = W + descA.mb;
+    double *lA    = (dague_complex64_t*)A;
+
+    int tempmm = (m == descA.mt-1) ? descA.m - m * descA.mb : descA.mb;
+    int tempnn = (n == descA.nt-1) ? descA.n - n * descA.nb : descA.nb;
+    int ldam = BLKLDD(descA, m);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zlaset( PlasmaUpperLower, tempmm, tempnn, 0., 0., A, ldam );
+
+    {
+        int i, j, k, ii, jj;
+
+        for (j=0,jj=n*descA.nb; j<tempnn; j++,jj++) {
+            for (i=0,ii=m*descA.mb; i<tempmm; i++,ii++,lA++) {
+                for(k=0; k<tempmm; k++) {
+                    *lA += W[k] * cos( 2.0 * pi * theta[k] * (double)(ii-jj) );
+                }
+            }
+            lA += (ldam - tempmm);
+        }
+    }
+#endif
+}
+END
+
+extern "C" %{
+
+%}

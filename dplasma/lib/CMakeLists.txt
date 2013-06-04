@@ -47,7 +47,9 @@ set(JDF
   zgelqf.jdf
   zherbt_L.jdf
   zhbrdt.jdf
-  zlaset.jdf zplrnt.jdf zplrnt_perso.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
+  zlaset.jdf
+  zplrnt.jdf zplrnt_perso.jdf zplrnt_toeppd.jdf
+  zplghe.jdf zplgsy.jdf zlacpy.jdf
   zgeqrf_param.jdf zungqr_param.jdf
   zgetrf_hincpiv.jdf ztrsmpl_hincpiv.jdf
 #  zgetrf_hpp.jdf     ztrsmpl_hpp.jdf

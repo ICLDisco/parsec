@@ -17,9 +17,42 @@
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 
+#include "zplrnt_toeppd.h"
 #include "zplrnt_perso.h"
 
 extern int GKK_getLeaderNbr(int me, int ne, int *nleaders, int **leaders);
+
+int dplasma_zplrnt_toeppd( dague_context_t *dague,
+                           tiled_matrix_desc_t *A,
+                           unsigned long long int seed )
+{
+    dague_zplrnt_toeppd_object_t* object;
+
+    object = dague_zplrnt_toeppd_new( seed,
+                                      (dague_ddesc_t*)A );
+
+    /* Default type */
+    dplasma_add2arena_tile( object->arenas[DAGUE_zplrnt_toeppd_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(dague_complex64_t),
+                            DAGUE_ARENA_ALIGNMENT_SSE,
+                            MPI_DOUBLE_COMPLEX, A->mb );
+
+    /* Vector type */
+    dplasma_add2arena_tile( object->arenas[DAGUE_zplrnt_toeppd_VECTOR_ARENA],
+                            A->mb*2*sizeof(dague_complex64_t),
+                            DAGUE_ARENA_ALIGNMENT_SSE,
+                            MPI_DOUBLE, A->mb );
+
+    dague_enqueue(dague, (dague_object_t*)object);
+    dplasma_progress(dague);
+
+    dplasma_datatype_undefine_type( &(object->arenas[DAGUE_zplrnt_toeppd_DEFAULT_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(object->arenas[DAGUE_zplrnt_toeppd_VECTOR_ARENA ]->opaque_dtt) );
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(object);
+
+    return 0;
+}
+
 
 /***************************************************************************//**
  *
@@ -109,7 +142,6 @@ int dplasma_zplrnt_perso( dague_context_t *dague,
         dague_complex64_t theta = 100.;
         two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
         two_dim_block_cyclic_t Q;
-
         two_dim_block_cyclic_init( &Q, matrix_ComplexDouble, matrix_Tile,
                                    1, A->super.cores, A->super.myrank,
                                    A->mb, A->nb, A->m, 3, 0, 0, A->m, 3, twodA->grid.strows, twodA->grid.stcols, 1 );
@@ -147,10 +179,8 @@ int dplasma_zplrnt_perso( dague_context_t *dague,
              * Conversion to tile layout
              */
             Qmat = (dague_complex64_t*)(Q.mat);
-            if (1)
             {
                 dague_complex64_t *W = (dague_complex64_t*) malloc (A->mb * sizeof(dague_complex64_t) );
-                dague_complex64_t *Amat = twodA->mat;
                 int *leaders = NULL;
                 int i, nleaders;
 
@@ -178,6 +208,12 @@ int dplasma_zplrnt_perso( dague_context_t *dague,
 
         dague_data_free(Q.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&Q);
+    }
+    break;
+
+    case MATRIX_TOEPPD:
+    {
+        dplasma_zplrnt_toeppd( dague, A, seed );
     }
     break;
 
