@@ -183,6 +183,37 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
     }
     break;
 
+    case MATRIX_COMPAN:
+    {
+        /* Initialize the matrix to 0 */
+        CORE_zlaset( PlasmaUpperLower, M, N, 0., 0., A, LDA );
+
+        /* Initialize first row */
+        if (m0 == 0) {
+            dague_complex64_t alpha;
+
+            /* Get U(0) */
+            CORE_zplrnt( 1, 1, &alpha, 1, 1, 1, 0, seed );
+            alpha = 1. / alpha;
+
+            /* Init first row */
+            CORE_zplrnt( 1, N, A, LDA, 1, n0+2, 0, seed );
+            cblas_zscal(N, CBLAS_SADDR(alpha), A, LDA);
+        }
+
+        /* Initialize the subdiagonal */
+        {
+            int ii, jj;
+            for (j=0,jj=n0+1; j<N; j++,jj++) {
+                for (i=0,ii=m0; i<M; i++,ii++) {
+                    if ( ii == jj )
+                        A[j*LDA+i] = (dague_complex64_t)( 1. );
+                }
+            }
+        }
+    }
+    break;
+
     case MATRIX_RIEMANN:
     {
         int ii, jj;
