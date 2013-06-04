@@ -284,23 +284,22 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
             fprintf(stderr, "Wilkinson Matrix requires square matrices\n");
             exit(-1);
         }
-
+        
         int ii, jj;
         for (j=0,jj=n0; j<N; j++,jj++) {
             for (i=0,ii=m0; i<M; i++,ii++) {
                 if (ii == jj) {
-                    dague_complex64_t tmp = (dague_complex64_t)(( (gN - 1 - ii) < ii ) ? gN - 1 - ii : ii )
-
-                     A[j*LDA+i] = (dague_complex64_t)(gN - 2. * tmp - 1.) / 2.;
+                    dague_complex64_t tmp = (dague_complex64_t)(( (gN - 1 - ii) < ii ) ? gN - 1 - ii : ii );
+                    A[j*LDA+i] = (dague_complex64_t)(gN - 2. * tmp - 1.) / 2.;
                 }
                 else if ( (ii == jj+1) || (ii == jj-1) ) {
-                     A[j*LDA+i] = (dague_complex64_t)1.;
+                    A[j*LDA+i] = (dague_complex64_t)1.;
                 }
                 else {
-                     A[j*LDA+i] = (dague_complex64_t)0.;
+                    A[j*LDA+i] = (dague_complex64_t)0.;
                 }
-           }
-       }
+            }
+        }
     }
     break;
 
