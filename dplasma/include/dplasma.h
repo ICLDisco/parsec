@@ -45,7 +45,7 @@ enum matrix_init_e {
     MATRIX_RIS       = 4,
     MATRIX_KMS       = 5,
     MATRIX_TOEPPEN   = 6,   /* Unavailable */
-    MATRIX_CONDEX    = 7,   /* TODO */
+    MATRIX_CONDEX    = 7,   
     MATRIX_MOLER     = 8,   /* Unavailable */
     MATRIX_CIRCUL    = 9,   /* TODO */
     MATRIX_RANDCORR  = 10,  /* Unavailable */

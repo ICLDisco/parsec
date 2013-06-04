@@ -19,6 +19,8 @@
 
 #include "zplrnt_perso.h"
 
+extern int GKK_getLeaderNbr(int me, int ne, int *nleaders, int **leaders);
+
 /***************************************************************************//**
  *
  * @ingroup DPLASMA_Complex64_t
@@ -61,6 +63,7 @@ int dplasma_zplrnt_perso( dague_context_t *dague,
     switch( type ) {
     case MATRIX_HOUSE:
     {
+        /* gallery('house', random, 0 ) */
         two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
         vector_two_dim_cyclic_t V;
         dague_complex64_t *Vmat, tau;
@@ -94,6 +97,87 @@ int dplasma_zplrnt_perso( dague_context_t *dague,
                       (tiled_matrix_desc_t*)&V,
                       (tiled_matrix_desc_t*)&V,
                       A );
+
+        dague_data_free(V.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&V);
+    }
+    break;
+
+    case MATRIX_CONDEX:
+    {
+        /* gallery('condex', A->m, 4, 100.) */
+        dague_complex64_t theta = 100.;
+        two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
+        two_dim_block_cyclic_t Q;
+
+        two_dim_block_cyclic_init( &Q, matrix_ComplexDouble, matrix_Tile,
+                                   1, A->super.cores, A->super.myrank,
+                                   A->mb, A->nb, A->m, 3, 0, 0, A->m, 3, twodA->grid.strows, twodA->grid.stcols, 1 );
+        Q.mat = dague_data_allocate((size_t)Q.super.nb_local_tiles *
+                                    (size_t)Q.super.bsiz *
+                                    (size_t)dague_datadist_getsizeoftype(Q.super.mtype));
+        dague_ddesc_set_key((dague_ddesc_t*)&Q, "Q");
+
+        if (A->super.myrank == 0) {
+            dague_complex64_t *Qmat;
+            dague_complex64_t tau[3];
+            int i;
+
+            Qmat = (dague_complex64_t*)(Q.mat);
+
+            /* first column is ones */
+            for( i=0; i < Q.super.lm; i++, Qmat++ )
+                *Qmat = (PLASMA_Complex64_t)1.0;
+
+            /* Second column is [1 0 0 ... 0] */
+            *Qmat = (PLASMA_Complex64_t)1.;
+            Qmat++;
+            for( i=1; i<Q.super.lm; i++, Qmat++ )
+                *Qmat = (PLASMA_Complex64_t)0.;
+
+            /* third column is ... */
+            for( i=0; i<Q.super.lm; i++, Qmat++ )
+                *Qmat = (PLASMA_Complex64_t)( pow( -1.0, (double)i ) * (1.0 + (double)i/(A->n-1) ) );
+
+            /* generate orthogonal projector */
+            LAPACKE_zgeqrf( LAPACK_COL_MAJOR, A->m, 3,    Q.mat, Q.super.lm, tau );
+            LAPACKE_zungqr( LAPACK_COL_MAJOR, A->m, 3, 3, Q.mat, Q.super.lm, tau );
+
+            /*
+             * Conversion to tile layout
+             */
+            Qmat = (dague_complex64_t*)(Q.mat);
+            if (1)
+            {
+                dague_complex64_t *W = (dague_complex64_t*) malloc (A->mb * sizeof(dague_complex64_t) );
+                dague_complex64_t *Amat = twodA->mat;
+                int *leaders = NULL;
+                int i, nleaders;
+
+                /* Get all the cycles leaders and length
+                 * They are the same for each independent problem (each panel) */
+                GKK_getLeaderNbr( Q.super.lmt, A->nb, &nleaders, &leaders );
+
+                /* shift cycles. */
+                for(i=0; i<nleaders; i++) {
+
+                    /* cycle #i belongs to this thread, so shift it */
+                    memcpy(W, Qmat + leaders[i*3] * A->mb, A->mb * sizeof(dague_complex64_t) );
+                    CORE_zshiftw(leaders[i*3], leaders[i*3+1], A->mt, A->nb, A->mb, Qmat, W);
+                }
+
+                free(leaders); free(W);
+            }
+        }
+
+        dplasma_zlaset( dague, PlasmaUpperLower, 0., 1. + theta, A );
+        dplasma_zgemm( dague, PlasmaNoTrans, PlasmaConjTrans,
+                       -theta, (tiled_matrix_desc_t*)&Q,
+                               (tiled_matrix_desc_t*)&Q,
+                       1.,     A );
+
+        dague_data_free(Q.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&Q);
     }
     break;
 
