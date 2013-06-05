@@ -15,6 +15,7 @@ extern "C" %{
 
 #include <math.h>
 #include <plasma.h>
+#include <lapacke.h>
 #include <core_blas.h>
 
 #include "dague.h"
@@ -443,6 +444,40 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
             for (j=0; j<N; j++) {
                 for (i=0; i<M; i++) {
                     A[j*LDA+i] = (dague_complex64_t)1. / (dague_complex64_t)( tmp + i + j );
+                }
+            }
+        }
+    }
+    break;
+
+    case MATRIX_KAHAN:
+    {
+        CORE_zlaset( PlasmaUpperLower, M, N, 0., 0., A, LDA );
+
+        if ( m0 <= n0 ) {
+            double eps = LAPACKE_dlamch_work('e');
+            double theta = 1.2;
+            double pert = 1000.; /* 25 for N up to 90 */
+            dague_complex64_t  c  = (dague_complex64_t) cos( theta );
+            dague_complex64_t  s  = (dague_complex64_t) sin( theta );
+            dague_complex64_t *si = (dague_complex64_t*) malloc( M * sizeof(dague_complex64_t) );
+
+            int ii, jj;
+
+            assert( theta > 0 );
+            assert( theta < pi );
+
+            si[0] = pow( s, m0 );
+            for (i=1; i<M; i++) {
+                si[i] = si[i-1] * s;
+            }
+
+            for (j=0,jj=n0; j<N; j++,jj++) {
+                for (i=0,ii=m0; i<M && ii<jj; i++,ii++) {
+                    A[j*LDA+i] = - c * si[i];
+                }
+                if ( (i < M) && (ii == jj) ) {
+                    A[j*LDA+i] = si[i] + pert * eps * ( gN - jj );
                 }
             }
         }
