@@ -26,7 +26,7 @@ int first_init = 1;
 #define HWLOC_GET_PARENT(OBJ)  (OBJ)->father
 #endif  /* defined(HAVE_HWLOC_PARENT_MEMBER) */
 
-#define MIN(x, y) ( (x)<(y)?(x):(y) )
+#define MAX(x, y) ( (x)>(y)?(x):(y) )
 
 int dague_hwloc_init(void)
 {
@@ -205,7 +205,7 @@ int dague_hwloc_nb_real_cores()
 int dague_hwloc_core_first_hrwd_ancestor_depth()
 {
 #if defined(HAVE_HWLOC)
-    int level = MIN(hwloc_get_type_depth(topology, HWLOC_OBJ_NODE),hwloc_get_type_depth(topology, HWLOC_OBJ_SOCKET));
+    int level = MAX(hwloc_get_type_depth(topology, HWLOC_OBJ_NODE),hwloc_get_type_depth(topology, HWLOC_OBJ_SOCKET));
     assert(level < hwloc_get_type_depth(topology, HWLOC_OBJ_CORE));
     return level;
 #endif  /* defined(HAVE_HWLOC) */
