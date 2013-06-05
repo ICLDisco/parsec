@@ -390,6 +390,23 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
     }
     break;
 
+    case MATRIX_PROLATE:
+    {
+        dague_complex64_t w = 0.25;
+        int ii, jj, kk;
+        for (j=0,jj=n0; j<N; j++,jj++) {
+            for (i=0,ii=m0; i<M; i++,ii++) {
+                kk = abs( ii - jj );
+                if (kk == 0 ) {
+                    A[j*LDA+i] = (dague_complex64_t)( 2. * w );
+                } else {
+                    A[j*LDA+i] = (dague_complex64_t)( sin( 2. * pi * w * kk ) / ( pi * kk ) );
+                }
+            }
+        }
+    }
+    break;
+
     case MATRIX_CAUCHY:
     {
         int ii, jj;
