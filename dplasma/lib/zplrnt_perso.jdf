@@ -330,6 +330,51 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
     }
     break;
 
+    case MATRIX_CHEBVAND:
+    {
+        dague_complex64_t p, u_0, u_1, u_2;
+        int ii, jj;
+
+        /* Randomize the marix as usual */
+        for (j=0,jj=n0; j<N; j++,jj++) {
+            i=0; ii=0;
+            p = (dague_complex64_t)jj / (dague_complex64_t)(gN - 1.);
+            u_0 = 1.;
+            u_1 = p;
+
+            if ( m0 == 0 ) {
+                A[j*LDA] = u_0;
+                i++; ii++;
+
+                if ( i<M ) {
+                    A[j*LDA+1] = u_1;
+                    i++; ii++;
+                }
+            }
+            else if ( m0 == 1 ) {
+                A[j*LDA] = u_1;
+                i++; ii++;
+            }
+            else {
+                ii = 2;
+            }
+
+            for(;ii<m0;ii++) {
+                u_2 = 2. * p * u_1 - u_0;
+                u_0 = u_1;
+                u_1 = u_2;
+            }
+
+            for (; i<M; i++) {
+                u_2 = 2. * p * u_1 - u_0;
+                u_0 = u_1;
+                u_1 = u_2;
+                A[j*LDA+i] = u_2;
+            }
+        }
+    }
+    break;
+
     case MATRIX_INVHESS:
     {
         int ii, jj;
