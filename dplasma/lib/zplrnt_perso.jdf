@@ -480,6 +480,7 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
                     A[j*LDA+i] = si[i] + pert * eps * ( gN - jj );
                 }
             }
+            free(si);
         }
     }
     break;
