@@ -260,22 +260,58 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
     }
     break;
 
-    /* case MATRIX_DORR: */
-    /* { */
-    /*     dague_complex64_t theta = 0.01; */
-    /*     dague_complex64_t h     = 1. / ( gN + 1. ); */
-    /*     dague_complex64_t term  = theta / ( h * h ); */
+    case MATRIX_DORR:
+    {
+        dague_complex64_t theta = 0.01;
+        dague_complex64_t h     = 1. / ( gN + 1. );
+        dague_complex64_t term  = theta / ( h * h );
+        int gN_2 = (gN+1) / 2;
+        int ii, jj;
 
-    /*     LAPACKE_zlaset_work(LAPACK_COL_MAJOR, 'A', M, N, 0., 0., A, LDA); */
+        CORE_zlaset( PlasmaUpperLower, M, N, 0., 0., A, LDA );
 
-    /*     int ii, jj; */
-    /*     for (j=0,jj=n0+1; j<N; j++,jj++) { */
-    /*         for (i=0,ii=m0+1; i<M; i++,ii++) { */
-    /*             A[j*LDA+i] = (dague_complex64_t)( 1. ) / (dague_complex64_t)( ii+jj ); */
-    /*         } */
-    /*     } */
-    /* } */
-    /* break; */
+        /* First half */
+        for (j=0,jj=n0; j<N && jj<gN_2; j++,jj++) {
+            if ( ( m0 <= jj+1 ) && ( (m0+M) > (jj-1) ) ) {
+                for (i=0,ii=m0; i<M; i++,ii++) {
+                    if ( ii == jj-1 ) {
+                        A[j*LDA+i] = - term - ( 0.5 - jj * h ) / h;
+                    }
+                    else if (ii == jj) {
+                        A[j*LDA+i] = 2. * term + ( 0.5 - (1.+jj)*h ) / h;
+                    }
+                    else if (ii == jj+1 ) {
+                        A[j*LDA+i] = - term;
+                        if (jj+1 == gN_2 )
+                            A[j*LDA+i] =  - term + ( 0.5 - (2.+jj) * h ) / h;
+                        break;
+                    }
+                }
+            }
+        }
+
+        /* Second half */
+        /* Star with exit of the first loop */
+        for (; j<N; j++,jj++) {
+            if ( ( m0 <= jj+1 ) && ( (m0+M) > (jj-1) ) ) {
+                for (i=0,ii=m0; i<M; i++,ii++) {
+                    if ( ii == jj-1 ) {
+                        A[j*LDA+i] = - term;
+                        if ( jj == gN_2 )
+                            A[j*LDA+i] = - term - ( 0.5 - jj * h ) / h;
+                    }
+                    else if (ii == jj) {
+                        A[j*LDA+i] = 2. * term - ( 0.5 - (1.+jj)*h ) / h;
+                    }
+                    else if (ii == jj+1 ) {
+                        A[j*LDA+i] = - term + ( 0.5 - (2.+jj) * h ) / h;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    break;
 
     case MATRIX_DEMMEL:
     {
