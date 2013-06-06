@@ -78,6 +78,28 @@ cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
 #   dbp_reader_dispose_reader(dbp)
     free(c_filenames)
 
+    print('start event ids')
+    total = 0
+    d = dict()
+    for key, value in profile.begin_ids.iteritems():
+        total += 1
+        if value not in d:
+            d[value] = 0
+        d[value] += 1
+    print(d)
+    total = 0
+    twos = 0
+    d = dict()
+    print('end event ids')
+    for key, value in profile.end_ids.iteritems():
+        total += 1
+        if value not in d:
+            d[value] = 0
+        d[value] += 1
+    print(d)
+
+    for key, value in profile.errors.iteritems():
+        print('event ' + str(key) + ' ' + str(len(value)))
     return profile
 
 cpdef make_duration_stats(container):
@@ -161,7 +183,19 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                     global_stats.total_duration += event.duration
                     thread.event_types[event_name].stats.count += 1
                     thread.event_types[event_name].stats.total_duration += event.duration
-                    
+
+                    # debug tests for PINS_L123 split across threads
+                    if dbp_iterator_thread(it_s) != dbp_iterator_thread(it_e):
+                        print('this event {} started {} and ended {} in different threads.'.format(
+                            event_name, begin, end))
+                    if event_id not in profile.begin_ids:
+                        profile.begin_ids[event_id] = []
+                    profile.begin_ids[event_id].append(event)
+                    end_id = dbp_event_get_event_id(event_e)
+                    if end_id not in profile.end_ids:
+                        profile.end_ids[end_id] = []
+                    profile.end_ids[end_id].append(event)
+
                     #####################################
                     # not all events have info
                     # also, not all events have the same info.
@@ -298,6 +332,11 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                     
                 dbp_iterator_delete(it_e)
                 it_e = NULL
+            else:
+                if event_name not in profile.errors:
+                    profile.errors[event_name] = []
+                profile.errors[event_name].append('event of class {} id {} at {} does not have a match.\n'.format(
+                    event_name, event_id, thread.id))
         dbp_iterator_next(it_s)
         event_s = dbp_iterator_current(it_s)
         

@@ -35,6 +35,10 @@ class Profile(list): # contains Events
         self.type_key_to_name = dict()
         self.files = dict()
         self.handles = dict()
+        self.errors = dict()
+        # debug dicts
+        self.begin_ids = dict()
+        self.end_ids = dict()
     def get_handle_counts(self):
         if self.is_eventless():
             return self.handle_counts
@@ -286,8 +290,6 @@ class EventStats(object):
             self.name = self.event_name
             del self['event_name']
             self.__version__ = 1.2
-            
-
 
 
 # this is the old class. it has been superseded by Profile
