@@ -161,18 +161,18 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     dague_object_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS;     \
     dague_enqueue(DAGUE, DAGUE_##KERNEL);                               \
     nb_local_tasks = DAGUE_##KERNEL->nb_local_tasks;                    \
-    if(loud) SYNC_TIME_PRINT(rank, ( #KERNEL " DAG creation: %d local tasks enqueued\n", nb_local_tasks));
+    if( loud > 2 ) SYNC_TIME_PRINT(rank, ( #KERNEL "\tDAG created\n"));
 
 
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
     dague_progress(DAGUE);                                              \
-    if( loud > 2 )                                                      \
-        TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n",    \
+    if( loud > 3 )                                                      \
+        TIME_PRINT(rank, (#KERNEL "\t%d tasks computed,\t%f task/s rate\n",    \
                           nb_local_tasks,                               \
                           nb_local_tasks/time_elapsed));                \
-    SYNC_TIME_PRINT(rank, (#KERNEL " computation PxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n", \
+    SYNC_TIME_PRINT(rank, (#KERNEL "\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n", \
                            P, Q, NB, N,                                 \
                            gflops=(flops/1e9)/sync_time_elapsed));      \
     if(loud >= 5 && rank == 0) {                                        \
