@@ -34,8 +34,11 @@ typedef enum PAPI_EVENTSETS {
  *  Computational Thread-specific structure
  */
 struct dague_execution_unit_s {
-    int32_t   th_id;          /**< Internal thread identifier. A thread belongs to a vp */
-    pthread_t pthread_id;     /**< POSIX thread identifier. */
+    int32_t   th_id;        /**< Internal thread identifier. A thread belongs to a vp */
+    int core_id;            /**< Core on witch the thread is bound (hwloc in order numbering) */
+    int socket_id;          /**< Socket on wicth the thread is bound (hwloc in order numerotation) */
+
+pthread_t pthread_id;     /**< POSIX thread identifier. */
 
 #if defined(DAGUE_PROF_TRACE)
     dague_thread_profiling_t *eu_profile;

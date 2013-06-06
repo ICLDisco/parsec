@@ -1,6 +1,8 @@
 #include "pins_print_steals.h"
 #include "dague/mca/pins/pins.h"
+#ifdef HAVE_PAPI
 #include <papi.h>
+#endif
 #include "debug.h"
 #include "execution_unit.h"
 
