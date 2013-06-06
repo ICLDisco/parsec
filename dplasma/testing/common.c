@@ -536,8 +536,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     argvzero = argv[0];
 #endif
 #ifdef HAVE_MPI
-    int provided;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    MPI_Init(&argc,&argv);
     MPI_Comm_size(MPI_COMM_WORLD, &iparam[IPARAM_NNODES]);
     MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]);
 #else
@@ -547,11 +546,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     parse_arguments(&argc, &argv, iparam);
     int verbose = iparam[IPARAM_VERBOSE];
     if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
-
-#ifdef HAVE_MPI
-    if((verbose > 4) && (provided != MPI_THREAD_SERIALIZED))
-        fprintf(stderr, "!!! DAGuE formally needs MPI_THREAD_SERIALIZED, but your MPI does not provide it. This is -usually- fine nonetheless\n");
-#endif
 
     TIME_START();
     dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES], &argc, &argv);
