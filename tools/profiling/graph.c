@@ -209,7 +209,7 @@ int add_nodes_from_dotfile(const char *filename, int fileidx,
         perror(filename);
         return 0;
     }
-    
+
     while( !feof(f) ) {
         fgets(line, 4096, f);
         for(s = 0, l = line; *l != '\n' && *l != '\0' && s < 4095; l++, s++) /*nothing*/;
@@ -254,9 +254,9 @@ int add_nodes_from_dotfile(const char *filename, int fileidx,
             ni.object_id = oid;
             ni.priority = priority;
             (void)object;
-            
+
             n++;
-            nid = add_node(&ni);
+            nid = add_node(&ni); (void)nid;
         }
     }
 
