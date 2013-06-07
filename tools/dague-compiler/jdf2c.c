@@ -3721,9 +3721,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
             "  const __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
             "  assignment_t tass[MAX_PARAM_COUNT];\n"
             "  (void)context; (void)__dague_handle; (void)tass;\n"
-            "#if defined(DAGUE_SIM)\n"
-            "  int __dague_simulation_date = 0;\n"
-            "#endif\n"
             "%s",
             jdf_basename, jdf_basename,
             UTIL_DUMP_LIST(sa, f->locals, next,
@@ -3742,19 +3739,28 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                 output);
     }
 
+    /**
+     * Generate code for the simulation.
+     */
     coutput("  /** Update staring simulation date */\n"
-            "#if defined(DAGUE_SIM)\n");
+            "#if defined(DAGUE_SIM)\n"
+            "  this_task->sim_exec_date = 0;\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 
         if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
 
-        coutput("  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
-                "    __dague_simulation_date =  e%s->sim_exec_date;\n",
+        coutput("  if( (NULL != e%s) && (e%s->sim_exec_date > this_task->sim_exec_date) )\n"
+                "    this_task->sim_exec_date = e%s->sim_exec_date;\n",
                 fl->varname,
                 fl->varname,
                 fl->varname);
     }
-    coutput("#endif\n");
+    coutput("  if( this_task->function->sim_cost_fct != NULL ) {\n"
+            "    this_task->sim_exec_date += this_task->function->sim_cost_fct(this_task);\n"
+            "  }\n"
+            "  if( context->largest_simulation_date < this_task->sim_exec_date )\n"
+            "    context->largest_simulation_date = this_task->sim_exec_date;\n"
+            "#endif\n");
 
     coutput("  /** Store pointer used in the function for antidependencies detection */\n"
             "#if defined(DAGUE_PROF_PTR_FILE)\n"
@@ -3772,16 +3778,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                             dump_dataflow_var_ptr, NULL,
                             "", ", ", "", "" )
             );
-
-    coutput("#if defined(DAGUE_SIM)\n"
-            "  if( this_task->function->sim_cost_fct != NULL ) {\n"
-            "    this_task->sim_exec_date = __dague_simulation_date + this_task->function->sim_cost_fct(this_task);\n"
-            "  } else {\n"
-            "    this_task->sim_exec_date = __dague_simulation_date;\n"
-            "  }\n"
-            "  if( context->largest_simulation_date < this_task->sim_exec_date )\n"
-            "    context->largest_simulation_date = this_task->sim_exec_date;\n"
-            "#endif\n");
 
     jdf_generate_code_cache_awareness_update(jdf, f);
 
