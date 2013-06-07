@@ -56,7 +56,7 @@ k = 0 .. descA.nt-1
 A <- dataA(m, k)
   -> A GEMM(m, 0, k)
 BODY
-    printlog("rank %u <- A(%d,%d)\n", __dague_object->super.A->myrank, m, k);
+    printlog("rank %u <- A(%d,%d)\n", __dague_object->super.dataA->myrank, m, k);
 END
 
 /**************************************************
@@ -126,7 +126,7 @@ BODY
 	        exit(2);
         }
     }
-    moesi_master_update( descC.super.moesi_map, dataC->data_key( dataC, m, n ) );
+    moesi_master_update( descC.super.moesi_map, __dague_object->super.dataC->data_key( __dague_object->super.dataC, m, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
         DRYRUN(
