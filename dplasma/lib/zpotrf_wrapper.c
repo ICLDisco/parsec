@@ -28,9 +28,9 @@ dplasma_zpotrf_New(PLASMA_enum uplo, tiled_matrix_desc_t *A, int *info)
 
     *info = 0;
     if ( uplo == PlasmaUpper ) {
-        dague_zpotrf = (dague_object_t*)dague_zpotrf_Url_new( uplo, *A, (dague_ddesc_t*)A, info);
+        dague_zpotrf = (dague_object_t*)dague_zpotrf_Url_new( uplo, (dague_ddesc_t*)A, info);
     } else {
-        dague_zpotrf = (dague_object_t*)dague_zpotrf_Lrl_new( uplo, *A, (dague_ddesc_t*)A, info);
+        dague_zpotrf = (dague_object_t*)dague_zpotrf_Lrl_new( uplo, (dague_ddesc_t*)A, info);
     }
     ((struct dague_zpotrf_Lrl_object*)dague_zpotrf)->PRI_CHANGE = dplasma_aux_get_priority_limit( "POTRF", A );
 
@@ -86,9 +86,9 @@ dplasma_zpotrfl_New(const PLASMA_enum looking, PLASMA_enum uplo,
 
     if ( looking == PlasmaRight ) {
         if ( uplo == PlasmaUpper ) {
-            dague_zpotrf = (dague_object_t*)dague_zpotrf_Url_new( uplo, *A, (dague_ddesc_t*)A, info);
+            dague_zpotrf = (dague_object_t*)dague_zpotrf_Url_new( uplo, (dague_ddesc_t*)A, info);
         } else {
-            dague_zpotrf = (dague_object_t*)dague_zpotrf_Lrl_new( uplo, *A, (dague_ddesc_t*)A, info);
+            dague_zpotrf = (dague_object_t*)dague_zpotrf_Lrl_new( uplo, (dague_ddesc_t*)A, info);
         }
     } /* else { */
     /*     if ( uplo == PlasmaUpper ) { */

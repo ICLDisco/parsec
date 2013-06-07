@@ -33,8 +33,8 @@ extern int *gpu_counter;
  */
 PRI_CHANGE [type = int hidden = on]
 uplo       [type = PLASMA_enum]
-descA      [type = "tiled_matrix_desc_t"]
-A          [type = "dague_ddesc_t *"]
+dataA      [type = "dague_ddesc_t *"]
+descA      [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 INFO       [type = "int*"]
 
 /**************************************************
@@ -46,19 +46,19 @@ POTRF(k) [high_priority = on]
 k = 0..descA.nt-1
 
 // Parallel partitioning
-:A(k, k)
+:dataA(k, k)
 
 // Parameters
-RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
+RW T <- (k == 0) ? dataA(k, k) : T HERK(k-1, k)
      -> T TRSM(k, k+1..descA.nt-1)
-     -> A(k, k)
+     -> dataA(k, k)
 
 ; (k >= (descA.nt - PRI_CHANGE)) ? (descA.nt - k) * (descA.nt - k) * (descA.nt - k) : 1000000000
 //; (k >= (descA.nt - PRI_CHANGE)) ? (descA.nt - k + 7) * (descA.nt - k + 2) * (descA.nt - k) / 6 : 0
 
 BODY
 #if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, A->data_key( A, k, k ) );
+    moesi_master_update( descA.super.moesi_map, dataA->data_key( dataA, k, k ) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
@@ -90,22 +90,22 @@ k = 0..descA.nt-2
 n = k+1..descA.nt-1
 
 // Parallel partitioning
-: A(k, n)
+: dataA(k, n)
 
 // Parameters
 READ  T <- T POTRF(k)
-RW    C <- (k == 0) ? A(k, n) : C GEMM(k-1, k, n)
+RW    C <- (k == 0) ? dataA(k, n) : C GEMM(k-1, k, n)
         -> A HERK(k, n)
         -> A GEMM(k, n, n+1..descA.nt-1)
         -> B GEMM(k, k+1..n-1, n )
-        -> A(k, n)
+        -> dataA(k, n)
 
 ; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - k - n - 1) * (n - k) : 1000000000
 //;  (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n - k) * ((descA.nt - n - k + 1) / 2 + 2) - 1 + (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 : 0
 
 BODY
 #if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, A->data_key( A, k, n ) );
+    moesi_master_update( descA.super.moesi_map, dataA->data_key( dataA, k, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
@@ -140,11 +140,11 @@ k = 0..descA.nt-2
 n = k+1..descA.nt-1
 
 // Parallel partitioning
-: A(n, n)
+: dataA(n, n)
 
 //Parameters
 READ  A <- C TRSM(k, n)
-RW    T <- (k == 0)   ? A(n, n)    : T HERK(k-1, n)
+RW    T <- (k == 0)   ? dataA(n, n)    : T HERK(k-1, n)
         -> (n == k+1) ? T POTRF(n) : T HERK(k+1, n)
 
 ; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * (n - k) : 1000000000
@@ -152,7 +152,7 @@ RW    T <- (k == 0)   ? A(n, n)    : T HERK(k-1, n)
 
 BODY
 #if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, A->data_key( A, n, n ) );
+    moesi_master_update( descA.super.moesi_map, dataA->data_key( dataA, n, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n*descA.nb : descA.nb;
@@ -187,12 +187,12 @@ m = k+1..descA.mt-1
 n = m+1..descA.nt-1
 
 // Parallel partitioning
-: A(m, n)
+: dataA(m, n)
 
 // Parameters
 READ  A <- C TRSM(k, m)
 READ  B <- C TRSM(k, n)
-RW    C <- (k == 0)   ? A(m, n)      : C GEMM(k-1, m, n)
+RW    C <- (k == 0)   ? dataA(m, n)      : C GEMM(k-1, m, n)
         -> (m == k+1) ? C TRSM(m, n) : C GEMM(k+1, m, n)
 
 ; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - n - m - 3) * (n - m) + 6 * (n - k) : 1000000000
@@ -225,7 +225,7 @@ BODY
 	    exit(2);
         }
     }
-    moesi_master_update( descA.super.moesi_map, A->data_key( A, m, n ) );
+    moesi_master_update( descA.super.moesi_map, dataA->data_key( dataA, m, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
     DRYRUN(
