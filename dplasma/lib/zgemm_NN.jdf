@@ -126,7 +126,7 @@ BODY
 	        exit(2);
         }
     }
-    moesi_master_update( descC.super.moesi_map, GEMM_KEY( &descC, m, n) );
+    moesi_master_update( descC.super.moesi_map, C->data_key( C, m, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
         DRYRUN(

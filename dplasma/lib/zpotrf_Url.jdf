@@ -58,7 +58,7 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 
 BODY
 #if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, k, k) );
+    moesi_master_update( descA.super.moesi_map, A->data_key( A, k, k ) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
@@ -105,7 +105,7 @@ RW    C <- (k == 0) ? A(k, n) : C GEMM(k-1, k, n)
 
 BODY
 #if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, k, n) );
+    moesi_master_update( descA.super.moesi_map, A->data_key( A, k, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
@@ -152,7 +152,7 @@ RW    T <- (k == 0)   ? A(n, n)    : T HERK(k-1, n)
 
 BODY
 #if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, n, n) );
+    moesi_master_update( descA.super.moesi_map, A->data_key( A, n, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempnn = n == descA.nt-1 ? descA.n - n*descA.nb : descA.nb;
@@ -225,7 +225,7 @@ BODY
 	    exit(2);
         }
     }
-    moesi_master_update( descA.super.moesi_map, GEMM_KEY( &descA, m, n) );
+    moesi_master_update( descA.super.moesi_map, A->data_key( A, m, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
     DRYRUN(
