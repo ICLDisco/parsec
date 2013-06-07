@@ -21,6 +21,14 @@
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "matrix.h"
 
+#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
+static uint32_t tiled_matrix_data_key(struct dague_ddesc *desc, ...);
+#endif
+#if defined(DAGUE_PROF_TRACE)
+static int      tiled_matrix_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
+#endif
+
+
 /***************************************************************************//**
  *  Internal static descriptor initializer (PLASMA code)
  **/
@@ -99,7 +107,7 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     assert(vpmap_get_nb_vp() > 0);
 
 #if defined(DAGUE_PROF_TRACE)
-    asprintf(&(tdesc->super.key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
+    asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
 #endif
     return;
 }
@@ -135,6 +143,48 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
     newdesc->nt = (j+n-1)/nb - j/nb + 1;
     return newdesc;
 }
+
+#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
+/* return a unique key (unique only for the specified dague_ddesc) associated to a data */
+static uint32_t tiled_matrix_data_key(struct dague_ddesc *desc, ...)
+{
+    tiled_matrix_desc_t * Ddesc;
+    unsigned int m, n;
+    va_list ap;
+    Ddesc = (tiled_matrix_desc_t*)desc;
+
+    /* Get coordinates */
+    va_start(ap, desc);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
+    va_end(ap);
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += Ddesc->i / Ddesc->mb;
+    n += Ddesc->j / Ddesc->nb;
+
+    return ((n * Ddesc->lmt) + m);
+}
+#endif /* defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA) */
+
+#if defined(DAGUE_PROF_TRACE)
+/* return a string meaningful for profiling about data */
+static int  tiled_matrix_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+{
+    tiled_matrix_desc_t * Ddesc;
+    unsigned int m, n;
+    int res;
+    Ddesc = (tiled_matrix_desc_t*)desc;
+    m = datakey % Ddesc->lmt;
+    n = datakey / Ddesc->lmt;
+    res = snprintf(buffer, buffer_size, "(%u, %u)", m, n);
+    if (res < 0)
+        {
+            printf("error in key_to_string for tile (%u, %u) key: %u\n", m, n, datakey);
+        }
+    return res;
+}
+#endif /* DAGUE_PROF_TRACE */
 
 /*
  * Writes the data into the file filename
