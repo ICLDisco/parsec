@@ -46,6 +46,7 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
 #define tiled_matrix_desc_type        0x01
 #define two_dim_block_cyclic_type     0x02
 #define sym_two_dim_block_cyclic_type 0x04
+#define two_dim_tabular_type          0x08
 
 typedef struct tiled_matrix_desc_t {
     dague_ddesc_t super;

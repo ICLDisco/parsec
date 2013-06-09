@@ -34,8 +34,12 @@ typedef struct dague_ddesc {
     void *   (*data_of)(struct dague_ddesc *mat, ...);   /* return the pointer to the data possessed locally */
     int32_t  (*vpid_of)(struct dague_ddesc *mat, ...);   /* return the virtual process ID of data possessed locally */
     moesi_map_t* moesi_map; /* the map that tracks accesses to replicates of memory blocks */
+
+#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
+    uint32_t (*data_key)(struct dague_ddesc *mat, ...); /* return a unique key (unique only for the specified dague_ddesc) associated t
+o a data */
+#endif /* defined(DAGUE_PROF_TRACE) || defined(DAGUE_GPU_WITH_CUDA) */
 #ifdef DAGUE_PROF_TRACE
-    uint32_t (*data_key)(struct dague_ddesc *mat, ...); /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
     int (*key_to_string)(struct dague_ddesc *mat, uint32_t datakey, char * buffer, uint32_t buffer_size); /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
     char      *key_dim;
     char      *key;
