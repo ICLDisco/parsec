@@ -157,7 +157,7 @@ int dplasma_zplrnt_perso( dague_context_t *dague,
 
         /* Compute the Householder matrix I - tau v * v' */
         dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., A);
-        dplasma_zger( dague, -tau,
+        dplasma_zgerc( dague, -tau,
                       (tiled_matrix_desc_t*)&V,
                       (tiled_matrix_desc_t*)&V,
                       A );
