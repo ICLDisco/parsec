@@ -522,9 +522,12 @@ int dague_gpu_fini( void )
             free(exec_stream->events); exec_stream->events = NULL;
             free(exec_stream->tasks); exec_stream->tasks = NULL;
             free(exec_stream->fifo_pending); exec_stream->fifo_pending = NULL;
+
             /* Release the stream */
             cudaStreamDestroy( exec_stream->cuda_stream );
         }
+
+        free(gpu_device->exec_stream);
 
         status = cuCtxDestroy( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxDestroy ", status,
@@ -542,6 +545,15 @@ int dague_gpu_fini( void )
     }
     free(gpu_enabled_devices);
     gpu_enabled_devices = NULL;
+
+    if( dague_gpu_allocation_initialized == 1 ) {
+        cuCtxDestroy( dague_allocate_on_gpu_context );
+        dague_gpu_allocation_initialized = 0;
+    }
+
+    free(device_load);
+    free(device_weight);
+
     __dague_active_gpu = 0;
     return 0;
 }
