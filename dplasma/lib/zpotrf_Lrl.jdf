@@ -56,8 +56,9 @@ RW T <- (k == 0) ? dataA(k, k) : T HERK(k-1, k)
 //; (k >= (descA.mt - PRI_CHANGE)) ? (descA.mt - k + 7) * (descA.mt - k + 2) * (descA.mt - k) / 6 : 0
 
 BODY
+{
 #if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, __dague_object->super.dataA->data_key( __dague_object->super.dataA, k, k ) );
+    moesi_master_update( descA.super.moesi_map, TILED_MATRIX_KEY( &descA, k, k ) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempkm = k == descA.mt-1 ? descA.m - k*descA.mb : descA.mb;
@@ -76,6 +77,7 @@ BODY
              "CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d)\n",
              k,
              plasma_const(uplo), tempkm, k, k, T, descA.mb );
+}
 END
 
 
@@ -104,7 +106,7 @@ RW    C <- (k == 0) ? dataA(m, k) : C GEMM(k-1, m, k)
 
 BODY
 #if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, __dague_object->super.dataA->data_key( __dague_object->super.dataA, m, k ) );
+    moesi_master_update( descA.super.moesi_map, TILED_MATRIX_KEY( &descA, m, k ) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
@@ -151,7 +153,7 @@ RW    T <- (k == 0)   ? dataA(m, m)    : T HERK(k-1, m)
 
 BODY
 #if defined(HAVE_CUDA)
-    moesi_master_update( descA.super.moesi_map, __dague_object->super.dataA->data_key( __dague_object->super.dataA, m, m ) );
+    moesi_master_update( descA.super.moesi_map, TILED_MATRIX_KEY( &descA, m, m ) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempmm = m == descA.mt-1 ? descA.m - m*descA.mb : descA.mb;
@@ -223,7 +225,7 @@ BODY
             exit(2);
         }
     }
-    moesi_master_update( descA.super.moesi_map, __dague_object->super.dataA->data_key( __dague_object->super.dataA, m, n ) );
+    moesi_master_update( descA.super.moesi_map, TILED_MATRIX_KEY( &descA, m, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
     DRYRUN(
