@@ -238,11 +238,12 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
      */
+	PINS(ADD_BEGIN, eu_context, new_context, NULL);
     ret = current_scheduler->module.schedule(eu_context, new_context);
+	PINS(ADD_END, eu_context, new_context, NULL);
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
      */
-    //    PINS(PARSEC_SCHEDULED, eu_context, new_context, NULL);
 
     return ret;
 }
@@ -333,6 +334,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
+			eu_context->starvation += rqtp.tv_nsec;
             DAGUE_STATACC_ACCUMULATE(time_starved, rqtp.tv_nsec/1000);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_begin, nbiterations);
             nanosleep(&rqtp, NULL);
@@ -361,20 +363,23 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             // MY MODS
             TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
             TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
-            PINS(EXEC_BEGIN, eu_context, exec_context, NULL);
             switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
             case DAGUE_HOOK_RETURN_DONE:
+			{
+				int rv = 0;
                 /* We're good to go ... */
-                if( 0 == __dague_execute( eu_context, exec_context ) ) {
+				PINS(EXEC_BEGIN, eu_context, exec_context, NULL);
+				rv = __dague_execute( eu_context, exec_context );
+				PINS(EXEC_END, eu_context, exec_context, NULL  );
+                if( 0 == rv ) {
                     __dague_complete_execution( eu_context, exec_context );
                 }
                 nbiterations++;
                 break;
+			}
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
-            PINS(EXEC_END, eu_context, exec_context, NULL);
-
         } else {
             misses_in_a_row++;
         }

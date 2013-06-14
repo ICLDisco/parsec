@@ -60,6 +60,7 @@ pthread_t pthread_id;     /**< POSIX thread identifier. */
 #endif /* HAVE_PAPI */
 
 #if defined(PINS_ENABLE) 
+	long long int starvation;
 	long * steal_counters; // this is for Stephanie and print_steals PINS module
 #endif // PINS_ENABLE
 

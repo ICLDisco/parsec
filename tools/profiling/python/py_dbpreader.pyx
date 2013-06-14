@@ -78,25 +78,22 @@ cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
 #   dbp_reader_dispose_reader(dbp)
     free(c_filenames)
 
-    print('start event ids')
-    total = 0
-    d = dict()
-    for key, value in profile.begin_ids.iteritems():
-        total += 1
-        if value not in d:
-            d[value] = 0
-        d[value] += 1
-    print(d)
-    total = 0
-    twos = 0
-    d = dict()
-    print('end event ids')
-    for key, value in profile.end_ids.iteritems():
-        total += 1
-        if value not in d:
-            d[value] = 0
-        d[value] += 1
-    print(d)
+    # print('start event ids')
+    # total = 0
+    # d = dict()
+    # names = dict()
+    # for key, value in profile.begin_ids.iteritems():
+    #     total += 1
+    #     if len(value) not in d:
+    #         d[len(value)] = 0
+    #         names[len(value)] = []
+    #     d[len(value)] += 1
+    #     for event in value:
+    #         if profile.type_key_to_name[event.key] not in names[len(value)]:
+    #             names[len(value)].append(profile.type_key_to_name[event.key])
+    # print(d)
+    # print(names)
+    # print('end event ids')
 
     for key, value in profile.errors.iteritems():
         print('event ' + str(key) + ' ' + str(len(value)))
@@ -143,6 +140,7 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
     cdef papi_L123_info_t * cast_L123_info = NULL
     cdef papi_L12_select_info_t * cast_L12_select_info = NULL
     cdef papi_L12_exec_info_t * cast_L12_exec_info = NULL
+    cdef long long int * cast_lld_ptr = NULL
 
     thread = dbpThread(pfile, index)
 
@@ -178,23 +176,17 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                         thread.event_types[event_name] = dbpEventType(
                             profile, event_key, profile.event_types[event_name].attributes)
                     
-                    global_stats = profile.event_types[event_name].stats
-                    global_stats.count += 1
-                    global_stats.total_duration += event.duration
-                    thread.event_types[event_name].stats.count += 1
-                    thread.event_types[event_name].stats.total_duration += event.duration
-
                     # debug tests for PINS_L123 split across threads
-                    if dbp_iterator_thread(it_s) != dbp_iterator_thread(it_e):
-                        print('this event {} started {} and ended {} in different threads.'.format(
-                            event_name, begin, end))
-                    if event_id not in profile.begin_ids:
-                        profile.begin_ids[event_id] = []
-                    profile.begin_ids[event_id].append(event)
-                    end_id = dbp_event_get_event_id(event_e)
-                    if end_id not in profile.end_ids:
-                        profile.end_ids[end_id] = []
-                    profile.end_ids[end_id].append(event)
+                    # if dbp_iterator_thread(it_s) != dbp_iterator_thread(it_e):
+                    #     print('this event {} started {} and ended {} in different threads.'.format(
+                    #         event_name, begin, end))
+                    # if event_id not in profile.begin_ids:
+                    #     profile.begin_ids[event_id] = []
+                    # profile.begin_ids[event_id].append(event)
+                    # end_id = dbp_event_get_event_id(event_e)
+                    # if end_id not in profile.end_ids:
+                    #     profile.end_ids[end_id] = []
+                    # profile.end_ids[end_id].append(event)
 
                     #####################################
                     # not all events have info
@@ -317,12 +309,44 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                             pstats.l1_misses += event.info.values[0]
                             pstats.l2_misses += event.info.values[1]
                             pstats.l3_exc_misses  += event.info.values[2]
-                        # elif event.key == profile.event_types['<SOME OTHER TYPE WITH INFO>'].key:
-                            # event.info = <write a function and a Python type to translate>
+                        elif ('PINS_L12_ADD' in profile.event_types and
+                              event_key == profile.event_types['PINS_L12_ADD'].key):
+                            cast_L123_info = <papi_L123_info_t *>cinfo
+                            event.info = dbp_Socket_EventInfo(
+                                cast_L123_info.vp_id,
+                                cast_L123_info.th_id,
+                                [cast_L123_info.L1_misses,
+                                 cast_L123_info.L2_misses,
+                                 cast_L123_info.L3_misses])
+                            if SocketStats.class_name not in global_stats.socket_stats:
+                                global_stats.socket_stats[SocketStats.class_name] = SocketStats()
+                            pstats = global_stats.socket_stats[SocketStats.class_name]
+                            pstats.count += 1
+                            pstats.total_duration += event.duration
+                            pstats.l1_misses += event.info.values[0]
+                            pstats.l2_misses += event.info.values[1]
+                            pstats.l3_exc_misses  += event.info.values[2]
+                        elif ('PINS_L123_STARVE' in profile.event_types and
+                              event.key == profile.event_types['PINS_L123_STARVE'].key):
+                            cast_lld_ptr = <long long int *>cinfo
+                            thread.starvation = cast_lld_ptr[0]
+                            event.end = event.begin + thread.starvation # mimick starvation
+                            event.duration = event.end - event.begin
+                        # elif ('<EVENT_TYPE_NAME>' in profile.event_types and
+                        #       event.key == profile.event_types['<EVENT_TYPE_NAME>'].key):
+                        #   event.info = <write a function and a Python type to translate>
                         else:
                             dont_print = True
                             if not dont_print:
                                 print('missed an info for event key ' + event_name )
+
+                    # finalize stats
+                    global_stats = profile.event_types[event_name].stats
+                    global_stats.count += 1
+                    global_stats.total_duration += event.duration
+                    thread.event_types[event_name].stats.count += 1
+                    thread.event_types[event_name].stats.total_duration += event.duration
+                                
                     # event constructed. add it everywhere it belongs.
                     thread.append(event)
                     thread.event_types[event_name].append(event)

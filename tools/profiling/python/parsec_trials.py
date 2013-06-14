@@ -79,7 +79,7 @@ class TrialSet(list):
         for trial in self:
             profile_backups.append(trial.profile)
             if trial.profile:
-                trial.profile = trial.profile.get_eventless_pickle()
+                trial.profile = trial.profile.get_eventless()
         cPickle.dump(self, f, protocol)
         for profile in profile_backups:
             if profile: # don't dump the Nones

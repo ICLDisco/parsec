@@ -37,8 +37,8 @@ class Profile(list): # contains Events
         self.handles = dict()
         self.errors = dict()
         # debug dicts
-        self.begin_ids = dict()
-        self.end_ids = dict()
+        # self.begin_ids = dict()
+        # self.end_ids = dict()
     def get_handle_counts(self):
         if self.is_eventless():
             return self.handle_counts
@@ -156,6 +156,7 @@ class dbpThread(list): # contains Events
         self.begin = sys.maxint
         self.end = 0
         self.duration = 0
+        self.starvation = 0
     def __str__(self):
         return str(self.id)
     def __setstate__(self, dictionary):
