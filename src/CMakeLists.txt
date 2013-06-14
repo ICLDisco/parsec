@@ -49,6 +49,7 @@ set(SOURCES
   vpmap.c
   devices/device.c
   mca/mca_repository.c
+  dague_hwloc.c
   ${EXTRA_SOURCES}
   ${MCA_EXTRA_SOURCES}
 )

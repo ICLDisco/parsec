@@ -45,9 +45,9 @@
 #include "profiling.h"
 #endif
 
+#include "dague_hwloc.h"
 #ifdef HAVE_HWLOC
 #include "hbbuffer.h"
-#include "dague_hwloc.h"
 #endif
 
 #ifdef HAVE_CUDA
