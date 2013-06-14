@@ -1568,8 +1568,10 @@ const dague_ddesc_t dague_static_local_data_ddesc = {
       return_null,   /* void *   (*data_of)(struct dague_ddesc *mat, ...) */
       return_local_s,  /* int32_t  (*vpid_of)(struct dague_ddesc *mat, ...) */
       NULL,  /*  moesi_map_t* moesi_map */
-#ifdef DAGUE_PROF_TRACE
+#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
       return_local_u,  /* uint32_t (*data_key)(struct dague_ddesc *mat, ...) */
+#endif
+#ifdef DAGUE_PROF_TRACE
       key_to_string, /* int (*key_to_string)(struct dague_ddesc *mat, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
       NULL,  /* char      *key_dim */
       NULL,  /* char      *key */

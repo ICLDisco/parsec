@@ -78,14 +78,14 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
     moesi_master_t* master;
     moesi_copy_t* copy;
     int i, transfer_required = 0;
-    
+
     assert( NULL != map );
     assert( NULL != map->masters[key] );
     master = map->masters[key];
     assert( UINT16_MAX > device );
     assert( NULL != master->device_copies[device] );
     copy = master->device_copies[device];
-    
+
     if( ACCESS_READ & access_mode ) copy->readers++;
 
     if( MOESI_INVALID == copy->coherency_state ) {
@@ -101,7 +101,7 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
             }
             copy->coherency_state = MOESI_OWNED;
             copy->version = master->version;
-        } 
+        }
         else if( ACCESS_READ & access_mode ) {
             if( MOESI_OWNED == master->coherency_state ) {
                 transfer_required = 1; /* TODO: is this condition making sense? */
@@ -109,7 +109,7 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
             master->coherency_state = MOESI_SHARED;
             copy->coherency_state = MOESI_SHARED;
         }
-    } 
+    }
     else { /* !MOESI_INVALID */
         if( MOESI_OWNED == copy->coherency_state ) {
             assert( device == master->owner_device ); /* memory is owned, better be me otherwise 2 writters: wrong JDF */
@@ -130,7 +130,7 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
      * upper level know a transfer is required.
      */
     transfer_required = transfer_required || (master->version > copy->version);
-    if( transfer_required ) 
+    if( transfer_required )
         copy->version = master->version;
     return transfer_required;
 }
@@ -175,7 +175,7 @@ int moesi_master_update(moesi_map_t *map, moesi_key_t key) {
         master->owner_device = -1;
     }
     master->version++;
-    return 0;    
+    return 0;
 }
 
 static char dump_moesi_codex(moesi_coherency_t state)
@@ -196,4 +196,3 @@ void moesi_dump_moesi_copy( moesi_copy_t* copy )
            copy->device_private, dump_moesi_codex(copy->coherency_state), copy->readers, copy->version,
            copy->master, master->mem_ptr, master->map, master->key, dump_moesi_codex(master->coherency_state), master->owner_device, master->version);
 }
-

@@ -191,17 +191,17 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
      *          C the third one.
      * if the kernel swap A and B it won't work
      */
-    moesi_get_master(args->ddescA->moesi_map, GEMM_KEY(args->ddescA, args->Am, args->An ),
+    moesi_get_master(args->ddescA->moesi_map, TILED_MATRIX_KEY(args->ddescA, args->Am, args->An ),
                            &(this_task->data[0].moesi_master));
     if( NULL == (this_task->data[0].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
 
-    moesi_get_master(args->ddescB->moesi_map, GEMM_KEY(args->ddescB, args->Bm, args->Bn ),
+    moesi_get_master(args->ddescB->moesi_map, TILED_MATRIX_KEY(args->ddescB, args->Bm, args->Bn ),
                            &(this_task->data[1].moesi_master));
     if( NULL == (this_task->data[1].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
 
-    moesi_get_master(args->ddescC->moesi_map, GEMM_KEY(args->ddescC, args->Cm, args->Cn ),
+    moesi_get_master(args->ddescC->moesi_map, TILED_MATRIX_KEY(args->ddescC, args->Cm, args->Cn ),
                            &(this_task->data[2].moesi_master));
     if( NULL == (this_task->data[2].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
@@ -465,7 +465,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     gpu_task->ddescC   = (dague_ddesc_t*)descC;
 
     /* We always schedule the task on the GPU owning the C tile. */
-    which_gpu = moesi_locate_device_with_valid_copy( descC->super.moesi_map, GEMM_KEY( descC, Cm, Cn) );
+    which_gpu = moesi_locate_device_with_valid_copy( descC->super.moesi_map, TILED_MATRIX_KEY( descC, Cm, Cn) );
     if( which_gpu < 0 ) {  /* this is the first time we see this tile.
                             * Let's decide which GPU will work on it. */
         int best_index = -1;  /* cores */

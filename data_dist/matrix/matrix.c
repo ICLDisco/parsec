@@ -41,17 +41,28 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
                              int i,  int j,
                              int m,  int n)
 {
+    dague_ddesc_t *o = (dague_ddesc_t*)tdesc;
+
+    /* Super setup */
+    o->nodes     = nodes;
+    o->cores     = cores;
+    o->myrank    = myrank;
+    o->moesi_map = NULL;
+
+#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
+    o->data_key      = tiled_matrix_data_key;
+#endif
+#if defined(DAGUE_PROF_TRACE)
+    o->key_to_string = tiled_matrix_key_to_string;
+    o->key_dim       = NULL;
+    o->key           = NULL;
+#endif
+
     /* Matrix address */
     /* tdesc->mat = NULL;*/
     /* tdesc->A21 = (lm - lm%mb)*(ln - ln%nb); */
     /* tdesc->A12 = (     lm%mb)*(ln - ln%nb) + tdesc->A21; */
     /* tdesc->A22 = (lm - lm%mb)*(     ln%nb) + tdesc->A12; */
-
-    /* Super setup */
-    tdesc->super.nodes = nodes;
-    tdesc->super.cores = cores;
-    tdesc->super.myrank = myrank;
-    tdesc->super.moesi_map = NULL;
 
     /* Matrix properties */
     tdesc->mtype   = mtyp;

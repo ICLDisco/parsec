@@ -126,7 +126,7 @@ BODY
 	        exit(2);
         }
     }
-    moesi_master_update( descC.super.moesi_map, __dague_object->super.dataC->data_key( __dague_object->super.dataC, m, n ) );
+    moesi_master_update( descC.super.moesi_map, TILED_MATRIX_KEY( &descC, m, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
         DRYRUN(

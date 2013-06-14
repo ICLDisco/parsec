@@ -24,17 +24,17 @@
 #include <math.h>
 
 static uint32_t twoDBC_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* twoDBC_data_of(dague_ddesc_t* ddesc, ...);
+static int32_t  twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
+static void*    twoDBC_data_of(dague_ddesc_t* ddesc, ...);
 
 static uint32_t twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...);
+static int32_t  twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...);
+static void*    twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...);
 
 #if defined(DAGUE_HARD_SUPERTILE)
 static uint32_t twoDBC_st_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t twoDBC_st_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
+static int32_t  twoDBC_st_vpid_of(dague_ddesc_t* ddesc, ...);
+static void*    twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
 #endif
 
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
