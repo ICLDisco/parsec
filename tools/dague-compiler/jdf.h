@@ -108,13 +108,15 @@ typedef struct jdf_body {
     char                    *external_code;
 } jdf_body_t;
 
-/** A JDF function is the complex object described below
- *  It uses a jdf_flags_t type for its flags
+/**
+ * A JDF function is the complex object described below
+ * It uses a jdf_flags_t type for its flags
  */
-
 typedef unsigned int jdf_flags_t;
 #define JDF_FUNCTION_FLAG_HIGH_PRIORITY   ((jdf_flags_t)(1 << 0))
 #define JDF_FUNCTION_FLAG_CAN_BE_STARTUP  ((jdf_flags_t)(1 << 1))
+#define JDF_FUNCTION_FLAG_HAS_DATA_INPUT  ((jdf_flags_t)(1 << 2))
+#define JDF_FUNCTION_FLAG_HAS_DATA_OUTPUT ((jdf_flags_t)(1 << 3))
 
 typedef struct jdf_function_entry {
     struct jdf_object_t        super;
