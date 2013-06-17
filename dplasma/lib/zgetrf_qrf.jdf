@@ -893,6 +893,8 @@ BODY
                 norm1[p] = (norm1[p] < W[i] ? W[i] : norm1[p]);
             }
         }
+
+        memcpy( norm2, norm1, pmax * sizeof(double) );
     }
     else if (criteria == MUMPS_CRITERIUM)
     {
