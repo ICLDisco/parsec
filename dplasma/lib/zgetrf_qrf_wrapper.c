@@ -35,7 +35,7 @@ dague_object_t* dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
     /*
      * Compute W size according to criteria used.
      */
-    if (criteria == HIGHAM_CRITERIUM) {
+    if ((criteria == HIGHAM_CRITERIUM) || (criteria == HIGHAM_SUM_CRITERIUM) || (criteria == HIGHAM_MAX_CRITERIUM) || (criteria == HIGHAM_MOY_CRITERIUM)) {
         int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
         sizeReduceVec = P;
         sizeW = (A->mt + P - 1) / P;

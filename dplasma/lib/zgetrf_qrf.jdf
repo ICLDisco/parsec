@@ -695,7 +695,7 @@ BODY
              * Info related to criteria can be computed in local workspace W,
              * since two panels will never be computed at the same time.
              */
-            if (criteria == HIGHAM_CRITERIUM)
+            if ((criteria == HIGHAM_CRITERIUM) || (criteria == HIGHAM_MAX_CRITERIUM) || (criteria == HIGHAM_SUM_CRITERIUM) || (criteria == HIGHAM_MOY_CRITERIUM))
             {
                 /*
                  * Compute the 1-norm of every tiles located on other nodes
@@ -821,6 +821,13 @@ BODY
 
             W[0] = 1. / W[0];
         }
+
+        if ( (t == 0) && ((criteria == HIGHAM_MAX_CRITERIUM) || (criteria == HIGHAM_SUM_CRITERIUM) || (criteria == HIGHAM_MOY_CRITERIUM)))
+        {
+            /*Compute the norm of A_kk^(-1)  */
+            LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, 1., W);
+            fprintf(stderr, "Le cond est: %f\n", W[0]);
+        }
 }
 END
 
@@ -855,7 +862,7 @@ BODY
 
     printlog("reduce_norm( k=%d, p=%d )\n", k, p);
 
-    if (criteria == HIGHAM_CRITERIUM)
+    if ((criteria == HIGHAM_CRITERIUM) || (criteria == HIGHAM_SUM_CRITERIUM) || (criteria == HIGHAM_MOY_CRITERIUM))
     {
         memset( norm1, 0, pmax * sizeof(double) );
 
@@ -871,6 +878,21 @@ BODY
         }
 
         memcpy( norm2, norm1, pmax * sizeof(double) );
+    }
+    else if (criteria == HIGHAM_MAX_CRITERIUM)
+    {
+        memset( norm1, 0, pmax * sizeof(double) );
+
+        if (p == 0)  {
+           norm1[0] = W[0];
+        }
+        else {
+            int i, m;
+
+            for(i=0, m=k+p; m<descA.mt; m+=param_p, i++) {
+                norm1[p] = (norm1[p] < W[i] ? W[i] : norm1[p]);
+            }
+        }
     }
     else if (criteria == MUMPS_CRITERIUM)
     {
@@ -942,7 +964,7 @@ BODY
     /* TODO: We collect the condition numbers and compute the choice*/
     printlog("setchoice( k=%d, p=%d, h=%d )\n", k, p, h);
 
-        if (criteria == HIGHAM_CRITERIUM)
+        if ((criteria == HIGHAM_CRITERIUM) || (criteria == HIGHAM_SUM_CRITERIUM) || (criteria == HIGHAM_MAX_CRITERIUM) || (criteria == HIGHAM_MOY_CRITERIUM))
         {
             /* The received buffer contains the diagonal line */
             if( (pui <= p) && (p < 2*pui) ) {
@@ -1002,7 +1024,7 @@ BODY
 
                 cond = 1;
                 for(i=0; i<tempkn; i++) {
-                    if ((alpha * normA[i]) > norm1[i]) {
+                    if ((alpha * normA[i]) < norm1[i]) {
                         /* fprintf(stderr, "setchoice( k=%d, p=%d, h=%d ): max(|A_%d|)=%e, A_%d%d=%e\n", */
                         /*         k, p, h, i, norm1[i], i, i, normA[i]); */
                         cond = 0;
@@ -1047,19 +1069,66 @@ BODY
                 int nb_lu = ((minMNT+1) * alpha)/100;
                 cond = lu_tab_val(0, minMNT, nb_lu, 0, k);
             }
+            else if (criteria == HIGHAM_SUM_CRITERIUM)
+            {
+                double sum_norm = 0.;
+
+                for(i=1; i<pmax; i++) {
+                    sum_norm += norm1[i];
+                }
+
+                /* fprintf(stderr, "setchoice( k=%d, p=%d, h=%d ): cond=%e, sum=%e\n", */
+                /*         k, p, h, norm1[0], sum_norm); */
+
+                if ((alpha * norm1[0]) > sum_norm) {
+                    cond = 1;
+                } else {
+                    cond = 0;
+                }
+            }
+            else if (criteria == HIGHAM_MAX_CRITERIUM)
+            {
+                double max_norm = 0.;
+
+                for(i=1; i<pmax; i++) {
+                     max_norm = (norm1[i] < max_norm ? max_norm : norm1[i]);
+                }
+
+                /* fprintf(stderr, "setchoice( k=%d, p=%d, h=%d ): cond=%e, sum=%e\n", */
+                /*         k, p, h, norm1[0], sum_norm); */
+
+                if ((alpha * norm1[0]) > max_norm) {
+                    cond = 1;
+                } else {
+                    cond = 0;
+                }
+            }
+            else if (criteria == HIGHAM_MOY_CRITERIUM)
+            {
+                double sum_norm = 0.;
+
+                for(i=1; i<pmax; i++) {
+                    sum_norm += norm1[i];
+                }
+
+                int nb_tiles = descA.mt - k;
+                int nb_tiles_out = nb_tiles - ((nb_tiles + param_p -1)/param_p);
+                double moy_norm = sum_norm / nb_tiles_out;
+
+                /* fprintf(stderr, "setchoice( k=%d, p=%d, h=%d ): cond=%e, sum=%e\n", */
+                /*         k, p, h, norm1[0], sum_norm); */
+
+                if ((alpha * norm1[0]) > moy_norm) {
+                    cond = 1;
+                } else {
+                    cond = 0;
+                }
+            }
             else
             {
                 /* By default, we switch at each iteration */
                 cond = k%2;
             }
-
-            /*!!!! test de mettre une étape de QR au début pour les matrices difficiles !!!!!*/
-            /*if ((alpha > 0) && (alpha < 99999))
-               if ((k <= 2) || (k >= minMNT-1))
-                     cond = 0;
-
-
-            cond = k%2; */
 
             lu_tab[k] = cond;
 
