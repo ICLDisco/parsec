@@ -37,7 +37,7 @@ static int nbcores = -1;        /**< used by the from_parameters only */
 
 static int vpmap_get_nb_threads_in_vp_parameters(int vp);
 static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread);
-static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores);
+static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, int *ht);
 
 static int parse_binding_parameter(int vp, int nbth, char * binding);
 
@@ -77,7 +77,7 @@ static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread)
     return 1;
 }
 
-static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores)
+static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, int *ht)
 {
     if( (vp < 0) ||
         (vp >= nbvp) ||
@@ -92,6 +92,10 @@ static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores)
     nbht = dague_hwloc_get_ht();
 #endif /* HAVE_HWLOC */
     *cores = ((vp * nbthreadspervp + thread) / nbht) % nbcores % nb_real_cores;
+    if (nbht > 2 )
+        *ht = (vp * nbthreadspervp + thread) % nbht;
+    else
+        *ht = -1;
 }
 
 void vpmap_fini(void)
@@ -132,7 +136,7 @@ static int vpmap_get_nb_cores_affinity_datamap(int vp, int thread)
     return map[vp].threads[thread]->nbcores;
 }
 
-static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores)
+static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores, int *ht)
 {
     if( (vp < 0) ||
         (vp >= nbvp) ||
@@ -141,6 +145,7 @@ static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores)
         (thread >= map[vp].nbthreads ) )
         return;
     memcpy(cores, map[vp].threads[thread]->cores, map[vp].threads[thread]->nbcores * sizeof(int));
+    memcpy(ht, map[vp].threads[thread]->ht, map[vp].threads[thread]->nbcores * sizeof(int));
 }
 
 int vpmap_init_from_hardware_affinity(void)
@@ -174,7 +179,10 @@ int vpmap_init_from_hardware_affinity(void)
                     map[v].threads[t+ht] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
                     map[v].threads[t+ht]->nbcores = 1;
                     map[v].threads[t+ht]->cores[0] = c;
-                    map[v].threads[t+ht]->ht[0] = ht;
+                    if (nbht > 1)
+                        map[v].threads[t+ht]->ht[0] = ht;
+                    else
+                        map[v].threads[t+ht]->ht[0] = -1;
                 }
                 c++;
             }
@@ -361,8 +369,8 @@ void vpmap_display_map(FILE *out)
 {
     int rank = 0;
     int v, t, c;
-    char *cores = NULL, *tmp;
-     int *dcores;
+    char *cores = NULL, *ht = NULL, *tmp;
+    int *dcores, *dht;
 #if defined(HAVE_MPI)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
@@ -373,24 +381,30 @@ void vpmap_display_map(FILE *out)
         return;
     }
 
+    nbht = dague_hwloc_get_ht();
+
     fprintf(out, "# [%d]  Map with %d Virtual Processes\n", rank, nbvp);
     for(v = 0; v < nbvp; v++) {
         fprintf(out, "# [%d]  Virtual Process of index %d has %d threads\n",
                 rank, v, vpmap_get_nb_threads_in_vp(v) );
         for(t = 0; t < vpmap_get_nb_threads_in_vp(v); t++) {
             dcores = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
-            vpmap_get_core_affinity(v, t, dcores);
-
+            dht = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
+            vpmap_get_core_affinity(v, t, dcores, dht);
             asprintf(&cores, "%d", dcores[0]);
+            if(nbht > 1)
+                asprintf(&ht, " (ht %d)", dht[0]);
+            else
+                asprintf(&ht, "");
             for( c = 1; c < vpmap_get_nb_cores_affinity(v, t); c++) {
                 tmp=cores;
                 asprintf(&cores, "%s, %d", tmp, dcores[c]);
                 free(tmp);
             }
             free(dcores);
-            nbht = dague_hwloc_get_ht();
-            fprintf(out, "# [%d]    Thread %d of VP %d can be bound on cores %s (PU per core %i)\n",
-                    rank, t, v, cores, nbht);
+
+            fprintf(out, "# [%d]    Thread %d of VP %d can be bound on cores %s %s\n",
+                    rank, t, v, cores, ht);
             free(cores);
         }
     }
