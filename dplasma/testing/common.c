@@ -126,6 +126,9 @@ void print_usage(void)
             "\n"
             );
     fprintf(stderr,
+            "\n"
+            " --ht nbth         : enable a SMT/HyperThreadind binding using nbth hyper-thread per core."
+            "                     This parameter must be declared before the virtual process distribution parameter\n"
             " -V --vpmap        : select the virtual process map (default: flat map)\n"
             "                     Accepted values:\n"
             "                       flat  -- Flat Map: all cores defined with -c are under the same virtual process\n"
@@ -174,6 +177,7 @@ static struct option long_options[] =
     // TODO:: Should be moved with the other dague-specific options
     {"V",           required_argument,  0, 'V'},
     {"vpmap",       required_argument,  0, 'V'},
+    {"ht",          required_argument,  0, 'H'},
 
     {"N",           required_argument,  0, 'N'},
     {"M",           required_argument,  0, 'M'},
@@ -225,7 +229,7 @@ static struct option long_options[] =
 static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 {
     int opt = 0;
-    int c;
+    int c, nbht;
     int argc = *_argc;
     char **argv = *_argv;
     char *add_dot = NULL;
@@ -304,7 +308,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 /* Butterfly parameters */
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
 
-            case 'm': 
+            case 'm':
 	            iparam[IPARAM_PINS] = 1;
 	            mca_pins_optarg = optarg;
 	            break;
@@ -312,6 +316,9 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
                 else        iparam[IPARAM_VERBOSE] = 2;
                 break;
+
+            case 'H':
+                dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
 
             case 'V':
 

@@ -20,6 +20,7 @@
 typedef struct {
     int nbcores;
     int cores[1];
+    int ht[1];
 } vpmap_thread_t;
 
 typedef struct {
@@ -27,8 +28,10 @@ typedef struct {
     vpmap_thread_t **threads;
 } vpmap_t;
 
+
 static vpmap_t *map = NULL;     /**< used by the from_file and from_affinity only */
 static int nbvp = -1;
+static int nbht = 1;
 static int nbthreadspervp = -1; /**< used by the from_parameters only */
 static int nbcores = -1;        /**< used by the from_parameters only */
 
@@ -86,8 +89,9 @@ static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores)
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
     nb_real_cores = dague_hwloc_nb_real_cores();
+    nbht = dague_hwloc_get_ht();
 #endif /* HAVE_HWLOC */
-    *cores = (vp * nbthreadspervp + thread) % nbcores % nb_real_cores;
+    *cores = ((vp * nbthreadspervp + thread) / nbht) % nbcores % nb_real_cores;
 }
 
 void vpmap_fini(void)
@@ -142,7 +146,7 @@ static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores)
 int vpmap_init_from_hardware_affinity(void)
 {
 #if defined(HAVE_HWLOC)
-    int v, t, c;
+    int v, t, c, ht;
 
     dague_hwloc_init();
 
@@ -150,6 +154,7 @@ int vpmap_init_from_hardware_affinity(void)
      * lowest level between sockets and NUMA nodes */
     int level = dague_hwloc_core_first_hrwd_ancestor_depth();
     nbvp = dague_hwloc_get_nb_objects(level);
+    nbht = dague_hwloc_get_ht();
 
     if (nbvp > 0 ) {
         map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));
@@ -159,14 +164,18 @@ int vpmap_init_from_hardware_affinity(void)
          */
         c=0;
         for(v = 0; v < nbvp; v++) {
-            nbthreadspervp = dague_hwloc_nb_cores_per_obj(level, v);
+            nbthreadspervp = dague_hwloc_nb_cores_per_obj(level, v)*nbht;
+            printf("nbthreadspervp =  %i \n", nbthreadspervp);
             map[v].nbthreads = nbthreadspervp;
             map[v].threads = (vpmap_thread_t**)calloc(nbthreadspervp, sizeof(vpmap_thread_t*));
 
-            for(t = 0; t < nbthreadspervp; t++) {
-                map[v].threads[t] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
-                map[v].threads[t]->nbcores = 1;
-                map[v].threads[t]->cores[0] = c;
+            for(t = 0; t < nbthreadspervp; t+=nbht) {
+                for (ht=0; ht < nbht ; ht++){
+                    map[v].threads[t+ht] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
+                    map[v].threads[t+ht]->nbcores = 1;
+                    map[v].threads[t+ht]->cores[0] = c;
+                    map[v].threads[t+ht]->ht[0] = ht;
+                }
                 c++;
             }
         }
@@ -186,7 +195,6 @@ int vpmap_init_from_hardware_affinity(void)
 
 }
 
-
 int vpmap_init_from_file(const char *filename)
 {
     FILE *f;
@@ -197,6 +205,8 @@ int vpmap_init_from_file(const char *filename)
 
     if( nbvp != -1 )
         return -1;
+
+    nbht = dague_hwloc_get_ht();
 
     f = fopen(filename, "r");
     if( NULL == f ) {
@@ -316,6 +326,8 @@ int vpmap_init_from_parameters(int _nbvp, int _nbthreadspervp, int _nbcores)
         nbcores != -1 )
         return -1;
 
+    nbht = dague_hwloc_get_ht();
+
     nbcores = _nbcores;
     nbthreadspervp = _nbthreadspervp;
     nbvp = _nbvp;
@@ -333,8 +345,10 @@ int vpmap_init_from_flat(int _nbcores)
         nbcores != -1 )
         return -1;
 
+    nbht = dague_hwloc_get_ht();
+
     nbvp = 1;
-    nbcores = _nbcores;
+    nbcores = _nbcores/nbht;
     nbthreadspervp = _nbcores;
 
     vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_parameters;
@@ -366,6 +380,7 @@ void vpmap_display_map(FILE *out)
         for(t = 0; t < vpmap_get_nb_threads_in_vp(v); t++) {
             dcores = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
             vpmap_get_core_affinity(v, t, dcores);
+
             asprintf(&cores, "%d", dcores[0]);
             for( c = 1; c < vpmap_get_nb_cores_affinity(v, t); c++) {
                 tmp=cores;
@@ -373,8 +388,9 @@ void vpmap_display_map(FILE *out)
                 free(tmp);
             }
             free(dcores);
-            fprintf(out, "# [%d]    Thread %d of VP %d can be bound on cores %s\n",
-                    rank, t, v, cores);
+            nbht = dague_hwloc_get_ht();
+            fprintf(out, "# [%d]    Thread %d of VP %d can be bound on cores %s (PU per core %i)\n",
+                    rank, t, v, cores, nbht);
             free(cores);
         }
     }

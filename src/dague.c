@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
@@ -239,7 +239,7 @@ static void dague_vp_init( dague_vp_t *vp,
         if( vpmap_get_nb_cores_affinity(vp->vp_id, t) == 1 )
             vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto);
         else if( vpmap_get_nb_cores_affinity(vp->vp_id, t) > 1 )
-            printf("multiple core to bind on... for now, do nothing\n");
+            printf("multiple core to bind on... fogr now, do nothing\n");
         else
             startup[t].bindto= -1;
     }

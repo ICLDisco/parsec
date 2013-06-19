@@ -18,6 +18,7 @@ typedef struct {
     int set;
 } hwloc_info;
 
+
 /**
  * Find the master for the processor_id at n level
  *
@@ -125,4 +126,12 @@ void dague_hwloc_free_xml_buffer(char *xmlbuffer);
 #include <hwloc.h>
 int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t mask_index);
 #endif
+
+/**
+ * Allow serial thread binding per core to use the SMT/HT capabilities of the processor 
+ *
+ */
+int dague_hwloc_allow_ht(int htnb);
+int dague_hwloc_get_ht();
+
 #endif  /* HWLOC_H_HAS_BEEN_INCLUDED */
