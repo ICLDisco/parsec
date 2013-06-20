@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
@@ -115,6 +115,7 @@ typedef struct __dague_temporary_thread_initialization_t {
     int th_id;
     int nb_cores;
     int bindto;
+    int bindto_ht;
 } __dague_temporary_thread_initialization_t;
 
 static int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
@@ -141,8 +142,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     int pi;
 
     /* Bind to the specified CORE */
-    dague_bindthread(startup->bindto);
-    DEBUG2(("VP %i : bind thread %i.%i on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto));
+    dague_bindthread(startup->bindto, startup->bindto_ht);
+    DEBUG2(("VP %i : bind thread %i.%i on core %i [HT %i]\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto, startup->bindto_ht));
 
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
@@ -210,11 +211,13 @@ static void dague_vp_init( dague_vp_t *vp,
         startup[t].virtual_process = vp;
         startup[t].nb_cores = nb_cores;
         if( vpmap_get_nb_cores_affinity(vp->vp_id, t) == 1 )
-            vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto);
+            vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto, &startup[t].bindto_ht);
         else if( vpmap_get_nb_cores_affinity(vp->vp_id, t) > 1 )
             printf("multiple core to bind on... for now, do nothing\n");
-        else
+        else{
             startup[t].bindto= -1;
+            startup[t].bindto_ht= -1;
+        }
     }
 }
 
