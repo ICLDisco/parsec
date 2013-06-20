@@ -29,6 +29,8 @@ int ht = 1;
 #define HWLOC_GET_PARENT(OBJ)  (OBJ)->father
 #endif  /* defined(HAVE_HWLOC_PARENT_MEMBER) */
 
+#define MAX(x, y) ( (x)>(y)?(x):(y) )
+
 
 
 int dague_hwloc_init(void)
@@ -36,8 +38,6 @@ int dague_hwloc_init(void)
 #if defined(HAVE_HWLOC)
     if ( first_init ) {
         hwloc_topology_init(&topology);
-        hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_NODE);
-        hwloc_topology_ignore_type_keep_structure(topology, HWLOC_OBJ_SOCKET);
         hwloc_topology_load(topology);
         first_init = 0;
 
@@ -53,6 +53,35 @@ int dague_hwloc_fini(void)
     first_init = 1;
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
+}
+
+int dague_hwloc_export_topology(int *buflen, char **xmlbuffer)
+{
+#if defined(HAVE_HWLOC)
+    if( first_init == 0 ) {
+        return hwloc_topology_export_xmlbuffer(topology, xmlbuffer, buflen);
+    } else {
+        *buflen = 0;
+        *xmlbuffer = NULL;
+        return -1;
+    }
+#else
+    *buflen = 0;
+    *xmlbuffer = NULL;
+    return -1;
+#endif
+}
+
+void dague_hwloc_free_xml_buffer(char *xmlbuffer)
+{
+    if( NULL == xmlbuffer )
+        return;
+
+#if defined(HAVE_HWLOC)
+    if( first_init == 0 ) {
+        hwloc_free_xmlbuffer(topology, xmlbuffer);
+    }
+#endif
 }
 
 int dague_hwloc_distance( int id1, int id2 )
@@ -75,6 +104,9 @@ int dague_hwloc_distance( int id1, int id2 )
     return 0;
 }
 
+/* Previously use for the vpmap initialisation form hardware.
+ * Should be obsolete as we now rely on the native hwloc topology to extrat the vp dedistribution.
+ */
 int dague_hwloc_master_id( int level, int processor_id )
 {
 #if defined(HAVE_HWLOC)
@@ -114,6 +146,9 @@ int dague_hwloc_master_id( int level, int processor_id )
     return -1;
 }
 
+/* Previously use for the vpmap initialisation form hardware.
+ * Should be obsolete as we now rely on the native hwloc topology to extrat the vp dedistribution.
+ */
 unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
 #if defined(HAVE_HWLOC)
@@ -133,16 +168,6 @@ unsigned int dague_hwloc_nb_cores( int level, int master_id )
     }
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
-}
-
-
-int dague_hwloc_nb_levels(void)
-{
-#if defined(HAVE_HWLOC)
-    return hwloc_get_type_depth(topology, HWLOC_OBJ_CORE);
-#else
-    return -1;
-#endif  /* defined(HAVE_HWLOC) */
 }
 
 
@@ -182,11 +207,86 @@ int dague_hwloc_nb_real_cores()
 }
 
 
-int dague_hwloc_bind_on_core_index(int cpu_index,  int local_ht_index)
+int dague_hwloc_core_first_hrwd_ancestor_depth()
 {
 #if defined(HAVE_HWLOC)
-    hwloc_obj_t      obj, core;  /* Hwloc object    */
-    hwloc_cpuset_t   cpuset;     /* HwLoc cpuset    */
+    int level = MAX(hwloc_get_type_depth(topology, HWLOC_OBJ_NODE),hwloc_get_type_depth(topology, HWLOC_OBJ_SOCKET));
+    assert(level < hwloc_get_type_depth(topology, HWLOC_OBJ_CORE));
+    return level;
+#endif  /* defined(HAVE_HWLOC) */
+    return -1;
+}
+
+int dague_hwloc_get_nb_objects(int level)
+{
+#if defined(HAVE_HWLOC)
+    return hwloc_get_nbobjs_by_depth(topology, level);
+#endif  /* defined(HAVE_HWLOC) */
+    return -1;
+}
+
+
+int dague_hwloc_socket_id(int core_id )
+{
+#if defined(HAVE_HWLOC)
+    hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
+    hwloc_obj_t socket = NULL;
+    if ((socket = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_SOCKET, core)) != NULL)
+    {
+        return socket->logical_index;
+
+    }else{
+        return -1;
+    }
+#endif  /* defined(HAVE_HWLOC) */
+    return -1;
+}
+
+int dague_hwloc_numa_id(int core_id )
+{
+#if defined(HAVE_HWLOC)
+    hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
+    hwloc_obj_t node = NULL;
+    if ((node = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_NODE, core)) != NULL)
+    {
+        return node->logical_index;
+
+    }else{
+        return -1;
+    }
+#endif  /* defined(HAVE_HWLOC) */
+    return -1;
+}
+
+unsigned int dague_hwloc_nb_cores_per_obj( int level, int index )
+{
+#if defined(HAVE_HWLOC)
+    hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, index);
+    assert( obj != NULL );
+    return hwloc_get_nbobjs_inside_cpuset_by_type(topology, obj->cpuset, HWLOC_OBJ_CORE);
+#else
+    return -1;
+#endif  /* defined(HAVE_HWLOC) */
+}
+
+
+
+
+int dague_hwloc_nb_levels(void)
+{
+#if defined(HAVE_HWLOC)
+    return hwloc_get_type_depth(topology, HWLOC_OBJ_CORE);
+#else
+    return -1;
+#endif  /* defined(HAVE_HWLOC) */
+}
+
+
+int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
+{
+#if defined(HAVE_HWLOC)
+    hwloc_obj_t      obj, core;      /* Hwloc object    */
+    hwloc_cpuset_t   cpuset;   /* Hwloc cpuset    */
 
     /* Get the core of index cpu_index */
     core = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
@@ -196,7 +296,7 @@ int dague_hwloc_bind_on_core_index(int cpu_index,  int local_ht_index)
         return -1;
     }
 
-    /* Get the cpuset of the core if not using SMT/HyperThreading,
+   /* Get the cpuset of the core if not using SMT/HyperThreading,
     * get the cpuset of the designated child object (PU) otherwise */
     if ( local_ht_index > -1) {
         obj = core->children[local_ht_index] ;
@@ -209,8 +309,7 @@ int dague_hwloc_bind_on_core_index(int cpu_index,  int local_ht_index)
     else
         obj = core;
 
-
-   /* Get a copy of its cpuset that we may modify.  */
+    /* Get a copy of its cpuset that we may modify.  */
 #if !defined(HAVE_HWLOC_BITMAP)
     cpuset = hwloc_cpuset_dup(obj->cpuset);
     hwloc_cpuset_singlify(cpuset);
