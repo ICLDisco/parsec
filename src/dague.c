@@ -1687,14 +1687,16 @@ static int32_t  vpid_of_key(dague_ddesc_t *unused, dague_data_key_t key)
 {
     return 0; (void)unused; (void)key;
 }
-static int key_to_string(dague_ddesc_t *unused, uint32_t datakey, char* buffer, uint32_t buffer_size)
-{
-  return snprintf( buffer, buffer_size, "%u ", datakey); (void)unused;
-}
 static dague_data_key_t data_key(dague_ddesc_t *mat, ...)
 {
     return 0; (void)mat;
 }
+#if defined(DAGUE_PROF_TRACE)
+static int key_to_string(dague_ddesc_t *unused, dague_data_key_t datakey, char* buffer, uint32_t buffer_size)
+{
+  return snprintf( buffer, buffer_size, "%u ", datakey); (void)unused;
+}
+#endif /* DAGUE_PROF_TRACE */
 
 const dague_ddesc_t dague_static_local_data_ddesc = {
       0, /* uint32_t myrank */
@@ -1712,15 +1714,14 @@ const dague_ddesc_t dague_static_local_data_ddesc = {
       return_local_s,  /* int32_t  (*vpid_of)(struct dague_ddesc *, ...) */
       vpid_of_key,
 
-      key_to_string, /* int (*key_to_string)(struct dague_ddesc *, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
-
       NULL,  /* dague_memory_region_management_f register_memory */
       NULL,  /* dague_memory_region_management_f unregister_memory */
-
       NULL,  /* char      *key_base */
+
 #ifdef DAGUE_PROF_TRACE
-      key_to_string, /* int (*key_to_string)(struct dague_ddesc *mat, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
+      key_to_string, /* int (*key_to_string)(struct dague_ddesc *, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
       NULL,  /* char      *key_dim */
+      NULL,  /* char      *key */
 #endif /* DAGUE_PROF_TRACE */
 };
 

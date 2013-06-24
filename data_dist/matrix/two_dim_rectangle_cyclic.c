@@ -38,9 +38,10 @@ static int32_t twoDBC_st_vpid_of(dague_ddesc_t* ddesc, ...);
 static dague_data_t* twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
 #endif
 
+static dague_data_key_t twoDBC_data_key(dague_ddesc_t *desc, ...);
+
 #if defined(DAGUE_PROF_TRACE)
-static uint32_t twoDBC_data_key(dague_ddesc_t *desc, ...);
-static int  twoDBC_key_to_string(dague_ddesc_t * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
+static int  twoDBC_key_to_string(dague_ddesc_t * desc, dague_data_key_t datakey, char * buffer, uint32_t buffer_size);
 #endif
 
 static int twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
@@ -72,8 +73,9 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     int temp, Q;
     dague_ddesc_t *o = &(Ddesc->super.super);
 
-#if defined(DAGUE_PROF_TRACE)
     o->data_key      = twoDBC_data_key;
+
+#if defined(DAGUE_PROF_TRACE)
     o->key_to_string = twoDBC_key_to_string;
     o->key_dim       = NULL;
     o->key_base      = NULL;
@@ -548,9 +550,8 @@ static dague_data_t* twoDBC_st_data_of(dague_ddesc_t *desc, ...)
 /*
  * Common functions
  */
-#ifdef DAGUE_PROF_TRACE
 /* return a unique key (unique only for the specified dague_ddesc_t) associated to a data */
-static uint32_t twoDBC_data_key(dague_ddesc_t *desc, ...)
+static dague_data_key_t twoDBC_data_key(dague_ddesc_t *desc, ...)
 {
     unsigned int m, n;
     two_dim_block_cyclic_t * Ddesc;
@@ -570,8 +571,9 @@ static uint32_t twoDBC_data_key(dague_ddesc_t *desc, ...)
     return ((n * Ddesc->super.lmt) + m);
 }
 
+#ifdef DAGUE_PROF_TRACE
 /* return a string meaningful for profiling about data */
-static int twoDBC_key_to_string(dague_ddesc_t * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+static int twoDBC_key_to_string(dague_ddesc_t * desc, dague_data_key_t datakey, char * buffer, uint32_t buffer_size)
 {
     two_dim_block_cyclic_t * Ddesc;
     unsigned int row, column;

@@ -27,13 +27,16 @@
 #include "dague.h"
 #include "data.h"
 
-static uint32_t      twoDTD_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t       twoDTD_vpid_of(dague_ddesc_t* ddesc, ...);
-static dague_data_t* twoDTD_data_of(dague_ddesc_t* ddesc, ...);
+static uint32_t         twoDTD_rank_of(dague_ddesc_t* ddesc, ...);
+static uint32_t         twoDTD_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static int32_t          twoDTD_vpid_of(dague_ddesc_t* ddesc, ...);
+static int32_t          twoDTD_vpid_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static dague_data_t*    twoDTD_data_of(dague_ddesc_t* ddesc, ...);
+static dague_data_t*    twoDTD_data_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static dague_data_key_t twoDTD_data_key(dague_ddesc_t *desc, ...);
 
 #if defined(DAGUE_PROF_TRACE)
-static uint32_t twoDTD_data_key(struct dague_ddesc *desc, ...);
-static int  twoDTD_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
+static int twoDTD_key_to_string(dague_ddesc_t * desc, dague_data_key_t datakey, char * buffer, uint32_t buffer_size);
 #endif
 
 /*
@@ -61,6 +64,13 @@ static uint32_t twoDTD_rank_of(dague_ddesc_t * desc, ...)
     return Ddesc->tiles_table->elems[res].rank;
 }
 
+static uint32_t twoDTD_rank_of_key(dague_ddesc_t *ddesc, dague_data_key_t key)
+{
+    assert( key >= 0 && key < ((two_dim_tabular_t*)ddesc)->tiles_table->nbelem );
+
+    return ((two_dim_tabular_t*)ddesc)->tiles_table->elems[key].rank;
+}
+
 static int32_t twoDTD_vpid_of(dague_ddesc_t * desc, ...)
 {
     int m, n, res;
@@ -81,6 +91,13 @@ static int32_t twoDTD_vpid_of(dague_ddesc_t * desc, ...)
     res = (Ddesc->super.lmt * n) + m;
     assert( res >= 0 && res < Ddesc->tiles_table->nbelem );
     return Ddesc->tiles_table->elems[res].vpid;
+}
+
+static int32_t twoDTD_vpid_of_key(dague_ddesc_t *ddesc, dague_data_key_t key)
+{
+    assert( key >= 0 && key < ((two_dim_tabular_t*)ddesc)->tiles_table->nbelem );
+
+    return ((two_dim_tabular_t*)ddesc)->tiles_table->elems[key].vpid;
 }
 
 
@@ -106,9 +123,14 @@ static dague_data_t* twoDTD_data_of(dague_ddesc_t* ddesc, ...)
     return Ddesc->tiles_table->elems[res].tile;
 }
 
+static dague_data_t* twoDTD_data_of_key(dague_ddesc_t *ddesc, dague_data_key_t key)
+{
+    assert( key >= 0 && key < ((two_dim_tabular_t*)ddesc)->tiles_table->nbelem );
 
-#ifdef DAGUE_PROF_TRACE
-static uint32_t twoDTD_data_key(struct dague_ddesc *ddesc, ...)
+    return ((two_dim_tabular_t*)ddesc)->tiles_table->elems[key].tile;
+}
+
+static dague_data_key_t twoDTD_data_key(dague_ddesc_t *ddesc, ...)
 {
     int m, n;
     two_dim_tabular_t * Ddesc;
@@ -122,7 +144,8 @@ static uint32_t twoDTD_data_key(struct dague_ddesc *ddesc, ...)
     return ((n * Ddesc->super.lmt) + m);
 }
 
-static int twoDTD_key_to_string(struct dague_ddesc * ddesc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+#ifdef DAGUE_PROF_TRACE
+static int twoDTD_key_to_string(dague_ddesc_t *ddesc, dague_data_key_t datakey, char * buffer, uint32_t buffer_size)
 {
     two_dim_tabular_t * Ddesc;
     unsigned int row, column;
@@ -159,12 +182,15 @@ void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
     if( NULL != table ) {
         two_dim_tabular_set_table( Ddesc, table );
     }
-    Ddesc->super.super.rank_of = twoDTD_rank_of;
-    Ddesc->super.super.vpid_of = twoDTD_vpid_of;
-    Ddesc->super.super.data_of = twoDTD_data_of;
+    Ddesc->super.super.rank_of  = twoDTD_rank_of;
+    Ddesc->super.super.rank_of_key = twoDTD_rank_of_key;
+    Ddesc->super.super.vpid_of  = twoDTD_vpid_of;
+    Ddesc->super.super.vpid_of_key = twoDTD_vpid_of_key;
+    Ddesc->super.super.data_of  = twoDTD_data_of;
+    Ddesc->super.super.data_of_key = twoDTD_data_of_key;
+    Ddesc->super.super.data_key = twoDTD_data_key;
 
 #ifdef DAGUE_PROF_TRACE
-    Ddesc->super.super.data_key = twoDTD_data_key;
     Ddesc->super.super.key_to_string = twoDTD_key_to_string;
     Ddesc->super.super.key = NULL;
     asprintf(&Ddesc->super.super.key_dim, "(%d, %d)", Ddesc->super.mt, Ddesc->super.nt);
