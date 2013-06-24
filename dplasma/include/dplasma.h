@@ -83,6 +83,7 @@ enum matrix_init_e {
     MATRIX_WILKINSON = 39,
     MATRIX_FOSTER    = 40,
     MATRIX_WRIGHT    = 41,
+    MATRIX_LANGOU    = 100,
 };
 
 /*

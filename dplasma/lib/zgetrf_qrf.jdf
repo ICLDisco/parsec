@@ -1132,6 +1132,11 @@ BODY
                 cond = k%2;
             }
 
+            if (alpha == 0)
+               cond = 0;
+            if (alpha >= 9999999999)
+               cond = 1;
+
             lu_tab[k] = cond;
 
             /* if ( p == 0 ) { */
