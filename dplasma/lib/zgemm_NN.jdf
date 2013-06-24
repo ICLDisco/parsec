@@ -95,6 +95,24 @@ READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC.mt-1) % descC.
        -> (m <= (descC.mt-2)) ? B GEMM( (m+1) % descC.mt, n, k )
 RW   C <- (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
        -> (k == (descA.nt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
+BODY [type = CUDA]
+        dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
+        int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
+        int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
+        int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
+        int ldam = BLKLDD(descA, m);
+        int ldbk = BLKLDD(descB, k);
+        int ldcm = BLKLDD(descC, m);
+
+        return gpu_zgemm(context, this_task,
+                         ( k == descA.nt-1 ),
+                         transA, transB,
+                         tempmm, tempnn, tempkk,
+                         alpha, m, k, &descA, ldam,
+                         k, n, &descB, ldbk,
+                         lbeta, m, n, &descC, ldcm);
+END
+
 BODY
         dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
         int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
@@ -104,50 +122,22 @@ BODY
         int ldbk = BLKLDD(descB, k);
         int ldcm = BLKLDD(descC, m);
 
-#if defined(HAVE_CUDA)
-    {  /* TODO: This should move in a CUDA BODY */
-        int rc;
-
-        if( 0 == (rc = gpu_zgemm( context, this_task,
-                                  ( k == descA.nt-1 ),
-                                  transA, transB,
-                                  tempmm, tempnn, tempkk,
-                                  alpha, m, k, &descA, ldam,
-                                         k, n, &descB, ldbk,
-                                  lbeta, m, n, &descC, ldcm)) )
-            goto FIN;
-        if( -1 == rc ) {
-            /* The task is pending in the device, and will be subsequently completed */
-            return -1;
-        }
-        if( -2 == rc ) {
-            /* The GPU failed to execute this task, but the task was already rescheduled */
-	        fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
-	        exit(2);
-        }
-    }
-#endif  /* defined(HAVE_CUDA) */
-
 #if !defined(DAGUE_DRY_RUN)
      CORE_zgemm(transA, transB,
                 tempmm, tempnn, tempkk,
                 alpha, A /*A(m, k)*/, ldam,
                        B /*B(k, n)*/, ldbk,
-#endif  /* !defined(DAGUE_DRY_RUN) */
                 lbeta, C /*C(m, n)*/, ldcm);
+#endif  /* !defined(DAGUE_DRY_RUN) */
 
-        printlog("gemm( %d, %d, %d )\n"
-                 "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
+        printlog("CORE_zgemm( %d, %d, %d )\n"
+                 "\t( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
                  m, n, k,
                  plasma_const( transA ), plasma_const( transB ),
                  tempmm, tempnn, tempkk,
                  creal(alpha), m, k, ldam,
                                k, n, ldbk,
                  creal(lbeta), m, n, ldcm );
-
-#if defined(HAVE_CUDA)
-FIN:
-#endif  /* defined(HAVE_CUDA) */
 
 END
 
