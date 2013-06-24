@@ -362,7 +362,7 @@ int dague_gpu_init(dague_context_t *dague_context)
         gpu_device_t* gpu_device;
         CUdevprop devProps;
         char szName[256];
-        int major, minor, concurrency;
+        int major, minor, concurrency, computemode;
         CUdevice hcuDevice;
 
         status = cuDeviceGet( &hcuDevice, i );
@@ -396,6 +396,7 @@ int dague_gpu_init(dague_context_t *dague_context)
             STATUS(("\tregsPerBlock       : %d\n", devProps.regsPerBlock ));
             STATUS(("\tclockRate          : %d\n", devProps.clockRate ));
             STATUS(("\tconcurrency        : %s\n", (concurrency == 1 ? "yes" : "no") ));
+            STATUS(("\tcomputeMode        : %d\n", computemode ));
         }
         status = cuDeviceTotalMem( &total_mem, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceTotalMem ", status, {continue;} );
@@ -628,10 +629,12 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             dague_ulist_fifo_push( &gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
         }
-        if( 0 == mem_elem_per_gpu ) {
+        if( 0 == mem_elem_per_gpu && dague_ulist_is_empty( &gpu_device->gpu_mem_lru ) ) {
             WARNING(("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!\n",
                      dague_context->my_rank, i));
-            continue;
+        }
+        else {
+            DEBUG3(( "GPU:\tAllocate %u tiles on the GPU memory\n", mem_elem_per_gpu ));
         }
         DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                               "GPU:\tAllocate %u tiles on the GPU memory\n", mem_elem_per_gpu ));
@@ -646,7 +649,6 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             if( gpu_device->memory == NULL ) {
                 WARNING(("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!\n",
                          dague_context->my_rank, i));
-                continue;
             }
             DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                                   "GPU:\tAllocate %u segment of size %d on the GPU memory\n",
@@ -724,8 +726,11 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
             });
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-        gpu_malloc_fini( gpu_device->memory );
-        free( gpu_device->memory );
+        if( gpu_device->memory ) {
+            gpu_malloc_fini( gpu_device->memory );
+            free( gpu_device->memory );
+            gpu_device->memory = NULL;
+        }
 #endif
 
         status = cuCtxPopCurrent(NULL);

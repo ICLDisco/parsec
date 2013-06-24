@@ -17,6 +17,9 @@ enable_testing()
 set(MPI_TEST_CMD
       "mpirun" CACHE STRING
       "A command to run distributed memory testings")
+if( "${MPI_TEST_CMD}" STREQUAL "" )
+    MESSAGE(WARNING "MPI tests will most likely not work, MPI_TEST_CMD is not set")
+endif()
 string(REPLACE " " ";" MPI_TEST_CMD_LIST "${MPI_TEST_CMD}")
 set(SHM_TEST_CMD
       "" CACHE STRING

@@ -1719,6 +1719,7 @@ const dague_ddesc_t dague_static_local_data_ddesc = {
 
       NULL,  /* char      *key_base */
 #ifdef DAGUE_PROF_TRACE
+      key_to_string, /* int (*key_to_string)(struct dague_ddesc *mat, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
       NULL,  /* char      *key_dim */
 #endif /* DAGUE_PROF_TRACE */
 };

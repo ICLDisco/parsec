@@ -32,12 +32,12 @@ transB [type = int]
 alpha  [type = dague_complex64_t]
 beta   [type = dague_complex64_t]
 
-descA [type = "tiled_matrix_desc_t"]
-A     [type = "dague_ddesc_t *"]
-descB [type = "tiled_matrix_desc_t"]
-B     [type = "dague_ddesc_t *"]
-descC [type = "tiled_matrix_desc_t"]
-C     [type = "dague_ddesc_t *"]
+dataA     [type = "dague_ddesc_t *"]
+descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+dataB     [type = "dague_ddesc_t *"]
+descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
+dataC     [type = "dague_ddesc_t *"]
+descC     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
 
 /**************************************************
  *                       READ_A                   *
@@ -47,9 +47,9 @@ READ_A(k, m)  [profile = off]
 k = 0 .. descA.mt-1
 m = 0 .. descA.nt-1
 
-: A(k, m)
+: dataA(k, m)
 
-A <- A(k, m)
+A <- dataA(k, m)
   -> A GEMM(m, 0, k)
 BODY
     printlog("rank %u <- A(%d,%d)\n", __dague_handle->super.A->myrank, k, m);
@@ -63,9 +63,9 @@ READ_B(n, k)  [profile = off]
 n = 0 .. descB.mt-1
 k = 0 .. descB.nt-1
 
-: B(n, k)
+: dataB(n, k)
 
-B <- B(n, k)
+B <- dataB(n, k)
   -> B GEMM(0, n, k)
 BODY
      printlog("rank %u <- B(%d,%d)\n", __dague_handle->super.B->myrank, n, k);
@@ -82,15 +82,15 @@ n = 0 .. descC.nt-1
 k = 0 .. descA.mt-1
 
 // Parallel partitioning
-: C(m, n)
+: dataC(m, n)
 
 // Parameters
 READ A <- (n == 0)            ? A READ_A(k, m) : A GEMM( m, (n+descC.nt-1) % descC.nt, k )
        -> (n <= (descC.nt-2)) ? A GEMM( m, (n+1) % descC.nt, k )
 READ B <- (m == 0)            ? B READ_B(n, k) : B GEMM( (m+descC.mt-1) % descC.mt, n, k )
        -> (m <= (descC.mt-2)) ? B GEMM( (m+1) % descC.mt, n, k )
-RW   C <- (k == 0)            ? C(m, n) : C GEMM( m, n, k-1 )
-       -> (k == (descA.mt-1)) ? C(m, n) : C GEMM( m, n, k+1 )
+RW   C <- (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
+       -> (k == (descA.mt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
 BODY
     dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;

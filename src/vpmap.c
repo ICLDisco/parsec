@@ -170,7 +170,6 @@ int vpmap_init_from_hardware_affinity(void)
         c=0;
         for(v = 0; v < nbvp; v++) {
             nbthreadspervp = dague_hwloc_nb_cores_per_obj(level, v)*nbht;
-            printf("nbthreadspervp =  %i \n", nbthreadspervp);
             map[v].nbthreads = nbthreadspervp;
             map[v].threads = (vpmap_thread_t**)calloc(nbthreadspervp, sizeof(vpmap_thread_t*));
 

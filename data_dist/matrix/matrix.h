@@ -47,6 +47,7 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
 #define tiled_matrix_desc_type        0x01
 #define two_dim_block_cyclic_type     0x02
 #define sym_two_dim_block_cyclic_type 0x04
+#define two_dim_tabular_type          0x08
 
 typedef struct tiled_matrix_desc_t {
     dague_ddesc_t super;
@@ -62,6 +63,8 @@ typedef struct tiled_matrix_desc_t {
     int ln;             /**< number of columns of the entire matrix */
     int lmt;            /**< number of tile rows of the entire matrix - derived parameter */
     int lnt;            /**< number of tile columns of the entire matrix - derived parameter */
+    int llm;            /**< number of rows of the matrix stored localy - derived parameter */
+    int lln;            /**< number of columns of the matrix stored localy - derived parameter */
     int i;              /**< row index to the beginning of the submatrix */
     int j;              /**< column indes to the beginning of the submatrix */
     int m;              /**< number of rows of the submatrix */
@@ -118,7 +121,8 @@ extern void dague_reduce_row_Destruct( struct dague_handle_t *o );
 /*
  * Macro to get the block leading dimension
  */
-#define BLKLDD( _desc_, _m_ ) ( (_desc_).storage == matrix_Tile ? (_desc_).mb : (_desc_).lm )
+#define BLKLDD( _desc_, _m_ ) ( (_desc_).storage == matrix_Tile ? (_desc_).mb : (_desc_).llm )
+#define TILED_MATRIX_KEY( _desc_, _m_, _n_ ) ( ((dague_ddesc_t*)(_desc_))->data_key( ((dague_ddesc_t*)(_desc_)), (_m_), (_n_) ) )
 
 /**
  * Helper functions to allocate and retrieve pointers to the dague_data_t and

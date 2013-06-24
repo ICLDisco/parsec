@@ -18,8 +18,9 @@ void jdf_fatal(int lineno, const char *format, ...);
 
 typedef struct jdf_object_t {
     int lineno;
-    char* filename;
-    char* comment;
+    char *filename;
+    char *comment;
+    char *oname;
 } jdf_object_t;
 
 /**
@@ -327,9 +328,11 @@ jdf_expr_t* jdf_find_property( const jdf_def_list_t* properties, const char* pro
        (OBJ)->super.filename = (FILENAME);  /* no copy here */ \
        (OBJ)->super.lineno   = (LINENO);                       \
        (OBJ)->super.comment  = (COMMENT);                      \
+       (OBJ)->super.oname    = NULL;                           \
     } while (0)
 #define JDF_OBJECT_LINENO( OBJ )   ((OBJ)->super.lineno)
 #define JDF_OBJECT_FILENAME( OBJ ) ((OBJ)->super.filename)
 #define JDF_OBJECT_COMMENT( OBJ )  ((OBJ)->super.comment)
+#define JDF_OBJECT_ONAME( OBJ )    (OBJ)->super.oname
 
 #endif

@@ -9,6 +9,7 @@
 
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_tabular.h"
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
 #include "dplasma/cores/cuda_stsmqr.h"
@@ -30,6 +31,7 @@ int main(int argc, char ** argv)
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
     int ret = 0;
+    int seed;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -46,16 +48,33 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam);
     PASTE_CODE_FLOPS(FLOPS_ZGEQRF, ((DagDouble_t)M, (DagDouble_t)N));
 
+    if( check ) {
+        fprintf(stderr, "Warning: Checking is disabled at this time for random tabular distributions. Ignoring -x flag.\n");
+        check = 0;
+    }
+
+    seed = getpid();
+#if defined(HAVE_MPI)
+    /* If we are in a distributed run, broadcast the seed of rank 0 */
+    MPI_Bcast(&seed, 1, MPI_INT, 0, MPI_COMM_WORLD);
+#endif  /* defined(HAVE_MPI) */
+
     LDA = max(M, LDA);
     /* initializing matrix structure */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                               M, N, SMB, SNB, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
-        two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
-                               MT*IB, N, SMB, SNB, P));
+    two_dim_tabular_t ddescA;
+    two_dim_tabular_init(&ddescA, matrix_ComplexDouble,
+                         nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                         M, N, NULL);
+    two_dim_tabular_set_random_table(&ddescA, seed);
+    dague_ddesc_set_key((dague_ddesc_t*)&ddescA, "ddescA");
+
+    two_dim_tabular_t ddescT;
+    two_dim_tabular_init(&ddescT, matrix_ComplexDouble,
+                         nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+                         MT*IB, N, NULL);
+    two_dim_td_table_clone_table_structure(&ddescA, &ddescT);
+    dague_ddesc_set_key((dague_ddesc_t*)&ddescT, "ddescT");
+
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDA, N, 0, 0,
@@ -152,8 +171,8 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague, iparam);
 
-    dague_data_free(ddescA.mat);
-    dague_data_free(ddescT.mat);
+    two_dim_tabular_free_table(ddescA.tiles_table);
+    two_dim_tabular_free_table(ddescT.tiles_table);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
 

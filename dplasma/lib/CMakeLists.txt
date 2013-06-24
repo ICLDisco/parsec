@@ -50,6 +50,7 @@ set(JDF
   zgeqrf_param.jdf zungqr_param.jdf
   zungqr.jdf
   zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
+  zunmqr_param_LC.jdf
   zlange_inf_cyclic.jdf
   zlange_one_cyclic.jdf
   zlange_max_cyclic.jdf
@@ -115,12 +116,15 @@ set(SOURCES
   zgesv_incpiv_wrapper.c
   zgeqrf_wrapper.c
   zgeqrf_param_wrapper.c
-  zungqr_param_wrapper.c
+  zgeqrs_wrapper.c
+  zgeqrs_param_wrapper.c
   zgelqf_wrapper.c
   zherbt_wrapper.c
   zhbrdt_wrapper.c
   zungqr_wrapper.c
+  zungqr_param_wrapper.c
   zunmqr_wrapper.c
+  zunmqr_param_wrapper.c
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"

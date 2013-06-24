@@ -1,6 +1,6 @@
 
 #
-# Sources depending on Precision 
+# Sources depending on Precision
 #
 include(RulesPrecisions)
 include(RulesJDF)
@@ -30,14 +30,14 @@ endif(NOT DAGUE_COMPILE_INPLACE)
 set(sources
         matrix.c
         map_operator.c
-        tabular_distribution.c 
+        two_dim_tabular.c
         grid_2Dcyclic.c
-        two_dim_rectangle_cyclic.c 
+        two_dim_rectangle_cyclic.c
         sym_two_dim_rectangle_cyclic.c
         reduce_wrapper.c
-        ${generated_files} 
+        ${generated_files}
         ${generated_jdf}
-)  
+)
 if( NOT HAVE_COMPLEX_H )
   list(APPEND sources precision.c)
 endif()
@@ -45,13 +45,13 @@ endif()
 if (MPI_FOUND)
     add_library(dague_distribution_matrix-mpi STATIC
         ${sources}
-        scalapack_convert.c 
+        scalapack_convert.c
         )
     set_target_properties(dague_distribution_matrix-mpi PROPERTIES COMPILE_FLAGS
                             "${MPI_COMPILE_FLAGS}")
     install(TARGETS dague_distribution_matrix-mpi ARCHIVE DESTINATION lib)
 else()
-    add_library(dague_distribution_matrix STATIC 
+    add_library(dague_distribution_matrix STATIC
         ${sources}
         )
     install(TARGETS dague_distribution_matrix ARCHIVE DESTINATION lib)

@@ -60,8 +60,12 @@ struct dague_ddesc_s {
     dague_memory_region_management_f unregister_memory;
 
     char      *key_base;
+
 #ifdef DAGUE_PROF_TRACE
     char      *key_dim;  /* TODO: Do we really need this field */
+    int (*key_to_string)(struct dague_ddesc *mat, uint32_t datakey, char * buffer, uint32_t buffer_size); /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
+    char      *key_dim;
+    char      *key;
 #endif /* DAGUE_PROF_TRACE */
 };
 

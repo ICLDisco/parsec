@@ -4,7 +4,7 @@
 
 
 if [ "x$USER" == "xbouteill" ]; then 
-    PLASMA_DIR=$HOME/dague/plasma
+    PLASMA_DIR=$HOME/DEVEL/dague/plasma
 
 elif [ "x$USER" == "xherault" ]; then
     #PLASMA_DIR=/Users/herault/Documents/Recherche/plasma/plasma-installer

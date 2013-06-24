@@ -170,7 +170,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     dague_handle_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS;     \
     dague_enqueue(DAGUE, DAGUE_##KERNEL);                               \
     nb_local_tasks = DAGUE_##KERNEL->nb_local_tasks;                    \
-    if(loud) SYNC_TIME_PRINT(rank, ( #KERNEL " DAG creation: %d local tasks enqueued\n", nb_local_tasks));
+    if( loud > 2 ) SYNC_TIME_PRINT(rank, ( #KERNEL "\tDAG created\n"));
 
 #if defined(DAGUE_PROF_TRACE)
 static void profiling_save_dinfo(const char *key, double value)
@@ -198,8 +198,8 @@ static void profiling_save_iinfo(const char *key, int value)
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
     dague_progress(DAGUE);                                              \
-    if( loud > 2 )                                                      \
-        TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n",    \
+    if( loud > 3 )                                                      \
+        TIME_PRINT(rank, (#KERNEL "\t%d tasks computed,\t%f task/s rate\n",    \
                           nb_local_tasks,                               \
                           nb_local_tasks/time_elapsed));                \
     SYNC_TIME_PRINT(rank, (#KERNEL " computation PxQ= %d %d N= %d NB= %d IB= %d : %f gflops\n", \

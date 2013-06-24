@@ -191,13 +191,13 @@ static struct option long_options[] =
     {"C",           required_argument,  0, 'C'},
     {"IB",          required_argument,  0, 'i'},
     {"i",           required_argument,  0, 'i'},
-    {"NB",          required_argument,  0, 't'},
+    {"MB",          required_argument,  0, 't'},
     {"t",           required_argument,  0, 't'},
-    {"MB",          required_argument,  0, 'T'},
+    {"NB",          required_argument,  0, 'T'},
     {"T",           required_argument,  0, 'T'},
-    {"SNB",         required_argument,  0, 's'},
+    {"SMB",         required_argument,  0, 's'},
     {"s",           required_argument,  0, 's'},
-    {"SMB",         required_argument,  0, 'S'},
+    {"SNB",         required_argument,  0, 'S'},
     {"S",           required_argument,  0, 'S'},
     {"check",       no_argument,        0, 'x'},
     {"x",           no_argument,        0, 'x'},
@@ -271,7 +271,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case 'g':
                 if(iparam[IPARAM_NGPUS] == -1)
                 {
-                    fprintf(stderr, "!!! This test does not have GPU support. GPU disabled.\n");
+                    fprintf(stderr, "#!!!!! This test does not have GPU support. GPU disabled.\n");
                     break;
                 }
                 if(optarg)  iparam[IPARAM_NGPUS] = atoi(optarg);
@@ -339,7 +339,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                         vpmap_init_from_parameters(n, p, co);
                         iparam[IPARAM_NCORES] = co;
                     } else {
-                        fprintf(stderr, "invalid VPMAP choice (-V argument): %s\n", optarg);
+                        fprintf(stderr, "#XXXXX invalid VPMAP choice (-V argument): %s\n", optarg);
                         print_usage();
                         exit(1);
                     }
@@ -404,12 +404,12 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     int pqnp = iparam[IPARAM_Q] * iparam[IPARAM_P];
     if(pqnp > iparam[IPARAM_NNODES])
     {
-        fprintf(stderr, "xxx the process grid PxQ (%dx%d) is larger than the number of nodes (%d)!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
+        fprintf(stderr, "#XXXXX the process grid PxQ (%dx%d) is larger than the number of nodes (%d)!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
         exit(2);
     }
     if(verbose && (pqnp < iparam[IPARAM_NNODES]))
     {
-        fprintf(stderr, "!!! the process grid PxQ (%dx%d) is smaller than the number of nodes (%d). Some nodes are idling!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
+        fprintf(stderr, "#!!!!! the process grid PxQ (%dx%d) is smaller than the number of nodes (%d). Some nodes are idling!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
     }
 
     /* Set matrices dimensions to default values if not provided */
@@ -421,7 +421,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             iparam[IPARAM_N] = atoi(argv[optind++]);
             continue;
         }
-        fprintf(stderr, "xxx the matrix size (N) is not set!\n");
+        fprintf(stderr, "#XXXXX the matrix size (N) is not set!\n");
         exit(2);
     }
     if(0 == iparam[IPARAM_M]) iparam[IPARAM_M] = iparam[IPARAM_N];
@@ -458,10 +458,10 @@ static void print_arguments(int* iparam)
     int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
 
     if(verbose)
-        fprintf(stderr, "+++ cores detected      : %d\n", iparam[IPARAM_NCORES]);
+        fprintf(stderr, "#+++++ cores detected       : %d\n", iparam[IPARAM_NCORES]);
 
-    if(verbose > 1) fprintf(stderr, "+++ nodes x cores + gpu : %d x %d + %d (%d+%d)\n"
-                            "+++ P x Q               : %d x %d (%d/%d)\n",
+    if(verbose > 1) fprintf(stderr, "#+++++ nodes x cores + gpu  : %d x %d + %d (%d+%d)\n"
+                                    "#+++++ P x Q                : %d x %d (%d/%d)\n",
                             iparam[IPARAM_NNODES],
                             iparam[IPARAM_NCORES],
                             iparam[IPARAM_NGPUS],
@@ -472,30 +472,30 @@ static void print_arguments(int* iparam)
 
     if(verbose)
     {
-        fprintf(stderr, "+++ M x N x K|NRHS      : %d x %d x %d\n",
+        fprintf(stderr, "#+++++ M x N x K|NRHS       : %d x %d x %d\n",
                 iparam[IPARAM_M], iparam[IPARAM_N], iparam[IPARAM_K]);
     }
 
-    if(verbose > 1)
+    if(verbose > 2)
     {
         if(iparam[IPARAM_LDB] && iparam[IPARAM_LDC])
-            fprintf(stderr, "+++ LDA , LDB , LDC     : %d , %d , %d\n", iparam[IPARAM_LDA], iparam[IPARAM_LDB], iparam[IPARAM_LDC]);
+            fprintf(stderr, "#+++++ LDA , LDB , LDC      : %d , %d , %d\n", iparam[IPARAM_LDA], iparam[IPARAM_LDB], iparam[IPARAM_LDC]);
         else if(iparam[IPARAM_LDB])
-            fprintf(stderr, "+++ LDA , LDB           : %d , %d\n", iparam[IPARAM_LDA], iparam[IPARAM_LDB]);
+            fprintf(stderr, "#+++++ LDA , LDB            : %d , %d\n", iparam[IPARAM_LDA], iparam[IPARAM_LDB]);
         else
-            fprintf(stderr, "+++ LDA                 : %d\n", iparam[IPARAM_LDA]);
+            fprintf(stderr, "#+++++ LDA                  : %d\n", iparam[IPARAM_LDA]);
     }
 
     if(verbose)
     {
         if(iparam[IPARAM_IB] > 0)
-            fprintf(stderr, "+++ MB x NB , IB        : %d x %d , %d\n",
+            fprintf(stderr, "#+++++ MB x NB , IB         : %d x %d , %d\n",
                             iparam[IPARAM_MB], iparam[IPARAM_NB], iparam[IPARAM_IB]);
         else
-            fprintf(stderr, "+++ MB x NB             : %d x %d\n",
+            fprintf(stderr, "#+++++ MB x NB              : %d x %d\n",
                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
         if(iparam[IPARAM_SNB] * iparam[IPARAM_SMB] != 1)
-            fprintf(stderr, "+++ SMB x SNB           : %d x %d\n", iparam[IPARAM_SMB], iparam[IPARAM_SNB]);
+            fprintf(stderr, "#+++++ SMB x SNB            : %d x %d\n", iparam[IPARAM_SMB], iparam[IPARAM_SNB]);
     }
 }
 
@@ -561,8 +561,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     argvzero = argv[0];
 #endif
 #ifdef HAVE_MPI
-    int provided;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    MPI_Init(&argc,&argv);
     MPI_Comm_size(MPI_COMM_WORLD, &iparam[IPARAM_NNODES]);
     MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]);
 #else
@@ -573,16 +572,11 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     int verbose = iparam[IPARAM_VERBOSE];
     if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
 
-#ifdef HAVE_MPI
-    if((verbose > 2) && (provided != MPI_THREAD_SERIALIZED))
-        fprintf(stderr, "!!! DAGuE formally needs MPI_THREAD_SERIALIZED, but your MPI does not provide it. This is -usually- fine nonetheless\n");
-#endif
-
 #ifdef PINS_ENABLE
 	char ** modules = delimited_string_to_strings(mca_pins_optarg, ',');
 	set_allowable_pins_modules(modules); // by calling this, we limit allowable modules
 	free(modules);
-#endif // PINS_ENABLE
+#endif /* PINS_ENABLE */
 
     TIME_START();
 
@@ -615,8 +609,8 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     if( iparam[IPARAM_SCHEDULER] != DAGUE_SCHEDULER_DEFAULT ) {
         char *ignored;
         (void)dague_mca_param_reg_string_name("mca", "sched", NULL,
-                                              false, false, 
-                                              DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]], 
+                                              false, false,
+                                              DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]],
                                               &ignored);
         if( 0 == dague_set_scheduler( ctx ) ) {
             fprintf(stderr, "*** Warning: unable to select the scheduler %s. Default scheduler is maintained.\n",
