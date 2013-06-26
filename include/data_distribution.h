@@ -50,9 +50,6 @@ struct dague_ddesc_s {
     int32_t  (*vpid_of)(dague_ddesc_t *mat, ...);
     int32_t  (*vpid_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
 
-    /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
-    int (*key_to_string)(dague_ddesc_t *mat, dague_data_key_t key, char * buffer, uint32_t buffer_size);
-
     /* Memory management function. They are used to register/unregister the data description
      * with the active devices.
      */
@@ -60,8 +57,12 @@ struct dague_ddesc_s {
     dague_memory_region_management_f unregister_memory;
 
     char      *key_base;
+
 #ifdef DAGUE_PROF_TRACE
-    char      *key_dim;  /* TODO: Do we really need this field */
+    /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
+    int (*key_to_string)(dague_ddesc_t *mat, dague_data_key_t key, char * buffer, uint32_t buffer_size);
+    char      *key_dim;
+    char      *key;
 #endif /* DAGUE_PROF_TRACE */
 };
 

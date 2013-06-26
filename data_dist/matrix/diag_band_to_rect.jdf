@@ -76,18 +76,23 @@ BODY
                 B[j*BMB+i] = D[j*MB+j+i];
             */
             memcpy(b+TY* (j*BMB), d+TY* (j*MB+j), TY* (MB-j));
-            if(k == NT-1)
+            if(k == NT-1) {
                 /*
                 for(i = MB-j; i < MB+1; i++)
                     B[j*BMB+i] = 0e0;
                 */
                 memset(b+TY* (j*BMB+MB-j), 0, TY* (j+1));
-            else
+            }
+            else {
                 /*
-                for(i = MB-j; i <= MB+1; i++)
+                for(i = MB-j; i < MB+1; i++)
                     B[j*BMB+i] = SD[j*MB+i-(MB-j)];
                 */
                 memcpy(b+TY* (j*BMB+MB-j), sd+TY* (j*MB), TY* (j+1));
+            }
+        }
+        for(j = NB; j < NB+2; j++) {
+            memset(b+TY* (j*BMB), 0, TY* BMB);
         }
     }
 END

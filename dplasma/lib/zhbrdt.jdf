@@ -113,9 +113,10 @@ zhbrdt_half(s1,s)
 
   /* A == data_A(0,i) */
 
-  RW    A <- ((NT-1)!=s1)     ? B zhbrdt(s1, s, NT-2)
-          <- (0==s)           ? A zhbrdt_half(s1-1, NB-1)
-                              : A zhbrdt_half(s1, s-1)
+  RW    A <- (1==NT) & (0==s) ? A(0,NT-1)
+          <- ((NT-1)!=s1)     ? B zhbrdt(s1, s, NT-2)
+          <- (0==s) & (1!=NT) ? A zhbrdt_half(s1-1, NB-1)
+          <- (0!=s)           ? A zhbrdt_half(s1, s-1)
 
           -> ((NT-1)==s1) & ((NB-1)==s) ? A(0,NT-1)
           -> ((NT-1)==s1)               ? A zhbrdt_half(s1, s+1)

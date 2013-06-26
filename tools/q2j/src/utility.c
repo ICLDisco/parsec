@@ -1397,6 +1397,7 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
             // then we are in a loop that uses a decrementing modifier.
             case GE:  // subtract one from the RHS to convert GE to GT
                 tmp = DA_create_B_expr(SUB, DA_rel_rhs(node), DA_create_Int_const(1));
+                tmp = DA_create_relation(GT, DA_rel_lhs(node), tmp);
                 return tmp;
             case GT:  // There is nothing I can do here, convert_loop_from_decr_to_incr() will take care of this.
                 return node;

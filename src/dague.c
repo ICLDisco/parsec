@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
@@ -127,6 +127,7 @@ typedef struct __dague_temporary_thread_initialization_t {
     int th_id;
     int nb_cores;
     int bindto;
+    int bindto_ht;
 } __dague_temporary_thread_initialization_t;
 
 static int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
@@ -153,8 +154,9 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     int pi;
 
     /* Bind to the specified CORE */
-    dague_bindthread(startup->bindto);
-    DEBUG2(("VP %i : bind thread %i.%i on core %i\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto));
+    dague_bindthread(startup->bindto, startup->bindto_ht);
+    DEBUG2(("VP %i : bind thread %i.%i on core %i [HT %i]\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto, startup->bindto_ht));
+
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
         return NULL;
@@ -238,11 +240,13 @@ static void dague_vp_init( dague_vp_t *vp,
         startup[t].virtual_process = vp;
         startup[t].nb_cores = nb_cores;
         if( vpmap_get_nb_cores_affinity(vp->vp_id, t) == 1 )
-            vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto);
+            vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto, &startup[t].bindto_ht);
         else if( vpmap_get_nb_cores_affinity(vp->vp_id, t) > 1 )
             printf("multiple core to bind on... for now, do nothing\n");
-        else
+        else{
             startup[t].bindto= -1;
+            startup[t].bindto_ht= -1;
+        }
     }
 }
 
@@ -1684,14 +1688,16 @@ static int32_t  vpid_of_key(dague_ddesc_t *unused, dague_data_key_t key)
 {
     return 0; (void)unused; (void)key;
 }
-static int key_to_string(dague_ddesc_t *unused, uint32_t datakey, char* buffer, uint32_t buffer_size)
-{
-  return snprintf( buffer, buffer_size, "%u ", datakey); (void)unused;
-}
 static dague_data_key_t data_key(dague_ddesc_t *mat, ...)
 {
     return 0; (void)mat;
 }
+#if defined(DAGUE_PROF_TRACE)
+static int key_to_string(dague_ddesc_t *unused, dague_data_key_t datakey, char* buffer, uint32_t buffer_size)
+{
+  return snprintf( buffer, buffer_size, "%u ", datakey); (void)unused;
+}
+#endif /* DAGUE_PROF_TRACE */
 
 const dague_ddesc_t dague_static_local_data_ddesc = {
       0, /* uint32_t myrank */
@@ -1709,14 +1715,14 @@ const dague_ddesc_t dague_static_local_data_ddesc = {
       return_local_s,  /* int32_t  (*vpid_of)(struct dague_ddesc *, ...) */
       vpid_of_key,
 
-      key_to_string, /* int (*key_to_string)(struct dague_ddesc *, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
-
       NULL,  /* dague_memory_region_management_f register_memory */
       NULL,  /* dague_memory_region_management_f unregister_memory */
-
       NULL,  /* char      *key_base */
+
 #ifdef DAGUE_PROF_TRACE
+      key_to_string, /* int (*key_to_string)(struct dague_ddesc *, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
       NULL,  /* char      *key_dim */
+      NULL,  /* char      *key */
 #endif /* DAGUE_PROF_TRACE */
 };
 

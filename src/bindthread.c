@@ -34,7 +34,7 @@ extern kern_return_t thread_policy_set( thread_t               thread,
                                         mach_msg_type_number_t count);
 #endif  /* define(HAVE_HWLOC) */
 
-int dague_bindthread(int cpu)
+int dague_bindthread(int cpu, int ht)
 {
 #ifdef MARCEL
     {
@@ -46,7 +46,7 @@ int dague_bindthread(int cpu)
 #elif defined(HAVE_HWLOC)
     {
         dague_hwloc_init();
-        cpu=dague_hwloc_bind_on_core_index(cpu);
+        cpu=dague_hwloc_bind_on_core_index(cpu, ht);
         if(cpu == -1 ) {
             DEBUG(("Core binding on node %i failed\n", cpu));
             return -1;

@@ -38,9 +38,10 @@ static int32_t twoDBC_st_vpid_of(dague_ddesc_t* ddesc, ...);
 static dague_data_t* twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
 #endif
 
+static dague_data_key_t twoDBC_data_key(dague_ddesc_t *desc, ...);
+
 #if defined(DAGUE_PROF_TRACE)
-static uint32_t twoDBC_data_key(dague_ddesc_t *desc, ...);
-static int  twoDBC_key_to_string(dague_ddesc_t * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
+static int  twoDBC_key_to_string(dague_ddesc_t * desc, dague_data_key_t datakey, char * buffer, uint32_t buffer_size);
 #endif
 
 static int twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
@@ -71,8 +72,10 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 {
     int temp, Q;
     dague_ddesc_t *o = &(Ddesc->super.super);
-#if defined(DAGUE_PROF_TRACE)
+
     o->data_key      = twoDBC_data_key;
+
+#if defined(DAGUE_PROF_TRACE)
     o->key_to_string = twoDBC_key_to_string;
     o->key_dim       = NULL;
     o->key_base      = NULL;
@@ -123,6 +126,10 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     /* Total number of tiles stored locally */
     Ddesc->super.nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
     Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
+
+    /* Update llm and lln */
+    Ddesc->super.llm = Ddesc->nb_elem_r * mb;
+    Ddesc->super.lln = Ddesc->nb_elem_c * nb;
 
     /* set the methods */
     if( (nrst == 1) && (ncst == 1) ) {
@@ -301,7 +308,7 @@ static dague_data_t* twoDBC_data_of(dague_ddesc_t *desc, ...)
     } else {
         int local_m = m / Ddesc->grid.rows;
         int local_n = n / Ddesc->grid.cols;
-        pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm
+        pos = (local_n * Ddesc->super.nb) * Ddesc->super.llm
             +  local_m * Ddesc->super.mb;
     }
 
@@ -529,7 +536,7 @@ static dague_data_t* twoDBC_st_data_of(dague_ddesc_t *desc, ...)
         pos = position;
         pos *= (size_t)Ddesc->super.bsiz;
     } else {
-        pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm
+        pos = (local_n * Ddesc->super.nb) * Ddesc->super.llm
             +  local_m * Ddesc->super.mb;
     }
 
@@ -543,9 +550,8 @@ static dague_data_t* twoDBC_st_data_of(dague_ddesc_t *desc, ...)
 /*
  * Common functions
  */
-#ifdef DAGUE_PROF_TRACE
 /* return a unique key (unique only for the specified dague_ddesc_t) associated to a data */
-static uint32_t twoDBC_data_key(dague_ddesc_t *desc, ...)
+static dague_data_key_t twoDBC_data_key(dague_ddesc_t *desc, ...)
 {
     unsigned int m, n;
     two_dim_block_cyclic_t * Ddesc;
@@ -565,8 +571,9 @@ static uint32_t twoDBC_data_key(dague_ddesc_t *desc, ...)
     return ((n * Ddesc->super.lmt) + m);
 }
 
+#ifdef DAGUE_PROF_TRACE
 /* return a string meaningful for profiling about data */
-static int twoDBC_key_to_string(dague_ddesc_t * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+static int twoDBC_key_to_string(dague_ddesc_t * desc, dague_data_key_t datakey, char * buffer, uint32_t buffer_size)
 {
     two_dim_block_cyclic_t * Ddesc;
     unsigned int row, column;
@@ -584,7 +591,6 @@ static int twoDBC_key_to_string(dague_ddesc_t * desc, uint32_t datakey, char * b
 }
 #endif /* DAGUE_PROF_TRACE */
 
-
 #ifdef HAVE_MPI
 int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
     return MPI_File_open(comm, filename, MPI_MODE_RDWR|MPI_MODE_CREATE, MPI_INFO_NULL, handle);
@@ -594,4 +600,3 @@ int close_matrix_file(MPI_File * handle){
     return MPI_File_close(handle);
 }
 #endif /* HAVE_MPI */
-

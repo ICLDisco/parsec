@@ -1333,7 +1333,7 @@ int remote_dep_bind_thread(dague_context_t* context){
     char *str = NULL;
     if( context->comm_th_core >= 0 ) {
         /* Bind to the specified core */
-        if(dague_bindthread(context->comm_th_core) == context->comm_th_core) {
+        if(dague_bindthread(context->comm_th_core, -1) == context->comm_th_core) {
             STATUS(("Communication thread bound to physical core %d\n",  context->comm_th_core));
 
             /* Check if this core is not used by a computation thread */
@@ -1387,7 +1387,7 @@ int remote_dep_bind_thread(dague_context_t* context){
     for(p = 0; p < context->nb_vp; p++) {
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
     }
-    int boundto = dague_bindthread(nb_total_comp_threads);
+    int boundto = dague_bindthread(nb_total_comp_threads, -1);
     if (boundto != nb_total_comp_threads) {
         DEBUG(("Communication thread floats\n"));
     } else {

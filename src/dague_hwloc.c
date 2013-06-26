@@ -15,10 +15,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
 #if defined(HAVE_HWLOC)
 static hwloc_topology_t topology;
 int first_init = 1;
+int ht_count = 0;
 #endif  /* defined(HAVE_HWLOC) */
+int ht = 1;
 
 #if defined(HAVE_HWLOC_PARENT_MEMBER)
 #define HWLOC_GET_PARENT(OBJ)  (OBJ)->parent
@@ -27,6 +30,8 @@ int first_init = 1;
 #endif  /* defined(HAVE_HWLOC_PARENT_MEMBER) */
 
 #define MAX(x, y) ( (x)>(y)?(x):(y) )
+
+
 
 int dague_hwloc_init(void)
 {
@@ -277,19 +282,32 @@ int dague_hwloc_nb_levels(void)
 }
 
 
-int dague_hwloc_bind_on_core_index(int cpu_index)
+int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 {
 #if defined(HAVE_HWLOC)
-    hwloc_obj_t      obj;      /* Hwloc object    */
+    hwloc_obj_t      obj, core;      /* Hwloc object    */
     hwloc_cpuset_t   cpuset;   /* Hwloc cpuset    */
 
     /* Get the core of index cpu_index */
-    obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
-    if (!obj) {
+    core = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
+    if (!core) {
         WARNING(("dague_hwloc: unable to get the core of index %i (nb physical cores = %i )\n",
                  cpu_index,  dague_hwloc_nb_real_cores()));
         return -1;
     }
+
+   /* Get the cpuset of the core if not using SMT/HyperThreading,
+    * get the cpuset of the designated child object (PU) otherwise */
+    if ( local_ht_index > -1) {
+        obj = core->children[local_ht_index] ;
+        if (!obj) {
+            WARNING(("dague_hwloc: unable to get the core of index %i, HT %i (nb cores = %i)\n",
+                     cpu_index, local_ht_index, dague_hwloc_nb_real_cores()));
+            return -1;
+        }
+    }
+    else
+        obj = core;
 
     /* Get a copy of its cpuset that we may modify.  */
 #if !defined(HAVE_HWLOC_BITMAP)
@@ -319,10 +337,13 @@ int dague_hwloc_bind_on_core_index(int cpu_index)
 #endif
         return -1;
     }
-    DEBUG2(("Thread bound on core index %i\n", cpu_index));
+    DEBUG2(("Thread bound on core index %i, [HT %i ]\n", cpu_index, local_ht_index));
 
     /* Get the number at Proc level ( We don't want to use HyperThreading ) */
-    cpu_index = obj->children[0]->os_index;
+    if ( local_ht_index > 1)
+        cpu_index = obj->children[0]->os_index;
+    else
+        cpu_index = obj->os_index;
 
     /* Free our cpuset copy */
 #if !defined(HAVE_HWLOC_BITMAP)
@@ -335,7 +356,6 @@ int dague_hwloc_bind_on_core_index(int cpu_index)
     return -1;
 #endif
 }
-
 
 int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
 {
@@ -382,4 +402,29 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
     (void) cpuset;
     return -1;
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
+}
+
+int dague_hwloc_allow_ht(int htnb){
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
+    dague_hwloc_init();
+
+    /* Check the validity of the parameter. Correct otherwise  */
+    if (htnb > 1){
+        int pu_per_core = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU)/hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
+        if( htnb > pu_per_core){
+            printf("Warning:: HT:: There not enought logical processors to consider %i HyperThreads per core (set up to %i)\n", htnb,  pu_per_core);
+            ht=pu_per_core;
+        }else{
+            ht=htnb;
+        }
+    }
+    return ht;
+#else
+return -1
+#endif
+}
+
+
+int dague_hwloc_get_ht(){
+    return ht;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -171,7 +171,6 @@ static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     return vpid;
 }
 
-
 #ifdef DAGUE_PROF_TRACE
 /* return a unique key (unique only for the specified dague_ddesc_t) associated to a data */
 static uint32_t sym_twoDBC_data_key(dague_ddesc_t *desc, ...)
@@ -210,7 +209,6 @@ static int  sym_twoDBC_key_to_string(dague_ddesc_t *desc, uint32_t datakey, char
     return res;
 }
 #endif /* DAGUE_PROF_TRACE */
-
 
 void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
                                    enum matrix_type mtype,
@@ -259,7 +257,8 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
         if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
             nb_elem_col++;
 
-        while(column < Ddesc->super.lnt) /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
+        while(column <
+ Ddesc->super.lnt) /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
             {
                 nb_elem = column / (Ddesc->grid.rows);
                 if ( (column % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
