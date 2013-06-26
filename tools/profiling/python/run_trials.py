@@ -161,7 +161,8 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
             print(trial_set) # realtime progress report
             while not set_finished:
                 try:
-                    trial_set.pickle(output_base_dir + os.sep + trial_set.unique_name() + '.set')
+                    pfile = open(output_base_dir + os.sep + trial_set.unique_name() + '.set', 'w')
+                    trial_set.pickle(pfile)
                     # move 'pending' to 'rerun' in case a later re-run of the entire group is necessary
                     if os.path.exists(output_base_dir + os.sep + pending_filename):
                         shutil.move(output_base_dir + os.sep + pending_filename,
@@ -195,8 +196,9 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
             trial_set.perf_avg = avgPerf
             variance, trial_set.time_avg = online_math.online_variance_mean(timeSet)
             trial_set.time_sdv = math.sqrt(variance)
-            trial_set.pickle(output_base_dir + os.sep +
-                             trial_set.unique_name() + '.warn')
+            wfile = open(output_base_dir + os.sep +
+                         trial_set.unique_name() + '.warn', 'w')
+            trial_set.pickle(wfile)
             # leave the pending pickle so it can be easily identified
             # as never having completed later on
             set_finished = True
@@ -248,7 +250,8 @@ if __name__ == '__main__':
     
     trial_sets = []
     for pickle in pickles:
-        trial_set = TrialSet.unpickle(pickle)
+        pfile = open(pickle, 'r')
+        trial_set = TrialSet.unpickle(pfile)
         if extra_args == None or len(extra_args) > 0:
             trial_set.extra_args = extra_args
         trial_set.stamp_time() # timestamp the run time

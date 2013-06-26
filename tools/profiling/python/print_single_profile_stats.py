@@ -113,7 +113,3 @@ if __name__ == '__main__':
             print(printer.row())
         print(printers[-1].row_header())
 
-    if not profile.is_eventless():
-        with Timer() as t:
-            profile.pickle('test.pickle')
-        print(t.interval)

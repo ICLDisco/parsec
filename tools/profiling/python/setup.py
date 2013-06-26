@@ -9,7 +9,7 @@ import os.path
 import sys
 import socket
 
-build_dir_name = 'build' # change this for local usage
+build_dir_name = 'new_build' # change this for local usage
 build_dir = '../../../../' + build_dir_name
 if build_dir and os.path.isdir(build_dir):
     config_h = build_dir + '/include/dague_config.h'

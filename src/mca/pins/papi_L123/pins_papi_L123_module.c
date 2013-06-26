@@ -328,6 +328,7 @@ static void read_papi_L12_select_count_end(dague_execution_unit_t * exec_unit,
 		exec_unit->papi_last_read[2] = values[2];
 	}
 
+	// test modification - do NOT trace starvation/steal misses
 	rv = dague_profiling_trace(exec_unit->eu_profile,
 							   pins_prof_papi_L12_select_end, 
 							   32,

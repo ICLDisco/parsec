@@ -309,27 +309,29 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                             pstats.l1_misses += event.info.values[0]
                             pstats.l2_misses += event.info.values[1]
                             pstats.l3_exc_misses  += event.info.values[2]
+                            thread.l3_misses = cast_L123_info.L3_misses
                         elif ('PINS_L12_ADD' in profile.event_types and
                               event_key == profile.event_types['PINS_L12_ADD'].key):
-                            cast_L123_info = <papi_L123_info_t *>cinfo
-                            event.info = dbp_Socket_EventInfo(
-                                cast_L123_info.vp_id,
-                                cast_L123_info.th_id,
-                                [cast_L123_info.L1_misses,
-                                 cast_L123_info.L2_misses,
-                                 cast_L123_info.L3_misses])
-                            if SocketStats.class_name not in global_stats.socket_stats:
-                                global_stats.socket_stats[SocketStats.class_name] = SocketStats()
-                            pstats = global_stats.socket_stats[SocketStats.class_name]
+                            cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
+                            kernel_name = str(cast_L12_exec_info.kernel_name)
+                            event.info = dbp_Exec_EventInfo(
+                                cast_L12_exec_info.kernel_type,
+                                kernel_name,
+                                cast_L12_exec_info.vp_id,
+                                cast_L12_exec_info.th_id,
+                                [cast_L12_exec_info.L1_misses,
+                                 cast_L12_exec_info.L2_misses])
+                            if kernel_name not in global_stats.add_stats:
+                                global_stats.add_stats[kernel_name] = ExecSelectStats(kernel_name)
+                            pstats = global_stats.add_stats[kernel_name]
                             pstats.count += 1
                             pstats.total_duration += event.duration
                             pstats.l1_misses += event.info.values[0]
                             pstats.l2_misses += event.info.values[1]
-                            pstats.l3_exc_misses  += event.info.values[2]
                         elif ('PINS_L123_STARVE' in profile.event_types and
                               event.key == profile.event_types['PINS_L123_STARVE'].key):
                             cast_lld_ptr = <long long int *>cinfo
-                            thread.starvation = cast_lld_ptr[0]
+                            thread.starvation = int(cast_lld_ptr[0])
                             event.end = event.begin + thread.starvation # mimick starvation
                             event.duration = event.end - event.begin
                         # elif ('<EVENT_TYPE_NAME>' in profile.event_types and
@@ -340,16 +342,10 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                             if not dont_print:
                                 print('missed an info for event key ' + event_name )
 
-                    # finalize stats
-                    global_stats = profile.event_types[event_name].stats
-                    global_stats.count += 1
-                    global_stats.total_duration += event.duration
-                    thread.event_types[event_name].stats.count += 1
-                    thread.event_types[event_name].stats.total_duration += event.duration
-                                
                     # event constructed. add it everywhere it belongs.
-                    thread.append(event)
                     thread.event_types[event_name].append(event)
+                    thread.append(event)
+                    profile.handles[event_handle_id].event_types[event_name].append(event)
                     profile.handles[event_handle_id].append(event)
                     profile.event_types[event_name].append(event)
                     profile.append(event)
@@ -368,6 +364,8 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
     it_s = NULL
 
     thread.duration = thread.end - thread.begin
+    if thread.starvation > thread.duration:
+        print('something is fishy... {} {}'.format(thread.starvation, thread.duration))
     for event_name, event_type in thread.event_types.iteritems():
         event_type.stats.starvation = 1.0 - float(event_type.stats.total_duration) / thread.duration
         

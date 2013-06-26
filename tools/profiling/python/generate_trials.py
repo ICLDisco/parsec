@@ -23,7 +23,7 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
     # customize this section to your heart's content!
     #
     # defaults for ig:
-    execs = ['dgetrf'] #, 'dgetrf_incpiv'] #, 'dpotrf', 'dgeqrf' ]
+    execs = ['dpotrf'] #, 'dgetrf_incpiv'] #, 'dpotrf', 'dgeqrf' ]
     schedulers = ['AP', 'GD', 'LTQ', 'LFQ', 'PBQ']
     minNumCores = 0 # default to using them all
     maxNumCores = 0
@@ -50,6 +50,10 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
     # end customizable param section
     #
 
+    #
+    # transfer dict items
+    #
+    
     IBdivs_orig = IBdivs
     
     import socket

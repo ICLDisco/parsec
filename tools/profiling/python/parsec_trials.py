@@ -60,34 +60,30 @@ class TrialSet(list):
     # class members
     __unloaded_profile_token__ = 'not loaded' # old
     @staticmethod
-    def unpickle(filepath, load_profile=True):
-        f = open(filepath, 'r')
-        trial_set = cPickle.load(f)
+    def unpickle(file, load_profile=True):
+        trial_set = cPickle.load(file)
         if load_profile:
             # load profiles, assign them to trials
             for trial in trial_set:
                 if (trial.profile == TrialSet.__unloaded_profile_token__ # old
                     or len(trial.profile) == 0): # new
                     # load full profile
-                    trial.profile = cPickle.load(f)
-        f.close()
+                    trial.profile = cPickle.load(file)
         return trial_set
     # object members
-    def pickle(self, filepath, protocol=cPickle.HIGHEST_PROTOCOL):
-        f = open(filepath, 'w')
+    def pickle(self, file, protocol=cPickle.HIGHEST_PROTOCOL):
         profile_backups = []
         for trial in self:
             profile_backups.append(trial.profile)
             if trial.profile:
                 trial.profile = trial.profile.get_eventless()
-        cPickle.dump(self, f, protocol)
+        cPickle.dump(self, file, protocol)
         for profile in profile_backups:
             if profile: # don't dump the Nones
-                cPickle.dump(profile, f, protocol)
+                cPickle.dump(profile, file, protocol)
         # restore profiles because the user isn't necessarily done with them
         for trial, profile in zip(self, profile_backups):
             trial.profile = profile
-        f.close()
 
     def __init__(self, ident, ex, N, cores=0, NB=0, IB=0, sched='LFQ', extra_args=[]):
         self.__version__ = self.__class__.class_version

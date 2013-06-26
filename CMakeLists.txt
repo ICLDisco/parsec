@@ -131,6 +131,9 @@ option(DAGUE_PROF_PAPI
   "Enable PAPI performance hardware counters" OFF)
 option(DAGUE_PROF_STATS
   "Enable the generation of short statistics information during execution (microbenchmarking)" OFF)
+option(DAGUE_PROF_TRACE_SCHEDULING_EVENTS
+  "Enable the tracing of fine-grained scheduling details during execution" OFF)
+mark_as_advanced(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
 option(DAGUE_PROF_GRAPHER
   "Enable the generation of the dot graph representation during execution" OFF)
 option(DAGUE_PROF_PTR_FILE

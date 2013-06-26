@@ -165,6 +165,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     startup->virtual_process->execution_units[startup->th_id] = eu;
     eu->core_id          = startup->bindto;
     eu->socket_id        = dague_hwloc_socket_id(startup->bindto);
+	eu->starvation      = 0;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     eu->sched_nb_tasks_done = 0;

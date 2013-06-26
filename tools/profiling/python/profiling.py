@@ -11,24 +11,30 @@
 import copy, sys
 import cPickle
 
+class AggregateList(list):
+    def append(self, item):
+        self.total_duration += item.duration
+        super(AggregateList, self).append(item)
+
+class ManyTypedList(AggregateList):
+    def append(self, item):
+        self.event_type[item.name].append(item)
+        super(ManyTypedList, self).append(item)
+        
 class Profile(list): # contains Events
     class_version = 1.0 # created as replacement for multifile_reader on 2013-05-22
     @staticmethod
-    def unpickle(filepath, load_events=True):
-        f = open(filepath, 'r')
-        profile = cPickle.load(f)
+    def unpickle(file, load_events=True):
+        profile = cPickle.load(file)
         if load_events:
             # load event list, sort them into appropriate bins
-            profile = cPickle.load(f) # the second pickle contains all the events
-        f.close()
+            profile = cPickle.load(file) # the second pickle contains all the events
         return profile
-    def pickle(self, filepath, protocol=cPickle.HIGHEST_PROTOCOL):
-        f = open(filepath, 'w')
+    def pickle(self, file, protocol=cPickle.HIGHEST_PROTOCOL):
         # 1: dump object with events removed
-        cPickle.dump(self.get_eventless(), f, protocol)
+        cPickle.dump(self.get_eventless(), file, protocol)
         # 2: dump entire object with all references intact
-        cPickle.dump(self, f, protocol)
-        f.close()
+        cPickle.dump(self, file, protocol)
     def __init__(self):
         self.__version__ = self.__class__.class_version
         self.event_types = dict()
@@ -36,9 +42,7 @@ class Profile(list): # contains Events
         self.files = dict()
         self.handles = dict()
         self.errors = dict()
-        # debug dicts
-        # self.begin_ids = dict()
-        # self.end_ids = dict()
+        self.total_duration = 0
     def get_handle_counts(self):
         if self.is_eventless():
             return self.handle_counts
@@ -97,13 +101,15 @@ class Profile(list): # contains Events
                     event_type.extend(file_threads_types[rank][thread.id][name])
         return small_pickle # return deep copy
 
-class dbpEventType(list): # contains Events
+class dbpEventType(AggregateList): # contains Events
     class_version = 1.0
+    class_version = 1.1 # moved stats up into Type object
     def __init__(self, profile, key, attributes):
         self.__version__ = self.__class__.class_version
         self.profile = profile
         self.key = key
         self.attributes = attributes
+        self.total_duration = 0
         self.stats = EventStats(self.profile.type_key_to_name[key])
     def __setstate__(self, dictionary):
         self.__dict__.update(dictionary)
@@ -241,6 +247,7 @@ class EventStats(object):
         self.socket_stats = {} # hashed by nothing, really... TODO: should this be a single item?
         self.exec_stats = {}   # hashed by task name
         self.select_stats = {} # hashed by task name
+        self.add_stats = {}
     def row(self):
         row = '{:16} {:15d} {:12.0f}'.format(
            self.name, self.count, self.total_duration/float(self.count)
