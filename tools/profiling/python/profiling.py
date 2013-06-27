@@ -299,7 +299,6 @@ class EventStats(object):
             del self['event_name']
             self.__version__ = 1.2
 
-
 # this is the old class. it has been superseded by Profile
 class multifile_reader(list): # contains Events
     class_version = 1.0

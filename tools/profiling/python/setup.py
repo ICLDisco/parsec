@@ -9,8 +9,12 @@ import os.path
 import sys
 import socket
 
-build_dir_name = 'new_build' # change this for local usage
+build_dir_name = 'build' # change this for local usage
 build_dir = '../../../../' + build_dir_name
+for arg in sys.argv:
+    if os.path.isdir(arg):
+        build_dir = arg # use this instead
+
 if build_dir and os.path.isdir(build_dir):
     config_h = build_dir + '/include/dague_config.h'
     libdaguebase = build_dir + '/dague/libdague-base.a'
@@ -49,7 +53,7 @@ ext_modules = [Extension('py_dbpreader',
                                   '../../../dague/mca/pins/papi_select/pins_papi_select.h'
                                   '../../../dague/mca/pins/papi_L123/pins_papi_L123.h'
                               ], 
-                         extra_compile_args=['-O0', '-g3'],
+                         extra_compile_args=['-O2', '-g'],
                          extra_link_args=["-g"],
 #                          pyrex_gdb=True
                          library_dirs=lib_dirs,

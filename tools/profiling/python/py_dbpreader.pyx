@@ -175,7 +175,14 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                     if event_name not in thread.event_types:
                         thread.event_types[event_name] = dbpEventType(
                             profile, event_key, profile.event_types[event_name].attributes)
-                    
+                    if event_name not in profile.handles[event_handle_id].event_types:
+                        profile.handles[event_handle_id].event_types[event_name] = dbpEventType(
+                            profile, event_key, profile.event_types[event_name].attributes)
+
+                    global_stats = profile.event_types[event_name].stats
+                    global_stats.count += 1
+                    global_stats.total_duration += event.duration
+                        
                     # debug tests for PINS_L123 split across threads
                     # if dbp_iterator_thread(it_s) != dbp_iterator_thread(it_e):
                     #     print('this event {} started {} and ended {} in different threads.'.format(
