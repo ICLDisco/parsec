@@ -58,7 +58,8 @@ int main(int argc, char ** argv)
     if (loud > 2) printf("Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB,  Bseed);
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC,  Cseed);
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, Cseed);
+    if (check)
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, Cseed);
     if (loud > 2) printf("Done\n");
 
     if(!check)
