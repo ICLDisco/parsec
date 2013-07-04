@@ -24,7 +24,7 @@ static int check_solution(int N, double *E1, double *E2, double eps);
 
 int main(int argc, char *argv[])
 {
-    int i, j;
+    int j;
     dague_context_t *dague;
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaLower;
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
     PLASMA_Init(1);
     PLASMA_Disable(PLASMA_AUTOTUNING);
     PLASMA_Set(PLASMA_TILE_SIZE, MB);
- 
+
  /*
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
          sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
@@ -114,25 +114,25 @@ int main(int argc, char *argv[])
         double *D               = (double *)malloc(N*sizeof(double));
         double *E               = (double *)malloc(N*sizeof(double));
         int INFO;
-        
+
         /* COMPUTE THE EIGENVALUES FROM DPLASMA (with LAPACK) */
         SYNC_TIME_START();
         if( P*Q > 1 ) {
             /* We need to gather the distributed band on rank0 */
 #if 0
             /* LAcpy doesn't handle differing tile sizes, so lets get simple here */
-            PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1, 
-                two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile, 
+            PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1,
+                two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
                 nodes, cores, rank, 2, N, 1, 1, 0, 0, 2, N, 1, 1, 1)); /* on rank 0 only */
 #else
-            PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1, 
+            PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1,
                 two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
                     1, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
                     MB+1, (NB+2)*NT, 1, 1, 1 /* rank0 only */ ));
 #endif
             dplasma_zlacpy(dague, PlasmaUpperLower, &ddescBAND.super, &ddescW.super);
             band = ddescW.mat;
-        } 
+        }
         else {
             band = ddescBAND.mat;
         }
@@ -158,15 +158,15 @@ int main(int argc, char *argv[])
 #ifdef PRINTF_HEAVY
             printf("############################\n"
                    "D= ");
-            for(i = 0; i < N; i++) {
+            for(int i = 0; i < N; i++) {
                 printf("% 11.4g ", D[i]);
             }
             printf("\nE= ");
-            for(i = 0; i < N-1; i++) {
+            for(int i = 0; i < N-1; i++) {
                 printf("% 11.4g ", E[i]);
             }
             printf("\n");
-#endif            
+#endif
             /* call eigensolver */
             dsterf_( &N, D, E, &INFO);
             assert( 0 == INFO );
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
             PLASMA_Tile_to_Lapack(plasmaDescA0, (void*)A0, LDA);
 #ifdef PRINTF_HEAVY
             printf("########### A0 #############\n");
-            for (i = 0; i < N; i++){
+            for (int i = 0; i < N; i++){
                 for (j = 0; j < N; j++) {
 #   if defined(PRECISION_d) || defined(PRECISION_s)
                     printf("% 11.4g ", A0[LDA*j+i] );
@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
             TIME_PRINT(rank, ("LAPACK HEEV\n"));
 #ifdef PRINTF_HEAVY
             printf("########### A (after LAPACK direct eignesolver)\n");
-            for (i = 0; i < N; i++){
+            for (int i = 0; i < N; i++){
                 for (j = 0; j < N; j++) {
 #   if defined(PRECISION_d) || defined(PRECISION_s)
                     printf("% 11.4g ", A0[LDA*j+i] );
@@ -224,11 +224,11 @@ int main(int argc, char *argv[])
 
 #ifdef PRINTF_HEAVY
             printf("\n###############\nDPLASMA Eignevalues\n");
-            for(i = 0; i < N; i++) {
+            for(int i = 0; i < N; i++) {
                 printf("% .14e", D[i]);
             }
             printf("\nLAPACK Eigenvalues\n");
-            for(i = 0; i < N; i++) {
+            for(int i = 0; i < N; i++) {
                 printf("% .14e ", W0[i]);
             }
             printf("\n");
@@ -260,7 +260,7 @@ int main(int argc, char *argv[])
         }
         free(A0); free(W0); free(D); free(E);
     }
-    
+
     dplasma_zherbt_Destruct( DAGUE_zherbt );
     DAGUE_INTERNAL_OBJECT_DESTRUCT( DAGUE_diag_band_to_rect );
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
@@ -283,7 +283,7 @@ int main(int argc, char *argv[])
 #include "math.h"
 
 /*------------------------------------------------------------
- *  Check the eigenvalues 
+ *  Check the eigenvalues
  */
 static int check_solution(int N, double *E1, double *E2, double eps)
 {
