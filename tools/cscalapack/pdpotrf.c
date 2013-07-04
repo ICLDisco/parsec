@@ -78,7 +78,7 @@ int main( int argc, char **argv ) {
         MPI_Reduce( MPI_IN_PLACE, &telapsed, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
         gflops = FLOPS_DPOTRF((double)n)/1e+9/telapsed;
         pgflops = gflops/(((double)nprow)*((double)npcol));
-        printf( "### PDGETRF ###\n"
+        printf( "### PDPOTRF ###\n"
                 "#%4sx%-4s %7s %7s %4s %4s # %10s %10s %10s %11s\n", "P", "Q", "M", "N", "NB", "NRHS", "resid", "time(s)", "gflops", "gflops/PxQ" );
         printf( " %4d %-4d %7d %7d %4d %4d   %10.3e %10.3g %10.3g %11.3g\n", nprow, npcol, m, n, nb, s, resid, telapsed, gflops, pgflops );
     }

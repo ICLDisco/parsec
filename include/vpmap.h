@@ -87,7 +87,7 @@ extern vpmap_get_nb_cores_affinity_t vpmap_get_nb_cores_affinity;
  *               sizeof(cores) = sizeof(int) * vpmap_get_nb_cores_affinity(vp, thread)
  *        cores[*] is undefined if vp or thread is not compatible
  */
-typedef void (*vpmap_get_core_affinity_t)(int vp, int thread, int *cores);
+typedef void (*vpmap_get_core_affinity_t)(int vp, int thread, int *cores, int *ht);
 extern vpmap_get_core_affinity_t vpmap_get_core_affinity;
 
 /**
