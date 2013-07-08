@@ -47,6 +47,7 @@ set(JDF
   zherbt_L.jdf
   zhbrdt.jdf
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
+  zlascal.jdf
   zgeqrf_param.jdf zungqr_param.jdf
   zungqr.jdf
   zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
@@ -92,6 +93,7 @@ set(SOURCES
   # Lapack Auxiliary
   zgeadd_wrapper.c
   zlacpy_wrapper.c
+  zlascal_wrapper.c
   zlaset_wrapper.c
   zlaswp_wrapper.c
   zplrnt_wrapper.c
