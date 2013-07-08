@@ -84,7 +84,7 @@ swptrsm_u(k, n)
 
   READ  A    <- A  swptrsm_u_in(k)                                        [type = LOWER_TILE]
   READ  IP   <- IP swptrsm_u_in(k)                                        [type = PIVOT]
-  RW    C    <- A selector(k, k, n)
+  RW    C    <- Acpy selector(k, k, n)
              -> B(k, n)
              -> ( k < (descB.mt-1) ) ? V zgemm(k, (k+1)..(descB.mt-1), n)
 
@@ -480,10 +480,12 @@ selector(k,m,n)
   RW    A   <-   (k == 0) ? B(m,n)
             <- ( (k != 0) && (did_lu == 1) ) ? C zgemm(k-1,m,n)
             <- ( (k != 0) && (did_lu != 1) ) ? A2 zttmqr(k-1,m,n)
-            -> ( (do_lu == 1) && (k == m)    ) ? C swptrsm_u(k,n)
             -> ( (do_lu == 1) && (k != m)    ) ? C zgemm(k,m,n)
             -> ( (do_lu != 1) && (type != 0) ) ? C zunmqr(k,i,n)
             -> ( (do_lu != 1) && (type == 0) ) ? A2 zttmqr(k,m,n)
+
+  READ Acpy <- B(m, n)
+            -> ( (do_lu == 1) && (k == m) ) ? C swptrsm_u(k,n)
 
   ; descA.nt-k-1
 BODY
@@ -492,6 +494,19 @@ BODY
     printlog("selector(%d, %d, %d) => lu_tab[%d] = %d\n",
              k, m, n, k, do_lu);
 
+    /* Make sure that we stop using the arena on the first node for laswp */
+    if( (do_lu   == 1)       &&
+        ((m-k)%param_p == 0) &&
+        ( A != Acpy ) )
+    {
+        int tempmm = (m==(descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
+        int tempnn = (n==(descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
+        int ldam = BLKLDD( descB, m );
+
+        CORE_zlacpy(PlasmaUpperLower, tempmm, tempnn,
+                    A,    ldam,
+                    Acpy, ldam);
+    }
 }
 END
 

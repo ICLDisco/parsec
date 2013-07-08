@@ -26,12 +26,12 @@
  * Enum criteria for LU/QR algorithm
  */
 enum criteria_e {
-    DEFAULT_CRITERIUM = 0,
-    HIGHAM_CRITERIUM  = 1,
-    MUMPS_CRITERIUM   = 2,
-    LU_ONLY_CRITERIUM = 3,
-    QR_ONLY_CRITERIUM = 4,
-    RANDOM_CRITERIUM = 5,
+    DEFAULT_CRITERIUM    = 0,
+    HIGHAM_CRITERIUM     = 1,
+    MUMPS_CRITERIUM      = 2,
+    LU_ONLY_CRITERIUM    = 3,
+    QR_ONLY_CRITERIUM    = 4,
+    RANDOM_CRITERIUM     = 5,
     HIGHAM_SUM_CRITERIUM = 6,
     HIGHAM_MAX_CRITERIUM = 7,
     HIGHAM_MOY_CRITERIUM = 8
