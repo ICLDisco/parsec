@@ -117,8 +117,24 @@ BODY
 
 #if !defined(DAGUE_DRY_RUN)
   int i;
-  for(i=0; i<tempkn; i++)
-      cblas_zscal( tempkm, CBLAS_SADDR(alpha), A+i*ldak, 1 );
+  switch ( type ) {
+  case PlasmaUpper:
+      for(i=0; i<tempkn; i++) {
+          cblas_zscal( dague_imin( i+1, tempkm ), CBLAS_SADDR(alpha), A+i*ldak, 1 );
+      }
+      break;
+
+  case PlasmaLower:
+      for(i=0; i<tempkn; i++) {
+          cblas_zscal( dague_imax( tempkm, tempkm-i ), CBLAS_SADDR(alpha), A+i*ldak, 1 );
+      }
+      break;
+  default:
+      for(i=0; i<tempkn; i++) {
+          cblas_zscal( tempkm, CBLAS_SADDR(alpha), A+i*ldak, 1 );
+      }
+      break;
+  }
 #endif
 
   printlog("lascal_diag( %d, %d )\n"
