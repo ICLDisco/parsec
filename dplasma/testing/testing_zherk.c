@@ -45,7 +45,7 @@ int main(int argc, char ** argv)
                                N, N, SMB, SNB, P));
 
     if (loud > 2) printf("Generate matrices ... ");
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, Cseed);
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
     if (loud > 2) printf("Done\n");
 
     if(!check)
@@ -70,7 +70,7 @@ int main(int argc, char ** argv)
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA,  Aseed);
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA,  Aseed);
         dplasma_zplghe( dague, 0., uplo, (tiled_matrix_desc_t *)&ddescC, Cseed);
         if(loud > 2) printf("Done\n");
 
@@ -117,7 +117,7 @@ int main(int argc, char ** argv)
                                            Am, An, SMB, SNB, P));
 
                 if (loud > 2) printf("Generate matrices ... ");
-                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, Aseed);
+                dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
                 dplasma_zlacpy( dague, uplo[u],
                                 (tiled_matrix_desc_t *)&ddescC2, (tiled_matrix_desc_t *)&ddescC );
                 if (loud > 2) printf("Done\n");
@@ -200,8 +200,8 @@ static int check_solution( dague_context_t *dague, int loud,
                                1, cores, rank, MB, NB, LDC, N, 0, 0,
                                M, N, 1, 1, 1));
 
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, Aseed);
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC, Cseed );
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC, Cseed );
 
     Anorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA );
     Cinitnorm    = dplasma_zlanhe( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)&ddescC );

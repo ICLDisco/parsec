@@ -109,7 +109,7 @@ int main(int argc, char ** argv)
             two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 2354);
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
             two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
