@@ -53,9 +53,10 @@ BODY
     int ldam = BLKLDD( descA, m );
 
 #if !defined(DAGUE_DRY_RUN)
+    dague_complex64_t *lA = (dague_complex64_t*)A;
     int i;
     for(i=0; i<tempnn; i++)
-        cblas_zscal( tempmm, CBLAS_SADDR(alpha), A+i*ldam, 1 );
+        cblas_zscal( tempmm, CBLAS_SADDR(alpha), lA+i*ldam, 1 );
 #endif
 
     printlog("lascal_l( %d, %d )\n"
@@ -85,9 +86,10 @@ BODY
     int ldam = BLKLDD( descA, m );
 
 #if !defined(DAGUE_DRY_RUN)
+    dague_complex64_t *lA = (dague_complex64_t*)A;
     int i;
     for(i=0; i<tempnn; i++)
-        cblas_zscal( tempmm, CBLAS_SADDR(alpha), A+i*ldam, 1 );
+        cblas_zscal( tempmm, CBLAS_SADDR(alpha), lA+i*ldam, 1 );
 #endif
 
     printlog("lascal_u( %d, %d )\n"
@@ -111,36 +113,37 @@ RW   A <- dataA(k, k)
        -> dataA(k, k)
 BODY
 {
-  int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
-  int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
-  int ldak = BLKLDD( descA, k );
+    int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
+    int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
+    int ldak = BLKLDD( descA, k );
 
 #if !defined(DAGUE_DRY_RUN)
-  int i;
-  switch ( type ) {
-  case PlasmaUpper:
-      for(i=0; i<tempkn; i++) {
-          cblas_zscal( dague_imin( i+1, tempkm ), CBLAS_SADDR(alpha), A+i*ldak, 1 );
-      }
-      break;
+    dague_complex64_t *lA = (dague_complex64_t*)A;
+    int i;
+    switch ( type ) {
+    case PlasmaUpper:
+        for(i=0; i<tempkn; i++) {
+            cblas_zscal( dague_imin( i+1, tempkm ), CBLAS_SADDR(alpha), lA+i*ldak, 1 );
+        }
+        break;
 
-  case PlasmaLower:
-      for(i=0; i<tempkn; i++) {
-          cblas_zscal( dague_imax( tempkm, tempkm-i ), CBLAS_SADDR(alpha), A+i*ldak, 1 );
-      }
-      break;
-  default:
-      for(i=0; i<tempkn; i++) {
-          cblas_zscal( tempkm, CBLAS_SADDR(alpha), A+i*ldak, 1 );
-      }
-      break;
-  }
+    case PlasmaLower:
+        for(i=0; i<tempkn; i++) {
+            cblas_zscal( dague_imax( tempkm, tempkm-i ), CBLAS_SADDR(alpha), lA+i*ldak, 1 );
+        }
+        break;
+    default:
+        for(i=0; i<tempkn; i++) {
+            cblas_zscal( tempkm, CBLAS_SADDR(alpha), lA+i*ldak, 1 );
+        }
+        break;
+    }
 #endif
 
-  printlog("lascal_diag( %d, %d )\n"
-           "    ( %e, %d, %d, dataA(%d,%d)[%p], %d)\n",
-           k, k, creal(alpha), tempkm, tempkn,
-           k, k, A, ldak);
+    printlog("lascal_diag( %d, %d )\n"
+             "    ( %e, %d, %d, dataA(%d,%d)[%p], %d)\n",
+             k, k, creal(alpha), tempkm, tempkn,
+             k, k, A, ldak);
 }
 END
 
