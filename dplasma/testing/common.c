@@ -215,7 +215,7 @@ static struct option long_options[] =
 static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 {
     int opt = 0;
-    int c, nbht;
+    int c;
     int argc = *_argc;
     char **argv = *_argv;
     char *add_dot = NULL;
@@ -301,7 +301,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 
             case 'H':
                 dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
-                
+
             case 'V':
 
                 if( !strncmp(optarg, "display", 7 )) {
@@ -613,4 +613,3 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 #endif
     (void)iparam;
 }
-
