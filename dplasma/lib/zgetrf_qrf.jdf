@@ -89,8 +89,8 @@ zgetrf(k)
 
   : A(k, k)
 
-  RW    A    <- A(k, k) /* selector(k,k,k) */
-             -> A(k, k)
+  RW    A    <- A selector(k,k,k)
+             /* -> A(k, k) */
              -> A zgetrf_typechange(k)
              -> (k < descA.nt-1) ? A  swptrsm_u(k, (k+1)..(descA.nt-1))     [type = LOWER_TILE]
 
@@ -1224,7 +1224,7 @@ selector(k,m,n)
            <-   ((k != n) && (k != 0) && (did_lu == 1)) ? C  zgemm( k-1,m,n)
            <-   ((k != n) && (k != 0) && (did_lu != 1)) ? A2 zttmqr(k-1,m,n)
            /* LU */
-           /* -> ( (do_lu == 1) && (k == n) && (k == m) ) ? A zgetrf(k) */
+           -> ( (do_lu == 1) && (k == n) && (k == m) ) ? A zgetrf(k)
            /* -> ( (do_lu == 1) && (k != n) && (k == m) ) ? C swptrsm_u(k,n) */
            -> ( (do_lu == 1) && (k == n) && (k != m) ) ? C ztrsm_l(k,m)
            -> ( (do_lu == 1) && (k != n) && (k != m) ) ? C zgemm(k,m,n)
