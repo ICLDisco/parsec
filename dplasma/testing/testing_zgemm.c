@@ -73,9 +73,9 @@ int main(int argc, char ** argv)
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, Aseed);
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, Bseed);
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC, Cseed);
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, Bseed);
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC, Cseed);
         if(loud > 2) printf("Done\n");
 
     /* load the GPU kernel */
@@ -128,7 +128,7 @@ int main(int argc, char ** argv)
                                    nodes, cores, rank, MB, NB, LDC, N, 0, 0,
                                    M, N, SMB, SNB, P));
 
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, Cseed);
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
         for(tA=0; tA<3; tA++) {
@@ -156,8 +156,8 @@ int main(int argc, char ** argv)
                                            nodes, cores, rank, MB, NB, LDB, LDB, 0, 0,
                                            Bm, Bn, SMB, SNB, P));
 
-                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, Aseed);
-                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, Bseed);
+                dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
+                dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, Bseed);
 
                 if ( rank == 0 ) {
                     printf("***************************************************\n");
@@ -263,9 +263,9 @@ static int check_solution( dague_context_t *dague, int loud,
                                1, cores, rank, MB, NB, LDC, N, 0, 0,
                                M, N, 1, 1, 1));
 
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, Aseed );
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, Bseed );
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC, Cseed );
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed );
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, Bseed );
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC, Cseed );
 
     Anorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA );
     Bnorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescB );

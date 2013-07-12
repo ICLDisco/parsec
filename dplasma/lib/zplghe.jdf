@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -65,7 +65,6 @@ BODY
              m, n, bump, tempmm, tempnn, 
              m, n, ldam,
              descA.m, m*descA.mb, n*descA.nb, seed);
-
 END
 
 PLGHE_U(m, n)  [profile = off]

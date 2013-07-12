@@ -55,7 +55,7 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
     if(loud > 3) printf("Done\n");
@@ -88,7 +88,7 @@ int main(int argc, char ** argv)
                                    nodes, cores, rank, MB, NB, LDC, Cn, 0, 0,
                                    Cm, Cn, SMB, SNB, P));
 
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC0, 2354);
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC0, 2354);
         Cnorm = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t *)&ddescC0);
         if (Cnorm == 0.)
             Cnorm = 1.;

@@ -229,7 +229,7 @@ static struct option long_options[] =
 static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 {
     int opt = 0;
-    int c, nbht;
+    int c;
     int argc = *_argc;
     char **argv = *_argv;
     char *add_dot = NULL;
@@ -309,9 +309,9 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
 
             case 'm':
-	            iparam[IPARAM_PINS] = 1;
-	            mca_pins_optarg = optarg;
-	            break;
+                iparam[IPARAM_PINS] = 1;
+                mca_pins_optarg = optarg;
+                break;
             case 'v':
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
                 else        iparam[IPARAM_VERBOSE] = 2;
@@ -573,9 +573,9 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
 
 #ifdef PINS_ENABLE
-	char ** modules = delimited_string_to_strings(mca_pins_optarg, ',');
-	set_allowable_pins_modules(modules); // by calling this, we limit allowable modules
-	free(modules);
+    char ** modules = delimited_string_to_strings(mca_pins_optarg, ',');
+    set_allowable_pins_modules(modules); // by calling this, we limit allowable modules
+    free(modules);
 #endif /* PINS_ENABLE */
 
     TIME_START();
@@ -643,28 +643,29 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
  * it must still be free()d separately.
  */
 static char ** delimited_string_to_strings(char * const string_of_strings, char delim) {
-	if (string_of_strings != NULL) {
-		char ** array = NULL;
-		// first, count
-		int count = 1;
-		char * pch = NULL;
-		pch = strchr(string_of_strings, delim);
-		for (; NULL != pch; count++)
-			pch = strchr(pch + sizeof(char), delim);
-		array = calloc(sizeof(char *), (count + 1));
-		// then, replace delims with \0 and put pointers in array
-		int i = 0;
-		pch = string_of_strings;
-		do {
-			array[i] = pch;
-			pch = strchr(array[i], delim);
-			if (pch != NULL) {
-				*pch = '\0';
-				pch += sizeof(char);
-			}
-		} while (++i < count);
-		return array;
-	}
-	else
-		return calloc(sizeof(char *), 1);
+    if (string_of_strings != NULL) {
+        char ** array = NULL;
+        // first, count
+        int count = 1;
+        char * pch = NULL;
+        pch = strchr(string_of_strings, delim);
+        for (; NULL != pch; count++)
+            pch = strchr(pch + sizeof(char), delim);
+        array = calloc(sizeof(char *), (count + 1));
+        // then, replace delims with \0 and put pointers in array
+        int i = 0;
+        pch = string_of_strings;
+        do {
+            array[i] = pch;
+            pch = strchr(array[i], delim);
+            if (pch != NULL) {
+                *pch = '\0';
+                pch += sizeof(char);
+            }
+        } while (++i < count);
+        return array;
+    }
+    else
+        return calloc(sizeof(char *), 1);
 }
+

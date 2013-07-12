@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
                                nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
                                MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
 
-    dplasma_zplrnt(dague, (tiled_matrix_desc_t *)&ddescA, 3872);
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
 
     PASTE_CODE_ENQUEUE_KERNEL(dague, zhbrdt,
                               ((tiled_matrix_desc_t*)&ddescA));
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
                                    two_dim_block_cyclic, (&ddescAcpy, matrix_ComplexDouble, matrix_Tile,
                                                           nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT,
                                                           0, 0, MB+1, (NB+2)*NT, 1, SNB, 1));
-        dplasma_zplrnt(dague, (tiled_matrix_desc_t *)&ddescAcpy, 3872);
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescAcpy, 3872);
 
         /* Gather Acpy on rank 0 */
         PASTE_CODE_ALLOCATE_MATRIX(ddescLAcpy, 1,

@@ -92,7 +92,7 @@ int main(int argc, char ** argv)
                         (tiled_matrix_desc_t *)&ddescA0);
 
 #if defined(CHECK_B)
-        dplasma_zplrnt( dague,
+        dplasma_zplrnt( dague, 0,
                         (tiled_matrix_desc_t *)&ddescB, 3872);
 
         dplasma_zlacpy( dague, PlasmaUpperLower,

@@ -29,12 +29,13 @@
  *          The seed used in the random generation.
  *
  ******************************************************************************/
-dague_handle_t* dplasma_zplrnt_New( tiled_matrix_desc_t *A,
+dague_handle_t* dplasma_zplrnt_New( int diagdom,
+                                    tiled_matrix_desc_t *A,
                                     unsigned long long int seed)
 {
     dague_zplrnt_handle_t* object;
 
-    object = dague_zplrnt_new( seed, *A, (dague_ddesc_t*)A);
+    object = dague_zplrnt_new( diagdom, seed, *A, (dague_ddesc_t*)A);
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zplrnt_DEFAULT_ARENA],
@@ -46,12 +47,13 @@ dague_handle_t* dplasma_zplrnt_New( tiled_matrix_desc_t *A,
 }
 
 int dplasma_zplrnt( dague_context_t *dague,
+                    int diagdom,
                     tiled_matrix_desc_t *A,
                     unsigned long long int seed)
 {
     dague_handle_t *dague_zplrnt = NULL;
 
-    dague_zplrnt = dplasma_zplrnt_New(A, seed);
+    dague_zplrnt = dplasma_zplrnt_New(diagdom, A, seed);
 
     dague_enqueue(dague, (dague_handle_t*)dague_zplrnt);
     dplasma_progress(dague);
