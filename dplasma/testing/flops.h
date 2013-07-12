@@ -158,6 +158,10 @@
 #define FADDS_GEBRD(__m, __n) ( ((__m) >= (__n)) ? ((double)(__n) * ((double)(__n) * (2. * (double)(__m) - 2./3. * (double)(__n) + 1. ) - (double)(__m) +  5./3.)) \
                                 :                  ((double)(__m) * ((double)(__m) * (2. * (double)(__n) - 2./3. * (double)(__m) + 1. ) - (double)(__n) +  5./3.)) )
 
+#define FMULS_SYEV(__n) ((2. / 3.) * ((double)(__n) * (double)(__n) * (double)(__n)))
+#define FADDS_SYEV(__n) ((2. / 3.) * ((double)(__n) * (double)(__n) * (double)(__n)))
+#define FMULS_HEEV FMULS_SYEV
+#define FADDS_HEEV FADDS_SYEV 
 
 /*******************************************************************************
  *               Users functions
@@ -348,5 +352,15 @@
 #define FLOPS_CGEBRD(__m, __n) (6. * FMULS_GEBRD((__m), (__n)) + 2.0 * FADDS_GEBRD((__m), (__n)) )
 #define FLOPS_DGEBRD(__m, __n) (     FMULS_GEBRD((__m), (__n)) +       FADDS_GEBRD((__m), (__n)) )
 #define FLOPS_SGEBRD(__m, __n) (     FMULS_GEBRD((__m), (__n)) +       FADDS_GEBRD((__m), (__n)) )
+
+/*
+ * EIG
+ */
+
+#define FLOPS_ZHEEV(__n) (6. * FMULS_HEEV(__n) + 2. * FADDS_HEEV(__n))
+#define FLOPS_CHEEV(__n) (6. * FMULS_HEEV(__n) + 2. * FADDS_HEEV(__n))
+#define FLOPS_DSYEV(__n) (     FMULS_HEEV(__n) +      FADDS_HEEV(__n))
+#define FLOPS_SSYEV(__n) (     FMULS_HEEV(__n) +      FADDS_HEEV(__n))
+
 
 #endif /* _FLOPS_H_ */

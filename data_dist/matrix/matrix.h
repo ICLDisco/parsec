@@ -46,6 +46,7 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
 #define tiled_matrix_desc_type        0x01
 #define two_dim_block_cyclic_type     0x02
 #define sym_two_dim_block_cyclic_type 0x04
+#define two_dim_tabular_type          0x08
 
 typedef struct tiled_matrix_desc_t {
     dague_ddesc_t super;
@@ -119,5 +120,6 @@ extern void dague_reduce_row_Destruct( struct dague_object_t *o );
  * Macro to get the block leading dimension
  */
 #define BLKLDD( _desc_, _m_ ) ( (_desc_).storage == matrix_Tile ? (_desc_).mb : (_desc_).llm )
+#define TILED_MATRIX_KEY( _desc_, _m_, _n_ ) ( ((dague_ddesc_t*)(_desc_))->data_key( ((dague_ddesc_t*)(_desc_)), (_m_), (_n_) ) )
 
 #endif /* _MATRIX_H_  */

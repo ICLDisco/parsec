@@ -3003,13 +3003,13 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
                 spaces,
                 spaces, jdf_basename, call->func_or_mem);
 
-        coutput("%s    e%s = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, tass ));\n"
-                "%s    g%s = e%s->data[%d];\n",
-                spaces, f->varname, call->func_or_mem, call->func_or_mem,
-                spaces, f->varname, f->varname, dataindex);
+        coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, tass ));\n"
+                "%s    chunk = entry->data[%d];\n",
+                spaces, call->func_or_mem, call->func_or_mem,
+                spaces, dataindex);
     } else {
-        coutput("%s    g%s = (dague_arena_chunk_t*) %s(%s);\n",
-                spaces, f->varname, call->func_or_mem,
+        coutput("%s    chunk = (dague_arena_chunk_t*) %s(%s);\n",
+                spaces, call->func_or_mem,
                 UTIL_DUMP_LIST(sa, call->parameters, next,
                                dump_expr, (void*)&info, "", "", ", ", ""));
     }
@@ -3019,7 +3019,7 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
 }
 
 static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_t *call,
-                                               int lineno, const char *fname, const jdf_dataflow_t *f,
+                                               int lineno, const char *fname,
                                                const char *spaces, const char *arena, int count)
 {
     int dataindex;
@@ -3044,8 +3044,8 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
             }
         }
     }
-    coutput("%s    g%s = dague_arena_get(__dague_object->super.arenas[%s], %d);\n",
-            spaces, f->varname, arena, count );
+    coutput("%s    chunk = dague_arena_get(__dague_object->super.arenas[%s], %d);\n",
+            spaces, arena, count );
     return;
 }
 
@@ -3076,13 +3076,12 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     char* condition[] = {"    if( %s ) {\n", "    else if( %s ) {\n"};
 
     if( JDF_VAR_TYPE_CTL == flow->access_type ) {
-        coutput("    /* this_task->data[%u] is a control flow */\n", flow_index);
+        coutput("  /* %s : this_task->data[%u] is a control flow */\n", flow->varname, flow_index);
         return;
     }
-    coutput( "  g%s = this_task->data[%u].data;\n"
-             "  if( NULL == g%s ) {\n",
-             flow->varname, flow_index,
-             flow->varname);
+    coutput( "  if( NULL == (chunk = this_task->data[%u].data) ) {;  /* flow %s */\n"
+             "    entry = NULL;\n",
+             flow_index, flow->varname);
 
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -3141,14 +3140,14 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             switch( dl->guard->guard_type ) {
             case JDF_GUARD_UNCONDITIONAL:
                 if( 0 != cond_index ) coutput("    else {\n");
-                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow, "  ",
+                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
                                                        string_arena_get_string(sa2), 1 );
                 if( 0 != cond_index ) coutput("    }\n");
                 goto done_with_input;
             case JDF_GUARD_BINARY:
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow, "  ",
+                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
                                                        string_arena_get_string(sa2), 1 );
                 coutput("    }\n");
                 cond_index++;
@@ -3156,10 +3155,10 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             case JDF_GUARD_TERNARY:
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow, "  ",
+                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
                                                        string_arena_get_string(sa2), 1 );
                 coutput("    } else {\n");
-                jdf_generate_code_call_init_output( jdf, dl->guard->callfalse, JDF_OBJECT_LINENO(flow), fname, flow, "  ",
+                jdf_generate_code_call_init_output( jdf, dl->guard->callfalse, JDF_OBJECT_LINENO(flow), fname, "  ",
                                                        string_arena_get_string(sa2), 1 );
                 coutput("    }\n");
                 goto done_with_input;
@@ -3168,11 +3167,11 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     }
 
  done_with_input:
-    coutput("    this_task->data[%u].data = g%s;\n"
-            "    this_task->data[%u].data_repo = e%s;\n"
+    coutput("    this_task->data[%u].data      = chunk;  /* flow %s */\n"
+            "    this_task->data[%u].data_repo = entry;\n"
             "  }\n",
             flow_index, flow->varname,
-            flow_index, flow->varname);
+            flow_index);
     string_arena_free(sa);
     string_arena_free(sa2);
 }
@@ -3386,7 +3385,6 @@ static int jdf_property_get_int( const jdf_def_list_t* properties, const char* p
 
 static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
-    char* output;
     string_arena_t *sa, *sa2, *sa_test;
     assignment_info_t ai;
     jdf_dataflow_t *fl;
@@ -3405,6 +3403,8 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
             "  const __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)this_task->dague_object;\n"
             "  assignment_t tass[MAX_PARAM_COUNT];\n"
             "  (void)__dague_object; (void)tass; (void)context;\n"
+            "  dague_arena_chunk_t *chunk;\n"
+            "  data_repo_entry_t *entry;\n"
             "%s",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST(sa, f->locals, next,
@@ -3412,21 +3412,17 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
+
     dinfo.sa = sa2;
     dinfo.sa_test = sa_test;
     dinfo.index = 0;
-    output = UTIL_DUMP_LIST(sa, f->dataflow, next,
-                            dump_data_declaration, &dinfo, "", "", "", "");
-    if( 0 != strlen(output) ) {
-        coutput("  /** Declare the variables that will hold the data */\n"
-                "%s\n",
-                output);
-    }
+    UTIL_DUMP_LIST(sa, f->dataflow, next,
+                   dump_data_declaration, &dinfo, "", "", "", "");
 
     if( strlen( string_arena_get_string( sa_test ) ) != 0 )
         coutput("  /** Check if some lookups are to be done **/\n"
                 "  if( %s )\n"
-                "    return DAGUE_LOOKUP_DONE;\n"
+                "    goto complete_and_return;\n"
                 "\n",
                 string_arena_get_string( sa_test ));
 
@@ -3434,6 +3430,9 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
     }
+
+    if( strlen( string_arena_get_string( sa_test ) ) != 0 )
+        coutput(" complete_and_return:\n");
 
     coutput("  /** Generate profiling information */\n");
     /* If the function has the property profile turned off do not generate the profiling code */
@@ -4251,12 +4250,10 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
     assignment_info_t ai;
-    int rc;
 
     assert(JDF_OP_IS_C_CODE(expr->op));
-    rc = asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
-                  jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
-    assert( rc != -1 );
+    asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
+             jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
     coutput("static inline int %s(const dague_object_t *__dague_object_parent, const assignment_t *assignments)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)__dague_object_parent;\n"

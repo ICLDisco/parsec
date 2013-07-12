@@ -24,24 +24,18 @@
 #include <math.h>
 
 static uint32_t twoDBC_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* twoDBC_data_of(dague_ddesc_t* ddesc, ...);
+static int32_t  twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
+static void*    twoDBC_data_of(dague_ddesc_t* ddesc, ...);
 
 static uint32_t twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...);
+static int32_t  twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...);
+static void*    twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...);
 
 #if defined(DAGUE_HARD_SUPERTILE)
 static uint32_t twoDBC_st_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t twoDBC_st_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
+static int32_t  twoDBC_st_vpid_of(dague_ddesc_t* ddesc, ...);
+static void*    twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
 #endif
-
-#if defined(DAGUE_PROF_TRACE)
-static uint32_t twoDBC_data_key(struct dague_ddesc *desc, ...);
-static int  twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
-#endif
-
 
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
                                enum matrix_type mtype,
@@ -57,15 +51,9 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     int temp;
     int Q;
     dague_ddesc_t *o = &(Ddesc->super.super);
-#if defined(DAGUE_PROF_TRACE)
-    o->data_key      = twoDBC_data_key;
-    o->key_to_string = twoDBC_key_to_string;
-    o->key_dim       = NULL;
-    o->key           = NULL;
-#endif
 
     /* Initialize the tiled_matrix descriptor */
-    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type, 
+    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type,
                             nodes, cores, myrank,
                             mb, nb, lm, ln, i, j, m, n );
 
@@ -119,7 +107,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         o->vpid_of      = twoDBC_vpid_of;
         o->data_of      = twoDBC_data_of;
     } else {
-#if defined(DAGUE_HARD_SUPERTILE) 
+#if defined(DAGUE_HARD_SUPERTILE)
         o->rank_of      = twoDBC_st_rank_of;
         o->vpid_of      = twoDBC_st_vpid_of;
         o->data_of      = twoDBC_st_data_of;
@@ -127,7 +115,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         two_dim_block_cyclic_supertiled_view(Ddesc, Ddesc, nrst, ncst);
 #endif /* DAGUE_HARD_SUPERTILE */
     }
-    
+
     DEBUG3(("two_dim_block_cyclic_init: \n"
            "      Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
@@ -266,7 +254,7 @@ static void *twoDBC_data_of(dague_ddesc_t *desc, ...)
 }
 
 
-/**** 
+/****
  * Set of functions with Supertiled view of the distribution
  ****/
 
@@ -289,7 +277,7 @@ static inline unsigned int st_compute_m(two_dim_block_cyclic_t* desc, unsigned i
     p = desc->grid.rows;
     ps = desc->grid.strows;
     mt = desc->super.mt;
-    do { 
+    do {
         m = m-m%(p*ps) + (m%ps)*p + (m/ps)%p;
     } while(m >= mt);
     return m;
@@ -493,51 +481,6 @@ static void *twoDBC_st_data_of(dague_ddesc_t *desc, ...)
 
 #endif /* DAGUE_HARD_SUPERTILE */
 
-/*
- * Common functions
- */
-#ifdef DAGUE_PROF_TRACE
-/* return a unique key (unique only for the specified dague_ddesc) associated to a data */
-static uint32_t twoDBC_data_key(struct dague_ddesc *desc, ...)
-{
-    unsigned int m, n;
-    two_dim_block_cyclic_t * Ddesc;
-    va_list ap;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
-
-    /* Get coordinates */
-    va_start(ap, desc);
-    m = va_arg(ap, unsigned int);
-    n = va_arg(ap, unsigned int);
-    va_end(ap);
-
-    /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
-    n += Ddesc->super.j / Ddesc->super.nb;
-
-    return ((n * Ddesc->super.lmt) + m);
-}
-
-/* return a string meaningful for profiling about data */
-static int  twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
-{
-    two_dim_block_cyclic_t * Ddesc;
-    unsigned int row, column;
-    int res;
-
-    Ddesc = (two_dim_block_cyclic_t *)desc;
-    column = datakey / Ddesc->super.lmt;
-    row = datakey % Ddesc->super.lmt;
-    res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
-    if (res < 0)
-        {
-            printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
-        }
-    return res;
-}
-#endif /* DAGUE_PROF_TRACE */
-
-
 #ifdef HAVE_MPI
 int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
     return MPI_File_open(comm, filename, MPI_MODE_RDWR|MPI_MODE_CREATE, MPI_INFO_NULL, handle);
@@ -547,4 +490,3 @@ int close_matrix_file(MPI_File * handle){
     return MPI_File_close(handle);
 }
 #endif /* HAVE_MPI */
-

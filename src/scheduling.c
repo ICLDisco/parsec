@@ -388,14 +388,15 @@ typedef struct dague_compound_state_t {
     dague_object_t* objects_array[1];
 } dague_compound_state_t;
 
-static int dague_composed_cb( dague_object_t* o, void* cbdata ) {
+static int dague_composed_cb( dague_object_t* o, void* cbdata )
+{
     dague_object_t* compound = (dague_object_t*)cbdata;
     dague_compound_state_t* compound_state = (dague_compound_state_t*)compound->functions_array;
     int completed_objects = compound_state->completed_objects++;
-    assert( o == compound_state->objects_array[completed_objects] );
+    assert( o == compound_state->objects_array[completed_objects] ); (void)o;
     if( compound->nb_local_tasks-- ) {
         assert( NULL != compound_state->objects_array[completed_objects+1] );
-        dague_enqueue(compound_state->ctx, 
+        dague_enqueue(compound_state->ctx,
                       compound_state->objects_array[completed_objects+1]);
     }
     return 0;
@@ -409,9 +410,9 @@ static void dague_compound_startup( dague_context_t *context,
     int i;
     dague_compound_state_t* compound_state = (dague_compound_state_t*)compound_object->functions_array;
     dague_object_t* first = compound_state->objects_array[0];
-    assert( NULL != first );    
+    assert( NULL != first );
     first->startup_hook(context, first, startup_list);
-    compound_state->ctx = context;    
+    compound_state->ctx = context;
     compound_object->nb_local_tasks = compound_state->nb_objects;
     for( i = 0; i < compound_state->nb_objects; i++ ) {
         dague_object_t* o = compound_state->objects_array[i];
@@ -421,19 +422,19 @@ static void dague_compound_startup( dague_context_t *context,
     }
 }
 
-dague_object_t* dague_compose( dague_object_t* start, 
-                               dague_object_t* next ) 
+dague_object_t* dague_compose( dague_object_t* start,
+                               dague_object_t* next )
 {
     dague_object_t* compound = NULL;
     dague_compound_state_t* compound_state = NULL;
-    
+
     if( start->nb_functions == 0 ) {
         compound = start;
         compound_state = (dague_compound_state_t*)compound->functions_array;
         compound_state->objects_array[compound_state->nb_objects++] = next;
         /* make room for NULL terminating, if necessary */
         if( 0 == (compound_state->nb_objects%16) ) {
-            compound_state = realloc(compound_state, sizeof(dague_compound_state_t) + 
+            compound_state = realloc(compound_state, sizeof(dague_compound_state_t) +
                             (1 + compound_state->nb_objects/16) * 16 * sizeof(void*));
             compound->functions_array = (void*)compound_state;
         }

@@ -72,13 +72,13 @@ int    dplasma_zlacpy( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_de
 double dplasma_zlange( dague_context_t *dague, PLASMA_enum ntype, tiled_matrix_desc_t *A);
 double dplasma_zlanhe( dague_context_t *dague, PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A);
 double dplasma_zlansy( dague_context_t *dague, PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A);
+int    dplasma_zlascal(dague_context_t *dague, PLASMA_enum type, dague_complex64_t alpha, tiled_matrix_desc_t *A);
 int    dplasma_zlaset( dague_context_t *dague, PLASMA_enum uplo, dague_complex64_t alpha, dague_complex64_t beta, tiled_matrix_desc_t *A);
 int    dplasma_zlaswp( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int inc);
 int    dplasma_zplghe( dague_context_t *dague, double            bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 int    dplasma_zplgsy( dague_context_t *dague, dague_complex64_t bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
-int    dplasma_zplrnt(  dague_context_t *dague,                                          tiled_matrix_desc_t *A, unsigned long long int seed);
+int    dplasma_zplrnt( dague_context_t *dague, int diagdom,                              tiled_matrix_desc_t *A, unsigned long long int seed);
 int    dplasma_zplrnt_perso( dague_context_t *dague, tiled_matrix_desc_t *A, enum matrix_init_e type, unsigned long long int seed);
-
 
 /* Auxiliary routines */
 int  dplasma_zprint( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A);
@@ -151,11 +151,12 @@ dague_object_t* dplasma_zlacpy_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, ti
 dague_object_t* dplasma_zlange_New( PLASMA_enum ntype, int P, int Q, tiled_matrix_desc_t *A, double *norm);
 dague_object_t* dplasma_zlanhe_New( PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A, double *result);
 dague_object_t* dplasma_zlansy_New( PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A, double *result);
+dague_object_t* dplasma_zlascal_New( PLASMA_enum type, dague_complex64_t alpha, tiled_matrix_desc_t *A);
 dague_object_t* dplasma_zlaset_New( PLASMA_enum uplo, dague_complex64_t alpha, dague_complex64_t beta, tiled_matrix_desc_t *A);
 dague_object_t* dplasma_zlaswp_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int inc);
 dague_object_t* dplasma_zplghe_New( double            bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 dague_object_t* dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
-dague_object_t* dplasma_zplrnt_New(                                           tiled_matrix_desc_t *A, unsigned long long int seed);
+dague_object_t* dplasma_zplrnt_New( int diagdom,                              tiled_matrix_desc_t *A, unsigned long long int seed);
 dague_object_t* dplasma_zplrnt_perso_New(                                     tiled_matrix_desc_t *A, enum matrix_init_e type, unsigned long long int seed);
 
 /*
@@ -210,6 +211,7 @@ void dplasma_zlacpy_Destruct( dague_object_t *o );
 void dplasma_zlange_Destruct( dague_object_t *o );
 void dplasma_zlanhe_Destruct( dague_object_t *o );
 void dplasma_zlansy_Destruct( dague_object_t *o );
+void dplasma_zlascal_Destruct( dague_object_t *o );
 void dplasma_zlaset_Destruct( dague_object_t *o );
 void dplasma_zlaswp_Destruct( dague_object_t *o );
 void dplasma_zplghe_Destruct( dague_object_t *o );

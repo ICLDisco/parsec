@@ -88,7 +88,7 @@ dplasma_zunmqr_param_New( PLASMA_enum side, PLASMA_enum trans,
                           tiled_matrix_desc_t *TT,
                           tiled_matrix_desc_t *B)
 {
-    dague_object_t* object;
+    dague_object_t* object = NULL;
     int Am, ib = TS->mb;
 
     /* if ( !dplasma_check_desc(A) ) { */

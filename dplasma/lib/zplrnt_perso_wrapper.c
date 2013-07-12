@@ -142,7 +142,7 @@ int dplasma_zplrnt_perso( dague_context_t *dague,
         Vmat = (dague_complex64_t*)(V.mat);
 
         /* generate random vector */
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&V, 3456 );
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&V, seed );
 
         /* generate householder vector */
         /* Could be done in // for one vector */

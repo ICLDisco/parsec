@@ -69,7 +69,7 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescA0, 3872);
-    dplasma_zplrnt( dague,
+    dplasma_zplrnt( dague, 0,
                     (tiled_matrix_desc_t *)&ddescB, 2354);
     if(loud > 2) printf("Done\n");
 

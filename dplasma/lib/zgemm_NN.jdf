@@ -36,12 +36,12 @@ transB [type = int]
 alpha  [type = dague_complex64_t]
 beta   [type = dague_complex64_t]
 
-descA [type = "tiled_matrix_desc_t"]
-A     [type = "dague_ddesc_t *"]
-descB [type = "tiled_matrix_desc_t"]
-B     [type = "dague_ddesc_t *"]
-descC [type = "tiled_matrix_desc_t"]
-C     [type = "dague_ddesc_t *"]
+dataA     [type = "dague_ddesc_t *"]
+descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+dataB     [type = "dague_ddesc_t *"]
+descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
+dataC     [type = "dague_ddesc_t *"]
+descC     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
 
 /**************************************************
  *                       READ_A                   *
@@ -51,12 +51,12 @@ READ_A(m, k)  [profile = off]
 m = 0 .. descA.mt-1
 k = 0 .. descA.nt-1
 
-: A(m, k)
+: dataA(m, k)
 
-A <- A(m, k)
+A <- dataA(m, k)
   -> A GEMM(m, 0, k)
 BODY
-    printlog("rank %u <- A(%d,%d)\n", __dague_object->super.A->myrank, m, k);
+    printlog("rank %u <- A(%d,%d)\n", __dague_object->super.dataA->myrank, m, k);
 END
 
 /**************************************************
@@ -67,9 +67,9 @@ READ_B(k, n)  [profile = off]
 k = 0 .. descB.mt-1
 n = 0 .. descB.nt-1
 
-: B(k, n)
+: dataB(k, n)
 
-B <- B(k, n)
+B <- dataB(k, n)
   -> B GEMM(0, n, k)
 BODY
      printlog("rank %u <- B(%d,%d)\n", __dague_object->super.B->myrank, k, n);
@@ -86,15 +86,15 @@ n = 0 .. descC.nt-1
 k = 0 .. descA.nt-1
 
 // Parallel partitioning
-: C(m, n)
+: dataC(m, n)
 
 // Parameters
 READ A <- (n == 0)            ? A READ_A(m, k) : A GEMM( m, (n+descC.nt-1) % descC.nt, k )
        -> (n <= (descC.nt-2)) ? A GEMM( m, (n+1) % descC.nt, k )
 READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC.mt-1) % descC.mt, n, k )
        -> (m <= (descC.mt-2)) ? B GEMM( (m+1) % descC.mt, n, k )
-RW   C <- (k == 0)            ? C(m, n) : C GEMM( m, n, k-1 )
-       -> (k == (descA.nt-1)) ? C(m, n) : C GEMM( m, n, k+1 )
+RW   C <- (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
+       -> (k == (descA.nt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
 BODY
         dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
         int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
@@ -126,7 +126,7 @@ BODY
 	        exit(2);
         }
     }
-    moesi_master_update( descC.super.moesi_map, GEMM_KEY( &descC, m, n) );
+    moesi_master_update( descC.super.moesi_map, TILED_MATRIX_KEY( &descC, m, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
         DRYRUN(

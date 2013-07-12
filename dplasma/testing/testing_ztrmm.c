@@ -64,7 +64,7 @@ int main(int argc, char ** argv)
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         dplasma_zplghe( dague, 0., uplo, (tiled_matrix_desc_t *)&ddescA, Aseed);
-        dplasma_zplrnt( dague,           (tiled_matrix_desc_t *)&ddescC, Cseed);
+        dplasma_zplrnt( dague, 0,        (tiled_matrix_desc_t *)&ddescC, Cseed);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
@@ -90,7 +90,7 @@ int main(int argc, char ** argv)
                                    M, N, SMB, SNB, P));
 
         dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA, Aseed);
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, Cseed);
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
 
         for (s=0; s<2; s++) {
             for (u=0; u<2; u++) {
@@ -195,7 +195,7 @@ static int check_solution( dague_context_t *dague, int loud,
                                M, N, 1, 1, 1));
 
     dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA, Aseed);
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC, Cseed );
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC, Cseed );
 
     Anorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA );
     Cinitnorm    = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );

@@ -45,7 +45,7 @@ int main(int argc, char ** argv)
                                N, N, SMB, SNB, P));
 
     if (loud > 2) printf("Generate matrices ... ");
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, Cseed);
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
     if (loud > 2) printf("Done\n");
 
     if(!check)
@@ -70,8 +70,8 @@ int main(int argc, char ** argv)
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA,  Aseed);
-        dplasma_zplghe( dague, 0., uplo, (tiled_matrix_desc_t *)&ddescC, Cseed);
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA,  Aseed);
+        dplasma_zplgsy( dague, 0., uplo, (tiled_matrix_desc_t *)&ddescC, Cseed);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
@@ -115,7 +115,7 @@ int main(int argc, char ** argv)
                                            Am, An, SMB, SNB, P));
 
                 if (loud > 2) printf("Generate matrices ... ");
-                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, Aseed);
+                dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
                 dplasma_zlacpy( dague, uplo[u],
                                 (tiled_matrix_desc_t *)&ddescC2, (tiled_matrix_desc_t *)&ddescC );
                 if (loud > 2) printf("Done\n");
@@ -198,12 +198,12 @@ static int check_solution( dague_context_t *dague, int loud,
                                1, cores, rank, MB, NB, LDC, N, 0, 0,
                                M, N, 1, 1, 1));
 
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, Aseed);
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC, Cseed );
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC, Cseed );
 
     Anorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA );
-    Cinitnorm    = dplasma_zlanhe( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)&ddescC     );
-    Cdplasmanorm = dplasma_zlanhe( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)ddescCfinal );
+    Cinitnorm    = dplasma_zlansy( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)&ddescC     );
+    Cdplasmanorm = dplasma_zlansy( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)ddescCfinal );
 
     if ( rank == 0 ) {
         cblas_zsyrk(CblasColMajor,
@@ -213,12 +213,12 @@ static int check_solution( dague_context_t *dague, int loud,
                     CBLAS_SADDR(beta),  ddescC.mat, LDC);
     }
 
-    Clapacknorm = dplasma_zlanhe( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
+    Clapacknorm = dplasma_zlansy( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
 
     dplasma_zgeadd( dague, uplo, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
                                        (tiled_matrix_desc_t*)&ddescC );
 
-    Rnorm = dplasma_zlanhe( dague, PlasmaMaxNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
+    Rnorm = dplasma_zlansy( dague, PlasmaMaxNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
 
     result = Rnorm / (Clapacknorm * max(M,N) * eps);
 

@@ -66,7 +66,7 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA0, 3872);
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA0, 3872);
     if(loud > 2) printf("Done\n");
 
     /*********************************************************************
@@ -80,7 +80,7 @@ int main(int argc, char ** argv)
     if( loud > 2 ) printf("Generate matrices ... ");
     dplasma_zlacpy( dague, PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 3872);
     dplasma_zlacpy( dague, PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
     if( loud > 2 ) printf("Done\n");
@@ -124,7 +124,7 @@ int main(int argc, char ** argv)
     if( loud > 2 ) printf("Generate matrices ... ");
     dplasma_zlacpy( dague, PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 3872);
     dplasma_zlacpy( dague, PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
     if( loud > 2 ) printf("Done\n");
@@ -174,7 +174,7 @@ int main(int argc, char ** argv)
     if( loud > 2 ) printf("Generate matrices ... ");
     dplasma_zlacpy( dague, PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
-    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 3872);
     dplasma_zlacpy( dague, PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
     if( loud > 2 ) printf("Done\n");

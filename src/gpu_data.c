@@ -522,9 +522,12 @@ int dague_gpu_fini( void )
             free(exec_stream->events); exec_stream->events = NULL;
             free(exec_stream->tasks); exec_stream->tasks = NULL;
             free(exec_stream->fifo_pending); exec_stream->fifo_pending = NULL;
+
             /* Release the stream */
             cudaStreamDestroy( exec_stream->cuda_stream );
         }
+
+        free(gpu_device->exec_stream);
 
         status = cuCtxDestroy( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxDestroy ", status,
@@ -542,6 +545,15 @@ int dague_gpu_fini( void )
     }
     free(gpu_enabled_devices);
     gpu_enabled_devices = NULL;
+
+    if( dague_gpu_allocation_initialized == 1 ) {
+        cuCtxDestroy( dague_allocate_on_gpu_context );
+        dague_gpu_allocation_initialized = 0;
+    }
+
+    free(device_load);
+    free(device_weight);
+
     __dague_active_gpu = 0;
     return 0;
 }
@@ -621,12 +633,13 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             dague_ulist_fifo_push( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
         }
-        if( 0 == mem_elem_per_gpu ) {
+        if( 0 == mem_elem_per_gpu && dague_ulist_is_empty( gpu_device->gpu_mem_lru ) ) {
             WARNING(("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!\n",
                      dague_context->my_rank, i));
-            continue;
+        } 
+        else {
+            DEBUG3(( "GPU:\tAllocate %u tiles on the GPU memory\n", mem_elem_per_gpu ));
         }
-        DEBUG3(( "GPU:\tAllocate %u tiles on the GPU memory\n", mem_elem_per_gpu ));
 #else
         if( NULL == gpu_device->memory ) {
             /*
@@ -638,10 +651,12 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             if( gpu_device->memory == NULL ) {
                 WARNING(("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!\n",
                          dague_context->my_rank, i));
-                continue;
             }
-            DEBUG3(( "GPU:\tAllocate %u segment of size %d on the GPU memory\n",
-                     mem_elem_per_gpu, GPU_MALLOC_UNIT_SIZE ));
+            else {
+                DEBUG3(( "GPU:\tAllocate %u segment of size %d on the GPU memory\n",
+                         mem_elem_per_gpu, GPU_MALLOC_UNIT_SIZE ));
+        
+            }
         }
 #endif
 
@@ -705,8 +720,11 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
             });
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-        gpu_malloc_fini( gpu_device->memory );
-        free( gpu_device->memory );
+        if( gpu_device->memory ) {
+            gpu_malloc_fini( gpu_device->memory );
+            free( gpu_device->memory );
+            gpu_device->memory = NULL;
+        }
 #endif
 
         status = cuCtxPopCurrent(NULL);

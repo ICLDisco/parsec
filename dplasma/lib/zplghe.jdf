@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -54,14 +54,14 @@ BODY
   int ldam = BLKLDD( descA, m );
 
         DRYRUN(
-               CORE_zplghe( 
+               CORE_zplghe(
                    bump, tempmm, tempnn, A, ldam,
                    descA.m, m*descA.mb, n*descA.nb, seed );
                );
 
         printlog("plghe_l( %d, %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 m, n, bump, tempmm, tempnn, 
+                 m, n, bump, tempmm, tempnn,
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
@@ -85,14 +85,14 @@ BODY
   int ldam = BLKLDD( descA, m );
 
         DRYRUN(
-               CORE_zplghe( 
+               CORE_zplghe(
                    bump, tempmm, tempnn, A, ldam,
                    descA.m, m*descA.mb, n*descA.nb, seed );
                );
 
         printlog("plghe_u( %d, %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 m, n, bump, tempmm, tempnn, 
+                 m, n, bump, tempmm, tempnn,
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
@@ -115,14 +115,14 @@ BODY
   int ldak = BLKLDD( descA, k );
 
         DRYRUN(
-               CORE_zplghe( 
+               CORE_zplghe(
                    bump, tempkm, tempkn, A, ldak,
                    descA.m, k*descA.mb, k*descA.nb, seed );
                );
 
         printlog("plghe_diag( %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 k, bump, tempkm, tempkn, 
+                 k, bump, tempkm, tempkn,
                  k, k, ldak,
                  descA.m, k*descA.mb, k*descA.nb, seed);
 END

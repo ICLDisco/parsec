@@ -7,7 +7,7 @@
 #ifndef BINDTHREAD_H
 #define BINDTHREAD_H
 
-int dague_bindthread(int cpu);
+int dague_bindthread(int cpu, int ht);
 
 #if defined(HAVE_HWLOC)
 #include <hwloc.h>

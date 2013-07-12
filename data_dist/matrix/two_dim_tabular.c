@@ -25,105 +25,93 @@
 #include <math.h>
 
 static uint32_t twoDTD_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t twoDTD_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* twoDTD_data_of(dague_ddesc_t* ddesc, ...);
+static int32_t  twoDTD_vpid_of(dague_ddesc_t* ddesc, ...);
+static void*    twoDTD_data_of(dague_ddesc_t* ddesc, ...);
 
-#if defined(DAGUE_PROF_TRACE)
-static uint32_t twoDTD_data_key(struct dague_ddesc *desc, ...);
-static int  twoDTD_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
-#endif
-
-static uint32_t twoDTD_rank_of(dague_ddesc_t* ddesc, ...)
+/*
+ * Tiles are stored in column major order
+ */
+static uint32_t twoDTD_rank_of(dague_ddesc_t * desc, ...)
 {
     int m, n, res;
     va_list ap;
-    two_dim_tabular_t * Ddesc;
-    Ddesc = (two_dim_tabular_t *)ddesc;
-    va_start(ap, ddesc);
+    two_dim_tabular_t   * Ddesc;
+    tiled_matrix_desc_t * tdesc;
+
+    Ddesc = (two_dim_tabular_t*)desc;
+    tdesc = (tiled_matrix_desc_t*)desc;
+
+    va_start(ap, desc);
     m = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
 
-    /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
-    m += Ddesc->super.i;
-    n += Ddesc->super.j;
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
 
     res = (Ddesc->super.lmt * n) + m;
     assert( res >= 0 && res < Ddesc->tiles_table->nbelem );
     return Ddesc->tiles_table->elems[res].rank;
 }
 
-static int32_t twoDTD_vpid_of(dague_ddesc_t* ddesc, ...)
+
+static int32_t twoDTD_vpid_of(dague_ddesc_t *desc, ...)
 {
     int m, n, res;
     va_list ap;
-    two_dim_tabular_t * Ddesc;
-    Ddesc = (two_dim_tabular_t *)ddesc;
-    va_start(ap, ddesc);
+    two_dim_tabular_t   * Ddesc;
+    tiled_matrix_desc_t * tdesc;
+
+    Ddesc = (two_dim_tabular_t*)desc;
+    tdesc = (tiled_matrix_desc_t*)desc;
+
+    va_start(ap, desc);
     m = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
 
-    /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
-    m += Ddesc->super.i;
-    n += Ddesc->super.j;
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
+
+#ifdef DISTRIBUTED
+    assert(desc->myrank == twoDTD_rank_of(desc, m, n));
+#endif /* DISTRIBUTED */
 
     res = (Ddesc->super.lmt * n) + m;
     assert( res >= 0 && res < Ddesc->tiles_table->nbelem );
     return Ddesc->tiles_table->elems[res].vpid;
 }
 
-static void* twoDTD_data_of(dague_ddesc_t* ddesc, ...)
+static void *twoDTD_data_of(dague_ddesc_t * desc, ...)
 {
     int m, n, res;
     va_list ap;
-    two_dim_tabular_t * Ddesc;
-    Ddesc = (two_dim_tabular_t *)ddesc;
-    va_start(ap, ddesc);
+    two_dim_tabular_t   * Ddesc;
+    tiled_matrix_desc_t * tdesc;
+
+    Ddesc = (two_dim_tabular_t*)desc;
+    tdesc = (tiled_matrix_desc_t*)desc;
+
+    va_start(ap, desc);
     m = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
 
-    /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
-    m += Ddesc->super.i;
-    n += Ddesc->super.j;
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
+
+#ifdef DISTRIBUTED
+    assert(desc->myrank == twoDTD_rank_of(desc, m, n));
+#endif /* DISTRIBUTED */
 
     res = (Ddesc->super.lmt * n) + m;
     assert( res >= 0 && res < Ddesc->tiles_table->nbelem );
     return Ddesc->tiles_table->elems[res].tile;
 }
 
-#ifdef DAGUE_PROF_TRACE
-static uint32_t twoDTD_data_key(struct dague_ddesc *ddesc, ...)
-{
-    int m, n;
-    two_dim_tabular_t * Ddesc;
-    va_list ap;
-    Ddesc = (two_dim_tabular_t *)ddesc;
-    va_start(ap, ddesc);
-    m = va_arg(ap, unsigned int);
-    n = va_arg(ap, unsigned int);
-    va_end(ap);
-
-    return ((n * Ddesc->super.lmt) + m);
-}
-
-static int twoDTD_key_to_string(struct dague_ddesc * ddesc, uint32_t datakey, char * buffer, uint32_t buffer_size)
-{
-    two_dim_tabular_t * Ddesc;
-    unsigned int row, column;
-    int res;
-    Ddesc = (two_dim_tabular_t *)ddesc;
-    column = datakey / Ddesc->super.lmt;
-    row = datakey % Ddesc->super.lmt;
-    res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
-    if (res < 0)
-        {
-            printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
-        }
-    return res;
-}
-#endif /* DAGUE_PROF_TRACE */
 
 void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
                           enum matrix_type mtype,
@@ -136,12 +124,9 @@ void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
 {
     // Filling matrix description with user parameter
     tiled_matrix_desc_init(&Ddesc->super,
-                           mtype, matrix_Tile, 0x0,
+                           mtype, matrix_Tile, two_dim_tabular_type,
                            nodes, cores, myrank,
-                           mb, nb,
-                           lm, ln,
-                           i, j,
-                           m, n);
+                           mb, nb, lm, ln, i, j, m, n);
 
     Ddesc->tiles_table = NULL;
     Ddesc->super.nb_local_tiles = 0;
@@ -150,15 +135,9 @@ void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
         two_dim_tabular_set_table( Ddesc, table );
     }
 
-    Ddesc->super.super.rank_of =  twoDTD_rank_of;
-    Ddesc->super.super.vpid_of =  twoDTD_vpid_of;
-    Ddesc->super.super.data_of =  twoDTD_data_of;
-#ifdef DAGUE_PROF_TRACE
-    Ddesc->super.super.data_key = twoDTD_data_key;
-    Ddesc->super.super.key_to_string = twoDTD_key_to_string;
-    Ddesc->super.super.key = NULL;
-    asprintf(&Ddesc->super.super.key_dim, "(%d, %d)", Ddesc->super.mt, Ddesc->super.nt);
-#endif /* DAGUE_PROF_TRACE */
+    Ddesc->super.super.rank_of = twoDTD_rank_of;
+    Ddesc->super.super.vpid_of = twoDTD_vpid_of;
+    Ddesc->super.super.data_of = twoDTD_data_of;
 }
 
 void two_dim_tabular_set_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *table)
