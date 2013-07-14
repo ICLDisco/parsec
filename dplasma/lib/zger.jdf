@@ -46,7 +46,7 @@ m = 0 .. descX.mt-1
 READ X <- dataX(m, 0)               [type = VECTOR]
        -> X GER(m, 0..descA.nt-1)   [type = VECTOR]
 BODY
-     printlog("rank %u <- X(%d)\n", dataX->myrank, m );
+     printlog("X(%d)\n", m );
 END
 
 /**************************************************
@@ -61,7 +61,7 @@ m = 0 .. descY.mt-1
 READ Y <- dataY(m, 0)               [type = VECTOR]
        -> Y GER(0..descA.mt-1, m)   [type = VECTOR]
 BODY
-     printlog("rank %u <- Y(%d)\n", dataY->myrank, m );
+     printlog("read Y(%d)\n", m );
 END
 
 /**************************************************
