@@ -52,7 +52,7 @@ m = 0 .. descA.nt-1
 A <- dataA(k, m)
   -> A GEMM(m, 0, k)
 BODY
-    printlog("rank %u <- A(%d,%d)\n", __dague_object->super.A->myrank, k, m);
+    printlog("rank %u <- A(%d,%d)\n", __dague_object->super.dataA->myrank, k, m);
 END
 
 /**************************************************
@@ -68,7 +68,7 @@ k = 0 .. descB.nt-1
 B <- dataB(n, k)
   -> B GEMM(0, n, k)
 BODY
-     printlog("rank %u <- dataB(%d,%d)\n", __dague_object->super.B->myrank, n, k);
+     printlog("rank %u <- dataB(%d,%d)\n", __dague_object->super.dataB->myrank, n, k);
 END
 
 /**************************************************
