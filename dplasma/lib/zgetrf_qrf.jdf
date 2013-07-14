@@ -90,7 +90,7 @@ zgetrf(k)
   : A(k, k)
 
   RW    A    <- A selector(k,k,k)
-             /* -> A(k, k) */
+             -> A(k, k)
              -> A zgetrf_typechange(k)
              -> (k < descA.nt-1) ? A  swptrsm_u(k, (k+1)..(descA.nt-1))     [type = LOWER_TILE]
 
@@ -141,12 +141,11 @@ swptrsm_u(k, n)
 
   READ  A    <- A  zgetrf(k)                                       [type = LOWER_TILE]
   READ  IP   <- IP zgetrf(k)                                       [type = PIVOT]
-  RW    C    <- A(k, n) /* selector(k, k, n)*/
+  RW    C    <- Ashm selector(k, k, n)
              -> A(k, n)
              -> ( k < (descA.mt-1) ) ? V zgemm(k, (k+1)..(descA.mt-1), n)
 
-  CTL   ctl  <- ( k >  0 ) ? ctl tile2panel(k-1, n)
-             <- ctl selector(k, k..param_p..(descA.mt-1), n)
+  CTL   ctl  <- ( k > 0 ) ? ctl tile2panel(k-1, n)
 
   /* Priority */
   ;descA.nt-n-1
@@ -236,17 +235,18 @@ zgemm(k, m, n)
   m = k+1 .. descA.mt-1
   n = k+1 .. descA.nt-1
 
-  diagdom = inline_c %{ return ((m-k-1)%param_p == 0) ? 0 : 1; %}
+  diagdom0 = inline_c %{ return ((m-k  )%param_p); %}
+  diagdom1 = inline_c %{ return ((m-k-1)%param_p); %}
 
   : A(m, n)
 
   READ H   <- C ztrsm_l(k, m)
   READ V   <- C swptrsm_u(k, n)
 
-  RW   C   <- A selector(k, m, n)
-           -> (n == k+1) ? A copypanel(k+1, m) : A selector(k+1, m, n)
+  RW   C   <- (diagdom0 == 0) ? Ashm selector(k, m, n) : A selector(k,   m, n)
+           -> (n == (k+1))    ? A copypanel(k+1, m)    : A selector(k+1, m, n)
 
-  CTL  ctl -> ( (diagdom == 0) && (n > k+1) ) ? ctl tile2panel(k, n)
+  CTL  ctl -> ( (diagdom1 == 0) && (n > (k+1)) ) ? ctl tile2panel(k, n)
 
 ; descA.nt-n-1
 
@@ -339,8 +339,8 @@ zgeqrt_typechange(k, i) [profile = off]
   : A(m, k)
 
   RW A <- A zgeqrt(k, i)
-       -> ( descA.nt-1 > k ) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
-       -> A(m, k)                                                  [type = LOWER_TILE]
+       -> ( (descA.nt-1) > k ) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
+       -> A(m, k)                                                    [type = LOWER_TILE]
 
   ; descA.nt-k-1
 
@@ -369,9 +369,9 @@ zunmqr(k, i, n)
   READ  T <- T zgeqrt(k, i)                                         [type = LITTLE_T]
 
   RW    C <- A selector(k, m, n)
-          -> ( k == descA.mt-1 ) ? A(m, n)
-          -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ? A1 zttmqr(k, nextm, n)
-          -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ? A2 zttmqr(k, m,     n)
+          -> (  k == (descA.mt-1) ) ? A(m, n)
+          -> ( (k <  (descA.mt-1)) & (nextm != descA.mt) ) ? A1 zttmqr(k, nextm, n)
+          -> ( (k <  (descA.mt-1)) & (nextm == descA.mt) ) ? A2 zttmqr(k, m,     n)
 
   ; descA.nt-n-1
 
@@ -440,12 +440,12 @@ zttqrt(k, m)
           -> (type == 0 ) ? A(m, k)
           -> (type != 0 ) ? A(m, k)                                             [type = UPPER_TILE]
 
-          -> (type == 0) &&  (descA.nt-1 > k) ? V zttmqr(k, m, (k+1)..(descA.nt-1))
-          -> (type != 0) &&  (descA.nt-1 > k) ? V zttmqr(k, m, (k+1)..(descA.nt-1)) [type = UPPER_TILE]
+          -> (type == 0) && ((descA.nt-1) > k) ? V zttmqr(k, m, (k+1)..(descA.nt-1))
+          -> (type != 0) && ((descA.nt-1) > k) ? V zttmqr(k, m, (k+1)..(descA.nt-1)) [type = UPPER_TILE]
 
   RW   T  <- TT(m, k)                                              [type = LITTLE_T]
           -> TT(m, k)                                              [type = LITTLE_T]
-          -> (descA.nt-1 > k)? T zttmqr(k, m, (k+1)..(descA.nt-1)) [type = LITTLE_T]
+          -> ((descA.nt-1) > k ) ? T zttmqr(k, m, (k+1)..(descA.nt-1)) [type = LITTLE_T]
 
  ; descA.nt-k-1
 
@@ -527,7 +527,7 @@ zttmqr(k, m, n)
   im    = inline_c %{ return qrtree.geti(    &qrtree, k,   m );   %}
   im1   = inline_c %{ return qrtree.geti(    &qrtree, k+1, m );   %}
 
-  diagdom = inline_c %{ return ((m-k-1)%param_p == 0) ? 0 : 1; %}
+  diagdom = inline_c %{ return ((m-k-1)%param_p); %}
 
   : A(m, n)
 
@@ -541,14 +541,14 @@ zttmqr(k, m, n)
           <- ((type != 0 ) && (prevm == descA.mt ) ) ? C  zunmqr(k, im, n)
           <- ((type != 0 ) && (prevm != descA.mt ) ) ? A1 zttmqr(k, prevm, n )
 
-          -> (n == k+1) ? A copypanel(k+1, m) : A selector(k+1, m, n)
+         -> (n == (k+1)) ? A copypanel(k+1, m) : A selector(k+1, m, n)
 
   READ  V <- (type == 0) ? A2 zttqrt(k, m)
           <- (type != 0) ? A2 zttqrt(k, m) [type = UPPER_TILE]
 
   READ  T <- T  zttqrt(k, m) [type = LITTLE_T]
 
-  CTL  ctl -> ( (diagdom == 0) && (n > k+1) ) ? ctl tile2panel(k, n)
+  CTL  ctl -> ( (diagdom == 0) && (n > (k+1)) ) ? ctl tile2panel(k, n)
 
     ; descA.nt-n-1
 
@@ -667,10 +667,11 @@ copypanel(k, m) [ profile = off ]
   RW   A     <- (k == 0) ? A(m, k)
              <- (k >  0) && (did_lu == 1) ? C  zgemm( k-1,m,k)
              <- (k >  0) && (did_lu != 1) ? A2 zttmqr(k-1,m,k)
-             -> (m != k) ? A selector(k, m, k)
+             -> (diagdom != 0) ? A selector(k, m, k)
 
   RW   B     <- A(m, k)
-             -> (m == k) ? A zlufacto(k, 0..nbthrd)
+             -> ((diagdom == 0) && (m == k)) ? A zlufacto(k, 0..nbthrd)
+             -> ((diagdom == 0) && (m != k)) ? A selector(k, m, k)
 
   WRITE Acpy -> (diagdom == 0) ? Acpy selector(k, m, k)
 
@@ -687,62 +688,58 @@ BODY
 
     printlog("copypanel( k=%d, m=%d )", k, m );
 
-        if (diagdom == 0) {
-            /* The tiles of the first node have to be copied */
+    if (diagdom == 0) {
+        /* The tiles of the first node have to be copied */
+        CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
+                    A,    ldam,
+                    Acpy, descA.mb);
+
+        if ( A != B ) {
             CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
-                        A,    ldam,
-                        Acpy, descA.mb);
+                        A, ldam,
+                        B, ldam);
+        }
+    } else{
 
-            if ( A != B ) {
-                /* The last version is required to be in memory, not in arena */
-                CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
-                            A, ldam,
-                            B, ldam);
-            }
-        } else{
-
+        /*
+         * Info related to criteria can be computed in local workspace W,
+         * since two panels will never be computed at the same time.
+         */
+        if ((criteria == HIGHAM_CRITERIUM) || (criteria == HIGHAM_MAX_CRITERIUM) || (criteria == HIGHAM_SUM_CRITERIUM) || (criteria == HIGHAM_MOY_CRITERIUM))
+        {
             /*
-             * Info related to criteria can be computed in local workspace W,
-             * since two panels will never be computed at the same time.
+             * Compute the 1-norm of every tiles located on other nodes
              */
-            if ((criteria == HIGHAM_CRITERIUM)     ||
-                (criteria == HIGHAM_MAX_CRITERIUM) ||
-                (criteria == HIGHAM_SUM_CRITERIUM) ||
-                (criteria == HIGHAM_MOY_CRITERIUM) )
-            {
-                /*
-                 * Compute the 1-norm of every tiles located on other nodes
-                 */
-                int i = (m - k) / param_p;
-                W[i] = LAPACKE_zlange_work(
-                    LAPACK_COL_MAJOR, '1',
-                    tempmm, tempkn, A, ldam, NULL);
+            int i = (m - k) / param_p;
+            W[i] = LAPACKE_zlange_work(
+                LAPACK_COL_MAJOR, '1',
+                tempmm, tempkn, A, ldam, NULL);
 
-                //fprintf(stderr, "copypanel( k=%d, m=%d ): ||A||_1 = %e\n", k, m, W[i]);
-            }
-            else if (criteria == MUMPS_CRITERIUM)
-            {
-                /*
-                 * Search the maximal absolute value per column
-                 */
-                int p = m-k;
-                if (p < param_p) {
-                    int s  = (descA.mt - k - p + param_p - 1) / param_p;
-                    int ks = k + p + (s-1)*param_p;
-                    int tempm = (s-1) * descA.mb +
-                        (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
+            //fprintf(stderr, "copypanel( k=%d, m=%d ): ||A||_1 = %e\n", k, m, W[i]);
+        }
+        else if (criteria == MUMPS_CRITERIUM)
+        {
+            /*
+             * Search the maximal absolute value per column
+             */
+            int p = m-k;
+            if (p < param_p) {
+                int s  = (descA.mt - k - p + param_p - 1) / param_p;
+                int ks = k + p + (s-1)*param_p;
+                int tempm = (s-1) * descA.mb +
+                    (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
 
-                    PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                           descA.mb, descA.nb, descA.mb * descA.nb,
-                                                           s * descA.mb, descA.nb, 0, 0,
-                                                           tempm, tempkn);
-                    pdescA.mat = A;
+                PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                                       descA.mb, descA.nb, descA.mb * descA.nb,
+                                                       s * descA.mb, descA.nb, 0, 0,
+                                                       tempm, tempkn);
+                pdescA.mat = A;
 
-                    memset( W, 0, descA.nb * sizeof(double));
-                    CORE_zamax_tile(PlasmaColumnwise, PlasmaUpperLower, pdescA, W );
-                }
+                memset( W, 0, descA.nb * sizeof(double));
+                CORE_zamax_tile(PlasmaColumnwise, PlasmaUpperLower, pdescA, W );
             }
         }
+    }
 }
 END
 
@@ -785,65 +782,62 @@ BODY
              "\t(%d, %d, A(%d,%d)[%p], IP(%d)[%p]) lu_facto",
              k, t, nbthrd, tempm, tempkn, k, k, A, k, IP);
 
-    int tempkm = k == descA.mt-1 ? tempm : descA.mb;
-    int info[3];
+        int tempkm = k == descA.mt-1 ? tempm : descA.mb;
+        int info[3];
 
-    /* Set local IP to 0 before generation
-     * Better here than a global initialization for locality
-     * and it's also done in parallel */
-    if ( t == 0 ) {
-        memset(IP, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
-    }
+        /* Set local IP to 0 before generation
+         * Better here than a global initialization for locality
+         * and it's also done in parallel */
+        if ( t == 0 ) {
+            memset(IP, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
+        }
 
-    info[1] = t;
-    info[2] = nbthrd+1;
+        info[1] = t;
+        info[2] = nbthrd+1;
 
-    if (criteria == MUMPS_CRITERIUM)
-    {
-        /* Store largest absolut values of each columns */
-        memset( W, 0, descA.nb * sizeof(double));
-        CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempkn, tempkn, A, ldak, W);
-    }
+        if (criteria == MUMPS_CRITERIUM)
+        {
+            /* Store largest absolut values of each columns */
+            memset( W, 0, descA.nb * sizeof(double));
+            CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempkn, tempkn, A, ldak, W);
+        }
 
-    if ( descA.storage == matrix_Tile ) {
-        PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                               descA.mb, descA.nb, descA.mb * descA.nb,
-                                               s*descA.mb, descA.nb, 0, 0,
-                                               tempm, tempkn);
-        pdescA.mat = A;
-        CORE_zgetrf_rectil( pdescA, IP, info );
+        if ( descA.storage == matrix_Tile ) {
+            PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                                   descA.mb, descA.nb, descA.mb * descA.nb,
+                                                   s*descA.mb, descA.nb, 0, 0,
+                                                   tempm, tempkn);
+            pdescA.mat = A;
+            CORE_zgetrf_rectil( pdescA, IP, info );
 
-    } else {
-        /* Not implemented */
-        assert( 0 );
-        CORE_zgetrf_reclap(
-            tempm, tempkn,
-            A/*(k, k)*/, ldak, IP, info );
-    }
+        } else {
+            /* Not implemented */
+            assert( 0 );
+            CORE_zgetrf_reclap(
+                tempm, tempkn,
+                A/*(k, k)*/, ldak, IP, info );
+        }
 
-    if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
-        *INFO = k * descA.mb + info[0]; /* Should return if enter here */
-        fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
-    }
+        if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
+            *INFO = k * descA.mb + info[0]; /* Should return if enter here */
+            fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
+        }
 
-    if ( (t == 0) && (criteria == HIGHAM_CRITERIUM))
-    {
-        /* Compute the condition number of U */
-        LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W );
-        //LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, W);
+        if ( (t == 0) && (criteria == HIGHAM_CRITERIUM))
+        {
+            /* Compute the condition number of U */
+            LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W );
+            //LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, W);
 
-        W[0] = 1. / W[0];
-    }
+            W[0] = 1. / W[0];
+        }
 
-    if ( (t == 0) &&
-         ((criteria == HIGHAM_MAX_CRITERIUM) ||
-          (criteria == HIGHAM_SUM_CRITERIUM) ||
-          (criteria == HIGHAM_MOY_CRITERIUM)) )
-    {
-        /*Compute the norm of A_kk^(-1)  */
-        LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, 1., W);
-        fprintf(stderr, "Le cond est: %f\n", W[0]);
-    }
+        if ( (t == 0) && ((criteria == HIGHAM_MAX_CRITERIUM) || (criteria == HIGHAM_SUM_CRITERIUM) || (criteria == HIGHAM_MOY_CRITERIUM)))
+        {
+            /*Compute the norm of A_kk^(-1)  */
+            LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, 1., W);
+            fprintf(stderr, "Le cond est: %f\n", W[0]);
+        }
 }
 END
 
@@ -1210,8 +1204,8 @@ selector(k,m,n)
   type   = inline_c %{ return qrtree.gettype( &qrtree, k, m );   %}
   did_lu = inline_c %{ return (k == 0) ? -1 : lu_tab[k-1]; %}
   do_lu  = inline_c %{ return lu_tab[k]; %}
-  diagdom = inline_c %{ return ((m-k)%param_p == 0) && (n == k) ? 0 : 1; %}
-
+  diagdom= inline_c %{ return ((m-k)%param_p == 0); %}
+  panel  = inline_c %{ return diagdom && (n == k); %}
   p    = inline_c %{ return (m-k)%param_p; %}
   q    = inline_c %{ return (n-k)%param_q; %}
   hmax = inline_c %{ return dague_log2( dague_imin(param_p, descA.mt-k)-1 ); %}
@@ -1219,15 +1213,15 @@ selector(k,m,n)
   : A(m,n)
 
   RW   A   <-   ((k == n) && (k == m)) ? A zlufacto(k, 0)
-           <-   ((k == n) && (k != m)) ? A copypanel(k, m)
+           <-   ((k == n) && (k != m) &&  diagdom) ? B copypanel(k, m)
+           <-   ((k == n) && (k != m) && !diagdom) ? A copypanel(k, m)
            <-   ((k != n) && (k == 0)) ? A(m, n)
            <-   ((k != n) && (k != 0) && (did_lu == 1)) ? C  zgemm( k-1,m,n)
            <-   ((k != n) && (k != 0) && (did_lu != 1)) ? A2 zttmqr(k-1,m,n)
            /* LU */
-           -> ( (do_lu == 1) && (k == n) && (k == m) ) ? A zgetrf(k)
-           /* -> ( (do_lu == 1) && (k != n) && (k == m) ) ? C swptrsm_u(k,n) */
-           -> ( (do_lu == 1) && (k == n) && (k != m) ) ? C ztrsm_l(k,m)
-           -> ( (do_lu == 1) && (k != n) && (k != m) ) ? C zgemm(k,m,n)
+           -> ( (do_lu == 1) && (k == n) && (k == m) )              ? A zgetrf(k)
+           -> ( (do_lu == 1) && (k == n) && (k != m) )              ? C ztrsm_l(k,m)
+           -> ( (do_lu == 1) && (k != n) && (k != m) && (!diagdom)) ? C zgemm(k,m,n)
            /* QR */
            -> ( (do_lu != 1) && (k == n) && (type != 0) ) ? A  zgeqrt(k,i)
            -> ( (do_lu != 1) && (k == n) && (type == 0) ) ? A2 zttqrt(k,m)
@@ -1238,13 +1232,15 @@ selector(k,m,n)
            <- ((k != m) || (k != n)) ? IPIV(m,n) /* unused */          [type = PIVOT]
            -> ((k == m) && (k == n) && (do_lu == 1) ) ? IP zgetrf(k)   [type = PIVOT]
 
-  READ Acpy <- (diagdom == 0) ? Acpy copypanel(k, m)
-            <- (diagdom != 0) ? A(m, n)
+  READ Acpy <- ( panel) ? Acpy copypanel(k, m)
+            <- (!panel) ? A(m, n) /* unused */
+
+  RW   Ashm <- A(m, n)
+            -> ( (do_lu == 1) && (k != n) && (k == m) && diagdom) ? C swptrsm_u(k,n)
+            -> ( (do_lu == 1) && (k != n) && (k != m) && diagdom) ? C zgemm(k,m,n)
 
   CTL  ctl  <- (q == 0) ? ctl setchoice(k, p, hmax)
             <- (q != 0) ? ctl setchoice_update(k, p, q)
-
-            -> ((do_lu == 1) && ((m-k)%param_p == 0)) ? ctl swptrsm_u(k, n)
 
   ; descA.nt
 
@@ -1253,8 +1249,8 @@ BODY
     printlog("selector( k=%d, m=%d, n=%d) type=%d, didlu=%d, dolu=%d",
              k, m, n, type, did_lu, do_lu);
 
-    /* Restore the panel if the LU factorization failed */
-    if( do_lu != 1 && diagdom == 0) {
+    /* The LU factorization failed, we restore the data to switch back to QR */
+    if( (do_lu != 1) && panel) {
         int tempmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
         int tempkn = (k==(descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
         int ldam = BLKLDD( descA, m );
@@ -1264,19 +1260,18 @@ BODY
                     A,    ldam);
     }
 
-    /* Make sure that we stop using the arena on the first node for laswp */
-    if( (do_lu   == 1)       &&
-        ((m-k)%param_p == 0) &&
-        ( n > k)             &&
-        ( A != Acpy ) )
-    {
-        int tempmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
-        int tempnn = (n==(descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
-        int ldam = BLKLDD( descA, m );
+    /* The tile is part of the diagonal node and trailing submatrix */
+    if ( (do_lu == 1) && (diagdom) && (n > k) ) {
+        /* We update the shm version for swptrsm_u */
+        if (A != Ashm) {
+            int tempmm = (m==(descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+            int tempnn = (n==(descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
+            int ldam = BLKLDD( descA, m );
 
-        CORE_zlacpy(PlasmaUpperLower, tempmm, tempnn,
-                    A,    ldam,
-                    Acpy, ldam);
+            CORE_zlacpy(PlasmaUpperLower, tempmm, tempnn,
+                        A,    ldam,
+                        Ashm, ldam);
+        }
     }
 
     if((m >= descA.mt-param_p) && (n >= descA.nt-param_q)) {
@@ -1365,7 +1360,7 @@ BODY
                 }
 
                 for(getrf_n=k+1; getrf_n< descA.nt; getrf_n++) {
-                    if (zgemm_pred(k, getrf_m, getrf_n, 0)) {
+                    if (zgemm_pred(k, getrf_m, getrf_n, 0, 0)) {
                         nb_tasks++;
                     }
                 }
