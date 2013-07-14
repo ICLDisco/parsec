@@ -13,6 +13,8 @@ sub ParseCore {
     while( )
     {
         my $line = <M>;
+        my $output = "";
+
         chomp $line;
         if ( $line =~ /QUARK_CORE/ ) {
             my $pragma = "#pragma ";
@@ -24,7 +26,7 @@ sub ParseCore {
             $line =~ s/[ \t]+/ /g;                           #Remove spaces and tab
             $line =~ s/{[ \t]*/{\\\n/g;                      #Replace { by \\n
             $line =~ s/\w* *(\w*\()/#define \1/;             #Replace void by define
-            print OUTPUT $line ;
+            $output .= $line ;
 
             $line =~ s/#define QUARK_(.*)\(.*/\1/;
             chomp $line;
@@ -36,7 +38,21 @@ sub ParseCore {
             $line = <M>;
             chomp $line;
             while ( ! ($line =~ /0\);/ ) ) {
-                if ( $line =~ /.*,[ ]*(.*),[ ]*[INOPUT]*,/ ) {
+                if ($line =~ /QUARK_Task_Init/ ) {
+                    goto end;
+                }
+                if ( ($line =~ /DAG_CORE_/) || ($line =~ /DAG_SET/) ) {
+                    $line = <M>;
+                    chomp $line;
+                    next;
+                }
+
+                my $line_params = $line;
+                $line_params =~ s/[ ]*\|[ ]*LOCALITY[ ]*//;
+                $line_params =~ s/[ ]*\|[ ]*GATHERV[ ]*//;
+                $line_params =~ s/[ ]*\|[ ]*QUARK_REGION_.*[ ]*//;
+                #print $line_params."\n";
+                if ( $line_params =~ /.*,[ ]*(.*),[ ]*[INOPUT]*,/ ) {
                     $pragma .= " ".$1;
                 }
                 if ($line =~ /QUARK_Insert_Task/ ) {
@@ -46,19 +62,20 @@ sub ParseCore {
                     $line =~ s/(.*,[ \t]+&?)(\w*)(,.*,)/\1(\2)\3/g;
                 }
                 $line .= "\\\n";
-                print OUTPUT $line;
-
+                $output .= $line;
 
                 $line = <M>;
                 chomp $line;
             }
             # Last line with '0);'
             $line .= "}\n";
-            print OUTPUT $line;
-            print OUTPUT $pragma."\n\n";
+            $output .= $line;
+            $output .= $pragma."\n\n";
         }
         last if eof(M);
+        print OUTPUT $output;
     }
+end:
     close(M);
 }
 
@@ -72,7 +89,7 @@ open(OUTPUT, ">$output");
 foreach my $file (@files)
 {
     chomp $file;
-    #print "$file\n";
+    print "$file\n";
     ParseCore( $file );
 }
 close(OUTPUT);
