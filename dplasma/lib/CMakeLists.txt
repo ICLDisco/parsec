@@ -42,6 +42,7 @@ set(JDF
   ztrmdm.jdf
   ztrdsm.jdf
   zgetrf_incpiv.jdf zgetrf_incpiv_sd.jdf
+  zgetrf_nopiv.jdf
   ztrsmpl.jdf ztrsmpl_sd.jdf
   zgeqrf.jdf
   zgelqf.jdf
@@ -126,6 +127,7 @@ set(SOURCES
   zgetrf_incpiv_wrapper.c
   zgetrs_incpiv_wrapper.c
   zgesv_incpiv_wrapper.c
+  zgetrf_nopiv_wrapper.c
   zgeqrf_wrapper.c
   zgeqrf_param_wrapper.c
   zgetrf_hincpiv_wrapper.c ztrsmpl_hincpiv_wrapper.c

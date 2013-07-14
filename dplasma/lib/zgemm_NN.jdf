@@ -72,7 +72,7 @@ n = 0 .. descB.nt-1
 B <- dataB(k, n)
   -> B GEMM(0, n, k)
 BODY
-     printlog("rank %u <- B(%d,%d)\n", __dague_object->super.B->myrank, k, n);
+     printlog("rank %u <- B(%d,%d)\n", __dague_object->super.dataB->myrank, k, n);
 END
 
 /**************************************************

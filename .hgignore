@@ -99,6 +99,8 @@ dplasma/lib/[sdc]lange_wrapper.c$
 dplasma/lib/[sdc]lanhe_wrapper.c$
 dplasma/lib/[sdc]lansy\.jdf$
 dplasma/lib/[sdc]lansy_wrapper.c$
+dplasma/lib/[sdc]lascal\.jdf$
+dplasma/lib/[sdc]lascal_wrapper.c$
 dplasma/lib/[sdc]laset\.jdf$
 dplasma/lib/[sdc]laset_wrapper.c$
 dplasma/lib/[sdc]laswp\.jdf$
@@ -109,6 +111,8 @@ dplasma/lib/[sdc]orgqr_param_wrapper.c$
 dplasma/lib/[sdc]orgqr_wrapper.c$
 dplasma/lib/[sdc]ormqr_[LR][NC]\.jdf$
 dplasma/lib/[sdc]ormqr_wrapper.c$
+dplasma/lib/[sdc]ormqr_param_[LR][NC]\.jdf$
+dplasma/lib/[sdc]ormqr_param_wrapper.c$
 dplasma/lib/[sdc]plghe\.jdf$
 dplasma/lib/[sdc]plghe_wrapper.c$
 dplasma/lib/[sdc]plgsy\.jdf$
@@ -185,6 +189,7 @@ dplasma/lib/[sdcz]geqrf_param\.[ch]$
 dplasma/lib/[sdcz]getrf\.[ch]$
 dplasma/lib/[sdcz]getrf_incpiv\.[ch]$
 dplasma/lib/[sdcz]getrf_incpiv_sd\.[ch]$
+dplasma/lib/[sdcz]getrf_nopiv\.[ch]$
 dplasma/lib/[sdcz]getrf_sd\.[ch]$
 dplasma/lib/[sdcz]hbrdt\.[ch]$
 dplasma/lib/[sdcz]hemm\.[ch]$
@@ -195,11 +200,13 @@ dplasma/lib/[sdcz]hetrf\.[ch]$
 dplasma/lib/[sdcz]lacpy\.[ch]$
 dplasma/lib/[sdcz]lange_.*_cyclic\.[ch]$
 dplasma/lib/[sdcz]lansy\.[ch]$
+dplasma/lib/[sdcz]lascal\.[ch]$
 dplasma/lib/[sdcz]laset\.[ch]$
 dplasma/lib/[sdcz]laswp\.[ch]$
 dplasma/lib/[sdcz]orgqr\.[ch]$
 dplasma/lib/[sdcz]orgqr_param\.[ch]$
 dplasma/lib/[sdcz]ormqr_[LR][NC]\.[ch]$
+dplasma/lib/[sdcz]ormqr_param_[LR][NC]\.[ch]$
 dplasma/lib/[sdcz]plghe\.[ch]$
 dplasma/lib/[sdcz]plgsy\.[ch]$
 dplasma/lib/[sdcz]plrnt\.[ch]$
@@ -257,6 +264,7 @@ dplasma/testing/testing_[sdc]gesvd\.c$
 dplasma/testing/testing_[sdc]getrf\.c$
 dplasma/testing/testing_[sdc]getrf_incpiv\.c$
 dplasma/testing/testing_[sdc]getrf_incpiv_sd\.c$
+dplasma/testing/testing_[sdc]getrf_nopiv\.c$
 dplasma/testing/testing_[sdc]hbrdt\.c$
 dplasma/testing/testing_[sdc]hebut\.c$
 dplasma/testing/testing_[sdc]heev\.c$
@@ -280,6 +288,7 @@ dplasma/testing/testing_[sdc]syrk\.c$
 dplasma/testing/testing_[sdc]trmm\.c$
 dplasma/testing/testing_[sdc]trsm\.c$
 dplasma/testing/testing_[sdc]unmqr\.c$
+dplasma/testing/testing_[sdc]unmqr_param\.c$
 dplasma/testing/testing_[sdcz]gelqf$
 dplasma/testing/testing_[sdcz]gemm$
 dplasma/testing/testing_[sdcz]geqrf$
@@ -290,6 +299,7 @@ dplasma/testing/testing_[sdcz]gesvd$
 dplasma/testing/testing_[sdcz]getrf$
 dplasma/testing/testing_[sdcz]getrf_incpiv$
 dplasma/testing/testing_[sdcz]getrf_incpiv_sd$
+dplasma/testing/testing_[sdcz]getrf_nopiv$
 dplasma/testing/testing_[sdcz]hbrdt$
 dplasma/testing/testing_[sdcz]hebut$
 dplasma/testing/testing_[sdcz]heev$
