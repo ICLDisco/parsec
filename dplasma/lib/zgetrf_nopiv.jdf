@@ -1,0 +1,174 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+%}
+
+dataA     [type = "dague_ddesc_t *"]
+descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+ib        [type = "int"]
+INFO      [type = "int*"]
+
+zgetrf_nopiv(k)
+  /* Execution Space */
+  k = 0..inline_c %{ return dague_imin((descA.nt-1),(descA.mt-1)); %}
+
+  /* Locality */
+  : dataA(k,k)
+
+  RW    A    <- (k == 0) ? dataA(k,k)
+             <- (k >  0) ? C zgemm(k-1, k, k)
+             -> dataA(k,k)
+             -> (k < (descA.mt-1)) ? A ztrsm_l(k, (k+1)..(descA.mt-1))
+             -> (k < (descA.nt-1)) ? A ztrsm_u(k, (k+1)..(descA.nt-1))
+
+BODY
+{
+    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
+    int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    printlog("CORE_zgetrf_nopiv(%d)\n"
+             "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, sequence, request, descA.mb*k)\n",
+             k, k, k, A);
+
+#if !defined(DAGUE_DRY_RUN)
+    {
+        int iinfo = 0;
+        iinfo = CORE_zgetrf_nopiv(tempkm, tempkn, ib,
+                                  A /* dataA(k,k) */, ldak );
+
+        if ( iinfo != PLASMA_SUCCESS) {
+            *INFO = descA.mb * k + iinfo; /* Should return if enter here */
+            fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
+        }
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+ztrsm_l(k, m)
+  /* Execution Space */
+  k = 0     .. inline_c %{ return dague_imin((descA.nt-1),(descA.mt-2)); %}
+  m = (k+1) .. (descA.mt-1)
+
+  /* Locality */
+  : dataA(m, k)
+
+  READ  A    <- A zgetrf_nopiv(k)
+  RW    B    <- (k == 0) ? dataA(m, k)
+             <- (k >  0) ? C zgemm(k-1, m, k)
+             -> (k < (descA.nt-1)) ? A zgemm(k, m, (k+1)..(descA.nt-1))
+             -> dataA(m,k)
+
+BODY
+{
+    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
+    int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
+
+    printlog("CORE_ztrsm_l(%d, %d)\n"
+             "\t(PlasmaRight, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, tempmm, tempkn, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
+             k, m, k, k, A, m, k, B);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_ztrsm(PlasmaRight, PlasmaUpper,
+               PlasmaNoTrans, PlasmaNonUnit,
+               tempmm, tempkn,
+               1., A /* dataA(k,k) */, ldak,
+                   B /* dataA(m,k) */, ldam );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+
+}
+END
+
+ztrsm_u(k, n)
+  /* Execution Space */
+  k = 0     .. inline_c %{ return dague_imin((descA.mt-1),(descA.nt-2)); %}
+  n = (k+1) .. (descA.nt-1)
+
+  /* Locality */
+  : dataA(k,n)
+
+  READ  A    <- A zgetrf_nopiv(k)
+  RW    B    <- (k == 0) ? dataA(k, n)
+             <- (k >  0) ? C zgemm(k-1, k, n)
+             -> (k < (descA.mt-1)) ? B zgemm(k, (k+1)..(descA.mt-1), n)
+             -> dataA(k, n)
+
+BODY
+{
+    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+
+    printlog("CORE_ztrsm_u(%d, %d)\n"
+             "\t(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, tempkm, tempnn, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
+             k, n, k, k, A, k, n, B);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_ztrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans,
+               PlasmaUnit, tempkm, tempnn,
+               1., A /* dataA(k,k) */, ldak,
+                   B /* dataA(k,n) */, ldak );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+zgemm(k, m, n)
+  /* Execution Space */
+  k = 0     .. inline_c %{ return dague_imin((descA.nt-2),(descA.mt-2)); %}
+  m = (k+1) .. (descA.mt-1)
+  n = (k+1) .. (descA.nt-1)
+
+  /* Locality */
+  : dataA(m,n)
+
+  READ  A    <- B ztrsm_l(k, m)
+  READ  B    <- B ztrsm_u(k, n)
+  RW    C    <- (k == 0) ? dataA(m, n)
+             <- (k >  0) ? C zgemm(k-1, m, n)
+             -> ((m == (k+1)) && (n == (k+1))) ? A zgetrf_nopiv(k+1)
+             -> ((m >  (k+1)) && (n == (k+1))) ? B ztrsm_l(k+1, m)
+             -> ((m == (k+1)) && (n >  (k+1))) ? B ztrsm_u(k+1, n)
+             -> ((m >  (k+1)) && (n >  (k+1))) ? C zgemm(k+1, m, n)
+
+BODY
+{
+    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
+    int ldam = BLKLDD( descA, m );
+    int ldak = BLKLDD( descA, k );
+
+    printlog("CORE_zgemm(%d, %d, %d)\n"
+             "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA.mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
+             k, n, m, m, k, A, k, n, B, m, n, C);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
+               tempmm, tempnn, descA.mb,
+               -1., A /* dataA(m,k) */, ldam,
+                    B /* dataA(k,n) */, ldak,
+                1., C /* dataA(m,n) */, ldam );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
