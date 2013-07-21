@@ -134,6 +134,11 @@ if( MPI_FOUND )
 
     add_test(mpi_${prec}geqrf_p3     ${MPI_TEST_CMD_LIST} -np 8 ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 3 --tsrr=0 -v=5)
     SET_TESTS_PROPERTIES("mpi_${prec}geqrf_p3" PROPERTIES DEPENDS "mpi_test")
+    if ( "${prec}" STREQUAL "c" OR "${prec}" STREQUAL "z" )
+        add_test(mpi_${prec}heev         ${MPI_TEST_CMD_LIST} -np 4 ./testing_${prec}heev -p 2 -N 2000 -x -v=5)
+    else()
+        add_test(mpi_${prec}syev         ${MPI_TEST_CMD_LIST} -np 4 ./testing_${prec}syev -p 2 -N 2000 -x -v=5)
+    endif()
 endforeach()
 
   add_test(mpi_dsymm         ${MPI_TEST_CMD_LIST} -np 8 ./testing_dsymm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
