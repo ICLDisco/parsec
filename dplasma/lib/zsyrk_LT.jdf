@@ -95,8 +95,8 @@ zgemm(n, m, k)
   /* Locality */
   : dataC(m,n)
 
-  READ  A    <- A zgemm_in_data_A0(n, m, k)
-  READ  B    <- B zgemm_in_data_A1(n, m, k)
+  READ  A    <- A zgemm_in_data_A0(m, k)
+  READ  B    <- B zgemm_in_data_A1(n, k)
   RW    C    <- ((k>=1)) ? C zgemm(n, m, k-1)
              <- ((0==k)) ? dataC(m,n)
              -> ((descA.mt==(k+1))) ? dataC(m,n)
@@ -126,17 +126,16 @@ BODY
 }
 END
 
-zgemm_in_data_A1(n, m, k) [profile = off]
+zgemm_in_data_A1(n, k) [profile = off]
   /* Execution Space */
   n = 0..(descC.mt-2)
-  m = (n+1)..(descC.mt-1)
   k = 0..(descA.mt-1)
 
   /* Locality */
   : dataA(k,n)
 
   READ  B    <- dataA(k,n)
-             -> B zgemm(n, m, k)
+             -> B zgemm(n, (n+1)..(descC.mt-1), k)
 
 BODY
 {
@@ -144,17 +143,16 @@ BODY
 }
 END
 
-zgemm_in_data_A0(n, m, k) [profile = off]
+zgemm_in_data_A0(m, k) [profile = off]
   /* Execution Space */
-  n = 0..(descC.mt-2)
-  m = (n+1)..(descC.mt-1)
+  m = 1..(descC.mt-1) /* tight bound is (n+1)..(descC.mt-1) */
   k = 0..(descA.mt-1)
 
   /* Locality */
   : dataA(k,m)
 
   READ  A    <- dataA(k,m)
-             -> A zgemm(n, m, k)
+             -> A zgemm(0..(descC.mt-2), m, k)
 
 BODY
 {
