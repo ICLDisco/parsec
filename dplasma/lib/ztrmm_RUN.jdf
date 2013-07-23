@@ -60,9 +60,9 @@ BODY
   DRYRUN(
 
     CORE_ztrmm(side, uplo, trans, 
-	diag, tempmm, tempnn, 
-	alpha, A /* dataA((descB.nt-1)-n,(descB.nt-1)-n) */, lda, 
-	B /* dataB(m,(descB.nt-1)-n) */, ldb );
+        diag, tempmm, tempnn, 
+        alpha, A /* dataA((descB.nt-1)-n,(descB.nt-1)-n) */, lda, 
+        B /* dataB(m,(descB.nt-1)-n) */, ldb );
   );
 
 }
@@ -114,10 +114,10 @@ BODY
   DRYRUN(
 
     CORE_zgemm(PlasmaNoTrans, trans, tempmm, 
-	tempnn, descB.mb, alpha, 
-	C /* dataB(m,k) */, ldb, D /* dataA(k,(descB.nt-1)-n) */, 
-	descA.mb, 1.000000, E /* dataB(m,(descB.nt-1)-n) */, 
-	ldb );
+        tempnn, descB.mb, alpha, 
+        C /* dataB(m,k) */, ldb, D /* dataA(k,(descB.nt-1)-n) */, 
+        descA.mb, 1.000000, E /* dataB(m,(descB.nt-1)-n) */, 
+        ldb );
   );
 
 }

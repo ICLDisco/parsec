@@ -117,10 +117,10 @@ BODY
   DRYRUN(
 
     CORE_zgemm(trans, PlasmaTrans, tempnn, 
-	tempmm, tempkn, alpha, 
-	A /* dataA(n,k) */, ldan, B /* dataA(m,k) */, 
-	ldam, zbeta, C /* dataC(n,m) */, 
-	ldcn );
+        tempmm, tempkn, alpha, 
+        A /* dataA(n,k) */, ldan, B /* dataA(m,k) */, 
+        ldam, zbeta, C /* dataC(n,m) */, 
+        ldcn );
   );
 
 }

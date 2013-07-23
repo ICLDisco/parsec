@@ -61,9 +61,9 @@ BODY
   DRYRUN(
 
     CORE_zherk(uplo, trans, tempnn, 
-	tempkn, alpha, A /* dataA(n,k) */, 
-	ldan, dbeta, C /* dataC(n,n) */, 
-	ldcn );
+        tempkn, alpha, A /* dataA(n,k) */, 
+        ldan, dbeta, C /* dataC(n,n) */, 
+        ldcn );
   );
 
 }
@@ -119,10 +119,10 @@ BODY
   DRYRUN(
 
     CORE_zgemm(trans, PlasmaConjTrans, tempmm, 
-	tempnn, tempkn, zalpha, 
-	A /* dataA(m,k) */, ldam, B /* dataA(n,k) */, 
-	ldan, zbeta, C /* dataC(m,n) */, 
-	ldcm );
+        tempnn, tempkn, zalpha, 
+        A /* dataA(m,k) */, ldam, B /* dataA(n,k) */, 
+        ldan, zbeta, C /* dataC(m,n) */, 
+        ldcm );
   );
 
 }
