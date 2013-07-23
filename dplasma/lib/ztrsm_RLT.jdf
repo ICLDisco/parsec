@@ -41,7 +41,7 @@ ztrsm(k,m)
 
   : B(m,k)
 
-  READ  A <- A ztrsm_in_A0(k,m)
+  READ  A <- A ztrsm_in_A0(k)
 
   RW    B <- (0==k) ? B(m,k)
           <- (k>=1) ? E zgemm(k-1, m, k)
@@ -70,14 +70,13 @@ END
 /*
  * Pseudo-task
  */
-ztrsm_in_A0(k,m) [profile = off]
+ztrsm_in_A0(k) [profile = off]
   k = 0..(descB.nt-1)
-  m = 0..(descB.mt-1)
 
   : A(k,k)
 
   RW A <- A(k,k)
-       -> A ztrsm(k,m)
+       -> A ztrsm(k,0..(descB.mt-1))
 BODY
 /* nothing */
 END
@@ -93,7 +92,7 @@ zgemm(k,m,n)
   : B(m,n)
 
   READ  C <- B ztrsm(k, m)
-  READ  D <- D zgemm_in_A0(k,m,n)
+  READ  D <- D zgemm_in_A0(k,n)
 
   RW    E <- (0==k) ? B(m,n)
           <- (k>=1) ? E zgemm(k-1, m, n)
@@ -124,15 +123,14 @@ END
 /*
  * Pseudo-task
  */
-zgemm_in_A0(k,m,n) [profile = off]
+zgemm_in_A0(k,n) [profile = off]
   k = 0..(descB.nt-2)
-  m = 0..(descB.mt-1)
   n = (k+1)..(descB.nt-1)
 
   : A(n,k)
 
   RW D <- A(n,k)
-       -> D zgemm(k,m,n)
+       -> D zgemm(k,0..(descB.mt-1),n)
 BODY
 /* nothing */
 END
