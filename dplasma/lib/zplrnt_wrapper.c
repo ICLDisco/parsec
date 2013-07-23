@@ -30,8 +30,8 @@
  *
  ******************************************************************************/
 dague_handle_t* dplasma_zplrnt_New( int diagdom,
-                                    tiled_matrix_desc_t *A,
-                                    unsigned long long int seed)
+                                    unsigned long long int seed,
+                                    tiled_matrix_desc_t *A)
 {
     dague_zplrnt_handle_t* object;
 
