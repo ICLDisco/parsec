@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
+ *  Copyright (c) 2010-2013      
  * 
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
@@ -90,8 +90,8 @@ BODY
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
   CORE_zgelqt(tempkm, tempkn, ib, 
-	A /* A(k,k) */, ldak, B /* T(k,k) */, 
-	desc_T->mb, p_elem_A, p_elem_B );
+        A /* A(k,k) */, ldak, B /* T(k,k) */, 
+        desc_T->mb, p_elem_A, p_elem_B );
 
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
@@ -174,10 +174,10 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
   CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
-	tempkn, tempkn, ib, 
-	C /* A(k,k) */, ldak, D /* T(k,k) */, 
-	desc_T->mb, E /* A(m,k) */, ldam, 
-	p_elem_A, desc_T->nb );
+        tempkn, tempkn, ib, 
+        C /* A(k,k) */, ldak, D /* T(k,k) */, 
+        desc_T->mb, E /* A(m,k) */, ldam, 
+        p_elem_A, desc_T->nb );
 
   dague_private_memory_push( pool_1, p_elem_A );
 
@@ -234,9 +234,9 @@ BODY
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
   CORE_ztslqt(tempkm, tempnn, ib, 
-	F /* A(k,k) */, ldak, G /* A(k,n) */, 
-	ldak, H /* T(k,n) */, desc_T->mb, 
-	p_elem_A, p_elem_B );
+        F /* A(k,k) */, ldak, G /* A(k,n) */, 
+        ldak, H /* T(k,n) */, desc_T->mb, 
+        p_elem_A, p_elem_B );
 
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
@@ -343,11 +343,11 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
   CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
-	desc_A->nb, tempmm, tempnn, 
-	desc_A->mb, ib, J /* A(m1,k) */, 
-	ldam, K /* A(m1,n) */, ldam, 
-	L /* A(k,n) */, ldak, M /* T(k,n) */, 
-	desc_T->mb, p_elem_A, ldwork );
+        desc_A->nb, tempmm, tempnn, 
+        desc_A->mb, ib, J /* A(m1,k) */, 
+        ldam, K /* A(m1,n) */, ldam, 
+        L /* A(k,n) */, ldak, M /* T(k,n) */, 
+        desc_T->mb, p_elem_A, ldwork );
 
   dague_private_memory_push( pool_1, p_elem_A );
 
@@ -397,8 +397,8 @@ BODY
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
   CORE_zgeqrt(tempkm, tempkn, ib, 
-	N /* A(k+1,k) */, ldak, O /* T(k+1,k) */, 
-	desc_T->mb, p_elem_A, p_elem_B );
+        N /* A(k+1,k) */, ldak, O /* T(k+1,k) */, 
+        desc_T->mb, p_elem_A, p_elem_B );
 
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
@@ -478,10 +478,10 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
   CORE_zunmqr(PlasmaLeft, PlasmaConjTrans, tempkm, 
-	tempnn, tempkm, ib, 
-	P /* A(k+1,k) */, ldak, Q /* T(k+1,k) */, 
-	desc_T->mb, R /* A(k+1,n1) */, ldak, 
-	p_elem_A, desc_T->nb );
+        tempnn, tempkm, ib, 
+        P /* A(k+1,k) */, ldak, Q /* T(k+1,k) */, 
+        desc_T->mb, R /* A(k+1,n1) */, ldak, 
+        p_elem_A, desc_T->nb );
 
   dague_private_memory_push( pool_1, p_elem_A );
 
@@ -538,9 +538,9 @@ BODY
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
   CORE_ztsqrt(tempmm, tempkn, ib, 
-	S /* A(k+1,k) */, ldak, T /* A(m2,k) */, 
-	ldam, U /* T(m2,k) */, desc_T->mb, 
-	p_elem_A, p_elem_B );
+        S /* A(k+1,k) */, ldak, T /* A(m2,k) */, 
+        ldam, U /* T(m2,k) */, desc_T->mb, 
+        p_elem_A, p_elem_B );
 
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
@@ -645,11 +645,11 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
   CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans, desc_A->mb, 
-	tempnn, tempmm, tempnn, 
-	desc_A->nb, ib, V /* A(k+1,n2) */, 
-	ldak, W /* A(m2,n2) */, ldam, 
-	X /* A(m2,k) */, ldam, Y /* T(m2,k) */, 
-	desc_T->mb, p_elem_A, ldwork );
+        tempnn, tempmm, tempnn, 
+        desc_A->nb, ib, V /* A(k+1,n2) */, 
+        ldak, W /* A(m2,n2) */, ldam, 
+        X /* A(m2,k) */, ldam, Y /* T(m2,k) */, 
+        desc_T->mb, p_elem_A, ldwork );
 
   dague_private_memory_push( pool_1, p_elem_A );
 

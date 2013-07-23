@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
+ *  Copyright (c) 2010-2013
  *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
@@ -64,7 +64,6 @@ BODY
                ldan, dbeta, C /* dataC(n,n) */, 
                ldcn );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 

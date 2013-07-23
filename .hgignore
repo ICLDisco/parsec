@@ -52,8 +52,6 @@ dplasma/cores/cuda_[sdc]gemm\.[ch]
 dplasma/cores/dplasma_[sdc]cores\.h
 dplasma/cores/sgemm-sm.*\.cubin
 dplasma/include/dplasma_[sdc]\.h
-dplasma/lib/TSQR\.c$
-dplasma/lib/TSQR\.h
 dplasma/lib/[cds]gebmm\.jdf$
 dplasma/lib/[cdsz]trdsm\.[ch]$
 dplasma/lib/[cz]hebut\.[ch]$
@@ -72,6 +70,8 @@ dplasma/lib/[sdc]geqrf\.jdf$
 dplasma/lib/[sdc]geqrf_param\.jdf$
 dplasma/lib/[sdc]geqrf_param_wrapper.c$
 dplasma/lib/[sdc]geqrf_wrapper.c$
+dplasma/lib/[sdc]geqrs_param_wrapper.c$
+dplasma/lib/[sdc]geqrs_wrapper.c$
 dplasma/lib/[sdc]gesv.*_wrapper.c$
 dplasma/lib/[sdc]getrf.*\.jdf$
 dplasma/lib/[sdc]getrf.*_wrapper.c$
@@ -98,6 +98,8 @@ dplasma/lib/[sdc]lange_wrapper.c$
 dplasma/lib/[sdc]lanhe_wrapper.c$
 dplasma/lib/[sdc]lansy\.jdf$
 dplasma/lib/[sdc]lansy_wrapper.c$
+dplasma/lib/[sdc]lascal\.jdf$
+dplasma/lib/[sdc]lascal_wrapper.c$
 dplasma/lib/[sdc]laset\.jdf$
 dplasma/lib/[sdc]laset_wrapper.c$
 dplasma/lib/[sdc]laswp\.jdf$
@@ -108,6 +110,8 @@ dplasma/lib/[sdc]orgqr_param_wrapper.c$
 dplasma/lib/[sdc]orgqr_wrapper.c$
 dplasma/lib/[sdc]ormqr_[LR][NC]\.jdf$
 dplasma/lib/[sdc]ormqr_wrapper.c$
+dplasma/lib/[sdc]ormqr_param_[LR][NC]\.jdf$
+dplasma/lib/[sdc]ormqr_param_wrapper.c$
 dplasma/lib/[sdc]plghe\.jdf$
 dplasma/lib/[sdc]plghe_wrapper.c$
 dplasma/lib/[sdc]plgsy\.jdf$
@@ -170,6 +174,8 @@ dplasma/lib/[sdc]ungqr_param_wrapper.c$
 dplasma/lib/[sdc]ungqr_wrapper.c$
 dplasma/lib/[sdc]unmqr_[LR][NC]\.jdf$
 dplasma/lib/[sdc]unmqr_wrapper.c$
+dplasma/lib/[sdc]unmqr_param_[LR][NC]\.jdf$
+dplasma/lib/[sdc]unmqr_param_wrapper.c$
 dplasma/lib/[sdcz]geadd\.[ch]$
 dplasma/lib/[sdcz]gebut\.[ch]$
 dplasma/lib/[sdcz]gelqf\.[ch]$
@@ -182,6 +188,7 @@ dplasma/lib/[sdcz]geqrf_param\.[ch]$
 dplasma/lib/[sdcz]getrf\.[ch]$
 dplasma/lib/[sdcz]getrf_incpiv\.[ch]$
 dplasma/lib/[sdcz]getrf_incpiv_sd\.[ch]$
+dplasma/lib/[sdcz]getrf_nopiv\.[ch]$
 dplasma/lib/[sdcz]getrf_sd\.[ch]$
 dplasma/lib/[sdcz]hbrdt\.[ch]$
 dplasma/lib/[sdcz]hemm\.[ch]$
@@ -192,11 +199,13 @@ dplasma/lib/[sdcz]hetrf\.[ch]$
 dplasma/lib/[sdcz]lacpy\.[ch]$
 dplasma/lib/[sdcz]lange_.*_cyclic\.[ch]$
 dplasma/lib/[sdcz]lansy\.[ch]$
+dplasma/lib/[sdcz]lascal\.[ch]$
 dplasma/lib/[sdcz]laset\.[ch]$
 dplasma/lib/[sdcz]laswp\.[ch]$
 dplasma/lib/[sdcz]orgqr\.[ch]$
 dplasma/lib/[sdcz]orgqr_param\.[ch]$
 dplasma/lib/[sdcz]ormqr_[LR][NC]\.[ch]$
+dplasma/lib/[sdcz]ormqr_param_[LR][NC]\.[ch]$
 dplasma/lib/[sdcz]plghe\.[ch]$
 dplasma/lib/[sdcz]plgsy\.[ch]$
 dplasma/lib/[sdcz]plrnt\.[ch]$
@@ -235,13 +244,12 @@ dplasma/lib/[sdcz]trsmpl_sd\.[ch]$
 dplasma/lib/[sdcz]ungqr\.[ch]$
 dplasma/lib/[sdcz]ungqr_param\.[ch]$
 dplasma/lib/[sdcz]unmqr_[LR][NC]\.[ch]$
+dplasma/lib/[sdcz]unmqr_param_[LR][NC]\.[ch]$
 dplasma/lib/[zcds]gebmm\.[ch]$
 dplasma/lib/chebut\.jdf$
 dplasma/lib/chetrf\.jdf$
 dplasma/lib/map2\.c$
 dplasma/lib/map2\.h
-dplasma/testing/TSQR/mpi_testing_tsqr
-dplasma/testing/TSQR/testing_tsqr
 dplasma/testing/perftest
 dplasma/testing/testing_[sdc]gelqf\.c$
 dplasma/testing/testing_[sdc]gemm\.c$
@@ -253,6 +261,7 @@ dplasma/testing/testing_[sdc]gesvd\.c$
 dplasma/testing/testing_[sdc]getrf\.c$
 dplasma/testing/testing_[sdc]getrf_incpiv\.c$
 dplasma/testing/testing_[sdc]getrf_incpiv_sd\.c$
+dplasma/testing/testing_[sdc]getrf_nopiv\.c$
 dplasma/testing/testing_[sdc]hbrdt\.c$
 dplasma/testing/testing_[sdc]hebut\.c$
 dplasma/testing/testing_[sdc]heev\.c$
@@ -276,6 +285,7 @@ dplasma/testing/testing_[sdc]syrk\.c$
 dplasma/testing/testing_[sdc]trmm\.c$
 dplasma/testing/testing_[sdc]trsm\.c$
 dplasma/testing/testing_[sdc]unmqr\.c$
+dplasma/testing/testing_[sdc]unmqr_param\.c$
 dplasma/testing/testing_[sdcz]gelqf$
 dplasma/testing/testing_[sdcz]gemm$
 dplasma/testing/testing_[sdcz]geqrf$
@@ -286,6 +296,7 @@ dplasma/testing/testing_[sdcz]gesvd$
 dplasma/testing/testing_[sdcz]getrf$
 dplasma/testing/testing_[sdcz]getrf_incpiv$
 dplasma/testing/testing_[sdcz]getrf_incpiv_sd$
+dplasma/testing/testing_[sdcz]getrf_nopiv$
 dplasma/testing/testing_[sdcz]hbrdt$
 dplasma/testing/testing_[sdcz]hebut$
 dplasma/testing/testing_[sdcz]heev$

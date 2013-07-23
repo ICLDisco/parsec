@@ -157,7 +157,7 @@ static void *translate_elements_random(void *params)
     uint64_t *p = (uint64_t*)params;
     dague_time_t start, end;
 
-    dague_bindthread( (int)*p );
+    dague_bindthread( (int)*p, -1 );
 
     pthread_mutex_lock(&heavy_synchro_lock);
     while( heavy_synchro == 0 ) {
@@ -216,7 +216,9 @@ int main(int argc, char *argv[])
     long int nbthreads = 1;
     int ch;
     char *m;
-    
+
+    min_time = 0;
+    max_time = 0xffffffff;
 #if defined(HAVE_MPI)
     MPI_Init(&argc, &argv);
 #endif

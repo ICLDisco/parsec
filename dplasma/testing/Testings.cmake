@@ -2,8 +2,10 @@
 # Shared Memory Testings
 #
 
-# check the control in shared memory
-add_test(print  ${SHM_TEST_CMD_LIST} ./testing_dprint -N 40 -t 7 -x -v=5)
+foreach(prec ${DPLASMA_PRECISIONS})
+  # check the control in shared memory
+  add_test(print  ${SHM_TEST_CMD_LIST} ./testing_${prec}print -N 40 -t 7 -x -v=5)
+endforeach()
 
 #
 # Check BLAS/Lapack subroutines in shared memory
@@ -33,14 +35,18 @@ foreach(prec ${DPLASMA_PRECISIONS})
   add_test(${prec}potrf     ${SHM_TEST_CMD_LIST} ./testing_${prec}potrf -N 4000 -x -v=5)
   add_test(${prec}posv      ${SHM_TEST_CMD_LIST} ./testing_${prec}posv  -N 4000 -K 367 -x -v=5)
 
-  add_test(${prec}getrf        ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf        -N 4000 -x -v=5)
-  add_test(${prec}getrf_incpiv ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf_incpiv -N 4000 -x -v=5)
-  add_test(${prec}gesv_incpiv  ${SHM_TEST_CMD_LIST} ./testing_${prec}gesv_incpiv  -N 4000 -K 367 -x -v=5)
-  add_test(${prec}geqrf        ${SHM_TEST_CMD_LIST} ./testing_${prec}geqrf -N 4000 -x -v=5)
+  add_test(${prec}getrf           ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf        -N 4000 -x -v=5)
+  add_test(${prec}getrf_incpiv    ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf_incpiv -N 4000 -x -v=5)
+  add_test(${prec}getrf_incpiv_sd ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf_incpiv -N 4000 -x -v=5)
+  add_test(${prec}gesv_incpiv     ${SHM_TEST_CMD_LIST} ./testing_${prec}gesv_incpiv  -N 4000 -K 367 -x -v=5)
+  add_test(${prec}geqrf           ${SHM_TEST_CMD_LIST} ./testing_${prec}geqrf -N 4000 -x -v=5)
+  add_test(${prec}geqrf_systolic  ${SHM_TEST_CMD_LIST} ./testing_${prec}geqrf -N 4000 -x -v=5)
   if ( "${prec}" STREQUAL "c" OR "${prec}" STREQUAL "z" )
     add_test(${prec}unmqr        ${SHM_TEST_CMD_LIST} ./testing_${prec}unmqr -M 2873 -N 1067 -K 987 -x -v=5)
+    add_test(${prec}heev         ${SHM_TEST_CMD_LIST} ./testing_${prec}heev  -N 4000 -x -v=5)
   else()
     add_test(${prec}ormqr        ${SHM_TEST_CMD_LIST} ./testing_${prec}ormqr -M 2873 -N 1067 -K 987 -x -v=5)
+    add_test(${prec}syev         ${SHM_TEST_CMD_LIST} ./testing_${prec}syev  -N 4000 -x -v=5)
   endif()
   add_test(${prec}gelqf        ${SHM_TEST_CMD_LIST} ./testing_${prec}gelqf -N 4000 -x -v=5)
   add_test(${prec}geqrf_p0     ${SHM_TEST_CMD_LIST} ./testing_${prec}geqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 0 --tsrr=0 -v=5)
@@ -128,6 +134,11 @@ if( MPI_FOUND )
 
     add_test(mpi_${prec}geqrf_p3     ${MPI_TEST_CMD_LIST} -np 8 ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 3 --tsrr=0 -v=5)
     SET_TESTS_PROPERTIES("mpi_${prec}geqrf_p3" PROPERTIES DEPENDS "mpi_test")
+    if ( "${prec}" STREQUAL "c" OR "${prec}" STREQUAL "z" )
+        add_test(mpi_${prec}heev         ${MPI_TEST_CMD_LIST} -np 4 ./testing_${prec}heev -p 2 -N 2000 -x -v=5)
+    else()
+        add_test(mpi_${prec}syev         ${MPI_TEST_CMD_LIST} -np 4 ./testing_${prec}syev -p 2 -N 2000 -x -v=5)
+    endif()
 endforeach()
 
   add_test(mpi_dsymm         ${MPI_TEST_CMD_LIST} -np 8 ./testing_dsymm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)

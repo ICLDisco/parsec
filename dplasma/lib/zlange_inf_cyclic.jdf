@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
+ *  Copyright (c) 2010-2013
  *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
@@ -58,7 +58,7 @@ RWCOL(m, n) [profile = off]
     m = 0 .. descA.mt-1
     n = 0 .. Q-1
     col = inline_c %{
-    	return descA.nt-((descA.nt-n-1)%Q)-1;
+            return descA.nt-((descA.nt-n-1)%Q)-1;
         %}
 
     // Parallel partitioning
@@ -86,7 +86,7 @@ RWELT(m, n) [profile = off]
     m = 0 .. P-1
     n = 0 .. Q-1
     row = inline_c %{
-    	return descA.mt-((descA.mt-m-1)%P)-1;
+            return descA.mt-((descA.mt-m-1)%P)-1;
         %}
 
     // Parallel partitioning
