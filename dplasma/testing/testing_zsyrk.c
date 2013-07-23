@@ -39,15 +39,6 @@ int main(int argc, char ** argv)
     M = N;
     LDC = max(LDC, N);
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check,
-        two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDC, N, 0, 0,
-                               N, N, SMB, SNB, P));
-
-    if (loud > 2) printf("Generate matrices ... ");
-    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
-    if (loud > 2) printf("Done\n");
-
     if(!check)
     {
         PLASMA_enum uplo  = PlasmaLower;
@@ -94,9 +85,16 @@ int main(int argc, char ** argv)
     {
         int u, t;
         int info_solution;
-
+    
+        PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check,
+            two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDC, N, 0, 0,
+                                   N, N, SMB, SNB, P));
+        if (loud > 2) printf("Generate matrices ... ");
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
+        if (loud > 2) printf("Done\n");
+    
         for (u=0; u<2; u++) {
-
             PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
                 sym_two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble,
                                            nodes, cores, rank, MB, NB, LDC, N, 0, 0,
