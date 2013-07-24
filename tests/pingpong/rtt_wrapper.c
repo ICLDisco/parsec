@@ -27,7 +27,7 @@ dague_handle_t *rtt_new(dague_ddesc_t *A, int size, int nb)
 #else
     worldsize = 1;
 #endif
-    
+
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, RTT must do at least one round time trip of at least one byte\n");
         return (dague_handle_t*)o;

@@ -48,13 +48,13 @@ int main(int argc, char *argv[])
         dague_progress(dague);
     }
 
-    dague_fini(&dague);
-
 #if defined(DAGUE_PROF_GRAPHER)
     dague_prof_grapher_fini();
 #endif
 
     free_data(ddescA);
+
+    dague_fini(&dague);
 
 #ifdef HAVE_MPI
     MPI_Finalize();

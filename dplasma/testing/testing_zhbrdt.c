@@ -114,10 +114,10 @@ int main(int argc, char *argv[])
     }
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
 
-    cleanup_dague(dague, iparam);
-
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+
+    cleanup_dague(dague, iparam);
 
     return EXIT_SUCCESS;
 }

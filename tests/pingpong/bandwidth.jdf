@@ -362,8 +362,9 @@ int main(int argc, char *argv[])
         bandwidth_destroy(bw_test);
     }
 
-    dague_fini(&dague);
     free_data(ddescA);
+
+    dague_fini(&dague);
 
     return 0;
 }

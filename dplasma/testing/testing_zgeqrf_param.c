@@ -241,14 +241,14 @@ int main(int argc, char ** argv)
 
     dplasma_hqr_finalize( &qrtree );
 
-    cleanup_dague(dague, iparam);
-
     dague_data_free(ddescA.mat);
     dague_data_free(ddescTS.mat);
     dague_data_free(ddescTT.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescTS);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescTT);
+
+    cleanup_dague(dague, iparam);
 
     return ret;
 }

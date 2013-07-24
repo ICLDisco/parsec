@@ -116,7 +116,7 @@ void dague_class_initialize(dague_class_t *cls)
      * plus for each a NULL-sentinel
      */
 
-    cls->cls_construct_array = 
+    cls->cls_construct_array =
         (void (**)(dague_object_t*))malloc((cls_construct_array_count +
                                            cls_destruct_array_count + 2) *
                                           sizeof(dague_construct_t) );

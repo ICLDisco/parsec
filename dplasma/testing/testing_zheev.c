@@ -265,14 +265,14 @@ int main(int argc, char *argv[])
     DAGUE_INTERNAL_HANDLE_DESTRUCT( DAGUE_diag_band_to_rect );
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
 
-    cleanup_dague(dague, iparam);
-
     dague_data_free(ddescBAND.mat);
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescBAND);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
+
+    cleanup_dague(dague, iparam);
 
     PLASMA_Finalize();
 

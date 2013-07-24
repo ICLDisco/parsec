@@ -84,6 +84,8 @@ static struct rusage _dague_rusage;
 static char *dague_enable_dot = NULL;
 static char *dague_app_name = NULL;
 
+static dague_device_t* dague_device_cpus = NULL;
+
 static void dague_statistics(char* str)
 {
     struct rusage current;
@@ -494,13 +496,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_devices_init(context);
     /* By now let's add one device for the CPUs */
     {
-        dague_device_t* cpus = (dague_device_t*)calloc(1, sizeof(dague_device_t));
-        cpus->name = "default";
-        cpus->type = DAGUE_DEV_CPU;
-        dague_devices_add(context, cpus);
+        dague_device_cpus = (dague_device_t*)calloc(1, sizeof(dague_device_t));
+        dague_device_cpus->name = "default";
+        dague_device_cpus->type = DAGUE_DEV_CPU;
+        dague_devices_add(context, dague_device_cpus);
         /* TODO: This is plain WRONG, but should work by now */
-        cpus->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
-        cpus->device_dweight = nb_total_comp_threads * 4 * 2.27;
+        dague_device_cpus->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
+        dague_device_cpus->device_dweight = nb_total_comp_threads * 4 * 2.27;
     }
     dague_devices_select(context);
     dague_devices_freeze(context);
@@ -632,6 +634,10 @@ int dague_fini( dague_context_t** pcontext )
         context->virtual_processes[p] = NULL;
     }
 
+    dague_device_remove(dague_device_cpus);
+    free(dague_device_cpus);
+    dague_device_cpus = NULL;
+
     dague_devices_fini(context);
 
     AYU_FINI();
@@ -691,6 +697,9 @@ int dague_fini( dague_context_t** pcontext )
 
     free(context);
     *pcontext = NULL;
+
+    dague_class_finalize();
+
     return 0;
 }
 
@@ -1340,6 +1349,18 @@ void dague_handle_unregister( dague_handle_t* object )
     assert( object->nb_local_tasks == 0 );
     object_array[object->handle_id] = NOOBJECT;
     dague_atomic_unlock( &object_array_lock );
+}
+
+void dague_handle_free(dague_handle_t *handle)
+{
+    if( NULL == handle )
+        return;
+    if( NULL == handle->destructor ) {
+        free( handle );
+        return;
+    }
+    /* the destructor calls the appropriate free on the handle */
+    handle->destructor( handle );
 }
 
 /**< Print DAGuE usage message */

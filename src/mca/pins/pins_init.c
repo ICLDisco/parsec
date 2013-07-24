@@ -15,6 +15,8 @@ char ** allowable_modules;
 
 extern parsec_pins_callback * pins_array[];
 
+static mca_base_component_t **pins_components = NULL;
+
 /**
  * pins_init() should be called once and only once per runtime of a PaRSEC execution.
  * It should be called near the beginning of execution, preferably when most
@@ -32,15 +34,14 @@ void pins_init(dague_context_t * master_context) {
 // 	set_allowable_pins_modules(default_modules_array);
 	allowable_modules_defined = 1; // block post-init definitions
 
-	mca_base_component_t ** components = NULL;
 	dague_pins_module_t * module = NULL;
 	int priority = -1;
 	i = 0;
 
-	components = mca_components_open_bytype("pins");
-	while (components[i] != NULL) {
-		if (components[i]->mca_query_component != NULL) {
-			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
+	pins_components = mca_components_open_bytype("pins");
+	while (pins_components[i] != NULL) {
+		if (pins_components[i]->mca_query_component != NULL) {
+			pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
 			int j = 0;
 			while (allowable_modules_in_use && allowable_modules[j] != NULL) {
 				if (NULL != module->module.init &&
@@ -66,7 +67,6 @@ void pins_init(dague_context_t * master_context) {
  * pins_fini must call fini methods of all modules
  */
 void pins_fini(dague_context_t * master_context) {
-	mca_base_component_t ** components = NULL;
 	dague_pins_module_t * module = NULL;
 	int priority = -1;
 	int i = 0;
@@ -75,14 +75,13 @@ void pins_fini(dague_context_t * master_context) {
          * Call all fini methods in reverse order in order to preserve 
          * cleanup semantics.
          */
-	components = mca_components_open_bytype("pins");
-	while (components[i] != NULL)
+	while (pins_components[i] != NULL)
             i++; // count
         i--;
 
         while (i >= 0) {
-		if (components[i]->mca_query_component != NULL) {
-			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
+		if (pins_components[i]->mca_query_component != NULL) {
+			pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
 			int j = 0;
 			while (allowable_modules_in_use && allowable_modules[j] != NULL) {
 				if (NULL != module->module.init &&
@@ -102,6 +101,9 @@ void pins_fini(dague_context_t * master_context) {
 		}
 		i--;
 	}
+
+        mca_components_close(pins_components);
+        pins_components = NULL;
 }
 
 
@@ -118,10 +120,9 @@ void pins_thread_init(dague_execution_unit_t * exec_unit) {
 	int priority = -1;
 	int i = 0;
 
-	components = mca_components_open_bytype("pins");
-	while (components[i] != NULL) {
-		if (components[i]->mca_query_component != NULL) {
-			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
+	while (pins_components[i] != NULL) {
+		if (pins_components[i]->mca_query_component != NULL) {
+			pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
 			int j = 0;
 			while (allowable_modules_in_use && allowable_modules[j] != NULL) {
 				if (NULL != module->module.thread_init &&
@@ -145,7 +146,6 @@ void pins_thread_init(dague_execution_unit_t * exec_unit) {
  * called in scheduling.c, which is not ideal
  */
 void pins_thread_fini(dague_execution_unit_t * exec_unit) {
-	mca_base_component_t ** components = NULL;
 	dague_pins_module_t * module = NULL;
 	int priority = -1;
 	int i = 0;
@@ -154,14 +154,13 @@ void pins_thread_fini(dague_execution_unit_t * exec_unit) {
          * Call all fini methods in reverse order in order to preserve 
          * cleanup semantics.
          */
-	components = mca_components_open_bytype("pins");
-	while (components[i] != NULL)
+	while (pins_components[i] != NULL)
             i++; // count
         i--;
 
         while (i >= 0) {
-		if (components[i]->mca_query_component != NULL) {
-			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
+		if (pins_components[i]->mca_query_component != NULL) {
+			pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
 			int j = 0;
 			while (allowable_modules_in_use && allowable_modules[j] != NULL) {
 				if (NULL != module->module.thread_fini &&
@@ -191,15 +190,13 @@ void pins_thread_fini(dague_execution_unit_t * exec_unit) {
  * It MUST NOT be called BEFORE pins_init().
  */
 void pins_handle_init(dague_handle_t * handle) {
-	mca_base_component_t ** components = NULL;
 	dague_pins_module_t * module = NULL;
 	int priority = -1;
 	int i = 0;
 
-	components = mca_components_open_bytype("pins");
-	while (components[i] != NULL) {
-		if (components[i]->mca_query_component != NULL) {
-			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
+	while (pins_components[i] != NULL) {
+		if (pins_components[i]->mca_query_component != NULL) {
+			pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
 			int j = 0;
 			while (allowable_modules_in_use && allowable_modules[j] != NULL) {
 				if (NULL != module->module.handle_init &&
@@ -223,7 +220,6 @@ void pins_handle_init(dague_handle_t * handle) {
  * Currently uncalled in the PaRSEC DPLAMSA testing executables
  */
 void pins_handle_fini(dague_handle_t * handle) {
-	mca_base_component_t ** components = NULL;
 	dague_pins_module_t * module = NULL;
 	int priority = -1;
 	int i = 0;
@@ -232,14 +228,13 @@ void pins_handle_fini(dague_handle_t * handle) {
          * Call all fini methods in reverse order in order to preserve 
          * cleanup semantics.
          */
-	components = mca_components_open_bytype("pins");
-	while (components[i] != NULL)
+	while (pins_components[i] != NULL)
             i++; // count
         i--;
 
         while (i >= 0) {
-		if (components[i]->mca_query_component != NULL) {
-			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
+		if (pins_components[i]->mca_query_component != NULL) {
+			pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
 			int j = 0;
 			while (allowable_modules_in_use && allowable_modules[j] != NULL) {
 				if (NULL != module->module.handle_fini &&
@@ -303,15 +298,13 @@ void set_allowable_pins_modules (const char * const modules[]) {
 }
 
 int is_pins_module_enabled(char * name) {
-	mca_base_component_t ** components = NULL;
 	dague_pins_module_t * module = NULL;
 	int priority = -1;
 	int i = 0;
 
-	components = mca_components_open_bytype("pins");
-	while (components[i] != NULL) {
-		if (components[i]->mca_query_component != NULL) {
-			components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
+	while (pins_components[i] != NULL) {
+		if (pins_components[i]->mca_query_component != NULL) {
+			pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
 			int j = 0;
 			while (allowable_modules_in_use && allowable_modules[j] != NULL) {
 				if ((!allowable_modules_in_use || 

@@ -90,6 +90,9 @@ int dague_handle_register(dague_handle_t* handle);
 /**< Unregister the object with the engine. */
 void dague_handle_unregister(dague_handle_t* handle);
 
+/**< Free the resource allocated in the dague handle. The handle should be unregistered first. */
+void dague_handle_free(dague_handle_t *handle);
+
 /**< Print DAGuE usage message */
 void dague_usage(void);
 
