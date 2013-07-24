@@ -137,20 +137,20 @@ static inline char* arprintf(const char* fmt, ...)
 #       define DAGUE_DEBUG_VERBOSE3
 #   endif
 
-struct dague_execution_context_t;
-void debug_mark_exe(int th, int vp, const struct dague_execution_context_t *ctx);
+struct dague_execution_context_s;
+void debug_mark_exe(int th, int vp, const struct dague_execution_context_s *ctx);
 #define DEBUG_MARK_EXE(th, vp, ctx) debug_mark_exe(th, vp, ctx)
 
-struct remote_dep_wire_activate_t;
-void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote_dep_wire_activate_t *m);
+struct remote_dep_wire_activate_s;
+void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote_dep_wire_activate_s *m);
 #define DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(to, buffer, message) debug_mark_ctl_msg_activate_sent(to, buffer, message)
-void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remote_dep_wire_activate_t *m);
+void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remote_dep_wire_activate_s *m);
 #define DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, buffer, message) debug_mark_ctl_msg_activate_recv(from, buffer, message)
 
-struct remote_dep_wire_get_t;
-void debug_mark_ctl_msg_get_sent(int to, const void *b, const struct remote_dep_wire_get_t *m);
+struct remote_dep_wire_get_s;
+void debug_mark_ctl_msg_get_sent(int to, const void *b, const struct remote_dep_wire_get_s *m);
 #define DEBUG_MARK_CTL_MSG_GET_SENT(to, buffer, message) debug_mark_ctl_msg_get_sent(to, buffer, message)
-void debug_mark_ctl_msg_get_recv(int from, const void *b, const struct remote_dep_wire_get_t *m);
+void debug_mark_ctl_msg_get_recv(int from, const void *b, const struct remote_dep_wire_get_s *m);
 #define DEBUG_MARK_CTL_MSG_GET_RECV(from, buffer, message) debug_mark_ctl_msg_get_recv(from, buffer, message)
 
 void debug_mark_dta_msg_start_send(int to, const void *b, int tag);

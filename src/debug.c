@@ -154,7 +154,7 @@ void dague_debug_history_add(const char *format, ...)
     set_my_mark( debug_str );
 }
 
-void debug_mark_exe(int th, int vp, const struct dague_execution_context_t *ctx)
+void debug_mark_exe(int th, int vp, const struct dague_execution_context_s *ctx)
 {
     int j;
     char msg[512];
@@ -172,7 +172,7 @@ void debug_mark_exe(int th, int vp, const struct dague_execution_context_t *ctx)
                             th, vp, msg);
 }
 
-void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote_dep_wire_activate_t *m)
+void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote_dep_wire_activate_s *m)
 {
     int j;
     char msg[512];
@@ -199,7 +199,7 @@ void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote
     dague_debug_history_add("%s", msg);
 }
 
-void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remote_dep_wire_activate_t *m)
+void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remote_dep_wire_activate_s *m)
 {
     int j;
     char msg[512];
@@ -228,7 +228,7 @@ void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remo
     dague_debug_history_add("%s", msg);
 }
 
-void debug_mark_ctl_msg_get_sent(int to, const void *b, const struct remote_dep_wire_get_t *m)
+void debug_mark_ctl_msg_get_sent(int to, const void *b, const struct remote_dep_wire_get_s *m)
 {
     dague_debug_history_add("Mark: emission of a Get control message to %d\n"
                             "\t      Using buffer %p for emission\n"
@@ -238,7 +238,7 @@ void debug_mark_ctl_msg_get_sent(int to, const void *b, const struct remote_dep_
                             to, b, m->deps, m->which, m->tag);
 }
 
-void debug_mark_ctl_msg_get_recv(int from, const void *b, const remote_dep_wire_get_t *m)
+void debug_mark_ctl_msg_get_recv(int from, const void *b, const struct remote_dep_wire_get_s *m)
 {
     dague_debug_history_add("Mark: reception of a Get control message from %d\n"
                             "\t      Using buffer %p for reception\n"
