@@ -127,7 +127,7 @@ void print_usage(void)
             );
     fprintf(stderr,
             "\n"
-            "    --ht nbth         : enable a SMT/HyperThreadind binding using nbth hyper-thread per core."
+            "    --ht nbth      : enable a SMT/HyperThreadind binding using nbth hyper-thread per core."
             "                     This parameter must be declared before the virtual process distribution parameter\n"
             " -V --vpmap        : select the virtual process map (default: flat map)\n"
             "                     Accepted values:\n"
