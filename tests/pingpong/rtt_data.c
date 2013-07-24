@@ -111,8 +111,9 @@ void free_data(dague_ddesc_t *d)
 {
     my_datatype_t *m = (my_datatype_t*)d;
     if(NULL != m->data_copy) {
+        dague_data_copy_detach(m->data, m->data_copy, 0);
         DAGUE_DATA_COPY_RELEASE(m->data_copy);
-        dague_data_delete(m->data);
+        OBJ_RELEASE(m->data);
         m->data_copy = NULL;
         m->data = NULL;
     }

@@ -56,12 +56,12 @@ int main(int argc, char ** argv)
     //    dplasma_zprint( dague, uplo, (tiled_matrix_desc_t *)&ddescA );
     dplasma_zprint( dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB );
 
-    cleanup_dague(dague, iparam);
-
     dague_data_free(ddescB.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescB );
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
+
+    cleanup_dague(dague, iparam);
 
     return ret;
 }

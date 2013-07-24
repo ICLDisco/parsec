@@ -167,6 +167,7 @@ int dague_devices_fini(dague_context_t* dague_context)
         free(required_in);
         free(required_out);
     }
+
     /* Free the local memory */
     if(NULL != dague_device_load) free(dague_device_load);
     dague_device_load = NULL;
@@ -174,6 +175,9 @@ int dague_devices_fini(dague_context_t* dague_context)
     dague_device_sweight = NULL;
     if(NULL != dague_device_dweight) free(dague_device_dweight);
     dague_device_dweight = NULL;
+
+    free(dague_devices);
+    dague_devices = NULL;
 
 #if defined(HAVE_CUDA)
     return dague_gpu_fini();

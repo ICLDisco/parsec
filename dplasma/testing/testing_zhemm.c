@@ -156,12 +156,12 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy((dague_ddesc_t*)&ddescC2);
     }
 
-    cleanup_dague(dague, iparam);
-
     dague_data_free(ddescB.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
     dague_data_free(ddescC.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
+
+    cleanup_dague(dague, iparam);
 
     return ret;
 }

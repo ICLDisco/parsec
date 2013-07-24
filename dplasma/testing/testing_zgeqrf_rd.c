@@ -169,12 +169,12 @@ int main(int argc, char ** argv)
     }
 #endif
 
-    cleanup_dague(dague, iparam);
-
     two_dim_tabular_free_table(ddescA.tiles_table);
     two_dim_tabular_free_table(ddescT.tiles_table);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
+
+    cleanup_dague(dague, iparam);
 
     return ret;
 }
