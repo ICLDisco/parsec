@@ -63,7 +63,7 @@ int dague_arena_construct(dague_arena_t* arena,
 void dague_arena_destruct(dague_arena_t* arena);
 
 dague_data_t* dague_arena_get(dague_arena_t* arena, size_t count);
-void dague_arena_release(dague_data_t* ptr);
+void dague_arena_release(dague_data_copy_t* ptr);
 
 #define CHUNK_DATA(CHK) \
     (assert(NULL != ((CHK)->data)), (CHK)->data)

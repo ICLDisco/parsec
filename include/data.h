@@ -63,10 +63,13 @@ struct dague_data_copy_s {
 
     struct dague_data_copy_s *older;                 /**< unused yet */
     dague_data_t             *original;
-    void*                    device_private;         /**< The pointer to the device-specific data.
+    dague_arena_chunk_t      *arena_chunk;           /**< If this is an arena-based data, keep
+                                                      *   the chunk pointer here, to avoid
+                                                      *   risky pointers arithmetic (pointers mis-alignment
+                                                      *   depending on many parameters) */
+    void                     *device_private;        /**< The pointer to the device-specific data.
                                                       *   Overlay data distributions assume that arithmetic
-                                                      *   can be done on these pointers.
-                                                      */
+                                                      *   can be done on these pointers. */
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
 

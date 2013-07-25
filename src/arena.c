@@ -83,21 +83,26 @@ dague_arena_get(dague_arena_t* arena, size_t count)
     chunk->count = count;
     chunk->data = DAGUE_ALIGN_PTR( ((ptrdiff_t)chunk + sizeof(dague_arena_chunk_t)),
                                    arena->alignment, void* );
+
     assert(0 == (((ptrdiff_t)chunk->data) % arena->alignment));
     assert((arena->elem_size + (ptrdiff_t)chunk->data)  <= (size + (ptrdiff_t)chunk));
 
     copy = dague_data_copy_new( data, 0 );
+    copy->flags |= DAGUE_DATA_FLAG_ARENA;
     copy->device_private = chunk->data;
+    copy->arena_chunk = chunk;
 
     return data;
 }
 
-void dague_arena_release(dague_data_t* data)
+void dague_arena_release(dague_data_copy_t* copy)
 {
+    dague_data_t *data;
     dague_arena_chunk_t *chunk;
     dague_arena_t* arena;
 
-    chunk = (dague_arena_chunk_t *)(((ptrdiff_t)data->device_copies[0]->device_private) - sizeof(dague_arena_chunk_t));
+    data = copy->original;
+    chunk = copy->arena_chunk;
     arena = chunk->origin;
 
     assert(NULL != arena);
@@ -116,5 +121,6 @@ void dague_arena_release(dague_data_t* data)
         }
         dague_lifo_push(&arena->area_lifo, &chunk->item);
     }
-    dague_data_delete( data );
+    dague_data_copy_detach( data, copy, 0 );
+    OBJ_RELEASE( data );
 }

@@ -10,6 +10,7 @@
 #include <dague/devices/device.h>
 #include <dague/utils/output.h>
 #include "data.h"
+#include "arena.h"
 
 /* TODO: create a consistent common infrastructure for the devices */
 static dague_lifo_t dague_data_lifo;
@@ -25,23 +26,23 @@ static void dague_data_copy_construct(dague_data_copy_t* obj)
     obj->older            = NULL;
     obj->original         = NULL;
     obj->device_private   = NULL;
+    obj->arena_chunk      = NULL;
 }
 
-#if defined(DAGUE_DEBUG_ENABLE)
 static void dague_data_copy_destruct(dague_data_copy_t* obj)
 {
+    if( obj->flags & DAGUE_DATA_FLAG_ARENA ) {
+        /* It is an arena that is now unused.
+         * give the chunk back to the arena memory management.
+         * This detaches obj from obj->original, and frees everything */
+        dague_arena_release(obj);
+    }
     assert(NULL == obj->original);  /* make sure we are not attached to a data */
 }
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
 
 OBJ_CLASS_INSTANCE(dague_data_copy_t, dague_list_item_t,
                    dague_data_copy_construct,
-#if defined(DAGUE_DEBUG_ENABLE)
-                   dague_data_copy_destruct
-#else
-                   NULL
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
-                   );
+                   dague_data_copy_destruct);
 
 static void dague_data_construct(dague_data_t* obj )
 {
@@ -163,9 +164,9 @@ dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint8_t device)
         if( NULL == copy ) {
             return NULL;
         }
+    } else {
+        OBJ_CONSTRUCT(copy, dague_data_copy_t);
     }
-    OBJ_CONSTRUCT(&copy->super, dague_list_item_t);
-    dague_data_copy_construct(copy);
     if( DAGUE_SUCCESS != dague_data_copy_attach(data, copy, device) ) {
         OBJ_RELEASE(copy);
         return NULL;
