@@ -1087,7 +1087,7 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
             deps->msg.deps |= 1<<k;
             continue;
         }
-        
+
         /* Check if the data is EAGER embedded in the activate */
         int dsize;
         MPI_Pack_size(deps->output[k].nbelt, deps->output[k].type->opaque_dtt, dep_comm, &dsize);
@@ -1276,8 +1276,8 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
 #else
 #  ifdef DAGUE_DEBUG_VERBOSE2
         MPI_Type_get_name(dtt, type_name, &len);
-        DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s nbelt %d extent %d using %p[%d]\t(tag=%d)\n", 
-                from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), i, k, 
+        DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s nbelt %d extent %d using %p[%d]\t(tag=%d)\n",
+                from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), i, k,
                 task->deps, data_copy, type_name, nbdtt,
                 deps, k,
                 deps->output[k].type->elem_size * nbdtt, msg.tag+k));
