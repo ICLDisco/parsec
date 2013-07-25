@@ -89,7 +89,6 @@ static dague_device_t* dague_device_cpus = NULL;
 static void dague_statistics(char* str)
 {
     struct rusage current;
-
     getrusage(RUSAGE_SELF, &current);
     if( !_dague_rusage_first_call ) {
         double usr, sys;
@@ -169,7 +168,11 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     startup->virtual_process->execution_units[startup->th_id] = eu;
     eu->core_id          = startup->bindto;
     eu->socket_id        = dague_hwloc_socket_id(startup->bindto);
-	eu->starvation      = 0;
+    eu->starvation      = 0;
+
+#if defined(DAGUE_PROF_RUSAGE_EU)
+    eu-> _eu_rusage_first_call=1;
+#endif
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     eu->sched_nb_tasks_done = 0;

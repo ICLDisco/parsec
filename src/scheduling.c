@@ -47,6 +47,57 @@ static sched_priority_trace_t sched_priority_trace[DAGUE_SCHED_MAX_PRIORITY_TRAC
 static uint32_t sched_priority_trace_counter;
 #endif
 
+
+#if defined(DAGUE_PROF_RUSAGE_EU)
+
+#if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
+#include <sys/time.h>
+#include <sys/resource.h>
+
+static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu)
+{
+
+    struct rusage current;
+    getrusage(RUSAGE_THREAD, &current);
+    if( !eu->_eu_rusage_first_call ) {
+        double usr, sys;
+
+        usr = ((current.ru_utime.tv_sec - eu->_eu_rusage.ru_utime.tv_sec) +
+               (current.ru_utime.tv_usec - eu->_eu_rusage.ru_utime.tv_usec) / 1000000.0);
+        sys = ((current.ru_stime.tv_sec - eu->_eu_rusage.ru_stime.tv_sec) +
+               (current.ru_stime.tv_usec - eu->_eu_rusage.ru_stime.tv_usec) / 1000000.0);
+
+        STATUS(("\n=============================================================\n"
+                "%s: Resource Usage Data for Exec. Unit ...\n"
+                "VP: %i Thread: %i (Core %i, socket %i)\n"
+                "-------------------------------------------------------------\n"
+                "User Time   (secs)          : %10.3f\n"
+                "System Time (secs)          : %10.3f\n"
+                "Total Time  (secs)          : %10.3f\n"
+                "Minor Page Faults           : %10ld\n"
+                "Major Page Faults           : %10ld\n"
+                "Swap Count                  : %10ld\n"
+                "Voluntary Context Switches  : %10ld\n"
+                "Involuntary Context Switches: %10ld\n"
+                "Block Input Operations      : %10ld\n"
+                "Block Output Operations     : %10ld\n"
+                "=============================================================\n\n"
+                ,str, eu->virtual_process->vp_id, eu->th_id, eu->core_id, eu->socket_id,
+                usr, sys, usr + sys,
+                (current.ru_minflt  - eu->_eu_rusage.ru_minflt), (current.ru_majflt  - eu->_eu_rusage.ru_majflt),
+                (current.ru_nswap   - eu->_eu_rusage.ru_nswap) , (current.ru_nvcsw   - eu->_eu_rusage.ru_nvcsw),
+                (current.ru_inblock - eu->_eu_rusage.ru_inblock), (current.ru_oublock - eu->_eu_rusage.ru_oublock)));
+
+    }
+    eu->_eu_rusage_first_call = !eu->_eu_rusage_first_call;
+    eu->_eu_rusage = current;
+    return;
+}
+#else
+static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu) { (void)str; return; }
+#endif /* defined(HAVE_GETRUSAGE) */
+#endif /* defined(DAGUE_PROF_RUSAGE_EU) */
+
 #if 0
 /**
  * Disabled by now.
@@ -304,6 +355,10 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         my_barrier_counter = 1;
     }
 
+#if defined(DAGUE_PROF_RUSAGE_EU)
+    dague_statistics_per_eu("EU", eu_context);
+#endif
+
     /* The main loop where all the threads will spend their time */
  wait_for_the_next_round:
     /* Wait until all threads are here and the main thread signal the begining of the work */
@@ -384,6 +439,10 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             misses_in_a_row++;
         }
     }
+
+#if defined(DAGUE_PROF_RUSAGE_EU)
+    dague_statistics_per_eu("EU ", eu_context);
+#endif
 
     /* We're all done ? */
     dague_barrier_wait( &(dague_context->barrier) );

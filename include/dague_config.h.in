@@ -32,6 +32,7 @@
 /* profiling */
 #cmakedefine DAGUE_PROF_TRACE
 #cmakedefine DAGUE_PROF_STATS
+#cmakedefine DAGUE_PROF_RUSAGE_EU
 #cmakedefine DAGUE_PROF_TRACE_SCHEDULING_EVENTS
 #cmakedefine DAGUE_PROF_PAPI
 #cmakedefine DAGUE_PROF_GRAPHER

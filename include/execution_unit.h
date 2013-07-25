@@ -30,6 +30,13 @@ typedef enum PAPI_EVENTSETS {
 } PAPI_EVENTSETS;
 #endif // HAVE_PAPI
 
+
+#if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
+#include <sys/time.h>
+#include <sys/resource.h>
+#endif
+
+
 /**
  *  Computational Thread-specific structure
  */
@@ -59,10 +66,18 @@ pthread_t pthread_id;     /**< POSIX thread identifier. */
 	int papi_eventsets[EVENTSETS_COUNT];
 #endif /* HAVE_PAPI */
 
-#if defined(PINS_ENABLE) 
+#if defined(PINS_ENABLE)
 	long long int starvation;
 	long * steal_counters; // this is for Stephanie and print_steals PINS module
 #endif // PINS_ENABLE
+
+#if defined(DAGUE_PROF_RUSAGE_EU)
+// STEPH  :: RUSAGE per EU
+#if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
+    int _eu_rusage_first_call;
+    struct rusage _eu_rusage;
+#endif /* HAVE_GETRUSAGE */
+#endif
 
     struct dague_vp_s      *virtual_process;   /**< Backlink to the virtual process that holds this thread */
     /**
