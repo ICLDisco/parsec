@@ -31,16 +31,16 @@ elif [ "x${USER}" = "xmfaverge" ]; then
   #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
   USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
 
-elif [ "x${USER}" = "xsmoreaud" ]; then
-  USER_OPTIONS+="-DDAGUE_GPU_WITH_CUDA=OFF "
+elif [ "x$USER" = "xsmoreaud" ]; then
+  USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
+  USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
+  USER_OPTIONS+=" -DDAGUE_DEBUG=ON"
 
 elif [ "x$USER" = "xYOURSELF" ]; then
   PLASMA_DIR="SOMEWHERE"
   USER_OPTIONS+="-DDAGUE_OPTION=ON"
 
 fi
-
-
 
 . $(dirname $0)/config.inc
 guess_defaults
