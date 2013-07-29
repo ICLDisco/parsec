@@ -9,19 +9,19 @@ endif()
 include(RulesTestings.cmake)
 
 set(TESTS
-  testing_zgemm.c
-  testing_zhemm.c
-  testing_zsymm.c
-  testing_zherk.c
-  testing_zsyrk.c
-  testing_zher2k.c
-  testing_zsyr2k.c
-  testing_ztrmm.c
-  testing_ztrsm.c
+  # testing_zgemm.c
+  # testing_zhemm.c
+  # testing_zsymm.c
+  # testing_zherk.c
+  # testing_zsyrk.c
+  # testing_zher2k.c
+  # testing_zsyr2k.c
+  # testing_ztrmm.c
+  # testing_ztrsm.c
   #
-  testing_zpotrf.c
-  testing_zhebut.c
-  testing_zposv.c
+  # testing_zpotrf.c
+  # testing_zhebut.c
+  # testing_zposv.c
   testing_zgetrf.c
   testing_zgetrf_incpiv.c
   testing_zgetrf_incpiv_sd.c
@@ -31,11 +31,11 @@ set(TESTS
   testing_zgeqrf_systolic.c
   testing_zgeqrf_param.c
   testing_zgeqrf_rd.c
-  testing_zunmqr.c
-  testing_zgelqf.c
-  testing_zherbt.c
-  testing_zhbrdt.c
-  testing_zheev.c
+  # testing_zunmqr.c
+  # testing_zgelqf.c
+  # testing_zherbt.c
+  # testing_zhbrdt.c
+  # testing_zheev.c
   testing_zlange.c
   testing_zprint.c
   #testing_zgesvd.c
@@ -43,6 +43,7 @@ set(TESTS
 #  testing_zgetrf_hpp.c
 #  testing_zgetrf_hpp2.c
   testing_zgetrf_qrf.c
+  testing_zgetrf_qrf_iter_stability.c
 )
 if( DPLASMA_DEBUG_QR_PIVGEN )
   list(APPEND TESTS testing_zpivgen.c)
