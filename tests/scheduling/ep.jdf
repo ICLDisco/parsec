@@ -1,0 +1,35 @@
+extern "C" %{
+  /* This simple example does not need to include anything */
+%}
+
+NT
+DEPTH
+A    [type="dague_ddesc_t*"]
+
+INIT(k)
+ k = 0..0
+
+:A(0)
+
+CTL S -> (DEPTH >= 1) ? S TASK(1..NT, 1)
+
+BODY
+    /* Nothing to do in the INIT task.
+     * It is here to prevent all tasks to be created at
+     * the DAG creation time */
+END
+
+TASK(i, l)
+ i = 1..NT
+ l = 1..DEPTH
+
+:A(i-1)
+
+CTL S <- (l == 1)    ? S INIT(0)
+                     : S TASK(i, l-1)
+      -> (l < DEPTH) ? S TASK(i, l+1)
+
+BODY
+        /* This benchmark only evaluates the time to schedule tasks
+         * The body is also empty in this case */
+END
