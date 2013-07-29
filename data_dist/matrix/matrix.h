@@ -75,7 +75,7 @@ typedef struct tiled_matrix_desc_t {
 } tiled_matrix_desc_t;
 
 void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage,
-                             int matrix_distribution_type, int nodes, int cores, int myrank,
+                             int matrix_distribution_type, int nodes, int myrank,
                              int mb, int nb, int lm, int ln, int i,  int j, int m,  int n);
 
 tiled_matrix_desc_t *tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc, int i, int j, int m, int n);

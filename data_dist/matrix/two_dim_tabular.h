@@ -43,7 +43,6 @@ typedef struct two_dim_tabular_s {
  * Initialize the description of a tabular abribtrary distribution
  * @param Ddesc matrix description structure, already allocated, that will be initialize
  * @param nodes number of nodes
- * @param cores number of cores per node
  * @param myrank rank of the local node (as of mpi rank)
  * @param mb number of row in a tile
  * @param nb number of column in a tile
@@ -60,7 +59,7 @@ typedef struct two_dim_tabular_s {
 
 void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
                           enum matrix_type mtype,
-                          unsigned int nodes, unsigned int cores, unsigned int myrank,
+                          unsigned int nodes, unsigned int myrank,
                           unsigned int mb, unsigned int nb,
                           unsigned int lm, unsigned int ln,
                           unsigned int i, unsigned int j,

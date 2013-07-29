@@ -32,7 +32,6 @@ typedef int (*dague_memory_region_management_f)(dague_ddesc_t*, struct dague_dev
 
 struct dague_ddesc_s {
     uint32_t            myrank;    /**< process rank */
-    uint32_t            cores;     /**< number of cores used for computation per node */
     uint32_t            nodes;     /**< number of nodes involved in the computation */
 
     /* return a unique key (unique only for the specified dague_ddesc) associated to a data */

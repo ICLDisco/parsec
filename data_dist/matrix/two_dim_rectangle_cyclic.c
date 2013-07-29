@@ -62,7 +62,7 @@ static int twoDBC_memory_unregister(dague_ddesc_t* desc, struct dague_device_s* 
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
                                enum matrix_type mtype,
                                enum matrix_storage storage,
-                               int nodes, int cores, int myrank,
+                               int nodes, int myrank,
                                int mb,   int nb,   /* Tile size */
                                int lm,   int ln,   /* Global matrix size (what is stored)*/
                                int i,    int j,    /* Staring point in the global matrix */
@@ -83,7 +83,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type,
-                            nodes, cores, myrank,
+                            nodes, myrank,
                             mb, nb, lm, ln, i, j, m, n );
 
     if(nodes < P)
@@ -149,10 +149,10 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     o->unregister_memory = twoDBC_memory_unregister;
 
     DEBUG3(("two_dim_block_cyclic_init: \n"
-           "      Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %d, \n"
+           "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
            "      nrst = %d, ncst = %d, P = %d, Q = %d\n",
-           Ddesc, Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.cores,
+           Ddesc, Ddesc->super.mtype, Ddesc->super.super.nodes,
            Ddesc->super.super.myrank,
            Ddesc->super.mb, Ddesc->super.nb,
            Ddesc->super.lm, Ddesc->super.ln,

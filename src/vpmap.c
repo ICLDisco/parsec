@@ -28,6 +28,7 @@ typedef struct {
     vpmap_thread_t **threads;
 } vpmap_t;
 
+static int vpmap_nb_total_threads = -1; /**< maintains the total number of threads */
 
 static vpmap_t *map = NULL;     /**< used by the from_file and from_affinity only */
 static int nbvp = -1;
@@ -40,6 +41,11 @@ static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread);
 static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, int *ht);
 
 static int parse_binding_parameter(int vp, int nbth, char * binding);
+
+int vpmap_get_nb_total_threads(void)
+{
+    return vpmap_nb_total_threads;
+}
 
 /* The parameters variant is used while no init has been called,
  * as they return -1 in this case for any call
@@ -168,9 +174,13 @@ int vpmap_init_from_hardware_affinity(void)
          * threads are distributed in order on the cores (hwloc numbering, ensure locality)
          */
         c=0;
+        vpmap_nb_total_threads = 0;
+
         for(v = 0; v < nbvp; v++) {
             nbthreadspervp = dague_hwloc_nb_cores_per_obj(level, v)*nbht;
             map[v].nbthreads = nbthreadspervp;
+            vpmap_nb_total_threads += nbthreadspervp;
+
             map[v].threads = (vpmap_thread_t**)calloc(nbthreadspervp, sizeof(vpmap_thread_t*));
 
             for(t = 0; t < nbthreadspervp; t+=nbht) {
@@ -210,8 +220,10 @@ int vpmap_init_from_file(const char *filename)
     int rank = 0;
     int nbth, nbcores, c, v;
 
-    if( nbvp != -1 )
+    if( nbvp != -1 ) {
+        vpmap_nb_total_threads = -1;
         return -1;
+    }
 
     nbht = dague_hwloc_get_ht();
 
@@ -269,12 +281,15 @@ int vpmap_init_from_file(const char *filename)
         for(c = 0; c < nbcores; c++) {
             map[0].threads[0]->cores[c] = c;
         }
+
+        vpmap_nb_total_threads = nbcores;
     } else {
         /* We have some VP descriptions */
         map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));
 
         rewind(f);
         v = 0;
+        vpmap_nb_total_threads  = 0;
         while( getline(&line, &nline, f) != -1 ) {
             if( NULL != strchr(line, ':') ) {
 #if defined(HAVE_MPI)
@@ -292,6 +307,8 @@ int vpmap_init_from_file(const char *filename)
                         nbth = (int) strtod(th_arg, NULL);
                         if( nbth <= 0 )
                             nbth=1;
+
+                        vpmap_nb_total_threads += nbth;
 
                         map[v].nbthreads = nbth;
                         map[v].threads = (vpmap_thread_t**)calloc(nbth, sizeof(vpmap_thread_t*));
@@ -330,14 +347,18 @@ int vpmap_init_from_parameters(int _nbvp, int _nbthreadspervp, int _nbcores)
 {
     if( nbvp != -1 ||
         nbthreadspervp != -1 ||
-        nbcores != -1 )
+        nbcores != -1 ) {
+        vpmap_nb_total_threads = -1;
         return -1;
+    }
 
     nbht = dague_hwloc_get_ht();
 
     nbcores = _nbcores;
     nbthreadspervp = _nbthreadspervp;
     nbvp = _nbvp;
+
+    vpmap_nb_total_threads = nbvp * nbthreadspervp;
 
     vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_parameters;
     vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_parameters;
@@ -349,14 +370,18 @@ int vpmap_init_from_flat(int _nbcores)
 {
     if( nbvp != -1 ||
         nbthreadspervp != -1 ||
-        nbcores != -1 )
+        nbcores != -1 ) {
+        vpmap_nb_total_threads = -1;
         return -1;
+    }
 
     nbht = dague_hwloc_get_ht();
 
     nbvp = 1;
     nbcores = _nbcores/nbht;
     nbthreadspervp = _nbcores;
+
+    vpmap_nb_total_threads = nbcores * nbthreadspervp;
 
     vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_parameters;
     vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_parameters;

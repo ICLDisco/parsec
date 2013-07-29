@@ -49,7 +49,6 @@ typedef struct two_dim_block_cyclic {
  * @param mtype type of data used for this matrix
  * @param storage type of storage of data
  * @param nodes number of nodes
- * @param cores number of cores per node
  * @param myrank rank of the local node (as of mpi rank)
  * @param mb number of row in a tile
  * @param nb number of column in a tile
@@ -66,7 +65,7 @@ typedef struct two_dim_block_cyclic {
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc,
                                enum matrix_type mtype,
                                enum matrix_storage storage,
-                               int nodes, int cores, int myrank,
+                               int nodes, int myrank,
                                int mb,   int nb,   /* Tile size */
                                int lm,   int ln,   /* Global matrix size (what is stored)*/
                                int i,    int j,    /* Staring point in the global matrix */

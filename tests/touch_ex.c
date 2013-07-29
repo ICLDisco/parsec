@@ -19,7 +19,7 @@ int main( int argc, char** argv )
     assert( NULL != dague );
 
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                               1 /*nodes*/, 1 /*cores*/, 0 /*rank*/,
+                               1 /*nodes*/, 0 /*rank*/,
                                BLOCK, BLOCK, N, N,
                                0, 0, N, N, 1, 1, 1);
     descA.mat = dague_data_allocate( descA.super.nb_local_tiles *

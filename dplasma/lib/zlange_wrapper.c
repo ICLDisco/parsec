@@ -70,7 +70,7 @@ dague_handle_t* dplasma_zlange_New( PLASMA_enum ntype,
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         (*Wcol), two_dim_block_cyclic,
         (Wcol, matrix_RealDouble, matrix_Tile,
-         A->super.nodes, A->super.cores, A->super.myrank,
+         A->super.nodes, A->super.myrank,
          mb,  nb,   /* Dimesions of the tile                */
          m,   n,    /* Dimensions of the matrix             */
          0,   0,    /* Starting points (not important here) */
@@ -80,7 +80,7 @@ dague_handle_t* dplasma_zlange_New( PLASMA_enum ntype,
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
         (*Welt), two_dim_block_cyclic,
         (Welt, matrix_RealDouble, matrix_Tile,
-         A->super.nodes, A->super.cores, A->super.myrank,
+         A->super.nodes, A->super.myrank,
          elt,   1,  /* Dimesions of the tile                */
          elt*P, Q,  /* Dimensions of the matrix             */
          0,     0,  /* Starting points (not important here) */

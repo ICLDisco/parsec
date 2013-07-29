@@ -36,7 +36,7 @@ static int      tiled_matrix_key_to_string(struct dague_ddesc_s * desc, uint32_t
 void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
                              enum matrix_type    mtyp,
                              enum matrix_storage storage,
-                             int dtype, int nodes, int cores, int myrank,
+                             int dtype, int nodes, int myrank,
                              int mb, int nb,
                              int lm, int ln,
                              int i,  int j,
@@ -46,7 +46,6 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
 
     /* Super setup */
     o->nodes     = nodes;
-    o->cores     = cores;
     o->myrank    = myrank;
 
 #if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
@@ -66,7 +65,6 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
 
     /* Super setup */
     tdesc->super.nodes = nodes;
-    tdesc->super.cores = cores;
     tdesc->super.myrank = myrank;
     tdesc->super.key_base = NULL;
 

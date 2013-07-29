@@ -52,17 +52,17 @@ int main(int argc, char ** argv)
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               nodes, rank, MB, NB, LDA, N, 0, 0,
                                N, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1,
         two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
     /* matrix generation */
@@ -82,7 +82,7 @@ int main(int argc, char ** argv)
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
             sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                       nodes, rank, MB, NB, LDA, N, 0, 0,
                                        N, N, P, uplo[u]));
 
         /* load the GPU kernel */
@@ -275,12 +275,12 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
 
     PASTE_CODE_ALLOCATE_MATRIX(L1, 1,
                                sym_two_dim_block_cyclic, (&L1, matrix_ComplexDouble,
-                                                          A->super.nodes, A->super.cores, twodA->grid.rank,
+                                                          A->super.nodes, twodA->grid.rank,
                                                           A->mb, A->nb, M, N, 0, 0,
                                                           M, N, twodA->grid.rows, uplo));
     PASTE_CODE_ALLOCATE_MATRIX(L2, 1,
                                two_dim_block_cyclic, (&L2, matrix_ComplexDouble, matrix_Tile,
-                                                      A->super.nodes, A->super.cores, twodA->grid.rank,
+                                                      A->super.nodes, twodA->grid.rank,
                                                       A->mb, A->nb, M, N, 0, 0,
                                                       M, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 
@@ -359,7 +359,7 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
 
     PASTE_CODE_ALLOCATE_MATRIX(R, 1,
         two_dim_block_cyclic, (&R, matrix_ComplexDouble, matrix_Tile,
-                               A->super.nodes, A->super.cores, twodB->grid.rank,
+                               A->super.nodes, twodB->grid.rank,
                                A->mb, A->nb, N, NRHS, 0, 0,
                                N, NRHS, twodB->grid.strows, twodB->grid.stcols, twodB->grid.rows));
 

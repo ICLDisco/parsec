@@ -212,7 +212,7 @@ static int  sym_twoDBC_key_to_string(dague_ddesc_t *desc, uint32_t datakey, char
 
 void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
                                    enum matrix_type mtype,
-                                   int nodes, int cores, int myrank,
+                                   int nodes, int myrank,
                                    int mb,   int nb,   /* Tile size */
                                    int lm,   int ln,   /* Global matrix size (what is stored)*/
                                    int i,    int j,    /* Staring point in the global matrix */
@@ -236,7 +236,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     o->unregister_memory = sym_twoDBC_memory_unregister;
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
                             sym_two_dim_block_cyclic_type,
-                            nodes, cores, myrank,
+                            nodes, myrank,
                             mb, nb, lm, ln, i, j, m, n );
 
     if(nodes < P)

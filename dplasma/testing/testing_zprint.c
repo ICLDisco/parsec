@@ -38,12 +38,12 @@ int main(int argc, char ** argv)
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   nodes, rank, MB, NB, LDA, N, 0, 0,
                                    M, N, P, uplo));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble,  matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, N, 0, 0,
+                               nodes, rank, MB, NB, LDB, N, 0, 0,
                                M, N, 1, 1, P));
 
     /* matrix generation */

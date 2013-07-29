@@ -20,6 +20,7 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "vpmap.h"
 
 #define nbthreads( __k ) (dague_imin( ((descA.mt - (__k)) + 3 )/  4, nbmaxthrd) - 1)
 
@@ -32,7 +33,7 @@ descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
 IPIV      [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
-nbmaxthrd [type = "int" default="( dague_imax( 1, dague_imin( A->cores - 1, 48 ) ) )" hidden=on] /* 48 is the actual limit of the kernel */
+nbmaxthrd [type = "int" default="( dague_imax( 1, dague_imin(vpmap_get_nb_total_threads()-1, 48 ) ) )" hidden=on] /* 48 is the actual limit of the kernel */
 minMNT    [type = "int" default="( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )" hidden=on]
 
 /************************************************************************************

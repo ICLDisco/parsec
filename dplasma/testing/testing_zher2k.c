@@ -55,17 +55,17 @@ int main(int argc, char ** argv)
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
             two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                                   nodes, cores, rank, MB, NB, LDA, An, 0, 0,
+                                   nodes, rank, MB, NB, LDA, An, 0, 0,
                                    Am, An, SMB, SNB, P));
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
             two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                                   nodes, cores, rank, MB, NB, LDB, An, 0, 0,
+                                   nodes, rank, MB, NB, LDB, An, 0, 0,
                                    Am, An, SMB, SNB, P));
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
             sym_two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble,
-                                       nodes, cores, rank, MB, NB, LDC, N, 0, 0,
+                                       nodes, rank, MB, NB, LDC, N, 0, 0,
                                        N, N, P, uplo));
 
         /* matrix generation */
@@ -103,7 +103,7 @@ int main(int argc, char ** argv)
 
             PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
                 sym_two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble,
-                                           nodes, cores, rank, MB, NB, LDC, N, 0, 0,
+                                           nodes, rank, MB, NB, LDC, N, 0, 0,
                                            N, N, P, uplo[u]));
 
             for (t=0; t<2; t++) {
@@ -117,12 +117,12 @@ int main(int argc, char ** argv)
 
                 PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
                     two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                                           nodes, cores, rank, MB, NB, LDA, An, 0, 0,
+                                           nodes, rank, MB, NB, LDA, An, 0, 0,
                                            Am, An, SMB, SNB, P));
 
                 PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
                     two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                                           nodes, cores, rank, MB, NB, LDA, An, 0, 0,
+                                           nodes, rank, MB, NB, LDA, An, 0, 0,
                                            Am, An, SMB, SNB, P));
 
                 if (loud > 2) printf("Generate matrices ... ");
@@ -212,15 +212,15 @@ static int check_solution( dague_context_t *dague, int loud,
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
-                               1, cores, rank, MB, NB, LDA, An, 0, 0,
+                               1, rank, MB, NB, LDA, An, 0, 0,
                                Am, An, 1, 1, 1));
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Lapack,
-                               1, cores, rank, MB, NB, LDA, An, 0, 0,
+                               1, rank, MB, NB, LDA, An, 0, 0,
                                Am, An, 1, 1, 1));
     PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
         two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, matrix_Lapack,
-                               1, cores, rank, MB, NB, LDC, N, 0, 0,
+                               1, rank, MB, NB, LDC, N, 0, 0,
                                M, N, 1, 1, 1));
 
     dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);

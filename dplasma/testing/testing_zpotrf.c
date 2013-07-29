@@ -51,7 +51,7 @@ int main(int argc, char ** argv)
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   nodes, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, uplo));
 
     /* matrix generation */
@@ -90,7 +90,7 @@ int main(int argc, char ** argv)
         /* Check the factorization */
         PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
             sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
-                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                       nodes, rank, MB, NB, LDA, N, 0, 0,
                                        N, N, P, uplo));
         dplasma_zplghe( dague, (double)(N), uplo,
                         (tiled_matrix_desc_t *)&ddescA0, 3872);
@@ -102,13 +102,13 @@ int main(int argc, char ** argv)
         /* Check the solution */
         PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
             two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                                   nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
         dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 2354);
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
             two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
-                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                                   nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
@@ -154,12 +154,12 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
 
     PASTE_CODE_ALLOCATE_MATRIX(L1, 1,
         sym_two_dim_block_cyclic, (&L1, matrix_ComplexDouble,
-                                   A->super.nodes, A->super.cores, twodA->grid.rank,
+                                   A->super.nodes, twodA->grid.rank,
                                    A->mb, A->nb, M, N, 0, 0,
                                    M, N, twodA->grid.rows, uplo));
     PASTE_CODE_ALLOCATE_MATRIX(L2, 1,
         two_dim_block_cyclic, (&L2, matrix_ComplexDouble, matrix_Tile,
-                               A->super.nodes, A->super.cores, twodA->grid.rank,
+                               A->super.nodes, twodA->grid.rank,
                                A->mb, A->nb, M, N, 0, 0,
                                M, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 

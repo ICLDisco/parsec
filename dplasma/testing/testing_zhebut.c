@@ -51,34 +51,34 @@ int main(int argc, char ** argv)
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   nodes, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, uplo));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   nodes, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, uplo));
 
 #if defined(CHECK_B)
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                                   nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
         two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
-                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                                   nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
 #endif
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescInvA, check_inv,
         two_dim_block_cyclic, (&ddescInvA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               nodes, rank, MB, NB, LDA, N, 0, 0,
                                N, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescI, check_inv,
         two_dim_block_cyclic, (&ddescI, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               nodes, rank, MB, NB, LDA, N, 0, 0,
                                N, N, SMB, SNB, P));
 
     /* matrix generation */

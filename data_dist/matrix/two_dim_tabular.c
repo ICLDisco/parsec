@@ -164,7 +164,7 @@ static int twoDTD_key_to_string(dague_ddesc_t *ddesc, dague_data_key_t datakey, 
 
 void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
                           enum matrix_type mtype,
-                          unsigned int nodes, unsigned int cores, unsigned int myrank,
+                          unsigned int nodes, unsigned int myrank,
                           unsigned int mb, unsigned int nb,
                           unsigned int lm, unsigned int ln,
                           unsigned int i, unsigned int j,
@@ -174,7 +174,7 @@ void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
     // Filling matrix description with user parameter
     tiled_matrix_desc_init(&Ddesc->super,
                            mtype, matrix_Tile, two_dim_tabular_type,
-                           nodes, cores, myrank,
+                           nodes, myrank,
                            mb, nb, lm, ln, i, j, m, n);
     Ddesc->tiles_table = NULL;
     Ddesc->super.nb_local_tiles = 0;

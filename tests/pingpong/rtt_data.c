@@ -81,13 +81,12 @@ static uint32_t data_key(dague_ddesc_t *desc, ...)
 }
 #endif
 
-dague_ddesc_t *create_and_distribute_data(int rank, int world, int cores, int size, int seg)
+dague_ddesc_t *create_and_distribute_data(int rank, int world, int size, int seg)
 {
     my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
     dague_ddesc_t *d = &(m->super);
 
     d->myrank = rank;
-    d->cores  = cores;
     d->nodes  = world;
     d->rank_of = rank_of;
     d->data_of = data_of;

@@ -50,12 +50,12 @@ int main(int argc, char *argv[])
  /*
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
          sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-         nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+         nodes, rank, MB, NB, LDA, N, 0, 0,
          N, N, P, uplo))
 */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
          two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-         nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+         nodes, rank, MB, NB, LDA, N, 0, 0,
          N, N, 1, 1, P))
     /* Fill A with randomness */
     dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA, 3872);
@@ -66,12 +66,12 @@ int main(int argc, char *argv[])
 /*
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
          sym_two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble,
-         nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+         nodes, rank, IB, NB, MT*IB, N, 0, 0,
          MT*IB, N, P, uplo))
 */
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
          two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
-         nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+         nodes, rank, IB, NB, MT*IB, N, 0, 0,
          MT*IB, N, SMB, SMB, P))
 
     /* REDUCTION OF A TO BAND */
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
     /* CONVERSION OF A INTO BAND STORAGE */
     PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1,
         two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble, matrix_Tile,
-        nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
+        nodes, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
         MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
     SYNC_TIME_START();
     dague_diag_band_to_rect_handle_t* DAGUE_diag_band_to_rect = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
@@ -123,11 +123,11 @@ int main(int argc, char *argv[])
             /* LAcpy doesn't handle differing tile sizes, so lets get simple here */
             PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1,
                 two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
-                nodes, cores, rank, 2, N, 1, 1, 0, 0, 2, N, 1, 1, 1)); /* on rank 0 only */
+                nodes, rank, 2, N, 1, 1, 0, 0, 2, N, 1, 1, 1)); /* on rank 0 only */
 #else
             PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1,
                 two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
-                    1, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
+                    1, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
                     MB+1, (NB+2)*NT, 1, 1, 1 /* rank0 only */ ));
 #endif
             dplasma_zlacpy(dague, PlasmaUpperLower, &ddescBAND.super, &ddescW.super);
@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
         /* Regenerate A (same random generator) into A0 */
         PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
             two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
-            1, cores, rank, MB, NB, LDA, N, 0, 0,
+            1, rank, MB, NB, LDA, N, 0, 0,
             N, N, 1, 1, 1))
         PLASMA_Desc_Create(&plasmaDescA0, ddescA0.mat, PlasmaComplexDouble,
             ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,

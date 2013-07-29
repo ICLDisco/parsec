@@ -91,6 +91,12 @@ typedef void (*vpmap_get_core_affinity_t)(int vp, int thread, int *cores, int *h
 extern vpmap_get_core_affinity_t vpmap_get_core_affinity;
 
 /**
+ * Returns the number of threads on which the current vpmap spans
+ *  (sum of the get_nb_thread_in_vp for all vp)
+ */
+int vpmap_get_nb_total_threads(void);
+
+/**
  * Helping function: displays the virtual process map on @param out
  */
 void vpmap_display_map(FILE *out);

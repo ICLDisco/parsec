@@ -211,15 +211,15 @@ int main(int argc, char ** argv)
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                                    nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                    nodes, rank, MB, NB, LDA, N, 0, 0,
                                     M, N, MB, NB, P))
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
-                                    nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+                                    nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                     MT*IB, N, MB, NB, P))
     PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1,
         two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble, matrix_Tile,
-        nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
+        nodes, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
         MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
 
     PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble,

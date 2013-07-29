@@ -38,13 +38,13 @@ int main(int argc, char *argv[])
     /*
       PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
       sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-      nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+      nodes, rank, MB, NB, LDA, N, 0, 0,
       N, N, P, MatrixLower))
     */
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
+                               nodes, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
                                MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
 
     dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
@@ -62,20 +62,20 @@ int main(int argc, char *argv[])
          * the same things */
         PASTE_CODE_ALLOCATE_MATRIX(ddescAcpy, 1,
                                    two_dim_block_cyclic, (&ddescAcpy, matrix_ComplexDouble, matrix_Tile,
-                                                          nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT,
+                                                          nodes, rank, MB+1, NB+2, MB+1, (NB+2)*NT,
                                                           0, 0, MB+1, (NB+2)*NT, 1, SNB, 1));
         dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescAcpy, 3872);
 
         /* Gather Acpy on rank 0 */
         PASTE_CODE_ALLOCATE_MATRIX(ddescLAcpy, 1,
                                    two_dim_block_cyclic, (&ddescLAcpy, matrix_ComplexDouble, matrix_Tile,
-                                                          1, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT,
+                                                          1, rank, MB+1, NB+2, MB+1, (NB+2)*NT,
                                                           0, 0, MB+1, (NB+2)*NT, 1, 1, 1));
 
         /* Gather A diagonal and subdiagonal on rank 0 */
         PASTE_CODE_ALLOCATE_MATRIX(ddescLA, 1,
                                    two_dim_block_cyclic, (&ddescLA, matrix_ComplexDouble, matrix_Tile,
-                                                          1, cores, rank, 2, NB, 2, NB*NT,
+                                                          1, rank, 2, NB, 2, NB*NT,
                                                           0, 0, 2, NB*NT, 1, 1, 1));
         if(rank == 0) {
             for(int t = 0; t < NT; t++)

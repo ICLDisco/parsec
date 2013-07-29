@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     size = 256;
     nb   = 4 * world;
 
-    ddescA = create_and_distribute_data(rank, world, cores, size, 1);
+    ddescA = create_and_distribute_data(rank, world, size, 1);
     dague_ddesc_set_key(ddescA, "A");
 
     rtt = rtt_new(ddescA, size, nb);

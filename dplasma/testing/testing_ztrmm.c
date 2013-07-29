@@ -45,11 +45,11 @@ int main(int argc, char ** argv)
     LDC = max(LDC, M);
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, Am, 0, 0,
+                               nodes, rank, MB, NB, LDA, Am, 0, 0,
                                Am, Am, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
         two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDC, N, 0, 0,
+                               nodes, rank, MB, NB, LDC, N, 0, 0,
                                M, N, SMB, SNB, P));
 
     if(!check)
@@ -86,7 +86,7 @@ int main(int argc, char ** argv)
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescC2, 1,
             two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, matrix_Tile,
-                                   nodes, cores, rank, MB, NB, LDC, N, 0, 0,
+                                   nodes, rank, MB, NB, LDC, N, 0, 0,
                                    M, N, SMB, SNB, P));
 
         dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA, Aseed);
@@ -180,18 +180,17 @@ static int check_solution( dague_context_t *dague, int loud,
     int NB = ddescCfinal->super.nb;
     int LDA = (Am%MB==0) ? Am : (Am/MB+1) * MB;
     int LDC = ( M%MB==0) ? M  : ( M/MB+1) * MB;
-    int cores = ddescCfinal->super.super.cores;
     int rank  = ddescCfinal->super.super.myrank;
 
     eps = LAPACKE_dlamch_work('e');
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
-                               1, cores, rank, MB, NB, LDA, An, 0, 0,
+                               1, rank, MB, NB, LDA, An, 0, 0,
                                Am, An, 1, 1, 1));
     PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
         two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, matrix_Lapack,
-                               1, cores, rank, MB, NB, LDC, N, 0, 0,
+                               1, rank, MB, NB, LDC, N, 0, 0,
                                M, N, 1, 1, 1));
 
     dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA, Aseed);

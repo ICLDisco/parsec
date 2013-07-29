@@ -36,32 +36,32 @@ int main(int argc, char ** argv)
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               nodes, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               nodes, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1,
         two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescL, 1,
         two_dim_block_cyclic, (&ddescL, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+                               nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
         two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
-                               nodes, cores, rank, MB, 1, M, NT, 0, 0,
+                               nodes, rank, MB, 1, M, NT, 0, 0,
                                M, NT, SMB, SNB, P));
 
     /* matrix generation */

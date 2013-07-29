@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
         nb = atoi(argv[1]);
     }
 
-    ddescA = create_and_distribute_data(rank, world, cores, size);
+    ddescA = create_and_distribute_data(rank, world, size);
     dague_ddesc_set_key(ddescA, "A");
 
     branching = branching_new(ddescA, size, nb);

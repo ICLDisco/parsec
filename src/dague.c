@@ -1725,7 +1725,6 @@ static int key_to_string(dague_ddesc_t *unused, dague_data_key_t datakey, char* 
 
 const dague_ddesc_t dague_static_local_data_ddesc = {
       0, /* uint32_t myrank */
-      1, /* uint32_t cores */
       1, /* uint32_t nodes */
 
       data_key,  /* dague_data_key_t (*data_key)(dague_ddesc_t *mat, ...) */

@@ -57,7 +57,6 @@ typedef struct sym_two_dim_block_cyclic {
  * Initialize the description of a  2-D block cyclic distributed matrix.
  * @param Ddesc matrix description structure, already allocated, that will be initialize
  * @param nodes number of nodes
- * @param cores number of cores per node
  * @param myrank rank of the local node (as of mpi rank)
  * @param mb number of row in a tile
  * @param nb number of column in a tile
@@ -72,7 +71,7 @@ typedef struct sym_two_dim_block_cyclic {
  */
 void sym_two_dim_block_cyclic_init( sym_two_dim_block_cyclic_t * Ddesc,
                                     enum matrix_type mtype,
-                                    int nodes, int cores, int myrank,
+                                    int nodes, int myrank,
                                     int mb, int nb, int lm, int ln,
                                     int i, int j, int m, int n,
                                     int process_GridRows, int uplo );
