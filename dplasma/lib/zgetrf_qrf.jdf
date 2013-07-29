@@ -28,6 +28,31 @@ extern "C" %{
 #include "dplasma_qr_pivgen.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
+static inline int lu_tab_val(int deb, int fin, int nb_lu, int rec_depth, int index)
+{
+    if (deb == fin)
+    {
+        return (nb_lu != 0);
+    }
+    else
+    {
+        int new_fin = 0;
+        if ((fin - deb + 1) % 2 == 0)
+            new_fin = deb - 1 + (fin - deb + 1) / 2;
+        else
+            new_fin = deb - 1 + (fin - deb) / 2 + (rec_depth % 2);
+        int new_nb_lu = 0;
+        if ((nb_lu % 2) == 0)
+            new_nb_lu = nb_lu/2;
+        else
+            new_nb_lu = (nb_lu-1)/2 + (rec_depth % 2);
+        if (index <= new_fin)
+            return lu_tab_val(deb, new_fin, new_nb_lu, rec_depth+1, index);
+        else
+            return lu_tab_val(new_fin+1, fin, nb_lu - new_nb_lu, rec_depth+1, index);
+    }
+}
+
 PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
                              int lm, int ln, int i, int j, int m, int n);
 
@@ -705,7 +730,10 @@ BODY
          * Info related to criteria can be computed in local workspace W,
          * since two panels will never be computed at the same time.
          */
-        if ((criteria == HIGHAM_CRITERIUM) || (criteria == HIGHAM_MAX_CRITERIUM) || (criteria == HIGHAM_SUM_CRITERIUM) || (criteria == HIGHAM_MOY_CRITERIUM))
+        if ((criteria == HIGHAM_CRITERIUM)     ||
+            (criteria == HIGHAM_MAX_CRITERIUM) ||
+            (criteria == HIGHAM_SUM_CRITERIUM) ||
+            (criteria == HIGHAM_MOY_CRITERIUM) )
         {
             /*
              * Compute the 1-norm of every tiles located on other nodes
@@ -770,75 +798,77 @@ zlufacto(k, t)
 ; descA.nt
 
 BODY
-{
-    /* dague_complex64_t *lA  = (dague_complex64_t*)A; */
-    int ks = k + (s-1)*param_p;
-    int tempm = (s-1) * descA.mb +
-        (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
-    int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
-    int ldak = BLKLDD(descA, k);
+  {
+      /* dague_complex64_t *lA  = (dague_complex64_t*)A; */
+      int ks = k + (s-1)*param_p;
+      int tempm = (s-1) * descA.mb +
+          (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
+      int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+      int ldak = BLKLDD(descA, k);
 
-    printlog("zlufacto( k=%d, t=%d ) [nbthrd=%d]\n"
-             "\t(%d, %d, A(%d,%d)[%p], IP(%d)[%p]) lu_facto",
-             k, t, nbthrd, tempm, tempkn, k, k, A, k, IP);
+      printlog("zlufacto( k=%d, t=%d ) [nbthrd=%d]\n"
+               "\t(%d, %d, A(%d,%d)[%p], IP(%d)[%p]) lu_facto",
+               k, t, nbthrd, tempm, tempkn, k, k, A, k, IP);
 
-        int tempkm = k == descA.mt-1 ? tempm : descA.mb;
-        int info[3];
+      int tempkm = k == descA.mt-1 ? tempm : descA.mb;
+      int info[3];
 
-        /* Set local IP to 0 before generation
-         * Better here than a global initialization for locality
-         * and it's also done in parallel */
-        if ( t == 0 ) {
-            memset(IP, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
-        }
+      /* Set local IP to 0 before generation
+       * Better here than a global initialization for locality
+       * and it's also done in parallel */
+      if ( t == 0 ) {
+          memset(IP, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
+      }
 
-        info[1] = t;
-        info[2] = nbthrd+1;
+      info[1] = t;
+      info[2] = nbthrd+1;
 
-        if (criteria == MUMPS_CRITERIUM)
-        {
-            /* Store largest absolut values of each columns */
-            memset( W, 0, descA.nb * sizeof(double));
-            CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempkn, tempkn, A, ldak, W);
-        }
+      if (criteria == MUMPS_CRITERIUM)
+      {
+          /* Store largest absolut values of each columns */
+          memset( W, 0, descA.nb * sizeof(double));
+          CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempkn, tempkn, A, ldak, W);
+      }
 
-        if ( descA.storage == matrix_Tile ) {
-            PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                   descA.mb, descA.nb, descA.mb * descA.nb,
-                                                   s*descA.mb, descA.nb, 0, 0,
-                                                   tempm, tempkn);
-            pdescA.mat = A;
-            CORE_zgetrf_rectil( pdescA, IP, info );
+      if ( descA.storage == matrix_Tile ) {
+          PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                                 descA.mb, descA.nb, descA.mb * descA.nb,
+                                                 s*descA.mb, descA.nb, 0, 0,
+                                                 tempm, tempkn);
+          pdescA.mat = A;
+          CORE_zgetrf_rectil( pdescA, IP, info );
 
-        } else {
-            /* Not implemented */
-            assert( 0 );
-            CORE_zgetrf_reclap(
-                tempm, tempkn,
-                A/*(k, k)*/, ldak, IP, info );
-        }
+      } else {
+          /* Not implemented */
+          assert( 0 );
+          CORE_zgetrf_reclap(
+              tempm, tempkn,
+              A/*(k, k)*/, ldak, IP, info );
+      }
 
-        if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
-            *INFO = k * descA.mb + info[0]; /* Should return if enter here */
-            fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
-        }
+      if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
+          *INFO = k * descA.mb + info[0]; /* Should return if enter here */
+          fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
+      }
 
-        if ( (t == 0) && (criteria == HIGHAM_CRITERIUM))
-        {
-            /* Compute the condition number of U */
-            LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W );
-            //LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, W);
+      if ( (t == 0) && (criteria == HIGHAM_CRITERIUM))
+      {
+          /* Compute the condition number of U */
+          LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W );
+          //LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, W);
 
-            W[0] = 1. / W[0];
-        }
+          W[0] = 1. / W[0];
+      }
 
-        if ( (t == 0) && ((criteria == HIGHAM_MAX_CRITERIUM) || (criteria == HIGHAM_SUM_CRITERIUM) || (criteria == HIGHAM_MOY_CRITERIUM)))
-        {
-            /*Compute the norm of A_kk^(-1)  */
-            LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, 1., W);
-            fprintf(stderr, "Le cond est: %f\n", W[0]);
-        }
-}
+      if ( (t == 0) && ((criteria == HIGHAM_MAX_CRITERIUM) ||
+                        (criteria == HIGHAM_SUM_CRITERIUM) ||
+                        (criteria == HIGHAM_MOY_CRITERIUM)) )
+      {
+          /*Compute the norm of A_kk^(-1)  */
+          LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, 1., W);
+          //fprintf(stderr, "Le cond est: %f\n", W[0]);
+      }
+  }
 END
 
 /************************************************************************************
@@ -872,7 +902,9 @@ BODY
 
     printlog("reduce_norm( k=%d, p=%d )\n", k, p);
 
-    if ((criteria == HIGHAM_CRITERIUM) || (criteria == HIGHAM_SUM_CRITERIUM) || (criteria == HIGHAM_MOY_CRITERIUM))
+    if ((criteria == HIGHAM_CRITERIUM)     ||
+        (criteria == HIGHAM_SUM_CRITERIUM) ||
+        (criteria == HIGHAM_MOY_CRITERIUM))
     {
         memset( norm1, 0, pmax * sizeof(double) );
 
@@ -976,7 +1008,10 @@ BODY
     /* TODO: We collect the condition numbers and compute the choice*/
     printlog("setchoice( k=%d, p=%d, h=%d )\n", k, p, h);
 
-        if ((criteria == HIGHAM_CRITERIUM) || (criteria == HIGHAM_SUM_CRITERIUM) || (criteria == HIGHAM_MAX_CRITERIUM) || (criteria == HIGHAM_MOY_CRITERIUM))
+        if ((criteria == HIGHAM_CRITERIUM)     ||
+            (criteria == HIGHAM_SUM_CRITERIUM) ||
+            (criteria == HIGHAM_MAX_CRITERIUM) ||
+            (criteria == HIGHAM_MOY_CRITERIUM))
         {
             /* The received buffer contains the diagonal line */
             if( (pui <= p) && (p < 2*pui) ) {
@@ -1054,31 +1089,7 @@ BODY
             }
             else if (criteria == RANDOM_CRITERIUM)
             {
-                int lu_tab_val(int deb, int fin, int nb_lu, int rec_depth, int index)
-                {
-                        if (deb == fin)
-                        {
-                            return (nb_lu != 0);
-                        }
-                        else
-                        {
-                           int new_fin = 0;
-                           if ((fin - deb + 1) % 2 == 0)
-                               new_fin = deb - 1 + (fin - deb + 1) / 2;
-                           else
-                               new_fin = deb - 1 + (fin - deb) / 2 + (rec_depth % 2);
-                           int new_nb_lu = 0;
-                           if ((nb_lu % 2) == 0)
-                               new_nb_lu = nb_lu/2;
-                           else
-                               new_nb_lu = (nb_lu-1)/2 + (rec_depth % 2);
-                           if (index <= new_fin)
-                               return lu_tab_val(deb, new_fin, new_nb_lu, rec_depth+1, index);
-                           else
-                               return lu_tab_val(new_fin+1, fin, nb_lu - new_nb_lu, rec_depth+1, index);
-                       }
-                }
-                int nb_lu = ((minMNT+1) * alpha)/100;
+                int nb_lu = lround( ((double)(minMNT+1) * alpha) / 100. );
                 cond = lu_tab_val(0, minMNT, nb_lu, 0, k);
             }
             else if (criteria == HIGHAM_SUM_CRITERIUM)
