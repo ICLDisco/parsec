@@ -289,14 +289,17 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                                 cast_L12_select_info.th_id,
                                 cast_L12_select_info.victim_vp_id,
                                 cast_L12_select_info.victim_th_id,
+                                cast_L12_select_info.starvation,
                                 cast_L12_select_info.exec_context,
                                 [cast_L12_select_info.L1_misses,
                                  cast_L12_select_info.L2_misses])
                             if kernel_name not in global_stats.select_stats:
                                 global_stats.select_stats[kernel_name] = ExecSelectStats(kernel_name)
+                                global_stats.select_stats[kernel_name].starvation = 0
                             pstats = global_stats.select_stats[kernel_name]
                             pstats.count += 1
                             pstats.total_duration += event.duration
+                            pstats.starvation += event.info.starvation
                             pstats.l1_misses += event.info.values[0]
                             pstats.l2_misses += event.info.values[1]
                         elif ('PINS_L123' in profile.event_types and
@@ -335,12 +338,6 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                             pstats.total_duration += event.duration
                             pstats.l1_misses += event.info.values[0]
                             pstats.l2_misses += event.info.values[1]
-                        elif ('PINS_L123_STARVE' in profile.event_types and
-                              event.key == profile.event_types['PINS_L123_STARVE'].key):
-                            cast_lld_ptr = <long long int *>cinfo
-                            thread.starvation = int(cast_lld_ptr[0])
-                            event.end = event.begin + thread.starvation # mimick starvation
-                            event.duration = event.end - event.begin
                         # elif ('<EVENT_TYPE_NAME>' in profile.event_types and
                         #       event.key == profile.event_types['<EVENT_TYPE_NAME>'].key):
                         #   event.info = <write a function and a Python type to translate>

@@ -153,6 +153,7 @@ cdef extern from "dague/mca/pins/papi_L123/pins_papi_L123.h":
       int th_id
       int victim_vp_id
       int victim_th_id
+      long long starvation
       long long exec_context
       long long L1_misses
       long long L2_misses

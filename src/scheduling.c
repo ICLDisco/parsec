@@ -14,6 +14,7 @@
 #include "execution_unit.h"
 #include "vpmap.h"
 #include "src/mca/pins/pins.h"
+#include "os-spec-timing.h"
 
 #include "dague/ayudame.h"
 
@@ -289,9 +290,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
      */
-	PINS(ADD_BEGIN, eu_context, new_context, NULL);
     ret = current_scheduler->module.schedule(eu_context, new_context);
-	PINS(ADD_END, eu_context, new_context, NULL);
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
      */
@@ -358,6 +357,8 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 #if defined(DAGUE_PROF_RUSAGE_EU)
     dague_statistics_per_eu("EU", eu_context);
 #endif
+	// first select begin, right before the wait_for_the... goto label
+	PINS(SELECT_BEGIN, eu_context, NULL, NULL);
 
     /* The main loop where all the threads will spend their time */
  wait_for_the_next_round:
@@ -389,18 +390,20 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
-			eu_context->starvation += rqtp.tv_nsec;
             DAGUE_STATACC_ACCUMULATE(time_starved, rqtp.tv_nsec/1000);
-            TAKE_TIME( eu_context->eu_profile, schedule_sleep_begin, nbiterations);
             nanosleep(&rqtp, NULL);
-            TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);
         }
 
-        TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
+		// time how long it takes to get a task, if indeed we get one
+		dague_time_t select_begin = take_time();
         exec_context = current_scheduler->module.select(eu_context);
-        TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
         if( exec_context != NULL ) {
+			dague_time_t select_end = take_time();
+			uint64_t select_time = diff_time(select_begin, select_end);
+			
+			PINS(SELECT_END, eu_context, exec_context, (void *)select_time);
+			// select end, and record with it the amount of time actually spent selecting
             misses_in_a_row = 0;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
@@ -415,19 +418,23 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             }
 #endif
 
-            // MY MODS
-            TAKE_TIME(eu_context->eu_profile, queue_remove_begin, 0);
-            TAKE_TIME(eu_context->eu_profile, queue_remove_end, 0);
+			// prepare_input begin
+			PINS(PREPARE_INPUT_BEGIN, eu_context, exec_context, NULL);
             switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
             case DAGUE_HOOK_RETURN_DONE:
 			{
+				PINS(PREPARE_INPUT_END, eu_context, exec_context, NULL);
+				// prepare input end
 				int rv = 0;
                 /* We're good to go ... */
 				PINS(EXEC_BEGIN, eu_context, exec_context, NULL);
 				rv = __dague_execute( eu_context, exec_context );
 				PINS(EXEC_END, eu_context, exec_context, NULL  );
                 if( 0 == rv ) {
+					// complete execution==add==push begin
+					PINS(COMPLETE_EXEC_BEGIN, eu_context, exec_context, NULL);
                     __dague_complete_execution( eu_context, exec_context );
+					PINS(COMPLETE_EXEC_END, eu_context, exec_context, NULL);
                 }
                 nbiterations++;
                 break;
@@ -435,6 +442,9 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
+
+			// subsequent select begins
+			PINS(SELECT_BEGIN, eu_context, NULL, NULL);
         } else {
             misses_in_a_row++;
         }
@@ -471,6 +481,10 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 
  finalize_progress:
+	// final select end - can we mark this as special somehow?
+	// actually, it will already be obviously special, since it will be the only select
+	// that has no context
+	PINS(SELECT_END, eu_context, NULL, NULL);
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     STATUS(("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",

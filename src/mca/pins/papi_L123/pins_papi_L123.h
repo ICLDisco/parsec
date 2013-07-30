@@ -35,6 +35,7 @@ typedef struct papi_L12_select_info_s {
 	int th_id;
 	int victim_vp_id;
 	int victim_th_id;
+	unsigned long long int starvation;
 	unsigned long long int exec_context;
 	long long L1_misses;
 	long long L2_misses;

@@ -27,12 +27,6 @@
 #include "maxheap.h"
 #include "dague/mca/pins/pins.h"
 
-#if defined(DAGUE_PROF_TRACE) && 0
-#define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), NULL)
-#else
-#define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
-#endif
-
 #define dague_heap_priority_comparator (offsetof(dague_heap_t, priority))
 static int SYSTEM_NEIGHBOR = 0;
 
@@ -154,8 +148,6 @@ static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_c
     dague_heap_t* new_heap = NULL;
     dague_execution_context_t * exec_context = NULL;
     int i = 0;
-    PINS(SELECT_BEGIN, eu_context, NULL, NULL);
-
     /*
      possible future improvement over using existing pop_best function:
      instead, i need to iterate manually over the buffer
@@ -168,7 +160,7 @@ static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_c
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
     }
     if (exec_context != NULL) {
-        PINS(SELECT_END, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num);
+		exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
         return exec_context;
     }
 
@@ -194,7 +186,7 @@ static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_c
             dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
         }
         if (exec_context != NULL) {
-            PINS(SELECT_END, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
+			exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
             return exec_context;
         }
     }
@@ -204,9 +196,8 @@ static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_c
     exec_context = heap_split_and_steal(&heap, &new_heap);
     if (heap != NULL)
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
-
-    PINS(SELECT_END, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
-		
+	if (exec_context != NULL)
+		exec_context->victim_core = SYSTEM_NEIGHBOR;
     return exec_context;
 }
 

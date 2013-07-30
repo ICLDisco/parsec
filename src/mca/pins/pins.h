@@ -7,12 +7,14 @@
 #include "dague/mca/mca.h"
 
 typedef enum PINS_FLAG {
-	ADD_BEGIN,       // called before scheduler adds a newly-enabled task
-	ADD_END,         // called after scheduler adds a newly-enabled task
     SELECT_BEGIN,    // called before scheduler begins looking for an available task
     SELECT_END,      // called after scheduler has finished looking for an available task
+	PREPARE_INPUT_BEGIN,
+	PREPARE_INPUT_END,
     EXEC_BEGIN,      // called before thread executes a task
     EXEC_END,        // called before thread executes a task
+	COMPLETE_EXEC_BEGIN,       // called before scheduler adds a newly-enabled task
+	COMPLETE_EXEC_END,         // called after scheduler adds a newly-enabled task
     /* what follows are
      * Special Events. 
      * They do not necessarily

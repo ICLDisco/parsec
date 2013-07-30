@@ -269,6 +269,11 @@ struct dague_execution_context_s {
 #if defined(DAGUE_PROF_TRACE)
     dague_profile_ddesc_info_t prof_info;
 #endif /* defined(DAGUE_PROF_TRACE) */
+#if defined(PINS_ENABLE)
+	int creator_core;
+	int victim_core;
+	int execution_core;
+#endif /* defined(PINS_ENABLE) */
     assignment_t            locals[MAX_LOCAL_COUNT];
 #if defined(DAGUE_SIM)
     int                     sim_exec_date;

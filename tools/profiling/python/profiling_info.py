@@ -73,7 +73,7 @@ class dbp_Select_EventInfo:
     class_version = 1.0
     __max_length__ = 0
     def __init__(self, kernel_type, kernel_name, vp_id, th_id,
-                 victim_vp_id, victim_th_id, exec_context, values):
+                 victim_vp_id, victim_th_id, starvation, exec_context, values):
         self.__version__ = self.__class__.class_version
         self.kernel_type = kernel_type
         self.kernel_name = kernel_name
@@ -81,6 +81,7 @@ class dbp_Select_EventInfo:
         self.th_id = th_id
         self.victim_vp_id = victim_vp_id
         self.victim_th_id = victim_th_id
+        self.starvation = starvation
         self.exec_context = exec_context
         self.values = values
 
@@ -111,6 +112,7 @@ class dbp_Select_EventInfo:
         row += ('{:>' + length + '}  ').format(self.th_id)
         row += ('{:>' + length + '}  ').format(self.victim_vp_id)
         row += ('{:>' + length + '}  ').format(self.victim_th_id)
+        row += ('{:>' + length + '}  ').format(self.starvation)
         row += ('{:>' + length + '}  ').format(self.exec_context)
         for value in self.values:
             row += ('{:>' + length + '}  ').format(value)
@@ -126,6 +128,7 @@ class dbp_Select_EventInfo:
         header += ('{:>' + length + '}  ').format('vict_vp_id')
         header += ('{:>' + length + '}  ').format('vict_th_id')
         header += ('{:>' + length + '}  ').format('exec_context')
+        header += ('{:>' + length + '}  ').format('starvation')
         header += ('{:>' + length + '}  ').format('values')
         return header
     def __repr__(self):

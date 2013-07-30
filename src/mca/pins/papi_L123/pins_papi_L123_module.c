@@ -29,10 +29,10 @@ static void read_papi_L12_select_count_begin(dague_execution_unit_t * exec_unit,
 static void read_papi_L12_select_count_end(dague_execution_unit_t * exec_unit, 
 										   dague_execution_context_t * exec_context, 
 										   void * data);
-static void read_papi_L12_add_count_begin(dague_execution_unit_t * exec_unit, 
+static void read_papi_L12_complete_exec_count_begin(dague_execution_unit_t * exec_unit, 
 										  dague_execution_context_t * exec_context, 
 										  void * data);
-static void read_papi_L12_add_count_end(dague_execution_unit_t * exec_unit, 
+static void read_papi_L12_complete_exec_count_end(dague_execution_unit_t * exec_unit, 
 										dague_execution_context_t * exec_context, 
 										void * data);
 
@@ -67,9 +67,7 @@ static int
     pins_prof_papi_L12_add_begin, 
 	pins_prof_papi_L12_add_end, 
 	pins_prof_papi_L123_begin, 
-	pins_prof_papi_L123_end,
-    pins_prof_papi_L123_starve_begin, 
-	pins_prof_papi_L123_starve_end;
+	pins_prof_papi_L123_end;
 
 static void pins_init_papi_L123(dague_context_t * master_context) {
 	(void)master_context;
@@ -96,17 +94,12 @@ static void pins_init_papi_L123(dague_context_t * master_context) {
 	                                       &pins_prof_papi_L12_select_begin, 
 										   &pins_prof_papi_L12_select_end);
 
-	add_begin_prev = PINS_REGISTER(ADD_BEGIN, read_papi_L12_add_count_begin);
-	add_end_prev   = PINS_REGISTER(ADD_END, read_papi_L12_add_count_end);
-	dague_profiling_add_dictionary_keyword("PINS_L12_ADD", "fill:#AAFF00",
+	add_begin_prev = PINS_REGISTER(COMPLETE_EXEC_BEGIN, read_papi_L12_complete_exec_count_begin);
+	add_end_prev   = PINS_REGISTER(COMPLETE_EXEC_END, read_papi_L12_complete_exec_count_end);
+	dague_profiling_add_dictionary_keyword("PINS_L12_COMPLETE_EXEC", "fill:#AAFF00",
 	                                       sizeof(papi_L12_exec_info_t), NULL,
 	                                       &pins_prof_papi_L12_add_begin, 
 										   &pins_prof_papi_L12_add_end);
-
-	dague_profiling_add_dictionary_keyword("PINS_L123_STARVE", "fill:#FF8888",
-										   sizeof(long long int), NULL,
-										   &pins_prof_papi_L123_starve_begin,
-										   &pins_prof_papi_L123_starve_end);
 }
 
 static void pins_fini_papi_L123(dague_context_t * master_context) {
@@ -116,8 +109,8 @@ static void pins_fini_papi_L123(dague_context_t * master_context) {
 	PINS_REGISTER(EXEC_END,   exec_end_prev);
 	PINS_REGISTER(SELECT_BEGIN, select_begin_prev);
 	PINS_REGISTER(SELECT_END,   select_end_prev);
-	PINS_REGISTER(ADD_BEGIN, add_begin_prev);
-	PINS_REGISTER(ADD_END,   add_end_prev);
+	PINS_REGISTER(COMPLETE_EXEC_BEGIN, add_begin_prev);
+	PINS_REGISTER(COMPLETE_EXEC_END,   add_end_prev);
 	/*
 	PINS_REGISTER(THREAD_INIT, thread_init_prev);
 	PINS_REGISTER(THREAD_FINI, thread_fini_prev);
@@ -127,8 +120,6 @@ static void pins_fini_papi_L123(dague_context_t * master_context) {
 static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit) {
 	int rv = 0;
     int native;
-	dague_profiling_trace(exec_unit->eu_profile,
-						  pins_prof_papi_L123_starve_begin, 27, 0, NULL);
 
 	exec_unit->papi_eventsets[EXEC_SET] = PAPI_NULL;
 	if ((rv = PAPI_create_eventset(&exec_unit->papi_eventsets[EXEC_SET])) != PAPI_OK)
@@ -189,10 +180,6 @@ static void pins_thread_fini_papi_L123(dague_execution_unit_t * exec_unit) {
 									pins_prof_papi_L123_end, 
 									48, 0, (void *)&info);
 	}
-
-	dague_profiling_trace(exec_unit->eu_profile,
-						  pins_prof_papi_L123_starve_end, 27, 0, 
-						  (void *)&exec_unit->starvation);
 }
 
 
@@ -285,14 +272,16 @@ static void read_papi_L12_select_count_begin(dague_execution_unit_t * exec_unit,
 static void read_papi_L12_select_count_end(dague_execution_unit_t * exec_unit, 
 										 dague_execution_context_t * exec_context, 
 										 void * data) {
-    unsigned long long victim_core_num = (unsigned long long)data;
+    unsigned long long victim_core_num = 0;
     unsigned int num_threads = (exec_unit->virtual_process->dague_context->nb_vp 
                                 * exec_unit->virtual_process->nb_cores);
 	papi_L12_select_info_t info;
     if (exec_context) {
+		victim_core_num = exec_context->victim_core;
         info.kernel_type = exec_context->function->function_id;
 		strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
 		info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
+		info.starvation = (unsigned long long)data;
 	}
     else {
         info.kernel_type = 0;
@@ -341,9 +330,9 @@ static void read_papi_L12_select_count_end(dague_execution_unit_t * exec_unit,
 	}
 }
 
-static void read_papi_L12_add_count_begin(dague_execution_unit_t * exec_unit, 
-										   dague_execution_context_t * exec_context, 
-										   void * data) {
+static void read_papi_L12_complete_exec_count_begin(dague_execution_unit_t * exec_unit, 
+													dague_execution_context_t * exec_context, 
+													void * data) {
 	int rv = PAPI_OK;
 	long long int values[NUM_L12_EVENTS + 1];
 	values[2] = 0;
@@ -367,9 +356,9 @@ static void read_papi_L12_add_count_begin(dague_execution_unit_t * exec_unit,
 	}
 }
 
-static void read_papi_L12_add_count_end(dague_execution_unit_t * exec_unit, 
-										 dague_execution_context_t * exec_context, 
-										 void * data) {
+static void read_papi_L12_complete_exec_count_end(dague_execution_unit_t * exec_unit, 
+												  dague_execution_context_t * exec_context, 
+												  void * data) {
 	papi_L12_exec_info_t info;
 	info.kernel_type = exec_context->function->function_id;
 	strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
