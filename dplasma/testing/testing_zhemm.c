@@ -188,7 +188,6 @@ static int check_solution( dague_context_t *dague, int loud,
     int LDA = (Am%MB==0) ? Am : (Am/MB+1) * MB;
     int LDC = ( M%MB==0) ? M  : ( M/MB+1) * MB;
     int LDB = LDC;
-    int cores = ddescCfinal->super.super.cores;
     int rank  = ddescCfinal->super.super.myrank;
 
     eps = LAPACKE_dlamch_work('e');
