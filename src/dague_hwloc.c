@@ -426,5 +426,9 @@ return -1
 
 
 int dague_hwloc_get_ht(){
+#if defined(HAVE_HWLOC)
     return ht;
+#else
+    return 1;
+#endif /* HAVE_HWLOC */ 
 }
