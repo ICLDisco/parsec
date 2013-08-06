@@ -356,7 +356,6 @@ IF( BUILD_DAGUE )
   find_package(HWLOC)
   set(HAVE_HWLOC ${HWLOC_FOUND})
   if( HWLOC_FOUND )
-    list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
     include_directories( ${HWLOC_INCLUDE_DIRS} )
   endif (HWLOC_FOUND)
@@ -551,6 +550,7 @@ set(SRCS
   src/remote_dep.c 
   src/debug.c 
   src/bindthread.c 
+  src/dague_hwloc.c
   src/mempool.c 
   src/vpmap.c
  ${EXTRA_SOURCES} 
