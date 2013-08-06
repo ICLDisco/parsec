@@ -145,7 +145,6 @@ static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores, int 
         (thread >= map[vp].nbthreads ) )
         return;
     memcpy(cores, map[vp].threads[thread]->cores, map[vp].threads[thread]->nbcores * sizeof(int));
-    //    printf("ht[0]=%i\n", map[vp].threads[thread]->ht[0]);
     memcpy(ht, map[vp].threads[thread]->ht, map[vp].threads[thread]->nbcores * sizeof(int));
 }
 
@@ -393,20 +392,21 @@ void vpmap_display_map(FILE *out)
             vpmap_get_core_affinity(v, t, dcores, dht);
             asprintf(&cores, "%d", dcores[0]);
 
-           	if(nbht > 1)
-           		asprintf(&ht, " (ht %d)", dht[0]);
-           	else
+            if(nbht > 1)
+                asprintf(&ht, " (ht %d)", dht[0]);
+            else
                 asprintf(&ht, " ");
-           	for( c = 1; c < vpmap_get_nb_cores_affinity(v, t); c++) {
-                tmp=cores; // TODO: THIS IS A MEMORY LEAK...
+            for( c = 1; c < vpmap_get_nb_cores_affinity(v, t); c++) {
+                tmp=cores;
                 asprintf(&cores, "%s, %d", tmp, dcores[c]);
-                free(tmp);
             }
             free(dcores);
+            free(tmp);
 
             fprintf(out, "# [%d]    Thread %d of VP %d can be bound on cores %s %s\n",
                     rank, t, v, cores, ht);
-            free(cores); free(ht);
+            free(cores);
+            free(ht);
         }
     }
 }

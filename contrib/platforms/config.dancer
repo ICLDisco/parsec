@@ -21,7 +21,7 @@ if [ "x$USER" = "xbosilca" ]; then
 
 #elif [ "x$USER" = "xherault" ]; then
   #MPI_DIR="/usr"
-  
+
 elif [ "x${USER}" = "xmfaverge" ]; then
     if [ "x${CC}" = "xgcc" ]; then
         DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-dbg -DSCOTCH_DIR=/opt/scotch-gf"
