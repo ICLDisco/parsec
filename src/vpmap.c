@@ -384,7 +384,7 @@ void vpmap_display_map(FILE *out)
 
     fprintf(out, "# [%d]  Map with %d Virtual Processes\n", rank, nbvp);
     for(v = 0; v < nbvp; v++) {
-		fprintf(out, "# [%d]  Virtual Process of index %d has %d threads\n",
+        fprintf(out, "# [%d]  Virtual Process of index %d has %d threads\n",
                 rank, v, vpmap_get_nb_threads_in_vp(v) );
         for(t = 0; t < vpmap_get_nb_threads_in_vp(v); t++) {
             dcores = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
@@ -397,7 +397,7 @@ void vpmap_display_map(FILE *out)
             else
                 asprintf(&ht, " ");
             for( c = 1; c < vpmap_get_nb_cores_affinity(v, t); c++) {
-                tmp=cores; // TODO: THIS IS A MEMORY LEAK...
+                tmp=cores;
                 asprintf(&cores, "%s, %d", tmp, dcores[c]);
                 free(tmp);
             }
