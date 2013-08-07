@@ -412,19 +412,24 @@ int dague_hwloc_allow_ht(int htnb){
     if (htnb > 1){
         int pu_per_core = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU)/hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
         if( htnb > pu_per_core){
-            printf("Warning:: HT:: There not enought logical processors to consider %i HyperThreads per core (set up to %i)\n", htnb,  pu_per_core);
+            printf("Warning:: HyperThreading:: There not enought logical processors to consider %i HyperThreads per core (set up to %i)\n", htnb,  pu_per_core);
             ht=pu_per_core;
         }else{
             ht=htnb;
         }
     }
+    ht=htnb;
     return ht;
 #else
-return -1
+    /* Without hwloc, trust your user to give a correct parameter */
+    return ht;
 #endif
 }
 
 
 int dague_hwloc_get_ht(){
-    return ht;
+    if( ht < 1)
+        return 1;
+    else
+        return ht;
 }
