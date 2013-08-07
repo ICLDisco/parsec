@@ -426,8 +426,6 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     if(iparam[IPARAM_MB] <= 0 && iparam[IPARAM_NB] > 0) iparam[IPARAM_MB] = iparam[IPARAM_NB];
     if(iparam[IPARAM_MB] < 0) iparam[IPARAM_MB] = -iparam[IPARAM_MB];
     if(iparam[IPARAM_NB] < 0) iparam[IPARAM_NB] = -iparam[IPARAM_NB];
-    if(iparam[IPARAM_MB] == 0) iparam[IPARAM_MB] = 192;
-    if(iparam[IPARAM_NB] == 0) iparam[IPARAM_NB] = 192;
 
     /* No supertiling by default */
     if(-'p' == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = (iparam[IPARAM_M]/iparam[IPARAM_MB])/iparam[IPARAM_P];
