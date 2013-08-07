@@ -180,7 +180,6 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #endif
         return NULL;
     }
-exit(3);
 
     return __dague_progress(eu);
 }
