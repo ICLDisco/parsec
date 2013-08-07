@@ -440,10 +440,9 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 
     /* Set no defaults for IB, NB, MB, the algorithm have to do it */
     assert(iparam[IPARAM_IB]); /* check that defaults have been set */
-    if(iparam[IPARAM_NB] <= 0 && iparam[IPARAM_MB] > 0)
-        iparam[IPARAM_NB] = iparam[IPARAM_MB];
+    if(iparam[IPARAM_NB] <= 0 && iparam[IPARAM_MB] > 0) iparam[IPARAM_NB] = iparam[IPARAM_MB];
+    if(iparam[IPARAM_MB] <= 0 && iparam[IPARAM_NB] > 0) iparam[IPARAM_MB] = iparam[IPARAM_NB];
     if(iparam[IPARAM_MB] < 0) iparam[IPARAM_MB] = -iparam[IPARAM_MB];
-    if(iparam[IPARAM_NB] == 0) iparam[IPARAM_NB] = iparam[IPARAM_MB];
     if(iparam[IPARAM_NB] < 0) iparam[IPARAM_NB] = -iparam[IPARAM_NB];
 
     /* No supertiling by default */

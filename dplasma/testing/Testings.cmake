@@ -4,7 +4,7 @@
 
 foreach(prec ${DPLASMA_PRECISIONS})
   # check the control in shared memory
-  add_test(print  ${SHM_TEST_CMD_LIST} ./testing_${prec}print -N 40 -t 7 -x -v=5)
+  add_test(${prec}print ${SHM_TEST_CMD_LIST} ./testing_${prec}print -N 40 -t 7 -x -v=5)
 endforeach()
 
 #
@@ -75,11 +75,11 @@ if( MPI_FOUND )
   # Check MPI
   add_test(mpi_test   ${MPI_TEST_CMD_LIST} -np 8 /bin/true)
 
-  # check the control in shared memory
-  add_test(mpi_print         ${MPI_TEST_CMD_LIST} -np 8 ./testing_dprint        -p 2 -N 40 -t 7 -x -v=5)
-  SET_TESTS_PROPERTIES("mpi_print" PROPERTIES DEPENDS "mpi_test")
-
   foreach(prec ${DPLASMA_PRECISIONS})
+    # check the control in shared memory
+    add_test(mpi_${prec}print         ${MPI_TEST_CMD_LIST} -np 8 ./testing_${prec}print        -p 2 -N 40 -t 7 -x -v=5)
+    SET_TESTS_PROPERTIES("mpi_${prec}print" PROPERTIES DEPENDS "mpi_test")
+
     add_test(mpi_${prec}lange        ${MPI_TEST_CMD_LIST} -np 8 ./testing_${prec}lange        -p 4 -N 1500 -t 233 -x -v=5)
     SET_TESTS_PROPERTIES("mpi_${prec}lange" PROPERTIES DEPENDS "mpi_test")
 
