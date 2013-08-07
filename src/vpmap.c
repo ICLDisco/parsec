@@ -397,11 +397,12 @@ void vpmap_display_map(FILE *out)
             else
                 asprintf(&ht, " ");
             for( c = 1; c < vpmap_get_nb_cores_affinity(v, t); c++) {
-                tmp=cores;
+                tmp=cores; // TODO: THIS IS A MEMORY LEAK...
                 asprintf(&cores, "%s, %d", tmp, dcores[c]);
+                free(tmp);
             }
             free(dcores);
-            free(tmp);
+            free(dht);
 
             fprintf(out, "# [%d]    Thread %d of VP %d can be bound on cores %s %s\n",
                     rank, t, v, cores, ht);
