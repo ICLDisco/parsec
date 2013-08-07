@@ -287,8 +287,18 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case 'C': iparam[IPARAM_LDC] = atoi(optarg); break;
             case 'i': iparam[IPARAM_IB] = atoi(optarg); break;
 
-            case 't': iparam[IPARAM_MB] = atoi(optarg); break;
-            case 'T': iparam[IPARAM_NB] = atoi(optarg); break;
+            case 't': iparam[IPARAM_MB] = atoi(optarg);
+                /* If NB is still set to default (negative number), set it to 0 to force it to
+                 * get the same value as MB if it is not set later */
+                if( iparam[IPARAM_NB] < 0 )
+                    iparam[IPARAM_NB]=  0;
+                break;
+            case 'T': iparam[IPARAM_NB] = atoi(optarg);
+                /* If MB is still set to default (negative number), set it to 0 to force it to
+                 * get the same value as NB if it is not set later */
+                if( iparam[IPARAM_MB] < 0 )
+                    iparam[IPARAM_MB]=  0;
+                break;
             case 's': iparam[IPARAM_SMB] = atoi(optarg); break;
             case 'S': iparam[IPARAM_SNB] = atoi(optarg); break;
 
