@@ -285,8 +285,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case 'A': iparam[IPARAM_LDA] = atoi(optarg); break;
             case 'B': iparam[IPARAM_LDB] = atoi(optarg); break;
             case 'C': iparam[IPARAM_LDC] = atoi(optarg); break;
+            
             case 'i': iparam[IPARAM_IB] = atoi(optarg); break;
-
             case 't': iparam[IPARAM_MB] = atoi(optarg); break;
             case 'T': iparam[IPARAM_NB] = atoi(optarg); break;
             case 's': iparam[IPARAM_SMB] = atoi(optarg); break;
