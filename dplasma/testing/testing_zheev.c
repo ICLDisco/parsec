@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
          two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
          nodes, rank, MB, NB, LDA, N, 0, 0,
-         N, N, 1, 1, P))
+         N, N, SMB, SMB, P))
     /* Fill A with randomness */
     dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA, 3872);
 #ifdef PRINTF_HEAVY
