@@ -133,6 +133,7 @@ int main(int argc, char ** argv)
         // MUMPS
         // alpha = (1.3 + ((1.8 - 1.3) / 6.) * i) ** 2
 
+        int debug = 0;
         int test, nbtests;
         int index, lastindex;
         char *filename;
@@ -215,6 +216,17 @@ int main(int argc, char ** argv)
 
                         for(int i=0; i< dague_imin(MT, NT); i++)
                             lu_tab[i] = -1;
+
+                        if (loud > 2)
+                        {
+                            printf("START: NP=%d; NC=%d; P=%d; MB=%d; IB=%d; TS=%d; LT=%d; HT=%d; D=%d; RR=%d; "
+                                   "CRITERUM=%d; alpha=%e; type=%d; M=%d\n",
+                                   iparam[IPARAM_NNODES], iparam[IPARAM_NCORES],
+                                   iparam[IPARAM_P], iparam[IPARAM_MB], iparam[IPARAM_IB],
+                                   iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_LOWLVL_TREE],
+                                   iparam[IPARAM_HIGHLVL_TREE], iparam[IPARAM_QR_DOMINO],
+                                   iparam[IPARAM_QR_TSRR], criteria, alpha, type, M );
+                        }
 
                         /* Create DAGuE */
                         if(loud > 2) printf("+++ Computing getrf_qrf ... ");
@@ -308,8 +320,10 @@ int main(int argc, char ** argv)
                 }
             }
         }
+        free(filename);
     }
 
+    free(lu_tab);
     if (check)
     {
         dague_data_free(ddescA0.mat);
