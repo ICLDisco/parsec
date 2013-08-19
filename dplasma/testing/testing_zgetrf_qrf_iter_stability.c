@@ -50,7 +50,7 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
-    PASTE_CODE_FLOPS(FLOPS_ZGEQRF, ((DagDouble_t)M,(DagDouble_t)N))
+    PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M,(DagDouble_t)N))
 
     LDA = max(M, LDA);
 
@@ -123,7 +123,7 @@ int main(int argc, char ** argv)
         double alpha;
 
         int type, type_i;
-        int type_tab[] = { 0, /*1,*/ 2, 3, 4, 5, 7, 9, 12, 14, 18,
+        int type_tab[] = { 0, /*1,*/ 2, 3, 4, /*5,*/ 7, 9, 12, 14, 18,
                            22, 23, 24, 27, 28, 29, 30, 31, 32, 34,
                            35, 36, 37, 38, 39, 40, 41, 100 };
 
@@ -177,7 +177,7 @@ int main(int argc, char ** argv)
 
                     if (criteria == MUMPS_CRITERIUM)
                     {
-                        alpha = (1.3 + ((1.8 - 1.3) / 6.) * (alpha_i+1));
+                        alpha = (1.3 + ((1.8 - 1.3) / 6.) * ((alpha_i+1)%7));
                         alpha *= alpha;
                     }
 
