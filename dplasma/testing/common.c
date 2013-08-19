@@ -512,8 +512,8 @@ static void iparam_default(int* iparam)
     memset(iparam, 0, IPARAM_SIZEOF * sizeof(int));
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_NGPUS] = -1;
-    iparam[IPARAM_QR_DOMINO] = 1;
-    iparam[IPARAM_QR_TSRR] = 1;
+    iparam[IPARAM_QR_DOMINO] = 0;
+    iparam[IPARAM_QR_TSRR] = 0;
 }
 
 void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb)
