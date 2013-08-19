@@ -173,7 +173,7 @@ int CORE_zamax_tile( PLASMA_enum storev,
         tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
 
         /* Apply the GEMM */
-        CORE_zamax( PlasmaColumnwise, PlasmaUpperLower,
+        CORE_zamax( storev, uplo,
                     tempmm, descA.n,
                     A, lda, work );
     }
