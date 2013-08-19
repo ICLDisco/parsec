@@ -131,8 +131,6 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 }
 
 
-
-
 /*
  *
  * Set of functions with no super-tiles

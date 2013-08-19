@@ -24,24 +24,23 @@
 #include <math.h>
 
 static uint32_t vector_twoDBC_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t vector_twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* vector_twoDBC_data_of(dague_ddesc_t* ddesc, ...);
+static int32_t  vector_twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
+static void*    vector_twoDBC_data_of(dague_ddesc_t* ddesc, ...);
 
 static uint32_t vector_twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t vector_twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* vector_twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...);
+static int32_t  vector_twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...);
+static void*    vector_twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...);
 
 #if defined(DAGUE_HARD_SUPERTILE)
 static uint32_t vector_twoDBC_st_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t vector_twoDBC_st_vpid_of(dague_ddesc_t* ddesc, ...);
-static void* vector_twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
+static int32_t  vector_twoDBC_st_vpid_of(dague_ddesc_t* ddesc, ...);
+static void*    vector_twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
 #endif
 
 #if defined(DAGUE_PROF_TRACE)
 static uint32_t vector_twoDBC_data_key(struct dague_ddesc *desc, ...);
-static int  vector_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
+static int      vector_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
 #endif
-
 
 void vector_two_dim_cyclic_init(vector_two_dim_cyclic_t * Ddesc,
                                 enum matrix_type mtype,
@@ -57,12 +56,6 @@ void vector_two_dim_cyclic_init(vector_two_dim_cyclic_t * Ddesc,
     int nb_elem_c, temp;
     int Q;
     dague_ddesc_t *o = &(Ddesc->super.super);
-#if defined(DAGUE_PROF_TRACE)
-    o->data_key      = vector_twoDBC_data_key;
-    o->key_to_string = vector_twoDBC_key_to_string;
-    o->key_dim       = NULL;
-    o->key           = NULL;
-#endif
 
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type,
@@ -100,18 +93,18 @@ void vector_two_dim_cyclic_init(vector_two_dim_cyclic_t * Ddesc,
 
     /* Update llm and lln */
     Ddesc->super.llm = Ddesc->nb_elem_r * mb;
-    Ddesc->super.lln = 1;
+    Ddesc->super.lln = nb_elem_c;
 
     /* set the methods */
     if( (nrst == 1) ) {
-        o->rank_of      = vector_twoDBC_rank_of;
-        o->vpid_of      = vector_twoDBC_vpid_of;
-        o->data_of      = vector_twoDBC_data_of;
+        o->rank_of = vector_twoDBC_rank_of;
+        o->vpid_of = vector_twoDBC_vpid_of;
+        o->data_of = vector_twoDBC_data_of;
     } else {
 #if defined(DAGUE_HARD_SUPERTILE)
-        o->rank_of      = vector_twoDBC_st_rank_of;
-        o->vpid_of      = vector_twoDBC_st_vpid_of;
-        o->data_of      = vector_twoDBC_st_data_of;
+        o->rank_of = vector_twoDBC_st_rank_of;
+        o->vpid_of = vector_twoDBC_st_vpid_of;
+        o->data_of = vector_twoDBC_st_data_of;
 #else
         vector_two_dim_cyclic_supertiled_view(Ddesc, Ddesc, nrst);
 #endif /* DAGUE_HARD_SUPERTILE */
@@ -130,8 +123,6 @@ void vector_two_dim_cyclic_init(vector_two_dim_cyclic_t * Ddesc,
            Ddesc->grid.strows, Ddesc->grid.stcols,
            P, Q));
 }
-
-
 
 
 /*
@@ -178,6 +169,7 @@ static int32_t vector_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
         return 0;
 
     p = Ddesc->grid.vp_p;
+    assert(p == pq);
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -224,6 +216,7 @@ static void *vector_twoDBC_data_of(dague_ddesc_t *desc, ...)
     /* Compute the local tile row */
     local_m = m / Ddesc->grid.rows;
     assert( (m % Ddesc->grid.rows) == Ddesc->grid.rrank );
+    assert( Ddesc->super.bsiz == Ddesc->super.mb );
 
     pos = local_m * Ddesc->super.mb;
 
