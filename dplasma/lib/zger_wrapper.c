@@ -36,10 +36,10 @@ dplasma_zger_internal_New( int trans, dague_complex64_t alpha,
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb);
 
-    dplasma_add2arena_tile( zger_object->arenas[DAGUE_zger_VECTOR_ARENA],
-                            A->mb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb);
+    dplasma_add2arena_rectangle( zger_object->arenas[DAGUE_zger_VECTOR_ARENA],
+                                 X->mb*sizeof(dague_complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_DOUBLE_COMPLEX, X->mb, 1, -1);
 
     return (dague_object_t*)zger_object;
 }
