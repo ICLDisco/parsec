@@ -853,7 +853,7 @@ BODY
       }
 
       if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
-          *INFO = k * descA.mb + info[0]; /* Should return if enter here */
+          //*INFO = k * descA.mb + info[0]; /* Should return if enter here */
           fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
 
 	  W[0] = -1.;
@@ -1078,7 +1078,7 @@ BODY
 	    if ( (( criteria == MUMPS_CRITERIUM ) && (norm1[descA.nb] == -1.)) ||
 		 (( criteria != MUMPS_CRITERIUM ) && (norm1[0] == -1.)) ) 
 	    {
-	      cond = 1;
+	      cond = 0;
 	      goto cond_affect;
 	    }
 
@@ -1195,7 +1195,7 @@ BODY
             lu_tab[k] = cond;
 
             //            if ( p == 0 ) {
-            // fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
+            //fprintf(stderr, "lu_tab[k=%d] = %d \n", k, lu_tab[k] );
             //            }
 
             ((int*)choice)[0] = lu_tab[k];
