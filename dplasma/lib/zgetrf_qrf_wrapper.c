@@ -47,7 +47,7 @@ dague_object_t* dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
     else if (criteria == MUMPS_CRITERIUM)
     {
         sizeReduceVec = 2 * A->nb;
-        sizeW         =     A->nb;
+        sizeW         = 2 * A->nb;
     }
 
     if ( A->storage == matrix_Tile ) {
