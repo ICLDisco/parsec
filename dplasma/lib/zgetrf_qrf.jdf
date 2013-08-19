@@ -9,6 +9,7 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  */
+#include <pthread.h>
 #define PRECISION_z
 
 #include "dague.h"
@@ -27,6 +28,9 @@ extern "C" %{
 #include "dplasma.h"
 #include "dplasma_qr_pivgen.h"
 #include "dplasma/cores/dplasma_zcores.h"
+
+static pthread_mutex_t mumps_mutex = PTHREAD_MUTEX_INITIALIZER;
+static int mumps_init = 0;
 
 static inline int lu_tab_val(int deb, int fin, int nb_lu, int rec_depth, int index)
 {
@@ -673,7 +677,7 @@ END
 
 
 /************************************************************************************
- *                              Copypane
+ *                              Copypanel
  *  On first node  : Backup the tile of the panel in case we have to switch back to QR
  *  On other nodes : Computes informations related to the criteria
  ************************************************************************************/
@@ -750,22 +754,22 @@ BODY
             /*
              * Search the maximal absolute value per column
              */
-            int p = m-k;
-            if (p < param_p) {
-                int s  = (descA.mt - k - p + param_p - 1) / param_p;
-                int ks = k + p + (s-1)*param_p;
-                int tempm = (s-1) * descA.mb +
-                    (( ks == descA.mt-1 ) ? descA.m - ks * descA.mb : descA.mb);
 
-                PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                       descA.mb, descA.nb, descA.mb * descA.nb,
-                                                       s * descA.mb, descA.nb, 0, 0,
-                                                       tempm, tempkn);
-                pdescA.mat = A;
 
-                memset( W, 0, descA.nb * sizeof(double));
-                CORE_zamax_tile(PlasmaColumnwise, PlasmaUpperLower, pdescA, W );
-            }
+	    memset( W + descA.nb, 0, descA.nb * sizeof(double));
+	    CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempmm, tempkn, A, ldam, W + descA.nb );
+	    
+	    pthread_mutex_lock( &mumps_mutex );
+	    if ( !mumps_init ) {
+	      memcpy( W, W + descA.nb, descA.nb * sizeof(double) );
+	      mumps_init = 1;
+	    } else {
+	      int i;
+	      assert( mumps_init == 1 );
+	      for(i=0; i<tempkn; i++)
+		W[i] = ( W[descA.nb + i] > W[i] ) ? W[descA.nb + i] : W[i];
+	    }
+	    pthread_mutex_unlock(&mumps_mutex);
         }
     }
 }
@@ -849,24 +853,27 @@ BODY
       if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
           *INFO = k * descA.mb + info[0]; /* Should return if enter here */
           fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
+
+	  W[0] = -1.;
       }
-
-      if ( (t == 0) && (criteria == HIGHAM_CRITERIUM))
-      {
-          /* Compute the condition number of U */
-          LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W );
-          //LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, W);
-
-          W[0] = 1. / W[0];
-      }
-
-      if ( (t == 0) && ((criteria == HIGHAM_MAX_CRITERIUM) ||
-                        (criteria == HIGHAM_SUM_CRITERIUM) ||
-                        (criteria == HIGHAM_MOY_CRITERIUM)) )
-      {
-          /*Compute the norm of A_kk^(-1)  */
-          LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, 1., W);
-          //fprintf(stderr, "Le cond est: %f\n", W[0]);
+      else {
+          if ( (t == 0) && (criteria == HIGHAM_CRITERIUM))
+          {
+              /* Compute the condition number of U */
+              LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W );
+              //LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, W);
+    
+              W[0] = 1. / W[0];
+          }
+    
+          if ( (t == 0) && ((criteria == HIGHAM_MAX_CRITERIUM) ||
+                            (criteria == HIGHAM_SUM_CRITERIUM) ||
+                            (criteria == HIGHAM_MOY_CRITERIUM)) )
+          {
+              /*Compute the norm of A_kk^(-1)  */
+              LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, 1., W);
+              //fprintf(stderr, "Le cond est: %f\n", W[0]);
+          }
       }
   }
 END
@@ -951,6 +958,17 @@ BODY
         }
 
         memcpy( norm2, norm1, 2 * descA.nb * sizeof(double) );
+
+	/* Restore mumps_step for future factorization */
+	pthread_mutex_lock( &mumps_mutex );
+	mumps_init = 0;
+	pthread_mutex_unlock( &mumps_mutex );
+    }
+    else {
+      /* To catch the wrong info in other criteria */
+      if (p == 0) {
+	norm1[0] = W[0];
+      }
     }
 
     printlog("END of reduce_norm( k=%d, p=%d )\n", k, p);
@@ -1043,10 +1061,25 @@ BODY
                     norm2[i] = norm1[i];
             }
         }
+	else {
+            /* The received buffer contains the diagonal line */
+            if( (pui <= p) && (p < 2*pui) ) {
+                norm1[0] = norm2[0];
+            } else {
+                norm2[0] = norm1[0];
+            }
+	}
 
         /* Last level of the reduction: let's take the decision */
         if (h == hmax) {
             int cond = 1;
+
+	    if ( (( criteria == MUMPS_CRITERIUM ) && (norm1[descA.nb] == -1.)) ||
+		 (( criteria != MUMPS_CRITERIUM ) && (norm1[0] == -1.)) ) 
+	    {
+	      cond = 1;
+	      goto cond_affect;
+	    }
 
             if (criteria == HIGHAM_CRITERIUM)
             {
@@ -1157,7 +1190,7 @@ BODY
                cond = 0;
             if (alpha >= 9999999999)
                cond = 1;
-
+	cond_affect:
             lu_tab[k] = cond;
 
             /* if ( p == 0 ) { */
