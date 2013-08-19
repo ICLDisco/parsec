@@ -832,6 +832,8 @@ BODY
           /* Store largest absolut values of each columns */
           memset( W, 0, descA.nb * sizeof(double));
           CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempkn, tempkn, A, ldak, W);
+      } else {
+          W[0] = 0.;
       }
 
       if ( descA.storage == matrix_Tile ) {
