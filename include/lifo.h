@@ -58,7 +58,10 @@ struct dague_lifo_t {
     dague_list_item_t *lifo_ghost;
 };
 
+#if !defined(DAGUE_LIFO_ALIGNMENT_BITS)
 #define DAGUE_LIFO_ALIGNMENT_BITS  3
+#endif  /* !defined(DAGUE_LIFO_ALIGNMENT_BITS) */
+
 #define DAGUE_LIFO_ALIGNMENT      (1 << DAGUE_LIFO_ALIGNMENT_BITS )
 #define DAGUE_LIFO_CNTMASK        (DAGUE_LIFO_ALIGNMENT-1)
 #define DAGUE_LIFO_PTRMASK        (~(DAGUE_LIFO_CNTMASK))
