@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -31,7 +31,7 @@ typedef struct dague_thread_mempool_s dague_thread_mempool_t;
 struct dague_mempool_s {
     unsigned int            nb_thread_mempools;
     size_t                  elt_size;
-    size_t                  pool_owner_offset;  /**< this is the offset to get to the thread_mempool_t 
+    size_t                  pool_owner_offset;  /**< this is the offset to get to the thread_mempool_t
                                                  *   from a newly allocated element */
     volatile uint32_t       nb_max_elt;         /**< this reflects the maximum of the nb_elt of the other threads */
     dague_thread_mempool_t *thread_mempools;
@@ -48,11 +48,11 @@ struct dague_thread_mempool_s {
  *    One can use either of the interfaces.
  *    DAGUE_MEMPOOL_CONSTRUCT( &mempool, dague_execution_context_t, mempool, nbcores );
  *  has the same effect as
- *    dague_mempool_construct( &mempool, sizeof(dague_execution_context_t), 
+ *    dague_mempool_construct( &mempool, sizeof(dague_execution_context_t),
  *                             (char*)&context.mempool - (char*)&context, nbcores );
  *  The macro is provided as a simplification to compute the offset of the mempool field in
  *  the type of elements that is allocated by this memory pool.
- * 
+ *
  *  Once the system-wide memory pool has been constructed, each thread
  *  can take its onw mempool->thread_mempools element.
  */
@@ -79,7 +79,7 @@ void dague_mempool_construct( dague_mempool_t *mempool,
  */
 void *dague_thread_mempool_allocate_when_empty( dague_thread_mempool_t *thread_mempool );
 
-/** dague_thread_mempool_allocate 
+/** dague_thread_mempool_allocate
  *    allocates an element of size thread_mempool->mempool->elt_size,
  *    using the internal function if the pool is empty.
  */

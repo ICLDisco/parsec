@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011 The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -64,7 +64,7 @@ void *dague_thread_mempool_allocate_when_empty( dague_thread_mempool_t *thread_m
     void *elt;
     dague_thread_mempool_t **owner;
 
-    DAGUE_LIFO_ITEM_ALLOC( elt, thread_mempool->parent->elt_size );
+    DAGUE_LIFO_ITEM_ALLOC(&thread_mempool->mempool, elt, thread_mempool->parent->elt_size );
     owner = (dague_thread_mempool_t **)((char*)elt + thread_mempool->parent->pool_owner_offset);
     *owner = thread_mempool;
     return elt;

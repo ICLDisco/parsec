@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -25,7 +25,7 @@ dague_private_memory_pop(dague_memory_pool_t* pool)
 {
     dague_list_item_t* elem = dague_lifo_pop(&(pool->lifo));
     if( NULL == elem ) {
-        DAGUE_LIFO_ITEM_ALLOC(elem, pool->elem_size );
+        DAGUE_LIFO_ITEM_ALLOC(&(pool->lifo), elem, pool->elem_size );
     }
     return (void*)((char*)elem+sizeof(dague_list_item_t));
 }
