@@ -1925,12 +1925,18 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             coutput("%s  if( !(%s) ) continue;\n", indent(nesting), condition );
     }
 
-    coutput("%s  vpid = ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
+    coutput("%s  if( NULL != ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of ) {\n"
+	    "%s    vpid = ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
+            "%s    assert(context->nb_vp >= vpid);\n"
+	    "%s  }\n"
             "%s  new_dynamic_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->virtual_processes[vpid]->execution_units[0]->context_mempool );\n",
+	    indent(nesting), f->predicate->func_or_mem,
             indent(nesting), f->predicate->func_or_mem, f->predicate->func_or_mem,
-                             UTIL_DUMP_LIST(sa1, f->predicate->parameters, next,
-                                            dump_expr, (void*)&info2,
-                                            "", "", ", ", ""),
+	                     UTIL_DUMP_LIST(sa1, f->predicate->parameters, next,
+					    dump_expr, (void*)&info2,
+					    "", "", ", ", ""),
+	    indent(nesting),
+	    indent(nesting),
             indent(nesting));
 
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nbdefinitions);
@@ -4110,7 +4116,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                     string_arena_add_string(sa, "]");
 
                     assert( dl->datatype.nb_elt != NULL );
-                    string_arena_add_string(sa_tmp_nbelt, "%s", dump_expr((void**)dl->datatype.nb_elt, &ai));
+                    string_arena_add_string(sa_tmp_nbelt, "%s", dump_expr((void**)dl->datatype.nb_elt, &info));
                 }
 
                 string_arena_init(sa_temp);
