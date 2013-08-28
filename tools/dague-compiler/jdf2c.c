@@ -4110,7 +4110,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                     string_arena_add_string(sa, "]");
 
                     assert( dl->datatype.nb_elt != NULL );
-                    string_arena_add_string(sa_tmp_nbelt, "%s", dump_expr((void**)dl->datatype.nb_elt, &ai));
+                    string_arena_add_string(sa_tmp_nbelt, "%s", dump_expr((void**)dl->datatype.nb_elt, &info));
                 }
 
                 string_arena_init(sa_temp);
