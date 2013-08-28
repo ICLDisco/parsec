@@ -1858,7 +1858,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "{\n"
             "  dague_execution_context_t* new_context, new_context_holder, *new_dynamic_context;\n"
             "  assignment_t *assignments = NULL;\n"
-            "  int vpid;\n"
+            "  int vpid = 0;\n"
             "%s\n"
             "%s\n"
             "  new_context = &new_context_holder;\n"
