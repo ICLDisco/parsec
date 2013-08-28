@@ -13,6 +13,7 @@ elif [ "x$USER" == "xherault" ]; then
 
 elif [ "x$USER" == "xbosilca" ]; then 
     HWLOC_DIR=/Users/bosilca/opt
+    GTG_DIR=${GTG_DIR:="${HOME}/opt"}
     PLASMA_DIR=${HOME}/opt/PLASMA/plasma-svn/
     OMEGA_DIR=${OMEGA_DIR:="/Users/bosilca/tools/Omega/binary"}
     USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_WITH_MPI=OFF -DDPLASMA_PRECISIONS='s;d'"
