@@ -1,0 +1,84 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2013     
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+
+#include "data_distribution.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+A      [type = "struct tiled_matrix_desc_t*"]
+B      [type = "struct tiled_matrix_desc_t*"]
+NR
+NT
+
+READER_B(r, t)
+r = 0 .. NR-1
+t = 0 .. NT-1
+
+: B(t)
+
+READ B <- (r == 0) ? B(t) : B READER_B(r-1, t)
+       ->  A RECV(r, 0 .. NT-1, t)
+       -> A FANIN(r, t)
+       -> (r != NR-1) ? B READER_B(r+1, t)
+BODY
+END
+
+FANOUT(r, t)
+r = 0 .. NR-1
+t = 0 .. NT-1
+
+: A(t)
+
+READ A <- (r == 0) ? A(t) : A FANOUT(r-1, t)
+       -> A SEND(r, t, 0 .. NT-1)
+BODY
+END
+
+SEND(r, t, s)
+r = 0 .. NR-1
+t = 0 .. NT-1
+s = 0 .. NT-1
+
+: A(t)
+
+READ A <- A FANOUT(r, t)
+       -> B RECV(r, s, t)
+BODY
+END
+
+RECV(r, s, t)
+r = 0 .. NR-1
+t = 0 .. NT-1
+s = 0 .. NT-1
+
+: B(t)
+
+RW   A <- B READER_B(r, t)
+READ B <- A SEND(r, t, s)
+CTL  T -> T FANIN(r, t)
+
+BODY
+END
+
+FANIN(r, t)
+r = 0 .. NR-1
+t = 0 .. NT-1
+
+: B(t)
+
+RW A  <- B READER_B(r, t)
+CTL T <- T RECV(r, t, 0 .. NT-1)
+
+BODY
+END
+
