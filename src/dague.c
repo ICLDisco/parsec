@@ -234,7 +234,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
 
-    if(NULL == pargc) {
+    if((NULL == pargc) || (*pargc == 0)) {
         int rc = asprintf( &dague_app_name, DEFAULT_APPNAME, (int)getpid() );
         if (rc == -1) {
 	    dague_app_name = strdup( "app_name_XXXXXX" );
@@ -325,7 +325,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* HAVE_HWLOC_BITMAP */
 #endif
 
-    if( NULL != pargc ) {
+    if( (NULL != pargc) && (*pargc != 0) ) {
         int index = 0;
         /* Check for the upper level arguments */
         while(1) {
