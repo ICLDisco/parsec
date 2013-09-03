@@ -72,6 +72,7 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->data_map = NULL;
     tdesc->mtype    = mtyp;
     tdesc->storage  = storage;
+    tdesc->distrib  = matrix_dist_reg;
     tdesc->dtype    = tiled_matrix_desc_type | dtype;
     tdesc->tileld   = (storage == matrix_Tile) ? mb : lm;
     tdesc->mb       = mb;

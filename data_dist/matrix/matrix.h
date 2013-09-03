@@ -16,6 +16,15 @@
 #include "data.h"
 #include "vpmap.h"
 
+/* Possible data distribution between VPs */
+enum matrix_distrib {
+    matrix_dist_reg     = 0, /* 1D or 2D block cyclic */
+    matrix_dist_br_flip = 1, /* Bottom right flipped  */
+    matrix_dist_bt_flip = 2, /* Bottom flipped        */
+    matrix_dist_diag    = 3, /* Diagonal distribution */
+    matrix_dist_z       = 4, /* Z order               */
+};
+
 enum matrix_type {
     matrix_Byte          = 0, /**< unsigned char  */
     matrix_Integer       = 1, /**< signed int     */
@@ -54,6 +63,7 @@ typedef struct tiled_matrix_desc_t {
     dague_data_t**       data_map;   /**< map of the data */
     enum matrix_type     mtype;      /**< precision of the matrix */
     enum matrix_storage  storage;    /**< storage of the matrix   */
+    enum matrix_distrib  distrib;    /**< Distribution of the matrix over VPs */
     int dtype;          /**< Distribution type of descriptor      */
     int tileld;         /**< leading dimension of each tile (Should be a function depending on the row) */
     int mb;             /**< number of rows in a tile */
