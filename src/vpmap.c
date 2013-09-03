@@ -381,7 +381,7 @@ int vpmap_init_from_flat(int _nbcores)
     nbcores = _nbcores/nbht;
     nbthreadspervp = _nbcores;
 
-    vpmap_nb_total_threads = nbcores * nbthreadspervp;
+    vpmap_nb_total_threads = nbvp * nbthreadspervp;
 
     vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_parameters;
     vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_parameters;
