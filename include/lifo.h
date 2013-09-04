@@ -62,7 +62,9 @@ struct dague_lifo_t {
 #define DAGUE_LIFO_ALIGNMENT_BITS  3
 #endif  /* !defined(DAGUE_LIFO_ALIGNMENT_BITS) */
 
-#define DAGUE_LIFO_ALIGNMENT      (1 << DAGUE_LIFO_ALIGNMENT_BITS )
+#define DAGUE_LIFO_ALIGNMENT      ( ( (1 << DAGUE_LIFO_ALIGNMENT_BITS ) < sizeof(void*) ) ? \
+                                    ( sizeof(void*) ) : \
+                                    ( 1 << DAGUE_LIFO_ALIGNMENT_BITS ) )
 #define DAGUE_LIFO_CNTMASK        (DAGUE_LIFO_ALIGNMENT-1)
 #define DAGUE_LIFO_PTRMASK        (~(DAGUE_LIFO_CNTMASK))
 #define DAGUE_LIFO_CNT( v )       ( (uintptr_t) ( (uintptr_t)(v) & DAGUE_LIFO_CNTMASK ) )
