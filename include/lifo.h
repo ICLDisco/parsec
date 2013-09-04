@@ -64,7 +64,9 @@ struct dague_lifo_s {
 #endif  /* !defined(DAGUE_LIFO_ALIGNMENT_DEFAULT) */
 
 #define DAGUE_LIFO_ALIGNMENT_BITS(LIFO)  ((LIFO)->alignment)
-#define DAGUE_LIFO_ALIGNMENT(LIFO)       (1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) )
+#define DAGUE_LIFO_ALIGNMENT(LIFO)       ( ( (1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) < sizeof(void*) ) ? \
+                                           ( sizeof(void*) ) : \
+                                           ( 1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) )
 #define DAGUE_LIFO_CNTMASK(LIFO)         (DAGUE_LIFO_ALIGNMENT(LIFO)-1)
 #define DAGUE_LIFO_PTRMASK(LIFO)         (~(DAGUE_LIFO_CNTMASK(LIFO)))
 #define DAGUE_LIFO_CNT(LIFO, v)          ((uintptr_t)((uintptr_t)(v) & DAGUE_LIFO_CNTMASK(LIFO)))
@@ -81,11 +83,11 @@ struct dague_lifo_s {
  */
 #define DAGUE_LIFO_ITEM_ALLOC( LIFO, elt, truesize ) ({                 \
             void *_elt = NULL;                                          \
-            if( 0 == posix_memalign(&_elt,                              \
-                                    DAGUE_LIFO_ALIGNMENT(LIFO), (truesize)) ) { \
-                assert( NULL != _elt );                                 \
-                OBJ_CONSTRUCT(_elt, dague_list_item_t);                 \
-            }                                                           \
+            int _rc;                                                    \
+            _rc = posix_memalign(&_elt,                                 \
+                                DAGUE_LIFO_ALIGNMENT(LIFO), (truesize));\
+            assert( 0 == _rc && NULL != _elt );                         \
+            OBJ_CONSTRUCT(_elt, dague_list_item_t);                     \
             (elt) = (__typeof__(elt))_elt;                              \
         })
 #define DAGUE_LIFO_ITEM_FREE( elt ) free(elt)
