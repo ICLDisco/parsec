@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -14,6 +14,8 @@
 #include "precision.h"
 #include "data_distribution.h"
 #include "vpmap.h"
+
+BEGIN_C_DECLS
 
 enum matrix_type {
     matrix_Byte          = 0, /**< unsigned char  */
@@ -92,34 +94,36 @@ static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
 struct dague_execution_unit;
 typedef int (*dague_operator_t)( struct dague_execution_unit *eu, const void* src, void* dst, void* op_data, ... );
 
-extern struct dague_object_t*
+extern dague_object_t*
 dague_map_operator_New(const tiled_matrix_desc_t* src,
                        tiled_matrix_desc_t* dest,
                        dague_operator_t op,
                        void* op_data);
 
 extern void
-dague_map_operator_Destruct( struct dague_object_t* o );
+dague_map_operator_Destruct( dague_object_t* o );
 
-extern struct dague_object_t*
+extern dague_object_t*
 dague_reduce_col_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
-                      dague_operator_t operator,
+                      dague_operator_t op,
                       void* op_data );
 
-extern void dague_reduce_col_Destruct( struct dague_object_t *o );
+extern void dague_reduce_col_Destruct( dague_object_t *o );
 
-extern struct dague_object_t*
+extern dague_object_t*
 dague_reduce_row_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
-                      dague_operator_t operator,
+                      dague_operator_t op,
                       void* op_data );
-extern void dague_reduce_row_Destruct( struct dague_object_t *o );
+extern void dague_reduce_row_Destruct( dague_object_t *o );
 
 /*
  * Macro to get the block leading dimension
  */
 #define BLKLDD( _desc_, _m_ ) ( (_desc_).storage == matrix_Tile ? (_desc_).mb : (_desc_).llm )
 #define TILED_MATRIX_KEY( _desc_, _m_, _n_ ) ( ((dague_ddesc_t*)(_desc_))->data_key( ((dague_ddesc_t*)(_desc_)), (_m_), (_n_) ) )
+
+END_C_DECLS
 
 #endif /* _MATRIX_H_  */

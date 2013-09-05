@@ -9,6 +9,8 @@
 
 #include "dague_config.h"
 
+BEGIN_C_DECLS
+
 typedef struct dague_object              dague_object_t;
 typedef struct dague_execution_context_t dague_execution_context_t;
 /**< The general context that holds all the threads of dague for this MPI process */
@@ -51,8 +53,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
 int dague_fini( dague_context_t** pcontext );
 
 /**
- * Compose two dague_objects into a composition dague_object. 
- * The resulting compound dague_object is returned. 
+ * Compose two dague_objects into a composition dague_object.
+ * The resulting compound dague_object is returned.
  * If start is already a composition, the same (updated) object may be returned.
  */
 dague_object_t* dague_compose( dague_object_t* start, dague_object_t* next);
@@ -108,5 +110,7 @@ char* dague_snprintf_execution_context( char* str, size_t size,
 char* dague_snprintf_assignments( char* str, size_t size,
                                   const struct dague_function_s* function,
                                   const struct assignment* locals);
+
+END_C_DECLS
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

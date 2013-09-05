@@ -13,6 +13,8 @@
 #include "dague.h"
 #include "profiling.h"
 
+BEGIN_C_DECLS
+
 typedef struct dague_remote_deps_t     dague_remote_deps_t;
 typedef struct dague_arena_t           dague_arena_t;
 typedef struct dague_arena_chunk_t     dague_arena_chunk_t;
@@ -150,7 +152,7 @@ typedef int (dague_create_function_t)(struct dague_execution_unit*,
 typedef float (dague_evaluate_function_t)(const dague_execution_context_t* task);
 
 /**
- * 
+ *
  */
 typedef int (dague_hook_t)(struct dague_execution_unit*, dague_execution_context_t*);
 
@@ -356,5 +358,7 @@ const dague_function_t* dague_find(const dague_object_t *dague_object, const cha
 #if defined(DAGUE_SIM)
 int dague_getsimulationdate( dague_context_t *dague_context );
 #endif
+
+END_C_DECLS
 
 #endif  /* DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED */

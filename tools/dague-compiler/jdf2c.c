@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -1033,11 +1033,13 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#ifndef _%s_h_\n"
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
-    houtput("#include <dague.h>\n"
+    houtput("#include <dague_config.h>\n"
+            "#include <dague.h>\n"
             "#include <data_distribution.h>\n"
             "#include <debug.h>\n"
             "#include <dague/ayudame.h>\n"
             "#include <assert.h>\n\n");
+    houtput("BEGIN_C_DECLS\n\n");
 
     for( g = jdf->datatypes; NULL != g; g = g->next ) {
         houtput("#define DAGUE_%s_%s_ARENA    %d\n",
@@ -1072,6 +1074,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     string_arena_free(sa1);
     string_arena_free(sa2);
     string_arena_free(sa3);
+    houtput("END_C_DECLS\n\n");
     houtput("#endif /* _%s_h_ */ \n",
             jdf_basename);
 }
