@@ -124,7 +124,7 @@ int main(int argc, char ** argv)
 
         int type, type_i;
         int type_tab[] = { 0, /*1,*/ 2, 3, 4, /*5,*/ 7, 9, 12, 14, 18,
-                           22, 23, 24, 27, 28, 29, 30, 31, 32, 34,
+                           22, /* 23, */ 24, 27, 28, 29, 30, 31, 32, 34,
                            35, 36, 37, 38, 39, 40, 41, 100 };
 
         // MAX & MOY
@@ -169,6 +169,11 @@ int main(int argc, char ** argv)
                           (criteria == QR_ONLY_CRITERIUM) ) &&
                          ( alpha_i > 0) )
                         continue;
+
+                    /* Skip dead lock */
+                    if ( (P == 16) && (criteria == RANDOM_CRITERIUM) &&
+			 ( type == 18) && ( alpha_i > 4) )
+		      continue;
 
                     if ((criteria == HIGHAM_MOY_CRITERIUM) ||
                         (criteria == HIGHAM_MAX_CRITERIUM) )
