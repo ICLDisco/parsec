@@ -99,15 +99,15 @@ dague_list_nolock_remove( dague_list_t* list,
 
 /* SORTED LIST FUNCTIONS */
 
-/** add the @item before the first element of @list that is strictly smaller" (mutex protected),
- *  according to the integer  value at @offset in items. That is, if the input @list is
+/** add the @item before the first element of @list that is strictly smaller (mutex protected),
+ *  according to the integer value at @offset in items. That is, if the input @list is
  *  sorted (descending order), the resulting list is still sorted. */
 static inline void
 dague_list_push_sorted( dague_list_t* list,
                         dague_list_item_t* item,
                         size_t offset );
 /** add the @item before the first element of @list that is striclty smaller (not thread safe),
- *  according to the integer  value at @offset in items. That is, if the input @list is
+ *  according to the integer value at @offset in items. That is, if the input @list is
  *  sorted (descending order), the resulting list is still sorted. */
 static inline void
 dague_list_nolock_push_sorted( dague_list_t* list,
@@ -120,9 +120,9 @@ dague_list_nolock_push_sorted( dague_list_t* list,
  *  inserted in a loop of dague_list_push_sorted(). That is, if the input
  * @list is sorted (descending order), the resulting list is still sorted. */
 static inline void
-dague_list_nolock_chain_sorted( dague_list_t* list,
-                                dague_list_item_t* items,
-                                size_t offset );
+dague_list_chain_sorted( dague_list_t* list,
+                         dague_list_item_t* items,
+                         size_t offset );
 /** chain the unsorted @items (not thread safe), as if they had been
  *  inserted in a loop by dague_list_push_sorted(). That is, if the input
  * @list is sorted (descending order), the resulting list is still sorted. */
@@ -446,7 +446,7 @@ dague_list_nolock_push_sorted( dague_list_t* list,
 {
     dague_list_item_t* position = DAGUE_ULIST_ITERATOR(list, pos,
     {
-        if( A_LOWER_PRIORITY_THAN_B(new, pos, off) )
+        if( A_HIGHER_PRIORITY_THAN_B(new, pos, off) )
             break;
     });
     dague_ulist_add_before(list, position, new);
