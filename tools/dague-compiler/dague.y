@@ -893,7 +893,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   $$->op = JDF_C_CODE;
                   $$->jdf_c_code.code = $1;
                   $$->jdf_c_code.lineno = current_lineno;
-                  /* This will  be set by the upper level parsing if necessary */
+                  /* This will be set by the upper level parsing if necessary */
                   $$->jdf_c_code.function_context = NULL;
                   $$->jdf_c_code.fname = NULL;
 

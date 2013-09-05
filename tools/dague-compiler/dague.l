@@ -112,9 +112,9 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
 <INITIAL,properties>inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}            {
                           int start;
                           for(start = 8; yytext[start] != '{'; start++) /* nothing */ ;
-			  start++;
+                          start++;
                           YYLVAL(string) = extern_code( yytext + start, strlen(yytext)-start-2 );
-			  return EXTERN_DECL;
+                          return EXTERN_DECL;
                       }
 SIMCOST               { return SIMCOST; }
 <*>"/*"               { YY_PUSH_STATE(comment);                            }
