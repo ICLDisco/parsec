@@ -90,7 +90,7 @@ struct dague_lifo_s {
             OBJ_CONSTRUCT(_elt, dague_list_item_t);                     \
             (elt) = (__typeof__(elt))_elt;                              \
         })
-#define DAGUE_LIFO_ITEM_FREE( elt ) free(elt)
+#define DAGUE_LIFO_ITEM_FREE( elt ) do { OBJ_DESTRUCT( elt ); free(elt); } while (0)
 
 
 /* The ghost pointer will never change. The head will change via an

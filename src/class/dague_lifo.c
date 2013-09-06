@@ -22,7 +22,7 @@ static inline void dague_lifo_destruct( dague_lifo_t *lifo )
 {
     if( NULL != lifo->lifo_ghost ) {
         DAGUE_ITEM_DETACH(lifo->lifo_ghost);
-        OBJ_RELEASE(lifo->lifo_ghost);
+        DAGUE_LIFO_ITEM_FREE(lifo->lifo_ghost);
     }
 }
 

@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
@@ -630,6 +630,8 @@ int dague_fini( dague_context_t** pcontext )
     (void) dague_remote_dep_fini( context );
 
     dague_remove_scheduler( context );
+
+    dague_data_fini(context);
 
     for(p = 0; p < context->nb_vp; p++) {
         dague_vp_fini(context->virtual_processes[p]);
