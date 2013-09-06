@@ -53,21 +53,23 @@ static void dague_data_construct(dague_data_t* obj )
          obj->device_copies[i] = NULL, i++ );
 }
 
-#if defined(DAGUE_DEBUG_ENABLE)
 static void dague_data_destruct(dague_data_t* obj )
 {
-    for( uint32_t i = 0; i < dague_nb_devices; i++ )
+    for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
+        dague_data_copy_t *copy = NULL;
+
+        while( (copy = obj->device_copies[i]) != NULL )
+        {
+            dague_data_copy_detach( obj, copy, i );
+            OBJ_RELEASE( copy );
+        }
         assert(NULL == obj->device_copies[i]);
+    }
 }
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
 
 OBJ_CLASS_INSTANCE(dague_data_t, dague_object_t,
                    dague_data_construct,
-#if defined(DAGUE_DEBUG_ENABLE)
                    dague_data_destruct
-#else
-                   NULL
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
                    );
 
 int dague_data_init(dague_context_t* context)

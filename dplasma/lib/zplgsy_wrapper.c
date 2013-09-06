@@ -23,11 +23,11 @@
  *******************************************************************************
  *
  * @param[in] bump
- *          The value to add to the diagonal to be sure 
+ *          The value to add to the diagonal to be sure
  *          to have a positive definite matrix.
  *
  * @param[in] uplo
- *          Specifies which elements of the matrix are to be set 
+ *          Specifies which elements of the matrix are to be set
  *          = PlasmaUpper: Upper part of A is set;
  *          = PlasmaLower: Lower part of A is set;
  *          = PlasmaUpperLower: ALL elements of A are set.
@@ -39,27 +39,27 @@
  *          The seed used in the random generation.
  *
  ******************************************************************************/
-dague_handle_t* dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo, 
+dague_handle_t* dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo,
                                     tiled_matrix_desc_t *A,
                                     unsigned long long int seed)
 {
     dague_zplgsy_handle_t* object;
-    
+
     object = dague_zplgsy_new( uplo, bump, seed, *A, (dague_ddesc_t*)A);
 
     /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zplgsy_DEFAULT_ARENA], 
+    dplasma_add2arena_tile( object->arenas[DAGUE_zplgsy_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
-    
+
     return (dague_handle_t*)object;
 }
 
-int dplasma_zplgsy( dague_context_t *dague, 
-                    dague_complex64_t bump, PLASMA_enum uplo, 
+int dplasma_zplgsy( dague_context_t *dague,
+                    dague_complex64_t bump, PLASMA_enum uplo,
                     tiled_matrix_desc_t *A,
-                    unsigned long long int seed) 
+                    unsigned long long int seed)
 {
     dague_handle_t *dague_zplgsy = NULL;
 
@@ -79,4 +79,3 @@ dplasma_zplgsy_Destruct( dague_handle_t *o )
     dplasma_datatype_undefine_type( &(dague_zplgsy->arenas[DAGUE_zplgsy_DEFAULT_ARENA]->opaque_dtt) );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zplgsy);
 }
-
