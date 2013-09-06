@@ -12,6 +12,7 @@ int
 dague_private_memory_init( dague_memory_pool_t* pool,
                            size_t size )
 {
+    pool->lifo.alignment = 0;
     OBJ_CONSTRUCT( &(pool->lifo), dague_lifo_t );
     pool->elem_size = size + sizeof(dague_list_item_t);
     return 0;
