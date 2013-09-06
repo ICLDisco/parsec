@@ -78,6 +78,8 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc, enum matrix_type dtyp, 
                              int matrix_distribution_type, int nodes, int myrank,
                              int mb, int nb, int lm, int ln, int i,  int j, int m,  int n);
 
+void tiled_matrix_desc_destroy( tiled_matrix_desc_t *tdesc );
+
 tiled_matrix_desc_t *tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc, int i, int j, int m, int n);
 
 int  tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename);

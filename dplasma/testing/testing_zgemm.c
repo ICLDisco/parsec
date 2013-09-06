@@ -117,9 +117,9 @@ int main(int argc, char ** argv)
 #endif
 
         dague_data_free(ddescA.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
         dague_data_free(ddescB.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
     }
     else {
         int Am, An, Bm, Bn;
@@ -182,9 +182,9 @@ int main(int argc, char ** argv)
                 if(loud) printf("Done\n");
 
                 dague_data_free(ddescA.mat);
-                dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+                tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
                 dague_data_free(ddescB.mat);
-                dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
+                tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
 
                 /* Check the solution */
                 info_solution = check_solution( dague, (rank == 0) ? loud : 0,
@@ -211,11 +211,11 @@ int main(int argc, char ** argv)
         }
 #endif
         dague_data_free(ddescC2.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescC2);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC2);
     }
 
     dague_data_free(ddescC.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
 
     cleanup_dague(dague, iparam);
 
@@ -309,11 +309,11 @@ static int check_solution( dague_context_t *dague, int loud,
 #endif
 
     dague_data_free(ddescA.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     dague_data_free(ddescB.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
     dague_data_free(ddescC.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
 
     return info_solution;
 }

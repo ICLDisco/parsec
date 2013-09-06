@@ -127,6 +127,17 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
 #endif
 }
 
+void
+tiled_matrix_desc_destroy( tiled_matrix_desc_t *tdesc )
+{
+    if ( tdesc->data_map != NULL ) {
+        free( tdesc->data_map );
+        tdesc->data_map = NULL;
+    }
+    dague_ddesc_destroy( (dague_ddesc_t*)tdesc );
+}
+
+
 tiled_matrix_desc_t *
 tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
                         int i, int j, int m, int n)

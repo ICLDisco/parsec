@@ -75,12 +75,12 @@ static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
             (Ddesc->uplo == MatrixUpper && n>=m) );
     if ( ((Ddesc->uplo == MatrixLower) && (m < n)) ||
          ((Ddesc->uplo == MatrixUpper) && (m > n)) )
-        {
-            return UINT_MAX;
-        }
+    {
+        return UINT_MAX;
+    }
 
     /* for tile (m,n), first find coordinate of process in
-       process grid which possess the tile in block cyclic dist */
+     process grid which possess the tile in block cyclic dist */
     rr = m % Ddesc->grid.rows;
     cr = n % Ddesc->grid.cols;
 
@@ -257,31 +257,32 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
         if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
             nb_elem_col++;
 
-        while(column <
- Ddesc->super.lnt) /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
-            {
-                nb_elem = column / (Ddesc->grid.rows);
-                if ( (column % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
-                    nb_elem++;
+        /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
+        while(column < Ddesc->super.lnt)
+        {
+            nb_elem = column / (Ddesc->grid.rows);
+            if ( (column % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
+                nb_elem++;
 
-                total += (nb_elem_col - nb_elem);
-                column += Ddesc->grid.cols;
-            }
+            total += (nb_elem_col - nb_elem);
+            column += Ddesc->grid.cols;
+        }
     } else { /* Upper */
         int row = Ddesc->grid.rrank; /* tile row considered */
         int nb_elem_row = (Ddesc->super.lnt) / (Ddesc->grid.cols); //nb of tile associated to that proc in a full row
         if( (Ddesc->super.lnt) % (Ddesc->grid.cols) > Ddesc->grid.crank )
             nb_elem_row++;
 
-        while(row < Ddesc->super.lmt) /* for each row of tiles in memory before searched element, compute the number of tile for displacement */
-            {
-                nb_elem = row / (Ddesc->grid.cols);
-                if ( (row % (Ddesc->grid.cols)) > Ddesc->grid.crank)
-                    nb_elem++;
+        /* for each row of tiles in memory before searched element, compute the number of tile for displacement */
+        while(row < Ddesc->super.lmt)
+        {
+            nb_elem = row / (Ddesc->grid.cols);
+            if ( (row % (Ddesc->grid.cols)) > Ddesc->grid.crank)
+                nb_elem++;
 
-                total += (nb_elem_row - nb_elem);
-                row += Ddesc->grid.rows;
-            }
+            total += (nb_elem_row - nb_elem);
+            row += Ddesc->grid.rows;
+        }
     }
 
     Ddesc->super.nb_local_tiles = total;

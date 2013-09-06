@@ -57,9 +57,9 @@ int main(int argc, char ** argv)
     dplasma_zprint( dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB );
 
     dague_data_free(ddescB.mat);
-    dague_ddesc_destroy( (dague_ddesc_t*)&ddescB );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB );
     dague_data_free(ddescA.mat);
-    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
 
     cleanup_dague(dague, iparam);
 

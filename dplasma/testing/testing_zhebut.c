@@ -159,10 +159,10 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t *)&ddescX);
 
         dague_data_free(ddescB.mat);
-        dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
 
         dague_data_free(ddescX.mat);
-        dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescX);
 #endif
 
         if (check_inv) {
@@ -181,15 +181,15 @@ int main(int argc, char ** argv)
                                  (tiled_matrix_desc_t *)&ddescI);
 
             dague_data_free(ddescInvA.mat);
-            dague_ddesc_destroy( (dague_ddesc_t*)&ddescInvA);
+            tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescInvA);
 
             dague_data_free(ddescI.mat);
-            dague_ddesc_destroy( (dague_ddesc_t*)&ddescI);
+            tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescI);
         }
     }
 
     dague_data_free(ddescA.mat);
-    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
 
     cleanup_dague(dague, iparam);
 

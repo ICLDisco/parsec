@@ -91,11 +91,11 @@ int main(int argc, char ** argv)
         dplasma_zsyr2k_Destruct( DAGUE_zsyr2k );
 
         dague_data_free(ddescA.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
         dague_data_free(ddescB.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
         dague_data_free(ddescC.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
     }
     else
     {
@@ -160,12 +160,12 @@ int main(int argc, char ** argv)
                 }
 
                 dague_data_free(ddescA.mat);
-                dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+                tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
                 dague_data_free(ddescB.mat);
-                dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
+                tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
             }
             dague_data_free(ddescC.mat);
-            dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
+            tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
         }
     }
 
@@ -260,11 +260,11 @@ static int check_solution( dague_context_t *dague, int loud,
 #endif
 
     dague_data_free(ddescA.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     dague_data_free(ddescB.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
     dague_data_free(ddescC.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
 
     return info_solution;
 }

@@ -166,8 +166,8 @@ int main(int argc, char *argv[])
     free(A2); free(W1); free(W2);
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT);
 
     cleanup_dague(dague, iparam);
 

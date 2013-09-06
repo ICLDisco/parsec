@@ -124,15 +124,15 @@ int main(int argc, char ** argv)
 
         /* Cleanup */
         dague_data_free(ddescA0.mat); ddescA0.mat = NULL;
-        dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0 );
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0 );
         dague_data_free(ddescB.mat); ddescB.mat = NULL;
-        dague_ddesc_destroy( (dague_ddesc_t*)&ddescB );
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB );
         dague_data_free(ddescX.mat); ddescX.mat = NULL;
-        dague_ddesc_destroy( (dague_ddesc_t*)&ddescX );
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescX );
     }
 
     dague_data_free(ddescA.mat); ddescA.mat = NULL;
-    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
 
     cleanup_dague(dague, iparam);
     return ret;
@@ -211,9 +211,9 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
     }
 
     dague_data_free(L1.mat); L1.mat = NULL;
-    dague_ddesc_destroy( (dague_ddesc_t*)&L1);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&L1);
     dague_data_free(L2.mat); L2.mat = NULL;
-    dague_ddesc_destroy( (dague_ddesc_t*)&L2);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&L2);
 
     return info_factorization;
 }

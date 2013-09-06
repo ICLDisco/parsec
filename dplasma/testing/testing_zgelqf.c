@@ -105,8 +105,8 @@ int main(int argc, char ** argv)
 
         dague_data_free(ddescA0.mat);
         dague_data_free(ddescQ.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescQ);
     }
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
@@ -118,8 +118,8 @@ int main(int argc, char ** argv)
 
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT);
 
     cleanup_dague(dague, iparam);
 
@@ -177,7 +177,7 @@ static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_de
     }
 
     dague_data_free(Id.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&Id);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&Id);
     return info_ortho;
 }
 
@@ -222,7 +222,7 @@ static int check_factorization(dague_context_t *dague, int loud, tiled_matrix_de
 
     /* Free R */
     dague_data_free(R.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&R);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&R);
 
     Rnorm = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&Residual);
     Anorm = dplasma_zlange(dague, PlasmaInfNorm, Aorig);
@@ -245,6 +245,6 @@ static int check_factorization(dague_context_t *dague, int loud, tiled_matrix_de
     }
 
     dague_data_free(Residual.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&Residual);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&Residual);
     return info_factorization;
 }

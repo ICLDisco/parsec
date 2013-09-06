@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
 
     dague_data_free(ddescA.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
 
     cleanup_dague(dague, iparam);
 
