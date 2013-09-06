@@ -262,10 +262,10 @@ void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabu
     /* Safety check: check that we can indeed clone the structure */
     assert( Src->super.lmt == Dst->super.lmt );
     assert( Src->super.lnt == Dst->super.lnt );
-    assert( Src->super.i == Dst->super.i );
-    assert( Src->super.j == Dst->super.j );
-    assert( Src->super.mt == Dst->super.mt );
-    assert( Src->super.nt == Dst->super.nt );
+    assert( Src->super.i   == Dst->super.i   );
+    assert( Src->super.j   == Dst->super.j   );
+    assert( Src->super.mt  == Dst->super.mt  );
+    assert( Src->super.nt  == Dst->super.nt  );
 
     assert( Src->super.super.nodes == Dst->super.super.nodes );
 
@@ -288,8 +288,8 @@ void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabu
             if( table->elems[p].rank == Src->super.super.myrank ) {
                 table->elems[p].tile = dague_data_new();
                 dcopy = dague_data_copy_new(table->elems[p].tile, 0);
-                dcopy->device_private = dague_data_allocate( (size_t)Src->super.bsiz *
-                                                             (size_t)dague_datadist_getsizeoftype(Src->super.mtype) );
+                dcopy->device_private = dague_data_allocate( (size_t)Dst->super.bsiz *
+                                                             (size_t)dague_datadist_getsizeoftype(Dst->super.mtype) );
             } else {
                 table->elems[p].tile = NULL;
             }
