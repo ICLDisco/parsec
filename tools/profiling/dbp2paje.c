@@ -471,7 +471,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                 cev->end_info_size = dbp_event_info_len(g, dbp);
                 memcpy(cev->infos, dbp_event_get_info( e ), cev->start_info_size);
                 memcpy(cev->infos + cev->start_info_size, dbp_event_get_info( g ), cev->end_info_size);
-                
+
                 progress_bar_event_to_output();
 
                 merge_event( &consolidated_events, cev );
@@ -486,7 +486,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     steps_end_dates = step_height(&consolidated_events, &nb_steps);
     for(s = 0; s < nb_steps; s++) {
         sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
-        addContainer(0.00000, cont_step_name, "CT_S", cont_thread_name, " ", "");
+        addContainer(0.00000, cont_step_name, "CT_S", cont_thread_name, cont_step_name, "");
     }
 
     while( NULL != (cev = (consolidated_event_t*)dague_list_nolock_pop_front( &consolidated_events ) ) ) {
@@ -577,7 +577,7 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
             }
         }
         fprintf(stderr, "-- Time jitter is bounded by %lu "TIMER_UNIT", average is %g "TIMER_UNIT"\n",
-                diff_time(relative, max_time),
+                (long)diff_time(relative, max_time),
                 (double)delta_time / (double)dbp_reader_nb_files(dbp));
     }
 
