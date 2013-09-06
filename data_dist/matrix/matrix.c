@@ -22,9 +22,8 @@
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "matrix.h"
 
-#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
 static uint32_t tiled_matrix_data_key(struct dague_ddesc_s *desc, ...);
-#endif
+
 #if defined(DAGUE_PROF_TRACE)
 static int      tiled_matrix_key_to_string(struct dague_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
 #endif
@@ -48,9 +47,7 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     o->nodes     = nodes;
     o->myrank    = myrank;
 
-#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
     o->data_key      = tiled_matrix_data_key;
-#endif
 #if defined(DAGUE_PROF_TRACE)
     o->key_to_string = tiled_matrix_key_to_string;
     o->key_dim       = NULL;
@@ -182,7 +179,6 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
     return newdesc;
 }
 
-#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
 /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
 static uint32_t tiled_matrix_data_key(struct dague_ddesc_s *desc, ...)
 {
@@ -203,7 +199,6 @@ static uint32_t tiled_matrix_data_key(struct dague_ddesc_s *desc, ...)
 
     return ((n * Ddesc->lmt) + m);
 }
-#endif /* defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA) */
 
 #if defined(DAGUE_PROF_TRACE)
 static int  tiled_matrix_key_to_string(struct dague_ddesc_s *desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
