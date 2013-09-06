@@ -30,7 +30,7 @@ typedef struct {
 
 #define LOCAL_QUEUES_OBJECT(eu_context) ((local_queues_scheduler_object_t*)(eu_context)->scheduler_object)
 
-static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
+static inline void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
 {
     dague_dequeue_chain_back( (dague_dequeue_t*)store, elt );
 }
@@ -39,7 +39,7 @@ static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
 /** In case of hierarchical bounded buffer, define
  *  the wrappers to functions
  */
-static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
+static inline void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
 {
     /* Store is a hbbbuffer */
     dague_hbbuffer_push_all( (dague_hbbuffer_t*)store, elt );

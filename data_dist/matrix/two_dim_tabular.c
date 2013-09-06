@@ -66,7 +66,7 @@ static uint32_t twoDTD_rank_of(dague_ddesc_t * desc, ...)
 
 static uint32_t twoDTD_rank_of_key(dague_ddesc_t *ddesc, dague_data_key_t key)
 {
-    assert( key >= 0 && key < ((two_dim_tabular_t*)ddesc)->tiles_table->nbelem );
+    assert( key < (dague_data_key_t)(((two_dim_tabular_t*)ddesc)->tiles_table->nbelem) );
 
     return ((two_dim_tabular_t*)ddesc)->tiles_table->elems[key].rank;
 }
@@ -95,7 +95,7 @@ static int32_t twoDTD_vpid_of(dague_ddesc_t * desc, ...)
 
 static int32_t twoDTD_vpid_of_key(dague_ddesc_t *ddesc, dague_data_key_t key)
 {
-    assert( key >= 0 && key < ((two_dim_tabular_t*)ddesc)->tiles_table->nbelem );
+    assert( key < (dague_data_key_t)(((two_dim_tabular_t*)ddesc)->tiles_table->nbelem) );
 
     return ((two_dim_tabular_t*)ddesc)->tiles_table->elems[key].vpid;
 }
@@ -125,7 +125,7 @@ static dague_data_t* twoDTD_data_of(dague_ddesc_t* ddesc, ...)
 
 static dague_data_t* twoDTD_data_of_key(dague_ddesc_t *ddesc, dague_data_key_t key)
 {
-    assert( key >= 0 && key < ((two_dim_tabular_t*)ddesc)->tiles_table->nbelem );
+    assert( key < (dague_data_key_t)(((two_dim_tabular_t*)ddesc)->tiles_table->nbelem) );
 
     return ((two_dim_tabular_t*)ddesc)->tiles_table->elems[key].tile;
 }
@@ -280,7 +280,7 @@ void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabu
         for(m = 0; m < Dst->super.lmt; m++) {
             p = ((n * Dst->super.lmt) + m);
             table->elems[p].rank = Src->tiles_table->elems[p].rank;
-            assert( table->elems[p].rank >= 0 && table->elems[p].rank < Dst->super.super.nodes );
+            assert( table->elems[p].rank < Dst->super.super.nodes );
 
             table->elems[p].vpid = Src->tiles_table->elems[p].vpid;
             assert( table->elems[p].vpid < nbvp );

@@ -5,15 +5,15 @@
  * Copyright (c) 2004-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2004-2006 High Performance Computing Center Stuttgart, 
+ * Copyright (c) 2004-2006 High Performance Computing Center Stuttgart,
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
  * Copyright (c) 2007      Cisco Systems, Inc.  All rights reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  */
 
@@ -46,13 +46,13 @@
  *   OBJ_CLASS_DECLARATION(sally_t);
  * @endcode
  * All classes must have a parent which is also class.
- * 
+ *
  * In an implementation (.c) file, instantiate a class descriptor for
  * the class like this:
  * @code
  *   OBJ_CLASS_INSTANCE(sally_t, parent_t, sally_construct, sally_destruct);
  * @endcode
- * This macro actually expands to 
+ * This macro actually expands to
  * @code
  *   dague_class_t sally_t_class = {
  *     "sally_t",
@@ -238,7 +238,7 @@ struct dague_object_t {
  * constructor.
  *
  * @param type          Type (class) of the object
- * @return              Pointer to the object 
+ * @return              Pointer to the object
  */
 static inline dague_object_t *dague_obj_new(dague_class_t * cls);
 #if defined(DAGUE_DEBUG_ENABLE)
@@ -455,7 +455,7 @@ static inline void dague_obj_run_destructors(dague_object_t * object)
  *
  * @param size          Size of the object
  * @param cls           Pointer to the class descriptor of this object
- * @return              Pointer to the object 
+ * @return              Pointer to the object
  */
 static inline dague_object_t *dague_obj_new(dague_class_t * cls)
 {
@@ -494,4 +494,3 @@ static inline int dague_obj_update(dague_object_t *object, int inc)
 END_C_DECLS
 
 #endif
-

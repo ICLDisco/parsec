@@ -144,7 +144,7 @@ static dague_execution_context_t *sched_lhq_select( dague_execution_unit_t *eu_c
         if( NULL != exec_context ) {
             DEBUG3(("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
                     eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]));
-                        PINS(SELECT_END, eu_context, exec_context, (void *)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num);
+            PINS(SELECT_END, eu_context, exec_context, (void *)((uintptr_t)LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num));
             return exec_context;
         }
     }
@@ -154,7 +154,7 @@ static dague_execution_context_t *sched_lhq_select( dague_execution_unit_t *eu_c
         DEBUG3(("LQ\t: %d:%d found task %p in its system queue %p\n",
                 eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue));
     }
-        PINS(SELECT_END, eu_context, exec_context, (void *)SYSTEM_NEIGHBOR);
+    PINS(SELECT_END, eu_context, exec_context, (void *)((uintptr_t)SYSTEM_NEIGHBOR) );
     return exec_context;
 }
 
