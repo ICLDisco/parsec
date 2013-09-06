@@ -36,10 +36,8 @@ static uint32_t twoDTD_rank_of(dague_ddesc_t * desc, ...)
     int m, n, res;
     va_list ap;
     two_dim_tabular_t   * Ddesc;
-    tiled_matrix_desc_t * tdesc;
 
     Ddesc = (two_dim_tabular_t*)desc;
-    tdesc = (tiled_matrix_desc_t*)desc;
 
     va_start(ap, desc);
     m = va_arg(ap, int);
@@ -61,10 +59,8 @@ static int32_t twoDTD_vpid_of(dague_ddesc_t *desc, ...)
     int m, n, res;
     va_list ap;
     two_dim_tabular_t   * Ddesc;
-    tiled_matrix_desc_t * tdesc;
 
     Ddesc = (two_dim_tabular_t*)desc;
-    tdesc = (tiled_matrix_desc_t*)desc;
 
     va_start(ap, desc);
     m = va_arg(ap, int);
@@ -89,10 +85,8 @@ static void *twoDTD_data_of(dague_ddesc_t * desc, ...)
     int m, n, res;
     va_list ap;
     two_dim_tabular_t   * Ddesc;
-    tiled_matrix_desc_t * tdesc;
 
     Ddesc = (two_dim_tabular_t*)desc;
-    tdesc = (tiled_matrix_desc_t*)desc;
 
     va_start(ap, desc);
     m = va_arg(ap, int);
@@ -219,7 +213,7 @@ void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabu
         for(m = 0; m < Dst->super.lmt; m++) {
             p = ((n * Dst->super.lmt) + m);
             table->elems[p].rank = Src->tiles_table->elems[p].rank;
-            assert( table->elems[p].rank >= 0 && table->elems[p].rank < Dst->super.super.nodes );
+            assert( table->elems[p].rank < Dst->super.super.nodes );
 
             table->elems[p].vpid = Src->tiles_table->elems[p].vpid;
             assert( table->elems[p].vpid < nbvp );
