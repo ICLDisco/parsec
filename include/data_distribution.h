@@ -26,6 +26,8 @@
 
 #include "moesi.h"
 
+BEGIN_C_DECLS
+
 typedef struct dague_ddesc {
     uint32_t myrank;  /**< process rank */
     uint32_t cores;   /**< number of cores used for computation per node */
@@ -77,6 +79,8 @@ static inline void dague_ddesc_destroy(dague_ddesc_t *d)
 #else
 #define dague_ddesc_set_key(d, k) do {} while(0)
 #endif
+
+END_C_DECLS
 
 #endif /* _DATA_DISTRIBUTION_H_ */
 

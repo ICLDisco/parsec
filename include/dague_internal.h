@@ -248,7 +248,7 @@ struct dague_minimal_execution_context_t {
     dague_profile_ddesc_info_t prof_info;
 #endif /* defined(DAGUE_PROF_TRACE) */
     assignment_t            locals[MAX_LOCAL_COUNT];
-} dague_minimal_execution_context_t;
+};
 
 struct dague_execution_context_t {
     DAGUE_MINIMAL_EXECUTION_CONTEXT

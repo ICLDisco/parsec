@@ -18,6 +18,8 @@ typedef struct dague_datatype dague_datatype_t;
 
 struct dague_object;
 
+BEGIN_C_DECLS
+
 /**
  * Assignments
  */
@@ -124,5 +126,7 @@ static inline int dague_symbol_is_global( const symbol_t* symbol )
 {
     return (symbol->flags & DAGUE_SYMBOL_IS_GLOBAL ? 1 : 0);
 }
+
+END_C_DECLS
 
 #endif  /* DAGUE_DESCRIPTION_STRUCTURES_H_HAS_BEEN_INCLUDED */
