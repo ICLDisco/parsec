@@ -136,11 +136,11 @@ dplasma_zlange_Destruct( dague_handle_t *o )
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 
     dague_data_free( Wcol->mat );
-    dague_ddesc_destroy( (dague_ddesc_t*)Wcol );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)Wcol );
     free( Wcol );
 
     dague_data_free( Welt->mat );
-    dague_ddesc_destroy( (dague_ddesc_t*)Welt );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)Welt );
     free( Welt );
 }
 
