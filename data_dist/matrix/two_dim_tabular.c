@@ -27,17 +27,12 @@
 #include "dague.h"
 #include "data.h"
 
-static uint32_t         twoDTD_rank_of(dague_ddesc_t* ddesc, ...);
-static uint32_t         twoDTD_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
-static int32_t          twoDTD_vpid_of(dague_ddesc_t* ddesc, ...);
-static int32_t          twoDTD_vpid_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
-static dague_data_t*    twoDTD_data_of(dague_ddesc_t* ddesc, ...);
-static dague_data_t*    twoDTD_data_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
-static dague_data_key_t twoDTD_data_key(dague_ddesc_t *desc, ...);
-
-#if defined(DAGUE_PROF_TRACE)
-static int twoDTD_key_to_string(dague_ddesc_t * desc, dague_data_key_t datakey, char * buffer, uint32_t buffer_size);
-#endif
+static uint32_t      twoDTD_rank_of(    dague_ddesc_t* ddesc, ... );
+static uint32_t      twoDTD_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static int32_t       twoDTD_vpid_of(    dague_ddesc_t* ddesc, ... );
+static int32_t       twoDTD_vpid_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static dague_data_t* twoDTD_data_of(    dague_ddesc_t* ddesc, ... );
+static dague_data_t* twoDTD_data_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
 
 /*
  * Tiles are stored in column major order
@@ -106,6 +101,7 @@ static dague_data_t* twoDTD_data_of(dague_ddesc_t* ddesc, ...)
     int m, n, res;
     va_list ap;
     two_dim_tabular_t * Ddesc;
+    two_dim_td_table_elem_t *elem;
     Ddesc = (two_dim_tabular_t *)ddesc;
 
     va_start(ap, ddesc);
@@ -119,48 +115,21 @@ static dague_data_t* twoDTD_data_of(dague_ddesc_t* ddesc, ...)
 
     res = (Ddesc->super.lmt * n) + m;
     assert( res >= 0 && res < Ddesc->tiles_table->nbelem );
+    elem = &(Ddesc->tiles_table->elems[res]);
+    assert(elem->pos >= 0);
 
-    return Ddesc->tiles_table->elems[res].tile;
+    return dague_matrix_create_data( &Ddesc->super, elem->data, elem->pos, res );
 }
 
 static dague_data_t* twoDTD_data_of_key(dague_ddesc_t *ddesc, dague_data_key_t key)
 {
-    assert( key < (dague_data_key_t)(((two_dim_tabular_t*)ddesc)->tiles_table->nbelem) );
+    two_dim_tabular_t       *tddesc = (two_dim_tabular_t*)ddesc;
+    two_dim_td_table_elem_t *elem;
+    assert( key < (dague_data_key_t)( tddesc->tiles_table->nbelem ) );
 
-    return ((two_dim_tabular_t*)ddesc)->tiles_table->elems[key].tile;
+    elem = &(tddesc->tiles_table->elems[key]);
+    return dague_matrix_create_data( &tddesc->super, elem->data, elem->pos, key );
 }
-
-static dague_data_key_t twoDTD_data_key(dague_ddesc_t *ddesc, ...)
-{
-    int m, n;
-    two_dim_tabular_t * Ddesc;
-    va_list ap;
-    Ddesc = (two_dim_tabular_t *)ddesc;
-    va_start(ap, ddesc);
-    m = va_arg(ap, unsigned int);
-    n = va_arg(ap, unsigned int);
-    va_end(ap);
-
-    return ((n * Ddesc->super.lmt) + m);
-}
-
-#ifdef DAGUE_PROF_TRACE
-static int twoDTD_key_to_string(dague_ddesc_t *ddesc, dague_data_key_t datakey, char * buffer, uint32_t buffer_size)
-{
-    two_dim_tabular_t * Ddesc;
-    unsigned int row, column;
-    int res;
-    Ddesc = (two_dim_tabular_t *)ddesc;
-    column = datakey / Ddesc->super.lmt;
-    row = datakey % Ddesc->super.lmt;
-    res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
-    if (res < 0)
-        {
-            printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
-        }
-    return res;
-}
-#endif /* DAGUE_PROF_TRACE */
 
 void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
                           enum matrix_type mtype,
@@ -179,22 +148,36 @@ void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
     Ddesc->tiles_table = NULL;
     Ddesc->super.nb_local_tiles = 0;
 
+    Ddesc->super.super.rank_of     = twoDTD_rank_of;
+    Ddesc->super.super.rank_of_key = twoDTD_rank_of_key;
+    Ddesc->super.super.vpid_of     = twoDTD_vpid_of;
+    Ddesc->super.super.vpid_of_key = twoDTD_vpid_of_key;
+    Ddesc->super.super.data_of     = twoDTD_data_of;
+    Ddesc->super.super.data_of_key = twoDTD_data_of_key;
+
     if( NULL != table ) {
         two_dim_tabular_set_table( Ddesc, table );
     }
-    Ddesc->super.super.rank_of  = twoDTD_rank_of;
-    Ddesc->super.super.rank_of_key = twoDTD_rank_of_key;
-    Ddesc->super.super.vpid_of  = twoDTD_vpid_of;
-    Ddesc->super.super.vpid_of_key = twoDTD_vpid_of_key;
-    Ddesc->super.super.data_of  = twoDTD_data_of;
-    Ddesc->super.super.data_of_key = twoDTD_data_of_key;
-    Ddesc->super.super.data_key = twoDTD_data_key;
+}
 
-#ifdef DAGUE_PROF_TRACE
-    Ddesc->super.super.key_to_string = twoDTD_key_to_string;
-    Ddesc->super.super.key = NULL;
-    asprintf(&Ddesc->super.super.key_dim, "(%d, %d)", Ddesc->super.mt, Ddesc->super.nt);
-#endif /* DAGUE_PROF_TRACE */
+void two_dim_tabular_destroy(two_dim_tabular_t *tddesc)
+{
+    two_dim_td_table_elem_t *elem;
+    two_dim_td_table_t *table = tddesc->tiles_table;
+    int i;
+
+    for(i = 0, elem = &(table->elems[0]);
+        i < table->nbelem;
+        i++, elem++)
+    {
+        if( elem->data != NULL ) {
+            dague_data_free(elem->data);
+            elem->data = NULL;
+        }
+    }
+    free(tddesc->tiles_table);
+
+    tiled_matrix_desc_destroy( &(tddesc->super) );
 }
 
 void two_dim_tabular_set_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *table)
@@ -202,13 +185,26 @@ void two_dim_tabular_set_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *tab
     int i;
     assert( Ddesc->tiles_table == NULL );
     assert( table != NULL );
+    assert( table->nbelem == Ddesc->super.lmt * Ddesc->super.lnt );
 
     Ddesc->tiles_table = table;
     Ddesc->super.nb_local_tiles = 0;
     for(i = 0; i < table->nbelem; i++) {
         if( table->elems[i].rank == Ddesc->super.super.myrank )
+        {
+            table->elems[i].pos  = Ddesc->super.nb_local_tiles;
+            table->elems[i].data = dague_data_allocate( (size_t)Ddesc->super.bsiz *
+                                                        (size_t)dague_datadist_getsizeoftype(Ddesc->super.mtype) );
             Ddesc->super.nb_local_tiles++;
+        }
+        else {
+            table->elems[i].pos  = -1;
+            table->elems[i].vpid = -1;
+            table->elems[i].data = NULL;
+        }
     }
+
+    Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
 }
 
 void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc,
@@ -219,7 +215,6 @@ void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc,
     uint32_t nbtiles;
     two_dim_td_table_t *table;
     int m, n, p;
-    dague_data_copy_t* dcopy;
 
     nbtiles = Ddesc->super.lmt * Ddesc->super.lnt;
 
@@ -235,15 +230,9 @@ void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc,
         for(m = 0; m < Ddesc->super.lmt; m++) {
             p = ((n * Ddesc->super.lmt) + m);
             table->elems[p].rank = (int)floor(((double)Ddesc->super.super.nodes * (double)rand_r(&rankseed)) / (double)RAND_MAX);
+
             if( table->elems[p].rank == Ddesc->super.super.myrank ) {
                 table->elems[p].vpid = (int)floor(((double)nbvp * (double)rand_r(&vpseed)) / (double)RAND_MAX);
-                table->elems[p].tile = dague_data_new();
-                dcopy = dague_data_copy_new(table->elems[p].tile, 0);
-                dcopy->device_private = dague_data_allocate( (size_t)Ddesc->super.bsiz *
-                                                             (size_t)dague_datadist_getsizeoftype(Ddesc->super.mtype) );
-            } else {
-                table->elems[p].vpid = -1;
-                table->elems[p].tile = NULL;
             }
         }
     }
@@ -253,11 +242,8 @@ void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc,
 
 void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabular_t *Dst)
 {
-    int nbvp;
-    uint32_t nbtiles;
+    size_t tablesize;
     two_dim_td_table_t *table;
-    int m, n, p;
-    dague_data_copy_t* dcopy;
 
     /* Safety check: check that we can indeed clone the structure */
     assert( Src->super.lmt == Dst->super.lmt );
@@ -269,49 +255,11 @@ void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabu
 
     assert( Src->super.super.nodes == Dst->super.super.nodes );
 
-    nbtiles = Dst->super.lmt * Dst->super.lnt;
+    tablesize = (Dst->super.lmt * Dst->super.lnt - 1) * sizeof(two_dim_td_table_elem_t)
+        + sizeof(two_dim_td_table_t);
 
-    table = (two_dim_td_table_t*)malloc( sizeof(two_dim_td_table_t) + (nbtiles-1)*sizeof(two_dim_td_table_elem_t) );
-    table->nbelem = nbtiles;
-
-    nbvp = vpmap_get_nb_vp();
-
-    for(n = 0; n < Dst->super.lnt; n++) {
-        for(m = 0; m < Dst->super.lmt; m++) {
-            p = ((n * Dst->super.lmt) + m);
-            table->elems[p].rank = Src->tiles_table->elems[p].rank;
-            assert( table->elems[p].rank < Dst->super.super.nodes );
-
-            table->elems[p].vpid = Src->tiles_table->elems[p].vpid;
-            assert( table->elems[p].vpid < nbvp );
-
-            if( table->elems[p].rank == Src->super.super.myrank ) {
-                table->elems[p].tile = dague_data_new();
-                dcopy = dague_data_copy_new(table->elems[p].tile, 0);
-                dcopy->device_private = dague_data_allocate( (size_t)Dst->super.bsiz *
-                                                             (size_t)dague_datadist_getsizeoftype(Dst->super.mtype) );
-            } else {
-                table->elems[p].tile = NULL;
-            }
-        }
-    }
+    table = (two_dim_td_table_t*)malloc( tablesize );
+    memcpy( table, Src->tiles_table, tablesize );
 
     two_dim_tabular_set_table(Dst, table);
-}
-
-void two_dim_tabular_free_table(two_dim_td_table_t *table)
-{
-    int i;
-    dague_data_copy_t* dcopy;
-
-    for(i = 0; i < table->nbelem; i++) {
-        if( NULL != table->elems[i].tile ) {
-            dcopy = dague_data_get_copy(table->elems[i].tile, 0);
-            dague_data_free(dcopy->device_private);
-            dague_data_copy_release(dcopy);
-            dague_data_delete(table->elems[i].tile);
-            table->elems[i].tile = NULL;
-        }
-    }
-    free(table);
 }

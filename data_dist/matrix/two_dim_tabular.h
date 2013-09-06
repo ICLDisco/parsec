@@ -24,7 +24,8 @@ struct dague_data_s;
 typedef struct two_dim_td_table_elem_s {
     uint32_t             rank;
     int32_t              vpid;
-    struct dague_data_s *tile;
+    int32_t              pos;
+    void                *data;
 } two_dim_td_table_elem_t;
 
 typedef struct two_dim_td_table_s {
@@ -66,10 +67,10 @@ void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
                           unsigned int m, unsigned int n,
                           two_dim_td_table_t *table );
 
+void two_dim_tabular_destroy(two_dim_tabular_t *tddesc);
 void two_dim_tabular_set_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *table);
 void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc, unsigned int seed);
 void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabular_t *Dst);
 
-void two_dim_tabular_free_table(two_dim_td_table_t *table);
 
 #endif /* __TWODTD_H__ */
