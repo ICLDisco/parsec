@@ -11,10 +11,6 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_tabular.h"
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
-#include "dplasma/cores/cuda_stsmqr.h"
-#endif
-
 static int check_orthogonality(dague_context_t *dague, int loud,
                                tiled_matrix_desc_t *Q);
 static int check_factorization(dague_context_t *dague, int loud,
@@ -39,22 +35,21 @@ int main(int argc, char ** argv)
     iparam[IPARAM_SMB] = 2;
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
-    iparam[IPARAM_NGPUS] = 0;
-#endif
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
     PASTE_CODE_FLOPS(FLOPS_ZGEQRF, ((DagDouble_t)M, (DagDouble_t)N));
 
-    if( check ) {
-        fprintf(stderr, "Warning: Checking is disabled at this time for random tabular distributions. Ignoring -x flag.\n");
-        check = 0;
-    }
-
     seed = getpid();
 #if defined(HAVE_MPI)
+#if defined(DAGUE_DIST_COLLECTIVES)
+    if ( nodes > 1 ) {
+        fprintf(stderr, "Disable DAGUE_DIST_COLLECTIVES to run testing_zgeqrf_rd on multiple nodes\n");
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    }
+#endif /* defined(DAGUE_DIST_COLLECTIVES) */
+
     /* If we are in a distributed run, broadcast the seed of rank 0 */
     MPI_Bcast(&seed, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif  /* defined(HAVE_MPI) */
@@ -94,20 +89,6 @@ int main(int argc, char ** argv)
         two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
-
-    /* load the GPU kernel */
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
-    if(iparam[IPARAM_NGPUS] > 0)
-    {
-        if(loud > 3) printf("+++ Load GPU kernel ... ");
-        if(0 != stsmqr_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT))
-        {
-            printf("XXX Unable to load GPU kernel.\n");
-            exit(3);
-        }
-        if(loud > 3) printf("Done\n");
-    }
-#endif
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
@@ -158,21 +139,16 @@ int main(int argc, char ** argv)
 
         dague_data_free(ddescA0.mat);
         dague_data_free(ddescQ.mat);
+        dague_data_free(ddescB.mat);
+        dague_data_free(ddescX.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescQ);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescX);
     }
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
-    if(iparam[IPARAM_NGPUS] > 0)
-    {
-        stsmqr_cuda_fini(dague);
-    }
-#endif
-
-    two_dim_tabular_free_table(ddescA.tiles_table);
-    two_dim_tabular_free_table(ddescT.tiles_table);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT);
+    two_dim_tabular_destroy( &ddescA );
+    two_dim_tabular_destroy( &ddescT );
 
     cleanup_dague(dague, iparam);
 
@@ -238,9 +214,13 @@ static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_de
  * Check the orthogonality of Q
  */
 
-static int check_factorization(dague_context_t *dague, int loud, tiled_matrix_desc_t *Aorig, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Q)
+static int
+check_factorization(dague_context_t *dague, int loud,
+                    tiled_matrix_desc_t *Aorig,
+                    tiled_matrix_desc_t *A,
+                    tiled_matrix_desc_t *Q)
 {
-    two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
+    two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)Aorig;
     double Anorm, Rnorm;
     double result;
     double eps = LAPACKE_dlamch_work('e');
