@@ -171,45 +171,6 @@ static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     return vpid;
 }
 
-#ifdef DAGUE_PROF_TRACE
-/* return a unique key (unique only for the specified dague_ddesc_t) associated to a data */
-static uint32_t sym_twoDBC_data_key(dague_ddesc_t *desc, ...)
-{
-    unsigned int m, n;
-    sym_two_dim_block_cyclic_t * Ddesc;
-    va_list ap;
-    Ddesc = (sym_two_dim_block_cyclic_t *)desc;
-
-    /* Get coordinates */
-    va_start(ap, desc);
-    m = va_arg(ap, unsigned int);
-    n = va_arg(ap, unsigned int);
-    va_end(ap);
-
-    /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
-    n += Ddesc->super.j / Ddesc->super.nb;
-
-    return ((n * Ddesc->super.lmt) + m);
-}
-
-/* return a string meaningful for profiling about data */
-static int  sym_twoDBC_key_to_string(dague_ddesc_t *desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
-{
-    sym_two_dim_block_cyclic_t * Ddesc;
-    unsigned int row, column;
-    int res;
-    Ddesc = (sym_two_dim_block_cyclic_t *)desc;
-    column = datakey / Ddesc->super.lmt;
-    row = datakey % Ddesc->super.lmt;
-    res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
-    if (res < 0) {
-        printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
-    }
-    return res;
-}
-#endif /* DAGUE_PROF_TRACE */
-
 void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
                                    enum matrix_type mtype,
                                    int nodes, int myrank,
@@ -223,17 +184,13 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     int Q;
     /* Initialize the tiled_matrix descriptor */
     dague_ddesc_t *o = &(Ddesc->super.super);
-    o->rank_of       = sym_twoDBC_rank_of;
-    o->vpid_of       = sym_twoDBC_vpid_of;
-    o->data_of       = sym_twoDBC_data_of;
-#if defined(DAGUE_PROF_TRACE)
-    o->data_key      = sym_twoDBC_data_key;
-    o->key_to_string = sym_twoDBC_key_to_string;
-    o->key_dim       = NULL;
-    o->key_base      = NULL;
-#endif
+    o->rank_of = sym_twoDBC_rank_of;
+    o->vpid_of = sym_twoDBC_vpid_of;
+    o->data_of = sym_twoDBC_data_of;
+
     o->register_memory   = sym_twoDBC_memory_register;
     o->unregister_memory = sym_twoDBC_memory_unregister;
+
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
                             sym_two_dim_block_cyclic_type,
                             nodes, myrank,

@@ -38,12 +38,6 @@ static int32_t twoDBC_st_vpid_of(dague_ddesc_t* ddesc, ...);
 static dague_data_t* twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
 #endif
 
-static dague_data_key_t twoDBC_data_key(dague_ddesc_t *desc, ...);
-
-#if defined(DAGUE_PROF_TRACE)
-static int  twoDBC_key_to_string(dague_ddesc_t * desc, dague_data_key_t datakey, char * buffer, uint32_t buffer_size);
-#endif
-
 static int twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
 {
     two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
@@ -72,14 +66,6 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 {
     int temp, Q;
     dague_ddesc_t *o = &(Ddesc->super.super);
-
-    o->data_key      = twoDBC_data_key;
-
-#if defined(DAGUE_PROF_TRACE)
-    o->key_to_string = twoDBC_key_to_string;
-    o->key_dim       = NULL;
-    o->key_base      = NULL;
-#endif
 
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type,
@@ -550,46 +536,6 @@ static dague_data_t* twoDBC_st_data_of(dague_ddesc_t *desc, ...)
 /*
  * Common functions
  */
-/* return a unique key (unique only for the specified dague_ddesc_t) associated to a data */
-static dague_data_key_t twoDBC_data_key(dague_ddesc_t *desc, ...)
-{
-    unsigned int m, n;
-    two_dim_block_cyclic_t * Ddesc;
-    va_list ap;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
-
-    /* Get coordinates */
-    va_start(ap, desc);
-    m = va_arg(ap, unsigned int);
-    n = va_arg(ap, unsigned int);
-    va_end(ap);
-
-    /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
-    n += Ddesc->super.j / Ddesc->super.nb;
-
-    return ((n * Ddesc->super.lmt) + m);
-}
-
-#ifdef DAGUE_PROF_TRACE
-/* return a string meaningful for profiling about data */
-static int twoDBC_key_to_string(dague_ddesc_t * desc, dague_data_key_t datakey, char * buffer, uint32_t buffer_size)
-{
-    two_dim_block_cyclic_t * Ddesc;
-    unsigned int row, column;
-    int res;
-
-    Ddesc = (two_dim_block_cyclic_t *)desc;
-    column = datakey / Ddesc->super.lmt;
-    row = datakey % Ddesc->super.lmt;
-    res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
-    if (res < 0)
-        {
-            printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
-        }
-    return res;
-}
-#endif /* DAGUE_PROF_TRACE */
 
 #ifdef HAVE_MPI
 int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
