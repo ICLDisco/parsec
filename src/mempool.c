@@ -38,6 +38,7 @@ void dague_mempool_construct( dague_mempool_t *mempool, size_t elt_size, size_t 
     mempool->pool_owner_offset = pool_offset;
     mempool->nb_max_elt = 0;
     mempool->thread_mempools = (dague_thread_mempool_t *)malloc(sizeof(dague_thread_mempool_t) * nbthreads);
+    memset( mempool->thread_mempools, 0, sizeof(dague_thread_mempool_t) * nbthreads );
 
     for(tid = 0; tid < mempool->nb_thread_mempools; tid++)
         dague_thread_mempool_construct(&mempool->thread_mempools[tid], mempool);
