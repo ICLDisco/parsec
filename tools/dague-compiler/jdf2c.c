@@ -3633,7 +3633,7 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
-                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+                                 dump_string, NULL, "", "  (void)", ";", "; (void)chunk; (void)entry;\n"));
             /* At a point, was :
     dinfo.sa = sa2;
     dinfo.sa_test = sa_test;

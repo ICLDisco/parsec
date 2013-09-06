@@ -68,21 +68,21 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
                         fprintf(tracefile, "               <KEY ID=\"%d\">\n", k);
                         displayed_key = 1;
                     }
-                    
-                    fprintf(tracefile, 
+
+                    fprintf(tracefile,
                             "                  <EVENT>\n"
                             "                     <ID>%"PRIu32":%"PRIu64"</ID>\n"
                             "                     <START>%"PRIu64"</START>\n"
                             "                     <END>%"PRIu64"</END>\n",
                             dbp_event_get_handle_id(e), dbp_event_get_event_id( e ),
                             start, end);
-                    
+
                     if( dbp_event_get_flags( e ) & DAGUE_PROFILING_EVENT_HAS_INFO ) {
                         /** TODO fprintf(tracefile, "       <INFO>%s</INFO>\n", infostr); */
-                    } 
+                    }
                     if( dbp_event_get_flags( g ) & DAGUE_PROFILING_EVENT_HAS_INFO ) {
                         /** TODO fprintf(tracefile, "       <INFO ATEND=\"true\">%s</INFO>\n", infostr); */
-                    } 
+                    }
                     fprintf(tracefile, "                  </EVENT>\n");
 
                     dbp_iterator_delete(m);
@@ -150,20 +150,20 @@ static int dump_xml( const char* filename, const dbp_multifile_reader_t *dbp )
         file = dbp_reader_get_file(dbp, ifd);
 
         fprintf(tracefile,
-                "      <NODE FILEID=\"%s\" RANK=\"%d\">\n", 
+                "      <NODE FILEID=\"%s\" RANK=\"%d\">\n",
                 dbp_file_hr_id(file),
                 dbp_file_get_rank(file));
-        
+
         fprintf(tracefile, "         <PROFILES>\n");
-        
+
         for(t = 0; t < dbp_file_nb_threads(file); t++) {
             dump_one_xml(tracefile, dbp, dbp_file_get_thread(file, t));
         }
-        fprintf(tracefile, 
+        fprintf(tracefile,
                 "         </PROFILES>\n"
                 "      </NODE>\n");
     }
-    fprintf(tracefile, 
+    fprintf(tracefile,
             "   </DISTRIBUTED_PROFILE>\n"
             "</PROFILING>\n");
     fclose(tracefile);
@@ -173,7 +173,6 @@ static int dump_xml( const char* filename, const dbp_multifile_reader_t *dbp )
 int main(int argc, char *argv[])
 {
     dbp_multifile_reader_t *dbp;
-    int i = 0;
 
     dbp = dbp_reader_open_files(argc-1, argv+1);
 

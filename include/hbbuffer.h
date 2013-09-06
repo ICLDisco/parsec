@@ -24,7 +24,7 @@ typedef struct dague_hbbuffer_s dague_hbbuffer_t;
  *   that will be ejected from the current buffer at push time.
  */
 
-/** 
+/**
  * parent push function: takes a pointer to the parent store object, and
  * a pointer to the element that is ejected out of this bounded buffer because
  * of a push. elt must be stored in the parent store (linked list, hbbuffer, or
@@ -35,7 +35,7 @@ typedef void (*dague_hbbuffer_parent_push_fct_t)(void *store, dague_list_item_t 
 struct dague_hbbuffer_s {
     size_t size;       /**< the size of the buffer, in number of void* */
     size_t ideal_fill; /**< hint on the number of elements that should be there to increase parallelism */
-	unsigned int assoc_core_num; // only exists for scheduler instrumentation
+    unsigned int assoc_core_num; // only exists for scheduler instrumentation
     void    *parent_store; /**< pointer to this buffer parent store */
     /** function to push element to the parent store */
     dague_hbbuffer_parent_push_fct_t parent_push_fct;
@@ -50,7 +50,7 @@ static inline dague_hbbuffer_t *dague_hbbuffer_new(size_t size,  size_t ideal_fi
     dague_hbbuffer_t *n = (dague_hbbuffer_t*)calloc(1, sizeof(dague_hbbuffer_t) + (size-1)*sizeof(dague_list_item_t*));
     n->size = size;
     n->ideal_fill = ideal_fill;
-	/** n->nbelt = 0; <not needed because callc */
+        /** n->nbelt = 0; <not needed because callc */
     n->parent_push_fct = parent_push_fct;
     n->parent_store = parent_store;
     DEBUG3(("HBB:\tCreated a new hierarchical buffer of %d elements\n", (int)size));
@@ -112,7 +112,7 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
     int best_index;
     dague_list_item_t *ejected = NULL;
 #define CTX(to) ((dague_execution_context_t*)(to))
-    
+
     /* Assume that we're going to push list.
      * Remove the first element from the list, keeping the rest of the list in topush
      * Don't move this line inside the loop: sometimes, multiple iterations of the loop with
@@ -160,8 +160,8 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
                         dague_snprintf_execution_context( tmp,  MAX_TASK_STRLEN, CTX(topush) ), b));
 
                 if( NULL != best_context ) {
-                    /* best_context is the lowest priority element, and it was removed from the 
-                     * list, which is arguably full. Keep it in the ejected list, preserving 
+                    /* best_context is the lowest priority element, and it was removed from the
+                     * list, which is arguably full. Keep it in the ejected list, preserving
                      * the priority ordering (reverse priority)
                      * Hopefully, best_context is already a singleton, because it was pushed by
                      * the same function
@@ -178,7 +178,7 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
                     }
                     ejected = (dague_list_item_t*)best_context;
                 }
-                
+
                 if( NULL == list )
                     break; /* We pushed everything */
 
@@ -216,7 +216,7 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
         DEBUG3(("HBB:\t Elements that overflow and are given to the parent are:\n"));
         it = ejected;
         do {
-            DEBUG3(("HBB:\tPush Parent %s\n", 
+            DEBUG3(("HBB:\tPush Parent %s\n",
                     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, CTX(it))));
             it = DAGUE_LIST_ITEM_NEXT(it);
         } while(it != ejected);
@@ -228,7 +228,7 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
 }
 
 /* This code is unsafe, since another thread may be inserting new elements.
- * Use is_empty in safe-checking only 
+ * Use is_empty in safe-checking only
  */
 static inline int dague_hbbuffer_is_empty(dague_hbbuffer_t *b)
 {
@@ -243,21 +243,21 @@ static inline int dague_hbbuffer_is_empty(dague_hbbuffer_t *b)
 /* real definition in maxheap.h */
 typedef struct dague_heap_hh {
     dague_list_item_t list_item;
-    unsigned int size;          
+    unsigned int size;
     unsigned int priority;
     dague_execution_context_t * top;
 } dague_heap_h;
 // TODO: this is a hack, but is necessary until someone decides to remove the incompatible print
 // statement from pop_best.
 
-static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b, 
+static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
                                                          off_t priority_offset)
 {
     unsigned int idx;
     dague_list_item_t *best_elt = NULL;
     int best_idx = -1;
     dague_list_item_t *candidate;
-    
+
     do {
         best_elt = NULL;
         best_idx = -1;
@@ -271,7 +271,7 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
                 best_idx  = idx;
             }
         }
-        
+
         if( NULL == best_elt)
             break;
 
@@ -283,15 +283,15 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
     if( best_elt != NULL ) {
         char tmp[MAX_TASK_STRLEN];
         if (priority_offset == offsetof(dague_heap_h, priority)) {
-	        DEBUG3(("HBB:\tFound best element %s in heap %p in local queue %p at position %d\n",
-	                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)((dague_heap_h*)best_elt)->top), best_elt,
-	                b, best_idx));
+                DEBUG3(("HBB:\tFound best element %s in heap %p in local queue %p at position %d\n",
+                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)((dague_heap_h*)best_elt)->top), best_elt,
+                        b, best_idx));
         }
         // TODO these print statements are the reason for the dague_heap_h hack above.
         else {
-	        DEBUG3(("HBB:\tFound best element %s in local queue %p at position %d\n",
-	                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)best_elt),
-	                b, best_idx));
+                DEBUG3(("HBB:\tFound best element %s in local queue %p at position %d\n",
+                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)best_elt),
+                        b, best_idx));
         }
     }
 #endif
