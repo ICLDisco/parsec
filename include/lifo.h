@@ -64,9 +64,9 @@ struct dague_lifo_s {
 #endif  /* !defined(DAGUE_LIFO_ALIGNMENT_DEFAULT) */
 
 #define DAGUE_LIFO_ALIGNMENT_BITS(LIFO)  ((LIFO)->alignment)
-#define DAGUE_LIFO_ALIGNMENT(LIFO)       ( ( (1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) < sizeof(void*) ) ? \
-                                           ( sizeof(void*) ) : \
-                                           ( 1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) )
+#define DAGUE_LIFO_ALIGNMENT(LIFO)       (( ( ((uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) < sizeof(void*) ) ? \
+                                            ( sizeof(void*) ) :         \
+                                            ( (uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) ))
 #define DAGUE_LIFO_CNTMASK(LIFO)         (DAGUE_LIFO_ALIGNMENT(LIFO)-1)
 #define DAGUE_LIFO_PTRMASK(LIFO)         (~(DAGUE_LIFO_CNTMASK(LIFO)))
 #define DAGUE_LIFO_CNT(LIFO, v)          ((uintptr_t)((uintptr_t)(v) & DAGUE_LIFO_CNTMASK(LIFO)))
