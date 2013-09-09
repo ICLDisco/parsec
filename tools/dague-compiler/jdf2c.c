@@ -470,46 +470,6 @@ static char *dump_dataflow(void **elem, void *arg)
 }
 
 /**
- * dump_dataflow_var_type:
- *  Takes the pointer to a jdf_flow,
- *  and print the type of the flow: R, W, M or P, for read, write, read/write and unknow.
- *  NULL if it is a CTL
- */
-static char *dump_dataflow_var_type(void **elem, void *arg)
-{
-    jdf_dataflow_t *fl = (jdf_dataflow_t*)elem;
-    (void)arg;
-
-    if ( fl->access_type == JDF_VAR_TYPE_CTL )
-        return NULL;
-
-    if ( fl->access_type == (JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE) )
-        return "M%p";
-    else if ( fl->access_type & JDF_VAR_TYPE_READ )
-        return "R%p";
-    else if ( fl->access_type & JDF_VAR_TYPE_WRITE )
-        return "W%p";
-    else
-        return "X%p";
-}
-
-/**
- * dump_dataflow_var_ptr:
- *  Takes the pointer to a jdf_flow,
- *  and return NULL if it is a CTL, the flow name otherwise
- */
-static char *dump_dataflow_var_ptr(void **elem, void *arg)
-{
-    jdf_dataflow_t *fl = (jdf_dataflow_t*)elem;
-    (void)arg;
-
-    if ( fl->access_type == JDF_VAR_TYPE_CTL )
-        return NULL;
-    else
-        return fl->varname;
-}
-
-/**
  * dump_data_declaration:
  *  Takes the pointer to a flow *f, let say that f->varname == "A",
  *  this produces a string like
@@ -1103,11 +1063,10 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#if defined(DAGUE_PROF_TRACE)\n"
             "static int %s_profiling_array[2*DAGUE_%s_NB_FUNCTIONS] = {-1};\n"
             "#endif  /* defined(DAGUE_PROF_TRACE) */\n"
+            "#if defined(DAGUE_PROF_GRAPHER)\n"
             "#include \"dague_prof_grapher.h\"\n"
-            "#include <mempool.h>\n"
-            "#if defined(DAGUE_PROF_PTR_FILE)\n"
-            "static FILE *pointers_file;\n"
-            "#endif /*defined(DAGUE_PROF_PTR_FILE) */\n",
+            "#endif  /* defined(DAGUE_PROF_GRAPHER) */\n"
+            "#include <mempool.h>\n",
             jdf_basename,
             jdf_basename, nbfunctions,
             jdf_basename, nbdata,
@@ -2641,11 +2600,6 @@ static void jdf_generate_destructor( const jdf_t *jdf )
         }
     }
 
-    coutput("  /* Open the file to store the pointers used during execution */\n"
-            "#if defined(DAGUE_PROF_PTR_FILE)\n"
-            "  fclose(pointers_file);\n"
-            "#endif /*defined(DAGUE_PROF_PTR_FILE)*/\n" );
-
     coutput("  for(i = 0; i < DAGUE_%s_NB_FUNCTIONS; i++) {\n"
             "    dague_destruct_dependencies( d->dependencies_array[i] );\n"
             "    d->dependencies_array[i] = NULL;\n"
@@ -2781,20 +2735,6 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "  __dague_object->super.super.object_destructor = (dague_destruct_object_fn_t)%s_destructor;\n"
             "  (void)dague_object_register((dague_object_t*)__dague_object);\n",
             jdf_basename, jdf_basename);
-
-    coutput("  /* Open the file to store the pointers used during execution */\n"
-            "#if defined(DAGUE_PROF_PTR_FILE)\n"
-            "{\n    int myrank = 0;\n"
-            "    char *filename;\n"
-            "#if defined(DISTRIBUTED) && defined(HAVE_MPI)\n"
-            "    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);\n"
-            "#endif /*defined(DISTRIBUTED) && defined(HAVE_MPI)*/\n"
-            "    asprintf(&filename, \"%%d-%s-%%d.txt\", __dague_object->super.super.object_id, myrank);\n"
-            "    pointers_file = fopen( filename, \"w\");\n"
-            "    free( filename );\n"
-            "}\n"
-            "#endif /*defined(DAGUE_PROF_PTR_FILE)*/\n",
-            jdf_basename );
 
     coutput("  return (dague_%s_object_t*)__dague_object;\n"
             "}\n\n",
@@ -3541,23 +3481,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
                 fl->varname);
     }
     coutput("#endif\n");
-
-    coutput("  /** Store pointer used in the function for antidependencies detection */\n"
-            "#if defined(DAGUE_PROF_PTR_FILE)\n"
-            "  if( NULL != pointers_file ) {\n"
-            "    char nmp[MAX_TASK_STRLEN];\n"
-            "    dague_prof_grapher_taskid(this_task, nmp, MAX_TASK_STRLEN);\n"
-            "    fprintf( pointers_file, \"%%s %s\\n\",\n"
-            "             nmp%s );\n"
-                "  }\n"
-            "#endif /*defined(DAGUE_PROF_PTR_FILE) */\n",
-            UTIL_DUMP_LIST( sa, f->dataflow, next,
-                            dump_dataflow_var_type, NULL,
-                            "", "", ",", "" ),
-            UTIL_DUMP_LIST( sa2, f->dataflow, next,
-                            dump_dataflow_var_ptr, NULL,
-                            "", ", ", "", "" )
-            );
 
     coutput("#if defined(DAGUE_SIM)\n"
             "  if( this_task->function->sim_cost_fct != NULL ) {\n"

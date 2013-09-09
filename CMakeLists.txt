@@ -138,8 +138,6 @@ option(DAGUE_PROF_STATS
   "Enable the generation of short statistics information during execution (microbenchmarking)" OFF)
 option(DAGUE_PROF_GRAPHER
   "Enable the generation of the dot graph representation during execution" OFF)
-option(DAGUE_PROF_PTR_FILE
-  "Enable the generation of the file to check anti dependencies" OFF)
 option(DAGUE_PROF_DRY_RUN
   "Disable calls to the actual bodies and do not move the data between nodes; unfold the dependencies only" OFF)
 option(DAGUE_PROF_DRY_BODY
