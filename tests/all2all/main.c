@@ -34,10 +34,10 @@ int main(int argc, char *argv[])
     repeat = 10;
 
     ddescA = create_and_distribute_data(rank, world, world*size);
-    dague_ddesc_set_key(ddescA, "A");
+    dague_ddesc_set_key( (dague_ddesc_t*)ddescA, "A");
     ddescB = create_and_distribute_data(rank, world, world*size);
-    dague_ddesc_set_key(ddescB, "B");
-     
+    dague_ddesc_set_key( (dague_ddesc_t*)ddescB, "B");
+
     a2a = a2a_new(ddescA, ddescB, size, repeat);
     dague_enqueue(dague, a2a);
 
@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 
 #ifdef HAVE_MPI
     MPI_Finalize();
-#endif    
-    
+#endif
+
     return 0;
 }
