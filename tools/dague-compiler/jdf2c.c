@@ -3412,15 +3412,15 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
             "  const __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)this_task->dague_object;\n"
             "  assignment_t tass[MAX_PARAM_COUNT];\n"
             "  (void)__dague_object; (void)tass; (void)context;\n"
-            "  dague_arena_chunk_t *chunk;\n"
-            "  data_repo_entry_t *entry;\n"
+            "  dague_arena_chunk_t *chunk = NULL;\n"
+            "  data_repo_entry_t *entry = NULL;\n"
             "%s",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST(sa, f->locals, next,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
-                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+                                 dump_string, NULL, "", "  (void)", ";", "; (void)chunk; (void)entry;\n"));
 
     dinfo.sa = sa2;
     dinfo.sa_test = sa_test;
