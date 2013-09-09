@@ -3349,7 +3349,9 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
 {
     (void)jdf;
 
-    coutput("  dague_prof_grapher_task(%s, context->th_id, context->virtual_process->vp_id, %s_hash(__dague_object, %s->locals));\n",
+    coutput("#if defined(DAGUE_PROF_GRAPHER)\n"
+            "  dague_prof_grapher_task(%s, context->th_id, context->virtual_process->vp_id, %s_hash(__dague_object, %s->locals));\n"
+            "#endif  /* defined(DAGUE_PROF_GRAPHER) */\n",
             context_name, f->fname, context_name);
 }
 
