@@ -1101,7 +1101,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#define DAGUE_%s_NB_FUNCTIONS %d\n"
             "#define DAGUE_%s_NB_DATA %d\n"
             "#if defined(DAGUE_PROF_TRACE)\n"
-            "int %s_profiling_array[2*DAGUE_%s_NB_FUNCTIONS] = {-1};\n"
+            "static int %s_profiling_array[2*DAGUE_%s_NB_FUNCTIONS] = {-1};\n"
             "#endif  /* defined(DAGUE_PROF_TRACE) */\n"
             "#include \"dague_prof_grapher.h\"\n"
             "#include <mempool.h>\n"
@@ -1113,7 +1113,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             jdf_basename, nbdata,
             jdf_basename, jdf_basename);
     coutput("typedef struct __dague_%s_internal_object {\n", jdf_basename);
-    coutput(" dague_%s_object_t super;\n",
+    coutput("  dague_%s_object_t super;\n",
             jdf_basename);
     coutput("  /* The list of data repositories */\n");
     {
@@ -1953,7 +1953,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting), nbdefinitions);
 
     coutput("%s  DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);\n"
-            "%s  DAGUE_LIST_ITEM_SINGLETON( new_dynamic_context );\n",
+            "%s  DAGUE_LIST_ITEM_SINGLETON(new_dynamic_context);\n",
             indent(nesting),
             indent(nesting));
     if( NULL != f->priority ) {
@@ -1966,9 +1966,10 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     {
         struct jdf_dataflow *dataflow = f->dataflow;
         for(idx = 0; NULL != dataflow; idx++, dataflow = dataflow->next ) {
-            coutput("    new_dynamic_context->data[%d].data_repo = NULL;\n"
-                    "    new_dynamic_context->data[%d].data      = NULL;\n",
-                    idx, idx);
+            coutput("%s  new_dynamic_context->data[%d].data_repo = NULL;\n"
+                    "%s  new_dynamic_context->data[%d].data      = NULL;\n",
+                    indent(nesting), idx,
+                    indent(nesting), idx);
         }
     }
 
@@ -2635,7 +2636,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
             if( 0 != function_has_data_output(f) )
-                coutput("   data_repo_destroy_nothreadsafe(__dague_object->%s_repository);\n",
+                coutput("  data_repo_destroy_nothreadsafe(__dague_object->%s_repository);\n",
                         f->fname);
         }
     }
@@ -2751,17 +2752,25 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     pi.sa = sa2;
     pi.idx = 0;
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, pi.maxidx);
-    coutput("  /* If profiling is enabled, the keys for profiling */\n"
-            "#  if defined(DAGUE_PROF_TRACE)\n"
-            "  __dague_object->super.super.profiling_array = %s_profiling_array;\n"
-            "  if( -1 == %s_profiling_array[0] ) {\n"
-            "%s"
-            "  }\n"
-            "#  endif /* defined(DAGUE_PROF_TRACE) */\n",
-            jdf_basename,
-            jdf_basename,
-            UTIL_DUMP_LIST( sa1, jdf->functions, next,
-                            dump_profiling_init, &pi, "", "    ", "\n", "\n"));
+    {
+        char* prof = UTIL_DUMP_LIST(sa1, jdf->functions, next,
+                                    dump_profiling_init, &pi, "", "    ", "\n", "\n");
+        coutput("  /* If profiling is enabled, the keys for profiling */\n"
+                "#  if defined(DAGUE_PROF_TRACE)\n");
+
+        if( strcmp(prof, "\n") ) {
+            coutput("  __dague_object->super.super.profiling_array = %s_profiling_array;\n"
+                    "  if( -1 == %s_profiling_array[0] ) {\n"
+                    "%s"
+                    "  }\n",
+                    jdf_basename,
+                    jdf_basename,
+                    prof);
+        } else {
+            coutput("  __dague_object->super.super.profiling_array = NULL;\n");
+        }
+        coutput("#  endif /* defined(DAGUE_PROF_TRACE) */\n");
+    }
 
     coutput("  /* Create the data repositories for this object */\n"
             "%s",
@@ -3443,7 +3452,6 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
     if( strlen( string_arena_get_string( sa_test ) ) != 0 )
         coutput(" complete_and_return:\n");
 
-    coutput("  /** Generate profiling information */\n");
     /* If the function has the property profile turned off do not generate the profiling code */
     if( jdf_property_get_int(f->properties, "profile", 1) ) {
         string_arena_t *sa3 = string_arena_new(64);
@@ -3453,15 +3461,18 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
         linfo.sa = sa2;
         linfo.assignments = "this_task->locals";
 
-        coutput( "#if defined(DAGUE_PROF_TRACE)\n"
-                 "  this_task->prof_info.desc = (dague_ddesc_t*)__dague_object->super.%s;\n"
-                 "  this_task->prof_info.id   = ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
-                 "#endif  /* defined(DAGUE_PROF_TRACE) */\n",
-                 f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
-                 UTIL_DUMP_LIST(sa3, f->predicate->parameters, next,
-                                dump_expr, (void*)&linfo,
-                                "", "", ", ", "") );
+        coutput("  /** Generate profiling information */\n"
+                "#if defined(DAGUE_PROF_TRACE)\n"
+                "  this_task->prof_info.desc = (dague_ddesc_t*)__dague_object->super.%s;\n"
+                "  this_task->prof_info.id   = ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
+                "#endif  /* defined(DAGUE_PROF_TRACE) */\n",
+                f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
+                UTIL_DUMP_LIST(sa3, f->predicate->parameters, next,
+                               dump_expr, (void*)&linfo,
+                               "", "", ", ", "") );
         string_arena_free(sa3);
+    } else {
+        coutput("  /** No profiling information */\n");
     }
 
     coutput("  return DAGUE_LOOKUP_DONE;\n"
