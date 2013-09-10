@@ -25,7 +25,7 @@ set(TESTS
   testing_zgetrf.c
   testing_zgetrf_incpiv.c
   testing_zgetrf_incpiv_sd.c
-  testing_zgetrf_nopiv.c
+#  testing_zgetrf_nopiv.c
   testing_zgesv_incpiv.c
   testing_zgeqrf.c
   testing_zgeqrf_systolic.c
