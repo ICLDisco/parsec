@@ -573,7 +573,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 
 #ifdef PINS_ENABLE
     char ** modules = delimited_string_to_strings(mca_pins_optarg, ',');
-    set_allowable_pins_modules((const char **)modules); // by calling this, we limit allowable modules
+    set_allowable_pins_modules((const char * const*)modules); // by calling this, we limit allowable modules
     free(modules);
 #endif /* PINS_ENABLE */
 
