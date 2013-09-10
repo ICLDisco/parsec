@@ -890,7 +890,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     }
 
     if( completed ) {
+#if defined(DAGUE_PROF_GRAPHER)
         dague_prof_grapher_dep(origin, exec_context, 1, origin_flow, dest_flow);
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
 
         DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
 
@@ -947,7 +949,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
         }
 
     } else { /* Service not ready */
+#if defined(DAGUE_PROF_GRAPHER)
         dague_prof_grapher_dep(origin, exec_context, 0, origin_flow, dest_flow);
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
 
         DEBUG2(("  => Service %s not yet ready\n",
                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context)));
