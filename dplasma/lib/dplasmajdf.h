@@ -25,7 +25,7 @@
 #ifndef HAVE_MPI
 #define TEMP_TYPE MPITYPE
 #undef MPITYPE
-#define MPITYPE ((dague_remote_dep_datatype_t)QUOTEME(TEMP_TYPE))
+#define MPITYPE ((dague_datatype_t)QUOTEME(TEMP_TYPE))
 #undef TEMP_TYPE
 #endif  /* HAVE_MPI */
 

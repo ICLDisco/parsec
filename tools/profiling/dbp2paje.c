@@ -577,7 +577,7 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
             }
         }
         fprintf(stderr, "-- Time jitter is bounded by %lu "TIMER_UNIT", average is %g "TIMER_UNIT"\n",
-                (long)diff_time(relative, max_time),
+                (unsigned long)diff_time(relative, max_time),
                 (double)delta_time / (double)dbp_reader_nb_files(dbp));
     }
 

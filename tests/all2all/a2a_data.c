@@ -9,18 +9,19 @@
 
 #include "a2a_data.h"
 #include "stdarg.h"
-#include <data_dist/matrix/matrix.h>
+#include <data_dist/matrix/two_dim_rectangle_cyclic.h>
 
 #include <assert.h>
 
 tiled_matrix_desc_t *create_and_distribute_data(int rank, int world, int size)
 {
-    tiled_matrix_desc_t *m = (tiled_matrix_desc_t*)malloc(sizeof(tiled_matrix_desc_t));
+    two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
     
-    tiled_matrix_desc_init(m, matrix_ComplexDouble, matrix_Tile,
-                           tiled_matrix_desc_type, world, 1, rank,
-                           size, 1, size, 1, rank, 1, world*size, 1);
-    return m;
+    two_dim_block_cyclic_init(m, matrix_ComplexDouble, matrix_Tile,
+                              world, 1, rank,
+                              size, 1, size, 1, rank, 1, world*size, 1,
+                              1, 1, world);
+    return (tiled_matrix_desc_t*)m;
 }
 
 void free_data(tiled_matrix_desc_t *d)

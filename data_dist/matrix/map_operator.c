@@ -60,7 +60,7 @@ static inline int minexpr_of_row_fct(const dague_object_t *__dague_object_parent
 }
 static const expr_t minexpr_of_row = {
     .op = EXPR_OP_INLINE,
-    .inline_func = minexpr_of_row_fct
+    .u_expr = { .inline_func_int32 = minexpr_of_row_fct }
 };
 static inline int maxexpr_of_row_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)
 {
@@ -72,7 +72,7 @@ static inline int maxexpr_of_row_fct(const dague_object_t *__dague_object_parent
 }
 static const expr_t maxexpr_of_row = {
     .op = EXPR_OP_INLINE,
-    .inline_func = maxexpr_of_row_fct
+    .u_expr = { .inline_func_int32 = maxexpr_of_row_fct }
 };
 static const symbol_t symb_row = {
     .min = &minexpr_of_row,
@@ -89,7 +89,7 @@ static inline int minexpr_of_column_fct(const dague_object_t *__dague_object_par
 
 static const expr_t minexpr_of_column = {
     .op = EXPR_OP_INLINE,
-    .inline_func = minexpr_of_column_fct
+    .u_expr = { .inline_func_int32 = minexpr_of_column_fct }
 };
 
 static inline int maxexpr_of_column_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)
@@ -102,7 +102,7 @@ static inline int maxexpr_of_column_fct(const dague_object_t *__dague_object_par
 }
 static const expr_t maxexpr_of_column = {
     .op = EXPR_OP_INLINE,
-    .inline_func = maxexpr_of_column_fct
+    .u_expr = { .inline_func_int32 = maxexpr_of_column_fct }
 };
 static const symbol_t symb_column = {
     .min = &minexpr_of_column,
@@ -123,7 +123,7 @@ static inline int pred_of_map_operator_all_as_expr_fct(const dague_object_t *__d
 }
 static const expr_t pred_of_map_operator_all_as_expr = {
     .op = EXPR_OP_INLINE,
-    .inline_func = pred_of_map_operator_all_as_expr_fct
+    .u_expr = { .inline_func_int32 = pred_of_map_operator_all_as_expr_fct }
 };
 
 static inline int
@@ -135,13 +135,13 @@ expr_of_p1_for_flow_of_map_operator_dep_in_fct(const dague_object_t *__dague_obj
 }
 static const expr_t expr_of_p1_for_flow_of_map_operator_dep_in = {
     .op = EXPR_OP_INLINE,
-    .inline_func = expr_of_p1_for_flow_of_map_operator_dep_in_fct
+    .u_expr = { .inline_func_int32 = expr_of_p1_for_flow_of_map_operator_dep_in_fct }
 };
 static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
-    .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
+    .datatype = { .type = { .cst = 0 }, .layout = NULL, .count = { .cst = 1 }, .displ = { .cst = 0 } },
     .call_params = {
         &expr_of_p1_for_flow_of_map_operator_dep_in
     }
@@ -156,13 +156,13 @@ expr_of_p1_for_flow_of_map_operator_dep_out_fct(const dague_object_t *__dague_ob
 }
 static const expr_t expr_of_p1_for_flow_of_map_operator_dep_out = {
     .op = EXPR_OP_INLINE,
-    .inline_func = expr_of_p1_for_flow_of_map_operator_dep_out_fct
+    .u_expr = { .inline_func_int32 = expr_of_p1_for_flow_of_map_operator_dep_out_fct }
 };
 static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
-    .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
+    .datatype = { .type = { .cst = 0 }, .layout = NULL, .count = { .cst = 1 }, .displ = { .cst = 0 } },
     .call_params = {
         &expr_of_p1_for_flow_of_map_operator_dep_out
     }
@@ -184,8 +184,7 @@ add_task_to_list(struct dague_execution_unit *eu_context,
                  int flow_index, int outdep_index,
                  int rank_src, int rank_dst,
                  int vpid_dst,
-                 dague_arena_t* arena,
-                 int nbelt,
+                 dague_dep_data_description_t* data,
                  void *_ready_lists)
 {
     dague_execution_context_t** pready_list = (dague_execution_context_t**)_ready_lists;
@@ -199,7 +198,7 @@ add_task_to_list(struct dague_execution_unit *eu_context,
                                                                                           (dague_list_item_t*)new_context,
                                                                                           dague_execution_context_priority_comparator );
 
-    (void)arena; (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst; (void)vpid_dst; (void)nbelt;
+    (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst; (void)vpid_dst; (void)data;
     return DAGUE_ITERATE_STOP;
 }
 
@@ -236,9 +235,9 @@ static void iterate_successors(dague_execution_unit_t *eu,
 
             ontask(eu, &nc, this_task, 0, 0,
                    __dague_object->super.src->super.myrank,
-                   __dague_object->super.src->super.myrank, 
+                   __dague_object->super.src->super.myrank,
                    vpid,
-                   NULL, -1, ontask_arg);
+                   NULL, ontask_arg);
             return;
         }
         /* Go to the next row ... atomically */
@@ -406,7 +405,7 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
                     ((dague_ddesc_t*)__dague_object->super.src)->rank_of((dague_ddesc_t*)__dague_object->super.src,
                                                                          k, n) )
                     continue;
-                
+
                 if( vpid != ((dague_ddesc_t*)__dague_object->super.src)->vpid_of((dague_ddesc_t*)__dague_object->super.src,
                                                                                  k, n) )
                     continue;
@@ -417,10 +416,10 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
                 fake_context.locals[1].value = n;
                 add_task_to_list(eu, &fake_context, NULL, 0, 0,
                                  __dague_object->super.src->super.myrank, -1,
-                                 0, NULL, -1, (void*)&ready_list);
+                                 0, NULL, (void*)&ready_list);
                 __dague_schedule( eu, ready_list );
                 count++;
-                if( count == context->virtual_processes[vpid]->nb_cores ) 
+                if( count == context->virtual_processes[vpid]->nb_cores )
                     goto done;
                 break;
             }

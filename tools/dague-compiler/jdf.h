@@ -167,12 +167,13 @@ typedef unsigned int jdf_dep_type_t;
 #define JDF_DEP_TYPE_OUT ((jdf_dep_type_t)(1<<1))
 
 typedef struct jdf_datatransfer_type {
-    int simple;               /**< true iff the datatype is simple (i.e. it is a datatype name) */
-    struct jdf_expr *nb_elt;  /**< number of elements of this datatype to transfer */
-    union {
-        struct jdf_expr *complex_expr;
-        char            *simple_name;
-    } u;
+    struct jdf_expr *type;    /**< the internal type of the data associated with the dependency */
+    struct jdf_expr *layout;  /**< the basic memory layout in case it is different from the type.
+                                *< InMPI case this must be an MPI datatype, working together with the
+                                *< displacement and the count. */
+    struct jdf_expr *count;   /**< number of elements of layout type to transfer */
+    struct jdf_expr *displ;   /**< displacement in number of bytes from the pointer associated with
+                                *< the dependency */
 } jdf_datatransfer_type_t;
 
 struct jdf_dep {
@@ -235,6 +236,7 @@ typedef enum { JDF_EQUAL,
 #define JDF_OP_IS_UNARY(op)    ( (op) == JDF_NOT )
 #define JDF_OP_IS_TERNARY(op)  ( (op) == JDF_TERNARY )
 #define JDF_OP_IS_CST(op)      ( (op) == JDF_CST )
+#define JDF_OP_IS_STRING(op)   ( (op) == JDF_STRING )
 #define JDF_OP_IS_VAR(op)      ( (op) == JDF_VAR )
 #define JDF_OP_IS_C_CODE(op)   ( (op) == JDF_C_CODE )
 #define JDF_OP_IS_BINARY(op)   ( !( JDF_OP_IS_UNARY(op) ||              \

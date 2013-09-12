@@ -620,7 +620,7 @@ dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
                     assert( dep->cond->op == EXPR_OP_INLINE );
-                    if( 0 == dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                    if( 0 == dep->cond->inline_func32(dague_object, exec_context->locals) ) {
                         /* Cannot use control gather magic with the USE_DEPS_MASK */
                         assert( NULL == dep->ctl_gather_nb );
                         continue;
@@ -638,7 +638,7 @@ dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
-                        if( 0 == dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                        if( 0 == dep->cond->inline_func32(dague_object, exec_context->locals) ) {
                             continue;
                         }
                     }
@@ -691,12 +691,12 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
                     assert( dep->cond->op == EXPR_OP_INLINE );
-                    if( dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                    if( dep->cond->inline_func32(dague_object, exec_context->locals) ) {
                         if( NULL == dep->ctl_gather_nb)
                             active++;
                         else {
                             assert( dep->ctl_gather_nb->op == EXPR_OP_INLINE );
-                            active += dep->ctl_gather_nb->inline_func(dague_object, exec_context->locals);
+                            active += dep->ctl_gather_nb->inline_func32(dague_object, exec_context->locals);
                         }
                     }
                 } else {
@@ -704,7 +704,7 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
                         active++;
                     else {
                         assert( dep->ctl_gather_nb->op == EXPR_OP_INLINE );
-                        active += dep->ctl_gather_nb->inline_func(dague_object, exec_context->locals);
+                        active += dep->ctl_gather_nb->inline_func32(dague_object, exec_context->locals);
                     }
                 }
             }
@@ -716,7 +716,7 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
-                        if( dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                        if( dep->cond->inline_func32(dague_object, exec_context->locals) ) {
                             active++;
                         }
                     } else {
@@ -970,8 +970,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                       int out_index, int outdep_index,
                       int src_rank, int dst_rank,
                       int dst_vpid,
-                      dague_arena_t* arena,
-                      int nbelt,
+                      dague_dep_data_description_t* data,
                       void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
@@ -987,16 +986,18 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
-            void* data = is_read_only(oldcontext, out_index, outdep_index);
-            if(NULL != data) {
+            void* dataptr = is_read_only(oldcontext, out_index, outdep_index);
+            if(NULL != dataptr) {
                 arg->deps->msg.which &= ~(1 << out_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
                 arg->deps->msg.which |= (1 << out_index); /* mark all data that are not RO */
-                data = is_inplace(oldcontext, out_index, outdep_index);  /* Can we do it inplace */
+                dataptr = is_inplace(oldcontext, out_index, outdep_index);  /* Can we do it inplace */
             }
-            arg->deps->output[out_index].data = data; /* if still NULL allocate it */
-            arg->deps->output[out_index].type = arena;
-            arg->deps->output[out_index].nbelt = nbelt;
+            arg->deps->output[out_index].data.arena  = data->arena;
+            arg->deps->output[out_index].data.ptr    = dataptr; /* if still NULL allocate it */
+            arg->deps->output[out_index].data.layout = data->layout;
+            arg->deps->output[out_index].data.count  = data->count;
+            arg->deps->output[out_index].data.displ  = data->displ;
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
@@ -1008,11 +1009,13 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
-                arg->remote_deps->output[out_index].type = arena;
-                arg->remote_deps->output[out_index].nbelt = nbelt;
-                arg->remote_deps->output[out_index].data = oldcontext->data[target->flow_index].data;
+                arg->remote_deps->output[out_index].data.arena  = data->arena;
+                arg->remote_deps->output[out_index].data.ptr    = oldcontext->data[target->flow_index].data;
+                arg->remote_deps->output[out_index].data.layout = data->layout;
+                arg->remote_deps->output[out_index].data.count  = data->count;
+                arg->remote_deps->output[out_index].data.displ  = data->displ;
                 arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
-                arg->remote_deps->output[out_index].count++;
+                arg->remote_deps->output[out_index].count_bits++;
                 arg->remote_deps_count++;
             } else {
                 /* The bit is already flipped. This means either that we reached the same peer
@@ -1029,7 +1032,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 #else
     (void)src_rank;
     (void)arena;
-    (void)nbelt;
+    (void)count;
 #endif
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
@@ -1585,12 +1588,12 @@ const dague_ddesc_t dague_static_local_data_ddesc = {
 #endif /* DAGUE_PROF_TRACE */
 };
 
-static int dague_expr_eval(const expr_t *expr, dague_execution_context_t *context)
+static int32_t dague_expr_eval32(const expr_t *expr, dague_execution_context_t *context)
 {
     dague_object_t *object = context->dague_object;
 
     assert( expr->op == EXPR_OP_INLINE );
-    return expr->inline_func(object, context->locals);
+    return expr->inline_func32(object, context->locals);
 }
 
 static int dague_debug_enumerate_next_in_execution_space(dague_execution_context_t *context,
@@ -1607,14 +1610,14 @@ static int dague_debug_enumerate_next_in_execution_space(dague_execution_context
             return 1;
     }
     cur = context->locals[ function->params[param_depth]->context_index ].value;
-    max = dague_expr_eval(function->params[param_depth]->max, context);
+    max = dague_expr_eval32(function->params[param_depth]->max, context);
     if( function->params[param_depth]->expr_inc == NULL ) {
         incr = function->params[param_depth]->cst_inc;
     } else {
-        incr = dague_expr_eval(function->params[param_depth]->expr_inc, context);
+        incr = dague_expr_eval32(function->params[param_depth]->expr_inc, context);
     }
     if( cur + incr > max ) {
-        min = dague_expr_eval(function->params[param_depth]->min, context);
+        min = dague_expr_eval32(function->params[param_depth]->min, context);
         context->locals[ function->params[param_depth]->context_index ].value = min;
         return 0;
     }
@@ -1655,14 +1658,14 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_object_t *objec
 
     /* Starting point of the context space enumeration */
     for( pi = 0; pi < function->nb_parameters; pi++) {
-        context.locals[function->params[pi]->context_index].value = dague_expr_eval(function->params[pi]->min,
-                                                                                    &context);
+        context.locals[function->params[pi]->context_index].value = dague_expr_eval32(function->params[pi]->min,
+                                                                                      &context);
     }
 
     do {
         char tmp[MAX_TASK_STRLEN];
         (*ntotal)++;
-        if( dague_expr_eval(function->pred, &context) ) {
+        if( dague_expr_eval32(function->pred, &context) ) {
             (*nlocal)++;
             dep = find_deps(object, &context);
             if( function->flags & DAGUE_USE_DEPS_MASK ) {

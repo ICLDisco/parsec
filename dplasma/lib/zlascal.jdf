@@ -25,7 +25,7 @@ extern "C" %{
 /*
  * Globals
  */
-type   [type = "PLASMA_enum"]
+uplo   [type = "PLASMA_enum"]
 alpha  [type = "dague_complex64_t"]
 dataA  [type = "dague_ddesc_t *"]
 descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
@@ -36,7 +36,7 @@ plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 LASCAL_L(m, n)  [profile = off]
 
 // Execution space
-m = 1 .. ((type == plasma_upper) ? 0 : descA.mt-1)
+m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
 n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
 
 // Parallel partitioning
@@ -70,7 +70,7 @@ LASCAL_U(m, n)  [profile = off]
 
 // Execution space
 m = 0   .. descA.mt-1
-n = m+1 .. ((type == plasma_lower) ? 0 : descA.nt-1)
+n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
 
 // Parallel partitioning
 : dataA(m, n)
@@ -120,7 +120,7 @@ BODY
 #if !defined(DAGUE_DRY_RUN)
     dague_complex64_t *lA = (dague_complex64_t*)A;
     int i;
-    switch ( type ) {
+    switch ( uplo ) {
     case PlasmaUpper:
         for(i=0; i<tempkn; i++) {
             cblas_zscal( dague_imin( i+1, tempkm ), CBLAS_SADDR(alpha), lA+i*ldak, 1 );
