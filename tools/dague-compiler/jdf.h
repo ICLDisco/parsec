@@ -106,6 +106,7 @@ typedef struct jdf_global_entry {
 typedef unsigned int jdf_flags_t;
 #define JDF_FUNCTION_FLAG_HIGH_PRIORITY   ((jdf_flags_t)(1 << 0))
 #define JDF_FUNCTION_FLAG_CAN_BE_STARTUP  ((jdf_flags_t)(1 << 1))
+#define JDF_FUNCTION_FLAG_NO_SUCCESSORS   ((jdf_flags_t)(1 << 2))
 
 typedef struct jdf_function_entry {
     struct jdf_object_t        super;

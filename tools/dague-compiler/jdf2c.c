@@ -2432,9 +2432,13 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     sprintf(prefix, "%s_%s", jdf_basename, f->fname);
     string_arena_add_string(sa, "  .incarnations = &__%s_chores,\n", prefix);
 
-    sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
-    jdf_generate_code_iterate_successors(jdf, f, prefix);
-    string_arena_add_string(sa, "  .iterate_successors = %s,\n", prefix);
+    if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
+        sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
+        jdf_generate_code_iterate_successors(jdf, f, prefix);
+        string_arena_add_string(sa, "  .iterate_successors = %s,\n", prefix);
+    } else {
+        string_arena_add_string(sa, "  .iterate_successors = NULL,\n");
+    }
 
     sprintf(prefix, "release_deps_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_release_deps(jdf, f, prefix);
@@ -3760,9 +3764,11 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  arg.remote_deps = NULL;\n"
             "#endif\n");
 
-    coutput("  iterate_successors_of_%s_%s(eu, context, action_mask, dague_release_dep_fct, &arg);\n"
-            "\n",
-            jdf_basename, f->fname);
+    if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
+        coutput("  iterate_successors_of_%s_%s(eu, context, action_mask, dague_release_dep_fct, &arg);\n"
+                "\n",
+                jdf_basename, f->fname);
+    }
 
     coutput("#if defined(DISTRIBUTED)\n"
             "  if( 0 == arg.remote_deps_count ) {\n"
@@ -4022,6 +4028,24 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     string_arena_free(sa2);
 
     return string_arena_get_string(sa_open);
+}
+
+/**
+ * If this function has no successors tag it as such. This will prevent us from
+ * generating useless code.
+ */
+static void jdf_check_successors( jdf_function_entry_t *f )
+{
+    jdf_dataflow_t *fl;
+    jdf_dep_t *dl;
+
+    for(fl = f->dataflow; fl != NULL; fl = fl->next) {
+        for(dl = fl->deps; dl != NULL; dl = dl->next) {
+            if( !(dl->type & JDF_DEP_TYPE_OUT) ) continue;
+            return;  /* we do have successors */
+        }
+    }
+    f->flags |= JDF_FUNCTION_FLAG_NO_SUCCESSORS;
 }
 
 static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
@@ -4340,6 +4364,8 @@ int jdf_optimize( jdf_t* jdf )
         if( high_priority ) {
             f->flags |= JDF_FUNCTION_FLAG_HIGH_PRIORITY;
         }
+        /* Check if the function has any successors */
+        jdf_check_successors(f);
 
         can_be_startup = 1;
         UTIL_DUMP_LIST(sa, f->dataflow, next, has_ready_input_dependency, &can_be_startup, NULL, NULL, NULL, NULL);
