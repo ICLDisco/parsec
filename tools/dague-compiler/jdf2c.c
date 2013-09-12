@@ -4042,7 +4042,12 @@ static void jdf_check_successors( jdf_function_entry_t *f )
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
             if( !(dl->type & JDF_DEP_TYPE_OUT) ) continue;
-            return;  /* we do have successors */
+
+            if( (NULL != dl->guard->calltrue->var) ||
+                ((JDF_GUARD_TERNARY == dl->guard->guard_type) &&
+                 (NULL != dl->guard->callfalse->var)) ) {
+                return;  /* we do have successors */
+            }
         }
     }
     f->flags |= JDF_FUNCTION_FLAG_NO_SUCCESSORS;
