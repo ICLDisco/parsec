@@ -1031,8 +1031,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
     }
 #else
     (void)src_rank;
-    (void)arena;
-    (void)count;
+    (void)data;
 #endif
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
