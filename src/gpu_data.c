@@ -386,6 +386,9 @@ int dague_gpu_init(dague_context_t *dague_context,
                                         {break;} );
             }
 #if defined(DAGUE_PROF_TRACE)
+	    exec_stream->profiling = dague_profiling_thread_init( 2*1024*1024, "GPU %d.%d ", i, j );
+#endif  /* defined(PROFILING) */
+#if defined(DAGUE_PROF_TRACE)
             exec_stream->prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC;
             exec_stream->prof_event_key_start    = -1;
             exec_stream->prof_event_key_end      = -1;
@@ -396,9 +399,6 @@ int dague_gpu_init(dague_context_t *dague_context,
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
                                 {free(gpu_device); gpu_enabled_devices[dindex] = NULL; continue;} );
 
-#if defined(DAGUE_PROF_TRACE)
-        gpu_device->profiling = dague_profiling_thread_init( 2*1024*1024, "GPU %d.0", i );
-#endif  /* defined(PROFILING) */
         dindex++;
     }
 
@@ -976,7 +976,7 @@ int progress_stream( gpu_device_t* gpu_device,
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
             DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable,
-                                     gpu_device->profiling,
+                                     exec_stream->profiling,
                                      (-1 == exec_stream->prof_event_key_end ? 
                                       DAGUE_PROF_FUNC_KEY_END(task->ec->dague_object,
                                                               task->ec->function->function_id) :
