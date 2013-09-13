@@ -434,16 +434,28 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
         if( KEY_IS_START( dbp_event_get_key(e) ) ) {
                 
             key = BASE_KEY(dbp_event_get_key(e));
-            nit = dbp_iterator_find_matching_event_all_threads(pit);
+
+	    if ( ! USERFLAGS.split_events_box_at_start ) {
+                const dbp_event_t *ref = dbp_iterator_current(pit);
+		nit = dbp_iterator_new_from_iterator(pit);
+		if ( !dbp_iterator_move_to_matching_event(nit, ref) ) {
+		    dbp_iterator_delete(nit);
+		    nit = NULL;
+		}
+            } else {
+                nit = dbp_iterator_find_matching_event_all_threads(pit);
+	    }
 
             if( NULL == nit ) {
-                /* Argh, couldn't find the end in this trace */
-                WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
-                         dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
-                         dbp_event_get_object_id(e), dbp_event_get_event_id(e),
-                         diff_time(relative, dbp_event_get_timestamp(e))));
-                
-                current_stat[ key ].nb_matcherror++;
+                if ( USERFLAGS.split_events_box_at_start ) {
+                    /* Argh, couldn't find the end in this trace */
+                    WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
+                             dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
+                             dbp_event_get_object_id(e), dbp_event_get_event_id(e),
+                             diff_time(relative, dbp_event_get_timestamp(e))));
+                    
+                    current_stat[ key ].nb_matcherror++;
+                }
             } else {
                 g = dbp_iterator_current(nit);
 
@@ -544,7 +556,7 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
     addContType ("CT_P", "CT_Appli", "Process");
     addContType ("CT_T", "CT_P", "Thread");
     addContType ("CT_S", "CT_T", "State");
-    addStateType ("ST_TS", "CT_S", "Thread State");
+    addStateType("ST_TS", "CT_S", "Thread State");
     addLinkType ("LT_TL", "Split Event Link", "CT_P", "CT_T", "CT_T");
 
     addEntityValue ("Wait", "ST_TS", "Waiting", GTG_LIGHTGREY);

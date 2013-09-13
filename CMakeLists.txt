@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 project (DAGUE C)
 enable_language(Fortran OPTIONAL)
+enable_language(CXX OPTIONAL)
 
 include(CMakeDependentOption)
 
