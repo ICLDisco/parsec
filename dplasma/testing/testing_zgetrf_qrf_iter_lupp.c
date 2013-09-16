@@ -93,7 +93,9 @@ int main(int argc, char ** argv)
                 fclose(f);
             }
         }
+#if defined(HAVE_MPI)
         MPI_Bcast(&lastindex, 1, MPI_INT, 0, MPI_COMM_WORLD);
+#endif
         index = 0;
 
         for(type_i = 0; type_i < (int)(sizeof(type_tab) / sizeof(int)); type_i++)
