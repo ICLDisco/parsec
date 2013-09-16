@@ -211,10 +211,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     else me = -1;
 
     for( i = 0; remote_deps_count; i++) {
-        if( 0 == remote_deps->output[i].count ) continue;
+        if( 0 == remote_deps->output[i].data.count ) continue;
 
         him = 0;
-        for( array_index = count = 0; count < remote_deps->output[i].count; array_index++ ) {
+        for( array_index = count = 0; count < remote_deps->output[i].data.count; array_index++ ) {
             current_mask = remote_deps->output[i].rank_bits[array_index];
             if( 0 == current_mask ) continue;  /* no bits here */
             for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
@@ -248,7 +248,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
                         if(ACCESS_NONE != exec_context->function->out[i]->access_type)
                         {
-                            AREF(remote_deps->output[i].data);
+                            AREF(remote_deps->output[i].data.ptr);
                         }
                         if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
                         {
@@ -268,12 +268,11 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
         }
     }
 
-    /* Only the thread doing bcast forward can enter the following line.
-     * the same communication thread calls here and does the 
-     * sends that call complete_and_cleanup concurently. 
-     * Any other threads would create a race condition.
-     * This has to be done only if the receiver is a leaf in a broadcast. 
-     * The remote_deps has then been allocated in dague_release_dep_fct 
+    /* Only the thread doing bcast forwarding can enter the following line.
+     * the same communication thread calls here and does the
+     * sends that call complete_and_cleanup concurently.
+     * This has to be done only if the receiver is a leaf in a broadcast.
+     * The remote_deps has then been allocated in dague_release_dep_fct
      * when we didn't knew yet if we forward the data or not.
      */
     if( skipped_count ) {

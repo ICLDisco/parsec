@@ -13,10 +13,12 @@ elif [ "x$USER" == "xherault" ]; then
 
 elif [ "x$USER" == "xbosilca" ]; then 
     HWLOC_DIR=/Users/bosilca/opt
+    GTG_DIR=${GTG_DIR:="${HOME}/opt"}
     PLASMA_DIR=${HOME}/opt/PLASMA/plasma-svn/
     OMEGA_DIR=${OMEGA_DIR:="/Users/bosilca/tools/Omega/binary"}
     USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_WITH_MPI=OFF -DDPLASMA_PRECISIONS='s;d'"
-#    USER_OPTIONS+="-DAYUDAME_DIR=/Users/bosilca/tools/temanejo-0.9.1"
+    AYUDAME_DIR=${AYUDAME_DIR:="/Users/bosilca/opt/temanejo"}
+#    USER_OPTIONS+=" -DAYUDAME_DIR=${AYUDAME_DIR}"
 
 elif [ "x$USER" == "xadanalis" ]; then 
     #OMEGA_DIR="/Users/adanalis/Desktop/Research/PLASMA_Distributed/Related_Stuff/Omega"

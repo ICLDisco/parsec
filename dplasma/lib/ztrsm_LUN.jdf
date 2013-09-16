@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
+ *  Copyright (c) 2010-2013
  *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
@@ -45,7 +45,7 @@ ztrsm(k,n)
   /* D == B((descB.mt-1)-k,n1) */
   /* E == B((descB.mt-1)-m,n1) */
 
-  READ  A <- A ztrsm_in_A0(k,n)
+  READ  A <- A ztrsm_in_A0(k)
 
   RW    B <- (0==k) ? B((descB.mt-1)-k,n)
           <- (k>=1) ? E zgemm(k-1, k, n)
@@ -76,14 +76,13 @@ END
 /*
  * Pseudo-task
  */
-ztrsm_in_A0(k,n) [profile = off]
+ztrsm_in_A0(k) [profile = off]
   k = 0..(descB.mt-1)
-  n = 0..(descB.nt-1)
 
   : A((descB.mt-1)-k,(descB.mt-1)-k)
 
   RW A <- A((descB.mt-1)-k,(descB.mt-1)-k)
-       -> A ztrsm(k,n)
+       -> A ztrsm(k,0..(descB.nt-1))
 BODY
 /* nothing */
 END
@@ -98,7 +97,7 @@ zgemm(k,m,n1)
 
   : B((descB.mt-1)-m,n1)
 
-  READ  C <- C zgemm_in_A0(k,m,n1)
+  READ  C <- C zgemm_in_A0(k,m)
 
   READ  D <- B ztrsm(k, n1)
   RW    E <- (k>=1) ? E zgemm(k-1, m, n1)
@@ -131,15 +130,14 @@ END
 /*
  * Pseudo-task
  */
-zgemm_in_A0(k,m,n1) [profile = off]
+zgemm_in_A0(k,m) [profile = off]
   k = 0..(descB.mt-2)
   m = (k+1)..(descB.mt-1)
-  n1 = 0..(descB.nt-1)
 
   : A((descB.mt-1)-m,(descB.mt-1)-k)
 
   RW C <- A((descB.mt-1)-m,(descB.mt-1)-k)
-       -> C zgemm(k,m,n1)
+       -> C zgemm(k,m,0..(descB.nt-1))
 BODY
 /* nothing */
 END

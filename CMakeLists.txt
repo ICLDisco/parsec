@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 project (DAGUE C)
-enable_language(CXX OPTIONAL)
 enable_language(Fortran OPTIONAL)
+enable_language(CXX OPTIONAL)
 
 include(CMakeDependentOption)
 
@@ -139,8 +139,6 @@ option(DAGUE_PROF_STATS
   "Enable the generation of short statistics information during execution (microbenchmarking)" OFF)
 option(DAGUE_PROF_GRAPHER
   "Enable the generation of the dot graph representation during execution" OFF)
-option(DAGUE_PROF_PTR_FILE
-  "Enable the generation of the file to check anti dependencies" OFF)
 option(DAGUE_PROF_DRY_RUN
   "Disable calls to the actual bodies and do not move the data between nodes; unfold the dependencies only" OFF)
 option(DAGUE_PROF_DRY_BODY
@@ -356,7 +354,6 @@ IF( BUILD_DAGUE )
   find_package(HWLOC)
   set(HAVE_HWLOC ${HWLOC_FOUND})
   if( HWLOC_FOUND )
-    list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
     include_directories( ${HWLOC_INCLUDE_DIRS} )
   endif (HWLOC_FOUND)
@@ -551,6 +548,7 @@ set(SRCS
   src/remote_dep.c 
   src/debug.c 
   src/bindthread.c 
+  src/dague_hwloc.c
   src/mempool.c 
   src/vpmap.c
  ${EXTRA_SOURCES} 

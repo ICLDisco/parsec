@@ -221,8 +221,8 @@ BODY
         }
         if( -2 == rc ) {
             /* The GPU failed to execute this task, but the task was already rescheduled */
-	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
-	    exit(2);
+            fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
+            exit(2);
         }
     }
     moesi_master_update( descA.super.moesi_map, TILED_MATRIX_KEY( &descA, m, n ) );

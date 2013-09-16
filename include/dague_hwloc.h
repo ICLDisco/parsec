@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -69,7 +69,7 @@ extern int dague_hwloc_nb_real_cores();
  * Bind the current thread on the core of index cpu_index.
  *
  */
-int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index);
+int dague_hwloc_bind_on_core_index(int cpu_index, int ht_index);
 
 /**
  * Return the logical socket index for a core index (hwloc numbering).
@@ -108,14 +108,16 @@ unsigned int dague_hwloc_nb_cores_per_obj( int level, int index );
  */
 #if defined(HAVE_HWLOC)
 #include <hwloc.h>
-int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t mask_index);
+#else
+typedef int hwloc_cpuset_t;
 #endif
+int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t mask_index);
 
 /**
  * Allow serial thread binding per core to use the SMT/HT capabilities of the processor 
  *
  */
 int dague_hwloc_allow_ht(int htnb);
-int dague_hwloc_get_ht();
+int dague_hwloc_get_ht(void);
 
 #endif  /* HWLOC_H_HAS_BEEN_INCLUDED */

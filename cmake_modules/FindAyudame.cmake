@@ -10,6 +10,8 @@
 #  AYUDAME_INCLUDE_DIR - directory where the Ayudame header files are
 #
 ##########
+mark_as_advanced(FORCE AYUDAME_DIR AYUDAME_INCLUDE_DIR AYUDAME_LIBRARY)
+set(AYUDAME_DIR "" CACHE PATH "Root directory containing the Ayudame library")
 
 if( AYUDAME_DIR )
   if( NOT AYUDAME_INCLUDE_DIR )

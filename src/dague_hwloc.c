@@ -15,13 +15,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 #if defined(HAVE_HWLOC)
 static hwloc_topology_t topology;
-int first_init = 1;
-int ht_count = 0;
+static int first_init = 1;
+static int ht_count = 0;
 #endif  /* defined(HAVE_HWLOC) */
-int ht = 1;
+static int ht = 1;
 
 #if defined(HAVE_HWLOC_PARENT_MEMBER)
 #define HWLOC_GET_PARENT(OBJ)  (OBJ)->parent
@@ -31,8 +30,6 @@ int ht = 1;
 
 #define MAX(x, y) ( (x)>(y)?(x):(y) )
 
-
-
 int dague_hwloc_init(void)
 {
 #if defined(HAVE_HWLOC)
@@ -40,7 +37,6 @@ int dague_hwloc_init(void)
         hwloc_topology_init(&topology);
         hwloc_topology_load(topology);
         first_init = 0;
-
     }
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
@@ -86,6 +82,7 @@ void dague_hwloc_free_xml_buffer(char *xmlbuffer)
 
 int dague_hwloc_distance( int id1, int id2 )
 {
+	(void)id1;(void)id2;
 #if defined(HAVE_HWLOC)
     int count = 0;
 
@@ -109,6 +106,7 @@ int dague_hwloc_distance( int id1, int id2 )
  */
 int dague_hwloc_master_id( int level, int processor_id )
 {
+	(void)level; (void)processor_id;
 #if defined(HAVE_HWLOC)
     int count = 0, div = 0, real_cores, cores;
     unsigned int i;
@@ -151,6 +149,7 @@ int dague_hwloc_master_id( int level, int processor_id )
  */
 unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
+	(void)level; (void)master_id;
 #if defined(HAVE_HWLOC)
     unsigned int i;
 
@@ -173,6 +172,7 @@ unsigned int dague_hwloc_nb_cores( int level, int master_id )
 
 size_t dague_hwloc_cache_size( unsigned int level, int master_id )
 {
+	(void)level; (void)master_id;
 #if defined(HAVE_HWLOC)
 #if defined(HAVE_HWLOC_OBJ_PU) || 1
     hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PU, master_id);
@@ -197,7 +197,7 @@ size_t dague_hwloc_cache_size( unsigned int level, int master_id )
     return 0;
 }
 
-int dague_hwloc_nb_real_cores()
+int dague_hwloc_nb_real_cores(void)
 {
 #if defined(HAVE_HWLOC)
     return hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
@@ -207,7 +207,7 @@ int dague_hwloc_nb_real_cores()
 }
 
 
-int dague_hwloc_core_first_hrwd_ancestor_depth()
+int dague_hwloc_core_first_hrwd_ancestor_depth(void)
 {
 #if defined(HAVE_HWLOC)
     int level = MAX(hwloc_get_type_depth(topology, HWLOC_OBJ_NODE),hwloc_get_type_depth(topology, HWLOC_OBJ_SOCKET));
@@ -219,6 +219,7 @@ int dague_hwloc_core_first_hrwd_ancestor_depth()
 
 int dague_hwloc_get_nb_objects(int level)
 {
+	(void)level;
 #if defined(HAVE_HWLOC)
     return hwloc_get_nbobjs_by_depth(topology, level);
 #endif  /* defined(HAVE_HWLOC) */
@@ -228,6 +229,7 @@ int dague_hwloc_get_nb_objects(int level)
 
 int dague_hwloc_socket_id(int core_id )
 {
+	(void)core_id;
 #if defined(HAVE_HWLOC)
     hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
     hwloc_obj_t socket = NULL;
@@ -244,6 +246,7 @@ int dague_hwloc_socket_id(int core_id )
 
 int dague_hwloc_numa_id(int core_id )
 {
+	(void)core_id;
 #if defined(HAVE_HWLOC)
     hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
     hwloc_obj_t node = NULL;
@@ -265,6 +268,7 @@ unsigned int dague_hwloc_nb_cores_per_obj( int level, int index )
     assert( obj != NULL );
     return hwloc_get_nbobjs_inside_cpuset_by_type(topology, obj->cpuset, HWLOC_OBJ_CORE);
 #else
+	(void)level; (void)index;
     return -1;
 #endif  /* defined(HAVE_HWLOC) */
 }
@@ -284,6 +288,7 @@ int dague_hwloc_nb_levels(void)
 
 int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 {
+	(void)cpu_index; (void)local_ht_index;
 #if defined(HAVE_HWLOC)
     hwloc_obj_t      obj, core;      /* Hwloc object    */
     hwloc_cpuset_t   cpuset;   /* Hwloc cpuset    */
@@ -404,7 +409,7 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 }
 
-int dague_hwloc_allow_ht(int htnb){
+int dague_hwloc_allow_ht(int htnb) {
 #if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     dague_hwloc_init();
 
@@ -420,11 +425,12 @@ int dague_hwloc_allow_ht(int htnb){
     }
     return ht;
 #else
-return -1
+	(void)htnb;
+	return -1;
 #endif
 }
 
-
-int dague_hwloc_get_ht(){
+int dague_hwloc_get_ht(void) {
     return ht;
 }
+

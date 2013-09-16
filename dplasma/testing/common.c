@@ -120,7 +120,7 @@ void print_usage(void)
             );
     fprintf(stderr,
             "\n"
-            "    --ht nbth      : enable a SMT/HyperThreadind binding using nbth hyper-thread per core."
+            "    --ht nbth      : enable a SMT/HyperThreadind binding using nbth hyper-thread per core.\n"
             "                     This parameter must be declared before the virtual process distribution parameter\n"
             " -V --vpmap        : select the virtual process map (default: flat map)\n"
             "                     Accepted values:\n"
@@ -444,10 +444,9 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 
     /* Set no defaults for IB, NB, MB, the algorithm have to do it */
     assert(iparam[IPARAM_IB]); /* check that defaults have been set */
-    if(iparam[IPARAM_NB] <= 0 && iparam[IPARAM_MB] > 0)
-        iparam[IPARAM_NB] = iparam[IPARAM_MB];
+    if(iparam[IPARAM_NB] <= 0 && iparam[IPARAM_MB] > 0) iparam[IPARAM_NB] = iparam[IPARAM_MB];
+    if(iparam[IPARAM_MB] <= 0 && iparam[IPARAM_NB] > 0) iparam[IPARAM_MB] = iparam[IPARAM_NB];
     if(iparam[IPARAM_MB] < 0) iparam[IPARAM_MB] = -iparam[IPARAM_MB];
-    if(iparam[IPARAM_NB] == 0) iparam[IPARAM_NB] = iparam[IPARAM_MB];
     if(iparam[IPARAM_NB] < 0) iparam[IPARAM_NB] = -iparam[IPARAM_NB];
 
     /* No supertiling by default */

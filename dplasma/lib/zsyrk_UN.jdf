@@ -94,8 +94,8 @@ zgemm(n, m, k)
   /* Locality */
   : dataC(n,m)
 
-  READ  A    <- A zgemm_in_data_A0(n, m, k)
-  READ  B    <- B zgemm_in_data_A1(n, m, k)
+  READ  A    <- A zgemm_in_data_A0(n, k)
+  READ  B    <- B zgemm_in_data_A1(m, k)
   RW    C    <- ((0==k)) ? dataC(n,m)
              <- ((k>=1)) ? C zgemm(n, m, k-1)
              -> ((descA.nt>=(k+2))) ? C zgemm(n, m, k+1)
@@ -117,26 +117,25 @@ BODY
   DRYRUN(
 
     CORE_zgemm(trans, PlasmaTrans, tempnn, 
-	tempmm, tempkn, alpha, 
-	A /* dataA(n,k) */, ldan, B /* dataA(m,k) */, 
-	ldam, zbeta, C /* dataC(n,m) */, 
-	ldcn );
+        tempmm, tempkn, alpha, 
+        A /* dataA(n,k) */, ldan, B /* dataA(m,k) */, 
+        ldam, zbeta, C /* dataC(n,m) */, 
+        ldcn );
   );
 
 }
 END
 
-zgemm_in_data_A1(n, m, k) [profile = off]
+zgemm_in_data_A1(m, k) [profile = off]
   /* Execution Space */
-  n = 0..(descC.mt-2)
-  m = (n+1)..(descC.mt-1)
+  m = 1..(descC.mt-1) /* tight bound is (n+1)..(descC.mt-1) */
   k = 0..(descA.nt-1)
 
   /* Locality */
   : dataA(m,k)
 
   READ  B    <- dataA(m,k)
-             -> B zgemm(n, m, k)
+             -> B zgemm(0..(descC.mt-2), m, k)
 
 BODY
 {
@@ -144,17 +143,16 @@ BODY
 }
 END
 
-zgemm_in_data_A0(n, m, k) [profile = off]
+zgemm_in_data_A0(n, k) [profile = off]
   /* Execution Space */
   n = 0..(descC.mt-2)
-  m = (n+1)..(descC.mt-1)
   k = 0..(descA.nt-1)
 
   /* Locality */
   : dataA(n,k)
 
   READ  A    <- dataA(n,k)
-             -> A zgemm(n, m, k)
+             -> A zgemm(n, (n+1)..(descC.mt-1), k)
 
 BODY
 {

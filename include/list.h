@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -69,25 +69,25 @@ static inline int dague_list_nolock_is_empty( dague_list_t* list );
 #define DAGUE_LIST_ITERATOR_BEGIN(LIST)    _OPAQUE_LIST_ITERATOR_BEGIN_DEFINITION(LIST)
 #define DAGUE_LIST_ITERATOR_PREV(ITEM)     _OPAQUE_LIST_ITERATOR_PREV_DEFINITION(ITEM)
 
-/** add the @new item before the @position item in @list (not thread safe)
+/** add the @newel item before the @position item in @list (not thread safe)
  *    @position item must be in @list
  *    if @position is the Ghost, @item is added back */
 static inline void
 dague_list_nolock_add_before( dague_list_t* list,
                        dague_list_item_t* position,
-                       dague_list_item_t* new );
-#define dague_ulist_add_before(list, pos, new) dague_list_nolock_add_before(list, pos, new)
+                       dague_list_item_t* newel );
+#define dague_ulist_add_before(list, pos, newel) dague_list_nolock_add_before(list, pos, newel)
 /** convenience function, synonym to dague_list_nolock_add_before() */
-#define dague_list_nolock_add(list, pos, new) dague_list_nolock_add_before(list, pos, new)
-#define dague_ulist_add(list, pos, new) dague_list_nolock_add_before(list, pos, new)
-/** add the @new item after the @position item in @list (not thread safe)
+#define dague_list_nolock_add(list, pos, newel) dague_list_nolock_add_before(list, pos, newel)
+#define dague_ulist_add(list, pos, newel) dague_list_nolock_add_before(list, pos, newel)
+/** add the @newel item after the @position item in @list (not thread safe)
  *    @position item must be in @list
  *    if @position is the Ghost, @item is added front */
 static inline void
 dague_list_nolock_add_after( dague_list_t* list,
                       dague_list_item_t* position,
                       dague_list_item_t* item );
-#define dague_ulist_add_after(list, pos, new) dague_list_nolock_add_after(list, pos, new)
+#define dague_ulist_add_after(list, pos, newel) dague_list_nolock_add_after(list, pos, newel)
 /** remove a specific @item from the @list (not thread safe)
  *    @item must be in the @list
  *    @return predecessor of @item in @list */
@@ -99,15 +99,15 @@ dague_list_nolock_remove( dague_list_t* list,
 
 /* SORTED LIST FUNCTIONS */
 
-/** add the @item before the first element of @list that is strictly smaller" (mutex protected),
- *  according to the integer  value at @offset in items. That is, if the input @list is
+/** add the @item before the first element of @list that is strictly smaller (mutex protected),
+ *  according to the integer value at @offset in items. That is, if the input @list is
  *  sorted (descending order), the resulting list is still sorted. */
 static inline void
 dague_list_push_sorted( dague_list_t* list,
                         dague_list_item_t* item,
                         size_t offset );
 /** add the @item before the first element of @list that is striclty smaller (not thread safe),
- *  according to the integer  value at @offset in items. That is, if the input @list is
+ *  according to the integer value at @offset in items. That is, if the input @list is
  *  sorted (descending order), the resulting list is still sorted. */
 static inline void
 dague_list_nolock_push_sorted( dague_list_t* list,
@@ -120,9 +120,9 @@ dague_list_nolock_push_sorted( dague_list_t* list,
  *  inserted in a loop of dague_list_push_sorted(). That is, if the input
  * @list is sorted (descending order), the resulting list is still sorted. */
 static inline void
-dague_list_nolock_chain_sorted( dague_list_t* list,
-                                dague_list_item_t* items,
-                                size_t offset );
+dague_list_chain_sorted( dague_list_t* list,
+                         dague_list_item_t* items,
+                         size_t offset );
 /** chain the unsorted @items (not thread safe), as if they had been
  *  inserted in a loop by dague_list_push_sorted(). That is, if the input
  * @list is sorted (descending order), the resulting list is still sorted. */
@@ -384,31 +384,31 @@ dague_list_unlock( dague_list_t* list )
 static inline void
 dague_list_nolock_add_before( dague_list_t* list,
                               dague_list_item_t* position,
-                              dague_list_item_t* new )
+                              dague_list_item_t* newel )
 {
 #if defined(DAGUE_DEBUG)
     assert( position->belong_to == list );
 #endif
-    DAGUE_ITEM_ATTACH(list, new);
-    new->list_prev = position->list_prev;
-    new->list_next = position;
-    position->list_prev->list_next = new;
-    position->list_prev = new;
+    DAGUE_ITEM_ATTACH(list, newel);
+    newel->list_prev = position->list_prev;
+    newel->list_next = position;
+    position->list_prev->list_next = newel;
+    position->list_prev = newel;
 }
 
 static inline void
 dague_list_nolock_add_after( dague_list_t* list,
                              dague_list_item_t* position,
-                             dague_list_item_t* new )
+                             dague_list_item_t* newel )
 {
 #if defined(DAGUE_DEBUG)
     assert( position->belong_to == list );
 #endif
-    DAGUE_ITEM_ATTACH(list, new);
-    new->list_prev = position;
-    new->list_next = position->list_next;
-    position->list_next->list_prev = new;
-    position->list_next = new;
+    DAGUE_ITEM_ATTACH(list, newel);
+    newel->list_prev = position;
+    newel->list_next = position->list_next;
+    position->list_next->list_prev = newel;
+    position->list_next = newel;
 }
 
 
@@ -441,15 +441,15 @@ dague_list_push_sorted( dague_list_t* list,
 
 static inline void
 dague_list_nolock_push_sorted( dague_list_t* list,
-                               dague_list_item_t* new,
+                               dague_list_item_t* newel,
                                size_t off )
 {
     dague_list_item_t* position = DAGUE_ULIST_ITERATOR(list, pos,
     {
-        if( A_LOWER_PRIORITY_THAN_B(new, pos, off) )
+        if( A_HIGHER_PRIORITY_THAN_B(newel, pos, off) )
             break;
     });
-    dague_ulist_add_before(list, position, new);
+    dague_ulist_add_before(list, position, newel);
 }
 
 static inline void
@@ -471,24 +471,24 @@ dague_list_nolock_chain_sorted( dague_list_t* list,
                                 dague_list_item_t* items,
                                 size_t off )
 {
-    dague_list_item_t* new;
+    dague_list_item_t* newel;
     dague_list_item_t* pos;
     if( NULL == items ) return;
     if( dague_list_nolock_is_empty(list) )
     {   /* the list must contain the pos element in next loop */
-        new = items;
+        newel = items;
         items = dague_list_item_ring_chop(items);
-        dague_list_nolock_add(list, _GHOST(list), new);
+        dague_list_nolock_add(list, _GHOST(list), newel);
     }
     pos = (dague_list_item_t*)_TAIL(list);
 
-    for(new = items;
-        NULL != new;
-        new = items)
+    for(newel = items;
+        NULL != newel;
+        newel = items)
     {
         items = dague_list_item_ring_chop(items);
-        if( A_HIGHER_PRIORITY_THAN_B(new, pos, off) )
-        {   /* this new item is larger than the last insert,
+        if( A_HIGHER_PRIORITY_THAN_B(newel, pos, off) )
+        {   /* this newel item is larger than the last insert,
              * reboot and insert from the beginning */
              pos = (dague_list_item_t*)_HEAD(list);
         }
@@ -496,11 +496,11 @@ dague_list_nolock_chain_sorted( dague_list_t* list,
          * from the current start position, then insert before it */
         for(; pos != _GHOST(list); pos = (dague_list_item_t*)pos->list_next)
         {
-            if( A_HIGHER_PRIORITY_THAN_B(new, pos, off) )
+            if( A_HIGHER_PRIORITY_THAN_B(newel, pos, off) )
                 break;
         }
-        dague_list_nolock_add_before(list, pos, new);
-        pos = new;
+        dague_list_nolock_add_before(list, pos, newel);
+        pos = newel;
     }
 }
 

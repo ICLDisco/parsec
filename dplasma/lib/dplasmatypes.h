@@ -19,26 +19,26 @@
  * accessing the extent of a datatype.
  */
 int dplasma_get_extent( MPI_Datatype dt, MPI_Aint* extent );
-int dplasma_datatype_define_contiguous( dague_remote_dep_datatype_t oldtype,
+int dplasma_datatype_define_contiguous( dague_datatype_t oldtype,
                                         unsigned int nb_elem,
                                         int resized,
-                                        dague_remote_dep_datatype_t* newtype );
-int dplasma_datatype_define_rectangle( dague_remote_dep_datatype_t oldtype,
+                                        dague_datatype_t* newtype );
+int dplasma_datatype_define_rectangle( dague_datatype_t oldtype,
                                        unsigned int tile_mb,
                                        unsigned int tile_nb,
                                        int resized,
-                                       dague_remote_dep_datatype_t* newtype );
-int dplasma_datatype_define_tile( dague_remote_dep_datatype_t oldtype,
+                                       dague_datatype_t* newtype );
+int dplasma_datatype_define_tile( dague_datatype_t oldtype,
                                   unsigned int tile_nb,
-                                  dague_remote_dep_datatype_t* newtype );
-int dplasma_datatype_define_upper( dague_remote_dep_datatype_t oldtype,
+                                  dague_datatype_t* newtype );
+int dplasma_datatype_define_upper( dague_datatype_t oldtype,
                                    unsigned int tile_nb, int diag,
-                                   dague_remote_dep_datatype_t* newtype );
-int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
+                                   dague_datatype_t* newtype );
+int dplasma_datatype_define_lower( dague_datatype_t oldtype,
                                    unsigned int tile_nb, int diag,
-                                   dague_remote_dep_datatype_t* newtype );
+                                   dague_datatype_t* newtype );
 
-int dplasma_datatype_undefine_type(dague_remote_dep_datatype_t* type);
+int dplasma_datatype_undefine_type(dague_datatype_t* type);
 
 #define dplasma_progress( object )              \
     do {                                        \
@@ -67,16 +67,16 @@ int dplasma_datatype_undefine_type(dague_remote_dep_datatype_t* type);
 #endif
 
 int dplasma_add2arena_contiguous( dague_arena_t *arena, size_t elem_size, size_t alignment,
-                                  dague_remote_dep_datatype_t oldtype,
+                                  dague_datatype_t oldtype,
                                   unsigned int nb_elem, int resized );
 int dplasma_add2arena_rectangle( dague_arena_t *arena, size_t elem_size, size_t alignment,
-                                 dague_remote_dep_datatype_t oldtype, 
+                                 dague_datatype_t oldtype, 
                                  unsigned int tile_mb, unsigned int tile_nb, int resized );
 int dplasma_add2arena_tile( dague_arena_t *arena, size_t elem_size, size_t alignment,
-                            dague_remote_dep_datatype_t oldtype, unsigned int tile_mb );
+                            dague_datatype_t oldtype, unsigned int tile_mb );
 int dplasma_add2arena_upper( dague_arena_t *arena, size_t elem_size, size_t alignment,
-                             dague_remote_dep_datatype_t oldtype, unsigned int tile_mb, int diag );
+                             dague_datatype_t oldtype, unsigned int tile_mb, int diag );
 int dplasma_add2arena_lower( dague_arena_t *arena, size_t elem_size, size_t alignment,
-                             dague_remote_dep_datatype_t oldtype, unsigned int tile_mb, int diag );
+                             dague_datatype_t oldtype, unsigned int tile_mb, int diag );
 
 #endif  /* DPLASMA_DATATYPE_H_HAS_BEEN_INCLUDED */

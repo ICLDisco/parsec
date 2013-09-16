@@ -17,9 +17,9 @@ typedef unsigned long remote_dep_datakey_t;
 
 #if defined(HAVE_MPI)
 #include <mpi.h>
-typedef MPI_Datatype dague_remote_dep_datatype_t;
+typedef MPI_Datatype dague_datatype_t;
 #else
-typedef void* dague_remote_dep_datatype_t;
+typedef void* dague_datatype_t;
 #endif
 
 #include "dague_description_structures.h"
@@ -40,7 +40,7 @@ typedef struct remote_dep_wire_activate_t
     remote_dep_datakey_t tag;
     uint32_t             object_id;
     uint32_t             function_id;
-    assignment_t locals[MAX_LOCAL_COUNT];
+    assignment_t         locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
 
 typedef struct remote_dep_wire_get_t
@@ -50,16 +50,31 @@ typedef struct remote_dep_wire_get_t
     remote_dep_datakey_t tag;
 } remote_dep_wire_get_t;
 
+/**
+ * This structure holds the key information for any data mouvement. It contains the arena
+ * where the data is allocated from, or will be allocated from. It also contains the
+ * pointer to the buffer involved in the communication (or NULL if the data will be
+ * allocated before the reception). Finally, it contains the triplet allowing a correct send
+ * or receive operation: the memory layout, the number fo repetitions and the displacement
+ * from the data pointer where the operation will start. If the memory layout is NULL the
+ * one attached to the arena must be used instead.
+ */
+struct dague_dep_data_description_s {
+    struct dague_arena_t  *arena;
+    void*                  ptr;
+    dague_datatype_t       layout;
+    uint64_t               count;
+    int64_t                displ;
+};
+
 struct remote_dep_output_param {
-/** Never change this structure without understanding the
-  *   "subtle" relation with remote_deps_allocation_init in
-  *  remote_dep.c
-  */
-    void*                 data;
-    struct dague_arena_t* type;
-    uint32_t              nbelt;
-    uint32_t*             rank_bits;
-    uint32_t              count;
+    /** Never change this structure without understanding the
+     *   "subtle" relation with remote_deps_allocation_init in
+     *  remote_dep.c
+     */
+    struct dague_dep_data_description_s data;
+    uint32_t*                           rank_bits;
+    uint32_t                            count_bits;
 };
 
 struct dague_remote_deps_t {
@@ -115,29 +130,34 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
         }
         /* fw_mask immediatly follows outputs */
         remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
-        assert( (int)(ptr - (char*)remote_deps) == (int)(dague_remote_dep_context.elem_size - rank_bit_size));
+        assert( (int)(ptr - (char*)remote_deps) ==
+                (int)(dague_remote_dep_context.elem_size - rank_bit_size));
     }
     remote_deps->max_priority = 0xffffffff;
     remote_deps->dague_object = NULL;
     remote_deps->root         = -1;
     return remote_deps;
 }
+
 #define DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
     if( NULL == (REMOTE_DEPS) ) { /* only once per function */                 \
         (REMOTE_DEPS) = (dague_remote_deps_t*)remote_deps_allocate(&dague_remote_dep_context.freelist); \
     }
+
 /* This returns the deps to the freelist, no use counter */
 static inline void remote_deps_free(dague_remote_deps_t* deps) {
     uint32_t k = 0, count = 0, a;
     while( count < deps->output_count ) {
         for(a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
             deps->output[k].rank_bits[a] = 0;
-        count += deps->output[k].count;
-        deps->output[k].count = 0;
+        count += deps->output[k].count_bits;
+        deps->output[k].count_bits = 0;
 #if defined(DAGUE_DEBUG)
-        deps->output[k].data = NULL;
-        deps->output[k].type = NULL;
-        deps->output[k].nbelt = -1;
+        deps->output[k].data.ptr    = NULL;
+        deps->output[k].data.arena  = NULL;
+        deps->output[k].data.layout = NULL;
+        deps->output[k].data.count  = -1;
+        deps->output[k].data.displ  = 0xFFFFFFFF;
 #endif
         k++;
         assert(k < MAX_PARAM_COUNT);
@@ -172,9 +192,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 /* Memcopy a particular data using datatype specification */
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_object_t* dague_object,
-                             void *dst, dague_arena_chunk_t *src,
-                             const dague_remote_dep_datatype_t datatype,
-                             int nbelt);
+                             void* dst,
+                             dague_dep_data_description_t* data);
 
 #else
 # define dague_remote_dep_init(ctx) (1)
@@ -187,4 +206,3 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
 #endif /* DISTRIBUTED */
 
 #endif /* __USE_REMOTE_DEP_H__ */
-

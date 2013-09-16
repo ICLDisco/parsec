@@ -15,12 +15,6 @@ set(EXTRA_SOURCES
   butterfly_map.c
 )
 
-### Generate .c files from .jdf
-set(OLDJDF
-  ${CMAKE_CURRENT_SOURCE_DIR}/TSQR.jdf
-)
-jdf_rules(generated_files "${OLDJDF}")
-
 ### Generate .c files from .jdf for all required precisions
 set(JDF
   zprint.jdf

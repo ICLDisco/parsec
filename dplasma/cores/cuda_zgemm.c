@@ -227,7 +227,7 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
     assert( NULL != gpu_elem_obtain_from_master(this_task->data[2].moesi_master, gpu_device->index) );
 
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
-                             gpu_device->profiling,
+                             gpu_stream->profiling,
                              (-1 == gpu_stream->prof_event_key_start ? 
                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
                                                         this_task->function->function_id) :
@@ -287,7 +287,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
              this_task->priority ));
 
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
-                             gpu_device->profiling,
+                             gpu_stream->profiling,
                              (-1 == gpu_stream->prof_event_key_start ? 
                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
                                                         this_task->function->function_id) :
@@ -354,7 +354,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             if( args->pushout ) {  /* n == (k + 1) */
                 DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index, this_task->function->in[i]->name, this_task->data[i].moesi_master->key));
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
-                                         gpu_device->profiling,
+                                         gpu_stream->profiling,
                                          (-1 == gpu_stream->prof_event_key_start ? 
                                           DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
                                                                     this_task->function->function_id) :

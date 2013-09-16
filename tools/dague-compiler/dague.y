@@ -486,74 +486,81 @@ dependency:   ARROW guarded_call properties
               {
                   struct jdf_name_list *g, *e, *prec;
                   jdf_dep_t *d = new(jdf_dep_t);
-                  jdf_expr_t *expr_simple, *expr_complex;
-                  jdf_def_list_t* property;
-
-                  d->type = $1;
-                  d->guard = $2;
-
-                  expr_simple = jdf_find_property( $3, "type", &property );
-                  expr_complex = jdf_find_property( $3, "arena_index", &property );
+                  jdf_expr_t *expr;
+                  jdf_def_list_t* property = $3;
 
                   /* If neither is defined, we define the old simple DEFAULT arena */
-                  property = NULL;
-                  if( NULL == expr_simple && NULL == expr_complex ) {
+                  if( NULL == (expr = jdf_find_property($3, "type", &property)) ) {
                       property = jdf_create_properties_list( "type", 0, "DEFAULT", NULL );
-                      expr_simple = jdf_find_property( property, "type", &property );
-                  }
-                  if( NULL == property )
-                      property = $3;
-                  else
+                      expr = jdf_find_property( property, "type", &property );
                       property->next = $3;
+                  }
+
                   $2->properties = property;
+                  d->type = $1;
+                  d->guard = $2;
+                  d->datatype.type = expr;
 
-                  if( NULL != expr_simple ) {
-                      if( NULL != expr_complex ) {
-                          jdf_fatal(current_lineno, "Dependency defined with both properties type and arena_index\n");
-                          YYERROR;
+                  if( NULL != jdf_find_property( $3, "arena_index", &property ) ) {
+                      jdf_fatal(current_lineno, "Old construct arena_index used. Please update the code to use type instead.\n");
+                      YYERROR;
+                  }
+                  if( NULL != jdf_find_property( $3, "nb_elt", &property ) ) {
+                      jdf_fatal(current_lineno, "Old construct nb_elt used. Please update the code to use count instead.\n");
+                      YYERROR;
+                  }
+                  if( (JDF_STRING == expr->op) || (JDF_VAR == expr->op) ) {
+                      /* Special case: [type = SOMETHING] -> define the DAGUE_ARENA_SOMETHING arena index */
+                      for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
+                          if( 0 == strcmp(expr->jdf_var, g->name) ) {
+                              break;
+                          }
+                          prec = g;
                       }
-                      /* Simple old type */
-                      if( JDF_STRING == expr_simple->op ||
-                          JDF_VAR == expr_simple->op ) {
-                          /* Old way: [type = SOMETHING] -> define the DAGUE_ARENA_SOMETHING arena index */
-                          d->datatype.simple = 1;
-                          for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
-                              if( 0 == strcmp(expr_simple->jdf_var, g->name) ) {
-                                  break;
-                              }
-                              prec = g;
+                      if( NULL == g ) {
+                          e = new(struct jdf_name_list);
+                          e->name = strdup(expr->jdf_var);
+                          e->next = NULL;
+                          if( NULL != prec ) {
+                              prec->next = e;
+                          } else {
+                              current_jdf.datatypes = e;
                           }
-                          if( NULL == g ) {
-                              e = new(struct jdf_name_list);
-                              e->name = strdup(expr_simple->jdf_var);
-                              e->next = NULL;
-                              if( NULL != prec ) {
-                                  prec->next = e;
-                              } else {
-                                  current_jdf.datatypes = e;
-                              }
-                          }
-                          d->datatype.u.simple_name = strdup(expr_simple->jdf_var);
-                      } else {
-                          /* Let's allow [type = inline_c %{ ... %}], even if it should really be [arena_index = inline_c %{ ... %} ] */
-                          expr_complex = expr_simple;
-                          expr_simple = NULL;
                       }
                   }
-                  if( NULL != expr_complex ) {
-                      assert(NULL == expr_simple);
-                      d->datatype.simple = 0;
-                      d->datatype.u.complex_expr = expr_complex;
-                  }
 
-                  expr_simple = jdf_find_property( d->guard->properties, "nb_elt", &property );
-                  if( NULL == expr_simple ) {
-                      d->datatype.nb_elt = new(jdf_expr_t);
-                      d->datatype.nb_elt->op = JDF_CST;
-                      d->datatype.nb_elt->jdf_cst = 1;
-                  } else {
-                      d->datatype.nb_elt = expr_simple;
+                  /**
+                   * The memory layout used for the transfer. Works together with the
+                   * count and the displacement.
+                   */
+                  expr = jdf_find_property( d->guard->properties, "layout", &property );
+                  if( NULL == expr ) {
+                      expr = jdf_find_property( d->guard->properties, "type", &property );
                   }
+                  d->datatype.layout = expr;
+
+                  /**
+                   * The number of types to transfer.
+                   */
+                  expr = jdf_find_property( d->guard->properties, "count", &property );
+                  if( NULL == expr ) {
+                      expr          = new(jdf_expr_t);
+                      expr->op      = JDF_CST;
+                      expr->jdf_cst = 1;
+                  }
+                  d->datatype.count = expr;
+
+                  /**
+                   * The displacement from the begining of the type.
+                   */
+                  expr = jdf_find_property( d->guard->properties, "displ", &property );
+                  if( NULL == expr ) {
+                      expr          = new(jdf_expr_t);
+                      expr->op      = JDF_CST;
+                      expr->jdf_cst = 0;
+                  }
+                  d->datatype.displ = expr;
+
                   JDF_OBJECT_LINENO(d) = JDF_OBJECT_LINENO($2);
 
                   $$ = d;
@@ -893,7 +900,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   $$->op = JDF_C_CODE;
                   $$->jdf_c_code.code = $1;
                   $$->jdf_c_code.lineno = current_lineno;
-                  /* This will  be set by the upper level parsing if necessary */
+                  /* This will be set by the upper level parsing if necessary */
                   $$->jdf_c_code.function_context = NULL;
                   $$->jdf_c_code.fname = NULL;
 

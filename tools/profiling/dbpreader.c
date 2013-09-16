@@ -745,7 +745,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
         }
 
         if( strncmp( head.magick, DAGUE_PROFILING_MAGICK, 24 ) ) {
-            fprintf(stderr, "read %d bytes %s\n%s\n", p, head.magick, DAGUE_PROFILING_MAGICK);
+            fprintf(stderr, "read %d bytes found '%s', expected '%s'\n", p, head.magick, DAGUE_PROFILING_MAGICK);
             fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
                     filenames[i]);
             close(fd);

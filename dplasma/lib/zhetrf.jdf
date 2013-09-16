@@ -94,8 +94,8 @@ BODY
     int info = 0;
     void *p_elem_A = dague_private_memory_pop( pool_0 );
     CORE_zhetrf2_nopiv(PlasmaLower, tempkn, ib, 
-	A /* data_A(k,k) */, ldak, p_elem_A, 
-	ldwork, &info );
+        A /* data_A(k,k) */, ldak, p_elem_A, 
+        ldwork, &info );
     if( 0 != (info) ){
         fprintf(stderr,">>>>>>>>>>>>\nzhetrf2_nopiv(%d): info=%d\n",k,info);
     }
@@ -137,8 +137,8 @@ BODY
     void *p_elem_A = dague_private_memory_pop( pool_0 );
 
     CORE_zhetrf_nopiv(PlasmaLower, tempkn, ib, 
-	B /* data_A(k,k) */, ldak, p_elem_A, 
-	ldwork, &info );
+        B /* data_A(k,k) */, ldak, p_elem_A, 
+        ldwork, &info );
     if( 0 != info ){
         fprintf(stderr,">>>>>>>>>>>>\nzhetrf_nopiv(%d): info=%d\n",k,info);
     }
@@ -190,9 +190,9 @@ BODY
   DRYRUN(
 
     CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaConjTrans, 
-	PlasmaNonUnit, tempmm, tempkn, 
-	zone, C /* data_A(k,k) */, ldak, 
-	D /* data_A(m,k) */, ldam );  );
+        PlasmaNonUnit, tempmm, tempkn, 
+        zone, C /* data_A(k,k) */, ldak, 
+        D /* data_A(m,k) */, ldam );  );
 
 END
 
@@ -237,10 +237,10 @@ BODY
     void *p_elem_A = dague_private_memory_pop( pool_1 );
 
     CORE_zhedrk(PlasmaLower, PlasmaNoTrans, tempmm, 
-	tempkn, ib, -1.000000, 
-	E /* data_A(m1,k) */, ldam, 1.000000, 
-	F /* data_A(m1,m1) */, ldam, G /* data_A(k,k) */, 
-	ldak+1, p_elem_A, lwork );
+        tempkn, ib, -1.000000, 
+        E /* data_A(m1,k) */, ldam, 1.000000, 
+        F /* data_A(m1,m1) */, ldam, G /* data_A(k,k) */, 
+        ldak+1, p_elem_A, lwork );
 
     dague_private_memory_push( pool_1, p_elem_A );
   );
@@ -310,10 +310,10 @@ BODY
     void *p_elem_A = dague_private_memory_pop( pool_1 );
 
     CORE_zgemdm(PlasmaNoTrans, PlasmaConjTrans, tempmm, 
-	tempnn, tempkn, mzone, 
-	K /* data_A(m1,k) */, ldam, L /* data_A(n,k) */, 
-	desc_A.mb, zone, M /* data_A(m1,n) */, 
-	ldam, N, ldak+1, p_elem_A, lwork );
+        tempnn, tempkn, mzone, 
+        K /* data_A(m1,k) */, ldam, L /* data_A(n,k) */, 
+        desc_A.mb, zone, M /* data_A(m1,n) */, 
+        ldam, N, ldak+1, p_elem_A, lwork );
 
     dague_private_memory_push( pool_1, p_elem_A );
   ); 

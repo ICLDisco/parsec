@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -58,8 +58,13 @@ struct dague_lifo_t {
     dague_list_item_t *lifo_ghost;
 };
 
+#if !defined(DAGUE_LIFO_ALIGNMENT_BITS)
 #define DAGUE_LIFO_ALIGNMENT_BITS  3
-#define DAGUE_LIFO_ALIGNMENT      (1 << DAGUE_LIFO_ALIGNMENT_BITS )
+#endif  /* !defined(DAGUE_LIFO_ALIGNMENT_BITS) */
+
+#define DAGUE_LIFO_ALIGNMENT      ( ( (1 << DAGUE_LIFO_ALIGNMENT_BITS ) < sizeof(void*) ) ? \
+                                    ( sizeof(void*) ) : \
+                                    ( 1 << DAGUE_LIFO_ALIGNMENT_BITS ) )
 #define DAGUE_LIFO_CNTMASK        (DAGUE_LIFO_ALIGNMENT-1)
 #define DAGUE_LIFO_PTRMASK        (~(DAGUE_LIFO_CNTMASK))
 #define DAGUE_LIFO_CNT( v )       ( (uintptr_t) ( (uintptr_t)(v) & DAGUE_LIFO_CNTMASK ) )
@@ -68,7 +73,7 @@ struct dague_lifo_t {
 
 /*
  * http://stackoverflow.com/questions/10528280/why-is-the-below-code-giving-dereferencing-type-punned-pointer-will-break-stric
- * 
+ *
  * void * converts to any pointer type, and any pointer type converts
  * to void *, but void ** does not convert to a pointer to some other
  * type of pointer, nor do pointers to other pointer types convert to

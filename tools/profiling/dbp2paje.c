@@ -434,16 +434,28 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
         if( KEY_IS_START( dbp_event_get_key(e) ) ) {
                 
             key = BASE_KEY(dbp_event_get_key(e));
-            nit = dbp_iterator_find_matching_event_all_threads(pit);
+
+	    if ( ! USERFLAGS.split_events_box_at_start ) {
+                const dbp_event_t *ref = dbp_iterator_current(pit);
+		nit = dbp_iterator_new_from_iterator(pit);
+		if ( !dbp_iterator_move_to_matching_event(nit, ref) ) {
+		    dbp_iterator_delete(nit);
+		    nit = NULL;
+		}
+            } else {
+                nit = dbp_iterator_find_matching_event_all_threads(pit);
+	    }
 
             if( NULL == nit ) {
-                /* Argh, couldn't find the end in this trace */
-                WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
-                         dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
-                         dbp_event_get_object_id(e), dbp_event_get_event_id(e),
-                         diff_time(relative, dbp_event_get_timestamp(e))));
-                
-                current_stat[ key ].nb_matcherror++;
+                if ( USERFLAGS.split_events_box_at_start ) {
+                    /* Argh, couldn't find the end in this trace */
+                    WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
+                             dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
+                             dbp_event_get_object_id(e), dbp_event_get_event_id(e),
+                             diff_time(relative, dbp_event_get_timestamp(e))));
+                    
+                    current_stat[ key ].nb_matcherror++;
+                }
             } else {
                 g = dbp_iterator_current(nit);
 
@@ -471,7 +483,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                 cev->end_info_size = dbp_event_info_len(g, dbp);
                 memcpy(cev->infos, dbp_event_get_info( e ), cev->start_info_size);
                 memcpy(cev->infos + cev->start_info_size, dbp_event_get_info( g ), cev->end_info_size);
-                
+
                 progress_bar_event_to_output();
 
                 merge_event( &consolidated_events, cev );
@@ -486,7 +498,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     steps_end_dates = step_height(&consolidated_events, &nb_steps);
     for(s = 0; s < nb_steps; s++) {
         sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
-        addContainer(0.00000, cont_step_name, "CT_S", cont_thread_name, " ", "");
+        addContainer(0.00000, cont_step_name, "CT_S", cont_thread_name, cont_step_name, "");
     }
 
     while( NULL != (cev = (consolidated_event_t*)dague_list_nolock_pop_front( &consolidated_events ) ) ) {
@@ -544,7 +556,7 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
     addContType ("CT_P", "CT_Appli", "Process");
     addContType ("CT_T", "CT_P", "Thread");
     addContType ("CT_S", "CT_T", "State");
-    addStateType ("ST_TS", "CT_S", "Thread State");
+    addStateType("ST_TS", "CT_S", "Thread State");
     addLinkType ("LT_TL", "Split Event Link", "CT_P", "CT_T", "CT_T");
 
     addEntityValue ("Wait", "ST_TS", "Waiting", GTG_LIGHTGREY);
@@ -577,7 +589,7 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
             }
         }
         fprintf(stderr, "-- Time jitter is bounded by %lu "TIMER_UNIT", average is %g "TIMER_UNIT"\n",
-                diff_time(relative, max_time),
+                (unsigned long)diff_time(relative, max_time),
                 (double)delta_time / (double)dbp_reader_nb_files(dbp));
     }
 

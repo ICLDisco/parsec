@@ -92,7 +92,7 @@ static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, i
     nbht = dague_hwloc_get_ht();
 #endif /* HAVE_HWLOC */
     *cores = ((vp * nbthreadspervp + thread) / nbht) % nbcores % nb_real_cores;
-    if (nbht > 2 )
+    if (nbht > 1 )
         *ht = (vp * nbthreadspervp + thread) % nbht;
     else
         *ht = -1;
@@ -233,7 +233,7 @@ int vpmap_init_from_file(const char *filename)
     while( getline(&line, &nline, f) != -1 ) {
         if( NULL != strchr(line, ':') && (line[0] != ':')) {
             mpi_num = strtod(line, NULL);
-              if ( mpi_num == rank ){
+            if ( mpi_num == rank ){
                 nbvp++;
             }
         }else if( (line[0] == ':') && (rank == 0) ){
@@ -391,20 +391,23 @@ void vpmap_display_map(FILE *out)
             dht = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
             vpmap_get_core_affinity(v, t, dcores, dht);
             asprintf(&cores, "%d", dcores[0]);
+
             if(nbht > 1)
                 asprintf(&ht, " (ht %d)", dht[0]);
             else
-                asprintf(&ht, "");
+                asprintf(&ht, " ");
             for( c = 1; c < vpmap_get_nb_cores_affinity(v, t); c++) {
                 tmp=cores;
                 asprintf(&cores, "%s, %d", tmp, dcores[c]);
                 free(tmp);
             }
             free(dcores);
+            free(dht);
 
             fprintf(out, "# [%d]    Thread %d of VP %d can be bound on cores %s %s\n",
                     rank, t, v, cores, ht);
             free(cores);
+            free(ht);
         }
     }
 }
@@ -415,7 +418,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
  #if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     char* option = binding;
     char* position;
-    int t;
+    int t, ht;
 
     dague_hwloc_init();
     int nb_real_cores = dague_hwloc_nb_real_cores();
@@ -423,6 +426,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
     /* Parse  hexadecimal mask, range expression of core list expression */
     if( NULL != (position = strchr(option, 'x')) ) {
         /* The parameter is a hexadecimal mask */
+
         position++; /* skip the x */
 
         /* convert the mask into a bitmap (define legal core indexes) */
@@ -443,8 +447,10 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
 #endif /* DAGUE_DEBUG_VERBOSE2 */
 
         int core=-1, prev=-1;
+        nbht = dague_hwloc_get_ht();
+
         /* extract a single core per thread (round-robin) */
-        for( t=0; t<nbth; t++ ) {
+        for( t=0; t<nbth; t+=nbht ) {
             core = hwloc_bitmap_next(binding_mask, prev);
             if( core == -1 || core > nb_real_cores ) {
                 prev = -1;
@@ -453,15 +459,21 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             }
             assert(core != -1);
 
-            map[vp].threads[t] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
-            map[vp].threads[t]->nbcores = 1;
-            map[vp].threads[t]->cores[0] = core;
-            prev++;
+            for (ht=0; ht < nbht ; ht++){
+                map[vp].threads[t+ht] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
+                map[vp].threads[t+ht]->nbcores = 1;
+                map[vp].threads[t+ht]->cores[0] = core;
+                if (nbht > 1)
+                    map[vp].threads[t+ht]->ht[0] = ht;
+                else
+                    map[vp].threads[t+ht]->ht[0] = -1;
+            }
+            prev=core;
         }
-
         hwloc_bitmap_free(binding_mask);
-    } else if( NULL != (position = strchr(option, ':'))) {
-        /* The parameter is a range expression such as [start]:[end]:[step] */
+    } else if( NULL != (position = strchr(option, ';'))) {
+        /* The parameter is a range expression such as [start];[end];[step] */
+
         int arg;
         int start = 0, step = 1;
         int end=nb_real_cores-1;
@@ -473,20 +485,20 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             else
                 WARNING(("binding start core not valid (restored to default value)"));
         }
-        position++;  /* skip the : */
+        position++;  /* skip the ; */
         if( '\0' != position[0] ) {
             /* check for the ending position */
-            if( ':' != position[0] ) {
+            if( ';' != position[0] ) {
                 arg = strtol(position, &position, 10);
                 if( (arg < nb_real_cores) && (arg > -1) )
                     end = arg;
                 else
                     WARNING(("binding end core not valid (restored to default value)\n"));
             }
-            position = strchr(position, ':');  /* find the step */
+            position = strchr(position, ';');  /* find the step */
         }
         if( NULL != position )
-            position++;  /* skip the : directly into the step */
+            position++;  /* skip the ; directly into the step */
         if( (NULL != position) && ('\0' != position[0]) ) {
             arg = strtol(position, NULL, 10);
             if( (arg < nb_real_cores) && (arg > -1) )
@@ -494,28 +506,44 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             else
                 WARNING(("binding step not valid (restored to default value)\n"));
         }
-        DEBUG3(("binding defined by core range [%d:%d:%d]\n", start, end, step));
-        printf("binding defined by core range [%d:%d:%d]\n", start, end, step);
+
+        if( start > end ) {
+            WARNING(("Invalid range: start > end (end restored to default value)\n"));
+            end=nb_real_cores-1;
+        }
+        DEBUG3(("binding defined by core range [%d;%d;%d]\n", start, end, step));
 
         /* define the core according to the trio start/end/step */
         {
             int where = start, skip = 1;
-            for( t = 0; t < nbth; t++ ) {
-                map[vp].threads[t] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
-                map[vp].threads[t]->nbcores = 1;
-                map[vp].threads[t]->cores[0] = where;
+
+            for( t = 0; t < nbth; t+=nbht ) {
+                for (ht=0; ht < nbht ; ht++){
+                    map[vp].threads[t+ht] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
+                    map[vp].threads[t+ht]->nbcores = 1;
+                    map[vp].threads[t+ht]->cores[0] = where;
+                    if (nbht > 1)
+                        map[vp].threads[t+ht]->ht[0] = ht;
+                    else
+                        map[vp].threads[t+ht]->ht[0] = -1;
+                }
 
                 where += step;
                 if( where > end ) {
                     where = start + skip;
                     skip++;
+                    if ( where > end )
+                        break;
+
                     if((skip > step) && (t < (nb_real_cores - 1))) {
-                        STATUS(( "No more available core to bind according to the range. The remaining %d threads are not bound\n", nbth -1-t));
-                        int th;
-                        for( th = t+1; th < nbth; th++ ) {
+                        STATUS(( "WARNING:: No more available core to bind according to the range. The remaining %d threads are not bound\n", nbth-(t*nbht)));
+                        int th, ht2;
+                        for( th = t+nbht; th < nbth;  th++) {
                             map[vp].threads[th] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
                             map[vp].threads[th]->nbcores = 1;
                             map[vp].threads[th]->cores[0] = -1;
+                            map[vp].threads[th]->ht[0] = -1;
+
                         }
                         break;
                     }
@@ -588,11 +616,18 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
          }
         DEBUG(( "binding defined by the parsed list: %s \n", tmp));
 #endif /* DAGUE_DEBUG */
-
-        for(t=0; t<nbth; t++){
-            map[vp].threads[t] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
-            map[vp].threads[t]->nbcores = 1;
-            map[vp].threads[t]->cores[0] = core_tab[t];
+        int c=0;
+        for( t = 0; t < nbth; t+=nbht ) {
+            for (ht=0; ht < nbht ; ht++){
+                map[vp].threads[t+ht] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
+                map[vp].threads[t+ht]->nbcores = 1;
+                map[vp].threads[t+ht]->cores[0] = core_tab[c];
+                if (nbht > 1 && core_tab[c] > -1 )
+                    map[vp].threads[t+ht]->ht[0] = ht;
+                else
+                    map[vp].threads[t+ht]->ht[0] = -1;
+            }
+            c++;
         }
     }
     return 0;

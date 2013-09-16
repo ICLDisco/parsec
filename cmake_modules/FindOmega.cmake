@@ -54,6 +54,8 @@ if(OMEGA_FOUND)
   list(APPEND CMAKE_REQUIRED_LIBRARIES ${OMEGA_LIBRARIES})
   check_cxx_source_compiles("#include <omega.h>
       int main(void) { Relation R; R.is_set(); return 0;}" OMEGA_FOUND)
+  if(OMEGA_FOUND)
+    enable_language(CXX REQUIRED)
+  endif()
 endif()
-
 

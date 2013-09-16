@@ -51,8 +51,6 @@ dplasma/cores/cuda_[sdc]gemm\.[ch]
 dplasma/cores/dplasma_[sdc]cores\.h
 dplasma/cores/sgemm-sm.*\.cubin
 dplasma/include/dplasma_[sdc]\.h
-dplasma/lib/TSQR\.c$
-dplasma/lib/TSQR\.h
 dplasma/lib/[cds]gebmm\.jdf$
 dplasma/lib/[cdsz]trdsm\.[ch]$
 dplasma/lib/[cz]hebut\.[ch]$
@@ -252,8 +250,6 @@ dplasma/lib/chebut\.jdf$
 dplasma/lib/chetrf\.jdf$
 dplasma/lib/map2\.c$
 dplasma/lib/map2\.h
-dplasma/testing/TSQR/mpi_testing_tsqr
-dplasma/testing/TSQR/testing_tsqr
 dplasma/testing/perftest
 dplasma/testing/testing_[sdc]gelqf\.c$
 dplasma/testing/testing_[sdc]gemm\.c$
