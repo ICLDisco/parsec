@@ -39,7 +39,9 @@ int main(int argc, char ** argv)
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
     dplasma_qrtree_t qrtree;
+    double AnormI, Anorm1, BnormI, Bnorm1, XnormI, Xnorm1, RnormI, Rnorm1;
     int *lu_tab;
+    int firsttest = 1;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -52,6 +54,9 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam)
     PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M,(DagDouble_t)N))
 
+    iparam[IPARAM_QR_HLVL_SZE] = P;
+    iparam[IPARAM_QR_DOMINO]   = 0;
+    iparam[IPARAM_QR_TSRR]     = 0;
     LDA = max(M, LDA);
 
     /* initializing matrix structure */
@@ -71,16 +76,16 @@ int main(int argc, char ** argv)
                                two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
                                                       nodes, cores, rank, MB, 1, M, NT, 0, 0,
                                                       M, NT, SMB, SNB, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
                                two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
                                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                                       M, N, SMB, SNB, P));
     /* Random B check */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
+    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
                                two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
                                                       nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                                       M, NRHS, SMB, SNB, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
+    PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1,
                                two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
                                                       nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                                       M, NRHS, SMB, SNB, P));
@@ -97,19 +102,21 @@ int main(int argc, char ** argv)
                       iparam[IPARAM_LOWLVL_TREE],
                       iparam[IPARAM_HIGHLVL_TREE],
                       iparam[IPARAM_QR_TS_SZE],
-                      P,/*iparam[IPARAM_QR_HLVL_SZE],*/
-                      0 /*iparam[IPARAM_QR_DOMINO]*/,
-                      0 /*iparam[IPARAM_QR_TSRR]  */);
-
+                      iparam[IPARAM_QR_HLVL_SZE],
+                      iparam[IPARAM_QR_DOMINO],
+                      iparam[IPARAM_QR_TSRR]);
 
     if (rank == 0 )
     {
-        printf(";NP;NC;P;MB;NB;IB;qr_a;treel;treeh;domino;tsrr;criteria;alpha;type;M;N;nblu;nbqr;gflops;AnormI;Anorm1;BnormI;Bnorm1;XnormI;Xnorm1;RnormI;Rnorm1\n");
+        printf("facto;M;N;NP;NC;MB;NB;IB;qr_a;treel;treeh;domino;tsrr;P;type;criteria;alpha;nblu;nbqr;gflops;AnormI;Anorm1;BnormI;Bnorm1;XnormI;Xnorm1;RnormI;Rnorm1\n");
     }
 
+    /* Generate one B that will be used for everything */
+    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 3873 );
+    BnormI = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescB);
+    Bnorm1 = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&ddescB);
 
     {
-        double AnormI, Anorm1, BnormI, Bnorm1, XnormI, Xnorm1, RnormI, Rnorm1;
         int nbqr, nblu, info = 0;
         int  criteria_i, criteria;
         int  criteria_tab[] = { RANDOM_CRITERIUM,
@@ -133,7 +140,6 @@ int main(int argc, char ** argv)
         // MUMPS
         // alpha = (1.3 + ((1.8 - 1.3) / 6.) * i) ** 2
 
-        int debug = 0;
         int test, nbtests;
         int index, lastindex;
         char *filename;
@@ -157,48 +163,48 @@ int main(int argc, char ** argv)
         for(type_i = 0; type_i < (int)(sizeof(type_tab) / sizeof(int)); type_i++)
         {
             type = type_tab[type_i];
-            for(criteria_i = 0; criteria_i < (int)(sizeof(criteria_tab) / sizeof(int)); criteria_i++)
+
+            /* If random matrix, we test nbtests of them */
+            if ( type == MATRIX_RANDOM )
+                nbtests = 5;
+            else
+                nbtests = 1;
+
+            for(test=0; test<nbtests; test++)
             {
-                criteria = criteria_tab[criteria_i];
-                for(alpha_i = 0; alpha_i < (int)(sizeof(alpha_tab) / sizeof(double)); alpha_i++)
+                for(criteria_i = 0; criteria_i < (int)(sizeof(criteria_tab) / sizeof(int)); criteria_i++)
                 {
-                    alpha = alpha_tab[ alpha_i ];
-
-                    /* No need for multiple alpha for LU/QR only */
-                    if ( ((criteria == LU_ONLY_CRITERIUM) ||
-                          (criteria == QR_ONLY_CRITERIUM) ) &&
-                         ( alpha_i > 0) )
-                        continue;
-
-                    /* Skip dead lock */
-                    if ( (P == 16) && (criteria == RANDOM_CRITERIUM) &&
-			 ( type == 18) && ( alpha_i > 4) )
-		      continue;
-
-                    if ((criteria == HIGHAM_MOY_CRITERIUM) ||
-                        (criteria == HIGHAM_MAX_CRITERIUM) )
+                    criteria = criteria_tab[criteria_i];
+                    for(alpha_i = 0; alpha_i < (int)(sizeof(alpha_tab) / sizeof(double)); alpha_i++)
                     {
-                        alpha = ( alpha * 1.5 ) * ( alpha * 1.5 );
-                    }
+                        alpha = alpha_tab[ alpha_i ];
 
-                    if (criteria == MUMPS_CRITERIUM)
-                    {
-                        alpha = (1.3 + ((1.8 - 1.3) / 6.) * ((alpha_i+1)%7));
-                        alpha *= alpha;
-                    }
+                        /* No need for multiple alpha for LU/QR only */
+                        if ( ((criteria == LU_ONLY_CRITERIUM) ||
+                              (criteria == QR_ONLY_CRITERIUM) ) &&
+                             ( alpha_i > 0) )
+                            continue;
 
-                    /* If random matrix, we test nbtests of them */
-                    if ( type == MATRIX_RANDOM )
-                        nbtests = 5;
-                    else
-                        nbtests = 1;
+                        /* /\* Skip dead lock *\/ */
+                        /* if ( (P == 16) && (criteria == RANDOM_CRITERIUM) && */
+                        /*      ( type == 18) && ( alpha_i > 4) ) */
+                        /*     continue; */
 
-                    for(test=0; test<nbtests; test++)
-                    {
-                        AnormI = -1.; Anorm1 = -1.;
-                        BnormI = -1.; Bnorm1 = -1.;
-                        RnormI = -1.; Rnorm1 = -1.;
-                        XnormI = -1.; Xnorm1 = -1.;
+                        /* if ( (P == 32) && (criteria == RANDOM_CRITERIUM) && */
+                        /*      ( type == 18) && ( alpha_i > 3) ) */
+                        /*     continue; */
+
+                        if ((criteria == HIGHAM_MOY_CRITERIUM) ||
+                            (criteria == HIGHAM_MAX_CRITERIUM) )
+                        {
+                            alpha = ( alpha * 1.5 ) * ( alpha * 1.5 );
+                        }
+
+                        if (criteria == MUMPS_CRITERIUM)
+                        {
+                            alpha = (1.3 + ((1.8 - 1.3) / 6.) * (alpha_i%7));
+                            alpha *= alpha;
+                        }
 
                         index++;
                         if( index <= lastindex ) {
@@ -209,29 +215,24 @@ int main(int argc, char ** argv)
                             continue;
                         }
 
-                        /* matrix generation */
+                        /* Matrix generation (Only once for all test using this matrix */
                         if(loud > 2) printf("+++ Generate matrices ... ");
-                        dplasma_zplrnt_perso( dague, (tiled_matrix_desc_t *)&ddescA, type, 3872+test*53);
-                        if( check )
-                            dplasma_zlacpy( dague, PlasmaUpperLower,
-                                            (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescA0 );
+
+                        if ( firsttest ) {
+                            dplasma_zplrnt_perso( dague, (tiled_matrix_desc_t *)&ddescA0, type, 3872+test*53);
+                            AnormI = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA0);
+                            Anorm1 = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&ddescA0);
+                            firsttest = 0;
+                        }
+
+                        dplasma_zlacpy( dague, PlasmaUpperLower,
+                                        (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
                         dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS);
                         dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
                         if(loud > 2) printf("Done\n");
 
                         for(int i=0; i< dague_imin(MT, NT); i++)
                             lu_tab[i] = -1;
-
-                        if (loud > 2)
-                        {
-                            printf("START: NP=%d; NC=%d; P=%d; MB=%d; IB=%d; TS=%d; LT=%d; HT=%d; D=%d; RR=%d; "
-                                   "CRITERUM=%d; alpha=%e; type=%d; M=%d\n",
-                                   iparam[IPARAM_NNODES], iparam[IPARAM_NCORES],
-                                   iparam[IPARAM_P], iparam[IPARAM_MB], iparam[IPARAM_IB],
-                                   iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_LOWLVL_TREE],
-                                   iparam[IPARAM_HIGHLVL_TREE], iparam[IPARAM_QR_DOMINO],
-                                   iparam[IPARAM_QR_TSRR], criteria, alpha, type, M );
-                        }
 
                         /* Create DAGuE */
                         if(loud > 2) printf("+++ Computing getrf_qrf ... ");
@@ -254,22 +255,17 @@ int main(int argc, char ** argv)
                         dplasma_zgetrf_qrf_Destruct( DAGUE_zgetrf_qrf );
 
                         if ( info != 0 ) {
-                            if( rank == 0 && loud ) fprintf(stderr, "-- Factorization is suspicious (info = %d) ! \n", info );
-                            AnormI = -info; Anorm1 = -info;
-                            BnormI = -info; Bnorm1 = -info;
+                            /* That should not happen !!! QR is here to prevent this to happen */
+                            fprintf(stderr, "-- Factorization is suspicious (info = %d) ! \n", info );
                             RnormI = -info; Rnorm1 = -info;
                             XnormI = -info; Xnorm1 = -info;
                         }
-                        else if ( check ) {
-                            dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 3873+test*53 );
+                        else {
+                            /* Reinitialize B with same parameters as when we computed the norm */
+                            dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 3873 );
                             dplasma_zlacpy( dague, PlasmaUpperLower,
                                             (tiled_matrix_desc_t *)&ddescB,
                                             (tiled_matrix_desc_t *)&ddescX );
-
-                            AnormI = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA);
-                            Anorm1 = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&ddescA);
-                            BnormI = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescB);
-                            Bnorm1 = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&ddescB);
 
                             /*
                              * First check with a right hand side
@@ -285,12 +281,12 @@ int main(int argc, char ** argv)
                                           (tiled_matrix_desc_t *)&ddescA,
                                           (tiled_matrix_desc_t *)&ddescX);
 
-                            XnormI = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescB);
-                            Xnorm1 = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&ddescB);
+                            XnormI = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescX);
+                            Xnorm1 = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&ddescX);
 
                             /* Compute b - A*x */
                             dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0,
-                                           (tiled_matrix_desc_t*)&ddescA,
+                                           (tiled_matrix_desc_t*)&ddescA0,
                                            (tiled_matrix_desc_t*)&ddescX, 1.0,
                                            (tiled_matrix_desc_t*)&ddescB);
 
@@ -300,22 +296,10 @@ int main(int argc, char ** argv)
 
                         if (rank == 0)
                         {
-                            /* printf("zgetrf_qrf computation NP= %d NC= %d P= %d MB= %d IB= %d qr_a= %d treel= %d treeh= %d domino= %d RR= %d criteria= %d alpha= %e, rndtype= %d, M= %d N= %d : %f gflops\n", */
-                            /*        iparam[IPARAM_NNODES], iparam[IPARAM_NCORES], */
-                            /*        iparam[IPARAM_P], iparam[IPARAM_MB], iparam[IPARAM_IB], */
-                            /*        iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_LOWLVL_TREE], */
-                            /*        iparam[IPARAM_HIGHLVL_TREE], iparam[IPARAM_QR_DOMINO], */
-                            /*        iparam[IPARAM_QR_TSRR], criteria, alpha, type, */
-                            /*        M, N, */
-                            /*        gflops); */
-
-                            printf("getrf_qrf;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%e;%d;%d;%d;%d;%d;%f;%e;%e;%e;%e;%e;%e;%e;%e\n",
-                                   iparam[IPARAM_NNODES], iparam[IPARAM_NCORES],
-                                   iparam[IPARAM_P], iparam[IPARAM_MB], iparam[IPARAM_NB], iparam[IPARAM_IB],
-                                   iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_LOWLVL_TREE],
-                                   iparam[IPARAM_HIGHLVL_TREE], iparam[IPARAM_QR_DOMINO],
-                                   iparam[IPARAM_QR_TSRR], criteria, alpha, type,
-                                   M, N, nblu, nbqr, gflops, AnormI, Anorm1, BnormI, Bnorm1, XnormI, Xnorm1, RnormI, Rnorm1 );
+                            printf("getrf_qrf;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%e;%d;%d;%f;%e;%e;%e;%e;%e;%e;%e;%e\n",
+                                   M, N, iparam[IPARAM_NNODES], iparam[IPARAM_NCORES], iparam[IPARAM_MB], iparam[IPARAM_NB], iparam[IPARAM_IB],
+                                   iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE], iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR],
+                                   iparam[IPARAM_P], type, criteria, alpha, nblu, nbqr, gflops, AnormI, Anorm1, BnormI, Bnorm1, XnormI, Xnorm1, RnormI, Rnorm1 );
 
                             f = fopen(filename, "w");
                             fprintf(f, "%d", index);
@@ -323,21 +307,20 @@ int main(int argc, char ** argv)
                         }
                     }
                 }
+                firsttest = 1;
             }
         }
         free(filename);
     }
 
     free(lu_tab);
-    if (check)
-    {
-        dague_data_free(ddescA0.mat);
-        dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0);
-        dague_data_free(ddescB.mat);
-        dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
-        dague_data_free(ddescX.mat);
-        dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
-    }
+    dague_data_free(ddescA0.mat);
+    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0);
+    dague_data_free(ddescB.mat);
+    dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
+    dague_data_free(ddescX.mat);
+    dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
+
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_data_free(ddescTS.mat);

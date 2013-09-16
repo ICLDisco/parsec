@@ -44,6 +44,8 @@ set(TESTS
 #  testing_zgetrf_hpp2.c
   testing_zgetrf_qrf.c
   testing_zgetrf_qrf_iter_stability.c
+  testing_zgetrf_qrf_iter_lupp.c
+  testing_zgetrf_qrf_iter_hqr.c
 )
 if( DPLASMA_DEBUG_QR_PIVGEN )
   list(APPEND TESTS testing_zpivgen.c)
