@@ -399,7 +399,7 @@ void CORE_zplrnt_perso( enum matrix_init_e type,
 /*
  * Globals
  */
-type   [type = "enum matrix_init_e" ]
+mtype  [type = "enum matrix_init_e" ]
 seed   [type = "unsigned long long int" ]
 dataA  [type = "dague_ddesc_t *"]
 descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
@@ -427,7 +427,7 @@ BODY
 
     DRYRUN(
         CORE_zplrnt_perso(
-            type, tempmm, tempnn, A, ldam,
+            mtype, tempmm, tempnn, A, ldam,
             descA.m, descA.n, m0, n0, seed );
            );
 
