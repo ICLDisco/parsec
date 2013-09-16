@@ -117,8 +117,9 @@ dplasma/lib/[sdc]plghe\.jdf$
 dplasma/lib/[sdc]plghe_wrapper.c$
 dplasma/lib/[sdc]plgsy\.jdf$
 dplasma/lib/[sdc]plgsy_wrapper.c$
-dplasma/lib/[sdc]plrnt\.jdf$
+dplasma/lib/[sdc]plrnt.*\.jdf$
 dplasma/lib/[sdc]plrnt_wrapper.c$
+dplasma/lib/[sdc]plrnt_perso_wrapper.c$
 dplasma/lib/[sdc]posv_wrapper.c$
 dplasma/lib/[sdc]potrf_Lrl\.jdf$
 dplasma/lib/[sdc]potrf_Url\.jdf$
@@ -209,7 +210,7 @@ dplasma/lib/[sdcz]ormqr_[LR][NC]\.[ch]$
 dplasma/lib/[sdcz]ormqr_param_[LR][NC]\.[ch]$
 dplasma/lib/[sdcz]plghe\.[ch]$
 dplasma/lib/[sdcz]plgsy\.[ch]$
-dplasma/lib/[sdcz]plrnt\.[ch]$
+dplasma/lib/[sdcz]plrnt.*\.[ch]$
 dplasma/lib/[sdcz]potrf_Lrl\.[ch]$
 dplasma/lib/[sdcz]potrf_Url\.[ch]$
 dplasma/lib/[sdcz]potrf_ll\.[ch]$
