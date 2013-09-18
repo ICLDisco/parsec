@@ -211,7 +211,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     else me = -1;
 
     for( i = 0; remote_deps_count; i++) {
-        if( 0 == remote_deps->output[i].data.count ) continue;
+        if( 0 == remote_deps->output[i].count_bits ) continue;
 
         him = 0;
         for( array_index = count = 0; count < remote_deps->output[i].data.count; array_index++ ) {
