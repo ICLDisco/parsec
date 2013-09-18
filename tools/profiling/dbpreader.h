@@ -26,6 +26,7 @@ int dbp_reader_nb_dictionary_entries(const dbp_multifile_reader_t *dbp);
 int dbp_reader_worldsize(const dbp_multifile_reader_t *dbp);
 void dbp_reader_close_files(dbp_multifile_reader_t *dbp);
 dague_time_t dbp_reader_min_date(const dbp_multifile_reader_t *dbp);
+void dbp_reader_destruct(dbp_multifile_reader_t *dbp);
 
 /* Dictionary interface */
 

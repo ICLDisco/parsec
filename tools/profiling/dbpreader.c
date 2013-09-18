@@ -851,3 +851,9 @@ dbp_multifile_reader_t *dbp_reader_open_files(int nbfiles, char *files[])
     
     return dbp;
 }
+
+void dbp_reader_destruct(dbp_multifile_reader_t *dbp)
+{
+  free( dbp->files );
+  free( dbp );
+}
