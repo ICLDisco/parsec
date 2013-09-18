@@ -43,6 +43,7 @@ static void output(const char *format, ...)
 struct {
     int split_events_box_at_start;
     int split_events_link;
+    int name_all_containers;
     char *outfile;
     char **files;
     int nbfiles;
@@ -81,6 +82,7 @@ static void parse_arguments(int argc, char **argv)
         {"stats", 0, 0, 's'},
         {"box-split-events", 0, 0, 'b'},
         {"link-split-events", 0, 0, 'l'},
+        {"name-all-containers", 0, 0, 'n'},
         {"help", 0, 0, 'h'},
         {0, 0, 0, 0}
     };
@@ -90,9 +92,10 @@ static void parse_arguments(int argc, char **argv)
     USERFLAGS.stats = 1;
     USERFLAGS.split_events_box_at_start = 1;
     USERFLAGS.split_events_link = 1;
+    USERFLAGS.name_all_containers = 0;
 
     while(1) {
-        c = getopt_long(argc, argv, "o:psblh", long_options, &option_index);
+        c = getopt_long(argc, argv, "o:psblnh", long_options, &option_index);
         if(-1 == c) {
             break;
         }
@@ -112,6 +115,9 @@ static void parse_arguments(int argc, char **argv)
             break;
         case 'l':
             USERFLAGS.split_events_link = 0;
+            break;
+        case 'n':
+            USERFLAGS.name_all_containers = 1;
             break;
         case 'h':
         default:
@@ -348,17 +354,26 @@ static char *getThreadContainerIdentifier( const char *mpi_alias, const char *id
 
       /* Create name */
       asprintf( &gpu_name,    "GPU %d",    parent_id);
-      asprintf( &stream_name, "Stream %d", son_id   );
-    
+      switch (son_id) {
+      case 0:
+	asprintf( &stream_name, "Push" );
+	break;
+      case 1:
+	asprintf( &stream_name, "Pop" );
+	break;
+      default:
+	asprintf( &stream_name, "Stream %d", son_id - 2 );
+      }
+
       /* Register the new containers */
       p = uidhash_lookup_create_entry(gpu_name);
       if (p->alias == NULL) {
 	asprintf( &(p->alias), "%sG%d", mpi_alias, parent_id);
-	addContainer (0.00000, p->alias, "CT_G", mpi_alias, gpu_name, "");
+	addContainer (0.00000, p->alias, "CT_VP", mpi_alias, gpu_name, "");
       }
 
       asprintf( &(n->alias), "%sS%d", p->alias, son_id   );
-      addContainer (0.00000, n->alias, "CT_S", p->alias, stream_name, "");
+      addContainer (0.00000, n->alias, "CT_T", p->alias, stream_name, "");
 
       free(gpu_name); free(stream_name);
     }
@@ -551,7 +566,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     steps_end_dates = step_height(&consolidated_events, &nb_steps);
     for(s = 0; s < nb_steps; s++) {
         sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
-        addContainer(0.00000, cont_step_name, "CT_S", cont_thread_name, cont_step_name, "");
+        addContainer(0.00000, cont_step_name, "CT_ST", cont_thread_name, USERFLAGS.name_all_containers ? cont_step_name : " ", "");
     }
 
     while( NULL != (cev = (consolidated_event_t*)dague_list_nolock_pop_front( &consolidated_events ) ) ) {
@@ -569,9 +584,9 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
             pajeSetState2( ((double)cev->start) * 1e-3, "ST_TS", cont_step_name, keyid );
             pajeSetState2( ((double)cev->end) * 1e-3, "ST_TS", cont_step_name, "Wait");
         } 
-        if( cev->start_thread != cev->end_thread &&
+        if( (cev->start_thread != cev->end_thread) &&
             USERFLAGS.split_events_link ) {
-            sprintf(linkid, "L-%d", linkuid);
+	    sprintf(linkid, "L-%d", linkuid);
             linkuid++;
             cont_src = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(cev->start_thread) );
             cont_dst = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(cev->end_thread) );
@@ -610,11 +625,6 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
     addContType ("CT_T",  "CT_VP", "Thread" );
     addContType ("CT_ST", "CT_T",  "Thread Event");
     addStateType("ST_TS", "CT_ST", "Thread State");
-
-    addContType ("CT_G",  "CT_P",  "GPU"    );
-    addContType ("CT_S",  "CT_G",  "Stream" );
-    addContType ("CT_SS", "CT_S",  "Stream Event");
-    addStateType("ST_TS", "CT_SS", "Stream State");
 
     addLinkType ("LT_TL", "Split Event Link", "CT_P", "CT_T", "CT_T");
 
