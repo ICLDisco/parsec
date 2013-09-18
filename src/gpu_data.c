@@ -387,7 +387,7 @@ int dague_gpu_init(dague_context_t *dague_context,
                                         {break;} );
             }
 #if defined(DAGUE_PROF_TRACE)
-	    exec_stream->profiling = dague_profiling_thread_init( 2*1024*1024, "GPU %d.%d ", i, j );
+	    exec_stream->profiling = dague_profiling_thread_init( 2*1024*1024, DAGUE_PROFILE_STREAM_STR, i, j );
 #endif  /* defined(PROFILING) */
 #if defined(DAGUE_PROF_TRACE)
             exec_stream->prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC;

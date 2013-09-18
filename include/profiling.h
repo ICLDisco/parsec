@@ -174,4 +174,7 @@ typedef struct {
 } dague_profile_ddesc_info_t;
 extern char *dague_profile_ddesc_key_to_string;
 
+#define DAGUE_PROFILE_STREAM_STR "GPU %d-%d"
+#define DAGUE_PROFILE_THREAD_STR "DAGuE Thread %d of VP %d"
+
 #endif  /* _DAGUE_profiling_h */
