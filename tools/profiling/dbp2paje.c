@@ -288,6 +288,7 @@ typedef struct uidentry {
     struct uidentry *next;
     char *uid;
     char *long_uid;
+    char *alias;
 } uidentry_t;
 
 #define UID_HASH_LEN 256
@@ -321,6 +322,7 @@ static uidentry_t *uidhash_lookup_create_entry(const char *long_uid)
     
     n = (uidentry_t*)malloc( sizeof(uidentry_t) );
     n->long_uid = strdup(long_uid);
+    n->alias = NULL;
     asprintf(&n->uid, "%X", nextid++);
     n->next = UIDs[h];
     UIDs[h] = n;
@@ -328,14 +330,65 @@ static uidentry_t *uidhash_lookup_create_entry(const char *long_uid)
     return n;
 }
 
-static char *getThreadContainerIdentifier( const char *prefix, const char *identifier )
+static char *getThreadContainerIdentifier( const char *mpi_alias, const char *identifier )
 {
-    uidentry_t *n;
-    char *ret;
-    n = uidhash_lookup_create_entry(identifier);
-    asprintf( &ret, "%sT%s", prefix, n->uid);
-    return ret;
+  uidentry_t *n, *p;
+  int parent_id, son_id;
+  
+  /* Register the full identifier in hashtable */
+  n = uidhash_lookup_create_entry(identifier);
+  if (n->alias != NULL) {
+    return n->alias;
+  }
+
+  /* Check if this is a GPU/stream couple */
+  if ( sscanf( identifier, DAGUE_PROFILE_STREAM_STR, &parent_id, &son_id ) == 2 )
+    {
+      char *gpu_name, *stream_name;
+
+      /* Create name */
+      asprintf( &gpu_name,    "GPU %d",    parent_id);
+      asprintf( &stream_name, "Stream %d", son_id   );
+    
+      /* Register the new containers */
+      p = uidhash_lookup_create_entry(gpu_name);
+      if (p->alias == NULL) {
+	asprintf( &(p->alias), "%sG%d", mpi_alias, parent_id);
+	addContainer (0.00000, p->alias, "CT_G", mpi_alias, gpu_name, "");
+      }
+
+      asprintf( &(n->alias), "%sS%d", p->alias, son_id   );
+      addContainer (0.00000, n->alias, "CT_S", p->alias, stream_name, "");
+
+      free(gpu_name); free(stream_name);
+    }
+  else if ( sscanf( identifier, DAGUE_PROFILE_THREAD_STR, &son_id, &parent_id ) == 2 )
+    {
+      char *vp_name, *thrd_name;
+
+      /* Create name */
+      asprintf( &vp_name,   "VP %d",     parent_id);
+      asprintf( &thrd_name, "Thread %d", son_id   );
+    
+      /* Register the new containers */
+      p = uidhash_lookup_create_entry(vp_name);
+      if (p->alias == NULL) {
+	asprintf( &(p->alias),   "%sV%d", mpi_alias, parent_id);
+	addContainer (0.00000, p->alias, "CT_VP", mpi_alias, vp_name, "");
+      }
+
+      asprintf( &(n->alias), "%sT%d", p->alias,  son_id   );
+      addContainer (0.00000, n->alias, "CT_T",  p->alias, thrd_name, "");
+
+      free(vp_name); free(thrd_name);
+    }
+  else {
+    asprintf( &(n->alias), "%sT%s", mpi_alias, n->uid );
+  }
+
+  return n->alias;
 }
+
 
 static int merge_event( dague_list_t *list, consolidated_event_t *cev )
 {
@@ -523,9 +576,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
             cont_src = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(cev->start_thread) );
             cont_dst = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(cev->end_thread) );
             startLink( ((double)cev->start) * 1e-3, "LT_TL", cont_mpi_name, cont_src, cont_dst, keyid, linkid);
-            endLink( ((double)cev->end) * 1e-3, "LT_TL", cont_mpi_name, cont_src, cont_dst, keyid, linkid);
-            free(cont_src);
-            free(cont_dst);
+            endLink(   ((double)cev->end)   * 1e-3, "LT_TL", cont_mpi_name, cont_src, cont_dst, keyid, linkid);
         }
         free(cev);
         progress_bar_event_output();
@@ -554,13 +605,24 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
     initTrace (filename, 0, GTG_FLAG_NONE);
     addContType ("CT_Appli", "0", "Application");
     addContType ("CT_P", "CT_Appli", "Process");
-    addContType ("CT_T", "CT_P", "Thread");
-    addContType ("CT_S", "CT_T", "State");
-    addStateType("ST_TS", "CT_S", "Thread State");
+
+    addContType ("CT_VP", "CT_P",  "VP"     );
+    addContType ("CT_T",  "CT_VP", "Thread" );
+    addContType ("CT_ST", "CT_T",  "Thread Event");
+    addStateType("ST_TS", "CT_ST", "Thread State");
+
+    addContType ("CT_G",  "CT_P",  "GPU"    );
+    addContType ("CT_S",  "CT_G",  "Stream" );
+    addContType ("CT_SS", "CT_S",  "Stream Event");
+    addStateType("ST_TS", "CT_SS", "Stream State");
+
     addLinkType ("LT_TL", "Split Event Link", "CT_P", "CT_T", "CT_T");
 
-    addEntityValue ("Wait", "ST_TS", "Waiting", GTG_LIGHTGREY);
+    /* Create root container of the application */
     addContainer (0.00000, "Appli", "CT_Appli", "0", dbp_file_hr_id(dbp_reader_get_file(dbp, 0)), "");
+
+    /* Add all possible states from the dictionnary */
+    addEntityValue ("Wait", "ST_TS", "Waiting", GTG_LIGHTGREY);
 
     for(i = 0; i < dbp_reader_nb_dictionary_entries(dbp); i++) {
         dico = dbp_reader_get_dictionary(dbp, i);
@@ -574,6 +636,7 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
         gtg_color_free(color);
     }
 
+    /* Remove the time jitter */
     relative = dbp_reader_min_date(dbp);    
     if( dbp_reader_nb_files(dbp) > 1 ) {
         dague_time_t max_time;
@@ -593,16 +656,18 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
                 (double)delta_time / (double)dbp_reader_nb_files(dbp));
     }
 
+    /* Create the containers architecture */
     for(ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
         file = dbp_reader_get_file(dbp, ifd);
 
-        sprintf(name, "MPI-%d", dbp_file_get_rank(file));
-        sprintf(cont_mpi_name, "MPI-%d", dbp_file_get_rank(file));
+        sprintf(name,          "MPI-%d", dbp_file_get_rank(file));
+        sprintf(cont_mpi_name, "M%d",    dbp_file_get_rank(file));
         addContainer (0.00000, cont_mpi_name, "CT_P", "Appli", name, "");
         for(t = 0; t < dbp_file_nb_threads(file); t++) {
             th = dbp_file_get_thread(file, t);
 
             cont_thread_name = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(th) );
+	    assert(cont_thread_name != NULL);
             {
                 int l;
                 l = 3 + snprintf(NULL, 0, "#  %s", cont_thread_name);
@@ -610,18 +675,17 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
                     stat_columns[0] = l;
                 dico_stat[ifd][t].name = strdup(cont_thread_name);
             }
-            addContainer (0.00000, cont_thread_name, "CT_T", cont_mpi_name, dbp_thread_get_hr_id(th), "");
         }
     }
 
     for(ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
         file = dbp_reader_get_file(dbp, ifd);
 
-        sprintf(name, "MPI-%d", dbp_file_get_rank(file));
-        sprintf(cont_mpi_name, "MPI-%d", dbp_file_get_rank(file));
+        sprintf(cont_mpi_name, "M%d", dbp_file_get_rank(file));
         for(t = 0; t < dbp_file_nb_threads(file); t++) {
             th = dbp_file_get_thread(file, t);
             cont_thread_name = getThreadContainerIdentifier( cont_mpi_name, dbp_thread_get_hr_id(th) );
+	    assert(cont_thread_name != NULL);
             current_stat = dico_stat[ifd][t].stats;
             dump_one_paje(dbp, th, cont_mpi_name, cont_thread_name);
             progress_bar_thread_done();
@@ -723,6 +787,7 @@ int main(int argc, char *argv[])
         }
     }
 
+    dbp_reader_destruct(dbp);
     endTrace();
 
     return 0;
