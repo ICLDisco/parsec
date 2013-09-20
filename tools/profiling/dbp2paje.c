@@ -65,7 +65,7 @@ static void parse_arguments_error(char *message)
             "   -s|--stats                 Disable statistics on the profiles (default: enable statistics)\n"
             " Split Event Options\n"
             "  (split events are events that start on a thread and terminate on another)\n"
-            "   -b|--box-split-events      Disable boxes for the split events. Without this option, a box on the\n"
+            "   -b|--box-split-events      Enable boxes for the split events. Without this option, a box on the\n"
             "                              thread that started the event will be shown\n"
             "   -l|--link-split-events     Disable links for the split events. Without this option, a link connecting\n"
             "                              the beginning of this event and the end of this event will be shown.\n"
@@ -90,7 +90,7 @@ static void parse_arguments(int argc, char **argv)
     USERFLAGS.outfile = strdup("out");
     USERFLAGS.progress = 1;
     USERFLAGS.stats = 1;
-    USERFLAGS.split_events_box_at_start = 1;
+    USERFLAGS.split_events_box_at_start = 0;
     USERFLAGS.split_events_link = 1;
     USERFLAGS.name_all_containers = 0;
 
@@ -111,7 +111,7 @@ static void parse_arguments(int argc, char **argv)
             USERFLAGS.stats = 0;
             break;
         case 'b':
-            USERFLAGS.split_events_box_at_start = 0;
+            USERFLAGS.split_events_box_at_start = 1;
             break;
         case 'l':
             USERFLAGS.split_events_link = 0;
