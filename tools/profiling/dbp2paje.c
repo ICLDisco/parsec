@@ -566,30 +566,73 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                     dbp_iterator_delete(nit);
                     nit = NULL;
                 }
+                else {
+                    /* Check if nit is a rescheduled event,
+                     * if yes, then add 2 events, one local for submission,
+                     * one for the communication to the starting event on the device */
+                    g = dbp_iterator_current(nit);
+                    dump_one_event( &consolidated_events, dbp, relative,
+                                      pit, e, nit, g );
+                    current_stat[ key ].nb_matchsuccess++;
+
+                    if ( dbp_event_get_flags(g) & DAGUE_PROFILING_EVENT_RESCHEDULED ) {
+                        dbp_event_iterator_t *nit2;
+                        /* Search for next starting event on another device */
+                        nit2 = dbp_iterator_find_matching_event_all_threads(nit, 1);
+                        if( NULL == nit ) {
+                            /* Argh, couldn't find the end in this trace */
+                            WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" rescheduled at %lu does not have a new starting point anywhere\n",
+                                     dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
+                                     dbp_event_get_object_id(e), dbp_event_get_event_id(e),
+                                     diff_time(relative, dbp_event_get_timestamp(e))));
+                            current_stat[ key ].nb_matcherror++;
+                        }
+                        else {
+                            if( dbp_iterator_thread(nit) != dbp_iterator_thread(nit2) ) {
+                                current_stat[ key ].nb_matchthreads++;
+                            }
+
+                            dump_one_event( &consolidated_events, dbp, relative,
+                                            nit, g, nit2, dbp_iterator_current(nit2));
+
+                            dbp_iterator_delete(nit2);
+                        }
+                    }
+                    dbp_iterator_delete(nit);
+                }
             } else {
+                dbp_event_iterator_t *nit2 = NULL;
                 nit = dbp_iterator_find_matching_event_all_threads(pit, 0);
-            }
 
-            if( NULL == nit ) {
-                if ( USERFLAGS.split_events_box_at_start ) {
-                  /* Argh, couldn't find the end in this trace */
-                  WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
-                           dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
-                           dbp_event_get_object_id(e), dbp_event_get_event_id(e),
-                           diff_time(relative, dbp_event_get_timestamp(e))));
-
-                  current_stat[ key ].nb_matcherror++;
+                g = dbp_iterator_current(nit);
+                if ( dbp_event_get_flags(g) & DAGUE_PROFILING_EVENT_RESCHEDULED ) {
+                    nit2 = nit;
+                    nit = dbp_iterator_find_matching_event_all_threads(nit2, 0);
+                    assert(nit != nit2);
                 }
-            } else {
-                if( dbp_iterator_thread(nit) != dbp_iterator_thread(pit) ) {
+
+                if( NULL == nit ) {
+                    /* Argh, couldn't find the end in this trace */
+                    WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
+                             dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
+                             dbp_event_get_object_id(e), dbp_event_get_event_id(e),
+                             diff_time(relative, dbp_event_get_timestamp(e))));
+
+                    current_stat[ key ].nb_matcherror++;
+                }
+                else {
+                  if( dbp_iterator_thread(nit) != dbp_iterator_thread(pit) ) {
                     current_stat[ key ].nb_matchthreads++;
-                }
-                current_stat[ key ].nb_matchsuccess++;
-  
-                dump_one_event( &consolidated_events, dbp, relative,
-                                pit, e, nit, dbp_iterator_current(nit));
+                  }
+                  current_stat[ key ].nb_matchsuccess++;
 
-                dbp_iterator_delete(nit);
+                  dump_one_event( &consolidated_events, dbp, relative,
+                                  pit, e, nit, dbp_iterator_current(nit));
+
+                  dbp_iterator_delete(nit);
+                }
+                if (nit2 != NULL)
+                  dbp_iterator_delete(nit2);
             }
         }
         progress_bar_event_read();
