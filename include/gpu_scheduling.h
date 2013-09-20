@@ -18,6 +18,9 @@
 #include <errno.h>
 #include "lifo.h"
 
+#if defined(DAGUE_PROF_TRACE)
+#include "dbp.h"
+#endif /* defined(DAGUE_PROF_TRACE) */
 extern volatile uint32_t dague_cpu_counter;
 extern gpu_device_t** gpu_enabled_devices;
 
@@ -68,6 +71,15 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 #if defined(DAGUE_DEBUG_VERBOSE2)
     char tmp[MAX_TASK_STRLEN];
 #endif
+
+#if defined(DAGUE_PROF_TRACE)
+    dague_profiling_trace_flags( eu_context->eu_profile,
+				 DAGUE_PROF_FUNC_KEY_END(this_task->ec->dague_object,
+							 this_task->ec->function->function_id),
+				 this_task->ec->function->key( this_task->ec->dague_object, this_task->ec->locals),
+				 this_task->ec->dague_object->object_id, NULL,
+				 DAGUE_PROFILING_EVENT_RESCHEDULED );
+#endif /* defined(DAGUE_PROF_TRACE) */
 
     gpu_device = gpu_enabled_devices[which_gpu];
 

@@ -143,6 +143,8 @@ int dague_profiling_dictionary_flush( void );
  */
 #define PROFILE_OBJECT_ID_NULL ((uint32_t)-1)
 int dague_profiling_trace( dague_thread_profiling_t* context, int key, uint64_t event_id, uint32_t object_id, void *info );
+int dague_profiling_trace_flags( dague_thread_profiling_t* context, int key,
+				 uint64_t event_id, uint32_t object_id, void *info, uint16_t flags );
 
 /**
  * Dump the current profile in the said filename.
