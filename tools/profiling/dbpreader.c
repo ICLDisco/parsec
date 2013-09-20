@@ -305,15 +305,21 @@ void dbp_iterator_delete(dbp_event_iterator_t *it)
 }
 
 int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
-                                        const dbp_event_t *ref)
+                                        const dbp_event_t *ref,
+					int start )
 {
     const dbp_event_t *e;
-    
+    uint64_t ref_eid = dbp_event_get_event_id(ref);
+    uint32_t ref_oid = dbp_event_get_object_id(ref);
+    int      ref_key = start ?
+      START_KEY(BASE_KEY(dbp_event_get_key(ref))) :
+      END_KEY(  BASE_KEY(dbp_event_get_key(ref)));
+
     e = dbp_iterator_current( pos );
     while( NULL != e ) {
-        if( (dbp_event_get_object_id(e) == dbp_event_get_object_id(ref)) &&
-            (dbp_event_get_event_id(e) == dbp_event_get_event_id(ref)) &&
-            (dbp_event_get_key(e) == END_KEY(BASE_KEY(dbp_event_get_key(ref)))) ) {
+        if( (dbp_event_get_object_id(e) == ref_oid) &&
+            (dbp_event_get_event_id(e)  == ref_eid) &&
+            (dbp_event_get_key(e)       == ref_key) ) {
             if( dbp_event_get_event_id(e) != 0 ||
                 time_less( dbp_event_get_timestamp(ref), dbp_event_get_timestamp(e)) ||
                 (diff_time(dbp_event_get_timestamp(ref), dbp_event_get_timestamp(e)) == 0) ) {
@@ -328,7 +334,7 @@ int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
     return 0;
 }
 
-dbp_event_iterator_t *dbp_iterator_find_matching_event_all_threads(const dbp_event_iterator_t *pos)
+dbp_event_iterator_t *dbp_iterator_find_matching_event_all_threads(const dbp_event_iterator_t *pos, int start)
 {
     dbp_event_iterator_t *it;
     const dbp_event_t *ref;
@@ -337,7 +343,7 @@ dbp_event_iterator_t *dbp_iterator_find_matching_event_all_threads(const dbp_eve
 
     ref = dbp_iterator_current(pos);
     it = dbp_iterator_new_from_iterator(pos);
-    if( dbp_iterator_move_to_matching_event(it, ref) )
+    if( dbp_iterator_move_to_matching_event(it, ref, start) )
         return it;
     dbp_iterator_delete(it);
 
@@ -347,7 +353,7 @@ dbp_event_iterator_t *dbp_iterator_find_matching_event_all_threads(const dbp_eve
         if( pos->thread == dbp_file_get_thread(dbp_file, th) )
             continue;
         it = dbp_iterator_new_from_thread( dbp_file_get_thread(dbp_file, th) );
-        if( dbp_iterator_move_to_matching_event(it, ref) )
+        if( dbp_iterator_move_to_matching_event(it, ref, start) )
             return it;
         dbp_iterator_delete(it);
     }
