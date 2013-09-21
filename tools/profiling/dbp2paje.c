@@ -338,88 +338,88 @@ static uidentry_t *uidhash_lookup_create_entry(const char *long_uid)
 
 static char *getThreadContainerIdentifier( const dbp_thread_t *th )
 {
-  uidentry_t *n;
-  const char *identifier = dbp_thread_get_hr_id(th);
+    uidentry_t *n;
+    const char *identifier = dbp_thread_get_hr_id(th);
 
-  /* Register the full identifier in hashtable */
-  n = uidhash_lookup_create_entry(identifier);
-  if (n->alias != NULL) {
-    return n->alias;
-  }
-  else {
-    assert(0);
-    return "";
-  }
+    /* Register the full identifier in hashtable */
+    n = uidhash_lookup_create_entry(identifier);
+    if (n->alias != NULL) {
+        return n->alias;
+    }
+    else {
+        assert(0);
+        return "";
+    }
 }
 
 static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_thread_t *th )
 {
-  uidentry_t *n, *p;
-  int parent_id, son_id;
+    uidentry_t *n, *p;
+    int parent_id, son_id;
 
-  const char *identifier = dbp_thread_get_hr_id(th);
+    const char *identifier = dbp_thread_get_hr_id(th);
 
-  /* Register the full identifier in hashtable */
-  n = uidhash_lookup_create_entry(identifier);
-  if (n->alias != NULL) {
+    /* Register the full identifier in hashtable */
+    n = uidhash_lookup_create_entry(identifier);
+    if (n->alias != NULL) {
+        return n->alias;
+    }
+
+    /* Check if this is a GPU/stream couple */
+    if ( sscanf( identifier, DAGUE_PROFILE_STREAM_STR, &parent_id, &son_id ) == 2 )
+    {
+        char *gpu_name, *stream_name;
+
+        /* Create name */
+        asprintf( &gpu_name,    "GPU %d",    parent_id);
+        switch (son_id) {
+        case 0:
+            asprintf( &stream_name, "Push" );
+            break;
+        case 1:
+            asprintf( &stream_name, "Pop" );
+            break;
+        default:
+            asprintf( &stream_name, "Stream %d", son_id - 2 );
+        }
+
+        /* Register the new containers */
+        p = uidhash_lookup_create_entry(gpu_name);
+        if (p->alias == NULL) {
+            asprintf( &(p->alias), "%sG%d", mpi_alias, parent_id);
+            addContainer (0.00000, p->alias, "CT_VP", mpi_alias, gpu_name, "");
+        }
+
+        asprintf( &(n->alias), "%sS%d", p->alias, son_id   );
+        addContainer (0.00000, n->alias, "CT_T", p->alias, stream_name, "");
+
+        free(gpu_name); free(stream_name);
+    }
+    else if ( sscanf( identifier, DAGUE_PROFILE_THREAD_STR, &son_id, &parent_id ) == 2 )
+    {
+        char *vp_name, *thrd_name;
+
+        /* Create name */
+        asprintf( &vp_name,   "VP %d",     parent_id);
+        asprintf( &thrd_name, "Thread %d", son_id   );
+
+        /* Register the new containers */
+        p = uidhash_lookup_create_entry(vp_name);
+        if (p->alias == NULL) {
+            asprintf( &(p->alias),   "%sV%d", mpi_alias, parent_id);
+            addContainer (0.00000, p->alias, "CT_VP", mpi_alias, vp_name, "");
+        }
+
+        asprintf( &(n->alias), "%sT%d", p->alias,  son_id   );
+        addContainer (0.00000, n->alias, "CT_T",  p->alias, thrd_name, "");
+
+        free(vp_name); free(thrd_name);
+    }
+    else {
+        asprintf( &(n->alias), "%sT%s", mpi_alias, n->uid );
+    }
+
     return n->alias;
-  }
-
-  /* Check if this is a GPU/stream couple */
-  if ( sscanf( identifier, DAGUE_PROFILE_STREAM_STR, &parent_id, &son_id ) == 2 )
-    {
-      char *gpu_name, *stream_name;
-
-      /* Create name */
-      asprintf( &gpu_name,    "GPU %d",    parent_id);
-      switch (son_id) {
-      case 0:
-        asprintf( &stream_name, "Push" );
-        break;
-      case 1:
-        asprintf( &stream_name, "Pop" );
-        break;
-      default:
-        asprintf( &stream_name, "Stream %d", son_id - 2 );
-      }
-
-      /* Register the new containers */
-      p = uidhash_lookup_create_entry(gpu_name);
-      if (p->alias == NULL) {
-        asprintf( &(p->alias), "%sG%d", mpi_alias, parent_id);
-        addContainer (0.00000, p->alias, "CT_VP", mpi_alias, gpu_name, "");
-      }
-
-      asprintf( &(n->alias), "%sS%d", p->alias, son_id   );
-      addContainer (0.00000, n->alias, "CT_T", p->alias, stream_name, "");
-
-      free(gpu_name); free(stream_name);
-    }
-  else if ( sscanf( identifier, DAGUE_PROFILE_THREAD_STR, &son_id, &parent_id ) == 2 )
-    {
-      char *vp_name, *thrd_name;
-
-      /* Create name */
-      asprintf( &vp_name,   "VP %d",     parent_id);
-      asprintf( &thrd_name, "Thread %d", son_id   );
-
-      /* Register the new containers */
-      p = uidhash_lookup_create_entry(vp_name);
-      if (p->alias == NULL) {
-        asprintf( &(p->alias),   "%sV%d", mpi_alias, parent_id);
-        addContainer (0.00000, p->alias, "CT_VP", mpi_alias, vp_name, "");
-      }
-
-      asprintf( &(n->alias), "%sT%d", p->alias,  son_id   );
-      addContainer (0.00000, n->alias, "CT_T",  p->alias, thrd_name, "");
-
-      free(vp_name); free(thrd_name);
-    }
-  else {
-    asprintf( &(n->alias), "%sT%s", mpi_alias, n->uid );
-  }
-
-  return n->alias;
 }
 
 
@@ -436,7 +436,7 @@ static int merge_event( dague_list_t *list, consolidated_event_t *cev )
         lev = (consolidated_event_t*)it;
         if( cev->start >= lev->start ) {
             if( ((cev->start < lev->end) ||
-                ((next != NULL) && (cev->end > next->start) )) &&
+                 ((next != NULL) && (cev->end > next->start) )) &&
                 (cev->start_thread == cev->end_thread) ) {
                 broken = 1;
             }
@@ -467,11 +467,11 @@ static uint64_t *step_height(dague_list_t *list, int *level)
     cev = (consolidated_event_t*)e;
 
     for( ; e != DAGUE_LIST_ITERATOR_END(list);
-           e = DAGUE_LIST_ITERATOR_NEXT(e) ) {
+         e = DAGUE_LIST_ITERATOR_NEXT(e) ) {
         cev = (consolidated_event_t*)e;
 
         if( cev->start_thread == cev->end_thread ||
-              USERFLAGS.split_events_box_at_start ) {
+            USERFLAGS.split_events_box_at_start ) {
             for(s = 0; s < nb_steps; s++) {
                 if( dates[s] <= cev->start ) {
                     dates[s] = cev->end;
@@ -572,10 +572,13 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                      * one for the communication to the starting event on the device */
                     g = dbp_iterator_current(nit);
                     dump_one_event( &consolidated_events, dbp, relative,
-                                      pit, e, nit, g );
+                                    pit, e, nit, g );
                     current_stat[ key ].nb_matchsuccess++;
 
-                    if ( dbp_event_get_flags(g) & DAGUE_PROFILING_EVENT_RESCHEDULED ) {
+                    /* Add the arrot to the rescheduled event */
+                    if (USERFLAGS.split_events_link &&
+                        ( dbp_event_get_flags(g) & DAGUE_PROFILING_EVENT_RESCHEDULED ))
+                    {
                         dbp_event_iterator_t *nit2;
                         /* Search for next starting event on another device */
                         nit2 = dbp_iterator_find_matching_event_all_threads(nit, 1);
@@ -621,18 +624,18 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                     current_stat[ key ].nb_matcherror++;
                 }
                 else {
-                  if( dbp_iterator_thread(nit) != dbp_iterator_thread(pit) ) {
-                    current_stat[ key ].nb_matchthreads++;
-                  }
-                  current_stat[ key ].nb_matchsuccess++;
+                    if( dbp_iterator_thread(nit) != dbp_iterator_thread(pit) ) {
+                        current_stat[ key ].nb_matchthreads++;
+                    }
+                    current_stat[ key ].nb_matchsuccess++;
 
-                  dump_one_event( &consolidated_events, dbp, relative,
-                                  pit, e, nit, dbp_iterator_current(nit));
+                    dump_one_event( &consolidated_events, dbp, relative,
+                                    pit, e, nit, dbp_iterator_current(nit));
 
-                  dbp_iterator_delete(nit);
+                    dbp_iterator_delete(nit);
                 }
                 if (nit2 != NULL)
-                  dbp_iterator_delete(nit2);
+                    dbp_iterator_delete(nit2);
             }
         }
         progress_bar_event_read();
@@ -651,18 +654,18 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
 
         if( (cev->start_thread == cev->end_thread) ||
             USERFLAGS.split_events_box_at_start )
-            {
-                for(s = 0; s < nb_steps; s++) {
-                    if( steps_end_dates[s] <= cev->start ) {
-                        steps_end_dates[s] = cev->end;
-                        break;
-                    }
+        {
+            for(s = 0; s < nb_steps; s++) {
+                if( steps_end_dates[s] <= cev->start ) {
+                    steps_end_dates[s] = cev->end;
+                    break;
                 }
-                assert( s < nb_steps );
-                sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
-                pajeSetState2( ((double)cev->start) * 1e-3, "ST_TS", cont_step_name, keyid );
-                pajeSetState2( ((double)cev->end)   * 1e-3, "ST_TS", cont_step_name, "Wait");
             }
+            assert( s < nb_steps );
+            sprintf(cont_step_name, "%s-%d", cont_thread_name, s);
+            pajeSetState2( ((double)cev->start) * 1e-3, "ST_TS", cont_step_name, keyid );
+            pajeSetState2( ((double)cev->end)   * 1e-3, "ST_TS", cont_step_name, "Wait");
+        }
 
         if( (cev->start_thread != cev->end_thread) &&
             USERFLAGS.split_events_link ) {
