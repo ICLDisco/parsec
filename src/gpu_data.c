@@ -179,7 +179,8 @@ int dague_active_gpu(void)
 /* Accepted values are: DAGUE_PROFILE_CUDA_TRACK_DATA_IN | DAGUE_PROFILE_CUDA_TRACK_DATA_OUT |
  *                      DAGUE_PROFILE_CUDA_TRACK_OWN | DAGUE_PROFILE_CUDA_TRACK_EXEC
  */
-int dague_cuda_trackable_events = DAGUE_PROFILE_CUDA_TRACK_EXEC | DAGUE_PROFILE_CUDA_TRACK_DATA_OUT | DAGUE_PROFILE_CUDA_TRACK_DATA_IN;
+int dague_cuda_trackable_events = DAGUE_PROFILE_CUDA_TRACK_EXEC | DAGUE_PROFILE_CUDA_TRACK_DATA_OUT
+  | DAGUE_PROFILE_CUDA_TRACK_DATA_IN | DAGUE_PROFILE_CUDA_TRACK_OWN;
 int dague_cuda_movein_key_start;
 int dague_cuda_movein_key_end;
 int dague_cuda_moveout_key_start;
@@ -386,7 +387,7 @@ int dague_gpu_init(dague_context_t *dague_context,
                                         {break;} );
             }
 #if defined(DAGUE_PROF_TRACE)
-	    exec_stream->profiling = dague_profiling_thread_init( 2*1024*1024, "GPU %d.%d ", i, j );
+	    exec_stream->profiling = dague_profiling_thread_init( 2*1024*1024, DAGUE_PROFILE_STREAM_STR, i, j );
 #endif  /* defined(PROFILING) */
 #if defined(DAGUE_PROF_TRACE)
             exec_stream->prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC;

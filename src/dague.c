@@ -164,7 +164,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
 #ifdef DAGUE_PROF_TRACE
     eu->eu_profile = dague_profiling_thread_init( 2*1024*1024,
-                                                  "DAGuE Thread %d of VP %d",
+                                                  DAGUE_PROFILE_THREAD_STR,
                                                   eu->th_id,
                                                   eu->virtual_process->vp_id );
 #endif
