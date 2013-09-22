@@ -347,10 +347,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(HAVE_GETOPT_LONG)
             int option_index = 0;
 
-            ret = getopt_long (argc, argv, "p:b:c:v:.::",
-                               long_options, &option_index);
+            ret = getopt_long_only(argc, argv, "p:b:c:.::",
+                                   long_options, &option_index);
 #else
-            ret = getopt (argc, argv, "p:b:c:.::");
+            ret = getopt(argc, argv, "p:b:c:.::");
 #endif  /* defined(HAVE_GETOPT_LONG) */
             if( -1 == ret ) break;  /* we're done */
 
@@ -360,7 +360,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             case 'b': dague_parse_binding_parameter(optarg, context, startup); break;
             case '.':
                 if( dague_enable_dot ) free( dague_enable_dot );
-                /** Could not make optional_argument work. Recoding its behavior... */ 
+                /** Could not make optional_argument work. Recoding its behavior... */
                 if( strlen( argv[optind-1] ) >= 2 && strncmp( argv[optind-1], "-.", 2) == 0) {
                     /** Case one: using short argument -. */
                     if( strlen( argv[optind-1] ) > 2 ) {
