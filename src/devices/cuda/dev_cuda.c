@@ -17,12 +17,14 @@
 #include "profiling.h"
 #include "execution_unit.h"
 #include "arena.h"
-#include "dague/utils/output.h"
+#include <dague/utils/output.h>
+#include <dague/utils/argv.h>
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <errno.h>
 #include <dlfcn.h>
+#include <sys/stat.h>
 
 #if defined(DAGUE_PROF_TRACE)
 /* Accepted values are: DAGUE_PROFILE_CUDA_TRACK_DATA_IN | DAGUE_PROFILE_CUDA_TRACK_DATA_OUT |
@@ -170,6 +172,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     int i, index, capability = gpu_device->major * 10 + gpu_device->minor;
     CUresult status;
     void *fn = NULL, *dlh = NULL;
+    char** argv = NULL, **target;
 
     status = cuCtxPushCurrent( gpu_device->ctx );
     DAGUE_CUDA_CHECK_ERROR( "(cuda_solve_handle_dependencies) cuCtxPushCurrent ", status, {continue;} );
@@ -183,33 +186,50 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     if( -1 == index ) {  /* This shouldn't have happened */
         return NULL;
     }
+
+    /**
+     * Prepare the list of PATH or FILE to be searched for a CUDA shared library.
+     * In any case this list might be a list of ; separated possible targets,
+     * where each target can be either a directory or a specific file.
+     */
+    env = getenv("DAGUE_CUCORES_LIB");
+    if( NULL != env ) {
+        argv = dague_argv_split(env, ';');
+    } else if( NULL != cuda_lib_path ) {
+        argv = dague_argv_split(cuda_lib_path, ';');
+    }
+
   retry_lesser_sm_version:
     capability = cuda_legal_compute_capabilitites[index];
     snprintf(function_name, FILENAME_MAX, "magmablas_S%s_SM%2d", fname, capability);
-    env = getenv("DAGUE_CUCORES_LIB");
-    if(NULL == env) {
-        if( NULL == cuda_lib_path) {
-            snprintf(library_name,  FILENAME_MAX, "libdplasma_cucores_sm%d.so",  capability);
-        } else {
-            snprintf(library_name,  FILENAME_MAX, "%s", cuda_lib_path);
-        }
-    } else {
-        snprintf(library_name,  FILENAME_MAX, "%s", env);
-    }
 
-    dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
-    if(NULL == dlh) {
-        dague_output_verbose(5, dague_cuda_output_stream,
-                             "Could not find %s dynamic library (%s)\n", library_name, dlerror());
-        if(env) ERROR(("Could not find %s library: %s\n"
-                       "  It is derived from environment DAGUE_CUCORES_LIB=%s\n"
-                       "  To resolve this issue, set this variable to the correct path\n"
-                       "    ex: /path/libdplasma_cucores_sm20.so\n"
-                       "  Or unset it to use the default GPU kernels\n"
-                       , library_name, dlerror(), env));
-    } else {
+    for( target = argv; (NULL != target) && (NULL != *target); target++ ) {
+        struct stat status;
+        if( 0 != stat(*target, &status) ) {
+            dague_output_verbose(5, dague_cuda_output_stream,
+                                 "Could not stat the %s path (%s)\n", *target, strerror(errno));
+            continue;
+        }
+        if( S_ISDIR(status.st_mode) ) {
+            snprintf(library_name,  FILENAME_MAX, "%s/libdplasma_cucores_sm%d.so", *target, capability);
+        } else {
+            snprintf(library_name,  FILENAME_MAX, "%s", *target);
+        }
+
+        dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
+        if(NULL == dlh) {
+            dague_output_verbose(5, dague_cuda_output_stream,
+                                 "Could not find %s dynamic library (%s)\n", library_name, dlerror());
+            continue;
+        }
         fn = dlsym(dlh, function_name);
         dlclose(dlh);
+        if( NULL != fn ) {
+            dague_output_verbose(10, dague_cuda_output_stream,
+                                 "Function %s found in shared object %s\n",
+                                 function_name, library_name);
+            break;  /* we got one, stop here */
+        }
     }
     /* Couldn't load from dynamic libs, try static */
     if(NULL == fn) {
@@ -217,20 +237,15 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
                              "No dynamic function %s found, trying from  statically linked\n",
                              function_name);
         dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
-        if(NULL == dlh) {
-            ERROR(("Error parsing static libs: %s\n", dlerror()));
+        if(NULL != dlh) {
+            fn = dlsym(dlh, function_name);
+            if(NULL != fn) {
+                dague_output_verbose(10, dague_cuda_output_stream,
+                                     "Function %s found in the application object\n",
+                                     function_name);
+            }
+            dlclose(dlh);
         }
-        fn = dlsym(dlh, function_name);
-        if(env && fn) {
-            dague_output_verbose(10, dague_cuda_output_stream,
-                                 "Function %s found in the application object\n",
-                                 function_name);
-        }
-        dlclose(dlh);
-    } else {
-        dague_output_verbose(10, dague_cuda_output_stream,
-                             "Function %s found in shared object %s\n",
-                             function_name, library_name);
     }
 
     /* Still not found?? skip this GPU */
@@ -246,6 +261,8 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     status = cuCtxPopCurrent(NULL);
     DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
                             {continue;} );
+    if( NULL != argv )
+        dague_argv_free(argv);
 
     return fn;
 }
@@ -321,7 +338,7 @@ int dague_gpu_init(dague_context_t *dague_context)
                                        "Set the verbosity level of the CUDA device (negative value turns all output off, higher is less verbose)\n",
                                        false, false, -1, &cuda_verbosity);
     (void)dague_mca_param_reg_string_name("device_cuda", "path",
-                                          "Path to the shared library files containing the CUDA version of the hooks\n",
+                                          "Path to the shared library files containing the CUDA version of the hooks. It is a ;-separated list of either directories or .so files.\n",
                                           false, false, DAGUE_LIB_CUDA_PREFIX, &cuda_lib_path);
     if( 0 == use_cuda ) {
         return -1;  /* Nothing to do around here */
