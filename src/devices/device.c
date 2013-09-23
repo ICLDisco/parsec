@@ -125,11 +125,11 @@ int dague_devices_fini(dague_context_t* dague_context)
         if( 0 == total_data_out ) total_data_out = 1;
         gtotal = (float)total;
 
-        printf("-------------------------------------------------------------------------------------------------\n");
-        printf("|         |                   |         Data In                |         Data Out               |\n");
-        printf("|Rank %3d |  # KERNEL |   %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
+        printf("--------------------------------------------------------------------------------------------------\n");
+        printf("|         |                    |         Data In                |         Data Out               |\n");
+        printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
                dague_context->my_rank);
-        printf("|---------|-----------|-------|------------|-------------------|------------|-------------------|\n");
+        printf("|---------|-----------|--------|------------|-------------------|------------|-------------------|\n");
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( NULL == (device = dague_devices[i]) ) continue;
 
@@ -138,7 +138,7 @@ int dague_devices_fini(dague_context_t* dague_context)
             dague_compute_best_unit( transferred_in[i],  &best_data_in,      &data_in_unit      );
             dague_compute_best_unit( transferred_out[i], &best_data_out,     &data_out_unit     );
 
-            printf("|  Dev %2d |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) | %s\n",
+            printf("|  Dev %2d |%10d | %6.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) | %s\n",
                    device->device_index, device_counter[i], (device_counter[i]/gtotal)*100.00,
                    best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
                    (((double)transferred_in[i])  / (double)required_in[i] ) * 100.0,
@@ -146,7 +146,7 @@ int dague_devices_fini(dague_context_t* dague_context)
                    (((double)transferred_out[i]) / (double)required_out[i]) * 100.0, device->name );
         }
 
-        printf("|---------|-----------|-------|------------|-------------------|------------|-------------------|\n");
+        printf("|---------|-----------|--------|------------|-------------------|------------|-------------------|\n");
 
         dague_compute_best_unit( total_required_in,  &best_required_in,  &required_in_unit  );
         dague_compute_best_unit( total_required_out, &best_required_out, &required_out_unit );
