@@ -35,4 +35,7 @@ if(GRAPHVIZ_FOUND)
 
 endif(GRAPHVIZ_FOUND)
 
+# Python support for profiling
+Add_Subdirectory(python)
+
 install(TARGETS dbp2xml RUNTIME DESTINATION bin)
