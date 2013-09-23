@@ -30,7 +30,7 @@ class multifile_reader:
       self.nb_dict_entries = nb_dict_entries
       self.dictionary = {}
       self.files = []
-      
+
 class dbpDictEntry:
    def __init__(self, id, name, attributes):
       self.id = id
@@ -71,7 +71,7 @@ class dbpEvent:
    def __str__(self):
       return 'key %d flags %d tid %d objID %s eventID %d start %d end %d duration %d' % (
               self.key, self.flags, self.thread.id, self.object_id, self.event_id, self.start, self.end, self.duration)
-     
+
 
 # Cython code
 
@@ -103,7 +103,7 @@ cpdef readProfilesIntoPython(filenames):
    # also, free multifile_reader and associated event buffers?
    return reader
 
- 
+
 cdef char** stringListToCStrings(strings):
    cdef char ** c_argv
    strings = [bytes(x) for x in strings]
@@ -123,17 +123,17 @@ cdef makeDbpInfo(dbp_file_t * cfile, int index):
    key = dbp_info_get_key(cinfo)
    value = dbp_info_get_value(cinfo)
    return dbpInfo(key, value)
-   
+
 cdef makeDbpDictEntry(dbp_multifile_reader_t * dbp, int index):
    dico = dbp_reader_get_dictionary(dbp, index)
    return dbpDictEntry(index, dbp_dictionary_name(dico), dbp_dictionary_attributes(dico))
-   
+
 cdef makeDbpThread(dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, file):
    cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, index)
    cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
    cdef dbp_event_iterator_t * it_e
-   cdef dbp_event_t * event_s = dbp_iterator_current(it_s)
-   cdef dbp_event_t * event_e
+   cdef const dbp_event_t * event_s = dbp_iterator_current(it_s)
+   cdef const dbp_event_t * event_e
    cdef dague_time_t reader_start = dbp_reader_min_date(dbp)
    cdef unsigned long long start, end
 
@@ -141,13 +141,13 @@ cdef makeDbpThread(dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, 
 
    while event_s is not NULL:
       if KEY_IS_START( dbp_event_get_key(event_s) ):
-         it_e = dbp_iterator_find_matching_event_all_threads(it_s)
+         it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
          if it_e is not NULL:
             event_e = dbp_iterator_current(it_e)
             start = diff_time(reader_start, dbp_event_get_timestamp(event_s))
             end = diff_time(reader_start, dbp_event_get_timestamp(event_e))
-            event = dbpEvent(thread, dbp_event_get_key(event_s), dbp_event_get_flags(event_s), 
-                             dbp_event_get_object_id(event_s), dbp_event_get_event_id(event_s), 
+            event = dbpEvent(thread, dbp_event_get_key(event_s), dbp_event_get_flags(event_s),
+                             dbp_event_get_object_id(event_s), dbp_event_get_event_id(event_s),
                              start, end)
             thread.events.append(event)
             dbp_iterator_delete(it_e)
