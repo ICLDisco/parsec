@@ -143,7 +143,7 @@ DAGUE_DECLSPEC  void dague_argv_free(char **argv);
  * @retval argv pointer to new argv array on success
  * @retval NULL on error
  *
- * All strings are insertted into the argv array by value; the
+ * All strings are inserted into the argv array by value; the
  * newly-allocated array makes no references to the src_string
  * argument (i.e., it can be freed after calling this function
  * without invalidating the output argv).
@@ -160,7 +160,7 @@ DAGUE_DECLSPEC  char **dague_argv_split(const char *src_string, int delimiter);
  * @retval argv pointer to new argv array on success
  * @retval NULL on error
  *
- * All strings are insertted into the argv array by value; the
+ * All strings are inserted into the argv array by value; the
  * newly-allocated array makes no references to the src_string
  * argument (i.e., it can be freed after calling this function
  * without invalidating the output argv).
@@ -263,7 +263,7 @@ DAGUE_DECLSPEC  int dague_argv_delete(int *argc, char ***argv,
  * @retval OPAL_BAD_PARAM if any parameters are non-sensical
  *
  * This function takes one arg and inserts it in the middle of
- * another.  The first token in source will be insertted at index
+ * another.  The first token in source will be inserted at index
  * start in the target argv; all other tokens will follow it.
  * Similar to dague_argv_append(), the target may be realloc()'ed
  * to accomodate the new storage requirements.
