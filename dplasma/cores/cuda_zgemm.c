@@ -358,7 +358,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     dague_zgemm_args_t *gpu_task;
     dague_handle_t* handle = this_task->dague_handle;
 
-    /* Step one: which write enabled data we will look at */
+    /* Step one: Find the first data in WRITE mode */
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if( (NULL == this_task->function->out[i]) ||
             (this_task->function->out[i]->access_type & ACCESS_WRITE) ) {
