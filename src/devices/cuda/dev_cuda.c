@@ -38,6 +38,7 @@ int dague_cuda_own_GPU_key_end;
 #endif  /* defined(PROFILING) */
 
 int dague_cuda_output_stream = -1;
+static char* cuda_lib_path = NULL;
 
 /* Dirty selection for now */
 float gpu_speeds[2][2] ={
@@ -187,7 +188,11 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     snprintf(function_name, FILENAME_MAX, "magmablas_S%s_SM%2d", fname, capability);
     env = getenv("DAGUE_CUCORES_LIB");
     if(NULL == env) {
-        snprintf(library_name,  FILENAME_MAX, "libdplasma_cucores_sm%d.so",  capability);
+        if( NULL == cuda_lib_path) {
+            snprintf(library_name,  FILENAME_MAX, "libdplasma_cucores_sm%d.so",  capability);
+        } else {
+            snprintf(library_name,  FILENAME_MAX, "%s", cuda_lib_path);
+        }
     } else {
         snprintf(library_name,  FILENAME_MAX, "%s", env);
     }
@@ -253,7 +258,7 @@ static int
 dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
 {
     gpu_device_t* gpu_device = (gpu_device_t*)device;
-    uint32_t i, dev_mask = 0x0;
+    uint32_t i, j, dev_mask = 0x0, rc = DAGUE_ERR_NOT_FOUND;
 
     /**
      * Let's suppose it is not our job to detect if a particular body can
@@ -264,25 +269,31 @@ dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
     for( i = 0; i < handle->nb_functions; i++ ) {
         const dague_function_t* function = handle->functions_array[i];
         __dague_chore_t* chores = (__dague_chore_t*)function->incarnations;
-        for( uint32_t j = 0; NULL != chores[j].hook; j++ ) {
+        for( dev_mask = j = 0; NULL != chores[j].hook; j++ ) {
             dev_mask |= (1 << chores[j].type);
         }
         if(dev_mask & (1 << device->type)) {  /* find the function */
             void* devf = cuda_solve_handle_dependencies(gpu_device, function->name);
-            /* TODO: Ugly code to be removed ASAP */
-            if( NULL == cuda_gemm_functions ) {
-                cuda_gemm_functions = (void**)calloc(100, sizeof(void*));
+            if( NULL != devf ) {
+                /* TODO: Ugly code to be removed ASAP */
+                if( NULL == cuda_gemm_functions ) {
+                    cuda_gemm_functions = (void**)calloc(100, sizeof(void*));
+                }
+                cuda_gemm_functions[gpu_device->cuda_index] = devf;
+                rc = DAGUE_SUCCESS;
+                /* TODO: Ugly code to be removed ASAP */
+            } else {
+                /* We cannot support this device, remove the chore from the list */
+                dev_mask ^= (1 << device->type);
             }
-            cuda_gemm_functions[gpu_device->cuda_index] = devf;
-            /* TODO: Ugly code to be removed ASAP */
         }
     }
     /* Not a single chore supports this device, there is no reason to check anything further */
-    if(!(dev_mask & (1 << device->type))) {
+    if(DAGUE_SUCCESS != rc) {
         handle->devices_mask &= ~(device->device_index);
     }
 
-    return DAGUE_SUCCESS;
+    return rc;
 }
 
 static int
@@ -309,6 +320,9 @@ int dague_gpu_init(dague_context_t *dague_context)
     (void)dague_mca_param_reg_int_name("device_cuda", "verbose",
                                        "Set the verbosity level of the CUDA device (negative value turns all output off, higher is less verbose)\n",
                                        false, false, -1, &cuda_verbosity);
+    (void)dague_mca_param_reg_string_name("device_cuda", "path",
+                                          "Path to the shared library files containing the CUDA version of the hooks\n",
+                                          false, false, DAGUE_LIB_CUDA_PREFIX, &cuda_lib_path);
     if( 0 == use_cuda ) {
         return -1;  /* Nothing to do around here */
     }

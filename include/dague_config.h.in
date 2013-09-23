@@ -114,13 +114,16 @@
 #cmakedefine HAVE_AWK
 #define DAGUE_AWK_PREFIX "@AWK_EXECUTABLE@"
 
+/* Default PATH to look for the CUDA .so files */
+#define DAGUE_LIB_CUDA_PREFIX "@CMAKE_BINARY_DIR@/dplasma/cores/"
+
 #if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
 #endif  /* !defined(_GNU_SOURCE) */
 
 #ifdef ARCH_PPC
 #define inline __inline__
-#define restrict 
+#define restrict
 #endif
 
 #include "dague_config_bottom.h"
