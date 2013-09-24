@@ -604,7 +604,7 @@ install(FILES "include/dague.h" DESTINATION include)
 # pkg-config file
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
-  "${PROJECT_INCLUDE_DIR}/dague.pc")
+  "${PROJECT_INCLUDE_DIR}/dague.pc" @ONLY)
 install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc" DESTINATION include)
 
 # build a CPack driven installer package
