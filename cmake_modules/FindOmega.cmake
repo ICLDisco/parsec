@@ -49,13 +49,11 @@ find_package_handle_standard_args(OMEGA
   OMEGA_INCLUDE_DIR OMEGA_LIBRARY )
 
 if(OMEGA_FOUND)
+  enable_language(CXX REQUIRED)
   include(CheckCXXSourceCompiles)
   list(APPEND CMAKE_REQUIRED_INCLUDES ${OMEGA_INCLUDE_DIRS})
   list(APPEND CMAKE_REQUIRED_LIBRARIES ${OMEGA_LIBRARIES})
   check_cxx_source_compiles("#include <omega.h>
       int main(void) { Relation R; R.is_set(); return 0;}" OMEGA_FOUND)
-  if(OMEGA_FOUND)
-    enable_language(CXX REQUIRED)
-  endif()
 endif()
 
