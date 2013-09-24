@@ -3625,8 +3625,8 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
             "  assignment_t tass[MAX_PARAM_COUNT];\n"
             "  int target_device = 0; (void)target_device;\n"
             "  (void)__dague_handle; (void)tass; (void)context;\n"
-            "  dague_data_copy_t *chunk;\n"
-            "  data_repo_entry_t *entry;\n"
+            "  dague_data_copy_t *chunk = NULL;\n"
+            "  data_repo_entry_t *entry = NULL;\n"
             "%s",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST(sa, f->locals, next,
