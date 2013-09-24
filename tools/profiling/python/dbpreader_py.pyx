@@ -70,7 +70,8 @@ class dbpEvent:
       self.duration = self.end - self.start
    def __str__(self):
       return 'key %d flags %d tid %d objID %s eventID %d start %d end %d duration %d' % (
-              self.key, self.flags, self.thread.id, self.object_id, self.event_id, self.start, self.end, self.duration)
+              self.key, self.flags, self.thread.id, self.object_id, self.event_id,
+              self.start, self.end, self.duration)
 
 
 # Cython code
@@ -80,7 +81,7 @@ cpdef readProfilesIntoPython(filenames):
    cdef char ** c_filenames = stringListToCStrings(filenames)
    cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
    reader = multifile_reader(dbp_reader_nb_files(dbp), dbp_reader_nb_dictionary_entries(dbp))
-   cdef dbp_file_t * cfile   
+   cdef dbp_file_t * cfile
    cdef dbp_dictionary_t * cdict
 
    # convert c to py
@@ -99,7 +100,7 @@ cpdef readProfilesIntoPython(filenames):
 
    reader.worldsize = dbp_reader_worldsize(dbp)
 
-   free(c_filenames)  
+   free(c_filenames)
    # also, free multifile_reader and associated event buffers?
    return reader
 
