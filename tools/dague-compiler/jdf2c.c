@@ -1522,7 +1522,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
     /* And the layout */
     if( datatype.type == datatype.layout ) {
         string_arena_add_string(sa,
-                                "                .layout = DAGUE_DATATYPE_NULL,\n"
+                                "                .layout = NULL,\n"
                                 "                .count  = { .cst = 1 },\n"
                                 "                .displ  = { .cst = 0 }");
     } else {
