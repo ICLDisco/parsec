@@ -17,8 +17,10 @@ typedef unsigned long remote_dep_datakey_t;
 
 #if defined(HAVE_MPI)
 #include <mpi.h>
+#define DAGUE_DATATYPE_NULL  MPI_DATATYPE_NULL
 typedef MPI_Datatype dague_datatype_t;
 #else
+#define DAGUE_DATATYPE_NULL  NULL
 typedef void* dague_datatype_t;
 #endif
 

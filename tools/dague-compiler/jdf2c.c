@@ -1522,7 +1522,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
     /* And the layout */
     if( datatype.type == datatype.layout ) {
         string_arena_add_string(sa,
-                                "                .layout = NULL,\n"
+                                "                .layout = DAGUE_DATATYPE_NULL,\n"
                                 "                .count  = { .cst = 1 },\n"
                                 "                .displ  = { .cst = 0 }");
     } else {
@@ -4131,7 +4131,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             if( JDF_VAR_TYPE_CTL == fl->access_type ) {
                 string_arena_add_string(sa, "NULL");
                 string_arena_add_string(sa_tmp_nbelt, "  /* Control: always empty */ 0");
-                string_arena_add_string(sa_tmp_layout, "NULL");
+                string_arena_add_string(sa_tmp_layout, "DAGUE_DATATYPE_NULL");
                 string_arena_add_string(sa_tmp_displ, "0");
             } else {
                 string_arena_add_string(sa, "__dague_object->super.arenas[");
