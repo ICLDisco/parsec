@@ -5,10 +5,8 @@ macro(dague_addtest lang target input)
   if( MPI_FOUND )
     set(${target}_${lang}FLAGS  "${MPI_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
     set(${target}_LDFLAGS "${MPI_LINK_FLAGS} ${${target}_LDFLAGS}")
-    set(${target}_LIBS    dague dague_distribution_matrix ${EXTRA_LIBS} ${${target}_LIBS} ${MPI_LIBRARIES})
-  else ( MPI_FOUND )
-    set(${target}_LIBS    dague dague_distribution_matrix ${EXTRA_LIBS} ${${target}_LIBS})
-  endif()
+  endif( MPI_FOUND )
+  set(${target}_LIBS    dague dague_distribution_matrix ${EXTRA_LIBS} ${${target}_LIBS})
 
   add_executable(${target} ${input})
   set_target_properties(${target} PROPERTIES

@@ -359,10 +359,13 @@ IF( BUILD_DAGUE )
   endif (HWLOC_FOUND)
 
   if (DAGUE_DIST_WITH_MPI)
+    # Force the detection of the C library
+    set(MPI_C_COMPILER mpicc)
     find_package(MPI REQUIRED)
     set(HAVE_MPI ${MPI_FOUND})
     if (MPI_FOUND)
-      include_directories( ${MPI_INCLUDE_PATH} )
+      list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
+      include_directories( ${MPI_C_INCLUDE_PATH} )
     endif (MPI_FOUND)
   endif (DAGUE_DIST_WITH_MPI)
   #
