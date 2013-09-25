@@ -558,17 +558,15 @@ set(SRCS
 # Setup targets
 #
 if( BUILD_DAGUE )
+  add_library(dague STATIC ${SRCS})
+  set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
   if (MPI_FOUND)
-    add_library(dague-mpi STATIC ${SRCS})
-    set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-    target_link_libraries(dague-mpi ${EXTRA_LIBS})
-    install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
-  else (MPI_FOUND)
-    add_library(dague STATIC ${SRCS})
-    set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-    target_link_libraries(dague ${EXTRA_LIBS})
-    install(TARGETS dague ARCHIVE DESTINATION lib)
+    set_target_properties(dague PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
   endif (MPI_FOUND)
+  target_link_libraries(dague ${EXTRA_LIBS})
+
+  install(TARGETS dague ARCHIVE DESTINATION lib)
+
   add_subdirectory(data_dist)
 #
 # If we have support for F90 build the DAGuE module
