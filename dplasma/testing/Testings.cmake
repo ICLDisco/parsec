@@ -63,15 +63,15 @@ add_test(dgeqrf_pbq ${SHM_TEST_CMD_LIST} ./testing_dgeqrf -N 4000 -x -v=5 -o PBQ
 
 # The headnode lack GPUs so we need MPI in order to get the test to run on
 # one of the nodes.
-if (CUDA_FOUND AND MPI_FOUND)
+if (CUDA_FOUND AND MPI_C_FOUND)
   add_test(dpotrf_g1  ${SHM_TEST_CMD_LIST} ./testing_dpotrf -N 8000 -x -v=5 -g 1)
   add_test(dpotrf_g2  ${SHM_TEST_CMD_LIST} ./testing_dpotrf -N 8000 -x -v=5 -g 2)
-endif (CUDA_FOUND AND MPI_FOUND)
+endif (CUDA_FOUND AND MPI_C_FOUND)
 
 #
 # Distributed Memory Testings
 #
-if( MPI_FOUND )
+if( MPI_C_FOUND )
   # Check MPI
   add_test(mpi_test   ${MPI_TEST_CMD_LIST} -np 8 /bin/true)
 
@@ -148,4 +148,4 @@ endforeach()
   add_test(mpi_csyrk         ${MPI_TEST_CMD_LIST} -np 8 ./testing_csyrk         -p 4 -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
   add_test(mpi_cherk         ${MPI_TEST_CMD_LIST} -np 8 ./testing_cherk         -p 4 -M 2873 -N 2873 -K 987 -t 56 -x -v=5)
 
-endif( MPI_FOUND )
+endif( MPI_C_FOUND )

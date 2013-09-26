@@ -131,9 +131,10 @@ precisions_rules_py(generated_files
 ### Generate the lib
 add_library(dplasma
             ${generated_files} ${EXTRA_SOURCES})
-if (MPI_FOUND)
-  set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-endif (MPI_FOUND)
+if (MPI_C_FOUND)
+  set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
+endif (MPI_C_FOUND)
 target_link_libraries(dplasma dplasma_cores)
 add_dependencies(dplasma dplasma_includes)
 install(TARGETS dplasma ARCHIVE DESTINATION lib)
+

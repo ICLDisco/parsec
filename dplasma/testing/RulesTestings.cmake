@@ -9,10 +9,10 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
   #endforeach(arg ${PLASMA_CFLAGS})
 
   # Set flags for compilation
-  if( MPI_FOUND )
-    set(testings_addexec_CFLAGS  "${MPI_COMPILE_FLAGS} ${testings_addexec_CFLAGS}")
-    set(testings_addexec_LDFLAGS "${MPI_LINK_FLAGS} ${testings_addexec_LDFLAGS}")
-  endif( MPI_FOUND )
+  if( MPI_C_FOUND )
+    set(testings_addexec_CFLAGS  "${MPI_C_COMPILE_FLAGS} ${testings_addexec_CFLAGS}")
+    set(testings_addexec_LDFLAGS "${MPI_C_LINK_FLAGS} ${testings_addexec_LDFLAGS}")
+  endif( MPI_C_FOUND )
   set(testings_addexec_LIBS
     common dplasma dplasma_cores dague dague_distribution_matrix
     ${EXTRA_LIBS}

@@ -1,8 +1,8 @@
 add_library(common common.c common_timing.h flops.h)
-if(MPI_FOUND)
+if(MPI_C_FOUND)
   set_target_properties(common PROPERTIES COMPILE_FLAGS
-      "${MPI_COMPILE_FLAGS}")
-endif()
+                        "${MPI_C_COMPILE_FLAGS}")
+  endif(MPI_C_FOUND)
 
 include(RulesTestings.cmake)
 
