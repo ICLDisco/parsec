@@ -224,6 +224,34 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
     return;
 }
 
+/**
+ * Create and initialize a default datatype. This is a datatype from a
+ * specific ARENA, with a specified count and displ.
+ */
+static int
+jdf_set_default_datatype(jdf_datatransfer_type_t* datatype,
+                         char* default_ddt,
+                         int count,
+                         int displ)
+{
+    datatype->type = q2jmalloc(jdf_expr_t, 1);
+    if( NULL == datatype->type ) return -1;
+    datatype->type->next    = NULL;
+    datatype->type->op      = JDF_STRING;
+    datatype->type->jdf_var = default_ddt;
+    datatype->count = q2jmalloc(jdf_expr_t, 1);
+    if( NULL == datatype->count ) return -1;
+    datatype->count->next    = NULL;
+    datatype->count->op      = JDF_CST;
+    datatype->count->jdf_cst = count;
+    datatype->displ = q2jmalloc(jdf_expr_t, 1);
+    if( NULL == datatype->displ ) return -1;
+    datatype->displ->next    = NULL;
+    datatype->displ->op      = JDF_CST;
+    datatype->displ->jdf_cst = displ;
+    return 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
@@ -417,11 +445,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     input->next   = output;
     input->type   = JDF_DEP_TYPE_IN;
     input->guard  = q2jmalloc(jdf_guarded_call_t, 1);
-    input->datatype.simple = 1;
-    input->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
-    input->datatype.nb_elt->next = NULL;
-    input->datatype.nb_elt->op   = JDF_CST;
-    input->datatype.nb_elt->jdf_cst = 1;
+    jdf_set_default_datatype(&input->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(input, NULL, 0, NULL);
 
     input->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
@@ -443,11 +467,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     output->next   = NULL;
     output->type   = JDF_DEP_TYPE_OUT;
     output->guard  = q2jmalloc(jdf_guarded_call_t, 1);
-    output->datatype.simple = 1;
-    output->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
-    output->datatype.nb_elt->next = NULL;
-    output->datatype.nb_elt->op   = JDF_CST;
-    output->datatype.nb_elt->jdf_cst = 1;
+    jdf_set_default_datatype(&output->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(output, NULL, 0, NULL);
 
     output->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
@@ -642,11 +662,7 @@ void jdf_register_input_deps( set<dep_t*> ideps,
             dep->next = NULL;
             dep->type = JDF_DEP_TYPE_IN;
             dep->guard = q2jmalloc( jdf_guarded_call_t, 1);
-            dep->datatype.simple = 1;
-            dep->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
-            dep->datatype.nb_elt->next    = NULL;
-            dep->datatype.nb_elt->op      = JDF_CST;
-            dep->datatype.nb_elt->jdf_cst = 1;
+            jdf_set_default_datatype(&dep->datatype, "DEFAULT", 1, 0);
             JDF_OBJECT_SET(dep, NULL, 0, NULL);
 
             // Generate the dep_expr
@@ -714,11 +730,18 @@ void jdf_register_fake_read( Relation S_es,
     dep->next = NULL;
     dep->type = JDF_DEP_TYPE_IN;
     dep->guard = q2jmalloc( jdf_guarded_call_t, 1);
-    dep->datatype.simple = 1;
-    dep->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
-    dep->datatype.nb_elt->next    = NULL;
-    dep->datatype.nb_elt->op      = JDF_CST;
-    dep->datatype.nb_elt->jdf_cst = 1;
+    dep->datatype.type = q2jmalloc(jdf_expr_t, 1);
+    dep->datatype.type->next    = NULL;
+    dep->datatype.type->op      = JDF_STRING;
+    dep->datatype.type->jdf_var = "DEFAULT";
+    dep->datatype.count = q2jmalloc(jdf_expr_t, 1);
+    dep->datatype.count->next    = NULL;
+    dep->datatype.count->op      = JDF_CST;
+    dep->datatype.count->jdf_cst = 1;
+    dep->datatype.displ = q2jmalloc(jdf_expr_t, 1);
+    dep->datatype.displ->next    = NULL;
+    dep->datatype.displ->op      = JDF_CST;
+    dep->datatype.displ->jdf_cst = 0;
     JDF_OBJECT_SET(dep, NULL, 0, NULL);
 
     if( need_pseudotask(dst, reference_data_element) ){
@@ -791,11 +814,7 @@ void jdf_register_output_deps( set<dep_t*> odeps,
             dep->next = NULL;
             dep->type = JDF_DEP_TYPE_OUT;
             dep->guard = q2jmalloc( jdf_guarded_call_t, 1);
-            dep->datatype.simple = 1;
-            dep->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
-            dep->datatype.nb_elt->next    = NULL;
-            dep->datatype.nb_elt->op      = JDF_CST;
-            dep->datatype.nb_elt->jdf_cst = 1;
+            jdf_set_default_datatype(&dep->datatype, "DEFAULT", 1, 0);
             JDF_OBJECT_SET(dep, NULL, 0, NULL);
 
             // Generate the dep_expr
@@ -952,11 +971,7 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->deps->next   = NULL;
     dataflow->deps->type   = JDF_DEP_TYPE_OUT;
     dataflow->deps->guard  = q2jmalloc(jdf_guarded_call_t, 1);
-    dataflow->deps->datatype.simple = 1;
-    dataflow->deps->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
-    dataflow->deps->datatype.nb_elt->next = NULL;
-    dataflow->deps->datatype.nb_elt->op   = JDF_CST;
-    dataflow->deps->datatype.nb_elt->jdf_cst = 1;
+    jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
 
     (void)(*dep->rel).print_with_subs_to_string(false);
@@ -985,11 +1000,7 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->deps->next   = NULL;
     dataflow->deps->type   = JDF_DEP_TYPE_IN;
     dataflow->deps->guard  = q2jmalloc(jdf_guarded_call_t, 1);
-    dataflow->deps->datatype.simple = 1;
-    dataflow->deps->datatype.nb_elt = q2jmalloc(jdf_expr_t, 1);
-    dataflow->deps->datatype.nb_elt->next = NULL;
-    dataflow->deps->datatype.nb_elt->op   = JDF_CST;
-    dataflow->deps->datatype.nb_elt->jdf_cst = 1;
+    jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
 
     dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
