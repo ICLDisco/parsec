@@ -167,7 +167,7 @@ dague_list_item_ring_push_sorted( dague_list_item_t* ring,
     }
     position = _LIST_ITEM_ITERATOR(ring, ring, pos,
                                    {
-                                       if( A_LOWER_PRIORITY_THAN_B(item, pos, off) ) {
+                                       if( !A_HIGHER_PRIORITY_THAN_B(item, pos, off) ) {
                                            success = 1;
                                            break;
                                        }
