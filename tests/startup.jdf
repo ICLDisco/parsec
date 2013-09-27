@@ -23,7 +23,7 @@ STARTUP(i, j, k)
   READ A <- A(i, 0)
          -> A(i, 0)
 
-; inline_c %{ return ((NJ-1)*(NK-1)*i + (NK-1)*j + k)*pri; %}
+; inline_c %{ return (NJ*NK*i + NK*j + k)*pri; %}
 
 BODY
 END
@@ -100,7 +100,7 @@ int main( int argc, char** argv )
                            NULL);  /* change for distributed cases */
 
     /* Heat up the engine: small tasks no priority */
-    object = dague_startup_new( &descA, 10, 10, 10 );
+    object = dague_startup_new( &descA, ni, nj, nk );
     assert( NULL != object );
     object->arenas[DAGUE_startup_DEFAULT_ARENA] = &arena;
     object->pri = 0;
