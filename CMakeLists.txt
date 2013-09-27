@@ -60,7 +60,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 
 ### Dague PP options
-set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
+set(DAGUEPP_CFLAGS "--noline" CACHE STRING "Additional daguepp precompiling flags" )
 mark_as_advanced(DAGUEPP_CFLAGS)
 
 ## Multicore scheduler parameters
