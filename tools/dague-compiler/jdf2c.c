@@ -1933,9 +1933,9 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s  new_dynamic_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->virtual_processes[vpid]->execution_units[0]->context_mempool );\n",
 	    indent(nesting), f->predicate->func_or_mem,
             indent(nesting), f->predicate->func_or_mem, f->predicate->func_or_mem,
-	                     UTIL_DUMP_LIST(sa1, f->predicate->parameters, next,
-					    dump_expr, (void*)&info2,
-					    "", "", ", ", ""),
+            UTIL_DUMP_LIST(sa1, f->predicate->parameters, next,
+                           dump_expr, (void*)&info2,
+                           "", "", ", ", ""),
 	    indent(nesting),
 	    indent(nesting),
             indent(nesting));
@@ -1981,7 +1981,11 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     coutput("%s  dague_dependencies_mark_task_as_startup(new_dynamic_context);\n", indent(nesting));
 
-    coutput("%s  pready_list[vpid] = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(pready_list[vpid]), (dague_list_item_t*)new_dynamic_context, dague_execution_context_priority_comparator );\n", indent(nesting));
+    coutput("        if( NULL != pready_list[vpid] ) {\n"
+            "          dague_list_item_ring_merge((dague_list_item_t*)new_dynamic_context,\n"
+            "                                     (dague_list_item_t*)(pready_list[vpid]));\n"
+            "        }\n"
+            "        pready_list[vpid] = new_dynamic_context;\n");
 
     for(; nesting > 0; nesting--) {
         coutput("%s}\n", indent(nesting));
