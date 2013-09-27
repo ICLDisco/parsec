@@ -504,6 +504,98 @@ dague_list_nolock_chain_sorted( dague_list_t* list,
     }
 }
 
+/*
+ * http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html
+ *   by Simon Tatham
+ *
+ * A simple mergesort implementation on lists. Complexity O(N*log(N)).
+ */
+static inline void
+dague_list_nolock_chain_sort_mergesort(dague_list_t *list,
+                                       size_t off)
+{
+    dague_list_item_t *items, *p, *q, *e, *tail, *oldhead;
+    int insize, nmerges, psize, qsize, i;
+
+    /* Remove the items from the list, and clean the list */
+    items = dague_list_item_ring((dague_list_item_t*)_HEAD(list),
+                                 (dague_list_item_t*)_TAIL(list));
+    _HEAD(list) = _GHOST(list);
+    _TAIL(list) = _GHOST(list);
+
+    insize = 1;
+
+    while (1) {
+        p = items;
+        oldhead = items;            /* only used for circular linkage */
+        items = NULL;
+        tail = NULL;
+
+        nmerges = 0;  /* count number of merges we do in this pass */
+
+        while (p) {
+            nmerges++;  /* there exists a merge to be done */
+            /* step `insize' places along from p */
+            q = p;
+            psize = 0;
+            for (i = 0; i < insize; i++) {
+                psize++;
+                q = (dague_list_item_t*)(q->list_next == oldhead ? NULL : q->list_next);
+                if (!q) break;
+            }
+
+            /* if q hasn't fallen off end, we have two lists to merge */
+            qsize = insize;
+
+            /* now we have two lists; merge them */
+            while (psize > 0 || (qsize > 0 && q)) {
+
+                /* decide whether next element of merge comes from p or q */
+                if (psize == 0) {
+                    /* p is empty; e must come from q. */
+                    e = q; q = (dague_list_item_t*)q->list_next; qsize--;
+                    if (q == oldhead) q = NULL;
+                } else if (qsize == 0 || !q) {
+                    /* q is empty; e must come from p. */
+                    e = p; p = (dague_list_item_t*)p->list_next; psize--;
+                    if (p == oldhead) p = NULL;
+                } else if (A_LOWER_PRIORITY_THAN_B(p, q, off)) {
+                    /* First element of p is lower (or same);
+                     * e must come from p. */
+                    e = p; p = (dague_list_item_t*)p->list_next; psize--;
+                    if (p == oldhead) p = NULL;
+                } else {
+                    /* First element of q is lower; e must come from q. */
+                    e = q; q = (dague_list_item_t*)q->list_next; qsize--;
+                    if (q == oldhead) q = NULL;
+                }
+
+                /* add the next element to the merged list */
+                if (tail) {
+                    tail->list_next = e;
+                } else {
+                    items = e;
+                }
+                /* Maintain reverse pointers in a doubly linked list. */
+                e->list_prev = tail;
+                tail = e;
+            }
+
+            /* now p has stepped `insize' places along, and q has too */
+            p = q;
+        }
+        tail->list_next = items;
+        items->list_prev = tail;
+
+        /* If we have done only one merge, we're finished. */
+        if (nmerges <= 1)   /* allow for nmerges==0, the empty list case */
+            break;
+
+        /* Otherwise repeat, merging lists twice the size */
+        insize *= 2;
+    }
+    dague_list_nolock_chain_front(list, items);
+}
 
 static inline void
 dague_list_sort( dague_list_t* list,
@@ -520,6 +612,7 @@ dague_list_nolock_sort( dague_list_t* list,
 {
     if(dague_list_nolock_is_empty(list)) return;
 
+#if 0
     /* remove the items from the list, then chain_sort the items */
     dague_list_item_t* items;
     items = dague_list_item_ring((dague_list_item_t*)_HEAD(list),
@@ -527,6 +620,9 @@ dague_list_nolock_sort( dague_list_t* list,
     _HEAD(list) = _GHOST(list);
     _TAIL(list) = _GHOST(list);
     dague_list_nolock_chain_sorted(list, items, off);
+#else
+    dague_list_nolock_chain_sort_mergesort(list, off);
+#endif
 }
 
 static inline void
@@ -645,7 +741,7 @@ dague_list_nolock_unchain( dague_list_t* list )
     return head;
 }
 
-static inline dague_list_item_t* 
+static inline dague_list_item_t*
 dague_list_unchain( dague_list_t* list )
 {
     dague_list_item_t* head;
