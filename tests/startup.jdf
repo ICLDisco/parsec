@@ -23,7 +23,7 @@ STARTUP(i, j, k)
   READ A <- A(i, 0)
          -> A(i, 0)
 
-; inline_c %{ return ((NI-1)*i + (NJ-1)*j + (NK-1)*k)*pri; %}
+; inline_c %{ return ((NJ-1)*(NK-1)*i + (NK-1)*j + k)*pri; %}
 
 BODY
 END
