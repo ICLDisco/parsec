@@ -171,9 +171,20 @@ static pthread_cond_t mpi_thread_condition;
 static int remote_dep_dequeue_init(dague_context_t* context)
 {
     pthread_attr_t thread_attr;
+    int is_mpi_up = 0;
 
     assert(mpi_initialized == 0);
 
+    MPI_Initialized(&is_mpi_up);
+    if( 0 == is_mpi_up ) {
+        /**
+         * MPI is not up, so we will consider this as a single
+         * node run. Fall back to the no-MPI case.
+         */
+        context->nb_nodes = 1;
+        DEBUG3(("MPI is not initialized. Fall back to a single node execution\n"));
+        return 1;
+    }
     MPI_Comm_size(MPI_COMM_WORLD, (int*)&(context->nb_nodes));
     if(1 == context->nb_nodes ) return 1;
 
