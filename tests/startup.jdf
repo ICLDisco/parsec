@@ -41,7 +41,7 @@ extern "C" %{
         gettimeofday(&tv,NULL);                 \
         (TIMER) = tv.tv_sec * 1e6 + tv.tv_usec; \
     } while (0)
-    
+
 #define TIMER_STOP(TIMER)                                   \
     do {                                                    \
         struct timeval tv;                                  \
@@ -59,19 +59,19 @@ int main( int argc, char** argv )
     long time_elapsed;
 
     while( NULL != argv[i] ) {
-        if( 0 == strcmp(argv[i], "-i=") ) {
+        if( 0 == strncmp(argv[i], "-i=", 3) ) {
             ni = strtol(argv[i]+3, NULL, 10);
             goto move_and_continue;
         }
-        if( 0 == strcmp(argv[i], "-j=") ) {
+        if( 0 == strncmp(argv[i], "-j=", 3) ) {
             nj = strtol(argv[i]+3, NULL, 10);
             goto move_and_continue;
         }
-        if( 0 == strcmp(argv[i], "-k=") ) {
+        if( 0 == strncmp(argv[i], "-k=", 3) ) {
             nk = strtol(argv[i]+3, NULL, 10);
             goto move_and_continue;
         }
-        if( 0 == strcmp(argv[i], "-v=") ) {
+        if( 0 == strncmp(argv[i], "-v=", 3) ) {
             verbose = strtol(argv[i]+3, NULL, 10);
             goto move_and_continue;
         }
