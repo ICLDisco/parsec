@@ -55,27 +55,31 @@ int main( int argc, char** argv )
     two_dim_block_cyclic_t descA;
     dague_arena_t arena;
     dague_context_t *dague;
-    int ni = NN, nj = NN, nk = NN, i = 1;
+    int ni = NN, nj = NN, nk = NN, verbose = 0, i = 1;
     long time_elapsed;
 
     while( NULL != argv[i] ) {
-        if( 0 == strcmp(argv[i], "-i") ) {
-            ni = strtol(argv[i+1], NULL, 10);
+        if( 0 == strcmp(argv[i], "-i=") ) {
+            ni = strtol(argv[i]+3, NULL, 10);
             goto move_and_continue;
         }
-        if( 0 == strcmp(argv[i], "-j") ) {
-            nj = strtol(argv[i+1], NULL, 10);
+        if( 0 == strcmp(argv[i], "-j=") ) {
+            nj = strtol(argv[i]+3, NULL, 10);
             goto move_and_continue;
         }
-        if( 0 == strcmp(argv[i], "-k") ) {
-            nk = strtol(argv[i+1], NULL, 10);
+        if( 0 == strcmp(argv[i], "-k=") ) {
+            nk = strtol(argv[i]+3, NULL, 10);
+            goto move_and_continue;
+        }
+        if( 0 == strcmp(argv[i], "-v=") ) {
+            verbose = strtol(argv[i]+3, NULL, 10);
             goto move_and_continue;
         }
         i++;  /* skip this one */
         continue;
     move_and_continue:
-        memmove(&argv[i], &argv[i+2], (argc - 2) * sizeof(char*));
-        argc -= 2;
+        memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
+        argc -= 1;
     }
     dague = dague_init(1, &argc, &argv);
     assert( NULL != dague );
@@ -113,6 +117,13 @@ int main( int argc, char** argv )
     TIMER_STOP(time_elapsed);
     printf("DAG construction [%d] %d tasks in %ld micro-sec\n", object->pri,
            object->super.nb_local_tasks, time_elapsed);
+    if( verbose >= 5 ) {
+        printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
+               "                 encoding=\"none\" compression=\"none\">\n"
+               "%g\n"
+               "</DartMeasurement>\n",
+               (double)time_elapsed);
+    }
     TIMER_START(time_elapsed);
     dague_progress(dague);
     TIMER_STOP(time_elapsed);
@@ -128,6 +139,13 @@ int main( int argc, char** argv )
     TIMER_STOP(time_elapsed);
     printf("DAG construction [%d] %d tasks in %ld micro-sec\n", object->pri,
            object->super.nb_local_tasks, time_elapsed);
+    if( verbose >= 5 ) {
+        printf("<DartMeasurement name=\"pos_pri\" type=\"numeric/double\"\n"
+               "                 encoding=\"none\" compression=\"none\">\n"
+               "%g\n"
+               "</DartMeasurement>\n",
+               (double)time_elapsed);
+    }
     TIMER_START(time_elapsed);
     dague_progress(dague);
     TIMER_STOP(time_elapsed);
@@ -143,6 +161,13 @@ int main( int argc, char** argv )
     TIMER_STOP(time_elapsed);
     printf("DAG construction [%d] %d tasks in %ld micro-sec\n", object->pri,
            object->super.nb_local_tasks, time_elapsed);
+    if( verbose >= 5 ) {
+        printf("<DartMeasurement name=\"neg_pri\" type=\"numeric/double\"\n"
+               "                 encoding=\"none\" compression=\"none\">\n"
+               "%g\n"
+               "</DartMeasurement>\n",
+               (double)time_elapsed);
+    }
     TIMER_START(time_elapsed);
     dague_progress(dague);
     TIMER_STOP(time_elapsed);
