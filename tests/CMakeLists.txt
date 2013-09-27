@@ -36,3 +36,7 @@ string( REGEX REPLACE "touch.[hc]" "" include_dir "${touch_generated}" )
 include_directories(${include_dir})
 
 dague_addtest(C touch_ex "touch_ex.c;${touch_generated}")
+
+jdf_rules(startup_generated "${CMAKE_CURRENT_SOURCE_DIR}/startup.jdf")
+dague_addtest(C startup "${startup_generated}")
+
