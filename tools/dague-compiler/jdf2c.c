@@ -2936,6 +2936,31 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
       /* Is this definition a parameter or a value? */
       /* If it is a parameter, find the corresponding param in the call */
       for(el = params, pl = f->parameters; pl != NULL; el = el->next, pl = pl->next) {
+          if( NULL == el ) {  /* Badly formulated call */
+              string_arena_t *sa_caller, *sa_callee;
+              expr_info_t caller;
+
+              sa_caller = string_arena_new(64);
+              sa_callee = string_arena_new(64);
+
+              caller.sa = sa;
+              caller.prefix = "";
+              caller.assignments = "";
+
+              string_arena_init(sa);
+              UTIL_DUMP_LIST_FIELD(sa_callee, f->parameters, next, name,
+                                   dump_string, sa,
+                                   "(", "", ", ", ")");
+              string_arena_init(sa);
+              UTIL_DUMP_LIST(sa_caller, params, next,
+                             dump_expr, (void*)&caller,
+                             "(", "", ", ", ")");
+              fprintf(stderr, "%s.jdf:%d Badly formulated call %s%s instead of %s%s\n",
+                      jdf_basename, call->super.lineno,
+                      f->fname, string_arena_get_string(sa_caller),
+                      f->fname, string_arena_get_string(sa_callee));
+              exit(-1);
+          }
           assert( el != NULL );
           if(!strcmp(pl->name, dl->name))
               break;
