@@ -214,7 +214,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
         if( 0 == remote_deps->output[i].count_bits ) continue;
 
         him = 0;
-        for( array_index = count = 0; count < remote_deps->output[i].data.count; array_index++ ) {
+        for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {
             current_mask = remote_deps->output[i].rank_bits[array_index];
             if( 0 == current_mask ) continue;  /* no bits here */
             for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
