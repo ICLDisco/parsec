@@ -230,7 +230,7 @@ int main(int argc, char ** argv)
 
                 if (rank == 0)
                 {
-                    printf("getrf_qrf;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%e;%d;%d;%f;%e;%e;%e;%e;%e;%e;%e;%e\n",
+                    printf("getrf_qrf;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%e;%d;%d;%f;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e\n",
                            M, N, iparam[IPARAM_NNODES], iparam[IPARAM_NCORES], iparam[IPARAM_MB], iparam[IPARAM_NB], iparam[IPARAM_IB],
                            iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE], iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR],
                            iparam[IPARAM_P], type, QR_ONLY_CRITERIUM, 0., nblu, nbqr, gflops, AnormI, Anorm1, BnormI, Bnorm1, XnormI, Xnorm1, RnormI, Rnorm1 );

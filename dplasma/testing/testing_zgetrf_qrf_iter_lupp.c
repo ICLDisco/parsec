@@ -132,7 +132,7 @@ int main(int argc, char ** argv)
                 if(loud > 2) printf("+++ Generate matrices ... ");
 
                 if ( firsttest ) {
-                    dplasma_zplrnt_perso( dague, (tiled_matrix_desc_t *)&ddescA0, type, 3872+test*53);
+		    dplasma_zplrnt_perso( dague, (tiled_matrix_desc_t *)&ddescA0, type, 3872+(test/2)*53);
                     AnormI = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA0);
                     Anorm1 = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&ddescA0);
                     firsttest = 0;
@@ -157,6 +157,10 @@ int main(int argc, char ** argv)
                     SYNC_TIME_STOP();
                     gflops = (flops/1e9)/(sync_time_elapsed);
                     dplasma_zgetrf_Destruct( DAGUE_zgetrf );
+
+#if defined(HAVE_MPI)
+		    MPI_Bcast(&info, 1, MPI_INT, 0, MPI_COMM_WORLD);
+#endif
                 } else {
                     if(loud > 2) printf("+++ Computing getrf ... ");
                     PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_nopiv,
@@ -169,7 +173,7 @@ int main(int argc, char ** argv)
                     dague_progress(dague);
                     SYNC_TIME_STOP();
                     gflops = (flops/1e9)/(sync_time_elapsed);
-                    dplasma_zgetrf_Destruct( DAGUE_zgetrf_nopiv );
+                    dplasma_zgetrf_nopiv_Destruct( DAGUE_zgetrf_nopiv );
                 }
 
 
@@ -178,6 +182,7 @@ int main(int argc, char ** argv)
                     fprintf(stderr, "-- Factorization is suspicious (info = %d) ! \n", info );
                     RnormI = -info; Rnorm1 = -info;
                     XnormI = -info; Xnorm1 = -info;
+		    info = 0;
                 }
                 else {
                     /* Reinitialize B with same parameters as when we computed the norm */
@@ -218,7 +223,7 @@ int main(int argc, char ** argv)
 
                 if (rank == 0)
                 {
-                    printf( "%s;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%e;%d;%d;%f;%e;%e;%e;%e;%e;%e;%e;%e\n",
+                    printf( "%s;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%e;%d;%d;%f;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e\n",
                             (test%2) == 0 ? "getrf_pp" : "getrf_np", M, N, iparam[IPARAM_NNODES], iparam[IPARAM_NCORES], iparam[IPARAM_MB], iparam[IPARAM_NB], iparam[IPARAM_IB],
                             iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE], iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR],
                             iparam[IPARAM_P], type, LU_ONLY_CRITERIUM, 0., nblu, nbqr, gflops, AnormI, Anorm1, BnormI, Bnorm1, XnormI, Xnorm1, RnormI, Rnorm1 );
@@ -227,7 +232,9 @@ int main(int argc, char ** argv)
                     fprintf(f, "%d", index);
                     fclose(f);
                 }
-                firsttest = 1;
+		
+                if (test%2 == 1)
+		  firsttest = 1;
             }
         }
         free(filename);
