@@ -187,14 +187,14 @@ int main(int argc, char ** argv)
                              ( alpha_i > 0) )
                             continue;
 
-                        /* /\* Skip dead lock *\/ */
-                        /* if ( (P == 16) && (criteria == RANDOM_CRITERIUM) && */
-                        /*      ( type == 18) && ( alpha_i > 4) ) */
-                        /*     continue; */
+                        /* Skip dead lock */
+                        if ( (P == 16) && (criteria == RANDOM_CRITERIUM) &&
+                             ( type == 18) && ( alpha_i > 4) )
+                            continue;
 
-                        /* if ( (P == 32) && (criteria == RANDOM_CRITERIUM) && */
-                        /*      ( type == 18) && ( alpha_i > 3) ) */
-                        /*     continue; */
+                        if ( (P == 32) && (criteria == RANDOM_CRITERIUM) &&
+                             ( type == 18) && ( alpha_i > 3) )
+                            continue;
 
                         if ((criteria == HIGHAM_MOY_CRITERIUM) ||
                             (criteria == HIGHAM_MAX_CRITERIUM) )
@@ -298,7 +298,7 @@ int main(int argc, char ** argv)
 
                         if (rank == 0)
                         {
-                            printf("getrf_qrf;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%e;%d;%d;%f;%e;%e;%e;%e;%e;%e;%e;%e\n",
+                            printf("getrf_qrf;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%e;%d;%d;%f;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e\n",
                                    M, N, iparam[IPARAM_NNODES], iparam[IPARAM_NCORES], iparam[IPARAM_MB], iparam[IPARAM_NB], iparam[IPARAM_IB],
                                    iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE], iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR],
                                    iparam[IPARAM_P], type, criteria, alpha, nblu, nbqr, gflops, AnormI, Anorm1, BnormI, Bnorm1, XnormI, Xnorm1, RnormI, Rnorm1 );
