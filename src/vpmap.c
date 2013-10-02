@@ -537,7 +537,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
 
                     if((skip > step) && (t < (nb_real_cores - 1))) {
                         STATUS(( "WARNING:: No more available core to bind according to the range. The remaining %d threads are not bound\n", nbth-(t*nbht)));
-                        int th, ht2;
+                        int th;
                         for( th = t+nbht; th < nbth;  th++) {
                             map[vp].threads[th] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
                             map[vp].threads[th]->nbcores = 1;
