@@ -66,17 +66,6 @@ void print_usage(void)
             "Mandatory argument:\n"
             " number            : dimension (N) of the matrices (required)\n"
             "Optional arguments:\n"
-            " -c --cores        : number of concurent threads (default: number of physical hyper-threads)\n"
-            " -g --gpus         : number of GPU (default: 0)\n"
-            " -o --scheduler    : select the scheduler (default: LFQ)\n"
-            "                     Accepted values:\n"
-            "                       LFQ -- Local Flat Queues\n"
-            "                       GD  -- Global Dequeue\n"
-            "                       LHQ -- Local Hierarchical Queues\n"
-            "                       AP  -- Absolute Priorities\n"
-            "                       PBQ -- Priority Based Local Flat Queues\n"
-            "                       LTQ -- Local Tree Queues\n"
-            "\n"
             " -p -P --grid-rows : rows (P) in the PxQ process grid   (default: NP)\n"
             " -q -Q --grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
             "\n"
@@ -105,13 +94,24 @@ void print_usage(void)
 
             " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
-            "    --dot          : create a dot output file (default: don't)\n"
-            "\n"
             " -v --verbose      : extra verbose output\n"
             " -h --help         : this message\n"
             "\n"
             );
     fprintf(stderr,
+            "\n"
+            " -c --cores        : number of concurent threads (default: number of physical hyper-threads)\n"
+            " -g --gpus         : number of GPU (default: 0)\n"
+            " -o --scheduler    : select the scheduler (default: LFQ)\n"
+            "                     Accepted values:\n"
+            "                       LFQ -- Local Flat Queues\n"
+            "                       GD  -- Global Dequeue\n"
+            "                       LHQ -- Local Hierarchical Queues\n"
+            "                       AP  -- Absolute Priorities\n"
+            "                       PBQ -- Priority Based Local Flat Queues\n"
+            "                       LTQ -- Local Tree Queues\n"
+            "\n"
+            "    --dot          : create a dot output file (default: don't)\n"
             "\n"
             "    --ht nbth      : enable a SMT/HyperThreadind binding using nbth hyper-thread per core.\n"
             "                     This parameter must be declared before the virtual process distribution parameter\n"
@@ -147,23 +147,25 @@ void print_usage(void)
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
 {
+    /* PaRSEC specific options */
     {"cores",       required_argument,  0, 'c'},
     {"c",           required_argument,  0, 'c'},
     {"o",           required_argument,  0, 'o'},
     {"scheduler",   required_argument,  0, 'o'},
     {"gpus",        required_argument,  0, 'g'},
     {"g",           required_argument,  0, 'g'},
+    {"V",           required_argument,  0, 'V'},
+    {"vpmap",       required_argument,  0, 'V'},
+    {"ht",          required_argument,  0, 'H'},
+    {"dot",         required_argument,  0, '.'},
+
+    /* Generic Options */
     {"grid-rows",   required_argument,  0, 'p'},
     {"p",           required_argument,  0, 'p'},
     {"P",           required_argument,  0, 'p'},
     {"grid-cols",   required_argument,  0, 'q'},
     {"q",           required_argument,  0, 'q'},
     {"Q",           required_argument,  0, 'q'},
-
-    // TODO:: Should be moved with the other dague-specific options
-    {"V",           required_argument,  0, 'V'},
-    {"vpmap",       required_argument,  0, 'V'},
-    {"ht",          required_argument,  0, 'H'},
 
     {"N",           required_argument,  0, 'N'},
     {"M",           required_argument,  0, 'M'},
@@ -190,6 +192,7 @@ static struct option long_options[] =
     {"check_inv",   no_argument,        0, 'X'},
     {"X",           no_argument,        0, 'X'},
 
+    /* HQR options */
     {"qr_a",        required_argument,  0, '0'},
     {"qr_p",        required_argument,  0, '1'},
     {"d",           required_argument,  0, 'd'},
@@ -199,11 +202,11 @@ static struct option long_options[] =
     {"treel",       required_argument,  0, 'l'},
     {"treeh",       required_argument,  0, 'L'},
 
+    /* HERBT options */
     {"butlvl",      required_argument,  0, 'y'},
     {"y",           required_argument,  0, 'y'},
 
-    {"dot",         required_argument,  0, '.'},
-
+    /* Auxiliary options */
     {"verbose",     optional_argument,  0, 'v'},
     {"v",           optional_argument,  0, 'v'},
     {"help",        no_argument,        0, 'h'},
@@ -220,8 +223,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     char **argv = *_argv;
     char *add_dot = NULL;
 
-    do
-    {
+    do {
 #if defined(HAVE_GETOPT_LONG)
         c = getopt_long_only(argc, argv, "",
                         long_options, &opt);
@@ -235,6 +237,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
             case 'o':
+                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
+                        "It should be passed directly to PaRSEC instead\n");
                 if( !strcmp(optarg, "LFQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
                 else if( !strcmp(optarg, "LTQ") )
@@ -255,14 +259,16 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 break;
 
             case 'g':
-                if(iparam[IPARAM_NGPUS] == -1)
-                {
+                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
+                        "It should be passed directly to PaRSEC instead\n");
+                if(iparam[IPARAM_NGPUS] == -1) {
                     fprintf(stderr, "#!!!!! This test does not have GPU support. GPU disabled.\n");
                     break;
                 }
                 if(optarg)  iparam[IPARAM_NGPUS] = atoi(optarg);
                 else        iparam[IPARAM_NGPUS] = INT_MAX;
                 break;
+
             case 'p': case 'P': iparam[IPARAM_P] = atoi(optarg); break;
             case 'q': case 'Q': iparam[IPARAM_Q] = atoi(optarg); break;
             case 'N': iparam[IPARAM_N] = atoi(optarg); break;
@@ -300,10 +306,13 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 break;
 
             case 'H':
+                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
+                        "It should be passed directly to PaRSEC instead\n");
                 dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
 
             case 'V':
-
+                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
+                        "It should be passed directly to PaRSEC instead\n");
                 if( !strncmp(optarg, "display", 7 )) {
                     vpmap_display_map(stderr);
                 } else {
