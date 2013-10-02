@@ -29,6 +29,7 @@
 #include "dague_prof_grapher.h"
 #include "stats.h"
 #include "vpmap.h"
+#include "gpu_data.h"
 
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
@@ -558,7 +559,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     /* Enable the GPU support if possible and requested */
     if(nb_devices > 0) {
 #if defined(HAVE_CUDA)
-        if(0 != dague_gpu_init(ctx, &nb_devices, DAGUE_DEBUG_VERBOSE3)) {
+        if(0 != dague_gpu_init(context, &nb_devices, DAGUE_DEBUG_VERBOSE)) {
             fprintf(stderr, "#XXXXX DAGuE is unable to initialize the CUDA environment.\n");
         }
 #endif  /* defined(HAVE_CUDA) */
