@@ -32,7 +32,7 @@ int main( int argc, char** argv )
     dague_arena_construct( object->arenas[DAGUE_touch_DEFAULT_ARENA],
                            descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           NULL);  /* change for distributed cases */
+                           DAGUE_DATATYPE_NULL);  /* change for distributed cases */
 
     dague_enqueue( dague, (dague_object_t*)object );
 
