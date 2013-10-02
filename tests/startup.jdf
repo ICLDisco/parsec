@@ -4,6 +4,7 @@ extern "C" %{
 #include <sys/time.h>
 #include <inttypes.h>
 #include <string.h>
+#include <stdlib.h>
 %}
 
 A          [type = "two_dim_block_cyclic_t*"]
@@ -23,7 +24,7 @@ STARTUP(i, j, k)
   READ A <- A(i, 0)
          -> A(i, 0)
 
-; inline_c %{ return (NJ*NK*i + NK*j + k)*pri; %}
+; inline_c %{ return pri == 2 ? random() : ((NJ*NK*i + NK*j + k)*pri); %}
 
 BODY
 END
@@ -151,12 +152,35 @@ int main( int argc, char** argv )
     TIMER_STOP(time_elapsed);
     printf("DAG execution [%d] in %ld micro-sec\n", object->pri, time_elapsed);
 
-    /* No priority */
+    /* Decreasing */
     object = dague_startup_new( &descA, ni, nj, nk );
     assert( NULL != object );
     TIMER_START(time_elapsed);
     object->arenas[DAGUE_startup_DEFAULT_ARENA] = &arena;
     object->pri = -1;
+    dague_enqueue( dague, (dague_object_t*)object );
+    TIMER_STOP(time_elapsed);
+    printf("DAG construction [%d] %d tasks in %ld micro-sec\n", object->pri,
+           object->super.nb_local_tasks, time_elapsed);
+    if( verbose >= 5 ) {
+        printf("<DartMeasurement name=\"neg_pri\" type=\"numeric/double\"\n"
+               "                 encoding=\"none\" compression=\"none\">\n"
+               "%g\n"
+               "</DartMeasurement>\n",
+               (double)time_elapsed);
+    }
+    TIMER_START(time_elapsed);
+    dague_progress(dague);
+    TIMER_STOP(time_elapsed);
+    printf("DAG execution [%d] in %ld micro-sec\n", object->pri, time_elapsed);
+
+    /* Random */
+    srandom((int)getpid());  /* Start the random generator */
+    object = dague_startup_new( &descA, ni, nj, nk );
+    assert( NULL != object );
+    TIMER_START(time_elapsed);
+    object->arenas[DAGUE_startup_DEFAULT_ARENA] = &arena;
+    object->pri = 2;
     dague_enqueue( dague, (dague_object_t*)object );
     TIMER_STOP(time_elapsed);
     printf("DAG construction [%d] %d tasks in %ld micro-sec\n", object->pri,
