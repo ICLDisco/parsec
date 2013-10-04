@@ -390,7 +390,7 @@ IF( BUILD_DAGUE )
       endif(CUDA_VERSION VERSION_LESS "3.0")
       set(CUDA_BUILD_EMULATION OFF)
       include_directories(${CUDA_INCLUDE_DIRS})
-      #list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES} )
+      list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES}) # need CUDA libs to link.
       list(APPEND EXTRA_SOURCES src/gpu_data.c)
       set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
       set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
