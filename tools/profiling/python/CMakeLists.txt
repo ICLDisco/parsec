@@ -5,9 +5,9 @@
 set(SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
 set(SETUP_PY    "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
 set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/dbpreader_py.pyx"
-                "${CMAKE_CURRENT_SOURCE_DIR}/dbpreader_py.c"
                 "${CMAKE_CURRENT_SOURCE_DIR}/dbpreader_py.pxd")
-set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp")
+set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp"
+                "${CMAKE_CURRENT_BINARY_DIR}/dbpreader_py.c")
 
 #
 # Always generate the setup.py so it can be used by hand
