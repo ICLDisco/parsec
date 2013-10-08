@@ -218,7 +218,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
 int dague_profiling_fini( void )
 {
     dague_thread_profiling_t *t;
-    
+
     while( (t = (dague_thread_profiling_t*)dague_ulist_fifo_pop(&threads)) ) {
         free(t->hr_id);
         free(t);
@@ -236,7 +236,7 @@ int dague_profiling_fini( void )
 int dague_profiling_reset( void )
 {
     dague_thread_profiling_t *t;
-    
+
     DAGUE_LIST_ITERATOR(&threads, it, {
         t = (dague_thread_profiling_t*)it;
         t->next_event_position = 0;
@@ -247,7 +247,7 @@ int dague_profiling_reset( void )
 }
 
 int dague_profiling_add_dictionary_keyword( const char* key_name, const char* attributes,
-                                            size_t info_length, 
+                                            size_t info_length,
                                             const char* convertor_code,
                                             int* key_start, int* key_end )
 {
@@ -435,8 +435,9 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
 }
 
 int
-dague_profiling_trace_flags( dague_thread_profiling_t* context, int key,
-			     uint64_t event_id, uint32_t object_id, void *info, uint16_t flags )
+dague_profiling_trace_flags(dague_thread_profiling_t* context, int key,
+                            uint64_t event_id, uint32_t object_id,
+                            void *info, uint16_t flags)
 {
     dague_profiling_output_t *this_event;
     size_t this_event_length;
