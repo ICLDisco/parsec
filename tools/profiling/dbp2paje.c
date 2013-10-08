@@ -575,7 +575,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                                     pit, e, nit, g );
                     current_stat[ key ].nb_matchsuccess++;
 
-                    /* Add the arrot to the rescheduled event */
+                    /* Add the arrow to the rescheduled event */
                     if (USERFLAGS.split_events_link &&
                         ( dbp_event_get_flags(g) & DAGUE_PROFILING_EVENT_RESCHEDULED ))
                     {
