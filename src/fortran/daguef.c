@@ -14,17 +14,17 @@ void dague_init_f08(int nbcores, dague_context_t** context, int* ierr)
 
     if( NULL != (args = getenv("DAGUE_ARGS"))) {
         args = token = strdup(args);
-	while(NULL != strsep(&args, ";=")) argc++;
-	argv = (char**)malloc((2+argc) * sizeof(char*));
-	free(token);
-	args = strdup(getenv("DAGUE_ARGS"));
-	argc = 1;
-	argv[0] = "myapp";  /* No idea how to extract the real application name from Fortran */
-	while( NULL != (token = strsep(&args, ";=")) ) {
-	  argv[argc] = token;
-	  argc++;
-	}
-	argv[argc] = NULL;
+        while(NULL != strsep(&args, ";=")) argc++;
+        argv = (char**)malloc((2+argc) * sizeof(char*));
+        free(token);
+        args = strdup(getenv("DAGUE_ARGS"));
+        argc = 1;
+        argv[0] = "myapp";  /* No idea how to extract the real application name from Fortran */
+        while( NULL != (token = strsep(&args, ";=")) ) {
+            argv[argc] = token;
+            argc++;
+        }
+        argv[argc] = NULL;
     }
     *context = dague_init(nbcores, &argc, &argv);
     *ierr = (NULL == *context) ? 0 : -1;
