@@ -28,7 +28,7 @@
 #include <linux/unistd.h>
 #endif  /* defined(HAVE_SCHED_SETAFFINITY) */
 #if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
-#define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), -1, NULL)
+#define TAKE_TIME(EU_PROFILE, KEY, ID)  DAGUE_PROFILING_TRACE((EU_PROFILE), (KEY), (ID), NULL)
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif

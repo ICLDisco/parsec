@@ -31,6 +31,13 @@
 
 #define MINIMAL_EVENT_BUFFER_SIZE          4088
 
+/**
+ * Externally visible on/off switch for the profiling of new events. It
+ * only protects the macros, a direct call to the dague_profiling_trace
+ * will always succeed. It is automatically turned on by the init call.
+ */
+int dague_profile_enabled = 0;
+
 static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char type);
 
 /* Process-global dictionnary */
@@ -142,7 +149,7 @@ int dague_profiling_init( const char *format, ... )
         file_backend_extendable = 1;
         ps = sysconf(_SC_PAGESIZE);
         event_buffer_size = ps * ((MINIMAL_EVENT_BUFFER_SIZE + ps) / ps);
-        event_avail_space = event_buffer_size - 
+        event_avail_space = event_buffer_size -
             ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
 
         assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
@@ -167,6 +174,7 @@ int dague_profiling_init( const char *format, ... )
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
     dague_profiling_start();
+    dague_profile_enabled = 1;  /* turn on the profiling */
 
     return 0;
 }
@@ -230,6 +238,7 @@ int dague_profiling_fini( void )
     free(dague_prof_keys);
     dague_prof_keys_number = 0;
     __already_called = 0;  /* Allow the profiling to be reinitialized */
+    dague_profile_enabled = 0;  /* turn off the profiling */
     return 0;
 }
 

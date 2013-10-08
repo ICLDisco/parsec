@@ -182,4 +182,28 @@ extern char *dague_profile_ddesc_key_to_string;
 #define DAGUE_PROFILE_STREAM_STR "GPU %d-%d"
 #define DAGUE_PROFILE_THREAD_STR "DAGuE Thread %d of VP %d"
 
+extern int dague_profile_enabled;
+
+/**
+ * Enable/disable the profiling of new events.
+ */
+static inline void dague_profiling_enable(void)
+{
+    dague_profile_enabled = 1;
+}
+static inline void dague_profiling_disable(void)
+{
+    dague_profile_enabled = 1;
+}
+
+#define DAGUE_PROFILING_TRACE(context, key, event_id, object_id, info ) \
+    if( dague_profile_enabled ) {                                       \
+        dague_profiling_trace(context, key, event_id, object_id, info ); \
+    }
+
+#define DAGUE_PROFILING_TRACE_FLAGS(context, key, event_id, object_id, info, flags ) \
+    if( dague_profile_enabled ) {                                       \
+        dague_profiling_trace_flags(context, key, event_id, object_id, info, flags ); \
+    }
+
 #endif  /* _DAGUE_profiling_h */

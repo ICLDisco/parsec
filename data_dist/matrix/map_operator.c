@@ -18,7 +18,7 @@ int dague_map_operator_profiling_array[2] = {-1};
    dague_profile_ddesc_info_t info;                         \
    info.desc = (dague_ddesc_t*)refdesc;                     \
    info.id = refid;                                         \
-   dague_profiling_trace(context->eu_profile,               \
+   DAGUE_PROFILING_TRACE(context->eu_profile,               \
                          __dague_object->super.super.profiling_array[(key)],\
                          eid, __dague_object->super.super.object_id, (void*)&info);  \
   } while(0);

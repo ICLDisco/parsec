@@ -16,12 +16,6 @@
 #include "datarepo.h"
 #include "maxheap.h"
 
-#if defined(DAGUE_PROF_TRACE) && 0
-#define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), NULL)
-#else
-#define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
-#endif
-
 typedef struct {
     dague_dequeue_t   *system_queue;
     dague_hbbuffer_t  *task_queue;
@@ -622,9 +616,9 @@ static int schedule_local_queues( dague_execution_unit_t* eu_context,
                                   dague_execution_context_t* new_context )
 {
     dague_hbbuffer_push_all( LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)new_context );
-#if defined(DAGUE_PROF_TRACE)
-    TAKE_TIME(eu_context->eu_profile, queue_add_begin, 0);
-    TAKE_TIME(eu_context->eu_profile, queue_add_end, 0);
+#if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
+    DAGUE_PROFILING_TRACE(eu_context->eu_profile, queue_add_begin, 0, -1, NULL);
+    DAGUE_PROFILING_TRACE(eu_context->eu_profile, queue_add_end, 0, -1, NULL);
 #endif
     return 0;
 }
