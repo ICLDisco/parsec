@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012 The University of Tennessee and The University
+ * Copyright (c) 2011-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -290,59 +290,93 @@ static void progress_bar_end(void)
     progress_bar_update(1);
 }
 
+typedef uint64_t hash_key_t;
+
 typedef struct uidentry {
     struct uidentry *next;
-    char *uid;
-    char *long_uid;
-    char *alias;
+    hash_key_t       hash_key;
+    char            *uid;
+    char            *long_uid;
+    char            *alias;
 } uidentry_t;
 
 #define UID_HASH_LEN 256
 static uidentry_t *UIDs[UID_HASH_LEN] = { NULL, };
 
-static int uid_hash(const char *long_uid)
+static hash_key_t uid_hash_va(const char *first, va_list va)
 {
-    unsigned int r;
+    hash_key_t r;
     unsigned char c;
     int i=0;
-    r = *(unsigned char *)long_uid++;
-    while( *long_uid != '\0' ) {
-        c = *(unsigned char*)long_uid++;
-        r = r ^ (0xff & (c << (++i%8) ));
-    }
-    return (int)(r % UID_HASH_LEN);
+    const char* arg = first;
+    r = *(unsigned char *)arg++;
+    do {
+        while( *arg != '\0' ) {
+            c = *(unsigned char*)arg++;
+            r = r ^ (0xff & (c << (++i%8) ));
+        }
+        arg = va_arg(va, const char*);
+    } while( NULL != arg );
+    return r;
 }
 
-static uidentry_t *uidhash_lookup_create_entry(const char *long_uid)
+static uidentry_t *uidhash_lookup_create_entry(const char *first, ...)
 {
     static int nextid = 0;
     uidentry_t *n;
-    int h;
+    va_list va;
+    hash_key_t h;
+    int idx;
+    size_t length = strlen(first);
+    char *where;
+    const char *arg;
 
-    h = uid_hash(long_uid);
+    va_start(va, first);
+    h = uid_hash_va(first, va);
+    idx = h % UID_HASH_LEN;
+    va_end(va);
 
-    for(n = UIDs[ h ]; NULL != n; n = n->next) {
-        if( 0 == strcmp(n->long_uid, long_uid) )
+    /* We don't support collisions */
+    for(n = UIDs[idx]; NULL != n; n = n->next) {
+        if( n->hash_key == h )
             return n;
     }
+    /* Compute the length of all strings passed as arguments */
+    va_start(va, first);
+    while( NULL != (arg = va_arg(va, const char*)) ) {
+        length += strlen(arg);
+    }
+    va_end(va);
 
     n = (uidentry_t*)malloc( sizeof(uidentry_t) );
-    n->long_uid = strdup(long_uid);
+    n->long_uid = (char*)malloc(length+1);
+    /* Copy all strings in the long_uid */
+    va_start(va, first);
+    where = n->long_uid;
+    arg = first;
+    do {
+        length = strlen(arg);
+        strncpy( where, arg, length );
+        where += length;
+    } while( NULL != (arg = va_arg(va, const char*)) );
+    where[0] = '\0';  /* NULL terminated */
+    va_end(va);
     n->alias = NULL;
+    n->hash_key = h;
     asprintf(&n->uid, "%X", nextid++);
-    n->next = UIDs[h];
-    UIDs[h] = n;
+    n->next = UIDs[idx];
+    UIDs[idx] = n;
 
     return n;
 }
 
-static char *getThreadContainerIdentifier( const dbp_thread_t *th )
+static char *getThreadContainerIdentifier( const char* mpi_alias, const dbp_thread_t *th )
 {
     uidentry_t *n;
     const char *identifier = dbp_thread_get_hr_id(th);
 
     /* Register the full identifier in hashtable */
-    n = uidhash_lookup_create_entry(identifier);
+    n = uidhash_lookup_create_entry(mpi_alias, identifier, NULL);
     if (n->alias != NULL) {
         return n->alias;
     }
@@ -360,7 +394,7 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
     const char *identifier = dbp_thread_get_hr_id(th);
 
     /* Register the full identifier in hashtable */
-    n = uidhash_lookup_create_entry(identifier);
+    n = uidhash_lookup_create_entry(mpi_alias, identifier, NULL);
     if (n->alias != NULL) {
         return n->alias;
     }
@@ -384,7 +418,7 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
         }
 
         /* Register the new containers */
-        p = uidhash_lookup_create_entry(gpu_name);
+        p = uidhash_lookup_create_entry(mpi_alias, gpu_name, NULL);
         if (p->alias == NULL) {
             asprintf( &(p->alias), "%sG%d", mpi_alias, parent_id);
             addContainer (0.00000, p->alias, "CT_VP", mpi_alias, gpu_name, "");
@@ -404,7 +438,7 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
         asprintf( &thrd_name, "Thread %d", son_id   );
 
         /* Register the new containers */
-        p = uidhash_lookup_create_entry(vp_name);
+        p = uidhash_lookup_create_entry(mpi_alias, vp_name, NULL);
         if (p->alias == NULL) {
             asprintf( &(p->alias),   "%sV%d", mpi_alias, parent_id);
             addContainer (0.00000, p->alias, "CT_VP", mpi_alias, vp_name, "");
@@ -417,6 +451,7 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
     }
     else {
         asprintf( &(n->alias), "%sT%s", mpi_alias, n->uid );
+        addContainer (0.00000, n->alias, "CT_T", mpi_alias, identifier, "");
     }
 
     return n->alias;
@@ -671,8 +706,8 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
             USERFLAGS.split_events_link ) {
             sprintf(linkid, "L-%d", linkuid);
             linkuid++;
-            cont_src = getThreadContainerIdentifier( cev->start_thread );
-            cont_dst = getThreadContainerIdentifier( cev->end_thread   );
+            cont_src = getThreadContainerIdentifier( cont_mpi_name, cev->start_thread );
+            cont_dst = getThreadContainerIdentifier( cont_mpi_name, cev->end_thread );
             startLink( ((double)cev->start) * 1e-3, "LT_TL", cont_mpi_name, cont_src, cont_dst, keyid, linkid);
             endLink(   ((double)cev->end)   * 1e-3, "LT_TL", cont_mpi_name, cont_src, cont_dst, keyid, linkid);
         }
@@ -777,7 +812,7 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
         sprintf(cont_mpi_name, "M%d", dbp_file_get_rank(file));
         for(t = 0; t < dbp_file_nb_threads(file); t++) {
             th = dbp_file_get_thread(file, t);
-            cont_thread_name = getThreadContainerIdentifier( th );
+            cont_thread_name = getThreadContainerIdentifier( cont_mpi_name, th );
             assert(cont_thread_name != NULL);
             current_stat = dico_stat[ifd][t].stats;
             dump_one_paje(dbp, th, cont_mpi_name, cont_thread_name);
