@@ -415,10 +415,6 @@ IF( BUILD_DAGUE )
       include_directories( ${PAPI_INCLUDE_DIR} )
     endif (PAPI_FOUND)
   endif (DAGUE_PROF_PAPI)
-  
-  if( DAGUE_PROF_TRACE )
-    list(APPEND EXTRA_SOURCES src/profiling.c)
-  endif( DAGUE_PROF_TRACE )
 
   if( DAGUE_PROF_STATS )
     list(APPEND EXTRA_SOURCES src/stats.c)
@@ -495,7 +491,7 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
     set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-fno-f2c -O0 -g")
   elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-    # ifort (untested)
+    # ifort
     set (CMAKE_Fortran_FLAGS_RELEASE "-f77rtl -O3")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-f77rtl -O0 -g")
   else (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
@@ -540,21 +536,22 @@ ELSE(CMAKE_CROSSCOMPILING)
 ENDIF(CMAKE_CROSSCOMPILING)
 #
 #  Settings for targets
-# 
-set(SRCS 
-  src/barrier.c 
+#
+set(SRCS
+  src/barrier.c
   src/scheduling.c
-  src/schedulers.c 
-  src/dague.c 
+  src/schedulers.c
+  src/dague.c
   src/arena.c
   src/moesi.c
-  src/remote_dep.c 
-  src/debug.c 
-  src/bindthread.c 
+  src/remote_dep.c
+  src/debug.c
+  src/bindthread.c
   src/dague_hwloc.c
-  src/mempool.c 
+  src/mempool.c
   src/vpmap.c
- ${EXTRA_SOURCES} 
+  src/profiling.c
+  ${EXTRA_SOURCES}
 )
 
 #
@@ -575,11 +572,11 @@ if( BUILD_DAGUE )
 # If we have support for F90 build the DAGuE module
 #
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-    include(FortranCInterface)
-    FortranCInterface_HEADER(src/fortran/f2c_mangle.h
-                             MACRO_NAMESPACE "DAGUE_"
-                             SYMBOL_NAMESPACE "dague_"
-                             SYMBOLS mysub daguef:my_sub)
+    #include(FortranCInterface)
+    #FortranCInterface_HEADER(src/fortran/f2c_mangle.h
+    #                         MACRO_NAMESPACE "DAGUE_"
+    #                         SYMBOL_NAMESPACE "dague_")
+    #                         SYMBOLS mysub daguef:my_sub)
     add_subdirectory(src/fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
