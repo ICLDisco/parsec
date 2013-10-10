@@ -547,7 +547,7 @@ static int dump_one_event( dague_list_t *consolidated_events,
                                         dbp_event_info_len(eend,   dbp) );
 
     cev->event_id  = dbp_event_get_event_id(  estart );
-    cev->object_id = dbp_event_get_object_id( estart );
+    cev->handle_id = dbp_event_get_handle_id( estart );
     cev->start = start;
     cev->end   = end;
     cev->start_thread = dbp_iterator_thread(istart);
@@ -622,7 +622,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                             /* Argh, couldn't find the end in this trace */
                             WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" rescheduled at %lu does not have a new starting point anywhere\n",
                                      dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
-                                     dbp_event_get_object_id(e), dbp_event_get_event_id(e),
+                                     dbp_event_get_handle_id(e), dbp_event_get_event_id(e),
                                      diff_time(relative, dbp_event_get_timestamp(e))));
                             current_stat[ key ].nb_matcherror++;
                         }
@@ -654,7 +654,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                     /* Argh, couldn't find the end in this trace */
                     WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
                              dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
-                             dbp_event_get_object_id(e), dbp_event_get_event_id(e),
+                             dbp_event_get_handle_id(e), dbp_event_get_event_id(e),
                              diff_time(relative, dbp_event_get_timestamp(e))));
 
                     current_stat[ key ].nb_matcherror++;
