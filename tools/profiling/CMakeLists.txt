@@ -35,7 +35,10 @@ if(GRAPHVIZ_FOUND)
 
 endif(GRAPHVIZ_FOUND)
 
-# Python support for profiling
-Add_Subdirectory(python)
+# Python support for profiling (requires Cython)
+find_package(Cython)
+if(CYTHON_EXECUTABLE)
+  Add_Subdirectory(python)
+endif(CYTHON_EXECUTABLE)
 
 install(TARGETS dbp2xml RUNTIME DESTINATION bin)
