@@ -287,7 +287,7 @@ static void dague_vp_init( dague_vp_t *vp,
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
     int argc = 0, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
-    int scheduler = DAGUE_SCHEDULER_LFQ, nb_devices = -1;
+    int nb_devices = -1;
     char *comm_binding_parameter = NULL;
     char *binding_parameter = NULL;
     char **argv = NULL;
@@ -370,26 +370,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             case 'h': dague_usage(); break;
 
             case 'c': nb_cores = (int)strtol(optarg, NULL, 10); break;
-
-            case 'o': /* The scehduler */
-                if( !strcmp(optarg, "LFQ") )
-                    scheduler = DAGUE_SCHEDULER_LFQ;
-                else if( !strcmp(optarg, "LTQ") )
-                    scheduler = DAGUE_SCHEDULER_LTQ;
-                else if( !strcmp(optarg, "AP") )
-                    scheduler = DAGUE_SCHEDULER_AP;
-                else if( !strcmp(optarg, "LHQ") )
-                    scheduler = DAGUE_SCHEDULER_LHQ;
-                else if( !strcmp(optarg, "GD") )
-                    scheduler = DAGUE_SCHEDULER_GD;
-                else if( !strcmp(optarg, "PBQ") )
-                    scheduler = DAGUE_SCHEDULER_PBQ;
-                else {
-                    fprintf(stderr, "#!!!!! malformed scheduler value %s (accepted: LFQ AP LHQ GD PBQ LTQ). Reverting to default LFQ\n",
-                            optarg);
-                    scheduler = DAGUE_SCHEDULER_LFQ;
-                }
-                break;
 
             case 'g': /* Enabled devices */
                 if(optarg)  nb_devices = (int)strtol(optarg, NULL, 10);
@@ -662,7 +642,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     /* Set the scheduler */
-    dague_set_scheduler(context, dague_schedulers_array[scheduler]);
+    dague_set_scheduler( context );
 
     if( display_vpmap )
         vpmap_display_map(stderr);
