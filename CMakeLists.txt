@@ -547,12 +547,14 @@ set(SRCS
   src/remote_dep.c
   src/debug.c
   src/bindthread.c
-  src/dague_hwloc.c
   src/mempool.c
   src/vpmap.c
   src/profiling.c
   ${EXTRA_SOURCES}
 )
+if( HWLOC_FOUND )
+  list(APPEND SRCS src/dague_hwloc.c)
+endif( HWLOC_FOUND )
 
 #
 # Setup targets
