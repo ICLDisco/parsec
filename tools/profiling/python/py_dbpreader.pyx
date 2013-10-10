@@ -124,21 +124,23 @@ cdef char** stringListToCStrings(strings):
         free(c_argv)
     return c_argv
 
-class dbpEvent:
-   def __init__(self, parentThread, key, flags, object_id, event_id, start, end):
-      self.thread = parentThread
-      self.key = key
-      self.flags = flags
-      self.object_id = object_id
-      self.event_id = event_id
-      self.start = start
-      self.end = end
-      self.duration = self.end - self.start
-   def __str__(self):
-      return 'key %d flags %d tid %d objID %s eventID %d start %d end %d duration %d' % (
-              self.key, self.flags, self.thread.id, self.object_id, self.event_id,
-              self.start, self.end, self.duration)
-
+# you can't call this. it will be called for you. call readProfile()
+cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, pfile):
+    cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, index)
+    cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
+    cdef dbp_event_iterator_t * it_e = NULL
+    cdef const dbp_event_t * event_s = dbp_iterator_current(it_s)
+    cdef const dbp_event_t * event_e = NULL
+    cdef dague_time_t reader_begin = dbp_reader_min_date(dbp)
+    cdef unsigned long long begin = 0
+    cdef unsigned long long end = 0
+    cdef void * cinfo = NULL
+    cdef papi_exec_info_t * cast_exec_info = NULL
+    cdef select_info_t * cast_select_info = NULL
+    cdef papi_L123_info_t * cast_L123_info = NULL
+    cdef papi_L12_select_info_t * cast_L12_select_info = NULL
+    cdef papi_L12_exec_info_t * cast_L12_exec_info = NULL
+    cdef long long int * cast_lld_ptr = NULL
 
     thread = dbpThread(pfile, index)
 
