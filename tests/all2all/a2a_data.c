@@ -18,7 +18,7 @@ tiled_matrix_desc_t *create_and_distribute_data(int rank, int world, int size)
     two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
     
     two_dim_block_cyclic_init(m, matrix_ComplexDouble, matrix_Tile,
-                              world, 1, rank,
+                              world, rank,
                               size, 1, size, 1, rank, 1, world*size, 1,
                               1, 1, world);
     return (tiled_matrix_desc_t*)m;

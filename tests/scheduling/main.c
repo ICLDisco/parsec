@@ -26,7 +26,7 @@ double stdev(double sum, double sumsqr, double n)
 int main(int argc, char *argv[])
 {
     dague_context_t* dague;
-    int rank, world, cores;
+    int rank, world;
     int nt, level, try;
     dague_ddesc_t *ddescA;
     dague_handle_t *ep;

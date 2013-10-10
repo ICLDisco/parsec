@@ -114,6 +114,8 @@ dague_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size
 {
     int worldsize;
     dague_a2a_handle_t *o = NULL;
+    (void)size;
+
 #if defined(HAVE_MPI)
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 #else
