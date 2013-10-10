@@ -103,79 +103,38 @@ int dague_profiling_init( void )
     dague_profiling_buffer_t dummy_events_buffer;
     long ps;
 
-#if defined(HAVE_MPI)
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
-#endif
-
-    if( hr_id != NULL ) {
-        ERROR(("dague_profiling_init: profiling already initialized"));
-        return -1;
-    }
-
-    va_start(ap, format);
-    vasprintf(&hr_id, format, ap);
-    va_end(ap);
-
-    bpf_filename = (char*)malloc(strlen(hr_id) + 16);
-
-    hr_id_dir = strdup(hr_id);
-    hr_id_basename = hr_id_dir;
-    for(c = hr_id_dir; *c != '\0'; c++) {
-        if( *c == '/' )
-            hr_id_basename = c+1;
-    }
-    if( hr_id_basename != hr_id_dir ) {
-        *(hr_id_basename-1) = '\0';
-    }
-
-    sprintf(bpf_filename, "%s.prof-XXXXXX", hr_id_basename);
-    free(hr_id_dir);
-    hr_id_dir = NULL;
-    hr_id_basename = NULL;
-
-    file_backend_fd = mkstemp(bpf_filename);
-    if( -1 == file_backend_fd ) {
-        fprintf(stderr, "Warning profiling system: unable to create temporary backend file %s: %s. Events not logged.\n",
-                bpf_filename, strerror(errno));
-        free(bpf_filename);
-        bpf_filename = NULL;
-        file_backend_extendable = 0;
-    } else {
-        file_backend_extendable = 1;
-        ps = sysconf(_SC_PAGESIZE);
-        event_buffer_size = ps * ((MINIMAL_EVENT_BUFFER_SIZE + ps) / ps);
-        event_avail_space = event_buffer_size -
-            ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
-
-        assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
-        profile_head = (dague_profiling_binary_file_header_t*)allocate_empty_buffer(&zero, PROFILING_BUFFER_TYPE_HEADER);
-        if( NULL != profile_head ) {
-	        memcpy(profile_head->magick, DAGUE_PROFILING_MAGICK, strlen(DAGUE_PROFILING_MAGICK) + 1);
-            profile_head->byte_order = 0x0123456789ABCDEF;
-            profile_head->profile_buffer_size = event_buffer_size;
-            strncpy(profile_head->hr_id, hr_id, 128);
-            profile_head->rank = rank;
-            profile_head->worldsize = worldsize;
-        }
-
-        dague_prof_keys = (dague_profiling_key_t*)calloc(128, sizeof(dague_profiling_key_t));
-        dague_prof_keys_count = 0;
-        dague_prof_keys_number = 128;
-
-        dague_profile_enabled = 1;  /* turn on the profiling */
-    }
-
     OBJ_CONSTRUCT( &threads, dague_list_t );
+
+    dague_prof_keys = (dague_profiling_key_t*)calloc(128, sizeof(dague_profiling_key_t));
+    dague_prof_keys_count = 0;
+    dague_prof_keys_number = 128;
+
+    file_backend_extendable = 1;
+    ps = sysconf(_SC_PAGESIZE);
+    event_buffer_size = ps * ((MINIMAL_EVENT_BUFFER_SIZE + ps) / ps);
+    event_avail_space = event_buffer_size -
+        ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
+
+    assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
 
     /* default start time is time of call of profiling init.
      * Can be reset once explicitly by the user. */
+    dague_profiling_start();
+    dague_profile_enabled = 1;  /* turn on the profiling */
+
+    return 0;
+}
+
+void dague_profiling_start(void)
+{
+    if(start_called)
+        return;
+
 #if defined(HAVE_MPI)
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
-    dague_profiling_start();
-
-    return 0;
+    start_called = 1;
+    dague_start_time = take_time();
 }
 
 dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char *format, ...)
@@ -214,75 +173,6 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     return res;
 }
 
-void dague_profiling_start(void)
-{
-    if(start_called)
-        return;
-
-#if defined(HAVE_MPI)
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
-    start_called = 1;
-    dague_start_time = take_time();
-}
-
-int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
-{
-    int rank = 0;
-    int worldsize = 1;
-    uint64_t zero;
-
-#if defined(HAVE_MPI)
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
-#endif
-
-    bpf_filename = (char*)malloc(strlen(basefile) + 16);
-
-    sprintf(bpf_filename, "%s-%d.profile", basefile, rank);
-
-    /* be permisive when creating / overwriting the file:
-     * the user's umask will restrict the rights to the user's preferred default */
-    file_backend_fd = open(bpf_filename, O_RDWR|O_CREAT|O_TRUNC,
-                           S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
-    if( -1 == file_backend_fd ) {
-        set_last_error("Profiling system: error: Unable to create backend file %s: %s. Events not logged.\n",
-                       bpf_filename, strerror(errno));
-        free(bpf_filename);
-        bpf_filename = NULL;
-        file_backend_extendable = 0;
-        return -1;
-    } else {
-        char *xmlbuffer;
-        int buflen;
-        profile_head = (dague_profiling_binary_file_header_t*)allocate_empty_buffer(&zero, PROFILING_BUFFER_TYPE_HEADER);
-        if( NULL != profile_head ) {
-            memcpy(profile_head->magick, DAGUE_PROFILING_MAGICK, strlen(DAGUE_PROFILING_MAGICK) + 1);
-            profile_head->byte_order = 0x0123456789ABCDEF;
-            profile_head->profile_buffer_size = event_buffer_size;
-            strncpy(profile_head->hr_id, hr_info, 128);
-            profile_head->rank = rank;
-            profile_head->worldsize = worldsize;
-
-            /* Reset the error system */
-            set_last_error("Profiling system: success");
-            dague_profiling_raise_error = 0;
-
-            /* It's fine to re-reset the event date: we're back with a zero-length event set */
-            start_called = 0;
-
-            if( dague_hwloc_export_topology(&buflen, &xmlbuffer) != -1 &&
-                buflen > 0 ) {
-                dague_profiling_add_information("HWLOC-XML", xmlbuffer);
-                dague_hwloc_free_xml_buffer(xmlbuffer);
-            }
-            return 0;
-        } else {
-            return -1;
-        }
-    }
-}
-
 int dague_profiling_fini( void )
 {
     dague_thread_profiling_t *t;
@@ -303,7 +193,7 @@ int dague_profiling_fini( void )
     dague_profiling_dictionary_flush();
     free(dague_prof_keys);
     dague_prof_keys_number = 0;
-    __already_called = 0;  /* Allow the profiling to be reinitialized */
+    start_called = 0;  /* Allow the profiling to be reinitialized */
     dague_profile_enabled = 0;  /* turn off the profiling */
     return 0;
 }
@@ -363,6 +253,7 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
     *key_end = END_KEY(pos);
     return 0;
 }
+
 
 int dague_profiling_dictionary_flush( void )
 {
@@ -870,5 +761,74 @@ int dague_profiling_dbp_dump( void )
 
     return 0;
 }
+
+int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
+{
+    char *c, *hr_id_basename, *hr_id_dir;
+    int rank = 0;
+    int worldsize = 1;
+    int64_t zero;
+
+#if defined(HAVE_MPI)
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
+#endif
+
+    bpf_filename = (char*)malloc(strlen(basefile) + 16);
+
+    hr_id_dir = strdup(basefile);
+    hr_id_basename = hr_id_dir;
+    for(c = hr_id_dir; *c != '\0'; c++) {
+        if( *c == '/' )
+            hr_id_basename = c+1;
+    }
+    if( hr_id_basename != hr_id_dir ) {
+        *(hr_id_basename-1) = '\0';
+    }
+
+    sprintf(bpf_filename, "%s.prof-XXXXXX", hr_id_basename);
+    free(hr_id_dir);
+    hr_id_dir = NULL;
+    hr_id_basename = NULL;
+
+    file_backend_fd = mkstemp(bpf_filename);
+    if( -1 == file_backend_fd ) {
+        set_last_error("Profiling system: error: Unable to create backend file %s: %s. Events not logged.\n",
+                       bpf_filename, strerror(errno));
+        free(bpf_filename);
+        bpf_filename = NULL;
+        file_backend_extendable = 0;
+        return -1;
+    } else {
+        char *xmlbuffer;
+        int buflen;
+        profile_head = (dague_profiling_binary_file_header_t*)allocate_empty_buffer(&zero, PROFILING_BUFFER_TYPE_HEADER);
+        if( NULL != profile_head ) {
+            memcpy(profile_head->magick, DAGUE_PROFILING_MAGICK, strlen(DAGUE_PROFILING_MAGICK) + 1);
+            profile_head->byte_order = 0x0123456789ABCDEF;
+            profile_head->profile_buffer_size = event_buffer_size;
+            strncpy(profile_head->hr_id, hr_info, 128);
+            profile_head->rank = rank;
+            profile_head->worldsize = worldsize;
+
+            /* Reset the error system */
+            set_last_error("Profiling system: success");
+            dague_profiling_raise_error = 0;
+
+            /* It's fine to re-reset the event date: we're back with a zero-length event set */
+            start_called = 0;
+
+            if( dague_hwloc_export_topology(&buflen, &xmlbuffer) != -1 &&
+                buflen > 0 ) {
+                dague_profiling_add_information("HWLOC-XML", xmlbuffer);
+                dague_hwloc_free_xml_buffer(xmlbuffer);
+            }
+            return 0;
+        } else {
+            return -1;
+        }
+    }
+}
+
 
 char *dague_profile_ddesc_key_to_string = "";

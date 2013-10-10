@@ -9,9 +9,9 @@
 #include <stdlib.h>
 #include "profiling.h"
 
-void dague_profiling_init_f08( const char *hdr_id, int* ierr )
+void dague_profiling_init_f08( int* ierr )
 {
-    *ierr = dague_profiling_init("%s", hdr_id);
+    *ierr = dague_profiling_init();
 }
 
 void dague_profiling_fini_f08( int* ierr )
@@ -24,9 +24,14 @@ void dague_profiling_reset_f08( int* ierr )
     *ierr = dague_profiling_reset();
 }
 
-void dague_profiling_dump_f08( const char* filename, int* ierr )
+void dague_profiling_dump_f08( int* ierr )
 {
-    *ierr = dague_profiling_dump_dbp(filename);
+    *ierr = dague_profiling_dbp_dump();
+}
+
+void dague_profiling_start_f08( const char *filename, const char *hr_info, int* ierr )
+{
+    *ierr = dague_profiling_dbp_start( filename, hr_info );
 }
 
 dague_thread_profiling_t*

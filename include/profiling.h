@@ -24,9 +24,12 @@ typedef struct dague_thread_profiling_s dague_thread_profiling_t;
 
 /**
  * Initializes the profiling engine. Call this ONCE per process.
+ *
+ * @return 0    if success, -1 otherwise
+ *
  * not thread safe
  */
-int dague_profiling_init(void);
+int dague_profiling_init( void );
 
 /**
  * Set the reference time to now in the profiling system.
@@ -44,6 +47,16 @@ void dague_profiling_start(void);
  * not thread safe
  */
 int dague_profiling_fini( void );
+
+/**
+ * Removes all current logged events. Prefer this to fini / init if you want
+ * to do a new profiling with the same thread contexts. This does not
+ * invalidate the current thread contexts.
+ *
+ * @return 0 if succes, -1 otherwise
+ * not thread safe
+ */
+int dague_profiling_reset( void );
 
 /**
  * Add additional information about the current run, under the form key/value.
@@ -87,10 +100,11 @@ int dague_profiling_add_dictionary_keyword( const char* name, const char* attrib
                                             int* key_start, int* key_end );
 
 /**
- * Empties the global dictionnary
+ * Empties the global dictionnary (usefull in conjunction with reset, if
+ * you want to redo an experiment.
  *
- * Emptying the dictionnary between a dbp_start and a dbp_end will yield
- * undeterminate results.
+ * Emptying the dictionnary without reseting the profiling system will yield
+ * undeterminate results
  *
  * @return 0 if success, -1 otherwise.
  * not thread safe
