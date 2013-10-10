@@ -13,7 +13,6 @@
 #include "dague_description_structures.h"
 #include "dague.h"
 #include "profiling.h"
-#include "data_distribution.h"
 
 BEGIN_C_DECLS
 
@@ -164,7 +163,7 @@ typedef dague_hook_return_t (dague_hook_t)(struct dague_execution_unit_s*, dague
  *
  */
 typedef struct dague_data_ref_s {
-    dague_ddesc_t *ddesc;
+    struct dague_ddesc_s *ddesc;
     dague_data_key_t key;
 } dague_data_ref_t;
 

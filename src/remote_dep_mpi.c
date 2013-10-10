@@ -421,13 +421,13 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
         if(origin->msg.deps & (1 << i)) {
             DEBUG3(("MPI:\tDATA %p released from %p[%d]\n",
                     (origin->output[i].data.data != (void*)2) ? DAGUE_DATA_COPY_GET_PTR(origin->output[i].data) : NULL, origin, i));
-            exec_context.data[whereto].data_out = origin->output[i].data;
+            exec_context.data[whereto].data_out = origin->output[i].data.data;
 #if defined(DAGUE_DEBUG_ENABLE) && defined(DAGUE_DEBUG_VERBOSE3)
             if(origin->output[i].type) { /* no prints for CTL! */
                 char tmp[MAX_TASK_STRLEN];
                 DEBUG3(("MPI:\t%s: recv { %p, %p, %p }\n",
-                       dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &exec_context),
-                       exec_context.data[whereto].data_repo, exec_context.data[whereto].data_in, exec_context.data[whereto].data_out));
+                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &exec_context),
+                        exec_context.data[whereto].data_repo, exec_context.data[whereto].data_in, exec_context.data[whereto].data_out));
             }
 #endif
         }
@@ -820,7 +820,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         if((DEP_EAGER_BUFFER_SIZE - packed) > (size_t)dsize) {
             DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             msg->which ^= (1<<k);
-            MPI_Pack((char*)DAGUE_DATA_COPY_GET_PTR(deps->output[k].data) + deps->output[k].data.displ,
+            MPI_Pack((char*)DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
                      deps->output[k].data.count, deps->output[k].data.layout,
                      packed_buffer, DEP_EAGER_BUFFER_SIZE, &packed, dep_comm);
             remote_dep_complete_and_cleanup(deps, 1);
@@ -1025,8 +1025,8 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
     for(int k = 0; task->which>>k; k++) {
         assert(k < MAX_PARAM_COUNT);
         if(!((1<<k) & task->which)) continue;
-        DEBUG3(("MPI:\t%p[%d] %p, %p\n", deps, k, deps->output[k].data, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data)));
-        data = DAGUE_DATA_COPY_GET_PTR(deps->output[k].data);
+        DEBUG3(("MPI:\t%p[%d] %p, %p\n", deps, k, deps->output[k].data, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data)));
+        data = DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data);
         dtt = deps->output[k].data.layout;
         nbdtt = deps->output[k].data.count;
 #ifdef DAGUE_DEBUG_VERBOSE2
@@ -1057,7 +1057,7 @@ remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
     DEBUG2(("MPI:\tTO\tna\tPut END  \tunknown \tj=%d,k=%d\twith datakey %lx\tparams %lx\t(tag=%d)\n",
            i, k, deps, task->which, status->MPI_TAG)); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
-    DAGUE_DATA_COPY_RELEASE(deps->output[k].data);
+    DAGUE_DATA_COPY_RELEASE(deps->output[k].data.data);
     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
     task->which ^= (1<<k);
     /* Are we done yet ? */
@@ -1107,21 +1107,21 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
         int dsize;
         MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout, dep_comm, &dsize);
         if((DEP_EAGER_BUFFER_SIZE - unpacked) > (size_t)dsize) {
-            assert(NULL == deps->output[k].data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
-            if(NULL == deps->output[k].data) {
+            assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
+            if(NULL == deps->output[k].data.data) {
 
                 data = dague_arena_get(deps->output[k].data.arena, deps->output[k].data.count);
-                deps->output[k].data = data->device_copies[0];
+                deps->output[k].data.data = data->device_copies[0];
 
                 DEBUG3(("MPI:\tMalloc new remote tile %p size %zu count = %d displ = %ld\n",
-                        deps->output[k].data, deps->output[k].data.arena->elem_size,
+                        deps->output[k].data.data, deps->output[k].data.arena->elem_size,
                         deps->output[k].count, deps->output[k].data.displ));
-                assert(deps->output[k].data != NULL);
+                assert(deps->output[k].data.data != NULL);
             }
 #ifndef DAGUE_PROF_DRY_DEP
             DEBUG2((" EGR\t%s\tparam %d\teager piggyback from the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             MPI_Unpack(packed_buffer, DEP_EAGER_BUFFER_SIZE, &unpacked,
-                       DAGUE_DATA_COPY_GET_PTR(deps->output[k].data) + deps->output[k].data.displ,
+                       DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
                        deps->output[k].data.count, deps->output[k].data.layout, dep_comm);
 #endif
             deps->msg.deps |= 1<<k;
@@ -1130,20 +1130,20 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
 
         /* Check if we have SHORT deps to satisfy quickly */
         if( short_which & (1<<k) ) {
-            assert(NULL == deps->output[k].data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
-            if(NULL == deps->output[k].data) {
+            assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
+            if(NULL == deps->output[k].data.data) {
                 data = dague_arena_get(deps->output[k].data.arena, deps->output[k].data.count);
-                deps->output[k].data = data->device_copies[0];
+                deps->output[k].data.data = data->device_copies[0];
 
                 DEBUG3(("MPI:\tMalloc new remote tile %p size %zu count = %d\n",
-                        deps->output[k].data, deps->output[k].data.arena->elem_size, deps->output[k].data.count));
-                assert(deps->output[k].data != NULL);
+                        deps->output[k].data.data, deps->output[k].data.arena->elem_size, deps->output[k].data.count));
+                assert(deps->output[k].data.data != NULL);
             }
             DEBUG2(("MPI:\tFROM\t%d\tGet SHORT\t% -8s\ti=NA,k=%d\twith datakey %lx at %p\t(tag=%d)\n",
-                   deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, deps->msg.deps, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data), tag+k));
+                   deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, deps->msg.deps, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), tag+k));
 #ifndef DAGUE_PROF_DRY_DEP
             MPI_Request req; int flag = 0;
-            MPI_Irecv((char*)DAGUE_DATA_COPY_GET_PTR(deps->output[k].data) + deps->output[k].data.displ,
+            MPI_Irecv((char*)DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
                       deps->output[k].data.count, deps->output[k].data.layout,
                       deps->from, tag+k, dep_comm, &req);
             do {
@@ -1164,7 +1164,7 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
             if((1<<k) & deps->msg.deps)
                 DEBUG2(("MPI:\tHERE\t%d\tGet PREEND\t% -8s\ti=NA,k=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)\n",
                         deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, datakey,
-                        deps->output[k].data.data != (void*)2 ? DAGUE_DATA_COPY_GET_PTR(deps->output[k].data) : NULL,
+                        deps->output[k].data.data != (void*)2 ? DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) : NULL,
                         tag+k ));
 #endif
         remote_dep_release(eu_context, deps);
@@ -1276,7 +1276,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
         if( !((1<<k) & msg.which) ) continue;
         dtt   = deps->output[k].data.layout;
         nbdtt = deps->output[k].data.count;
-        data_copy = deps->output[k].data;
+        data_copy = deps->output[k].data.data;
         assert(NULL == data_copy); /* we do not support in-place tiles now, make sure it doesn't happen yet */
         if(NULL == data_copy) {
             data = dague_arena_get(deps->output[k].data.arena, deps->output[k].data.count);
@@ -1285,7 +1285,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
                     deps, k));
             assert(data != NULL);
             data_copy = data->device_copies[0];
-            deps->output[k].data = data_copy;
+            deps->output[k].data.data = data_copy;
         }
 #ifdef DAGUE_PROF_DRY_DEP
         (void)dtt;
@@ -1330,7 +1330,7 @@ static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_rem
 {
     deps->msg.deps = 1<<k;
     remote_dep_release(eu_context, deps);
-    DAGUE_DATA_COPY_RELEASE(deps->output[k].data);
+    DAGUE_DATA_COPY_RELEASE(deps->output[k].data.data);
     if(deps->msg.which == deps->msg.deps) {
         dague_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)deps);
         dep_pending_recv_array[i] = NULL;

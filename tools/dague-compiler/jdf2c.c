@@ -3492,7 +3492,8 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
                 "%s    data.displ  = %s;\n"
                 "%s    assert( (__arena_index>=0) && (__arena_index < __dague_handle->super.arenas_size) );\n"
                 "%s    assert( data.count > 0 );\n"
-                "%s    dague_remote_dep_memcpy(context, this_task->dague_handle, (%s(%s))->device_copies[0], &data);\n"
+                "%s    dague_remote_dep_memcpy(context, this_task->dague_handle, (%s(%s))->device_copies[0],\n"
+                "%s                            this_task->data[%d].data_out, &data);\n"
                 "%s  }\n",
                 spaces, dataflow_index, call->func_or_mem, string_arena_get_string(sa),
                 spaces, string_arena_get_string(sa2),
@@ -3505,6 +3506,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
                 spaces,
                 spaces,
                 spaces, call->func_or_mem, string_arena_get_string(sa),
+                spaces, dataflow_index,
                 spaces);
     }
 
@@ -4477,7 +4479,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 string_arena_add_string(sa_tmp_layout, "DAGUE_DATATYPE_NULL");
                 string_arena_add_string(sa_tmp_displ, "0");
             } else {
-                string_arena_add_string(sa, "__dague_object->super.arenas[");
+                string_arena_add_string(sa, "__dague_handle->super.arenas[");
                 create_datatype_to_integer_code(sa, dl->datatype);
                 string_arena_add_string(sa, "]");
 

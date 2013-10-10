@@ -62,7 +62,7 @@ typedef struct remote_dep_wire_get_s
  * one attached to the arena must be used instead.
  */
 struct dague_dep_data_description_s {
-    struct dague_arena_t     *arena;
+    struct dague_arena_s     *arena;
     struct dague_data_copy_s *data;
     dague_datatype_t          layout;
     uint64_t                  count;
@@ -194,7 +194,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 /* Memcopy a particular data using datatype specification */
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_handle_t* dague_handle,
-                             struct dague_data_copy_s* dst,
+                             dague_data_copy_t *dst,
+                             dague_data_copy_t *src,
                              dague_dep_data_description_t* data);
 
 #else
