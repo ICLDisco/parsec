@@ -81,7 +81,7 @@ cdef extern from "dbpreader.h":
 
    dbp_event_iterator_t *dbp_iterator_new_from_thread(dbp_thread_t *th)
    dbp_event_iterator_t *dbp_iterator_new_from_iterator(dbp_event_iterator_t *it)
-   const dbp_event_t *dbp_iterator_current(dbp_event_iterator_t *it)
+   dbp_event_t *dbp_iterator_current(dbp_event_iterator_t *it)
    dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
    dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
    void dbp_iterator_delete(dbp_event_iterator_t *it)
