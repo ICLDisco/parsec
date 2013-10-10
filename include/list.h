@@ -340,8 +340,7 @@ dague_list_unlock( dague_list_t* list )
 #define _OPAQUE_LIST_ITERATOR_BEGIN_DEFINITION(list) (&((list)->ghost_element))
 #define _OPAQUE_LIST_ITERATOR_PREV_DEFINITION(ITEM)  ((dague_list_item_t*)ITEM->list_prev)
 
-#define _OPAQUE_LIST_ITERATOR_DEFINITION(list,ITEM,CODE)                \
-do {                                                                    \
+#define _OPAQUE_LIST_ITERATOR_DEFINITION(list,ITEM,CODE) ({             \
     dague_list_item_t* ITEM;                                            \
     dague_list_lock(list);                                              \
     for(ITEM = (dague_list_item_t*)(list)->ghost_element.list_next;     \
@@ -349,16 +348,19 @@ do {                                                                    \
         ITEM = (dague_list_item_t*)ITEM->list_next)                     \
     { CODE; }                                                           \
     dague_list_unlock(list);                                            \
-} while(0)
+    ITEM;                                                               \
+})
 
-#define _OPAQUE_ULIST_ITERATOR_DEFINITION(list,ITEM,CODE)               \
-do {                                                                    \
+#define _OPAQUE_ULIST_ITERATOR_DEFINITION(list,ITEM,CODE) ({            \
     dague_list_item_t* ITEM;                                            \
     for(ITEM = (dague_list_item_t*)(list)->ghost_element.list_next;     \
         ITEM != &((list)->ghost_element);                               \
         ITEM = (dague_list_item_t*)ITEM->list_next)                     \
-    { CODE; }                                                           \
-} while(0)
+    {                                                                   \
+        CODE;                                                           \
+    }                                                                   \
+    ITEM;                                                               \
+})
 
 static inline void
 dague_list_nolock_add_before( dague_list_t* list,
@@ -426,7 +428,6 @@ dague_list_nolock_push_sorted( dague_list_t* list,
     {
         if( A_HIGHER_PRIORITY_THAN_B(newel, pos, off) )
             break;
-        }
     });
     dague_ulist_add_before(list, position, newel);
 }
