@@ -636,15 +636,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if( NULL != binding_parameter )
         dague_parse_binding_parameter(binding_parameter, context, startup);
 
-    /* Enable the GPU support if possible and requested */
-    if(nb_devices > 0) {
-#if defined(HAVE_CUDA)
-        if(0 != dague_gpu_init(context, &nb_devices, DAGUE_DEBUG_VERBOSE)) {
-            fprintf(stderr, "#XXXXX DAGuE is unable to initialize the CUDA environment.\n");
-        }
-#endif  /* defined(HAVE_CUDA) */
-    }
-
     /* Set the scheduler */
     dague_set_scheduler( context );
 
@@ -674,11 +665,6 @@ int dague_fini( dague_context_t** pcontext )
 {
     dague_context_t* context = *pcontext;
     int nb_total_comp_threads, t, p, c;
-
-    /* In case the GPU is up and running */
-#if defined(HAVE_CUDA)
-    dague_gpu_fini();
-#endif  /* defined(HAVE_CUDA) */
 
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {

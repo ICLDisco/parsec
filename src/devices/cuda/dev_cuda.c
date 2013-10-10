@@ -327,6 +327,8 @@ int dague_gpu_init(dague_context_t *dague_context)
     int use_cuda_index, use_cuda;
     int cuda_mask, cuda_verbosity;
     int ndevices, i, j, k;
+    int isdouble = 0;
+    float total_perf;
     CUresult status;
 
     use_cuda_index = dague_mca_param_reg_int_name("device_cuda", "enabled",
@@ -538,7 +540,7 @@ int dague_gpu_init(dague_context_t *dague_context)
             DEBUG(("Device index %2d ->ratio %2.4e\n",
                    i-1, device_weight[i]));
         device_weight[i] = (total_perf / device_weight[i]);
-        if( dague_show_detailed_capabilities ) {
+        if( cuda_verbosity ) {
             if( 0 == i )
                 STATUS(("CPU             ->ratio %2.4f\n", device_weight[i]));
             else
