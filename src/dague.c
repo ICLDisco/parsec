@@ -14,6 +14,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <unistd.h>
+#include <limits.h>
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
@@ -376,8 +377,11 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                 break;
 
             case 'H':  /* hyper-threading */
+#if defined(HAVE_HWLOC)
                 dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
-
+#else
+                fprintf(stderr, "Option H (hyper-threading) disabled without HWLOC\n");
+#endif  /* defined(HAVE_HWLOC */
             case '.':
                 if( dague_enable_dot ) free( dague_enable_dot );
                 /** Could not make optional_argument work. Recoding its behavior... */
