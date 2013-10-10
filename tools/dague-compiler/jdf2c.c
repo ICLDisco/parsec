@@ -471,46 +471,6 @@ static char *dump_dataflow(void **elem, void *arg)
 }
 
 /**
- * dump_dataflow_var_type:
- *  Takes the pointer to a jdf_flow,
- *  and print the type of the flow: R, W, M or P, for read, write, read/write and unknown.
- *  NULL if it is a CTL
- */
-static char *dump_dataflow_var_type(void **elem, void *arg)
-{
-    jdf_dataflow_t *fl = (jdf_dataflow_t*)elem;
-    (void)arg;
-
-    if ( fl->access_type == JDF_VAR_TYPE_CTL )
-        return NULL;
-
-    if ( fl->access_type == (JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE) )
-        return "M%p";
-    else if ( fl->access_type & JDF_VAR_TYPE_READ )
-        return "R%p";
-    else if ( fl->access_type & JDF_VAR_TYPE_WRITE )
-        return "W%p";
-    else
-        return "X%p";
-}
-
-/**
- * dump_dataflow_var_ptr:
- *  Takes the pointer to a jdf_flow,
- *  and return NULL if it is a CTL, the flow name otherwise
- */
-static char *dump_dataflow_var_ptr(void **elem, void *arg)
-{
-    jdf_dataflow_t *fl = (jdf_dataflow_t*)elem;
-    (void)arg;
-
-    if ( fl->access_type == JDF_VAR_TYPE_CTL )
-        return NULL;
-    else
-        return fl->varname;
-}
-
-/**
  * dump_data_initialization_from_data_array:
  *  Takes the pointer to a flow *f, let say that f->varname == "A",
  *  this produces a string like
