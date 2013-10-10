@@ -33,8 +33,8 @@ struct assignment_s {
 #define EXPR_OP_RANGE_EXPR_INCREMENT  25
 #define EXPR_OP_INLINE                100
 
-typedef int32_t (*expr_op_int32_inline_func_t)(const struct dague_handle *__dague_handle_parent, const assignment_t *assignments);
-typedef int64_t (*expr_op_int64_inline_func_t)(const struct dague_handle *__dague_handle_parent, const assignment_t *assignments);
+typedef int32_t (*expr_op_int32_inline_func_t)(const struct dague_handle_s *__dague_handle_parent, const assignment_t *assignments);
+typedef int64_t (*expr_op_int64_inline_func_t)(const struct dague_handle_s *__dague_handle_parent, const assignment_t *assignments);
 
 struct expr_s {
     union {
