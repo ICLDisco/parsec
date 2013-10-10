@@ -28,7 +28,6 @@
 #include "data.h"
 #include "list.h"
 #include "scheduling.h"
-#include "schedulers.h"
 #include "barrier.h"
 #include "remote_dep.h"
 #include "datarepo.h"
