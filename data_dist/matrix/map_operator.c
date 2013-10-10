@@ -460,7 +460,7 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
                 fake_context.locals[1].value = n;
                 add_task_to_list(eu, &fake_context, NULL, 0, 0,
                                  __dague_handle->super.src->super.myrank, -1,
-                                 0, NULL, -1, (void*)&ready_list);
+                                 0, NULL, (void*)&ready_list);
                 __dague_schedule( eu, ready_list );
                 count++;
                 if( count == context->virtual_processes[vpid]->nb_cores )
