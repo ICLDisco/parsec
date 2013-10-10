@@ -9,6 +9,8 @@
 
 #include "dague_config.h"
 
+BEGIN_C_DECLS
+
 typedef struct dague_handle_s            dague_handle_t;
 typedef struct dague_execution_context_s dague_execution_context_t;
 /**< The general context that holds all the threads of dague for this MPI process */
@@ -112,5 +114,7 @@ struct assignment_s;
 char* dague_snprintf_assignments( char* str, size_t size,
                                   const struct dague_function_s* function,
                                   const struct assignment_s* locals);
+
+END_C_DECLS
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

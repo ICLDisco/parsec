@@ -1,0 +1,163 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2013
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+
+#include "data_distribution.h"
+#include "data_dist/matrix/matrix.h"
+
+#if defined(HAVE_MPI)
+#include <mpi.h>
+static MPI_Datatype block;
+#endif
+#include <stdio.h>
+
+int32_t always_zero()
+{
+    return 0;
+}
+
+int64_t always_one(void)
+{
+    return 1;
+}
+
+%}
+
+A      [type = "struct tiled_matrix_desc_t*"]
+B      [type = "struct tiled_matrix_desc_t*"]
+NR
+NT
+
+READER_B(r, t)
+r = 0 .. NR-1
+t = 0 .. NT-1
+
+: B(t, 0)
+
+READ B <- (r == 0) ? B(t, 0) : B READER_B(r-1, t) [count = inline_c %{ return 1; %}
+                                                   displ = inline_c %{ return 0; %}]
+       ->  A RECV(r, 0 .. NT-1, t)                [count = 1
+                                                   displ = 0]
+       -> A FANIN(r, t)                           [count = inline_c %{ return always_one(); %}
+                                                   displ = inline_c %{ return always_zero(); %}]
+       -> (r != NR-1) ? B READER_B(r+1, t)
+BODY
+END
+
+FANOUT(r, t)
+r = 0 .. NR-1
+t = 0 .. NT-1
+
+: A(t, 0)
+
+READ A <- (r == 0) ? A(t, 0) : A FANOUT(r-1, t)
+       -> A SEND(r, t, 0 .. NT-1)
+BODY
+END
+
+SEND(r, t, s)
+r = 0 .. NR-1
+t = 0 .. NT-1
+s = 0 .. NT-1
+
+: A(t, 0)
+
+READ A <- A FANOUT(r, t)
+       -> B RECV(r, s, t)
+BODY
+END
+
+RECV(r, s, t)
+r = 0 .. NR-1
+t = 0 .. NT-1
+s = 0 .. NT-1
+
+: B(t, 0)
+
+RW   A <- B READER_B(r, t)
+READ B <- A SEND(r, t, s)
+CTL  T -> T FANIN(r, t)
+
+BODY
+END
+
+FANIN(r, t)
+r = 0 .. NR-1
+t = 0 .. NT-1
+
+: B(t, 0)
+
+RW A  <- B READER_B(r, t)
+CTL T <- T RECV(r, t, 0 .. NT-1)
+
+BODY
+END
+
+extern "C" %{
+
+/**
+ * @param [IN] A    the data, already distributed and allocated
+ * @param [IN] size size of each local data element
+ * @param [IN] nb   number of iterations
+ *
+ * @return the dague handle to schedule.
+ */
+dague_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size, int repeat)
+{
+    int worldsize;
+    dague_a2a_handle_t *o = NULL;
+#if defined(HAVE_MPI)
+    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
+#else
+    worldsize = 1;
+#endif
+    
+    if( repeat <= 0 ) {
+        fprintf(stderr, "To work, A2A must do at least one exchange of at least one byte\n");
+        return (dague_handle_t*)o;
+    }
+
+    o = dague_a2a_new(A, B, repeat, worldsize);
+
+#if defined(HAVE_MPI)
+    {
+        MPI_Aint extent;
+    	MPI_Type_contiguous(size, MPI_INT, &block);
+        MPI_Type_commit(&block);
+#if defined(HAVE_MPI_20)
+        MPI_Aint lb = 0; 
+        MPI_Type_get_extent(block, &lb, &extent);
+#else
+        MPI_Type_extent(block, &extent);
+#endif  /* defined(HAVE_MPI_20) */
+        dague_arena_construct(o->arenas[DAGUE_a2a_DEFAULT_ARENA],
+                              extent, DAGUE_ARENA_ALIGNMENT_SSE,
+                              block);
+    }
+#endif
+
+    return (dague_handle_t*)o;
+}
+
+/**
+ * @param [INOUT] o the dague handle to destroy
+ */
+void a2a_destroy(dague_handle_t *o)
+{
+#if defined(HAVE_MPI)
+    MPI_Type_free( &block );
+#endif
+
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+}
+
+%}
+

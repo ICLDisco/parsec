@@ -16,6 +16,10 @@
 #include "data.h"
 #include "vpmap.h"
 
+BEGIN_C_DECLS
+
+struct dague_object_t;
+
 enum matrix_type {
     matrix_Byte          = 0, /**< unsigned char  */
     matrix_Integer       = 1, /**< signed int     */
@@ -108,7 +112,7 @@ dague_map_operator_Destruct( struct dague_handle_t* o );
 extern struct dague_handle_t*
 dague_reduce_col_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
-                      dague_operator_t operator,
+                      dague_operator_t op,
                       void* op_data );
 
 extern void dague_reduce_col_Destruct( struct dague_handle_t *o );
@@ -116,7 +120,7 @@ extern void dague_reduce_col_Destruct( struct dague_handle_t *o );
 extern struct dague_handle_t*
 dague_reduce_row_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
-                      dague_operator_t operator,
+                      dague_operator_t op,
                       void* op_data );
 extern void dague_reduce_row_Destruct( struct dague_handle_t *o );
 
@@ -138,7 +142,7 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
 {
     dague_data_t* data = matrix->data_map[pos];
 
-    if( NULL == (data = matrix->data_map[pos]) ) {
+    if( NULL == data ) {
         dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);
         data = OBJ_NEW(dague_data_t);
 
@@ -160,4 +164,5 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
     return data;
 }
 
+END_C_DECLS
 #endif /* _MATRIX_H_  */

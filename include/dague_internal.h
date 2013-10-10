@@ -15,18 +15,23 @@
 #include "profiling.h"
 #include "data_distribution.h"
 
+BEGIN_C_DECLS
+
 typedef struct dague_function_s        dague_function_t;
 typedef struct dague_remote_deps_s     dague_remote_deps_t;
 typedef struct dague_arena_s           dague_arena_t;
 typedef struct dague_arena_chunk_s     dague_arena_chunk_t;
 typedef struct dague_data_pair_s       dague_data_pair_t;
 typedef struct dague_dependencies_s    dague_dependencies_t;
+
 /**< The most basic execution flow. Each virtual process includes
  *   multiple execution units (posix threads + local data) */
 typedef struct dague_execution_unit_s  dague_execution_unit_t;
 /**< Each MPI process includes multiple virtual processes (and a
  *   single comm. thread) */
 typedef struct dague_vp_s              dague_vp_t;
+/* The description of the content of each data mouvement/copy */
+typedef struct dague_dep_data_description_s  dague_dep_data_description_t;
 
 typedef void (*dague_startup_fn_t)(dague_context_t *context,
                                    dague_handle_t *dague_handle,
@@ -112,8 +117,7 @@ typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_
                                                          int flow_index, int outdep_index,
                                                          int rank_src, int rank_dst,
                                                          int vpid_dst,
-                                                         dague_arena_t* arena,
-                                                         int nb_elt,
+                                                         dague_dep_data_description_t *data,
                                                          void *param);
 /**
  *
@@ -299,18 +303,17 @@ extern int device_delegate_begin, device_delegate_end;
     (dague_handle)->profiling_array[1 + 2 * (function_index)]
 
 #define DAGUE_TASK_PROF_TRACE(PROFILE, KEY, TASK)                       \
-    do {                                                                \
-        dague_profiling_trace((PROFILE),                                \
-                              (KEY),                                    \
-                              (TASK)->function->key((TASK)->dague_handle, (TASK)->locals), \
-                              (TASK)->dague_handle->handle_id, (void*)&(TASK)->prof_info); \
-    } while (0)
+    DAGUE_PROFILING_TRACE((PROFILE),                                    \
+                          (KEY),                                        \
+                          (TASK)->function->key((TASK)->dague_handle, (TASK)->locals), \
+                          (TASK)->dague_handle->handle_id, (void*)&(TASK)->prof_info)
+
 #define DAGUE_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \
     if(!!(COND)) {                                           \
         DAGUE_TASK_PROF_TRACE((PROFILE), (KEY), (TASK));     \
     }
 #else
-#define DAGUE_TASK_PROF_TRACE(CONTEXT, KEY, TASK)
+#define DAGUE_TASK_PROF_TRACE(PROFILE, KEY, TASK)
 #define DAGUE_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
@@ -337,8 +340,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_s *eu,
                                              int flow_index, int outdep_index,
                                              int rank_src, int rank_dst,
                                              int vpid_dst,
-                                             dague_arena_t* arena,
-                                             int nb_elt,
+                                             dague_dep_data_description_t* data,
                                              void *param);
 
 void dague_dependencies_mark_task_as_startup(dague_execution_context_t* exec_context);
@@ -377,5 +379,7 @@ const dague_function_t* dague_find(const dague_handle_t *dague_handle, const cha
 #if defined(DAGUE_SIM)
 int dague_getsimulationdate( dague_context_t *dague_context );
 #endif
+
+END_C_DECLS
 
 #endif  /* DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED */

@@ -19,7 +19,7 @@ int dague_map_operator_profiling_array[2] = {-1};
    dague_profile_ddesc_info_t info;                         \
    info.desc = (dague_ddesc_t*)refdesc;                     \
    info.id = refid;                                         \
-   dague_profiling_trace(context->eu_profile,               \
+   DAGUE_PROFILING_TRACE(context->eu_profile,               \
                          __dague_handle->super.super.profiling_array[(key)],\
                          eid, __dague_handle->super.super.handle_id, (void*)&info);  \
   } while(0);
@@ -61,7 +61,7 @@ static inline int minexpr_of_row_fct(const dague_handle_t *__dague_handle_parent
 }
 static const expr_t minexpr_of_row = {
     .op = EXPR_OP_INLINE,
-    .inline_func = minexpr_of_row_fct
+    .u_expr = { .inline_func_int32 = minexpr_of_row_fct }
 };
 static inline int maxexpr_of_row_fct(const dague_handle_t *__dague_handle_parent, const assignment_t *assignments)
 {
@@ -73,7 +73,7 @@ static inline int maxexpr_of_row_fct(const dague_handle_t *__dague_handle_parent
 }
 static const expr_t maxexpr_of_row = {
     .op = EXPR_OP_INLINE,
-    .inline_func = maxexpr_of_row_fct
+    .u_expr = { .inline_func_int32 = maxexpr_of_row_fct }
 };
 static const symbol_t symb_row = {
     .min = &minexpr_of_row,
@@ -90,7 +90,7 @@ static inline int minexpr_of_column_fct(const dague_handle_t *__dague_handle_par
 
 static const expr_t minexpr_of_column = {
     .op = EXPR_OP_INLINE,
-    .inline_func = minexpr_of_column_fct
+    .u_expr = { .inline_func_int32 = minexpr_of_column_fct }
 };
 
 static inline int maxexpr_of_column_fct(const dague_handle_t *__dague_handle_parent, const assignment_t *assignments)
@@ -103,7 +103,7 @@ static inline int maxexpr_of_column_fct(const dague_handle_t *__dague_handle_par
 }
 static const expr_t maxexpr_of_column = {
     .op = EXPR_OP_INLINE,
-    .inline_func = maxexpr_of_column_fct
+    .u_expr = { .inline_func_int32 = maxexpr_of_column_fct }
 };
 static const symbol_t symb_column = {
     .min = &minexpr_of_column,
@@ -163,15 +163,16 @@ expr_of_p1_for_flow_of_map_operator_dep_in_fct(const dague_handle_t *__dague_han
     (void)__dague_handle_parent;
     return assignments[0].value;
 }
+
 static const expr_t expr_of_p1_for_flow_of_map_operator_dep_in = {
     .op = EXPR_OP_INLINE,
-    .inline_func = expr_of_p1_for_flow_of_map_operator_dep_in_fct
+    .u_expr = { .inline_func_int32 = expr_of_p1_for_flow_of_map_operator_dep_in_fct }
 };
 static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
-    .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
+    .datatype = { .type = { .cst = 0 }, .layout = NULL, .count = { .cst = 1 }, .displ = { .cst = 0 } },
     .call_params = {
         &expr_of_p1_for_flow_of_map_operator_dep_in
     }
@@ -186,13 +187,13 @@ expr_of_p1_for_flow_of_map_operator_dep_out_fct(const dague_handle_t *__dague_ha
 }
 static const expr_t expr_of_p1_for_flow_of_map_operator_dep_out = {
     .op = EXPR_OP_INLINE,
-    .inline_func = expr_of_p1_for_flow_of_map_operator_dep_out_fct
+    .u_expr = { .inline_func_int32 = expr_of_p1_for_flow_of_map_operator_dep_out_fct }
 };
 static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
-    .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
+    .datatype = { .type = { .cst = 0 }, .layout = NULL, .count = { .cst = 1 }, .displ = { .cst = 0 } },
     .call_params = {
         &expr_of_p1_for_flow_of_map_operator_dep_out
     }
@@ -214,8 +215,7 @@ add_task_to_list(struct dague_execution_unit_s *eu_context,
                  int flow_index, int outdep_index,
                  int rank_src, int rank_dst,
                  int vpid_dst,
-                 dague_arena_t* arena,
-                 int nbelt,
+                 dague_dep_data_description_t* data,
                  void *_ready_lists)
 {
     dague_execution_context_t** pready_list = (dague_execution_context_t**)_ready_lists;
@@ -228,7 +228,7 @@ add_task_to_list(struct dague_execution_unit_s *eu_context,
                                                                                           (dague_list_item_t*)new_context,
                                                                                           dague_execution_context_priority_comparator );
 
-    (void)arena; (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst; (void)vpid_dst; (void)nbelt;
+    (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst; (void)vpid_dst; (void)data;
     return DAGUE_ITERATE_STOP;
 }
 
@@ -268,7 +268,7 @@ static void iterate_successors(dague_execution_unit_t *eu,
                    __dague_handle->super.src->super.myrank,
                    __dague_handle->super.src->super.myrank,
                    vpid,
-                   NULL, -1, ontask_arg);
+                   NULL, ontask_arg);
             return;
         }
         /* Go to the next row ... atomically */

@@ -221,47 +221,39 @@ static int jdf_call_unparse(const jdf_call_t *call, FILE *out)
 static int jdf_datatransfer_type_unparse(jdf_datatransfer_type_t dt, FILE *out)
 {
     int err = 0;
-    if( dt.simple ) {
-        if( dt.u.simple_name != NULL && strcmp(dt.u.simple_name, "DEFAULT") ) {
-            fprintf(out, "[type = %s", dt.u.simple_name);
-            if( dt.nb_elt != NULL &&
-                dt.nb_elt->op != JDF_CST &&
-                dt.nb_elt->jdf_cst != 1 ) {
-                fprintf(out, " nb_elt = ");
-                err = jdf_expr_complete_unparse(dt.nb_elt, out);
-            }
-            fprintf(out, "]");
-        } else {
-            if( dt.nb_elt != NULL &&
-                dt.nb_elt->op != JDF_CST &&
-                dt.nb_elt->jdf_cst != 1 ) {
-                fprintf(out, "[nb_elt = ");
-                err = jdf_expr_complete_unparse(dt.nb_elt, out);
-                fprintf(out, "]");
-            }
+    char start[1] = "[";
+
+    if( (JDF_STRING == dt.type->op) || (JDF_VAR == dt.type->op) ) {
+        if( strcmp(dt.type->jdf_var, "DEFAULT") ) {
+            fprintf(out, "%s type = %s", start, dt.type->jdf_var);
+            start[0] = '\0';
         }
     } else {
-        if( dt.u.complex_expr != NULL ) {
-            fprintf(out, "[type_index = ");
-            err = jdf_expr_complete_unparse(dt.u.complex_expr, out);
-            if( err >= 0 &&
-                dt.nb_elt != NULL &&
-                dt.nb_elt->op != JDF_CST &&
-                dt.nb_elt->jdf_cst != 1 ) {
-                fprintf(out, " nb_elt = ");
-                err = jdf_expr_complete_unparse(dt.nb_elt, out);
-            }
-            fprintf(out, "]");
-        } else {
-            if( dt.nb_elt != NULL &&
-                dt.nb_elt->op != JDF_CST &&
-                dt.nb_elt->jdf_cst != 1 ) {
-                fprintf(out, "[nb_elt = ");
-                err = jdf_expr_complete_unparse(dt.nb_elt, out);
-                fprintf(out, "]");
-            }
+        fprintf(out, "%s type = ", start); start[0] = '\0';
+        err = jdf_expr_complete_unparse(dt.type, out);
+        if( 0 != err ) goto recover_and_exit;
+    }
+
+    if( dt.type != dt.layout ) {
+        fprintf(out, "%s layout = ", start); start[0] = '\0';
+        err = jdf_expr_complete_unparse(dt.layout, out);
+        if( 0 != err ) goto recover_and_exit;
+
+        if( !((JDF_CST == dt.count->op) && (1 == dt.count->jdf_cst)) ) {
+            fprintf(out, "%s count = ", start); start[0] = '\0';
+            err =  jdf_expr_complete_unparse(dt.count, out);
+            if( 0 != err ) goto recover_and_exit;
+        }
+
+        if( !((JDF_CST == dt.displ->op) && (0 == dt.displ->jdf_cst)) ) {
+            fprintf(out, "%s displ = ", start); start[0] = '\0';
+            err =  jdf_expr_complete_unparse(dt.displ, out);
+            if( 0 != err ) goto recover_and_exit;
         }
     }
+recover_and_exit:
+    if( '\0'== start[0] )
+        fprintf(out, "]");
     return err;
 }
 

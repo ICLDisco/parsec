@@ -32,10 +32,6 @@ list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 #   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
 include(mca/CMakeLists.txt)
 
-if( DAGUE_PROF_TRACE )
-  list(APPEND EXTRA_SOURCES profiling.c)
-endif( DAGUE_PROF_TRACE )
-
 set(SOURCES
   barrier.c
   scheduling.c
@@ -49,7 +45,7 @@ set(SOURCES
   vpmap.c
   devices/device.c
   mca/mca_repository.c
-  dague_hwloc.c
+  profiling.c
   ${EXTRA_SOURCES}
   ${MCA_EXTRA_SOURCES}
 )
@@ -70,32 +66,28 @@ if( DAGUE_PROF_GRAPHER )
   list(APPEND SOURCES dague_prof_grapher.c)
 endif( DAGUE_PROF_GRAPHER )
 
-
-
 #
 # Setup targets
 #
 if( BUILD_DAGUE )
   add_library(dague-base STATIC ${BASE_SOURCES})
-  if (MPI_FOUND)
-    set_target_properties(dague-base PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-  else (MPI_FOUND)
-    set_target_properties(dague-base PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-  endif (MPI_FOUND)
+  set_target_properties(dague-base PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+  if (MPI_C_FOUND)
+    set_target_properties(dague-base PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
+  endif (MPI_C_FOUND)
   target_link_libraries(dague-base ${EXTRA_LIBS})
+
   install(TARGETS dague-base ARCHIVE DESTINATION lib)
 
-  if (MPI_FOUND)
-    add_library(dague-mpi STATIC ${SOURCES})
-    set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-    target_link_libraries(dague-mpi dague-base ${EXTRA_LIBS})
-    install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
-  else (MPI_FOUND)
-    add_library(dague STATIC ${SOURCES})
-    set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-    target_link_libraries(dague dague-base ${EXTRA_LIBS})
-    install(TARGETS dague ARCHIVE DESTINATION lib)
-  endif (MPI_FOUND)
+  add_library(dague STATIC ${SOURCES})
+  set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+  if (MPI_C_FOUND)
+    set_target_properties(dague PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
+  endif (MPI_C_FOUND)
+  target_link_libraries(dague dague-base ${EXTRA_LIBS})
+
+  install(TARGETS dague ARCHIVE DESTINATION lib)
+
   install(FILES utils/help-mca-param.txt DESTINATION share/dague)
 ENDIF( BUILD_DAGUE )
 

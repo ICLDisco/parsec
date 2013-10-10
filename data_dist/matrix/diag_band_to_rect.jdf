@@ -30,8 +30,10 @@ NB  [type = int]
 TY  [type = size_t]
 
 convert_diag(k)
-    k = 0 .. NT
-    : B(0,k)
+
+k = 0 .. NT
+
+: B(0,k)
 
 RO  D   <- (k < NT)     ? A read_diag(k)    : B(0,k)
 RO  SD  <- (k < NT-1)   ? A read_subdiag(k) : B(0,k)
@@ -49,7 +51,7 @@ BODY
 #ifdef DAGUE_CALL_TRACE
     fprintf(stderr, "convert_diag( %d )\n", k);
 #endif
-    
+
     assert(MB == NB);
     if(k == NT)
     {
@@ -98,8 +100,10 @@ BODY
 END
 
 read_diag(k)
-    k = 0 .. NT-1
-    : A(k,k)
+
+k = 0 .. NT-1
+
+: A(k,k)
 
 RO  A <- A(k,k)
       -> D convert_diag(k)
@@ -112,8 +116,10 @@ BODY
 END
 
 read_subdiag(k)
-    k = 0 .. NT-2
-    : A(k+1,k)
+
+k = 0 .. NT-2
+
+: A(k+1,k)
 
 RO  A <- A(k+1,k)
       -> SD convert_diag(k)

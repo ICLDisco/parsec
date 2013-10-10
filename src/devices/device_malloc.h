@@ -26,7 +26,7 @@ typedef struct gpu_malloc_s {
     char      *base;                 /* Base pointer              */
     segment_t *allocated_segments;   /* List of allocated segment */
     segment_t *free_segments;        /* List of available segment */
-    size_t     unit_size;            /* Nasic Unit                */
+    size_t     unit_size;            /* Basic Unit                */
     int        max_segment;          /* Maximum number of segment */
 } gpu_malloc_t;
 

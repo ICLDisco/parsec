@@ -118,7 +118,12 @@ int dague_profiling_dictionary_flush( void );
  * not thread safe (if two threads share a same thread_context. Safe per thread_context)
  */
 #define PROFILE_OBJECT_ID_NULL ((uint32_t)-1)
-int dague_profiling_trace( dague_thread_profiling_t* context, int key, uint64_t event_id, uint32_t handle_id, void *info );
+int dague_profiling_trace( dague_thread_profiling_t* context,
+                           int key, uint64_t event_id, uint32_t handle_id,
+                           void *info );
+int dague_profiling_trace_flags(dague_thread_profiling_t* context, int key,
+                                uint64_t event_id, uint32_t handle_id,
+                                void *info, uint16_t flags );
 
 /**
  * Open the profile file given as a parameter to store the
@@ -164,5 +169,32 @@ typedef struct {
     uint32_t              id;
 } dague_profile_ddesc_info_t;
 extern char *dague_profile_ddesc_key_to_string;
+
+#define DAGUE_PROFILE_STREAM_STR "GPU %d-%d"
+#define DAGUE_PROFILE_THREAD_STR "DAGuE Thread %d of VP %d"
+
+extern int dague_profile_enabled;
+
+/**
+ * Enable/disable the profiling of new events.
+ */
+static inline void dague_profiling_enable(void)
+{
+    dague_profile_enabled = 1;
+}
+static inline void dague_profiling_disable(void)
+{
+    dague_profile_enabled = 1;
+}
+
+#define DAGUE_PROFILING_TRACE(context, key, event_id, object_id, info ) \
+    if( dague_profile_enabled ) {                                       \
+        dague_profiling_trace(context, key, event_id, object_id, info ); \
+    }
+
+#define DAGUE_PROFILING_TRACE_FLAGS(context, key, event_id, object_id, info, flags ) \
+    if( dague_profile_enabled ) {                                       \
+        dague_profiling_trace_flags(context, key, event_id, object_id, info, flags ); \
+    }
 
 #endif  /* _DAGUE_profiling_h */

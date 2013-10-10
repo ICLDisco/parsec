@@ -26,9 +26,10 @@
 #endif /*HAVE_MPI */
 
 struct dague_device_s;
-
 typedef struct dague_ddesc_s dague_ddesc_t;
 typedef int (*dague_memory_region_management_f)(dague_ddesc_t*, struct dague_device_s*);
+
+BEGIN_C_DECLS
 
 struct dague_ddesc_s {
     uint32_t            myrank;    /**< process rank */
@@ -92,6 +93,8 @@ static inline void dague_ddesc_destroy(dague_ddesc_t *d)
 #else
 #define dague_ddesc_set_key(d, k) do {} while(0)
 #endif
+
+END_C_DECLS
 
 #endif /* _DATA_DISTRIBUTION_H_ */
 

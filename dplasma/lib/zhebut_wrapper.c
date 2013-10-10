@@ -184,12 +184,12 @@ static dague_data_t *dague_bmm_data_of(dague_ddesc_t *desc, ...)
  * Don't change this function (or rather how the data is packed) without updating
  * the offset calculation in segment_to_tile() that is called in dague_rbt_data_of().
  */
-static int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype,
+static int dplasma_datatype_define_subarray( dague_datatype_t oldtype,
                                              unsigned int tile_mb,
                                              unsigned int tile_nb,
                                              unsigned int seg_mb,
                                              unsigned int seg_nb,
-                                             dague_remote_dep_datatype_t* newtype )
+                                             dague_datatype_t* newtype )
 {
     MPI_Type_vector (seg_nb, seg_mb, tile_mb, oldtype, newtype);
 
@@ -266,7 +266,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     for(i=0; i<36; i++){
 #if defined(HAVE_MPI)
         dague_arena_t *arena;
-        dague_remote_dep_datatype_t newtype;
+        dague_datatype_t newtype;
         MPI_Aint extent = 0;
         int type_exists;
         unsigned int m_sz, n_sz;
@@ -362,7 +362,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     for(i=0; i<36; i++){
 #if defined(HAVE_MPI)
        dague_arena_t *arena;
-        dague_remote_dep_datatype_t newtype;
+        dague_datatype_t newtype;
         MPI_Aint extent = 0;
         int type_exists;
         unsigned int m_sz, n_sz;
@@ -449,10 +449,10 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
     dague_zgebmm = (dague_handle_t *)dague_zgebmm_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_but_vec, nt, mt, trans, pool_0);
 
-    for(i=0; i<36; i++){
+    for(i=0; i<36; i++) {
 #if defined(HAVE_MPI)
-       dague_arena_t *arena;
-        dague_remote_dep_datatype_t newtype;
+        dague_arena_t *arena;
+        dague_datatype_t newtype;
         MPI_Aint extent = 0;
         int type_exists;
         unsigned int m_sz, n_sz;

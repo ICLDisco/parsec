@@ -213,10 +213,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     else me = -1;
 
     for( i = 0; remote_deps_count; i++) {
-        if( 0 == remote_deps->output[i].count ) continue;
+        if( 0 == remote_deps->output[i].count_bits ) continue;
 
         him = 0;
-        for( array_index = count = 0; count < remote_deps->output[i].count; array_index++ ) {
+        for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {
             current_mask = remote_deps->output[i].rank_bits[array_index];
             if( 0 == current_mask ) continue;  /* no bits here */
             for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
@@ -266,7 +266,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
         }
     }
 
-    /* Only the thread doing bcast forward can enter the following line.
+    /* Only the thread doing bcast forwarding can enter the following line.
      * the same communication thread calls here and does the
      * sends that call complete_and_cleanup concurently.
      * Any other threads would create a race condition.

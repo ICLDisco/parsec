@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -77,16 +77,16 @@ HEBUT_Diag(i)
   : A(i,i)
 
   /* Atl: A from Top Left */
-  RW  Atl <- A HEBUT_Reader_TL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
-          -> A HEBUT_Writer_TL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+  RW  Atl <- A HEBUT_Reader_TL(i,i) [ type = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+          -> A HEBUT_Writer_TL(i,i) [ type = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A HEBUT_Reader_BL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
-          -> A HEBUT_Writer_BL(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+  RW  Abl <- A HEBUT_Reader_BL(i,i) [ type = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+          -> A HEBUT_Writer_BL(i,i) [ type = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A HEBUT_Reader_BR(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
-          -> A HEBUT_Writer_BR(i,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+  RW  Abr <- A HEBUT_Reader_BR(i,i) [ type = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
+          -> A HEBUT_Writer_BR(i,i) [ type = inline_c %{ return segment_to_arena_index(descA, i, i); %}]
 
 /* Priority */
 ;nt*mt-(i*nt)-i
@@ -176,20 +176,20 @@ HEBUT_Lower(i,j)
   : A(i,j)
 
   /* Atl: A from Top Left */
-  RW  Atl <- A HEBUT_Reader_TL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A HEBUT_Writer_TL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Atl <- A HEBUT_Reader_TL(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A HEBUT_Writer_TL(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A HEBUT_Reader_BL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A HEBUT_Writer_BL(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abl <- A HEBUT_Reader_BL(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A HEBUT_Writer_BL(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Atr: A from Top Right */
-  RW  Atr <- A HEBUT_Reader_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
-          -> A HEBUT_Writer_BL(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
+  RW  Atr <- A HEBUT_Reader_BL(j,i) [ type = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
+          -> A HEBUT_Writer_BL(j,i) [ type = inline_c %{ return segment_to_arena_index(descA, j, i); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A HEBUT_Reader_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A HEBUT_Writer_BR(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abr <- A HEBUT_Reader_BR(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A HEBUT_Writer_BR(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 /* Priority */
 ;nt*mt-(i*nt)-j
@@ -294,8 +294,8 @@ HEBUT_Reader_TL(i,j)
 
   : A(i,j)
 
-READ A <- A(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- A(i, j)                                           [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 /* Priority */
 ;nt*mt-(i*nt)-j
@@ -349,10 +349,10 @@ HEBUT_Reader_BL(i,j)
 
   : A(i+mt/2,j)
 
-READ A <- A(i+mt/2, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
-       -> (i>j)  ? Abl HEBUT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> (i==j) ? Abl HEBUT_Diag(i)    [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> (i<j)  ? Atr HEBUT_Lower(j,i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- A(i+mt/2, j)                  [ type = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
+       -> (i>j)  ? Abl HEBUT_Lower(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> (i==j) ? Abl HEBUT_Diag(i)    [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+       -> (i<j)  ? Atr HEBUT_Lower(j,i) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 /* Priority */
 ;nt*mt-(i*nt)-j
@@ -406,8 +406,8 @@ HEBUT_Reader_BR(i,j)
 
   : A(i+mt/2,j+nt/2)
 
-READ A <- A(i+mt/2, j+nt/2) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
-       -> (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i,j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- A(i+mt/2, j+nt/2)                                 [ type = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
+       -> (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 /* Priority */
 ;nt*mt-(i*nt)-j
@@ -461,8 +461,8 @@ HEBUT_Writer_TL(i,j)
 
   : A(i,j)
 
-RW A <- (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+RW A <- (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i, j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     -> A(i, j)                                            [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)
@@ -513,10 +513,10 @@ HEBUT_Writer_BL(i,j)
 
   : A(i+mt/2,j)
 
-RW A <- (i==j) ? Abl HEBUT_Diag(i)  [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-     <- (i>j)  ? Abl HEBUT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-     <- (i<j)  ? Abl HEBUT_Lower(j, i) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i+mt/2, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
+RW A <- (i==j) ? Abl HEBUT_Diag(i)     [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     <- (i>j)  ? Abl HEBUT_Lower(i, j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     <- (i<j)  ? Abl HEBUT_Lower(j, i) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     -> A(i+mt/2, j)                   [ type = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)
@@ -567,8 +567,8 @@ HEBUT_Writer_BR(i,j)
 
   : A(i+mt/2,j+nt/2)
 
-RW A <- (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i, j) [ arena_index = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i+mt/2, j+nt/2)[ arena_index = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
+RW A <- (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i, j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+     -> A(i+mt/2, j+nt/2)                                  [ type = inline_c %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)

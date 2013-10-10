@@ -25,7 +25,7 @@ typedef struct dague_thread_mempool_s dague_thread_mempool_t;
  * must be constructed by each of the threads.
  *
  * Memory Pool memory must also be a dague_list_item_t, to
- * be chained using Lifos.
+ * be chained using LIFOs.
  */
 
 struct dague_mempool_s {
@@ -85,8 +85,8 @@ void *dague_thread_mempool_allocate_when_empty( dague_thread_mempool_t *thread_m
  */
 static inline void *dague_thread_mempool_allocate( dague_thread_mempool_t *thread_mempool )
 {
-    unsigned char *ret;
-    ret = (unsigned char *)dague_lifo_pop( &thread_mempool->mempool );
+    void* ret;
+    ret = (void*)dague_lifo_pop( &thread_mempool->mempool );
     if( ret == NULL ) {
         ret = dague_thread_mempool_allocate_when_empty( thread_mempool );
     }
@@ -101,7 +101,7 @@ static inline void  dague_mempool_free( dague_mempool_t *mempool, void *elt )
 {
     unsigned char *_elt = (unsigned char *)elt;
     dague_thread_mempool_t *owner = *(dague_thread_mempool_t **)(_elt + mempool->pool_owner_offset);
-    dague_lifo_push( &(owner->mempool), elt );
+    dague_lifo_push( &(owner->mempool), (dague_list_item_t*)elt );
 }
 
 /** dague_thread_mempool_free

@@ -18,6 +18,10 @@
 #include <errno.h>
 #include "lifo.h"
 
+#if defined(DAGUE_PROF_TRACE)
+#include "dbp.h"
+#endif /* defined(DAGUE_PROF_TRACE) */
+
 /**
  * Define functions names
  */
@@ -65,6 +69,15 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
     gpu_device = (gpu_device_t*)dague_devices_get(which_gpu);
 
+#if defined(DAGUE_PROF_TRACE)
+    DAGUE_PROFILING_TRACE_FLAGS( eu_context->eu_profile,
+				 DAGUE_PROF_FUNC_KEY_END(this_task->ec->dague_handle,
+							 this_task->ec->function->function_id),
+				 this_task->ec->function->key( this_task->ec->dague_handle, this_task->ec->locals),
+				 this_task->ec->dague_handle->handle_id, NULL,
+				 DAGUE_PROFILING_EVENT_RESCHEDULED );
+#endif /* defined(DAGUE_PROF_TRACE) */
+
     /* Check the GPU status */
     rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
     if( 1 != rc ) {  /* I'm not the only one messing with this GPU */
@@ -79,7 +92,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
 #if defined(DAGUE_PROF_TRACE)
     if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
-        dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_start,
+        DAGUE_PROFILING_TRACE( eu_context->eu_profile, dague_cuda_own_GPU_key_start,
                                (unsigned long)eu_context, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
@@ -173,7 +186,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     if( 0 == rc ) {  /* I was the last one */
 #if defined(DAGUE_PROF_TRACE)
         if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
-            dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_end,
+            DAGUE_PROFILING_TRACE( eu_context->eu_profile, dague_cuda_own_GPU_key_end,
                                    (unsigned long)eu_context, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
         status = (cudaError_t)cuCtxPopCurrent(NULL);

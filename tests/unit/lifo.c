@@ -15,6 +15,7 @@
 #include "dague_hwloc.h"
 #endif
 
+#define DAGUE_LIFO_ALIGNMENT_BITS 5
 #include "lifo.h"
 #include "os-spec-timing.h"
 #include "bindthread.h"

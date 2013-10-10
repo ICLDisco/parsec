@@ -14,9 +14,10 @@ typedef struct expr_s expr_t;
 typedef struct dague_flow_s dague_flow_t;
 typedef struct dep_s dep_t;
 typedef struct symbol_s symbol_t;
-typedef struct dague_datatype_s dague_datatype_t;
 
 struct dague_handle_s;
+
+BEGIN_C_DECLS
 
 /**
  * Assignments
@@ -32,8 +33,8 @@ struct assignment_s {
 #define EXPR_OP_RANGE_EXPR_INCREMENT  25
 #define EXPR_OP_INLINE                100
 
-typedef int (*expr_op_inline_func_t)(const struct dague_handle_s *__dague_handle_parent,
-                                     const assignment_t *assignments);
+typedef int32_t (*expr_op_int32_inline_func_t)(const struct dague_handle *__dague_handle_parent, const assignment_t *assignments);
+typedef int64_t (*expr_op_int64_inline_func_t)(const struct dague_handle *__dague_handle_parent, const assignment_t *assignments);
 
 struct expr_s {
     union {
@@ -45,16 +46,18 @@ struct expr_s {
                 const struct expr_s *expr;
             } increment;
         } range;
-        expr_op_inline_func_t inline_func;
+        expr_op_int32_inline_func_t inline_func_int32;
+        expr_op_int64_inline_func_t inline_func_int64;
     } u_expr;
     unsigned char op;
 };
 
-#define rop1        u_expr.range.op1
-#define rop2        u_expr.range.op2
-#define rcstinc     u_expr.range.increment.cst
-#define rexprinc    u_expr.range.increment.expr
-#define inline_func u_expr.inline_func
+#define rop1          u_expr.range.op1
+#define rop2          u_expr.range.op2
+#define rcstinc       u_expr.range.increment.cst
+#define rexprinc      u_expr.range.increment.expr
+#define inline_func32 u_expr.inline_func_int32
+#define inline_func64 u_expr.inline_func_int64
 
 /**
  * Flows (data or control)
@@ -83,20 +86,30 @@ struct dague_flow_s {
  */
 #define MAX_CALL_PARAM_COUNT    MAX_PARAM_COUNT
 
-struct dague_datatype_s {
-    int index;
-    int nb_elt;
-    expr_op_inline_func_t index_fct;
-    expr_op_inline_func_t nb_elt_fct;
+typedef union dague_cst_or_fct_32_u {
+    int32_t                      cst;
+    expr_op_int32_inline_func_t  fct;
+} dague_cst_or_fct_32_t;
+
+typedef union dague_cst_or_fct_64_u {
+    int64_t                      cst;
+    expr_op_int64_inline_func_t  fct;
+} dague_cst_or_fct_64_t;
+
+struct dague_comm_desc_s {
+    dague_cst_or_fct_32_t       type;
+    expr_op_int32_inline_func_t layout;
+    dague_cst_or_fct_64_t       count;
+    dague_cst_or_fct_64_t       displ;
 };
 
 struct dep_s {
     const expr_t                *cond;           /**< The runtime-evaluable condition on this dependency */
     const expr_t                *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
     const int                    function_id;    /**< Index of the target dague function in the object function array */
-    const expr_t                *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
     const dague_flow_t          *flow;           /**< Pointer to the flow pointed to/from this dependency */
-    dague_datatype_t             datatype;       /**< Datatype associated with this dependency */
+    struct dague_comm_desc_s     datatype;       /**< Datatype associated with this dependency */
+    const expr_t                *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
 };
 
 void dep_dump(const dep_t *d, const struct dague_handle_s *dague_handle, const char *prefix);
@@ -125,5 +138,7 @@ static inline int dague_symbol_is_global( const symbol_t* symbol )
 {
     return (symbol->flags & DAGUE_SYMBOL_IS_GLOBAL ? 1 : 0);
 }
+
+END_C_DECLS
 
 #endif  /* DAGUE_DESCRIPTION_STRUCTURES_H_HAS_BEEN_INCLUDED */

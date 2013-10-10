@@ -52,7 +52,7 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
         while( (e = dbp_iterator_current(it)) != NULL ) {
             if( KEY_IS_START( dbp_event_get_key(e) ) &&
                 (BASE_KEY( dbp_event_get_key(e) ) == k) ) {
-                m = dbp_iterator_find_matching_event_all_threads(it);
+	      m = dbp_iterator_find_matching_event_all_threads(it, 0);
                 if( NULL == m ) {
                     WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
                              dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),

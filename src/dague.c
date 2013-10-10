@@ -28,6 +28,7 @@
 #include "data.h"
 #include "list.h"
 #include "scheduling.h"
+#include "schedulers.h"
 #include "barrier.h"
 #include "remote_dep.h"
 #include "datarepo.h"
@@ -193,7 +194,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
 #ifdef DAGUE_PROF_TRACE
     eu->eu_profile = dague_profiling_thread_init( 2*1024*1024,
-                                                  "DAGuE Thread %d of VP %d",
+                                                  DAGUE_PROFILE_THREAD_STR,
                                                   eu->th_id,
                                                   eu->virtual_process->vp_id );
     if( NULL == eu->eu_profile ) {
@@ -255,11 +256,41 @@ static void dague_vp_init( dague_vp_t *vp,
     }
 }
 
+#if defined(HAVE_GETOPT_LONG)
+    static struct option long_options[] =
+        {
+            {"dague_help",       no_argument,        NULL, 'h'},
+            {"dague_bind",       optional_argument,  NULL, 'b'},
+            {"dague_bind_comm",  optional_argument,  NULL, 'C'},
+
+            {"dague_dot",        optional_argument,  NULL, '.'},
+            {"dot",              required_argument,  NULL, '.'},
+
+            {"cores",            required_argument,  NULL, 'c'},
+            {"c",                required_argument,  NULL, 'c'},
+
+            {"o",                required_argument,  NULL, 'o'},
+            {"scheduler",        required_argument,  NULL, 'o'},
+
+            {"gpus",             required_argument,  NULL, 'g'},
+            {"g",                required_argument,  NULL, 'g'},
+
+            {"V",                required_argument,  NULL, 'V'},
+            {"vpmap",            required_argument,  NULL, 'V'},
+            {"ht",               required_argument,  NULL, 'H'},
+
+            {0, 0, 0, 0}
+        };
+#endif  /* defined(HAVE_GETOPT_LONG) */
+
 #define DEFAULT_APPNAME "app_name_%d"
 
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
-    int argc = 0, nb_vp, p, t, nb_total_comp_threads;
+    int argc = 0, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
+    int scheduler = DAGUE_SCHEDULER_LFQ, nb_devices = -1;
+    char *comm_binding_parameter = NULL;
+    char *binding_parameter = NULL;
     char **argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
@@ -281,7 +312,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
 
-    if(NULL == pargc) {
+    if((NULL == pargc) || (*pargc == 0)) {
         int rc = asprintf( &dague_app_name, DEFAULT_APPNAME, (int)getpid() );
         if (rc == -1) {
 	    dague_app_name = strdup( "app_name_XXXXXX" );
@@ -306,22 +337,121 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif
     }
 
+    if( (NULL != pargc) && (*pargc != 0) ) {
+        int index = 0;
+        /* Check for the upper level arguments */
+        while(1) {
+            if( NULL == (*pargv)[index] )
+                break;
+            if( 0 == strcmp( "--", (*pargv)[index]) ) {
+                argv = &(*pargv)[index];
+                break;
+            }
+            index++;
+        }
+        argc = (*pargc) - index;
+    }
+
+    if( argv != NULL ) {
+        optind = 1;
+        do {
+            int ret;
+#if defined(HAVE_GETOPT_LONG)
+            int option_index = 0;
+
+            ret = getopt_long_only(argc, argv, "p:b:c:.::",
+                                   long_options, &option_index);
+#else
+            ret = getopt(argc, argv, "p:b:c:.::");
+#endif  /* defined(HAVE_GETOPT_LONG) */
+            if( -1 == ret ) break;  /* we're done */
+
+            switch(ret) {
+
+            case 'h': dague_usage(); break;
+
+            case 'c': nb_cores = (int)strtol(optarg, NULL, 10); break;
+
+            case 'o': /* The scehduler */
+                if( !strcmp(optarg, "LFQ") )
+                    scheduler = DAGUE_SCHEDULER_LFQ;
+                else if( !strcmp(optarg, "LTQ") )
+                    scheduler = DAGUE_SCHEDULER_LTQ;
+                else if( !strcmp(optarg, "AP") )
+                    scheduler = DAGUE_SCHEDULER_AP;
+                else if( !strcmp(optarg, "LHQ") )
+                    scheduler = DAGUE_SCHEDULER_LHQ;
+                else if( !strcmp(optarg, "GD") )
+                    scheduler = DAGUE_SCHEDULER_GD;
+                else if( !strcmp(optarg, "PBQ") )
+                    scheduler = DAGUE_SCHEDULER_PBQ;
+                else {
+                    fprintf(stderr, "#!!!!! malformed scheduler value %s (accepted: LFQ AP LHQ GD PBQ LTQ). Reverting to default LFQ\n",
+                            optarg);
+                    scheduler = DAGUE_SCHEDULER_LFQ;
+                }
+                break;
+
+            case 'g': /* Enabled devices */
+                if(optarg)  nb_devices = (int)strtol(optarg, NULL, 10);
+                else        nb_devices = INT_MAX;
+                break;
+
+            case 'C': comm_binding_parameter = optarg; break;
+            case 'b': binding_parameter = optarg; break;
+            case 'V':
+                if( !strncmp(optarg, "display", 7 )) {
+                    display_vpmap = 1;
+                } else {
+                    /* Change the vpmap choice: first cancel the previous one */
+                    vpmap_fini();
+                    if( !strncmp(optarg, "flat", 4) ) {
+                        /* default case (handled in dague_init) */
+                    } else if( !strncmp(optarg, "hwloc", 5) ) {
+                        vpmap_init_from_hardware_affinity();
+                    } else if( !strncmp(optarg, "file:", 5) ) {
+                        vpmap_init_from_file(optarg + 5);
+                    } else if( !strncmp(optarg, "rr:", 3) ) {
+                        int n, p, co;
+                        sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co);
+                        vpmap_init_from_parameters(n, p, co);
+                    } else {
+                        fprintf(stderr, "#XXXXX invalid VPMAP choice (-V argument): %s. Fallback to default!\n", optarg);
+                    }
+                }
+                break;
+
+            case 'H':  /* hyper-threading */
+                dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
+
+            case '.':
+                if( dague_enable_dot ) free( dague_enable_dot );
+                /** Could not make optional_argument work. Recoding its behavior... */
+                if( strlen( argv[optind-1] ) >= 2 && strncmp( argv[optind-1], "-.", 2) == 0) {
+                    /** Case one: using short argument -. */
+                    if( strlen( argv[optind-1] ) > 2 ) {
+                        dague_enable_dot = strdup( argv[optind-1] + 2 );
+                    } else {
+                        dague_enable_dot = strdup(dague_app_name);
+                    }
+                } else {
+                   /** Long argument type */
+                   if( (strlen( argv[optind-1] ) > 12) &&
+                       (strncmp( argv[optind-1], "--dague_dot=", 12 ) == 0 ) ) {
+                       dague_enable_dot = strdup( argv[optind-1]+12 );
+                   } else {
+                       dague_enable_dot = strdup(dague_app_name);
+                    }
+               }
+               break;
+            }
+        } while(1);
+    }
+
     /* Default case if vpmap has not been initialized */
     if(vpmap_get_nb_vp() == -1)
         vpmap_init_from_flat(nb_cores);
 
-#if defined(HAVE_GETOPT_LONG)
-    struct option long_options[] =
-        {
-            {"dague_help",       no_argument,        NULL, 'h'},
-            {"dague_bind",       optional_argument,  NULL, 'b'},
-            {"dague_bind_comm",  optional_argument,  NULL, 'c'},
-#if defined(DAGUE_PROF_GRAPHER)
-            {"dague_dot",        optional_argument,  NULL, '.'},
-#endif  /* defined(DAGUE_PROF_GRAPHER) */
-            {0, 0, 0, 0}
-        };
-#endif  /* defined(HAVE_GETOPT_LONG) */
     nb_vp = vpmap_get_nb_vp();
 
     context = (dague_context_t*)malloc(sizeof(dague_context_t) + (nb_vp-1) * sizeof(dague_vp_t*));
@@ -371,63 +501,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     hwloc_bitmap_set_range(context->index_core_free_mask, 0, dague_hwloc_nb_real_cores()-1);
 #endif /* HAVE_HWLOC_BITMAP */
 #endif
-
-    if( NULL != pargc ) {
-        int index = 0;
-        /* Check for the upper level arguments */
-        while(1) {
-            if( NULL == (*pargv)[index] )
-                break;
-            if( 0 == strcmp( "--", (*pargv)[index]) ) {
-                argv = &(*pargv)[index];
-                break;
-            }
-            index++;
-        }
-        argc = (*pargc) - index;
-    }
-
-    if( argv != NULL ) {
-        optind = 1;
-        do {
-            int ret;
-#if defined(HAVE_GETOPT_LONG)
-            int option_index = 0;
-
-            ret = getopt_long (argc, argv, "p:b:c:v:.::",
-                               long_options, &option_index);
-#else
-            ret = getopt (argc, argv, "p:b:c:.::");
-#endif  /* defined(HAVE_GETOPT_LONG) */
-            if( -1 == ret ) break;  /* we're done */
-
-            switch(ret) {
-            case 'h': dague_usage(); break;
-            case 'c': dague_parse_comm_binding_parameter(optarg, context); break;
-            case 'b': dague_parse_binding_parameter(optarg, context, startup); break;
-            case '.':
-                if( dague_enable_dot ) free( dague_enable_dot );
-                /** Could not make optional_argument work. Recoding its behavior... */ 
-                if( strlen( argv[optind-1] ) >= 2 && strncmp( argv[optind-1], "-.", 2) == 0) {
-                    /** Case one: using short argument -. */
-                    if( strlen( argv[optind-1] ) > 2 ) {
-                        dague_enable_dot = strdup( argv[optind-1] + 2 );
-                    } else {
-                        dague_enable_dot = strdup(dague_app_name);
-                    }
-                } else {
-                   /** Long argument type */
-                   if( (strlen( argv[optind-1] ) > 12) &&
-                       (strncmp( argv[optind-1], "--dague_dot=", 12 ) == 0 ) ) {
-                       dague_enable_dot = strdup( argv[optind-1]+12 );
-                   } else {
-                       dague_enable_dot = strdup(dague_app_name);
-                    }
-               }
-               break;
-            }
-        } while(1);
-    }
 
 #if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     /* update the index_core_free_mask according to the thread binding defined */
@@ -573,6 +646,28 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     AYU_INIT();
+
+    /* Play with the thread placement */
+    if( NULL != comm_binding_parameter )
+        dague_parse_comm_binding_parameter(comm_binding_parameter, context);
+    if( NULL != binding_parameter )
+        dague_parse_binding_parameter(binding_parameter, context, startup);
+
+    /* Enable the GPU support if possible and requested */
+    if(nb_devices > 0) {
+#if defined(HAVE_CUDA)
+        if(0 != dague_gpu_init(context, &nb_devices, DAGUE_DEBUG_VERBOSE)) {
+            fprintf(stderr, "#XXXXX DAGuE is unable to initialize the CUDA environment.\n");
+        }
+#endif  /* defined(HAVE_CUDA) */
+    }
+
+    /* Set the scheduler */
+    dague_set_scheduler(context, dague_schedulers_array[scheduler]);
+
+    if( display_vpmap )
+        vpmap_display_map(stderr);
+
     return context;
 }
 
@@ -596,6 +691,11 @@ int dague_fini( dague_context_t** pcontext )
 {
     dague_context_t* context = *pcontext;
     int nb_total_comp_threads, t, p, c;
+
+    /* In case the GPU is up and running */
+#if defined(HAVE_CUDA)
+    dague_gpu_fini();
+#endif  /* defined(HAVE_CUDA) */
 
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {
@@ -746,7 +846,7 @@ dague_check_IN_dependencies_with_mask( const dague_handle_t *dague_handle,
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
                     assert( dep->cond->op == EXPR_OP_INLINE );
-                    if( 0 == dep->cond->inline_func(dague_handle, exec_context->locals) ) {
+                    if( 0 == dep->cond->inline_func32(dague_handle, exec_context->locals) ) {
                         /* Cannot use control gather magic with the USE_DEPS_MASK */
                         assert( NULL == dep->ctl_gather_nb );
                         continue;
@@ -764,7 +864,7 @@ dague_check_IN_dependencies_with_mask( const dague_handle_t *dague_handle,
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
-                        if( 0 == dep->cond->inline_func(dague_handle, exec_context->locals) ) {
+                        if( 0 == dep->cond->inline_func32(dague_handle, exec_context->locals) ) {
                             continue;
                         }
                     }
@@ -817,12 +917,12 @@ dague_check_IN_dependencies_with_counter( const dague_handle_t *dague_handle,
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
                     assert( dep->cond->op == EXPR_OP_INLINE );
-                    if( dep->cond->inline_func(dague_handle, exec_context->locals) ) {
+                    if( dep->cond->inline_func32(dague_handle, exec_context->locals) ) {
                         if( NULL == dep->ctl_gather_nb)
                             active++;
                         else {
                             assert( dep->ctl_gather_nb->op == EXPR_OP_INLINE );
-                            active += dep->ctl_gather_nb->inline_func(dague_handle, exec_context->locals);
+                            active += dep->ctl_gather_nb->inline_func32(dague_handle, exec_context->locals);
                         }
                     }
                 } else {
@@ -830,7 +930,7 @@ dague_check_IN_dependencies_with_counter( const dague_handle_t *dague_handle,
                         active++;
                     else {
                         assert( dep->ctl_gather_nb->op == EXPR_OP_INLINE );
-                        active += dep->ctl_gather_nb->inline_func(dague_handle, exec_context->locals);
+                        active += dep->ctl_gather_nb->inline_func32(dague_handle, exec_context->locals);
                     }
                 }
             }
@@ -842,7 +942,7 @@ dague_check_IN_dependencies_with_counter( const dague_handle_t *dague_handle,
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
-                        if( dep->cond->inline_func(dague_handle, exec_context->locals) ) {
+                        if( dep->cond->inline_func32(dague_handle, exec_context->locals) ) {
                             active++;
                         }
                     } else {
@@ -1016,7 +1116,9 @@ int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
     }
 
     if( completed ) {
+#if defined(DAGUE_PROF_GRAPHER)
         dague_prof_grapher_dep(origin, exec_context, 1, origin_flow, dest_flow);
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
 
         DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
 
@@ -1081,7 +1183,9 @@ int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
         }
 
     } else { /* Service not ready */
+#if defined(DAGUE_PROF_GRAPHER)
         dague_prof_grapher_dep(origin, exec_context, 0, origin_flow, dest_flow);
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
 
         DEBUG2(("  => Service %s not yet ready\n",
                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context)));
@@ -1100,8 +1204,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                       int out_index, int outdep_index,
                       int src_rank, int dst_rank,
                       int dst_vpid,
-                      dague_arena_t* arena,
-                      int nbelt,
+                      dague_dep_data_description_t* data,
                       void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
@@ -1117,16 +1220,18 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
-            void* data = is_read_only(oldcontext, out_index, outdep_index);
-            if(NULL != data) {
+            void* dataptr = is_read_only(oldcontext, out_index, outdep_index);
+            if(NULL != dataptr) {
                 arg->deps->msg.which &= ~(1 << out_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
                 arg->deps->msg.which |= (1 << out_index); /* mark all data that are not RO */
-                data = is_inplace(oldcontext, out_index, outdep_index);  /* Can we do it inplace */
+                dataptr = is_inplace(oldcontext, out_index, outdep_index);  /* Can we do it inplace */
             }
-            arg->deps->output[out_index].data = data; /* if still NULL allocate it */
-            arg->deps->output[out_index].type = arena;
-            arg->deps->output[out_index].nbelt = nbelt;
+            arg->deps->output[out_index].data.arena  = data->arena;
+            arg->deps->output[out_index].data.data   = dataptr; /* if still NULL allocate it */
+            arg->deps->output[out_index].data.layout = data->layout;
+            arg->deps->output[out_index].data.count  = data->count;
+            arg->deps->output[out_index].data.displ  = data->displ;
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
@@ -1138,11 +1243,13 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
-                arg->remote_deps->output[out_index].type = arena;
-                arg->remote_deps->output[out_index].nbelt = nbelt;
-                arg->remote_deps->output[out_index].data = oldcontext->data[target->flow_index].data_out;
+                arg->remote_deps->output[out_index].data.arena  = data->arena;
+                arg->remote_deps->output[out_index].data.data   = oldcontext->data[target->flow_index].data_out;
+                arg->remote_deps->output[out_index].data.layout = data->layout;
+                arg->remote_deps->output[out_index].data.count  = data->count;
+                arg->remote_deps->output[out_index].data.displ  = data->displ;
                 arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
-                arg->remote_deps->output[out_index].count++;
+                arg->remote_deps->output[out_index].count_bits++;
                 arg->remote_deps_count++;
             } else {
                 /* The bit is already flipped. This means either that we reached the same peer
@@ -1158,8 +1265,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
     }
 #else
     (void)src_rank;
-    (void)arena;
-    (void)nbelt;
+    (void)data;
 #endif
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
@@ -1379,6 +1485,41 @@ void dague_usage(void)
             "     Be careful when used with cgroups.\n"
             "\n"
             "     --dague_help         : this message\n"
+            "\n"
+            " -c --cores        : number of concurent threads (default: number of physical hyper-threads)\n"
+            " -g --gpus         : number of GPU (default: 0)\n"
+            " -o --scheduler    : select the scheduler (default: LFQ)\n"
+            "                     Accepted values:\n"
+            "                       LFQ -- Local Flat Queues\n"
+            "                       GD  -- Global Dequeue\n"
+            "                       LHQ -- Local Hierarchical Queues\n"
+            "                       AP  -- Absolute Priorities\n"
+            "                       PBQ -- Priority Based Local Flat Queues\n"
+            "                       LTQ -- Local Tree Queues\n"
+            "\n"
+            "    --dot[=file]   : create a dot output file (default: don't)\n"
+            "\n"
+            "    --ht nbth      : enable a SMT/HyperThreadind binding using nbth hyper-thread per core.\n"
+            "                     This parameter must be declared before the virtual process distribution parameter\n"
+            " -V --vpmap        : select the virtual process map (default: flat map)\n"
+            "                     Accepted values:\n"
+            "                       flat  -- Flat Map: all cores defined with -c are under the same virtual process\n"
+            "                       hwloc -- Hardware Locality based: threads up to -c are created and threads\n"
+            "                                bound on cores that are under the same socket are also under the same\n"
+            "                                virtual process\n"
+            "                       rr:n:p:c -- create n virtual processes per real process, each virtual process with p threads\n"
+            "                                   bound in a round-robin fashion on the number of cores c (overloads the -c flag)\n"
+            "                       file:filename -- uses filename to load the virtual process map. Each entry details a virtual\n"
+            "                                        process mapping using the semantic  [mpi_rank]:nb_thread:binding  with:\n"
+            "                                        - mpi_rank : the mpi process rank (empty if not relevant)\n"
+            "                                        - nb_thread : the number of threads under the virtual process\n"
+            "                                                      (overloads the -c flag)\n"
+            "                                        - binding : a set of cores for the thread binding. Accepted values are:\n"
+            "                                          -- a core list          (exp: 1,3,5-6)\n"
+            "                                          -- a hexadecimal mask   (exp: 0xff012)\n"
+            "                                          -- a binding range expression: [start];[end];[step] \n"
+            "                                             wich defines a round-robin one thread per core distribution from start\n"
+            "                                             (default 0) to end (default physical core number) by step (default 1)\n"
             "\n"
             );
 }
@@ -1751,12 +1892,12 @@ const dague_ddesc_t dague_static_local_data_ddesc = {
 #endif /* DAGUE_PROF_TRACE */
 };
 
-static int dague_expr_eval(const expr_t *expr, dague_execution_context_t *context)
+static int32_t dague_expr_eval32(const expr_t *expr, dague_execution_context_t *context)
 {
     dague_handle_t *handle = context->dague_handle;
 
     assert( expr->op == EXPR_OP_INLINE );
-    return expr->inline_func(handle, context->locals);
+    return expr->inline_func32(handle, context->locals);
 }
 
 static int dague_debug_enumerate_next_in_execution_space(dague_execution_context_t *context,
@@ -1773,14 +1914,14 @@ static int dague_debug_enumerate_next_in_execution_space(dague_execution_context
             return 1;
     }
     cur = context->locals[ function->params[param_depth]->context_index ].value;
-    max = dague_expr_eval(function->params[param_depth]->max, context);
+    max = dague_expr_eval32(function->params[param_depth]->max, context);
     if( function->params[param_depth]->expr_inc == NULL ) {
         incr = function->params[param_depth]->cst_inc;
     } else {
-        incr = dague_expr_eval(function->params[param_depth]->expr_inc, context);
+        incr = dague_expr_eval32(function->params[param_depth]->expr_inc, context);
     }
     if( cur + incr > max ) {
-        min = dague_expr_eval(function->params[param_depth]->min, context);
+        min = dague_expr_eval32(function->params[param_depth]->min, context);
         context->locals[ function->params[param_depth]->context_index ].value = min;
         return 0;
     }
@@ -1822,8 +1963,8 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
 
     /* Starting point of the context space enumeration */
     for( pi = 0; pi < function->nb_parameters; pi++) {
-        context.locals[function->params[pi]->context_index].value = dague_expr_eval(function->params[pi]->min,
-                                                                                    &context);
+        context.locals[function->params[pi]->context_index].value = dague_expr_eval32(function->params[pi]->min,
+                                                                                      &context);
     }
 
     do {

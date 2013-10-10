@@ -1207,7 +1207,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "   dague_profile_ddesc_info_t info;                         \\\n"
             "   info.desc = (dague_ddesc_t*)refdesc;                     \\\n"
             "   info.id = refid;                                         \\\n"
-            "   dague_profiling_trace(context->eu_profile,               \\\n"
+            "   DAGUE_PROFILING_TRACE(context->eu_profile,               \\\n"
             "                         __dague_handle->super.super.profiling_array[(key)],\\\n"
             "                         eid, (void*)&info);                \\\n"
             "  } while(0);\n"

@@ -14,7 +14,7 @@
 int dague_arena_construct(dague_arena_t* arena,
                           size_t elem_size,
                           size_t alignment,
-                          dague_remote_dep_datatype_t opaque_dtt)
+                          dague_datatype_t opaque_dtt)
 {
     /* alignment must be more than zero and power of two */
     if( (alignment <= 1) || (alignment & (alignment - 1)) )

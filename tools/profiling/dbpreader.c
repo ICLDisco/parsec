@@ -171,7 +171,7 @@ dbp_dictionary_t *dbp_reader_get_dictionary(const dbp_multifile_reader_t *dbp, i
     return &(dbp->dico_keys[did]);
 }
 
-#define DBP_EVENT_LENGTH(dbp_event, dbp_main_object) \
+#define DBP_EVENT_LENGTH(dbp_event, dbp_main_object)                    \
     (sizeof(dague_profiling_output_base_event_t) +                      \
      (EVENT_HAS_INFO((dbp_event)->native) ?                             \
       (dbp_main_object)->dico_keys[BASE_KEY((dbp_event)->native->event.key)].keylen : 0))
@@ -306,15 +306,21 @@ void dbp_iterator_delete(dbp_event_iterator_t *it)
 }
 
 int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
-                                        const dbp_event_t *ref)
+                                        const dbp_event_t *ref,
+                                        int start )
 {
     const dbp_event_t *e;
+    uint64_t ref_eid = dbp_event_get_event_id(ref);
+    uint32_t ref_hid = dbp_event_get_handle_id(ref);
+    int      ref_key = start ?
+        START_KEY(BASE_KEY(dbp_event_get_key(ref))) :
+        END_KEY(  BASE_KEY(dbp_event_get_key(ref)));
 
     e = dbp_iterator_current( pos );
     while( NULL != e ) {
-        if( (dbp_event_get_handle_id(e) == dbp_event_get_handle_id(ref)) &&
-            (dbp_event_get_event_id(e) == dbp_event_get_event_id(ref)) &&
-            (dbp_event_get_key(e) == END_KEY(BASE_KEY(dbp_event_get_key(ref)))) ) {
+        if( (dbp_event_get_handle_id(e) == ref_hid) &&
+            (dbp_event_get_event_id(e)  == ref_eid) &&
+            (dbp_event_get_key(e)       == ref_key) ) {
             if( dbp_event_get_event_id(e) != 0 ||
                 time_less( dbp_event_get_timestamp(ref), dbp_event_get_timestamp(e)) ||
                 (diff_time(dbp_event_get_timestamp(ref), dbp_event_get_timestamp(e)) == 0) ) {
@@ -329,7 +335,7 @@ int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
     return 0;
 }
 
-dbp_event_iterator_t *dbp_iterator_find_matching_event_all_threads(const dbp_event_iterator_t *pos)
+dbp_event_iterator_t *dbp_iterator_find_matching_event_all_threads(const dbp_event_iterator_t *pos, int start)
 {
     dbp_event_iterator_t *it;
     const dbp_event_t *ref;
@@ -338,17 +344,17 @@ dbp_event_iterator_t *dbp_iterator_find_matching_event_all_threads(const dbp_eve
 
     ref = dbp_iterator_current(pos);
     it = dbp_iterator_new_from_iterator(pos);
-    if( dbp_iterator_move_to_matching_event(it, ref) )
+    if( dbp_iterator_move_to_matching_event(it, ref, start) )
         return it;
     dbp_iterator_delete(it);
 
     dbp_file = pos->thread->file;
 
-    for(th = 0; th < dbp_file_nb_threads(dbp_file); th++) {
+    for(th = dbp_file_nb_threads(dbp_file)-1; th>=0; th--) {
         if( pos->thread == dbp_file_get_thread(dbp_file, th) )
             continue;
         it = dbp_iterator_new_from_thread( dbp_file_get_thread(dbp_file, th) );
-        if( dbp_iterator_move_to_matching_event(it, ref) )
+        if( dbp_iterator_move_to_matching_event(it, ref, start) )
             return it;
         dbp_iterator_delete(it);
     }
@@ -668,7 +674,7 @@ static int check_dictionnary(const dbp_multifile_reader_t *dbp, int fd, const da
         if( dbp->dico_keys[ dbp->dico_size - nb ].keylen != a->keyinfo_length ) {
             fprintf(stderr, "Dictionary entry %d has an info length in the reference dictionary of %d bytes, that is different from the key info length of %d bytes for the same entry in the new file dictionary.\n",
                     dbp->dico_size - nb, dbp->dico_keys[ dbp->dico_size - nb ].keylen, a->keyinfo_length);
-             goto error;
+            goto error;
         }
 
         pos += a->keyinfo_convertor_length - 1 + sizeof(dague_profiling_key_buffer_t);
@@ -691,7 +697,7 @@ static int check_dictionnary(const dbp_multifile_reader_t *dbp, int fd, const da
     release_events_buffer( dico );
     return 0;
 
- error:
+  error:
     release_events_buffer( dico );
     return -1;
 }
@@ -780,7 +786,7 @@ static int read_threads(dbp_multifile_reader_t *dbp, int n, int fd, const dague_
         if( nbthis == 0 && nb > 0 ) {
             assert( b->next_buffer_file_offset != -1 );
             next = refer_events_buffer(fd, b->next_buffer_file_offset);
-             if( NULL == next ) {
+            if( NULL == next ) {
                 fprintf(stderr, "Unable to read thread entry: Profile file broken\n");
                 release_events_buffer( b );
                 return -1;
@@ -831,7 +837,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
         }
 
         if( strncmp( head.magick, DAGUE_PROFILING_MAGICK, 24 ) ) {
-            fprintf(stderr, "read %d bytes %s\n%s\n", p, head.magick, DAGUE_PROFILING_MAGICK);
+            fprintf(stderr, "read %d bytes found '%s', expected '%s'\n", p, head.magick, DAGUE_PROFILING_MAGICK);
             fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
                     filenames[i]);
             close(fd);
@@ -903,10 +909,10 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
 
     if( dbp->worldsize > n ) {
         fprintf(stderr, "The profile in file %s has a world size of %d, but only %d files can be read in input. The trace will be truncated\n",
-                        dbp->files[0].filename, dbp->worldsize, n);
+                dbp->files[0].filename, dbp->worldsize, n);
     } else if( dbp->worldsize < n ) {
         fprintf(stderr, "The profile in file %s has a world size of %d, but %d files should be read in input. The trace will be... Strange...\n",
-                        dbp->files[0].filename, dbp->worldsize, n);
+                dbp->files[0].filename, dbp->worldsize, n);
     } else {
         for(i = 0; i < n; i++) {
             p = 0;
@@ -922,6 +928,8 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
     }
 
     dbp->nb_files = n;
+    event_avail_space = event_buffer_size -
+        ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
 
     return dbp;
 }
@@ -936,4 +944,10 @@ dbp_multifile_reader_t *dbp_reader_open_files(int nbfiles, char *files[])
     dbp = open_files(nbfiles, files);
 
     return dbp;
+}
+
+void dbp_reader_destruct(dbp_multifile_reader_t *dbp)
+{
+    free( dbp->files );
+    free( dbp );
 }

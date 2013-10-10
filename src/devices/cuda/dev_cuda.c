@@ -30,7 +30,8 @@
 /* Accepted values are: DAGUE_PROFILE_CUDA_TRACK_DATA_IN | DAGUE_PROFILE_CUDA_TRACK_DATA_OUT |
  *                      DAGUE_PROFILE_CUDA_TRACK_OWN | DAGUE_PROFILE_CUDA_TRACK_EXEC
  */
-int dague_cuda_trackable_events = DAGUE_PROFILE_CUDA_TRACK_EXEC | DAGUE_PROFILE_CUDA_TRACK_DATA_OUT | DAGUE_PROFILE_CUDA_TRACK_DATA_IN | DAGUE_PROFILE_CUDA_TRACK_OWN;
+int dague_cuda_trackable_events = DAGUE_PROFILE_CUDA_TRACK_EXEC | DAGUE_PROFILE_CUDA_TRACK_DATA_OUT
+  | DAGUE_PROFILE_CUDA_TRACK_DATA_IN | DAGUE_PROFILE_CUDA_TRACK_OWN;
 int dague_cuda_movein_key_start;
 int dague_cuda_movein_key_end;
 int dague_cuda_moveout_key_start;
@@ -413,6 +414,14 @@ int dague_gpu_init(dague_context_t *dague_context)
         /* Allow fine grain selection of the GPU's */
         if( !((1 << i) & cuda_mask) ) continue;
 
+        status = cuDeviceGetAttribute( &computemode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, hcuDevice );
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
+
+        if ( isdouble )
+            device_weight[i+1] = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
+        else
+            device_weight[i+1] = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
+
         if( show_caps ) {
             STATUS(("GPU Device %d (capability %d.%d): %s\n", i, major, minor, szName ));
             STATUS(("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock ));
@@ -477,6 +486,7 @@ int dague_gpu_init(dague_context_t *dague_context)
                                         {break;} );
             }
 #if defined(DAGUE_PROF_TRACE)
+	    exec_stream->profiling = dague_profiling_thread_init( 2*1024*1024, DAGUE_PROFILE_STREAM_STR, i, j );
             exec_stream->prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC;
             exec_stream->prof_event_key_start    = -1;
             exec_stream->prof_event_key_end      = -1;
@@ -514,11 +524,36 @@ int dague_gpu_init(dague_context_t *dague_context)
         OBJ_CONSTRUCT(&gpu_device->gpu_mem_owned_lru, dague_list_t);
         OBJ_CONSTRUCT(&gpu_device->pending,           dague_list_t);
 
+        dague_devices_add(dague_context, &(gpu_device->super));
+    }
+
+    /* Compute the weight of each device including the cores */
+    DEBUG(("Global Theoritical performance: %2.4f\n", total_perf ));
+    for( i = 0; i < (ndevices+1); i++ ) {
+        if( 0 == i )
+            DEBUG(("CPU             ->ratio %2.4e (%2.4e)\n",
+                   device_weight[i],
+                   device_weight[i] / nb_cores ));
+        else
+            DEBUG(("Device index %2d ->ratio %2.4e\n",
+                   i-1, device_weight[i]));
+        device_weight[i] = (total_perf / device_weight[i]);
+        if( dague_show_detailed_capabilities ) {
+            if( 0 == i )
+                STATUS(("CPU             ->ratio %2.4f\n", device_weight[i]));
+            else
+                STATUS(("Device index %2d ->ratio %2.4f\n", i-1, device_weight[i]));
+        }
+    }
+
+    /**
+     * Reconfigure the stream 0 and 1 for input and outputs.
+     */
 #if defined(DAGUE_PROF_TRACE)
-        gpu_device->super.profiling = dague_profiling_thread_init( 2*1024*1024, "GPU %d.0", i );
-        /**
-         * Reconfigure the stream 0 and 1 for input and outputs.
-         */
+    for( i = 0; i < ndevices; i++ ) {
+        gpu_device_t *gpu_device = gpu_enabled_devices[i];
+        if( NULL == gpu_device ) continue;
+
         gpu_device->exec_stream[0].prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN;
         gpu_device->exec_stream[0].prof_event_key_start    = dague_cuda_movein_key_start;
         gpu_device->exec_stream[0].prof_event_key_end      = dague_cuda_movein_key_end;
@@ -526,9 +561,8 @@ int dague_gpu_init(dague_context_t *dague_context)
         gpu_device->exec_stream[1].prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT;
         gpu_device->exec_stream[1].prof_event_key_start    = dague_cuda_moveout_key_start;
         gpu_device->exec_stream[1].prof_event_key_end      = dague_cuda_moveout_key_end;
-#endif  /* defined(PROFILING) */
-        dague_devices_add(dague_context, &(gpu_device->super));
     }
+#endif  /* defined(DAGUE_PROF_TRACE) */
 
 #if defined(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
     for( i = 0; i < ndevices; i++ ) {
@@ -1018,8 +1052,8 @@ int progress_stream( gpu_device_t* gpu_device,
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
             DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable,
-                                     gpu_device->super.profiling,
-                                     (-1 == exec_stream->prof_event_key_end ?
+                                     exec_stream->profiling,
+                                     (-1 == exec_stream->prof_event_key_end ? 
                                       DAGUE_PROF_FUNC_KEY_END(task->ec->dague_handle,
                                                               task->ec->function->function_id) :
                                       exec_stream->prof_event_key_end),

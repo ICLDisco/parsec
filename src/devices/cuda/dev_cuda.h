@@ -57,6 +57,9 @@ typedef struct __dague_gpu_exec_stream {
     int32_t start, end;  /* circular buffer management start and end positions */
     dague_list_t *fifo_pending;
 #if defined(DAGUE_PROF_TRACE)
+    dague_thread_profiling_t *profiling;
+#endif  /* defined(PROFILING) */
+#if defined(DAGUE_PROF_TRACE)
     int prof_event_track_enable;
     int prof_event_key_start, prof_event_key_end;
 #endif  /* defined(PROFILING) */

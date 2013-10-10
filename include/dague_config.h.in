@@ -36,7 +36,6 @@
 #cmakedefine DAGUE_PROF_TRACE_SCHEDULING_EVENTS
 #cmakedefine DAGUE_PROF_PAPI
 #cmakedefine DAGUE_PROF_GRAPHER
-#cmakedefine DAGUE_PROF_PTR_FILE
 #cmakedefine DAGUE_PROF_DRY_RUN
 #cmakedefine DAGUE_PROF_DRY_BODY
 #cmakedefine DAGUE_PROF_DRY_DEP

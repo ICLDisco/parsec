@@ -15,13 +15,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 #if defined(HAVE_HWLOC)
 static hwloc_topology_t topology;
-int first_init = 1;
-int ht_count = 0;
+static int first_init = 1;
 #endif  /* defined(HAVE_HWLOC) */
-int ht = 1;
+static int ht = 1;
 
 #if defined(HAVE_HWLOC_PARENT_MEMBER)
 #define HWLOC_GET_PARENT(OBJ)  (OBJ)->parent
@@ -31,8 +29,6 @@ int ht = 1;
 
 #define MAX(x, y) ( (x)>(y)?(x):(y) )
 
-
-
 int dague_hwloc_init(void)
 {
 #if defined(HAVE_HWLOC)
@@ -40,7 +36,6 @@ int dague_hwloc_init(void)
         hwloc_topology_init(&topology);
         hwloc_topology_load(topology);
         first_init = 0;
-
     }
 #endif  /* defined(HAVE_HWLOC) */
     return 0;

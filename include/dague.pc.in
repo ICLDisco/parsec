@@ -1,13 +1,13 @@
 prefix=@CMAKE_INSTALL_PREFIX@
-exec_prefix=\${prefix}
-libdir=\${exec_prefix}/lib
-includedir=\${prefix}/include
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
 
 Name: DAGuE
 Description: Distributed DAG scheduling.
 Version: @DAGUE_VERSION_MAJOR@.@DAGUE_VERSION_MINOR@
 Requires: plasma
-Libs: -L\${libdir} -ldague
-Libs.private:
-Cflags: -I\${includedir}/")
+Libs: -L${libdir} -ldague
+Libs.private:@HWLOC_LIBRARY@ @EXTRA_LIBS@
+Cflags: -I${includedir} -I@HWLOC_INCLUDE_DIR@
 

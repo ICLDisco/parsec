@@ -35,6 +35,13 @@
 
 #define MINIMAL_EVENT_BUFFER_SIZE          4088
 
+/**
+ * Externally visible on/off switch for the profiling of new events. It
+ * only protects the macros, a direct call to the dague_profiling_trace
+ * will always succeed. It is automatically turned on by the init call.
+ */
+int dague_profile_enabled = 0;
+
 static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char type);
 
 /* Process-global dictionnary */
@@ -96,26 +103,77 @@ int dague_profiling_init( void )
     dague_profiling_buffer_t dummy_events_buffer;
     long ps;
 
+#if defined(HAVE_MPI)
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
+#endif
+
+    if( hr_id != NULL ) {
+        ERROR(("dague_profiling_init: profiling already initialized"));
+        return -1;
+    }
+
+    va_start(ap, format);
+    vasprintf(&hr_id, format, ap);
+    va_end(ap);
+
+    bpf_filename = (char*)malloc(strlen(hr_id) + 16);
+
+    hr_id_dir = strdup(hr_id);
+    hr_id_basename = hr_id_dir;
+    for(c = hr_id_dir; *c != '\0'; c++) {
+        if( *c == '/' )
+            hr_id_basename = c+1;
+    }
+    if( hr_id_basename != hr_id_dir ) {
+        *(hr_id_basename-1) = '\0';
+    }
+
+    sprintf(bpf_filename, "%s.prof-XXXXXX", hr_id_basename);
+    free(hr_id_dir);
+    hr_id_dir = NULL;
+    hr_id_basename = NULL;
+
+    file_backend_fd = mkstemp(bpf_filename);
+    if( -1 == file_backend_fd ) {
+        fprintf(stderr, "Warning profiling system: unable to create temporary backend file %s: %s. Events not logged.\n",
+                bpf_filename, strerror(errno));
+        free(bpf_filename);
+        bpf_filename = NULL;
+        file_backend_extendable = 0;
+    } else {
+        file_backend_extendable = 1;
+        ps = sysconf(_SC_PAGESIZE);
+        event_buffer_size = ps * ((MINIMAL_EVENT_BUFFER_SIZE + ps) / ps);
+        event_avail_space = event_buffer_size -
+            ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
+
+        assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
+        profile_head = (dague_profiling_binary_file_header_t*)allocate_empty_buffer(&zero, PROFILING_BUFFER_TYPE_HEADER);
+        if( NULL != profile_head ) {
+	        memcpy(profile_head->magick, DAGUE_PROFILING_MAGICK, strlen(DAGUE_PROFILING_MAGICK) + 1);
+            profile_head->byte_order = 0x0123456789ABCDEF;
+            profile_head->profile_buffer_size = event_buffer_size;
+            strncpy(profile_head->hr_id, hr_id, 128);
+            profile_head->rank = rank;
+            profile_head->worldsize = worldsize;
+        }
+
+        dague_prof_keys = (dague_profiling_key_t*)calloc(128, sizeof(dague_profiling_key_t));
+        dague_prof_keys_count = 0;
+        dague_prof_keys_number = 128;
+
+        dague_profile_enabled = 1;  /* turn on the profiling */
+    }
+
     OBJ_CONSTRUCT( &threads, dague_list_t );
-
-    dague_prof_keys = (dague_profiling_key_t*)calloc(128, sizeof(dague_profiling_key_t));
-    dague_prof_keys_count = 0;
-    dague_prof_keys_number = 128;
-
-    file_backend_extendable = 1;
-    ps = sysconf(_SC_PAGESIZE);
-    event_buffer_size = ps * ((MINIMAL_EVENT_BUFFER_SIZE + ps) / ps);
-    event_avail_space = event_buffer_size -
-        ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
-
-    assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
 
     /* default start time is time of call of profiling init.
      * Can be reset once explicitly by the user. */
 #if defined(HAVE_MPI)
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
-    dague_start_time = take_time();
+    dague_profiling_start();
 
     return 0;
 }
@@ -245,11 +303,26 @@ int dague_profiling_fini( void )
     dague_profiling_dictionary_flush();
     free(dague_prof_keys);
     dague_prof_keys_number = 0;
+    __already_called = 0;  /* Allow the profiling to be reinitialized */
+    dague_profile_enabled = 0;  /* turn off the profiling */
+    return 0;
+}
+
+int dague_profiling_reset( void )
+{
+    dague_thread_profiling_t *t;
+
+    DAGUE_LIST_ITERATOR(&threads, it, {
+        t = (dague_thread_profiling_t*)it;
+        t->next_event_position = 0;
+        /* TODO: should reset the backend file / recreate it */
+    });
+
     return 0;
 }
 
 int dague_profiling_add_dictionary_keyword( const char* key_name, const char* attributes,
-                                            size_t info_length, 
+                                            size_t info_length,
                                             const char* convertor_code,
                                             int* key_start, int* key_end )
 {
@@ -430,8 +503,10 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
     return 0;
 }
 
-int dague_profiling_trace( dague_thread_profiling_t* context, int key,
-                           uint64_t event_id, uint32_t handle_id, void *info )
+int
+dague_profiling_trace_flags(dague_thread_profiling_t* context, int key,
+                            uint64_t event_id, uint32_t handle_id,
+                            void *info, uint16_t flags)
 {
     dague_profiling_output_t *this_event;
     size_t this_event_length;
@@ -463,9 +538,16 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key,
         memcpy(this_event->info, info, dague_prof_keys[ BASE_KEY(key) ].info_length);
         this_event->event.flags = DAGUE_PROFILING_EVENT_HAS_INFO;
     }
+    this_event->event.flags |= flags;
     this_event->event.timestamp = take_time();
 
     return 0;
+}
+
+int dague_profiling_trace( dague_thread_profiling_t* context, int key,
+                           uint64_t event_id, uint32_t handle_id, void *info )
+{
+    return dague_profiling_trace_flags( context, key, event_id, handle_id, info, 0 );
 }
 
 static int64_t dump_global_infos(int *nbinfos)

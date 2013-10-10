@@ -2,25 +2,20 @@
 macro(dague_addtest lang target input)
   list(APPEND EXTRA_LIBS m)
 
-  if(CMAKE_${lang}_COMPILER_WORKS)
-    list(APPEND EXTRA_LIBS m)
+  if( MPI_C_FOUND )
+    set(${target}_${lang}FLAGS  "${MPI_C_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
+    set(${target}_LDFLAGS "${MPI_C_LINK_FLAGS} ${${target}_LDFLAGS}")
+  endif( MPI_C_FOUND )
+  set(${target}_LIBS    dague dague_distribution_matrix ${EXTRA_LIBS} ${${target}_LIBS})
 
-    if( MPI_FOUND )
-      set(${target}_${lang}FLAGS  "${MPI_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
-      set(${target}_LDFLAGS "${MPI_LINK_FLAGS} ${${target}_LDFLAGS}")
-      set(${target}_LIBS    dague-mpi dague_distribution_matrix-mpi dague-base ${EXTRA_LIBS} ${${target}_LIBS} ${MPI_LIBRARIES})
-    else ( MPI_FOUND )
-      set(${target}_LIBS    dague dague_distribution_matrix dague-base ${EXTRA_LIBS} ${${target}_LIBS})
-    endif()
+  add_executable(${target} ${input})
+  set_target_properties(${target} PROPERTIES
+                        LINKER_LANGUAGE ${lang}
+                        COMPILE_FLAGS "${${target}_${lang}FLAGS} ${LOCAL_${lang}_LINK_FLAGS}"
+                        LINK_FLAGS "${${target}_LDFLAGS}")
+  target_link_libraries(${target} ${${target}_LIBS})
+  install(TARGETS ${target} RUNTIME DESTINATION bin)
 
-    add_executable(${target} ${input})
-    set_target_properties(${target} PROPERTIES
-                          LINKER_LANGUAGE ${lang}
-                          COMPILE_FLAGS "${${target}_${lang}FLAGS} ${LOCAL_${lang}_LINK_FLAGS}"
-                          LINK_FLAGS "${${target}_LDFLAGS}")
-    target_link_libraries(${target} ${${target}_LIBS})
-    install(TARGETS ${target} RUNTIME DESTINATION bin)
-  endif(CMAKE_${lang}_COMPILER_WORKS)
 endmacro(dague_addtest)
 
 
@@ -31,6 +26,8 @@ Add_Subdirectory(pingpong)
 Add_Subdirectory(branching)
 Add_Subdirectory(controlgather)
 Add_Subdirectory(scheduling)
+Add_Subdirectory(all2all)
+
 if (DAGUE_DEBUG_BUILD_UNIT_TESTS )
   Add_Subdirectory(unit)
   dague_addtest(C operator operator.c)
@@ -42,3 +39,10 @@ string( REGEX REPLACE "touch.[hc]" "" include_dir "${touch_generated}" )
 include_directories(${include_dir})
 
 dague_addtest(C touch_ex "touch_ex.c;${touch_generated}")
+
+jdf_rules(startup_generated "${CMAKE_CURRENT_SOURCE_DIR}/startup.jdf")
+dague_addtest(C startup "${startup_generated}")
+
+# Define Testings
+include(Testings.cmake)
+

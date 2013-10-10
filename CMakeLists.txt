@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 project (DAGUE C)
-enable_language(CXX OPTIONAL)
 enable_language(Fortran OPTIONAL)
+enable_language(CXX OPTIONAL)
 
 include(CMakeDependentOption)
 
@@ -61,7 +61,7 @@ option(DAGUE_WANT_HOME_CONFIG_FILES
        "Should the runtime check for the parameter configuration file in the user home (\$HOME/.dague/mca-params.conf)" ON)
 
 ### Dague PP options
-set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
+set(DAGUEPP_CFLAGS "--noline" CACHE STRING "Additional daguepp precompiling flags" )
 mark_as_advanced(DAGUEPP_CFLAGS)
 
 ## Multicore scheduler parameters
@@ -141,8 +141,6 @@ option(DAGUE_PROF_TRACE_SCHEDULING_EVENTS
 mark_as_advanced(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
 option(DAGUE_PROF_GRAPHER
   "Enable the generation of the dot graph representation during execution" OFF)
-option(DAGUE_PROF_PTR_FILE
-  "Enable the generation of the file to check anti dependencies" OFF)
 option(DAGUE_PROF_DRY_RUN
   "Disable calls to the actual bodies and do not move the data between nodes; unfold the dependencies only" OFF)
 option(DAGUE_PROF_DRY_BODY
@@ -384,16 +382,19 @@ IF( BUILD_DAGUE )
   endif (HWLOC_FOUND)
 
   if (DAGUE_DIST_WITH_MPI)
+    # Force the detection of the C library
+    set(MPI_C_COMPILER mpicc)
     find_package(MPI REQUIRED)
-    set(HAVE_MPI ${MPI_FOUND})
-    if (MPI_FOUND)
-      include_directories( ${MPI_INCLUDE_PATH} )
-    endif (MPI_FOUND)
+    set(HAVE_MPI ${MPI_C_FOUND})
+    if (MPI_C_FOUND)
+      list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
+      include_directories( ${MPI_C_INCLUDE_PATH} )
+    endif (MPI_C_FOUND)
   endif (DAGUE_DIST_WITH_MPI)
   #
   # Check to see if support for MPI 2.0 is available
   #
-  if (MPI_FOUND)
+  if (MPI_C_FOUND)
     set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
     set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
     set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${MPI_C_INCLUDE_PATH}")
@@ -401,7 +402,7 @@ IF( BUILD_DAGUE )
     check_function_exists(MPI_Type_create_resized HAVE_MPI_20)
     set(CMAKE_REQUIRED_INCLUDES  "${saved_include}")
     set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
-  endif (MPI_FOUND)
+  endif (MPI_C_FOUND)
 
   if( DAGUE_GPU_WITH_CUDA )
     find_package(CUDA QUIET)
@@ -494,7 +495,7 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
     set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-fno-f2c -O0 -g")
   elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-    # ifort (untested)
+    # ifort
     set (CMAKE_Fortran_FLAGS_RELEASE "-f77rtl -O3")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-f77rtl -O0 -g")
   else (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
@@ -575,11 +576,11 @@ if( BUILD_DAGUE )
 # If we have support for F90 build the DAGuE module
 #
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-    include(FortranCInterface)
-    FortranCInterface_HEADER(src/fortran/f2c_mangle.h
-                             MACRO_NAMESPACE "DAGUE_"
-                             SYMBOL_NAMESPACE "dague_"
-                             SYMBOLS mysub daguef:my_sub)
+    #include(FortranCInterface)
+    #FortranCInterface_HEADER(src/fortran/f2c_mangle.h
+    #                         MACRO_NAMESPACE "DAGUE_"
+    #                         SYMBOL_NAMESPACE "dague_")
+    #                         SYMBOLS mysub daguef:my_sub)
     add_subdirectory(src/fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
@@ -605,7 +606,7 @@ install(FILES "include/dague.h" DESTINATION include)
 # pkg-config file
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
-  "${PROJECT_INCLUDE_DIR}/dague.pc")
+  "${PROJECT_INCLUDE_DIR}/dague.pc" @ONLY)
 install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc" DESTINATION include)
 
 # build a CPack driven installer package

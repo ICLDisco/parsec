@@ -17,6 +17,8 @@
 /** DAGuE Binary Profile format. */
 
 #define DAGUE_PROFILING_EVENT_HAS_INFO     0x0001
+#define DAGUE_PROFILING_EVENT_RESCHEDULED  0x0002
+
 typedef struct dague_profiling_output_base_event_s {
     uint16_t        key;
     uint16_t        flags;
