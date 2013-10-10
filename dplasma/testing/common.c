@@ -330,7 +330,11 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case 'H':
                 fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
                         "It should be passed directly to PaRSEC instead\n");
-                dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
+#if defined(HAVE_HWLOC)
+                 dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
+#else
+                 fprintf(stderr, "Option H (hyper-threading) disabled without HWLOC\n");
+#endif  /* defined(HAVE_HWLOC */
 
             case 'V':
                 fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
