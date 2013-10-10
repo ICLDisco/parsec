@@ -49,6 +49,7 @@ float gpu_speeds[2][2] ={
     { 622.08, 1030.4 },
     {  77.76,  515.2 }
 };
+float *device_weight = NULL;
 
 static int dague_cuda_device_fini(dague_device_t* device)
 {
@@ -386,6 +387,9 @@ int dague_gpu_init(dague_context_t *dague_context)
                                             0, NULL,
                                             &dague_cuda_own_GPU_key_start, &dague_cuda_own_GPU_key_end);
 #endif  /* defined(PROFILING) */
+
+    /* TODO: Remove this ASAP */
+    device_weight = (float*)calloc(ndevices+1, sizeof(float));
 
     for( i = 0; i < ndevices; i++ ) {
 #if CUDA_VERSION >= 3020
