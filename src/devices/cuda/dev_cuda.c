@@ -51,6 +51,11 @@ float gpu_speeds[2][2] ={
 };
 float *device_weight = NULL;
 
+/* in new cuda, cuMemHostRegister requires to be called only once to get host memory pinned for all gpus. 
+ * When using old cuda, they may need to be removed */
+int host_mem_registered = 0;
+int host_mem_unregistered = 0;
+
 static int dague_cuda_device_fini(dague_device_t* device)
 {
     gpu_device_t* gpu_device = (gpu_device_t*)device;
@@ -106,28 +111,34 @@ static int dague_cuda_memory_register(dague_device_t* device, void* ptr, size_t 
     CUcontext ctx;
     int rc = DAGUE_ERROR;
 
-    /* Atomically get the GPU context */
-    do {
-        ctx = gpu_device->ctx;
-        dague_atomic_cas( &(gpu_device->ctx), ctx, NULL );
-    } while( NULL == ctx );
+    if (!host_mem_registered) {
 
-    status = cuCtxPushCurrent( ctx );
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPushCurrent ", status,
-                            {goto restore_and_return;} );
+        /* Atomically get the GPU context */
+        do {
+            ctx = gpu_device->ctx;
+            dague_atomic_cas( &(gpu_device->ctx), ctx, NULL );
+        } while( NULL == ctx );
 
-    status = cuMemHostRegister(ptr, length, CU_MEMHOSTREGISTER_PORTABLE);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuMemHostRegister ", status,
-                            {goto restore_and_return;} );
+        status = cuCtxPushCurrent( ctx );
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPushCurrent ", status,
+                                {goto restore_and_return;} );
 
-    status = cuCtxPopCurrent(NULL);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
-                            {goto restore_and_return;} );
-    rc = DAGUE_SUCCESS;
+        status = cuMemHostRegister(ptr, length, CU_MEMHOSTREGISTER_PORTABLE);
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuMemHostRegister ", status,
+                                {goto restore_and_return;} );
+  
+        status = cuCtxPopCurrent(NULL);
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
+                                {goto restore_and_return;} );
+        rc = DAGUE_SUCCESS;
+    
+        host_mem_registered = 1;
 
-  restore_and_return:
-    /* Restore the context so the others can steal it */
-    dague_atomic_cas( &(gpu_device->ctx), NULL, ctx );
+      restore_and_return:
+        /* Restore the context so the others can steal it */
+        dague_atomic_cas( &(gpu_device->ctx), NULL, ctx );
+
+    }
 
     return rc;
 }
@@ -139,28 +150,34 @@ static int dague_cuda_memory_unregister(dague_device_t* device, void* ptr)
     CUcontext ctx;
     int rc = DAGUE_ERROR;
 
-    /* Atomically get the GPU context */
-    do {
-        ctx = gpu_device->ctx;
-        dague_atomic_cas( &(gpu_device->ctx), ctx, NULL );
-    } while( NULL == ctx );
+    if (!host_mem_unregistered) {
 
-    status = cuCtxPushCurrent( ctx );
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPushCurrent ", status,
-                            {goto restore_and_return;} );
+        /* Atomically get the GPU context */
+        do {
+            ctx = gpu_device->ctx;
+            dague_atomic_cas( &(gpu_device->ctx), ctx, NULL );
+        } while( NULL == ctx );
 
-    status = cuMemHostUnregister(ptr);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cuMemHostUnregister ", status,
-                            {goto restore_and_return;} );
+        status = cuCtxPushCurrent( ctx );
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPushCurrent ", status,
+                                {goto restore_and_return;} );
 
-    status = cuCtxPopCurrent(NULL);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
-                            {goto restore_and_return;} );
-    rc = DAGUE_SUCCESS;
+        status = cuMemHostUnregister(ptr);
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cuMemHostUnregister ", status,
+                                {goto restore_and_return;} );
 
-  restore_and_return:
-    /* Restore the context so the others can steal it */
-    dague_atomic_cas( &(gpu_device->ctx), NULL, ctx );
+        status = cuCtxPopCurrent(NULL);
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
+                                {goto restore_and_return;} );
+        rc = DAGUE_SUCCESS;
+
+        host_mem_unregistered = 1;
+
+      restore_and_return:
+        /* Restore the context so the others can steal it */
+        dague_atomic_cas( &(gpu_device->ctx), NULL, ctx );
+
+    }
 
     return rc;
 }
@@ -366,7 +383,7 @@ int dague_gpu_init(dague_context_t *dague_context)
     if( ndevices > use_cuda ) {
         if( 0 < use_cuda_index ) {
             //dague_mca_param_set_int(use_cuda_index, ndevices);
-            ndevices = use_cuda;
+            //ndevices = use_cuda;
         }
     }
     /* Update the number of GPU for the upper layer */
