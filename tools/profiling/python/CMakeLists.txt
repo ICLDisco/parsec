@@ -5,7 +5,8 @@
 set(SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
 set(SETUP_PY    "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
 set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/py_dbpreader.pyx"
-                "${CMAKE_CURRENT_SOURCE_DIR}/py_dbpreader.pxd")
+                "${CMAKE_CURRENT_SOURCE_DIR}/py_dbpreader.pxd"
+                dague-base dague)
 set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp"
                 "${CMAKE_CURRENT_BINARY_DIR}/dbpreader_py.c")
 
