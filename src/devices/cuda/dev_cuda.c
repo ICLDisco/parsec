@@ -363,9 +363,11 @@ int dague_gpu_init(dague_context_t *dague_context)
 
     cuDeviceGetCount( &ndevices );
 
-    if( ndevices < use_cuda ) {
-        if( 0 < use_cuda_index )
-            dague_mca_param_set_int(use_cuda_index, ndevices);
+    if( ndevices > use_cuda ) {
+        if( 0 < use_cuda_index ) {
+            //dague_mca_param_set_int(use_cuda_index, ndevices);
+            ndevices = use_cuda;
+        }
     }
     /* Update the number of GPU for the upper layer */
     use_cuda = ndevices;
