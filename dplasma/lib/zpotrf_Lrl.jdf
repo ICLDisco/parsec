@@ -65,6 +65,7 @@ BODY
     CORE_zpotrf(uplo, tempkm, T, ldak, &iinfo );
     if( iinfo != 0 && *INFO == 0 )
         *INFO = k*descA.mb+iinfo; /* Should return here */
+    printf("k %d, info %d\n", k, iinfo);
 #endif  /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d)\n",

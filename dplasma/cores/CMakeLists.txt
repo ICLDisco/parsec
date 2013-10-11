@@ -7,10 +7,11 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 
 ### Generate the CUDA kernels if necessary
 if(CUDA_FOUND)
-    set(CUDA_SM_TARGETS 11 13 20)
+    set(CUDA_SM_TARGETS 11 13 20 35)
     set(CUDA_NVCC_FLAGS_11 -maxrregcount 32 -arch sm_11 -DCUDA_SM_VERSION=11)
     set(CUDA_NVCC_FLAGS_13 -maxrregcount 32 -arch sm_13 -DCUDA_SM_VERSION=13)
     set(CUDA_NVCC_FLAGS_20                  -arch sm_20 -DCUDA_SM_VERSION=20)
+    set(CUDA_NVCC_FLAGS_35                  -arch sm_35 -DCUDA_SM_VERSION=35)
 
 ### CUDA .cu sources
     set( CUDA11_SOURCES
@@ -20,6 +21,7 @@ if(CUDA_FOUND)
     set( CUDA20_SOURCES 
          zgemm_20_30.cu
     )
+    set( CUDA35_SOURCES ${CUDA11_SOURCES} )
 
     foreach( _smtarget ${CUDA_SM_TARGETS} )
         set(cuda_generated_files "")
