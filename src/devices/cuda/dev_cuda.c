@@ -382,15 +382,21 @@ int dague_gpu_init(dague_context_t *dague_context)
 
     if( ndevices > use_cuda ) {
         if( 0 < use_cuda_index ) {
-            //dague_mca_param_set_int(use_cuda_index, ndevices);
-            //ndevices = use_cuda;
+            ndevices = use_cuda;
+        }
+    } else if (ndevices < use_cuda ) {
+        if( 0 < use_cuda_index ) {
+            fprintf(stderr, "There are only %d GPU available in this machine. PaRSEC will enable all of them.\n", ndevices);
+            dague_mca_param_set_int(use_cuda_index, ndevices);
         }
     }
+
     /* Update the number of GPU for the upper layer */
     use_cuda = ndevices;
     if( 0 == ndevices ) {
         return -1;
     }
+
     show_caps_index = dague_mca_param_find("device", NULL, "show_capabilities");
     if(0 < show_caps_index) {
         dague_mca_param_lookup_int(show_caps_index, &show_caps);
