@@ -20,6 +20,8 @@ ext_modules = [Extension('py_dbpreader', ['@CMAKE_CURRENT_SOURCE_DIR@/py_dbpread
                                                    '@CMAKE_CURRENT_BINARY_DIR@/../dbpreader.h',
                                                    '@PROJECT_SOURCE_DIR@/include/dbp.h',
                                                    '@PROJECT_SOURCE_DIR@/include/os-spec-timing.h'],
+                                          libraries=['dague-base'],
+                                          library_dirs=['@PROJECT_BINARY_DIR@/dague'],
 #                                          extra_compile_args=['@CMAKE_C_FLAGS@']
                                           )]
 
