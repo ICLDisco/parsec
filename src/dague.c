@@ -259,7 +259,7 @@ static void dague_vp_init( dague_vp_t *vp,
 #if defined(HAVE_GETOPT_LONG)
     static struct option long_options[] =
         {
-            {"dague_help",       no_argument,        NULL, 'h'},
+            {"help",             no_argument,        NULL, 'h'},
             {"dague_bind",       optional_argument,  NULL, 'b'},
             {"dague_bind_comm",  optional_argument,  NULL, 'C'},
 
@@ -1453,7 +1453,7 @@ void dague_usage(void)
             "     Warning:: The binding options rely on hwloc. The core numerotation is defined between 0 and the number of cores.\n"
             "     Be careful when used with cgroups.\n"
             "\n"
-            "     --dague_help         : this message\n"
+            "    --help         : this message\n"
             "\n"
             " -c --cores        : number of concurent threads (default: number of physical hyper-threads)\n"
             " -g --gpus         : number of GPU (default: 0)\n"
