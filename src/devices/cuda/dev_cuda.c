@@ -44,11 +44,41 @@ int dague_cuda_output_stream = -1;
 static char* cuda_lib_path = NULL;
 
 /* Dirty selection for now */
-float gpu_speeds[2][2] ={
-    /* C1060, C2050 */
-    { 622.08, 1030.4 },
-    {  77.76,  515.2 }
+float gpu_speeds[2][3] ={
+    /* C1060, C2050, K20 */
+    { 622.08, 1030.4, 3520 },
+    {  77.76,  515.2, 1170 }
 };
+float *device_weight = NULL;
+
+/* in new cuda, cuMemHostRegister requires to be called only once to get host memory pinned for all gpus. 
+ * When using old cuda, they may need to be removed */
+int host_mem_registered = 0;
+int host_mem_unregistered = 0;
+
+/* look up GPU device weight
+ * major = 1:Tesla, 2:Fermi, 3:Kepler
+ * data_type_flag = 's':single, 'd':double
+ */
+static int dague_cuda_lookup_device_weight(float *weight, int major, char data_type_flag)
+{
+    switch (major)
+    {
+        case 1:
+            *weight = ( data_type_flag == 's' ) ? gpu_speeds[0][0] : gpu_speeds[1][0];
+            break;
+        case 2:
+            *weight = ( data_type_flag == 's' ) ? gpu_speeds[0][1] : gpu_speeds[1][1];
+            break;
+        case 3:
+            *weight = ( data_type_flag == 's' ) ? gpu_speeds[0][2] : gpu_speeds[1][2];
+            break;
+        default:
+            fprintf(stderr, "Unsupporttd GPU, skip.\n");
+            return DAGUE_ERROR;
+    }
+    return DAGUE_SUCCESS;
+} 
 
 static int dague_cuda_device_fini(dague_device_t* device)
 {
@@ -105,28 +135,34 @@ static int dague_cuda_memory_register(dague_device_t* device, void* ptr, size_t 
     CUcontext ctx;
     int rc = DAGUE_ERROR;
 
-    /* Atomically get the GPU context */
-    do {
-        ctx = gpu_device->ctx;
-        dague_atomic_cas( &(gpu_device->ctx), ctx, NULL );
-    } while( NULL == ctx );
+    if (!host_mem_registered) {
 
-    status = cuCtxPushCurrent( ctx );
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPushCurrent ", status,
-                            {goto restore_and_return;} );
+        /* Atomically get the GPU context */
+        do {
+            ctx = gpu_device->ctx;
+            dague_atomic_cas( &(gpu_device->ctx), ctx, NULL );
+        } while( NULL == ctx );
 
-    status = cuMemHostRegister(ptr, length, CU_MEMHOSTREGISTER_PORTABLE);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuMemHostRegister ", status,
-                            {goto restore_and_return;} );
+        status = cuCtxPushCurrent( ctx );
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPushCurrent ", status,
+                                {goto restore_and_return;} );
 
-    status = cuCtxPopCurrent(NULL);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
-                            {goto restore_and_return;} );
-    rc = DAGUE_SUCCESS;
+        status = cuMemHostRegister(ptr, length, CU_MEMHOSTREGISTER_PORTABLE);
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuMemHostRegister ", status,
+                                {goto restore_and_return;} );
+  
+        status = cuCtxPopCurrent(NULL);
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
+                                {goto restore_and_return;} );
+        rc = DAGUE_SUCCESS;
+    
+        host_mem_registered = 1;
 
-  restore_and_return:
-    /* Restore the context so the others can steal it */
-    dague_atomic_cas( &(gpu_device->ctx), NULL, ctx );
+      restore_and_return:
+        /* Restore the context so the others can steal it */
+        dague_atomic_cas( &(gpu_device->ctx), NULL, ctx );
+
+    }
 
     return rc;
 }
@@ -138,28 +174,34 @@ static int dague_cuda_memory_unregister(dague_device_t* device, void* ptr)
     CUcontext ctx;
     int rc = DAGUE_ERROR;
 
-    /* Atomically get the GPU context */
-    do {
-        ctx = gpu_device->ctx;
-        dague_atomic_cas( &(gpu_device->ctx), ctx, NULL );
-    } while( NULL == ctx );
+    if (!host_mem_unregistered) {
 
-    status = cuCtxPushCurrent( ctx );
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPushCurrent ", status,
-                            {goto restore_and_return;} );
+        /* Atomically get the GPU context */
+        do {
+            ctx = gpu_device->ctx;
+            dague_atomic_cas( &(gpu_device->ctx), ctx, NULL );
+        } while( NULL == ctx );
 
-    status = cuMemHostUnregister(ptr);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cuMemHostUnregister ", status,
-                            {goto restore_and_return;} );
+        status = cuCtxPushCurrent( ctx );
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPushCurrent ", status,
+                                {goto restore_and_return;} );
 
-    status = cuCtxPopCurrent(NULL);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
-                            {goto restore_and_return;} );
-    rc = DAGUE_SUCCESS;
+        status = cuMemHostUnregister(ptr);
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cuMemHostUnregister ", status,
+                                {goto restore_and_return;} );
 
-  restore_and_return:
-    /* Restore the context so the others can steal it */
-    dague_atomic_cas( &(gpu_device->ctx), NULL, ctx );
+        status = cuCtxPopCurrent(NULL);
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
+                                {goto restore_and_return;} );
+        rc = DAGUE_SUCCESS;
+
+        host_mem_unregistered = 1;
+
+      restore_and_return:
+        /* Restore the context so the others can steal it */
+        dague_atomic_cas( &(gpu_device->ctx), NULL, ctx );
+
+    }
 
     return rc;
 }
@@ -327,6 +369,8 @@ int dague_gpu_init(dague_context_t *dague_context)
     int use_cuda_index, use_cuda;
     int cuda_mask, cuda_verbosity;
     int ndevices, i, j, k;
+    int isdouble = 0;
+    float total_perf;
     CUresult status;
 
     use_cuda_index = dague_mca_param_reg_int_name("device_cuda", "enabled",
@@ -360,15 +404,23 @@ int dague_gpu_init(dague_context_t *dague_context)
 
     cuDeviceGetCount( &ndevices );
 
-    if( ndevices < use_cuda ) {
-        if( 0 < use_cuda_index )
+    if( ndevices > use_cuda ) {
+        if( 0 < use_cuda_index ) {
+            ndevices = use_cuda;
+        }
+    } else if (ndevices < use_cuda ) {
+        if( 0 < use_cuda_index ) {
+            fprintf(stderr, "There are only %d GPU available in this machine. PaRSEC will enable all of them.\n", ndevices);
             dague_mca_param_set_int(use_cuda_index, ndevices);
+        }
     }
+
     /* Update the number of GPU for the upper layer */
     use_cuda = ndevices;
     if( 0 == ndevices ) {
         return -1;
     }
+
     show_caps_index = dague_mca_param_find("device", NULL, "show_capabilities");
     if(0 < show_caps_index) {
         dague_mca_param_lookup_int(show_caps_index, &show_caps);
@@ -384,6 +436,9 @@ int dague_gpu_init(dague_context_t *dague_context)
                                             0, NULL,
                                             &dague_cuda_own_GPU_key_start, &dague_cuda_own_GPU_key_end);
 #endif  /* defined(PROFILING) */
+
+    /* TODO: Remove this ASAP */
+    device_weight = (float*)calloc(ndevices+1, sizeof(float));
 
     for( i = 0; i < ndevices; i++ ) {
 #if CUDA_VERSION >= 3020
@@ -417,10 +472,17 @@ int dague_gpu_init(dague_context_t *dague_context)
         status = cuDeviceGetAttribute( &computemode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
 
-        if ( isdouble )
-            device_weight[i+1] = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
-        else
-            device_weight[i+1] = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
+        if ( isdouble ) {
+            //device_weight[i+1] = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
+            if (dague_cuda_lookup_device_weight(&device_weight[i+1], major, 'd') == DAGUE_ERROR) {
+                return -1;
+            }
+        } else {
+            //device_weight[i+1] = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
+            if (dague_cuda_lookup_device_weight(&device_weight[i+1], major, 's') == DAGUE_ERROR) {
+                return -1;
+            }
+        }
 
         if( show_caps ) {
             STATUS(("GPU Device %d (capability %d.%d): %s\n", i, major, minor, szName ));
@@ -516,8 +578,13 @@ int dague_gpu_init(dague_context_t *dague_context)
          * device_weight[i+1] = ((float)devProps.maxThreadsPerBlock * (float)devProps.clockRate) * 2;
          * device_weight[i+1] *= (concurrency == 1 ? 2 : 1);
          */
-        gpu_device->super.device_dweight = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
-        gpu_device->super.device_sweight = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
+        //gpu_device->super.device_dweight = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
+        //gpu_device->super.device_sweight = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
+        if (dague_cuda_lookup_device_weight(&(gpu_device->super.device_dweight), major, 'd') == DAGUE_ERROR ||
+            dague_cuda_lookup_device_weight(&(gpu_device->super.device_sweight), major, 's') == DAGUE_ERROR ) {
+            return -1;
+        }
+        printf("dweight %f, sweight %f\n", gpu_device->super.device_dweight, gpu_device->super.device_sweight);
 
         /* Initialize internal lists */
         OBJ_CONSTRUCT(&gpu_device->gpu_mem_lru,       dague_list_t);
@@ -538,7 +605,7 @@ int dague_gpu_init(dague_context_t *dague_context)
             DEBUG(("Device index %2d ->ratio %2.4e\n",
                    i-1, device_weight[i]));
         device_weight[i] = (total_perf / device_weight[i]);
-        if( dague_show_detailed_capabilities ) {
+        if( cuda_verbosity ) {
             if( 0 == i )
                 STATUS(("CPU             ->ratio %2.4f\n", device_weight[i]));
             else

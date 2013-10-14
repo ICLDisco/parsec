@@ -218,14 +218,16 @@ int vpmap_init_from_file(const char *filename)
     char *line = NULL;
     size_t nline = 0;
     int rank = 0;
-    int nbth, nbcores, c, v;
+    int nbth = 1, nbcores, c, v;
 
     if( nbvp != -1 ) {
         vpmap_nb_total_threads = -1;
         return -1;
     }
 
+#if defined(HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
+#endif  /* defined(HAVE_HWLOC) */
 
     f = fopen(filename, "r");
     if( NULL == f ) {
@@ -352,7 +354,9 @@ int vpmap_init_from_parameters(int _nbvp, int _nbthreadspervp, int _nbcores)
         return -1;
     }
 
+#if defined(HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
+#endif  /* defined(HAVE_HWLOC) */
 
     nbcores = _nbcores;
     nbthreadspervp = _nbthreadspervp;
@@ -375,7 +379,9 @@ int vpmap_init_from_flat(int _nbcores)
         return -1;
     }
 
+#if defined(HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
+#endif  /* defined(HAVE_HWLOC) */
 
     nbvp = 1;
     nbcores = _nbcores/nbht;
@@ -405,7 +411,9 @@ void vpmap_display_map(FILE *out)
         return;
     }
 
+#if defined(HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
+#endif  /* defined(HAVE_HWLOC) */
 
     fprintf(out, "# [%d]  Map with %d Virtual Processes\n", rank, nbvp);
     for(v = 0; v < nbvp; v++) {
@@ -472,7 +480,9 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
 #endif /* DAGUE_DEBUG_VERBOSE2 */
 
         int core=-1, prev=-1;
+#if defined(HAVE_HWLOC)
         nbht = dague_hwloc_get_ht();
+#endif  /* defined(HAVE_HWLOC) */
 
         /* extract a single core per thread (round-robin) */
         for( t=0; t<nbth; t+=nbht ) {

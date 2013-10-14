@@ -166,7 +166,6 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
 
     res->first_events_buffer_offset = (off_t)-1;
     res->current_events_buffer = NULL;
-    res->thread_owner = pthread_self();
 
     dague_list_fifo_push( &threads, (dague_list_item_t*)res );
 

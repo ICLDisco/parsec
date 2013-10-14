@@ -14,6 +14,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <unistd.h>
+#include <limits.h>
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
@@ -258,7 +259,7 @@ static void dague_vp_init( dague_vp_t *vp,
 #if defined(HAVE_GETOPT_LONG)
     static struct option long_options[] =
         {
-            {"dague_help",       no_argument,        NULL, 'h'},
+            {"help",             no_argument,        NULL, 'h'},
             {"dague_bind",       optional_argument,  NULL, 'b'},
             {"dague_bind_comm",  optional_argument,  NULL, 'C'},
 
@@ -401,8 +402,11 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                 break;
 
             case 'H':  /* hyper-threading */
+#if defined(HAVE_HWLOC)
                 dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
-
+#else
+                fprintf(stderr, "Option H (hyper-threading) disabled without HWLOC\n");
+#endif  /* defined(HAVE_HWLOC */
             case '.':
                 if( dague_enable_dot ) free( dague_enable_dot );
                 /** Could not make optional_argument work. Recoding its behavior... */
@@ -632,15 +636,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if( NULL != binding_parameter )
         dague_parse_binding_parameter(binding_parameter, context, startup);
 
-    /* Enable the GPU support if possible and requested */
-    if(nb_devices > 0) {
-#if defined(HAVE_CUDA)
-        if(0 != dague_gpu_init(context, &nb_devices, DAGUE_DEBUG_VERBOSE)) {
-            fprintf(stderr, "#XXXXX DAGuE is unable to initialize the CUDA environment.\n");
-        }
-#endif  /* defined(HAVE_CUDA) */
-    }
-
     /* Set the scheduler */
     dague_set_scheduler( context );
 
@@ -670,11 +665,6 @@ int dague_fini( dague_context_t** pcontext )
 {
     dague_context_t* context = *pcontext;
     int nb_total_comp_threads, t, p, c;
-
-    /* In case the GPU is up and running */
-#if defined(HAVE_CUDA)
-    dague_gpu_fini();
-#endif  /* defined(HAVE_CUDA) */
 
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {
@@ -1463,7 +1453,7 @@ void dague_usage(void)
             "     Warning:: The binding options rely on hwloc. The core numerotation is defined between 0 and the number of cores.\n"
             "     Be careful when used with cgroups.\n"
             "\n"
-            "     --dague_help         : this message\n"
+            "    --help         : this message\n"
             "\n"
             " -c --cores        : number of concurent threads (default: number of physical hyper-threads)\n"
             " -g --gpus         : number of GPU (default: 0)\n"

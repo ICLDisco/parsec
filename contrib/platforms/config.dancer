@@ -10,6 +10,7 @@ GTG_DIR=${GTG_DIR:="/opt/gtg"}
 CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
 OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
 PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
+PAPI_DIR=${PAPI_DIR:="/opt/papi"}
 
 TESTCMD="-DMPI_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode\" -DSHM_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode -np 1\""
 
