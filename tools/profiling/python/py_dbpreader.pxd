@@ -16,11 +16,14 @@ cdef extern from "dbp.h":
    int KEY_IS_END(int key)
    int BASE_KEY(int key)
 
+cdef extern from "stdint.h":
+    ctypedef int uint64_t
+   
 cdef extern from "os-spec-timing.h":
    ctypedef struct dague_time_t:
       pass
 
-   unsigned long long diff_time(dague_time_t start, dague_time_t end)
+   uint64_t diff_time(dague_time_t start, dague_time_t end)
 
 cdef extern from "dbpreader.h":
    ctypedef struct dbp_info_t:

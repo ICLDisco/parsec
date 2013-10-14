@@ -9,6 +9,12 @@ import os.path
 import sys
 import socket
 
+libdaguebase = '@PROJECT_BINARY_DIR@/dague/libdague-base.a'
+
+libs = ['irc', 'imf']
+lib_dirs = ['/mnt/scratch/sw/intel/composer_xe_2013/lib/intel64/']
+run_dirs = ['/mnt/scratch/sw/intel/composer_xe_2013/lib/intel64/']
+
 ext_modules = [Extension('py_dbpreader', ['@CMAKE_CURRENT_SOURCE_DIR@/py_dbpreader.pyx',
                                           '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
                                           include_dirs=['@PROJECT_SOURCE_DIR@/include',
@@ -16,10 +22,14 @@ ext_modules = [Extension('py_dbpreader', ['@CMAKE_CURRENT_SOURCE_DIR@/py_dbpread
                                                         '@PROJECT_BINARY_DIR@/include',
                                                         '@PROJECT_BINARY_DIR@',
                                                         '@CMAKE_CURRENT_SOURCE_DIR@/../'],
+                         extra_objects=[libdaguebase],
                                           depends=['py_dbpreader.pxd',
                                                    '@CMAKE_CURRENT_BINARY_DIR@/../dbpreader.h',
                                                    '@PROJECT_SOURCE_DIR@/include/dbp.h',
                                                    '@PROJECT_SOURCE_DIR@/include/os-spec-timing.h'],
+                         library_dirs=lib_dirs,
+                         runtime_library_dirs=run_dirs,
+                         libraries=libs,
 #                                          extra_compile_args=['@CMAKE_C_FLAGS@']
                                           )]
 

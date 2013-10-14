@@ -13,8 +13,14 @@ from operator import attrgetter
 from libc.stdlib cimport malloc, free
 from profiling      import * # the pure Python classes
 from profiling_info import * # the pure Python classes representing custom INFO structs
+import numpy as np
+import pandas as pd
+import timer
 
-# this is the public Python interface function. call it.
+class Dummy(object):
+    pass
+
+# this is the public Python interfacea function. call it.
 cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
     cdef char ** c_filenames = stringListToCStrings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
@@ -27,6 +33,13 @@ cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
     profile = Profile()
     profile.worldsize = dbp_reader_worldsize(dbp) # what does this even do?
 
+    profile.df = None
+    profile.series = []
+    profile.infos = []
+    profile.event_columns = ['filerank', 'thread', 'key', 'flags', 'handle_id',
+                             'id', 'begin', 'end', 'duration']
+
+    
     # create dictionary first, for later use while making Events
     for key in range(nb_dict_entries):
         cdict = dbp_reader_get_dictionary(dbp, key)
@@ -50,65 +63,26 @@ cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
             pfile.threads.append(new_thr)
         profile.files[rank] = pfile
 
-    if do_sort:
-        profile.sort(key = attrgetter(sort_key))
-        make_duration_stats(profile)
-        for key, handle in profile.handles.iteritems():
-            handle.sort(key = attrgetter(sort_key))
-            make_duration_stats(handle)
-        for event_name, event_type in profile.event_types.iteritems():
-            event_type.sort(key = attrgetter(sort_key))
-            make_duration_stats(event_type)
-            
-        for rank, f in profile.files.iteritems():
-            for thread in f.threads:
-                thread.sort(key = attrgetter(sort_key))
-                for name, event_type in thread.event_types.iteritems():
-                    event_type.sort(key = attrgetter(sort_key))
-                    for index, event in enumerate(event_type):
-                        if index > 0:
-                            if event_type[index - 1].end > event.begin:
-                                print('these {} events overlap!'.format(name))
-                                print(event_type[index - 1])
-                                print(event)
-                    make_duration_stats(event_type)
-    profile.is_sorted = do_sort
-        
+    with timer.Timer() as t:
+        # profile.df = pd.DataFrame(profile.series, columns=['filerank', 'thread', 'key', 'flags', 'handle_id',
+        #                                                'id', 'begin', 'end', 'duration', 'unique_id'])
+        profile.df = pd.DataFrame.from_records(profile.series)
+    print('main dataframe time: ' + str(t.interval))
+    profile.series = None
+
+    # with timer.Timer() as t:
+    #     profile.info_df = pd.DataFrame.from_records(profile.infos)
+    # print('infos dataframe time: ' + str(t.interval))
+    profile.infos = None
+    
     dbp_reader_close_files(dbp) # does nothing as of 2013-04-21
 #   dbp_reader_dispose_reader(dbp)
     free(c_filenames)
-
-    # print('start event ids')
-    # total = 0
-    # d = dict()
-    # names = dict()
-    # for key, value in profile.begin_ids.iteritems():
-    #     total += 1
-    #     if len(value) not in d:
-    #         d[len(value)] = 0
-    #         names[len(value)] = []
-    #     d[len(value)] += 1
-    #     for event in value:
-    #         if profile.type_key_to_name[event.key] not in names[len(value)]:
-    #             names[len(value)].append(profile.type_key_to_name[event.key])
-    # print(d)
-    # print(names)
-    # print('end event ids')
 
     for key, value in profile.errors.iteritems():
         print('event ' + str(key) + ' ' + str(len(value)))
     return profile
 
-cpdef make_duration_stats(container):
-    if len(container) == 0:
-        container.begin = 0
-        container.end = 0
-        container.duration = 0
-    else:
-        container.begin = container[0].begin
-        container.end = container[-1].end
-        container.duration = container.end - container.begin
-    
 # helper function for readProfile
 cdef char** stringListToCStrings(strings):
     cdef char ** c_argv
@@ -132,8 +106,8 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
     cdef dbp_event_t * event_s = dbp_iterator_current(it_s)
     cdef dbp_event_t * event_e = NULL
     cdef dague_time_t reader_begin = dbp_reader_min_date(dbp)
-    cdef unsigned long long begin = 0
-    cdef unsigned long long end = 0
+    cdef uint64_t begin = 0
+    cdef uint64_t end = 0
     cdef void * cinfo = NULL
     cdef papi_exec_info_t * cast_exec_info = NULL
     cdef select_info_t * cast_select_info = NULL
@@ -159,201 +133,194 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                         thread.end = end
                     
                     event_key = int(dbp_event_get_key(event_s)) / 2 # to match dictionary
+
+                    if end < begin and event_key == profile.event_types['PINS_L12_SELECT'].key:
+                        dbp_iterator_delete(it_e)
+                        it_e = NULL
+                        dbp_iterator_next(it_s)
+                        event_s = dbp_iterator_current(it_s)
+                        continue
+
                     event_flags = dbp_event_get_flags(event_s)
                     event_handle_id = int(dbp_event_get_handle_id(event_s))
                     event_id = int(dbp_event_get_event_id(event_s))
-                    event = dbpEvent(thread,
-                                     event_key,
-                                     event_flags,
-                                     event_handle_id,
-                                     event_id,
-                                     begin, end)
+                    duration = end - begin
                     event_name = profile.type_key_to_name[event_key]
-                    
-                    if event_handle_id not in profile.handles:
-                        profile.handles[event_handle_id] = dbpHandle(profile, event_handle_id)
-                    if event_name not in thread.event_types:
-                        thread.event_types[event_name] = dbpEventType(
-                            profile, event_key, profile.event_types[event_name].attributes)
-                    if event_name not in profile.handles[event_handle_id].event_types:
-                        profile.handles[event_handle_id].event_types[event_name] = dbpEventType(
-                            profile, event_key, profile.event_types[event_name].attributes)
-
-                    global_stats = profile.event_types[event_name].stats
-                    global_stats.count += 1
-                    global_stats.total_duration += event.duration
-                        
-                    # debug tests for PINS_L123 split across threads
-                    # if dbp_iterator_thread(it_s) != dbp_iterator_thread(it_e):
-                    #     print('this event {} started {} and ended {} in different threads.'.format(
-                    #         event_name, begin, end))
-                    # if event_id not in profile.begin_ids:
-                    #     profile.begin_ids[event_id] = []
-                    # profile.begin_ids[event_id].append(event)
-                    # end_id = dbp_event_get_event_id(event_e)
-                    # if end_id not in profile.end_ids:
-                    #     profile.end_ids[end_id] = []
-                    # profile.end_ids[end_id].append(event)
 
                     #####################################
                     # not all events have info
                     # also, not all events have the same info.
                     # so this is where users must add code to translate
                     # their own info objects
+                    event_info = None
+                    unique_id = len(profile.series)
+                    
+                    ###### START PANDAS TEST
                     cinfo = dbp_event_get_info(event_e)
                     if cinfo != NULL:
                         if ('PINS_EXEC' in profile.event_types and
                             event_key == profile.event_types['PINS_EXEC'].key):
                             cast_exec_info = <papi_exec_info_t *>cinfo
                             kernel_name = str(cast_exec_info.kernel_name)
-                            event.info = dbp_Exec_EventInfo(
+                            event_info = {
+                                'kernel_type':
                                 cast_exec_info.kernel_type,
+                                'kernel_name':
                                 kernel_name,
+                                'vp_id':
                                 cast_exec_info.vp_id,
+                                'thread_id':
                                 cast_exec_info.th_id,
+                                'exec_info':
                                 [cast_exec_info.values[x] for x
-                                 in range(cast_exec_info.values_len)])
-                            if kernel_name not in global_stats.exec_stats:
-                                global_stats.exec_stats[kernel_name] = ExecSelectStats(kernel_name)
-                            pstats = global_stats.exec_stats[kernel_name]
-                            pstats.count += 1
-                            pstats.total_duration += event.duration
-                            pstats.l1_misses += event.info.values[0]
-                            pstats.l2_hits += event.info.values[1]
-                            pstats.l2_misses += event.info.values[2]
-                            pstats.l2_accesses += event.info.values[3]
-                            # if kernel_name == 'POTRF':
-                            #     print('PYDBPR found POTRF ' + str(pstats.count) + ' ' + str(event_key))
+                                 in range(cast_exec_info.values_len)]}
                         elif ('PINS_SELECT' in profile.event_types and
                               event_key == profile.event_types['PINS_SELECT'].key):
                             cast_select_info = <select_info_t *>cinfo
                             kernel_name = str(cast_select_info.kernel_name)
-                            event.info = dbp_Select_EventInfo(
+                            event_info = {
+                                'kernel_type':
                                 cast_select_info.kernel_type,
+                                'kernel_name':
                                 kernel_name,
+                                'vp_id':
                                 cast_select_info.vp_id,
+                                'th_id':
                                 cast_select_info.th_id,
+                                'victim_vp_id':
                                 cast_select_info.victim_vp_id,
+                                'victim_thread_id':
                                 cast_select_info.victim_th_id,
+                                'exec_context':
                                 cast_select_info.exec_context,
+                                'values':
                                 [cast_select_info.values[x] for x
-                                 in range(cast_select_info.values_len)])
-                            if kernel_name not in global_stats.select_stats:
-                                global_stats.select_stats[kernel_name] = ExecSelectStats(kernel_name)
-                            pstats = global_stats.select_stats[kernel_name]
-                            pstats.count += 1
-                            pstats.total_duration += event.duration
-                            pstats.l2_misses += event.info.values[1]
+                                 in range(cast_select_info.values_len)]}
                         elif ('PINS_SOCKET' in profile.event_types and
                               event_key == profile.event_types['PINS_SOCKET'].key):
                             cast_socket_info = <papi_socket_info_t *>cinfo
-                            event.info = dbp_Socket_EventInfo(
+                            event_info = [
                                 cast_socket_info.vp_id,
                                 cast_socket_info.th_id,
                                 [cast_socket_info.values[x] for x
-                                 in range(cast_socket_info.values_len)])
-                            if SocketStats.class_name not in global_stats.socket_stats:
-                                global_stats.socket_stats[SocketStats.class_name] = SocketStats()
-                            pstats = global_stats.socket_stats[SocketStats.class_name]
-                            pstats.count += 1
-                            pstats.total_duration += event.duration
-                            pstats.l3_exc_misses  += event.info.values[0]
-                            pstats.l3_shr_misses += event.info.values[1]
-                            pstats.l3_mod_misses += event.info.values[2]
+                                 in range(cast_socket_info.values_len)]]
                         elif ('PINS_L12_EXEC' in profile.event_types and
                               event_key == profile.event_types['PINS_L12_EXEC'].key):
                             cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
-                            kernel_name = str(cast_L12_exec_info.kernel_name)
-                            event.info = dbp_Exec_EventInfo(
+                            kernel_name = str(cast_L12_exec_info.kernel_name).decode('utf-8')
+                            event_info = {
+                                'unique_id':
+                                unique_id,
+                                'kernel_type':
                                 cast_L12_exec_info.kernel_type,
+                                'kernel_name':
                                 kernel_name,
+                                'vp_id':
                                 cast_L12_exec_info.vp_id,
+                                'thread_id':
                                 cast_L12_exec_info.th_id,
-                                [cast_L12_exec_info.L1_misses,
-                                 cast_L12_exec_info.L2_misses])
-                            if kernel_name not in global_stats.exec_stats:
-                                global_stats.exec_stats[kernel_name] = ExecSelectStats(kernel_name)
-                            pstats = global_stats.exec_stats[kernel_name]
-                            pstats.count += 1
-                            pstats.total_duration += event.duration
-                            pstats.l1_misses += event.info.values[0]
-                            pstats.l2_misses += event.info.values[1]
+                                'PAPI_L1':
+                                cast_L12_exec_info.L1_misses,
+                                'PAPI_L2':
+                                 cast_L12_exec_info.L2_misses
+                            }
                         elif ('PINS_L12_SELECT' in profile.event_types and
                               event_key == profile.event_types['PINS_L12_SELECT'].key):
                             cast_L12_select_info = <papi_L12_select_info_t *>cinfo
-                            kernel_name = str(cast_L12_select_info.kernel_name)
-                            event.info = dbp_Select_EventInfo(
+                            kernel_name = str(cast_L12_select_info.kernel_name).decode('utf-8')
+                            event_info = {
+                                'unique_id':
+                                unique_id,
+                                'kernel_type':
                                 cast_L12_select_info.kernel_type,
+                                'kernel_name':
                                 kernel_name,
+                                'vp_id':
                                 cast_L12_select_info.vp_id,
+                                'thread_id':
                                 cast_L12_select_info.th_id,
+                                'victim_vp_id':
                                 cast_L12_select_info.victim_vp_id,
+                                'victim_thread_id':
                                 cast_L12_select_info.victim_th_id,
+                                'starvation':
                                 cast_L12_select_info.starvation,
+                                'exec_context':
                                 cast_L12_select_info.exec_context,
-                                [cast_L12_select_info.L1_misses,
-                                 cast_L12_select_info.L2_misses])
-                            if kernel_name not in global_stats.select_stats:
-                                global_stats.select_stats[kernel_name] = ExecSelectStats(kernel_name)
-                                global_stats.select_stats[kernel_name].starvation = 0
-                            pstats = global_stats.select_stats[kernel_name]
-                            pstats.count += 1
-                            pstats.total_duration += event.duration
-                            pstats.starvation += event.info.starvation
-                            pstats.l1_misses += event.info.values[0]
-                            pstats.l2_misses += event.info.values[1]
+                                'PAPI_L1':
+                                cast_L12_select_info.L1_misses,
+                                'PAPI_L2':
+                                 cast_L12_select_info.L2_misses
+                            }
+                            
                         elif ('PINS_L123' in profile.event_types and
                               event_key == profile.event_types['PINS_L123'].key):
                             cast_L123_info = <papi_L123_info_t *>cinfo
-                            event.info = dbp_Socket_EventInfo(
+                            event_info = {
+                                'unique_id': 
+                                unique_id,
+                                'vp_id':
                                 cast_L123_info.vp_id,
+                                'thread_id':
                                 cast_L123_info.th_id,
-                                [cast_L123_info.L1_misses,
-                                 cast_L123_info.L2_misses,
-                                 cast_L123_info.L3_misses])
-                            if SocketStats.class_name not in global_stats.socket_stats:
-                                global_stats.socket_stats[SocketStats.class_name] = SocketStats()
-                            pstats = global_stats.socket_stats[SocketStats.class_name]
-                            pstats.count += 1
-                            pstats.total_duration += event.duration
-                            pstats.l1_misses += event.info.values[0]
-                            pstats.l2_misses += event.info.values[1]
-                            pstats.l3_exc_misses  += event.info.values[2]
-                            thread.l3_misses = cast_L123_info.L3_misses
+                                'PAPI_L1':
+                                cast_L123_info.L1_misses,
+                                'PAPI_L2':
+                                cast_L123_info.L2_misses,
+                                'PAPI_L3':
+                                cast_L123_info.L3_misses
+                            }
                         elif ('PINS_L12_ADD' in profile.event_types and
                               event_key == profile.event_types['PINS_L12_ADD'].key):
                             cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
-                            kernel_name = str(cast_L12_exec_info.kernel_name)
-                            event.info = dbp_Exec_EventInfo(
+                            kernel_name = str(cast_L12_exec_info.kernel_name).decode('utf-8')
+                            event_info = {
+                                'unique_id':
+                                unique_id,
+                                'kernel_type':
                                 cast_L12_exec_info.kernel_type,
+                                'kernel_name':
                                 kernel_name,
+                                'vp_id':
                                 cast_L12_exec_info.vp_id,
+                                'thread_id':
                                 cast_L12_exec_info.th_id,
-                                [cast_L12_exec_info.L1_misses,
-                                 cast_L12_exec_info.L2_misses])
-                            if kernel_name not in global_stats.add_stats:
-                                global_stats.add_stats[kernel_name] = ExecSelectStats(kernel_name)
-                            pstats = global_stats.add_stats[kernel_name]
-                            pstats.count += 1
-                            pstats.total_duration += event.duration
-                            pstats.l1_misses += event.info.values[0]
-                            pstats.l2_misses += event.info.values[1]
+                                'PAPI_L1':
+                                cast_L12_exec_info.L1_misses,
+                                'PAPI_L2':
+                                cast_L12_exec_info.L2_misses
+                            }
                         # elif ('<EVENT_TYPE_NAME>' in profile.event_types and
                         #       event.key == profile.event_types['<EVENT_TYPE_NAME>'].key):
-                        #   event.info = <write a function and a Python type to translate>
+                        #   event_info = <write a function and a Python type to translate>
                         else:
                             dont_print = True
                             if not dont_print:
                                 print('missed an info for event key ' + event_name )
 
-                    # event constructed. add it everywhere it belongs.
-                    thread.event_types[event_name].append(event)
-                    thread.append(event)
-                    profile.handles[event_handle_id].event_types[event_name].append(event)
-                    profile.handles[event_handle_id].append(event)
-                    profile.event_types[event_name].append(event)
-                    profile.append(event)
-                    
+                    # profile.series.append([
+                    #                        thread.file.rank, thread.id, event_key, event_flags,
+                    #                        event_handle_id, event_id,
+                    #                        begin, end, duration, unique_id]) #event_info])
+                    ['filerank', 'thread', 'key', 'flags', 'handle_id',
+                     'id', 'begin', 'end', 'duration', 'unique_id']
+                    thing = {'filerank':thread.file.rank,
+                                           'thread':thread.id,
+                                           'key':event_key,
+                                           'flags':event_flags,
+                                           'handle_id':event_handle_id,
+                                           'id':event_id,
+                                           'begin':begin,
+                                           'end':end,
+                                           'duration':duration,
+                                           }
+                    if event_info:
+                        thing.update(event_info)
+                    profile.series.append(thing)
+                                
+                    # if event_info:
+                    #     profile.infos.append(event_info)
+                                
                 dbp_iterator_delete(it_e)
                 it_e = NULL
             else:
@@ -369,8 +336,6 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
 
     thread.duration = thread.end - thread.begin
     if thread.starvation > thread.duration:
-        print('something is fishy... {} {}'.format(thread.starvation, thread.duration))
-    for event_name, event_type in thread.event_types.iteritems():
-        event_type.stats.starvation = 1.0 - float(event_type.stats.total_duration) / thread.duration
+        print('something is fishy about this thread... {} {}'.format(thread.starvation, thread.duration))
         
     return thread

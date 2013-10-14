@@ -298,37 +298,3 @@ class EventStats(object):
             self.name = self.event_name
             del self['event_name']
             self.__version__ = 1.2
-
-# this is the old class. it has been superseded by Profile
-class multifile_reader(list): # contains Events
-    class_version = 1.0
-    class_version = 1.1 # added handle dict and handle counts is now a dict
-    def __init__(self):
-        self.__version__ = self.__class__.class_version
-        self.dictionary = {}
-        self.dict_key_to_name = {}
-        self.files = []
-        self.handles = dict()
-        self.stats = ProfileStats()
-    def __setstate__(self, dictionary):
-        self.__dict__.update(dictionary)
-        if not hasattr(dictionary, '__version__'):
-            self.__version__ = 1.0
-        if self.__version__ < 1.1:
-            self.handles = dict()
-            bak_handle_counts = self.handle_counts
-            self.handle_counts = dict()
-            for index, count in enumerate(bak_handle_counts):
-                self.handle_counts[index] = count
-
-# not sure if this gets used?
-class d_time(object):
-    def __init__(self, seconds, nsec):
-        self.sec = seconds
-        self.nsec = nsec
-    def diff(self, time):
-        return d_time(time.sec - self.sec, time.nsec - self.nsec)
-    def abs(self):
-        return self.sec * 1000000000 + self.nsec
-
-                
