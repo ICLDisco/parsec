@@ -12,13 +12,9 @@ import sys
 from operator import attrgetter
 from libc.stdlib cimport malloc, free
 from profiling      import * # the pure Python classes
-from profiling_info import * # the pure Python classes representing custom INFO structs
+# from profiling_info import * # the pure Python classes representing custom INFO structs
 import numpy as np
 import pandas as pd
-import timer
-
-class Dummy(object):
-    pass
 
 # this is the public Python interfacea function. call it.
 cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
@@ -63,14 +59,14 @@ cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
             pfile.threads.append(new_thr)
         profile.files[rank] = pfile
 
-    with timer.Timer() as t:
+    with Timer() as t:
         # profile.df = pd.DataFrame(profile.series, columns=['filerank', 'thread', 'key', 'flags', 'handle_id',
         #                                                'id', 'begin', 'end', 'duration', 'unique_id'])
         profile.df = pd.DataFrame.from_records(profile.series)
     print('main dataframe time: ' + str(t.interval))
     profile.series = None
 
-    # with timer.Timer() as t:
+    # with Timer() as t:
     #     profile.info_df = pd.DataFrame.from_records(profile.infos)
     # print('infos dataframe time: ' + str(t.interval))
     profile.infos = None

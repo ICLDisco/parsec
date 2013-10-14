@@ -10,6 +10,16 @@
 
 import copy, sys
 import cPickle
+import time
+
+class Timer:
+    def __enter__(self):
+        self.start = time.clock()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.clock()
+        self.interval = self.end - self.start
 
 class AggregateList(list):
     def append(self, item):
@@ -109,8 +119,8 @@ class dbpEventType(AggregateList): # contains Events
         self.profile = profile
         self.key = key
         self.attributes = attributes
-        self.total_duration = 0
-        self.stats = EventStats(self.profile.type_key_to_name[key])
+#        self.total_duration = 0
+#        self.stats = EventStats(self.profile.type_key_to_name[key])
     def __setstate__(self, dictionary):
         self.__dict__.update(dictionary)
         if not hasattr(self, '__version__'):
