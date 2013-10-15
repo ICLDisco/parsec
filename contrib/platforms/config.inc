@@ -66,7 +66,7 @@ fi
 
 # Done with variable allocation, do the thing with Cmake
 rm -rf CMakeCache.txt CMakeFiles
-SRC_LOCATION=`dirname $0`/../../
+SRC_LOCATION=${SRC_LOCATION:=`dirname $0`/../../}
 CMAKE_COMMAND="cmake -G 'Unix Makefiles' ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${CUDA} ${GTG} ${DEBUG} ${USER_OPTIONS} ${TESTCMD} $* ${SRC_LOCATION}"
 echo $CMAKE_COMMAND
 eval $CMAKE_COMMAND
