@@ -7,11 +7,11 @@
 #include "dague_config.h"
 #include "pins.h"
 #include "dague/mca/mca_repository.h"
-#include "dague/mca/pins/papi_exec/pins_papi_exec.h"
-#include "dague/mca/pins/papi_socket/pins_papi_socket.h"
-#include "dague/mca/pins/papi_select/pins_papi_select.h"
 #include "execution_unit.h"
 #include "profiling.h"
+#if defined(HAVE_PAPI)
+#include <papi.h>
+#endif
 
 static int allowable_modules_in_use;  // allows all modules if not set
 static int allowable_modules_defined; // keeps them from being defined more than once
@@ -43,6 +43,14 @@ void pins_init(dague_context_t * master_context) {
     dague_pins_module_t * module = NULL;
     int priority = -1;
     i = 0;
+
+#if defined(HAVE_PAPI)
+    PAPI_library_init(PAPI_VER_CURRENT); // PETER: this has to happen before threads get created
+	PAPI_set_debug(PAPI_VERB_ECONT);
+    int t_init = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self )); // PETER is this the right place? it needs protection
+    if (t_init != PAPI_OK)
+	    DEBUG(("PAPI Thread Init failed with error code %d (%s)!\n", t_init, PAPI_strerror(t_init)));
+#endif // HAVE_PAPI
 
     pins_components = mca_components_open_bytype("pins");
     while (pins_components[i] != NULL) {
@@ -127,6 +135,14 @@ void pins_thread_init(dague_execution_unit_t * exec_unit) {
     dague_pins_module_t * module = NULL;
     int priority = -1;
     int i = 0;
+
+#if defined(HAVE_PAPI)
+    // PAPI INIT
+    int rv;
+    rv = PAPI_register_thread();
+    if (rv != PAPI_OK)
+	    DEBUG(("PAPI_register_thread failed with error %s\n", PAPI_strerror(rv)));
+#endif // HAVE_PAPI
 
     while (pins_components[i] != NULL) {
         if (pins_components[i]->mca_query_component != NULL) {
