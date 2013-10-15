@@ -8,6 +8,9 @@
 #
 # Be SURE to build this against the same version of Python as you have built Cython itself.
 # Contrasting versions will likely lead to odd errors about Unicode functions.
+
+# cython: profile=False
+# but could be True if we wanted to use cProfile!
 import sys
 from operator import attrgetter
 from libc.stdlib cimport malloc, free
@@ -15,9 +18,10 @@ from profiling      import * # the pure Python classes
 # from profiling_info import * # the pure Python classes representing custom INFO structs
 import numpy as np
 import pandas as pd
+#import cProfile, pstats
 
 # this is the public Python interfacea function. call it.
-cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
+cpdef readProfile(filenames, skip_infos=False):
     cdef char ** c_filenames = stringListToCStrings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
     
@@ -33,9 +37,8 @@ cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
     profile.series = []
     profile.infos = []
     profile.event_columns = ['filerank', 'thread', 'key', 'flags', 'handle_id',
-                             'id', 'begin', 'end', 'duration']
+                             'id', 'begin', 'end', 'duration', 'unique_id']
 
-    
     # create dictionary first, for later use while making Events
     for key in range(nb_dict_entries):
         cdict = dbp_reader_get_dictionary(dbp, key)
@@ -44,6 +47,8 @@ cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
         profile.event_types[event_name] = dbpEventType(profile, key,
                                                        dbp_dictionary_attributes(cdict))
     # convert c to py
+    # pr = cProfile.Profile()
+    # pr.enable()
     for ifd in range(nb_files):
         cfile = dbp_reader_get_file(dbp, ifd)
         rank = dbp_file_get_rank(cfile)
@@ -54,16 +59,30 @@ cpdef readProfile(filenames, do_sort=True, sort_key='begin'):
             key = dbp_info_get_key(cinfo)
             value = dbp_info_get_value(cinfo)
             pfile.infos.append(dbpInfo(key, value))
-        for thread_id in range(dbp_file_nb_threads(cfile)):
-            new_thr = makeDbpThread(profile, dbp, cfile, thread_id, pfile)
-            pfile.threads.append(new_thr)
+        print('First, we must iterate through the threads.')
+        with Timer() as t:
+            for thread_id in range(dbp_file_nb_threads(cfile)):
+                thread = makeDbpThread(profile, dbp, cfile, thread_id, pfile, skip_infos)
+                pfile.threads.append(thread)
+        print('This takes ' + str(t.interval) + ' seconds, which is about')
+        print(str(t.interval/len(pfile.threads)) + ' seconds per thread.')
         profile.files[rank] = pfile
+    # pr.disable()
+    # ps = pstats.Stats(pr, stream=sys.stdout)
+    # ps.print_stats()
 
+    print('Then we construct the DataFrames....')
     with Timer() as t:
-        # profile.df = pd.DataFrame(profile.series, columns=['filerank', 'thread', 'key', 'flags', 'handle_id',
-        #                                                'id', 'begin', 'end', 'duration', 'unique_id'])
-        profile.df = pd.DataFrame.from_records(profile.series)
-    print('main dataframe time: ' + str(t.interval))
+        profile.df = pd.DataFrame(profile.series, columns=profile.event_columns)
+#        profile.df = pd.DataFrame.from_records(profile.series)
+    print('   main dataframe time: ' + str(t.interval))
+    with Timer() as t:
+        infos = pd.DataFrame.from_records(profile.infos)
+    print('   infos dataframe time: ' + str(t.interval))
+    with Timer() as t:
+        profile.df = profile.df.merge(infos, on='unique_id', how='outer')
+    print('   join/merge time: ' + str(t.interval))
+    
     profile.series = None
 
     # with Timer() as t:
@@ -95,7 +114,7 @@ cdef char** stringListToCStrings(strings):
     return c_argv
 
 # you can't call this. it will be called for you. call readProfile()
-cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, pfile):
+cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int index, pfile, skip_infos):
     cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, index)
     cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
     cdef dbp_event_iterator_t * it_e = NULL
@@ -111,7 +130,9 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
     cdef papi_L12_select_info_t * cast_L12_select_info = NULL
     cdef papi_L12_exec_info_t * cast_L12_exec_info = NULL
     cdef long long int * cast_lld_ptr = NULL
+    cdef bytes kernel_name
 
+    thread_id = index
     thread = dbpThread(pfile, index)
 
     while event_s != NULL:
@@ -123,19 +144,14 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                     begin = diff_time(reader_begin, dbp_event_get_timestamp(event_s))
                     end = diff_time(reader_begin, dbp_event_get_timestamp(event_e))
 
-                    if thread.begin > begin:
-                        thread.begin = begin
-                    if thread.end < end:
-                        thread.end = end
-                    
                     event_key = int(dbp_event_get_key(event_s)) / 2 # to match dictionary
 
-                    if end < begin and event_key == profile.event_types['PINS_L12_SELECT'].key:
-                        dbp_iterator_delete(it_e)
-                        it_e = NULL
-                        dbp_iterator_next(it_s)
-                        event_s = dbp_iterator_current(it_s)
-                        continue
+                    # if end < begin and event_key == profile.event_types['PINS_L12_SELECT'].key:
+                    #     dbp_iterator_delete(it_e)
+                    #     it_e = NULL
+                    #     dbp_iterator_next(it_s)
+                    #     event_s = dbp_iterator_current(it_s)
+                    #     continue
 
                     event_flags = dbp_event_get_flags(event_s)
                     event_handle_id = int(dbp_event_get_handle_id(event_s))
@@ -151,187 +167,181 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                     event_info = None
                     unique_id = len(profile.series)
                     
-                    ###### START PANDAS TEST
-                    cinfo = dbp_event_get_info(event_e)
-                    if cinfo != NULL:
-                        if ('PINS_EXEC' in profile.event_types and
-                            event_key == profile.event_types['PINS_EXEC'].key):
-                            cast_exec_info = <papi_exec_info_t *>cinfo
-                            kernel_name = str(cast_exec_info.kernel_name)
-                            event_info = {
-                                'kernel_type':
-                                cast_exec_info.kernel_type,
-                                'kernel_name':
-                                kernel_name,
-                                'vp_id':
-                                cast_exec_info.vp_id,
-                                'thread_id':
-                                cast_exec_info.th_id,
-                                'exec_info':
-                                [cast_exec_info.values[x] for x
-                                 in range(cast_exec_info.values_len)]}
-                        elif ('PINS_SELECT' in profile.event_types and
-                              event_key == profile.event_types['PINS_SELECT'].key):
-                            cast_select_info = <select_info_t *>cinfo
-                            kernel_name = str(cast_select_info.kernel_name)
-                            event_info = {
-                                'kernel_type':
-                                cast_select_info.kernel_type,
-                                'kernel_name':
-                                kernel_name,
-                                'vp_id':
-                                cast_select_info.vp_id,
-                                'th_id':
-                                cast_select_info.th_id,
-                                'victim_vp_id':
-                                cast_select_info.victim_vp_id,
-                                'victim_thread_id':
-                                cast_select_info.victim_th_id,
-                                'exec_context':
-                                cast_select_info.exec_context,
-                                'values':
-                                [cast_select_info.values[x] for x
-                                 in range(cast_select_info.values_len)]}
-                        elif ('PINS_SOCKET' in profile.event_types and
-                              event_key == profile.event_types['PINS_SOCKET'].key):
-                            cast_socket_info = <papi_socket_info_t *>cinfo
-                            event_info = [
-                                cast_socket_info.vp_id,
-                                cast_socket_info.th_id,
-                                [cast_socket_info.values[x] for x
-                                 in range(cast_socket_info.values_len)]]
-                        elif ('PINS_L12_EXEC' in profile.event_types and
-                              event_key == profile.event_types['PINS_L12_EXEC'].key):
-                            cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
-                            kernel_name = str(cast_L12_exec_info.kernel_name).decode('utf-8')
-                            event_info = {
-                                'unique_id':
-                                unique_id,
-                                'kernel_type':
-                                cast_L12_exec_info.kernel_type,
-                                'kernel_name':
-                                kernel_name,
-                                'vp_id':
-                                cast_L12_exec_info.vp_id,
-                                'thread_id':
-                                cast_L12_exec_info.th_id,
-                                'PAPI_L1':
-                                cast_L12_exec_info.L1_misses,
-                                'PAPI_L2':
-                                 cast_L12_exec_info.L2_misses
-                            }
-                        elif ('PINS_L12_SELECT' in profile.event_types and
-                              event_key == profile.event_types['PINS_L12_SELECT'].key):
-                            cast_L12_select_info = <papi_L12_select_info_t *>cinfo
-                            kernel_name = str(cast_L12_select_info.kernel_name).decode('utf-8')
-                            event_info = {
-                                'unique_id':
-                                unique_id,
-                                'kernel_type':
-                                cast_L12_select_info.kernel_type,
-                                'kernel_name':
-                                kernel_name,
-                                'vp_id':
-                                cast_L12_select_info.vp_id,
-                                'thread_id':
-                                cast_L12_select_info.th_id,
-                                'victim_vp_id':
-                                cast_L12_select_info.victim_vp_id,
-                                'victim_thread_id':
-                                cast_L12_select_info.victim_th_id,
-                                'starvation':
-                                cast_L12_select_info.starvation,
-                                'exec_context':
-                                cast_L12_select_info.exec_context,
-                                'PAPI_L1':
-                                cast_L12_select_info.L1_misses,
-                                'PAPI_L2':
-                                 cast_L12_select_info.L2_misses
-                            }
-                            
-                        elif ('PINS_L123' in profile.event_types and
-                              event_key == profile.event_types['PINS_L123'].key):
-                            cast_L123_info = <papi_L123_info_t *>cinfo
-                            event_info = {
-                                'unique_id': 
-                                unique_id,
-                                'vp_id':
-                                cast_L123_info.vp_id,
-                                'thread_id':
-                                cast_L123_info.th_id,
-                                'PAPI_L1':
-                                cast_L123_info.L1_misses,
-                                'PAPI_L2':
-                                cast_L123_info.L2_misses,
-                                'PAPI_L3':
-                                cast_L123_info.L3_misses
-                            }
-                        elif ('PINS_L12_ADD' in profile.event_types and
-                              event_key == profile.event_types['PINS_L12_ADD'].key):
-                            cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
-                            kernel_name = str(cast_L12_exec_info.kernel_name).decode('utf-8')
-                            event_info = {
-                                'unique_id':
-                                unique_id,
-                                'kernel_type':
-                                cast_L12_exec_info.kernel_type,
-                                'kernel_name':
-                                kernel_name,
-                                'vp_id':
-                                cast_L12_exec_info.vp_id,
-                                'thread_id':
-                                cast_L12_exec_info.th_id,
-                                'PAPI_L1':
-                                cast_L12_exec_info.L1_misses,
-                                'PAPI_L2':
-                                cast_L12_exec_info.L2_misses
-                            }
-                        # elif ('<EVENT_TYPE_NAME>' in profile.event_types and
-                        #       event.key == profile.event_types['<EVENT_TYPE_NAME>'].key):
-                        #   event_info = <write a function and a Python type to translate>
-                        else:
-                            dont_print = True
-                            if not dont_print:
-                                print('missed an info for event key ' + event_name )
+                    if not skip_infos:
+                        cinfo = dbp_event_get_info(event_e)
+                        if cinfo != NULL:
+                            if ('PINS_EXEC' in profile.event_types and
+                                event_key == profile.event_types['PINS_EXEC'].key):
+                                cast_exec_info = <papi_exec_info_t *>cinfo
+                                kernel_name = str(cast_exec_info.kernel_name)
+                                event_info = {
+                                    'kernel_type':
+                                    cast_exec_info.kernel_type,
+                                    'kernel_name':
+                                    kernel_name,
+                                    'vp_id':
+                                    cast_exec_info.vp_id,
+                                    'thread_id':
+                                    cast_exec_info.th_id,
+                                    'exec_info':
+                                    [cast_exec_info.values[x] for x
+                                     in range(cast_exec_info.values_len)]}
+                            elif ('PINS_SELECT' in profile.event_types and
+                                  event_key == profile.event_types['PINS_SELECT'].key):
+                                cast_select_info = <select_info_t *>cinfo
+                                kernel_name = str(cast_select_info.kernel_name)
+                                event_info = {
+                                    'kernel_type':
+                                    cast_select_info.kernel_type,
+                                    'kernel_name':
+                                    kernel_name,
+                                    'vp_id':
+                                    cast_select_info.vp_id,
+                                    'th_id':
+                                    cast_select_info.th_id,
+                                    'victim_vp_id':
+                                    cast_select_info.victim_vp_id,
+                                    'victim_thread_id':
+                                    cast_select_info.victim_th_id,
+                                    'exec_context':
+                                    cast_select_info.exec_context,
+                                    'values':
+                                    [cast_select_info.values[x] for x
+                                     in range(cast_select_info.values_len)]}
+                            elif ('PINS_SOCKET' in profile.event_types and
+                                  event_key == profile.event_types['PINS_SOCKET'].key):
+                                cast_socket_info = <papi_socket_info_t *>cinfo
+                                event_info = [
+                                    cast_socket_info.vp_id,
+                                    cast_socket_info.th_id,
+                                    [cast_socket_info.values[x] for x
+                                     in range(cast_socket_info.values_len)]]
+                            elif ('PINS_L12_EXEC' in profile.event_types and
+                                  event_key == profile.event_types['PINS_L12_EXEC'].key):
+                                cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
+                                kernel_name = cast_L12_exec_info.kernel_name[:12]
+                                event_info = {
+                                    'unique_id':
+                                    unique_id,
+                                    'kernel_type':
+                                    cast_L12_exec_info.kernel_type,
+                                    'kernel_name':
+                                    kernel_name,
+                                    'vp_id':
+                                    cast_L12_exec_info.vp_id,
+                                    'thread_id':
+                                    cast_L12_exec_info.th_id,
+                                    'PAPI_L1':
+                                    cast_L12_exec_info.L1_misses,
+                                    'PAPI_L2':
+                                     cast_L12_exec_info.L2_misses
+                                }
+                            elif ('PINS_L12_SELECT' in profile.event_types and
+                                  event_key == profile.event_types['PINS_L12_SELECT'].key):
+                                cast_L12_select_info = <papi_L12_select_info_t *>cinfo
+                                kernel_name = cast_L12_select_info.kernel_name[:KERNEL_NAME_SIZE]
+                                event_info = {
+                                    'unique_id':
+                                    unique_id,
+                                    'kernel_type':
+                                    cast_L12_select_info.kernel_type,
+                                    'kernel_name':
+                                    kernel_name,
+                                    'vp_id':
+                                    cast_L12_select_info.vp_id,
+                                    'thread_id':
+                                    cast_L12_select_info.th_id,
+                                    'victim_vp_id':
+                                    cast_L12_select_info.victim_vp_id,
+                                    'victim_thread_id':
+                                    cast_L12_select_info.victim_th_id,
+                                    'starvation':
+                                    cast_L12_select_info.starvation,
+                                    'exec_context':
+                                    cast_L12_select_info.exec_context,
+                                    'PAPI_L1':
+                                    cast_L12_select_info.L1_misses,
+                                    'PAPI_L2':
+                                     cast_L12_select_info.L2_misses
+                                }
 
-                    # profile.series.append([
-                    #                        thread.file.rank, thread.id, event_key, event_flags,
-                    #                        event_handle_id, event_id,
-                    #                        begin, end, duration, unique_id]) #event_info])
+                            elif ('PINS_L123' in profile.event_types and
+                                  event_key == profile.event_types['PINS_L123'].key):
+                                cast_L123_info = <papi_L123_info_t *>cinfo
+                                event_info = {
+                                    'unique_id': 
+                                    unique_id,
+                                    'vp_id':
+                                    cast_L123_info.vp_id,
+                                    'thread_id':
+                                    cast_L123_info.th_id,
+                                    'PAPI_L1':
+                                    cast_L123_info.L1_misses,
+                                    'PAPI_L2':
+                                    cast_L123_info.L2_misses,
+                                    'PAPI_L3':
+                                    cast_L123_info.L3_misses
+                                }
+                            elif ('PINS_L12_ADD' in profile.event_types and
+                                  event_key == profile.event_types['PINS_L12_ADD'].key):
+                                cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
+                                kernel_name = cast_L12_exec_info.kernel_name[:12]
+                                event_info = {
+                                    'unique_id':
+                                    unique_id,
+                                    'kernel_type':
+                                    cast_L12_exec_info.kernel_type,
+                                    'kernel_name':
+                                    kernel_name,
+                                    'vp_id':
+                                    cast_L12_exec_info.vp_id,
+                                    'thread_id':
+                                    cast_L12_exec_info.th_id,
+                                    'PAPI_L1':
+                                    cast_L12_exec_info.L1_misses,
+                                    'PAPI_L2':
+                                    cast_L12_exec_info.L2_misses
+                                }
+                            # elif ('<EVENT_TYPE_NAME>' in profile.event_types and
+                            #       event.key == profile.event_types['<EVENT_TYPE_NAME>'].key):
+                            #   event_info = <write a function and a Python type to translate>
+                            else:
+                                dont_print = True
+                                if not dont_print:
+                                    print('missed an info for event key ' + event_name )
+
+                    if event_info:
+                        profile.infos.append(event_info)
+#                        thing.update(event_info)
+                    profile.series.append([
+                                           thread.file.rank, thread.id, event_key, event_flags,
+                                           event_handle_id, event_id,
+                                           begin, end, duration, unique_id]) #event_info])
                     ['filerank', 'thread', 'key', 'flags', 'handle_id',
                      'id', 'begin', 'end', 'duration', 'unique_id']
-                    thing = {'filerank':thread.file.rank,
-                                           'thread':thread.id,
-                                           'key':event_key,
-                                           'flags':event_flags,
-                                           'handle_id':event_handle_id,
-                                           'id':event_id,
-                                           'begin':begin,
-                                           'end':end,
-                                           'duration':duration,
-                                           }
-                    if event_info:
-                        thing.update(event_info)
-                    profile.series.append(thing)
-                                
-                    # if event_info:
-                    #     profile.infos.append(event_info)
-                                
+                    # thing = {'filerank':thread.file.rank,
+                    #                        'thread':thread.id,
+                    #                        'key':event_key,
+                    #                        'flags':event_flags,
+                    #                        'handle_id':event_handle_id,
+                    #                        'id':event_id,
+                    #                        'begin':begin,
+                    #                        'end':end,
+                    #                        'duration':duration,
+                    #                        }
+                    # profile.series.append(thing)
+                    
                 dbp_iterator_delete(it_e)
                 it_e = NULL
             else:
                 if event_name not in profile.errors:
                     profile.errors[event_name] = []
                 profile.errors[event_name].append('event of class {} id {} at {} does not have a match.\n'.format(
-                    event_name, event_id, thread.id))
+                    event_name, event_id, thread_id))
         dbp_iterator_next(it_s)
         event_s = dbp_iterator_current(it_s)
         
     dbp_iterator_delete(it_s)
     it_s = NULL
 
-    thread.duration = thread.end - thread.begin
-    if thread.starvation > thread.duration:
-        print('something is fishy about this thread... {} {}'.format(thread.starvation, thread.duration))
-        
     return thread

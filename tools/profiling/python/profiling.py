@@ -52,7 +52,6 @@ class Profile(list): # contains Events
         self.files = dict()
         self.handles = dict()
         self.errors = dict()
-        self.total_duration = 0
     def get_handle_counts(self):
         if self.is_eventless():
             return self.handle_counts

@@ -7,6 +7,11 @@ from timer import Timer
 from pandas import *
 import numpy as np
 
+# profiling stuff
+# import pstats, cProfile
+# import pyximport
+# pyximport.install()
+
 def safe_unlink(files):
     for ufile in files:
         try:
@@ -17,13 +22,16 @@ def safe_unlink(files):
 def read_pickle_return(filenames, outfilename = None, delete=True):
     profile = None
     with Timer() as t:
-        profile = dbpr.readProfile(filenames)
+        profile = dbpr.readProfile(filenames, False)
     print('Profile parse took ' + str(t.interval))
     print('')
     print('The DataFrame is a large matrix/table of the profile information')
     print('Here, we print some information about the standard (non-info-struct) pieces of the events.')
     print(profile.df[profile.event_columns].describe())
     print('There are ' + str(len(profile.df)) + ' events in this profile.')
+
+    print(profile.df.dtypes)
+    
     print('')
     print('Now, we will select only the PINS_L12_EXEC events via a simple operation.')
     onlyexec = profile.df[:][ (profile.df['key'] == profile.event_types['PINS_L12_EXEC'].key)]
@@ -107,4 +115,5 @@ def read_pickle_return(filenames, outfilename = None, delete=True):
     
 if __name__ == '__main__':
     import sys
+
     read_pickle_return(sys.argv[1:], delete=False)

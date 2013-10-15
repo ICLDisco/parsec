@@ -12,9 +12,9 @@ HOSTNAME=`/bin/uname -n`
 USER_OPTIONS+=" -DDPLASMA_SCHED_HWLOC=ON"
 USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
 USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
-USER_OPTIONS+=" -DPYTHON_LIBRARIES:FILEPATH=$HOME/enthought_7.3.2_x64/lib/libpython2.7.so"
-USER_OPTIONS+=" -DPYTHON_INCLUDE_DIRS:FILEPATH=$HOME/enthought_7.3.2_x64/include"
-USER_OPTIONS+=" -DPYTHON_EXECUTABLE:FILEPATH=$HOME/enthought_7.3.2_x64/bin/python"
+USER_OPTIONS+=" -DPYTHON_LIBRARIES:FILEPATH=$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/lib/libpython2.7.so"
+USER_OPTIONS+=" -DPYTHON_INCLUDE_DIRS:FILEPATH=$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/include"
+USER_OPTIONS+=" -DPYTHON_EXECUTABLE:FILEPATH=$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/bin/python"
 USER_OPTIONS+=" -DPAPI_DIR=$HOME/sw/$HOSTNAME"
 USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 USER_OPTIONS+=" -DPINS_ENABLE=ON"
@@ -28,8 +28,8 @@ FC=${FC:="/mnt/scratch/sw/intel/composer_xe_2013/bin/ifort"}
 MKL=${MKL:="/mnt/scratch/sw/intel/composer_xe_2013/mkl"}
 CMAKE_C_FLAGS=${CMAKE_C_FLAGS:="-g3 -fPIC"}
 CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS:="-g3 -fPIC"}
-CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH:="$HOME/enthought_7.3.2_x64/"}
-CMAKE_FIND_ROOT_PATH=${CMAKE_FIND_ROOT_PATH="$HOME/enthought_7.3.2_x64/"}
+CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH:="$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/"}
+CMAKE_FIND_ROOT_PATH=${CMAKE_FIND_ROOT_PATH="$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/"}
 PLASMADIR=${PLASMA_DIR:="/home/bosilca/unstable/dplasma/PLASMA/build/"}
 PAPI_DIR=${PAPI_DIR:="$HOME/sw/$HOSTNAME"}
 HWLOC_DIR=${HWLOC_DIR:="/home/bosilca/opt/64"}
@@ -47,17 +47,3 @@ HWLOC_DIR=${HWLOC_DIR:="/home/bosilca/opt/64"}
 . $(dirname $0)/config.inc
 guess_defaults
 run_cmake $*
-
-# LOCATION=`dirname $0`
-# echo ${LOCATION}
-# export CC=
-# export CXX=
-# export F77=
-# export MKL=
-# export CFLAGS=
-# export CMAKE_PREFIX_PATH=$HOME/enthought_7.3.2_x64/
-# export CMAKE_FIND_ROOT_PATH=$HOME/enthought_7.3.2_x64/
-# PLASMADIR="/home/bosilca/unstable/dplasma/PLASMA/build/"
-
-# echo "cmake -G "Unix Makefiles" ./ -DPLASMA_DIR=${PLASMADIR} -DHWLOC_DIR=/home/bosilca/opt/64/ -DDPLASMA_SCHED_HWLOC=ON ${LOCATION} -DDAGUE_DIST_WITH_MPI=OFF -DPAPI_DIR=$HOME"
-# cmake -G "Unix Makefiles" ./ -DPLASMA_DIR=${PLASMADIR} -DHWLOC_DIR=/home/bosilca/opt/64/ -DDPLASMA_SCHED_HWLOC=ON ${LOCATION} -DDAGUE_DIST_WITH_MPI=OFF -DPAPI_DIR=$HOME -DPYTHON_EXECUTABLE:FILEPATH=$HOME/enthought_7.3.2_x64/bin/python -DPYTHON_INCLUDE_DIRS:FILEPATH=$HOME/enthought_7.3.2_x64/include/ -DPYTHON_LIBRARIES:FILEPATH=$HOME/enthought_7.3.2_x64/lib/libpython2.7.so
