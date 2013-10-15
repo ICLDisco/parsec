@@ -95,7 +95,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
 
-        this_task->data[i].data_out = NULL;  /* TODO: clean this up to segfault */
+        this_task->data[i].data_out = NULL;
         data = this_task->data[i].data_in;
         original = data->original;
         if( NULL != (local = dague_data_get_copy(original, gpu_device->super.device_index)) ) {
@@ -171,7 +171,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 
     cuda_zgemm_t cuda_zgemm = (cuda_zgemm_t)cuda_gemm_functions[gpu_device->cuda_index];
 
-    assert( DATA_COHERENCY_OWNED == this_task->data[2].data_out->coherency_state );
+    /*assert( DATA_COHERENCY_OWNED == this_task->data[2].data_out->coherency_state );*/
 
     assert(this_task->data[0].data_out->device_index == gpu_device->super.device_index);
     d_A = (CUdeviceptr)this_task->data[0].data_out->device_private;
@@ -312,7 +312,7 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
 
         gpu_copy = this_task->data[this_task->function->out[i]->flow_index].data_out;
         original = gpu_copy->original;
-        assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
+        /*assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );*/
         gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
         original = gpu_copy->original;
         original->device_copies[0]->version = gpu_copy->version;
