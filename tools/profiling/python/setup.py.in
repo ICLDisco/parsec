@@ -14,15 +14,16 @@ c_compiler = '@CMAKE_C_COMPILER@'.replace('FILEPATH=', '')
 cxx_compiler = '@CMAKE_CXX_COMPILER@'.replace('FILEPATH=', '')
 
 if c_compiler.endswith('icc'):
-    warnings_to_ignore = ['-wd47']
+    extra_compile_args = ['-wd47', '-static-intel']
 else:
-    warnings_to_ignore = []
+    extra_compile_args = []
 
 # libs = ['irc', 'imf', 'dague-base']
-libs = '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';') + ['dague-base']
-lib_dirs = (['@PROJECT_BINARY_DIR@/dague'] +
-            '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';') )
-run_dirs = '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';')
+libs = ['dague-base'] #+ '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';')
+lib_dirs = (['@PROJECT_BINARY_DIR@/dague']) # +
+#            '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';') )
+run_dirs = [] # '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';')
+
 
 ext_modules = [Extension('py_dbpreader', ['@CMAKE_CURRENT_SOURCE_DIR@/py_dbpreader.pyx',
                                           '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
@@ -51,7 +52,7 @@ class local_compiler_build_ext( build_ext ):
             self.compiler.compiler = ([c_compiler] +
                                       self.compiler.compiler[1:] +
                                       util.split_quoted('@CMAKE_C_FLAGS@') +
-                                      warnings_to_ignore
+                                      extra_compile_args
                                       )
         except:
             pass
@@ -67,7 +68,7 @@ class local_compiler_build_ext( build_ext ):
             self.compiler.compiler_so = ([c_compiler] + 
                                          self.compiler.compiler_so[1:] +
                                          util.split_quoted('@CMAKE_C_FLAGS@') +
-                                         warnings_to_ignore
+                                         extra_compile_args
                                          )
         except:
             pass
@@ -76,7 +77,7 @@ class local_compiler_build_ext( build_ext ):
             self.compiler.linker_so = ([c_compiler] + 
                                        self.compiler.linker_so[1:] +
                                        util.split_quoted('@CMAKE_C_FLAGS@') +
-                                       warnings_to_ignore
+                                       extra_compile_args
                                        )
         except:
             pass
@@ -85,7 +86,7 @@ class local_compiler_build_ext( build_ext ):
             self.compiler.compiler_cxx = ([cxx_compiler] + 
                                           self.compiler.compiler_cxx[1:] +
                                           util.split_quoted('@CMAKE_C_FLAGS@') +
-                                          warnings_to_ignore
+                                          extra_compile_args
                                           )
         except:
             pass
