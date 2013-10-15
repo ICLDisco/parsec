@@ -45,8 +45,14 @@ extern float *device_load, *device_weight;
 
 /* in new cuda, cuMemHostRegister requires to be called only once to get host memory pinned for all gpus. 
  * When using old cuda, they may need to be removed */
-extern int host_mem_registered;
-extern int host_mem_unregistered;
+#define MAX_NUM_OF_HOST_VARIABLE    10
+
+typedef struct _host_mem_registration_status {
+    void *host_mem_ptr;    /* NULL indicates the ptr has not been registered, or has been unregistered */
+}host_mem_registration_status_t;
+
+extern host_mem_registration_status_t host_mem_registration_list[MAX_NUM_OF_HOST_VARIABLE];
+extern int num_of_host_variable; 
 
 typedef struct __dague_gpu_context {
     dague_list_item_t          list_item;
