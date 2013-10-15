@@ -118,8 +118,8 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
     cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, index)
     cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
     cdef dbp_event_iterator_t * it_e = NULL
-    cdef dbp_event_t * event_s = dbp_iterator_current(it_s)
-    cdef dbp_event_t * event_e = NULL
+    cdef const dbp_event_t * event_s = dbp_iterator_current(it_s)
+    cdef const dbp_event_t * event_e = NULL
     cdef dague_time_t reader_begin = dbp_reader_min_date(dbp)
     cdef uint64_t begin = 0
     cdef uint64_t end = 0

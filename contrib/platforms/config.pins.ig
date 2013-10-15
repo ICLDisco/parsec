@@ -9,11 +9,11 @@ HOSTNAME=`/bin/uname -n`
 
 # This option permits setting arbitrary options to cmake
 # Options passed on the command line are appended to this variable
-USER_OPTIONS+=" -DDPLASMA_SCHED_HWLOC=ON"
+# USER_OPTIONS+=" -DDPLASMA_SCHED_HWLOC=ON"
 USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
 USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
-USER_OPTIONS+=" -DPYTHON_LIBRARIES:FILEPATH=$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/lib/libpython2.7.so"
-USER_OPTIONS+=" -DPYTHON_INCLUDE_DIRS:FILEPATH=$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/include"
+# USER_OPTIONS+=" -DPYTHON_LIBRARIES:FILEPATH=$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/lib/libpython2.7.so"
+# USER_OPTIONS+=" -DPYTHON_INCLUDE_DIRS:FILEPATH=$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/include"
 USER_OPTIONS+=" -DPYTHON_EXECUTABLE:FILEPATH=$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/bin/python"
 USER_OPTIONS+=" -DPAPI_DIR=$HOME/sw/$HOSTNAME"
 USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"

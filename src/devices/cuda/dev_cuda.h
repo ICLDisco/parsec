@@ -43,11 +43,6 @@ extern int dague_cuda_own_GPU_key_end;
 
 extern float *device_load, *device_weight;
 
-/* in new cuda, cuMemHostRegister requires to be called only once to get host memory pinned for all gpus. 
- * When using old cuda, they may need to be removed */
-extern int host_mem_registered;
-extern int host_mem_unregistered;
-
 typedef struct __dague_gpu_context {
     dague_list_item_t          list_item;
     dague_execution_context_t *ec;

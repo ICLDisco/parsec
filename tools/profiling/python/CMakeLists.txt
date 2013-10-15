@@ -11,6 +11,11 @@ set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/py_dbpreader.pyx"
 set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp"
                 "${CMAKE_CURRENT_BINARY_DIR}/dbpreader_py.c")
 
+get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+foreach(dir ${dirs})
+  message(STATUS "dir='${dir}'")
+endforeach()
+
 #
 # Always generate the setup.py so it can be used by hand
 #

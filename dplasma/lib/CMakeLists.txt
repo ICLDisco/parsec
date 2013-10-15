@@ -136,5 +136,8 @@ if (MPI_C_FOUND)
 endif (MPI_C_FOUND)
 target_link_libraries(dplasma dplasma_cores)
 add_dependencies(dplasma dplasma_includes)
-install(TARGETS dplasma ARCHIVE DESTINATION lib)
+install(TARGETS dplasma
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib)
+
 

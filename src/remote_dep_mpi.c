@@ -420,7 +420,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
         exec_context.data[whereto].data_out  = NULL;
         if(origin->msg.deps & (1 << i)) {
             DEBUG3(("MPI:\tDATA %p released from %p[%d]\n",
-                    (origin->output[i].data.data != (void*)2) ? DAGUE_DATA_COPY_GET_PTR(origin->output[i].data) : NULL, origin, i));
+                    (origin->output[i].data.data != (void*)2) ? DAGUE_DATA_COPY_GET_PTR(origin->output[i].data.data) : NULL, origin, i));
             exec_context.data[whereto].data_out = origin->output[i].data.data;
 #if defined(DAGUE_DEBUG_ENABLE) && defined(DAGUE_DEBUG_VERBOSE3)
             if(origin->output[i].type) { /* no prints for CTL! */
@@ -1032,7 +1032,7 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
 #ifdef DAGUE_DEBUG_VERBOSE2
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tPut START\tunknown \tj=%d,k=%d\twith datakey %lx at %p type %s\t(tag=%d displ = %ld)\n",
-               item->peer, i, k, task->deps, data, type_name, tag+k, deps->output[k].displ));
+                item->peer, i, k, task->deps, data, type_name, tag+k, deps->output[k].data.displ));
 #endif
 
         TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
@@ -1115,7 +1115,7 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
 
                 DEBUG3(("MPI:\tMalloc new remote tile %p size %zu count = %d displ = %ld\n",
                         deps->output[k].data.data, deps->output[k].data.arena->elem_size,
-                        deps->output[k].count, deps->output[k].data.displ));
+                        deps->output[k].data.count, deps->output[k].data.displ));
                 assert(deps->output[k].data.data != NULL);
             }
 #ifndef DAGUE_PROF_DRY_DEP
