@@ -581,9 +581,8 @@ int dague_gpu_init(dague_context_t *dague_context)
     DEBUG(("Global Theoritical performance: %2.4f\n", total_perf ));
     for( i = 0; i < (ndevices+1); i++ ) {
         if( 0 == i )
-            DEBUG(("CPU             ->ratio %2.4e (%2.4e)\n",
-                   device_weight[i],
-                   device_weight[i] / nb_cores ));
+            DEBUG(("CPU             ->ratio %2.4e\n",
+                   device_weight[i]));
         else
             DEBUG(("Device index %2d ->ratio %2.4e\n",
                    i-1, device_weight[i]));
@@ -998,6 +997,14 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     if( ACCESS_WRITE & type ) {
         dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
+    }
+
+    /* If the source and target data are on the same device then they should be
+     * identical and the only thing left to do is update the number of readers.
+     */
+    if( in_elem == gpu_elem ) {
+        if( ACCESS_READ & type ) gpu_elem->readers++;
+        return 0;
     }
 
     transfer_required = dague_data_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);

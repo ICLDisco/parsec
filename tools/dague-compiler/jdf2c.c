@@ -3810,7 +3810,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
      */
     coutput("  /** Update staring simulation date */\n"
             "#if defined(DAGUE_SIM)\n"
-            "  this_task->sim_exec_date = 0;\n");
+            "  this_task->sim_exec_date = __dague_simulation_date;\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 
         if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
@@ -3823,16 +3823,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     }
     coutput("  if( this_task->function->sim_cost_fct != NULL ) {\n"
             "    this_task->sim_exec_date += this_task->function->sim_cost_fct(this_task);\n"
-            "  }\n"
-            "  if( context->largest_simulation_date < this_task->sim_exec_date )\n"
-            "    context->largest_simulation_date = this_task->sim_exec_date;\n"
-            "#endif\n");
-
-    coutput("#if defined(DAGUE_SIM)\n"
-            "  if( this_task->function->sim_cost_fct != NULL ) {\n"
-            "    this_task->sim_exec_date = __dague_simulation_date + this_task->function->sim_cost_fct(this_task);\n"
-            "  } else {\n"
-            "    this_task->sim_exec_date = __dague_simulation_date;\n"
             "  }\n"
             "  if( context->largest_simulation_date < this_task->sim_exec_date )\n"
             "    context->largest_simulation_date = this_task->sim_exec_date;\n"
