@@ -86,7 +86,7 @@ struct dague_lifo_s {
             int _rc;                                                    \
             _rc = posix_memalign(&_elt,                                 \
                                 DAGUE_LIFO_ALIGNMENT(LIFO), (truesize));\
-            assert( 0 == _rc && NULL != _elt );                         \
+            assert( 0 == _rc && NULL != _elt ); (void)_rc;              \
             OBJ_CONSTRUCT(_elt, dague_list_item_t);                     \
             (elt) = (__typeof__(elt))_elt;                              \
         })
