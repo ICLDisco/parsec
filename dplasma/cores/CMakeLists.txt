@@ -97,7 +97,9 @@ add_library(dplasma_cores
   ${generated_files}
 )
 target_link_libraries(dplasma_cores ${GPU_KERNEL_LIBS})
-install(TARGETS dplasma_cores ARCHIVE DESTINATION lib)
+install(TARGETS dplasma_cores
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib)
 
 foreach(generated_header ${generated_headers})
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION include/cores)
