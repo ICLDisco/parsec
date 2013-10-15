@@ -21,9 +21,6 @@
 #include <dague/ayudame.h>
 
 #include "dague/mca/pins/pins.h"
-#ifdef HAVE_PAPI
-#include <papi.h>
-#endif
 
 #include <dague/utils/output.h>
 #include "data.h"
@@ -183,15 +180,6 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->sched_nb_tasks_done = 0;
 #endif
 
-#if defined(HAVE_PAPI)
-    // PAPI INIT
-    int rv;
-    rv = PAPI_register_thread();
-    if (rv != PAPI_OK)
-	    DEBUG(("PAPI_register_thread failed with error %s\n", PAPI_strerror(rv)));
-//	printf("PAPI_register_thread %d: %s\n", eu->th_id, PAPI_strerror(rv));
-#endif
-
     eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
         eu->datarepo_mempools[pi] = &(eu->virtual_process->datarepo_mempools[pi].thread_mempools[eu->th_id]);
@@ -298,14 +286,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     char **argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
-
-#if defined(HAVE_PAPI)
-    PAPI_library_init(PAPI_VER_CURRENT); // PETER: this has to happen before threads get created
-	PAPI_set_debug(PAPI_VERB_ECONT);
-    int t_init = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self )); // PETER is this the right place? it needs protection
-    if (t_init != PAPI_OK)
-	    DEBUG(("PAPI Thread Init failed with error code %d (%s)!\n", t_init, PAPI_strerror(t_init)));
-#endif
 
     dague_installdirs_open();
     dague_mca_param_init();
