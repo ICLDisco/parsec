@@ -168,7 +168,11 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->scheduler_object = NULL;
     startup->virtual_process->execution_units[startup->th_id] = eu;
     eu->core_id          = startup->bindto;
+#if defined(HAVE_HWLOC)
     eu->socket_id        = dague_hwloc_socket_id(startup->bindto);
+#else
+    eu->socket_id        = 0;
+#endif  /* defined(HAVE_HWLOC) */
     eu->starvation      = 0;
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
