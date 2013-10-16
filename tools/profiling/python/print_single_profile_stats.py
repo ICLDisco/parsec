@@ -77,7 +77,15 @@ if __name__ == '__main__':
 
     exec_df = profile.df[:][profile.df['key'].isin(exec_keys)]
     print(exec_df[ profile.event_columns + ['PAPI_L2'] ].describe())
-    
+    # print((exec_df[ profile.event_columns + ['PAPI_L2'] ] / float(len(exec_df))).describe())
+
+    socket_df = profile.df[:][profile.df['PAPI_L3'] > 0]
+    print(socket_df[profile.event_columns + ['PAPI_L1', 'PAPI_L2', 'PAPI_L3']].describe())
+
+    socket_df = profile.df[:][profile.df['key'] == profile.event_types['PINS_L123'].key]
+    print(socket_df[profile.event_columns + ['PAPI_L1', 'PAPI_L2', 'PAPI_L3']
+                ].describe().loc['count':'std',:] )
+
     # total_stats = SocketStats()
     # total_count = 0
     # total_name = None

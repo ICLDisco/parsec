@@ -46,6 +46,7 @@ cpdef readProfile(filenames, skip_infos=False):
         profile.type_key_to_name[key] = event_name
         profile.event_types[event_name] = dbpEventType(profile, key,
                                                        dbp_dictionary_attributes(cdict))
+    profile.type_key_to_name[-1] = ''
     # convert c to py
     # pr = cProfile.Profile()
     # pr.enable()
@@ -216,10 +217,12 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                                     cast_socket_info.th_id,
                                     [cast_socket_info.values[x] for x
                                      in range(cast_socket_info.values_len)]]
+                            # START NEW, IN-USE INFOS
                             elif ('PINS_L12_EXEC' in profile.event_types and
                                   event_key == profile.event_types['PINS_L12_EXEC'].key):
                                 cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
-                                kernel_name = cast_L12_exec_info.kernel_name[:12]
+                                # kernel_name = cast_L12_exec_info.kernel_name[:12]
+                                kernel_name = profile.type_key_to_name[cast_L12_exec_info.kernel_type]
                                 event_info = {
                                     'unique_id':
                                     unique_id,
@@ -239,14 +242,13 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                             elif ('PINS_L12_SELECT' in profile.event_types and
                                   event_key == profile.event_types['PINS_L12_SELECT'].key):
                                 cast_L12_select_info = <papi_L12_select_info_t *>cinfo
-                                kernel_name = cast_L12_select_info.kernel_name[:KERNEL_NAME_SIZE]
                                 event_info = {
                                     'unique_id':
                                     unique_id,
                                     'kernel_type':
                                     cast_L12_select_info.kernel_type,
                                     'kernel_name':
-                                    kernel_name,
+                                    profile.type_key_to_name[cast_L12_select_info.kernel_type],
                                     'vp_id':
                                     cast_L12_select_info.vp_id,
                                     'thread_id':
@@ -285,14 +287,13 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                             elif ('PINS_L12_ADD' in profile.event_types and
                                   event_key == profile.event_types['PINS_L12_ADD'].key):
                                 cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
-                                kernel_name = cast_L12_exec_info.kernel_name[:12]
                                 event_info = {
                                     'unique_id':
                                     unique_id,
                                     'kernel_type':
                                     cast_L12_exec_info.kernel_type,
                                     'kernel_name':
-                                    kernel_name,
+                                    profile.type_key_to_name[cast_L12_exec_info.kernel_type],
                                     'vp_id':
                                     cast_L12_exec_info.vp_id,
                                     'thread_id':

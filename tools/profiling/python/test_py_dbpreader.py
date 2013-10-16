@@ -30,6 +30,8 @@ def read_pickle_return(filenames, outfilename = None, delete=True):
     print(profile.df[profile.event_columns].describe())
     print('There are ' + str(len(profile.df)) + ' events in this profile.')
 
+    print('')
+    print('The columns (or data labels) and their datatypes are:')
     print(profile.df.dtypes)
     
     print('')
@@ -39,7 +41,7 @@ def read_pickle_return(filenames, outfilename = None, delete=True):
     print(onlyexec[profile.event_columns].describe())
     print('')
     print('Now, we will select only the exec events from thread 26.')
-    onlyexec = profile.df[:][(profile.df['thread'] == 26)]
+    onlyexec = onlyexec[:][(onlyexec['thread'] == 26)]
     print('Again, our view of the dataframe has changed:')
     print(onlyexec[profile.event_columns].describe())
     print('')
@@ -58,19 +60,36 @@ def read_pickle_return(filenames, outfilename = None, delete=True):
     #     srted = srted.merge(profile.info_df, how='outer', on='unique_id')
     # print('join took ' + str(join_t.interval))
 #    print(srted.iloc[10]['info'][4][0])
-    print('To show that we\'ve sorted the events, we print the first ten events in the dataframe:')
-    print(srted[profile.event_columns].describe())
+    print('To show that we\'ve sorted the events, we print the first ten,')
+    print('middle ten, and last ten events in the dataframe:')
+    print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[:10])
     print('')
-    print('Up until now, we have only been looking at certain columns of the DataFrame. But ' +
-          'now we will show that some of these events also have profiling info embedded into them.')
-    print('For the sorted EXEC events from thread 26, the following profiling info data are available:')
+    print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[len(srted)/2-5:len(srted)/2+4])
+    print('')
+    print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[-10:])
+    print('')
+    print('Up until now, we have only been looking at certain columns of the DataFrame.')
+    print('But now we will show that some of these events also have profiling info embedded into them.\n')
+    
+    print('We will also pick only certain pieces of the statistics to show, using the same')
+    print('syntax that is used to pick rows out of any regular DataFrame.\n')
+    
+    print('For the sorted EXEC events from thread 26, the following profiling info data are available:\n')
+
     print(srted[ ['PAPI_L1', 'PAPI_L2', 'kernel_type',
-                  'kernel_name', 'vp_id', 'thread_id'] ].describe())
+                  'kernel_name', 'vp_id', 'thread_id'] ].describe().loc['mean':'std',:])
     print('')
-    print('We can select events by index and access their data piece by piece if we want:')
-    print('sorted execs, index 10, L1 misses: ' + str(srted.iloc[10]['PAPI_L1']))
-    print('sorted execs, index 10, kernel name: ' + str(srted.iloc[10]['kernel_name']))
+    # print(srted[:][srted['kernel_name'] == ''].describe())
+    
+    print('We can select events by index and access their data piece by piece if we want.')
+    print('First, we cut these events down to only those with the kernel name "TRSM"\n')
+    srted = srted[:][(srted['kernel_name'] == 'SYRK')]
+    print('Now we print the L1 and L2 misses for this second item in this set of events:\n')
+    print('sorted SYRK execs, index 10, kernel name: ' + str(srted.iloc[1]['kernel_name']))
+    print('sorted SYRK execs, index 10, L1 misses: ' + str(srted.iloc[1]['PAPI_L1']))
+    print('sorted SYRK execs, index 10, L2 misses: ' + str(srted.iloc[1]['PAPI_L2']))
     print('')
+
 #    profile.info_df['kernel_name'] = profile.info_df['kernel_name'].apply(lambda x: x.decode('utf-8'))
     
     if not outfilename:

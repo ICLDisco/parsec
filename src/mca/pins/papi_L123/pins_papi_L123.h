@@ -8,7 +8,6 @@
 
 #define NUM_L12_EVENTS 2
 #define SYSTEM_QUEUE_VP -2
-#define KERNEL_NAME_SIZE 12
 
 typedef struct papi_L123_info_s {
 	int vp_id;
@@ -20,7 +19,6 @@ typedef struct papi_L123_info_s {
 
 typedef struct papi_L12_exec_info_s {
 	int kernel_type;
-	char kernel_name[KERNEL_NAME_SIZE];
 	int vp_id;
 	int th_id;
 	long long L1_misses;
@@ -30,7 +28,6 @@ typedef struct papi_L12_exec_info_s {
 
 typedef struct papi_L12_select_info_s {
 	int kernel_type;
-	char kernel_name[KERNEL_NAME_SIZE];
 	int vp_id;
 	int th_id;
 	int victim_vp_id;

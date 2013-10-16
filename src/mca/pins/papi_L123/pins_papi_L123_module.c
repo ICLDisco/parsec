@@ -219,9 +219,9 @@ static void read_papi_L12_exec_count_end(dague_execution_unit_t * exec_unit,
 	}
 	else {
 		papi_L12_exec_info_t info;
-		info.kernel_type = exec_context->function->function_id;
-		strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
-		info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
+		info.kernel_type = -1;
+		if (exec_context->dague_handle->profiling_array != NULL)
+			info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
 		info.vp_id = exec_unit->virtual_process->vp_id;
 		info.th_id = exec_unit->th_id;
 		info.L1_misses = values[0] - exec_unit->papi_last_read[0];
@@ -276,17 +276,13 @@ static void read_papi_L12_select_count_end(dague_execution_unit_t * exec_unit,
     unsigned int num_threads = (exec_unit->virtual_process->dague_context->nb_vp 
                                 * exec_unit->virtual_process->nb_cores);
 	papi_L12_select_info_t info;
+
+	info.kernel_type = -1;
     if (exec_context) {
 		victim_core_num = exec_context->victim_core;
-        info.kernel_type = exec_context->function->function_id;
-		strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
-		info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
+		if (exec_context->dague_handle->profiling_array != NULL)
+			info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
 		info.starvation = (unsigned long long)data;
-	}
-    else {
-        info.kernel_type = 0;
-		strncpy(info.kernel_name, "<STARVED>", KERNEL_NAME_SIZE - 1);
-		info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
 	}
     info.vp_id = exec_unit->virtual_process->vp_id;
     info.th_id = exec_unit->th_id;
@@ -360,9 +356,12 @@ static void read_papi_L12_complete_exec_count_end(dague_execution_unit_t * exec_
 												  dague_execution_context_t * exec_context, 
 												  void * data) {
 	papi_L12_exec_info_t info;
-	info.kernel_type = exec_context->function->function_id;
-	strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
-	info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
+	info.kernel_type = -1;
+	if (exec_context->dague_handle->profiling_array != NULL)
+		info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
+
+	/* strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1); */
+	/* info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0'; */
 
     info.vp_id = exec_unit->virtual_process->vp_id;
     info.th_id = exec_unit->th_id;
