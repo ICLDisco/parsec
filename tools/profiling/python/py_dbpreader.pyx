@@ -150,8 +150,8 @@ cdef makeDbpThread(profile, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
             if it_e != NULL:
                 event_e = dbp_iterator_current(it_e)
                 if event_e != NULL:
-                    begin = diff_time(reader_begin, dbp_event_get_timestamp(event_s))
-                    end = diff_time(reader_begin, dbp_event_get_timestamp(event_e))
+                    begin = dbp_event_get_timestamp(event_s)
+                    end = dbp_event_get_timestamp(event_e)
 
                     if thread.begin > begin:
                         thread.begin = begin
