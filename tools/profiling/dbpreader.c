@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
@@ -45,7 +44,6 @@ struct dbp_file {
     struct dbp_multifile_reader *parent;
     char *hr_id;
     int fd;
-    dague_time_t min_date;
     char *filename;
     int rank;
     int nb_infos;
@@ -89,7 +87,7 @@ uint32_t dbp_event_get_handle_id(const dbp_event_t *e)
     return e->native->event.handle_id;
 }
 
-dague_time_t dbp_event_get_timestamp(const dbp_event_t *e)
+uint64_t dbp_event_get_timestamp(const dbp_event_t *e)
 {
     return e->native->event.timestamp;
 }
@@ -159,7 +157,6 @@ struct dbp_multifile_reader {
     int dico_size;
     int worldsize;
     int nb_infos;
-    dague_time_t min_date;
     dbp_info_t *infos;
     dbp_dictionary_t *dico_keys;
     dbp_file_t *files;
@@ -288,7 +285,7 @@ const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
 
     current = it->current_event.native;
     assert((current == NULL) ||
-           (current->event.timestamp.tv_sec != 0));
+           (current->event.timestamp != 0));
 
     return dbp_iterator_current(it);
 }
@@ -322,8 +319,7 @@ int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
             (dbp_event_get_event_id(e)  == ref_eid) &&
             (dbp_event_get_key(e)       == ref_key) ) {
             if( dbp_event_get_event_id(e) != 0 ||
-                time_less( dbp_event_get_timestamp(ref), dbp_event_get_timestamp(e)) ||
-                (diff_time(dbp_event_get_timestamp(ref), dbp_event_get_timestamp(e)) == 0) ) {
+                (dbp_event_get_timestamp(ref) <= dbp_event_get_timestamp(e)) ) {
                 return 1;
             } else if ( dbp_event_get_event_id(e) != 0 ) {
                 WARNING(("Event with ID %d appear in reverse order\n",
@@ -409,10 +405,6 @@ int dbp_file_get_rank(const dbp_file_t *file)
     return file->rank;
 }
 
-dague_time_t dbp_file_get_min_date(const dbp_file_t *file)
-{
-    return file->min_date;
-}
 
 int dbp_file_nb_threads(const dbp_file_t *file)
 {
@@ -449,11 +441,6 @@ int dbp_reader_nb_files(const dbp_multifile_reader_t *dbp)
 int dbp_reader_nb_dictionary_entries(const dbp_multifile_reader_t *dbp)
 {
     return dbp->dico_size;
-}
-
-dague_time_t dbp_reader_min_date(const dbp_multifile_reader_t *dbp)
-{
-    return dbp->min_date;
 }
 
 int dbp_reader_worldsize(const dbp_multifile_reader_t *dbp)
@@ -732,13 +719,10 @@ static int read_threads(dbp_multifile_reader_t *dbp, int n, int fd, const dague_
     dague_thread_profiling_t *res;
     dague_profiling_thread_buffer_t *br;
     dague_profiling_buffer_t *b, *next;
-    dague_profiling_output_t *fevent;
     int nb, nbthis, pos;
-    dague_time_t zero = ZERO_TIME;
 
     dbp->files[n].nb_threads = head->nb_threads;
     dbp->files[n].threads = (dbp_thread_t*)calloc(head->nb_threads, sizeof(dbp_thread_t));
-    dbp->files[n].min_date = zero;
 
     pos = 0;
     nb = head->nb_threads;
@@ -756,20 +740,7 @@ static int read_threads(dbp_multifile_reader_t *dbp, int n, int fd, const dague_
         strncpy(res->hr_id, br->hr_id, 128);
         res->first_events_buffer_offset = br->first_events_buffer_offset;
         res->current_events_buffer = refer_events_buffer(fd, br->first_events_buffer_offset);
-        if( NULL != res->current_events_buffer ) {
-            assert( res->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
-            fevent = (dague_profiling_output_t *)res->current_events_buffer->buffer;
-            if( time_less( fevent->event.timestamp, dbp->min_date ) ||
-                (diff_time(dbp->min_date, zero) == 0) ) {
-                dbp->min_date = fevent->event.timestamp;
-            }
-            if( time_less( fevent->event.timestamp, dbp->files[n].min_date ) ||
-                (diff_time(dbp->files[n].min_date, zero) == 0) ) {
-                dbp->files[n].min_date = fevent->event.timestamp;
-            }
-            release_events_buffer( res->current_events_buffer );
-            res->current_events_buffer = NULL;
-        }
+
         OBJ_CONSTRUCT( res, dague_list_item_t );
 
         dbp->files[n].threads[head->nb_threads - nb].file = &(dbp->files[n]);
@@ -811,11 +782,9 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
     dague_profiling_buffer_t dummy_events_buffer;
     dague_profiling_binary_file_header_t head;
     dbp_multifile_reader_t *dbp;
-    dague_time_t zero = ZERO_TIME;
 
     dbp = (dbp_multifile_reader_t*)malloc(sizeof(dbp_multifile_reader_t));
     dbp->files = (dbp_file_t*)malloc(nbfiles * sizeof(dbp_file_t));
-    dbp->min_date = zero;
 
     n = 0;
     for(i = 0; i < nbfiles; i++) {

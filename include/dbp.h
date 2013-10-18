@@ -20,11 +20,11 @@
 #define DAGUE_PROFILING_EVENT_RESCHEDULED  0x0002
 
 typedef struct dague_profiling_output_base_event_s {
-    uint16_t        key;
-    uint16_t        flags;
-    uint32_t        handle_id;
-    uint64_t        event_id;
-    dague_time_t    timestamp;
+    uint16_t  key;
+    uint16_t  flags;
+    uint32_t  handle_id;
+    uint64_t  event_id;
+    uint64_t  timestamp;
 } dague_profiling_output_base_event_t;
 
 typedef struct dague_profiling_output_s {
@@ -83,7 +83,6 @@ typedef struct {
     int64_t byte_order;          /* The writer put 0x0123456789ABCDEF */
     int32_t profile_buffer_size; /* Size of profile_*_buffers */
     char    hr_id[128];          /* 128 bytes to identify the application "uniquely" */
-    dague_time_t start_time;     /* Start time of this process */
     int32_t dictionary_size;     /* Number of dictionary entries */
     int64_t dictionary_offset;   /* Offset of the first dictionary profiling_buffer */
     int32_t info_size;           /* Number of global info entries */

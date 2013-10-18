@@ -400,6 +400,7 @@ dague_profiling_trace_flags(dague_thread_profiling_t* context, int key,
 {
     dague_profiling_output_t *this_event;
     size_t this_event_length;
+    dague_time_t now;
 
     if( -1 == file_backend_fd ) {
         return -1;
@@ -429,7 +430,8 @@ dague_profiling_trace_flags(dague_thread_profiling_t* context, int key,
         this_event->event.flags = DAGUE_PROFILING_EVENT_HAS_INFO;
     }
     this_event->event.flags |= flags;
-    this_event->event.timestamp = take_time();
+    now = take_time();
+    this_event->event.timestamp = diff_time(dague_start_time, now);
 
     return 0;
 }
@@ -739,8 +741,6 @@ int dague_profiling_dbp_dump( void )
 
     profile_head->thread_offset = dump_thread(&nb_threads);
     profile_head->nb_threads = nb_threads;
-
-    profile_head->start_time = dague_start_time;
 
     /* The head is now complete. Last flush. */
     write_down_existing_buffer((dague_profiling_buffer_t *)profile_head,
