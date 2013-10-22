@@ -56,7 +56,7 @@ module dague_profile_f08_interfaces
        USE, intrinsic :: ISO_C_BINDING, only : C_CHAR, C_SIZE_T, C_PTR
        IMPORT dague_profile_handle_t
        IMPLICIT NONE
-       INTEGER(KIND=C_SIZE_T), INTENT(IN)           :: length
+       INTEGER(KIND=C_SIZE_T), INTENT(IN),VALUE     :: length
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: id_name(*)
        TYPE(dague_profile_handle_t)                 :: dague_profile_thread_init_f08
      END FUNCTION dague_profile_thread_init_f08
@@ -70,7 +70,7 @@ module dague_profile_f08_interfaces
        IMPLICIT NONE
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: key_name(*)
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: attr(*)
-       INTEGER(KIND=C_SIZE_T), INTENT(IN)           :: info_length
+       INTEGER(KIND=C_SIZE_T), INTENT(IN),VALUE     :: info_length
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: conv_code(*)
        INTEGER(KIND=C_INT), INTENT(OUT)             :: key_start
        INTEGER(KIND=C_INT), INTENT(OUT)             :: key_end
@@ -86,9 +86,9 @@ module dague_profile_f08_interfaces
        IMPORT dague_profile_handle_t
        IMPLICIT NONE
        TYPE(dague_profile_handle_t)                 :: ctx
-       INTEGER(KIND=C_INT), INTENT(IN)              :: key
-       INTEGER(KIND=C_INT64_T), INTENT(IN)          :: event_id
-       INTEGER(KIND=C_INT), INTENT(IN)              :: object_id
+       INTEGER(KIND=C_INT), INTENT(IN),VALUE        :: key
+       INTEGER(KIND=C_INT64_T), INTENT(IN),VALUE    :: event_id
+       INTEGER(KIND=C_INT), INTENT(IN),VALUE        :: object_id
        TYPE(c_ptr), INTENT(IN)                      :: info
        INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
      END SUBROUTINE dague_profile_trace_f08
