@@ -135,7 +135,7 @@ CONTAINS
   SUBROUTINE dague_profile_dump(fname, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR
     IMPLICIT NONE
-    CHARACTER, INTENT(IN)                      :: fname(:)
+    CHARACTER*(*), INTENT(IN)                  :: fname
     INTEGER, OPTIONAL, INTENT(OUT)             :: ierr
 
     INTEGER(KIND=c_int)                        :: c_err
