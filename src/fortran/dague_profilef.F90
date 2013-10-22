@@ -53,7 +53,7 @@ module dague_profile_f08_interfaces
   INTERFACE dague_profile_thread_init_f08
      FUNCTION dague_profile_thread_init_f08(length, id_name) &
           BIND(C, name="dague_profile_thread_init_f08")
-       USE, intrinsic :: ISO_C_BINDING, only : C_CHAR, C_SIZE_T
+       USE, intrinsic :: ISO_C_BINDING, only : C_CHAR, C_SIZE_T, C_PTR
        IMPORT dague_profile_handle_t
        IMPLICIT NONE
        INTEGER(KIND=C_SIZE_T), INTENT(IN)           :: length
@@ -99,7 +99,7 @@ CONTAINS
   SUBROUTINE dague_profile_init(hdr_id, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR
     IMPLICIT NONE
-    CHARACTER, INTENT(IN)                      :: hdr_id(:)
+    CHARACTER*(*), INTENT(IN)                  :: hdr_id
     INTEGER, OPTIONAL, INTENT(OUT)             :: ierr
 
     INTEGER(KIND=c_int)                        :: c_err
@@ -149,10 +149,10 @@ CONTAINS
   END SUBROUTINE dague_profile_dump
 
   FUNCTION dague_profile_thread_init(length, id_name)
-    USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR, C_SIZE_T
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR, C_SIZE_T, C_PTR
     IMPLICIT NONE
     INTEGER*8, INTENT(IN)                     :: length
-    CHARACTER, INTENT(IN)                     :: id_name(:)
+    CHARACTER*(*), INTENT(IN)                 :: id_name
     TYPE(dague_profile_handle_t)              :: dague_profile_thread_init
 
     INTEGER(KIND=C_SIZE_T)                    :: c_length
@@ -169,10 +169,10 @@ CONTAINS
        attr, info_length, conv_code, key_start, key_end, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR, C_SIZE_T
     IMPLICIT NONE
-    CHARACTER, INTENT(IN)                      :: key_name(:)
-    CHARACTER, INTENT(IN)                      :: attr(:)
+    CHARACTER*(*), INTENT(IN)                  :: key_name
+    CHARACTER*(*), INTENT(IN)                  :: attr
     INTEGER*8, INTENT(IN)                      :: info_length
-    CHARACTER, INTENT(IN)                      :: conv_code(:)
+    CHARACTER*(*), INTENT(IN)                  :: conv_code
     INTEGER, INTENT(OUT)                       :: key_start
     INTEGER, INTENT(OUT)                       :: key_end
     INTEGER, OPTIONAL, INTENT(OUT)             :: ierr
