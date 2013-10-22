@@ -1,11 +1,19 @@
 #!/usr/bin/env python
 
-import py_dbpreader as dbpr
-import cPickle
+from __future__ import print_function
 import os
-from profiling import Timer
-from pandas import *
+from parsec_profiling import *
 import numpy as np
+import time
+
+class Timer:
+    def __enter__(self):
+        self.start = time.clock()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.clock()
+        self.interval = self.end - self.start
 
 # profiling stuff
 # import pstats, cProfile
@@ -19,120 +27,98 @@ def safe_unlink(files):
         except OSError:
             print('the file {} has apparently vanished.'.format(ufile))
 
-def read_pickle_return(filenames, outfilename = None, delete=True):
-    profile = None
-    with Timer() as t:
-        profile = dbpr.readProfile(filenames, False)
-    print('Profile parse took ' + str(t.interval))
-    print('')
-    print('The DataFrame is a large matrix/table of the profile information')
-    print('Here, we print some information about the standard (non-info-struct) pieces of the events.')
-    print(profile.df[profile.event_columns].describe())
-    print('There are ' + str(len(profile.df)) + ' events in this profile.')
+def do_demo(filenames, translate=False):
+    with Timer() as main:
+        profile = None
+        
+        with Timer() as t:
+            if len(filenames) == 1 and '.h5-' in filenames[0]:
+                print('First, we load the HDFed profile...')
+                profile = ParsecProfile.from_hdf(filenames[0])
+            else:
+                print('First, we read the binary profile and put it in pandas format.')
+                profile = ParsecProfile.from_native(filenames, translate=translate)
 
-    print('')
-    print('The columns (or data labels) and their datatypes are:')
-    print(profile.df.dtypes)
-    
-    print('')
-    print('Now, we will select only the PINS_L12_EXEC events via a simple operation.')
-    onlyexec = profile.df[:][ (profile.df['key'] == profile.event_types['PINS_L12_EXEC'].key)]
-    print('Notice how the description of this subset is very different:')
-    print(onlyexec[profile.event_columns].describe())
-    print('')
-    print('Now, we will select only the exec events from thread 26.')
-    onlyexec = onlyexec[:][(onlyexec['thread'] == 26)]
-    print('Again, our view of the dataframe has changed:')
-    print(onlyexec[profile.event_columns].describe())
-    print('')
-    print('It is also possible to perform both operations in one query, like so:')
-    onlyexec = profile.df[:][ (profile.df['key'] == profile.event_types['PINS_L12_EXEC'].key) 
-                              & (profile.df['thread'] == 26)]
-    print('Note that the description is the same as for the previous subset.')
-    print(onlyexec[profile.event_columns].describe())
-    print('')
-    print('Now, a simple sort of EXEC events from thread 26 by duration, in ascending order.')
-    with Timer() as t:
-        srted = onlyexec.sort_index(by=['duration'], ascending=[True])
-    print('That sort only took ' + str(t.interval) + ' seconds.')
+        print('')
+        print('The DataFrame is a large matrix/table of the profile information')
+        print('Here, we print some information about the standard (non-info-struct) pieces of the events.')
+        with Timer() as t:
+            print(profile.events[profile.basic_columns].describe())
+        print('There are ' + str(len(profile.events)) + ' events in this profile', end=' ')
+        print('and they took {} seconds to describe.'.format(t.interval))
 
-    # with Timer() as join_t:
-    #     srted = srted.merge(profile.info_df, how='outer', on='unique_id')
-    # print('join took ' + str(join_t.interval))
-#    print(srted.iloc[10]['info'][4][0])
-    print('To show that we\'ve sorted the events, we print the first ten,')
-    print('middle ten, and last ten events in the dataframe:')
-    print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[:10])
-    print('')
-    print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[len(srted)/2-5:len(srted)/2+4])
-    print('')
-    print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[-10:])
-    print('')
-    print('Up until now, we have only been looking at certain columns of the DataFrame.')
-    print('But now we will show that some of these events also have profiling info embedded into them.\n')
-    
-    print('We will also pick only certain pieces of the statistics to show, using the same')
-    print('syntax that is used to pick rows out of any regular DataFrame.\n')
-    
-    print('For the sorted EXEC events from thread 26, the following profiling info data are available:\n')
+        print('')
+        print('The columns (or data labels) and their datatypes are:')
+        print(profile.events.dtypes)
 
-    print(srted[ ['PAPI_L1', 'PAPI_L2', 'kernel_type',
-                  'kernel_name', 'vp_id', 'thread_id'] ].describe().loc['mean':'std',:])
-    print('')
-    # print(srted[:][srted['kernel_name'] == ''].describe())
-    
-    print('We can select events by index and access their data piece by piece if we want.')
-    print('First, we cut these events down to only those with the kernel name "TRSM"\n')
-    srted = srted[:][(srted['kernel_name'] == 'SYRK')]
-    print('Now we print the L1 and L2 misses for this second item in this set of events:\n')
-    print('sorted SYRK execs, index 10, kernel name: ' + str(srted.iloc[1]['kernel_name']))
-    print('sorted SYRK execs, index 10, L1 misses: ' + str(srted.iloc[1]['PAPI_L1']))
-    print('sorted SYRK execs, index 10, L2 misses: ' + str(srted.iloc[1]['PAPI_L2']))
-    print('')
+        print('')
+        print('Now, we will select only the PINS_L12_EXEC events via a simple operation.')
+        onlyexec = profile.events[:][ (profile.events['key'] == profile.event_types.PINS_L12_EXEC['key'])]
+        print('Notice how the description of this subset is very different:')
+        print(onlyexec[profile.basic_columns].describe())
+        print('')
+        print('Now, we will select only the exec events from thread 26.')
+        onlyexec = onlyexec[:][(onlyexec['thread'] == 26)]
+        print('Again, our view of the dataframe has changed:')
+        print(onlyexec[profile.basic_columns].describe())
+        print('')
+        print('It is also possible to perform both operations in one query, like so:')
+        onlyexec = profile.events[:][ (profile.events['key'] == profile.event_types.PINS_L12_EXEC['key']) 
+                                  & (profile.events['thread'] == 26)]
+        print('Note that the description is the same as for the previous subset.')
+        print(onlyexec[profile.basic_columns].describe())
+        print('')
+        print('Now, a simple sort of EXEC events from thread 26 by duration, in ascending order.')
+        with Timer() as t:
+            srted = onlyexec.sort_index(by=['duration'], ascending=[True])
+        print('That sort only took ' + str(t.interval) + ' seconds.')
 
-#    profile.info_df['kernel_name'] = profile.info_df['kernel_name'].apply(lambda x: x.decode('utf-8'))
-    
-    if not outfilename:
-        outfilename = filenames[0].replace('.profile', '') + '.pickle'
-        pickle_name = outfilename
-        hdf5_name = outfilename.replace('.pickle', '.h5')
-        hdf5_info_name = outfilename.replace('.pickle', '_info.h5')
+        # with Timer() as join_t:
+        #     srted = srted.merge(profile.info_df, how='outer', on='unique_id')
+        # print('join took ' + str(join_t.interval))
+    #    print(srted.iloc[10]['info'][4][0])
+        print('To show that we\'ve sorted the events, we print the first ten,')
+        print('middle ten, and last ten events in the dataframe:')
+        print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[:10])
+        print('')
+        print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[len(srted)/2-5:len(srted)/2+4])
+        print('')
+        print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[-10:])
+        print('')
+        print('Up until now, we have only been looking at certain columns of the DataFrame.')
+        print('But now we will show that some of these events also have profiling info embedded into them.\n')
 
-    # print(profile.info_df.dtypes) # this tells us if we'll be compatible with pure HDF5
-    # # profile.df = profile.df.convert_objects() # this appears to be non-functional
-    # profile.info_df = profile.info_df.convert_objects()
-    
-    # write dataframe to file as a test of speed
-    print('')
-    print('Part of the appeal of the pandas library is its speed.')
-    print('We will now write the entire dataframe to disk in the HDF5 format.')
-    with Timer() as t:
-        # profile.df.to_hdf(hdf5_name, 'table', append=True) # this version is desired
-        profile.df.to_hdf(hdf5_name, 'profile', mode='w')
-        # profile.info_df.to_hdf(hdf5_info_name, 'info', mode='w')
-    print('HDFing the DataFrame took ' + str(t.interval) + ' seconds.')
+        print('We will also pick only certain pieces of the statistics to show, using the same')
+        print('syntax that is used to pick rows out of any regular DataFrame.\n')
 
-    print('')
-    print('We can read the Dataframe back in (and even generate statistics on it)')
-    print('in a very short amount of time also:')
-    # read it back in for speed test
-    with Timer() as t:
-        # dataframe = read_hdf(hdf5_name, 'profile', where=['thread=26']) # this is the 'table' version
-        dataframe = read_hdf(hdf5_name, 'profile')
-        print(dataframe[profile.event_columns].describe())
-        # info = read_hdf(hdf5_info_name, 'info')
-    print('Reading and describing the HDF5 Dataframe took only ' + str(t.interval) + ' seconds.')
+        print('For the sorted EXEC events from thread 26, the following profiling info data are available:\n')
 
-    # pickle for speed/size comparison
-    # outfile = open(pickle_name, 'w')
-    # with Timer() as t:
-    #     cPickle.dump(profile, outfile)
-    # print('Pickling took ' + str(t.interval))
+        print(srted[ ['PAPI_L1', 'PAPI_L2', 'kernel_type',
+                      'vp_id', 'thread_id'] ].describe().loc['mean':'std',:])
+        print('')
+        # print(srted[:][srted['kernel_name'] == ''].describe())
 
-    if delete:
-        safe_unlink(filenames)
+        print('We can select events by index and access their data piece by piece if we want.')
+        print('First, we cut these events down to only those with the kernel name "SYRK"\n')
+        srted = srted[:][(srted['kernel_type'] == profile.event_types.SYRK['key'])]
+        print('Now we print the L1 and L2 misses for this second item in this set of events:\n')
+        print('sorted SYRK execs, index 10, kernel type: ' + str(srted.iloc[1]['kernel_type']))
+        print('sorted SYRK execs, index 10, L1 misses: ' + str(srted.iloc[1]['PAPI_L1']))
+        print('sorted SYRK execs, index 10, L2 misses: ' + str(srted.iloc[1]['PAPI_L2']))
+        print('')
+
+        if not profile.store:
+            print('Lastly, we want to show that the file can be written out')
+            print('into a standard format. Our choice is HDF5, because it is fast.')
+            with Timer() as t:
+                store = profile.to_hdf(profile.store_name.replace('.prof-', '.h5-'))
+                store.close()
+            print('Storing the entire profile to HDF took only {} seconds.'.format(t.interval))
+
+    print('Overall test took {:.2f} seconds'.format(main.interval))
     
 if __name__ == '__main__':
     import sys
 
-    read_pickle_return(sys.argv[1:], delete=False)
+    do_demo(sys.argv[1:], translate=False)
+

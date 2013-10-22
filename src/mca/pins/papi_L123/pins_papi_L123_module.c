@@ -222,6 +222,8 @@ static void read_papi_L12_exec_count_end(dague_execution_unit_t * exec_unit,
 		info.kernel_type = -1;
 		if (exec_context->dague_handle->profiling_array != NULL)
 			info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
+		if (info.kernel_type > 8)
+			printf("exec kernel type == %d\n", info.kernel_type);
 		info.vp_id = exec_unit->virtual_process->vp_id;
 		info.th_id = exec_unit->th_id;
 		info.L1_misses = values[0] - exec_unit->papi_last_read[0];
@@ -282,6 +284,8 @@ static void read_papi_L12_select_count_end(dague_execution_unit_t * exec_unit,
 		victim_core_num = exec_context->victim_core;
 		if (exec_context->dague_handle->profiling_array != NULL)
 			info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
+		if (info.kernel_type > 8)
+			printf("select kernel type == %d\n", info.kernel_type);
 		info.starvation = (unsigned long long)data;
 	}
     info.vp_id = exec_unit->virtual_process->vp_id;
@@ -359,6 +363,8 @@ static void read_papi_L12_complete_exec_count_end(dague_execution_unit_t * exec_
 	info.kernel_type = -1;
 	if (exec_context->dague_handle->profiling_array != NULL)
 		info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
+	if (info.kernel_type > 8)
+		printf("Cexec kernel type == %d\n", info.kernel_type);
 
 	/* strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1); */
 	/* info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0'; */
