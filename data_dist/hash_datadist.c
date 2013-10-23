@@ -34,7 +34,7 @@ dague_hash_datadist_t *dague_hash_datadist_create(int np, int myrank)
     o->super.vpid_of_key   = hash_vpid_of_key;
 
 #if defined(DAGUE_PROF_TRACE)
-    o->super.key_to_string = hash_key_to_string;
+    o->super.key_to_string = NULL;
     o->super.key_dim       = NULL;
     o->super.key           = NULL;
 #endif
