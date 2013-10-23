@@ -15,23 +15,26 @@ class ParsecProfile(object):
     class_version = 1.0 # created 2013.10.22 after move to pandas
     basic_event_columns = ['filerank', 'thread', 'key', 'flags', 'handle_id',
                            'id', 'begin', 'end', 'duration', 'unique_id']
-    HDF_ATTR_NAMES = ['event_types', 'type_names', 'files', 'errors'] 
+    HDF_TOP_LEVEL_NAMES = ['event_types', 'type_names', 'files', 'errors', 'information'] 
+    HDF_ATTRIBUTE_NAMES = ['ex', 'N', 'cores', 'NB', 'IB', 'sched', 'perf', 'time']
     @staticmethod
     def from_hdf(filename):
         store = pd.HDFStore(filename, 'r')
-        profile = ParsecProfile(store['events'],
-                                store['event_types'],
+        profile = ParsecProfile(store['events'], 
+                                store['event_types'], # automate
                                 store['type_names'],
                                 store['files'],
-                                store['errors'])
+                                store['errors'],
+                                store['information']
+                            )
         profile.store = profile.to_hdf
         profile.store_name = filename
         store.close()
         return profile
     @staticmethod
-    def from_native(filenames, translate=True):
+    def from_native(filenames, translate=True, print_progress=False):
         import py_dbpreader
-        profile = py_dbpreader.readProfile(filenames)
+        profile = py_dbpreader.readProfile(filenames, print_progress=print_progress)
         profile.store_name = filenames[0] # fix later
         if translate:
             filename = filenames[0].replace('.prof-', '.h5-')
@@ -45,21 +48,30 @@ class ParsecProfile(object):
         
     # the init function should not ordinarily be used
     # it is better to use from_hdf(), from_native(), or autoload()
-    def __init__(self, events, event_types, type_names, files, errors):
+    def __init__(self, events, event_types, type_names, files, errors, information):
         self.__version__ = self.__class__.class_version
         self.events = events
         self.event_types = event_types
         self.type_names = type_names
         self.files = files
+        self.information = information
         self.errors = errors
         self.basic_columns = ParsecProfile.basic_event_columns
         self.store = None
         self.store_name = None
     def to_hdf(self, filename, table=False, append=False):
         store = pd.HDFStore(filename)
-        for name in ParsecProfile.HDF_ATTR_NAMES:
+        for name in ParsecProfile.HDF_TOP_LEVEL_NAMES:
             store.put(name, self.__dict__[name])
         store.put('events', self.events, table=table, append=append)
         return store
+    def __getattr__(self, name):
+        try:
+            return self.information[name]
+        except:
+            try:
+                return self.information[str(name).upper()]
+            except:
+                return self.information['PARAM_' + str(name).upper()]
         
         

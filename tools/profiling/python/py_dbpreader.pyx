@@ -11,6 +11,7 @@
 
 # cython: profile=False
 # but could be True if we wanted to use cProfile!
+from __future__ import print_function
 import sys
 from operator import attrgetter
 from libc.stdlib cimport malloc, free
@@ -34,21 +35,22 @@ class ProfileBuilder(object):
         self.infos = list()
         self.event_types = dict()
         self.type_names = dict()
-        self.files = dict()
+        self.files = list()
         self.errors = dict()
+        self.information = dict()
 
 # this is the public Python interfacea function. you can call it.
-cpdef readProfile(filenames):
+cpdef readProfile(filenames, print_progress=False):
+    cdef dbp_file_t * cfile
+    cdef dbp_dictionary_t * cdict
     cdef char ** c_filenames = stringListToCStrings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
     
     nb_dict_entries = dbp_reader_nb_dictionary_entries(dbp)
-    cdef dbp_file_t * cfile
-    cdef dbp_dictionary_t * cdict
+    nb_files = dbp_reader_nb_files(dbp)
+    worldsize = dbp_reader_worldsize(dbp)
 
     builder = ProfileBuilder()
-    builder.nb_files = dbp_reader_nb_files(dbp)
-    builder.worldsize = dbp_reader_worldsize(dbp)
     
     # create dictionary first, for later use while making Events
     for key in range(nb_dict_entries):
@@ -67,50 +69,78 @@ cpdef readProfile(filenames):
     # pr = cProfile.Profile()
     # pr.enable()
     
-    for ifd in range(builder.nb_files):
+    for ifd in range(nb_files):
         cfile = dbp_reader_get_file(dbp, ifd)
         rank = dbp_file_get_rank(cfile)
         pfile = {'exec_name':dbp_file_hr_id(cfile),
                  'filename':dbp_file_get_name(cfile),
-                 'rank':rank}
-        pfile['infos'] = dict()
+                 'rank':int(rank)}
         for index in range(dbp_file_nb_infos(cfile)):
             cinfo = dbp_file_get_info(cfile, index)
             key = dbp_info_get_key(cinfo)
             value = dbp_info_get_value(cinfo)
-            pfile['infos'][key] = value
+            try:
+                # try to convert value to its number type
+                value = float(value) if '.' in value else int(value)
+            except:
+                # if this fails, it's a string, and that's fine too
+                pass
+            pfile[key] = value
         with Timer() as t:
             num_threads = dbp_file_nb_threads(cfile)
             for thread_id in range(num_threads):
                 makeDbpThread(builder, dbp, cfile, thread_id, rank)
-        print('This takes ' + str(t.interval) + ' seconds, which is about')
-        print(str(t.interval/num_threads) + ' seconds per thread.')
-        builder.files[rank] = pfile
+                if print_progress:
+                    print('.', end='')
+                    sys.stdout.flush()
+        if print_progress:
+            print('\nParsing the PBP files took ' + str(t.interval) + ' seconds, ' , end='')
+            print('which is ' + str(t.interval/num_threads) + ' seconds per thread.')
+        builder.files.append(pfile)
+
+    # now, some voodoo to add shared file information to overall profile info
+    # e.g., PARAM_N, PARAM_MB, etc.
+    # basically, any key that has the same value in all files should 
+    # go straight into the top-level 'information' dictionary
+    builder.information.update(builder.files[0])
+    for _file in builder.files:
+        for key, value in _file.iteritems():
+            if key in builder.information.keys():
+                if builder.information[key] != _file[key]:
+                    del builder.information[key]
+    builder.information['nb_files'] = nb_files
+    builder.information['worldsize'] = worldsize
+
     # pr.disable()
     # ps = pstats.Stats(pr, stream=sys.stdout)
     # ps.print_stats()
 
-    print('Then we construct the DataFrames....')
+    if print_progress:
+        print('Then we construct the main DataFrames....')
     with Timer() as t:
         events = pd.DataFrame(builder.events, columns=ParsecProfile.basic_event_columns)
-    print('   events dataframe construction time: ' + str(t.interval))
+    if print_progress:
+        print('   events dataframe construction time: ' + str(t.interval))
     with Timer() as t:
         infos = pd.DataFrame.from_records(builder.infos)
-    print('   infos dataframe construction time: ' + str(t.interval))
+    if print_progress:
+        print('   infos dataframe construction time: ' + str(t.interval))
+        print('Next, we merge them by their unique id.')
     with Timer() as t:
         events = events.merge(infos, on='unique_id', how='outer')
-    print('   join/merge time: ' + str(t.interval))
+    if print_progress:
+        print('   join/merge time: ' + str(t.interval))
 
     with Timer() as t:
-        attributes = pd.Series({'worldsize':builder.worldsize,
-                                'num_files':builder.nb_files })
+        information = pd.Series(builder.information)
         event_types = pd.DataFrame.from_records(builder.event_types)
         type_names = pd.Series(builder.type_names)
         files = pd.DataFrame.from_records(builder.files)
         errors = pd.DataFrame.from_records(builder.errors)
-    print('made ancillary structures in {} seconds.'.format(t.interval))
+    if print_progress:
+        print('Constructed additional structures in {} seconds.'.format(t.interval))
 
-    profile = ParsecProfile(events, event_types, type_names, files, errors)
+    profile = ParsecProfile(events, event_types, type_names, files, errors, information)
 
     dbp_reader_close_files(dbp) # does nothing as of 2013-04-21
 #   dbp_reader_dispose_reader(dbp)
