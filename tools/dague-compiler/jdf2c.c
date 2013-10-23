@@ -3810,7 +3810,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
      */
     coutput("  /** Update staring simulation date */\n"
             "#if defined(DAGUE_SIM)\n"
-            "  this_task->sim_exec_date = __dague_simulation_date;\n");
+            "  this_task->sim_exec_date = 0;\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 
         if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */

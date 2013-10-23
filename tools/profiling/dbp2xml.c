@@ -38,9 +38,7 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
     uint64_t start, end;
     dbp_event_iterator_t *it, *m;
     const dbp_event_t *e, *g;
-    dague_time_t relative;
 
-    relative = dbp_reader_min_date(dbp);
     fprintf(tracefile,
             "            <THREAD>\n"
             "               <IDENTIFIER><![CDATA[%s]]></IDENTIFIER>\n", dbp_thread_get_hr_id(th) );
@@ -57,12 +55,12 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
                     WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
                              dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
                              dbp_event_get_handle_id(e), dbp_event_get_event_id(e),
-                             diff_time(relative, dbp_event_get_timestamp(e))));
+                             dbp_event_get_timestamp(e)));
                 } else {
                     g = dbp_iterator_current(m);
 
-                    start = diff_time( relative, dbp_event_get_timestamp( e ) );
-                    end = diff_time( relative, dbp_event_get_timestamp( g ) );
+                    start = dbp_event_get_timestamp( e );
+                    end = dbp_event_get_timestamp( g );
 
                     if( displayed_key == 0 ) {
                         fprintf(tracefile, "               <KEY ID=\"%d\">\n", k);

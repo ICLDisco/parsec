@@ -108,50 +108,6 @@ int main(int argc, char ** argv)
     if ( rank == 0 ) {
         dague_complex64_t *mat = ddescA.mat;
 
-        if (0)
-        {
-            char *filename;
-            FILE *f;
-            int i, j;
-
-            asprintf(&filename, "simulation-%dx%d-a%d-p%d-l%d-h%d-d%d-rr%d.dat",
-                     M, N,
-                     iparam[IPARAM_QR_TS_SZE],
-                     iparam[IPARAM_QR_HLVL_SZE],
-                     iparam[IPARAM_LOWLVL_TREE],
-                     iparam[IPARAM_HIGHLVL_TREE],
-                     iparam[IPARAM_QR_DOMINO],
-                     iparam[IPARAM_QR_TSRR]);
-
-            f = fopen(filename, "w");
-            for( i=0; i<M; i++ ) {
-                for( j=0; j<N-1; j++ ) {
-                    if( j > i )
-                        fprintf(f, "%4d &", 0);
-                    else
-                        fprintf(f, "%4d &", (int)(mat[j*LDA+i]));
-                }
-                if( j > i )
-                    fprintf(f, "%4d \\\\\n", 0);
-                else
-                    fprintf(f, "%4d \\\\\n", (int)(mat[j*LDA+i]));
-            }
-            fclose(f);
-        }
-
-        if (0)
-        {
-            int i;
-            for( i=1; i<min(M,N); i++)
-                printf( "(%d, %d, %d) ", i, (int)(mat[i*LDA+i]), (int)( mat[i*LDA+i] - mat[(i-1)*LDA+(i-1)]) );
-            printf("\n");
-
-            if ( min(M,N) > 7 ) {
-                printf( "Formula: qr_p= %d, factor= %d\n",
-                        iparam[IPARAM_QR_HLVL_SZE], (int)( (mat[7*LDA+7]) - (mat[5*LDA+5]) - 44 ) / 6 );
-            }
-        }
-
         printf("zgeqrf HQR simulation NP= %d NC= %d P= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d MT= %d NT= %d : %d \n",
                iparam[IPARAM_NNODES],
                iparam[IPARAM_NCORES],

@@ -574,15 +574,15 @@ static uint64_t *step_height(dague_list_t *list, int *level)
 }
 
 static int dump_one_event( dague_list_t *consolidated_events,
-                           const dbp_multifile_reader_t *dbp, dague_time_t relative,
+                           const dbp_multifile_reader_t *dbp,
                            const dbp_event_iterator_t *istart, const dbp_event_t *estart,
                            const dbp_event_iterator_t *iend,   const dbp_event_t *eend )
 {
     uint64_t start, end;
     consolidated_event_t *cev;
 
-    start = diff_time( relative, dbp_event_get_timestamp( estart ) );
-    end   = diff_time( relative, dbp_event_get_timestamp( eend   ) );
+    start = dbp_event_get_timestamp( estart );
+    end   = dbp_event_get_timestamp( eend   );
 
     assert( start <= end );
 
@@ -623,14 +623,11 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     static int linkuid = 0;
     char linkid[64];
     char cont_step_name[64];
-    dague_time_t relative;
     const dbp_event_t *e, *g;
     char *cont_src;
     char *cont_dst;
     uint64_t *steps_end_dates;
     int nb_steps;
-
-    relative = dbp_reader_min_date(dbp);
 
     pit = dbp_iterator_new_from_thread( th );
     OBJ_CONSTRUCT( &consolidated_events, dague_list_t );
@@ -651,7 +648,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                      * if yes, then add 2 events, one local for submission,
                      * one for the communication to the starting event on the device */
                     g = dbp_iterator_current(nit);
-                    dump_one_event( &consolidated_events, dbp, relative,
+                    dump_one_event( &consolidated_events, dbp,
                                     pit, e, nit, g );
                     current_stat[ key ].nb_matchsuccess++;
 
@@ -667,7 +664,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                             WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" rescheduled at %lu does not have a new starting point anywhere\n",
                                      dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
                                      dbp_event_get_handle_id(e), dbp_event_get_event_id(e),
-                                     diff_time(relative, dbp_event_get_timestamp(e))));
+                                     dbp_event_get_timestamp(e)));
                             current_stat[ key ].nb_matcherror++;
                         }
                         else {
@@ -675,7 +672,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                                 current_stat[ key ].nb_matchthreads++;
                             }
 
-                            dump_one_event( &consolidated_events, dbp, relative,
+                            dump_one_event( &consolidated_events, dbp,
                                             nit, g, nit2, dbp_iterator_current(nit2));
 
                             dbp_iterator_delete(nit2);
@@ -699,7 +696,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                     WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
                              dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
                              dbp_event_get_handle_id(e), dbp_event_get_event_id(e),
-                             diff_time(relative, dbp_event_get_timestamp(e))));
+                             dbp_event_get_timestamp(e)));
 
                     current_stat[ key ].nb_matcherror++;
                 }
@@ -709,7 +706,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                     }
                     current_stat[ key ].nb_matchsuccess++;
 
-                    dump_one_event( &consolidated_events, dbp, relative,
+                    dump_one_event( &consolidated_events, dbp,
                                     pit, e, nit, dbp_iterator_current(nit));
 
                     dbp_iterator_delete(nit);
@@ -766,7 +763,6 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
 static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_reader_t *dbp )
 {
     int i, t, ifd;
-    dague_time_t relative = ZERO_TIME;
     dbp_dictionary_t *dico;
     dbp_file_t *file;
     dbp_thread_t *th;
@@ -805,26 +801,6 @@ static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_
         sprintf(dico_id, "K-%d", i);
         addEntityValue (dico_id, "ST_TS", dbp_dictionary_name(dico), color);
         gtg_color_free(color);
-    }
-
-    /* Remove the time jitter */
-    relative = dbp_reader_min_date(dbp);
-    if( dbp_reader_nb_files(dbp) > 1 ) {
-        dague_time_t max_time;
-        uint64_t delta_time;
-
-        delta_time = 0;
-        max_time = dbp_reader_min_date(dbp);
-        for(ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
-            file = dbp_reader_get_file(dbp, ifd);
-            delta_time += diff_time(relative, dbp_file_get_min_date( file ));
-            if( time_less(max_time, dbp_file_get_min_date( file )) ) {
-                max_time = dbp_file_get_min_date( file );
-            }
-        }
-        fprintf(stderr, "-- Time jitter is bounded by %lu "TIMER_UNIT", average is %g "TIMER_UNIT"\n",
-                (unsigned long)diff_time(relative, max_time),
-                (double)delta_time / (double)dbp_reader_nb_files(dbp));
     }
 
     /* Create the containers architecture */

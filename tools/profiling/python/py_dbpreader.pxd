@@ -96,7 +96,7 @@ cdef extern from "dbpreader.h":
    int dbp_event_get_flags(dbp_event_t *e)
    long long int dbp_event_get_event_id(dbp_event_t *e)
    int dbp_event_get_handle_id(dbp_event_t *e)
-   dague_time_t dbp_event_get_timestamp(dbp_event_t *e)
+   long long int dbp_event_get_timestamp(dbp_event_t *e)
    void *dbp_event_get_info(dbp_event_t *e)
    int   dbp_event_info_len(dbp_event_t *e, dbp_multifile_reader_t *dbp)
 
