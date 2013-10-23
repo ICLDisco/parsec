@@ -135,6 +135,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              int32_t type,
                              dague_data_pair_t* task_data,
+                             dague_gpu_context_t *gpu_task,
                              CUstream stream );
 
 /**

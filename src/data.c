@@ -27,6 +27,8 @@ static void dague_data_copy_construct(dague_data_copy_t* obj)
     obj->original         = NULL;
     obj->device_private   = NULL;
     obj->arena_chunk      = NULL;
+    obj->data_transfer_status      = DATA_STATUS_NOT_TRANSFER;
+    obj->push_task        = NULL;
 }
 
 static void dague_data_copy_destruct(dague_data_copy_t* obj)

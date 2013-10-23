@@ -984,6 +984,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              int32_t type,
                              dague_data_pair_t* task_data,
+                             dague_gpu_context_t *gpu_task,
                              CUstream stream )
 {
     dague_data_copy_t* in_elem = task_data->data_in;
@@ -1004,6 +1005,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
      */
     if( in_elem == gpu_elem ) {
         if( ACCESS_READ & type ) gpu_elem->readers++;
+        gpu_elem->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER; /* data is already in GPU, so no transfer required.*/
         return 0;
     }
 
@@ -1022,6 +1024,11 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                                 { WARNING(("<<%p>> -> <<%p>> [%d]\n", in_elem->device_private, gpu_elem->device_private, original->nb_elts));
                                     return -1; } );
         gpu_device->super.transferred_data_in += original->nb_elts;
+        
+        /* update the data version in GPU immediately, and mark the data under transfer */
+        gpu_elem->version = in_elem->version;  
+        gpu_elem->data_transfer_status = DATA_STATUS_UNDER_TRANSFER;
+        gpu_elem->push_task = gpu_task->ec;  /* only the task who does the transfer can modify the data status later. */
         /* TODO: take ownership of the data */
         return 1;
     }
@@ -1048,8 +1055,9 @@ int progress_stream( gpu_device_t* gpu_device,
                      dague_gpu_context_t* task,
                      dague_gpu_context_t** out_task )
 {
-    int saved_rc = 0, rc;
+    int saved_rc = 0, rc, i;
     *out_task = NULL;
+     dague_execution_context_t *this_task;
 
     if( NULL != task ) {
         DAGUE_FIFO_PUSH(exec_stream->fifo_pending, (dague_list_item_t*)task);
@@ -1101,6 +1109,25 @@ int progress_stream( gpu_device_t* gpu_device,
     if( (NULL == *out_task) && (NULL != exec_stream->tasks[exec_stream->end]) ) {
         rc = cuEventQuery(exec_stream->events[exec_stream->end]);
         if( CUDA_SUCCESS == rc ) {
+            
+            /* even though cuda event return success, the PUSH may not be completed if no PUSH is required by this task and the PUSH is actually  
+               done  by another task, so we need to check if the data is actually ready to use */
+            if (exec_stream == &(gpu_device->exec_stream[0])) {  /* exec_stream[0] is the PUSH stream */
+			    this_task = exec_stream->tasks[exec_stream->end]->ec;
+                for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+                    if(NULL == this_task->function->in[i]) continue;
+                    if (this_task->data[i].data_out->push_task == this_task) {   /* only the task who did this PUSH can modify the status */
+                    	this_task->data[i].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
+                        printf("I did the push, now I set it to complete\n");
+                        continue;
+                    }
+                    if (this_task->data[i].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
+                        return saved_rc;
+                    }
+                    printf("I did NOT do the push, but it is complete\n");	
+                }
+			}
+
             /* Save the task for the next step */
             task = *out_task = exec_stream->tasks[exec_stream->end];
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
