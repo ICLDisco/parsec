@@ -170,7 +170,6 @@ cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
     cdef dbp_event_iterator_t * it_e = NULL
     cdef const dbp_event_t * event_s = dbp_iterator_current(it_s)
     cdef const dbp_event_t * event_e = NULL
-    cdef dague_time_t reader_begin = dbp_reader_min_date(dbp)
     cdef uint64_t begin = 0
     cdef uint64_t end = 0
     cdef void * cinfo = NULL
@@ -195,8 +194,8 @@ cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                 if event_e != NULL:
                     unique_id = len(builder.events)
 
-                    begin = diff_time(reader_begin, dbp_event_get_timestamp(event_s))
-                    end = diff_time(reader_begin, dbp_event_get_timestamp(event_e))
+                    begin = dbp_event_get_timestamp(event_s)
+                    end = dbp_event_get_timestamp(event_e)
 
                     event_key = int(dbp_event_get_key(event_s)) / 2 # to match dictionary
                     event_name = builder.type_names[event_key]

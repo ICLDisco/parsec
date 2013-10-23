@@ -1,5 +1,7 @@
 # dbpreader python definition file
 
+# NOTE: following note is actually now untrue, as os-spec-timing.h is not necessary
+# since the change to relative timing.
 # NOTE: MUST INCLUDE dbp.h BEFORE os-spec-timing.h, so that dbp.h will pull in dague_config.h, which DEFINES #HAVE_CLOCK_GETTIME
 # without that definition, the wrong (microsecond) version of diff_time (for most platforms) will be chosen.
 # basically, just make sure dague_config gets included early on.
@@ -18,12 +20,6 @@ cdef extern from "dbp.h":
 
 cdef extern from "stdint.h":
     ctypedef int uint64_t
-   
-cdef extern from "os-spec-timing.h":
-   ctypedef struct dague_time_t:
-      pass
-
-   uint64_t diff_time(dague_time_t start, dague_time_t end)
 
 cdef extern from "dbpreader.h":
    ctypedef struct dbp_info_t:
@@ -57,7 +53,6 @@ cdef extern from "dbpreader.h":
    int dbp_reader_worldsize(dbp_multifile_reader_t * dbp)
    void dbp_reader_close_files(dbp_multifile_reader_t * dbp)
    void dbp_reader_dispose_reader(dbp_multifile_reader_t * dbp)
-   dague_time_t dbp_reader_min_date(dbp_multifile_reader_t * dbp)
 
    dbp_dictionary_t * dbp_reader_get_dictionary(dbp_multifile_reader_t * dbp, int did)
    char * dbp_dictionary_name(dbp_dictionary_t * dico)
@@ -69,7 +64,6 @@ cdef extern from "dbpreader.h":
 
    char *dbp_file_hr_id(dbp_file_t *file)
    int dbp_file_get_rank(dbp_file_t *file)
-   dague_time_t dbp_file_get_min_date(dbp_file_t *file)
    int dbp_file_nb_threads(dbp_file_t *file)
    int dbp_file_nb_infos(dbp_file_t *file)
    dbp_info_t *dbp_file_get_info(dbp_file_t *file, int iid)
