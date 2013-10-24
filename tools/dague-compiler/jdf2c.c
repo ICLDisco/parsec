@@ -3834,9 +3834,11 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
 
     if( profile_on ) {
+		/*
         coutput("  DAGUE_TASK_PROF_TRACE(context->eu_profile,\n"
                 "                        this_task->dague_handle->profiling_array[2*this_task->function->function_id],\n"
                 "                        this_task);\n");
+		*/
     }
     coutput("%s\n", body->external_code);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
@@ -3895,9 +3897,11 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
     }
 
     if( profile_on ) {
+		/*
         coutput("  DAGUE_TASK_PROF_TRACE(context->eu_profile,\n"
                 "                        this_task->dague_handle->profiling_array[2*this_task->function->function_id+1],\n"
                 "                        this_task);\n");
+		*/
     }
 
     coutput("#if defined(DISTRIBUTED)\n"
