@@ -10,33 +10,33 @@
 #define SYSTEM_QUEUE_VP -2
 
 typedef struct papi_L123_info_s {
-	int vp_id;
-	int th_id;
-	long long L1_misses;
-	long long L2_misses;
-	long long L3_misses; // most interesting
+    int vp_id;
+    int th_id;
+    long long L1_misses;
+    long long L2_misses;
+    long long L3_misses; // most interesting
 } papi_L123_info_t;
 
 typedef struct papi_L12_exec_info_s {
-	int kernel_type;
-	int vp_id;
-	int th_id;
-	long long L1_misses;
-	long long L2_misses;
-	long long L3_misses; // unnecessary but potentially interesting
+    int kernel_type;
+    int vp_id;
+    int th_id;
+    long long L1_misses;
+    long long L2_misses;
+    long long L3_misses; // unnecessary but potentially interesting
 } papi_L12_exec_info_t;
 
 typedef struct papi_L12_select_info_s {
-	int kernel_type;
-	int vp_id;
-	int th_id;
-	int victim_vp_id;
-	int victim_th_id;
-	unsigned long long int starvation;
-	unsigned long long int exec_context;
-	long long L1_misses;
-	long long L2_misses;
-	long long L3_misses; // unnecessary but potentially interesting
+    int kernel_type;
+    int vp_id;
+    int th_id;
+    int victim_vp_id;
+    int victim_th_id;
+    unsigned long long int starvation;
+    unsigned long long int exec_context;
+    long long L1_misses;
+    long long L2_misses;
+    long long L3_misses; // unnecessary but potentially interesting
 } papi_L12_select_info_t;
 
 BEGIN_C_DECLS

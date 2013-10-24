@@ -7,9 +7,9 @@
 #include "dague.h"
 
 typedef struct task_profiler_info_s {
-	int kernel_type;
-	int vp_id;
-	int th_id;
+    int kernel_type;
+    int vp_id;
+    int th_id;
 } task_profiler_info_t;
 
 BEGIN_C_DECLS

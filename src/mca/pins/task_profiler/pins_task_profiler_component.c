@@ -3,9 +3,9 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  *
  * These symbols are in a file by themselves to provide nice linker
@@ -32,7 +32,7 @@ static int pins_task_profiler_component_query(mca_base_module_t **module, int *p
 const dague_pins_base_component_t dague_pins_task_profiler_component = {
 
     /* First, the mca_component_t struct containing meta information
-       about the component itself */
+     about the component itself */
 
     {
         DAGUE_PINS_BASE_VERSION_2_0_0,
@@ -43,11 +43,11 @@ const dague_pins_base_component_t dague_pins_task_profiler_component = {
         DAGUE_VERSION_MINOR,
 
         /* Component open and close functions */
-        NULL, 
-        NULL, 
-        pins_task_profiler_component_query, 
+        NULL,
+        NULL,
+        pins_task_profiler_component_query,
         /*< specific query to return the module and add it to the list of available modules */
-        NULL, 
+        NULL,
         "", /*< no reserve */
     },
     {
