@@ -50,12 +50,14 @@ class ParsecProfile(object):
     # it is better to use from_hdf(), from_native(), or autoload()
     def __init__(self, events, event_types, type_names, files, errors, information):
         self.__version__ = self.__class__.class_version
+        # core data
         self.events = events
         self.event_types = event_types
         self.type_names = type_names
         self.files = files
         self.information = information
         self.errors = errors
+        # metadata
         self.basic_columns = ParsecProfile.basic_event_columns
         self.store = None
         self.store_name = None
