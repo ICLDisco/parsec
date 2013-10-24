@@ -47,11 +47,15 @@ def do_demo(filenames, translate=False):
         print('these runs tend to have some basic linear algebra attributes, such as matrix size.')
         print('If the profile contains these sorts of attributes, they will print below:\n')
         try:
-            print('N: {} M: {} NB: {} MB: {} gflops: {} time elapsed: {}\n'.format(
-                profile.N, profile.M, profile.NB, profile.MB, profile.gflops, profile.time_elapsed))
+            print('N: {} M: {} NB: {} MB: {} gflops: {} time elapsed: {} scheduler: {}\n'.format(
+                profile.N, profile.M, profile.NB, profile.MB, profile.gflops, profile.time_elapsed, profile.sched))
         except:
             print('It appears that one or more of the basic attributes was not present,')
             print('so we\'ll just move on.\n')
+
+        for attr, val in profile.information.iteritems():
+            if attr != 'HWLOC-XML':
+                print('{} {}'.format(attr, val))
 
         print('The bulk of the profile information is stored in a data structure called a DataFrame.')
         print('A DataFrame is a large matrix/table with labeled columns.\n')

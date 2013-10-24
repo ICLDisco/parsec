@@ -65,14 +65,10 @@ cpdef readProfile(filenames, print_progress=False):
     # print('index is ' + str(index))
     # print(builder.test_df[index])
     
-    # convert c to py
-    # pr = cProfile.Profile()
-    # pr.enable()
-    
     for ifd in range(nb_files):
         cfile = dbp_reader_get_file(dbp, ifd)
         rank = dbp_file_get_rank(cfile)
-        pfile = {'exec_name':dbp_file_hr_id(cfile),
+        pfile = {'exe':dbp_file_hr_id(cfile),
                  'filename':dbp_file_get_name(cfile),
                  'rank':int(rank)}
         for index in range(dbp_file_nb_infos(cfile)):
@@ -101,7 +97,7 @@ cpdef readProfile(filenames, print_progress=False):
     # now, some voodoo to add shared file information to overall profile info
     # e.g., PARAM_N, PARAM_MB, etc.
     # basically, any key that has the same value in all files should 
-    # go straight into the top-level 'information' dictionary
+    # go straight into the top-level 'information' dictionary, since it is global
     builder.information.update(builder.files[0])
     for _file in builder.files:
         for key, value in _file.iteritems():
@@ -111,16 +107,17 @@ cpdef readProfile(filenames, print_progress=False):
     builder.information['nb_files'] = nb_files
     builder.information['worldsize'] = worldsize
 
-    # pr.disable()
-    # ps = pstats.Stats(pr, stream=sys.stdout)
-    # ps.print_stats()
-
     if print_progress:
         print('Then we construct the main DataFrames....')
-    with Timer() as t:
-        events = pd.DataFrame(builder.events, columns=ParsecProfile.basic_event_columns)
-    if print_progress:
-        print('   events dataframe construction time: ' + str(t.interval))
+    if len(builder.events) > 0:
+        with Timer() as t:
+            events = pd.DataFrame(builder.events, columns=ParsecProfile.basic_event_columns)
+        if print_progress:
+            print('   events dataframe construction time: ' + str(t.interval))
+    else:
+        events = pd.DataFrame()
+        if print_progress:
+            print('   No events were found.')
     with Timer() as t:
         infos = pd.DataFrame.from_records(builder.infos)
     if print_progress:
@@ -142,7 +139,7 @@ cpdef readProfile(filenames, print_progress=False):
             errors = pd.DataFrame(builder.errors, 
                                   columns=ParsecProfile.basic_event_columns + ['error_msg'])
         else:
-            errors = None
+            errors = pd.DataFrame()
     if print_progress:
         print('Constructed additional structures in {} seconds.'.format(t.interval))
 

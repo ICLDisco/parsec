@@ -33,6 +33,11 @@
 
 #include "flops.h"
 
+/* these are globals in common.c */
+extern char *DAGUE_SCHED_NAME[];
+extern int unix_timestamp;
+extern char cwd[];
+
 /* Update PASTE_CODE_PROGRESS_KERNEL below if you change this list */
 enum iparam_t {
   IPARAM_RANK,         /* Rank                              */
@@ -189,9 +194,15 @@ static void profiling_save_iinfo(const char *key, int value)
     free(svalue);
 }
 #define PROFILING_SAVE_iINFO(key, integer_value) profiling_save_iinfo(key, integer_value)
+static void profiling_save_sinfo(const char *key, char* svalue)
+{
+    dague_profiling_add_information(key, svalue);
+}
+#define PROFILING_SAVE_sINFO(key, str_value) profiling_save_sinfo(key, str_value)
 #else
 #define PROFILING_SAVE_dINFO(key, double_value) do {} while(0)
 #define PROFILING_SAVE_iINFO(key, integer_value) do {} while(0)
+#define PROFILING_SAVE_sINFO(key, str_value) do {} while(0)
 #endif
 
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
@@ -237,6 +248,9 @@ static void profiling_save_iinfo(const char *key, int value)
     PROFILING_SAVE_iINFO("PARAM_BUT_LEVEL", iparam[IPARAM_BUT_LEVEL]);  \
     PROFILING_SAVE_iINFO("PARAM_PINS", iparam[IPARAM_PINS]);            \
     PROFILING_SAVE_iINFO("PARAM_SCHEDULER", iparam[IPARAM_SCHEDULER]);  \
+    PROFILING_SAVE_sINFO("sched", DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]]);  \
+    PROFILING_SAVE_iINFO("timestamp", unix_timestamp);					\
+	PROFILING_SAVE_sINFO("cwd", cwd);									\
     if(loud >= 5 && rank == 0) {                                        \
         printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n" \
                "                 encoding=\"none\" compression=\"none\">\n" \

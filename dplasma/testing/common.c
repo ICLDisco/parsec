@@ -36,7 +36,7 @@
 #include "vpmap.h"
 #include "dague/mca/pins/pins.h"
 
-static char *DAGUE_SCHED_NAME[] = {
+char *DAGUE_SCHED_NAME[] = {
     "", /* default */
     "lfq",
     "ltq",
@@ -569,12 +569,16 @@ void iparam_default_gemm(int* iparam)
 
 #ifdef DAGUE_PROF_TRACE
 static char* argvzero;
+char cwd[1024];
+int unix_timestamp;
 #endif
 
 dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 {
 #ifdef DAGUE_PROF_TRACE
     argvzero = argv[0];
+	unix_timestamp = time(NULL);
+	getcwd(cwd, sizeof(cwd));
 #endif
 #ifdef HAVE_MPI
     MPI_Init(&argc,&argv);
@@ -631,6 +635,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
         if( 0 == dague_set_scheduler( ctx ) ) {
             fprintf(stderr, "*** Warning: unable to select the scheduler %s. Default scheduler is maintained.\n",
                     DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]]);
+			iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ; /* set param for profile */
         }
     }
 

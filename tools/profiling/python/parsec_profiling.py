@@ -65,13 +65,22 @@ class ParsecProfile(object):
             store.put(name, self.__dict__[name])
         store.put('events', self.events, table=table, append=append)
         return store
+    # this allows certain 'acceptable' attribute abbreviations
+    # and automatically searches the 'information' dictionary
     def __getattr__(self, name):
         try:
             return self.information[name]
         except:
-            try:
-                return self.information[str(name).upper()]
-            except:
-                return self.information['PARAM_' + str(name).upper()]
+            pass
+        try:
+            return self.information[str(name).upper()]
+        except:
+            pass
+        try:
+            return self.information['PARAM_' + str(name).upper()]
+        except:
+            return object.__getattribute__(self, name)
+        # potentially add one more set of 'known translations'
+        # such as 'perf' -> 'gflops', 'ex' -> 'exname'
         
         

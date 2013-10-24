@@ -1,10 +1,9 @@
 import datetime as dt
 import time
-import cPickle
+from ParsecProfiling import *
 
-class Trial(object):
-    class_version = 1.0 # added a version
-    class_version = 1.1 # renamed some attributes
+class ParsecTrial(ParsecProfile):
+    class_version = 1.0 # revamped everything
     def __init__(self, ident, ex, N, cores, NB, IB, sched, trial_num, perf, walltime):
         self.__version__ = self.__class__.class_version
         # parameters
@@ -54,9 +53,7 @@ class Trial(object):
             self.__version__ = 1.1
 
 class TrialSet(list):
-    class_version = 1.0 # added a version
-    class_version = 1.1 # renamed various attributes
-    class_version = 1.2 # changed profile pickling method
+    class_version = 1.0 # revamped everything for pandas
     # class members
     __unloaded_profile_token__ = 'not loaded' # old
     @staticmethod
@@ -151,20 +148,5 @@ class TrialSet(list):
             int(self.perf_avg), self.percent_sdv(), len(self))
     def unique_name(self):
         return self.name() + '_' + str(self.unix_timestamp)
-    def __setstate__(self, dictionary): # the unpickler shim
-        self.__dict__.update(dictionary)
-        if not hasattr(self, '__version__'):
-            if not hasattr(self, 'ident'):
-                self.ident = 'NO_ID'
-            self.__version__ = 1.0
-        if self.__version__ < 1.1:
-            self.perf_avg = self.avgGflops
-            self.perf_sdv = self.Gstddev
-            self.time_avg = self.avgTime
-            self.time_sdv = self.Tstddev
-            self.unix_timestamp = self.unix_time
-            self.iso_timestamp = self.timestamp
-            self.__version__ = 1.1
-            
 
 

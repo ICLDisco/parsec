@@ -3739,16 +3739,13 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     string_arena_t *sa, *sa2;
     assignment_info_t ai;
     jdf_dataflow_t *fl;
-    int di, profile_on;
+    int di;
+	/* int profile_on; */
     char* output;
     init_from_data_array_info_t ifda;
 
-    /**
-     * If the function or the body has the "profile" property turned off
-     * do not generate the profiling code.
-     */
-    profile_on = jdf_property_get_int(f->properties, "profile", 1);
-    profile_on = jdf_property_get_int(body->properties, "profile", profile_on);
+    /* profile_on = jdf_property_get_int(f->properties, "profile", 1); */
+    /* profile_on = jdf_property_get_int(body->properties, "profile", profile_on); */
 
     jdf_find_property(body->properties, "type", &type_property);
     if(NULL != type_property) {
@@ -3833,13 +3830,14 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     jdf_generate_code_dry_run_before(jdf, f);
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
 
+	/*
     if( profile_on ) {
-		/*
         coutput("  DAGUE_TASK_PROF_TRACE(context->eu_profile,\n"
                 "                        this_task->dague_handle->profiling_array[2*this_task->function->function_id],\n"
                 "                        this_task);\n");
-		*/
     }
+	*/
+
     coutput("%s\n", body->external_code);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
         coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
@@ -3862,15 +3860,12 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
                                 const char *name)
 {
     string_arena_t *sa, *sa2;
-    int di, profile_on;
+    int di; 
+	/* int profile_on; */
     jdf_dataflow_t *fl;
     assignment_info_t ai;
 
-    /**
-     * If the function or the body has the "profile" property turned off
-     * do not generate the profiling code.
-     */
-    profile_on = jdf_property_get_int(f->properties, "profile", 1);
+    /* profile_on = jdf_property_get_int(f->properties, "profile", 1); */
 
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -3896,13 +3891,13 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
         }
     }
 
+	/*
     if( profile_on ) {
-		/*
         coutput("  DAGUE_TASK_PROF_TRACE(context->eu_profile,\n"
                 "                        this_task->dague_handle->profiling_array[2*this_task->function->function_id+1],\n"
                 "                        this_task);\n");
-		*/
     }
+	*/
 
     coutput("#if defined(DISTRIBUTED)\n"
             "  /** If not working on distributed, there is no risk that data is not in place */\n");

@@ -505,6 +505,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         }
         cmdline_info[l] = '\0';
         dague_profiling_add_information("CMDLINE", cmdline_info);
+
+		/* reuse this for the hostname */
+		if (!gethostname(cmdline_info, l))
+			dague_profiling_add_information("hostname", cmdline_info);
+		else
+			dague_profiling_add_information("hostname", "");
+
         free(cmdline_info);
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
