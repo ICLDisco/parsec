@@ -174,6 +174,13 @@ int dague_profiling_init( const char *format, ... )
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
     dague_profiling_start();
+    /**
+     * As we called the _start function automatically, the timing will be
+     * based on this moment. By forcing back the __already_called to 0, we
+     * allow the caller to decide when to rebase the timing in case there
+     * is a need.
+     */
+    __already_called = 0;
     dague_profile_enabled = 1;  /* turn on the profiling */
 
     return 0;
