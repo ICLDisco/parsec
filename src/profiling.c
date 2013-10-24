@@ -29,7 +29,7 @@
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
-#define MINIMAL_EVENT_BUFFER_SIZE          4088
+#define MINIMAL_EVENT_BUFFER_SIZE          (1024*1024)
 
 /**
  * Externally visible on/off switch for the profiling of new events. It
@@ -787,6 +787,15 @@ int dague_profiling_dump_dbp( const char* filename )
     pthread_mutex_unlock(&file_backend_lock);
 
     return 0;
+}
+
+void dague_profiling_enable(void)
+{
+    dague_profile_enabled = 1;
+}
+void dague_profiling_disable(void)
+{
+    dague_profile_enabled = 0;
 }
 
 char *dague_profile_ddesc_key_to_string = "";
