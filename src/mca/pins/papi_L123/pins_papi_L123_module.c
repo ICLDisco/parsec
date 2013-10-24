@@ -222,8 +222,6 @@ static void read_papi_L12_exec_count_end(dague_execution_unit_t * exec_unit,
 		info.kernel_type = -1;
 		if (exec_context->dague_handle->profiling_array != NULL)
 			info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
-		if (info.kernel_type > 8)
-			printf("exec kernel type == %d\n", info.kernel_type);
 		info.vp_id = exec_unit->virtual_process->vp_id;
 		info.th_id = exec_unit->th_id;
 		info.L1_misses = values[0] - exec_unit->papi_last_read[0];

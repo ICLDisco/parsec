@@ -47,8 +47,8 @@ BEGIN_C_DECLS
 DAGUE_DECLSPEC extern const dague_pins_base_component_t dague_pins_papi_L123_component;
 DAGUE_DECLSPEC extern const dague_pins_module_t dague_pins_papi_L123_module;
 /* static accessor */
-mca_base_component_t * pins_papi_exec_static_component(void);
+mca_base_component_t * pins_papi_L123_static_component(void);
 
 END_C_DECLS
 
-#endif // PINS_PAPI_EXEC_H
+#endif // PINS_PAPI_L123_H

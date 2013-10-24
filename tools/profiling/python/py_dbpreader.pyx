@@ -36,7 +36,7 @@ class ProfileBuilder(object):
         self.event_types = dict()
         self.type_names = dict()
         self.files = list()
-        self.errors = dict()
+        self.errors = list()
         self.information = dict()
 
 # this is the public Python interfacea function. you can call it.
@@ -125,18 +125,24 @@ cpdef readProfile(filenames, print_progress=False):
         infos = pd.DataFrame.from_records(builder.infos)
     if print_progress:
         print('   infos dataframe construction time: ' + str(t.interval))
-        print('Next, we merge them by their unique id.')
-    with Timer() as t:
-        events = events.merge(infos, on='unique_id', how='outer')
-    if print_progress:
-        print('   join/merge time: ' + str(t.interval))
+    if len(infos) > 0:
+        if print_progress:
+            print('Next, we merge them by their unique id.')
+        with Timer() as t:
+            events = events.merge(infos, on='unique_id', how='outer')
+        if print_progress:
+            print('   join/merge time: ' + str(t.interval))
 
     with Timer() as t:
         information = pd.Series(builder.information)
         event_types = pd.DataFrame.from_records(builder.event_types)
         type_names = pd.Series(builder.type_names)
         files = pd.DataFrame.from_records(builder.files)
-        errors = pd.DataFrame.from_records(builder.errors)
+        if len(builder.errors) > 0:
+            errors = pd.DataFrame(builder.errors, 
+                                  columns=ParsecProfile.basic_event_columns + ['error_msg'])
+        else:
+            errors = None
     if print_progress:
         print('Constructed additional structures in {} seconds.'.format(t.interval))
 
@@ -164,7 +170,8 @@ cdef char** stringListToCStrings(strings):
     return c_argv
 
 # you can't call this. it will be called for you. call readProfile()
-cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, int thread_id, int filerank):
+cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp, 
+                   dbp_file_t * cfile, int thread_id, int filerank):
     cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, thread_id)
     cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
     cdef dbp_event_iterator_t * it_e = NULL
@@ -181,27 +188,26 @@ cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
     cdef long long int * cast_lld_ptr = NULL
 
     while event_s != NULL:
+        event_key = int(dbp_event_get_key(event_s)) / 2 # to match dictionary
+        event_name = builder.type_names[event_key]
+        begin = dbp_event_get_timestamp(event_s)
+        event_flags = dbp_event_get_flags(event_s)
+        event_handle_id = int(dbp_event_get_handle_id(event_s))
+        event_id = int(dbp_event_get_event_id(event_s))
+        unique_id = len(builder.events)
+
         if KEY_IS_START( dbp_event_get_key(event_s) ):
             it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
             if it_e == NULL:
-                if event_name not in builder.errors:
-                    builder.errors[event_name] = []
-                builder.errors[event_name].append({'event':event,
-                                                   'error_msg':'event of class {} id {} at {} does not have a match.\n'.format(
-                                                       event_name, event_id, thread_id)})
+                event = [filerank, thread_id, event_key, event_flags,
+                         event_handle_id, event_id, begin, None, 0, unique_id]
+                error_msg = 'event of class {} id {} at {} does not have a match.\n'.format(
+                    event_name, event_id, thread_id)
+                builder.errors.append(event + [error_msg])
             else:
                 event_e = dbp_iterator_current(it_e)
                 if event_e != NULL:
-                    unique_id = len(builder.events)
-
-                    begin = dbp_event_get_timestamp(event_s)
                     end = dbp_event_get_timestamp(event_e)
-
-                    event_key = int(dbp_event_get_key(event_s)) / 2 # to match dictionary
-                    event_name = builder.type_names[event_key]
-                    event_flags = dbp_event_get_flags(event_s)
-                    event_handle_id = int(dbp_event_get_handle_id(event_s))
-                    event_id = int(dbp_event_get_event_id(event_s))
                     duration = end - begin
 
                     event = [filerank, thread_id, event_key, event_flags,
@@ -213,11 +219,9 @@ cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, in
                         it_e = NULL
                         dbp_iterator_next(it_s)
                         event_s = dbp_iterator_current(it_s)
-                        if event_name not in builder.errors:
-                            builder.errors[event_name] = []
-                        builder.errors[event_name].append({'event':event,
-                                                           'error_msg':'event of class {} id {} at {} does not have a match.\n'.format(
-                                                               event_name, event_id, thread_id)})
+                        error_msg = 'event of class {} id {} at {} has a negative duration.\n'.format(
+                            event_name, event_id, thread_id)
+                        builder.errors.append(event + [error_msg])
                         continue
 
                     builder.events.append(event)
