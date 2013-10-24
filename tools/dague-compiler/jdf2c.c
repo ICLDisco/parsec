@@ -2081,17 +2081,17 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     }
 
     coutput("%s  if( NULL != ((dague_ddesc_t*)__dague_handle->super.%s)->vpid_of ) {\n"
-	    "%s    vpid = ((dague_ddesc_t*)__dague_handle->super.%s)->vpid_of((dague_ddesc_t*)__dague_handle->super.%s, %s);\n"
+        "%s    vpid = ((dague_ddesc_t*)__dague_handle->super.%s)->vpid_of((dague_ddesc_t*)__dague_handle->super.%s, %s);\n"
             "%s    assert(context->nb_vp >= vpid);\n"
-	    "%s  }\n"
+        "%s  }\n"
             "%s  new_dynamic_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->virtual_processes[vpid]->execution_units[0]->context_mempool );\n",
-	    indent(nesting), f->predicate->func_or_mem,
+        indent(nesting), f->predicate->func_or_mem,
             indent(nesting), f->predicate->func_or_mem, f->predicate->func_or_mem,
             UTIL_DUMP_LIST(sa1, f->predicate->parameters, next,
                            dump_expr, (void*)&info2,
                            "", "", ", ", ""),
-	    indent(nesting),
-	    indent(nesting),
+        indent(nesting),
+        indent(nesting),
             indent(nesting));
 
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nbdefinitions);
@@ -3740,7 +3740,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     assignment_info_t ai;
     jdf_dataflow_t *fl;
     int di;
-	/* int profile_on; */
+    /* int profile_on; */
     char* output;
     init_from_data_array_info_t ifda;
 
@@ -3830,13 +3830,13 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     jdf_generate_code_dry_run_before(jdf, f);
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
 
-	/*
+    /*
     if( profile_on ) {
         coutput("  DAGUE_TASK_PROF_TRACE(context->eu_profile,\n"
                 "                        this_task->dague_handle->profiling_array[2*this_task->function->function_id],\n"
                 "                        this_task);\n");
     }
-	*/
+    */
 
     coutput("%s\n", body->external_code);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
@@ -3861,7 +3861,7 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
 {
     string_arena_t *sa, *sa2;
     int di; 
-	/* int profile_on; */
+    /* int profile_on; */
     jdf_dataflow_t *fl;
     assignment_info_t ai;
 
@@ -3891,13 +3891,13 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
         }
     }
 
-	/*
+    /*
     if( profile_on ) {
         coutput("  DAGUE_TASK_PROF_TRACE(context->eu_profile,\n"
                 "                        this_task->dague_handle->profiling_array[2*this_task->function->function_id+1],\n"
                 "                        this_task);\n");
     }
-	*/
+    */
 
     coutput("#if defined(DISTRIBUTED)\n"
             "  /** If not working on distributed, there is no risk that data is not in place */\n");

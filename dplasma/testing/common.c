@@ -577,8 +577,8 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 {
 #ifdef DAGUE_PROF_TRACE
     argvzero = argv[0];
-	unix_timestamp = time(NULL);
-	getcwd(cwd, sizeof(cwd));
+    unix_timestamp = time(NULL);
+    getcwd(cwd, sizeof(cwd));
 #endif
 #ifdef HAVE_MPI
     MPI_Init(&argc,&argv);
@@ -635,7 +635,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
         if( 0 == dague_set_scheduler( ctx ) ) {
             fprintf(stderr, "*** Warning: unable to select the scheduler %s. Default scheduler is maintained.\n",
                     DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]]);
-			iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ; /* set param for profile */
+            iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ; /* set param for profile */
         }
     }
 

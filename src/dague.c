@@ -299,7 +299,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if((NULL == pargc) || (*pargc == 0)) {
         int rc = asprintf( &dague_app_name, DEFAULT_APPNAME, (int)getpid() );
         if (rc == -1) {
-	    dague_app_name = strdup( "app_name_XXXXXX" );
+        dague_app_name = strdup( "app_name_XXXXXX" );
         }
     } else {
         dague_app_name = strdup( (*pargv)[0] );
@@ -506,11 +506,11 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         cmdline_info[l] = '\0';
         dague_profiling_add_information("CMDLINE", cmdline_info);
 
-		/* reuse this for the hostname */
-		if (!gethostname(cmdline_info, l))
-			dague_profiling_add_information("hostname", cmdline_info);
-		else
-			dague_profiling_add_information("hostname", "");
+        /* reuse this for the hostname */
+        if (!gethostname(cmdline_info, l))
+            dague_profiling_add_information("hostname", cmdline_info);
+        else
+            dague_profiling_add_information("hostname", "");
 
         free(cmdline_info);
 
@@ -1125,12 +1125,12 @@ int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
 
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
                 DEBUG3(("  Task %s is immediate and will be executed ASAP\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, new_context)));
-				PINS(EXEC_BEGIN, eu_context, new_context, NULL);
+                PINS(EXEC_BEGIN, eu_context, new_context, NULL);
                 __dague_execute(eu_context, new_context);
-				PINS(EXEC_END, eu_context, new_context, NULL);
-				PINS(COMPLETE_EXEC_BEGIN, eu_context, new_context, NULL);
+                PINS(EXEC_END, eu_context, new_context, NULL);
+                PINS(COMPLETE_EXEC_BEGIN, eu_context, new_context, NULL);
                 __dague_complete_execution(eu_context, new_context);
-				PINS(COMPLETE_EXEC_END, eu_context, new_context, NULL);
+                PINS(COMPLETE_EXEC_END, eu_context, new_context, NULL);
 #if 0 /* TODO */
                 SET_HIGHEST_PRIORITY(new_context, dague_execution_context_priority_comparator);
                 DAGUE_LIST_ITEM_SINGLETON(&(new_context->list_item));

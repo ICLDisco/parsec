@@ -214,7 +214,7 @@ static void profiling_save_sinfo(const char *key, char* svalue)
                           nb_local_tasks,                               \
                           nb_local_tasks/time_elapsed));                \
     SYNC_TIME_PRINT(rank, (#KERNEL " computation PxQ= %d %d N= %d NB= %d IB= %d : %f gflops\n", \
-                           P, Q, N, NB, IB, 							\
+                           P, Q, N, NB, IB,                             \
                            gflops=(flops/1e9)/sync_time_elapsed));      \
     PROFILING_SAVE_dINFO("TIME_ELAPSED", time_elapsed);                 \
     PROFILING_SAVE_dINFO("SYNC_TIME_ELAPSED", sync_time_elapsed);       \
@@ -249,8 +249,8 @@ static void profiling_save_sinfo(const char *key, char* svalue)
     PROFILING_SAVE_iINFO("PARAM_PINS", iparam[IPARAM_PINS]);            \
     PROFILING_SAVE_iINFO("PARAM_SCHEDULER", iparam[IPARAM_SCHEDULER]);  \
     PROFILING_SAVE_sINFO("sched", DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]]);  \
-    PROFILING_SAVE_iINFO("timestamp", unix_timestamp);					\
-	PROFILING_SAVE_sINFO("cwd", cwd);									\
+    PROFILING_SAVE_iINFO("timestamp", unix_timestamp);                  \
+    PROFILING_SAVE_sINFO("cwd", cwd);                                   \
     if(loud >= 5 && rank == 0) {                                        \
         printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n" \
                "                 encoding=\"none\" compression=\"none\">\n" \

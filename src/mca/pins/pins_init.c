@@ -34,10 +34,10 @@ void pins_init(dague_context_t * master_context) {
     int i = 0;
     dague_pins_module_t * module = NULL;
     int priority = -1;
-	int enabled_module_count = 0;
+    int enabled_module_count = 0;
 
 #if defined(DAGUE_PROF_TRACE)
-	char modules_enabled[(MAX_NAME_SIZE + 1) * MAX_ENABLED_MODULES + 1];
+    char modules_enabled[(MAX_NAME_SIZE + 1) * MAX_ENABLED_MODULES + 1];
 #endif /* DAGUE_PROF_TRACE */
 
     for (; i < PINS_FLAG_COUNT; i++) {
@@ -57,13 +57,13 @@ void pins_init(dague_context_t * master_context) {
   advanced PAPI-using modules.
  */
     PAPI_library_init(PAPI_VER_CURRENT); /* this has to happen before threads get created */
-	PAPI_set_debug(PAPI_VERB_ECONT);
+    PAPI_set_debug(PAPI_VERB_ECONT);
     int t_init = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self )); 
     if (t_init != PAPI_OK)
-	    DEBUG(("PAPI Thread Init failed with error code %d (%s)!\n", t_init, PAPI_strerror(t_init)));
+        DEBUG(("PAPI Thread Init failed with error code %d (%s)!\n", t_init, PAPI_strerror(t_init)));
 #endif /* HAVE_PAPI */
 
-	/* We no longer default to the use of any particular module. */
+    /* We no longer default to the use of any particular module. */
     /* set_allowable_pins_modules(default_modules_array); */
     allowable_modules_defined = 1; /* block post-init definitions */
     i = 0;
@@ -73,40 +73,40 @@ void pins_init(dague_context_t * master_context) {
         if (pins_components[i]->mca_query_component != NULL) {
             pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
             int j = 0;
-			dague_pins_module_t * init_this_module = NULL;
+            dague_pins_module_t * init_this_module = NULL;
             if (!allowable_modules_in_use)
-				init_this_module = module;
-			else {
-				while (allowable_modules[j] != NULL) {
-					if (0 == strncmp(module->component->base_version.mca_component_name,
-									 allowable_modules[j], MAX_NAME_SIZE)) {
-						init_this_module = module;
-						break;
-					}
-					j++;
-				}
-			}
-			if (NULL != init_this_module) {
-				enabled_module_count++;
-				if (NULL != init_this_module->module.init) {
-					init_this_module->module.init(master_context);
-					DEBUG(("Activated PINS module %s.\n",
-						   init_this_module->component->base_version.mca_component_name));
-				}
+                init_this_module = module;
+            else {
+                while (allowable_modules[j] != NULL) {
+                    if (0 == strncmp(module->component->base_version.mca_component_name,
+                                     allowable_modules[j], MAX_NAME_SIZE)) {
+                        init_this_module = module;
+                        break;
+                    }
+                    j++;
+                }
+            }
+            if (NULL != init_this_module) {
+                enabled_module_count++;
+                if (NULL != init_this_module->module.init) {
+                    init_this_module->module.init(master_context);
+                    DEBUG(("Activated PINS module %s.\n",
+                           init_this_module->component->base_version.mca_component_name));
+                }
 #if defined(DAGUE_PROF_TRACE)
-				/* accumulate the names of modules used */
-				strncat(modules_enabled, 
-						init_this_module->component->base_version.mca_component_name, 
-						MAX_NAME_SIZE);
-				strncat(modules_enabled, ",", 1);
+                /* accumulate the names of modules used */
+                strncat(modules_enabled, 
+                        init_this_module->component->base_version.mca_component_name, 
+                        MAX_NAME_SIZE);
+                strncat(modules_enabled, ",", 1);
 #endif
-			}
+            }
         }
         i++;
     }
 #if defined(DAGUE_PROF_TRACE)
-	modules_enabled[strlen(modules_enabled) - 1] = '\0';
-	dague_profiling_add_information("PINS_MODULES", modules_enabled);
+    modules_enabled[strlen(modules_enabled) - 1] = '\0';
+    dague_profiling_add_information("PINS_MODULES", modules_enabled);
 #endif 
 }
 
@@ -130,17 +130,17 @@ void pins_fini(dague_context_t * master_context) {
         if (pins_components[i]->mca_query_component != NULL) {
             pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
             int j = 0;
-			dague_pins_module_t * fini_this_module = NULL;
+            dague_pins_module_t * fini_this_module = NULL;
             if (!allowable_modules_in_use)
-				fini_this_module = module;
-			else {
-				while (allowable_modules[j] != NULL) {
-					if (0 == strncmp(module->component->base_version.mca_component_name,
-									 allowable_modules[j], MAX_NAME_SIZE))  {
-						fini_this_module = module;
-						break;
-					}
-					j++;
+                fini_this_module = module;
+            else {
+                while (allowable_modules[j] != NULL) {
+                    if (0 == strncmp(module->component->base_version.mca_component_name,
+                                     allowable_modules[j], MAX_NAME_SIZE))  {
+                        fini_this_module = module;
+                        break;
+                    }
+                    j++;
                 }
             }
             if (NULL != fini_this_module && NULL != fini_this_module->module.fini) {
@@ -175,26 +175,26 @@ void pins_thread_init(dague_execution_unit_t * exec_unit) {
 #if defined(HAVE_PAPI)
     int rv = PAPI_register_thread();
     if (rv != PAPI_OK)
-	    DEBUG(("PAPI_register_thread failed with error %s\n", PAPI_strerror(rv)));
+        DEBUG(("PAPI_register_thread failed with error %s\n", PAPI_strerror(rv)));
 #endif /* HAVE_PAPI */
 
     while (pins_components[i] != NULL) {
         if (pins_components[i]->mca_query_component != NULL) {
             pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
             int j = 0;
-			dague_pins_module_t * t_init_this_module = NULL;
-			if (!allowable_modules_in_use)
-				t_init_this_module = module;
-			else {
-				while (allowable_modules[j] != NULL) {
-					if (0 == strncmp(module->component->base_version.mca_component_name,
-									 allowable_modules[j], MAX_NAME_SIZE)) {
-						t_init_this_module = module;
-						break;
-					}
-					j++;
-				}
-			}
+            dague_pins_module_t * t_init_this_module = NULL;
+            if (!allowable_modules_in_use)
+                t_init_this_module = module;
+            else {
+                while (allowable_modules[j] != NULL) {
+                    if (0 == strncmp(module->component->base_version.mca_component_name,
+                                     allowable_modules[j], MAX_NAME_SIZE)) {
+                        t_init_this_module = module;
+                        break;
+                    }
+                    j++;
+                }
+            }
             if (NULL != t_init_this_module && NULL != t_init_this_module->module.thread_init)
                 t_init_this_module->module.thread_init(exec_unit);
         }
@@ -224,19 +224,19 @@ void pins_thread_fini(dague_execution_unit_t * exec_unit) {
         if (pins_components[i]->mca_query_component != NULL) {
             pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
             int j = 0;
-			dague_pins_module_t * t_fini_this_module = NULL;
-			if (!allowable_modules_in_use)
-				t_fini_this_module = module;
-			else {
-				while (allowable_modules[j] != NULL) {
-					if (0 == strncmp(module->component->base_version.mca_component_name,
-									 allowable_modules[j], MAX_NAME_SIZE)) {
-						t_fini_this_module = module;
-						break;
-					}
-					j++;
-				}
-			}
+            dague_pins_module_t * t_fini_this_module = NULL;
+            if (!allowable_modules_in_use)
+                t_fini_this_module = module;
+            else {
+                while (allowable_modules[j] != NULL) {
+                    if (0 == strncmp(module->component->base_version.mca_component_name,
+                                     allowable_modules[j], MAX_NAME_SIZE)) {
+                        t_fini_this_module = module;
+                        break;
+                    }
+                    j++;
+                }
+            }
             if (NULL != t_fini_this_module && NULL != t_fini_this_module->module.thread_fini) 
                 t_fini_this_module->module.thread_fini(exec_unit);
         }
@@ -264,18 +264,18 @@ void pins_handle_init(dague_handle_t * handle) {
         if (pins_components[i]->mca_query_component != NULL) {
             pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
             int j = 0;
-			dague_pins_module_t * h_init_this_module = NULL;
-			if (!allowable_modules_in_use)
-				h_init_this_module = module;
-			else {
-				while (allowable_modules[j] != NULL) {
-					if (0 == strncmp(module->component->base_version.mca_component_name,
-									 allowable_modules[j], MAX_NAME_SIZE)) {
-						h_init_this_module = module;
-						break;
-					}
-					j++;
-				}
+            dague_pins_module_t * h_init_this_module = NULL;
+            if (!allowable_modules_in_use)
+                h_init_this_module = module;
+            else {
+                while (allowable_modules[j] != NULL) {
+                    if (0 == strncmp(module->component->base_version.mca_component_name,
+                                     allowable_modules[j], MAX_NAME_SIZE)) {
+                        h_init_this_module = module;
+                        break;
+                    }
+                    j++;
+                }
             }
             if (NULL != h_init_this_module && NULL != h_init_this_module->module.handle_init) 
                 h_init_this_module->module.handle_init(handle);
@@ -306,18 +306,18 @@ void pins_handle_fini(dague_handle_t * handle) {
         if (pins_components[i]->mca_query_component != NULL) {
             pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
             int j = 0;
-			dague_pins_module_t * h_fini_this_module = NULL;
-			if (!allowable_modules_in_use)
-				h_fini_this_module = module;
-			else {
-				while (allowable_modules[j] != NULL) {
-					if (0 == strncmp(module->component->base_version.mca_component_name,
-									 allowable_modules[j], MAX_NAME_SIZE)) {
-						h_fini_this_module = module;
-						break;
-					}
-					j++;
-				}
+            dague_pins_module_t * h_fini_this_module = NULL;
+            if (!allowable_modules_in_use)
+                h_fini_this_module = module;
+            else {
+                while (allowable_modules[j] != NULL) {
+                    if (0 == strncmp(module->component->base_version.mca_component_name,
+                                     allowable_modules[j], MAX_NAME_SIZE)) {
+                        h_fini_this_module = module;
+                        break;
+                    }
+                    j++;
+                }
             }
             if (NULL != h_fini_this_module && NULL != h_fini_this_module->module.handle_fini) 
                 h_fini_this_module->module.handle_fini(handle);
