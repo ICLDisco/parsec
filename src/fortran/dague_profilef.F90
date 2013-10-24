@@ -108,6 +108,12 @@ module dague_profile_f08_interfaces
      END SUBROUTINE dague_profile_disable_f08
   END INTERFACE dague_profile_disable_f08
 
+  INTERFACE dague_profile_start_f08
+     SUBROUTINE dague_profile_start_f08() &
+          BIND(C, name="dague_profiling_start")
+       IMPLICIT NONE
+     END SUBROUTINE dague_profile_start_f08
+  END INTERFACE dague_profile_start_f08
 
 CONTAINS
 
@@ -250,5 +256,10 @@ CONTAINS
     call dague_profile_disable_f08()
   END SUBROUTINE dague_profile_disable
 
+  SUBROUTINE dague_profile_start()
+    IMPLICIT NONE
+
+    call dague_profile_start_f08()
+  END SUBROUTINE dague_profile_start
 
 end module dague_profile_f08_interfaces
