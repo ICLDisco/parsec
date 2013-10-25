@@ -241,7 +241,6 @@ int dague_set_scheduler( dague_context_t *dague )
     scheduler_component = (dague_sched_base_component_t*)new_component;
 
     DEBUG((" Installing %s\n", current_scheduler->component->base_version.mca_component_name));
-    printf(" Installing %s\n", current_scheduler->component->base_version.mca_component_name);
     PROFILING_SAVE_sINFO("sched", (char *)current_scheduler->component->base_version.mca_component_name);
 
     assert( no_scheduler_is_active(dague) );

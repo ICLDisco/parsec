@@ -628,7 +628,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 
     if( iparam[IPARAM_SCHEDULER] != DAGUE_SCHEDULER_DEFAULT ) {
         char *ignored;
-        printf("sched is %s\n", DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]]);
         (void)dague_mca_param_reg_string_name("mca", "sched", NULL,
                                               false, false,
                                               DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]],
