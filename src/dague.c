@@ -261,9 +261,6 @@ static void dague_vp_init( dague_vp_t *vp,
             {"cores",            required_argument,  NULL, 'c'},
             {"c",                required_argument,  NULL, 'c'},
 
-            {"o",                required_argument,  NULL, 'o'},
-            {"scheduler",        required_argument,  NULL, 'o'},
-
             {"gpus",             required_argument,  NULL, 'g'},
             {"g",                required_argument,  NULL, 'g'},
 
