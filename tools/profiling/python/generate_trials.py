@@ -7,7 +7,7 @@ import cPickle
 from parsec_trials import Trial, TrialSet
 import subprocess
 
-####### global parameter defaults for ig            
+####### global parameter defaults for ig
 # it would be nice to have different 'default experiment parameters'
 # for different machines (e.g. ig, zoot).
 #
@@ -53,9 +53,9 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
     #
     # transfer dict items
     #
-    
+
     IBdivs_orig = IBdivs
-    
+
     import socket
     hostname = socket.gethostname().split('.')[0]
     trial_sets = []
@@ -78,7 +78,7 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
                 while Ns[0] >= maxN: # cutoff
                     Ns = Ns[1:]
             for N in Ns:
-                sys.stderr.write("%s %d\n" % (ex.upper(), N))   
+                sys.stderr.write("%s %d\n" % (ex.upper(), N))
                 if not IBdivs_orig:
                     IBdivs = [default_IBdivs[ex]]
                 elif 'potrf' in ex or 'getrf' in ex:
@@ -114,7 +114,7 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
                                                  trial_set.shared_name())
                             trial_sets.append(trial_set)
     return trial_sets
-    
+
 ###########
 ## MAIN
 ###########
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     list_only = False
     extra_args = []
     output_base_dir = '.'
-    
+
     try:
         for arg in sys.argv[1:]:
             if arg == '-l':

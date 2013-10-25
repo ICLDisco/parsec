@@ -177,34 +177,6 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     nb_local_tasks = DAGUE_##KERNEL->nb_local_tasks;                    \
     if( loud > 2 ) SYNC_TIME_PRINT(rank, ( #KERNEL "\tDAG created\n"));
 
-#if defined(DAGUE_PROF_TRACE)
-static void profiling_save_dinfo(const char *key, double value)
-{
-    char *svalue;
-    asprintf(&svalue, "%g", value);
-    dague_profiling_add_information(key, svalue);
-    free(svalue);
-}
-#define PROFILING_SAVE_dINFO(key, double_value) profiling_save_dinfo(key, double_value)
-static void profiling_save_iinfo(const char *key, int value)
-{
-    char *svalue;
-    asprintf(&svalue, "%d", value);
-    dague_profiling_add_information(key, svalue);
-    free(svalue);
-}
-#define PROFILING_SAVE_iINFO(key, integer_value) profiling_save_iinfo(key, integer_value)
-static void profiling_save_sinfo(const char *key, char* svalue)
-{
-    dague_profiling_add_information(key, svalue);
-}
-#define PROFILING_SAVE_sINFO(key, str_value) profiling_save_sinfo(key, str_value)
-#else
-#define PROFILING_SAVE_dINFO(key, double_value) do {} while(0)
-#define PROFILING_SAVE_iINFO(key, integer_value) do {} while(0)
-#define PROFILING_SAVE_sINFO(key, str_value) do {} while(0)
-#endif
-
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
@@ -249,8 +221,6 @@ static void profiling_save_sinfo(const char *key, char* svalue)
     PROFILING_SAVE_iINFO("PARAM_PINS", iparam[IPARAM_PINS]);            \
     PROFILING_SAVE_iINFO("PARAM_SCHEDULER", iparam[IPARAM_SCHEDULER]);  \
     PROFILING_SAVE_sINFO("sched", DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]]);  \
-    PROFILING_SAVE_iINFO("timestamp", unix_timestamp);                  \
-    PROFILING_SAVE_sINFO("cwd", cwd);                                   \
     if(loud >= 5 && rank == 0) {                                        \
         printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n" \
                "                 encoding=\"none\" compression=\"none\">\n" \
@@ -259,5 +229,7 @@ static void profiling_save_sinfo(const char *key, char* svalue)
                gflops);                                                 \
     }                                                                   \
     (void)gflops;
+    /* PROFILING_SAVE_iINFO("timestamp", unix_timestamp);                  \ */
+    /* PROFILING_SAVE_sINFO("cwd", cwd);                                   \ */
 
 #endif /* _TESTSCOMMON_H */

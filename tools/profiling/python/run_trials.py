@@ -33,7 +33,7 @@ def spawn_trial_set_processes(trial_sets, exe_dir='.', output_base_dir='.'):
     total_fail_count = 0
     if not os.path.exists(output_base_dir):
         os.makedirs(output_base_dir)
-    
+
     for set_num in range(len(trial_sets)):
         if last_ex != trial_sets[set_num].ex:
             print('\n')
@@ -74,7 +74,7 @@ def spawn_trial_set_processes(trial_sets, exe_dir='.', output_base_dir='.'):
                 traceback.print_exc()
                 fail_count += 1
                 if fail_count < max_set_fails:
-                    print('An exception occurred during trial set ' + 
+                    print('An exception occurred during trial set ' +
                           '{} processing. Retrying!'.format(trial_set.unique_name()))
                 else:
                     set_done = True
@@ -89,7 +89,7 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
     set_finished = False
     extra_trials = []
     pending_filename = 'pending.' + trial_set.shared_name()
-    
+
     while not set_finished:
         # abbrevs
         ex = trial_set.ex
@@ -100,14 +100,14 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
         sched = trial_set.sched
         for trialNum in range(0, do_trials + stddev_fails):
             # in case of test executable crashes, prepare to run more than once
-            for trial_attempts in range(max_trial_attempts): 
+            for trial_attempts in range(max_trial_attempts):
                 print("%s for %dx%d matrix on %d cores, NB = %d, IB = %d; sched = %s Xargs = %s trial #%d" %
                       (ex, N, N, cores, NB, IB, sched, str(trial_set.extra_args), trialNum))
                 cmd, args = trial_set.generate_cmd()
                 proc = subprocess.Popen([exe_dir + os.sep + cmd] + args,
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 # RUN
-                (stdout, stderr) = proc.communicate() 
+                (stdout, stderr) = proc.communicate()
                 if len(stderr) != 0:
                     marker = randint(0, 99999)
                     print("AN ERROR OCCURRED %d" % marker)
@@ -122,7 +122,7 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
                     print("   -----> gflops: %f time: %f NB:%d" %
                           (perf, time, trial_set.NB))
                     trial = Trial(trial_set.ident, ex, N, cores, NB,
-                                     IB, sched, trialNum, perf, time)
+                                  IB, sched, trialNum, perf, time)
                     trial.extra_output = extra_output
                     if not os.environ.get('SUPPRESS_EXTRA_OUTPUT', None):
                        sys.stdout.write(extra_output)
@@ -175,7 +175,7 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
                     set_finished = True
                 except KeyboardInterrupt:
                     print('Currently writing files. Cannot interrupt.')
-                    
+
         elif stddev_fails < max_stddev_fails: # no good, try again
             stddev_fails += 1
             extra_trials.extend(trial_set[:])
@@ -241,13 +241,13 @@ if __name__ == '__main__':
               'OUTPUT_DIRECTORY TEST_PICKLES_TO_RUN ' +
               '[EXTRA ARGUMENTS TO TEST EXECUTABLE]')
         sys.exit(-1)
-        
+
     # clean up old .profile files before testing
     safe_unlink(glob.glob(exe_dir + os.sep + 'testing_*.profile'))
 
     if 'None' in extra_args:
         extra_args = None
-    
+
     trial_sets = []
     for pickle in pickles:
         pfile = open(pickle, 'r')
@@ -260,6 +260,5 @@ if __name__ == '__main__':
     trial_sets.sort(key = lambda tset: (tset.sched))
     # run the longer ones first
     trial_sets.sort(key = lambda tset: (tset.ex, tset.N, tset.NB, tset.IB), reverse=True)
-            
-    spawn_trial_set_processes(trial_sets, exe_dir = exe_dir, output_base_dir=output_base_dir)
 
+    spawn_trial_set_processes(trial_sets, exe_dir = exe_dir, output_base_dir=output_base_dir)

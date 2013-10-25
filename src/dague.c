@@ -512,6 +512,15 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         else
             dague_profiling_add_information("hostname", "");
 
+        /* we should be adding the PaRSEC options to the profile here
+         * instead of in common.c/h as we do now. */
+        PROFILING_SAVE_iINFO("nb_cores", nb_cores);
+        PROFILING_SAVE_iINFO("nb_vps", nb_vp);
+        PROFILING_SAVE_iINFO("timestamp", time(NULL));
+        char cwd[1024];
+        getcwd(cwd, sizeof(cwd));
+        dague_profiling_add_information("cwd", cwd);
+
         free(cmdline_info);
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)

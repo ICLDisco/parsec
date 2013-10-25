@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdlib.h>
 
 /**
  * Note about thread safety:
@@ -210,5 +211,35 @@ static inline void dague_profiling_disable(void)
     if( dague_profile_enabled ) {                                       \
         dague_profiling_trace_flags(context, key, event_id, object_id, info, flags ); \
     }
+
+/* MACROS for use elsewhere */
+static void profiling_save_dinfo(const char *key, double value)
+{
+    char *svalue;
+    asprintf(&svalue, "%g", value);
+    dague_profiling_add_information(key, svalue);
+    free(svalue);
+}
+static void profiling_save_iinfo(const char *key, int value)
+{
+    char *svalue;
+    asprintf(&svalue, "%d", value);
+    dague_profiling_add_information(key, svalue);
+    free(svalue);
+}
+static void profiling_save_sinfo(const char *key, char* svalue)
+{
+    dague_profiling_add_information(key, svalue);
+}
+
+#if defined(DAGUE_PROF_TRACE)
+#define PROFILING_SAVE_dINFO(key, double_value) profiling_save_dinfo(key, double_value)
+#define PROFILING_SAVE_iINFO(key, integer_value) profiling_save_iinfo(key, integer_value)
+#define PROFILING_SAVE_sINFO(key, str_value) profiling_save_sinfo(key, str_value)
+#else
+#define PROFILING_SAVE_dINFO(key, double_value) do {} while(0)
+#define PROFILING_SAVE_iINFO(key, integer_value) do {} while(0)
+#define PROFILING_SAVE_sINFO(key, str_value) do {} while(0)
+#endif
 
 #endif  /* _DAGUE_profiling_h */
