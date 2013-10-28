@@ -61,6 +61,7 @@ int    dplasma_zgetrs_incpiv( dague_context_t *dague, const PLASMA_enum trans, t
 int    dplasma_zhetrs( dague_context_t *dague, int uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, PLASMA_Complex64_t *U_but_vec, int level);
 int    dplasma_zposv ( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* B);
 int    dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A);
+int    dplasma_zpotrf_rec( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A);
 int    dplasma_zpotrs( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* B);
 int    dplasma_zungqr( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *Q);
 int    dplasma_zungqr_param( dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *Q);
@@ -131,6 +132,7 @@ dague_handle_t* dplasma_zgetrf_incpiv_New(tiled_matrix_desc_t *A, tiled_matrix_d
 dague_handle_t* dplasma_zgetrf_nopiv_New(tiled_matrix_desc_t *A, int* INFO);
 dague_handle_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A);
 dague_handle_t* dplasma_zpotrf_New( PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
+dague_handle_t* dplasma_zpotrf_rec_New( PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
 dague_handle_t* dplasma_zungqr_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *Q);
 dague_handle_t* dplasma_zungqr_param_New(dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *Q);
 dague_handle_t* dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *B);
@@ -195,6 +197,7 @@ void dplasma_zgetrf_nopiv_Destruct( dague_handle_t *o );
 void dplasma_zherbt_Destruct( dague_handle_t *o );
 void dplasma_zhbrdt_Destruct( dague_handle_t* o );
 void dplasma_zpotrf_Destruct( dague_handle_t *o );
+void dplasma_zpotrf_rec_Destruct( dague_handle_t *o );
 void dplasma_zungqr_Destruct( dague_handle_t *o );
 void dplasma_zungqr_param_Destruct( dague_handle_t *o );
 void dplasma_zunmqr_Destruct( dague_handle_t *o );
