@@ -42,20 +42,29 @@ cpdef read(filenames, report_progress=False, info_only=False):
         builder.event_types[event_name] = {'key':key, 'attributes':str(dbp_dictionary_attributes(cdict))}
     builder.type_names[-1] = '' # this is the default, for kernels without names
 
+    # start with our nodes in the correct order
+    node_order = dict()
+    for i in range(nb_files):
+        cfile = dbp_reader_get_file(dbp, i)
+        node_id = dbp_file_get_rank(cfile)
+        node_order[node_id] = i
+
     total_threads = 0
-    nodes = dict()
     with Timer() as t:
-        for ifd in range(nb_files):
-            cfile = dbp_reader_get_file(dbp, ifd)
-            node_id = dbp_file_get_rank(cfile)
+        # read the file for each node
+        for node_id in range(len(node_order.values())):
+            cfile = dbp_reader_get_file(dbp, node_order[node_id])
             node_dct = {'exe':dbp_file_hr_id(cfile),
                         'filename':dbp_file_get_name(cfile),
-                        'id':int(node_id)}
+                        'id':node_id}
             for index in range(dbp_file_nb_infos(cfile)):
                 cinfo = dbp_file_get_info(cfile, index)
                 key = dbp_info_get_key(cinfo)
                 value = dbp_info_get_value(cinfo)
                 add_kv(node_dct, key, value)
+            builder.nodes.append(node_dct)
+    
+            # now read threads of this node
             num_threads = dbp_file_nb_threads(cfile)
             total_threads += num_threads
             builder.unordered_threads = dict()
@@ -66,27 +75,21 @@ cpdef read(filenames, report_progress=False, info_only=False):
             # sort threads
             for thread_num in range(num_threads):
                 builder.threads.append(builder.unordered_threads[thread_num])
-            nodes[node_id] = node_dct
     # report progress
     cond_print('\nParsing the PBP files took ' + str(t.interval) + ' seconds, ' , 
                report_progress, end='')
     cond_print('which is ' + str(t.interval/total_threads) 
                + ' seconds per thread.', report_progress)
 
-    # sort nodes
-    for i in range(len(nodes.keys())):
-        builder.nodes.append(nodes[i])
-
     # now, some voodoo to add shared file information to overall profile info
     # e.g., PARAM_N, PARAM_MB, etc.
     # basically, any key that has the same value in all nodes should
     # go straight into the top-level 'information' dictionary, since it is global
     builder.information.update(builder.nodes[0])
-    print(builder.information['GFLOPS'])
     for node in builder.nodes:
         for key, value in node.iteritems():
             if key in builder.information.keys():
-                if builder.information[key] != node[key]:
+                if builder.information[key] != node[key] and node[key] != 0:
                     del builder.information[key]
     builder.information['nb_nodes'] = nb_files
     builder.information['worldsize'] = worldsize

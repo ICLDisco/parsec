@@ -185,6 +185,8 @@ static inline int min(int a, int b) { return a < b ? a : b; }
         TIME_PRINT(rank, (#KERNEL "\t%d tasks computed,\t%f task/s rate\n",    \
                           nb_local_tasks,                               \
                           nb_local_tasks/time_elapsed));                \
+    else /* not loud, but still need to 'stop' time_elapsed */          \
+        TIME_STOP();                                                    \
     SYNC_TIME_PRINT(rank, (#KERNEL " computation PxQ= %d %d N= %d NB= %d IB= %d : %f gflops\n", \
                            P, Q, N, NB, IB,                             \
                            gflops=(flops/1e9)/sync_time_elapsed));      \
