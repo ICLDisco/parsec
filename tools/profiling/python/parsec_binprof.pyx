@@ -1,7 +1,7 @@
 ####################################
 # DBPreader Python interface
 # run 'python setup.py build_ext --inplace' to compile
-# import py_dbpreader to use
+# import parsec_binprof
 #
 # This is verified to work with Python 2.4.3 and above, compiled with Cython 0.16rc0
 # However, it is recommended that Python 2.7 or greater is used to build and run.
@@ -13,12 +13,17 @@
 # but could be True if we wanted to use cProfile!
 from __future__ import print_function
 import sys
-from operator import attrgetter
+from operator import attrgetter, itemgetter
 from libc.stdlib cimport malloc, free
 from parsec_profiling      import * # the pure Python classes
 import pandas as pd
 #import cProfile, pstats
 import time
+import re
+import shutil
+
+thread_id_in_descrip = re.compile('.*thread\s+(\d+).*', re.IGNORECASE)
+vp_id_in_descrip = re.compile('.*VP\s+(\d+).*', re.IGNORECASE)
 
 class Timer:
     def __enter__(self):
@@ -29,29 +34,35 @@ class Timer:
         self.end = time.clock()
         self.interval = self.end - self.start
 
+# private utility class
 class ProfileBuilder(object):
     def __init__(self):
         self.events = list()
         self.infos = list()
         self.event_types = dict()
         self.type_names = dict()
-        self.files = list()
+        self.nodes = list()
+        self.threads = list()
         self.errors = list()
         self.information = dict()
 
-# this is the public Python interfacea function. you can call it.
-cpdef readProfile(filenames, print_progress=False):
+def cond_print(string, cond, **kwargs):
+    if cond:
+        print(string, **kwargs)
+
+# reads an entire profile into a set of pandas DataFrames
+cpdef read(filenames, report_progress=False, info_only=False):
     cdef dbp_file_t * cfile
     cdef dbp_dictionary_t * cdict
-    cdef char ** c_filenames = stringListToCStrings(filenames)
+    cdef char ** c_filenames = string_list_to_c_strings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
-    
+
     nb_dict_entries = dbp_reader_nb_dictionary_entries(dbp)
     nb_files = dbp_reader_nb_files(dbp)
     worldsize = dbp_reader_worldsize(dbp)
 
     builder = ProfileBuilder()
-    
+
     # create dictionary first, for later use while making Events
     for key in range(nb_dict_entries):
         cdict = dbp_reader_get_dictionary(dbp, key)
@@ -64,86 +75,80 @@ cpdef readProfile(filenames, print_progress=False):
     index = -1
     # print('index is ' + str(index))
     # print(builder.test_df[index])
-    
+
     for ifd in range(nb_files):
         cfile = dbp_reader_get_file(dbp, ifd)
-        rank = dbp_file_get_rank(cfile)
+        node_id = dbp_file_get_rank(cfile)
         pfile = {'exe':dbp_file_hr_id(cfile),
                  'filename':dbp_file_get_name(cfile),
-                 'rank':int(rank)}
+                 'id':int(node_id)}
         for index in range(dbp_file_nb_infos(cfile)):
             cinfo = dbp_file_get_info(cfile, index)
             key = dbp_info_get_key(cinfo)
             value = dbp_info_get_value(cinfo)
-            try:
-                # try to convert value to its number type
+            try:    # try to convert value to its number type
                 value = float(value) if '.' in value else int(value)
-            except:
-                # if this fails, it's a string, and that's fine too
+            except: # if this fails, it's a string, and that's fine too
                 pass
             pfile[key] = value
         with Timer() as t:
             num_threads = dbp_file_nb_threads(cfile)
-            for thread_id in range(num_threads):
-                makeDbpThread(builder, dbp, cfile, thread_id, rank)
-                if print_progress:
-                    print('.', end='')
-                    sys.stdout.flush()
-        if print_progress:
-            print('\nParsing the PBP files took ' + str(t.interval) + ' seconds, ' , end='')
-            print('which is ' + str(t.interval/num_threads) + ' seconds per thread.')
-        builder.files.append(pfile)
+            for thread_num in range(num_threads):
+                construct_thread(builder, dbp, cfile, node_id, thread_num, info_only)
+                cond_print('.', report_progress, end='')
+                sys.stdout.flush()
+        cond_print('\nParsing the PBP files took ' + str(t.interval) + ' seconds, ' , 
+                   report_progress, end='')
+        cond_print('which is ' + str(t.interval/num_threads) 
+                   + ' seconds per thread.', report_progress)
+        builder.nodes.append(pfile)
 
     # now, some voodoo to add shared file information to overall profile info
     # e.g., PARAM_N, PARAM_MB, etc.
-    # basically, any key that has the same value in all files should 
+    # basically, any key that has the same value in all nodes should
     # go straight into the top-level 'information' dictionary, since it is global
-    builder.information.update(builder.files[0])
-    for _file in builder.files:
-        for key, value in _file.iteritems():
+    builder.information.update(builder.nodes[0])
+    for node in builder.nodes:
+        for key, value in node.iteritems():
             if key in builder.information.keys():
-                if builder.information[key] != _file[key]:
+                if builder.information[key] != node[key]:
                     del builder.information[key]
-    builder.information['nb_files'] = nb_files
+    builder.information['nb_nodes'] = nb_files
     builder.information['worldsize'] = worldsize
 
-    if print_progress:
-        print('Then we construct the main DataFrames....')
+    cond_print('Then we construct the main DataFrames....', report_progress)
     if len(builder.events) > 0:
         with Timer() as t:
             events = pd.DataFrame(builder.events, columns=ParsecProfile.basic_event_columns)
-        if print_progress:
-            print('   events dataframe construction time: ' + str(t.interval))
-    else:
+        cond_print('   events dataframe construction time: ' + str(t.interval), report_progress)
+    else: # b/c pd.DataFrame chokes on an empty list
         events = pd.DataFrame()
-        if print_progress:
-            print('   No events were found.')
+        cond_print('   No events were found.', report_progress)
     with Timer() as t:
         infos = pd.DataFrame.from_records(builder.infos)
-    if print_progress:
-        print('   infos dataframe construction time: ' + str(t.interval))
-    if len(infos) > 0:
-        if print_progress:
-            print('Next, we merge them by their unique id.')
+    cond_print('   infos dataframe construction time: ' + str(t.interval), report_progress)
+    if len(infos) > 0: # merge also chokes on an empty dataframe
+        cond_print('Next, we merge them by their unique id.', report_progress)
         with Timer() as t:
             events = events.merge(infos, on='unique_id', how='outer')
-        if print_progress:
-            print('   join/merge time: ' + str(t.interval))
+        cond_print('   join/merge time: ' + str(t.interval), report_progress)
 
     with Timer() as t:
         information = pd.Series(builder.information)
         event_types = pd.DataFrame.from_records(builder.event_types)
         type_names = pd.Series(builder.type_names)
-        files = pd.DataFrame.from_records(builder.files)
+        nodes = pd.DataFrame.from_records(builder.nodes)
+        threads = pd.DataFrame.from_records(builder.threads)
         if len(builder.errors) > 0:
-            errors = pd.DataFrame(builder.errors, 
+            errors = pd.DataFrame(builder.errors,
                                   columns=ParsecProfile.basic_event_columns + ['error_msg'])
         else:
             errors = pd.DataFrame()
-    if print_progress:
-        print('Constructed additional structures in {} seconds.'.format(t.interval))
+    cond_print('Constructed additional structures in {} seconds.'.format(t.interval), 
+               report_progress)
 
-    profile = ParsecProfile(events, event_types, type_names, files, errors, information)
+    profile = ParsecProfile(events, event_types, type_names, 
+                            nodes, threads, errors, information)
 
     dbp_reader_close_files(dbp) # does nothing as of 2013-04-21
 #   dbp_reader_dispose_reader(dbp)
@@ -151,11 +156,23 @@ cpdef readProfile(filenames, print_progress=False):
 
     return profile
 
+# just a shortcut for passing info_only
+cpdef get_info(filenames):
+    return read(filenames, info_only=True)
+
+cpdef convert(filenames, outfilename, unlink=True, table=False, append=False, report_progress=False):
+    profile = read(filenames, report_progress=report_progress)
+    store = profile.to_hdf(outfilename, table=table, append=append)
+    store.close()
+    if unlink:
+        for filename in filenames:
+            shutil.unlink(filename)
+
 # helper function for readProfile
-cdef char** stringListToCStrings(strings):
+cdef char** string_list_to_c_strings(strings):
     cdef char ** c_argv
     bytes_strings = [bytes(x) for x in strings]
-    c_argv = <char**>malloc(sizeof(char*) * len(bytes_strings)) 
+    c_argv = <char**>malloc(sizeof(char*) * len(bytes_strings))
     if c_argv is NULL:
         raise MemoryError()
     try:
@@ -167,9 +184,9 @@ cdef char** stringListToCStrings(strings):
     return c_argv
 
 # you can't call this. it will be called for you. call readProfile()
-cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp, 
-                   dbp_file_t * cfile, int thread_id, int filerank):
-    cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, thread_id)
+cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, 
+                   int node_id, int thread_num, int info_only):
+    cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, thread_num)
     cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
     cdef dbp_event_iterator_t * it_e = NULL
     cdef const dbp_event_t * event_s = dbp_iterator_current(it_s)
@@ -184,20 +201,35 @@ cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp,
     cdef papi_L12_exec_info_t * cast_L12_exec_info = NULL
     cdef long long int * cast_lld_ptr = NULL
 
-    while event_s != NULL:
-        event_key = int(dbp_event_get_key(event_s)) / 2 # to match dictionary
+    thread_descrip = dbp_thread_get_hr_id(cthread)
+    # if the hr_id gives this thread a 'real' id, we'll try to steal it
+    m = thread_id_in_descrip.match(thread_descrip)
+    if m:
+        thread_id = int(m.group(1))
+    else:
+        thread_id = thread_num
+    m = vp_id_in_descrip.match(thread_descrip)
+    if m:
+        vp_id = int(m.group(1))
+    else:
+        vp_id = 0
+    thread = {'description':thread_descrip, 'id': thread_id, 'vp_id': vp_id}
+    builder.threads.append(thread)
+
+    while event_s != NULL and not info_only:
+        event_key = dbp_event_get_key(event_s) / 2 # to match dictionary
         event_name = builder.type_names[event_key]
         begin = dbp_event_get_timestamp(event_s)
         event_flags = dbp_event_get_flags(event_s)
-        event_handle_id = int(dbp_event_get_handle_id(event_s))
-        event_id = int(dbp_event_get_event_id(event_s))
+        handle_id = dbp_event_get_handle_id(event_s)
+        event_id = dbp_event_get_event_id(event_s)
         unique_id = len(builder.events)
 
         if KEY_IS_START( dbp_event_get_key(event_s) ):
             it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
             if it_e == NULL:
-                event = [filerank, thread_id, event_key, event_flags,
-                         event_handle_id, event_id, begin, None, 0, unique_id]
+                event = [node_id, thread_id, handle_id, event_key, 
+                         begin, None, 0, event_flags, unique_id, event_id]
                 error_msg = 'event of class {} id {} at {} does not have a match.\n'.format(
                     event_name, event_id, thread_id)
                 builder.errors.append(event + [error_msg])
@@ -207,9 +239,8 @@ cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp,
                     end = dbp_event_get_timestamp(event_e)
                     duration = end - begin
 
-                    event = [filerank, thread_id, event_key, event_flags,
-                             event_handle_id, event_id,
-                             begin, end, duration, unique_id]
+                    event = [node_id, thread_id, handle_id, event_key, 
+                             begin, end, duration, event_flags, unique_id, event_id]
 
                     if end < begin:
                         dbp_iterator_delete(it_e)
@@ -287,10 +318,6 @@ cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp,
                                 unique_id,
                                 'kernel_type':
                                 cast_L12_exec_info.kernel_type,
-                                'vp_id':
-                                cast_L12_exec_info.vp_id,
-                                'thread_id':
-                                cast_L12_exec_info.th_id,
                                 'PAPI_L1':
                                 cast_L12_exec_info.L1_misses,
                                 'PAPI_L2':
@@ -304,10 +331,6 @@ cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp,
                                 unique_id,
                                 'kernel_type':
                                 cast_L12_select_info.kernel_type,
-                                'vp_id':
-                                cast_L12_select_info.vp_id,
-                                'thread_id':
-                                cast_L12_select_info.th_id,
                                 'victim_vp_id':
                                 cast_L12_select_info.victim_vp_id,
                                 'victim_thread_id':
@@ -329,12 +352,8 @@ cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp,
                               event_key == builder.event_types['PINS_L123']['key']):
                             cast_L123_info = <papi_L123_info_t *>cinfo
                             event_info = {
-                                'unique_id': 
+                                'unique_id':
                                 unique_id,
-                                'vp_id':
-                                cast_L123_info.vp_id,
-                                'thread_id':
-                                cast_L123_info.th_id,
                                 'PAPI_L1':
                                 cast_L123_info.L1_misses,
                                 'PAPI_L2':
@@ -350,10 +369,6 @@ cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp,
                                 unique_id,
                                 'kernel_type':
                                 cast_L12_exec_info.kernel_type,
-                                'vp_id':
-                                cast_L12_exec_info.vp_id,
-                                'thread_id':
-                                cast_L12_exec_info.th_id,
                                 'PAPI_L1':
                                 cast_L12_exec_info.L1_misses,
                                 'PAPI_L2':
@@ -374,6 +389,6 @@ cdef makeDbpThread(builder, dbp_multifile_reader_t * dbp,
                 it_e = NULL
         dbp_iterator_next(it_s)
         event_s = dbp_iterator_current(it_s)
-        
+
     dbp_iterator_delete(it_s)
     it_s = NULL

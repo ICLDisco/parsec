@@ -170,8 +170,6 @@ static void pins_thread_fini_papi_L123(dague_execution_unit_t * exec_unit) {
     }
     else {
         papi_L123_info_t info;
-        info.vp_id = exec_unit->virtual_process->vp_id;
-        info.th_id = exec_unit->th_id;
         info.L1_misses = values[0];
         info.L2_misses = values[1];
         info.L3_misses = values[2];
@@ -221,8 +219,6 @@ static void read_papi_L12_exec_count_end(dague_execution_unit_t * exec_unit,
         info.kernel_type = -1;
         if (exec_context->dague_handle->profiling_array != NULL)
             info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
-        info.vp_id = exec_unit->virtual_process->vp_id;
-        info.th_id = exec_unit->th_id;
         info.L1_misses = values[0] - exec_unit->papi_last_read[0];
         info.L2_misses = values[1] - exec_unit->papi_last_read[1];
         info.L3_misses = values[2] - exec_unit->papi_last_read[2];
@@ -285,8 +281,6 @@ static void read_papi_L12_select_count_end(dague_execution_unit_t * exec_unit,
             printf("select kernel type == %d\n", info.kernel_type);
         info.starvation = (unsigned long long)data;
     }
-    info.vp_id = exec_unit->virtual_process->vp_id;
-    info.th_id = exec_unit->th_id;
     info.victim_vp_id = -1; // currently unavailable from scheduler queue object
     if (victim_core_num >= num_threads)
         info.victim_vp_id = SYSTEM_QUEUE_VP;
@@ -362,12 +356,6 @@ static void read_papi_L12_complete_exec_count_end(dague_execution_unit_t * exec_
         info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
     if (info.kernel_type > 8)
         printf("Cexec kernel type == %d\n", info.kernel_type);
-
-    /* strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1); */
-    /* info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0'; */
-
-    info.vp_id = exec_unit->virtual_process->vp_id;
-    info.th_id = exec_unit->th_id;
 
     // now count the PAPI events, if available
     int rv = PAPI_OK;

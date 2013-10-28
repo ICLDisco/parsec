@@ -3,6 +3,7 @@
 from __future__ import print_function
 import os
 from parsec_profiling import *
+import parsec_binprof
 import numpy as np
 import time
 
@@ -30,16 +31,19 @@ def safe_unlink(files):
 def do_demo(filenames, translate=False):
     with Timer() as main:
         profile = None
-        
+
         with Timer() as t:
             if len(filenames) == 1 and '.h5-' in filenames[0]:
                 print('First, we load the HDFed profile...')
                 profile = ParsecProfile.from_hdf(filenames[0])
+                was_binary = False
             else:
                 print('First, we read the binary profile and put it in pandas format.')
-                profile = ParsecProfile.from_native(filenames, 
-                                                    translate=translate, 
-                                                    print_progress=True)
+                profile = parsec_binprof.read(filenames,
+                                              report_progress=True,
+                                              info_only=False)
+                was_binary = True
+
         print('')
         print('First, let\'s print some basic information about the run.\n')
 
@@ -53,9 +57,9 @@ def do_demo(filenames, translate=False):
             print('It appears that one or more of the basic attributes was not present,')
             print('so we\'ll just move on.\n')
 
-        for attr, val in profile.information.iteritems():
-            if attr != 'HWLOC-XML':
-                print('{} {}'.format(attr, val))
+        # for attr, val in profile.information.iteritems():
+        #     if attr != 'HWLOC-XML':
+        #         print('{} {}'.format(attr, val))
 
         print('The bulk of the profile information is stored in a data structure called a DataFrame.')
         print('A DataFrame is a large matrix/table with labeled columns.\n')
@@ -81,13 +85,13 @@ def do_demo(filenames, translate=False):
         print('Now, we will select only the exec events from thread 26.')
         print('We will also pick only certain pieces of the statistics to show, using the same')
         print('syntax that is used to pick rows out of any regular DataFrame.\n')
-        onlyexec = onlyexec[:][onlyexec.thread == 26]
+        onlyexec = onlyexec[:][onlyexec.thread_id == 26]
         print('Again, our view of the dataframe has changed:')
         print(onlyexec[profile.basic_columns].describe().loc['count':'std',:])
         print('')
         print('It is also possible to perform both operations in one query, like so:')
         onlyexec = profile.events[:][ (profile.events['key'] == profile.event_types.PINS_L12_EXEC['key']) 
-                                  & (profile.events.thread == 26)]
+                                  & (profile.events.thread_id == 26)]
         print('Note that the description is the same as for the previous subset.')
         print(onlyexec[profile.basic_columns].describe().loc['count':'std',:])
         print('')
@@ -96,10 +100,6 @@ def do_demo(filenames, translate=False):
             srted = onlyexec.sort_index(by=['duration'], ascending=[True])
         print('That sort only took ' + str(t.interval) + ' seconds.')
 
-        # with Timer() as join_t:
-        #     srted = srted.merge(profile.info_df, how='outer', on='unique_id')
-        # print('join took ' + str(join_t.interval))
-    #    print(srted.iloc[10]['info'][4][0])
         print('To show that we\'ve sorted the events, we print the first five,')
         print('middle five, and last five events in the dataframe:')
         print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[:5])
@@ -113,10 +113,8 @@ def do_demo(filenames, translate=False):
 
         print('For the sorted EXEC events from thread 26, the following profiling info data are available:\n')
 
-        print(srted[ ['PAPI_L1', 'PAPI_L2', 'kernel_type',
-                      'vp_id', 'thread_id'] ].describe().loc['mean':'std',:])
+        print(srted[ ['PAPI_L1', 'PAPI_L2', 'kernel_type', 'thread_id'] ].describe().loc['mean':'std',:])
         print('')
-        # print(srted[:][srted['kernel_name'] == ''].describe())
 
         print('We can select events by index and access their data piece by piece if we want.')
         print('First, we cut these events down to only those with the kernel name "SYRK"\n')
@@ -127,16 +125,16 @@ def do_demo(filenames, translate=False):
         print('sorted SYRK execs, index 10, L2 misses: ' + str(srted.iloc[1]['PAPI_L2']))
         print('')
 
-        if not profile.store:
+        if was_binary:
             print('Lastly, we want to show that the file can be written out')
             print('into a standard format. Our choice is HDF5, because it is fast.')
             with Timer() as t:
-                store = profile.to_hdf(profile.store_name.replace('.prof-', '.h5-'))
+                store = profile.to_hdf(filenames[0].replace('.prof-', '.h5-'))
                 store.close()
             print('Storing the entire profile to HDF took only {} seconds.'.format(t.interval))
 
-    print('Overall test took {:.2f} seconds'.format(main.interval))
-    
+    print('Overall demo took {:.2f} seconds'.format(main.interval))
+
 if __name__ == '__main__':
     import sys
 

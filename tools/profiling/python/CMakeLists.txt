@@ -4,12 +4,12 @@
 
 set(SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
 set(SETUP_PY    "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
-set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/py_dbpreader.pyx"
-                "${CMAKE_CURRENT_SOURCE_DIR}/py_dbpreader.pxd"
+set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/parsec_binprof.pyx"
+                "${CMAKE_CURRENT_SOURCE_DIR}/parsec_binprof.pxd"
 				"${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in"
                 dague-base dague)
 set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp"
-                "${CMAKE_CURRENT_BINARY_DIR}/dbpreader_py.c")
+                "${CMAKE_CURRENT_BINARY_DIR}/parsec_binprof.c")
 
 #
 # Always generate the setup.py so it can be used by hand

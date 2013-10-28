@@ -4,8 +4,9 @@ import sys
 import os
 import copy
 import cPickle
+print('this script is broken with the current PaRSEC profiling system.')
 from parsec_trials import *
-from profiling import *
+from parsec_profiling import *
 from profiling_info import *
 from pretty_print_profile_stats import *
 
@@ -17,7 +18,7 @@ if __name__ == '__main__':
             files.append(arg)
         else:
             task_focus.append(arg)
-            
+
     trial_sets = []
     totals = []
     for f in files:
@@ -28,7 +29,7 @@ if __name__ == '__main__':
     trial_sets.sort(key = lambda x: (x.ex, x.N, x.sched))
     printers = []
     total_printers = []
-    
+
     # assemble L1/L2 misses
     for trial_set in trial_sets:
         total_stats = ExecSelectStats('TOTAL')
@@ -113,4 +114,3 @@ if __name__ == '__main__':
                 print(printer.row_header())
             print(printer.row())
         print(printers[-1].row_header())
-        

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# build script for py_dbpreader
+# build script for parsec_binprof
 # run python setup.py build_ext --inplace to build
 
 from distutils import ccompiler, util
@@ -25,15 +25,15 @@ lib_dirs = (['@PROJECT_BINARY_DIR@/dague']) # +
 run_dirs = [] # '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';')
 
 
-ext_modules = [Extension('py_dbpreader', ['@CMAKE_CURRENT_SOURCE_DIR@/py_dbpreader.pyx',
-                                          '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
+ext_modules = [Extension('parsec_binprof', ['@CMAKE_CURRENT_SOURCE_DIR@/parsec_binprof.pyx',
+                                            '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
                          include_dirs=['@PROJECT_SOURCE_DIR@/include',
                                        '@PROJECT_SOURCE_DIR@',
                                        '@PROJECT_BINARY_DIR@/include',
                                        '@PROJECT_BINARY_DIR@',
                                        '@CMAKE_CURRENT_SOURCE_DIR@/../'],
                          depends=['setup.py.in',
-                                  'py_dbpreader.pxd',
+                                  'parsec_binprof.pxd',
                                   '@CMAKE_CURRENT_BINARY_DIR@/../dbpreader.h',
                                   '@PROJECT_SOURCE_DIR@/include/dbp.h',
                                   '@PROJECT_SOURCE_DIR@/include/os-spec-timing.h'],
@@ -95,9 +95,9 @@ class local_compiler_build_ext( build_ext ):
         build_ext.build_extensions(self)
 
 setup(
-  name = 'dbpreader python interface',
+  name = 'PaRSEC Binary Profile Interface',
   version='@PACKAGE_VERSION@',
-  description='PaRSEC profiling parser',
+  description='parses and converts the PaRSEC Binary Profile format into a pandas Python format',
   url='http://icl.cs.utk.edu/parsec/',
   package_dir={ '': '@CMAKE_CURRENT_BINARY_DIR@' },
   cmdclass = {'build_ext': local_compiler_build_ext},

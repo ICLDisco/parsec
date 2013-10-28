@@ -10,12 +10,9 @@ import math
 import cPickle
 import online_math
 import glob
-from parsec_trials import Trial, TrialSet
+from parsec_trials import ParsecTrial, ParsecTrialSet
 import subprocess
 from multiprocessing import Process, Pipe
-from profiling import *
-from profiling_info import *
-# also uses py_dbpreader, if available
 
 ##### global failure settings for trial set
 max_rsd = 2 # anything above this and we want to re-run
@@ -24,7 +21,11 @@ max_set_fails = 5
 max_trial_attempts = 20
 do_trials = 4
 
-pattern = re.compile(".*### TIMED\s(\d+\.\d+)\s+s.+?NB=\s+(\d+).+?(\d+\.\d+)\s+gflops\n(.*)",
+# old ?
+# pattern = re.compile(".*### TIMED\s(\d+\.\d+)\s+s.+?NB=\s+(\d+).+?(\d+\.\d+)\s+gflops\n(.*)",
+#                      flags=re.DOTALL)
+# new
+pattern = re.compile(".* TIME\(s\)\s+(\d+\.\d+)\s+:\s+\w+\s+.+?N= \d+\s+NB=\s+(\d+).+?(\d+\.\d+)\s+gflops\n(.*)",
                      flags=re.DOTALL)
 
 def spawn_trial_set_processes(trial_sets, exe_dir='.', output_base_dir='.'):
@@ -110,8 +111,8 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
                 (stdout, stderr) = proc.communicate()
                 if len(stderr) != 0:
                     marker = randint(0, 99999)
-                    print("AN ERROR OCCURRED %d" % marker)
-                    sys.stderr.write(str(marker) + ':\n' + stderr + '\n')
+                    # print("AN ERROR OCCURRED (random id: %d)" % marker)
+                    # sys.stderr.write(str(marker) + ':\n' + stderr + '\n')
                 match = pattern.match(stdout)
                 if match:
                     # save successfully-parsed output
@@ -121,28 +122,35 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
                     extra_output = match.group(4)
                     print("   -----> gflops: %f time: %f NB:%d" %
                           (perf, time, trial_set.NB))
-                    trial = Trial(trial_set.ident, ex, N, cores, NB,
-                                  IB, sched, trialNum, perf, time)
+                    trial = ParsecTrial(trial_set.ident, ex, N, cores, NB,
+                                        IB, sched, trialNum, perf, time)
                     trial.extra_output = extra_output
                     if not os.environ.get('SUPPRESS_EXTRA_OUTPUT', None):
                        sys.stdout.write(extra_output)
-                    # read and save profile, if it exists
+                    # rename profile, if it exists
                     profiles = glob.glob(os.getcwd() + os.sep +
-                                         'testing_' + ex + '*.profile')
+                                         'testing_' + ex + '*.prof-*')
                     if len(profiles) > 0:
-                        # read profile in current process since dbpreader is now fixed
-                        try:
-                            import py_dbpreader as dbpr
-                            trial.profile = dbpr.readProfile(profiles)
-                            safe_unlink(profiles) # delete binary profile(s)
-                        except ImportError as iex:
-                            print('Unable to save profile; dbpreader is unavailable:')
-                            print(iex)
+                        for filename in profiles:
+                            profile_filename = filename.replace('testing_' + ex, 
+                                                                output_base_dir 
+                                                                + os.sep 
+                                                                + trial.unique_name())
+                            # print('moving {} to {}'.format(filename, profile_filename))
+                            shutil.move(filename,  profile_filename)
+                        # try:
+                        #     import py_dbpreader as dbpr
+                        #     trial.profile = dbpr.readProfile(profiles)
+                        #     safe_unlink(profiles) # delete binary profile(s)
+                        # except ImportError as iex:
+                        #     print('Unable to rename profile')
+                        #     print(iex)
                     trial_set.append(trial)
                     break # no more attempts are needed - we got what we came for
                 else:
                     sys.stderr.write("results not properly parsed: %s\n" % stdout)
                     print('\nWe\'ll just try this one again.\n')
+        print('done with trials in set.')
         # done with trials in set. now calculate set statistics
         perfSet = []
         timeSet = []
@@ -161,7 +169,8 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
             print(trial_set) # realtime progress report
             while not set_finished:
                 try:
-                    pfile = open(output_base_dir + os.sep + trial_set.unique_name() + '.set', 'w')
+                    pfilename = output_base_dir + os.sep + trial_set.unique_name() + '.set'
+                    pfile = open(pfilename, 'w')
                     trial_set.pickle(pfile)
                     # move 'pending' to 'rerun' in case a later re-run of the entire group is necessary
                     if os.path.exists(output_base_dir + os.sep + pending_filename):
@@ -242,8 +251,10 @@ if __name__ == '__main__':
               '[EXTRA ARGUMENTS TO TEST EXECUTABLE]')
         sys.exit(-1)
 
+    # print(glob.glob(os.getcwd() + os.sep + 'testing_*.prof-*'))
     # clean up old .profile files before testing
-    safe_unlink(glob.glob(exe_dir + os.sep + 'testing_*.profile'))
+    safe_unlink(glob.glob(exe_dir + os.sep + 'testing_*.prof-*'))
+    safe_unlink(glob.glob(os.getcwd() + os.sep + 'testing_*.prof-*'))
 
     if 'None' in extra_args:
         extra_args = None
@@ -251,7 +262,7 @@ if __name__ == '__main__':
     trial_sets = []
     for pickle in pickles:
         pfile = open(pickle, 'r')
-        trial_set = TrialSet.unpickle(pfile)
+        trial_set = ParsecTrialSet.unpickle(pfile)
         if extra_args == None or len(extra_args) > 0:
             trial_set.extra_args = extra_args
         trial_set.stamp_time() # timestamp the run time
