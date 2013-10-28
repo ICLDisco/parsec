@@ -135,6 +135,13 @@ void dague_profiling_start(void)
 #endif
     start_called = 1;
     dague_start_time = take_time();
+
+    /* shared timestamp allows grouping profiles from different nodes */
+    long long int timestamp = (long long int)dague_start_time.tv_sec;
+#if defined(DISTRIBUTED) && defined(HAVE_MPI) 
+    MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+#endif /* DISTRIBUTED && HAVE_MPI */
+    PROFILING_SAVE_iINFO("start_time", timestamp);
 }
 
 dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char *format, ...)

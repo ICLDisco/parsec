@@ -249,30 +249,30 @@ static void dague_vp_init( dague_vp_t *vp,
 }
 
 #if defined(HAVE_GETOPT_LONG)
-    static struct option long_options[] =
-        {
-            {"help",             no_argument,        NULL, 'h'},
-            {"dague_bind",       optional_argument,  NULL, 'b'},
-            {"dague_bind_comm",  optional_argument,  NULL, 'C'},
+static struct option long_options[] =
+{
+    {"help",             no_argument,        NULL, 'h'},
+    {"dague_bind",       optional_argument,  NULL, 'b'},
+    {"dague_bind_comm",  optional_argument,  NULL, 'C'},
 
-            {"dague_dot",        optional_argument,  NULL, '.'},
-            {"dot",              required_argument,  NULL, '.'},
+    {"dague_dot",        optional_argument,  NULL, '.'},
+    {"dot",              required_argument,  NULL, '.'},
 
-            {"cores",            required_argument,  NULL, 'c'},
-            {"c",                required_argument,  NULL, 'c'},
+    {"cores",            required_argument,  NULL, 'c'},
+    {"c",                required_argument,  NULL, 'c'},
 
-            {"o",                required_argument,  NULL, 'o'},
-            {"scheduler",        required_argument,  NULL, 'o'},
+    {"o",                required_argument,  NULL, 'o'},
+    {"scheduler",        required_argument,  NULL, 'o'},
 
-            {"gpus",             required_argument,  NULL, 'g'},
-            {"g",                required_argument,  NULL, 'g'},
+    {"gpus",             required_argument,  NULL, 'g'},
+    {"g",                required_argument,  NULL, 'g'},
 
-            {"V",                required_argument,  NULL, 'V'},
-            {"vpmap",            required_argument,  NULL, 'V'},
-            {"ht",               required_argument,  NULL, 'H'},
+    {"V",                required_argument,  NULL, 'V'},
+    {"vpmap",            required_argument,  NULL, 'V'},
+    {"ht",               required_argument,  NULL, 'H'},
 
-            {0, 0, 0, 0}
-        };
+    {0, 0, 0, 0}
+};
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
 #define DEFAULT_APPNAME "app_name_%d"
@@ -299,7 +299,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if((NULL == pargc) || (*pargc == 0)) {
         int rc = asprintf( &dague_app_name, DEFAULT_APPNAME, (int)getpid() );
         if (rc == -1) {
-        dague_app_name = strdup( "app_name_XXXXXX" );
+            dague_app_name = strdup( "app_name_XXXXXX" );
         }
     } else {
         dague_app_name = strdup( (*pargv)[0] );
@@ -402,15 +402,15 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                         dague_enable_dot = strdup(dague_app_name);
                     }
                 } else {
-                   /** Long argument type */
-                   if( (strlen( argv[optind-1] ) > 12) &&
-                       (strncmp( argv[optind-1], "--dague_dot=", 12 ) == 0 ) ) {
-                       dague_enable_dot = strdup( argv[optind-1]+12 );
-                   } else {
-                       dague_enable_dot = strdup(dague_app_name);
+                    /** Long argument type */
+                    if( (strlen( argv[optind-1] ) > 12) &&
+                        (strncmp( argv[optind-1], "--dague_dot=", 12 ) == 0 ) ) {
+                        dague_enable_dot = strdup( argv[optind-1]+12 );
+                    } else {
+                        dague_enable_dot = strdup(dague_app_name);
                     }
-               }
-               break;
+                }
+                break;
             }
         } while(1);
     }
@@ -506,22 +506,44 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         cmdline_info[l] = '\0';
         dague_profiling_add_information("CMDLINE", cmdline_info);
 
-        /* reuse this for the hostname */
-        if (!gethostname(cmdline_info, l))
-            dague_profiling_add_information("hostname", cmdline_info);
-        else
-            dague_profiling_add_information("hostname", "");
-
         /* we should be adding the PaRSEC options to the profile here
          * instead of in common.c/h as we do now. */
         PROFILING_SAVE_iINFO("nb_cores", nb_cores);
         PROFILING_SAVE_iINFO("nb_vps", nb_vp);
-        PROFILING_SAVE_iINFO("timestamp", time(NULL));
-        char cwd[1024];
-        getcwd(cwd, sizeof(cwd));
-        dague_profiling_add_information("cwd", cwd);
 
         free(cmdline_info);
+
+        /* add the hostname, for the sake of explicit profiling */
+        char buf[HOST_NAME_MAX];
+        if (0 == gethostname(buf, HOST_NAME_MAX))
+            dague_profiling_add_information("hostname", buf);
+        else
+            dague_profiling_add_information("hostname", "");
+
+        char * newcwd = NULL;
+        int bufsize = HOST_NAME_MAX;
+        errno = 0;
+        char * cwd = getcwd(buf, bufsize);
+        while (cwd == NULL && errno == ERANGE) {
+            bufsize *= 2;
+            cwd = realloc(cwd, bufsize);
+            if (cwd == NULL)            /* failed  - just give up */
+                break;
+            errno = 0;
+            newcwd = getcwd(cwd, bufsize);
+            if (newcwd == NULL) {
+                free(cwd);
+                cwd = NULL;
+            }
+        }
+        if (cwd != NULL) {
+            dague_profiling_add_information("cwd", cwd);
+            if (cwd != buf)
+                free(cwd);
+        }
+        else
+            dague_profiling_add_information("cwd", "");
+        /* end profiling run ID code */
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
         dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
@@ -574,7 +596,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     if(dague_enable_dot) {
 #if defined(DAGUE_PROF_GRAPHER)
-          dague_prof_grapher_init(dague_enable_dot, nb_total_comp_threads);
+        dague_prof_grapher_init(dague_enable_dot, nb_total_comp_threads);
 #else
         fprintf(stderr,
                 "************************************************************************************************\n"
@@ -622,8 +644,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
      * but we need to ensure that one is loadable and here.
      */
     if( 0 == dague_set_scheduler( context ) ) {
-       /* TODO: handle memory leak / thread leak here: this is a fatal
-        * error for PaRSEC */
+        /* TODO: handle memory leak / thread leak here: this is a fatal
+         * error for PaRSEC */
         fprintf(stderr, "PaRSEC: unable to load any scheduler in init function. Fatal error.\n");
         return NULL;
     }
@@ -740,8 +762,8 @@ int dague_fini( dague_context_t** pcontext )
 #endif  /* HAVE_HWLOC_BITMAP */
 
     if (dague_app_name != NULL ) {
-       free(dague_app_name);
-       dague_app_name = NULL;
+        free(dague_app_name);
+        dague_app_name = NULL;
     }
 
 #if defined(DAGUE_STATS)
@@ -754,9 +776,6 @@ int dague_fini( dague_context_t** pcontext )
         MPI_Comm_size(MPI_COMM_WORLD, &size);
         snprintf(filename, 64, "dague-%d.stats", rank);
         snprintf(prefix, 32, "%d/%d", rank, size);
-        long long int timestamp = time(NULL);
-        MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-        printf("%lld\n", timestamp);
 # else
         snprintf(filename, 64, "dague.stats");
         prefix[0] = '\0';
@@ -1539,7 +1558,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     /* The parameter is a file */
     if( NULL != (position = strstr(option, "file:")) ) {
         /* Read from the file the binding parameter set for the local process and parse it
-           (recursive call). */
+         (recursive call). */
 
         char *filename=position+5;
         FILE *f;
@@ -1590,7 +1609,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
 
     if( (option[0]=='+') && (context->comm_th_core == -1)) {
         /* The parameter starts with "+" and no specific binding is (yet) defined for the communication thread.
-       It is included in the thread mapping. */
+         It is included in the thread mapping. */
         context->comm_th_core=-2;
         option++;  /* skip the + */
     }
@@ -1602,9 +1621,9 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
         position++; /* skip the x */
 
         /* convert the mask into a bitmap (define legal core indexes) */
-         unsigned long mask = strtoul(position, NULL, 16);
+        unsigned long mask = strtoul(position, NULL, 16);
 
-         if( context->comm_th_index_mask==NULL )
+        if( context->comm_th_index_mask==NULL )
             context->comm_th_index_mask=hwloc_bitmap_alloc();
         hwloc_bitmap_from_ulong(context->comm_th_index_mask, mask);
 
@@ -1838,33 +1857,33 @@ static dague_data_key_t data_key(dague_ddesc_t *mat, ...)
 #if defined(DAGUE_PROF_TRACE)
 static int key_to_string(dague_ddesc_t *unused, dague_data_key_t datakey, char* buffer, uint32_t buffer_size)
 {
-  return snprintf( buffer, buffer_size, "%u ", datakey); (void)unused;
+    return snprintf( buffer, buffer_size, "%u ", datakey); (void)unused;
 }
 #endif /* DAGUE_PROF_TRACE */
 
 const dague_ddesc_t dague_static_local_data_ddesc = {
-      0, /* uint32_t myrank */
-      1, /* uint32_t nodes */
+    0, /* uint32_t myrank */
+    1, /* uint32_t nodes */
 
-      data_key,  /* dague_data_key_t (*data_key)(dague_ddesc_t *mat, ...) */
+    data_key,  /* dague_data_key_t (*data_key)(dague_ddesc_t *mat, ...) */
 
-      return_local_u,  /* uint32_t (*rank_of)(struct dague_ddesc *, ...) */
-      rank_of_key,
+    return_local_u,  /* uint32_t (*rank_of)(struct dague_ddesc *, ...) */
+    rank_of_key,
 
-      return_data,   /* dague_data_t*   (*data_of)(struct dague_ddesc *, ...) */
-      data_of_key,
+    return_data,   /* dague_data_t*   (*data_of)(struct dague_ddesc *, ...) */
+    data_of_key,
 
-      return_local_s,  /* int32_t  (*vpid_of)(struct dague_ddesc *, ...) */
-      vpid_of_key,
+    return_local_s,  /* int32_t  (*vpid_of)(struct dague_ddesc *, ...) */
+    vpid_of_key,
 
-      NULL,  /* dague_memory_region_management_f register_memory */
-      NULL,  /* dague_memory_region_management_f unregister_memory */
-      NULL,  /* char      *key_base */
+    NULL,  /* dague_memory_region_management_f register_memory */
+    NULL,  /* dague_memory_region_management_f unregister_memory */
+    NULL,  /* char      *key_base */
 
 #ifdef DAGUE_PROF_TRACE
-      key_to_string, /* int (*key_to_string)(struct dague_ddesc *, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
-      NULL,  /* char      *key_dim */
-      NULL,  /* char      *key */
+    key_to_string, /* int (*key_to_string)(struct dague_ddesc *, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
+    NULL,  /* char      *key_dim */
+    NULL,  /* char      *key */
 #endif /* DAGUE_PROF_TRACE */
 };
 

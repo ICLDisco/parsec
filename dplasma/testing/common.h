@@ -191,6 +191,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     PROFILING_SAVE_dINFO("TIME_ELAPSED", time_elapsed);                 \
     PROFILING_SAVE_dINFO("SYNC_TIME_ELAPSED", sync_time_elapsed);       \
     PROFILING_SAVE_dINFO("GFLOPS", gflops);                             \
+    printf("GFLOPS: %f\n", gflops);                                     \
     PROFILING_SAVE_iINFO("PARAM_RANK", iparam[IPARAM_RANK]);            \
     PROFILING_SAVE_iINFO("PARAM_NNODES", iparam[IPARAM_NNODES]);        \
     PROFILING_SAVE_iINFO("PARAM_NCORES", iparam[IPARAM_NCORES]);        \
@@ -220,7 +221,6 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     PROFILING_SAVE_iINFO("PARAM_BUT_LEVEL", iparam[IPARAM_BUT_LEVEL]);  \
     PROFILING_SAVE_iINFO("PARAM_PINS", iparam[IPARAM_PINS]);            \
     PROFILING_SAVE_iINFO("PARAM_SCHEDULER", iparam[IPARAM_SCHEDULER]);  \
-    PROFILING_SAVE_sINFO("sched", DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]]);  \
     if(loud >= 5 && rank == 0) {                                        \
         printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n" \
                "                 encoding=\"none\" compression=\"none\">\n" \
@@ -229,7 +229,5 @@ static inline int min(int a, int b) { return a < b ? a : b; }
                gflops);                                                 \
     }                                                                   \
     (void)gflops;
-    /* PROFILING_SAVE_iINFO("timestamp", unix_timestamp);                  \ */
-    /* PROFILING_SAVE_sINFO("cwd", cwd);                                   \ */
 
 #endif /* _TESTSCOMMON_H */
