@@ -191,7 +191,6 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     PROFILING_SAVE_dINFO("TIME_ELAPSED", time_elapsed);                 \
     PROFILING_SAVE_dINFO("SYNC_TIME_ELAPSED", sync_time_elapsed);       \
     PROFILING_SAVE_dINFO("GFLOPS", gflops);                             \
-    printf("GFLOPS: %f\n", gflops);                                     \
     PROFILING_SAVE_iINFO("PARAM_RANK", iparam[IPARAM_RANK]);            \
     PROFILING_SAVE_iINFO("PARAM_NNODES", iparam[IPARAM_NNODES]);        \
     PROFILING_SAVE_iINFO("PARAM_NCORES", iparam[IPARAM_NCORES]);        \
