@@ -383,7 +383,6 @@ IF( BUILD_DAGUE )
 
   if (DAGUE_DIST_WITH_MPI)
     # Force the detection of the C library
-    set(MPI_C_COMPILER mpicc)
     find_package(MPI REQUIRED)
     set(HAVE_MPI ${MPI_C_FOUND})
     if (MPI_C_FOUND)

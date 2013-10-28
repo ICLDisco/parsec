@@ -423,7 +423,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
                     (origin->output[i].data.data != (void*)2) ? DAGUE_DATA_COPY_GET_PTR(origin->output[i].data.data) : NULL, origin, i));
             exec_context.data[whereto].data_out = origin->output[i].data.data;
 #if defined(DAGUE_DEBUG_ENABLE) && defined(DAGUE_DEBUG_VERBOSE3)
-            if(origin->output[i].type) { /* no prints for CTL! */
+            if(origin->output[i].data.arena) { /* no prints for CTL! */
                 char tmp[MAX_TASK_STRLEN];
                 DEBUG3(("MPI:\t%s: recv { %p, %p, %p }\n",
                         dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &exec_context),
