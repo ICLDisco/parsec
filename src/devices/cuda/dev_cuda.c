@@ -1118,13 +1118,13 @@ int progress_stream( gpu_device_t* gpu_device,
                     if(NULL == this_task->function->in[i]) continue;
                     if (this_task->data[i].data_out->push_task == this_task) {   /* only the task who did this PUSH can modify the status */
                     	this_task->data[i].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
-                        printf("I did the push, now I set it to complete\n");
+                        //printf("I did the push, now I set it to complete\n");
                         continue;
                     }
                     if (this_task->data[i].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
                         return saved_rc;
                     }
-                    printf("I did NOT do the push, but it is complete\n");	
+                    //printf("I did NOT do the push, but it is complete\n");	
                 }
 			}
 
