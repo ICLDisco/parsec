@@ -122,6 +122,45 @@ int dague_profiling_init( void )
     dague_profiling_start();
     dague_profile_enabled = 1;  /* turn on the profiling */
 
+    /* shared timestamp allows grouping profiles from different nodes */
+    long long int timestamp = (long long int)dague_start_time.tv_sec;
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+    MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+#endif /* DISTRIBUTED && HAVE_MPI */
+    PROFILING_SAVE_iINFO("start_time", timestamp);
+
+    /* add the hostname, for the sake of explicit profiling */
+    char buf[HOST_NAME_MAX];
+    if (0 == gethostname(buf, HOST_NAME_MAX))
+        dague_profiling_add_information("hostname", buf);
+    else
+        dague_profiling_add_information("hostname", "");
+
+    /* the current working directory may also be helpful */
+    char * newcwd = NULL;
+    int bufsize = HOST_NAME_MAX;
+    errno = 0;
+    char * cwd = getcwd(buf, bufsize);
+    while (cwd == NULL && errno == ERANGE) {
+        bufsize *= 2;
+        cwd = realloc(cwd, bufsize);
+        if (cwd == NULL)            /* failed  - just give up */
+            break;
+        errno = 0;
+        newcwd = getcwd(cwd, bufsize);
+        if (newcwd == NULL) {
+            free(cwd);
+            cwd = NULL;
+        }
+    }
+    if (cwd != NULL) {
+        dague_profiling_add_information("cwd", cwd);
+        if (cwd != buf)
+            free(cwd);
+    }
+    else
+        dague_profiling_add_information("cwd", "");
+
     return 0;
 }
 
@@ -135,13 +174,6 @@ void dague_profiling_start(void)
 #endif
     start_called = 1;
     dague_start_time = take_time();
-
-    /* shared timestamp allows grouping profiles from different nodes */
-    long long int timestamp = (long long int)dague_start_time.tv_sec;
-#if defined(DISTRIBUTED) && defined(HAVE_MPI) 
-    MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-#endif /* DISTRIBUTED && HAVE_MPI */
-    PROFILING_SAVE_iINFO("start_time", timestamp);
 }
 
 dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char *format, ...)

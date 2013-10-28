@@ -3,52 +3,24 @@
 # run 'python setup.py build_ext --inplace' to compile
 # import parsec_binprof
 #
-# This is verified to work with Python 2.4.3 and above, compiled with Cython 0.16rc0
-# However, it is recommended that Python 2.7 or greater is used to build and run.
+# Cython 0.18+ required. 
+# pandas 0.12+ (and numpy, etc.) required.
+# Python 2.7.3 recommended.
 #
 # Be SURE to build this against the same version of Python as you have built Cython itself.
 # Contrasting versions will likely lead to odd errors about Unicode functions.
 
 # cython: profile=False
-# but could be True if we wanted to use cProfile!
+# ...but could be True if we wanted to # import cProfile, pstats
 from __future__ import print_function
 import sys
 from operator import attrgetter, itemgetter
 from libc.stdlib cimport malloc, free
-from parsec_profiling      import * # the pure Python classes
+from parsec_profiling import * # the pure Python classes
 import pandas as pd
-#import cProfile, pstats
 import time
 import re
 import shutil
-
-thread_id_in_descrip = re.compile('.*thread\s+(\d+).*', re.IGNORECASE)
-vp_id_in_descrip = re.compile('.*VP\s+(\d+).*', re.IGNORECASE)
-
-class Timer:
-    def __enter__(self):
-        self.start = time.clock()
-        return self
-
-    def __exit__(self, *args):
-        self.end = time.clock()
-        self.interval = self.end - self.start
-
-# private utility class
-class ProfileBuilder(object):
-    def __init__(self):
-        self.events = list()
-        self.infos = list()
-        self.event_types = dict()
-        self.type_names = dict()
-        self.nodes = list()
-        self.threads = list()
-        self.errors = list()
-        self.information = dict()
-
-def cond_print(string, cond, **kwargs):
-    if cond:
-        print(string, **kwargs)
 
 # reads an entire profile into a set of pandas DataFrames
 cpdef read(filenames, report_progress=False, info_only=False):
@@ -61,9 +33,8 @@ cpdef read(filenames, report_progress=False, info_only=False):
     nb_files = dbp_reader_nb_files(dbp)
     worldsize = dbp_reader_worldsize(dbp)
 
+    # create event dictionaries first, for later use while reading events
     builder = ProfileBuilder()
-
-    # create dictionary first, for later use while making Events
     for key in range(nb_dict_entries):
         cdict = dbp_reader_get_dictionary(dbp, key)
         event_name = dbp_dictionary_name(cdict)
@@ -71,43 +42,47 @@ cpdef read(filenames, report_progress=False, info_only=False):
         builder.event_types[event_name] = {'key':key, 'attributes':str(dbp_dictionary_attributes(cdict))}
     builder.type_names[-1] = '' # this is the default, for kernels without names
 
-    # this breaks Cython, so don't do it
-    index = -1
-    # print('index is ' + str(index))
-    # print(builder.test_df[index])
-
-    for ifd in range(nb_files):
-        cfile = dbp_reader_get_file(dbp, ifd)
-        node_id = dbp_file_get_rank(cfile)
-        pfile = {'exe':dbp_file_hr_id(cfile),
-                 'filename':dbp_file_get_name(cfile),
-                 'id':int(node_id)}
-        for index in range(dbp_file_nb_infos(cfile)):
-            cinfo = dbp_file_get_info(cfile, index)
-            key = dbp_info_get_key(cinfo)
-            value = dbp_info_get_value(cinfo)
-            try:    # try to convert value to its number type
-                value = float(value) if '.' in value else int(value)
-            except: # if this fails, it's a string, and that's fine too
-                pass
-            pfile[key] = value
-        with Timer() as t:
+    total_threads = 0
+    nodes = dict()
+    with Timer() as t:
+        for ifd in range(nb_files):
+            cfile = dbp_reader_get_file(dbp, ifd)
+            node_id = dbp_file_get_rank(cfile)
+            node_dct = {'exe':dbp_file_hr_id(cfile),
+                        'filename':dbp_file_get_name(cfile),
+                        'id':int(node_id)}
+            for index in range(dbp_file_nb_infos(cfile)):
+                cinfo = dbp_file_get_info(cfile, index)
+                key = dbp_info_get_key(cinfo)
+                value = dbp_info_get_value(cinfo)
+                add_kv(node_dct, key, value)
             num_threads = dbp_file_nb_threads(cfile)
+            total_threads += num_threads
+            builder.unordered_threads = dict()
             for thread_num in range(num_threads):
                 construct_thread(builder, dbp, cfile, node_id, thread_num, info_only)
                 cond_print('.', report_progress, end='')
                 sys.stdout.flush()
-        cond_print('\nParsing the PBP files took ' + str(t.interval) + ' seconds, ' , 
-                   report_progress, end='')
-        cond_print('which is ' + str(t.interval/num_threads) 
-                   + ' seconds per thread.', report_progress)
-        builder.nodes.append(pfile)
+            # sort threads
+            for thread_num in range(num_threads):
+                builder.threads.append(builder.unordered_threads[thread_num])
+            nodes[node_id] = node_dct
+    # report progress
+    cond_print('\nParsing the PBP files took ' + str(t.interval) + ' seconds, ' , 
+               report_progress, end='')
+    cond_print('which is ' + str(t.interval/total_threads) 
+               + ' seconds per thread.', report_progress)
+
+    # sort nodes
+    for i in range(len(nodes.keys())):
+        builder.nodes.append(nodes[i])
 
     # now, some voodoo to add shared file information to overall profile info
     # e.g., PARAM_N, PARAM_MB, etc.
     # basically, any key that has the same value in all nodes should
     # go straight into the top-level 'information' dictionary, since it is global
     builder.information.update(builder.nodes[0])
+    print(builder.information['GFLOPS'])
     for node in builder.nodes:
         for key, value in node.iteritems():
             if key in builder.information.keys():
@@ -139,6 +114,7 @@ cpdef read(filenames, report_progress=False, info_only=False):
         type_names = pd.Series(builder.type_names)
         nodes = pd.DataFrame.from_records(builder.nodes)
         threads = pd.DataFrame.from_records(builder.threads)
+        print(threads)
         if len(builder.errors) > 0:
             errors = pd.DataFrame(builder.errors,
                                   columns=ParsecProfile.basic_event_columns + ['error_msg'])
@@ -168,6 +144,30 @@ cpdef convert(filenames, outfilename, unlink=True, table=False, append=False, re
         for filename in filenames:
             shutil.unlink(filename)
 
+# This function helps support duplicate keys in the info dictionaries 
+# by appending the extra values to a list stored at '<key>_list' in the dictionary.
+# It also attempts to store values as numbers instead of strings, if possible.
+cpdef add_kv(dct, key, value):
+    try:    # try to convert value to its number type
+        value = float(value) if '.' in value else int(value)
+    except: # if this fails, it's a string, and that's fine too
+        pass
+    if key not in dct:
+        # the first value we find is generally the
+        # last value added to the profile, so we 'prefer' it
+        # by putting it directly in the dictionary.
+        dct[key] = value 
+    else:
+        list_k = key + '_list'
+        if list_k in dct:
+            if isinstance(dct[list_k], list):
+                dct[list_k].append(value)
+            else:
+                print('ignoring secondary value of ' + 
+                      str(value) + ' for ' + str(key))
+        else:
+            dct[list_k] = [value]
+
 # helper function for readProfile
 cdef char** string_list_to_c_strings(strings):
     cdef char ** c_argv
@@ -182,6 +182,9 @@ cdef char** string_list_to_c_strings(strings):
         print("exception caught while converting to c strings")
         free(c_argv)
     return c_argv
+
+thread_id_in_descrip = re.compile('.*thread\s+(\d+).*', re.IGNORECASE)
+vp_id_in_descrip = re.compile('.*VP\s+(\d+).*', re.IGNORECASE)
 
 # you can't call this. it will be called for you. call readProfile()
 cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, 
@@ -213,8 +216,8 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
         vp_id = int(m.group(1))
     else:
         vp_id = 0
-    thread = {'description':thread_descrip, 'id': thread_id, 'vp_id': vp_id}
-    builder.threads.append(thread)
+    thread = {'id': thread_id, 'vp_id': vp_id, 'node_id': node_id, 'description':thread_descrip}
+    builder.unordered_threads[thread_id] = thread
 
     while event_s != NULL and not info_only:
         event_key = dbp_event_get_key(event_s) / 2 # to match dictionary
@@ -392,3 +395,35 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
 
     dbp_iterator_delete(it_s)
     it_s = NULL
+
+# NOTE:
+# this breaks Cython, so don't do it
+# index = -1
+# print('index is ' + str(index))
+# print(builder.test_df[index])
+
+class Timer:
+    def __enter__(self):
+        self.start = time.clock()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.clock()
+        self.interval = self.end - self.start
+
+# private utility class
+class ProfileBuilder(object):
+    def __init__(self):
+        self.events = list()
+        self.infos = list()
+        self.event_types = dict()
+        self.type_names = dict()
+        self.nodes = list()
+        self.threads = list()
+        self.errors = list()
+        self.information = dict()
+
+def cond_print(string, cond, **kwargs):
+    if cond:
+        print(string, **kwargs)
+

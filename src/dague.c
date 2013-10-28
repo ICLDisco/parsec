@@ -189,6 +189,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
                                                   DAGUE_PROFILE_THREAD_STR,
                                                   eu->th_id,
                                                   eu->virtual_process->vp_id );
+
     if( NULL == eu->eu_profile ) {
         fprintf(stderr, "*** %s\n", dague_profiling_strerror());
     }
@@ -512,38 +513,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         PROFILING_SAVE_iINFO("nb_vps", nb_vp);
 
         free(cmdline_info);
-
-        /* add the hostname, for the sake of explicit profiling */
-        char buf[HOST_NAME_MAX];
-        if (0 == gethostname(buf, HOST_NAME_MAX))
-            dague_profiling_add_information("hostname", buf);
-        else
-            dague_profiling_add_information("hostname", "");
-
-        char * newcwd = NULL;
-        int bufsize = HOST_NAME_MAX;
-        errno = 0;
-        char * cwd = getcwd(buf, bufsize);
-        while (cwd == NULL && errno == ERANGE) {
-            bufsize *= 2;
-            cwd = realloc(cwd, bufsize);
-            if (cwd == NULL)            /* failed  - just give up */
-                break;
-            errno = 0;
-            newcwd = getcwd(cwd, bufsize);
-            if (newcwd == NULL) {
-                free(cwd);
-                cwd = NULL;
-            }
-        }
-        if (cwd != NULL) {
-            dague_profiling_add_information("cwd", cwd);
-            if (cwd != buf)
-                free(cwd);
-        }
-        else
-            dague_profiling_add_information("cwd", "");
-        /* end profiling run ID code */
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
         dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
