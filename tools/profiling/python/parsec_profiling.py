@@ -43,9 +43,6 @@ class ParsecProfile(object):
         self.errors = errors
         # metadata
         self.basic_columns = ParsecProfile.basic_event_columns
-        # sort?
-        # self.threads.sort('id', inplace=True)
-        # self.nodes.sort('id', inplace=True)
     def to_hdf(self, filename, table=False, append=False):
         store = pd.HDFStore(filename, 'w')
         for name in ParsecProfile.HDF_TOP_LEVEL_NAMES:

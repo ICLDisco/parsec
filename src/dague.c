@@ -754,6 +754,9 @@ int dague_fini( dague_context_t** pcontext )
         MPI_Comm_size(MPI_COMM_WORLD, &size);
         snprintf(filename, 64, "dague-%d.stats", rank);
         snprintf(prefix, 32, "%d/%d", rank, size);
+        long long int timestamp = time(NULL);
+        MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+        printf("%lld\n", timestamp);
 # else
         snprintf(filename, 64, "dague.stats");
         prefix[0] = '\0';
