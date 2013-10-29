@@ -51,6 +51,7 @@ cdef extern from "dbpreader.h":
    int dbp_reader_nb_files(dbp_multifile_reader_t * dbp)
    int dbp_reader_nb_dictionary_entries(dbp_multifile_reader_t * dbp)
    int dbp_reader_worldsize(dbp_multifile_reader_t * dbp)
+   int dbp_reader_last_error(const dbp_multifile_reader_t *dbp)
    void dbp_reader_close_files(dbp_multifile_reader_t * dbp)
    void dbp_reader_dispose_reader(dbp_multifile_reader_t * dbp)
 

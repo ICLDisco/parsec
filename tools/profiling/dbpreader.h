@@ -24,6 +24,7 @@ dbp_multifile_reader_t *dbp_reader_open_default_files();
 int dbp_reader_nb_files(const dbp_multifile_reader_t *dbp);
 int dbp_reader_nb_dictionary_entries(const dbp_multifile_reader_t *dbp);
 int dbp_reader_worldsize(const dbp_multifile_reader_t *dbp);
+int dbp_reader_last_error(const dbp_multifile_reader_t *dbp);
 void dbp_reader_close_files(dbp_multifile_reader_t *dbp);
 void dbp_reader_destruct(dbp_multifile_reader_t *dbp);
 

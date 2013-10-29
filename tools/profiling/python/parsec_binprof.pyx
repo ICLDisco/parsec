@@ -32,6 +32,7 @@ cpdef read(filenames, report_progress=False, info_only=False):
     nb_dict_entries = dbp_reader_nb_dictionary_entries(dbp)
     nb_files = dbp_reader_nb_files(dbp)
     worldsize = dbp_reader_worldsize(dbp)
+    last_error = dbp_reader_last_error(dbp)
 
     # create event dictionaries first, for later use while reading events
     builder = ProfileBuilder()
@@ -52,7 +53,7 @@ cpdef read(filenames, report_progress=False, info_only=False):
     total_threads = 0
     with Timer() as t:
         # read the file for each node
-        for node_id in range(len(node_order.values())):
+        for node_id in sorted(node_order.keys()):
             cfile = dbp_reader_get_file(dbp, node_order[node_id])
             node_dct = {'exe':dbp_file_hr_id(cfile),
                         'filename':dbp_file_get_name(cfile),
@@ -93,6 +94,7 @@ cpdef read(filenames, report_progress=False, info_only=False):
                     del builder.information[key]
     builder.information['nb_nodes'] = nb_files
     builder.information['worldsize'] = worldsize
+    builder.information['last_error'] = last_error
 
     cond_print('Then we construct the main DataFrames....', report_progress)
     if len(builder.events) > 0:

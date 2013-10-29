@@ -157,6 +157,7 @@ struct dbp_multifile_reader {
     int dico_size;
     int worldsize;
     int nb_infos;
+    int last_error;
     dbp_info_t *infos;
     dbp_dictionary_t *dico_keys;
     dbp_file_t *files;
@@ -446,6 +447,11 @@ int dbp_reader_nb_dictionary_entries(const dbp_multifile_reader_t *dbp)
 int dbp_reader_worldsize(const dbp_multifile_reader_t *dbp)
 {
     return dbp->worldsize;
+}
+
+int dbp_reader_last_error(const dbp_multifile_reader_t *dbp)
+{
+    return dbp->last_error;
 }
 
 void dbp_reader_close_files(dbp_multifile_reader_t *dbp)
@@ -785,12 +791,14 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
 
     dbp = (dbp_multifile_reader_t*)malloc(sizeof(dbp_multifile_reader_t));
     dbp->files = (dbp_file_t*)malloc(nbfiles * sizeof(dbp_file_t));
+    dbp->last_error = 0;
 
     n = 0;
     for(i = 0; i < nbfiles; i++) {
         fd = open(filenames[i], O_RDONLY);
         if( fd == -1 ) {
             fprintf(stderr, "Unable to open %s: %s -- skipped\n", filenames[i], strerror(errno));
+            dbp->last_error = -1;
             continue;
         }
         dbp->files[n].parent = dbp;
@@ -802,6 +810,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
                     filenames[i]);
             close(fd);
+            dbp->last_error = -2;
             continue;
         }
 
@@ -810,12 +819,14 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
                     filenames[i]);
             close(fd);
+            dbp->last_error = -3;
             continue;
         }
         if( head.byte_order != 0x0123456789ABCDEF ) {
             fprintf(stderr, "The profile in file %s has been generated with a different byte ordering. File ignored\n",
                     filenames[i]);
             close(fd);
+            dbp->last_error = -4;
             continue;
         }
         dbp->files[n].filename = strdup(filenames[i]);
@@ -825,6 +836,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                         dbp->files[n].filename, head.hr_id,
                         dbp->files[0].hr_id, dbp->files[0].filename);
                 close(fd);
+                dbp->last_error = -5;
                 continue;
             }
 
@@ -833,6 +845,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                         dbp->files[n].filename, head.profile_buffer_size,
                         event_buffer_size, dbp->files[0].filename);
                 close(fd);
+                dbp->last_error = -6;
                 continue;
             }
 
@@ -841,12 +854,14 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                         dbp->files[n].filename, head.worldsize,
                         dbp->worldsize, dbp->files[0].filename);
                 close(fd);
+                dbp->last_error = -7;
                 continue;
             }
 
             if( check_dictionary(dbp, fd, &head) != 0 ) {
                 fprintf(stderr, "The profile in file %s has a broken or unmatching dictionary. Dictionary ignored.\n",
                         dbp->files[n].filename);
+                dbp->last_error = -8;
             }
         } else {
             event_buffer_size = head.profile_buffer_size;
@@ -857,6 +872,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                 fprintf(stderr, "The profile in file %s has a broken dictionary. Trying to use the dictionary of next file. Ignoring the file.\n",
                         dbp->files[n].filename);
                 close(fd);
+                dbp->last_error = -9;
                 continue;
             }
             dbp->worldsize = head.worldsize;
@@ -870,6 +886,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
         if( read_threads(dbp, n, fd, &head) != 0 ) {
             fprintf(stderr, "unable to read all threads of profile %d in file %s. File ignored.\n",
                     n, dbp->files[n].filename);
+            dbp->last_error = -10;
             continue;
         }
 
@@ -879,9 +896,11 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
     if( dbp->worldsize > n ) {
         fprintf(stderr, "The profile in file %s has a world size of %d, but only %d files can be read in input. The trace will be truncated\n",
                 dbp->files[0].filename, dbp->worldsize, n);
+        dbp->last_error = -11;
     } else if( dbp->worldsize < n ) {
         fprintf(stderr, "The profile in file %s has a world size of %d, but %d files should be read in input. The trace will be... Strange...\n",
                 dbp->files[0].filename, dbp->worldsize, n);
+        dbp->last_error = -12;
     } else {
         for(i = 0; i < n; i++) {
             p = 0;
@@ -892,6 +911,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             if( p != 1 ) {
                 fprintf(stderr, "The rank %d appears %d times in this collection of profiles... The trace will be... Strange...\n",
                         i, p);
+                dbp->last_error = -13;
             }
         }
     }
