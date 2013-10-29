@@ -38,6 +38,7 @@ void pins_init(dague_context_t * master_context) {
 
 #if defined(DAGUE_PROF_TRACE)
     char modules_enabled[(MAX_NAME_SIZE + 1) * MAX_ENABLED_MODULES + 1];
+    modules_enabled[0] = '\0';
 #endif /* DAGUE_PROF_TRACE */
 
     for (; i < PINS_FLAG_COUNT; i++) {
@@ -99,6 +100,7 @@ void pins_init(dague_context_t * master_context) {
                         init_this_module->component->base_version.mca_component_name, 
                         MAX_NAME_SIZE);
                 strncat(modules_enabled, ",", 1);
+                printf("modules enabled: %s\n", modules_enabled);
 #endif
             }
         }
@@ -106,6 +108,7 @@ void pins_init(dague_context_t * master_context) {
     }
 #if defined(DAGUE_PROF_TRACE)
     modules_enabled[strlen(modules_enabled) - 1] = '\0';
+    printf("modules enabled NOW: %s\n", modules_enabled);
     dague_profiling_add_information("PINS_MODULES", modules_enabled);
 #endif 
 }
