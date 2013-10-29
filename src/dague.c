@@ -1833,6 +1833,7 @@ const dague_ddesc_t dague_static_local_data_ddesc = {
 
       NULL,  /* dague_memory_region_management_f register_memory */
       NULL,  /* dague_memory_region_management_f unregister_memory */
+      MEMORY_STATUS_UNREGISTERED,  /* memory_registration_status_t memory_registration_status */
       NULL,  /* char      *key_base */
 
 #ifdef DAGUE_PROF_TRACE

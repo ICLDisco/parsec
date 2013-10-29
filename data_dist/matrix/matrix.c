@@ -53,6 +53,7 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     o->key_dim       = NULL;
     o->key           = NULL;
 #endif
+    o->memory_registration_status    = MEMORY_STATUS_UNREGISTERED;
 
     /* Matrix address */
     /* tdesc->mat = NULL;*/

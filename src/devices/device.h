@@ -13,6 +13,7 @@
 #include "profiling.h"
 #endif  /* defined(DAGUE_PROF_TRACE) */
 #include "dague.h"
+#include "data_distribution.h"
 
 #define DAGUE_DEV_NONE       0x00
 #define DAGUE_DEV_CPU        0x01
@@ -27,8 +28,8 @@ typedef int   (*dague_device_init_f)(dague_device_t*);
 typedef int   (*dague_device_fini_f)(dague_device_t*);
 typedef int   (*dague_device_handle_register_f)(dague_device_t*, dague_handle_t*);
 typedef int   (*dague_device_handle_unregister_f)(dague_device_t*, dague_handle_t*);
-typedef int   (*dague_device_memory_register_f)(dague_device_t*, void*, size_t);
-typedef int   (*dague_device_memory_unregister_f)(dague_device_t*, void*);
+typedef int   (*dague_device_memory_register_f)(dague_device_t*, dague_ddesc_t*, void*, size_t);
+typedef int   (*dague_device_memory_unregister_f)(dague_device_t*, dague_ddesc_t*, void*);
 typedef void* (*dague_device_find_function_f)(dague_device_t*, char*);
 
 struct dague_device_s {
