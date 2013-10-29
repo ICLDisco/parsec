@@ -44,7 +44,7 @@ int dague_profile_enabled = 0;
 
 static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char type);
 
-/* Process-global dictionnary */
+/* Process-global dictionary */
 static unsigned int dague_prof_keys_count, dague_prof_keys_number;
 static dague_profiling_key_t* dague_prof_keys;
 
@@ -96,6 +96,17 @@ void dague_profiling_add_information( const char *key, const char *value )
     n->value = strdup(value);
     n->next = dague_profiling_infos;
     dague_profiling_infos = n;
+}
+
+void dague_profiling_thread_add_information(dague_thread_profiling_t * thread,
+                                            const char *key, const char *value )
+{
+    dague_profiling_info_t *n;
+    n = (dague_profiling_info_t *)calloc(1, sizeof(dague_profiling_info_t));
+    n->key = strdup(key);
+    n->value = strdup(value);
+    n->next = thread->infos;
+    thread->infos = n;
 }
 
 int dague_profiling_init( void )
@@ -613,7 +624,7 @@ static int64_t dump_dictionary(int *nbdico)
             b->this_buffer.nb_dictionary_entries = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_DICTIONARY);
             if( NULL == n ) {
-                set_last_error("Profiling system: error: Dictionnary will be truncated to %d entries only -- buffer allocation error\n", nb);
+                set_last_error("Profiling system: error: Dictionary will be truncated to %d entries only -- buffer allocation error\n", nb);
                 *nbdico = nb;
                 return first_off;
             }
@@ -763,7 +774,7 @@ int dague_profiling_dbp_dump( void )
         return -1;
     }
 
-    /* Flush existing events buffer, inconditionnally */
+    /* Flush existing events buffer, unconditionally */
     DAGUE_LIST_ITERATOR(&threads, it, {
         t = (dague_thread_profiling_t*)it;
         if( NULL != t->current_events_buffer ) {

@@ -189,6 +189,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
                                                   DAGUE_PROFILE_THREAD_STR,
                                                   eu->th_id,
                                                   eu->virtual_process->vp_id );
+    PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "id", eu->th_id);
+    PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "vp_id", eu->virtual_process->vp_id );
 
     if( NULL == eu->eu_profile ) {
         fprintf(stderr, "*** %s\n", dague_profiling_strerror());

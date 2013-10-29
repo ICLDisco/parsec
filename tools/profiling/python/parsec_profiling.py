@@ -11,6 +11,9 @@
 import sys, os
 import pandas as pd
 
+import warnings # because these warnings are annoying, and I can find no way around them.
+warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
+
 class ParsecProfile(object):
     class_version = 1.0 # created 2013.10.22 after move to pandas
     basic_event_columns = ['node_id', 'thread_id',  'handle_id', 'key',

@@ -546,7 +546,7 @@ static void read_infos(dbp_multifile_reader_t *dbp, int n, dague_profiling_binar
     release_events_buffer( info );
 }
 
-static int read_dictionnary(dbp_multifile_reader_t *dbp, int fd, const dague_profiling_binary_file_header_t *head)
+static int read_dictionary(dbp_multifile_reader_t *dbp, int fd, const dague_profiling_binary_file_header_t *head)
 {
     dague_profiling_buffer_t *dico, *next;
     dague_profiling_key_buffer_t *a;
@@ -605,7 +605,7 @@ static int read_dictionnary(dbp_multifile_reader_t *dbp, int fd, const dague_pro
     return 0;
 }
 
-static int check_dictionnary(const dbp_multifile_reader_t *dbp, int fd, const dague_profiling_binary_file_header_t *head)
+static int check_dictionary(const dbp_multifile_reader_t *dbp, int fd, const dague_profiling_binary_file_header_t *head)
 {
     dague_profiling_buffer_t *dico, *next;
     dague_profiling_key_buffer_t *a;
@@ -696,12 +696,12 @@ static size_t read_thread_infos(dague_thread_profiling_t * res,
     dague_profiling_info_buffer_t *ib;
     dbp_info_t *nfo;
     int i, pos = 0;
-
+    pos = 0;
     res->infos = NULL;
     th->infos = (dbp_info_t *)calloc(nb_infos, sizeof(dbp_info_t));
     for(i = 0; i < nb_infos; i++) {
-        ib = (dague_profiling_info_buffer_t*)&(br[pos]);
-        pos += ib->info_size + ib->value_size;
+        ib = (dague_profiling_info_buffer_t*)(&br[pos]);
+        pos += ib->info_size + ib->value_size + sizeof(dague_profiling_info_buffer_t) - 1;
         nfo = (dbp_info_t*)&th->infos[i];
         nfo->key = (char*)malloc(ib->info_size+1);
         memcpy(nfo->key, ib->info_and_value, ib->info_size);
@@ -710,7 +710,7 @@ static size_t read_thread_infos(dague_thread_profiling_t * res,
         memcpy(nfo->value, ib->info_and_value + ib->info_size, ib->value_size);
         nfo->value[ib->value_size] = '\0';
     }
-
+    th->nb_infos = nb_infos;
     return pos;
 }
 
@@ -844,7 +844,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                 continue;
             }
 
-            if( check_dictionnary(dbp, fd, &head) != 0 ) {
+            if( check_dictionary(dbp, fd, &head) != 0 ) {
                 fprintf(stderr, "The profile in file %s has a broken or unmatching dictionary. Dictionary ignored.\n",
                         dbp->files[n].filename);
             }
@@ -853,7 +853,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             event_avail_space = event_buffer_size -
                 ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
 
-            if( read_dictionnary(dbp, fd, &head) != 0 ) {
+            if( read_dictionary(dbp, fd, &head) != 0 ) {
                 fprintf(stderr, "The profile in file %s has a broken dictionary. Trying to use the dictionary of next file. Ignoring the file.\n",
                         dbp->files[n].filename);
                 close(fd);

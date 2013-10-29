@@ -117,7 +117,6 @@ cpdef read(filenames, report_progress=False, info_only=False):
         type_names = pd.Series(builder.type_names)
         nodes = pd.DataFrame.from_records(builder.nodes)
         threads = pd.DataFrame.from_records(builder.threads)
-        print(threads)
         if len(builder.errors) > 0:
             errors = pd.DataFrame(builder.errors,
                                   columns=ParsecProfile.basic_event_columns + ['error_msg'])
@@ -197,6 +196,7 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
     cdef dbp_event_iterator_t * it_e = NULL
     cdef const dbp_event_t * event_s = dbp_iterator_current(it_s)
     cdef const dbp_event_t * event_e = NULL
+    cdef dbp_info_t * th_info = NULL
     cdef uint64_t begin = 0
     cdef uint64_t end = 0
     cdef void * cinfo = NULL
@@ -208,18 +208,18 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
     cdef long long int * cast_lld_ptr = NULL
 
     thread_descrip = dbp_thread_get_hr_id(cthread)
-    # if the hr_id gives this thread a 'real' id, we'll try to steal it
-    m = thread_id_in_descrip.match(thread_descrip)
-    if m:
-        thread_id = int(m.group(1))
-    else:
+    thread = {'node_id': node_id, 'description':thread_descrip}
+
+    for i in range(dbp_thread_nb_infos(cthread)):
+        th_info = dbp_thread_get_info(cthread, i)
+        key = dbp_info_get_key(th_info);
+        value = dbp_info_get_value(th_info);
+        add_kv(thread, key, value)
+
+    if not 'id' in thread:
         thread_id = thread_num
-    m = vp_id_in_descrip.match(thread_descrip)
-    if m:
-        vp_id = int(m.group(1))
     else:
-        vp_id = 0
-    thread = {'id': thread_id, 'vp_id': vp_id, 'node_id': node_id, 'description':thread_descrip}
+        thread_id = thread['id']
     builder.unordered_threads[thread_id] = thread
 
     while event_s != NULL and not info_only:
