@@ -4,10 +4,13 @@
 #endif
 #include "pins_papi_utils.h"
 
+#if defined(HAVE_PAPI)
 static int init_done = 0;
 static int thread_init_done = 0;
+#endif  /* defined(HAVE_PAPI) */
 
-void pins_papi_init(dague_context_t * master_context) {
+void pins_papi_init(dague_context_t * master_context)
+{
     (void)master_context;
 #if defined(HAVE_PAPI)
     if (!init_done) {
@@ -22,7 +25,8 @@ void pins_papi_init(dague_context_t * master_context) {
 }
 
 
-void pins_papi_thread_init(dague_execution_unit_t * exec_unit) {
+void pins_papi_thread_init(dague_execution_unit_t * exec_unit)
+{
     (void)exec_unit;
 #if defined(HAVE_PAPI)
     if (!thread_init_done) {
