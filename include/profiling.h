@@ -216,43 +216,48 @@ void dague_profiling_disable(void);
 
 /* MACROS for use elsewhere */
 /* global */
-static void profiling_save_dinfo(const char *key, double value)
+static inline void
+profiling_save_dinfo(const char *key, double value)
 {
     char *svalue;
-    int ret = asprintf(&svalue, "%g", value);
+    (void)asprintf(&svalue, "%g", value);
     dague_profiling_add_information(key, svalue);
     free(svalue);
 }
-static void profiling_save_iinfo(const char *key, int value)
+static inline void
+profiling_save_iinfo(const char *key, int value)
 {
     char *svalue;
-    int ret = asprintf(&svalue, "%d", value);
+    (void)asprintf(&svalue, "%d", value);
     dague_profiling_add_information(key, svalue);
     free(svalue);
 }
-static void profiling_save_sinfo(const char *key, char* svalue)
+static inline void profiling_save_sinfo(const char *key, char* svalue)
 {
     dague_profiling_add_information(key, svalue);
 }
 /* for threads */
-static void profiling_thread_save_dinfo(dague_thread_profiling_t * thread,
-                                        const char *key, double value)
+static inline void
+profiling_thread_save_dinfo(dague_thread_profiling_t * thread,
+                            const char *key, double value)
 {
     char *svalue;
-    int ret = asprintf(&svalue, "%g", value);
+    (void)asprintf(&svalue, "%g", value);
     dague_profiling_thread_add_information(thread, key, svalue);
     free(svalue);
 }
-static void profiling_thread_save_iinfo(dague_thread_profiling_t * thread,
-                                        const char *key, int value)
+static inline void
+profiling_thread_save_iinfo(dague_thread_profiling_t * thread,
+                            const char *key, int value)
 {
     char *svalue;
-    int ret = asprintf(&svalue, "%d", value);
+    (void)asprintf(&svalue, "%d", value);
     dague_profiling_thread_add_information(thread, key, svalue);
     free(svalue);
 }
-static void profiling_thread_save_sinfo(dague_thread_profiling_t * thread,
-                                        const char *key, char* svalue)
+static inline void
+profiling_thread_save_sinfo(dague_thread_profiling_t * thread,
+                            const char *key, char* svalue)
 {
     dague_profiling_thread_add_information(thread, key, svalue);
 }
