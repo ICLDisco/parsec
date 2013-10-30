@@ -25,7 +25,7 @@ USER_OPTIONS+=" -DCORES_PER_SOCKET=6"
 CC=${CC:="/mnt/scratch/sw/intel/composer_xe_2013/bin/icc"}
 CXX=${CXX:="/mnt/scratch/sw/intel/composer_xe_2013/bin/icpc"}
 # FC=${FC:="/mnt/scratch/sw/intel/composer_xe_2013/bin/ifort"}
-FC=${FC:="/mnt/scratch/sw/intel/impi/4.1.1.036/intel64/bin/mpif90"}
+FC=${FC:="/usr/bin/gfortran44"}
 MKL=${MKL:="/mnt/scratch/sw/intel/composer_xe_2013/mkl"}
 CMAKE_C_FLAGS=${CMAKE_C_FLAGS:="-g3 -fPIC"}
 CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS:="-g3 -fPIC"}
