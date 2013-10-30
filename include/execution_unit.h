@@ -54,8 +54,8 @@ struct dague_vp {
     int32_t vp_id;                  /**< virtual process identifier of this vp */
     int32_t nb_cores;               /**< number of cores for this vp */
 
-    dague_mempool_t context_mempool;
-    dague_mempool_t datarepo_mempools[MAX_PARAM_COUNT+1];
+    dague_mempool_t  context_mempool;
+    dague_mempool_t  datarepo_mempools[MAX_PARAM_COUNT+1];
 
     /* This field should always be the last one in the structure. Even if the
      * declared number of execution units is 1, when we allocate the memory

@@ -520,8 +520,8 @@ static char *dump_data_declaration(void **elem, void *arg)
 /**
  * dump_data_initalization_from_data_array:
  *  Takes the pointer to a flow *f, let say that f->varname == "A",
- *  this produces a string like 
- *  dague_arena_chunk_t *gA = this_task->data[id].data;\n  
+ *  this produces a string like
+ *  dague_arena_chunk_t *gA = this_task->data[id].data;\n
  *  data_repo_entry_t *eA = this_task->data[id].data_repo; (void)eA;\n
  *  void *A = ADATA(gA); (void)A;\n
  */
@@ -980,6 +980,53 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
 
 /** Structure Generators **/
 
+/**
+ * Generate typedef for the tasks struct based on the locals and flows
+ * of each task familly. Right now these tasks typedefs are not used
+ * anywhere, instead we always use the generic task structure.
+ */
+static char* jdf_generate_task_typedef(void **elt, void* arg)
+{
+    const jdf_function_entry_t* f = (jdf_function_entry_t*)elt;
+    string_arena_t *sa = (string_arena_t*)arg, *sa_locals, *sa_data;
+    int nb_locals = 0, nb_flows = 0;
+
+    sa_locals = string_arena_new(64);
+    sa_data = string_arena_new(64);
+    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nb_locals);
+    UTIL_DUMP_LIST_FIELD(sa_locals, f->locals, next, name, dump_string, NULL,
+                         "", "        assignment_t ", ";\n", ";\n");
+
+    JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nb_flows);
+    UTIL_DUMP_LIST_FIELD(sa_data, f->dataflow, next, varname, dump_string, NULL,
+                         "", "        dague_data_pair_t ", ";\n", ";\n");
+
+    string_arena_init(sa);
+    string_arena_add_string(sa, "typedef struct __dague_%s_%s_task_s {\n"
+                            "    DAGUE_MINIMAL_EXECUTION_CONTEXT\n"
+                            "#if defined(DAGUE_PROF_TRACE)\n"
+                            "    dague_profile_ddesc_info_t prof_info;\n"
+                            "#endif /* defined(DAGUE_PROF_TRACE) */\n"
+                            "    struct {\n"
+                            "%s"
+                            "        assignment_t unused[MAX_LOCAL_COUNT-%d];\n"
+                            "    } locals;\n"
+                            "    struct {\n"
+                            "%s"
+                            "        dague_data_pair_t unused[MAX_LOCAL_COUNT-%d];\n"
+                            "    } data;\n"
+                            "} __dague_%s_%s_task_t;\n\n",
+                            jdf_basename, f->fname,
+                            string_arena_get_string(sa_locals),
+                            nb_locals,
+                            string_arena_get_string(sa_data),
+                            nb_flows,
+                            jdf_basename, f->fname);
+    string_arena_free(sa_locals);
+    string_arena_free(sa_data);
+    return string_arena_get_string(sa);
+}
+
 static void jdf_generate_header_file(const jdf_t* jdf)
 {
     string_arena_t *sa1, *sa2, *sa3;
@@ -1026,11 +1073,16 @@ static void jdf_generate_header_file(const jdf_t* jdf)
 
     {
         typed_globals_info_t prop = { sa3, NULL, "hidden" };
-        houtput("extern dague_%s_object_t *dague_%s_new(%s);\n", jdf_basename, jdf_basename,
+        houtput("extern dague_%s_object_t *dague_%s_new(%s);\n\n", jdf_basename, jdf_basename,
                 UTIL_DUMP_LIST( sa2, jdf->globals, next, dump_typed_globals, &prop,
                                 "", "", ", ", ""));
     }
 
+    /* TODO: Enable this once the task typedef are used in the code generation. */
+#if 0
+    houtput(UTIL_DUMP_LIST(sa1, jdf->functions, next, jdf_generate_task_typedef, sa3,
+                           "", "", "\n", "\n"));
+#endif
     string_arena_free(sa1);
     string_arena_free(sa2);
     string_arena_free(sa3);
@@ -3023,10 +3075,10 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
         }
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "tass", call));
         coutput("#if defined(DAGUE_DEBUG_VERBOSE1)\n"
-                "%s    char tmp[128], tmp1[128];\n"
-                "%s    DEBUG((\"task %%s acquires flow %s from %s %%s\\n\",\n"
-                "%s           dague_snprintf_execution_context(tmp, 128, this_task),\n"
-                "%s           dague_snprintf_assignments(tmp1, 128, &%s_%s, tass)));\n"
+                "%s  char tmp[128], tmp1[128];\n"
+                "%s  DEBUG((\"task %%s acquires flow %s from %s %%s\\n\",\n"
+                "%s         dague_snprintf_execution_context(tmp, 128, this_task),\n"
+                "%s         dague_snprintf_assignments(tmp1, 128, &%s_%s, tass)));\n"
                 "#endif  /* defined(DAGUE_DEBUG_VERBOSE1) */\n",
                 spaces,
                 spaces, f->varname, call->var,
@@ -3524,9 +3576,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "  const __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)this_task->dague_object;\n"
             "  assignment_t tass[MAX_PARAM_COUNT];\n"
             "  (void)context; (void)__dague_object; (void)tass;\n"
-            "#if defined(DAGUE_SIM)\n"
-            "  int __dague_simulation_date = 0;\n"
-            "#endif\n"
             "%s",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST(sa, f->locals, next,
@@ -3546,24 +3595,20 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     }
 
     coutput("  /** Update staring simulation date */\n"
-            "#if defined(DAGUE_SIM)\n");
+            "#if defined(DAGUE_SIM)\n"
+            "  this_task->sim_exec_date = 0;\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 
         if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
 
         coutput("  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
-                "    __dague_simulation_date =  e%s->sim_exec_date;\n",
+                "    this_task->sim_exec_date = e%s->sim_exec_date;\n",
                 fl->varname,
                 fl->varname,
                 fl->varname);
     }
-    coutput("#endif\n");
-
-    coutput("#if defined(DAGUE_SIM)\n"
-            "  if( this_task->function->sim_cost_fct != NULL ) {\n"
-            "    this_task->sim_exec_date = __dague_simulation_date + this_task->function->sim_cost_fct(this_task);\n"
-            "  } else {\n"
-            "    this_task->sim_exec_date = __dague_simulation_date;\n"
+    coutput("  if( this_task->function->sim_cost_fct != NULL ) {\n"
+            "    this_task->sim_exec_date += this_task->function->sim_cost_fct(this_task);\n"
             "  }\n"
             "  if( context->largest_simulation_date < this_task->sim_exec_date )\n"
             "    context->largest_simulation_date = this_task->sim_exec_date;\n"
@@ -4021,13 +4066,13 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     string_arena_add_string(sa_open,
                             "#if defined(DAGUE_DEBUG_VERBOSE1)\n"
-                            "%s%sif( NULL != eu ) {\n"
-                            "%s%s  char tmp[128], tmp1[128];\n"
-                            "%s%s  DEBUG((\"thread %%d VP %%d release deps of %s:%%s to %s:%%s (from node %%d to %%d)\\n\",\n"
-                            "%s%s         eu->th_id, eu->virtual_process->vp_id,\n"
-                            "%s%s         dague_snprintf_execution_context(tmp, 128, this_task),\n"
-                            "%s%s         dague_snprintf_execution_context(tmp1, 128, &%s), rank_src, rank_dst));\n"
-                            "%s%s}\n"
+                            "%s%s  if( NULL != eu ) {\n"
+                            "%s%s    char tmp[128], tmp1[128];\n"
+                            "%s%s    DEBUG((\"thread %%d VP %%d release deps of %s:%%s to %s:%%s (from node %%d to %%d)\\n\",\n"
+                            "%s%s           eu->th_id, eu->virtual_process->vp_id,\n"
+                            "%s%s           dague_snprintf_execution_context(tmp, 128, this_task),\n"
+                            "%s%s           dague_snprintf_execution_context(tmp1, 128, &%s), rank_src, rank_dst));\n"
+                            "%s%s  }\n"
                             "#endif\n",
                             prefix, indent(nbopen),
                             prefix, indent(nbopen),
