@@ -53,8 +53,8 @@ m = 0 .. descA.nt-1
 
 : dataA(k, m)
 
-A <- dataA(k, m)
-  -> A GEMM(m, 0, k)
+READ A <- dataA(k, m)
+       -> A GEMM(m, 0, k)
 BODY
     printlog("rank %u <- A(%d,%d)\n", __dague_handle->super.dataA->myrank, k, m);
 END
@@ -69,8 +69,8 @@ n = 0 .. descB.nt-1
 
 : dataB(k, n)
 
-B <- dataB(k, n)
-  -> B GEMM(0, n, k)
+READ B <- dataB(k, n)
+       -> B GEMM(0, n, k)
 BODY
      printlog("rank %u <- B(%d,%d)\n", __dague_handle->super.dataB->myrank, k, n);
 END
