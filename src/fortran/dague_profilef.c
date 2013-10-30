@@ -14,12 +14,12 @@ void dague_profiling_init_f08( int* ierr )
     *ierr = dague_profiling_init();
 }
 
-void dague_profiling_fini_f08( int* ierr )
+void dague_profile_fini_f08( int* ierr )
 {
     *ierr = dague_profiling_fini();
 }
 
-void dague_profiling_reset_f08( int* ierr )
+void dague_profile_reset_f08( int* ierr )
 {
     *ierr = dague_profiling_reset();
 }
@@ -35,15 +35,15 @@ void dague_profiling_start_f08( const char *filename, const char *hr_info, int* 
 }
 
 dague_thread_profiling_t*
-dague_profiling_thread_init_f08( size_t length, const char *id_name)
+dague_profile_thread_init_f08( size_t length, const char *id_name)
 {
     return dague_profiling_thread_init(length, "%s", id_name);
 }
 
-void dague_profiling_add_dictionary_keyword_f08(const char* key_name, const char* attributes,
-                                                size_t info_length,
-                                                const char* convertor_code,
-                                                int* key_start, int* key_end, int* ierr )
+void dague_profile_add_dictionary_keyword_f08(const char* key_name, const char* attributes,
+                                              size_t info_length,
+                                              const char* convertor_code,
+                                              int* key_start, int* key_end, int* ierr )
 {
     *ierr = dague_profiling_add_dictionary_keyword( key_name, attributes,
                                                     info_length,
@@ -51,9 +51,9 @@ void dague_profiling_add_dictionary_keyword_f08(const char* key_name, const char
                                                     key_start, key_end );
 }
 
-void dague_profiling_trace_f08( dague_thread_profiling_t** ctx, int key,
-                                uint64_t event_id, uint32_t object_id,
-                                void *info, int* ierr )
+void dague_profile_trace_f08( dague_thread_profiling_t** ctx, int key,
+                              uint64_t event_id, uint32_t object_id,
+                              void *info, int* ierr )
 {
     *ierr = dague_profiling_trace(*ctx, key, event_id, object_id, info);
 }

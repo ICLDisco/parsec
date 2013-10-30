@@ -192,14 +192,8 @@ extern int dague_profile_enabled;
 /**
  * Enable/disable the profiling of new events.
  */
-static inline void dague_profiling_enable(void)
-{
-    dague_profile_enabled = 1;
-}
-static inline void dague_profiling_disable(void)
-{
-    dague_profile_enabled = 1;
-}
+void dague_profiling_enable(void);
+void dague_profiling_disable(void);
 
 #define DAGUE_PROFILING_TRACE(context, key, event_id, object_id, info ) \
     if( dague_profile_enabled ) {                                       \
