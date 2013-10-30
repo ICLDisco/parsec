@@ -65,6 +65,12 @@ static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_conte
 #define DEP_NB_CONCURENT 3
 static int dague_mpi_activations = 1 * DEP_NB_CONCURENT;
 static int dague_mpi_transfers  = 2 * DEP_NB_CONCURENT;
+/**
+ * Number of data movements to be extracted at each step. Bigger the number
+ * larger the amount spent in ordering the tasks, but greater the potential
+ * benefits of doing things in the right order.
+ */
+static int dague_param_nb_tasks_extracted = 40;
 
 typedef enum dep_cmd_action_t
 {
@@ -455,24 +461,37 @@ static int remote_dep_dequeue_nothread_fini(dague_context_t* context)
 
 static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_context)
 {
-    dep_cmd_item_t* item;
-    int ret = 0;
+    dague_list_item_t *items;
+    dep_cmd_item_t *item;
+    dague_list_t temp_list;
+    int ret = 0, how_many;
 
+    dague_list_construct(&temp_list);
  check_pending_queues:
-    /**
-     * Move as many elements as possible from the dequeue into our ordered lifo.
-     */
+    /* Move a number of tranfers the dequeue into our ordered lifo. */
+    items = NULL;
+    how_many = 0;
     while( NULL != (item = (dep_cmd_item_t*) dague_dequeue_try_pop_front(&dep_cmd_queue)) ) {
         if( DEP_CTL == item->action ) {
             /* A DEP_CTL is a barrier that must not be crossed, flush the
              * ordered fifo and don't add anything until it is consumed */
-            if( !dague_ulist_is_empty(&dep_cmd_fifo) ) {
-                dague_dequeue_push_front(&dep_cmd_queue, (dague_list_item_t*)item);
-                break;
-            } else goto handle_now;
+            if( dague_ulist_is_empty(&dep_cmd_fifo) && dague_ulist_is_empty(&temp_list) )
+                goto handle_now;
+            dague_dequeue_push_front(&dep_cmd_queue, (dague_list_item_t*)item);
+            break;
         }
-
-        dague_ulist_push_sorted(&dep_cmd_fifo, (dague_list_item_t*)item, dep_cmd_prio);
+        how_many++;
+        dague_list_nolock_push_front(&temp_list, (dague_list_item_t*)item);
+        if(how_many > dague_param_nb_tasks_extracted)
+            break;
+    }
+    if( !dague_ulist_is_empty(&temp_list) ) {
+        /* Sort the temporary list */
+        dague_list_nolock_sort(&temp_list, dep_cmd_prio);
+        /* Remove the ordered items from the list, and clean the list */
+        items = dague_list_nolock_unchain(&temp_list);
+        /* Insert them into the locally ordered cmd_fifo */
+        dague_list_nolock_chain_sorted(&dep_cmd_fifo, items, dep_cmd_prio);
     }
     item = (dep_cmd_item_t*)dague_ulist_fifo_pop(&dep_cmd_fifo);
 
@@ -492,6 +511,7 @@ handle_now:
     switch(item->action) {
     case DEP_CTL:
         ret = item->cmd.ctl.enable;
+        dague_list_destruct(&temp_list);
         free(item);
         return ret;  /* FINI or OFF */
     case DEP_NEW_OBJECT:
