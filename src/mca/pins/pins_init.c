@@ -9,9 +9,6 @@
 #include "dague/mca/mca_repository.h"
 #include "execution_unit.h"
 #include "profiling.h"
-#if defined(HAVE_PAPI)
-#include <papi.h>
-#endif
 
 static int allowable_modules_in_use;  /* allows all modules if not set */
 static int allowable_modules_defined; /* flag to prevent multiple definitions */
@@ -46,23 +43,6 @@ void pins_init(dague_context_t * master_context) {
             pins_array[i] = &pins_empty_callback;
     }
     DEBUG(("Initialized PaRSEC PINS callbacks to pins_empty_callback()"));
-
-#if defined(HAVE_PAPI)
-/*
-  PINS assumes the responsibility for initializing PAPI if PAPI is present.
-  This is because the developers have decided that PAPI should only be used
-  from within a PINS module, and that it should be available to all PINS modules
-  without significant extra work. 
-  It is not known whether this style of initialization might interfere with
-  certain heretofore untested functions that the PAPI API might provide to
-  advanced PAPI-using modules.
- */
-    PAPI_library_init(PAPI_VER_CURRENT); /* this has to happen before threads get created */
-    PAPI_set_debug(PAPI_VERB_ECONT);
-    int t_init = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self )); 
-    if (t_init != PAPI_OK)
-        DEBUG(("PAPI Thread Init failed with error code %d (%s)!\n", t_init, PAPI_strerror(t_init)));
-#endif /* HAVE_PAPI */
 
     /* We no longer default to the use of any particular module. */
     /* set_allowable_pins_modules(default_modules_array); */
@@ -110,7 +90,7 @@ void pins_init(dague_context_t * master_context) {
     modules_enabled[strlen(modules_enabled) - 1] = '\0';
     printf("modules enabled NOW: %s\n", modules_enabled);
     dague_profiling_add_information("PINS_MODULES", modules_enabled);
-#endif 
+#endif
 }
 
 /**
@@ -174,12 +154,6 @@ void pins_thread_init(dague_execution_unit_t * exec_unit) {
     dague_pins_module_t * module = NULL;
     int priority = -1;
     int i = 0;
-
-#if defined(HAVE_PAPI)
-    int rv = PAPI_register_thread();
-    if (rv != PAPI_OK)
-        DEBUG(("PAPI_register_thread failed with error %s\n", PAPI_strerror(rv)));
-#endif /* HAVE_PAPI */
 
     while (pins_components[i] != NULL) {
         if (pins_components[i]->mca_query_component != NULL) {

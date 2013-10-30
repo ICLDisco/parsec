@@ -13,7 +13,7 @@
 cdef extern from "dbp.h":
    ctypedef struct dague_thread_profiling_t:
       pass
-   
+
    int KEY_IS_START(int key)
    int KEY_IS_END(int key)
    int BASE_KEY(int key)
@@ -67,6 +67,7 @@ cdef extern from "dbpreader.h":
    int dbp_file_get_rank(dbp_file_t *file)
    int dbp_file_nb_threads(dbp_file_t *file)
    int dbp_file_nb_infos(dbp_file_t *file)
+   int dbp_file_error(const dbp_file_t *file)
    dbp_info_t *dbp_file_get_info(dbp_file_t *file, int iid)
 
    dbp_thread_t *dbp_file_get_thread(dbp_file_t *file, int tid)
@@ -94,6 +95,8 @@ cdef extern from "dbpreader.h":
    long long int dbp_event_get_timestamp(dbp_event_t *e)
    void *dbp_event_get_info(dbp_event_t *e)
    int   dbp_event_info_len(dbp_event_t *e, dbp_multifile_reader_t *dbp)
+
+   enum: OPEN_ERROR
 
    # DEBUG
    void dbp_file_print(dbp_file_t* file)

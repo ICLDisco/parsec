@@ -57,7 +57,8 @@ cpdef read(filenames, report_progress=False, info_only=False):
             cfile = dbp_reader_get_file(dbp, node_order[node_id])
             node_dct = {'exe':dbp_file_hr_id(cfile),
                         'filename':dbp_file_get_name(cfile),
-                        'id':node_id}
+                        'id':node_id,
+                        'error':dbp_file_error(cfile)}
             for index in range(dbp_file_nb_infos(cfile)):
                 cinfo = dbp_file_get_info(cfile, index)
                 key = dbp_info_get_key(cinfo)

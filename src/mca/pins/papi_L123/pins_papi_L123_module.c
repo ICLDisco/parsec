@@ -69,7 +69,7 @@ static int pins_prof_papi_L12_exec_begin,
     pins_prof_papi_L123_end;
 
 static void pins_init_papi_L123(dague_context_t * master_context) {
-    (void)master_context;
+    pins_papi_init(master_context);
     /*
      thread_init_prev = PINS_REGISTER(THREAD_INIT, start_papi_L123);
      thread_fini_prev = PINS_REGISTER(THREAD_FINI, stop_papi_L123);
@@ -119,6 +119,8 @@ static void pins_fini_papi_L123(dague_context_t * master_context) {
 static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit) {
     int rv = 0;
     int native;
+
+    pins_papi_thread_init(exec_unit);
 
     exec_unit->papi_eventsets[EXEC_SET] = PAPI_NULL;
     if ((rv = PAPI_create_eventset(&exec_unit->papi_eventsets[EXEC_SET])) != PAPI_OK)

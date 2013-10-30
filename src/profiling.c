@@ -11,6 +11,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <stdio.h>

@@ -47,6 +47,7 @@ char * dbp_file_get_name(const dbp_file_t *file);
 int dbp_file_get_rank(const dbp_file_t *file);
 int dbp_file_nb_threads(const dbp_file_t *file);
 int dbp_file_nb_infos(const dbp_file_t *file);
+int dbp_file_error(const dbp_file_t *file);
 dbp_info_t *dbp_file_get_info(const dbp_file_t *file, int iid);
 
 /* Single DBP thread interface */
