@@ -29,6 +29,10 @@ struct dague_device_s;
 typedef struct dague_ddesc_s dague_ddesc_t;
 typedef int (*dague_memory_region_management_f)(dague_ddesc_t*, struct dague_device_s*);
 
+typedef uint8_t memory_registration_status_t;
+#define    MEMORY_STATUS_UNREGISTERED      ((memory_registration_status_t)0x0)
+#define    MEMORY_STATUS_REGISTERED        ((memory_registration_status_t)0x1)
+
 BEGIN_C_DECLS
 
 struct dague_ddesc_s {
@@ -55,6 +59,7 @@ struct dague_ddesc_s {
      */
     dague_memory_region_management_f register_memory;
     dague_memory_region_management_f unregister_memory;
+    memory_registration_status_t memory_registration_status;
 
     char      *key_base;
 
