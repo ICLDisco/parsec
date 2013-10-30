@@ -57,7 +57,7 @@ int __dague_progress_task( dague_execution_unit_t* eu_context,
 #ifdef DAGUE_DEBUG_VERBOSE1
             char tmp[MAX_TASK_STRLEN];
             DEBUG(("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
-                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task))); 
+                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task)));
 #endif
         return -1;
 

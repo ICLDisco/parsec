@@ -1013,7 +1013,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     char tmp[MAX_TASK_STRLEN];
 #endif
 
-    (void)eu_context;
     DEBUG2(("Activate dependencies for %s flags = 0x%04x\n",
             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), function->flags));
     deps = find_deps(dague_object, exec_context);
@@ -1031,9 +1030,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
         DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
 
-        /* This service is ready to be executed as all dependencies
-         * are solved.  Queue it into the ready_list passed as an
-         * argument.
+        /* This task is ready to be executed as all dependencies are solved.
+         * Queue it into the ready_list passed as an argument.
          */
         {
 #if defined(DAGUE_DEBUG_VERBOSE1)
@@ -1073,13 +1071,15 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
-                DEBUG3(("  Task %s is immediate and will be executed ASAP\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, new_context)));
+                DEBUG3(("  Task %s is immediate and will be executed ASAP\n",
+                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, new_context)));
                 __dague_execute(eu_context, new_context);
                 __dague_complete_execution(eu_context, new_context);
             } else {
-                *pready_ring = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(*pready_ring),
-                                                                                             &new_context->list_item,
-                                                                                             dague_execution_context_priority_comparator );
+                *pready_ring = (dague_execution_context_t*)
+                    dague_list_item_ring_push_sorted( (dague_list_item_t*)(*pready_ring),
+                                                      &new_context->list_item,
+                                                      dague_execution_context_priority_comparator );
             }
         }
 
