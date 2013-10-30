@@ -118,17 +118,6 @@ module dague_profile_f08_interfaces
      END SUBROUTINE dague_profile_disable_f08
   END INTERFACE dague_profile_disable_f08
 
-  INTERFACE dague_profile_start_f08
-     SUBROUTINE dague_profile_start_f08(fname, hr_info, ierr) &
-          BIND(C, name="dague_profile_start_f08")
-       USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR
-       IMPLICIT NONE
-       CHARACTER(KIND=C_CHAR), INTENT(IN)           :: fname(*)
-       CHARACTER(KIND=C_CHAR), INTENT(IN)           :: hr_info(*)
-       INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
-     END SUBROUTINE dague_profile_start_f08
-  END INTERFACE dague_profile_start_f08
-
 CONTAINS
 
   SUBROUTINE dague_profile_init(hdr_id, ierr)
@@ -285,14 +274,5 @@ CONTAINS
 
     call dague_profile_disable_f08()
   END SUBROUTINE dague_profile_disable
-
-  SUBROUTINE dague_profile_start(ierr)
-    IMPLICIT NONE
-    INTEGER, OPTIONAL, INTENT(OUT)             :: ierr
-
-    INTEGER(KIND=c_int)                        :: c_ierr
-    c_ierr = dague_profile_start_f08();
-    if(present(ierr)) ierr = c_ierr;
-  END SUBROUTINE dague_profile_start
 
 end module dague_profile_f08_interfaces
