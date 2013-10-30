@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
     int nbthreads = 0;
     int f, t;
     dbp_file_t *dbp_f;
-    uint64_t mintime = 0, maxtime = 0;
+    uint64_t mintime, maxtime, eventtime;
     dbp_thread_t *dbp_t;
     const dbp_event_t *dbp_e;
     float delta;
@@ -160,14 +160,6 @@ int main(int argc, char *argv[])
     nbthreads = 0;
     for(f = 0; f < dbp_reader_nb_files(dbp); f++) {
         dbp_f = dbp_reader_get_file(dbp, f);
-#if PETER_FIX_ME
-        if( f == 0 ) {
-            mintime = dbp_file_get_min_date(dbp_f);
-        } else {
-            if( time_less(dbp_file_get_min_date(dbp_f), mintime) )
-                mintime = dbp_file_get_min_date(dbp_f);
-        }
-#endif  /* PETER_FIX_ME */
         for(t = 0; t < dbp_file_nb_threads(dbp_f); t++) {
             nbthreads++;
         }
@@ -176,7 +168,8 @@ int main(int argc, char *argv[])
     allthreads = (dbp_event_iterator_t **)malloc( sizeof(dbp_event_iterator_t *) * nbthreads );
 
     nbthreads = 0;
-    maxtime = mintime;
+    maxtime = 0;
+    mintime = UINT64_MAX;
     for(f = 0; f < dbp_reader_nb_files(dbp); f++) {
         dbp_f = dbp_reader_get_file(dbp, f);
         for(t = 0; t < dbp_file_nb_threads(dbp_f); t++) {
@@ -184,8 +177,9 @@ int main(int argc, char *argv[])
 
             dbp_i = dbp_iterator_new_from_thread(dbp_t);
             while( (dbp_e = dbp_iterator_current(dbp_i)) != NULL ) {
-                if( maxtime < dbp_event_get_timestamp(dbp_e) )
-                    maxtime = dbp_event_get_timestamp(dbp_e);
+                eventtime = dbp_event_get_timestamp(dbp_e);
+                if( maxtime < eventtime )     maxtime = eventtime;
+                else if( mintime > eventtime) mintime = eventtime;
                 dbp_iterator_next(dbp_i);
             }
             dbp_iterator_delete(dbp_i);
