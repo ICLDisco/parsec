@@ -1,5 +1,6 @@
 #include "pins_papi_select.h"
 #include "dague/mca/pins/pins.h"
+#include "dague/mca/pins/pins_papi_utils.h"
 #include <papi.h>
 #include "debug.h"
 #include "execution_unit.h"
@@ -36,7 +37,8 @@ static int select_events[NUM_SELECT_EVENTS] = {PAPI_L2_TCM, PAPI_L2_DCM};
                                exec_unit->th_id )
 
 static void pins_init_papi_select(dague_context_t * master) {
-    (void) master;
+    pins_papi_init(master);
+
     select_begin_prev = PINS_REGISTER(SELECT_BEGIN, start_papi_select_count);
     select_end_prev   = PINS_REGISTER(SELECT_END,   stop_papi_select_count);
 }
@@ -49,6 +51,8 @@ static void pins_fini_papi_select(dague_context_t * master) {
 
 static void pins_thread_init_papi_select(dague_execution_unit_t * exec_unit) {
     int rv;
+
+    pins_papi_thread_init(exec_unit);
 
     exec_unit->papi_eventsets[SELECT_SET] = PAPI_NULL;
     if (PAPI_create_eventset(&exec_unit->papi_eventsets[SELECT_SET]) != PAPI_OK) {
@@ -99,14 +103,14 @@ static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
     select_info_t info;
     if (exec_context) {
         info.kernel_type = exec_context->function->function_id;
-		strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
-		info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
-	}
+        strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
+        info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
+    }
     else {
         info.kernel_type = 0;
-		strncpy(info.kernel_name, "<STARVED>", KERNEL_NAME_SIZE - 1);
-		info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
-	}
+        strncpy(info.kernel_name, "<STARVED>", KERNEL_NAME_SIZE - 1);
+        info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
+    }
     info.vp_id = exec_unit->virtual_process->vp_id;
     info.th_id = exec_unit->th_id;
     info.victim_vp_id = -1; // currently unavailable from scheduler queue object
@@ -132,7 +136,7 @@ static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
             info.values[i] = values[i];
         info.values_len = NUM_SELECT_EVENTS; // see papi_exec/*module.c for why this is done
     }
-	
+        
     dague_profiling_trace(exec_unit->eu_profile, 
                           pins_prof_select_end, 
                           45,

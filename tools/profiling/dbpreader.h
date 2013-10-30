@@ -8,7 +8,6 @@
 #define _dbpreader_h_
 
 #include "dague_config.h"
-#include "os-spec-timing.h"
 
 /* Basic Key-Value Info interface */
 
@@ -25,8 +24,8 @@ dbp_multifile_reader_t *dbp_reader_open_default_files();
 int dbp_reader_nb_files(const dbp_multifile_reader_t *dbp);
 int dbp_reader_nb_dictionary_entries(const dbp_multifile_reader_t *dbp);
 int dbp_reader_worldsize(const dbp_multifile_reader_t *dbp);
+int dbp_reader_last_error(const dbp_multifile_reader_t *dbp);
 void dbp_reader_close_files(dbp_multifile_reader_t *dbp);
-dague_time_t dbp_reader_min_date(const dbp_multifile_reader_t *dbp);
 void dbp_reader_destruct(dbp_multifile_reader_t *dbp);
 
 /* Dictionary interface */
@@ -46,9 +45,9 @@ dbp_file_t *dbp_reader_get_file(const dbp_multifile_reader_t *dbp, int fid);
 char * dbp_file_hr_id(const dbp_file_t *file);
 char * dbp_file_get_name(const dbp_file_t *file);
 int dbp_file_get_rank(const dbp_file_t *file);
-dague_time_t dbp_file_get_min_date(const dbp_file_t *file);
 int dbp_file_nb_threads(const dbp_file_t *file);
 int dbp_file_nb_infos(const dbp_file_t *file);
+int dbp_file_error(const dbp_file_t *file);
 dbp_info_t *dbp_file_get_info(const dbp_file_t *file, int iid);
 
 /* Single DBP thread interface */

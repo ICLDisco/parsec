@@ -33,6 +33,11 @@
 
 #include "flops.h"
 
+/* these are globals in common.c */
+extern char *DAGUE_SCHED_NAME[];
+extern int unix_timestamp;
+extern char cwd[];
+
 /* Update PASTE_CODE_PROGRESS_KERNEL below if you change this list */
 enum iparam_t {
   IPARAM_RANK,         /* Rank                              */
@@ -172,28 +177,6 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     nb_local_tasks = DAGUE_##KERNEL->nb_local_tasks;                    \
     if( loud > 2 ) SYNC_TIME_PRINT(rank, ( #KERNEL "\tDAG created\n"));
 
-#if defined(DAGUE_PROF_TRACE)
-static void profiling_save_dinfo(const char *key, double value)
-{
-    char *svalue;
-    asprintf(&svalue, "%g", value);
-    dague_profiling_add_information(key, svalue);
-    free(svalue);
-}
-#define PROFILING_SAVE_dINFO(key, double_value) profiling_save_dinfo(key, double_value)
-static void profiling_save_iinfo(const char *key, int value)
-{
-    char *svalue;
-    asprintf(&svalue, "%d", value);
-    dague_profiling_add_information(key, svalue);
-    free(svalue);
-}
-#define PROFILING_SAVE_iINFO(key, integer_value) profiling_save_iinfo(key, integer_value)
-#else
-#define PROFILING_SAVE_dINFO(key, double_value) do {} while(0)
-#define PROFILING_SAVE_iINFO(key, integer_value) do {} while(0)
-#endif
-
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
@@ -202,8 +185,10 @@ static void profiling_save_iinfo(const char *key, int value)
         TIME_PRINT(rank, (#KERNEL "\t%d tasks computed,\t%f task/s rate\n",    \
                           nb_local_tasks,                               \
                           nb_local_tasks/time_elapsed));                \
+    else /* not loud, but still need to 'stop' time_elapsed */          \
+        TIME_STOP();                                                    \
     SYNC_TIME_PRINT(rank, (#KERNEL " computation PxQ= %d %d N= %d NB= %d IB= %d : %f gflops\n", \
-                           P, Q, N, NB, IB, 							\
+                           P, Q, N, NB, IB,                             \
                            gflops=(flops/1e9)/sync_time_elapsed));      \
     PROFILING_SAVE_dINFO("TIME_ELAPSED", time_elapsed);                 \
     PROFILING_SAVE_dINFO("SYNC_TIME_ELAPSED", sync_time_elapsed);       \

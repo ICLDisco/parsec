@@ -9,17 +9,17 @@
 typedef enum PINS_FLAG {
     SELECT_BEGIN,    // called before scheduler begins looking for an available task
     SELECT_END,      // called after scheduler has finished looking for an available task
-	PREPARE_INPUT_BEGIN,
-	PREPARE_INPUT_END,
+    PREPARE_INPUT_BEGIN,
+    PREPARE_INPUT_END,
     EXEC_BEGIN,      // called before thread executes a task
     EXEC_END,        // called before thread executes a task
-	COMPLETE_EXEC_BEGIN,       // called before scheduler adds a newly-enabled task
-	COMPLETE_EXEC_END,         // called after scheduler adds a newly-enabled task
+    COMPLETE_EXEC_BEGIN,       // called before scheduler adds a newly-enabled task
+    COMPLETE_EXEC_END,         // called after scheduler adds a newly-enabled task
     /* what follows are
-     * Special Events. 
+     * Special Events.
      * They do not necessarily
      * obey the 'exec unit, exec context'
-     * contract. 
+     * contract.
      */
     THREAD_INIT,     // Provided as an option for modules to run work during thread init without using the MCA module registration system.
     THREAD_FINI,     // Similar to above, for thread finalization.
@@ -30,11 +30,11 @@ typedef enum PINS_FLAG {
      PARSEC_PROLOGUE,
      PARSEC_RELEASE,
      */
-    /* this one is not an event at all */
+    /* PINS_FLAG_COUNT is not an event at all */
     PINS_FLAG_COUNT
 } PINS_FLAG;
 
-typedef void (parsec_pins_callback)(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data); 
+typedef void (parsec_pins_callback)(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data);
 
 void pins_empty_callback(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data);
 
@@ -93,9 +93,9 @@ END_C_DECLS
  These functions should be each be called once at the appropriate lifecycle of the DAGuE Context
  except that handle functions should be called once per handle, and thread functions once per thread
  */
-void pins_init(dague_context_t * master); 
+void pins_init(dague_context_t * master);
 void pins_fini(dague_context_t * master);
-void pins_handle_init(dague_handle_t * handle); 
+void pins_handle_init(dague_handle_t * handle);
 void pins_handle_fini(dague_handle_t * handle);
 void pins_thread_init(dague_execution_unit_t * exec_unit);
 void pins_thread_fini(dague_execution_unit_t * exec_unit);
@@ -103,8 +103,8 @@ void pins_thread_fini(dague_execution_unit_t * exec_unit);
 /*
  the following functions are intended for public use wherever they are necessary
  */
-void parsec_instrument(PINS_FLAG method_flag, dague_execution_unit_t * exec_unit, 
-					   dague_execution_context_t * task, void * data);
+void parsec_instrument(PINS_FLAG method_flag, dague_execution_unit_t * exec_unit,
+                       dague_execution_context_t * task, void * data);
 
 void pins_disable_registration(int disable);
 
@@ -120,26 +120,26 @@ parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag);
 
 #ifdef PINS_ENABLE
 
-#define PINS(method_flag, exec_unit, task, data)                        \
-	parsec_instrument(method_flag, exec_unit, task, data)
-#define PINS_DISABLE_REGISTRATION(boolean) \
-	pins_disable_registration(boolean)
-#define PINS_REGISTER(method_flag, cb)                                  \
-	pins_register_callback(method_flag, cb)
-#define PINS_UNREGISTER(method_flag)                                    \
-	pins_unregister_callback(method_flag)
-#define PINS_INIT(master_context) \
-	pins_init(master_context)
-#define PINS_FINI(master_context) \
-	pins_fini(master_context)
-#define PINS_THREAD_INIT(exec_unit) \
-	pins_thread_init(exec_unit)
-#define PINS_HANDLE_INIT(dague_handle) \
-	pins_handle_init(dague_handle)
-#define PINS_THREAD_FINI(exec_unit) \
-	pins_thread_fini(exec_unit)
-#define PINS_HANDLE_FINI(dague_handle) \
-	pins_handle_fini(dague_handle)
+#define PINS(method_flag, exec_unit, task, data)                \
+    parsec_instrument(method_flag, exec_unit, task, data)
+#define PINS_DISABLE_REGISTRATION(boolean)      \
+    pins_disable_registration(boolean)
+#define PINS_REGISTER(method_flag, cb)          \
+    pins_register_callback(method_flag, cb)
+#define PINS_UNREGISTER(method_flag)            \
+    pins_unregister_callback(method_flag)
+#define PINS_INIT(master_context)               \
+    pins_init(master_context)
+#define PINS_FINI(master_context)               \
+    pins_fini(master_context)
+#define PINS_THREAD_INIT(exec_unit)             \
+    pins_thread_init(exec_unit)
+#define PINS_HANDLE_INIT(dague_handle)          \
+    pins_handle_init(dague_handle)
+#define PINS_THREAD_FINI(exec_unit)             \
+    pins_thread_fini(exec_unit)
+#define PINS_HANDLE_FINI(dague_handle)          \
+    pins_handle_fini(dague_handle)
 
 #else // NOT PINS_ENABLE
 

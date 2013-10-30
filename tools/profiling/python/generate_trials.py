@@ -4,10 +4,10 @@ import sys
 import os
 import math
 import cPickle
-from parsec_trials import Trial, TrialSet
+from parsec_trials import ParsecTrial, ParsecTrialSet
 import subprocess
 
-####### global parameter defaults for ig            
+####### global parameter defaults for ig
 # it would be nice to have different 'default experiment parameters'
 # for different machines (e.g. ig, zoot).
 #
@@ -28,7 +28,7 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
     minNumCores = 0 # default to using them all
     maxNumCores = 0
     minN = 7000
-    maxN = 21000
+    maxN = 14000
     NBs = [160, 188, 200, 216, 256]
     IBdivs = None    # use defaults
     Ns = None        # generated based on tile size
@@ -39,11 +39,11 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
 #    IBdivs = [1,2,4,8,11] # None to use default per exec
 
 #    IBdivs = [2, 4]
-    NBs = [180, 380, 400]        # None to use defaults
+    NBs = [256, 380, 400]        # None to use defaults
 
 #    Ns = [15360]
 #    NBs = [180, 200, 360, 380]
-    NBs = [256]
+    # NBs = [256]
 #    IBdivs = [1,2,8]
     IBdivs = [0]
     #
@@ -53,9 +53,9 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
     #
     # transfer dict items
     #
-    
+
     IBdivs_orig = IBdivs
-    
+
     import socket
     hostname = socket.gethostname().split('.')[0]
     trial_sets = []
@@ -78,7 +78,7 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
                 while Ns[0] >= maxN: # cutoff
                     Ns = Ns[1:]
             for N in Ns:
-                sys.stderr.write("%s %d\n" % (ex.upper(), N))   
+                sys.stderr.write("%s %d\n" % (ex.upper(), N))
                 if not IBdivs_orig:
                     IBdivs = [default_IBdivs[ex]]
                 elif 'potrf' in ex or 'getrf' in ex:
@@ -105,16 +105,16 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
                         for scheduler in schedulers:
                             if not os.path.isdir(output_base_dir):
                                 os.mkdir(output_base_dir)
-                            trial_set = TrialSet(hostname, ex, N, cores,
-                                                 NB, IB, scheduler, extra_args)
+                            trial_set = ParsecTrialSet(hostname, ex, N, cores,
+                                                       NB, IB, scheduler, extra_args)
                             print(trial_set.shared_name() + ' ' + str(extra_args))
                             if not list_only:
-                                # save planned file in case everything dies
-                                trial_set.pickle(output_base_dir + os.sep + 'pending.' +
-                                                 trial_set.shared_name())
+                                _file = open(output_base_dir + os.sep + 'pending.' +
+                                             trial_set.shared_name(), 'w')
+                                trial_set.pickle(_file)
                             trial_sets.append(trial_set)
     return trial_sets
-    
+
 ###########
 ## MAIN
 ###########
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     list_only = False
     extra_args = []
     output_base_dir = '.'
-    
+
     try:
         for arg in sys.argv[1:]:
             if arg == '-l':

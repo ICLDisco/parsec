@@ -11,6 +11,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -44,7 +45,7 @@ int dague_profile_enabled = 0;
 
 static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char type);
 
-/* Process-global dictionnary */
+/* Process-global dictionary */
 static unsigned int dague_prof_keys_count, dague_prof_keys_number;
 static dague_profiling_key_t* dague_prof_keys;
 
@@ -99,6 +100,17 @@ void dague_profiling_add_information( const char *key, const char *value )
     dague_profiling_infos = n;
 }
 
+void dague_profiling_thread_add_information(dague_thread_profiling_t * thread,
+                                            const char *key, const char *value )
+{
+    dague_profiling_info_t *n;
+    n = (dague_profiling_info_t *)calloc(1, sizeof(dague_profiling_info_t));
+    n->key = strdup(key);
+    n->value = strdup(value);
+    n->next = thread->infos;
+    thread->infos = n;
+}
+
 int dague_profiling_init( void )
 {
     dague_profiling_buffer_t dummy_events_buffer;
@@ -129,6 +141,45 @@ int dague_profiling_init( void )
      */
     __already_called = 0;
     dague_profile_enabled = 1;  /* turn on the profiling */
+
+    /* shared timestamp allows grouping profiles from different nodes */
+    long long int timestamp = (long long int)dague_start_time.tv_sec;
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+    MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+#endif /* DISTRIBUTED && HAVE_MPI */
+    PROFILING_SAVE_iINFO("start_time", timestamp);
+
+    /* add the hostname, for the sake of explicit profiling */
+    char buf[HOST_NAME_MAX];
+    if (0 == gethostname(buf, HOST_NAME_MAX))
+        dague_profiling_add_information("hostname", buf);
+    else
+        dague_profiling_add_information("hostname", "");
+
+    /* the current working directory may also be helpful */
+    char * newcwd = NULL;
+    int bufsize = HOST_NAME_MAX;
+    errno = 0;
+    char * cwd = getcwd(buf, bufsize);
+    while (cwd == NULL && errno == ERANGE) {
+        bufsize *= 2;
+        cwd = realloc(cwd, bufsize);
+        if (cwd == NULL)            /* failed  - just give up */
+            break;
+        errno = 0;
+        newcwd = getcwd(cwd, bufsize);
+        if (newcwd == NULL) {
+            free(cwd);
+            cwd = NULL;
+        }
+    }
+    if (cwd != NULL) {
+        dague_profiling_add_information("cwd", cwd);
+        if (cwd != buf)
+            free(cwd);
+    }
+    else
+        dague_profiling_add_information("cwd", "");
 
     return 0;
 }
@@ -582,7 +633,7 @@ static int64_t dump_dictionary(int *nbdico)
             b->this_buffer.nb_dictionary_entries = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_DICTIONARY);
             if( NULL == n ) {
-                set_last_error("Profiling system: error: Dictionnary will be truncated to %d entries only -- buffer allocation error\n", nb);
+                set_last_error("Profiling system: error: Dictionary will be truncated to %d entries only -- buffer allocation error\n", nb);
                 *nbdico = nb;
                 return first_off;
             }
@@ -732,7 +783,7 @@ int dague_profiling_dbp_dump( void )
         return -1;
     }
 
-    /* Flush existing events buffer, inconditionnally */
+    /* Flush existing events buffer, unconditionally */
     DAGUE_LIST_ITERATOR(&threads, it, {
         t = (dague_thread_profiling_t*)it;
         if( NULL != t->current_events_buffer ) {

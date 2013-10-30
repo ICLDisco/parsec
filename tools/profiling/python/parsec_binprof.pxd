@@ -1,5 +1,7 @@
 # dbpreader python definition file
 
+# NOTE: following note is actually now untrue, as os-spec-timing.h is not necessary
+# since the change to relative timing.
 # NOTE: MUST INCLUDE dbp.h BEFORE os-spec-timing.h, so that dbp.h will pull in dague_config.h, which DEFINES #HAVE_CLOCK_GETTIME
 # without that definition, the wrong (microsecond) version of diff_time (for most platforms) will be chosen.
 # basically, just make sure dague_config gets included early on.
@@ -11,14 +13,13 @@
 cdef extern from "dbp.h":
    ctypedef struct dague_thread_profiling_t:
       pass
-   
+
    int KEY_IS_START(int key)
    int KEY_IS_END(int key)
    int BASE_KEY(int key)
 
-cdef extern from "os-spec-timing.h":
-   ctypedef struct dague_time_t:
-      pass
+cdef extern from "stdint.h":
+    ctypedef int uint64_t
 
 cdef extern from "dbpreader.h":
    ctypedef struct dbp_info_t:
@@ -50,9 +51,9 @@ cdef extern from "dbpreader.h":
    int dbp_reader_nb_files(dbp_multifile_reader_t * dbp)
    int dbp_reader_nb_dictionary_entries(dbp_multifile_reader_t * dbp)
    int dbp_reader_worldsize(dbp_multifile_reader_t * dbp)
+   int dbp_reader_last_error(const dbp_multifile_reader_t *dbp)
    void dbp_reader_close_files(dbp_multifile_reader_t * dbp)
    void dbp_reader_dispose_reader(dbp_multifile_reader_t * dbp)
-   dague_time_t dbp_reader_min_date(dbp_multifile_reader_t * dbp)
 
    dbp_dictionary_t * dbp_reader_get_dictionary(dbp_multifile_reader_t * dbp, int did)
    char * dbp_dictionary_name(dbp_dictionary_t * dico)
@@ -64,9 +65,9 @@ cdef extern from "dbpreader.h":
 
    char *dbp_file_hr_id(dbp_file_t *file)
    int dbp_file_get_rank(dbp_file_t *file)
-   dague_time_t dbp_file_get_min_date(dbp_file_t *file)
    int dbp_file_nb_threads(dbp_file_t *file)
    int dbp_file_nb_infos(dbp_file_t *file)
+   int dbp_file_error(const dbp_file_t *file)
    dbp_info_t *dbp_file_get_info(dbp_file_t *file, int iid)
 
    dbp_thread_t *dbp_file_get_thread(dbp_file_t *file, int tid)
@@ -94,6 +95,8 @@ cdef extern from "dbpreader.h":
    long long int dbp_event_get_timestamp(dbp_event_t *e)
    void *dbp_event_get_info(dbp_event_t *e)
    int   dbp_event_info_len(dbp_event_t *e, dbp_multifile_reader_t *dbp)
+
+   enum: OPEN_ERROR
 
    # DEBUG
    void dbp_file_print(dbp_file_t* file)
@@ -142,13 +145,9 @@ cdef extern from "dague/mca/pins/papi_socket/pins_papi_socket.h":
 
 cdef extern from "dague/mca/pins/papi_L123/pins_papi_L123.h":
    enum: SYSTEM_QUEUE_VP
-   enum: KERNEL_NAME_SIZE
 
    ctypedef struct papi_L12_select_info_t:
       int kernel_type
-      char kernel_name[KERNEL_NAME_SIZE]
-      int vp_id
-      int th_id
       int victim_vp_id
       int victim_th_id
       long long starvation
@@ -159,16 +158,11 @@ cdef extern from "dague/mca/pins/papi_L123/pins_papi_L123.h":
 
    ctypedef struct papi_L12_exec_info_t:
       int kernel_type
-      char kernel_name[KERNEL_NAME_SIZE]
-      int vp_id
-      int th_id
       long long L1_misses
       long long L2_misses
       long long L3_misses
 
    ctypedef struct papi_L123_info_t:
-      int vp_id
-      int th_id
       long long L1_misses
       long long L2_misses
       long long L3_misses
