@@ -127,6 +127,7 @@ memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
 {
     my_datatype_t* m = (my_datatype_t*)desc;
     return device->device_memory_register(device,
+                                          desc,
                                           m->ptr,
                                           m->frags * m->size * sizeof(uint8_t));
 }
@@ -135,7 +136,7 @@ static int
 memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
 {
     my_datatype_t* m = (my_datatype_t*)desc;
-    return device->device_memory_unregister(device, m->ptr);
+    return device->device_memory_unregister(device, desc, m->ptr);
 }
 
 static dague_ddesc_t*

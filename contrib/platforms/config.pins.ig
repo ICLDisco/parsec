@@ -24,8 +24,7 @@ USER_OPTIONS+=" -DCORES_PER_SOCKET=6"
 # These are override variables you can set (here or in the env) to alter defaults
 CC=${CC:="/mnt/scratch/sw/intel/composer_xe_2013/bin/icc"}
 CXX=${CXX:="/mnt/scratch/sw/intel/composer_xe_2013/bin/icpc"}
-# FC=${FC:="/mnt/scratch/sw/intel/composer_xe_2013/bin/ifort"}
-FC=${FC:="/usr/bin/gfortran44"}
+FC=${FC:="/mnt/scratch/sw/intel/composer_xe_2013/bin/ifort"}
 MKL=${MKL:="/mnt/scratch/sw/intel/composer_xe_2013/mkl"}
 CMAKE_C_FLAGS=${CMAKE_C_FLAGS:="-g3 -fPIC"}
 CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS:="-g3 -fPIC"}
