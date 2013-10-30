@@ -119,6 +119,8 @@ typedef struct __dague_temporary_thread_initialization_t {
     int nb_cores;
     int bindto;
     int bindto_ht;
+    dague_barrier_t*  barrier;       /**< the barrier used to synchronize for the
+                                      *   local VP data construction. */
 } __dague_temporary_thread_initialization_t;
 
 static int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
@@ -146,20 +148,41 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto, startup->bindto_ht);
-    DEBUG2(("VP %i : bind thread %i.%i on core %i [HT %i]\n", startup->virtual_process->vp_id, startup->virtual_process->vp_id, startup->th_id, startup->bindto, startup->bindto_ht));
+    DEBUG2(("VP %i : bind thread %i.%i on core %i [HT %i]\n",
+            startup->virtual_process->vp_id, startup->virtual_process->vp_id,
+            startup->th_id, startup->bindto, startup->bindto_ht));
 
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
         return NULL;
     }
-    eu->th_id           = startup->th_id;
-    eu->virtual_process = startup->virtual_process;
+    eu->th_id            = startup->th_id;
+    eu->virtual_process  = startup->virtual_process;
     eu->scheduler_object = NULL;
     startup->virtual_process->execution_units[startup->th_id] = eu;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     eu->sched_nb_tasks_done = 0;
 #endif
+
+    /* If I'm the last thread on the VP I'm responsible for allocating the mempools */
+    if( startup->th_id == (startup->nb_cores - 1) ) {
+        dague_vp_t *vp = startup->virtual_process;
+        dague_execution_context_t fake_context;
+        data_repo_entry_t fake_entry;
+        dague_mempool_construct( &vp->context_mempool, sizeof(dague_execution_context_t),
+                                 ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
+                                 vp->nb_cores );
+
+        for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
+            dague_mempool_construct( &vp->datarepo_mempools[pi],
+                                     sizeof(data_repo_entry_t)+(pi-1)*sizeof(dague_arena_chunk_t*),
+                                     ((char*)&fake_entry.data_repo_mempool_owner) - ((char*)&fake_entry),
+                                     vp->nb_cores);
+
+    }
+    /* Synchronize with the other threads */
+    dague_barrier_wait(startup->barrier);
 
     eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
@@ -192,35 +215,26 @@ static void dague_vp_init( dague_vp_t *vp,
                            __dague_temporary_thread_initialization_t *startup)
 {
     int t, pi;
-    dague_execution_context_t fake_context;
-    data_repo_entry_t fake_entry;
+    dague_barrier_t*  barrier;
 
     vp->nb_cores = nb_cores;
 
-    dague_mempool_construct( &vp->context_mempool, sizeof(dague_execution_context_t),
-                             ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
-                             vp->nb_cores );
-
-    for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
-        dague_mempool_construct( &vp->datarepo_mempools[pi],
-                                 sizeof(data_repo_entry_t)+(pi-1)*sizeof(dague_arena_chunk_t*),
-                                 ((char*)&fake_entry.data_repo_mempool_owner) - ((char*)&fake_entry),
-                                 vp->nb_cores);
-
+    barrier = (dague_barrier_t*)malloc(sizeof(dague_barrier_t));
+    dague_barrier_init(barrier, NULL, vp->nb_cores);
 
     /* Prepare the temporary storage for each thread startup */
     for( t = 0; t < vp->nb_cores; t++ ) {
         startup[t].th_id = t;
         startup[t].virtual_process = vp;
         startup[t].nb_cores = nb_cores;
-        if( vpmap_get_nb_cores_affinity(vp->vp_id, t) == 1 )
+        startup[t].bindto = -1;
+        startup[t].bindto_ht = -1;
+        startup[t].barrier = barrier;
+        pi = vpmap_get_nb_cores_affinity(vp->vp_id, t);
+        if( 1 == pi )
             vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto, &startup[t].bindto_ht);
-        else if( vpmap_get_nb_cores_affinity(vp->vp_id, t) > 1 )
+        else if( 1 < pi )
             printf("multiple core to bind on... for now, do nothing\n");
-        else{
-            startup[t].bindto= -1;
-            startup[t].bindto_ht= -1;
-        }
     }
 }
 
@@ -393,15 +407,15 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                         dague_enable_dot = strdup(dague_app_name);
                     }
                 } else {
-                   /** Long argument type */
-                   if( (strlen( argv[optind-1] ) > 12) &&
-                       (strncmp( argv[optind-1], "--dague_dot=", 12 ) == 0 ) ) {
-                       dague_enable_dot = strdup( argv[optind-1]+12 );
-                   } else {
-                       dague_enable_dot = strdup(dague_app_name);
+                    /** Long argument type */
+                    if( (strlen( argv[optind-1] ) > 12) &&
+                        (strncmp( argv[optind-1], "--dague_dot=", 12 ) == 0 ) ) {
+                        dague_enable_dot = strdup( argv[optind-1]+12 );
+                    } else {
+                        dague_enable_dot = strdup(dague_app_name);
                     }
-               }
-               break;
+                }
+                break;
             }
         } while(1);
     }
@@ -446,7 +460,11 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         vp->dague_context = context;
         vp->vp_id = p;
         context->virtual_processes[p] = vp;
-        /** This creates startup[t] -> startup[t+nb_cores] */
+        /**
+         * Set the threads local variables from startup[t] -> startup[t+nb_cores].
+         * Do not create or initialize any memory yet, or it will be automatically
+         * bound to the allocation context of this thread.
+         */
         dague_vp_init(vp, vpmap_get_nb_threads_in_vp(p), &(startup[t]));
         t += vpmap_get_nb_threads_in_vp(p);
     }
@@ -479,7 +497,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
 
 #if defined(DAGUE_PROF_TRACE)
-        dague_profiling_init( "%s", dague_app_name );
+    dague_profiling_init( "%s", dague_app_name );
 
 #  if defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
     dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
@@ -508,7 +526,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     if(dague_enable_dot) {
 #if defined(DAGUE_PROF_GRAPHER)
-          dague_prof_grapher_init(dague_enable_dot, nb_total_comp_threads);
+        dague_prof_grapher_init(dague_enable_dot, nb_total_comp_threads);
 #else
         fprintf(stderr,
                 "************************************************************************************************\n"
@@ -546,6 +564,18 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     context->__dague_internal_finalization_counter++;
 
     /* Release the temporary array used for starting up the threads */
+    {
+        dague_barrier_t* barrier = startup[0].barrier;
+        dague_barrier_destroy(barrier);
+        free(barrier);
+        for(t = 0; t < nb_total_comp_threads; t++) {
+            if(barrier != startup[t].barrier) {
+                barrier = startup[t].barrier;
+                dague_barrier_destroy(barrier);
+                free(barrier);
+            }
+        }
+    }
     free(startup);
 
     /* Introduce communication thread */
