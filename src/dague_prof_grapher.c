@@ -165,7 +165,7 @@ void dague_prof_grapher_dep(const dague_execution_context_t* from, const dague_e
         index += snprintf( tmp + index, 128 - index, " -> " );
         dague_prof_grapher_taskid( to, tmp + index, 128 - index - 4 );
         fprintf(grapher_file, 
-                "%s [label=\"%s=>%s\" color=\"#%s\" style=\"solid\"]\n", 
+                "%s [label=\"%s=>%s\",color=\"#%s\",style=\"solid\"]\n",
                 tmp, origin_flow->name, dest_flow->name,
                 dependency_activates_task ? "00FF00" : "FF0000");
         fflush(grapher_file);

@@ -28,7 +28,7 @@
 #include <linux/unistd.h>
 #endif  /* defined(HAVE_SCHED_SETAFFINITY) */
 #if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
-#define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), -1, NULL)
+#define TAKE_TIME(EU_PROFILE, KEY, ID)  DAGUE_PROFILING_TRACE((EU_PROFILE), (KEY), (ID), NULL)
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
@@ -483,6 +483,14 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
             object->startup_hook(context, object, startup_list);
             for(p = 0; p < vpmap_get_nb_vp(); p++) {
                 if( NULL != startup_list[p] ) {
+                    dague_list_t temp;
+
+                    dague_list_construct(&temp);
+                    /* Order the tasks by priority */
+                    dague_list_chain_sorted(&temp, (dague_list_item_t*)startup_list[p],
+                                            dague_execution_context_priority_comparator);
+                    startup_list[p] = (dague_execution_context_t*)dague_list_nolock_unchain(&temp);
+                    dague_list_destruct(&temp);
                     /* We should add these tasks on the system queue when there is one */
                     __dague_schedule( context->virtual_processes[p]->execution_units[0], startup_list[p] );
                 }

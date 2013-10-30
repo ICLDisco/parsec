@@ -18,7 +18,6 @@
 #if defined(HAVE_HWLOC)
 static hwloc_topology_t topology;
 static int first_init = 1;
-static int ht_count = 0;
 #endif  /* defined(HAVE_HWLOC) */
 static int ht = 1;
 

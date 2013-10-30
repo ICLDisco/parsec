@@ -171,9 +171,20 @@ static pthread_cond_t mpi_thread_condition;
 static int remote_dep_dequeue_init(dague_context_t* context)
 {
     pthread_attr_t thread_attr;
+    int is_mpi_up = 0;
 
     assert(mpi_initialized == 0);
 
+    MPI_Initialized(&is_mpi_up);
+    if( 0 == is_mpi_up ) {
+        /**
+         * MPI is not up, so we will consider this as a single
+         * node run. Fall back to the no-MPI case.
+         */
+        context->nb_nodes = 1;
+        DEBUG3(("MPI is not initialized. Fall back to a single node execution\n"));
+        return 1;
+    }
     MPI_Comm_size(MPI_COMM_WORLD, (int*)&(context->nb_nodes));
     if(1 == context->nb_nodes ) return 1;
 
@@ -407,7 +418,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
             DEBUG3(("MPI:\tDATA %p released from %p[%d]\n", ADATA(origin->output[i].data), origin, i));
             exec_context.data[whereto].data = origin->output[i].data.ptr;
 #if defined(DAGUE_DEBUG) && defined(DAGUE_DEBUG_VERBOSE3)
-            if(origin->output[i].type) { /* no prints for CTL! */
+            if(origin->output[i].data.arena) { /* no prints for CTL! */
                 char tmp[MAX_TASK_STRLEN];
                 void* _data = ADATA(exec_context.data[whereto].data);
                 DEBUG3(("MPI:\t%s: recv %p -> [0] %9.5f [1] %9.5f [2] %9.5f\n",
@@ -517,7 +528,7 @@ static int remote_dep_nothread_send( dague_execution_unit_t* eu_context,
         output_count -= deps->output[k].count_bits;
         if(deps->output[k].rank_bits[rank_bank] & rank_mask) {
 #if defined(DAGUE_PROF_DRY_DEP)
-            deps->output[k].type = NULL; /* make all data a control */
+            deps->output[k].data.arena = NULL; /* make all data a control */
 #endif
             msg.which |= (1<<k);
         }
@@ -530,8 +541,8 @@ static int remote_dep_nothread_memcpy(dep_cmd_t* cmd)
 {
 
     /* TODO: split the mpi part */
-    int rc = MPI_Sendrecv(ADATA(cmd->memcpy.source) + cmd->memcpy.displ_s, cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
-                          cmd->memcpy.destination + cmd->memcpy.displ_r, cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
+    int rc = MPI_Sendrecv((char*)ADATA(cmd->memcpy.source) + cmd->memcpy.displ_s, cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
+                          (char*)cmd->memcpy.destination + cmd->memcpy.displ_r, cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
                           MPI_COMM_SELF, MPI_STATUS_IGNORE);
     AUNREF(cmd->memcpy.source);
     return (MPI_SUCCESS == rc ? 0 : -1);
@@ -608,10 +619,10 @@ static void remote_dep_mpi_profiling_init(void)
         dague_snprintf_execution_context(__info.func, 16, &__exec_context);      \
         __info.rank_src = src;                                          \
         __info.rank_dst = dst;                                          \
-        dague_profiling_trace((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, &__info); \
+        DAGUE_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, &__info); \
     } while(0)
 
-#define TAKE_TIME(PROF, KEY, I) dague_profiling_trace((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, NULL);
+#define TAKE_TIME(PROF, KEY, I) DAGUE_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, NULL);
 #else
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, ctx) do {} while(0)
 #define TAKE_TIME(PROF, KEY, I) do {} while(0)
@@ -805,7 +816,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         if((DEP_EAGER_BUFFER_SIZE - packed) > (size_t)dsize) {
             DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             msg->which ^= (1<<k);
-            MPI_Pack(ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
+            MPI_Pack((char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
                      deps->output[k].data.count, deps->output[k].data.layout,
                      packed_buffer, DEP_EAGER_BUFFER_SIZE, &packed, dep_comm);
             remote_dep_complete_and_cleanup(deps, 1);
@@ -1023,7 +1034,7 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
 
         TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
                             eu_context->virtual_process->dague_context->my_rank, item->peer, deps->msg);
-        MPI_Isend(data + deps->output[k].data.displ,
+        MPI_Isend((char*)data + deps->output[k].data.displ,
                   nbdtt, dtt, item->peer, tag + k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
         DEBUG_MARK_DTA_MSG_START_SEND(item->peer, data, tag+k);
     }
@@ -1099,7 +1110,7 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
 #ifndef DAGUE_PROF_DRY_DEP
             DEBUG2((" EGR\t%s\tparam %d\teager piggyback from the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             MPI_Unpack(packed_buffer, DEP_EAGER_BUFFER_SIZE, &unpacked,
-                       ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
+                       (char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
                        deps->output[k].data.count, deps->output[k].data.layout, dep_comm);
 #endif
             deps->msg.deps |= 1<<k;
@@ -1120,7 +1131,7 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
                    deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, deps->msg.deps, ADATA(deps->output[k].data), tag+k));
 #ifndef DAGUE_PROF_DRY_DEP
             MPI_Request req; int flag = 0;
-            MPI_Irecv(ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
+            MPI_Irecv((char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
                       deps->output[k].data.count, deps->output[k].data.layout,
                       deps->from, tag+k, dep_comm, &req);
             do {
@@ -1277,7 +1288,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
         TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from,
                             eu_context->virtual_process->dague_context->my_rank, deps->msg);
         DEBUG_MARK_DTA_MSG_START_RECV(from, data, msg.tag+k);
-        MPI_Irecv(ADATA(data) + deps->output[k].data.displ, nbdtt,
+        MPI_Irecv((char*)ADATA(data) + deps->output[k].data.displ, nbdtt,
                   dtt, from, msg.tag+k, dep_comm,
                   &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
 #endif

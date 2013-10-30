@@ -60,7 +60,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 
 ### Dague PP options
-set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
+set(DAGUEPP_CFLAGS "--noline" CACHE STRING "Additional daguepp precompiling flags" )
 mark_as_advanced(DAGUEPP_CFLAGS)
 
 ## Multicore scheduler parameters
@@ -359,16 +359,19 @@ IF( BUILD_DAGUE )
   endif (HWLOC_FOUND)
 
   if (DAGUE_DIST_WITH_MPI)
+    # Force the detection of the C library
+    set(MPI_C_COMPILER mpicc)
     find_package(MPI REQUIRED)
-    set(HAVE_MPI ${MPI_FOUND})
-    if (MPI_FOUND)
-      include_directories( ${MPI_INCLUDE_PATH} )
-    endif (MPI_FOUND)
+    set(HAVE_MPI ${MPI_C_FOUND})
+    if (MPI_C_FOUND)
+      list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
+      include_directories( ${MPI_C_INCLUDE_PATH} )
+    endif (MPI_C_FOUND)
   endif (DAGUE_DIST_WITH_MPI)
   #
   # Check to see if support for MPI 2.0 is available
   #
-  if (MPI_FOUND)
+  if (MPI_C_FOUND)
     set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
     set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
     set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${MPI_C_INCLUDE_PATH}")
@@ -376,7 +379,7 @@ IF( BUILD_DAGUE )
     check_function_exists(MPI_Type_create_resized HAVE_MPI_20)
     set(CMAKE_REQUIRED_INCLUDES  "${saved_include}")
     set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
-  endif (MPI_FOUND)
+  endif (MPI_C_FOUND)
 
   if( DAGUE_GPU_WITH_CUDA )
     find_package(CUDA)
@@ -387,7 +390,7 @@ IF( BUILD_DAGUE )
       endif(CUDA_VERSION VERSION_LESS "3.0")
       set(CUDA_BUILD_EMULATION OFF)
       include_directories(${CUDA_INCLUDE_DIRS})
-      #list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES} )
+      list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES}) # need CUDA libs to link.
       list(APPEND EXTRA_SOURCES src/gpu_data.c)
       set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
       set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
@@ -412,10 +415,6 @@ IF( BUILD_DAGUE )
       include_directories( ${PAPI_INCLUDE_DIR} )
     endif (PAPI_FOUND)
   endif (DAGUE_PROF_PAPI)
-  
-  if( DAGUE_PROF_TRACE )
-    list(APPEND EXTRA_SOURCES src/profiling.c)
-  endif( DAGUE_PROF_TRACE )
 
   if( DAGUE_PROF_STATS )
     list(APPEND EXTRA_SOURCES src/stats.c)
@@ -492,7 +491,7 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
     set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-fno-f2c -O0 -g")
   elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-    # ifort (untested)
+    # ifort
     set (CMAKE_Fortran_FLAGS_RELEASE "-f77rtl -O3")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-f77rtl -O0 -g")
   else (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
@@ -537,48 +536,49 @@ ELSE(CMAKE_CROSSCOMPILING)
 ENDIF(CMAKE_CROSSCOMPILING)
 #
 #  Settings for targets
-# 
-set(SRCS 
-  src/barrier.c 
+#
+set(SRCS
+  src/barrier.c
   src/scheduling.c
-  src/schedulers.c 
-  src/dague.c 
+  src/schedulers.c
+  src/dague.c
   src/arena.c
   src/moesi.c
-  src/remote_dep.c 
-  src/debug.c 
-  src/bindthread.c 
-  src/dague_hwloc.c
-  src/mempool.c 
+  src/remote_dep.c
+  src/debug.c
+  src/bindthread.c
+  src/mempool.c
   src/vpmap.c
- ${EXTRA_SOURCES} 
+  src/profiling.c
+  ${EXTRA_SOURCES}
 )
+if( HWLOC_FOUND )
+  list(APPEND SRCS src/dague_hwloc.c)
+endif( HWLOC_FOUND )
 
 #
 # Setup targets
 #
 if( BUILD_DAGUE )
-  if (MPI_FOUND)
-    add_library(dague-mpi STATIC ${SRCS})
-    set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-    target_link_libraries(dague-mpi ${EXTRA_LIBS})
-    install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
-  else (MPI_FOUND)
-    add_library(dague STATIC ${SRCS})
-    set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-    target_link_libraries(dague ${EXTRA_LIBS})
-    install(TARGETS dague ARCHIVE DESTINATION lib)
-  endif (MPI_FOUND)
+  add_library(dague STATIC ${SRCS})
+  set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+  if (MPI_C_FOUND)
+    set_target_properties(dague PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
+  endif (MPI_C_FOUND)
+  target_link_libraries(dague ${EXTRA_LIBS})
+
+  install(TARGETS dague ARCHIVE DESTINATION lib)
+
   add_subdirectory(data_dist)
 #
 # If we have support for F90 build the DAGuE module
 #
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-    include(FortranCInterface)
-    FortranCInterface_HEADER(src/fortran/f2c_mangle.h
-                             MACRO_NAMESPACE "DAGUE_"
-                             SYMBOL_NAMESPACE "dague_"
-                             SYMBOLS mysub daguef:my_sub)
+    #include(FortranCInterface)
+    #FortranCInterface_HEADER(src/fortran/f2c_mangle.h
+    #                         MACRO_NAMESPACE "DAGUE_"
+    #                         SYMBOL_NAMESPACE "dague_")
+    #                         SYMBOLS mysub daguef:my_sub)
     add_subdirectory(src/fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
@@ -604,7 +604,7 @@ install(FILES "include/dague.h" DESTINATION include)
 # pkg-config file
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
-  "${PROJECT_INCLUDE_DIR}/dague.pc")
+  "${PROJECT_INCLUDE_DIR}/dague.pc" @ONLY)
 install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc" DESTINATION include)
 
 # build a CPack driven installer package

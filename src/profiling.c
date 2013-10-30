@@ -29,7 +29,14 @@
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
-#define MINIMAL_EVENT_BUFFER_SIZE          4088
+#define MINIMAL_EVENT_BUFFER_SIZE          (1024*1024)
+
+/**
+ * Externally visible on/off switch for the profiling of new events. It
+ * only protects the macros, a direct call to the dague_profiling_trace
+ * will always succeed. It is automatically turned on by the init call.
+ */
+int dague_profile_enabled = 0;
 
 static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char type);
 
@@ -142,7 +149,7 @@ int dague_profiling_init( const char *format, ... )
         file_backend_extendable = 1;
         ps = sysconf(_SC_PAGESIZE);
         event_buffer_size = ps * ((MINIMAL_EVENT_BUFFER_SIZE + ps) / ps);
-        event_avail_space = event_buffer_size - 
+        event_avail_space = event_buffer_size -
             ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
 
         assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
@@ -167,6 +174,14 @@ int dague_profiling_init( const char *format, ... )
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
     dague_profiling_start();
+    /**
+     * As we called the _start function automatically, the timing will be
+     * based on this moment. By forcing back the __already_called to 0, we
+     * allow the caller to decide when to rebase the timing in case there
+     * is a need.
+     */
+    __already_called = 0;
+    dague_profile_enabled = 1;  /* turn on the profiling */
 
     return 0;
 }
@@ -207,7 +222,6 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
 
     res->first_events_buffer_offset = (off_t)-1;
     res->current_events_buffer = NULL;
-    res->thread_owner = pthread_self();
 
     DAGUE_LIST_ITEM_CONSTRUCT( res );
     dague_list_fifo_push( &threads, (dague_list_item_t*)res );
@@ -218,7 +232,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
 int dague_profiling_fini( void )
 {
     dague_thread_profiling_t *t;
-    
+
     while( (t = (dague_thread_profiling_t*)dague_ulist_fifo_pop(&threads)) ) {
         free(t->hr_id);
         free(t);
@@ -230,13 +244,14 @@ int dague_profiling_fini( void )
     free(dague_prof_keys);
     dague_prof_keys_number = 0;
     __already_called = 0;  /* Allow the profiling to be reinitialized */
+    dague_profile_enabled = 0;  /* turn off the profiling */
     return 0;
 }
 
 int dague_profiling_reset( void )
 {
     dague_thread_profiling_t *t;
-    
+
     DAGUE_LIST_ITERATOR(&threads, it, {
         t = (dague_thread_profiling_t*)it;
         t->next_event_position = 0;
@@ -247,7 +262,7 @@ int dague_profiling_reset( void )
 }
 
 int dague_profiling_add_dictionary_keyword( const char* key_name, const char* attributes,
-                                            size_t info_length, 
+                                            size_t info_length,
                                             const char* convertor_code,
                                             int* key_start, int* key_end )
 {
@@ -434,8 +449,10 @@ static int switch_event_buffer( dague_thread_profiling_t *context )
     return 0;
 }
 
-int dague_profiling_trace( dague_thread_profiling_t* context, int key,
-                           uint64_t event_id, uint32_t object_id, void *info )
+int
+dague_profiling_trace_flags(dague_thread_profiling_t* context, int key,
+                            uint64_t event_id, uint32_t object_id,
+                            void *info, uint16_t flags)
 {
     dague_profiling_output_t *this_event;
     size_t this_event_length;
@@ -477,9 +494,16 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key,
         memcpy(this_event->info, info, dague_prof_keys[ BASE_KEY(key) ].info_length);
         this_event->event.flags = DAGUE_PROFILING_EVENT_HAS_INFO;
     }
+    this_event->event.flags |= flags;
     this_event->event.timestamp = take_time();
 
     return 0;
+}
+
+int dague_profiling_trace( dague_thread_profiling_t* context, int key,
+                           uint64_t event_id, uint32_t object_id, void *info )
+{
+    return dague_profiling_trace_flags( context, key, event_id, object_id, info, 0 );
 }
 
 static int64_t dump_global_infos(int *nbinfos)
@@ -763,6 +787,15 @@ int dague_profiling_dump_dbp( const char* filename )
     pthread_mutex_unlock(&file_backend_lock);
 
     return 0;
+}
+
+void dague_profiling_enable(void)
+{
+    dague_profile_enabled = 1;
+}
+void dague_profiling_disable(void)
+{
+    dague_profile_enabled = 0;
 }
 
 char *dague_profile_ddesc_key_to_string = "";

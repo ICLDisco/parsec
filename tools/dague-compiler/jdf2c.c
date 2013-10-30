@@ -1933,9 +1933,9 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s  new_dynamic_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->virtual_processes[vpid]->execution_units[0]->context_mempool );\n",
 	    indent(nesting), f->predicate->func_or_mem,
             indent(nesting), f->predicate->func_or_mem, f->predicate->func_or_mem,
-	                     UTIL_DUMP_LIST(sa1, f->predicate->parameters, next,
-					    dump_expr, (void*)&info2,
-					    "", "", ", ", ""),
+            UTIL_DUMP_LIST(sa1, f->predicate->parameters, next,
+                           dump_expr, (void*)&info2,
+                           "", "", ", ", ""),
 	    indent(nesting),
 	    indent(nesting),
             indent(nesting));
@@ -1981,7 +1981,11 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     coutput("%s  dague_dependencies_mark_task_as_startup(new_dynamic_context);\n", indent(nesting));
 
-    coutput("%s  pready_list[vpid] = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(pready_list[vpid]), (dague_list_item_t*)new_dynamic_context, dague_execution_context_priority_comparator );\n", indent(nesting));
+    coutput("        if( NULL != pready_list[vpid] ) {\n"
+            "          dague_list_item_ring_merge((dague_list_item_t*)new_dynamic_context,\n"
+            "                                     (dague_list_item_t*)(pready_list[vpid]));\n"
+            "        }\n"
+            "        pready_list[vpid] = new_dynamic_context;\n");
 
     for(; nesting > 0; nesting--) {
         coutput("%s}\n", indent(nesting));
@@ -2932,6 +2936,31 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
       /* Is this definition a parameter or a value? */
       /* If it is a parameter, find the corresponding param in the call */
       for(el = params, pl = f->parameters; pl != NULL; el = el->next, pl = pl->next) {
+          if( NULL == el ) {  /* Badly formulated call */
+              string_arena_t *sa_caller, *sa_callee;
+              expr_info_t caller;
+
+              sa_caller = string_arena_new(64);
+              sa_callee = string_arena_new(64);
+
+              caller.sa = sa;
+              caller.prefix = "";
+              caller.assignments = "";
+
+              string_arena_init(sa);
+              UTIL_DUMP_LIST_FIELD(sa_callee, f->parameters, next, name,
+                                   dump_string, sa,
+                                   "(", "", ", ", ")");
+              string_arena_init(sa);
+              UTIL_DUMP_LIST(sa_caller, params, next,
+                             dump_expr, (void*)&caller,
+                             "(", "", ", ", ")");
+              fprintf(stderr, "%s.jdf:%d Badly formulated call %s%s instead of %s%s\n",
+                      jdf_basename, call->super.lineno,
+                      f->fname, string_arena_get_string(sa_caller),
+                      f->fname, string_arena_get_string(sa_callee));
+              exit(-1);
+          }
           assert( el != NULL );
           if(!strcmp(pl->name, dl->name))
               break;
@@ -4131,7 +4160,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             if( JDF_VAR_TYPE_CTL == fl->access_type ) {
                 string_arena_add_string(sa, "NULL");
                 string_arena_add_string(sa_tmp_nbelt, "  /* Control: always empty */ 0");
-                string_arena_add_string(sa_tmp_layout, "NULL");
+                string_arena_add_string(sa_tmp_layout, "DAGUE_DATATYPE_NULL");
                 string_arena_add_string(sa_tmp_displ, "0");
             } else {
                 string_arena_add_string(sa, "__dague_object->super.arenas[");

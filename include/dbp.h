@@ -17,6 +17,8 @@
 /** DAGuE Binary Profile format. */
 
 #define DAGUE_PROFILING_EVENT_HAS_INFO     0x0001
+#define DAGUE_PROFILING_EVENT_RESCHEDULED  0x0002
+
 typedef struct dague_profiling_output_base_event_t {
     uint16_t        key;
     uint16_t        flags;
@@ -100,14 +102,13 @@ typedef struct dague_profiling_info {
 } dague_profiling_info_t;
 
 struct dague_thread_profiling_t {
-    dague_list_item_t        list;
-    int64_t                  next_event_position; /* When in write mode, points to the next available storage byte
-                                                   *   in current_events_buffer */
-    char                    *hr_id;
-    uint64_t                 nb_events;
-    dague_profiling_info_t  *infos;
-    off_t                    first_events_buffer_offset; /* Offset (in the file) of the first events buffer */
-    pthread_t                thread_owner;
+    dague_list_item_t         list;
+    int64_t                   next_event_position; /* When in write mode, points to the next available storage byte
+                                                    * in current_events_buffer */
+    char                     *hr_id;
+    uint64_t                  nb_events;
+    dague_profiling_info_t   *infos;
+    off_t                     first_events_buffer_offset; /* Offset (in the file) of the first events buffer */
     off_t                     current_events_buffer_offset;
     dague_profiling_buffer_t *current_events_buffer;     /* points to the events buffer in which we are writing. */
 };

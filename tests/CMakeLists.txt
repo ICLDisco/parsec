@@ -2,13 +2,11 @@
 macro(dague_addtest lang target input)
   list(APPEND EXTRA_LIBS m)
 
-  if( MPI_FOUND )
-    set(${target}_${lang}FLAGS  "${MPI_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
-    set(${target}_LDFLAGS "${MPI_LINK_FLAGS} ${${target}_LDFLAGS}")
-    set(${target}_LIBS    dague-mpi dague_distribution_matrix-mpi ${EXTRA_LIBS} ${${target}_LIBS} ${MPI_LIBRARIES})
-  else ( MPI_FOUND )
-    set(${target}_LIBS    dague dague_distribution_matrix dague ${EXTRA_LIBS} ${${target}_LIBS})
-  endif()
+  if( MPI_C_FOUND )
+    set(${target}_${lang}FLAGS  "${MPI_C_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
+    set(${target}_LDFLAGS "${MPI_C_LINK_FLAGS} ${${target}_LDFLAGS}")
+  endif( MPI_C_FOUND )
+  set(${target}_LIBS    dague dague_distribution_matrix ${EXTRA_LIBS} ${${target}_LIBS})
 
   add_executable(${target} ${input})
   set_target_properties(${target} PROPERTIES
@@ -39,3 +37,10 @@ string( REGEX REPLACE "touch.[hc]" "" include_dir "${touch_generated}" )
 include_directories(${include_dir})
 
 dague_addtest(C touch_ex "touch_ex.c;${touch_generated}")
+
+jdf_rules(startup_generated "${CMAKE_CURRENT_SOURCE_DIR}/startup.jdf")
+dague_addtest(C startup "${startup_generated}")
+
+# Define Testings
+include(Testings.cmake)
+

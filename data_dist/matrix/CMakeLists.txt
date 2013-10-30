@@ -43,17 +43,15 @@ if( NOT HAVE_COMPLEX_H )
   list(APPEND sources precision.c)
 endif()
 
-if (MPI_FOUND)
-    add_library(dague_distribution_matrix-mpi STATIC
-        ${sources}
-        scalapack_convert.c
-        )
-    set_target_properties(dague_distribution_matrix-mpi PROPERTIES COMPILE_FLAGS
-                            "${MPI_COMPILE_FLAGS}")
-    install(TARGETS dague_distribution_matrix-mpi ARCHIVE DESTINATION lib)
-else()
-    add_library(dague_distribution_matrix STATIC
-        ${sources}
-        )
-    install(TARGETS dague_distribution_matrix ARCHIVE DESTINATION lib)
-endif()
+if (MPI_C_FOUND)
+    LIST(APPEND $sources scalapack_convert.c)
+endif(MPI_C_FOUND)
+
+add_library(dague_distribution_matrix STATIC
+            ${sources})
+if (MPI_C_FOUND)
+    set_target_properties(dague_distribution_matrix PROPERTIES COMPILE_FLAGS
+                          "${MPI_C_COMPILE_FLAGS}")
+endif(MPI_C_FOUND)
+install(TARGETS dague_distribution_matrix ARCHIVE DESTINATION lib)
+

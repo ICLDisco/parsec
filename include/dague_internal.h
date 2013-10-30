@@ -280,18 +280,17 @@ extern int device_delegate_begin, device_delegate_end;
     (dague_object)->profiling_array[1 + 2 * (function_index)]
 
 #define DAGUE_TASK_PROF_TRACE(PROFILE, KEY, TASK)                       \
-    do {                                                                \
-        dague_profiling_trace((PROFILE),                                \
-                              (KEY),                                    \
-                              (TASK)->function->key((TASK)->dague_object, (TASK)->locals), \
-                              (TASK)->dague_object->object_id, (void*)&(TASK)->prof_info); \
-    } while (0)
+    DAGUE_PROFILING_TRACE((PROFILE),                                    \
+                          (KEY),                                        \
+                          (TASK)->function->key((TASK)->dague_object, (TASK)->locals), \
+                          (TASK)->dague_object->object_id, (void*)&(TASK)->prof_info)
+
 #define DAGUE_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \
     if(!!(COND)) {                                           \
         DAGUE_TASK_PROF_TRACE((PROFILE), (KEY), (TASK));     \
     }
 #else
-#define DAGUE_TASK_PROF_TRACE(CONTEXT, KEY, TASK)
+#define DAGUE_TASK_PROF_TRACE(PROFILE, KEY, TASK)
 #define DAGUE_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
