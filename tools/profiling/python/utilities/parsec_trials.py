@@ -1,10 +1,11 @@
+from __future__ import print_function
 import datetime as dt
 import time
 import cPickle
+from parsec_profiling import *
 
-class Trial(object):
-    class_version = 1.0 # added a version
-    class_version = 1.1 # renamed some attributes
+class ParsecTrial(object):
+    class_version = 1.0 # revamped everything
     def __init__(self, ident, ex, N, cores, NB, IB, sched, trial_num, perf, walltime):
         self.__version__ = self.__class__.class_version
         # parameters
@@ -23,7 +24,6 @@ class Trial(object):
         self.perf = float(perf)
         self.time = walltime
         self.extra_output = ''
-        self.profile = None # may not have one
     def stamp_time(self):
         self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
         self.unix_timestamp = int(time.time())
@@ -33,57 +33,55 @@ class Trial(object):
             self.sched, int(self.perf), self.trial_num, self.unix_timestamp)
     def __repr__(self):
         return self.uniqueName()
-    def __setstate__(self, dictionary): # the unpickler shim
-        self.__dict__.update(dictionary)
-        if not hasattr(self, '__version__'):
-            if hasattr(self, 'name'):
-                self.ex = self.name
-            elif hasattr(self, 'executable'):
-                self.ex = self.executable
-            if hasattr(self, 'scheduler'):
-                self.sched = self.scheduler
-            if not hasattr(self, 'ident'):
-                self.ident = 'NO_ID'
-            self.__version__ = 1.0
-        if self.__version__ < 1.1:
-            self.perf = self.gflops
-            self.time = self.walltime
-            self.unix_timestamp = self.unix_time
-            self.iso_timestamp = self.timestamp
-            self.extra_output = self.extraOutput
-            self.__version__ = 1.1
+    # def __setstate__(self, dictionary): # the unpickler shim
+    #     self.__dict__.update(dictionary)
+    #     if not hasattr(self, '__version__'):
+    #         if hasattr(self, 'name'):
+    #             self.ex = self.name
+    #         elif hasattr(self, 'executable'):
+    #             self.ex = self.executable
+    #         if hasattr(self, 'scheduler'):
+    #             self.sched = self.scheduler
+    #         if not hasattr(self, 'ident'):
+    #             self.ident = 'NO_ID'
+    #         self.__version__ = 1.0
+    #     if self.__version__ < 1.1:
+    #         self.perf = self.gflops
+    #         self.time = self.walltime
+    #         self.unix_timestamp = self.unix_time
+    #         self.iso_timestamp = self.timestamp
+    #         self.extra_output = self.extraOutput
+    #         self.__version__ = 1.1
 
-class TrialSet(list):
-    class_version = 1.0 # added a version
-    class_version = 1.1 # renamed various attributes
-    class_version = 1.2 # changed profile pickling method
+class ParsecTrialSet(list):
+    class_version = 1.0 # revamped everything for pandas
     # class members
     __unloaded_profile_token__ = 'not loaded' # old
     @staticmethod
     def unpickle(file, load_profile=True):
         trial_set = cPickle.load(file)
-        if load_profile:
-            # load profiles, assign them to trials
-            for trial in trial_set:
-                if (trial.profile == TrialSet.__unloaded_profile_token__ # old
-                    or len(trial.profile) == 0): # new
-                    # load full profile
-                    trial.profile = cPickle.load(file)
+        # if load_profile:
+        #     # load profiles, assign them to trials
+        #     for trial in trial_set:
+        #         if (trial.profile == TrialSet.__unloaded_profile_token__ # old
+        #             or len(trial.profile) == 0): # new
+        #             # load full profile
+        #             trial.profile = cPickle.load(file)
         return trial_set
     # object members
-    def pickle(self, file, protocol=cPickle.HIGHEST_PROTOCOL):
-        profile_backups = []
-        for trial in self:
-            profile_backups.append(trial.profile)
-            if trial.profile:
-                trial.profile = trial.profile.get_eventless()
-        cPickle.dump(self, file, protocol)
-        for profile in profile_backups:
-            if profile: # don't dump the Nones
-                cPickle.dump(profile, file, protocol)
-        # restore profiles because the user isn't necessarily done with them
-        for trial, profile in zip(self, profile_backups):
-            trial.profile = profile
+    def pickle(self, _file, protocol=cPickle.HIGHEST_PROTOCOL):
+        # profile_backups = []
+        # for trial in self:
+        #     profile_backups.append(trial.profile)
+        #     if trial.profile:
+        #         trial.profile = trial.profile.get_eventless()
+        cPickle.dump(self, _file, protocol)
+        # for profile in profile_backups:
+        #     if profile: # don't dump the Nones
+        #         cPickle.dump(profile, file, protocol)
+        # # restore profiles because the user isn't necessarily done with them
+        # for trial, profile in zip(self, profile_backups):
+        #     trial.profile = profile
 
     def __init__(self, ident, ex, N, cores=0, NB=0, IB=0, sched='LFQ', extra_args=[]):
         self.__version__ = self.__class__.class_version
@@ -151,20 +149,5 @@ class TrialSet(list):
             int(self.perf_avg), self.percent_sdv(), len(self))
     def unique_name(self):
         return self.name() + '_' + str(self.unix_timestamp)
-    def __setstate__(self, dictionary): # the unpickler shim
-        self.__dict__.update(dictionary)
-        if not hasattr(self, '__version__'):
-            if not hasattr(self, 'ident'):
-                self.ident = 'NO_ID'
-            self.__version__ = 1.0
-        if self.__version__ < 1.1:
-            self.perf_avg = self.avgGflops
-            self.perf_sdv = self.Gstddev
-            self.time_avg = self.avgTime
-            self.time_sdv = self.Tstddev
-            self.unix_timestamp = self.unix_time
-            self.iso_timestamp = self.timestamp
-            self.__version__ = 1.1
-            
 
 

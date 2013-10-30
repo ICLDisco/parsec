@@ -401,7 +401,7 @@ static char* dump_predicate(void** elem, void *arg)
     expr_info.sa = sa3;
     expr_info.prefix = "";
     expr_info.assignments = "assignments";
-    string_arena_add_string(sa, "(((dague_ddesc_t*)(__dague_handle->super.%s))->myrank == ((dague_ddesc_t*)(__dague_handle->super.%s))->rank_of((dague_ddesc_t*)__dague_handle->super.%s, %s))", 
+    string_arena_add_string(sa, "(((dague_ddesc_t*)(__dague_handle->super.%s))->myrank == ((dague_ddesc_t*)(__dague_handle->super.%s))->rank_of((dague_ddesc_t*)__dague_handle->super.%s, %s))",
                             f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
                             UTIL_DUMP_LIST(sa2, f->predicate->parameters, next,
                                            dump_expr, &expr_info,
@@ -2081,17 +2081,17 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     }
 
     coutput("%s  if( NULL != ((dague_ddesc_t*)__dague_handle->super.%s)->vpid_of ) {\n"
-	    "%s    vpid = ((dague_ddesc_t*)__dague_handle->super.%s)->vpid_of((dague_ddesc_t*)__dague_handle->super.%s, %s);\n"
+        "%s    vpid = ((dague_ddesc_t*)__dague_handle->super.%s)->vpid_of((dague_ddesc_t*)__dague_handle->super.%s, %s);\n"
             "%s    assert(context->nb_vp >= vpid);\n"
-	    "%s  }\n"
+        "%s  }\n"
             "%s  new_dynamic_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->virtual_processes[vpid]->execution_units[0]->context_mempool );\n",
-	    indent(nesting), f->predicate->func_or_mem,
+        indent(nesting), f->predicate->func_or_mem,
             indent(nesting), f->predicate->func_or_mem, f->predicate->func_or_mem,
             UTIL_DUMP_LIST(sa1, f->predicate->parameters, next,
                            dump_expr, (void*)&info2,
                            "", "", ", ", ""),
-	    indent(nesting),
-	    indent(nesting),
+        indent(nesting),
+        indent(nesting),
             indent(nesting));
 
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nbdefinitions);
@@ -3741,14 +3741,11 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     string_arena_t *sa, *sa2;
     assignment_info_t ai;
     jdf_dataflow_t *fl;
-    int di, profile_on;
+    int di;
+    int profile_on;
     char* output;
     init_from_data_array_info_t ifda;
 
-    /**
-     * If the function or the body has the "profile" property turned off
-     * do not generate the profiling code.
-     */
     profile_on = jdf_property_get_int(f->properties, "profile", 1);
     profile_on = jdf_property_get_int(body->properties, "profile", profile_on);
 
@@ -3840,6 +3837,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                 "                        this_task->dague_handle->profiling_array[2*this_task->function->function_id],\n"
                 "                        this_task);\n");
     }
+
     coutput("%s\n", body->external_code);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
         coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
@@ -3862,14 +3860,11 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
                                 const char *name)
 {
     string_arena_t *sa, *sa2;
-    int di, profile_on;
+    int di;
+    int profile_on;
     jdf_dataflow_t *fl;
     assignment_info_t ai;
 
-    /**
-     * If the function or the body has the "profile" property turned off
-     * do not generate the profiling code.
-     */
     profile_on = jdf_property_get_int(f->properties, "profile", 1);
 
     sa  = string_arena_new(64);
@@ -4529,7 +4524,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
 
                     string_arena_add_string(sa_coutput,
                                             "%s",
-                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl), 
+                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "    ", "nc") );
                 } else {
                     flowtomem = 1;
@@ -4543,7 +4538,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                             "%s"
                                             "    }\n",
                                             dump_expr((void**)dl->guard->guard, &info),
-                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl), 
+                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "      ", "nc") );
                 } else {
                     flowtomem = 1;
@@ -4557,7 +4552,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                             "%s"
                                             "    }",
                                             dump_expr((void**)dl->guard->guard, &info),
-                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl), 
+                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "      ", "nc"));
                     depnb++;
 
@@ -4570,7 +4565,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                                 " else {\n"
                                                 "%s"
                                                 "    }\n",
-                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, JDF_OBJECT_LINENO(dl), 
+                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, JDF_OBJECT_LINENO(dl),
                                                                             "      ", "nc") );
                     } else {
                         string_arena_add_string(sa_coutput,
@@ -4589,7 +4584,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                                 "%s"
                                                 "    }\n",
                                                 dump_expr((void**)dl->guard->guard, &info),
-                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, JDF_OBJECT_LINENO(dl), 
+                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, JDF_OBJECT_LINENO(dl),
                                                                             "      ", "nc") );
                     } else {
                         flowtomem = 1;
@@ -4800,10 +4795,10 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
         asprintf(&command, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h );
         system(command);
 #else
-        asprintf(&command, 
+        asprintf(&command,
                  "%s %s %s -st | "
                  "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
-                 "> %s.indent.awk", 
+                 "> %s.indent.awk",
                  DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c,
                  DAGUE_AWK_PREFIX, output_c, output_c,
                  output_c);
@@ -4811,10 +4806,10 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
         asprintf(&command, "%s.indent.awk", output_c);
         rename(command, output_c);
 
-        asprintf(&command, 
+        asprintf(&command,
                  "%s %s %s -st | "
                  "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
-                 "> %s.indent.awk", 
+                 "> %s.indent.awk",
                  DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h,
                  DAGUE_AWK_PREFIX, output_h, output_h,
                  output_h);

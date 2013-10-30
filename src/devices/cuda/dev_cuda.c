@@ -123,12 +123,17 @@ static int dague_cuda_device_fini(dague_device_t* device)
     return DAGUE_SUCCESS;
 }
 
-static int dague_cuda_memory_register(dague_device_t* device, void* ptr, size_t length)
+static int dague_cuda_memory_register(dague_device_t* device, dague_ddesc_t* desc, void* ptr, size_t length)
 {
     gpu_device_t* gpu_device = (gpu_device_t*)device;
     CUresult status;
     CUcontext ctx;
     int rc = DAGUE_ERROR;
+
+    if (desc->memory_registration_status == MEMORY_STATUS_REGISTERED) {
+        rc = DAGUE_SUCCESS;
+        return rc;
+    }
 
     /* Atomically get the GPU context */
     do {
@@ -148,6 +153,7 @@ static int dague_cuda_memory_register(dague_device_t* device, void* ptr, size_t 
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
                             {goto restore_and_return;} );
     rc = DAGUE_SUCCESS;
+    desc->memory_registration_status = MEMORY_STATUS_REGISTERED;
 
   restore_and_return:
     /* Restore the context so the others can steal it */
@@ -156,12 +162,17 @@ static int dague_cuda_memory_register(dague_device_t* device, void* ptr, size_t 
     return rc;
 }
 
-static int dague_cuda_memory_unregister(dague_device_t* device, void* ptr)
+static int dague_cuda_memory_unregister(dague_device_t* device, dague_ddesc_t* desc, void* ptr)
 {
     gpu_device_t* gpu_device = (gpu_device_t*)device;
     CUresult status;
     CUcontext ctx;
     int rc = DAGUE_ERROR;
+
+    if (desc->memory_registration_status == MEMORY_STATUS_UNREGISTERED) {
+        rc = DAGUE_SUCCESS;
+        return rc;
+    }
 
     /* Atomically get the GPU context */
     do {
@@ -181,6 +192,7 @@ static int dague_cuda_memory_unregister(dague_device_t* device, void* ptr)
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
                             {goto restore_and_return;} );
     rc = DAGUE_SUCCESS;
+    desc->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
 
   restore_and_return:
     /* Restore the context so the others can steal it */

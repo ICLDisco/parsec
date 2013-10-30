@@ -204,23 +204,20 @@ int dague_data_get_device_copy(dague_data_copy_t* source,
     original = source->original;
     /* lock the original data */
     newer = copy = original->device_copies[device];
-    while( NULL == copy ) {
-        if( source->version < copy->version ) {
-            newer = copy;
-            copy = copy->older;
-        } else
+    while( NULL != copy ) {
+        if( source->version == copy->version )
             break;
+        copy = copy->older;
     }
     if( NULL == copy ) {
         *dest = copy = dague_data_copy_new(original, device);
         transfer = 1;
     } else if( source->version == copy->version ) {
         *dest = copy;
-        return 0;
     }
-
     /* unlock the original data */
-    return 1;
+
+    return transfer;
 }
 
 /**

@@ -4,22 +4,25 @@
 
 set(SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
 set(SETUP_PY    "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
-set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/py_dbpreader.pyx"
-                "${CMAKE_CURRENT_SOURCE_DIR}/py_dbpreader.pxd"
-				"${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in"
+set(FISH_ENV_IN "${CMAKE_CURRENT_SOURCE_DIR}/utilities/fish.env.in")
+set(BASH_ENV_IN "${CMAKE_CURRENT_SOURCE_DIR}/utilities/bash.env.in")
+set(FISH_ENV    "${CMAKE_CURRENT_BINARY_DIR}/utilities/fish.env")
+set(BASH_ENV    "${CMAKE_CURRENT_BINARY_DIR}/utilities/bash.env")
+set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/parsec_binprof.pyx"
+                "${CMAKE_CURRENT_SOURCE_DIR}/parsec_binprof.pxd"
+		"${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
+		"${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
+		"${CMAKE_CURRENT_SOURCE_DIR}/../../../include/dbp.h"
                 dague-base dague)
 set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp"
-                "${CMAKE_CURRENT_BINARY_DIR}/dbpreader_py.c")
-
-get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
-foreach(dir ${dirs})
-  message(STATUS "dir='${dir}'")
-endforeach()
+                "${CMAKE_CURRENT_BINARY_DIR}/parsec_binprof.c")
 
 #
 # Always generate the setup.py so it can be used by hand
 #
 configure_file(${SETUP_PY_IN} ${SETUP_PY} @ONLY )
+configure_file(${FISH_ENV_IN} ${FISH_ENV} @ONLY )
+configure_file(${BASH_ENV_IN} ${BASH_ENV} @ONLY )
 
 if( NOT PYTHON_EXECUTABLE )
     FIND_PACKAGE(PythonInterp QUIET)

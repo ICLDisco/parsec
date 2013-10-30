@@ -14,23 +14,22 @@
  * prevents utility programs such as "ompi_info" from having to import
  * entire components just to query their version and parameters.
  */
-
 #include "dague_config.h"
 #include "dague.h"
 
 #include "dague/mca/pins/pins.h"
-#include "dague/mca/pins/papi_L123/pins_papi_L123.h"
+#include "dague/mca/pins/task_profiler/pins_task_profiler.h"
 
 /*
  * Local function
  */
-static int pins_papi_L123_component_query(mca_base_module_t **module, int *priority);
+static int pins_task_profiler_component_query(mca_base_module_t **module, int *priority);
 
 /*
  * Instantiate the public struct with all of our public information
  * and pointers to our public functions in it
  */
-const dague_pins_base_component_t dague_pins_papi_L123_component = {
+const dague_pins_base_component_t dague_pins_task_profiler_component = {
 
     /* First, the mca_component_t struct containing meta information
      about the component itself */
@@ -39,14 +38,14 @@ const dague_pins_base_component_t dague_pins_papi_L123_component = {
         DAGUE_PINS_BASE_VERSION_2_0_0,
 
         /* Component name and version */
-        "papi_L123",
+        "task_profiler",
         DAGUE_VERSION_MAJOR,
         DAGUE_VERSION_MINOR,
 
         /* Component open and close functions */
         NULL,
         NULL,
-        pins_papi_L123_component_query,
+        pins_task_profiler_component_query,
         /*< specific query to return the module and add it to the list of available modules */
         NULL,
         "", /*< no reserve */
@@ -57,16 +56,16 @@ const dague_pins_base_component_t dague_pins_papi_L123_component = {
         "", /*< no reserve */
     }
 };
-mca_base_component_t * pins_papi_L123_static_component(void)
+mca_base_component_t * pins_task_profiler_static_component(void)
 {
-    return (mca_base_component_t *)&dague_pins_papi_L123_component;
+    return (mca_base_component_t *)&dague_pins_task_profiler_component;
 }
 
-static int pins_papi_L123_component_query(mca_base_module_t **module, int *priority)
+static int pins_task_profiler_component_query(mca_base_module_t **module, int *priority)
 {
     /* module type should be: const mca_base_module_t ** */
-    void *ptr = (void*)&dague_pins_papi_L123_module;
-    *priority = 40;
+    void *ptr = (void*)&dague_pins_task_profiler_module;
+    *priority = 50;
     *module = (mca_base_module_t *)ptr;
     return MCA_SUCCESS;
 }

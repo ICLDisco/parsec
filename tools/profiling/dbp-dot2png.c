@@ -38,16 +38,15 @@ static void usage(const char *prg)
 static void sample(const dbp_multifile_reader_t *dbp,
                    dbp_event_iterator_t **allthreads, 
                    int nbthreads, 
-                   dague_time_t sframe, 
+                   uint64_t sframe, 
                    float top)
 {
-    int t;
     const dbp_event_t *dbp_e;
     dbp_dictionary_t *dico;
     char *tname;
     unsigned long long oid;
     unsigned int node;
-    int key;
+    int t, key;
     char *g;
     unsigned int len;
 
@@ -55,7 +54,7 @@ static void sample(const dbp_multifile_reader_t *dbp,
 
     for(t = 0; t < nbthreads; t++) {
         dbp_e = dbp_iterator_current( allthreads[t] );
-        while( dbp_e && diff_time(sframe, dbp_event_get_timestamp(dbp_e)) < top ) {
+        while( dbp_e && (sframe - dbp_event_get_timestamp(dbp_e)) < top ) {
 
             key = dbp_event_get_key( dbp_e );
 
@@ -63,7 +62,7 @@ static void sample(const dbp_multifile_reader_t *dbp,
             tname = dbp_dictionary_name(dico);
             oid = dbp_event_get_event_id(dbp_e);
             node = find_node_by_task_name_and_handle_id(tname, oid);
-            
+
             if( NID != node ) {
                 if( KEY_IS_START(key) ) {
                     clear_node_status(node, STATUS_READY | STATUS_ENABLED);
@@ -98,18 +97,18 @@ int main(int argc, char *argv[])
     int nbthreads = 0;
     int f, t;
     dbp_file_t *dbp_f;
-    dague_time_t mintime = ZERO_TIME, maxtime = ZERO_TIME;
+    uint64_t mintime, maxtime, eventtime;
     dbp_thread_t *dbp_t;
     const dbp_event_t *dbp_e;
     float delta;
     char **traced_types;
     int    nb_traced_types;
- 
+
     if( argc != 2 ) {
         fprintf(stderr, "Not the right number of arguments\n");
         usage(argv[0]);
     }
-    
+
     asprintf(&profiles_pattern, "%s.[0-9]*.profile", argv[1]);
     if( glob( profiles_pattern, 0, NULL, &profiles ) != 0 ) {
         fprintf(stderr, "Could not find any %s files\n", profiles_pattern);
@@ -161,12 +160,6 @@ int main(int argc, char *argv[])
     nbthreads = 0;
     for(f = 0; f < dbp_reader_nb_files(dbp); f++) {
         dbp_f = dbp_reader_get_file(dbp, f);
-        if( f == 0 ) {
-            mintime = dbp_file_get_min_date(dbp_f);
-        } else {
-            if( time_less(dbp_file_get_min_date(dbp_f), mintime) )
-                mintime = dbp_file_get_min_date(dbp_f);
-        }
         for(t = 0; t < dbp_file_nb_threads(dbp_f); t++) {
             nbthreads++;
         }
@@ -175,7 +168,8 @@ int main(int argc, char *argv[])
     allthreads = (dbp_event_iterator_t **)malloc( sizeof(dbp_event_iterator_t *) * nbthreads );
 
     nbthreads = 0;
-    maxtime = mintime;
+    maxtime = 0;
+    mintime = UINT64_MAX;
     for(f = 0; f < dbp_reader_nb_files(dbp); f++) {
         dbp_f = dbp_reader_get_file(dbp, f);
         for(t = 0; t < dbp_file_nb_threads(dbp_f); t++) {
@@ -183,12 +177,13 @@ int main(int argc, char *argv[])
 
             dbp_i = dbp_iterator_new_from_thread(dbp_t);
             while( (dbp_e = dbp_iterator_current(dbp_i)) != NULL ) {
-                if( time_less( maxtime, dbp_event_get_timestamp(dbp_e) ) )
-                    maxtime = dbp_event_get_timestamp(dbp_e);
+                eventtime = dbp_event_get_timestamp(dbp_e);
+                if( maxtime < eventtime )     maxtime = eventtime;
+                else if( mintime > eventtime) mintime = eventtime;
                 dbp_iterator_next(dbp_i);
             }
             dbp_iterator_delete(dbp_i);
-            
+
             allthreads[nbthreads] = dbp_iterator_new_from_thread(dbp_t);
             dbp_iterator_first(allthreads[nbthreads]);
             nbthreads++;
@@ -196,8 +191,8 @@ int main(int argc, char *argv[])
     }
 
     fprintf(stderr, "#Sampling %d frames in an execution of %llu %s\n",
-            NBFRAMES, diff_time(mintime, maxtime), TIMER_UNIT);
-    delta = (float)diff_time(mintime, maxtime) / (float)NBFRAMES;
+            NBFRAMES, (mintime - maxtime), TIMER_UNIT);
+    delta = (float)(mintime - maxtime) / (float)NBFRAMES;
 
     graphInit();
 
