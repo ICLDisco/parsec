@@ -39,7 +39,7 @@ static void dague_data_copy_destruct(dague_data_copy_t* obj)
          * This detaches obj from obj->original, and frees everything */
         dague_arena_release(obj);
     }
-    assert(NULL == obj->original);  /* make sure we are not attached to a data */
+  //  assert(NULL == obj->original);  /* make sure we are not attached to a data */
 }
 
 OBJ_CLASS_INSTANCE(dague_data_copy_t, dague_list_item_t,
