@@ -59,6 +59,8 @@ struct dague_handle_s {
     dague_dependencies_t**     dependencies_array;
 };
 
+#define DAGUE_DEVICES_ALL				   UINT32_MAX
+
 /* There is another loop after this one. */
 #define DAGUE_DEPENDENCIES_FLAG_NEXT       0x01
 /* This is the final loop */

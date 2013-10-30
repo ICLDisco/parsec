@@ -2756,8 +2756,9 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "  (void)pins_handle_init(&__dague_handle->super.super);\n"
             "#  endif /* defined(PINS_ENABLE) */\n"
             " \n"
-            "  dague_handle->devices_mask = 0;  /* All devices support disabled by default */\n"
+            "  uint32_t wanted_devices = dague_handle->devices_mask; dague_handle->devices_mask = 0;\n"
             "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "    if( !(wanted_devices & (1<<_i)) ) continue;\n"
             "    dague_device_t* device = dague_devices_get(_i);\n"
             "    dague_ddesc_t* dague_ddesc;\n"
             " \n"
@@ -2933,6 +2934,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "              calloc(DAGUE_%s_NB_FUNCTIONS, sizeof(dague_dependencies_t *));\n",
             jdf_basename);
     /* Prepare the functions */
+    coutput("  __dague_handle->super.super.devices_mask = DAGUE_DEVICES_ALL;\n");
     coutput("  __dague_handle->super.super.functions_array = (const dague_function_t**)malloc(DAGUE_%s_NB_FUNCTIONS * sizeof(dague_function_t*));\n",
             jdf_basename);
     coutput("  for( i = 0; i < (int)__dague_handle->super.super.nb_functions; i++ ) {\n"

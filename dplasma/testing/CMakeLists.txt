@@ -18,6 +18,7 @@ set(TESTS
   testing_ztrsm.c
   #
   testing_zpotrf.c
+  testing_zpotrf_rec.c
   testing_zhebut.c
   testing_zposv.c
   testing_zgetrf.c

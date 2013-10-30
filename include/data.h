@@ -10,6 +10,7 @@
 #include "dague_internal.h"
 #include <dague/types.h>
 #include <dague/sys/atomic.h>
+#include "execution_unit.h"
 
 /**
  * This is a variable changed only once, and contains the total number of
@@ -23,6 +24,11 @@ typedef uint8_t dague_data_coherency_t;
 #define    DATA_COHERENCY_OWNED     ((dague_data_coherency_t)0x1)
 #define    DATA_COHERENCY_EXCLUSIVE ((dague_data_coherency_t)0x2)
 #define    DATA_COHERENCY_SHARED    ((dague_data_coherency_t)0x4)
+
+typedef uint8_t dague_data_status_t;
+#define    DATA_STATUS_NOT_TRANSFER        ((dague_data_coherency_t)0x0)
+#define    DATA_STATUS_UNDER_TRANSFER        ((dague_data_coherency_t)0x1)
+#define    DATA_STATUS_COMPLETE_TRANSFER     ((dague_data_coherency_t)0x2)
 
 /**
  * This structure is the keeper of all the information regarding
@@ -70,6 +76,8 @@ struct dague_data_copy_s {
     void                     *device_private;        /**< The pointer to the device-specific data.
                                                       *   Overlay data distributions assume that arithmetic
                                                       *   can be done on these pointers. */
+    dague_data_status_t      data_transfer_status;   /** three status */
+    dague_execution_context_t *push_task;            /** the task who actually do the PUSH */
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
 

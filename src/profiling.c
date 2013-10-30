@@ -34,7 +34,7 @@
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
-#define MINIMAL_EVENT_BUFFER_SIZE          4088
+#define MINIMAL_EVENT_BUFFER_SIZE          (1024*1024)
 
 /**
  * Externally visible on/off switch for the profiling of new events. It
@@ -49,6 +49,7 @@ static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char typ
 static unsigned int dague_prof_keys_count, dague_prof_keys_number;
 static dague_profiling_key_t* dague_prof_keys;
 
+static int __already_called = 0;
 static dague_time_t dague_start_time;
 static int          start_called = 0;
 
@@ -132,6 +133,13 @@ int dague_profiling_init( void )
     /* default start time is time of call of profiling init.
      * Can be reset once explicitly by the user. */
     dague_profiling_start();
+    /**
+     * As we called the _start function automatically, the timing will be
+     * based on this moment. By forcing back the __already_called to 0, we
+     * allow the caller to decide when to rebase the timing in case there
+     * is a need.
+     */
+    __already_called = 0;
     dague_profile_enabled = 1;  /* turn on the profiling */
 
     /* shared timestamp allows grouping profiles from different nodes */
@@ -880,5 +888,13 @@ int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
     }
 }
 
+void dague_profiling_enable(void)
+{
+    dague_profile_enabled = 1;
+}
+void dague_profiling_disable(void)
+{
+    dague_profile_enabled = 0;
+}
 
 char *dague_profile_ddesc_key_to_string = "";
