@@ -118,6 +118,38 @@ def ungroup(filenames, dry_run=False):
             print('Could not figure out how to revert {} '.format(dirname + os.sep + filename) +
                   'to original name. Skipping...')
 
+name_grouper = re.compile('(\w+)\.G-prof-(\d+)-.*\w+')
+def group_by_name(filenames):
+    by_start_time = dict()
+    singletons = list()
+    for filename in filenames:
+        m = name_grouper.match(filename)
+        if m:
+            name = m.group(1) + m.group(2)
+            try:
+                by_start_time[name].append(filename)
+            except:
+                by_start_time[name] = [filename]
+        else: # assume singleton
+            singletons.append([filename])
+    return by_start_time.values() + singletons
+
+def autoload_profiles(filenames, convert=True, unlink=False):
+    groups = group_by_name(filenames)
+    profiles = list()
+
+    for group in groups:
+        if len(group) == 1 and 'h5' in group[0]:
+            profile = p3.ParsecProfile.from_hdf(group[0])
+        else:
+            import parsec_binprof as p3_bin # don't do this if not necessary
+            if convert:
+                profile = p3_bin.convert(group, unlink=unlink)
+            else:
+                profile = p3_bin.read(group)
+        profiles.append(profile)
+    return profiles
+
 def print_help():
     print('')
     print('  -- DESCRIPTION -- ')

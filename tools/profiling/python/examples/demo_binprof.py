@@ -76,7 +76,7 @@ def do_demo(filenames, translate=False):
 
         print('')
         print('Now, we will select only the PINS_L12_EXEC events via a simple operation.')
-        onlyexec = profile.events[:][ (profile.events['key'] == profile.event_types.PINS_L12_EXEC['key'])]
+        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types['PINS_L12_EXEC'])]
         print('Notice how the description of this subset is very different:')
         print(onlyexec[profile.basic_columns].describe())
         print('')
@@ -88,7 +88,7 @@ def do_demo(filenames, translate=False):
         print(onlyexec[profile.basic_columns].describe().loc['count':'std',:])
         print('')
         print('It is also possible to perform both operations in one query, like so:')
-        onlyexec = profile.events[:][ (profile.events['key'] == profile.event_types.PINS_L12_EXEC['key']) 
+        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types['PINS_L12_EXEC']) 
                                   & (profile.events.thread_id == 7)]
         print('Note that the description is the same as for the previous subset.')
         print(onlyexec[profile.basic_columns].describe().loc['count':'std',:])
@@ -116,7 +116,7 @@ def do_demo(filenames, translate=False):
 
         print('We can select events by index and access their data piece by piece if we want.')
         print('First, we cut these events down to only those with the kernel name "SYRK"\n')
-        srted = srted[:][srted.kernel_type == profile.event_types.SYRK['key']]
+        srted = srted[:][srted.kernel_type == profile.event_types['SYRK']]
         print('Now we print the L1 and L2 misses for this second item in this set of events:\n')
         print('sorted SYRK execs, index 10, kernel type: ' + str(srted.iloc[1]['kernel_type']))
         print('sorted SYRK execs, index 10, L1 misses: ' + str(srted.iloc[1]['PAPI_L1']))

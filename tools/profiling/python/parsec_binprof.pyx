@@ -20,12 +20,14 @@ from parsec_profiling import * # the pure Python classes
 import pandas as pd
 import time
 import re
-import shutil
 
 # reads an entire profile into a set of pandas DataFrames
+# filenames ought to be a list of strings, or comparable type.
 cpdef read(filenames, report_progress=False, info_only=False):
     cdef dbp_file_t * cfile
     cdef dbp_dictionary_t * cdict
+    if isinstance(filenames, basestring):
+        filenames = [filenames]
     cdef char ** c_filenames = string_list_to_c_strings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
 
@@ -36,12 +38,13 @@ cpdef read(filenames, report_progress=False, info_only=False):
 
     # create event dictionaries first, for later use while reading events
     builder = ProfileBuilder()
-    for key in range(nb_dict_entries):
-        cdict = dbp_reader_get_dictionary(dbp, key)
+    for event_type in range(nb_dict_entries):
+        cdict = dbp_reader_get_dictionary(dbp, event_type)
         event_name = dbp_dictionary_name(cdict)
-        builder.type_names[key] = event_name
-        builder.event_types[event_name] = {'key':key, 'attributes':str(dbp_dictionary_attributes(cdict))}
-    builder.type_names[-1] = '' # this is the default, for kernels without names
+        builder.event_names[event_type] = event_name
+        builder.event_types[event_name] = event_type
+        builder.event_attributes[event_type] = str(dbp_dictionary_attributes(cdict))
+    builder.event_names[-1] = '' # this is the default, for kernels without names
 
     # start with our nodes in the correct order
     node_order = dict()
@@ -116,8 +119,9 @@ cpdef read(filenames, report_progress=False, info_only=False):
 
     with Timer() as t:
         information = pd.Series(builder.information)
-        event_types = pd.DataFrame.from_records(builder.event_types)
-        type_names = pd.Series(builder.type_names)
+        event_types = pd.Series(builder.event_types)
+        event_names = pd.Series(builder.event_names)
+        event_attributes = pd.Series(builder.event_attributes)
         nodes = pd.DataFrame.from_records(builder.nodes)
         threads = pd.DataFrame.from_records(builder.threads)
         if len(builder.errors) > 0:
@@ -128,8 +132,8 @@ cpdef read(filenames, report_progress=False, info_only=False):
     cond_print('Constructed additional structures in {} seconds.'.format(t.interval), 
                report_progress)
 
-    profile = ParsecProfile(events, event_types, type_names, 
-                            nodes, threads, errors, information)
+    profile = ParsecProfile(events, event_types, event_names, event_attributes,
+                            nodes, threads, information, errors)
 
     dbp_reader_close_files(dbp) # does nothing as of 2013-04-21
 #   dbp_reader_dispose_reader(dbp)
@@ -141,13 +145,16 @@ cpdef read(filenames, report_progress=False, info_only=False):
 cpdef get_info(filenames):
     return read(filenames, info_only=True)
 
-cpdef convert(filenames, outfilename, unlink=True, table=False, append=False, report_progress=False):
+cpdef convert(filenames, outfilename=None, unlink=True, table=False, append=False, report_progress=False):
     profile = read(filenames, report_progress=report_progress)
+    if outfilename == None:
+        outfilename = filenames[0].replace('.prof-', '.h5-')
     store = profile.to_hdf(outfilename, table=table, append=append)
     store.close()
     if unlink:
         for filename in filenames:
-            shutil.unlink(filename)
+            os.unlink(filename)
+    return profile
 
 # This function helps support duplicate keys in the info dictionaries 
 # by appending the extra values to a list stored at '<key>_list' in the dictionary.
@@ -226,8 +233,8 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
     builder.unordered_threads[thread_id] = thread
 
     while event_s != NULL and not info_only:
-        event_key = dbp_event_get_key(event_s) / 2 # to match dictionary
-        event_name = builder.type_names[event_key]
+        event_type = dbp_event_get_key(event_s) / 2 # to match dictionary
+        event_name = builder.event_names[event_type]
         begin = dbp_event_get_timestamp(event_s)
         event_flags = dbp_event_get_flags(event_s)
         handle_id = dbp_event_get_handle_id(event_s)
@@ -237,7 +244,7 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
         if KEY_IS_START( dbp_event_get_key(event_s) ):
             it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
             if it_e == NULL:
-                event = [node_id, thread_id, handle_id, event_key, 
+                event = [node_id, thread_id, handle_id, event_type, 
                          begin, None, 0, event_flags, unique_id, event_id]
                 error_msg = 'event of class {} id {} at {} does not have a match.\n'.format(
                     event_name, event_id, thread_id)
@@ -248,7 +255,7 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                     end = dbp_event_get_timestamp(event_e)
                     duration = end - begin
 
-                    event = [node_id, thread_id, handle_id, event_key, 
+                    event = [node_id, thread_id, handle_id, event_type, 
                              begin, end, duration, event_flags, unique_id, event_id]
 
                     if end < begin:
@@ -272,7 +279,7 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                     cinfo = dbp_event_get_info(event_e)
                     if cinfo != NULL:
                         if ('PINS_EXEC' in builder.event_types and
-                            event_key == builder.event_types.PINS_EXEC['key']):
+                            event_type == builder.event_types['PINS_EXEC']):
                             cast_exec_info = <papi_exec_info_t *>cinfo
                             kernel_name = str(cast_exec_info.kernel_name)
                             event_info = {
@@ -288,7 +295,7 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                                 [cast_exec_info.values[x] for x
                                  in range(cast_exec_info.values_len)]}
                         elif ('PINS_SELECT' in builder.event_types and
-                              event_key == builder.event_types.PINS_SELECT['key']):
+                              event_type == builder.event_types['PINS_SELECT']):
                             cast_select_info = <select_info_t *>cinfo
                             kernel_name = str(cast_select_info.kernel_name)
                             event_info = {
@@ -310,7 +317,7 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                                 [cast_select_info.values[x] for x
                                  in range(cast_select_info.values_len)]}
                         elif ('PINS_SOCKET' in builder.event_types and
-                              event_key == builder.event_types['PINS_SOCKET']['key']):
+                              event_type == builder.event_types['PINS_SOCKET']):
                             cast_socket_info = <papi_socket_info_t *>cinfo
                             event_info = [
                                 cast_socket_info.vp_id,
@@ -319,9 +326,8 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                                  in range(cast_socket_info.values_len)]]
                         # START NEW, IN-USE INFOS
                         elif ('PINS_L12_EXEC' in builder.event_types and
-                              event_key == builder.event_types['PINS_L12_EXEC']['key']):
+                              event_type == builder.event_types['PINS_L12_EXEC']):
                             cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
-                            # kernel_name = cast_L12_exec_info.kernel_name[:12]
                             event_info = {
                                 'unique_id':
                                 unique_id,
@@ -333,7 +339,7 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                                  cast_L12_exec_info.L2_misses
                             }
                         elif ('PINS_L12_SELECT' in builder.event_types and
-                              event_key == builder.event_types['PINS_L12_SELECT']['key']):
+                              event_type == builder.event_types['PINS_L12_SELECT']):
                             cast_L12_select_info = <papi_L12_select_info_t *>cinfo
                             event_info = {
                                 'unique_id':
@@ -353,12 +359,8 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                                 'PAPI_L2':
                                  cast_L12_select_info.L2_misses
                             }
-                            # kernel_name_test = builder.test_df[event_info['kernel_type']]
-                            # if kernel_name_test == '':
-                            #     print(kernel_name_test + str(event_info['kernel_type']))
-
                         elif ('PINS_L123' in builder.event_types and
-                              event_key == builder.event_types['PINS_L123']['key']):
+                              event_type == builder.event_types['PINS_L123']):
                             cast_L123_info = <papi_L123_info_t *>cinfo
                             event_info = {
                                 'unique_id':
@@ -371,7 +373,7 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                                 cast_L123_info.L3_misses
                             }
                         elif ('PINS_L12_ADD' in builder.event_types and
-                              event_key == builder.event_types['PINS_L12_ADD']['key']):
+                              event_type == builder.event_types['PINS_L12_ADD']):
                             cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
                             event_info = {
                                 'unique_id':
@@ -384,12 +386,12 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                                 cast_L12_exec_info.L2_misses
                             }
                         # elif ('<EVENT_TYPE_NAME>' in builder.event_types and
-                        #       event['key'] == builder.event_types['<EVENT_TYPE_NAME>']['key']):
+                        #       event_type == builder.event_types['<EVENT_TYPE_NAME>']):
                         #   event_info = <write a function and a Python type to translate>
                         else:
                             dont_print = True
                             if not dont_print:
-                                print('missed an info for event key ' + event_name )
+                                print('missed an info for event type ' + event_name )
 
                     if event_info:
                         builder.infos.append(event_info)
@@ -423,7 +425,8 @@ class ProfileBuilder(object):
         self.events = list()
         self.infos = list()
         self.event_types = dict()
-        self.type_names = dict()
+        self.event_names = dict()
+        self.event_attributes = dict()
         self.nodes = list()
         self.threads = list()
         self.errors = list()

@@ -10,17 +10,18 @@
 
 import sys, os
 import pandas as pd
+import numpy as np
 
 import warnings # because these warnings are annoying, and I can find no way around them.
 warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
 
 class ParsecProfile(object):
     class_version = 1.0 # created 2013.10.22 after move to pandas
-    basic_event_columns = ['node_id', 'thread_id',  'handle_id', 'key',
+    basic_event_columns = ['node_id', 'thread_id',  'handle_id', 'type',
                            'begin', 'end', 'duration', 'flags', 'unique_id', 'id']
-    HDF_TOP_LEVEL_NAMES = ['event_types', 'type_names', 'nodes',
-                           'threads', 'errors', 'information']
-    HDF_ATTRIBUTE_NAMES = ['ex', 'N', 'cores', 'NB', 'IB', 'sched', 'perf', 'time']
+    HDF_TOP_LEVEL_NAMES = ['event_types', 'event_names', 'event_attributes',
+                           'nodes', 'threads', 'information', 'errors']
+    # HDF_ATTRIBUTE_NAMES = ['exe', 'N', 'cores', 'NB', 'IB', 'sched', 'gflops', 'sync_time_elapsed']
     @staticmethod
     def from_hdf(filename):
         store = pd.HDFStore(filename, 'r')
@@ -33,13 +34,14 @@ class ParsecProfile(object):
 
     # the init function should not ordinarily be used
     # it is better to use from_hdf(), from_native(), or autoload()
-    def __init__(self, events, event_types, type_names,
-                 nodes, threads, errors, information):
+    def __init__(self, events, event_types, event_names, event_attributes,
+                 nodes, threads, information, errors):
         self.__version__ = self.__class__.class_version
         # core data
         self.events = events
         self.event_types = event_types
-        self.type_names = type_names
+        self.event_names = event_names
+        self.event_attributes = event_attributes
         self.nodes = nodes
         self.threads = threads
         self.information = information
@@ -69,3 +71,67 @@ class ParsecProfile(object):
             return object.__getattribute__(self, name)
         # potentially add one more set of 'known translations'
         # such as 'perf' -> 'gflops', 'ex' -> 'exname'
+
+def find_profile_sets(profiles, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sched', 'exe', 'hostname'] ):
+    merged_profiles = dict()
+    for profile in profiles:
+        name = ''
+        for info in on:
+            name += str(profile.__getattr__(info))
+        try:
+            merged_profiles[name].append(profile)
+        except:
+            merged_profiles[name] = [profile]
+    return merged_profiles.values()
+
+# Does a best-effort merge on sets of profiles.
+# Intended for use after 'find_profile_sets'
+def automerge_profile_sets(profile_sets):
+    merged_profiles = list()
+    for p_set in profile_sets:
+        merged_profile = p_set[0]
+        merged_info = p_set[0].information
+        for profile in p_set[1:]:
+            # ADD UNIQUE ID
+            #
+            # add start time as id to every row in events and threads DataFrames
+            # so that it is still possible to 'split' the merged profile
+            # based on start_time id, which should differ for every run...
+            if profile == p_set[1]:
+                start_time_array = np.empty(len(merged_profile.events), dtype=int)
+                start_time_array.fill(merged_profile.start_time)
+                merged_profile.events['start_time'] = pd.Series(start_time_array)
+                merged_profile.threads['start_time'] = pd.Series(start_time_array[:len(merged_profile.threads)])
+            start_time_array = np.empty(len(profile.events), dtype=int)
+            start_time_array.fill(profile.start_time)
+            events = profile.events
+            events['start_time'] = pd.Series(start_time_array)
+            threads = profile.threads
+            threads['start_time'] = pd.Series(start_time_array[:len(threads)])
+            # CONCATENATE EVENTS
+            merged_profile.events = pd.concat([merged_profile.events, events])
+            merged_profile.nodes = pd.concat([merged_profile.nodes, profile.nodes])
+            merged_profile.threads = pd.concat([merged_profile.threads, threads])
+            # INFORMATION MERGE
+            #
+            # drop values which are not present and equal in all dictionaries...
+            # except for floating-point values, which we average!
+            mult = 1.0 / len(p_set)
+            for key, value in profile.information.iteritems():
+                if key not in merged_info: # not present
+                    merged_info.drop(key)
+                elif value != merged_info[key]:
+                    try:
+                        temp_fl = float(value)
+                        if '.' in str(value):
+                            # do average
+                            if profile == p_set[1]:
+                                merged_info[key] = merged_info[key] * mult
+                            merged_info[key] += value * mult
+                        else: # not float
+                            merged_info.drop(key)
+                    except: # not equal and not float
+                        merged_info.drop(key)
+        merged_profile.information = merged_info
+        merged_profiles.append(merged_profile)
+    return merged_profiles

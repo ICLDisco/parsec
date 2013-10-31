@@ -64,7 +64,7 @@ struct dbp_file {
     char *filename;
     int rank;
     int nb_infos;
-    int  nb_threads;
+    int nb_threads;
     int error;
     struct dbp_info  **infos;
     struct dbp_thread *threads;

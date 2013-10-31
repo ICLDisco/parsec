@@ -15,11 +15,11 @@ import subprocess
 from multiprocessing import Process, Pipe
 
 ##### global failure settings for trial set
-max_rsd = 2 # anything above this and we want to re-run
-max_stddev_fails = 8 # don't re-run too many times
+max_rsd = 5 # anything above this and we want to re-run
+max_stddev_fails = 4 # don't re-run too many times
 max_set_fails = 5
 max_trial_attempts = 20
-do_trials = 4
+do_trials = 3
 
 # old ?
 # pattern = re.compile(".*### TIMED\s(\d+\.\d+)\s+s.+?NB=\s+(\d+).+?(\d+\.\d+)\s+gflops\n(.*)",

@@ -23,12 +23,12 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
     # customize this section to your heart's content!
     #
     # defaults for ig:
-    execs = ['dpotrf'] #, 'dgetrf_incpiv'] #, 'dpotrf', 'dgeqrf' ]
+    execs = ['dpotrf', 'dgeqrf', 'dgetrf' ]
     schedulers = ['AP', 'GD', 'LTQ', 'LFQ', 'PBQ']
     minNumCores = 0 # default to using them all
     maxNumCores = 0
-    minN = 7000
-    maxN = 14000
+    minN = 12000
+    maxN = 17000
     NBs = [160, 188, 200, 216, 256]
     IBdivs = None    # use defaults
     Ns = None        # generated based on tile size
@@ -39,7 +39,7 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
 #    IBdivs = [1,2,4,8,11] # None to use default per exec
 
 #    IBdivs = [2, 4]
-    NBs = [256, 380, 400]        # None to use defaults
+    NBs = [188, 256, 380, 400]        # None to use defaults
 
 #    Ns = [15360]
 #    NBs = [180, 200, 360, 380]
