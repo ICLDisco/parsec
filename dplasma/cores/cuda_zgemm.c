@@ -100,6 +100,10 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
         original = data->original;
         if( NULL != (local = dague_data_get_copy(original, gpu_device->super.device_index)) ) {
             this_task->data[i].data_out = local;
+            if (this_task->data[i].data_in != this_task->data[i].data_out && this_task->data[i].data_in != original->device_copies[0] && this_task->data[i].data_in->version == original->device_copies[0]->version) {
+                printf("####################GPU1 TO GPU2######################\n");
+                this_task->data[i].data_in = original->device_copies[0];
+            }
             /* Check the most up2date version of the data */
             if( data->device_index != gpu_device->super.device_index ) {
                 if(data->version <= local->version) {
@@ -114,6 +118,12 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
             }
             continue;  /* space available on the device */
         }
+
+        if (this_task->data[i].data_in != this_task->data[i].data_out && this_task->data[i].data_in != original->device_copies[0] && this_task->data[i].data_in->version == original->device_copies[0]->version) {
+            printf("####################GPU1 TO GPU2######################\n");
+            this_task->data[i].data_in = original->device_copies[0];
+        }
+
         /* If the data is needed as an input load it up */
         if(this_task->function->in[i]->access_type & ACCESS_READ)
             space_needed++;
