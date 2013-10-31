@@ -12,11 +12,25 @@ import itertools
 
 # defaults
 y_axis = 'PAPI_L2'
-event_types = ['PINS_L12_EXEC']
+event_types = ['PAPI_L12_EXEC']
 event_subtypes = []
 div_by = None
+hi_cut = 99
+lo_cut = 01
 
-print('This script is designed to operate on PaRSEC profiles with papi_L123 PINS_L12_EXEC module events.')
+def print_help():
+    print('')
+    print(' This script was originally designed to perform hockey-stick-style plots')
+    print(' of PaRSEC profiles with papi_L123 events. It now supports more general plots.')
+    print(' The script plots the Y axis datum against the events, sorted by the Y axis datum.')
+    print('')
+    print(' It will accept sets of profiles as well, and will attempt to merge them if encountered.')
+    print(' usage: <script_name> [PROFILE FILENAMES] [--event-types=TYPE1,TYPE2] [--event-subtypes=TYPE1,TYPE2] [--y-axis=Y_AXIS_DATUM]')
+    print('')
+    print(' --event-types    : Filters by event major type, e.g. GEMM, POTRF, PAPI_L12_EXEC')
+    print(' --y-axis         : Y axis datum, e.g. duration, begin, end, PAPI_L2')
+    print(' --event-subtypes : Filters by PAPI_L12 event kernel type, e.g. GEMM, POTRF, SYRK')
+    print('')
 
 if __name__ == '__main__':
     filenames = []
@@ -25,13 +39,22 @@ if __name__ == '__main__':
         if os.path.exists(arg):
             filenames.append(arg)
         else:
-            if arg.startswith('--div-by='):
+            if arg == '--help':
+                print_help()
+                sys.exit(0)
+            elif arg.startswith('--div-by='):
                 div_by = arg.replace('--div-by=', '')
                 name_tokens.append('div_by_' + div_by)
             elif arg.startswith('--event-types='):
-                event_types = arg.replace('--event-type=', '').split(',')
-            elif arg.startswith('--yaxis='):
-                y_axis = arg.replace('--yaxis=', '')
+                event_types = arg.replace('--event-types=', '').split(',')
+            elif arg.startswith('--y-axis='):
+                y_axis = arg.replace('--y-axis=', '')
+            elif arg.startswith('--event-subtypes='):
+                event_subtypes = arg.replace('--event-subtypes=', '').split(',')
+            elif arg.startswith('--cut='):
+                cuts = arg.replace('--cut=', '').split(',')
+                lo_cut = float(cuts[0])
+                hi_cut = float(cuts[1])
             else:
                 event_subtypes.append(arg)
 
@@ -43,13 +66,17 @@ if __name__ == '__main__':
             print('A profile set has a different length than the first set,')
             print('which may cause your graph to look strange.')
     profiles = automerge_profile_sets(profile_sets)
+    profiles.sort(key=lambda x: x.gflops)
 
     # then we pair up the selectors, if subtypes were specified...
     if len(event_subtypes) > 0:
         type_pairs = list(itertools.product(event_types, event_subtypes))
     else:
         type_pairs = [(event_type) for event_type in event_types]
-    print(type_pairs)
+    print('Now graphing the Y-axis datum \'{}\' against the '.format(y_axis) +
+          ' event type pairs {}, where they can be found in the profile.'.format(type_pairs))
+
+    extra_name = ''
 
     for type_pair in type_pairs:
         if len(type_pair) == 2: # it's a tuple
@@ -66,22 +93,33 @@ if __name__ == '__main__':
         ax = fig.add_subplot(111)
 
         for profile in profiles:
-            profile_name = profile.exe.replace('./testing_', '').lower()
+            profile_name = profile.exe.replace('testing_', '')
+            extra_name = str(profile.N) + '_' + str(profile.NB)
             extra_descrip = ''
             if div_by:
                 extra_descrip = ' divided by ' + div_by
 
             if subtype:
-                events = profile.events[:][(profile.events['type'] == profile.event_types[main_type]) &
-                                           (profile.events['kernel_type'] == profile.event_types[subtype])]
+                events = profile.events[:][(profile.events.type == profile.event_types[main_type]) &
+                                           (profile.events.kernel_type == profile.event_types[subtype])]
             else:
-                events = profile.events[:][(profile.events['type'] == profile.event_types[main_type])]
+                events = profile.events[:][(profile.events.type == profile.event_types[main_type])]
+
+            if len(events) == 0:
+                print('skipping profile \'{}\' with type pair {}'.format(profile.descrip(), type_pair) +
+                      'because it has no events of the selected type.')
+                continue
+            if y_axis not in events:
+                print('skipping profile {} with type pair {}'.format(profile.descrip(), type_pair) +
+                      'because it has no events of the selected type with the Y-axis variable {}.'.format(y_axis))
+                continue
 
             sorted_events = events.sort(y_axis)
 
             # cut down to ignore noise
-            sorted_events = sorted_events[int(len(sorted_events)*0.01):
-                                          int(len(sorted_events)*0.99)]
+            # -- can do better than this
+            sorted_events = sorted_events[int(len(sorted_events)*lo_cut * 0.01):
+                                          int(len(sorted_events)*hi_cut * 0.01)]
             label = '{}: {} gflops/s'.format(profile.sched.upper(),
                                              int(profile.gflops))
             ax.plot(xrange(len(sorted_events)),
@@ -95,20 +133,21 @@ if __name__ == '__main__':
                          ' tasks, sorted by ' + y_axis + extra_descrip + ', by scheduler\n' +
                          'N = {}, NB = {}, IB = {}, on {}'.format(profile.N, profile.NB,
                                                                   profile.IB, profile.hostname))
-        ax.set_ylim(sorted_events.iloc[0][y_axis], sorted_events.iloc[-1][y_axis])
+            ax.set_ylim(sorted_events.iloc[0][y_axis],
+                        sorted_events.iloc[-1][y_axis])
+        if not ax.has_data():
+            print('This graph is empty, so it will not be created.')
+            continue
         ax.grid(True)
         ax.set_xlabel('{} kernels, sorted by '.format(type_name)
                       + y_axis + extra_descrip +
-                      ', excluding top & bottom 1%')
+                      ', excl. below {}% & above {}%'.format(lo_cut, hi_cut))
         ax.set_ylabel(y_axis)
         ax.legend(loc='best', title='SCHED: perf')
         fig.set_size_inches(10, 5)
-        fig.set_dpi(200)
+        fig.set_dpi(300)
         # TODO need a better naming scheme for these files...
-        extra_name = '_'
-        for name_token in name_tokens:
-            extra_name += str(name_token) + '_'
-        fig.savefig(profile_name + '_' +
+        fig.savefig(profile_name + '_' + extra_name + '_' +
                     type_name + '_' +
-                    y_axis + extra_name +
-                    'by_sched_hockey_stick.png', bbox_inches='tight')
+                    y_axis + '_{}-{}_'.format(lo_cut, hi_cut) +
+                    'by_sched_hockey_stick.pdf', bbox_inches='tight')

@@ -75,8 +75,8 @@ def do_demo(filenames, translate=False):
         print('and they took {} seconds to describe.'.format(t.interval))
 
         print('')
-        print('Now, we will select only the PINS_L12_EXEC events via a simple operation.')
-        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types['PINS_L12_EXEC'])]
+        print('Now, we will select only the PAPI_L12_EXEC events via a simple operation.')
+        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types['PAPI_L12_EXEC'])]
         print('Notice how the description of this subset is very different:')
         print(onlyexec[profile.basic_columns].describe())
         print('')
@@ -88,7 +88,7 @@ def do_demo(filenames, translate=False):
         print(onlyexec[profile.basic_columns].describe().loc['count':'std',:])
         print('')
         print('It is also possible to perform both operations in one query, like so:')
-        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types['PINS_L12_EXEC']) 
+        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types['PAPI_L12_EXEC']) 
                                   & (profile.events.thread_id == 7)]
         print('Note that the description is the same as for the previous subset.')
         print(onlyexec[profile.basic_columns].describe().loc['count':'std',:])
@@ -110,6 +110,8 @@ def do_demo(filenames, translate=False):
         print('But now we will show that some of these events also have profiling info embedded into them.\n')
 
         print('For the sorted EXEC events from thread 7, the following profiling info data are available:\n')
+
+        print(srted)
 
         print(srted[ ['PAPI_L1', 'PAPI_L2', 'kernel_type', 'thread_id'] ].describe().loc['mean':'std',:])
         print('')

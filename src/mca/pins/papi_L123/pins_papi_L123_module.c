@@ -10,7 +10,8 @@
 
 static char* L12_events [NUM_L12_EVENTS] = {"L1-DCACHE-LOAD-MISSES",
                                             "L2_CACHE_MISS:DATA"};
-static char* L3_event = "L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE";
+/* static char* L3_event = "L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE"; */
+static char* L3_event = "L3_CACHE_MISSES:ANY_READ";
 
 static void pins_init_papi_L123(dague_context_t * master_context);
 static void pins_fini_papi_L123(dague_context_t * master_context);
@@ -74,28 +75,28 @@ static void pins_init_papi_L123(dague_context_t * master_context) {
      thread_init_prev = PINS_REGISTER(THREAD_INIT, start_papi_L123);
      thread_fini_prev = PINS_REGISTER(THREAD_FINI, stop_papi_L123);
      */
-    dague_profiling_add_dictionary_keyword("PINS_L123", "fill:#00AAFF",
+    dague_profiling_add_dictionary_keyword("PAPI_L123_THREAD", "fill:#00AAFF",
                                            sizeof(papi_L123_info_t), NULL,
                                            &pins_prof_papi_L123_begin,
                                            &pins_prof_papi_L123_end);
 
     exec_begin_prev = PINS_REGISTER(EXEC_BEGIN, read_papi_L12_exec_count_begin);
     exec_end_prev   = PINS_REGISTER(EXEC_END, read_papi_L12_exec_count_end);
-    dague_profiling_add_dictionary_keyword("PINS_L12_EXEC", "fill:#00FF00",
+    dague_profiling_add_dictionary_keyword("PAPI_L12_EXEC", "fill:#00FF00",
                                            sizeof(papi_L12_exec_info_t), NULL,
                                            &pins_prof_papi_L12_exec_begin,
                                            &pins_prof_papi_L12_exec_end);
 
     select_begin_prev = PINS_REGISTER(SELECT_BEGIN, read_papi_L12_select_count_begin);
     select_end_prev   = PINS_REGISTER(SELECT_END, read_papi_L12_select_count_end);
-    dague_profiling_add_dictionary_keyword("PINS_L12_SELECT", "fill:#FFAA00",
+    dague_profiling_add_dictionary_keyword("PAPI_L12_SELECT", "fill:#FFAA00",
                                            sizeof(papi_L12_select_info_t), NULL,
                                            &pins_prof_papi_L12_select_begin,
                                            &pins_prof_papi_L12_select_end);
 
     add_begin_prev = PINS_REGISTER(COMPLETE_EXEC_BEGIN, read_papi_L12_complete_exec_count_begin);
     add_end_prev   = PINS_REGISTER(COMPLETE_EXEC_END, read_papi_L12_complete_exec_count_end);
-    dague_profiling_add_dictionary_keyword("PINS_L12_COMPLETE_EXEC", "fill:#AAFF00",
+    dague_profiling_add_dictionary_keyword("PAPI_L12_COMPLETE_EXEC", "fill:#AAFF00",
                                            sizeof(papi_L12_exec_info_t), NULL,
                                            &pins_prof_papi_L12_add_begin,
                                            &pins_prof_papi_L12_add_end);
@@ -180,7 +181,6 @@ static void pins_thread_fini_papi_L123(dague_execution_unit_t * exec_unit) {
                                    48, 0, (void *)&info);
     }
 }
-
 
 static void read_papi_L12_exec_count_begin(dague_execution_unit_t * exec_unit,
                                            dague_execution_context_t * exec_context,

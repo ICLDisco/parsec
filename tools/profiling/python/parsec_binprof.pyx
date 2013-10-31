@@ -146,6 +146,7 @@ cpdef get_info(filenames):
     return read(filenames, info_only=True)
 
 cpdef convert(filenames, outfilename=None, unlink=True, table=False, append=False, report_progress=False):
+    cond_print('Converting {}'.format(filenames), report_progress)
     profile = read(filenames, report_progress=report_progress)
     if outfilename == None:
         outfilename = filenames[0].replace('.prof-', '.h5-')
@@ -153,6 +154,7 @@ cpdef convert(filenames, outfilename=None, unlink=True, table=False, append=Fals
     store.close()
     if unlink:
         for filename in filenames:
+            cond_print('Unlinking {} after conversion'.format(filename), report_progress)
             os.unlink(filename)
     return profile
 
@@ -325,6 +327,19 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                                 [cast_socket_info.values[x] for x
                                  in range(cast_socket_info.values_len)]]
                         # START NEW, IN-USE INFOS
+                        elif ('PINS_L12_ADD' in builder.event_types and
+                              event_type == builder.event_types['PINS_L12_ADD']):
+                            cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
+                            event_info = {
+                                'unique_id':
+                                unique_id,
+                                'kernel_type':
+                                cast_L12_exec_info.kernel_type,
+                                'PAPI_L1':
+                                cast_L12_exec_info.L1_misses,
+                                'PAPI_L2':
+                                cast_L12_exec_info.L2_misses
+                            }
                         elif ('PINS_L12_EXEC' in builder.event_types and
                               event_type == builder.event_types['PINS_L12_EXEC']):
                             cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
@@ -372,8 +387,8 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                                 'PAPI_L3':
                                 cast_L123_info.L3_misses
                             }
-                        elif ('PINS_L12_ADD' in builder.event_types and
-                              event_type == builder.event_types['PINS_L12_ADD']):
+                        elif ('PAPI_L12_ADD' in builder.event_types and
+                              event_type == builder.event_types['PAPI_L12_ADD']):
                             cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
                             event_info = {
                                 'unique_id':
@@ -384,6 +399,53 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                                 cast_L12_exec_info.L1_misses,
                                 'PAPI_L2':
                                 cast_L12_exec_info.L2_misses
+                            }
+                        elif ('PAPI_L12_EXEC' in builder.event_types and
+                              event_type == builder.event_types['PAPI_L12_EXEC']):
+                            cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
+                            event_info = {
+                                'unique_id':
+                                unique_id,
+                                'kernel_type':
+                                cast_L12_exec_info.kernel_type,
+                                'PAPI_L1':
+                                cast_L12_exec_info.L1_misses,
+                                'PAPI_L2':
+                                 cast_L12_exec_info.L2_misses
+                            }
+                        elif ('PAPI_L12_SELECT' in builder.event_types and
+                              event_type == builder.event_types['PAPI_L12_SELECT']):
+                            cast_L12_select_info = <papi_L12_select_info_t *>cinfo
+                            event_info = {
+                                'unique_id':
+                                unique_id,
+                                'kernel_type':
+                                cast_L12_select_info.kernel_type,
+                                'victim_vp_id':
+                                cast_L12_select_info.victim_vp_id,
+                                'victim_thread_id':
+                                cast_L12_select_info.victim_th_id,
+                                'starvation':
+                                cast_L12_select_info.starvation,
+                                'exec_context':
+                                cast_L12_select_info.exec_context,
+                                'PAPI_L1':
+                                cast_L12_select_info.L1_misses,
+                                'PAPI_L2':
+                                 cast_L12_select_info.L2_misses
+                            }
+                        elif ('PAPI_L123_THREAD' in builder.event_types and
+                              event_type == builder.event_types['PAPI_L123_THREAD']):
+                            cast_L123_info = <papi_L123_info_t *>cinfo
+                            event_info = {
+                                'unique_id':
+                                unique_id,
+                                'PAPI_L1':
+                                cast_L123_info.L1_misses,
+                                'PAPI_L2':
+                                cast_L123_info.L2_misses,
+                                'PAPI_L3':
+                                cast_L123_info.L3_misses
                             }
                         # elif ('<EVENT_TYPE_NAME>' in builder.event_types and
                         #       event_type == builder.event_types['<EVENT_TYPE_NAME>']):

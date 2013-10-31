@@ -21,7 +21,7 @@ class ParsecProfile(object):
                            'begin', 'end', 'duration', 'flags', 'unique_id', 'id']
     HDF_TOP_LEVEL_NAMES = ['event_types', 'event_names', 'event_attributes',
                            'nodes', 'threads', 'information', 'errors']
-    # HDF_ATTRIBUTE_NAMES = ['exe', 'N', 'cores', 'NB', 'IB', 'sched', 'gflops', 'sync_time_elapsed']
+    default_descriptors = ['hostname', 'exe', 'sched', 'ncores']
     @staticmethod
     def from_hdf(filename):
         store = pd.HDFStore(filename, 'r')
@@ -57,6 +57,8 @@ class ParsecProfile(object):
     # this allows certain 'acceptable' attribute abbreviations
     # and automatically searches the 'information' dictionary
     def __getattr__(self, name):
+        if name == 'exe': # temp fix
+            self.information[name] = self.information[name].replace('./', '')
         try:
             return self.information[name]
         except:
@@ -71,6 +73,15 @@ class ParsecProfile(object):
             return object.__getattribute__(self, name)
         # potentially add one more set of 'known translations'
         # such as 'perf' -> 'gflops', 'ex' -> 'exname'
+    def __repr__(self):
+        return self.descrip()
+    def descrip(self, infos=default_descriptors):
+        desc = ''
+        for info in infos:
+            desc += str(self.__getattr__(info)) + ' '
+        return desc[:-1]
+    def name(self, infos=default_descriptors):
+        return self.descrip(infos).replace(' ', '_')
 
 def find_profile_sets(profiles, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sched', 'exe', 'hostname'] ):
     merged_profiles = dict()
@@ -85,7 +96,14 @@ def find_profile_sets(profiles, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', '
     return merged_profiles.values()
 
 # Does a best-effort merge on sets of profiles.
+# Merges only the events, threads, and nodes, along with
+# the top-level "information" struct.
 # Intended for use after 'find_profile_sets'
+# dangerous for use with groups of profiles that do not
+# really belong to a reasonably-defined set.
+# In particular, the event_type, event_name, and event_attributes
+# DataFrames are chosen from the first profile in the set - no
+# attempt is made to merge them at this time.
 def automerge_profile_sets(profile_sets):
     merged_profiles = list()
     for p_set in profile_sets:

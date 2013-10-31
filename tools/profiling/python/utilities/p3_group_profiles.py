@@ -139,8 +139,12 @@ def autoload_profiles(filenames, convert=True, unlink=False):
     profiles = list()
 
     for group in groups:
+        h5_name = group[0].replace('prof', 'h5')
         if len(group) == 1 and 'h5' in group[0]:
             profile = p3.ParsecProfile.from_hdf(group[0])
+        elif len(group) == 1 and 'prof' in group[0] and os.path.exists(h5_name):
+            print('auto-selecting h5 version of profile '+ group[0])
+            profile = p3.ParsecProfile.from_hdf(h5_name)
         else:
             import parsec_binprof as p3_bin # don't do this if not necessary
             if convert:
