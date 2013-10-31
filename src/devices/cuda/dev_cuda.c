@@ -147,7 +147,7 @@ static int dague_cuda_memory_register(dague_device_t* device, dague_ddesc_t* des
 
     status = cuMemHostRegister(ptr, length, CU_MEMHOSTREGISTER_PORTABLE);
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuMemHostRegister ", status,
-                            {goto restore_and_return;} );
+                            { goto restore_and_return; } );
 
     status = cuCtxPopCurrent(NULL);
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
@@ -181,21 +181,21 @@ static int dague_cuda_memory_unregister(dague_device_t* device, dague_ddesc_t* d
     } while( NULL == ctx );
 
     status = cuCtxPushCurrent( ctx );
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPushCurrent ", status,
+    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cuCtxPushCurrent ", status,
                             {goto restore_and_return;} );
 
     status = cuMemHostUnregister(ptr);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cuMemHostUnregister ", status,
-                            {goto restore_and_return;} );
+    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_ununregister) cuMemHostUnregister ", status,
+                            {continue;} );
 
     status = cuCtxPopCurrent(NULL);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
+    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cuCtxPopCurrent ", status,
                             {goto restore_and_return;} );
     rc = DAGUE_SUCCESS;
     desc->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
 
   restore_and_return:
-    /* Restore the context so the others can steal it */
+    /* Restore the context so the others can use it */
     dague_atomic_cas( &(gpu_device->ctx), NULL, ctx );
 
     return rc;
