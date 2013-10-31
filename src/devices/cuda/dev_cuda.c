@@ -367,6 +367,9 @@ int dague_gpu_init(dague_context_t *dague_context)
     int isdouble = 0;
     float total_perf;
     CUresult status;
+#if defined(DAGUE_PROF_TRACE)
+    gpu_device_t **gpu_enabled_devices;
+#endif  /* defined(PROFILING) */
 
     use_cuda_index = dague_mca_param_reg_int_name("device_cuda", "enabled",
                                                   "The number of CUDA device to enable for the next PaRSEC context",
@@ -430,6 +433,7 @@ int dague_gpu_init(dague_context_t *dague_context)
     dague_profiling_add_dictionary_keyword( "cuda", "fill:#66ff66",
                                             0, NULL,
                                             &dague_cuda_own_GPU_key_start, &dague_cuda_own_GPU_key_end);
+    gpu_enabled_devices = (gpu_device_t**)malloc(sizeof(gpu_device_t*)*ndevices);
 #endif  /* defined(PROFILING) */
 
     /* TODO: Remove this ASAP */
