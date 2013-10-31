@@ -367,9 +367,6 @@ int dague_gpu_init(dague_context_t *dague_context)
     int isdouble = 0;
     float total_perf;
     CUresult status;
-#if defined(DAGUE_PROF_TRACE)
-    gpu_device_t **gpu_enabled_devices;
-#endif  /* defined(PROFILING) */
 
     use_cuda_index = dague_mca_param_reg_int_name("device_cuda", "enabled",
                                                   "The number of CUDA device to enable for the next PaRSEC context",
@@ -433,7 +430,6 @@ int dague_gpu_init(dague_context_t *dague_context)
     dague_profiling_add_dictionary_keyword( "cuda", "fill:#66ff66",
                                             0, NULL,
                                             &dague_cuda_own_GPU_key_start, &dague_cuda_own_GPU_key_end);
-    gpu_enabled_devices = (gpu_device_t**)malloc(sizeof(gpu_device_t*)*ndevices);
 #endif  /* defined(PROFILING) */
 
     /* TODO: Remove this ASAP */
@@ -616,8 +612,8 @@ int dague_gpu_init(dague_context_t *dague_context)
      */
 #if defined(DAGUE_PROF_TRACE)
     for( i = 0; i < ndevices; i++ ) {
-        gpu_device_t *gpu_device = gpu_enabled_devices[i];
-        if( NULL == gpu_device ) continue;
+        gpu_device_t *gpu_device = (gpu_device_t*)dague_devices_get(i);
+        if( (NULL == gpu_device) || (DAGUE_DEV_CUDA != gpu_device->super.type) ) continue;
 
         gpu_device->exec_stream[0].prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN;
         gpu_device->exec_stream[0].prof_event_key_start    = dague_cuda_movein_key_start;
