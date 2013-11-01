@@ -594,7 +594,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 
 #ifdef PINS_ENABLE
     char ** modules = delimited_string_to_strings(mca_pins_optarg, ',');
-    set_allowable_pins_modules((const char * const*)modules); // by calling this, we limit allowable modules
+    pins_enable_modules((const char * const*)modules); // by calling this, we limit allowable modules
     free(modules);
 #endif /* PINS_ENABLE */
 
@@ -660,7 +660,7 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
  * Provided initial string must be null-terminated.
  *
  * free() may be called on the returned pointer once the user is done with it.
- * Note, however, that if the other string was also dynamically allocated, 
+ * Note, however, that if the other string was also dynamically allocated,
  * it must still be free()d separately.
  */
 static char ** delimited_string_to_strings(char * const string_of_strings, char delim) {

@@ -108,9 +108,9 @@ void parsec_instrument(PINS_FLAG method_flag, dague_execution_unit_t * exec_unit
 
 void pins_disable_registration(int disable);
 
-void set_allowable_pins_modules (const char * const modules[]);
+void pins_enable_modules (const char * const modules[]);
 
-int is_pins_module_enabled(char * module_name);
+int pins_is_module_enabled(char * module_name);
 
 parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins_callback * cb);
 

@@ -100,6 +100,7 @@ static void pins_init_papi_L123(dague_context_t * master_context) {
                                            sizeof(papi_L12_exec_info_t), NULL,
                                            &pins_prof_papi_L12_add_begin,
                                            &pins_prof_papi_L12_add_end);
+    printf("initted papi_L123\n");
 }
 
 static void pins_fini_papi_L123(dague_context_t * master_context) {
@@ -120,6 +121,9 @@ static void pins_fini_papi_L123(dague_context_t * master_context) {
 static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit) {
     int rv = 0;
     int native;
+
+    printf("thread initted papi_L123\n");
+
 
     pins_papi_thread_init(exec_unit);
 

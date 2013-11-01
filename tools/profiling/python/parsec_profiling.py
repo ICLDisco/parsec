@@ -84,16 +84,17 @@ class ParsecProfile(object):
         return self.descrip(infos).replace(' ', '_')
 
 def find_profile_sets(profiles, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sched', 'exe', 'hostname'] ):
-    merged_profiles = dict()
+    profile_sets = dict()
     for profile in profiles:
         name = ''
         for info in on:
-            name += str(profile.__getattr__(info))
+            name += str(profile.__getattr__(info)).replace('/', '') + '_'
         try:
-            merged_profiles[name].append(profile)
+            name = name[:-1]
+            profile_sets[name].append(profile)
         except:
-            merged_profiles[name] = [profile]
-    return merged_profiles.values()
+            profile_sets[name] = [profile]
+    return profile_sets
 
 # Does a best-effort merge on sets of profiles.
 # Merges only the events, threads, and nodes, along with
@@ -153,3 +154,39 @@ def automerge_profile_sets(profile_sets):
         merged_profile.information = merged_info
         merged_profiles.append(merged_profile)
     return merged_profiles
+
+std_ignore = ['PARAM_SCHEDULER', 'start_time',
+              'cmdline', 'filename', 'HWLOC-XML',
+              'DIMENSION']
+def find_comparison_sets(profiles, vs=['sched'],
+                         ignore=std_ignore,
+                         max_str_len=20):
+    if 'sched' in vs:
+        vs += ['PARAM_SCHEDULER']
+    if 'PARAM_SCHEDULER' in vs:
+        vs += ['sched']
+    profile_comparison_sets = dict()
+    for profile in profiles:
+        cmp_str = ''
+        sorted_info_keys = sorted(profile.information.keys())
+        for info_key in sorted_info_keys:
+            if info_key in vs + ignore:
+                continue
+            info = profile.information[info_key]
+            if isinstance(info, float):
+                continue
+            elif isinstance(info, int):
+                cmp_str += str(info)
+            elif isinstance(info, basestring):
+                if len(info) > max_str_len:
+                    continue
+                else:
+                    cmp_str += info
+            else:
+                continue
+        try:
+            print(cmp_str)
+            profile_comparison_sets[cmp_str].append(profile)
+        except:
+            profile_comparison_sets[cmp_str] = [profile]
+    return profile_comparison_sets.values()

@@ -49,7 +49,7 @@ static void pins_init_papi_exec(dague_context_t * master_context) {
                                            sizeof(papi_exec_info_t), NULL,
                                            &pins_prof_papi_exec_begin, &pins_prof_papi_exec_end);
 
-    papi_socket_enabled = is_pins_module_enabled("papi_socket");
+    papi_socket_enabled = pins_is_module_enabled("papi_socket");
 }
 
 static void pins_fini_papi_exec(dague_context_t * master_context) {
