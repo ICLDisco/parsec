@@ -147,7 +147,7 @@ static int dague_cuda_memory_register(dague_device_t* device, dague_ddesc_t* des
 
     status = cuMemHostRegister(ptr, length, CU_MEMHOSTREGISTER_PORTABLE);
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuMemHostRegister ", status,
-                            {goto restore_and_return;} );
+                            { goto restore_and_return; } );
 
     status = cuCtxPopCurrent(NULL);
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
@@ -181,21 +181,21 @@ static int dague_cuda_memory_unregister(dague_device_t* device, dague_ddesc_t* d
     } while( NULL == ctx );
 
     status = cuCtxPushCurrent( ctx );
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPushCurrent ", status,
+    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cuCtxPushCurrent ", status,
                             {goto restore_and_return;} );
 
     status = cuMemHostUnregister(ptr);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cuMemHostUnregister ", status,
-                            {goto restore_and_return;} );
+    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_ununregister) cuMemHostUnregister ", status,
+                            {continue;} );
 
     status = cuCtxPopCurrent(NULL);
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cuCtxPopCurrent ", status,
+    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cuCtxPopCurrent ", status,
                             {goto restore_and_return;} );
     rc = DAGUE_SUCCESS;
     desc->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
 
   restore_and_return:
-    /* Restore the context so the others can steal it */
+    /* Restore the context so the others can use it */
     dague_atomic_cas( &(gpu_device->ctx), NULL, ctx );
 
     return rc;
@@ -612,8 +612,8 @@ int dague_gpu_init(dague_context_t *dague_context)
      */
 #if defined(DAGUE_PROF_TRACE)
     for( i = 0; i < ndevices; i++ ) {
-        gpu_device_t *gpu_device = gpu_enabled_devices[i];
-        if( NULL == gpu_device ) continue;
+        gpu_device_t *gpu_device = (gpu_device_t*)dague_devices_get(i);
+        if( (NULL == gpu_device) || (DAGUE_DEV_CUDA != gpu_device->super.type) ) continue;
 
         gpu_device->exec_stream[0].prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN;
         gpu_device->exec_stream[0].prof_event_key_start    = dague_cuda_movein_key_start;
