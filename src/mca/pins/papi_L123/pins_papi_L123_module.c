@@ -100,7 +100,6 @@ static void pins_init_papi_L123(dague_context_t * master_context) {
                                            sizeof(papi_L12_exec_info_t), NULL,
                                            &pins_prof_papi_L12_add_begin,
                                            &pins_prof_papi_L12_add_end);
-    printf("initted papi_L123\n");
 }
 
 static void pins_fini_papi_L123(dague_context_t * master_context) {
@@ -121,9 +120,6 @@ static void pins_fini_papi_L123(dague_context_t * master_context) {
 static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit) {
     int rv = 0;
     int native;
-
-    printf("thread initted papi_L123\n");
-
 
     pins_papi_thread_init(exec_unit);
 
@@ -283,8 +279,6 @@ static void read_papi_L12_select_count_end(dague_execution_unit_t * exec_unit,
         victim_core_num = exec_context->victim_core;
         if (exec_context->dague_handle->profiling_array != NULL)
             info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
-        if (info.kernel_type > 8)
-            printf("select kernel type == %d\n", info.kernel_type);
         info.starvation = (unsigned long long)data;
     }
     info.victim_vp_id = -1; // currently unavailable from scheduler queue object
@@ -360,8 +354,6 @@ static void read_papi_L12_complete_exec_count_end(dague_execution_unit_t * exec_
     info.kernel_type = -1;
     if (exec_context->dague_handle->profiling_array != NULL)
         info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
-    if (info.kernel_type > 8)
-        printf("Cexec kernel type == %d\n", info.kernel_type);
 
     // now count the PAPI events, if available
     int rv = PAPI_OK;

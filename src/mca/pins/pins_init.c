@@ -78,7 +78,7 @@ void pins_init(dague_context_t * master_context) {
     /* replace trailing comma with \0 */
     if (strlen(modules_enabled_str) > 1)
         modules_enabled_str[strlen(modules_enabled_str) - 2] = '\0';
-    dague_profiling_add_information("PINS_MODULES", modules_enabled_str);
+    /* dague_profiling_add_information("PINS_MODULES", modules_enabled_str); */
     free(modules_enabled_str);
     modules_enabled_str = NULL;
 #endif
@@ -297,7 +297,8 @@ void pins_enable_modules (const char * const modules[]) {
         while (modules[num_modules_enabled] != NULL)
             num_modules_enabled++;
         counter = num_modules_enabled;
-        modules_enabled = calloc(num_modules_enabled + 1, sizeof(char));
+        if (num_modules_enabled > 0)
+            modules_enabled = calloc(num_modules_enabled + 1, sizeof(char));
         if (modules_enabled != NULL) {
             modules_enabled[counter] = NULL;
             for (counter--; counter >= 0; counter--) {
