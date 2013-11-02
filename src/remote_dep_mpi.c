@@ -16,6 +16,7 @@
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
 
+typedef struct dep_cmd_item_s dep_cmd_item_t;
 typedef union dep_cmd_u dep_cmd_t;
 
 static int remote_dep_mpi_init(dague_context_t* context);
@@ -26,8 +27,8 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context);
 static int remote_dep_get_datatypes(dague_remote_deps_t* origin);
 static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin);
 
-static int remote_dep_nothread_send(dague_execution_unit_t* eu_context, int rank, dague_remote_deps_t* deps);
-static int remote_dep_nothread_memcpy(dep_cmd_t* cmd);
+static int remote_dep_nothread_send(dague_execution_unit_t* eu_context, dep_cmd_item_t *item);
+static int remote_dep_nothread_memcpy(dague_execution_unit_t* eu_context, dep_cmd_item_t *item);
 
 static int remote_dep_bind_thread(dague_context_t* context);
 
@@ -115,14 +116,14 @@ union dep_cmd_u
     } memcpy;
 };
 
-typedef struct dep_cmd_item_t
+struct dep_cmd_item_s
 {
     dague_list_item_t super;
     dague_list_item_t pos_list;
     dep_cmd_action_t  action;
     int               priority;
     dep_cmd_t         cmd;
-} dep_cmd_item_t;
+};
 #define dep_cmd_prio (offsetof(dep_cmd_item_t, priority))
 #define dep_mpi_pos_list (offsetof(dep_cmd_item_t, priority) - offsetof(dep_cmd_item_t, pos_list))
 
@@ -142,7 +143,7 @@ static void remote_dep_mpi_put_short( dague_execution_unit_t* eu_context, remote
 static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context, int i, MPI_Status* status );
 static void remote_dep_mpi_get_start( dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i );
 static void remote_dep_mpi_get_end( dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i, int k );
-static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dague_object_t* obj );
+static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dep_cmd_item_t *item );
 
 #ifdef DAGUE_DEBUG_VERBOSE1
 static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* str, size_t len)
@@ -562,14 +563,13 @@ handle_now:
         free(item);
         return ret;  /* FINI or OFF */
     case DEP_NEW_OBJECT:
-        remote_dep_mpi_new_object(eu_context, item->cmd.new_object.obj);
+        remote_dep_mpi_new_object(eu_context, item);
         break;
     case DEP_ACTIVATE:
-        remote_dep_nothread_send(eu_context, item->cmd.activate.rank, item->cmd.activate.deps);
+        remote_dep_nothread_send(eu_context, item);
         break;
     case DEP_MEMCPY:
-        remote_dep_nothread_memcpy(&item->cmd);
-        remote_dep_dec_flying_messages(item->cmd.memcpy.dague_object, eu_context->virtual_process->dague_context);
+        remote_dep_nothread_memcpy(eu_context, item);
         break;
     default:
         assert(0 && item->action); /* Not a valid action */
@@ -580,13 +580,13 @@ handle_now:
 }
 
 
-static int remote_dep_nothread_send( dague_execution_unit_t* eu_context,
-                                     int rank,
-                                     dague_remote_deps_t* deps)
+static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
+                                    dep_cmd_item_t *item)
 {
-    int k;
+    int k, rank = item->cmd.activate.rank;
     int rank_bank = rank / (sizeof(uint32_t) * 8);
     uint32_t rank_mask = 1 << (rank % (sizeof(uint32_t) * 8));
+    dague_remote_deps_t* deps = item->cmd.activate.deps;
     int output_count = deps->output_count;
     remote_dep_wire_activate_t msg = deps->msg;
 
@@ -604,14 +604,17 @@ static int remote_dep_nothread_send( dague_execution_unit_t* eu_context,
     return 0;
 }
 
-static int remote_dep_nothread_memcpy(dep_cmd_t* cmd)
+static int remote_dep_nothread_memcpy(dague_execution_unit_t* eu_context,
+                                      dep_cmd_item_t *item)
 {
-
+    dep_cmd_t* cmd = &item->cmd;
     /* TODO: split the mpi part */
     int rc = MPI_Sendrecv((char*)ADATA(cmd->memcpy.source) + cmd->memcpy.displ_s, cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
                           (char*)cmd->memcpy.destination + cmd->memcpy.displ_r, cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
                           MPI_COMM_SELF, MPI_STATUS_IGNORE);
     AUNREF(cmd->memcpy.source);
+    remote_dep_dec_flying_messages(item->cmd.memcpy.dague_object,
+                                   eu_context->virtual_process->dague_context);
     return (MPI_SUCCESS == rc ? 0 : -1);
 }
 
@@ -1288,8 +1291,9 @@ static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context, in
     remote_dep_mpi_recv_activate(eu_context, deps, dep_activate_buff[i], unpacked);
 }
 
-static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dague_object_t* obj )
+static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dep_cmd_item_t *item )
 {
+    dague_object_t* obj = item->cmd.new_object.obj;
 #if defined(DAGUE_DEBUG_VERBOSE2)
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -1300,7 +1304,7 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dague
             char* buffer = sizeof(dague_remote_deps_t) + (char*)item;
             int rc, unpacked = 0;
             dague_remote_deps_t* deps = remote_deps_allocate(&dague_remote_dep_context.freelist);
-            MPI_Unpack(buffer, DEP_EAGER_BUFFER_SIZE, &unpacked, 
+            MPI_Unpack(buffer, DEP_EAGER_BUFFER_SIZE, &unpacked,
                        &deps->msg, dep_count, dep_dtt, dep_comm);
             deps->from = ideps->from;
             rc = remote_dep_get_datatypes(deps); assert( -1 != rc );
