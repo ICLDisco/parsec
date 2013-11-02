@@ -38,7 +38,7 @@ static int remote_dep_dequeue_init(dague_context_t* context);
 static int remote_dep_dequeue_fini(dague_context_t* context);
 static int remote_dep_dequeue_on(dague_context_t* context);
 static int remote_dep_dequeue_off(dague_context_t* context);
-/*static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context);*/
+/*static int remote_dep_dequeue_progress(dague_context_t* context);*/
 #   define remote_dep_init(ctx) remote_dep_dequeue_init(ctx)
 #   define remote_dep_fini(ctx) remote_dep_dequeue_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_dequeue_on(ctx)
@@ -58,7 +58,7 @@ static int remote_dep_dequeue_nothread_fini(dague_context_t* context);
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
 #   define remote_dep_progress(ctx) remote_dep_dequeue_nothread_progress(ctx)
 #endif
-static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_context);
+static int remote_dep_dequeue_nothread_progress(dague_context_t* context);
 
 #include "dequeue.h"
 
@@ -72,16 +72,21 @@ static int dague_mpi_transfers  = 2 * DEP_NB_CONCURENT;
  */
 static int dague_param_nb_tasks_extracted = 40;
 
+/**
+ * The order is important as it will be used to compute the index in the
+ * pending array of messages.
+ */
 typedef enum dep_cmd_action_t
 {
-    DEP_ACTIVATE,
+    DEP_ACTIVATE    = -1,
+    DEP_NEW_OBJECT  =  0,
+    DEP_MEMCPY,
     DEP_RELEASE,
 /*    DEP_PROGRESS,
     DEP_PUT_DATA,
     DEP_GET_DATA,*/
-    DEP_NEW_OBJECT,
     DEP_CTL,
-    DEP_MEMCPY,
+    DEP_LAST  /* always the last element. it shoud not be used */
 } dep_cmd_action_t;
 
 union dep_cmd_u
@@ -113,11 +118,13 @@ union dep_cmd_u
 typedef struct dep_cmd_item_t
 {
     dague_list_item_t super;
+    dague_list_item_t pos_list;
     dep_cmd_action_t  action;
     int               priority;
     dep_cmd_t         cmd;
 } dep_cmd_item_t;
 #define dep_cmd_prio (offsetof(dep_cmd_item_t, priority))
+#define dep_mpi_pos_list (offsetof(dep_cmd_item_t, priority) - offsetof(dep_cmd_item_t, pos_list))
 
 typedef struct dague_dep_wire_get_fifo_elem_t {
     dague_list_item_t           item;
@@ -160,12 +167,17 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
 
 static pthread_t dep_thread_id;
 dague_dequeue_t dep_cmd_queue;
-dague_list_t    dep_cmd_fifo;            /* ordered non threaded fifo */
-dague_list_t    dep_activates_fifo;      /* ordered non threaded fifo */
-dague_list_t    dep_activates_noobj_fifo;/* non threaded fifo */
-dague_list_t    dep_put_fifo;            /* ordered non threaded fifo */
-dague_remote_deps_t** dep_pending_recv_array;
-dague_dep_wire_get_fifo_elem_t** dep_pending_put_array;
+dague_list_t    dep_cmd_fifo;             /* ordered non threaded fifo */
+dague_list_t    dep_activates_fifo;       /* ordered non threaded fifo */
+dague_list_t    dep_activates_noobj_fifo; /* non threaded fifo */
+dague_list_t    dep_put_fifo;             /* ordered non threaded fifo */
+static dague_remote_deps_t** dep_pending_recv_array;
+static dague_dep_wire_get_fifo_elem_t** dep_pending_put_array;
+/* help manage the messages in the same category, where a category is either messages
+ * to the same destination, or with the same action key.
+ */
+static dep_cmd_item_t** dague_mpi_same_pos_items;
+static int dague_mpi_same_pos_items_size;
 
 static void *remote_dep_dequeue_main(dague_context_t* context);
 static int mpi_initialized = 0;
@@ -323,7 +335,7 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
         mpi_thread_marker = 0;
         /* The MPI thread is owning the lock */
         remote_dep_mpi_on(context);
-        whatsup = remote_dep_dequeue_nothread_progress(context->virtual_processes[0]->execution_units[0]);
+        whatsup = remote_dep_dequeue_nothread_progress(context);
     } while(-1 != whatsup);
     /* Release all resources */
     remote_dep_mpi_fini(context);
@@ -459,17 +471,17 @@ static int remote_dep_dequeue_nothread_fini(dague_context_t* context)
 }
 #endif
 
-static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_context)
+static int remote_dep_dequeue_nothread_progress(dague_context_t* context)
 {
     dague_list_item_t *items;
-    dep_cmd_item_t *item;
+    dep_cmd_item_t *item, *same_pos;
     dague_list_t temp_list;
-    int ret = 0, how_many;
+    int ret = 0, how_many, position;
+    dague_execution_unit_t* eu_context = context->virtual_processes[0]->execution_units[0];
 
     dague_list_construct(&temp_list);
  check_pending_queues:
     /* Move a number of tranfers the dequeue into our ordered lifo. */
-    items = NULL;
     how_many = 0;
     while( NULL != (item = (dep_cmd_item_t*) dague_dequeue_try_pop_front(&dep_cmd_queue)) ) {
         if( DEP_CTL == item->action ) {
@@ -481,7 +493,32 @@ static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_conte
             break;
         }
         how_many++;
-        dague_list_nolock_push_front(&temp_list, (dague_list_item_t*)item);
+        same_pos = NULL;
+        /* Find the position in the array of the first possible item in the same category */
+        position = (DEP_ACTIVATE == item->action) ? item->cmd.activate.rank : (context->nb_nodes + item->action);
+        //printf("Insert comm task %p priority %d position %d\n", (void*)item, item->priority, position);
+
+        dague_list_item_singleton(&item->pos_list);
+        same_pos = dague_mpi_same_pos_items[position];
+        if((NULL != same_pos) && (same_pos->priority >= item->priority)) {
+            /* insert the item in the peer list */
+            dague_list_item_ring_push_sorted(&same_pos->pos_list, &item->pos_list, dep_mpi_pos_list);
+            //printf("just insert in the position list head %p item %p\n", same_pos, item);
+        } else {
+            if(NULL != same_pos) {
+                //printf("replace head (%p) in the position list %p\n", same_pos, item);
+                /* this is the new head of the list. */
+                dague_list_item_ring_push(&same_pos->pos_list, &item->pos_list);
+                /* Remove previous elem from the priority list */
+                dague_list_nolock_remove(&dep_cmd_fifo, (dague_list_item_t*)same_pos);
+                dague_list_item_singleton((dague_list_item_t*)same_pos);
+            } else {
+                //printf("became head (%p) in the position list %p\n", item, item);
+            }
+            dague_mpi_same_pos_items[position] = item;
+            /* And add ourselves in the temp list */
+            dague_list_nolock_push_front(&temp_list, (dague_list_item_t*)item);
+        }
         if(how_many > dague_param_nb_tasks_extracted)
             break;
     }
@@ -490,12 +527,12 @@ static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_conte
         dague_list_nolock_sort(&temp_list, dep_cmd_prio);
         /* Remove the ordered items from the list, and clean the list */
         items = dague_list_nolock_unchain(&temp_list);
+        //printf("Reorder %d items (ptr %p)\n", how_many, (void*)items);
         /* Insert them into the locally ordered cmd_fifo */
         dague_list_nolock_chain_sorted(&dep_cmd_fifo, items, dep_cmd_prio);
     }
-    item = (dep_cmd_item_t*)dague_ulist_fifo_pop(&dep_cmd_fifo);
-
-    if(NULL == item ) {
+    /* Extract the head of the list and point the array to the correct value */
+    if(NULL == (item = (dep_cmd_item_t*)dague_list_nolock_pop_front(&dep_cmd_fifo)) ) {
         do {
             ret = remote_dep_mpi_progress(eu_context);
         } while(ret);
@@ -507,6 +544,16 @@ static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_conte
         }
         goto check_pending_queues;
     }
+    /* Correct the other structures */
+    position = (DEP_ACTIVATE == item->action) ? item->cmd.activate.rank : (context->nb_nodes + item->action);
+    same_pos = (dep_cmd_item_t*)dague_list_item_ring_chop(&item->pos_list);
+    if( NULL != same_pos) {
+        same_pos = container_of(same_pos, dep_cmd_item_t, pos_list);
+        dague_list_nolock_push_front(&temp_list, (dague_list_item_t*)same_pos);
+    }
+    dague_mpi_same_pos_items[position] = same_pos;
+    assert(DEP_CTL != item->action);
+    //printf("Extract comm task %p priority %d\n", (void*)item, item->priority);
 handle_now:
     switch(item->action) {
     case DEP_CTL:
@@ -740,6 +787,11 @@ static int remote_dep_mpi_init(dague_context_t* context)
 
     MPI_Comm_size(dep_comm, &(context->nb_nodes));
     MPI_Comm_rank(dep_comm, &(context->my_rank));
+
+    dague_mpi_same_pos_items_size = context->nb_nodes + (int)DEP_LAST;
+    dague_mpi_same_pos_items = (dep_cmd_item_t**)calloc(dague_mpi_same_pos_items_size,
+                                                        sizeof(dep_cmd_item_t*));
+
     for(i = 0; i < DEP_NB_REQ; i++) {
         array_of_requests[i] = MPI_REQUEST_NULL;
     }
@@ -770,8 +822,12 @@ static int remote_dep_mpi_fini(dague_context_t* context)
     for(i = 0; i < DEP_NB_REQ; i++) {
         assert(MPI_REQUEST_NULL == array_of_requests[i]);
     }
-    free( dep_pending_put_array );
-    free( dep_pending_recv_array );
+    free(dep_pending_put_array); dep_pending_put_array = NULL;
+    free(dep_pending_recv_array); dep_pending_recv_array = NULL;
+
+    free(dague_mpi_same_pos_items); dague_mpi_same_pos_items = NULL;
+    dague_mpi_same_pos_items_size = 0;
+
     dague_list_destruct(&dep_activates_fifo);
     dague_list_destruct(&dep_activates_noobj_fifo);
     dague_list_destruct(&dep_put_fifo);

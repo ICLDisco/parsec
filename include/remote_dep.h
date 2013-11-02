@@ -104,9 +104,9 @@ struct dague_remote_deps_t {
 
 typedef struct {
     dague_lifo_t freelist;
-    uint32_t            max_dep_count;
-    uint32_t            max_nodes_number;
-    uint32_t            elem_size;
+    uint32_t     max_dep_count;
+    uint32_t     max_nodes_number;
+    uint32_t     elem_size;
 } dague_remote_dep_context_t;
 
 extern dague_remote_dep_context_t dague_remote_dep_context;
