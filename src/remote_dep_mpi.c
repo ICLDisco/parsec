@@ -22,7 +22,6 @@ typedef union dep_cmd_u dep_cmd_t;
 static int remote_dep_mpi_init(dague_context_t* context);
 static int remote_dep_mpi_fini(dague_context_t* context);
 static int remote_dep_mpi_on(dague_context_t* context);
-static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank, remote_dep_wire_activate_t* msg);
 static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context);
 static int remote_dep_get_datatypes(dague_remote_deps_t* origin);
 static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin);
@@ -72,6 +71,7 @@ static int dague_mpi_transfers  = 2 * DEP_NB_CONCURENT;
  * benefits of doing things in the right order.
  */
 static int dague_param_nb_tasks_extracted = 40;
+static int dague_param_enable_eager = 1;
 
 /**
  * The order is important as it will be used to compute the index in the
@@ -582,40 +582,10 @@ static int remote_dep_dequeue_nothread_progress(dague_context_t* context)
 }
 
 
-static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
-                                    dep_cmd_item_t *item)
-{
-    int k, rank, rank_bank, output_count;
-    remote_dep_wire_activate_t msg;
-    dague_remote_deps_t* deps;
-    uint32_t rank_mask;
-
-    rank      = item->cmd.activate.rank;
-    rank_bank = rank / (sizeof(uint32_t) * 8);
-    rank_mask = 1 << (rank % (sizeof(uint32_t) * 8));
-    deps         = item->cmd.activate.deps;
-    output_count = deps->output_count;
-    msg          = deps->msg;
-
-    msg.deps = (uintptr_t)deps;
-    for( k = 0; output_count; k++ ) {
-        output_count -= deps->output[k].count_bits;
-        if(deps->output[k].rank_bits[rank_bank] & rank_mask) {
-#if defined(DAGUE_PROF_DRY_DEP)
-            deps->output[k].data.arena = NULL; /* make all data a control */
-#endif
-            msg.which |= (1<<k);
-        }
-    }
-    remote_dep_mpi_send_dep(eu_context, rank, &msg);
-    return 0;
-}
-
 static int remote_dep_nothread_memcpy(dague_execution_unit_t* eu_context,
                                       dep_cmd_item_t *item)
 {
     dep_cmd_t* cmd = &item->cmd;
-    /* TODO: split the mpi part */
     int rc = MPI_Sendrecv((char*)ADATA(cmd->memcpy.source) + cmd->memcpy.displ_s, cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
                           (char*)cmd->memcpy.destination + cmd->memcpy.displ_r, cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
                           MPI_COMM_SELF, MPI_STATUS_IGNORE);
@@ -868,26 +838,35 @@ static int remote_dep_mpi_on(dague_context_t* context)
 }
 
 /* Send the activate tag */
-static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context,
-                                   int rank,
-                                   remote_dep_wire_activate_t* msg)
+static int remote_dep_mpi_send_dep(int rank,
+                                   remote_dep_wire_activate_t* msg,
+                                   char* packed_buffer,
+                                   int length,
+                                   int* position)
 {
     dague_remote_deps_t* deps = (dague_remote_deps_t*) msg->deps;
-    dague_object_t* obj = deps->dague_object;
+    int k, dsize;
 #ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[MAX_TASK_STRLEN];
 #endif
 #if !defined(DAGUE_PROF_TRACE)
     (void)eu_context;
 #endif
-    msg->tag = next_tag(MAX_PARAM_COUNT); /* todo: waste less tags to diminish collision probability */
-    DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n", rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN), msg->deps, msg->which, msg->tag));
+
+    MPI_Pack_size(dep_count, dep_dtt, dep_comm, &dsize);
+    if( (length - (*position)) < dsize ) {  /* no more room. stop here */
+        return 1;
+    }
+    MPI_Pack(msg, dep_count, dep_dtt,
+             packed_buffer, DEP_EAGER_BUFFER_SIZE, position, dep_comm);
+    (void)rank;
+    DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n",
+           rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN),
+           msg->deps, msg->which, msg->tag));
+    if( !dague_param_enable_eager ) return 0;
 
     /* Treat for special cases: CTL, Eeager, etc... */
-    char packed_buffer[DEP_EAGER_BUFFER_SIZE];
-    int packed = 0;
-    MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, DEP_EAGER_BUFFER_SIZE, &packed, dep_comm);
-    for(int k=0; msg->which>>k; k++) {
+    for(k = 0; msg->which>>k; k++) {
         if(0 == (msg->which & (1<<k))) continue;
 
         /* Remove CTL from the message we expect to send */
@@ -899,33 +878,68 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context,
         }
         assert(deps->output[k].data.count > 0);
         /* Embed as many Eager as possible with the activate msg */
-        int dsize;
         MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout, dep_comm, &dsize);
-        if((DEP_EAGER_BUFFER_SIZE - packed) > (size_t)dsize) {
+        if((length - (*position)) > dsize) {
             DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",
                     remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             msg->which ^= (1<<k);
             MPI_Pack((char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
                      deps->output[k].data.count, deps->output[k].data.layout,
-                     packed_buffer, DEP_EAGER_BUFFER_SIZE, &packed, dep_comm);
+                     packed_buffer, DEP_EAGER_BUFFER_SIZE, position, dep_comm);
             remote_dep_complete_and_cleanup(deps, 1);
         }
     }
+    return 0;
+}
 
-    TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act, eu_context->virtual_process->dague_context->my_rank, rank, (*msg));
+static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
+                                    dep_cmd_item_t *item)
+{
+    int k, rank, rank_bank, output_count, position;
+    remote_dep_wire_activate_t msg;
+    dague_remote_deps_t* deps = item->cmd.activate.deps;
+    uint32_t rank_mask;
+    char packed_buffer[DEP_EAGER_BUFFER_SIZE];
+    dague_object_t* obj;
+
+    position = 0;
+
+    rank         = item->cmd.activate.rank;
+    rank_bank    = rank / (sizeof(uint32_t) * 8);
+    rank_mask    = 1 << (rank % (sizeof(uint32_t) * 8));
+    output_count = deps->output_count;
+
+    msg      = deps->msg;
+    msg.deps = (uintptr_t)deps;
+    msg.tag  = next_tag(MAX_PARAM_COUNT); /* todo: waste less tags to diminish
+                                           collision probability */
+
+    for( k = 0; output_count; k++ ) {
+        output_count -= deps->output[k].count_bits;
+        if(deps->output[k].rank_bits[rank_bank] & rank_mask) {
+#if defined(DAGUE_PROF_DRY_DEP)
+            deps->output[k].data.arena = NULL; /* make all data a control */
+#endif
+            msg.which |= (1<<k);
+        }
+    }
+    remote_dep_mpi_send_dep(rank, &msg, packed_buffer, DEP_EAGER_BUFFER_SIZE, &position);
+    obj = deps->dague_object;
+
+    TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act, eu_context->virtual_process->dague_context->my_rank, rank, msg);
     DAGUE_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, packed, MPI_PACKED);
-    MPI_Send((void*)packed_buffer, packed, MPI_PACKED, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
+    MPI_Send((void*)packed_buffer, position, MPI_PACKED, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(rank, (void*)msg, msg);
 
-    if(0 == msg->which) {
+    if(0 == msg.which) {
         remote_dep_dec_flying_messages(obj, eu_context->virtual_process->dague_context);
     } else {
-        remote_dep_mpi_put_short(eu_context, msg, rank);
+        remote_dep_mpi_put_short(eu_context, &msg, rank);
     }
-    return 1;
-}
 
+    return 0;
+}
 
 static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
 {
