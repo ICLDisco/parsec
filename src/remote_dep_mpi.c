@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -93,8 +93,7 @@ typedef enum dep_cmd_action_t
     DEP_LAST  /* always the last element. it shoud not be used */
 } dep_cmd_action_t;
 
-union dep_cmd_u
-{
+union dep_cmd_u {
     struct {
         int rank;
         dague_remote_deps_t* deps;
@@ -119,8 +118,7 @@ union dep_cmd_u
     } memcpy;
 };
 
-struct dep_cmd_item_s
-{
+struct dep_cmd_item_s {
     dague_list_item_t super;
     dague_list_item_t pos_list;
     dep_cmd_action_t  action;
@@ -130,7 +128,7 @@ struct dep_cmd_item_s
 #define dep_cmd_prio (offsetof(dep_cmd_item_t, priority))
 #define dep_mpi_pos_list (offsetof(dep_cmd_item_t, priority) - offsetof(dep_cmd_item_t, pos_list))
 
-typedef struct dague_dep_wire_get_fifo_elem_t {
+typedef struct dague_dep_wire_get_fifo_elem_s {
     dague_list_item_t           item;
     remote_dep_wire_get_t       task;
     int                         priority;
