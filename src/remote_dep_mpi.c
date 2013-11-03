@@ -439,7 +439,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context,
         exec_context.data[whereto].data_repo = NULL;
         exec_context.data[whereto].data      = NULL;
         if(origin->msg.deps & (1 << i)) {
-            DEBUG3(("MPI:\tDATA %p released from %p[%d]\n", ADATA(origin->output[i].data), origin, i));
+            DEBUG3(("MPI:\tDATA %p released from %p[%d]\n", ADATA(origin->output[i].data.ptr), origin, i));
             exec_context.data[whereto].data = origin->output[i].data.ptr;
 #if defined(DAGUE_DEBUG) && defined(DAGUE_DEBUG_VERBOSE3)
             if(origin->output[i].data.arena) { /* no prints for CTL! */
@@ -1184,7 +1184,7 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
 #ifdef DAGUE_DEBUG_VERBOSE2
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tPut START\tunknown \tj=%d,k=%d\twith datakey %lx at %p type %s\t(tag=%d displ = %ld)\n",
-               item->peer, i, k, task->deps, data, type_name, tag+k, deps->output[k].displ));
+               item->peer, i, k, task->deps, data, type_name, tag+k, deps->output[k].data.displ));
 #endif
 
         TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
@@ -1269,7 +1269,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                     deps->output[k].data.ptr = dague_arena_get(deps->output[k].data.arena, deps->output[k].data.count);
                     DEBUG3(("MPI:\tMalloc new remote tile %p size %zu count = %d displ = %ld\n",
                             deps->output[k].data, deps->output[k].data.arena->elem_size,
-                            deps->output[k].count, deps->output[k].data.displ));
+                            deps->output[k].data.count, deps->output[k].data.displ));
                     assert(deps->output[k].data.ptr != NULL);
                 }
 #ifndef DAGUE_PROF_DRY_DEP
@@ -1287,13 +1287,16 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
             assert(NULL == deps->output[k].data.ptr); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data.ptr) {
-                deps->output[k].data.ptr = dague_arena_get(deps->output[k].data.arena, deps->output[k].data.count);
+                deps->output[k].data.ptr = dague_arena_get(deps->output[k].data.arena,
+                                                           deps->output[k].data.count);
                 DEBUG3(("MPI:\tMalloc new remote tile %p size %zu count = %d\n",
-                        deps->output[k].data.ptr, deps->output[k].data.arena->elem_size, deps->output[k].data.count));
+                        deps->output[k].data.ptr, deps->output[k].data.arena->elem_size
+                        , deps->output[k].data.count));
                 assert(deps->output[k].data.ptr != NULL);
             }
             DEBUG2(("MPI:\tFROM\t%d\tGet SHORT\t% -8s\ti=NA,k=%d\twith datakey %lx at %p\t(tag=%d)\n",
-                   deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, deps->msg.deps, ADATA(deps->output[k].data), tag+k));
+                   deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k,
+                    deps->msg.deps, ADATA(deps->output[k].data.ptr), tag+k));
 #ifndef DAGUE_PROF_DRY_DEP
             MPI_Request req; int flag = 0;
             MPI_Irecv((char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,

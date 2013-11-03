@@ -925,7 +925,7 @@ static int dague_update_deps_with_mask( dague_object_t *dague_object,
                                         const dague_flow_t* restrict dest_flow )
 {
 #if defined(DAGUE_DEBUG_VERBOSE3) || defined(DAGUE_DEBUG)
-    char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
+    char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN]; (void)tmp2;
 #endif
     dague_dependency_t dep_new_value, dep_cur_value;
     const dague_function_t* function = exec_context->function;
@@ -933,8 +933,8 @@ static int dague_update_deps_with_mask( dague_object_t *dague_object,
 #if defined(DAGUE_DEBUG)
     if( (*deps) & (1 << dest_flow->flow_index) ) {
         ERROR(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
-               dest_flow->flow_index, dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, origin), origin_flow->name,
-               *deps,
+               dest_flow->flow_index, dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, origin),
+               origin_flow->name, *deps,
                dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, exec_context),  dest_flow->name ));
     }
 #else
