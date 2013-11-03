@@ -73,7 +73,7 @@ static int dague_mpi_transfers  = 2 * DEP_NB_CONCURENT;
  * larger the amount spent in ordering the tasks, but greater the potential
  * benefits of doing things in the right order.
  */
-static int dague_param_nb_tasks_extracted = 40;
+static int dague_param_nb_tasks_extracted = 20;
 static int dague_param_enable_eager = 1;
 static int dague_param_enable_aggregate = 1;
 
@@ -878,12 +878,9 @@ static int remote_dep_mpi_pack_dep(int rank,
         return 1;
     }
     /* Skip this msg by now, we need to update it's length before packing */
-    *position += dsize;
-    msg->which = which = 0;  /* clean start */
-
-    DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n",
-           rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN),
-           msg->deps, msg->which, msg->tag)); (void)rank;
+    *position  += dsize;
+    msg->which  = which = 0;  /* clean start */
+    msg->length = 0;
 
     /* Treat for special cases: CTL, Eeager, etc... */
     for(k = 0; output_count; k++) {
@@ -916,9 +913,14 @@ static int remote_dep_mpi_pack_dep(int rank,
                      packed_buffer, length, position, dep_comm);
             which |= (1<<k);
             completed++;
+            msg->length += dsize;
         }
     }
-    msg->length = (*position) - saved_position;
+    DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n"
+           "    \t eager count %d length %d\n",
+           rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN),
+           msg->deps, msg->which, msg->tag, completed, msg->length)); (void)rank;
+
     /* And now pack the updated message (msg->length and msg->which) itself */
     MPI_Pack(msg, dep_count, dep_dtt,
              packed_buffer, length, &saved_position, dep_comm);
@@ -1226,6 +1228,13 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
     }
 }
 
+/**
+ * An activation message has been received, and the remote_dep_wire_activate_t
+ * part has already been extracted into the deps->msg. This function handle the
+ * rest of the receiver logic, extract the possible eager and control data from
+ * the buffer, post all the short protocol receives and all other local
+ * cleanups.
+ */
 static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                                          dague_remote_deps_t* deps,
                                          char* packed_buffer,
@@ -1359,8 +1368,7 @@ static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context,
                     i, deps->msg.deps, deps->msg.which));
             /* Copy the eager data to some temp storage */
             packed_buffer = malloc(deps->msg.length);
-            memcpy(packed_buffer, dep_activate_buff[i] + unpacked,
-                   deps->msg.length - dep_count);
+            memcpy(packed_buffer, dep_activate_buff[i] + unpacked, deps->msg.length);
             deps->dague_object = (struct dague_object*)packed_buffer;  /* temporary storage */
             dague_ulist_fifo_push(&dep_activates_noobj_fifo, (dague_list_item_t*)deps);
             continue;
@@ -1370,7 +1378,7 @@ static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context,
          * been dropped, force their release.
          */
         remote_dep_mpi_recv_activate(eu_context, deps, dep_activate_buff[i],
-                                     deps->msg.length, &unpacked);
+                                     unpacked + deps->msg.length, &unpacked);
         assert( dague_param_enable_aggregate || (unpacked == length));
     } while (unpacked < length);
 }
