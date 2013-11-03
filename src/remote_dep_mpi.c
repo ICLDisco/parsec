@@ -502,24 +502,19 @@ static int remote_dep_dequeue_nothread_progress(dague_context_t* context)
         same_pos = NULL;
         /* Find the position in the array of the first possible item in the same category */
         position = (DEP_ACTIVATE == item->action) ? item->cmd.activate.rank : (context->nb_nodes + item->action);
-        //printf("Insert comm task %p priority %d position %d\n", (void*)item, item->priority, position);
 
         dague_list_item_singleton(&item->pos_list);
         same_pos = dague_mpi_same_pos_items[position];
         if((NULL != same_pos) && (same_pos->priority >= item->priority)) {
             /* insert the item in the peer list */
             dague_list_item_ring_push_sorted(&same_pos->pos_list, &item->pos_list, dep_mpi_pos_list);
-            //printf("just insert in the position list head %p item %p\n", same_pos, item);
         } else {
             if(NULL != same_pos) {
-                //printf("replace head (%p) in the position list %p\n", same_pos, item);
                 /* this is the new head of the list. */
                 dague_list_item_ring_push(&same_pos->pos_list, &item->pos_list);
                 /* Remove previous elem from the priority list */
                 dague_list_nolock_remove(&dep_cmd_fifo, (dague_list_item_t*)same_pos);
                 dague_list_item_singleton((dague_list_item_t*)same_pos);
-            } else {
-                //printf("became head (%p) in the position list %p\n", item, item);
             }
             dague_mpi_same_pos_items[position] = item;
             /* And add ourselves in the temp list */
@@ -533,7 +528,6 @@ static int remote_dep_dequeue_nothread_progress(dague_context_t* context)
         dague_list_nolock_sort(&temp_list, dep_cmd_prio);
         /* Remove the ordered items from the list, and clean the list */
         items = dague_list_nolock_unchain(&temp_list);
-        //printf("Reorder %d items (ptr %p)\n", how_many, (void*)items);
         /* Insert them into the locally ordered cmd_fifo */
         dague_list_nolock_chain_sorted(&dep_cmd_fifo, items, dep_cmd_prio);
     }
@@ -552,7 +546,6 @@ static int remote_dep_dequeue_nothread_progress(dague_context_t* context)
     }
     position = (DEP_ACTIVATE == item->action) ? item->cmd.activate.rank : (context->nb_nodes + item->action);
     assert(DEP_CTL != item->action);
-    //printf("Extract comm task %p priority %d\n", (void*)item, item->priority);
   handle_now:
     switch(item->action) {
     case DEP_CTL:
@@ -902,7 +895,7 @@ static int remote_dep_mpi_pack_dep(int rank,
         assert(deps->output[k].data.count > 0);
         if( !dague_param_enable_eager ) continue;
 
-        /* Embed as many Eager as possible with the activate msg */
+        /* Embed data (up to eager size) with the activate msg */
         MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout,
                       dep_comm, &dsize);
         if((length - (*position)) >= dsize) {
@@ -920,7 +913,6 @@ static int remote_dep_mpi_pack_dep(int rank,
            "    \t eager count %d length %d\n",
            rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN),
            msg->deps, msg->which, msg->tag, completed, msg->length)); (void)rank;
-
     /* And now pack the updated message (msg->length and msg->which) itself */
     MPI_Pack(msg, dep_count, dep_dtt,
              packed_buffer, length, &saved_position, dep_comm);
@@ -1189,8 +1181,10 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
 
         TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
                             eu_context->virtual_process->dague_context->my_rank, item->peer, deps->msg);
+#if !defined(DAGUE_PROF_DRY_DEP)
         MPI_Isend((char*)data + deps->output[k].data.displ,
                   nbdtt, dtt, item->peer, tag + k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
+#endif  /* defined() */
         DEBUG_MARK_DTA_MSG_START_SEND(item->peer, data, tag+k);
     }
     dep_pending_put_array[i] = item;
@@ -1260,10 +1254,10 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
             continue;
         }
 
-        if( dague_param_enable_eager ) {
+        if( dague_param_enable_eager && (length - (*unpacked))) {
             /* Check if the data is EAGER embedded in the activate */
             MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout, dep_comm, &dsize);
-            if((length - (*unpacked)) > dsize) {
+            if((length - (*unpacked)) >= dsize) {
                 assert(NULL == deps->output[k].data.ptr); /* we do not support in-place tiles now, make sure it doesn't happen yet */
                 if(NULL == deps->output[k].data.ptr) {
                     deps->output[k].data.ptr = dague_arena_get(deps->output[k].data.arena, deps->output[k].data.count);
