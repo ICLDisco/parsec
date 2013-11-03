@@ -845,7 +845,16 @@ static int remote_dep_mpi_on(dague_context_t* context)
     return 0;
 }
 
-/* Send the activate tag */
+/**
+ * Given a remote_dep_wire_activate message it packs as much as possible
+ * into the provided buffer. If possible (eager allowed and enough room
+ * in the buffer) some of the arguments will also be packed. Beware, the
+ * remote_dep_wire_activate message itself must be updated with the
+ * correct length before packing.
+ *
+ * @returns 1 if the message can't be packed due to lack of space, or 0
+ * otherwise.
+ */
 static int remote_dep_mpi_pack_dep(int rank,
                                    remote_dep_wire_activate_t* msg,
                                    char* packed_buffer,
@@ -854,9 +863,14 @@ static int remote_dep_mpi_pack_dep(int rank,
 {
     dague_remote_deps_t* deps = (dague_remote_deps_t*) msg->deps;
     int k, dsize, saved_position = *position, completed = 0;
+    int output_count = deps->output_count, which;
+    uint32_t rank_bank, rank_mask;
 #ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[MAX_TASK_STRLEN];
 #endif
+
+    rank_bank = rank / (sizeof(uint32_t) * 8);
+    rank_mask = 1 << (rank % (sizeof(uint32_t) * 8));
 
     MPI_Pack_size(dep_count, dep_dtt, dep_comm, &dsize);
     if( (length - (*position)) < dsize ) {  /* no room. bail out */
@@ -865,20 +879,26 @@ static int remote_dep_mpi_pack_dep(int rank,
     }
     /* Skip this msg by now, we need to update it's length before packing */
     *position += dsize;
+    msg->which = which = 0;  /* clean start */
 
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n",
            rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN),
            msg->deps, msg->which, msg->tag)); (void)rank;
 
     /* Treat for special cases: CTL, Eeager, etc... */
-    for(k = 0; msg->which>>k; k++) {
-        if(0 == (msg->which & (1<<k))) continue;
+    for(k = 0; output_count; k++) {
+        output_count -= deps->output[k].count_bits;
+        if( !(deps->output[k].rank_bits[rank_bank] & rank_mask) ) continue;
+        msg->which |= (1<<k);
 
         /* Remove CTL from the message we expect to send */
+#if defined(DAGUE_PROF_DRY_DEP)
+        deps->output[k].data.arena = NULL; /* make all data a control */
+#endif
         if(NULL == deps->output[k].data.arena) {
             DEBUG2((" CTL\t%s\tparam %d\tdemoted to be a control\n",
                     remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
-            msg->which ^= (1<<k);
+            which |= (1<<k);
             completed++;
             continue;
         }
@@ -894,49 +914,43 @@ static int remote_dep_mpi_pack_dep(int rank,
             MPI_Pack((char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
                      deps->output[k].data.count, deps->output[k].data.layout,
                      packed_buffer, length, position, dep_comm);
-            msg->which ^= (1<<k);
+            which |= (1<<k);
             completed++;
         }
     }
     msg->length = (*position) - saved_position;
-    /* And now pack the updated message (msg->length) itself */
+    /* And now pack the updated message (msg->length and msg->which) itself */
     MPI_Pack(msg, dep_count, dep_dtt,
              packed_buffer, length, &saved_position, dep_comm);
+    msg->which ^= which;  /* remove the packed ones */
     if(completed) remote_dep_complete_and_cleanup(deps, completed);
     return 0;
 }
 
+/**
+ * Starting with a particular item pack as many remote_dep_wire_activate
+ * messages with the same destination (from the item ring associated with
+ * pos_list) into a buffer. Upon completion the entire buffer is send to the
+ * remote peer, the completed messages are released and the header is updated to
+ * the next unsent message.
+ */
 static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
                                     dep_cmd_item_t **head_item)
 {
-    int k, rank, rank_bank, output_count, position = 0;
     remote_dep_wire_activate_t* msg;
     dague_remote_deps_t *deps;
     dep_cmd_item_t *item = *head_item;
-    uint32_t rank_mask;
     dague_list_item_t* ring = NULL;
     char packed_buffer[DEP_EAGER_BUFFER_SIZE];
+    int rank, position = 0;
 
+    rank         = item->cmd.activate.rank;  /* this doesn't change */
   pack_more:
-    rank         = item->cmd.activate.rank;
-    rank_bank    = rank / (sizeof(uint32_t) * 8);
-    rank_mask    = 1 << (rank % (sizeof(uint32_t) * 8));
     deps         = item->cmd.activate.deps;
-    output_count = deps->output_count;
+    msg          = &deps->msg;
+    msg->tag     = next_tag(MAX_PARAM_COUNT); /* todo: waste less tags to diminish
+                                                 collision probability */
 
-    msg      = &deps->msg;
-    msg->tag = next_tag(MAX_PARAM_COUNT); /* todo: waste less tags to diminish
-                                             collision probability */
-
-    for( k = 0; output_count; k++ ) {
-        output_count -= deps->output[k].count_bits;
-        if(deps->output[k].rank_bits[rank_bank] & rank_mask) {
-#if defined(DAGUE_PROF_DRY_DEP)
-            deps->output[k].data.arena = NULL; /* make all data a control */
-#endif
-            msg->which |= (1<<k);
-        }
-    }
     dague_list_item_singleton((dague_list_item_t*)item);
     if( 0 == remote_dep_mpi_pack_dep(rank, msg,
                                      packed_buffer, DEP_EAGER_BUFFER_SIZE,
