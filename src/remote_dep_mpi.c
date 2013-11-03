@@ -853,24 +853,22 @@ static int remote_dep_mpi_pack_dep(int rank,
                                    int* position)
 {
     dague_remote_deps_t* deps = (dague_remote_deps_t*) msg->deps;
-    int k, dsize;
+    int k, dsize, saved_position = *position, completed = 0;
 #ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[MAX_TASK_STRLEN];
 #endif
-#if !defined(DAGUE_PROF_TRACE)
-    (void)eu_context;
-#endif
 
     MPI_Pack_size(dep_count, dep_dtt, dep_comm, &dsize);
-    if( (length - (*position)) < dsize ) {  /* no more room. stop here */
+    if( (length - (*position)) < dsize ) {  /* no room. bail out */
+        DEBUG3(("Can't pack at %d/%d. Bail out!\n", *position, length));
         return 1;
     }
-    MPI_Pack(msg, dep_count, dep_dtt,
-             packed_buffer, length, position, dep_comm);
-    (void)rank;
+    /* Skip this msg by now, we need to update it's length before packing */
+    *position += dsize;
+
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n",
            rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN),
-           msg->deps, msg->which, msg->tag));
+           msg->deps, msg->which, msg->tag)); (void)rank;
 
     /* Treat for special cases: CTL, Eeager, etc... */
     for(k = 0; msg->which>>k; k++) {
@@ -878,26 +876,33 @@ static int remote_dep_mpi_pack_dep(int rank,
 
         /* Remove CTL from the message we expect to send */
         if(NULL == deps->output[k].data.arena) {
-            DEBUG2((" CTL\t%s\tparam %d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
+            DEBUG2((" CTL\t%s\tparam %d\tdemoted to be a control\n",
+                    remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             msg->which ^= (1<<k);
-            remote_dep_complete_and_cleanup(deps, 1);
+            completed++;
             continue;
         }
         assert(deps->output[k].data.count > 0);
         if( !dague_param_enable_eager ) continue;
 
         /* Embed as many Eager as possible with the activate msg */
-        MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout, dep_comm, &dsize);
-        if((length - (*position)) > dsize) {
+        MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout,
+                      dep_comm, &dsize);
+        if((length - (*position)) >= dsize) {
             DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",
                     remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
-            msg->which ^= (1<<k);
             MPI_Pack((char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
                      deps->output[k].data.count, deps->output[k].data.layout,
                      packed_buffer, length, position, dep_comm);
-            remote_dep_complete_and_cleanup(deps, 1);
+            msg->which ^= (1<<k);
+            completed++;
         }
     }
+    msg->length = (*position) - saved_position;
+    /* And now pack the updated message (msg->length) itself */
+    MPI_Pack(msg, dep_count, dep_dtt,
+             packed_buffer, length, &saved_position, dep_comm);
+    if(completed) remote_dep_complete_and_cleanup(deps, completed);
     return 0;
 }
 
@@ -921,7 +926,7 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
 
     msg      = &deps->msg;
     msg->tag = next_tag(MAX_PARAM_COUNT); /* todo: waste less tags to diminish
-                                           collision probability */
+                                             collision probability */
 
     for( k = 0; output_count; k++ ) {
         output_count -= deps->output[k].count_bits;
@@ -1319,7 +1324,9 @@ static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context,
     char tmp[MAX_TASK_STRLEN];
 #endif
     int unpacked = 0;
-    dague_remote_deps_t* deps = remote_deps_allocate(&dague_remote_dep_context.freelist);
+    dague_remote_deps_t* deps;
+
+    deps = remote_deps_allocate(&dague_remote_dep_context.freelist);
     MPI_Unpack(dep_activate_buff[i], DEP_EAGER_BUFFER_SIZE, &unpacked,
                &deps->msg, dep_count, dep_dtt, dep_comm);
     deps->from = status->MPI_SOURCE;

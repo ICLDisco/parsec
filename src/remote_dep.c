@@ -63,7 +63,7 @@ static inline void remote_dep_dec_flying_messages(dague_object_t *dague_object, 
 
 /* Mark that ncompleted of the remote deps are finished, and return the remote dep to
  * the free items queue if it is now done */
-static void remote_dep_complete_and_cleanup(dague_remote_deps_t* deps, int ncompleted)
+static inline void remote_dep_complete_and_cleanup(dague_remote_deps_t* deps, int ncompleted)
 {
     deps->output_sent_count += ncompleted;
     assert( deps->output_sent_count <= deps->output_count );

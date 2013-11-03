@@ -42,6 +42,7 @@ typedef struct remote_dep_wire_activate_t
     remote_dep_datakey_t tag;
     uint32_t             object_id;
     uint32_t             function_id;
+    uint32_t             length;
     assignment_t         locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
 
