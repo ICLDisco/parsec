@@ -370,8 +370,8 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
 
     /* Step one: Find the first data in WRITE mode */
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
-        if( (NULL == this_task->function->out[i]) ||
-            (this_task->function->out[i]->access_type & ACCESS_WRITE) ) {
+        if( (NULL == this_task->function->in[i]) ||
+            (this_task->function->in[i]->access_type & ACCESS_WRITE) ) {
             data_index = i;
             break;
         }
