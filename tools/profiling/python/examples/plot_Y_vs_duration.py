@@ -61,7 +61,7 @@ def plot_Y_vs_duration(profiles, y_axis, main_type, subtype=None, shared_name=''
     fig.set_size_inches(10, 5)
     fig.set_dpi(300)
     fig.savefig(shared_name.replace(' ', '_') + '_' + type_name +
-                '_dur_{}-{}_vs_{}_scatter.{}'.format(lo_cut, hi_cut, y_axis, ext),
+                '{}_vs_dur_{}-{}_scatter.{}'.format(y-axis, lo_cut, hi_cut, ext),
                 bbox_inches='tight')
 
 if __name__ == '__main__':

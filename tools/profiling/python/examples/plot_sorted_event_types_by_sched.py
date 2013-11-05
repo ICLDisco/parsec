@@ -96,7 +96,7 @@ def plot_profiles(profiles, y_axis, main_type, subtype=None, shared_name='',
     fig.set_dpi(300)
     # TODO need a better naming scheme for these files...
     fig.savefig(shared_name.replace(' ', '_') + '_' +
-                type_name + '_' +
+                type_name + '_sorted_by_' +
                 y_axis + '_{}-{}_'.format(lo_cut, hi_cut) +
                 'by_sched_hockey_stick.' + ext, bbox_inches='tight')
 
