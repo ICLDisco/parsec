@@ -8,7 +8,7 @@
 # and stored the profile in this format in some sort
 # of cross-process format, such as a pickle.
 
-import sys, os
+import sys, os, re
 import pandas as pd
 import numpy as np
 
@@ -57,8 +57,12 @@ class ParsecProfile(object):
     # this allows certain 'acceptable' attribute abbreviations
     # and automatically searches the 'information' dictionary
     def __getattr__(self, name):
-        if name == 'exe': # temp fix
-            self.information[name] = self.information[name].replace('./', '')
+        if name == 'exe':
+            try:
+                m = re.match('.*testing_(\w+)', self.information['exe'])
+                return m.group(1)
+            except Exception as e:
+                pass
         try:
             return self.information[name]
         except:

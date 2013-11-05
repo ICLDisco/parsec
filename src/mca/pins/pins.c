@@ -37,7 +37,6 @@ parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins
         }
         DEBUG(("Initialized PaRSEC PINS callbacks to empty_callback()"));
     }
-    assert(cb != NULL);
     if (method_flag < PINS_FLAG_COUNT) {
         if (registration_disabled) {
             DEBUG2(("NOTE: PINS has been disabled by command line argument, causing this registration to fail."));
@@ -45,7 +44,10 @@ parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins
         }
         else {
             parsec_pins_callback * prev = pins_array[method_flag];
-            pins_array[method_flag] = cb;
+            if (NULL == cb) /* ignore silently */
+                return prev;
+            else
+                pins_array[method_flag] = cb;
             return prev;
         }
     }

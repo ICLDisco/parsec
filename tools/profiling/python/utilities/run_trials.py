@@ -19,7 +19,7 @@ max_rsd = 5 # anything above this and we want to re-run
 max_stddev_fails = 4 # don't re-run too many times
 max_set_fails = 5
 max_trial_attempts = 20
-do_trials = 3
+do_trials = 1
 
 # old ?
 # pattern = re.compile(".*### TIMED\s(\d+\.\d+)\s+s.+?NB=\s+(\d+).+?(\d+\.\d+)\s+gflops\n(.*)",

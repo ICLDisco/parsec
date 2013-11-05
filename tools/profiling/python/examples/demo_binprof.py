@@ -75,8 +75,8 @@ def do_demo(filenames, translate=False):
         print('and they took {} seconds to describe.'.format(t.interval))
 
         print('')
-        print('Now, we will select only the PAPI_L12_EXEC events via a simple operation.')
-        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types['PAPI_L12_EXEC'])]
+        print('Now, we will select only the PAPI_CORE_EXEC events via a simple operation.')
+        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types['PAPI_CORE_EXEC'])]
         print('Notice how the description of this subset is very different:')
         print(onlyexec[profile.basic_columns].describe())
         print('')
@@ -88,7 +88,7 @@ def do_demo(filenames, translate=False):
         print(onlyexec[profile.basic_columns].describe().loc['count':'std',:])
         print('')
         print('It is also possible to perform both operations in one query, like so:')
-        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types['PAPI_L12_EXEC']) 
+        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types['PAPI_CORE_EXEC']) 
                                   & (profile.events.thread_id == 7)]
         print('Note that the description is the same as for the previous subset.')
         print(onlyexec[profile.basic_columns].describe().loc['count':'std',:])
@@ -100,11 +100,11 @@ def do_demo(filenames, translate=False):
 
         print('To show that we\'ve sorted the events, we print the first five,')
         print('middle five, and last five events in the dataframe:')
-        print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[:5])
+        print(srted.loc[:,['duration', 'begin', 'end', 'id', 'PAPI_L3']].iloc[:5])
         print('')
-        print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[len(srted)/2-3:len(srted)/2+2])
+        print(srted.loc[:,['duration', 'begin', 'end', 'id', 'PAPI_L3']].iloc[len(srted)/2-3:len(srted)/2+2])
         print('')
-        print(srted.loc[:,['duration', 'begin', 'end', 'id']].iloc[-5:])
+        print(srted.loc[:,['duration', 'begin', 'end', 'id', 'PAPI_L3']].iloc[-5:])
         print('')
         print('Up until now, we have only been looking at certain columns of the DataFrame.')
         print('But now we will show that some of these events also have profiling info embedded into them.\n')
@@ -113,7 +113,7 @@ def do_demo(filenames, translate=False):
 
         print(srted)
 
-        print(srted[ ['PAPI_L1', 'PAPI_L2', 'kernel_type', 'thread_id'] ].describe().loc['mean':'std',:])
+        print(srted[ ['PAPI_L1', 'PAPI_L2', 'PAPI_L3', 'kernel_type', 'thread_id'] ].describe().loc['mean':'std',:])
         print('')
 
         print('We can select events by index and access their data piece by piece if we want.')

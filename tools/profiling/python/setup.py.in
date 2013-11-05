@@ -33,6 +33,8 @@ ext_modules = [Extension('parsec_binprof', ['@CMAKE_CURRENT_SOURCE_DIR@/parsec_b
                                        '@CMAKE_CURRENT_SOURCE_DIR@/../'],
                          depends=['setup.py.in',
                                   'parsec_binprof.pxd',
+                                  'pbp_info_parser.pxd',
+                                  'pbp_info_parser.pxi',
                                   '@CMAKE_CURRENT_BINARY_DIR@/../dbpreader.h',
                                   '@PROJECT_SOURCE_DIR@/include/dbp.h',
                                   '@PROJECT_SOURCE_DIR@/include/os-spec-timing.h'],

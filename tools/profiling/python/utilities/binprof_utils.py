@@ -139,17 +139,20 @@ def autoload_profiles(filenames, convert=True, unlink=False):
     profiles = list()
 
     for group in groups:
-        h5_name = group[0].replace('prof', 'h5')
-        if len(group) == 1 and 'h5' in group[0]:
+        h5_name = group[0].replace('.prof-', '.h5-')
+        if len(group) == 1 and '.h5-' in group[0]:
+            print('loading H5 {}'.format(group[0]))
             profile = p3.ParsecProfile.from_hdf(group[0])
-        elif len(group) == 1 and 'prof' in group[0] and os.path.exists(h5_name):
+        elif len(group) == 1 and '.prof-' in group[0] and os.path.exists(h5_name):
             print('auto-selecting h5 version of profile '+ group[0])
             profile = p3.ParsecProfile.from_hdf(h5_name)
         else:
             import parsec_binprof as p3_bin # don't do this if not necessary
             if convert:
+                print('converting binprof group {} to H5 format'.format(group[0]))
                 profile = p3_bin.convert(group, unlink=unlink)
             else:
+                print('reading binprof group {}'.format(group[0]))
                 profile = p3_bin.read(group)
         profiles.append(profile)
     return profiles

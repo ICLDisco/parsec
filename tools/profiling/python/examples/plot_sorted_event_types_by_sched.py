@@ -12,12 +12,13 @@ import itertools
 
 # defaults
 y_axis = 'PAPI_L2'
-event_types = ['PAPI_L12_EXEC']
-event_subtypes = []
+event_types = ['PAPI_CORE_EXEC']
+event_subtypes = ['GEMM']
 div_by = None
-hi_cut = 99
-lo_cut = 01
+lo_cut = 00
+hi_cut = 100
 do_all = False
+ext = 'pdf'
 
 def print_help():
     print('')
@@ -33,7 +34,9 @@ def print_help():
     print(' --event-subtypes : Filters by PAPI_L12 event kernel type, e.g. GEMM, POTRF, SYRK')
     print('')
 
-def plot_profiles(profiles, main_type, subtype=None, shared_name=''):
+def plot_profiles(profiles, main_type, subtype=None, shared_name='',
+                  hi_cut=hi_cut, lo_cut=lo_cut, y_axis=y_axis, ext=ext):
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
@@ -46,10 +49,6 @@ def plot_profiles(profiles, main_type, subtype=None, shared_name=''):
         type_name = main_type
 
     for profile in profiles:
-        extra_descrip = ''
-        if div_by:
-            extra_descrip = ' divided by ' + div_by
-
         if subtype:
             events = profile.events[:][(profile.events.type == profile.event_types[main_type]) &
                                        (profile.events.kernel_type == profile.event_types[subtype])]
@@ -71,19 +70,17 @@ def plot_profiles(profiles, main_type, subtype=None, shared_name=''):
         # -- can do better than this
         sorted_events = sorted_events[int(len(sorted_events)*lo_cut * 0.01):
                                       int(len(sorted_events)*hi_cut * 0.01)]
-        label = '{}: {} gflops/s'.format(profile.sched.upper(),
-                                         int(profile.gflops))
+        label = '{}: {:.1f} gflops/s'.format(profile.sched.upper(),
+                                            profile.gflops)
         ax.plot(xrange(len(sorted_events)),
                 sorted_events[y_axis],
                 color=mpl_prefs.sched_colors[profile.sched.upper()],
                 label=label
             )
-        print(label)
 
-        ax.set_title(shared_name.replace('_', ' ') + ' ' + type_name +
-                     ' tasks, sorted by ' + y_axis + extra_descrip + ', by scheduler\n' +
-                     'N = {}, NB = {}, IB = {}, on {}'.format(profile.N, profile.NB,
-                                                              profile.IB, profile.hostname))
+        ax.set_title(y_axis + ' for {} Tasks, Sorted, By Scheduler\n'.format(type_name) +
+                     'for {} where N = {}, NB = {}, IB = {}, on {}'.format(profile.exe, profile.N, profile.NB,
+                                                                       profile.IB, profile.hostname))
         ax.set_ylim(sorted_events.iloc[0][y_axis],
                     sorted_events.iloc[-1][y_axis])
     if not ax.has_data():
@@ -91,7 +88,7 @@ def plot_profiles(profiles, main_type, subtype=None, shared_name=''):
         return -1
     ax.grid(True)
     ax.set_xlabel('{} kernels, sorted by '.format(type_name)
-                  + y_axis + extra_descrip +
+                  + y_axis +
                   ', excl. below {}% & above {}%'.format(lo_cut, hi_cut))
     ax.set_ylabel(y_axis)
     ax.legend(loc='best', title='SCHED: perf')
@@ -101,7 +98,7 @@ def plot_profiles(profiles, main_type, subtype=None, shared_name=''):
     fig.savefig(shared_name.replace(' ', '_') + '_' +
                 type_name + '_' +
                 y_axis + '_{}-{}_'.format(lo_cut, hi_cut) +
-                'by_sched_hockey_stick.pdf', bbox_inches='tight')
+                'by_sched_hockey_stick.' + ext, bbox_inches='tight')
 
 if __name__ == '__main__':
     filenames = []

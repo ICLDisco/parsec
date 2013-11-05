@@ -8,7 +8,7 @@
 #include "execution_unit.h"
 
 /* these should eventually be runtime-configurable */
-static int exec_events[NUM_EXEC_EVENTS] = {PAPI_L1_DCM, PAPI_L2_DCH, PAPI_L2_DCM, PAPI_L2_DCA};
+static int exec_events[NUM_EXEC_EVENTS] = PAPI_EXEC_NATIVE_EVENT_NAMES;
 
 static void pins_init_papi_exec(dague_context_t * master_context);
 static void pins_fini_papi_exec(dague_context_t * master_context);
@@ -26,11 +26,11 @@ const dague_pins_module_t dague_pins_papi_exec_module = {
     }
 };
 
-static void start_papi_exec_count(dague_execution_unit_t * exec_unit, 
-                                  dague_execution_context_t * exec_context, 
+static void start_papi_exec_count(dague_execution_unit_t * exec_unit,
+                                  dague_execution_context_t * exec_context,
                                   void * data);
-static void stop_papi_exec_count(dague_execution_unit_t * exec_unit, 
-                                 dague_execution_context_t * exec_context, 
+static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
+                                 dague_execution_context_t * exec_context,
                                  void * data);
 
 static parsec_pins_callback * exec_begin_prev; // courtesy calls to previously-registered cbs
@@ -64,38 +64,38 @@ static void pins_thread_init_papi_exec(dague_execution_unit_t * exec_unit) {
 
     pins_papi_thread_init(exec_unit);
 
-    if (!papi_socket_enabled || 
+    if (!papi_socket_enabled ||
         exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
         exec_unit->papi_eventsets[EXEC_SET] = PAPI_NULL;
         if ((rv = PAPI_create_eventset(&exec_unit->papi_eventsets[EXEC_SET])) != PAPI_OK)
             printf("papi_exec_module.c, pins_thread_init_papi_exec: "
                    "thread %d couldn't create the PAPI event set "
-                   "to measure L1/L2 misses; ERROR: %s\n", 
+                   "to measure L1/L2 misses; ERROR: %s\n",
                    exec_unit->th_id, PAPI_strerror(rv));
-        if ((rv = PAPI_add_events(exec_unit->papi_eventsets[EXEC_SET], 
-                                  exec_events, NUM_EXEC_EVENTS)) 
+        if ((rv = PAPI_add_events(exec_unit->papi_eventsets[EXEC_SET],
+                                  exec_events, NUM_EXEC_EVENTS))
             != PAPI_OK)
             printf("papi_exec.c, pins_thread_init_papi_exec: thread %d failed to add "
-                   "exec events to EXEC eventset; ERROR: %s\n", 
+                   "exec events to EXEC eventset; ERROR: %s\n",
                    exec_unit->th_id, PAPI_strerror(rv));
     }
 }
 
-static void start_papi_exec_count(dague_execution_unit_t * exec_unit, 
-                                  dague_execution_context_t * exec_context, 
+static void start_papi_exec_count(dague_execution_unit_t * exec_unit,
+                                  dague_execution_context_t * exec_context,
                                   void * data) {
     int rv = PAPI_OK;
-    if (!papi_socket_enabled || 
+    if (!papi_socket_enabled ||
         exec_unit->th_id % CORES_PER_SOCKET != WHICH_CORE_IN_SOCKET) {
         if ((rv = PAPI_start(exec_unit->papi_eventsets[EXEC_SET])) != PAPI_OK) {
             printf("papi_exec.c, start_papi_exec_count: thread %d can't start "
-                   "exec event counters! %s\n", 
+                   "exec event counters! %s\n",
                    exec_unit->th_id, PAPI_strerror(rv));
         }
-        else { 
-            dague_profiling_trace(exec_unit->eu_profile, pins_prof_papi_exec_begin, 
+        else {
+            dague_profiling_trace(exec_unit->eu_profile, pins_prof_papi_exec_begin,
                                   (*exec_context->function->key
-                                   )(exec_context->dague_handle, exec_context->locals), 
+                                   )(exec_context->dague_handle, exec_context->locals),
                                   exec_context->dague_handle->handle_id, NULL);
 
         }
@@ -106,8 +106,8 @@ static void start_papi_exec_count(dague_execution_unit_t * exec_unit,
     }
 }
 
-static void stop_papi_exec_count(dague_execution_unit_t * exec_unit, 
-                                 dague_execution_context_t * exec_context, 
+static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
+                                 dague_execution_context_t * exec_context,
                                  void * data) {
     (void)exec_context;
     (void)data;
@@ -118,17 +118,15 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
         if ((rv = PAPI_stop(exec_unit->papi_eventsets[EXEC_SET], values)) != PAPI_OK) {
             printf("papi_exec_module.c, stop_papi_exec_count: "
                    "thread %d can't stop exec event counters! "
-                   "ERROR: %s\n", 
+                   "ERROR: %s\n",
                    exec_unit->th_id, PAPI_strerror(rv));
         }
         else {
             papi_exec_info_t info;
-            info.kernel_type = exec_context->function->function_id;
-            strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
-            info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
-            info.vp_id = exec_unit->virtual_process->vp_id;
-            info.th_id = exec_unit->th_id;
-            for(int i = 0; i < NUM_EXEC_EVENTS; i++) 
+            info.kernel_type = -1;
+            if (exec_context->dague_handle->profiling_array != NULL)
+                info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
+            for(int i = 0; i < NUM_EXEC_EVENTS; i++)
                 info.values[i] = values[i];
 
             /* not *necessary*, but perhaps better for compatibility
@@ -140,12 +138,12 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
              * e.g. struct { int num_ints; int; int; int; int num_lls;
              * ll; ll; ll; ll; ll; ll } - the names could be assigned
              * after the fact by a knowledgeable end user */
-            info.values_len = NUM_EXEC_EVENTS; 
+            /* info.values_len = NUM_EXEC_EVENTS; */
 
-            rv = dague_profiling_trace(exec_unit->eu_profile, pins_prof_papi_exec_end, 
+            rv = dague_profiling_trace(exec_unit->eu_profile, pins_prof_papi_exec_end,
                                        (*exec_context->function->key
-                                        )(exec_context->dague_handle, exec_context->locals), 
-                                       exec_context->dague_handle->handle_id, 
+                                        )(exec_context->dague_handle, exec_context->locals),
+                                       exec_context->dague_handle->handle_id,
                                        (void *)&info);
             if (rv) {
                 printf("failed to save PINS_EXEC event to profiling system %d\n", rv);
@@ -157,4 +155,3 @@ static void stop_papi_exec_count(dague_execution_unit_t * exec_unit,
         (*exec_end_prev)(exec_unit, exec_context, data);
     }
 }
-

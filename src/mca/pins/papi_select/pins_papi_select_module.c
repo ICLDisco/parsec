@@ -5,6 +5,12 @@
 #include "debug.h"
 #include "execution_unit.h"
 
+static int select_events[NUM_SELECT_EVENTS] = {PAPI_L2_TCM, PAPI_L2_DCM};
+
+#define THREAD_NUM(exec_unit) (exec_unit->virtual_process->vp_id *      \
+                               exec_unit->virtual_process->dague_context->nb_vp + \
+                               exec_unit->th_id )
+
 static void pins_init_papi_select(dague_context_t * master_context);
 static void pins_fini_papi_select(dague_context_t * master_context);
 static void pins_thread_init_papi_select(dague_execution_unit_t * exec_unit);
@@ -21,20 +27,15 @@ const dague_pins_module_t dague_pins_papi_select_module = {
     }
 };
 
-static void start_papi_select_count(dague_execution_unit_t * exec_unit, 
+static void start_papi_select_count(dague_execution_unit_t * exec_unit,
                                     dague_execution_context_t * exec_context, void * data);
-static void stop_papi_select_count(dague_execution_unit_t * exec_unit, 
+static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
                                    dague_execution_context_t * exec_context, void * data);
 
 static parsec_pins_callback * select_begin_prev; // courtesy calls to previously-registered cbs
 static parsec_pins_callback * select_end_prev;
 
 static int pins_prof_select_begin, pins_prof_select_end;
-static int select_events[NUM_SELECT_EVENTS] = {PAPI_L2_TCM, PAPI_L2_DCM};
-
-#define THREAD_NUM(exec_unit) (exec_unit->virtual_process->vp_id *      \
-                               exec_unit->virtual_process->dague_context->nb_vp + \
-                               exec_unit->th_id )
 
 static void pins_init_papi_select(dague_context_t * master) {
     pins_papi_init(master);
@@ -59,7 +60,7 @@ static void pins_thread_init_papi_select(dague_execution_unit_t * exec_unit) {
         DEBUG(("papi_select.c, pins_thread_init_papi_select: "
                "failed to create SELECT event set\n"));
     }
-    if ((rv = PAPI_add_events(exec_unit->papi_eventsets[SELECT_SET], 
+    if ((rv = PAPI_add_events(exec_unit->papi_eventsets[SELECT_SET],
 
                               select_events, NUM_SELECT_EVENTS)) != PAPI_OK) {
         DEBUG(("papi_select.c, pins_thread_init_papi_select: failed to add "
@@ -70,22 +71,22 @@ static void pins_thread_init_papi_select(dague_execution_unit_t * exec_unit) {
                                            &pins_prof_select_begin, &pins_prof_select_end);
 }
 
-static void start_papi_select_count(dague_execution_unit_t * exec_unit, 
-                                    dague_execution_context_t * exec_context, 
+static void start_papi_select_count(dague_execution_unit_t * exec_unit,
+                                    dague_execution_context_t * exec_context,
                                     void * data) {
     (void)exec_context;
     (void)data;
     int rv;
     if ((rv = PAPI_start(exec_unit->papi_eventsets[SELECT_SET])) != PAPI_OK) {
         DEBUG(("%p papi_select.c, start_papi_select_count: "
-               "can't start SELECT event counters! %d %s\n", 
+               "can't start SELECT event counters! %d %s\n",
                exec_unit, rv, PAPI_strerror(rv)));
     }
     else {
-        dague_profiling_trace(exec_unit->eu_profile, 
-                              pins_prof_select_begin, 
+        dague_profiling_trace(exec_unit->eu_profile,
+                              pins_prof_select_begin,
                               45,
-                              0, 
+                              0,
                               NULL);
     }
     // keep the contract with the previous registrant
@@ -94,25 +95,19 @@ static void start_papi_select_count(dague_execution_unit_t * exec_unit,
     }
 }
 
-static void stop_papi_select_count(dague_execution_unit_t * exec_unit, 
-                                   dague_execution_context_t * exec_context, 
+static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
+                                   dague_execution_context_t * exec_context,
                                    void * data) {
     unsigned long long victim_core_num = (unsigned long long)data;
-    unsigned int num_threads = (exec_unit->virtual_process->dague_context->nb_vp 
+    unsigned int num_threads = (exec_unit->virtual_process->dague_context->nb_vp
                                 * exec_unit->virtual_process->nb_cores);
     select_info_t info;
+    info.kernel_type = -1;
+
     if (exec_context) {
-        info.kernel_type = exec_context->function->function_id;
-        strncpy(info.kernel_name, exec_context->function->name, KERNEL_NAME_SIZE - 1);
-        info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
+        if (exec_context->dague_handle->profiling_array != NULL)
+            info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
     }
-    else {
-        info.kernel_type = 0;
-        strncpy(info.kernel_name, "<STARVED>", KERNEL_NAME_SIZE - 1);
-        info.kernel_name[KERNEL_NAME_SIZE - 1] = '\0';
-    }
-    info.vp_id = exec_unit->virtual_process->vp_id;
-    info.th_id = exec_unit->th_id;
     info.victim_vp_id = -1; // currently unavailable from scheduler queue object
     if (victim_core_num >= num_threads)
         info.victim_vp_id = SYSTEM_QUEUE_VP;
@@ -124,23 +119,21 @@ static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
     int rv = PAPI_OK;
     if ((rv = PAPI_stop(exec_unit->papi_eventsets[SELECT_SET], values)) != PAPI_OK) {
         DEBUG(("papi_select.c, stop_papi_select_count: "
-               "can't stop SELECT event counters! %d %s\n", 
+               "can't stop SELECT event counters! %d %s\n",
                rv, PAPI_strerror(rv)));
         // default values
         for (int i = 0; i < NUM_SELECT_EVENTS; i++)
             info.values[i] = -1;
-        info.values_len = 0;
     }
     else {
         for (int i = 0; i < NUM_SELECT_EVENTS; i++)
             info.values[i] = values[i];
-        info.values_len = NUM_SELECT_EVENTS; // see papi_exec/*module.c for why this is done
     }
-        
-    dague_profiling_trace(exec_unit->eu_profile, 
-                          pins_prof_select_end, 
+
+    dague_profiling_trace(exec_unit->eu_profile,
+                          pins_prof_select_end,
                           45,
-                          0, 
+                          0,
                           (void *)&info);
 
     // keep the contract with the previous registrant
@@ -148,4 +141,3 @@ static void stop_papi_select_count(dague_execution_unit_t * exec_unit,
         (*select_end_prev)(exec_unit, exec_context, data);
     }
 }
-

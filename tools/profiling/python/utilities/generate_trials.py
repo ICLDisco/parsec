@@ -39,7 +39,7 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
 #    IBdivs = [1,2,4,8,11] # None to use default per exec
 
 #    IBdivs = [2, 4]
-    NBs = [188, 256, 380, 400]        # None to use defaults
+    NBs = [192]        # None to use defaults
 
 #    Ns = [15360]
 #    NBs = [180, 200, 360, 380]
@@ -112,6 +112,7 @@ def generate_trial_sets(output_base_dir, list_only = True, extra_args = []):
                                 _file = open(output_base_dir + os.sep + 'pending.' +
                                              trial_set.shared_name(), 'w')
                                 trial_set.pickle(_file)
+                                _file.close()
                             trial_sets.append(trial_set)
     return trial_sets
 

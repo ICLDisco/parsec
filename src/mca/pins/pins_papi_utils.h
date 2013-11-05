@@ -4,11 +4,10 @@
 #include "dague.h"
 #include "execution_unit.h"
 
-#define WHICH_CORE_IN_SOCKET 1 // OLD: mostly, just don't choose 0; it interferes with PaRSEC's thread handling
+#define WHICH_CORE_IN_SOCKET 2 // mostly, just don't choose 0; it interferes with PaRSEC's thread handling
 // at this point, any value for WHICH should be acceptable, due to refactoring of PINS finalization code
 
-// this is now in CMAKE config, until dague-hwloc is updated to support dynamic determination
-// #define CORES_PER_SOCKET 6 // for ig.icl.utk.edu, an Istanbul Opteron, anyway
+// CORES_PER_SOCKET is now in CMAKE config, until dague-hwloc is updated to support dynamic determination
 
 void pins_papi_init(dague_context_t * master_context);
 void pins_papi_thread_init(dague_execution_unit_t * exec_unit);

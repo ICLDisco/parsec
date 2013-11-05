@@ -1,14 +1,4 @@
-# dbpreader python definition file
-
-# NOTE: following note is actually now untrue, as os-spec-timing.h is not necessary
-# since the change to relative timing.
-# NOTE: MUST INCLUDE dbp.h BEFORE os-spec-timing.h, so that dbp.h will pull in dague_config.h, which DEFINES #HAVE_CLOCK_GETTIME
-# without that definition, the wrong (microsecond) version of diff_time (for most platforms) will be chosen.
-# basically, just make sure dague_config gets included early on.
-
-# additional note: dague_config.h is generated during the build process, so it'd be nice to find a way to 
-# build this during the normal build. currently, it is necessary to do a build and then pull the
-# dague_config.h over from the build directory into the source directory manually.
+# parsec_binprof python definition file
 
 cdef extern from "dbp.h":
    ctypedef struct dague_thread_profiling_t:
@@ -101,68 +91,4 @@ cdef extern from "dbpreader.h":
    # DEBUG
    void dbp_file_print(dbp_file_t* file)
 
-########################################################
-############## CUSTOM EVENT INFO SECTION ###############
-### --- add a function and/or a type to this section ###
-#### to allow for new 'info' types                ######
-
-cdef extern from "dague/mca/pins/papi_exec/pins_papi_exec.h":
-   enum: NUM_EXEC_EVENTS # allows us to grab the #define from the .h
-   enum: KERNEL_NAME_SIZE
-
-   ctypedef struct papi_exec_info_t:
-      int kernel_type
-      char kernel_name[KERNEL_NAME_SIZE]
-      int vp_id
-      int th_id
-      int values_len
-      long long values[NUM_EXEC_EVENTS] # number is inconsequential
-
-cdef extern from "dague/mca/pins/papi_select/pins_papi_select.h":
-   enum: NUM_TASK_SELECT_EVENTS # allows us to grab the #define from the .h
-   enum: SYSTEM_QUEUE_VP
-   enum: KERNEL_NAME_SIZE
-
-   ctypedef struct select_info_t:
-      int kernel_type
-      char kernel_name[KERNEL_NAME_SIZE]
-      int vp_id
-      int th_id
-      int victim_vp_id
-      int victim_th_id
-      long long exec_context
-      int values_len
-      long long values[NUM_TASK_SELECT_EVENTS] # number is inconsequential
-
-cdef extern from "dague/mca/pins/papi_socket/pins_papi_socket.h":
-   enum: NUM_SOCKET_EVENTS # allows us to grab the #define from the .h
-
-   ctypedef struct papi_socket_info_t:
-      int vp_id
-      int th_id
-      int values_len
-      long long values[NUM_SOCKET_EVENTS] # number is inconsequential
-
-cdef extern from "dague/mca/pins/papi_L123/pins_papi_L123.h":
-   enum: SYSTEM_QUEUE_VP
-
-   ctypedef struct papi_L12_select_info_t:
-      int kernel_type
-      int victim_vp_id
-      int victim_th_id
-      long long starvation
-      long long exec_context
-      long long L1_misses
-      long long L2_misses
-      long long L3_misses
-
-   ctypedef struct papi_L12_exec_info_t:
-      int kernel_type
-      long long L1_misses
-      long long L2_misses
-      long long L3_misses
-
-   ctypedef struct papi_L123_info_t:
-      long long L1_misses
-      long long L2_misses
-      long long L3_misses
+include "pbp_info_parser.pxd"

@@ -28,12 +28,16 @@ def online_variance_mean(data):
         M2 = M2 + delta*(x - mean)  # This expression uses the new value of mean
     if n > 0:
         variance_n = M2/n
-	variance = M2/(n - 1)
+        if n > 1:
+            variance = M2/(n - 1)
+            return variance, mean
+        else:
+            return variance_n, mean
     else:
         print ("empty data set")
         from traceback import print_tb
         print_tb(sys.last_traceback)
-    return variance, mean
+        return 0.0, mean
 
 def online_mean(data):
     n = 0

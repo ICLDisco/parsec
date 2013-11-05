@@ -21,6 +21,8 @@ import pandas as pd
 import time
 import re
 
+include "pbp_info_parser.pxi"
+
 # reads an entire profile into a set of pandas DataFrames
 # filenames ought to be a list of strings, or comparable type.
 cpdef read(filenames, report_progress=False, info_only=False):
@@ -212,12 +214,12 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
     cdef uint64_t begin = 0
     cdef uint64_t end = 0
     cdef void * cinfo = NULL
+
     cdef papi_exec_info_t * cast_exec_info = NULL
     cdef select_info_t * cast_select_info = NULL
-    cdef papi_L123_info_t * cast_L123_info = NULL
-    cdef papi_L12_select_info_t * cast_L12_select_info = NULL
-    cdef papi_L12_exec_info_t * cast_L12_exec_info = NULL
-    cdef long long int * cast_lld_ptr = NULL
+    cdef papi_core_socket_info_t * cast_core_socket_info = NULL
+    cdef papi_core_select_info_t * cast_core_select_info = NULL
+    cdef papi_core_exec_info_t * cast_core_exec_info = NULL
 
     thread_descrip = dbp_thread_get_hr_id(cthread)
     thread = {'node_id': node_id, 'description':thread_descrip}
@@ -261,202 +263,17 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                              begin, end, duration, event_flags, unique_id, event_id]
 
                     if end < begin:
-                        dbp_iterator_delete(it_e)
-                        it_e = NULL
-                        dbp_iterator_next(it_s)
-                        event_s = dbp_iterator_current(it_s)
                         error_msg = 'event of class {} id {} at {} has a negative duration.\n'.format(
                             event_name, event_id, thread_id)
                         builder.errors.append(event + [error_msg])
-                        continue
-
-                    builder.events.append(event)
-
-                    #####################################
-                    # not all events have info
-                    # also, not all events have the same info.
-                    # so this is where users must add code to translate
-                    # their own info objects
-                    event_info = None
-                    cinfo = dbp_event_get_info(event_e)
-                    if cinfo != NULL:
-                        if ('PINS_EXEC' in builder.event_types and
-                            event_type == builder.event_types['PINS_EXEC']):
-                            cast_exec_info = <papi_exec_info_t *>cinfo
-                            kernel_name = str(cast_exec_info.kernel_name)
-                            event_info = {
-                                'kernel_type':
-                                cast_exec_info.kernel_type,
-                                'kernel_name':
-                                kernel_name,
-                                'vp_id':
-                                cast_exec_info.vp_id,
-                                'thread_id':
-                                cast_exec_info.th_id,
-                                'exec_info':
-                                [cast_exec_info.values[x] for x
-                                 in range(cast_exec_info.values_len)]}
-                        elif ('PINS_SELECT' in builder.event_types and
-                              event_type == builder.event_types['PINS_SELECT']):
-                            cast_select_info = <select_info_t *>cinfo
-                            kernel_name = str(cast_select_info.kernel_name)
-                            event_info = {
-                                'kernel_type':
-                                cast_select_info.kernel_type,
-                                'kernel_name':
-                                kernel_name,
-                                'vp_id':
-                                cast_select_info.vp_id,
-                                'th_id':
-                                cast_select_info.th_id,
-                                'victim_vp_id':
-                                cast_select_info.victim_vp_id,
-                                'victim_thread_id':
-                                cast_select_info.victim_th_id,
-                                'exec_context':
-                                cast_select_info.exec_context,
-                                'values':
-                                [cast_select_info.values[x] for x
-                                 in range(cast_select_info.values_len)]}
-                        elif ('PINS_SOCKET' in builder.event_types and
-                              event_type == builder.event_types['PINS_SOCKET']):
-                            cast_socket_info = <papi_socket_info_t *>cinfo
-                            event_info = [
-                                cast_socket_info.vp_id,
-                                cast_socket_info.th_id,
-                                [cast_socket_info.values[x] for x
-                                 in range(cast_socket_info.values_len)]]
-                        # START NEW, IN-USE INFOS
-                        elif ('PINS_L12_ADD' in builder.event_types and
-                              event_type == builder.event_types['PINS_L12_ADD']):
-                            cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
-                            event_info = {
-                                'unique_id':
-                                unique_id,
-                                'kernel_type':
-                                cast_L12_exec_info.kernel_type,
-                                'PAPI_L1':
-                                cast_L12_exec_info.L1_misses,
-                                'PAPI_L2':
-                                cast_L12_exec_info.L2_misses
-                            }
-                        elif ('PINS_L12_EXEC' in builder.event_types and
-                              event_type == builder.event_types['PINS_L12_EXEC']):
-                            cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
-                            event_info = {
-                                'unique_id':
-                                unique_id,
-                                'kernel_type':
-                                cast_L12_exec_info.kernel_type,
-                                'PAPI_L1':
-                                cast_L12_exec_info.L1_misses,
-                                'PAPI_L2':
-                                 cast_L12_exec_info.L2_misses
-                            }
-                        elif ('PINS_L12_SELECT' in builder.event_types and
-                              event_type == builder.event_types['PINS_L12_SELECT']):
-                            cast_L12_select_info = <papi_L12_select_info_t *>cinfo
-                            event_info = {
-                                'unique_id':
-                                unique_id,
-                                'kernel_type':
-                                cast_L12_select_info.kernel_type,
-                                'victim_vp_id':
-                                cast_L12_select_info.victim_vp_id,
-                                'victim_thread_id':
-                                cast_L12_select_info.victim_th_id,
-                                'starvation':
-                                cast_L12_select_info.starvation,
-                                'exec_context':
-                                cast_L12_select_info.exec_context,
-                                'PAPI_L1':
-                                cast_L12_select_info.L1_misses,
-                                'PAPI_L2':
-                                 cast_L12_select_info.L2_misses
-                            }
-                        elif ('PINS_L123' in builder.event_types and
-                              event_type == builder.event_types['PINS_L123']):
-                            cast_L123_info = <papi_L123_info_t *>cinfo
-                            event_info = {
-                                'unique_id':
-                                unique_id,
-                                'PAPI_L1':
-                                cast_L123_info.L1_misses,
-                                'PAPI_L2':
-                                cast_L123_info.L2_misses,
-                                'PAPI_L3':
-                                cast_L123_info.L3_misses
-                            }
-                        elif ('PAPI_L12_ADD' in builder.event_types and
-                              event_type == builder.event_types['PAPI_L12_ADD']):
-                            cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
-                            event_info = {
-                                'unique_id':
-                                unique_id,
-                                'kernel_type':
-                                cast_L12_exec_info.kernel_type,
-                                'PAPI_L1':
-                                cast_L12_exec_info.L1_misses,
-                                'PAPI_L2':
-                                cast_L12_exec_info.L2_misses
-                            }
-                        elif ('PAPI_L12_EXEC' in builder.event_types and
-                              event_type == builder.event_types['PAPI_L12_EXEC']):
-                            cast_L12_exec_info = <papi_L12_exec_info_t *>cinfo
-                            event_info = {
-                                'unique_id':
-                                unique_id,
-                                'kernel_type':
-                                cast_L12_exec_info.kernel_type,
-                                'PAPI_L1':
-                                cast_L12_exec_info.L1_misses,
-                                'PAPI_L2':
-                                 cast_L12_exec_info.L2_misses
-                            }
-                        elif ('PAPI_L12_SELECT' in builder.event_types and
-                              event_type == builder.event_types['PAPI_L12_SELECT']):
-                            cast_L12_select_info = <papi_L12_select_info_t *>cinfo
-                            event_info = {
-                                'unique_id':
-                                unique_id,
-                                'kernel_type':
-                                cast_L12_select_info.kernel_type,
-                                'victim_vp_id':
-                                cast_L12_select_info.victim_vp_id,
-                                'victim_thread_id':
-                                cast_L12_select_info.victim_th_id,
-                                'starvation':
-                                cast_L12_select_info.starvation,
-                                'exec_context':
-                                cast_L12_select_info.exec_context,
-                                'PAPI_L1':
-                                cast_L12_select_info.L1_misses,
-                                'PAPI_L2':
-                                 cast_L12_select_info.L2_misses
-                            }
-                        elif ('PAPI_L123_THREAD' in builder.event_types and
-                              event_type == builder.event_types['PAPI_L123_THREAD']):
-                            cast_L123_info = <papi_L123_info_t *>cinfo
-                            event_info = {
-                                'unique_id':
-                                unique_id,
-                                'PAPI_L1':
-                                cast_L123_info.L1_misses,
-                                'PAPI_L2':
-                                cast_L123_info.L2_misses,
-                                'PAPI_L3':
-                                cast_L123_info.L3_misses
-                            }
-                        # elif ('<EVENT_TYPE_NAME>' in builder.event_types and
-                        #       event_type == builder.event_types['<EVENT_TYPE_NAME>']):
-                        #   event_info = <write a function and a Python type to translate>
-                        else:
-                            dont_print = True
-                            if not dont_print:
-                                print('missed an info for event type ' + event_name )
-
-                    if event_info:
-                        builder.infos.append(event_info)
+                    else: # the event is 'sane'
+                        builder.events.append(event)
+                        cinfo = dbp_event_get_info(event_e)
+                        if cinfo != NULL:
+                            event_info = parse_info(builder, event_type, 
+                                                    unique_id, cinfo)
+                            if event_info:
+                                builder.infos.append(event_info)
 
                 dbp_iterator_delete(it_e)
                 it_e = NULL

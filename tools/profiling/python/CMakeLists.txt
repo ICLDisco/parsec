@@ -10,6 +10,8 @@ set(FISH_ENV    "${CMAKE_CURRENT_BINARY_DIR}/utilities/fish.env")
 set(BASH_ENV    "${CMAKE_CURRENT_BINARY_DIR}/utilities/bash.env")
 set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/parsec_binprof.pyx"
                 "${CMAKE_CURRENT_SOURCE_DIR}/parsec_binprof.pxd"
+                "${CMAKE_CURRENT_SOURCE_DIR}/pbp_info_parser.pxd"
+                "${CMAKE_CURRENT_SOURCE_DIR}/pbp_info_parser.pxi"
 		"${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
 		"${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
 		"${CMAKE_CURRENT_SOURCE_DIR}/../../../include/dbp.h"

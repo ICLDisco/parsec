@@ -58,8 +58,8 @@ class ParsecTrialSet(list):
     # class members
     __unloaded_profile_token__ = 'not loaded' # old
     @staticmethod
-    def unpickle(file, load_profile=True):
-        trial_set = cPickle.load(file)
+    def unpickle(_file, load_profile=True):
+        trial_set = cPickle.load(_file)
         # if load_profile:
         #     # load profiles, assign them to trials
         #     for trial in trial_set:

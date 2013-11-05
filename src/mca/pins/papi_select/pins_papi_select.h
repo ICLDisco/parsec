@@ -12,13 +12,9 @@
 
 typedef struct select_info_s {
 	int kernel_type;
-	char kernel_name[KERNEL_NAME_SIZE];
-	int vp_id;
-	int th_id;
 	int victim_vp_id;
 	int victim_th_id;
 	unsigned long long int exec_context;
-	int values_len;
 	long long values[NUM_SELECT_EVENTS];
 } select_info_t;
 
