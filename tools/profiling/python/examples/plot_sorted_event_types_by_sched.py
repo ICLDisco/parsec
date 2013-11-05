@@ -34,8 +34,8 @@ def print_help():
     print(' --event-subtypes : Filters by PAPI_L12 event kernel type, e.g. GEMM, POTRF, SYRK')
     print('')
 
-def plot_profiles(profiles, main_type, subtype=None, shared_name='',
-                  hi_cut=hi_cut, lo_cut=lo_cut, y_axis=y_axis, ext=ext):
+def plot_profiles(profiles, y_axis, main_type, subtype=None, shared_name='',
+                  hi_cut=hi_cut, lo_cut=lo_cut, ext=ext):
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -160,4 +160,7 @@ if __name__ == '__main__':
                 main_type = type_pair
                 subtype = None
 
-            plot_profiles(profiles, main_type, subtype=subtype, shared_name = set_name)
+            plot_profiles(profiles, y_axis, main_type, subtype=subtype,
+                          shared_name = set_name, hi_cut = hi_cut, lo_cut=lo_cut)
+        # for event_type in event_types:
+        #     plot_profiles(profiles, event_type, shared_name = set_name)

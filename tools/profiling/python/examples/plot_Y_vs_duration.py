@@ -11,14 +11,15 @@ import os, sys
 import itertools
 
 y_axis = 'PAPI_L3'
-event_types = ['PAPI_CORE_EXEC']
-event_subtypes = ['GEMM']
 lo_cut = 00
 hi_cut = 100
 ext = 'png'
 
-def plot_Y_vs_duration(profiles, main_type, subtype=None, shared_name='',
-                       hi_cut=hi_cut, lo_cut=lo_cut, y_axis=y_axis, ext=ext):
+event_types = ['PAPI_CORE_EXEC']
+event_subtypes = ['GEMM']
+
+def plot_Y_vs_duration(profiles, y_axis, main_type, subtype=None, shared_name='',
+                       hi_cut=hi_cut, lo_cut=lo_cut, ext=ext):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     profiles.sort(key=lambda x: x.gflops)
@@ -74,6 +75,8 @@ if __name__ == '__main__':
                 sys.exit(0)
             elif arg.startswith('--event-types='):
                 event_types = arg.replace('--event-types=', '').split(',')
+            elif arg.startswith('--event-subtypes='):
+                event_subtypes = arg.replace('--event-subtypes=', '').split(',')
             elif arg.startswith('--y-axis='):
                 y_axis = arg.replace('--y-axis=', '')
             elif arg.startswith('--cut='):
@@ -106,8 +109,10 @@ if __name__ == '__main__':
                 main_type = type_pair
                 subtype = None
 
-            plot_Y_vs_duration(profiles, main_type, subtype=subtype, shared_name=set_name)
-        for event_type in event_types:
-            plot_Y_vs_duration(profiles, event_type, shared_name=set_name)
+            plot_Y_vs_duration(profiles, y_axis, main_type, subtype=subtype,
+                               hi_cut = hi_cut, lo_cut = lo_cut,
+                               shared_name=set_name)
+        # for event_type in event_types:
+        #     plot_Y_vs_duration(profiles, event_type, shared_name=set_name)
 
 
