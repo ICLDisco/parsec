@@ -372,7 +372,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if( (NULL == this_task->function->out[i]) ||
             (this_task->function->out[i]->access_type & ACCESS_WRITE) ) {
-            data_index = i;
+            data_index = this_task->function->out[i]->flow_index;
             break;
         }
     }

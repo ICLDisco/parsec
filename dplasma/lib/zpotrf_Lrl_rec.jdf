@@ -240,7 +240,7 @@ BODY
     }
 
 #endif  /* !defined(DAGUE_DRY_RUN) */
-    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */,ACCESS_WRITE);
+    
 /*	printf("[TRSM] m=%d, k=%d\n", m, k);*/
     printlog("CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
              m, k,
