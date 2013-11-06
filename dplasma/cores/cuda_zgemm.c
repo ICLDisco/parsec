@@ -102,7 +102,9 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
             this_task->data[i].data_out = local;
             if (this_task->data[i].data_in != this_task->data[i].data_out && this_task->data[i].data_in != original->device_copies[0] && this_task->data[i].data_in->version == original->device_copies[0]->version) {
                 printf("####################GPU1 TO GPU2######################\n");
+                dague_data_copy_release(this_task->data[i].data_in);  /* release the copy in GPU1 */
                 this_task->data[i].data_in = original->device_copies[0];
+                OBJ_RETAIN(this_task->data[i].data_in);  /* retain the corresponding CPU copy */
             }
             /* Check the most up2date version of the data */
             if( data->device_index != gpu_device->super.device_index ) {
@@ -121,7 +123,9 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
 
         if (this_task->data[i].data_in != this_task->data[i].data_out && this_task->data[i].data_in != original->device_copies[0] && this_task->data[i].data_in->version == original->device_copies[0]->version) {
             printf("####################GPU1 TO GPU2######################\n");
+            dague_data_copy_release(this_task->data[i].data_in);  /* release the the copy in GPU1 */
             this_task->data[i].data_in = original->device_copies[0];
+            OBJ_RETAIN(this_task->data[i].data_in);  /* retain the corresponding CPU copy */
         }
 
         /* If the data is needed as an input load it up */
