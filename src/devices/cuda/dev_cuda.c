@@ -1021,6 +1021,15 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         return 0;
     }
 
+    /* DtoD copy, if data is read only, then we go back to CPU copy, and fetch data from CPU (HtoD) */
+    if (in_elem != gpu_elem && in_elem != original->device_copies[0] && in_elem->version == original->device_copies[0]->version) {
+        printf("####################GPU1 TO GPU2######################\n");
+        dague_data_copy_release(in_elem);  /* release the copy in GPU1 */
+        task_data->data_in = original->device_copies[0];
+        in_elem = task_data->data_in; 
+        OBJ_RETAIN(in_elem);  /* retain the corresponding CPU copy */
+    }
+
     transfer_required = dague_data_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
     gpu_device->super.required_data_in += original->nb_elts;
     if( transfer_required ) {
