@@ -8,9 +8,9 @@
 
 #define NUM_CORE_EVENTS 3
 #define PAPI_CORE_NATIVE_EVENT_ARRAY {          \
+        "L2_CACHE_MISS:DATA",                   \
+        "L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE",     \
         "DTLB-LOAD-MISSES",                \
-        "L3_EVICTIONS",                   \
-        "L3_CACHE_MISSES:ANY_READ",             \
 }
 #define NUM_SOCKET_EVENTS 0
 #define PAPI_SOCKET_NATIVE_EVENT_ARRAY {} /*{"L3_CACHE_MISSES:ANY_READ"}*/
@@ -32,10 +32,10 @@
  *
  * Define your own parsers in pbp_info_parser.pxi.
  */
-#define PAPI_CORE_PROF_EVT_NAME_SOCKET     "PAPI_SOCKET_TLB_EV"
-#define PAPI_CORE_PROF_EVT_NAME_EXEC       "PAPI_CORE_EXEC_TLB_EV"
-#define PAPI_CORE_PROF_EVT_NAME_SEL        "PAPI_CORE_SEL_TLB_EV"
-#define PAPI_CORE_PROF_EVT_NAME_COMPL      "PAPI_CORE_COMPL_TLB_EV"
+#define PAPI_CORE_PROF_EVT_NAME_SOCKET     "PAPI_SOCKET_23T"
+#define PAPI_CORE_PROF_EVT_NAME_EXEC       "PAPI_CORE_EXEC_23T"
+#define PAPI_CORE_PROF_EVT_NAME_SEL        "PAPI_CORE_SEL_23T"
+#define PAPI_CORE_PROF_EVT_NAME_COMPL      "PAPI_CORE_COMPL_23T"
 
 typedef struct papi_core_socket_info_s {
     long long evt_values[NUM_CORE_EVENTS + NUM_SOCKET_EVENTS];

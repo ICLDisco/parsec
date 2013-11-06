@@ -1,29 +1,11 @@
-papi_core_evt_value_lbls = {     
-    'PAPI_L12_ADD'           : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
-    'PAPI_L12_COMPLETE_EXEC' : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
-    'PAPI_L12_EXEC'          : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
-    'PAPI_L12_SELECT'        : ['PAPI_L1', 'PAPI_L2'],
-    'PAPI_L123_THREAD'       : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
-    'PAPI_SOCKET'            : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
-    'PAPI_CORE_EXEC'         : ['PAPI_L1', 'PAPI_L2'],
-    'PAPI_CORE_SEL'          : ['PAPI_L1', 'PAPI_L2'],
-    'PAPI_CORE_COMPL'        : ['PAPI_L1', 'PAPI_L2'],
-    'PAPI_CORE_EXEC_PL3'     : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
-    'PAPI_CORE_SEL_PL3'      : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
-    'PAPI_CORE_COMPL_PL3'    : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
-    'PAPI_CORE_EXEC_TLB_EV'  : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
-    'PAPI_CORE_SEL_TLB_EV'   : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
-    'PAPI_CORE_COMPL_TLB_EV' : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
-    'PAPI_SOCKET_TLB_EV'     : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
-}
-
+# add parsing clauses to this function to get infos.
 cdef parse_info(builder, event_type, unique_id, void * cinfo):
     cdef papi_exec_info_t * cast_exec_info = NULL
     cdef select_info_t * cast_select_info = NULL
     cdef papi_core_socket_info_t * cast_core_socket_info = NULL
     cdef papi_core_select_info_t * cast_core_select_info = NULL
     cdef papi_core_exec_info_t * cast_core_exec_info = NULL
-    
+
     event_info = None
 
     event_name = builder.event_names[event_type]
@@ -157,11 +139,25 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
 
     return event_info
 
-cdef is_event_type(event_types, event_type, name):
-    try:
-        if name in event_types and event_type == event_types[name]:
-            return True
-    except:
-        pass
-    return False
-
+papi_core_evt_value_lbls = {
+    'PAPI_L12_ADD'           : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
+    'PAPI_L12_COMPLETE_EXEC' : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
+    'PAPI_L12_EXEC'          : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
+    'PAPI_L12_SELECT'        : ['PAPI_L1', 'PAPI_L2'],
+    'PAPI_L123_THREAD'       : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
+    'PAPI_SOCKET'            : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
+    'PAPI_CORE_EXEC'         : ['PAPI_L1', 'PAPI_L2'],
+    'PAPI_CORE_SEL'          : ['PAPI_L1', 'PAPI_L2'],
+    'PAPI_CORE_COMPL'        : ['PAPI_L1', 'PAPI_L2'],
+    'PAPI_CORE_EXEC_PL3'     : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
+    'PAPI_CORE_SEL_PL3'      : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
+    'PAPI_CORE_COMPL_PL3'    : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
+    'PAPI_CORE_EXEC_TLB_EV'  : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
+    'PAPI_CORE_SEL_TLB_EV'   : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
+    'PAPI_CORE_COMPL_TLB_EV' : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
+    'PAPI_SOCKET_TLB_EV'     : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
+    'PAPI_SOCKET_23T'        : ['L2_DMISS', 'L3_DMISS', 'TLB_MISS'],
+    'PAPI_CORE_EXEC_23T'     : ['L2_DMISS', 'L3_DMISS', 'TLB_MISS'],
+    'PAPI_CORE_COMPL_23T'    : ['L2_DMISS', 'L3_DMISS', 'TLB_MISS'],
+    'PAPI_CORE_SEL_23T'      : ['L2_DMISS', 'L3_DMISS', 'TLB_MISS'],
+}
