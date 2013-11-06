@@ -19,11 +19,11 @@ ext = 'png'
 event_types = ['PAPI_CORE_EXEC']
 event_subtypes = ['GEMM']
 
-def plot_Y_vs_duration(profiles, x_axis, y_axis, main_type,
-                       subtype=None, shared_name='',
-                       hi_cut=hi_cut, lo_cut=lo_cut, ext=ext):
+def plot_Y_vs_X_scatter(profiles, x_axis, y_axis, main_type,
+         subtype=None, shared_name='',
+         hi_cut=hi_cut, lo_cut=lo_cut, ext=ext):
     fig = plt.figure()
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot(1, 1, 1)
     profiles.sort(key=lambda x: x.gflops)
     if subtype:
         type_name = main_type + '-' + subtype
@@ -63,6 +63,7 @@ def plot_Y_vs_duration(profiles, x_axis, y_axis, main_type,
     if hi_cut < 100 or lo_cut > 0:
         cut_label = ', excl. below {}% & above {}%'.format(lo_cut, hi_cut)
     ax.set_xlabel('{} of {} kernels'.format(x_axis, type_name) + cut_label)
+
     fig.set_size_inches(10, 5)
     fig.set_dpi(300)
     fig.savefig(shared_name.replace(' ', '_') + '_' + type_name +
@@ -153,10 +154,10 @@ if __name__ == '__main__':
                 main_type = type_pair
                 subtype = None
 
-            plot_Y_vs_duration(profiles, x_axis, y_axis, main_type, subtype=subtype,
-                               hi_cut = hi_cut, lo_cut = lo_cut, ext=ext,
-                               shared_name=set_name)
-        # for event_type in event_types:
+            plot_Y_vs_X_scatter(profiles, x_axis, y_axis, main_type, subtype=subtype,
+                                hi_cut = hi_cut, lo_cut = lo_cut, ext=ext,
+                                shared_name=set_name)
+            # for event_type in event_types:
         #     plot_Y_vs_duration(profiles, event_type, shared_name=set_name)
 
 

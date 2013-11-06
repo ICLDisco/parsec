@@ -11,6 +11,7 @@
 static char* core_native_events   [NUM_CORE_EVENTS]   = PAPI_CORE_NATIVE_EVENT_ARRAY;
 static char* socket_native_events [NUM_SOCKET_EVENTS] = PAPI_SOCKET_NATIVE_EVENT_ARRAY;
 
+static int enable_socket = ENABLE_SOCKET;
 static int enable_exec = ENABLE_EXEC;
 static int enable_select = ENABLE_SELECT;
 static int enable_compl = ENABLE_COMPL;
@@ -77,10 +78,11 @@ static void pins_init_papi_L123(dague_context_t * master_context) {
      thread_init_prev = PINS_REGISTER(THREAD_INIT, start_papi_L123);
      thread_fini_prev = PINS_REGISTER(THREAD_FINI, stop_papi_L123);
      */
-    dague_profiling_add_dictionary_keyword(PAPI_CORE_PROF_EVT_NAME_SOCKET, "fill:#00AAFF",
-                                           sizeof(papi_core_socket_info_t), NULL,
-                                           &pins_prof_papi_socket_begin,
-                                           &pins_prof_papi_socket_end);
+    if (enable_socket)
+        dague_profiling_add_dictionary_keyword(PAPI_CORE_PROF_EVT_NAME_SOCKET, "fill:#00AAFF",
+                                               sizeof(papi_core_socket_info_t), NULL,
+                                               &pins_prof_papi_socket_begin,
+                                               &pins_prof_papi_socket_end);
 
     if (enable_exec) {
         exec_begin_prev = PINS_REGISTER(EXEC_BEGIN, read_papi_core_exec_count_begin);
@@ -158,7 +160,8 @@ static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit) {
                 /*        core_native_events[i]); */
             }
         }
-        if (exec_unit->th_id % CORES_PER_SOCKET == WHICH_CORE_IN_SOCKET) {
+        if (enable_socket &&
+            exec_unit->th_id % CORES_PER_SOCKET == WHICH_CORE_IN_SOCKET) {
             for (i = 0; i < NUM_SOCKET_EVENTS; i++) {
                 if ( PAPI_OK != PAPI_event_name_to_code( socket_native_events[i],
                                                          &native)) {
@@ -189,9 +192,10 @@ static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit) {
             printf("papi_L123 couldn't start PAPI event set for thread %d; ERROR: %s\n",
                    exec_unit->th_id, PAPI_strerror(rv));
         else {
-            rv = dague_profiling_trace(exec_unit->eu_profile,
-                                       pins_prof_papi_socket_begin,
-                                       48, 0, NULL);
+            if (enable_socket)
+                rv = dague_profiling_trace(exec_unit->eu_profile,
+                                           pins_prof_papi_socket_begin,
+                                           48, 0, NULL);
         }
     }
 }
@@ -210,9 +214,10 @@ static void pins_thread_fini_papi_L123(dague_execution_unit_t * exec_unit) {
         papi_core_socket_info_t info;
         for (rv = 0; rv < NUM_CORE_EVENTS + NUM_SOCKET_EVENTS; rv++)
             info.evt_values[rv] = values[rv];
-        rv = dague_profiling_trace(exec_unit->eu_profile,
-                                   pins_prof_papi_socket_end,
-                                   48, 0, (void *)&info);
+        if (enable_socket)
+            rv = dague_profiling_trace(exec_unit->eu_profile,
+                                       pins_prof_papi_socket_end,
+                                       48, 0, (void *)&info);
     }
 }
 
@@ -222,7 +227,7 @@ static void read_papi_core_exec_count_begin(dague_execution_unit_t * exec_unit,
     int rv = PAPI_OK;
     long long int values[NUM_CORE_EVENTS + NUM_SOCKET_EVENTS];
     if ((rv = PAPI_read(exec_unit->papi_eventsets[EXEC_SET], values)) != PAPI_OK) {
-        printf("exec_begin: couldn't read PAPI events in thread %d\n", exec_unit->th_id);
+        fprintf(stderr, "exec_begin: couldn't read PAPI events in thread %d\n", exec_unit->th_id);
     }
     else {
         rv = dague_profiling_trace(exec_unit->eu_profile, pins_prof_papi_core_exec_begin,
@@ -245,7 +250,7 @@ static void read_papi_core_exec_count_end(dague_execution_unit_t * exec_unit,
     int rv = PAPI_OK;
     long long int values[NUM_CORE_EVENTS + NUM_SOCKET_EVENTS];
     if ((rv = PAPI_read(exec_unit->papi_eventsets[EXEC_SET], values)) != PAPI_OK) {
-        printf("exec_end: couldn't read PAPI events in thread %d\n", exec_unit->th_id);
+        fprintf(stderr, "exec_end: couldn't read PAPI events in thread %d\n", exec_unit->th_id);
     }
     else {
         papi_core_exec_info_t info;
@@ -275,7 +280,7 @@ static void read_papi_core_select_count_begin(dague_execution_unit_t * exec_unit
     int rv = PAPI_OK;
     long long int values[NUM_CORE_EVENTS + NUM_SOCKET_EVENTS];
     if ((rv = PAPI_read(exec_unit->papi_eventsets[EXEC_SET], values)) != PAPI_OK) {
-        printf("select_begin: couldn't read PAPI events in thread %d, ERROR: %s\n",
+        fprintf(stderr, "select_begin: couldn't read PAPI events in thread %d, ERROR: %s\n",
                exec_unit->th_id, PAPI_strerror(rv));
     }
     else {
@@ -318,7 +323,7 @@ static void read_papi_core_select_count_end(dague_execution_unit_t * exec_unit,
     int rv = PAPI_OK;
     long long int values[NUM_CORE_EVENTS + NUM_SOCKET_EVENTS];
     if ((rv = PAPI_read(exec_unit->papi_eventsets[EXEC_SET], values)) != PAPI_OK) {
-        printf("select_end: couldn't read PAPI events in thread %d, ERROR: %s\n",
+        fprintf(stderr, "select_end: couldn't read PAPI events in thread %d, ERROR: %s\n",
                exec_unit->th_id, PAPI_strerror(rv));
         for (rv = 0; rv < NUM_CORE_EVENTS; rv++)
             info.evt_values[rv] = 0;
@@ -349,7 +354,7 @@ static void read_papi_core_complete_exec_count_begin(dague_execution_unit_t * ex
     int rv = PAPI_OK;
     long long int values[NUM_CORE_EVENTS + NUM_SOCKET_EVENTS];
     if ((rv = PAPI_read(exec_unit->papi_eventsets[EXEC_SET], values)) != PAPI_OK) {
-        printf("compl_begin: couldn't read PAPI events in thread %d, ERROR: %s\n",
+        fprintf(stderr, "compl_begin: couldn't read PAPI events in thread %d, ERROR: %s\n",
                exec_unit->th_id, PAPI_strerror(rv));
     }
     else {
@@ -379,7 +384,7 @@ static void read_papi_core_complete_exec_count_end(dague_execution_unit_t * exec
     int rv = PAPI_OK;
     long long int values[NUM_CORE_EVENTS + NUM_SOCKET_EVENTS];
     if ((rv = PAPI_read(exec_unit->papi_eventsets[EXEC_SET], values)) != PAPI_OK) {
-        printf("compl_end: couldn't read PAPI events in thread %d, ERROR: %s\n",
+        fprintf(stderr, "compl_end: couldn't read PAPI events in thread %d, ERROR: %s\n",
                exec_unit->th_id, PAPI_strerror(rv));
         for (rv = 0; rv < NUM_CORE_EVENTS; rv++)
             info.evt_values[rv] = 0;

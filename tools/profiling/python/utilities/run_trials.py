@@ -132,9 +132,9 @@ def run_trial_set_in_process(my_pipe, exe_dir='.', output_base_dir='.'):
                                          'testing_' + ex + '*.prof-*')
                     if len(profiles) > 0:
                         for filename in profiles:
-                            profile_filename = filename.replace('testing_' + ex, 
-                                                                output_base_dir 
-                                                                + os.sep 
+                            profile_filename = filename.replace('testing_' + ex,
+                                                                output_base_dir
+                                                                + os.sep
                                                                 + trial.unique_name())
                             # print('moving {} to {}'.format(filename, profile_filename))
                             shutil.move(filename,  profile_filename)
