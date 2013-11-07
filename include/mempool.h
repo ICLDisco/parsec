@@ -98,7 +98,8 @@ static inline void  dague_mempool_free( dague_mempool_t *mempool, void *elt )
 {
     unsigned char *_elt = (unsigned char *)elt;
     dague_thread_mempool_t *owner = *(dague_thread_mempool_t **)(_elt + mempool->pool_owner_offset);
-    dague_lifo_push( &(owner->mempool), (dague_list_item_t*)elt );
+    if(NULL != owner)
+        dague_lifo_push( &(owner->mempool), (dague_list_item_t*)elt );
 }
 
 /** dague_thread_mempool_free
