@@ -28,7 +28,7 @@
 #include "datarepo.h"
 #include "bindthread.h"
 #include "dague_prof_grapher.h"
-#include "stats.h"
+#include "stats-internal.h"
 #include "vpmap.h"
 #include "gpu_data.h"
 

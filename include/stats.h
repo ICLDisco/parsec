@@ -21,18 +21,22 @@
 
 #include "stats-internal.h"
 
+BEGIN_C_DECLS
+
 /* Add a DECLARE_STAT line per statitic you want to manage
  * during the execution
  */
-DECLARE_STAT(counter_nbtasks);
-DECLARE_STAT(mem_bitarray);
-DECLARE_STAT(mem_hashtable);
-DECLARE_STAT(mem_contexts);
-DECLARE_STAT(mem_communications);
-DECLARE_STATMAX(counter_hashtable_collisions_size);
-DECLARE_STATACC(time_starved);
-DECLARE_STATACC(counter_data_messages_sent);
-DECLARE_STATACC(counter_control_messages_sent);
-DECLARE_STATACC(counter_bytes_sent);
+DECLARE_STAT(counter_nbtasks)
+DECLARE_STAT(mem_bitarray)
+DECLARE_STAT(mem_hashtable)
+DECLARE_STAT(mem_contexts)
+DECLARE_STAT(mem_communications)
+DECLARE_STATMAX(counter_hashtable_collisions_size)
+DECLARE_STATACC(time_starved)
+DECLARE_STATACC(counter_data_messages_sent)
+DECLARE_STATACC(counter_control_messages_sent)
+DECLARE_STATACC(counter_bytes_sent)
+
+END_C_DECLS
 
 #endif /* stats_h */

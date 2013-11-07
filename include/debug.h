@@ -55,7 +55,7 @@ static inline char* arprintf(const char* fmt, ...)
         char* __debug_str; \
         MPI_Comm_rank(MPI_COMM_WORLD, &__debug_rank); \
         __debug_str = arprintf ARG ; \
-        fprintf(stderr,  "["PRFX"DAGuE % 5d]:\t%s", __debug_rank, __debug_str); \
+        fprintf(stderr,  "[" PRFX "DAGuE % 5d]:\t%s", __debug_rank, __debug_str); \
         free(__debug_str); \
     } while(0)
 
@@ -65,7 +65,7 @@ static inline char* arprintf(const char* fmt, ...)
 #   define _DAGUE_OUTPUT(PRFX, ARG) do { \
         char* __debug_str; \
         __debug_str = arprintf ARG ; \
-        fprintf(stderr, "["PRFX"DAGuE]:\t%s", __debug_str); \
+        fprintf(stderr, "[" PRFX "DAGuE]:\t%s", __debug_str); \
         free(__debug_str); \
     } while(0)
 
