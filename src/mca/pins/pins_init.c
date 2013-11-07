@@ -9,6 +9,7 @@
 #include "dague/mca/mca_repository.h"
 #include "execution_unit.h"
 #include "profiling.h"
+#include "dague/utils/mca_param.h"
 
 #define MAX_NAME_SIZE 100 /* arbitrary module name limit for 'safety' */
 
@@ -43,7 +44,39 @@ void pins_init(dague_context_t * master_context) {
             pins_array[i] = &pins_empty_callback;
     }
     DEBUG(("Initialized PaRSEC PINS callbacks to pins_empty_callback()"));
+    /*
+    int index = dague_mca_param_find("mca", "sched", NULL);
+    if (index != DAGUE_ERROR)
+        printf("%d index!\n", index);
+    index = dague_mca_param_find("mca", NULL, "sched");
+    if (index != DAGUE_ERROR)
+        printf("%d index 2!\n", index);
+    index = dague_mca_param_find("mca", "pins", "papi_L123_test");
+    if (index != DAGUE_ERROR)
+        printf("%d index 3!\n", index);
+    index = dague_mca_param_find("mca", "pins", "pins_papi_L123_test");
+    if (index != DAGUE_ERROR)
+        printf("%d index 4!\n", index);
+    index = dague_mca_param_find("mca", NULL, "pins_papi_L123_test");
+    if (index != DAGUE_ERROR)
+        printf("%d index 5!\n", index);
+    index = dague_mca_param_find("mca", "pins_papi_L123", "test");
+    if (index != DAGUE_ERROR)
+        printf("%d index 6!\n", index);
+    index = dague_mca_param_find("mca", NULL, "pins");
+    if (index != DAGUE_ERROR)
+        printf("%d PINS modules defined!\n", index);
 
+    pins_components = mca_components_open_bytype("pins");
+    // DEBUG count
+    int fc =0;
+    while (pins_components[fc] != NULL) {
+        pins_components[fc]->mca_query_component((mca_base_module_t*)&module, &priority);
+        printf("%s\n", module->component->base_version.mca_component_name);
+        fc++;
+    }
+    printf("num pins %d\n", fc);
+     */
     if (NULL != modules_enabled) {
         i = 0;
         pins_components = mca_components_open_bytype("pins");

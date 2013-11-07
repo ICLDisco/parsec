@@ -30,7 +30,7 @@ mca_base_component_t **mca_components_open_bytype(char *type)
     mca_base_component_t **opened_components;
     char *param, **list;
     int idx;
-    
+
     idx = dague_mca_param_find("mca", NULL, type);
     if( idx == DAGUE_ERROR ) {
         list = NULL;
@@ -72,7 +72,7 @@ mca_base_component_t **mca_components_open_bytype(char *type)
     for(i = 0; (n < nb) && (mca_static_components[i] != NULL); i++) {
         if( !strcmp( mca_static_components[i]->mca_type_name, type ) &&
             belongs_to_list(list, mca_static_components[i]->mca_component_name) ) {
-            if( ( (NULL != mca_static_components[i]->mca_open_component) && 
+            if( ( (NULL != mca_static_components[i]->mca_open_component) &&
                   (mca_static_components[i]->mca_open_component()) ) ||
                 ( NULL ==  mca_static_components[i]->mca_open_component ) ) {
                 opened_components[n] = mca_static_components[i];
