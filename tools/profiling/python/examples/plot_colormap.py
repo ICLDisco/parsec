@@ -24,22 +24,11 @@ event_types = ['PAPI_CORE_EXEC']
 event_subtypes = ['GEMM']
 bins = 500
 
-def filter_events(profile, filter_strings):
-    events = profile.events
-    for filter_str in filter_strings:
-        key, value = filter_str.split('==')
-        if str(value).startswith('.'):
-            # do eval
-            eval_str = 'profile' + str(value)
-            value = eval(eval_str)
-        events = events[:][events[key] == value]
-    return events
-
 def plot_Y_vs_X_colormap(profile, x_axis, y_axis, filters, profile_descrip='', filters_descrip='',
                          bins=bins, hi_cut=hi_cut, lo_cut=lo_cut, ext=ext):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    events = filter_events(profile, filters)
+    events = profile.filter_events(filters)
 
     events = events.sort(x_axis)
     events = events[int(len(events) * lo_cut * 0.01):

@@ -86,6 +86,17 @@ class ParsecProfile(object):
         return desc[:-1]
     def name(self, infos=default_descriptors):
         return self.descrip(infos).replace(' ', '_')
+    # use with care - does an eval() on self'user text' when 'user text' starts with '.'
+    def filter_events(self, filter_strings):
+        events = self.events
+        for filter_str in filter_strings:
+            key, value = filter_str.split('==')
+            if str(value).startswith('.'):
+                # do eval
+                eval_str = 'self' + str(value)
+                value = eval(eval_str)
+            events = events[:][events[key] == value]
+        return events
 
 def find_profile_sets(profiles, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sched', 'exe', 'hostname'] ):
     profile_sets = dict()
