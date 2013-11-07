@@ -42,8 +42,8 @@ static int sym_twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s
     sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
     return device->device_memory_register(device, desc,
                                           sym_twodbc->mat,
-                                          (sym_twodbc->super.nb_local_tiles * sym_twodbc->super.bsiz *
-                                           dague_datadist_getsizeoftype(sym_twodbc->super.mtype)));
+                                          ((size_t)sym_twodbc->super.nb_local_tiles * (size_t)sym_twodbc->super.bsiz *
+                                           (size_t)dague_datadist_getsizeoftype(sym_twodbc->super.mtype)));
 }
 
 static int sym_twoDBC_memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
