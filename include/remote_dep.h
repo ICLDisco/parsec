@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,16 +13,6 @@ typedef unsigned long remote_dep_datakey_t;
 
 #include "debug.h"
 #include <string.h>
-
-
-#if defined(HAVE_MPI)
-#include <mpi.h>
-#define DAGUE_DATATYPE_NULL  MPI_DATATYPE_NULL
-typedef MPI_Datatype dague_datatype_t;
-#else
-#define DAGUE_DATATYPE_NULL  NULL
-typedef void* dague_datatype_t;
-#endif
 
 #include "dague_description_structures.h"
 #include "lifo.h"
