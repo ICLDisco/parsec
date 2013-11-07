@@ -1188,7 +1188,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
 }
 
 static void jdf_generate_function_without_expression( const jdf_t *jdf, const jdf_def_list_t *context,
-                                                      const jdf_expr_t *e, const char *name)
+                                                      const jdf_expr_t *e, const char *name, const char* rettype)
 {
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
@@ -1208,13 +1208,13 @@ static void jdf_generate_function_without_expression( const jdf_t *jdf, const jd
     ai.holder = "assignments";
     ai.expr = e;
 
-    coutput("static inline int %s(const dague_object_t *__dague_object_parent, const assignment_t *assignments)\n"
+    coutput("static inline %s %s(const dague_object_t *__dague_object_parent, const assignment_t *assignments)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)__dague_object_parent;\n"
             "%s\n"
             "  (void)__dague_object; (void)assignments;\n"
             "  return %s;\n"
-            "}\n", name, jdf_basename, jdf_basename,
+            "}\n", rettype, name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST(sa2, context, next, dump_local_assignments, &ai,
                            "", "  ", "\n", "\n"),
             dump_expr((void**)e, &info));
@@ -1565,38 +1565,44 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
     } else {
         tmp_fct_name = string_arena_new(64);
         string_arena_add_string(tmp_fct_name, "%s_datatype_type_fct", JDF_OBJECT_ONAME( dep ));
-        jdf_generate_function_without_expression(jdf, context, datatype.type, string_arena_get_string(tmp_fct_name));
+        jdf_generate_function_without_expression(jdf, context, datatype.type, string_arena_get_string(tmp_fct_name), "int32_t");
         string_arena_add_string(sa,
-                                "  .datatype = { .type   = { .fct = %s },",
+                                "  .datatype = { .type   = { .fct = %s },\n",
                                 string_arena_get_string(tmp_fct_name));
         string_arena_free(tmp_fct_name);
     }
     /* And the layout */
     if( datatype.type == datatype.layout ) {
         string_arena_add_string(sa,
-                                "                .layout = NULL,\n"
+                                "                .layout = { .fct = NULL },\n"
                                 "                .count  = { .cst = 1 },\n"
-                                "                .displ  = { .cst = 0 }");
+                                "                .displ  = { .cst = 0 }\n");
     } else {
-        tmp_fct_name = string_arena_new(64);
-        string_arena_add_string(tmp_fct_name, "%s_datatype_layout_fct", JDF_OBJECT_ONAME( dep ));
-        jdf_generate_function_without_expression(jdf, context, datatype.type, string_arena_get_string(tmp_fct_name));
-        string_arena_add_string(sa,
-                                "                .layout = { .fct = %s },",
-                                string_arena_get_string(tmp_fct_name));
-        string_arena_free(tmp_fct_name);
+        if( (JDF_VAR == datatype.layout->op) || (JDF_STRING == datatype.layout->op) ) {
+            string_arena_add_string(sa,
+                                    "                .layout = { .cst = %s },\n",
+                                    datatype.layout->jdf_var);
+        } else {
+            tmp_fct_name = string_arena_new(64);
+            string_arena_add_string(tmp_fct_name, "%s_datatype_layout_fct", JDF_OBJECT_ONAME( dep ));
+            jdf_generate_function_without_expression(jdf, context, datatype.layout, string_arena_get_string(tmp_fct_name), "dague_datatype_t");
+            string_arena_add_string(sa,
+                                    "                .layout = { .fct = %s },\n",
+                                    string_arena_get_string(tmp_fct_name));
+            string_arena_free(tmp_fct_name);
+        }
 
         /* Now the count */
         if( JDF_CST == datatype.count->op ) {
             string_arena_add_string(sa,
-                                    "                .count  = { .cst = %d },",
+                                    "                .count  = { .cst = %d },\n",
                                     datatype.count->jdf_cst);
         } else {
             tmp_fct_name = string_arena_new(64);
             string_arena_add_string(tmp_fct_name, "%s_datatype_cnt_fct", JDF_OBJECT_ONAME( dep ));
-            jdf_generate_function_without_expression(jdf, context, datatype.count, string_arena_get_string(tmp_fct_name));
+            jdf_generate_function_without_expression(jdf, context, datatype.count, string_arena_get_string(tmp_fct_name), "int64_t");
             string_arena_add_string(sa,
-                                    "                .count  = { .fct = %s },",
+                                    "                .count  = { .fct = %s },\n",
                                     string_arena_get_string(tmp_fct_name));
             string_arena_free(tmp_fct_name);
         }
@@ -1604,14 +1610,14 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
         /* And finally the displacement */
         if( JDF_CST == datatype.displ->op ) {
             string_arena_add_string(sa,
-                                    "                .displ  = { .cst = %d },",
+                                    "                .displ  = { .cst = %d }\n",
                                     datatype.displ->jdf_cst);
         } else {
             tmp_fct_name = string_arena_new(64);
             string_arena_add_string(tmp_fct_name, "%s_nb_displ_fct", JDF_OBJECT_ONAME( dep ));
-            jdf_generate_function_without_expression(jdf, context, datatype.displ, string_arena_get_string(tmp_fct_name));
+            jdf_generate_function_without_expression(jdf, context, datatype.displ, string_arena_get_string(tmp_fct_name), "int64_t");
             string_arena_add_string(sa,
-                                    "                .displ  = { .fct = %s },",
+                                    "                .displ  = { .fct = %s }\n",
                                     string_arena_get_string(tmp_fct_name));
             string_arena_free(tmp_fct_name);
         }
