@@ -14,7 +14,6 @@
 #include <stddef.h>
 #endif  /* HAVE_STDDEF_H */
 #include "debug.h"
-#include "stats.h"
 
 #include "atomic.h"
 #include "lifo.h"
