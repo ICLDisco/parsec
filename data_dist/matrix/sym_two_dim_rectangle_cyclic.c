@@ -90,6 +90,25 @@ static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
     return res;
 }
 
+static void sym_twoDBC_key_to_coordinates(dague_ddesc_t *desc, dague_data_key_t key, int *m, int *n)
+{
+    int _m, _n;
+    tiled_matrix_desc_t * Ddesc;
+
+    Ddesc = (tiled_matrix_desc_t *)desc;
+
+    _m = key % Ddesc->lmt;
+    _n = key / Ddesc->lmt;
+    *m = _m - Ddesc->i / Ddesc->mb;
+    *n = _n - Ddesc->j / Ddesc->nb;
+}
+
+static uint32_t sym_twoDBC_rank_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    sym_twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return sym_twoDBC_rank_of(desc, m, n);
+}
 
 static dague_data_t* sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
 {
@@ -122,6 +141,13 @@ static dague_data_t* sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
     return dague_matrix_create_data( &Ddesc->super,
                                      (char*)Ddesc->mat + pos * Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype),
                                      pos, (n * Ddesc->super.lmt) + m );
+}
+
+static dague_data_t* sym_twoDBC_data_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    sym_twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return sym_twoDBC_data_of(desc, m, n);
 }
 
 static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
@@ -171,6 +197,13 @@ static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     return vpid;
 }
 
+static int32_t sym_twoDBC_vpid_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    sym_twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return sym_twoDBC_vpid_of(desc, m, n);
+}
+
 void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
                                    enum matrix_type mtype,
                                    int nodes, int myrank,
@@ -184,17 +217,21 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     int Q;
     /* Initialize the tiled_matrix descriptor */
     dague_ddesc_t *o = &(Ddesc->super.super);
-    o->rank_of = sym_twoDBC_rank_of;
-    o->vpid_of = sym_twoDBC_vpid_of;
-    o->data_of = sym_twoDBC_data_of;
-
-    o->register_memory   = sym_twoDBC_memory_register;
-    o->unregister_memory = sym_twoDBC_memory_unregister;
 
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
                             sym_two_dim_block_cyclic_type,
                             nodes, myrank,
                             mb, nb, lm, ln, i, j, m, n );
+
+    o->rank_of     = sym_twoDBC_rank_of;
+    o->rank_of_key = sym_twoDBC_rank_of_key;
+    o->vpid_of     = sym_twoDBC_vpid_of;
+    o->vpid_of_key = sym_twoDBC_vpid_of_key;
+    o->data_of     = sym_twoDBC_data_of;
+    o->data_of_key = sym_twoDBC_data_of_key;
+
+    o->register_memory   = sym_twoDBC_memory_register;
+    o->unregister_memory = sym_twoDBC_memory_unregister;
 
     if(nodes < P)
         ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
