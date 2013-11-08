@@ -6,27 +6,6 @@
 #include "dague/mca/pins/pins.h"
 #include "dague.h"
 
-#define NUM_CORE_EVENTS 3
-#define PAPI_CORE_NATIVE_EVENT_ARRAY {                      \
-        "L3_CACHE_MISSES:READ_BLOCK_MODIFY",                \
-            "MEMORY_REQUESTS:NON_CACHEABLE",                \
-            "DATA_CACHE_REFILLS:L2_EXCLUSIVE",              \
-}
-#define NUM_SOCKET_EVENTS 0
-#define PAPI_SOCKET_NATIVE_EVENT_ARRAY {} /*{"L3_CACHE_MISSES:ANY_READ"}*/
-
-/* other useful events... */
-/* "L3_CACHE_MISSES:READ_BLOCK_EXCLUSIVE" */
-
-/* enable or disable different phases depending on
- * how many/which events you want per task */
-#define ENABLE_EXEC 1
-#define ENABLE_SELECT 0
-#define ENABLE_COMPL 0
-#define ENABLE_SOCKET 0
-
-#define SYSTEM_QUEUE_VP -2
-
 /* Use the following event names as identifiers for the Python parser.
  * e.g., PAPI_L12_EXEC will be parsed as having two event values,
  * the first being L1 misses, the second being L2 misses.
@@ -36,9 +15,43 @@
  * Define your own parsers in pbp_info_parser.pxi.
  */
 #define PAPI_CORE_PROF_EVT_NAME_SOCKET     "PAPI_SOCKET"
-#define PAPI_CORE_PROF_EVT_NAME_EXEC       "PAPI_CORE_EXEC_L3M_MRQNC_DCRL2"
+#define PAPI_CORE_PROF_EVT_NAME_EXEC       "PAPI_CORE_EXEC_L2-HW-PREF_MAB-REQ_DSTL-LS-F"
 #define PAPI_CORE_PROF_EVT_NAME_SEL        "PAPI_CORE_SEL"
 #define PAPI_CORE_PROF_EVT_NAME_COMPL      "PAPI_CORE_COMPL"
+
+/* enable or disable different phases depending on
+ * how many/which events you want per task */
+#define ENABLE_EXEC 1
+#define ENABLE_SELECT 0
+#define ENABLE_COMPL 0
+#define ENABLE_SOCKET 0
+
+/* reorder the following, but there's no need to delete. */
+#define NUM_CORE_EVENTS 3
+#define PAPI_CORE_NATIVE_EVENT_ARRAY                                    \
+    {                                                                   \
+        "L2_CACHE_MISS:HW_PREFETCH_FROM_DC",                            \
+            "MAB_REQUESTS",                                             \
+        "DISPATCH_STALL_FOR_LS_FULL",                                   \
+        "INEFFECTIVE_SW_PREFETCHES:SW_PREFETCH_HIT_IN_L1",              \
+        "DISPATCH_STALL_FOR_RESERVATION_STATION_FULL",                  \
+        "READ_REQUEST_TO_L3_CACHE",                                     \
+        "MAB_WAIT_CYCLES",                                              \
+        "DISPATCH_STALL_FOR_SEGMENT_LOAD",                              \
+        "INEFFECTIVE_SW_PREFETCHES:SW_PREFETCH_HIT_IN_L2",              \
+        "CACHE_BLOCK:ALL",                                              \
+        "DATA_CACHE_REFILLS:L2_EXCLUSIVE",                              \
+        "DATA_PREFETCHES",                                              \
+        "MEMORY_REQUESTS",                                              \
+        "SYSTEM_READ_RESPONSES:EXCLUSIVE:OWNED:SHARED:MODIFIED",        \
+        "LLC-LOAD-MISSES",                                              \
+        "L3_CACHE_MISSES:ANY_READ",                                     \
+        "MISALIGNED_ACCESSES",                                          \
+        }
+#define NUM_SOCKET_EVENTS 0
+#define PAPI_SOCKET_NATIVE_EVENT_ARRAY {} /*{"L3_CACHE_MISSES:ANY_READ"}*/
+
+#define SYSTEM_QUEUE_VP -2
 
 typedef struct papi_core_socket_info_s {
     long long evt_values[NUM_CORE_EVENTS + NUM_SOCKET_EVENTS];

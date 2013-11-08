@@ -11,7 +11,7 @@ import os, sys
 import itertools
 
 # defaults
-y_axis = 'PAPI_L3'
+y_axes = ['PAPI_L3']
 x_axis = 'duration'
 lo_cut = 00
 hi_cut = 100
@@ -19,35 +19,28 @@ ext = 'png'
 event_types = ['PAPI_CORE_EXEC']
 event_subtypes = ['GEMM']
 
-def plot_Y_vs_X_scatter(profiles, x_axis, y_axis, main_type,
-         subtype=None, shared_name='',
-         hi_cut=hi_cut, lo_cut=lo_cut, ext=ext):
+def plot_Y_vs_X_scatter(profiles, x_axis, y_axis, filters,
+                        profile_descrip='', filters_descrip='',
+                        hi_cut=hi_cut, lo_cut=lo_cut, ext=ext):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     profiles.sort(key=lambda x: x.gflops)
-    if subtype:
-        type_name = main_type + '-' + subtype
-    else:
-        type_name = main_type
 
     for profile in profiles:
-        if subtype:
-            chosen_events = profile.events[:][(profile.event_types[main_type] == profile.events.type) &
-                                          (profile.events.kernel_type == profile.event_types[subtype])]
-        else:
-            chosen_events = profile.events[:][(profile.event_types[main_type] == profile.events.type)]
-        chosen_events = chosen_events.sort(x_axis)
-        chosen_events = chosen_events[int(len(chosen_events) * lo_cut * 0.01):
-                              int(len(chosen_events) * hi_cut * 0.01)]
+        events = profile.filter_events(filters)
+
+        events = events.sort(x_axis)
+        events = events[int(len(events) * lo_cut * 0.01):
+                        int(len(events) * hi_cut * 0.01)]
 
         label = '{}: {:.1f} gflops/s'.format(profile.sched.upper(),
                                              profile.gflops)
 
-        ax.plot(chosen_events[x_axis], chosen_events[y_axis], linestyle='', marker='.',
+        ax.plot(events[x_axis], events[y_axis], linestyle='', marker='.',
                 color=mpl_prefs.sched_colors[profile.sched.upper()],
                 label=label)
 
-        ax.set_title('{} vs {} of {}'.format(y_axis, x_axis, type_name) +
+        ax.set_title('{} vs {} of {}'.format(y_axis, x_axis, filters_descrip) +
                      ' Tasks, By Scheduler\nfor {} where '.format(profile.exe) +
                      'N = {}, NB = {}, IB = {}, on {}'.format(profile.N, profile.NB,
                                                               profile.IB, profile.hostname))
@@ -66,9 +59,11 @@ def plot_Y_vs_X_scatter(profiles, x_axis, y_axis, main_type,
 
     fig.set_size_inches(10, 5)
     fig.set_dpi(300)
-    fig.savefig(shared_name.replace(' ', '_') + '_' + type_name +
-                '_{}_vs_{}_{}-{}_scatter.{}'.format(y_axis, x_axis, lo_cut, hi_cut, ext),
-                bbox_inches='tight')
+    filename = re.sub('[\(\)\' :]' , '',
+                      ('{}_vs_{}_{}'.format(y_axis, x_axis, profile_descrip) +
+                       '_{}_{}-{}'.format(filters_descrip, lo_cut, hi_cut) +
+                       '_scatter.{}'.format(ext)))
+    fig.savefig(filename, bbox_inches='tight')
 
 def print_help():
     print('')
@@ -89,6 +84,7 @@ if __name__ == '__main__':
     slice_st_stop = None
     slice_t_start = None
     slice_t_stop = None
+    papi_core_all = False
     for index, arg in enumerate(sys.argv[1:]):
         if os.path.exists(arg):
             filenames.append(arg)
@@ -99,7 +95,7 @@ if __name__ == '__main__':
             elif arg.startswith('--x-axis='):
                 x_axis = arg.replace('--x-axis=', '')
             elif arg.startswith('--y-axis='):
-                y_axis = arg.replace('--y-axis=', '')
+                y_axes = [arg.replace('--y-axis=', '')]
 
             elif arg.startswith('--event-types='):
                 event_types = arg.replace('--event-types=', '').split(',')
@@ -118,6 +114,8 @@ if __name__ == '__main__':
                 hi_cut = float(cuts[1])
             elif arg.startswith('--ext='):
                 ext = arg.replace('--ext=', '')
+            elif arg.startswith('--papi-core-all'):
+                papi_core_all = True
             else:
                 event_subtypes.append(arg)
 
@@ -136,28 +134,41 @@ if __name__ == '__main__':
             event_subtypes = mpl_prefs.kernel_names[profiles[0].exe][slice_st_start:slice_st_stop]
         if slice_t_start != None or slice_t_stop != None:
             event_types = mpl_prefs.kernel_names[profiles[0].exe][slice_t_start:slice_t_stop]
+
+        if papi_core_all:
+            event_types = []
+            event_subtypes = []
+            # find the PAPI_CORE_EXEC event(s)
+            for event_name in profiles[0].event_types.keys():
+                if event_name.startswith('PAPI_CORE_EXEC_'):
+                    event_types.append(event_name)
+                    y_axes = p3_bin.papi_core_evt_value_lbls[event_name]
+                    break
+            event_subtypes = mpl_prefs.kernel_names[profiles[0].exe][:1]
+
         # pair up the selectors, if subtypes were specified...
         if len(event_subtypes) > 0:
             type_pairs = list(itertools.product(event_types, event_subtypes))
         else:
-            event_subtypes = mpl_prefs.kernel_names[profiles[0].exe.replace('dplasma/testing/testing_', '')]
+            event_subtypes = mpl_prefs.kernel_names[profiles[0].exe]
             type_pairs = list(itertools.product(event_types, event_subtypes))
 
-        print('Now graphing the Y-axis datum \'{}\' against the X-axis datum \'{}\''.format(y_axis, x_axis) +
-              ' for the event type pairs {} (where they can be found in the profile).'.format(type_pairs))
+        for y_axis in y_axes:
+            print('Now graphing the Y-axis datum \'{}\' against the X-axis datum \'{}\''.format(y_axis, x_axis) +
+                  ' for the event type pairs {} (where they can be found in the profile).'.format(type_pairs))
 
-        for type_pair in type_pairs:
-            if len(type_pair) == 2: # it's a tuple
-                main_type = type_pair[0]
-                subtype = type_pair[1]
-            else:
-                main_type = type_pair
-                subtype = None
+            for type_pair in type_pairs:
+                filters = []
+                if len(type_pair) == 2: # it's a tuple
+                    filters.append('type==.event_types[\'' + type_pair[0] + '\']')
+                    filters.append('kernel_type==.event_types[\''+type_pair[1]+'\']')
+                else:
+                    filters.append('type==.event_types[\'' + type_pair + '\']')
 
-            plot_Y_vs_X_scatter(profiles, x_axis, y_axis, main_type, subtype=subtype,
-                                hi_cut = hi_cut, lo_cut = lo_cut, ext=ext,
-                                shared_name=set_name)
+                plot_Y_vs_X_scatter(profiles, x_axis, y_axis, filters,
+                                    hi_cut = hi_cut, lo_cut = lo_cut, ext=ext,
+                                    profile_descrip=set_name, filters_descrip=str(type_pair))
             # for event_type in event_types:
-        #     plot_Y_vs_duration(profiles, event_type, shared_name=set_name)
+            #     plot_Y_vs_duration(profiles, event_type, shared_name=set_name)
 
 

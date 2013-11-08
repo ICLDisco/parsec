@@ -21,7 +21,7 @@ class ParsecProfile(object):
                            'begin', 'end', 'duration', 'flags', 'unique_id', 'id']
     HDF_TOP_LEVEL_NAMES = ['event_types', 'event_names', 'event_attributes',
                            'nodes', 'threads', 'information', 'errors']
-    default_descriptors = ['hostname', 'exe', 'sched', 'ncores']
+    default_descriptors = ['hostname', 'exe', 'ncores', 'sched']
     @staticmethod
     def from_hdf(filename):
         store = pd.HDFStore(filename, 'r')

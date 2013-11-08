@@ -13,7 +13,7 @@ import os, sys
 import itertools
 
 # defaults
-y_axis = 'PAPI_L3'
+y_axes = ['PAPI_L3']
 x_axis = 'duration'
 lo_cut = 00
 hi_cut = 100
@@ -25,7 +25,8 @@ event_subtypes = ['GEMM']
 bins = 500
 
 def plot_Y_vs_X_colormap(profile, x_axis, y_axis, filters, profile_descrip='', filters_descrip='',
-                         bins=bins, hi_cut=hi_cut, lo_cut=lo_cut, ext=ext):
+                         bins=bins, hi_cut=hi_cut, lo_cut=lo_cut, tiers=(0.85, 0.7),
+                         ext=ext):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     events = profile.filter_events(filters)
@@ -46,9 +47,9 @@ def plot_Y_vs_X_colormap(profile, x_axis, y_axis, filters, profile_descrip='', f
     p_corr_num = p_corr[y_axis].ix[1]
     s_corr_num = s_corr[y_axis].ix[1]
 
-    if s_corr_num > 0.5:
+    if abs(s_corr_num) > tiers[0]:
         corr_cmap = cm.spectral
-    elif s_corr_num > 0.25:
+    elif abs(s_corr_num) > tiers[1]:
         corr_cmap = cm.jet
     else:
         corr_cmap = cm.Dark2
@@ -79,18 +80,34 @@ def plot_Y_vs_X_colormap(profile, x_axis, y_axis, filters, profile_descrip='', f
 
     corr_text = 'Pearson: {:.3f}\nSpearman: {:.3f}'.format(p_corr_num, s_corr_num)
 
-    fig.text(0.8, 0.2, corr_text,
+    fig.text(0.85, 0.15, corr_text,
              horizontalalignment='right',
+             fontsize=40, color='white',
+             alpha=0.5, family='monospace',
+             transform=ax.transAxes)
+
+    short_exe = profile.exe
+    if profile.exe == 'dpotrf':
+        short_exe = 'PO'
+    elif profile.exe == 'dgetrf':
+        short_exe = 'LU'
+    elif profile.exe == 'dgeqrf':
+        short_exe = 'QR'
+    descrip_text = '{} {} {}'.format(y_axis, profile.sched, short_exe)
+
+    fig.text(0.15, 0.8, descrip_text,
+             horizontalalignment='left',
              fontsize=40, color='white',
              alpha=0.5,family='monospace',
              transform=ax.transAxes)
 
     fig.set_size_inches(12, 8)
     fig.set_dpi(300)
-    fig.savefig(('{}_{}'.format(profile_descrip, filters_descrip) +
-                '_{}_vs_{}_{}-{}'.format(y_axis, x_axis, lo_cut, hi_cut) +
-                 '_colormap.{}'.format(ext)).replace(' ', ''),
-                bbox_inches='tight')
+    filename = re.sub('[\(\)\' :]' , '',
+                      ('{}_vs_{}_{}'.format(y_axis, x_axis, profile_descrip) +
+                       '_{}_{}-{}'.format(filters_descrip, lo_cut, hi_cut) +
+                       '_colormap.{}'.format(ext)))
+    fig.savefig(filename, bbox_inches='tight')
 
 def print_help():
     print('')
@@ -155,7 +172,6 @@ if __name__ == '__main__':
     profiles = automerge_profile_sets(profile_sets.values())
 
     for profile, name in zip(profiles, profile_sets.keys()):
-        print('plotting {}'.format(profile))
         if slice_st_start != None or slice_st_stop != None:
             event_subtypes = mpl_prefs.kernel_names[profile.exe][slice_st_start:slice_st_stop]
         if slice_t_start != None or slice_t_stop != None:
@@ -170,7 +186,7 @@ if __name__ == '__main__':
                     event_types.append(event_name)
                     y_axes = p3_bin.papi_core_evt_value_lbls[event_name]
                     break
-            event_subtypes = mpl_prefs.kernel_names[profile.exe][0:1]
+            event_subtypes = mpl_prefs.kernel_names[profile.exe][:1]
 
         # pair up the selectors, if subtypes were specified...
         if len(event_subtypes) > 0:
@@ -188,6 +204,7 @@ if __name__ == '__main__':
                 else:
                     filters.append('type==.event_types[\'' + type_pair + '\']')
 
+                print('plotting {} vs {} for {} in {}'.format(y_axis, x_axis, filters, profile))
                 plot_Y_vs_X_colormap(profile, x_axis, y_axis, filters,
                                      profile_descrip=name, filters_descrip=str(type_pair),
                                      hi_cut = hi_cut, lo_cut = lo_cut, ext=ext, bins=bins)
