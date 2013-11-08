@@ -220,7 +220,8 @@ static inline void
 profiling_save_dinfo(const char *key, double value)
 {
     char *svalue;
-    (void)asprintf(&svalue, "%g", value);
+    int rv=asprintf(&svalue, "%g", value);
+    (void)rv;
     dague_profiling_add_information(key, svalue);
     free(svalue);
 }
@@ -228,7 +229,8 @@ static inline void
 profiling_save_iinfo(const char *key, int value)
 {
     char *svalue;
-    (void)asprintf(&svalue, "%d", value);
+    int rv=asprintf(&svalue, "%d", value);
+    (void)rv;
     dague_profiling_add_information(key, svalue);
     free(svalue);
 }
@@ -242,7 +244,8 @@ profiling_thread_save_dinfo(dague_thread_profiling_t * thread,
                             const char *key, double value)
 {
     char *svalue;
-    (void)asprintf(&svalue, "%g", value);
+    int rv=asprintf(&svalue, "%g", value);
+    (void)rv;
     dague_profiling_thread_add_information(thread, key, svalue);
     free(svalue);
 }
@@ -251,7 +254,8 @@ profiling_thread_save_iinfo(dague_thread_profiling_t * thread,
                             const char *key, int value)
 {
     char *svalue;
-    (void)asprintf(&svalue, "%d", value);
+    int rv=asprintf(&svalue, "%d", value);
+    (void)rv;
     dague_profiling_thread_add_information(thread, key, svalue);
     free(svalue);
 }
