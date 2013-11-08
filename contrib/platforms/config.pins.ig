@@ -31,6 +31,7 @@ CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS:="-g3 -fPIC"}
 CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH:="$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/"}
 CMAKE_FIND_ROOT_PATH=${CMAKE_FIND_ROOT_PATH="$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/"}
 PLASMADIR=${PLASMA_DIR:="/home/bosilca/unstable/dplasma/PLASMA/build/"}
+# PLASMA_DIR=${PLASMA_DIR:="/home/mccraw/BUNSEN/02_Toolz/plasma-installer_2.5.2/install"}
 PAPI_DIR=${PAPI_DIR:="$HOME/sw/$HOSTNAME"}
 HWLOC_DIR=${HWLOC_DIR:="/home/bosilca/opt/64"}
 #MPI_DIR=${MPI_DIR:="/path/mpi"}
