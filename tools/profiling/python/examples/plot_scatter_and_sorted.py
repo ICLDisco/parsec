@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 from parsec_profiling import *
+import parsec_binprof as p3_bin
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -19,12 +20,14 @@ ext = 'png'
 event_types = ['PAPI_CORE_EXEC']
 event_subtypes = ['GEMM']
 
-def plot_Y_vs_X_scatter(profiles, x_axis, y_axis, filters,
-                        profile_descrip='', filters_descrip='',
-                        hi_cut=hi_cut, lo_cut=lo_cut, ext=ext):
+def plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
+                                   profile_descrip='', filters_descrip='',
+                                   hi_cut=hi_cut, lo_cut=lo_cut, ext=ext):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     profiles.sort(key=lambda x: x.gflops)
+
+    title = ''
 
     for profile in profiles:
         events = profile.filter_events(filters)
@@ -40,24 +43,46 @@ def plot_Y_vs_X_scatter(profiles, x_axis, y_axis, filters,
                 color=mpl_prefs.sched_colors[profile.sched.upper()],
                 label=label)
 
-        ax.set_title('{} vs {} of {}'.format(y_axis, x_axis, filters_descrip) +
-                     ' Tasks, By Scheduler\nfor {} where '.format(profile.exe) +
-                     'N = {}, NB = {}, IB = {}, on {}'.format(profile.N, profile.NB,
-                                                              profile.IB, profile.hostname))
+        title = ('{} vs {} of {}'.format(y_axis, x_axis, filters_descrip) +
+                 ' Tasks, By Scheduler\nfor {} where '.format(profile.exe) +
+                 'N = {}, NB = {}, IB = {}, on {}'.format(profile.N, profile.NB,
+                                                          profile.IB, profile.hostname))
+    fig.text(0.5, 0.94, title,
+             horizontalalignment='center',
+             fontsize=12, #family='monospace',
+             transform = ax.transAxes)
 
     if not ax.has_data():
         print('Plot has no data.')
         return None
-    ax.legend(loc='best', title='SCHED: perf')
+    ax.legend(loc='upper center', title='SCHED: perf')
     ax.grid(True)
     ax.set_xlim(0, ax.get_xlim()[1]) # start from zero for scale
     ax.set_ylabel(y_axis)
     cut_label = ''
     if hi_cut < 100 or lo_cut > 0:
         cut_label = ', excl. below {}% & above {}%'.format(lo_cut, hi_cut)
-    ax.set_xlabel('{} of {} kernels'.format(x_axis, type_name) + cut_label)
+    ax.set_xlabel('{} of {} kernels'.format(x_axis, filters_descrip) + cut_label)
 
-    fig.set_size_inches(10, 5)
+    ax = ax.twiny()
+
+    for profile in profiles:
+        events = profile.filter_events(filters)
+        sorted_events = events.sort(y_axis)
+
+        # cut down to ignore noise
+        # -- can do better than this
+        sorted_events = sorted_events[int(len(sorted_events)*lo_cut * 0.01):
+                                      int(len(sorted_events)*hi_cut * 0.01)]
+        label = '{}: {:.1f} gflops/s'.format(profile.sched.upper(),
+                                             profile.gflops)
+        ax.plot(xrange(len(sorted_events)),
+                sorted_events[y_axis],
+                color=mpl_prefs.sched_colors[profile.sched.upper()],
+                label=label
+            )
+
+    fig.set_size_inches(14, 7)
     fig.set_dpi(300)
     filename = re.sub('[\(\)\' :]' , '',
                       ('{}_vs_{}_{}'.format(y_axis, x_axis, profile_descrip) +
@@ -156,7 +181,6 @@ if __name__ == '__main__':
         for y_axis in y_axes:
             print('Now graphing the Y-axis datum \'{}\' against the X-axis datum \'{}\''.format(y_axis, x_axis) +
                   ' for the event type pairs {} (where they can be found in the profile).'.format(type_pairs))
-
             for type_pair in type_pairs:
                 filters = []
                 if len(type_pair) == 2: # it's a tuple
@@ -165,9 +189,10 @@ if __name__ == '__main__':
                 else:
                     filters.append('type==.event_types[\'' + type_pair + '\']')
 
-                plot_Y_vs_X_scatter(profiles, x_axis, y_axis, filters,
-                                    hi_cut = hi_cut, lo_cut = lo_cut, ext=ext,
-                                    profile_descrip=set_name, filters_descrip=str(type_pair))
+                plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
+                                               profile_descrip=set_name,
+                                               filters_descrip=str(type_pair),
+                                               hi_cut = hi_cut, lo_cut = lo_cut, ext=ext)
             # for event_type in event_types:
             #     plot_Y_vs_duration(profiles, event_type, shared_name=set_name)
 

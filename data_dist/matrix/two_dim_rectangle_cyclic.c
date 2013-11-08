@@ -27,15 +27,24 @@
 static uint32_t twoDBC_rank_of(dague_ddesc_t* ddesc, ...);
 static int32_t twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
 static dague_data_t* twoDBC_data_of(dague_ddesc_t* ddesc, ...);
+static uint32_t twoDBC_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static int32_t twoDBC_vpid_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static dague_data_t* twoDBC_data_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
 
 static uint32_t twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...);
 static int32_t twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...);
 static dague_data_t* twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...);
+static uint32_t twoDBC_stview_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static int32_t twoDBC_stview_vpid_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static dague_data_t* twoDBC_stview_data_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
 
 #if defined(DAGUE_HARD_SUPERTILE)
 static uint32_t twoDBC_st_rank_of(dague_ddesc_t* ddesc, ...);
 static int32_t twoDBC_st_vpid_of(dague_ddesc_t* ddesc, ...);
 static dague_data_t* twoDBC_st_data_of(dague_ddesc_t* ddesc, ...);
+static uint32_t twoDBC_st_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static int32_t twoDBC_st_vpid_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static dague_data_t* twoDBC_st_data_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
 #endif
 
 static int twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
@@ -122,11 +131,17 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         o->rank_of      = twoDBC_rank_of;
         o->vpid_of      = twoDBC_vpid_of;
         o->data_of      = twoDBC_data_of;
+        o->rank_of_key  = twoDBC_rank_of_key;
+        o->vpid_of_key  = twoDBC_vpid_of_key;
+        o->data_of_key  = twoDBC_data_of_key;
     } else {
 #if defined(DAGUE_HARD_SUPERTILE)
         o->rank_of      = twoDBC_st_rank_of;
         o->vpid_of      = twoDBC_st_vpid_of;
         o->data_of      = twoDBC_st_data_of;
+        o->rank_of_key  = twoDBC_st_rank_of_key;
+        o->vpid_of_key  = twoDBC_st_vpid_of_key;
+        o->data_of_key  = twoDBC_st_data_of_key;
 #else
         two_dim_block_cyclic_supertiled_view(Ddesc, Ddesc, nrst, ncst);
 #endif /* DAGUE_HARD_SUPERTILE */
@@ -146,6 +161,19 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
            Ddesc->super.m,  Ddesc->super.n,
            Ddesc->grid.strows, Ddesc->grid.stcols,
            P, Q));
+}
+
+static void twoDBC_key_to_coordinates(dague_ddesc_t *desc, dague_data_key_t key, int *m, int *n)
+{
+    int _m, _n;
+    tiled_matrix_desc_t * Ddesc;
+
+    Ddesc = (tiled_matrix_desc_t *)desc;
+
+    _m = key % Ddesc->lmt;
+    _n = key / Ddesc->lmt;
+    *m = _m - Ddesc->i / Ddesc->mb;
+    *n = _n - Ddesc->j / Ddesc->nb;
 }
 
 /*
@@ -177,6 +205,13 @@ static uint32_t twoDBC_rank_of(dague_ddesc_t * desc, ...)
     res = rr * Ddesc->grid.cols + cr;
 
     return res;
+}
+
+static uint32_t twoDBC_rank_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return twoDBC_rank_of(desc, m, n);
 }
 
 static int32_t twoDBC_vpid_of(dague_ddesc_t *desc, ...)
@@ -222,6 +257,13 @@ static int32_t twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     vpid = (local_n % q) * p + (local_m % p);
     assert( vpid < vpmap_get_nb_vp() );
     return vpid;
+}
+
+static int32_t twoDBC_vpid_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return twoDBC_vpid_of(desc, m, n);
 }
 
 /*
@@ -303,6 +345,12 @@ static dague_data_t* twoDBC_data_of(dague_ddesc_t *desc, ...)
                                      position, (n * Ddesc->super.lmt) + m );
 }
 
+static dague_data_t* twoDBC_data_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return twoDBC_data_of(desc, m, n);
+}
 
 /****
  * Set of functions with Supertiled view of the distribution
@@ -316,9 +364,12 @@ void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
     target = origin;
     target->grid.strows = rst;
     target->grid.stcols = cst;
-    target->super.super.rank_of = twoDBC_stview_rank_of;
-    target->super.super.data_of = twoDBC_stview_data_of;
-    target->super.super.vpid_of = twoDBC_stview_vpid_of;
+    target->super.super.rank_of     = twoDBC_stview_rank_of;
+    target->super.super.data_of     = twoDBC_stview_data_of;
+    target->super.super.vpid_of     = twoDBC_stview_vpid_of;
+    target->super.super.rank_of_key = twoDBC_stview_rank_of_key;
+    target->super.super.data_of_key = twoDBC_stview_data_of_key;
+    target->super.super.vpid_of_key = twoDBC_stview_vpid_of_key;
 }
 
 static inline unsigned int st_compute_m(two_dim_block_cyclic_t* desc, unsigned int m)
@@ -345,7 +396,6 @@ static inline unsigned int st_compute_n(two_dim_block_cyclic_t* desc, unsigned i
     return n;
 }
 
-
 static uint32_t twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...)
 {
     unsigned int m, n, sm, sn;
@@ -359,6 +409,13 @@ static uint32_t twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...)
     sn = st_compute_n(desc, n);
     DEBUG3(("SuperTiledView: rankof(%d,%d)=%d converted to rankof(%d,%d)=%d\n", m, n, twoDBC_rank_of(ddesc,m,n), sm, sn, twoDBC_rank_of(ddesc,sm,sn)));
     return twoDBC_rank_of(ddesc, sm, sn);
+}
+
+static uint32_t twoDBC_stview_rank_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return twoDBC_stview_rank_of(desc, m, n);
 }
 
 static int32_t twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...)
@@ -375,6 +432,13 @@ static int32_t twoDBC_stview_vpid_of(dague_ddesc_t* ddesc, ...)
     return twoDBC_vpid_of(ddesc, m, n);
 }
 
+static int32_t twoDBC_stview_vpid_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return twoDBC_stview_vpid_of(desc, m, n);
+}
+
 static dague_data_t* twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...)
 {
     unsigned int m, n;
@@ -389,9 +453,12 @@ static dague_data_t* twoDBC_stview_data_of(dague_ddesc_t* ddesc, ...)
     return twoDBC_data_of(ddesc, m, n);
 }
 
-
-
-
+static dague_data_t* twoDBC_stview_data_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return twoDBC_stview_data_of(desc, m, n);
+}
 
 #if defined(DAGUE_HARD_SUPERTILE)
 /*
@@ -432,6 +499,13 @@ static uint32_t twoDBC_st_rank_of(dague_ddesc_t * desc, ...)
     /* printf("tile (%d, %d) belongs to process %d [%d,%d] in a grid of %dx%d\n", */
     /*            m, n, res, rr, cr, Ddesc->grid.rows, Ddesc->grid.cols); */
     return res;
+}
+
+static uint32_t twoDBC_st_rank_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return twoDBC_st_rank_of(desc, m, n);
 }
 
 static int32_t twoDBC_st_vpid_of(dague_ddesc_t *desc, ...)
@@ -483,6 +557,13 @@ static int32_t twoDBC_st_vpid_of(dague_ddesc_t *desc, ...)
     return vpid;
 }
 
+static int32_t twoDBC_st_vpid_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return twoDBC_st_vpid_of(desc, m, n);
+}
+
 static dague_data_t* twoDBC_st_data_of(dague_ddesc_t *desc, ...)
 {
     size_t pos;
@@ -529,6 +610,13 @@ static dague_data_t* twoDBC_st_data_of(dague_ddesc_t *desc, ...)
     return dague_matrix_create_data( &Ddesc->super,
                                      (char*)Ddesc->mat + pos * dague_datadist_getsizeoftype(Ddesc->super.mtype),
                                      position, (n * Ddesc->super.lmt) + m );
+}
+
+static dague_data_t* twoDBC_st_data_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+{
+    int m, n;
+    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    return twoDBC_st_data_of(desc, m, n);
 }
 
 #endif /* DAGUE_HARD_SUPERTILE */
