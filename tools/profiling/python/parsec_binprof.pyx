@@ -147,11 +147,15 @@ cpdef read(filenames, report_progress=False, info_only=False):
 cpdef get_info(filenames):
     return read(filenames, info_only=True)
 
-cpdef convert(filenames, outfilename=None, unlink=True, table=False, append=False, report_progress=False):
+cpdef convert(filenames, outfilename=None, unlink=True, 
+              table=False, append=False, report_progress=False):
     cond_print('Converting {}'.format(filenames), report_progress)
     profile = read(filenames, report_progress=report_progress)
+    print(profile)
+    print(filenames)
     if outfilename == None:
         outfilename = filenames[0].replace('.prof-', '.h5-')
+        print(outfilename)
     store = profile.to_hdf(outfilename, table=table, append=append)
     store.close()
     if unlink:

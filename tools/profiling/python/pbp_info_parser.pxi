@@ -176,4 +176,5 @@ papi_core_evt_value_lbls = {
                                                         'DSTALL_RES_ST_FULL',
                                                         'READ_REQ_L3'],
     'PAPI_CORE_EXEC_L2-HW-PREF_MAB-REQ_DSTL-LS-F': ['L2_MISS-HWPREF', 'MAB_REQ', 'DSTL_LS_FULL'],
+    'PAPI_CORE_EXEC_DS-LS-FULL_L23': ['DSTL_LS_FULL', 'L2_DMISS', 'L3_MISS'],
 }

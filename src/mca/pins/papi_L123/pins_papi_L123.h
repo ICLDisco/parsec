@@ -15,7 +15,7 @@
  * Define your own parsers in pbp_info_parser.pxi.
  */
 #define PAPI_CORE_PROF_EVT_NAME_SOCKET     "PAPI_SOCKET"
-#define PAPI_CORE_PROF_EVT_NAME_EXEC       "PAPI_CORE_EXEC_L2-HW-PREF_MAB-REQ_DSTL-LS-F"
+#define PAPI_CORE_PROF_EVT_NAME_EXEC       "PAPI_CORE_EXEC_DS-LS-FULL_L23"
 #define PAPI_CORE_PROF_EVT_NAME_SEL        "PAPI_CORE_SEL"
 #define PAPI_CORE_PROF_EVT_NAME_COMPL      "PAPI_CORE_COMPL"
 
@@ -28,11 +28,12 @@
 
 /* reorder the following, but there's no need to delete. */
 #define NUM_CORE_EVENTS 3
-#define PAPI_CORE_NATIVE_EVENT_ARRAY                                    \
-    {                                                                   \
+#define PAPI_CORE_NATIVE_EVENT_ARRAY {                                  \
+    "DISPATCH_STALL_FOR_LS_FULL",                                       \
+        "L3_CACHE_MISSES:ANY_READ",                                     \
+        "L2_CACHE_MISS:DATA",                                           \
         "L2_CACHE_MISS:HW_PREFETCH_FROM_DC",                            \
-            "MAB_REQUESTS",                                             \
-        "DISPATCH_STALL_FOR_LS_FULL",                                   \
+        "MAB_REQUESTS",                                                 \
         "INEFFECTIVE_SW_PREFETCHES:SW_PREFETCH_HIT_IN_L1",              \
         "DISPATCH_STALL_FOR_RESERVATION_STATION_FULL",                  \
         "READ_REQUEST_TO_L3_CACHE",                                     \
@@ -45,7 +46,6 @@
         "MEMORY_REQUESTS",                                              \
         "SYSTEM_READ_RESPONSES:EXCLUSIVE:OWNED:SHARED:MODIFIED",        \
         "LLC-LOAD-MISSES",                                              \
-        "L3_CACHE_MISSES:ANY_READ",                                     \
         "MISALIGNED_ACCESSES",                                          \
         }
 #define NUM_SOCKET_EVENTS 0

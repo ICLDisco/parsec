@@ -14,15 +14,15 @@ import itertools
 # defaults
 y_axes = ['PAPI_L3']
 x_axis = 'duration'
-lo_cut = 00
-hi_cut = 100
-ext = 'png'
 event_types = ['PAPI_CORE_EXEC']
 event_subtypes = ['GEMM']
+std_x = 3
+std_y = 3
+ext = 'png'
 
 def plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
                                    profile_descrip='', filters_descrip='',
-                                   hi_cut=hi_cut, lo_cut=lo_cut, ext=ext):
+                                   std_x=std_x, std_y=std_y, ext=ext):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     profiles.sort(key=lambda x: x.gflops)
@@ -32,9 +32,12 @@ def plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
     for profile in profiles:
         events = profile.filter_events(filters)
 
-        events = events.sort(x_axis)
-        events = events[int(len(events) * lo_cut * 0.01):
-                        int(len(events) * hi_cut * 0.01)]
+        if std_x:
+            x_avg = events[x_axis].mean()
+            events = events[:][events[x_axis] - x_avg  < events[x_axis].std() * std_x]
+        if std_y:
+            y_avg = events[y_axis].mean()
+            events = events[:][events[y_axis] - y_avg  < events[y_axis].std() * std_y]
 
         label = '{}: {:.1f} gflops/s'.format(profile.sched.upper(),
                                              profile.gflops)
@@ -60,34 +63,43 @@ def plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
     ax.set_xlim(0, ax.get_xlim()[1]) # start from zero for scale
     ax.set_ylabel(y_axis)
     cut_label = ''
-    if hi_cut < 100 or lo_cut > 0:
-        cut_label = ', excl. below {}% & above {}%'.format(lo_cut, hi_cut)
+    if std_x:
+        cut_label = ' (within {}SD)'.format(std_x)
     ax.set_xlabel('{} of {} kernels'.format(x_axis, filters_descrip) + cut_label)
 
     ax = ax.twiny()
 
     for profile in profiles:
         events = profile.filter_events(filters)
-        sorted_events = events.sort(y_axis)
+        events = events.sort(y_axis)
 
         # cut down to ignore noise
         # -- can do better than this
-        sorted_events = sorted_events[int(len(sorted_events)*lo_cut * 0.01):
-                                      int(len(sorted_events)*hi_cut * 0.01)]
+        if std_x:
+            x_avg = events[x_axis].mean()
+            events = events[:][events[x_axis] - x_avg  < events[x_axis].std() * std_x]
+        if std_y:
+            y_avg = events[y_axis].mean()
+            events = events[:][events[y_axis] - y_avg  < events[y_axis].std() * std_y]
+
         label = '{}: {:.1f} gflops/s'.format(profile.sched.upper(),
                                              profile.gflops)
-        ax.plot(xrange(len(sorted_events)),
-                sorted_events[y_axis],
+        ax.plot(xrange(len(events)),
+                events[y_axis],
                 color=mpl_prefs.sched_colors[profile.sched.upper()],
                 label=label
             )
 
     fig.set_size_inches(14, 7)
     fig.set_dpi(300)
+
+    std_str = str(std_y)
+    if std_y != std_x:
+        str_str += '-{}'.format(std_x)
     filename = re.sub('[\(\)\' :]' , '',
                       ('{}_vs_{}_{}'.format(y_axis, x_axis, profile_descrip) +
-                       '_{}_{}-{}'.format(filters_descrip, lo_cut, hi_cut) +
-                       '_scatter.{}'.format(ext)))
+                       '_{}_{}SD'.format(filters_descrip, std_str) +
+                       '_scatter_w_hock.{}'.format(ext)))
     fig.savefig(filename, bbox_inches='tight')
 
 def print_help():
@@ -133,10 +145,16 @@ if __name__ == '__main__':
                 arg = arg.replace('--slice-types=', '')
                 slice_t_start, slice_t_stop = arg.split(':')
 
-            elif arg.startswith('--cut='):
-                cuts = arg.replace('--cut=', '').split(',')
-                lo_cut = float(cuts[0])
-                hi_cut = float(cuts[1])
+            elif arg.startswith('--stddev='):
+                stddev = arg.replace('--stddev=', '')
+                if ',' in stddev:
+                    stddev = stddev.split(',')
+                    std_x = float(stddev[0])
+                    std_y = float(stddev[1])
+                else:
+                    std_x = float(stddev)
+                    std_y = std_x
+
             elif arg.startswith('--ext='):
                 ext = arg.replace('--ext=', '')
             elif arg.startswith('--papi-core-all'):
@@ -192,7 +210,7 @@ if __name__ == '__main__':
                 plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
                                                profile_descrip=set_name,
                                                filters_descrip=str(type_pair),
-                                               hi_cut = hi_cut, lo_cut = lo_cut, ext=ext)
+                                               std_x = std_x, std_y = std_y, ext=ext)
             # for event_type in event_types:
             #     plot_Y_vs_duration(profiles, event_type, shared_name=set_name)
 

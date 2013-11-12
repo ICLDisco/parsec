@@ -259,7 +259,6 @@ static void read_papi_core_exec_count_end(dague_execution_unit_t * exec_unit,
             info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
         for (rv = 0; rv < NUM_CORE_EVENTS; rv++)
             info.evt_values[rv] = values[rv] - exec_unit->papi_last_read[rv];
-
         rv = dague_profiling_trace(exec_unit->eu_profile, pins_prof_papi_core_exec_end,
                                    (*exec_context->function->key
                                     )(exec_context->dague_handle, exec_context->locals),
