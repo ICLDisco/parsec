@@ -50,7 +50,7 @@ if( DPLASMA_DEBUG_QR_PIVGEN )
   include(TestsQRPivgen.cmake)
 endif()
 
-link_directories(${PLASMA_LIBRARY_DIRS})
+link_directories(${COREBLAS_LIBRARY_DIRS})
 testings_addexec(targets "${DPLASMA_PRECISIONS}" "${TESTS}")
 
 #Add the LL define to potrf LL
