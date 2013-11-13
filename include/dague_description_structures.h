@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -14,6 +14,16 @@ typedef struct expr expr_t;
 typedef struct dague_flow dague_flow_t;
 typedef struct dep dep_t;
 typedef struct symbol symbol_t;
+
+#if defined(HAVE_MPI)
+#include <mpi.h>
+#define DAGUE_DATATYPE_NULL  MPI_DATATYPE_NULL
+typedef MPI_Datatype dague_datatype_t;
+#else
+#define DAGUE_DATATYPE_NULL  NULL
+typedef void* dague_datatype_t;
+#endif
+
 
 struct dague_object;
 
@@ -33,6 +43,7 @@ struct assignment {
 #define EXPR_OP_RANGE_EXPR_INCREMENT  25
 #define EXPR_OP_INLINE                100
 
+typedef dague_datatype_t (*expr_op_datatype_inline_func_t)(const struct dague_object *__dague_object_parent, const assignment_t *assignments);
 typedef int32_t (*expr_op_int32_inline_func_t)(const struct dague_object *__dague_object_parent, const assignment_t *assignments);
 typedef int64_t (*expr_op_int64_inline_func_t)(const struct dague_object *__dague_object_parent, const assignment_t *assignments);
 
@@ -96,11 +107,17 @@ typedef union dague_cst_or_fct_64_u {
     expr_op_int64_inline_func_t  fct;
 } dague_cst_or_fct_64_t;
 
+typedef union dague_cst_or_fct_datatype_u {
+    dague_datatype_t                cst;
+    expr_op_datatype_inline_func_t  fct;
+} dague_cst_or_fct_datatype_t;
+
+
 struct dague_comm_desc_s {
-    dague_cst_or_fct_32_t       type;
-    expr_op_int32_inline_func_t layout;
-    dague_cst_or_fct_64_t       count;
-    dague_cst_or_fct_64_t       displ;
+    dague_cst_or_fct_32_t         type;
+    dague_cst_or_fct_datatype_t   layout;
+    dague_cst_or_fct_64_t         count;
+    dague_cst_or_fct_64_t         displ;
 };
 
 struct dep {

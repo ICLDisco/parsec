@@ -141,7 +141,7 @@ static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
-    .datatype = { .type = { .cst = 0 }, .layout = NULL, .count = { .cst = 1 }, .displ = { .cst = 0 } },
+    .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } },
     .call_params = {
         &expr_of_p1_for_flow_of_map_operator_dep_in
     }
@@ -162,7 +162,7 @@ static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
-    .datatype = { .type = { .cst = 0 }, .layout = NULL, .count = { .cst = 1 }, .displ = { .cst = 0 } },
+    .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } },
     .call_params = {
         &expr_of_p1_for_flow_of_map_operator_dep_out
     }

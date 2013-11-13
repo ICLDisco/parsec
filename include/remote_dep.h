@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,16 +13,6 @@ typedef unsigned long remote_dep_datakey_t;
 
 #include "debug.h"
 #include <string.h>
-
-
-#if defined(HAVE_MPI)
-#include <mpi.h>
-#define DAGUE_DATATYPE_NULL  MPI_DATATYPE_NULL
-typedef MPI_Datatype dague_datatype_t;
-#else
-#define DAGUE_DATATYPE_NULL  NULL
-typedef void* dague_datatype_t;
-#endif
 
 #include "dague_description_structures.h"
 #include "lifo.h"
@@ -42,6 +32,7 @@ typedef struct remote_dep_wire_activate_t
     remote_dep_datakey_t tag;
     uint32_t             object_id;
     uint32_t             function_id;
+    uint32_t             length;
     assignment_t         locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
 
@@ -104,9 +95,9 @@ struct dague_remote_deps_t {
 
 typedef struct {
     dague_lifo_t freelist;
-    uint32_t            max_dep_count;
-    uint32_t            max_nodes_number;
-    uint32_t            elem_size;
+    uint32_t     max_dep_count;
+    uint32_t     max_nodes_number;
+    uint32_t     elem_size;
 } dague_remote_dep_context_t;
 
 extern dague_remote_dep_context_t dague_remote_dep_context;

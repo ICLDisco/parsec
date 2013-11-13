@@ -13,6 +13,13 @@
 #include "dague.h"
 #include "profiling.h"
 
+/**
+ * A classical way to find the container that contains a particular structure.
+ * Read more at http://en.wikipedia.org/wiki/Offsetof.
+ */
+#define container_of(ptr, type, member) \
+    ((type *)((char *)ptr - offsetof(type,member)))
+
 BEGIN_C_DECLS
 
 typedef struct dague_remote_deps_t           dague_remote_deps_t;

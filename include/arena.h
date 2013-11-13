@@ -14,7 +14,6 @@
 #include <stddef.h>
 #endif  /* HAVE_STDDEF_H */
 #include "debug.h"
-#include "stats.h"
 
 #include "atomic.h"
 #include "lifo.h"
@@ -60,7 +59,7 @@ struct dague_arena_chunk_t {
 #define DAGUE_ARENA_IS_PTR(ptr) (((ptrdiff_t) ptr) & (ptrdiff_t) 1)
 #define DAGUE_ARENA_PREFIX(ptr) ((dague_arena_chunk_t*)(((ptrdiff_t) ptr) & ~(ptrdiff_t) 1))
 #define DAGUE_ARENA_PTR(ptr) ((void*) (DAGUE_ARENA_PREFIX(ptr)->data))
-#define DAGUE_ARENA_DATA(ptr) (DAGUE_ARENA_IS_PTR(ptr) ? DAGUE_ARENA_PTR(ptr) : ptr)
+#define DAGUE_ARENA_DATA(ptr) (DAGUE_ARENA_IS_PTR(ptr) ? DAGUE_ARENA_PTR(ptr) : (ptr))
 #define ADATA(ptr) DAGUE_ARENA_DATA(ptr)
 
 #define DAGUE_ARENA_DATA_SIZE(ptr) (DAGUE_ARENA_PREFIX(ptr)->elem_size)
@@ -75,7 +74,7 @@ int dague_arena_construct_ex(dague_arena_t* arena,
                              size_t alignment,
                              dague_datatype_t opaque_dtt,
                              int32_t max_used,
-                             int32_t max_released); 
+                             int32_t max_released);
 void dague_arena_destruct(dague_arena_t* arena);
 
 dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count);
