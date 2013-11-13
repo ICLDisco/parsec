@@ -2777,7 +2777,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         jdf_expr_t *arena_strut = NULL;
         jdf_def_list_t* prop;
 
-        coutput("  /* Compute the amount of arenas: */\n");
+        coutput("  /* Compute the number of arenas: */\n");
 
         for( g = jdf->datatypes; NULL != g; g = g->next ) {
             coutput("  /*   DAGUE_%s_%s_ARENA  ->  %d */\n",
@@ -3136,18 +3136,23 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
             }
         }
     }
-    coutput("%s    chunk = dague_arena_get(__dague_object->super.arenas[%s], %d);\n",
+    coutput("%s    chunk = dague_arena_get(%s, %d);\n",
             spaces, arena, count );
     return;
 }
 
-static void create_datatype_to_integer_code(string_arena_t *sa, jdf_datatransfer_type_t datatype)
+static void
+create_arena_from_datatype(string_arena_t *sa,
+                           jdf_datatransfer_type_t datatype)
 {
     expr_info_t info;
     string_arena_t *sa2 = string_arena_new(64);
+
     info.sa = sa2;
     info.prefix = "";
     info.assignments = "this_task->locals";
+
+    string_arena_add_string(sa, "__dague_object->super.arenas[");
     if( JDF_CST == datatype.type->op ) {
         string_arena_add_string(sa, "%d", datatype.type->jdf_cst);
     } else if( (JDF_VAR == datatype.type->op) || (JDF_STRING == datatype.type->op) ) {
@@ -3155,6 +3160,7 @@ static void create_datatype_to_integer_code(string_arena_t *sa, jdf_datatransfer
     } else {
         string_arena_add_string(sa, "%s", dump_expr((void**)datatype.type, &info));
     }
+    string_arena_add_string(sa, "]");
     string_arena_free(sa2);
 }
 
@@ -3230,30 +3236,30 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             }
 
             sa2 = string_arena_new(64);
-            create_datatype_to_integer_code(sa2, dl->datatype);
+            create_arena_from_datatype(sa2, dl->datatype);
             switch( dl->guard->guard_type ) {
             case JDF_GUARD_UNCONDITIONAL:
                 if( 0 != cond_index ) coutput("    else {\n");
-                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
-                                                       string_arena_get_string(sa2), 1 );
+                jdf_generate_code_call_init_output(jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
+                                                   string_arena_get_string(sa2), 1);
                 if( 0 != cond_index ) coutput("    }\n");
                 goto done_with_input;
             case JDF_GUARD_BINARY:
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
-                                                       string_arena_get_string(sa2), 1 );
+                jdf_generate_code_call_init_output(jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
+                                                   string_arena_get_string(sa2), 1);
                 coutput("    }\n");
                 cond_index++;
                 break;
             case JDF_GUARD_TERNARY:
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_init_output( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
-                                                       string_arena_get_string(sa2), 1 );
+                jdf_generate_code_call_init_output(jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
+                                                   string_arena_get_string(sa2), 1);
                 coutput("    } else {\n");
-                jdf_generate_code_call_init_output( jdf, dl->guard->callfalse, JDF_OBJECT_LINENO(flow), fname, "  ",
-                                                       string_arena_get_string(sa2), 1 );
+                jdf_generate_code_call_init_output(jdf, dl->guard->callfalse, JDF_OBJECT_LINENO(flow), fname, "  ",
+                                                   string_arena_get_string(sa2), 1);
                 coutput("    }\n");
                 goto done_with_input;
             }
@@ -3298,28 +3304,24 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
         string_arena_add_string(sa4, "%s", dump_expr((void**)datatype.displ, &info));
 
         string_arena_init(sa2);
-        create_datatype_to_integer_code(sa2, datatype);
+        create_arena_from_datatype(sa2, datatype);
         coutput("%s  if( ADATA(this_task->data[%d].data) != %s(%s) ) {\n"
-                "%s    int __arena_index = %s;\n"
                 "%s    dague_dep_data_description_t data;\n"
                 "%s    data.ptr    = this_task->data[%d].data;\n"
-                "%s    data.arena  = __dague_object->super.arenas[__arena_index];\n"
+                "%s    data.arena  = %s;\n"
                 "%s    data.layout = data.arena->opaque_dtt;\n"
                 "%s    data.count  = %s;\n"
                 "%s    data.displ  = %s;\n"
-                "%s    assert( (__arena_index>=0) && (__arena_index < __dague_object->super.arenas_size) );\n"
                 "%s    assert( data.count > 0 );\n"
                 "%s    dague_remote_dep_memcpy(context, this_task->dague_object, %s(%s), &data);\n"
                 "%s  }\n",
                 spaces, dataflow_index, call->func_or_mem, string_arena_get_string(sa),
-                spaces, string_arena_get_string(sa2),
                 spaces,
                 spaces, dataflow_index,
-                spaces,
+                spaces, string_arena_get_string(sa2),
                 spaces,
                 spaces, string_arena_get_string(sa3),
                 spaces, string_arena_get_string(sa4),
-                spaces,
                 spaces,
                 spaces, call->func_or_mem, string_arena_get_string(sa),
                 spaces);
@@ -4218,9 +4220,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 string_arena_add_string(sa_tmp_layout, "DAGUE_DATATYPE_NULL");
                 string_arena_add_string(sa_tmp_displ, "0");
             } else {
-                string_arena_add_string(sa, "__dague_object->super.arenas[");
-                create_datatype_to_integer_code(sa, dl->datatype);
-                string_arena_add_string(sa, "]");
+                create_arena_from_datatype(sa, dl->datatype);
 
                 assert( dl->datatype.count != NULL );
                 string_arena_add_string(sa_tmp_nbelt, "%s", dump_expr((void**)dl->datatype.count, &info));
