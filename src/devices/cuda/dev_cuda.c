@@ -44,32 +44,34 @@ int dague_cuda_output_stream = -1;
 static char* cuda_lib_path = NULL;
 
 /* Dirty selection for now */
-float gpu_speeds[2][3] ={
+//float gpu_speeds[2][3] ={
     /* C1060, C2050, K20 */
-    { 622.08, 1030.4, 3520 },
-    {  77.76,  515.2, 1170 }
-};
+//    { 622.08, 1030.4, 3520 },
+//    {  77.76,  515.2, 1170 }
+//}; leave for reference
 float *device_weight = NULL;
 
-/* look up GPU device weight
- * major = 1:Tesla, 2:Fermi, 3:Kepler
- * data_type_flag = 's':single, 'd':double
+/* the rate represents how many times single is faster than double */
+int stod_rate[3] = {8, 2, 3};
+
+/* look up how many cuda cores per SM
+ * 1.x    8
+ * 2.0    32
+ * 2.1    48
+ * 3.x    192
  */
-static int dague_cuda_lookup_device_weight(float *weight, int major, char data_type_flag)
+static int dague_cuda_lookup_device_cudacores(int *cuda_cores, int major, int minor)
 {
-    switch (major)
-    {
-        case 1:
-            *weight = ( data_type_flag == 's' ) ? gpu_speeds[0][0] : gpu_speeds[1][0];
-            break;
-        case 2:
-            *weight = ( data_type_flag == 's' ) ? gpu_speeds[0][1] : gpu_speeds[1][1];
-            break;
-        case 3:
-            *weight = ( data_type_flag == 's' ) ? gpu_speeds[0][2] : gpu_speeds[1][2];
-            break;
-        default:
-            fprintf(stderr, "Unsupporttd GPU, skip.\n");
+    if (major == 1) {
+        *cuda_cores = 8;
+    } else if (major == 2 && minor == 0) {
+        *cuda_cores = 32;
+    } else if (major == 2 && minor == 1) {
+        *cuda_cores = 48;
+    } else if (major == 3) {
+        *cuda_cores = 192;
+    } else {
+        fprintf(stderr, "Unsupporttd GPU, skip.\n");
             return DAGUE_ERROR;
     }
     return DAGUE_SUCCESS;
@@ -444,7 +446,7 @@ int dague_gpu_init(dague_context_t *dague_context)
         gpu_device_t* gpu_device;
         CUdevprop devProps;
         char szName[256];
-        int major, minor, concurrency, computemode;
+        int major, minor, concurrency, computemode, streaming_multiprocessor, cuda_cores;
         CUdevice hcuDevice;
 
         status = cuDeviceGet( &hcuDevice, i );
@@ -461,26 +463,19 @@ int dague_gpu_init(dague_context_t *dague_context)
         status = cuDeviceGetAttribute( &concurrency, CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
 
+        status = cuDeviceGetAttribute( &streaming_multiprocessor, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, hcuDevice );
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
+
         /* Allow fine grain selection of the GPU's */
         if( !((1 << i) & cuda_mask) ) continue;
 
         status = cuDeviceGetAttribute( &computemode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
 
-        if ( isdouble ) {
-            //device_weight[i+1] = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
-            if (dague_cuda_lookup_device_weight(&device_weight[i+1], major, 'd') == DAGUE_ERROR) {
-                return -1;
-            }
-        } else {
-            //device_weight[i+1] = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
-            if (dague_cuda_lookup_device_weight(&device_weight[i+1], major, 's') == DAGUE_ERROR) {
-                return -1;
-            }
-        }
-
+        show_caps = 1;
         if( show_caps ) {
             STATUS(("GPU Device %d (capability %d.%d): %s\n", i, major, minor, szName ));
+            STATUS(("\tSM                 : %d\n", streaming_multiprocessor ));
             STATUS(("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock ));
             STATUS(("\tmaxThreadsDim      : [%d %d %d]\n", devProps.maxThreadsDim[0],
                     devProps.maxThreadsDim[1], devProps.maxThreadsDim[2] ));
@@ -575,11 +570,19 @@ int dague_gpu_init(dague_context_t *dague_context)
          */
         //gpu_device->super.device_dweight = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
         //gpu_device->super.device_sweight = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
-        if (dague_cuda_lookup_device_weight(&(gpu_device->super.device_dweight), major, 'd') == DAGUE_ERROR ||
-            dague_cuda_lookup_device_weight(&(gpu_device->super.device_sweight), major, 's') == DAGUE_ERROR ) {
+
+        if (dague_cuda_lookup_device_cudacores(&cuda_cores, major, minor) == DAGUE_ERROR ) {
             return -1;
         }
+        gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)cuda_cores * (float)devProps.clockRate * 2.0 / 1000000;
+        gpu_device->super.device_dweight = gpu_device->super.device_sweight / stod_rate[major-1];
         printf("dweight %f, sweight %f\n", gpu_device->super.device_dweight, gpu_device->super.device_sweight);
+
+        if ( isdouble ) {
+            device_weight[i+1] = gpu_device->super.device_dweight;
+        } else {
+            device_weight[i+1] = gpu_device->super.device_sweight;
+        }
 
         /* Initialize internal lists */
         OBJ_CONSTRUCT(&gpu_device->gpu_mem_lru,       dague_list_t);
