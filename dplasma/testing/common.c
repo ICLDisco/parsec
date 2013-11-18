@@ -11,7 +11,6 @@
 
 #include "common.h"
 #include "common_timing.h"
-#include <plasma.h>
 
 #include <stdlib.h>
 #include <stdio.h>

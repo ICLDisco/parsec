@@ -17,7 +17,6 @@
 /* Plasma and math libs */
 #include <math.h>
 #include <cblas.h>
-#include <plasma.h>
 #include <lapacke.h>
 #include <core_blas.h>
 /* dague things */
