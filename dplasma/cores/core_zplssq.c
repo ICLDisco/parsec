@@ -15,10 +15,8 @@
 #include "dplasma_zcores.h"
 #include <math.h>
 #include <lapacke.h>
-//#include "common.h"
+
 #include <core_blas.h>
-#include "cblas.h"
-#include "core_blas.h"
 
 #define COMPLEX
 

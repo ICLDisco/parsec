@@ -24,32 +24,6 @@
 #define BLKLDD(A, k) ( ( (k) + (A).i/(A).mb) < (A).lm1 ? (A).mb : (A).lm%(A).mb )
 #endif
 
-/***************************************************************************//**
- *  Internal function to return adress of block (m,n)
- **/
-inline static void *plasma_getaddr(PLASMA_desc A, int m, int n)
-{
-    int mm = m+A.i/A.mb;
-    int nn = n+A.j/A.nb;
-    size_t eltsize = sizeof( PLASMA_Complex64_t );
-    size_t offset = 0;
-
-    if (mm < A.lm1) {
-        if (nn < A.ln1)
-            offset = A.bsiz*(mm+A.lm1*nn);
-        else
-            offset = A.A12 + (A.mb*(A.ln%A.nb)*mm);
-    }
-    else {
-        if (nn < A.ln1)
-            offset = A.A21 + ((A.lm%A.mb)*A.nb*nn);
-        else
-            offset = A.A22;
-    }
-
-    return (void*)((intptr_t)A.mat + (offset*eltsize) );
-}
-
 #define BLKADDR(A, type, m, n)  (type *)plasma_getaddr(A, m, n)
 #define A(m) BLKADDR(descA, PLASMA_Complex64_t, m, 0)
 
