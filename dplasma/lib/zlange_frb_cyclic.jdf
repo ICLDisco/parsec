@@ -140,7 +140,7 @@ BODY
     DRYRUN(
         double *dW = (double*)W;
 
-        CORE_zplssq(tempmm, tempnn,
+        CORE_zgessq(tempmm, tempnn,
                     A, ldam, dW, dW+1 );
 
            );
