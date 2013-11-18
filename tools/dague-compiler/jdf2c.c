@@ -518,7 +518,7 @@ static char *dump_data_declaration(void **elem, void *arg)
 }
 
 /**
- * dump_data_initalization_from_data_array:
+ * dump_data_initialization_from_data_array:
  *  Takes the pointer to a flow *f, let say that f->varname == "A",
  *  this produces a string like
  *  dague_arena_chunk_t *gA = this_task->data[id].data;\n
@@ -530,7 +530,7 @@ typedef struct init_from_data_array_info {
     int idx;
 } init_from_data_array_info_t;
 
-static char *dump_data_initalization_from_data_array(void **elem, void *arg)
+static char *dump_data_initialization_from_data_array(void **elem, void *arg)
 {
     init_from_data_array_info_t *ifda = (init_from_data_array_info_t*)arg;
     string_arena_t *sa = ifda->sa;
@@ -3179,7 +3179,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
         coutput("  /* %s : this_task->data[%u] is a control flow */\n", flow->varname, flow_index);
         return;
     }
-    coutput( "  if( NULL == (chunk = this_task->data[%u].data) ) {;  /* flow %s */\n"
+    coutput( "  if( NULL == (chunk = this_task->data[%u].data) ) {  /* flow %s */\n"
              "    entry = NULL;\n",
              flow_index, flow->varname);
 
@@ -3599,7 +3599,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     ifda.sa = sa2;
     ifda.idx = 0;
     output = UTIL_DUMP_LIST(sa, f->dataflow, next,
-                            dump_data_initalization_from_data_array, &ifda, "", "", "", "");
+                            dump_data_initialization_from_data_array, &ifda, "", "", "", "");
     if( 0 != strlen(output) ) {
         coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
                 "%s\n",
@@ -4238,6 +4238,14 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 /* The type might change (possibly from undefined), so let's output */
                 string_arena_add_string(sa_type, "%s", string_arena_get_string(sa));
                 string_arena_add_string(sa_temp, "    data.arena = %s;\n", string_arena_get_string(sa_type));
+                if( strlen(string_arena_get_string(sa_temp)) ) {
+                    string_arena_add_string(sa_coutput,
+                                            "#if defined(DISTRIBUTED)\n"
+                                            "%s"
+                                            "#endif\n",
+                                            string_arena_get_string(sa_temp));
+                    string_arena_init(sa_temp);
+                }
             }
             if( strcmp(string_arena_get_string(sa_tmp_layout), string_arena_get_string(sa_layout)) ) {
                 /* Same thing: the memory layout may change at anytime */
@@ -4257,12 +4265,10 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 string_arena_add_string(sa_displ, "%s", string_arena_get_string(sa_tmp_displ));
                 string_arena_add_string(sa_temp, "    data.displ = %s;\n", string_arena_get_string(sa_tmp_displ));
             }
+            string_arena_add_string(sa_temp, "    data.ptr = this_task->data[%d].data;\n", flownb);
             if( strlen(string_arena_get_string(sa_temp)) ) {
                 string_arena_add_string(sa_coutput,
-                                        "#if defined(DISTRIBUTED)\n"
-                                        "%s"
-                                        "#endif\n",
-                                        string_arena_get_string(sa_temp));
+                                        "%s", string_arena_get_string(sa_temp));
             }
 
             string_arena_init(sa);
