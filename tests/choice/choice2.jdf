@@ -54,7 +54,6 @@ pos = 0..(P-1)
 
 BODY
     fprintf(stderr, "Execute Terminate(%d): Terminating the DAG\n", pos);
-    dague_object_terminate( this_task->dague_object );
 END
 
 LChoice( k, p )
@@ -138,7 +137,11 @@ RW  D <- inline_c %{ return (k == m) && (idecision(k*P+m%P) == 1); %} ? D GenCho
           //-> inline_c %{ return (m == k) && (idecision(k*P+m%P) == 1); %} ? A(m)
 
 BODY
+{
     fprintf(stderr, "Execute TA(%d, %d)\n", k, m);
+    /* Decrease counter for the task B not done */
+    dague_object_dec_nbtask( this_task->dague_object, 1 );
+}
 END
 
 TB(k, m)
@@ -155,5 +158,9 @@ RW  D <- inline_c %{ return (k == m) && (idecision(pos) == 2); %} ? D GenChoice(
           //      -> inline_c %{ return (m == k) && (idecision(pos) == 2); %} ? A(m)
 
 BODY
+{
     fprintf(stderr, "Execute TB(%d, %d)\n", k, m);
+    /* Decrease counter for the task A not done */
+    dague_object_dec_nbtask( this_task->dague_object, 1 );
+}
 END

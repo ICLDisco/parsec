@@ -9,7 +9,7 @@ decision [ type = "int *" ]
 
 Choice(k)
 
-k = 0 .. NT+1
+k = 0 .. NT
 : A(k)
 
 RW D  <- (k == 0) ? A(k)
@@ -17,52 +17,66 @@ RW D  <- (k == 0) ? A(k)
       <- inline_c %{ return (k > 0) && (decision[k-1] == 2); %} ? D TB(k-1)
       -> inline_c %{ return (k <= NT) && (decision[k] == 1); %} ? D TA(k)
       -> inline_c %{ return (k <= NT) && (decision[k] == 2); %} ? D TB(k)
-CTL T -> (k == NT+1) ? T Terminate(0..P-1)
+
+CTL T -> (k == NT) ? T Terminate(0..P-1)
 
 BODY
-	int d;
-	if(k <= NT ) {
+{
+        int d;
+        if(k <= NT ) {
              d = rand() % 2 + 1;
-	     decision[k] = d ;
-	     printf("Execute Choice(%d), choosing decision %c\n", k, d == 0 ? '#' : (d == 1 ? 'A' : 'B'));
+             decision[k] = d ;
+             printf("Execute Choice(%d), choosing decision %c\n", k, d == 0 ? '#' : (d == 1 ? 'A' : 'B'));
         }
+}
 END
 
 Terminate(pos)
 pos = 0..P-1
 :A(pos)
 
-CTL T <- T Choice(NT+1)
+CTL T <- T Choice(NT)
 
 BODY
+{
      printf("Execute Terminate(%d): Terminating the DAG\n", pos);
-     dague_object_terminate( this_task->dague_object );
+}
 END
 
 TB(k)
 
 k = 0 .. NT
 
-: A(k) 
+: A(k)
 
 RW  D <- D Choice(k)
       -> D Choice(k+1)
 
 BODY
-	decision[k] = 2;
-	printf("Execute TB(%d); decision[%d] = %d\n", k, k, decision[k]);
+{
+        decision[k] = 2;
+        printf("Execute TB(%d); decision[%d] = %d\n", k, k, decision[k]);
+
+        /* Decrease counter for the task A not done */
+        dague_object_dec_nbtask( this_task->dague_object, 1 );
+}
 END
 
 TA(k)
 
 k = 0 .. NT
 
-: A(k) 
+: A(k)
 
 RW  D <- D Choice(k)
       -> D Choice(k+1)
 
 BODY
-	decision[k] = 1;
-	printf("Execute TA(%d); decision[%d] = %d\n", k, k, decision[k]);
+{
+        decision[k] = 1;
+        printf("Execute TA(%d); decision[%d] = %d\n", k, k, decision[k]);
+
+        /* Decrease counter for the task B not done */
+        dague_object_dec_nbtask( this_task->dague_object, 1 );
+}
 END
