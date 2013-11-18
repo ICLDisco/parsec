@@ -91,14 +91,7 @@ int dague_object_register( dague_object_t* object );
 /**< Unregister the object with the engine. */
 void dague_object_unregister( dague_object_t* object );
 
-/** Make a dague object almost completed: it will be completed at the end
- *  of this BODY call. Restrictions:
- *     This is supposed to be called in a BODY, obviously;
- *     With the current implementation, this works only if non-completed tasks will never
- *     have any incoming dependency fired.
- */
-void dague_object_terminate( dague_object_t *object );
-
+/**< Decrease task number of the object by nb_tasks. */
 void dague_object_dec_nbtask( dague_object_t* object, uint32_t nb_tasks );
 
 /**< Print DAGuE usage message */
