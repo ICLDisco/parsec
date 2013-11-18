@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 
     size = 256;
     if(argc < 2) {
-        nb   = 2;
+        nb = 2;
     } else {
         nb = atoi(argv[1]);
     }
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
     dague_ddesc_set_key(ddescA, "A");
 
     decision = (int*)calloc(sizeof(int), nb+1);
-    
+
     choice = choice_new(ddescA, size, decision, nb, world);
     dague_enqueue(dague, choice);
 
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 
 #ifdef HAVE_MPI
     MPI_Finalize();
-#endif    
-    
+#endif
+
     return 0;
 }
