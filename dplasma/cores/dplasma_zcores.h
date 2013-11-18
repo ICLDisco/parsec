@@ -12,7 +12,7 @@
 #include "dague.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
-#include <plasma.h>
+#include <core_blas.h>
 
 int blgchase_ztrdv2(int NT, int N, int NB,
                    dague_complex64_t *A1, dague_complex64_t *A2,

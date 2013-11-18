@@ -13,15 +13,11 @@
  * @precisions normal z -> c d s
  *
  **/
-#include "dplasma_zcores.h"
 #include <math.h>
 #include <lapacke.h>
-//#include "common.h"
-#include <plasma.h>
-#include "cblas.h"
-#include "core_blas.h"
-
-#define COMPLEX
+#include <cblas.h>
+#include <core_blas.h>
+#include "dplasma_zcores.h"
 
 #ifdef BLKLDD
 #undef BLKLDD
@@ -129,7 +125,7 @@ int CORE_zamax(PLASMA_enum storev, PLASMA_enum uplo, int M, int N,
             }
         }
     }
-    return PLASMA_SUCCESS;
+    return 0;
 }
 
 
@@ -178,5 +174,5 @@ int CORE_zamax_tile( PLASMA_enum storev,
                     A, lda, work );
     }
 
-    return PLASMA_SUCCESS;
+    return 0;
 }

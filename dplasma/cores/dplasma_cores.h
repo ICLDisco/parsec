@@ -12,7 +12,7 @@
 #include <math.h>
 #include <cblas.h>
 #include <lapacke.h>
-#include <plasma.h>
+#include <core_blas.h>
 #include "dague.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
@@ -30,7 +30,7 @@ static inline int plasma_element_size(int type)
     case PlasmaComplexFloat:  return 2*sizeof(float);
     case PlasmaComplexDouble: return 2*sizeof(double);
     default: /*plasma_fatal_error("plasma_element_size", "undefined type");*/
-        return PLASMA_ERR_ILLEGAL_VALUE;
+        return -1;
     }
 }
 /***************************************************************************//**

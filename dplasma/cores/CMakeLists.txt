@@ -14,22 +14,22 @@ if(CUDA_FOUND)
 
 ### CUDA .cu sources
     set( CUDA11_SOURCES
-         zgemm_11_12_13.cu 
+         zgemm_11_12_13.cu
     )
     set( CUDA13_SOURCES ${CUDA11_SOURCES} )
-    set( CUDA20_SOURCES 
+    set( CUDA20_SOURCES
          zgemm_20_30.cu
     )
 
     foreach( _smtarget ${CUDA_SM_TARGETS} )
         set(cuda_generated_files "")
         precisions_rules_py(cuda_generated_files
-                            "${CUDA${_smtarget}_SOURCES}" 
+                            "${CUDA${_smtarget}_SOURCES}"
                             PRECISIONS "${DPLASMA_PRECISIONS}")
         foreach( _cudafile ${cuda_generated_files} )
             get_source_file_property(_IsInBinaryDir ${_cudafile} IS_IN_BINARY_DIR )
             if( _IsInBinaryDir )
-                string(REGEX REPLACE 
+                string(REGEX REPLACE
                         ${_cudafile}
                         ${CMAKE_CURRENT_BINARY_DIR}/${_cudafile}
                         cuda_generated_files "${cuda_generated_files}")
@@ -86,7 +86,6 @@ set(SOURCES
   core_ztrmdm.c
   core_zhetrf_nopiv.c
   core_zhebut.c
-  core_zplssq.c
   core_zamax.c
   ${GPU_KERNEL_SOURCES}
 )
