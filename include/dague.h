@@ -91,6 +91,7 @@ int dague_object_register( dague_object_t* object );
 /**< Unregister the object with the engine. */
 void dague_object_unregister( dague_object_t* object );
 
+/**< Decrease task number of the object by nb_tasks. */
 void dague_object_dec_nbtask( dague_object_t* object, uint32_t nb_tasks );
 
 /**< Print DAGuE usage message */
