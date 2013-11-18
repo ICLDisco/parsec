@@ -11,7 +11,7 @@ extern "C" %{
  */
 #define PRECISION_z
 
-#include <plasma.h>
+#include <core_blas.h>
 #include <core_blas.h>
 
 #include "dague.h"

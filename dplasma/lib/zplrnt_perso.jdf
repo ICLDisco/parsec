@@ -14,7 +14,7 @@ extern "C" %{
 #define pi (3.1415926535897932384626433832795028841971693992)
 
 #include <math.h>
-#include <plasma.h>
+#include <core_blas.h>
 #include <core_blas.h>
 
 #include "dague.h"

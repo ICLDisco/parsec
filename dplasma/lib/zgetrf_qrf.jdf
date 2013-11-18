@@ -14,7 +14,7 @@ extern "C" %{
 
 #include "dague.h"
 #include <math.h>
-#include <plasma.h>
+#include <core_blas.h>
 #include <core_blas.h>
 
 #include <lapacke.h>

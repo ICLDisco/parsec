@@ -7,7 +7,7 @@
  *
  */
 #include "dague_internal.h"
-#include <plasma.h>
+#include <core_blas.h>
 #include <core_blas.h>
 #include <lapacke.h>
 #include <math.h>

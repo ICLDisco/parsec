@@ -12,7 +12,7 @@ extern "C" %{
 #define PRECISION_z
 
 #include "dague.h"
-#include <plasma.h>
+#include <core_blas.h>
 #include <core_blas.h>
 
 #include "data_distribution.h"

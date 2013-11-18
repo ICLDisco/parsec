@@ -12,7 +12,7 @@ extern "C" %{
 #define PRECISION_z
 
 #include <lapacke.h>
-#include <plasma.h>
+#include <core_blas.h>
 #include <core_blas.h>
 
 

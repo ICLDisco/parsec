@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include <plasma.h>
+#include <core_blas.h>
 #include <dague.h>
 #include "dplasma.h"
 #include "dplasmatypes.h"
