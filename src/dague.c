@@ -1833,29 +1833,22 @@ int dague_getsimulationdate( dague_context_t *dague_context ){
  * Array based local data handling.
  */
 #include "data_distribution.h"
-static uint32_t return_local_u(dague_ddesc_t *unused, ...) { return 0; (void)unused; };
-static int32_t  return_local_s(dague_ddesc_t *unused, ...) { return 0; (void)unused; };
-static dague_data_t* return_data(dague_ddesc_t *unused, ...) { return NULL; (void)unused; };
+static uint32_t return_local_u(dague_ddesc_t *unused, ...) { (void)unused; return 0; };
+static int32_t  return_local_s(dague_ddesc_t *unused, ...) { (void)unused; return 0; };
+static dague_data_t* return_data(dague_ddesc_t *unused, ...) { (void)unused; return NULL; };
 static uint32_t rank_of_key(dague_ddesc_t *unused, dague_data_key_t key)
-{
-    return 0; (void)unused; (void)key;
-}
+{ (void)unused; (void)key; return 0; }
 static dague_data_t* data_of_key(dague_ddesc_t *unused, dague_data_key_t key)
-{
-    return NULL; (void)unused; (void)key;
-}
+{ (void)unused; (void)key; return NULL; }
 static int32_t  vpid_of_key(dague_ddesc_t *unused, dague_data_key_t key)
-{
-    return 0; (void)unused; (void)key;
-}
+{ (void)unused; (void)key; return 0; }
 static dague_data_key_t data_key(dague_ddesc_t *mat, ...)
-{
-    return 0; (void)mat;
-}
+{ (void)mat; return 0; }
 #if defined(DAGUE_PROF_TRACE)
 static int key_to_string(dague_ddesc_t *unused, dague_data_key_t datakey, char* buffer, uint32_t buffer_size)
 {
-    return snprintf( buffer, buffer_size, "%u ", datakey); (void)unused;
+    (void)unused;
+    return snprintf( buffer, buffer_size, "%u ", datakey);
 }
 #endif /* DAGUE_PROF_TRACE */
 

@@ -1266,6 +1266,7 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dague
             remote_dep_mpi_recv_activate(eu_context, deps, buffer, unpacked);
             item = dague_ulist_remove(&dep_activates_noobj_fifo, item);
             free(item);
+            item = NULL;
             (void)rc;
         }
     }));
