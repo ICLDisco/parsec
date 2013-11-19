@@ -4129,7 +4129,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  arg.output_usage = 0;\n"
             "  arg.action_mask = action_mask;\n"
             "  arg.deps = deps;\n"
-            "  arg.ready_lists = (eu != NULL) ? calloc(sizeof(dague_execution_context_t *), eu->virtual_process->dague_context->nb_vp) : NULL;\n"
+            "  arg.ready_lists = calloc(sizeof(dague_execution_context_t *), eu->virtual_process->dague_context->nb_vp);\n"
             "  (void)__dague_handle;\n",
             name, jdf_basename, jdf_basename);
 
@@ -4354,7 +4354,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                            dump_expr, (void*)&linfo,
                                            "", "", ", ", ""));
     string_arena_add_string(sa_open,
-                            "%s%s  if( eu != NULL && rank_dst == eu->virtual_process->dague_context->my_rank ) vpid_dst = ((dague_ddesc_t*)__dague_handle->super.%s)->vpid_of((dague_ddesc_t*)__dague_handle->super.%s, %s);\n"
+                            "%s%s  if(rank_dst == eu->virtual_process->dague_context->my_rank ) vpid_dst = ((dague_ddesc_t*)__dague_handle->super.%s)->vpid_of((dague_ddesc_t*)__dague_handle->super.%s, %s);\n"
                             "#else /* !DISTRIBUTED */\n",
                             prefix, indent(nbopen), targetf->predicate->func_or_mem, targetf->predicate->func_or_mem,
                             UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next,
