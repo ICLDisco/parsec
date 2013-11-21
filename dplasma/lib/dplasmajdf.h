@@ -1,6 +1,9 @@
 #ifndef _DPLASMAJDF_H_
 #define _DPLASMAJDF_H_
 
+#include <core_blas.h>
+#include "dague.h"
+
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
 
