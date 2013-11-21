@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
+ *  Copyright (c) 2010-2013
  *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
@@ -9,17 +9,9 @@ extern "C" %{
  * @precisions normal z -> c
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
-
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/dplasmajdf.h"
+
 %}
 
 /*
@@ -29,17 +21,19 @@ side   [type = PLASMA_enum]
 uplo   [type = PLASMA_enum]
 alpha  [type = dague_complex64_t]
 beta   [type = dague_complex64_t]
-descA  [type = "tiled_matrix_desc_t"]
-A      [type = "dague_ddesc_t *"]
-descB  [type = "tiled_matrix_desc_t"]
-B      [type = "dague_ddesc_t *"]
-descC  [type = "tiled_matrix_desc_t"]
-C      [type = "dague_ddesc_t *"]
+
+dataA  [type = "dague_ddesc_t *"]
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+dataB  [type = "dague_ddesc_t *"]
+descB  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
+dataC  [type = "dague_ddesc_t *"]
+descC  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
 
 plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 plasma_left    [type="PLASMA_enum" hidden=on default=PlasmaLeft  ]
 plasma_right   [type="PLASMA_enum" hidden=on default=PlasmaRight ]
+
 c [type="int" hidden=on default="( (side == PlasmaLeft) ? ((uplo == PlasmaLower) ? 0 : 1 ) : ((uplo == PlasmaLower) ? 2 : 3) )" ]
 
 symm_in_A(m, n) [profile = off]
@@ -47,7 +41,7 @@ symm_in_A(m, n) [profile = off]
 m = 0 .. descA.mt-1
 n = ((uplo == plasma_upper) ? m : 0) .. ((uplo == plasma_upper) ? descA.nt-1 : m)
 
-: A(m, n)
+: dataA(m, n)
 
   RW A <- A(m, n)
        ->  (c == 0) || (c == 1)              ? A SYMM(m, 0..descC.nt-1, n)
@@ -55,7 +49,9 @@ n = ((uplo == plasma_upper) ? m : 0) .. ((uplo == plasma_upper) ? descA.nt-1 : m
        ->  (c == 2) || (c == 3)              ? B SYMM(0..descC.mt-1, n, m)
        -> ((c == 2) || (c == 3)) && (m != n) ? B SYMM(0..descC.mt-1, m, n)
 BODY
-/* nothing */
+{
+    /* nothing */
+}
 END
 
 symm_in_B(m, n) [profile = off]
@@ -65,11 +61,13 @@ n = 0 .. descB.nt-1
 
 : B(m, n)
 
-  RW B <- B(m, n)
+  RW B <- dataB(m, n)
        -> (c == 0) || (c == 1) ? B SYMM(0..descB.mt-1, n, m)
        -> (c == 2) || (c == 3) ? A SYMM(m, 0..descB.nt-1, n)
 BODY
-/* nothing */
+{
+    /* nothing */
+}
 END
 
 SYMM(m, n, k)
@@ -80,7 +78,7 @@ n = 0 .. descC.nt-1
 k = 0 .. (side == plasma_left ) ? descC.mt-1 : descC.nt-1
 
 // Parallel partitioning
-: C(m, n)
+: dataC(m, n)
 
 // Parameters
 
@@ -94,10 +92,10 @@ READ  B <- (c == 2) && (k <= n) ? A symm_in_A(n, k)
         <- (c == 3) && (k <= n) ? A symm_in_A(k, n)
         <- (c == 3) && (k >  n) ? A symm_in_A(n, k)
         <- (c == 0) || (c == 1) ? B symm_in_B(k, n)
-RW    C <- ( k == 0 ) ? C(m, n) : C SYMM( m, n, k-1 )
-        -> ( ( (side == plasma_left) && (k == descC.mt-1) ) || ( (side == plasma_right) && (k == descC.nt-1) ) ) ? C( m, n ) : C SYMM(m, n, k+1)
+RW    C <- ( k == 0 ) ? dataC(m, n) : C SYMM( m, n, k-1 )
+        -> ( ( (side == plasma_left) && (k == descC.mt-1) ) || ( (side == plasma_right) && (k == descC.nt-1) ) ) ? dataC( m, n ) : C SYMM(m, n, k+1)
 BODY
-
+{
     dague_complex64_t zbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
     int tempmm = ( m == descC.mt-1 ) ? descC.m - m * descC.mb : descC.mb;
     int tempnn = ( n == descC.nt-1 ) ? descC.n - n * descC.nb : descC.nb;
@@ -112,7 +110,7 @@ BODY
                 side, uplo,
                 tempmm, tempnn,
                 alpha, A, ldam,
-                       B, ldbk,
+                B, ldbk,
                 zbeta, C, ldcm);
         }
         else if (side == PlasmaRight && k == n) {
@@ -123,7 +121,7 @@ BODY
                 side, uplo,
                 tempmm, tempnn,
                 alpha, B, ldak,
-                       A, ldbm,
+                A, ldbm,
                 zbeta, C, ldcm);
         } else {
             PLASMA_enum transl = (c == 0 && k > m) || (c == 1 && k < m) ? PlasmaTrans : PlasmaNoTrans;
@@ -140,18 +138,11 @@ BODY
                 transl, transr,
                 tempmm, tempnn, tempk,
                 alpha, A, lda,
-                       B, ldb,
+                B, ldb,
                 zbeta, C, ldcm); /* ldc * Y */
         }
-        );
+           );
 
-    printlog("symm( %d, %d, %d )\n",
-             /* "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n", */
-             m, n, k);
-             /* plasma_const(uplo), tempmm, tempnn,  */
-             /* m, n, ldam, m, n, ldbm); */
+    printlog("symm( %d, %d, %d )\n", m, n, k);
+}
 END
-
-extern "C" %{
-
-%}

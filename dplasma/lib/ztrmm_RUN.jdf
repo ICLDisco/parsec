@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
+ *  Copyright (c) 2010-2013
  *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
@@ -9,17 +9,8 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
 
 %}
 
@@ -34,10 +25,10 @@ dataB     [type = "dague_ddesc_t *"]
 descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
 
 
-ztrmm(n, m) 
+ztrmm(n, m)
   /* Execution Space */
-  n = 0..(descB.nt-1)
-  m = 0..(descB.mt-1)
+  n = 0 .. (descB.nt-1)
+  m = 0 .. (descB.mt-1)
 
   /* Locality */
   : dataB(m,(descB.nt-1)-n)
@@ -49,28 +40,26 @@ ztrmm(n, m)
 
 BODY
 {
-  int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
-  int tempnn = (((descB.nt-1)-n)==(descB.nt-1)) ? (descB.n-(((descB.nt-1)-n)*descB.nb)) : descB.nb;
-  int lda = BLKLDD( descA, (descB.nt-1)-n );
-  int ldb = BLKLDD( descB, m );
+    int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
+    int tempnn = (((descB.nt-1)-n)==(descB.nt-1)) ? (descB.n-(((descB.nt-1)-n)*descB.nb)) : descB.nb;
+    int lda = BLKLDD( descA, (descB.nt-1)-n );
+    int ldb = BLKLDD( descB, m );
 
-  printlog("CORE_ztrmm(%d, %d)\n"
-           "\t(side, uplo, trans, diag, tempmm, tempnn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-  n, m, (descB.nt-1)-n, (descB.nt-1)-n, A, m, (descB.nt-1)-n, B);
-  DRYRUN(
-
-    CORE_ztrmm(side, uplo, trans, 
-        diag, tempmm, tempnn, 
-        alpha, A /* dataA((descB.nt-1)-n,(descB.nt-1)-n) */, lda, 
-        B /* dataB(m,(descB.nt-1)-n) */, ldb );
-  );
-
+    printlog("CORE_ztrmm(%d, %d)\n"
+             "\t(side, uplo, trans, diag, tempmm, tempnn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
+             n, m, (descB.nt-1)-n, (descB.nt-1)-n, A, m, (descB.nt-1)-n, B);
+    DRYRUN(
+        CORE_ztrmm(side, uplo, trans,
+                   diag, tempmm, tempnn,
+                   alpha, A /* dataA((descB.nt-1)-n,(descB.nt-1)-n) */, lda,
+                          B /* dataB(m,             (descB.nt-1)-n) */, ldb );
+           );
 }
 END
 
 ztrmm_in_data_A0(n) [profile = off]
   /* Execution Space */
-  n = 0..(descB.nt-1)
+  n = 0 .. (descB.nt-1)
 
   /* Locality */
   : dataA((descB.nt-1)-n,(descB.nt-1)-n)
@@ -84,11 +73,11 @@ BODY
 }
 END
 
-zgemm(n, m, k) 
+zgemm(n, m, k)
   /* Execution Space */
-  n = 0..(descB.nt-1)
-  m = 0..(descB.mt-1)
-  k = 0..(descB.nt-n-2)
+  n = 0 .. (descB.nt-1)
+  m = 0 .. (descB.mt-1)
+  k = 0 .. (descB.nt-n-2)
 
   /* Locality */
   : dataB(m,(descB.nt-1)-n)
@@ -103,32 +92,30 @@ zgemm(n, m, k)
 
 BODY
 {
-  int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
-  int tempnn = (((descB.nt-1)-n)==(descB.nt-1)) ? (descB.n-(((descB.nt-1)-n)*descB.nb)) : descB.nb;
-  int ldb = BLKLDD( descB, m );
+    int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
+    int tempnn = (((descB.nt-1)-n)==(descB.nt-1)) ? (descB.n-(((descB.nt-1)-n)*descB.nb)) : descB.nb;
+    int ldb = BLKLDD( descB, m );
 
-  printlog("CORE_zgemm(%d, %d, %d)\n"
-           "\t(PlasmaNoTrans, trans, tempmm, tempnn, descB.mb, alpha, B(%d,%d)[%p], ldb, A(%d,%d)[%p], descA.mb, 1.000000, B(%d,%d)[%p], ldb)\n",
-  n, m, k, m, k, C, k, (descB.nt-1)-n, D, m, (descB.nt-1)-n, E);
-  DRYRUN(
-
-    CORE_zgemm(PlasmaNoTrans, trans, tempmm, 
-        tempnn, descB.mb, alpha, 
-        C /* dataB(m,k) */, ldb, D /* dataA(k,(descB.nt-1)-n) */, 
-        descA.mb, 1.000000, E /* dataB(m,(descB.nt-1)-n) */, 
-        ldb );
-  );
-
+    printlog("CORE_zgemm(%d, %d, %d)\n"
+             "\t(PlasmaNoTrans, trans, tempmm, tempnn, descB.mb, alpha, B(%d,%d)[%p], ldb, A(%d,%d)[%p], descA.mb, 1.000000, B(%d,%d)[%p], ldb)\n",
+             n, m, k, m, k, C, k, (descB.nt-1)-n, D, m, (descB.nt-1)-n, E);
+    DRYRUN(
+        CORE_zgemm(PlasmaNoTrans, trans, tempmm,
+                   tempnn, descB.mb,
+                   alpha, C /* dataB(m,k) */,              ldb,
+                          D /* dataA(k,(descB.nt-1)-n) */, descA.mb,
+                   1.,    E /* dataB(m,(descB.nt-1)-n) */, ldb );
+           );
 }
 END
 
 zgemm_in_data_A1(n, k) [profile = off]
   /* Execution Space */
-  n = 0..(descB.nt-1)
-  k = 0..(descB.nt-n-2)
+  n = 0 .. (descB.nt-1)
+  k = 0 .. (descB.nt-n-2)
 
   /* Locality */
-  : dataA(k,(descB.nt-1)-n)
+  : dataA(k, (descB.nt-1)-n)
 
   READ  D    <- dataA(k,(descB.nt-1)-n)
              -> D zgemm(n, 0..(descB.mt-1), k)
@@ -141,8 +128,8 @@ END
 
 zgemm_in_data_B0(m, k) [profile = off]
   /* Execution Space */
-  m = 0..(descB.mt-1)
-  k = 0..(descB.nt-2) /* thight bound is 0..(descB.nt-n-2) */
+  m = 0 .. (descB.mt-1)
+  k = 0 .. (descB.nt-2) /* tight bound is 0..(descB.nt-n-2) */
 
   /* Locality */
   : dataB(m,k)
@@ -155,5 +142,3 @@ BODY
     /* nothing */
 }
 END
-
-

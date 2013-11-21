@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
+ *  Copyright (c) 2010-2013
  *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
@@ -9,17 +9,8 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/dplasmajdf.h"
-
 
 %}
 
@@ -32,12 +23,12 @@ transB [type = int]
 alpha  [type = dague_complex64_t]
 beta   [type = dague_complex64_t]
 
-dataA     [type = "dague_ddesc_t *"]
-descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-dataB     [type = "dague_ddesc_t *"]
-descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
-dataC     [type = "dague_ddesc_t *"]
-descC     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
+dataA  [type = "dague_ddesc_t *"]
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+dataB  [type = "dague_ddesc_t *"]
+descB  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
+dataC  [type = "dague_ddesc_t *"]
+descC  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
 
 /**************************************************
  *                       READ_A                   *
@@ -52,7 +43,9 @@ k = 0 .. descA.nt-1
 A <- dataA(m, k)
   -> A GEMM(m, 0, k)
 BODY
+{
     printlog("rank %u <- A(%d,%d)\n", __dague_object->super.dataA->myrank, m, k);
+}
 END
 
 /**************************************************
@@ -68,7 +61,9 @@ k = 0 .. descB.nt-1
 B <- dataB(n, k)
   -> B GEMM(0, n, k)
 BODY
+{
      printlog("rank %u <- B(%d,%d)\n", __dague_object->super.dataB->myrank, n, k);
+}
 END
 
 /**************************************************
@@ -92,33 +87,31 @@ READ B <- (m == 0)            ? B READ_B(n, k) : B GEMM( (m+descC.mt-1) % descC.
 RW   C <- (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
        -> (k == (descA.nt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
 BODY
-        dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
-        int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
-        int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
-        int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
-        int ldam = BLKLDD(descA, m);
-        int ldbn = BLKLDD(descB, n);
-        int ldcm = BLKLDD(descC, m);
+{
+    dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
+    int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
+    int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
+    int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
+    int ldam = BLKLDD(descA, m);
+    int ldbn = BLKLDD(descB, n);
+    int ldcm = BLKLDD(descC, m);
 
-        DRYRUN(
-            CORE_zgemm(
-                transA, transB,
-                tempmm, tempnn, tempkk,
-                alpha, A /*A(m, k)*/, ldam,
-                       B /*B(n, k)*/, ldbn,
-                lbeta, C /*C(m, n)*/, ldcm);
-            );
+    DRYRUN(
+        CORE_zgemm(
+            transA, transB,
+            tempmm, tempnn, tempkk,
+            alpha, A /*A(m, k)*/, ldam,
+            B /*B(n, k)*/, ldbn,
+            lbeta, C /*C(m, n)*/, ldcm);
+           );
 
-        printlog("gemm( %d, %d, %d )\n"
-                 "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
-                 m, n, k,
-                 plasma_const( transA ), plasma_const( transB ), 
-                 tempmm, tempnn, tempkk,
-                 creal(alpha), m, k, ldam,
-                               n, k, ldbn,
-                 creal(lbeta), m, n, ldcm);
+    printlog("gemm( %d, %d, %d )\n"
+             "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
+             m, n, k,
+             plasma_const( transA ), plasma_const( transB ),
+             tempmm, tempnn, tempkk,
+             creal(alpha), m, k, ldam,
+             n, k, ldbn,
+             creal(lbeta), m, n, ldcm);
+}
 END
-
-extern "C" %{
-
-%}

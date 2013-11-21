@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
+ *  Copyright (c) 2010-2013
  *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
@@ -9,17 +9,8 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
 
 %}
 
@@ -34,7 +25,7 @@ dataB     [type = "dague_ddesc_t *"]
 descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
 
 
-ztrmm(m, n) 
+ztrmm(m, n)
   /* Execution Space */
   m = 0..(descB.mt-1)
   n = 0..(descB.nt-1)
@@ -50,22 +41,20 @@ ztrmm(m, n)
 
 BODY
 {
-  int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
-  int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
-  int lda = BLKLDD( descA, m );
-  int ldb = BLKLDD( descB, m );
+    int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
+    int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
+    int lda = BLKLDD( descA, m );
+    int ldb = BLKLDD( descB, m );
 
-  printlog("CORE_ztrmm(%d, %d)\n"
-           "\t(side, uplo, trans, diag, tempmm, tempnn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-  m, n, m, m, A, m, n, B);
-  DRYRUN(
-
-    CORE_ztrmm(side, uplo, trans, 
-        diag, tempmm, tempnn, 
-        alpha, A /* dataA(m,m) */, lda, 
-        B /* dataB(m,n) */, ldb );
-  );
-
+    printlog("CORE_ztrmm(%d, %d)\n"
+             "\t(side, uplo, trans, diag, tempmm, tempnn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
+             m, n, m, m, A, m, n, B);
+    DRYRUN(
+        CORE_ztrmm(side, uplo, trans,
+                   diag, tempmm, tempnn,
+                   alpha, A /* dataA(m,m) */, lda,
+                   B /* dataB(m,n) */, ldb );
+           );
 }
 END
 
@@ -85,7 +74,7 @@ BODY
 }
 END
 
-zgemm(m, n, k) 
+zgemm(m, n, k)
   /* Execution Space */
   m = 0..inline_c %{ return dague_imin((descB.mt-1),(descA.mt-2)); %}
   n = 0..(descB.nt-1)
@@ -104,25 +93,23 @@ zgemm(m, n, k)
 
 BODY
 {
-  int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
-  int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
-  int ldak = BLKLDD( descA, k );
-  int ldbk = BLKLDD( descB, k );
-  int ldb = BLKLDD( descB, m );
+    int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
+    int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
+    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
+    int ldak = BLKLDD( descA, k );
+    int ldbk = BLKLDD( descB, k );
+    int ldb = BLKLDD( descB, m );
 
-  printlog("CORE_zgemm(%d, %d, %d)\n"
-           "\t(trans, PlasmaNoTrans, tempmm, tempnn, tempkm, alpha, A(%d,%d)[%p], ldak, B(%d,%d)[%p], ldbk, 1.000000, B(%d,%d)[%p], ldb)\n",
-  m, n, k, k, m, C, k, n, D, m, n, E);
-  DRYRUN(
-
-    CORE_zgemm(trans, PlasmaNoTrans, tempmm, 
-        tempnn, tempkm, alpha, 
-        C /* dataA(k,m) */, ldak, D /* dataB(k,n) */, 
-        ldbk, 1.000000, E /* dataB(m,n) */, 
-        ldb );
-  );
-
+    printlog("CORE_zgemm(%d, %d, %d)\n"
+             "\t(trans, PlasmaNoTrans, tempmm, tempnn, tempkm, alpha, A(%d,%d)[%p], ldak, B(%d,%d)[%p], ldbk, 1.000000, B(%d,%d)[%p], ldb)\n",
+             m, n, k, k, m, C, k, n, D, m, n, E);
+    DRYRUN(
+        CORE_zgemm(trans, PlasmaNoTrans, tempmm,
+                   tempnn, tempkm, alpha,
+                   C /* dataA(k,m) */, ldak, D /* dataB(k,n) */,
+                   ldbk, 1.000000, E /* dataB(m,n) */,
+                   ldb );
+           );
 }
 END
 
@@ -159,5 +146,3 @@ BODY
     /* nothing */
 }
 END
-
-
