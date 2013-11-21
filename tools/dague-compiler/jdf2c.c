@@ -4239,11 +4239,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 string_arena_add_string(sa_type, "%s", string_arena_get_string(sa));
                 string_arena_add_string(sa_temp, "    data.arena = %s;\n", string_arena_get_string(sa_type));
                 if( strlen(string_arena_get_string(sa_temp)) ) {
-                    string_arena_add_string(sa_coutput,
-                                            "#if defined(DISTRIBUTED)\n"
-                                            "%s"
-                                            "#endif\n",
-                                            string_arena_get_string(sa_temp));
+                    string_arena_add_string(sa_coutput, "%s", string_arena_get_string(sa_temp));
                     string_arena_init(sa_temp);
                 }
             }
