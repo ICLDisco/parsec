@@ -2,12 +2,13 @@
  * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> z c d s
  *
  */
 #include "dague_internal.h"
-#include <core_blas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 
@@ -16,19 +17,21 @@
 #include "zsyr2k_UN.h"
 #include "zsyr2k_UT.h"
 
-/***************************************************************************//**
+/**
+ ******************************************************************************
  *
- * @ingroup PLASMA_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_zsyr2k_New - Performs one of the symmetric rank 2k operations
+ *  dplasma_zsyr2k_New - Generates the dague object to performs one of the
+ *  syrmitian rank 2k operations
  *
- *    \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + \alpha [ op( B ) \times conjg( op( A )' )] + \beta C \f],
+ *    \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f],
  *    or
- *    \f[ C = \alpha [ conjg( op( A )' ) \times op( B ) ] + \alpha [ conjg( op( B )' ) \times op( A ) ] + \beta C \f],
+ *    \f[ C = \alpha [ conjg( op( A )' ) \times op( B ) ] + conjg( \alpha ) [ conjg( op( B )' ) \times op( A ) ] + \beta C \f],
  *
- *  wsyre op( X ) is one of
+ *  where op( X ) is one of
  *
- *    op( X ) = X  or op( X ) = X'
+ *    op( X ) = X  or op( X ) = conjg( X' )
  *
  *  where alpha and beta are real scalars, C is an n-by-n symmetric
  *  matrix and A and B are an n-by-k matrices the first case and k-by-n
@@ -41,67 +44,49 @@
  *          = PlasmaLower: Lower triangle of C is stored.
  *
  * @param[in] trans
- *          Specifies whether the matrix A is not transposed or transposed:
- *          = PlasmaNoTrans:   \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + \alpha [ op( B ) \times conjg( op( A )' )] + \beta C \f]
- *          = PlasmaTrans: \f[ C = \alpha [ conjg( op( A )' ) \times op( B ) ] + \alpha [ conjg( op( B )' ) \times op( A ) ] + \beta C \f]
- *
- * @param[in] N
- *          N specifies the order of the matrix C. N must be at least zero.
- *
- * @param[in] K
- *          K specifies the number of columns of the A and B matrices with trans = PlasmaNoTrans.
- *          K specifies the number of rows of the A and B matrices with trans = PlasmaTrans.
+ *          Specifies whether the matrix A is not transposed or conjugate transposed:
+ *          = PlasmaNoTrans: \f[ C = \alpha [ op( A )  \times op( B )' ] + conjg( \alpha ) [ op( B )  \times op( A )' ] + \beta C \f]
+ *          = PlasmaTrans:   \f[ C = \alpha [ op( A )' \times op( B )  ] + conjg( \alpha ) [ op( B )' \times op( A )  ] + \beta C \f]
  *
  * @param[in] alpha
  *          alpha specifies the scalar alpha.
  *
  * @param[in] A
- *          A is a LDA-by-ka matrix, where ka is K when trans = PlasmaNoTrans,
- *          and is N otherwise.
- *
- * @param[in] LDA
- *          The leading dimension of the array A. LDA must be at least
- *          max( 1, N ), otherwise LDA must be at least max( 1, K ).
+ *          Descriptor of the distributed matrix A
  *
  * @param[in] B
- *          B is a LDB-by-kb matrix, where kb is K when trans = PlasmaNoTrans,
- *          and is N otherwise.
- *
- * @param[in] LDB
- *          The leading dimension of the array B. LDB must be at least
- *          max( 1, N ), otherwise LDB must be at least max( 1, K ).
+ *          Descriptor of the distributed matrix B
  *
  * @param[in] beta
  *          beta specifies the scalar beta.
  *
  * @param[in,out] C
- *          C is a LDC-by-N matrix.
- *          On exit, the array uplo part of the matrix is overwritten
- *          by the uplo part of the updated matrix.
- *
- * @param[in] LDC
- *          The leading dimension of the array C. LDC >= max( 1, N ).
+ *          Descriptor of the symmetric matrix C.
+ *          On exit, the uplo part of the matrix described by C is overwritten
+ *          by the result of the operation.
  *
  *******************************************************************************
  *
  * @return
- *          \retval PLASMA_SUCCESS successful exit
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_zsyr2k_Destruct();
  *
  *******************************************************************************
  *
  * @sa dplasma_zsyr2k
+ * @sa dplasma_zsyr2k_Destruct
  * @sa dplasma_csyr2k_New
- * @sa dplasma_dsyr2k_New
- * @sa dplasma_ssyr2k_New
  *
  ******************************************************************************/
 dague_object_t*
-dplasma_zsyr2k_New( const PLASMA_enum uplo,
-                    const PLASMA_enum trans,
-                    const dague_complex64_t alpha,
+dplasma_zsyr2k_New( PLASMA_enum uplo,
+                    PLASMA_enum trans,
+                    dague_complex64_t alpha,
                     const tiled_matrix_desc_t* A,
                     const tiled_matrix_desc_t* B,
-                    const dague_complex64_t beta,
+                    dague_complex64_t beta,
                     tiled_matrix_desc_t* C)
 {
     dague_object_t* object;
@@ -111,7 +96,7 @@ dplasma_zsyr2k_New( const PLASMA_enum uplo,
         dplasma_error("dplasma_zsyr2k_New", "illegal value of uplo");
         return NULL;
     }
-    if (trans != PlasmaTrans && trans != PlasmaNoTrans ) {
+    if (trans != PlasmaConjTrans && trans != PlasmaTrans && trans != PlasmaNoTrans ) {
         dplasma_error("dplasma_zsyr2k_New", "illegal value of trans");
         return NULL;
     }
@@ -173,10 +158,10 @@ dplasma_zsyr2k_New( const PLASMA_enum uplo,
 
 /***************************************************************************//**
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_zsyr2k_Destruct - Clean the data structures associated to a
- *  zsyr2k dague object.
+ *  dplasma_zsyr2k_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zsyr2k_New().
  *
  *******************************************************************************
  *
@@ -187,9 +172,6 @@ dplasma_zsyr2k_New( const PLASMA_enum uplo,
  *
  * @sa dplasma_zsyr2k_New
  * @sa dplasma_zsyr2k
- * @sa dplasma_csyr2k_Destruct
- * @sa dplasma_dsyr2k_Destruct
- * @sa dplasma_ssyr2k_Destruct
  *
  ******************************************************************************/
 void
@@ -200,40 +182,77 @@ dplasma_zsyr2k_Destruct( dague_object_t *o )
     DAGUE_INTERNAL_OBJECT_DESTRUCT(zsyr2k_object);
 }
 
-/***************************************************************************//**
+/**
+ ******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_zsyr2k - Synchronous version of dplasma_zsyr2k_New
+ *  dplasma_zsyr2k_New - Performs one of the symmetric rank 2k operations
+ *
+ *    \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f],
+ *    or
+ *    \f[ C = \alpha [ conjg( op( A )' ) \times op( B ) ] + conjg( \alpha ) [ conjg( op( B )' ) \times op( A ) ] + \beta C \f],
+ *
+ *  where op( X ) is one of
+ *
+ *    op( X ) = X  or op( X ) = conjg( X' )
+ *
+ *  where alpha and beta are real scalars, C is an n-by-n symmetric
+ *  matrix and A and B are an n-by-k matrices the first case and k-by-n
+ *  matrices in the second case.
  *
  *******************************************************************************
  *
- * @param[in] dague
- *          Dague context to which submit the DAG object.
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] uplo
+ *          = PlasmaUpper: Upper triangle of C is stored;
+ *          = PlasmaLower: Lower triangle of C is stored.
+ *
+ * @param[in] trans
+ *          Specifies whether the matrix A is not transposed or conjugate transposed:
+ *          = PlasmaNoTrans:   \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f]
+ *          = PlasmaConjTrans: \f[ C = \alpha [ conjg( op( A )' ) \times op( B ) ] + conjg( \alpha ) [ conjg( op( B )' ) \times op( A ) ] + \beta C \f]
+ *
+ * @param[in] alpha
+ *          alpha specifies the scalar alpha.
+ *
+ * @param[in] A
+ *          Descriptor of the distributed matrix A
+ *
+ * @param[in] B
+ *          Descriptor of the distributed matrix B
+ *
+ * @param[in] beta
+ *          beta specifies the scalar beta.
+ *
+ * @param[in,out] C
+ *          Descriptor of the symmetric matrix C.
+ *          On exit, the uplo part of the matrix described by C is overwritten
+ *          by the result of the operation.
  *
  *******************************************************************************
  *
  * @return
- *          \retval 0 if success
- *          \retval < 0 if one of the parameter had an illegal value.
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
  *
  *******************************************************************************
  *
- * @sa dplasma_zsyr2k_Destruct
  * @sa dplasma_zsyr2k_New
+ * @sa dplasma_zsyr2k_Destruct
  * @sa dplasma_csyr2k
- * @sa dplasma_dsyr2k
- * @sa dplasma_ssyr2k
  *
  ******************************************************************************/
 int
 dplasma_zsyr2k( dague_context_t *dague,
-                const PLASMA_enum uplo,
-                const PLASMA_enum trans,
-                const dague_complex64_t alpha,
+                PLASMA_enum uplo,
+                PLASMA_enum trans,
+                dague_complex64_t alpha,
                 const tiled_matrix_desc_t *A,
                 const tiled_matrix_desc_t *B,
-                const dague_complex64_t beta,
+                dague_complex64_t beta,
                 tiled_matrix_desc_t *C)
 {
     dague_object_t *dague_zsyr2k = NULL;
@@ -243,7 +262,7 @@ dplasma_zsyr2k( dague_context_t *dague,
         dplasma_error("dplasma_zsyr2k", "illegal value of uplo");
         return -1;
     }
-    if (trans != PlasmaTrans && trans != PlasmaNoTrans ) {
+    if (trans != PlasmaConjTrans && trans != PlasmaTrans && trans != PlasmaNoTrans ) {
         dplasma_error("dplasma_zsyr2k", "illegal value of trans");
         return -2;
     }
@@ -256,8 +275,8 @@ dplasma_zsyr2k( dague_context_t *dague,
         dplasma_error("dplasma_zsyr2k", "illegal descriptor C (C->m != C->n)");
         return -6;
     }
-    if ( (( trans == PlasmaNoTrans ) && ( A->m != C->m ))
-         || (( trans != PlasmaNoTrans ) && ( A->n != C->m )) ) {
+    if ( (( trans == PlasmaNoTrans ) && ( A->m != C->m )) ||
+         (( trans != PlasmaNoTrans ) && ( A->n != C->m )) ) {
         dplasma_error("dplasma_zsyr2k", "illegal sizes for the matrices");
         return -6;
     }

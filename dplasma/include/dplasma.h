@@ -86,13 +86,6 @@ enum matrix_init_e {
     MATRIX_LANGOU    = 100,
 };
 
-/*
- * Map operations
- */
-void dplasma_map2( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
-dague_object_t* dplasma_map2_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
-void dplasma_map2_Destruct( dague_object_t *o );
-
 /**
  * No macro with the name max or min is acceptable as there is
  * no way to correctly define them without borderline effects.
@@ -108,9 +101,17 @@ static inline int imin(int32_t a, int32_t b) { return a < b ? a : b; }
 #define dplasma_dsqrt sqrt
 #define dplasma_ssqrt sqrtf
 
+#include <core_blas.h>
 #include "dplasma/include/dplasma_s.h"
 #include "dplasma/include/dplasma_d.h"
 #include "dplasma/include/dplasma_c.h"
 #include "dplasma/include/dplasma_z.h"
+
+/*
+ * Map operations
+ */
+void dplasma_map2( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
+dague_object_t* dplasma_map2_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
+void dplasma_map2_Destruct( dague_object_t *o );
 
 #endif /* _DPLASMA_H_ */

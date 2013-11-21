@@ -1,13 +1,14 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> s d c
  *
  */
 #include "dague_internal.h"
-#include <core_blas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 
@@ -16,10 +17,75 @@
 #include "zgemm_TN.h"
 #include "zgemm_TT.h"
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ *  dplasma_zgemm_New - Generates the object that performs one of the following
+ *  matrix-matrix operations. WARNING: The computations are not done by this call.
+ *
+ *    \f[ C = \alpha [op( A )\times op( B )] + \beta C \f],
+ *
+ *  where op( X ) is one of
+ *
+ *    op( X ) = X  or op( X ) = X' or op( X ) = conjg( X' )
+ *
+ *  alpha and beta are scalars, and A, B and C  are matrices, with op( A )
+ *  an m by k matrix, op( B ) a k by n matrix and C an m by n matrix.
+ *
+ *******************************************************************************
+ *
+ * @param[in] transA
+ *          Specifies whether the matrix A is transposed, not transposed or conjugate transposed:
+ *          = PlasmaNoTrans:   A is not transposed;
+ *          = PlasmaTrans:     A is transposed;
+ *          = PlasmaConjTrans: A is conjugate transposed.
+ *
+ * @param[in] transB
+ *          Specifies whether the matrix B is transposed, not transposed or conjugate transposed:
+ *          = PlasmaNoTrans:   B is not transposed;
+ *          = PlasmaTrans:     B is transposed;
+ *          = PlasmaConjTrans: B is conjugate transposed.
+ *
+ * @param[in] alpha
+ *          alpha specifies the scalar alpha
+ *
+ * @param[in] A
+ *          Descriptor of the distributed matrix A.
+ *
+ * @param[in] B
+ *          Descriptor of the distributed matrix B.
+ *
+ * @param[in] beta
+ *          beta specifies the scalar beta
+ *
+ * @param[in,out] C
+ *          Descriptor of the distributed matrix C.
+ *          On exit, the data described by C are overwritten by the matrix (
+ *          alpha*op( A )*op( B ) + beta*C )
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_zgemm_Destruct();
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgemm
+ * @sa dplasma_zgemm_Destruct
+ * @sa dplasma_cgemm_New
+ * @sa dplasma_dgemm_New
+ * @sa dplasma_sgemm_New
+ *
+ ******************************************************************************/
 dague_object_t*
-dplasma_zgemm_New( const int transA, const int transB,
-                   const dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
-                   const dague_complex64_t beta,  tiled_matrix_desc_t* C)
+dplasma_zgemm_New( int transA, int transB,
+                   dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
+                   dague_complex64_t beta,  tiled_matrix_desc_t* C)
 {
     dague_object_t* zgemm_object;
     dague_arena_t* arena;
@@ -80,14 +146,99 @@ dplasma_zgemm_New( const int transA, const int transB,
     return zgemm_object;
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ *  dplasma_zgemm_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zgemm_New().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] o
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgemm_New
+ * @sa dplasma_zgemm
+ *
+ ******************************************************************************/
 void
 dplasma_zgemm_Destruct( dague_object_t *o )
 {
-    dplasma_datatype_undefine_type( &(((dague_zgemm_NN_object_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
-
+    dague_zgemm_NN_object_t *zgemm_object = (dague_zgemm_NN_object_t*)o;
+    dplasma_datatype_undefine_type( &(zgemm_object->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ *  dplasma_zgemm - Performs one of the following matrix-matrix operations
+ *
+ *    \f[ C = \alpha [op( A )\times op( B )] + \beta C \f],
+ *
+ *  where op( X ) is one of
+ *
+ *    op( X ) = X  or op( X ) = X' or op( X ) = conjg( X' )
+ *
+ *  alpha and beta are scalars, and A, B and C  are matrices, with op( A )
+ *  an m by k matrix, op( B ) a k by n matrix and C an m by n matrix.
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] transA
+ *          Specifies whether the matrix A is transposed, not transposed or conjugate transposed:
+ *          = PlasmaNoTrans:   A is not transposed;
+ *          = PlasmaTrans:     A is transposed;
+ *          = PlasmaConjTrans: A is conjugate transposed.
+ *
+ * @param[in] transB
+ *          Specifies whether the matrix B is transposed, not transposed or conjugate transposed:
+ *          = PlasmaNoTrans:   B is not transposed;
+ *          = PlasmaTrans:     B is transposed;
+ *          = PlasmaConjTrans: B is conjugate transposed.
+ *
+ * @param[in] alpha
+ *          alpha specifies the scalar alpha
+ *
+ * @param[in] A
+ *          Descriptor of the distributed matrix A.
+ *
+ * @param[in] B
+ *          Descriptor of the distributed matrix B.
+ *
+ * @param[in] beta
+ *          beta specifies the scalar beta
+ *
+ * @param[in,out] C
+ *          Descriptor of the distributed matrix C.
+ *          On exit, the data described by C are overwritten by the matrix (
+ *          alpha*op( A )*op( B ) + beta*C )
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgemm_New
+ * @sa dplasma_zgemm_Destruct
+ * @sa dplasma_cgemm
+ * @sa dplasma_dgemm
+ * @sa dplasma_sgemm
+ *
+ ******************************************************************************/
 int
 dplasma_zgemm( dague_context_t *dague,
                const int transA, const int transB,

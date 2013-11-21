@@ -6,7 +6,7 @@ extern "C" %{
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
  *
- * @precisions normal z -> s d c
+ * @precisions normal z -> c
  *
  */
 #include "dplasmajdf.h"
@@ -60,7 +60,7 @@ hemm_in_B(m, n) [profile = off]
 m = 0 .. descB.mt-1
 n = 0 .. descB.nt-1
 
-: B(m, n)
+: dataB(m, n)
 
   RW B <- dataB(m, n)
        -> (c == 0) || (c == 1) ? B HEMM(0..descB.mt-1, n, m)

@@ -1,23 +1,26 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
- * @precisions normal z -> s d c
+ * @precisions normal z -> c
  *
  */
 #include "dague_internal.h"
-#include <core_blas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 
 #include "zhemm.h"
 
-/***************************************************************************//**
+/**
+ ******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_zhemm_New - Generates dague object to compute the following operation
+ *  dplasma_zhemm_New - Generates the dague object to compute the following
+ *  operation.  WARNING: The computations are not done by this call.
  *
  *     \f[ C = \alpha \times A \times B + \beta \times C \f]
  *
@@ -48,7 +51,7 @@
  *          Specifies the scalar alpha.
  *
  * @param[in] A
- *          Descriptor of the triangular matrix A.  A is a ka-by-ka
+ *          Descriptor of the hermitian matrix A. A is a ka-by-ka
  *          matrix, where ka is C->M when side = PlasmaLeft, and is
  *          C->N otherwise. Only the uplo triangular part is
  *          referenced.
@@ -65,32 +68,34 @@
  *
  *******************************************************************************
  *
- * @return the dague object describing the operation.
+ * @return
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_zhemm_Destruct();
  *
  *******************************************************************************
  *
  * @sa dplasma_zhemm
  * @sa dplasma_zhemm_Destruct
- * @sa dplasma_chemm
- * @sa dplasma_dhemm
- * @sa dplasma_shemm
+ * @sa dplasma_chemm_New
  *
  ******************************************************************************/
 dague_object_t*
-dplasma_zhemm_New( const PLASMA_enum side,
-                   const PLASMA_enum uplo,
-                   const dague_complex64_t alpha,
+dplasma_zhemm_New( PLASMA_enum side,
+                   PLASMA_enum uplo,
+                   dague_complex64_t alpha,
                    const tiled_matrix_desc_t* A,
                    const tiled_matrix_desc_t* B,
-                   const dague_complex64_t beta,
+                   dague_complex64_t beta,
                    tiled_matrix_desc_t* C)
 {
     dague_zhemm_object_t* object;
 
     object = dague_zhemm_new(side, uplo, alpha, beta,
-                             *A, (dague_ddesc_t*)A,
-                             *B, (dague_ddesc_t*)B,
-                             *C, (dague_ddesc_t*)C);
+                             (dague_ddesc_t*)A,
+                             (dague_ddesc_t*)B,
+                             (dague_ddesc_t*)C);
 
     dplasma_add2arena_tile(object->arenas[DAGUE_zhemm_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(dague_complex64_t),
@@ -100,25 +105,24 @@ dplasma_zhemm_New( const PLASMA_enum side,
     return (dague_object_t*)object;
 }
 
-/***************************************************************************//**
+/**
+ *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_zhemm_Destruct - Clean the data structures associated to a
- *  zhemm dague object.
+ *  dplasma_zhemm_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zhemm_New().
  *
  *******************************************************************************
  *
  * @param[in] o
- *          Object to destroy.
+ *          On entry, the object to destroy
+ *          On exit, the object cannot be used anymore.
  *
  *******************************************************************************
  *
  * @sa dplasma_zhemm_New
  * @sa dplasma_zhemm
- * @sa dplasma_chemm_Destruct
- * @sa dplasma_dhemm_Destruct
- * @sa dplasma_shemm_Destruct
  *
  ******************************************************************************/
 void
@@ -129,40 +133,81 @@ dplasma_zhemm_Destruct( dague_object_t *o )
     DAGUE_INTERNAL_OBJECT_DESTRUCT(zhemm_object);
 }
 
-/***************************************************************************//**
+/**
+ ******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_zhemm - Synchronous version of dplasma_zhemm_New
+ *  dplasma_zhemm - Computes the following operation.
+ *
+ *     \f[ C = \alpha \times A \times B + \beta \times C \f]
+ *
+ *  or
+ *
+ *     \f[ C = \alpha \times B \times A + \beta \times C \f]
+ *
+ *  where alpha and beta are scalars, A is an hermitian matrix and  B and
+ *  C are m by n matrices.
  *
  *******************************************************************************
  *
- * @param[in] dague
- *          Dague context to which submit the DAG object.
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] side
+ *          Specifies whether the hermitian matrix A appears on the
+ *          left or right in the operation as follows:
+ *          = PlasmaLeft:      \f[ C = \alpha \times A \times B + \beta \times C \f]
+ *          = PlasmaRight:     \f[ C = \alpha \times B \times A + \beta \times C \f]
+ *
+ * @param[in] uplo
+ *          Specifies whether the upper or lower triangular part of
+ *          the hermitian matrix A is to be referenced as follows:
+ *          = PlasmaLower:     Only the lower triangular part of the
+ *                             hermitian matrix A is to be referenced.
+ *          = PlasmaUpper:     Only the upper triangular part of the
+ *                             hermitian matrix A is to be referenced.
+ *
+ * @param[in] alpha
+ *          Specifies the scalar alpha.
+ *
+ * @param[in] A
+ *          Descriptor of the hermitian matrix A.  A is a ka-by-ka
+ *          matrix, where ka is C->M when side = PlasmaLeft, and is
+ *          C->N otherwise. Only the uplo triangular part is
+ *          referenced.
+ *
+ * @param[in] B
+ *          Descriptor of the M-by-N matrix B
+ *
+ * @param[in] beta
+ *          Specifies the scalar beta.
+ *
+ * @param[in,out] C
+ *          Descriptor of the M-by-N matrix C which is overwritten by
+ *          the result of the operation.
  *
  *******************************************************************************
  *
  * @return
- *          \retval 0 if success
- *          \retval < 0 if one of the parameter had an illegal value.
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
  *
  *******************************************************************************
  *
- * @sa dplasma_zhemm_Destruct
  * @sa dplasma_zhemm_New
+ * @sa dplasma_zhemm_Destruct
  * @sa dplasma_chemm
- * @sa dplasma_dhemm
- * @sa dplasma_shemm
  *
  ******************************************************************************/
 int
 dplasma_zhemm( dague_context_t *dague,
-               const PLASMA_enum side,
-               const PLASMA_enum uplo,
-               const dague_complex64_t alpha,
+               PLASMA_enum side,
+               PLASMA_enum uplo,
+               dague_complex64_t alpha,
                const tiled_matrix_desc_t *A,
                const tiled_matrix_desc_t *B,
-               const dague_complex64_t beta,
+               dague_complex64_t beta,
                tiled_matrix_desc_t *C)
 {
     dague_object_t *dague_zhemm = NULL;

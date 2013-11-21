@@ -16,11 +16,12 @@
 #include "zherk_UN.h"
 #include "zherk_UC.h"
 
-/***************************************************************************//**
+/**
+ *******************************************************************************
  *
- * @ingroup PLASMA_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasm_zherk_New - Generates dague object to compute the following operation
+ *  dplasm_zherk_New - Generates the object that performs the following operation
  *
  *    \f[ C = \alpha [ op( A ) \times conjg( op( A )' )] + \beta C \f],
  *
@@ -43,22 +44,12 @@
  *          = PlasmaNoTrans:   A is not transposed;
  *          = PlasmaConjTrans: A is conjugate transposed.
  *
- * @param[in] N
- *          N specifies the order of the matrix C. N must be at least zero.
- *
- * @param[in] K
- *          K specifies the number of columns of the matrix op( A ).
- *
  * @param[in] alpha
  *          alpha specifies the scalar alpha.
  *
  * @param[in] A
  *          A is a LDA-by-ka matrix, where ka is K when trans = PlasmaNoTrans,
  *          and is N otherwise.
- *
- * @param[in] LDA
- *          The leading dimension of the array A. LDA must be at least
- *          max( 1, N ), otherwise LDA must be at least max( 1, K ).
  *
  * @param[in] beta
  *          beta specifies the scalar beta
@@ -68,28 +59,27 @@
  *          On exit, the array uplo part of the matrix is overwritten
  *          by the uplo part of the updated matrix.
  *
- * @param[in] LDC
- *          The leading dimension of the array C. LDC >= max( 1, N ).
- *
  *******************************************************************************
  *
  * @return
- *          \retval PLASMA_SUCCESS successful exit
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_zherk_Destruct();
  *
  *******************************************************************************
  *
  * @sa dplasma_zherk
+ * @sa dplasma_zherk_Destruct
  * @sa dplasma_cherk_New
- * @sa dplasma_dherk_New
- * @sa dplasma_sherk_New
  *
  ******************************************************************************/
 dague_object_t*
-dplasma_zherk_New( const PLASMA_enum uplo,
-                   const PLASMA_enum trans,
-                   const double alpha,
+dplasma_zherk_New( PLASMA_enum uplo,
+                   PLASMA_enum trans,
+                   double alpha,
                    const tiled_matrix_desc_t* A,
-                   const double beta,
+                   double beta,
                    tiled_matrix_desc_t* C)
 {
     dague_object_t* object;
@@ -131,25 +121,24 @@ dplasma_zherk_New( const PLASMA_enum uplo,
     return object;
 }
 
-/***************************************************************************//**
+/**
+ *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_zherk_Destruct - Clean the data structures associated to a
- *  zherk dague object.
+ *  dplasma_zherk_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zherk_New().
  *
  *******************************************************************************
  *
- * @param[in] o
- *          Object to destroy.
+ * @param[in,out] o
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
  *
  *******************************************************************************
  *
  * @sa dplasma_zherk_New
  * @sa dplasma_zherk
- * @sa dplasma_cherk_Destruct
- * @sa dplasma_dherk_Destruct
- * @sa dplasma_sherk_Destruct
  *
  ******************************************************************************/
 void
@@ -160,39 +149,72 @@ dplasma_zherk_Destruct( dague_object_t *o )
     DAGUE_INTERNAL_OBJECT_DESTRUCT(zherk_object);
 }
 
-/***************************************************************************//**
+/**
+ *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_zherk - Synchronous version of dplasma_zherk_New
+ *  dplasm_zherk - Performs the following operation
+ *
+ *    \f[ C = \alpha [ op( A ) \times conjg( op( A )' )] + \beta C \f],
+ *
+ *  where op( X ) is one of
+ *
+ *    op( X ) = X  or op( X ) = conjg( X' )
+ *
+ *  where alpha and beta are real scalars, C is an n-by-n hermitian
+ *  matrix and A is an n-by-k matrix in the first case and a k-by-n
+ *  matrix in the second case.
  *
  *******************************************************************************
  *
- * @param[in] dague
- *          Dague context to which submit the DAG object.
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] uplo
+ *          = PlasmaUpper: Upper triangle of C is stored;
+ *          = PlasmaLower: Lower triangle of C is stored.
+ *
+ * @param[in] trans
+ *          Specifies whether the matrix A is transposed or conjugate transposed:
+ *          = PlasmaNoTrans:   A is not transposed;
+ *          = PlasmaConjTrans: A is conjugate transposed.
+ *
+ * @param[in] alpha
+ *          alpha specifies the scalar alpha.
+ *
+ * @param[in] A
+ *          A is a LDA-by-ka matrix, where ka is K when trans = PlasmaNoTrans,
+ *          and is N otherwise.
+ *
+ * @param[in] beta
+ *          beta specifies the scalar beta
+ *
+ * @param[in,out] C
+ *          C is a LDC-by-N matrix.
+ *          On exit, the array uplo part of the matrix is overwritten
+ *          by the uplo part of the updated matrix.
  *
  *******************************************************************************
  *
  * @return
- *          \retval 0 if success
- *          \retval < 0 if one of the parameter had an illegal value.
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
  *
  *******************************************************************************
  *
- * @sa dplasma_zherk_Destruct
  * @sa dplasma_zherk_New
+ * @sa dplasma_zherk_Destruct
  * @sa dplasma_cherk
- * @sa dplasma_dherk
- * @sa dplasma_sherk
  *
  ******************************************************************************/
 int
 dplasma_zherk( dague_context_t *dague,
-               const PLASMA_enum uplo,
-               const PLASMA_enum trans,
-               const double alpha,
+               PLASMA_enum uplo,
+               PLASMA_enum trans,
+               double alpha,
                const tiled_matrix_desc_t *A,
-               const double beta,
+               double beta,
                tiled_matrix_desc_t *C)
 {
     dague_object_t *dague_zherk = NULL;

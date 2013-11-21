@@ -6,7 +6,7 @@ extern "C" %{
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
  *
- * @precisions normal z -> c
+ * @precisions normal z -> c d s
  *
  */
 #include "dplasmajdf.h"
@@ -43,7 +43,7 @@ n = ((uplo == plasma_upper) ? m : 0) .. ((uplo == plasma_upper) ? descA.nt-1 : m
 
 : dataA(m, n)
 
-  RW A <- A(m, n)
+  RW A <- dataA(m, n)
        ->  (c == 0) || (c == 1)              ? A SYMM(m, 0..descC.nt-1, n)
        -> ((c == 0) || (c == 1)) && (m != n) ? A SYMM(n, 0..descC.nt-1, m)
        ->  (c == 2) || (c == 3)              ? B SYMM(0..descC.mt-1, n, m)
@@ -59,7 +59,7 @@ symm_in_B(m, n) [profile = off]
 m = 0 .. descB.mt-1
 n = 0 .. descB.nt-1
 
-: B(m, n)
+: dataB(m, n)
 
   RW B <- dataB(m, n)
        -> (c == 0) || (c == 1) ? B SYMM(0..descB.mt-1, n, m)

@@ -25,7 +25,7 @@ dataB     [type = "dague_ddesc_t *"]
 descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
 
 
-ztrmm(k, n)
+ztrsm(k, n)
   /* Execution Space */
   k = 0 .. (descB.mt-1)
   n = 0 .. (descB.nt-1)
