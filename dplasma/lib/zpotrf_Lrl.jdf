@@ -192,7 +192,7 @@ n = k+1 .. m-1
 // Parameters
 READ  A <- C TRSM(m, k)
 READ  B <- C TRSM(n, k)
-RW    C <- (k == 0)   ? dataA(m, n)      : C GEMM(k-1, m, n)
+RW    C <- (k == 0)   ? dataA(m, n)  : C GEMM(k-1, m, n)
         -> (n == k+1) ? C TRSM(m, n) : C GEMM(k+1, m, n)
 
 ; (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m) * (descA.mt - m) * (descA.mt - m) + 3 * ((2 * descA.mt) - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
@@ -207,7 +207,7 @@ BODY
     if( dague_active_gpu() > 0 ) {
         int rc;
 
-        if( 0 == (rc = gpu_zgemm( context, this_task, 
+        if( 0 == (rc = gpu_zgemm( context, this_task,
                                   ( n == k+1 ),
                                   PlasmaNoTrans, PlasmaConjTrans,
                                   tempmm, descA.mb, descA.mb,
