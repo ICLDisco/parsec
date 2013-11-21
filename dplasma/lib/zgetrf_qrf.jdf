@@ -756,20 +756,20 @@ BODY
              */
 
 
-	    memset( W + descA.nb, 0, descA.nb * sizeof(double));
-	    CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempmm, tempkn, A, ldam, W + descA.nb );
-	    
-	    pthread_mutex_lock( &mumps_mutex );
-	    if ( !mumps_init ) {
-	      memcpy( W, W + descA.nb, descA.nb * sizeof(double) );
-	      mumps_init = 1;
-	    } else {
-	      int i;
-	      assert( mumps_init == 1 );
-	      for(i=0; i<tempkn; i++)
-		W[i] = ( W[descA.nb + i] > W[i] ) ? W[descA.nb + i] : W[i];
-	    }
-	    pthread_mutex_unlock(&mumps_mutex);
+            memset( W + descA.nb, 0, descA.nb * sizeof(double));
+            CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempmm, tempkn, A, ldam, W + descA.nb );
+
+            pthread_mutex_lock( &mumps_mutex );
+            if ( !mumps_init ) {
+              memcpy( W, W + descA.nb, descA.nb * sizeof(double) );
+              mumps_init = 1;
+            } else {
+              int i;
+              assert( mumps_init == 1 );
+              for(i=0; i<tempkn; i++)
+                W[i] = ( W[descA.nb + i] > W[i] ) ? W[descA.nb + i] : W[i];
+            }
+            pthread_mutex_unlock(&mumps_mutex);
         }
     }
 }
@@ -856,7 +856,7 @@ BODY
           //*INFO = k * descA.mb + info[0]; /* Should return if enter here */
           fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
 
-	  W[0] = -1.;
+          W[0] = -1.;
       }
       else {
           if ( (t == 0) && (criteria == HIGHAM_CRITERIUM))
@@ -864,10 +864,10 @@ BODY
               /* Compute the condition number of U */
               LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'U', 'N', tempkn, A, ldak, W );
               //LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempkn, A, ldak, W);
-    
+
               W[0] = 1. / W[0];
           }
-    
+
           if ( (t == 0) && ((criteria == HIGHAM_MAX_CRITERIUM) ||
                             (criteria == HIGHAM_SUM_CRITERIUM) ||
                             (criteria == HIGHAM_MOY_CRITERIUM)) )
@@ -961,15 +961,15 @@ BODY
 
         memcpy( norm2, norm1, 2 * descA.nb * sizeof(double) );
 
-	/* Restore mumps_step for future factorization */
-	pthread_mutex_lock( &mumps_mutex );
-	mumps_init = 0;
-	pthread_mutex_unlock( &mumps_mutex );
+        /* Restore mumps_step for future factorization */
+        pthread_mutex_lock( &mumps_mutex );
+        mumps_init = 0;
+        pthread_mutex_unlock( &mumps_mutex );
     }
     else {
         /* To catch the wrong info in other criteria */
-	norm1[0] = W[0];
-	norm2[0] = W[0];
+        norm1[0] = W[0];
+        norm2[0] = W[0];
     }
 
     printlog("END of reduce_norm( k=%d, p=%d )\n", k, p);
@@ -1062,25 +1062,25 @@ BODY
                     norm2[i] = norm1[i];
             }
         }
-	else {
+        else {
             /* The received buffer contains the diagonal line */
             if( (pui <= p) && (p < 2*pui) ) {
                 norm1[0] = norm2[0];
             } else {
                 norm2[0] = norm1[0];
             }
-	}
+        }
 
         /* Last level of the reduction: let's take the decision */
         if (h == hmax) {
             int cond = 1;
 
-	    if ( (( criteria == MUMPS_CRITERIUM ) && (norm1[descA.nb] == -1.)) ||
-		 (( criteria != MUMPS_CRITERIUM ) && (norm1[0] == -1.)) ) 
-	    {
-	      cond = 0;
-	      goto cond_affect;
-	    }
+            if ( (( criteria == MUMPS_CRITERIUM ) && (norm1[descA.nb] == -1.)) ||
+                 (( criteria != MUMPS_CRITERIUM ) && (norm1[0] == -1.)) )
+            {
+              cond = 0;
+              goto cond_affect;
+            }
 
             if (criteria == HIGHAM_CRITERIUM)
             {
@@ -1191,7 +1191,7 @@ BODY
                cond = 0;
             if (alpha >= 9999999999)
                cond = 1;
-	cond_affect:
+        cond_affect:
             lu_tab[k] = cond;
 
             //            if ( p == 0 ) {
