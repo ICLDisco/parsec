@@ -49,13 +49,10 @@ static inline char* arprintf(const char* fmt, ...)
 #endif
 
 #ifdef HAVE_MPI
-#   include <mpi.h>
 #   define _DAGUE_OUTPUT(PRFX, ARG) do { \
-        int __debug_rank; \
         char* __debug_str; \
-        MPI_Comm_rank(MPI_COMM_WORLD, &__debug_rank); \
         __debug_str = arprintf ARG ; \
-        fprintf(stderr,  "[" PRFX "DAGuE % 5d]:\t%s", __debug_rank, __debug_str); \
+        fprintf(stderr,  "[" PRFX "DAGuE % 5d]:\t%s", -1, __debug_str); \
         free(__debug_str); \
     } while(0)
 
