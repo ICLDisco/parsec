@@ -1110,9 +1110,11 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                       void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
-    const dague_flow_t* target = oldcontext->function->out[flow_index];
+    const dep_t* in_dep;
+    const dague_flow_t* src_flow = in_dep->belongs_to;
+    //int flow_index = src_flow->flow_index;
 
-    if( !(arg->action_mask & target->flow_mask) ) {
+    if( !(arg->action_mask & src_flow->flow_mask) ) {
         char tmp[MAX_TASK_STRLEN];
         WARNING(("On task %s flow_index %d not on the action_mask %x\n",
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, oldcontext), flow_index, arg->action_mask));
@@ -1165,7 +1167,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
-        if( ACCESS_NONE != target->flow_flags ) {
+        if( ACCESS_NONE != src_flow->flow_flags ) {
             arg->output_entry->data[flow_index] = oldcontext->data[flow_index].data;
             arg->output_usage++;
             /* BEWARE: This increment is required to be done here. As the target task
@@ -1177,9 +1179,9 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             AREF( arg->output_entry->data[flow_index] );
         }
         arg->nb_released += dague_release_local_OUT_dependencies(eu, oldcontext,
-                                                                 oldcontext->function->out[flow_index],
+                                                                 src_flow,
                                                                  newcontext,
-                                                                 oldcontext->function->out[flow_index]->dep_out[outdep_index]->flow,
+                                                                 src_flow->dep_out[outdep_index]->flow,
                                                                  arg->output_entry,
                                                                  data,
                                                                  &arg->ready_lists[dst_vpid]);

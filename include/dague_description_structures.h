@@ -129,6 +129,7 @@ struct dep {
     const expr_t                *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
     const int                    function_id;    /**< Index of the target dague function in the object function array */
     const dague_flow_t          *flow;           /**< Pointer to the flow pointed to/from this dependency */
+    const dague_flow_t          *belongs_to;     /**< The flow this dependency belongs tp */
     struct dague_comm_desc_s     datatype;       /**< Datatype associated with this dependency */
     const expr_t                *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
 };

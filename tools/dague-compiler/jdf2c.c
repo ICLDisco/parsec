@@ -1624,7 +1624,9 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
     }
     string_arena_add_string(sa,
                             "},\n"
-                            "  .call_params = {\n");
+                            "  .belongs_to = &%s,\n"
+                            "  .call_params = {\n",
+                            JDF_OBJECT_ONAME(flow));
 
     exprname = (char *)malloc(strlen(JDF_OBJECT_ONAME( dep )) + 32);
     pre[0] = '\0';
