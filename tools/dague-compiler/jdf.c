@@ -869,11 +869,12 @@ static int jdf_compare_expr(const jdf_expr_t* ex1, const jdf_expr_t* ex2)
 static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
                                          uint32_t* dep_index)
 {
-    uint32_t i, j, in_index, dep_count, swap_with;
+    uint32_t i, j, in_index, dep_count, swap_with, global_index;
     jdf_dep_t *dep, *sdep, **dep_array = NULL;
     jdf_datatransfer_type_t *ddt, *sddt;
     jdf_dep_t *deps_location = flow->deps;
 
+    global_index = *dep_index;
     /**
      * Step 1: Transform the list of dependencies into an array, to facilitate
      *         the massaging.
@@ -883,9 +884,9 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
         if( 1 == dep_count ) {
             dep = deps_location;
             if( dep->dep_flags & JDF_DEP_FLOW_OUT ) {
-                dep->dep_index = *dep_index;
+                dep->dep_index          = global_index;
                 dep->dep_datatype_index = *dep_index;
-                flow->flow_dep_mask |= (1 << dep->dep_index);
+                flow->flow_dep_mask |= (1 << dep->dep_datatype_index);
                 (*dep_index)++;
             }
         }
@@ -906,8 +907,8 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
      */
     for( i = 0; i < dep_count; i++ ) {
         dep = dep_array[i];
-        dep->dep_index          = *dep_index;  /* meaningless */
-        dep->dep_datatype_index = *dep_index;  /* meaningless */
+        dep->dep_index          = global_index;  /* meaningless */
+        dep->dep_datatype_index = *dep_index;    /* meaningless */
         if( dep->dep_flags & JDF_DEP_FLOW_IN ) continue;
         for( j = i+1; j < dep_count; j++ ) {
             sdep = dep_array[j];
@@ -925,9 +926,9 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
             dep->dep_index = in_index++;
             continue;  /* skip all the input dependencies */
         }
-        dep->dep_index = *dep_index;
+        dep->dep_index          = global_index++;
         dep->dep_datatype_index = *dep_index;
-        flow->flow_dep_mask |= (1 << dep->dep_index);
+        flow->flow_dep_mask |= (1 << dep->dep_datatype_index);
         ddt = &dep->datatype;
         swap_with = i + 1;
         for( j = swap_with; j < dep_count; j++ ) {
@@ -942,8 +943,8 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
                 dep_array[j] = dep_array[swap_with];
                 dep_array[swap_with] = sdep;
             }
+            sdep->dep_index          = global_index++;
             sdep->dep_datatype_index = *dep_index;
-            sdep->dep_index = *dep_index;
             swap_with++;
         }
         i = swap_with - 1;  /* jump after the current group of dependencies (sharing the datatype) */
@@ -975,7 +976,7 @@ int jdf_flatten_function(jdf_function_entry_t* function)
     for( flow = function->dataflow; NULL != flow; flow = flow->next, flow_index++ ) {
 
         jdf_reorder_dep_list_by_type(flow, &dep_index);
-        if( (1U << dep_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK */) {
+        if( !((1U << dep_index) < 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/) ) {
             jdf_fatal(JDF_OBJECT_LINENO(function),
                       "Function %s has too many output flow with different datatypes (up to 24 supported)\n",
                       function->fname);
@@ -983,7 +984,7 @@ int jdf_flatten_function(jdf_function_entry_t* function)
         }
 
         flow->flow_index = (uint8_t)flow_index;
-#if 0
+#if 1
         {
             string_arena_t* sa = string_arena_new(64);
             expr_info_t linfo;

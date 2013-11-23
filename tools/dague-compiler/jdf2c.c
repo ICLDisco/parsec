@@ -391,7 +391,7 @@ static char* dump_predicate(void** elem, void *arg)
     expr_info.sa = sa3;
     expr_info.prefix = "";
     expr_info.assignments = "assignments";
-    string_arena_add_string(sa, "(((dague_ddesc_t*)(__dague_object->super.%s))->myrank == ((dague_ddesc_t*)(__dague_object->super.%s))->rank_of((dague_ddesc_t*)__dague_object->super.%s, %s))", 
+    string_arena_add_string(sa, "(((dague_ddesc_t*)(__dague_object->super.%s))->myrank == ((dague_ddesc_t*)(__dague_object->super.%s))->rank_of((dague_ddesc_t*)__dague_object->super.%s, %s))",
                             f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
                             UTIL_DUMP_LIST(sa2, f->predicate->parameters, next,
                                            dump_expr, &expr_info,
@@ -1174,6 +1174,27 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };                     \n\n"
             "static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };                     \n\n");
 
+    coutput("/* Release dependencies output macro */\n"
+            "#if defined(DAGUE_DEBUG_VERBOSE1)\n"
+            "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST)\\\n"
+            "  do { \\\n"
+            "    char tmp1[128], tmp2[128];\\\n"
+            "    DEBUG((\"thread %%d VP %%d release deps of %%s:%%s to %%s:%%s (from node %%d to %%d)\\n\",\\\n"
+            "           (EU)->th_id, (EU)->virtual_process->vp_id,\\\n"
+            "           DEPO, dague_snprintf_execution_context(tmp1, 128, (TASKO)),\\\n"
+            "           DEPI, dague_snprintf_execution_context(tmp2, 128, (TASKI)), (RSRC), (RDST)));\\\n"
+            "  } while(0)\n"
+            "#define ACQUIRE_FLOW(TASKI, DEPI, FUNO, DEPO, LOCALS)\\\n"
+            "  do { \\\n"
+            "    char tmp1[128], tmp2[128];\\\n"
+            "    DEBUG((\"task %%s acquires flow %%s from %%s %%s\\n\",\\\n"
+            "         dague_snprintf_execution_context(tmp1, 128, (TASKI)), (DEPI),\\\n"
+            "         dague_snprintf_assignments(tmp2, 128, (FUNO), (LOCALS)), (DEPO)));\\\n"
+            "  } while(0)\n"
+            "#else\n"
+            "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST)\n"
+            "#define ACQUIRE_FLOW(TASKI, DEPI, TASKO, DEPO, LOCALS)\n"
+            "#endif\n");
     string_arena_free(sa1);
     string_arena_free(sa2);
 }
@@ -1977,21 +1998,21 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     }
 
     coutput("%s  if( NULL != ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of ) {\n"
-	    "%s    vpid = ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
+            "%s    vpid = ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
             "%s    assert(context->nb_vp >= vpid);\n"
-	    "%s  }\n"
+            "%s  }\n"
             "%s  new_dynamic_context = (dague_execution_context_t*)dague_lifo_pop(&context->virtual_processes[vpid]->execution_units[0]->context_mempool->mempool);\n"
             "%s  if( NULL == new_dynamic_context)\n"
             "%s    new_dynamic_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->virtual_processes[0]->execution_units[0]->context_mempool );\n",
-	    indent(nesting), f->predicate->func_or_mem,
+            indent(nesting), f->predicate->func_or_mem,
             indent(nesting), f->predicate->func_or_mem, f->predicate->func_or_mem,
             UTIL_DUMP_LIST(sa1, f->predicate->parameters, next,
                            dump_expr, (void*)&info2,
                            "", "", ", ", ""),
-	    indent(nesting),
-	    indent(nesting),
-	    indent(nesting),
-	    indent(nesting),
+            indent(nesting),
+            indent(nesting),
+            indent(nesting),
+            indent(nesting),
             indent(nesting));
 
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nbdefinitions);
@@ -2623,7 +2644,7 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
         asprintf(&JDF_OBJECT_ONAME( f ), "%s_%s", jdf_basename, f->fname);
         coutput("static const dague_function_t %s;\n", JDF_OBJECT_ONAME( f ));
         if( NULL != f->priority ) {
-            coutput("static inline int priority_of_%s_as_expr_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments);\n", 
+            coutput("static inline int priority_of_%s_as_expr_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments);\n",
                     JDF_OBJECT_ONAME( f ));
         }
     }
@@ -3076,16 +3097,8 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
             }
         }
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "tass", call));
-        coutput("#if defined(DAGUE_DEBUG_VERBOSE1)\n"
-                "%s  char tmp[128], tmp1[128];\n"
-                "%s  DEBUG((\"task %%s acquires flow %s from %s %%s\\n\",\n"
-                "%s         dague_snprintf_execution_context(tmp, 128, this_task),\n"
-                "%s         dague_snprintf_assignments(tmp1, 128, &%s_%s, tass)));\n"
-                "#endif  /* defined(DAGUE_DEBUG_VERBOSE1) */\n",
-                spaces,
-                spaces, f->varname, call->var,
-                spaces,
-                spaces, jdf_basename, call->func_or_mem);
+        coutput("%s  ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass);\n",
+                spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
 
         coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, tass ));\n"
                 "%s    chunk = entry->data[%d];\n",
@@ -4048,15 +4061,10 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                            dump_expr, (void*)&linfo,
                                            "", "", ", ", ""));
     string_arena_add_string(sa_open,
-                            "%s%s  if( eu != NULL && rank_dst == eu->virtual_process->dague_context->my_rank ) vpid_dst = ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
-                            "#else /* !DISTRIBUTED */\n",
-                            prefix, indent(nbopen), targetf->predicate->func_or_mem, targetf->predicate->func_or_mem,
-                            UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next,
-                                           dump_expr, (void*)&linfo,
-                                           "", "", ", ", ""));
-    string_arena_add_string(sa_open,
-                            "%s%s  vpid_dst = ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
-                            "#endif /* DISTRIBUTED */\n",
+                            "%s%s  if( rank_dst == eu->virtual_process->dague_context->my_rank )\n"
+                            "#endif /* DISTRIBUTED */\n"
+                            "%s%s    vpid_dst = ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n",
+                            prefix, indent(nbopen),
                             prefix, indent(nbopen), targetf->predicate->func_or_mem, targetf->predicate->func_or_mem,
                             UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next,
                                            dump_expr, (void*)&linfo,
@@ -4072,22 +4080,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     }
 
     string_arena_add_string(sa_open,
-                            "#if defined(DAGUE_DEBUG_VERBOSE1)\n"
-                            "%s%s  if( NULL != eu ) {\n"
-                            "%s%s    char tmp[128], tmp1[128];\n"
-                            "%s%s    DEBUG((\"thread %%d VP %%d release deps of %s:%%s to %s:%%s (from node %%d to %%d)\\n\",\n"
-                            "%s%s           eu->th_id, eu->virtual_process->vp_id,\n"
-                            "%s%s           dague_snprintf_execution_context(tmp, 128, this_task),\n"
-                            "%s%s           dague_snprintf_execution_context(tmp1, 128, &%s), rank_src, rank_dst));\n"
-                            "%s%s  }\n"
-                            "#endif\n",
-                            prefix, indent(nbopen),
-                            prefix, indent(nbopen),
-                            prefix, indent(nbopen), flow->varname, call->var,
-                            prefix, indent(nbopen),
-                            prefix, indent(nbopen),
-                            prefix, indent(nbopen), var,
-                            prefix, indent(nbopen));
+                            "%s%sRELEASE_DEP_OUTPUT(eu, \"%s\", this_task, \"%s\", &%s, rank_src, rank_dst);\n",
+                            prefix, indent(nbopen), flow->varname, call->var, var);
     free(linfo.assignments);
     linfo.assignments = NULL;
     free(p);
@@ -4139,19 +4133,21 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     jdf_dataflow_t *fl;
     jdf_dep_t *dl;
     int flowempty, flowtomem;
-    string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
+    string_arena_t *sa_ontask     = string_arena_new(64);
     string_arena_t *sa_coutput    = string_arena_new(1024);
-    string_arena_t *sa_type       = string_arena_new(64);
-    string_arena_t *sa_nbelt      = string_arena_new(64);
-    string_arena_t *sa_tmp_nbelt  = string_arena_new(64);
-    string_arena_t *sa_displ      = string_arena_new(64);
-    string_arena_t *sa_tmp_displ  = string_arena_new(64);
-    string_arena_t *sa_layout     = string_arena_new(64);
-    string_arena_t *sa_tmp_layout = string_arena_new(64);
-    string_arena_t *sa_temp       = string_arena_new(64);
-    int flownb, depnb;
+    string_arena_t *sa_deps       = string_arena_new(1024);
+    string_arena_t *sa_type       = string_arena_new(256);
+    string_arena_t *sa_tmp_type   = string_arena_new(256);
+    string_arena_t *sa_nbelt      = string_arena_new(256);
+    string_arena_t *sa_tmp_nbelt  = string_arena_new(256);
+    string_arena_t *sa_displ      = string_arena_new(256);
+    string_arena_t *sa_tmp_displ  = string_arena_new(256);
+    string_arena_t *sa_layout     = string_arena_new(256);
+    string_arena_t *sa_tmp_layout = string_arena_new(256);
+    string_arena_t *sa_temp       = string_arena_new(1024);
+    int depnb, last_datatype_idx;
     assignment_info_t ai;
     expr_info_t info;
 
@@ -4188,34 +4184,38 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             "  rank_src = ((dague_ddesc_t*)__dague_object->super.%s)->rank_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
             "#endif\n",
             f->predicate->func_or_mem, f->predicate->func_or_mem,
-            UTIL_DUMP_LIST(sa, f->predicate->parameters, next,
+            UTIL_DUMP_LIST(sa1, f->predicate->parameters, next,
                            dump_expr, (void*)&info,
                            "", "", ", ", ""));
 
-    flownb = 0;
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
         flowempty = 1;
         flowtomem = 0;
         depnb = 0;
+        last_datatype_idx = -1;
         string_arena_init(sa_coutput);
+        string_arena_init(sa_deps);
         string_arena_init(sa_type);
         string_arena_init(sa_nbelt);
         string_arena_init(sa_displ);
         string_arena_init(sa_layout);
+
+        string_arena_add_string(sa_coutput, "  data.ptr    = this_task->data[%d].data;\n", fl->flow_index);
+
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
             if( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) continue;
 
-            string_arena_init(sa);
+            string_arena_init(sa_tmp_type);
             string_arena_init(sa_tmp_nbelt);
             string_arena_init(sa_tmp_layout);
             string_arena_init(sa_tmp_displ);
             if( JDF_FLOW_TYPE_CTL == fl->flow_flags ) {
-                string_arena_add_string(sa, "NULL");
+                string_arena_add_string(sa_tmp_type, "NULL");
                 string_arena_add_string(sa_tmp_nbelt, "  /* Control: always empty */ 0");
                 string_arena_add_string(sa_tmp_layout, "DAGUE_DATATYPE_NULL");
                 string_arena_add_string(sa_tmp_displ, "0");
             } else {
-                create_arena_from_datatype(sa, dl->datatype);
+                create_arena_from_datatype(sa_tmp_type, dl->datatype);
 
                 assert( dl->datatype.count != NULL );
                 string_arena_add_string(sa_tmp_nbelt, "%s", dump_expr((void**)dl->datatype.count, &info));
@@ -4227,53 +4227,65 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 string_arena_add_string(sa_tmp_displ, "%s", dump_expr((void**)dl->datatype.displ, &info));
             }
 
-            string_arena_init(sa_temp);
-            if( strcmp(string_arena_get_string(sa), string_arena_get_string(sa_type)) ) {
-                string_arena_init(sa_type);
-                /* The type might change (possibly from undefined), so let's output */
-                string_arena_add_string(sa_type, "%s", string_arena_get_string(sa));
-                string_arena_add_string(sa_temp, "    data.arena = %s;\n", string_arena_get_string(sa_type));
+            if( last_datatype_idx != dl->dep_datatype_index ) {
+                /* Dump the previous dependencies */
+                if( strlen(string_arena_get_string(sa_deps)) ) {
+                    string_arena_add_string(sa_coutput,
+                                            "  if( action_mask & 0x%x ) {\n"
+                                            "    %s"
+                                            "  }\n",
+                                            (1 << last_datatype_idx), string_arena_get_string(sa_deps));
+                    string_arena_init(sa_deps);
+                }
+
+                /* Prepare the memory layout of the output dependency. */
+                if( strcmp(string_arena_get_string(sa_tmp_type), string_arena_get_string(sa_type)) ) {
+                    string_arena_init(sa_type);
+                    /* The type might change (possibly from undefined), so let's output */
+                    string_arena_add_string(sa_type, "%s", string_arena_get_string(sa_tmp_type));
+                    string_arena_add_string(sa_temp, "    data.arena  = %s;\n", string_arena_get_string(sa_type));
+                    if( strlen(string_arena_get_string(sa_temp)) ) {
+                        string_arena_add_string(sa_deps, "%s", string_arena_get_string(sa_temp));
+                        string_arena_init(sa_temp);
+                    }
+                }
+                if( strcmp(string_arena_get_string(sa_tmp_layout), string_arena_get_string(sa_layout)) ) {
+                    /* Same thing: the memory layout may change at anytime */
+                    string_arena_init(sa_layout);
+                    string_arena_add_string(sa_layout, "%s", string_arena_get_string(sa_tmp_layout));
+                    string_arena_add_string(sa_temp, "    data.layout = %s;\n", string_arena_get_string(sa_tmp_layout));
+                }
+                if( strcmp(string_arena_get_string(sa_tmp_nbelt), string_arena_get_string(sa_nbelt)) ) {
+                    /* Same thing: the number of transmitted elements may change at anytime */
+                    string_arena_init(sa_nbelt);
+                    string_arena_add_string(sa_nbelt, "%s", string_arena_get_string(sa_tmp_nbelt));
+                    string_arena_add_string(sa_temp, "    data.count  = %s;\n", string_arena_get_string(sa_tmp_nbelt));
+                }
+                if( strcmp(string_arena_get_string(sa_tmp_displ), string_arena_get_string(sa_displ)) ) {
+                    /* Same thing: the displacement may change at anytime */
+                    string_arena_init(sa_displ);
+                    string_arena_add_string(sa_displ, "%s", string_arena_get_string(sa_tmp_displ));
+                    string_arena_add_string(sa_temp, "    data.displ  = %s;\n", string_arena_get_string(sa_tmp_displ));
+                }
                 if( strlen(string_arena_get_string(sa_temp)) ) {
-                    string_arena_add_string(sa_coutput, "%s", string_arena_get_string(sa_temp));
+                    string_arena_add_string(sa_deps,
+                                            "%s", string_arena_get_string(sa_temp));
                     string_arena_init(sa_temp);
                 }
+                last_datatype_idx = dl->dep_datatype_index;
             }
-            if( strcmp(string_arena_get_string(sa_tmp_layout), string_arena_get_string(sa_layout)) ) {
-                /* Same thing: the memory layout may change at anytime */
-                string_arena_init(sa_layout);
-                string_arena_add_string(sa_layout, "%s", string_arena_get_string(sa_tmp_layout));
-                string_arena_add_string(sa_temp, "    data.layout = %s;\n", string_arena_get_string(sa_tmp_layout));
-            }
-            if( strcmp(string_arena_get_string(sa_tmp_nbelt), string_arena_get_string(sa_nbelt)) ) {
-                /* Same thing: the number of transmitted elements may change at anytime */
-                string_arena_init(sa_nbelt);
-                string_arena_add_string(sa_nbelt, "%s", string_arena_get_string(sa_tmp_nbelt));
-                string_arena_add_string(sa_temp, "    data.count = %s;\n", string_arena_get_string(sa_tmp_nbelt));
-            }
-            if( strcmp(string_arena_get_string(sa_tmp_displ), string_arena_get_string(sa_displ)) ) {
-                /* Same thing: the displacement may change at anytime */
-                string_arena_init(sa_displ);
-                string_arena_add_string(sa_displ, "%s", string_arena_get_string(sa_tmp_displ));
-                string_arena_add_string(sa_temp, "    data.displ = %s;\n", string_arena_get_string(sa_tmp_displ));
-            }
-            string_arena_add_string(sa_temp, "    data.ptr = this_task->data[%d].data;\n", flownb);
-            if( strlen(string_arena_get_string(sa_temp)) ) {
-                string_arena_add_string(sa_coutput,
-                                        "%s", string_arena_get_string(sa_temp));
-            }
-
-            string_arena_init(sa);
-            string_arena_add_string(sa, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, vpid_dst, &data, ontask_arg)",
-                                    flownb, depnb);
+            string_arena_init(sa_ontask);
+            string_arena_add_string(sa_ontask, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, vpid_dst, &data, ontask_arg)",
+                                    fl->flow_index, depnb);
 
             switch( dl->guard->guard_type ) {
             case JDF_GUARD_UNCONDITIONAL:
                 if( NULL != dl->guard->calltrue->var) {
                     flowempty = 0;
 
-                    string_arena_add_string(sa_coutput,
+                    string_arena_add_string(sa_deps,
                                             "%s",
-                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl), 
+                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "    ", "nc") );
                 } else {
                     flowtomem = 1;
@@ -4282,12 +4294,12 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             case JDF_GUARD_BINARY:
                 if( NULL != dl->guard->calltrue->var ) {
                     flowempty = 0;
-                    string_arena_add_string(sa_coutput,
+                    string_arena_add_string(sa_deps,
                                             "    if( %s ) {\n"
                                             "%s"
                                             "    }\n",
                                             dump_expr((void**)dl->guard->guard, &info),
-                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl), 
+                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "      ", "nc") );
                 } else {
                     flowtomem = 1;
@@ -4296,44 +4308,44 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             case JDF_GUARD_TERNARY:
                 if( NULL != dl->guard->calltrue->var ) {
                     flowempty = 0;
-                    string_arena_add_string(sa_coutput,
+                    string_arena_add_string(sa_deps,
                                             "    if( %s ) {\n"
                                             "%s"
                                             "    }",
                                             dump_expr((void**)dl->guard->guard, &info),
-                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, JDF_OBJECT_LINENO(dl), 
+                                            jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "      ", "nc"));
                     depnb++;
 
-                    string_arena_init(sa);  // PETER add fl->varname to here
-                    string_arena_add_string(sa, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, vpid_dst, &data, ontask_arg)",
-                                            flownb, depnb);
+                    string_arena_init(sa_ontask);
+                    string_arena_add_string(sa_ontask, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, vpid_dst, &data, ontask_arg)",
+                                            fl->flow_index, depnb);
 
                     if( NULL != dl->guard->callfalse->var ) {
-                        string_arena_add_string(sa_coutput,
+                        string_arena_add_string(sa_deps,
                                                 " else {\n"
                                                 "%s"
                                                 "    }\n",
-                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, JDF_OBJECT_LINENO(dl), 
+                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->callfalse, JDF_OBJECT_LINENO(dl),
                                                                             "      ", "nc") );
                     } else {
-                        string_arena_add_string(sa_coutput,
+                        string_arena_add_string(sa_deps,
                                                 "\n");
                     }
                 } else {
                     depnb++;
-                    string_arena_init(sa);
-                    string_arena_add_string(sa, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, vpid_dst, &data, ontask_arg)",
-                                            flownb, depnb);
+                    string_arena_init(sa_ontask);
+                    string_arena_add_string(sa_ontask, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, vpid_dst, &data, ontask_arg)",
+                                            fl->flow_index, depnb);
 
                     if( NULL != dl->guard->callfalse->var ) {
                         flowempty = 0;
-                        string_arena_add_string(sa_coutput,
+                        string_arena_add_string(sa_deps,
                                                 "    if( !(%s) ) {\n"
                                                 "%s"
                                                 "    }\n",
                                                 dump_expr((void**)dl->guard->guard, &info),
-                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, JDF_OBJECT_LINENO(dl), 
+                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->callfalse, JDF_OBJECT_LINENO(dl),
                                                                             "      ", "nc") );
                     } else {
                         flowtomem = 1;
@@ -4343,29 +4355,38 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             }
             depnb++;
         }
+        /* Dump the last set of dependencies */
+        if( strlen(string_arena_get_string(sa_deps)) ) {
+            string_arena_add_string(sa_coutput,
+                                    "  if( action_mask & 0x%x ) {\n"
+                                    "    %s"
+                                    "  }\n",
+                                    (1 << last_datatype_idx), string_arena_get_string(sa_deps));
+            string_arena_init(sa_deps);
+        }
 
         if( (1 == flowempty) && (0 == flowtomem) ) {
             coutput("  /* Flow of data %s has only IN dependencies */\n", fl->varname);
         } else if( 1 == flowempty ) {
             coutput("  /* Flow of data %s has only OUTPUT dependencies to Memory */\n", fl->varname);
-            flownb++;
         } else {
             coutput("  /* Flow of Data %s */\n"
-                    "  if( action_mask & (1 << %d) ) {\n"
+                    "  if( action_mask & 0x%x ) {\n"
                     "%s"
                     "  }\n",
-                    fl->varname, flownb, string_arena_get_string(sa_coutput));
-            flownb++;
+                    fl->varname, fl->flow_dep_mask, string_arena_get_string(sa_coutput));
         }
     }
     coutput("  (void)data;(void)nc;(void)eu;(void)ontask;(void)ontask_arg;(void)rank_dst;(void)action_mask;\n");
     coutput("}\n\n");
 
-    string_arena_free(sa);
+    string_arena_free(sa_ontask);
     string_arena_free(sa1);
     string_arena_free(sa2);
     string_arena_free(sa_coutput);
+    string_arena_free(sa_deps);
     string_arena_free(sa_type);
+    string_arena_free(sa_tmp_type);
     string_arena_free(sa_nbelt);
     string_arena_free(sa_tmp_nbelt);
     string_arena_free(sa_displ);

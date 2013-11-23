@@ -1,5 +1,5 @@
- /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+/*
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -284,7 +284,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if((NULL == pargc) || (*pargc == 0)) {
         int rc = asprintf( &dague_app_name, DEFAULT_APPNAME, (int)getpid() );
         if (rc == -1) {
-	    dague_app_name = strdup( "app_name_XXXXXX" );
+            dague_app_name = strdup( "app_name_XXXXXX" );
         }
     } else {
         dague_app_name = strdup( (*pargv)[0] );

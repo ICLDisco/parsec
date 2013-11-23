@@ -197,9 +197,9 @@ struct jdf_dep {
     struct jdf_guarded_call *guard;
     jdf_datatransfer_type_t  datatype;
     jdf_dep_flags_t          dep_flags;
-    uint8_t                  dep_index;           /**< the index of the dependency on the flow */
+    uint8_t                  dep_index;           /**< the index of the dependency in the context of the function */
     uint8_t                  dep_datatype_index;  /**< the smallest index of all dependencies
-                                                   *   sharing a common datatype (per group). */
+                                                   *   sharing a common datatype. */
 };
 
 typedef enum { JDF_GUARD_UNCONDITIONAL,
