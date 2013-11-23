@@ -78,7 +78,7 @@ struct expr {
 #define SYM_OUT    ((uint8_t)(1 << 1))
 #define SYM_INOUT  (SYM_IN | SYM_OUT)
 
-#define ACCESS_NONE     0x00
+#define ACCESS_NONE     ((uint8_t)0x00)
 #define ACCESS_READ     ((uint8_t)(1 << 2))
 #define ACCESS_WRITE    ((uint8_t)(1 << 3))
 #define ACCESS_RW       (ACCESS_READ | ACCESS_WRITE)
