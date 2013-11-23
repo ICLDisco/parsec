@@ -27,6 +27,7 @@ FCT1(i, k)
 
   READ A <- (0 == k) ? A(i) : A FCT1(i, k-1)
          -> (NK != k) ? A FCT1(i, k+1)
+         -> A FCT5(i, k)                         [displ = 10]
   RW   B <- (0 == k) ? A(i) : B FCT1(i, k-1)
          -> A FCT2(i, k, k .. NK)                [displ = 0]
          -> A FCT3(i, k, k .. NK)                [displ = 10]
@@ -70,6 +71,18 @@ FCT4(i, k)
 : A(i)
 
   READ A <- B FCT1(i, k)
+
+BODY
+END
+
+FCT5(i, k)
+
+  i = 0 .. NI-1
+  k = 0 .. NK-1
+
+: A(i)
+
+  READ A <- A FCT1(i, k)
 
 BODY
 END

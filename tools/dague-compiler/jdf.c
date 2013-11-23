@@ -869,34 +869,33 @@ static int jdf_compare_expr(const jdf_expr_t* ex1, const jdf_expr_t* ex2)
 static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
                                          uint32_t* dep_index)
 {
-    uint32_t i, j, in_index, dep_count, swap_with, global_index;
+    uint32_t i, j, in_index = 0xFFFFFFFF, dep_count, swap_with, global_index;
     jdf_dep_t *dep, *sdep, **dep_array = NULL;
     jdf_datatransfer_type_t *ddt, *sddt;
-    jdf_dep_t *deps_location = flow->deps;
 
     global_index = *dep_index;
     /**
      * Step 1: Transform the list of dependencies into an array, to facilitate
      *         the massaging.
      */
-    for( dep_count = 0, dep = deps_location; NULL != dep; dep_count++, dep = dep->next );
+    for( dep_count = 0, dep = flow->deps; NULL != dep; dep_count++, dep = dep->next );
     if( dep_count < 2 ) {
         if( 1 == dep_count ) {
-            dep = deps_location;
+            dep = flow->deps;
+            dep->dep_index          = *dep_index;
+            dep->dep_datatype_index = *dep_index;
             if( dep->dep_flags & JDF_DEP_FLOW_OUT ) {
-                dep->dep_index          = global_index;
-                dep->dep_datatype_index = *dep_index;
                 flow->flow_dep_mask |= (1 << dep->dep_datatype_index);
-                (*dep_index)++;
             }
+            (*dep_index)++;
         }
         return;  /* nothing to reorder */
     }
     dep_array = (jdf_dep_t**)malloc(dep_count * sizeof(jdf_dep_t*));
 
-    for( i = 0, dep = deps_location;
+    for( i = 0, dep = flow->deps;
          NULL != dep;
-         dep_array[i++] = dep, dep = dep->next);
+         dep_array[i++] = dep, dep = dep->next );
 
     /**
      * Step 2: Rearrange the entries to bring all those using the same datatype
@@ -909,7 +908,10 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
         dep = dep_array[i];
         dep->dep_index          = global_index;  /* meaningless */
         dep->dep_datatype_index = *dep_index;    /* meaningless */
-        if( dep->dep_flags & JDF_DEP_FLOW_IN ) continue;
+        if( dep->dep_flags & JDF_DEP_FLOW_IN ) {
+            if( in_index > *dep_index ) in_index = *dep_index;
+            continue;
+        }
         for( j = i+1; j < dep_count; j++ ) {
             sdep = dep_array[j];
             if( sdep->dep_flags & JDF_DEP_FLOW_IN ) {
@@ -923,7 +925,7 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
     for( in_index = i = 0; i < dep_count; i++ ) {
         dep = dep_array[i];
         if( dep->dep_flags & JDF_DEP_FLOW_IN ) {
-            dep->dep_index = in_index++;
+            dep->dep_index = in_index;
             continue;  /* skip all the input dependencies */
         }
         dep->dep_index          = global_index++;
@@ -975,6 +977,7 @@ int jdf_flatten_function(jdf_function_entry_t* function)
 
     for( flow = function->dataflow; NULL != flow; flow = flow->next, flow_index++ ) {
 
+        flow->flow_index = (uint8_t)dep_index;
         jdf_reorder_dep_list_by_type(flow, &dep_index);
         if( !((1U << dep_index) < 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/) ) {
             jdf_fatal(JDF_OBJECT_LINENO(function),
@@ -983,7 +986,6 @@ int jdf_flatten_function(jdf_function_entry_t* function)
             return -1;
         }
 
-        flow->flow_index = (uint8_t)flow_index;
 #if 1
         {
             string_arena_t* sa = string_arena_new(64);

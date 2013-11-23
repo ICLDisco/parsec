@@ -471,7 +471,6 @@ static char *dump_dataflow(void **elem, void *arg)
 typedef struct {
     string_arena_t *sa;
     string_arena_t *sa_test;
-    int index;
 } dump_data_declaration_info_t;
 static char *dump_data_declaration(void **elem, void *arg)
 {
@@ -481,7 +480,6 @@ static char *dump_data_declaration(void **elem, void *arg)
     char *varname = f->varname;
 
     if(f->flow_flags == JDF_FLOW_TYPE_CTL) {
-        info->index++;
         return NULL;
     }
 
@@ -496,15 +494,13 @@ static char *dump_data_declaration(void **elem, void *arg)
     if( strlen( string_arena_get_string(info->sa_test) ) == 0 ) {
         string_arena_add_string(info->sa_test,
                                 "(this_task->data[%d].data != NULL)",
-                                info->index);
+                                f->flow_index);
     } else {
         string_arena_add_string(info->sa_test,
                                 " &&\n"
                                 "      (this_task->data[%d].data != NULL)",
-                                info->index);
+                                f->flow_index);
     }
-    info->index++;
-
     return string_arena_get_string(sa);
 }
 
@@ -516,20 +512,13 @@ static char *dump_data_declaration(void **elem, void *arg)
  *  data_repo_entry_t *eA = this_task->data[id].data_repo; (void)eA;\n
  *  void *A = ADATA(gA); (void)A;\n
  */
-typedef struct init_from_data_array_info {
-    string_arena_t *sa;
-    int idx;
-} init_from_data_array_info_t;
-
 static char *dump_data_initialization_from_data_array(void **elem, void *arg)
 {
-    init_from_data_array_info_t *ifda = (init_from_data_array_info_t*)arg;
-    string_arena_t *sa = ifda->sa;
+    string_arena_t *sa = (string_arena_t *)arg;
     jdf_dataflow_t *f = (jdf_dataflow_t*)elem;
     char *varname = f->varname;
 
     if(f->flow_flags == JDF_FLOW_TYPE_CTL) {
-        ifda->idx++;
         return NULL;
     }
 
@@ -539,10 +528,9 @@ static char *dump_data_initialization_from_data_array(void **elem, void *arg)
                             "  dague_arena_chunk_t *g%s = this_task->data[%d].data;\n"
                             "  data_repo_entry_t   *e%s = this_task->data[%d].data_repo; (void)e%s;\n"
                             "  void *%s = ADATA(g%s); (void)%s;\n",
-                            varname, ifda->idx,
-                            varname, ifda->idx, varname,
+                            varname, f->flow_index,
+                            varname, f->flow_index, varname,
                             varname, varname, varname);
-    ifda->idx++;
 
     return string_arena_get_string(sa);
 }
@@ -3524,7 +3512,6 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
 
     dinfo.sa = sa2;
     dinfo.sa_test = sa_test;
-    dinfo.index = 0;
     UTIL_DUMP_LIST(sa, f->dataflow, next,
                    dump_data_declaration, &dinfo, "", "", "", "");
 
@@ -3540,9 +3527,18 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
         jdf_generate_code_flow_initialization(jdf, f->fname, fl);
     }
 
-    if( strlen( string_arena_get_string( sa_test ) ) != 0 )
+    if( strlen( string_arena_get_string( sa_test ) ) != 0 ) {
         coutput(" complete_and_return:\n");
 
+        /* Copy the input to all other relevant locations */
+        for( fl = f->dataflow; fl != NULL; fl = fl->next ) {
+            for( int i = fl->flow_index + 1; (1U << i) < fl->flow_dep_mask; i++ )
+                coutput("  this_task->data[%u].data      = this_task->data[%u].data;  /* flow %s */\n"
+                        "  this_task->data[%u].data_repo = this_task->data[%u].data_repo;\n",
+                        i, fl->flow_index, fl->varname,
+                        i, fl->flow_index);
+        }
+    }
     /* If the function has the property profile turned off do not generate the profiling code */
     if( jdf_property_get_int(f->properties, "profile", 1) ) {
         string_arena_t *sa3 = string_arena_new(64);
@@ -3580,7 +3576,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     jdf_dataflow_t *fl;
     int di, profile_on;
     char* output;
-    init_from_data_array_info_t ifda;
 
     /* If the function has the property profile turned off do not generate the profiling code */
     profile_on = jdf_property_get_int(f->properties, "profile", 1);
@@ -3604,10 +3599,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
-    ifda.sa = sa2;
-    ifda.idx = 0;
     output = UTIL_DUMP_LIST(sa, f->dataflow, next,
-                            dump_data_initialization_from_data_array, &ifda, "", "", "", "");
+                            dump_data_initialization_from_data_array, sa2, "", "", "", "");
     if( 0 != strlen(output) ) {
         coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
                 "%s\n",
@@ -4128,6 +4121,22 @@ static void jdf_check_successors( jdf_function_entry_t *f )
     f->flags |= JDF_FUNCTION_FLAG_NO_SUCCESSORS;
 }
 
+#define OUTPUT_PREV_DEPS(MASK, SA_DEPS)                                 \
+    if( strlen(string_arena_get_string((SA_DEPS))) ) {                  \
+        if( fl->flow_dep_mask == (MASK) ) {                             \
+            string_arena_add_string(sa_coutput,                         \
+                                    "  %s",                             \
+                                    string_arena_get_string((SA_DEPS))); \
+        } else {                                                        \
+            string_arena_add_string(sa_coutput,                         \
+                                    "  if( action_mask & 0x%x ) {\n"    \
+                                    "    %s"                            \
+                                    "  }\n",                            \
+                                    MASK, string_arena_get_string((SA_DEPS))); \
+        }                                                               \
+        string_arena_init((SA_DEPS));                                   \
+    }                                                                   \
+
 static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
     jdf_dataflow_t *fl;
@@ -4229,14 +4238,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
 
             if( last_datatype_idx != dl->dep_datatype_index ) {
                 /* Dump the previous dependencies */
-                if( strlen(string_arena_get_string(sa_deps)) ) {
-                    string_arena_add_string(sa_coutput,
-                                            "  if( action_mask & 0x%x ) {\n"
-                                            "    %s"
-                                            "  }\n",
-                                            (1 << last_datatype_idx), string_arena_get_string(sa_deps));
-                    string_arena_init(sa_deps);
-                }
+                OUTPUT_PREV_DEPS((1U << last_datatype_idx), sa_deps);
 
                 /* Prepare the memory layout of the output dependency. */
                 if( strcmp(string_arena_get_string(sa_tmp_type), string_arena_get_string(sa_type)) ) {
@@ -4356,14 +4358,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             depnb++;
         }
         /* Dump the last set of dependencies */
-        if( strlen(string_arena_get_string(sa_deps)) ) {
-            string_arena_add_string(sa_coutput,
-                                    "  if( action_mask & 0x%x ) {\n"
-                                    "    %s"
-                                    "  }\n",
-                                    (1 << last_datatype_idx), string_arena_get_string(sa_deps));
-            string_arena_init(sa_deps);
-        }
+        OUTPUT_PREV_DEPS((1U << last_datatype_idx), sa_deps);
 
         if( (1 == flowempty) && (0 == flowtomem) ) {
             coutput("  /* Flow of data %s has only IN dependencies */\n", fl->varname);

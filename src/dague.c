@@ -1103,37 +1103,34 @@ dague_ontask_iterate_t
 dague_release_dep_fct(dague_execution_unit_t *eu,
                       dague_execution_context_t *newcontext,
                       dague_execution_context_t *oldcontext,
-                      int out_index, int outdep_index,
+                      int flow_index, int outdep_index,
                       int src_rank, int dst_rank,
                       int dst_vpid,
                       dague_dep_data_description_t* data,
                       void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
-    const dague_flow_t* target = oldcontext->function->out[out_index];
+    const dague_flow_t* target = oldcontext->function->out[flow_index];
 
-    if( !(arg->action_mask & (1 << out_index)) ) {
+    if( !(arg->action_mask & target->flow_mask) ) {
         char tmp[MAX_TASK_STRLEN];
-        WARNING(("On task %s out_index %d not on the action_mask %x\n",
-                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, oldcontext), out_index, arg->action_mask));
+        WARNING(("On task %s flow_index %d not on the action_mask %x\n",
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, oldcontext), flow_index, arg->action_mask));
         return DAGUE_ITERATE_CONTINUE;
     }
 
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
-            void* dataptr = is_read_only(oldcontext, out_index, outdep_index);
+            void* dataptr = is_read_only(oldcontext, flow_index, outdep_index);
             if(NULL != dataptr) {
-                arg->deps->msg.which &= ~(1 << out_index); /* unmark all data that are RO we already hold from previous tasks */
+                arg->deps->msg.which &= ~(1 << flow_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
-                arg->deps->msg.which |= (1 << out_index); /* mark all data that are not RO */
-                dataptr = is_inplace(oldcontext, out_index, outdep_index);  /* Can we do it inplace */
+                arg->deps->msg.which |= (1 << flow_index); /* mark all data that are not RO */
+                dataptr = is_inplace(oldcontext, flow_index, outdep_index);  /* Can we do it inplace */
             }
-            arg->deps->output[out_index].data.arena  = data->arena;
-            arg->deps->output[out_index].data.ptr    = dataptr; /* if still NULL allocate it */
-            arg->deps->output[out_index].data.layout = data->layout;
-            arg->deps->output[out_index].data.count  = data->count;
-            arg->deps->output[out_index].data.displ  = data->displ;
+            arg->deps->output[flow_index].data        = *data;
+            arg->deps->output[flow_index].data.ptr    = dataptr; /* if still NULL allocate it */
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
@@ -1144,14 +1141,10 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
             assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
-            if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
-                arg->remote_deps->output[out_index].data.arena  = data->arena;
-                arg->remote_deps->output[out_index].data.ptr    = oldcontext->data[target->flow_index].data;
-                arg->remote_deps->output[out_index].data.layout = data->layout;
-                arg->remote_deps->output[out_index].data.count  = data->count;
-                arg->remote_deps->output[out_index].data.displ  = data->displ;
-                arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
-                arg->remote_deps->output[out_index].count_bits++;
+            if( !(arg->remote_deps->output[flow_index].rank_bits[_array_pos] & _array_mask) ) {
+                arg->remote_deps->output[flow_index].data                   = *data;
+                arg->remote_deps->output[flow_index].rank_bits[_array_pos] |= _array_mask;
+                arg->remote_deps->output[flow_index].count_bits++;
                 arg->remote_deps_count++;
             } else {
                 /* The bit is already flipped. This means either that we reached the same peer
@@ -1173,7 +1166,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
         if( ACCESS_NONE != target->flow_flags ) {
-            arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
+            arg->output_entry->data[flow_index] = oldcontext->data[flow_index].data;
             arg->output_usage++;
             /* BEWARE: This increment is required to be done here. As the target task
              * bits are marked, another thread can now enable the task. Once schedulable
@@ -1181,12 +1174,12 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
              * Thus, if the ref count is not increased here, the data might dissapear
              * before it become useless.
              */
-            AREF( arg->output_entry->data[out_index] );
+            AREF( arg->output_entry->data[flow_index] );
         }
         arg->nb_released += dague_release_local_OUT_dependencies(eu, oldcontext,
-                                                                 oldcontext->function->out[out_index],
+                                                                 oldcontext->function->out[flow_index],
                                                                  newcontext,
-                                                                 oldcontext->function->out[out_index]->dep_out[outdep_index]->flow,
+                                                                 oldcontext->function->out[flow_index]->dep_out[outdep_index]->flow,
                                                                  arg->output_entry,
                                                                  data,
                                                                  &arg->ready_lists[dst_vpid]);
