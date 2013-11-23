@@ -17,12 +17,12 @@ typedef unsigned long remote_dep_datakey_t;
 #include "dague_description_structures.h"
 #include "lifo.h"
 
-#define DAGUE_ACTION_DEPS_MASK                  0x00FF
-#define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x0100
-#define DAGUE_ACTION_RELEASE_LOCAL_REFS         0x0200
-#define DAGUE_ACTION_SEND_INIT_REMOTE_DEPS      0x1000
-#define DAGUE_ACTION_SEND_REMOTE_DEPS           0x2000
-#define DAGUE_ACTION_RECV_INIT_REMOTE_DEPS      0x4000
+#define DAGUE_ACTION_DEPS_MASK                  0x00FFFFFF
+#define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x01000000
+#define DAGUE_ACTION_RELEASE_LOCAL_REFS         0x02000000
+#define DAGUE_ACTION_SEND_INIT_REMOTE_DEPS      0x10000000
+#define DAGUE_ACTION_SEND_REMOTE_DEPS           0x20000000
+#define DAGUE_ACTION_RECV_INIT_REMOTE_DEPS      0x40000000
 #define DAGUE_ACTION_RELEASE_REMOTE_DEPS        (DAGUE_ACTION_SEND_INIT_REMOTE_DEPS | DAGUE_ACTION_SEND_REMOTE_DEPS)
 
 typedef struct remote_dep_wire_activate_t
