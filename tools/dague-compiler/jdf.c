@@ -971,7 +971,6 @@ int jdf_flatten_function(jdf_function_entry_t* function)
 {
     uint32_t flow_index = 0, dep_index = 0;
     jdf_dataflow_t* flow;
-    jdf_dep_t *dep;
 
     for( flow = function->dataflow; NULL != flow; flow = flow->next, flow_index++ ) {
 
@@ -984,10 +983,12 @@ int jdf_flatten_function(jdf_function_entry_t* function)
         }
 
         flow->flow_index = (uint8_t)flow_index;
-#if 1
+#if 0
         {
-            expr_info_t linfo;
             string_arena_t* sa = string_arena_new(64);
+            expr_info_t linfo;
+            jdf_dep_t *dep;
+
             linfo.sa = sa;
             linfo.prefix = ":";
             linfo.assignments = "";
