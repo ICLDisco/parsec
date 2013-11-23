@@ -77,10 +77,11 @@ typedef char *(*dumper_function_t)(void **elt, void *arg);
  * util_dump_list_fct:
  *   function used by the UTIL_DUMP_LIST* macros. Do not use directly.
  */
-static char *util_dump_list_fct( string_arena_t *sa,
-                                 const void *firstelt, unsigned int next_offset, unsigned int elt_offset,
-                                 dumper_function_t fct, void *fctarg,
-                                 const char *before, const char *prefix, const char *separator, const char *after)
+static inline char*
+util_dump_list_fct(string_arena_t *sa,
+                   const void *firstelt, unsigned int next_offset, unsigned int elt_offset,
+                   dumper_function_t fct, void *fctarg,
+                   const char *before, const char *prefix, const char *separator, const char *after)
 {
     char *eltstr;
     const char *prevstr = "";
@@ -110,5 +111,18 @@ jdf_def_list_t* jdf_create_properties_list( const char* name,
                                             int default_int,
                                             const char* default_char,
                                             jdf_def_list_t* next );
+
+/**
+ * Utilities to dump expressions and other parts of the internal
+ * storage structure.
+ */
+typedef struct expr_info {
+    struct string_arena* sa;
+    const char* prefix;
+    char *assignments;
+} expr_info_t;
+/* The elem should be a jdf_expr_t while the arg should be an expr_info_t */
+char * dump_expr(void **elem, void *arg);
+
 
 #endif

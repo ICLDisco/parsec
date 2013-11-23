@@ -294,13 +294,13 @@ static int jdf_deps_unparse( const jdf_dep_t *deps, FILE *out )
     if( NULL == deps )
         return err;
 
-    if( deps->type == JDF_DEP_TYPE_IN ) {
+    if( deps->dep_flags & JDF_DEP_FLOW_IN ) {
         fprintf(out, "<- ");
-    } else if( deps->type == JDF_DEP_TYPE_OUT ) {
+    } else if( deps->dep_flags & JDF_DEP_FLOW_OUT ) {
         fprintf(out, "-> ");
     } else {
         fprintf(stderr, "Improbable dependency type %x is not IN xor OUT\n",
-                deps->type);
+                deps->dep_flags);
         return -1;
     }
 
@@ -327,16 +327,16 @@ static int jdf_dataflow_unparse( const jdf_dataflow_t *dataflow, FILE *out )
     if( NULL == dataflow )
         return err;
 
-    if( dataflow->access_type == JDF_VAR_TYPE_CTL ) {
+    if( dataflow->flow_flags == JDF_FLOW_TYPE_CTL ) {
         fprintf(out, "  CTL   ");
-    } else if( dataflow->access_type == JDF_VAR_TYPE_READ ) {
+    } else if( dataflow->flow_flags == JDF_FLOW_TYPE_READ ) {
         fprintf(out, "  READ  ");
-    } else if( dataflow->access_type == JDF_VAR_TYPE_WRITE ) {
+    } else if( dataflow->flow_flags == JDF_FLOW_TYPE_WRITE ) {
         fprintf(out, "  WRITE ");
-    } else if( dataflow->access_type == (JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE) ) {
+    } else if( dataflow->flow_flags == (JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE) ) {
         fprintf(out, "  RW    ");
     } else {
-        fprintf(stderr, "Improbable flow access type %x is not CTL, READ, WRITE or RW\n", dataflow->access_type);
+        fprintf(stderr, "Improbable flow access type %x is not CTL, READ, WRITE or RW\n", dataflow->flow_flags);
         return -1;
     }
 

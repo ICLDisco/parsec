@@ -335,6 +335,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
                                          dague_execution_context_t* exec_context,
                                          const dague_flow_t* dest_flow,
                                          struct data_repo_entry* dest_repo_entry,
+                                         dague_dep_data_description_t* data,
                                          dague_execution_context_t** pready_list);
 
 

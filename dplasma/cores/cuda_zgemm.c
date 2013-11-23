@@ -235,21 +235,21 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
                              this_task);
 
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[0]->name, args->Am, args->An));
-    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[0]->access_type,
+    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[0]->flow_flags,
                                    &(this_task->data[0]), args->sizeA, gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[1]->name, args->Bm, args->Bn));
-    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[1]->access_type,
+    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[1]->flow_flags,
                                    &(this_task->data[1]), args->sizeB, gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
     DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[2]->name, args->Cm, args->Cn));
-    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[2]->access_type,
+    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[2]->flow_flags,
                                    &(this_task->data[2]), args->sizeC, gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
@@ -334,16 +334,16 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
 
     for( i = 0; NULL != this_task->function->in[i]; i++ ) {
         gpu_elem = gpu_elem_obtain_from_master(this_task->data[i].moesi_master, gpu_device->index);
-        if( this_task->function->in[i]->access_type & ACCESS_READ ) {
+        if( this_task->function->in[i]->flow_flags & ACCESS_READ ) {
             gpu_elem->moesi.readers--; assert(gpu_elem->moesi.readers >= 0);
             if( (0 == gpu_elem->moesi.readers) &&
-                !(this_task->function->in[i]->access_type & ACCESS_WRITE) ) {
+                !(this_task->function->in[i]->flow_flags & ACCESS_WRITE) ) {
                 dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
                 DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem); /* TODO: singleton instead? */
                 dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
             }
         }
-        if( this_task->function->in[i]->access_type & ACCESS_WRITE ) {
+        if( this_task->function->in[i]->flow_flags & ACCESS_WRITE ) {
             gpu_elem = gpu_elem_obtain_from_master(this_task->data[i].moesi_master, gpu_device->index);
 
             /* Stage the transfer of the data back to main memory */
@@ -391,7 +391,7 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
     int i;
 
     for( i = 0; NULL != (master = this_task->data[i].moesi_master); i++ ) {
-        if( !(this_task->function->in[i]->access_type & ACCESS_WRITE) ) continue;
+        if( !(this_task->function->in[i]->flow_flags & ACCESS_WRITE) ) continue;
 
         gpu_elem = gpu_elem_obtain_from_master(master, gpu_device->index);
         assert( MOESI_OWNED == gpu_elem->moesi.coherency_state );

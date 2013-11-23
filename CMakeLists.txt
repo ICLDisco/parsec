@@ -330,7 +330,7 @@ if (HAVE_STDARG_H)
       }"
       HAVE_VA_COPY
       )
- 
+
   if (NOT HAVE_VA_COPY)
     check_c_source_compiles("
         #include <stdarg.h>

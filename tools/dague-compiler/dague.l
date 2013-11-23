@@ -124,21 +124,21 @@ SIMCOST               { return SIMCOST; }
 <*>{WHITE}+           {  /* Eat multiple white-spaces */                   }
 <*>[0-9]+             { YYLVAL(number) = atol(yytext);
                         return INT;                                        }
-CTL                   { YYLVAL(number) = JDF_VAR_TYPE_CTL;
+CTL                   { YYLVAL(number) = JDF_FLOW_TYPE_CTL;
                         return DEPENDENCY_TYPE;                            }
-RW                    { YYLVAL(number) = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
+RW                    { YYLVAL(number) = JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
-READ                  { YYLVAL(number) = JDF_VAR_TYPE_READ;
+READ                  { YYLVAL(number) = JDF_FLOW_TYPE_READ;
                         return DEPENDENCY_TYPE;                            }
-RO                    { YYLVAL(number) = JDF_VAR_TYPE_READ;
+RO                    { YYLVAL(number) = JDF_FLOW_TYPE_READ;
                         return DEPENDENCY_TYPE;                            }
-WRITE                 { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
+WRITE                 { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
-WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
+WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
-"->"                  { YYLVAL(dep_type) = JDF_DEP_TYPE_OUT;
+"->"                  { YYLVAL(dep_type) = JDF_DEP_FLOW_OUT;
                         return ARROW;                                      }
-"<-"                  { YYLVAL(dep_type) = JDF_DEP_TYPE_IN;
+"<-"                  { YYLVAL(dep_type) = JDF_DEP_FLOW_IN;
                         return ARROW;                                      }
 "\["                  { YYLVAL(property) = NULL;
                         YY_PUSH_STATE(properties);

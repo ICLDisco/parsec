@@ -285,7 +285,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     parent_task->next       = pseudotask;
     pseudotask->fname       = NULL;
     pseudotask->parameters  = NULL;
-    pseudotask->flags       = is_input ? JDF_FUNCTION_FLAG_CAN_BE_STARTUP : 0;
+    pseudotask->dep_flags       = is_input ? JDF_FUNCTION_FLAG_CAN_BE_STARTUP : 0;
     pseudotask->properties  = NULL;
     pseudotask->locals      = NULL;
     pseudotask->simcost     = NULL;
@@ -435,7 +435,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     pseudotask->dataflow->next = NULL;
     pseudotask->dataflow->varname     = strdup(var_pseudoname);
     pseudotask->dataflow->deps        = q2jmalloc(jdf_dep_t, 2);
-    pseudotask->dataflow->access_type = JDF_VAR_TYPE_READ;
+    pseudotask->dataflow->flow_flags = JDF_FLOW_TYPE_READ;
     JDF_OBJECT_SET(pseudotask->dataflow, NULL, 0, NULL);
 
     input  =  pseudotask->dataflow->deps;
@@ -443,7 +443,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
 
     // Input
     input->next   = output;
-    input->type   = JDF_DEP_TYPE_IN;
+    input->type   = JDF_DEP_FLOW_IN;
     input->guard  = q2jmalloc(jdf_guarded_call_t, 1);
     jdf_set_default_datatype(&input->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(input, NULL, 0, NULL);
@@ -465,7 +465,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
 
     // Output
     output->next   = NULL;
-    output->type   = JDF_DEP_TYPE_OUT;
+    output->type   = JDF_DEP_FLOW_OUT;
     output->guard  = q2jmalloc(jdf_guarded_call_t, 1);
     jdf_set_default_datatype(&output->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(output, NULL, 0, NULL);
@@ -660,7 +660,7 @@ void jdf_register_input_deps( set<dep_t*> ideps,
             }
 
             dep->next = NULL;
-            dep->type = JDF_DEP_TYPE_IN;
+            dep->dep_flags = JDF_DEP_FLOW_IN;
             dep->guard = q2jmalloc( jdf_guarded_call_t, 1);
             jdf_set_default_datatype(&dep->datatype, "DEFAULT", 1, 0);
             JDF_OBJECT_SET(dep, NULL, 0, NULL);
@@ -728,7 +728,7 @@ void jdf_register_fake_read( Relation S_es,
     }
 
     dep->next = NULL;
-    dep->type = JDF_DEP_TYPE_IN;
+    dep->dep_flags = JDF_DEP_FLOW_IN;
     dep->guard = q2jmalloc( jdf_guarded_call_t, 1);
     dep->datatype.type = q2jmalloc(jdf_expr_t, 1);
     dep->datatype.type->next    = NULL;
@@ -812,7 +812,7 @@ void jdf_register_output_deps( set<dep_t*> odeps,
             }
 
             dep->next = NULL;
-            dep->type = JDF_DEP_TYPE_OUT;
+            dep->dep_flags = JDF_DEP_FLOW_OUT;
             dep->guard = q2jmalloc( jdf_guarded_call_t, 1);
             jdf_set_default_datatype(&dep->datatype, "DEFAULT", 1, 0);
             JDF_OBJECT_SET(dep, NULL, 0, NULL);
@@ -899,15 +899,15 @@ void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t       *this_
         dataflow->deps = NULL;
 
         if( nb_ideps > 0 && nb_odeps > 0 ){
-            dataflow->access_type = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
+            dataflow->flow_flags = JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE;
         }else if( nb_ideps > 0 ){
-            dataflow->access_type = JDF_VAR_TYPE_READ;
+            dataflow->flow_flags = JDF_FLOW_TYPE_READ;
         }else if( nb_odeps > 0 ){
             /*
              * DAGuE does not like write-only variables, so make it RW and make
              * it read from the data matrix tile that corresponds to this variable.
              */
-            dataflow->access_type = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
+            dataflow->flow_flags = JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE;
             insert_fake_read = true;
         }else{
             Q2J_ASSERT(0);
@@ -965,11 +965,11 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->next = NULL;
     dataflow->varname     = strdup(string_arena_get_string(sa));
     dataflow->deps        = q2jmalloc(jdf_dep_t, 1);
-    dataflow->access_type = JDF_VAR_TYPE_CTL;
+    dataflow->flow_flags = JDF_FLOW_TYPE_CTL;
     JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
 
     dataflow->deps->next   = NULL;
-    dataflow->deps->type   = JDF_DEP_TYPE_OUT;
+    dataflow->deps->type   = JDF_DEP_FLOW_OUT;
     dataflow->deps->guard  = q2jmalloc(jdf_guarded_call_t, 1);
     jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
@@ -994,11 +994,11 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->next = NULL;
     dataflow->varname     = strdup(string_arena_get_string(sa));
     dataflow->deps        = q2jmalloc(jdf_dep_t, 1);
-    dataflow->access_type = JDF_VAR_TYPE_CTL;
+    dataflow->flow_flags = JDF_FLOW_TYPE_CTL;
     JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
 
     dataflow->deps->next   = NULL;
-    dataflow->deps->type   = JDF_DEP_TYPE_IN;
+    dataflow->deps->type   = JDF_DEP_FLOW_IN;
     dataflow->deps->guard  = q2jmalloc(jdf_guarded_call_t, 1);
     jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);

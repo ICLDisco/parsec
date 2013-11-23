@@ -97,7 +97,7 @@ typedef union YYSTYPE
     jdf_def_list_t       *def_list;
     jdf_dataflow_t       *dataflow;
     jdf_dep_t            *dep;
-    jdf_dep_type_t        dep_type;
+    jdf_dep_flags_t        dep_type;
     jdf_guarded_call_t   *guarded_call;
     jdf_call_t           *call;
     jdf_expr_t           *expr;

@@ -74,20 +74,24 @@ struct expr {
  * Flows (data or control)
  */
 /**< Remark: (sym_type == SYM_INOUT) if (sym_type & SYM_IN) && (sym_type & SYM_OUT) */
-#define SYM_IN     0x01
-#define SYM_OUT    0x02
+#define SYM_IN     ((uint8_t)(1 << 0))
+#define SYM_OUT    ((uint8_t)(1 << 1))
 #define SYM_INOUT  (SYM_IN | SYM_OUT)
 
 #define ACCESS_NONE     0x00
-#define ACCESS_READ     0x01
-#define ACCESS_WRITE    0x02
+#define ACCESS_READ     ((uint8_t)(1 << 2))
+#define ACCESS_WRITE    ((uint8_t)(1 << 3))
 #define ACCESS_RW       (ACCESS_READ | ACCESS_WRITE)
+#define ACCESS_MASK     (ACCESS_READ | ACCESS_WRITE)
 
 struct dague_flow {
     char               *name;
-    unsigned char       sym_type;
-    unsigned char       access_type;
-    dague_dependency_t  flow_index;
+    uint8_t             sym_type;
+    uint8_t             flow_flags;
+    uint8_t             flow_index; /**< The index of the flow in the data structure
+                                         *   attached to the execution_context. */
+    dague_dependency_t  flow_mask;      /**< The entire mask of the flow constructed
+                                         *   using the or of (1 << dep_out index). */
     const dep_t        *dep_in[MAX_DEP_IN_COUNT];
     const dep_t        *dep_out[MAX_DEP_OUT_COUNT];
 };

@@ -40,6 +40,9 @@ dague_addtest(C touch_ex "touch_ex.c;${touch_generated}")
 jdf_rules(startup_generated "${CMAKE_CURRENT_SOURCE_DIR}/startup.jdf")
 dague_addtest(C startup "${startup_generated}")
 
+jdf_rules(complex_deps_generated "${CMAKE_CURRENT_SOURCE_DIR}/complex_deps.jdf")
+dague_addtest(C complex_deps "${complex_deps_generated}")
+
 # Define Testings
 include(Testings.cmake)
 

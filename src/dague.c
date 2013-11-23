@@ -747,7 +747,7 @@ dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
          * On the other hand, if all conditions for the control are false,
          *  it is assumed that no control should be expected.
          */
-        if( ACCESS_NONE == flow->access_type ) {
+        if( ACCESS_NONE == flow->flow_flags ) {
             active = (1 << flow->flow_index);
             /* Control case: resolved unless we find at least one input control */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
@@ -819,7 +819,7 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
          *  it is assumed that no control should be expected.
          */
         active = 0;
-        if( ACCESS_NONE == flow->access_type ) {
+        if( ACCESS_NONE == flow->flow_flags ) {
             /* Control case: just count how many must be resolved */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
@@ -1003,6 +1003,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
                                          dague_execution_context_t* restrict exec_context,
                                          const dague_flow_t* restrict dest_flow,
                                          data_repo_entry_t* dest_repo_entry,
+                                         dague_dep_data_description_t* data,
                                          dague_execution_context_t** pready_ring)
 {
     const dague_function_t* function = exec_context->function;
@@ -1066,7 +1067,8 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
              * for each execution context.
              */
             new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
-            new_context->data[(int)dest_flow->flow_index].data      = origin->data[(int)origin_flow->flow_index].data;
+            assert( origin->data[(int)origin_flow->flow_index].data == data->ptr );
+            new_context->data[(int)dest_flow->flow_index].data      = (void*)((char*)data->ptr + data->displ);
             AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
@@ -1170,7 +1172,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
-        if( ACCESS_NONE != target->access_type ) {
+        if( ACCESS_NONE != target->flow_flags ) {
             arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
             arg->output_usage++;
             /* BEWARE: This increment is required to be done here. As the target task
@@ -1186,6 +1188,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                                                                  newcontext,
                                                                  oldcontext->function->out[out_index]->dep_out[outdep_index]->flow,
                                                                  arg->output_entry,
+                                                                 data,
                                                                  &arg->ready_lists[dst_vpid]);
     }
 
