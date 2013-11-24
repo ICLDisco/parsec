@@ -160,8 +160,8 @@ static inline gpu_elem_t* gpu_elem_obtain_from_master(moesi_master_t* master, in
 
 
 typedef enum {
-    DAGUE_READ       = ACCESS_READ,
-    DAGUE_WRITE      = ACCESS_WRITE,
+    DAGUE_READ       = FLOW_ACCESS_READ,
+    DAGUE_WRITE      = FLOW_ACCESS_WRITE,
     DAGUE_READ_DONE  = 0x4,
     DAGUE_WRITE_DONE = 0x8
 } dague_data_usage_type_t;

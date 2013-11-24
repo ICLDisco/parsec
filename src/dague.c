@@ -745,9 +745,9 @@ dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
          *      and depend only on the data.
          *
          * On the other hand, if all conditions for the control are false,
-         *  it is assumed that no control should be expected.
+         * it is assumed that no control should be expected.
          */
-        if( ACCESS_NONE == flow->flow_flags ) {
+        if( FLOW_ACCESS_NONE == (flow->flow_flags & FLOW_ACCESS_MASK) ) {
             active = (1 << flow->flow_index);
             /* Control case: resolved unless we find at least one input control */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
@@ -765,6 +765,7 @@ dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
                 break;
             }
         } else {
+            if( !(flow->flow_flags & FLOW_HAS_IN_DEPS) ) continue;
             /* Data case: resolved only if we found a data already ready */
             active = 0;
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
@@ -819,7 +820,7 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
          *  it is assumed that no control should be expected.
          */
         active = 0;
-        if( ACCESS_NONE == flow->flow_flags ) {
+        if( FLOW_ACCESS_NONE == (flow->flow_flags & FLOW_ACCESS_MASK) ) {
             /* Control case: just count how many must be resolved */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
@@ -1164,7 +1165,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
-        if( ACCESS_NONE != src_flow->flow_flags ) {
+        if( FLOW_ACCESS_NONE == (src_flow->flow_flags & FLOW_ACCESS_MASK) ) {
             arg->output_entry->data[dep->dep_index] = oldcontext->data[dep->dep_index].data;
             arg->output_usage++;
             /* BEWARE: This increment is required to be done here. As the target task

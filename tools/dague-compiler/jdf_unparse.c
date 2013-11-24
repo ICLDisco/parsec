@@ -327,14 +327,16 @@ static int jdf_dataflow_unparse( const jdf_dataflow_t *dataflow, FILE *out )
     if( NULL == dataflow )
         return err;
 
-    if( dataflow->flow_flags == JDF_FLOW_TYPE_CTL ) {
+    if( dataflow->flow_flags & JDF_FLOW_TYPE_CTL ) {
         fprintf(out, "  CTL   ");
-    } else if( dataflow->flow_flags == JDF_FLOW_TYPE_READ ) {
-        fprintf(out, "  READ  ");
-    } else if( dataflow->flow_flags == JDF_FLOW_TYPE_WRITE ) {
+    } else if( dataflow->flow_flags & JDF_FLOW_TYPE_READ ) {
+        if( dataflow->flow_flags & JDF_FLOW_TYPE_WRITE ) {
+            fprintf(out, "  RW    ");
+        } else {
+            fprintf(out, "  READ  ");
+        }
+    } else if( dataflow->flow_flags & JDF_FLOW_TYPE_WRITE ) {
         fprintf(out, "  WRITE ");
-    } else if( dataflow->flow_flags == (JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE) ) {
-        fprintf(out, "  RW    ");
     } else {
         fprintf(stderr, "Improbable flow access type %x is not CTL, READ, WRITE or RW\n", dataflow->flow_flags);
         return -1;

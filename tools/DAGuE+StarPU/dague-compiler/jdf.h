@@ -135,9 +135,9 @@ typedef struct jdf_def_list {
 typedef struct jdf_dataflow jdf_dataflow_t;
 typedef struct jdf_dep jdf_dep_t;
 typedef unsigned int jdf_flow_flags_t;
-#define JDF_FLOW_TYPE_CTL   ((jdf_flow_flags_t)0)
-#define JDF_FLOW_TYPE_READ  ((jdf_flow_flags_t)(1<<0))
-#define JDF_FLOW_TYPE_WRITE ((jdf_flow_flags_t)(1<<1))
+#define JDF_FLOW_TYPE_CTL   ((jdf_flow_flags_t)(1<<0))
+#define JDF_FLOW_TYPE_READ  ((jdf_flow_flags_t)(1<<1))
+#define JDF_FLOW_TYPE_WRITE ((jdf_flow_flags_t)(1<<2))
 struct jdf_dataflow {
     jdf_dataflow_t           *next;
     jdf_flow_flags_t         flow_flags;

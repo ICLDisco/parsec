@@ -580,7 +580,7 @@ static int jdf_sanity_check_control(void)
         i = 1;
         /* For each flow of data */
         for(flow = func->dataflow; flow != NULL; flow = flow->next, i++) {
-            if( JDF_FLOW_TYPE_CTL != flow->flow_flags ) continue;
+            if( !(JDF_FLOW_TYPE_CTL & flow->flow_flags) ) continue;
             j = 1;
             /* For each CONTROL dependency */
             for( dep = flow->deps; dep != NULL; dep = dep->next, j++ ) {
@@ -909,7 +909,7 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
                                          uint32_t* dep_out_index)
 {
     uint32_t i, j, dep_count;
-    uint32_t swap_with, global_in_index, global_out_index;
+    uint32_t global_in_index, global_out_index;
     jdf_dep_t *dep, *sdep, **dep_array = NULL;
     jdf_datatransfer_type_t *ddt, *sddt;
 

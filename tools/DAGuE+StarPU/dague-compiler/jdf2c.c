@@ -151,7 +151,7 @@ static inline int function_has_data_output( const jdf_function_entry_t *f )
     jdf_dep_t *dep;
 
     for( flow = f->dataflow; flow != NULL; flow = flow->next) {
-        if(flow->flow_flags != JDF_FLOW_TYPE_CTL) {
+        if(!(flow->flow_flags & JDF_FLOW_TYPE_CTL)) {
             for(dep = flow->deps; dep != NULL; dep = dep->next)
                 if( JDF_DEP_FLOW_OUT & dep->dep_flags ) {
                     return 1;
@@ -650,7 +650,7 @@ static char *dump_data_declaration(void **elem, void *arg)
     jdf_dataflow_t *f = (jdf_dataflow_t*)elem;
     char *varname = f->varname;
 
-    if(f->flow_flags == JDF_FLOW_TYPE_CTL) 
+    if(f->flow_flags & JDF_FLOW_TYPE_CTL) 
         return NULL;
 
     string_arena_init(sa);
@@ -677,7 +677,7 @@ static char *dump_data_declaration(void **elem, void *arg)
     
 /*     for(; f != NULL; f = f->next) */
 /*     { */
-/* 	if(f->flow_flags == JDF_FLOW_TYPE_CTL)  */
+/* 	if(f->flow_flags & JDF_FLOW_TYPE_CTL)  */
 /* 	    continue; */
 	
 /* 	string_arena_add_string(sa, */
@@ -697,7 +697,7 @@ static char *dump_dataflow_varname(void **elem, void *_)
 {
     (void)_;
     jdf_dataflow_t *f = (jdf_dataflow_t *)elem;
-    if( f->flow_flags == JDF_FLOW_TYPE_CTL ) return NULL;
+    if( f->flow_flags & JDF_FLOW_TYPE_CTL ) return NULL;
     return f->varname;
 }
 
@@ -1572,10 +1572,10 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     sym_type = ( (alldeps_type & JDF_DEP_FLOW_IN) ?
                  ((alldeps_type & JDF_DEP_FLOW_OUT) ? "SYM_INOUT" : "SYM_IN") : "SYM_OUT" );
 
-    flow_flags = (  (flow->flow_flags == JDF_FLOW_TYPE_CTL) ? "ACCESS_NONE" :
-                    ((flow->flow_flags == JDF_FLOW_TYPE_READ) ? "ACCESS_READ" :
-                    ((flow->flow_flags == JDF_FLOW_TYPE_WRITE) ? "ACCESS_WRITE" : "ACCESS_RW") ) ); 
-    
+    flow_flags = ((flow->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
+                  ((flow->flow_flags & JDF_FLOW_TYPE_READ) ? "FLOW_ACCESS_READ" :
+                  ((flow->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_WRITE" : "FLOW_ACCESS_RW") ) ); 
+
     if(strlen(string_arena_get_string(sa_dep_in)) == 0) {
         string_arena_add_string(sa_dep_in, "NULL");
     }
@@ -1624,7 +1624,7 @@ static char* has_ready_input_dependency(void **elt, void *pint)
     jdf_dep_t* dep = flow->deps;
     int can_be_startup = 0, has_input = 0;
 
-    if( JDF_FLOW_TYPE_CTL == flow->flow_flags ) {
+    if( JDF_FLOW_TYPE_CTL & flow->flow_flags ) {
         has_input = 1;
         can_be_startup = 1;
         while( NULL != dep ) {
@@ -1680,7 +1680,7 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
             }
             if( dep->guard->guard_type == JDF_GUARD_BINARY ) {
                 if( (NULL == dep->guard->calltrue->var) ||
-                    (flow->flow_flags == JDF_FLOW_TYPE_CTL)) {
+                    (flow->flow_flags & JDF_FLOW_TYPE_CTL)) {
                     if( 0 == already_added ) {
                         info.sa = sa;
                         dump_expr((void**)dep->guard->guard, &info);
@@ -1725,7 +1725,7 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
         dep = dep->next;
     }
     /* We need to prepend ! if we're dealing with control flows */
-    if( already_added && (JDF_FLOW_TYPE_CTL == flow->flow_flags) ) {
+    if( already_added && (JDF_FLOW_TYPE_CTL & flow->flow_flags) ) {
         string_arena_init(sa1);
         string_arena_add_string( sa1, "!(%s)", string_arena_get_string(sa) );
         string_arena_init(sa);
@@ -2134,7 +2134,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
         for( dl = fl->deps; NULL != dl; dl = dl->next ) {
             if( dl->dep_flags & JDF_DEP_FLOW_IN ) {
 
-                if( JDF_FLOW_TYPE_CTL == fl->flow_flags ) {
+                if( JDF_FLOW_TYPE_CTL & fl->flow_flags ) {
                     if( JDF_GUARD_BINARY == dl->guard->guard_type )
                         has_in_in_dep = 1;
                 } else {
@@ -2725,7 +2725,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     int cond_index = 0;
     char* condition[] = {"  if( %s ) {\n", "  else if( %s ) {\n"};
 
-    if( JDF_FLOW_TYPE_CTL == flow->flow_flags ) {
+    if( JDF_FLOW_TYPE_CTL & flow->flow_flags ) {
         coutput("    /* this_task->data[%u] is a control flow */\n", flow_index);
         return;
     }
@@ -3093,7 +3093,7 @@ jdf_generate_code_starpu_task_create(const jdf_t *jdf, const jdf_function_entry_
     
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 	
-        if(fl->flow_flags == JDF_FLOW_TYPE_CTL) continue;  /* control flow, nothing to store */
+        if(fl->flow_flags & JDF_FLOW_TYPE_CTL) continue;  /* control flow, nothing to store */
 	
 	jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
 	
@@ -3190,7 +3190,7 @@ jdf_generate_code_gpu_function(const jdf_t *jdf, const jdf_function_entry_t *f, 
     
     for(di = 0, fl = f->dataflow; fl != NULL; fl = fl->next)
     {
-	if(fl->flow_flags == JDF_FLOW_TYPE_CTL) continue;
+	if(fl->flow_flags & JDF_FLOW_TYPE_CTL) continue;
 	
 	jdf_generate_cuda_code_flow_retrieving(fl, di++);
 
@@ -3282,7 +3282,7 @@ jdf_generate_code_cpu_function(const jdf_t *jdf, const jdf_function_entry_t *f, 
     
     for(di = 0, fl = f->dataflow; fl != NULL; fl = fl->next)
     {
-	if(fl->flow_flags == JDF_FLOW_TYPE_CTL) continue;
+	if(fl->flow_flags & JDF_FLOW_TYPE_CTL) continue;
 	
 	jdf_generate_code_flow_retrieving(fl, di++);
 
@@ -3465,7 +3465,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     /* coutput("  /\** Lookup the input data, and store them in the context if any *\/\n"); */
     /* for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) { */
 
-    /*     if(fl->flow_flags == JDF_FLOW_TYPE_CTL) continue;  /\* control flow, nothing to store *\/ */
+    /*     if(fl->flow_flags & JDF_FLOW_TYPE_CTL) continue;  /\* control flow, nothing to store *\/ */
 
     /*     jdf_generate_code_flow_initialization(jdf, f->fname, fl, di); */
     /*     coutput("#if defined(DAGUE_SIM)\n" */
@@ -3592,7 +3592,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                                  dump_string, NULL, "   ", " (void)", ";", ";\n"));
 
     for( dl = f->dataflow; dl != NULL; dl = dl->next ) {
-        if(dl->flow_flags == JDF_FLOW_TYPE_CTL) continue;
+        if(dl->flow_flags & JDF_FLOW_TYPE_CTL) continue;
         cond_index = 0;
         for( dep = dl->deps; dep != NULL; dep = dep->next ) {
             if( dep->dep_flags & JDF_DEP_FLOW_IN ) {
@@ -3972,7 +3972,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
             if( dl->dep_flags & JDF_DEP_FLOW_OUT )  {
                 string_arena_init(sa);
-                if( JDF_FLOW_TYPE_CTL == fl->flow_flags ) {
+                if( JDF_FLOW_TYPE_CTL & fl->flow_flags ) {
                     string_arena_add_string(sa, "NULL");
                 } else {
                     string_arena_add_string(sa, "__dague_object->super.arenas[DAGUE_%s_%s_ARENA]",

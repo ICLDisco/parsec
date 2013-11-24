@@ -86,12 +86,12 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
     assert( NULL != master->device_copies[device] );
     copy = master->device_copies[device];
 
-    if( ACCESS_READ & access_mode ) copy->readers++;
+    if( FLOW_ACCESS_READ & access_mode ) copy->readers++;
 
     if( MOESI_INVALID == copy->coherency_state ) {
-        if( ACCESS_READ & access_mode ) transfer_required = -1;
+        if( FLOW_ACCESS_READ & access_mode ) transfer_required = -1;
         /* Update the coherency state of the others versions */
-        if( ACCESS_WRITE & access_mode ) {
+        if( FLOW_ACCESS_WRITE & access_mode ) {
             //assert( MOESI_OWNED != master->coherency_state ); /* 2 writters on the same data: wrong JDF */
             master->coherency_state = MOESI_OWNED;
             master->owner_device = (uint16_t)device;
@@ -102,7 +102,7 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
             copy->coherency_state = MOESI_OWNED;
             copy->version = master->version;
         }
-        else if( ACCESS_READ & access_mode ) {
+        else if( FLOW_ACCESS_READ & access_mode ) {
             if( MOESI_OWNED == master->coherency_state ) {
                 transfer_required = 1; /* TODO: is this condition making sense? */
             }
@@ -115,7 +115,7 @@ int moesi_prepare_transfer_to_device(moesi_map_t* map, moesi_key_t key, int devi
             assert( device == master->owner_device ); /* memory is owned, better be me otherwise 2 writters: wrong JDF */
         }
         else {
-            if( ACCESS_WRITE & access_mode ) {
+            if( FLOW_ACCESS_WRITE & access_mode ) {
                 copy->coherency_state = MOESI_OWNED;
                 master->owner_device = (uint16_t)device;
                 /* Update the coherency state of the others versions */

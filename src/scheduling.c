@@ -153,7 +153,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 
         do {
             for( i = set_parameters = 0; NULL != (flow = context->function->in[i]); i++ ) {
-                if( ACCESS_NONE == flow->flow_flags ) continue;
+                if( FLOW_ACCESS_NONE == (flow->flow_flags & FLOW_ACCESS_MASK) ) continue;
                 if( NULL != context->data[flow->flow_index].data_repo ) {
                     set_parameters++;
                     if( NULL == context->data[flow->flow_index].data ) {

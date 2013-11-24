@@ -78,11 +78,12 @@ struct expr {
 #define SYM_OUT    ((uint8_t)(1 << 1))
 #define SYM_INOUT  (SYM_IN | SYM_OUT)
 
-#define ACCESS_NONE     ((uint8_t)0x00)
-#define ACCESS_READ     ((uint8_t)(1 << 2))
-#define ACCESS_WRITE    ((uint8_t)(1 << 3))
-#define ACCESS_RW       (ACCESS_READ | ACCESS_WRITE)
-#define ACCESS_MASK     (ACCESS_READ | ACCESS_WRITE)
+#define FLOW_ACCESS_NONE     ((uint8_t)0x00)
+#define FLOW_ACCESS_READ     ((uint8_t)(1 << 2))
+#define FLOW_ACCESS_WRITE    ((uint8_t)(1 << 3))
+#define FLOW_ACCESS_RW       (FLOW_ACCESS_READ | FLOW_ACCESS_WRITE)
+#define FLOW_ACCESS_MASK     (FLOW_ACCESS_READ | FLOW_ACCESS_WRITE)
+#define FLOW_HAS_IN_DEPS     ((uint8_t)(1 << 4))
 
 struct dague_flow {
     char               *name;

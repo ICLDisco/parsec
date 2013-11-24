@@ -547,7 +547,7 @@ static int jdf_sanity_check_control(void)
         i = 1;
         /* For each flow of data */
         for(flow = func->dataflow; flow != NULL; flow = flow->next, i++) {
-            if( JDF_FLOW_TYPE_CTL != flow->flow_flags ) continue;
+            if( !(JDF_FLOW_TYPE_CTL & flow->flow_flags) ) continue;
             j = 1;
             /* For each CONTROL dependency */
             for( dep = flow->deps; dep != NULL; dep = dep->next, j++ ) {
