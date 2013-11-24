@@ -51,7 +51,7 @@ static void yyerror(YYLTYPE *locp,
     }
 }
 
-#define new(type)  (type*)calloc(1, sizeof(type))
+#define new(type) (type*)calloc(1, sizeof(type))
 
 jdf_def_list_t*
 jdf_create_properties_list( const char* name,
@@ -505,9 +505,10 @@ dependency:   ARROW guarded_call properties
                   }
 
                   $2->properties   = property;
-                  d->dep_flags         = $1;
+                  d->dep_flags     = $1;
                   d->guard         = $2;
                   d->datatype.type = expr;
+                  JDF_OBJECT_LINENO(&d->datatype) = current_lineno;
 
                   if( NULL != jdf_find_property( $3, "arena_index", &property ) ) {
                       jdf_fatal(current_lineno, "Old construct arena_index used. Please update the code to use type instead.\n");

@@ -182,13 +182,14 @@ typedef uint16_t jdf_dep_flags_t;
 #define JDF_DEP_HAS_DISPL  ((jdf_dep_flags_t)(1 << 2))
 
 typedef struct jdf_datatransfer_type {
-    struct jdf_expr *type;    /**< the internal type of the data associated with the dependency */
-    struct jdf_expr *layout;  /**< the basic memory layout in case it is different from the type.
-                                *< InMPI case this must be an MPI datatype, working together with the
-                                *< displacement and the count. */
-    struct jdf_expr *count;   /**< number of elements of layout type to transfer */
-    struct jdf_expr *displ;   /**< displacement in number of bytes from the pointer associated with
-                                *< the dependency */
+    struct jdf_object_t  super;
+    struct jdf_expr     *type;    /**< the internal type of the data associated with the dependency */
+    struct jdf_expr     *layout;  /**< the basic memory layout in case it is different from the type.
+                                   *< InMPI case this must be an MPI datatype, working together with the
+                                   *< displacement and the count. */
+    struct jdf_expr     *count;   /**< number of elements of layout type to transfer */
+    struct jdf_expr     *displ;   /**< displacement in number of bytes from the pointer associated with
+                                   *< the dependency */
 } jdf_datatransfer_type_t;
 
 struct jdf_dep {
