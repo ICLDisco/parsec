@@ -1,18 +1,79 @@
 /*
- * Copyright (c) 2011-2012 The University of Tennessee and The University
+ * Copyright (c) 2011-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
  *
  * @precisions normal z -> c d s
  *
  */
 #include "dague_internal.h"
-#include <core_blas.h>
+#include <cblas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
-#include "dplasma/lib/dplasmaaux.h"
 
-#include "zlascal.h"
+#include "map.h"
+
+struct zlascal_args_s {
+    dague_complex64_t alpha;
+    tiled_matrix_desc_t *descA;
+};
+typedef struct zlascal_args_s zlascal_args_t;
+
+static int
+dplasma_zlascal_operator( struct dague_execution_unit *eu,
+                         void *_A,
+                         void *op_data, ... )
+{
+    va_list ap;
+    PLASMA_enum uplo;
+    int i, m, n;
+    int tempmm, tempnn, ldam;
+    tiled_matrix_desc_t *descA;
+    dague_complex64_t alpha;
+    zlascal_args_t *args = (zlascal_args_t*)op_data;
+    dague_complex64_t *A = (dague_complex64_t*)_A;
+    (void)eu;
+
+    va_start(ap, op_data);
+    uplo = va_arg(ap, PLASMA_enum);
+    m    = va_arg(ap, int);
+    n    = va_arg(ap, int);
+    va_end(ap);
+
+    descA = args->descA;
+    alpha = args->alpha;
+
+    tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
+    tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
+    ldam = BLKLDD( *descA, m );
+
+    /* Overwrite uplo when outside the diagonal */
+    if (m != n) {
+        uplo = PlasmaUpperLower;
+    }
+
+    switch ( uplo ) {
+    case PlasmaUpper:
+        for(i=0; i<tempnn; i++) {
+            cblas_zscal( dplasma_imin( i+1, tempmm ), CBLAS_SADDR(alpha), A+i*ldam, 1 );
+        }
+        break;
+
+    case PlasmaLower:
+        for(i=0; i<tempnn; i++) {
+            cblas_zscal( dplasma_imax( tempmm, tempmm-i ), CBLAS_SADDR(alpha), A+i*ldam, 1 );
+        }
+        break;
+    default:
+        for(i=0; i<tempnn; i++) {
+            cblas_zscal( tempmm, CBLAS_SADDR(alpha), A+i*ldam, 1 );
+        }
+        break;
+    }
+
+    return 0;
+}
 
 /***************************************************************************//**
  *
@@ -39,51 +100,46 @@
  *          The descriptor of the matrix to scale.
  *
  ******************************************************************************/
-dague_object_t* dplasma_zlascal_New( PLASMA_enum type,
-                                     dague_complex64_t alpha,
-                                     tiled_matrix_desc_t *A )
+dague_object_t*
+dplasma_zlascal_New( PLASMA_enum uplo,
+                     dague_complex64_t alpha,
+                     tiled_matrix_desc_t *A )
 {
-    dague_zlascal_object_t* object;
+    zlascal_args_t *params = (zlascal_args_t*)malloc(sizeof(zlascal_args_t));
 
-    object = dague_zlascal_new( type, alpha, (dague_ddesc_t*)A);
+    params->alpha = alpha;
+    params->descA = A;
 
-    /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zlascal_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
-
-    return (dague_object_t*)object;
+    return dplasma_map_New( uplo, A, dplasma_zlascal_operator, params );
 }
 
-int dplasma_zlascal( dague_context_t *dague,
-                     PLASMA_enum type, dague_complex64_t alpha,
-                     tiled_matrix_desc_t *A)
+void
+dplasma_zlascal_Destruct( dague_object_t *o )
+{
+    dplasma_map_Destruct( o );
+}
+
+int
+dplasma_zlascal( dague_context_t *dague,
+                 PLASMA_enum uplo, dague_complex64_t alpha,
+                 tiled_matrix_desc_t *A)
 {
     dague_object_t *dague_zlascal = NULL;
 
     /* Check input arguments */
-    if ((type != PlasmaLower) &&
-        (type != PlasmaUpper) &&
-        (type != PlasmaUpperLower))
+    if ((uplo != PlasmaLower) &&
+        (uplo != PlasmaUpper) &&
+        (uplo != PlasmaUpperLower))
     {
         dplasma_error("dplasma_zlascal", "illegal value of type");
         return -1;
     }
 
-    dague_zlascal = dplasma_zlascal_New(type, alpha, A);
+    dague_zlascal = dplasma_zlascal_New(uplo, alpha, A);
 
     dague_enqueue(dague, (dague_object_t*)dague_zlascal);
     dplasma_progress(dague);
 
     dplasma_zlascal_Destruct( dague_zlascal );
     return 0;
-}
-
-void
-dplasma_zlascal_Destruct( dague_object_t *o )
-{
-    dague_zlascal_object_t *dague_zlascal = (dague_zlascal_object_t *)o;
-    dplasma_datatype_undefine_type( &(dague_zlascal->arenas[DAGUE_zlascal_DEFAULT_ARENA]->opaque_dtt) );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zlascal);
 }

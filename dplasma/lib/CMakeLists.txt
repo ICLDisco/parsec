@@ -22,8 +22,6 @@ set(JDF
   zlange_frb_cyclic.jdf
   zlange_one_cyclic.jdf
   zlansy.jdf
-  zlascal.jdf
-  zlaset.jdf
   zlaswp.jdf
   zplghe.jdf
   zplgsy.jdf

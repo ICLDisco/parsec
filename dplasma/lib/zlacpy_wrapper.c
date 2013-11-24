@@ -21,7 +21,7 @@ struct zlacpy_args_s {
 typedef struct zlacpy_args_s zlacpy_args_t;
 
 static int
-dague_operator_zlacpy( struct dague_execution_unit *eu,
+dplasma_zlacpy_operator( struct dague_execution_unit *eu,
                        const void *_A, void *_B,
                        void *op_data, ... )
 {
@@ -81,7 +81,8 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
     params->descB = B;
 
     object = dplasma_map2_New(uplo, A, B,
-                              dague_operator_zlacpy, (void *)params);
+                              dplasma_zlacpy_operator,
+                              (void *)params);
 
     return object;
 }

@@ -81,9 +81,9 @@ dplasma_map_New( PLASMA_enum uplo,
         return NULL;
     }
 
-   dague_map = dague_map_new( uplo,
-                                 (dague_ddesc_t*)A,
-                                 operator, op_args);
+    dague_map = dague_map_new( uplo,
+                               (dague_ddesc_t*)A,
+                               operator, op_args);
 
     switch( A->mtype ) {
     case matrix_ComplexDouble :
