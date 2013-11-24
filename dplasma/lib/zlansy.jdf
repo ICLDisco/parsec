@@ -1,13 +1,11 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ *  Copyright (c) 2011-2013 The University of Tennessee and The University
+ *                          of Tennessee Research Foundation.  All rights
+ *                          reserved.
+ *  Copyright (c) 2013      Inria. All rights reserved.
  *
  * @precisions normal z -> s d c
- *
  *
  * This jdf returns the value of the infinity norm of a matrix A
  * where the infinity norm  of a matrix is the maximum row sum.
@@ -24,20 +22,9 @@ extern "C" %{
  * The reductions are down by a pipeline folowed by a broadcast of the results.
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
 #include <math.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
-#include "dplasma/cores/dplasma_zcores.h"
 
 #define my_rank_of(m, n) (((dague_ddesc_t*)(__dague_object->super.dataA))->rank_of((dague_ddesc_t*)__dague_object->super.dataA, m, n))
 
@@ -52,8 +39,7 @@ ntype        [type = "PLASMA_enum"]
 uplo         [type = "PLASMA_enum"]
 trans        [type = "PLASMA_enum"]
 dataA        [type = "dague_ddesc_t *"]
-Wcol         [type = "dague_ddesc_t *"]
-Welt         [type = "dague_ddesc_t *"]
+Tdist        [type = "dague_ddesc_t *"]
 norm         [type = "double *"]
 
 descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
@@ -81,12 +67,11 @@ RWCOL(m, n) [profile = off]
         %}
 
     // Parallel partitioning
-    :Wcol(m, n)
+    :Tdist(m, n)
 
     // Parameters
-    READ W <- Wcol(m, n)
-           -> (hastile <  descA.nt) ? W STEP1(m, hastile)  [type = COL]
-           -> (hastile == descA.nt) ? W STEP2(m, n      )  [type = COL]
+    WRITE W -> (hastile <  descA.nt) ? W STEP1(m, hastile)  [type = COL]
+            -> (hastile == descA.nt) ? W STEP2(m, n      )  [type = COL]
 
 BODY
 {
@@ -116,12 +101,11 @@ RWELT(m, n) [profile = off]
         %}
 
     // Parallel partitioning
-    :Welt(m, n)
+    :Tdist(m, n)
 
     // Parameters
-    READ W <- Welt(m, n)
-           -> (m <  descA.mt   ) ? W STEP3(row, n)  [type = ELT]
-           -> (m > (descA.mt-1)) ? W STEP4(m,   n)  [type = ELT]
+    WRITE W -> (m <  descA.mt   ) ? W STEP3(row, n)  [type = ELT]
+            -> (m > (descA.mt-1)) ? W STEP4(m,   n)  [type = ELT]
 
 BODY
 {
@@ -310,10 +294,10 @@ STEP2(m, n)
         %}
 
     // Parallel partitioning
-    :Wcol(m, n)
+    :Tdist(m, n)
 
     // Parameters
-    READ A <- ( n+Q < PQ )       ? W STEP2(m, n+Q)  : Wcol(m, n) /* Unused*/ [type = COL]
+    READ A <- ( n+Q < PQ )       ? W STEP2(m, n+Q)  : Tdist(m, n) /* Unused*/    [type = COL]
     RW   W <- ((hadtile+1) == 0) ? W RWCOL(m, n )   : W STEP1(m, hadtile)    [type = COL]
            -> ( n < Q )          ? W STEP2BIS(m, n) : A STEP2(m, n-Q)        [type = COL]
 
@@ -365,12 +349,12 @@ STEP2BIS(m, n)
     n = 0 .. Q-1
 
     // Parallel partitioning
-    :Wcol(m, n)
+    :Tdist(m, n)
 
     // Parameters
-    READ A <- ( n == 0     ) ? Wcol(m, n) /* Unused */ : W STEP2BIS(m, n-1)   [type = COL]
-    RW   W <- W STEP2(m, n)                                                   [type = COL]
-           -> ( n == (Q-1) ) ? A STEP3(m, 0..Q-1)      : A STEP2BIS(m, n+1)   [type = COL]
+    READ A <- ( n == 0     ) ? Tdist(m, n) /* Unused */ : W STEP2BIS(m, n-1)   [type = COL]
+    RW   W <- W STEP2(m, n)                                                [type = COL]
+           -> ( n == (Q-1) ) ? A STEP3(m, 0..Q-1)   : A STEP2BIS(m, n+1)   [type = COL]
 
 BODY
 {
@@ -421,7 +405,7 @@ STEP3(m, n)
     n = 0 .. Q-1
 
     // Parallel partitioning
-    :Welt(m%P, n)
+    :Tdist(m, n)
 
     // Parameters
     READ A <- W STEP2BIS(m, Q-1)                                         [type = COL]
@@ -484,10 +468,10 @@ STEP4(m,n)
     n = 0..Q-1
 
     // Parallel partitioning
-    :Welt(m, n)
+    :Tdist(m, n)
 
     // Parameters
-    READ A <- ( m == 0 ) ? Welt(m, n) : W STEP4(m-1, n)                       [type = ELT]
+    READ A <- ( m == 0 ) ? Tdist(m, n) /* Unused */: W STEP4(m-1, n)              [type = ELT]
     RW   W <- ( m >  (descA.mt-1)) ? W RWELT( m, n)         : W STEP3(m,   n) [type = ELT]
            -> ( m == (P-1)       ) ? W WRITE_RES(0..P-1, n) : A STEP4(m+1, n) [type = ELT]
 
@@ -529,7 +513,7 @@ WRITE_RES(m,n)
     n = 0..Q-1
 
     // Parallel partitioning
-    :Welt(m, n)
+    :Tdist(m, n)
 
     // Parameters
     READ W <- W STEP4( P-1, n )   [type = ELT]
