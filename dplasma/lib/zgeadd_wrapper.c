@@ -1,24 +1,22 @@
 /*
- * Copyright (c) 2011-2012 The University of Tennessee and The University
+ * Copyright (c) 2011-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
  *
  * @precisions normal z -> c d s
  *
  */
-
 #include "dague_internal.h"
-#include <core_blas.h>
-#include <core_blas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
-#include "dplasma/lib/dplasmaaux.h"
+
 #include "map2.h"
 
 struct zgeadd_args_s {
-  dague_complex64_t alpha;
-  tiled_matrix_desc_t *descA;
-  tiled_matrix_desc_t *descB;
+    dague_complex64_t alpha;
+    const tiled_matrix_desc_t *descA;
+    tiled_matrix_desc_t *descB;
 };
 typedef struct zgeadd_args_s zgeadd_args_t;
 
@@ -33,14 +31,15 @@ dague_operator_zgeadd( struct dague_execution_unit *eu,
     PLASMA_enum uplo;
     int j, m, n;
     int tempmm, tempnn, ldam, ldbm;
-    tiled_matrix_desc_t *descA, *descB;
+    const tiled_matrix_desc_t *descA;
+    tiled_matrix_desc_t *descB;
     dague_complex64_t *A = (dague_complex64_t*)_A;
     dague_complex64_t *B = (dague_complex64_t*)_B;
     (void)eu;
     va_start(ap, op_data);
     uplo = va_arg(ap, PLASMA_enum);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
+    m    = va_arg(ap, int);
+    n    = va_arg(ap, int);
     va_end(ap);
 
     descA = args->descA;
@@ -93,8 +92,8 @@ dague_operator_zgeadd( struct dague_execution_unit *eu,
  *
  ******************************************************************************/
 dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, dague_complex64_t alpha,
-                                   tiled_matrix_desc_t *A,
-                                   tiled_matrix_desc_t *B)
+                                    const tiled_matrix_desc_t *A,
+                                    tiled_matrix_desc_t *B)
 {
     dague_object_t* object;
     zgeadd_args_t *params = (zgeadd_args_t*)malloc(sizeof(zgeadd_args_t));
@@ -109,11 +108,18 @@ dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, dague_complex64_t alpha,
     return object;
 }
 
-int dplasma_zgeadd( dague_context_t *dague,
-                   PLASMA_enum uplo,
-                   dague_complex64_t alpha,
-                   tiled_matrix_desc_t *A,
-                   tiled_matrix_desc_t *B)
+void
+dplasma_zgeadd_Destruct( dague_object_t *o )
+{
+    dplasma_map2_Destruct( o );
+}
+
+int
+dplasma_zgeadd( dague_context_t *dague,
+                PLASMA_enum uplo,
+                dague_complex64_t alpha,
+                const tiled_matrix_desc_t *A,
+                tiled_matrix_desc_t *B)
 {
     dague_object_t *dague_zgeadd = NULL;
 
@@ -125,12 +131,3 @@ int dplasma_zgeadd( dague_context_t *dague,
     dplasma_zgeadd_Destruct( dague_zgeadd );
     return 0;
 }
-
-void
-dplasma_zgeadd_Destruct( dague_object_t *o )
-{
-    dague_map2_object_t *dague_zgeadd = (dague_map2_object_t *)o;
-    free(dague_zgeadd->op_args);
-    dplasma_map2_Destruct( o );
-}
-

@@ -1,18 +1,59 @@
 /*
- * Copyright (c) 2011-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
  *
  * @precisions normal z -> c d s
  *
  */
 #include "dague_internal.h"
-#include <core_blas.h>
+#include <lapacke.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
-#include "dplasma/lib/dplasmaaux.h"
 
-#include "zlacpy.h"
+#include "map2.h"
+
+struct zlacpy_args_s {
+    const tiled_matrix_desc_t *descA;
+    tiled_matrix_desc_t *descB;
+};
+typedef struct zlacpy_args_s zlacpy_args_t;
+
+static int
+dague_operator_zlacpy( struct dague_execution_unit *eu,
+                       const void* _A,
+                       void* _B,
+                       void* op_data, ... )
+{
+    va_list ap;
+    zlacpy_args_t *args = (zlacpy_args_t*)op_data;
+    PLASMA_enum uplo;
+    int m, n;
+    int tempmm, tempnn, ldam, ldbm;
+    const tiled_matrix_desc_t *descA;
+    tiled_matrix_desc_t *descB;
+    dague_complex64_t *A = (dague_complex64_t*)_A;
+    dague_complex64_t *B = (dague_complex64_t*)_B;
+    (void)eu;
+    va_start(ap, op_data);
+    uplo = va_arg(ap, PLASMA_enum);
+    m    = va_arg(ap, int);
+    n    = va_arg(ap, int);
+    va_end(ap);
+
+    descA = args->descA;
+    descB = args->descB;
+    tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
+    tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
+    ldam = BLKLDD( *descA, m );
+    ldbm = BLKLDD( *descB, m );
+
+    LAPACKE_zlacpy_work(
+        LAPACK_COL_MAJOR, lapack_const( uplo ), tempmm, tempnn, A, ldam, B, ldbm);
+
+    return 0;
+}
 
 /***************************************************************************//**
  *
@@ -29,27 +70,34 @@
  *          The seed used in the random generation.
  *
  ******************************************************************************/
-dague_object_t* dplasma_zlacpy_New( PLASMA_enum uplo,
-                                    tiled_matrix_desc_t *A,
-                                    tiled_matrix_desc_t *B)
+dague_object_t*
+dplasma_zlacpy_New( PLASMA_enum uplo,
+                    const tiled_matrix_desc_t *A,
+                    tiled_matrix_desc_t *B)
 {
-    dague_zlacpy_object_t* object;
-    
-    object = dague_zlacpy_new( uplo, *A, (dague_ddesc_t*)A, *B, (dague_ddesc_t*)B);
+    dague_object_t* object;
+    zlacpy_args_t *params = (zlacpy_args_t*)malloc(sizeof(zlacpy_args_t));
 
-    /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zlacpy_DEFAULT_ARENA], 
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
-    
-    return (dague_object_t*)object;
+    params->descA = A;
+    params->descB = B;
+
+    object = dplasma_map2_New(uplo, A, B,
+                              dague_operator_zlacpy, (void *)params);
+
+    return object;
 }
 
-int dplasma_zlacpy( dague_context_t *dague, 
-                    PLASMA_enum uplo,
-                    tiled_matrix_desc_t *A,
-                    tiled_matrix_desc_t *B) 
+void
+dplasma_zlacpy_Destruct( dague_object_t *o )
+{
+    dplasma_map2_Destruct( o );
+}
+
+int
+dplasma_zlacpy( dague_context_t *dague,
+                PLASMA_enum uplo,
+                const tiled_matrix_desc_t *A,
+                tiled_matrix_desc_t *B)
 {
     dague_object_t *dague_zlacpy = NULL;
 
@@ -61,12 +109,3 @@ int dplasma_zlacpy( dague_context_t *dague,
     dplasma_zlacpy_Destruct( dague_zlacpy );
     return 0;
 }
-
-void
-dplasma_zlacpy_Destruct( dague_object_t *o )
-{
-    dague_zlacpy_object_t *dague_zlacpy = (dague_zlacpy_object_t *)o;
-    dplasma_datatype_undefine_type( &(dague_zlacpy->arenas[DAGUE_zlacpy_DEFAULT_ARENA   ]->opaque_dtt) );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zlacpy);
-}
-

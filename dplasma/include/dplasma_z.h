@@ -73,8 +73,8 @@ int    dplasma_zungqr_param( dague_context_t *dague, dplasma_qrtree_t *qrtree, t
 int    dplasma_zunmqr( dague_context_t *dague, PLASMA_enum side, PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *B);
 int    dplasma_zunmqr_param( dague_context_t *dague, PLASMA_enum side, PLASMA_enum trans, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *B );
 
-int    dplasma_zgeadd( dague_context_t *dague, PLASMA_enum uplo, dague_complex64_t alpha, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
-int    dplasma_zlacpy( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
+int    dplasma_zgeadd( dague_context_t *dague, PLASMA_enum uplo, dague_complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
+int    dplasma_zlacpy( dague_context_t *dague, PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 double dplasma_zlange( dague_context_t *dague, PLASMA_enum ntype, const tiled_matrix_desc_t *A);
 double dplasma_zlanhe( dague_context_t *dague, PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A);
 double dplasma_zlansy( dague_context_t *dague, PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A);
@@ -156,8 +156,8 @@ dague_object_t* dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_
 dague_object_t* dplasma_zpotrfl_New(const PLASMA_enum looking, PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
 
 /* Auxiliary routines */
-dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, dague_complex64_t alpha, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
-dague_object_t* dplasma_zlacpy_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
+dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, dague_complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
+dague_object_t* dplasma_zlacpy_New( PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 dague_object_t* dplasma_zlange_New( PLASMA_enum ntype, int P, int Q, const tiled_matrix_desc_t *A, double *norm);
 dague_object_t* dplasma_zlanhe_New( PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A, double *result);
 dague_object_t* dplasma_zlansy_New( PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A, double *result);

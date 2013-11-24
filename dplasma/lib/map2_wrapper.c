@@ -14,7 +14,7 @@
 
 dague_object_t *
 dplasma_map2_New( PLASMA_enum uplo,
-                  tiled_matrix_desc_t *A,
+                  const tiled_matrix_desc_t *A,
                   tiled_matrix_desc_t *B,
                   dague_operator_t operator,
                   void * op_args)
@@ -22,8 +22,8 @@ dplasma_map2_New( PLASMA_enum uplo,
     dague_map2_object_t *dague_map2 = NULL;
 
     dague_map2 = dague_map2_new( uplo,
-                                 *A, (dague_ddesc_t*)A,
-                                 *B, (dague_ddesc_t*)B,
+                                 (dague_ddesc_t*)A,
+                                 (dague_ddesc_t*)B,
                                  operator, op_args);
 
     switch( A->mtype ) {
@@ -66,6 +66,10 @@ dplasma_map2_Destruct( dague_object_t *o )
 {
     dague_map2_object_t *omap2 = (dague_map2_object_t *)o;
 
+    if ( omap2->op_args ) {
+        free( omap2->op_args );
+    }
+
     dplasma_datatype_undefine_type( &(omap2->arenas[DAGUE_map2_DEFAULT_ARENA]->opaque_dtt) );
 
     DAGUE_INTERNAL_OBJECT_DESTRUCT(omap2);
@@ -74,7 +78,7 @@ dplasma_map2_Destruct( dague_object_t *o )
 void
 dplasma_map2( dague_context_t *dague,
               PLASMA_enum uplo,
-              tiled_matrix_desc_t *A,
+              const tiled_matrix_desc_t *A,
               tiled_matrix_desc_t *B,
               dague_operator_t operator,
               void * op_args)

@@ -24,8 +24,10 @@ set(JDF
   zlascal.jdf
   zlaset.jdf
   zlaswp.jdf
-  zplghe.jdf zplgsy.jdf zlacpy.jdf
-  zplrnt.jdf zplrnt_perso.jdf zplrnt_toeppd.jdf zplrnt_fiedler.jdf
+  zplghe.jdf
+  zplgsy.jdf
+  zplrnt.jdf
+  zplrnt_perso.jdf zplrnt_toeppd.jdf zplrnt_fiedler.jdf
   zprint.jdf
   # BLAS Level 3
   zgemm_NN.jdf zgemm_TN.jdf zgemm_NT.jdf zgemm_TT.jdf

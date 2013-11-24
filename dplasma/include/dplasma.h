@@ -108,8 +108,8 @@ static inline int dplasma_imin(int a, int b) { return (a < b) ? a : b; };
 /*
  * Map operations
  */
-void dplasma_map2( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
-dague_object_t* dplasma_map2_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
+void dplasma_map2( dague_context_t *dague, PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
+dague_object_t* dplasma_map2_New( PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_operator_t operator, void *op_args);
 void dplasma_map2_Destruct( dague_object_t *o );
 
 #endif /* _DPLASMA_H_ */

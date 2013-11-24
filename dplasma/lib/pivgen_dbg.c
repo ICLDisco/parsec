@@ -559,7 +559,7 @@ void dplasma_qrtree_print_dag( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree,
                 if ( next[n] != A->mt )
                     continue;
                 if ( n != A->mt ) {
-                    lpos = max( pos[m], pos[n] );
+                    lpos = dplasma_imax( pos[m], pos[n] );
                     lpos++;
                     pos[m] = lpos;
                     pos[n] = lpos;
@@ -594,7 +594,7 @@ void dplasma_qrtree_print_dag( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree,
 
     length = 0;
     for(m=0; m < A->mt; m++) {
-        length = max(length, pos[m]);
+        length = dplasma_imax(length, pos[m]);
     }
     length++;
     for(k=0; k<length; k++)
