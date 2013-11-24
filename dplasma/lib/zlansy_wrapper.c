@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2011-2012 The University of Tennessee and The University
+ * Copyright (c) 2011-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
  *
  * @precisions normal z -> z c d s
  *
@@ -55,7 +56,7 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
  *          = PlasmaLower: Lower triangle of A is stored.
  *
  * @param[in] A
- *          The descriptor of the matrix A.
+ *          The descriptor of the symmetric matrix A.
  *          Must be a two_dim_rectangle_cyclic or sym_two_dim_rectangle_cyclic
  *          matrix
  *
@@ -236,7 +237,7 @@ dplasma_zlansy_Destruct( dague_object_t *o )
  *          = PlasmaLower: Lower triangle of A is stored.
  *
  * @param[in] A
- *          The descriptor of the matrix A.
+ *          The descriptor of the symmetric matrix A.
  *          Must be a two_dim_rectangle_cyclic or sym_two_dim_rectangle_cyclic
  *          matrix
  *
@@ -260,8 +261,22 @@ dplasma_zlansy( dague_context_t *dague,
                 PLASMA_enum uplo,
                 const tiled_matrix_desc_t *A)
 {
-    double result;
+    double result = 0.;
     dague_object_t *dague_zlansy = NULL;
+
+    if ( (ntype != PlasmaMaxNorm) && (ntype != PlasmaOneNorm)
+        && (ntype != PlasmaInfNorm) && (ntype != PlasmaFrobeniusNorm) ) {
+        dplasma_error("dplasma_zlansy", "illegal value of ntype");
+        return -2.;
+    }
+    if ( (uplo != PlasmaUpper) && (uplo != PlasmaLower) ) {
+        dplasma_error("dplasma_zlansy", "illegal value of uplo");
+        return -3.;
+    }
+    if ( !(A->dtype & ( two_dim_block_cyclic_type | sym_two_dim_block_cyclic_type)) ) {
+        dplasma_error("dplasma_zlansy", "illegal type of descriptor for A");
+        return -4.;
+    }
 
     dague_zlansy = dplasma_zlansy_New(ntype, uplo, A, &result);
 

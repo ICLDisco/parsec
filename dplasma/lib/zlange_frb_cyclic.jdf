@@ -1,21 +1,21 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
  *
  * @precisions normal z -> s d c
  *
  *
- * This jdf returns the value of the Frobenius norm of a matrix A
- * where the Frobenius norm of a matrix is the square root of sum of
- * squares.
+ * This jdf returns the value of the Max, or Frobenius norm of a matrix A
+ * where:
+ *    - the max norm of a matrix is the maximum absolute value of all elements.
+ *    - the Frobenius norm of a matrix is the square root of sum of squares.
  *
  * This jdf is optimized for 2D-Block cyclic distributed data with a grid
  * P-by-Q.
- * The first step search the Frobenius norm of each local rows of tile.
+ * The first step searches the norm of each local rows of tile.
  * The second reduces the tile rows norms. At the end of this step, all Q
  * processes belonging to a row have the same data.
  * The third step combines the local tiles per column (one column per node).
@@ -25,23 +25,16 @@ extern "C" %{
  * The reductions are done by a pipeline followed by a broadcast of the results.
  *
  * More information in zlange.f and zlassq.f from Netlib LAPACK.
- * W[0] corresponds to scale and W[1] to sum.
+ *
+ * Details on W:
+ *    - PlasmaMaxNorm: W[0) stores the maximum absolute value encountered
+ *    - PlasmaInfNorm: In first steps, sums of set of rows, then identical to Max.
+ *    - PlasmaFrbNorm: W[0] corresponds to scale and W[1] to sum.
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
 #include <math.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
-#include "dplasma/cores/dplasma_zcores.h"
 
 %}
 
@@ -49,9 +42,9 @@ extern "C" %{
  */
 P            [type = "int"]
 Q            [type = "int"]
+ntype        [type = "PLASMA_enum"]
 A            [type = "dague_ddesc_t *"]
-Wcol         [type = "dague_ddesc_t *"]
-Welt         [type = "dague_ddesc_t *"]
+Tdist        [type = "dague_ddesc_t *"]
 norm         [type = "double *"]
 
 descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)A)" ]
@@ -66,19 +59,36 @@ RWCOL(m, n) [profile = off]
         %}
 
     // Parallel partitioning
-    :Wcol(m, n)
+    :Tdist(m, n)
 
     // Parameters
-    READ W <- Wcol(m, n)
-           -> (n <  descA.nt   ) ? W STEP1(m, col)  [type = COL]
-           -> (n > (descA.nt-1)) ? W STEP2(m, n)    [type = COL]
+    WRITE W -> (n <  descA.nt   ) ? W STEP1(m, col)  [type = COL]
+            -> (n > (descA.nt-1)) ? W STEP2(m, n)    [type = COL]
 
 BODY
+{
     DRYRUN(
         /* Initialize W */
-        ((double *)W)[0] = 0.;
-        ((double *)W)[1] = 1.;
+        switch( ntype ) {
+        case PlasmaMaxNorm:
+            ((double *)W)[0] = 0.;
+            break;
+
+        case PlasmaInfNorm:
+            memset( W, 0, descA.mb * sizeof(double) );
+            break;
+
+        case PlasmaFrobeniusNorm:
+            /* Initialize W */
+            ((double *)W)[0] = 0.;
+            ((double *)W)[1] = 1.;
+            break;
+
+        default:
+            fprintf(stderr, "Unknown norm %d\n", ntype );
+        }
            );
+}
 END
 
 RWELT(m, n) [profile = off]
@@ -91,19 +101,32 @@ RWELT(m, n) [profile = off]
         %}
 
     // Parallel partitioning
-    :Welt(m, n)
+    :Tdist(m, n)
 
     // Parameters
-    READ W <- Welt(m, n)
-           -> (m <  descA.mt   ) ? W STEP3(row, n)  [type = ELT]
-           -> (m > (descA.mt-1)) ? W STEP4(m,   n)  [type = ELT]
+    WRITE W -> (m <  descA.mt   ) ? W STEP3(row, n)  [type = ELT]
+            -> (m > (descA.mt-1)) ? W STEP4(m,   n)  [type = ELT]
 
 BODY
+{
     DRYRUN(
         /* Initialize W */
-        ((double *)W)[0] = 0.;
-        ((double *)W)[1] = 1.;
+        switch( ntype ) {
+        case PlasmaMaxNorm:
+        case PlasmaInfNorm:
+            ((double *)W)[0] = 0.;
+            break;
+
+        case PlasmaFrobeniusNorm:
+            /* Initialize W */
+            ((double *)W)[0] = 0.;
+            ((double *)W)[1] = 1.;
+            break;
+        default:
+            fprintf(stderr, "Unknown norm %d\n", ntype );
+        }
            );
+}
 END
 
 /**************************************************
@@ -128,7 +151,8 @@ STEP1(m,n)
            ->  ( n < Q           ) ? W STEP2( m, n   ) : W STEP1( m, n-Q ) [type = COL]
 
 BODY
-
+{
+    double *dW = (double*)W;
     int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
     int tempnn = ( n == (descA.nt-1) ) ? descA.n - n * descA.nb : descA.nb;
     int ldam = BLKLDD( descA, m );
@@ -138,13 +162,37 @@ BODY
              context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
     DRYRUN(
-        double *dW = (double*)W;
+        switch( ntype ) {
+        case PlasmaMaxNorm:
+        {
+            double lnorm;
+            CORE_zlange(PlasmaMaxNorm, tempmm, tempnn,
+                        A, ldam, NULL, &lnorm);
 
-        CORE_zgessq(tempmm, tempnn,
-                    A, ldam, dW, dW+1 );
+            *dW = ( lnorm > *dW ) ? lnorm : *dW;
+        }
+        break;
 
+        case PlasmaInfNorm:
+        {
+            CORE_dzasum(PlasmaRowwise, PlasmaUpperLower,
+                        tempmm, tempnn,
+                        A, ldam, W);
+        }
+        break;
+
+        case PlasmaFrobeniusNorm:
+        {
+            CORE_zgessq(tempmm, tempnn,
+                        A, ldam, dW, dW+1 );
+        }
+        break;
+
+        default:
+            fprintf(stderr, "Unknown norm %d\n", ntype );
+        }
            );
-
+}
 END
 
 /**************************************************
@@ -160,14 +208,17 @@ STEP2(m, n)
     n = 0 .. Q-1
 
     // Parallel partitioning
-    :Wcol(m, n)
+    :Tdist(m, n)
 
     // Parameters
-    READ A <- ( n == 0 ) ? Wcol(m, n) : W STEP2(m, n-1)                   [type = COL]
+    READ A <- ( n == 0 ) ? Tdist(m, n) : W STEP2(m, n-1)                   [type = COL]
     RW   W <- ( n >  (descA.nt-1)) ? W RWCOL(m, n )     : W STEP1(m, n  ) [type = COL]
            -> ( n == (Q-1)       ) ? A STEP3(m, 0..Q-1) : A STEP2(m, n+1) [type = COL]
 
 BODY
+{
+    double *dA = (double*)A;
+    double *dW = (double*)W;
 
     printlog("thread %d zlange STEP2(%d, %d)\n"
              "\t( W(%d, %d) || W(%d, %d)\n",
@@ -176,18 +227,37 @@ BODY
     DRYRUN(
         if(n > 0)
         {
-            double *dA = (double*)A;
-            double *dW = (double*)W;
+            switch( ntype ) {
+            case PlasmaMaxNorm:
+            {
+                *dW = ( *dA > *dW ) ? *dA : *dW;
+            }
+            break;
 
-            if( dW[0] < dA[0] ) {
-                dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
-                dW[0] = dA[0];
-            } else {
-                dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+            case PlasmaInfNorm:
+            {
+                int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
+                cblas_daxpy( tempmm, 1., A, 1, W, 1);
+            }
+            break;
+
+            case PlasmaFrobeniusNorm:
+            {
+                if( dW[0] < dA[0] ) {
+                    dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                    dW[0] = dA[0];
+                } else {
+                    dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+                }
+            }
+            break;
+
+            default:
+                fprintf(stderr, "Unknown norm %d\n", ntype );
             }
         }
            );
-
+}
 END
 
 
@@ -205,7 +275,7 @@ STEP3(m, n)
     n = 0 .. Q-1
 
     // Parallel partitioning
-    :Wcol(m, n)
+    :Tdist(m, n)
 
     // Parameters
     READ A <- W STEP2(m, Q-1)                                            [type = COL]
@@ -213,22 +283,58 @@ STEP3(m, n)
            -> (m < P           ) ? W STEP4( m,   n ) : W STEP3( m-P, n ) [type = ELT]
 
 BODY
+{
+    double *dA = (double*)A;
+    double *dW = (double*)W;
 
     printlog("thread %d zlange STEP3(%d, %d)\n",
              context->th_id, m, n);
 
     DRYRUN(
-        double *dA = (double*)A;
-        double *dW = (double*)W;
+        switch( ntype ) {
+        case PlasmaMaxNorm:
+        {
+            if ( m < (descA.mt-P) ) {
+                *dW = ( *dA > *dW ) ? *dA : *dW;
+            } else {
+                *dW = *dA;
+            }
+        }
+        break;
 
-        if( dW[0] < dA[0] ) {
-            dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
-            dW[0] = dA[0];
-        } else {
-            dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+        case PlasmaInfNorm:
+        {
+            int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
+            double maxval = 0;
+            int i;
+
+            for(i = 0; i < tempmm; i++, dA++)
+                maxval = ( maxval > *dA ) ? maxval : *dA;
+
+            if ( m < (descA.mt-P) ) {
+                *dW = ( maxval > *dW ) ? maxval : *dW;
+            } else {
+                *dW = maxval;
+            }
+        }
+        break;
+
+        case PlasmaFrobeniusNorm:
+        {
+            if( dW[0] < dA[0] ) {
+                dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                dW[0] = dA[0];
+            } else {
+                dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+            }
+        }
+        break;
+
+        default:
+            fprintf(stderr, "Unknown norm %d\n", ntype );
         }
            );
-
+}
 END
 
 /**************************************************
@@ -244,37 +350,54 @@ STEP4(m,n)
     n = 0..Q-1
 
     // Parallel partitioning
-    :Welt(m, n)
+    :Tdist(m, n)
 
     // Parameters
-    READ A <- ( m == 0 ) ? Welt(m, n) : W STEP4(m-1, n)                       [type = ELT]
+    READ A <- ( m == 0 ) ? Tdist(m, n) : W STEP4(m-1, n)                       [type = ELT]
     RW   W <- ( m >  (descA.mt-1)) ? W RWELT( m, n)         : W STEP3(m,   n) [type = ELT]
            -> ( m == (P-1)       ) ? W WRITE_RES(0..P-1, n) : A STEP4(m+1, n) [type = ELT]
 
 BODY
+{
+    double *dA = (double*)A;
+    double *dW = (double*)W;
 
     printlog("thread %d zlange STEP4(%d, %d)\n",
              context->th_id, m, n);
 
     DRYRUN(
-        if(m > 0)
-        {
-            double *dA = (double*)A;
-            double *dW = (double*)W;
-            double  sqr;
+        if(m > 0) {
+            switch( ntype ) {
+            case PlasmaMaxNorm:
+            case PlasmaInfNorm:
+            {
+                *dW = ( *dA > *dW ) ? *dA : *dW;
+            }
+            break;
 
-            if( dW[0] < dA[0] ) {
-                sqr = dW[0] / dA[0];
-                sqr = sqr * sqr;
-                dW[1] = dA[1] + sqr * dW[1];
-                dW[0] = dA[0];
-            } else {
-                sqr = dA[0] / dW[0];
-                sqr = sqr * sqr;
-                dW[1] = dW[1] + sqr * dA[1];
+            case PlasmaFrobeniusNorm:
+            {
+                double  sqr;
+
+                if( dW[0] < dA[0] ) {
+                    sqr = dW[0] / dA[0];
+                    sqr = sqr * sqr;
+                    dW[1] = dA[1] + sqr * dW[1];
+                    dW[0] = dA[0];
+                } else {
+                    sqr = dA[0] / dW[0];
+                    sqr = sqr * sqr;
+                    dW[1] = dW[1] + sqr * dA[1];
+                }
+            }
+            break;
+
+            default:
+                fprintf(stderr, "Unknown norm %d\n", ntype );
             }
         }
            );
+}
 END
 
 /**************************************************
@@ -287,17 +410,36 @@ WRITE_RES(m,n)
     n = 0..Q-1
 
     // Parallel partitioning
-    :Welt(m, n)
+    :Tdist(m, n)
 
     // Parameters
     READ W <- W STEP4( P-1, n )   [type = ELT]
 
 BODY
 {
+    double *dW = (double*)W;
+
     printlog("thread %d zlange STORE RESULT(%d, %d)\n",
              context->th_id, m, n);
 
-    double *dW = (double*)W;
-    *norm = dW[0] * dplasma_dsqrt( dW[1] );
+    DRYRUN(
+        switch( ntype ) {
+        case PlasmaMaxNorm:
+        case PlasmaInfNorm:
+        {
+            *norm = *dW;
+        }
+        break;
+
+        case PlasmaFrobeniusNorm:
+        {
+            *norm = dW[0] * dplasma_dsqrt( dW[1] );
+        }
+        break;
+
+        default:
+            fprintf(stderr, "Unknown norm %d\n", ntype );
+        }
+           );
 }
 END

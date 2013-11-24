@@ -19,8 +19,6 @@ set(EXTRA_SOURCES
 set(JDF
   # Auxiliary
   zlange_frb_cyclic.jdf
-  zlange_inf_cyclic.jdf
-  zlange_max_cyclic.jdf
   zlange_one_cyclic.jdf
   zlansy.jdf
   zlascal.jdf
