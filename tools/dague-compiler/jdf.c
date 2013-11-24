@@ -861,41 +861,77 @@ static int jdf_compare_expr(const jdf_expr_t* ex1, const jdf_expr_t* ex2)
 }
 
 /**
+ * Compare two datatype. Return 0 if they are identical.
+ */
+int jdf_compare_datatype(const jdf_datatransfer_type_t* src,
+                         const jdf_datatransfer_type_t* dst)
+{
+    if( jdf_compare_expr(src->type,   dst->type) )   return 1;
+    if( jdf_compare_expr(src->layout, dst->layout) ) return 1;
+    if( jdf_compare_expr(src->count,  dst->count) )  return 1;
+    if( jdf_compare_expr(src->displ,  dst->displ) )  return 1;
+    return 0;
+}
+
+#define SAVE_AND_UPDATE_INDEX(DEP, IDX1, IDX2, UPDATE)   \
+    do {                                                 \
+        (DEP)->dep_index          = (IDX1)++;            \
+        (DEP)->dep_datatype_index = (IDX2);              \
+        if(UPDATE) (IDX2)++;                             \
+    } while (0)
+
+#define MARK_FLOW_DEP_AND_UPDATE_INDEX(FLOW, DEP, UPDATE)               \
+    do {                                                                \
+        if( (DEP)->dep_flags & JDF_DEP_FLOW_OUT ) {                     \
+            SAVE_AND_UPDATE_INDEX((DEP), global_out_index, *dep_out_index, UPDATE); \
+            (FLOW)->flow_dep_mask |= (1 << (DEP)->dep_datatype_index);  \
+        } else {                                                        \
+            SAVE_AND_UPDATE_INDEX((DEP), global_in_index, *dep_in_index, UPDATE); \
+        }                                                               \
+    } while(0)
+#define UPDATE_INDEX(DEP)               \
+    do {                                                                \
+        if( (DEP)->dep_flags & JDF_DEP_FLOW_OUT ) {                     \
+            (*dep_out_index)++;                                         \
+        } else {                                                        \
+            (*dep_in_index)++;                                         \
+        }                                                               \
+    } while(0)
+
+/**
  * Reorder the output dependencies to group together the ones using
  * identical datatypes. They will share an identical dep_datatype_index
  * which is the index of the smallest one. Compute the number of
  * different datatypes.
  */
 static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
-                                         uint32_t* dep_index)
+                                         uint32_t* dep_in_index,
+                                         uint32_t* dep_out_index)
 {
-    uint32_t i, j, in_index = 0xFFFFFFFF, dep_count, swap_with, global_index;
+    uint32_t i, j, dep_count;
+    uint32_t swap_with, global_in_index, global_out_index;
     jdf_dep_t *dep, *sdep, **dep_array = NULL;
     jdf_datatransfer_type_t *ddt, *sddt;
 
-    global_index = *dep_index;
+    global_in_index  = *dep_in_index;
+    global_out_index = *dep_out_index;
     /**
      * Step 1: Transform the list of dependencies into an array, to facilitate
      *         the massaging.
      */
-    for( dep_count = 0, dep = flow->deps; NULL != dep; dep_count++, dep = dep->next );
+    for( dep_count = 0, dep = flow->deps; NULL != dep; dep_count++, dep = dep->next ) {
+        dep->dep_index          = 0xff;
+        dep->dep_datatype_index = 0xff;
+    }
     if( dep_count < 2 ) {
         if( 1 == dep_count ) {
             dep = flow->deps;
-            dep->dep_index          = *dep_index;
-            dep->dep_datatype_index = *dep_index;
-            if( dep->dep_flags & JDF_DEP_FLOW_OUT ) {
-                flow->flow_dep_mask |= (1 << dep->dep_datatype_index);
-            }
-            (*dep_index)++;
+            MARK_FLOW_DEP_AND_UPDATE_INDEX(flow, dep, 1);
         }
         return;  /* nothing to reorder */
     }
     dep_array = (jdf_dep_t**)malloc(dep_count * sizeof(jdf_dep_t*));
-
-    for( i = 0, dep = flow->deps;
-         NULL != dep;
-         dep_array[i++] = dep, dep = dep->next );
+    for( i = 0, dep = flow->deps; NULL != dep; dep_array[i++] = dep, dep = dep->next );
 
     /**
      * Step 2: Rearrange the entries to bring all those using the same datatype
@@ -906,61 +942,22 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
      */
     for( i = 0; i < dep_count; i++ ) {
         dep = dep_array[i];
-        dep->dep_index          = global_index;  /* meaningless */
-        dep->dep_datatype_index = *dep_index;    /* meaningless */
-        if( dep->dep_flags & JDF_DEP_FLOW_IN ) {
-            if( in_index > *dep_index ) in_index = *dep_index;
-            continue;
-        }
+        if( 0xff != dep->dep_index ) continue;
+        MARK_FLOW_DEP_AND_UPDATE_INDEX(flow, dep, 0);
+
         for( j = i+1; j < dep_count; j++ ) {
             sdep = dep_array[j];
-            if( sdep->dep_flags & JDF_DEP_FLOW_IN ) {
-                dep_array[j] = dep_array[i];
-                dep_array[i] = sdep;
-                /* Leave the outter loop at the next loop index so the field get initialized */
+            if( !((dep->dep_flags & sdep->dep_flags) & (JDF_DEP_FLOW_IN|JDF_DEP_FLOW_OUT)) )
                 break;
-            }
-        }
-    }
-    for( in_index = i = 0; i < dep_count; i++ ) {
-        dep = dep_array[i];
-        if( dep->dep_flags & JDF_DEP_FLOW_IN ) {
-            dep->dep_index = in_index;
-            continue;  /* skip all the input dependencies */
-        }
-        dep->dep_index          = global_index++;
-        dep->dep_datatype_index = *dep_index;
-        flow->flow_dep_mask |= (1 << dep->dep_datatype_index);
-        ddt = &dep->datatype;
-        swap_with = i + 1;
-        for( j = swap_with; j < dep_count; j++ ) {
-            sdep = dep_array[j];
+            ddt = &dep->datatype;
             sddt = &sdep->datatype;
-            if( jdf_compare_expr(ddt->type,   sddt->type) )   continue;
-            if( jdf_compare_expr(ddt->layout, sddt->layout) ) continue;
-            if( jdf_compare_expr(ddt->count,  sddt->count) )  continue;
-            if( jdf_compare_expr(ddt->displ,  sddt->displ) )  continue;
-            /* Same output datatype and count, good to swap */
-            if( swap_with != j ) {
-                dep_array[j] = dep_array[swap_with];
-                dep_array[swap_with] = sdep;
-            }
-            sdep->dep_index          = global_index++;
-            sdep->dep_datatype_index = *dep_index;
-            swap_with++;
+            if( jdf_compare_datatype(ddt, sddt) ) continue;
+            MARK_FLOW_DEP_AND_UPDATE_INDEX(flow, sdep, 0);
         }
-        i = swap_with - 1;  /* jump after the current group of dependencies (sharing the datatype) */
-        (*dep_index)++;
+        UPDATE_INDEX(dep);
     }
-    /* Step 3: Rebuild the list */
-    for( flow->deps = dep = dep_array[0], i = 1; i < dep_count; i++) {
-        dep->next = dep_array[i];
-        dep = dep->next;
-    }
-    dep->next = NULL;
     free(dep_array);
 }
-
 
 /**
  * Flatten all the flows of data for the specified function, by creating the indexes
@@ -972,14 +969,15 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
  */
 int jdf_flatten_function(jdf_function_entry_t* function)
 {
-    uint32_t flow_index = 0, dep_index = 0;
+    uint32_t flow_index = 0, dep_in_index = 0, dep_out_index = 0;
     jdf_dataflow_t* flow;
 
     for( flow = function->dataflow; NULL != flow; flow = flow->next, flow_index++ ) {
 
-        flow->flow_index = (uint8_t)dep_index;
-        jdf_reorder_dep_list_by_type(flow, &dep_index);
-        if( !((1U << dep_index) < 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/) ) {
+        flow->flow_index = (uint8_t)dep_out_index;
+        jdf_reorder_dep_list_by_type(flow, &dep_in_index, &dep_out_index);
+        if( ((1U << dep_in_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/) ||
+            ((1U << dep_in_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/)) {
             jdf_fatal(JDF_OBJECT_LINENO(function),
                       "Function %s has too many output flow with different datatypes (up to 24 supported)\n",
                       function->fname);
@@ -1003,7 +1001,8 @@ int jdf_flatten_function(jdf_function_entry_t* function)
                        flow->varname, flow->flow_index, flow->flow_dep_mask,
                        (JDF_DEP_FLOW_OUT & dep->dep_flags ? "->" : "<-"),
                        dep->dep_index, dep->dep_datatype_index,
-                       dep->guard->calltrue->func_or_mem, string_arena_get_string(sa));
+                       (dep->dep_index == dep->dep_datatype_index ? dep->guard->calltrue->func_or_mem : ""),
+                       (dep->dep_index == dep->dep_datatype_index ? string_arena_get_string(sa) : ""));
             }
             string_arena_free(sa);
         }

@@ -25,11 +25,35 @@ void jdf_warn(int lineno, const char *format, ...);
 void jdf_fatal(int lineno, const char *format, ...);
 
 typedef struct jdf_object_t {
-    int lineno;  /**< line number in the JDF file where the object has been defined */
-    char *filename;  /**< the name of the JDF file source of this object */
-    char *comment;   /**< Additional comments to be dumped through the code generation process */
-    char* oname;  /* name of the object for simplified reference */
+    uint32_t    refcount;
+    int         lineno;    /**< line number in the JDF file where the object has been defined */
+    char       *filename;  /**< the name of the JDF file source of this object */
+    char       *comment;   /**< Additional comments to be dumped through the code generation process */
+    char       *oname;     /* name of the object for simplified reference */
 } jdf_object_t;
+
+/**
+ * Macros to handle the basic information for the jdf_object_t.
+ */
+#define JDF_OBJECT_RETAIN(OBJ) (((struct jdf_object_t*)(OBJ))++)
+#define JDF_OBJECT_RELEASE(OBJ)                  \
+    do {                                         \
+    if( --((struct jdf_object_t*)(OBJ)) == 0 ) { \
+        free((OBJ));                             \
+    } while(0)
+#define JDF_OBJECT_SET( OBJ, FILENAME, LINENO, COMMENT )                \
+    do {                                                                \
+        ((jdf_object_t*)(OBJ))->refcount = 1;  /* no copy here */       \
+        ((jdf_object_t*)(OBJ))->filename = (FILENAME);  /* no copy here */ \
+        ((jdf_object_t*)(OBJ))->lineno   = (LINENO);                    \
+        ((jdf_object_t*)(OBJ))->comment  = (COMMENT);                   \
+        ((jdf_object_t*)(OBJ))->oname    = NULL;                        \
+    } while (0)
+#define JDF_OBJECT_LINENO( OBJ )   ((OBJ)->super.lineno)
+#define JDF_OBJECT_FILENAME( OBJ ) ((OBJ)->super.filename)
+#define JDF_OBJECT_COMMENT( OBJ )  ((OBJ)->super.comment)
+#define JDF_OBJECT_ONAME( OBJ )    (OBJ)->super.oname
+
 
 /**
  * Checks the sanity of the current_jdf.
@@ -182,14 +206,15 @@ typedef uint16_t jdf_dep_flags_t;
 #define JDF_DEP_HAS_DISPL  ((jdf_dep_flags_t)(1 << 2))
 
 typedef struct jdf_datatransfer_type {
-    struct jdf_object_t  super;
-    struct jdf_expr     *type;    /**< the internal type of the data associated with the dependency */
-    struct jdf_expr     *layout;  /**< the basic memory layout in case it is different from the type.
-                                   *< InMPI case this must be an MPI datatype, working together with the
-                                   *< displacement and the count. */
-    struct jdf_expr     *count;   /**< number of elements of layout type to transfer */
-    struct jdf_expr     *displ;   /**< displacement in number of bytes from the pointer associated with
-                                   *< the dependency */
+    struct jdf_object_t           super;
+    struct jdf_datatransfer_type *next;
+    struct jdf_expr              *type;    /**< the internal type of the data associated with the dependency */
+    struct jdf_expr              *layout;  /**< the basic memory layout in case it is different from the type.
+                                            *< InMPI case this must be an MPI datatype, working together with the
+                                            *< displacement and the count. */
+    struct jdf_expr              *count;   /**< number of elements of layout type to transfer */
+    struct jdf_expr              *displ;   /**< displacement in number of bytes from the pointer associated with
+                                            *< the dependency */
 } jdf_datatransfer_type_t;
 
 struct jdf_dep {
@@ -328,21 +353,6 @@ char *malloc_and_dump_jdf_expr_list( const jdf_expr_t *e );
  * @return the expr on the left side of the = otherwise.
  */
 jdf_expr_t* jdf_find_property( const jdf_def_list_t* properties, const char* property_name, jdf_def_list_t** property );
-
-/**
- * Macros to handle the basic information for the jdf_object_t.
-*/
-#define JDF_OBJECT_SET( OBJ, FILENAME, LINENO, COMMENT )       \
-    do {                                                       \
-       (OBJ)->super.filename = (FILENAME);  /* no copy here */ \
-       (OBJ)->super.lineno   = (LINENO);                       \
-       (OBJ)->super.comment  = (COMMENT);                      \
-       (OBJ)->super.oname    = NULL;                           \
-    } while (0)
-#define JDF_OBJECT_LINENO( OBJ )   ((OBJ)->super.lineno)
-#define JDF_OBJECT_FILENAME( OBJ ) ((OBJ)->super.filename)
-#define JDF_OBJECT_COMMENT( OBJ )  ((OBJ)->super.comment)
-#define JDF_OBJECT_ONAME( OBJ )    (OBJ)->super.oname
 
 /**
  * Function cleanup and management. Available in jdf.c

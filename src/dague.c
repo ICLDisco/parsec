@@ -769,7 +769,7 @@ dague_check_IN_dependencies_with_mask( const dague_object_t *dague_object,
             active = 0;
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
-                if( dep->function_id == -1 ) {  /* this is only true for memory locations */
+                if( dep->function_id == 0xFF ) {  /* this is only true for memory locations */
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
@@ -847,7 +847,7 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
             /* Data case: count all that do not have a direct dependence on a data */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
-                if( dep->function_id != -1 ) {  /* we don't count memory locations */
+                if( dep->function_id != 0xFF ) {  /* we don't count memory locations */
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
                         assert( dep->cond->op == EXPR_OP_INLINE );
@@ -865,8 +865,8 @@ dague_check_IN_dependencies_with_counter( const dague_object_t *dague_object,
     return ret;
 }
 
-static dague_dependency_t *find_deps(dague_object_t *dague_object,
-                                     dague_execution_context_t* restrict exec_context)
+static dague_dependency_t *find_deps(const dague_object_t *dague_object,
+                                     const dague_execution_context_t* restrict exec_context)
 {
     dague_dependencies_t *deps;
     int p;
@@ -883,8 +883,8 @@ static dague_dependency_t *find_deps(dague_object_t *dague_object,
     return &(deps->u.dependencies[exec_context->locals[exec_context->function->params[p]->context_index].value - deps->min]);
 }
 
-static int dague_update_deps_with_counter( dague_object_t *dague_object,
-                                           dague_execution_context_t* restrict exec_context,
+static int dague_update_deps_with_counter( const dague_object_t *dague_object,
+                                           const dague_execution_context_t* restrict exec_context,
                                            dague_dependency_t *deps )
 {
     dague_dependency_t dep_new_value, dep_cur_value;
@@ -917,8 +917,8 @@ static int dague_update_deps_with_counter( dague_object_t *dague_object,
     return dep_cur_value == 0;
 }
 
-static int dague_update_deps_with_mask( dague_object_t *dague_object,
-                                        dague_execution_context_t* restrict exec_context,
+static int dague_update_deps_with_mask( const dague_object_t *dague_object,
+                                        const dague_execution_context_t* restrict exec_context,
                                         dague_dependency_t *deps,
                                         const dague_execution_context_t* restrict origin,
                                         const dague_flow_t* restrict origin_flow,
@@ -1000,7 +1000,7 @@ void dague_dependencies_mark_task_as_startup(dague_execution_context_t* restrict
 int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
                                          const dague_execution_context_t* restrict origin,
                                          const dague_flow_t* restrict origin_flow,
-                                         dague_execution_context_t* restrict exec_context,
+                                         const dague_execution_context_t* restrict exec_context,
                                          const dague_flow_t* restrict dest_flow,
                                          data_repo_entry_t* dest_repo_entry,
                                          dague_dep_data_description_t* data,
@@ -1096,43 +1096,40 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
     return 0;
 }
 
-#define is_inplace(ctx,flow,dep) NULL
-#define is_read_only(ctx,flow,dep) NULL
+#define is_inplace(ctx,dep) NULL
+#define is_read_only(ctx,dep) NULL
 
 dague_ontask_iterate_t
 dague_release_dep_fct(dague_execution_unit_t *eu,
-                      dague_execution_context_t *newcontext,
-                      dague_execution_context_t *oldcontext,
-                      int flow_index, int outdep_index,
-                      int src_rank, int dst_rank,
-                      int dst_vpid,
+                      const dague_execution_context_t *newcontext,
+                      const dague_execution_context_t *oldcontext,
+                      const dep_t* dep,
                       dague_dep_data_description_t* data,
+                      int src_rank, int dst_rank, int dst_vpid,
                       void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
-    const dep_t* in_dep;
-    const dague_flow_t* src_flow = in_dep->belongs_to;
-    //int flow_index = src_flow->flow_index;
+    const dague_flow_t* src_flow = dep->belongs_to;
 
     if( !(arg->action_mask & src_flow->flow_mask) ) {
         char tmp[MAX_TASK_STRLEN];
-        WARNING(("On task %s flow_index %d not on the action_mask %x\n",
-                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, oldcontext), flow_index, arg->action_mask));
+        WARNING(("On task %s dep_index %d (%d) not on the action_mask %x\n",
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, oldcontext), dep->dep_index, src_flow->flow_index, arg->action_mask));
         return DAGUE_ITERATE_CONTINUE;
     }
 
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
-            void* dataptr = is_read_only(oldcontext, flow_index, outdep_index);
+            void* dataptr = is_read_only(oldcontext, dep);
             if(NULL != dataptr) {
-                arg->deps->msg.which &= ~(1 << flow_index); /* unmark all data that are RO we already hold from previous tasks */
+                arg->deps->msg.which &= ~(1 << dep->dep_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
-                arg->deps->msg.which |= (1 << flow_index); /* mark all data that are not RO */
-                dataptr = is_inplace(oldcontext, flow_index, outdep_index);  /* Can we do it inplace */
+                arg->deps->msg.which |= (1 << dep->dep_index); /* mark all data that are not RO */
+                dataptr = is_inplace(oldcontext, dep);  /* Can we do it inplace */
             }
-            arg->deps->output[flow_index].data        = *data;
-            arg->deps->output[flow_index].data.ptr    = dataptr; /* if still NULL allocate it */
+            arg->deps->output[dep->dep_index].data        = *data;
+            arg->deps->output[dep->dep_index].data.ptr    = dataptr; /* if still NULL allocate it */
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
@@ -1143,10 +1140,10 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
             assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
-            if( !(arg->remote_deps->output[flow_index].rank_bits[_array_pos] & _array_mask) ) {
-                arg->remote_deps->output[flow_index].data                   = *data;
-                arg->remote_deps->output[flow_index].rank_bits[_array_pos] |= _array_mask;
-                arg->remote_deps->output[flow_index].count_bits++;
+            if( !(arg->remote_deps->output[dep->dep_index].rank_bits[_array_pos] & _array_mask) ) {
+                arg->remote_deps->output[dep->dep_index].data                   = *data;
+                arg->remote_deps->output[dep->dep_index].rank_bits[_array_pos] |= _array_mask;
+                arg->remote_deps->output[dep->dep_index].count_bits++;
                 arg->remote_deps_count++;
             } else {
                 /* The bit is already flipped. This means either that we reached the same peer
@@ -1168,7 +1165,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
         if( ACCESS_NONE != src_flow->flow_flags ) {
-            arg->output_entry->data[flow_index] = oldcontext->data[flow_index].data;
+            arg->output_entry->data[dep->dep_index] = oldcontext->data[dep->dep_index].data;
             arg->output_usage++;
             /* BEWARE: This increment is required to be done here. As the target task
              * bits are marked, another thread can now enable the task. Once schedulable
@@ -1176,12 +1173,10 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
              * Thus, if the ref count is not increased here, the data might dissapear
              * before it become useless.
              */
-            AREF( arg->output_entry->data[flow_index] );
+            AREF( arg->output_entry->data[dep->dep_index] );
         }
-        arg->nb_released += dague_release_local_OUT_dependencies(eu, oldcontext,
-                                                                 src_flow,
-                                                                 newcontext,
-                                                                 src_flow->dep_out[outdep_index]->flow,
+        arg->nb_released += dague_release_local_OUT_dependencies(eu, oldcontext, src_flow,
+                                                                 newcontext, dep->flow,
                                                                  arg->output_entry,
                                                                  data,
                                                                  &arg->ready_lists[dst_vpid]);
