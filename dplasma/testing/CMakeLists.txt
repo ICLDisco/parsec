@@ -7,15 +7,15 @@ if(MPI_C_FOUND)
 include(RulesTestings.cmake)
 
 set(TESTS
-  # testing_zgemm.c
-  # testing_zhemm.c
-  # testing_zsymm.c
-  # testing_zherk.c
-  # testing_zsyrk.c
-  # testing_zher2k.c
-  # testing_zsyr2k.c
-  # testing_ztrmm.c
-  # testing_ztrsm.c
+  testing_zgemm.c
+  testing_zhemm.c
+  testing_zsymm.c
+  testing_zherk.c
+  testing_zsyrk.c
+  testing_zher2k.c
+  testing_zsyr2k.c
+  testing_ztrmm.c
+  testing_ztrsm.c
   #
   # testing_zpotrf.c
   # testing_zhebut.c
@@ -37,7 +37,7 @@ set(TESTS
   testing_zlange.c
   testing_zprint.c
   #testing_zgesvd.c
-  testing_zgetrf_hincpiv.c
+#  testing_zgetrf_hincpiv.c
 #  testing_zgetrf_hpp.c
 #  testing_zgetrf_hpp2.c
   testing_zgetrf_qrf.c
