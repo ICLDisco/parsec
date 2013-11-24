@@ -17,7 +17,7 @@ extern char *yyfilename;
 extern int current_lineno;
 
 
-static char *extern_code(char *base, int len)
+static char *extern_code(char *base, int len, int line)
 {
    char *res;
    int rp, rlen;
@@ -26,7 +26,7 @@ static char *extern_code(char *base, int len)
    res = (char*)calloc(1, rlen);
 
    rp = 0;
-   if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
+   if( !JDF_COMPILER_GLOBAL_ARGS.noline && line) {
      /**
       * As each BODY is contiguous we only have to set the #line once.
       */
@@ -80,7 +80,7 @@ WHITE         [\f\t\v ]
 %%
 ^{WHITE}*(?i:body)    { YY_PUSH_STATE(body); }
 <body>^{WHITE}*(?i:end)      { YY_POP_STATE();
-                        YYLVAL(string) = extern_code( yytext, strlen(yytext) - 3 );
+                        YYLVAL(string) = extern_code( yytext, strlen(yytext) - 3, 1 );
                         return BODY;
                       }
 <body>[^\n]*          { yymore();}
@@ -106,14 +106,14 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
                           for( lend = 0; lend <= bstart; lend++ )
                               if( yytext[lend] == '\n' ) skip_line++;
                           current_lineno += skip_line;
-                          YYLVAL(string) = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
+                          YYLVAL(string) = extern_code( yytext + bstart, strlen(yytext)-bstart-2, 1 );
                           return EXTERN_DECL;
                       }
 <INITIAL,properties>inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}            {
                           int start;
                           for(start = 8; yytext[start] != '{'; start++) /* nothing */ ;
                           start++;
-                          YYLVAL(string) = extern_code( yytext + start, strlen(yytext)-start-2 );
+                          YYLVAL(string) = extern_code( yytext + start, strlen(yytext)-start-2, 0 );
                           return EXTERN_DECL;
                       }
 SIMCOST               { return SIMCOST; }
