@@ -15,9 +15,6 @@
 #include "zlange_one_cyclic.h"
 #include "zlange_frb_cyclic.h"
 
-static inline int dague_imax(int a, int b) { return (a > b) ? a : b; };
-static inline int dague_imin(int a, int b) { return (a < b) ? a : b; };
-
 static inline void *fake_data_of(struct dague_ddesc *mat, ...)
 {
     return (void*)mat;
@@ -122,7 +119,7 @@ dplasma_zlange_New( PLASMA_enum ntype,
         mb = 1;
         nb = A->nb;
         m  = P;
-        n  = dague_imax(A->nt, Q);
+        n  = dplasma_imax(A->nt, Q);
         elt = 1;
         break;
     case PlasmaMaxNorm:

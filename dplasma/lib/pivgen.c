@@ -82,16 +82,12 @@
 #include <string.h>
 #endif  /* defined(HAVE_STRING_H) */
 
-static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
-static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };
-
 #define PRINT_PIVGEN 0
 #ifdef PRINT_PIVGEN
 #define myassert( test ) {if ( ! (test) ) return -1;}
 #else
 #define myassert(test) {assert((test)); return -1;}
 #endif
-
 
 struct hqr_args_s;
 typedef struct hqr_args_s hqr_args_t;
@@ -149,7 +145,6 @@ struct hqr_subpiv_s {
     int domino;
 };
 
-
 /*
  * Common functions
  */
@@ -168,7 +163,6 @@ static int  hqr_getinvperm( const dplasma_qrtree_t *qrtree, int k, int m );
 /* int dplasma_qr_nbkill(const qr_piv_t *arg, const int k, const int m); */
 /* int dplasma_qr_getkill(const qr_piv_t *arg, const int k, const int m, const int j); */
 /* int dplasma_qr_getjkill(const qr_piv_t *arg, const int k, const int m, const int kill); */
-
 
 /*
  * Subtree for low-level
@@ -232,9 +226,9 @@ static int hqr_getnbgeqrf( const dplasma_qrtree_t *qrtree, int k ) {
     nb_1 = (nb_12 - nb_11) / a;
 
     /* Add leftover */
-    nb_1 += dague_imin( p, gmt - nb_12 );
+    nb_1 += dplasma_imin( p, gmt - nb_12 );
 
-    return dague_imin( nb_1 + nb_2 + nb_3, gmt - k);
+    return dplasma_imin( nb_1 + nb_2 + nb_3, gmt - k);
 }
 
 /*
@@ -618,7 +612,7 @@ static void hqr_low_greedy_init(hqr_subpiv_t *arg, int minMN){
         int j, k, height, start, end, firstk = 0;
         int *nT, *nZ;
 
-        arg->minMN =  dague_imin( minMN, mt*a );
+        arg->minMN =  dplasma_imin( minMN, mt*a );
         minMN = arg->minMN;
 
         arg->ipiv = (int*)malloc( mt * minMN * sizeof(int) );
@@ -689,7 +683,7 @@ static void hqr_low_greedy_init(hqr_subpiv_t *arg, int minMN){
             nT[0] = mt;
 
             for(k=0; k<lminMN; k++) {
-                nT2DO[k] = dague_imax( mt - ((k + p - 1 - myrank) / pa), 0 );
+                nT2DO[k] = dplasma_imax( mt - ((k + p - 1 - myrank) / pa), 0 );
                 if ( nT2DO[k] == 0 ) {
                     lminMN = k;
                     break;
@@ -791,7 +785,7 @@ static int hqr_high_flat_prevpiv(const hqr_subpiv_t *arg, int k, int p, int star
     assert( arg->p > 1 );
     if ( p == k && arg->ldd > 1 ) {
         if ( start == p && p != arg->ldd-1 )
-            return dague_imin( p + arg->p - 1, arg->ldd - 1 );
+            return dplasma_imin( p + arg->p - 1, arg->ldd - 1 );
         else if ( start > p + 1 && (start-k < arg->p))
             return start-1;
     }
@@ -857,7 +851,7 @@ static int hqr_high_binary_prevpiv(const hqr_subpiv_t *arg, int k, int p, int st
     if ( (start == p) && ( offset%2 == 0 ) ) {
         int i, bit, tmp;
         if ( offset == 0 )
-            bit = (int)( log( (double)( dague_imin(arg->p, arg->ldd - k) ) ) / log( 2. ) );
+            bit = (int)( log( (double)( dplasma_imin(arg->p, arg->ldd - k) ) ) / log( 2. ) );
         else {
             bit = 0;
             while( (offset & (1 << bit )) == 0 )
@@ -900,7 +894,7 @@ inline static int hqr_high_fibonacci_prevpiv( const hqr_subpiv_t *qrpiv, int k, 
 
     int lp    = p - k;
     int lstart= start - k;
-    int end   = dague_imin(qrpiv->ldd-k, qrpiv->p);
+    int end   = dplasma_imin(qrpiv->ldd-k, qrpiv->p);
     for( i=lstart+1; i<end; i++ )
         if ( (qrpiv->ipiv)[i] == lp )
             return i+k;
@@ -912,7 +906,7 @@ inline static int hqr_high_fibonacci_nextpiv( const hqr_subpiv_t *qrpiv, int k, 
     int i;
     myassert( p>=k && (start == qrpiv->ldd || start-k <= qrpiv->p) );
 
-    for( i=dague_imin(start-k-1, qrpiv->p-1); i>0; i-- )
+    for( i=dplasma_imin(start-k-1, qrpiv->p-1); i>0; i-- )
         if ( (qrpiv->ipiv)[i] == (p-k) )
             return i + k;
     return (qrpiv->ldd);
@@ -977,9 +971,9 @@ static void hqr_high_greedy1p_init(hqr_subpiv_t *arg){
         memset( nZ, 0, minMN*sizeof(int));
 
         nT[0] = mt;
-        nZ[0] = dague_imax( mt - p, 0 );
+        nZ[0] = dplasma_imax( mt - p, 0 );
         for(k=1; k<minMN; k++) {
-            height = dague_imax(mt-k-p, 0);
+            height = dplasma_imax(mt-k-p, 0);
             nT[k] = height;
             nZ[k] = height;
         }
@@ -1030,7 +1024,7 @@ static int hqr_high_greedy_nextpiv(const hqr_subpiv_t *arg, int k, int p, int st
 {
     int i;
     myassert( (start >= k && start < k+arg->p) || start == arg->ldd );
-    for( i=dague_imin(start-1, k+arg->p-1); i > k; i-- )
+    for( i=dplasma_imin(start-1, k+arg->p-1); i > k; i-- )
         if ( (arg->ipiv)[i-k + k* (arg->p)] == p )
             return i;
     return (arg->ldd);
@@ -1069,9 +1063,9 @@ static void hqr_high_greedy_init(hqr_subpiv_t *arg, int minMN){
         memset( nZ, 0, minMN*sizeof(int));
 
         nT[0] = mt;
-        nZ[0] = dague_imax( mt - p, 0 );
+        nZ[0] = dplasma_imax( mt - p, 0 );
         for(k=1; k<minMN; k++) {
-            height = dague_imax(mt-k-p, 0);
+            height = dplasma_imax(mt-k-p, 0);
             nT[k] = height;
             nZ[k] = height;
         }
@@ -1573,7 +1567,7 @@ static void hqr_genperm( dplasma_qrtree_t *qrtree )
     int a = qrtree->a;
     int p = qrtree->p;
     int domino = arg->domino;
-    int minMN = dague_imin( m, n );
+    int minMN = dplasma_imin( m, n );
     int pa = p * a;
     int i, j, k;
     int nbextra1;
@@ -1598,7 +1592,7 @@ static void hqr_genperm( dplasma_qrtree_t *qrtree )
 
             end2 = p + ( domino ? k*p : k + nbextra1 );
             end2 = (( end2 + pa - 1 ) / pa ) * pa;
-            end2 = dague_imin( end2, m );
+            end2 = dplasma_imin( end2, m );
 
             /*
              * All tiles of type 3, 2 and:
@@ -1655,7 +1649,7 @@ static int hqr_getinvperm( const dplasma_qrtree_t *qrtree, int k, int m )
     int p = qrtree->p;
     int pa = p * a;
     int start = m / pa * pa;
-    int stop  = dague_imin( start + pa, gmt ) - start;
+    int stop  = dplasma_imin( start + pa, gmt ) - start;
     int *perm = arg->perm + gmt * k + start;
     int i;
 
@@ -1685,8 +1679,8 @@ void dplasma_hqr_init( dplasma_qrtree_t *qrtree,
     int low_mt, minMN;
     hqr_args_t *arg;
 
-    a = dague_imax( a, 1 );
-    p = dague_imax( p, 1 );
+    a = dplasma_imax( a, 1 );
+    p = dplasma_imax( p, 1 );
     domino = domino ? 1 : 0;
 
 
@@ -1711,7 +1705,7 @@ void dplasma_hqr_init( dplasma_qrtree_t *qrtree,
     arg->llvl = (hqr_subpiv_t*) malloc( sizeof(hqr_subpiv_t) );
     arg->hlvl = NULL;
 
-    minMN = dague_imin(A->mt, A->nt);
+    minMN = dplasma_imin(A->mt, A->nt);
     low_mt = (A->mt + p * a - 1) / ( p * a );
 
     arg->llvl->minMN  = minMN;

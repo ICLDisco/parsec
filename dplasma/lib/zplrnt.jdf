@@ -58,7 +58,7 @@ BODY
     if (diagdom && (m == n)) {
         dague_complex64_t  alpha;
         dague_complex64_t *lA = (dague_complex64_t*)A;
-        int maxmn = dague_imax( descA.m, descA.n );
+        int maxmn = dplasma_imax( descA.m, descA.n );
         int i;
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
@@ -68,7 +68,7 @@ BODY
         alpha = maxmn;
 #endif
 
-        for(i=0; i<dague_imin(tempmm, tempnn); i++)
+        for(i=0; i<dplasma_imin(tempmm, tempnn); i++)
             lA[i * (ldam+1)] += alpha;
     }
 #endif

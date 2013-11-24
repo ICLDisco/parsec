@@ -22,9 +22,6 @@
 #include <string.h>
 #endif  /* defined(HAVE_STRING_H) */
 
-static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
-static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };
-
 #define PRINT_PIVGEN 0
 #ifdef PRINT_PIVGEN
 #define myassert( test ) {if ( ! (test) ) return -1;}
@@ -37,7 +34,7 @@ static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };
 static int systolic_getnbgeqrf( const dplasma_qrtree_t *qrtree, int k )
 {
     int pq = qrtree->p * qrtree->a;
-    return dague_imin( pq, qrtree->desc->mt - k);
+    return dplasma_imin( pq, qrtree->desc->mt - k);
 }
 
 static int systolic_getm( const dplasma_qrtree_t *qrtree, int k, int i )
@@ -314,8 +311,8 @@ void dplasma_systolic_init( dplasma_qrtree_t *qrtree,
     qrtree->prevpiv    = systolic_prevpiv;
 
     qrtree->desc = A;
-    qrtree->a    = dague_imax( q, 1 );
-    qrtree->p    = dague_imax( p, 1 );
+    qrtree->a    = dplasma_imax( q, 1 );
+    qrtree->p    = dplasma_imax( p, 1 );
     qrtree->args = NULL;
 
     return;

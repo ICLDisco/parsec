@@ -259,7 +259,7 @@ BODY
 
         int tempAmm = ( m == descA.mt-1 ) ? descA.m - m * descA.mb : descA.mb;
         int tempAkn = ( k == descA.nt-1 ) ? descA.n - k * descA.nb : descA.nb;
- 	int tempmin = dague_imin( tempAmm, tempAkn );
+ 	int tempmin = dplasma_imin( tempAmm, tempAkn );
         int tempmm  = (m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
         int tempnn  = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
         int ldam    = BLKLDD( descA, m );
@@ -536,8 +536,8 @@ BODY
 END
 
 cleantasks(p, q)
-  p = 0 .. inline_c %{ return dague_imin(param_p, descA.mt)-1; %}
-  q = 0 .. inline_c %{ return dague_imin(param_q, dague_imax(descA.nt, descB.nt))-1; %}
+  p = 0 .. inline_c %{ return dplasma_imin(param_p, descA.mt)-1; %}
+  q = 0 .. inline_c %{ return dplasma_imin(param_q, dplasma_imax(descA.nt, descB.nt))-1; %}
 
   :A(p, q)
 

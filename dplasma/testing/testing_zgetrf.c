@@ -20,8 +20,6 @@ static int check_inverse( dague_context_t *dague, int loud,
                           tiled_matrix_desc_t *ddescInvA,
                           tiled_matrix_desc_t *ddescI );
 
-static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
@@ -59,8 +57,8 @@ int main(int argc, char ** argv)
                                                       M, N, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
         two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
-                               nodes, cores, rank, 1, NB, 1, dague_imin(M, N), 0, 0,
-                               1, dague_imin(M, N), SMB, SNB, P));
+                               nodes, cores, rank, 1, NB, 1, dplasma_imin(M, N), 0, 0,
+                               1, dplasma_imin(M, N), SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
                                two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,

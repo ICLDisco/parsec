@@ -72,7 +72,7 @@ BODY
     int tempknA = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
     int tempmmB = (m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
     int tempnnB = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
-    int tempk   = dague_imin( tempknA, tempmmB );
+    int tempk   = dplasma_imin( tempknA, tempmmB );
     int ldam    = BLKLDD( descA, m );
     int ldbm    = BLKLDD( descB, m );
 

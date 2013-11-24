@@ -10,8 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };
-
 static int check_solution( dague_context_t *dague, int loud,
                            int M, int N,
                            two_dim_block_cyclic_t *ddescC,
@@ -62,7 +60,7 @@ int main(int argc, char ** argv)
     dplasma_zplrnt( dague, 1, (tiled_matrix_desc_t *)&ddescA, Aseed);
     /* Scale down the full matrix to keep stability in diag = PlasmaUnit case */
     dplasma_zlascal( dague, PlasmaUpperLower,
-                     1. / (dague_complex64_t)dague_imax( M, N ),
+                     1. / (dague_complex64_t)dplasma_imax( M, N ),
                      (tiled_matrix_desc_t *)&ddescA );
     dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC, Cseed);
     if (check)
@@ -195,7 +193,7 @@ static int check_solution( dague_context_t *dague, int loud,
 
     Rnorm = dplasma_zlange( dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)ddescCfinal );
 
-    result = Rnorm / (Cinitnorm * eps * dague_imax(M, N));
+    result = Rnorm / (Cinitnorm * eps * dplasma_imax(M, N));
 
     if ( loud > 2 ) {
         printf("  ||x||_inf = %e, ||dplasma(A^(-1) b||_inf = %e, ||R||_m = %e, res = %e\n",

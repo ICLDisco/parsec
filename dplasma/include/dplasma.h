@@ -90,10 +90,8 @@ enum matrix_init_e {
  * No macro with the name max or min is acceptable as there is
  * no way to correctly define them without borderline effects.
  */
-#undef imax
-#undef imin
-static inline int imax(int32_t a, int32_t b) { return a > b ? a : b; }
-static inline int imin(int32_t a, int32_t b) { return a < b ? a : b; }
+static inline int dplasma_imax(int a, int b) { return (a > b) ? a : b; };
+static inline int dplasma_imin(int a, int b) { return (a < b) ? a : b; };
 
 /* sqrt function */
 #define dplasma_zsqrt csqrt

@@ -20,8 +20,6 @@ static int check_inverse( dague_context_t *dague, int loud,
                           tiled_matrix_desc_t *ddescInvA,
                           tiled_matrix_desc_t *ddescI );
 
-static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;

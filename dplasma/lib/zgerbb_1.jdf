@@ -34,13 +34,13 @@ pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*(des
 
 minnt1mt2 [type = int
            hidden = on
-           default = "dague_imin(desc_A->nt-1, desc_A->mt-2)"]
+           default = "dplasma_imin(desc_A->nt-1, desc_A->mt-2)"]
 minnt2mt2 [type = int
            hidden = on
-           default = "dague_imin(desc_A->nt-2, desc_A->mt-2)"]
+           default = "dplasma_imin(desc_A->nt-2, desc_A->mt-2)"]
 minnt3mt2 [type = int
            hidden = on
-           default = "dague_imin(desc_A->nt-3, desc_A->mt-2)"]
+           default = "dplasma_imin(desc_A->nt-3, desc_A->mt-2)"]
 NT        [type = int
            hidden = on
            default = "desc_A->nt"]

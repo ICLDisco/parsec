@@ -123,13 +123,13 @@ BODY
     switch ( uplo ) {
     case PlasmaUpper:
         for(i=0; i<tempkn; i++) {
-            cblas_zscal( dague_imin( i+1, tempkm ), CBLAS_SADDR(alpha), lA+i*ldak, 1 );
+            cblas_zscal( dplasma_imin( i+1, tempkm ), CBLAS_SADDR(alpha), lA+i*ldak, 1 );
         }
         break;
 
     case PlasmaLower:
         for(i=0; i<tempkn; i++) {
-            cblas_zscal( dague_imax( tempkm, tempkm-i ), CBLAS_SADDR(alpha), lA+i*ldak, 1 );
+            cblas_zscal( dplasma_imax( tempkm, tempkm-i ), CBLAS_SADDR(alpha), lA+i*ldak, 1 );
         }
         break;
     default:

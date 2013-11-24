@@ -13,8 +13,6 @@
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
 
-static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
-
 //#include "zunmqr_param_LN.h"
 #include "zunmqr_param_LC.h"
 //#include "zunmqr_param_RN.h"
@@ -312,7 +310,7 @@ dplasma_zunmqr_param( dague_context_t *dague,
         return -20;
     }
 
-    if (dague_imin(B->m, dague_imin(B->n, A->n)) == 0)
+    if (dplasma_imin(B->m, dplasma_imin(B->n, A->n)) == 0)
         return 0;
 
     dague_zunmqr_param = dplasma_zunmqr_param_New(side, trans, qrtree, A, TS, TT, B);

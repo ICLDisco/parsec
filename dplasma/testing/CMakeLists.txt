@@ -7,6 +7,8 @@ if(MPI_C_FOUND)
 include(RulesTestings.cmake)
 
 set(TESTS
+  testing_zlange.c
+  #
   testing_zgemm.c
   testing_zhemm.c
   testing_zsymm.c
@@ -34,7 +36,6 @@ set(TESTS
   # testing_zherbt.c
   # testing_zhbrdt.c
   # testing_zheev.c
-  testing_zlange.c
   testing_zprint.c
   #testing_zgesvd.c
 #  testing_zgetrf_hincpiv.c

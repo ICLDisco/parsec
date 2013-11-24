@@ -10,8 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;

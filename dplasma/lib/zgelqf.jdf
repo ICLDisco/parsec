@@ -48,7 +48,7 @@ END
 
 zgelqt(k)
   /* Execution space */
-  k = 0..inline_c %{ return dague_imin((descA.nt-1),(descA.mt-1)); %}
+  k = 0..inline_c %{ return dplasma_imin((descA.nt-1),(descA.mt-1)); %}
 
   : A(k,k)
 
@@ -94,7 +94,7 @@ END
 
 zunmlq(k,m)
   /* Execution space */
-  k = 0..inline_c %{ return dague_imin((descA.nt-1),(descA.mt-2)); %}
+  k = 0..inline_c %{ return dplasma_imin((descA.nt-1),(descA.mt-2)); %}
   m = (k+1)..(descA.mt-1)
 
   : A(m,k)
@@ -143,7 +143,7 @@ END
 
 ztslqt(k,n)
   /* Execution space */
-  k = 0..inline_c %{ return dague_imin((descA.nt-2),(descA.mt-1)); %}
+  k = 0..inline_c %{ return dplasma_imin((descA.nt-2),(descA.mt-1)); %}
   n = (k+1)..(descA.nt-1)
 
   : A(k,n)
@@ -194,7 +194,7 @@ END
  * Pseudo-task
  */
 ztslqt_out_A0(k) [profile = off]
-  k = 0..inline_c %{ return dague_imin((descA.nt-2),(descA.mt-1)); %}
+  k = 0..inline_c %{ return dplasma_imin((descA.nt-2),(descA.mt-1)); %}
 
   : A(k,k)
 
@@ -207,7 +207,7 @@ END
 
 ztsmlq(k,n,m1)
   /* Execution space */
-  k = 0..inline_c %{ return dague_imin((descA.nt-2),(descA.mt-2)); %}
+  k = 0..inline_c %{ return dplasma_imin((descA.nt-2),(descA.mt-2)); %}
   n = (k+1)..(descA.nt-1)
   m1 = (k+1)..(descA.mt-1)
 
@@ -268,7 +268,7 @@ END
  * Pseudo-task
  */
 ztsmlq_out_A0(k,m1) [profile = off]
-  k = 0..inline_c %{ return dague_imin((descA.nt-2),(descA.mt-2)); %}
+  k = 0..inline_c %{ return dplasma_imin((descA.nt-2),(descA.mt-2)); %}
   m1 = (k+1)..(descA.mt-1)
 
   : A(m1,k)

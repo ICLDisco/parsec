@@ -10,8 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
-
 static inline void getnbluqr( int rank, int MT, int *lu_tab, int *nbqr, int *nblu )
 {
     int i;
@@ -89,7 +87,7 @@ int main(int argc, char ** argv)
                                two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
                                                       nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                                       M, NRHS, SMB, SNB, P));
-    lu_tab = (int *)malloc( dague_imin(MT, NT)*sizeof(int) );
+    lu_tab = (int *)malloc( dplasma_imin(MT, NT)*sizeof(int) );
 
     /*
      * We should always use the same tree
@@ -233,7 +231,7 @@ int main(int argc, char ** argv)
                         dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
                         if(loud > 2) printf("Done\n");
 
-                        for(int i=0; i< dague_imin(MT, NT); i++)
+                        for(int i=0; i< dplasma_imin(MT, NT); i++)
                             lu_tab[i] = -1;
 
                         /* Create DAGuE */
@@ -253,7 +251,7 @@ int main(int argc, char ** argv)
                         dague_progress(dague);
                         SYNC_TIME_STOP();
                         gflops = (flops/1e9)/(sync_time_elapsed);
-                        getnbluqr( rank, dague_imin(MT, NT), lu_tab, &nbqr, &nblu );
+                        getnbluqr( rank, dplasma_imin(MT, NT), lu_tab, &nbqr, &nblu );
                         dplasma_zgetrf_qrf_Destruct( DAGUE_zgetrf_qrf );
 
                         if ( info != 0 ) {

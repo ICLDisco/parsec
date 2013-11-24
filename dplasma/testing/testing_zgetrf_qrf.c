@@ -20,8 +20,6 @@ static int check_inverse( dague_context_t *dague, int loud,
                           tiled_matrix_desc_t *ddescInvA,
                           tiled_matrix_desc_t *ddescI );
 
-static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
@@ -90,8 +88,8 @@ int main(int argc, char ** argv)
                                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                                       M, N, SMB, SNB, P));
 
-    lu_tab = (int *)malloc( dague_imin(MT, NT)*sizeof(int) );
-    for(i=0; i< dague_imin(MT, NT); i++)
+    lu_tab = (int *)malloc( dplasma_imin(MT, NT)*sizeof(int) );
+    for(i=0; i< dplasma_imin(MT, NT); i++)
         lu_tab[i] = -1;
 
     /* matrix generation */
@@ -150,7 +148,7 @@ int main(int argc, char ** argv)
 
         int i, nblu, nbqr;
         nblu = 0;
-        nbqr = dague_imin(MT, NT);
+        nbqr = dplasma_imin(MT, NT);
         for(i=0; i<nbqr; i++) {
             nblu += lu_tab[i];
         }
@@ -162,7 +160,7 @@ int main(int argc, char ** argv)
                    nblu, 100. * (double)nblu / (double)(nblu+nbqr),
                    nbqr, 100. * (double)nbqr / (double)(nblu+nbqr));
             printf("[%d] lu_tab: ", rank);
-            for(i=0; i<dague_imin(MT, NT); i++) {
+            for(i=0; i<dplasma_imin(MT, NT); i++) {
                 printf("%d ", lu_tab[i]);
             }
             printf("\n");

@@ -24,7 +24,7 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-static inline int dague_imin(int a, int b);
+static inline int dplasma_imin(int a, int b);
 
 %}
 

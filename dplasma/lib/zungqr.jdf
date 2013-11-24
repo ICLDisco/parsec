@@ -52,7 +52,7 @@ BODY
 {
     int tempAkm  = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int tempAkn  = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
-    int tempkmin = dague_imin( tempAkm, tempAkn );
+    int tempkmin = dplasma_imin( tempAkm, tempAkn );
     int tempkm   = (k == (descQ.mt-1)) ? (descQ.m - k * descQ.mb) : descQ.mb;
     int tempnn   = (n == (descQ.nt-1)) ? (descQ.n - n * descQ.nb) : descQ.nb;
     int ldak = BLKLDD( descA, k );
@@ -116,7 +116,7 @@ END
 
 ztsmqr(k, m, n)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dague_imin((descQ.mt-1),(descA.nt-1)); %}
+  k = 0     .. inline_c %{ return dplasma_imin((descQ.mt-1),(descA.nt-1)); %}
   m = (k+1) .. (descQ.mt-1)
   n = 0     .. (descQ.nt-1)
 
@@ -139,7 +139,7 @@ BODY
 {
     int tempAkm  = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int tempAkn  = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
-    int tempkmin = dague_imin( tempAkm, tempAkn );
+    int tempkmin = dplasma_imin( tempAkm, tempAkn );
     int tempmm   = (m == (descQ.mt-1)) ? (descQ.m - m * descQ.mb) : descQ.mb;
     int tempnn   = (n == (descQ.nt-1)) ? (descQ.n - n * descQ.nb) : descQ.nb;
     int ldam = BLKLDD( descA, m );
@@ -175,7 +175,7 @@ END
 
 ztsmqr_in_data_T2(k, m) [profile = off]
   /* Execution Space */
-  k = 0     .. inline_c %{ return dague_imin((descQ.mt-2),(descA.nt-1)); %}
+  k = 0     .. inline_c %{ return dplasma_imin((descQ.mt-2),(descA.nt-1)); %}
   m = (k+1) .. (descQ.mt-1)
 
   /* Locality */
@@ -192,7 +192,7 @@ END
 
 ztsmqr_in_data_A1(k, m) [profile = off]
   /* Execution Space */
-  k = 0     .. inline_c %{ return dague_imin((descQ.mt-2),(descA.nt-1)); %}
+  k = 0     .. inline_c %{ return dplasma_imin((descQ.mt-2),(descA.nt-1)); %}
   m = (k+1) .. (descQ.mt-1)
 
   /* Locality */
@@ -209,7 +209,7 @@ END
 
 ztsmqr_out_data_Q0(k, n) [profile = off]
   /* Execution Space */
-  k = 0 .. inline_c %{ return dague_imin((descQ.mt-2),(descA.nt-1)); %}
+  k = 0 .. inline_c %{ return dplasma_imin((descQ.mt-2),(descA.nt-1)); %}
   n = 0 .. (descQ.nt-1)
 
   /* Locality */

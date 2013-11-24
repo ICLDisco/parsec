@@ -35,8 +35,8 @@ extern "C" %{
 #define GETPRIO_PANEL( __m, __n )      (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
 #define GETPRIO_UPDTE( __m, __n, __k ) (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
 #elif defined(PRIO_MATHIEU2)
-#define GETPRIO_PANEL( __m, __n )      ((dague_imax(descA.mt, descA.nt) - dague_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
-#define GETPRIO_UPDTE( __m, __n, __k ) ((dague_imax(descA.mt, descA.nt) - dague_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
+#define GETPRIO_PANEL( __m, __n )      ((dplasma_imax(descA.mt, descA.nt) - dplasma_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
+#define GETPRIO_UPDTE( __m, __n, __k ) ((dplasma_imax(descA.mt, descA.nt) - dplasma_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
 #elif defined(PRIO_MATYVES)
 #define FORMULE( __x ) ( ( -1. + dplasma_dsqrt( 1. + 4.* (__x) * (__x)) ) * 0.5 )
 #define GETPRIO_PANEL( __m, __k )      (int)( 22. * (__k) + 6. * ( FORMULE( descA.mt ) - FORMULE( (__m) - (__k) + 1. ) ) )
@@ -114,7 +114,7 @@ BODY
            /* Set local IPIV to 0 before generation
             * Better here than a global initialization for locality
             * and it's also done in parallel */
-           memset(P, 0, dague_imin(tempkn, tempmm) * sizeof(int) );
+           memset(P, 0, dplasma_imin(tempkn, tempmm) * sizeof(int) );
 
            CORE_zgetrf_incpiv(tempmm, tempkn, ib,
                               A /* A(m, k)    */, ldam,
@@ -279,7 +279,7 @@ BODY
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
             int iinfo = 0;
-            memset(P, 0, dague_imin(tempkn, tempmm) * sizeof(int) );
+            memset(P, 0, dplasma_imin(tempkn, tempmm) * sizeof(int) );
             CORE_ztstrf(tempmm, tempkn, ib, descLT.nb,
                         A1 /* A(p,k)    */, ldap,
                         A2 /* A(m,k)    */, ldam,

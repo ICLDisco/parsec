@@ -26,7 +26,7 @@ extern "C" %{
 
 #define MYMIN(a, b) ((a)<(b)?(a):(b))
 #define MYMAX(a, b) ((a)>(b)?(a):(b))
-#define nbthreads( __k, __i ) (dague_imin( (dplasma_qr_getsize( pivfct, __k, __i) + 3 )/  4, nbmaxthrd) - 1)
+#define nbthreads( __k, __i ) (dplasma_imin( (dplasma_qr_getsize( pivfct, __k, __i) + 3 )/  4, nbmaxthrd) - 1)
 
 //#define PRIO_YVES1
 
@@ -68,7 +68,7 @@ ib      [type = int]
 p_work  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descLT.nb))"]
 p_tau   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descLT.nb))"]
 INFO    [type = "int*"]
-nbmaxthrd [type = "int" default="( dague_imin( A->cores, 48 ) )" hidden=on] /* 48 is the actual limit of the kernel */
+nbmaxthrd [type = "int" default="( dplasma_imin( A->cores, 48 ) )" hidden=on] /* 48 is the actual limit of the kernel */
 
 param_p [type = int default="pivfct->p"      hidden=on]
 param_a [type = int default="pivfct->a"      hidden=on]
@@ -154,7 +154,7 @@ BODY
        * Better here than a global initialization for locality
        * and it's also done in parallel */
       if ( t == 0 ) {
-          memset(IP, 0, dague_imin(tempn, tempm) * sizeof(int) );
+          memset(IP, 0, dplasma_imin(tempn, tempm) * sizeof(int) );
           /*fprintf(stderr, "There are %d threads woking on it\n", nbthrd+1);*/
       }
 

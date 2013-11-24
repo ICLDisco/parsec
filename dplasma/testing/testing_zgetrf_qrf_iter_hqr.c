@@ -10,8 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
-
 static inline void getnbluqr( int rank, int MT, int *lu_tab, int *nbqr, int *nblu )
 {
     int i;

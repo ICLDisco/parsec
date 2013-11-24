@@ -99,7 +99,7 @@ BODY
     double Anorm, Acond, Ucond;
     int info;
     int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
-    int tempmin = dague_imin(tempmm, tempn);
+    int tempmin = dplasma_imin(tempmm, tempn);
     assert( tempmm <= tempn );
     Anorm = LAPACKE_zlange( LAPACK_COL_MAJOR, '1', tempmm, tempn, A, descA.mb );
 #endif
@@ -108,7 +108,7 @@ BODY
         /* Set local IPIV to 0 before generation
          * Better here than a global initialization for locality
          * and it's also done in parallel */
-        memset(IP, 0, dague_imin(tempn, tempm) * sizeof(int) );
+        memset(IP, 0, dplasma_imin(tempn, tempm) * sizeof(int) );
 
         PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
                                                descA.mb, descA.nb, descA.mb * descA.nb,
@@ -318,7 +318,7 @@ BODY
 #ifdef FOLLOW_CONDNUM
              int info;
              double cond;
-             info = LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'u', 'n', dague_imin(tempmm, tempkn), A, ldap, &cond );
+             info = LAPACKE_ztrcon(LAPACK_COL_MAJOR, '1', 'u', 'n', dplasma_imin(tempmm, tempkn), A, ldap, &cond );
              if ( info != 0 ) {
                  fprintf(stderr, "Fucking hell 3 it doesn't work\n");
                  assert(0);

@@ -30,7 +30,7 @@ INFO      [type = "int*"]
 
 zgetrf_nopiv(k)
   /* Execution Space */
-  k = 0..inline_c %{ return dague_imin((descA.nt-1),(descA.mt-1)); %}
+  k = 0..inline_c %{ return dplasma_imin((descA.nt-1),(descA.mt-1)); %}
 
   /* Locality */
   : dataA(k,k)
@@ -67,7 +67,7 @@ END
 
 ztrsm_l(k, m)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dague_imin((descA.nt-1),(descA.mt-2)); %}
+  k = 0     .. inline_c %{ return dplasma_imin((descA.nt-1),(descA.mt-2)); %}
   m = (k+1) .. (descA.mt-1)
 
   /* Locality */
@@ -103,7 +103,7 @@ END
 
 ztrsm_u(k, n)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dague_imin((descA.mt-1),(descA.nt-2)); %}
+  k = 0     .. inline_c %{ return dplasma_imin((descA.mt-1),(descA.nt-2)); %}
   n = (k+1) .. (descA.nt-1)
 
   /* Locality */
@@ -136,7 +136,7 @@ END
 
 zgemm(k, m, n)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dague_imin((descA.nt-2),(descA.mt-2)); %}
+  k = 0     .. inline_c %{ return dplasma_imin((descA.nt-2),(descA.mt-2)); %}
   m = (k+1) .. (descA.mt-1)
   n = (k+1) .. (descA.nt-1)
 

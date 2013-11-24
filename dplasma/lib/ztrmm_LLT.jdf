@@ -76,7 +76,7 @@ END
 
 zgemm(m, n, k)
   /* Execution Space */
-  m = 0..inline_c %{ return dague_imin((descB.mt-1),(descA.mt-2)); %}
+  m = 0..inline_c %{ return dplasma_imin((descB.mt-1),(descA.mt-2)); %}
   n = 0..(descB.nt-1)
   k = (m+1)..(descA.mt-1)
 

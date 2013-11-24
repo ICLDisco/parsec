@@ -241,7 +241,7 @@ dplasma_zungqr_param( dague_context_t *dague,
         return -5;
     }
 
-    if (imin(Q->m, imin(Q->n, A->n)) == 0)
+    if (dplasma_imin(Q->m, dplasma_imin(Q->n, A->n)) == 0)
         return 0;
 
     dague_zungqr_param = dplasma_zungqr_param_New(qrtree, A, TS, TT, Q);

@@ -21,7 +21,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#define nbthreads( __k ) (dague_imin( ((descA.mt - (__k)) + 3 )/  4, nbmaxthrd) - 1)
+#define nbthreads( __k ) (dplasma_imin( ((descA.mt - (__k)) + 3 )/  4, nbmaxthrd) - 1)
 
 PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
                              int lm, int ln, int i, int j, int m, int n);
@@ -32,7 +32,7 @@ descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
 IPIV      [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
-nbmaxthrd [type = "int" default="( dague_imax( 1, dague_imin( A->cores - 1, 48 ) ) )" hidden=on] /* 48 is the actual limit of the kernel */
+nbmaxthrd [type = "int" default="( dplasma_imax( 1, dplasma_imin( A->cores - 1, 48 ) ) )" hidden=on] /* 48 is the actual limit of the kernel */
 minMNT    [type = "int" default="( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )" hidden=on]
 
 /************************************************************************************
@@ -91,7 +91,7 @@ getrf(k, t) [high_priority = on]
   k  = 0 .. minMNT
   t  = 0 .. inline_c %{ return nbthreads( k ); %}
   m1 = inline_c %{ return k + t * 4; %}
-  m2 = inline_c %{ return dague_imin( k + (t+1) * 4 - 1, descA.mt-1); %}
+  m2 = inline_c %{ return dplasma_imin( k + (t+1) * 4 - 1, descA.mt-1); %}
 
   /* Locality */
   :A(k, k)
@@ -132,7 +132,7 @@ BODY
          * Better here than a global initialization for locality
          * and it's also done in parallel */
         if ( t == 0 ) {
-            memset(IPIV, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
+            memset(IPIV, 0, dplasma_imin(tempkn, tempkm) * sizeof(int) );
             /*fprintf(stderr, "There are %d threads woking on it\n", nbthrd+1);*/
         }
 
@@ -324,7 +324,7 @@ BODY
 {
     int tempkm = k == descA.mt-1 ? descA.m - k * descA.mb : descA.mb;
     int tempkn = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
-    int tempmin = dague_imin(tempkn, tempkm);
+    int tempmin = dplasma_imin(tempkn, tempkm);
     int ldak = BLKLDD(descA, k);
 
     printlog("CORE_zswpback(%d, %d)\n"

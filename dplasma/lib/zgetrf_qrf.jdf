@@ -68,7 +68,7 @@ int dague_log2(int n) {
     return i;
 }
 
-#define nbthreads( __s ) (dague_imin( ((__s) + 3 ) /  4, nbmaxthrd ) - 1)
+#define nbthreads( __s ) (dplasma_imin( ((__s) + 3 ) /  4, nbmaxthrd ) - 1)
 
 %}
 
@@ -92,8 +92,8 @@ descTT   [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)TT)" hid
 
 param_p   [type = int default="((two_dim_block_cyclic_t*)A)->grid.rows" hidden=on ]
 param_q   [type = int default="((two_dim_block_cyclic_t*)A)->grid.cols" hidden=on ]
-minMNT    [type = int default="dague_imin( descA.mt-1, descA.nt-1 )"    hidden=on ]
-nbmaxthrd [type = "int" default="( dague_imax( 1, dague_imin( A->cores - 1, 48 ) ) )" hidden=on] /* 48 is the actual limit of the kernel */
+minMNT    [type = int default="dplasma_imin( descA.mt-1, descA.nt-1 )"    hidden=on ]
+nbmaxthrd [type = "int" default="( dplasma_imax( 1, dplasma_imin( A->cores - 1, 48 ) ) )" hidden=on] /* 48 is the actual limit of the kernel */
 
 /*===========================================================================================
 
@@ -656,7 +656,7 @@ tile2panel(k, n) [ profile = off ]
   did_lu = inline_c %{ return lu_tab[k];   %}
   do_lu  = inline_c %{ return lu_tab[k+1]; %}
   q      = inline_c %{ return (n-k)%param_q; %}
-  hmax   = inline_c %{ return dague_log2( dague_imin(param_p, descA.mt-k )-1 ); %}
+  hmax   = inline_c %{ return dague_log2( dplasma_imin(param_p, descA.mt-k )-1 ); %}
 
   :A(k+1, n)
 
@@ -821,7 +821,7 @@ BODY
        * Better here than a global initialization for locality
        * and it's also done in parallel */
       if ( t == 0 ) {
-          memset(IP, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
+          memset(IP, 0, dplasma_imin(tempkn, tempkm) * sizeof(int) );
       }
 
       info[1] = t;
@@ -889,7 +889,7 @@ reduce_norm(k, p)
 /*Add the norm of all local tile before sending the information to others processors*/
   k = 0 .. minMNT
 
-  pmax = inline_c %{ return dague_imin(param_p, descA.mt-k); %}
+  pmax = inline_c %{ return dplasma_imin(param_p, descA.mt-k); %}
 
   p = 0 .. pmax-1
 
@@ -981,7 +981,7 @@ setchoice(k, p, h)
   /* Execution space */
   k = 0 .. minMNT
 
-  pmax = inline_c %{ return dague_imin(param_p, descA.mt-k); %}
+  pmax = inline_c %{ return dplasma_imin(param_p, descA.mt-k); %}
   hmax = inline_c %{ return dague_log2( pmax-1 ); %}
 
   p = 0 .. pmax-1
@@ -1207,7 +1207,7 @@ setchoice_update(k, p, q)
   /* Execution space */
   k = 0 .. minMNT
 
-  pmax = inline_c %{ return dague_imin(param_p, descA.mt-k)-1; %}
+  pmax = inline_c %{ return dplasma_imin(param_p, descA.mt-k)-1; %}
 
   p = 0 .. pmax
   q = 1 .. param_q-1
@@ -1253,7 +1253,7 @@ selector(k,m,n)
   panel  = inline_c %{ return diagdom && (n == k); %}
   p    = inline_c %{ return (m-k)%param_p; %}
   q    = inline_c %{ return (n-k)%param_q; %}
-  hmax = inline_c %{ return dague_log2( dague_imin(param_p, descA.mt-k)-1 ); %}
+  hmax = inline_c %{ return dague_log2( dplasma_imin(param_p, descA.mt-k)-1 ); %}
 
   : A(m,n)
 

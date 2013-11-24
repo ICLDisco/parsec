@@ -82,14 +82,6 @@
 #include <string.h>
 #endif  /* defined(HAVE_STRING_H) */
 
-#ifndef min
-#define min(__a, __b) ( ( (__a) < (__b) ) ? (__a) : (__b) )
-#endif
-
-#ifndef max
-#define max(__a, __b) ( ( (__a) > (__b) ) ? (__a) : (__b) )
-#endif
-
 /* static int dplasma_qrtree_getinon0( const qr_piv_t *arg,  */
 /*                                 const int k, int i, int mt ); */
 
@@ -99,7 +91,7 @@
 
 int dplasma_qrtree_check( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree)
 {
-    int minMN = min(A->mt, A->nt );
+    int minMN = dplasma_imin(A->mt, A->nt );
     int i, m, k, nb;
     int check;
 
@@ -315,7 +307,7 @@ int dplasma_qrtree_check( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree)
 
 void dplasma_qrtree_print_type( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree )
 {
-    int minMN = min(A->mt, A->nt );
+    int minMN = dplasma_imin(A->mt, A->nt );
     int m, k;
     int lm = 0;
     int lmg = 0;
@@ -324,19 +316,19 @@ void dplasma_qrtree_print_type( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree
     printf("\n------------ Localization = Type of pivot --------------\n");
     for(m=0; m<A->mt; m++) {
         printf("%3d | ", m);
-        for (k=0; k<min(minMN, m+1); k++) {
+        for (k=0; k<dplasma_imin(minMN, m+1); k++) {
             printf( "%3d ", qrtree->gettype( qrtree, k, m ) );
         }
-        for (k=min(minMN, m+1); k<minMN; k++) {
+        for (k=dplasma_imin(minMN, m+1); k<minMN; k++) {
             printf( "    " );
         }
 
         printf("    ");
         printf("%2d,%3d | ", rank, lmg);
-        for (k=0; k<min(minMN, lmg+1); k++) {
+        for (k=0; k<dplasma_imin(minMN, lmg+1); k++) {
             printf( "%3d ", qrtree->gettype( qrtree, k, lmg) );
         }
-        for (k=min(minMN, lmg+1); k<minMN; k++) {
+        for (k=dplasma_imin(minMN, lmg+1); k<minMN; k++) {
             printf( "    " );
         }
         lm++; lmg+=qrtree->p;
@@ -351,7 +343,7 @@ void dplasma_qrtree_print_type( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree
 
 void dplasma_qrtree_print_pivot( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree )
 {
-    int minMN = min(A->mt, A->nt );
+    int minMN = dplasma_imin(A->mt, A->nt );
     int m, k;
     int lm = 0;
     int lmg = 0;
@@ -359,19 +351,19 @@ void dplasma_qrtree_print_pivot( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtre
     printf("\n------------ Current Pivot--------------\n");
     for(m=0; m<A->mt; m++) {
         printf("%3d | ", m);
-        for (k=0; k<min(minMN, m+1); k++) {
+        for (k=0; k<dplasma_imin(minMN, m+1); k++) {
             printf( "%3d ", qrtree->currpiv(qrtree, k, m) );
         }
-        for (k=min(minMN, m+1); k<minMN; k++) {
+        for (k=dplasma_imin(minMN, m+1); k<minMN; k++) {
             printf( "    " );
         }
 
         printf("    ");
         printf("%2d,%3d | ", rank, lmg);
-        for (k=0; k<min(minMN, lmg+1); k++) {
+        for (k=0; k<dplasma_imin(minMN, lmg+1); k++) {
             printf( "%3d ", qrtree->currpiv(qrtree, k, lmg) );
         }
-        for (k=min(minMN, lmg+1); k<minMN; k++) {
+        for (k=dplasma_imin(minMN, lmg+1); k<minMN; k++) {
             printf( "    " );
         }
         lm++; lmg+=qrtree->p;
@@ -424,7 +416,7 @@ void dplasma_qrtree_print_prev_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtr
 
 void dplasma_qrtree_print_perm( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int *perm )
 {
-    int minMN = min(A->mt, A->nt );
+    int minMN = dplasma_imin(A->mt, A->nt );
     int m, k;
     (void)qrtree;
 
@@ -449,7 +441,7 @@ void dplasma_qrtree_print_perm( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree
 
 void dplasma_qrtree_print_nbgeqrt( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree )
 {
-    int minMN = min(A->mt, A->nt );
+    int minMN = dplasma_imin(A->mt, A->nt );
     int m, k, nb;
 
     printf("\n------------ Nb GEQRT per k --------------\n");
@@ -537,7 +529,7 @@ void dplasma_qrtree_print_dag( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree,
 {
     int *pos, *next, *done;
     int k, m, n, lpos, prev, length;
-    int minMN = min( A->mt, A->nt );
+    int minMN = dplasma_imin( A->mt, A->nt );
     FILE *f = fopen( filename, "w" );
 
     done = (int*)malloc( A->mt * sizeof(int) );

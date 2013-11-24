@@ -170,7 +170,7 @@ ztrsm(k,m)
   RW    D <- (k>=1) ? M zgemdm(k-1, m, k) 
           <- (0==k) ? data_A(m,k)
           -> data_A(m,k)
-/*          -> (desc_A.mt>=(2+m)) ? L zgemdm(k, inline_c %{ return dague_imax((m+1),(k+1)); %}..(desc_A.mt-1), m) */
+/*          -> (desc_A.mt>=(2+m)) ? L zgemdm(k, inline_c %{ return dplasma_imax((m+1),(k+1)); %}..(desc_A.mt-1), m) */
           -> (desc_A.mt>=(2+m)) ? L zgemdm(k, (m+1)..(desc_A.mt-1), m) 
           -> (m>=(2+k)) ? K zgemdm(k, m, (k+1)..(m-1)) 
           -> E zhedrk(k, m) 
