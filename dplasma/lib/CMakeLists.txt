@@ -11,6 +11,7 @@ set(EXTRA_SOURCES
   pivgen.c
   systolic.c
   pivgen_dbg.c
+  map_wrapper.c
   map2_wrapper.c
   butterfly_map.c
 )
@@ -80,7 +81,9 @@ if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 
 list(APPEND generated_jdf
-  "${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf")
+  ${CMAKE_CURRENT_SOURCE_DIR}/map.jdf
+  ${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf
+)
 
 jdf_rules(generated_files "${generated_jdf}")
 

@@ -16,28 +16,12 @@ extern "C" %{
  */
 uplo     [type = PLASMA_enum]
 dataA    [type = "dague_ddesc_t *"]
-dataB    [type = "dague_ddesc_t *"]
-operator [type = "tiled_matrix_binary_op_t" ]
+operator [type = "tiled_matrix_unary_op_t" ]
 op_args  [type = "void *" ]
 
 descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
 plasma_upper [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower [type="PLASMA_enum" hidden=on default=PlasmaLower ]
-
-map_l_in_Amn(m, n)   [profile = off]
-  m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
-  n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
-
-  : dataA(m, n)
-
-  RW A <- dataA(m, n)
-       -> A MAP_L(m, n)
-
-BODY
-{
-    /* nothing */
-}
-END
 
 MAP_L(m, n)  [profile = off]
   // Execution space
@@ -45,36 +29,20 @@ MAP_L(m, n)  [profile = off]
   n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
 
   // Parallel partitioning
-  : dataB(m, n)
+  : dataA(m, n)
 
   // Parameters
-  READ  A <- A map_l_in_Amn(m, n)
-  RW    B <- dataB(m, n)
-          -> dataB(m, n)
+  RW    A <- dataA(m, n)
+          -> dataA(m, n)
 
 BODY
 {
     DRYRUN(
-        operator( context, op_args, A, B, PlasmaUpperLower, m, n );
+        operator( context, A, A, op_args, PlasmaUpperLower, m, n );
            );
 
     printlog("thread %d VP %d map_l( %d, %d )\n",
              context->th_id, context->virtual_process->vp_id, m, n );
-}
-END
-
-map_u_in_Amn(m, n)  [profile = off]
-  m = 0   .. descA.mt-1
-  n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
-
-  : dataA(m, n)
-
-  RW A <- dataA(m, n)
-       -> A MAP_U(m, n)
-
-BODY
-{
-    /* nothing */
 }
 END
 
@@ -84,35 +52,20 @@ MAP_U(m, n)  [profile = off]
   n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
 
   // Parallel partitioning
-  : dataB(m, n)
+  : dataA(m, n)
 
   // Parameters
-  READ  A <- A map_u_in_Amn(m, n)
-  RW    B <- dataB(m, n)
-          -> dataB(m, n)
+  RW    A <- dataA(m, n)
+          -> dataA(m, n)
 
 BODY
 {
     DRYRUN(
-        operator( context, op_args, A, B, PlasmaUpperLower, m, n );
+        operator( context, A, A, op_args, PlasmaUpperLower, m, n );
            );
 
     printlog("thread %d VP %d map_u( %d, %d )\n",
              context->th_id, context->virtual_process->vp_id, m, n );
-}
-END
-
-map_diag_in_Akk(k)  [profile = off]
-  k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
-
-  : dataA(k, k)
-
-  RW A <- dataA(k, k)
-       -> A MAP_DIAG(k)
-
-BODY
-{
-    /* nothing */
 }
 END
 
@@ -121,17 +74,16 @@ MAP_DIAG(k) [profile = off]
   k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
 
   // Parallel partitioning
-  : dataB(k, k)
+  : dataA(k, k)
 
   // Parameters
-  READ  A <- A map_diag_in_Akk(k)
-  RW    B <- dataB(k, k)
-          -> dataB(k, k)
+  RW    A <- dataA(k, k)
+          -> dataA(k, k)
 
 BODY
 {
     DRYRUN(
-        operator( context, op_args, A, B, uplo, k, k );
+        operator( context, A, A, op_args, uplo, k, k );
            );
 
     printlog("thread %d VP %d map_diag( %d, %d )\n",

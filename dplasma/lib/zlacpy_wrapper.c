@@ -22,9 +22,8 @@ typedef struct zlacpy_args_s zlacpy_args_t;
 
 static int
 dague_operator_zlacpy( struct dague_execution_unit *eu,
-                       const void* _A,
-                       void* _B,
-                       void* op_data, ... )
+                       const void *_A, void *_B,
+                       void *op_data, ... )
 {
     va_list ap;
     zlacpy_args_t *args = (zlacpy_args_t*)op_data;

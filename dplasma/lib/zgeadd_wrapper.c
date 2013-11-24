@@ -22,9 +22,8 @@ typedef struct zgeadd_args_s zgeadd_args_t;
 
 static int
 dague_operator_zgeadd( struct dague_execution_unit *eu,
-                      const void* _A,
-                      void* _B,
-                      void* op_data, ... )
+                       const void *_A, void *_B,
+                       void *op_data, ... )
 {
     va_list ap;
     zgeadd_args_t *args = (zgeadd_args_t*)op_data;
@@ -119,7 +118,7 @@ dplasma_zgeadd( dague_context_t *dague,
                 PLASMA_enum uplo,
                 dague_complex64_t alpha,
                 const tiled_matrix_desc_t *A,
-                tiled_matrix_desc_t *B)
+                      tiled_matrix_desc_t *B)
 {
     dague_object_t *dague_zgeadd = NULL;
 
