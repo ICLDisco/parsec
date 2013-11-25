@@ -167,8 +167,6 @@ dplasma_map_Destruct( dague_object_t *o )
  * See dplasma_zlaset() or dplasma_zlascal() as example of function using
  * the map operator.
  *
- * WARNING: The computations are not done by this call.
- *
  *******************************************************************************
  *
  * @param[in,out] dague
