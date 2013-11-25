@@ -54,37 +54,6 @@ int dplasma_zplrnt_toeppd( dague_context_t *dague,
     return 0;
 }
 
-int dplasma_zplrnt_fiedler( dague_context_t *dague,
-                           tiled_matrix_desc_t *A,
-                           unsigned long long int seed )
-{
-    dague_zplrnt_fiedler_object_t* object;
-
-    object = dague_zplrnt_fiedler_new( seed,
-                                      (dague_ddesc_t*)A );
-
-    /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zplrnt_fiedler_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
-
-    /* Vector type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zplrnt_fiedler_VECTOR_ARENA],
-                            A->mb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
-
-    dague_enqueue(dague, (dague_object_t*)object);
-    dplasma_progress(dague);
-
-    dplasma_datatype_undefine_type( &(object->arenas[DAGUE_zplrnt_fiedler_DEFAULT_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(object->arenas[DAGUE_zplrnt_fiedler_VECTOR_ARENA ]->opaque_dtt) );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(object);
-
-    return 0;
-}
-
 /***************************************************************************//**
  *
  * @ingroup DPLASMA_Complex64_t
@@ -245,12 +214,6 @@ int dplasma_zplrnt_perso( dague_context_t *dague,
     case MATRIX_TOEPPD:
     {
         dplasma_zplrnt_toeppd( dague, A, seed );
-    }
-    break;
-
-    case MATRIX_FIEDLER:
-    {
-        dplasma_zplrnt_fiedler( dague, A, seed );
     }
     break;
 

@@ -1,30 +1,15 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
+ * Copyright (c) 2011-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
  *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
- *
- * @precisions normal z -> s d c
+ * @precisions normal z -> c d s
  *
  */
-#define PRECISION_z
-
-#define pi (3.1415926535897932384626433832795028841971693992)
-
-#include <math.h>
-#include <core_blas.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "dplasma.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/dplasmajdf.h"
-
-static inline int dplasma_imin(int a, int b);
 
 %}
 
@@ -38,7 +23,7 @@ descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc
 /**************************************************
  *                       READ_X                   *
  **************************************************/
-GEN_RANDOM(m)  [profile = off]
+GEN_RANDOM(m) [profile = off]
 
 m = 0 .. descA.mt-1
 
@@ -48,22 +33,14 @@ m = 0 .. descA.mt-1
 
 BODY
 {
-    double *W = (double*)R;
-    int i;
-
-    CORE_dplrnt( descA.mb, 2, W, descA.mb, descA.m, m * descA.mb + 1, 0, seed );
-
-    /* Translate values to [0. ; 1.]*/
-    for(i=0; i<2*descA.mb; i++, W++) {
-        *W += 0.5;
-    }
+    CORE_zpltmg_toeppd1( descA.m, m * descA.mb + 1, descA.mb, R, seed );
 }
 END
 
 /**************************************************
  *                       GEMM                     *
  **************************************************/
-PLRNT(m, n, k)
+PLRNT(m, n, k) [profile = off]
 
 // Execution space
 m = 0 .. descA.mt-1
@@ -74,7 +51,7 @@ k = 0 .. descA.mt-1
 : dataA(m, n)
 
 // Parameters
-RW   R <- ( m == k ) ? R GEN_RANDOM(m)                                                [type = VECTOR]
+RW   R <- ( m == k )                       ? R GEN_RANDOM(m)                          [type = VECTOR]
        <- ( m != k )                       ? R PLRNT(          (m+1)%descA.mt, n, k)  [type = VECTOR]
        -> ( (descA.mt+m-1)%descA.mt != k ) ? R PLRNT( (descA.mt+m-1)%descA.mt, n, k)  [type = VECTOR]
 
@@ -85,33 +62,21 @@ RW   A <- ( m == k )                ? dataA(m, n)
 
 BODY
 {
-    dague_complex64_t *lA = (dague_complex64_t*)A;
-    double *W     = (double*)R;
-    double *theta = W + descA.mb;
-
     int tempmm = (m == descA.mt-1) ? descA.m - m * descA.mb : descA.mb;
     int tempnn = (n == descA.nt-1) ? descA.n - n * descA.nb : descA.nb;
+    int tempkm = (k == descA.mt-1) ? descA.m - k * descA.nb : descA.mb;
     int ldam = BLKLDD(descA, m);
 
 #if !defined(DAGUE_DRY_RUN)
-    CORE_zlaset( PlasmaUpperLower, tempmm, tempnn, 0., 0., A, ldam );
-
-    {
-        int i, j, k, ii, jj;
-
-        for (j=0,jj=n*descA.nb; j<tempnn; j++,jj++) {
-            for (i=0,ii=m*descA.mb; i<tempmm; i++,ii++,lA++) {
-                for(k=0; k<tempmm; k++) {
-                    *lA += W[k] * cos( 2.0 * pi * theta[k] * (double)(ii-jj) );
-                }
-            }
-            lA += (ldam - tempmm);
-        }
+    /* This is the first one */
+    if (m == k) {
+        CORE_zlaset( PlasmaUpperLower, tempmm, tempnn, 0., 0., A, ldam );
     }
+
+    CORE_zpltmg_toeppd2(
+        tempmm, tempnn, tempkm,
+        m * descA.mb, n*descA.nb, R,
+        A, ldam );
 #endif
 }
 END
-
-extern "C" %{
-
-%}

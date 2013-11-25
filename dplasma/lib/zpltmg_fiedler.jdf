@@ -1,0 +1,71 @@
+extern "C" %{
+/*
+ * Copyright (c) 2011-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ *
+ * @precisions normal z -> c d s
+ *
+ */
+#include "dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+/*
+ * Globals
+ */
+seed   [type = "unsigned long long int" ]
+dataA  [type = "dague_ddesc_t *"]
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+
+/**************************************************
+ *                       READ_X                   *
+ **************************************************/
+GEN_RANDOM(m) [profile = off]
+
+m = 0 .. descA.mt-1
+
+: dataA(m, m)
+
+    WRITE R -> R1 PLRNT(m, 0..descA.nt-1)  [type = VECTOR]
+            -> R2 PLRNT(0..descA.mt-1, m)  [type = VECTOR]
+BODY
+{
+    CORE_dplrnt( descA.mb, 1, R, descA.mb,
+                 descA.m, m * descA.mb + 1, 0, seed );
+}
+END
+
+/**************************************************
+ *                       GEMM                     *
+ **************************************************/
+PLRNT(m, n) [profile = off]
+
+// Execution space
+m = 0 .. descA.mt-1
+n = 0 .. descA.nt-1
+
+// Parallel partitioning
+: dataA(m, n)
+
+// Parameters
+READ R1 <- R GEN_RANDOM(m)                 [type = VECTOR]
+READ R2 <- R GEN_RANDOM(n)                 [type = VECTOR]
+
+RW   A <- dataA(m, n)
+       -> dataA(m, n)
+
+BODY
+{
+    int tempmm = (m == descA.mt-1) ? descA.m - m * descA.mb : descA.mb;
+    int tempnn = (n == descA.nt-1) ? descA.n - n * descA.nb : descA.nb;
+    int ldam = BLKLDD(descA, m);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zpltmg_fiedler( tempmm, tempnn,
+                         R1, 1, R2, 1, A, ldam );
+#endif
+}
+END

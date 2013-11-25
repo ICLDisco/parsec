@@ -23,8 +23,7 @@ set(JDF
   zlange_one_cyclic.jdf
   zlansy.jdf
   zlaswp.jdf
-  zplrnt.jdf
-  zplrnt_perso.jdf zplrnt_toeppd.jdf zplrnt_fiedler.jdf
+  zpltmg_fiedler.jdf  zpltmg_toeppd.jdf
   zprint.jdf
   # BLAS Level 3
   zgemm_NN.jdf zgemm_TN.jdf zgemm_NT.jdf zgemm_TT.jdf
@@ -98,8 +97,8 @@ set(SOURCES
   zlaswp_wrapper.c
   zplghe_wrapper.c
   zplgsy_wrapper.c
-  zplrnt_perso_wrapper.c
   zplrnt_wrapper.c
+  zpltmg_wrapper.c
   # Level 3 Blas
   zgemm_wrapper.c
   zhemm_wrapper.c
