@@ -908,10 +908,10 @@ static int dague_update_deps_with_counter( const dague_object_t *dague_object,
                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), dep_cur_value ));
         }
 
-        DEBUG3(("Task %s has a current dependencies count of %d (remaining). It %s using the mask approach\n",
+        DEBUG3(("Task %s has a current dependencies count of %d remaining. %s to go!\n",
                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
                 dep_cur_value,
-                (dep_cur_value == 0) ? "becomes ready" : "stays there waiting"));
+                (dep_cur_value == 0) ? "Ready" : "Not ready"));
     }
 #endif /* DAGUE_DEBUG */
 
@@ -972,11 +972,11 @@ static int dague_update_deps_with_mask( const dague_object_t *dague_object,
     }
 #endif
 
-    DEBUG3(("Task %s has a current dependencies of 0x%x and a goal of 0x%x -- It %s using the mask approach\n",
+    DEBUG3(("Task %s has a current dependencies of 0x%x and a goal of 0x%x. %s to go!\n",
             dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
             dep_cur_value, function->dependencies_goal,
             ((dep_cur_value & function->dependencies_goal) == function->dependencies_goal) ?
-            "becomes ready" : "stays there waiting"));
+            "Ready" : "Not ready"));
     return (dep_cur_value & function->dependencies_goal) == function->dependencies_goal;
 }
 
