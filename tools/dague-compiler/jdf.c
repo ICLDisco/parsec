@@ -976,7 +976,7 @@ int jdf_flatten_function(jdf_function_entry_t* function)
 
     for( flow = function->dataflow; NULL != flow; flow = flow->next, flow_index++ ) {
 
-        flow->flow_index = (uint8_t)dep_out_index;
+        flow->flow_index = flow_index;
         jdf_reorder_dep_list_by_type(flow, &dep_in_index, &dep_out_index);
         if( ((1U << dep_in_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/) ||
             ((1U << dep_in_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/)) {
@@ -986,27 +986,42 @@ int jdf_flatten_function(jdf_function_entry_t* function)
             return -1;
         }
 
-#if 0
+#if 1
         {
-            string_arena_t* sa = string_arena_new(64);
+            string_arena_t* sa1 = string_arena_new(64);
+            string_arena_t* sa2 = string_arena_new(64);
             expr_info_t linfo;
             jdf_dep_t *dep;
 
-            linfo.sa = sa;
+            linfo.sa = sa1;
             linfo.prefix = ":";
             linfo.assignments = "";
             for(dep = flow->deps; NULL != dep; dep = dep->next) {
-                string_arena_init(sa);
+                string_arena_init(sa2);
                 dump_expr((void**)dep->datatype.type, &linfo);
+                if( strlen(string_arena_get_string(sa1)) )
+                    string_arena_add_string(sa2, "type = <%s>", string_arena_get_string(sa1));
+                if( dep->datatype.layout != dep->datatype.type ) {
+                    dump_expr((void**)dep->datatype.layout, &linfo);
+                    if( strlen(string_arena_get_string(sa1)) )
+                        string_arena_add_string(sa2, " layout = <%s>", string_arena_get_string(sa1));
+                }
+                dump_expr((void**)dep->datatype.count, &linfo);
+                if( strlen(string_arena_get_string(sa1)) )
+                    string_arena_add_string(sa2, " count = <%s>", string_arena_get_string(sa1));
+                dump_expr((void**)dep->datatype.displ, &linfo);
+                if( strlen(string_arena_get_string(sa1)) )
+                    string_arena_add_string(sa2, " displ = <%s>", string_arena_get_string(sa1));
 
                 printf("%s: %6s[idx %d, mask 0x%x] %2s %8d %8d <%s %s>\n", function->fname,
                        flow->varname, flow->flow_index, flow->flow_dep_mask,
                        (JDF_DEP_FLOW_OUT & dep->dep_flags ? "->" : "<-"),
                        dep->dep_index, dep->dep_datatype_index,
                        dep->guard->calltrue->func_or_mem,
-                       (dep->dep_index == dep->dep_datatype_index ? string_arena_get_string(sa) : " -||- "));
+                       (dep->dep_index == dep->dep_datatype_index ? string_arena_get_string(sa2) : " -||- "));
             }
-            string_arena_free(sa);
+            string_arena_free(sa1);
+            string_arena_free(sa2);
         }
 #endif
     }
