@@ -162,7 +162,7 @@ dague_object_t* dplasma_zlanhe_New( PLASMA_enum ntype, PLASMA_enum uplo, const t
 dague_object_t* dplasma_zlansy_New( PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A, double *result);
 dague_object_t* dplasma_zlascal_New( PLASMA_enum type, dague_complex64_t alpha, tiled_matrix_desc_t *A);
 dague_object_t* dplasma_zlaset_New( PLASMA_enum uplo, dague_complex64_t alpha, dague_complex64_t beta, tiled_matrix_desc_t *A);
-dague_object_t* dplasma_zlaswp_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int inc);
+dague_object_t* dplasma_zlaswp_New( tiled_matrix_desc_t *A, const tiled_matrix_desc_t *IPIV, int inc);
 dague_object_t* dplasma_zplghe_New( double            bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 dague_object_t* dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 dague_object_t* dplasma_zplrnt_New( int diagdom,                              tiled_matrix_desc_t *A, unsigned long long int seed);
