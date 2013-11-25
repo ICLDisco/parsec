@@ -189,7 +189,8 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
 
     switch( mtxtype ) {
     case PlasmaMatrixChebvand:
-        object = (dague_object_t*)dague_zpltmg_chebvand_new( (dague_ddesc_t*)A );
+        object = (dague_object_t*)dague_zpltmg_chebvand_new( seed,
+                                                             (dague_ddesc_t*)A );
         vectorsize = 2 * A->nb * sizeof(dague_complex64_t);
         break;
 
@@ -282,6 +283,8 @@ dplasma_zpltmg_circul( dague_context_t *dague,
 {
     int info;
     dague_complex64_t *V = (dague_complex64_t*) malloc( A->m * sizeof(dague_complex64_t) );
+
+    CORE_zplrnt( A->m, 1, V, A->m, A->m, 0, 0, seed );
 
     info = dplasma_zpltmg_generic(dague, PlasmaMatrixCircul, A, V, seed);
 
@@ -420,13 +423,12 @@ dplasma_zpltmg_house( dague_context_t *dague,
                       unsigned long long int seed )
 {
     /* gallery('house', random, 0 ) */
-    two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
     vector_two_dim_cyclic_t V;
     dague_complex64_t *Vmat, tau;
 
-    vector_two_dim_cyclic_init( &V, matrix_ComplexDouble, matrix_Tile,
+    vector_two_dim_cyclic_init( &V, matrix_ComplexDouble, PlasmaVectorDiag,
                                 A->super.nodes, A->super.cores, A->super.myrank,
-                                A->mb, A->m, 0, A->m, twodA->grid.strows, 1 );
+                                A->mb, A->m, 0, A->m, 1 );
     V.mat = dague_data_allocate((size_t)V.super.nb_local_tiles *
                                 (size_t)V.super.bsiz *
                                 (size_t)dague_datadist_getsizeoftype(V.super.mtype));
@@ -556,6 +558,7 @@ dplasma_zpltmg( dague_context_t *dague,
     case PlasmaMatrixRiemann:
     case PlasmaMatrixRis:
     case PlasmaMatrixWilkinson:
+    case PlasmaMatrixWright:
         return dplasma_zpltmg_generic(dague, mtxtype, A, NULL, seed);
         break;
     default:

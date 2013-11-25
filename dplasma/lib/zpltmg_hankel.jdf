@@ -26,15 +26,15 @@ descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc
 GEN_RANDOM(k) [profile = off]
 
 k  = 0 .. (descA.mt+descA.nt-1)
-m1 = inline_c %{ if (k >= descA.mt) return descA.mt-1; else return k % descA.mt; %}
-n1 = inline_c %{ if (k >= descA.mt) return k%descA.mt; else return 0; %}
-m2 = inline_c %{ k--; if (k >= descA.mt) return descA.mt-1; else return k % descA.mt; %}
-n2 = inline_c %{ k--; if (k >= descA.mt) return k%descA.mt; else return 0; %}
+m1 = inline_c %{      if (k >= descA.mt) return descA.mt - 1;     else return k; %}
+n1 = inline_c %{      if (k >= descA.mt) return k - descA.mt + 1; else return 0; %}
+m2 = inline_c %{ k--; if (k >= descA.mt) return descA.mt - 1;     else return k; %}
+n2 = inline_c %{ k--; if (k >= descA.mt) return k - descA.mt + 1; else return 0; %}
 
 : dataA( m1, n1 )
 
-WRITE R ->              R1 PLRNT( m1, n1 )  [type = VECTOR]
-        -> ( k >= 0 ) ? R2 PLRNT( m2, n2 )  [type = VECTOR]
+WRITE R -> ( k < (descA.mt+descA.nt-1) ) ? R1 PLRNT( m1, n1 )  [type = VECTOR]
+        -> ( k > 0 )                     ? R2 PLRNT( m2, n2 )  [type = VECTOR]
 
 BODY
 {

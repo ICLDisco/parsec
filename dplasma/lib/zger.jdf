@@ -9,16 +9,8 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
-#include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
 
 %}
 
@@ -41,9 +33,9 @@ READ_X(m)  [profile = off]
 
 m = 0 .. descX.mt-1
 
-: dataX(m, 0)
+: dataX(m)
 
-READ X <- dataX(m, 0)               [type = VECTOR]
+READ X <- dataX(m)                  [type = VECTOR]
        -> X GER(m, 0..descA.nt-1)   [type = VECTOR]
 BODY
      printlog("X(%d)\n", m );
@@ -56,9 +48,9 @@ READ_Y(m)  [profile = off]
 
 m = 0 .. descY.mt-1
 
-: dataY(m, 0)
+: dataY(m)
 
-READ Y <- dataY(m, 0)               [type = VECTOR]
+READ Y <- dataY(m)                  [type = VECTOR]
        -> Y GER(0..descA.mt-1, m)   [type = VECTOR]
 BODY
      printlog("read Y(%d)\n", m );

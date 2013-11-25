@@ -16,6 +16,7 @@ extern "C" %{
 /*
  * Globals
  */
+seed   [type = "unsigned long long int" ]
 dataA  [type = "dague_ddesc_t *"]
 descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 
@@ -28,7 +29,8 @@ n = 0 .. descA.nt-1
 
 : dataA(0, n)
 
-    WRITE W -> W PLRNT(0, n)  [type = VECTOR]
+WRITE W -> W PLRNT(0, n)  [type = VECTOR]
+
 BODY
 {
     /* Nothing */
