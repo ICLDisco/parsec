@@ -3552,18 +3552,9 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
         jdf_generate_code_flow_initialization(jdf, f->fname, fl);
     }
 
-    if( strlen( string_arena_get_string( sa_test ) ) != 0 ) {
+    if( strlen( string_arena_get_string( sa_test ) ) != 0 )
         coutput(" complete_and_return:\n");
 
-        /* Copy the input to all other relevant locations */
-        for( fl = f->dataflow; fl != NULL; fl = fl->next ) {
-            for( int i = fl->flow_index + 1; (1U << i) < fl->flow_dep_mask; i++ )
-                coutput("  this_task->data[%u].data      = this_task->data[%u].data;  /* flow %s */\n"
-                        "  this_task->data[%u].data_repo = this_task->data[%u].data_repo;\n",
-                        i, fl->flow_index, fl->varname,
-                        i, fl->flow_index);
-        }
-    }
     /* If the function has the property profile turned off do not generate the profiling code */
     if( jdf_property_get_int(f->properties, "profile", 1) ) {
         string_arena_t *sa3 = string_arena_new(64);
