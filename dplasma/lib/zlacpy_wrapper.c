@@ -153,7 +153,7 @@ dplasma_zlacpy_Destruct( dague_object_t *o )
  * dplasma_zlacpy - Generates an object that performs a copy of the matrix A
  * into the matrix B.
  *
- * See dplasma_map2_New() for further information.
+ * See dplasma_map2() for further information.
  *
  *******************************************************************************
  *

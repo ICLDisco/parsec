@@ -15,7 +15,7 @@
 #include "map.h"
 
 struct zlascal_args_s {
-    dague_complex64_t alpha;
+    dague_complex64_t    alpha;
     tiled_matrix_desc_t *descA;
 };
 typedef struct zlascal_args_s zlascal_args_t;
@@ -75,29 +75,37 @@ dplasma_zlascal_operator( struct dague_execution_unit *eu,
     return 0;
 }
 
-/***************************************************************************//**
+/**
+ *******************************************************************************
  *
- * @ingroup DPLASMA_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_zlascal_New - Scale a matrix by a given scalar.
- *  WARNING: This routine is equivalment to the pzlascal routine from ScaLapack
- *  and not to the zlascl/pzlascl routines from Lapack/ScaLapack.
+ * dplasma_zlascal_New - Generates the object that scales a matrix by a given scalar.
+ *
+ * See dplasma_map_New() for further information.
+ *
+ *  WARNINGS:
+ *      - The computations are not done by this call.
+ *      - This routine is equivalent to the pzlascal routine from ScaLapack and
+ *  not to the zlascl/pzlascl routines from Lapack/ScaLapack.
  *
  *******************************************************************************
  *
- * @param[in] Type
- *          Specifies the type of the input matrix as follows:
- *          = PlasmaUpperLower: A is a full matrix.
- *          = PlasmaUpper: A is an upper triangular matrix.
- *          = PlasmaLower: A is a lower triangular matrix.
+ * @param[in] uplo
+ *          Specifies which part of matrix A is set:
+ *          = PlasmaUpperLower: All matrix is referenced.
+ *          = PlasmaUpper:      Only upper part is referenced.
+ *          = PlasmaLower:      Only lower part is referenced.
  *          = PlasmaUpperHessenberg: A is an upper Hessenberg matrix (Not
  *          supported)
  *
  * @param[in] alpha
- *          The scalatr to use to scale the matrix.
+ *          The scalar to use to scale the matrix.
  *
  * @param[in,out] A
- *          The descriptor of the matrix to scale.
+ *          Descriptor of the distributed matrix A. Any tiled matrix
+ *          descriptor can be used.
+ *          On exit, the matrix A is scaled by alpha.
  *
  ******************************************************************************/
 dague_object_t*
@@ -113,16 +121,86 @@ dplasma_zlascal_New( PLASMA_enum uplo,
     return dplasma_map_New( uplo, A, dplasma_zlascal_operator, params );
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ *  dplasma_zlascal_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zlascal_New().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] o
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zlascal_New
+ * @sa dplasma_zlascal
+ *
+ ******************************************************************************/
 void
 dplasma_zlascal_Destruct( dague_object_t *o )
 {
     dplasma_map_Destruct( o );
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zlascal - Scales a matrix by a given scalar.
+ *
+ * See dplasma_map() for further information.
+ *
+ *  WARNINGS:
+ *      - This routine is equivalent to the pzlascal routine from ScaLapack and
+ *  not to the zlascl/pzlascl routines from Lapack/ScaLapack.
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] uplo
+ *          Specifies which part of matrix A is set:
+ *          = PlasmaUpperLower: All matrix is referenced.
+ *          = PlasmaUpper:      Only upper part is referenced.
+ *          = PlasmaLower:      Only lower part is referenced.
+ *          = PlasmaUpperHessenberg: A is an upper Hessenberg matrix (Not
+ *          supported)
+ *
+ * @param[in] alpha
+ *          The scalar to use to scale the matrix.
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A. Any tiled matrix
+ *          descriptor can be used.
+ *          On exit, the matrix A is scaled by alpha.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zlascal_New
+ * @sa dplasma_zlascal_Destruct
+ * @sa dplasma_clascal
+ * @sa dplasma_dlascal
+ * @sa dplasma_slascal
+ *
+ ******************************************************************************/
 int
-dplasma_zlascal( dague_context_t *dague,
-                 PLASMA_enum uplo, dague_complex64_t alpha,
-                 tiled_matrix_desc_t *A)
+dplasma_zlascal( dague_context_t     *dague,
+                 PLASMA_enum          uplo,
+                 dague_complex64_t    alpha,
+                 tiled_matrix_desc_t *A )
 {
     dague_object_t *dague_zlascal = NULL;
 
@@ -132,14 +210,15 @@ dplasma_zlascal( dague_context_t *dague,
         (uplo != PlasmaUpperLower))
     {
         dplasma_error("dplasma_zlascal", "illegal value of type");
-        return -1;
+        return -2;
     }
 
     dague_zlascal = dplasma_zlascal_New(uplo, alpha, A);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zlascal);
-    dplasma_progress(dague);
-
-    dplasma_zlascal_Destruct( dague_zlascal );
+    if ( dague_zlascal != NULL ) {
+        dague_enqueue(dague, (dague_object_t*)dague_zlascal);
+        dplasma_progress(dague);
+        dplasma_zlascal_Destruct( dague_zlascal );
+    }
     return 0;
 }

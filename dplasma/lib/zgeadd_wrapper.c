@@ -163,7 +163,7 @@ dplasma_zgeadd_Destruct( dague_object_t *o )
  * dplasma_zgeadd - Generates an object that computes the operation B =
  * alpha * A + B
  *
- * See dplasma_map2_New() for further information.
+ * See dplasma_map2() for further information.
  *
  *******************************************************************************
  *

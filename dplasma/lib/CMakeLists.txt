@@ -23,8 +23,6 @@ set(JDF
   zlange_one_cyclic.jdf
   zlansy.jdf
   zlaswp.jdf
-  zplghe.jdf
-  zplgsy.jdf
   zplrnt.jdf
   zplrnt_perso.jdf zplrnt_toeppd.jdf zplrnt_fiedler.jdf
   zprint.jdf

@@ -15,8 +15,8 @@
 #include "map.h"
 
 struct zlaset_args_s {
-    dague_complex64_t alpha;
-    dague_complex64_t beta;
+    dague_complex64_t    alpha;
+    dague_complex64_t    beta;
     tiled_matrix_desc_t *descA;
 };
 typedef struct zlaset_args_s zlaset_args_t;
@@ -62,21 +62,24 @@ dplasma_zlaset_operator( struct dague_execution_unit *eu,
     return 0;
 }
 
-/***************************************************************************/
 /**
+ *******************************************************************************
  *
- * @ingroup DPLASMA_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_zlaset_New - Sets the elements of the matrix A on the diagonal
- *  to beta and on the off-diagonals to alpha
+ * dplasma_zlaset_New - Generates the object that set the elements of the matrix
+ * A on the diagonal to beta and the off-diagonals eklements to alpha.
+ *
+ * See dplasma_map_New() for further information.
+ *
  *
  *******************************************************************************
  *
  * @param[in] uplo
- *          Specifies which elements of the matrix are to be set
- *          = PlasmaUpper: Upper part of A is set;
- *          = PlasmaLower: Lower part of A is set;
- *          = PlasmaUpperLower: ALL elements of A are set.
+ *          Specifies which part of matrix A is set:
+ *          = PlasmaUpperLower: All matrix is referenced.
+ *          = PlasmaUpper:      Only upper part is referenced.
+ *          = PlasmaLower:      Only lower part is referenced.
  *
  * @param[in] alpha
  *         The constant to which the off-diagonal elements are to be set.
@@ -85,10 +88,27 @@ dplasma_zlaset_operator( struct dague_execution_unit *eu,
  *         The constant to which the diagonal elements are to be set.
  *
  * @param[in,out] A
- *         On entry, the M-by-N tile A.
- *         On exit, A has been set accordingly.
+ *          Descriptor of the distributed matrix A. Any tiled matrix
+ *          descriptor can be used.
+ *          On exit, A has been set accordingly.
  *
- **/
+ *******************************************************************************
+ *
+ * @return
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_zlaset_Destruct();
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zlaset
+ * @sa dplasma_zlaset_Destruct
+ * @sa dplasma_claset_New
+ * @sa dplasma_dlaset_New
+ * @sa dplasma_slaset_New
+ *
+ ******************************************************************************/
 dague_object_t*
 dplasma_zlaset_New( PLASMA_enum uplo,
                     dague_complex64_t alpha,
@@ -104,12 +124,79 @@ dplasma_zlaset_New( PLASMA_enum uplo,
     return dplasma_map_New( uplo, A, dplasma_zlaset_operator, params );
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ *  dplasma_zlaset_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zlaset_New().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] o
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zlaset_New
+ * @sa dplasma_zlaset
+ *
+ ******************************************************************************/
 void
 dplasma_zlaset_Destruct( dague_object_t *o )
 {
     dplasma_map_Destruct( o );
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zlaset - Set the elements of the matrix
+ * A on the diagonal to beta and the off-diagonals eklements to alpha.
+ *
+ * See dplasma_map() for further information.
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] uplo
+ *          Specifies which part of matrix A is set:
+ *          = PlasmaUpperLower: All matrix is referenced.
+ *          = PlasmaUpper:      Only upper part is refrenced.
+ *          = PlasmaLower:      Only lower part is referenced.
+ *
+ * @param[in] alpha
+ *         The constant to which the off-diagonal elements are to be set.
+ *
+ * @param[in] beta
+ *         The constant to which the diagonal elements are to be set.
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A. Any tiled matrix
+ *          descriptor can be used.
+ *          On exit, A has been set accordingly.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zlaset_New
+ * @sa dplasma_zlaset_Destruct
+ * @sa dplasma_claset
+ * @sa dplasma_dlaset
+ * @sa dplasma_slaset
+ *
+ ******************************************************************************/
 int
 dplasma_zlaset( dague_context_t *dague,
                 PLASMA_enum uplo,
@@ -119,11 +206,21 @@ dplasma_zlaset( dague_context_t *dague,
 {
     dague_object_t *dague_zlaset = NULL;
 
+    /* Check input arguments */
+    if ((uplo != PlasmaLower) &&
+        (uplo != PlasmaUpper) &&
+        (uplo != PlasmaUpperLower))
+    {
+        dplasma_error("dplasma_zlaset", "illegal value of type");
+        return -1;
+    }
+
     dague_zlaset = dplasma_zlaset_New(uplo, alpha, beta, A);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zlaset);
-    dplasma_progress(dague);
-
-    dplasma_zlaset_Destruct( dague_zlaset );
+    if ( dague_zlaset != NULL ) {
+        dague_enqueue(dague, (dague_object_t*)dague_zlaset);
+        dplasma_progress(dague);
+        dplasma_zlaset_Destruct( dague_zlaset );
+    }
     return 0;
 }
