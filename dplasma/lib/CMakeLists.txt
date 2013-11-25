@@ -25,7 +25,9 @@ set(JDF
   zlaswp.jdf
   zpltmg_chebvand.jdf zpltmg_fiedler.jdf zpltmg_hankel.jdf zpltmg_toeppd.jdf
   zprint.jdf
+  #
   # BLAS Level 3
+  #
   zgemm_NN.jdf zgemm_TN.jdf zgemm_NT.jdf zgemm_TT.jdf
   zhemm.jdf
   zher2k_LN.jdf zher2k_LC.jdf zher2k_UN.jdf zher2k_UC.jdf

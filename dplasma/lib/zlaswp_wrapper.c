@@ -14,11 +14,6 @@
 
 #include "zlaswp.h"
 
-/* Dirty hack which uses internal function of PLASMA to avoid initializing the lib */
-/* TODO: remove check on context in PLASMA for this function, it's useless */
-PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
-                             int lm, int ln, int i, int j, int m, int n);
-
 dague_object_t *
 dplasma_zlaswp_New(tiled_matrix_desc_t *A,
                    tiled_matrix_desc_t *IPIV,

@@ -81,6 +81,8 @@ dplasma_zpltmg_generic_operator( struct dague_execution_unit *eu,
  * dplasma_zpltmg_generic - Generic wrapper for cases that are based on the map
  * function. This is the default for many test matrices generation.
  *
+ * See dplasma_map() for further information.
+ *
  *******************************************************************************
  *
  * @param[in,out] dague
@@ -464,8 +466,6 @@ dplasma_zpltmg_house( dague_context_t *dague,
  *
  * dplasma_zpltmg - Generates a special test matrix by tiles.
  *
- * See dplasma_map() for further information.
- *
  *******************************************************************************
  *
  * @param[in,out] dague
@@ -491,8 +491,6 @@ dplasma_zpltmg_house( dague_context_t *dague,
  *
  *******************************************************************************
  *
- * @sa dplasma_zpltmg_New
- * @sa dplasma_zpltmg_Destruct
  * @sa dplasma_cpltmg
  * @sa dplasma_dpltmg
  * @sa dplasma_spltmg

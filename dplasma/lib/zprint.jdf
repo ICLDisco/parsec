@@ -1,27 +1,19 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
  *
  * @precisions normal z -> s d c
  *
  */
+#include "dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+
 #define PRECISION_z
 
-#include <core_blas.h>
-#include <core_blas.h>
-
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
-#include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/dplasmajdf.h"
-
-static void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, dague_complex64_t *M )
+static inline void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, dague_complex64_t *M )
 {
     int tempmm = ( m == descA.mt-1 ) ? descA.m - m*descA.mb : descA.mb;
     int tempnn = ( n == descA.nt-1 ) ? descA.n - n*descA.nb : descA.nb;
@@ -56,16 +48,16 @@ static void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, dague_
  * Globals
  */
 uplo   [type = PLASMA_enum]
-descA  [type = "tiled_matrix_desc_t"]
 dataA  [type = "dague_ddesc_t *"]
+
+descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
+plasma_upper [type = "PLASMA_enum"         hidden=on default=PlasmaUpper ]
+plasma_lower [type = "PLASMA_enum"         hidden=on default=PlasmaLower ]
 
 imone   [type = "int" hidden=on default="-1" ]
 sizef   [type = "int" hidden=on default="( descA.mt * descA.nt )" ]
 sizel   [type = "int" hidden=on default="( descA.nt * descA.mt - (descA.nt * (descA.nt-1))/2 )" ]
 sizeu   [type = "int" hidden=on default="( descA.mt * descA.nt - (descA.mt * (descA.mt-1))/2 )" ]
-
-plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
-plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
 
 /*
@@ -85,7 +77,9 @@ READ A   <- dataA(m, n)
 CTL  ctl <- (k > 0 )      ? ctl PRINT_F(k-1)
          -> (k < sizef-1) ? ctl PRINT_F(k+1)
 BODY
-  DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); )
+{
+    DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); );
+}
 END
 
 
@@ -106,7 +100,9 @@ READ  A   <- dataA(m, n)
 CTL   ctl <- (k > 0 )      ? ctl PRINT_L(k-1)
           -> (k < sizel-1) ? ctl PRINT_L(k+1)
 BODY
-  DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); )
+{
+    DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); );
+}
 END
 
 /*
@@ -126,9 +122,7 @@ READ  A   <- dataA(m, n)
 CTL   ctl <- (k > 0 )      ? ctl PRINT_U(k-1)
           -> (k < sizeu-1) ? ctl PRINT_U(k+1)
 BODY
-  DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); )
+{
+    DRYRUN( dplasma_zprint_tile( m, n, descA, (dague_complex64_t *)A ); );
+}
 END
-
-extern "C" %{
-
-%}
