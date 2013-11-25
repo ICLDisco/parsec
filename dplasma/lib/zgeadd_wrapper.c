@@ -14,13 +14,13 @@
 #include "map2.h"
 
 struct zgeadd_args_s {
-    dague_complex64_t alpha;
+    dague_complex64_t          alpha;
     const tiled_matrix_desc_t *descA;
-    tiled_matrix_desc_t *descB;
+    tiled_matrix_desc_t       *descB;
 };
 typedef struct zgeadd_args_s zgeadd_args_t;
 
-static int
+static inline int
 dplasma_zgeadd_operator( struct dague_execution_unit *eu,
                          const void *_A, void *_B,
                          void *op_data, ... )
@@ -69,11 +69,17 @@ dplasma_zgeadd_operator( struct dague_execution_unit *eu,
     return 0;
 }
 
-/***************************************************************************//**
+/**
+ *******************************************************************************
  *
- * @ingroup dague_complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_zgeadd_New - Compute the operation B = alpha * A + B
+ * dplasma_zgeadd_New - Generates an object that computes the operation B =
+ * alpha * A + B
+ *
+ * See dplasma_map2_New() for further information.
+ *
+ * WARNING: The computations are not done by this call.
  *
  *******************************************************************************
  *
@@ -81,11 +87,27 @@ dplasma_zgeadd_operator( struct dague_execution_unit *eu,
  *          The scalar alpha
  *
  * @param[in] A
- *          The matrix A of size M-by-N
+ *          The descriptor of the distributed matrix A of size M-by-N.
  *
  * @param[in,out] B
- *          On entry, the matrix B of size equal or greater to M-by-N
- *          On exit, the matrix B with the M-by-N part overwrite by alpha*A+B
+ *          The descriptor of the distributed matrix B of size M-by-N.
+ *          On exit, the matrix B data are overwritten by the result of alpha*A+B
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_zgeadd_Destruct();
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgeadd
+ * @sa dplasma_zgeadd_Destruct
+ * @sa dplasma_cgeadd_New
+ * @sa dplasma_dgeadd_New
+ * @sa dplasma_sgeadd_New
  *
  ******************************************************************************/
 dague_object_t*
@@ -107,26 +129,96 @@ dplasma_zgeadd_New( PLASMA_enum uplo,
     return object;
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ *  dplasma_zlacpy_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zlacpy_New().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] o
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zlacpy_New
+ * @sa dplasma_zlacpy
+ *
+ ******************************************************************************/
 void
 dplasma_zgeadd_Destruct( dague_object_t *o )
 {
     dplasma_map2_Destruct( o );
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zgeadd - Generates an object that computes the operation B =
+ * alpha * A + B
+ *
+ * See dplasma_map2_New() for further information.
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] alpha
+ *          The scalar alpha
+ *
+ * @param[in] A
+ *          The descriptor of the distributed matrix A of size M-by-N.
+ *
+ * @param[in,out] B
+ *          The descriptor of the distributed matrix B of size M-by-N.
+ *          On exit, the matrix B data are overwritten by the result of alpha*A+B
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgeadd_New
+ * @sa dplasma_zgeadd_Destruct
+ * @sa dplasma_cgeadd
+ * @sa dplasma_dgeadd
+ * @sa dplasma_sgeadd
+ *
+ ******************************************************************************/
 int
 dplasma_zgeadd( dague_context_t *dague,
                 PLASMA_enum uplo,
                 dague_complex64_t alpha,
                 const tiled_matrix_desc_t *A,
-                      tiled_matrix_desc_t *B)
+                tiled_matrix_desc_t *B)
 {
     dague_object_t *dague_zgeadd = NULL;
 
+    if ((uplo != PlasmaUpperLower) &&
+        (uplo != PlasmaUpper)      &&
+        (uplo != PlasmaLower))
+    {
+        dplasma_error("dplasma_zgeadd", "illegal value of uplo");
+        return -2;
+    }
+
     dague_zgeadd = dplasma_zgeadd_New(uplo, alpha, A, B);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zgeadd);
-    dplasma_progress(dague);
-
-    dplasma_zgeadd_Destruct( dague_zgeadd );
+    if ( dague_zgeadd != NULL )
+    {
+        dague_enqueue(dague, (dague_object_t*)dague_zgeadd);
+        dplasma_progress(dague);
+        dplasma_zgeadd_Destruct( dague_zgeadd );
+    }
     return 0;
 }
