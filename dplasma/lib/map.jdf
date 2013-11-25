@@ -38,7 +38,7 @@ MAP_L(m, n)  [profile = off]
 BODY
 {
     DRYRUN(
-        operator( context, A, A, op_args, PlasmaUpperLower, m, n );
+        operator( context, A, op_args, PlasmaUpperLower, m, n );
            );
 
     printlog("thread %d VP %d map_l( %d, %d )\n",
@@ -61,7 +61,7 @@ MAP_U(m, n)  [profile = off]
 BODY
 {
     DRYRUN(
-        operator( context, A, A, op_args, PlasmaUpperLower, m, n );
+        operator( context, A, op_args, PlasmaUpperLower, m, n );
            );
 
     printlog("thread %d VP %d map_u( %d, %d )\n",
@@ -83,7 +83,7 @@ MAP_DIAG(k) [profile = off]
 BODY
 {
     DRYRUN(
-        operator( context, A, A, op_args, uplo, k, k );
+        operator( context, A, op_args, uplo, k, k );
            );
 
     printlog("thread %d VP %d map_diag( %d, %d )\n",
