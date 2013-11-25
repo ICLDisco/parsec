@@ -72,6 +72,46 @@ dplasma_zpltmg_generic_operator( struct dague_execution_unit *eu,
     }
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_internal
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zpltmg_generic - Generic wrapper for cases that are based on the map
+ * function. This is the default for many test matrices generation.
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] mtxtype
+ *          Type of matrix to be generated.
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A to generate. Any tiled matrix
+ *          descriptor can be used.
+ *
+ * @param[out] W
+ *          Workspace required by some generators.
+ *
+ * @param[in] seed
+ *          The seed used in the random generation.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_cpltmg_genvect
+ * @sa dplasma_dpltmg_genvect
+ * @sa dplasma_spltmg_genvect
+ *
+ ******************************************************************************/
 static inline int
 dplasma_zpltmg_generic( dague_context_t *dague,
                         PLASMA_enum mtxtype,
@@ -102,36 +142,71 @@ dplasma_zpltmg_generic( dague_context_t *dague,
 /**
  *******************************************************************************
  *
- *  Generic wrapper for cases using Vector+Tile
+ * @ingroup dplasma_internal
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zpltmg_genvect - Generic wrapper for cases that are using two
+ * datatypes: the default one, and one describing a vector.
  *
  *******************************************************************************
- */
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] mtxtype
+ *          Type of matrix to be generated.
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A to generate. Any tiled matrix
+ *          descriptor can be used.
+ *
+ * @param[in] seed
+ *          The seed used in the random generation.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_cpltmg_genvect
+ * @sa dplasma_dpltmg_genvect
+ * @sa dplasma_spltmg_genvect
+ *
+ ******************************************************************************/
 static inline int
 dplasma_zpltmg_genvect( dague_context_t *dague,
-                        PLASMA_enum mtxtype, size_t vectorsize,
+                        PLASMA_enum mtxtype,
                         tiled_matrix_desc_t *A,
                         unsigned long long int seed )
 {
+    size_t vectorsize = 0;
     dague_object_t* object;
 
     switch( mtxtype ) {
     case PlasmaMatrixChebvand:
         object = (dague_object_t*)dague_zpltmg_chebvand_new( (dague_ddesc_t*)A );
+        vectorsize = 2 * A->nb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixFiedler:
         object = (dague_object_t*)dague_zpltmg_fiedler_new( seed,
                                                             (dague_ddesc_t*)A );
+        vectorsize = A->mb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixHankel:
         object = (dague_object_t*)dague_zpltmg_hankel_new( seed,
                                                            (dague_ddesc_t*)A );
+        vectorsize = A->mb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixToeppd:
         object = (dague_object_t*)dague_zpltmg_toeppd_new( seed,
                                                            (dague_ddesc_t*)A );
+        vectorsize = 2 * A->mb * sizeof(dague_complex64_t);
         break;
 
     default:
@@ -168,10 +243,36 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
 /**
  *******************************************************************************
  *
- *  Circulant case
+ * @ingroup dplasma_internal
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zpltmg_circul - Generates a Circulant test matrix by tiles.
  *
  *******************************************************************************
- */
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A to generate. Any tiled matrix
+ *          descriptor can be used.
+ *
+ * @param[in] seed
+ *          The seed used in the random generation.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_cpltmg_circul
+ * @sa dplasma_dpltmg_circul
+ * @sa dplasma_spltmg_circul
+ *
+ ******************************************************************************/
 static inline int
 dplasma_zpltmg_circul( dague_context_t *dague,
                        tiled_matrix_desc_t *A,
@@ -189,10 +290,36 @@ dplasma_zpltmg_circul( dague_context_t *dague,
 /**
  *******************************************************************************
  *
- *  Condex case
+ * @ingroup dplasma_internal
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zpltmg_condex - Generates a Condex test matrix by tiles.
  *
  *******************************************************************************
- */
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A to generate. Any tiled matrix
+ *          descriptor can be used.
+ *
+ * @param[in] seed
+ *          The seed used in the random generation.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_cpltmg_condex
+ * @sa dplasma_dpltmg_condex
+ * @sa dplasma_spltmg_condex
+ *
+ ******************************************************************************/
 static inline int
 dplasma_zpltmg_condex( dague_context_t *dague,
                        tiled_matrix_desc_t *A )
@@ -255,10 +382,36 @@ dplasma_zpltmg_condex( dague_context_t *dague,
 /**
  *******************************************************************************
  *
- *  Householder case
+ * @ingroup dplasma_internal
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zpltmg_house - Generates a Householder test matrix by tiles.
  *
  *******************************************************************************
- */
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A to generate. Any tiled matrix
+ *          descriptor can be used.
+ *
+ * @param[in] seed
+ *          The seed used in the random generation.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_cpltmg_house
+ * @sa dplasma_dpltmg_house
+ * @sa dplasma_spltmg_house
+ *
+ ******************************************************************************/
 static inline int
 dplasma_zpltmg_house( dague_context_t *dague,
                       tiled_matrix_desc_t *A,
@@ -325,7 +478,7 @@ dplasma_zpltmg_house( dague_context_t *dague,
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to generate. Any tiled matrix
  *          descriptor can be used.
- *          On exit, the symmetric matrix A generated.
+ *          On exit, the matrix A generated.
  *
  * @param[in] seed
  *          The seed used in the random generation.
@@ -359,7 +512,6 @@ dplasma_zpltmg( dague_context_t *dague,
 
     case PlasmaMatrixChebvand:
         return dplasma_zpltmg_genvect(dague, mtxtype,
-                                      2 * A->nb * sizeof(dague_complex64_t),
                                       A, seed);
         break;
 
@@ -369,13 +521,11 @@ dplasma_zpltmg( dague_context_t *dague,
 
     case PlasmaMatrixFiedler:
         return dplasma_zpltmg_genvect(dague, mtxtype,
-                                      A->mb * sizeof(dague_complex64_t),
                                       A, seed);
         break;
 
     case PlasmaMatrixHankel:
         return dplasma_zpltmg_genvect(dague, mtxtype,
-                                      A->mb * sizeof(dague_complex64_t),
                                       A, seed);
         break;
 
@@ -385,7 +535,6 @@ dplasma_zpltmg( dague_context_t *dague,
 
     case PlasmaMatrixToeppd:
         return dplasma_zpltmg_genvect(dague, mtxtype,
-                                      2 * A->mb * sizeof(dague_complex64_t),
                                       A, seed);
         break;
 
