@@ -165,7 +165,7 @@ int main(int argc, char ** argv)
             type = type_tab[type_i];
 
             /* If random matrix, we test nbtests of them */
-            if ( type == MATRIX_RANDOM )
+            if ( type == PlasmaMatrixRandom )
                 nbtests = 5;
             else
                 nbtests = 1;

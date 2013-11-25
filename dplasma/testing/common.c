@@ -237,7 +237,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 
     /* Default seed */
     iparam[IPARAM_RANDOM_SEED] = 3872;
-    iparam[IPARAM_MATRIX_INIT] = MATRIX_RANDOM;
+    iparam[IPARAM_MATRIX_INIT] = PlasmaMatrixRandom;
 
     do {
 #if defined(HAVE_GETOPT_LONG)
