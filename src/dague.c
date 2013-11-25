@@ -1166,7 +1166,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
         if( FLOW_ACCESS_NONE != (src_flow->flow_flags & FLOW_ACCESS_MASK) ) {
-            arg->output_entry->data[dep->dep_index] = oldcontext->data[dep->dep_index].data;
+            arg->output_entry->data[src_flow->flow_index] = oldcontext->data[src_flow->flow_index].data;
             arg->output_usage++;
             /* BEWARE: This increment is required to be done here. As the target task
              * bits are marked, another thread can now enable the task. Once schedulable
@@ -1174,7 +1174,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
              * Thus, if the ref count is not increased here, the data might dissapear
              * before it become useless.
              */
-            AREF( arg->output_entry->data[dep->dep_index] );
+            AREF( arg->output_entry->data[src_flow->flow_index] );
         }
         arg->nb_released += dague_release_local_OUT_dependencies(eu, oldcontext, src_flow,
                                                                  newcontext, dep->flow,
