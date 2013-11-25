@@ -83,6 +83,9 @@ dplasma_zplghe_operator( struct dague_execution_unit *eu,
  *          descriptor can be used.
  *          On exit, the hermitian matrix A generated.
  *
+ * @param[in] seed
+ *          The seed used in the random generation.
+ *
  *******************************************************************************
  *
  * @return
@@ -143,7 +146,7 @@ dplasma_zplghe_Destruct( dague_object_t *o )
  *
  * @ingroup dplasma_complex64_t
  *
- * dplasma_zplghe_New - Generates a random hermitian matrix by tiles.
+ * dplasma_zplghe - Generates a random hermitian matrix by tiles.
  *
  * See dplasma_map() for further information.
  *
@@ -166,6 +169,9 @@ dplasma_zplghe_Destruct( dague_object_t *o )
  *          Descriptor of the distributed matrix A to generate. Any tiled matrix
  *          descriptor can be used.
  *          On exit, the hermitian matrix A generated.
+ *
+ * @param[in] seed
+ *          The seed used in the random generation.
  *
  *******************************************************************************
  *

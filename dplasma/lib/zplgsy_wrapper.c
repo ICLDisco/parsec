@@ -83,6 +83,9 @@ dplasma_zplgsy_operator( struct dague_execution_unit *eu,
  *          descriptor can be used.
  *          On exit, the symmetric matrix A generated.
  *
+ * @param[in] seed
+ *          The seed used in the random generation.
+ *
  *******************************************************************************
  *
  * @return
@@ -96,7 +99,9 @@ dplasma_zplgsy_operator( struct dague_execution_unit *eu,
  * @sa dplasma_zplgsy
  * @sa dplasma_zplgsy_Destruct
  * @sa dplasma_cplgsy_New
- *
+ * @sa dplasma_dplgsy_New
+ * @sa dplasma_splgsy_New
+*
  ******************************************************************************/
 dague_object_t*
 dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo,
@@ -143,7 +148,7 @@ dplasma_zplgsy_Destruct( dague_object_t *o )
  *
  * @ingroup dplasma_complex64_t
  *
- * dplasma_zplgsy_New - Generates a random symmetric matrix by tiles.
+ * dplasma_zplgsy - Generates a random symmetric matrix by tiles.
  *
  * See dplasma_map() for further information.
  *
@@ -167,6 +172,9 @@ dplasma_zplgsy_Destruct( dague_object_t *o )
  *          descriptor can be used.
  *          On exit, the symmetric matrix A generated.
  *
+ * @param[in] seed
+ *          The seed used in the random generation.
+ *
  *******************************************************************************
  *
  * @return
@@ -178,6 +186,8 @@ dplasma_zplgsy_Destruct( dague_object_t *o )
  * @sa dplasma_zplgsy_New
  * @sa dplasma_zplgsy_Destruct
  * @sa dplasma_cplgsy
+ * @sa dplasma_dplgsy
+ * @sa dplasma_splgsy
  *
  ******************************************************************************/
 int
