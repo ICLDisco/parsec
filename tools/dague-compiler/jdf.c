@@ -889,12 +889,12 @@ int jdf_compare_datatype(const jdf_datatransfer_type_t* src,
             SAVE_AND_UPDATE_INDEX((DEP), global_in_index, *dep_in_index, UPDATE); \
         }                                                               \
     } while(0)
-#define UPDATE_INDEX(DEP)               \
+#define UPDATE_INDEX(DEP)                                               \
     do {                                                                \
         if( (DEP)->dep_flags & JDF_DEP_FLOW_OUT ) {                     \
             (*dep_out_index)++;                                         \
         } else {                                                        \
-            (*dep_in_index)++;                                         \
+            (*dep_in_index)++;                                          \
         }                                                               \
     } while(0)
 
@@ -908,13 +908,13 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
                                          uint32_t* dep_in_index,
                                          uint32_t* dep_out_index)
 {
-    uint32_t i, j, dep_count;
+    uint32_t i, j, dep_count, saved_out_index;
     uint32_t global_in_index, global_out_index;
     jdf_dep_t *dep, *sdep, **dep_array = NULL;
     jdf_datatransfer_type_t *ddt, *sddt;
 
     global_in_index  = *dep_in_index;
-    global_out_index = *dep_out_index;
+    global_out_index = saved_out_index = *dep_out_index;
     /**
      * Step 1: Transform the list of dependencies into an array, to facilitate
      *         the massaging.
@@ -928,6 +928,7 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
             dep = flow->deps;
             MARK_FLOW_DEP_AND_UPDATE_INDEX(flow, dep, 1);
         }
+        if( saved_out_index == (*dep_out_index) ) (*dep_out_index)++;
         return;  /* nothing to reorder */
     }
     dep_array = (jdf_dep_t**)malloc(dep_count * sizeof(jdf_dep_t*));
@@ -957,6 +958,7 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
         UPDATE_INDEX(dep);
     }
     free(dep_array);
+    if( saved_out_index == (*dep_out_index) ) (*dep_out_index)++;
 }
 
 /**
@@ -984,7 +986,7 @@ int jdf_flatten_function(jdf_function_entry_t* function)
             return -1;
         }
 
-#if 1
+#if 0
         {
             string_arena_t* sa = string_arena_new(64);
             expr_info_t linfo;
@@ -1001,8 +1003,8 @@ int jdf_flatten_function(jdf_function_entry_t* function)
                        flow->varname, flow->flow_index, flow->flow_dep_mask,
                        (JDF_DEP_FLOW_OUT & dep->dep_flags ? "->" : "<-"),
                        dep->dep_index, dep->dep_datatype_index,
-                       (dep->dep_index == dep->dep_datatype_index ? dep->guard->calltrue->func_or_mem : ""),
-                       (dep->dep_index == dep->dep_datatype_index ? string_arena_get_string(sa) : ""));
+                       dep->guard->calltrue->func_or_mem,
+                       (dep->dep_index == dep->dep_datatype_index ? string_arena_get_string(sa) : " -||- "));
             }
             string_arena_free(sa);
         }

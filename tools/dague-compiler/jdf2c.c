@@ -860,27 +860,23 @@ static int jdf_dataflow_type(const jdf_dataflow_t *flow)
     return type;
 }
 
-static int jdf_data_output_index(const jdf_t *jdf, const char *fname, const char *varname)
+static const jdf_dataflow_t*
+jdf_data_output_index(const jdf_t *jdf, const char *fname, const char *varname)
 {
-    int i;
     jdf_function_entry_t *f;
     jdf_dataflow_t *fl;
 
-    i = 0;
     for(f = jdf->functions; f != NULL; f = f->next) {
-        if( !strcmp(f->fname, fname) ) {
-            for( fl = f->dataflow; fl != NULL; fl = fl->next) {
-                if( jdf_dataflow_type(fl) & JDF_DEP_FLOW_OUT ) {
-                    if( !strcmp(fl->varname, varname) ) {
-                        return i;
-                    }
-                    i++;
+        if( strcmp(f->fname, fname) ) continue;
+        for( fl = f->dataflow; fl != NULL; fl = fl->next) {
+            if( jdf_dataflow_type(fl) & JDF_DEP_FLOW_OUT ) {
+                if( !strcmp(fl->varname, varname) ) {
+                    return fl;
                 }
             }
-            return -1;
         }
     }
-    return -2;
+    return NULL;
 }
 
 static int jdf_data_input_index(const jdf_t *jdf, const char *fname, const char *varname)
@@ -891,17 +887,16 @@ static int jdf_data_input_index(const jdf_t *jdf, const char *fname, const char 
 
     i = 0;
     for(f = jdf->functions; f != NULL; f = f->next) {
-        if( !strcmp(f->fname, fname) ) {
-            for( fl = f->dataflow; fl != NULL; fl = fl->next) {
-                if( jdf_dataflow_type(fl) & JDF_DEP_FLOW_IN ) {
-                    if( !strcmp(fl->varname, varname) ) {
-                        return i;
-                    }
-                    i++;
+        if( strcmp(f->fname, fname) ) continue;
+        for( fl = f->dataflow; fl != NULL; fl = fl->next) {
+            if( jdf_dataflow_type(fl) & JDF_DEP_FLOW_IN ) {
+                if( !strcmp(fl->varname, varname) ) {
+                    return i;
                 }
+                i++;
             }
-            return -1;
         }
+        return -1;
     }
     return -2;
 }
@@ -1554,6 +1549,9 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
                                 "  .function_id = %d, /* %s_%s */\n",
                                 -1, jdf_basename, call->func_or_mem);
     }
+    string_arena_add_string(sa,
+                            "  .dep_index = %d,\n",
+                            dep->dep_datatype_index);
     /**
      * Beware: There is a single datatype per dep_t, and several deps can reuse the same datatype
      *         as indicated by the dep_datatype_index field. Make sure we only create the datatype
@@ -3085,13 +3083,14 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   return string_arena_get_string(sa);
 }
 
-static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
-                                                  int lineno, const char *fname, const jdf_dataflow_t *f,
-                                                  const char *spaces)
+static void
+jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
+                                      int lineno, const char *fname, const jdf_dataflow_t *f,
+                                      const char *spaces)
 {
     string_arena_t *sa, *sa2;
     expr_info_t info;
-    int dataindex;
+    const jdf_dataflow_t* tflow;
 
     sa = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -3101,32 +3100,23 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
     info.assignments = "assignments";
 
     if( call->var != NULL ) {
-        dataindex = jdf_data_output_index(jdf, call->func_or_mem, call->var);
-        if( dataindex < 0 ) {
-            if( dataindex == -1 ) {
-                jdf_fatal(lineno,
-                          "During code generation: unable to find an output flow for variable %s in function %s,\n"
-                          "which is requested by function %s to satisfy Input dependency at line %d\n",
-                          call->var, call->func_or_mem,
-                          fname, lineno);
-                exit(1);
-            } else {
-                jdf_fatal(lineno,
-                          "During code generation: unable to find function %s,\n"
-                          "which is requested by function %s to satisfy Input dependency at line %d\n",
-                          call->func_or_mem,
-                          fname, lineno);
-                exit(1);
-            }
+        tflow = jdf_data_output_index(jdf, call->func_or_mem, call->var);
+        if( NULL == tflow ) {
+            jdf_fatal(lineno,
+                      "During code generation: unable to find an output flow for variable %s in function %s,\n"
+                      "which is requested by function %s to satisfy Input dependency at line %d\n",
+                      call->var, call->func_or_mem,
+                      fname, lineno);
+            exit(1);
         }
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "tass", call));
         coutput("%s  ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass);\n",
                 spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
 
         coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, tass ));\n"
-                "%s    chunk = entry->data[%d];\n",
+                "%s    chunk = entry->data[%d];  /* %s:%s <- %s:%s */\n",
                 spaces, call->func_or_mem, call->func_or_mem,
-                spaces, dataindex);
+                spaces, tflow->flow_index, f->varname, fname, call->var, call->func_or_mem);
     } else {
         coutput("%s    chunk = (dague_arena_chunk_t*) %s(%s);\n",
                 spaces, call->func_or_mem,
