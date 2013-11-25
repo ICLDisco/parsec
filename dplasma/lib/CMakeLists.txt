@@ -86,8 +86,6 @@ jdf_rules(generated_files "${generated_jdf}")
 
 ### Generate the dplasma wrappers for all required precisions
 set(SOURCES
-  # Auxiliary
-  zprint_wrapper.c
   # Lapack Auxiliary
   zgeadd_wrapper.c
   zlacpy_wrapper.c
@@ -101,6 +99,7 @@ set(SOURCES
   zplgsy_wrapper.c
   zplrnt_wrapper.c
   zpltmg_wrapper.c
+  zprint_wrapper.c
   # Level 3 Blas
   zgemm_wrapper.c
   zhemm_wrapper.c

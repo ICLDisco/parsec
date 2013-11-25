@@ -53,7 +53,7 @@
  ******************************************************************************/
 int dplasma_zprint( dague_context_t *dague,
                     PLASMA_enum uplo,
-                    tiled_matrix_desc_t *A)
+                    const tiled_matrix_desc_t *A)
 {
     dague_zprint_object_t* object;
 
