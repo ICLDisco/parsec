@@ -205,11 +205,9 @@ dplasma_ztrmm_Destruct( dague_object_t *o )
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_ztrmm_New - Generates dague object to compute:
+ *  dplasma_ztrmm - Computes:
  *
  *  B = alpha*op( A )*B or B = alpha*B*op( A ).
- *
- *  WARNING: The computations are not done by this call.
  *
  *******************************************************************************
  *

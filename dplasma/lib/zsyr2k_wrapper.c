@@ -37,6 +37,8 @@
  *  matrix and A and B are an n-by-k matrices the first case and k-by-n
  *  matrices in the second case.
  *
+ *  WARNING: The computations are not done by this call.
+ *
  *******************************************************************************
  *
  * @param[in] uplo
@@ -187,7 +189,7 @@ dplasma_zsyr2k_Destruct( dague_object_t *o )
  *
  * @ingroup dplasma_complex64_t
  *
- *  dplasma_zsyr2k_New - Performs one of the symmetric rank 2k operations
+ *  dplasma_zsyr2k - Performs one of the symmetric rank 2k operations
  *
  *    \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f],
  *    or

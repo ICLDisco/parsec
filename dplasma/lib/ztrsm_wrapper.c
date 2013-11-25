@@ -192,9 +192,8 @@ dplasma_ztrsm_Destruct( dague_object_t *o )
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_ztrsm_New - Generates dague object to compute triangular solve
+ *  dplasma_ztrsm - Computes triangular solve
  *     op( A ) * X = B or X * op( A ) = B
- *  WARNING: The computations are not done by this call.
  *
  *******************************************************************************
  *

@@ -33,6 +33,8 @@
  *  matrix and A is an n-by-k matrix in the first case and a k-by-n
  *  matrix in the second case.
  *
+ *  WARNING: The computations are not done by this call.
+ *
  *******************************************************************************
  *
  * @param[in] uplo
