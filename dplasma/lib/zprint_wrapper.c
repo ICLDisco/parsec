@@ -1,19 +1,17 @@
 /*
- * Copyright (c) 2011-2012 The University of Tennessee and The University
+ * Copyright (c) 2011-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
  *
  * @precisions normal z -> c d s
  *
  */
 #include "dague_internal.h"
-#include <core_blas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
-#include "dplasma/lib/dplasmaaux.h"
 
 #include "zprint.h"
-
 
 /**
  *******************************************************************************
