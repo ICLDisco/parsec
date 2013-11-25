@@ -130,7 +130,7 @@ int main(int argc, char ** argv)
                 if(loud > 2) printf("+++ Generate matrices ... ");
 
                 if ( firsttest ) {
-		    dplasma_zplrnt_perso( dague, (tiled_matrix_desc_t *)&ddescA0, type, 3872+(test/2)*53);
+		    dplasma_zpltmg( dague, type, (tiled_matrix_desc_t *)&ddescA0, 3872+(test/2)*53);
                     AnormI = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA0);
                     Anorm1 = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&ddescA0);
                     firsttest = 0;

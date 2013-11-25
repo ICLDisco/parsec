@@ -23,7 +23,7 @@ set(JDF
   zlange_one_cyclic.jdf
   zlansy.jdf
   zlaswp.jdf
-  zpltmg_fiedler.jdf  zpltmg_toeppd.jdf
+  zpltmg_chebvand.jdf zpltmg_fiedler.jdf zpltmg_hankel.jdf zpltmg_toeppd.jdf
   zprint.jdf
   # BLAS Level 3
   zgemm_NN.jdf zgemm_TN.jdf zgemm_NT.jdf zgemm_TT.jdf

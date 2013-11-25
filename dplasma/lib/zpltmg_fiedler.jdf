@@ -33,7 +33,7 @@ m = 0 .. descA.mt-1
             -> R2 PLRNT(0..descA.mt-1, m)  [type = VECTOR]
 BODY
 {
-    CORE_dplrnt( descA.mb, 1, R, descA.mb,
+    CORE_zplrnt( descA.mb, 1, R, descA.mb,
                  descA.m, m * descA.mb + 1, 0, seed );
 }
 END
