@@ -22,9 +22,6 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    iparam[IPARAM_NGPUS] = 0;
-#endif
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
@@ -57,7 +54,10 @@ int main(int argc, char ** argv)
     ret |= dplasma_zprint( dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB );
 
     for(i=0; i<43; i++) {
-        fprintf(stdout, "====== Generate Test Matrix %d ======\n", i);
+        if ( rank == 0 ) {
+            fprintf(stdout, "====== Generate Test Matrix %d ======\n", i);
+            fflush(stdout);
+        }
         info = dplasma_zpltmg( dague, i, (tiled_matrix_desc_t *)&ddescB, 5373 );
         if (info == 0)
             ret |= dplasma_zprint( dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB );

@@ -427,7 +427,7 @@ dplasma_zpltmg_house( dague_context_t *dague,
     dague_complex64_t *Vmat, tau;
 
     vector_two_dim_cyclic_init( &V, matrix_ComplexDouble, PlasmaVectorDiag,
-                                A->super.nodes, A->super.cores, A->super.myrank,
+                                1, A->super.cores, A->super.myrank,
                                 A->mb, A->m, 0, A->m, 1 );
     V.mat = dague_data_allocate((size_t)V.super.nb_local_tiles *
                                 (size_t)V.super.bsiz *
@@ -435,11 +435,9 @@ dplasma_zpltmg_house( dague_context_t *dague,
     dague_ddesc_set_key((dague_ddesc_t*)&V, "V");
     Vmat = (dague_complex64_t*)(V.mat);
 
-    /* Generate random vector */
-    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&V, seed );
-
     /* Initialize Householder vector */
     if (A->super.myrank == 0) {
+        CORE_zplrnt( A->m, 1, Vmat, A->m, A->m, 0, 0, seed );
         LAPACKE_zlarfg_work( A->m, Vmat, Vmat+1, 1, &tau );
         Vmat[0] = 1.;
     }
