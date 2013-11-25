@@ -46,6 +46,7 @@ FCT2(i, k, j)
 : A(i)
 
   READ A <- B FCT1(i, k)
+         -> B FCT3(i, j, k)
 
 BODY
 END
@@ -59,7 +60,7 @@ FCT3(i, k, j)
 : A(i)
 
   READ A <- B FCT1(i, k)
-
+  READ B <- A FCT2(i, j, k)
 BODY
 END
 
