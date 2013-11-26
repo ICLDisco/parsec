@@ -185,11 +185,13 @@ typedef struct jdf_def_list {
 typedef struct jdf_dataflow jdf_dataflow_t;
 typedef struct jdf_dep jdf_dep_t;
 typedef uint32_t jdf_flow_flags_t;
-#define JDF_FLOW_TYPE_CTL   ((jdf_flow_flags_t)(1 << 0))
-#define JDF_FLOW_TYPE_READ  ((jdf_flow_flags_t)(1 << 1))
-#define JDF_FLOW_TYPE_WRITE ((jdf_flow_flags_t)(1 << 2))
-#define JDF_FLOW_HAS_DISPL  ((jdf_flow_flags_t)(1 << 3))
-#define JDF_FLOW_HAS_IN     ((jdf_flow_flags_t)(1 << 4))
+#define JDF_FLOW_TYPE_CTL     ((jdf_flow_flags_t)(1 << 0))
+#define JDF_FLOW_TYPE_READ    ((jdf_flow_flags_t)(1 << 1))
+#define JDF_FLOW_TYPE_WRITE   ((jdf_flow_flags_t)(1 << 2))
+#define JDF_FLOW_HAS_DISPL    ((jdf_flow_flags_t)(1 << 3))
+#define JDF_FLOW_HAS_IN_DEPS  ((jdf_flow_flags_t)(1 << 4))
+#define JDF_FLOW_IS_IN        ((jdf_flow_flags_t)(1 << 5))
+#define JDF_FLOW_IS_OUT       ((jdf_flow_flags_t)(1 << 6))
 
 struct jdf_dataflow {
     struct jdf_object_t       super;

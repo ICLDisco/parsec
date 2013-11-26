@@ -89,10 +89,10 @@ struct dague_flow {
     char               *name;
     uint8_t             sym_type;
     uint8_t             flow_flags;
-    uint8_t             flow_index; /**< The index of the flow in the data structure
-                                         *   attached to the execution_context. */
-    dague_dependency_t  flow_mask;      /**< The entire mask of the flow constructed
-                                         *   using the or of (1 << dep_out index). */
+    uint8_t             flow_index; /**< The input index of the flow. This index is used
+                                     *   while computing the mask. */
+    dague_dependency_t  flow_mask;  /**< The entire mask of the flow constructed
+                                     *   using the or of (1 << dep_out index). */
     const dep_t        *dep_in[MAX_DEP_IN_COUNT];
     const dep_t        *dep_out[MAX_DEP_OUT_COUNT];
 };

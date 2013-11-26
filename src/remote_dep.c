@@ -184,7 +184,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 {
     const dague_function_t* function = exec_context->function;
     int i, me, him, current_mask;
-    int skipped_count = 0;
+    int skipped_count = 0, flow_index;
     unsigned int array_index, count, bit_index;
 
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
@@ -228,7 +228,9 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     count++;
                     remote_deps_count--;
 
-                    DEBUG3((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank));
+                    DEBUG3((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n",
+                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
+                            remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank));
 
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
@@ -246,10 +248,16 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 
                     if(remote_dep_bcast_child(me, him))
                     {
-                        DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
-                        if(FLOW_ACCESS_NONE != (exec_context->function->out[i]->flow_flags & FLOW_ACCESS_MASK))
+                        DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n",
+                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
+                                remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
+                        for( flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++ )
+                            if( exec_context->function->out[flow_index]->flow_mask & (1 << i) )
+                                break;
+                        assert( NULL != exec_context->function->out[flow_index] );
+                        if(FLOW_ACCESS_NONE != (exec_context->function->out[flow_index]->flow_flags & FLOW_ACCESS_MASK))
                         {
-                            AREF(remote_deps->output[i].data.ptr);
+                            AREF(remote_deps->output[flow_index].data.ptr);
                         }
                         if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
                         {

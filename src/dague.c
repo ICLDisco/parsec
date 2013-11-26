@@ -1129,8 +1129,8 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                 arg->deps->msg.which |= (1 << dep->dep_index); /* mark all data that are not RO */
                 dataptr = is_inplace(oldcontext, dep);  /* Can we do it inplace */
             }
-            arg->deps->output[dep->dep_index].data        = *data;
-            arg->deps->output[dep->dep_index].data.ptr    = dataptr; /* if still NULL allocate it */
+            arg->deps->output[dep->dep_index].data     = *data;
+            arg->deps->output[dep->dep_index].data.ptr = dataptr; /* if still NULL allocate it */
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {

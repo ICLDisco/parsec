@@ -885,8 +885,10 @@ int jdf_compare_datatype(const jdf_datatransfer_type_t* src,
         if( (DEP)->dep_flags & JDF_DEP_FLOW_OUT ) {                     \
             SAVE_AND_UPDATE_INDEX((DEP), global_out_index, *dep_out_index, UPDATE); \
             (FLOW)->flow_dep_mask |= (1 << (DEP)->dep_datatype_index);  \
+            (FLOW)->flow_flags |= JDF_FLOW_IS_OUT;                      \
         } else {                                                        \
             SAVE_AND_UPDATE_INDEX((DEP), global_in_index, *dep_in_index, UPDATE); \
+            (FLOW)->flow_flags |= JDF_FLOW_IS_IN;                       \
         }                                                               \
     } while(0)
 #define UPDATE_INDEX(DEP)                                               \
@@ -928,7 +930,6 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
             dep = flow->deps;
             MARK_FLOW_DEP_AND_UPDATE_INDEX(flow, dep, 1);
         }
-        if( saved_out_index == (*dep_out_index) ) (*dep_out_index)++;
         return;  /* nothing to reorder */
     }
     dep_array = (jdf_dep_t**)malloc(dep_count * sizeof(jdf_dep_t*));
@@ -958,25 +959,28 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
         UPDATE_INDEX(dep);
     }
     free(dep_array);
-    if( saved_out_index == (*dep_out_index) ) (*dep_out_index)++;
 }
 
 /**
- * Flatten all the flows of data for the specified function, by creating the indexes
- * and masks used to describe the flow of data and the index of the output dependency
- * in the context of the flow. For a flow multiple output dependencies sharing the
- * same caracteristics will be merged together. Each one of them will have it's own
- * flow, but they will all have the index of the smallest flow sharing the same
- * caracteristics.
+ * Flatten all the flows of data for the specified function, by creating the
+ * indexes and masks used to describe the flow of data and the index of the
+ * output dependencies.  For all flows multiple output dependencies sharing the
+ * same caracteristics will be merged together. Each one of them will have it's
+ * own virtual flow, but they will share the index of the smallest flow with
+ * the same caracteristics, index which correspond to the datatype location.
+ *
+ * In same time order the flows to push all flows with an output at the begining
+ * of the list of flows. This enables the engine to use a single index for
+ * managing the activation mask and the data output location.
  */
 int jdf_flatten_function(jdf_function_entry_t* function)
 {
-    uint32_t flow_index = 0, dep_in_index = 0, dep_out_index = 0;
+    uint32_t flow_index, dep_in_index = 0, dep_out_index = 0;
     jdf_dataflow_t* flow;
 
-    for( flow = function->dataflow; NULL != flow; flow = flow->next, flow_index++ ) {
+    for( flow = function->dataflow; NULL != flow; flow = flow->next) {
 
-        flow->flow_index = flow_index;
+        flow->flow_index  = 0xFF;
         jdf_reorder_dep_list_by_type(flow, &dep_in_index, &dep_out_index);
         if( ((1U << dep_in_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/) ||
             ((1U << dep_in_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/)) {
@@ -985,45 +989,55 @@ int jdf_flatten_function(jdf_function_entry_t* function)
                       function->fname);
             return -1;
         }
+    }
+    /* First name all the OUTPUT flows */
+    for( flow_index = 0, flow = function->dataflow; NULL != flow; flow = flow->next )
+        if( flow->flow_flags & JDF_FLOW_IS_OUT )
+            flow->flow_index = flow_index++;
+    /* And now name all the others (pure INPUT flows) */
+    for( flow = function->dataflow; NULL != flow; flow = flow->next )
+        if( !(flow->flow_flags & JDF_FLOW_IS_OUT) )
+            flow->flow_index = flow_index++;
 
 #if 1
-        {
-            string_arena_t* sa1 = string_arena_new(64);
-            string_arena_t* sa2 = string_arena_new(64);
-            expr_info_t linfo;
-            jdf_dep_t *dep;
+    for( flow = function->dataflow; NULL != flow; flow = flow->next) {
+        string_arena_t* sa1 = string_arena_new(64);
+        string_arena_t* sa2 = string_arena_new(64);
+        expr_info_t linfo;
+        jdf_dep_t *dep;
 
-            linfo.sa = sa1;
-            linfo.prefix = ":";
-            linfo.assignments = "";
-            for(dep = flow->deps; NULL != dep; dep = dep->next) {
-                string_arena_init(sa2);
-                dump_expr((void**)dep->datatype.type, &linfo);
+        linfo.sa = sa1;
+        linfo.prefix = ":";
+        linfo.assignments = "";
+        for(dep = flow->deps; NULL != dep; dep = dep->next) {
+            string_arena_init(sa2);
+            dump_expr((void**)dep->datatype.type, &linfo);
+            if( strlen(string_arena_get_string(sa1)) )
+                string_arena_add_string(sa2, "type = <%s>", string_arena_get_string(sa1));
+            if( dep->datatype.layout != dep->datatype.type ) {
+                dump_expr((void**)dep->datatype.layout, &linfo);
                 if( strlen(string_arena_get_string(sa1)) )
-                    string_arena_add_string(sa2, "type = <%s>", string_arena_get_string(sa1));
-                if( dep->datatype.layout != dep->datatype.type ) {
-                    dump_expr((void**)dep->datatype.layout, &linfo);
-                    if( strlen(string_arena_get_string(sa1)) )
-                        string_arena_add_string(sa2, " layout = <%s>", string_arena_get_string(sa1));
-                }
-                dump_expr((void**)dep->datatype.count, &linfo);
-                if( strlen(string_arena_get_string(sa1)) )
-                    string_arena_add_string(sa2, " count = <%s>", string_arena_get_string(sa1));
-                dump_expr((void**)dep->datatype.displ, &linfo);
-                if( strlen(string_arena_get_string(sa1)) )
-                    string_arena_add_string(sa2, " displ = <%s>", string_arena_get_string(sa1));
-
-                printf("%s: %6s[idx %d, mask 0x%x] %2s %8d %8d <%s %s>\n", function->fname,
-                       flow->varname, flow->flow_index, flow->flow_dep_mask,
-                       (JDF_DEP_FLOW_OUT & dep->dep_flags ? "->" : "<-"),
-                       dep->dep_index, dep->dep_datatype_index,
-                       dep->guard->calltrue->func_or_mem,
-                       (dep->dep_index == dep->dep_datatype_index ? string_arena_get_string(sa2) : " -||- "));
+                    string_arena_add_string(sa2, " layout = <%s>", string_arena_get_string(sa1));
             }
-            string_arena_free(sa1);
-            string_arena_free(sa2);
+            dump_expr((void**)dep->datatype.count, &linfo);
+            if( strlen(string_arena_get_string(sa1)) )
+                string_arena_add_string(sa2, " count = <%s>", string_arena_get_string(sa1));
+            dump_expr((void**)dep->datatype.displ, &linfo);
+            if( strlen(string_arena_get_string(sa1)) )
+                string_arena_add_string(sa2, " displ = <%s>", string_arena_get_string(sa1));
+
+            printf("%s: %6s[%1s%1s idx %d, mask 0x%x] %2s %8d %8d <%s %s>\n", function->fname,
+                   flow->varname, (flow->flow_flags & JDF_FLOW_IS_IN ? "R" : " "),
+                   (flow->flow_flags & JDF_FLOW_IS_OUT ? "W" : " "),
+                   flow->flow_index, flow->flow_dep_mask,
+                   (JDF_DEP_FLOW_OUT & dep->dep_flags ? "->" : "<-"),
+                   dep->dep_index, dep->dep_datatype_index,
+                   dep->guard->calltrue->func_or_mem,
+                   (dep->dep_index == dep->dep_datatype_index ? string_arena_get_string(sa2) : " -||- "));
         }
-#endif
+        string_arena_free(sa1);
+        string_arena_free(sa2);
     }
+#endif
     return 0;
 }

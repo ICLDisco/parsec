@@ -5,8 +5,6 @@
  */
 
 #include "dague_config.h"
-#include "dague.h"
-#include "dague_internal.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -1163,7 +1161,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "  do { \\\n"
             "    char tmp1[128], tmp2[128];\\\n"
             "    DEBUG((\"thread %%d VP %%d release deps of %%s:%%s to %%s:%%s (from node %%d to %%d)\\n\",\\\n"
-            "           (EU)->th_id, (EU)->virtual_process->vp_id,\\\n"
+            "           (NULL != (EU) ? (EU)->th_id : -1), (NULL != (EU) ? (EU)->virtual_process->vp_id : -1),\\\n"
             "           DEPO, dague_snprintf_execution_context(tmp1, 128, (TASKO)),\\\n"
             "           DEPI, dague_snprintf_execution_context(tmp2, 128, (TASKI)), (RSRC), (RDST)));\\\n"
             "  } while(0)\n"
@@ -1760,7 +1758,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
     string_arena_add_string(flow_flags, "%s", ((flow->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
                                                ((flow->flow_flags & JDF_FLOW_TYPE_READ) ? "FLOW_ACCESS_READ" :
                                                 ((flow->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_WRITE" : "FLOW_ACCESS_RW"))));
-    if(flow->flow_flags & FLOW_HAS_IN_DEPS)
+    if(flow->flow_flags & JDF_FLOW_HAS_IN_DEPS)
         string_arena_add_string(flow_flags, "|FLOW_HAS_IN_DEPS");
 
     if(strlen(string_arena_get_string(sa_dep_in)) == 0) {
@@ -1799,8 +1797,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
      * the MASK method must be discarded, and 1 if the MASK method
      * can be used. */
     *has_control_gather |= !indepnorange;
-    return indepnorange && ( ((dague_dependency_t)(1<< flow->flow_index)) == 0 ||
-                             ((dague_dependency_t)(((1 << flow->flow_index) & ~DAGUE_DEPENDENCIES_BITMASK))) == 0 );
+    return indepnorange && (((dague_dependency_t)(((1 << flow->flow_index) & 0x1fffffff /*~DAGUE_DEPENDENCIES_BITMASK*/))) == 0);
 }
 
 /**
@@ -2402,17 +2399,17 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
 
                 if( JDF_FLOW_TYPE_CTL & fl->flow_flags ) {
                     if( JDF_GUARD_BINARY == dl->guard->guard_type )
-                        fl->flow_flags |= FLOW_HAS_IN_DEPS;
+                        fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
                 } else {
                     switch( dl->guard->guard_type ) {
                     case JDF_GUARD_TERNARY:
                         if( NULL == dl->guard->callfalse->var )
-                            fl->flow_flags |= FLOW_HAS_IN_DEPS;
+                            fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
 
                     case JDF_GUARD_UNCONDITIONAL:
                     case JDF_GUARD_BINARY:
                         if( NULL == dl->guard->calltrue->var )
-                            fl->flow_flags |= FLOW_HAS_IN_DEPS;
+                            fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
                     }
                 }
                 if( foundin == 0 ) {
@@ -2423,7 +2420,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
             } else if( dl->dep_flags & JDF_DEP_FLOW_OUT )
                 if( 0 == foundout ) { nb_output++; foundout = 1; }
         }
-        has_in_in_dep |= (fl->flow_flags & FLOW_HAS_IN_DEPS);
+        has_in_in_dep |= (fl->flow_flags & JDF_FLOW_HAS_IN_DEPS);
     }
 
     jdf_coutput_prettycomment('*', "%s", f->fname);
@@ -3708,7 +3705,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
     expr_info_t info;
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa1 = string_arena_new(64);
-    int i, cond_index;
+    int cond_index;
     char* condition[] = {"    if( %s ) {\n", "    else if( %s ) {\n"};
     assignment_info_t ai;
 
@@ -3730,7 +3727,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
     info.sa = sa1;
     info.assignments = "context->locals";
 
-    for( i=0, dl = f->dataflow; dl != NULL; dl = dl->next, i++ ) {
+    for( dl = f->dataflow; dl != NULL; dl = dl->next ) {
         if( dl->flow_flags & JDF_FLOW_TYPE_CTL ) continue;
         cond_index = 0;
 
@@ -3743,7 +3740,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                             if( 0 != cond_index ) coutput("    else {\n");
                             coutput("    data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                     "    (void)AUNREF(context->data[%d].data);\n",
-                                    dep->guard->calltrue->func_or_mem, i, i);
+                                    dep->guard->calltrue->func_or_mem, dl->flow_index, dl->flow_index);
                             if( 0 != cond_index ) coutput("    }\n");
                         }
                         goto next_dependency;
@@ -3754,7 +3751,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                             coutput("      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                     "      (void)AUNREF(context->data[%d].data);\n"
                                     "    }\n",
-                                    dep->guard->calltrue->func_or_mem, i, i);
+                                    dep->guard->calltrue->func_or_mem, dl->flow_index, dl->flow_index);
                             cond_index++;
                         }
                         break;
@@ -3764,19 +3761,19 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                                     dump_expr((void**)dep->guard->guard, &info));
                             coutput("      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                     "      (void)AUNREF(context->data[%d].data);\n",
-                                    dep->guard->calltrue->func_or_mem, i, i);
+                                    dep->guard->calltrue->func_or_mem, dl->flow_index, dl->flow_index);
                             if( NULL != dep->guard->callfalse->var ) {
                                 coutput("    } else {\n"
                                         "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                         "      (void)AUNREF(context->data[%d].data);\n",
-                                        dep->guard->callfalse->func_or_mem, i, i);
+                                        dep->guard->callfalse->func_or_mem, dl->flow_index, dl->flow_index);
                             }
                         } else if( NULL != dep->guard->callfalse->var ) {
                             coutput("    if( !(%s) ) {\n"
                                     "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                     "      (void)AUNREF(context->data[%d].data);\n",
                                     dump_expr((void**)dep->guard->guard, &info),
-                                    dep->guard->callfalse->func_or_mem, i, i);
+                                    dep->guard->callfalse->func_or_mem, dl->flow_index, dl->flow_index);
                         }
                         coutput("    }\n");
                         goto next_dependency;
@@ -3791,7 +3788,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                 case JDF_GUARD_UNCONDITIONAL:
                     if( NULL != dep->guard->calltrue->var ) {
                         if( 0 != cond_index ) coutput("    else {\n");
-                        coutput("    (void)AUNREF(context->data[%d].data);\n", i);
+                        coutput("    (void)AUNREF(context->data[%d].data);\n", dl->flow_index);
                         if( 0 != cond_index ) coutput("    }\n");
                     }
                     goto next_dependency;
@@ -3800,7 +3797,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                         coutput((0 == cond_index ? condition[0] : condition[1]),
                                 dump_expr((void**)dep->guard->guard, &info));
                         coutput("      (void)AUNREF(context->data[%d].data);\n"
-                                "    }\n", i);
+                                "    }\n", dl->flow_index);
                         cond_index++;
                     }
                     break;
@@ -3808,15 +3805,15 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                     if( NULL != dep->guard->calltrue->var ) {
                         coutput((0 == cond_index ? condition[0] : condition[1]),
                                 dump_expr((void**)dep->guard->guard, &info));
-                        coutput("      (void)AUNREF(context->data[%d].data);\n", i);
+                        coutput("      (void)AUNREF(context->data[%d].data);\n", dl->flow_index);
                         if( NULL != dep->guard->callfalse->var ) {
                             coutput("    } else {\n"
-                                    "      (void)AUNREF(context->data[%d].data);\n", i);
+                                    "      (void)AUNREF(context->data[%d].data);\n", dl->flow_index);
                         }
                     } else if( NULL != dep->guard->callfalse->var ) {
                         coutput("    if( !(%s) ) {\n"
                                 "      (void)AUNREF(context->data[%d].data);\n",
-                                dump_expr((void**)dep->guard->guard, &info), i);
+                                dump_expr((void**)dep->guard->guard, &info), dl->flow_index);
                     }
                     coutput("    }\n");
                     goto next_dependency;
@@ -4070,7 +4067,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                            dump_expr, (void*)&linfo,
                                            "", "", ", ", ""));
     string_arena_add_string(sa_open,
-                            "%s%s  if( rank_dst == eu->virtual_process->dague_context->my_rank )\n"
+                            "%s%s  if( (NULL != eu) && (rank_dst == eu->virtual_process->dague_context->my_rank) )\n"
                             "#endif /* DISTRIBUTED */\n"
                             "%s%s    vpid_dst = ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n",
                             prefix, indent(nbopen),
