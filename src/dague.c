@@ -427,7 +427,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     nb_vp = vpmap_get_nb_vp();
 
     context = (dague_context_t*)malloc(sizeof(dague_context_t) + (nb_vp-1) * sizeof(dague_vp_t*));
-
+    memset( context, 0, (sizeof(dague_context_t) + (nb_vp-1) * sizeof(dague_vp_t*)) );
+    
     context->__dague_internal_finalization_in_progress = 0;
     context->__dague_internal_finalization_counter = 0;
     context->nb_nodes       = 1;

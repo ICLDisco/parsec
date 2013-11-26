@@ -107,6 +107,22 @@ dplasma_zlascal_operator( struct dague_execution_unit *eu,
  *          descriptor can be used.
  *          On exit, the matrix A is scaled by alpha.
  *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_zlascal_Destruct();
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zlascal
+ * @sa dplasma_zlascal_Destruct
+ * @sa dplasma_clascal_New
+ * @sa dplasma_dlascal_New
+ * @sa dplasma_slascal_New
+ *
  ******************************************************************************/
 dague_object_t*
 dplasma_zlascal_New( PLASMA_enum uplo,

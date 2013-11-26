@@ -19,8 +19,7 @@ set(EXTRA_SOURCES
 ### Generate .c files from .jdf for all required precisions
 set(JDF
   # Auxiliary
-  zlange_frb_cyclic.jdf
-  zlange_one_cyclic.jdf
+  zlange_frb_cyclic.jdf zlange_one_cyclic.jdf
   zlansy.jdf
   zlaswp.jdf
   zpltmg_chebvand.jdf zpltmg_fiedler.jdf zpltmg_hankel.jdf zpltmg_toeppd.jdf
