@@ -20,7 +20,7 @@ int main(int argc, char ** argv)
     double normdag = 0.0;
     double eps = LAPACKE_dlamch_work('e');
     int iparam[IPARAM_SIZEOF];
-    int i, u, ret = 0;
+    int An, i, u, ret = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -32,13 +32,14 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     check = 1;
+    An = dplasma_imax(M, N);
     LDA = max( LDA, M );
 
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
-                               1, cores, rank, MB, NB, LDA, N, 0, 0,
-                               M, N, SMB, SNB, 1));
+                               1, cores, rank, MB, NB, LDA, An, 0, 0,
+                               M, An, SMB, SNB, 1));
 
     if( rank == 0 ) {
         work = (double *)malloc( max(M,N) * sizeof(double));
@@ -114,6 +115,9 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     }
 
+    /* Let set N=M for the triangular cases */
+    N = M;
+
     /*
      * Symmetric cases LANSY
      */
@@ -142,7 +146,7 @@ int main(int argc, char ** argv)
                                          (tiled_matrix_desc_t *)&ddescA);
 
                 if ( rank == 0 ) {
-                    normlap = LAPACKE_zlansy_work(LAPACK_COL_MAJOR, normsstr[i][0], uplostr[u][0], M,
+                    normlap = LAPACKE_zlanhe_work(LAPACK_COL_MAJOR, normsstr[i][0], uplostr[u][0], M,
                                                   (dague_complex64_t*)(ddescA0.mat), ddescA0.super.lm, work);
                 }
                 if(loud > 2) printf("Done.\n");
