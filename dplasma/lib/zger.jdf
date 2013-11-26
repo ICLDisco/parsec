@@ -38,7 +38,9 @@ m = 0 .. descX.mt-1
 READ X <- dataX(m)                  [type = VECTOR]
        -> X GER(m, 0..descA.nt-1)   [type = VECTOR]
 BODY
-     printlog("X(%d)\n", m );
+{
+    printlog("X(%d)\n", m );
+}
 END
 
 /**************************************************
@@ -53,7 +55,9 @@ m = 0 .. descY.mt-1
 READ Y <- dataY(m)                  [type = VECTOR]
        -> Y GER(0..descA.mt-1, m)   [type = VECTOR]
 BODY
-     printlog("read Y(%d)\n", m );
+{
+    printlog("read Y(%d)\n", m );
+}
 END
 
 /**************************************************
@@ -96,7 +100,3 @@ BODY
              m, n, tempmm, tempnn, alpha, X, 1, Y, 1, A, ldam );
 }
 END
-
-extern "C" %{
-
-%}
