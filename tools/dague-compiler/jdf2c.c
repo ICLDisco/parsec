@@ -1090,7 +1090,8 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#if defined(DAGUE_PROF_GRAPHER)\n"
             "#include \"dague_prof_grapher.h\"\n"
             "#endif  /* defined(DAGUE_PROF_GRAPHER) */\n"
-            "#include <mempool.h>\n",
+            "#include <mempool.h>\n"
+            "#include <alloca.h>\n",
             jdf_basename,
             jdf_basename, nbfunctions,
             jdf_basename, nbdata,
@@ -3837,7 +3838,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  arg.output_usage = 0;\n"
             "  arg.action_mask = action_mask;\n"
             "  arg.deps = deps;\n"
-            "  arg.ready_lists = (eu != NULL) ? calloc(sizeof(dague_execution_context_t *), eu->virtual_process->dague_context->nb_vp) : NULL;\n"
+            "  arg.ready_lists = (eu != NULL) ? alloca(sizeof(dague_execution_context_t *) * eu->virtual_process->dague_context->nb_vp) : NULL;\n"
+            "  for( __vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
             "  (void)__dague_object;\n",
             name, jdf_basename, jdf_basename);
 
@@ -3893,7 +3895,6 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "      }\n"
             "      arg.ready_lists[__vp_id] = NULL;\n"
             "    }\n"
-            "    free(arg.ready_lists);\n"
             "  }\n");
 
     jdf_generate_code_free_hash_table_entry(jdf, f);
