@@ -41,28 +41,32 @@ set(JDF
   #
   # Lapack
   #
-  zgebmm.jdf
-  zgebut.jdf
+  # Cholesky
+  zpotrf_U.jdf zpotrf_L.jdf
+  # LQ/QR
   zgelqf.jdf
   zgeqrf.jdf
   zgeqrf_param.jdf zungqr_param.jdf
-  zgetrf.jdf zhetrf.jdf
+  zungqr.jdf
+  zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
+  zunmqr_param_LC.jdf
+  # LU
   zgetrf_incpiv.jdf
   zgetrf_incpiv_sd.jdf
   zgetrf_nopiv.jdf
   zgetrf_qrf.jdf
-  zhbrdt.jdf
-  zhebut.jdf
-  zherbt_L.jdf
-  zpotrf_Url.jdf zpotrf_Lrl.jdf
-  ztrdsm.jdf
-  ztrmdm.jdf
   ztrsmpl.jdf
   ztrsmpl_qrf.jdf
   ztrsmpl_sd.jdf
-  zungqr.jdf
-  zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
-  zunmqr_param_LC.jdf
+  # Other
+  zgebmm.jdf
+  zgebut.jdf
+  zgetrf.jdf zhetrf.jdf
+  zhbrdt.jdf
+  zhebut.jdf
+  zherbt_L.jdf
+  ztrdsm.jdf
+  ztrmdm.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
@@ -111,7 +115,14 @@ set(SOURCES
   ztrsm_wrapper.c
   # Level 2 Blas
   zger_wrapper.c
+  #
   # Lapack
+  #
+  # Cholesky
+  zposv_wrapper.c
+  zpotrf_wrapper.c
+  zpotrs_wrapper.c
+  #
   zgelqf_wrapper.c
   zgeqrf_param_wrapper.c
   zgeqrf_wrapper.c
@@ -130,9 +141,6 @@ set(SOURCES
   zherbt_wrapper.c
   zhetrf_wrapper.c
   zhetrs_wrapper.c
-  zposv_wrapper.c
-  zpotrf_wrapper.c
-  zpotrs_wrapper.c
   ztrdsm_wrapper.c
   ztrsmpl_qrf_wrapper.c
   ztrsmpl_wrapper.c

@@ -19,26 +19,26 @@ int dplasma_zgeru( dague_context_t *dague, dague_complex64_t alpha,
 
 /* Level 3 Blas */
 int dplasma_zgemm( dague_context_t *dague, int transA, int transB,
-                   dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
-                   dague_complex64_t beta,  tiled_matrix_desc_t* C);
+                   dague_complex64_t alpha, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *B,
+                   dague_complex64_t beta,  tiled_matrix_desc_t *C);
 int dplasma_zhemm( dague_context_t *dague, PLASMA_enum side, PLASMA_enum uplo,
-                   dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
-                   dague_complex64_t beta,  tiled_matrix_desc_t* C);
+                   dague_complex64_t alpha, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *B,
+                   dague_complex64_t beta,  tiled_matrix_desc_t *C);
 int dplasma_zherk( dague_context_t *dague, PLASMA_enum uplo, PLASMA_enum trans,
-                   double alpha, const tiled_matrix_desc_t* A,
-                   double beta,  tiled_matrix_desc_t* C);
+                   double alpha, const tiled_matrix_desc_t *A,
+                   double beta,  tiled_matrix_desc_t *C);
 int dplasma_zher2k( dague_context_t *dague, PLASMA_enum uplo, PLASMA_enum trans,
-                    dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
-                    double beta,  tiled_matrix_desc_t* C);
+                    dague_complex64_t alpha, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *B,
+                    double beta,  tiled_matrix_desc_t *C);
 int dplasma_zsymm( dague_context_t *dague, PLASMA_enum side, PLASMA_enum uplo,
-                   dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
-                   dague_complex64_t beta,  tiled_matrix_desc_t* C);
+                   dague_complex64_t alpha, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *B,
+                   dague_complex64_t beta,  tiled_matrix_desc_t *C);
 int dplasma_zsyrk( dague_context_t *dague, PLASMA_enum uplo, PLASMA_enum trans,
-                   dague_complex64_t alpha, const tiled_matrix_desc_t* A,
-                   dague_complex64_t beta,  tiled_matrix_desc_t* C);
+                   dague_complex64_t alpha, const tiled_matrix_desc_t *A,
+                   dague_complex64_t beta,  tiled_matrix_desc_t *C);
 int dplasma_zsyr2k( dague_context_t *dague, PLASMA_enum uplo, PLASMA_enum trans,
-                    dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
-                    dague_complex64_t beta,  tiled_matrix_desc_t* C);
+                    dague_complex64_t alpha, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *B,
+                    dague_complex64_t beta,  tiled_matrix_desc_t *C);
 int dplasma_ztrmm( dague_context_t *dague, PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
                    dague_complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 int dplasma_ztrsm( dague_context_t *dague, PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
@@ -57,17 +57,17 @@ int    dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_mat
 int    dplasma_zgeqrf_param( dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
 int    dplasma_zgeqrs( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *B );
 int    dplasma_zgeqrs_param( dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *B );
-int    dplasma_zgesv ( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
-int    dplasma_zgesv_incpiv ( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
-int    dplasma_zgetrf( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *IPIV );
-int    dplasma_zgetrf_incpiv( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV );
-int    dplasma_zgetrf_nopiv(  dague_context_t *dague, tiled_matrix_desc_t* A );
-int    dplasma_zgetrs( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t* A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
-int    dplasma_zgetrs_incpiv( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
+int    dplasma_zgesv ( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
+int    dplasma_zgesv_incpiv ( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
+int    dplasma_zgetrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV );
+int    dplasma_zgetrf_incpiv( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV );
+int    dplasma_zgetrf_nopiv(  dague_context_t *dague, tiled_matrix_desc_t *A );
+int    dplasma_zgetrs( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
+int    dplasma_zgetrs_incpiv( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
 int    dplasma_zhetrs( dague_context_t *dague, int uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, dague_complex64_t *U_but_vec, int level);
-int    dplasma_zposv ( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* B);
-int    dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A);
-int    dplasma_zpotrs( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* B);
+int    dplasma_zposv ( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
+int    dplasma_zpotrf( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A);
+int    dplasma_zpotrs( dague_context_t *dague, PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 int    dplasma_zungqr( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *Q);
 int    dplasma_zungqr_param( dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *Q);
 int    dplasma_zunmqr( dague_context_t *dague, PLASMA_enum side, PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *B);
@@ -105,25 +105,25 @@ dague_object_t* dplasma_zgemm_New( PLASMA_enum transa, PLASMA_enum transb,
                                    dague_complex64_t alpha, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *B,
                                    dague_complex64_t beta,  tiled_matrix_desc_t *C);
 dague_object_t* dplasma_zhemm_New( PLASMA_enum side, PLASMA_enum uplo,
-                                   dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
-                                   dague_complex64_t beta,  tiled_matrix_desc_t* C);
+                                   dague_complex64_t alpha, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *B,
+                                   dague_complex64_t beta,  tiled_matrix_desc_t *C);
 dague_object_t* dplasma_zherk_New( PLASMA_enum uplo, PLASMA_enum trans,
-                                   double alpha, const tiled_matrix_desc_t* A,
-                                   double beta,  tiled_matrix_desc_t* C);
+                                   double alpha, const tiled_matrix_desc_t *A,
+                                   double beta,  tiled_matrix_desc_t *C);
 dague_object_t* dplasma_zher2k_New( PLASMA_enum uplo, PLASMA_enum trans,
-                                    dague_complex64_t alpha, const tiled_matrix_desc_t* A,
-                                    const tiled_matrix_desc_t* B,
-                                    double beta,  tiled_matrix_desc_t* C);
+                                    dague_complex64_t alpha, const tiled_matrix_desc_t *A,
+                                    const tiled_matrix_desc_t *B,
+                                    double beta,  tiled_matrix_desc_t *C);
 dague_object_t* dplasma_zsymm_New( PLASMA_enum side, PLASMA_enum uplo,
-                                   dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
-                                   dague_complex64_t beta,  tiled_matrix_desc_t* C);
+                                   dague_complex64_t alpha, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *B,
+                                   dague_complex64_t beta,  tiled_matrix_desc_t *C);
 dague_object_t* dplasma_zsyrk_New( PLASMA_enum uplo, PLASMA_enum trans,
-                                   dague_complex64_t alpha, const tiled_matrix_desc_t* A,
-                                   dague_complex64_t beta,  tiled_matrix_desc_t* C);
+                                   dague_complex64_t alpha, const tiled_matrix_desc_t *A,
+                                   dague_complex64_t beta,  tiled_matrix_desc_t *C);
 dague_object_t* dplasma_zsyr2k_New( PLASMA_enum uplo, PLASMA_enum trans,
-                                    dague_complex64_t alpha, const tiled_matrix_desc_t* A,
-                                    const tiled_matrix_desc_t* B,
-                                    dague_complex64_t beta,  tiled_matrix_desc_t* C);
+                                    dague_complex64_t alpha, const tiled_matrix_desc_t *A,
+                                    const tiled_matrix_desc_t *B,
+                                    dague_complex64_t beta,  tiled_matrix_desc_t *C);
 dague_object_t* dplasma_ztrmm_New( PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
                                    dague_complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 dague_object_t* dplasma_ztrsm_New( PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
@@ -136,25 +136,22 @@ dague_object_t* dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A, const tiled_ma
 dague_object_t* dplasma_ztrsmpl_sd_New(const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *LIPIV, tiled_matrix_desc_t *B);
 
 /* Lapack */
-dague_object_t *dplasma_zherbt_New( PLASMA_enum uplo, int ib, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
+dague_object_t* dplasma_zherbt_New( PLASMA_enum uplo, int ib, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 dague_object_t* dplasma_zgelqf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 dague_object_t* dplasma_zgeqrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 dague_object_t* dplasma_zgeqrf_param_New(dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
-dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int* INFO);
-dague_object_t* dplasma_zgetrf_incpiv_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, int* INFO);
-dague_object_t* dplasma_zgetrf_nopiv_New(tiled_matrix_desc_t *A, int* INFO);
-dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A);
-dague_object_t* dplasma_zpotrf_New( PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
+dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int *INFO);
+dague_object_t* dplasma_zgetrf_incpiv_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, int *INFO);
+dague_object_t* dplasma_zgetrf_nopiv_New(tiled_matrix_desc_t *A, int *INFO);
+dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t *A);
+dague_object_t* dplasma_zpotrf_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, int *INFO);
 dague_object_t* dplasma_zungqr_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *Q);
 dague_object_t* dplasma_zungqr_param_New(dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *Q);
 dague_object_t* dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *B);
 dague_object_t* dplasma_zunmqr_param_New( PLASMA_enum side, PLASMA_enum trans, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *B);
 
 /* Lapack variants */
-dague_object_t* dplasma_zgetrf_incpiv_sd_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *LIPIV, int* INFO);
-dague_object_t* dplasma_zpotrf_ll_New(const PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
-dague_object_t* dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
-dague_object_t* dplasma_zpotrfl_New(const PLASMA_enum looking, PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
+dague_object_t* dplasma_zgetrf_incpiv_sd_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *LIPIV, int *INFO);
 
 /* Auxiliary routines */
 dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, dague_complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
@@ -215,7 +212,7 @@ void dplasma_zgetrf_incpiv_Destruct( dague_object_t *o );
 void dplasma_zgetrf_incpiv_sd_Destruct( dague_object_t *o );
 void dplasma_zgetrf_nopiv_Destruct( dague_object_t *o );
 void dplasma_zherbt_Destruct( dague_object_t *o );
-void dplasma_zhbrdt_Destruct( dague_object_t* o );
+void dplasma_zhbrdt_Destruct( dague_object_t *o );
 void dplasma_zpotrf_Destruct( dague_object_t *o );
 void dplasma_zungqr_Destruct( dague_object_t *o );
 void dplasma_zungqr_param_Destruct( dague_object_t *o );
@@ -246,25 +243,25 @@ void dplasma_ztrmdm_Destruct( dague_object_t *o );
  * (to avoid conflict when default is merge in the branch)
  */
 
-int  dplasma_zgetrf_hincpiv(      dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
-int  dplasma_zgetrf_hpp(          dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
-int  dplasma_zgetrf_hpp2(         dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, tiled_matrix_desc_t *LT2, int* INFO);
-int  dplasma_zgetrf_hpp_multithrd(dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
-int  dplasma_zgetrf_qrf(          dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, int criteria, double alpha, int* lu_tab, int* INFO);
-void dplasma_ztrsmpl_hincpiv(     dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, tiled_matrix_desc_t *B, int* INFO);
-int  dplasma_ztrsmpl_hpp(         dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *LT, int* INFO);
-int  dplasma_ztrsmpl_hpp2(        dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *LT, tiled_matrix_desc_t *LT2, int* INFO);
-int  dplasma_ztrsmpl_qrf(         dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, int* lu_tab);
+int  dplasma_zgetrf_hincpiv(      dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int *INFO);
+int  dplasma_zgetrf_hpp(          dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int *INFO);
+int  dplasma_zgetrf_hpp2(         dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, tiled_matrix_desc_t *LT2, int *INFO);
+int  dplasma_zgetrf_hpp_multithrd(dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int *INFO);
+int  dplasma_zgetrf_qrf(          dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, int criteria, double alpha, int *lu_tab, int *INFO);
+void dplasma_ztrsmpl_hincpiv(     dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, tiled_matrix_desc_t *B, int *INFO);
+int  dplasma_ztrsmpl_hpp(         dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *LT, int *INFO);
+int  dplasma_ztrsmpl_hpp2(        dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *LT, tiled_matrix_desc_t *LT2, int *INFO);
+int  dplasma_ztrsmpl_qrf(         dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, int *lu_tab);
 
-dague_object_t* dplasma_zgetrf_hincpiv_New(      dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
-dague_object_t* dplasma_zgetrf_hpp_New(          dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
-dague_object_t* dplasma_zgetrf_hpp2_New(         dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, tiled_matrix_desc_t *LT2, int* INFO);
-dague_object_t* dplasma_zgetrf_hpp_multithrd_New(dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int* INFO);
-dague_object_t* dplasma_zgetrf_qrf_New(          dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, int criteria, double alpha, int* lu_tab, int* INFO);
-dague_object_t* dplasma_ztrsmpl_hincpiv_New(     dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *LT, int* INFO);
-dague_object_t* dplasma_ztrsmpl_hpp_New(         dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *LT, int* INFO);
-dague_object_t* dplasma_ztrsmpl_hpp2_New(        dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *LT, tiled_matrix_desc_t *LT2, int* INFO);
-dague_object_t* dplasma_ztrsmpl_qrf_New(         dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, int* lu_tab);
+dague_object_t* dplasma_zgetrf_hincpiv_New(      dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int *INFO);
+dague_object_t* dplasma_zgetrf_hpp_New(          dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int *INFO);
+dague_object_t* dplasma_zgetrf_hpp2_New(         dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, tiled_matrix_desc_t *LT2, int *INFO);
+dague_object_t* dplasma_zgetrf_hpp_multithrd_New(dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *LT, int *INFO);
+dague_object_t* dplasma_zgetrf_qrf_New(          dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, int criteria, double alpha, int *lu_tab, int *INFO);
+dague_object_t* dplasma_ztrsmpl_hincpiv_New(     dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *LT, int *INFO);
+dague_object_t* dplasma_ztrsmpl_hpp_New(         dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *LT, int *INFO);
+dague_object_t* dplasma_ztrsmpl_hpp2_New(        dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *LT, tiled_matrix_desc_t *LT2, int *INFO);
+dague_object_t* dplasma_ztrsmpl_qrf_New(         dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, int *lu_tab);
 
 void dplasma_zgetrf_hincpiv_Destruct( dague_object_t *o );
 void dplasma_zgetrf_hpp_Destruct( dague_object_t *o );

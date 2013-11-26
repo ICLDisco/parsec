@@ -1,41 +1,46 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013-2012
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
-
 
 #if defined(HAVE_CUDA)
 #include "gpu_data.h"
 #include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */
+
+/*
+ * Priorities used in this jdf:
+ *      - POTRF(k)    : (MT-k)**3
+ *      - HERK(k,n)   : (MT-n)**3 + 3 * (n - k)
+ *      - TRSM(n,k)   : (MT-n)**3 + 3 * (n - k) * (2 * MT - k - n - 1)
+ *      - GEMM(k,m,n) : (MT-n)**3 + 3 * (n - m) * (2 * MT - m - n - 1) + 6 * (n - k)
+ *
+ * So max priority is:
+ *      (MT - PRI_CHANGE)**3 + 3 * MT * (2 * MT - PRI_CHANGE - 1) + 6 * MT  < (MT**3 + 6 MT**2 + 3 MT)
+ *
+ * WARNING: If mt is greater than 1200, we might get integer overflow.
+ */
+
 %}
 
 /* Globals
  */
-PRI_CHANGE [type = int hidden = on]
 uplo       [type = PLASMA_enum]
 dataA      [type = "dague_ddesc_t *"]
-descA      [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 INFO       [type = "int*"]
+
+descA      [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+PRI_CHANGE [type = "int" hidden = on default = 0 ]
+PRI_MAX    [type = "int" hidden = on default = "(descA.mt * ( 3 + descA.mt * ( 2 + descA.mt )))" ]
 
 /**************************************************
  *                      POTRF                     *
@@ -43,7 +48,7 @@ INFO       [type = "int*"]
 POTRF(k) [high_priority = on]
 
 // Execution space
-k = 0..descA.nt-1
+k = 0 .. descA.nt-1
 
 // Parallel partitioning
 :dataA(k, k)
@@ -53,12 +58,12 @@ RW T <- (k == 0) ? dataA(k, k) : T HERK(k-1, k)
      -> T TRSM(k, k+1..descA.nt-1)
      -> dataA(k, k)
 
-; (k >= (descA.nt - PRI_CHANGE)) ? (descA.nt - k) * (descA.nt - k) * (descA.nt - k) : 1000000000
-//; (k >= (descA.nt - PRI_CHANGE)) ? (descA.nt - k + 7) * (descA.nt - k + 2) * (descA.nt - k) / 6 : 0
+; (k >= (descA.nt - PRI_CHANGE)) ? (descA.nt - k) * (descA.nt - k) * (descA.nt - k) : PRI_MAX
 
 BODY
+{
 #if defined(HAVE_CUDA)
-     moesi_master_update( descA.super.moesi_map, TILED_MATRIX_KEY( &descA, k, k ) );
+    moesi_master_update( descA.super.moesi_map, TILED_MATRIX_KEY( &descA, k, k ) );
 #endif  /* defined(HAVE_CUDA) */
 
     int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
@@ -77,6 +82,7 @@ BODY
              "CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d) return info = %d\n",
              k,
              plasma_const(uplo), tempkn, k, k, T, ldak, iinfo );
+}
 END
 
 
@@ -86,8 +92,8 @@ END
 TRSM(k, n) [high_priority = on]
 
 // Execution space
-k = 0..descA.nt-2
-n = k+1..descA.nt-1
+k = 0   .. descA.nt-2
+n = k+1 .. descA.nt-1
 
 // Parallel partitioning
 : dataA(k, n)
@@ -100,10 +106,10 @@ RW    C <- (k == 0) ? dataA(k, n) : C GEMM(k-1, k, n)
         -> B GEMM(k, k+1..n-1, n )
         -> dataA(k, n)
 
-; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - k - n - 1) * (n - k) : 1000000000
-//;  (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n - k) * ((descA.nt - n - k + 1) / 2 + 2) - 1 + (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 : 0
+; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - k - n - 1) * (n - k) : PRI_MAX
 
 BODY
+{
 #if defined(HAVE_CUDA)
     moesi_master_update( descA.super.moesi_map, TILED_MATRIX_KEY( &descA, k, n ) );
 #endif  /* defined(HAVE_CUDA) */
@@ -126,7 +132,7 @@ BODY
              descA.mb, tempnn,
              1.0, k, k, T, ldak,
                   k, n, C, ldak);
-
+}
 END
 
 
@@ -136,21 +142,21 @@ END
 HERK(k, n) [high_priority = on]
 
 // Execution space
-k = 0..descA.nt-2
-n = k+1..descA.nt-1
+k = 0   .. descA.nt-2
+n = k+1 .. descA.nt-1
 
 // Parallel partitioning
 : dataA(n, n)
 
 //Parameters
 READ  A <- C TRSM(k, n)
-RW    T <- (k == 0)   ? dataA(n, n)    : T HERK(k-1, n)
-        -> (n == k+1) ? T POTRF(n) : T HERK(k+1, n)
+RW    T <- (k == 0)   ? dataA(n, n) : T HERK(k-1, n)
+        -> (n == k+1) ? T POTRF(n)  : T HERK(k+1, n)
 
-; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * (n - k) : 1000000000
-//; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 + descA.nt - n + k + 1 : 0
+; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * (n - k) : PRI_MAX
 
 BODY
+{
 #if defined(HAVE_CUDA)
     moesi_master_update( descA.super.moesi_map, TILED_MATRIX_KEY( &descA, n, n ) );
 #endif  /* defined(HAVE_CUDA) */
@@ -173,6 +179,7 @@ BODY
              tempnn, descA.mb,
              -1.0, k, n, A, ldak,
               1.0, n, n, T, ldan);
+}
 END
 
 /**************************************************
@@ -182,9 +189,9 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = 0..descA.mt-3
-m = k+1..descA.mt-1
-n = m+1..descA.nt-1
+k = 0   .. descA.mt-3
+m = k+1 .. descA.mt-1
+n = m+1 .. descA.nt-1
 
 // Parallel partitioning
 : dataA(m, n)
@@ -195,10 +202,10 @@ READ  B <- C TRSM(k, n)
 RW    C <- (k == 0)   ? dataA(m, n)      : C GEMM(k-1, m, n)
         -> (m == k+1) ? C TRSM(m, n) : C GEMM(k+1, m, n)
 
-; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - n - m - 3) * (n - m) + 6 * (n - k) : 1000000000
-//;  (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n - m) * ((descA.nt - m - k + 1) / 2 + 2) - 1 + (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 + descA.nt - m + k + 1 : 0
+; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - m - n - 3) * (n - m) + 6 * (n - k) : PRI_MAX
 
 BODY
+{
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
@@ -207,7 +214,7 @@ BODY
     if( dague_active_gpu() > 0 ) {
         int rc;
 
-        if( 0 == (rc = gpu_zgemm( context, this_task, 
+        if( 0 == (rc = gpu_zgemm( context, this_task,
                                   ( m == k+1 ),
                                   PlasmaConjTrans, PlasmaNoTrans,
                                   descA.mb, tempnn, descA.mb,
@@ -216,7 +223,7 @@ BODY
                                   (dague_complex64_t) 1.0, m, n, &descA, ldam)) )
             goto FIN;
         if( -1 == rc ) {
-            /* We're done, but the task has been already destroyed */
+            /* The task is pending in the device, and will be subsequently completed */
             return -1;
         }
         if( -2 == rc ) {
@@ -236,6 +243,11 @@ BODY
                                      B /*A(k, n)*/, ldak,
             (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
         );
+
+#if defined(HAVE_CUDA)
+  FIN:
+#endif
+
     printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
              k, m, n,
              plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
@@ -243,8 +255,5 @@ BODY
              -1.0, k, m, A, ldak,
                    k, n, B, ldak,
               1.0, m, n, C, ldam);
-
-#if defined(HAVE_CUDA)
-FIN:
-#endif
+}
 END
