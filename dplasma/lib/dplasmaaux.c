@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2011-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
+ *
+ */
+#include "dague_internal.h"
+#include "dplasma.h"
+#include "dplasma/lib/dplasmatypes.h"
+
+#if defined(HAVE_STRING_H)
+#include <string.h>
+#endif  /* defined(HAVE_STRING_H) */
+
 #include "dplasmaaux.h"
 
 int dplasma_aux_get_priority_limit( char* function, const tiled_matrix_desc_t* ddesc )
