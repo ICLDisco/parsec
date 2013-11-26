@@ -3013,11 +3013,6 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   string_arena_init(sa);
   sa2 = string_arena_new(64);
 
-  for(dl = f->locals; dl != NULL; dl = dl->next) {
-    string_arena_add_string(sa, "%sint %s%s = 0xdeadbeef; (void)%s%s;\n",
-                            indent(spaces), f->fname, dl->name, f->fname, dl->name);
-   }
-
   infodst.sa = sa2;
   infodst.prefix = f->fname;
   infodst.assignments = strdup(name);
@@ -3062,15 +3057,15 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
           /* It is a value. Let's dump it's expression in the destination context */
           string_arena_init(sa2);
           string_arena_add_string(sa,
-                                  "%s%s[%d].value = %s%s = %s;\n",
-                                  indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)dl->expr, &infodst));
+                                  "%s%s[%d].value = %s;\n",
+                                  indent(spaces), name, idx, dump_expr((void**)dl->expr, &infodst));
       } else {
           /* It is a parameter. Let's dump it's expression in the source context */
           assert(el != NULL);
           string_arena_init(sa2);
           string_arena_add_string(sa,
-                                  "%s%s[%d].value = %s%s = %s;\n",
-                                  indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)el, &infosrc));
+                                  "%s%s[%d].value = %s;\n",
+                                  indent(spaces), name, idx, dump_expr((void**)el, &infosrc));
       }
   }
 
@@ -3082,7 +3077,7 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
 
 static void
 jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
-                                      int lineno, const char *fname, const jdf_dataflow_t *f,
+                                      const char *fname, const jdf_dataflow_t *f,
                                       const char *spaces)
 {
     string_arena_t *sa, *sa2;
@@ -3099,11 +3094,11 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
     if( call->var != NULL ) {
         tflow = jdf_data_output_index(jdf, call->func_or_mem, call->var);
         if( NULL == tflow ) {
-            jdf_fatal(lineno,
+            jdf_fatal(JDF_OBJECT_LINENO(f),
                       "During code generation: unable to find an output flow for variable %s in function %s,\n"
                       "which is requested by function %s to satisfy Input dependency at line %d\n",
                       call->var, call->func_or_mem,
-                      fname, lineno);
+                      fname, JDF_OBJECT_LINENO(f));
             exit(1);
         }
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "tass", call));
@@ -3214,23 +3209,23 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             switch( dl->guard->guard_type ) {
             case JDF_GUARD_UNCONDITIONAL:
                 if( 0 != cond_index ) coutput("    else {\n");
-                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow,
+                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, fname, flow,
                                                        (0 != cond_index ? "  " : "") );
                 if( 0 != cond_index ) coutput("    }\n");
                 goto done_with_input;
             case JDF_GUARD_BINARY:
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow, "  " );
+                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, fname, flow, "  " );
                 coutput("    }\n");
                 cond_index++;
                 break;
             case JDF_GUARD_TERNARY:
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, flow, "  " );
+                jdf_generate_code_call_initialization( jdf, dl->guard->calltrue, fname, flow, "  " );
                 coutput("    } else {\n");
-                jdf_generate_code_call_initialization( jdf, dl->guard->callfalse, JDF_OBJECT_LINENO(flow), fname, flow, "  " );
+                jdf_generate_code_call_initialization( jdf, dl->guard->callfalse, fname, flow, "  " );
                 coutput("    }\n");
                 goto done_with_input;
             }
