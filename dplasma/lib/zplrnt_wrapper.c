@@ -65,8 +65,8 @@ dplasma_zplrnt_operator( struct dague_execution_unit *eu,
 #endif
 
         for(i=0; i<dplasma_imin(tempmm, tempnn); i++) {
-            *A += alpha;
-            A += i * (ldam+1);
+            (*A) += alpha;
+            A += (ldam+1);
         }
     }
 
