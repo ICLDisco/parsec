@@ -20,7 +20,7 @@ dataB    [type = "dague_ddesc_t *"]
 operator [type = "tiled_matrix_binary_op_t" ]
 op_args  [type = "void *" ]
 
-descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
+descA        [type="tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
 plasma_upper [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
@@ -55,7 +55,7 @@ MAP_L(m, n)  [profile = off]
 BODY
 {
     DRYRUN(
-        operator( context, op_args, A, B, PlasmaUpperLower, m, n );
+        operator( context, A, B, op_args, PlasmaUpperLower, m, n );
            );
 
     printlog("thread %d VP %d map_l( %d, %d )\n",
@@ -94,7 +94,7 @@ MAP_U(m, n)  [profile = off]
 BODY
 {
     DRYRUN(
-        operator( context, op_args, A, B, PlasmaUpperLower, m, n );
+        operator( context, A, B, op_args, PlasmaUpperLower, m, n );
            );
 
     printlog("thread %d VP %d map_u( %d, %d )\n",
@@ -131,7 +131,7 @@ MAP_DIAG(k) [profile = off]
 BODY
 {
     DRYRUN(
-        operator( context, op_args, A, B, uplo, k, k );
+        operator( context, A, B, op_args, uplo, k, k );
            );
 
     printlog("thread %d VP %d map_diag( %d, %d )\n",
