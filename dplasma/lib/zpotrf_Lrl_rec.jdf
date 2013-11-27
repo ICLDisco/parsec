@@ -106,7 +106,6 @@ BODY
         dague_handle_t *dague_zpotrf;
         cb_data_t      *cbdata_zpotrf;
 
-        printf(" POTRF\n");
         small_descT = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
         local_block_cyclic_init(small_descT,
                                   matrix_ComplexDouble, matrix_Lapack,

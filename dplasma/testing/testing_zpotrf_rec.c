@@ -179,12 +179,9 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
     dplasma_zgeadd( dague, uplo, -1.0, A0,
                     (tiled_matrix_desc_t*)&L2);
 
-    printf("zlanhe\n");
-
     Anorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, A0);
     Rnorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo,
                            (tiled_matrix_desc_t*)&L2);
-     printf("zlanhe end\n");
 
     result = Rnorm / ( Anorm * N * eps ) ;
 
