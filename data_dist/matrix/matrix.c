@@ -130,6 +130,26 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
     int mb, nb;
     tiled_matrix_desc_t *newdesc;
 
+    mb = tdesc->mb;
+    nb = tdesc->nb;
+
+    if ( (i < 0) || ( (i%mb) != 0 ) ) {
+        fprintf(stderr, "Invalid value of i\n");
+        return NULL;
+    }
+    if ( (j < 0) || ( (j%nb) != 0 ) ) {
+        fprintf(stderr, "Invalid value of j\n");
+        return NULL;
+    }
+    if ( (m < 0) || ((m+i) > tdesc->lm) ) {
+        fprintf(stderr, "Invalid value of m\n");
+        return NULL;
+    }
+    if ( (n < 0) || ((n+j) > tdesc->ln) ) {
+        fprintf(stderr, "Invalid value of n\n");
+        return NULL;
+    }
+
     if( tdesc->dtype & two_dim_block_cyclic_type ) {
         newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(two_dim_block_cyclic_t) );
         memcpy( newdesc, tdesc, sizeof(two_dim_block_cyclic_t) );
@@ -142,8 +162,6 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
         return NULL;
     }
 
-    mb = tdesc->mb;
-    nb = tdesc->nb;
     // Submatrix parameters
     newdesc->i = i;
     newdesc->j = j;
