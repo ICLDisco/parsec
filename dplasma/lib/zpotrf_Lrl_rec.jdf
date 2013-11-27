@@ -21,6 +21,7 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
+#include "data_dist/matrix/local_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "dplasma.h"
@@ -101,12 +102,13 @@ BODY
 
 #if defined(RECURSIVE_POTRF)
     if (tempkm > smallnb) {
-        two_dim_block_cyclic_t *small_descT;
+        local_block_cyclic_t *small_descT;
         dague_handle_t *dague_zpotrf;
         cb_data_t      *cbdata_zpotrf;
 
-        small_descT = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
-        two_dim_block_cyclic_init(small_descT,
+        printf(" POTRF\n");
+        small_descT = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
+        local_block_cyclic_init(small_descT,
                                   matrix_ComplexDouble, matrix_Lapack,
                                   1, context->virtual_process->dague_context->my_rank,
                                   smallnb, smallnb, ldak, tempkm,
@@ -186,20 +188,20 @@ BODY
 
 #if defined(RECURSIVE_TRSM)
     if (tempmm > smallnb || descA.nb > smallnb) {
-        two_dim_block_cyclic_t *small_descT, *small_descC;
+        local_block_cyclic_t *small_descT, *small_descC;
         dague_handle_t* dague_ztrsm;
         cb_data_t  *cbdata_ztrsm;
 
-        small_descT = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
-        small_descC = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
+        small_descT = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
+        small_descC = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
 
-        two_dim_block_cyclic_init(small_descT,
+        local_block_cyclic_init(small_descT,
                                   matrix_ComplexDouble, matrix_Lapack,
                                   1, context->virtual_process->dague_context->my_rank,
                                   smallnb, smallnb, ldak, descA.nb,
                                   0, 0, descA.nb, descA.nb, 1, 1, 1);
         small_descT->mat = T;
-        two_dim_block_cyclic_init(small_descC,
+        local_block_cyclic_init(small_descC,
                                   matrix_ComplexDouble, matrix_Lapack,
                                   1, context->virtual_process->dague_context->my_rank,
                                   smallnb, smallnb, ldam, descA.nb,
@@ -281,20 +283,20 @@ BODY
 #if !defined(DAGUE_DRY_RUN)
 #if defined(RECURSIVE_HERK)
     if (tempmm > smallnb || descA.mb > smallnb) {
-        two_dim_block_cyclic_t *small_descT, *small_descA;
+        local_block_cyclic_t *small_descT, *small_descA;
         dague_handle_t* dague_zherk;
         cb_data_t  *cbdata_zherk;
 
-        small_descT = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
-        small_descA = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
+        small_descT = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
+        small_descA = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
 
-        two_dim_block_cyclic_init(small_descT,
+        local_block_cyclic_init(small_descT,
                                   matrix_ComplexDouble, matrix_Lapack,
                                   1, context->virtual_process->dague_context->my_rank,
                                   smallnb, smallnb, ldam, descA.nb,
                                   0, 0, tempmm, tempmm, 1, 1, 1);
         small_descT->mat = T;
-        two_dim_block_cyclic_init(small_descA,
+        local_block_cyclic_init(small_descA,
                                   matrix_ComplexDouble, matrix_Lapack,
                                   1, context->virtual_process->dague_context->my_rank,
                                   smallnb, smallnb, ldam, descA.nb,
