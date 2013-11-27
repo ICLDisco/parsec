@@ -1443,6 +1443,30 @@ int dague_handle_register( dague_handle_t* object )
     return (int)index;
 }
 
+/**< globally synchronize object id's so that next register generates the same
+ * id at all ranks. */
+void dague_handle_sync_ids( void ) {
+    int index;
+    dague_atomic_lock( &object_array_lock );
+    index = (int)object_array_pos;
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+    MPI_Allreduce( MPI_IN_PLACE, &index, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
+#endif
+    if( index >= object_array_size ) {
+        object_array_size *= 2;
+        object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
+#if defined(DAGUE_DEBUG_ENABLE)
+        {
+            unsigned int i;
+            for(i = object_array_pos+1; i < object_array_size; i++)
+                object_array[i] = NOOBJECT;
+        }
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+    }
+    object_array_pos = index;
+    dague_atomic_unlock( &object_array_lock );
+}
+
 /**< Unregister the object with the engine. */
 void dague_handle_unregister( dague_handle_t* object )
 {
