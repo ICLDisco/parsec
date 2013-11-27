@@ -108,7 +108,7 @@ BODY
         small_descT = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
         two_dim_block_cyclic_init(small_descT,
                                   matrix_ComplexDouble, matrix_Lapack,
-                                  context->virtual_process->dague_context->nb_nodes, context->virtual_process->dague_context->my_rank,
+                                  1, context->virtual_process->dague_context->my_rank,
                                   smallnb, smallnb, ldak, tempkm,
                                   0, 0, tempkm, tempkm, 1, 1, 1);
         small_descT->mat = T;
@@ -195,13 +195,13 @@ BODY
 
         two_dim_block_cyclic_init(small_descT,
                                   matrix_ComplexDouble, matrix_Lapack,
-                                  context->virtual_process->dague_context->nb_nodes, context->virtual_process->dague_context->my_rank,
+                                  1, context->virtual_process->dague_context->my_rank,
                                   smallnb, smallnb, ldak, descA.nb,
                                   0, 0, descA.nb, descA.nb, 1, 1, 1);
         small_descT->mat = T;
         two_dim_block_cyclic_init(small_descC,
                                   matrix_ComplexDouble, matrix_Lapack,
-                                  1, 0,
+                                  1, context->virtual_process->dague_context->my_rank,
                                   smallnb, smallnb, ldam, descA.nb,
                                   0, 0, tempmm, descA.nb, 1, 1, 1);
         small_descC->mat = C;
@@ -290,13 +290,13 @@ BODY
 
         two_dim_block_cyclic_init(small_descT,
                                   matrix_ComplexDouble, matrix_Lapack,
-                                  context->virtual_process->dague_context->nb_nodes, context->virtual_process->dague_context->my_rank,
+                                  1, context->virtual_process->dague_context->my_rank,
                                   smallnb, smallnb, ldam, descA.nb,
                                   0, 0, tempmm, tempmm, 1, 1, 1);
         small_descT->mat = T;
         two_dim_block_cyclic_init(small_descA,
                                   matrix_ComplexDouble, matrix_Lapack,
-                                  1, 0,
+                                  1, context->virtual_process->dague_context->my_rank,
                                   smallnb, smallnb, ldam, descA.nb,
                                   0, 0, tempmm, descA.nb, 1, 1, 1);
         small_descA->mat = A;
