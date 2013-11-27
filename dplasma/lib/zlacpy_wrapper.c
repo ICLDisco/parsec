@@ -206,6 +206,11 @@ dplasma_zlacpy( dague_context_t *dague,
         return -2;
     }
 
+    if ( (A->m != B->m) || (A->n != B->n) ) {
+        dplasma_error("dplasma_zlacpy", "illegal matrix A (A and B don't match)");
+        return -3;
+    }
+
     dague_zlacpy = dplasma_zlacpy_New(uplo, A, B);
 
     if ( dague_zlacpy != NULL )

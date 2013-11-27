@@ -295,6 +295,13 @@ dplasma_ztrmm( dague_context_t *dague,
         return -4;
     }
 
+    if ( (A->m != A->n) ||
+         (( side == PlasmaLeft )  && (A->n != B->m)) ||
+         (( side == PlasmaRight ) && (A->n != B->n)) ) {
+        dplasma_error("dplasma_ztrmm_New", "illegal matrix A");
+        return -6;
+    }
+
     dague_ztrmm = dplasma_ztrmm_New(side, uplo, trans, diag, alpha, A, B);
 
     if ( dague_ztrmm != NULL )

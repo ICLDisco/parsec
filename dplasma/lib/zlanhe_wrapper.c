@@ -273,6 +273,10 @@ dplasma_zlanhe( dague_context_t *dague,
         dplasma_error("dplasma_zlanhe", "illegal type of descriptor for A");
         return -4.;
     }
+    if ( A->m != A->n ) {
+        dplasma_error("dplasma_zlanhe", "illegal matrix A (not square)");
+        return -5.;
+    }
 
     dague_zlanhe = dplasma_zlanhe_New(ntype, uplo, A, &result);
 

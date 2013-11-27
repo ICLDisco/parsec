@@ -83,7 +83,7 @@
  *
  ******************************************************************************/
 dague_object_t*
-dplasma_zgemm_New( int transA, int transB,
+dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
                    dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
                    dague_complex64_t beta,  tiled_matrix_desc_t* C)
 {
@@ -241,12 +241,15 @@ dplasma_zgemm_Destruct( dague_object_t *o )
  ******************************************************************************/
 int
 dplasma_zgemm( dague_context_t *dague,
-               const int transA, const int transB,
-               const dague_complex64_t alpha, const tiled_matrix_desc_t *A,
-                                              const tiled_matrix_desc_t *B,
-               const dague_complex64_t beta,        tiled_matrix_desc_t *C)
+               PLASMA_enum transA, PLASMA_enum transB,
+               dague_complex64_t alpha, const tiled_matrix_desc_t *A,
+                                        const tiled_matrix_desc_t *B,
+               dague_complex64_t beta,        tiled_matrix_desc_t *C)
 {
     dague_object_t *dague_zgemm = NULL;
+    int M, N, K;
+    int Am, An, Ai, Aj, Amb, Anb;
+    int Bm, Bn, Bi, Bj, Bmb, Bnb;
 
     /* Check input arguments */
     if ((transA != PlasmaNoTrans) && (transA != PlasmaTrans) && (transA != PlasmaConjTrans)) {
@@ -257,6 +260,60 @@ dplasma_zgemm( dague_context_t *dague,
         dplasma_error("PLASMA_zgemm", "illegal value of transB");
         return -2;
     }
+
+    if ( transA == PlasmaNoTrans ) {
+        Am  = A->m;
+        An  = A->n;
+        Amb = A->mb;
+        Anb = A->nb;
+        Ai  = A->i;
+        Aj  = A->j;
+    } else {
+        Am  = A->n;
+        An  = A->m;
+        Amb = A->nb;
+        Anb = A->mb;
+        Ai  = A->j;
+        Aj  = A->i;
+    }
+
+    if ( transB == PlasmaNoTrans ) {
+        Bm  = B->m;
+        Bn  = B->n;
+        Bmb = B->mb;
+        Bnb = B->nb;
+        Bi  = B->i;
+        Bj  = B->j;
+    } else {
+        Bm  = B->n;
+        Bn  = B->m;
+        Bmb = B->nb;
+        Bnb = B->mb;
+        Bi  = B->j;
+        Bj  = B->i;
+    }
+
+    if ( (Amb != C->mb) || (Anb != Bmb) || (Bnb != C->nb) ) {
+        dplasma_error("PLASMA_zgemm_Tile_Async", "tile sizes have to match");
+        return -101;
+    }
+    if ( (Am != C->m) || (An != Bm) || (Bn != C->n) ) {
+        dplasma_error("PLASMA_zgemm_Tile_Async", "sizes of matrices have to match");
+        return -101;
+    }
+    if ( (Ai != C->i) || (Aj != Bi) || (Bj != C->j) ) {
+        dplasma_error("PLASMA_zgemm_Tile_Async", "start indexes have to match");
+        return -101;
+    }
+
+    M = C->m;
+    N = C->n;
+    K = An;
+
+    /* Quick return */
+    if (M == 0 || N == 0 ||
+        ((alpha == (PLASMA_Complex64_t)0.0 || K == 0) && beta == (PLASMA_Complex64_t)1.0))
+        return 0;
 
     dague_zgemm = dplasma_zgemm_New(transA, transB,
                                     alpha, A, B,
