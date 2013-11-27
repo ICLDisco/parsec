@@ -18,7 +18,7 @@ int dplasma_zgeru( dague_context_t *dague, dague_complex64_t alpha,
                    const tiled_matrix_desc_t *X, const tiled_matrix_desc_t *Y, tiled_matrix_desc_t *A);
 
 /* Level 3 Blas */
-int dplasma_zgemm( dague_context_t *dague, int transA, int transB,
+int dplasma_zgemm( dague_context_t *dague, PLASMA_enum transA, PLASMA_enum transB,
                    dague_complex64_t alpha, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *B,
                    dague_complex64_t beta,  tiled_matrix_desc_t *C);
 int dplasma_zhemm( dague_context_t *dague, PLASMA_enum side, PLASMA_enum uplo,
@@ -170,7 +170,7 @@ dague_object_t* dplasma_zplrnt_New( int diagdom,                              ti
  * Under development
  */
 /* Low-level nonblocking butterfly interface */
-dague_object_t* dplasma_zgebmm_New( tiled_matrix_desc_t *A, dague_complex64_t *U_but_vec, int it, int jt, int level, int trans, int *info);
+dague_object_t* dplasma_zgebmm_New( tiled_matrix_desc_t *A, dague_complex64_t *U_but_vec, int it, int jt, int level, PLASMA_enum trans, int *info);
 dague_object_t* dplasma_zgebut_New( tiled_matrix_desc_t *A, dague_complex64_t *U_but_vec, int it, int jt, int level, int *info);
 dague_object_t* dplasma_zhebut_New( tiled_matrix_desc_t *A, dague_complex64_t *U_but_vec, int it, int jt, int level, int *info);
 
