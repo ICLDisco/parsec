@@ -17,8 +17,6 @@ static int check_solution( dague_context_t *dague, int loud,
                            double beta,             int M,  int N,  int Cseed,
                            sym_two_dim_block_cyclic_t *ddescCfinal );
 
-#define dplasma_zprint(...) do{} while(0)
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
@@ -40,7 +38,7 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     M = N;
-    LDC = max(LDC, N);
+    LDC = dplasma_imax(LDC, N);
 
     if(!check)
     {
@@ -131,13 +129,6 @@ int main(int argc, char ** argv)
                 dplasma_zplghe( dague, 0., uplo[u], (tiled_matrix_desc_t *)&ddescC, Cseed);
                 if (loud > 2) printf("Done\n");
 
-                printf("--- Matrix A ----\n");
-                dplasma_zprint(dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA);
-                printf("--- Matrix B ----\n");
-                dplasma_zprint(dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB);
-                printf("--- Matrix C ----\n");
-                dplasma_zprint(dague, uplo[u], (tiled_matrix_desc_t *)&ddescC);
-
                 /* Compute */
                 if (loud > 2) printf("Compute ... ... ");
                 dplasma_zher2k(dague, uplo[u], trans[t],
@@ -145,9 +136,6 @@ int main(int argc, char ** argv)
                                      (tiled_matrix_desc_t *)&ddescB,
                               beta,  (tiled_matrix_desc_t *)&ddescC);
                 if (loud > 2) printf("Done\n");
-
-                printf("--- Matrix C final ----\n");
-                dplasma_zprint(dague, uplo[u], (tiled_matrix_desc_t *)&ddescC);
 
                 /* Check the solution */
                 info_solution = check_solution(dague, rank == 0 ? loud : 0,
@@ -227,13 +215,6 @@ static int check_solution( dague_context_t *dague, int loud,
     dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, Bseed);
     dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescC, Cseed );
 
-                printf("--- Lapack A ----\n");
-                dplasma_zprint(dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA);
-                printf("--- Lapack B ----\n");
-                dplasma_zprint(dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB);
-                printf("--- Lapack C ----\n");
-                dplasma_zprint(dague, uplo, (tiled_matrix_desc_t *)&ddescC);
-
     Anorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA );
     Bnorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescB );
     Cinitnorm    = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
@@ -247,9 +228,6 @@ static int check_solution( dague_context_t *dague, int loud,
                                          ddescB.mat, LDA,
                      beta,               ddescC.mat, LDC);
     }
-
-                printf("--- Lapack C Final ----\n");
-                dplasma_zprint(dague, uplo, (tiled_matrix_desc_t *)&ddescC);
 
     Clapacknorm = dplasma_zlanhe( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
 
