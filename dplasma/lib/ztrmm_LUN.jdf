@@ -134,7 +134,7 @@ END
 zgemm_in_data_A0(m, k) [profile = off]
   /* Execution Space */
   m = 0     .. (descB.mt-2)
-  k = (m+1) .. (descA.mt-1)
+  k = (m+1) .. (descB.mt-1)
 
   /* Locality */
   : dataA(m,k)
