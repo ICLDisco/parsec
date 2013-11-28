@@ -9,7 +9,12 @@
 
 #include "dague_config.h"
 
-#define dplasma_error(__func, __msg) fprintf(stderr, "%s: %s\n", (__func), (__msg))
+#if defined(DAGUE_DEBUG)
+#define dplasma_error(__func, __msg) do { fprintf(stderr, "%s: %s\n", (__func), (__msg)); *((int*)0) = 42; } while(0)
+#else
+#define dplasma_error(__func, __msg) do { fprintf(stderr, "%s: %s\n", (__func), (__msg)); } while(0)
+#endif /* defined(DAGUE_DEBUG) */
+
 
 #include "data_dist/matrix/matrix.h"
 
