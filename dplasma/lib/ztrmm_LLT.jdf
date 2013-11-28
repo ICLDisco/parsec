@@ -1,10 +1,10 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> s d c
  *
@@ -33,11 +33,11 @@ ztrmm(m, n)
   /* Locality */
   : dataB(m,n)
 
-  CTL   ctl0 <- ctl0 zgemm(0..m-1, n, m)
+  CTL   ctl0 <- ctl0 zgemm(0..(m-1), n, m)
   READ  A    <- A ztrmm_in_data_A0(m)
   RW    B    <- dataB(m,n)
-             -> (((m+1)>=descA.mt)) ? dataB(m,n)
-             -> ((descA.mt>=(2+m))) ? E zgemm(m, n, m+1)
+             -> (m == (descB.mt-1)) ? dataB(m,n)
+             -> (m <  (descB.mt-1)) ? C zgemm(m, n, m+1)
 
 BODY
 {
@@ -49,12 +49,13 @@ BODY
     printlog("CORE_ztrmm(%d, %d)\n"
              "\t(side, uplo, trans, diag, tempmm, tempnn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
              m, n, m, m, A, m, n, B);
-    DRYRUN(
-        CORE_ztrmm(side, uplo, trans,
-                   diag, tempmm, tempnn,
-                   alpha, A /* dataA(m,m) */, lda,
-                   B /* dataB(m,n) */, ldb );
-           );
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_ztrmm(side, uplo, trans,
+               diag, tempmm, tempnn,
+               alpha, A /* dataA(m,m) */, lda,
+                      B /* dataB(m,n) */, ldb );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -76,20 +77,20 @@ END
 
 zgemm(m, n, k)
   /* Execution Space */
-  m = 0..inline_c %{ return dplasma_imin((descB.mt-1),(descA.mt-2)); %}
+  m = 0..(descB.mt-2)
   n = 0..(descB.nt-1)
-  k = (m+1)..(descA.mt-1)
+  k = (m+1)..(descB.mt-1)
 
   /* Locality */
   : dataB(m,n)
 
   CTL   ctl0 -> ctl0 ztrmm(k, n)
-  READ  C    <- C zgemm_in_data_A0(m, k)
-  READ  D    <- D zgemm_in_data_B1(n, k)
-  RW    E    <- ((k==(m+1))) ? B ztrmm(k-1, n)
-             <- ((k>=(m+2))) ? E zgemm(m, n, k-1)
-             -> ((descA.mt==(k+1))) ? dataB(m,n)
-             -> ((descA.mt>=(2+k))) ? E zgemm(m, n, k+1)
+  READ  A    <- A zgemm_in_data_A0(m, k)
+  READ  B    <- B zgemm_in_data_B1(n, k)
+  RW    C    <- (k >  (m+1)) ? C zgemm(m, n, k-1)
+             <- (k == (m+1)) ? B ztrmm(k-1, n)
+             -> (k == (descB.mt-1)) ? dataB(m,n)
+             -> (k <  (descB.mt-1)) ? C zgemm(m, n, k+1)
 
 BODY
 {
@@ -102,27 +103,27 @@ BODY
 
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(trans, PlasmaNoTrans, tempmm, tempnn, tempkm, alpha, A(%d,%d)[%p], ldak, B(%d,%d)[%p], ldbk, 1.000000, B(%d,%d)[%p], ldb)\n",
-             m, n, k, k, m, C, k, n, D, m, n, E);
-    DRYRUN(
-        CORE_zgemm(trans, PlasmaNoTrans, tempmm,
-                   tempnn, tempkm, alpha,
-                   C /* dataA(k,m) */, ldak, D /* dataB(k,n) */,
-                   ldbk, 1.000000, E /* dataB(m,n) */,
-                   ldb );
-           );
+             m, n, k, k, m, A, k, n, B, m, n, C);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(trans, PlasmaNoTrans, tempmm, tempnn, tempkm,
+               alpha, A /* dataA(k,m) */, ldak,
+                      B /* dataB(k,n) */, ldbk,
+               1.0,   C /* dataB(m,n) */, ldb );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
 zgemm_in_data_B1(n, k) [profile = off]
   /* Execution Space */
   n = 0..(descB.nt-1)
-  k = 0..(descA.mt-1) /* tight bound is (m+1)..(descA.mt-1) */
+  k = 1..(descB.mt-1)
 
   /* Locality */
   : dataB(k,n)
 
-  READ  D    <- dataB(k,n)
-             -> D zgemm(0..(descB.mt-1), n, k)
+  READ  B    <- dataB(k,n)
+             -> B zgemm(0..(k-1), n, k)
 
 BODY
 {
@@ -132,14 +133,14 @@ END
 
 zgemm_in_data_A0(m, k) [profile = off]
   /* Execution Space */
-  m = 0..(descB.mt-1)
-  k = (m+1)..(descA.mt-1)
+  m = 0     .. (descB.mt-2)
+  k = (m+1) .. (descA.mt-1)
 
   /* Locality */
   : dataA(k,m)
 
-  READ  C    <- dataA(k,m)
-             -> C zgemm(m, 0..(descB.nt-1), k)
+  READ  A    <- dataA(k,m)
+             -> A zgemm(m, 0..(descB.nt-1), k)
 
 BODY
 {
