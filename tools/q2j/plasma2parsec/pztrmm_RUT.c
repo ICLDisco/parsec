@@ -1,6 +1,7 @@
 #include "common.h"
 
 #pragma PARSEC_INVARIANT A.mt == A.nt
+#pragma PARSEC_INVARIANT A.mt == B.nt
 #pragma PARSEC_INVARIANT A.nt == B.nt
 
 #define A(m,n) BLKADDR(A, PLASMA_Complex64_t, m, n)
