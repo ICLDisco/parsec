@@ -27,7 +27,7 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
-    PLASMA_enum uplo = PlasmaLower;
+    PLASMA_enum uplo = PlasmaUpper;
     int info = 0;
     int ret = 0;
 
@@ -44,8 +44,8 @@ int main(int argc, char ** argv)
     PASTE_CODE_FLOPS(FLOPS_ZPOTRF, ((DagDouble_t)N));
 
     /* initializing matrix structure */
-    LDA = max( LDA, N );
-    LDB = max( LDB, N );
+    LDA = dplasma_imax( LDA, N );
+    LDB = dplasma_imax( LDB, N );
     SMB = 1;
     SNB = 1;
 
