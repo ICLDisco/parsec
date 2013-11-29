@@ -51,6 +51,7 @@ set(JDF
   zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
   zunmqr_param_LC.jdf
   # LU
+  zgetrf.jdf
   zgetrf_incpiv.jdf
   zgetrf_incpiv_sd.jdf
   zgetrf_nopiv.jdf
@@ -61,7 +62,7 @@ set(JDF
   # Other
   zgebmm.jdf
   zgebut.jdf
-  zgetrf.jdf zhetrf.jdf
+  zhetrf.jdf
   zhbrdt.jdf
   zhebut.jdf
   zherbt_L.jdf
@@ -165,5 +166,3 @@ add_dependencies(dplasma dplasma_includes)
 install(TARGETS dplasma
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
-
-
