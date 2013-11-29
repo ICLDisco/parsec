@@ -56,20 +56,33 @@ static inline void remote_dep_inc_flying_messages(dague_object_t *dague_object, 
 }
 
 /* allow for termination when all deps have been served */
-static inline void remote_dep_dec_flying_messages(dague_object_t *dague_object, dague_context_t* ctx)
+static inline void
+remote_dep_dec_flying_messages(dague_object_t *dague_object,
+                               dague_context_t* ctx)
 {
     __dague_complete_task(dague_object, ctx);
 }
 
 /* Mark that ncompleted of the remote deps are finished, and return the remote dep to
  * the free items queue if it is now done */
-static inline void remote_dep_complete_and_cleanup(dague_remote_deps_t* deps, int ncompleted)
+static inline int
+remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
+                                int ncompleted,
+                                int validator,
+                                dague_context_t* ctx)
 {
-    deps->output_sent_count += ncompleted;
-    assert( deps->output_sent_count <= deps->output_count );
-    if( deps->output_count == deps->output_sent_count ) {
-        remote_deps_free(deps);
+    (*deps)->output_sent_count += ncompleted;
+    assert( (*deps)->output_sent_count <= (*deps)->output_count );
+
+    if( (*deps)->output_count == (*deps)->output_sent_count ) {
+        if( 0 == validator )
+            remote_dep_dec_flying_messages((*deps)->dague_object, ctx);
+        remote_deps_free(*deps);
+        *deps = NULL;
+        return 1;
     }
+    assert(validator);
+    return 0;
 }
 
 #endif
@@ -280,7 +293,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
      * when we didn't knew yet if we forward the data or not.
      */
     if( skipped_count ) {
-        remote_dep_complete_and_cleanup(remote_deps, skipped_count);
+        remote_dep_complete_and_cleanup(&remote_deps, skipped_count, 1, eu_context->virtual_process->dague_context);
     }
 
     return 0;
