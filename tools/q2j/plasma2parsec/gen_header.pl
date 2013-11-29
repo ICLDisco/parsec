@@ -2,7 +2,11 @@
 
 use strict;
 
-my @files  = `ls -1 core_z*.c`;
+
+my $dir = $ARGV[0];
+
+print $dir;
+my @files  = `ls -1 $dir/qwrapper_z*.c`;
 my $output = "core.h";
 
 sub ParseCore {

@@ -239,6 +239,7 @@ jdf_set_default_datatype(jdf_datatransfer_type_t* datatype,
     datatype->type->next    = NULL;
     datatype->type->op      = JDF_STRING;
     datatype->type->jdf_var = default_ddt;
+    datatype->layout= datatype->type;
     datatype->count = q2jmalloc(jdf_expr_t, 1);
     if( NULL == datatype->count ) return -1;
     datatype->count->next    = NULL;

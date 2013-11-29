@@ -249,7 +249,7 @@
         sizeof(int),                       &(koff),   VALUE,\
         sizeof(int),                       &(nb),     VALUE,\
         sizeof(double)*nb,                 (norms1),                  INOUT,\
-        sizeof(double)*nb,                 (norms2),                  NODEP,\
+        sizeof(double)*nb,                 norms2,                  (NODEP),  /* INOUT, but implied by norms1 */\
         sizeof(int),                       (info),                    OUTPUT,\
         0);}
 #pragma zgeqp3_update Ajj Ajk Fk norms1 info
@@ -281,18 +281,6 @@
         sizeof(int),                        &(lda),   VALUE,\
         0);}
 #pragma zgessm IPIV A
-
-#define QUARK_CORE_zgessq_f1(quark, task_flags, m, n, A, lda, scale, sumsq, fake, szeF, paramF) {\
-    if ( (fake == scale) && (paramF & GATHERV) ) {\
-        QUARK_Insert_Task((quark), CORE_zgessq_quark, (task_flags),\
-            sizeof(int),                      &(m),    VALUE,\
-            sizeof(int),                      &(n),    VALUE,\
-            sizeof(PLASMA_Complex64_t)*lda*n, (A),         INPUT,\
-            sizeof(int),                      &(lda),  VALUE,\
-            sizeof(double)*1,                 (scale),     INOUT | GATHERV,\
-            sizeof(double)*1,                 (sumsq),     INOUT,\
-            0);}
-#pragma zgessq_f1 A scale sumsq
 
 #define QUARK_CORE_zgetrf(quark, task_flags, m, n, nb, A, lda, IPIV, sequence, request, check_info, iinfo) {\
     QUARK_Insert_Task((quark), CORE_zgetrf_quark, (task_flags),\
@@ -373,42 +361,6 @@
         0);}
 #pragma zgetrip A
 
-#define QUARK_CORE_zgetrip_f1(quark, task_flags, m, n, A, szeA, fake, szeF, paramF) {\
-    if ( (fake == A) && (paramF & GATHERV) ) {\
-        QUARK_Insert_Task(\
-            quark, (CORE_zgetrip_quark), task_flags,\
-            sizeof(int),                     &(m),   VALUE,\
-            sizeof(int),                     &(n),   VALUE,\
-            sizeof(PLASMA_Complex64_t)*szeA, (A),        INOUT | paramF,\
-            sizeof(PLASMA_Complex64_t)*szeA, (NULL),     SCRATCH,\
-            0);}
-
-#define QUARK_CORE_zgetrip_f2(quark, task_flags, m, n, A, szeA, fake1, szeF1, paramF1, fake2, szeF2, paramF2) {\
-    if ( (fake2 == A) && (paramF2 & GATHERV) ) {\
-        QUARK_Insert_Task(\
-            quark, (CORE_zgetrip_f1_quark), task_flags,\
-            sizeof(int),                     &(m),   VALUE,\
-            sizeof(int),                     &(n),   VALUE,\
-            sizeof(PLASMA_Complex64_t)*szeA, (A),        INOUT | paramF2,\
-            sizeof(PLASMA_Complex64_t)*szeA, (NULL),     SCRATCH,\
-            sizeof(PLASMA_Complex64_t)*szeF1, (fake1),     paramF1,\
-            0);}
-
-#define QUARK_CORE_zhegst(quark, task_flags, itype, uplo, n, A, lda, B, ldb, sequence, request, iinfo) {\
-    QUARK_Insert_Task((quark), CORE_zhegst_quark, (task_flags),\
-        sizeof(int),                        &(itype),      VALUE,\
-        sizeof(PLASMA_enum),                &(uplo),      VALUE,\
-        sizeof(int),                        &(n),         VALUE,\
-        sizeof(PLASMA_Complex64_t)*lda*n,    (A),             INOUT,\
-        sizeof(int),                        &(lda),       VALUE,\
-        sizeof(PLASMA_Complex64_t)*ldb*n,    (B),             INOUT,\
-        sizeof(int),                        &(ldb),       VALUE,\
-        sizeof(PLASMA_sequence*),           &(sequence),  VALUE,\
-        sizeof(PLASMA_request*),            &(request),   VALUE,\
-        sizeof(int),                        &(iinfo),     VALUE,\
-        0);}
-#pragma zhegst A B B
-
 #define QUARK_CORE_zhemm(quark, task_flags, side, uplo, m, n, nb, alpha, A, lda, B, ldb, beta, C, ldc) {\
     QUARK_Insert_Task((quark), CORE_zhemm_quark, (task_flags),\
         sizeof(PLASMA_enum),                &(side),    VALUE,\
@@ -477,19 +429,6 @@
         sizeof(int),                        &(ldc),       VALUE,\
         0);}
 #pragma zherk A C
-
-#define QUARK_CORE_zhessq_f1(quark, task_flags, uplo, n, A, lda, scale, sumsq, fake, szeF, paramF) {\
-\
-    if ( (fake == scale) && (paramF & GATHERV) ) {\
-        QUARK_Insert_Task((quark), CORE_zhessq_quark, (task_flags),\
-            sizeof(PLASMA_enum),              &(uplo), VALUE,\
-            sizeof(int),                      &(n),    VALUE,\
-            sizeof(PLASMA_Complex64_t)*lda*n, (A),         INPUT,\
-            sizeof(int),                      &(lda),  VALUE,\
-            sizeof(double)*1,                 (scale),     INOUT | paramF,\
-            sizeof(double)*1,                 (sumsq),     INOUT,\
-            0);}
-#pragma zhessq_f1 A sumsq
 
 #define QUARK_CORE_zlacpy(quark, task_flags, uplo, m, n, nb, A, lda, B, ldb) {\
     QUARK_Insert_Task((quark), CORE_zlacpy_quark, (task_flags),\
@@ -783,6 +722,26 @@
         0);}
 #pragma zlauum A
 
+#define QUARK_CORE_zpamm(quark, task_flags, op, side, storev, m, n, k, l, A1, lda1, A2, lda2, V, ldv, W, ldw) {\
+    QUARK_Insert_Task((quark), CORE_zpamm_quark, (task_flags),\
+        sizeof(int),                        &(op),      VALUE,\
+        sizeof(PLASMA_enum),                &(side),    VALUE,\
+        sizeof(PLASMA_enum),                &(storev),  VALUE,\
+        sizeof(int),                        &(m),       VALUE,\
+        sizeof(int),                        &(n),       VALUE,\
+        sizeof(int),                        &(k),       VALUE,\
+        sizeof(int),                        &(l),       VALUE,\
+        sizeof(PLASMA_Complex64_t)*m*k,     (A1),           INPUT,\
+        sizeof(int),                        &(lda1),    VALUE,\
+        sizeof(PLASMA_Complex64_t)*k*n,     (A2),           INOUT,\
+        sizeof(int),                        &(lda2),    VALUE,\
+        sizeof(PLASMA_Complex64_t)*m*n,     (V),            INPUT,\
+        sizeof(int),                        &(ldv),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*m*n,     (W),            INOUT,\
+        sizeof(int),                        &(ldw),     VALUE,\
+        0);}
+#pragma zpamm A1 A2 V W
+
 #define QUARK_CORE_zplghe(quark, task_flags, bump, m, n, A, lda, bigM, m0, n0, seed) {\
     QUARK_Insert_Task((quark), CORE_zplghe_quark, (task_flags),\
         sizeof(double),                   &(bump), VALUE,\
@@ -823,6 +782,34 @@
         sizeof(unsigned long long int),   &(seed), VALUE,\
         0);}
 #pragma zplrnt A
+
+#define QUARK_CORE_zpltmg(quark, task_flags, mtxtype, m, n, A, lda, gM, gN, m0, n0, seed) {\
+    QUARK_Insert_Task((quark), CORE_zpltmg_quark, (task_flags),\
+        sizeof(int),                      &(mtxtype), VALUE,\
+        sizeof(int),                      &(m),       VALUE,\
+        sizeof(int),                      &(n),       VALUE,\
+        sizeof(PLASMA_Complex64_t)*lda*n, (A),            OUTPUT,\
+        sizeof(int),                      &(lda),     VALUE,\
+        sizeof(int),                      &(gM),      VALUE,\
+        sizeof(int),                      &(gN),      VALUE,\
+        sizeof(int),                      &(m0),      VALUE,\
+        sizeof(int),                      &(n0),      VALUE,\
+        sizeof(unsigned long long int),   &(seed),    VALUE,\
+        0);}
+#pragma zpltmg A
+
+
+#define QUARK_CORE_zpotrf(quark, task_flags, uplo, n, nb, A, lda, sequence, request, iinfo) {\
+    QUARK_Insert_Task((quark), CORE_zpotrf_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(uplo),      VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INOUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(PLASMA_sequence*),           &(sequence),  VALUE,\
+        sizeof(PLASMA_request*),            &(request),   VALUE,\
+        sizeof(int),                        &(iinfo),     VALUE,\
+        0);}
+#pragma zpotrf A
 
 #define QUARK_CORE_zshiftw(quark, task_flags, s, cl, m, n, L, A, W) {\
     QUARK_Insert_Task((quark), CORE_zshiftw_quark, (task_flags),\
@@ -927,19 +914,6 @@
         0);}
 #pragma zsyrk A C
 
-#define QUARK_CORE_zsyssq_f1(quark, task_flags, uplo, n, A, lda, scale, sumsq, fake, szeF, paramF) {\
-\
-    if ( (fake == scale) && (paramF & GATHERV) ) {\
-        QUARK_Insert_Task((quark), CORE_zsyssq_quark, (task_flags),\
-            sizeof(PLASMA_enum),              &(uplo), VALUE,\
-            sizeof(int),                      &(n),    VALUE,\
-            sizeof(PLASMA_Complex64_t)*lda*n, (A),         INPUT,\
-            sizeof(int),                      &(lda),  VALUE,\
-            sizeof(double)*1,                 (scale),     INOUT | paramF,\
-            sizeof(double)*1,                 (sumsq),     INOUT,\
-            0);}
-#pragma zsyssq_f1 A sumsq
-
 #define QUARK_CORE_ztrdalg1(quark, task_flags, n, nb, A, lda, V, TAU, Vblksiz, wantz, i, sweepid, m, grsiz, PCOL, ACOL, MCOL) {\
     QUARK_Insert_Task((quark), CORE_ztrdalg1_quark,   (task_flags),\
         sizeof(int),                      &(n), VALUE,\
@@ -1024,12 +998,11 @@
 #pragma ztrtri A
 
 #define QUARK_CORE_ztslqt(quark, task_flags, m, n, ib, nb, A1, lda1, A2, lda2, T, ldt) {\
-    /* TODO: Regions are commented for 2-sided factorizations that have a dependency problem with it */\
     QUARK_Insert_Task((quark), CORE_ztslqt_quark, (task_flags),\
         sizeof(int),                        &(m),     VALUE,\
         sizeof(int),                        &(n),     VALUE,\
         sizeof(int),                        &(ib),    VALUE,\
-        sizeof(PLASMA_Complex64_t)*nb*nb,    (A1),            INOUT /*| QUARK_REGION_D | QUARK_REGION_L */,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A1),            INOUT | QUARK_REGION_D | QUARK_REGION_L,\
         sizeof(int),                        &(lda1),  VALUE,\
         sizeof(PLASMA_Complex64_t)*nb*nb,    (A2),            INOUT | LOCALITY,\
         sizeof(int),                        &(lda2),  VALUE,\
@@ -1197,14 +1170,13 @@
 #pragma ztsmqr_hetra1 A2 V T
 
 #define QUARK_CORE_ztsqrt(quark, task_flags, m, n, ib, nb, A1, lda1, A2, lda2, T, ldt) {\
-    /* TODO: Regions are commented for 2-sided factorizations that have a dependency problem with it */\
     QUARK_Insert_Task((quark), CORE_ztsqrt_quark, (task_flags),\
         sizeof(int),                        &(m),     VALUE,\
         sizeof(int),                        &(n),     VALUE,\
         sizeof(int),                        &(ib),    VALUE,\
-        sizeof(PLASMA_Complex64_t)*nb*nb,    (A1),            INOUT /*| QUARK_REGION_D | QUARK_REGION_U */| LOCALITY,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A1),            INOUT | QUARK_REGION_D | QUARK_REGION_U,\
         sizeof(int),                        &(lda1),  VALUE,\
-        sizeof(PLASMA_Complex64_t)*nb*nb,    (A2),            INOUT,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A2),            INOUT | LOCALITY,\
         sizeof(int),                        &(lda2),  VALUE,\
         sizeof(PLASMA_Complex64_t)*ib*nb,    (T),             OUTPUT,\
         sizeof(int),                        &(ldt),   VALUE,\
@@ -1240,9 +1212,9 @@
         sizeof(int),                        &(m),     VALUE,\
         sizeof(int),                        &(n),     VALUE,\
         sizeof(int),                        &(ib),    VALUE,\
-        sizeof(PLASMA_Complex64_t)*nb*nb,    (A1),            INOUT/*|QUARK_REGION_D|QUARK_REGION_L*/,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A1),            INOUT|QUARK_REGION_D|QUARK_REGION_L,\
         sizeof(int),                        &(lda1),  VALUE,\
-        sizeof(PLASMA_Complex64_t)*nb*nb,    (A2),            INOUT/*|QUARK_REGION_D|QUARK_REGION_L*/|LOCALITY,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A2),            INOUT|QUARK_REGION_D|QUARK_REGION_L|LOCALITY,\
         sizeof(int),                        &(lda2),  VALUE,\
         sizeof(PLASMA_Complex64_t)*ib*nb,    (T),             OUTPUT,\
         sizeof(int),                        &(ldt),   VALUE,\
@@ -1306,9 +1278,9 @@
         sizeof(int),                        &(m),     VALUE,\
         sizeof(int),                        &(n),     VALUE,\
         sizeof(int),                        &(ib),    VALUE,\
-        sizeof(PLASMA_Complex64_t)*nb*nb,    (A1),            INOUT/*|QUARK_REGION_D|QUARK_REGION_U*/,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A1),            INOUT|QUARK_REGION_D|QUARK_REGION_U,\
         sizeof(int),                        &(lda1),  VALUE,\
-        sizeof(PLASMA_Complex64_t)*nb*nb,    (A2),            INOUT/*|QUARK_REGION_D|QUARK_REGION_U*/|LOCALITY,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A2),            INOUT|QUARK_REGION_D|QUARK_REGION_U|LOCALITY,\
         sizeof(int),                        &(lda2),  VALUE,\
         sizeof(PLASMA_Complex64_t)*ib*nb,    (T),             OUTPUT,\
         sizeof(int),                        &(ldt),   VALUE,\

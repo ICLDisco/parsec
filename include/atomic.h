@@ -10,6 +10,9 @@
 #include "dague_config.h"
 #include <stdint.h>
 #include <unistd.h>
+#if defined(__FUJITSU)
+  #undef DAGUE_ATOMIC_USE_XLC_32_BUILTINS
+#endif
 #if defined(DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
 #  include "atomic-xlc.h"
 #elif defined(MAC_OS_X)

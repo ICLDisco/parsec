@@ -998,14 +998,13 @@ void dague_dependencies_mark_task_as_startup(dague_execution_context_t* restrict
  * supported and the task is supposed to be valid (no input/output tasks) and
  * local.
  */
-int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
-                                          dague_execution_unit_t* eu_context,
-                                          const dague_execution_context_t* restrict origin,
-                                          const dague_flow_t* restrict origin_flow,
-                                          dague_execution_context_t* restrict exec_context,
-                                          const dague_flow_t* restrict dest_flow,
-                                          data_repo_entry_t* dest_repo_entry,
-                                          dague_execution_context_t** pready_ring)
+int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
+                                         const dague_execution_context_t* restrict origin,
+                                         const dague_flow_t* restrict origin_flow,
+                                         dague_execution_context_t* restrict exec_context,
+                                         const dague_flow_t* restrict dest_flow,
+                                         data_repo_entry_t* dest_repo_entry,
+                                         dague_execution_context_t** pready_ring)
 {
     const dague_function_t* function = exec_context->function;
     dague_dependency_t *deps;
@@ -1016,12 +1015,12 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
     DEBUG2(("Activate dependencies for %s flags = 0x%04x\n",
             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), function->flags));
-    deps = find_deps(dague_object, exec_context);
+    deps = find_deps(origin->dague_object, exec_context);
 
     if( function->flags & DAGUE_USE_DEPS_MASK ) {
-        completed = dague_update_deps_with_mask(dague_object, exec_context, deps, origin, origin_flow, dest_flow);
+        completed = dague_update_deps_with_mask(origin->dague_object, exec_context, deps, origin, origin_flow, dest_flow);
     } else {
-        completed = dague_update_deps_with_counter(dague_object, exec_context, deps);
+        completed = dague_update_deps_with_counter(origin->dague_object, exec_context, deps);
     }
 
     if( completed ) {
@@ -1057,7 +1056,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #endif
             dague_execution_context_t* new_context;
             dague_thread_mempool_t *mpool;
-            new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
+            new_context = (dague_execution_context_t*)dague_thread_mempool_allocate(eu_context->context_mempool);
             /* this should not be copied over from the old execution context */
             mpool = new_context->mempool_owner;
             /* we copy everything but the dague_list_item_t at the beginning, to
@@ -1200,8 +1199,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
              */
             AREF( arg->output_entry->data[out_index] );
         }
-        arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
-                                                                 eu, oldcontext,
+        arg->nb_released += dague_release_local_OUT_dependencies(eu, oldcontext,
                                                                  oldcontext->function->out[out_index],
                                                                  newcontext,
                                                                  oldcontext->function->out[out_index]->dep_out[outdep_index]->flow,
