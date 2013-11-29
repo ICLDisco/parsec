@@ -126,8 +126,8 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
         assert( (int)(ptr - (char*)remote_deps) ==
                 (int)(dague_remote_dep_context.elem_size - rank_bit_size));
     }
+    assert(NULL == remote_deps->dague_object);
     remote_deps->max_priority = 0xffffffff;
-    remote_deps->dague_object = NULL;
     remote_deps->root         = -1;
     return remote_deps;
 }
@@ -138,7 +138,8 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     }
 
 /* This returns the deps to the freelist, no use counter */
-static inline void remote_deps_free(dague_remote_deps_t* deps) {
+static inline void remote_deps_free(dague_remote_deps_t* deps)
+{
     uint32_t k = 0, count = 0, a;
     while( count < deps->output_count ) {
         for(a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
@@ -160,8 +161,9 @@ static inline void remote_deps_free(dague_remote_deps_t* deps) {
     DEBUG(("remote_deps_free: sent_count=%u/%u\n", deps->output_sent_count, deps->output_count));
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
-    deps->output_count = 0;
+    deps->output_count      = 0;
     deps->output_sent_count = 0;
+    deps->dague_object      = NULL;
     dague_lifo_push(deps->origin, (dague_list_item_t*)deps);
 }
 

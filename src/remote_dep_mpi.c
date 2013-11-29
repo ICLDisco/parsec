@@ -846,13 +846,15 @@ static int remote_dep_mpi_on(dague_context_t* context)
  * @returns 1 if the message can't be packed due to lack of space, or 0
  * otherwise.
  */
-static int remote_dep_mpi_pack_dep(int rank,
-                                   remote_dep_wire_activate_t* msg,
+static int remote_dep_mpi_pack_dep(dague_context_t* ctx,
+                                   int rank,
+                                   dague_remote_deps_t **pdeps,
                                    char* packed_buffer,
                                    int length,
                                    int* position)
 {
-    dague_remote_deps_t* deps = (dague_remote_deps_t*) msg->deps;
+    dague_remote_deps_t* deps = (*pdeps);
+    remote_dep_wire_activate_t* msg = &deps->msg;
     int k, dsize, saved_position = *position, completed = 0;
     int output_count = deps->output_count, which;
     uint32_t rank_bank, rank_mask;
@@ -915,7 +917,7 @@ static int remote_dep_mpi_pack_dep(int rank,
     MPI_Pack(msg, dep_count, dep_dtt,
              packed_buffer, length, &saved_position, dep_comm);
     msg->which ^= which;  /* remove the packed ones */
-    if(completed) remote_dep_complete_and_cleanup(deps, completed);
+    if(completed) remote_dep_complete_and_cleanup(pdeps, completed, msg->which, ctx);
     return 0;
 }
 
@@ -936,17 +938,17 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
     char packed_buffer[DEP_EAGER_BUFFER_SIZE];
     int rank, position = 0;
 
-    rank         = item->cmd.activate.rank;  /* this doesn't change */
+    rank     = item->cmd.activate.rank;  /* this doesn't change */
   pack_more:
-    deps         = item->cmd.activate.deps;
-    msg          = &deps->msg;
-    msg->tag     = next_tag(MAX_PARAM_COUNT); /* todo: waste less tags to diminish
-                                                 collision probability */
+    deps     = item->cmd.activate.deps;
+    msg      = &deps->msg;
+    msg->tag = next_tag(MAX_PARAM_COUNT); /* TODO: waste less tags to diminish
+                                             collision probability */
 
     dague_list_item_singleton((dague_list_item_t*)item);
-    if( 0 == remote_dep_mpi_pack_dep(rank, msg,
-                                     packed_buffer, DEP_EAGER_BUFFER_SIZE,
-                                     &position) ) {
+    if( 0 == remote_dep_mpi_pack_dep(eu_context->virtual_process->dague_context,
+                                     rank, &(item->cmd.activate.deps), packed_buffer,
+                                     DEP_EAGER_BUFFER_SIZE, &position) ) {
         /* space left on the buffer. Move to the next item with the same destination */
         dep_cmd_item_t* next = (dep_cmd_item_t*)dague_list_item_ring_chop(&item->pos_list);
         if( NULL == ring ) ring = (dague_list_item_t*)item;
@@ -970,11 +972,10 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
         item = (dep_cmd_item_t*)ring;
         ring = dague_list_item_ring_chop(ring);
 
-        deps = item->cmd.activate.deps;
-        msg  = &deps->msg;
-        if(0 == msg->which) {
-            remote_dep_dec_flying_messages(deps->dague_object, eu_context->virtual_process->dague_context);
-        } else {
+        if( NULL != item->cmd.activate.deps ) {
+            deps = item->cmd.activate.deps;
+            msg  = &deps->msg;
+            assert(0 != msg->which);
             remote_dep_mpi_put_short(eu_context, msg, rank);
         }
         free(item);
@@ -1205,12 +1206,11 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
     task->which ^= (1<<k);
     /* Are we done yet ? */
 
+    remote_dep_complete_and_cleanup((dague_remote_deps_t**)&(task->deps),
+                                    1, task->which,
+                                    eu_context->virtual_process->dague_context);
     if( 0 == task->which ) {
-        remote_dep_dec_flying_messages(deps->dague_object,
-                                       eu_context->virtual_process->dague_context);
-    }
-    remote_dep_complete_and_cleanup(deps, 1);
-    if( 0 == task->which ) {
+        assert(NULL == (dague_remote_deps_t*)task->deps);
         free(item);
         dep_pending_put_array[i] = NULL;
         item = (dague_dep_wire_get_fifo_elem_t*)dague_ulist_fifo_pop(&dep_put_fifo);
@@ -1322,7 +1322,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
         deps->msg.deps = datakey;
         dague_ulist_push_sorted(&dep_activates_fifo, (dague_list_item_t*)deps, rdep_prio);
     } else {
-        dague_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)deps);
+        remote_deps_free(deps);
     }
 
     /* Check if we have some ordered rdv get to treat */
@@ -1484,7 +1484,7 @@ static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context,
     remote_dep_release(eu_context, deps);
     AUNREF(deps->output[k].data.ptr);
     if(deps->msg.which == deps->msg.deps) {
-        dague_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)deps);
+        remote_deps_free(deps);
         dep_pending_recv_array[i] = NULL;
         if( !dague_ulist_is_empty(&dep_activates_fifo) ) {
             deps = (dague_remote_deps_t*)dague_ulist_fifo_pop(&dep_activates_fifo);
