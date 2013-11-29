@@ -392,9 +392,9 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
 }
 
 /**
- * Retrieve the datatypes involved in this communication. In addition
- * the flag DAGUE_ACTION_RECV_INIT_REMOTE_DEPS set the
- * origin->max_priority to the maximum priority of all the children.
+ * Retrieve the datatypes involved in this communication. In addition the flag
+ * DAGUE_ACTION_RECV_INIT_REMOTE_DEPS set the priority to the maximum priority
+ * of all the children.
  */
 static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
 {
@@ -427,32 +427,23 @@ static int remote_dep_release(dague_execution_unit_t* eu_context,
 #if defined(DAGUE_DEBUG)
     exec_context.priority = 0;
 #endif
-    assert(exec_context.dague_object); /* Future: for composition, store this in a list to be considered upon creation of the DO*/
+    assert(exec_context.dague_object); /* Future: for composition, store this in a list
+                                        to be considered upon creation of the object */
     exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
-    for( i = 0; i < exec_context.function->nb_locals; i++)
-        exec_context.locals[i] = origin->msg.locals[i];
+    for(i = 0; i < exec_context.function->nb_locals;
+        exec_context.locals[i] = origin->msg.locals[i], i++);
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != (target = exec_context.function->out[i])); i++) {
         whereto = target->flow_index;
         exec_context.data[whereto].data_repo = NULL;
         exec_context.data[whereto].data      = NULL;
-        if(origin->msg.deps & (1 << i)) {
+        if(origin->msg.deps & target->flow_mask) {
             DEBUG3(("MPI:\tDATA %p released from %p[%d]\n", ADATA(origin->output[i].data.ptr), origin, i));
             exec_context.data[whereto].data = origin->output[i].data.ptr;
-#if defined(DAGUE_DEBUG) && defined(DAGUE_DEBUG_VERBOSE3)
-            if(origin->output[i].data.arena) { /* no prints for CTL! */
-                char tmp[MAX_TASK_STRLEN];
-                void* _data = ADATA(exec_context.data[whereto].data);
-                DEBUG3(("MPI:\t%s: recv %p -> [0] %9.5f [1] %9.5f [2] %9.5f\n",
-                       dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &exec_context),
-                       _data, ((double*)_data)[0], ((double*)_data)[1], ((double*)_data)[2]));
-            }
-#endif
         }
     }
     ret = exec_context.function->release_deps(eu_context, &exec_context,
-                                              actions |
-                                              origin->msg.deps,
+                                              actions | origin->msg.deps,
                                               origin);
     origin->msg.which ^= origin->msg.deps;
     origin->msg.deps = 0;
@@ -1114,9 +1105,9 @@ static void remote_dep_mpi_put_short(dague_execution_unit_t* eu_context,
     }
 }
 
-static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context,
-                                     int i,
-                                     MPI_Status* status )
+static void remote_dep_mpi_save_put(dague_execution_unit_t* eu_context,
+                                    int i,
+                                    MPI_Status* status)
 {
 #ifdef DAGUE_DEBUG_VERBOSE3
     char tmp[MAX_TASK_STRLEN];
@@ -1130,8 +1121,8 @@ static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context,
     task = &(item->task);
     memcpy( task, &dep_get_buff[i], sizeof(remote_dep_wire_get_t) );
     deps = (dague_remote_deps_t*) (uintptr_t) task->deps;
-    item-> priority = deps->max_priority;
-    item->peer = status->MPI_SOURCE;
+    item->priority = deps->max_priority;
+    item->peer     = status->MPI_SOURCE;
     dague_ulist_push_sorted(&dep_put_fifo, (dague_list_item_t*)item, dep_wire_get_prio);
     /* Check if we can push any new puts */
     for( i = 0; i < DEP_NB_CONCURENT; i++ ) {

@@ -1549,7 +1549,9 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
                                 -1, jdf_basename, call->func_or_mem);
     }
     string_arena_add_string(sa,
-                            "  .dep_index = %d,\n",
+                            "  .dep_index = %d,\n"
+                            "  .dep_datatype_index = %d,\n",
+                            dep->dep_index,
                             dep->dep_datatype_index);
     /**
      * Beware: There is a single datatype per dep_t, and several deps can reuse the same datatype

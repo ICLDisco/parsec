@@ -86,14 +86,10 @@ int dague_remote_dep_init(dague_context_t* context)
 {
     (void)remote_dep_init(context);
 
+    context->remote_dep_fw_mask_sizeof = 0;
     if(context->nb_nodes > 1)
-    {
         context->remote_dep_fw_mask_sizeof = ((context->nb_nodes + 31) / 32) * sizeof(uint32_t);
-    }
-    else
-    {
-        context->remote_dep_fw_mask_sizeof = 0; /* hoping memset(0b) is fast */
-    }
+
     return context->nb_nodes;
 }
 
@@ -199,9 +195,9 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 #endif
 
     remote_dep_reset_forwarded(eu_context, remote_deps);
-    remote_deps->dague_object = exec_context->dague_object;
-    remote_deps->output_count = remote_deps_count;
-    remote_deps->msg.deps = (uintptr_t) remote_deps;
+    remote_deps->dague_object    = exec_context->dague_object;
+    remote_deps->output_count    = remote_deps_count;
+    remote_deps->msg.deps        = (uintptr_t) remote_deps;
     remote_deps->msg.object_id   = exec_context->dague_object->object_id;
     remote_deps->msg.function_id = function->function_id;
     for(i = 0; i < function->nb_locals; i++) {
@@ -251,16 +247,15 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n",
                                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
                                 remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
+                        /* Find the flow to which this message corresponds */
                         for( flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++ )
-                            if( exec_context->function->out[flow_index]->flow_mask & (1 << i) )
+                            if( exec_context->function->out[flow_index]->flow_mask & remote_deps->output[i].deps_mask )
                                 break;
                         assert( NULL != exec_context->function->out[flow_index] );
-                        if(FLOW_ACCESS_NONE != (exec_context->function->out[flow_index]->flow_flags & FLOW_ACCESS_MASK))
-                        {
+                        if(FLOW_ACCESS_NONE != (exec_context->function->out[flow_index]->flow_flags & FLOW_ACCESS_MASK)) {
                             AREF(remote_deps->output[flow_index].data.ptr);
                         }
-                        if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
-                        {
+                        if(remote_dep_is_forwarded(eu_context, remote_deps, rank)) {
                             continue;
                         }
                         remote_dep_inc_flying_messages(exec_context->dague_object, eu_context->virtual_process->dague_context);

@@ -27,8 +27,8 @@ typedef unsigned long remote_dep_datakey_t;
 
 typedef struct remote_dep_wire_activate_t
 {
-    remote_dep_datakey_t deps;
-    remote_dep_datakey_t which;
+    remote_dep_datakey_t deps;  /**< a pointer to the dep structure on the source */
+    remote_dep_datakey_t which;  /**< the mask of the output dependencies satisfied by this activation message */
     remote_dep_datakey_t tag;
     uint32_t             object_id;
     uint32_t             function_id;
@@ -65,9 +65,13 @@ struct remote_dep_output_param {
      *   "subtle" relation with remote_deps_allocation_init in
      *  remote_dep.c
      */
-    struct dague_dep_data_description_s data;
-    uint32_t*                           rank_bits;
-    uint32_t                            count_bits;
+    dague_remote_deps_t                 *parent;
+    struct dague_dep_data_description_s  data;
+    uint32_t                             count_bits;
+    uint32_t                             deps_mask;
+    int32_t                              priority;
+    uint32_t*                            rank_bits;
+    remote_dep_wire_activate_t           msg;     /**< The message control of the output */
 };
 
 struct dague_remote_deps_t {
@@ -77,9 +81,9 @@ struct dague_remote_deps_t {
     remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
     int                             root;    /**< The root of the control message */
     int                             from;    /**< From whom we received the control */
-    int                             max_priority;
     uint32_t                        output_count;
     uint32_t                        output_sent_count;
+    int32_t                         max_priority;
     uint32_t*                       remote_dep_fw_mask;  /**< list of peers already notified about
                                                            * the control sequence (only used for control messages) */
     struct remote_dep_output_param  output[1];
@@ -88,8 +92,6 @@ struct dague_remote_deps_t {
  *   output[0] .. output[max_deps < MAX_PARAM_COUNT],
  *   (max_dep_count x (np+31)/32 uint32_t) rank_bits
  *   ((np+31)/32 x uint32_t) fw_mask_bitfield } */
-
-
 
 #if defined(DISTRIBUTED)
 
@@ -118,7 +120,10 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
         ptr = (char*)(&(remote_deps->output[dague_remote_dep_context.max_dep_count]));
         rank_bit_size = sizeof(uint32_t) * ((dague_remote_dep_context.max_nodes_number + 31) / 32);
         for( i = 0; i < dague_remote_dep_context.max_dep_count; i++ ) {
+            remote_deps->output[i].parent    = remote_deps;
             remote_deps->output[i].rank_bits = (uint32_t*)ptr;
+            remote_deps->output[i].deps_mask = 0;
+            remote_deps->output[i].priority  = 0xffffffff;
             ptr += rank_bit_size;
         }
         /* fw_mask immediatly follows outputs */
@@ -126,9 +131,9 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
         assert( (int)(ptr - (char*)remote_deps) ==
                 (int)(dague_remote_dep_context.elem_size - rank_bit_size));
     }
-    remote_deps->max_priority = 0xffffffff;
     remote_deps->dague_object = NULL;
     remote_deps->root         = -1;
+    remote_deps->msg.which    = 0;
     return remote_deps;
 }
 

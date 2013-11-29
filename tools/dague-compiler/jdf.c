@@ -873,18 +873,20 @@ int jdf_compare_datatype(const jdf_datatransfer_type_t* src,
     return 0;
 }
 
-#define SAVE_AND_UPDATE_INDEX(DEP, IDX1, IDX2, UPDATE)   \
-    do {                                                 \
-        (DEP)->dep_index          = (IDX1)++;            \
-        (DEP)->dep_datatype_index = (IDX2);              \
-        if(UPDATE) (IDX2)++;                             \
+#define SAVE_AND_UPDATE_INDEX(DEP, IDX1, IDX2, UPDATE)                  \
+    do {                                                                \
+        if( 0xff == ((DEP)->dep_index) ) (DEP)->dep_index = (IDX1)++;   \
+        if( 0xff == ((DEP)->dep_datatype_index) ) {                     \
+            (DEP)->dep_datatype_index = (IDX2);                         \
+            if(UPDATE) (IDX2)++;                                        \
+        }                                                               \
     } while (0)
 
 #define MARK_FLOW_DEP_AND_UPDATE_INDEX(FLOW, DEP, UPDATE)               \
     do {                                                                \
         if( (DEP)->dep_flags & JDF_DEP_FLOW_OUT ) {                     \
             SAVE_AND_UPDATE_INDEX((DEP), global_out_index, *dep_out_index, UPDATE); \
-            (FLOW)->flow_dep_mask |= (1 << (DEP)->dep_datatype_index);  \
+            (FLOW)->flow_dep_mask |= (1 << (DEP)->dep_index);           \
             (FLOW)->flow_flags |= JDF_FLOW_IS_OUT;                      \
         } else {                                                        \
             SAVE_AND_UPDATE_INDEX((DEP), global_in_index, *dep_in_index, UPDATE); \
@@ -899,6 +901,8 @@ int jdf_compare_datatype(const jdf_datatransfer_type_t* src,
             (*dep_in_index)++;                                          \
         }                                                               \
     } while(0)
+#define COPY_INDEX(DST, SRC)                                    \
+    (DST)->dep_datatype_index = (SRC)->dep_datatype_index
 
 /**
  * Reorder the output dependencies to group together the ones using
@@ -944,7 +948,6 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
      */
     for( i = 0; i < dep_count; i++ ) {
         dep = dep_array[i];
-        if( 0xff != dep->dep_index ) continue;
         MARK_FLOW_DEP_AND_UPDATE_INDEX(flow, dep, 0);
 
         for( j = i+1; j < dep_count; j++ ) {
@@ -954,7 +957,7 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
             ddt = &dep->datatype;
             sddt = &sdep->datatype;
             if( jdf_compare_datatype(ddt, sddt) ) continue;
-            MARK_FLOW_DEP_AND_UPDATE_INDEX(flow, sdep, 0);
+            COPY_INDEX(sdep, dep);
         }
         UPDATE_INDEX(dep);
     }
@@ -999,7 +1002,7 @@ int jdf_flatten_function(jdf_function_entry_t* function)
         if( !(flow->flow_flags & JDF_FLOW_IS_OUT) )
             flow->flow_index = flow_index++;
 
-#if 0
+#if 1
     for( flow = function->dataflow; NULL != flow; flow = flow->next) {
         string_arena_t* sa1 = string_arena_new(64);
         string_arena_t* sa2 = string_arena_new(64);
@@ -1033,11 +1036,12 @@ int jdf_flatten_function(jdf_function_entry_t* function)
                    (JDF_DEP_FLOW_OUT & dep->dep_flags ? "->" : "<-"),
                    dep->dep_index, dep->dep_datatype_index,
                    dep->guard->calltrue->func_or_mem,
-                   (dep->dep_index == dep->dep_datatype_index ? string_arena_get_string(sa2) : " -||- "));
+                   string_arena_get_string(sa2));
         }
         string_arena_free(sa1);
         string_arena_free(sa2);
     }
+    printf("\n");
 #endif
     return 0;
 }

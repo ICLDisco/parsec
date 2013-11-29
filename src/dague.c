@@ -1067,9 +1067,9 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
              * engine from atomically locking the hash table for at least one of the flow
              * for each execution context.
              */
-            new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
-            assert( origin->data[(int)origin_flow->flow_index].data == data->ptr );
-            new_context->data[(int)dest_flow->flow_index].data      = (void*)((char*)data->ptr + data->displ);
+            new_context->data[dest_flow->flow_index].data_repo = dest_repo_entry;
+            assert( origin->data[origin_flow->flow_index].data == data->ptr );
+            new_context->data[dest_flow->flow_index].data      = (void*)((char*)data->ptr + data->displ);
             AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
@@ -1115,13 +1115,15 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
     if( !(arg->action_mask & src_flow->flow_mask) ) {
         char tmp[MAX_TASK_STRLEN];
         WARNING(("On task %s dep_index %d (%d) not on the action_mask %x\n",
-                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, oldcontext), dep->dep_index, src_flow->flow_index, arg->action_mask));
+                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, oldcontext),
+                 dep->dep_index, src_flow->flow_index, arg->action_mask));
         return DAGUE_ITERATE_CONTINUE;
     }
 
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
+            struct remote_dep_output_param* output = &arg->deps->output[dep->dep_datatype_index];
             void* dataptr = is_read_only(oldcontext, dep);
             if(NULL != dataptr) {
                 arg->deps->msg.which &= ~(1 << dep->dep_index); /* unmark all data that are RO we already hold from previous tasks */
@@ -1129,11 +1131,16 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                 arg->deps->msg.which |= (1 << dep->dep_index); /* mark all data that are not RO */
                 dataptr = is_inplace(oldcontext, dep);  /* Can we do it inplace */
             }
-            arg->deps->output[dep->dep_index].data     = *data;
-            arg->deps->output[dep->dep_index].data.ptr = dataptr; /* if still NULL allocate it */
-            if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
+            output->data     = *data;
+            output->data.ptr = dataptr; /* if still NULL allocate it */
+            if(newcontext->priority > output->priority) {
+                output->priority = newcontext->priority;
+                if(newcontext->priority > arg->deps->max_priority)
+                    arg->deps->max_priority = newcontext->priority;
+            }
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
+            struct remote_dep_output_param* output = &arg->remote_deps->output[dep->dep_datatype_index];
             int _array_pos, _array_mask;
 
             _array_pos = dst_rank / (8 * sizeof(uint32_t));
@@ -1141,11 +1148,17 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
             assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
-            if( !(arg->remote_deps->output[dep->dep_index].rank_bits[_array_pos] & _array_mask) ) {
-                arg->remote_deps->output[dep->dep_index].data                   = *data;
-                arg->remote_deps->output[dep->dep_index].rank_bits[_array_pos] |= _array_mask;
-                arg->remote_deps->output[dep->dep_index].count_bits++;
+            if( !(output->rank_bits[_array_pos] & _array_mask) ) {
+                output->deps_mask |= (1 << dep->dep_index);
+                output->data                   = *data;
+                output->rank_bits[_array_pos] |= _array_mask;
+                output->count_bits++;
                 arg->remote_deps_count++;
+                if(newcontext->priority > output->priority) {
+                    output->priority = newcontext->priority;
+                    if(newcontext->priority > arg->remote_deps->max_priority)
+                        arg->remote_deps->max_priority = newcontext->priority;
+                }
             } else {
                 /* The bit is already flipped. This means either that we reached the same peer
                  * several times with the same operation (broadcast), or that we reached the
@@ -1154,8 +1167,6 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                  * outdep index.
                  */
             }
-            if(newcontext->priority > arg->remote_deps->max_priority)
-                arg->remote_deps->max_priority = newcontext->priority;
         }
     }
 #else

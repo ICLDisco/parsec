@@ -131,6 +131,7 @@ struct dep {
     const uint8_t                function_id;    /**< Index of the target dague function in the object function array */
     const uint8_t                dep_index;      /**< Output index of the dependency. This is used to store the flow
                                                   *   before tranfering it to the successors. */
+    const uint8_t                dep_datatype_index;  /**< Index of the output datatype. */
     const dague_flow_t          *flow;           /**< Pointer to the flow pointed to/from this dependency */
     const dague_flow_t          *belongs_to;     /**< The flow this dependency belongs tp */
     struct dague_comm_desc_s     datatype;       /**< Datatype associated with this dependency */
