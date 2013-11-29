@@ -11,12 +11,17 @@ extern "C" %{
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
+
+#define BLOCK 10
+#define N     100
+#define NN    10
+#define TYPE  matrix_RealFloat
+
 %}
 
 A          [type = "two_dim_block_cyclic_t*"]
 NI         [type = int]
 NK         [type = int]
-pri        [type = int default = 0 hidden = on]
 
 FCT1(i, k)
 
@@ -27,10 +32,10 @@ FCT1(i, k)
 
   READ A <- (0 == k) ? A(i) : A FCT1(i, k-1)
          -> (NK != k) ? A FCT1(i, k+1)
-         -> A FCT5(i, k)                         [displ = 10]
+         -> A FCT5(i, k)                         [displ = BLOCK]
   RW   B <- (0 == k) ? A(i) : B FCT1(i, k-1)
          -> A FCT2(i, k, k .. NK)                [displ = 0]
-         -> A FCT3(i, k, k .. NK)                [displ = 10]
+         -> A FCT3(i, k, k .. NK)                [displ = BLOCK]
          -> A FCT4(i, k)
          -> (NK != k) ? B FCT1(i, k+1)
 
@@ -90,11 +95,6 @@ END
 
 extern "C" %{
 
-#define BLOCK 10
-#define N     100
-#define NN    10
-#define TYPE  matrix_RealFloat
-
 #define TIMER_START(TIMER)                      \
     do {                                        \
         struct timeval tv;                      \
@@ -116,6 +116,7 @@ int main( int argc, char** argv )
     dague_arena_t arena;
     dague_context_t *dague;
     int ni = NN, nk = NN, verbose = 0, i = 1;
+    int rank = 0, size = 1, mat_size;
     long time_elapsed;
 
     while( NULL != argv[i] ) {
@@ -137,16 +138,22 @@ int main( int argc, char** argv )
         memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
         argc -= 1;
     }
+#ifdef DISTRIBUTED
+    MPI_Init( NULL, NULL );
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif  /* DISTRIBUTED */
     dague = dague_init(1, &argc, &argv);
     assert( NULL != dague );
 
     /**
      * Build the data and the arena to hold it up.
      */
+    mat_size = 2*BLOCK*size*NN;
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                               1 /*nodes*/, 1 /*cores*/, 0 /*rank*/,
-                               BLOCK, BLOCK, NN, 1,
-                               0, 0, NN, 1, 1, 1, 1);
+                               size /*nodes*/, 1 /*cores*/, rank /*rank*/,
+                               2*BLOCK, 1, mat_size, 1,
+                               0, 0, mat_size, 1, 1, 1, 1);
     descA.mat = dague_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *
                                      dague_datadist_getsizeoftype(TYPE) );
@@ -155,11 +162,10 @@ int main( int argc, char** argv )
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            DAGUE_DATATYPE_NULL);  /* change for distributed cases */
 
-    /* Heat up the engine: small tasks no priority */
+    /* Heat up the engine: small tasks */
     object = dague_complex_deps_new( &descA, ni, nk );
     assert( NULL != object );
     object->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
-    object->pri = 0;
     dague_enqueue( dague, (dague_object_t*)object );
     dague_progress(dague);
 
@@ -168,10 +174,9 @@ int main( int argc, char** argv )
     assert( NULL != object );
     TIMER_START(time_elapsed);
     object->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
-    object->pri = 0;
     dague_enqueue( dague, (dague_object_t*)object );
     TIMER_STOP(time_elapsed);
-    printf("DAG construction [%d] %d tasks in %ld micro-sec\n", object->pri,
+    printf("DAG construction %d tasks in %ld micro-sec\n",
            object->super.nb_local_tasks, time_elapsed);
     if( verbose >= 5 ) {
         printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
@@ -183,74 +188,7 @@ int main( int argc, char** argv )
     TIMER_START(time_elapsed);
     dague_progress(dague);
     TIMER_STOP(time_elapsed);
-    printf("DAG execution [%d] in %ld micro-sec\n", object->pri, time_elapsed);
-
-    /* Increasing */
-    object = dague_complex_deps_new( &descA, ni, nk );
-    assert( NULL != object );
-    TIMER_START(time_elapsed);
-    object->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
-    object->pri = 1;
-    dague_enqueue( dague, (dague_object_t*)object );
-    TIMER_STOP(time_elapsed);
-    printf("DAG construction [%d] %d tasks in %ld micro-sec\n", object->pri,
-           object->super.nb_local_tasks, time_elapsed);
-    if( verbose >= 5 ) {
-        printf("<DartMeasurement name=\"pos_pri\" type=\"numeric/double\"\n"
-               "                 encoding=\"none\" compression=\"none\">\n"
-               "%g\n"
-               "</DartMeasurement>\n",
-               (double)time_elapsed);
-    }
-    TIMER_START(time_elapsed);
-    dague_progress(dague);
-    TIMER_STOP(time_elapsed);
-    printf("DAG execution [%d] in %ld micro-sec\n", object->pri, time_elapsed);
-
-    /* Decreasing */
-    object = dague_complex_deps_new( &descA, ni, nk );
-    assert( NULL != object );
-    TIMER_START(time_elapsed);
-    object->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
-    object->pri = -1;
-    dague_enqueue( dague, (dague_object_t*)object );
-    TIMER_STOP(time_elapsed);
-    printf("DAG construction [%d] %d tasks in %ld micro-sec\n", object->pri,
-           object->super.nb_local_tasks, time_elapsed);
-    if( verbose >= 5 ) {
-        printf("<DartMeasurement name=\"neg_pri\" type=\"numeric/double\"\n"
-               "                 encoding=\"none\" compression=\"none\">\n"
-               "%g\n"
-               "</DartMeasurement>\n",
-               (double)time_elapsed);
-    }
-    TIMER_START(time_elapsed);
-    dague_progress(dague);
-    TIMER_STOP(time_elapsed);
-    printf("DAG execution [%d] in %ld micro-sec\n", object->pri, time_elapsed);
-
-    /* Random */
-    srandom((int)getpid());  /* Start the random generator */
-    object = dague_complex_deps_new( &descA, ni, nk );
-    assert( NULL != object );
-    TIMER_START(time_elapsed);
-    object->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
-    object->pri = 2;
-    dague_enqueue( dague, (dague_object_t*)object );
-    TIMER_STOP(time_elapsed);
-    printf("DAG construction [%d] %d tasks in %ld micro-sec\n", object->pri,
-           object->super.nb_local_tasks, time_elapsed);
-    if( verbose >= 5 ) {
-        printf("<DartMeasurement name=\"neg_pri\" type=\"numeric/double\"\n"
-               "                 encoding=\"none\" compression=\"none\">\n"
-               "%g\n"
-               "</DartMeasurement>\n",
-               (double)time_elapsed);
-    }
-    TIMER_START(time_elapsed);
-    dague_progress(dague);
-    TIMER_STOP(time_elapsed);
-    printf("DAG execution [%d] in %ld micro-sec\n", object->pri, time_elapsed);
+    printf("DAG execution in %ld micro-sec\n", time_elapsed);
 
     free(descA.mat);
 
