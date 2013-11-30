@@ -9,6 +9,8 @@
 
 #include "dague_internal.h"
 
+struct dague_barrier_t;
+
 /**
  * Add the dague_object_t to the execution queue of the dague_context_t. As
  * a result all ready tasks on the dague_object_t are scheduledfor execution
@@ -102,12 +104,12 @@ int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context
 
 typedef struct {
     char* name;
-    int(*global_init)(dague_context_t* master);
-    int(*thread_init)(dague_context_t* master);
-    int(*schedule_task)(dague_execution_unit_t* eu_context, dague_execution_context_t* new_context);
+    int(*global_init)(dague_context_t* context);
+    int(*thread_init)(dague_execution_unit_t* eu_context, struct dague_barrier_t*);
+    int(*schedule_task)(dague_execution_unit_t* eu_context, dague_execution_context_t* new_task);
     dague_execution_context_t *(*select_task)( dague_execution_unit_t *eu_context );
     void(*display_stats)(dague_execution_unit_t* eu_context);
-    void(*finalize)(dague_context_t *master);
+    void(*finalize)(dague_context_t *context);
 } dague_scheduler_t;
 
 /**
