@@ -102,7 +102,8 @@ int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context
 
 typedef struct {
     char* name;
-    int(*init)(dague_context_t* master);
+    int(*global_init)(dague_context_t* master);
+    int(*thread_init)(dague_context_t* master);
     int(*schedule_task)(dague_execution_unit_t* eu_context, dague_execution_context_t* new_context);
     dague_execution_context_t *(*select_task)( dague_execution_unit_t *eu_context );
     void(*display_stats)(dague_execution_unit_t* eu_context);
@@ -116,5 +117,10 @@ typedef struct {
  *  but *before* any call to dague_progress...
  */
 void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *scheduler );
+
+/**
+ * Global scheduler
+ */
+extern dague_scheduler_t scheduler;
 
 #endif  /* _DAGUE_scheduling_h */

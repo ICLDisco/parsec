@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -50,7 +50,7 @@ static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
 #define dague_heap_priority_comparator (offsetof(dague_heap_t, priority))
 
 // TREE
-static int init_tree_queues(  dague_context_t *master )
+static int init_tree_queues( dague_context_t *master )
 {
     int t, p, nq = 1;
     int hwloc_levels;
@@ -60,7 +60,7 @@ static int init_tree_queues(  dague_context_t *master )
     local_queues_scheduler_object_t *sched_obj = NULL;
 
     if ( !no_scheduler_is_active(master) ) {
-            return -1;
+        return -1;
     }
 
     for(p = 0; p < master->nb_vp; p++) {
@@ -68,14 +68,14 @@ static int init_tree_queues(  dague_context_t *master )
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_units[t];
             sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
-             eu->scheduler_object = sched_obj;
+            eu->scheduler_object = sched_obj;
 
-             if( eu->th_id == 0 ) {
-                 sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-                 dague_dequeue_construct( sched_obj->system_queue );
-             } else {
-                 sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_units[0])->system_queue;
-             }
+            if( eu->th_id == 0 ) {
+                sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
+                dague_dequeue_construct( sched_obj->system_queue );
+            } else {
+                sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_units[0])->system_queue;
+            }
         }
 
         for(t = 0; t < vp->nb_cores; t++) {
@@ -217,7 +217,7 @@ static int schedule_tree_queues( dague_execution_unit_t* eu_context,
 
     // do data_lookup
     if (cur->function->prepare_input(eu_context, cur) != DAGUE_LOOKUP_DONE)
-	    assert(0);
+            assert(0);
 
     while (1) {
         // check next element before insertion, which destroys next and prev
@@ -232,7 +232,7 @@ static int schedule_tree_queues( dague_execution_unit_t* eu_context,
 
         // compare data.... if we have at least one similar data item, then group
         if (next->function->prepare_input(eu_context, next) != DAGUE_LOOKUP_DONE)
-	        assert(0);
+                assert(0);
         matches = 0;
         for (i = 0; i < MAX_PARAM_COUNT; i++) {
                 for (j = 0; j < MAX_PARAM_COUNT; j++) {
@@ -293,7 +293,8 @@ static void finalize_tree_queues( dague_context_t *master )
 
 dague_scheduler_t sched_local_tree_queues = {
     .name = "Local Tree Queues",
-    .init = init_tree_queues,
+    .global_init = init_tree_queues,
+    .thread_init = NULL,
     .schedule_task = schedule_tree_queues,
     .select_task = choose_job_tree_queues,
     .display_stats = NULL,
@@ -384,7 +385,8 @@ static void finalize_global_dequeue( dague_context_t *master )
 
 dague_scheduler_t sched_global_dequeue = {
     .name = "Global Dequeues",
-    .init = init_global_dequeue,
+    .global_init = init_global_dequeue,
+    .thread_init = NULL,
     .schedule_task = schedule_global_dequeue,
     .select_task = choose_job_global_dequeue,
     .display_stats = NULL,
@@ -397,7 +399,7 @@ dague_scheduler_t sched_global_dequeue = {
 /****************** and Priority-Based Queues  ***********************/
 /*********************************************************************/
 
-static int init_local_flat_queues(  dague_context_t *master )
+static int init_local_flat_queues( dague_context_t *master )
 {
     int p, t, nq = 1;
     dague_execution_unit_t *eu;
@@ -701,7 +703,8 @@ static void finalize_local_flat_queues( dague_context_t *master )
 
 dague_scheduler_t sched_local_flat_queues = {
     .name = "Local Flat Queues",
-    .init = init_local_flat_queues,
+    .global_init = init_local_flat_queues,
+    .thread_init = NULL,
     .schedule_task = schedule_local_queues,
     .select_task = choose_job_local_queues,
     .display_stats = NULL,
@@ -710,7 +713,8 @@ dague_scheduler_t sched_local_flat_queues = {
 
 dague_scheduler_t sched_local_hier_queues = {
     .name = "Local Hierarchical Queues",
-    .init = init_local_hier_queues,
+    .global_init = init_local_hier_queues,
+    .thread_init = NULL,
     .schedule_task = schedule_local_queues,
     .select_task = choose_job_local_queues,
     .display_stats = NULL,
@@ -719,7 +723,8 @@ dague_scheduler_t sched_local_hier_queues = {
 
 dague_scheduler_t sched_priority_based_queues = {
     .name = "Priority Based Queues",
-    .init = init_local_flat_queues,
+    .global_init = init_local_flat_queues,
+    .thread_init = NULL,
     .schedule_task = schedule_local_queues_by_priority,
     .select_task = choose_job_local_queues,
     .display_stats = NULL,
@@ -796,7 +801,8 @@ static void finalize_absolute_priorities( dague_context_t *master )
 
 dague_scheduler_t sched_absolute_priorities = {
     .name = "Absolute priorities",
-    .init = init_absolute_priorities,
+    .global_init = init_absolute_priorities,
+    .thread_init = NULL,
     .schedule_task = schedule_absolute_priorities,
     .select_task = choose_job_absolute_priorities,
     .display_stats = NULL,
