@@ -165,7 +165,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->sched_nb_tasks_done = 0;
 #endif
 
-    /* If I'm the last thread on the VP I'm responsible for allocating the mempools */
+    /**
+     * A single thread per VP has a little bit more responsability: allocating
+     * the memory pools.
+     */
     if( startup->th_id == (startup->nb_cores - 1) ) {
         dague_vp_t *vp = startup->virtual_process;
         dague_execution_context_t fake_context;
@@ -183,6 +186,9 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     }
     /* Synchronize with the other threads */
     dague_barrier_wait(startup->barrier);
+
+    if( NULL != scheduler.thread_init )
+        scheduler.thread_init(eu, startup->barrier);
 
     eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -66,6 +66,8 @@ static int file_backend_extendable;
 
 static dague_profiling_binary_file_header_t *profile_head = NULL;
 static char *bpf_filename = NULL;
+
+static int switch_event_buffer(dague_thread_profiling_t *context);
 
 char *dague_profiling_strerror(void)
 {
@@ -155,7 +157,7 @@ int dague_profiling_init( const char *format, ... )
         assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
         profile_head = (dague_profiling_binary_file_header_t*)allocate_empty_buffer(&zero, PROFILING_BUFFER_TYPE_HEADER);
         if( NULL != profile_head ) {
-	        memcpy(profile_head->magick, DAGUE_PROFILING_MAGICK, strlen(DAGUE_PROFILING_MAGICK) + 1);
+                memcpy(profile_head->magick, DAGUE_PROFILING_MAGICK, strlen(DAGUE_PROFILING_MAGICK) + 1);
             profile_head->byte_order = 0x0123456789ABCDEF;
             profile_head->profile_buffer_size = event_buffer_size;
             strncpy(profile_head->hr_id, hr_id, 128);
@@ -226,6 +228,9 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     DAGUE_LIST_ITEM_CONSTRUCT( res );
     dague_list_fifo_push( &threads, (dague_list_item_t*)res );
 
+    /* Allocate the first page to save time on the first event tracing */
+    switch_event_buffer(res);
+
     return res;
 }
 
@@ -294,7 +299,7 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
     dague_prof_keys[pos].name = strdup(key_name);
     dague_prof_keys[pos].attributes = strdup(attributes);
     dague_prof_keys[pos].info_length = info_length;
-    if( NULL != convertor_code ) 
+    if( NULL != convertor_code )
         dague_prof_keys[pos].convertor = strdup(convertor_code);
     else
         dague_prof_keys[pos].convertor = NULL;
