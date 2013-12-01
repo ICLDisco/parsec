@@ -146,7 +146,7 @@ static void remote_dep_mpi_get_start( dague_execution_unit_t* eu_context, dague_
 static void remote_dep_mpi_get_end( dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i, int k );
 static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dep_cmd_item_t *item );
 
-#ifdef DAGUE_DEBUG_VERBOSE1
+#ifdef DAGUE_DEBUG_VERBOSE
 static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* str, size_t len)
 {
     unsigned int i, index = 0;
@@ -754,7 +754,7 @@ static int remote_dep_mpi_init(dague_context_t* context)
         WARNING(("Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30); Lets assume any integer value is a valid MPI Tag.\n"));
     } else {
         MAX_MPI_TAG = *ub;
-#if defined( DAGUE_DEBUG_VERBOSE1 )
+#if defined( DAGUE_DEBUG_VERBOSE )
         if( MAX_MPI_TAG < INT_MAX ) {
             WARNING(("MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
                     MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT));
@@ -856,7 +856,7 @@ static int remote_dep_mpi_pack_dep(dague_context_t* ctx,
     int k, dsize, saved_position = *position, completed = 0;
     int output_count = deps->output_count, which;
     uint32_t rank_bank, rank_mask;
-#ifdef DAGUE_DEBUG_VERBOSE1
+#ifdef DAGUE_DEBUG_VERBOSE
     char tmp[MAX_TASK_STRLEN];
 #endif
 
@@ -983,7 +983,7 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
 
 static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
 {
-#ifdef DAGUE_DEBUG_VERBOSE2
+#ifdef DAGUE_DEBUG_VERBOSE
     char tmp[MAX_TASK_STRLEN];
 #endif
     MPI_Status *status;
@@ -1040,7 +1040,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
 
 static remote_dep_datakey_t remote_dep_mpi_short_which(remote_dep_wire_activate_t* msg)
 {
-#ifdef DAGUE_DEBUG_VERBOSE3
+#ifdef DAGUE_DEBUG_VERBOSE
     char tmp[MAX_TASK_STRLEN];
 #endif
     dague_remote_deps_t* deps = (dague_remote_deps_t*)msg->deps;
@@ -1072,7 +1072,7 @@ static void remote_dep_mpi_put_short(dague_execution_unit_t* eu_context,
                                      remote_dep_wire_activate_t* msg,
                                      int rank)
 {
-#ifdef DAGUE_DEBUG_VERBOSE3
+#ifdef DAGUE_DEBUG_VERBOSE
     char tmp[MAX_TASK_STRLEN];
 #endif
     remote_dep_datakey_t short_which = remote_dep_mpi_short_which(msg);
@@ -1117,7 +1117,7 @@ static void remote_dep_mpi_save_put(dague_execution_unit_t* eu_context,
                                     int i,
                                     MPI_Status* status)
 {
-#ifdef DAGUE_DEBUG_VERBOSE3
+#ifdef DAGUE_DEBUG_VERBOSE
     char tmp[MAX_TASK_STRLEN];
 #endif
     dague_dep_wire_get_fifo_elem_t* item;
@@ -1152,7 +1152,7 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
     int nbdtt, tag = task->tag;
     void* data;
     MPI_Datatype dtt;
-#ifdef DAGUE_DEBUG_VERBOSE2
+#ifdef DAGUE_DEBUG_VERBOSE
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
@@ -1170,7 +1170,7 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
         data = ADATA(deps->output[k].data.ptr);
         dtt = deps->output[k].data.layout;
         nbdtt = deps->output[k].data.count;
-#ifdef DAGUE_DEBUG_VERBOSE2
+#ifdef DAGUE_DEBUG_VERBOSE
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tPut START\tunknown \tj=%d,k=%d\twith datakey %lx at %p type %s\t(tag=%d displ = %ld)\n",
                item->peer, i, k, task->deps, data, type_name, tag+k, deps->output[k].data.displ));
@@ -1231,7 +1231,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                                          int length,
                                          int* unpacked)
 {
-#ifdef DAGUE_DEBUG_VERBOSE2
+#ifdef DAGUE_DEBUG_VERBOSE
     char tmp[MAX_TASK_STRLEN];
 #endif
     int dsize, tag = (int)deps->msg.tag;
@@ -1305,7 +1305,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
     /* Release all the already satisfied deps without posting the RDV */
     if(deps->msg.deps) {
-#ifdef DAGUE_DEBUG_VERBOSE2
+#ifdef DAGUE_DEBUG_VERBOSE
         for(int k = 0; deps->msg.deps>>k; k++)
             if((1<<k) & deps->msg.deps)
                 DEBUG2(("MPI:\tHERE\t%d\tGet PREEND\t% -8s\ti=NA,k=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)\n",
@@ -1337,7 +1337,7 @@ static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context,
                                           int i,
                                           MPI_Status* status )
 {
-#ifdef DAGUE_DEBUG_VERBOSE1
+#ifdef DAGUE_DEBUG_VERBOSE
     char tmp[MAX_TASK_STRLEN];
 #endif
     int unpacked = 0, length;
@@ -1380,7 +1380,7 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context,
                                        dep_cmd_item_t *item )
 {
     dague_object_t* obj = item->cmd.new_object.obj;
-#if defined(DAGUE_DEBUG_VERBOSE2)
+#if defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN];
 #endif
     DAGUE_ULIST_ITERATOR(&dep_activates_noobj_fifo, item,
@@ -1406,7 +1406,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
                                      dague_remote_deps_t* deps,
                                      int i)
 {
-#ifdef DAGUE_DEBUG_VERBOSE2
+#ifdef DAGUE_DEBUG_VERBOSE
     char tmp[MAX_TASK_STRLEN], type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
@@ -1444,7 +1444,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
         msg.which &= ~(1<<k);
         remote_dep_mpi_get_end(eu_context, deps, i, k);
 #else
-#  ifdef DAGUE_DEBUG_VERBOSE2
+#  ifdef DAGUE_DEBUG_VERBOSE
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s count %d displ %ld extent %d\t(tag=%d)\n",
                 from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), i, k, task->deps, ADATA(data),

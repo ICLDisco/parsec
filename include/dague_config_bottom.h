@@ -63,17 +63,6 @@
 #define RDEP_MSG_SHORT_LIMIT    (((size_t)DAGUE_DIST_SHORT_LIMIT)*1024)
 #endif
 
-#if (DAGUE_DEBUG_VERBOSE >= 3)
-#   define DAGUE_DEBUG_VERBOSE3
-#   define DAGUE_DEBUG_VERBOSE2
-#   define DAGUE_DEBUG_VERBOSE1
-#elif (DAGUE_DEBUG_VERBOSE >= 2)
-#   define DAGUE_DEBUG_VERBOSE2
-#   define DAGUE_DEBUG_VERBOSE1
-#elif (DAGUE_DEBUG_VERBOSE >= 1)
-#   define DAGUE_DEBUG_VERBOSE1
-#endif
-
 #if defined(DAGUE_SCHED_DEPS_MASK)
 typedef uint32_t dague_dependency_t;
 #else

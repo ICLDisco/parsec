@@ -16,7 +16,8 @@
 
 #include <execinfo.h>
 
-int dague_verbose = 0;
+int dague_verbose = DAGUE_DEBUG_VERBOSE;
+
 #define ST_SIZE 128
 #define ST_ASIZE 64
 static uint32_t st_idx = 0;

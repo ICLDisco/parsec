@@ -750,7 +750,7 @@ static dague_execution_context_t *choose_job_absolute_priorities( dague_executio
 static int schedule_absolute_priorities( dague_execution_unit_t* eu_context,
                                          dague_execution_context_t* new_context )
 {
-#if defined(DAGUE_DEBUG_VERBOSE3)
+#if defined(DAGUE_DEBUG_VERBOSE)
     dague_list_item_t *it = (dague_list_item_t*)new_context;
     char tmp[MAX_TASK_STRLEN];
     do {

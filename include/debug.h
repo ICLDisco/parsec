@@ -26,6 +26,11 @@ int vasprintf(char **ret, const char *format, va_list ap);
 void debug_save_stack_trace(void);
 void debug_dump_stack_traces(void);
 
+/**
+ * The level of the output verbosity. Set to zero to disable everything.
+ */
+extern int dague_verbose;
+
 /* only one printf to avoid line breaks in the middle */
 static inline char* arprintf(const char* fmt, ...)
 {
@@ -74,16 +79,6 @@ static inline char* arprintf(const char* fmt, ...)
     _DAGUE_OUTPUT("..", ARG); \
     _DAGUE_DEBUG_HISTORY(ARG); \
 } while(0)
-#define VERBOSE(ARG) do { \
-    if(dague_verbose) \
-        _DAGUE_OUTPUT("+.", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
-#define VERBOSE2(ARG) do { \
-    if(dague_verbose > 1) \
-        _DAGUE_OUTPUT("+^", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
 #define WARNING(ARG) do { \
     _DAGUE_OUTPUT("!.", ARG) ; \
     _DAGUE_DEBUG_HISTORY(ARG); \
@@ -95,44 +90,27 @@ static inline char* arprintf(const char* fmt, ...)
     ABORT(); \
 } while(0)
 
-#ifdef DAGUE_DEBUG_VERBOSE3
-# define DEBUG3(ARG) do { \
-    _DAGUE_OUTPUT("D^", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
-#else /*DEBUG3*/
-# define DEBUG3(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
-#endif /*DEBUG3*/
+# define DEBUG3(ARG)                            \
+    if( dague_verbose >= 3 ) {                  \
+        _DAGUE_OUTPUT("D^", ARG);               \
+        _DAGUE_DEBUG_HISTORY(ARG);              \
+    }
 
-#ifdef DAGUE_DEBUG_VERBOSE2
-# define DEBUG2(ARG) do { \
-    _DAGUE_OUTPUT("D.", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
-#else /*DEBUG2*/
-# define DEBUG2(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
-#endif /*DEBUG2*/
+# define DEBUG2(ARG)                            \
+    if( dague_verbose >= 2 ) {                  \
+        _DAGUE_OUTPUT("D.", ARG);               \
+        _DAGUE_DEBUG_HISTORY(ARG);              \
+    }
 
-#ifdef DAGUE_DEBUG_VERBOSE1
-# define DEBUG(ARG) do { \
-    _DAGUE_OUTPUT("d.", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
-#else /*DEBUG1*/
-# define DEBUG(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
-#endif /*DEBUG1*/
-
-
+# define DEBUG(ARG)                             \
+    if( dague_verbose >= 1 ) {                  \
+        _DAGUE_OUTPUT("d.", ARG);               \
+        _DAGUE_DEBUG_HISTORY(ARG);              \
+    }
 
 #ifdef DAGUE_DEBUG_HISTORY
-#   ifndef DAGUE_DEBUG_VERBOSE1
-#       define DAGUE_DEBUG_VERBOSE1
-#   endif
-#   ifndef DAGUE_DEBUG_VERBOSE2
-#       define DAGUE_DEBUG_VERBOSE2
-#   endif
-#   ifndef DAGUE_DEBUG_VERBOSE3
-#       define DAGUE_DEBUG_VERBOSE3
+#   ifndef DAGUE_DEBUG_VERBOSE
+#       define DAGUE_DEBUG_VERBOSE 3
 #   endif
 
 struct dague_execution_context_t;
