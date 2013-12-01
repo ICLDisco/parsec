@@ -1140,12 +1140,13 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             }
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
-            struct remote_dep_output_param* output = &arg->remote_deps->output[dep->dep_datatype_index];
+            struct remote_dep_output_param* output;
             int _array_pos, _array_mask;
 
             _array_pos = dst_rank / (8 * sizeof(uint32_t));
             _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
+            output = &arg->remote_deps->output[dep->dep_datatype_index];
             assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
             if( !(output->rank_bits[_array_pos] & _array_mask) ) {

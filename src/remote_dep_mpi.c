@@ -476,7 +476,7 @@ static int remote_dep_dequeue_nothread_progress(dague_context_t* context)
 
     dague_list_construct(&temp_list);
  check_pending_queues:
-    /* Move a number of tranfers the dequeue into our ordered lifo. */
+    /* Move a number of tranfers from the shared dequeue into our ordered lifo. */
     how_many = 0;
     while( NULL != (item = (dep_cmd_item_t*) dague_dequeue_try_pop_front(&dep_cmd_queue)) ) {
         if( DEP_CTL == item->action ) {
@@ -501,8 +501,15 @@ static int remote_dep_dequeue_nothread_progress(dague_context_t* context)
             if(NULL != same_pos) {
                 /* this is the new head of the list. */
                 dague_list_item_ring_push(&same_pos->pos_list, &item->pos_list);
-                /* Remove previous elem from the priority list */
-                dague_list_nolock_remove(&dep_cmd_fifo, (dague_list_item_t*)same_pos);
+                /* Remove previous elem from the priority list. The element
+                 might be either in the dep_cmd_fifo if it is old enough to be
+                 pushed there, or in the temp_list waiting to be moved
+                 upstrea. Pay attention from which queue it is removed. */
+#if defined(DAGUE_DEBUG)
+                dague_list_nolock_remove((struct dague_list_t*)same_pos->super.belong_to, (dague_list_item_t*)same_pos);
+#else
+                dague_list_nolock_remove(NULL, (dague_list_item_t*)same_pos);
+#endif
                 dague_list_item_singleton((dague_list_item_t*)same_pos);
             }
             dague_mpi_same_pos_items[position] = item;
