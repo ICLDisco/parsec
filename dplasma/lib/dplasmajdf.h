@@ -4,6 +4,7 @@
 #include <core_blas.h>
 #include "dague.h"
 #include "dplasma.h"
+#include "memory_pool.h"
 
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
