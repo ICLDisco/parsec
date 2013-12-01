@@ -14,35 +14,18 @@
 
 #include "map.h"
 
-struct zlascal_args_s {
-    dague_complex64_t    alpha;
-    tiled_matrix_desc_t *descA;
-};
-typedef struct zlascal_args_s zlascal_args_t;
-
 static int
 dplasma_zlascal_operator( dague_execution_unit_t *eu,
-                          void *_A,
-                          void *op_data, ... )
+                         const tiled_matrix_desc_t *descA,
+                         void *_A,
+                         PLASMA_enum uplo, int m, int n,
+                         void *args )
 {
-    va_list ap;
-    PLASMA_enum uplo;
-    int i, m, n;
+    dague_complex64_t *A     = (dague_complex64_t*)_A;
+    dague_complex64_t  alpha = *((dague_complex64_t*)args);
+    int i;
     int tempmm, tempnn, ldam;
-    tiled_matrix_desc_t *descA;
-    dague_complex64_t alpha;
-    zlascal_args_t *args = (zlascal_args_t*)op_data;
-    dague_complex64_t *A = (dague_complex64_t*)_A;
     (void)eu;
-
-    va_start(ap, op_data);
-    uplo = va_arg(ap, PLASMA_enum);
-    m    = va_arg(ap, int);
-    n    = va_arg(ap, int);
-    va_end(ap);
-
-    descA = args->descA;
-    alpha = args->alpha;
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
@@ -129,12 +112,10 @@ dplasma_zlascal_New( PLASMA_enum uplo,
                      dague_complex64_t alpha,
                      tiled_matrix_desc_t *A )
 {
-    zlascal_args_t *params = (zlascal_args_t*)malloc(sizeof(zlascal_args_t));
+    dague_complex64_t *a = (dague_complex64_t*)malloc(sizeof(dague_complex64_t));
+    *a = alpha;
 
-    params->alpha = alpha;
-    params->descA = A;
-
-    return dplasma_map_New( uplo, A, dplasma_zlascal_operator, params );
+    return dplasma_map_New( uplo, A, dplasma_zlascal_operator, (void*)a );
 }
 
 /**

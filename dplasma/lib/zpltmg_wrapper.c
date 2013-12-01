@@ -28,7 +28,6 @@
  *******************************************************************************
  */
 struct zpltmg_args_s {
-    tiled_matrix_desc_t   *descA;
     PLASMA_enum            mtxtype;
     unsigned long long int seed;
     dague_complex64_t     *W;
@@ -37,25 +36,17 @@ typedef struct zpltmg_args_s zpltmg_args_t;
 
 static int
 dplasma_zpltmg_generic_operator( dague_execution_unit_t *eu,
-                                 void *A,
-                                 void *op_data, ... )
+                                 const tiled_matrix_desc_t *descA,
+                                 void *_A,
+                                 PLASMA_enum uplo, int m, int n,
+                                 void *op_data )
 {
-    va_list ap;
-    PLASMA_enum uplo;
-    int m, n;
     int tempmm, tempnn, ldam;
-    tiled_matrix_desc_t *descA;
     zpltmg_args_t     *args = (zpltmg_args_t*)op_data;
+    dague_complex64_t *A    = (dague_complex64_t*)_A;
     (void)eu;
-
-    va_start(ap, op_data);
-    uplo = va_arg(ap, PLASMA_enum);
-    m    = va_arg(ap, int);
-    n    = va_arg(ap, int);
-    va_end(ap);
-
     (void)uplo;
-    descA  = args->descA;
+
     tempmm = (m == (descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
     tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
     ldam   = BLKLDD( *descA, m );
@@ -123,7 +114,6 @@ dplasma_zpltmg_generic( dague_context_t *dague,
     dague_object_t *dague_zpltmg = NULL;
     zpltmg_args_t *params = (zpltmg_args_t*)malloc(sizeof(zpltmg_args_t));
 
-    params->descA   = A;
     params->mtxtype = mtxtype;
     params->seed    = seed;
     params->W       = W;

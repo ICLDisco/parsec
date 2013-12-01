@@ -21,6 +21,7 @@ operator [type = "tiled_matrix_binary_op_t" ]
 op_args  [type = "void *" ]
 
 descA        [type="tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
+descB        [type="tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataB)" ]
 plasma_upper [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
@@ -54,9 +55,10 @@ MAP_L(m, n)  [profile = off]
 
 BODY
 {
-    DRYRUN(
-        operator( context, A, B, op_args, PlasmaUpperLower, m, n );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), &(descB),
+              A, B, PlasmaUpperLower, m, n, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("thread %d VP %d map_l( %d, %d )\n",
              context->th_id, context->virtual_process->vp_id, m, n );
@@ -93,9 +95,10 @@ MAP_U(m, n)  [profile = off]
 
 BODY
 {
-    DRYRUN(
-        operator( context, A, B, op_args, PlasmaUpperLower, m, n );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), &(descB),
+              A, B, PlasmaUpperLower, m, n, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("thread %d VP %d map_u( %d, %d )\n",
              context->th_id, context->virtual_process->vp_id, m, n );
@@ -130,9 +133,10 @@ MAP_DIAG(k) [profile = off]
 
 BODY
 {
-    DRYRUN(
-        operator( context, A, B, op_args, uplo, k, k );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), &(descB),
+              A, B, uplo, k, k, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("thread %d VP %d map_diag( %d, %d )\n",
              context->th_id, context->virtual_process->vp_id, k, k );

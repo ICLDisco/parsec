@@ -14,35 +14,20 @@
 
 #include "map2.h"
 
-struct zlacpy_args_s {
-    const tiled_matrix_desc_t *descA;
-    tiled_matrix_desc_t       *descB;
-};
-typedef struct zlacpy_args_s zlacpy_args_t;
-
 static int
 dplasma_zlacpy_operator( dague_execution_unit_t *eu,
+                         const tiled_matrix_desc_t *descA,
+                         const tiled_matrix_desc_t *descB,
                          const void *_A, void *_B,
-                         void *op_data, ... )
+                         PLASMA_enum uplo, int m, int n,
+                         void *args )
 {
-    va_list ap;
-    zlacpy_args_t *args = (zlacpy_args_t*)op_data;
-    PLASMA_enum uplo;
-    int m, n;
     int tempmm, tempnn, ldam, ldbm;
-    const tiled_matrix_desc_t *descA;
-    tiled_matrix_desc_t *descB;
     const dague_complex64_t *A = (const dague_complex64_t*)_A;
     dague_complex64_t       *B = (dague_complex64_t*)_B;
     (void)eu;
-    va_start(ap, op_data);
-    uplo = va_arg(ap, PLASMA_enum);
-    m    = va_arg(ap, int);
-    n    = va_arg(ap, int);
-    va_end(ap);
+    (void)args;
 
-    descA = args->descA;
-    descB = args->descB;
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
     ldam = BLKLDD( *descA, m );
@@ -106,14 +91,9 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
                     tiled_matrix_desc_t *B)
 {
     dague_object_t* object;
-    zlacpy_args_t *params = (zlacpy_args_t*)malloc(sizeof(zlacpy_args_t));
-
-    params->descA = A;
-    params->descB = B;
 
     object = dplasma_map2_New(uplo, A, B,
-                              dplasma_zlacpy_operator,
-                              (void *)params);
+                              dplasma_zlacpy_operator, NULL );
 
     return object;
 }

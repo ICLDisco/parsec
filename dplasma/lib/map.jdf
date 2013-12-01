@@ -37,9 +37,10 @@ MAP_L(m, n)  [profile = off]
 
 BODY
 {
-    DRYRUN(
-        operator( context, A, op_args, PlasmaUpperLower, m, n );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), A,
+              PlasmaUpperLower, m, n, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("thread %d VP %d map_l( %d, %d )\n",
              context->th_id, context->virtual_process->vp_id, m, n );
@@ -60,9 +61,10 @@ MAP_U(m, n)  [profile = off]
 
 BODY
 {
-    DRYRUN(
-        operator( context, A, op_args, PlasmaUpperLower, m, n );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), A,
+              PlasmaUpperLower, m, n, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("thread %d VP %d map_u( %d, %d )\n",
              context->th_id, context->virtual_process->vp_id, m, n );
@@ -82,9 +84,10 @@ MAP_DIAG(k) [profile = off]
 
 BODY
 {
-    DRYRUN(
-        operator( context, A, op_args, uplo, k, k );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), A,
+              uplo, k, k, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("thread %d VP %d map_diag( %d, %d )\n",
              context->th_id, context->virtual_process->vp_id, k, k );

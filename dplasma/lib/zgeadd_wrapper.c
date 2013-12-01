@@ -13,36 +13,21 @@
 
 #include "map2.h"
 
-struct zgeadd_args_s {
-    dague_complex64_t          alpha;
-    const tiled_matrix_desc_t *descA;
-    tiled_matrix_desc_t       *descB;
-};
-typedef struct zgeadd_args_s zgeadd_args_t;
-
 static int
 dplasma_zgeadd_operator( dague_execution_unit_t *eu,
+                         const tiled_matrix_desc_t *descA,
+                         const tiled_matrix_desc_t *descB,
                          const void *_A, void *_B,
-                         void *op_data, ... )
+                         PLASMA_enum uplo, int m, int n,
+                         void *args )
 {
-    va_list ap;
-    zgeadd_args_t *args = (zgeadd_args_t*)op_data;
-    PLASMA_enum uplo;
-    int j, m, n;
+    const dague_complex64_t *A     = (dague_complex64_t*)_A;
+    dague_complex64_t       *B     = (dague_complex64_t*)_B;
+    dague_complex64_t        alpha = *((dague_complex64_t*)args);
+    int j;
     int tempmm, tempnn, ldam, ldbm;
-    const tiled_matrix_desc_t *descA;
-    tiled_matrix_desc_t *descB;
-    dague_complex64_t *A = (dague_complex64_t*)_A;
-    dague_complex64_t *B = (dague_complex64_t*)_B;
     (void)eu;
-    va_start(ap, op_data);
-    uplo = va_arg(ap, PLASMA_enum);
-    m    = va_arg(ap, int);
-    n    = va_arg(ap, int);
-    va_end(ap);
 
-    descA = args->descA;
-    descB = args->descB;
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
     ldam = BLKLDD( *descA, m );
@@ -51,18 +36,18 @@ dplasma_zgeadd_operator( dague_execution_unit_t *eu,
     switch ( uplo ) {
     case PlasmaLower:
         for (j = 0; j < tempnn; j++, tempmm--, A+=ldam+1, B+=ldbm+1) {
-            cblas_zaxpy(tempmm, CBLAS_SADDR(args->alpha), A, 1, B, 1);
+            cblas_zaxpy(tempmm, CBLAS_SADDR(alpha), A, 1, B, 1);
         }
         break;
     case PlasmaUpper:
         for (j = 0; j < tempnn; j++, A+=ldam, B+=ldbm) {
-            cblas_zaxpy(j+1, CBLAS_SADDR(args->alpha), A, 1, B, 1);
+            cblas_zaxpy(j+1, CBLAS_SADDR(alpha), A, 1, B, 1);
         }
         break;
     case PlasmaUpperLower:
     default:
         for (j = 0; j < tempnn; j++, A+=ldam, B+=ldbm) {
-            cblas_zaxpy(tempmm, CBLAS_SADDR(args->alpha), A, 1, B, 1);
+            cblas_zaxpy(tempmm, CBLAS_SADDR(alpha), A, 1, B, 1);
         }
     }
 
@@ -116,17 +101,11 @@ dplasma_zgeadd_New( PLASMA_enum uplo,
                     const tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *B)
 {
-    dague_object_t* object;
-    zgeadd_args_t *params = (zgeadd_args_t*)malloc(sizeof(zgeadd_args_t));
+    dague_complex64_t *a = (dague_complex64_t*)malloc(sizeof(dague_complex64_t));
+    *a = alpha;
 
-    params->alpha = alpha;
-    params->descA = A;
-    params->descB = B;
-
-    object = dplasma_map2_New(uplo, A, B,
-                              dplasma_zgeadd_operator, (void *)params);
-
-    return object;
+    return dplasma_map2_New(uplo, A, B,
+                            dplasma_zgeadd_operator, (void *)a);
 }
 
 /**
