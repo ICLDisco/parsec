@@ -81,7 +81,6 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
         *deps = NULL;
         return 1;
     }
-    assert(validator);
     return 0;
 }
 
@@ -203,7 +202,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     /* make valgrind happy */
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
 #endif
-#if defined(DAGUE_DEBUG_VERBOSE2)
+#if defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN];
 #endif
 
