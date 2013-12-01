@@ -22,7 +22,7 @@ struct zlaset_args_s {
 typedef struct zlaset_args_s zlaset_args_t;
 
 static int
-dplasma_zlaset_operator( struct dague_execution_unit *eu,
+dplasma_zlaset_operator( dague_execution_unit_t *eu,
                          void *_A,
                          void *op_data, ... )
 {

@@ -20,8 +20,8 @@ struct zlacpy_args_s {
 };
 typedef struct zlacpy_args_s zlacpy_args_t;
 
-static inline int
-dplasma_zlacpy_operator( struct dague_execution_unit *eu,
+static int
+dplasma_zlacpy_operator( dague_execution_unit_t *eu,
                          const void *_A, void *_B,
                          void *op_data, ... )
 {
@@ -32,8 +32,8 @@ dplasma_zlacpy_operator( struct dague_execution_unit *eu,
     int tempmm, tempnn, ldam, ldbm;
     const tiled_matrix_desc_t *descA;
     tiled_matrix_desc_t *descB;
-    dague_complex64_t *A = (dague_complex64_t*)_A;
-    dague_complex64_t *B = (dague_complex64_t*)_B;
+    const dague_complex64_t *A = (const dague_complex64_t*)_A;
+    dague_complex64_t       *B = (dague_complex64_t*)_B;
     (void)eu;
     va_start(ap, op_data);
     uplo = va_arg(ap, PLASMA_enum);
@@ -206,8 +206,8 @@ dplasma_zlacpy( dague_context_t *dague,
         return -2;
     }
 
-    if ( (A->m != B->m) || (A->n != B->n) ) {
-        dplasma_error("dplasma_zlacpy", "illegal matrix A (A and B don't match)");
+    if ( (A->m > B->m) || (A->n > B->n) ) {
+        dplasma_error("dplasma_zlacpy", "illegal matrix A (B can't contain A)");
         return -3;
     }
 

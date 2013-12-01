@@ -22,7 +22,7 @@ struct zplgsy_args_s {
 typedef struct zplgsy_args_s zplgsy_args_t;
 
 static int
-dplasma_zplgsy_operator( struct dague_execution_unit *eu,
+dplasma_zplgsy_operator( dague_execution_unit_t *eu,
                          void *_A,
                          void *op_data, ... )
 {

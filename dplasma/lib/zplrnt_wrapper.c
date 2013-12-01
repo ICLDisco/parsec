@@ -22,7 +22,7 @@ struct zplrnt_args_s {
 typedef struct zplrnt_args_s zplrnt_args_t;
 
 static int
-dplasma_zplrnt_operator( struct dague_execution_unit *eu,
+dplasma_zplrnt_operator( dague_execution_unit_t *eu,
                          void *_A,
                          void *op_data, ... )
 {

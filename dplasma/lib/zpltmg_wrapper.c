@@ -8,7 +8,6 @@
  *
  */
 #include "dague_internal.h"
-#include <cblas.h>
 #include <lapacke.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
@@ -37,7 +36,7 @@ struct zpltmg_args_s {
 typedef struct zpltmg_args_s zpltmg_args_t;
 
 static int
-dplasma_zpltmg_generic_operator( struct dague_execution_unit *eu,
+dplasma_zpltmg_generic_operator( dague_execution_unit_t *eu,
                                  void *A,
                                  void *op_data, ... )
 {

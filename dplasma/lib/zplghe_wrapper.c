@@ -22,7 +22,7 @@ struct zplghe_args_s {
 typedef struct zplghe_args_s zplghe_args_t;
 
 static int
-dplasma_zplghe_operator( struct dague_execution_unit *eu,
+dplasma_zplghe_operator( dague_execution_unit_t *eu,
                          void *_A,
                          void *op_data, ... )
 {

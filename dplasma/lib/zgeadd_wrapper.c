@@ -20,8 +20,8 @@ struct zgeadd_args_s {
 };
 typedef struct zgeadd_args_s zgeadd_args_t;
 
-static inline int
-dplasma_zgeadd_operator( struct dague_execution_unit *eu,
+static int
+dplasma_zgeadd_operator( dague_execution_unit_t *eu,
                          const void *_A, void *_B,
                          void *op_data, ... )
 {

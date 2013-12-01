@@ -21,9 +21,9 @@ struct zlascal_args_s {
 typedef struct zlascal_args_s zlascal_args_t;
 
 static int
-dplasma_zlascal_operator( struct dague_execution_unit *eu,
-                         void *_A,
-                         void *op_data, ... )
+dplasma_zlascal_operator( dague_execution_unit_t *eu,
+                          void *_A,
+                          void *op_data, ... )
 {
     va_list ap;
     PLASMA_enum uplo;
