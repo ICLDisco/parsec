@@ -20,12 +20,12 @@ dague_object_t* dplasma_zgelqf_New( tiled_matrix_desc_t *A,
 {
     dague_zgelqf_object_t* object;
     int ib = T->mb;
-    /* 
+    /*
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
-     * it should be passed as a parameter as in getrf 
+     * it should be passed as a parameter as in getrf
      */
 
-    object = dague_zgelqf_new( *A, (dague_ddesc_t*)A, *T, (dague_ddesc_t*)T, 
+    object = dague_zgelqf_new( (dague_ddesc_t*)A, (dague_ddesc_t*)T,
                                ib, NULL, NULL);
 
     object->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
@@ -35,25 +35,25 @@ dague_object_t* dplasma_zgelqf_New( tiled_matrix_desc_t *A,
     dague_private_memory_init( object->p_work, ib * T->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zgelqf_DEFAULT_ARENA], 
+    dplasma_add2arena_tile( object->arenas[DAGUE_zgelqf_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
-    
+
     /* Lower triangular part of tile with diagonal */
-    dplasma_add2arena_lower( object->arenas[DAGUE_zgelqf_LOWER_TILE_ARENA], 
+    dplasma_add2arena_lower( object->arenas[DAGUE_zgelqf_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 1 );
 
     /* Upper triangular part of tile without diagonal */
-    dplasma_add2arena_upper( object->arenas[DAGUE_zgelqf_UPPER_TILE_ARENA], 
+    dplasma_add2arena_upper( object->arenas[DAGUE_zgelqf_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgelqf_LITTLE_T_ARENA], 
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgelqf_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
@@ -61,7 +61,7 @@ dague_object_t* dplasma_zgelqf_New( tiled_matrix_desc_t *A,
     return (dague_object_t*)object;
 }
 
-int dplasma_zgelqf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T) 
+int dplasma_zgelqf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T)
 {
     dague_object_t *dague_zgelqf = NULL;
 
@@ -83,12 +83,11 @@ dplasma_zgelqf_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zgelqf->arenas[DAGUE_zgelqf_LOWER_TILE_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgelqf->arenas[DAGUE_zgelqf_UPPER_TILE_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgelqf->arenas[DAGUE_zgelqf_LITTLE_T_ARENA  ]->opaque_dtt) );
-      
+
     dague_private_memory_fini( dague_zgelqf->p_work );
     dague_private_memory_fini( dague_zgelqf->p_tau  );
     free( dague_zgelqf->p_work );
     free( dague_zgelqf->p_tau  );
- 
+
     DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgelqf);
 }
-
