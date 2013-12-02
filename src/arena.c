@@ -74,6 +74,7 @@ dague_arena_get(dague_arena_t* arena, size_t count)
                            arena->alignment, size_t);
         chunk = (dague_arena_chunk_t *)arena->data_malloc( size );
     }
+    data->nb_elts = count * arena->elem_size;
 
 #if defined(DAGUE_DEBUG)
     DAGUE_LIST_ITEM_SINGLETON( &chunk->item );
