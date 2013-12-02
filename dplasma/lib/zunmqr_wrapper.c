@@ -7,7 +7,6 @@
  *
  */
 #include "dague_internal.h"
-#include <core_blas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
