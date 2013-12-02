@@ -90,10 +90,10 @@ dplasma_zgeqrf_New( tiled_matrix_desc_t *A,
                                ib, NULL, NULL );
 
     object->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->p_tau, zgeqrf_p_tau_SIZE );
+    dague_private_memory_init( object->p_work, T->nb * sizeof(dague_complex64_t) );
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->p_work, zgeqrf_p_work_SIZE );
+    dague_private_memory_init( object->p_work, ib * T->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zgeqrf_DEFAULT_ARENA],
@@ -241,4 +241,6 @@ dplasma_zgeqrf( dague_context_t *dague,
         dplasma_progress(dague);
         dplasma_zgeqrf_Destruct( dague_zgeqrf );
     }
+
+    return 0;
 }
