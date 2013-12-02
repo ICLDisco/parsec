@@ -214,7 +214,7 @@ ztsmlq(k,n,m)
 
   : dataA(m, n)
 
-  RW   A1 <- ( (k+1) == n ) ? C zunmlq(n-1, m) : A1 ztsmlq(k, n-1, m)
+  RW   A1 <- ( (k+1) == n ) ? C zunmlq(k, m) : A1 ztsmlq(k, n-1, m)
           -> ( n == (descA.nt-1) ) ? A1 ztsmlq_out_A1(k, m) : A1 ztsmlq(k, n+1, m)
 
   RW   A2 <- (0==k) ? dataA(m, n) : A2 ztsmlq(k-1, n, m)
