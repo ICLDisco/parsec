@@ -162,6 +162,9 @@ precisions_rules_py(generated_files
 ### Generate the lib
 add_library(dplasma
             ${generated_files} ${EXTRA_SOURCES})
+add_dependencies(dplasma dplasma_includes)
+
+
 if (MPI_C_FOUND)
   set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif (MPI_C_FOUND)

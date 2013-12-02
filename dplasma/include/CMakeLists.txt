@@ -11,10 +11,11 @@ add_custom_target(dplasma_includes ALL DEPENDS dplasma.h SOURCES
     ${generated_headers} )
 
 ### install the dplasma headers
-install(FILES 
-  dplasma.h 
+install(FILES
+  dplasma.h
   dplasma_qr_pivgen.h
   DESTINATION include)
+
 foreach(generated_header ${generated_headers})
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION include)
 endforeach()
