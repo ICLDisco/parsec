@@ -29,6 +29,8 @@
  *
  * as returned by dplasma_zgeqrf_New().
  *
+ * WARNING: The computations are not done by this call.
+ *
  *******************************************************************************
  *
  * @param[in] A

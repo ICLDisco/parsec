@@ -14,17 +14,17 @@
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
 
-#include "zunmqr_LN.h"
-#include "zunmqr_LC.h"
-#include "zunmqr_RN.h"
-#include "zunmqr_RC.h"
+#include "zunmlq_LN.h"
+#include "zunmlq_LC.h"
+#include "zunmlq_RN.h"
+#include "zunmlq_RC.h"
 
 /**
  *******************************************************************************
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_zunmqr_New - Generates the dague object that overwrites the general
+ *  dplasma_zunmlq_New - Generates the dague object that overwrites the general
  *  M-by-N matrix C with
  *
  *                  SIDE = 'L'     SIDE = 'R'
@@ -36,7 +36,7 @@
  *
  *        Q = H(1) H(2) . . . H(k)
  *
- *  as returned by dplasma_zgeqrf(). Q is of order M if side = PlasmaLeft
+ *  as returned by dplasma_zgelqf(). Q is of order M if side = PlasmaLeft
  *  and of order N if side = PlasmaRight.
  *
  * WARNING: The computations are not done by this call.
@@ -52,20 +52,20 @@
  *          @arg PlasmaConjTrans: conjugate transpose, apply Q**H.
  *
  * @param[in] A
- *          Descriptor of the matrix A of size M-by-K factorized with the
- *          dplasma_zgeqrf_New() routine.
- *          On entry, the i-th column must contain the vector which
+ *          Descriptor of the matrix A of size K-by-M factorized with the
+ *          dplasma_zgelqf_New() routine.
+ *          On entry, the i-th row must contain the vector which
  *          defines the elementary reflector H(i), for i = 1,2,...,k, as
- *          returned by dplasma_zgeqrf_New() in the first k columns of its array
+ *          returned by dplasma_zgelqf_New() in the first k rows of its array
  *          argument A.
  *          If side == PlasmaLeft,  M >= K >= 0.
  *          If side == PlasmaRight, N >= K >= 0.
  *
  * @param[in] T
  *          Descriptor of the matrix T distributed exactly as the A matrix. T.mb
- *          defines the IB parameter of tile QR algorithm. This matrix must be
+ *          defines the IB parameter of tile LQ algorithm. This matrix must be
  *          of size A.mt * T.mb - by - A.nt * T.nb, with T.nb == A.nb.
- *          This matrix is initialized during the call to dplasma_zgeqrf_New().
+ *          This matrix is initialized during the call to dplasma_zgelqf_New().
  *
  * @param[in,out] C
  *          Descriptor of the M-by-N matrix C.
@@ -79,63 +79,62 @@
  *
  *******************************************************************************
  *
- * @sa dplasma_zunmqr_Destruct
- * @sa dplasma_zunmqr
- * @sa dplasma_cunmqr_New
- * @sa dplasma_dormqr_New
- * @sa dplasma_sormqr_New
- * @sa dplasma_zgeqrf_New
+ * @sa dplasma_zunmlq_Destruct
+ * @sa dplasma_zunmlq
+ * @sa dplasma_cunmlq_New
+ * @sa dplasma_dormlq_New
+ * @sa dplasma_sormlq_New
+ * @sa dplasma_zgelqf_New
  *
  ******************************************************************************/
 dague_object_t*
-dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
+dplasma_zunmlq_New( PLASMA_enum side, PLASMA_enum trans,
                     tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T,
                     tiled_matrix_desc_t *C )
 {
     dague_object_t* object;
-    int Am, ib = T->mb;
+    int An, ib = T->mb;
 
     /* if ( !dplasma_check_desc(A) ) { */
-    /*     dplasma_error("dplasma_zunmqr_New", "illegal A descriptor"); */
+    /*     dplasma_error("dplasma_zunmlq_New", "illegal A descriptor"); */
     /*     return NULL; */
     /* } */
     /* if ( !dplasma_check_desc(T) ) { */
-    /*     dplasma_error("dplasma_zunmqr_New", "illegal T descriptor"); */
+    /*     dplasma_error("dplasma_zunmlq_New", "illegal T descriptor"); */
     /*     return NULL; */
     /* } */
     /* if ( !dplasma_check_desc(C) ) { */
-    /*     dplasma_error("dplasma_zunmqr_New", "illegal C descriptor"); */
+    /*     dplasma_error("dplasma_zunmlq_New", "illegal C descriptor"); */
     /*     return NULL; */
     /* } */
     if ( side == PlasmaLeft ) {
-        Am = C->m;
+        An = C->m;
     } else {
-        Am = C->n;
+        An = C->n;
     }
-
-    if ( A->n > Am ) {
-        dplasma_error("dplasma_zunmqr_New", "illegal value of A->n");
+    if ( A->n != An ) {
+        dplasma_error("dplasma_zunmlq_New", "illegal value of A->n");
         return NULL;
     }
-    if ( A->m != Am ) {
-        dplasma_error("dplasma_zunmqr_New", "illegal value of A->m");
+    if ( A->m > An ) {
+        dplasma_error("dplasma_zunmlq_New", "illegal value of A->m");
         return NULL;
     }
     if ( (T->nt != A->nt) || (T->mt != A->mt) ) {
-        dplasma_error("dplasma_zunmqr_New", "illegal size of T (T should have as many tiles as A)");
+        dplasma_error("dplasma_zunmlq_New", "illegal size of T (T should have as many tiles as A)");
         return NULL;
     }
 
     if ( side == PlasmaLeft ) {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_object_t*)dague_zunmqr_LN_new( side, trans,
+            object = (dague_object_t*)dague_zunmlq_LN_new( side, trans,
                                                            (dague_ddesc_t*)A,
                                                            (dague_ddesc_t*)C,
                                                            (dague_ddesc_t*)T,
                                                            NULL);
         } else {
-            object = (dague_object_t*)dague_zunmqr_LC_new( side, trans,
+            object = (dague_object_t*)dague_zunmlq_LC_new( side, trans,
                                                            (dague_ddesc_t*)A,
                                                            (dague_ddesc_t*)C,
                                                            (dague_ddesc_t*)T,
@@ -143,13 +142,13 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
         }
     } else {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_object_t*)dague_zunmqr_RN_new( side, trans,
+            object = (dague_object_t*)dague_zunmlq_RN_new( side, trans,
                                                            (dague_ddesc_t*)A,
                                                            (dague_ddesc_t*)C,
                                                            (dague_ddesc_t*)T,
                                                            NULL);
         } else {
-            object = (dague_object_t*)dague_zunmqr_RC_new( side, trans,
+            object = (dague_object_t*)dague_zunmlq_RC_new( side, trans,
                                                            (dague_ddesc_t*)A,
                                                            (dague_ddesc_t*)C,
                                                            (dague_ddesc_t*)T,
@@ -157,23 +156,23 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
         }
     }
 
-    ((dague_zunmqr_LC_object_t*)object)->pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( ((dague_zunmqr_LC_object_t*)object)->pool_0, ib * T->nb * sizeof(dague_complex64_t) );
+    ((dague_zunmlq_LC_object_t*)object)->pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( ((dague_zunmlq_LC_object_t*)object)->pool_0, ib * T->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( ((dague_zunmqr_LC_object_t*)object)->arenas[DAGUE_zunmqr_LC_DEFAULT_ARENA],
+    dplasma_add2arena_tile( ((dague_zunmlq_LC_object_t*)object)->arenas[DAGUE_zunmlq_LC_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
 
     /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( ((dague_zunmqr_LC_object_t*)object)->arenas[DAGUE_zunmqr_LC_LOWER_TILE_ARENA],
+    dplasma_add2arena_lower( ((dague_zunmlq_LC_object_t*)object)->arenas[DAGUE_zunmlq_LC_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( ((dague_zunmqr_LC_object_t*)object)->arenas[DAGUE_zunmqr_LC_LITTLE_T_ARENA],
+    dplasma_add2arena_rectangle( ((dague_zunmlq_LC_object_t*)object)->arenas[DAGUE_zunmlq_LC_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
@@ -186,8 +185,8 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
  *
  * @ingroup dplasma_complex64_t
  *
- *  dplasma_zunmqr_Destruct - Free the data structure associated to an object
- *  created with dplasma_zunmqr_New().
+ *  dplasma_zunmlq_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zunmlq_New().
  *
  *******************************************************************************
  *
@@ -197,23 +196,23 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
  *
  *******************************************************************************
  *
- * @sa dplasma_zunmqr_New
- * @sa dplasma_zunmqr
+ * @sa dplasma_zunmlq_New
+ * @sa dplasma_zunmlq
  *
  ******************************************************************************/
 void
-dplasma_zunmqr_Destruct( dague_object_t *object )
+dplasma_zunmlq_Destruct( dague_object_t *object )
 {
-    dague_zunmqr_LC_object_t *dague_zunmqr = (dague_zunmqr_LC_object_t *)object;
+    dague_zunmlq_LC_object_t *dague_zunmlq = (dague_zunmlq_LC_object_t *)object;
 
-    dplasma_datatype_undefine_type( &(dague_zunmqr->arenas[DAGUE_zunmqr_LC_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zunmqr->arenas[DAGUE_zunmqr_LC_LOWER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zunmqr->arenas[DAGUE_zunmqr_LC_LITTLE_T_ARENA  ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zunmlq->arenas[DAGUE_zunmlq_LC_DEFAULT_ARENA   ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zunmlq->arenas[DAGUE_zunmlq_LC_LOWER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zunmlq->arenas[DAGUE_zunmlq_LC_LITTLE_T_ARENA  ]->opaque_dtt) );
 
-    dague_private_memory_fini( dague_zunmqr->pool_0 );
-    free( dague_zunmqr->pool_0 );
+    dague_private_memory_fini( dague_zunmlq->pool_0 );
+    free( dague_zunmlq->pool_0 );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zunmqr);
+    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zunmlq);
 }
 
 /**
@@ -221,7 +220,7 @@ dplasma_zunmqr_Destruct( dague_object_t *object )
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_zunmqr_New - Overwrites the general M-by-N matrix C with
+ *  dplasma_zunmlq_New - Overwrites the general M-by-N matrix C with
  *
  *                  SIDE = 'L'     SIDE = 'R'
  *  TRANS = 'N':      Q * C          C * Q
@@ -232,7 +231,7 @@ dplasma_zunmqr_Destruct( dague_object_t *object )
  *
  *        Q = H(1) H(2) . . . H(k)
  *
- *  as returned by dplasma_zgeqrf(). Q is of order M if side = PlasmaLeft
+ *  as returned by dplasma_zgelqf(). Q is of order M if side = PlasmaLeft
  *  and of order N if side = PlasmaRight.
  *
  *******************************************************************************
@@ -249,20 +248,20 @@ dplasma_zunmqr_Destruct( dague_object_t *object )
  *          @arg PlasmaConjTrans: conjugate transpose, apply Q**H.
  *
  * @param[in] A
- *          Descriptor of the matrix A of size M-by-K factorized with the
- *          dplasma_zgeqrf_New() routine.
- *          On entry, the i-th column must contain the vector which
+ *          Descriptor of the matrix A of size K-by-N factorized with the
+ *          dplasma_zgelqf_New() routine.
+ *          On entry, the i-th row must contain the vector which
  *          defines the elementary reflector H(i), for i = 1,2,...,k, as
- *          returned by dplasma_zgeqrf_New() in the first k columns of its array
+ *          returned by dplasma_zgelqf_New() in the first k rows of its array
  *          argument A.
  *          If side == PlasmaLeft,  M >= K >= 0.
  *          If side == PlasmaRight, N >= K >= 0.
  *
  * @param[in] T
  *          Descriptor of the matrix T distributed exactly as the A matrix. T.mb
- *          defines the IB parameter of tile QR algorithm. This matrix must be
+ *          defines the IB parameter of tile LQ algorithm. This matrix must be
  *          of size A.mt * T.mb - by - A.nt * T.nb, with T.nb == A.nb.
- *          This matrix is initialized during the call to dplasma_zgeqrf_New().
+ *          This matrix is initialized during the call to dplasma_zgelqf_New().
  *
  * @param[in,out] C
  *          Descriptor of the M-by-N matrix C.
@@ -276,67 +275,67 @@ dplasma_zunmqr_Destruct( dague_object_t *object )
  *
  *******************************************************************************
  *
- * @sa dplasma_zunmqr_Destruct
- * @sa dplasma_zunmqr
- * @sa dplasma_cunmqr_New
- * @sa dplasma_dormqr_New
- * @sa dplasma_sormqr_New
- * @sa dplasma_zgeqrf_New
+ * @sa dplasma_zunmlq_Destruct
+ * @sa dplasma_zunmlq
+ * @sa dplasma_cunmlq_New
+ * @sa dplasma_dormlq_New
+ * @sa dplasma_sormlq_New
+ * @sa dplasma_zgelqf_New
  *
  ******************************************************************************/
 int
-dplasma_zunmqr( dague_context_t *dague,
+dplasma_zunmlq( dague_context_t *dague,
                 PLASMA_enum side, PLASMA_enum trans,
                 tiled_matrix_desc_t *A,
                 tiled_matrix_desc_t *T,
                 tiled_matrix_desc_t *C )
 {
-    dague_object_t *dague_zunmqr = NULL;
-    int Am;
+    dague_object_t *dague_zunmlq = NULL;
+    int An;
 
     if (dague == NULL) {
-        dplasma_error("dplasma_zunmqr", "dplasma not initialized");
+        dplasma_error("dplasma_zunmlq", "dplasma not initialized");
         return -1;
     }
 
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
-        dplasma_error("dplasma_zunmqr_New", "illegal value of side");
+        dplasma_error("dplasma_zunmlq_New", "illegal value of side");
         return -1;
     }
     if ((trans != PlasmaNoTrans) &&
         (trans != PlasmaTrans)   &&
         (trans != PlasmaConjTrans)) {
-        dplasma_error("dplasma_zunmqr_New", "illegal value of trans");
+        dplasma_error("dplasma_zunmlq_New", "illegal value of trans");
         return -2;
     }
 
     if ( side == PlasmaLeft ) {
-        Am = C->m;
+        An = C->m;
     } else {
-        Am = C->n;
+        An = C->n;
     }
-    if ( A->m != Am ) {
-        dplasma_error("dplasma_zunmqr_New", "illegal value of A->m");
+    if ( A->n != An ) {
+        dplasma_error("dplasma_zunmlq_New", "illegal value of A->n");
         return -3;
     }
-    if ( A->n > Am ) {
-        dplasma_error("dplasma_zunmqr_New", "illegal value of A->n");
+    if ( A->m > An ) {
+        dplasma_error("dplasma_zunmlq_New", "illegal value of A->m");
         return -5;
     }
     if ( (T->nt != A->nt) || (T->mt != A->mt) ) {
-        dplasma_error("dplasma_zunmqr_New", "illegal size of T (T should have as many tiles as A)");
+        dplasma_error("dplasma_zunmlq_New", "illegal size of T (T should have as many tiles as A)");
         return -20;
     }
 
-    if (dplasma_imin(C->m, dplasma_imin(C->n, A->n)) == 0)
+    if (dplasma_imin(C->m, dplasma_imin(C->n, A->m)) == 0)
         return 0;
 
-    dague_zunmqr = dplasma_zunmqr_New(side, trans, A, T, C);
+    dague_zunmlq = dplasma_zunmlq_New(side, trans, A, T, C);
 
-    if ( dague_zunmqr != NULL ){
-        dague_enqueue(dague, (dague_object_t*)dague_zunmqr);
+    if ( dague_zunmlq != NULL ){
+        dague_enqueue(dague, (dague_object_t*)dague_zunmlq);
         dplasma_progress(dague);
-        dplasma_zunmqr_Destruct( dague_zunmqr );
+        dplasma_zunmlq_Destruct( dague_zunmlq );
     }
     return 0;
 }

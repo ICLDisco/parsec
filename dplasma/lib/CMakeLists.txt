@@ -137,6 +137,7 @@ set(SOURCES
   zungqr_param_wrapper.c
   zungqr_param_wrapper.c
   zungqr_wrapper.c
+  zunmlq_wrapper.c
   zunmqr_param_wrapper.c
   zunmqr_wrapper.c
   #
