@@ -49,11 +49,11 @@ BODY
     printlog("CORE_zsyrk(%d, %d)\n"
              "\t(uplo, trans, tempnn, tempkm, alpha, A(%d,%d)[%p], ldak, zbeta, C(%d,%d)[%p], ldcn)\n",
              n, k, k, n, A, n, n, C);
-    DRYRUN(
-        CORE_zsyrk(uplo, trans, tempnn, tempkm,
-                   alpha, A /* dataA(k,n) */, ldak,
-                   zbeta, C /* dataC(n,n) */, ldcn );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zsyrk(uplo, trans, tempnn, tempkm,
+               alpha, A /* dataA(k,n) */, ldak,
+               zbeta, C /* dataC(n,n) */, ldcn );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -102,12 +102,12 @@ BODY
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(trans, PlasmaNoTrans, tempnn, tempmm, tempkm, zalpha, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, zbeta, C(%d,%d)[%p], ldcn)\n",
              n, m, k, k, n, A, k, m, B, n, m, C);
-    DRYRUN(
-        CORE_zgemm(trans, PlasmaNoTrans, tempnn, tempmm, tempkm,
-                   alpha,  A /* dataA(k,n) */, ldak,
-                   B /* dataA(k,m) */, ldak,
-                   zbeta,  C /* dataC(n,m) */, ldcn );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(trans, PlasmaNoTrans, tempnn, tempmm, tempkm,
+               alpha,  A /* dataA(k,n) */, ldak,
+                       B /* dataA(k,m) */, ldak,
+               zbeta,  C /* dataC(n,m) */, ldcn );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 

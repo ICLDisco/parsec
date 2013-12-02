@@ -46,12 +46,12 @@ BODY
     int lda = BLKLDD( descA, (descB.nt-1)-k );
     int ldb = BLKLDD( descB, m );
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_ztrsm(side, uplo, trans, diag,
                    tempmm, tempkn, alpha,
                    A /* dataA((descB.nt-1)-k,(descB.nt-1)-k) */, lda,
                    B /* dataB(m,(descB.nt-1)-k) */, ldb );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_ztrsm(%d, %d)\n"
              "\t(side, uplo, trans, diag, tempmm, tempkn, alpha, dataA(%d,%d)[%p], lda, dataB(%d,%d)[%p], ldb)\n",
@@ -99,13 +99,13 @@ BODY
     int ldan = BLKLDD( descA, (descB.nt-1)-n );
     int ldb  = BLKLDD( descB, m );
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_zgemm(PlasmaNoTrans, trans,
                    tempmm, descB.nb, tempkn,
                    minvalpha, C /* dataB(m,             (descB.nt-1)-k) */, ldb,
                               D /* dataA((descB.nt-1)-n,(descB.nt-1)-k) */, ldan,
                    1.0,       E /* dataB(m,             (descB.nt-1)-n) */, ldb );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(PlasmaNoTrans, trans, tempmm, descB.nb, tempkn, minvalpha, B(%d,%d)[%p], ldb, A(%d,%d)[%p], descA.mb, zone, B(%d,%d)[%p], ldb)\n",

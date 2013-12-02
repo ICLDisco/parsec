@@ -67,7 +67,7 @@ RWCOL(m, n) [profile = off]
 
 BODY
 {
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         /* Initialize W */
         switch( ntype ) {
         case PlasmaMaxNorm:
@@ -87,7 +87,7 @@ BODY
         default:
             fprintf(stderr, "Unknown norm %d\n", ntype );
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -109,7 +109,7 @@ RWELT(m, n) [profile = off]
 
 BODY
 {
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         /* Initialize W */
         switch( ntype ) {
         case PlasmaMaxNorm:
@@ -125,7 +125,7 @@ BODY
         default:
             fprintf(stderr, "Unknown norm %d\n", ntype );
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -161,7 +161,7 @@ BODY
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
              context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         switch( ntype ) {
         case PlasmaMaxNorm:
         {
@@ -191,7 +191,7 @@ BODY
         default:
             fprintf(stderr, "Unknown norm %d\n", ntype );
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -224,7 +224,7 @@ BODY
              "\t( W(%d, %d) || W(%d, %d)\n",
              context->th_id, m, n, m, n-1, m, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         if(n > 0)
         {
             switch( ntype ) {
@@ -256,7 +256,7 @@ BODY
                 fprintf(stderr, "Unknown norm %d\n", ntype );
             }
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -290,7 +290,7 @@ BODY
     printlog("thread %d zlange STEP3(%d, %d)\n",
              context->th_id, m, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         switch( ntype ) {
         case PlasmaMaxNorm:
         {
@@ -333,7 +333,7 @@ BODY
         default:
             fprintf(stderr, "Unknown norm %d\n", ntype );
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -365,7 +365,7 @@ BODY
     printlog("thread %d zlange STEP4(%d, %d)\n",
              context->th_id, m, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         if(m > 0) {
             switch( ntype ) {
             case PlasmaMaxNorm:
@@ -396,7 +396,7 @@ BODY
                 fprintf(stderr, "Unknown norm %d\n", ntype );
             }
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -422,7 +422,7 @@ BODY
     printlog("thread %d zlange STORE RESULT(%d, %d)\n",
              context->th_id, m, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         switch( ntype ) {
         case PlasmaMaxNorm:
         case PlasmaInfNorm:
@@ -440,6 +440,6 @@ BODY
         default:
             fprintf(stderr, "Unknown norm %d\n", ntype );
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END

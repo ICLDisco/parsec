@@ -110,7 +110,7 @@ BODY
              k, i, m, nextm, tempmm, tempkn, m, k, A, ldam, m, k, P,
              (iinfo != 0 ? m * descA.mb + iinfo : 0 ));
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
            /* Set local IPIV to 0 before generation
             * Better here than a global initialization for locality
             * and it's also done in parallel */
@@ -124,7 +124,7 @@ BODY
                *INFO = k * descA.mb + iinfo; /* Should return if enter here */
                fprintf(stderr, "\nWarning!!! zgetrf( k=%d, i=%d, m=%d) failed => %d\n", k, i, m, *INFO );
            }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 #if defined(DAGUE_SIM)
     if ( descA.mt-1 == k )
@@ -195,12 +195,12 @@ BODY
               "\t  A(%d,%d)[%p], ldam = %d, A(%d,%d)[%p], ldam = %d)\n",
               k, i, n, m, nextm, tempmm, tempnn, tempmm, m, k, P, m, k, A, ldam, m, n, C, ldam);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
            CORE_zgessm(tempmm, tempnn, tempmm, ib,
                        P /* IPIV(m,k) */,
                        A /* A(m,k)    */, ldam,
                        C /* A(m,n)    */, ldam );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -274,7 +274,7 @@ BODY
              tempmm, tempkn, ib, descLT.nb,
              p, k, A1, ldap, m, k, A2, ldam, m, k, L, descLT.mb, descLT.nb);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         void *p_elem_B = dague_private_memory_pop( p_work );
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
@@ -305,7 +305,7 @@ BODY
         }
 
         dague_private_memory_push( p_work, p_elem_B );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 #if defined(DAGUE_SIM)
     ((PLASMA_Complex64_t*)A2)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
@@ -397,7 +397,7 @@ BODY
              p, n, A1, ldap, m, n, A2, ldam,
              m, k, L, descLT.mb, m, k, V, ldam);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
             CORE_zssssm(
@@ -422,7 +422,7 @@ BODY
             dague_private_memory_push( p_work, p_elem_A );
         }
 
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 

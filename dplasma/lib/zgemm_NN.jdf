@@ -126,14 +126,14 @@ BODY
     moesi_master_update( descC.super.moesi_map, TILED_MATRIX_KEY( &descC, m, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
-    DRYRUN(
-        CORE_zgemm(
-            transA, transB,
-            tempmm, tempnn, tempkk,
-            alpha, A /*A(m, k)*/, ldam,
-            B /*B(k, n)*/, ldbk,
-            lbeta, C /*C(m, n)*/, ldcm);
-           );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(
+        transA, transB,
+        tempmm, tempnn, tempkk,
+        alpha, A /*A(m, k)*/, ldam,
+               B /*B(k, n)*/, ldbk,
+        lbeta, C /*C(m, n)*/, ldcm);
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 #if defined(HAVE_CUDA)
   FIN:

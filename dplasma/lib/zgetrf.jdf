@@ -123,7 +123,7 @@ BODY
              "\t(%d, %d, A(%d,%d)[%p], %d, IPIV(%d)[%p])",
              k, tempm, tempkn, k, k, A, ldak, k, IPIV);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         int tempkm = k == descA.mt-1 ? tempm : descA.mb;
         int nbthrd = nbthreads( k );
         int info[3];
@@ -157,7 +157,7 @@ BODY
             *INFO = tempk + info[0]; /* Should return if enter here */
             fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -195,7 +195,7 @@ BODY
              "\t(%d, %d, A(%d,%d)[%p], B(%d,%d)[%p])",
              k, n, tempkm, tempnn, k, k, A, k, n, B);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         if ( descA.storage == matrix_Tile ) {
             int tempk = k * descA.mb;
             int tempm = descA.m - tempk;
@@ -215,7 +215,7 @@ BODY
             tempkm, tempnn,
             1., A /*(k, k)*/, ldak,
                 B /*(k, n)*/, ldak);
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -273,13 +273,13 @@ BODY
              "\t(%d, %d, %d, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, C(%d,%d)[%p], %d)",
              k, m, n, tempmm, tempnn, descA.mb, k, k, A, ldam, k, k, B, ldak, k, n, C, ldam);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                    tempmm, tempnn, descA.mb,
                    -1., A /*(m, k)*/, ldam,
                         B /*(k, n)*/, ldak,
                    1.,  C /*(m, n)*/, ldam );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -331,7 +331,7 @@ BODY
              "\t(%d, A(%d,%d)[%p], %d, IPIV(%d)[%p])",
              k, n, descA.nb, k, n, A, ldak, k, IPIV);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         if ( descA.storage == matrix_Tile ) {
             int tempk  = k * descA.mb;
             int tempm  = descA.m - tempk;
@@ -344,6 +344,6 @@ BODY
         } else {
             CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempmin, IPIV, 1 );
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END

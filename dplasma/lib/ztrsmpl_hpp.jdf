@@ -94,7 +94,7 @@ BODY
              context->th_id, context->virtual_process->vp_id, k, i, n, m, nextm, s, ms,
              tempmm, tempAnn, tempm, tempBnn, m, k, A, ldam, m, n, C, ldam, m, k, IP);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         PLASMA_desc pdescB = plasma_desc_init( PlasmaComplexDouble,
                                                descB.mb, descB.nb, descB.mb * descB.nb,
                                                s*descB.mb, descB.nb, 0, 0,
@@ -108,7 +108,7 @@ BODY
             tempmm, tempBnn,
              1., A /*A(m, k)*/, ldam,
                  C /*B(m, n)*/, ldbm);
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -204,7 +204,7 @@ BODY
              p, n, V, ldbp,      m, n, C, ldam,
              m, k, T, descLT.mb, m, k, H, ldam);
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
       if ( type == DPLASMA_QR_KILLED_BY_TS ) {
 
           /* TODO: Check the K in the gemm for limit cases */
@@ -228,7 +228,7 @@ BODY
 
           dague_private_memory_push( p_work, p_elem_A );
       }
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 

@@ -58,10 +58,10 @@ RWCOL(m, n) [profile = off]
 
 BODY
 {
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         /* Initialize W */
         memset( W, 0, descA.nb * sizeof(double) );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -83,10 +83,10 @@ RWELT(m, n) [profile = off]
 
 BODY
 {
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         /* Initialize W */
         ((double *)W)[0] = 0.;
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -121,11 +121,11 @@ BODY
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
              context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_dzasum(PlasmaColumnwise, PlasmaUpperLower,
                     tempmm, tempnn,
                     A, ldam, W);
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -157,12 +157,12 @@ BODY
              "\t( tempnn=%d, W(%d, %d) + W(%d, %d)\n",
              context->th_id, m, n, tempnn, m-1, n, m, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         if(m > 0)
         {
             cblas_daxpy( tempnn, 1., A, 1, W, 1);
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -195,7 +195,7 @@ BODY
     printlog("thread %d zlange STEP3(%d, %d)\n",
              context->th_id, m, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         double *dA = (double*)A;
         double *dW = (double*)W;
         double maxval = 0;
@@ -209,7 +209,7 @@ BODY
         } else {
             *dW = maxval;
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -238,12 +238,12 @@ BODY
     printlog("thread %d zlange STEP4(%d, %d)\n",
              context->th_id, m, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         double *dA = (double*)A;
         double *dW = (double*)W;
         if(n > 0)
             *dW = ( *dA > *dW ) ? *dA : *dW;
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 

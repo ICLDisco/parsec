@@ -82,12 +82,12 @@ BODY
              context->th_id, context->virtual_process->vp_id, k, i, n, m, nextm,
              tempmmB, tempnnB, tempk, m, k, P, m, k, A, ldam, m, n, C, ldbm);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
            CORE_zgessm(tempmmB, tempnnB, tempk, ib,
                        P /* IPIV(m,k) */,
                        A /* A(m,k)    */, ldam,
                        C /* B(m,n)    */, ldbm );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -178,7 +178,7 @@ BODY
              p, n, A1, ldbp, m, n, A2, ldbm,
              m, k, L, descLT.mb, m, k, V, ldam);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
             CORE_zssssm(
@@ -203,7 +203,7 @@ BODY
             dague_private_memory_push( p_work, p_elem_A );
         }
 
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 

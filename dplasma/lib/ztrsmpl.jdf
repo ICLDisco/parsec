@@ -81,7 +81,7 @@ BODY
    } else {
      tempkmin = (k == descA.nt-1) ? descA.n - k * descA.mb : descA.mb;
    }
-   DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
           int ldak = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
           int ldbk = descB.mb; /*((k+(Bi/descB.mb))<Blm1) ? (descB.mb) : (Blm%descB.mb);*/
 
@@ -89,7 +89,7 @@ BODY
                        A /* IPIV(k,k) */,
                        B /* A(k,k) */, ldak,
                        C /* B(k,n) */, ldbk );
-          );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
    printlog("  CORE_zgessm(%d, %d)\n\t(%d, %d, %d, %d, IPIV(%d,%d)[%p], A(%d,%d)[%p], ldak, B(%d,%d)[%p], ldbk)\n",
             tempkm, tempnn, tempkmin, ib, k, n, k, k, A, k, k, B, k, n, C);
@@ -171,7 +171,7 @@ BODY
   int ldbm   = descB.mb; /*((m+(Bi/descB.mb))<Blm1) ? (descB.mb) : (Blm%descB.mb);*/
   int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
          CORE_zssssm(descA.nb, tempnn, tempmm,
                      tempnn, tempkn, ib,
                      D /* B(k,n1) */, ldbk,
@@ -179,7 +179,7 @@ BODY
                      F /* L(m,k) */,  descL.mb,
                      G /* A(m,k) */,  ldam,
                      H /* IPIV(m,k) */ );
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
   printlog("  CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, B(%d,%d)[%p], %d, B(%d,%d)[%p], %d, L(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
            descA.nb, tempnn, tempmm, tempnn, tempkn, ib, k, m, n1, k, n1, D, ldbk, m, n1, E, ldbm, m, k, F, descL.mb, m, k, G, ldam, m, k, H);
 

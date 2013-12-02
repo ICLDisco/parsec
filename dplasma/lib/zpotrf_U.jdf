@@ -70,13 +70,13 @@ BODY
     int iinfo = 0;
     int ldak = BLKLDD( descA, k );
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_zpotrf(
             uplo, tempkn, T, ldak,
             &iinfo );
         if ( iinfo != 0 && *INFO == 0 )
             *INFO = k*descA.nb+iinfo; /* Should return here */
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog(
              "CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d) return info = %d\n",
@@ -117,13 +117,13 @@ BODY
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_ztrsm(
             PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit,
             descA.mb, tempnn,
             (dague_complex64_t)1.0, T /*A(k, k)*/, ldak,
                                     C /*A(k, n)*/, ldak);
-        );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
              k, n,
@@ -165,13 +165,13 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldan = BLKLDD( descA, n );
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_zherk(
             PlasmaUpper, PlasmaConjTrans,
             tempnn, descA.mb,
             (double)-1.0, A /*A(k, n)*/, ldak,
             (double) 1.0, T /*A(n, n)*/, ldan);
-        );
+#endif /* !defined(DAGUE_DRY_RUN) */
     printlog(
              "CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
              k, n,
@@ -235,14 +235,14 @@ BODY
     moesi_master_update( descA.super.moesi_map, TILED_MATRIX_KEY( &descA, m, n ) );
 #endif  /* defined(HAVE_CUDA) */
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_zgemm(
             PlasmaConjTrans, PlasmaNoTrans,
             descA.mb, tempnn, descA.nb,
             (dague_complex64_t)-1.0, A /*A(k, m)*/, ldak,
                                      B /*A(k, n)*/, ldak,
             (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
-        );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 #if defined(HAVE_CUDA)
   FIN:

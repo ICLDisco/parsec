@@ -100,7 +100,7 @@ BODY
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, TS(%d,%d)[%p], TS.mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, m, m, k, A, m, k, T);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         void *p_elem_A = dague_private_memory_pop( p_tau  );
         void *p_elem_B = dague_private_memory_pop( p_work );
 
@@ -112,7 +112,7 @@ BODY
         dague_private_memory_push( p_tau, p_elem_A );
         dague_private_memory_push( p_work, p_elem_B );
 
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 #if defined(DAGUE_SIM)
     if ( descA.mt-1 == k )
@@ -183,7 +183,7 @@ BODY
              "\t A(%d,%d)[%p], ldam, TS(%d,%d)[%p], descTS.mb, A(%d,%d)[%p], ldam, p_elem_A, descTS.nb)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, m, k, A, m, k, T, m, n, C);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
            void *p_elem_A = dague_private_memory_pop( p_work );
 
            CORE_zunmqr(
@@ -195,7 +195,7 @@ BODY
                        p_elem_A, descTS.nb );
 
            dague_private_memory_push( p_work, p_elem_A );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -261,7 +261,7 @@ BODY
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, TT(%d,%d)[%p], descTT.mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, m, p, k, A1, m, k, A2, m, k, T);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
            void *p_elem_A = dague_private_memory_pop( p_tau  );
            void *p_elem_B = dague_private_memory_pop( p_work );
 
@@ -283,7 +283,7 @@ BODY
            dague_private_memory_push( p_tau , p_elem_A );
            dague_private_memory_push( p_work, p_elem_B );
 
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 #if defined(DAGUE_SIM)
     ((PLASMA_Complex64_t*)A2)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
@@ -372,7 +372,7 @@ BODY
              "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, TT(%d,%d)[%p], descTT.mb, p_elem_A, ldwork)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
            void *p_elem_A = dague_private_memory_pop( p_work );
 
            if ( type == DPLASMA_QR_KILLED_BY_TS ) {
@@ -396,7 +396,7 @@ BODY
            }
            dague_private_memory_push( p_work, p_elem_A );
 
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 

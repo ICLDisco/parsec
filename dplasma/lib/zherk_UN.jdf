@@ -49,12 +49,12 @@ BODY
     printlog("CORE_zherk(%d, %d)\n"
              "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, dbeta, C(%d,%d)[%p], ldcn)\n",
              n, k, n, k, A, n, n, C);
-    DRYRUN(
-        CORE_zherk(uplo, trans, tempnn,
-                   tempkn, alpha, A /* dataA(n,k) */,
-                   ldan, dbeta, C /* dataC(n,n) */,
-                   ldcn );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zherk(uplo, trans, tempnn,
+               tempkn, alpha, A /* dataA(n,k) */,
+               ldan, dbeta, C /* dataC(n,n) */,
+               ldcn );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -105,13 +105,13 @@ BODY
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(trans, PlasmaConjTrans, tempnn, tempmm, tempkn, zalpha, A(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, zbeta, C(%d,%d)[%p], ldcn)\n",
              n, m, k, n, k, A, m, k, B, n, m, C);
-    DRYRUN(
-        CORE_zgemm(trans, PlasmaConjTrans, tempnn,
-                   tempmm, tempkn, zalpha,
-                   A /* dataA(n,k) */, ldan, B /* dataA(m,k) */,
-                   ldam, zbeta, C /* dataC(n,m) */,
-                   ldcn );
-           );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(trans, PlasmaConjTrans, tempnn,
+               tempmm, tempkn, zalpha,
+               A /* dataA(n,k) */, ldan, B /* dataA(m,k) */,
+               ldam, zbeta, C /* dataC(n,m) */,
+               ldcn );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 

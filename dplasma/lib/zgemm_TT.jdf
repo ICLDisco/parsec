@@ -96,14 +96,14 @@ BODY
     int ldbn = BLKLDD(descB, n);
     int ldcm = BLKLDD(descC, m);
 
-    DRYRUN(
-        CORE_zgemm(
-            transA, transB,
-            tempmm, tempnn, tempkk,
-            alpha, A /*A(k, m)*/, ldak,
-            B /*B(n, k)*/, ldbn,
-            lbeta, C /*C(m, n)*/, ldcm);
-           );
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(
+        transA, transB,
+        tempmm, tempnn, tempkk,
+        alpha, A /*A(k, m)*/, ldak,
+               B /*B(n, k)*/, ldbn,
+        lbeta, C /*C(m, n)*/, ldcm);
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("gemm( %d, %d, %d )\n"
              "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",

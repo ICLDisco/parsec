@@ -104,7 +104,7 @@ BODY
     Anorm = LAPACKE_zlange( LAPACK_COL_MAJOR, '1', tempmm, tempn, A, descA.mb );
 #endif
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         /* Set local IPIV to 0 before generation
          * Better here than a global initialization for locality
          * and it's also done in parallel */
@@ -122,7 +122,7 @@ BODY
             *INFO = m * descA.mb + iinfo; /* Should return if enter here */
             fprintf(stderr, "zgetrf(%d, %d, %d) failed => %d\n", k, i, m, *INFO );
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 #ifdef FOLLOW_CONDNUM
     info = LAPACKE_zgecon(LAPACK_COL_MAJOR, '1', tempmin, A, descA.mb, Anorm, &Acond );
@@ -212,7 +212,7 @@ BODY
              context->th_id, context->virtual_process->vp_id, k, i, n, m, nextm, s, ms,
              tempm, tempnn, m, k, A, ldam, m, n, C, ldam, m, k, IP);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
 
         PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
                                                descA.mb, descA.nb, descA.mb * descA.nb,
@@ -227,7 +227,7 @@ BODY
             tempmm, tempnn,
             1., A /*A(m, k)*/, ldam,
                 C /*A(m, n)*/, ldam);
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -298,7 +298,7 @@ BODY
              tempmm, tempkn, ib,
              p, k, A, ldap, m, k, C, ldam, m, k, T, descLT.mb);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
          if ( type == DPLASMA_QR_KILLED_BY_TS ) {
              /* TRSM already applied by GETRF */
          } else {
@@ -328,7 +328,7 @@ BODY
                     k, ip, im, 1./cond );
 #endif
          }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -421,7 +421,7 @@ BODY
              p, n, V, ldap, m, n, C, ldam,
              m, k, T, descLT.mb, m, k, H, ldam);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
          if ( type == DPLASMA_QR_KILLED_BY_TS ) {
 
            CORE_zgemm(
@@ -445,7 +445,7 @@ BODY
 
              dague_private_memory_push( p_work, p_elem_A );
          }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 

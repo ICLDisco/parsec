@@ -86,7 +86,7 @@ zgetrf(k)
 BODY
 
   int iinfo = 0;
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
          int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
          int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
          int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%Bmb);*/
@@ -104,7 +104,7 @@ BODY
              *INFO = k * descA.mb + iinfo; /* Should return if enter here */
              fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
          }
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
    printlog("CORE_zgetrf(%d)\n"
             "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, IPIV(%d,%d)[%p]) => info = %d\n",
@@ -143,7 +143,7 @@ zgessm(k,n)
 
 BODY
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
          int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
          int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
          int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
@@ -152,7 +152,7 @@ BODY
                      C /* IPIV(k,k) */,
                      D /* A(k,k) */, ldak,
                      E /* A(k,n) */, ldak );
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
    printlog("CORE_zgessm(%d, %d)\n"
             "\t(tempkm, tempnn, tempkm, ib, IPIV(%d,%d)[%p], \n"
             "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
@@ -212,7 +212,7 @@ ztstrf(k,m)
 
 BODY
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
          int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
          int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
          int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
@@ -234,7 +234,7 @@ BODY
              *INFO = k * descA.mb + iinfo; /* Should return if enter here */
              fprintf(stderr, "ztstrf(%d, %d) failed => %d\n", m, k, *INFO );
          }
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
   printlog("CORE_ztstrf(%d, %d)\n"
            "\t(tempmm, tempkn, ib, descL.nb, \n"
@@ -303,14 +303,14 @@ BODY
   int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
   int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
          CORE_zssssm(descA.nb, tempnn, tempmm, tempnn, descA.nb, ib,
                      J /* A(k,n1) */, ldak,
                      K /* A(m,n1) */, ldam,
                      L /* L(m,k) */,  descL.mb,
                      M /* A(m,k) */,  ldam,
                      N /* IPIV(m,k) */ );
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
   printlog("CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, L(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
            k, m, n1, descA.nb, tempnn, tempmm, tempnn, descA.nb, ib, k, n1, J, ldak, m, n1, K, ldam, m, k, L, descL.mb, m, k, M, ldam, m, k, N);
 

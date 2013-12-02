@@ -102,7 +102,7 @@ BODY
              k, n, A1, m, n, A2,
              m, k, V,  m, k, T);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
             CORE_ztsmqr(
                 PlasmaLeft, PlasmaNoTrans,
@@ -122,7 +122,7 @@ BODY
                  T  /* T(m, k) */, descTT.mb,
                 p_elem_A, ldwork );
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     dague_private_memory_push( p_work, p_elem_A );
 }
@@ -228,14 +228,14 @@ BODY
              "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
              k, n, k, k, A, k, k, T, k, n, C);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_zunmqr(PlasmaLeft, PlasmaNoTrans,
                     tempkm, tempnn, tempkmin, ib,
                     A /* A(k, k) */, ldak,
                     T /* T(k, k) */, descTS.mb,
                     C /* Q(k, n) */, ldqk,
                     p_elem_A, descTS.nb );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
     dague_private_memory_push( p_work, p_elem_A );
 }
 END

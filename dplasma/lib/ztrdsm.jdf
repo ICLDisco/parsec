@@ -104,9 +104,9 @@ BODY
   int lda = BLKLDD( desc_A, k );
   int ldb = BLKLDD( desc_B, k );
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
     CORE_ztrdsm(tempkm, tempkn, A, lda, B, ldb );
-  );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
   printlog("thread %d CORE_ztrdsm(%d, %d)\n"
            "\t(tempkm, tempkn, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",

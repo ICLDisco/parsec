@@ -90,7 +90,7 @@ BODY
            "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
   context->th_id, k, tempkn, ib, k, k, A, ldak, ldwork);
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
     int info = 0;
     void *p_elem_A = dague_private_memory_pop( pool_0 );
     CORE_zhetrf2_nopiv(PlasmaLower, tempkn, ib, 
@@ -103,7 +103,7 @@ BODY
 
 
     dague_private_memory_push( pool_0, p_elem_A );
-  );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -132,7 +132,7 @@ BODY
            "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
   context->th_id, k, tempkn, ib, k, k, B, ldak, ldwork);
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
     int info = 0;
     void *p_elem_A = dague_private_memory_pop( pool_0 );
 
@@ -146,7 +146,7 @@ BODY
 
 
     dague_private_memory_push( pool_0, p_elem_A );
-  );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -187,12 +187,13 @@ BODY
            "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, tempkn, zone, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
   context->th_id, k, m, k, k, C, m, k, D);
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
 
     CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaConjTrans, 
         PlasmaNonUnit, tempmm, tempkn, 
         zone, C /* data_A(k,k) */, ldak, 
-        D /* data_A(m,k) */, ldam );  );
+        D /* data_A(m,k) */, ldam );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -233,7 +234,7 @@ BODY
            "\t(PlasmaLower, PlasmaNoTrans, tempmm, tempkn, ib, -1.000000, A(%d,%d)[%p], ldam, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
   context->th_id, k, m1, m1, k, E, m1, m1, F, k, k, G);
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( pool_1 );
 
     CORE_zhedrk(PlasmaLower, PlasmaNoTrans, tempmm, 
@@ -243,7 +244,7 @@ BODY
         ldak+1, p_elem_A, lwork );
 
     dague_private_memory_push( pool_1, p_elem_A );
-  );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 END
 
@@ -306,7 +307,7 @@ BODY
            "\t(PlasmaNoTrans, PlasmaConjTrans, tempmm, tempnn, tempkn, mzone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], desc_A.mb, zone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
   context->th_id, k, m1, n, m1, k, K, n, k, L, m1, n, M, k, k, N);
 
-  DRYRUN( 
+#if !defined(DAGUE_DRY_RUN) 
     void *p_elem_A = dague_private_memory_pop( pool_1 );
 
     CORE_zgemdm(PlasmaNoTrans, PlasmaConjTrans, tempmm, 
@@ -316,7 +317,7 @@ BODY
         ldam, N, ldak+1, p_elem_A, lwork );
 
     dague_private_memory_push( pool_1, p_elem_A );
-  ); 
+#endif /* !defined(DAGUE_DRY_RUN) */ 
 
 END
 
@@ -343,10 +344,10 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->th_id, k1, k1, k1, O);
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
 
     CORE_ztrmdm(PlasmaLower, tempkn, O /* data_A(k1,k1) */, ldak );
-  );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 END
 

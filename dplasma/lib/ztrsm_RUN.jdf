@@ -47,12 +47,12 @@ BODY
     int lda = BLKLDD( descA, k );
     int ldb = BLKLDD( descB, m );
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_ztrsm(side, uplo, trans, diag,
                    tempmm, tempkn, lalpha,
                    A /* dataA(k,k) */, lda,
                    B /* dataB(m,k) */, ldb );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_ztrsm(%d, %d)\n"
              "\t(side, uplo, trans, diag, tempmm, tempkn, lalpha, dataA(%d,%d)[%p], lda, dataB(%d,%d)[%p], ldb)\n",
@@ -102,13 +102,13 @@ BODY
 
     dague_complex64_t lalpha = ((k)==(0)) ? (alpha) : (dague_complex64_t)1.0;
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                    tempmm, tempnn, descB.mb,
                    -1.0,   C /* dataB(m,k) */, ldb,
                            D /* dataA(k,n) */, lda,
                    lalpha, E /* dataB(m,n) */, ldb );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descB.mb, mzone, dataB(%d,%d)[%p], ldb, dataA(%d,%d)[%p], lda, lalpha, dataB(%d,%d)[%p], ldb)\n",

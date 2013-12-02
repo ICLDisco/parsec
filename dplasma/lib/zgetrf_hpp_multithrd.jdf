@@ -146,7 +146,7 @@ BODY
 
    //printf("\nGETRF( k=%d, i=%d, m=%d)\ndplasma_qr_getsize( k=%d, i=%d, m=%d) = %d\ntempn = %d\ntempendm = %d\ntempm = %d\n\n", k, i, m, k, i, m, s, tempn, tempendm, tempm);
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
       int nbthrd = nbthreads( k,i );
       int info[3];
 
@@ -173,7 +173,7 @@ BODY
           fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
       }
 
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
    printlog("\nEN  CORE_zgetrf_rectil_1thrd(k = %d, i = %d)\t m = %d\n"
             "\t(s*descA.mb = %d, descA.nb = %d, tempm = %d, tempn =%d, A(%d,%d)[%p], IP(%d,%d)[%p])\n",
@@ -211,7 +211,7 @@ swptrsm(k, i, n)
 
 BODY
 
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
          int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
          int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
          int tempendm  = (m+(s-1)*param_p == descA.mt-1) ? descA.m-(m+(s-1)*param_p)*descA.mb : descA.mb;
@@ -238,7 +238,7 @@ BODY
              tempmm, tempnn,
              1., A /*A(m, k)*/, ldam,
                  C /*A(m, n)*/, ldam);
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
          printlog("\nEN   CORE_zswptrsm(k = %d, i = %d, n = %d)\n"
             "\t(s*descA.mb = %d, descA.nb = %d, tempm = %d, tempnn = %d, tempmm = %d, tempnn = %d, A(%d,%d)[%p], ldam = %d, A(%d,%d)[%p], ldam = %d)\n",
@@ -303,7 +303,7 @@ zttqrt(k, m)
  ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_PANEL(p, k) : GETPRIO_PANEL(m, k); %}
 
 BODY
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
          void *p_elem_A = dague_private_memory_pop( p_tau  );
          void *p_elem_B = dague_private_memory_pop( p_work );
 
@@ -328,7 +328,7 @@ BODY
          dague_private_memory_push( p_tau , p_elem_A );
          dague_private_memory_push( p_work, p_elem_B );
 
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
 #if defined(DAGUE_SIM)
   ((PLASMA_Complex64_t*)A2)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
@@ -451,7 +451,7 @@ zttmqr(k, m, n)
     ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
 
 BODY
-  DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
          void *p_elem_A = dague_private_memory_pop( p_work );
 
          int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
@@ -483,7 +483,7 @@ BODY
          }
          dague_private_memory_push( p_work, p_elem_A );
 
-         );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
           printlog("\nEN  CORE_zttmqr( k = %d, m = %d, n = %d)\t type = %d\n"
            "\t(PlasmaLeft, PlasmaConjTrans, descA.mb = %d, tempnn = %d, tempmm = %d, tempnn = %d, descA.nb = %d, ib = %d, \n"

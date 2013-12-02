@@ -106,7 +106,7 @@ BODY
 
     printlog("swptrsm_u(k=%d, n=%d)", k, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
 
         PLASMA_desc pdescB = plasma_desc_init( PlasmaComplexDouble,
                                                descB.mb, descB.nb, descB.mb * descB.nb,
@@ -126,7 +126,7 @@ BODY
             tempkm, tempnn,
             1., A /*A(k, k)*/, ldak,
                 C /*B(k, n)*/, ldbk);
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -188,13 +188,13 @@ BODY
 
     printlog("zgemm( k=%d, m=%d, n=%d)\n", k, m, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                    tempmm, tempnn, tempkn,
                    -1., H /*(m, k)*/, ldam,
                         V /*(k, n)*/, ldbk,
                    1.,  C /*(m, n)*/, ldbm );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -254,7 +254,7 @@ BODY
              "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], descTS.mb, A(%d,%d)[%p], ldam, p_elem_A, descTS.nb)",
              k, m, n, m, k, A, m, k, T, m, n, C);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         void *p_elem_B = dague_private_memory_pop( p_work );
 
         int tempAmm = ( m == descA.mt-1 ) ? descA.m - m * descA.mb : descA.mb;
@@ -274,7 +274,7 @@ BODY
             p_elem_B, descTS.nb );
 
         dague_private_memory_push( p_work, p_elem_B );
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -363,7 +363,7 @@ BODY
     int ldbm = BLKLDD( descB, m );
     int ldwork = ib;
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         void *p_elem_B = dague_private_memory_pop( p_work );
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
@@ -387,7 +387,7 @@ BODY
         }
         dague_private_memory_push( p_work, p_elem_B );
 
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_zttmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"

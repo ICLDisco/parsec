@@ -58,7 +58,7 @@ LASWP_laswp(k, n)
 
 BODY
 {
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
         int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
         int ldak = BLKLDD(descA, k);
@@ -75,7 +75,7 @@ BODY
         } else {
             CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc );
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("thread %d   CORE_zlaswp(%d, %d)\n"
              "\t(%d, A(%d,%d)[%p], %d, %d, %d, IPIV(%d)[%p], %d)\n",

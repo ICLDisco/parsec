@@ -75,7 +75,7 @@ RWCOL(m, n) [profile = off]
 
 BODY
 {
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         /* Initialize W */
         if (ntype == PlasmaMaxNorm) {
             ((double *)W)[0] = 0.;
@@ -87,7 +87,7 @@ BODY
             for(i = 0; i < descA.mb; i++)
                 ((double *)W)[i] = 0.;
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -109,13 +109,13 @@ RWELT(m, n) [profile = off]
 
 BODY
 {
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         /* Initialize Welt */
         ((double *)W)[0] = 0.;
         if (ntype == PlasmaFrobeniusNorm) {
             ((double *)W)[1] = 1.;
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -198,7 +198,7 @@ BODY
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
              context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
 
         double *dW = (double*)W;
 
@@ -261,7 +261,7 @@ BODY
                 }
             }
         }
-            );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -309,7 +309,7 @@ BODY
              "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
              context->th_id, m, n, tempmm, m, n-1, m, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         if(n+Q < PQ)
         {
             double *dA = (double*)A;
@@ -332,7 +332,7 @@ BODY
                 cblas_daxpy( tempmm, 1., dA, 1, dW, 1);
             }
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -364,7 +364,7 @@ BODY
              "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
              context->th_id, m, n, tempmm, m, n-1, m, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         if(n > 0)
         {
             double *dA = (double*)A;
@@ -387,7 +387,7 @@ BODY
                 cblas_daxpy( tempmm, 1., dA, 1, dW, 1);
             }
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -419,7 +419,7 @@ BODY
     printlog("thread %d zlange STEP3(%d, %d)\n",
              context->th_id, m, n);
 
-    DRYRUN(
+#if !defined(DAGUE_DRY_RUN)
         double *dA = (double*)A;
         double *dW = (double*)W;
 
@@ -451,7 +451,7 @@ BODY
                 *dW = maxval;
             }
         }
-           );
+#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
