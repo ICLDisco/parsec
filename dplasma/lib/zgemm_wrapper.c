@@ -92,11 +92,11 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
 
     /* Check input arguments */
     if ((transA != PlasmaNoTrans) && (transA != PlasmaTrans) && (transA != PlasmaConjTrans)) {
-        dplasma_error("PLASMA_zgemm", "illegal value of transA");
+        dplasma_error("dplasma_zgemm_New", "illegal value of transA");
         return NULL /*-1*/;
     }
     if ((transB != PlasmaNoTrans) && (transB != PlasmaTrans) && (transB != PlasmaConjTrans)) {
-        dplasma_error("PLASMA_zgemm", "illegal value of transB");
+        dplasma_error("dplasma_zgemm_New", "illegal value of transB");
         return NULL /*-2*/;
     }
 
@@ -253,11 +253,11 @@ dplasma_zgemm( dague_context_t *dague,
 
     /* Check input arguments */
     if ((transA != PlasmaNoTrans) && (transA != PlasmaTrans) && (transA != PlasmaConjTrans)) {
-        dplasma_error("PLASMA_zgemm", "illegal value of transA");
+        dplasma_error("dplasma_zgemm", "illegal value of transA");
         return -1;
     }
     if ((transB != PlasmaNoTrans) && (transB != PlasmaTrans) && (transB != PlasmaConjTrans)) {
-        dplasma_error("PLASMA_zgemm", "illegal value of transB");
+        dplasma_error("dplasma_zgemm", "illegal value of transB");
         return -2;
     }
 
@@ -294,15 +294,15 @@ dplasma_zgemm( dague_context_t *dague,
     }
 
     if ( (Amb != C->mb) || (Anb != Bmb) || (Bnb != C->nb) ) {
-        dplasma_error("PLASMA_zgemm_Tile_Async", "tile sizes have to match");
+        dplasma_error("dplasma_zgemm", "tile sizes have to match");
         return -101;
     }
     if ( (Am != C->m) || (An != Bm) || (Bn != C->n) ) {
-        dplasma_error("PLASMA_zgemm_Tile_Async", "sizes of matrices have to match");
+        dplasma_error("dplasma_zgemm", "sizes of matrices have to match");
         return -101;
     }
     if ( (Ai != C->i) || (Aj != Bi) || (Bj != C->j) ) {
-        dplasma_error("PLASMA_zgemm_Tile_Async", "start indexes have to match");
+        dplasma_error("dplasma_zgemm", "start indexes have to match");
         return -101;
     }
 
