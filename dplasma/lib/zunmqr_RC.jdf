@@ -1,25 +1,17 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
 
 %}
 
@@ -62,18 +54,18 @@ BODY
              "\t(side, trans, tempmm, tempkn, tempkmin, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, B(%d,%d)[%p], ldbm, p_elem_A, descT.nb)\n",
              k, m, k, k, A, k, k, T, m, k, C);
 
-    DRYRUN(
-        void *p_elem_A = dague_private_memory_pop( pool_0 );
+#if !defined(DAGUE_DRY_RUN)
+    void *p_elem_A = dague_private_memory_pop( pool_0 );
 
-        CORE_zunmqr(side, trans, tempmm,
-                    tempkn, tempkmin, ib,
-                    A /* dataA(k,k) */, ldak,
-                    T /* dataT(k,k) */, descT.mb,
-                    C /* dataB(m,k) */, ldbm, 
-                    p_elem_A, descT.nb );
+    CORE_zunmqr(side, trans,
+                tempmm, tempkn, tempkmin, ib,
+                A /* dataA(k,k) */, ldak,
+                T /* dataT(k,k) */, descT.mb,
+                C /* dataB(m,k) */, ldbm,
+                p_elem_A, descT.nb );
 
-        dague_private_memory_push( pool_0, p_elem_A );
-           );
+    dague_private_memory_push( pool_0, p_elem_A );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -143,19 +135,19 @@ BODY
              "\t(side, trans, tempmm, descB.nb, tempmm, tempnn, tempkmin, ib, B(%d,%d)[%p], ldbm, B(%d,%d)[%p], ldbm, A(%d,%d)[%p], ldan, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
              k, n, m, m, k, A1, m, n, A2, n, k, V, n, k, T);
 
-    DRYRUN(
-        void *p_elem_A = dague_private_memory_pop( pool_0 );
+#if !defined(DAGUE_DRY_RUN)
+    void *p_elem_A = dague_private_memory_pop( pool_0 );
 
-        CORE_ztsmqr(side, trans, tempmm, descB.nb,
-                    tempmm, tempnn, tempkmin, ib,
-                    A1 /* dataB(m,k) */, ldbm,
-                    A2 /* dataB(m,n) */, ldbm,
-                    V  /* dataA(n,k) */, ldan,
-                    T  /* dataT(n,k) */, descT.mb,
-                    p_elem_A, ldwork );
+    CORE_ztsmqr(side, trans,
+                tempmm, descB.nb, tempmm, tempnn, tempkmin, ib,
+                A1 /* dataB(m,k) */, ldbm,
+                A2 /* dataB(m,n) */, ldbm,
+                V  /* dataA(n,k) */, ldan,
+                T  /* dataT(n,k) */, descT.mb,
+                p_elem_A, ldwork );
 
-        dague_private_memory_push( pool_0, p_elem_A );
-  );
+    dague_private_memory_push( pool_0, p_elem_A );
+#endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -209,5 +201,3 @@ BODY
     /* nothing */
 }
 END
-
-
