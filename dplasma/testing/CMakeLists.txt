@@ -7,9 +7,10 @@ if(MPI_C_FOUND)
 include(RulesTestings.cmake)
 
 set(TESTS
+  # Lapack Auxiliary
   testing_zprint.c
   testing_zlange.c
-  #
+  # Level 3 Blas
   testing_zgemm.c
   testing_zhemm.c
   testing_zsymm.c
@@ -20,10 +21,14 @@ set(TESTS
   testing_ztrmm.c
   testing_ztrsm.c
   #
+  # Lapack
+  #
+  # Cholesky
   testing_zpotrf.c
   testing_zposv.c
-  #testing_zgelqf.c
-  #testing_zgeqrf.c
+  # QR/LQ
+  testing_zgelqf.c
+  testing_zgeqrf.c
   #testing_zgeqrf_param.c
   #testing_zgeqrf_rd.c
   #testing_zgeqrf_systolic.c
