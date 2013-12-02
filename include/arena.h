@@ -26,27 +26,29 @@
 #define DAGUE_ALIGN_PAD_AMOUNT(x,s) ((~((uintptr_t)(x))+1) & ((uintptr_t)(s)-1))
 
 struct dague_arena_s {
-    size_t alignment;                        /* alignment to be respected, elem_size should be >> alignment, prefix size is the minimum alignment */
-    size_t elem_size;                        /* size of one element (unpacked in memory, aka extent) */
-    dague_datatype_t opaque_dtt;             /* the appropriate type for the network engine to send an element */
-    dague_lifo_t area_lifo;
-    volatile int32_t used;                   /* elements currently out of the arena */
-    int32_t max_used;                        /* maximum size of the arena in elements */
-    volatile int32_t released;               /* elements currently not used but allocated */
-    int32_t max_released;                    /* when more that max elements are released, they are really freed instead of joining the lifo
-                                              * some host hardware requires special allocation functions (Cuda, pinning,
-                                              * Open CL, ...). Defaults are to use C malloc/free */
+    size_t                alignment;     /* alignment to be respected, elem_size should be >> alignment, prefix size is
+                                          the minimum alignment */
+    size_t                elem_size;     /* size of one element (unpacked in memory, aka extent) */
+    dague_datatype_t      opaque_dtt;    /* the appropriate type for the network
+                                          engine to send an element */
+    dague_lifo_t          area_lifo;
+    volatile int32_t      used;           /* elements currently out of the arena */
+    int32_t               max_used;       /* maximum size of the arena in elements */
+    volatile int32_t      released;       /* elements currently not used but allocated */
+    int32_t               max_released;   /* when more that max elements are released, they are really freed instead of joining the lifo
+                                           * some host hardware requires special allocation functions (Cuda, pinning,
+                                           * Open CL, ...). Defaults are to use C malloc/free */
     dague_data_allocate_t data_malloc;
-    dague_data_free_t data_free;
+    dague_data_free_t     data_free;
 };
 
 struct dague_arena_chunk_s {
-    dague_list_item_t item;                  /* chaining of this chunk when in an arena's free list.
-                                              *   SINGLETON when ( (not in free list) and (in debug mode) ) */
-    dague_arena_t* origin;
-    void*          data;
-    uint32_t refcount;
-    uint32_t count;
+    dague_list_item_t item;               /* chaining of this chunk when in an arena's free list.
+                                           *   SINGLETON when ( (not in free list) and (in debug mode) ) */
+    uint32_t          refcount;
+    uint32_t          count;
+    dague_arena_t    *origin;
+    void             *data;
 };
 
 /* for SSE, 16 is mandatory, most cache are 64 bit aligned */
