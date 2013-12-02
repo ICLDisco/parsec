@@ -133,6 +133,13 @@ set(SOURCES
   zgeqrf_wrapper.c
   zgeqrs_param_wrapper.c
   zgeqrs_wrapper.c
+  zunglq_wrapper.c
+  zungqr_param_wrapper.c
+  zungqr_param_wrapper.c
+  zungqr_wrapper.c
+  zunmqr_param_wrapper.c
+  zunmqr_wrapper.c
+  #
   zgesv_incpiv_wrapper.c
   zgesv_wrapper.c
   zgetrf_incpiv_wrapper.c
@@ -141,20 +148,15 @@ set(SOURCES
   zgetrf_wrapper.c
   zgetrs_incpiv_wrapper.c
   zgetrs_wrapper.c
+  ztrsmpl_qrf_wrapper.c
+  ztrsmpl_wrapper.c
+  #
   zhbrdt_wrapper.c
   zhebut_wrapper.c
   zherbt_wrapper.c
   zhetrf_wrapper.c
   zhetrs_wrapper.c
   ztrdsm_wrapper.c
-  ztrsmpl_qrf_wrapper.c
-  ztrsmpl_wrapper.c
-  zungqr_param_wrapper.c
-  zungqr_param_wrapper.c
-  zungqr_wrapper.c
-  zunglq_wrapper.c
-  zunmqr_param_wrapper.c
-  zunmqr_wrapper.c
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"
