@@ -57,8 +57,8 @@ BODY
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( pool_0 );
 
-    CORE_zunmqr(side, trans, tempmm,
-                tempkn, tempkmin, ib,
+    CORE_zunmqr(side, trans,
+                tempmm, tempkn, tempkmin, ib,
                 A /* dataA(k,k) */, ldak,
                 T /* dataT(k,k) */, descT.mb,
                 C /* dataB(m,k) */, ldbm,
