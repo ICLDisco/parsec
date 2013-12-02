@@ -50,6 +50,7 @@ zgeqrt(k)
           -> (descA.mt==(k+1)) ? dataA(k,k)                      [type = UPPER_TILE]
           -> (descA.mt>=(k+2)) ? A1 ztsqrt(k, k+1)               [type = UPPER_TILE]
           -> A zgeqrt_typechange(k)
+
   RW    T <- dataT(k, k)                                         [type = LITTLE_T]
           -> dataT(k, k)                                         [type = LITTLE_T]
           -> (descA.nt-1 > k) ? T zunmqr(k, (k+1)..(descA.nt-1)) [type = LITTLE_T]

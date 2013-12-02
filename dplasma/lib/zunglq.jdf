@@ -154,7 +154,7 @@ ztsmlq_in_data_T2(k, n) [profile = off]
   n = (k+1) .. (descQ.nt-1)
 
   /* Locality */
-  : dataT(k,n)
+  : dataT(k, n)
 
   READ  T    <- dataT(k, n)                         [type = LITTLE_T]
              -> T ztsmlq(k, n, 0 .. (descQ.mt-1))   [type = LITTLE_T]

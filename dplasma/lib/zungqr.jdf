@@ -31,14 +31,14 @@ zunmqr(k, n)
   n = 0 .. descQ.nt-1
 
   /* Locality */
-  : dataQ(k,n)
+  : dataQ(k, n)
 
   READ  A    <- A zunmqr_in_data_A0(k)   [type = LOWER_TILE]
   READ  T    <- T zunmqr_in_data_T1(k)   [type = LITTLE_T]
-  RW    C    -> ( k == 0 ) ? dataQ(k,n)
+  RW    C    -> ( k == 0 ) ? dataQ(k, n)
              -> ( k >  0 ) ? A2 ztsmqr(k-1, k, n)
              <- ( k <  (descQ.mt-1)) ? A1 ztsmqr(k, k+1, n)
-             <- ( k == (descQ.mt-1)) ? dataQ(k,n)
+             <- ( k == (descQ.mt-1)) ? dataQ(k, n)
 
 BODY
 {
@@ -55,9 +55,9 @@ BODY
 
     CORE_zunmqr(PlasmaLeft, PlasmaNoTrans,
                 tempkm, tempnn, tempkmin, ib,
-                A /* dataA(k,k) */, ldak,
-                T /* dataT(k,k) */, descT.mb,
-                C /* dataQ(k,n) */, ldqk,
+                A /* dataA(k, k) */, ldak,
+                T /* dataT(k, k) */, descT.mb,
+                C /* dataQ(k, n) */, ldqk,
                 p_elem_A, descT.nb );
 
     dague_private_memory_push( p_work, p_elem_A );
@@ -111,9 +111,9 @@ ztsmqr(k, m, n)
              <- ( m <  (descQ.mt-1) ) ? A1 ztsmqr(k, m+1, n)
              <- ( m == (descQ.mt-1) ) ? A1 ztsmqr_out_data_Q0(k, n)
 
-  RW    A2   -> ( k == 0 ) ? dataQ(m,n)
+  RW    A2   -> ( k == 0 ) ? dataQ(m, n)
              -> ( k >  0 ) ? A2 ztsmqr(k-1, m, n)
-             <-  (k == (descA.nt-1)) ? dataQ(m,n)
+             <-  (k == (descA.nt-1)) ? dataQ(m, n)
              <- ((k <  (descA.nt-1)) & (m == (k+1))) ? C  zunmqr(k+1, n)
              <- ((k <  (descA.nt-1)) & (m >  (k+1))) ? A2 ztsmqr(k+1, m, n)
 
@@ -138,12 +138,12 @@ BODY
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( p_work );
 
-    CORE_ztsmqr(PlasmaLeft, PlasmaNoTrans, descQ.mb, tempnn,
-                tempmm, tempnn, tempkmin, ib,
-                A1 /* dataQ(k,n) */, ldqk,
-                A2 /* dataQ(m,n) */, ldqm,
-                V  /* dataA(m,k) */, ldam,
-                T  /* dataT(m,k) */, descT.mb,
+    CORE_ztsmqr(PlasmaLeft, PlasmaNoTrans, descQ.mb,
+                tempnn, tempmm, tempnn, tempkmin, ib,
+                A1 /* dataQ(k, n) */, ldqk,
+                A2 /* dataQ(m, n) */, ldqm,
+                V  /* dataA(m, k) */, ldam,
+                T  /* dataT(m, k) */, descT.mb,
                 p_elem_A, ib );
 
     dague_private_memory_push( p_work, p_elem_A );
@@ -157,9 +157,9 @@ ztsmqr_in_data_T2(k, m) [profile = off]
   m = (k+1) .. (descQ.mt-1)
 
   /* Locality */
-  : dataT(m,k)
+  : dataT(m, k)
 
-  READ  T    <- dataT(m,k)                          [type = LITTLE_T]
+  READ  T    <- dataT(m, k)                         [type = LITTLE_T]
              -> T ztsmqr(k, m, 0 .. (descQ.nt-1))   [type = LITTLE_T]
 
 BODY
@@ -174,9 +174,9 @@ ztsmqr_in_data_A1(k, m) [profile = off]
   m = (k+1) .. (descQ.mt-1)
 
   /* Locality */
-  : dataA(m,k)
+  : dataA(m, k)
 
-  READ  V    <- dataA(m,k)
+  READ  V    <- dataA(m, k)
              -> V ztsmqr(k, m, 0 .. (descQ.nt-1))
 
 BODY
@@ -191,10 +191,10 @@ ztsmqr_out_data_Q0(k, n) [profile = off]
   n = 0 .. (descQ.nt-1)
 
   /* Locality */
-  : dataQ(k,n)
+  : dataQ(k, n)
 
   READ  A1   -> A1 ztsmqr(k, descQ.mt-1, n)
-             <- dataQ(k,n)
+             <- dataQ(k, n)
 
 BODY
 {
