@@ -3214,11 +3214,6 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   string_arena_init(sa);
   sa2 = string_arena_new(64);
 
-  for(dl = f->locals; dl != NULL; dl = dl->next) {
-    string_arena_add_string(sa, "%sint %s%s = 0xdeadbeef; (void)%s%s;\n",
-                            indent(spaces), f->fname, dl->name, f->fname, dl->name);
-   }
-
   infodst.sa = sa2;
   infodst.prefix = f->fname;
   infodst.assignments = strdup(name);
@@ -3259,20 +3254,15 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
           if(!strcmp(pl->name, dl->name))
               break;
       }
-      if( NULL == pl ) {
-          /* It is a value. Let's dump it's expression in the destination context */
-          string_arena_init(sa2);
-          string_arena_add_string(sa,
-                                  "%s%s[%d].value = %s%s = %s;\n",
-                                  indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)dl->expr, &infodst));
-      } else {
-          /* It is a parameter. Let's dump it's expression in the source context */
-          assert(el != NULL);
-          string_arena_init(sa2);
-          string_arena_add_string(sa,
-                                  "%s%s[%d].value = %s%s = %s;\n",
-                                  indent(spaces), name, idx, f->fname, dl->name, dump_expr((void**)el, &infosrc));
-      }
+      /* It is a value or a parameter. Let's dump it's expression in the destination context */
+      string_arena_init(sa2);
+      string_arena_add_string(sa,
+                              "%sint %s%s = %s[%d].value = %s; (void)%s%s;\n",
+                              indent(spaces), f->fname, dl->name,
+                              name, idx,
+                              (NULL == pl ? dump_expr((void**)dl->expr, &infodst) :  /* value */
+                                            dump_expr((void**)el, &infosrc)),        /* param */
+                              f->fname, dl->name);
   }
 
   string_arena_free(sa2);
@@ -3501,8 +3491,8 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     coutput("      this_task->data[%u].data_in   = chunk;   /* flow %s */\n"
             "      this_task->data[%u].data_repo = entry;\n"
             "    }\n"
-            "  /* Now get the local version of the data to be worked on */\n"
-            "  this_task->data[%u].data_out = chunk->original->device_copies[target_device];\n"
+            "    /* Now get the local version of the data to be worked on */\n"
+            "    this_task->data[%u].data_out = chunk->original->device_copies[target_device];\n"
             "  }\n",
             flow_index, flow->varname,
             flow_index,
@@ -3704,14 +3694,13 @@ static int jdf_property_get_int( const jdf_def_list_t* properties, const char* p
 
 static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
-    string_arena_t *sa, *sa2, *sa_test;
+    string_arena_t *sa, *sa2;
     assignment_info_t ai;
     jdf_dataflow_t *fl;
     int di;
 
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
-    sa_test = string_arena_new(64);
     ai.sa = sa2;
     ai.idx = 0;
     ai.holder = "this_task->locals";
@@ -3732,28 +3721,10 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", "; (void)chunk; (void)entry;\n"));
 
-            /* At a point, was :
-    dinfo.sa = sa2;
-    dinfo.sa_test = sa_test;
-    dinfo.index = 0;
-    UTIL_DUMP_LIST(sa, f->dataflow, next,
-                   dump_data_declaration, &dinfo, "", "", "", "");
-             */
-
-    if( strlen( string_arena_get_string( sa_test ) ) != 0 )
-        coutput("  /** Check if some lookups are to be done **/\n"
-                "  if( %s )\n"
-                "    goto complete_and_return;\n"
-                "\n",
-                string_arena_get_string( sa_test ));
-
     coutput("  /** Get the data from the predecessor */\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
     }
-
-    if( strlen( string_arena_get_string( sa_test ) ) != 0 )
-        coutput(" complete_and_return:\n");
 
     /* If the function has the property profile turned off do not generate the profiling code */
     if( jdf_property_get_int(f->properties, "profile", 1) ) {
@@ -3785,7 +3756,6 @@ static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_e
             "}\n\n");
     string_arena_free(sa);
     string_arena_free(sa2);
-    string_arena_free(sa_test);
 }
 
 static void jdf_generate_code_hook(const jdf_t *jdf,
