@@ -85,13 +85,9 @@ dplasma_zgelqf_New( tiled_matrix_desc_t *A,
     dague_zgelqf_object_t* object;
     int ib = T->mb;
 
-    /*
-     * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
-     * it should be passed as a parameter as in getrf
-     */
     object = dague_zgelqf_new( (dague_ddesc_t*)A,
                                (dague_ddesc_t*)T,
-                               ib, NULL, NULL);
+                               ib, NULL, NULL );
 
     object->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( object->p_tau, zgelqf_p_tau_SIZE );
