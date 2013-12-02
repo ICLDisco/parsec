@@ -205,12 +205,14 @@ dplasma/lib/[sd]orgqr_param_wrapper.c$
 dplasma/lib/[sd]orgqr_wrapper.c$
 dplasma/lib/[sd]ormqr_param_wrapper.c$
 dplasma/lib/[sd]ormqr_wrapper.c$
+dplasma/lib/[sd]ormlq_wrapper.c$
 dplasma/lib/[c]unglq_wrapper.c$
 dplasma/lib/[c]ungqr_param_wrapper.c$
 dplasma/lib/[c]ungqr_param_wrapper.c$
 dplasma/lib/[c]ungqr_wrapper.c$
 dplasma/lib/[c]unmqr_param_wrapper.c$
 dplasma/lib/[c]unmqr_wrapper.c$
+dplasma/lib/[c]unmlq_wrapper.c$
 dplasma/lib/[sdc]gesv_incpiv_wrapper.c$
 dplasma/lib/[sdc]gesv_wrapper.c$
 dplasma/lib/[sdc]getrf_incpiv_wrapper.c$
