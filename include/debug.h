@@ -30,6 +30,7 @@ void debug_dump_stack_traces(void);
  * The level of the output verbosity. Set to zero to disable everything.
  */
 extern int dague_verbose;
+extern int dague_debug_rank;
 
 /* only one printf to avoid line breaks in the middle */
 static inline char* arprintf(const char* fmt, ...)
@@ -57,7 +58,7 @@ static inline char* arprintf(const char* fmt, ...)
 #   define _DAGUE_OUTPUT(PRFX, ARG) do { \
         char* __debug_str; \
         __debug_str = arprintf ARG ; \
-        fprintf(stderr,  "[" PRFX "DAGuE % 5d]:\t%s", -1, __debug_str); \
+        fprintf(stderr,  "[" PRFX "DAGuE % 5d]:\t%s", dague_debug_rank, __debug_str); \
         free(__debug_str); \
     } while(0)
 
