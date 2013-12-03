@@ -129,18 +129,18 @@ set(SOURCES
   zpotrs_wrapper.c
   #
   zgelqf_wrapper.c
-  zgeqrf_param_wrapper.c
-  zgeqrf_wrapper.c
-  zgeqrs_param_wrapper.c
-  zgeqrs_wrapper.c
   zgelqs_wrapper.c
+  zgels_wrapper.c
+  zgeqrf_wrapper.c
+  zgeqrs_wrapper.c
   zunglq_wrapper.c
-  zungqr_param_wrapper.c
-  zungqr_param_wrapper.c
   zungqr_wrapper.c
   zunmlq_wrapper.c
-  zunmqr_param_wrapper.c
   zunmqr_wrapper.c
+  zgeqrf_param_wrapper.c
+  zgeqrs_param_wrapper.c
+  zungqr_param_wrapper.c
+  zunmqr_param_wrapper.c
   #
   zgesv_incpiv_wrapper.c
   zgesv_wrapper.c

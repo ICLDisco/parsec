@@ -68,16 +68,16 @@ dplasma_zgeqrs( dague_context_t *dague,
 
     /* Check input arguments */
     if ( A->n > A->m ) {
-        dplasma_error("dplasma_zgeqrs_New", "illegal dimension of A, A->n > A->m");
+        dplasma_error("dplasma_zgeqrs", "illegal dimension of A, A->n > A->m");
         return -1;
     }
-    if ( B->m < A->m ) {
-        dplasma_error("dplasma_zgeqrs_New", "illegal dimension of B, (B->m < A->m)");
-        return -3;
-    }
     if ( (T->nt != A->nt) || (T->mt != A->mt) ) {
-        dplasma_error("dplasma_zgeqrs_New", "illegal size of T (T should have as many tiles as A)");
+        dplasma_error("dplasma_zgeqrs", "illegal size of T (T should have as many tiles as A)");
         return -2;
+    }
+    if ( B->m < A->m ) {
+        dplasma_error("dplasma_zgeqrs", "illegal dimension of B, (B->m < A->m)");
+        return -3;
     }
 
     subA = tiled_matrix_submatrix( A, 0, 0, A->n, A->n );
