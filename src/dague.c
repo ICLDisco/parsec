@@ -1131,10 +1131,10 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
             struct remote_dep_output_param* output = &arg->deps->output[dep->dep_datatype_index];
             void* dataptr = is_read_only(oldcontext, dep);
-            if(NULL != dataptr) {
-                arg->deps->msg.output_mask &= ~(1 << dep->dep_index); /* unmark all data that are RO we already hold from previous tasks */
+            if(NULL == dataptr) {
+                output->deps_mask &= ~(1 << dep->dep_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
-                arg->deps->msg.output_mask |= (1 << dep->dep_index); /* mark all data that are not RO */
+                output->deps_mask |= (1 << dep->dep_index); /* mark all data that are not RO */
                 dataptr = is_inplace(oldcontext, dep);  /* Can we do it inplace */
             }
             output->data     = *data;
@@ -1156,7 +1156,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
             if( !(output->rank_bits[_array_pos] & _array_mask) ) {
-                output->deps_mask |= (1 << dep->dep_index);
+                output->deps_mask             |= (1 << dep->dep_index);
                 output->data                   = *data;
                 output->rank_bits[_array_pos] |= _array_mask;
                 output->count_bits++;
