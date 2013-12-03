@@ -91,24 +91,6 @@ static inline char* arprintf(const char* fmt, ...)
     ABORT(); \
 } while(0)
 
-# define DEBUG3(ARG)                            \
-    if( dague_verbose >= 3 ) {                  \
-        _DAGUE_OUTPUT("D^", ARG);               \
-        _DAGUE_DEBUG_HISTORY(ARG);              \
-    }
-
-# define DEBUG2(ARG)                            \
-    if( dague_verbose >= 2 ) {                  \
-        _DAGUE_OUTPUT("D.", ARG);               \
-        _DAGUE_DEBUG_HISTORY(ARG);              \
-    }
-
-# define DEBUG(ARG)                             \
-    if( dague_verbose >= 1 ) {                  \
-        _DAGUE_OUTPUT("d.", ARG);               \
-        _DAGUE_DEBUG_HISTORY(ARG);              \
-    }
-
 #ifdef DAGUE_DEBUG_HISTORY
 #   ifndef DAGUE_DEBUG_VERBOSE
 #       define DAGUE_DEBUG_VERBOSE 3
@@ -150,7 +132,7 @@ void debug_mark_purge_all_history(void);
 #define DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, buffer, message)
 #define DEBUG_MARK_CTL_MSG_GET_SENT(to, buffer, message)
 #define DEBUG_MARK_CTL_MSG_GET_RECV(from, buffer, message)
-#define DEBUG_MARK_DTA_MSG_START_SEND(to, buffer, tag) 
+#define DEBUG_MARK_DTA_MSG_START_SEND(to, buffer, tag)
 #define DEBUG_MARK_DTA_MSG_START_RECV(from, buffer, tag)
 #define DEBUG_MARK_DTA_MSG_END_SEND(tag)
 #define DEBUG_MARK_DTA_MSG_END_RECV(tag)
@@ -158,6 +140,30 @@ void debug_mark_purge_all_history(void);
 #define debug_mark_purge_all_history()
 
 #endif /* DAGUE_DEBUG_HISTORY */
+
+#if defined(DAGUE_DEBUG_VERBOSE) && DAGUE_DEBUG_VERBOSE != 0
+# define DEBUG3(ARG)                            \
+    if( dague_verbose >= 3 ) {                  \
+        _DAGUE_OUTPUT("D^", ARG);               \
+        _DAGUE_DEBUG_HISTORY(ARG);              \
+    }
+
+# define DEBUG2(ARG)                            \
+    if( dague_verbose >= 2 ) {                  \
+        _DAGUE_OUTPUT("D.", ARG);               \
+        _DAGUE_DEBUG_HISTORY(ARG);              \
+    }
+
+# define DEBUG(ARG)                             \
+    if( dague_verbose >= 1 ) {                  \
+        _DAGUE_OUTPUT("d.", ARG);               \
+        _DAGUE_DEBUG_HISTORY(ARG);              \
+    }
+#else
+# define DEBUG(ARG)
+# define DEBUG2(ARG)
+# define DEBUG3(ARG)
+#endif  /* defined(DAGUE_DEBUG) */
 
 #endif /* DEBUG_H_HAS_BEEN_INCLUDED */
 
