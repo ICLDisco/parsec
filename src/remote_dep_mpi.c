@@ -148,13 +148,16 @@ static void remote_dep_mpi_get_end( dague_execution_unit_t* eu_context, dague_re
 static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dep_cmd_item_t *item );
 
 #ifdef DAGUE_DEBUG_VERBOSE
-static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* str, size_t len)
+static char*
+remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
+                         char* str,
+                         size_t len)
 {
     unsigned int i, index = 0;
     dague_object_t* object;
     const dague_function_t* function;
 
-    object = dague_object_lookup( origin->object_id );
+    object = dague_object_lookup(origin->object_id);
     function = object->functions_array[origin->function_id];
 
     index += snprintf( str + index, len - index, "%s", function->name );
@@ -207,6 +210,8 @@ static int remote_dep_dequeue_init(dague_context_t* context)
         return 1;
     }
     MPI_Comm_size(MPI_COMM_WORLD, (int*)&(context->nb_nodes));
+    /* set the debug rank */
+    MPI_Comm_rank(MPI_COMM_WORLD, &dague_debug_rank);
     if(1 == context->nb_nodes ) return 1;
 
     /**
@@ -416,6 +421,10 @@ static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
                                                origin);
 }
 
+/**
+ * Complete a remote task locally. Put the data in the correct location then
+ * call the release_deps.
+ */
 static int remote_dep_release(dague_execution_unit_t* eu_context,
                               dague_remote_deps_t* origin,
                               remote_dep_datakey_t complete_mask)
@@ -436,7 +445,9 @@ static int remote_dep_release(dague_execution_unit_t* eu_context,
     for(i = 0; i < exec_context.function->nb_locals;
         exec_context.locals[i] = origin->msg.locals[i], i++);
 
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != (target = exec_context.function->out[i])); i++) {
+    for(i = 0;
+        (i < MAX_PARAM_COUNT) && (NULL != (target = exec_context.function->out[i]));
+        i++) {
         whereto = target->flow_index;
         exec_context.data[whereto].data_repo = NULL;
         exec_context.data[whereto].data      = NULL;
@@ -893,21 +904,25 @@ static int remote_dep_mpi_pack_dep(dague_context_t* ctx,
             continue;
         }
         assert(deps->output[k].data.count > 0);
-        if( !dague_param_enable_eager ) continue;
-
-        /* Embed data (up to eager size) with the activate msg */
-        MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout,
-                      dep_comm, &dsize);
-        if((length - (*position)) >= dsize) {
-            DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",
-                    remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
-            MPI_Pack((char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
-                     deps->output[k].data.count, deps->output[k].data.layout,
-                     packed_buffer, length, position, dep_comm);
-            which |= (1<<k);
-            completed++;
-            msg->length += dsize;
+        if(dague_param_enable_eager) {
+            /* Embed data (up to eager size) with the activate msg */
+            MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout,
+                          dep_comm, &dsize);
+            if((length - (*position)) >= dsize) {
+                DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",
+                        remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
+                MPI_Pack((char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
+                         deps->output[k].data.count, deps->output[k].data.layout,
+                         packed_buffer, length, position, dep_comm);
+                which |= (1<<k);
+                completed++;
+                msg->length += dsize;
+                continue;  /* go to the next */
+            }
+            /* the data doesn't fit in the buffer. Mark it as in use */
         }
+        /* The data will be sent using antoher protocol. Meanwhile increase it's uage count */
+        AREF(deps->output[k].data.ptr);
     }
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n"
            "    \t eager count %d length %d\n",
@@ -1041,41 +1056,31 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
 }
 
 /**
- * Compute the mask of all dependencies associated with the message that can be
- * embedded in the data carried by the message. This takes in account the
- * control data (with zero length), the eager data up to the allowed max amount
- * of the message as well as the short protocol (data that will follow shorthly
- * without a need for rendez-vous).
+ * Compute the mask of all dependencies associated with a defined deps that can
+ * be embedded in the outgoing message. This takes in account the control data
+ * (with zero length), the eager data up to the allowed max amount of the
+ * message as well as the short protocol (data that will follow shorthly without
+ * a need for rendez-vous).
  */
-static remote_dep_datakey_t remote_dep_mpi_short_which(remote_dep_wire_activate_t* msg)
+static remote_dep_datakey_t
+remote_dep_mpi_short_which(dague_remote_deps_t* deps,
+                           remote_dep_datakey_t output_mask)
 {
-#ifdef DAGUE_DEBUG_VERBOSE
-    char tmp[MAX_TASK_STRLEN];
-#endif
-    dague_remote_deps_t* deps = (dague_remote_deps_t*)msg->deps;
-    remote_dep_datakey_t short_which = 0;
+    for(int k = 0; output_mask>>k; k++) {
+        if( !(output_mask & (1<<k)) ) continue;
 
-    for(int k = 0; msg->output_mask>>k; k++) {
-        assert(k < MAX_PARAM_COUNT);
-        if( !(msg->output_mask & (1<<k)) ) continue;
         if( NULL == deps->output[k].data.arena ) continue;
         size_t extent = deps->output[k].data.arena->elem_size * deps->output[k].data.count;
-        if( extent <= (RDEP_MSG_EAGER_LIMIT) ) {
-            short_which |= 1<<k;
-            DEBUG3(("MPI:\tPEER\tNA\tEager MODE  \t% -8s\tk=%d\tsize=%d <= %d\t(tag=%d)\n",
-                    remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, extent,
-                    RDEP_MSG_EAGER_LIMIT, msg->tag+k));
+
+        if( (extent <= (RDEP_MSG_SHORT_LIMIT)) | (extent <= (RDEP_MSG_EAGER_LIMIT)) ) {
+            DEBUG3(("MPI:\tPEER\tNA\t%5s MODE  k=%d\tsize=%d <= %d\t(tag=base+%d)\n",
+                    (extent <= (RDEP_MSG_EAGER_LIMIT) ? "Eager" : "Short"),
+                    k, extent, RDEP_MSG_SHORT_LIMIT, k));
             continue;
         }
-        if( extent <= (RDEP_MSG_SHORT_LIMIT) ) {
-            short_which |= 1<<k;
-            DEBUG3(("MPI:\tPEER\tNA\tShort MODE  \t% -8s\tk=%d\tsize=%d <= %d\t(tag=%d)\n",
-                    remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, extent,
-                    RDEP_MSG_SHORT_LIMIT, msg->tag+k));
-            continue;
-        }
+        output_mask ^= (1<<k);
     }
-    return short_which;
+    return output_mask;
 }
 
 static void remote_dep_mpi_put_short(dague_execution_unit_t* eu_context,
@@ -1085,9 +1090,9 @@ static void remote_dep_mpi_put_short(dague_execution_unit_t* eu_context,
 #ifdef DAGUE_DEBUG_VERBOSE
     char tmp[MAX_TASK_STRLEN];
 #endif
-    remote_dep_datakey_t short_which = remote_dep_mpi_short_which(msg);
+    dague_remote_deps_t* deps = (dague_remote_deps_t*)msg->deps;
+    remote_dep_datakey_t short_which = remote_dep_mpi_short_which(deps, msg->output_mask);
     if( short_which ) {
-        dague_remote_deps_t* deps = (dague_remote_deps_t*)msg->deps;
         dague_dep_wire_get_fifo_elem_t* wireget;
         wireget = (dague_dep_wire_get_fifo_elem_t*)malloc(sizeof(dague_dep_wire_get_fifo_elem_t));
         DAGUE_LIST_ITEM_CONSTRUCT(wireget);
@@ -1173,18 +1178,18 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
     DEBUG_MARK_CTL_MSG_GET_RECV(item->peer, (void*)task, task);
 
     assert(task->output_mask);
-    DEBUG3(("MPI:\tPUT which=%lx\n", task->output_mask));
+    DEBUG3(("MPI:\tPUT mask=%lx deps 0x%lx\n", task->output_mask, task->deps));
     for(int k = 0; task->output_mask>>k; k++) {
         assert(k < MAX_PARAM_COUNT);
         if(!((1<<k) & task->output_mask)) continue;
-        DEBUG3(("MPI:\t%p[%d] %p, %p\n", deps, k, deps->output[k].data.ptr,
-                ADATA(deps->output[k].data.ptr)));
+        DEBUG3(("MPI:\t[%d (0x%x / 0x%x)] %p, %p\n", k, (1<<k), task->output_mask,
+                deps->output[k].data.ptr, ADATA(deps->output[k].data.ptr)));
         data = ADATA(deps->output[k].data.ptr);
         dtt = deps->output[k].data.layout;
         nbdtt = deps->output[k].data.count;
 #ifdef DAGUE_DEBUG_VERBOSE
         MPI_Type_get_name(dtt, type_name, &len);
-        DEBUG2(("MPI:\tTO\t%d\tPut START\tunknown \tj=%d,k=%d\twith datakey %lx at %p type %s\t(tag=%d displ = %ld)\n",
+        DEBUG2(("MPI:\tTO\t%d\tPut START\tunknown \tj=%d,k=%d\twith deps 0x%lx at %p type %s\t(tag=%d displ = %ld)\n",
                item->peer, i, k, task->deps, data, type_name, tag+k, deps->output[k].data.displ));
 #endif
 
@@ -1208,7 +1213,7 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
     remote_dep_wire_get_t* task = &(item->task);
     dague_remote_deps_t* deps = (dague_remote_deps_t*)(uintptr_t)task->deps;
 
-    DEBUG2(("MPI:\tTO\tna\tPut END  \tunknown \tj=%d,k=%d\twith datakey %lx\tparams %lx\t(tag=%d)\n",
+    DEBUG2(("MPI:\tTO\tna\tPut END  \tunknown \tj=%d,k=%d\twith deps %p\tparams %lx\t(tag=%d)\n",
            i, k, deps, task->output_mask, status->MPI_TAG)); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
     AUNREF(deps->output[k].data.ptr);
@@ -1219,7 +1224,6 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
                                     1, task->output_mask,
                                     eu_context->virtual_process->dague_context);
     if( 0 == task->output_mask ) {
-        assert(NULL == (dague_remote_deps_t*)task->deps);
         free(item);
         dep_pending_put_array[i] = NULL;
         item = (dague_dep_wire_get_fifo_elem_t*)dague_ulist_fifo_pop(&dep_put_fifo);
@@ -1242,19 +1246,23 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                                          int length,
                                          int* unpacked)
 {
-    remote_dep_datakey_t short_which = remote_dep_mpi_short_which(&deps->msg);
+    remote_dep_datakey_t short_which = remote_dep_mpi_short_which(deps, deps->msg.output_mask);
     remote_dep_datakey_t complete_mask = 0;
     int dsize, tag = (int)deps->msg.tag;
 #ifdef DAGUE_DEBUG_VERBOSE
     char tmp[MAX_TASK_STRLEN];
 #endif
 
+    DEBUG(("MPI:\tFROM\t%d\tActivate\t% -8s\twith datakey %lx\tparams %lx\n",
+           deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+           deps->msg.deps, deps->msg.output_mask));
     for(int k = 0; deps->msg.output_mask>>k; k++) {
         if(!(deps->msg.output_mask & (1<<k))) continue;
         /* Check for all CTL messages, that do not carry payload */
         if(NULL == deps->output[k].data.arena) {
             DEBUG2(("MPI:\tHERE\t%d\tGet NONE\t% -8s\ti=NA,k=%d\twith datakey %lx at <NA> type CONTROL extent 0\t(tag=%d)\n",
-                    deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, deps->msg.deps, tag+k));
+                    deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+                    k, deps->msg.deps, tag+k));
             deps->output[k].data.ptr = (void*)2; /* the first non zero even value */
             complete_mask |= 1<<k;
             continue;
@@ -1358,8 +1366,7 @@ remote_dep_mpi_save_activate(dague_execution_unit_t* eu_context,
 
     MPI_Get_count(status, MPI_PACKED, &length);
     while(unpacked < length) {
-        if( NULL == deps )
-            deps = remote_deps_allocate(&dague_remote_dep_context.freelist);
+        deps = remote_deps_allocate(&dague_remote_dep_context.freelist);
         MPI_Unpack(dep_activate_buff[i], length, &unpacked,
                    &deps->msg, dep_count, dep_dtt, dep_comm);
         deps->from = status->MPI_SOURCE;
@@ -1378,7 +1385,7 @@ remote_dep_mpi_save_activate(dague_execution_unit_t* eu_context,
             memcpy(packed_buffer, dep_activate_buff[i] + unpacked, deps->msg.length);
             deps->dague_object = (struct dague_object*)packed_buffer;  /* temporary storage */
             dague_ulist_fifo_push(&dep_activates_noobj_fifo, (dague_list_item_t*)deps);
-            continue; /* Continue but with the same deps */
+            continue;
         }
         /* Retrieve the data arenas and update the msg.output_mask to reflect all the data
          * we should be receiving from the father. If some of the dependencies have
@@ -1389,8 +1396,6 @@ remote_dep_mpi_save_activate(dague_execution_unit_t* eu_context,
         assert( dague_param_enable_aggregate || (unpacked == length));
         deps = NULL;  /* get a new one next round */
     }
-    if( NULL != deps )
-        remote_deps_free(deps);  /* Left over from an early message */
 }
 
 static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context,
