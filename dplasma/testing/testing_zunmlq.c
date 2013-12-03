@@ -24,34 +24,34 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 48, 192, 192);
-    iparam[IPARAM_SMB] = 4;
-    iparam[IPARAM_SNB] = 1;
+    iparam[IPARAM_SMB] = 1;
+    iparam[IPARAM_SNB] = 4;
     iparam[IPARAM_LDA] = -'m';
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
-    if (M < K) {
-        printf("WARNING: M must be greater or equal to K (Set M = K)\n");
-        M = K;
+    if (N < K) {
+        printf("WARNING: N must be greater or equal to K (Set N = K)\n");
+        N = K;
     }
 
-    LDA = max(M, LDA);
+    LDA = max(N, LDA);
 
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, K, 0, 0,
-                               M, K, SMB, SNB, P));
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               K, N, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, IB, NB, MT*IB, K, 0, 0,
-                               MT*IB, K, SMB, SNB, P));
+                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+                               KT*IB, N, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescQ, 1,
         two_dim_block_cyclic, (&ddescQ, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, M, 0, 0,
-                               M, M, SMB, SNB, P));
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               N, N, SMB, SNB, P));
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
@@ -61,13 +61,13 @@ int main(int argc, char ** argv)
     if(loud > 3) printf("Done\n");
 
     if(loud > 3) printf("+++ Factorize A ... ");
-    dplasma_zgeqrf(dague,
+    dplasma_zgelqf(dague,
                    (tiled_matrix_desc_t*)&ddescA,
                    (tiled_matrix_desc_t*)&ddescT);
     if(loud > 3) printf("Done\n");
 
     if(loud > 3) printf("+++ Generate Q ... ");
-    dplasma_zungqr( dague,
+    dplasma_zunglq( dague,
                     (tiled_matrix_desc_t *)&ddescA,
                     (tiled_matrix_desc_t *)&ddescT,
                     (tiled_matrix_desc_t *)&ddescQ);
@@ -75,8 +75,8 @@ int main(int argc, char ** argv)
 
     for (s=0; s<2; s++) {
 
-        int Cm = (side[s] == PlasmaLeft) ? M : N;
-        int Cn = (side[s] == PlasmaLeft) ? N : M;
+        int Cm = (side[s] == PlasmaLeft) ? N : M;
+        int Cn = (side[s] == PlasmaLeft) ? M : N;
         LDC = max(LDC, Cm);
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
@@ -103,7 +103,7 @@ int main(int argc, char ** argv)
                             (tiled_matrix_desc_t *)&ddescC0,
                             (tiled_matrix_desc_t *)&ddescC);
 
-            dplasma_zunmqr( dague, side[s], trans[t],
+            dplasma_zunmlq( dague, side[s], trans[t],
                             (tiled_matrix_desc_t *)&ddescA,
                             (tiled_matrix_desc_t *)&ddescT,
                             (tiled_matrix_desc_t *)&ddescC);
@@ -121,12 +121,12 @@ int main(int argc, char ** argv)
             }
 
             Rnorm = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t *)&ddescC);
-            result = Rnorm / ((double)M * Cnorm * eps);
+            result = Rnorm / ((double)N * Cnorm * eps);
 
             if (loud && rank == 0) {
                 printf("***************************************************\n");
                 if ( loud > 3 ) {
-                    printf( "-- ||C||_1 = %e, ||R||_1 = %e, ||R||_1 / (M * ||C||_1 * eps) = %e\n",
+                    printf( "-- ||C||_1 = %e, ||R||_1 = %e, ||R||_1 / (N * ||C||_1 * eps) = %e\n",
                             Cnorm, Rnorm, result );
                 }
 
@@ -138,7 +138,7 @@ int main(int argc, char ** argv)
                 else{
                     resultstr = "... PASSED";
                 }
-                printf(" ---- TESTING ZUNMQR (%s, %s) ...%s !\n",
+                printf(" ---- TESTING ZUNMLQ (%s, %s) ...%s !\n",
                        sidestr[s], transstr[t], resultstr);
             }
         }
