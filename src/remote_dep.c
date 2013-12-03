@@ -211,6 +211,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 #endif
 #if defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN];
+    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
 
     remote_dep_reset_forwarded(eu_context, remote_deps);
@@ -248,8 +249,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                 if(rank == remote_deps->root) continue;
 
                 DEBUG3((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n",
-                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
-                        remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank));
+                        tmp, remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank));
 
                 if((me == -1) && (rank >= eu_context->virtual_process->dague_context->my_rank)) {
                     /* the next bit points after me, so I know my dense rank now */
@@ -262,18 +262,17 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                 him++;
 
                 if(remote_dep_bcast_child(me, him)) {
-                    /* Find the flow to which this message corresponds */
-                    for( flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++ )
-                        if( exec_context->function->out[flow_index]->flow_mask & output->deps_mask )
-                            break;
-                    assert( NULL != exec_context->function->out[flow_index] );
-                    DEBUG2((" TOPO\t%s flow %s (0x%x) root=%d\t%d (d%d) -> %d (d%d)\n",
-                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
-                            exec_context->function->out[flow_index]->name, output->deps_mask,
-                            remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
-                    if(FLOW_ACCESS_NONE != (exec_context->function->out[flow_index]->flow_flags & FLOW_ACCESS_MASK)) {
-                        AREF(output->data.ptr);
+#if defined(DAGUE_DEBUG_VERBOSE)
+                    /* Mark all flows related to this message */
+                    for(flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
+                        if( exec_context->function->out[flow_index]->flow_mask & output->deps_mask ) {
+                            assert( NULL != exec_context->function->out[flow_index] );
+                            DEBUG2((" TOPO\t%s flow %s (0x%x) root=%d\t%d (d%d) -> %d (d%d)\n",
+                                    tmp, exec_context->function->out[flow_index]->name, output->deps_mask,
+                                    remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
+                        }
                     }
+#endif  /* defined(DAGUE_DEBUG_VERBOSE) */
                     if(remote_dep_is_forwarded(eu_context, output, rank)) {
                         continue;
                     }
@@ -285,8 +284,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                 } else {
                     skipped_count++;
                     DEBUG2((" TOPO\t%s flow %s (0x%x) root=%d\t%d (d%d) ][ %d (d%d)\n",
-                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
-                            exec_context->function->out[flow_index]->name, output->deps_mask,
+                            tmp, exec_context->function->out[flow_index]->name, output->deps_mask,
                             remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
                 }
             }
