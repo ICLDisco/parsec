@@ -19,10 +19,13 @@ static inline void remote_dep_reset_forwarded( dague_execution_unit_t* eu_contex
 }
 
 /* Mark a rank as already forwarded the termination of the current task */
-static inline void remote_dep_mark_forwarded( dague_execution_unit_t* eu_context, dague_remote_deps_t* rdeps, int rank )
+static inline void
+remote_dep_mark_forwarded(dague_execution_unit_t* eu_context,
+                          struct remote_dep_output_param* output,
+                          int rank)
 {
-    unsigned int boffset;
-    uint32_t mask;
+    dague_remote_deps_t* rdeps = output->parent;
+    uint32_t boffset, mask;
 
     DEBUG3(("fw mark\tREMOTE rank %d\n", rank));
     boffset = rank / (8 * sizeof(uint32_t));
@@ -33,10 +36,13 @@ static inline void remote_dep_mark_forwarded( dague_execution_unit_t* eu_context
 }
 
 /* Check if rank has already been forwarded the termination of the current task */
-static inline int remote_dep_is_forwarded( dague_execution_unit_t* eu_context, dague_remote_deps_t* rdeps, int rank )
+static inline int
+remote_dep_is_forwarded(dague_execution_unit_t* eu_context,
+                        struct remote_dep_output_param* output,
+                        int rank)
 {
-    unsigned int boffset;
-    uint32_t mask;
+    dague_remote_deps_t* rdeps = output->parent;
+    uint32_t boffset, mask;
 
     boffset = rank / (8 * sizeof(uint32_t));
     mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
@@ -194,6 +200,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     int i, me, him, current_mask;
     int skipped_count = 0, flow_index;
     unsigned int array_index, count, bit_index;
+    struct remote_dep_output_param* output;
 
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
     assert(remote_deps_count);
@@ -220,79 +227,82 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     else me = -1;
 
     for( i = 0; remote_deps_count; i++) {
-        if( 0 == remote_deps->output[i].count_bits ) continue;
+        output = &remote_deps->output[i];
+        if( 0 == output->count_bits ) continue;
 
         him = 0;
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {
-            current_mask = remote_deps->output[i].rank_bits[array_index];
+            current_mask = output->rank_bits[array_index];
             if( 0 == current_mask ) continue;  /* no bits here */
             for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
-                if( current_mask & (1 << bit_index) ) {
-                    int rank = (array_index * sizeof(uint32_t) * 8) + bit_index;
-                    assert(rank >= 0);
-                    assert(rank < eu_context->virtual_process->dague_context->nb_nodes);
+                if( !(current_mask & (1 << bit_index)) ) continue;
 
-                    current_mask ^= (1 << bit_index);
-                    count++;
-                    remote_deps_count--;
+                int rank = (array_index * sizeof(uint32_t) * 8) + bit_index;
+                assert((rank >= 0) && (rank < eu_context->virtual_process->dague_context->nb_nodes));
 
-                    DEBUG3((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n",
-                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
-                            remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank));
+                current_mask ^= (1 << bit_index);
+                count++;
+                remote_deps_count--;
 
-                    /* root already knows but falsely appear in this bitfield */
-                    if(rank == remote_deps->root) continue;
+                /* root already knows but falsely appear in this bitfield */
+                if(rank == remote_deps->root) continue;
 
-                    if((me == -1) && (rank >= eu_context->virtual_process->dague_context->my_rank))
-                    {
-                        /* the next bit points after me, so I know my dense rank now */
-                        me = ++him;
-                        if(rank == eu_context->virtual_process->dague_context->my_rank) {
-                            skipped_count++;
-                            continue;
-                        }
-                    }
-                    him++;
+                DEBUG3((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n",
+                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
+                        remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank));
 
-                    if(remote_dep_bcast_child(me, him))
-                    {
-                        DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n",
-                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
-                                remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
-                        /* Find the flow to which this message corresponds */
-                        for( flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++ )
-                            if( exec_context->function->out[flow_index]->flow_mask & remote_deps->output[i].deps_mask )
-                                break;
-                        assert( NULL != exec_context->function->out[flow_index] );
-                        if(FLOW_ACCESS_NONE != (exec_context->function->out[flow_index]->flow_flags & FLOW_ACCESS_MASK)) {
-                            AREF(remote_deps->output[flow_index].data.ptr);
-                        }
-                        if(remote_dep_is_forwarded(eu_context, remote_deps, rank)) {
-                            continue;
-                        }
-                        remote_dep_inc_flying_messages(exec_context->dague_object, eu_context->virtual_process->dague_context);
-                        remote_dep_mark_forwarded(eu_context, remote_deps, rank);
-                        remote_dep_send(rank, remote_deps);
-                    } else {
+                if((me == -1) && (rank >= eu_context->virtual_process->dague_context->my_rank)) {
+                    /* the next bit points after me, so I know my dense rank now */
+                    me = ++him;
+                    if(rank == eu_context->virtual_process->dague_context->my_rank) {
                         skipped_count++;
-                        DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) ][ %d (d%d)\n",
-                               dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context), remote_deps->root,
-                               eu_context->virtual_process->dague_context->my_rank, me, rank, him));
+                        continue;
                     }
+                }
+                him++;
+
+                if(remote_dep_bcast_child(me, him)) {
+                    /* Find the flow to which this message corresponds */
+                    for( flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++ )
+                        if( exec_context->function->out[flow_index]->flow_mask & output->deps_mask )
+                            break;
+                    assert( NULL != exec_context->function->out[flow_index] );
+                    DEBUG2((" TOPO\t%s flow %s (0x%x) root=%d\t%d (d%d) -> %d (d%d)\n",
+                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
+                            exec_context->function->out[flow_index]->name, output->deps_mask,
+                            remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
+                    if(FLOW_ACCESS_NONE != (exec_context->function->out[flow_index]->flow_flags & FLOW_ACCESS_MASK)) {
+                        AREF(output->data.ptr);
+                    }
+                    if(remote_dep_is_forwarded(eu_context, output, rank)) {
+                        continue;
+                    }
+                    assert(output->parent->dague_object == exec_context->dague_object);
+                    remote_dep_inc_flying_messages(exec_context->dague_object,
+                                                   eu_context->virtual_process->dague_context);
+                    remote_dep_mark_forwarded(eu_context, output, rank);
+                    remote_dep_send(rank, remote_deps);
+                } else {
+                    skipped_count++;
+                    DEBUG2((" TOPO\t%s flow %s (0x%x) root=%d\t%d (d%d) ][ %d (d%d)\n",
+                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context),
+                            exec_context->function->out[flow_index]->name, output->deps_mask,
+                            remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
                 }
             }
         }
     }
 
-    /* Only the thread doing bcast forwarding can enter the following line.
-     * the same communication thread calls here and does the
-     * sends that call complete_and_cleanup concurently.
-     * This has to be done only if the receiver is a leaf in a broadcast.
-     * The remote_deps has then been allocated in dague_release_dep_fct
-     * when we didn't knew yet if we forward the data or not.
+    /* Only the thread doing bcast forwarding can reach here. The same
+     * communication thread calls here and does the sends that call
+     * complete_and_cleanup concurently. This has to be done only if the
+     * receiver is a leaf in a broadcast. The remote_deps has then been
+     * allocated in dague_release_dep_fct when we didn't knew yet if we forward
+     * the data or not.
      */
     if( skipped_count ) {
-        remote_dep_complete_and_cleanup(&remote_deps, skipped_count, 1, eu_context->virtual_process->dague_context);
+        remote_dep_complete_and_cleanup(&remote_deps, skipped_count,
+                                        1, eu_context->virtual_process->dague_context);
     }
 
     return 0;
@@ -307,8 +317,8 @@ void remote_deps_allocation_init(int np, int max_output_deps)
 {
     /* First, if we have already allocated the list but it is now too tight,
      * lets redo it at the right size */
-    if( dague_remote_dep_inited && (max_output_deps > (int)dague_remote_dep_context.max_dep_count) )
-    {
+    if( dague_remote_dep_inited &&
+        (max_output_deps > (int)dague_remote_dep_context.max_dep_count) ) {
         remote_deps_allocation_fini();
     }
 

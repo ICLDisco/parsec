@@ -1132,9 +1132,9 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             struct remote_dep_output_param* output = &arg->deps->output[dep->dep_datatype_index];
             void* dataptr = is_read_only(oldcontext, dep);
             if(NULL != dataptr) {
-                arg->deps->msg.which &= ~(1 << dep->dep_index); /* unmark all data that are RO we already hold from previous tasks */
+                arg->deps->msg.output_mask &= ~(1 << dep->dep_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
-                arg->deps->msg.which |= (1 << dep->dep_index); /* mark all data that are not RO */
+                arg->deps->msg.output_mask |= (1 << dep->dep_index); /* mark all data that are not RO */
                 dataptr = is_inplace(oldcontext, dep);  /* Can we do it inplace */
             }
             output->data     = *data;
