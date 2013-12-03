@@ -1005,7 +1005,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     dague_data_copy_t* in_elem = task_data->data_in;
     dague_data_t* original = in_elem->original;
     dague_gpu_data_copy_t* gpu_elem = task_data->data_out;
-    int transfer_required = 0;
+    int transfer_from = -1;
 
     /* If the data will be accessed in write mode, remove it from any lists
      * until the task is completed.
@@ -1015,6 +1015,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
 
+#if 0
     /* If the source and target data are on the same device then they should be
      * identical and the only thing left to do is update the number of readers.
      */
@@ -1023,7 +1024,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         gpu_elem->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER; /* data is already in GPU, so no transfer required.*/
         return 0;
     }
-
+    
     /* DtoD copy, if data is read only, then we go back to CPU copy, and fetch data from CPU (HtoD) */
     if (in_elem != gpu_elem && in_elem != original->device_copies[0] && in_elem->version == original->device_copies[0]->version) {
         printf("####################GPU1 TO GPU2######################\n");
@@ -1032,10 +1033,12 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         in_elem = task_data->data_in;
         OBJ_RETAIN(in_elem);  /* retain the corresponding CPU copy */
     }
+#endif 
 
-    transfer_required = dague_data_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
+
+    transfer_from = dague_data_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
     gpu_device->super.required_data_in += original->nb_elts;
-    if( transfer_required ) {
+    if( -1 != transfer_from ) {
         cudaError_t status;
 
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,

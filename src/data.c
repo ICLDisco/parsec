@@ -231,59 +231,101 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
                                           uint8_t device,
                                           uint8_t access_mode)
 {
-    dague_data_copy_t* copy;
     uint32_t i;
-    int valid_copy, transfer_required = 0;
-
-    copy = data->device_copies[device];
+    int transfer_required = 0;
+    int transfer_from = data->owner_device;
+    dague_data_copy_t* copy = data->device_copies[device];
     assert( NULL != copy );
 
-    if( ACCESS_READ & access_mode ) copy->readers++;
-    valid_copy = data->owner_device;
+    switch( copy->coherency_state ) {
+    case DATA_COHERENCY_INVALID:
+        for( i = 0; i < dague_nb_devices; i++ ) { 
+            if( NULL == data->device_copies[i] ) continue;
+            if( DATA_COHERENCY_EXCLUSIVE == data->device_copies[i]->coherency_state
+             || DATA_COHERENCY_OWNED == data->device_copies[i]->coherency_state ) {
+                 data->device_copies[i]->coherency_state = DATA_COHERENCY_SHARED;
+                 copy->coherency_state = DATA_COHERENCY_SHARED;
+                 if( ACCESS_READ & access_mode ) {
+                     transfer_required = 1;
+                     transfer_from = i;
+                 }
+                 if( ACCESS_WRITE & access_mode ) {
+                     data->device_copies[i]->coherency_state = DATA_COHERENCY_SHARED;
+                 }
+            }
+        }
+        break;
+        
+    case DATA_COHERENCY_SHARED:
+        for( i = 0; i < dague_nb_devices; i++ ) {
+            if( NULL == data->device_copies[i] ) continue;
+            if( DATA_COHERENCY_OWNED == data->device_copies[i]->coherency_state
+             && data->device_copies[i]->version > copy->version ) {
+                transfer_required = 1;
+            }
+#if defined(ENABLE_DAGUE_DEBUG)
+            else {
+                assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state
+                     || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state );
+                assert( data->device_copies[i]->version <= copy->version );
+            }
+#endif
+        }
+        break;
+            
+    case DATA_COHERENCY_EXCLUSIVE:
+#if defined(ENABLE_DAGUE_DEBUG)
+        for( i = 0; i < dague_nb_devices; i++ ) {
+            if( device == i || NULL == data->device_copies[i] ) continue;
+            assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state );
+        }
+#endif
+        break;
 
-    if( DATA_COHERENCY_INVALID == copy->coherency_state ) {
-        if( ACCESS_READ & access_mode ) transfer_required = 1;
-        /* Update the coherency state of the others versions */
-        if( ACCESS_WRITE & access_mode ) {
-            valid_copy = data->owner_device = (uint8_t)device;
-            for( i = 0; i < dague_nb_devices; i++ ) {
-                if( NULL == data->device_copies[i] ) continue;
-                data->device_copies[i]->coherency_state = DATA_COHERENCY_INVALID;
-            }
-            copy->coherency_state = DATA_COHERENCY_OWNED;
+    case DATA_COHERENCY_OWNED:
+        assert( device == data->owner_device ); /* memory is owned, better be me otherwise 2 writters: wrong JDF */
+#if defined(ENABLE_DAGUE_DEBUG)
+        for( i = 0; i < dague_nb_devices; i++ ) {
+            if( device == i || NULL == data->device_copies[i] ) continue;
+            assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state
+                 || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state );
+            assert( copy->version >= data->device_copies[i]->version );
         }
-        else if( ACCESS_READ & access_mode ) {
-            transfer_required = 1; /* TODO: is this condition making sense? */
-            copy->coherency_state = DATA_COHERENCY_SHARED;
-        }
+#endif
+        break;
     }
-    else { /* ! DATA_COHERENCY_INVALID */
-        /* I either own the data or have one of its valid copies */
-        if( DATA_COHERENCY_OWNED == copy->coherency_state ) {
-            assert( device == data->owner_device ); /* memory is owned, better be me otherwise 2 writters: wrong JDF */
-        }
-        else {  /* I have one of the valid copies */
-            if( ACCESS_WRITE & access_mode ) {
-                /* Update the coherency state of the others versions */
-                for( i = 0; i < dague_nb_devices; i++ ) {
-                    if( NULL == data->device_copies[i] ) continue;
-                    data->device_copies[i]->coherency_state = DATA_COHERENCY_INVALID;
-                }
-                copy->coherency_state = DATA_COHERENCY_OWNED;
-                valid_copy = data->owner_device = (uint8_t)device;
-            } else {
-                /* The data is shared or exclusive and I'm doing a read */
+    
+    if( ACCESS_READ & access_mode ) {
+        for( i = 0; i < dague_nb_devices; i++ ) {
+            if( device == i || NULL == data->device_copies[i] ) continue;
+            if( DATA_COHERENCY_EXCLUSIVE == data->device_copies[i]->coherency_state ) {
+                data->device_copies[i]->coherency_state = DATA_COHERENCY_SHARED;
             }
         }
+        copy->readers++;
     }
-    if(valid_copy >= 0) {
-        assert( data->device_copies[valid_copy]->version >= copy->version );
-        /* The version on the GPU doesn't match the one in memory. Let the
-         * upper level know a transfer is required.
-         */
-        transfer_required = transfer_required || (data->device_copies[valid_copy]->version > copy->version);
+    else transfer_required = 0; /* finally we'll just overwrite w/o read */
+
+    if( ACCESS_WRITE & access_mode ) {
+        data->owner_device = (uint8_t)device;
+        for( i = 0; i < dague_nb_devices; i++ ) {
+            if( NULL == data->device_copies[i] ) continue;
+            data->device_copies[i]->coherency_state = DATA_COHERENCY_INVALID; /* This is brutal, maybe SHARED is enough? */
+        }
+        data->owner_device = (uint8_t)device;
+        copy->coherency_state = DATA_COHERENCY_OWNED;
     }
-    return transfer_required;
+
+    if( !transfer_required ) {
+        transfer_from = -1;
+    }
+    else {
+        assert( -1 != transfer_from );
+        assert( data->device_copies[transfer_from]->version >= copy->version );
+    }
+    dague_dump_data_copy(copy);
+    printf("TRANSFER FOR copy %p is %d\n", copy, transfer_from);
+    return transfer_from;
 }
 
 static char dump_coherency_codex(dague_data_coherency_t state)
