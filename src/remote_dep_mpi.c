@@ -817,7 +817,9 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     (void)eu_context;
 #endif
     msg->tag = next_tag(MAX_PARAM_COUNT); /* todo: waste less tags to diminish collision probability */
-    DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n", rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN), msg->deps, msg->which, msg->tag));
+    DEBUG(("MPI: %10s TO   %6d %20s (bmask=%4lo) (tag=%5x actkey=%16lx)\n", "ACTIVATE",
+            rank, remote_dep_cmd_to_string(msg, tmp, MAX_TASK_STRLEN), 
+            msg->which, msg->tag, msg->deps));
 
     /* Treat for special cases: CTL, Eeager, etc... */
     char packed_buffer[DEP_EAGER_BUFFER_SIZE];
@@ -828,7 +830,9 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
 
         /* Remove CTL from the message we expect to send */
         if(NULL == deps->output[k].data.arena) {
-            DEBUG2((" CTL\t%s\tparam %d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
+            DEBUG2(("MPI: %10s TO   %6d %20s (b%-3din%4lo) (tag=%5x actkey=%16lx)\n", "NOPUT CTL",
+                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+                     k, deps->msg.which, msg->tag+k, msg->deps));
             msg->which ^= (1<<k);
             remote_dep_complete_and_cleanup(deps, 1);
             continue;
@@ -838,7 +842,9 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         int dsize;
         MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout, dep_comm, &dsize);
         if((DEP_EAGER_BUFFER_SIZE - packed) > (size_t)dsize) {
-            DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
+            DEBUG2(("MPI: %10s TO   %6d %20s (b%-3din%4lo) (tag=%5x actkey=%16lx)\n", "PUT EAGER",
+                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+                     k, deps->msg.which, msg->tag+k, msg->deps));
             msg->which ^= (1<<k);
             MPI_Pack((char*)DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
                      deps->output[k].data.count, deps->output[k].data.layout,
@@ -905,8 +911,9 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
                     k = i%MAX_PARAM_COUNT;
                     i = i/MAX_PARAM_COUNT;
                     deps = (dague_remote_deps_t*) dep_pending_recv_array[i];
-                    DEBUG2(("MPI:\tFROM\t%d\tGet END  \t% -8s\ti=%d,k=%d\twith datakey na        \tparams %lx\t(tag=%d)\n",
-                            status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), i, k, deps->msg.which, status->MPI_TAG));
+                    DEBUG2(("MPI: %10s FROM %6d %20s (b%-3din%4lo) (tag=%5x actkey=%16lx)\n", "GET END",
+                             status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+                             k, deps->msg.which, status->MPI_TAG, deps->msg.deps));
                     DEBUG_MARK_DTA_MSG_END_RECV(status->MPI_TAG);
                     TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i+k);
                     remote_dep_mpi_get_end(eu_context, deps, i, k);
@@ -933,14 +940,14 @@ static remote_dep_datakey_t remote_dep_mpi_short_which(remote_dep_wire_activate_
         size_t extent = deps->output[k].data.arena->elem_size * deps->output[k].data.count;
         if( extent <= (RDEP_MSG_EAGER_LIMIT) ) {
             short_which |= 1<<k;
-            DEBUG3(("MPI:\tPEER\tNA\tEager MODE  \t% -8s\tk=%d\tsize=%d <= %d\t(tag=%d)\n",
+            DEBUG3(("MPI:\t% -8s\tparam k=%d\tsize=%d <= %d\t(tag=%d): EAGER MODE\n",
                     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, extent,
                     RDEP_MSG_EAGER_LIMIT, msg->tag+k));
             continue;
         }
         if( extent <= (RDEP_MSG_SHORT_LIMIT) ) {
             short_which |= 1<<k;
-            DEBUG3(("MPI:\tPEER\tNA\tShort MODE  \t% -8s\tk=%d\tsize=%d <= %d\t(tag=%d)\n",
+            DEBUG3(("MPI:\t% -8s\tparam k=%d\tsize=%d <= %d\t(tag=%d): SHORT MODE\n",
                     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, extent,
                     RDEP_MSG_SHORT_LIMIT, msg->tag+k));
             continue;
@@ -1033,6 +1040,7 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
     MPI_Datatype dtt;
     int nbdtt;
 #ifdef DAGUE_DEBUG_VERBOSE2
+    char tmp[MAX_TASK_STRLEN];
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
@@ -1051,8 +1059,10 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
         nbdtt = deps->output[k].data.count;
 #ifdef DAGUE_DEBUG_VERBOSE2
         MPI_Type_get_name(dtt, type_name, &len);
-        DEBUG2(("MPI:\tTO\t%d\tPut START\tunknown \tj=%d,k=%d\twith datakey %lx at %p type %s\t(tag=%d displ = %ld)\n",
-                item->peer, i, k, task->deps, data, type_name, tag+k, deps->output[k].data.displ));
+        DEBUG2(("MPI: %10s TO   %6d %20s (b%-3din%4lo) (tag=%5x actkey=%16lx)\tdata %p[%ld] (%dx %s)\n", "PUT START",
+                item->peer, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), 
+                k, task->which, tag+k, task->deps,
+                data, deps->output[k].data.displ, nbdtt, type_name));
 #endif
 
         TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
@@ -1074,8 +1084,12 @@ remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
     remote_dep_wire_get_t* task = &(item->task);
     dague_remote_deps_t* deps = (dague_remote_deps_t*)(uintptr_t)task->deps;
 
-    DEBUG2(("MPI:\tTO\tna\tPut END  \tunknown \tj=%d,k=%d\twith datakey %lx\tparams %lx\t(tag=%d)\n",
-           i, k, deps, task->which, status->MPI_TAG)); (void)status;
+#ifdef DAGUE_DEBUG_VERBOSE2
+    char tmp[MAX_TASK_STRLEN];
+    DEBUG2(("MPI: %10s TO   %6d %20s (b%-3din%4lo) (tag=%5x actkey=%16lx)\n", "PUT END",
+            item->peer, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), 
+            k, task->which, status->MPI_TAG, task->deps));
+#endif
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
     DAGUE_DATA_COPY_RELEASE(deps->output[k].data.data);
     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
@@ -1105,6 +1119,8 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
 {
 #ifdef DAGUE_DEBUG_VERBOSE2
     char tmp[MAX_TASK_STRLEN];
+    char type_name[MPI_MAX_OBJECT_NAME];
+    int len;
 #endif
     int tag = (int)deps->msg.tag;
     dague_data_t* data;
@@ -1113,11 +1129,17 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
     remote_dep_datakey_t short_which = remote_dep_mpi_short_which(&deps->msg);
     deps->msg.deps = 0; /* now, it contains the mask of deps presatisfied */
 
+    DEBUG(("MPI: %10s FROM %6d %20s (bmask=%4lo) (tag=%5x actkey=%16lx)\n", "ACTIVATE",
+             deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+             deps->msg.which, deps->msg.tag, deps->msg.deps));
+
     for(int k = 0; deps->msg.which>>k; k++) {
         if(!(deps->msg.which & (1<<k))) continue;
         /* Check for all CTL messages, that do not carry payload */
         if(NULL == deps->output[k].data.arena) {
-            DEBUG2(("MPI:\tHERE\t%d\tGet NONE\t% -8s\ti=NA,k=%d\twith datakey %lx at <NA> type CONTROL extent 0\t(tag=%d)\n", deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, datakey, tag+k));
+            DEBUG2(("MPI: %10s FROM %6d %20s (b%-3din%4lo) (tag=%5x actkey=%16lx)\n", "CTL END",
+                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+                     k, deps->msg.which, tag+k, datakey));
             deps->output[k].data.data = (void*)2; /* the first non zero even value */
             deps->msg.deps |= 1<<k;
             continue;
@@ -1138,8 +1160,15 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
                         deps->output[k].data.count, deps->output[k].data.displ));
                 assert(deps->output[k].data.data != NULL);
             }
+#ifdef DAGUE_DEBUG_VERBOSE2
+            MPI_Type_get_name(deps->output[k].data.layout, type_name, &len);
+            DEBUG2(("MPI: %10s FROM %6d %20s (b%-3din%4lo) (tag=%5x actkey=%16lx)\tdata %p[%ld] (%dx %s)\n", "EAGER END",
+                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+                     k, deps->msg.which, tag+k, datakey,
+                     DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), deps->output[k].data.displ, 
+                     deps->output[k].data.count, type_name));
+#endif
 #ifndef DAGUE_PROF_DRY_DEP
-            DEBUG2((" EGR\t%s\tparam %d\teager piggyback from the activate message\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
             MPI_Unpack(packed_buffer, DEP_EAGER_BUFFER_SIZE, &unpacked,
                        DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
                        deps->output[k].data.count, deps->output[k].data.layout, dep_comm);
@@ -1159,8 +1188,14 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
                         deps->output[k].data.data, deps->output[k].data.arena->elem_size, deps->output[k].data.count));
                 assert(deps->output[k].data.data != NULL);
             }
-            DEBUG2(("MPI:\tFROM\t%d\tGet SHORT\t% -8s\ti=NA,k=%d\twith datakey %lx at %p\t(tag=%d)\n",
-                   deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, deps->msg.deps, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), tag+k));
+#ifdef DAGUE_DEBUG_VERBOSE2
+            MPI_Type_get_name(deps->output[k].data.layout, type_name, &len);
+            DEBUG2(("MPI: %10s FROM %6d %20s (b%-3din%4lo) (tag=%5x actkey=%16lx)\tdata %p[%ld] (%dx %s)\n", "GET SHORT",
+                    deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), 
+                    k, deps->msg.which, tag+k, datakey, 
+                    DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), deps->output[k].data.displ, 
+                    deps->output[k].data.count, type_name));
+#endif
 #ifndef DAGUE_PROF_DRY_DEP
             MPI_Request req; int flag = 0;
             MPI_Irecv((char*)DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
@@ -1181,11 +1216,10 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
     if(deps->msg.deps) {
 #ifdef DAGUE_DEBUG_VERBOSE2
         for(int k = 0; deps->msg.deps>>k; k++)
-            if((1<<k) & deps->msg.deps)
-                DEBUG2(("MPI:\tHERE\t%d\tGet PREEND\t% -8s\ti=NA,k=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)\n",
-                        deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), k, datakey,
-                        deps->output[k].data.data != (void*)2 ? DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) : NULL,
-                        tag+k ));
+            if((1<<k) & deps->msg.deps && NULL != deps->output[k].data.arena)
+                DEBUG2(("MPI: %10s FROM %6d %20s (b%-3din%4lo) (tag=%5x actkey=%16lx)\n", "SHORT END",
+                         deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+                         k, deps->msg.which, tag+k, datakey));
 #endif
         remote_dep_release(eu_context, deps);
     }
@@ -1199,7 +1233,7 @@ remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context,
         dague_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)deps);
     }
 
-    /* Check if we have some ordered rdv get to treat */
+    /* Check if we have some ordered rdv get to progress */
     for(int i = 0; i < DEP_NB_CONCURENT; i++ ) {
         if( NULL == dep_pending_recv_array[i] ) {
             deps = (dague_remote_deps_t*)dague_ulist_fifo_pop(&dep_activates_fifo);
@@ -1219,16 +1253,13 @@ static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context, in
     MPI_Unpack(dep_activate_buff[i], DEP_EAGER_BUFFER_SIZE, &unpacked,
                &deps->msg, dep_count, dep_dtt, dep_comm);
     deps->from = status->MPI_SOURCE;
-    DEBUG(("MPI:\tFROM\t%d\tActivate\t% -8s\ti=%d\twith datakey %lx\tparams %lx\n",
-           status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
-           i, deps->msg.deps, deps->msg.which));
 
     if( -1 == remote_dep_get_datatypes(deps) )
     {   /* the corresponding dague_handle doesn't exist, yet. Put it in unexpected */
         char* packed_buffer;
-        DEBUG2(("MPI:\tFROM\t%d\tActivate NOOBJ\t% -8s\ti=%d\twith datakey %lx\tparams %lx\n",
-                       deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
-                       i, deps->msg.deps, deps->msg.which));
+        DEBUG(("MPI: %10s FROM %6d %20s (bmask=%4lo) (tag=%5x actkey=%16lx)\n", "ACT UNKNWN",
+                 deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+                 deps->msg.which, deps->msg.tag, deps->msg.deps));
         /* Copy the eager data to some temp storage; TODO: use count instead of max size */
         packed_buffer = malloc(sizeof(dague_remote_deps_t)+DEP_EAGER_BUFFER_SIZE);
         memcpy(packed_buffer, deps, sizeof(dague_remote_deps_t));
@@ -1237,6 +1268,7 @@ static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context, in
         remote_deps_free(deps);
         return;
     }
+    
     /* Retrieve the data arenas and update the msg.which to reflect all the data
      * we should be receiving from the father. If some of the dependencies have
      * been dropped, force their release.
@@ -1260,9 +1292,9 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dague
                        &deps->msg, dep_count, dep_dtt, dep_comm);
             deps->from = ideps->from;
             rc = remote_dep_get_datatypes(deps); assert( -1 != rc );
-            DEBUG2(("MPI:\tFROM\t%d\tActivate NEWOBJ\t% -8s\ti=NA\twith datakey %lx\tparams %lx\n",
-                    deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
-                    deps->msg.deps, deps->msg.which));
+            DEBUG(("MPI: %10s FROM %6d %20s (bmask=%4lo) (tag=%5x actkey=%16lx)\n", "NEWHDL ACT",
+                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+                     deps->msg.which, deps->msg.tag, deps->msg.deps));
             remote_dep_mpi_recv_activate(eu_context, deps, buffer, unpacked);
             dague_ulist_remove(&dep_activates_noobj_fifo, item);
             free(item);
@@ -1308,6 +1340,16 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
             data_copy = data->device_copies[0];
             deps->output[k].data.data = data_copy;
         }
+        
+#ifdef DAGUE_DEBUG_VERBOSE2
+        MPI_Type_get_name(deps->output[k].data.layout, type_name, &len);
+        DEBUG2(("MPI: %10s FROM %6d %20s (b%-3din%4lo) (tag=%5x actkey=%16lx)\tdata %p[%ld] (%dx %s)\n", "GET START",
+                from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), 
+                k, msg.which, msg.tag+k, task->deps,
+                DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), deps->output[k].data.displ, 
+                nbdtt, type_name));
+#endif
+
 #ifdef DAGUE_PROF_DRY_DEP
         (void)dtt;
         (void)nbdtt;
@@ -1315,18 +1357,11 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
         msg.which &= ~(1<<k);
         remote_dep_mpi_get_end(eu_context, deps, i, k);
 #else
-#  ifdef DAGUE_DEBUG_VERBOSE2
-        MPI_Type_get_name(dtt, type_name, &len);
-        DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s nbelt %d extent %d using %p[%d]\t(tag=%d)\n",
-                from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), i, k,
-                task->deps, data_copy, type_name, nbdtt,
-                deps, k,
-                deps->output[k].data.displ, deps->output[k].data.arena->elem_size * nbdtt, msg.tag+k));
-#  endif
+
         TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from,
                             eu_context->virtual_process->dague_context->my_rank, deps->msg);
         DEBUG_MARK_DTA_MSG_START_RECV(from, data_copy, msg.tag+k);
-        MPI_Irecv(data_copy->device_private + deps->output[k].data.displ, nbdtt,
+        MPI_Irecv(DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ, nbdtt,
                   dtt, from, msg.tag+k, dep_comm,
                   &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
 #endif
