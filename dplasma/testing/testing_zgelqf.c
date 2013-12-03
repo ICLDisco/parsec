@@ -10,10 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
-#include "dplasma/cores/cuda_stsmlq.h"
-#endif
-
 static int check_orthogonality(dague_context_t *dague, int loud,
                                tiled_matrix_desc_t *Q);
 static int check_factorization(dague_context_t *dague, int loud,
@@ -34,12 +30,9 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 48, 192, 192);
-    iparam[IPARAM_SNB] = 2;
+    iparam[IPARAM_SMB] = 4;
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
-    iparam[IPARAM_NGPUS] = 0;
-#endif
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
@@ -76,20 +69,6 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
-    /* load the GPU kernel */
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
-    if(iparam[IPARAM_NGPUS] > 0)
-    {
-        if(loud) printf("+++ Load GPU kernel ... ");
-        if(0 != stsmlq_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT))
-        {
-            printf("XXX Unable to load GPU kernel.\n");
-            exit(3);
-        }
-        if(loud > 3) printf("Done\n");
-    }
-#endif
-
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
@@ -115,15 +94,15 @@ int main(int argc, char ** argv)
                         (tiled_matrix_desc_t *)&ddescQ);
         if(loud > 2) printf("Done\n");
 
-        /* if(loud > 2) printf("+++ Solve the system ..."); */
-        /* dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescX, 2354); */
-        /* dplasma_zlacpy( dague, PlasmaUpperLower, */
-        /*                 (tiled_matrix_desc_t *)&ddescX, (tiled_matrix_desc_t *)&ddescB ); */
-        /* dplasma_zgelqr( dague, */
-        /*                (tiled_matrix_desc_t *)&ddescA, */
-        /*                (tiled_matrix_desc_t *)&ddescT, */
-        /*                (tiled_matrix_desc_t *)&ddescX); */
-        /* if(loud > 2) printf("Done\n"); */
+        if(loud > 2) printf("+++ Solve the system ...");
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescX, 2354);
+        dplasma_zlacpy( dague, PlasmaUpperLower,
+                        (tiled_matrix_desc_t *)&ddescX, (tiled_matrix_desc_t *)&ddescB );
+        dplasma_zgelqs( dague,
+                        (tiled_matrix_desc_t *)&ddescA,
+                        (tiled_matrix_desc_t *)&ddescT,
+                        (tiled_matrix_desc_t *)&ddescX);
+        if(loud > 2) printf("Done\n");
 
         /* Check the orthogonality, factorization and the solution */
         ret |= check_orthogonality(dague, (rank == 0) ? loud : 0,
@@ -132,23 +111,16 @@ int main(int argc, char ** argv)
                                    (tiled_matrix_desc_t *)&ddescA0,
                                    (tiled_matrix_desc_t *)&ddescA,
                                    (tiled_matrix_desc_t *)&ddescQ);
-        /* ret |= check_solution(dague, (rank == 0) ? loud : 0, */
-        /*                            (tiled_matrix_desc_t *)&ddescA0, */
-        /*                            (tiled_matrix_desc_t *)&ddescB, */
-        /*                            (tiled_matrix_desc_t *)&ddescX); */
+        ret |= check_solution(dague, (rank == 0) ? loud : 0,
+                              (tiled_matrix_desc_t *)&ddescA0,
+                              (tiled_matrix_desc_t *)&ddescB,
+                              (tiled_matrix_desc_t *)&ddescX);
 
         dague_data_free(ddescA0.mat);
         dague_data_free(ddescQ.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
     }
-
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
-    if(iparam[IPARAM_NGPUS] > 0)
-    {
-        stsmlq_cuda_fini(dague);
-    }
-#endif
 
     cleanup_dague(dague, iparam);
 
