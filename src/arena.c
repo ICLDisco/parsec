@@ -109,6 +109,7 @@ void dague_arena_release(dague_data_copy_t* copy)
     assert(NULL != arena);
     assert(0 == (((uintptr_t)arena)%sizeof(uintptr_t))); /* is it aligned */
 
+    dague_data_copy_detach( data, copy, 0 );
     if(chunk->count > 1) {
         DEBUG3(("Arena:\tdeallocate a tile of size %zu x %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
                 arena->elem_size, chunk->count, arena, arena->alignment, chunk, chunk->data, sizeof(dague_arena_chunk_t),
@@ -122,6 +123,5 @@ void dague_arena_release(dague_data_copy_t* copy)
         }
         dague_lifo_push(&arena->area_lifo, &chunk->item);
     }
-    dague_data_copy_detach( data, copy, 0 );
     OBJ_RELEASE( data );
 }
