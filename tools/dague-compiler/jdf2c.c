@@ -3864,10 +3864,11 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     else
         coutput("  arg.output_entry = NULL;\n");
 
-    coutput("#if defined(DISTRIBUTED)\n"
-            "  arg.remote_deps_count = 0;\n"
-            "  arg.remote_deps = NULL;\n"
-            "#endif\n");
+    if( f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS )
+        coutput("#if defined(DISTRIBUTED)\n"
+                "  arg.remote_deps_count = 0;\n"
+                "  arg.remote_deps = NULL;\n"
+                "#endif\n");
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         coutput("  iterate_successors_of_%s_%s(eu, context, action_mask, dague_release_dep_fct, &arg);\n"
@@ -3875,18 +3876,19 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 jdf_basename, f->fname);
     }
 
-    coutput("#if defined(DISTRIBUTED)\n"
-            "  if( 0 == arg.remote_deps_count ) {\n"
-            "    if( NULL != arg.remote_deps ) {\n"
-            "      remote_deps_free(arg.remote_deps);\n"
-            "      arg.remote_deps = NULL;\n"
-            "    }\n"
-            "  }\n"
-            "  else if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) ) {\n"
-            "    arg.nb_released += dague_remote_dep_activate(eu, context, arg.remote_deps, arg.remote_deps_count);\n"
-            "  }\n"
-            "#endif\n"
-            "\n");
+    if( f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS )
+        coutput("#if defined(DISTRIBUTED)\n"
+                "  if( 0 == arg.remote_deps_count ) {\n"
+                "    if( NULL != arg.remote_deps ) {\n"
+                "      remote_deps_free(arg.remote_deps);\n"
+                "      arg.remote_deps = NULL;\n"
+                "    }\n"
+                "  }\n"
+                "  else if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) ) {\n"
+                "    arg.nb_released += dague_remote_dep_activate(eu, context, arg.remote_deps, arg.remote_deps_count);\n"
+                "  }\n"
+                "#endif\n"
+                "\n");
 
     coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n"
             "    struct dague_vp** vps = eu->virtual_process->dague_context->virtual_processes;\n");
@@ -3908,9 +3910,9 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     jdf_generate_code_free_hash_table_entry(jdf, f);
 
     coutput(
-            "  return arg.nb_released;\n"
-            "}\n"
-            "\n");
+        "  return arg.nb_released;\n"
+        "}\n"
+        "\n");
 }
 
 static char *jdf_dump_context_assignment(string_arena_t *sa_open,
