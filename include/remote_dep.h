@@ -136,9 +136,11 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
                 (int)(dague_remote_dep_context.elem_size - rank_bit_size));
     }
     assert(NULL == remote_deps->dague_object);
-    remote_deps->max_priority = 0xffffffff;
-    remote_deps->root            = -1;
-    remote_deps->msg.output_mask = 0;
+    remote_deps->max_priority      = 0xffffffff;
+    remote_deps->root              = -1;
+    remote_deps->msg.output_mask   = 0;
+    remote_deps->output_count      = 0;
+    remote_deps->output_sent_count = 0;
     return remote_deps;
 }
 
