@@ -33,6 +33,7 @@
  * A good SNB value should provide enough work to all available cores on one
  * node. It is then recommended to set it to 4 when creating the matrix
  * descriptor.
+ * For tiling, MB=200, and IB=32 usually give good results.
  *
  * This variant is good for square large problems.
  * For other problems, see:
@@ -241,4 +242,6 @@ dplasma_zgelqf( dague_context_t *dague,
         dplasma_progress(dague);
         dplasma_zgelqf_Destruct( dague_zgelqf );
     }
+
+    return 0;
 }

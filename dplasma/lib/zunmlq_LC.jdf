@@ -132,7 +132,7 @@ BODY
     int ldbk = BLKLDD( descB, k );
     int ldbm = BLKLDD( descB, m );
     int ldak = BLKLDD( descA, k );
-    int ldwork = descT.nb;
+    int ldwork = ib;
 
     printlog("CORE_ztsmlq(%d, %d, %d)\n"
              "\t(side, trans, descB.mb, tempnn, tempmm, tempnn, tempkmin, ib, B(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",

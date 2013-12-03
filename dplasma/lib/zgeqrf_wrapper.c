@@ -33,6 +33,7 @@
  * A good SMB value should provide enough work to all available cores on one
  * node. It is then recommended to set it to 4 when creating the matrix
  * descriptor.
+ * For tiling, MB=200, and IB=32 usually give good results.
  *
  * This variant is good for square large problems.
  * For other problems, see:
@@ -178,6 +179,7 @@ dplasma_zgeqrf_Destruct( dague_object_t *o )
  * A good SMB value should provide enough work to all available cores on one
  * node. It is then recommended to set it to 4 when creating the matrix
  * descriptor.
+ * For tiling, MB=200, and IB=32 usually give good results.
  *
  * This variant is good for square large problems.
  * For other problems, see:
