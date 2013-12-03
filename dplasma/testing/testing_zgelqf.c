@@ -119,16 +119,16 @@ int main(int argc, char ** argv)
                                    (tiled_matrix_desc_t *)&ddescB,
                                    (tiled_matrix_desc_t *)&ddescX );
 
-            dague_data_free(ddescA0.mat);
-            dague_data_free(ddescQ.mat);
-            dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
-            dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
         } else {
             printf("Check cannot be performed when M > N\n");
         }
 
+        dague_data_free(ddescA0.mat);
+        dague_data_free(ddescQ.mat);
         dague_data_free(ddescB.mat);
         dague_data_free(ddescX.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescX);
     }
@@ -146,7 +146,6 @@ int main(int argc, char ** argv)
 /*-------------------------------------------------------------------
  * Check the orthogonality of Q
  */
-
 static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_desc_t *Q)
 {
     two_dim_block_cyclic_t *twodQ = (two_dim_block_cyclic_t *)Q;
@@ -179,9 +178,9 @@ static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_de
 
     result = normQ / (minMN * eps);
     if ( loud ) {
-      printf("============\n");
-      printf("Checking the orthogonality of Q \n");
-      printf("||Id-Q'*Q||_oo / (N*eps) = %e \n", result);
+        printf("============\n");
+        printf("Checking the orthogonality of Q \n");
+        printf("||Id-Q'*Q||_oo / (N*eps) = %e \n", result);
     }
 
     if ( isnan(result) || isinf(result) || (result > 60.0) ) {
@@ -201,7 +200,6 @@ static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_de
 /*-------------------------------------------------------------------
  * Check the orthogonality of Q
  */
-
 static int
 check_factorization(dague_context_t *dague, int loud,
                     tiled_matrix_desc_t *Aorig,
