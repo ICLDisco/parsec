@@ -29,10 +29,11 @@ int main(int argc, char ** argv)
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
-    iparam_default_ibnbmb(iparam, 48, 192, 192);
-    iparam[IPARAM_SMB] = 4;
+    iparam_default_ibnbmb(iparam, 32, 200, 200);
+    iparam[IPARAM_SMB] = 1;
+    iparam[IPARAM_SNB] = 4;
     iparam[IPARAM_LDA] = -'m';
-    iparam[IPARAM_LDB] = -'m';
+    iparam[IPARAM_LDB] = -'n';
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
@@ -88,38 +89,48 @@ int main(int argc, char ** argv)
     dplasma_zgelqf_Destruct( DAGUE_zgelqf );
 
     if( check ) {
-        if(loud > 2) printf("+++ Generate the Q ...");
-        dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
-        dplasma_zunglq( dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT,
-                        (tiled_matrix_desc_t *)&ddescQ);
-        if(loud > 2) printf("Done\n");
+        if (N >= M) {
+            if(loud > 2) printf("+++ Generate the Q ...");
+            dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
+            dplasma_zunglq( dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT,
+                            (tiled_matrix_desc_t *)&ddescQ);
+            if(loud > 2) printf("Done\n");
 
-        if(loud > 2) printf("+++ Solve the system ...");
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescX, 2354);
-        dplasma_zlacpy( dague, PlasmaUpperLower,
-                        (tiled_matrix_desc_t *)&ddescX, (tiled_matrix_desc_t *)&ddescB );
-        dplasma_zgelqs( dague,
-                        (tiled_matrix_desc_t *)&ddescA,
-                        (tiled_matrix_desc_t *)&ddescT,
-                        (tiled_matrix_desc_t *)&ddescX);
-        if(loud > 2) printf("Done\n");
+            if(loud > 2) printf("+++ Solve the system ...");
+            dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescX, 2354);
+            dplasma_zlacpy( dague, PlasmaUpperLower,
+                            (tiled_matrix_desc_t *)&ddescX,
+                            (tiled_matrix_desc_t *)&ddescB );
+            dplasma_zgelqs( dague,
+                            (tiled_matrix_desc_t *)&ddescA,
+                            (tiled_matrix_desc_t *)&ddescT,
+                            (tiled_matrix_desc_t *)&ddescX );
+            if(loud > 2) printf("Done\n");
 
-        /* Check the orthogonality, factorization and the solution */
-        ret |= check_orthogonality(dague, (rank == 0) ? loud : 0,
-                                   (tiled_matrix_desc_t *)&ddescQ);
-        ret |= check_factorization(dague, (rank == 0) ? loud : 0,
+            /* Check the orthogonality, factorization and the solution */
+            ret |= check_orthogonality( dague, (rank == 0) ? loud : 0,
+                                        (tiled_matrix_desc_t *)&ddescQ);
+            ret |= check_factorization( dague, (rank == 0) ? loud : 0,
+                                        (tiled_matrix_desc_t *)&ddescA0,
+                                        (tiled_matrix_desc_t *)&ddescA,
+                                        (tiled_matrix_desc_t *)&ddescQ );
+            ret |= check_solution( dague, (rank == 0) ? loud : 0,
                                    (tiled_matrix_desc_t *)&ddescA0,
-                                   (tiled_matrix_desc_t *)&ddescA,
-                                   (tiled_matrix_desc_t *)&ddescQ);
-        ret |= check_solution(dague, (rank == 0) ? loud : 0,
-                              (tiled_matrix_desc_t *)&ddescA0,
-                              (tiled_matrix_desc_t *)&ddescB,
-                              (tiled_matrix_desc_t *)&ddescX);
+                                   (tiled_matrix_desc_t *)&ddescB,
+                                   (tiled_matrix_desc_t *)&ddescX );
 
-        dague_data_free(ddescA0.mat);
-        dague_data_free(ddescQ.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
+            dague_data_free(ddescA0.mat);
+            dague_data_free(ddescQ.mat);
+            dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
+            dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
+        } else {
+            printf("Check cannot be performed when M > N\n");
+        }
+
+        dague_data_free(ddescB.mat);
+        dague_data_free(ddescX.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescX);
     }
 
     cleanup_dague(dague, iparam);
@@ -155,16 +166,16 @@ static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_de
 
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&Id);
 
-    /* Perform Id - Q'Q (could be done with Herk) */
+    /* Perform Id - Q'Q */
     if ( M >= N ) {
-      dplasma_zgemm( dague, PlasmaConjTrans, PlasmaNoTrans,
-                     1.0, Q, Q, -1.0, (tiled_matrix_desc_t*)&Id );
+        dplasma_zherk( dague, PlasmaUpper, PlasmaConjTrans,
+                       1.0, Q, -1.0, (tiled_matrix_desc_t*)&Id );
     } else {
-      dplasma_zgemm( dague, PlasmaNoTrans, PlasmaConjTrans,
-                     1.0, Q, Q, -1.0, (tiled_matrix_desc_t*)&Id );
+        dplasma_zherk( dague, PlasmaUpper, PlasmaNoTrans,
+                       1.0, Q, -1.0, (tiled_matrix_desc_t*)&Id );
     }
 
-    normQ = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&Id);
+    normQ = dplasma_zlanhe(dague, PlasmaInfNorm, PlasmaUpper, (tiled_matrix_desc_t*)&Id);
 
     result = normQ / (minMN * eps);
     if ( loud ) {
@@ -191,8 +202,13 @@ static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_de
  * Check the orthogonality of Q
  */
 
-static int check_factorization(dague_context_t *dague, int loud, tiled_matrix_desc_t *Aorig, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Q)
+static int
+check_factorization(dague_context_t *dague, int loud,
+                    tiled_matrix_desc_t *Aorig,
+                    tiled_matrix_desc_t *A,
+                    tiled_matrix_desc_t *Q)
 {
+    tiled_matrix_desc_t *subA;
     two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
     double Anorm, Rnorm;
     double result;
@@ -208,27 +224,30 @@ static int check_factorization(dague_context_t *dague, int loud, tiled_matrix_de
                                A->mb, A->nb, M, N, 0, 0,
                                M, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 
-    PASTE_CODE_ALLOCATE_MATRIX(R, 1,
-        two_dim_block_cyclic, (&R, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(L, 1,
+        two_dim_block_cyclic, (&L, matrix_ComplexDouble, matrix_Tile,
                                A->super.nodes, A->super.cores, twodA->grid.rank,
-                               A->mb, A->nb, N, N, 0, 0,
-                               N, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
+                               A->mb, A->nb, M, M, 0, 0,
+                               M, M, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 
     /* Copy the original A in Residual */
     dplasma_zlacpy( dague, PlasmaUpperLower, Aorig, (tiled_matrix_desc_t *)&Residual );
 
-    /* Extract the R */
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&R);
-    dplasma_zlacpy( dague, PlasmaLower, A, (tiled_matrix_desc_t *)&R );
+    /* Extract the L */
+    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&L);
+
+    subA = tiled_matrix_submatrix( A, 0, 0, M, M );
+    dplasma_zlacpy( dague, PlasmaLower, subA, (tiled_matrix_desc_t *)&L );
+    free(subA);
 
     /* Perform Residual = Aorig - L*Q */
     dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans,
-                   -1.0, (tiled_matrix_desc_t *)&R, Q,
-                   1.0, (tiled_matrix_desc_t *)&Residual);
+                   -1.0, (tiled_matrix_desc_t *)&L, Q,
+                    1.0, (tiled_matrix_desc_t *)&Residual);
 
     /* Free R */
-    dague_data_free(R.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&R);
+    dague_data_free(L.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&L);
 
     Rnorm = dplasma_zlange(dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&Residual);
     Anorm = dplasma_zlange(dague, PlasmaInfNorm, Aorig);
@@ -260,24 +279,31 @@ static int check_solution( dague_context_t *dague, int loud,
                            tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX )
 {
+    tiled_matrix_desc_t *subB;
     int info_solution;
     double Rnorm = 0.0;
     double Anorm = 0.0;
     double Bnorm = 0.0;
     double Xnorm, result;
-    int m = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
+    subB = tiled_matrix_submatrix( ddescB, 0, 0, ddescA->m, ddescB->n );
+
     Anorm = dplasma_zlange(dague, PlasmaInfNorm, ddescA);
-    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
+    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, subB);
     Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
 
-    /* Compute b - A*x */
-    dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescX, 1.0, ddescB);
+    /* Compute A*x-b */
+    dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, 1.0, ddescA, ddescX, -1.0, subB);
 
-    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
+    /* Compute A' * ( A*x - b ) */
+    dplasma_zgemm( dague, PlasmaConjTrans, PlasmaNoTrans,
+                   1.0, ddescA, subB, 0., ddescX );
 
-    result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
+    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX );
+    free(subB);
+
+    result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * ddescA->m * eps ) ;
 
     if ( loud > 2 ) {
         printf("============\n");
