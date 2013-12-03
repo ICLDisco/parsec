@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -54,7 +54,9 @@ remote_dep_is_forwarded(dague_execution_unit_t* eu_context,
 
 
 /* make sure we don't leave before serving all data deps */
-static inline void remote_dep_inc_flying_messages(dague_object_t *dague_object, dague_context_t* ctx)
+static inline void
+remote_dep_inc_flying_messages(dague_object_t *dague_object,
+                               dague_context_t* ctx)
 {
     assert( dague_object->nb_local_tasks > 0 );
     dague_atomic_inc_32b( &(dague_object->nb_local_tasks) );
