@@ -141,6 +141,7 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     remote_deps->msg.output_mask   = 0;
     remote_deps->output_count      = 0;
     remote_deps->output_sent_count = 0;
+    DEBUG(("remote_deps_allocate: %p\n", remote_deps));
     return remote_deps;
 }
 
@@ -169,8 +170,8 @@ static inline void remote_deps_free(dague_remote_deps_t* deps)
         assert(k < MAX_PARAM_COUNT);
     }
     assert(count == deps->output_count);
+    DEBUG(("remote_deps_free: %p sent_count=%u/%u\n", deps, deps->output_sent_count, deps->output_count));
 #if defined(DAGUE_DEBUG)
-    DEBUG(("remote_deps_free: sent_count=%u/%u\n", deps->output_sent_count, deps->output_count));
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
     deps->output_count      = 0;
