@@ -1054,6 +1054,9 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
         assert(k < MAX_PARAM_COUNT);
         if(!((1<<k) & task->which)) continue;
         DEBUG3(("MPI:\t%p[%d] %p, %p\n", deps, k, deps->output[k].data, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data)));
+        assert(deps->output[k].data.data->device_index == 0); /* can send only CPU copies */
+        assert(deps->output[k].data.data->original->device_copies[0] == deps->output[k].data.data); /* properly attached */
+        assert(deps->output[k].data.data->coherency_state != DATA_COHERENCY_INVALID); /* sending trash? */
         data = DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data);
         dtt = deps->output[k].data.layout;
         nbdtt = deps->output[k].data.count;
@@ -1338,8 +1341,12 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
                     deps, k));
             assert(data != NULL);
             data_copy = data->device_copies[0];
+            data_copy->coherency_state = DATA_COHERENCY_EXCLUSIVE;
             deps->output[k].data.data = data_copy;
         }
+        assert(deps->output[k].data.data->device_index == 0); /* can recv only CPU copies */
+        assert(deps->output[k].data.data->original->device_copies[0] == deps->output[k].data.data); /* properly attached */
+        
         
 #ifdef DAGUE_DEBUG_VERBOSE2
         MPI_Type_get_name(deps->output[k].data.layout, type_name, &len);
