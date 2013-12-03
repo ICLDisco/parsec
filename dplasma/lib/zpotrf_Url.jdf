@@ -189,13 +189,22 @@ BODY [type = CUDA]
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-    return gpu_zgemm(context, this_task,
+    int ret = gpu_zgemm(context, this_task,
                      ( m == k+1 ),
                      PlasmaConjTrans, PlasmaNoTrans,
                      descA.mb, tempnn, descA.mb,
                      (dague_complex64_t)-1.0, k, m, &descA, ldak,
                                               k, n, &descA, ldak,
                      (dague_complex64_t) 1.0, m, n, &descA, ldam);
+    
+    printlog("CUDA_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+             k, m, n,
+             plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
+             descA.mb, tempnn, descA.mb,
+             -1.0, k, m, A, ldak,
+                   k, n, B, ldak,
+              1.0, m, n, C, ldam);
+    return ret;
 END
 
 BODY
