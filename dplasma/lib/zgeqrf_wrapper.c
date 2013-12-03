@@ -231,7 +231,7 @@ dplasma_zgeqrf( dague_context_t *dague,
 {
     dague_object_t *dague_zgeqrf = NULL;
 
-    if ( (A->mt != T->mb) || (A->nt != T->mt) ) {
+    if ( (A->mt != T->mt) || (A->nt != T->nt) ) {
         dplasma_error("dplasma_zgeqrf", "T doesn't have the same number of tiles as A");
         return -101;
     }
