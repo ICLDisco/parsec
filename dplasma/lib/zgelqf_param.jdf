@@ -112,11 +112,6 @@ BODY
     dague_private_memory_push( p_tau, p_elem_A );
     dague_private_memory_push( p_work, p_elem_B );
 #endif /* !defined(DAGUE_DRY_RUN) */
-
-#if defined(DAGUE_SIM)
-    if ( descA.nt-1 == k )
-        ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
-#endif
 }
 END
 
@@ -282,12 +277,6 @@ BODY
     dague_private_memory_push( p_tau , p_elem_A );
     dague_private_memory_push( p_work, p_elem_B );
 #endif /* !defined(DAGUE_DRY_RUN) */
-
-#if defined(DAGUE_SIM)
-    ((PLASMA_Complex64_t*)A2)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
-    if ( ( ( nextp == descA.nt ) & (p == k) ) )
-      ((PLASMA_Complex64_t*)A1)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
-#endif
 }
 END
 

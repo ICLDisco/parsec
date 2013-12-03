@@ -108,6 +108,17 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
     /*     dplasma_error("dplasma_zunmqr_New", "illegal C descriptor"); */
     /*     return NULL; */
     /* } */
+    if ((side != PlasmaLeft) && (side != PlasmaRight)) {
+        dplasma_error("dplasma_zunmqr_New", "illegal value of side");
+        return NULL;
+    }
+    if ((trans != PlasmaNoTrans) &&
+        (trans != PlasmaTrans)   &&
+        (trans != PlasmaConjTrans)) {
+        dplasma_error("dplasma_zunmqr_New", "illegal value of trans");
+        return NULL;
+    }
+
     if ( side == PlasmaLeft ) {
         Am = C->m;
     } else {
@@ -300,13 +311,13 @@ dplasma_zunmqr( dague_context_t *dague,
     }
 
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
-        dplasma_error("dplasma_zunmqr_New", "illegal value of side");
+        dplasma_error("dplasma_zunmqr", "illegal value of side");
         return -1;
     }
     if ((trans != PlasmaNoTrans) &&
         (trans != PlasmaTrans)   &&
         (trans != PlasmaConjTrans)) {
-        dplasma_error("dplasma_zunmqr_New", "illegal value of trans");
+        dplasma_error("dplasma_zunmqr", "illegal value of trans");
         return -2;
     }
 
@@ -316,15 +327,15 @@ dplasma_zunmqr( dague_context_t *dague,
         Am = C->n;
     }
     if ( A->m != Am ) {
-        dplasma_error("dplasma_zunmqr_New", "illegal value of A->m");
+        dplasma_error("dplasma_zunmqr", "illegal value of A->m");
         return -3;
     }
     if ( A->n > Am ) {
-        dplasma_error("dplasma_zunmqr_New", "illegal value of A->n");
+        dplasma_error("dplasma_zunmqr", "illegal value of A->n");
         return -5;
     }
     if ( (T->nt != A->nt) || (T->mt != A->mt) ) {
-        dplasma_error("dplasma_zunmqr_New", "illegal size of T (T should have as many tiles as A)");
+        dplasma_error("dplasma_zunmqr", "illegal size of T (T should have as many tiles as A)");
         return -20;
     }
 
