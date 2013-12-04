@@ -24,6 +24,7 @@ descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_d
 dataT     [type = "dague_ddesc_t *"]
 descT     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
 ib        [type = "int" hidden = on default = "descT.mb" ]
+KT        [type = "int" hidden = on default = "dplasma_imin(descA.mt-2, descA.nt-1)" ]
 pool_0    [type = "dague_memory_pool_t *" size = "((sizeof(dague_complex64_t))*ib)*descT.nb"]
 
 
@@ -74,7 +75,7 @@ zunmqr_in_data_T1(k) [profile = off]
   k = 0 .. descA.nt-1
 
   /* Locality */
-  : dataT(k,k)
+  : dataT(k, k)
 
   READ  T    <- dataT(k,k)                      [type = LITTLE_T]
              -> T zunmqr(k, 0 .. descB.mt-1)    [type = LITTLE_T]
@@ -90,7 +91,7 @@ zunmqr_in_data_A0(k) [profile = off]
   k = 0 .. descA.nt-1
 
   /* Locality */
-  : dataA(k,k)
+  : dataA(k, k)
 
   READ  A    <- dataA(k,k)                      [type = LOWER_TILE]
              -> A zunmqr(k, 0 .. (descB.mt-1))  [type = LOWER_TILE]
@@ -103,7 +104,7 @@ END
 
 ztsmqr(k, n, m)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descB.nt-2),(descA.nt-1)); %}
+  k = 0     .. KT
   n = (k+1) .. (descB.nt-1)
   m = 0     .. (descB.mt-1)
 
@@ -153,7 +154,7 @@ END
 
 ztsmqr_in_data_T2(k, n) [profile = off]
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descB.nt-2),(descA.nt-1)); %}
+  k = 0     .. KT
   n = (k+1) .. (descB.nt-1)
 
   /* Locality */
@@ -170,7 +171,7 @@ END
 
 ztsmqr_in_data_A1(k, n) [profile = off]
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descB.nt-2),(descA.nt-1)); %}
+  k = 0     .. KT
   n = (k+1) .. (descB.nt-1)
 
   /* Locality */
@@ -187,7 +188,7 @@ END
 
 ztsmqr_out_data_B0(k, m) [profile = off]
   /* Execution Space */
-  k = 0 .. inline_c %{ return dplasma_imin((descB.nt-2),(descA.nt-1)); %}
+  k = 0 .. KT
   m = 0 .. (descB.mt-1)
 
   /* Locality */
