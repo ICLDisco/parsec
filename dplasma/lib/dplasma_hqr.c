@@ -71,11 +71,8 @@
  *     These lines are defined by (i-k)/p = 0.
  */
 #include <dague.h>
-#include <core_blas.h>
 #include "dplasma.h"
-#include "dplasmatypes.h"
-#include "dplasmaaux.h"
-#include "dplasma_qr_pivgen.h"
+#include "dplasma_qr_param.h"
 
 #include <math.h>
 #if defined(HAVE_STRING_H)
@@ -122,7 +119,7 @@ struct hqr_subpiv_s {
      *          m = MT to find the first time p is used as an annihilator during step k
      *
      *  @return the next line m' using the line p as annihilator during step k
-     *          desc->mt if p will never be used again as an annihilator.
+     *          mt if p will never be used again as an annihilator.
      */
     int (*nextpiv)(const hqr_subpiv_t *arg, int k, int p, int m);
     /*
@@ -134,7 +131,7 @@ struct hqr_subpiv_s {
      *          m = p to find the last time p has been used as an annihilator during step k
      *
      *  @return the previous line m' using the line p as annihilator during step k
-     *          desc->mt if p has never been used before that as an annihilator.
+     *          mt if p has never been used before that as an annihilator.
      */
     int (*prevpiv)(const hqr_subpiv_t *arg, int k, int p, int m);
     int *ipiv;
@@ -156,13 +153,6 @@ static int hqr_gettype(    const dplasma_qrtree_t *qrtree, int k, int m   );
 /* Permutation */
 static void hqr_genperm   (       dplasma_qrtree_t *qrtree );
 static int  hqr_getinvperm( const dplasma_qrtree_t *qrtree, int k, int m );
-
-/* int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i ); */
-/* int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m); */
-/* int dplasma_qr_prevtriangle(const qr_piv_t *arg, int p, const int k, int m); */
-/* int dplasma_qr_nbkill(const qr_piv_t *arg, const int k, const int m); */
-/* int dplasma_qr_getkill(const qr_piv_t *arg, const int k, const int m, const int j); */
-/* int dplasma_qr_getjkill(const qr_piv_t *arg, const int k, const int m, const int kill); */
 
 /*
  * Subtree for low-level
@@ -195,7 +185,7 @@ static int hqr_getnbgeqrf( const dplasma_qrtree_t *qrtree, int k ) {
     hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
     int a = qrtree->a;
     int p = qrtree->p;
-    int gmt = qrtree->desc->mt;
+    int gmt = qrtree->mt;
     int domino = arg->domino;
     int pa = p * a;
     int nb_1, nb_2, nb_3;
@@ -242,7 +232,7 @@ static int hqr_getm( const dplasma_qrtree_t *qrtree, int k, int i )
     hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
     int a = qrtree->a;
     int p = qrtree->p;
-    int gmt = qrtree->desc->mt + 1;
+    int gmt = qrtree->mt + 1;
     int domino = arg->domino;
     int *perm  = arg->perm + gmt * k;
 
@@ -1116,7 +1106,7 @@ static int hqr_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
     int a = qrtree->a;
     int p = qrtree->p;
     int domino = arg->domino;
-    int gmt = qrtree->desc->mt;
+    int gmt = qrtree->mt;
 
     perm_m = hqr_getinvperm( qrtree, k, m );
     lm   = perm_m / p; /* Local index in the distribution over p domains */
@@ -1205,15 +1195,12 @@ static int hqr_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
     int lpivot, rpivot, lstart, *perm;
     int a = qrtree->a;
     int p = qrtree->p;
-    int gmt = qrtree->desc->mt;
+    int gmt = qrtree->mt;
 
-    /* fprintf(stderr, "Before: k=%d, pivot=%d, start=%d\n", k, pivot, start); */
     ostart = start;
     opivot = pivot;
     start = hqr_getinvperm( qrtree, k, ostart);
     pivot = hqr_getinvperm( qrtree, k, opivot);
-
-    /* fprintf(stderr, "After: k=%d, pivot=%d, start=%d\n", k, pivot, start); */
 
     lpivot = pivot / p; /* Local index in the distribution over p domains */
     rpivot = pivot % p; /* Staring index in this distribution             */
@@ -1331,7 +1318,8 @@ static int hqr_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
  *   - -1 if start doesn't respect the previous conditions
  *   -  m, the previous row killed by p if it exists, A->mt otherwise
  */
-static int hqr_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
+static int
+hqr_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
 {
     hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
     int tmp, ls, lp, nextp;
@@ -1339,7 +1327,7 @@ static int hqr_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
     int lpivot, rpivot, lstart, *perm;
     int a = qrtree->a;
     int p = qrtree->p;
-    int gmt = qrtree->desc->mt;
+    int gmt = qrtree->mt;
 
     ostart = start;
     opivot = pivot;
@@ -1432,138 +1420,17 @@ static int hqr_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
         }
 };
 
-
-#if 0
-/*
- * Extra parameter:
- *      i - The index of the geqrt in the panel k
- * Return
- *     The size of domain in tiles
- *
- * Warning: It doesn't work with domino
- */
-int dplasma_qr_getsize( const qr_piv_t *arg, const int k, const int i ) {
-    /*int a = arg -> a;
-    int p = arg -> p;
-    int mt = desc -> mt;
-    int nb_tile = arg->desc->mt - k;
-    int m = dplasma_qr_getm(arg, k, i);
-    int proc = m / p;
-
-    int i_proc =
-    int nb_tile_proc =
-
-
-
-    int q = nb_tile_proc / a;
-    int r = nb_tile_proc - q*a;
-
-    if (i_proc < r)
-        return a-1;
-    else
-        return a;*/
-
-    //printf("\nDébut du calcul de getsize( k=%d, i=%d)\n",k,i);
-    int p = arg -> p;
-    int mt = arg->desc->mt;
-    int m = dplasma_qr_getm(arg, k, i);
-    int size = 1;
-    int next = m + p;
-    //printf("\nDans getsize: p = %d, mt = %d, m = %d, next = %d\n",p,mt,m,next);
-    while (next < mt ? dplasma_qr_gettype(arg, k, next) == 0 : 0) {
-        next += p;
-        size++;
-    }
-    //printf("\ngetsize( k=%d, i=%d) = %d\n",k,i,size);
-    return size;
-}
-
-
-int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m)
-{
-    int next = dplasma_qr_nextpiv(arg, p, k, m);
-    int mt = arg->desc->mt;
-
-    while (next == mt ? 0 : dplasma_qr_gettype(arg, k, next) == 0) {
-        next = dplasma_qr_nextpiv(arg, p, k, next);
-    }
-
-    //printf("\nnexttriangle( p=%d, k=%d, m=%d) = %d\n",p,k,m,next);
-    return next;
-};
-
-int dplasma_qr_prevtriangle(const qr_piv_t *arg, int p, const int k, int m)
-{
-    int prev = dplasma_qr_prevpiv(arg, p, k, m);
-    int mt = arg -> desc -> mt;
-
-    while (prev == mt ? 0 : dplasma_qr_gettype(arg, k, prev) == 0) {
-        prev = dplasma_qr_prevpiv(arg, p, k, prev);
-    }
-
-    //printf("\nprevtriangle( p=%d, k=%d, m=%d) = %d\n",p,k,m,prev);
-    return prev;
-};
-
-int dplasma_qr_nbkill(const qr_piv_t *arg, const int k, const int m)
-{
-    int nb_kill = 0;
-    int mt = arg -> desc -> mt;
-    int next = dplasma_qr_nexttriangle(arg, m, k, mt);
-
-    //printf("\nDébut nbkill(k=%d, m=%d)\n",k,m);
-
-    while (next != mt) {
-        next = dplasma_qr_nexttriangle(arg, m, k, next);
-        nb_kill++;
-    }
-
-    //printf("\nnbkill(k=%d, m=%d) =%d\n",k,m,nb_kill);
-
-    return nb_kill;
-};
-
-int dplasma_qr_getkill(const qr_piv_t *arg, const int k, const int m, const int j)
-{
-    int mt = arg -> desc -> mt;
-    int kill = dplasma_qr_nexttriangle(arg, m, k, mt);
-    int i = 0;
-
-    for (i=0; i<j; i++)
-        kill = dplasma_qr_nexttriangle(arg, m, k, kill);
-
-   return kill;
-};
-
-int dplasma_qr_getjkill(const qr_piv_t *arg, const int k, const int m, const int kill)
-{
-    int mt = arg -> desc -> mt;
-    int j =0;
-    int next = dplasma_qr_nexttriangle(arg, m, k, mt);
-
-    //printf("\nDébut getjkill(k=%d, m=%d, kill=%d)\n",k,m,kill);
-
-    while (next != kill) {
-        next = dplasma_qr_nexttriangle(arg, m, k, next);
-        j++;
-    }
-
-    //printf("\ngetjkill(k=%d, m=%d, kill=%d) = %d\n",k,m,kill,j);
-
-    return j;
-};
-#endif
-
 /****************************************************
  *
  * Generate the permutation required for the round-robin on TS
  *
  ***************************************************/
-static void hqr_genperm( dplasma_qrtree_t *qrtree )
+static void
+hqr_genperm( dplasma_qrtree_t *qrtree )
 {
     hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
-    int m = qrtree->desc->mt;
-    int n = qrtree->desc->nt;
+    int m = qrtree->mt;
+    int n = qrtree->nt;
     int a = qrtree->a;
     int p = qrtree->p;
     int domino = arg->domino;
@@ -1612,18 +1479,6 @@ static void hqr_genperm( dplasma_qrtree_t *qrtree )
             }
 
             /* Last group of tiles */
-            /* if ( i < m ) { */
-            /*     int lp, la; */
-            /*     for(lp=0; lp<p; lp++) { */
-            /*         la = mpa / p; */
-            /*         if ( lp < mpa%p ) la++; */
-
-            /*         for( j=lp; j<mpa && (i+j)<m; j+=p ) { */
-            /*             perm[i+j] = i + ( j + p * (k%la) )%(p*la); */
-            /*             assert(perm[i+j] < m); */
-            /*         } */
-            /*     } */
-            /* } */
             for( ; i<m; i++) {
                 perm[i] = i;
             }
@@ -1641,10 +1496,11 @@ static void hqr_genperm( dplasma_qrtree_t *qrtree )
     }
 }
 
-static int hqr_getinvperm( const dplasma_qrtree_t *qrtree, int k, int m )
+static int
+hqr_getinvperm( const dplasma_qrtree_t *qrtree, int k, int m )
 {
     hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
-    int gmt = qrtree->desc->mt + 1;
+    int gmt = qrtree->mt + 1;
     int a = qrtree->a;
     int p = qrtree->p;
     int pa = p * a;
@@ -1665,24 +1521,180 @@ static int hqr_getinvperm( const dplasma_qrtree_t *qrtree, int k, int m )
     myassert( 0 );
 }
 
-/****************************************************
+/**
+ *******************************************************************************
  *
- * Initialize/Finalize functions
+ * @ingroup dplasma
  *
- ***************************************************/
-void dplasma_hqr_init( dplasma_qrtree_t *qrtree,
-                       tiled_matrix_desc_t *A,
-                       int type_llvl, int type_hlvl,
-                       int a, int p,
-                       int domino, int tsrr )
+ * dplasma_hqr_init - Creates the tree structure that will describes the
+ * operation performed during QR/LQ factorization with parameterized QR/LQ
+ * algorithms family.
+ *
+ * Trees available parameters are described below. It is recommended to:
+ *   - set p to the same value than the P-by-Q process grid used to distribute
+ *     the data. (P for QR factorization, Q for LQ factorization).
+ *   - set the low level tree to DPLASMA_GREEDY_TREE.
+ *   - set the high level tree to:
+ *         1) DPLASMA_FLAT_TREE when the problem is square, because it divides
+ *            by two the volume of communication of any other tree.
+ *         2) DPLASMA_FIBONACCI_TREE when the problem is tall and skinny (QR) or
+ *            small and fat (LQ), because it reduces the critical path length.
+ *   - Disable the domino effect when problem is square, to keep high efficiency
+ *     kernel proportion high.
+ *   - Enable the domino effect when problem is tall and skinny (QR) or
+ *     small and fat (LQ) to increase parallelism and reduce critical path length.
+ *   - Round-robin on TS domain (tsrr) option should be disabled. It is
+ *     experimental and is not safe.
+ *
+ * These are the default when a parameter is set to -1;
+ *
+ * See http://www.netlib.org/lapack/lawnspdf/lawn257.pdf
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] qrtree
+ *          On entry, an allocated structure uninitialized.
+ *          On exit, the structure initialized according to the parameter given.
+ *
+ * @param[in] trans
+ *          @arg PlasmaNoTrans:   Structure is initialized for QR factorization.
+ *          @arg PlasmaTrans:     Structure is initialized for LQ factorization.
+ *          @arg PlasmaConjTrans: Structure is initialized for LQ factorization.
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A to be factorized, on which
+ *          QR/LQ factorization will be performed.
+ *          The descriptor is untouched and only mt/nt/P parameters are used.
+ *
+ * @param[in] type_llvl
+ *          Defines the tree used to reduce the main tiles of each local domain
+ *          together. The matrix of those tiles has a lower triangular structure
+ *          with a diagonal by step a.
+ *          @arg DPLASMA_FLAT_TREE: A Flat tree is used to reduce the local
+ *          tiles.
+ *          @arg DPLASMA_GREEDY_TREE: A Greedy tree is used to reduce the local
+ *          tiles.
+ *          @arg DPLASMA_FIBONACCI_TREE: A Fibonacci tree is used to reduce the
+ *          local tiles.
+ *          @arg DPLASMA_BINARY_TREE: A Binary tree is used to reduce the local
+ *          tiles.
+ *          @arg -1: The default is used (DPLASMA_GREEDY_TREE)
+ *
+ * @param[in] type_hlvl
+ *          Defines the tree used to reduce the main tiles of each domain. This
+ *          is a band lower diagonal matrix of width p.
+ *          @arg DPLASMA_FLAT_TREE: A Flat tree is used to reduce the tiles.
+ *          @arg DPLASMA_GREEDY_TREE: A Greedy tree is used to reduce the tiles.
+ *          @arg DPLASMA_FIBONACCI_TREE: A Fibonacci tree is used to reduce the
+ *          tiles.
+ *          @arg DPLASMA_BINARY_TREE: A Binary tree is used to reduce the tiles.
+ *          @arg DPLASMA_BINARY1P_TREE: A Greedy tree is computed for the first
+ *          column and then duplicated on all others.
+ *          @arg -1: The default is used (DPLASMA_FIBONACCI_TREE)
+ *
+ * @param[in] a
+ *          Defines the size of the local domains on which a classic flat TS
+ *          tree is performed. If a==1, then all local tiles are reduced by the
+ *          type_lllvl tree. If a is larger than mt/p, then no local reduction
+ *          tree is performed and type_llvl is ignored.
+ *          If a == -1, it is set to 4 by default.
+ *
+ * @param[in] p
+ *          Defines the number of distributed domains, ie the width of the high
+ *          level reduction tree.  If p == 1, no high level reduction tree is
+ *          used. If p == mt, a and type_llvl are ignored since only high level
+ *          reduction are performed.
+ *          By default, it is recommended to set p to P if trans ==
+ *          PlasmaNoTrans, Q otherwise, where P-by-Q is the process grid used to
+ *          distributed the data. (p > 0)
+ *
+ * @param[in] domino
+ *          Enable/disable the domino effect that connects the high and low
+ *          level reduction trees. Enabling the domino increases the proportion
+ *          of TT (Triangle on top of Triangle) kernels that are less efficient,
+ *          but increase the pipeline effect between independent factorization
+ *          steps, reducin the critical path length.
+ *          If disabled, it keeps the proprotion of more efficient TS (Triangle
+ *          on top of Square) kernels high, but deteriorates the pipeline
+ *          effect, and the critical path length.
+ *          If domino == -1, it is enable when ration between M and N is lower
+ *          than 1/2, and disabled otherwise.
+ *
+ * @param[in] tsrr
+ *          Enable/Disable a round robin selection of the killer in local
+ *          domains reduced by TS kernels. Enabling a round-robin selection of
+ *          the killer allows to take benefit of the good pipelining of the flat
+ *          trees and the high efficient TS kernels, while having other trees on
+ *          top of it to reduce critical path length.
+ *          WARNING: This option is under development and should not be enabled
+ *          due to problem in corner cases.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_hqr_finalize
+ * @sa dplasma_systolic_init
+ * @sa dplasma_zgeqrf_param
+ * @sa dplasma_cgeqrf_param
+ * @sa dplasma_dgeqrf_param
+ * @sa dplasma_sgeqrf_param
+ *
+ ******************************************************************************/
+int
+dplasma_hqr_init( dplasma_qrtree_t *qrtree,
+                  PLASMA_enum trans, tiled_matrix_desc_t *A,
+                  int type_llvl, int type_hlvl,
+                  int a, int p,
+                  int domino, int tsrr )
 {
     int low_mt, minMN;
     hqr_args_t *arg;
 
-    a = dplasma_imax( a, 1 );
-    p = dplasma_imax( p, 1 );
-    domino = domino ? 1 : 0;
+    if (qrtree == NULL) {
+        dplasma_error("dplasma_hqr_init", "illegal value of qrtree");
+        return -1;
+    }
+    if ((trans != PlasmaNoTrans) &&
+        (trans != PlasmaTrans)   &&
+        (trans != PlasmaConjTrans)) {
+        dplasma_error("dplasma_hqr_init", "illegal value of trans");
+        return -2;
+    }
+    if (A == NULL) {
+        dplasma_error("dplasma_hqr_init", "illegal value of A");
+        return -3;
+    }
+    if ( p < 1 ) {
+        dplasma_error("dplasma_hqr_init", "illegal value of p");
+        return -7;
+    }
 
+    /* Compute parameters */
+    a = (a == -1) ? 4 : dplasma_imax( a, 1 );
+    p = dplasma_imax( p, 1 );
+
+    /* Domino */
+    if ( domino >= 0 ) {
+        domino = domino ? 1 : 0;
+    }
+    else {
+        double ratio;
+        if (trans == PlasmaNoTrans) {
+            ratio = ((double)(A->nt) / (double)(A->mt));
+        } else {
+            ratio = ((double)(A->mt) / (double)(A->nt));
+        }
+        if ( ratio >= 0.5 ) {
+            domino = 0;
+        } else {
+            domino = 1;
+        }
+    }
 
     qrtree->getnbgeqrf = hqr_getnbgeqrf;
     qrtree->getm       = hqr_getm;
@@ -1692,7 +1704,9 @@ void dplasma_hqr_init( dplasma_qrtree_t *qrtree,
     qrtree->nextpiv    = hqr_nextpiv;
     qrtree->prevpiv    = hqr_prevpiv;
 
-    qrtree->desc = A;
+    qrtree->mt   = (trans == PlasmaNoTrans) ? A->mt : A->nt;
+    qrtree->nt   = (trans == PlasmaNoTrans) ? A->nt : A->mt;
+
     qrtree->a    = a;
     qrtree->p    = p;
     qrtree->args = NULL;
@@ -1706,7 +1720,7 @@ void dplasma_hqr_init( dplasma_qrtree_t *qrtree,
     arg->hlvl = NULL;
 
     minMN = dplasma_imin(A->mt, A->nt);
-    low_mt = (A->mt + p * a - 1) / ( p * a );
+    low_mt = (qrtree->mt + p * a - 1) / ( p * a );
 
     arg->llvl->minMN  = minMN;
     arg->llvl->ldd    = low_mt;
@@ -1715,8 +1729,8 @@ void dplasma_hqr_init( dplasma_qrtree_t *qrtree,
     arg->llvl->domino = domino;
 
     switch( type_llvl ) {
-    case DPLASMA_GREEDY_TREE :
-        hqr_low_greedy_init(arg->llvl, minMN);
+    case DPLASMA_FLAT_TREE :
+        hqr_low_flat_init(arg->llvl);
         break;
     case DPLASMA_FIBONACCI_TREE :
         hqr_low_fibonacci_init(arg->llvl, minMN);
@@ -1724,46 +1738,66 @@ void dplasma_hqr_init( dplasma_qrtree_t *qrtree,
     case DPLASMA_BINARY_TREE :
         hqr_low_binary_init(arg->llvl);
         break;
-    case DPLASMA_FLAT_TREE :
+    case DPLASMA_GREEDY_TREE :
     default:
-        hqr_low_flat_init(arg->llvl);
+        hqr_low_greedy_init(arg->llvl, minMN);
     }
 
     if ( p > 1 ) {
         arg->hlvl = (hqr_subpiv_t*) malloc( sizeof(hqr_subpiv_t) );
 
         arg->llvl->minMN  = minMN;
-        arg->hlvl->ldd    = A->mt;
+        arg->hlvl->ldd    = qrtree->mt;
         arg->hlvl->a      = a;
         arg->hlvl->p      = p;
         arg->hlvl->domino = domino;
 
         switch( type_hlvl ) {
-        case DPLASMA_GREEDY1P_TREE :
-            hqr_high_greedy1p_init(arg->hlvl);
+        case DPLASMA_FLAT_TREE :
+            hqr_high_flat_init(arg->hlvl);
             break;
         case DPLASMA_GREEDY_TREE :
             hqr_high_greedy_init(arg->hlvl, minMN);
             break;
-        case DPLASMA_FIBONACCI_TREE :
-            hqr_high_fibonacci_init(arg->hlvl);
+        case DPLASMA_GREEDY1P_TREE :
+            hqr_high_greedy1p_init(arg->hlvl);
             break;
         case DPLASMA_BINARY_TREE :
             hqr_high_binary_init(arg->hlvl);
             break;
-        case DPLASMA_FLAT_TREE :
+        case DPLASMA_FIBONACCI_TREE :
         default:
-            hqr_high_flat_init(arg->hlvl);
+            hqr_high_fibonacci_init(arg->hlvl);
         }
     }
 
     qrtree->args = (void*)arg;
     hqr_genperm( qrtree );
 
-    return;
+    return 0;
 }
 
-void dplasma_hqr_finalize( dplasma_qrtree_t *qrtree )
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma
+ *
+ * dplasma_hqr_finalize - Cleans the qrtree data structure allocated by call to
+ * dplasma_hqr_init().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] qrtree
+ *          On entry, an allocated structure to destroy.
+ *          On exit, the structure is destroy and cannot be used.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_hqr_init
+ *
+ ******************************************************************************/
+void
+dplasma_hqr_finalize( dplasma_qrtree_t *qrtree )
 {
     hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
 

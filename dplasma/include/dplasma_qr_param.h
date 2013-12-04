@@ -115,12 +115,12 @@ struct dplasma_qrtree_s {
     void *args;
 };
 
-void dplasma_systolic_init( dplasma_qrtree_t *qrtree,
+int  dplasma_systolic_init( dplasma_qrtree_t *qrtree,
                             PLASMA_enum trans, tiled_matrix_desc_t *A,
                             int p, int q );
 void dplasma_systolic_finalize( dplasma_qrtree_t *qrtree );
 
-void dplasma_hqr_init( dplasma_qrtree_t *qrtree,
+int  dplasma_hqr_init( dplasma_qrtree_t *qrtree,
                        PLASMA_enum trans, tiled_matrix_desc_t *A,
                        int type_llvl, int type_hlvl,
                        int a, int p, int domino, int tsrr );

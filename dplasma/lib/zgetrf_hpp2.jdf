@@ -23,7 +23,6 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
-#include "dplasma_qr_pivgen.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
 PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,

@@ -26,7 +26,6 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma.h"
-#include "dplasma_qr_pivgen.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
 static pthread_mutex_t mumps_mutex = PTHREAD_MUTEX_INITIALIZER;

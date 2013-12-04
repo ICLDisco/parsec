@@ -21,7 +21,6 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
-#include "dplasma_qr_pivgen.h"
 
 //#define PRIO_YVES1
 

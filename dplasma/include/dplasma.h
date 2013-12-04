@@ -19,9 +19,6 @@
 
 #include "data_dist/matrix/matrix.h"
 
-/* Functions specific to QR */
-#include "dplasma_qr_param.h"
-
 /*
  * Enum criteria for LU/QR algorithm
  */
@@ -51,6 +48,10 @@ static inline int dplasma_imin(int a, int b) { return (a < b) ? a : b; };
 #define dplasma_ssqrt sqrtf
 
 #include <core_blas.h>
+
+/* Functions specific to QR */
+#include "dplasma_qr_param.h"
+
 #include "dplasma/include/dplasma_s.h"
 #include "dplasma/include/dplasma_d.h"
 #include "dplasma/include/dplasma_c.h"
