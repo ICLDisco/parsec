@@ -53,7 +53,7 @@ set(JDF
   zgeqrf_param.jdf
   zgelqf_param.jdf
   zungqr_param.jdf
-  zunmqr_param_LC.jdf
+  zunmqr_param_LC.jdf zunmqr_param_LN.jdf zunmqr_param_RN.jdf zunmqr_param_RC.jdf
   # LU
   zgetrf.jdf
   zgetrf_incpiv.jdf
