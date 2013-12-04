@@ -83,7 +83,7 @@ int dague_data_init(dague_context_t* context)
      * we can update the size of the dague_data_t class to the correct value.
      */
     if( !dague_devices_freezed(context) ) {
-        dague_output(0, "Canot configure the data infrastructure as the devices layer has not yet been freezed\n");
+        dague_output(0, "Cannot configure the data infrastructure as the devices layer has not yet been freezed\n");
         return DAGUE_ERROR;
     }
     dague_data_t_class.cls_sizeof += sizeof(dague_data_copy_t*) * dague_nb_devices;
@@ -233,25 +233,20 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
 {
     uint32_t i;
     int transfer_required = 0;
-    int transfer_from = data->owner_device;
+    int valid_copy = data->owner_device;
     dague_data_copy_t* copy = data->device_copies[device];
     assert( NULL != copy );
 
     switch( copy->coherency_state ) {
     case DATA_COHERENCY_INVALID:
-        for( i = 0; i < dague_nb_devices; i++ ) { 
-            if( NULL == data->device_copies[i] ) continue;
-            if( DATA_COHERENCY_EXCLUSIVE == data->device_copies[i]->coherency_state
-             || DATA_COHERENCY_OWNED == data->device_copies[i]->coherency_state ) {
-                 data->device_copies[i]->coherency_state = DATA_COHERENCY_SHARED;
-                 copy->coherency_state = DATA_COHERENCY_SHARED;
-                 if( ACCESS_READ & access_mode ) {
-                     transfer_required = 1;
-                     transfer_from = i;
-                 }
-                 if( ACCESS_WRITE & access_mode ) {
-                     data->device_copies[i]->coherency_state = DATA_COHERENCY_SHARED;
-                 }
+        transfer_required = 1;
+        if( -1 == valid_copy ) {
+            for( i = 0; i < dague_nb_devices; i++ ) { 
+                if( NULL == data->device_copies[i] ) continue;
+                if( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state ) continue;
+                assert( DATA_COHERENCY_EXCLUSIVE == data->device_copies[i]->coherency_state 
+                     || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state );
+                valid_copy = i;
             }
         }
         break;
@@ -298,11 +293,19 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
     if( ACCESS_READ & access_mode ) {
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( device == i || NULL == data->device_copies[i] ) continue;
+            if( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state ) continue;
+            if( DATA_COHERENCY_OWNED == copy->coherency_state 
+             && !(ACCESS_WRITE & access_mode) ) {
+                 if( data->device_copies[i]->version < copy->version ) {
+                     data->device_copies[i]->coherency_state = DATA_COHERENCY_INVALID;
+                 }
+            }
             if( DATA_COHERENCY_EXCLUSIVE == data->device_copies[i]->coherency_state ) {
                 data->device_copies[i]->coherency_state = DATA_COHERENCY_SHARED;
             }
         }
         copy->readers++;
+        copy->coherency_state = DATA_COHERENCY_SHARED;
     }
     else transfer_required = 0; /* finally we'll just overwrite w/o read */
 
@@ -310,21 +313,19 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
         data->owner_device = (uint8_t)device;
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( NULL == data->device_copies[i] ) continue;
-            data->device_copies[i]->coherency_state = DATA_COHERENCY_INVALID; /* This is brutal, maybe SHARED is enough? */
+            if( DATA_COHERENCY_INVALID == data->device_copies[i] ) continue;
+            data->device_copies[i]->coherency_state = DATA_COHERENCY_SHARED;
         }
         data->owner_device = (uint8_t)device;
         copy->coherency_state = DATA_COHERENCY_OWNED;
     }
-
+    
     if( !transfer_required ) {
-        transfer_from = -1;
+        return -1;
     }
-    else {
-        assert( -1 != transfer_from );
-        assert( data->device_copies[transfer_from]->version >= copy->version );
-    }
-    //dague_dump_data_copy(copy);
-    return transfer_from;
+    assert( -1 != valid_copy );
+    assert( data->device_copies[valid_copy]->version >= copy->version );
+    return valid_copy;
 }
 
 static char dump_coherency_codex(dague_data_coherency_t state)
