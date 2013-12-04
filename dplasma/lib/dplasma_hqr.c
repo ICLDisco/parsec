@@ -1669,7 +1669,7 @@ dplasma_hqr_init( dplasma_qrtree_t *qrtree,
         dplasma_error("dplasma_hqr_init", "illegal value of A");
         return -3;
     }
-    if ( p < 1 ) {
+    if ( p < 0 ) {
         dplasma_error("dplasma_hqr_init", "illegal value of p");
         return -7;
     }
