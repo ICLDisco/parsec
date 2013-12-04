@@ -141,6 +141,10 @@ set(SOURCES
   zgeqrs_param_wrapper.c
   zungqr_param_wrapper.c
   zunmqr_param_wrapper.c
+  zgelqf_param_wrapper.c
+  #zgelqs_param_wrapper.c
+  #zunglq_param_wrapper.c
+  #zunmlq_param_wrapper.c
   #
   zgesv_incpiv_wrapper.c
   zgesv_wrapper.c

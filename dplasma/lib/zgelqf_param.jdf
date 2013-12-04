@@ -13,30 +13,8 @@ extern "C" %{
 #include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-//#define PRIO_YVES1
-
-#if defined(PRIO_YVES1)
-#define GETPRIO_PANEL( __m, __n )      descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
-#define GETPRIO_UPDTE( __m, __n, __k ) descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
-#elif defined(PRIO_YVES2)
-#define GETPRIO_PANEL( __m, __n )      descA.mt * descA.nt - ((__m) * descA.nt + descA.nt - (__n))
-#define GETPRIO_UPDTE( __m, __n, __k ) descA.mt * descA.nt - ((__m) * descA.nt + descA.nt - (__n))
-#elif defined(PRIO_MATHIEU1)
-#define GETPRIO_PANEL( __m, __n )      (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
-#define GETPRIO_UPDTE( __m, __n, __k ) (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
-#elif defined(PRIO_MATHIEU2)
-#define GETPRIO_PANEL( __m, __n )      ((dplasma_imax(descA.mt, descA.nt) - dplasma_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
-#define GETPRIO_UPDTE( __m, __n, __k ) ((dplasma_imax(descA.mt, descA.nt) - dplasma_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
-#elif defined(PRIO_MATYVES)
-#define FORMULE( __x ) ( ( -1. + dplasma_dsqrt( 1. + 4.* (__x) * (__x)) ) * 0.5 )
-#define GETPRIO_PANEL( __m, __k )      (int)( 22. * (__k) + 6. * ( FORMULE( descA.mt ) - FORMULE( (__m) - (__k) + 1. ) ) )
-#define GETPRIO_UPDTE( __m, __n, __k ) (int)( (__m) < (__n) ? GETPRIO_PANEL( (__n), (__n) ) - 22. * ( (__m) - (__k) ) - 6. * ( (__n) - (__m) ) \
-                                              :               GETPRIO_PANEL( (__m), (__n) ) - 22. * ( (__n) - (__k) ) )
-#else
-  /*#warning running without priority*/
 #define GETPRIO_PANEL( __m, __n )      0
 #define GETPRIO_UPDTE( __m, __n, __k ) 0
-#endif
 
 %}
 
@@ -56,7 +34,7 @@ minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : des
 /**
  * zgelqt()
  *
- * There are dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) gelqt applyed at step
+ * There are dplasma_qr_getnbgeqrf( pivfct, k, descA.nt ) gelqt applyed at step
  * k on the rows indexed by m.
  * nextm is the first row that will be killed by the row m at step k.
  * nextm = descA.mt if the row m is never used as a killer.
@@ -329,8 +307,8 @@ zttmlq(k, m, n)
           -> ( ( nextp == descA.nt ) & ( p != k ) ) ? A2 zttmlq( k, m, p )
 
   RW   A2 <- ( (type  == 0 ) && (k     == 0        ) ) ? dataA(m, n)
-          <- ( (type  == 0 ) && (k     != 0        ) ) ? A2 zttmlq(k-1, n, m )
-          <- ( (type  != 0 ) && (prevn == descA.nt ) ) ? C  zunmlq(k, m, in)
+          <- ( (type  == 0 ) && (k     != 0        ) ) ? A2 zttmlq(k-1, m, n )
+          <- ( (type  != 0 ) && (prevn == descA.nt ) ) ? C  zunmlq(k, in, m)
           <- ( (type  != 0 ) && (prevn != descA.nt ) ) ? A1 zttmlq(k, m, prevn )
 
           -> ( (type1 != 0 ) && (m==(k+1)) ) ? A  zgelqt( k+1, in1 )
