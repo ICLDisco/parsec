@@ -33,7 +33,7 @@ zunmlq(k, n)
   n = 0 .. descB.nt-1
 
   /* Locality */
-  : dataB(k,n)
+  : dataB( k, n )
 
   READ  A    <- A zunmlq_in_data_A0(k)   [type = UPPER_TILE]
   READ  T    <- T zunmlq_in_data_T1(k)   [type = LITTLE_T]
@@ -74,10 +74,10 @@ zunmlq_in_data_T1(k) [profile = off]
   k = 0 .. descA.mt-1
 
   /* Locality */
-  : dataT(k,k)
+  : dataT(k, k)
 
-  READ  T    <- dataT(k,k)                      [type = LITTLE_T]
-             -> T zunmlq(k, 0 .. descB.nt-1)    [type = LITTLE_T]
+  READ  T    <- dataT(k, k)                  [type = LITTLE_T]
+             -> T zunmlq(k, 0 .. descB.nt-1) [type = LITTLE_T]
 
 BODY
 {
@@ -90,10 +90,10 @@ zunmlq_in_data_A0(k) [profile = off]
   k = 0 .. descA.mt-1
 
   /* Locality */
-  : dataA(k,k)
+  : dataA(k, k)
 
-  READ  A    <- dataA(k,k)                      [type = UPPER_TILE]
-             -> A zunmlq(k, 0 .. (descB.nt-1))  [type = UPPER_TILE]
+  READ  A    <- dataA(k, k)                   [type = UPPER_TILE]
+             -> A zunmlq(k, 0 .. descB.nt-1 ) [type = UPPER_TILE]
 
 BODY
 {
@@ -103,7 +103,7 @@ END
 
 ztsmlq(k, m, n)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descB.mt-2),(descA.mt-1)); %}
+  k = 0     .. inline_c %{ return dplasma_imin((descA.nt-2),(descA.mt-1)); %}
   m = (k+1) .. (descB.mt-1)
   n = 0     .. (descB.nt-1)
 
