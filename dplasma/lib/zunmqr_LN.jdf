@@ -13,9 +13,6 @@ extern "C" %{
 #include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#undef printlog
-#define printlog( ... ) fprintf(stderr, __VA_ARGS__ )
-
 %}
 
 side      [type = "PLASMA_enum"]
