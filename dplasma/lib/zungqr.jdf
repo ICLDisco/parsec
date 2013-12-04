@@ -18,12 +18,13 @@ extern "C" %{
 dataA     [type = "dague_ddesc_t *"]
 dataT     [type = "dague_ddesc_t *"]
 dataQ     [type = "dague_ddesc_t *"]
-p_work    [type = "dague_memory_pool_t *" size = "((sizeof(dague_complex64_t))*ib)*descT.nb"]
 
 descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 descT     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
 descQ     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataQ)"]
 ib        [type = "int" hidden = on default = "descT.mb" ]
+
+p_work    [type = "dague_memory_pool_t *" size = "((sizeof(dague_complex64_t))*ib)*descT.nb"]
 
 zunmqr(k, n)
   /* Execution Space */
