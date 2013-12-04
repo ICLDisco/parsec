@@ -35,6 +35,7 @@ int main(int argc, char ** argv)
     if (M < K) {
         printf("WARNING: M must be greater or equal to K (Set M = K)\n");
         M = K;
+        MT = KT;
     }
 
     LDA = max(M, LDA);
