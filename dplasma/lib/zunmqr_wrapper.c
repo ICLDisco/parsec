@@ -52,7 +52,8 @@
  *          @arg PlasmaConjTrans: conjugate transpose, apply Q**H.
  *
  * @param[in] A
- *          Descriptor of the matrix A of size M-by-K factorized with the
+ *          Descriptor of the matrix A of size M-by-K if side == PlasmaLeft, or
+ *          N-by-K if side == PlasmaRight factorized with the
  *          dplasma_zgeqrf_New() routine.
  *          On entry, the i-th column must contain the vector which
  *          defines the elementary reflector H(i), for i = 1,2,...,k, as
@@ -260,7 +261,8 @@ dplasma_zunmqr_Destruct( dague_object_t *object )
  *          @arg PlasmaConjTrans: conjugate transpose, apply Q**H.
  *
  * @param[in] A
- *          Descriptor of the matrix A of size M-by-K factorized with the
+ *          Descriptor of the matrix A of size M-by-K if side == PlasmaLeft, or
+ *          N-by-K if side == PlasmaRight factorized with the
  *          dplasma_zgeqrf_New() routine.
  *          On entry, the i-th column must contain the vector which
  *          defines the elementary reflector H(i), for i = 1,2,...,k, as
