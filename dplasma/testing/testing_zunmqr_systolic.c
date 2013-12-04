@@ -121,11 +121,10 @@ int main(int argc, char ** argv)
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
     if(loud > 3) printf("Done\n");
 
-    dplasma_hqr_init( &qrtree,
-                      (tiled_matrix_desc_t *)&ddescA,
-                      iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
-                      iparam[IPARAM_QR_TS_SZE],   iparam[IPARAM_QR_HLVL_SZE],
-                      iparam[IPARAM_QR_DOMINO],   iparam[IPARAM_QR_TSRR] );
+    dplasma_systolic_init( &qrtree,
+                           PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA,
+                           iparam[IPARAM_QR_HLVL_SZE],
+                           iparam[IPARAM_QR_TS_SZE] );
 
     if(loud > 3) printf("+++ Factorize A ... ");
     dplasma_zgeqrf_param( dague, &qrtree,
@@ -225,7 +224,7 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
     }
 
-    dplasma_hqr_finalize( &qrtree );
+    dplasma_systolic_finalize( &qrtree );
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);

@@ -91,7 +91,7 @@ int main(int argc, char ** argv)
     if(loud > 3) printf("Done\n");
 
     dplasma_hqr_init( &qrtree,
-                      (tiled_matrix_desc_t *)&ddescA,
+                      PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA,
                       iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
                       iparam[IPARAM_QR_TS_SZE],   iparam[IPARAM_QR_HLVL_SZE],
                       iparam[IPARAM_QR_DOMINO],   iparam[IPARAM_QR_TSRR] );

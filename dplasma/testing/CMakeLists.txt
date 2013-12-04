@@ -31,10 +31,14 @@ set(TESTS
   testing_zgeqrf.c
   testing_zunmqr.c
   testing_zunmlq.c
-  testing_zgeqrf_param.c
-  #testing_zgelqf_param.c
-  testing_zunmqr_param.c
-  #testing_zunmlq_param.c
+  testing_zgeqrf_hqr.c
+  #testing_zgelqf_hqr.c
+  testing_zunmqr_hqr.c
+  #testing_zunmlq_hqr.c
+  testing_zgeqrf_systolic.c
+  #testing_zgelqf_systolic.c
+  testing_zunmqr_systolic.c
+  #testing_zunmlq_systolic.c
   #testing_zgeqrf_rd.c
   #testing_zgeqrf_systolic.c
   #testing_zgesv_incpiv.c
