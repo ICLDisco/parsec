@@ -43,7 +43,9 @@ char *DAGUE_SCHED_NAME[] = {
     "ap",
     "lhq",
     "gd",
-    "pbq"
+    "pbq",
+    "ip",
+    "rnd",
 };
 
 /*******************************
@@ -269,8 +271,12 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_GD;
                 else if( !strcmp(optarg, "PBQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_PBQ;
+                else if( !strcmp(optarg, "IP") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_IP;
+                else if( !strcmp(optarg, "RND") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_RND;
                 else {
-                    fprintf(stderr, "#!!!!! malformed scheduler value %s (accepted: LFQ AP LHQ GD PBQ LTQ). Reverting to default LFQ\n",
+                    fprintf(stderr, "#!!!!! malformed scheduler value %s (accepted: LFQ LTQ PBQ AP GD RND LHQ IP). Reverting to default LFQ\n",
                             optarg);
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
                 }

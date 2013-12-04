@@ -3,9 +3,9 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  *
  * These symbols are in a file by themselves to provide nice linker
@@ -67,17 +67,17 @@ static int sched_gd_install( dague_context_t *master )
 
 static dague_execution_context_t *sched_gd_select( dague_execution_unit_t *eu_context )
 {
-	dague_execution_context_t * context = 
-		(dague_execution_context_t*)dague_dequeue_try_pop_front( (dague_dequeue_t*)eu_context->scheduler_object );
-	if (NULL != context)
-		context->victim_core = SYSTEM_NEIGHBOR;
-	return context;
+    dague_execution_context_t * context =
+        (dague_execution_context_t*)dague_dequeue_try_pop_front( (dague_dequeue_t*)eu_context->scheduler_object );
+    if (NULL != context)
+        context->victim_core = SYSTEM_NEIGHBOR;
+    return context;
 }
 
 static int sched_gd_schedule( dague_execution_unit_t* eu_context,
                               dague_execution_context_t* new_context )
 {
-	new_context->creator_core = 1;
+    new_context->creator_core = 1;
     if( new_context->function->flags & DAGUE_HIGH_PRIORITY_TASK ) {
         dague_dequeue_chain_front( (dague_dequeue_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
     } else {

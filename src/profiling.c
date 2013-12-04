@@ -35,11 +35,13 @@
 #define min(a, b) ((a)<(b)?(a):(b))
 
 #define MINIMAL_EVENT_BUFFER_SIZE          (1024*1024)
+#ifndef HOST_NAME_MAX
 #if defined(MAC_OS_X)
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
 #else
 #define HOST_NAME_MAX 1024
 #endif  /* defined(MAC_OS_X) */
+#endif /* defined(HOST_NAME_MAX) */
 
 /**
  * Externally visible on/off switch for the profiling of new events. It
