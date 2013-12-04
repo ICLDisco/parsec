@@ -44,36 +44,38 @@ int dague_cuda_output_stream = -1;
 static char* cuda_lib_path = NULL;
 
 /* Dirty selection for now */
-float gpu_speeds[2][3] ={
+//float gpu_speeds[2][3] ={
     /* C1060, C2050, K20 */
-    { 622.08, 1030.4, 3520 },
-    {  77.76,  515.2, 1170 }
-};
+//    { 622.08, 1030.4, 3520 },
+//    {  77.76,  515.2, 1170 }
+//}; leave for reference
 float *device_weight = NULL;
 
-/* look up GPU device weight
- * major = 1:Tesla, 2:Fermi, 3:Kepler
- * data_type_flag = 's':single, 'd':double
+/* the rate represents how many times single is faster than double */
+int stod_rate[3] = {8, 2, 3};
+
+/* look up how many cuda cores per SM
+ * 1.x    8
+ * 2.0    32
+ * 2.1    48
+ * 3.x    192
  */
-static int dague_cuda_lookup_device_weight(float *weight, int major, char data_type_flag)
+static int dague_cuda_lookup_device_cudacores(int *cuda_cores, int major, int minor)
 {
-    switch (major)
-    {
-        case 1:
-            *weight = ( data_type_flag == 's' ) ? gpu_speeds[0][0] : gpu_speeds[1][0];
-            break;
-        case 2:
-            *weight = ( data_type_flag == 's' ) ? gpu_speeds[0][1] : gpu_speeds[1][1];
-            break;
-        case 3:
-            *weight = ( data_type_flag == 's' ) ? gpu_speeds[0][2] : gpu_speeds[1][2];
-            break;
-        default:
-            fprintf(stderr, "Unsupporttd GPU, skip.\n");
+    if (major == 1) {
+        *cuda_cores = 8;
+    } else if (major == 2 && minor == 0) {
+        *cuda_cores = 32;
+    } else if (major == 2 && minor == 1) {
+        *cuda_cores = 48;
+    } else if (major == 3) {
+        *cuda_cores = 192;
+    } else {
+        fprintf(stderr, "Unsupporttd GPU, skip.\n");
             return DAGUE_ERROR;
     }
     return DAGUE_SUCCESS;
-} 
+}
 
 static int dague_cuda_device_fini(dague_device_t* device)
 {
@@ -444,7 +446,7 @@ int dague_gpu_init(dague_context_t *dague_context)
         gpu_device_t* gpu_device;
         CUdevprop devProps;
         char szName[256];
-        int major, minor, concurrency, computemode;
+        int major, minor, concurrency, computemode, streaming_multiprocessor, cuda_cores;
         CUdevice hcuDevice;
 
         status = cuDeviceGet( &hcuDevice, i );
@@ -461,26 +463,19 @@ int dague_gpu_init(dague_context_t *dague_context)
         status = cuDeviceGetAttribute( &concurrency, CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
 
+        status = cuDeviceGetAttribute( &streaming_multiprocessor, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, hcuDevice );
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
+
         /* Allow fine grain selection of the GPU's */
         if( !((1 << i) & cuda_mask) ) continue;
 
         status = cuDeviceGetAttribute( &computemode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
 
-        if ( isdouble ) {
-            //device_weight[i+1] = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
-            if (dague_cuda_lookup_device_weight(&device_weight[i+1], major, 'd') == DAGUE_ERROR) {
-                return -1;
-            }
-        } else {
-            //device_weight[i+1] = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
-            if (dague_cuda_lookup_device_weight(&device_weight[i+1], major, 's') == DAGUE_ERROR) {
-                return -1;
-            }
-        }
-
+        show_caps = 1;
         if( show_caps ) {
             STATUS(("GPU Device %d (capability %d.%d): %s\n", i, major, minor, szName ));
+            STATUS(("\tSM                 : %d\n", streaming_multiprocessor ));
             STATUS(("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock ));
             STATUS(("\tmaxThreadsDim      : [%d %d %d]\n", devProps.maxThreadsDim[0],
                     devProps.maxThreadsDim[1], devProps.maxThreadsDim[2] ));
@@ -543,7 +538,7 @@ int dague_gpu_init(dague_context_t *dague_context)
                                         {break;} );
             }
 #if defined(DAGUE_PROF_TRACE)
-	    exec_stream->profiling = dague_profiling_thread_init( 2*1024*1024, DAGUE_PROFILE_STREAM_STR, i, j );
+            exec_stream->profiling = dague_profiling_thread_init( 2*1024*1024, DAGUE_PROFILE_STREAM_STR, i, j );
             exec_stream->prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC;
             exec_stream->prof_event_key_start    = -1;
             exec_stream->prof_event_key_end      = -1;
@@ -575,11 +570,19 @@ int dague_gpu_init(dague_context_t *dague_context)
          */
         //gpu_device->super.device_dweight = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
         //gpu_device->super.device_sweight = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
-        if (dague_cuda_lookup_device_weight(&(gpu_device->super.device_dweight), major, 'd') == DAGUE_ERROR ||
-            dague_cuda_lookup_device_weight(&(gpu_device->super.device_sweight), major, 's') == DAGUE_ERROR ) {
+
+        if (dague_cuda_lookup_device_cudacores(&cuda_cores, major, minor) == DAGUE_ERROR ) {
             return -1;
         }
+        gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)cuda_cores * (float)devProps.clockRate * 2.0 / 1000000;
+        gpu_device->super.device_dweight = gpu_device->super.device_sweight / stod_rate[major-1];
         printf("dweight %f, sweight %f\n", gpu_device->super.device_dweight, gpu_device->super.device_sweight);
+
+        if ( isdouble ) {
+            device_weight[i+1] = gpu_device->super.device_dweight;
+        } else {
+            device_weight[i+1] = gpu_device->super.device_sweight;
+        }
 
         /* Initialize internal lists */
         OBJ_CONSTRUCT(&gpu_device->gpu_mem_lru,       dague_list_t);
@@ -1002,7 +1005,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     dague_data_copy_t* in_elem = task_data->data_in;
     dague_data_t* original = in_elem->original;
     dague_gpu_data_copy_t* gpu_elem = task_data->data_out;
-    int transfer_required = 0;
+    int transfer_from = -1;
 
     /* If the data will be accessed in write mode, remove it from any lists
      * until the task is completed.
@@ -1012,6 +1015,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
 
+#if 0
     /* If the source and target data are on the same device then they should be
      * identical and the only thing left to do is update the number of readers.
      */
@@ -1020,19 +1024,21 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         gpu_elem->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER; /* data is already in GPU, so no transfer required.*/
         return 0;
     }
-
+    
     /* DtoD copy, if data is read only, then we go back to CPU copy, and fetch data from CPU (HtoD) */
     if (in_elem != gpu_elem && in_elem != original->device_copies[0] && in_elem->version == original->device_copies[0]->version) {
         printf("####################GPU1 TO GPU2######################\n");
         dague_data_copy_release(in_elem);  /* release the copy in GPU1 */
         task_data->data_in = original->device_copies[0];
-        in_elem = task_data->data_in; 
+        in_elem = task_data->data_in;
         OBJ_RETAIN(in_elem);  /* retain the corresponding CPU copy */
     }
+#endif 
 
-    transfer_required = dague_data_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
+
+    transfer_from = dague_data_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
     gpu_device->super.required_data_in += original->nb_elts;
-    if( transfer_required ) {
+    if( -1 != transfer_from ) {
         cudaError_t status;
 
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
@@ -1045,9 +1051,9 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                                 { WARNING(("<<%p>> -> <<%p>> [%d]\n", in_elem->device_private, gpu_elem->device_private, original->nb_elts));
                                     return -1; } );
         gpu_device->super.transferred_data_in += original->nb_elts;
-        
+
         /* update the data version in GPU immediately, and mark the data under transfer */
-        gpu_elem->version = in_elem->version;  
+        gpu_elem->version = in_elem->version;
         gpu_elem->data_transfer_status = DATA_STATUS_UNDER_TRANSFER;
         gpu_elem->push_task = gpu_task->ec;  /* only the task who does the transfer can modify the data status later. */
         /* TODO: take ownership of the data */
@@ -1130,24 +1136,24 @@ int progress_stream( gpu_device_t* gpu_device,
     if( (NULL == *out_task) && (NULL != exec_stream->tasks[exec_stream->end]) ) {
         rc = cuEventQuery(exec_stream->events[exec_stream->end]);
         if( CUDA_SUCCESS == rc ) {
-            
-            /* even though cuda event return success, the PUSH may not be completed if no PUSH is required by this task and the PUSH is actually  
+
+            /* even though cuda event return success, the PUSH may not be completed if no PUSH is required by this task and the PUSH is actually
                done  by another task, so we need to check if the data is actually ready to use */
             if (exec_stream == &(gpu_device->exec_stream[0])) {  /* exec_stream[0] is the PUSH stream */
-			    this_task = exec_stream->tasks[exec_stream->end]->ec;
+                            this_task = exec_stream->tasks[exec_stream->end]->ec;
                 for( i = 0; i < this_task->function->nb_parameters; i++ ) {
                     if(NULL == this_task->function->in[i]) continue;
                     if (this_task->data[i].data_out->push_task == this_task) {   /* only the task who did this PUSH can modify the status */
-                    	this_task->data[i].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
+                        this_task->data[i].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
                         //printf("I did the push, now I set it to complete\n");
                         continue;
                     }
                     if (this_task->data[i].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
                         return saved_rc;
                     }
-                    //printf("I did NOT do the push, but it is complete\n");	
+                    //printf("I did NOT do the push, but it is complete\n");
                 }
-			}
+                        }
 
             /* Save the task for the next step */
             task = *out_task = exec_stream->tasks[exec_stream->end];
@@ -1158,7 +1164,7 @@ int progress_stream( gpu_device_t* gpu_device,
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
             DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable,
                                      exec_stream->profiling,
-                                     (-1 == exec_stream->prof_event_key_end ? 
+                                     (-1 == exec_stream->prof_event_key_end ?
                                       DAGUE_PROF_FUNC_KEY_END(task->ec->dague_handle,
                                                               task->ec->function->function_id) :
                                       exec_stream->prof_event_key_end),

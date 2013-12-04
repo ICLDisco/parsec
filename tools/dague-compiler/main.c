@@ -198,7 +198,7 @@ static void parse_args(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     int rc;
-    yyscan_t scanner;
+    yyscan_t scanner = NULL;
 
     parse_args(argc, argv);
 #if defined(HAVE_RECENT_LEX)

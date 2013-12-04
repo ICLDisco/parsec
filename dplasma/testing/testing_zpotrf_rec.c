@@ -76,6 +76,7 @@ int main(int argc, char ** argv)
     PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf_rec);
 
     dplasma_zpotrf_rec_Destruct( DAGUE_zpotrf_rec );
+    dague_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
 #if defined(HAVE_CUDA)
     if(iparam[IPARAM_NGPUS] > 0) {
         dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);

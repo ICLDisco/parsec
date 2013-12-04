@@ -100,7 +100,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
         original = data->original;
         if( NULL != (local = dague_data_get_copy(original, gpu_device->super.device_index)) ) {
             this_task->data[i].data_out = local;
-            
+
             /* Check the most up2date version of the data */
             if( data->device_index != gpu_device->super.device_index ) {
                 if(data->version <= local->version) {
@@ -304,7 +304,7 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
 {
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
-    dague_gpu_data_copy_t     *gpu_copy;
+    dague_gpu_data_copy_t     *gpu_copy, *cpu_copy;
     dague_data_t              *original;
     int i;
 
@@ -314,12 +314,22 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
 
         gpu_copy = this_task->data[this_task->function->out[i]->flow_index].data_out;
         original = gpu_copy->original;
-        /*assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );*/
+        cpu_copy = original->device_copies[0];
+        /* There might be a race condition here. We can't assume the first CPU
+         * version is the corresponding CPU copy, as a new CPU-bound data
+         * might have been created meanwhile.
+         */
+        assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
         gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
-        original = gpu_copy->original;
-        original->device_copies[0]->version = gpu_copy->version;
-        /*original->version = gpu_copy->version;*/
-        /*original->coherency_state = DATA_COHERENCY_SHARED;*/
+        cpu_copy->coherency_state =  DATA_COHERENCY_SHARED;
+        /* TODO: make sure no readers are working on the CPU version */
+        cpu_copy->version = gpu_copy->version;
+
+        /* Let's lie to the engine by reporting that working version of this
+         * data (aka. the one that GEMM worked on) is now on the CPU.
+         */
+        this_task->data[this_task->function->out[i]->flow_index].data_out = cpu_copy;
+
         if( args->pushout ) {  /* n == (k  + 1) */
             dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
         } else {

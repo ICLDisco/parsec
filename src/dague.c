@@ -1455,6 +1455,30 @@ int dague_handle_register( dague_handle_t* object )
     return (int)index;
 }
 
+/**< globally synchronize object id's so that next register generates the same
+ * id at all ranks. */
+void dague_handle_sync_ids( void ) {
+    int index;
+    dague_atomic_lock( &object_array_lock );
+    index = (int)object_array_pos;
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+    MPI_Allreduce( MPI_IN_PLACE, &index, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
+#endif
+    if( index >= object_array_size ) {
+        object_array_size *= 2;
+        object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
+#if defined(DAGUE_DEBUG_ENABLE)
+        {
+            unsigned int i;
+            for(i = object_array_pos+1; i < object_array_size; i++)
+                object_array[i] = NOOBJECT;
+        }
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+    }
+    object_array_pos = index;
+    dague_atomic_unlock( &object_array_lock );
+}
+
 /**< Unregister the object with the engine. */
 void dague_handle_unregister( dague_handle_t* object )
 {
@@ -1845,29 +1869,22 @@ int dague_getsimulationdate( dague_context_t *dague_context ){
  * Array based local data handling.
  */
 #include "data_distribution.h"
-static uint32_t return_local_u(dague_ddesc_t *unused, ...) { return 0; (void)unused; };
-static int32_t  return_local_s(dague_ddesc_t *unused, ...) { return 0; (void)unused; };
-static dague_data_t* return_data(dague_ddesc_t *unused, ...) { return NULL; (void)unused; };
+static uint32_t return_local_u(dague_ddesc_t *unused, ...) { (void)unused; return 0; };
+static int32_t  return_local_s(dague_ddesc_t *unused, ...) { (void)unused; return 0; };
+static dague_data_t* return_data(dague_ddesc_t *unused, ...) { (void)unused; return NULL; };
 static uint32_t rank_of_key(dague_ddesc_t *unused, dague_data_key_t key)
-{
-    return 0; (void)unused; (void)key;
-}
+{ (void)unused; (void)key; return 0; }
 static dague_data_t* data_of_key(dague_ddesc_t *unused, dague_data_key_t key)
-{
-    return NULL; (void)unused; (void)key;
-}
+{ (void)unused; (void)key; return NULL; }
 static int32_t  vpid_of_key(dague_ddesc_t *unused, dague_data_key_t key)
-{
-    return 0; (void)unused; (void)key;
-}
+{ (void)unused; (void)key; return 0; }
 static dague_data_key_t data_key(dague_ddesc_t *mat, ...)
-{
-    return 0; (void)mat;
-}
+{ (void)mat; return 0; }
 #if defined(DAGUE_PROF_TRACE)
 static int key_to_string(dague_ddesc_t *unused, dague_data_key_t datakey, char* buffer, uint32_t buffer_size)
 {
-    return snprintf( buffer, buffer_size, "%u ", datakey); (void)unused;
+    (void)unused;
+    return snprintf( buffer, buffer_size, "%u ", datakey);
 }
 #endif /* DAGUE_PROF_TRACE */
 

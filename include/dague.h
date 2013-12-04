@@ -91,6 +91,9 @@ dague_handle_t* dague_handle_lookup(uint32_t handle_id);
 int dague_handle_register(dague_handle_t* handle);
 /**< Unregister the object with the engine. */
 void dague_handle_unregister(dague_handle_t* handle);
+/**< globally synchronize object id's so that next register generates the same
+ *  * id at all ranks. */
+void dague_handle_sync_ids(void);
 
 /**< Free the resource allocated in the dague handle. The handle should be unregistered first. */
 void dague_handle_free(dague_handle_t *handle);

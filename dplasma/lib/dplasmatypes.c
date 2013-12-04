@@ -132,7 +132,7 @@ int dplasma_datatype_define_contiguous( dague_datatype_t oldtype,
         int len;
 
         MPI_Type_get_name(oldtype, oldtype_name, &len);
-        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "CONT %s*%4u", oldtype_name, nb_elem);
+        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "CONT_%u_%s", nb_elem, oldtype_name);
         MPI_Type_set_name(*newtype, newtype_name);
     }
 #endif  /* defined(HAVE_MPI_20) */
@@ -170,7 +170,7 @@ int dplasma_datatype_define_rectangle( dague_datatype_t oldtype,
         int len;
 
         MPI_Type_get_name(oldtype, oldtype_name, &len);
-        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "RECT %s*%4u*%4u", oldtype_name, tile_mb, tile_nb);
+        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "RECT_%ux%u_%s", tile_mb, tile_nb, oldtype_name);
         MPI_Type_set_name(*newtype, newtype_name);
     }
 #endif  /* defined(HAVE_MPI_20) */
@@ -210,7 +210,7 @@ int dplasma_datatype_define_upper( dague_datatype_t oldtype,
         int len;
 
         MPI_Type_get_name(oldtype, oldtype_name, &len);
-        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "UPPER %s*%4u", oldtype_name, tile_nb);
+        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "UPTR_%u_%s", tile_nb, oldtype_name);
         MPI_Type_set_name(*newtype, newtype_name);
     }
 #else
@@ -254,7 +254,7 @@ int dplasma_datatype_define_lower( dague_datatype_t oldtype,
         int len;
 
         MPI_Type_get_name(oldtype, oldtype_name, &len);
-        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "LOWER %s*%4u", oldtype_name, tile_nb);
+        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "LOTR_%u_%s", tile_nb, oldtype_name);
         MPI_Type_set_name(*newtype, newtype_name);
     }
 #else
