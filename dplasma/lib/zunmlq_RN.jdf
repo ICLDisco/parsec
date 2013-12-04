@@ -35,7 +35,7 @@ zunmlq(k, m)
   /* Locality */
   : dataB(m,k)
 
-  READ  A    <- A zunmlq_in_data_A0(k)   [type = LOWER_TILE]
+  READ  A    <- A zunmlq_in_data_A0(k)   [type = UPPER_TILE]
   READ  T    <- T zunmlq_in_data_T1(k)   [type = LITTLE_T]
   RW    C    -> ( k == 0 ) ? dataB(m,k)
              -> ( k >  0 ) ? A2 ztsmlq(k-1, k, m)
@@ -92,8 +92,8 @@ zunmlq_in_data_A0(k) [profile = off]
   /* Locality */
   : dataA(k,k)
 
-  READ  A    <- dataA(k,k)                      [type = LOWER_TILE]
-             -> A zunmlq(k, 0 .. (descB.mt-1))  [type = LOWER_TILE]
+  READ  A    <- dataA(k,k)                      [type = UPPER_TILE]
+             -> A zunmlq(k, 0 .. (descB.mt-1))  [type = UPPER_TILE]
 
 BODY
 {

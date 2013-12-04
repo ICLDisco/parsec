@@ -138,8 +138,8 @@ BODY
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( pool_0 );
 
-    CORE_ztsmlq(side, trans, tempmm, descB.nb,
-                tempmm, tempnn, tempkmin, ib,
+    CORE_ztsmlq(side, trans,
+                tempmm, descB.nb, tempmm, tempnn, tempkmin, ib,
                 A1 /* dataB(m,k) */, ldbm,
                 A2 /* dataB(m,n) */, ldbm,
                 V  /* dataA(n,k) */, ldan,

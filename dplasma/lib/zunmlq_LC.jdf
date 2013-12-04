@@ -103,7 +103,7 @@ END
 
 ztsmlq(k, m, n)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descB.mt-1),(descA.mt-1)); %}
+  k = 0     .. inline_c %{ return dplasma_imin((descA.nt-2),(descA.mt-1)); %}
   m = (k+1) .. (descB.mt-1)
   n = 0     .. (descB.nt-1)
 
@@ -194,7 +194,7 @@ ztsmlq_out_data_B0(k, n) [profile = off]
   n = 0 .. (descB.nt-1)
 
   /* Locality */
-  : dataB(k,n)
+  : dataB(k, n)
 
   READ  A1   -> A1 ztsmlq(k, descB.mt-1, n)
              <- dataB(k,n)
