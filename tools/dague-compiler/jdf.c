@@ -1002,7 +1002,7 @@ int jdf_flatten_function(jdf_function_entry_t* function)
         if( !(flow->flow_flags & JDF_FLOW_IS_OUT) )
             flow->flow_index = flow_index++;
 
-#if 1
+#if 0
     for( flow = function->dataflow; NULL != flow; flow = flow->next) {
         string_arena_t* sa1 = string_arena_new(64);
         string_arena_t* sa2 = string_arena_new(64);
