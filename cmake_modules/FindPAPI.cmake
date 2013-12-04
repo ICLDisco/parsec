@@ -37,10 +37,12 @@ find_library(PAPI_LIBRARY NAMES papi
              HINTS ${PC_PAPI_LIBDIR} ${PC_PAPI_LIBRARY_DIRS} ${PAPI_DIR}/lib
              DOC "Library path for PAPI")
 
+message(STATUS "The PAPI Library is found at ${PAPI_LIBRARY}")
+
 set(PAPI_LIBRARIES ${PAPI_LIBRARY} )
 set(PAPI_INCLUDE_DIRS ${PAPI_INCLUDE_DIR} )
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(PAPI DEFAULT_MSG 
+find_package_handle_standard_args(PAPI DEFAULT_MSG
                                   PAPI_LIBRARY PAPI_INCLUDE_DIR )
 

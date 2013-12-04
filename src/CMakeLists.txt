@@ -32,6 +32,15 @@ list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 #   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
 include(mca/CMakeLists.txt)
 
+include_directories(/home/pgaultne/sw/ig.icl.utk.edu/tau/tau-2.22/include/Profile)
+include_directories(/home/pgaultne/sw/ig.icl.utk.edu/tau/tau-2.22/include)
+
+# find_package(TAU REQUIRED)
+# include_directories(${TAU_INCLUDE_DIRS})
+# message(WARNING ${TAU_INCLUDE_DIRS})
+# list(APPEND EXTRA_LIBS ${TAU_LIBRARIES})
+# set (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" ${TAU_LIBRARY_DIR})
+
 set(SOURCES
   barrier.c
   scheduling.c

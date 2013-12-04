@@ -1,19 +1,24 @@
-####################################
-# DBPreader Python interface
-# run 'python setup.py build_ext --inplace' to compile
-# import parsec_binprof
-#
+""" DBPreader Python interface
+
+run 'python setup.py build_ext --inplace' to compile
+The preferred nomenclature for the Python Binary Profile is "PBP",
+therefore it is recommended to do "import parsec_binprof as pbp"
+in Python programs using this module.
+
+REQUIREMENTS:
 # Cython 0.18+ required. 
 # pandas 0.12+ (and numpy, etc.) required.
 # Python 2.7.3 recommended.
-#
+
+BUILD NOTES:
 # Be SURE to build this against the same version of Python as you have built Cython itself.
 # Contrasting versions will likely lead to odd errors about Unicode functions.
+"""
 
 # cython: profile=False
 # ...but could be True if we wanted to # import cProfile, pstats
 from __future__ import print_function
-import sys
+import sys, os
 from operator import attrgetter, itemgetter
 from libc.stdlib cimport malloc, free
 from parsec_profiling import * # the pure Python classes
@@ -23,12 +28,14 @@ import re
 
 include "pbp_info_parser.pxi"
 
+pbp_core = '.prof-'
+
 # reads an entire profile into a set of pandas DataFrames
 # filenames ought to be a list of strings, or comparable type.
-cpdef read(filenames, report_progress=False, info_only=False):
+cpdef read(filenames, report_progress=False, skeleton_only=False):
     cdef dbp_file_t * cfile
     cdef dbp_dictionary_t * cdict
-    if isinstance(filenames, basestring):
+    if isinstance(filenames, basestring): # if the user passed a single string
         filenames = [filenames]
     cdef char ** c_filenames = string_list_to_c_strings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
@@ -76,7 +83,7 @@ cpdef read(filenames, report_progress=False, info_only=False):
             total_threads += num_threads
             builder.unordered_threads = dict()
             for thread_num in range(num_threads):
-                construct_thread(builder, dbp, cfile, node_id, thread_num, info_only)
+                construct_thread(builder, dbp, cfile, node_id, thread_num, skeleton_only)
                 cond_print('.', report_progress, end='')
                 sys.stdout.flush()
             # sort threads
@@ -143,26 +150,40 @@ cpdef read(filenames, report_progress=False, info_only=False):
 
     return profile
 
-# just a shortcut for passing info_only
+# just a shortcut for passing skeleton_only
 cpdef get_info(filenames):
-    return read(filenames, info_only=True)
+    return read(filenames, skeleton_only=True)
 
+# returns the output filename in a list, not the profile itself.
 cpdef convert(filenames, outfilename=None, unlink=True, 
+              force_reconvert=False, validate_existing=False, 
               table=False, append=False, report_progress=False):
-    cond_print('Converting {}'.format(filenames), report_progress)
-    profile = read(filenames, report_progress=report_progress)
-    print(profile)
-    print(filenames)
     if outfilename == None:
         outfilename = filenames[0].replace('.prof-', '.h5-')
-        print(outfilename)
-    store = profile.to_hdf(outfilename, table=table, append=append)
-    store.close()
+    if os.path.exists(outfilename):
+        if not force_reconvert:
+            try:
+                if validate_existing:
+                    ParsecProfile.from_hdf(outfilename, skeleton_only=True)
+                cond_print('P3 {} already exists. '.format(outfilename) +
+                           'Conversion not forced.', report_progress)
+                return outfilename # file already exists
+            except:
+                cond_print('P3 {} already exists, but cannot be validated. '.format(outfilename) +
+                           'Conversion will proceed.', report_progress)
+                pass # something went wrong, so try conversion anyway
+    # convert
+    cond_print('Converting {}'.format(filenames), report_progress)
+    profile = read(filenames, report_progress=report_progress)
+    # write file
+    with Timer() as t:
+        profile.to_hdf(outfilename, table=table, append=append)
+    cond_print('Wrote profile to HDF5 format in {} seconds.'.format(t.interval), report_progress)
     if unlink:
         for filename in filenames:
             cond_print('Unlinking {} after conversion'.format(filename), report_progress)
             os.unlink(filename)
-    return profile
+    return outfilename
 
 # This function helps support duplicate keys in the info dictionaries 
 # by appending the extra values to a list stored at '<key>_list' in the dictionary.
@@ -208,7 +229,7 @@ vp_id_in_descrip = re.compile('.*VP\s+(\d+).*', re.IGNORECASE)
 
 # you can't call this. it will be called for you. call readProfile()
 cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, 
-                   int node_id, int thread_num, int info_only):
+                   int node_id, int thread_num, int skeleton_only):
     cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, thread_num)
     cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
     cdef dbp_event_iterator_t * it_e = NULL
@@ -240,7 +261,7 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
         thread_id = thread['id']
     builder.unordered_threads[thread_id] = thread
 
-    while event_s != NULL and not info_only:
+    while event_s != NULL and not skeleton_only:
         event_type = dbp_event_get_key(event_s) / 2 # to match dictionary
         event_name = builder.event_names[event_type]
         begin = dbp_event_get_timestamp(event_s)

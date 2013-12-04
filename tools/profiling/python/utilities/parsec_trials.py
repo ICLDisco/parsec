@@ -30,7 +30,7 @@ class ParsecTrial(object):
     def unique_name(self):
         return '{:_<6}_({}-{:0>3})_{:0>5}_{:0>4}_{:0>4}_{:_<3}_{:0>3}_{:0>3}_{:.2f}'.format(
             self.ex, self.ident, self.cores, self.N, self.NB, self.IB,
-            self.sched, int(self.perf), self.trial_num, self.unix_timestamp)
+            self.sched, self.trial_num, int(self.perf), self.unix_timestamp)
     def __repr__(self):
         return self.uniqueName()
     # def __setstate__(self, dictionary): # the unpickler shim

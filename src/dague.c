@@ -40,6 +40,9 @@
 #include "src/mca/mca_repository.h"
 
 #ifdef DAGUE_PROF_TRACE
+#ifdef PARSEC_PROF_TAU
+#include "TAU.h"
+#endif
 #include "profiling.h"
 #endif
 
@@ -218,13 +221,17 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     if( NULL == eu->eu_profile ) {
         fprintf(stderr, "*** %s\n", dague_profiling_strerror());
     }
+
+#ifdef PARSEC_PROF_TAU
+    TAU_REGISTER_THREAD();
 #endif
+#endif /* DAGUE_PROF_TRACE */
+
+    PINS_THREAD_INIT(eu);
 
 #if defined(DAGUE_SIM)
     eu->largest_simulation_date = 0;
 #endif
-
-    PINS_THREAD_INIT(eu);
 
     /* The main thread of VP 0 will go back to the user level */
     if( DAGUE_THREAD_IS_MASTER(eu) ) {
@@ -555,6 +562,11 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                                                 0, NULL,
                                                 &device_delegate_begin, &device_delegate_end);
     }
+#ifdef PARSEC_PROF_TAU
+    TAU_INIT(pargc, pargv);
+    TAU_DB_PURGE();
+    TAU_PROFILE_SET_NODE(0);
+#endif
 #endif  /* DAGUE_PROF_TRACE */
 
     /* Initialize Performance Instrumentation (PINS) */

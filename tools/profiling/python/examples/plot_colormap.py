@@ -63,10 +63,10 @@ def plot_colormap(profile, x_axis, y_axis, filters,
     # ax.hexbin(events[x_axis], events[y_axis], gridsize=gridsize,
     #           cmap=cm.jet, bins=None)
 
-    ax.set_title('{} vs {} of {}\n'.format(y_axis, x_axis, filters_descrip) +
-                 'for {} where '.format(profile.exe) +
-                 'N = {}, NB = {}, IB = {}, sched = {}, on {}'.format(profile.N, profile.NB,
-                                                                      profile.IB, profile.sched, profile.hostname))
+    ax.set_title("""{} vs {} of {}
+    for {} where N = {}, NB = {}, IB = {}, sched = {}, on {}""".format(y_axis, x_axis, filters_descrip, profile.exe,
+                                                                       profile.N, profile.NB, profile.IB, profile.sched,
+                                                                       profile.hostname))
     if not ax.has_data():
         print('Plot has no data.')
         return None
@@ -172,7 +172,9 @@ if __name__ == '__main__':
             else:
                 event_subtypes.append(arg)
 
-    profiles = p3_utils.autoload_profiles(filenames, convert=True, unlink=False)
+    profiles = p3_utils.autoload_profiles(filenames, convert=True, unlink=False,
+                                          skeleton_only=False, enhance_filenames=True)
+    raw_input('how is our memory usage now?')
     # then divide the profiles into sets based on equivalent command lines
     profile_sets = find_profile_sets(profiles, on=['exe', 'N', 'NB', 'IB', 'sched'])
     # then merge those sets so that multiple trials of the same params are aggregated

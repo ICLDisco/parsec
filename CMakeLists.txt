@@ -130,6 +130,8 @@ endif()
 ### Profiling options
 option(DAGUE_PROF_TRACE
   "Enable the generation of the profiling information during execution" OFF)
+option(PARSEC_PROF_TAU
+  "Experimental usage of TAU profiling framework" ON)
 option(DAGUE_PROF_PAPI
   "Enable PAPI performance hardware counters" OFF)
 option(DAGUE_PROF_STATS

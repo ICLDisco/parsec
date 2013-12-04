@@ -2,12 +2,12 @@
 
 from __future__ import print_function
 from parsec_profiling import *
-import parsec_binprof as p3_bin
+import parsec_binprof as pbp
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import mpl_prefs
-import binprof_utils as p3_utils
+import binprof_utils as pbp_utils
 import os, sys
 import itertools
 
@@ -162,7 +162,8 @@ if __name__ == '__main__':
             else:
                 event_subtypes.append(arg)
 
-    profiles = p3_utils.autoload_profiles(filenames, convert=True, unlink=False)
+    profiles = pbp_utils.autoload_profiles(filenames, convert=True, unlink=False,
+                                           enhance_filenames=True)
     profile_sets = find_profile_sets(profiles)
     for pset in profile_sets.values()[1:]:
         if len(pset) != len(profile_sets.values()[0]):
@@ -185,7 +186,7 @@ if __name__ == '__main__':
             for event_name in profiles[0].event_types.keys():
                 if event_name.startswith('PAPI_CORE_EXEC_'):
                     event_types.append(event_name)
-                    y_axes = p3_bin.papi_core_evt_value_lbls[event_name]
+                    y_axes = pbp.papi_core_evt_value_lbls[event_name]
                     break
             event_subtypes = mpl_prefs.kernel_names[profiles[0].exe][:1]
 
