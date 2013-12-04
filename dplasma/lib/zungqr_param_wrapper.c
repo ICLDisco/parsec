@@ -10,11 +10,6 @@
  */
 #include "dague_internal.h"
 #include "dplasma.h"
-#include "dplasma/lib/dplasmatypes.h"
-#include "dplasma/lib/dplasmaaux.h"
-#include "dplasma/lib/memory_pool.h"
-
-#include "zungqr_param.h"
 
 /**
  *******************************************************************************
@@ -57,8 +52,10 @@
  *          at higher levels and which are required to generate the Q matrix,
  *          and/or solve the problem.
  *
- * @param[out] Q
+ * @param[in,out] Q
  *          Descriptor of the M-by-N matrix Q with orthonormal columns.
+ *          On entry, the Id matrix.
+ *          On exit, the orthonormal matrix Q.
  *          M >= N >= 0.
  *
  *******************************************************************************
@@ -84,21 +81,6 @@ dplasma_zungqr_param_New( dplasma_qrtree_t *qrtree,
                           tiled_matrix_desc_t *TT,
                           tiled_matrix_desc_t *Q)
 {
-    dague_zungqr_param_object_t* object;
-    int ib = TS->mb;
-
-    /* if ( !dplasma_check_desc(A) ) { */
-    /*     dplasma_error("dplasma_zungqr_param_New", "illegal A descriptor"); */
-    /*     return NULL; */
-    /* } */
-    /* if ( !dplasma_check_desc(T) ) { */
-    /*     dplasma_error("dplasma_zungqr_param_New", "illegal T descriptor"); */
-    /*     return NULL; */
-    /* } */
-    /* if ( !dplasma_check_desc(Q) ) { */
-    /*     dplasma_error("dplasma_zungqr_param_New", "illegal Q descriptor"); */
-    /*     return NULL; */
-    /* } */
     if ( Q->n > Q->m ) {
         dplasma_error("dplasma_zungqr_param_New", "illegal size of Q (N should be smaller or equal to M)");
         return NULL;
@@ -116,40 +98,7 @@ dplasma_zungqr_param_New( dplasma_qrtree_t *qrtree,
         return NULL;
     }
 
-    object = dague_zungqr_param_new( (dague_ddesc_t*)A,
-                                     (dague_ddesc_t*)TS,
-                                     (dague_ddesc_t*)TT,
-                                     (dague_ddesc_t*)Q,
-                                     *qrtree, NULL);
-
-    object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
-
-    /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zungqr_param_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
-
-    /* Upper triangular part of tile with diagonal */
-    dplasma_add2arena_upper( object->arenas[DAGUE_zungqr_param_UPPER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             MPI_DOUBLE_COMPLEX, A->mb, 1 );
-
-    /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( object->arenas[DAGUE_zungqr_param_LOWER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             MPI_DOUBLE_COMPLEX, A->mb, 0 );
-
-    /* Little T */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zungqr_param_LITTLE_T_ARENA],
-                                 TS->mb*TS->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, TS->mb, TS->nb, -1);
-
-    return (dague_object_t*)object;
+    return dplasma_zunmqr_param_New( PlasmaLeft, PlasmaNoTrans, qrtree, A, TS, TT, Q );
 }
 
 /**
@@ -175,17 +124,7 @@ dplasma_zungqr_param_New( dplasma_qrtree_t *qrtree,
 void
 dplasma_zungqr_param_Destruct( dague_object_t *o )
 {
-    dague_zungqr_param_object_t *dague_zungqr_param = (dague_zungqr_param_object_t *)o;
-
-    dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_UPPER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_LOWER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_LITTLE_T_ARENA  ]->opaque_dtt) );
-
-    dague_private_memory_fini( dague_zungqr_param->p_work );
-    free( dague_zungqr_param->p_work );
-
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zungqr_param);
+    dplasma_zunmqr_param_Destruct( o );
 }
 
 /**
@@ -232,8 +171,10 @@ dplasma_zungqr_param_Destruct( dague_object_t *o )
  *          at higher levels and which are required to generate the Q matrix,
  *          and/or solve the problem.
  *
- * @param[out] Q
+ * @param[in,out] Q
  *          Descriptor of the M-by-N matrix Q with orthonormal columns.
+ *          On entry, the Id matrix.
+ *          On exit, the orthonormal matrix Q.
  *          M >= N >= 0.
  *
  *******************************************************************************
@@ -260,37 +201,26 @@ dplasma_zungqr_param( dague_context_t *dague,
                       tiled_matrix_desc_t *TT,
                       tiled_matrix_desc_t *Q)
 {
-    dague_object_t *dague_zungqr_param = NULL;
-
     if (dague == NULL) {
-        dplasma_error("dplasma_zungqr", "dplasma not initialized");
+        dplasma_error("dplasma_zungqr_param", "dplasma not initialized");
         return -1;
     }
 
     if ( Q->n > Q->m) {
-        dplasma_error("dplasma_zungqr", "illegal number of columns in Q (N)");
+        dplasma_error("dplasma_zungqr_param", "illegal number of columns in Q (N)");
         return -2;
     }
     if ( A->n > Q->n) {
-        dplasma_error("dplasma_zungqr", "illegal number of columns in A (K)");
+        dplasma_error("dplasma_zungqr_param", "illegal number of columns in A (K)");
         return -3;
     }
     if ( A->m != Q->m ) {
-        dplasma_error("dplasma_zungqr", "illegal number of rows in A");
+        dplasma_error("dplasma_zungqr_param", "illegal number of rows in A");
         return -5;
     }
 
     if (dplasma_imin(Q->m, dplasma_imin(Q->n, A->n)) == 0)
         return 0;
 
-    dague_zungqr_param = dplasma_zungqr_param_New(qrtree, A, TS, TT, Q);
-
-    if (dague_zungqr_param != NULL) {
-        dague_enqueue(dague, (dague_object_t*)dague_zungqr_param);
-        dplasma_progress(dague);
-        dplasma_zungqr_param_Destruct( dague_zungqr_param );
-        return 0;
-    }
-    else
-        return -101;
+    return dplasma_zunmqr_param(dague, PlasmaLeft, PlasmaNoTrans, qrtree, A, TS, TT, Q);
 }
