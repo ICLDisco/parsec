@@ -119,8 +119,7 @@ int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context
     return 0;
 }
 
-
-static dague_scheduler_t scheduler = { "None", NULL, NULL, NULL, NULL, NULL };
+dague_scheduler_t scheduler = { "None", NULL, NULL, NULL, NULL, NULL, NULL };
 
 void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
 {
@@ -129,7 +128,8 @@ void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
     }
     if( NULL != s ) {
         memcpy( &scheduler, s, sizeof(dague_scheduler_t) );
-        scheduler.init( dague );
+        if( NULL != scheduler.global_init )
+            scheduler.global_init( dague );
     } else {
         memset( &scheduler, 0, sizeof(dague_scheduler_t) );
     }

@@ -1093,8 +1093,9 @@ static void jdf_generate_header_file(const jdf_t* jdf)
 
 static void jdf_generate_structure(const jdf_t *jdf)
 {
-    int nbfunctions, nbdata;
+    int nbfunctions, nbdata, need_profile = 0;
     string_arena_t *sa1, *sa2;
+    jdf_function_entry_t* f;
 
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
     JDF_COUNT_LIST_ENTRIES(jdf->data, jdf_data_entry_t, next, nbdata);
@@ -1112,31 +1113,34 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#include \"%s.h\"\n\n"
             "#define DAGUE_%s_NB_FUNCTIONS %d\n"
             "#define DAGUE_%s_NB_DATA %d\n"
-            "#if defined(DAGUE_PROF_TRACE)\n"
-            "static int %s_profiling_array[2*DAGUE_%s_NB_FUNCTIONS] = {-1};\n"
-            "#endif  /* defined(DAGUE_PROF_TRACE) */\n"
             "#if defined(DAGUE_PROF_GRAPHER)\n"
             "#include \"dague_prof_grapher.h\"\n"
             "#endif  /* defined(DAGUE_PROF_GRAPHER) */\n"
             "#include <mempool.h>\n",
             jdf_basename,
             jdf_basename, nbfunctions,
-            jdf_basename, nbdata,
-            jdf_basename, jdf_basename);
+            jdf_basename, nbdata);
     coutput("typedef struct __dague_%s_internal_object {\n", jdf_basename);
     coutput("  dague_%s_object_t super;\n",
             jdf_basename);
     coutput("  /* The list of data repositories */\n");
-    {
-        jdf_function_entry_t* f;
 
-        for( f = jdf->functions; NULL != f; f = f->next ) {
-            if( 0 != function_has_data_output(f) )
-                coutput("  data_repo_t *%s_repository;\n", f->fname);
-        }
+    for( f = jdf->functions; NULL != f; f = f->next ) {
+        if( 0 != function_has_data_output(f) )
+            coutput("  data_repo_t *%s_repository;\n", f->fname);
     }
     coutput("} __dague_%s_internal_object_t;\n"
             "\n", jdf_basename);
+
+    for( f = jdf->functions; NULL != f; f = f->next ) {
+        /* If the profile property is ON then enable the profiling array */
+        need_profile += jdf_property_get_int(f->properties, "profile", 1);
+    }
+    if( need_profile )
+        coutput("#if defined(DAGUE_PROF_TRACE)\n"
+                "static int %s_profiling_array[2*DAGUE_%s_NB_FUNCTIONS] = {-1};\n"
+                "#endif  /* defined(DAGUE_PROF_TRACE) */\n",
+                jdf_basename, jdf_basename);
 
     UTIL_DUMP_LIST(sa1, jdf->globals, next,
                    dump_globals, sa2, "", "#define ", "\n", "\n");
@@ -3470,7 +3474,9 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf,
             jdf_basename, function->fname, context_name);
 }
 
-static int jdf_property_get_int( const jdf_def_list_t* properties, const char* prop_name, int ret_if_not_found )
+static int jdf_property_get_int( const jdf_def_list_t* properties,
+                                 const char* prop_name,
+                                 int ret_if_not_found )
 {
     jdf_def_list_t* property;
     jdf_expr_t* expr = jdf_find_property(properties, prop_name, &property);
