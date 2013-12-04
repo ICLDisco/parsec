@@ -930,7 +930,7 @@ static int remote_dep_mpi_pack_dep(dague_context_t* ctx,
      * is left to send. */
     MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, length, &saved_position, dep_comm);
     msg->output_mask ^= which;  /* remove the packed ones */
-    if(completed) remote_dep_complete_and_cleanup(pdeps, completed, msg->output_mask, ctx);
+    if(completed) remote_dep_complete_and_cleanup(pdeps, completed, ctx);
     return 0;
 }
 
@@ -1219,8 +1219,7 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
     task->output_mask ^= (1<<k);
     /* Are we done yet ? */
     remote_dep_complete_and_cleanup((dague_remote_deps_t**)&(task->deps),
-                                    1, task->output_mask,
-                                    eu_context->virtual_process->dague_context);
+                                    1, eu_context->virtual_process->dague_context);
     if( 0 == task->output_mask ) {
         free(item);
         dep_pending_put_array[i] = NULL;

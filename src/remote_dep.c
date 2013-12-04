@@ -76,22 +76,15 @@ remote_dep_dec_flying_messages(dague_object_t *dague_object,
 static inline int
 remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
                                 int ncompleted,
-                                int validator,
                                 dague_context_t* ctx)
 {
     (*deps)->output_sent_count += ncompleted;
     assert( (*deps)->output_sent_count <= (*deps)->output_count );
 
     if( (*deps)->output_count == (*deps)->output_sent_count ) {
-        if( 0 == validator ) {
-            DEBUG2(("Complete %d (%d/%d) outputs of dep %p (decreasing inflight messages)",
-                    ncompleted, (*deps)->output_count, (*deps)->output_sent_count, deps));
-            remote_dep_dec_flying_messages((*deps)->dague_object, ctx);
-        } else {
-            DEBUG2(("Complete %d (%d/%d) outputs of dep %p (release deps)",
-                    ncompleted, (*deps)->output_count, (*deps)->output_sent_count, deps));
-        }
-
+        DEBUG2(("Complete %d (%d/%d) outputs of dep %p (decreasing inflight messages)",
+                ncompleted, (*deps)->output_count, (*deps)->output_sent_count, deps));
+        remote_dep_dec_flying_messages((*deps)->dague_object, ctx);
         remote_deps_free(*deps);
         *deps = NULL;
         return 1;
@@ -226,6 +219,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
 
+    /* Let the engine know we're working to activate the dependencies remotely */
+    remote_dep_inc_flying_messages(exec_context->dague_object,
+                                   eu_context->virtual_process->dague_context);
+
     remote_dep_reset_forwarded(eu_context, remote_deps);
     remote_deps->dague_object    = exec_context->dague_object;
     remote_deps->output_count    = remote_deps_count;
@@ -289,8 +286,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         continue;
                     }
                     assert(output->parent->dague_object == exec_context->dague_object);
-                    remote_dep_inc_flying_messages(exec_context->dague_object,
-                                                   eu_context->virtual_process->dague_context);
                     remote_dep_mark_forwarded(eu_context, output, rank);
                     remote_dep_send(rank, remote_deps);
                 } else {
@@ -312,7 +307,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
      */
     if( skipped_count ) {
         remote_dep_complete_and_cleanup(&remote_deps, skipped_count,
-                                        1, eu_context->virtual_process->dague_context);
+                                        eu_context->virtual_process->dague_context);
     }
 
     return 0;
