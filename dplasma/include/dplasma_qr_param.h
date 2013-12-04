@@ -6,9 +6,8 @@
  * @precisions normal z -> z c d s
  *
  */
-#ifndef _DPLASMA_QR_PIVGEN_H_
-#define _DPLASMA_QR_PIVGEN_H_
-
+#ifndef _DPLASMA_QR_PARAM_H_
+#define _DPLASMA_QR_PARAM_H_
 
 /*
  * DPLASMA_QR_KILLED_BY_TS needs to be set to 0 for all variant of QR
@@ -21,6 +20,13 @@ typedef enum dplasma_qr_type_ {
     DPLASMA_QR_KILLED_BY_DISTTREE  = 3,
 } dplasma_qr_type_e;
 
+typedef enum dplasma_qr_tree_ {
+    DPLASMA_FLAT_TREE      = 0,
+    DPLASMA_GREEDY_TREE    = 1,
+    DPLASMA_FIBONACCI_TREE = 2,
+    DPLASMA_BINARY_TREE    = 3,
+    DPLASMA_GREEDY1P_TREE  = 4,
+} dplasma_qr_tree_e;
 
 struct dplasma_qrtree_s;
 typedef struct dplasma_qrtree_s dplasma_qrtree_t;
@@ -99,8 +105,9 @@ struct dplasma_qrtree_s {
      */
     int (*prevpiv)(const dplasma_qrtree_t *qrtree, int k, int p, int m);
 
-    /** Descriptor associated to the factorization */
-    tiled_matrix_desc_t *desc;
+    /** Descriptor infos associated to the factorization */
+    int mt;
+    int nt;
     /** Size of the domain where TS kernels are applied */
     int a;
     /** Size of highest level tree (distributed one) */
@@ -109,25 +116,15 @@ struct dplasma_qrtree_s {
 };
 
 void dplasma_systolic_init( dplasma_qrtree_t *qrtree,
-                            tiled_matrix_desc_t *A,
+                            PLASMA_enum trans, tiled_matrix_desc_t *A,
                             int p, int q );
 void dplasma_systolic_finalize( dplasma_qrtree_t *qrtree );
 
 void dplasma_hqr_init( dplasma_qrtree_t *qrtree,
-                       tiled_matrix_desc_t *A,
+                       PLASMA_enum trans, tiled_matrix_desc_t *A,
                        int type_llvl, int type_hlvl,
                        int a, int p, int domino, int tsrr );
 void dplasma_hqr_finalize( dplasma_qrtree_t *qrtree );
-
-#if 0
-int dplasma_qr_getsize(     const qr_piv_t *arg, const int k, const int i );
-int dplasma_qr_nexttriangle(const qr_piv_t *arg, int p, const int k, int m);
-int dplasma_qr_prevtriangle(const qr_piv_t *arg, int p, const int k, int m);
-int dplasma_qr_nbkill(      const qr_piv_t *arg, const int k, const int m);
-int dplasma_qr_getkill(     const qr_piv_t *arg, const int k, const int m, const int j);
-int dplasma_qr_getjkill(    const qr_piv_t *arg, const int k, const int m, const int kill);
-#endif
-
 
 /*
  * Debugging functions
@@ -142,4 +139,4 @@ void dplasma_qrtree_print_next_k ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrt
 void dplasma_qrtree_print_prev_k ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k );
 void dplasma_qrtree_print_geqrt_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k );
 
-#endif /* _DPLASMA_QR_PIVGEN_H_ */
+#endif /* _DPLASMA_QR_PARAM_H_ */

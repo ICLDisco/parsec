@@ -9,7 +9,8 @@
 
 #include "dague_config.h"
 
-#if defined(DAGUE_DEBUG)
+#define DPLASMA_DEBUG
+#if defined(DPLASMA_DEBUG)
 #define dplasma_error(__func, __msg) do { fprintf(stderr, "%s: %s\n", (__func), (__msg)); *((int*)0) = 42; } while(0)
 #else
 #define dplasma_error(__func, __msg) do { fprintf(stderr, "%s: %s\n", (__func), (__msg)); } while(0)
@@ -19,13 +20,7 @@
 #include "data_dist/matrix/matrix.h"
 
 /* Functions specific to QR */
-#include "dplasma_qr_pivgen.h"
-
-#define DPLASMA_FLAT_TREE       0
-#define DPLASMA_GREEDY_TREE     1
-#define DPLASMA_FIBONACCI_TREE  2
-#define DPLASMA_BINARY_TREE     3
-#define DPLASMA_GREEDY1P_TREE   4
+#include "dplasma_qr_param.h"
 
 /*
  * Enum criteria for LU/QR algorithm
