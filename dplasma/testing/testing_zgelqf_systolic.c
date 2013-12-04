@@ -90,11 +90,10 @@ int main(int argc, char ** argv)
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
     if(loud > 3) printf("Done\n");
 
-    dplasma_hqr_init( &qrtree,
-                      PlasmaConjTrans, (tiled_matrix_desc_t *)&ddescA,
-                      iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
-                      iparam[IPARAM_QR_TS_SZE],   iparam[IPARAM_QR_HLVL_SZE],
-                      iparam[IPARAM_QR_DOMINO],   iparam[IPARAM_QR_TSRR] );
+    dplasma_systolic_init( &qrtree,
+                           PlasmaConjTrans, (tiled_matrix_desc_t *)&ddescA,
+                           iparam[IPARAM_QR_HLVL_SZE],
+                           iparam[IPARAM_QR_TS_SZE] );
 
     /* Create DAGuE */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgelqf_param,
@@ -201,7 +200,7 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy((dague_ddesc_t*)&ddescX);
     }
 
-    dplasma_hqr_finalize( &qrtree );
+    dplasma_systolic_finalize( &qrtree );
 
     cleanup_dague(dague, iparam);
 
