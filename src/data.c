@@ -323,8 +323,7 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
         assert( -1 != transfer_from );
         assert( data->device_copies[transfer_from]->version >= copy->version );
     }
-    dague_dump_data_copy(copy);
-    printf("TRANSFER FOR copy %p is %d\n", copy, transfer_from);
+    //dague_dump_data_copy(copy);
     return transfer_from;
 }
 
