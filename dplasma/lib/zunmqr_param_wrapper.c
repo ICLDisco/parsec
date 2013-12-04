@@ -12,10 +12,10 @@
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
 
-//#include "zunmqr_param_LN.h"
+#include "zunmqr_param_LN.h"
 #include "zunmqr_param_LC.h"
-//#include "zunmqr_param_RN.h"
-//#include "zunmqr_param_RC.h"
+#include "zunmqr_param_RN.h"
+#include "zunmqr_param_RC.h"
 
 /**
  *******************************************************************************
@@ -51,10 +51,10 @@
  *
  * @param[in] A
  *          Descriptor of the matrix A of size M-by-K factorized with the
- *          dplasma_zgeqrf_New() routine.
- *          On entry, the i-th column must contain the vector which
- *          defines the elementary reflector H(i), for i = 1,2,...,k, as
- *          returned by dplasma_zgeqrf_New() in the first k columns of its array
+ *          dplasma_zgeqrf_param_New() routine.
+ *          On entry, the i-th column must contain the vector which defines the
+ *          elementary reflector H(i), for i = 1,2,...,k, as returned by
+ *          dplasma_zgeqrf_param_New_New() in the first k columns of its array
  *          argument A.
  *          If side == PlasmaLeft,  M >= K >= 0.
  *          If side == PlasmaRight, N >= K >= 0.
@@ -154,19 +154,15 @@ dplasma_zunmqr_param_New( PLASMA_enum side, PLASMA_enum trans,
         return NULL;
     }
 
-    /*
-     * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
-     * it should be passed as a parameter as in getrf
-     */
     if ( side == PlasmaLeft ) {
         if ( trans == PlasmaNoTrans ) {
-            /* object = (dague_object_t*)dague_zunmqr_param_LN_new( side, trans, */
-            /*                                                      (dague_ddesc_t*)A, */
-            /*                                                      (dague_ddesc_t*)C, */
-            /*                                                      (dague_ddesc_t*)TS, */
-            /*                                                      (dague_ddesc_t*)TT, */
-            /*                                                      *qrtree, */
-            /*                                                      NULL); */
+            object = (dague_object_t*)dague_zunmqr_param_LN_new( side, trans,
+                                                                 (dague_ddesc_t*)A,
+                                                                 (dague_ddesc_t*)C,
+                                                                 (dague_ddesc_t*)TS,
+                                                                 (dague_ddesc_t*)TT,
+                                                                 *qrtree,
+                                                                 NULL);
         } else {
             object = (dague_object_t*)dague_zunmqr_param_LC_new( side, trans,
                                                                  (dague_ddesc_t*)A,
@@ -177,23 +173,23 @@ dplasma_zunmqr_param_New( PLASMA_enum side, PLASMA_enum trans,
                                                                  NULL);
         }
     } else {
-        /* if ( trans == PlasmaNoTrans ) { */
-        /*     object = (dague_object_t*)dague_zunmqr_param_RN_new( side, trans, */
-        /*                                                          (dague_ddesc_t*)A, */
-        /*                                                          (dague_ddesc_t*)C, */
-        /*                                                          (dague_ddesc_t*)TS, */
-        /*                                                          (dague_ddesc_t*)TT, */
-        /*                                                          *qrtree, */
-        /*                                                          NULL); */
-        /* } else { */
-        /*     object = (dague_object_t*)dague_zunmqr_param_RC_new( side, trans, */
-        /*                                                          (dague_ddesc_t*)A, */
-        /*                                                          (dague_ddesc_t*)C, */
-        /*                                                          (dague_ddesc_t*)TS, */
-        /*                                                          (dague_ddesc_t*)TT, */
-        /*                                                          *qrtree, */
-        /*                                                          NULL); */
-        /* } */
+        if ( trans == PlasmaNoTrans ) {
+            object = (dague_object_t*)dague_zunmqr_param_RN_new( side, trans,
+                                                                 (dague_ddesc_t*)A,
+                                                                 (dague_ddesc_t*)C,
+                                                                 (dague_ddesc_t*)TS,
+                                                                 (dague_ddesc_t*)TT,
+                                                                 *qrtree,
+                                                                 NULL);
+        } else {
+            object = (dague_object_t*)dague_zunmqr_param_RC_new( side, trans,
+                                                                 (dague_ddesc_t*)A,
+                                                                 (dague_ddesc_t*)C,
+                                                                 (dague_ddesc_t*)TS,
+                                                                 (dague_ddesc_t*)TT,
+                                                                 *qrtree,
+                                                                 NULL);
+        }
     }
 
     ((dague_zunmqr_param_LC_object_t*)object)->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
