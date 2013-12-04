@@ -119,11 +119,11 @@ if( MPI_C_FOUND )
     add_test(mpi_${prec}geqrf        ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf        -p 4 -N 4000 -x -v=5)
     SET_TESTS_PROPERTIES(mpi_${prec}geqrf PROPERTIES DEPENDS mpi_test)
 
-    add_test(mpi_${prec}gelqf        ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}gelqf        -p 4 -N 4000 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}gelqf PROPERTIES DEPENDS mpi_test)
-
     add_test(mpi_${prec}geqrf_pbq    ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf        -p 4 -N 4000 -x -v=5 -o PBQ)
     SET_TESTS_PROPERTIES(mpi_${prec}geqrf_pbq PROPERTIES DEPENDS mpi_test)
+
+    add_test(mpi_${prec}gelqf        ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}gelqf        -p 4 -N 4000 -x -v=5)
+    SET_TESTS_PROPERTIES(mpi_${prec}gelqf PROPERTIES DEPENDS mpi_test)
 
     add_test(mpi_${prec}geqrf_p0     ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 0 --tsrr=0 -v=5)
     SET_TESTS_PROPERTIES(mpi_${prec}geqrf_p0 PROPERTIES DEPENDS mpi_test)
