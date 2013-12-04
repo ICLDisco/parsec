@@ -29,7 +29,12 @@ set(TESTS
   # QR/LQ
   testing_zgelqf.c
   testing_zgeqrf.c
-  #testing_zgeqrf_param.c
+  testing_zunmqr.c
+  testing_zunmlq.c
+  testing_zgeqrf_param.c
+  #testing_zgelqf_param.c
+  testing_zunmqr_param.c
+  #testing_zunmlq_param.c
   #testing_zgeqrf_rd.c
   #testing_zgeqrf_systolic.c
   #testing_zgesv_incpiv.c
@@ -49,7 +54,6 @@ set(TESTS
   #testing_zhebut.c
   #testing_zheev.c
   #testing_zherbt.c
-  #testing_zunmqr.c
 )
 if( DPLASMA_DEBUG_QR_PIVGEN )
   list(APPEND TESTS testing_zpivgen.c)
