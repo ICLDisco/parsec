@@ -42,7 +42,6 @@ set(TESTS
   testing_zunmqr_systolic.c
   testing_zunmlq_systolic.c
   #testing_zgeqrf_rd.c
-  #testing_zgeqrf_systolic.c
   #testing_zgesv_incpiv.c
   #testing_zgesvd.c
   #testing_zgetrf.c
