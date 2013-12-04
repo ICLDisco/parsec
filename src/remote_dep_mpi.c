@@ -593,7 +593,6 @@ static int remote_dep_dequeue_nothread_progress(dague_context_t* context)
     goto check_pending_queues;
 }
 
-
 static int remote_dep_nothread_memcpy(dague_execution_unit_t* eu_context,
                                       dep_cmd_item_t *item)
 {
@@ -606,10 +605,6 @@ static int remote_dep_nothread_memcpy(dague_execution_unit_t* eu_context,
                                    eu_context->virtual_process->dague_context);
     return (MPI_SUCCESS == rc ? 0 : -1);
 }
-
-
-
-
 
 /******************************************************************************
  * ALL MPI SPECIFIC CODE GOES HERE

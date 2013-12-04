@@ -16,7 +16,7 @@
 
 #include <execinfo.h>
 
-int dague_verbose = DAGUE_DEBUG_VERBOSE;
+int dague_verbose = 2 /*DAGUE_DEBUG_VERBOSE*/;
 int dague_debug_rank = -1;
 
 #define ST_SIZE 128

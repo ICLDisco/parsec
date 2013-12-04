@@ -83,11 +83,21 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
     assert( (*deps)->output_sent_count <= (*deps)->output_count );
 
     if( (*deps)->output_count == (*deps)->output_sent_count ) {
-        if( 0 == validator )
+        if( 0 == validator ) {
+            DEBUG2(("Complete %d (%d/%d) outputs of dep %p (decreasing inflight messages)",
+                    ncompleted, (*deps)->output_count, (*deps)->output_sent_count, deps));
             remote_dep_dec_flying_messages((*deps)->dague_object, ctx);
+        } else {
+            DEBUG2(("Complete %d (%d/%d) outputs of dep %p (release deps)",
+                    ncompleted, (*deps)->output_count, (*deps)->output_sent_count, deps));
+        }
+
         remote_deps_free(*deps);
         *deps = NULL;
         return 1;
+    } else {
+        DEBUG2(("Complete %d (%d/%d) outputs of dep %p",
+                ncompleted, (*deps)->output_count, (*deps)->output_sent_count, deps));
     }
     return 0;
 }
@@ -267,11 +277,11 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 #if defined(DAGUE_DEBUG_VERBOSE)
                     /* Mark all flows related to this message */
                     for(flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
-                        if( exec_context->function->out[flow_index]->flow_mask & output->deps_mask ) {
+                        if( exec_context->function->out[flow_index]->flow_mask & (1<<i) ) {
                             assert( NULL != exec_context->function->out[flow_index] );
-                            DEBUG2((" TOPO\t%s flow %s (0x%x) root=%d\t%d (d%d) -> %d (d%d)\n",
-                                    tmp, exec_context->function->out[flow_index]->name, output->deps_mask,
-                                    remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
+                            DEBUG2((" TOPO\t%s flow %s root=%d\t%d (d%d) -> %d (d%d)\n",
+                                    tmp, exec_context->function->out[flow_index]->name, remote_deps->root,
+                                    eu_context->virtual_process->dague_context->my_rank, me, rank, him));
                         }
                     }
 #endif  /* defined(DAGUE_DEBUG_VERBOSE) */
@@ -285,9 +295,9 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     remote_dep_send(rank, remote_deps);
                 } else {
                     skipped_count++;
-                    DEBUG2((" TOPO\t%s flow %s (0x%x) root=%d\t%d (d%d) ][ %d (d%d)\n",
-                            tmp, exec_context->function->out[flow_index]->name, output->deps_mask,
-                            remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank, him));
+                    DEBUG2((" TOPO\t%s flow %s root=%d\t%d (d%d) ][ %d (d%d)\n",
+                            tmp, exec_context->function->out[flow_index]->name, remote_deps->root,
+                            eu_context->virtual_process->dague_context->my_rank, me, rank, him));
                 }
             }
         }
