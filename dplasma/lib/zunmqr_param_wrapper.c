@@ -59,21 +59,19 @@
  *          If side == PlasmaLeft,  M >= K >= 0.
  *          If side == PlasmaRight, N >= K >= 0.
  *
- * @param[out] TS
- *          Descriptor of the matrix TS distributed exactly as the A matrix. TS.mb
- *          defines the IB parameter of tile QR algorithm. This matrix must be
- *          of size A.mt * TS.mb - by - A.nt * TS.nb, with TS.nb == A.nb.
- *          On exit, contains auxiliary information computed through TS kernels
- *          at the lowest level and which are required to generate the Q matrix,
- *          and/or solve the problem.
+ * @param[in] TS
+ *          Descriptor of the matrix TS distributed exactly as the A
+ *          matrix. TS.mb defines the IB parameter of tile QR algorithm. This
+ *          matrix must be of size A.mt * TS.mb - by - A.nt * TS.nb, with TS.nb
+ *          == A.nb.  This matrix is initialized during the call to
+ *          dplasma_zgeqrf_param_New().
  *
- * @param[out] TT
- *          Descriptor of the matrix TT distributed exactly as the A matrix. TT.mb
- *          defines the IB parameter of tile QR algorithm. This matrix must be
- *          of size A.mt * TT.mb - by - A.nt * TT.nb, with TT.nb == A.nb.
- *          On exit, contains auxiliary information computed through TT kernels
- *          at higher levels and which are required to generate the Q matrix,
- *          and/or solve the problem.
+ * @param[in] TT
+ *          Descriptor of the matrix TT distributed exactly as the A
+ *          matrix. TT.mb defines the IB parameter of tile QR algorithm. This
+ *          matrix must be of size A.mt * TT.mb - by - A.nt * TT.nb, with TT.nb
+ *          == A.nb.  This matrix is initialized during the call to
+ *          dplasma_zgeqrf_param_New().
  *
  * @param[in,out] C
  *          Descriptor of the M-by-N matrix C.
@@ -301,21 +299,19 @@ dplasma_zunmqr_param_Destruct( dague_object_t *object )
  *          If side == PlasmaLeft,  M >= K >= 0.
  *          If side == PlasmaRight, N >= K >= 0.
  *
- * @param[out] TS
- *          Descriptor of the matrix TS distributed exactly as the A matrix. TS.mb
- *          defines the IB parameter of tile QR algorithm. This matrix must be
- *          of size A.mt * TS.mb - by - A.nt * TS.nb, with TS.nb == A.nb.
- *          On exit, contains auxiliary information computed through TS kernels
- *          at the lowest level and which are required to generate the Q matrix,
- *          and/or solve the problem.
+ * @param[in] TS
+ *          Descriptor of the matrix TS distributed exactly as the A
+ *          matrix. TS.mb defines the IB parameter of tile QR algorithm. This
+ *          matrix must be of size A.mt * TS.mb - by - A.nt * TS.nb, with TS.nb
+ *          == A.nb.  This matrix is initialized during the call to
+ *          dplasma_zgeqrf_param_New().
  *
- * @param[out] TT
- *          Descriptor of the matrix TT distributed exactly as the A matrix. TT.mb
- *          defines the IB parameter of tile QR algorithm. This matrix must be
- *          of size A.mt * TT.mb - by - A.nt * TT.nb, with TT.nb == A.nb.
- *          On exit, contains auxiliary information computed through TT kernels
- *          at higher levels and which are required to generate the Q matrix,
- *          and/or solve the problem.
+ * @param[in] TT
+ *          Descriptor of the matrix TT distributed exactly as the A
+ *          matrix. TT.mb defines the IB parameter of tile QR algorithm. This
+ *          matrix must be of size A.mt * TT.mb - by - A.nt * TT.nb, with TT.nb
+ *          == A.nb.  This matrix is initialized during the call to
+ *          dplasma_zgeqrf_param_New().
  *
  * @param[in,out] C
  *          Descriptor of the M-by-N matrix C.
