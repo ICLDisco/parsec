@@ -1015,7 +1015,6 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#include <dague_config.h>\n"
             "#include <dague.h>\n"
             "#include <data_distribution.h>\n"
-            "#include <debug.h>\n"
             "#include <dague/ayudame.h>\n"
             "#include <assert.h>\n\n");
     houtput("BEGIN_C_DECLS\n\n");
@@ -1076,6 +1075,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
     sa2 = string_arena_new(64);
 
     coutput("#include <dague.h>\n"
+            "#include \"debug.h\"\n"
             "#include <scheduling.h>\n"
             "#include <remote_dep.h>\n"
             "#include <datarepo.h>\n"
@@ -1161,10 +1161,10 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };                     \n\n");
 
     coutput("/* Release dependencies output macro */\n"
-            "#if defined(DAGUE_DEBUG_VERBOSE1)\n"
+            "#if DAGUE_DEBUG_VERBOSE != 0\n"
             "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST)\\\n"
             "  do { \\\n"
-            "    char tmp1[128], tmp2[128];\\\n"
+            "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
             "    DEBUG((\"thread %%d VP %%d release deps of %%s:%%s to %%s:%%s (from node %%d to %%d)\\n\",\\\n"
             "           (NULL != (EU) ? (EU)->th_id : -1), (NULL != (EU) ? (EU)->virtual_process->vp_id : -1),\\\n"
             "           DEPO, dague_snprintf_execution_context(tmp1, 128, (TASKO)),\\\n"
@@ -1172,10 +1172,10 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "  } while(0)\n"
             "#define ACQUIRE_FLOW(TASKI, DEPI, FUNO, DEPO, LOCALS)\\\n"
             "  do { \\\n"
-            "    char tmp1[128], tmp2[128];\\\n"
+            "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
             "    DEBUG((\"task %%s acquires flow %%s from %%s %%s\\n\",\\\n"
-            "         dague_snprintf_execution_context(tmp1, 128, (TASKI)), (DEPI),\\\n"
-            "         dague_snprintf_assignments(tmp2, 128, (FUNO), (LOCALS)), (DEPO)));\\\n"
+            "           dague_snprintf_execution_context(tmp1, 128, (TASKI)), (DEPI),\\\n"
+            "           dague_snprintf_assignments(tmp2, 128, (FUNO), (LOCALS)), (DEPO)));\\\n"
             "  } while(0)\n"
             "#else\n"
             "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST)\n"
@@ -1763,8 +1763,8 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
 
     string_arena_init(flow_flags);
     string_arena_add_string(flow_flags, "%s", ((flow->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
-                                               ((flow->flow_flags & JDF_FLOW_TYPE_READ) ? "FLOW_ACCESS_READ" :
-                                                ((flow->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_WRITE" : "FLOW_ACCESS_RW"))));
+                                               ((flow->flow_flags & JDF_FLOW_TYPE_READ) ?
+                                                ((flow->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_RW" : "FLOW_ACCESS_WRITE") : "FLOW_ACCESS_READ")));
     if(flow->flow_flags & JDF_FLOW_HAS_IN_DEPS)
         string_arena_add_string(flow_flags, "|FLOW_HAS_IN_DEPS");
 
@@ -1804,7 +1804,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
      * the MASK method must be discarded, and 1 if the MASK method
      * can be used. */
     *has_control_gather |= !indepnorange;
-    return indepnorange && (((dague_dependency_t)(((1 << flow->flow_index) & 0x1fffffff /*~DAGUE_DEPENDENCIES_BITMASK*/))) == 0);
+    return indepnorange && (((dague_dependency_t)(((1 << flow->flow_index) & 0x1fffffff /*~DAGUE_DEPENDENCIES_BITMASK*/))) != 0);
 }
 
 /**
@@ -2070,7 +2070,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
         }
     }
 
-    coutput("#if defined(DAGUE_DEBUG_VERBOSE2)\n"
+    coutput("#if DAGUE_DEBUG_VERBOSE != 0\n"
             "%s  {\n"
             "%s    char tmp[128];\n"
             "%s    DEBUG2((\"Add startup task %%s\\n\",\n"
@@ -2379,11 +2379,10 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     string_arena_t *sa, *sa2;
     int nbparameters, nbdefinitions, nb_incarnations;
     int inputmask, nb_input, nb_output, input_index;
-    int i, has_in_in_dep, has_control_gather;
+    int i, has_in_in_dep, has_control_gather, use_mask;
     jdf_dataflow_t *fl;
     jdf_dep_t *dl;
     char *prefix;
-    int use_mask, mask_ok;
 
     asprintf( &JDF_OBJECT_ONAME(f), "%s_%s", jdf_basename, f->fname);
 
@@ -2486,10 +2485,9 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
         use_mask = 1;
     sprintf(prefix, "flow_of_%s_%s_for_", jdf_basename, f->fname);
     has_control_gather = 0;
-    for(i = 0, fl = f->dataflow; fl != NULL; fl = fl->next, i++) {
-        mask_ok = jdf_generate_dataflow(jdf, f->locals, fl, prefix, &has_control_gather);
-        use_mask &= mask_ok;
-    }
+    for(i = 0, fl = f->dataflow; fl != NULL; fl = fl->next, i++)
+        use_mask &= jdf_generate_dataflow(jdf, f->locals, fl, prefix, &has_control_gather);
+
     if( jdf_property_get_int(f->properties, "mask_deps", 0) && (use_mask == 0) ) {
         jdf_warn(JDF_OBJECT_LINENO(f),
                  "In task %s, mask_deps was requested, but this method cannot be provided\n"
