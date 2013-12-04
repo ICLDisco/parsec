@@ -1,4 +1,6 @@
 add_library(common common.c common_timing.h flops.h)
+add_dependencies(common dplasma_includes)
+
 if(MPI_C_FOUND)
   set_target_properties(common PROPERTIES COMPILE_FLAGS
                         "${MPI_C_COMPILE_FLAGS}")
@@ -32,13 +34,13 @@ set(TESTS
   testing_zunmqr.c
   testing_zunmlq.c
   testing_zgeqrf_hqr.c
-  #testing_zgelqf_hqr.c
+  testing_zgelqf_hqr.c
   testing_zunmqr_hqr.c
-  #testing_zunmlq_hqr.c
+  testing_zunmlq_hqr.c
   testing_zgeqrf_systolic.c
-  #testing_zgelqf_systolic.c
+  testing_zgelqf_systolic.c
   testing_zunmqr_systolic.c
-  #testing_zunmlq_systolic.c
+  testing_zunmlq_systolic.c
   #testing_zgeqrf_rd.c
   #testing_zgeqrf_systolic.c
   #testing_zgesv_incpiv.c
