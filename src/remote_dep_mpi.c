@@ -1489,8 +1489,8 @@ static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context,
                                    dague_remote_deps_t* deps,
                                    int i, int k)
 {
+    /* No need to release the ref on the data it will be done in the remote_dep_release */
     remote_dep_release(eu_context, deps, (1 << k));
-    AUNREF(deps->output[k].data.ptr);
     if(0 == deps->msg.output_mask) {
         remote_deps_free(deps);
         dep_pending_recv_array[i] = NULL;
