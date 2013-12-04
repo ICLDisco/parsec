@@ -810,49 +810,52 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
     uint32_t i;
 
     for(i = 0; i < dague_nb_devices; i++) {
+        dague_list_item_t* item;
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
         /* Skip all non CUDA devices */
         if( DAGUE_DEV_CUDA != gpu_device->super.type ) continue;
 
+        dump_GPU_state(gpu_device);
+            
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_data_unregister) cuCtxPushCurrent ", status,
                                 {continue;} );
         /* Free memory on GPU */
-        DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_lru, item, {
-                dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
-                dague_data_t* original = gpu_copy->original;
-                DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
-                                      "Release copy %p, attached to %p, in map %p",
-                                      gpu_copy, original, ddesc));
+        while(NULL != (item = dague_ulist_fifo_pop(&gpu_device->gpu_mem_lru)) ) {
+            dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
+            dague_data_t* original = gpu_copy->original;
+            DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
+                                  "Release copy %p, attached to %p, in map %p",
+                                  gpu_copy, original, ddesc));
+            assert( gpu_copy->device_index == gpu_device->super.device_index );
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-                cuMemFree( (CUdeviceptr)gpu_copy->device_private );
+            cuMemFree( (CUdeviceptr)gpu_copy->device_private );
 #else
-                gpu_free( gpu_device->memory, (void*)gpu_copy->device_private );
+            gpu_free( gpu_device->memory, (void*)gpu_copy->device_private );
 #endif
-                if( NULL != original )
-                    dague_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
-                item = dague_ulist_remove(&gpu_device->gpu_mem_lru, item);
-                OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
-            });
-        DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_owned_lru, item, {
-                dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
-                dague_data_t* original = gpu_copy->original;
-                DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
-                                      "Release owned copy %p, attached to %p, in map %p",
-                                      gpu_copy, original, ddesc));
-                if( DATA_COHERENCY_OWNED == gpu_copy->coherency_state ) {
-                    WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n",
-                             i, original->key));
-                }
-#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-                cuMemFree( (CUdeviceptr)gpu_copy->device_private );
-#else
-                gpu_free( gpu_device->memory, (void*)gpu_copy->device_private );
-#endif
+            if( NULL != original )
                 dague_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
-                item = dague_ulist_remove(&gpu_device->gpu_mem_lru, item);
-                OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
-            });
+            OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
+        }
+        while(NULL != (item = dague_ulist_fifo_pop(&gpu_device->gpu_mem_owned_lru)) ) {
+            dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
+            dague_data_t* original = gpu_copy->original;
+            DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
+                                  "Release owned copy %p, attached to %p, in map %p",
+                                  gpu_copy, original, ddesc));
+            assert( gpu_copy->device_index == gpu_device->super.device_index );
+            if( DATA_COHERENCY_OWNED == gpu_copy->coherency_state ) {
+                WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n",
+                         i, original->key));
+            }
+#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
+            cuMemFree( (CUdeviceptr)gpu_copy->device_private );
+#else
+            gpu_free( gpu_device->memory, (void*)gpu_copy->device_private );
+#endif
+            dague_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
+            OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
+        }
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         if( gpu_device->memory ) {
