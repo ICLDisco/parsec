@@ -299,6 +299,7 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
                  if( data->device_copies[i]->version < copy->version ) {
                      data->device_copies[i]->coherency_state = DATA_COHERENCY_INVALID;
                  }
+                 data->owner_device = -1;
             }
             if( DATA_COHERENCY_EXCLUSIVE == data->device_copies[i]->coherency_state ) {
                 data->device_copies[i]->coherency_state = DATA_COHERENCY_SHARED;
@@ -310,7 +311,6 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
     else transfer_required = 0; /* finally we'll just overwrite w/o read */
 
     if( ACCESS_WRITE & access_mode ) {
-        data->owner_device = (uint8_t)device;
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( NULL == data->device_copies[i] ) continue;
             if( DATA_COHERENCY_INVALID == data->device_copies[i] ) continue;
