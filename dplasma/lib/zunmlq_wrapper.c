@@ -248,7 +248,7 @@ dplasma_zunmlq_Destruct( dague_object_t *object )
  *          @arg PlasmaConjTrans: conjugate transpose, apply Q**H.
  *
  * @param[in] A
- *          Descriptor of the matrix A of size K-by-N factorized with the
+ *          Descriptor of the matrix A of size K-by-(N,M) factorized with the
  *          dplasma_zgelqf_New() routine.
  *          On entry, the i-th row must contain the vector which
  *          defines the elementary reflector H(i), for i = 1,2,...,k, as

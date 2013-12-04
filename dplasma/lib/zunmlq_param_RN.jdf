@@ -45,11 +45,11 @@ zunmlq(k, i, m)
 
   READ  A    <- A zunmlq_in(k, i)   [type = UPPER_TILE]
   READ  T    <- T zunmlq_in(k, i)   [type = LITTLE_T]
-  RW    C    <- ( k == 0 ) ? dataB(m, p)
-             <- ( k >  0 ) ? A2 zttmlq(k-1, m, p)
-             -> ( k == descA.nt-1 ) ? dataB(m, p)
-             -> ((k <  descA.nt-1) & (nextp != descA.nt) ) ? A1 zttmlq(k, m, nextp)
-             -> ((k <  descA.nt-1) & (nextp == descA.nt) ) ? A2 zttmlq(k, m, p    )
+  RW    C    -> ( k == 0 ) ? dataB(m, p)
+             -> ( k >  0 ) ? A2 zttmlq(k-1, m, p)
+             <- ( k == descA.nt-1 ) ? dataB(m, p)
+             <- ((k <  descA.nt-1) & (nextp != descA.nt) ) ? A1 zttmlq(k, m, nextp)
+             <- ((k <  descA.nt-1) & (nextp == descA.nt) ) ? A2 zttmlq(k, m, p    )
 
 BODY
 {
@@ -120,20 +120,20 @@ zttmlq(k, m, n)
   /* Locality */
   : dataB(m, n)
 
-  RW    A1   <-  (prevp == descA.nt) ? C zunmlq( k, ip, m ) : A1 zttmlq(k, m, prevp )
+  RW    A1   ->  (prevp == descA.nt) ? C zunmlq( k, ip, m ) : A1 zttmlq(k, m, prevp )
 
-             -> ((nextp == descA.nt) & ( p == k ) ) ? A  zttmlq_out_B(p, m)
-             -> ((nextp == descA.nt) & ( p != k ) ) ? A2 zttmlq( k, m, p    )
-             ->  (nextp != descA.nt) ?                A1 zttmlq( k, m, nextp)
+             <- ((nextp == descA.nt) & ( p == k ) ) ? A  zttmlq_out_B(p, m)
+             <- ((nextp == descA.nt) & ( p != k ) ) ? A2 zttmlq( k, m, p    )
+             <-  (nextp != descA.nt) ?                A1 zttmlq( k, m, nextp)
 
-  RW    A2   <- ( (type  == 0 ) && (k     == 0        ) ) ? dataB(m, n)
-             <- ( (type  == 0 ) && (k     != 0        ) ) ? A2 zttmlq(k-1, m, n )
-             <- ( (type  != 0 ) && (prevn == descA.nt ) ) ? C  zunmlq(k, in, m    )
-             <- ( (type  != 0 ) && (prevn != descA.nt ) ) ? A1 zttmlq(k, m, prevn )
+  RW    A2   -> ( (type  == 0 ) && (k     == 0        ) ) ? dataB(m, n)
+             -> ( (type  == 0 ) && (k     != 0        ) ) ? A2 zttmlq(k-1, m, n )
+             -> ( (type  != 0 ) && (prevn == descA.nt ) ) ? C  zunmlq(k, in, m    )
+             -> ( (type  != 0 ) && (prevn != descA.nt ) ) ? A1 zttmlq(k, m, prevn )
 
-             ->   (k == (descA.mt-1))                    ? dataB( m, n )
-             -> ( (k != (descA.mt-1)) && (type1 != 0 ) ) ? C  zunmlq( k+1, in1, m )
-             -> ( (k != (descA.mt-1)) && (type1 == 0 ) ) ? A2 zttmlq( k+1, m, n )
+             <-   (k == (descA.mt-1))                    ? dataB( m, n )
+             <- ( (k <  (descA.mt-1)) && (type1 != 0 ) ) ? C  zunmlq( k+1, in1, m )
+             <- ( (k <  (descA.mt-1)) && (type1 == 0 ) ) ? A2 zttmlq( k+1, m, n )
 
   READ  V    <- (type == 0) ? A zttmlq_in(k,n)
              <- (type != 0) ? A zttmlq_in(k,n)                       [type = LOWER_TILE]
@@ -211,8 +211,8 @@ zttmlq_out_B(k, m) [profile = off]
 
   : dataB(m, k)
 
-  RW A <- A1 zttmlq( k, prevp, m )
-       -> dataB(m, k)
+  RW A -> A1 zttmlq( k, m, prevp )
+       <- dataB(m, k)
 
 BODY
 {
