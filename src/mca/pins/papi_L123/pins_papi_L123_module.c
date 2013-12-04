@@ -79,6 +79,9 @@ static int pins_prof_papi_core_exec_begin,
 
 static void pins_init_papi_L123(dague_context_t * master_context) {
     pins_papi_init(master_context);
+#ifdef PARSEC_PROF_TAU
+    pins_tau_init(master_context);
+#endif
 
     if (enable_socket)
         dague_profiling_add_dictionary_keyword(PAPI_CORE_PROF_EVT_NAME_SOCKET, "fill:#00AAFF",
@@ -134,6 +137,9 @@ static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit) {
     int native;
 
     pins_papi_thread_init(exec_unit);
+#ifdef PARSEC_PROF_TAU
+    pins_tau_thread_init(master_context);
+#endif
 
     exec_unit->papi_eventsets[EXEC_SET] = PAPI_NULL;
 
