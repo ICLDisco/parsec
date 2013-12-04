@@ -171,7 +171,7 @@ data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo,
     return n;
 }
 
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if DAGUE_DEBUG_VERBOSE != 0
 # define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
 static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key, const char *tablename, const char *file, int line)
 #else
@@ -193,7 +193,7 @@ static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_
             break;
         }
 
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE != 0
     if( NULL == e ) {
         DEBUG3(("entry %ld of hash table %s could not be found at %s:%d\n", key, tablename, file, line));
     }
@@ -221,7 +221,7 @@ static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_
     (void)eu;
 }
 
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if DAGUE_DEBUG_VERBOSE != 0
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
 static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t usagelmt, const char *tablename, const char *file, int line)
 #else

@@ -141,7 +141,7 @@ void debug_mark_purge_all_history(void);
 
 #endif /* DAGUE_DEBUG_HISTORY */
 
-#if defined(DAGUE_DEBUG_VERBOSE) && DAGUE_DEBUG_VERBOSE != 0
+#if DAGUE_DEBUG_VERBOSE != 0
 # define DEBUG3(ARG)                            \
     if( dague_verbose >= 3 ) {                  \
         _DAGUE_OUTPUT("D^", ARG);               \
@@ -160,9 +160,9 @@ void debug_mark_purge_all_history(void);
         _DAGUE_DEBUG_HISTORY(ARG);              \
     }
 #else
-# define DEBUG(ARG)
-# define DEBUG2(ARG)
-# define DEBUG3(ARG)
+# define DEBUG(ARG)  do {} while(0)
+# define DEBUG2(ARG) do {} while(0)
+# define DEBUG3(ARG) do {} while(0)
 #endif  /* defined(DAGUE_DEBUG) */
 
 #endif /* DEBUG_H_HAS_BEEN_INCLUDED */

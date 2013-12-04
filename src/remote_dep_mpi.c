@@ -866,7 +866,7 @@ static int remote_dep_mpi_pack_dep(dague_context_t* ctx,
     int k, dsize, saved_position = *position, completed = 0;
     int output_count = deps->output_count, which;
     uint32_t rank_bank, rank_mask;
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
 
@@ -998,7 +998,7 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
 
 static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
 {
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
     MPI_Status *status;
@@ -1085,7 +1085,7 @@ static void remote_dep_mpi_put_short(dague_execution_unit_t* eu_context,
                                      remote_dep_wire_activate_t* msg,
                                      int rank)
 {
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
     dague_remote_deps_t* deps = (dague_remote_deps_t*)msg->deps;
@@ -1130,7 +1130,7 @@ static void remote_dep_mpi_save_put(dague_execution_unit_t* eu_context,
                                     int i,
                                     MPI_Status* status)
 {
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
     dague_dep_wire_get_fifo_elem_t* item;
@@ -1352,7 +1352,7 @@ remote_dep_mpi_save_activate(dague_execution_unit_t* eu_context,
                              int i,
                              MPI_Status* status )
 {
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
     int unpacked = 0, length;
@@ -1396,7 +1396,7 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context,
                                        dep_cmd_item_t *item )
 {
     dague_object_t* obj = item->cmd.new_object.obj;
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
     DAGUE_ULIST_ITERATOR(&dep_activates_noobj_fifo, item,
@@ -1422,7 +1422,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
                                      dague_remote_deps_t* deps,
                                      int i)
 {
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN], type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
@@ -1458,7 +1458,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
         msg.output_mask &= ~(1<<k);
         remote_dep_mpi_get_end(eu_context, deps, i, k);
 #else
-#  ifdef DAGUE_DEBUG_VERBOSE
+#  if DAGUE_DEBUG_VERBOSE != 0
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s count %d displ %ld extent %d\t(tag=%d)\n",
                 from, remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN), i, k, task->deps, ADATA(data),
