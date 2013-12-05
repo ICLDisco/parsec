@@ -4100,8 +4100,13 @@ static void jdf_check_successors( jdf_function_entry_t *f )
     f->flags |= JDF_FUNCTION_FLAG_NO_SUCCESSORS;
 }
 
-#define OUTPUT_PREV_DEPS(MASK, SA_DEPS)                                 \
+#define OUTPUT_PREV_DEPS(MASK, SA_DATATYPE, SA_DEPS)                    \
     if( strlen(string_arena_get_string((SA_DEPS))) ) {                  \
+        if( strlen(string_arena_get_string((SA_DATATYPE))) ) {          \
+            string_arena_add_string(sa_coutput,                         \
+                                    "  %s",                             \
+                                    string_arena_get_string((SA_DATATYPE))); \
+        }                                                               \
         if( fl->flow_dep_mask == (MASK) ) {                             \
             string_arena_add_string(sa_coutput,                         \
                                     "  %s",                             \
@@ -4114,7 +4119,8 @@ static void jdf_check_successors( jdf_function_entry_t *f )
                                     MASK, string_arena_get_string((SA_DEPS))); \
         }                                                               \
         string_arena_init((SA_DEPS));                                   \
-    }                                                                   \
+        string_arena_init((SA_DATATYPE));                               \
+    }
 
 static void
 jdf_generate_code_iterate_successors(const jdf_t *jdf,
@@ -4129,6 +4135,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
     string_arena_t *sa_ontask     = string_arena_new(64);
     string_arena_t *sa_coutput    = string_arena_new(1024);
     string_arena_t *sa_deps       = string_arena_new(1024);
+    string_arena_t *sa_datatype   = string_arena_new(1024);
     string_arena_t *sa_type       = string_arena_new(256);
     string_arena_t *sa_tmp_type   = string_arena_new(256);
     string_arena_t *sa_nbelt      = string_arena_new(256);
@@ -4186,6 +4193,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
         last_datatype_idx = -1;
         string_arena_init(sa_coutput);
         string_arena_init(sa_deps);
+        string_arena_init(sa_datatype);
         string_arena_init(sa_type);
         string_arena_init(sa_nbelt);
         string_arena_init(sa_displ);
@@ -4219,19 +4227,12 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
             }
 
             if( last_datatype_idx != dl->dep_datatype_index ) {
-                /* Dump the previous dependencies */
-                OUTPUT_PREV_DEPS((1U << last_datatype_idx), sa_deps);
-
                 /* Prepare the memory layout of the output dependency. */
                 if( strcmp(string_arena_get_string(sa_tmp_type), string_arena_get_string(sa_type)) ) {
                     string_arena_init(sa_type);
                     /* The type might change (possibly from undefined), so let's output */
                     string_arena_add_string(sa_type, "%s", string_arena_get_string(sa_tmp_type));
                     string_arena_add_string(sa_temp, "    data.arena  = %s;\n", string_arena_get_string(sa_type));
-                    if( strlen(string_arena_get_string(sa_temp)) ) {
-                        string_arena_add_string(sa_deps, "%s", string_arena_get_string(sa_temp));
-                        string_arena_init(sa_temp);
-                    }
                 }
                 if( strcmp(string_arena_get_string(sa_tmp_layout), string_arena_get_string(sa_layout)) ) {
                     /* Same thing: the memory layout may change at anytime */
@@ -4252,7 +4253,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                     string_arena_add_string(sa_temp, "    data.displ  = %s;\n", string_arena_get_string(sa_tmp_displ));
                 }
                 if( strlen(string_arena_get_string(sa_temp)) ) {
-                    string_arena_add_string(sa_deps,
+                    string_arena_add_string(sa_datatype,
                                             "%s", string_arena_get_string(sa_temp));
                     string_arena_init(sa_temp);
                 }
@@ -4338,9 +4339,9 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                 break;
             }
             depnb++;
+            /* Dump the previous dependencies */
+            OUTPUT_PREV_DEPS((1U << dl->dep_index), sa_datatype, sa_deps);
         }
-        /* Dump the last set of dependencies */
-        OUTPUT_PREV_DEPS((1U << last_datatype_idx), sa_deps);
 
         if( (1 == flowempty) && (0 == flowtomem) ) {
             coutput("  /* Flow of data %s has only IN dependencies */\n", fl->varname);
@@ -4362,6 +4363,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
     string_arena_free(sa2);
     string_arena_free(sa_coutput);
     string_arena_free(sa_deps);
+    string_arena_free(sa_datatype);
     string_arena_free(sa_type);
     string_arena_free(sa_tmp_type);
     string_arena_free(sa_nbelt);
