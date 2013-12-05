@@ -1175,7 +1175,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
             "    DEBUG((\"task %%s acquires flow %%s from %%s %%s\\n\",\\\n"
             "           dague_snprintf_execution_context(tmp1, 128, (TASKI)), (DEPI),\\\n"
-            "           dague_snprintf_assignments(tmp2, 128, (FUNO), (LOCALS)), (DEPO)));\\\n"
+            "           (DEPO), dague_snprintf_assignments(tmp2, 128, (FUNO), (LOCALS))));\\\n"
             "  } while(0)\n"
             "#else\n"
             "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST)\n"
@@ -1764,7 +1764,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
     string_arena_init(flow_flags);
     string_arena_add_string(flow_flags, "%s", ((flow->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
                                                ((flow->flow_flags & JDF_FLOW_TYPE_READ) ?
-                                                ((flow->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_RW" : "FLOW_ACCESS_WRITE") : "FLOW_ACCESS_READ")));
+                                                ((flow->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_RW" : "FLOW_ACCESS_READ") : "FLOW_ACCESS_WRITE")));
     if(flow->flow_flags & JDF_FLOW_HAS_IN_DEPS)
         string_arena_add_string(flow_flags, "|FLOW_HAS_IN_DEPS");
 
@@ -2419,7 +2419,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
                     }
                 }
                 if( foundin == 0 ) {
-                    inputmask |= (1 << input_index);
+                    inputmask |= (1 << fl->flow_index);
                     nb_input++;
                     foundin = 1;
                 }
@@ -2444,7 +2444,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
                             "  .nb_flows = %d,\n"
                             "  .nb_parameters = %d,\n"
                             "  .nb_locals = %d,\n",
-                            JDF_OBJECT_ONAME( f ),
+                            JDF_OBJECT_ONAME(f),
                             f->fname,
                             f->function_id,
                             nb_incarnations,
@@ -2626,35 +2626,6 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
     string_arena_free(sa);
 }
 
-#if 0
-static char *dump_pseudodague(void **elem, void *arg)
-{
-    string_arena_t *sa = (string_arena_t *)arg;
-    char *name = *(char**)elem;
-    string_arena_init(sa);
-    string_arena_add_string(sa,
-                            "static const dague_function_t %s_%s = {\n"
-                            "  .name = \"%s\",\n"
-                            "  .flags = 0x0,\n"
-                            "  .function_id = -1,\n"
-                            "  .dependencies_goal = 0x0,\n"
-                            "  .nb_parameters = 0,\n"
-                            "  .nb_locals = 0,\n"
-                            "  .params = { NULL, },\n"
-                            "  .locals = { NULL, },\n"
-                            "  .pred = NULL,\n"
-                            "  .in = { NULL, },\n"
-                            "  .out = { NULL, },\n"
-                            "  .priority = NULL,\n"
-                            "  .hook = NULL,\n"
-                            "  .release_deps = NULL,\n"
-                            "  .body = NULL,\n"
-                            "};\n",
-                            jdf_basename, name, name);
-    return string_arena_get_string(sa);
-}
-#endif
-
 static void jdf_generate_predeclarations( const jdf_t *jdf )
 {
     jdf_function_entry_t *f;
@@ -2671,12 +2642,6 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
                     JDF_OBJECT_ONAME( f ));
         }
     }
-#if 0
-    coutput("/** Declarations of the pseudo-dague_function_t objects for data */\n"
-            "%s\n",
-            UTIL_DUMP_LIST_FIELD(sa2, jdf->data, next, dname,
-                                 dump_pseudodague, sa, "", "", "", ""));
-#endif
     string_arena_free(sa);
     string_arena_free(sa2);
     coutput("/** Predeclarations of the parameters */\n");
