@@ -71,11 +71,9 @@
  *     These lines are defined by (i-k)/p = 0.
  */
 #include <dague.h>
-#include <core_blas.h>
 #include "dplasma.h"
 #include "dplasmatypes.h"
 #include "dplasmaaux.h"
-#include "dplasma_qr_pivgen.h"
 
 #include <math.h>
 #if defined(HAVE_STRING_H)
