@@ -1,36 +1,29 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
 
 %}
 
 dataA     [type = "dague_ddesc_t *"]
 descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-ib        [type = "int"]
-INFO      [type = "int*"]
+ib        [type = "int" hidden=on default="(32)" ]
+KT        [type = "int" hidden=on default="(dplasma_imin( descA.mt, descA.nt )-1)" ]
+INFO      [type = "int*" ]
 
 zgetrf_nopiv(k)
   /* Execution Space */
-  k = 0..inline_c %{ return dplasma_imin((descA.nt-1),(descA.mt-1)); %}
+  k = 0 .. KT
 
   /* Locality */
   : dataA(k,k)
@@ -67,7 +60,7 @@ END
 
 ztrsm_l(k, m)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descA.nt-1),(descA.mt-2)); %}
+  k = 0     .. KT
   m = (k+1) .. (descA.mt-1)
 
   /* Locality */
@@ -103,7 +96,7 @@ END
 
 ztrsm_u(k, n)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descA.mt-1),(descA.nt-2)); %}
+  k = 0     .. KT
   n = (k+1) .. (descA.nt-1)
 
   /* Locality */
@@ -136,7 +129,7 @@ END
 
 zgemm(k, m, n)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descA.nt-2),(descA.mt-2)); %}
+  k = 0     .. KT-1
   m = (k+1) .. (descA.mt-1)
   n = (k+1) .. (descA.nt-1)
 
