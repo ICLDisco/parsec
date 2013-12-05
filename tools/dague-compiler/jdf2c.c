@@ -3965,11 +3965,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
              */
             assert(el == NULL);
             string_arena_add_string(sa_open,
-                                    "%s%s{\n"
                                     "%s%s  const int %s_%s = %s;\n",
-                                    prefix, indent(nbopen),
                                     prefix, indent(nbopen), targetf->fname, def->name, dump_expr((void**)def->expr, &linfo));
-            nbopen++;
             string_arena_add_string(sa_open, "%s%s  %s.locals[%d].value = %s_%s;\n",
                                     prefix, indent(nbopen), var, i,
                                     targetf->fname, def->name);
@@ -3978,11 +3975,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
             assert(el != NULL);
             if( el->op == JDF_RANGE ) {
                 string_arena_add_string(sa_open,
-                                        "%s%s{\n"
                                         "%s%s  int %s_%s;\n",
-                                        prefix, indent(nbopen),
                                         prefix, indent(nbopen), targetf->fname, nl->name);
-                nbopen++;
 
                 string_arena_add_string(sa_open,
                                         "%s%sfor( %s_%s = %s;",
@@ -3994,11 +3988,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                 nbopen++;
             } else {
                 string_arena_add_string(sa_open,
-                                        "%s%s{\n"
                                         "%s%s  const int %s_%s = %s;\n",
-                                        prefix, indent(nbopen),
                                         prefix, indent(nbopen), targetf->fname, nl->name, dump_expr((void**)el, &info));
-                nbopen++;
             }
 
             if( def->expr->op == JDF_RANGE ) {
