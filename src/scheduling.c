@@ -54,7 +54,7 @@ int __dague_progress_task( dague_execution_unit_t* eu_context,
 {
     switch(task->status) {
         case DAGUE_TASK_STATUS_NONE:
-#ifdef DAGUE_DEBUG_VERBOSE1
+#ifdef DAGUE_DEBUG_VERBOSE != 0
             char tmp[MAX_TASK_STRLEN];
             DEBUG(("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task)));
@@ -85,7 +85,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
 {
     const dague_function_t* function = exec_context->function;
     assert( function->nb_incarnations > 0 );
-#ifdef DAGUE_DEBUG_VERBOSE1
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
     DEBUG(("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context)));

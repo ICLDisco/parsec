@@ -147,7 +147,7 @@ static void remote_dep_mpi_get_start( dague_execution_unit_t* eu_context, dague_
 static void remote_dep_mpi_get_end( dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i, int k );
 static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dep_cmd_item_t *item );
 
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE != 0
 static char*
 remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
                          char* str,
@@ -764,7 +764,7 @@ static int remote_dep_mpi_init(dague_context_t* context)
         WARNING(("Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30); Lets assume any integer value is a valid MPI Tag.\n"));
     } else {
         MAX_MPI_TAG = *ub;
-#if defined( DAGUE_DEBUG_VERBOSE )
+#if DAGUE_DEBUG_VERBOSE != 0
         if( MAX_MPI_TAG < INT_MAX ) {
             WARNING(("MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
                     MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT));
@@ -1167,7 +1167,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
     int nbdtt, tag = task->tag;
     void* data;
     MPI_Datatype dtt;
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE >= 2
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
@@ -1185,7 +1185,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
         data = ADATA(deps->output[k].data.ptr);
         dtt = deps->output[k].data.layout;
         nbdtt = deps->output[k].data.count;
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE >= 2
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tPut START\tunknown \tj=%d,k=%d\twith deps 0x%lx at %p type %s\t(tag=%d displ = %ld)\n",
                item->peer, i, k, task->deps, data, type_name, tag+k, deps->output[k].data.displ));
@@ -1246,7 +1246,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
     remote_dep_datakey_t short_which = remote_dep_mpi_short_which(deps, deps->msg.output_mask);
     remote_dep_datakey_t complete_mask = 0;
     int dsize, tag = (int)deps->msg.tag;
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN);
 #endif
@@ -1320,7 +1320,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
     /* Release all the already satisfied deps without posting the RDV */
     if(complete_mask) {
-#ifdef DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE >= 2
         for(int k = 0; complete_mask>>k; k++)
             if((1<<k) & complete_mask)
                 DEBUG2(("MPI:\tHERE\t%d\tGet PREEND\t% -8s\ti=NA,k=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)\n",

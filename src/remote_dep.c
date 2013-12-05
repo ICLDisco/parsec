@@ -202,8 +202,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                               uint32_t remote_deps_count )
 {
     const dague_function_t* function = exec_context->function;
-    int i, me, him, current_mask;
-    int skipped_count = 0, flow_index;
+    int i, me, him, current_mask, skipped_count = 0;
     unsigned int array_index, count, bit_index;
     struct remote_dep_output_param* output;
 
@@ -214,7 +213,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     /* make valgrind happy */
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
 #endif
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
@@ -271,9 +270,9 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                 him++;
 
                 if(remote_dep_bcast_child(me, him)) {
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if DAGUE_DEBUG_VERBOSE >= 2
                     /* Mark all flows related to this message */
-                    for(flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
+                    for(int flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
                         if( exec_context->function->out[flow_index]->flow_mask & (1<<i) ) {
                             assert( NULL != exec_context->function->out[flow_index] );
                             DEBUG2((" TOPO\t%s flow %s root=%d\t%d (d%d) -> %d (d%d)\n",
@@ -281,7 +280,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                                     eu_context->virtual_process->dague_context->my_rank, me, rank, him));
                         }
                     }
-#endif  /* defined(DAGUE_DEBUG_VERBOSE) */
+#endif  /* DAGUE_DEBUG_VERBOSE */
                     if(remote_dep_is_forwarded(eu_context, output, rank)) {
                         continue;
                     }
@@ -290,9 +289,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     remote_dep_send(rank, remote_deps);
                 } else {
                     skipped_count++;
-                    DEBUG2((" TOPO\t%s flow %s root=%d\t%d (d%d) ][ %d (d%d)\n",
-                            tmp, exec_context->function->out[flow_index]->name, remote_deps->root,
-                            eu_context->virtual_process->dague_context->my_rank, me, rank, him));
                 }
             }
         }
