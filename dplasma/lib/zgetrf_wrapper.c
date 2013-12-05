@@ -37,7 +37,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
         CORE_zgetrf_reclap_init();
     }
 
-    dague_getrf = dague_zgetrf_new( *A, (dague_ddesc_t*)A,
+    dague_getrf = dague_zgetrf_new( (dague_ddesc_t*)A,
                                     (dague_ddesc_t*)IPIV,
                                     INFO );
 

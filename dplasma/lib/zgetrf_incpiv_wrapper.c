@@ -23,10 +23,10 @@ dague_object_t* dplasma_zgetrf_incpiv_New(tiled_matrix_desc_t *A,
 {
     dague_zgetrf_incpiv_object_t *dague_getrf_incpiv;
 
-    dague_getrf_incpiv = dague_zgetrf_incpiv_new( *A, (dague_ddesc_t*)A,
-                                                  *L, (dague_ddesc_t*)L,
+    dague_getrf_incpiv = dague_zgetrf_incpiv_new( (dague_ddesc_t*)A,
+                                                  (dague_ddesc_t*)L,
                                                   (dague_ddesc_t*)IPIV,
-                                                  NULL, INFO, L->mb);
+                                                  INFO, NULL);
 
     dague_getrf_incpiv->work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( dague_getrf_incpiv->work_pool, L->mb * L->nb * sizeof(dague_complex64_t) );
@@ -108,9 +108,9 @@ dague_object_t* dplasma_zgetrf_incpiv_sd_New( tiled_matrix_desc_t *A,
     int Lmb = L->mb-1;
     dague_zgetrf_incpiv_sd_object_t *dague_getrf_incpiv_sd;
 
-    dague_getrf_incpiv_sd = dague_zgetrf_incpiv_sd_new( *A, (dague_ddesc_t*)A,
-                                                        *L, (dague_ddesc_t*)L,
-                                                        NULL, INFO, Lmb);
+    dague_getrf_incpiv_sd = dague_zgetrf_incpiv_sd_new( (dague_ddesc_t*)A,
+                                                        (dague_ddesc_t*)L,
+                                                        INFO, NULL);
 
     dague_getrf_incpiv_sd->work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( dague_getrf_incpiv_sd->work_pool, Lmb * L->nb * sizeof(dague_complex64_t) );
