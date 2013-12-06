@@ -169,8 +169,12 @@ dplasma_zgetrf_nopiv( dague_context_t *dague,
     int info = 0;
     dague_zgetrf_nopiv = dplasma_zgetrf_nopiv_New(A, &info);
 
-    dague_enqueue( dague, (dague_object_t*)dague_zgetrf_nopiv);
-    dplasma_progress(dague);
-
-    return info;
+    if ( dague_zgetrf_nopiv != NULL ) {
+        dague_enqueue( dague, (dague_object_t*)dague_zgetrf_nopiv);
+        dplasma_progress(dague);
+        dplasma_zgetrf_nopiv_Destruct( dague_zgetrf_nopiv );
+        return info;
+    }
+    else
+        return -101;
 }

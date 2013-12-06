@@ -53,6 +53,10 @@
  *          On exit, contains the pivot indices; for 1 <= i <= min(M,N), row i
  *          of the matrix was interchanged with row IPIV(i).
  *
+ * @param[out] INFO
+ *          On algorithm completion: equal to 0 on success, i if the ith
+ *          diagonal value is equal to 0. That implies incoherent result.
+ *
  *******************************************************************************
  *
  * @return
