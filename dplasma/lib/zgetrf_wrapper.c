@@ -177,6 +177,7 @@ dplasma_zgetrf_Destruct( dague_object_t *o )
  * @return
  *          \retval -i if the ith parameters is incorrect.
  *          \retval 0 on success.
+ *          \retval i if ith value is singular. Result is incoherent.
  *
  *******************************************************************************
  *
