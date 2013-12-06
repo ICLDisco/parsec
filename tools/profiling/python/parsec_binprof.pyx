@@ -26,9 +26,11 @@ import pandas as pd
 import time
 import re
 
-include "pbp_info_parser.pxi"
+# 'include' will eventually be deprecated by Cython, but I still prefer it.
+include "pbp_info_parser.pxi" 
 
 pbp_core = '.prof-'
+
 
 # reads an entire profile into a set of pandas DataFrames
 # filenames ought to be a list of strings, or comparable type.
@@ -185,10 +187,11 @@ cpdef convert(filenames, outfilename=None, unlink=True,
             os.unlink(filename)
     return outfilename
 
+
 # This function helps support duplicate keys in the info dictionaries 
 # by appending the extra values to a list stored at '<key>_list' in the dictionary.
 # It also attempts to store values as numbers instead of strings, if possible.
-cpdef add_kv(dct, key, value):
+cpdef add_kv(dct, key, value, append_if_present=True):
     try:    # try to convert value to its number type
         value = float(value) if '.' in value else int(value)
     except: # if this fails, it's a string, and that's fine too
@@ -198,7 +201,7 @@ cpdef add_kv(dct, key, value):
         # last value added to the profile, so we 'prefer' it
         # by putting it directly in the dictionary.
         dct[key] = value 
-    else:
+    elif append_if_present:
         list_k = key + '_list'
         if list_k in dct:
             if isinstance(dct[list_k], list):
@@ -208,6 +211,7 @@ cpdef add_kv(dct, key, value):
                       str(value) + ' for ' + str(key))
         else:
             dct[list_k] = [value]
+
 
 # helper function for readProfile
 cdef char** string_list_to_c_strings(strings):
@@ -227,9 +231,15 @@ cdef char** string_list_to_c_strings(strings):
 thread_id_in_descrip = re.compile('.*thread\s+(\d+).*', re.IGNORECASE)
 vp_id_in_descrip = re.compile('.*VP\s+(\d+).*', re.IGNORECASE)
 
-# you can't call this. it will be called for you. call readProfile()
+
 cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile, 
-                   int node_id, int thread_num, int skeleton_only):
+                      int node_id, int thread_num, int skeleton_only):
+    """Converts all events using the C interface into Python dicts 
+    
+    Also creates a 'thread' dict describing the very basic information
+    about the thread as seen by PaRSEC. Hopefully the information 
+    we store about the thread will continue to improve in the future.
+    """
     cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, thread_num)
     cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
     cdef dbp_event_iterator_t * it_e = NULL
@@ -246,14 +256,22 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
     cdef papi_core_select_info_t * cast_core_select_info = NULL
     cdef papi_core_exec_info_t * cast_core_exec_info = NULL
 
+    th_begin = sys.maxint
+    th_end = 0
     thread_descrip = dbp_thread_get_hr_id(cthread)
-    thread = {'node_id': node_id, 'description':thread_descrip}
+    thread = {'node_id': node_id, 'description': thread_descrip}
 
     for i in range(dbp_thread_nb_infos(cthread)):
         th_info = dbp_thread_get_info(cthread, i)
         key = dbp_info_get_key(th_info);
         value = dbp_info_get_value(th_info);
         add_kv(thread, key, value)
+
+    # sanity check events
+    try:
+        th_duration = thread['end'] - thread['begin']
+    except:
+        th_duration = sys.maxint
 
     if not 'id' in thread:
         thread_id = thread_num
@@ -269,29 +287,31 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
         handle_id = dbp_event_get_handle_id(event_s)
         event_id = dbp_event_get_event_id(event_s)
         unique_id = len(builder.events)
+        if begin < th_begin:
+            th_begin = begin
 
         if KEY_IS_START( dbp_event_get_key(event_s) ):
             it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
-            if it_e == NULL:
-                event = [node_id, thread_id, handle_id, event_type, 
-                         begin, None, 0, event_flags, unique_id, event_id]
-                error_msg = 'event of class {} id {} at {} does not have a match.\n'.format(
-                    event_name, event_id, thread_id)
-                builder.errors.append(event + [error_msg])
-            else:
+            if it_e != NULL:
+
                 event_e = dbp_iterator_current(it_e)
+
                 if event_e != NULL:
                     end = dbp_event_get_timestamp(event_e)
-                    duration = end - begin
-
+                    # 'end' and 'begin' are unsigned, so subtraction is invalid if they are
+                    if end > begin:
+                        duration = end - begin
+                    else:
+                        duration = -1
                     event = [node_id, thread_id, handle_id, event_type, 
                              begin, end, duration, event_flags, unique_id, event_id]
 
-                    if end < begin:
-                        error_msg = 'event of class {} id {} at {} has a negative duration.\n'.format(
-                            event_name, event_id, thread_id)
-                        builder.errors.append(event + [error_msg])
-                    else: # the event is 'sane'
+                    if duration > 500000000:
+                        print(event)
+                        print(profile.event_names[event_type])
+                    
+                    if duration >= 0 and duration <= th_duration:
+                        # VALID EVENT FOUND
                         builder.events.append(event)
                         cinfo = dbp_event_get_info(event_e)
                         if cinfo != NULL:
@@ -299,20 +319,37 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                                                     unique_id, cinfo)
                             if event_info:
                                 builder.infos.append(event_info)
+                        if th_end < end:
+                            th_end = end
+                    else: # the event is 'not sane'
+                        error_msg = ('event of class {} id {} at {}'.format(
+                            event_name, event_id, thread_id) +
+                                     ' has a unreasonable duration.\n')
+                        builder.errors.append(event + [error_msg])
 
                 dbp_iterator_delete(it_e)
                 it_e = NULL
+
+            else: # the event is not complete
+                event = [node_id, thread_id, handle_id, event_type, 
+                         begin, None, 0, event_flags, unique_id, event_id]
+                error_msg = 'event of class {} id {} at {} does not have a match.\n'.format(
+                    event_name, event_id, thread_id)
+                builder.errors.append(event + [error_msg])
+
         dbp_iterator_next(it_s)
         event_s = dbp_iterator_current(it_s)
 
     dbp_iterator_delete(it_s)
     it_s = NULL
 
-# NOTE:
-# this breaks Cython, so don't do it
-# index = -1
-# print('index is ' + str(index))
-# print(builder.test_df[index])
+    add_kv(thread, 'begin', th_begin, append_if_present=False)
+    add_kv(thread, 'end', th_end, append_if_present=False)
+    add_kv(thread, 'duration', thread['end'] - thread['begin'], 
+           append_if_present=False)
+    # END construct_thread
+
+
 
 class Timer:
     def __enter__(self):
@@ -339,4 +376,10 @@ class ProfileBuilder(object):
 def cond_print(string, cond, **kwargs):
     if cond:
         print(string, **kwargs)
+
+# NOTE:
+# this breaks Cython, so don't do it
+# index = -1
+# print('index is ' + str(index))
+# print(builder.test_df[index])
 

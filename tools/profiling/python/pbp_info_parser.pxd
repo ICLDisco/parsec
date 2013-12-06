@@ -49,7 +49,7 @@ cdef extern from "dague/mca/pins/papi_L123/pins_papi_L123.h":
       int kernel_type
       int victim_vp_id
       int victim_th_id
-      long long starvation
+      long long selection_time
       long long exec_context
       long long evt_values[NUM_CORE_EVENTS]
 

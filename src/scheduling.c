@@ -402,9 +402,8 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         if( exec_context != NULL ) {
             dague_time_t select_end = take_time();
             uint64_t select_time = diff_time(select_begin, select_end);
-
             PINS(SELECT_END, eu_context, exec_context, (void *)select_time);
-            // select end, and record with it the amount of time actually spent selecting
+            /* select end, and record with it the amount of time actually spent selecting */
             misses_in_a_row = 0;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
@@ -419,20 +418,18 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             }
 #endif
 
-            // prepare_input begin
             PINS(PREPARE_INPUT_BEGIN, eu_context, exec_context, NULL);
             switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
             case DAGUE_HOOK_RETURN_DONE:
             {
                 PINS(PREPARE_INPUT_END, eu_context, exec_context, NULL);
-                // prepare input end
                 int rv = 0;
                 /* We're good to go ... */
                 PINS(EXEC_BEGIN, eu_context, exec_context, NULL);
                 rv = __dague_execute( eu_context, exec_context );
                 PINS(EXEC_END, eu_context, exec_context, NULL  );
                 if( 0 == rv ) {
-                    // complete execution==add==push begin
+                    /* complete execution==add==push begin */
                     PINS(COMPLETE_EXEC_BEGIN, eu_context, exec_context, NULL);
                     __dague_complete_execution( eu_context, exec_context );
                     PINS(COMPLETE_EXEC_END, eu_context, exec_context, NULL);

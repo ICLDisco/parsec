@@ -193,8 +193,9 @@ def enhance_profile_filenames(filenames, name_infos=default_name_infos,
                 renamed_files.append(dirname + os.sep + filename) # still return filename
         else:
             renamed_files.append(dirname + os.sep + filename)
-            print('Would move {} in directory {} '.format(filename, dirname + os.sep) +
-                  'to {}.'.format(new_filename))
+            if filename != new_filename:
+                print('Would move {} in directory {} '.format(filename, dirname + os.sep) +
+                      'to {}.'.format(new_filename))
     return renamed_files
 
 old_unrenamer = re.compile('(\w+)' + old_renamed_piece + '.*-(\w+)')
@@ -223,9 +224,11 @@ def revert_profile_filenames(filenames, dry_run=False):
                 print('WARNING: revert would have overwritten file {} !'.format(dirname + os.sep +
                                                                                 original_name))
                 print('This move operation has been skipped.')
-        else:
+        elif filename != original_name:
             print('Would move {} in directory {} '.format(filename, dirname + os.sep) +
                   'to {}.'.format(original_name))
+        else:
+            print('File {} already has its original name.'.format(original_name))
 
 def autoload_profiles(filenames, convert=True, unlink=False,
                       enhance_filenames=False, skeleton_only=False):
@@ -240,7 +243,9 @@ def autoload_profiles(filenames, convert=True, unlink=False,
     groups_or_names = preprocess_profiles(filenames, convert=convert, unlink=unlink,
                                           enhance_filenames=enhance_filenames)
 
-    raw_input('pause before true load?')
+    # raw_input('pause before true load?')
+
+    # TODO: after preprocessing, should we check for a converted version anyway?
 
     for group in groups_or_names:
         if convert: # if we converted in the previous preprocessing step

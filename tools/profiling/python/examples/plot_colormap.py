@@ -32,10 +32,10 @@ def plot_colormap(profile, x_axis, y_axis, filters,
 
     if std_x:
         x_avg = events[x_axis].mean()
-        events = events[:][events[x_axis] - x_avg  < events[x_axis].std() * std_x]
+        events = events[:][events[x_axis] - x_avg  <= events[x_axis].std() * std_x]
     if std_y:
         y_avg = events[y_axis].mean()
-        events = events[:][events[y_axis] - y_avg  < events[y_axis].std() * std_y]
+        events = events[:][events[y_axis] - y_avg  <= events[y_axis].std() * std_y]
 
     label = '{}: {:.1f} gflops/s'.format(profile.sched.upper(),
                                          profile.gflops)
@@ -53,8 +53,8 @@ def plot_colormap(profile, x_axis, y_axis, filters,
     else:
         corr_cmap = cm.Dark2
 
-    heatmap, xedges, yedges = np.histogram2d(events[x_axis], events[y_axis], bins=bins,
-                                             normed=True)
+    heatmap, xedges, yedges = np.histogram2d(
+        events[x_axis].values, events[y_axis].values, bins=bins, normed=True)
     extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
 
     ax.imshow(heatmap.transpose()[::1], extent=extent, origin='lower',
@@ -63,10 +63,12 @@ def plot_colormap(profile, x_axis, y_axis, filters,
     # ax.hexbin(events[x_axis], events[y_axis], gridsize=gridsize,
     #           cmap=cm.jet, bins=None)
 
-    ax.set_title("""{} vs {} of {}
-    for {} where N = {}, NB = {}, IB = {}, sched = {}, on {}""".format(y_axis, x_axis, filters_descrip, profile.exe,
-                                                                       profile.N, profile.NB, profile.IB, profile.sched,
-                                                                       profile.hostname))
+    ax.set_title(
+        """{} vs {} of {}
+        for {} where N = {}, NB = {},
+        IB = {}, sched = {}, on {}""".format(y_axis, x_axis, filters_descrip, profile.exe,
+                                             profile.N, profile.NB, profile.IB, profile.sched,
+                                             profile.hostname))
     if not ax.has_data():
         print('Plot has no data.')
         return None
@@ -174,7 +176,7 @@ if __name__ == '__main__':
 
     profiles = p3_utils.autoload_profiles(filenames, convert=True, unlink=False,
                                           skeleton_only=False, enhance_filenames=True)
-    raw_input('how is our memory usage now?')
+
     # then divide the profiles into sets based on equivalent command lines
     profile_sets = find_profile_sets(profiles, on=['exe', 'N', 'NB', 'IB', 'sched'])
     # then merge those sets so that multiple trials of the same params are aggregated
@@ -193,7 +195,11 @@ if __name__ == '__main__':
             for event_name in profile.event_types.keys():
                 if event_name.startswith('PAPI_CORE_EXEC_'):
                     event_types.append(event_name)
-                    y_axes = p3_bin.papi_core_evt_value_lbls[event_name]
+                    try:
+                        y_axes = p3_bin.papi_core_evt_value_lbls[event_name]
+                    except:
+                        y_axes = p3_bin.papi_core_evt_value_lbls[
+                            event_name.replace('PAPI_CORE_EXEC_', '')]
                     break
             event_subtypes = mpl_prefs.kernel_names[profile.exe][:1]
 

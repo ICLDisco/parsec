@@ -150,11 +150,11 @@ int dague_profiling_init( void )
     dague_profile_enabled = 1;  /* turn on the profiling */
 
     /* shared timestamp allows grouping profiles from different nodes */
-    long long int timestamp = (long long int)dague_start_time.tv_sec;
+    unsigned long long int timestamp = (unsigned long long int)dague_start_time.tv_sec;
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
     MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 #endif /* DISTRIBUTED && HAVE_MPI */
-    PROFILING_SAVE_iINFO("start_time", timestamp);
+    PROFILING_SAVE_uint64INFO("start_time", timestamp);
 
     /* add the hostname, for the sake of explicit profiling */
     char buf[HOST_NAME_MAX];
@@ -893,6 +893,10 @@ int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
             return -1;
         }
     }
+}
+
+uint64_t dague_profiling_get_time(void) {
+    return diff_time(dague_start_time, take_time());
 }
 
 void dague_profiling_enable(void)

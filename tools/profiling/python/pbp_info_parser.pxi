@@ -73,7 +73,7 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
             'victim_thread_id':
             cast_core_select_info.victim_th_id,
             'starvation':
-            cast_core_select_info.starvation,
+            cast_core_select_info.selection_time,
             'exec_context':
             cast_core_select_info.exec_context,
             'PAPI_L1':
@@ -95,8 +95,20 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
         }
     # events originating from current papi_L123 module
     elif event_name.startswith('PAPI'):
-        lbls = papi_core_evt_value_lbls[event_name]
-        if '_EXEC' in event_name or '_COMPL' in event_name or '_ADD' in event_name:
+        lbls = None
+        try:
+            lbls = papi_core_evt_value_lbls[event_name]
+        except:
+            # remove first part of label
+            if '_CORE_' in event_name:
+                lbls = papi_core_evt_value_lbls['_'.join(event_name.split('_')[3:])]
+            elif '_SOCKET_' in event_name:
+                lbls = papi_core_evt_value_lbls['_'.join(event_name.split('_')[2:])]
+            
+        if ('_EXEC' in event_name or 
+            '_COMPL' in event_name or 
+            '_ADD' in event_name or
+            '_PREP' in event_name):
             cast_core_exec_info = <papi_core_exec_info_t *>cinfo
             event_info = {
                 'unique_id': unique_id,
@@ -106,6 +118,12 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
                 event_info.update({lbl: cast_core_exec_info.evt_values[idx]})
         elif '_SEL' in event_name:
             cast_core_select_info = <papi_core_select_info_t *>cinfo
+            if cast_core_select_info.selection_time < 0:
+                # then this event has been marked as invalid
+                return None
+            if cast_core_select_info.selection_time > 1000000000:
+                print(event_name)
+                print(cast_core_select_info.selection_time)
             event_info = {
                 'unique_id':
                 unique_id,
@@ -115,8 +133,8 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
                 cast_core_select_info.victim_vp_id,
                 'victim_thread_id':
                 cast_core_select_info.victim_th_id,
-                'starvation':
-                cast_core_select_info.starvation,
+                'selection_time':
+                cast_core_select_info.selection_time,
                 'exec_context':
                 cast_core_select_info.exec_context,
             }
@@ -148,33 +166,24 @@ papi_core_evt_value_lbls = {
     'PAPI_SOCKET'               : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
     'PAPI_CORE_EXEC'            : ['PAPI_L1', 'PAPI_L2'],
     'PAPI_CORE_SEL'             : ['PAPI_L1', 'PAPI_L2'],
+    'PAPI_CORE_PREP'            : ['PAPI_L1', 'PAPI_L2'],
     'PAPI_CORE_COMPL'           : ['PAPI_L1', 'PAPI_L2'],
-    'PAPI_CORE_EXEC_PL3'        : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
-    'PAPI_CORE_SEL_PL3'         : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
-    'PAPI_CORE_COMPL_PL3'       : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
-    'PAPI_CORE_EXEC_TLB_EV'     : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
-    'PAPI_CORE_SEL_TLB_EV'      : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
-    'PAPI_CORE_COMPL_TLB_EV'    : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
-    'PAPI_SOCKET_TLB_EV'        : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
-    'PAPI_SOCKET_23T'           : ['L2_DMISS', 'L3_DMISS', 'TLB_MISS'],
-    'PAPI_CORE_EXEC_23T'        : ['L2_DMISS', 'L3_DMISS', 'TLB_MISS'],
-    'PAPI_CORE_COMPL_23T'       : ['L2_DMISS', 'L3_DMISS', 'TLB_MISS'],
-    'PAPI_CORE_SEL_23T'         : ['L2_DMISS', 'L3_DMISS', 'TLB_MISS'],
-    'PAPI_CORE_EXEC_RE_IO_L3AC' : ['DATA_CACHE_REFILLS-SYS', 'CPU_TO_MEM', 'L3_MISS-AC'],
-    'PAPI_SOCKET_RE_IO_L3AC'    : ['DATA_CACHE_REFILLS-SYS', 'CPU_TO_MEM', 'L3_MISS-AC'],
-    'PAPI_CORE_EXEC_RE_IO_L3AC' : ['DATA_CACHE_REFILLS-SYS', 'CPU_TO_MEM', 'L3_MISS-AC'],
-    'PAPI_SOCKET_RE_IO_L3AC'    : ['DATA_CACHE_REFILLS-SYS', 'CPU_TO_MEM', 'L3_MISS-AC'],
-    'PAPI_CORE_EXEC_PREF_L3MOD' : ['NODE_PREFETCH', 'NODE_PREFETCH_MISS', 'L3_WMISS'],
-    'PAPI_CORE_EXEC_PREFMISS'   : ['NODE_PREFETCH_MISS'],
-    'PAPI_CORE_EXEC_PREFETCHES' : ['PREF_INSTR_DISP-L', 'INEFF_SW_PREF', 'DATA_PREF-ATT'], 
-    'PAPI_CORE_EXEC_MEMCONT_CBLOCK': ['MEM_CONT_REQ-R', 'MEM_CONT_REQ-PREF', 'CACHE_BLOCK-A'],
-    'PAPI_CORE_EXEC_L3M_MRQNC_DCRL2': ['L3_WMISS', 'MEM_REQ-NONC', 'DATA_CACHE_REFILLS-L2D'],
-    'PAPI_CORE_EXEC_L3_LLC-LM_MIS-AC': ['L3_MISSES:ANY', 'LLC-LOAD-MISSES', 'MISALIGNED_ACCESSES'],
-    'PAPI_CORE_EXEC_MWAIT_STL-SEGL_PREF-HIT-L2': ['MAB_WAIT_CYCLES', 'DISP_STALL_SEG_LOAD',
-                                                  'INEFF_SW_PREF-HIT_L2'],
-    'PAPI_CORE_EXEC_INPREF-HIT-L1_STL-RSFULL_RREQ-L3': ['INEFF_SW_PREF-HIT_L1',
-                                                        'DSTALL_RES_ST_FULL',
-                                                        'READ_REQ_L3'],
-    'PAPI_CORE_EXEC_L2-HW-PREF_MAB-REQ_DSTL-LS-F': ['L2_MISS-HWPREF', 'MAB_REQ', 'DSTL_LS_FULL'],
-    'PAPI_CORE_EXEC_DS-LS-FULL_L23': ['DSTL_LS_FULL', 'L2_DMISS', 'L3_MISS'],
+    'PL3'        : ['PAPI_L1', 'PAPI_L2', 'PAPI_L3'],
+    'TLB_EV'     : ['TLB_MISS', 'L3_EVICT', 'L3_MISS'],
+    '23T'           : ['L2_DMISS', 'L3_DMISS', 'TLB_MISS'],
+    'RE_IO_L3AC' : ['DATA_CACHE_REFILLS-SYS', 'CPU_TO_MEM', 'L3_MISS-AC'],
+    'PREF_L3MOD' : ['NODE_PREFETCH', 'NODE_PREFETCH_MISS', 'L3_WMISS'],
+    'PREFMISS'   : ['NODE_PREFETCH_MISS'],
+    'PREFETCHES' : ['PREF_INSTR_DISP-L', 'INEFF_SW_PREF', 'DATA_PREF-ATT'], 
+    'MEMCONT_CBLOCK': ['MEM_CONT_REQ-R', 'MEM_CONT_REQ-PREF', 'CACHE_BLOCK-A'],
+    'L3M_MRQNC_DCRL2': ['L3_WMISS', 'MEM_REQ-NONC', 'DATA_CACHE_REFILLS-L2D'],
+    'L3_LLC-LM_MIS-AC': ['L3_MISSES:ANY', 'LLC-LOAD-MISSES', 'MISALIGNED_ACCESSES'],
+    'MWAIT_STL-SEGL_PREF-HIT-L2': ['MAB_WAIT_CYCLES', 'DISP_STALL_SEG_LOAD',
+                                   'INEFF_SW_PREF-HIT_L2'],
+    'INPREF-HIT-L1_STL-RSFULL_RREQ-L3': ['INEFF_SW_PREF-HIT_L1',
+                                         'DSTALL_RES_ST_FULL',
+                                         'READ_REQ_L3'],
+    'L2-HW-PREF_MAB-REQ_DSTL-LS-F': ['L2_MISS-HWPREF', 'MAB_REQ', 'DSTL_LS_FULL'],
+    'DS-LS-FULL_L23': ['DSTL_LS_FULL', 'L2_DMISS', 'L3_MISS'],
+    'DS_L2_ISP' : ['DSTL_LOAD-STORE_FULL', 'L2_DMISS', 'INEFF_SW_PREF-HIT_L1'],
 }

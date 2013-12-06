@@ -104,6 +104,8 @@ class ParsecProfile(object):
         return desc[:-1]
     def name(self, infos=default_descriptors):
         return self.descrip(infos).replace(' ', '_')
+    def unique_name(self, infos=default_descriptors + ['start_time']):
+        return self.descrip(infos).replace(' ', '_')
     # use with care - does an eval() on self'user text' when 'user text' starts with '.'
     def filter_events(self, filter_strings):
         events = self.events
