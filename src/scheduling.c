@@ -429,7 +429,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                 rv = __dague_execute( eu_context, exec_context );
                 PINS(EXEC_END, eu_context, exec_context, NULL  );
                 if( 0 == rv ) {
-                    /* complete execution==add==push begin */
+                    /* complete execution==add==push (also includes exec of immediates) */
                     PINS(COMPLETE_EXEC_BEGIN, eu_context, exec_context, NULL);
                     __dague_complete_execution( eu_context, exec_context );
                     PINS(COMPLETE_EXEC_END, eu_context, exec_context, NULL);

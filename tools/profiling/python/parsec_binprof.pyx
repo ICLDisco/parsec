@@ -167,12 +167,16 @@ cpdef convert(filenames, outfilename=None, unlink=True,
             try:
                 if validate_existing:
                     ParsecProfile.from_hdf(outfilename, skeleton_only=True)
-                cond_print('P3 {} already exists. '.format(outfilename) +
-                           'Conversion not forced.', report_progress)
+                cond_print(
+                    'P3 {} already exists. '.format(
+                        os.path.basename(outfilename)) +
+                    'Conversion not forced.', report_progress)
                 return outfilename # file already exists
             except:
-                cond_print('P3 {} already exists, but cannot be validated. '.format(outfilename) +
-                           'Conversion will proceed.', report_progress)
+                cond_print(
+                    'P3 {} already exists, but cannot be validated. '.format(
+                        os.path.basename(outfilename)) +
+                    'Conversion will proceed.', report_progress)
                 pass # something went wrong, so try conversion anyway
     # convert
     cond_print('Converting {}'.format(filenames), report_progress)
@@ -306,10 +310,6 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                     event = [node_id, thread_id, handle_id, event_type, 
                              begin, end, duration, event_flags, unique_id, event_id]
 
-                    if duration > 500000000:
-                        print(event)
-                        print(profile.event_names[event_type])
-                    
                     if duration >= 0 and duration <= th_duration:
                         # VALID EVENT FOUND
                         builder.events.append(event)

@@ -15,21 +15,21 @@ static char* core_native_events   [NUM_CORE_EVENTS]   = PAPI_CORE_NATIVE_EVENT_A
 static char* socket_native_events [NUM_SOCKET_EVENTS] = PAPI_SOCKET_NATIVE_EVENT_ARRAY;
 
 static int enable_socket = ENABLE_SOCKET; /* TODO: use MCA for these config */
-static int enable_exec = ENABLE_EXEC;
-static int enable_select = ENABLE_SELECT;
-static int enable_compl = ENABLE_COMPL;
 static int enable_prep = ENABLE_PREP;
+static int enable_select = ENABLE_SELECT;
+static int enable_exec = ENABLE_EXEC;
+static int enable_compl = ENABLE_COMPL;
 
 static void pins_init_papi_L123(dague_context_t * master_context);
 static void pins_fini_papi_L123(dague_context_t * master_context);
 static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit);
 static void pins_thread_fini_papi_L123(dague_execution_unit_t * exec_unit);
 
-static void read_papi_core_exec_count_begin(
+static void read_papi_core_prep_count_begin(
     dague_execution_unit_t * exec_unit,
     dague_execution_context_t * exec_context,
     void * data);
-static void read_papi_core_exec_count_end(
+static void read_papi_core_prep_count_end(
     dague_execution_unit_t * exec_unit,
     dague_execution_context_t * exec_context,
     void * data);
@@ -41,11 +41,11 @@ static void read_papi_core_select_count_end(
     dague_execution_unit_t * exec_unit,
     dague_execution_context_t * exec_context,
     void * data);
-static void read_papi_core_prep_count_begin(
+static void read_papi_core_exec_count_begin(
     dague_execution_unit_t * exec_unit,
     dague_execution_context_t * exec_context,
     void * data);
-static void read_papi_core_prep_count_end(
+static void read_papi_core_exec_count_end(
     dague_execution_unit_t * exec_unit,
     dague_execution_context_t * exec_context,
     void * data);
@@ -70,25 +70,26 @@ const dague_pins_module_t dague_pins_papi_L123_module = {
     }
 };
 
-static parsec_pins_callback * exec_begin_prev = NULL; // courtesy calls to previously-registered cbs
-static parsec_pins_callback * exec_end_prev = NULL;
-static parsec_pins_callback * select_begin_prev = NULL; // courtesy calls to previously-registered cbs
-static parsec_pins_callback * select_end_prev = NULL;
 static parsec_pins_callback * prep_begin_prev = NULL; // courtesy calls to previously-registered cbs
 static parsec_pins_callback * prep_end_prev = NULL;
+static parsec_pins_callback * select_begin_prev = NULL; // courtesy calls to previously-registered cbs
+static parsec_pins_callback * select_end_prev = NULL;
+static parsec_pins_callback * exec_begin_prev = NULL; // courtesy calls to previously-registered cbs
+static parsec_pins_callback * exec_end_prev = NULL;
 static parsec_pins_callback * compl_begin_prev = NULL; // courtesy calls to previously-registered cbs
 static parsec_pins_callback * compl_end_prev = NULL;
 
-static int pins_prof_papi_core_exec_begin,
-    pins_prof_papi_core_exec_end,
-    pins_prof_papi_core_select_begin,
-    pins_prof_papi_core_select_end,
+static int
+    pins_prof_papi_socket_begin,
+    pins_prof_papi_socket_end,
     pins_prof_papi_core_prep_begin,
     pins_prof_papi_core_prep_end,
+    pins_prof_papi_core_select_begin,
+    pins_prof_papi_core_select_end,
+    pins_prof_papi_core_exec_begin,
+    pins_prof_papi_core_exec_end,
     pins_prof_papi_core_compl_begin,
-    pins_prof_papi_core_compl_end,
-    pins_prof_papi_socket_begin,
-    pins_prof_papi_socket_end;
+    pins_prof_papi_core_compl_end;
 
 static void pins_init_papi_L123(dague_context_t * master_context) {
     pins_papi_init(master_context);
@@ -102,13 +103,13 @@ static void pins_init_papi_L123(dague_context_t * master_context) {
                                                &pins_prof_papi_socket_begin,
                                                &pins_prof_papi_socket_end);
 
-    if (enable_exec) {
-        exec_begin_prev = PINS_REGISTER(EXEC_BEGIN, read_papi_core_exec_count_begin);
-        exec_end_prev   = PINS_REGISTER(EXEC_END, read_papi_core_exec_count_end);
-        dague_profiling_add_dictionary_keyword(PAPI_CORE_PROF_EVT_NAME_EXEC, "fill:#00FF00",
+    if (enable_prep) {
+        prep_begin_prev = PINS_REGISTER(PREPARE_INPUT_BEGIN, read_papi_core_prep_count_begin);
+        prep_end_prev   = PINS_REGISTER(PREPARE_INPUT_END, read_papi_core_prep_count_end);
+        dague_profiling_add_dictionary_keyword(PAPI_CORE_PROF_EVT_NAME_PREP, "fill:#00FF00",
                                                sizeof(papi_core_exec_info_t), NULL,
-                                               &pins_prof_papi_core_exec_begin,
-                                               &pins_prof_papi_core_exec_end);
+                                               &pins_prof_papi_core_prep_begin,
+                                               &pins_prof_papi_core_prep_end);
     }
     if (enable_select) {
         select_begin_prev = PINS_REGISTER(SELECT_BEGIN, read_papi_core_select_count_begin);
@@ -118,13 +119,13 @@ static void pins_init_papi_L123(dague_context_t * master_context) {
                                                &pins_prof_papi_core_select_begin,
                                                &pins_prof_papi_core_select_end);
     }
-    if (enable_prep) {
-        prep_begin_prev = PINS_REGISTER(PREPARE_INPUT_BEGIN, read_papi_core_prep_count_begin);
-        prep_end_prev   = PINS_REGISTER(PREPARE_INPUT_END, read_papi_core_prep_count_end);
-        dague_profiling_add_dictionary_keyword(PAPI_CORE_PROF_EVT_NAME_PREP, "fill:#00FF00",
+    if (enable_exec) {
+        exec_begin_prev = PINS_REGISTER(EXEC_BEGIN, read_papi_core_exec_count_begin);
+        exec_end_prev   = PINS_REGISTER(EXEC_END, read_papi_core_exec_count_end);
+        dague_profiling_add_dictionary_keyword(PAPI_CORE_PROF_EVT_NAME_EXEC, "fill:#00FF00",
                                                sizeof(papi_core_exec_info_t), NULL,
-                                               &pins_prof_papi_core_prep_begin,
-                                               &pins_prof_papi_core_prep_end);
+                                               &pins_prof_papi_core_exec_begin,
+                                               &pins_prof_papi_core_exec_end);
     }
     if (enable_compl) {
         compl_begin_prev = PINS_REGISTER(COMPLETE_EXEC_BEGIN, read_papi_core_complete_exec_count_begin);
@@ -139,17 +140,17 @@ static void pins_init_papi_L123(dague_context_t * master_context) {
 static void pins_fini_papi_L123(dague_context_t * master_context) {
     (void)master_context;
     /* replace original registrants */
-    if (enable_exec) {
-        PINS_REGISTER(EXEC_BEGIN,          exec_begin_prev);
-        PINS_REGISTER(EXEC_END,            exec_end_prev);
+    if (enable_prep) {
+        PINS_REGISTER(PREPARE_INPUT_BEGIN, prep_begin_prev);
+        PINS_REGISTER(PREPARE_INPUT_END,   prep_end_prev);
     }
     if (enable_select) {
         PINS_REGISTER(SELECT_BEGIN,        select_begin_prev);
         PINS_REGISTER(SELECT_END,          select_end_prev);
     }
-    if (enable_prep) {
-        PINS_REGISTER(PREPARE_INPUT_BEGIN, prep_begin_prev);
-        PINS_REGISTER(PREPARE_INPUT_END,   prep_end_prev);
+    if (enable_exec) {
+        PINS_REGISTER(EXEC_BEGIN,          exec_begin_prev);
+        PINS_REGISTER(EXEC_END,            exec_end_prev);
     }
     if (enable_compl) {
         PINS_REGISTER(COMPLETE_EXEC_BEGIN, compl_begin_prev);
@@ -173,7 +174,7 @@ static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit) {
 
     rv = PAPI_create_eventset(&exec_unit->papi_eventsets[EXEC_SET]);
     if (PAPI_OK != rv)
-        printf("pins_papi_L123_module.c, pins_thread_init_papi_L123: "
+        fprintf(stderr,"pins_papi_L123_module.c, pins_thread_init_papi_L123: "
                "thread %d couldn't create the PAPI event set "
                "to measure PAPI events; ERROR: %s\n",
                exec_unit->th_id, PAPI_strerror(rv));
@@ -183,20 +184,20 @@ static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit) {
             if (PAPI_OK != PAPI_event_name_to_code(
                     core_native_events[i], &native)) {
                 /* error */
-                printf("papi_L123 thread %d couldn't find event %s.\n",
+                fprintf(stderr,"papi_L123 thread %d couldn't find event %s.\n",
                        exec_unit->th_id,
                        core_native_events[i]);
             }
             else if (PAPI_OK != PAPI_add_event(
                          exec_unit->papi_eventsets[EXEC_SET], native)) {
                 /* error */
-                printf("papi_L123 thread %d couldn't add event %s.\n",
+                fprintf(stderr,"papi_L123 thread %d couldn't add event %s.\n",
                        exec_unit->th_id,
                        core_native_events[i]);
             }
             else {
                 /* success */
-                /* printf("papi_L123 thread %d added event %s\n", */
+                /* fprintf(stderr,"papi_L123 thread %d added event %s\n", */
                 /*        exec_unit->th_id, */
                 /*        core_native_events[i]); */
             }
@@ -207,21 +208,21 @@ static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit) {
                 if ( PAPI_OK != PAPI_event_name_to_code(
                          socket_native_events[i], &native)) {
                     /* error */
-                    printf("papi_L123 thread %d couldn't find event %s.\n",
+                    fprintf(stderr,"papi_L123 thread %d couldn't find event %s.\n",
                            exec_unit->th_id,
                            socket_native_events[i]);
                 }
                 else if (PAPI_OK != (rv = PAPI_add_event(
                                          exec_unit->papi_eventsets[EXEC_SET], native))) {
                     /* error */
-                    printf("papi_L123 thread %d couldn't add event %s, ERROR: %s\n",
+                    fprintf(stderr,"papi_L123 thread %d couldn't add event %s, ERROR: %s\n",
                            exec_unit->th_id,
                            socket_native_events[i],
                            PAPI_strerror(rv));
                 }
                 else {
                     /* success */
-                    /* printf("papi_L123 thread %d added event %s\n", */
+                    /* fprintf(stderr,"papi_L123 thread %d added event %s\n", */
                     /*        exec_unit->th_id, */
                     /*        socket_native_events[i]); */
                 }
@@ -231,7 +232,7 @@ static void pins_thread_init_papi_L123(dague_execution_unit_t * exec_unit) {
         // start the event set (why wait?)
         rv = PAPI_start(exec_unit->papi_eventsets[EXEC_SET]);
         if (PAPI_OK != rv)
-            printf("papi_L123 couldn't start PAPI event set for thread %d; ERROR: %s\n",
+            fprintf(stderr,"papi_L123 couldn't start PAPI event set for thread %d; ERROR: %s\n",
                    exec_unit->th_id, PAPI_strerror(rv));
         else {
             if (enable_socket)
@@ -249,7 +250,7 @@ static void pins_thread_fini_papi_L123(dague_execution_unit_t * exec_unit) {
 
     rv = PAPI_read(exec_unit->papi_eventsets[EXEC_SET], values);
     if (PAPI_OK != rv) {
-        printf("papi_L123_module.c, pins_thread_fini_papi_L123: thread %d couldn't stop "
+        fprintf(stderr,"papi_L123_module.c, pins_thread_fini_papi_L123: thread %d couldn't stop "
                "PAPI event set %d errno %d %s ERROR: %s\n",
                exec_unit->th_id, exec_unit->papi_eventsets[EXEC_SET],
                errno, strerror(errno),
@@ -448,9 +449,6 @@ static void read_papi_core_select_count_end(dague_execution_unit_t * exec_unit,
         /* is this a function with an identifier? */
         if (exec_context->dague_handle->profiling_array != NULL)
             info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
-
-        if (info.selection_time > 1000000000)
-            printf("this makes no sense: %d %llu\n", exec_unit->th_id, info.selection_time);
 
         victim_core_num = exec_context->victim_core;
         if (victim_core_num >= num_threads)
