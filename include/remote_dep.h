@@ -83,6 +83,7 @@ struct dague_remote_deps_t {
     remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
     int                             root;    /**< The root of the control message */
     int                             from;    /**< From whom we received the control */
+    uint32_t                        activity_mask;  /**< Updated at each call into the internals to track the enabled actions */
     uint32_t                        output_count;
     uint32_t                        output_sent_count;
     int32_t                         max_priority;
@@ -141,6 +142,7 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     remote_deps->msg.output_mask   = 0;
     remote_deps->output_count      = 0;
     remote_deps->output_sent_count = 0;
+    remote_deps->activity_mask     = 0;
     DEBUG(("remote_deps_allocate: %p\n", remote_deps));
     return remote_deps;
 }

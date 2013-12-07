@@ -943,7 +943,7 @@ static int dague_update_deps_with_mask( const dague_object_t *dague_object,
     dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, exec_context);
 #endif
 
-    DEBUG2(("Activate mask dependency for %s flags = 0x%04x (current %x mask %x goal %x)\n",
+    DEBUG2(("Activate mask dependency for %s flags = 0x%04x (current 0x%x mask 0x%x goal 0x%x)\n",
             tmp2, function->flags, *deps, (1 << dest_flow->flow_index), function->dependencies_goal));
 #if defined(DAGUE_DEBUG)
     if( (*deps) & (1 << dest_flow->flow_index) ) {
@@ -1142,6 +1142,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                 if(newcontext->priority > arg->deps->max_priority)
                     arg->deps->max_priority = newcontext->priority;
             }
+            arg->deps->activity_mask |= (1 << dep->dep_datatype_index);
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
             struct remote_dep_output_param* output;
@@ -1153,6 +1154,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             output = &arg->remote_deps->output[dep->dep_datatype_index];
             assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
+            arg->remote_deps->activity_mask |= (1 << dep->dep_datatype_index);
             if( !(output->rank_bits[_array_pos] & _array_mask) ) {
                 output->deps_mask             |= (1 << dep->dep_index);
                 output->data                   = *data;
