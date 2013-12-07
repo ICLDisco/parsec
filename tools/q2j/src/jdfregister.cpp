@@ -286,7 +286,7 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     parent_task->next       = pseudotask;
     pseudotask->fname       = NULL;
     pseudotask->parameters  = NULL;
-    pseudotask->dep_flags       = is_input ? JDF_FUNCTION_FLAG_CAN_BE_STARTUP : 0;
+    pseudotask->flags       = is_input ? JDF_FUNCTION_FLAG_CAN_BE_STARTUP : 0;
     pseudotask->properties  = NULL;
     pseudotask->locals      = NULL;
     pseudotask->simcost     = NULL;
@@ -443,9 +443,9 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     output = (pseudotask->dataflow->deps)+1;
 
     // Input
-    input->next   = output;
-    input->type   = JDF_DEP_FLOW_IN;
-    input->guard  = q2jmalloc(jdf_guarded_call_t, 1);
+    input->next      = output;
+    input->dep_flags = JDF_DEP_FLOW_IN;
+    input->guard     = q2jmalloc(jdf_guarded_call_t, 1);
     jdf_set_default_datatype(&input->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(input, NULL, 0, NULL);
 
@@ -465,9 +465,9 @@ jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
     }
 
     // Output
-    output->next   = NULL;
-    output->type   = JDF_DEP_FLOW_OUT;
-    output->guard  = q2jmalloc(jdf_guarded_call_t, 1);
+    output->next      = NULL;
+    output->dep_flags = JDF_DEP_FLOW_OUT;
+    output->guard     = q2jmalloc(jdf_guarded_call_t, 1);
     jdf_set_default_datatype(&output->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(output, NULL, 0, NULL);
 
@@ -969,9 +969,9 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->flow_flags = JDF_FLOW_TYPE_CTL;
     JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
 
-    dataflow->deps->next   = NULL;
-    dataflow->deps->type   = JDF_DEP_FLOW_OUT;
-    dataflow->deps->guard  = q2jmalloc(jdf_guarded_call_t, 1);
+    dataflow->deps->next      = NULL;
+    dataflow->deps->dep_flags = JDF_DEP_FLOW_OUT;
+    dataflow->deps->guard     = q2jmalloc(jdf_guarded_call_t, 1);
     jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
 
@@ -998,9 +998,9 @@ void jdf_register_anti_dependency( dep_t *dep )
     dataflow->flow_flags = JDF_FLOW_TYPE_CTL;
     JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
 
-    dataflow->deps->next   = NULL;
-    dataflow->deps->type   = JDF_DEP_FLOW_IN;
-    dataflow->deps->guard  = q2jmalloc(jdf_guarded_call_t, 1);
+    dataflow->deps->next      = NULL;
+    dataflow->deps->dep_flags = JDF_DEP_FLOW_IN;
+    dataflow->deps->guard     = q2jmalloc(jdf_guarded_call_t, 1);
     jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
     JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
 
