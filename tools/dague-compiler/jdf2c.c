@@ -1156,9 +1156,9 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "  (DEPS)->min = _vmin;                                                                       \\\n"
             "  (DEPS)->max = _vmax;                                                                       \\\n"
             "  (DEPS)->prev = (PREVDEP); /* chain them backward */                                        \\\n"
-            "} while (0)                                                                                  \n\n"
-            "static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };                     \n\n"
-            "static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };                     \n\n");
+            "} while (0)\n\n"
+            "static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };\n\n"
+            "static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };\n\n");
 
     coutput("/* Release dependencies output macro */\n"
             "#if DAGUE_DEBUG_VERBOSE != 0\n"
@@ -2457,10 +2457,10 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     sprintf(prefix, "&symb_%s_%s_", jdf_basename, f->fname);
     string_arena_add_string(sa, "  .params = { %s },\n",
                             UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name, dump_string, NULL,
-                                                 "", prefix, ", ", ""));
+                                                 "", prefix, ", ", ", NULL"));
     string_arena_add_string(sa, "  .locals = { %s },\n",
                             UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name, dump_string, NULL,
-                                                 "", prefix, ", ", ""));
+                                                 "", prefix, ", ", ", NULL"));
 
     sprintf(prefix, "pred_of_%s_%s_as_expr", jdf_basename, f->fname);
     jdf_generate_predicate_expr(jdf, f->locals, f->fname, prefix);
@@ -2498,13 +2498,17 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     }
     sprintf(prefix, "&flow_of_%s_%s_for_", jdf_basename, f->fname);
     UTIL_DUMP_LIST(sa2, f->dataflow, next, dump_dataflow, "IN", "", prefix, ", ", "");
-    if(0 == strlen(string_arena_get_string(sa2)))
+    if( 0 == strlen(string_arena_get_string(sa2)) )
         string_arena_add_string(sa2, "NULL");
+    else
+        string_arena_add_string(sa2, ", NULL");
     string_arena_add_string(sa, "  .in = { %s },\n",
                             string_arena_get_string(sa2));
     UTIL_DUMP_LIST(sa2, f->dataflow, next, dump_dataflow, "OUT", "", prefix, ", ", "");
-    if(0 == strlen(string_arena_get_string(sa2)))
+    if( 0 == strlen(string_arena_get_string(sa2)) )
         string_arena_add_string(sa2, "NULL");
+    else
+        string_arena_add_string(sa2, ", NULL");
     string_arena_add_string(sa, "  .out = { %s },\n",
                             string_arena_get_string(sa2));
 
@@ -3440,15 +3444,20 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf,
                                                         const jdf_function_entry_t *function,
                                                         const char* context_name)
 {
+    uint32_t complete_mask = 0;
+    jdf_dataflow_t* dl;
     (void)jdf;
 
+    for( dl = function->dataflow; dl != NULL; dl = dl->next ) {
+        complete_mask |= dl->flow_dep_mask;
+    }
     coutput("  release_deps_of_%s_%s(context, %s,\n"
             "      DAGUE_ACTION_RELEASE_REMOTE_DEPS |\n"
             "      DAGUE_ACTION_RELEASE_LOCAL_DEPS |\n"
             "      DAGUE_ACTION_RELEASE_LOCAL_REFS |\n"
-            "      DAGUE_ACTION_DEPS_MASK,\n"
+            "      0x%x,\n"
             "      NULL);\n",
-            jdf_basename, function->fname, context_name);
+            jdf_basename, function->fname, context_name, complete_mask);
 }
 
 static int jdf_property_get_int( const jdf_def_list_t* properties,
@@ -4051,12 +4060,9 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     linfo.prefix = NULL;
 
     string_arena_add_string(sa_open,
-                            "%s%s  if( DAGUE_ITERATE_STOP == %s )\n"
-                            "%s%s    return;\n",
-                            prefix, indent(nbopen), calltext,
-                            prefix, indent(nbopen));
+                            "%s%s%s", prefix, indent(nbopen), calltext);
 
-    for(i=nbopen; i>0; i--) {
+    for(i = nbopen; i > 0; i--) {
         string_arena_add_string(sa_close, "%s%s  }\n", prefix, indent(nbopen));
         nbopen--;
     }
@@ -4155,8 +4161,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)this_task->dague_object;\n"
             "  dague_execution_context_t nc;\n"
             "  dague_dep_data_description_t data;\n"
-            "  int vpid_dst = -1;\n"
-            "  int rank_src = 0, rank_dst = 0;\n"
+            "  int vpid_dst = -1, rank_src = 0, rank_dst = 0;\n"
             "%s"
             "  (void)rank_src; (void)rank_dst; (void)__dague_object; (void)vpid_dst;\n",
             name,
@@ -4251,7 +4256,9 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                 last_datatype_idx = dl->dep_datatype_index;
             }
             string_arena_init(sa_ontask);
-            string_arena_add_string(sa_ontask, "ontask(eu, &nc, this_task, &%s, &data, rank_src, rank_dst, vpid_dst, ontask_arg)",
+            string_arena_add_string(sa_ontask,
+                                    "if( DAGUE_ITERATE_STOP == ontask(eu, &nc, this_task, &%s, &data, rank_src, rank_dst, vpid_dst, ontask_arg) )\n"
+                                    "  return;\n",
                                     JDF_OBJECT_ONAME(dl->guard->calltrue));
 
             switch( dl->guard->guard_type ) {
@@ -4294,7 +4301,9 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                     depnb++;
 
                     string_arena_init(sa_ontask);
-                    string_arena_add_string(sa_ontask, "ontask(eu, &nc, this_task, &%s, &data, rank_src, rank_dst, vpid_dst, ontask_arg)",
+                    string_arena_add_string(sa_ontask,
+                                            "if( DAGUE_ITERATE_STOP == ontask(eu, &nc, this_task, &%s, &data, rank_src, rank_dst, vpid_dst, ontask_arg) )\n"
+                                            "  return;\n",
                                             JDF_OBJECT_ONAME(dl->guard->callfalse));
 
                     if( NULL != dl->guard->callfalse->var ) {
@@ -4311,7 +4320,9 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                 } else {
                     depnb++;
                     string_arena_init(sa_ontask);
-                    string_arena_add_string(sa_ontask, "ontask(eu, &nc, this_task, &%s, &data, rank_src, rank_dst, vpid_dst, ontask_arg)",
+                    string_arena_add_string(sa_ontask,
+                                            "if( DAGUE_ITERATE_STOP == ontask(eu, &nc, this_task, &%s, &data, rank_src, rank_dst, vpid_dst, ontask_arg) )\n"
+                                            "  return;\n",
                                             JDF_OBJECT_ONAME(dl->guard->callfalse));
 
                     if( NULL != dl->guard->callfalse->var ) {
