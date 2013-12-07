@@ -417,6 +417,7 @@ static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
         for(int j = 0; NULL != task.function->out[i]->dep_out[j]; j++ )
             if(origin->msg.output_mask & (1U << task.function->out[i]->dep_out[j]->dep_datatype_index))
                 local_mask |= (1U << task.function->out[i]->dep_out[j]->dep_index);
+    DEBUG3(("MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_get_datatypes)\n", origin->msg.output_mask, local_mask));
     origin->activity_mask = 0;
     ret = task.function->release_deps(NULL, &task,
                                       DAGUE_ACTION_RECV_INIT_REMOTE_DEPS | local_mask,
@@ -469,7 +470,8 @@ static int remote_dep_release(dague_execution_unit_t* eu_context,
         for(int j = 0; NULL != task.function->out[i]->dep_out[j]; j++ )
             if(complete_mask & (1U << task.function->out[i]->dep_out[j]->dep_datatype_index))
                 local_mask |= (1U << task.function->out[i]->dep_out[j]->dep_index);
-    printf("Translate mask from %lx to %x\n", complete_mask, local_mask);
+    DEBUG3(("MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release)\n", complete_mask, local_mask));
+    origin->activity_mask = 0;
     ret = task.function->release_deps(eu_context, &task,
                                       actions | local_mask,
                                       origin);
