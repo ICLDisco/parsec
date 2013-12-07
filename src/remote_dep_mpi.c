@@ -153,21 +153,15 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
                          char* str,
                          size_t len)
 {
-    unsigned int i, index = 0;
     dague_object_t* object;
-    const dague_function_t* function;
+    dague_execution_context_t task;
 
     object = dague_object_lookup(origin->object_id);
-    function = object->functions_array[origin->function_id];
-
-    index += snprintf( str + index, len - index, "%s", function->name );
-    if( index >= len ) return str;
-    for( i = 0; i < function->nb_parameters; i++ ) {
-        index += snprintf( str + index, len - index, "_%d",
-                           origin->locals[function->params[i]->context_index].value );
-        if( index >= len ) return str;
-    }
-    return str;
+    task.dague_object = object;
+    task.function = object->functions_array[origin->function_id];
+    memcpy(&task.locals, origin->locals, sizeof(assignment_t) * task.function->nb_locals);
+    task.priority = 0xFFFFFFFF;
+    return dague_snprintf_execution_context(str, len, &task);
 }
 #endif
 
@@ -404,21 +398,31 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
  */
 static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
 {
-    dague_execution_context_t exec_context;
+    dague_execution_context_t task;
+    uint32_t local_mask = 0;
+    int ret;
 
-    exec_context.dague_object = dague_object_lookup( origin->msg.object_id );
-    if( NULL == exec_context.dague_object )
+    task.dague_object = dague_object_lookup( origin->msg.object_id );
+    if( NULL == task.dague_object )
         return -1; /* the dague object doesn't exist yet */
     assert( NULL == origin->dague_object );
-    origin->dague_object = exec_context.dague_object;
-    exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
+    origin->dague_object = task.dague_object;
+    task.function = task.dague_object->functions_array[origin->msg.function_id];
 
-    for(int i = 0; i < exec_context.function->nb_locals; i++)
-        exec_context.locals[i] = origin->msg.locals[i];
+    for(int i = 0; i < task.function->nb_locals; i++)
+        task.locals[i] = origin->msg.locals[i];
 
-    return exec_context.function->release_deps(NULL, &exec_context,
-                                               DAGUE_ACTION_RECV_INIT_REMOTE_DEPS | origin->msg.output_mask,
-                                               origin);
+    /* We need to convert from a dep_datatype_index mask into a dep_index mask */
+    for(int i = 0; NULL != task.function->out[i]; i++ )
+        for(int j = 0; NULL != task.function->out[i]->dep_out[j]; j++ )
+            if(origin->msg.output_mask & (1U << task.function->out[i]->dep_out[j]->dep_datatype_index))
+                local_mask |= (1U << task.function->out[i]->dep_out[j]->dep_index);
+    origin->activity_mask = 0;
+    ret = task.function->release_deps(NULL, &task,
+                                      DAGUE_ACTION_RECV_INIT_REMOTE_DEPS | local_mask,
+                                      origin);
+    assert( origin->activity_mask == origin->msg.output_mask);
+    return ret;
 }
 
 /**
@@ -430,37 +434,45 @@ static int remote_dep_release(dague_execution_unit_t* eu_context,
                               remote_dep_datakey_t complete_mask)
 {
     int actions = DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_RELEASE_REMOTE_DEPS;
-    dague_execution_context_t exec_context;
+    dague_execution_context_t task;
     const dague_flow_t* target;
     int ret, i, pidx = 0;
+    uint32_t local_mask = 0;
 
     assert((origin->msg.output_mask & complete_mask) == complete_mask);
-    exec_context.dague_object = dague_object_lookup(origin->msg.object_id);
+    task.dague_object = dague_object_lookup(origin->msg.object_id);
 #if defined(DAGUE_DEBUG)
-    exec_context.priority = 0;
+    task.priority = 0;
 #endif
-    assert(exec_context.dague_object); /* Future: for composition, store this in a list
-                                        to be considered upon creation of the object */
-    exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
-    for(i = 0; i < exec_context.function->nb_locals;
-        exec_context.locals[i] = origin->msg.locals[i], i++);
+    assert(task.dague_object); /* Future: for composition, store this in a list
+                                to be considered upon creation of the object */
+    task.function = task.dague_object->functions_array[origin->msg.function_id];
+    for(i = 0; i < task.function->nb_locals;
+        task.locals[i] = origin->msg.locals[i], i++);
 
-    target = exec_context.function->out[pidx];
+    target = task.function->out[pidx];
     for(i = 0; complete_mask>>i; i++) {
         assert(i < MAX_PARAM_COUNT);
         if( !((1<<i) & complete_mask) ) continue;
         while( !((1<<i) & target->flow_mask) ) {
-            target = exec_context.function->out[++pidx];
+            target = task.function->out[++pidx];
             if(NULL == target)
                 assert(0);
         }
         DEBUG3(("MPI:\tDATA %p released from %p[%d]\n", ADATA(origin->output[i].data.ptr), origin, i));
-        exec_context.data[target->flow_index].data_repo = NULL;
-        exec_context.data[target->flow_index].data      = origin->output[i].data.ptr;
+        task.data[target->flow_index].data_repo = NULL;
+        task.data[target->flow_index].data      = origin->output[i].data.ptr;
     }
-    ret = exec_context.function->release_deps(eu_context, &exec_context,
-                                              actions | complete_mask,
-                                              origin);
+
+    /* We need to convert from a dep_datatype_index mask into a dep_index mask */
+    for(int i = 0; NULL != task.function->out[i]; i++ )
+        for(int j = 0; NULL != task.function->out[i]->dep_out[j]; j++ )
+            if(complete_mask & (1U << task.function->out[i]->dep_out[j]->dep_datatype_index))
+                local_mask |= (1U << task.function->out[i]->dep_out[j]->dep_index);
+    printf("Translate mask from %lx to %x\n", complete_mask, local_mask);
+    ret = task.function->release_deps(eu_context, &task,
+                                      actions | local_mask,
+                                      origin);
     origin->msg.output_mask ^= complete_mask;
     return ret;
 }
