@@ -15,8 +15,9 @@ endif (CUDA_FOUND AND MPI_C_FOUND)
 # Distributed Memory Testings
 #
 if( MPI_C_FOUND )
+  find_program(BINTRUE true)
   # Check MPI
-  add_test(mpi_test   ${MPI_TEST_CMD_LIST} -np 8 /bin/true)
+  add_test(mpi_test   ${MPI_TEST_CMD_LIST} -np 8 ${BINTRUE})
 
 endif( MPI_C_FOUND )
 
