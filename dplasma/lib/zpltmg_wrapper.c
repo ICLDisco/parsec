@@ -324,7 +324,7 @@ dplasma_zpltmg_condex( dague_context_t *dague,
     two_dim_block_cyclic_t Q;
     two_dim_block_cyclic_init( &Q, matrix_ComplexDouble, matrix_Tile,
                                1, A->super.cores, A->super.myrank,
-                               A->mb, A->nb, A->m, 3, 0, 0, A->m, 3, twodA->grid.strows, twodA->grid.stcols, 1 );
+                               A->mb, A->nb, A->mb*A->mt, 3, 0, 0, A->m, 3, twodA->grid.strows, twodA->grid.stcols, 1 );
     Q.mat = dague_data_allocate((size_t)Q.super.nb_local_tiles *
                                 (size_t)Q.super.bsiz *
                                 (size_t)dague_datadist_getsizeoftype(Q.super.mtype));
@@ -336,7 +336,7 @@ dplasma_zpltmg_condex( dague_context_t *dague,
         Qmat = (dague_complex64_t*)(Q.mat);
 
         /* Initialize the Q matrix */
-        CORE_zpltmg_condexq( A->m, A->n, Qmat, Q.super.m );
+        CORE_zpltmg_condexq( A->m, A->n, Qmat, Q.super.lm );
 
         /*
          * Conversion to tile layout
