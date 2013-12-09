@@ -436,8 +436,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     context->__dague_internal_finalization_in_progress = 0;
     context->__dague_internal_finalization_counter = 0;
-    context->nb_nodes       = 1;
     context->active_objects = 0;
+    context->flags          = 0;
+    context->nb_nodes       = 1;
     context->my_rank        = 0;
 
 #if defined(DAGUE_SIM)
