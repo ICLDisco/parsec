@@ -28,6 +28,7 @@ extern "C" %{
 
 dataA     [type = "dague_ddesc_t *"]
 dataL     [type = "dague_ddesc_t *" aligned=dataA]
+dataIP    [type = "dague_ddesc_t *" aligned=dataA] /* Unused: Here only to keep alignment with getrf_incpiv object */
 INFO      [type = "int*"]
 
 descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
