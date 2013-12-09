@@ -230,7 +230,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
  */
 static int
 jdf_set_default_datatype(jdf_datatransfer_type_t* datatype,
-                         char* default_ddt,
+                         const char* default_ddt,
                          int count,
                          int displ)
 {
@@ -238,7 +238,7 @@ jdf_set_default_datatype(jdf_datatransfer_type_t* datatype,
     if( NULL == datatype->type ) return -1;
     datatype->type->next    = NULL;
     datatype->type->op      = JDF_STRING;
-    datatype->type->jdf_var = default_ddt;
+    datatype->type->jdf_var = strdup(default_ddt);
     datatype->layout= datatype->type;
     datatype->count = q2jmalloc(jdf_expr_t, 1);
     if( NULL == datatype->count ) return -1;
@@ -255,12 +255,13 @@ jdf_set_default_datatype(jdf_datatransfer_type_t* datatype,
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-jdf_call_t *jdf_register_pseudotask(jdf_t *jdf,
-                                    jdf_function_entry_t *parent_task,
-                                    Relation S_es, Relation cond,
-                                    node_t *data_element,
-                                    char *var_pseudoname,
-                                    int ptask_count, const char *inout )
+jdf_call_t *
+jdf_register_pseudotask(jdf_t *jdf,
+                        jdf_function_entry_t *parent_task,
+                        Relation S_es, Relation cond,
+                        node_t *data_element,
+                        char *var_pseudoname,
+                        int ptask_count, const char *inout )
 {
     int var_count;
     char *data_str;
@@ -734,7 +735,7 @@ void jdf_register_fake_read( Relation S_es,
     dep->datatype.type = q2jmalloc(jdf_expr_t, 1);
     dep->datatype.type->next    = NULL;
     dep->datatype.type->op      = JDF_STRING;
-    dep->datatype.type->jdf_var = "DEFAULT";
+    dep->datatype.type->jdf_var = strdup("DEFAULT");
     dep->datatype.count = q2jmalloc(jdf_expr_t, 1);
     dep->datatype.count->next    = NULL;
     dep->datatype.count->op      = JDF_CST;
