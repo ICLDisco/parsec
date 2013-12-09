@@ -116,10 +116,10 @@ dplasma_zgetrf_nopiv_Destruct( dague_object_t *o )
  *
  * @ingroup dplasma_complex64_t
  *
- * dplasma_zgetrf_nopiv_New - Computes the LU factorization of a M-by-N matrix
- * A: A = L * U by with no pivoting strategy. The matrix has to be diaagonal
- * dominant to use this routine. Otherwise, the numerical stability of the
- * result is not guaranted.
+ * dplasma_zgetrf_nopiv - Computes the LU factorization of a M-by-N matrix A: A
+ * = L * U by with no pivoting strategy. The matrix has to be diaagonal dominant
+ * to use this routine. Otherwise, the numerical stability of the result is not
+ * guaranted.
  *
  * Other variants of LU decomposition with pivoting stragies are available in
  * the library with the following function:
