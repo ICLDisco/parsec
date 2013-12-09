@@ -26,6 +26,12 @@ int vasprintf(char **ret, const char *format, va_list ap);
 void debug_save_stack_trace(void);
 void debug_dump_stack_traces(void);
 
+/**
+ * The level of the output verbosity. Set to zero to disable everything.
+ */
+extern int dague_verbose;
+extern int dague_debug_rank;
+
 /* only one printf to avoid line breaks in the middle */
 static inline char* arprintf(const char* fmt, ...)
 {
@@ -49,13 +55,10 @@ static inline char* arprintf(const char* fmt, ...)
 #endif
 
 #ifdef HAVE_MPI
-#   include <mpi.h>
 #   define _DAGUE_OUTPUT(PRFX, ARG) do { \
-        int __debug_rank; \
         char* __debug_str; \
-        MPI_Comm_rank(MPI_COMM_WORLD, &__debug_rank); \
         __debug_str = arprintf ARG ; \
-        fprintf(stderr,  "[" PRFX "DAGuE % 5d]:\t%s", __debug_rank, __debug_str); \
+        fprintf(stderr,  "[" PRFX "DAGuE % 5d]:\t%s", dague_debug_rank, __debug_str); \
         free(__debug_str); \
     } while(0)
 
@@ -77,16 +80,6 @@ static inline char* arprintf(const char* fmt, ...)
     _DAGUE_OUTPUT("..", ARG); \
     _DAGUE_DEBUG_HISTORY(ARG); \
 } while(0)
-#define VERBOSE(ARG) do { \
-    if(dague_verbose) \
-        _DAGUE_OUTPUT("+.", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
-#define VERBOSE2(ARG) do { \
-    if(dague_verbose > 1) \
-        _DAGUE_OUTPUT("+^", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
 #define WARNING(ARG) do { \
     _DAGUE_OUTPUT("!.", ARG) ; \
     _DAGUE_DEBUG_HISTORY(ARG); \
@@ -98,44 +91,9 @@ static inline char* arprintf(const char* fmt, ...)
     ABORT(); \
 } while(0)
 
-#ifdef DAGUE_DEBUG_VERBOSE3
-# define DEBUG3(ARG) do { \
-    _DAGUE_OUTPUT("D^", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
-#else /*DEBUG3*/
-# define DEBUG3(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
-#endif /*DEBUG3*/
-
-#ifdef DAGUE_DEBUG_VERBOSE2
-# define DEBUG2(ARG) do { \
-    _DAGUE_OUTPUT("D.", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
-#else /*DEBUG2*/
-# define DEBUG2(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
-#endif /*DEBUG2*/
-
-#ifdef DAGUE_DEBUG_VERBOSE1
-# define DEBUG(ARG) do { \
-    _DAGUE_OUTPUT("d.", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
-#else /*DEBUG1*/
-# define DEBUG(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
-#endif /*DEBUG1*/
-
-
-
 #ifdef DAGUE_DEBUG_HISTORY
-#   ifndef DAGUE_DEBUG_VERBOSE1
-#       define DAGUE_DEBUG_VERBOSE1
-#   endif
-#   ifndef DAGUE_DEBUG_VERBOSE2
-#       define DAGUE_DEBUG_VERBOSE2
-#   endif
-#   ifndef DAGUE_DEBUG_VERBOSE3
-#       define DAGUE_DEBUG_VERBOSE3
+#   ifndef DAGUE_DEBUG_VERBOSE
+#       define DAGUE_DEBUG_VERBOSE 3
 #   endif
 
 struct dague_execution_context_t;
@@ -174,7 +132,7 @@ void debug_mark_purge_all_history(void);
 #define DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, buffer, message)
 #define DEBUG_MARK_CTL_MSG_GET_SENT(to, buffer, message)
 #define DEBUG_MARK_CTL_MSG_GET_RECV(from, buffer, message)
-#define DEBUG_MARK_DTA_MSG_START_SEND(to, buffer, tag) 
+#define DEBUG_MARK_DTA_MSG_START_SEND(to, buffer, tag)
 #define DEBUG_MARK_DTA_MSG_START_RECV(from, buffer, tag)
 #define DEBUG_MARK_DTA_MSG_END_SEND(tag)
 #define DEBUG_MARK_DTA_MSG_END_RECV(tag)
@@ -182,6 +140,30 @@ void debug_mark_purge_all_history(void);
 #define debug_mark_purge_all_history()
 
 #endif /* DAGUE_DEBUG_HISTORY */
+
+#if DAGUE_DEBUG_VERBOSE != 0
+# define DEBUG3(ARG)                            \
+    if( dague_verbose >= 3 ) {                  \
+        _DAGUE_OUTPUT("D^", ARG);               \
+        _DAGUE_DEBUG_HISTORY(ARG);              \
+    }
+
+# define DEBUG2(ARG)                            \
+    if( dague_verbose >= 2 ) {                  \
+        _DAGUE_OUTPUT("D.", ARG);               \
+        _DAGUE_DEBUG_HISTORY(ARG);              \
+    }
+
+# define DEBUG(ARG)                             \
+    if( dague_verbose >= 1 ) {                  \
+        _DAGUE_OUTPUT("d.", ARG);               \
+        _DAGUE_DEBUG_HISTORY(ARG);              \
+    }
+#else
+# define DEBUG(ARG)  do {} while(0)
+# define DEBUG2(ARG) do {} while(0)
+# define DEBUG3(ARG) do {} while(0)
+#endif  /* defined(DAGUE_DEBUG) */
 
 #endif /* DEBUG_H_HAS_BEEN_INCLUDED */
 

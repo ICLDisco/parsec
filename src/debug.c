@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,7 +16,9 @@
 
 #include <execinfo.h>
 
-int dague_verbose = 0;
+int dague_verbose = 0 /*DAGUE_DEBUG_VERBOSE*/;
+int dague_debug_rank = -1;
+
 #define ST_SIZE 128
 #define ST_ASIZE 64
 static uint32_t st_idx = 0;
@@ -134,7 +136,7 @@ static inline void set_my_mark(const char *newm)
     uint32_t mymark_idx = dague_atomic_inc_32b(&marks->nextmark) - 1;
     char *oldm;
     mymark_idx %= MAX_MARKS;
-    
+
     do {
         oldm = marks->marks[mymark_idx];
     } while( !dague_atomic_cas( &marks->marks[mymark_idx], oldm, newm ) );
@@ -146,11 +148,11 @@ void dague_debug_history_add(const char *format, ...)
 {
     char* debug_str;
     va_list args;
-    
+
     va_start(args, format);
     vasprintf(&debug_str, format, args);
     va_end(args);
-    
+
     set_my_mark( debug_str );
 }
 
@@ -187,12 +189,12 @@ void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote
     f = object->functions_array[m->function_id];
     pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
     for(j = 0; j < f->nb_parameters; j++) {
-        pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s", 
+        pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",
                         j,
                         f->locals[j]->name, m->locals[j].value,
                         (j == f->nb_parameters - 1) ? ")\n" : ", ");
     }
-    pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n", 
+    pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n",
                     (uint32_t)m->which);
 
     /* Do not use set_my_mark: msg is a stack-allocated buffer */
@@ -214,12 +216,12 @@ void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remo
     f = object->functions_array[m->function_id];
     pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
     for(j = 0; j < f->nb_parameters; j++) {
-        pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s", 
+        pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",
                         j,
                         f->locals[j]->name, m->locals[j].value,
                         (j == f->nb_parameters - 1) ? ")\n" : ", ");
     }
-    pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n", 
+    pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n",
                     (uint32_t)m->which);
     pos += snprintf(msg+pos, len-pos, "\t      deps = 0x%X\n",
                     (uint32_t)m->deps);
@@ -234,7 +236,7 @@ void debug_mark_ctl_msg_get_sent(int to, const void *b, const struct remote_dep_
                             "\t      Using buffer %p for emission\n"
                             "\t      deps requested = 0x%X\n"
                             "\t      which requested = 0x%08x\n"
-                            "\t      tag for the reception of data = %d\n", 
+                            "\t      tag for the reception of data = %d\n",
                             to, b, m->deps, m->which, m->tag);
 }
 
@@ -244,7 +246,7 @@ void debug_mark_ctl_msg_get_recv(int from, const void *b, const remote_dep_wire_
                             "\t      Using buffer %p for reception\n"
                             "\t      deps requested = 0x%X\n"
                             "\t      which requested = 0x%08x\n"
-                            "\t      tag for the reception of data = %d\n", 
+                            "\t      tag for the reception of data = %d\n",
                             from, b, m->deps, m->which, m->tag);
 }
 
@@ -252,7 +254,7 @@ void debug_mark_dta_msg_start_send(int to, const void *b, int tag)
 {
     dague_debug_history_add("Mark: Start emitting data to %d\n"
                             "\t      Using buffer %p for emission\n"
-                            "\t      tag for the emission of data = %d\n", 
+                            "\t      tag for the emission of data = %d\n",
                             to, b, tag);
 }
 
@@ -335,7 +337,7 @@ void debug_mark_purge_history(void)
         } while( !dague_atomic_cas( &cmark->marks[i], gm, NULL ) );
         if( gm != NULL ) {
             free(gm);
-        } 
+        }
     }
 }
 

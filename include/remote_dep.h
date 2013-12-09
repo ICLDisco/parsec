@@ -17,18 +17,18 @@ typedef unsigned long remote_dep_datakey_t;
 #include "dague_description_structures.h"
 #include "lifo.h"
 
-#define DAGUE_ACTION_DEPS_MASK                  0x00FF
-#define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x0100
-#define DAGUE_ACTION_RELEASE_LOCAL_REFS         0x0200
-#define DAGUE_ACTION_SEND_INIT_REMOTE_DEPS      0x1000
-#define DAGUE_ACTION_SEND_REMOTE_DEPS           0x2000
-#define DAGUE_ACTION_RECV_INIT_REMOTE_DEPS      0x4000
+#define DAGUE_ACTION_DEPS_MASK                  0x00FFFFFF
+#define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x01000000
+#define DAGUE_ACTION_RELEASE_LOCAL_REFS         0x02000000
+#define DAGUE_ACTION_SEND_INIT_REMOTE_DEPS      0x10000000
+#define DAGUE_ACTION_SEND_REMOTE_DEPS           0x20000000
+#define DAGUE_ACTION_RECV_INIT_REMOTE_DEPS      0x40000000
 #define DAGUE_ACTION_RELEASE_REMOTE_DEPS        (DAGUE_ACTION_SEND_INIT_REMOTE_DEPS | DAGUE_ACTION_SEND_REMOTE_DEPS)
 
 typedef struct remote_dep_wire_activate_t
 {
-    remote_dep_datakey_t deps;
-    remote_dep_datakey_t which;
+    remote_dep_datakey_t deps;         /**< a pointer to the dep structure on the source */
+    remote_dep_datakey_t output_mask;  /**< the mask of the output dependencies satisfied by this activation message */
     remote_dep_datakey_t tag;
     uint32_t             object_id;
     uint32_t             function_id;
@@ -39,7 +39,7 @@ typedef struct remote_dep_wire_activate_t
 typedef struct remote_dep_wire_get_t
 {
     remote_dep_datakey_t deps;
-    remote_dep_datakey_t which;
+    remote_dep_datakey_t output_mask;
     remote_dep_datakey_t tag;
 } remote_dep_wire_get_t;
 
@@ -65,21 +65,28 @@ struct remote_dep_output_param {
      *   "subtle" relation with remote_deps_allocation_init in
      *  remote_dep.c
      */
-    struct dague_dep_data_description_s data;
-    uint32_t*                           rank_bits;
-    uint32_t                            count_bits;
+    dague_list_item_t                    super;
+    dague_remote_deps_t                 *parent;
+    struct dague_dep_data_description_s  data;        /**< The data propagated by this message. */
+    uint32_t                             deps_mask;   /**< A bitmask of all the output dependencies
+                                                       propagated by this message. The bitmask uses
+                                                       depedencies indexes not flow indexes. */
+    int32_t                              priority;    /**< the priority of the message */
+    uint32_t                             count_bits;  /**< The number of participants */
+    uint32_t*                            rank_bits;   /**< The array of bits representing the propagation path */
 };
 
 struct dague_remote_deps_t {
-    dague_list_item_t               item;
+    dague_list_item_t               super;
     struct dague_lifo_t*            origin;  /**< The memory arena where the data pointer is comming from */
     struct dague_object*            dague_object;  /**< dague object generating this data transfer */
     remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
     int                             root;    /**< The root of the control message */
     int                             from;    /**< From whom we received the control */
-    int                             max_priority;
+    uint32_t                        activity_mask;  /**< Updated at each call into the internals to track the enabled actions */
     uint32_t                        output_count;
     uint32_t                        output_sent_count;
+    int32_t                         max_priority;
     uint32_t*                       remote_dep_fw_mask;  /**< list of peers already notified about
                                                            * the control sequence (only used for control messages) */
     struct remote_dep_output_param  output[1];
@@ -88,8 +95,6 @@ struct dague_remote_deps_t {
  *   output[0] .. output[max_deps < MAX_PARAM_COUNT],
  *   (max_dep_count x (np+31)/32 uint32_t) rank_bits
  *   ((np+31)/32 x uint32_t) fw_mask_bitfield } */
-
-
 
 #if defined(DISTRIBUTED)
 
@@ -118,7 +123,12 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
         ptr = (char*)(&(remote_deps->output[dague_remote_dep_context.max_dep_count]));
         rank_bit_size = sizeof(uint32_t) * ((dague_remote_dep_context.max_nodes_number + 31) / 32);
         for( i = 0; i < dague_remote_dep_context.max_dep_count; i++ ) {
-            remote_deps->output[i].rank_bits = (uint32_t*)ptr;
+            DAGUE_LIST_ITEM_CONSTRUCT(&remote_deps->output[i].super);
+            remote_deps->output[i].parent     = remote_deps;
+            remote_deps->output[i].rank_bits  = (uint32_t*)ptr;
+            remote_deps->output[i].deps_mask  = 0;
+            remote_deps->output[i].count_bits = 0;
+            remote_deps->output[i].priority   = 0xffffffff;
             ptr += rank_bit_size;
         }
         /* fw_mask immediatly follows outputs */
@@ -127,8 +137,13 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
                 (int)(dague_remote_dep_context.elem_size - rank_bit_size));
     }
     assert(NULL == remote_deps->dague_object);
-    remote_deps->max_priority = 0xffffffff;
-    remote_deps->root         = -1;
+    remote_deps->max_priority      = 0xffffffff;
+    remote_deps->root              = -1;
+    remote_deps->msg.output_mask   = 0;
+    remote_deps->output_count      = 0;
+    remote_deps->output_sent_count = 0;
+    remote_deps->activity_mask     = 0;
+    DEBUG(("remote_deps_allocate: %p\n", remote_deps));
     return remote_deps;
 }
 
@@ -157,8 +172,8 @@ static inline void remote_deps_free(dague_remote_deps_t* deps)
         assert(k < MAX_PARAM_COUNT);
     }
     assert(count == deps->output_count);
+    DEBUG(("remote_deps_free: %p sent_count=%u/%u\n", deps, deps->output_sent_count, deps->output_count));
 #if defined(DAGUE_DEBUG)
-    DEBUG(("remote_deps_free: sent_count=%u/%u\n", deps->output_sent_count, deps->output_count));
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
     deps->output_count      = 0;

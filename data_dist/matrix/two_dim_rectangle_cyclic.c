@@ -314,7 +314,6 @@ static uint32_t twoDBC_stview_rank_of(dague_ddesc_t* ddesc, ...)
     va_end(ap);
     sm = st_compute_m(desc, m);
     sn = st_compute_n(desc, n);
-    DEBUG3(("SuperTiledView: rankof(%d,%d)=%d converted to rankof(%d,%d)=%d\n", m, n, twoDBC_rank_of(ddesc,m,n), sm, sn, twoDBC_rank_of(ddesc,sm,sn)));
     return twoDBC_rank_of(ddesc, sm, sn);
 }
 

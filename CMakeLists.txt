@@ -69,11 +69,11 @@ option(DAGUE_SCHED_REPORT_STATISTICS
   "Display statistics on the scheduling at the end of the run")
 
 mark_as_advanced(DAGUE_SCHED_CACHE_AWARE)
-cmake_dependent_option(DAGUE_SCHED_CACHE_AWARE 
+cmake_dependent_option(DAGUE_SCHED_CACHE_AWARE
   "Activate the cache awareness support (requires HWLOC)" OFF "HAVE_HWLOC" OFF)
 
 mark_as_advanced(DAGUE_SCHED_DEPS_MASK)
-option(DAGUE_SCHED_DEPS_MASK 
+option(DAGUE_SCHED_DEPS_MASK
   "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" ON)
 
 ### Distributed engine parameters
@@ -87,7 +87,7 @@ option(DAGUE_DIST_THREAD
   "Use an extra thread to progress the data movements" ON)
 option(DAGUE_DIST_PRIORITIES
   "Favor the communications that unlock the most prioritary tasks" ON)
-option(DAGUE_DIST_COLLECTIVES 
+option(DAGUE_DIST_COLLECTIVES
   "Use optimized asynchronous operations where collective communication pattern is detected" ON)
 set   (DAGUE_DIST_EAGER_LIMIT 0 CACHE STRING
   "Use the eager protocol (no flow control) for messages smaller than the limit in KB")
@@ -112,7 +112,7 @@ endif()
 option(DAGUE_DEBUG
     "Enable extra paranoid checks" OFF)
 set   (DAGUE_DEBUG_VERBOSE 0 CACHE STRING
-    "Controls the amount of verbose debug output spit on stderr (0,1,2,3)")
+    "Controls the amount of verbose debug output on stderr (0,1,2,3,...). Default is 0.")
 option(DAGUE_DEBUG_HISTORY
   "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_CALL_TRACE
@@ -187,7 +187,7 @@ ENDIF (_mach_ppc)
 #
 # Fix the building system for 32 or 64 bits.
 #
-# On MAC OS X there is a easy solution, by setting the 
+# On MAC OS X there is a easy solution, by setting the
 # CMAKE_OSX_ARCHITECTURES to a subset of the following values:
 # ppc;ppc64;i386;x86_64.
 # On Linux this is a little bit tricky. We have to check that the
@@ -249,7 +249,7 @@ ELSE( NOT _match_xlc )
   ENDIF( HAVE_STD_C99 )
 ENDIF( NOT _match_xlc )
 
-# Set warnings for debug builds 
+# Set warnings for debug builds
 CHECK_C_COMPILER_FLAG( "-Wall" HAVE_WALL )
 IF( HAVE_WALL )
     SET( C_WFLAGS "${C_WFLAGS} -Wall" )
@@ -263,10 +263,10 @@ CHECK_C_COMPILER_FLAG( "-wd424" HAVE_WD )
 IF( HAVE_WD )
     # 424: checks for duplicate ";"
     # 981: every volatile triggers a "unspecified evaluation order", obnoxious
-    #      but might be useful for some debugging sessions. 
+    #      but might be useful for some debugging sessions.
     # 1419: warning about extern functions being declared in .c
     #       files
-    # 1572: cuda compares floats with 0.0f. 
+    # 1572: cuda compares floats with 0.0f.
     SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572" )
 ENDIF( HAVE_WD )
 CHECK_C_COMPILER_FLAG( "-g3" HAVE_G3 )
@@ -330,7 +330,7 @@ if (HAVE_STDARG_H)
       }"
       HAVE_VA_COPY
       )
- 
+
   if (NOT HAVE_VA_COPY)
     check_c_source_compiles("
         #include <stdarg.h>
@@ -618,11 +618,9 @@ install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc" DESTINATION include)
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)
 set(CPACK_GENERATOR "TBZ2")
-set (CPACK_RESOURCE_FILE_LICENSE  
+set (CPACK_RESOURCE_FILE_LICENSE
      "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
 set (CPACK_PACKAGE_VERSION_MAJOR "${DAGUE_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${DAGUE_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "gamma")
 include (CPack)
-
-

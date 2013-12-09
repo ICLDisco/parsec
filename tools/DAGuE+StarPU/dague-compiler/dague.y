@@ -124,7 +124,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     jdf_def_list_t       *def_list;
     jdf_dataflow_t       *dataflow;
     jdf_dep_t            *dep;
-    jdf_dep_type_t        dep_type;
+    jdf_dep_flags_t        dep_type;
     jdf_guarded_call_t   *guarded_call;
     jdf_call_t           *call;
     jdf_expr_t           *expr;
@@ -149,7 +149,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <expr>expr_simple
 %type <expr>priority
 %type <expr>simulation_cost
-%type <number>optional_access_type
+%type <number>optional_flow_flags
 %type <external_code>prologue
 %type <external_code>epilogue
 
@@ -490,18 +490,18 @@ dataflow_list:  dataflow dataflow_list
                 }
          ;
 
-optional_access_type :
+optional_flow_flags :
                 DEPENDENCY_TYPE 
                 {
                     $$ = $1;
                 }
-         |      { $$ = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE; }
+         |      { $$ = JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE; }
          ;
 
-dataflow:       optional_access_type VAR dependencies
+dataflow:       optional_flow_flags VAR dependencies
                 {
                     jdf_dataflow_t *flow = new(jdf_dataflow_t);
-                    flow->access_type = $1;
+                    flow->flow_flags = $1;
                     flow->varname     = $2;
                     flow->deps        = $3;
                     flow->lineno      = current_lineno;
@@ -528,7 +528,7 @@ dependency:   ARROW guarded_call properties
                   jdf_expr_t* expr;
                   jdf_def_list_t* property;
 
-                  d->type = $1;
+                  d->dep_flags = $1;
                   d->guard = $2;
                   if( NULL == $3 ) {
                       $3 = jdf_create_properties_list( "type", 0, "DEFAULT", NULL );

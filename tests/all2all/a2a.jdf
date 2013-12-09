@@ -15,7 +15,7 @@ extern "C" %{
 
 #if defined(HAVE_MPI)
 #include <mpi.h>
-static MPI_Datatype block;
+static dague_datatype_t block;
 #endif
 #include <stdio.h>
 
@@ -44,7 +44,7 @@ t = 0 .. NT-1
 
 READ B <- (r == 0) ? B(t, 0) : B READER_B(r-1, t) [count = inline_c %{ return 1; %}
                                                    displ = inline_c %{ return 0; %}]
-       ->  A RECV(r, 0 .. NT-1, t)                [count = 1
+       -> A RECV(r, 0 .. NT-1, t)                 [count = 1
                                                    displ = 0]
        -> A FANIN(r, t)                           [count = inline_c %{ return always_one(); %}
                                                    displ = inline_c %{ return always_zero(); %}]
@@ -119,7 +119,7 @@ dague_object_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size
 #else
     worldsize = 1;
 #endif
-    
+
     if( repeat <= 0 ) {
         fprintf(stderr, "To work, A2A must do at least one exchange of at least one byte\n");
         return (dague_object_t*)o;
@@ -130,10 +130,10 @@ dague_object_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size
 #if defined(HAVE_MPI)
     {
         MPI_Aint extent;
-    	MPI_Type_contiguous(size, MPI_INT, &block);
+        MPI_Type_contiguous(size, MPI_INT, &block);
         MPI_Type_commit(&block);
 #if defined(HAVE_MPI_20)
-        MPI_Aint lb = 0; 
+        MPI_Aint lb = 0;
         MPI_Type_get_extent(block, &lb, &extent);
 #else
         MPI_Type_extent(block, &extent);
@@ -160,4 +160,3 @@ void a2a_destroy(dague_object_t *o)
 }
 
 %}
-

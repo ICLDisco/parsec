@@ -74,20 +74,25 @@ struct expr {
  * Flows (data or control)
  */
 /**< Remark: (sym_type == SYM_INOUT) if (sym_type & SYM_IN) && (sym_type & SYM_OUT) */
-#define SYM_IN     0x01
-#define SYM_OUT    0x02
+#define SYM_IN     ((uint8_t)(1 << 0))
+#define SYM_OUT    ((uint8_t)(1 << 1))
 #define SYM_INOUT  (SYM_IN | SYM_OUT)
 
-#define ACCESS_NONE     0x00
-#define ACCESS_READ     0x01
-#define ACCESS_WRITE    0x02
-#define ACCESS_RW       (ACCESS_READ | ACCESS_WRITE)
+#define FLOW_ACCESS_NONE     ((uint8_t)0x00)
+#define FLOW_ACCESS_READ     ((uint8_t)(1 << 2))
+#define FLOW_ACCESS_WRITE    ((uint8_t)(1 << 3))
+#define FLOW_ACCESS_RW       (FLOW_ACCESS_READ | FLOW_ACCESS_WRITE)
+#define FLOW_ACCESS_MASK     (FLOW_ACCESS_READ | FLOW_ACCESS_WRITE)
+#define FLOW_HAS_IN_DEPS     ((uint8_t)(1 << 4))
 
 struct dague_flow {
     char               *name;
-    unsigned char       sym_type;
-    unsigned char       access_type;
-    dague_dependency_t  flow_index;
+    uint8_t             sym_type;
+    uint8_t             flow_flags;
+    uint8_t             flow_index; /**< The input index of the flow. This index is used
+                                     *   while computing the mask. */
+    dague_dependency_t  flow_mask;  /**< The entire mask of the flow constructed
+                                     *   using the or of (1 << dep_out index). */
     const dep_t        *dep_in[MAX_DEP_IN_COUNT];
     const dep_t        *dep_out[MAX_DEP_OUT_COUNT];
 };
@@ -123,8 +128,12 @@ struct dague_comm_desc_s {
 struct dep {
     const expr_t                *cond;           /**< The runtime-evaluable condition on this dependency */
     const expr_t                *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
-    const int                    function_id;    /**< Index of the target dague function in the object function array */
+    const uint8_t                function_id;    /**< Index of the target dague function in the object function array */
+    const uint8_t                dep_index;      /**< Output index of the dependency. This is used to store the flow
+                                                  *   before tranfering it to the successors. */
+    const uint8_t                dep_datatype_index;  /**< Index of the output datatype. */
     const dague_flow_t          *flow;           /**< Pointer to the flow pointed to/from this dependency */
+    const dague_flow_t          *belongs_to;     /**< The flow this dependency belongs tp */
     struct dague_comm_desc_s     datatype;       /**< Datatype associated with this dependency */
     const expr_t                *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
 };

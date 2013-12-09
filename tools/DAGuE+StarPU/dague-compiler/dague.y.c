@@ -269,7 +269,7 @@ typedef union YYSTYPE
     jdf_def_list_t       *def_list;
     jdf_dataflow_t       *dataflow;
     jdf_dep_t            *dep;
-    jdf_dep_type_t        dep_type;
+    jdf_dep_flags_t        dep_type;
     jdf_guarded_call_t   *guarded_call;
     jdf_call_t           *call;
     jdf_expr_t           *expr;
@@ -637,7 +637,7 @@ static const char *const yytname[] =
   "jdf_file", "prologue", "epilogue", "jdf", "properties",
   "properties_list", "function", "varlist", "execution_space",
   "simulation_cost", "partitioning", "dataflow_list",
-  "optional_access_type", "dataflow", "dependencies", "dependency",
+  "optional_flow_flags", "dataflow", "dependencies", "dependency",
   "guarded_call", "call", "priority", "expr_list_range", "expr_list",
   "expr_range", "expr_complete", "expr_simple", 0
 };
@@ -2085,7 +2085,7 @@ yyreduce:
 
 /* Line 1806 of yacc.c  */
 #line 498 "dague.y"
-    { (yyval.number) = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE; }
+    { (yyval.number) = JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE; }
     break;
 
   case 30:
@@ -2094,7 +2094,7 @@ yyreduce:
 #line 502 "dague.y"
     {
                     jdf_dataflow_t *flow = new(jdf_dataflow_t);
-                    flow->access_type = (yyvsp[(1) - (3)].number);
+                    flow->flow_flags = (yyvsp[(1) - (3)].number);
                     flow->varname     = (yyvsp[(2) - (3)].string);
                     flow->deps        = (yyvsp[(3) - (3)].dep);
                     flow->lineno      = current_lineno;

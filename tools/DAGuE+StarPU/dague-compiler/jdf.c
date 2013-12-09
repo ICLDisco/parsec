@@ -547,7 +547,7 @@ static int jdf_sanity_check_control(void)
         i = 1;
         /* For each flow of data */
         for(flow = func->dataflow; flow != NULL; flow = flow->next, i++) {
-            if( JDF_VAR_TYPE_CTL != flow->access_type ) continue;
+            if( !(JDF_FLOW_TYPE_CTL & flow->flow_flags) ) continue;
             j = 1;
             /* For each CONTROL dependency */
             for( dep = flow->deps; dep != NULL; dep = dep->next, j++ ) {
@@ -660,7 +660,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
                      "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
                      f->fname, 
                      cstr, ciscanon ? "" : " (aligned with ", ciscanon ? "" : ccanon, ciscanon ? "" : ")",
-                     (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
+                     (dep->dep_flags & JDF_DEP_FLOW_IN & JDF_DEP_FLOW_OUT) ? "INOUT" : ( (dep->dep_flags & JDF_DEP_FLOW_IN) ? "IN" : "OUT" ),
                      dstr, discanon ? "" : " (aligned with ", discanon ? "" : dcanon, discanon ? "" : ")",
                      condstr,
                      dstr, cstr, ccanon);
@@ -674,7 +674,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
                      "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
                      f->fname, 
                      cstr, ciscanon ? "" : " (aligned with ", ciscanon ? "" : ccanon, ciscanon ? "" : ")",
-                     (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
+                     (dep->dep_flags & JDF_DEP_FLOW_IN & JDF_DEP_FLOW_OUT) ? "INOUT" : ( (dep->dep_flags & JDF_DEP_FLOW_IN) ? "IN" : "OUT" ),
                      dstr, discanon ? "" : " (aligned with ", discanon ? "" : dcanon, discanon ? "" : ")",
                      dstr, cstr, ccanon);
         }

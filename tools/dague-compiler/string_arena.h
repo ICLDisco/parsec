@@ -1,5 +1,15 @@
+/**
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _string_arena_h
 #define _string_arena_h
+
+#if defined(HAVE_STDARG_H)
+#include <stdarg.h>
+#endif  /* defined(HAVE_STDARG_H) */
 
 typedef struct string_arena {
     char *ptr;

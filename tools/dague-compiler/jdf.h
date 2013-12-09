@@ -1,5 +1,13 @@
+/**
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef jdf_h
 #define jdf_h
+
+#include "dague_config.h"
 
 #include <stdint.h>
 
@@ -17,11 +25,35 @@ void jdf_warn(int lineno, const char *format, ...);
 void jdf_fatal(int lineno, const char *format, ...);
 
 typedef struct jdf_object_t {
-    int lineno;
-    char *filename;
-    char *comment;
-    char *oname;
+    uint32_t    refcount;
+    int         lineno;    /**< line number in the JDF file where the object has been defined */
+    char       *filename;  /**< the name of the JDF file source of this object */
+    char       *comment;   /**< Additional comments to be dumped through the code generation process */
+    char       *oname;     /* name of the object for simplified reference */
 } jdf_object_t;
+
+/**
+ * Macros to handle the basic information for the jdf_object_t.
+ */
+#define JDF_OBJECT_RETAIN(OBJ) (((struct jdf_object_t*)(OBJ))++)
+#define JDF_OBJECT_RELEASE(OBJ)                  \
+    do {                                         \
+    if( --((struct jdf_object_t*)(OBJ)) == 0 ) { \
+        free((OBJ));                             \
+    } while(0)
+#define JDF_OBJECT_SET( OBJ, FILENAME, LINENO, COMMENT )                \
+    do {                                                                \
+        ((jdf_object_t*)(OBJ))->refcount = 1;  /* no copy here */       \
+        ((jdf_object_t*)(OBJ))->filename = (FILENAME);  /* no copy here */ \
+        ((jdf_object_t*)(OBJ))->lineno   = (LINENO);                    \
+        ((jdf_object_t*)(OBJ))->comment  = (COMMENT);                   \
+        ((jdf_object_t*)(OBJ))->oname    = NULL;                        \
+    } while (0)
+#define JDF_OBJECT_LINENO( OBJ )   ((OBJ)->super.lineno)
+#define JDF_OBJECT_FILENAME( OBJ ) ((OBJ)->super.filename)
+#define JDF_OBJECT_COMMENT( OBJ )  ((OBJ)->super.comment)
+#define JDF_OBJECT_ONAME( OBJ )    (OBJ)->super.oname
+
 
 /**
  * Checks the sanity of the current_jdf.
@@ -104,9 +136,10 @@ typedef struct jdf_global_entry {
  */
 
 typedef unsigned int jdf_flags_t;
-#define JDF_FUNCTION_FLAG_HIGH_PRIORITY   ((jdf_flags_t)(1 << 0))
-#define JDF_FUNCTION_FLAG_CAN_BE_STARTUP  ((jdf_flags_t)(1 << 1))
-#define JDF_FUNCTION_FLAG_NO_SUCCESSORS   ((jdf_flags_t)(1 << 2))
+#define JDF_FUNCTION_FLAG_HIGH_PRIORITY     ((jdf_flags_t)(1 << 0))
+#define JDF_FUNCTION_FLAG_CAN_BE_STARTUP    ((jdf_flags_t)(1 << 1))
+#define JDF_FUNCTION_FLAG_NO_SUCCESSORS     ((jdf_flags_t)(1 << 2))
+#define JDF_FUNCTION_FLAG_HAS_DISPLACEMENT  ((jdf_flags_t)(1 << 3))
 
 typedef struct jdf_function_entry {
     struct jdf_object_t        super;
@@ -151,38 +184,52 @@ typedef struct jdf_def_list {
 
 typedef struct jdf_dataflow jdf_dataflow_t;
 typedef struct jdf_dep jdf_dep_t;
-typedef unsigned int jdf_access_type_t;
-#define JDF_VAR_TYPE_CTL   ((jdf_access_type_t)0)
-#define JDF_VAR_TYPE_READ  ((jdf_access_type_t)(1<<0))
-#define JDF_VAR_TYPE_WRITE ((jdf_access_type_t)(1<<1))
+typedef uint32_t jdf_flow_flags_t;
+#define JDF_FLOW_TYPE_CTL     ((jdf_flow_flags_t)(1 << 0))
+#define JDF_FLOW_TYPE_READ    ((jdf_flow_flags_t)(1 << 1))
+#define JDF_FLOW_TYPE_WRITE   ((jdf_flow_flags_t)(1 << 2))
+#define JDF_FLOW_HAS_DISPL    ((jdf_flow_flags_t)(1 << 3))
+#define JDF_FLOW_HAS_IN_DEPS  ((jdf_flow_flags_t)(1 << 4))
+#define JDF_FLOW_IS_IN        ((jdf_flow_flags_t)(1 << 5))
+#define JDF_FLOW_IS_OUT       ((jdf_flow_flags_t)(1 << 6))
+
 struct jdf_dataflow {
     struct jdf_object_t       super;
+    jdf_flow_flags_t          flow_flags;
     jdf_dataflow_t           *next;
     char                     *varname;
     struct jdf_dep           *deps;
-    jdf_access_type_t         access_type;
+    uint8_t                   flow_index;
+    uint32_t                  flow_dep_mask;
 };
 
-typedef unsigned int jdf_dep_type_t;
-#define JDF_DEP_TYPE_IN  ((jdf_dep_type_t)(1<<0))
-#define JDF_DEP_TYPE_OUT ((jdf_dep_type_t)(1<<1))
+typedef uint16_t jdf_dep_flags_t;
+#define JDF_DEP_FLOW_IN    ((jdf_dep_flags_t)(1 << 0))
+#define JDF_DEP_FLOW_OUT   ((jdf_dep_flags_t)(1 << 1))
+#define JDF_DEP_HAS_DISPL  ((jdf_dep_flags_t)(1 << 2))
+#define JDF_DEP_HAS_IN     ((jdf_dep_flags_t)(1 << 3))
 
 typedef struct jdf_datatransfer_type {
-    struct jdf_expr *type;    /**< the internal type of the data associated with the dependency */
-    struct jdf_expr *layout;  /**< the basic memory layout in case it is different from the type.
-                                *< InMPI case this must be an MPI datatype, working together with the
-                                *< displacement and the count. */
-    struct jdf_expr *count;   /**< number of elements of layout type to transfer */
-    struct jdf_expr *displ;   /**< displacement in number of bytes from the pointer associated with
-                                *< the dependency */
+    struct jdf_object_t           super;
+    struct jdf_datatransfer_type *next;
+    struct jdf_expr              *type;    /**< the internal type of the data associated with the dependency */
+    struct jdf_expr              *layout;  /**< the basic memory layout in case it is different from the type.
+                                            *< InMPI case this must be an MPI datatype, working together with the
+                                            *< displacement and the count. */
+    struct jdf_expr              *count;   /**< number of elements of layout type to transfer */
+    struct jdf_expr              *displ;   /**< displacement in number of bytes from the pointer associated with
+                                            *< the dependency */
 } jdf_datatransfer_type_t;
 
 struct jdf_dep {
     struct jdf_object_t      super;
     jdf_dep_t               *next;
-    jdf_dep_type_t           type;
     struct jdf_guarded_call *guard;
     jdf_datatransfer_type_t  datatype;
+    jdf_dep_flags_t          dep_flags;
+    uint8_t                  dep_index;           /**< the index of the dependency in the context of the function */
+    uint8_t                  dep_datatype_index;  /**< the smallest index of all dependencies
+                                                   *   sharing a common datatype. */
 };
 
 typedef enum { JDF_GUARD_UNCONDITIONAL,
@@ -312,18 +359,8 @@ char *malloc_and_dump_jdf_expr_list( const jdf_expr_t *e );
 jdf_expr_t* jdf_find_property( const jdf_def_list_t* properties, const char* property_name, jdf_def_list_t** property );
 
 /**
- * Macros to handle the basic information for the jdf_object_t.
-*/
-#define JDF_OBJECT_SET( OBJ, FILENAME, LINENO, COMMENT )       \
-    do {                                                       \
-       (OBJ)->super.filename = (FILENAME);  /* no copy here */ \
-       (OBJ)->super.lineno   = (LINENO);                       \
-       (OBJ)->super.comment  = (COMMENT);                      \
-       (OBJ)->super.oname    = NULL;                           \
-    } while (0)
-#define JDF_OBJECT_LINENO( OBJ )   ((OBJ)->super.lineno)
-#define JDF_OBJECT_FILENAME( OBJ ) ((OBJ)->super.filename)
-#define JDF_OBJECT_COMMENT( OBJ )  ((OBJ)->super.comment)
-#define JDF_OBJECT_ONAME( OBJ )    (OBJ)->super.oname
+ * Function cleanup and management. Available in jdf.c
+ */
+int jdf_flatten_function(jdf_function_entry_t* function);
 
 #endif

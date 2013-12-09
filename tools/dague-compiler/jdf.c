@@ -1,10 +1,21 @@
+/*
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dague_config.h"
+
 #include <stdio.h>
-#include <stdarg.h>
+#if defined(HAVE_STRING_H)
 #include <string.h>
+#endif  /* defined(HAVE_STRING_H) */
 #include <stdlib.h>
 #include <assert.h>
 
 #include "jdf.h"
+#include "string_arena.h"
+#include "jdf2c_utils.h"
 
 jdf_t current_jdf;
 int current_lineno;
@@ -390,18 +401,18 @@ static int jdf_sanity_check_dataflow_expressions_unbound(void)
         for(flow = f->dataflow; flow != NULL; flow = flow->next) {
             j =  1;
             for(dep = flow->deps; dep != NULL; dep = dep->next) {
-                snprintf(kind, 128, 
+                snprintf(kind, 128,
                          "Guard of dependency %d\n"
-                         "  of dataflow number %d (variable %s) at line %d", 
+                         "  of dataflow number %d (variable %s) at line %d",
                          j, i,  flow->varname, JDF_OBJECT_LINENO(flow));
-                if( (dep->guard->guard_type != JDF_GUARD_UNCONDITIONAL) && 
+                if( (dep->guard->guard_type != JDF_GUARD_UNCONDITIONAL) &&
                     (jdf_sanity_check_expr_bound(dep->guard->guard, kind, f) < 0) )
                     rc = -1;
                 k = 1;
                 for(e = dep->guard->calltrue->parameters; e != NULL; e = e->next) {
-                    snprintf(kind, 128, 
+                    snprintf(kind, 128,
                              "Parameter %d of dependency %d\n"
-                             "  of dataflow number %d (variable %s) at line %d", 
+                             "  of dataflow number %d (variable %s) at line %d",
                              k, j, i, flow->varname, JDF_OBJECT_LINENO(flow));
                     if( jdf_sanity_check_expr_bound(e, kind, f) < 0 )
                         rc = -1;
@@ -410,9 +421,9 @@ static int jdf_sanity_check_dataflow_expressions_unbound(void)
                 if( dep->guard->guard_type == JDF_GUARD_TERNARY ) {
                     k = 1;
                     for(e = dep->guard->callfalse->parameters; e != NULL; e = e->next) {
-                        snprintf(kind, 128, 
+                        snprintf(kind, 128,
                                  "Parameter %d of dependency %d (when guard false)\n"
-                                 "  of dataflow number %d (variable %s) at line %d", 
+                                 "  of dataflow number %d (variable %s) at line %d",
                                  k, j, i,  flow->varname, JDF_OBJECT_LINENO(flow));
                         if( jdf_sanity_check_expr_bound(e, kind, f) < 0 )
                             rc = -1;
@@ -440,7 +451,7 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
                 for(dep = flow->deps; dep != NULL; dep = dep->next) {
                     if( !strcmp(dep->guard->calltrue->func_or_mem, f1->fname) &&
                         (dep->guard->calltrue->var == NULL) ) {
-                        jdf_fatal(JDF_OBJECT_LINENO(dep), 
+                        jdf_fatal(JDF_OBJECT_LINENO(dep),
                                   "%s is the name of a function (defined line %d):\n"
                                   "  it cannot be also used as a memory reference in function %s\n",
                                   f1->fname, JDF_OBJECT_LINENO(f1), f2->fname);
@@ -449,7 +460,7 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
                     if( dep->guard->guard_type == JDF_GUARD_TERNARY &&
                         !strcmp(dep->guard->callfalse->func_or_mem, f1->fname) &&
                         (dep->guard->callfalse->var == NULL) ) {
-                        jdf_fatal(JDF_OBJECT_LINENO(dep), 
+                        jdf_fatal(JDF_OBJECT_LINENO(dep),
                                   "%s is the name of a function (defined line %d):\n"
                                   "  it cannot be also used as a memory reference in function %s\n",
                                   f1->fname, JDF_OBJECT_LINENO(f1), f2->fname);
@@ -485,7 +496,7 @@ static int jdf_sanity_check_in_out_flow_match( jdf_function_entry_t* fout,
 
         /* Did we found the right out dependency? */
         if( NULL == flowin ) {
-            jdf_fatal(JDF_OBJECT_LINENO(flowout), 
+            jdf_fatal(JDF_OBJECT_LINENO(flowout),
                       "Function %s has no data named %s,\n"
                       "  but dependency %s:%s (line %d) references it\n",
                       fin->fname, callout->var, fout->fname, flowout->varname, JDF_OBJECT_LINENO(flowout));
@@ -511,7 +522,7 @@ static int jdf_sanity_check_in_out_flow_match( jdf_function_entry_t* fout,
                   fout->fname, flowout->varname, fin->fname, callout->var, fin->fname);
         return -1;
     }
-    jdf_fatal(JDF_OBJECT_LINENO(flowout), 
+    jdf_fatal(JDF_OBJECT_LINENO(flowout),
               "There is no function named %s,\n"
               "  but dependency %s:%s (lineno %d) references it\n",
               callout->func_or_mem, fout->fname, flowout->varname, JDF_OBJECT_LINENO(flowout));
@@ -540,7 +551,7 @@ static int jdf_sanity_check_dataflow_unexisting_data(void)
                         break;
                 }
 
-                if( (dep->guard->guard_type == JDF_GUARD_TERNARY) && 
+                if( (dep->guard->guard_type == JDF_GUARD_TERNARY) &&
                     (dep->guard->callfalse->var != NULL) ) {
                     call = dep->guard->callfalse;
                     matched = jdf_sanity_check_in_out_flow_match( f1, flow1, call );
@@ -569,7 +580,7 @@ static int jdf_sanity_check_control(void)
         i = 1;
         /* For each flow of data */
         for(flow = func->dataflow; flow != NULL; flow = flow->next, i++) {
-            if( JDF_VAR_TYPE_CTL != flow->access_type ) continue;
+            if( !(JDF_FLOW_TYPE_CTL & flow->flow_flags) ) continue;
             j = 1;
             /* For each CONTROL dependency */
             for( dep = flow->deps; dep != NULL; dep = dep->next, j++ ) {
@@ -606,10 +617,10 @@ static int compute_canonical_data_location(const char *name, const jdf_expr_t *p
 
     /* Find if this variable is in the globals list */
     for( g = current_jdf.globals; g != NULL; g = g->next ) {
-        if( !strcmp( g->name, name ) ) 
+        if( !strcmp( g->name, name ) )
             break;
     }
-    
+
     ret = 1;
     if( NULL != g ) {
         /* Find if it has a "aligned" property */
@@ -667,7 +678,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
 
     if( strcmp(ccanon, dcanon) ) {
         /* d does not have the same representation as c..
-         * There is a risk: depends on the data distribution..., 
+         * There is a risk: depends on the data distribution...,
          *  on expression evaluations, etc...
          */
         if( cond ) {
@@ -680,9 +691,9 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
                      "  This is a potential direct remote memory reference.\n"
                      "  To remove this warning, %s should be syntaxically equal to %s, or marked as aligned to %s\n"
                      "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
-                     f->fname, 
+                     f->fname,
                      cstr, ciscanon ? "" : " (aligned with ", ciscanon ? "" : ccanon, ciscanon ? "" : ")",
-                     (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
+                     (dep->dep_flags & JDF_DEP_FLOW_IN & JDF_DEP_FLOW_OUT) ? "INOUT" : ( (dep->dep_flags & JDF_DEP_FLOW_IN) ? "IN" : "OUT" ),
                      dstr, discanon ? "" : " (aligned with ", discanon ? "" : dcanon, discanon ? "" : ")",
                      condstr,
                      dstr, cstr, ccanon);
@@ -694,9 +705,9 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
                      "  This is a potential direct remote memory reference.\n"
                      "  To remove this warning, %s should be syntaxically equal to %s, or marked as aligned to %s\n"
                      "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
-                     f->fname, 
+                     f->fname,
                      cstr, ciscanon ? "" : " (aligned with ", ciscanon ? "" : ccanon, ciscanon ? "" : ")",
-                     (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
+                     (dep->dep_flags & JDF_DEP_FLOW_IN & JDF_DEP_FLOW_OUT) ? "INOUT" : ( (dep->dep_flags & JDF_DEP_FLOW_IN) ? "IN" : "OUT" ),
                      dstr, discanon ? "" : " (aligned with ", discanon ? "" : dcanon, discanon ? "" : ")",
                      dstr, cstr, ccanon);
         }
@@ -704,7 +715,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
     } else {
         ret = 0;
     }
-    
+
     free(cstr);
     free(ccanon);
     free(dstr);
@@ -738,14 +749,14 @@ static int jdf_sanity_check_remote_memory_references(void)
                 switch( g->guard_type ) {
                 case JDF_GUARD_UNCONDITIONAL:
                 case JDF_GUARD_BINARY:
-                    if( jdf_sanity_check_call_compatible(c, dep, g->calltrue, g->guard, f) ) 
+                    if( jdf_sanity_check_call_compatible(c, dep, g->calltrue, g->guard, f) )
                         rc++;
                     break;
                 case JDF_GUARD_TERNARY:
                     if( jdf_sanity_check_call_compatible(c, dep, g->calltrue, g->guard, f) )
                         rc++;
                     not.jdf_ua = g->guard;
-                    if( jdf_sanity_check_call_compatible(c, dep, g->callfalse, &not, f) ) 
+                    if( jdf_sanity_check_call_compatible(c, dep, g->callfalse, &not, f) )
                         rc++;
                     break;
                 }
@@ -799,3 +810,238 @@ int jdf_sanity_checks( jdf_warning_mask_t mask )
     return rcsum;
 }
 
+/**
+ * Compare two expressions and return 0 if they are identical.
+ */
+static int jdf_compare_expr(const jdf_expr_t* ex1, const jdf_expr_t* ex2)
+{
+    int ret;
+
+    if( ex1 == ex2 ) {ret = 0; goto print_and_return;}
+    if( ex1->op != ex2->op ) {ret = 1; goto print_and_return;}
+    if( JDF_OP_IS_CST(ex1->op) )
+    {ret = !(ex1->jdf_cst == ex2->jdf_cst); goto print_and_return;}
+    if( JDF_OP_IS_STRING(ex1->op) || JDF_OP_IS_VAR(ex1->op) )
+    {ret = strcmp(ex1->jdf_var, ex2->jdf_var); goto print_and_return;}
+    if( JDF_OP_IS_C_CODE(ex1->op) )
+    {ret = strcmp(ex1->jdf_c_code.code, ex2->jdf_c_code.code); goto print_and_return;}
+    if( JDF_OP_IS_UNARY(ex1->op) )
+    {ret = jdf_compare_expr(ex1->jdf_ua, ex2->jdf_ua); goto print_and_return;}
+    if( JDF_OP_IS_BINARY(ex1->op) )
+    {ret = (jdf_compare_expr(ex1->jdf_ba1, ex2->jdf_ba1) &
+            jdf_compare_expr(ex1->jdf_ba2, ex2->jdf_ba2)); goto print_and_return;}
+    assert(JDF_OP_IS_TERNARY(ex1->op));
+    ret = (jdf_compare_expr(ex1->jdf_ta1, ex2->jdf_ta1) &
+           jdf_compare_expr(ex1->jdf_ta2, ex2->jdf_ta2) &
+           jdf_compare_expr(ex1->jdf_ta3, ex2->jdf_ta3));
+  print_and_return:
+#if 0
+    {
+        string_arena_t* sa  = string_arena_new(64);
+        string_arena_t* sa1 = string_arena_new(64);
+        string_arena_t* sa2 = string_arena_new(64);
+        expr_info_t linfo, rinfo;
+
+        linfo.sa = sa1;
+        linfo.prefix = "";
+        linfo.assignments = "ex1";
+        rinfo.sa = sa2;
+        rinfo.prefix = "";
+        rinfo.assignments = "ex1";
+        string_arena_add_string(sa, "%s ex1:%s\n%s ex2:%s\n",
+                                (0 == ret ? "==" : "!="), dump_expr((void**)ex1, &linfo),
+                                (0 == ret ? "==" : "!="), dump_expr((void**)ex2, &rinfo));
+        printf("%s\n", string_arena_get_string(sa));
+        string_arena_free(sa);
+        string_arena_free(sa1);
+        string_arena_free(sa2);
+    }
+#endif
+    return ret;
+}
+
+/**
+ * Compare two datatype. Return 0 if they are identical.
+ */
+int jdf_compare_datatype(const jdf_datatransfer_type_t* src,
+                         const jdf_datatransfer_type_t* dst)
+{
+    if( jdf_compare_expr(src->type,   dst->type) )   return 1;
+    if( jdf_compare_expr(src->layout, dst->layout) ) return 1;
+    if( jdf_compare_expr(src->count,  dst->count) )  return 1;
+    if( jdf_compare_expr(src->displ,  dst->displ) )  return 1;
+    return 0;
+}
+
+#define SAVE_AND_UPDATE_INDEX(DEP, IDX1, IDX2, UPDATE)                  \
+    do {                                                                \
+        if( 0xff == ((DEP)->dep_index) ) (DEP)->dep_index = (IDX1)++;   \
+        if( 0xff == ((DEP)->dep_datatype_index) ) {                     \
+            (DEP)->dep_datatype_index = (IDX2);                         \
+            if(UPDATE) (IDX2)++;                                        \
+        }                                                               \
+    } while (0)
+
+#define MARK_FLOW_DEP_AND_UPDATE_INDEX(FLOW, DEP, UPDATE)               \
+    do {                                                                \
+        if( (DEP)->dep_flags & JDF_DEP_FLOW_OUT ) {                     \
+            SAVE_AND_UPDATE_INDEX((DEP), global_out_index, *dep_out_index, UPDATE); \
+            (FLOW)->flow_dep_mask |= (1 << (DEP)->dep_index);           \
+            (FLOW)->flow_flags |= JDF_FLOW_IS_OUT;                      \
+        } else {                                                        \
+            SAVE_AND_UPDATE_INDEX((DEP), global_in_index, *dep_in_index, UPDATE); \
+            (FLOW)->flow_flags |= JDF_FLOW_IS_IN;                       \
+        }                                                               \
+    } while(0)
+#define UPDATE_INDEX(DEP)                                               \
+    do {                                                                \
+        if( (DEP)->dep_flags & JDF_DEP_FLOW_OUT ) {                     \
+            (*dep_out_index)++;                                         \
+        } else {                                                        \
+            (*dep_in_index)++;                                          \
+        }                                                               \
+    } while(0)
+#define COPY_INDEX(DST, SRC)                                    \
+    (DST)->dep_datatype_index = (SRC)->dep_datatype_index
+
+/**
+ * Reorder the output dependencies to group together the ones using
+ * identical datatypes. They will share an identical dep_datatype_index
+ * which is the index of the smallest one. Compute the number of
+ * different datatypes.
+ */
+static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
+                                         uint32_t* dep_in_index,
+                                         uint32_t* dep_out_index)
+{
+    uint32_t i, j, dep_count, saved_out_index;
+    uint32_t global_in_index, global_out_index;
+    jdf_dep_t *dep, *sdep, **dep_array = NULL;
+    jdf_datatransfer_type_t *ddt, *sddt;
+
+    global_in_index  = *dep_in_index;
+    global_out_index = saved_out_index = *dep_out_index;
+    /**
+     * Step 1: Transform the list of dependencies into an array, to facilitate
+     *         the massaging.
+     */
+    for( dep_count = 0, dep = flow->deps; NULL != dep; dep_count++, dep = dep->next ) {
+        dep->dep_index          = 0xff;
+        dep->dep_datatype_index = 0xff;
+    }
+    if( dep_count < 2 ) {
+        if( 1 == dep_count ) {
+            dep = flow->deps;
+            MARK_FLOW_DEP_AND_UPDATE_INDEX(flow, dep, 1);
+        }
+        return;  /* nothing to reorder */
+    }
+    dep_array = (jdf_dep_t**)malloc(dep_count * sizeof(jdf_dep_t*));
+    for( i = 0, dep = flow->deps; NULL != dep; dep_array[i++] = dep, dep = dep->next );
+
+    /**
+     * Step 2: Rearrange the entries to bring all those using the same datatype
+     *         together. First put all inputs at the begining followed by all the
+     *         outputs. Then order the outputs based on the output type (including
+     *         the CTL), so we can handle them easier when generating the code for
+     *         releasing the output dependencies.
+     */
+    for( i = 0; i < dep_count; i++ ) {
+        dep = dep_array[i];
+        MARK_FLOW_DEP_AND_UPDATE_INDEX(flow, dep, 0);
+
+        for( j = i+1; j < dep_count; j++ ) {
+            sdep = dep_array[j];
+            if( !((dep->dep_flags & sdep->dep_flags) & (JDF_DEP_FLOW_IN|JDF_DEP_FLOW_OUT)) )
+                break;
+            ddt = &dep->datatype;
+            sddt = &sdep->datatype;
+            if( jdf_compare_datatype(ddt, sddt) ) continue;
+            COPY_INDEX(sdep, dep);
+        }
+        UPDATE_INDEX(dep);
+    }
+    free(dep_array);
+}
+
+/**
+ * Flatten all the flows of data for the specified function, by creating the
+ * indexes and masks used to describe the flow of data and the index of the
+ * output dependencies.  For all flows multiple output dependencies sharing the
+ * same caracteristics will be merged together. Each one of them will have it's
+ * own virtual flow, but they will share the index of the smallest flow with
+ * the same caracteristics, index which correspond to the datatype location.
+ *
+ * In same time order the flows to push all flows with an output at the begining
+ * of the list of flows. This enables the engine to use a single index for
+ * managing the activation mask and the data output location.
+ */
+int jdf_flatten_function(jdf_function_entry_t* function)
+{
+    uint32_t flow_index, dep_in_index = 0, dep_out_index = 0;
+    jdf_dataflow_t* flow;
+
+    for( flow = function->dataflow; NULL != flow; flow = flow->next) {
+
+        flow->flow_index  = 0xFF;
+        jdf_reorder_dep_list_by_type(flow, &dep_in_index, &dep_out_index);
+        if( ((1U << dep_in_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/) ||
+            ((1U << dep_in_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/)) {
+            jdf_fatal(JDF_OBJECT_LINENO(function),
+                      "Function %s has too many output flow with different datatypes (up to 24 supported)\n",
+                      function->fname);
+            return -1;
+        }
+    }
+    /* First name all the OUTPUT flows */
+    for( flow_index = 0, flow = function->dataflow; NULL != flow; flow = flow->next )
+        if( flow->flow_flags & JDF_FLOW_IS_OUT )
+            flow->flow_index = flow_index++;
+    /* And now name all the others (pure INPUT flows) */
+    for( flow = function->dataflow; NULL != flow; flow = flow->next )
+        if( !(flow->flow_flags & JDF_FLOW_IS_OUT) )
+            flow->flow_index = flow_index++;
+
+#if 0
+    for( flow = function->dataflow; NULL != flow; flow = flow->next) {
+        string_arena_t* sa1 = string_arena_new(64);
+        string_arena_t* sa2 = string_arena_new(64);
+        expr_info_t linfo;
+        jdf_dep_t *dep;
+
+        linfo.sa = sa1;
+        linfo.prefix = ":";
+        linfo.assignments = "";
+        for(dep = flow->deps; NULL != dep; dep = dep->next) {
+            string_arena_init(sa2);
+            dump_expr((void**)dep->datatype.type, &linfo);
+            if( strlen(string_arena_get_string(sa1)) )
+                string_arena_add_string(sa2, "type = <%s>", string_arena_get_string(sa1));
+            if( dep->datatype.layout != dep->datatype.type ) {
+                dump_expr((void**)dep->datatype.layout, &linfo);
+                if( strlen(string_arena_get_string(sa1)) )
+                    string_arena_add_string(sa2, " layout = <%s>", string_arena_get_string(sa1));
+            }
+            dump_expr((void**)dep->datatype.count, &linfo);
+            if( strlen(string_arena_get_string(sa1)) )
+                string_arena_add_string(sa2, " count = <%s>", string_arena_get_string(sa1));
+            dump_expr((void**)dep->datatype.displ, &linfo);
+            if( strlen(string_arena_get_string(sa1)) )
+                string_arena_add_string(sa2, " displ = <%s>", string_arena_get_string(sa1));
+
+            printf("%s: %6s[%1s%1s idx %d, mask 0x%x] %2s %8d %8d <%s %s>\n", function->fname,
+                   flow->varname, (flow->flow_flags & JDF_FLOW_IS_IN ? "R" : " "),
+                   (flow->flow_flags & JDF_FLOW_IS_OUT ? "W" : " "),
+                   flow->flow_index, flow->flow_dep_mask,
+                   (JDF_DEP_FLOW_OUT & dep->dep_flags ? "->" : "<-"),
+                   dep->dep_index, dep->dep_datatype_index,
+                   dep->guard->calltrue->func_or_mem,
+                   string_arena_get_string(sa2));
+        }
+        string_arena_free(sa1);
+        string_arena_free(sa2);
+    }
+    printf("\n");
+#endif
+    return 0;
+}

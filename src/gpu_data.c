@@ -875,7 +875,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     /* If the data will be accessed in write mode, remove it from any lists
      * until the task is completed.
      */
-    if( ACCESS_WRITE & type ) {
+    if( FLOW_ACCESS_WRITE & type ) {
         dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
