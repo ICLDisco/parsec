@@ -25,6 +25,8 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
 
 int main(int argc, char ** argv)
 {
+    printf("sleep\n");
+    sleep(10);
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaLower;

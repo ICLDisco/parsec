@@ -755,6 +755,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             gpu_elem->device_private = (void*)(long)device_ptr;
             gpu_elem->device_index = gpu_device->super.device_index;
             mem_elem_per_gpu++;
+			assert (gpu_elem->device_index != 0);
             dague_ulist_fifo_push( &gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
         }
@@ -815,7 +816,7 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
         /* Skip all non CUDA devices */
         if( DAGUE_DEV_CUDA != gpu_device->super.type ) continue;
 
-        dump_GPU_state(gpu_device);
+       // dump_GPU_state(gpu_device);
             
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_data_unregister) cuCtxPushCurrent ", status,
@@ -973,6 +974,9 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         this_task->data[i].data_out = gpu_elem;
         move_data_count--;
         temp_loc[i] = gpu_elem;
+		assert (gpu_elem->device_index != 0);
+		assert (((dague_list_item_t *)gpu_elem)->list_prev == gpu_elem);
+		assert (((dague_list_item_t *)gpu_elem)->list_next == gpu_elem);
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
     }
     if( 0 != move_data_count ) {
@@ -983,6 +987,9 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
          */
         for( i = 0; NULL != this_task->data[i].data_in; i++ ) {
             if( NULL == temp_loc[i] ) continue;
+			assert (temp_loc[i]->device_index == 1);
+			assert (((dague_list_item_t *)temp_loc[i])->list_prev == temp_loc[i]);
+			assert (((dague_list_item_t *)temp_loc[i])->list_next == temp_loc[i]);
             dague_ulist_lifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[i]);
         }
         return -2;
@@ -1018,7 +1025,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
 
-#if 0
+#if 1
     /* If the source and target data are on the same device then they should be
      * identical and the only thing left to do is update the number of readers.
      */
