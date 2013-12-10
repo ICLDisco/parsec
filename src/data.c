@@ -11,7 +11,6 @@
 #include <dague/utils/output.h>
 #include "data.h"
 #include "arena.h"
-#include <string.h>
 
 /* TODO: create a consistent common infrastructure for the devices */
 static dague_lifo_t dague_data_lifo;
@@ -64,13 +63,6 @@ static void dague_data_destruct(dague_data_t* obj )
         while( (copy = obj->device_copies[i]) != NULL )
         {
             dague_data_copy_detach( obj, copy, i );
-			if (((dague_list_item_t *)copy)->list_prev != NULL) { 
-			if (((dague_list_item_t *)copy)->list_prev->super.cls_init_file_name != NULL && 
-				strcmp( ((dague_list_item_t *)copy)->list_prev->super.cls_init_file_name, "/home/wwu12/dague-abd-commit/dague/devices/cuda/dev_cuda.c")==0 ){
-					printf("$$$$catch\n");
-					assert(0);
-				}
-			}
             OBJ_RELEASE( copy );
         }
         assert(NULL == obj->device_copies[i]);

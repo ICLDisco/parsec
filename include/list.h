@@ -15,7 +15,6 @@
 #define DAGUE_LIST_H_HAS_BEEN_INCLUDED
 
 #include <dague/sys/atomic.h>
-#include <stdio.h>
 #include "list_item.h"
 
 typedef struct dague_list_t {
@@ -666,11 +665,6 @@ dague_list_nolock_push_back( dague_list_t* list,
     item->list_prev = _TAIL(list);
     _TAIL(list)->list_next = item;
     _TAIL(list) = item;
-#if defined(DAGUE_DEBUG_ENABLE)
-  /*  if (item->list_next->super.cls_init_file_name != item->super.cls_init_file_name || item->list_prev->super.cls_init_file_name != item->super.cls_init_file_name) {
-    	printf("!!!!!warining, item %s, prev %s, next %s\n", item->super.cls_init_file_name, item->list_prev->super.cls_init_file_name, item->list_next->super.cls_init_file_name);
-    }*/
-#endif
 }
 
 static inline void
