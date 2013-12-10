@@ -745,16 +745,12 @@ BODY
             W[i] = LAPACKE_zlange_work(
                 LAPACK_COL_MAJOR, '1',
                 tempmm, tempkn, A, ldam, NULL);
-
-            //fprintf(stderr, "copypanel( k=%d, m=%d ): ||A||_1 = %e\n", k, m, W[i]);
         }
         else if (criteria == MUMPS_CRITERIUM)
         {
             /*
              * Search the maximal absolute value per column
              */
-
-
             memset( W + descA.nb, 0, descA.nb * sizeof(double));
             CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempmm, tempkn, A, ldam, W + descA.nb );
 

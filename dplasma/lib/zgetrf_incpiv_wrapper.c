@@ -102,6 +102,15 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
     dague_zgetrf_incpiv_object_t *dague_getrf_incpiv;
     int ib;
 
+    if ( (A->mt != L->mt) || (A->nt != L->nt) ) {
+        dplasma_error("dplasma_zgetrf_incpiv_New", "L doesn't have the same number of tiles as A");
+        return NULL;
+    }
+    if ( (IPIV != NULL) && ((A->mt != IPIV->mt) || (A->nt != IPIV->nt)) ) {
+        dplasma_error("dplasma_zgetrf_incpiv_New", "IPIV doesn't have the same number of tiles as A");
+        return NULL;
+    }
+
     if ( IPIV != NULL ) {
         ib = L->mb;
         dague_getrf_incpiv = dague_zgetrf_incpiv_new( (dague_ddesc_t*)A,
@@ -110,7 +119,7 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
                                                       INFO, NULL);
     } else {
         ib = L->mb - 1;
-        dague_getrf_incpiv = (dague_zgetrf_incpiv_sd_object_t*)
+        dague_getrf_incpiv = (dague_zgetrf_incpiv_object_t*)
             dague_zgetrf_incpiv_sd_new( (dague_ddesc_t*)A,
                                         (dague_ddesc_t*)L,
                                         NULL, INFO, NULL);
@@ -273,8 +282,17 @@ dplasma_zgetrf_incpiv( dague_context_t *dague,
                        tiled_matrix_desc_t *IPIV )
 {
     dague_object_t *dague_zgetrf_incpiv = NULL;
-
     int info = 0;
+
+    if ( (A->mt != L->mt) || (A->nt != L->nt) ) {
+        dplasma_error("dplasma_zgetrf_incpiv", "L doesn't have the same number of tiles as A");
+        return -3;
+    }
+    if ( (IPIV != NULL) && ((A->mt != IPIV->mt) || (A->nt != IPIV->nt)) ) {
+        dplasma_error("dplasma_zgetrf_incpiv", "IPIV doesn't have the same number of tiles as A");
+        return -4;
+    }
+
     dague_zgetrf_incpiv = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
 
     if ( dague_zgetrf_incpiv != NULL ) {

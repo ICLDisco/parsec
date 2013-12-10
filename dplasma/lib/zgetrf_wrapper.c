@@ -80,6 +80,11 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
 {
     dague_zgetrf_object_t *dague_getrf;
 
+    if ( (IPIV->mt != 1) || (dplasma_imin(A->nt, A->mt) > IPIV->nt)) {
+        dplasma_error("dplasma_zgetrf_New", "IPIV doesn't have the correct number of tiles (1-by-min(A->mt,A->nt)");
+        return NULL;
+    }
+
     if ( A->storage == matrix_Tile ) {
         CORE_zgetrf_rectil_init();
     } else {
@@ -199,6 +204,11 @@ dplasma_zgetrf( dague_context_t *dague,
     dague_object_t *dague_zgetrf = NULL;
 
     int info = 0;
+
+    if ( (IPIV->mt != 1) || (dplasma_imin(A->nt, A->mt) > IPIV->nt)) {
+        dplasma_error("dplasma_zgetrf", "IPIV doesn't have the correct number of tiles (1-by-min(A->mt,A->nt)");
+        return -3;
+    }
 
     dague_zgetrf = dplasma_zgetrf_New(A, IPIV, &info);
 
