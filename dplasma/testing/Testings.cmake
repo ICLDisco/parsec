@@ -113,72 +113,107 @@ if( MPI_C_FOUND )
   find_program(BINTRUE true)
   set(NPROCS 4)
   # Check MPI
-  add_test(mpi_test   ${MPI_TEST_CMD_LIST} -np 8 ${BINTRUE})
+  add_test(mpi_test   ${MPI_TEST_CMD_LIST} -np ${NPROCS} ${BINTRUE})
 
   foreach(prec ${DPLASMA_PRECISIONS})
-    # check the control in shared memory
-    add_test(mpi_${prec}print         ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}print        -p 2 -N 40 -t 7 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}print PROPERTIES DEPENDS mpi_test)
 
-    add_test(mpi_${prec}lange        ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}lange        -p 4 -N 1500 -t 233 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}lange PROPERTIES DEPENDS mpi_test)
+    # check the control and test matrices generation (zplrnt, zplghe, zplgsy, zpltmg) in distributed memory
+    add_test(mpi_${prec}print ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}print -p 2 -N 64 -t 7 -x -v=5)
+    set_tests_properties(mpi_${prec}lange PROPERTIES DEPENDS mpi_test)
 
-    add_test(mpi_${prec}trmm         ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}trmm         -p 2 -N 1500 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}trmm PROPERTIES DEPENDS mpi_test)
+    # check the norms that are used in all other testings
+    add_test(mpi_${prec}lange ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}lange -P 4 -M 287 -N 283 -K 97 -t 56 -x -v=5)
+    set_tests_properties(mpi_${prec}lange PROPERTIES DEPENDS mpi_${prec}print)
 
-    add_test(mpi_${prec}trsm         ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}trsm         -p 4 -N 1500 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}trsm PROPERTIES DEPENDS mpi_test)
+    # Need to add testings on zlacpy, zlaset, zgeadd, zlascal, zger, (zlaswp?)
 
-    add_test(mpi_${prec}gemm         ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}gemm         -p 4 -M 1067 -N 2873 -K 987 -t 56 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}gemm PROPERTIES DEPENDS mpi_test)
+    # BLAS Shared memory
+    add_test(mpi_${prec}trmm  ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}trmm  -P 4 -M 106 -N 150 -K 97 -t 56 -x -v=5)
+    set_tests_properties(mpi_${prec}trmm PROPERTIES DEPENDS mpi_${prec}lange)
 
-    add_test(mpi_${prec}potrf        ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}potrf        -p 2 -N 4000 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}potrf PROPERTIES DEPENDS mpi_test)
+    add_test(mpi_${prec}trsm  ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}trsm  -P 4 -M 106 -N 150 -K 97 -t 56 -x -v=5)
+    set_tests_properties(mpi_${prec}trsm PROPERTIES DEPENDS mpi_${prec}trmm)
 
-    if (CUDA_FOUND)
-      add_test(mpi_${prec}potrf_g1     ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}potrf        -p 2 -N 8000 -x -v=5 -g 1)
-      SET_TESTS_PROPERTIES(mpi_${prec}potrf_g1 PROPERTIES DEPENDS mpi_test)
-    endif (CUDA_FOUND)
-    add_test(mpi_${prec}posv         ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}posv         -p 4 -N 4000 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}posv PROPERTIES DEPENDS mpi_test)
+    add_test(mpi_${prec}gemm  ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}gemm  -P 4 -M 106 -N 283 -K 97 -t 56 -x -v=5)
+    set_tests_properties(mpi_${prec}trmm PROPERTIES DEPENDS mpi_${prec}lange)
 
-    add_test(mpi_${prec}potrf_pbq    ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}potrf        -p 2 -N 4000 -x -v=5 -o PBQ)
-    SET_TESTS_PROPERTIES(mpi_${prec}potrf_pbq PROPERTIES DEPENDS mpi_test)
+    add_test(mpi_${prec}symm  ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}symm  -P 4 -M 106 -N 283 -K 97 -t 56 -x -v=5)
+    set_tests_properties(mpi_${prec}trmm PROPERTIES DEPENDS mpi_${prec}lange)
 
-    add_test(mpi_${prec}getrf        ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}getrf        -p 1 -N 4000 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}getrf PROPERTIES DEPENDS mpi_test)
+    add_test(mpi_${prec}syrk  ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}syrk  -P 4 -M 287 -N 283 -K 97 -t 56 -x -v=5)
+    add_test(mpi_${prec}syr2k ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}syr2k -P 4 -M 287 -N 283 -K 97 -t 56 -x -v=5)
 
-    add_test(mpi_${prec}getrf_incpiv ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}getrf_incpiv -p 4 -N 4000 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}getrf_incpiv PROPERTIES DEPENDS mpi_test)
-
-    add_test(mpi_${prec}gesv_incpiv  ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}gesv_incpiv  -p 4 -N 4000 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}gesv_incpiv PROPERTIES DEPENDS mpi_test)
-
-    add_test(mpi_${prec}geqrf        ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf        -p 4 -N 4000 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}geqrf PROPERTIES DEPENDS mpi_test)
-
-    add_test(mpi_${prec}geqrf_pbq    ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf        -p 4 -N 4000 -x -v=5 -o PBQ)
-    SET_TESTS_PROPERTIES(mpi_${prec}geqrf_pbq PROPERTIES DEPENDS mpi_test)
-
-    add_test(mpi_${prec}gelqf        ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}gelqf        -p 4 -N 4000 -x -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}gelqf PROPERTIES DEPENDS mpi_test)
-
-    add_test(mpi_${prec}geqrf_p0     ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 0 --tsrr=0 -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}geqrf_p0 PROPERTIES DEPENDS mpi_test)
-
-    add_test(mpi_${prec}geqrf_p1     ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 1 --tsrr=0 -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}geqrf_p1 PROPERTIES DEPENDS mpi_test)
-
-    add_test(mpi_${prec}geqrf_p2     ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 2 --tsrr=0 -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}geqrf_p2 PROPERTIES DEPENDS mpi_test)
-
-    add_test(mpi_${prec}geqrf_p3     ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 3 --tsrr=0 -v=5)
-    SET_TESTS_PROPERTIES(mpi_${prec}geqrf_p3 PROPERTIES DEPENDS mpi_test)
     if ( "${prec}" STREQUAL "c" OR "${prec}" STREQUAL "z" )
-      add_test(mpi_${prec}heev         ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}heev -p 2 -N 2000 -x -v=5)
-    else()
-      add_test(mpi_${prec}syev         ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}syev -p 2 -N 2000 -x -v=5)
+      add_test(mpi_${prec}hemm  ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}hemm  -P 4 -M 106 -N 283 -K 97 -t 56 -x -v=5)
+      add_test(mpi_${prec}herk  ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}herk  -P 4 -M 287 -N 283 -K 97 -t 56 -x -v=5)
+      add_test(mpi_${prec}her2k ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}her2k -P 4 -M 287 -N 283 -K 97 -t 56 -x -v=5)
     endif()
+
+    # Cholesky
+    add_test(mpi_${prec}potrf ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}potrf -N 378 -t 93        -x -v=5)
+    add_test(mpi_${prec}posv  ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}posv  -N 457 -t 93 -K 367 -x -v=5)
+
+    # QR / LQ
+    add_test(mpi_${prec}geqrf ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}geqrf -P 4 -M 487 -N 283 -K 97 -t 56 -x -v=5)
+    add_test(mpi_${prec}gelqf ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}gelqf -P 4 -M 287 -N 383 -K 97 -t 56 -x -v=5)
+    if ( "${prec}" STREQUAL "c" OR "${prec}" STREQUAL "z" )
+      add_test(mpi_${prec}unmqr ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}unmqr -P 4 -M 487 -N 283 -K 97 -t 56 -x -v=5)
+      add_test(mpi_${prec}unmlq ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}unmlq -P 4 -M 287 -N 383 -K 97 -t 56 -x -v=5)
+    else()
+      add_test(mpi_${prec}ormqr ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}ormqr -P 4 -M 487 -N 283 -K 97 -t 56 -x -v=5)
+      add_test(mpi_${prec}ormlq ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}ormlq -P 4 -M 287 -N 383 -K 97 -t 56 -x -v=5)
+    endif()
+
+    # QR / LQ: HQR
+    add_test(mpi_${prec}geqrf_hqr ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}geqrf_hqr -P 4 -M 487 -N 283 -K 97 -t 56 -x -v=5)
+    add_test(mpi_${prec}gelqf_hqr ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}gelqf_hqr -P 4 -M 287 -N 383 -K 97 -t 56 -x -v=5)
+    if ( "${prec}" STREQUAL "c" OR "${prec}" STREQUAL "z" )
+      add_test(mpi_${prec}unmqr_hqr ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}unmqr_hqr -P 4 -M 487 -N 283 -K 97 -t 56 -x -v=5)
+      add_test(mpi_${prec}unmlq_hqr ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}unmlq_hqr -P 4 -M 287 -N 383 -K 97 -t 56 -x -v=5)
+    else()
+      add_test(mpi_${prec}ormqr_hqr ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}ormqr_hqr -P 4 -M 487 -N 283 -K 97 -t 56 -x -v=5)
+      add_test(mpi_${prec}ormlq_hqr ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}ormlq_hqr -P 4 -M 287 -N 383 -K 97 -t 56 -x -v=5)
+    endif()
+
+    # QR / LQ: systolic
+    add_test(mpi_${prec}geqrf_systolic ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}geqrf_systolic -P 4 -M 487 -N 283 -K 97 -t 56 -x -v=5)
+    add_test(mpi_${prec}gelqf_systolic ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}gelqf_systolic -P 4 -M 287 -N 383 -K 97 -t 56 -x -v=5)
+    if ( "${prec}" STREQUAL "c" OR "${prec}" STREQUAL "z" )
+      add_test(mpi_${prec}unmqr_systolic ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}unmqr_systolic -P 4 -M 487 -N 283 -K 97 -t 56 -x -v=5)
+      add_test(mpi_${prec}unmlq_systolic ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}unmlq_systolic -P 4 -M 287 -N 383 -K 97 -t 56 -x -v=5)
+    else()
+      add_test(mpi_${prec}ormqr_systolic ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}ormqr_systolic -P 4 -M 487 -N 283 -K 97 -t 56 -x -v=5)
+      add_test(mpi_${prec}ormlq_systolic ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}ormlq_systolic -P 4 -M 287 -N 383 -K 97 -t 56 -x -v=5)
+    endif()
+
+    # if (CUDA_FOUND)
+    #   add_test(mpi_${prec}potrf_g1     ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}potrf        -p 2 -N 8000 -x -v=5 -g 1)
+    #   SET_TESTS_PROPERTIES(mpi_${prec}potrf_g1 PROPERTIES DEPENDS mpi_test)
+    # endif (CUDA_FOUND)
+
+    # add_test(mpi_${prec}potrf_pbq    ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}potrf        -p 2 -N 4000 -x -v=5 -o PBQ)
+    # SET_TESTS_PROPERTIES(mpi_${prec}potrf_pbq PROPERTIES DEPENDS mpi_test)
+
+    # add_test(mpi_${prec}geqrf_pbq    ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf        -p 4 -N 4000 -x -v=5 -o PBQ)
+    # SET_TESTS_PROPERTIES(mpi_${prec}geqrf_pbq PROPERTIES DEPENDS mpi_test)
+
+    # add_test(mpi_${prec}geqrf_p0     ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 0 --tsrr=0 -v=5)
+    # SET_TESTS_PROPERTIES(mpi_${prec}geqrf_p0 PROPERTIES DEPENDS mpi_test)
+
+    # add_test(mpi_${prec}geqrf_p1     ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 1 --tsrr=0 -v=5)
+    # SET_TESTS_PROPERTIES(mpi_${prec}geqrf_p1 PROPERTIES DEPENDS mpi_test)
+
+    # add_test(mpi_${prec}geqrf_p2     ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 2 --tsrr=0 -v=5)
+    # SET_TESTS_PROPERTIES(mpi_${prec}geqrf_p2 PROPERTIES DEPENDS mpi_test)
+
+    # add_test(mpi_${prec}geqrf_p3     ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}geqrf_param  -p 4 -N 4000 -t 200 -i 32 -x --qr_p=4 --qr_a=2 --treel 3 --tsrr=0 -v=5)
+
+    # SET_TESTS_PROPERTIES(mpi_${prec}geqrf_p3 PROPERTIES DEPENDS mpi_test)
+    # if ( "${prec}" STREQUAL "c" OR "${prec}" STREQUAL "z" )
+    #   add_test(mpi_${prec}heev         ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}heev -p 2 -N 2000 -x -v=5)
+    # else()
+    #   add_test(mpi_${prec}syev         ${MPI_TEST_CMD_LIST} -np ${NPROCS} ./testing_${prec}syev -p 2 -N 2000 -x -v=5)
+    # endif()
   endforeach()
 
   foreach(prec ${DPLASMA_PRECISIONS})
