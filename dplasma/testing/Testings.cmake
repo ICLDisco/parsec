@@ -119,7 +119,7 @@ if( MPI_C_FOUND )
 
     # check the control and test matrices generation (zplrnt, zplghe, zplgsy, zpltmg) in distributed memory
     add_test(mpi_${prec}print ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}print -p 2 -N 64 -t 7 -x -v=5)
-    set_tests_properties(mpi_${prec}lange PROPERTIES DEPENDS mpi_test)
+    set_tests_properties(mpi_${prec}print PROPERTIES DEPENDS mpi_test)
 
     # check the norms that are used in all other testings
     add_test(mpi_${prec}lange ${MPI_TEST_CMD_LIST} -np ${NPROCS}  ./testing_${prec}lange -P 4 -M 287 -N 283 -K 97 -t 56 -x -v=5)
