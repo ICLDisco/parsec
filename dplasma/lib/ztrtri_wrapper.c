@@ -13,7 +13,7 @@
 #include "dplasma/lib/dplasmatypes.h"
 
 #include "ztrtri_L.h"
-//#include "ztrtri_U.h"
+#include "ztrtri_U.h"
 
 /**
  *******************************************************************************
@@ -84,19 +84,19 @@ dplasma_ztrtri_New( PLASMA_enum uplo,
             uplo, diag, (dague_ddesc_t*)A, INFO );
 
         /* Lower part of A with diagonal part */
-        dplasma_add2arena_lower( dague_getrf_incpiv->arenas[DAGUE_ztrtri_L_LOWER_TILE_ARENA],
+        dplasma_add2arena_lower( ((dague_ztrtri_L_object_t*)dague_trtri)->arenas[DAGUE_ztrtri_L_LOWER_TILE_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, A->mb, 1 );
     } else {
-        /* dague_trtri = (dague_object_t*)dague_ztrtri_U_new( */
-        /*     uplo, diag, (dague_ddesc_t*)A, INFO ); */
+        dague_trtri = (dague_object_t*)dague_ztrtri_U_new(
+            uplo, diag, (dague_ddesc_t*)A, INFO );
 
-        /* /\* Lower part of A with diagonal part *\/ */
-        /* dplasma_add2arena_upper( dague_getrf_incpiv->arenas[DAGUE_ztrtri_U_UPPER_TILE_ARENA], */
-        /*                          A->mb*A->nb*sizeof(dague_complex64_t), */
-        /*                          DAGUE_ARENA_ALIGNMENT_SSE, */
-        /*                          MPI_DOUBLE_COMPLEX, A->mb, 1 ); */
+        /* Lower part of A with diagonal part */
+        dplasma_add2arena_upper( ((dague_ztrtri_U_object_t*)dague_trtri)->arenas[DAGUE_ztrtri_U_UPPER_TILE_ARENA],
+                                 A->mb*A->nb*sizeof(dague_complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_DOUBLE_COMPLEX, A->mb, 1 );
     }
 
     dplasma_add2arena_tile(((dague_ztrtri_L_object_t*)dague_trtri)->arenas[DAGUE_ztrtri_L_DEFAULT_ARENA],
@@ -197,6 +197,7 @@ dplasma_ztrtri( dague_context_t *dague,
                 tiled_matrix_desc_t *A )
 {
     dague_object_t *dague_ztrtri = NULL;
+    int info = 0;
 
     /* Check input arguments */
     if (uplo != PlasmaUpper && uplo != PlasmaLower) {
@@ -213,14 +214,14 @@ dplasma_ztrtri( dague_context_t *dague,
         return -6;
     }
 
-    dague_ztrtri = dplasma_ztrtri_New(uplo, diag, A);
+    dague_ztrtri = dplasma_ztrtri_New(uplo, diag, A, &info);
 
     if ( dague_ztrtri != NULL )
     {
         dague_enqueue( dague, dague_ztrtri );
         dplasma_progress( dague );
         dplasma_ztrtri_Destruct( dague_ztrtri );
-        return 0;
+        return info;
     }
     else {
         return -101;

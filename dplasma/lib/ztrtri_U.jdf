@@ -1,0 +1,207 @@
+extern "C" %{
+/*
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
+ *
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#include "dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+uplo      [type = "PLASMA_enum"]
+diag      [type = "PLASMA_enum"]
+dataA     [type = "dague_ddesc_t *"]
+INFO      [type = "int*"]
+
+descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+
+
+ztrsmL(k, n)
+  /* Execution Space */
+  k = 0     .. (descA.nt-2)
+  n = (k+1) .. (descA.nt-1)
+
+  /* Locality */
+  : dataA(k, n)
+
+  CTL   ctl  -> (k == 0) ? ctl ztrtri(0)
+
+  READ  A    <- A ztrsm_in_A(k)        [type = UPPER_TILE]
+
+  RW    B    <- dataA(k, n)
+                 /* Read Only tasks */
+             -> (n == (k+1)) & (k < (descA.nt-2)) ? B zgemm(k+1, k, (n+1)..(descA.nt-1))
+             -> (k > 0) ? A zgemm(k, 0..(k-1), n)
+
+                 /* RW tasks */
+             -> (n == (k+1)) ? B ztrsmR(k+1, k)
+             -> (n >  (k+1)) ? C zgemm(k+1, k, n)
+
+BODY
+{
+    int tempkm = (k == (descA.mt-1)) ? (descA.m - k*descA.mb) : descA.mb;
+    int tempnn = (n == (descA.nt-1)) ? (descA.n - n*descA.nb) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+
+    printlog("CORE_ztrsm(%d, %d)\n"
+             "\t(PlasmaRight, uplo, PlasmaNoTrans, diag, tempmm, tempkn, -1, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
+             k, n, k, k, A, k, n, B);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_ztrsm(PlasmaLeft, uplo, PlasmaNoTrans, diag,
+               tempkm, tempnn,
+               -1.0, A /* dataA(k,k) */, ldak,
+                     B /* dataA(k,n) */, ldak );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+zgemm(k, m, n)
+  /* Execution Space */
+  k = 1     .. (descA.nt-2)
+  m = 0     .. (k-1)
+  n = (k+1) .. (descA.nt-1)
+
+  /* Locality */
+  : dataA(m, n)
+
+    /* Release ztrsmR that will modify the local B as C */
+  CTL   ctlB -> ctlB ztrsmR(k, m)
+
+    /* Wait until C is not used as A anymore */
+  CTL   ctlA <- (m == (k-1)) ? ctlA zgemm(k-1, 0 .. (m-1), n)
+    /* Release ztrsmR using A as C in next step */
+             -> (n == (k+1)) ? ctlA ztrsmR(k+1, k)
+    /* Release GEMM using A as C in next step */
+             -> (n >  (k+1)) ? ctlA zgemm(k+1, k, n)
+
+  READ  A    <- B ztrsmL(k, n)
+
+  READ  B    <- (k == (m+1)) ? B ztrsmL(k-1, k)
+             <- (k >  (m+1)) ? C zgemm(k-1, m, k)
+
+  RW    C    <- (k == (m+1)) ? B ztrsmL(k-1, n)
+             <- (k >  (m+1)) ? C zgemm(k-1, m, n)
+
+             -> (n == (k+1)) ? B ztrsmR(k+1, m)
+             -> (n >  (k+1)) ? C zgemm(k+1, m, n)
+             -> (n == (k+1)) &  (k < (descA.mt-2)) ? B zgemm(k+1, m, (n+1)..(descA.nt-1))
+
+BODY
+{
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m*descA.mb) : descA.mb;
+    int tempnn = (n == (descA.nt-1)) ? (descA.n - n*descA.nb) : descA.nb;
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k*descA.nb) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
+
+    printlog("CORE_zgemm(%d, %d, %d)\n"
+             "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, tempkn, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
+             k, m, n, m, k, A, k, n, B, m, n, C);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
+               tempmm, tempnn, tempkn,
+               1.0, A /* dataA(m,k) */, ldam,
+                    B /* dataA(k,n) */, ldak,
+               1.0, C /* dataA(m,n) */, ldam );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+ztrsmR(k, m)
+  /* Execution Space */
+  k = 1 .. (descA.nt-1)
+  m = 0 .. (k-1)
+
+  /* Locality */
+  : dataA(m, k)
+
+  CTL   ctlA <- (m == (k-1)) & (k > 1) ? ctlA zgemm( k-1, 0 .. k-2, k )
+  CTL   ctlB <- (k < (descA.nt-2)) ? ctlB zgemm( k, m, k+1 .. (descA.nt-1) )
+
+  CTL   ctl  -> ctl ztrtri(k)
+
+  READ  A    <- A ztrsm_in_A(k)        [type = UPPER_TILE]
+  RW    B    <- (k == (m+1)) ? B ztrsmL(k-1, k)
+             <- (k >  (m+1)) ? C zgemm(k-1, m, k)
+             -> dataA(m, k)
+
+BODY
+{
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k*descA.nb) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
+
+    printlog("CORE_ztrsm(%d, %d)\n"
+             "\t(PlasmaLeft, uplo, PlasmaNoTrans, diag, tempkn, descA.mb, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
+             k, n, k, k, A, k, n, B);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_ztrsm(PlasmaRight, uplo, PlasmaNoTrans, diag,
+               descA.mb, tempkn,
+               1.0, A /* dataA(k, k) */, ldak,
+                    B /* dataA(m, k) */, ldam );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+ztrsm_in_A(k) [profile = off]
+  /* Execution Space */
+  k = 0 .. (descA.nt-1)
+
+  /* Locality */
+  : dataA(k,k)
+
+  READ  A    <- dataA(k,k)                                          [type = UPPER_TILE]
+             -> (k < descA.mt-1) ? A ztrsmL(k, (k+1)..(descA.mt-1)) [type = UPPER_TILE]
+             -> (k > 0)          ? A ztrsmR(k, 0..(k-1))            [type = UPPER_TILE]
+
+BODY
+{
+    /* nothing */
+}
+END
+
+ztrtri(k)
+  /* Execution Space */
+  k = 0 .. (descA.nt-1)
+
+  /* Locality */
+  : dataA(k, k)
+
+  CTL   ctl  <- (k == 0) ? ctl ztrsmL(0, 1 .. descA.mt-1)
+             <- (k >  0) ? ctl ztrsmR(k, 0 .. k-1)
+
+  RW    A    <- dataA(k,k)     [type = UPPER_TILE]
+             -> dataA(k,k)     [type = UPPER_TILE]
+
+BODY
+{
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k*descA.nb) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    int info = 0;
+
+    printlog("CORE_ztrtri(%d)\n"
+             "\t(uplo, diag, tempkn, A(%d,%d)[%p], ldan, sequence, request, descA.nb*k)\n",
+             k, k, k, A);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_ztrtri(uplo, diag, tempkn,
+                A /* dataA(k,k) */, ldak, &info );
+
+    if ( info != PLASMA_SUCCESS) {
+        *INFO = k*descA.mb + info; /* Should return if enter here */
+        fprintf(stderr, "ztrtri(%d) failed => %d\n", k, *INFO );
+    }
+#endif  /* !defined(DAGUE_DRY_RUN) */
+
+}
+END

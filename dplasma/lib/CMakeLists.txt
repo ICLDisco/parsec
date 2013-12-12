@@ -43,7 +43,7 @@ set(JDF
   #
   # Cholesky
   zpotrf_U.jdf zpotrf_L.jdf
-  ztrtri_L.jdf
+  ztrtri_L.jdf ztrtri_U.jdf
   # LQ/QR
   zgelqf.jdf
   zgeqrf.jdf
