@@ -265,26 +265,26 @@ dplasma_ztrsm( dague_context_t *dague,
 
     /* Check input arguments */
     if (side != PlasmaLeft && side != PlasmaRight) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of side");
+        dplasma_error("dplasma_ztrsm", "illegal value of side");
         return -1;
     }
     if (uplo != PlasmaUpper && uplo != PlasmaLower) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of uplo");
+        dplasma_error("dplasma_ztrsm", "illegal value of uplo");
         return -2;
     }
     if (trans != PlasmaConjTrans && trans != PlasmaNoTrans && trans != PlasmaTrans ) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of trans");
+        dplasma_error("dplasma_ztrsm", "illegal value of trans");
         return -3;
     }
     if (diag != PlasmaUnit && diag != PlasmaNonUnit) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of diag");
+        dplasma_error("dplasma_ztrsm", "illegal value of diag");
         return -4;
     }
 
     if ( (A->m != A->n) ||
          (( side == PlasmaLeft )  && (A->n != B->m)) ||
          (( side == PlasmaRight ) && (A->n != B->n)) ) {
-        dplasma_error("dplasma_ztrmm_New", "illegal matrix A");
+        dplasma_error("dplasma_ztrsm", "illegal matrix A");
         return -6;
     }
 
@@ -294,8 +294,10 @@ dplasma_ztrsm( dague_context_t *dague,
     {
         dague_enqueue( dague, dague_ztrsm );
         dplasma_progress( dague );
-
         dplasma_ztrsm_Destruct( dague_ztrsm );
+        return 0;
     }
-    return 0;
+    else {
+        return -101;
+    }
 }

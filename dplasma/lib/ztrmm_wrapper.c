@@ -279,19 +279,19 @@ dplasma_ztrmm( dague_context_t *dague,
 
     /* Check input arguments */
     if (side != PlasmaLeft && side != PlasmaRight) {
-        dplasma_error("dplasma_ztrmm_New", "illegal value of side");
+        dplasma_error("dplasma_ztrmm", "illegal value of side");
         return -1;
     }
     if (uplo != PlasmaUpper && uplo != PlasmaLower) {
-        dplasma_error("dplasma_ztrmm_New", "illegal value of uplo");
+        dplasma_error("dplasma_ztrmm", "illegal value of uplo");
         return -2;
     }
     if (trans != PlasmaConjTrans && trans != PlasmaNoTrans && trans != PlasmaTrans ) {
-        dplasma_error("dplasma_ztrmm_New", "illegal value of trans");
+        dplasma_error("dplasma_ztrmm", "illegal value of trans");
         return -3;
     }
     if (diag != PlasmaUnit && diag != PlasmaNonUnit) {
-        dplasma_error("dplasma_ztrmm_New", "illegal value of diag");
+        dplasma_error("dplasma_ztrmm", "illegal value of diag");
         return -4;
     }
 
@@ -306,9 +306,9 @@ dplasma_ztrmm( dague_context_t *dague,
 
     if ( dague_ztrmm != NULL )
     {
-      dague_enqueue( dague, (dague_object_t*)dague_ztrmm);
-      dplasma_progress(dague);
-      dplasma_ztrmm_Destruct( dague_ztrmm );
+        dague_enqueue( dague, (dague_object_t*)dague_ztrmm);
+        dplasma_progress(dague);
+        dplasma_ztrmm_Destruct( dague_ztrmm );
         return 0;
     }
     else {
