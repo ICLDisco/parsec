@@ -43,6 +43,7 @@ set(JDF
   #
   # Cholesky
   zpotrf_U.jdf zpotrf_L.jdf
+  ztrtri_L.jdf
   # LQ/QR
   zgelqf.jdf
   zgeqrf.jdf
@@ -125,6 +126,7 @@ set(SOURCES
   zposv_wrapper.c
   zpotrf_wrapper.c
   zpotrs_wrapper.c
+  ztrtri_wrapper.c
   #
   zgelqf_wrapper.c
   zgelqs_wrapper.c
