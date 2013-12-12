@@ -106,6 +106,8 @@ if(NOT COREBLAS_FOUND)
           else ("${_lib}" MATCHES "-l.*")
             list(APPEND COREBLAS_LDFLAGS ${_lib})
           endif()
+        else()
+          list(APPEND COREBLAS_LDFLAGS ${_lib})
         endif()
       endforeach()
 
@@ -153,6 +155,8 @@ else(NOT COREBLAS_FOUND)
       else ("${_lib}" MATCHES "-l.*")
         list(APPEND COREBLAS_LDFLAGS ${_lib})
       endif()
+    else()
+        list(APPEND COREBLAS_LDFLAGS ${_lib})
     endif()
   endforeach()
 
@@ -257,7 +261,8 @@ if(NOT COREBLAS_FIND_QUIETLY)
     "
     COREBLAS_INCLUDE_DIRS = [${COREBLAS_INCLUDE_DIRS}]
     COREBLAS_LIBRARY_DIRS = [${COREBLAS_LIBRARY_DIRS}]
-    COREBLAS_LIBRARIES    = [${COREBLAS_LIBRARIES}]")
+    COREBLAS_LIBRARIES    = [${COREBLAS_LIBRARIES}]
+    COREBLAS_LDFLAGS      = [${COREBLAS_LDFLAGS}]")
 
   if(COREBLAS_C_COMPILE_SUCCESS OR COREBLAS_F_COMPILE_SUCCESS)
     if(COREBLAS_F_COMPILE_SUCCESS)
