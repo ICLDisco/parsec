@@ -297,9 +297,9 @@ STEP2(m, n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( n+Q < PQ )       ? W STEP2(m, n+Q)  : Tdist(m, n) /* Unused*/    [type = COL]
-    RW   W <- ((hadtile+1) == 0) ? W RWCOL(m, n )   : W STEP1(m, hadtile)    [type = COL]
-           -> ( n < Q )          ? W STEP2BIS(m, n) : A STEP2(m, n-Q)        [type = COL]
+    READ A <- ( n+Q < PQ )       ? W STEP2(m, n+Q)  : Tdist(m, n) /* Unused*/  [type = COL]
+    RW   W <- ((hadtile+1) == 0) ? W RWCOL(m, n )   : W STEP1(m, hadtile)      [type = COL]
+           -> ( n < Q )          ? W STEP2BIS(m, n) : A STEP2(m, n-Q)          [type = COL]
 
 BODY
 {
@@ -353,8 +353,8 @@ STEP2BIS(m, n)
 
     // Parameters
     READ A <- ( n == 0     ) ? Tdist(m, n) /* Unused */ : W STEP2BIS(m, n-1)   [type = COL]
-    RW   W <- W STEP2(m, n)                                                [type = COL]
-           -> ( n == (Q-1) ) ? A STEP3(m, 0..Q-1)   : A STEP2BIS(m, n+1)   [type = COL]
+    RW   W <- W STEP2(m, n)                                                    [type = COL]
+           -> ( n == (Q-1) ) ? A STEP3(m, 0..Q-1)       : A STEP2BIS(m, n+1)   [type = COL]
 
 BODY
 {
@@ -471,9 +471,9 @@ STEP4(m,n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( m == 0 ) ? Tdist(m, n) /* Unused */: W STEP4(m-1, n)              [type = ELT]
-    RW   W <- ( m >  (descA.mt-1)) ? W RWELT( m, n)         : W STEP3(m,   n) [type = ELT]
-           -> ( m == (P-1)       ) ? W WRITE_RES(0..P-1, n) : A STEP4(m+1, n) [type = ELT]
+    READ A <- ( m == 0 )           ?   Tdist(m, n) /* Unused */ : W STEP4(m-1, n) [type = ELT]
+    RW   W <- ( m >  (descA.mt-1)) ? W RWELT( m, n)             : W STEP3(m,   n) [type = ELT]
+           -> ( m == (P-1)       ) ? W WRITE_RES(0..P-1, n)     : A STEP4(m+1, n) [type = ELT]
 
 BODY
 {
