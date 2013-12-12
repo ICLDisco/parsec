@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -56,10 +56,14 @@ int dague_arena_construct_ex(dague_arena_t* arena,
 void dague_arena_destruct(dague_arena_t* arena)
 {
     dague_list_item_t* item;
+    dague_arena_chunk_t* chunk;
 
     assert(0 == arena->used);
 
     while(NULL != (item = dague_lifo_pop(&arena->lifo))) {
+        chunk = (dague_arena_chunk_t*) item;
+        DEBUG3(("Arena:\tfree element base ptr %p, data ptr %p (from arena %p)\n",
+                chunk, chunk->data, arena));
         arena->data_free(item);
     }
     dague_lifo_destruct(&arena->lifo);
