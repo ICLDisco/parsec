@@ -99,7 +99,8 @@ struct data_repo {
     data_repo_head_t  heads[1];
 };
 
-static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize_hint, unsigned int nbdata)
+static inline data_repo_t*
+data_repo_create_nothreadsafe(unsigned int hashsize_hint, unsigned int nbdata)
 {
     unsigned int hashsize = hashsize_hint * 1.5;
     data_repo_t *res;
@@ -114,7 +115,8 @@ static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize_h
     return res;
 }
 
-static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, uint64_t key)
+static inline data_repo_entry_t*
+data_repo_lookup_entry(data_repo_t *repo, uint64_t key)
 {
     data_repo_entry_t *e;
     int h = key % repo->nbentries;
@@ -133,11 +135,21 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, uint6
  * you're done counting the number of references, otherwise the entry is non erasable.
  * See comment near the structure definition.
  */
+#if DAGUE_DEBUG_VERBOSE != 0
+# define data_repo_lookup_entry_and_create(eu, repo, key) \
+    __data_repo_lookup_entry_and_create(eu, repo, key, #repo, __FILE__, __LINE__)
 static inline data_repo_entry_t*
-data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key)
+__data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key,
+                                    const char *tablename, const char *file, int line)
+#else
+# define data_repo_lookup_entry_and_create(eu, repo, key)       \
+    __data_repo_lookup_entry_and_create(eu, repo, key)
+static inline data_repo_entry_t*
+__data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key)
+#endif
 {
-    data_repo_entry_t *e, *n;
-    int h = key % repo->nbentries;
+    const int h = key % repo->nbentries;
+    data_repo_entry_t *e;
 
     dague_atomic_lock(&repo->heads[h].lock);
     for(e = repo->heads[h].first_entry;
@@ -150,37 +162,43 @@ data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo,
         }
     dague_atomic_unlock(&repo->heads[h].lock);
 
-    n = (data_repo_entry_t*)dague_thread_mempool_allocate( eu->datarepo_mempools[repo->nbdata] );
-    n->data_repo_mempool_owner = eu->datarepo_mempools[repo->nbdata];
-    n->key = key;
+    e = (data_repo_entry_t*)dague_thread_mempool_allocate( eu->datarepo_mempools[repo->nbdata] );
+    e->data_repo_mempool_owner = eu->datarepo_mempools[repo->nbdata];
+    e->key = key;
 #if defined(DAGUE_SIM)
-    n->sim_exec_date = 0;
+    e->sim_exec_date = 0;
 #endif
-    n->usagelmt = 0;
-    n->usagecnt = 0;
-    n->retained = 1; /* Until we update the usage limit */
+    e->usagelmt = 0;
+    e->usagecnt = 0;
+    e->retained = 1; /* Until we update the usage limit */
 
     dague_atomic_lock(&repo->heads[h].lock);
-    n->data_repo_next_entry = (volatile dague_list_item_t *)repo->heads[h].first_entry;
-    repo->heads[h].first_entry = n;
+    e->data_repo_next_entry = (volatile dague_list_item_t *)repo->heads[h].first_entry;
+    repo->heads[h].first_entry = e;
     repo->heads[h].size++;
     DAGUE_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     DAGUE_STATMAX_UPDATE(counter_hashtable_collisions_size, repo->heads[h].size);
     dague_atomic_unlock(&repo->heads[h].lock);
+    DEBUG3(("entry %p/%ld of hash table %s has beel allocated with an usage count of %u/%u and is retained %d at %s:%d\n",
+            e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained, file, line));
 
-    return n;
+    return e;
 }
 
 #if DAGUE_DEBUG_VERBOSE != 0
-# define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
-static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key, const char *tablename, const char *file, int line)
+# define data_repo_entry_used_once(eu, repo, key) \
+    __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
+static inline void
+__data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key,
+                            const char *tablename, const char *file, int line)
 #else
 # define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key)
-static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key)
+static inline void
+__data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key)
 #endif
 {
+    const int h = key % repo->nbentries;
     data_repo_entry_t *e, *p;
-    int h = key % repo->nbentries;
     uint32_t r = 0xffffffff;
 
     dague_atomic_lock(&repo->heads[h].lock);
@@ -222,16 +240,21 @@ static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_
 }
 
 #if DAGUE_DEBUG_VERBOSE != 0
-# define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
-static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t usagelmt, const char *tablename, const char *file, int line)
+# define data_repo_entry_addto_usage_limit(repo, key, usagelmt) \
+    __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
+static inline void
+__data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t usagelmt,
+                                    const char *tablename, const char *file, int line)
 #else
-# define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt)
-static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t usagelmt)
+# define data_repo_entry_addto_usage_limit(repo, key, usagelmt) \
+    __data_repo_entry_addto_usage_limit(repo, key, usagelmt)
+static inline void
+__data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t usagelmt)
 #endif
 {
+    const int h = key % repo->nbentries;
     data_repo_entry_t *e, *p;
     uint32_t ov, nv;
-    int h = key % repo->nbentries;
 
     dague_atomic_lock(&repo->heads[h].lock);
     p = NULL;
