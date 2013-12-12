@@ -115,26 +115,18 @@ void jdf_register_prologue(jdf_t *jdf)
         jdf->prologue = q2jmalloc(jdf_external_entry_t, 1);
         jdf->prologue->external_code = strdup(
             "/*\n"
-            " *  Copyright (c) 2010\n"
+            " * Copyright (c) 2010-2013 The University of Tennessee and The University\n"
+            " *                         of Tennessee Research Foundation. All rights\n"
+            " *                         reserved.\n"
+            " * Copyright (c) 2013      Inria. All rights reserved.\n"
+            " * $COPYRIGHT\n"
             " *\n"
-            " *  The University of Tennessee and The University\n"
-            " *  of Tennessee Research Foundation.  All rights\n"
-            " *  reserved.\n"
             " *\n"
             " * @precisions normal z -> s d c\n"
             " *\n"
             " */\n"
-            "#define PRECISION_z\n"
-            "\n"
-            "#include <plasma.h>\n"
-            "#include <core_blas.h>\n"
-            "\n"
-            "#include \"dague.h\"\n"
-            "#include \"data_distribution.h\"\n"
-            "#include \"data_dist/matrix/precision.h\"\n"
-            "#include \"data_dist/matrix/matrix.h\"\n"
-            "#include \"dplasma/lib/memory_pool.h\"\n"
-            "#include \"dplasma/lib/dplasmajdf.h\"\n");
+            "#include \"dplasmajdf.h\"\n"
+            "#include \"data_dist/matrix/matrix.h\"\n");
         JDF_OBJECT_SET(jdf->prologue, NULL, 0, NULL);
     }
 }
