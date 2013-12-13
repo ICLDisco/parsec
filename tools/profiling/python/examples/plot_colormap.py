@@ -195,11 +195,7 @@ if __name__ == '__main__':
             for event_name in profile.event_types.keys():
                 if event_name.startswith('PAPI_CORE_EXEC_'):
                     event_types.append(event_name)
-                    try:
-                        y_axes = p3_bin.papi_core_evt_value_lbls[event_name]
-                    except:
-                        y_axes = p3_bin.papi_core_evt_value_lbls[
-                            event_name.replace('PAPI_CORE_EXEC_', '')]
+                    y_axes = papi_core_utils.PAPICoreEventValueLabelGetter()[event_name]
                     break
             event_subtypes = mpl_prefs.kernel_names[profile.exe][:1]
 

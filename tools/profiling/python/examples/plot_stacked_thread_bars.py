@@ -86,12 +86,6 @@ if __name__ == '__main__':
         # COLLECT AND SUM
         for (th_id, event_type), group in thread_group_events:
             total = group['duration'].sum()
-            div = 1000000
-            median = group['duration'].median() * len(group)
-            # print(th_id, event_type, profile.event_names[event_type],
-            #       len(group), 'time:', total/div, '*10^6',
-            #       'median_evt * num_evts:', median/div, '*10^6', 'th_dur:',
-            #       thread_bars[th_id]['thread_duration']/div, '*10^6')
             if select_event == event_type:
                 selection_time = group['selection_time'].sum()
                 if total >= selection_time:

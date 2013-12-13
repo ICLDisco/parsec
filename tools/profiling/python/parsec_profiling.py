@@ -102,7 +102,11 @@ class ParsecProfile(object):
         for info in infos:
             desc += str(self.__getattr__(info)) + ' '
         return desc[:-1]
-    def name(self, infos=default_descriptors):
+    def name(self, infos=default_descriptors, add_infos=None):
+        if not infos:
+            infos = []
+        if add_infos:
+            infos += add_infos
         return self.descrip(infos).replace(' ', '_')
     def unique_name(self, infos=default_descriptors + ['start_time']):
         return self.descrip(infos).replace(' ', '_')
