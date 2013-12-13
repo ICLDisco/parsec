@@ -11,7 +11,6 @@
 
 #include <mpi.h>
 #include "profiling.h"
-#include "arena.h"
 #include "list.h"
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
@@ -928,8 +927,9 @@ static int remote_dep_mpi_pack_dep(dague_context_t* ctx,
                 msg->length += dsize;
                 continue;  /* go to the next */
             }
-            /* the data doesn't fit in the buffer. Mark it as in use */
+            /* the data doesn't fit in the buffer. */
         }
+        /* The data will be sent using another protocol. */
     }
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n"
            "    \t eager count %d length %d\n",
@@ -1222,7 +1222,7 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
     dague_remote_deps_t** deps = (dague_remote_deps_t**)&(task->deps);
 
     DEBUG2(("MPI:\tTO\tna\tPut END  \tunknown \tj=%d,k=%d\twith deps %p\tparams %lx\t(tag=%d) data ptr %p\n",
-            i, k, *deps, task->output_mask, status->MPI_TAG, (*deps)->output[k].data.ptr)); (void)status;
+            i, k, deps, task->output_mask, status->MPI_TAG, deps->output[k].data.ptr)); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
     task->output_mask ^= (1<<k);

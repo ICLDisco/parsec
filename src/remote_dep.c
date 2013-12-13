@@ -8,6 +8,7 @@
 #include "remote_dep.h"
 #include "scheduling.h"
 #include "execution_unit.h"
+#include "arena.h"
 #include <stdio.h>
 #include "arena.h"
 
@@ -83,15 +84,19 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
     assert( (*deps)->output_sent_count <= (*deps)->output_count );
 
     if( (*deps)->output_count == (*deps)->output_sent_count ) {
-        int k, remote_dep_count = (*deps)->output_count;;
         DEBUG2(("Complete %d (%d/%d) outputs of dep %p (decreasing inflight messages)\n",
-                ncompleted, (*deps)->output_count, (*deps)->output_sent_count, deps));
-        for(k = 0; remote_dep_count; k++) {
-            if( 0 == (*deps)->output[k].count_bits ) continue;
-            AUNREF((*deps)->output[k].data.ptr);
-            remote_dep_count -= (*deps)->output[k].count_bits;
-        }
+                ncompleted, (*deps)->output_count, (*deps)->output_sent_count, *deps));
         remote_dep_dec_flying_messages((*deps)->dague_object, ctx);
+        /**
+         * Decrease the refcount of each output data once to mark the completion
+         * of all communications related to the task. This is not optimal as it
+         * increases the timespan of a data, but it is much eaier to implement.
+         */
+        for( int i = 0; (*deps)->activity_mask >> i; i++ )
+            if( (1U << i) & (*deps)->activity_mask ) {
+                assert( (*deps)->output[i].count_bits );
+                AUNREF((*deps)->output[i].data.ptr);
+            }
         remote_deps_free(*deps);
         *deps = NULL;
         return 1;
@@ -238,6 +243,17 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     for(i = 0; i < function->nb_locals; i++) {
         remote_deps->msg.locals[i] = exec_context->locals[i];
     }
+    /**
+     * Increase upfront the refcount of each possible output data once to insure
+     * the data is protected during the entire execution of the communication,
+     * independent on what is happening with the data outside of the
+     * communication engine.
+     */
+    for( i = 0; remote_deps->activity_mask >> i; i++ )
+        if( (1U << i) & remote_deps->activity_mask ) {
+            assert( remote_deps->output[i].count_bits );
+            AREF(remote_deps->output[i].data.ptr);
+        }
 
     if(remote_deps->root == eu_context->virtual_process->dague_context->my_rank) me = 0;
     else me = -1;
