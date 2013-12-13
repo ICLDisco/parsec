@@ -104,14 +104,14 @@ dplasma_zlange_New( PLASMA_enum ntype,
     case PlasmaFrobeniusNorm:
         mb = 2;
         nb = 1;
-        m  = A->mt;
+        m  = dplasma_imax(A->mt, P);
         n  = Q;
         elt = 2;
         break;
     case PlasmaInfNorm:
         mb = A->mb;
         nb = 1;
-        m  = A->mt;
+        m  = dplasma_imax(A->mt, P);
         n  = Q;
         elt = 1;
         break;
@@ -126,7 +126,7 @@ dplasma_zlange_New( PLASMA_enum ntype,
     default:
         mb = 1;
         nb = 1;
-        m  = A->mt;
+        m  = dplasma_imax(A->mt, P);
         n  = Q;
         elt = 1;
     }
