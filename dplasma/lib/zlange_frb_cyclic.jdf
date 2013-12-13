@@ -68,25 +68,25 @@ RWCOL(m, n) [profile = off]
 BODY
 {
 #if !defined(DAGUE_DRY_RUN)
+    /* Initialize W */
+    switch( ntype ) {
+    case PlasmaMaxNorm:
+        ((double *)W)[0] = 0.;
+        break;
+
+    case PlasmaInfNorm:
+        memset( W, 0, descA.mb * sizeof(double) );
+        break;
+
+    case PlasmaFrobeniusNorm:
         /* Initialize W */
-        switch( ntype ) {
-        case PlasmaMaxNorm:
-            ((double *)W)[0] = 0.;
-            break;
+        ((double *)W)[0] = 0.;
+        ((double *)W)[1] = 1.;
+        break;
 
-        case PlasmaInfNorm:
-            memset( W, 0, descA.mb * sizeof(double) );
-            break;
-
-        case PlasmaFrobeniusNorm:
-            /* Initialize W */
-            ((double *)W)[0] = 0.;
-            ((double *)W)[1] = 1.;
-            break;
-
-        default:
-            fprintf(stderr, "Unknown norm %d\n", ntype );
-        }
+    default:
+        fprintf(stderr, "Unknown norm %d\n", ntype );
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
@@ -110,21 +110,21 @@ RWELT(m, n) [profile = off]
 BODY
 {
 #if !defined(DAGUE_DRY_RUN)
-        /* Initialize W */
-        switch( ntype ) {
-        case PlasmaMaxNorm:
-        case PlasmaInfNorm:
-            ((double *)W)[0] = 0.;
-            break;
+    /* Initialize W */
+    switch( ntype ) {
+    case PlasmaMaxNorm:
+    case PlasmaInfNorm:
+        ((double *)W)[0] = 0.;
+        break;
 
-        case PlasmaFrobeniusNorm:
-            /* Initialize W */
-            ((double *)W)[0] = 0.;
-            ((double *)W)[1] = 1.;
-            break;
-        default:
-            fprintf(stderr, "Unknown norm %d\n", ntype );
-        }
+    case PlasmaFrobeniusNorm:
+        /* Initialize W */
+        ((double *)W)[0] = 0.;
+        ((double *)W)[1] = 1.;
+        break;
+    default:
+        fprintf(stderr, "Unknown norm %d\n", ntype );
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
@@ -162,8 +162,8 @@ BODY
              context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
 #if !defined(DAGUE_DRY_RUN)
-        switch( ntype ) {
-        case PlasmaMaxNorm:
+    switch( ntype ) {
+    case PlasmaMaxNorm:
         {
             double lnorm;
             CORE_zlange(PlasmaMaxNorm, tempmm, tempnn,
@@ -173,7 +173,7 @@ BODY
         }
         break;
 
-        case PlasmaInfNorm:
+    case PlasmaInfNorm:
         {
             CORE_dzasum(PlasmaRowwise, PlasmaUpperLower,
                         tempmm, tempnn,
@@ -181,16 +181,16 @@ BODY
         }
         break;
 
-        case PlasmaFrobeniusNorm:
+    case PlasmaFrobeniusNorm:
         {
             CORE_zgessq(tempmm, tempnn,
                         A, ldam, dW, dW+1 );
         }
         break;
 
-        default:
-            fprintf(stderr, "Unknown norm %d\n", ntype );
-        }
+    default:
+        fprintf(stderr, "Unknown norm %d\n", ntype );
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
@@ -211,7 +211,7 @@ STEP2(m, n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( n == 0 ) ? Tdist(m, n) : W STEP2(m, n-1)                   [type = COL]
+    READ A <- ( n == 0 )           ? Tdist(m, n)        : W STEP2(m, n-1) [type = COL]
     RW   W <- ( n >  (descA.nt-1)) ? W RWCOL(m, n )     : W STEP1(m, n  ) [type = COL]
            -> ( n == (Q-1)       ) ? A STEP3(m, 0..Q-1) : A STEP2(m, n+1) [type = COL]
 
@@ -225,7 +225,7 @@ BODY
              context->th_id, m, n, m, n-1, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
-        if(n > 0)
+    if(n > 0)
         {
             switch( ntype ) {
             case PlasmaMaxNorm:
@@ -291,8 +291,8 @@ BODY
              context->th_id, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
-        switch( ntype ) {
-        case PlasmaMaxNorm:
+    switch( ntype ) {
+    case PlasmaMaxNorm:
         {
             if ( m < (descA.mt-P) ) {
                 *dW = ( *dA > *dW ) ? *dA : *dW;
@@ -302,7 +302,7 @@ BODY
         }
         break;
 
-        case PlasmaInfNorm:
+    case PlasmaInfNorm:
         {
             int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
             double maxval = 0;
@@ -319,7 +319,7 @@ BODY
         }
         break;
 
-        case PlasmaFrobeniusNorm:
+    case PlasmaFrobeniusNorm:
         {
             if( dW[0] < dA[0] ) {
                 dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
@@ -330,9 +330,9 @@ BODY
         }
         break;
 
-        default:
-            fprintf(stderr, "Unknown norm %d\n", ntype );
-        }
+    default:
+        fprintf(stderr, "Unknown norm %d\n", ntype );
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
@@ -366,16 +366,16 @@ BODY
              context->th_id, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
-        if(m > 0) {
-            switch( ntype ) {
-            case PlasmaMaxNorm:
-            case PlasmaInfNorm:
+    if(m > 0) {
+        switch( ntype ) {
+        case PlasmaMaxNorm:
+        case PlasmaInfNorm:
             {
                 *dW = ( *dA > *dW ) ? *dA : *dW;
             }
             break;
 
-            case PlasmaFrobeniusNorm:
+        case PlasmaFrobeniusNorm:
             {
                 double  sqr;
 
@@ -392,10 +392,10 @@ BODY
             }
             break;
 
-            default:
-                fprintf(stderr, "Unknown norm %d\n", ntype );
-            }
+        default:
+            fprintf(stderr, "Unknown norm %d\n", ntype );
         }
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
@@ -423,23 +423,23 @@ BODY
              context->th_id, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
-        switch( ntype ) {
-        case PlasmaMaxNorm:
-        case PlasmaInfNorm:
+    switch( ntype ) {
+    case PlasmaMaxNorm:
+    case PlasmaInfNorm:
         {
             *norm = *dW;
         }
         break;
 
-        case PlasmaFrobeniusNorm:
+    case PlasmaFrobeniusNorm:
         {
             *norm = dW[0] * dplasma_dsqrt( dW[1] );
         }
         break;
 
-        default:
-            fprintf(stderr, "Unknown norm %d\n", ntype );
-        }
+    default:
+        fprintf(stderr, "Unknown norm %d\n", ntype );
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
