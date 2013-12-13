@@ -4,16 +4,17 @@ from __future__ import print_function
 import os
 import parsec_profiling as p3
 import parsec_binprof as pbp
+import papi_core_utils
 import numpy as np
 import time
 
 class Timer:
     def __enter__(self):
-        self.start = time.clock()
+        self.start = time.time()
         return self
 
     def __exit__(self, *args):
-        self.end = time.clock()
+        self.end = time.time()
         self.interval = self.end - self.start
 
 # profiling stuff
@@ -37,7 +38,8 @@ def do_demo(filenames, translate=False):
                 print('First, we load the HDFed profile...')
             else:
                 print('First, we read the binary profile and convert it to pandas format.')
-                filenames[0] = pbp.convert(filenames, report_progress=True, unlink=False)
+                filenames[0] = pbp.convert(filenames, report_progress=True, unlink=False,
+                                           multiprocess=True)
                 print('Then, we read the HDFed profile...')
             profile = p3.ParsecProfile.from_hdf(filenames[0])
 
@@ -139,7 +141,7 @@ def do_demo(filenames, translate=False):
             srted = onlyexec.sort_index(by=['duration'], ascending=[True])
         print('That sort only took ' + str(t.interval) + ' seconds.')
 
-        pce_vals = pbp.PAPICoreEventValueLabelGetter()
+        pce_vals = papi_core_utils.PAPICoreEventValueLabelGetter()
 
         print('To show that we\'ve sorted the events, we print the first five,')
         print('middle five, and last five events in the dataframe:')

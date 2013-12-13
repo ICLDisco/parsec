@@ -2,7 +2,7 @@ import papi_core_utils
 known_pcore_labels = papi_core_utils.PAPICoreEventValueLabelGetter()
 
 # add parsing clauses to this function to get infos.
-cdef parse_info(builder, event_type, unique_id, void * cinfo):
+cdef parse_info(builder, event_type, void * cinfo):
     cdef papi_exec_info_t * cast_exec_info = NULL
     cdef select_info_t * cast_select_info = NULL
     cdef papi_core_socket_info_t * cast_core_socket_info = NULL
@@ -39,8 +39,6 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
     elif event_name == 'PINS_ADD':
         cast_core_exec_info = <papi_core_exec_info_t *>cinfo
         event_info = {
-            'unique_id':
-            unique_id,
             'kernel_type':
             cast_core_exec_info.kernel_type,
             'PAPI_L1':
@@ -53,8 +51,6 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
     elif event_name == 'PINS_L12_EXEC':
         cast_core_exec_info = <papi_core_exec_info_t *>cinfo
         event_info = {
-            'unique_id':
-            unique_id,
             'kernel_type':
             cast_core_exec_info.kernel_type,
             'PAPI_L1':
@@ -67,8 +63,6 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
     elif event_name == 'PINS_L12_SELECT':
         cast_core_select_info = <papi_core_select_info_t *>cinfo
         event_info = {
-            'unique_id':
-            unique_id,
             'kernel_type':
             cast_core_select_info.kernel_type,
             'victim_vp_id':
@@ -87,8 +81,6 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
     elif event_name == 'PINS_L123':
         cast_core_socket_info = <papi_core_socket_info_t *>cinfo
         event_info = {
-            'unique_id':
-            unique_id,
             'PAPI_L1':
             cast_core_socket_info.evt_values[0],
             'PAPI_L2':
@@ -105,7 +97,6 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
             '_PREP' in event_name):
             cast_core_exec_info = <papi_core_exec_info_t *>cinfo
             event_info = {
-                'unique_id': unique_id,
                 'kernel_type': cast_core_exec_info.kernel_type,
             }
             for idx, lbl in enumerate(lbls):
@@ -119,8 +110,6 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
                 print(event_name)
                 print(cast_core_select_info.selection_time)
             event_info = {
-                'unique_id':
-                unique_id,
                 'kernel_type':
                 cast_core_select_info.kernel_type,
                 'victim_vp_id':
@@ -136,10 +125,7 @@ cdef parse_info(builder, event_type, unique_id, void * cinfo):
                 event_info.update({lbl: cast_core_select_info.evt_values[idx]})
         elif '_THREAD' in event_name or '_SOCKET' in event_name:
             cast_core_socket_info = <papi_core_socket_info_t *>cinfo
-            event_info = {
-                'unique_id':
-                unique_id,
-            }
+            event_info = dict()
             for idx, lbl in enumerate(lbls):
                 event_info.update({lbl: cast_core_socket_info.evt_values[idx]})
     # elif event_name == '<EVENT NAME>':

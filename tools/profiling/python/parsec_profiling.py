@@ -28,7 +28,7 @@ p3_core = '.h5-'
 class ParsecProfile(object):
     class_version = 1.0 # created 2013.10.22 after move to pandas
     basic_event_columns = ['node_id', 'thread_id',  'handle_id', 'type',
-                           'begin', 'end', 'duration', 'flags', 'unique_id', 'id']
+                           'begin', 'end', 'duration', 'flags', 'id']
     HDF_TOP_LEVEL_NAMES = ['event_types', 'event_names', 'event_attributes',
                            'nodes', 'threads', 'information', 'errors']
     default_descriptors = ['hostname', 'exe', 'ncores', 'sched']
