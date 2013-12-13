@@ -930,7 +930,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
              * always remove the data from the LRU.
              */
             if( 0 != lru_gpu_elem->readers ) {
-                goto find_another_data;
+                goto find_another_data; // TODO: potential leak here? I think not, but needs check.
             }
             /* Make sure the new GPU element is clean and ready to be used */
             assert( master != lru_gpu_elem->original );
@@ -944,7 +944,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                     for( j = 0; j < this_task->function->nb_parameters; j++ ) {
                         if( NULL == this_task->data[j].data_in ) continue;
                         if( this_task->data[j].data_in->original == oldmaster ) {
-                            temp_loc[j] = lru_gpu_elem;
+                            temp_loc[j] = lru_gpu_elem; // TODO: potential leak here? 
                             goto find_another_data;
                         }
                     }
@@ -1215,7 +1215,7 @@ void dump_GPU_state(gpu_device_t* gpu_device)
     if( !dague_ulist_is_empty(&gpu_device->gpu_mem_lru) ) {
         printf("#\n# LRU list\n#\n");
         i = 0;
-        DAGUE_LIST_ITERATOR(&gpu_device->gpu_mem_lru, item,
+        DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_lru, item,
                             {
                                 dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
                                 printf("  %d. elem %p GPU mem %p\n", i, gpu_copy, gpu_copy->device_private);
@@ -1226,7 +1226,7 @@ void dump_GPU_state(gpu_device_t* gpu_device)
     if( !dague_ulist_is_empty(&gpu_device->gpu_mem_owned_lru) ) {
         printf("#\n# Owned LRU list\n#\n");
         i = 0;
-        DAGUE_LIST_ITERATOR(&gpu_device->gpu_mem_owned_lru, item,
+        DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_owned_lru, item,
                             {
                                 dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
                                 printf("  %d. elem %p GPU mem %p\n", i, gpu_copy, gpu_copy->device_private);
