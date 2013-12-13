@@ -1162,24 +1162,24 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
     coutput("/* Release dependencies output macro */\n"
             "#if DAGUE_DEBUG_VERBOSE != 0\n"
-            "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST)\\\n"
+            "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST, DATA)\\\n"
             "  do { \\\n"
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
-            "    DEBUG((\"thread %%d VP %%d release deps of %%s:%%s to %%s:%%s (from node %%d to %%d)\\n\",\\\n"
+            "    DEBUG((\"thread %%d VP %%d release deps of %%s:%%s to %%s:%%s (from node %%d to %%d) base ptr %%p\\n\",\\\n"
             "           (NULL != (EU) ? (EU)->th_id : -1), (NULL != (EU) ? (EU)->virtual_process->vp_id : -1),\\\n"
             "           DEPO, dague_snprintf_execution_context(tmp1, 128, (TASKO)),\\\n"
-            "           DEPI, dague_snprintf_execution_context(tmp2, 128, (TASKI)), (RSRC), (RDST)));\\\n"
+            "           DEPI, dague_snprintf_execution_context(tmp2, 128, (TASKI)), (RSRC), (RDST), (DATA)));\\\n"
             "  } while(0)\n"
-            "#define ACQUIRE_FLOW(TASKI, DEPI, FUNO, DEPO, LOCALS)\\\n"
+            "#define ACQUIRE_FLOW(TASKI, DEPI, FUNO, DEPO, LOCALS, PTR)\\\n"
             "  do { \\\n"
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
-            "    DEBUG((\"task %%s acquires flow %%s from %%s %%s\\n\",\\\n"
+            "    DEBUG((\"task %%s acquires flow %%s from %%s %%s data ptr %%p\\n\",\\\n"
             "           dague_snprintf_execution_context(tmp1, 128, (TASKI)), (DEPI),\\\n"
-            "           (DEPO), dague_snprintf_assignments(tmp2, 128, (FUNO), (LOCALS))));\\\n"
+            "           (DEPO), dague_snprintf_assignments(tmp2, 128, (FUNO), (LOCALS)), (PTR)));\\\n"
             "  } while(0)\n"
             "#else\n"
-            "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST)\n"
-            "#define ACQUIRE_FLOW(TASKI, DEPI, TASKO, DEPO, LOCALS)\n"
+            "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST, DATA)\n"
+            "#define ACQUIRE_FLOW(TASKI, DEPI, TASKO, DEPO, LOCALS, PTR)\n"
             "#endif\n");
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -3076,13 +3076,13 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
             exit(1);
         }
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "tass", call));
-        coutput("%s  ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass);\n",
-                spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
 
         coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, tass ));\n"
                 "%s    chunk = entry->data[%d];  /* %s:%s <- %s:%s */\n",
                 spaces, call->func_or_mem, call->func_or_mem,
                 spaces, tflow->flow_index, f->varname, fname, call->var, call->func_or_mem);
+        coutput("%s  ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass, chunk);\n",
+                spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
     } else {
         coutput("%s    chunk = (dague_arena_chunk_t*) %s(%s);\n",
                 spaces, call->func_or_mem,
@@ -4011,7 +4011,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     }
 
     string_arena_add_string(sa_open,
-                            "%s%sRELEASE_DEP_OUTPUT(eu, \"%s\", this_task, \"%s\", &%s, rank_src, rank_dst);\n",
+                            "%s%sRELEASE_DEP_OUTPUT(eu, \"%s\", this_task, \"%s\", &%s, rank_src, rank_dst, &data);\n",
                             prefix, indent(nbopen), flow->varname, call->var, var);
     free(linfo.assignments);
     linfo.assignments = NULL;
