@@ -25,6 +25,7 @@ warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
 
 p3_core = '.h5-'
 
+
 class ParsecProfile(object):
     class_version = 1.0 # created 2013.10.22 after move to pandas
     basic_event_columns = ['node_id', 'thread_id',  'handle_id', 'type',
@@ -32,20 +33,6 @@ class ParsecProfile(object):
     HDF_TOP_LEVEL_NAMES = ['event_types', 'event_names', 'event_attributes',
                            'nodes', 'threads', 'information', 'errors']
     default_descriptors = ['hostname', 'exe', 'ncores', 'sched']
-    @staticmethod
-    def from_hdf(filename, skeleton_only=False):
-        store = pd.HDFStore(filename, 'r')
-        top_level = list()
-        if not skeleton_only:
-            events = store['events']
-        else:
-            events = None
-        for name in ParsecProfile.HDF_TOP_LEVEL_NAMES:
-            top_level.append(store[name])
-        profile = ParsecProfile(events, *top_level)
-        profile._store = store
-        return profile
-
     # the init function should not ordinarily be used
     # it is better to use from_hdf(), from_native(), or autoload()
     def __init__(self, events, event_types, event_names, event_attributes,
@@ -62,8 +49,7 @@ class ParsecProfile(object):
         self.errors = errors
         # metadata
         self.basic_columns = ParsecProfile.basic_event_columns
-    def to_hdf(self, filename, table=False, append=False, complevel=0,
-               complib='blosc'):
+    def to_hdf(self, filename, table=False, append=False, complevel=0, complib='blosc'):
         store = pd.HDFStore(filename + '.tmp', 'w')
         for name in ParsecProfile.HDF_TOP_LEVEL_NAMES:
             store.put(name, self.__dict__[name])
@@ -82,25 +68,40 @@ class ParsecProfile(object):
             except Exception as e:
                 pass
         try:
-            return self.information[name]
-        except:
-            pass
-        try:
-            return self.information[str(name).upper()]
-        except:
-            pass
-        try:
-            return self.information['PARAM_' + str(name).upper()]
+            return self.information[self.get_info_attr_name(name)]
         except:
             return object.__getattribute__(self, name)
-        # potentially add one more set of 'known translations'
+        # potentially add one more sets of 'known translations'
         # such as 'perf' -> 'gflops', 'ex' -> 'exname'
+    def get_info_attr_name(self, name):
+        try:
+            self.information[name]
+            return name
+        except:
+            pass
+        try:
+            self.information[str(name).upper()]
+            return str(name).upper()
+        except:
+            pass
+        try:
+            self.information['PARAM_' + str(name).upper()]
+            return 'PARAM_' + str(name).upper()
+        except:
+            return name
     def __repr__(self):
         return self.descrip()
     def descrip(self, infos=default_descriptors):
         desc = ''
+        used_infos = []
         for info in infos:
-            desc += str(self.__getattr__(info)) + ' '
+            try:
+                if info in used_infos:
+                    continue # exclude duplicates
+                desc += str(self.__getattr__(info)) + ' '
+                used_infos.append(info)
+            except:
+                pass # info doesn't exist - just ignore
         return desc[:-1]
     def name(self, infos=default_descriptors, add_infos=None):
         if not infos:
@@ -108,8 +109,9 @@ class ParsecProfile(object):
         if add_infos:
             infos += add_infos
         return self.descrip(infos).replace(' ', '_')
-    def unique_name(self, infos=default_descriptors + ['start_time']):
-        return self.descrip(infos).replace(' ', '_')
+    def unique_name(self, add_infos=None):
+        infos = ParsecProfile.default_descriptors + ['start_time']
+        return self.name(infos=infos, add_infos=add_infos)
     # use with care - does an eval() on self'user text' when 'user text' starts with '.'
     def filter_events(self, filter_strings):
         events = self.events
@@ -121,6 +123,35 @@ class ParsecProfile(object):
                 value = eval(eval_str)
             events = events[:][events[key] == value]
         return events
+    def close(self):
+        try:
+            self._store.close()
+        except:
+            pass
+    def __del__(self):
+        self.close()
+
+def from_hdf(filename, skeleton_only=False, keep_store=False):
+    store = pd.HDFStore(filename, 'r')
+    top_level = list()
+    if not skeleton_only:
+        events = store['events']
+    else:
+        events = pd.DataFrame()
+    try:
+        for name in ParsecProfile.HDF_TOP_LEVEL_NAMES:
+            top_level.append(store[name])
+    except KeyError as ke:
+        print(ke)
+        print(store['information'])
+        raise ke
+    profile = ParsecProfile(events, *top_level)
+    if keep_store:
+        profile._store = store
+    else:
+        store.close()
+    return profile
+
 
 def find_profile_sets(profiles, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sched', 'exe', 'hostname'] ):
     profile_sets = dict()

@@ -36,7 +36,8 @@ pbp_core = '.prof-'
 
 # reads an entire profile into a set of pandas DataFrames
 # filenames ought to be a list of strings, or comparable type.
-cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=True):
+cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=True,
+           add_info=dict()):
     cdef dbp_file_t * cfile
     cdef dbp_dictionary_t * cdict
     if isinstance(filenames, basestring): # if the user passed a single string
@@ -53,6 +54,8 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
         else:
             multiprocess = 1
     elif multiprocess < 1:
+        multiprocess = 1
+    if skeleton_only:
         multiprocess = 1
 
     nb_dict_entries = dbp_reader_nb_dictionary_entries(dbp)
@@ -157,6 +160,12 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
     builder.information['nb_nodes'] = nb_files
     builder.information['worldsize'] = worldsize
     builder.information['last_error'] = last_error
+    # allow the caller (who may know something extra about the run) 
+    # to specify additional profile information
+    if add_info:
+        for key, val in add_info.iteritems():
+            add_kv(builder.information, key, val)
+
 
     cond_print('Then we concatenate the event DataFrames....', report_progress)
     with Timer() as t:
@@ -183,14 +192,11 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
 
     return profile
 
-# just a shortcut for passing skeleton_only
-cpdef get_info(filenames):
-    return read(filenames, skeleton_only=True)
-
 # returns the output filename in a list, not the profile itself.
 cpdef convert(filenames, outfilename=None, unlink=True, multiprocess=True,
               force_reconvert=False, validate_existing=False,
-              table=False, append=False, report_progress=False):
+              table=False, append=False, report_progress=False,
+              add_info=dict(), compress=('blosc', 0)):
     if outfilename == None:
         outfilename = filenames[0].replace('.prof-', '.h5-')
     if os.path.exists(outfilename):
@@ -211,11 +217,13 @@ cpdef convert(filenames, outfilename=None, unlink=True, multiprocess=True,
                 pass # something went wrong, so try conversion anyway
     # convert
     cond_print('Converting {}'.format(filenames), report_progress)
-    profile = read(filenames, report_progress=report_progress, multiprocess=multiprocess)
+    profile = read(filenames, report_progress=report_progress, multiprocess=multiprocess,
+                   add_info=add_info)
     # write file
     with Timer() as t:
-        profile.to_hdf(outfilename, table=table, append=append)
-    cond_print('Wrote profile to HDF5 format 1in {} seconds.'.format(t.interval), report_progress)
+        profile.to_hdf(outfilename, table=table, append=append,
+                       complevel=compress[1], complib=compress[0])
+    cond_print('Wrote profile to HDF5 format in {} seconds.'.format(t.interval), report_progress)
     if unlink:
         for filename in filenames:
             cond_print('Unlinking {} after conversion'.format(filename), report_progress)

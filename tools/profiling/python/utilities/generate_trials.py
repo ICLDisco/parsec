@@ -25,10 +25,10 @@ default_scheds = ['AP', 'GD', 'LTQ', 'LFQ', 'PBQ']
 default_NBs = [192, 256, 380]
 N_hi_mult = 20
 
-def generate_trial_sets(output_base_dir, list_only=True, Ns=None, min_N=min_N, max_N=max_N,
-                        NBs=default_NBs, exes=default_exes, scheds=default_scheds,
-                        min_cores=0, max_cores=0, IB_divs=[0],
-                        extra_args = []):
+def generate_trials(out_dir, print_only=True, Ns=None, min_N=min_N, max_N=max_N,
+                    NBs=default_NBs, exes=default_exes, scheds=default_scheds,
+                    min_cores=0, max_cores=0, IB_divs=[0],
+                    extra_args = []):
     IB_divs_orig = IB_divs
 
     import socket
@@ -78,51 +78,78 @@ def generate_trial_sets(output_base_dir, list_only=True, Ns=None, min_N=min_N, m
                             except:
                                 cores = 0 # didn't work, so back to default
                         for scheduler in scheds:
-                            if not os.path.isdir(output_base_dir):
-                                os.mkdir(output_base_dir)
+                            if not os.path.isdir(out_dir):
+                                os.mkdir(out_dir)
                             trial_set = ParsecTrialSet(hostname, ex, N, cores,
                                                        NB, IB, scheduler, extra_args)
                             print(trial_set.shared_name() + ' ' + str(extra_args))
-                            if not list_only:
-                                file_ = open(output_base_dir + os.sep + 'pending.' +
+                            if not print_only:
+                                file_ = open(out_dir + os.sep + 'pending.' +
                                              trial_set.shared_name(), 'w')
                                 trial_set.pickle(file_)
                                 file_.close()
                             trial_sets.append(trial_set)
     return trial_sets
 
+def smart_parse(arg, conv=int):
+    if not instanceof(arg, str):
+        if len(arg) > 1:
+            return arg # already an interesting list
+        else:
+            arg = arg[0] #
+
+    if ',' in arg:
+        lst = [conv(x) for x in arg.split(',')]
+    elif ':' in arg:
+        splits = arg.split(':')
+        if len(splits) == 2:
+            start, stop = splits
+            step = 1
+        elif len(splits) == 3:
+            start, stop, step = splits
+        lst = xrange(int(start), int(stop), int(step))
+    else:
+        lst = [conv(arg)]
+    return lst
+
 ###########
 ## MAIN
 ###########
 if __name__ == '__main__':
-    list_only = False
+    print_only = False
     extra_args = []
-    output_base_dir = '.'
+    out_dir = '.'
 
     Ns = None
     NBs = default_NBs
     exes = default_exes
+    scheds = default_scheds
 
     try:
         for arg in sys.argv[1:]:
             if arg == '-l':
-                list_only = True
+                print_only = True
             elif os.path.isdir(arg):
-                output_base_dir = arg
+                out_dir = arg
             elif arg.startswith('-N='):
-                Ns = [int(arg.replace('-N=', ''))]
+                arg = arg.replace('-N=', '')
+                Ns = smart_parse(arg)
             elif arg.startswith('-NB='):
-                NBs = [int(arg.replace('-NB=', ''))]
+                arg = arg.replace('-NB=', '')
+                NBs = smart_parse(arg)
             elif arg.startswith('-exe='):
-                exes = [arg.replace('-exe=', '')]
+                exes = smart_parse(arg.replace('-exe=', ''), conv=str)
+            elif arg.startswith('-sched='):
+                scheds = smart_parse(arg.replace('-sched=', ''), conv=str)
             else:
                 extra_args.append(arg)
     except:
-        print('Usage: generate_tests.py [OUTPUT_DIRECTORY]' +
+        print('Usage: generate_trials.py [OUTPUT_DIRECTORY]' +
               ' -[l]' +
               ' [EXTRA ARGUMENTS TO TEST EXECUTABLE]')
         sys.exit(-1)
 
-    generate_trial_sets(output_base_dir, list_only=list_only, Ns=Ns, NBs=NBs,
-                        exes=exes,
-                        extra_args = extra_args)
+    trial_sets = generate_trial_sets(out_dir, print_only=print_only, Ns=Ns, NBs=NBs,
+                                     exes=exes, scheds=scheds,
+                                     extra_args = extra_args)
+    print('generated', len(trial_sets), 'trial sets.')

@@ -22,10 +22,10 @@
 
 /* enable or disable different phases depending on
  * how many/which events you want per task */
-#define ENABLE_EXEC 1
-#define ENABLE_SELECT 1
-#define ENABLE_PREP 1
-#define ENABLE_COMPL 1
+#define ENABLE_EXEC 0
+#define ENABLE_SELECT 0
+#define ENABLE_PREP 0
+#define ENABLE_COMPL 0
 #define ENABLE_SOCKET 1
 
 /* reorder the following, but there's no need to delete. */
