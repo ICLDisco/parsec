@@ -12,15 +12,7 @@ import cPickle
 import glob
 import subprocess
 from multiprocessing import Process, Pipe
-
-def safe_unlink(files, report_error = True):
-    for ufile in files:
-        try:
-            print('unlinking', ufile)
-            os.unlink(ufile) # no need to have them hanging around anymore
-        except OSError:
-            if report_error:
-                print('the file {} has apparently vanished.'.format(ufile))
+from common_utils import *
 
 class ParsecTest(object):
     class_version = 1.0 # revamped everything
@@ -326,10 +318,7 @@ def run_trial_in_process(trial, tests_per_trial, exe_dir, out_dir,
                     if len(profile_filenames) > 0:
                         try:
                             import parsec_binprof as pbp
-                            add_info = dict()
-                            if trial.exe.endswith('potrf'):
-                                precision = trial.exe.replace('potrf', '')[-1].upper()
-                                add_info['POTRF_PRI_CHANGE'] = os.environ[precision + 'POTRF']
+                            add_info = add_info_to_profile(trial)
                             profile_filenames = [pbp.convert(profile_filenames,
                                                              add_info=add_info,
                                                              compress=compress_profiles)]
@@ -389,6 +378,13 @@ def run_trial_in_process(trial, tests_per_trial, exe_dir, out_dir,
     # be done.
     return 0
 
+
+def add_info_to_profile(trial):
+    add_info = dict()
+    if trial.exe.endswith('potrf'):
+        precision = trial.exe.replace('potrf', '')[-1].upper()
+        add_info['POTRF_PRI_CHANGE'] = os.environ[precision + 'POTRF']
+    return add_info
 
 ####### global parameter defaults for ig
 # it would be nice to have different 'default experiment parameters'
@@ -480,27 +476,6 @@ def generate_trials(out_dir, print_only=True, Ns=None, min_N=min_N, max_N=max_N,
             file_.close()
     return trials
 
-def smart_parse(arg, conv=int):
-    if not isinstance(arg, str):
-        if len(arg) > 1:
-            return arg # already an interesting list
-        else:
-            arg = arg[0] #
-
-    if ',' in arg:
-        lst = [conv(x) for x in arg.split(',')]
-    elif ':' in arg:
-        splits = arg.split(':')
-        if len(splits) == 2:
-            start, stop = splits
-            step = 1
-        elif len(splits) == 3:
-            start, stop, step = splits
-        lst = xrange(int(start), int(stop), int(step))
-    else:
-        lst = [conv(arg)]
-    return lst
-
 ###########
 ## MAIN(S)
 ###########
@@ -581,6 +556,7 @@ def generate_main():
     args, extra_args = parser.parse_known_args()
 
     args.NB = smart_parse(args.NB)
+    args.N = smart_parse(args.N)
 
     out_dir = '.'
     # for arg in args.extra_args:

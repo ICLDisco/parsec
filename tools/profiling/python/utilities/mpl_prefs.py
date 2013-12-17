@@ -34,3 +34,4 @@ task_slice_colors = {
 colors = {
     'sched': sched_colors,
 }
+

@@ -19,6 +19,7 @@ import re
 import shutil
 import numpy as np
 import pandas as pd
+from common_utils import *
 
 import warnings # because these warnings are annoying, and I can find no way around them.
 warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
@@ -69,6 +70,8 @@ class ParsecProfile(object):
             return nice_val(self.information, raw_key(self.information, name))
         except:
             return object.__getattribute__(self, name)
+    def __getitem__(self, name):
+        return self.__getattr__(name)
 
     def __repr__(self):
         return describe_dict(self.information)
@@ -200,38 +203,6 @@ def automerge_profile_sets(profile_sets):
         merged_profiles.append(merged_profile)
     return merged_profiles
 
-def match_dicts(dicts):
-    """ Returns the matching or compatible parts of multi-type dictionaries.
-
-    Only matching keys and values will be retained, except:
-    Matching keys with float values will be averaged.
-
-    Retains the actual type of the items passed, assuming they are
-    all the same type of dictionary-like object."""
-
-    if len(dicts) == 0:
-        return dict()
-
-    matched_info = dicts[0]
-    mult = 1.0 / len(dicts)
-    for dict_ in dicts[1:]:
-        for key, value in dict_.iteritems():
-            if key not in matched_info: # not present
-                matched_info.drop(key)
-            elif value != matched_info[key]:
-                try:
-                    temp_fl = float(value)
-                    if '.' in str(value): # if number was actually a float
-                        # do average
-                        if profile == p_set[1]:
-                            matched_info[key] = matched_info[key] * mult
-                        matched_info[key] += value * mult
-                    else: # not float
-                        matched_info.drop(key)
-                except: # not equal and not float
-                    matched_info.drop(key)
-    return matched_info
-
 
 def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None):
     description = str()
@@ -247,7 +218,6 @@ def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None):
                 description += str(key) + key_val_sep
             description += value + sep
         except KeyError as e:
-            print(e, real_key)
             pass # key doesn't exist - just ignore
     return description[:-len(sep)] # remove last 'sep'
 

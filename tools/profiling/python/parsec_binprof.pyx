@@ -18,15 +18,20 @@ BUILD NOTES:
 # cython: profile=False
 # ...but could be True if we wanted to # import cProfile, pstats
 from __future__ import print_function
-import sys, os
-from operator import attrgetter, itemgetter
-from libc.stdlib cimport malloc, free
-from parsec_profiling import * # the pure Python classes
-import pandas as pd
+
+import sys
+import os
 import time
 import re
+from operator import attrgetter, itemgetter
+from libc.stdlib cimport malloc, free
 from multiprocessing import Process, Pipe
 import multiprocessing
+
+import pandas as pd
+
+from parsec_profiling import * # the pure Python classes
+from common_utils import *
 
 # 'include' will eventually be deprecated by Cython, but I still prefer it.
 include "pbp_info_parser.pxi"
@@ -413,16 +418,6 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
     # END construct_thread
 
 
-
-class Timer:
-    def __enter__(self):
-        self.start = time.time()
-        return self
-
-    def __exit__(self, *args):
-        self.end = time.time()
-        self.interval = self.end - self.start
-
 # private utility class
 class ProfileBuilder(object):
     def __init__(self):
@@ -436,10 +431,6 @@ class ProfileBuilder(object):
         self.threads = list()
         self.errors = list()
         self.information = dict()
-
-def cond_print(string, cond, **kwargs):
-    if cond:
-        print(string, **kwargs)
 
 # NOTE:
 # this breaks Cython, so don't do it
