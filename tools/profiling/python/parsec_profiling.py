@@ -22,6 +22,7 @@ import pandas as pd
 
 import warnings # because these warnings are annoying, and I can find no way around them.
 warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
+warnings.simplefilter(action = "ignore", category = FutureWarning)
 
 p3_core = '.h5-'
 
