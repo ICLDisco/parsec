@@ -556,7 +556,6 @@ def generate_main():
     args, extra_args = parser.parse_known_args()
 
     args.NB = smart_parse(args.NB)
-    args.N = smart_parse(args.N)
 
     out_dir = '.'
     # for arg in args.extra_args:
