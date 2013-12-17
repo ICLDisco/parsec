@@ -67,7 +67,7 @@ def group_profile_filenames(filenames, group_by=group_by_defaults):
             filename_groups.append([filename])
         else:
             # initially group by start_time
-            infonly_prof = pbp.get_info([filename])
+            infonly_prof = pbp.read([filename], skeleton_only=True)
             start_time = infonly_prof.information['start_time']
             if start_time not in infonly_prof_groups:
                 infonly_prof_groups[start_time] = list()
@@ -107,14 +107,14 @@ def group_profile_filenames(filenames, group_by=group_by_defaults):
         group_filenames = []
         for prof in prof_group:
             group_filenames.append(prof.filename)
-        joint_prof = pbp.get_info(group_filenames)
+        joint_prof = pbp.read(group_filenames, skeleton_only=True)
         if joint_prof.last_error != 0:
             print('error! dbpreader.c error # {}'.format(joint_prof.last_error))
             print('retrying with apparently conflicting files...')
             # try again with excluded?
             for prof in prof_group.conflicts:
                 group_filenames.append(prof.filename)
-            joint_prof = pbp.get_info(group_filenames)
+            joint_prof = pbp.read(group_filenames, skeleton_only=True)
             if joint_prof.last_error != 0:
                 print('error! dbpreader.c error # {}'.format(joint_prof.last_error))
                 print('skipping this set of files:')
@@ -136,7 +136,7 @@ def enhance_profile_filenames(filenames, name_infos=default_name_infos,
     if p3.p3_core in filenames[0]:
         profile = p3.ParsecProfile.from_hdf(filenames[0], skeleton_only=True)
     else:
-        profile = pbp.get_info(filenames)
+        profile = pbp.read(filenames, skeleton_only=True)
         if profile.last_error != 0:
             print('{} does not appear to be a reasonable set of filenames.'.format(filenames))
             if not force_enhance:

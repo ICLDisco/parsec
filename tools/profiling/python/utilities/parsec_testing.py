@@ -16,6 +16,7 @@ from multiprocessing import Process, Pipe
 def safe_unlink(files, report_error = True):
     for ufile in files:
         try:
+            print('unlinking', ufile)
             os.unlink(ufile) # no need to have them hanging around anymore
         except OSError:
             if report_error:
@@ -269,18 +270,6 @@ def run_trial_in_process(trial, tests_per_trial, exe_dir, out_dir,
                         shutil.move(filename, profile_filename)
                         moved_profile_filenames.append(profile_filename)
                     profile_filenames = moved_profile_filenames
-                    if convert_profiles:
-                        try:
-                            import parsec_binprof as pbp
-                            add_info = dict()
-                            if trial.exe.endswith('potrf'):
-                                precision = trial.exe.replace('potrf', '')[-1].upper()
-                                add_info['POTRF_PRI_CHANGE'] = os.environ[precision + 'POTRF']
-                            profile_filenames = [pbp.convert(profile_filenames,
-                                                             add_info=add_info,
-                                                             compress=compress_profiles)]
-                        except ImportError:
-                            pass # can't convert without the module... ahh well
                 trial.append((test, profile_filenames))
                 test_num += 1 # no more attempts are needed - we got what we came for
             else:
@@ -305,19 +294,52 @@ def run_trial_in_process(trial, tests_per_trial, exe_dir, out_dir,
             variance, trial.time_avg = online_math.online_variance_mean(test_times)
             trial.time_sdv = variance ** 0.5
             print(trial) # realtime progress report
+
             for test, profile_filenames in extra_tests:
                 safe_unlink(profile_filenames) # these won't be needed anymore
 
             if keep_best_test_only:
                 best_perf = 0
-                for test, profile_filenames in trial:
+                best_index = 0
+                for index, (test, profile_filenames) in enumerate(trial):
                     if test.perf > best_perf:
                         best_perf = test.perf
+                        best_index = index
                 print('Only keeping the profile of the test with the best performance' +
-                      ' ({} gflops/s).'.format(best_perf))
-                for test, profile_filenames in trial:
-                    if test.perf != best_perf:
+                      ' ({} gflops/s), at index {}.'.format(best_perf, best_index))
+
+                new_list = list()
+                for index, (test, profile_filenames) in enumerate(trial):
+                    if index != best_index:
                         safe_unlink(profile_filenames) # remove profiles of 'not best' runs
+                        new_list.append((test, list()))
+                    else:
+                        new_list.append((test, profile_filenames))
+                del trial[:]
+                trial.extend(new_list)
+
+            if convert_profiles:
+                # iterate through the list, convert the profiles, and save the new names
+                new_list = list()
+                while len(trial) > 0:
+                    test, profile_filenames = trial.pop()
+                    if len(profile_filenames) > 0:
+                        try:
+                            import parsec_binprof as pbp
+                            add_info = dict()
+                            if trial.exe.endswith('potrf'):
+                                precision = trial.exe.replace('potrf', '')[-1].upper()
+                                add_info['POTRF_PRI_CHANGE'] = os.environ[precision + 'POTRF']
+                            profile_filenames = [pbp.convert(profile_filenames,
+                                                             add_info=add_info,
+                                                             compress=compress_profiles)]
+                            new_list.append((test, profile_filenames))
+                        except ImportError:
+                            new_list.append((test, profile_filenames))
+                            pass # can't convert without the module... ahh well
+                    else:
+                        new_list.append((test, profile_filenames))
+                trial.extend(new_list) # put everything back in the trial
 
             while not trial_finished: # safe against Keyboard Interrupt
                 try:
@@ -446,12 +468,16 @@ def generate_trials(out_dir, print_only=True, Ns=None, min_N=min_N, max_N=max_N,
                             trial = ParsecTrial(hostname, ex, N, cores,
                                                     NB, IB, scheduler, extra_args)
                             print(trial.shared_name() + ' ' + str(extra_args))
-                            if not print_only:
-                                file_ = open(out_dir + os.sep + 'pending.' +
-                                             trial.shared_name(), 'w')
-                                trial.pickle(file_)
-                                file_.close()
                             trials.append(trial)
+    gen = 'yes'
+    if print_only:
+        gen = raw_input('Would you like to go ahead and generate the trial files [y/N]? ') or 'no'
+    if 'y' in gen or 'Y' in gen:
+        for trial in trials:
+            file_ = open(out_dir + os.sep + 'pending.' +
+                         trial.shared_name(), 'w')
+            trial.pickle(file_)
+            file_.close()
     return trials
 
 def smart_parse(arg, conv=int):
@@ -578,7 +604,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Multi-use PaRSEC testing utility.')
                                      # add_help=False)
     parser.add_argument('action', type=str, choices=['gen', 'run'])
-    args, remainder = parser.parse_known_args()
+    parser.add_argument('action_args', metavar='Arguments to action', nargs=argparse.REMAINDER)
+    args = parser.parse_args()
 
     sys.argv.pop(1) # remove the 'action' from the arguments before calling a utility
 
