@@ -944,6 +944,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                     for( j = 0; j < this_task->function->nb_parameters; j++ ) {
                         if( NULL == this_task->data[j].data_in ) continue;
                         if( this_task->data[j].data_in->original == oldmaster ) {
+                            assert( NULL == temp_loc[j] );
                             temp_loc[j] = lru_gpu_elem;
                             goto find_another_data;
                         }
