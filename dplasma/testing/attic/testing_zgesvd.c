@@ -9,8 +9,8 @@
 
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/diag_band_to_rect.h"
-#include "dplasma/lib/dplasmatypes.h"
 
 /* TODO: need to correct... Including the bulge chasing */
 //#define FADDS_ZGEBRD(__n) (((__n) * (-8.0 / 3.0 + (__n) * (1.0 + 2.0 / 3.0 * (__n)))) - 4.0)
@@ -204,8 +204,6 @@ int main(int argc, char ** argv)
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
     //PASTE_CODE_FLOPS_COUNT(FADDS_ZHERBT, FMULS_ZHERBT, ((DagDouble_t)N))
-
-    PLASMA_Init(1);
 
     LDA = max(M, LDA);
     /* initializing matrix structure */
