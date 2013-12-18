@@ -353,9 +353,9 @@ STEP4(m,n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( m == 0 ) ? Tdist(m, n) : W STEP4(m-1, n)                       [type = ELT]
-    RW   W <- ( m >  (descA.mt-1)) ? W RWELT( m, n)         : W STEP3(m,   n) [type = ELT]
-           -> ( m == (P-1)       ) ? W WRITE_RES(0..P-1, n) : A STEP4(m+1, n) [type = ELT]
+    READ A <- ( m == 0 )           ?   Tdist(m, n) /* Unused */ : W STEP4(m-1, n) [type = ELT]
+    RW   W <- ( m >  (descA.mt-1)) ? W RWELT( m, n)             : W STEP3(m,   n) [type = ELT]
+           -> ( m == (P-1)       ) ? W WRITE_RES(0..P-1, n)     : A STEP4(m+1, n) [type = ELT]
 
 BODY
 {
