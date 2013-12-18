@@ -1,27 +1,18 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
-#include <string.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 #include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/butterfly_map.h"
 
 /*

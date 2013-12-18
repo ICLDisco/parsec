@@ -1,27 +1,16 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <core_blas.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
-
-#define max(_a, _b) (((_a) > (_b)) ? (_a) : (_b))
 
 /*
  * Copied from core_blas/core_ztrdsm.c in Du's branch
@@ -47,19 +36,19 @@ int CORE_ztrdsm(int M, int N,
         coreblas_error(2, "Illegal value of N");
         return -2;
     }
-    if (LDA < max(1, M)) {
+    if (LDA < dplasma_imax(1, M)) {
         coreblas_error(1, "Illegal value of LDA");
         return -4;
     }
-    if (LDB < max(1, M)) {
+    if (LDB < dplasma_imax(1, M)) {
         coreblas_error(1, "Illegal value of LDB");
         return -6;
     }
 
     /* Quick return */
-    if (max(M, 0) == 0)
+    if (dplasma_imax(M, 0) == 0)
         return PLASMA_SUCCESS;
-    if (max(N, 0) == 0)
+    if (dplasma_imax(N, 0) == 0)
         return PLASMA_SUCCESS;
 
     /**/
@@ -71,7 +60,6 @@ int CORE_ztrdsm(int M, int N,
     return PLASMA_SUCCESS;
 
 }
-
 
 %}
 
