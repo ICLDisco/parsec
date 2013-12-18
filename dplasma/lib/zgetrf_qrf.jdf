@@ -1,65 +1,29 @@
 extern "C" %{
 /*
- *  Copyright (c) 2012
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> s d c
  *
  */
 #include <pthread.h>
-#define PRECISION_z
-
-#include "dague.h"
 #include <math.h>
-#include <core_blas.h>
-#include <core_blas.h>
-
 #include <lapacke.h>
-
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
-#include "dplasma.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
 static pthread_mutex_t mumps_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int mumps_init = 0;
 
-static inline int lu_tab_val(int deb, int fin, int nb_lu, int rec_depth, int index)
+static inline int
+dplasma_log2(int n)
 {
-    if (deb == fin)
-    {
-        return (nb_lu != 0);
-    }
-    else
-    {
-        int new_fin = 0;
-        if ((fin - deb + 1) % 2 == 0)
-            new_fin = deb - 1 + (fin - deb + 1) / 2;
-        else
-            new_fin = deb - 1 + (fin - deb) / 2 + (rec_depth % 2);
-        int new_nb_lu = 0;
-        if ((nb_lu % 2) == 0)
-            new_nb_lu = nb_lu/2;
-        else
-            new_nb_lu = (nb_lu-1)/2 + (rec_depth % 2);
-        if (index <= new_fin)
-            return lu_tab_val(deb, new_fin, new_nb_lu, rec_depth+1, index);
-        else
-            return lu_tab_val(new_fin+1, fin, nb_lu - new_nb_lu, rec_depth+1, index);
-    }
-}
-
-PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
-                             int lm, int ln, int i, int j, int m, int n);
-
-int dague_log2(int n) {
     int i;
     if (n == 0) return 0;
     for(i=-1; n>0; i++)
@@ -655,7 +619,7 @@ tile2panel(k, n) [ profile = off ]
   did_lu = inline_c %{ return lu_tab[k];   %}
   do_lu  = inline_c %{ return lu_tab[k+1]; %}
   q      = inline_c %{ return (n-k)%param_q; %}
-  hmax   = inline_c %{ return dague_log2( dplasma_imin(param_p, descA.mt-k )-1 ); %}
+  hmax   = inline_c %{ return dplasma_log2( dplasma_imin(param_p, descA.mt-k )-1 ); %}
 
   :A(k+1, n)
 
@@ -977,7 +941,7 @@ setchoice(k, p, h)
   k = 0 .. minMNT
 
   pmax = inline_c %{ return dplasma_imin(param_p, descA.mt-k); %}
-  hmax = inline_c %{ return dague_log2( pmax-1 ); %}
+  hmax = inline_c %{ return dplasma_log2( pmax-1 ); %}
 
   p = 0 .. pmax-1
   h = 0 .. hmax
@@ -1118,8 +1082,7 @@ BODY
             }
             else if (criteria == RANDOM_CRITERIUM)
             {
-                int nb_lu = lround( ((double)(minMNT+1) * alpha) / 100. );
-                cond = lu_tab_val(0, minMNT, nb_lu, 0, k);
+                cond = lu_tab[k];
             }
             else if (criteria == HIGHAM_SUM_CRITERIUM)
             {
@@ -1207,7 +1170,7 @@ setchoice_update(k, p, q)
   p = 0 .. pmax
   q = 1 .. param_q-1
 
-  hmax = inline_c %{ return dague_log2( pmax ); %}
+  hmax = inline_c %{ return dplasma_log2( pmax ); %}
 
   : A(k+p, k+q)
 
@@ -1248,7 +1211,7 @@ selector(k,m,n)
   panel  = inline_c %{ return diagdom && (n == k); %}
   p    = inline_c %{ return (m-k)%param_p; %}
   q    = inline_c %{ return (n-k)%param_q; %}
-  hmax = inline_c %{ return dague_log2( dplasma_imin(param_p, descA.mt-k)-1 ); %}
+  hmax = inline_c %{ return dplasma_log2( dplasma_imin(param_p, descA.mt-k)-1 ); %}
 
   : A(m,n)
 

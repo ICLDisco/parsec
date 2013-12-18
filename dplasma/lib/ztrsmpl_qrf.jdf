@@ -1,33 +1,18 @@
 extern "C" %{
 /*
- *  Copyright (c) 2012
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include "dague.h"
-#include <math.h>
-#include <core_blas.h>
-#include <core_blas.h>
-
-#include <lapacke.h>
-
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include <pthread.h>
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
-#include "dplasma/cores/dplasma_zcores.h"
-
-PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
-                             int lm, int ln, int i, int j, int m, int n);
 
 %}
 

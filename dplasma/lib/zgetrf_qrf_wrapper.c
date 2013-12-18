@@ -10,11 +10,39 @@
  */
 #include "dague_internal.h"
 #include "dplasma.h"
+#include <math.h>
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/memory_pool.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include "zgetrf_qrf.h"
+
+static inline void
+dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
+{
+    if (deb == fin)
+    {
+        lutab[deb] = (nb_lu != 0);
+    }
+    else
+    {
+        int new_nb_lu = 0;
+        int new_fin = 0;
+
+        if ((fin - deb + 1) % 2 == 0)
+            new_fin = deb - 1 + (fin - deb + 1) / 2;
+        else
+            new_fin = deb - 1 + (fin - deb) / 2 + (rec_depth % 2);
+
+        if ((nb_lu % 2) == 0)
+            new_nb_lu = nb_lu/2;
+        else
+            new_nb_lu = (nb_lu-1)/2 + (rec_depth % 2);
+
+        dplasma_genrandom_lutab(lutab, deb,       new_fin, new_nb_lu,         rec_depth+1);
+        dplasma_genrandom_lutab(lutab, new_fin+1, fin,     nb_lu - new_nb_lu, rec_depth+1);
+    }
+}
 
 /**
  *******************************************************************************
@@ -149,6 +177,12 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
     {
         sizeReduceVec = 2 * A->nb;
         sizeW         = 2 * A->nb;
+    }
+
+    if (criteria == RANDOM_CRITERIUM) {
+        int minMNT = dplasma_imin( A->mt, A->nt );
+        int nb_lu = lround( ((double)(minMNT) * alpha) / 100. );
+        dplasma_genrandom_lutab(lu_tab, 0, minMNT-1, nb_lu, 0);
     }
 
     if ( A->storage == matrix_Tile ) {

@@ -1,27 +1,29 @@
 /*
- * Copyright (c) 2012      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
+
 #include "dague_internal.h"
 #include <core_blas.h>
 #include "dplasma.h"
-#include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
+#include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/memory_pool.h"
 
 #include "ztrsmpl_qrf.h"
 
-dague_object_t* dplasma_ztrsmpl_qrf_New( dplasma_qrtree_t *qrtree,
-                                         tiled_matrix_desc_t *A,
-                                         tiled_matrix_desc_t *IPIV,
-                                         tiled_matrix_desc_t *B,
-                                         tiled_matrix_desc_t *TS,
-                                         tiled_matrix_desc_t *TT,
-                                         int *lu_tab)
+dague_object_t*
+dplasma_ztrsmpl_qrf_New( dplasma_qrtree_t *qrtree,
+                         tiled_matrix_desc_t *A,
+                         tiled_matrix_desc_t *IPIV,
+                         tiled_matrix_desc_t *B,
+                         tiled_matrix_desc_t *TS,
+                         tiled_matrix_desc_t *TT,
+                         int *lu_tab )
 {
     dague_ztrsmpl_qrf_object_t* object;
     int ib = TS->mb;
@@ -79,26 +81,6 @@ dague_object_t* dplasma_ztrsmpl_qrf_New( dplasma_qrtree_t *qrtree,
     return (dague_object_t*)object;
 }
 
-int dplasma_ztrsmpl_qrf( dague_context_t *dague,
-                         dplasma_qrtree_t *qrtree,
-                         tiled_matrix_desc_t *A,
-                         tiled_matrix_desc_t *IPIV,
-                         tiled_matrix_desc_t *B,
-                         tiled_matrix_desc_t *TS,
-                         tiled_matrix_desc_t *TT,
-                         int *lu_tab)
-{
-    dague_object_t *dague_ztrsmpl_qrf = NULL;
-
-    dague_ztrsmpl_qrf = dplasma_ztrsmpl_qrf_New(qrtree, A, IPIV, B, TS, TT, lu_tab);
-
-    dague_enqueue(dague, (dague_object_t*)dague_ztrsmpl_qrf);
-    dplasma_progress(dague);
-
-    dplasma_ztrsmpl_qrf_Destruct( dague_ztrsmpl_qrf );
-    return 0;
-}
-
 void
 dplasma_ztrsmpl_qrf_Destruct( dague_object_t *o )
 {
@@ -117,5 +99,26 @@ dplasma_ztrsmpl_qrf_Destruct( dague_object_t *o )
     free( dague_ztrsmpl_qrf->p_tau  );
 
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+}
+
+int
+dplasma_ztrsmpl_qrf( dague_context_t *dague,
+                     dplasma_qrtree_t *qrtree,
+                     tiled_matrix_desc_t *A,
+                     tiled_matrix_desc_t *IPIV,
+                     tiled_matrix_desc_t *B,
+                     tiled_matrix_desc_t *TS,
+                     tiled_matrix_desc_t *TT,
+                     int *lu_tab)
+{
+    dague_object_t *dague_ztrsmpl_qrf = NULL;
+
+    dague_ztrsmpl_qrf = dplasma_ztrsmpl_qrf_New(qrtree, A, IPIV, B, TS, TT, lu_tab);
+
+    dague_enqueue(dague, (dague_object_t*)dague_ztrsmpl_qrf);
+    dplasma_progress(dague);
+
+    dplasma_ztrsmpl_qrf_Destruct( dague_ztrsmpl_qrf );
+    return 0;
 }
 
