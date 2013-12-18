@@ -167,6 +167,7 @@ dplasma/lib/[sdc]lacpy_wrapper.c$
 dplasma/lib/[sdc]lange_wrapper.c$
 dplasma/lib/[c]lanhe_wrapper.c$
 dplasma/lib/[sdc]lansy_wrapper.c$
+dplasma/lib/[sdc]lantr_wrapper.c$
 dplasma/lib/[sdc]lascal_wrapper.c$
 dplasma/lib/[sdc]laset_wrapper.c$
 dplasma/lib/[sdc]laswp_wrapper.c$
