@@ -16,6 +16,109 @@
 
 #include "zgetrf_qrf.h"
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zgetrf_qrf_New - Generates the object that computes an hybrid LU-QR
+ * factorization of a M-by-N matrix A.
+ *
+ * This algorithm tries to take advantage of the low number of flops of the LU
+ * factorization with no pivoting, and of the stability of the QR factorization
+ * to compensate the loss due to the no pivoting strategy.
+ * See dplasma_hqr_init() and dplasma_zgeqrf_param() for further detail on how
+ * configuring the tree of the QR part.
+ *
+ * See following paper for further details:
+ * [1] Designing LU-QR hybrid solvers for performance and stability. M. Faverge,
+ * J. Herrmann, J. Langou, B. Lowery, Y. Robert, and J. Dongarra
+ *
+ * Other variants of LU decomposition are available in the library wioth the
+ * following function:
+ *     - dplasma_zgetrf_incpiv_New() that performs tile incremental pivoting
+ *       algorithm.
+ *     - dplasma_zgetrf_nopiv_New() that performs LU decomposition with no
+ *       pivoting if the matrix is known as beeing diagonal dominant.
+ *     - dplasma_zgetrf_New() that performs an LU decomposition with partial
+ *       pivoting.
+ *
+ * WARNING:
+ *    - The computations are not done by this call.
+ *    - This algorithm is a prototype and its interface might change in future
+ *      release of the library
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A to be factorized.
+ *          On entry, describes the M-by-N matrix A.
+ *          On exit, the factors L and U from the factorization
+ *          A = P*L*U; the unit diagonal elements of L are not stored.
+ *
+ * @param[out] IPIV
+ *          Descriptor of the IPIV matrix. Should be of size 1-by-min(M,N).
+ *          On exit, contains the pivot indices; for 1 <= i <= min(M,N), row i
+ *          of the matrix was interchanged with row IPIV(i).
+ *
+ * @param[out] TS
+ *          Descriptor of the matrix TS distributed exactly as the A matrix. TS.mb
+ *          defines the IB parameter of tile QR algorithm. This matrix must be
+ *          of size A.mt * TS.mb - by - A.nt * TS.nb, with TS.nb == A.nb.
+ *          On exit, contains auxiliary information computed through TS kernels
+ *          at the lowest level and which are required to generate the Q matrix,
+ *          and/or solve the problem.
+ *
+ * @param[out] TT
+ *          Descriptor of the matrix TT distributed exactly as the A matrix. TT.mb
+ *          defines the IB parameter of tile QR algorithm. This matrix must be
+ *          of size A.mt * TT.mb - by - A.nt * TT.nb, with TT.nb == A.nb.
+ *          On exit, contains auxiliary information computed through TT kernels
+ *          at higher levels and which are required to generate the Q matrix,
+ *          and/or solve the problem.
+ *
+ * @param[int] criteria
+ *          Defines the criteria used to switch from LU to QR factorization.
+ *          @arg DEFAULT_CRITERIUM: Even steps are LU, odd ones are QR.
+ *          @arg HIGHAM_CRITERIUM:
+ *          @arg MUMPS_CRITERIUM:
+ *          @arg LU_ONLY_CRITERIUM:
+ *          @arg QR_ONLY_CRITERIUM:
+ *          @arg RANDOM_CRITERIUM:
+ *          @arg HIGHAM_SUM_CRITERIUM:
+ *          @arg HIGHAM_MAX_CRITERIUM:
+ *          @arg HIGHAM_MOY_CRITERIUM:
+ *          @arg -1: The default is ...
+ *
+ * @param[int] alpha
+ *
+ *
+ * @param[out] lu_tab
+ *          Integer array of size min(A.mt,A.nt)
+ *          On exit, lu_tab[i] = 1, if an LU factorization has been performed at the ith step.
+ *          lu_tab[i] = 0, otherwise.
+ *
+ * @param[out] INFO
+ *          On algorithm completion: equal to 0 on success, i if the ith
+ *          diagonal value is equal to 0. That implies incoherent result.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_zgetrf_qrf_Destruct();
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgetrf_qrf
+ * @sa dplasma_zgetrf_qrf_Destruct
+ * @sa dplasma_cgetrf_qrf_New
+ * @sa dplasma_dgetrf_qrf_New
+ * @sa dplasma_sgetrf_qrf_New
+ *
+ ******************************************************************************/
 dague_object_t*
 dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                         tiled_matrix_desc_t *A,
@@ -114,6 +217,26 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
     return (dague_object_t*)object;
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ *  dplasma_zgetrf_qrf_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zgetrf_qrf_New().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] o
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgetrf_qrf_New
+ * @sa dplasma_zgetrf_qrf
+ *
+ ******************************************************************************/
 void
 dplasma_zgetrf_qrf_Destruct( dague_object_t *o )
 {
@@ -137,6 +260,110 @@ dplasma_zgetrf_qrf_Destruct( dague_object_t *o )
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zgetrf_qrf_New - Generates the object that computes an hybrid LU-QR
+ * factorization of a M-by-N matrix A.
+ *
+ * This algorithm tries to take advantage of the low number of flops of the LU
+ * factorization with no pivoting, and of the stability of the QR factorization
+ * to compensate the loss due to the no pivoting strategy.
+ * See dplasma_hqr_init() and dplasma_zgeqrf_param() for further detail on how
+ * configuring the tree of the QR part.
+ *
+ * See following paper for further details:
+ * [1] Designing LU-QR hybrid solvers for performance and stability. M. Faverge,
+ * J. Herrmann, J. Langou, B. Lowery, Y. Robert, and J. Dongarra
+ *
+ * Other variants of LU decomposition are available in the library wioth the
+ * following function:
+ *     - dplasma_zgetrf_incpiv_New() that performs tile incremental pivoting
+ *       algorithm.
+ *     - dplasma_zgetrf_nopiv_New() that performs LU decomposition with no
+ *       pivoting if the matrix is known as beeing diagonal dominant.
+ *     - dplasma_zgetrf_New() that performs an LU decomposition with partial
+ *       pivoting.
+ *
+ * WARNING:
+ *    - This algorithm is a prototype and its interface might change in future
+ *      release of the library
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A to be factorized.
+ *          On entry, describes the M-by-N matrix A.
+ *          On exit, the factors L and U from the factorization
+ *          A = P*L*U; the unit diagonal elements of L are not stored.
+ *
+ * @param[out] IPIV
+ *          Descriptor of the IPIV matrix. Should be of size 1-by-min(M,N).
+ *          On exit, contains the pivot indices; for 1 <= i <= min(M,N), row i
+ *          of the matrix was interchanged with row IPIV(i).
+ *
+ * @param[out] TS
+ *          Descriptor of the matrix TS distributed exactly as the A matrix. TS.mb
+ *          defines the IB parameter of tile QR algorithm. This matrix must be
+ *          of size A.mt * TS.mb - by - A.nt * TS.nb, with TS.nb == A.nb.
+ *          On exit, contains auxiliary information computed through TS kernels
+ *          at the lowest level and which are required to generate the Q matrix,
+ *          and/or solve the problem.
+ *
+ * @param[out] TT
+ *          Descriptor of the matrix TT distributed exactly as the A matrix. TT.mb
+ *          defines the IB parameter of tile QR algorithm. This matrix must be
+ *          of size A.mt * TT.mb - by - A.nt * TT.nb, with TT.nb == A.nb.
+ *          On exit, contains auxiliary information computed through TT kernels
+ *          at higher levels and which are required to generate the Q matrix,
+ *          and/or solve the problem.
+ *
+ * @param[int] criteria
+ *          Defines the criteria used to switch from LU to QR factorization.
+ *          @arg DEFAULT_CRITERIUM: Even steps are LU, odd ones are QR.
+ *          @arg HIGHAM_CRITERIUM:
+ *          @arg MUMPS_CRITERIUM:
+ *          @arg LU_ONLY_CRITERIUM:
+ *          @arg QR_ONLY_CRITERIUM:
+ *          @arg RANDOM_CRITERIUM:
+ *          @arg HIGHAM_SUM_CRITERIUM:
+ *          @arg HIGHAM_MAX_CRITERIUM:
+ *          @arg HIGHAM_MOY_CRITERIUM:
+ *          @arg -1: The default is ...
+ *
+ * @param[int] alpha
+ *
+ *
+ * @param[out] lu_tab
+ *          Integer array of size min(A.mt,A.nt)
+ *          On exit, lu_tab[i] = 1, if an LU factorization has been performed at the ith step.
+ *          lu_tab[i] = 0, otherwise.
+ *
+ * @param[out] INFO
+ *          On algorithm completion: equal to 0 on success, i if the ith
+ *          diagonal value is equal to 0. That implies incoherent result.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *          \retval i if ith value is singular. Result is incoherent.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgetrf_qrf_New
+ * @sa dplasma_zgetrf_qrf_Destruct
+ * @sa dplasma_cgetrf_qrf
+ * @sa dplasma_dgetrf_qrf
+ * @sa dplasma_sgetrf_qrf
+ *
+ ******************************************************************************/
 int
 dplasma_zgetrf_qrf( dague_context_t *dague,
                     dplasma_qrtree_t *qrtree,
