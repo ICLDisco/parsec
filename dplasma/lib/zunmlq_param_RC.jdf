@@ -155,8 +155,8 @@ BODY
              "\t(side=%s, trans=%s, M1=%d, N1=%d, M2=%d, N2=%d, K=%d, ib=%d,\n"
              "\t A1(%d,%d)[%p], lda1=%d, A2(%d,%d)[%p], lda2=%d, V(%d,%d)[%p], ldv=%d, T(%d,%d)[%p], ldt=%d, W=%p, LDW=%d)\n",
              k, m, n, plasma_const( side ), plasma_const( trans ),
-             tempmm, descB.nb, tempmm, tempnn, tempkn, ib,
-             m, p, A1, ldbm, m, n, A2, ldbm, n, k, V, ldan, n, k, T, descTS.mb, W, ldwork );
+             tempmm, descB.nb, tempmm, tempnn, tempkm, ib,
+             m, p, A1, ldbm, m, n, A2, ldbm, k, n, V, ldak, k, n, T, descTS.mb, W, ldwork );
 
 #if !defined(DAGUE_DRY_RUN)
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {

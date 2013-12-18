@@ -75,7 +75,7 @@ BODY
 
     printlog("thread %d VP %d CORE_zgelqt(%d, %d)\n"
              "\t(tempkm, tempnn, ib, dataA(%d,%d)[%p], ldam, dataTS(%d,%d)[%p], TS.mb, p_elem_A, p_elem_B)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, k, n, A, k, n, T);
+             context->th_id, context->virtual_process->vp_id, k, n, k, n, A, k, n, T);
 
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( p_tau  );
@@ -230,7 +230,7 @@ BODY
 
     printlog("thread %d VP %d CORE_zttlqt(%d, %d)\n"
              "\t(tempkm, tempnn, ib, dataA(%d,%d)[%p], A.mb, dataA(%d,%d)[%p], ldam, dataTT(%d,%d)[%p], descTT.mb, p_elem_A, p_elem_B)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, k, p, A1, k, n, A2, k, n, T);
+             context->th_id, context->virtual_process->vp_id, k, n, k, p, A1, k, n, A2, k, n, T);
 
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( p_tau  );

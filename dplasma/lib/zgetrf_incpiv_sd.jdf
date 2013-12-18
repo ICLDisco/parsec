@@ -82,7 +82,7 @@ BODY
 
     printlog("CORE_zgetrf(%d)\n"
              "\t(tempkm, tempkn, ib, dataA(%d,%d)[%p], ldak, dataIP(%d,%d)[%p]) => info = %d\n",
-             k, k, k, A, k, k, B, k * descA.mb + iinfo);
+             k, k, k, A, k, k, IP, k * descA.mb + iinfo);
 
 #if !defined(DAGUE_DRY_RUN)
     /* Set local IPIV to 0 before generation
@@ -133,7 +133,7 @@ BODY
     printlog("CORE_zgessm(%d, %d)\n"
              "\t(tempkm, tempnn, tempkm, ib, dataIP(%d,%d)[%p], \n"
              "\tdataA(%d,%d)[%p], ldak, dataA(%d,%d)[%p], ldak)\n",
-             k, n, k, k, C, k, k, D, k, n, E);
+             k, n, k, k, IP, k, k, L, k, n, B);
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zgessm(tempkm, tempnn, tempkm, ib,
@@ -197,7 +197,7 @@ BODY
              "\t(tempmm, tempkn, ib, descL.nb, \n"
              "\tdataA(%d,%d)[%p], ldak, dataA(%d,%d)[%p], ldam, \n"
              "\tdataL(%d,%d)[%p], descL.mb, dataIP(%d,%d)[%p], descL.nb)\n",
-             k, m, k, k, F, m, k, G, m, k, H, m, k, IP);
+             k, m, k, k, U, m, k, B, m, k, getL(L), m, k, getIPIV(L));
 
 #if !defined(DAGUE_DRY_RUN)
     memset(getIPIV(L), 0, dplasma_imin(tempkn, tempmm) * sizeof(int) );
@@ -274,7 +274,7 @@ BODY
              "\t(%d, %d, %d, %d, %d, %d, dataA(%d,%d)[%p], %d, dataA(%d,%d)[%p], %d, \n"
              "\t dataL(%d,%d)[%p], %d, dataA(%d,%d)[%p], %d, dataIP(%d,%d)[%p])\n",
              k, m, n, descA.nb, tempnn, tempmm, tempnn, descA.nb, ib,
-             k, n, B, ldak, m, n, C, ldam, m, k, L, descL.mb, m, k, A, ldam, m, k, IP );
+             k, n, B, ldak, m, n, C, ldam, m, k, getL(L), descL.mb, m, k, A, ldam, m, k, getIPIV(L) );
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zssssm(descA.nb, tempnn, tempmm, tempnn, descA.nb, ib,

@@ -65,8 +65,8 @@ BODY
     printlog("CORE_zunmqr(%d, %d, %d) [%d, %d]\n"
              "\t(side=%s, trans=%s, M=%d, N=%d, K=%d, ib=%d,\n"
              "\t A(%d,%d)[%p], lda=%d, T(%d,%d)[%p], ldt=%d, B(%d,%d)[%p], ldb=%d, W=%p, LDW=%d)\n",
-             k, i, n, p, nextp, plasma_const( side ), plasma_const( trans ), tempmm, temppn, tempmin, ib,
-             p, k, A, ldap, p, k, T, descTS.mb, p, n, C, ldbp, W, descTS.nb );
+             k, i, m, p, nextp, plasma_const( side ), plasma_const( trans ), tempmm, temppn, tempmin, ib,
+             p, k, A, ldap, p, k, T, descTS.mb, m, p, C, ldbm, W, descTS.nb );
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zunmqr(

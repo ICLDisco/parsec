@@ -141,8 +141,8 @@ BODY
     int ldam = BLKLDD( descA, m );
 
     printlog("CORE_ztrsm(%d, %d)\n"
-             "\t(PlasmaLeft, uplo, PlasmaNoTrans, diag, tempkn, descA.mb, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
-             k, n, k, k, A, k, n, B);
+             "\t(PlasmaRight, uplo, PlasmaNoTrans, diag, descA.mb, tempkn, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
+             k, m, k, k, A, m, k, B);
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_ztrsm(PlasmaRight, uplo, PlasmaNoTrans, diag,
