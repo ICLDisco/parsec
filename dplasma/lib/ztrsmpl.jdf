@@ -58,8 +58,8 @@ zgessm(k, n)
 
   :dataB(k, n)
 
-  READ  L  <- IP zgessm_inAIPIV(k)                     [type = PIVOT]
-  READ  IP <- A  zgessm_inAIPIV(k)
+  READ  L  <- A  zgessm_inAIPIV(k)
+  READ  IP <- IP zgessm_inAIPIV(k)                     [type = PIVOT]
 
   RW    B  <- (k == 0) ? dataB(k, n) : C zssssm(k-1, k, n)
            -> (k == (descA.mt-1)) ? dataB(k, n)
