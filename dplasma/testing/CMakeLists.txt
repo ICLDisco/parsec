@@ -49,10 +49,10 @@ set(TESTS
   testing_zgetrf_qrf.c
   #testing_zgesv.c
   testing_zgesv_incpiv.c
-  #testing_zgeqrf_rd.c
-  #testing_zgesvd.c
-  #testing_zhbrdt.c
-  #testing_zhebut.c
+  # Extra testings
+  testing_zgeqrf_rd.c
+  testing_zhebut.c
+  testing_zhbrdt.c
   #testing_zheev.c
   #testing_zherbt.c
 )
