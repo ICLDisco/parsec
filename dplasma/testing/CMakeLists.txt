@@ -42,17 +42,15 @@ set(TESTS
   testing_zgelqf_systolic.c
   testing_zunmqr_systolic.c
   testing_zunmlq_systolic.c
+  # LU
+  testing_zgetrf.c
+  testing_zgetrf_incpiv.c
+  testing_zgetrf_nopiv.c
+  testing_zgetrf_qrf.c
+  #testing_zgesv.c
+  testing_zgesv_incpiv.c
   #testing_zgeqrf_rd.c
-  #testing_zgesv_incpiv.c
   #testing_zgesvd.c
-  #testing_zgetrf.c
-  #testing_zgetrf_hincpiv.c
-  #testing_zgetrf_hpp.c
-  #testing_zgetrf_hpp2.c
-  #testing_zgetrf_incpiv.c
-  #testing_zgetrf_incpiv_sd.c
-  #testing_zgetrf_nopiv.c
-  #testing_zgetrf_qrf.c
   #testing_zhbrdt.c
   #testing_zhebut.c
   #testing_zheev.c
