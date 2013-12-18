@@ -28,6 +28,7 @@ set(TESTS
   # Cholesky
   testing_zpotrf.c
   testing_zposv.c
+  testing_ztrtri.c
   # QR/LQ
   testing_zgelqf.c
   testing_zgeqrf.c
@@ -52,9 +53,6 @@ set(TESTS
   #testing_zgetrf_incpiv_sd.c
   #testing_zgetrf_nopiv.c
   #testing_zgetrf_qrf.c
-  #testing_zgetrf_qrf_iter_hqr.c
-  #testing_zgetrf_qrf_iter_lupp.c
-  #testing_zgetrf_qrf_iter_stability.c
   #testing_zhbrdt.c
   #testing_zhebut.c
   #testing_zheev.c
