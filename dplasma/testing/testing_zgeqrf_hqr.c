@@ -272,8 +272,11 @@ static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_de
 /*-------------------------------------------------------------------
  * Check the orthogonality of Q
  */
-
-static int check_factorization(dague_context_t *dague, int loud, tiled_matrix_desc_t *Aorig, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Q)
+static int
+check_factorization(dague_context_t *dague, int loud,
+                    tiled_matrix_desc_t *Aorig,
+                    tiled_matrix_desc_t *A,
+                    tiled_matrix_desc_t *Q)
 {
     tiled_matrix_desc_t *subA;
     two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
