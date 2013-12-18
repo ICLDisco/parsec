@@ -99,6 +99,7 @@ set(SOURCES
   zlange_wrapper.c
   zlanhe_wrapper.c
   zlansy_wrapper.c
+  zlantr_wrapper.c
   zlascal_wrapper.c
   zlaset_wrapper.c
   zlaswp_wrapper.c

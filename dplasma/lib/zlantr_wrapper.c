@@ -12,8 +12,8 @@
 #include "dplasma/lib/dplasmatypes.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#include "zlange_one_cyclic.h"
 #include "zlange_frb_cyclic.h"
+#include "zlange_one_cyclic.h"
 
 static inline void *fake_data_of(struct dague_ddesc *mat, ...)
 {
@@ -25,9 +25,9 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
  *
  * @ingroup dplasma_complex64_t
  *
- *  dplasma_zlange_New - Generates the object that computes the value
+ *  dplasma_zlantr_New - Generates the object that computes the value
  *
- *     zlange = ( max(abs(A(i,j))), NORM = PlasmaMaxNorm
+ *     zlantr = ( max(abs(A(i,j))), NORM = PlasmaMaxNorm
  *              (
  *              ( norm1(A),         NORM = PlasmaOneNorm
  *              (
@@ -55,6 +55,10 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
  *          = PlasmaUpper: Upper triangle of A is stored;
  *          = PlasmaLower: Lower triangle of A is stored.
  *
+ * @param[in] diag
+ *          = PlasmaNonUnit: Non-unit diagonal
+ *          = PlasmaUnit: Unit diagonal
+ *
  * @param[in] A
  *          The descriptor of the matrix A.
  *          Must be a two_dim_rectangle_cyclic matrix.
@@ -68,36 +72,38 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
  *          \retval NULL if incorrect parameters are given.
  *          \retval The dague object describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
- *          destroy with dplasma_zlange_Destruct();
+ *          destroy with dplasma_zlantr_Destruct();
  *
  *******************************************************************************
  *
- * @sa dplasma_zlange
- * @sa dplasma_zlange_Destruct
- * @sa dplasma_clange_New
- * @sa dplasma_dlange_New
- * @sa dplasma_slange_New
+ * @sa dplasma_zlantr
+ * @sa dplasma_zlantr_Destruct
+ * @sa dplasma_clantr_New
+ * @sa dplasma_dlantr_New
+ * @sa dplasma_slantr_New
  *
  ******************************************************************************/
 dague_object_t*
-dplasma_zlange_New( PLASMA_enum ntype,
-                    int P, int Q,
+dplasma_zlantr_New( PLASMA_enum ntype, PLASMA_enum uplo, PLASMA_enum diag,
                     const tiled_matrix_desc_t *A,
                     double *result )
 {
-    int m, n, mb, nb, elt;
+    int P, Q, m, n, mb, nb, elt;
     two_dim_block_cyclic_t *Tdist;
-    dague_object_t *dague_zlange = NULL;
+    dague_object_t *dague_zlantr = NULL;
 
     if ( (ntype != PlasmaMaxNorm) && (ntype != PlasmaOneNorm)
         && (ntype != PlasmaInfNorm) && (ntype != PlasmaFrobeniusNorm) ) {
-        dplasma_error("dplasma_zlange", "illegal value of ntype");
+        dplasma_error("dplasma_zlantr", "illegal value of ntype");
         return NULL;
     }
     if ( !(A->dtype & two_dim_block_cyclic_type) ) {
-        dplasma_error("dplasma_zlange", "illegal type of descriptor for A");
+        dplasma_error("dplasma_zlantr", "illegal type of descriptor for A");
         return NULL;
     }
+
+    P = ((two_dim_block_cyclic_t*)A)->grid.rows;
+    Q = ((two_dim_block_cyclic_t*)A)->grid.cols;
 
     /* Warning: Pb with smb/snb when mt/nt lower than P/Q */
     switch( ntype ) {
@@ -150,31 +156,31 @@ dplasma_zlange_New( PLASMA_enum ntype,
     /* Create the DAG */
     switch( ntype ) {
     case PlasmaOneNorm:
-        dague_zlange = (dague_object_t*)dague_zlange_one_cyclic_new(
-            P, Q, ntype, PlasmaUpperLower, PlasmaNonUnit, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
+        dague_zlantr = (dague_object_t*)dague_zlange_one_cyclic_new(
+            P, Q, ntype, uplo, diag, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
         break;
 
     case PlasmaMaxNorm:
     case PlasmaInfNorm:
     case PlasmaFrobeniusNorm:
     default:
-        dague_zlange = (dague_object_t*)dague_zlange_frb_cyclic_new(
-            P, Q, ntype, PlasmaUpperLower, PlasmaNonUnit, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
+        dague_zlantr = (dague_object_t*)dague_zlange_frb_cyclic_new(
+            P, Q, ntype, uplo, diag, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
     }
 
     /* Set the datatypes */
-    dplasma_add2arena_tile(((dague_zlange_frb_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((dague_zlange_frb_cyclic_object_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
-    dplasma_add2arena_rectangle(((dague_zlange_frb_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA],
+    dplasma_add2arena_rectangle(((dague_zlange_frb_cyclic_object_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA],
                                 mb * nb * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
                                 MPI_DOUBLE, mb, nb, -1);
-    dplasma_add2arena_rectangle(((dague_zlange_frb_cyclic_object_t*)dague_zlange)->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA],
+    dplasma_add2arena_rectangle(((dague_zlange_frb_cyclic_object_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA],
                                 elt * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
                                 MPI_DOUBLE, elt, 1, -1);
 
-    return (dague_object_t*)dague_zlange;
+    return (dague_object_t*)dague_zlantr;
 }
 
 /**
@@ -182,8 +188,8 @@ dplasma_zlange_New( PLASMA_enum ntype,
  *
  * @ingroup dplasma_complex64_t
  *
- *  dplasma_zlange_Destruct - Free the data structure associated to an object
- *  created with dplasma_zlange_New().
+ *  dplasma_zlantr_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zlantr_New().
  *
  *******************************************************************************
  *
@@ -193,21 +199,21 @@ dplasma_zlange_New( PLASMA_enum ntype,
  *
  *******************************************************************************
  *
- * @sa dplasma_zlange_New
- * @sa dplasma_zlange
+ * @sa dplasma_zlantr_New
+ * @sa dplasma_zlantr
  *
  ******************************************************************************/
 void
-dplasma_zlange_Destruct( dague_object_t *o )
+dplasma_zlantr_Destruct( dague_object_t *o )
 {
-    dague_zlange_frb_cyclic_object_t *dague_zlange = (dague_zlange_frb_cyclic_object_t *)o;
+    dague_zlange_frb_cyclic_object_t *dague_zlantr = (dague_zlange_frb_cyclic_object_t *)o;
 
-    dague_ddesc_destroy( dague_zlange->Tdist );
-    free( dague_zlange->Tdist );
+    dague_ddesc_destroy( dague_zlantr->Tdist );
+    free( dague_zlantr->Tdist );
 
-    dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA]->opaque_dtt) );
 
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
@@ -217,9 +223,9 @@ dplasma_zlange_Destruct( dague_object_t *o )
  *
  * @ingroup dplasma_complex64_t
  *
- *  dplasma_zlange - Computes the value
+ *  dplasma_zlantr - Computes the value
  *
- *     zlange = ( max(abs(A(i,j))), NORM = PlasmaMaxNorm
+ *     zlantr = ( max(abs(A(i,j))), NORM = PlasmaMaxNorm
  *              (
  *              ( norm1(A),         NORM = PlasmaOneNorm
  *              (
@@ -259,41 +265,38 @@ dplasma_zlange_Destruct( dague_object_t *o )
  *
  *******************************************************************************
  *
- * @sa dplasma_zlange_New
- * @sa dplasma_zlange_Destruct
- * @sa dplasma_clange
- * @sa dplasma_dlange
- * @sa dplasma_slange
+ * @sa dplasma_zlantr_New
+ * @sa dplasma_zlantr_Destruct
+ * @sa dplasma_clantr
+ * @sa dplasma_dlantr
+ * @sa dplasma_slantr
  *
  ******************************************************************************/
 double
-dplasma_zlange( dague_context_t *dague,
-                PLASMA_enum ntype,
+dplasma_zlantr( dague_context_t *dague,
+                PLASMA_enum ntype, PLASMA_enum uplo, PLASMA_enum diag,
                 const tiled_matrix_desc_t *A)
 {
     double result = 0.;
-    dague_object_t *dague_zlange = NULL;
-
-    int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
-    int Q = ((two_dim_block_cyclic_t*)A)->grid.cols;
+    dague_object_t *dague_zlantr = NULL;
 
     if ( (ntype != PlasmaMaxNorm) && (ntype != PlasmaOneNorm)
         && (ntype != PlasmaInfNorm) && (ntype != PlasmaFrobeniusNorm) ) {
-        dplasma_error("dplasma_zlange", "illegal value of ntype");
+        dplasma_error("dplasma_zlantr", "illegal value of ntype");
         return -2.;
     }
     if ( !(A->dtype & two_dim_block_cyclic_type) ) {
-        dplasma_error("dplasma_zlange", "illegal type of descriptor for A");
+        dplasma_error("dplasma_zlantr", "illegal type of descriptor for A");
         return -3.;
     }
 
-    dague_zlange = dplasma_zlange_New(ntype, P, Q, A, &result);
+    dague_zlantr = dplasma_zlantr_New(ntype, uplo, diag, A, &result);
 
-    if ( dague_zlange != NULL )
+    if ( dague_zlantr != NULL )
     {
-        dague_enqueue( dague, (dague_object_t*)dague_zlange);
+        dague_enqueue( dague, (dague_object_t*)dague_zlantr);
         dplasma_progress(dague);
-        dplasma_zlange_Destruct( dague_zlange );
+        dplasma_zlantr_Destruct( dague_zlantr );
     }
 
     return result;
