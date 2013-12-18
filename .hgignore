@@ -363,10 +363,10 @@ tests/touch\.h$
 tests/unit/lifo$
 tests/unit/list$
 
-tools/cscalapack/t?sca[sdcz]ge[tq]rf
-tools/cscalapack/t?sca[sdcz]potrf
-tools/dague-compiler/dague.l.c
-tools/dague-compiler/dague.y.[ch]
+tools/cscalapack/t?sca[sdcz]ge[tq]rf$
+tools/cscalapack/t?sca[sdcz]potrf$
+tools/dague-compiler/dague\.l\.c$
+tools/dague-compiler/dague\.y\.[ch]$
 tools/dague-compiler/daguepp
 tools/gpu/sgemmN-api/sgemmN
 tools/gpu/sgemmN-api/sgemmN-.*\.cubin
@@ -374,9 +374,8 @@ tools/grapher
 tools/grapher\.dot
 tools/grapher\.png
 tools/grapher_create_objects\.c
-tools/precision_generator/Conversion\.pyc
-tools/precision_generator/subs2\.py
-tools/precision_generator/subs\.pyc
+tools/precision_generator/Conversion\.pyc$
+tools/precision_generator/subs\.pyc$
 tools/profiling/dbp2paje
 tools/profiling/dbp2xml
 tools/profiling/xml2traces/xml2traces
@@ -384,7 +383,7 @@ tools/profiling/python/dbpreader_py.c
 tools/q2j/examples/.*
 tools/q2j/plasma2parsec/pz.*\.c$
 tools/q2j/plasma2parsec/z.*\.jdf$
-tools/q2j/q2j
-tools/q2j/q2j\.l\.c
-tools/q2j/q2j\.y\.c
-tools/q2j/q2j\.y\.h
+tools/q2j/q2j$
+tools/q2j/q2j\.l\.c$
+tools/q2j/q2j\.y\.c$
+tools/q2j/q2j\.y\.h$
