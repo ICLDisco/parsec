@@ -98,7 +98,7 @@ int main(int argc, char ** argv)
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
     dplasma_hqr_init( &qrtree,
-                      (tiled_matrix_desc_t *)&ddescA,
+                      PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA,
                       iparam[IPARAM_LOWLVL_TREE],
                       iparam[IPARAM_HIGHLVL_TREE],
                       iparam[IPARAM_QR_TS_SZE],
