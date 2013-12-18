@@ -99,6 +99,8 @@ add_library(dplasma_cores
   ${generated_files}
 )
 target_link_libraries(dplasma_cores ${GPU_KERNEL_LIBS})
+add_dependencies(dplasma_cores dplasma_includes)
+
 install(TARGETS dplasma_cores
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
