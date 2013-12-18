@@ -60,8 +60,8 @@ set(JDF
   zgetrf_nopiv.jdf
   zgetrf_qrf.jdf
   ztrsmpl.jdf
-  ztrsmpl_qrf.jdf
   ztrsmpl_sd.jdf
+  ztrsmpl_qrf.jdf
   # Other
   zgebmm.jdf
   zgebut.jdf
@@ -153,10 +153,10 @@ set(SOURCES
   zgetrf_nopiv_wrapper.c
   zgetrf_qrf_wrapper.c
   zgetrf_wrapper.c
-  zgetrs_incpiv_wrapper.c
   zgetrs_wrapper.c
-  ztrsmpl_qrf_wrapper.c
+  zgetrs_incpiv_wrapper.c
   ztrsmpl_wrapper.c
+  ztrsmpl_qrf_wrapper.c
   #
   zhbrdt_wrapper.c
   zhebut_wrapper.c
