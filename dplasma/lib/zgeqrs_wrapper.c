@@ -96,7 +96,7 @@ dplasma_zgeqrs( dague_context_t *dague,
 
     dplasma_progress( dague );
 
-    dplasma_ztrsm_Destruct( dague_zunmqr );
+    dplasma_zunmqr_Destruct( dague_zunmqr );
     dplasma_ztrsm_Destruct( dague_ztrsm );
 
 #else
