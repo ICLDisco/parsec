@@ -33,15 +33,23 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 40, 200, 200);
+    iparam[IPARAM_SMB] = 1;
+    iparam[IPARAM_SNB] = 1;
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
+
+    /* Make sure SMB and SNB are set to 1, since it conflicts with HQR */
+    iparam[IPARAM_SMB] = 1;
+    iparam[IPARAM_SNB] = 1;
+
     PASTE_CODE_IPARAM_LOCALS(iparam);
     PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M,(DagDouble_t)N));
 
     LDA = max(M, LDA);
+    LDB = max(M, LDB);
 
     if ( M != N && check ) {
         fprintf(stderr, "Check is impossible if M != N\n");
