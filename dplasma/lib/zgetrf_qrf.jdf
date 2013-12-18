@@ -1166,9 +1166,10 @@ setchoice_update(k, p, q)
   k = 0 .. minMNT
 
   pmax = inline_c %{ return dplasma_imin(param_p, descA.mt-k)-1; %}
+  qmax = inline_c %{ return dplasma_imin(param_q, descA.nt-k)-1; %}
 
   p = 0 .. pmax
-  q = 1 .. param_q-1
+  q = 1 .. qmax
 
   hmax = inline_c %{ return dplasma_log2( pmax ); %}
 
