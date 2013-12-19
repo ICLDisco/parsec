@@ -86,15 +86,20 @@ dplasma_zheev_New( PLASMA_enum jobz, PLASMA_enum uplo,
         /* TODO: remove this when implemented */
         dplasma_error("DPLASMA_zheev", "PlasmaUpper uplo is not implemented (yet)");
         *info = -1;
-        return NULL;        
+        return NULL;
     }
 }
 
 void
 dplasma_zheev_Destruct( dague_object_t *o )
 {
+#if 0
+    two_dim_block_cyclic_t* T = ???
+    dague_data_free(T->mat);
+    dague_ddesc_destroy((dague_ddesc_t*)T); free(T);
+    
     dplasma_datatype_undefine_type( &(((dague_diag_band_to_rect_object_t *)o)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA]->opaque_dtt) );
-
+#endif
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
