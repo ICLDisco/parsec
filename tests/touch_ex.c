@@ -14,6 +14,10 @@ int main( int argc, char** argv )
     dague_touch_object_t* object;
     two_dim_block_cyclic_t descA;
 
+#ifdef HAVE_MPI
+    MPI_Init(&argc,&argv);
+#endif
+
     (void)argc; (void)argv;
     dague = dague_init(1, NULL, NULL);
     assert( NULL != dague );
@@ -26,7 +30,7 @@ int main( int argc, char** argv )
                                      descA.super.bsiz *
                                      dague_datadist_getsizeoftype(TYPE) );
 
-    object = dague_touch_new( &descA, 0 );
+    object = dague_touch_new( &descA, (N / BLOCK) -1 );
     assert( NULL != object );
 
     dague_arena_construct( object->arenas[DAGUE_touch_DEFAULT_ARENA],
@@ -41,6 +45,10 @@ int main( int argc, char** argv )
     free(descA.mat);
 
     dague_fini( &dague);
+
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
 
     return 0;
 }

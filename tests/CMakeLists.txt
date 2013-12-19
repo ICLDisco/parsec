@@ -25,6 +25,7 @@ Add_Subdirectory(pingpong)
 Add_Subdirectory(branching)
 Add_Subdirectory(controlgather)
 Add_Subdirectory(all2all)
+
 if (DAGUE_DEBUG_BUILD_UNIT_TESTS )
   Add_Subdirectory(unit)
   dague_addtest(C operator operator.c)
