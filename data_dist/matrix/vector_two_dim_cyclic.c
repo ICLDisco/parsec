@@ -132,6 +132,16 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
     o->vpid_of = vector_twoDBC_vpid_of;
     o->data_of = vector_twoDBC_data_of;
 
+#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
+    o->data_key      = vector_twoDBC_data_key;
+#endif
+#if defined(DAGUE_PROF_TRACE)
+    o->key_to_string = vector_twoDBC_key_to_string;
+    o->key_dim       = NULL;
+    o->key           = NULL;
+    asprintf(&(o->key_dim), "(%d)", Ddesc->super.lmt);
+#endif
+
     DEBUG3(("vector_two_dim_cyclic_init: \n"
             "      Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %d, \n"
             "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
@@ -283,10 +293,9 @@ static uint32_t vector_twoDBC_data_key(struct dague_ddesc *desc, ...)
 /* return a string meaningful for profiling about data */
 static int  vector_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
 {
-    vector_two_dim_cyclic_t * Ddesc;
     int res;
+    (void)desc;
 
-    Ddesc = (vector_two_dim_cyclic_t *)desc;
     res = snprintf(buffer, buffer_size, "(%u)", datakey);
     if (res < 0)
     {

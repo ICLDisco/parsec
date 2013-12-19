@@ -97,6 +97,6 @@ BODY
 
     printlog("gerc( %d, %d )\n"
              "    ( %d, %d, %e, %p, %d, %p, %d, %p, %d)\n",
-             m, n, tempmm, tempnn, alpha, X, 1, Y, 1, A, ldam );
+             m, n, tempmm, tempnn, creal(alpha), X, 1, Y, 1, A, ldam );
 }
 END
