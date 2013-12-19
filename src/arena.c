@@ -56,14 +56,12 @@ int dague_arena_construct_ex(dague_arena_t* arena,
 void dague_arena_destruct(dague_arena_t* arena)
 {
     dague_list_item_t* item;
-    dague_arena_chunk_t* chunk;
 
     assert(0 == arena->used);
 
     while(NULL != (item = dague_lifo_pop(&arena->lifo))) {
-        chunk = (dague_arena_chunk_t*) item;
         DEBUG3(("Arena:\tfree element base ptr %p, data ptr %p (from arena %p)\n",
-                chunk, chunk->data, arena));
+                item, ((dague_arena_chunk_t*)item)->data, arena));
         arena->data_free(item);
     }
     dague_lifo_destruct(&arena->lifo);
