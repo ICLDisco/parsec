@@ -957,7 +957,7 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
  * of each task familly. Right now these tasks typedefs are not used
  * anywhere, instead we always use the generic task structure.
  */
-static char* jdf_generate_task_typedef(void **elt, void* arg)
+static inline char* jdf_generate_task_typedef(void **elt, void* arg)
 {
     const jdf_function_entry_t* f = (jdf_function_entry_t*)elt;
     string_arena_t *sa = (string_arena_t*)arg, *sa_locals, *sa_data;
