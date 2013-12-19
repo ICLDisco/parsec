@@ -76,7 +76,7 @@ struct remote_dep_output_param {
     uint32_t*                            rank_bits;   /**< The array of bits representing the propagation path */
 };
 
-struct dague_remote_deps_t {
+struct dague_remote_deps_s {
     dague_list_item_t               super;
     struct dague_lifo_t*            origin;  /**< The memory arena where the data pointer is comming from */
     struct dague_object*            dague_object;  /**< dague object generating this data transfer */
@@ -164,7 +164,7 @@ static inline void remote_deps_free(dague_remote_deps_t* deps)
 #if defined(DAGUE_DEBUG)
         deps->output[k].data.ptr    = NULL;
         deps->output[k].data.arena  = NULL;
-        deps->output[k].data.layout = NULL;
+        deps->output[k].data.layout = DAGUE_DATATYPE_NULL;
         deps->output[k].data.count  = -1;
         deps->output[k].data.displ  = 0xFFFFFFFF;
 #endif

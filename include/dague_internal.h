@@ -22,7 +22,7 @@
 
 BEGIN_C_DECLS
 
-typedef struct dague_remote_deps_t           dague_remote_deps_t;
+typedef struct dague_remote_deps_s           dague_remote_deps_t;
 typedef struct dague_arena_t                 dague_arena_t;
 typedef struct dague_arena_chunk_t           dague_arena_chunk_t;
 typedef struct dague_data_pair_t             dague_data_pair_t;
@@ -309,11 +309,11 @@ typedef struct {
     uint32_t output_usage;
     struct data_repo_entry *output_entry;
     int action_mask;
-    struct dague_remote_deps_t *deps;
+    dague_remote_deps_t *deps;
     dague_execution_context_t** ready_lists;
 #if defined(DISTRIBUTED)
     int remote_deps_count;
-    struct dague_remote_deps_t *remote_deps;
+    dague_remote_deps_t *remote_deps;
 #endif
 } dague_release_dep_fct_arg_t;
 
