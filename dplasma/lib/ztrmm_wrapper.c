@@ -45,7 +45,7 @@
  *          = PlasmaUpper: Upper triangle of A is stored;
  *          = PlasmaLower: Lower triangle of A is stored.
  *
- * @param[in] transA
+ * @param[in] trans
  *          Specifies whether the matrix A is transposed, not transposed or conjugate transposed:
  *          = PlasmaNoTrans:   A is transposed;
  *          = PlasmaTrans:     A is not transposed;
@@ -224,7 +224,7 @@ dplasma_ztrmm_Destruct( dague_object_t *o )
  *          = PlasmaUpper: Upper triangle of A is stored;
  *          = PlasmaLower: Lower triangle of A is stored.
  *
- * @param[in] transA
+ * @param[in] trans
  *          Specifies whether the matrix A is transposed, not transposed or conjugate transposed:
  *          = PlasmaNoTrans:   A is transposed;
  *          = PlasmaTrans:     A is not transposed;

@@ -140,10 +140,6 @@ dplasma_zgetrf_nopiv_Destruct( dague_object_t *o )
  *          On exit, the factors L and U from the factorization
  *          A = L*U; the unit diagonal elements of L are not stored.
  *
- * @param[out] INFO
- *          On algorithm completion: equal to 0 on success, i if the ith
- *          diagonal value is equal to 0. That implies incoherent result.
- *
  *******************************************************************************
  *
  * @return

@@ -203,7 +203,7 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
  *
  *******************************************************************************
  *
- * @param[in,out] o
+ * @param[in,out] object
  *          On entry, the object to destroy.
  *          On exit, the object cannot be used anymore.
  *

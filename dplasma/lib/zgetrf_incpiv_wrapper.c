@@ -255,10 +255,6 @@ dplasma_zgetrf_incpiv_Destruct( dague_object_t *o )
  *          interchanged performed during the factorization.
  *          If IPIV == NULL, rows interchange information is stored within L.
  *
- * @param[out] INFO
- *          On algorithm completion: equal to 0 on success, i if the ith
- *          diagonal value is equal to 0. That implies incoherent result.
- *
  *******************************************************************************
  *
  * @return

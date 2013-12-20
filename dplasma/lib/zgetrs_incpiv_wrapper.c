@@ -24,7 +24,7 @@
  * @param[in,out] dague
  *          The dague context of the application that will run the operation.
  *
- * @param[in] transA
+ * @param[in] trans
  *          Specifies whether the matrix A is transposed, not transposed or
  *          conjugate transposed:
  *          = PlasmaNoTrans:   A is transposed;

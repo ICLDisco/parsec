@@ -81,7 +81,7 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
  *
  ******************************************************************************/
 dague_object_t*
-dplasma_zlansy_New( PLASMA_enum ntype,
+dplasma_zlansy_New( PLASMA_enum norm,
                     PLASMA_enum uplo,
                     const tiled_matrix_desc_t *A,
                     double *result )
@@ -90,9 +90,9 @@ dplasma_zlansy_New( PLASMA_enum ntype,
     two_dim_block_cyclic_t *Tdist;
     dague_object_t *dague_zlansy = NULL;
 
-    if ( (ntype != PlasmaMaxNorm) && (ntype != PlasmaOneNorm)
-        && (ntype != PlasmaInfNorm) && (ntype != PlasmaFrobeniusNorm) ) {
-        dplasma_error("dplasma_zlansy", "illegal value of ntype");
+    if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
+        && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
+        dplasma_error("dplasma_zlansy", "illegal value of norm");
         return NULL;
     }
     if ( (uplo != PlasmaUpper) && (uplo != PlasmaLower) ) {
@@ -108,7 +108,7 @@ dplasma_zlansy_New( PLASMA_enum ntype,
     Q = ((sym_two_dim_block_cyclic_t*)A)->grid.cols;
 
     /* Warning: Pb with smb/snb when mt/nt lower than P/Q */
-    switch( ntype ) {
+    switch( norm ) {
     case PlasmaFrobeniusNorm:
         mb = 2;
         nb = 1;
@@ -145,7 +145,7 @@ dplasma_zlansy_New( PLASMA_enum ntype,
 
     /* Create the DAG */
     dague_zlansy = (dague_object_t*)dague_zlansy_new(
-        P, Q, ntype, uplo, PlasmaTrans,
+        P, Q, norm, uplo, PlasmaTrans,
         (dague_ddesc_t*)A,
         (dague_ddesc_t*)Tdist,
         result);
@@ -257,16 +257,16 @@ dplasma_zlansy_Destruct( dague_object_t *o )
  ******************************************************************************/
 double
 dplasma_zlansy( dague_context_t *dague,
-                PLASMA_enum ntype,
+                PLASMA_enum norm,
                 PLASMA_enum uplo,
                 const tiled_matrix_desc_t *A)
 {
     double result = 0.;
     dague_object_t *dague_zlansy = NULL;
 
-    if ( (ntype != PlasmaMaxNorm) && (ntype != PlasmaOneNorm)
-        && (ntype != PlasmaInfNorm) && (ntype != PlasmaFrobeniusNorm) ) {
-        dplasma_error("dplasma_zlansy", "illegal value of ntype");
+    if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
+        && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
+        dplasma_error("dplasma_zlansy", "illegal value of norm");
         return -2.;
     }
     if ( (uplo != PlasmaUpper) && (uplo != PlasmaLower) ) {
@@ -282,7 +282,7 @@ dplasma_zlansy( dague_context_t *dague,
         return -5.;
     }
 
-    dague_zlansy = dplasma_zlansy_New(ntype, uplo, A, &result);
+    dague_zlansy = dplasma_zlansy_New(norm, uplo, A, &result);
 
     if ( dague_zlansy != NULL )
     {

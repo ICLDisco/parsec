@@ -160,23 +160,15 @@ dplasma_zpotrf_Destruct( dague_object_t *o )
  *          On exit, the uplo part of A is overwritten with the factorized
  *          matrix.
  *
- * @param[out] info
- *          Address where to store the output information of the factorization,
- *          this is not synchronized between the nodes, and might not be set
- *          when function exists.
- *          On completion:
- *              - info = 0 on all nodes if successful.
- *              - info > 0 if the leading minor of order i of A is not positive
- *                definite, so the factorization could not be completed, and the
- *                solution has not been computed. Info will be equal to i on the
- *                node that owns the diagonal element (i,i), and 0 on all other
- *                nodes.
- *
  *******************************************************************************
  *
  * @return
  *          \retval -i if the ith parameters is incorrect.
  *          \retval 0 on success.
+ *          \retval > 0 if the leading minor of order i of A is not positive
+ *          definite, so the factorization could not be completed, and the
+ *          solution has not been computed. Info will be equal to i on the node
+ *          that owns the diagonal element (i,i), and 0 on all other nodes.
  *
  *******************************************************************************
  *
@@ -190,12 +182,12 @@ dplasma_zpotrf_Destruct( dague_object_t *o )
 int
 dplasma_zpotrf( dague_context_t *dague,
                 PLASMA_enum uplo,
-                tiled_matrix_desc_t *descA )
+                tiled_matrix_desc_t *A )
 {
     dague_object_t *dague_zpotrf = NULL;
     int info = 0, ginfo = 0 ;
 
-    dague_zpotrf = dplasma_zpotrf_New( uplo, descA, &info );
+    dague_zpotrf = dplasma_zpotrf_New( uplo, A, &info );
 
     if ( dague_zpotrf != NULL )
     {

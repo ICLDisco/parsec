@@ -49,6 +49,11 @@
  *          @arg PlasmaNoTrans:   no transpose, apply Q;
  *          @arg PlasmaConjTrans: conjugate transpose, apply Q**H.
  *
+ * @param[in] qrtree
+ *          The structure that describes the trees used to perform the
+ *          hierarchical QR factorization.
+ *          See dplasma_hqr_init() or dplasma_systolic_init().
+ *
  * @param[in] A
  *          Descriptor of the matrix A of size M-by-K factorized with the
  *          dplasma_zgelqf_param_New() routine.
@@ -230,7 +235,7 @@ dplasma_zunmlq_param_New( PLASMA_enum side, PLASMA_enum trans,
  *
  *******************************************************************************
  *
- * @param[in,out] o
+ * @param[in,out] object
  *          On entry, the object to destroy.
  *          On exit, the object cannot be used anymore.
  *
@@ -288,6 +293,16 @@ dplasma_zunmlq_param_Destruct( dague_object_t *object )
  * @param[in] trans
  *          @arg PlasmaNoTrans:   no transpose, apply Q;
  *          @arg PlasmaConjTrans: conjugate transpose, apply Q**H.
+ *
+ * @param[in] qrtree
+ *          The structure that describes the trees used to perform the
+ *          hierarchical QR factorization.
+ *          See dplasma_hqr_init() or dplasma_systolic_init().
+ *
+ * @param[in] qrtree
+ *          The structure that describes the trees used to perform the
+ *          hierarchical QR factorization.
+ *          See dplasma_hqr_init() or dplasma_systolic_init().
  *
  * @param[in] A
  *          Descriptor of the matrix A of size M-by-K factorized with the

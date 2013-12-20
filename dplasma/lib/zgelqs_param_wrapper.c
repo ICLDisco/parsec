@@ -24,6 +24,11 @@
  * @param[in,out] dague
  *          The dague context of the application that will run the operation.
  *
+ * @param[in] qrtree
+ *          The structure that describes the trees used to perform the
+ *          hierarchical QR factorization.
+ *          See dplasma_hqr_init() or dplasma_systolic_init().
+ *
  * @param[in] A
  *          Descriptor of the matrix A of size M-by-N factorized with the
  *          dplasma_zgelqf_New() routine.
@@ -32,11 +37,19 @@
  *          returned by dplasma_zgelqf_New() in the first k rows of its array
  *          argument A.
  *
- * @param[in] T
- *          Descriptor of the matrix T distributed exactly as the A matrix. T.mb
- *          defines the IB parameter of tile LQ algorithm. This matrix must be
- *          of size A.mt * T.mb - by - A.nt * T.nb, with T.nb == A.nb.
- *          This matrix is initialized during the call to dplasma_zgelqf_New().
+ * @param[in] TS
+ *          Descriptor of the matrix TS distributed exactly as the A
+ *          matrix. TS.mb defines the IB parameter of tile QR algorithm. This
+ *          matrix must be of size A.mt * TS.mb - by - A.nt * TS.nb, with TS.nb
+ *          == A.nb.  This matrix is initialized during the call to
+ *          dplasma_zgelqf_param_New().
+ *
+ * @param[in] TT
+ *          Descriptor of the matrix TT distributed exactly as the A
+ *          matrix. TT.mb defines the IB parameter of tile QR algorithm. This
+ *          matrix must be of size A.mt * TT.mb - by - A.nt * TT.nb, with TT.nb
+ *          == A.nb.  This matrix is initialized during the call to
+ *          dplasma_zgelqf_param_New().
  *
  * @param[in,out] B
  *          Descriptor that covers both matrix B and X.

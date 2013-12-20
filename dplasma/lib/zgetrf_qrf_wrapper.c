@@ -357,7 +357,7 @@ dplasma_zgetrf_qrf_Destruct( dague_object_t *o )
  *          at higher levels and which are required to generate the Q matrix,
  *          and/or solve the problem.
  *
- * @param[int] criteria
+ * @param[in] criteria
  *          Defines the criteria used to switch from LU to QR factorization.
  *          @arg DEFAULT_CRITERIUM: Even steps are LU, odd ones are QR.
  *          @arg HIGHAM_CRITERIUM:
@@ -370,7 +370,7 @@ dplasma_zgetrf_qrf_Destruct( dague_object_t *o )
  *          @arg HIGHAM_MOY_CRITERIUM:
  *          @arg -1: The default is ...
  *
- * @param[int] alpha
+ * @param[in] alpha
  *
  *
  * @param[out] lu_tab

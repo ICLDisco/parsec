@@ -37,11 +37,19 @@
  *          returned by dplasma_zgeqrf_New() in the first k columns of its array
  *          argument A.
  *
- * @param[in] T
- *          Descriptor of the matrix T distributed exactly as the A matrix. T.mb
- *          defines the IB parameter of tile QR algorithm. This matrix must be
- *          of size A.mt * T.mb - by - A.nt * T.nb, with T.nb == A.nb.
- *          This matrix is initialized during the call to dplasma_zgeqrf_New().
+ * @param[in] TS
+ *          Descriptor of the matrix TS distributed exactly as the A
+ *          matrix. TS.mb defines the IB parameter of tile QR algorithm. This
+ *          matrix must be of size A.mt * TS.mb - by - A.nt * TS.nb, with TS.nb
+ *          == A.nb.  This matrix is initialized during the call to
+ *          dplasma_zgeqrf_param_New().
+ *
+ * @param[in] TT
+ *          Descriptor of the matrix TT distributed exactly as the A
+ *          matrix. TT.mb defines the IB parameter of tile QR algorithm. This
+ *          matrix must be of size A.mt * TT.mb - by - A.nt * TT.nb, with TT.nb
+ *          == A.nb.  This matrix is initialized during the call to
+ *          dplasma_zgeqrf_param_New().
  *
  * @param[in,out] B
  *          Descriptor that covers both matrix B and X.

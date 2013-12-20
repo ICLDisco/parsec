@@ -84,7 +84,7 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
  *
  ******************************************************************************/
 dague_object_t*
-dplasma_zlantr_New( PLASMA_enum ntype, PLASMA_enum uplo, PLASMA_enum diag,
+dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
                     const tiled_matrix_desc_t *A,
                     double *result )
 {
@@ -92,9 +92,9 @@ dplasma_zlantr_New( PLASMA_enum ntype, PLASMA_enum uplo, PLASMA_enum diag,
     two_dim_block_cyclic_t *Tdist;
     dague_object_t *dague_zlantr = NULL;
 
-    if ( (ntype != PlasmaMaxNorm) && (ntype != PlasmaOneNorm)
-        && (ntype != PlasmaInfNorm) && (ntype != PlasmaFrobeniusNorm) ) {
-        dplasma_error("dplasma_zlantr", "illegal value of ntype");
+    if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
+        && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
+        dplasma_error("dplasma_zlantr", "illegal value of norm");
         return NULL;
     }
     if ( !(A->dtype & two_dim_block_cyclic_type) ) {
@@ -106,7 +106,7 @@ dplasma_zlantr_New( PLASMA_enum ntype, PLASMA_enum uplo, PLASMA_enum diag,
     Q = ((two_dim_block_cyclic_t*)A)->grid.cols;
 
     /* Warning: Pb with smb/snb when mt/nt lower than P/Q */
-    switch( ntype ) {
+    switch( norm ) {
     case PlasmaFrobeniusNorm:
         mb = 2;
         nb = 1;
@@ -154,10 +154,10 @@ dplasma_zlantr_New( PLASMA_enum ntype, PLASMA_enum uplo, PLASMA_enum diag,
     Tdist->super.super.data_of = fake_data_of;
 
     /* Create the DAG */
-    switch( ntype ) {
+    switch( norm ) {
     case PlasmaOneNorm:
         dague_zlantr = (dague_object_t*)dague_zlange_one_cyclic_new(
-            P, Q, ntype, uplo, diag, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
+            P, Q, norm, uplo, diag, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
         break;
 
     case PlasmaMaxNorm:
@@ -165,7 +165,7 @@ dplasma_zlantr_New( PLASMA_enum ntype, PLASMA_enum uplo, PLASMA_enum diag,
     case PlasmaFrobeniusNorm:
     default:
         dague_zlantr = (dague_object_t*)dague_zlange_frb_cyclic_new(
-            P, Q, ntype, uplo, diag, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
+            P, Q, norm, uplo, diag, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
     }
 
     /* Set the datatypes */
@@ -254,6 +254,10 @@ dplasma_zlantr_Destruct( dague_object_t *o )
  *          = PlasmaUpper: Upper triangle of A is stored;
  *          = PlasmaLower: Lower triangle of A is stored.
  *
+ * @param[in] diag
+ *          = PlasmaNonUnit: Non-unit diagonal
+ *          = PlasmaUnit: Unit diagonal
+ *
  * @param[in] A
  *          The descriptor of the matrix A.
  *          Must be a two_dim_rectangle_cyclic matrix.
@@ -274,15 +278,15 @@ dplasma_zlantr_Destruct( dague_object_t *o )
  ******************************************************************************/
 double
 dplasma_zlantr( dague_context_t *dague,
-                PLASMA_enum ntype, PLASMA_enum uplo, PLASMA_enum diag,
+                PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
                 const tiled_matrix_desc_t *A)
 {
     double result = 0.;
     dague_object_t *dague_zlantr = NULL;
 
-    if ( (ntype != PlasmaMaxNorm) && (ntype != PlasmaOneNorm)
-        && (ntype != PlasmaInfNorm) && (ntype != PlasmaFrobeniusNorm) ) {
-        dplasma_error("dplasma_zlantr", "illegal value of ntype");
+    if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
+        && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
+        dplasma_error("dplasma_zlantr", "illegal value of norm");
         return -2.;
     }
     if ( !(A->dtype & two_dim_block_cyclic_type) ) {
@@ -290,7 +294,7 @@ dplasma_zlantr( dague_context_t *dague,
         return -3.;
     }
 
-    dague_zlantr = dplasma_zlantr_New(ntype, uplo, diag, A, &result);
+    dague_zlantr = dplasma_zlantr_New(norm, uplo, diag, A, &result);
 
     if ( dague_zlantr != NULL )
     {

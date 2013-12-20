@@ -298,9 +298,6 @@ dplasma_zpltmg_circul( dague_context_t *dague,
  *          Descriptor of the distributed matrix A to generate. Any tiled matrix
  *          descriptor can be used.
  *
- * @param[in] seed
- *          The seed used in the random generation.
- *
  *******************************************************************************
  *
  * @return

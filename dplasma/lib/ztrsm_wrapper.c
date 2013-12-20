@@ -43,7 +43,7 @@
  *          = PlasmaUpper: Upper triangle of A is stored;
  *          = PlasmaLower: Lower triangle of A is stored.
  *
- * @param[in] transA
+ * @param[in] trans
  *          Specifies whether the matrix A is transposed, not transposed or
  *          conjugate transposed:
  *          = PlasmaNoTrans:   A is transposed;
@@ -54,6 +54,9 @@
  *          Specifies whether or not A is unit triangular:
  *          = PlasmaNonUnit: A is non unit;
  *          = PlasmaUnit:    A us unit.
+ *
+ * @param[in] alpha
+ *          alpha specifies the scalar alpha
  *
  * @param[in] A
  *          Descriptor of the triangular matrix A of size N-by-N.
@@ -211,7 +214,7 @@ dplasma_ztrsm_Destruct( dague_object_t *o )
  *          = PlasmaUpper: Upper triangle of A is stored;
  *          = PlasmaLower: Lower triangle of A is stored.
  *
- * @param[in] transA
+ * @param[in] trans
  *          Specifies whether the matrix A is transposed, not transposed or
  *          conjugate transposed:
  *          = PlasmaNoTrans:   A is transposed;
@@ -222,6 +225,9 @@ dplasma_ztrsm_Destruct( dague_object_t *o )
  *          Specifies whether or not A is unit triangular:
  *          = PlasmaNonUnit: A is non unit;
  *          = PlasmaUnit:    A us unit.
+ *
+ * @param[in] alpha
+ *          alpha specifies the scalar alpha
  *
  * @param[in] A
  *          Descriptor of the triangular matrix A of size N-by-N.

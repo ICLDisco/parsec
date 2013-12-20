@@ -28,6 +28,11 @@
  *
  *******************************************************************************
  *
+ * @param[in] qrtree
+ *          The structure that describes the trees used to perform the
+ *          hierarchical QR factorization.
+ *          See dplasma_hqr_init() or dplasma_systolic_init().
+ *
  * @param[in] A
  *          Descriptor of the matrix A of size K-by-N factorized with the
  *          dplasma_zgelqf_param_New() routine.
@@ -109,7 +114,7 @@ dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
  *
  *******************************************************************************
  *
- * @param[in,out] o
+ * @param[in,out] object
  *          On entry, the object to destroy.
  *          On exit, the object cannot be used anymore.
  *
@@ -142,6 +147,11 @@ dplasma_zunglq_param_Destruct( dague_object_t *object )
  *
  * @param[in,out] dague
  *          The dague context of the application that will run the operation.
+ *
+ * @param[in] qrtree
+ *          The structure that describes the trees used to perform the
+ *          hierarchical QR factorization.
+ *          See dplasma_hqr_init() or dplasma_systolic_init().
  *
  * @param[in] A
  *          Descriptor of the matrix A of size M-by-K factorized with the

@@ -158,7 +158,7 @@ dague_object_t* dplasma_zunmqr_param_New( PLASMA_enum side, PLASMA_enum trans, d
 /* Auxiliary routines */
 dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, dague_complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 dague_object_t* dplasma_zlacpy_New( PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
-dague_object_t* dplasma_zlange_New( PLASMA_enum ntype, int P, int Q, const tiled_matrix_desc_t *A, double *norm);
+dague_object_t* dplasma_zlange_New( PLASMA_enum ntype, const tiled_matrix_desc_t *A, double *norm);
 dague_object_t* dplasma_zlanhe_New( PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A, double *result);
 dague_object_t* dplasma_zlansy_New( PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A, double *result);
 dague_object_t* dplasma_zlantr_New( PLASMA_enum ntype, PLASMA_enum uplo, PLASMA_enum diag, const tiled_matrix_desc_t *A, double *result);

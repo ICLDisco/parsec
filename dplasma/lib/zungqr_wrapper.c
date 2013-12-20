@@ -95,7 +95,7 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
  *
  *******************************************************************************
  *
- * @param[in,out] o
+ * @param[in,out] object
  *          On entry, the object to destroy.
  *          On exit, the object cannot be used anymore.
  *

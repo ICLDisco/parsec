@@ -45,15 +45,11 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
  *
  *******************************************************************************
  *
- * @param[in] norm
+ * @param[in] ntype
  *          = PlasmaMaxNorm: Max norm
  *          = PlasmaOneNorm: One norm
  *          = PlasmaInfNorm: Infinity norm
  *          = PlasmaFrobeniusNorm: Frobenius norm
- *
- * @param[in] uplo
- *          = PlasmaUpper: Upper triangle of A is stored;
- *          = PlasmaLower: Lower triangle of A is stored.
  *
  * @param[in] A
  *          The descriptor of the matrix A.
@@ -81,11 +77,10 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
  ******************************************************************************/
 dague_object_t*
 dplasma_zlange_New( PLASMA_enum ntype,
-                    int P, int Q,
                     const tiled_matrix_desc_t *A,
                     double *result )
 {
-    int m, n, mb, nb, elt;
+    int P, Q, m, n, mb, nb, elt;
     two_dim_block_cyclic_t *Tdist;
     dague_object_t *dague_zlange = NULL;
 
@@ -98,6 +93,9 @@ dplasma_zlange_New( PLASMA_enum ntype,
         dplasma_error("dplasma_zlange", "illegal type of descriptor for A");
         return NULL;
     }
+
+    P = ((two_dim_block_cyclic_t*)A)->grid.rows;
+    Q = ((two_dim_block_cyclic_t*)A)->grid.cols;
 
     /* Warning: Pb with smb/snb when mt/nt lower than P/Q */
     switch( ntype ) {
@@ -238,15 +236,11 @@ dplasma_zlange_Destruct( dague_object_t *o )
  * @param[in,out] dague
  *          The dague context of the application that will run the operation.
  *
- * @param[in] norm
+ * @param[in] ntype
  *          = PlasmaMaxNorm: Max norm
  *          = PlasmaOneNorm: One norm
  *          = PlasmaInfNorm: Infinity norm
  *          = PlasmaFrobeniusNorm: Frobenius norm
- *
- * @param[in] uplo
- *          = PlasmaUpper: Upper triangle of A is stored;
- *          = PlasmaLower: Lower triangle of A is stored.
  *
  * @param[in] A
  *          The descriptor of the matrix A.
@@ -274,9 +268,6 @@ dplasma_zlange( dague_context_t *dague,
     double result = 0.;
     dague_object_t *dague_zlange = NULL;
 
-    int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
-    int Q = ((two_dim_block_cyclic_t*)A)->grid.cols;
-
     if ( (ntype != PlasmaMaxNorm) && (ntype != PlasmaOneNorm)
         && (ntype != PlasmaInfNorm) && (ntype != PlasmaFrobeniusNorm) ) {
         dplasma_error("dplasma_zlange", "illegal value of ntype");
@@ -287,7 +278,7 @@ dplasma_zlange( dague_context_t *dague,
         return -3.;
     }
 
-    dague_zlange = dplasma_zlange_New(ntype, P, Q, A, &result);
+    dague_zlange = dplasma_zlange_New(ntype, A, &result);
 
     if ( dague_zlange != NULL )
     {

@@ -30,6 +30,19 @@
  *          @arg PlasmaTrans: geru operation is performed
  *          @arg PlasmaConjTrans: gerc operation is performed
  *
+ * @param[in] alpha
+ *          Specifies the scalar alpha.
+ *
+ * @param[in] X
+ *          Descriptor of the distributed vector X.
+ *
+ * @param[in] Y
+ *          Descriptor of the distributed vector Y.
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A.
+ *          On exit, the data described by A is overwritten by the updated matrix.
+ *
  ******************************************************************************/
 static inline dague_object_t*
 dplasma_zger_internal_New( int trans, dague_complex64_t alpha,
