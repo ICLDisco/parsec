@@ -433,7 +433,6 @@ static int remote_dep_release(dague_execution_unit_t* eu_context,
                               dague_remote_deps_t* origin,
                               remote_dep_datakey_t complete_mask)
 {
-    int actions = DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_RELEASE_REMOTE_DEPS;
     dague_execution_context_t task;
     const dague_flow_t* target;
     int ret, i, pidx = 0;
@@ -445,7 +444,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context,
     task.priority = 0;
 #endif
     assert(task.dague_object); /* Future: for composition, store this in a list
-                                to be considered upon creation of the object */
+                                  to be considered upon creation of the object */
     task.function = task.dague_object->functions_array[origin->msg.function_id];
     for(i = 0; i < task.function->nb_locals;
         task.locals[i] = origin->msg.locals[i], i++);
@@ -472,8 +471,19 @@ static int remote_dep_release(dague_execution_unit_t* eu_context,
     DEBUG3(("MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release)\n", complete_mask, local_mask));
     origin->activity_mask = 0;
     ret = task.function->release_deps(eu_context, &task,
-                                      actions | local_mask,
+                                      DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_RELEASE_REMOTE_DEPS | local_mask,
                                       origin);
+    /**
+     * Release the dependency owned by the communication engine for all data that has been
+     * internally allocated by the engine.
+     */
+    for(i = 0; complete_mask>>i; i++) {
+        assert(i < MAX_PARAM_COUNT);
+        if( !((1<<i) & complete_mask) ) continue;
+        if( NULL != origin->output[i].data.ptr )  /* don't release the CONTROLs */
+            AUNREF(origin->output[i].data.ptr);
+    }
+    /* Update the mask of remaining dependencies to avoid releasing twice the same outputs */
     origin->msg.output_mask ^= complete_mask;
     return ret;
 }
