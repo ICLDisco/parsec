@@ -20,7 +20,7 @@ int main(int argc, char ** argv)
     double normdag = 0.0;
     double eps = LAPACKE_dlamch_work('e');
     int iparam[IPARAM_SIZEOF];
-    int An, i, u, d, ret = 0;
+    int An, i, u, ret = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -125,6 +125,8 @@ int main(int argc, char ** argv)
      */
 #if defined(PRECISION_z) || defined(PRECISION_c)
     {
+        int d;
+
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         dplasma_zplrnt( dague, 0., (tiled_matrix_desc_t *)&ddescA0, 3872);
