@@ -164,6 +164,7 @@ set(SOURCES
   zhetrf_wrapper.c
   zhetrs_wrapper.c
   ztrdsm_wrapper.c
+  #zheev_wrapper.c
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"
