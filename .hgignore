@@ -387,3 +387,5 @@ tools/q2j/q2j$
 tools/q2j/q2j\.l\.c$
 tools/q2j/q2j\.y\.c$
 tools/q2j/q2j\.y\.h$
+
+docs/out

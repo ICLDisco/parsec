@@ -1,5 +1,7 @@
 include(RulesPrecisions)
 include(RulesJDF)
+include(AddDocumentedFiles)
+
 # reset variables
 set(generated_files "")
 set(generated_jdf "")
@@ -15,6 +17,8 @@ set(EXTRA_SOURCES
   map2_wrapper.c
   butterfly_map.c
 )
+
+add_documented_files( PARSEC_ALL_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/" ${EXTRA_SOURCES} )
 
 ### Generate .c files from .jdf for all required precisions
 set(JDF
@@ -166,13 +170,22 @@ set(SOURCES
   ztrdsm_wrapper.c
   zheev_wrapper.c
 )
-precisions_rules_py(generated_files
+precisions_rules_py(generated_wrappers
                  "${SOURCES}"
                  PRECISIONS "${DPLASMA_PRECISIONS}")
 
+if (DAGUE_COMPILE_INPLACE)
+  add_documented_files( PARSEC_ALL_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/" ${generated_wrappers} )
+else()
+  add_documented_files( PARSEC_ALL_SRCS "" ${generated_wrappers} )
+endif()
+
+
 ### Generate the lib
 add_library(dplasma
-            ${generated_files} ${EXTRA_SOURCES})
+            ${generated_files}
+            ${generated_wrappers}
+            ${EXTRA_SOURCES})
 add_dependencies(dplasma dplasma_includes)
 
 

@@ -595,12 +595,17 @@ ENDIF( BUILD_DAGUE )
 # Now continue with compiling the tests.
 #
 
+# List of files that will go through documentation generation
+SET( PARSEC_ALL_SRCS "" CACHE INTERNAL "List of sources with internal documentation" )
+
 IF( BUILD_DPLASMA )
   add_subdirectory(dplasma)
 ENDIF ( BUILD_DPLASMA )
 IF( BUILD_TESTING AND BUILD_DAGUE )
   add_subdirectory(tests)
 ENDIF( BUILD_TESTING AND BUILD_DAGUE )
+
+message(STATUS "PARSEC_ALL_SRCS: ${PARSEC_ALL_SRCS}")
 
 # Configuration header
 configure_file (
@@ -624,3 +629,6 @@ set (CPACK_PACKAGE_VERSION_MAJOR "${DAGUE_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${DAGUE_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "gamma")
 include (CPack)
+
+# build doxyegn documentation
+add_subdirectory(docs)
