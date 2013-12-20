@@ -123,6 +123,7 @@ int main(int argc, char ** argv)
     /*
      * Triangular cases LANTR
      */
+#if defined(PRECISION_z) || defined(PRECISION_c)
     {
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
@@ -201,6 +202,7 @@ int main(int argc, char ** argv)
         dague_data_free(ddescA.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     }
+#endif /* defined(PRECISION_z) || defined(PRECISION_c) */
 
     /* Let set N=M for the triangular cases */
     N = M;
