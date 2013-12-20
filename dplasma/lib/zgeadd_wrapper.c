@@ -68,6 +68,13 @@ dplasma_zgeadd_operator( dague_execution_unit_t *eu,
  *
  *******************************************************************************
  *
+ * @param[in] uplo
+ *          Specifies whether the matrix A is upper triangular or lower
+ *          triangular:
+ *          = PlasmaUpperLower: All matrix A is referenced;
+ *          = PlasmaUpper: Upper triangle of A is referenced;
+ *          = PlasmaLower: Lower triangle of A is referenced.
+ *
  * @param[in] alpha
  *          The scalar alpha
  *
@@ -148,6 +155,13 @@ dplasma_zgeadd_Destruct( dague_object_t *o )
  *
  * @param[in,out] dague
  *          The dague context of the application that will run the operation.
+ *
+ * @param[in] uplo
+ *          Specifies whether the matrix A is upper triangular or lower
+ *          triangular:
+ *          = PlasmaUpperLower: All matrix A is referenced;
+ *          = PlasmaUpper: Upper triangle of A is referenced;
+ *          = PlasmaLower: Lower triangle of A is referenced.
  *
  * @param[in] alpha
  *          The scalar alpha
