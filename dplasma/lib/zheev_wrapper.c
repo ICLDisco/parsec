@@ -16,7 +16,7 @@
 #include "data_dist/matrix/diag_band_to_rect.h"
 #include "dplasma/lib/zhbrdt.h"
 
-/*    SUBROUTINE PZHEEV( JOBZ, UPLO, N, A, IA, JA, DESCA, W, Z, IZ, JZ, 
+/*    SUBROUTINE PZHEEV( JOBZ, UPLO, N, A, IA, JA, DESCA, W, Z, IZ, JZ,
      $                   DESCZ, WORK, LWORK, RWORK, LRWORK, INFO ) */
 dague_object_t*
 dplasma_zheev_New( PLASMA_enum jobz, PLASMA_enum uplo,
@@ -25,6 +25,8 @@ dplasma_zheev_New( PLASMA_enum jobz, PLASMA_enum uplo,
                     tiled_matrix_desc_t* Z,
                     int* info )
 {
+    (void)Z;
+
     /* TODO: remove this when implemented */
     if( jobz == PlasmaVec ) {
         dplasma_error("DPLASMA_zheev_New", "Non-blocking interface is not implemented (yet)");
@@ -50,7 +52,7 @@ dplasma_zheev_New( PLASMA_enum jobz, PLASMA_enum uplo,
         *info = -2;
         return NULL;
     }
-    
+
     if( PlasmaLower == uplo ) {
         dague_object_t* zherbt_obj, * zhbrdt_obj;
         dague_diag_band_to_rect_object_t* band2rect_obj;
@@ -97,7 +99,7 @@ dplasma_zheev_Destruct( dague_object_t *o )
     two_dim_block_cyclic_t* T = ???
     dague_data_free(T->mat);
     dague_ddesc_destroy((dague_ddesc_t*)T); free(T);
-    
+
     dplasma_datatype_undefine_type( &(((dague_diag_band_to_rect_object_t *)o)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA]->opaque_dtt) );
 #endif
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
@@ -105,7 +107,7 @@ dplasma_zheev_Destruct( dague_object_t *o )
 
 int
 dplasma_zheev( dague_context_t *dague, PLASMA_enum jobz, PLASMA_enum uplo,
-                    tiled_matrix_desc_t* A, 
+                    tiled_matrix_desc_t* A,
                     tiled_matrix_desc_t* W,
                     tiled_matrix_desc_t* Z,
                     int* info )
@@ -125,5 +127,3 @@ dplasma_zheev( dague_context_t *dague, PLASMA_enum jobz, PLASMA_enum uplo,
         return -101;
     }
 }
-
-
