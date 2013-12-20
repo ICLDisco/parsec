@@ -180,11 +180,17 @@ CONTAINS
     CHARACTER(KIND=C_CHAR), ALLOCATABLE        :: c_fname(:)
     CHARACTER(KIND=C_CHAR), ALLOCATABLE        :: c_hr_info(:)
 
+<<<<<<< local
     ALLOCATE(c_fname(LEN(fname)+1))
     c_fname = fname // c_null_char
     ALLOCATE(c_hr_info(LEN(hr_info)+1))
     c_hr_info = hr_info // c_null_char
     call dague_profile_start_f08(c_fname, c_hr_info, c_err)
+=======
+    ALLOCATE(c_fname(LEN_TRIM(fname)+1))
+    c_fname(:) = (/ (fname(i:i), i = 1, LEN_TRIM(fname)), c_null_char /)
+    call dague_profile_dump_f08(c_fname, c_err)
+>>>>>>> other
     if(present(ierr)) ierr = c_err;
     DEALLOCATE(c_fname)
     DEALLOCATE(c_hr_info)
