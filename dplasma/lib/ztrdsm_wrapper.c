@@ -8,29 +8,41 @@
  */
 
 #include "dague_internal.h"
-#include <core_blas.h>
 #include "dplasma.h"
-#include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/dplasmatypes.h"
 
 #include "ztrdsm.h"
 
-/***************************************************************************//**
+/**
+ *******************************************************************************
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_ztrdsm_New -
+ *  dplasma_ztrdsm_New - Generates dague object to compute triangular solve
+ *     op( A ) * X = B or X * op( A ) = B
+ *  WARNING: The computations are not done by this call.
  *
  *******************************************************************************
  *
  * @param[in] A
+ *
  * @param[in,out] B
  *
  *******************************************************************************
  *
  * @return
- *          \retval 0 successful exit
- *          \retval <0 if -i, the i-th argument had an illegal value
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_ztrdsm_Destruct();
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_ztrdsm
+ * @sa dplasma_ztrdsm_Destruct
+ * @sa dplasma_ctrdsm_New
+ * @sa dplasma_dtrdsm_New
+ * @sa dplasma_strdsm_New
  *
  ******************************************************************************/
 dague_object_t*
@@ -49,10 +61,25 @@ dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
     return dague_trdsm;
 }
 
-/***************************************************************************//**
+/**
+ *******************************************************************************
  *
- * @param[in] o
- *          Object to destroy.
+ * @ingroup dplasma_complex64_t
+ *
+ *  dplasma_ztrdsm_Destruct - Free the data structure associated to an object
+ *  created with dplasma_ztrdsm_New().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] o
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_ztrdsm_New
+ * @sa dplasma_ztrdsm
+ *
  ******************************************************************************/
 void
 dplasma_ztrdsm_Destruct( dague_object_t *o )
@@ -62,18 +89,35 @@ dplasma_ztrdsm_Destruct( dague_object_t *o )
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
-/***************************************************************************//**
- *  dplasma_ztrdsm - Blocking version of dplasma_ztrdsm_New
+/**
  *******************************************************************************
  *
- * @param[in] dague
- *          Dague context to which submit the DAG object.
+ * @ingroup dplasma_Complex64_t
+ *
+ *  dplasma_ztrdsm -
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] A
+ *
+ * @param[in,out] B
  *
  *******************************************************************************
  *
  * @return
- *          \retval 0 if success
- *          \retval < 0 if one of the parameter had an illegal value.
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_ztrdsm_New
+ * @sa dplasma_ztrdsm_Destruct
+ * @sa dplasma_ctrdsm
+ * @sa dplasma_dtrdsm
+ * @sa dplasma_strdsm
  *
  ******************************************************************************/
 int

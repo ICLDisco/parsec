@@ -78,6 +78,11 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
  *
  *******************************************************************************
  *
+ * @param[in] qrtree
+ *          The structure that describes the trees used to perform the
+ *          hierarchical QR factorization.
+ *          See dplasma_hqr_init() or dplasma_systolic_init().
+ *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to be factorized.
  *          On entry, describes the M-by-N matrix A.
@@ -105,7 +110,7 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
  *          at higher levels and which are required to generate the Q matrix,
  *          and/or solve the problem.
  *
- * @param[int] criteria
+ * @param[in] criteria
  *          Defines the criteria used to switch from LU to QR factorization.
  *          @arg DEFAULT_CRITERIUM: Even steps are LU, odd ones are QR.
  *          @arg HIGHAM_CRITERIUM:
@@ -118,7 +123,7 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
  *          @arg HIGHAM_MOY_CRITERIUM:
  *          @arg -1: The default is ...
  *
- * @param[int] alpha
+ * @param[in] alpha
  *
  *
  * @param[out] lu_tab
@@ -329,6 +334,11 @@ dplasma_zgetrf_qrf_Destruct( dague_object_t *o )
  *
  * @param[in,out] dague
  *          The dague context of the application that will run the operation.
+ *
+ * @param[in] qrtree
+ *          The structure that describes the trees used to perform the
+ *          hierarchical QR factorization.
+ *          See dplasma_hqr_init() or dplasma_systolic_init().
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to be factorized.
