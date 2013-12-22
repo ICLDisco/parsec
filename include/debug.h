@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,8 +23,17 @@ int vasprintf(char **ret, const char *format, va_list ap);
 #include <stdlib.h>
 #include <stdio.h>
 
+void dague_debug_init();
+void dague_debug_fini();
+
 void debug_save_stack_trace(void);
 void debug_dump_stack_traces(void);
+/**
+ * The default file decriptor to be used to dump the output. By default it is set to
+ * seterr, but can be changed to something more meaningful early in the setup to
+ * redirect the output to a file.
+ */
+extern FILE* dague_debug_file;
 
 /**
  * The level of the output verbosity. Set to zero to disable everything.
@@ -55,21 +64,21 @@ static inline char* arprintf(const char* fmt, ...)
 #endif
 
 #ifdef HAVE_MPI
-#   define _DAGUE_OUTPUT(PRFX, ARG) do { \
-        char* __debug_str; \
-        __debug_str = arprintf ARG ; \
-        fprintf(stderr,  "[" PRFX "DAGuE % 5d]:\t%s", dague_debug_rank, __debug_str); \
-        free(__debug_str); \
+#   define _DAGUE_OUTPUT(PRFX, ARG) do {                                \
+        char* __debug_str = arprintf ARG ;                              \
+        if(NULL == dague_debug_file) dague_debug_file = stderr;         \
+        fprintf(dague_debug_file,  "[" PRFX "DAGuE %2d]:\t%s", dague_debug_rank, __debug_str); \
+        free(__debug_str);                                              \
     } while(0)
 
 #   define ABORT() MPI_Abort(MPI_COMM_SELF, -1)
 
 #else /* HAVE_MPI */
-#   define _DAGUE_OUTPUT(PRFX, ARG) do { \
-        char* __debug_str; \
-        __debug_str = arprintf ARG ; \
-        fprintf(stderr, "[" PRFX "DAGuE]:\t%s", __debug_str); \
-        free(__debug_str); \
+#   define _DAGUE_OUTPUT(PRFX, ARG) do {                                \
+        char* __debug_str = arprintf ARG ;                              \
+        if(NULL == dague_debug_file) dague_debug_file = stderr;         \
+        fprintf(dague_debug_file, "[" PRFX "DAGuE]:\t%s", __debug_str); \
+        free(__debug_str);                                              \
     } while(0)
 
 #   define ABORT() abort()

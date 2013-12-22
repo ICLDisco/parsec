@@ -173,10 +173,12 @@ data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo,
 
 #if DAGUE_DEBUG_VERBOSE != 0
 # define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
-static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key, const char *tablename, const char *file, int line)
+static inline void
+__data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key, const char *tablename, const char *file, int line)
 #else
 # define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key)
-static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key)
+static inline void
+__data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint64_t key)
 #endif
 {
     data_repo_entry_t *e, *p;
@@ -214,7 +216,7 @@ static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_
         dague_thread_mempool_free(e->data_repo_mempool_owner, e );
         DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
-        DEBUG3(("entry %p/%ld of hash table %s has %u/%u usage count and %s retained: not freeing it, even if it's used at %s:%d\n",
+        DEBUG3(("entry %p/%" PRIu64 " of HT %s has %u/%u usage count and %s retained: not freeing it at %s:%d\n",
                      e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
         dague_atomic_unlock(&repo->heads[h].lock);
     }

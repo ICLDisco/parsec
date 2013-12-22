@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 #ifndef __USE_ARENA_H__
 #define __USE_ARENA_H__
-
-#include <stdlib.h>
 
 #include "dague_config.h"
 #include "dague_internal.h"
@@ -17,8 +15,6 @@
 
 #include "atomic.h"
 #include "lifo.h"
-
-#include "remote_dep.h"
 
 #define DAGUE_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
 #define DAGUE_ALIGN_PTR(x,a,t) ((t)DAGUE_ALIGN((uintptr_t)x, a, uintptr_t))
@@ -78,44 +74,50 @@ int dague_arena_construct_ex(dague_arena_t* arena,
 void dague_arena_destruct(dague_arena_t* arena);
 
 dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count);
-dague_arena_chunk_t* dague_arena_nolock_get(dague_arena_t* arena, size_t count);
-#define dague_uarena_get(arena, count) dague_arena_nolock_get(arena, count)
 void dague_arena_release(dague_arena_chunk_t* ptr);
-void dague_arena_nolock_release(dague_arena_chunk_t* ptr);
-#define dague_uarena_release(ptr) dague_arena_nolock_release(ptr)
 
-static inline uint32_t dague_arena_ref(dague_arena_chunk_t* ptr) {
+#if DAGUE_DEBUG_VERBOSE != 0
+static inline uint32_t dague_arena_ref(dague_arena_chunk_t* ptr,
+                                       const char* filename, int lineno)
+#else
+static inline uint32_t dague_arena_ref(dague_arena_chunk_t* ptr)
+#endif  /* DAGUE_DEBUG_VERBOSE != 0 */
+{
+    uint32_t res;
     assert(DAGUE_ARENA_IS_PTR(ptr));
-    return dague_atomic_inc_32b(&DAGUE_ARENA_PREFIX(ptr)->refcount);
+    res = dague_atomic_inc_32b(&DAGUE_ARENA_PREFIX(ptr)->refcount);
+    DEBUG3(("Arena: chunk %p (ptr %p) refcount++ to %u at %s:%d\n",
+            DAGUE_ARENA_PREFIX(ptr), DAGUE_ARENA_DATA(ptr), res, filename, lineno));
+    return res;
 }
-static inline uint32_t dague_arena_nolock_ref(dague_arena_chunk_t* ptr) {
-    assert(DAGUE_ARENA_IS_PTR(ptr));
-    return ++DAGUE_ARENA_PREFIX(ptr)->refcount;
-}
-#define dague_uarena_ref(ptr) dague_arena_nolock_ref(ptr)
+#if DAGUE_DEBUG_VERBOSE != 0
+#define DAGUE_ARENA_REF_DATA(ptr) (DAGUE_ARENA_IS_PTR(ptr) ? dague_arena_ref(ptr, __FILE__, __LINE__) : 1)
+#else
 #define DAGUE_ARENA_REF_DATA(ptr) (DAGUE_ARENA_IS_PTR(ptr) ? dague_arena_ref(ptr) : 1)
+#endif  /* DAGUE_DEBUG_VERBOSE != 0 */
 #define AREF(ptr) DAGUE_ARENA_REF_DATA(ptr)
 
-static inline uint32_t dague_arena_unref(dague_arena_chunk_t* ptr) {
-    uint32_t ret;
+#if DAGUE_DEBUG_VERBOSE != 0
+static inline uint32_t dague_arena_unref(dague_arena_chunk_t* ptr, const char* filename, int lineno)
+#else
+static inline uint32_t dague_arena_unref(dague_arena_chunk_t* ptr)
+#endif  /* DAGUE_DEBUG_VERBOSE != 0 */
+{
+    uint32_t res;
     assert(DAGUE_ARENA_IS_PTR(ptr));
-    ret = dague_atomic_dec_32b(&DAGUE_ARENA_PREFIX(ptr)->refcount);
-    if(0 == ret) {
+    res = dague_atomic_dec_32b(&DAGUE_ARENA_PREFIX(ptr)->refcount);
+    DEBUG3(("Arena: chunk %p (ptr %p) refcount-- to %d at %s:%d\n",
+            DAGUE_ARENA_PREFIX(ptr), DAGUE_ARENA_DATA(ptr), res, filename, lineno));
+    if(0 == res) {
         dague_arena_release(ptr);
     }
-    return ret;
+    return res;
 }
-static inline uint32_t dague_arena_nolock_unref(dague_arena_chunk_t* ptr) {
-    uint32_t ret;
-    assert(DAGUE_ARENA_IS_PTR(ptr));
-    ret = --DAGUE_ARENA_PREFIX(ptr)->refcount;
-    if(0 == ret) {
-        dague_arena_nolock_release(ptr);
-    }
-    return ret;
-}
-#define dague_uarena_unref(ptr) dague_arena_nolock_unref(ptr)
+#if DAGUE_DEBUG_VERBOSE != 0
+#define DAGUE_ARENA_UNREF_DATA(ptr) (DAGUE_ARENA_IS_PTR(ptr) ? dague_arena_unref(ptr, __FILE__, __LINE__) : 1)
+#else
 #define DAGUE_ARENA_UNREF_DATA(ptr) (DAGUE_ARENA_IS_PTR(ptr) ? dague_arena_unref(ptr) : 1)
+#endif  /* DAGUE_DEBUG_VERBOSE != 0 */
 #define AUNREF(ptr) DAGUE_ARENA_UNREF_DATA(ptr)
 
 
