@@ -38,6 +38,9 @@
 #endif  /* HAVE_STDDEF_H */
 #include <stdint.h>
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #if defined(HAVE_MPI)
 # define DISTRIBUTED
 #else
