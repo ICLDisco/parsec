@@ -3076,7 +3076,7 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
             exit(1);
         }
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "tass", call));
-        coutput("%s  ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass);\n",
+        coutput("%s    ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass);\n",
                 spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
 
         coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, tass ));\n"
@@ -4195,7 +4195,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
         string_arena_init(sa_displ);
         string_arena_init(sa_layout);
 
-        string_arena_add_string(sa_coutput, "  data.ptr    = this_task->data[%d].data;\n", fl->flow_index);
+        string_arena_add_string(sa_coutput, "    data.ptr    = this_task->data[%d].data;\n", fl->flow_index);
 
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
             if( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) continue;
