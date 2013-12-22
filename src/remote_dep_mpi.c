@@ -204,8 +204,6 @@ static int remote_dep_dequeue_init(dague_context_t* context)
         return 1;
     }
     MPI_Comm_size(MPI_COMM_WORLD, (int*)&(context->nb_nodes));
-    /* set the debug rank */
-    MPI_Comm_rank(MPI_COMM_WORLD, &dague_debug_rank);
     if(1 == context->nb_nodes ) return 1;
 
     /**
@@ -892,7 +890,7 @@ static int remote_dep_mpi_pack_dep(dague_context_t* ctx,
         DEBUG3(("Can't pack at %d/%d. Bail out!\n", *position, length));
         return 1;
     }
-    /* Skip this msg by now, we need to update it's length before packing */
+    /* Don't pack yet, we need to update the length field before packing */
     *position  += dsize;
     msg->output_mask = which = 0;  /* clean start */
     msg->length = 0;
@@ -932,8 +930,6 @@ static int remote_dep_mpi_pack_dep(dague_context_t* ctx,
             }
             /* the data doesn't fit in the buffer. Mark it as in use */
         }
-        /* The data will be sent using another protocol. Meanwhile increase it's uage count */
-        AREF(deps->output[k].data.ptr);
     }
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n"
            "    \t eager count %d length %d\n",
@@ -1223,12 +1219,10 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
     dague_dep_wire_get_fifo_elem_t* item = dep_pending_put_array[i];
     assert(NULL != item);
     remote_dep_wire_get_t* task = &(item->task);
-    dague_remote_deps_t* deps = (dague_remote_deps_t*)(uintptr_t)task->deps;
 
     DEBUG2(("MPI:\tTO\tna\tPut END  \tunknown \tj=%d,k=%d\twith deps %p\tparams %lx\t(tag=%d)\n",
-           i, k, deps, task->output_mask, status->MPI_TAG)); (void)status;
+            i, k, (dague_remote_deps_t*)task->deps, task->output_mask, status->MPI_TAG)); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
-    AUNREF(deps->output[k].data.ptr);
     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
     task->output_mask ^= (1<<k);
     /* Are we done yet ? */
