@@ -16,14 +16,54 @@
 
 #include <execinfo.h>
 
-int dague_verbose = 0 /*DAGUE_DEBUG_VERBOSE*/;
+int dague_verbose = DAGUE_DEBUG_VERBOSE;
 int dague_debug_rank = -1;
+FILE* dague_debug_file = NULL;
+static char* dague_debug_filename = NULL;
 
 #define ST_SIZE 128
 #define ST_ASIZE 64
 static uint32_t st_idx = 0;
 static void *stack[ST_ASIZE][ST_SIZE];
 static int   stack_size[ST_ASIZE];
+
+void dague_debug_init(void)
+{
+    dague_debug_file = stderr;
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+    int is_mpi_up;
+    MPI_Initialized(&is_mpi_up);
+    if( 0 == is_mpi_up ) {
+        return ;
+    }
+    MPI_Comm_rank(MPI_COMM_WORLD, &dague_debug_rank);
+    asprintf(&dague_debug_filename, "log.rank%02d", dague_debug_rank);
+#endif
+#if 0
+    if( NULL != dague_debug_filename ) {
+        dague_debug_file = fopen(dague_debug_filename, "w");
+    }
+#endif
+    if( NULL == dague_debug_file ) {
+        dague_debug_file = stderr;
+        if( NULL != dague_debug_filename ) {
+            free(dague_debug_filename);
+            dague_debug_filename = NULL;
+        }
+    }
+}
+
+void dague_debug_fini(void)
+{
+    if( (NULL != dague_debug_file) && (stderr != dague_debug_file) ) {
+        fclose(dague_debug_file);
+    }
+    dague_debug_file = NULL;
+    if( NULL!= dague_debug_filename ) {
+        free(dague_debug_filename);
+        dague_debug_filename = NULL;
+    }
+}
 
 void debug_save_stack_trace(void)
 {
@@ -41,13 +81,13 @@ void debug_dump_stack_traces(void)
 
     for(i = 0; i < ST_ASIZE; i++) {
         my = (st_idx + i) % ST_ASIZE;
-        fprintf(stderr, "[%d] --- %u ---\n", r, st_idx + i);
+        fprintf(dague_debug_file, "[%d] --- %u ---\n", r, st_idx + i);
         s = backtrace_symbols(stack[my], stack_size[my]);
         for(t = 0; t < stack_size[my]; t++) {
-            fprintf(stderr, "[%d]  %s\n", r, s[t]);
+            fprintf(dague_debug_file, "[%d]  %s\n", r, s[t]);
         }
         free(s);
-        fprintf(stderr, "[%d]\n", r);
+        fprintf(dague_debug_file, "[%d]\n", r);
     }
 }
 
@@ -158,10 +198,8 @@ void dague_debug_history_add(const char *format, ...)
 
 void debug_mark_exe(int th, int vp, const struct dague_execution_context_t *ctx)
 {
-    int j;
+    int j, pos = 0, len = 512;
     char msg[512];
-    int pos = 0;
-    int len = 512;
 
     pos += snprintf(msg+pos, len-pos, "%s(", ctx->function->name);
     for(j = 0; j < ctx->function->nb_parameters; j++) {
@@ -176,10 +214,8 @@ void debug_mark_exe(int th, int vp, const struct dague_execution_context_t *ctx)
 
 void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote_dep_wire_activate_t *m)
 {
-    int j;
+    int j, pos = 0, len = 512;
     char msg[512];
-    int pos = 0;
-    int len = 512;
     dague_object_t *object;
     const dague_function_t *f;
 
@@ -203,10 +239,8 @@ void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote
 
 void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remote_dep_wire_activate_t *m)
 {
-    int j;
+    int j, pos = 0, len = 512;
     char msg[512];
-    int pos = 0;
-    int len = 512;
     dague_object_t *object;
     const dague_function_t *f;
 
