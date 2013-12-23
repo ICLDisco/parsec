@@ -38,7 +38,7 @@
  */
 int dague_profile_enabled = 0;
 
-static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char type);
+static dague_profiling_buffer_t *allocate_empty_buffer(off_t *offset, char type);
 
 /* Process-global dictionnary */
 static unsigned int dague_prof_keys_count, dague_prof_keys_number;
@@ -107,7 +107,7 @@ int dague_profiling_init( const char *format, ... )
     long ps;
     int rank = 0;
     int worldsize = 1;
-    int64_t zero;
+    off_t zero;
 
 #if defined(HAVE_MPI)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -324,7 +324,7 @@ int dague_profiling_dictionary_flush( void )
     return 0;
 }
 
-static dague_profiling_buffer_t *allocate_empty_buffer(int64_t *offset, char type)
+static dague_profiling_buffer_t *allocate_empty_buffer(off_t *offset, char type)
 {
     dague_profiling_buffer_t *res;
 
@@ -410,11 +410,11 @@ static void write_down_existing_buffer(dague_profiling_buffer_t *buffer,
     }
 #else
     if( lseek(file_backend_fd, buffer->this_buffer_file_offset, SEEK_SET) == (off_t)-1 ) {
-        fprintf(stderr, "Warning profiling system: seek in the events backend file at %"PRId64" failed: %s. Events trace will be truncated.\n",
+        fprintf(stderr, "Warning profiling system: seek in the events backend file at %ld failed: %s. Events trace will be truncated.\n",
                 buffer->this_buffer_file_offset, strerror(errno));
     } else {
         if( (size_t)(write(file_backend_fd, buffer, event_buffer_size)) != event_buffer_size ) {
-            fprintf(stderr, "Warning profiling system: write in the events backend file at %"PRId64" failed: %s. Events trace will be truncated.\n",
+            fprintf(stderr, "Warning profiling system: write in the events backend file at %ld failed: %s. Events trace will be truncated.\n",
                      buffer->this_buffer_file_offset, strerror(errno));
         }
     }
@@ -518,7 +518,7 @@ static int64_t dump_global_infos(int *nbinfos)
     dague_profiling_info_t *i;
     int nb, nbthis, is, vs;
     int pos;
-    int64_t first_off;
+    off_t first_off;
 
     if( NULL == dague_profiling_infos ) {
         *nbinfos = 0;
@@ -578,9 +578,8 @@ static int64_t dump_dictionary(int *nbdico)
     dague_profiling_key_buffer_t *kb;
     dague_profiling_key_t *k;
     unsigned int i;
-    int nb, nbthis, cs;
-    int pos;
-    int64_t first_off;
+    int nb, nbthis, cs, pos;
+    off_t first_off;
 
     if( 0 == dague_prof_keys_count ) {
         *nbdico = 0;
@@ -664,11 +663,10 @@ static int64_t dump_thread(int *nbth)
 {
     dague_profiling_buffer_t *b, *n;
     dague_profiling_thread_buffer_t *tb;
-    int nb, nbthis;
-    int nbinfos, ks, vs, pos;
+    int nb, nbthis, nbinfos, ks, vs, pos;
     dague_profiling_info_t *i;
     dague_profiling_info_buffer_t *ib;
-    int64_t off;
+    off_t off;
     size_t th_size;
     dague_list_item_t *it;
     dague_thread_profiling_t* thread;
