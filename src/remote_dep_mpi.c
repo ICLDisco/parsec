@@ -264,7 +264,9 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
         assert((dague_context_t*)ret == context);
     }
 
+    assert(NULL == dague_dequeue_pop_front(&dep_cmd_queue));
     dague_dequeue_destruct(&dep_cmd_queue);
+    assert(NULL == dague_dequeue_pop_front(&dep_cmd_fifo));
     dague_list_destruct(&dep_cmd_fifo);
 
     return 0;
@@ -348,7 +350,7 @@ static int remote_dep_dequeue_send(int rank,
 {
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
     DAGUE_LIST_ITEM_CONSTRUCT(item);
-    item->action = DEP_ACTIVATE;
+    item->action   = DEP_ACTIVATE;
     item->priority = deps->max_priority;
     item->cmd.activate.peer             = rank;
     item->cmd.activate.task.deps        = (remote_dep_datakey_t)deps;
@@ -440,7 +442,7 @@ static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
     origin->activity_mask = 0;
     task.dague_object = origin->dague_object;
     task.function     = task.dague_object->functions_array[origin->msg.function_id];
-
+    task.priority     = 0;
     for(int i = 0; i < task.function->nb_locals; i++)
         task.locals[i] = origin->msg.locals[i];
 
@@ -545,6 +547,7 @@ static int remote_dep_dequeue_nothread_fini(dague_context_t* context)
 {
     remote_dep_mpi_fini(context);
     dague_list_destruct(&dep_cmd_fifo);
+    dague_dequeue_destruct(&dep_cmd_queue);
     return 0;
 }
 #endif
@@ -1276,6 +1279,7 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
             ((dague_remote_deps_t*)task->deps)->output[k].data.ptr)); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
+    assert(task->output_mask & (1<<k));
     task->output_mask ^= (1<<k);
     remote_dep_complete_and_cleanup((dague_remote_deps_t**)&(task->deps),
                                     1, eu_context->virtual_process->dague_context);
