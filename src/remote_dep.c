@@ -101,7 +101,8 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
                 assert( (*deps)->output[i].count_bits );
                 AUNREF((*deps)->output[i].data.ptr);
             }
-        remote_dep_dec_flying_messages((*deps)->dague_object, ctx);
+        if(ncompleted)
+            remote_dep_dec_flying_messages((*deps)->dague_object, ctx);
         remote_deps_free(*deps);
         *deps = NULL;
         return 1;
@@ -317,14 +318,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
             }
         }
     }
-    if(keeper) {
-        remote_dep_complete_and_cleanup(&remote_deps, 1,
-                                        eu_context->virtual_process->dague_context);
-    } else {
-        /* The remote deps were useless in this particular case, release them */
-        assert(0 == remote_deps->pending_ack);
-        remote_deps_free(remote_deps);
-    }
+    remote_dep_complete_and_cleanup(&remote_deps, (keeper ? 1 : 0),
+                                    eu_context->virtual_process->dague_context);
     return 0;
 }
 
