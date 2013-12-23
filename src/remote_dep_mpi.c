@@ -1317,6 +1317,10 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 #endif
 #if RDEP_MSG_SHORT_LIMIT != 0
     remote_dep_datakey_t short_which = remote_dep_mpi_short_which(deps, deps->msg.output_mask);
+#if !defined(DAGUE_PROF_DRY_DEP)
+    MPI_Request reqs[MAX_PARAM_COUNT];
+    int nb_reqs = 0, flag;
+#endif  /* !defined(DAGUE_PROF_DRY_DEP) */
 #endif  /* RDEP_MSG_SHORT_LIMIT != 0 */
 
     DEBUG(("MPI:\tFROM\t%d\tActivate\t% -8s\n"
@@ -1358,7 +1362,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                 continue;
             }
         }
- #if RDEP_MSG_SHORT_LIMIT != 0
+#if RDEP_MSG_SHORT_LIMIT != 0
        /* Check if we have SHORT deps to satisfy quickly */
         if( short_which & (1U<<k) ) {
 
@@ -1374,15 +1378,11 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
             DEBUG2(("MPI:\tFROM\t%d\tGet SHORT\t% -8s\ti=NA,k=%d\twith datakey %lx at %p\t(tag=%d)\n",
                     deps->from, tmp, k, deps->msg.deps, ADATA(deps->output[k].data.ptr), tag+k));
 #ifndef DAGUE_PROF_DRY_DEP
-            MPI_Request req; int flag = 0;
             MPI_Irecv((char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
                       deps->output[k].data.count, deps->output[k].data.layout,
-                      deps->from, tag+k, dep_comm, &req);
-            do {
-                MPI_Test(&req, &flag, MPI_STATUS_IGNORE);
-                if(flag) break;
-                remote_dep_mpi_progress(eu_context);
-            } while(!flag);
+                      deps->from, tag+k, dep_comm, &reqs[nb_reqs]);
+            nb_reqs++;
+            MPI_Testall(nb_reqs, reqs, &flag, MPI_STATUSES_IGNORE);
 #endif
             complete_mask |= (1U<<k);
             continue;
@@ -1391,7 +1391,15 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
         DEBUG2(("MPI:\tFROM\t%d\tGet DATA\t% -8s\ti=NA,k=%d\twith datakey %lx tag=%d (to be posted)\n",
                 deps->from, tmp, k, deps->msg.deps, tag+k));
     }
+#if (RDEP_MSG_SHORT_LIMIT != 0) && !defined(DAGUE_PROF_DRY_DEP)
+    while(1) {  /* 'till flag become true */
+        MPI_Testall(nb_reqs, reqs, &flag, MPI_STATUSES_IGNORE);
+        if(flag) break;
+        remote_dep_mpi_progress(eu_context);
+    }
+#endif  /* (RDEP_MSG_SHORT_LIMIT != 0) && !defined(DAGUE_PROF_DRY_DEP) */
     assert(length == *position);
+
     /* Release all the already satisfied deps without posting the RDV */
     if(complete_mask) {
 #if DAGUE_DEBUG_VERBOSE >= 2
