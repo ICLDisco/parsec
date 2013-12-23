@@ -660,7 +660,7 @@ int dague_fini( dague_context_t** pcontext )
         context->pthreads = NULL;
     }
 
-    (void) dague_remote_dep_fini( context );
+    (void) dague_remote_dep_fini(context);
 
     dague_set_scheduler( context, NULL );
 
@@ -1141,9 +1141,6 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                 output->deps_mask |= (1 << dep->dep_index);
                 if( 0 == output->count_bits ) {
                     output->data       = *data;
-                    if( FLOW_ACCESS_NONE != (src_flow->flow_flags & FLOW_ACCESS_MASK) ) {
-                        AREF(data->ptr);
-                    }
                 } else {
                     assert(output->data.ptr == data->ptr);
                 }
