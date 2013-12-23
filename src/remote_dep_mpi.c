@@ -420,6 +420,7 @@ remote_dep_mpi_retrieve_datatype(dague_execution_unit_t *eu,
         if(newcontext->priority > arg->deps->max_priority)
             arg->deps->max_priority = newcontext->priority;
     }
+    arg->deps->priority = oldcontext->priority;
     arg->deps->activity_mask |= (1 << dep->dep_datatype_index);
     return DAGUE_ITERATE_STOP;
 }
@@ -442,7 +443,7 @@ static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
     origin->activity_mask = 0;
     task.dague_object = origin->dague_object;
     task.function     = task.dague_object->functions_array[origin->msg.function_id];
-    task.priority     = 0;
+    task.priority     = 0;  /* unknown yet */
     for(int i = 0; i < task.function->nb_locals; i++)
         task.locals[i] = origin->msg.locals[i];
 
@@ -482,13 +483,9 @@ static int remote_dep_release(dague_execution_unit_t* eu_context,
     uint32_t local_mask = 0;
 
     assert((origin->msg.output_mask & complete_mask) == complete_mask);
-    task.dague_object = dague_object_lookup(origin->msg.object_id);
-#if defined(DAGUE_DEBUG)
-    task.priority = 0;
-#endif
-    assert(task.dague_object); /* Future: for composition, store this in a list
-                                  to be considered upon creation of the object */
+    task.dague_object = origin->dague_object;
     task.function = task.dague_object->functions_array[origin->msg.function_id];
+    task.priority = origin->priority;
     for(i = 0; i < task.function->nb_locals;
         task.locals[i] = origin->msg.locals[i], i++);
 

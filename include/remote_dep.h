@@ -83,9 +83,10 @@ struct dague_remote_deps_s {
     uint32_t                        pending_ack;  /**< Number of releases before completion */
     int32_t                         from;    /**< From whom we received the control */
     uint32_t                        activity_mask;  /**< Updated at each call into the internals to track the enabled actions */
-    remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
     int32_t                         root;    /**< The root of the control message */
+    remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
     int32_t                         max_priority;
+    int32_t                         priority;
     uint32_t*                       remote_dep_fw_mask;  /**< list of peers already notified about
                                                            * the control sequence (only used for control messages) */
     struct remote_dep_output_param  output[1];
