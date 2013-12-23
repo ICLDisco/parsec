@@ -1690,7 +1690,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
     string_arena_t* flow_flags = string_arena_new(64);
     string_arena_t *psa;
     jdf_dep_t *dl;
-    char sep_in[3], sep_out[3];
+    char sep_in[4], sep_out[4];
 
     (void)jdf;
 
