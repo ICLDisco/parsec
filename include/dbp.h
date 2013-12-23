@@ -38,8 +38,8 @@ typedef struct dague_profiling_output_t {
 #define PROFILING_BUFFER_TYPE_GLOBAL_INFO 4
 #define PROFILING_BUFFER_TYPE_HEADER      5
 typedef struct dague_profiling_buffer {
-    int64_t  this_buffer_file_offset;    /* Used by the malloc / write method. MUST BE THE FIRST ELEMENT */
-    int64_t  next_buffer_file_offset;
+    off_t    this_buffer_file_offset;    /* Used by the malloc / write method. MUST BE THE FIRST ELEMENT */
+    off_t    next_buffer_file_offset;
     union {
         int64_t  nb_events;              /* Used by BUFFER_TYPE_EVENTS     */
         int64_t  nb_dictionary_entries;  /* Used by BUFFER_TYPE_DICTIONARY */
