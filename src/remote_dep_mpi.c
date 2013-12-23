@@ -955,7 +955,6 @@ static int remote_dep_mpi_pack_dep(int rank,
     }
     /* Don't pack yet, we need to update the length field before packing */
     *position  += dsize;
-    msg->tag         = item->cmd.activate.task.tag;
     msg->output_mask = item->cmd.activate.task.output_mask = 0;  /* clean start */
     msg->length      = 0;
     /* Treat for special cases: CTL, Eeager, etc... */
@@ -1000,6 +999,10 @@ static int remote_dep_mpi_pack_dep(int rank,
     }
     if(expected)
         dague_atomic_add_32b(&deps->pending_ack, expected);  /* Keep track of the inflight data */
+    /* We can only have up to k data sends related to this remote_dep (include the order itself) */
+    item->cmd.activate.task.tag = next_tag(k);
+    msg->tag = item->cmd.activate.task.tag;
+
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\n"
            "    \t\t\twith datakey %lx\tmask %lx\t(tag=%d) eager mask %lu length %d\n",
            rank, tmp, msg->deps, msg->output_mask, msg->tag,
@@ -1029,9 +1032,8 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
     peer = item->cmd.activate.peer;  /* this doesn't change */
   pack_more:
     assert(peer == item->cmd.activate.peer);
-    item->cmd.activate.task.tag = next_tag(MAX_PARAM_COUNT); /* TODO: waste less tags to diminish
-                                                              collision probability */
-    deps     = (dague_remote_deps_t*)item->cmd.activate.task.deps;
+
+    deps = (dague_remote_deps_t*)item->cmd.activate.task.deps;
 
     dague_list_item_singleton((dague_list_item_t*)item);
     if( 0 == remote_dep_mpi_pack_dep(peer, item, packed_buffer,
