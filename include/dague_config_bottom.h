@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -54,13 +54,13 @@
 # define DAGUE_PROF_DRY_DEP
 #endif
 
-#if DAGUE_DIST_EAGER_LIMIT != 0
+#if DAGUE_DIST_EAGER_LIMIT == 0
 #define RDEP_MSG_EAGER_LIMIT    0
 #else
 #define RDEP_MSG_EAGER_LIMIT    ((DAGUE_DIST_EAGER_LIMIT)*1024)
 #endif
 
-#if DAGUE_DIST_SHORT_LIMIT != 0
+#if DAGUE_DIST_SHORT_LIMIT == 0
 #define RDEP_MSG_SHORT_LIMIT    0
 #else
 #define RDEP_MSG_SHORT_LIMIT    ((DAGUE_DIST_SHORT_LIMIT)*1024)
