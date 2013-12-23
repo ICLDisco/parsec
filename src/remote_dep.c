@@ -86,12 +86,11 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
                                 int ncompleted,
                                 dague_context_t* ctx)
 {
-    dague_atomic_add_32b(&(*deps)->output_sent_count, ncompleted);
-    DEBUG2(("Complete %d (%d/%d) outputs of dep %p%s\n",
-            ncompleted, (*deps)->output_sent_count, (*deps)->output_count, *deps,
-            ((*deps)->output_count == (*deps)->output_sent_count ? "(decrease inflight)" : "")));
-    assert( (*deps)->output_sent_count <= (*deps)->output_count );
-    if( (*deps)->output_count == (*deps)->output_sent_count ) {
+    uint32_t saved = dague_atomic_add_32b(&(*deps)->pending_ack, -ncompleted);
+    DEBUG2(("Complete %d (%d left) outputs of dep %p%s\n",
+            ncompleted, saved, *deps,
+            (0 == saved ? " (decrease inflight)" : "")));
+    if(0 == saved) {
         /**
          * Decrease the refcount of each output data once to mark the completion
          * of all communications related to the task. This is not optimal as it
@@ -220,8 +219,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     unsigned int array_index, count, bit_index;
     struct remote_dep_output_param* output;
 
-    assert(0 == remote_deps->output_count);
-    assert(0 == remote_deps->output_sent_count);
+    assert(0 == remote_deps->pending_ack);
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
 
 #if DAGUE_DEBUG_VERBOSE != 0
@@ -304,15 +302,15 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     }
                     assert(output->parent->dague_object == exec_context->dague_object);
                     remote_dep_mark_forwarded(eu_context, output, rank);
-                    keeper = dague_atomic_add_32b(&remote_deps->output_count, 1);
+                    keeper = dague_atomic_add_32b(&remote_deps->pending_ack, 1);
                     if( 1 == keeper ) {
                         /* Let the engine know we're working to activate the dependencies remotely */
                         remote_dep_inc_flying_messages(exec_context->dague_object,
                                                        eu_context->virtual_process->dague_context);
-                        /* We need to increase the output_count to make the deps persistant until the
+                        /* We need to increase the pending_ack to make the deps persistant until the
                          * end of this function.
                          */
-                        dague_atomic_add_32b(&remote_deps->output_count, 1);
+                        dague_atomic_add_32b(&remote_deps->pending_ack, 1);
                     }
                     remote_dep_send(rank, remote_deps);
                 }
