@@ -283,6 +283,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
 
+    dague_debug_init(); /* First thing ever ! */
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
@@ -721,6 +722,8 @@ int dague_fini( dague_context_t** pcontext )
 
     free(context);
     *pcontext = NULL;
+
+    dague_debug_fini();  /* Always last */
     return 0;
 }
 
@@ -1157,9 +1160,17 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             arg->remote_deps->root = src_rank;
             arg->remote_deps->activity_mask |= (1 << dep->dep_datatype_index);
             if( !(output->rank_bits[_array_pos] & _array_mask) ) {
-                output->deps_mask             |= (1 << dep->dep_index);
-                output->data                   = *data;
                 output->rank_bits[_array_pos] |= _array_mask;
+                if( 0 == output->count_bits ) {
+                    output->deps_mask             |= (1 << dep->dep_index);
+                    output->data                   = *data;
+                    if( FLOW_ACCESS_NONE != (src_flow->flow_flags & FLOW_ACCESS_MASK) ) {
+                        AREF(data->ptr);
+                    }
+                } else {
+                    assert(output->deps_mask & (1 << dep->dep_index));
+                    assert(output->data.ptr == data->ptr);
+                }
                 output->count_bits++;
                 arg->remote_deps_count++;
                 if(newcontext->priority > output->priority) {
@@ -1168,12 +1179,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                         arg->remote_deps->max_priority = newcontext->priority;
                 }
             } else {
-                /* The bit is already flipped. This means either that we reached the same peer
-                 * several times with the same operation (broadcast), or that we reached the
-                 * same peer with two operations that dispatch the same output dependency
-                 * (aka. the same data) using distinct communication paths due to different
-                 * outdep index.
-                 */
+                /* The bit is already flipped, the peer is already part of the propagation. */
             }
         }
     }
@@ -1191,7 +1197,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
              * bits are marked, another thread can now enable the task. Once schedulable
              * the task will try to access its input data and decrement their ref count.
              * Thus, if the ref count is not increased here, the data might dissapear
-             * before it become useless.
+             * before this task released it completely.
              */
             AREF( arg->output_entry->data[src_flow->flow_index] );
         }

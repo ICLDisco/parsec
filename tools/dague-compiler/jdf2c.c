@@ -4154,7 +4154,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
         string_arena_init(sa_displ);
         string_arena_init(sa_layout);
 
-        string_arena_add_string(sa_coutput, "  data.ptr    = this_task->data[%d].data;\n", fl->flow_index);
+        string_arena_add_string(sa_coutput, "    data.ptr    = this_task->data[%d].data;\n", fl->flow_index);
 
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
             if( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) continue;
