@@ -288,13 +288,13 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 
                 if(remote_dep_bcast_child(me, him)) {
 #if DAGUE_DEBUG_VERBOSE >= 2
-                    /* Mark all flows related to this message */
                     for(int flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
-                        if( exec_context->function->out[flow_index]->flow_mask & (1<<i) ) {
+                        if( exec_context->function->out[flow_index]->flow_datatype_mask & (1<<i) ) {
                             assert( NULL != exec_context->function->out[flow_index] );
                             DEBUG2((" TOPO\t%s flow %s root=%d\t%d (d%d) -> %d (d%d)\n",
                                     tmp, exec_context->function->out[flow_index]->name, remote_deps->root,
                                     eu_context->virtual_process->dague_context->my_rank, me, rank, him));
+                            break;
                         }
                     }
 #endif  /* DAGUE_DEBUG_VERBOSE */

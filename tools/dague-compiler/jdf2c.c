@@ -1690,6 +1690,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
     string_arena_t* flow_flags = string_arena_new(64);
     string_arena_t *psa;
     jdf_dep_t *dl;
+    uint32_t flow_datatype_mask = 0;
     char sep_in[4], sep_out[4];  /* one char more to deal with '\n' special cases (Windows) */
 
     (void)jdf;
@@ -1712,6 +1713,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
         } else if ( dl->dep_flags & JDF_DEP_FLOW_OUT ) {
             psa = sa_dep_out;
             sep = sep_out;
+            flow_datatype_mask |= (1U << dl->dep_datatype_index);
         } else {
             jdf_fatal(JDF_OBJECT_LINENO(dl), "This dependency is neither a DEP_IN or a DEP_OUT (flag 0x%x)\n");
             exit(1);
@@ -1776,11 +1778,11 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
     }
     string_arena_add_string(sa,
                             "static const dague_flow_t %s = {\n"
-                            "  .name       = \"%s\",\n"
-                            "  .sym_type   = %s,\n"
-                            "  .flow_flags = %s,\n"
-                            "  .flow_index = %u,\n"
-                            "  .flow_mask  = 0x%x,\n"
+                            "  .name               = \"%s\",\n"
+                            "  .sym_type           = %s,\n"
+                            "  .flow_flags         = %s,\n"
+                            "  .flow_index         = %u,\n"
+                            "  .flow_datatype_mask = 0x%x,\n"
                             "  .dep_in     = { %s },\n"
                             "  .dep_out    = { %s }\n"
                             "};\n\n",
@@ -1789,7 +1791,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
                             sym_type,
                             string_arena_get_string(flow_flags),
                             flow->flow_index,
-                            flow->flow_dep_mask,
+                            flow_datatype_mask,
                             string_arena_get_string(sa_dep_in),
                             string_arena_get_string(sa_dep_out));
     string_arena_free(sa_dep_in);
@@ -3455,7 +3457,7 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf,
             "      DAGUE_ACTION_RELEASE_REMOTE_DEPS |\n"
             "      DAGUE_ACTION_RELEASE_LOCAL_DEPS |\n"
             "      DAGUE_ACTION_RELEASE_LOCAL_REFS |\n"
-            "      0x%x,\n"
+            "      0x%x,  /* mask of all dep_index */ \n"
             "      NULL);\n",
             jdf_basename, function->fname, context_name, complete_mask);
 }
