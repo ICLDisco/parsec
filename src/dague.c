@@ -1116,7 +1116,6 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
     const dague_flow_t* src_flow = dep->belongs_to;
 
-    assert(arg->action_mask & src_flow->flow_mask);
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
 
