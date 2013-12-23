@@ -978,10 +978,11 @@ static int remote_dep_mpi_pack_dep(int rank,
             MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout,
                           dep_comm, &dsize);
             if((length - (*position)) >= dsize) {
-                DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate msg\n", tmp, k));
                 MPI_Pack((char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
                          deps->output[k].data.count, deps->output[k].data.layout,
                          packed_buffer, length, position, dep_comm);
+                DEBUG2((" EGR\t%s\tparam %d\teager piggyback in the activate msg (%d/%d)\n",
+                        tmp, k, *position, length));
                 msg->length += dsize;
                 continue;  /* go to the next */
             }
@@ -1130,6 +1131,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     return ret;
 }
 
+#if RDEP_MSG_SHORT_LIMIT != 0
 /**
  * Compute the mask of all dependencies associated with a defined deps that can
  * be embedded in the outgoing message. This takes in account the control data
@@ -1157,7 +1159,6 @@ remote_dep_mpi_short_which(const dague_remote_deps_t* deps,
     return output_mask;
 }
 
-#if RDEP_MSG_SHORT_LIMIT != 0
 static void remote_dep_mpi_put_short(dague_execution_unit_t* eu_context,
                                      dep_cmd_item_t* item)
 {
@@ -1303,13 +1304,15 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                                          int length,
                                          int* position)
 {
-    remote_dep_datakey_t short_which = remote_dep_mpi_short_which(deps, deps->msg.output_mask);
     remote_dep_datakey_t complete_mask = 0;
     int k, dsize, tag = (int)deps->msg.tag;
 #if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN);
 #endif
+#if RDEP_MSG_SHORT_LIMIT != 0
+    remote_dep_datakey_t short_which = remote_dep_mpi_short_which(deps, deps->msg.output_mask);
+#endif  /* RDEP_MSG_SHORT_LIMIT != 0 */
 
     DEBUG(("MPI:\tFROM\t%d\tActivate\t% -8s\n"
            "\twith datakey %lx\tparams %lx length %d (pack buf %d/%d)\n",
@@ -1334,7 +1337,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                 assert(NULL == deps->output[k].data.ptr); /* we do not support in-place tiles now, make sure it doesn't happen yet */
                 if(NULL == deps->output[k].data.ptr) {
                     deps->output[k].data.ptr = dague_arena_get(deps->output[k].data.arena, deps->output[k].data.count);
-                    DEBUG3(("MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %d displ = %" PRIi64 "\n",
+                    DEBUG3(("MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 "\n",
                             deps->output[k].data.ptr, deps->output[k].data.arena->elem_size,
                             deps->output[k].data.count, deps->output[k].data.displ));
                     assert(deps->output[k].data.ptr != NULL);
@@ -1350,14 +1353,15 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                 continue;
             }
         }
-        /* Check if we have SHORT deps to satisfy quickly */
+ #if RDEP_MSG_SHORT_LIMIT != 0
+       /* Check if we have SHORT deps to satisfy quickly */
         if( short_which & (1U<<k) ) {
 
             assert(NULL == deps->output[k].data.ptr); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data.ptr) {
                 deps->output[k].data.ptr = dague_arena_get(deps->output[k].data.arena,
                                                            deps->output[k].data.count);
-                DEBUG3(("MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %d displ = %" PRIi64 "\n",
+                DEBUG3(("MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 "(short)\n",
                         deps->output[k].data.ptr, deps->output[k].data.arena->elem_size,
                         deps->output[k].data.count, deps->output[k].data.displ));
                 assert(deps->output[k].data.ptr != NULL);
@@ -1378,6 +1382,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
             complete_mask |= (1U<<k);
             continue;
         }
+#endif
         DEBUG2(("MPI:\tFROM\t%d\tGet DATA\t% -8s\ti=NA,k=%d\twith datakey %lx tag=%d (to be posted)\n",
                 deps->from, tmp, k, deps->msg.deps, tag+k));
     }
