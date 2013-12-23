@@ -73,7 +73,7 @@ static int dague_mpi_transfers  = 2 * DEP_NB_CONCURENT;
  */
 static int dague_param_nb_tasks_extracted = 20;
 static int dague_param_enable_eager = DAGUE_DIST_EAGER_LIMIT;
-static int dague_param_enable_aggregate = 0;
+static int dague_param_enable_aggregate = 1;
 
 /**
  * The order is important as it will be used to compute the index in the
@@ -931,7 +931,7 @@ static int remote_dep_mpi_pack_dep(int rank,
     dague_remote_deps_t *deps = (dague_remote_deps_t*)item->cmd.activate.task.deps;
     remote_dep_wire_activate_t* msg = &deps->msg;
     int k, dsize, saved_position = *position, completed = 0;
-    uint32_t rank_bank, rank_mask, which;
+    uint32_t rank_bank, rank_mask, embedded, expected = 0;
 #if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, 128);
@@ -947,7 +947,7 @@ static int remote_dep_mpi_pack_dep(int rank,
     }
     /* Don't pack yet, we need to update the length field before packing */
     *position  += dsize;
-    msg->output_mask = which = 0;  /* clean start */
+    msg->output_mask = embedded = 0;  /* clean start */
     msg->length = 0;
 
     /* Treat for special cases: CTL, Eeager, etc... */
@@ -963,7 +963,7 @@ static int remote_dep_mpi_pack_dep(int rank,
         if(NULL == deps->output[k].data.arena) {
             DEBUG2((" CTL\t%s\tparam %d\tdemoted to be a control\n",
                     tmp, k));
-            which |= (1<<k);
+            embedded |= (1<<k);
             completed++;
             continue;
         }
@@ -978,26 +978,27 @@ static int remote_dep_mpi_pack_dep(int rank,
                 MPI_Pack((char*)ADATA(deps->output[k].data.ptr) + deps->output[k].data.displ,
                          deps->output[k].data.count, deps->output[k].data.layout,
                          packed_buffer, length, position, dep_comm);
-                which |= (1<<k);
+                embedded |= (1<<k);
                 completed++;
                 msg->length += dsize;
                 continue;  /* go to the next */
             }
             /* the data doesn't fit in the buffer. */
         }
-        dague_atomic_add_32b(&deps->output_count, 1);  /* Keep track of the inflight data */
-        DEBUG2(("DATA\t%s\tparam %d\tdeps %p send on demand (increase deps counter to %d)\n",
-                tmp, k, deps, deps->output_count));
+        expected++;
+        DEBUG2(("DATA\t%s\tparam %d\tdeps %p send on demand (increase deps counter by %d [%d])\n",
+                tmp, k, deps, expected, deps->pending_ack));
     }
+    if(expected)
+        dague_atomic_add_32b(&deps->pending_ack, expected);  /* Keep track of the inflight data */
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\n"
            "    \t\t\twith datakey %lx\tmask %lx\t(tag=%d) eager count %d length %d\n",
-           rank, tmp,
-           msg->deps, msg->output_mask, msg->tag, completed, msg->length)); (void)rank;
+           rank, tmp, msg->deps, msg->output_mask, msg->tag, completed, msg->length));
     /* And now pack the updated message (msg->length and msg->output_mask)
      * itself. Pack the complete output_mask, and then update it to reflect what
      * is left to send. */
     MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, length, &saved_position, dep_comm);
-    msg->output_mask ^= which;  /* remove the packed ones */
+    msg->output_mask ^= embedded;  /* remove the packed ones */
     item->cmd.activate.task.output_mask = msg->output_mask;  /* save it for later */
     return 0;
 }
