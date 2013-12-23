@@ -1067,7 +1067,8 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
                                         eu_context->virtual_process->dague_context); /* we send the order */
         if( 0 == item->cmd.activate.task.output_mask ) {
             free(item);
-        }
+        } else
+            assert(0 != item->cmd.activate.task.deps);
     } while( NULL != ring );
     return 0;
 }
