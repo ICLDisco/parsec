@@ -317,9 +317,14 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
             }
         }
     }
-    if(keeper)
+    if(keeper) {
         remote_dep_complete_and_cleanup(&remote_deps, 1,
                                         eu_context->virtual_process->dague_context);
+    } else {
+        /* The remote deps were useless in this particular case, release them */
+        assert(0 == remote_deps->pending_ack);
+        remote_deps_free(remote_deps);
+    }
     return 0;
 }
 
