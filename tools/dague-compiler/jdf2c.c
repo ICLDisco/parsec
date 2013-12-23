@@ -4123,8 +4123,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
             UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
-    coutput("  nc.dague_object = this_task->dague_object;\n"
-            "  nc.priority = this_task->priority;\n");
+    coutput("  nc.dague_object = this_task->dague_object;\n");
     coutput("#if defined(DISTRIBUTED)\n"
             "  rank_src = ((dague_ddesc_t*)__dague_object->super.%s)->rank_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
             "#endif\n",
