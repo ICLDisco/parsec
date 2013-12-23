@@ -1235,7 +1235,8 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
     task->output_mask ^= (1<<k);
     /* Are we done yet ? */
-    remote_dep_complete_and_cleanup(deps, 1, eu_context->virtual_process->dague_context);
+    remote_dep_complete_and_cleanup((dague_remote_deps_t**)&(task->deps),
+                                    1, eu_context->virtual_process->dague_context);
     if( 0 == task->output_mask ) {
         free(item);
         dep_pending_put_array[i] = NULL;
