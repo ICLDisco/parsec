@@ -985,6 +985,11 @@ static int remote_dep_mpi_pack_dep(int rank,
                         tmp, k, *position, length));
                 msg->length += dsize;
                 continue;  /* go to the next */
+            } else if( 0 != saved_position ) {
+                DEBUG3(("DATA\t%s\tparam %d\texceed buffer length. Start again from here next iteration\n",
+                        tmp, k));
+                *position = saved_position;
+                return 1;
             }
             /* the data doesn't fit in the buffer. */
         }
@@ -1179,7 +1184,7 @@ static void remote_dep_mpi_put_short(dague_execution_unit_t* eu_context,
         }
     }
     DEBUG3(("MPI: Put Short DELAYED for %s from %d tag %u which 0x%x (deps %p)\n",
-            tmp, item->cmd.activate.peer, msg->tag, item->cmd.activate.task.output_mask, deps));
+            tmp, item->cmd.activate.peer, item->cmd.activate.task.tag, item->cmd.activate.task.output_mask, deps));
 
     dague_ulist_push_sorted(&dep_put_fifo, (dague_list_item_t*)item, dep_cmd_prio);
 }
