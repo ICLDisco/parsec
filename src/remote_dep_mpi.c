@@ -75,11 +75,11 @@ static int dague_param_enable_aggregate = 1;
 #define DEP_NB_CONCURENT 3
 static int DEP_NB_REQ;
 
-static int dague_comm_activations_max = DEP_NB_CONCURENT;
-static int dague_comm_data_get_max    = DEP_NB_CONCURENT;
-static int dague_comm_gets_max        = DEP_NB_CONCURENT;
+static int dague_comm_activations_max = 2*DEP_NB_CONCURENT;
+static int dague_comm_data_get_max    = 2*DEP_NB_CONCURENT;
+static int dague_comm_gets_max        = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
 static int dague_comm_gets            = 0;
-static int dague_comm_puts_max        = DEP_NB_CONCURENT;
+static int dague_comm_puts_max        = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
 static int dague_comm_puts            = 0;
 static int dague_comm_last_active_req = 0;
 
@@ -1164,7 +1164,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     do {
         MPI_Testsome(dague_comm_last_active_req, array_of_requests,
                      &outcount, array_of_indices, array_of_statuses);
-        if(0 == outcount) break;  /* nothing ready right now */
+        if(0 == outcount) goto feed_more_work;  /* can we push some more work? */
 
         /* Trigger the callbacks */
         for( idx = 0; idx < outcount; idx++ ) {
@@ -1176,7 +1176,10 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
             ret++;
         }
 
-        /* Reshuffle the pending requests in order to minimize the testsome waiting time */
+        /* Compact the pending requests in order to minimize the testsome waiting time.
+         * Parsing the array_of_indeices in the reverse order insure a smooth and fast
+         * compacting.
+         */
         for( idx = outcount-1; idx >= 0; idx-- ) {
             pos = array_of_indices[idx];
             if(MPI_REQUEST_NULL != array_of_requests[pos])
@@ -1189,9 +1192,8 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
             }
             array_of_requests[dague_comm_last_active_req] = MPI_REQUEST_NULL;
         }
-        for(idx = dague_comm_last_active_req; idx < DEP_NB_REQ; idx++)
-            assert(MPI_REQUEST_NULL == array_of_requests[idx]);
 
+      feed_more_work:
         if((dague_comm_gets < dague_comm_gets_max) && !dague_ulist_is_empty(&dep_activates_fifo)) {
             dague_remote_deps_t* deps = (dague_remote_deps_t*)dague_ulist_fifo_pop(&dep_activates_fifo);
             remote_dep_mpi_get_start(eu_context, deps);
@@ -1200,10 +1202,8 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
             dep_cmd_item_t* item = (dep_cmd_item_t*)dague_ulist_fifo_pop(&dep_put_fifo);
             remote_dep_mpi_put_start(eu_context, item);
         }
+        if(0 == outcount) return ret;
     } while(1);
-    for(idx = dague_comm_last_active_req; idx < DEP_NB_REQ; idx++)
-        assert(MPI_REQUEST_NULL == array_of_requests[idx]);
-    return ret;
 }
 
 #if RDEP_MSG_SHORT_LIMIT != 0
@@ -1324,7 +1324,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
         assert(k < MAX_PARAM_COUNT);
         if(!((1U<<k) & task->output_mask)) continue;
 
-        if(dague_comm_puts < dague_comm_puts_max) {
+        if(dague_comm_puts == dague_comm_puts_max) {
             DEBUG3(("MPI:\treach PUT limit for deps 0x%lx. Reschedule.\n", deps));
             dague_ulist_push_front(&dep_put_fifo, (dague_list_item_t*)item);
             return;
