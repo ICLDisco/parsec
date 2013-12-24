@@ -476,10 +476,11 @@ static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
     for(k = 0; origin->msg.output_mask>>k; k++) {
         if(!(origin->msg.output_mask & (1U<<k))) continue;
         for(i = 0; NULL != task.function->out[i]; i++ ) {
+            if(!(task.function->out[i]->flow_datatype_mask & (1U<<k))) continue;
             for(j = 0; NULL != task.function->out[i]->dep_out[j]; j++ )
                 if(k == task.function->out[i]->dep_out[j]->dep_datatype_index)
                     local_mask |= (1U << task.function->out[i]->dep_out[j]->dep_index);
-            if( 0 == local_mask ) continue;  /* nothing to be done */
+            if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
         }
         arg.action_mask = DAGUE_ACTION_RECV_INIT_REMOTE_DEPS | local_mask;
         DEBUG3(("MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)\n", local_mask));
@@ -1501,7 +1502,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
         remote_deps_free(deps);
     }
 
-    /* Check if we have some ordered rdv get to treat */
+    /* Check if we have some pending get orders */
     if((dague_comm_gets < dague_comm_gets_max) && !dague_ulist_is_empty(&dep_activates_fifo)) {
         deps = (dague_remote_deps_t*)dague_ulist_fifo_pop(&dep_activates_fifo);
         remote_dep_mpi_get_start(eu_context, deps);
