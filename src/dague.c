@@ -1375,7 +1375,6 @@ void dague_object_unregister( dague_object_t* object )
     assert( object->object_id < object_array_size );
     assert( object_array[object->object_id] == object );
     assert( object->nb_local_tasks == 0 );
-    assert( object->nb_local_tasks == 0 );
     object_array[object->object_id] = NOOBJECT;
     dague_atomic_unlock( &object_array_lock );
 }
