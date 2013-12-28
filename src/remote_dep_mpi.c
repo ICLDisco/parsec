@@ -939,7 +939,6 @@ static int remote_dep_mpi_pack_dep(dague_context_t* ctx,
             }
             /* the data doesn't fit in the buffer. */
         }
-        /* The data will be sent using another protocol. */
     }
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n"
            "    \t eager count %d length %d\n",
@@ -1229,15 +1228,15 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context,
     dague_dep_wire_get_fifo_elem_t* item = dep_pending_put_array[i];
     assert(NULL != item);
     remote_dep_wire_get_t* task = &(item->task);
-    dague_remote_deps_t** deps = (dague_remote_deps_t**)&(task->deps);
 
     DEBUG2(("MPI:\tTO\tna\tPut END  \tunknown \tj=%d,k=%d\twith deps %p\tparams %lx\t(tag=%d) data ptr %p\n",
-            i, k, deps, task->output_mask, status->MPI_TAG, deps->output[k].data.ptr)); (void)status;
+            i, k, (dague_remote_deps_t*)task->deps, task->output_mask, status->MPI_TAG, (*deps)->output[k].data.ptr)); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
     task->output_mask ^= (1<<k);
     /* Are we done yet ? */
-    remote_dep_complete_and_cleanup(deps, 1, eu_context->virtual_process->dague_context);
+    remote_dep_complete_and_cleanup((dague_remote_deps_t**)&(task->deps),
+                                    1, eu_context->virtual_process->dague_context);
     if( 0 == task->output_mask ) {
         free(item);
         dep_pending_put_array[i] = NULL;
