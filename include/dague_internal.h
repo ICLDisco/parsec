@@ -305,14 +305,12 @@ extern int device_delegate_begin, device_delegate_end;
  * Dependencies management.
  */
 typedef struct {
-    int nb_released;
+    uint32_t action_mask;
     uint32_t output_usage;
     struct data_repo_entry *output_entry;
-    int action_mask;
     dague_remote_deps_t *deps;
     dague_execution_context_t** ready_lists;
 #if defined(DISTRIBUTED)
-    int remote_deps_count;
     dague_remote_deps_t *remote_deps;
 #endif
 } dague_release_dep_fct_arg_t;

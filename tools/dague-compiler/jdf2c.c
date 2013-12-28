@@ -1165,7 +1165,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST, DATA)\\\n"
             "  do { \\\n"
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
-            "    DEBUG((\"thread %%d VP %%d release deps of %%s:%%s to %%s:%%s (from node %%d to %%d) base ptr %%p\\n\",\\\n"
+            "    DEBUG((\"thread %%d VP %%d explore deps from %%s:%%s to %%s:%%s (from rank %%d to %%d) base ptr %%p\\n\",\\\n"
             "           (NULL != (EU) ? (EU)->th_id : -1), (NULL != (EU) ? (EU)->virtual_process->vp_id : -1),\\\n"
             "           DEPO, dague_snprintf_execution_context(tmp1, 128, (TASKO)),\\\n"
             "           DEPI, dague_snprintf_execution_context(tmp2, 128, (TASKI)), (RSRC), (RDST), (DATA)));\\\n"
@@ -3506,7 +3506,7 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
-                                 dump_string, NULL, "", "  (void)", ";", "; (void)chunk; (void)entry;\n"));
+                                 dump_string, NULL, "", " (void)", ";", "; (void)chunk; (void)entry;\n"));
 
     dinfo.sa = sa2;
     dinfo.sa_test = sa_test;
@@ -3773,9 +3773,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t *)context->dague_object;\n"
             "  dague_release_dep_fct_arg_t arg;\n"
             "  int __vp_id;\n"
-            "  arg.nb_released = 0;\n"
-            "  arg.output_usage = 0;\n"
             "  arg.action_mask = action_mask;\n"
+            "  arg.output_usage = 0;\n"
             "  arg.deps = deps;\n"
             "  arg.ready_lists = (NULL != eu) ? alloca(sizeof(dague_execution_context_t *) * eu->virtual_process->dague_context->nb_vp) : NULL;\n"
             "  if(NULL != eu) for( __vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
@@ -3797,7 +3796,6 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         coutput("#if defined(DISTRIBUTED)\n"
-                "  arg.remote_deps_count = 0;\n"
                 "  arg.remote_deps = NULL;\n"
                 "#endif\n");
 
@@ -3806,14 +3804,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 jdf_basename, f->fname);
 
         coutput("#if defined(DISTRIBUTED)\n"
-                "  if( 0 == arg.remote_deps_count ) {\n"
-                "    if( NULL != arg.remote_deps ) {\n"
-                "      remote_deps_free(arg.remote_deps);\n"
-                "      arg.remote_deps = NULL;\n"
-                "    }\n"
-                "  }\n"
-                "  else if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) ) {\n"
-                "    arg.nb_released += dague_remote_dep_activate(eu, context, arg.remote_deps, arg.remote_deps_count);\n"
+                "  if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) && (NULL != arg.remote_deps)) {\n"
+                "    dague_remote_dep_activate(eu, context, arg.remote_deps);\n"
                 "  }\n"
                 "#endif\n"
                 "\n");
@@ -3838,7 +3830,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     jdf_generate_code_free_hash_table_entry(jdf, f);
 
     coutput(
-        "  return arg.nb_released;\n"
+        "  return 0;\n"
         "}\n"
         "\n");
 }

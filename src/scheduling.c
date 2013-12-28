@@ -123,6 +123,9 @@ dague_scheduler_t scheduler = { "None", NULL, NULL, NULL, NULL, NULL, NULL };
 
 void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s )
 {
+    /* The scheduler is already selected */
+    if( (NULL != s) && (0 == strcmp(scheduler.name, s->name)) )
+        return;
     if( NULL != scheduler.finalize ) {
         scheduler.finalize( dague );
     }

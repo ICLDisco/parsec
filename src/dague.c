@@ -942,19 +942,20 @@ static int dague_update_deps_with_mask( const dague_object_t *dague_object,
     dague_dependency_t dep_new_value, dep_cur_value;
     const dague_function_t* function = exec_context->function;
 #if DAGUE_DEBUG_VERBOSE != 0 || defined(DAGUE_DEBUG)
-    char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN]; (void)tmp2;
-    dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, origin);
-    dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, exec_context);
+    char tmpo[MAX_TASK_STRLEN], tmpt[MAX_TASK_STRLEN];
+    dague_snprintf_execution_context(tmpo, MAX_TASK_STRLEN, origin);
+    dague_snprintf_execution_context(tmpt, MAX_TASK_STRLEN, exec_context);
 #endif
 
-    DEBUG2(("Activate mask dependency for %s flags = 0x%04x (current 0x%x mask 0x%x goal 0x%x)\n",
-            tmp2, function->flags, *deps, (1 << dest_flow->flow_index), function->dependencies_goal));
+    DEBUG2(("Activate mask dep for %s:%s (current 0x%x now 0x%x goal 0x%x) from %s:%s\n",
+            dest_flow->name, tmpt, *deps, (1 << dest_flow->flow_index), function->dependencies_goal,
+            origin_flow->name, tmpo));
 #if defined(DAGUE_DEBUG)
     if( (*deps) & (1 << dest_flow->flow_index) ) {
         ERROR(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
-               dest_flow->flow_index, tmp1,
+               dest_flow->flow_index, tmpo,
                origin_flow->name, *deps,
-               tmp2, dest_flow->name ));
+               tmpt, dest_flow->name ));
     }
 #else
     (void) origin; (void) origin_flow;
@@ -984,15 +985,13 @@ static int dague_update_deps_with_mask( const dague_object_t *dague_object,
                                     tmp_mask, (tmp_mask | DAGUE_DEPENDENCIES_TASK_DONE) );
         if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
             ERROR(("Task %s scheduled twice (second time by %s)!!!\n",
-                   dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
-                   dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, origin)));
+                   tmpt, tmpo));
         }
     }
 #endif
 
     DEBUG3(("Task %s has a current dependencies of 0x%x and a goal of 0x%x. %s to go!\n",
-            dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context),
-            dep_cur_value, function->dependencies_goal,
+            tmpt, dep_cur_value, function->dependencies_goal,
             ((dep_cur_value & function->dependencies_goal) == function->dependencies_goal) ?
             "Ready" : "Not ready"));
     return (dep_cur_value & function->dependencies_goal) == function->dependencies_goal;
@@ -1105,9 +1104,6 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
     return 0;
 }
 
-#define is_inplace(ctx,dep) NULL
-#define is_read_only(ctx,dep) NULL
-
 dague_ontask_iterate_t
 dague_release_dep_fct(dague_execution_unit_t *eu,
                       const dague_execution_context_t *newcontext,
@@ -1120,38 +1116,19 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
     const dague_flow_t* src_flow = dep->belongs_to;
 
-    if( !(arg->action_mask & src_flow->flow_mask) ) {
-        char tmp[MAX_TASK_STRLEN];
-        WARNING(("On task %s dep_index %d (%d) not on the action_mask %x\n",
-                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, oldcontext),
-                 dep->dep_index, src_flow->flow_index, arg->action_mask));
-        return DAGUE_ITERATE_CONTINUE;
-    }
-
+    assert(arg->action_mask & src_flow->flow_mask);
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
-        if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
-            struct remote_dep_output_param* output = &arg->deps->output[dep->dep_datatype_index];
-            void* dataptr = is_read_only(oldcontext, dep);
-            if(NULL == dataptr) {
-                output->deps_mask &= ~(1 << dep->dep_index); /* unmark all data that are RO we already hold from previous tasks */
-            } else {
-                output->deps_mask |= (1 << dep->dep_index); /* mark all data that are not RO */
-                dataptr = is_inplace(oldcontext, dep);  /* Can we do it inplace */
-            }
-            output->data     = *data;
-            output->data.ptr = dataptr; /* if still NULL allocate it */
-            if(newcontext->priority > output->priority) {
-                output->priority = newcontext->priority;
-                if(newcontext->priority > arg->deps->max_priority)
-                    arg->deps->max_priority = newcontext->priority;
-            }
-            arg->deps->activity_mask |= (1 << dep->dep_datatype_index);
-        }
-        if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
+
+        assert( 0 == (arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS) );
+
+        if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ){
             struct remote_dep_output_param* output;
             int _array_pos, _array_mask;
 
+#if !defined(DAGUE_DIST_COLLECTIVES)
+        assert(src_rank == eu->virtual_process->dague_context->my_rank);
+#endif
             _array_pos = dst_rank / (8 * sizeof(uint32_t));
             _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
@@ -1161,18 +1138,16 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             arg->remote_deps->activity_mask |= (1 << dep->dep_datatype_index);
             if( !(output->rank_bits[_array_pos] & _array_mask) ) {
                 output->rank_bits[_array_pos] |= _array_mask;
+                output->deps_mask |= (1 << dep->dep_index);
                 if( 0 == output->count_bits ) {
-                    output->deps_mask             |= (1 << dep->dep_index);
-                    output->data                   = *data;
+                    output->data       = *data;
                     if( FLOW_ACCESS_NONE != (src_flow->flow_flags & FLOW_ACCESS_MASK) ) {
                         AREF(data->ptr);
                     }
                 } else {
-                    assert(output->deps_mask & (1 << dep->dep_index));
                     assert(output->data.ptr == data->ptr);
                 }
                 output->count_bits++;
-                arg->remote_deps_count++;
                 if(newcontext->priority > output->priority) {
                     output->priority = newcontext->priority;
                     if(newcontext->priority > arg->remote_deps->max_priority)
@@ -1201,11 +1176,11 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
              */
             AREF( arg->output_entry->data[src_flow->flow_index] );
         }
-        arg->nb_released += dague_release_local_OUT_dependencies(eu, oldcontext, src_flow,
-                                                                 newcontext, dep->flow,
-                                                                 arg->output_entry,
-                                                                 data,
-                                                                 &arg->ready_lists[dst_vpid]);
+        dague_release_local_OUT_dependencies(eu, oldcontext, src_flow,
+                                             newcontext, dep->flow,
+                                             arg->output_entry,
+                                             data,
+                                             &arg->ready_lists[dst_vpid]);
     }
 
     return DAGUE_ITERATE_CONTINUE;

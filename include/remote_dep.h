@@ -155,11 +155,11 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
 /* This returns the deps to the freelist, no use counter */
 static inline void remote_deps_free(dague_remote_deps_t* deps)
 {
-    uint32_t k = 0, count = 0, a;
-    while( count < deps->output_count ) {
+    uint32_t k, a;
+    for( k = 0; deps->activity_mask >> k; k++ ) {
+        if( !((1U << k) & deps->activity_mask) ) continue;
         for(a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
             deps->output[k].rank_bits[a] = 0;
-        count += deps->output[k].count_bits;
         deps->output[k].count_bits = 0;
 #if defined(DAGUE_DEBUG)
         deps->output[k].data.ptr    = NULL;
@@ -168,16 +168,12 @@ static inline void remote_deps_free(dague_remote_deps_t* deps)
         deps->output[k].data.count  = -1;
         deps->output[k].data.displ  = 0xFFFFFFFF;
 #endif
-        k++;
-        assert(k < MAX_PARAM_COUNT);
     }
-    assert(count == deps->output_count);
-    DEBUG(("remote_deps_free: %p sent_count=%u/%u\n", deps, deps->output_sent_count, deps->output_count));
+    DEBUG(("remote_deps_free: %p mask %x sent_count=%u/%u\n",
+           deps, deps->activity_mask, deps->output_sent_count, deps->output_count));
 #if defined(DAGUE_DEBUG)
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
-    deps->output_count      = 0;
-    deps->output_sent_count = 0;
     deps->dague_object      = NULL;
     dague_lifo_push(deps->origin, (dague_list_item_t*)deps);
 }
@@ -196,8 +192,7 @@ int dague_remote_dep_new_object(dague_object_t* obj);
 /* Send remote dependencies to target processes */
 int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                                 const dague_execution_context_t* origin,
-                                dague_remote_deps_t* remote_deps,
-                                uint32_t remote_deps_count );
+                                dague_remote_deps_t* remote_deps);
 
 /* Memcopy a particular data using datatype specification */
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
