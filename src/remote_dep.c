@@ -13,11 +13,17 @@
 #include "arena.h"
 
 #ifdef DISTRIBUTED
+
+static int remote_dep_bind_thread(dague_context_t* context);
+
 /* Clear the already forwarded remote dependency matrix */
-static inline void remote_dep_reset_forwarded( dague_execution_unit_t* eu_context, dague_remote_deps_t* rdeps )
+static inline void
+remote_dep_reset_forwarded(dague_execution_unit_t* eu_context,
+                           dague_remote_deps_t* rdeps)
 {
-    DEBUG3(("fw reset\tcontext %p\n", (void*) eu_context));
-    memset(rdeps->remote_dep_fw_mask, 0, eu_context->virtual_process->dague_context->remote_dep_fw_mask_sizeof);
+    DEBUG3(("fw reset\tcontext %p deps %p\n", (void*)eu_context, rdeps));
+    memset(rdeps->remote_dep_fw_mask, 0,
+           eu_context->virtual_process->dague_context->remote_dep_fw_mask_sizeof);
 }
 
 /* Mark a rank as already forwarded the termination of the current task */
@@ -80,35 +86,26 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
                                 int ncompleted,
                                 dague_context_t* ctx)
 {
-    (*deps)->output_sent_count += ncompleted;
+    dague_atomic_add_32b(&(*deps)->output_sent_count, ncompleted);
+    DEBUG2(("Complete %d (%d/%d) outputs of dep %p%s\n",
+            ncompleted, (*deps)->output_sent_count, (*deps)->output_count, *deps,
+            ((*deps)->output_count == (*deps)->output_sent_count ? "(decrease inflight)" : "")));
     assert( (*deps)->output_sent_count <= (*deps)->output_count );
-
     if( (*deps)->output_count == (*deps)->output_sent_count ) {
-        int k, remote_dep_count = (*deps)->output_count;;
-        DEBUG2(("Complete %d (%d/%d) outputs of dep %p (decreasing inflight messages)\n",
-                ncompleted, (*deps)->output_count, (*deps)->output_sent_count, *deps));
-        for(k = 0; remote_dep_count; k++) {
-            if( 0 == (*deps)->output[k].count_bits ) continue;
-            AUNREF((*deps)->output[k].data.ptr);
-            remote_dep_count -= (*deps)->output[k].count_bits;
-        }
-        remote_dep_dec_flying_messages((*deps)->dague_object, ctx);
         /**
          * Decrease the refcount of each output data once to mark the completion
          * of all communications related to the task. This is not optimal as it
-         * increases the timespan of a data, but it is much eaier to implement.
+         * increases the timespan of a data, but it is much easier to implement.
          */
         for( int i = 0; (*deps)->activity_mask >> i; i++ )
             if( (1U << i) & (*deps)->activity_mask ) {
                 assert( (*deps)->output[i].count_bits );
                 AUNREF((*deps)->output[i].data.ptr);
             }
+        remote_dep_dec_flying_messages((*deps)->dague_object, ctx);
         remote_deps_free(*deps);
         *deps = NULL;
         return 1;
-    } else {
-        DEBUG2(("Complete %d (%d/%d) outputs of dep %p\n",
-                ncompleted, (*deps)->output_count, (*deps)->output_sent_count, deps));
     }
     return 0;
 }
@@ -216,63 +213,57 @@ int dague_remote_dep_new_object(dague_object_t* obj) {
 
 int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                               const dague_execution_context_t* exec_context,
-                              dague_remote_deps_t* remote_deps,
-                              uint32_t remote_deps_count )
+                              dague_remote_deps_t* remote_deps)
 {
     const dague_function_t* function = exec_context->function;
-    int i, me, him, current_mask, skipped_count = 0;
+    int i, me, him, current_mask, keeper = 0;
     unsigned int array_index, count, bit_index;
     struct remote_dep_output_param* output;
 
+    assert(0 == remote_deps->output_count);
+    assert(0 == remote_deps->output_sent_count);
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
-    assert(remote_deps_count);
 
-#if defined(DAGUE_DEBUG)
-    /* make valgrind happy */
-    memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
-#endif
 #if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
 
-    /* Let the engine know we're working to activate the dependencies remotely */
-    remote_dep_inc_flying_messages(exec_context->dague_object,
-                                   eu_context->virtual_process->dague_context);
-
     remote_dep_reset_forwarded(eu_context, remote_deps);
     remote_deps->dague_object    = exec_context->dague_object;
-    remote_deps->output_count    = remote_deps_count;
-    remote_deps->msg.deps        = (uintptr_t) remote_deps;
+    remote_deps->msg.deps        = (uintptr_t)remote_deps;
     remote_deps->msg.object_id   = exec_context->dague_object->object_id;
     remote_deps->msg.function_id = function->function_id;
     for(i = 0; i < function->nb_locals; i++) {
         remote_deps->msg.locals[i] = exec_context->locals[i];
     }
-    /**
-     * Increase upfront the refcount of each possible output data once to insure
-     * the data is protected during the entire execution of the communication,
-     * independent on what is happening with the data outside of the
-     * communication engine.
-     */
-    for( i = 0; remote_deps->activity_mask >> i; i++ )
-        if( (1U << i) & remote_deps->activity_mask ) {
-            assert( remote_deps->output[i].count_bits );
-            AREF(remote_deps->output[i].data.ptr);
-        }
+#if defined(DAGUE_DEBUG)
+    /* make valgrind happy */
+    memset(&remote_deps->msg.locals[i], 0, (MAX_LOCAL_COUNT - i) * sizeof(int));
+#endif
 
     if(remote_deps->root == eu_context->virtual_process->dague_context->my_rank) me = 0;
     else me = -1;
 
-    for( i = 0; remote_deps_count; i++) {
+    for( i = 0; remote_deps->activity_mask >> i; i++ ) {
+        if( !((1U << i) & remote_deps->activity_mask )) continue;
         output = &remote_deps->output[i];
-        if( 0 == output->count_bits ) continue;
+        assert( 0 != output->count_bits );
+        /**
+         * Increase the refcount of each possible output data once, to insure
+         * the data is protected during the entire execution of the
+         * communication, independent on what is happening with the data outside
+         * of the communication engine.
+         */
+        AREF(output->data.ptr);
 
         him = 0;
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {
             current_mask = output->rank_bits[array_index];
             if( 0 == current_mask ) continue;  /* no bits here */
-            for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
+            for( bit_index = 0;
+                 (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0);
+                 bit_index++ ) {
                 if( !(current_mask & (1 << bit_index)) ) continue;
 
                 int rank = (array_index * sizeof(uint32_t) * 8) + bit_index;
@@ -280,7 +271,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 
                 current_mask ^= (1 << bit_index);
                 count++;
-                remote_deps_count--;
 
                 /* root already knows but falsely appear in this bitfield */
                 if(rank == remote_deps->root) continue;
@@ -292,7 +282,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     /* the next bit points after me, so I know my dense rank now */
                     me = ++him;
                     if(rank == eu_context->virtual_process->dague_context->my_rank) {
-                        skipped_count++;
                         continue;
                     }
                 }
@@ -315,26 +304,24 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     }
                     assert(output->parent->dague_object == exec_context->dague_object);
                     remote_dep_mark_forwarded(eu_context, output, rank);
+                    keeper = dague_atomic_add_32b(&remote_deps->output_count, 1);
+                    if( 1 == keeper ) {
+                        /* Let the engine know we're working to activate the dependencies remotely */
+                        remote_dep_inc_flying_messages(exec_context->dague_object,
+                                                       eu_context->virtual_process->dague_context);
+                        /* We need to increase the output_count to make the deps persistant until the
+                         * end of this function.
+                         */
+                        dague_atomic_add_32b(&remote_deps->output_count, 1);
+                    }
                     remote_dep_send(rank, remote_deps);
-                } else {
-                    skipped_count++;
                 }
             }
         }
     }
-
-    /* Only the thread doing bcast forwarding can reach here. The same
-     * communication thread calls here and does the sends that call
-     * complete_and_cleanup concurently. This has to be done only if the
-     * receiver is a leaf in a broadcast. The remote_deps has then been
-     * allocated in dague_release_dep_fct when we didn't knew yet if we forward
-     * the data or not.
-     */
-    if( skipped_count ) {
-        remote_dep_complete_and_cleanup(&remote_deps, skipped_count,
+    if(keeper)
+        remote_dep_complete_and_cleanup(&remote_deps, 1,
                                         eu_context->virtual_process->dague_context);
-    }
-
     return 0;
 }
 
@@ -386,6 +373,79 @@ void remote_deps_allocation_fini(void)
         dague_lifo_destruct(&dague_remote_dep_context.freelist);
     }
     dague_remote_dep_inited = 0;
+}
+
+/* Bind the communication thread on an unused core if possible */
+static int remote_dep_bind_thread(dague_context_t* context)
+{
+    do_nano = 1;
+
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
+    char *str = NULL;
+    if( context->comm_th_core >= 0 ) {
+        /* Bind to the specified core */
+        if(dague_bindthread(context->comm_th_core, -1) == context->comm_th_core) {
+            STATUS(("Communication thread bound to physical core %d\n",  context->comm_th_core));
+
+            /* Check if this core is not used by a computation thread */
+            if( hwloc_bitmap_isset(context->index_core_free_mask, context->comm_th_core) )
+                do_nano = 0;
+        } else {
+            /* There is no guarantee the thread doesn't share the core. Let do_nano to 1. */
+            WARNING(("Request to bind the communication thread on core %d failed.\n", context->comm_th_core));
+        }
+    } else if( context->comm_th_core == -2 ) {
+        /* Bind to the specified mask */
+        hwloc_cpuset_t free_common_cores;
+
+        /* reduce the mask to unused cores if any */
+        free_common_cores=hwloc_bitmap_alloc();
+        hwloc_bitmap_and(free_common_cores, context->index_core_free_mask, context->comm_th_index_mask);
+
+        if( !hwloc_bitmap_iszero(free_common_cores) ) {
+            hwloc_bitmap_copy(context->comm_th_index_mask, free_common_cores);
+
+            do_nano = 0;
+        }
+        hwloc_bitmap_asprintf(&str, context->comm_th_index_mask);
+        hwloc_bitmap_free(free_common_cores);
+        if( dague_bindthread_mask(context->comm_th_index_mask) >= 0 ) {
+            DEBUG(("Communication thread bound on the index mask %s\n", str));
+        } else {
+            WARNING(("Communication thread requested to be bound on the cpu mask %s \n", str));
+            do_nano = 1;
+        }
+    } else {
+        /* no binding specified
+         * - bind on available cores if any,
+         * - let float otherwise
+         */
+
+        if( !hwloc_bitmap_iszero(context->index_core_free_mask) ) {
+            if( dague_bindthread_mask(context->index_core_free_mask) > -1 ){
+                hwloc_bitmap_asprintf(&str, context->index_core_free_mask);
+                DEBUG(("Communication thread bound on the cpu mask %s\n", str));
+                free(str);
+                do_nano = 0;
+            }
+        }
+    }
+#else /* NO HAVE_HWLOC */
+    /* If we don't have hwloc, try to bind the thread on the core #nbcore as the
+     * default strategy disributed the computation threads from core 0 to nbcore-1 */
+    int p, nb_total_comp_threads = 0;
+    for(p = 0; p < context->nb_vp; p++) {
+        nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
+    }
+    int boundto = dague_bindthread(nb_total_comp_threads, -1);
+    if (boundto != nb_total_comp_threads) {
+        DEBUG(("Communication thread floats\n"));
+    } else {
+        do_nano = 0;
+        DEBUG(("Communication thread bound to physical core %d\n", boundto));
+    }
+#endif /* NO HAVE_HWLOC */
+    return 0;
 }
 
 #endif /* DISTRIBUTED */

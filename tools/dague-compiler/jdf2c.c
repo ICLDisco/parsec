@@ -1162,24 +1162,24 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
     coutput("/* Release dependencies output macro */\n"
             "#if DAGUE_DEBUG_VERBOSE != 0\n"
-            "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST)\\\n"
+            "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST, DATA)\\\n"
             "  do { \\\n"
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
-            "    DEBUG((\"thread %%d VP %%d release deps of %%s:%%s to %%s:%%s (from node %%d to %%d)\\n\",\\\n"
+            "    DEBUG((\"thread %%d VP %%d explore deps from %%s:%%s to %%s:%%s (from rank %%d to %%d) base ptr %%p\\n\",\\\n"
             "           (NULL != (EU) ? (EU)->th_id : -1), (NULL != (EU) ? (EU)->virtual_process->vp_id : -1),\\\n"
             "           DEPO, dague_snprintf_execution_context(tmp1, 128, (TASKO)),\\\n"
-            "           DEPI, dague_snprintf_execution_context(tmp2, 128, (TASKI)), (RSRC), (RDST)));\\\n"
+            "           DEPI, dague_snprintf_execution_context(tmp2, 128, (TASKI)), (RSRC), (RDST), (DATA)));\\\n"
             "  } while(0)\n"
-            "#define ACQUIRE_FLOW(TASKI, DEPI, FUNO, DEPO, LOCALS)\\\n"
+            "#define ACQUIRE_FLOW(TASKI, DEPI, FUNO, DEPO, LOCALS, PTR)\\\n"
             "  do { \\\n"
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
-            "    DEBUG((\"task %%s acquires flow %%s from %%s %%s\\n\",\\\n"
+            "    DEBUG((\"task %%s acquires flow %%s from %%s %%s data ptr %%p\\n\",\\\n"
             "           dague_snprintf_execution_context(tmp1, 128, (TASKI)), (DEPI),\\\n"
-            "           (DEPO), dague_snprintf_assignments(tmp2, 128, (FUNO), (LOCALS))));\\\n"
+            "           (DEPO), dague_snprintf_assignments(tmp2, 128, (FUNO), (LOCALS)), (PTR)));\\\n"
             "  } while(0)\n"
             "#else\n"
-            "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST)\n"
-            "#define ACQUIRE_FLOW(TASKI, DEPI, TASKO, DEPO, LOCALS)\n"
+            "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST, DATA)\n"
+            "#define ACQUIRE_FLOW(TASKI, DEPI, TASKO, DEPO, LOCALS, PTR)\n"
             "#endif\n");
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -3076,13 +3076,13 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
             exit(1);
         }
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "tass", call));
-        coutput("%s    ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass);\n",
-                spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
 
         coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, tass ));\n"
                 "%s    chunk = entry->data[%d];  /* %s:%s <- %s:%s */\n",
                 spaces, call->func_or_mem, call->func_or_mem,
                 spaces, tflow->flow_index, f->varname, fname, call->var, call->func_or_mem);
+        coutput("%s  ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass, chunk);\n",
+                spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
     } else {
         coutput("%s    chunk = (dague_arena_chunk_t*) %s(%s);\n",
                 spaces, call->func_or_mem,
@@ -3506,7 +3506,7 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
-                                 dump_string, NULL, "", "  (void)", ";", "; (void)chunk; (void)entry;\n"));
+                                 dump_string, NULL, "", " (void)", ";", "; (void)chunk; (void)entry;\n"));
 
     dinfo.sa = sa2;
     dinfo.sa_test = sa_test;
@@ -3714,9 +3714,8 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                     case JDF_GUARD_UNCONDITIONAL:
                         if( NULL != dep->guard->calltrue->var ) {
                             if( 0 != cond_index ) coutput("    else {\n");
-                            coutput("    data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
-                                    "    (void)AUNREF(context->data[%d].data);\n",
-                                    dep->guard->calltrue->func_or_mem, dl->flow_index, dl->flow_index);
+                            coutput("    data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
+                                    dep->guard->calltrue->func_or_mem, dl->flow_index);
                             if( 0 != cond_index ) coutput("    }\n");
                         }
                         goto next_dependency;
@@ -3725,9 +3724,8 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                             coutput((0 == cond_index ? condition[0] : condition[1]),
                                     dump_expr((void**)dep->guard->guard, &info));
                             coutput("      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
-                                    "      (void)AUNREF(context->data[%d].data);\n"
                                     "    }\n",
-                                    dep->guard->calltrue->func_or_mem, dl->flow_index, dl->flow_index);
+                                    dep->guard->calltrue->func_or_mem, dl->flow_index);
                             cond_index++;
                         }
                         break;
@@ -3735,68 +3733,29 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                         if( NULL != dep->guard->calltrue->var ) {
                             coutput((0 == cond_index ? condition[0] : condition[1]),
                                     dump_expr((void**)dep->guard->guard, &info));
-                            coutput("      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
-                                    "      (void)AUNREF(context->data[%d].data);\n",
-                                    dep->guard->calltrue->func_or_mem, dl->flow_index, dl->flow_index);
+                            coutput("      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
+                                    dep->guard->calltrue->func_or_mem, dl->flow_index);
                             if( NULL != dep->guard->callfalse->var ) {
                                 coutput("    } else {\n"
-                                        "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
-                                        "      (void)AUNREF(context->data[%d].data);\n",
-                                        dep->guard->callfalse->func_or_mem, dl->flow_index, dl->flow_index);
+                                        "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
+                                        dep->guard->callfalse->func_or_mem, dl->flow_index);
                             }
                         } else if( NULL != dep->guard->callfalse->var ) {
                             coutput("    if( !(%s) ) {\n"
-                                    "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
-                                    "      (void)AUNREF(context->data[%d].data);\n",
+                                    "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
                                     dump_expr((void**)dep->guard->guard, &info),
-                                    dep->guard->callfalse->func_or_mem, dl->flow_index, dl->flow_index);
+                                    dep->guard->callfalse->func_or_mem, dl->flow_index);
                         }
                         coutput("    }\n");
                         goto next_dependency;
                     }
                 }
             }
-        } else if( dl->flow_flags & JDF_FLOW_TYPE_WRITE ) {
-            for( dep = dl->deps; dep != NULL; dep = dep->next ) {
-                assert( dep->dep_flags & JDF_DEP_FLOW_OUT );
-
-                switch( dep->guard->guard_type ) {
-                case JDF_GUARD_UNCONDITIONAL:
-                    if( NULL != dep->guard->calltrue->var ) {
-                        if( 0 != cond_index ) coutput("    else {\n");
-                        coutput("    (void)AUNREF(context->data[%d].data);\n", dl->flow_index);
-                        if( 0 != cond_index ) coutput("    }\n");
-                    }
-                    goto next_dependency;
-                case JDF_GUARD_BINARY:
-                    if( NULL != dep->guard->calltrue->var ) {
-                        coutput((0 == cond_index ? condition[0] : condition[1]),
-                                dump_expr((void**)dep->guard->guard, &info));
-                        coutput("      (void)AUNREF(context->data[%d].data);\n"
-                                "    }\n", dl->flow_index);
-                        cond_index++;
-                    }
-                    break;
-                case JDF_GUARD_TERNARY:
-                    if( NULL != dep->guard->calltrue->var ) {
-                        coutput((0 == cond_index ? condition[0] : condition[1]),
-                                dump_expr((void**)dep->guard->guard, &info));
-                        coutput("      (void)AUNREF(context->data[%d].data);\n", dl->flow_index);
-                        if( NULL != dep->guard->callfalse->var ) {
-                            coutput("    } else {\n"
-                                    "      (void)AUNREF(context->data[%d].data);\n", dl->flow_index);
-                        }
-                    } else if( NULL != dep->guard->callfalse->var ) {
-                        coutput("    if( !(%s) ) {\n"
-                                "      (void)AUNREF(context->data[%d].data);\n",
-                                dump_expr((void**)dep->guard->guard, &info), dl->flow_index);
-                    }
-                    coutput("    }\n");
-                    goto next_dependency;
-                }
-            }
         }
+
     next_dependency:
+        if( dl->flow_flags & (JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE) )
+            coutput("    (void)AUNREF(context->data[%d].data);\n", dl->flow_index);
         (void)jdf;  /* just to keep the compilers happy regarding the goto to an empty statement */
     }
     coutput("  }\n");
@@ -3814,9 +3773,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t *)context->dague_object;\n"
             "  dague_release_dep_fct_arg_t arg;\n"
             "  int __vp_id;\n"
-            "  arg.nb_released = 0;\n"
-            "  arg.output_usage = 0;\n"
             "  arg.action_mask = action_mask;\n"
+            "  arg.output_usage = 0;\n"
             "  arg.deps = deps;\n"
             "  arg.ready_lists = (NULL != eu) ? alloca(sizeof(dague_execution_context_t *) * eu->virtual_process->dague_context->nb_vp) : NULL;\n"
             "  if(NULL != eu) for( __vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
@@ -3838,7 +3796,6 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         coutput("#if defined(DISTRIBUTED)\n"
-                "  arg.remote_deps_count = 0;\n"
                 "  arg.remote_deps = NULL;\n"
                 "#endif\n");
 
@@ -3847,14 +3804,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 jdf_basename, f->fname);
 
         coutput("#if defined(DISTRIBUTED)\n"
-                "  if( 0 == arg.remote_deps_count ) {\n"
-                "    if( NULL != arg.remote_deps ) {\n"
-                "      remote_deps_free(arg.remote_deps);\n"
-                "      arg.remote_deps = NULL;\n"
-                "    }\n"
-                "  }\n"
-                "  else if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) ) {\n"
-                "    arg.nb_released += dague_remote_dep_activate(eu, context, arg.remote_deps, arg.remote_deps_count);\n"
+                "  if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) && (NULL != arg.remote_deps)) {\n"
+                "    dague_remote_dep_activate(eu, context, arg.remote_deps);\n"
                 "  }\n"
                 "#endif\n"
                 "\n");
@@ -3879,7 +3830,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     jdf_generate_code_free_hash_table_entry(jdf, f);
 
     coutput(
-        "  return arg.nb_released;\n"
+        "  return 0;\n"
         "}\n"
         "\n");
 }
@@ -4052,7 +4003,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     }
 
     string_arena_add_string(sa_open,
-                            "%s%sRELEASE_DEP_OUTPUT(eu, \"%s\", this_task, \"%s\", &%s, rank_src, rank_dst);\n",
+                            "%s%sRELEASE_DEP_OUTPUT(eu, \"%s\", this_task, \"%s\", &%s, rank_src, rank_dst, &data);\n",
                             prefix, indent(nbopen), flow->varname, call->var, var);
     free(linfo.assignments);
     linfo.assignments = NULL;
