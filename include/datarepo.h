@@ -179,7 +179,7 @@ __data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *rep
     DAGUE_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     DAGUE_STATMAX_UPDATE(counter_hashtable_collisions_size, repo->heads[h].size);
     dague_atomic_unlock(&repo->heads[h].lock);
-    DEBUG3(("entry %p/%ld of hash table %s has beel allocated with an usage count of %u/%u and is retained %d at %s:%d\n",
+    DEBUG3(("entry %p/%" PRIu64 " of hash table %s has been allocated with an usage count of %u/%u and is retained %d at %s:%d\n",
             e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained, file, line));
 
     return e;
