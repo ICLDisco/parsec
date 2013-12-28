@@ -28,9 +28,15 @@ STARTUP(i, j, k)
   READ A <- A(i, 0)
          -> A(i, 0)
 
-; inline_c %{ return pri == 2 ? random() : ((NJ*NK*i + NK*j + k)*pri); %}
+    ; prio
 
 BODY
+{
+#if defined(DEBUG_STARTUP_TASK)
+    fprintf(stderr, "priority(%d, %d, %d): %d\n",
+            i, j, k, prio );
+#endif
+}
 END
 
 extern "C" %{
