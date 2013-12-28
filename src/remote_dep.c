@@ -84,8 +84,14 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
     assert( (*deps)->output_sent_count <= (*deps)->output_count );
 
     if( (*deps)->output_count == (*deps)->output_sent_count ) {
+        int k, remote_dep_count = (*deps)->output_count;;
         DEBUG2(("Complete %d (%d/%d) outputs of dep %p (decreasing inflight messages)\n",
                 ncompleted, (*deps)->output_count, (*deps)->output_sent_count, *deps));
+        for(k = 0; remote_dep_count; k++) {
+            if( 0 == (*deps)->output[k].count_bits ) continue;
+            AUNREF((*deps)->output[k].data.ptr);
+            remote_dep_count -= (*deps)->output[k].count_bits;
+        }
         remote_dep_dec_flying_messages((*deps)->dague_object, ctx);
         /**
          * Decrease the refcount of each output data once to mark the completion
