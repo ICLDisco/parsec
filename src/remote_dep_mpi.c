@@ -1414,8 +1414,8 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
         if(!(deps->msg.output_mask & (1U<<k))) continue;
         /* Check for all CTL messages, that do not carry payload */
         if(NULL == deps->output[k].data.arena) {
-            DEBUG2(("MPI:\tHERE\t%d\tGet NONE\t% -8s\tk=%d\twith datakey %lx at <NA> type CONTROL extent 0\t(tag=%d)\n",
-                    deps->from, tmp, k, deps->msg.deps, tag+k));
+            DEBUG2(("MPI:\tHERE\t%d\tGet NONE\t% -8s\tk=%d\twith datakey %lx at <NA> type CONTROL\n",
+                    deps->from, tmp, k, deps->msg.deps));
             deps->output[k].data.ptr = (void*)2; /* the first non zero even value */
             complete_mask |= (1U<<k);
             continue;
