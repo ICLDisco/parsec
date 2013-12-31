@@ -287,6 +287,9 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                 him++;
 
                 if(remote_dep_bcast_child(me, him)) {
+                    if(remote_dep_is_forwarded(eu_context, output, rank))
+                        continue;
+
 #if DAGUE_DEBUG_VERBOSE >= 2
                     for(int flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
                         if( exec_context->function->out[flow_index]->flow_datatype_mask & (1<<i) ) {
@@ -298,9 +301,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         }
                     }
 #endif  /* DAGUE_DEBUG_VERBOSE */
-                    if(remote_dep_is_forwarded(eu_context, output, rank)) {
-                        continue;
-                    }
                     assert(output->parent->dague_object == exec_context->dague_object);
                     remote_dep_mark_forwarded(eu_context, output, rank);
                     keeper = dague_atomic_add_32b(&remote_deps->pending_ack, 1);
