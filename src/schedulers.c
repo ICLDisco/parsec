@@ -410,8 +410,8 @@ static int init_local_flat_queues( dague_context_t *master )
 {
     int p, t, nq = 1;
     dague_execution_unit_t *eu;
-    dague_vp_t *vp;
-    uint32_t queue_size;
+    const dague_vp_t *vp;
+    uint32_t queue_size = 0;
     local_queues_scheduler_object_t *sched_obj = NULL;
     int hwloc_levels;
 

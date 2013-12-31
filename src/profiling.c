@@ -411,11 +411,11 @@ static void write_down_existing_buffer(dague_profiling_buffer_t *buffer,
 #else
     if( lseek(file_backend_fd, buffer->this_buffer_file_offset, SEEK_SET) == (off_t)-1 ) {
         fprintf(stderr, "Warning profiling system: seek in the events backend file at %ld failed: %s. Events trace will be truncated.\n",
-                buffer->this_buffer_file_offset, strerror(errno));
+                (long)buffer->this_buffer_file_offset, strerror(errno));
     } else {
         if( (size_t)(write(file_backend_fd, buffer, event_buffer_size)) != event_buffer_size ) {
             fprintf(stderr, "Warning profiling system: write in the events backend file at %ld failed: %s. Events trace will be truncated.\n",
-                     buffer->this_buffer_file_offset, strerror(errno));
+                     (long)buffer->this_buffer_file_offset, strerror(errno));
         }
     }
     free(buffer);

@@ -116,6 +116,7 @@ if( MPI_C_FOUND )
   set(PROCS "-np;4")
   set(CORES "")
   #set(CORES "-c;1")
+
   # Check MPI
   add_test(mpi_test   ${MPI_TEST_CMD_LIST} ${PROCS} ${BINTRUE})
 
