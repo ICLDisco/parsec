@@ -130,7 +130,7 @@ CONTAINS
     CHARACTER(KIND=C_CHAR), ALLOCATABLE        :: c_hdr_id(:)
     INTEGER                                    :: i
 
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_hdr_id(LEN_TRIM(hdr_id)+1))
+    ALLOCATE(c_hdr_id(LEN_TRIM(hdr_id)+1))
     c_hdr_id(:) = (/ (hdr_id(i:i), i = 1, LEN_TRIM(hdr_id)), c_null_char /)
     call dague_profile_init_f08(c_hdr_id, c_err)
     if(present(ierr)) ierr = c_err;
@@ -180,9 +180,9 @@ CONTAINS
     CHARACTER(KIND=C_CHAR), ALLOCATABLE        :: c_fname(:)
     CHARACTER(KIND=C_CHAR), ALLOCATABLE        :: c_hr_info(:)
 
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_fname(LEN(fname)+1))
+    ALLOCATE(c_fname(LEN(fname)+1))
     c_fname = fname // c_null_char
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_hr_info(LEN(hr_info)+1))
+    ALLOCATE(c_hr_info(LEN(hr_info)+1))
     c_hr_info = hr_info // c_null_char
     call dague_profile_start_f08(c_fname, c_hr_info, c_err)
     if(present(ierr)) ierr = c_err;
@@ -202,7 +202,7 @@ CONTAINS
     INTEGER                                   :: i
 
     c_length = length
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_id_name(LEN_TRIM(id_name)+1))
+    ALLOCATE(c_id_name(LEN_TRIM(id_name)+1))
     c_id_name(:) = (/ (id_name(i:i), i = 1, LEN_TRIM(id_name)), c_null_char /)
     dague_profile_thread_init = dague_profile_thread_init_f08(c_length, c_id_name)
     DEALLOCATE(c_id_name)
@@ -228,11 +228,11 @@ CONTAINS
     INTEGER                                    :: i
 
     c_info_length = info_length
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_key_name(LEN_TRIM(key_name)+1))
+    ALLOCATE(c_key_name(LEN_TRIM(key_name)+1))
     c_key_name(:) = (/ (key_name(i:i), i = 1, LEN_TRIM(key_name)), c_null_char /)
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_attr(LEN_TRIM(attr)+1))
+    ALLOCATE(c_attr(LEN_TRIM(attr)+1))
     c_attr(:) = (/ (attr(i:i), i = 1, LEN_TRIM(attr)), c_null_char /)
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_conv_code(LEN_TRIM(conv_code)+1))
+    ALLOCATE(c_conv_code(LEN_TRIM(conv_code)+1))
     c_conv_code(:) = (/ (conv_code(i:i), i = 1, LEN_TRIM(conv_code)), c_null_char /)
     call dague_profile_add_dictionary_keyword_f08(c_key_name, c_attr, c_info_length, &
                                                   c_conv_code, c_key_start, c_key_end, c_err)
