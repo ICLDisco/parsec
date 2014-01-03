@@ -810,9 +810,9 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
         /* Skip all non CUDA devices */
         if( DAGUE_DEV_CUDA != gpu_device->super.type ) continue;
-
-        dump_GPU_state(gpu_device);
-            
+#if 0
+        dump_GPU_state(gpu_device); // debug only
+#endif            
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_data_unregister) cuCtxPushCurrent ", status,
                                 {continue;} );
