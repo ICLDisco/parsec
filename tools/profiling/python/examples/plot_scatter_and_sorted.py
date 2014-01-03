@@ -8,6 +8,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import mpl_prefs
 import binprof_utils as pbp_utils
+import papi_core_utils
 import os, sys
 import itertools
 
@@ -186,7 +187,7 @@ if __name__ == '__main__':
             for event_name in profiles[0].event_types.keys():
                 if event_name.startswith('PAPI_CORE_EXEC_'):
                     event_types.append(event_name)
-                    y_axes = pbp.papi_core_evt_value_lbls[event_name]
+                    y_axes = papi_core_utils.PAPICoreEventValueLabelGetter()[event_name]
                     break
             event_subtypes = mpl_prefs.kernel_names[profiles[0].exe][:1]
 

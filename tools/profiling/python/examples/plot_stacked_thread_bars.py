@@ -12,26 +12,6 @@ import pandas as pd
 
 bar_width = 0.8
 
-def longest_substr(data):
-    substr = ''
-    if len(data) > 1 and len(data[0]) > 0:
-        for i in range(len(data[0])):
-            for j in range(len(data[0])-i+1):
-                if j > len(substr) and is_substr(data[0][i:i+j], data):
-                    substr = data[0][i:i+j]
-    return substr
-
-def is_substr(find, data):
-    if len(data) < 1 and len(find) < 1:
-        return False
-    for i in range(len(data)):
-        if find not in data[i]:
-            return False
-    return True
-
-def rreplace(s, old, new, count = 1):
-    return (s[::-1].replace(old[::-1], new[::-1], count))[::-1]
-
 patches = []
 patch_names = []
 for name, color in mpl_prefs.task_slice_colors.iteritems():
@@ -41,6 +21,7 @@ for name, color in mpl_prefs.task_slice_colors.iteritems():
 if __name__ == '__main__':
     min_trials = sys.maxint
     filenames = []
+    hid = 1
 
     for index, arg in enumerate(sys.argv[1:]):
         if os.path.exists(arg):
@@ -71,7 +52,14 @@ if __name__ == '__main__':
 
         # this pandas builtin allows a one-time grouping of the events
         # instead of a new iteration over all the events per thread
-        thread_group_events = profile.events.groupby(['thread_id', 'type'])
+        handle_group_events = profile.events.groupby('handle_id')
+        large_handle_size = 0
+        for h_id, handle_group in handle_group_events:
+            if len(handle_group) > large_handle_size:
+                large_handle_size = len(handle_group)
+                hid = h_id
+        print('selecting only events of handle', hid)
+        thread_group_events = profile.events.groupby(['thread_id', 'type', 'handle_id'])
         # but since the groups may be out-of-order, we need to prepare to
         # collect the information, then sum it, and then plot it in a separate loop
         # after sorting the sums:
@@ -80,18 +68,22 @@ if __name__ == '__main__':
         thread_bars = dict()
         for th_id in profile.threads['id']:
             thread_bars[th_id] = dict()
-            thread_bars[th_id]['thread_duration'] = profile.threads['duration'][
-                profile.threads['id'] == th_id]
+            threads = profile.threads[:][profile.threads['id'] == th_id]
+            thread_bars[th_id]['thread_duration'] = threads['duration']
+            thread_bars[th_id]['thread_begin'] = threads.iloc[0]['begin']
+            thread_bars[th_id]['thread_end'] = threads.iloc[0]['end']
+            thread_bars[th_id]['first'] = sys.maxint
 
         # COLLECT AND SUM
-        for (th_id, event_type), group in thread_group_events:
+        for (th_id, event_type, handle_id), group in thread_group_events:
+            if event_type != select_event and handle_id != hid:
+                continue
             total = group['duration'].sum()
-            div = 1000000
-            median = group['duration'].median() * len(group)
-            # print(th_id, event_type, profile.event_names[event_type],
-            #       len(group), 'time:', total/div, '*10^6',
-            #       'median_evt * num_evts:', median/div, '*10^6', 'th_dur:',
-            #       thread_bars[th_id]['thread_duration']/div, '*10^6')
+
+            first = group['begin'].min()
+            if first < thread_bars[th_id]['first']:
+                thread_bars[th_id]['first'] = first
+
             if select_event == event_type:
                 selection_time = group['selection_time'].sum()
                 if total >= selection_time:
@@ -109,6 +101,12 @@ if __name__ == '__main__':
         # PLOT
         for th_id, bar_data in thread_bars.iteritems():
             bottom_sum = 0.0
+            early_framework_time = bar_data['first'] - bar_data['thread_begin']
+            ax.bar(th_id + 0.1, early_framework_time,
+                   bottom=bottom_sum, width=bar_width, linewidth=0,
+                   color=mpl_prefs.task_slice_colors['Framework'])
+            bottom_sum += early_framework_time
+
             for key, bar_color in mpl_prefs.task_slice_colors.iteritems():
                 try: # the event type may not be present in the bar data
                     # print('key {} th_id {} val {}'.format(key, th_id, bar_data[key]))
@@ -117,7 +115,7 @@ if __name__ == '__main__':
                     bottom_sum += bar_data[key]
                 except KeyError as e:
                     pass # but if it wasn't present, no problem
-            # now also plot the framework value (the rest)
+            # now also plot the rest of the framework value
             th_duration = bar_data['thread_duration'].sum()
             framework_time = th_duration - bottom_sum
             if framework_time < 0:
@@ -143,5 +141,8 @@ if __name__ == '__main__':
             'N={}, NB={}, sched {}, {} gflops/s, {} s elapsed'.format(
                 profile.N, profile.NB, profile.sched, profile.gflops, profile.time_elapsed) )
         figure.set_size_inches(10, 7)
-        figure.savefig('stacked_thread_bars_{}.pdf'.format(profile.unique_name().rstrip('_')), dpi=300, bbox_inches='tight')
+        figure.savefig(
+            'stacked_thread_bars_{}.pdf'.format(
+                profile.unique_name(add_infos=['N','NB']).rstrip('_')),
+            dpi=300, bbox_inches='tight')
         print('done {}'.format(profile))

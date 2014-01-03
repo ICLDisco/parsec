@@ -19,32 +19,22 @@ import re
 import shutil
 import numpy as np
 import pandas as pd
+from common_utils import *
 
 import warnings # because these warnings are annoying, and I can find no way around them.
 warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
+warnings.simplefilter(action = "ignore", category = FutureWarning)
 
 p3_core = '.h5-'
+
+default_descriptors = ['hostname', 'exe', 'ncores', 'sched']
 
 class ParsecProfile(object):
     class_version = 1.0 # created 2013.10.22 after move to pandas
     basic_event_columns = ['node_id', 'thread_id',  'handle_id', 'type',
-                           'begin', 'end', 'duration', 'flags', 'unique_id', 'id']
+                           'begin', 'end', 'duration', 'flags', 'id']
     HDF_TOP_LEVEL_NAMES = ['event_types', 'event_names', 'event_attributes',
                            'nodes', 'threads', 'information', 'errors']
-    default_descriptors = ['hostname', 'exe', 'ncores', 'sched']
-    @staticmethod
-    def from_hdf(filename, skeleton_only=False):
-        store = pd.HDFStore(filename, 'r')
-        top_level = list()
-        if not skeleton_only:
-            events = store['events']
-        else:
-            events = None
-        for name in ParsecProfile.HDF_TOP_LEVEL_NAMES:
-            top_level.append(store[name])
-        profile = ParsecProfile(events, *top_level)
-        profile._store = store
-        return profile
 
     # the init function should not ordinarily be used
     # it is better to use from_hdf(), from_native(), or autoload()
@@ -62,8 +52,8 @@ class ParsecProfile(object):
         self.errors = errors
         # metadata
         self.basic_columns = ParsecProfile.basic_event_columns
-    def to_hdf(self, filename, table=False, append=False, complevel=0,
-               complib='blosc'):
+
+    def to_hdf(self, filename, table=False, append=False, complevel=0, complib='blosc'):
         store = pd.HDFStore(filename + '.tmp', 'w')
         for name in ParsecProfile.HDF_TOP_LEVEL_NAMES:
             store.put(name, self.__dict__[name])
@@ -72,40 +62,31 @@ class ParsecProfile(object):
         # do atomic move once it's finished writing,
         # so as to allow Ctrl-Cs without secret breakage
         shutil.move(filename + '.tmp', filename)
+
     # this allows certain 'acceptable' attribute abbreviations
     # and automatically searches the 'information' dictionary
     def __getattr__(self, name):
-        if name == 'exe':
-            try:
-                m = re.match('.*testing_(\w+)', self.information['exe'])
-                return m.group(1)
-            except Exception as e:
-                pass
         try:
-            return self.information[name]
-        except:
-            pass
-        try:
-            return self.information[str(name).upper()]
-        except:
-            pass
-        try:
-            return self.information['PARAM_' + str(name).upper()]
+            return nice_val(self.information, raw_key(self.information, name))
         except:
             return object.__getattribute__(self, name)
-        # potentially add one more set of 'known translations'
-        # such as 'perf' -> 'gflops', 'ex' -> 'exname'
+    def __getitem__(self, name):
+        return self.__getattr__(name)
+
     def __repr__(self):
-        return self.descrip()
-    def descrip(self, infos=default_descriptors):
-        desc = ''
-        for info in infos:
-            desc += str(self.__getattr__(info)) + ' '
-        return desc[:-1]
-    def name(self, infos=default_descriptors):
-        return self.descrip(infos).replace(' ', '_')
-    def unique_name(self, infos=default_descriptors + ['start_time']):
-        return self.descrip(infos).replace(' ', '_')
+        return describe_dict(self.information)
+
+    def name(self, infos=default_descriptors, add_infos=None):
+        if not infos:
+            infos = []
+        if add_infos:
+            infos += add_infos
+        return describe_dict(self.information, keys=infos, sep='_')
+
+    def unique_name(self, add_infos=None):
+        infos = default_descriptors + ['start_time']
+        return self.name(infos=infos, add_infos=add_infos)
+
     # use with care - does an eval() on self'user text' when 'user text' starts with '.'
     def filter_events(self, filter_strings):
         events = self.events
@@ -117,6 +98,58 @@ class ParsecProfile(object):
                 value = eval(eval_str)
             events = events[:][events[key] == value]
         return events
+
+    def close(self):
+        try:
+            self._store.close()
+        except:
+            pass
+
+    def __del__(self):
+        self.close()
+
+
+def raw_key(dict_, name):
+    """ Converts a simple key name into the actual key name by PaRSEC rules."""
+    try:
+        dict_[name]
+        return name
+    except:
+        pass
+    try:
+        dict_[str(name).upper()]
+        return str(name).upper()
+    except:
+        pass
+    try:
+        dict_['PARAM_' + str(name).upper()]
+        return 'PARAM_' + str(name).upper()
+    except:
+        return name
+
+
+def from_hdf(filename, skeleton_only=False, keep_store=False):
+    """ Loads a PaRSEC profile from an existing HDF5 format file."""
+    store = pd.HDFStore(filename, 'r')
+    top_level = list()
+    if not skeleton_only:
+        events = store['events']
+    else:
+        events = pd.DataFrame()
+    try:
+        for name in ParsecProfile.HDF_TOP_LEVEL_NAMES:
+            top_level.append(store[name])
+    except KeyError as ke:
+        print(ke)
+        print(store['information'])
+        raise ke
+    profile = ParsecProfile(events, *top_level)
+    if keep_store:
+        profile._store = store
+    else:
+        store.close()
+    return profile
+
 
 def find_profile_sets(profiles, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sched', 'exe', 'hostname'] ):
     profile_sets = dict()
@@ -144,7 +177,6 @@ def automerge_profile_sets(profile_sets):
     merged_profiles = list()
     for p_set in profile_sets:
         merged_profile = p_set[0]
-        merged_info = p_set[0].information
         for profile in p_set[1:]:
             # ADD UNIQUE ID
             #
@@ -155,7 +187,8 @@ def automerge_profile_sets(profile_sets):
                 start_time_array = np.empty(len(merged_profile.events), dtype=int)
                 start_time_array.fill(merged_profile.start_time)
                 merged_profile.events['start_time'] = pd.Series(start_time_array)
-                merged_profile.threads['start_time'] = pd.Series(start_time_array[:len(merged_profile.threads)])
+                merged_profile.threads['start_time'] = pd.Series(
+                    start_time_array[:len(merged_profile.threads)])
             start_time_array = np.empty(len(profile.events), dtype=int)
             start_time_array.fill(profile.start_time)
             events = profile.events
@@ -166,26 +199,32 @@ def automerge_profile_sets(profile_sets):
             merged_profile.events = pd.concat([merged_profile.events, events])
             merged_profile.nodes = pd.concat([merged_profile.nodes, profile.nodes])
             merged_profile.threads = pd.concat([merged_profile.threads, threads])
-            # INFORMATION MERGE
-            #
-            # drop values which are not present and equal in all dictionaries...
-            # except for floating-point values, which we average!
-            mult = 1.0 / len(p_set)
-            for key, value in profile.information.iteritems():
-                if key not in merged_info: # not present
-                    merged_info.drop(key)
-                elif value != merged_info[key]:
-                    try:
-                        temp_fl = float(value)
-                        if '.' in str(value):
-                            # do average
-                            if profile == p_set[1]:
-                                merged_info[key] = merged_info[key] * mult
-                            merged_info[key] += value * mult
-                        else: # not float
-                            merged_info.drop(key)
-                    except: # not equal and not float
-                        merged_info.drop(key)
-        merged_profile.information = merged_info
+        merged_profile.information = match_dicts([profile.information for profile in p_set])
         merged_profiles.append(merged_profile)
     return merged_profiles
+
+
+def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None):
+    description = str()
+    used_keys = []
+    for key in keys:
+        real_key = raw_key(dict_, key)
+        try:
+            if real_key in used_keys:
+                continue # exclude duplicates
+            used_keys.append(real_key)
+            value = str(nice_val(dict_, real_key))
+            if key_val_sep is not None:
+                description += str(key) + key_val_sep
+            description += value + sep
+        except KeyError as e:
+            pass # key doesn't exist - just ignore
+    return description[:-len(sep)] # remove last 'sep'
+
+def nice_val(dict_, key):
+    """ Edits return values for common usage."""
+    if key == 'exe':
+        m = re.match('.*testing_(\w+)', dict_[key])
+        return m.group(1)
+    else:
+        return dict_[key]

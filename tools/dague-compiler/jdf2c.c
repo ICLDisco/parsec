@@ -2478,11 +2478,13 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
 {
     jdf_body_t* body = f->bodies;
     jdf_def_list_t* type_property;
+    jdf_def_list_t* dyld_property;
 
     (void)jdf;
     string_arena_add_string(sa, "static const __dague_chore_t __%s_chores[] ={\n", base_name);
     do {
         jdf_find_property(body->properties, "type", &type_property);
+        jdf_find_property(body->properties, "dyld", &dyld_property);
         if( NULL == type_property) {
             string_arena_add_string(sa, "    { .type     = DAGUE_DEV_CPU,\n");
             string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
@@ -2490,6 +2492,7 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
         } else {
             string_arena_add_string(sa, "#if defined(HAVE_%s)\n", type_property->expr->jdf_var);
             string_arena_add_string(sa, "    { .type     = DAGUE_DEV_%s,\n", type_property->expr->jdf_var);
+            string_arena_add_string(sa, "      .dyld     = \"%s\",\n", (NULL==dyld_property)?"NULL":dyld_property->expr->jdf_var);
             string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
             string_arena_add_string(sa, "      .hook     = hook_of_%s_%s },\n", base_name, type_property->expr->jdf_var);
             string_arena_add_string(sa, "#endif  /* defined(HAVE_%s) */\n", type_property->expr->jdf_var);

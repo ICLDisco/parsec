@@ -2,18 +2,19 @@
 
 from __future__ import print_function
 import os
-from parsec_profiling import *
+import parsec_profiling as p3
 import parsec_binprof as pbp
+import papi_core_utils
 import numpy as np
 import time
 
 class Timer:
     def __enter__(self):
-        self.start = time.clock()
+        self.start = time.time()
         return self
 
     def __exit__(self, *args):
-        self.end = time.clock()
+        self.end = time.time()
         self.interval = self.end - self.start
 
 # profiling stuff
@@ -37,11 +38,10 @@ def do_demo(filenames, translate=False):
                 print('First, we load the HDFed profile...')
             else:
                 print('First, we read the binary profile and convert it to pandas format.')
-                filenames[0] = pbp.convert(filenames,
-                                           report_progress=True,
-                                           skeleton_only=False, unlink=False)
+                filenames[0] = pbp.convert(filenames, report_progress=True, unlink=False,
+                                           multiprocess=True)
                 print('Then, we read the HDFed profile...')
-            profile = ParsecProfile.from_hdf(filenames[0])
+            profile = p3.ParsecProfile.from_hdf(filenames[0])
 
         print('The load took {} seconds.'.format(t.interval))
         print('')
@@ -76,49 +76,50 @@ def do_demo(filenames, translate=False):
 
         print('')
 
-        clevel = 1
-        # print('Testing re-store as compressed HDF5')
-        # with Timer() as t:
-        #     profile.events.to_hdf('test_events.hdf5', 'events', complevel=clevel, complib='blosc')
-        # print('took {} to write only the events to HDF5, compression level {}\n'.format(t.interval,clevel))
-        print('Testing re-store as table HDF5')
-        with Timer() as t:
-            profile.to_hdf('test_table.hdf5', table=True, append=False)
-        print('took {} to write the HDF5 table\n'.format(t.interval))
-        print('Testing re-store as Storer HDF5')
-        with Timer() as t:
-            profile.to_hdf('test_storer.hdf5', table=False, append=False)
-        print('took {} to write the HDF5 storer\n'.format(t.interval))
-        # with Timer() as t:
-        #     new_store = pd.HDFStore('test_events.hdf5_store', 'w', complevel=clevel, complib='blosc')
-        #     new_store.put('events', profile.events, table=False)
-        # print('took {} to PUT only the events to HDF5, compression level {}\n'.format(t.interval,clevel))
-        # with Timer() as t:
-        #     profile.events = pd.read_hdf('test_events.hdf5', 'events')
-        #     print(profile.events[profile.basic_columns].describe())
-        # print('There are ' + str(len(profile.events)) + ' events in this profile',
-        #       'and they took {} seconds to read & describe.'.format(t.interval))
-        with Timer() as t:
-            profile = ParsecProfile.from_hdf('test_table.hdf5')
-        print('There are ' + str(len(profile.events)) + ' events in this profile',
-              'and they took {} seconds to read'.format(t.interval))
-        with Timer() as t:
-            print(profile.events[profile.basic_columns].describe())
-        print(' and {} seconds to describe.'.format(t.interval))
-        # with Timer() as t:
-        #     profile.to_hdf('test.hdf5', complevel=clevel)
-        # print('took {} to write entire file to HDF5, compression level {}'.format(t.interval,clevel))
+        clevel = None
+        if clevel:
+            # print('Testing re-store as compressed HDF5')
+            # with Timer() as t:
+            #     profile.events.to_hdf('test_events.hdf5', 'events', complevel=clevel, complib='blosc')
+            # print('took {} to write only the events to HDF5, compression level {}\n'.format(t.interval,clevel))
+            print('Testing re-store as table HDF5')
+            with Timer() as t:
+                profile.to_hdf('test_table.hdf5', table=True, append=False)
+            print('took {} to write the HDF5 table\n'.format(t.interval))
+            print('Testing re-store as Storer HDF5')
+            with Timer() as t:
+                profile.to_hdf('test_storer.hdf5', table=False, append=False)
+            print('took {} to write the HDF5 storer\n'.format(t.interval))
+            # with Timer() as t:
+            #     new_store = pd.HDFStore('test_events.hdf5_store', 'w', complevel=clevel, complib='blosc')
+            #     new_store.put('events', profile.events, table=False)
+            # print('took {} to PUT only the events to HDF5, compression level {}\n'.format(t.interval,clevel))
+            # with Timer() as t:
+            #     profile.events = pd.read_hdf('test_events.hdf5', 'events')
+            #     print(profile.events[profile.basic_columns].describe())
+            # print('There are ' + str(len(profile.events)) + ' events in this profile',
+            #       'and they took {} seconds to read & describe.'.format(t.interval))
+            with Timer() as t:
+                profile = ParsecProfile.from_hdf('test_table.hdf5')
+            print('There are ' + str(len(profile.events)) + ' events in this profile',
+                  'and they took {} seconds to read'.format(t.interval))
+            with Timer() as t:
+                print(profile.events[profile.basic_columns].describe())
+            print(' and {} seconds to describe.'.format(t.interval))
+            # with Timer() as t:
+            #     profile.to_hdf('test.hdf5', complevel=clevel)
+            # print('took {} to write entire file to HDF5, compression level {}'.format(t.interval,clevel))
 
-        # print ('Testing write to CSV...')
-        # with Timer() as t:
-        #     profile.events.to_csv('test.csv', complevel=clevel, complib='blosc' )
-        # print('took {} to write to csv, clevel {}'.format(t.interval, clevel))
+            # print ('Testing write to CSV...')
+            # with Timer() as t:
+            #     profile.events.to_csv('test.csv', complevel=clevel, complib='blosc' )
+            # print('took {} to write to csv, clevel {}'.format(t.interval, clevel))
 
         print('Now, we will select only the PAPI_CORE_EXEC* events via a simple operation.')
         for event_name in profile.event_types.keys():
             if event_name.startswith('PAPI_CORE_EXEC'):
                 break
-        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types[event_name])]
+        onlyexec = profile.events[:][ profile.events['type'] == profile.event_types[event_name] ]
         print('Notice how the description of this subset is very different:')
         print(onlyexec[profile.basic_columns].describe())
         print('')
@@ -127,20 +128,20 @@ def do_demo(filenames, translate=False):
         print('syntax that is used to pick rows out of any regular DataFrame.\n')
         onlyexec = onlyexec[:][onlyexec.thread_id == 7]
         print('Again, our view of the dataframe has changed:')
-        print(onlyexec[profile.basic_columns].describe().loc['count':'std',:])
+        print(onlyexec[profile.basic_columns].describe()[:]['count':'std'])
         print('')
         print('It is also possible to perform both operations in one query, like so:')
-        onlyexec = profile.events[:][ (profile.events['type'] == profile.event_types[event_name])
-                                  & (profile.events.thread_id == 7)]
+        onlyexec = profile.events[:][(profile.events['type'] == profile.event_types[event_name]) &
+                                     (profile.events.thread_id == 7) ]
         print('Note that the description is the same as for the previous subset.')
-        print(onlyexec[profile.basic_columns].describe().loc['count':'std',:])
+        print(onlyexec[profile.basic_columns].describe()[:]['count':'std'])
         print('')
         print('Now, a simple sort of EXEC events from thread 7 by duration, in ascending order.')
         with Timer() as t:
             srted = onlyexec.sort_index(by=['duration'], ascending=[True])
         print('That sort only took ' + str(t.interval) + ' seconds.')
 
-        pce_vals = pbp.papi_core_evt_value_lbls
+        pce_vals = papi_core_utils.PAPICoreEventValueLabelGetter()
 
         print('To show that we\'ve sorted the events, we print the first five,')
         print('middle five, and last five events in the dataframe:')
@@ -172,11 +173,11 @@ def do_demo(filenames, translate=False):
         srted = srted[:][srted.kernel_type == profile.event_types['SYRK']]
         pce_names = pce_vals[event_name]
         print('Now we print L1 and L2 misses for this second item in this set of events:\n')
-        print('sorted SYRK execs, index 10, kernel type: ' +
+        print('sorted SYRK execs, index 1, kernel type: ' +
               str(srted.iloc[1]['kernel_type']))
-        print('sorted SYRK execs, index 10, {}: '.format(
+        print('sorted SYRK execs, index 1, {}: '.format(
             pce_names[0]) + str(srted.iloc[1][pce_names[0]]))
-        print('sorted SYRK execs, index 10, {}: '.format(
+        print('sorted SYRK execs, index 1, {}: '.format(
             pce_names[1]) + str(srted.iloc[1][pce_names[1]]))
         print('')
 

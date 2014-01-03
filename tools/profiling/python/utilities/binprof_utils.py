@@ -2,6 +2,8 @@
 import parsec_binprof as pbp
 import parsec_profiling as p3
 import sys, os, shutil, re # file utilities, etc.
+import multiprocessing
+import functools
 
 filename_regex = re.compile('(\w+).*(\.prof|\.h5)(.*)-([a-zA-Z0-9]{6})')
 
@@ -65,7 +67,7 @@ def group_profile_filenames(filenames, group_by=group_by_defaults):
             filename_groups.append([filename])
         else:
             # initially group by start_time
-            infonly_prof = pbp.get_info([filename])
+            infonly_prof = pbp.read([filename], skeleton_only=True)
             start_time = infonly_prof.information['start_time']
             if start_time not in infonly_prof_groups:
                 infonly_prof_groups[start_time] = list()
@@ -105,14 +107,14 @@ def group_profile_filenames(filenames, group_by=group_by_defaults):
         group_filenames = []
         for prof in prof_group:
             group_filenames.append(prof.filename)
-        joint_prof = pbp.get_info(group_filenames)
+        joint_prof = pbp.read(group_filenames, skeleton_only=True)
         if joint_prof.last_error != 0:
             print('error! dbpreader.c error # {}'.format(joint_prof.last_error))
             print('retrying with apparently conflicting files...')
             # try again with excluded?
             for prof in prof_group.conflicts:
                 group_filenames.append(prof.filename)
-            joint_prof = pbp.get_info(group_filenames)
+            joint_prof = pbp.read(group_filenames, skeleton_only=True)
             if joint_prof.last_error != 0:
                 print('error! dbpreader.c error # {}'.format(joint_prof.last_error))
                 print('skipping this set of files:')
@@ -134,8 +136,7 @@ def enhance_profile_filenames(filenames, name_infos=default_name_infos,
     if p3.p3_core in filenames[0]:
         profile = p3.ParsecProfile.from_hdf(filenames[0], skeleton_only=True)
     else:
-        import parsec_binprof as pbp
-        profile = pbp.get_info(filenames)
+        profile = pbp.read(filenames, skeleton_only=True)
         if profile.last_error != 0:
             print('{} does not appear to be a reasonable set of filenames.'.format(filenames))
             if not force_enhance:
@@ -157,6 +158,7 @@ def enhance_profile_filenames(filenames, name_infos=default_name_infos,
         except:
             new_chunk += str(value).upper()
         new_chunk += '-'
+    profile.close()
 
     for filename in filenames:
         full_filename = os.path.abspath(filename)
@@ -243,19 +245,21 @@ def autoload_profiles(filenames, convert=True, unlink=False,
     groups_or_names = preprocess_profiles(filenames, convert=convert, unlink=unlink,
                                           enhance_filenames=enhance_filenames)
 
-    # raw_input('pause before true load?')
-
     # TODO: after preprocessing, should we check for a converted version anyway?
 
-    for group in groups_or_names:
-        if convert: # if we converted in the previous preprocessing step
-            print('loading P3 {}'.format(group))
-            profile = p3.ParsecProfile.from_hdf(group, skeleton_only=skeleton_only)
-        else: # we didn't convert, so these are PBP filename lists
+    if convert: # if we converted in the previous preprocessing step
+        pool = multiprocessing.Pool(multiprocessing.cpu_count())
+        print('loading P3s...')
+        partial_from_hdf = functools.partial(p3.from_hdf, skeleton_only=skeleton_only)
+        profiles = pool.map(partial_from_hdf, groups_or_names)
+        print('loaded all P3s.')
+        # profile = p3.ParsecProfile.from_hdf(group, skeleton_only=skeleton_only)
+    else: # we didn't convert, so these are PBP filename lists
+        for group in groups_or_names:
             import parsec_binprof as pbp # don't do this if not necessary
             print('loading PBP group {}'.format(group))
             profile = pbp.read(group, skeleton_only=skeleton_only)
-        profiles.append(profile)
+            profiles.append(profile)
     return profiles
 
 def get_partner_name(filename):
@@ -265,6 +269,11 @@ def get_partner_name(filename):
         return filename.replace(filename.replace(pbp.pbp_core, p3.p3_core))
     else:
         return filename
+
+def compress_h5(filename, clevel=5):
+    if p3.p3_core in filename:
+        os.system('h5repack -f GZIP={} {} {}'.format(clevel, filename, filename + '.ctmp'))
+        shutil.move(filename + '.ctmp', filename)
 
 def print_help():
     print('')
@@ -322,6 +331,10 @@ if __name__ == '__main__':
             revert_profile_filenames(filenames, dry_run=dry_run)
         else:
             print('You chose not to revert the filenames. Utility now exiting.')
+        sys.exit(0)
+    if '--compress' in args:
+        pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+        pool.map(compress_h5, filenames)
         sys.exit(0)
 
     if '--help' in args:

@@ -165,7 +165,7 @@ END
  *                      GEMM                      *
  **************************************************/
 // Name
-GEMM(k, m, n)
+GEMM(k, m, n)  [profile = off]
 
 // Execution space
 k = 0..descA.mt-3
@@ -184,7 +184,7 @@ RW    C <- (k == 0)   ? dataA(m, n)      : C GEMM(k-1, m, n)
 ; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - n - m - 3) * (n - m) + 6 * (n - k) : 1000000000
 //;  (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n - m) * ((descA.nt - m - k + 1) / 2 + 2) - 1 + (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 + descA.nt - m + k + 1 : 0
 
-BODY [type = CUDA]
+BODY [type=CUDA dyld=magmablas_ZGEMM]
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );

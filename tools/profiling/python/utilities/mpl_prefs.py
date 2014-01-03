@@ -30,3 +30,8 @@ task_slice_colors = {
     'Completion': 'gold',
     'Framework': 'gray',
 }
+
+colors = {
+    'sched': sched_colors,
+}
+

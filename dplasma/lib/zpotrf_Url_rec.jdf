@@ -166,7 +166,7 @@ END
  *                      GEMM                      *
  **************************************************/
 // Name
-GEMM(k, m, n)
+GEMM(k, m, n) [profile = off]
 
 // Execution space
 k = 0..descA.mt-3
