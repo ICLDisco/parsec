@@ -1089,6 +1089,9 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
     int peer, position = 0;
 
     peer = item->cmd.activate.peer;  /* this doesn't change */
+    deps = (dague_remote_deps_t*)item->cmd.activate.task.deps;
+    TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act,
+                        eu_context->virtual_process->dague_context->my_rank, peer, deps->msg);
   pack_more:
     assert(peer == item->cmd.activate.peer);
 
@@ -1111,8 +1114,6 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
     }
     *head_item = item;
 
-    TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act,
-                        eu_context->virtual_process->dague_context->my_rank, peer, deps->msg);
     DAGUE_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, packed, MPI_PACKED);
     MPI_Send((void*)packed_buffer, position, MPI_PACKED, peer, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
