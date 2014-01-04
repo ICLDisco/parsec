@@ -710,8 +710,8 @@ enum {
 
 #ifdef DAGUE_PROF_TRACE
 static dague_thread_profiling_t* MPIctl_prof;
-static dague_thread_profiling_t** MPIsnd_prof;
-static dague_thread_profiling_t** MPIrcv_prof;
+static dague_thread_profiling_t* MPIsnd_prof;
+static dague_thread_profiling_t* MPIrcv_prof;
 static unsigned long act = 0;
 static int MPI_Activate_sk, MPI_Activate_ek;
 static unsigned long get = 0;
@@ -729,8 +729,6 @@ static char dague_profile_remote_dep_mpi_info_to_string[] = "";
 
 static void remote_dep_mpi_profiling_init(void)
 {
-    int i;
-
     dague_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#FF0000",
                                             sizeof(dague_profile_remote_dep_mpi_info_t),
                                             dague_profile_remote_dep_mpi_info_to_string,
@@ -749,27 +747,15 @@ static void remote_dep_mpi_profiling_init(void)
                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
 
     MPIctl_prof = dague_profiling_thread_init( 2*1024*1024, "MPI ctl");
-    MPIsnd_prof = (dague_thread_profiling_t**)calloc(dague_comm_activations_max,
-                                                     sizeof(dague_thread_profiling_t*));
-    MPIrcv_prof = (dague_thread_profiling_t**)calloc(dague_comm_activations_max,
-                                                     sizeof(dague_thread_profiling_t*));
-    for(i = 0; i < dague_comm_activations_max; i++) {
-        MPIsnd_prof[i] = dague_profiling_thread_init( 2*1024*1024, "MPI isend(req=%d)", i);
-        MPIrcv_prof[i] = dague_profiling_thread_init( 2*1024*1024, "MPI irecv(req=%d)", i);
-    }
+    MPIsnd_prof = dague_profiling_thread_init( 2*1024*1024, "MPI isend");
+    MPIrcv_prof = dague_profiling_thread_init( 2*1024*1024, "MPI irecv");
 }
 
 static void remote_dep_mpi_profiling_fini(void)
 {
-    int i;
-
-    for(i = 0; i < dague_comm_activations_max; i++) {
-        /* One day when we will have a way to clean the thread-bound prifiling
-         *information we should call it here for both the MPIsnd_prof and MPIrcv_prof.
-         */
-    }
-    free(MPIsnd_prof); MPIsnd_prof = NULL;
-    free(MPIrcv_prof); MPIrcv_prof = NULL;
+    MPIsnd_prof = NULL;
+    MPIrcv_prof = NULL;
+    MPIctl_prof = NULL;
 }
 
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw) do {           \
@@ -980,19 +966,14 @@ static int remote_dep_mpi_fini(dague_context_t* context)
 static int remote_dep_mpi_on(dague_context_t* context)
 {
 #ifdef DAGUE_PROF_TRACE
-    int i;
     /* put a start marker on each line */
     TAKE_TIME(MPIctl_prof, MPI_Activate_sk, 0);
-    for(i = 0; i < dague_comm_activations_max; i++) {
-        TAKE_TIME(MPIsnd_prof[i], MPI_Activate_sk, 0);
-        TAKE_TIME(MPIrcv_prof[i], MPI_Activate_sk, 0);
-    }
+    TAKE_TIME(MPIsnd_prof, MPI_Activate_sk, 0);
+    TAKE_TIME(MPIrcv_prof, MPI_Activate_sk, 0);
     MPI_Barrier(dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, 0);
-    for(i = 0; i < dague_comm_activations_max; i++) {
-        TAKE_TIME(MPIsnd_prof[i], MPI_Activate_ek, 0);
-        TAKE_TIME(MPIrcv_prof[i], MPI_Activate_ek, 0);
-    }
+    TAKE_TIME(MPIsnd_prof, MPI_Activate_ek, 0);
+    TAKE_TIME(MPIrcv_prof, MPI_Activate_ek, 0);
 #endif
     (void)context;
     return 0;
@@ -1341,7 +1322,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
                item->cmd.activate.peer, k, task->deps, data, type_name, tag+k, deps->output[k].data.displ));
 #endif
 
-        TAKE_TIME_WITH_INFO(MPIsnd_prof[k], MPI_Data_plds_sk, k,
+        TAKE_TIME_WITH_INFO(MPIsnd_prof, MPI_Data_plds_sk, k,
                             eu_context->virtual_process->dague_context->my_rank,
                             item->cmd.activate.peer, deps->msg);
         task->output_mask ^= (1U<<k);
@@ -1373,7 +1354,7 @@ remote_dep_mpi_put_end_cb(dague_execution_unit_t* eu_context,
             cb->storage2, deps, cb->storage2, status->MPI_TAG,
             deps->output[cb->storage2].data.ptr)); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
-    TAKE_TIME(MPIsnd_prof[cb->storage2], MPI_Data_plds_ek, cb->storage2);
+    TAKE_TIME(MPIsnd_prof, MPI_Data_plds_ek, cb->storage2);
     remote_dep_complete_and_cleanup(&deps, 1, eu_context->virtual_process->dague_context);
     dague_comm_puts--;
     return 0;
@@ -1638,7 +1619,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
                 from, tmp, k, task->deps, ADATA(data), type_name, nbdtt,
                 deps->output[k].data.displ, deps->output[k].data.arena->elem_size * nbdtt, msg.tag+k));
 #  endif
-        TAKE_TIME_WITH_INFO(MPIrcv_prof[k], MPI_Data_pldr_sk, k, from,
+        TAKE_TIME_WITH_INFO(MPIrcv_prof, MPI_Data_pldr_sk, k, from,
                             eu_context->virtual_process->dague_context->my_rank, deps->msg);
         DEBUG_MARK_DTA_MSG_START_RECV(from, data, msg.tag+k);
         MPI_Irecv((char*)ADATA(data) + deps->output[k].data.displ, nbdtt,
@@ -1689,7 +1670,7 @@ remote_dep_mpi_get_end_cb(dague_execution_unit_t* eu_context,
             status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
             (int)cb->storage2, deps->msg.output_mask, status->MPI_TAG)); (void)status;
     DEBUG_MARK_DTA_MSG_END_RECV(status->MPI_TAG);
-    TAKE_TIME(MPIrcv_prof[cb->storage2], MPI_Data_pldr_ek, (int)cb->storage2);
+    TAKE_TIME(MPIrcv_prof, MPI_Data_pldr_ek, (int)cb->storage2);
     remote_dep_mpi_get_end(eu_context, (int)cb->storage2, deps);
     dague_comm_gets--;
     return 0;
