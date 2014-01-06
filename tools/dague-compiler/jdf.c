@@ -986,20 +986,20 @@ int jdf_flatten_function(jdf_function_entry_t* function)
         flow->flow_index  = 0xFF;
         jdf_reorder_dep_list_by_type(flow, &dep_in_index, &dep_out_index);
         if( ((1U << dep_in_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/) ||
-            ((1U << dep_in_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/)) {
+            ((1U << dep_out_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/)) {
             jdf_fatal(JDF_OBJECT_LINENO(function),
-                      "Function %s has too many output flow with different datatypes (up to 24 supported)\n",
+                      "Function %s has too many input or output flow with different datatypes (up to 24 supported)\n",
                       function->fname);
             return -1;
         }
     }
     /* First name all the OUTPUT flows */
     for( flow_index = 0, flow = function->dataflow; NULL != flow; flow = flow->next )
-        if( flow->flow_flags & JDF_FLOW_IS_OUT )
+        if( (flow->flow_flags & JDF_FLOW_IS_OUT) && !(flow->flow_flags & JDF_FLOW_TYPE_CTL) )
             flow->flow_index = flow_index++;
     /* And now name all the others (pure INPUT flows) */
     for( flow = function->dataflow; NULL != flow; flow = flow->next )
-        if( !(flow->flow_flags & JDF_FLOW_IS_OUT) )
+        if( 0xFF == flow->flow_index )
             flow->flow_index = flow_index++;
 
 #if 0
