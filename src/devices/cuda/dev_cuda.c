@@ -49,7 +49,6 @@ static char* cuda_lib_path = NULL;
 //    { 622.08, 1030.4, 3520 },
 //    {  77.76,  515.2, 1170 }
 //}; leave for reference
-float *device_weight = NULL;
 
 /* the rate represents how many times single is faster than double */
 int stod_rate[3] = {8, 2, 3};
@@ -363,7 +362,6 @@ int dague_gpu_init(dague_context_t *dague_context)
     int cuda_mask, cuda_verbosity;
     int ndevices, i, j, k;
     int isdouble = 0;
-    float total_perf;
     CUresult status;
 
     use_cuda_index = dague_mca_param_reg_int_name("device_cuda", "enabled",
@@ -430,9 +428,6 @@ int dague_gpu_init(dague_context_t *dague_context)
                                             0, NULL,
                                             &dague_cuda_own_GPU_key_start, &dague_cuda_own_GPU_key_end);
 #endif  /* defined(PROFILING) */
-
-    /* TODO: Remove this ASAP */
-    device_weight = (float*)calloc(ndevices+1, sizeof(float));
 
     for( i = 0; i < ndevices; i++ ) {
 #if CUDA_VERSION >= 3020
@@ -559,25 +554,14 @@ int dague_gpu_init(dague_context_t *dague_context)
         gpu_device->super.device_handle_register   = dague_cuda_handle_register;
         gpu_device->super.device_handle_unregister = dague_cuda_handle_unregister;
 
-        /**
-         * TODO: Find a better ay to evaluate the performance of the current GPU.
-         * device_weight[i+1] = ((float)devProps.maxThreadsPerBlock * (float)devProps.clockRate) * 2;
-         * device_weight[i+1] *= (concurrency == 1 ? 2 : 1);
-         */
-        //gpu_device->super.device_dweight = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
-        //gpu_device->super.device_sweight = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
-
         if (dague_cuda_lookup_device_cudacores(&cuda_cores, major, minor) == DAGUE_ERROR ) {
             return -1;
         }
         gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)cuda_cores * (float)devProps.clockRate * 2.0 / 1000000;
         gpu_device->super.device_dweight = gpu_device->super.device_sweight / stod_rate[major-1];
-        printf("dweight %f, sweight %f\n", gpu_device->super.device_dweight, gpu_device->super.device_sweight);
 
-        if ( isdouble ) {
-            device_weight[i+1] = gpu_device->super.device_dweight;
-        } else {
-            device_weight[i+1] = gpu_device->super.device_sweight;
+        if( show_caps ) {
+            STATUS(("\tFlops capacity     : single %2.4f, double %2.4f\n", gpu_device->super.device_sweight, gpu_device->super.device_dweight));
         }
 
         /* Initialize internal lists */
@@ -586,24 +570,6 @@ int dague_gpu_init(dague_context_t *dague_context)
         OBJ_CONSTRUCT(&gpu_device->pending,           dague_list_t);
 
         dague_devices_add(dague_context, &(gpu_device->super));
-    }
-
-    /* Compute the weight of each device including the cores */
-    DEBUG(("Global Theoritical performance: %2.4f\n", total_perf ));
-    for( i = 0; i < (ndevices+1); i++ ) {
-        if( 0 == i )
-            DEBUG(("CPU             ->ratio %2.4e\n",
-                   device_weight[i]));
-        else
-            DEBUG(("Device index %2d ->ratio %2.4e\n",
-                   i-1, device_weight[i]));
-        device_weight[i] = (total_perf / device_weight[i]);
-        if( cuda_verbosity ) {
-            if( 0 == i )
-                STATUS(("CPU             ->ratio %2.4f\n", device_weight[i]));
-            else
-                STATUS(("Device index %2d ->ratio %2.4f\n", i-1, device_weight[i]));
-        }
     }
 
     /**
