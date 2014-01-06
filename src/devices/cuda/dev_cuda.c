@@ -559,20 +559,11 @@ int dague_gpu_init(dague_context_t *dague_context)
         gpu_device->super.device_handle_register   = dague_cuda_handle_register;
         gpu_device->super.device_handle_unregister = dague_cuda_handle_unregister;
 
-        /**
-         * TODO: Find a better ay to evaluate the performance of the current GPU.
-         * device_weight[i+1] = ((float)devProps.maxThreadsPerBlock * (float)devProps.clockRate) * 2;
-         * device_weight[i+1] *= (concurrency == 1 ? 2 : 1);
-         */
-        //gpu_device->super.device_dweight = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
-        //gpu_device->super.device_sweight = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
-
         if (dague_cuda_lookup_device_cudacores(&cuda_cores, major, minor) == DAGUE_ERROR ) {
             return -1;
         }
         gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)cuda_cores * (float)devProps.clockRate * 2.0 / 1000000;
         gpu_device->super.device_dweight = gpu_device->super.device_sweight / stod_rate[major-1];
-        printf("dweight %f, sweight %f\n", gpu_device->super.device_dweight, gpu_device->super.device_sweight);
 
         if ( isdouble ) {
             device_weight[i+1] = gpu_device->super.device_dweight;
