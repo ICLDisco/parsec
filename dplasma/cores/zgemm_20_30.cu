@@ -7,7 +7,7 @@
 
 
   @precisions normal z -> z c d s
-       
+
 */
 
 #if (CUDA_SM_VERSION == 20) || (CUDA_SM_VERSION == 30)
@@ -18,12 +18,12 @@
 #include <cuda.h>
 #include <cublas.h>
 
-#include "dague.h"
+#include "dague_internal.h"
 #include "data_dist/matrix/precision.h"
 
 #define PRECISION_z
 
-#if defined(PRECISION_z) || defined(PRECISION_c) 
+#if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
 #endif
 
@@ -46,7 +46,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
                                  dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,
                                  CUstream stream )
 {
-#if defined(PRECISION_z) || defined(PRECISION_c)    
+#if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex lalpha = make_cuDoubleComplex( creal(alpha), cimag(alpha) );
     cuDoubleComplex lbeta  = make_cuDoubleComplex( creal(beta),  cimag(beta)  );
 #else
@@ -56,24 +56,24 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
 
 #if (__CUDA_API_VERSION < 4000)
     cublasSetKernelStream( stream );
-    cublasZgemm(TRANSA, TRANSB, m, n, k, 
+    cublasZgemm(TRANSA, TRANSB, m, n, k,
                 lalpha, (cuDoubleComplex*)d_A, lda,
                         (cuDoubleComplex*)d_B, ldb,
-                lbeta,  (cuDoubleComplex*)d_C, ldc); 
+                lbeta,  (cuDoubleComplex*)d_C, ldc);
     assert( CUBLAS_STATUS_SUCCESS == cublasGetError() );
 
 #else
     cudaStream_t current_stream;
     cublasHandle_t handle = cublasGetCurrentCtx();
-    
+
     cublasGetStream_v2 ( handle, &saved_stream );
     cublasSetStream_v2 ( handle, &stream );
 
     cublasZgemm_v2(handle, convertToOp(TRANSA), convertToOp(TRANSB),
-                   m, n, k, 
+                   m, n, k,
                    &lalpha, (cuDoubleComplex*)d_A, lda,
                             (cuDoubleComplex*)d_B, ldb,
-                   &lbeta,  (cuDoubleComplex*)d_C, ldc); 
+                   &lbeta,  (cuDoubleComplex*)d_C, ldc);
     assert( CUBLAS_STATUS_SUCCESS == cublasGetError() );
 
     cublasSetStream_v2 ( handle, &saved_stream );
@@ -163,7 +163,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
     the leading  n by k  part of the array d_B must contain  the
     matrix d_B.
     Unchanged on exit.
- 
+
     LDB    - INTEGER.
     On entry, LDB specifies the first dimension of d_B as declared
     in the calling (sub) program. When  TRANSB = 'N' or 'n' then
@@ -200,7 +200,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
     if (m<=0 || n<=0 || k<=0)
         return;
 
-#if defined(PRECISION_z) || defined(PRECISION_c)    
+#if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex lalpha = make_cuDoubleComplex( creal(alpha), cimag(alpha) );
     cuDoubleComplex lbeta  = make_cuDoubleComplex( creal(beta),  cimag(beta)  );
 #else
@@ -222,7 +222,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
     else
         if (TRANSA == 'N' ||  TRANSA == 'n')
             TransA = 0;
-    
+
     if (TRANSB == 'T' ||  TRANSB == 't')
         TransB = 1;
     else
@@ -239,8 +239,8 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
     if (sizeA>=CUBLAS_MAX_1DBUF_SIZE ||
         sizeB>=CUBLAS_MAX_1DBUF_SIZE )
         {
-            cublasZgemm(TRANSA, TRANSB, m, n, k, 
-                        lalpha, (cuDoubleComplex*)d_A, lda, 
+            cublasZgemm(TRANSA, TRANSB, m, n, k,
+                        lalpha, (cuDoubleComplex*)d_A, lda,
                                (cuDoubleComplex*)d_B, ldb,
                         lbeta,  (cuDoubleComplex*)d_C, ldc);
             return;
@@ -259,13 +259,13 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
     tex_ref_A.normalized = false;
     tex_ref_A.filterMode = cudaFilterModePoint;
     tex_ref_A.addressMode[0] = cudaAddressModeClamp;
-    
+
     tex_ref_B.normalized = false;
     tex_ref_B.filterMode = cudaFilterModePoint;
     tex_ref_B.addressMode[0] = cudaAddressModeClamp;
-    
+
     // Bind A and B to texture references
-    assert(cudaBindTexture(&offsetA, tex_ref_A, d_A, sizeA*sizeof(dague_complex64_t)) 
+    assert(cudaBindTexture(&offsetA, tex_ref_A, d_A, sizeA*sizeof(dague_complex64_t))
            == cudaSuccess);
     assert(cudaBindTexture(&offsetB, tex_ref_B, d_B, sizeB*sizeof(dague_complex64_t))
            == cudaSuccess);
@@ -277,16 +277,16 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
 
     offsetA = offsetA/sizeof(d_A[0]);
     offsetB = offsetB/sizeof(d_B[0]);
-    
+
     if (TransA==0 && TransB ==0){
         dim3 dimGrid(m/BLK_M_nn + (m%BLK_M_nn != 0),
                      n/BLK_N_nn + (n%BLK_N_nn != 0));
-        GENERATE_SM_VERSION_KERNEL_NAME(nn)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k, 
+        GENERATE_SM_VERSION_KERNEL_NAME(nn)<<< dimGrid, dimBlock, 0, stream >>>(m, n, k,
                                                                                 lalpha, (cuDoubleComplex*)d_A, lda,
                                                                                         (cuDoubleComplex*)d_B, ldb,
                                                                                 lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
-    } 
+    }
     else if (TransA==0 && TransB ==1){
         dim3 dimGrid(m/BLK_M_nt + (m%BLK_M_nt != 0),
                      n/BLK_N_nt + (n%BLK_N_nt != 0));
@@ -314,7 +314,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
                                                                                 lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
     }
-#if defined(PRECISION_z) || defined(PRECISION_c) 
+#if defined(PRECISION_z) || defined(PRECISION_c)
     else if (TransA==0 && TransB ==2){
         dim3 dimGrid(m/BLK_M_nt + (m%BLK_M_nt != 0),
                      n/BLK_N_nt + (n%BLK_N_nt != 0));
@@ -323,7 +323,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
                                                                                         (cuDoubleComplex*)d_B, ldb,
                                                                                 lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
-    } 
+    }
     else if (TransA==1 && TransB ==2){
         dim3 dimGrid(m/BLK_M_tt + (m%BLK_M_tt != 0),
                      n/BLK_N_tt + (n%BLK_N_tt != 0));
@@ -350,7 +350,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
                                                                                         (cuDoubleComplex*)d_B, ldb,
                                                                                 lbeta,  (cuDoubleComplex*)d_C, ldc,
                                                                                 (int)offsetA, (int)offsetB);
-    } 
+    }
     else if (TransA==2 && TransB ==2){
         dim3 dimGrid(m/BLK_M_tt + (m%BLK_M_tt != 0),
                      n/BLK_N_tt + (n%BLK_N_tt != 0));
@@ -372,4 +372,3 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #endif /* (CUDA_SM_VERSION == 20) || (CUDA_SM_VERSION == 30) */
-
