@@ -11,6 +11,7 @@
 
 BEGIN_C_DECLS
 
+struct dague_object;
 typedef struct dague_object              dague_object_t;
 typedef struct dague_execution_context_t dague_execution_context_t;
 /**< The general context that holds all the threads of dague for this MPI process */
@@ -114,6 +115,7 @@ char* dague_snprintf_assignments( char* str, size_t size,
                                   const struct dague_function_s* function,
                                   const struct assignment* locals);
 
+void dague_putain_function_c();
 END_C_DECLS
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

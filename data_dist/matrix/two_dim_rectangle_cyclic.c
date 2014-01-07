@@ -8,7 +8,6 @@
 #include <mpi.h>
 #endif /* HAVE_MPI */
 
-#include "dague_config.h"
 #include "dague_internal.h"
 #include "debug.h"
 #include "data_dist/matrix/matrix.h"
@@ -62,6 +61,9 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     Q = nodes / P;
     if(nodes != P*Q)
         WARNING(("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d\n", nodes, P, Q));
+
+    assert( (storage != matrix_Lapack) || (P==1) );
+
 #if defined(DAGUE_HARD_SUPERTILE)
     grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, nrst, ncst);
 #else

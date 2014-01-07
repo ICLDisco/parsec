@@ -27,6 +27,8 @@ typedef double _Complex dague_complex64_t;
 extern "C" {
 #endif
 
+#if defined(DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED)
+
 #if !defined(__cplusplus) && defined(HAVE_COMPLEX_H)
 #include <complex.h>
 #else
@@ -58,6 +60,8 @@ extern dague_complex32_t clogf (dague_complex32_t z);
 extern dague_complex32_t cpowf (dague_complex32_t z, dague_complex32_t w);
 
 #endif /* DAGUE_HAS_COMPLEX_H */
+
+#endif /* defined(DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED) */
 
 #ifdef __cplusplus
 }

@@ -12,6 +12,8 @@
 
 #include "dague_config.h"
 
+BEGIN_C_DECLS
+
 /*******************************************************************
  * 2D (or 1D) cyclic distribution
  *******************************************************************/
@@ -50,5 +52,7 @@ typedef struct grid_2Dcyclic {
  * @param ncst: number of consecutive tiles along columns held by the same processor
  */
 void grid_2Dcyclic_init(grid_2Dcyclic_t* grid, int rank, int P, int Q, int nrst, int ncst);
+
+END_C_DECLS
 
 #endif /* __GRID_2DCYCLIC_H__*/
