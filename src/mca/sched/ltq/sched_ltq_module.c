@@ -42,6 +42,7 @@ const dague_sched_module_t dague_sched_ltq_module = {
     &dague_sched_ltq_component,
     {
         sched_ltq_install,
+        NULL,
         sched_ltq_schedule,
         sched_ltq_select,
         NULL,

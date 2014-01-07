@@ -36,6 +36,7 @@ const dague_sched_module_t dague_sched_ip_module = {
     &dague_sched_ip_component,
     {
         sched_ip_install,
+        NULL,
         sched_ip_schedule,
         sched_ip_select,
         NULL,

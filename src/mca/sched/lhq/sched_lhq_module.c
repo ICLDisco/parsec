@@ -25,7 +25,6 @@
 #include "dague/mca/sched/lhq/sched_lhq.h"
 #include "dequeue.h"
 #include "dague/mca/pins/pins.h"
-static int SYSTEM_NEIGHBOR = 0;
 
 #if defined(DAGUE_PROF_TRACE) && 0
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID), NULL)
@@ -45,6 +44,7 @@ const dague_sched_module_t dague_sched_lhq_module = {
     &dague_sched_lhq_component,
     {
         sched_lhq_install,
+        NULL,
         sched_lhq_schedule,
         sched_lhq_select,
         NULL,

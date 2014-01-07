@@ -36,6 +36,7 @@ const dague_sched_module_t dague_sched_rnd_module = {
     &dague_sched_rnd_component,
     {
         sched_rnd_install,
+        NULL,
         sched_rnd_schedule,
         sched_rnd_select,
         NULL,

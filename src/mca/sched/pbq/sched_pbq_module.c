@@ -45,6 +45,7 @@ const dague_sched_module_t dague_sched_pbq_module = {
     &dague_sched_pbq_component,
     {
         sched_pbq_install,
+        NULL,
         sched_pbq_schedule,
         sched_pbq_select,
         NULL,

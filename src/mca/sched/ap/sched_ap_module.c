@@ -36,6 +36,7 @@ const dague_sched_module_t dague_sched_ap_module = {
     &dague_sched_ap_component,
     {
         sched_ap_install,
+        NULL,
         sched_ap_schedule,
         sched_ap_select,
         NULL,
