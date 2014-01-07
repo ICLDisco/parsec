@@ -1361,7 +1361,7 @@ remote_dep_mpi_put_end_cb(dague_execution_unit_t* eu_context,
 
     DEBUG2(("MPI:\tTO\tna\tPut END  \tunknown \tk=%d\twith deps %p\tparams %lx\t(tag=%d) data ptr %p\n",
             cb->storage2, deps, cb->storage2, status->MPI_TAG,
-            deps->output[cb->storage2].data.ptr)); (void)status;
+            deps->output[cb->storage2].data.data)); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
     TAKE_TIME(MPIsnd_prof, MPI_Data_plds_ek, cb->storage2);
     remote_dep_complete_and_cleanup(&deps, 1, eu_context->virtual_process->dague_context);
@@ -1421,7 +1421,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                     dague_data_t* data_arena = dague_arena_get(deps->output[k].data.arena, deps->output[k].data.count);
                     deps->output[k].data.data = dague_data_get_copy(data_arena, 0);
                     DEBUG3(("MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 "\n",
-                            deps->output[k].data.ptr, deps->output[k].data.arena->elem_size,
+                            deps->output[k].data.data, deps->output[k].data.arena->elem_size,
                             deps->output[k].data.count, deps->output[k].data.displ));
                     assert(deps->output[k].data.data != NULL);
                 }

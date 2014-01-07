@@ -217,21 +217,15 @@ bandwidth_new(dague_ddesc_t *A, int loops, int frags, int size, int ws)
     return (dague_handle_t*)o;
 }
 
+/**
+ * @param [INOUT] o the dague object to destroy
+ */
 static void
 bandwidth_destroy(dague_handle_t* handle)
 {
     dague_bandwidth_handle_t * bw_handle = (dague_bandwidth_handle_t*)handle;
     bw_handle->arenas[DAGUE_bandwidth_DEFAULT_ARENA] = NULL;
     DAGUE_INTERNAL_HANDLE_DESTRUCT(bw_handle);
-}
-
-/**
- * @param [INOUT] o the dague object to destroy
- */
-static void
-bw_destroy(dague_handle_t *o)
-{
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 %}
@@ -327,7 +321,6 @@ int main(int argc, char *argv[])
     ddescA = create_and_distribute_data(rank, world, frags, size);
     dague_ddesc_set_key(ddescA, "A");
 
-#if defined(HAVE_CUDA)
     /* if the use of GPUs is specified on the command line updated the environment
      * prior to the runtime initialization.
      */
@@ -338,7 +331,6 @@ int main(int argc, char *argv[])
         setenv(param, value, 1);
         free(param);
     }
-#endif
 
     dague = dague_init(cores, &argc, &argv);
 

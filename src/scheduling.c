@@ -146,7 +146,6 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
 
-    assert( function->nb_incarnations > 0 );
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
     AYU_TASK_RUN(eu_context->th_id, exec_context);
     /**

@@ -50,8 +50,8 @@ dague_hash_datadist_t *dague_hash_datadist_create(int np, int myrank)
 
 void dague_hash_datadist_destroy(dague_hash_datadist_t *d)
 {
-    int i;
     dague_hash_datadist_entry_t *n, *next;
+    uint32_t i;
 
     for(i = 0; i < d->hash_size; i++) {
         if( d->hash[i] != NULL ) {

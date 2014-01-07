@@ -1230,7 +1230,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                 if( 0 == output->count_bits ) {
                     output->data       = *data;
                 } else {
-                    assert(output->data.ptr == data->ptr);
+                    assert(output->data.data == data->data);
                 }
                 output->count_bits++;
                 if(newcontext->priority > output->priority) {

@@ -10,16 +10,19 @@ parsec_pins_callback * pins_array[PINS_FLAG_COUNT] = { 0 };
 void parsec_instrument(PINS_FLAG method_flag,
                        struct dague_execution_unit_s * exec_unit,
                        struct dague_execution_context_s * task,
-                       void * data) {
+                       void * data)
+{
     (*(pins_array[method_flag]))(exec_unit, task, data);
 }
 
 /* convenience method provided 'just in case' */
-void pins_disable_registration(int disable) {
-    if (disable)
+void pins_disable_registration(int disable)
+{
+    if (disable) {
         DEBUG3(("PINS registration is disabled.\n"));
-    else
+    } else {
         DEBUG3(("PINS registration is enabled.\n"));
+    }
     registration_disabled = disable;
 }
 
@@ -28,7 +31,8 @@ void pins_disable_registration(int disable) {
  pins_register_callback is not called at least once before
  any call to parsec_instrument.
  */
-parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins_callback * cb) {
+parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins_callback * cb)
+{
     if (!pins_array[0]) {
         int i = 0;
         for (; i < PINS_FLAG_COUNT; i++) {
@@ -57,7 +61,8 @@ parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins
     return NULL;
 }
 
-parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag) {
+parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag)
+{
     if (method_flag < PINS_FLAG_COUNT) {
         if (registration_disabled) {
             DEBUG3(("NOTE: PINS has been disabled by command line argument, causing this UN-registration to fail."));
@@ -75,9 +80,11 @@ parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag) {
     return NULL;
 }
 
-void pins_empty_callback(struct dague_execution_unit_s * exec_unit, struct dague_execution_context_s * task, void * data) {
+void pins_empty_callback(struct dague_execution_unit_s * exec_unit, struct dague_execution_context_s * task, void * data)
+{
     // do nothing
     (void) exec_unit;
     (void) task;
     (void) data;
 }
+
