@@ -10,8 +10,7 @@ if(BUILD_DOCUMENTATION)
 
   set(PARSEC_DOX_SRCS )
   foreach( _file ${PARSEC_ALL_SRCS} )
-    message(STATUS "File: ${_file}" )
-
+    #message(STATUS "File: ${_file}" )
     set(PARSEC_DOX_SRCS "${PARSEC_DOX_SRCS} ${_file}" )
   endforeach()
 

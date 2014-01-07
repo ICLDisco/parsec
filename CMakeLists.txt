@@ -608,8 +608,6 @@ IF( DAGUE_DEBUG_BUILD_UNIT_TESTS AND BUILD_DAGUE )
   add_subdirectory(tests)
 ENDIF()
 
-message(STATUS "PARSEC_ALL_SRCS: ${PARSEC_ALL_SRCS}")
-
 # Configuration header
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config.h.in"
