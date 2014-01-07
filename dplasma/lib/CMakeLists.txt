@@ -187,7 +187,9 @@ add_library(dplasma
             ${generated_files}
             ${generated_wrappers}
             ${EXTRA_SOURCES})
-add_dependencies(dplasma dplasma_includes)
+add_dependencies(dplasma
+         dplasma_includes
+         dplasma_cores_includes )
 
 target_link_libraries(dplasma
   dplasma_cores
