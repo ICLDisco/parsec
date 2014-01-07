@@ -14,7 +14,7 @@ if (PINS_ENABLE)
 	   endif (PARSEC_PROF_TAU AND NOT TAU_FOUND)
 
 	   if (NOT PAPI_FOUND)
-		  find_package(PAPI REQUIRED)
+		  find_package(PAPI)
 		  set(HAVE_PAPI ${PAPI_FOUND})
 		  set(HAVE_PAPI ${PAPI_FOUND} PARENT_SCOPE)
 		  set(PAPI_FOUND ${PAPI_FOUND} PARENT_SCOPE)
