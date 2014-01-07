@@ -111,7 +111,7 @@ extern "C" %{
 
 int main( int argc, char** argv )
 {
-    dague_complex_deps_object_t* object;
+    dague_complex_deps_handle_t* handle;
     two_dim_block_cyclic_t descA;
     dague_arena_t arena;
     dague_context_t *dague;
@@ -151,7 +151,7 @@ int main( int argc, char** argv )
      */
     mat_size = 2*BLOCK*size*NN;
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                               size /*nodes*/, 1 /*cores*/, rank /*rank*/,
+                               size /*nodes*/, rank /*rank*/,
                                2*BLOCK, 1, mat_size, 1,
                                0, 0, mat_size, 1, 1, 1, 1);
     descA.mat = dague_data_allocate( descA.super.nb_local_tiles *
@@ -163,21 +163,21 @@ int main( int argc, char** argv )
                            DAGUE_DATATYPE_NULL);  /* change for distributed cases */
 
     /* Heat up the engine: small tasks */
-    object = dague_complex_deps_new( &descA, ni, nk );
-    assert( NULL != object );
-    object->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
-    dague_enqueue( dague, (dague_object_t*)object );
+    handle = dague_complex_deps_new( &descA, ni, nk );
+    assert( NULL != handle );
+    handle->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
+    dague_enqueue( dague, (dague_handle_t*)handle );
     dague_progress(dague);
 
     /* No priority */
-    object = dague_complex_deps_new( &descA, ni, nk );
-    assert( NULL != object );
+    handle = dague_complex_deps_new( &descA, ni, nk );
+    assert( NULL != handle );
     TIMER_START(time_elapsed);
-    object->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
-    dague_enqueue( dague, (dague_object_t*)object );
+    handle->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
+    dague_enqueue( dague, (dague_handle_t*)handle );
     TIMER_STOP(time_elapsed);
     printf("DAG construction %d tasks in %ld micro-sec\n",
-           object->super.nb_local_tasks, time_elapsed);
+           handle->super.nb_local_tasks, time_elapsed);
     if( verbose >= 5 ) {
         printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
                "                 encoding=\"none\" compression=\"none\">\n"

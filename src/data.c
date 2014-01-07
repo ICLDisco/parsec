@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 The University of Tennessee and The University
+ * Copyright (c) 2012-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -12,7 +12,6 @@
 #include "data.h"
 #include "arena.h"
 
-/* TODO: create a consistent common infrastructure for the devices */
 static dague_lifo_t dague_data_lifo;
 static dague_lifo_t dague_data_copies_lifo;
 
@@ -39,7 +38,6 @@ static void dague_data_copy_destruct(dague_data_copy_t* obj)
          * This detaches obj from obj->original, and frees everything */
         dague_arena_release(obj);
     }
-  //  assert(NULL == obj->original);  /* make sure we are not attached to a data */
 }
 
 OBJ_CLASS_INSTANCE(dague_data_copy_t, dague_list_item_t,
@@ -193,7 +191,7 @@ int dague_data_get_device_copy(dague_data_copy_t* source,
                                uint8_t device,
                                uint8_t access_mode)
 {
-    dague_data_copy_t* copy, *newer;
+    dague_data_copy_t* copy;
     dague_data_t* original;
     int transfer = 0;
 
@@ -203,7 +201,7 @@ int dague_data_get_device_copy(dague_data_copy_t* source,
     }
     original = source->original;
     /* lock the original data */
-    newer = copy = original->device_copies[device];
+    copy = original->device_copies[device];
     while( NULL != copy ) {
         if( source->version == copy->version )
             break;
@@ -241,16 +239,16 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
     case DATA_COHERENCY_INVALID:
         transfer_required = 1;
         if( -1 == valid_copy ) {
-            for( i = 0; i < dague_nb_devices; i++ ) { 
+            for( i = 0; i < dague_nb_devices; i++ ) {
                 if( NULL == data->device_copies[i] ) continue;
                 if( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state ) continue;
-                assert( DATA_COHERENCY_EXCLUSIVE == data->device_copies[i]->coherency_state 
+                assert( DATA_COHERENCY_EXCLUSIVE == data->device_copies[i]->coherency_state
                      || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state );
                 valid_copy = i;
             }
         }
         break;
-        
+
     case DATA_COHERENCY_SHARED:
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( NULL == data->device_copies[i] ) continue;
@@ -267,7 +265,7 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
 #endif
         }
         break;
-            
+
     case DATA_COHERENCY_EXCLUSIVE:
 #if defined(ENABLE_DAGUE_DEBUG)
         for( i = 0; i < dague_nb_devices; i++ ) {
@@ -289,13 +287,13 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
 #endif
         break;
     }
-    
-    if( ACCESS_READ & access_mode ) {
+
+    if( FLOW_ACCESS_READ & access_mode ) {
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( device == i || NULL == data->device_copies[i] ) continue;
             if( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state ) continue;
-            if( DATA_COHERENCY_OWNED == copy->coherency_state 
-             && !(ACCESS_WRITE & access_mode) ) {
+            if( DATA_COHERENCY_OWNED == copy->coherency_state
+             && !(FLOW_ACCESS_WRITE & access_mode) ) {
                  if( data->device_copies[i]->version < copy->version ) {
                      data->device_copies[i]->coherency_state = DATA_COHERENCY_INVALID;
                  }
@@ -310,7 +308,7 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
     }
     else transfer_required = 0; /* finally we'll just overwrite w/o read */
 
-    if( ACCESS_WRITE & access_mode ) {
+    if( FLOW_ACCESS_WRITE & access_mode ) {
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( NULL == data->device_copies[i] ) continue;
             if( DATA_COHERENCY_INVALID == data->device_copies[i] ) continue;
@@ -319,7 +317,7 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
         data->owner_device = (uint8_t)device;
         copy->coherency_state = DATA_COHERENCY_OWNED;
     }
-    
+
     if( !transfer_required ) {
         return -1;
     }

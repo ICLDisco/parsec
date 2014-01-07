@@ -31,7 +31,7 @@ remote_dep_reset_forwarded(dague_execution_unit_t* eu_context,
 /* Mark a rank as already forwarded the termination of the current task */
 static inline void
 remote_dep_mark_forwarded(dague_execution_unit_t* eu_context,
-                          struct remote_dep_output_param* output,
+                          struct remote_dep_output_param_s* output,
                           int rank)
 {
     dague_remote_deps_t* rdeps = output->parent;
@@ -48,7 +48,7 @@ remote_dep_mark_forwarded(dague_execution_unit_t* eu_context,
 /* Check if rank has already been forwarded the termination of the current task */
 static inline int
 remote_dep_is_forwarded(dague_execution_unit_t* eu_context,
-                        struct remote_dep_output_param* output,
+                        struct remote_dep_output_param_s* output,
                         int rank)
 {
     dague_remote_deps_t* rdeps = output->parent;
@@ -75,7 +75,7 @@ remote_dep_inc_flying_messages(dague_handle_t *dague_handle,
 
 /* allow for termination when all deps have been served */
 static inline void
-remote_dep_dec_flying_messages(dague_handle_t *dague_handle_t,
+remote_dep_dec_flying_messages(dague_handle_t *dague_handle,
                                dague_context_t* ctx)
 {
     __dague_complete_task(dague_handle, ctx);
@@ -88,7 +88,7 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
                                 int ncompleted,
                                 dague_context_t* ctx)
 {
-    uint32_t saved = dague_atomic_add_32b(&(*deps)->pending_ack, -ncompleted);
+    int32_t saved = dague_atomic_sub_32b((int32_t*)&(*deps)->pending_ack, ncompleted);
     DEBUG2(("Complete %d (%d left) outputs of dep %p%s\n",
             ncompleted, saved, *deps,
             (0 == saved ? " (decrease inflight)" : "")));
@@ -101,10 +101,10 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
         for( int i = 0; (*deps)->activity_mask >> i; i++ )
             if( (1U << i) & (*deps)->activity_mask ) {
                 assert( (*deps)->output[i].count_bits );
-                AUNREF((*deps)->output[i].data.ptr);
+                DAGUE_DATA_COPY_RELEASE((*deps)->output[i].data.data);
             }
         if(ncompleted)
-            remote_dep_dec_flying_messages((*deps)->dague_object, ctx);
+            remote_dep_dec_flying_messages((*deps)->dague_handle, ctx);
         remote_deps_free(*deps);
         *deps = NULL;
         return 1;
@@ -220,7 +220,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     const dague_function_t* function = exec_context->function;
     int i, me, him, current_mask, keeper = 0;
     unsigned int array_index, count, bit_index;
-    struct remote_dep_output_param* output;
+    struct remote_dep_output_param_s* output;
 
     assert(0 == remote_deps->pending_ack);
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
@@ -256,7 +256,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
          * communication, independent on what is happening with the data outside
          * of the communication engine.
          */
-        AREF(output->data.ptr);
+        OBJ_RETAIN(output->data.data);
 
         him = 0;
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {
@@ -303,17 +303,17 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         }
                     }
 #endif  /* DAGUE_DEBUG_VERBOSE */
-                    assert(output->parent->dague_object == exec_context->dague_object);
+                    assert(output->parent->dague_handle == exec_context->dague_handle);
                     remote_dep_mark_forwarded(eu_context, output, rank);
-                    keeper = dague_atomic_add_32b(&remote_deps->pending_ack, 1);
+                    keeper = dague_atomic_add_32b((int32_t*)&remote_deps->pending_ack, 1);
                     if( 1 == keeper ) {
                         /* Let the engine know we're working to activate the dependencies remotely */
-                        remote_dep_inc_flying_messages(exec_context->dague_object,
+                        remote_dep_inc_flying_messages(exec_context->dague_handle,
                                                        eu_context->virtual_process->dague_context);
                         /* We need to increase the pending_ack to make the deps persistant until the
                          * end of this function.
                          */
-                        dague_atomic_add_32b(&remote_deps->pending_ack, 1);
+                        dague_atomic_add_32b((int32_t*)&remote_deps->pending_ack, 1);
                     }
                     remote_dep_send(rank, remote_deps);
                 }

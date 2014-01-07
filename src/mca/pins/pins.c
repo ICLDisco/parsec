@@ -8,8 +8,8 @@ static int registration_disabled;
 parsec_pins_callback * pins_array[PINS_FLAG_COUNT] = { 0 };
 
 void parsec_instrument(PINS_FLAG method_flag,
-                       dague_execution_unit_t * exec_unit,
-                       dague_execution_context_t * task,
+                       struct dague_execution_unit_s * exec_unit,
+                       struct dague_execution_context_s * task,
                        void * data) {
     (*(pins_array[method_flag]))(exec_unit, task, data);
 }
@@ -75,7 +75,7 @@ parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag) {
     return NULL;
 }
 
-void pins_empty_callback(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data) {
+void pins_empty_callback(struct dague_execution_unit_s * exec_unit, struct dague_execution_context_s * task, void * data) {
     // do nothing
     (void) exec_unit;
     (void) task;

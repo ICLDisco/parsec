@@ -16,6 +16,7 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "scheduling.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/memory_pool.h"
@@ -227,7 +228,7 @@ BODY
                                     (void *)cbdata_ztrsm);
 
         dague_enqueue(context->virtual_process->dague_context, dague_ztrsm);
-        dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */,ACCESS_WRITE);
+        dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */,FLOW_ACCESS_WRITE);
         return -1;
     }
     else

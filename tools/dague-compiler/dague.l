@@ -84,7 +84,6 @@ WHITE         [\f\t\v ]
 %x body_init
 
 %%
-^{WHITE}*(?i:body)    { YY_PUSH_STATE(body); }
 extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}                          {
                           int lstart, lend, bstart, skip_line = 0;
                           /* This assumes that no extern language rightfully has a "
@@ -124,21 +123,21 @@ SIMCOST               { ECHO; return SIMCOST; }
 <*>{WHITE}+           {  /* Eat multiple white-spaces */                   }
 <*>[0-9]+             { YYLVAL(number) = atol(yytext);
                         ECHO; return INT;                                  }
-CTL                   { YYLVAL(number) = JDF_VAR_TYPE_CTL;
+CTL                   { YYLVAL(number) = JDF_FLOW_TYPE_CTL;
                         ECHO; return DEPENDENCY_TYPE;                      }
-RW                    { YYLVAL(number) = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
+RW                    { YYLVAL(number) = JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE;
                         ECHO; return DEPENDENCY_TYPE;                      }
-READ                  { YYLVAL(number) = JDF_VAR_TYPE_READ;
+READ                  { YYLVAL(number) = JDF_FLOW_TYPE_READ;
                         ECHO; return DEPENDENCY_TYPE;                      }
-RO                    { YYLVAL(number) = JDF_VAR_TYPE_READ;
+RO                    { YYLVAL(number) = JDF_FLOW_TYPE_READ;
                         ECHO; return DEPENDENCY_TYPE;                      }
-WRITE                 { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
+WRITE                 { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
                         ECHO; return DEPENDENCY_TYPE;                      }
-WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
+WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
                         ECHO; return DEPENDENCY_TYPE;                      }
-"->"                  { YYLVAL(dep_type) = JDF_DEP_TYPE_OUT;
+"->"                  { YYLVAL(dep_type) = JDF_DEP_FLOW_OUT;
                         ECHO; return ARROW;                                }
-"<-"                  { YYLVAL(dep_type) = JDF_DEP_TYPE_IN;
+"<-"                  { YYLVAL(dep_type) = JDF_DEP_FLOW_IN;
                         ECHO; return ARROW;                                }
 "\["                  { YYLVAL(property) = NULL;
                         YY_PUSH_STATE(properties);
@@ -171,8 +170,9 @@ WO                    { YYLVAL(number) = JDF_VAR_TYPE_WRITE;
 <body_init>{WHITE}*\n {    current_lineno++;
                            YY_POP_STATE();
                            YY_PUSH_STATE(body);                            }
+^{WHITE}*(?i:body)    { YY_PUSH_STATE(body); }
 <body>^{WHITE}*(?i:end) { YY_POP_STATE();
-                          YYLVAL(string) = extern_code( yytext, strlen(yytext) - 3 );
+                          YYLVAL(string) = extern_code(yytext, strlen(yytext) - 3, 1);
                           ECHO; return BODY_END;                           }
 <body>[^\n]*          { yymore();}
 <body>{WHITE}*\n      { current_lineno++; yymore();}

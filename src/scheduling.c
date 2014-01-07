@@ -15,6 +15,7 @@
 #include "vpmap.h"
 #include "src/mca/pins/pins.h"
 #include "os-spec-timing.h"
+#include "remote_dep.h"
 
 #include "dague/ayudame.h"
 
@@ -191,7 +192,7 @@ int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context
     return 0;
 }
 
-static dague_sched_module_t         *current_scheduler = NULL;
+dague_sched_module_t *current_scheduler                  = NULL;
 static dague_sched_base_component_t *scheduler_component = NULL;
 
 void dague_remove_scheduler( dague_context_t *dague )
@@ -206,29 +207,13 @@ void dague_remove_scheduler( dague_context_t *dague )
     }
 }
 
-static int no_scheduler_is_active( dague_context_t *master )
-{
-    int p, t;
-    dague_vp_t *vp;
-
-    for(p = 0; p < master->nb_vp; p++) {
-        vp = master->virtual_processes[p];
-        for(t = 0; t < vp->nb_cores; t++) {
-            if( vp->execution_units[t]->scheduler_object != NULL ) {
-                return 0;
-            }
-        }
-    }
-
-    return 1;
-}
-
 int dague_set_scheduler( dague_context_t *dague )
 {
     mca_base_component_t **scheds;
     mca_base_module_t    *new_scheduler = NULL;
     mca_base_component_t *new_component = NULL;
 
+    assert(NULL == current_scheduler);
     scheds = mca_components_open_bytype( "sched" );
     mca_components_query(scheds,
                          &new_scheduler,
@@ -246,7 +231,6 @@ int dague_set_scheduler( dague_context_t *dague )
     DEBUG((" Installing %s\n", current_scheduler->component->base_version.mca_component_name));
     PROFILING_SAVE_sINFO("sched", (char *)current_scheduler->component->base_version.mca_component_name);
 
-    assert( no_scheduler_is_active(dague) );
     current_scheduler->module.install( dague );
     return 1;
 }
@@ -711,7 +695,7 @@ int dague_wait( dague_context_t* context )
     int ret = 0;
     if( __dague_context_cas_or_flag(context,
                                     DAGUE_CONTEXT_FLAG_ACTIVE|DAGUE_CONTEXT_FLAG_MAIN_IN) ) {
-        dague_remote_dep_on(context);
+        (void)dague_remote_dep_on(context);
     }
 
     ret = (int)(long)__dague_progress( context->virtual_processes[0]->execution_units[0] );
@@ -733,7 +717,7 @@ int dague_progress(dague_context_t* context)
     int ret = 0;
     if( __dague_context_cas_or_flag(context,
                                     DAGUE_CONTEXT_FLAG_ACTIVE|DAGUE_CONTEXT_FLAG_MAIN_IN) ) {
-        dague_remote_dep_on(context);
+        (void)dague_remote_dep_on(context);
     }
 
     ret = (int)(long)__dague_progress( context->virtual_processes[0]->execution_units[0] );

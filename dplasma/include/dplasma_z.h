@@ -166,7 +166,7 @@ dague_handle_t* dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *
 dague_handle_t* dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int it, int jt, int level, int *info);
 dague_handle_t* dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int it, int jt, int level, int *info);
 /* EVD */
-dague_handle_t* dplasma_zheev_New( const PLASMA_enum jobz, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* W, tiled_matrix_desc_t* Z, int* info );
+dague_handle_t* dplasma_zheev_New( PLASMA_enum jobz, PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* W, tiled_matrix_desc_t* Z, int* info );
 
 
 /* Low-level nonblocking LDL interface */
@@ -224,6 +224,6 @@ void dplasma_zgebmm_Destruct( dague_handle_t *o );
 void dplasma_zhetrf_Destruct( dague_handle_t *o );
 void dplasma_ztrmdm_Destruct( dague_handle_t *o );
 
-void dplasma_zheev_Destruct( dague_object_t *o );
+void dplasma_zheev_Destruct( dague_handle_t *o );
 
 #endif /* _DPLASMA_Z_H_ */

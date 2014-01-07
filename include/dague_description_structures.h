@@ -114,7 +114,6 @@ typedef union dague_cst_or_fct_datatype_u {
     expr_op_datatype_inline_func_t  fct;
 } dague_cst_or_fct_datatype_t;
 
-
 struct dague_comm_desc_s {
     dague_cst_or_fct_32_t         type;
     dague_cst_or_fct_datatype_t   layout;

@@ -210,7 +210,7 @@ static const dague_flow_t flow_of_map_operator = {
 };
 
 static dague_ontask_iterate_t
-add_task_to_list(struct dague_execution_unit *eu_context,
+add_task_to_list(dague_execution_unit_t *eu_context,
                  const dague_execution_context_t *newcontext,
                  const dague_execution_context_t *oldcontext,
                  const dep_t* dep,
@@ -266,8 +266,8 @@ static void iterate_successors(dague_execution_unit_t *eu,
             nc.data[1].data_in = this_task->data[1].data_out;
 
             ontask(eu, &nc, this_task, &flow_of_map_operator_dep_out, NULL,
-                   __dague_object->super.src->super.myrank,
-                   __dague_object->super.src->super.myrank,
+                   __dague_handle->super.src->super.myrank,
+                   __dague_handle->super.src->super.myrank,
                    vpid,
                    ontask_arg);
             return;

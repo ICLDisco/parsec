@@ -103,7 +103,7 @@ int main( int argc, char** argv )
      */
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
                                1 /*nodes*/, 0 /*rank*/,
-                               BLOCK, BLOCK, NN, 1,
+                               NN, NN, NN, 1,
                                0, 0, NN, 1, 1, 1, 1);
     descA.mat = dague_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *

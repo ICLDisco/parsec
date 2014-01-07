@@ -78,7 +78,7 @@ struct remote_dep_output_param_s {
 
 struct dague_remote_deps_s {
     dague_list_item_t               super;
-    struct dague_lifo_t            *origin;  /**< The memory arena where the data pointer is comming from */
+    dague_lifo_t                   *origin;  /**< The memory arena where the data pointer is comming from */
     struct dague_handle_s          *dague_handle;  /**< dague object generating this data transfer */
     uint32_t                        pending_ack;  /**< Number of releases before completion */
     int32_t                         from;    /**< From whom we received the control */
@@ -123,7 +123,7 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
         ptr = (char*)(&(remote_deps->output[dague_remote_dep_context.max_dep_count]));
         rank_bit_size = sizeof(uint32_t) * ((dague_remote_dep_context.max_nodes_number + 31) / 32);
         for( i = 0; i < dague_remote_dep_context.max_dep_count; i++ ) {
-            DAGUE_LIST_ITEM_CONSTRUCT(&remote_deps->output[i].super);
+            OBJ_CONSTRUCT(&remote_deps->output[i].super, dague_list_item_t);
             remote_deps->output[i].parent     = remote_deps;
             remote_deps->output[i].rank_bits  = (uint32_t*)ptr;
             remote_deps->output[i].deps_mask  = 0;
@@ -190,8 +190,8 @@ int dague_remote_dep_new_object(dague_handle_t* handle);
 
 /* Send remote dependencies to target processes */
 int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
-                                const dague_execution_context_t* origin,
-                                dague_remote_deps_t* remote_deps);
+                              const dague_execution_context_t* origin,
+                              dague_remote_deps_t* remote_deps);
 
 /* Memcopy a particular data using datatype specification */
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
@@ -201,13 +201,13 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_dep_data_description_t* data);
 
 #else
-# define dague_remote_dep_init(ctx) (1)
-# define dague_remote_dep_fini(ctx) (0)
-# define dague_remote_dep_on(ctx)   (0)
-# define dague_remote_dep_off(ctx)  (0)
-# define dague_remote_dep_progress(ctx) (0)
-# define dague_remote_dep_activate(ctx, o, r, c) (-1)
-# define dague_remote_dep_new_object(obj) (0)
+#define dague_remote_dep_init(ctx)           1
+#define dague_remote_dep_fini(ctx)           0
+#define dague_remote_dep_on(ctx)             0
+#define dague_remote_dep_off(ctx)            0
+#define dague_remote_dep_progress(ctx)       0
+#define dague_remote_dep_activate(ctx, o, r) -1
+#define dague_remote_dep_new_object(ctx)     0
 #endif /* DISTRIBUTED */
 
 #endif /* __USE_REMOTE_DEP_H__ */

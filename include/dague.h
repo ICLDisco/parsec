@@ -71,7 +71,7 @@ int dague_progress(dague_context_t* context);
  * Compose sequentially two handles. If start is already a composed
  * object, then next will be added sequentially to the list. These
  * handles will execute one after another as if there were sequential. 
- * The resulting compound dague_object is returned. 
+ * The resulting compound dague_handle is returned. 
  */
 dague_handle_t* dague_compose(dague_handle_t* start, dague_handle_t* next);
 
@@ -99,7 +99,7 @@ void dague_handle_sync_ids(void);
 void dague_handle_free(dague_handle_t *handle);
 
 /**< Decrease task number of the object by nb_tasks. */
-void dague_object_dec_nbtask( dague_object_t* object, uint32_t nb_tasks );
+void dague_handle_dec_nbtask( dague_handle_t* handle, uint32_t nb_tasks );
 
 /**< Print DAGuE usage message */
 void dague_usage(void);

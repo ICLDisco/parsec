@@ -350,13 +350,12 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_s *eu,
 
 void dague_dependencies_mark_task_as_startup(dague_execution_context_t* exec_context);
 
-int dague_release_local_OUT_dependencies(dague_handle_t *dague_handle,
-                                         dague_execution_unit_t* eu_context,
+int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
                                          const dague_execution_context_t* origin,
                                          const dague_flow_t* origin_flow,
                                          const dague_execution_context_t* exec_context,
                                          const dague_flow_t* dest_flow,
-                                         struct data_repo_entry* dest_repo_entry,
+                                         struct data_repo_entry_s* dest_repo_entry,
                                          dague_dep_data_description_t* data,
                                          dague_execution_context_t** pready_list);
 

@@ -62,8 +62,8 @@ static inline int32_t dague_atomic_sub_32b(volatile int32_t* location, int32_t i
 }
 
 #define DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
-static inline uint32_t dague_atomic_add_32b( volatile uint32_t *location, int32_t d )
+static inline int32_t dague_atomic_add_32b( volatile int32_t *location, int32_t d )
 {
-    return (uint32_t)__sync_add_and_fetch((int32_t*)location, d);
+    return (int32_t)__sync_add_and_fetch((int32_t*)location, d);
 }
 

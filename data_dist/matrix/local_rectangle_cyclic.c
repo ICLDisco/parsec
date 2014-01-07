@@ -75,8 +75,8 @@ void local_block_cyclic_init(local_block_cyclic_t * Ddesc,
                                int nrst, int ncst, /* Super-tiling size */
                                int P )
 {
-    int temp, Q;
     dague_ddesc_t *o = &(Ddesc->super.super);
+    int Q;
 
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type,
@@ -158,8 +158,6 @@ static void localBC_key_to_coordinates(dague_ddesc_t *desc, dague_data_key_t key
  */
 static uint32_t localBC_rank_of(dague_ddesc_t * desc, ...)
 {
-
-
     return desc->myrank;
 }
 
@@ -172,6 +170,7 @@ static uint32_t localBC_rank_of_key(dague_ddesc_t *desc, dague_data_key_t key)
 
 static int32_t localBC_vpid_of(dague_ddesc_t *desc, ...)
 {
+    (void)desc;
     return 0;
 }
 
@@ -217,7 +216,7 @@ inline void localBC_position_to_coordinates(local_block_cyclic_t *Ddesc, int pos
     *n = local_n*(Ddesc->grid.cols) + Ddesc->grid.crank;
 
     sanity_check = localBC_coordinates_to_position(Ddesc, *m, *n);
-    assert( sanity_check == position );
+    assert( sanity_check == position ); (void)sanity_check;
 
     return;
 }
@@ -271,8 +270,8 @@ static dague_data_t* localBC_data_of_key(dague_ddesc_t *desc, dague_data_key_t k
 /*
  * Common functions
  */
-/*
 #ifdef HAVE_MPI
+/*
 int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
     return MPI_File_open(comm, filename, MPI_MODE_RDWR|MPI_MODE_CREATE, MPI_INFO_NULL, handle);
 }
@@ -280,4 +279,5 @@ int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
 int close_matrix_file(MPI_File * handle){
     return MPI_File_close(handle);
 }
+*/
 #endif /* HAVE_MPI */

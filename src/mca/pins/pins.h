@@ -3,8 +3,12 @@
 /* PaRSEC Performance Instrumentation Callback System */
 
 #include "dague_config.h"
-#include "dague_internal.h"
 #include "dague/mca/mca.h"
+
+struct dague_context_s;
+struct dague_handle_s;
+struct dague_execution_unit_s;
+struct dague_execution_context_s;
 
 typedef enum PINS_FLAG {
     SELECT_BEGIN,    // called before scheduler begins looking for an available task
@@ -34,9 +38,9 @@ typedef enum PINS_FLAG {
     PINS_FLAG_COUNT
 } PINS_FLAG;
 
-typedef void (parsec_pins_callback)(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data);
+typedef void (parsec_pins_callback)(struct dague_execution_unit_s * exec_unit, struct dague_execution_context_s * task, void * data);
 
-void pins_empty_callback(dague_execution_unit_t * exec_unit, dague_execution_context_t * task, void * data);
+void pins_empty_callback(struct dague_execution_unit_s * exec_unit, struct dague_execution_context_s * task, void * data);
 
 BEGIN_C_DECLS
 
@@ -56,12 +60,12 @@ typedef struct dague_pins_base_component_2_0_0 dague_pins_base_component_t;
  * Structure for sched modules
  */
 
-typedef void (*dague_pins_base_module_init_fn_t)(dague_context_t * master);
-typedef void (*dague_pins_base_module_fini_fn_t)(dague_context_t * master);
-typedef void (*dague_pins_base_module_handle_init_fn_t)(dague_handle_t * handle);
-typedef void (*dague_pins_base_module_handle_fini_fn_t)(dague_handle_t * handle);
-typedef void (*dague_pins_base_module_thread_init_fn_t)(dague_execution_unit_t * exec_unit);
-typedef void (*dague_pins_base_module_thread_fini_fn_t)(dague_execution_unit_t * exec_unit);
+typedef void (*dague_pins_base_module_init_fn_t)(struct dague_context_s * master);
+typedef void (*dague_pins_base_module_fini_fn_t)(struct dague_context_s * master);
+typedef void (*dague_pins_base_module_handle_init_fn_t)(struct dague_handle_s * handle);
+typedef void (*dague_pins_base_module_handle_fini_fn_t)(struct dague_handle_s * handle);
+typedef void (*dague_pins_base_module_thread_init_fn_t)(struct dague_execution_unit_s * exec_unit);
+typedef void (*dague_pins_base_module_thread_fini_fn_t)(struct dague_execution_unit_s * exec_unit);
 
 struct dague_pins_base_module_1_0_0_t {
     dague_pins_base_module_init_fn_t        init;
@@ -93,18 +97,18 @@ END_C_DECLS
  These functions should be each be called once at the appropriate lifecycle of the DAGuE Context
  except that handle functions should be called once per handle, and thread functions once per thread
  */
-void pins_init(dague_context_t * master);
-void pins_fini(dague_context_t * master);
-void pins_handle_init(dague_handle_t * handle);
-void pins_handle_fini(dague_handle_t * handle);
-void pins_thread_init(dague_execution_unit_t * exec_unit);
-void pins_thread_fini(dague_execution_unit_t * exec_unit);
+void pins_init(struct dague_context_s * master);
+void pins_fini(struct dague_context_s * master);
+void pins_handle_init(struct dague_handle_s * handle);
+void pins_handle_fini(struct dague_handle_s * handle);
+void pins_thread_init(struct dague_execution_unit_s * exec_unit);
+void pins_thread_fini(struct dague_execution_unit_s * exec_unit);
 
 /*
  the following functions are intended for public use wherever they are necessary
  */
-void parsec_instrument(PINS_FLAG method_flag, dague_execution_unit_t * exec_unit,
-                       dague_execution_context_t * task, void * data);
+void parsec_instrument(PINS_FLAG method_flag, struct dague_execution_unit_s * exec_unit,
+                       struct dague_execution_context_s * task, void * data);
 
 void pins_disable_registration(int disable);
 

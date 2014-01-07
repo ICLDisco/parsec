@@ -21,8 +21,8 @@
 #include <dague/ayudame.h>
 
 #include "dague/mca/pins/pins.h"
-
-#include <dague/utils/output.h>
+#include "dague/mca/sched/sched.h"
+#include "dague/utils/output.h"
 #include "data.h"
 #include "list.h"
 #include "scheduling.h"
@@ -33,9 +33,9 @@
 #include "dague_prof_grapher.h"
 #include "stats-internal.h"
 #include "vpmap.h"
-#include <dague/utils/mca_param.h>
-#include <dague/utils/installdirs.h>
-#include <dague/devices/device.h>
+#include "dague/utils/mca_param.h"
+#include "dague/utils/installdirs.h"
+#include "dague/devices/device.h"
 
 #include "src/mca/mca_repository.h"
 
@@ -206,8 +206,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     /* Synchronize with the other threads */
     dague_barrier_wait(startup->barrier);
 
-    if( NULL != scheduler.thread_init )
-        scheduler.thread_init(eu, startup->barrier);
+    if( NULL != current_scheduler->module.flow_init )
+        current_scheduler->module.flow_init(eu, startup->barrier);
 
     eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
@@ -301,7 +301,6 @@ static struct option long_options[] =
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
     int argc = 0, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
-    int nb_devices = -1;
     char *comm_binding_parameter = NULL;
     char *binding_parameter = NULL;
     char **argv = NULL;
@@ -379,8 +378,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             case 'c': nb_cores = (int)strtol(optarg, NULL, 10); break;
 
             case 'g': /* Enabled devices */
-                if(optarg)  nb_devices = (int)strtol(optarg, NULL, 10);
-                else        nb_devices = INT_MAX;
+                fprintf(stderr, "Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.\n");
                 break;
 
             case 'C': comm_binding_parameter = optarg; break;
@@ -1112,7 +1110,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
 #endif
 
     DEBUG2(("Activate dependencies for %s flags = 0x%04x\n", tmp1, function->flags));
-    deps = find_deps(dague_handle, exec_context);
+    deps = find_deps(origin->dague_handle, exec_context);
 
     if( function->flags & DAGUE_USE_DEPS_MASK ) {
         completed = dague_update_deps_with_mask(origin->dague_handle, exec_context, deps, origin, origin_flow, dest_flow);
@@ -1161,8 +1159,8 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
              * for each execution context.
              */
             new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
-            assert( origin->data[origin_flow->flow_index].data_out == data->ptr );
-            new_context->data[(int)dest_flow->flow_index].data_in   = (void*)((char*)data->ptr + data->displ);
+            new_context->data[(int)dest_flow->flow_index].data_in   = origin->data[origin_flow->flow_index].data_out;
+            assert(0 == data->displ); (void)data;
             AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
@@ -1213,7 +1211,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
         assert( 0 == (arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS) );
 
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ){
-            struct remote_dep_output_param* output;
+            struct remote_dep_output_param_s* output;
             int _array_pos, _array_mask;
 
 #if !defined(DAGUE_DIST_COLLECTIVES)
@@ -1229,7 +1227,6 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             if( !(output->rank_bits[_array_pos] & _array_mask) ) {
                 output->rank_bits[_array_pos] |= _array_mask;
                 output->deps_mask |= (1 << dep->dep_index);
-                output->data.data   = oldcontext->data[target->flow_index].data_out;
                 if( 0 == output->count_bits ) {
                     output->data       = *data;
                 } else {
@@ -1433,8 +1430,9 @@ int dague_handle_register( dague_handle_t* object )
 
 /**< globally synchronize object id's so that next register generates the same
  * id at all ranks. */
-void dague_handle_sync_ids( void ) {
-    int index;
+void dague_handle_sync_ids( void )
+{
+    uint32_t index;
     dague_atomic_lock( &object_array_lock );
     index = (int)object_array_pos;
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
@@ -1466,11 +1464,23 @@ void dague_handle_unregister( dague_handle_t* object )
     dague_atomic_unlock( &object_array_lock );
 }
 
-/**< Decrease task number of the object by nb_tasks. */
-void dague_object_dec_nbtask( dague_object_t* object, uint32_t nb_tasks )
+void dague_handle_free(dague_handle_t *handle)
 {
-    assert( object->nb_local_tasks >= nb_tasks );
-    dague_atomic_add_32b(&object->nb_local_tasks, -nb_tasks);
+      if( NULL == handle )
+                return;
+          if( NULL == handle->destructor ) {
+                    free( handle );
+                            return;
+                                }
+              /* the destructor calls the appropriate free on the handle */
+              handle->destructor( handle );
+}
+
+/**< Decrease task number of the object by nb_tasks. */
+void dague_handle_dec_nbtask( dague_handle_t* handle, uint32_t nb_tasks )
+{
+    assert( handle->nb_local_tasks >= nb_tasks );
+    dague_atomic_sub_32b((int32_t*)&handle->nb_local_tasks, (int32_t)nb_tasks);
 }
 
 /**< Print DAGuE usage message */

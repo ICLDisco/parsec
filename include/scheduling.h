@@ -119,10 +119,7 @@ int dague_set_scheduler( dague_context_t *dague );
  */
 void dague_remove_scheduler( dague_context_t *dague );
 
-
-/**
- * Global scheduler
- */
-extern dague_scheduler_t scheduler;
+struct dague_sched_module_s;
+extern struct dague_sched_module_s *current_scheduler;
 
 #endif  /* _DAGUE_scheduling_h */

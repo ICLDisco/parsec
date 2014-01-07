@@ -103,7 +103,7 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, ACCESS_READ | ACCESS_WRITE);
+    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit,

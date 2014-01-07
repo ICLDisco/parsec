@@ -301,7 +301,7 @@ inline void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *Ddesc, int po
     *n = local_n*(Ddesc->grid.cols) + Ddesc->grid.crank;
 
     sanity_check = twoDBC_coordinates_to_position(Ddesc, *m, *n);
-    assert( sanity_check == position );
+    assert( sanity_check == position ); (void)sanity_check;
 
     return;
 }
