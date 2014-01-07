@@ -25,6 +25,7 @@ int main(int argc, char ** argv)
     int Aseed = 3872;
     int Cseed = 2873;
     dague_complex64_t alpha = 3.5;
+    tiled_matrix_desc_t *ddescA;
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
     alpha -= I * 4.2;
@@ -43,8 +44,8 @@ int main(int argc, char ** argv)
     int Am = max(M, N);
     LDA = max(LDA, Am);
     LDC = max(LDC, M);
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
+        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDA, Am, 0, 0,
                                Am, Am, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
@@ -61,23 +62,30 @@ int main(int argc, char ** argv)
 
         PASTE_CODE_FLOPS(FLOPS_ZTRMM, (side, (DagDouble_t)M, (DagDouble_t)N));
 
+        /* Make A square */
+        if (side == PlasmaLeft) {
+            ddescA = tiled_matrix_submatrix( (tiled_matrix_desc_t *)&ddescA0, 0, 0, M, M );
+        } else {
+            ddescA = tiled_matrix_submatrix( (tiled_matrix_desc_t *)&ddescA0, 0, 0, N, N );
+        }
+
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplghe( dague, 0., uplo, (tiled_matrix_desc_t *)&ddescA, Aseed);
+        dplasma_zplghe( dague, 0., uplo, ddescA, Aseed);
         dplasma_zplrnt( dague, 0,        (tiled_matrix_desc_t *)&ddescC, Cseed);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, ztrmm,
                                   (side, uplo, trans, diag,
-                                   (dague_complex64_t)1.0,
-                                   (tiled_matrix_desc_t *)&ddescA,
+                                   1.0, ddescA,
                                    (tiled_matrix_desc_t *)&ddescC));
 
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, ztrmm);
 
         dplasma_ztrmm_Destruct( DAGUE_ztrmm );
+        free(ddescA);
     }
     else
     {
@@ -89,10 +97,19 @@ int main(int argc, char ** argv)
                                    nodes, cores, rank, MB, NB, LDC, N, 0, 0,
                                    M, N, SMB, SNB, P));
 
-        dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA, Aseed);
         dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
 
         for (s=0; s<2; s++) {
+            /* Make A square */
+            if (side[s] == PlasmaLeft) {
+                Am = M;
+                ddescA = tiled_matrix_submatrix( (tiled_matrix_desc_t *)&ddescA0, 0, 0, M, M );
+            } else {
+                Am = N;
+                ddescA = tiled_matrix_submatrix( (tiled_matrix_desc_t *)&ddescA0, 0, 0, N, N );
+            }
+            dplasma_zplghe( dague, 0., PlasmaUpperLower, ddescA, Aseed);
+
             for (u=0; u<2; u++) {
 #if defined(PRECISION_z) || defined(PRECISION_c)
                 for (t=0; t<3; t++) {
@@ -115,8 +132,8 @@ int main(int argc, char ** argv)
 
                         /* Compute */
                         printf("Compute ... ... ");
-                        dplasma_ztrmm(dague, side[s], uplo[u], trans[t], diag[d], (dague_complex64_t)alpha,
-                                      (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescC);
+                        dplasma_ztrmm(dague, side[s], uplo[u], trans[t], diag[d],
+                                      alpha, ddescA, (tiled_matrix_desc_t *)&ddescC);
                         printf("Done\n");
 
                         /* Check the solution */
@@ -143,6 +160,7 @@ int main(int argc, char ** argv)
                 }
 #endif
             }
+            free(ddescA);
         }
         dague_data_free(ddescC2.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescC2);
@@ -150,8 +168,8 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague, iparam);
 
-    dague_data_free(ddescA.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+    dague_data_free(ddescA0.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
     dague_data_free(ddescC.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
 

@@ -10,36 +10,36 @@
 #include "reduce_col.h"
 #include "reduce_row.h"
 
-struct dague_object_t*
+dague_object_t*
 dague_reduce_col_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t operator,
                       void* op_data )
 {
-    struct dague_object_t* dague;
+    dague_object_t* dague;
 
-    dague = (struct dague_object_t*)dague_reduce_col_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
+    dague = (dague_object_t*)dague_reduce_col_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
     return dague;
 }
 
-void dague_reduce_col_Destruct( struct dague_object_t *o )
+void dague_reduce_col_Destruct( dague_object_t *o )
 {
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
-struct dague_object_t*
+dague_object_t*
 dague_reduce_row_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t operator,
                       void* op_data )
 {
-    struct dague_object_t* dague;
+    dague_object_t* dague;
 
-    dague = (struct dague_object_t*)dague_reduce_row_new( src, dest, operator, op_data );
+    dague = (dague_object_t*)dague_reduce_row_new( src, dest, operator, op_data );
     return dague;
 }
 
-void dague_reduce_row_Destruct( struct dague_object_t *o )
+void dague_reduce_row_Destruct( dague_object_t *o )
 {
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }

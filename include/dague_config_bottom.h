@@ -102,3 +102,19 @@ typedef uint32_t dague_dependency_t;
 #define SET_LOWEST_PRIORITY(task, off)          (*((int*)(((uintptr_t)task)+off))) = 0x7fffffff;
 #endif
 
+typedef struct dague_remote_deps_s           dague_remote_deps_t;
+typedef struct dague_arena_t                 dague_arena_t;
+typedef struct dague_arena_chunk_t           dague_arena_chunk_t;
+typedef struct dague_data_pair_t             dague_data_pair_t;
+typedef struct _moesi_master                 moesi_master_t;
+typedef struct _moesi_map                    moesi_map_t;
+typedef struct dague_function_s              dague_function_t;
+typedef struct dague_dependencies_t          dague_dependencies_t;
+/**< The most basic execution flow. Each virtual process includes
+ *   multiple execution units (posix threads + local data) */
+typedef struct dague_execution_unit          dague_execution_unit_t;
+/**< Each distributed process includes multiple virtual processes */
+typedef struct dague_vp                      dague_vp_t;
+/* The description of the content of each data mouvement/copy */
+typedef struct dague_dep_data_description_s  dague_dep_data_description_t;
+

@@ -9,6 +9,7 @@
 #define _DATA_DISTRIBUTION_H_
 
 #include "dague_config.h"
+
 #include "profiling.h"
 
 #if defined(HAVE_STDARG_H)
@@ -23,8 +24,6 @@
 #ifdef HAVE_MPI
 #include "mpi.h"
 #endif /*HAVE_MPI */
-
-#include "moesi.h"
 
 BEGIN_C_DECLS
 

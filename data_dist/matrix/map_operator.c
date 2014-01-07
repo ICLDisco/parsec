@@ -338,7 +338,9 @@ static int complete_hook(dague_execution_unit_t *context,
 
     TAKE_TIME(context, 2*this_task->function->function_id+1, map_operator_op_hash( __dague_object, k, n ), NULL, 0);
 
+#if defined(DAGUE_PROF_GRAPHER)
     dague_prof_grapher_task(this_task, context->th_id, context->virtual_process->vp_id, k+n);
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
 
     release_deps(context, this_task,
                  (DAGUE_ACTION_RELEASE_REMOTE_DEPS |
@@ -438,7 +440,7 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
  * can be NULL, and then the data is reported as NULL in the corresponding op
  * floweter.
  */
-struct dague_object_t*
+dague_object_t*
 dague_map_operator_New(const tiled_matrix_desc_t* src,
                        tiled_matrix_desc_t* dest,
                        dague_operator_t op,
@@ -469,10 +471,10 @@ dague_map_operator_New(const tiled_matrix_desc_t* src,
     res->super.super.object_id = 1111;
     res->super.super.nb_local_tasks = src->nb_local_tiles;
     res->super.super.startup_hook = dague_map_operator_startup_fn;
-    return (struct dague_object_t*)res;
+    return (dague_object_t*)res;
 }
 
-void dague_map_operator_Destruct( struct dague_object_t* o )
+void dague_map_operator_Destruct( dague_object_t* o )
 {
 #if defined(DAGUE_PROF_TRACE)
     char* filename = NULL;

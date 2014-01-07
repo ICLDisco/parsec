@@ -24,17 +24,18 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 48, 192, 192);
-    iparam[IPARAM_SMB] = 2;
+    iparam[IPARAM_SMB] = 4;
+    iparam[IPARAM_SNB] = 1;
     iparam[IPARAM_LDA] = -'m';
-    iparam[IPARAM_LDB] = -'m';
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     if (M < K) {
-        printf("WARNING: M must be greater or equal to K\n");
+        printf("WARNING: M must be greater or equal to K (Set M = K)\n");
         M = K;
+        MT = KT;
     }
 
     LDA = max(M, LDA);
@@ -90,6 +91,7 @@ int main(int argc, char ** argv)
 
         dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC0, 2354);
         Cnorm = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t *)&ddescC0);
+
         if (Cnorm == 0.)
             Cnorm = 1.;
 

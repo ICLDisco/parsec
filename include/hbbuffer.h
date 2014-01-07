@@ -111,7 +111,7 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
     int best_index;
     dague_list_item_t *ejected = NULL;
 #define CTX(to) ((dague_execution_context_t*)(to))
-    
+
     /* Assume that we're going to push list.
      * Remove the first element from the list, keeping the rest of the list in topush
      * Don't move this line inside the loop: sometimes, multiple iterations of the loop with

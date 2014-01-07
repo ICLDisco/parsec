@@ -23,6 +23,7 @@ endmacro(dague_addtest)
 #set(CMAKE_Fortran_COMPILER "vtf77")
 Add_Subdirectory(pingpong)
 Add_Subdirectory(branching)
+Add_Subdirectory(choice)
 Add_Subdirectory(controlgather)
 Add_Subdirectory(all2all)
 

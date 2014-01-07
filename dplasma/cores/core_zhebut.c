@@ -9,7 +9,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include "dague.h"
-#include <plasma.h>
+#include <core_blas.h>
 #include <cblas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"

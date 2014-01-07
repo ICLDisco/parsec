@@ -9,7 +9,7 @@
 #include "dague_config.h"
 #include <stdlib.h>
 #include <dlfcn.h>
-#include <plasma.h>
+#include <core_blas.h>
 #include <core_blas.h>
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>

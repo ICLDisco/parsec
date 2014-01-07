@@ -1,20 +1,16 @@
 /*
- * Copyright (c) 2011-2012 The University of Tennessee and The University
+ * Copyright (c) 2011-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  */
 
 #ifndef _DPLASMAAUX_H_INCLUDED
 #define _DPLASMAAUX_H_INCLUDED
 
-#if defined(HAVE_STRING_H)
-#include <string.h>
-#endif  /* defined(HAVE_STRING_H) */
-
-#include "data_dist/matrix/matrix.h"
-
-int dplasma_aux_get_priority_limit( char* function, const tiled_matrix_desc_t* ddesc );   
+int dplasma_aux_get_priority_limit( char* function, const tiled_matrix_desc_t* ddesc );
 
 
 #define PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(DDESC, TYPE, INIT_PARAMS)   \

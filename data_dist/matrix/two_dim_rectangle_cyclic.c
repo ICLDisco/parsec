@@ -8,7 +8,6 @@
 #include <mpi.h>
 #endif /* HAVE_MPI */
 
-#include "dague_config.h"
 #include "dague_internal.h"
 #include "debug.h"
 #include "data_dist/matrix/matrix.h"
@@ -62,6 +61,9 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     Q = nodes / P;
     if(nodes != P*Q)
         WARNING(("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d\n", nodes, P, Q));
+
+    assert( (storage != matrix_Lapack) || (P==1) );
+
 #if defined(DAGUE_HARD_SUPERTILE)
     grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, nrst, ncst);
 #else
@@ -131,8 +133,6 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 }
 
 
-
-
 /*
  *
  * Set of functions with no super-tiles
@@ -140,9 +140,9 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
  */
 static uint32_t twoDBC_rank_of(dague_ddesc_t * desc, ...)
 {
-    unsigned int cr, m, n;
-    unsigned int rr;
-    unsigned int res;
+    int cr, m, n;
+    int rr;
+    int res;
     va_list ap;
     two_dim_block_cyclic_t * Ddesc;
     Ddesc = (two_dim_block_cyclic_t *)desc;
@@ -156,6 +156,9 @@ static uint32_t twoDBC_rank_of(dague_ddesc_t * desc, ...)
     /* Offset by (i,j) to translate (m,n) in the global matrix */
     m += Ddesc->super.i / Ddesc->super.mb;
     n += Ddesc->super.j / Ddesc->super.nb;
+
+    assert( m < Ddesc->super.mt );
+    assert( n < Ddesc->super.nt );
 
     /* P(rr, cr) has the tile, compute the mpi rank*/
     rr = m % Ddesc->grid.rows;
@@ -193,6 +196,9 @@ static int32_t twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     m += Ddesc->super.i / Ddesc->super.mb;
     n += Ddesc->super.j / Ddesc->super.nb;
 
+    assert( m < Ddesc->super.mt );
+    assert( n < Ddesc->super.nt );
+
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_rank_of(desc, m, n));
 #endif
@@ -228,6 +234,9 @@ static void *twoDBC_data_of(dague_ddesc_t *desc, ...)
     /* Offset by (i,j) to translate (m,n) in the global matrix */
     m += Ddesc->super.i / Ddesc->super.mb;
     n += Ddesc->super.j / Ddesc->super.nb;
+
+    assert( m < Ddesc->super.mt );
+    assert( n < Ddesc->super.nt );
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_rank_of(desc, m, n));

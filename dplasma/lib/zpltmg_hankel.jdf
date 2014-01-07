@@ -1,0 +1,79 @@
+extern "C" %{
+/*
+ * Copyright (c) 2011-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ *
+ * @precisions normal z -> c d s
+ *
+ */
+#include "dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+/*
+ * Globals
+ */
+seed   [type = "unsigned long long int" ]
+dataA  [type = "dague_ddesc_t *"]
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+
+/**************************************************
+ *                       READ_X                   *
+ **************************************************/
+GEN_RANDOM(k) [profile = off]
+
+k  = 0 .. (descA.mt+descA.nt-1)
+m1 = inline_c %{      if (k >= descA.mt) return descA.mt - 1; else return k; %}
+n1 = inline_c %{      if (k >= descA.mt) return dplasma_imin(k - descA.mt + 1, descA.nt-1); else return 0; %}
+m2 = inline_c %{ k--; if (k >= descA.mt) return descA.mt - 1; else return k; %}
+n2 = inline_c %{ k--; if (k >= descA.mt) return dplasma_imin(k - descA.mt + 1, descA.nt-1); else return 0; %}
+
+: dataA( m1, n1 )
+
+WRITE R -> ( k < (descA.mt+descA.nt-1) ) ? R1 PLRNT( m1, n1 )  [type = VECTOR]
+        -> ( k > 0 )                     ? R2 PLRNT( m2, n2 )  [type = VECTOR]
+
+BODY
+{
+    CORE_zplrnt( descA.mb, 1, R, descA.mb,
+                 descA.mt * descA.mb + descA.n - 1, k * descA.mb + 1, 0, seed );
+}
+END
+
+/**************************************************
+ *                       GEMM                     *
+ **************************************************/
+PLRNT(m, n) [profile = off]
+
+// Execution space
+m = 0 .. descA.mt-1
+n = 0 .. descA.nt-1
+
+// Parallel partitioning
+: dataA(m, n)
+
+// Parameters
+READ R1 <- ((n == 0) || (m == descA.mt-1)) ? R GEN_RANDOM(m+n)   : R1 PLRNT(m+1, n-1)  [type = VECTOR]
+        -> ((n < descA.nt-1) && (m > 0))   ? R1 PLRNT(m-1, n+1)                        [type = VECTOR]
+READ R2 <- ((n == 0) || (m == descA.mt-1)) ? R GEN_RANDOM(m+n+1) : R2 PLRNT(m+1, n-1)  [type = VECTOR]
+        -> ((n < descA.nt-1) && (m > 0) )  ? R2 PLRNT(m-1, n+1)                        [type = VECTOR]
+
+RW   A <- dataA(m, n)
+       -> dataA(m, n)
+
+BODY
+{
+    int tempmm = (m == descA.mt-1) ? descA.m - m * descA.mb : descA.mb;
+    int tempnn = (n == descA.nt-1) ? descA.n - n * descA.nb : descA.nb;
+    int ldam = BLKLDD(descA, m);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zpltmg_hankel(
+        PlasmaUpperLower, tempmm, tempnn, A, ldam,
+        m * descA.mb, n * descA.nb, descA.mb, R1, R2 );
+#endif
+}
+END
