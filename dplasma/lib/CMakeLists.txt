@@ -182,11 +182,14 @@ endif()
 
 
 ### Generate the lib
+link_directories(${COREBLAS_LIBRARY_DIRS})
 add_library(dplasma
             ${generated_files}
             ${generated_wrappers}
             ${EXTRA_SOURCES})
 add_dependencies(dplasma dplasma_includes)
+target_link_libraries(dplasma ${COREBLAS_LIBRARIES} ${EXTRA_LIBS} 
+            gfortran)
 
 
 if (MPI_C_FOUND)
