@@ -114,8 +114,6 @@ char* dague_snprintf_execution_context( char* str, size_t size,
 char* dague_snprintf_assignments( char* str, size_t size,
                                   const struct dague_function_s* function,
                                   const struct assignment* locals);
-
-void dague_putain_function_c();
 END_C_DECLS
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */
