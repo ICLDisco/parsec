@@ -9,6 +9,8 @@
 #ifndef _DPLASMA_QR_PARAM_H_
 #define _DPLASMA_QR_PARAM_H_
 
+BEGIN_C_DECLS
+
 /*
  * DPLASMA_QR_KILLED_BY_TS needs to be set to 0 for all variant of QR
  * factorization to distinguish TT kernels from TS kernels in jdf
@@ -138,5 +140,7 @@ void dplasma_qrtree_print_perm   ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrt
 void dplasma_qrtree_print_next_k ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k );
 void dplasma_qrtree_print_prev_k ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k );
 void dplasma_qrtree_print_geqrt_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k );
+
+END_C_DECLS
 
 #endif /* _DPLASMA_QR_PARAM_H_ */

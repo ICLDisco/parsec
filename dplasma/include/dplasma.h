@@ -7,7 +7,9 @@
 #ifndef _DPLASMA_H_
 #define _DPLASMA_H_
 
-#include "dague_config.h"
+#include "dague.h"
+
+BEGIN_C_DECLS
 
 #define DPLASMA_DEBUG
 #if defined(DPLASMA_DEBUG)
@@ -52,21 +54,23 @@ static inline int dplasma_imin(int a, int b) { return (a < b) ? a : b; };
 /* Functions specific to QR */
 #include "dplasma_qr_param.h"
 
-#include "dplasma/include/dplasma_s.h"
-#include "dplasma/include/dplasma_d.h"
-#include "dplasma/include/dplasma_c.h"
-#include "dplasma/include/dplasma_z.h"
+#include "dplasma_s.h"
+#include "dplasma_d.h"
+#include "dplasma_c.h"
+#include "dplasma_z.h"
 
 /*
  * Map operations
  */
-int dplasma_map(  dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_unary_op_t operator, void *op_args);
-int dplasma_map2( dague_context_t *dague, PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t operator, void *op_args);
+int dplasma_map(  dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_unary_op_t op, void *op_args);
+int dplasma_map2( dague_context_t *dague, PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t op, void *op_args);
 
-dague_object_t *dplasma_map_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_unary_op_t operator, void *op_args);
-dague_object_t *dplasma_map2_New( PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t operator, void *op_args);
+dague_object_t *dplasma_map_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_unary_op_t op, void *op_args);
+dague_object_t *dplasma_map2_New( PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t op, void *op_args);
 
 void dplasma_map_Destruct( dague_object_t *o );
 void dplasma_map2_Destruct( dague_object_t *o );
+
+END_C_DECLS
 
 #endif /* _DPLASMA_H_ */
