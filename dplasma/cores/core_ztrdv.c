@@ -30,12 +30,12 @@
 #define  DLARFG      zlarfg_
 extern void DLARFG(int *N, dague_complex64_t *ALPHA, dague_complex64_t *X, int *INCX, dague_complex64_t *TAU);
 
-void band_to_trd_vmpi1(int N, int NB, dague_complex64_t *A, int LDA);
-void band_to_trd_vmpi2(int N, int NB, dague_complex64_t *A, int LDA);
-void band_to_trd_v8seq(int N, int NB, dague_complex64_t *A, int LDA, int INgrsiz, int INthgrsiz);
-int TRD_seqgralgtype(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *C, dague_complex64_t *S, int i, int j, int m, int grsiz, int BAND);
-int blgchase_ztrdv1(int NT, int N, int NB, dague_complex64_t *A, dague_complex64_t *V, dague_complex64_t *TAU, int sweep, int id, int blktile);
-int blgchase_ztrdv2(int NT, int N, int NB, dague_complex64_t *A1, dague_complex64_t *A2, dague_complex64_t *V1, dague_complex64_t *TAU1, dague_complex64_t *V2, dague_complex64_t *TAU2, int sweep, int id, int blktile);
+//static void band_to_trd_vmpi1(int N, int NB, dague_complex64_t *A, int LDA);
+//static void band_to_trd_vmpi2(int N, int NB, dague_complex64_t *A, int LDA);
+//static void band_to_trd_v8seq(int N, int NB, dague_complex64_t *A, int LDA, int INgrsiz, int INthgrsiz);
+//static int  TRD_seqgralgtype(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *C, dague_complex64_t *S, int i, int j, int m, int grsiz, int BAND);
+int  blgchase_ztrdv1(int NT, int N, int NB, dague_complex64_t *A, dague_complex64_t *V, dague_complex64_t *TAU, int sweep, int id, int blktile);
+int  blgchase_ztrdv2(int NT, int N, int NB, dague_complex64_t *A1, dague_complex64_t *A2, dague_complex64_t *V1, dague_complex64_t *TAU1, dague_complex64_t *V2, dague_complex64_t *TAU2, int sweep, int id, int blktile);
 
 int CORE_zlarfx2(int side, int N,
                 dague_complex64_t V,
@@ -58,10 +58,6 @@ static void DLARFX_C(char side, int N, dague_complex64_t V, dague_complex64_t TA
 static void TRD_type1bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *V, dague_complex64_t *TAU, int st, int ed);
 static void TRD_type2bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *V, dague_complex64_t *TAU, int st, int ed);
 static void TRD_type3bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *V, dague_complex64_t *TAU, int st, int ed);
-
-
-
-
 
 
 int CORE_zlarfx2(int side, int N,
@@ -196,7 +192,7 @@ int CORE_zlarfx2c(int uplo,
 
 
 ///////////////////////////////////////////////////////////
-//                  DLARFX en C 
+//                  DLARFX en C
 ///////////////////////////////////////////////////////////
 static void DLARFX_C(char side, int N, dague_complex64_t V, dague_complex64_t TAU, dague_complex64_t *C, int LDC)
 {
@@ -209,7 +205,7 @@ static void DLARFX_C(char side, int N, dague_complex64_t V, dague_complex64_t TA
 
 
  T2 = TAU*V;
- if(side=='L'){       
+ if(side=='L'){
      for (J = 0; J < N ; J++){
         pt      = LDC*J;
         SUM     = C[pt]   + V*C[pt+1];
@@ -223,7 +219,7 @@ static void DLARFX_C(char side, int N, dague_complex64_t V, dague_complex64_t TA
         C[J]    = C[J]   - SUM*TAU;
         C[pt]   = C[pt]  - SUM*T2;
      }
- }else if(side=='B'){       
+ }else if(side=='B'){
      TEMP    = C[ LDC * (N-2) +1];
      for (J = 0; J < N-1 ; J++){
         pt      = LDC*J;
@@ -258,7 +254,7 @@ static void DLARFX_C(char side, int N, dague_complex64_t V, dague_complex64_t TA
  }
 }
 ///////////////////////////////////////////////////////////
- 
+
 ///////////////////////////////////////////////////////////
 #define A1(m,n)   &(A1[((m)-(n)) + LDA1*(n)])
 #define A2(m,n)   &(A2[((m)-(n)) + LDA2*((n)-NB)])
@@ -272,9 +268,9 @@ static void DLARFX_C(char side, int N, dague_complex64_t V, dague_complex64_t TA
 static void CORE_zhbtelr(int N, int NB, dague_complex64_t *A1, int LDA1, dague_complex64_t *A2, int LDA2, dague_complex64_t *V1, dague_complex64_t *TAU1, int st, int ed) {
   int    J1, J2, KDM1, LDX;
   int    len, len1, len2, t1ed, t2st;
-  int    i, IONE, ITWO; 
+  int    i, IONE, ITWO;
   IONE=1;
-  ITWO=2; 
+  ITWO=2;
   (void)N;
 
   KDM1 = NB-1;
@@ -292,23 +288,23 @@ static void CORE_zhbtelr(int N, int NB, dague_complex64_t *A1, int LDA1, dague_c
      J1   = st;
      J2   = i-2;
      t1ed = min(J2,KDM1);
-     t2st = max(J1, NB); 
+     t2st = max(J1, NB);
      len1 = t1ed - J1 +1;
      len2 = J2 - t2st +1;
      // printf("Type 1L st %d   ed %d    i %d    J1 %d   J2 %d  t1ed %d  t2st %d len1 %d len2 %d \n", st, ed, i, J1,J2,t1ed,t2st,len1,len2);
      /* apply reflector from the left (horizontal row) and from the right for only the diagonal 2x2.*/
      if(len2>=0){
-        /* part of the left(if len2>0) and the corner are on tile T2 */    
-	if(len2>0) CORE_zlarfx2(PlasmaLeft, len2 , *V1(i), conj(*TAU1(i)), A2((i-1), t2st), LDX, A2(i, t2st), LDX);
-        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A2(i-1,i-1), A2(i,i-1), A2(i,i)); 
+        /* part of the left(if len2>0) and the corner are on tile T2 */
+        if(len2>0) CORE_zlarfx2(PlasmaLeft, len2 , *V1(i), conj(*TAU1(i)), A2((i-1), t2st), LDX, A2(i, t2st), LDX);
+        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A2(i-1,i-1), A2(i,i-1), A2(i,i));
         if(len1>0) CORE_zlarfx2(PlasmaLeft, len1 , *V1(i), conj(*TAU1(i)), A1(i-1, J1), LDX, A1(i, J1), LDX);
      }else if(len2==-1){
-        /* the left is on tile T1, and only A(i,i) of the corner is on tile T2 */    
-        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A1(i-1,i-1), A1(i,i-1), A2(i,i)); 
+        /* the left is on tile T1, and only A(i,i) of the corner is on tile T2 */
+        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A1(i-1,i-1), A1(i,i-1), A2(i,i));
         if(len1>0) CORE_zlarfx2(PlasmaLeft, len1 , *V1(i), conj(*TAU1(i)), A1(i-1, J1), LDX, A1(i, J1), LDX);
      }else{
-        /* the left and the corner are on tile T1, nothing on tile T2 */    
-        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A1(i-1,i-1), A1(i,i-1), A1(i,i)) ; 
+        /* the left and the corner are on tile T1, nothing on tile T2 */
+        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A1(i-1,i-1), A1(i,i-1), A1(i,i)) ;
         if(len1>0) CORE_zlarfx2(PlasmaLeft, len1 , *V1(i), conj(*TAU1(i)), A1((i-1), J1), LDX, A1(i, J1), LDX);
      }
   }
@@ -320,14 +316,14 @@ static void CORE_zhbtelr(int N, int NB, dague_complex64_t *A1, int LDA1, dague_c
      J2    = ed;
      len   = J2-J1+1;
      if(len>0){
-   	if(i>NB)
-           /* both column (i-1) and i are on tile T2 */   
+        if(i>NB)
+           /* both column (i-1) and i are on tile T2 */
            CORE_zlarfx2(PlasmaRight, len, *V1(i), *TAU1(i), A2(J1, i-1), LDX, A2(J1, i), LDX);
         else if(i==NB)
-           /* column (i-1) is on tile T1 while column i is on tile T2 */   
+           /* column (i-1) is on tile T1 while column i is on tile T2 */
            CORE_zlarfx2(PlasmaRight, len, *V1(i), *TAU1(i), A1(J1, i-1), LDX, A2(J1, i), LDX);
         else
-           /* both column (i-1) and i are on tile T1 */   
+           /* both column (i-1) and i are on tile T1 */
            CORE_zlarfx2(PlasmaRight, len, *V1(i), *TAU1(i), A1(J1, i-1), LDX, A1(J1, i), LDX);
      }
   }
@@ -346,14 +342,14 @@ static void CORE_zhbtelr(int N, int NB, dague_complex64_t *A1, int LDA1, dague_c
 static void CORE_zhbtrce(int N, int NB, dague_complex64_t *A1, int LDA1, dague_complex64_t *A2, int LDA2, dague_complex64_t *V1, dague_complex64_t *TAU1, dague_complex64_t *V2, dague_complex64_t *TAU2, int st, int ed, int edglob) {
   int    J1, J2, J3, KDM1, LDX, pt;
   int    len, len1, len2, t1ed, t2st, iglob;
-  int    i, IONE, ITWO; 
+  int    i, IONE, ITWO;
   dague_complex64_t V,T,SUM;
   IONE=1;
-  ITWO=2; 
+  ITWO=2;
 
   iglob = edglob+1;
   LDX   = LDA1-1;
-  KDM1  = NB-1;  
+  KDM1  = NB-1;
   /* **********************************************************************************************
    *   Right:
    * ***********************************************************************************************/
@@ -363,17 +359,17 @@ static void CORE_zhbtrce(int N, int NB, dague_complex64_t *A1, int LDA1, dague_c
      J1  = ed+1;
      if((iglob+NB)>= N){
         J2 = i +(N-iglob-1);
-        J3 = J2;         
+        J3 = J2;
      }else{
         J2 = i + KDM1;
-	J3 = J2+1;
+        J3 = J2+1;
      }
      len   = J2-J1+1;
      /* printf("Type 2R st %d   ed %d    i %d   J1 %d   J2 %d  len %d iglob %d  \n",st,ed,i,J1,J2,len,iglob);*/
 
      if(len>0){
-   	if(i>NB){
-           /* both column (i-1) and i are on tile T2 */   
+        if(i>NB){
+           /* both column (i-1) and i are on tile T2 */
            CORE_zlarfx2(PlasmaRight, len, *V1(i), *TAU1(i), A2(J1, i-1), LDX, A2(J1, i), LDX);
            /* if nonzero element need to be created outside the band (if index < N) then create and eliminate it. */
            if(J3>J2){
@@ -386,8 +382,8 @@ static void CORE_zhbtrce(int N, int NB, dague_complex64_t *A1, int LDA1, dague_c
               /* generate Householder to annihilate a(j+kd,j-1) within the band */
               DLARFG( &ITWO, A2(J2,i-1), V2(i), &IONE, TAU2(i) );
            }
-	}else if(i==NB){
-           /* column (i-1) is on tile T1 while column i is on tile T2 */   
+        }else if(i==NB){
+           /* column (i-1) is on tile T1 while column i is on tile T2 */
            CORE_zlarfx2(PlasmaRight, len, *V1(i), *TAU1(i), A1(J1, i-1), LDX, A2(J1, i), LDX);
            /* if nonzero element need to be created outside the band (if index < N) then create and eliminate it. */
            if(J3>J2){
@@ -400,8 +396,8 @@ static void CORE_zhbtrce(int N, int NB, dague_complex64_t *A1, int LDA1, dague_c
               /* generate Householder to annihilate a(j+kd,j-1) within the band */
               DLARFG( &ITWO, A1(J2, i-1), V2(i), &IONE, TAU2(i) );
            }
-	}else{
-           /* both column (i-1) and i are on tile T1 */   
+        }else{
+           /* both column (i-1) and i are on tile T1 */
            CORE_zlarfx2(PlasmaRight, len, *V1(i), *TAU1(i), A1(J1, i-1), LDX, A1(J1, i), LDX);
            /* if nonzero element need to be created outside the band (if index < N) then create and eliminate it. */
            if(J3>J2){
@@ -417,8 +413,8 @@ static void CORE_zhbtrce(int N, int NB, dague_complex64_t *A1, int LDA1, dague_c
         }
      }
   }
-	      // if(id==1) return;
-  
+              // if(id==1) return;
+
   /* **********************************************************************************************
    *   APPLY LEFT ON THE REMAINING ELEMENT OF KERNEL 1
    * ***********************************************************************************************/
@@ -429,19 +425,19 @@ static void CORE_zhbtrce(int N, int NB, dague_complex64_t *A1, int LDA1, dague_c
         J1   = i;
         J2   = ed;
         t1ed = min(J2,KDM1);
-        t2st = max(J1, NB); 
+        t2st = max(J1, NB);
         len1 = t1ed - J1 +1;
         len2 = J2 - t2st +1;
         pt   = i + KDM1; /* pt correspond to the J2 position of the corresponding right done above */
         //printf("Type 2L st %d   ed %d    i %d    J1 %d   J2 %d  t1ed %d  t2st %d len1 %d len2 %d \n", st, ed, i, J1,J2,t1ed,t2st,len1,len2);
 
-	/* apply reflector from the left (horizontal row) and from the right for only the diagonal 2x2.*/
+        /* apply reflector from the left (horizontal row) and from the right for only the diagonal 2x2.*/
         if(len2>0){
-           /* part of the left(if len2>0) and the corner are on tile T2 */    
-   	   CORE_zlarfx2(PlasmaLeft, len2 , *V2(i), conj(*TAU2(i)), A2(pt, t2st), LDX, A2(pt+1, t2st), LDX);
+           /* part of the left(if len2>0) and the corner are on tile T2 */
+           CORE_zlarfx2(PlasmaLeft, len2 , *V2(i), conj(*TAU2(i)), A2(pt, t2st), LDX, A2(pt+1, t2st), LDX);
            if(len1>0) CORE_zlarfx2(PlasmaLeft, len1 , *V2(i), conj(*TAU2(i)), A1(pt, J1), LDX, A1(pt+1, J1), LDX);
         }else if(len1>0){
-           /* the left and the corner are on tile T1, nothing on tile T2 */    
+           /* the left and the corner are on tile T1, nothing on tile T2 */
            CORE_zlarfx2(PlasmaLeft, len1 , *V2(i), conj(*TAU2(i)), A1(pt, J1), LDX, A1(pt+1, J1), LDX);
         }
      }
@@ -469,23 +465,23 @@ static void CORE_zhbtlrx(int N, int NB, dague_complex64_t *A1, int LDA1, dague_c
      J1   = st;
      J2   = i-2;
      t1ed = min(J2,KDM1);
-     t2st = max(J1, NB); 
+     t2st = max(J1, NB);
      len1 = t1ed - J1 +1;
      len2 = J2 - t2st +1;
      //printf("Type 3L st %d   ed %d    i %d    J1 %d   J2 %d  t1ed %d  t2st %d len1 %d len2 %d \n", st, ed, i, J1,J2,t1ed,t2st,len1,len2);
      /* apply reflector from the left (horizontal row) and from the right for only the diagonal 2x2.*/
      if(len2>=0){
-        /* part of the left(if len2>0) and the corner are on tile T2 */    
-	if(len2>0) CORE_zlarfx2(PlasmaLeft, len2 , *V1(i), conj(*TAU1(i)), A2((i-1), t2st), LDX, A2(i, t2st), LDX);
-        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A2(i-1,i-1), A2(i,i-1), A2(i,i)); 
+        /* part of the left(if len2>0) and the corner are on tile T2 */
+        if(len2>0) CORE_zlarfx2(PlasmaLeft, len2 , *V1(i), conj(*TAU1(i)), A2((i-1), t2st), LDX, A2(i, t2st), LDX);
+        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A2(i-1,i-1), A2(i,i-1), A2(i,i));
         if(len1>0) CORE_zlarfx2(PlasmaLeft, len1 , *V1(i), conj(*TAU1(i)), A1(i-1, J1), LDX, A1(i, J1), LDX);
      }else if(len2==-1){
-        /* the left is on tile T1, and only A(i,i) of the corner is on tile T2 */    
-        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A1(i-1,i-1), A1(i,i-1), A2(i,i)); 
+        /* the left is on tile T1, and only A(i,i) of the corner is on tile T2 */
+        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A1(i-1,i-1), A1(i,i-1), A2(i,i));
         if(len1>0) CORE_zlarfx2(PlasmaLeft, len1 , *V1(i), conj(*TAU1(i)), A1(i-1, J1), LDX, A1(i, J1), LDX);
      }else{
-        /* the left and the corner are on tile T1, nothing on tile T2 */    
-        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A1(i-1,i-1), A1(i,i-1), A1(i,i)) ; 
+        /* the left and the corner are on tile T1, nothing on tile T2 */
+        CORE_zlarfx2c(PlasmaLower, *V1(i), *TAU1(i), A1(i-1,i-1), A1(i,i-1), A1(i,i)) ;
         if(len1>0) CORE_zlarfx2(PlasmaLeft, len1 , *V1(i), conj(*TAU1(i)), A1((i-1), J1), LDX, A1(i, J1), LDX);
      }
   }
@@ -497,14 +493,14 @@ static void CORE_zhbtlrx(int N, int NB, dague_complex64_t *A1, int LDA1, dague_c
      J2    = ed;
      len   = J2-J1+1;
      if(len>0){
-   	if(i>NB)
-           /* both column (i-1) and i are on tile T2 */   
+        if(i>NB)
+           /* both column (i-1) and i are on tile T2 */
            CORE_zlarfx2(PlasmaRight, len, *V1(i), *TAU1(i), A2(J1, i-1), LDX, A2(J1, i), LDX);
         else if(i==NB)
-           /* column (i-1) is on tile T1 while column i is on tile T2 */   
+           /* column (i-1) is on tile T1 while column i is on tile T2 */
            CORE_zlarfx2(PlasmaRight, len, *V1(i), *TAU1(i), A1(J1, i-1), LDX, A2(J1, i), LDX);
         else
-           /* both column (i-1) and i are on tile T1 */   
+           /* both column (i-1) and i are on tile T1 */
            CORE_zlarfx2(PlasmaRight, len, *V1(i), *TAU1(i), A1(J1, i-1), LDX, A1(J1, i), LDX);
      }
   }
@@ -536,9 +532,9 @@ static void CORE_zhbtlrx(int N, int NB, dague_complex64_t *A1, int LDA1, dague_c
 #define TAU(m)   &(TAU[m-1])
 static void TRD_type1bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *V, dague_complex64_t *TAU, int st, int ed) {
   int    J1, J2, len, LDX;
-  int    i, IONE, ITWO; 
+  int    i, IONE, ITWO;
   IONE=1;
-  ITWO=2; 
+  ITWO=2;
   (void)NB;
 
   if(ed <= st){
@@ -553,7 +549,7 @@ static void TRD_type1bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_com
      *A(i, (st-1))  = 0.0;
      DLARFG( &ITWO, A((i-1),(st-1)), V(i), &IONE, TAU(i) );
 
-     // apply reflector from the left (horizontal row) and from the right for only the diagonal 2x2. 
+     // apply reflector from the left (horizontal row) and from the right for only the diagonal 2x2.
      J1  = st;
      J2  = i;
      len = J2-J1+1;
@@ -584,7 +580,7 @@ static void TRD_type1bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_com
 #define TAU(m)   &(TAU[m-1])
 static void TRD_type2bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *V, dague_complex64_t *TAU, int st, int ed) {
   int    J1, J2, J3, KDM2, len, LDX;
-  int    i, IONE, ITWO; 
+  int    i, IONE, ITWO;
   IONE=1;
   ITWO=2;
 
@@ -606,17 +602,17 @@ static void TRD_type2bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_com
 
      // if nonzero element a(j+kd,j-1) has been created outside the band (if index < N) then eliminate it.
      len    = J3-J2; // soit 1 soit 0
-     if(len>0){ 
-         //  new nnz at TEMP=V(J3)  
-         *V(J3)     =            - *A(J3,(i)) * (*TAU(i)) * (*V(i)); 
+     if(len>0){
+         //  new nnz at TEMP=V(J3)
+         *V(J3)     =            - *A(J3,(i)) * (*TAU(i)) * (*V(i));
          *A(J3,(i)) = *A(J3,(i)) + *V(J3)  * (*V(i)); //ATTENTION THIS replacement IS VALID IN FLOAT CASE NOT IN COMPLEX
          // generate Householder to annihilate a(j+kd,j-1) within the band
          DLARFG( &ITWO, A(J2,(i-1)), V(J3), &IONE, TAU(J3) );
      }
   }
-	       //if(id==1) return;
+               //if(id==1) return;
 
-  
+
   for (i = ed; i >= st+1 ; i--){
      J2  = min((i+1+KDM2), N);
      J3  = min((J2+1), N);
@@ -659,7 +655,7 @@ static void TRD_type3bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_com
      J2  = i;
      len = J2-J1+1;
      //len = NB+1;
-     DLARFX_C('B', len , *V(i), *TAU(i), A((i-1),J1   ), LDX);     
+     DLARFX_C('B', len , *V(i), *TAU(i), A((i-1),J1   ), LDX);
   }
 
   for (i = ed; i >= st+1 ; i--){
@@ -677,19 +673,20 @@ static void TRD_type3bHL(int N, int NB, dague_complex64_t *A, int LDA, dague_com
 ///////////////////////////////////////////////////////////
 //                  grouping sched wrapper call
 ///////////////////////////////////////////////////////////
+#if 0
 int TRD_seqgralgtype(int N, int NB, dague_complex64_t *A, int LDA, dague_complex64_t *C, dague_complex64_t *S, int i, int j, int m, int grsiz, int BAND) {
   int    k,shift=3;
   int    myid,colpt,stind,edind,blklastind,stepercol;
   (void) BAND;
 
 
-  
+
   k   = shift/grsiz;
   stepercol =  k*grsiz == shift ? k:k+1;
 
 
-   for (k = 1; k <=grsiz; k++){ 
-      myid = (i-j)*(stepercol*grsiz) +(m-1)*grsiz + k;	
+   for (k = 1; k <=grsiz; k++){
+      myid = (i-j)*(stepercol*grsiz) +(m-1)*grsiz + k;
       if(myid%2 ==0){
            colpt      = (myid/2)*NB+1+j-1;
            stind      = colpt-NB+1;
@@ -731,12 +728,13 @@ int TRD_seqgralgtype(int N, int NB, dague_complex64_t *A, int LDA, dague_complex
 return 0;
 }
 ///////////////////////////////////////////////////////////
-
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                  REDUCTION BAND TO TRIDIAG
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void band_to_trd_v8seq(int N, int NB, dague_complex64_t *A, int LDA, int INgrsiz, int INthgrsiz) {
+#if 0
+static void band_to_trd_v8seq(int N, int NB, dague_complex64_t *A, int LDA, int INgrsiz, int INthgrsiz) {
   int myid, grsiz, shift, stt, st, ed, stind, edind, BAND;
   int blklastind, colpt;
   int stepercol,mylastid;
@@ -757,7 +755,7 @@ void band_to_trd_v8seq(int N, int NB, dague_complex64_t *A, int LDA, int INgrsiz
   shift   = 3;
   if(grsiz==0)grsiz   = 6;
   if(thgrsiz==0)thgrsiz = N;
-  
+
   if(LDA != (NB+1))
   {
       printf(" ERROR LDA not equal NB+1 and this code is special for LDA=NB+1. LDA=%d NB+1=%d \n",LDA,NB+1);
@@ -778,16 +776,16 @@ void band_to_trd_v8seq(int N, int NB, dague_complex64_t *A, int LDA, int INgrsiz
      for (i = stt; i <= N-2; i++){
         ed=min(i,thed);
         if(stt>ed)break;
-        for (m = 1; m <=stepercol; m++){ 
+        for (m = 1; m <=stepercol; m++){
             st=stt;
             for (j = st; j <=ed; j++){
                  myid     = (i-j)*(stepercol*grsiz) +(m-1)*grsiz + 1;
                  mylastid = myid+grsiz-1;
                  INFO = TRD_seqgralgtype(N, NB, A, LDA, C, S, i, j, m, grsiz, BAND);
                  if(INFO!=0){
-			 printf("ERROR band_to_trd_v8seq INFO=%d\n",INFO);
-			 return;
-		 }
+                         printf("ERROR band_to_trd_v8seq INFO=%d\n",INFO);
+                         return;
+                 }
                  if(mylastid%2 ==0){
                      blklastind      = (mylastid/2)*NB+1+j-1;
                  }else{
@@ -800,14 +798,14 @@ void band_to_trd_v8seq(int N, int NB, dague_complex64_t *A, int LDA, int INgrsiz
                           blklastind=0;
                  }
                  if(blklastind >= (N-1))  stt=stt+1;
-    	   } // END for j=st:ed
+           } // END for j=st:ed
         } // END for m=1:stepercol
      } // END for i=1:N-2
   } // END for thgrid=1:thgrnb
 
 } // END FUNCTION
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+#endif
 
 
 
@@ -860,7 +858,7 @@ int blgchase_ztrdv1(int NT, int N, int NB, dague_complex64_t *A, dague_complex64
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void band_to_trd_vmpi1(int N, int NB, dague_complex64_t *A, int LDA) {
+static void band_to_trd_vmpi1(int N, int NB, dague_complex64_t *A, int LDA) {
   int NT;
   dague_complex64_t *V, *TAU;
   int blktile, S, id, sweep;
@@ -882,7 +880,7 @@ void band_to_trd_vmpi1(int N, int NB, dague_complex64_t *A, int LDA) {
         sweep = blktile*NB + S ;
         for (id = blktile; id<NT; id++){
                blgchase_ztrdv1 (NT, N, NB, A, V, TAU, sweep , id, blktile);
-	}
+        }
      }
   }
 
@@ -934,7 +932,7 @@ int blgchase_ztrdv2(int NT, int N, int NB, dague_complex64_t *A1, dague_complex6
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void band_to_trd_vmpi2(int N, int NB, dague_complex64_t *A, int LDA) {
+static void band_to_trd_vmpi2(int N, int NB, dague_complex64_t *A, int LDA) {
     int NT;
     dague_complex64_t *V, *TAU;
     int blktile, S, id, sweep;
@@ -955,7 +953,7 @@ void band_to_trd_vmpi2(int N, int NB, dague_complex64_t *A, int LDA) {
         for (S = 0; S<NB; S++){
             sweep = blktile*NB + S ;
             for (id = blktile; id<NT; id++){
-                //printf("voici  blktile %d    S %d     id %d   sweep %d   \n",blktile, S, id, sweep); 
+                //printf("voici  blktile %d    S %d     id %d   sweep %d   \n",blktile, S, id, sweep);
                 blgchase_ztrdv2 (NT, N, NB,
                                 A+(id*NB*LDA), A+((id+1)*NB*LDA),
                                 V+(id*NB), TAU+(id*NB),
@@ -969,7 +967,3 @@ void band_to_trd_vmpi2(int N, int NB, dague_complex64_t *A, int LDA) {
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #endif
-
-
-
-

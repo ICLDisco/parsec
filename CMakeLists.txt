@@ -498,6 +498,7 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
     # gfortran
     set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-fno-f2c -O0 -g")
+    list(APPEND EXTRA_LIBS gfortran)
   elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
     # ifort
     set (CMAKE_Fortran_FLAGS_RELEASE "-f77rtl -O3")

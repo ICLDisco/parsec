@@ -92,11 +92,17 @@ precisions_rules_py(generated_files
                  PRECISIONS "${DPLASMA_PRECISIONS}")
 
 ### Generate the lib
+link_directories(${COREBLAS_LIBRARY_DIRS})
 add_library(dplasma_cores
-  ${generated_headers}
   ${generated_files}
 )
-target_link_libraries(dplasma_cores ${GPU_KERNEL_LIBS})
+
+target_link_libraries(dplasma_cores
+  ${GPU_KERNEL_LIBS}
+  ${COREBLAS_LIBRARIES}
+  ${EXTRA_LIBS}
+)
+
 add_dependencies(dplasma_cores dplasma_includes)
 
 install(TARGETS dplasma_cores

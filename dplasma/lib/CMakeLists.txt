@@ -188,14 +188,17 @@ add_library(dplasma
             ${generated_wrappers}
             ${EXTRA_SOURCES})
 add_dependencies(dplasma dplasma_includes)
-target_link_libraries(dplasma ${COREBLAS_LIBRARIES} ${EXTRA_LIBS} 
-            gfortran)
 
+target_link_libraries(dplasma
+  dplasma_cores
+  ${COREBLAS_LIBRARIES}
+  ${EXTRA_LIBS}
+)
 
 if (MPI_C_FOUND)
   set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif (MPI_C_FOUND)
-target_link_libraries(dplasma dplasma_cores)
+
 add_dependencies(dplasma dplasma_includes)
 install(TARGETS dplasma
         ARCHIVE DESTINATION lib
