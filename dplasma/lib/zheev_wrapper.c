@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2013      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -11,28 +11,26 @@
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 
-#include "zherbt_L.h"
-#include "zherbt_U.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/diag_band_to_rect.h"
-#include "zhbrbt_L.h"
-#include "zhbrbt_U.h"
+#include "dplasma/lib/zhbrdt.h"
 
-               const int transA, const int transB,
-               const dague_complex64_t alpha, const tiled_matrix_desc_t *A,
-                                              const tiled_matrix_desc_t *B,
-               const dague_complex64_t beta,        tiled_matrix_desc_t *C)
-
-
-/*    SUBROUTINE PZHEEV( JOBZ, UPLO, N, A, IA, JA, DESCA, W, Z, IZ, JZ,
+/*    SUBROUTINE PZHEEV( JOBZ, UPLO, N, A, IA, JA, DESCA, W, Z, IZ, JZ, 
      $                   DESCZ, WORK, LWORK, RWORK, LRWORK, INFO ) */
 dague_object_t*
-dplasma_zheev_New( PLASMA_Enum jobz, PLASMA_Enum uplo,
-                    tiled_matrix_desc_t* A, 
+dplasma_zheev_New( PLASMA_enum jobz, PLASMA_enum uplo,
+                    tiled_matrix_desc_t* A,
+                    tiled_matrix_desc_t* W,
                     tiled_matrix_desc_t* Z,
                     int* info )
 {
-    dague_object_t* zheev_object;
-    dague_arena_t* arena;
+    /* TODO: remove this when implemented */
+    if( jobz == PlasmaVec ) {
+        dplasma_error("DPLASMA_zheev_New", "Non-blocking interface is not implemented (yet)");
+        *info = -1;
+        return NULL;
+    }
 
     /* Check input arguments */
     if( jobz != PlasmaNoVec && jobz != PlasmaVec ) {
@@ -40,12 +38,6 @@ dplasma_zheev_New( PLASMA_Enum jobz, PLASMA_Enum uplo,
         *info = -1;
         return NULL;
     }
-    if( uplo != PlasmaLower && uplo != PlasmaUpper ) {
-        dplasma_error("DPLASMA_zheev", "illegal value of uplo");
-        *info = -2;
-        return NULL;
-    }
-
     /* TODO: remove this when implemented */
     if( jobz == PlasmaVec ) {
         dplasma_error("DPLASMA_zheev", "PlasmaVec jobz is not implemented (yet)");
@@ -53,86 +45,74 @@ dplasma_zheev_New( PLASMA_Enum jobz, PLASMA_Enum uplo,
         return NULL;
     }
 
-    if( PlasmaUpper == uplo )
-        dague_zherbt_U_object = dague_zherbt_U_object_new()
-
-
-    if( PlasmaNoTrans == transA ) {
-        if( PlasmaNoTrans == transB ) {
-            dague_zgemm_NN_object_t* object;
-            object = dague_zgemm_NN_new(transA, transB, alpha, beta,
-                                        *A, (dague_ddesc_t*)A,
-                                        *B, (dague_ddesc_t*)B,
-                                        *C, (dague_ddesc_t*)C);
-            arena = object->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA];
-            zgemm_object = (dague_object_t*)object;
-        } else {
-            dague_zgemm_NT_object_t* object;
-            object = dague_zgemm_NT_new(transA, transB, alpha, beta,
-                                        *A, (dague_ddesc_t*)A,
-                                        *B, (dague_ddesc_t*)B,
-                                        *C, (dague_ddesc_t*)C);
-            arena = object->arenas[DAGUE_zgemm_NT_DEFAULT_ARENA];
-            zgemm_object = (dague_object_t*)object;
-        }
-    } else {
-        if( PlasmaNoTrans == transB ) {
-            dague_zgemm_TN_object_t* object;
-            object = dague_zgemm_TN_new(transA, transB, alpha, beta,
-                                        *A, (dague_ddesc_t*)A,
-                                        *B, (dague_ddesc_t*)B,
-                                        *C, (dague_ddesc_t*)C);
-            arena = object->arenas[DAGUE_zgemm_TN_DEFAULT_ARENA];
-            zgemm_object = (dague_object_t*)object;
-        } else {
-            dague_zgemm_TT_object_t* object;
-            object = dague_zgemm_TT_new(transA, transB, alpha, beta,
-                                        *A, (dague_ddesc_t*)A,
-                                        *B, (dague_ddesc_t*)B,
-                                        *C, (dague_ddesc_t*)C);
-            arena = object->arenas[DAGUE_zgemm_TT_DEFAULT_ARENA];
-            zgemm_object = (dague_object_t*)object;
-        }
+    if( uplo != PlasmaLower && uplo != PlasmaUpper ) {
+        dplasma_error("DPLASMA_zheev", "illegal value of uplo");
+        *info = -2;
+        return NULL;
     }
+    
+    if( PlasmaLower == uplo ) {
+        dague_object_t* zherbt_obj, * zhbrdt_obj;
+        dague_diag_band_to_rect_object_t* band2rect_obj;
+        dague_object_t* zheev_compound;
+        sym_two_dim_block_cyclic_t* As = (sym_two_dim_block_cyclic_t*)A;
+        int ib=A->nb/3;
 
-    dplasma_add2arena_tile(arena,
-                           A->mb*A->nb*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+        two_dim_block_cyclic_t* T = calloc(1, sizeof(two_dim_block_cyclic_t));
+        two_dim_block_cyclic_init(T, matrix_ComplexDouble, matrix_Tile,
+             A->super.nodes, A->super.cores, A->super.myrank, ib, A->nb, A->mt*ib, A->n, 0, 0,
+             A->mt*ib, A->n, As->grid.strows, As->grid.strows, As->grid.rows);
+        T->mat = dague_data_allocate((size_t)T->super.nb_local_tiles *
+                                     (size_t)T->super.bsiz *
+                                     (size_t)dague_datadist_getsizeoftype(T->super.mtype));
+        dague_ddesc_set_key((dague_ddesc_t*)T, "zheev_ddescT");
 
-    return zheev_object;
+        zherbt_obj = (dague_object_t*)dplasma_zherbt_New( uplo, ib, A, (tiled_matrix_desc_t*)T );
+        band2rect_obj = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)A, (two_dim_block_cyclic_t*)W,
+                A->mt, A->nt, A->mb, A->nb, sizeof(dague_complex64_t));
+        zhbrdt_obj = (dague_object_t*)dplasma_zhbrdt_New(W);
+        zheev_compound = dague_compose( zherbt_obj, (dague_object_t*)band2rect_obj );
+        zheev_compound = dague_compose( zheev_compound, zhbrdt_obj );
+
+        dague_arena_t* arena = band2rect_obj->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA];
+        dplasma_add2arena_tile(arena,
+                               A->mb*A->nb*sizeof(dague_complex64_t),
+                               DAGUE_ARENA_ALIGNMENT_SSE,
+                               MPI_DOUBLE_COMPLEX, A->mb);
+
+        return zheev_compound;
+    }
+    else {
+        /* TODO: remove this when implemented */
+        dplasma_error("DPLASMA_zheev", "PlasmaUpper uplo is not implemented (yet)");
+        *info = -1;
+        return NULL;
+    }
 }
 
 void
 dplasma_zheev_Destruct( dague_object_t *o )
 {
-    dplasma_datatype_undefine_type( &(((dague_zgemm_NN_object_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
-
+#if 0
+    two_dim_block_cyclic_t* T = ???
+    dague_data_free(T->mat);
+    dague_ddesc_destroy((dague_ddesc_t*)T); free(T);
+    
+    dplasma_datatype_undefine_type( &(((dague_diag_band_to_rect_object_t *)o)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA]->opaque_dtt) );
+#endif
     DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
 }
 
 int
-dplasma_zheev( dague_context_t *dague,
-               const int transA, const int transB,
-               const dague_complex64_t alpha, const tiled_matrix_desc_t *A,
-                                              const tiled_matrix_desc_t *B,
-               const dague_complex64_t beta,        tiled_matrix_desc_t *C)
+dplasma_zheev( dague_context_t *dague, PLASMA_enum jobz, PLASMA_enum uplo,
+                    tiled_matrix_desc_t* A, 
+                    tiled_matrix_desc_t* W,
+                    tiled_matrix_desc_t* Z,
+                    int* info )
 {
     dague_object_t *dague_zheev = NULL;
 
-    /* Check input arguments */
-    if ((transA != PlasmaNoTrans) && (transA != PlasmaTrans) && (transA != PlasmaConjTrans)) {
-        dplasma_error("PLASMA_zgemm", "illegal value of transA");
-        return -1;
-    }
-    if ((transB != PlasmaNoTrans) && (transB != PlasmaTrans) && (transB != PlasmaConjTrans)) {
-        dplasma_error("PLASMA_zgemm", "illegal value of transB");
-        return -2;
-    }
-
-    dague_zheev = dplasma_zheev_New(transA, transB,
-                                    alpha, A, B,
-                                    beta, C);
+    dague_zheev = dplasma_zheev_New( jobz, uplo, A, W, Z, info );
 
     if ( dague_zheev != NULL )
     {

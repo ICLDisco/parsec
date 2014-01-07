@@ -109,7 +109,7 @@ endif()
 option(DAGUE_DEBUG_ENABLE
     "Enable extra paranoid checks" OFF)
 set   (DAGUE_DEBUG_VERBOSE 0 CACHE STRING
-    "Controls the amount of verbose debug output spit on stderr (0,1,2,3)")
+    "Controls the amount of verbose debug output on stderr (0,1,2,3,...). Default is 0.")
 option(DAGUE_DEBUG_HISTORY
   "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_CALL_TRACE
@@ -203,7 +203,7 @@ ENDIF (_mach_ppc)
 #
 # Fix the building system for 32 or 64 bits.
 #
-# On MAC OS X there is a easy solution, by setting the 
+# On MAC OS X there is a easy solution, by setting the
 # CMAKE_OSX_ARCHITECTURES to a subset of the following values:
 # ppc;ppc64;i386;x86_64.
 # On Linux this is a little bit tricky. We have to check that the
@@ -220,7 +220,11 @@ if (BUILD_64bits)
   if( _match_xlc)
     set( ARCH_BUILD "-q64" )
   else (_match_xlc)
-    set( ARCH_BUILD "-m64" )
+    if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "sparc64fx" )
+      set ( ARCH_BUILD " " )
+    else()
+      set( ARCH_BUILD "-m64" )
+    endif()
   endif(_match_xlc)
 else (BUILD_64bits)
   if( _match_xlc)
@@ -246,10 +250,14 @@ unset( SAVE_CMAKE_REQUIRED_FLAGS )
 # Check compiler flags and capabilities
 #
 IF( NOT _match_xlc )
-  CHECK_C_COMPILER_FLAG( "-std=c99" HAVE_STD_C99)
-  IF( HAVE_STD_C99 )
-    SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
-  ENDIF( HAVE_STD_C99 )
+  if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "sparc64fx" )
+    SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} " )
+  else()
+    CHECK_C_COMPILER_FLAG( "-std=c99" HAVE_STD_C99)
+    IF( HAVE_STD_C99 )
+      SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
+    ENDIF( HAVE_STD_C99 )
+  endif()
 ELSE( NOT _match_xlc )
   CHECK_C_COMPILER_FLAG( "-qlanglvl=extc99" HAVE_STD_C99)
   IF( HAVE_STD_C99 )
@@ -257,7 +265,7 @@ ELSE( NOT _match_xlc )
   ENDIF( HAVE_STD_C99 )
 ENDIF( NOT _match_xlc )
 
-# Set warnings for debug builds 
+# Set warnings for debug builds
 CHECK_C_COMPILER_FLAG( "-Wall" HAVE_WALL )
 IF( HAVE_WALL )
     SET( C_WFLAGS "${C_WFLAGS} -Wall" )
@@ -275,10 +283,10 @@ if(_match_icc)
   IF( HAVE_WD )
     # 424: checks for duplicate ";"
     # 981: every volatile triggers a "unspecified evaluation order", obnoxious
-    #      but might be useful for some debugging sessions. 
+    #      but might be useful for some debugging sessions.
     # 1419: warning about extern functions being declared in .c
     #       files
-    # 1572: cuda compares floats with 0.0f. 
+    # 1572: cuda compares floats with 0.0f.
     SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572" )
   ENDIF( HAVE_WD )
 endif(_match_icc)
@@ -343,7 +351,7 @@ if (HAVE_STDARG_H)
       }"
       HAVE_VA_COPY
       )
- 
+
   if (NOT HAVE_VA_COPY)
     check_c_source_compiles("
         #include <stdarg.h>
@@ -613,11 +621,9 @@ install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc" DESTINATION include)
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)
 set(CPACK_GENERATOR "TBZ2")
-set (CPACK_RESOURCE_FILE_LICENSE  
+set (CPACK_RESOURCE_FILE_LICENSE
      "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
 set (CPACK_PACKAGE_VERSION_MAJOR "${DAGUE_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${DAGUE_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "gamma")
 include (CPack)
-
-

@@ -98,6 +98,9 @@ void dague_handle_sync_ids(void);
 /**< Free the resource allocated in the dague handle. The handle should be unregistered first. */
 void dague_handle_free(dague_handle_t *handle);
 
+/**< Decrease task number of the object by nb_tasks. */
+void dague_object_dec_nbtask( dague_object_t* object, uint32_t nb_tasks );
+
 /**< Print DAGuE usage message */
 void dague_usage(void);
 

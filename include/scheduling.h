@@ -9,6 +9,8 @@
 
 #include "dague_internal.h"
 
+struct dague_barrier_t;
+
 /**
  * Add the dague_handle_t to the execution queue of the dague_context_t. As
  * a result all ready tasks on the dague_handle_t are scheduledfor execution
@@ -117,5 +119,10 @@ int dague_set_scheduler( dague_context_t *dague );
  */
 void dague_remove_scheduler( dague_context_t *dague );
 
+
+/**
+ * Global scheduler
+ */
+extern dague_scheduler_t scheduler;
 
 #endif  /* _DAGUE_scheduling_h */

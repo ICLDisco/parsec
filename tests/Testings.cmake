@@ -2,9 +2,11 @@
 # Shared Memory Testings
 #
 
-add_test(startup ${SHM_TEST_CMD_LIST} ./startup -i=10 -j=10 -k=10 -v=5)
-add_test(startup ${SHM_TEST_CMD_LIST} ./startup -i=10 -j=20 -k=30 -v=5)
-add_test(startup ${SHM_TEST_CMD_LIST} ./startup -i=50 -j=50 -k=50 -v=5)
+add_test(unit_startup1 ${SHM_TEST_CMD_LIST} ./startup -i=10 -j=10 -k=10 -v=5)
+add_test(unit_startup2 ${SHM_TEST_CMD_LIST} ./startup -i=10 -j=20 -k=30 -v=5)
+add_test(unit_startup3 ${SHM_TEST_CMD_LIST} ./startup -i=50 -j=50 -k=50 -v=5)
+
+add_test(unit_touch    ${SHM_TEST_CMD_LIST} ./touch_ex -v=5)
 
 # The headnode lack GPUs so we need MPI in order to get the test to run on
 # one of the nodes.
@@ -15,8 +17,9 @@ endif (CUDA_FOUND AND MPI_C_FOUND)
 # Distributed Memory Testings
 #
 if( MPI_C_FOUND )
+  find_program(BINTRUE true)
   # Check MPI
-  add_test(mpi_test   ${MPI_TEST_CMD_LIST} -np 8 /bin/true)
+  add_test(unit_mpi_test ${MPI_TEST_CMD_LIST} -np 8 ${BINTRUE})
 
 endif( MPI_C_FOUND )
 

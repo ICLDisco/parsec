@@ -14,6 +14,13 @@
 #include "dague.h"
 #include "profiling.h"
 
+/**
+ * A classical way to find the container that contains a particular structure.
+ * Read more at http://en.wikipedia.org/wiki/Offsetof.
+ */
+#define container_of(ptr, type, member) \
+    ((type *)((char *)ptr - offsetof(type,member)))
+
 BEGIN_C_DECLS
 
 typedef struct dague_function_s        dague_function_t;
@@ -113,12 +120,11 @@ typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context
  *
  */
 typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit_s *eu,
-                                                         dague_execution_context_t *newcontext,
-                                                         dague_execution_context_t *oldcontext,
-                                                         int flow_index, int outdep_index,
-                                                         int rank_src, int rank_dst,
-                                                         int vpid_dst,
+                                                         const dague_execution_context_t *newcontext,
+                                                         const dague_execution_context_t *oldcontext,
+                                                         const dep_t* dep,
                                                          dague_dep_data_description_t *data,
+                                                         int rank_src, int rank_dst, int vpid_dst,
                                                          void *param);
 /**
  *
@@ -324,37 +330,35 @@ extern int device_delegate_begin, device_delegate_end;
  * Dependencies management.
  */
 typedef struct {
-    int nb_released;
+    uint32_t action_mask;
     uint32_t output_usage;
     struct data_repo_entry_s *output_entry;
-    int action_mask;
     struct dague_remote_deps_s *deps;
     dague_execution_context_t** ready_lists;
 #if defined(DISTRIBUTED)
-    int remote_deps_count;
     struct dague_remote_deps_s *remote_deps;
 #endif
 } dague_release_dep_fct_arg_t;
 
 dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_s *eu,
-                                             dague_execution_context_t *newcontext,
-                                             dague_execution_context_t *oldcontext,
-                                             int flow_index, int outdep_index,
-                                             int rank_src, int rank_dst,
-                                             int vpid_dst,
+                                             const dague_execution_context_t *newcontext,
+                                             const dague_execution_context_t *oldcontext,
+                                             const dep_t* dep,
                                              dague_dep_data_description_t* data,
+                                             int rank_src, int rank_dst, int vpid_dst,
                                              void *param);
 
 void dague_dependencies_mark_task_as_startup(dague_execution_context_t* exec_context);
 
-int dague_release_local_OUT_dependencies( dague_handle_t *dague_handle,
-                                          dague_execution_unit_t* eu_context,
-                                          const dague_execution_context_t* origin,
-                                          const dague_flow_t* origin_flow,
-                                          dague_execution_context_t* exec_context,
-                                          const dague_flow_t* dest_flow,
-                                          struct data_repo_entry_s* dest_repo_entry,
-                                          dague_execution_context_t** pready_list );
+int dague_release_local_OUT_dependencies(dague_handle_t *dague_handle,
+                                         dague_execution_unit_t* eu_context,
+                                         const dague_execution_context_t* origin,
+                                         const dague_flow_t* origin_flow,
+                                         const dague_execution_context_t* exec_context,
+                                         const dague_flow_t* dest_flow,
+                                         struct data_repo_entry* dest_repo_entry,
+                                         dague_dep_data_description_t* data,
+                                         dague_execution_context_t** pready_list);
 
 
 /**

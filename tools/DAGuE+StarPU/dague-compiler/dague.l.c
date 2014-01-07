@@ -1246,49 +1246,49 @@ YY_RULE_SETUP
 case 13:
 YY_RULE_SETUP
 #line 124 "dague.l"
-{ yylval.number = JDF_VAR_TYPE_CTL;
+{ yylval.number = JDF_FLOW_TYPE_CTL;
                         return DEPENDENCY_TYPE;                            }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
 #line 126 "dague.l"
-{ yylval.number = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
+{ yylval.number = JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
 #line 128 "dague.l"
-{ yylval.number = JDF_VAR_TYPE_READ;
+{ yylval.number = JDF_FLOW_TYPE_READ;
                         return DEPENDENCY_TYPE;                            }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
 #line 130 "dague.l"
-{ yylval.number = JDF_VAR_TYPE_READ;
+{ yylval.number = JDF_FLOW_TYPE_READ;
                         return DEPENDENCY_TYPE;                            }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
 #line 132 "dague.l"
-{ yylval.number = JDF_VAR_TYPE_WRITE;
+{ yylval.number = JDF_FLOW_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
 #line 134 "dague.l"
-{ yylval.number = JDF_VAR_TYPE_WRITE;
+{ yylval.number = JDF_FLOW_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
 #line 136 "dague.l"
-{ yylval.dep_type = JDF_DEP_TYPE_OUT;
+{ yylval.dep_type = JDF_DEP_FLOW_OUT;
                         return ARROW;                                      }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
 #line 138 "dague.l"
-{ yylval.dep_type = JDF_DEP_TYPE_IN;
+{ yylval.dep_type = JDF_DEP_FLOW_IN;
                         return ARROW;                                      }
 	YY_BREAK
 case 21:

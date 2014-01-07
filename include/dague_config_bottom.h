@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -50,6 +50,9 @@
 #endif  /* HAVE_STDDEF_H */
 #include <stdint.h>
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #if defined(HAVE_MPI)
 # define DISTRIBUTED
 #else
@@ -63,27 +66,16 @@
 # define DAGUE_PROF_DRY_DEP
 #endif
 
-#ifndef DAGUE_DIST_EAGER_LIMIT
+#if DAGUE_DIST_EAGER_LIMIT == 0
 #define RDEP_MSG_EAGER_LIMIT    0
 #else
-#define RDEP_MSG_EAGER_LIMIT    (((size_t)DAGUE_DIST_EAGER_LIMIT)*1024)
+#define RDEP_MSG_EAGER_LIMIT    ((DAGUE_DIST_EAGER_LIMIT)*1024)
 #endif
 
-#ifndef DAGUE_DIST_EAGER_LIMIT
+#if DAGUE_DIST_SHORT_LIMIT == 0
 #define RDEP_MSG_SHORT_LIMIT    0
 #else
-#define RDEP_MSG_SHORT_LIMIT    (((size_t)DAGUE_DIST_SHORT_LIMIT)*1024)
-#endif
-
-#if (DAGUE_DEBUG_VERBOSE >= 3)
-#   define DAGUE_DEBUG_VERBOSE3
-#   define DAGUE_DEBUG_VERBOSE2
-#   define DAGUE_DEBUG_VERBOSE1
-#elif (DAGUE_DEBUG_VERBOSE >= 2)
-#   define DAGUE_DEBUG_VERBOSE2
-#   define DAGUE_DEBUG_VERBOSE1
-#elif (DAGUE_DEBUG_VERBOSE >= 1)
-#   define DAGUE_DEBUG_VERBOSE1
+#define RDEP_MSG_SHORT_LIMIT    ((DAGUE_DIST_SHORT_LIMIT)*1024)
 #endif
 
 #if defined(DAGUE_SCHED_DEPS_MASK)

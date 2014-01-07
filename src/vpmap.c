@@ -469,7 +469,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
         hwloc_cpuset_t binding_mask = hwloc_bitmap_alloc();
         hwloc_bitmap_from_ulong(binding_mask, mask);
 
-#if defined(DAGUE_DEBUG_VERBOSE2)
+#if DAGUE_DEBUG_VERBOSE >= 2
         {
             char *str = NULL;
             hwloc_bitmap_asprintf(&str,  binding_mask);
@@ -477,7 +477,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             printf("VP %i : binding of the %i threads defined by the mask %s\n", vp, nbth, str);
             free(str);
         }
-#endif /* DAGUE_DEBUG_VERBOSE2 */
+#endif /* DAGUE_DEBUG_VERBOSE */
 
         int core=-1, prev=-1;
 #if defined(HAVE_HWLOC)
@@ -632,7 +632,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             }
         }
 
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if DAGUE_DEBUG_VERBOSE != 0
         char tmp[MAX_STR_SIZE];
         char* str = tmp;
         size_t offset;

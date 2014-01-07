@@ -22,30 +22,30 @@ extern int current_lineno;
 #endif
 #define ECHO
 
-static char *extern_code(char *base, int len)
+static char *extern_code(char *base, int len, int line)
 {
-   char *res;
-   int rp, rlen;
+     char *res;
+     int rp, rlen;
 
-   rlen = len + 16 + strlen(yyfilename);
-   res = (char*)calloc(1, rlen);
+     rlen = len + 16 + strlen(yyfilename);
+     res = (char*)calloc(1, rlen);
 
-   rp = 0;
-   if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
-     /**
-      * As each extern_code is contiguous we only have to set the #line once.
-      */
-     rp += snprintf(res + rp, rlen - rp, "#line %d \"%s\"\n", current_lineno, yyfilename);
-  }
-   memcpy(res + rp, base, len);
-   rp += len;
-   res[rp] = '\0';
-   for(rp = 0; rp < len; rp++) {
-     if( base[rp] == '\n' ) {
-       current_lineno++;
+     rp = 0;
+     if( !JDF_COMPILER_GLOBAL_ARGS.noline && line) {
+         /**
+          * As each extern_code is contiguous we only have to set the #line once.
+          */
+         rp += snprintf(res + rp, rlen - rp, "#line %d \"%s\"\n", current_lineno, yyfilename);
      }
-   }
-   return res;
+     memcpy(res + rp, base, len);
+     rp += len;
+     res[rp] = '\0';
+     for(rp = 0; rp < len; rp++) {
+         if( base[rp] == '\n' ) {
+             current_lineno++;
+         }
+     }
+     return res;
 }
 
 #define MAX_STR_CONST  1024
@@ -84,7 +84,7 @@ WHITE         [\f\t\v ]
 %x body_init
 
 %%
-
+^{WHITE}*(?i:body)    { YY_PUSH_STATE(body); }
 extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}                          {
                           int lstart, lend, bstart, skip_line = 0;
                           /* This assumes that no extern language rightfully has a "
@@ -106,15 +106,15 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
                           for( lend = 0; lend <= bstart; lend++ )
                               if( yytext[lend] == '\n' ) skip_line++;
                           current_lineno += skip_line;
-                          YYLVAL(string) = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
+                          YYLVAL(string) = extern_code( yytext + bstart, strlen(yytext)-bstart-2, 1 );
                           ECHO; return EXTERN_DECL;
                       }
 <INITIAL,properties>inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}            {
                           int start;
                           for(start = 8; yytext[start] != '{'; start++) /* nothing */ ;
                           start++;
-                          YYLVAL(string) = extern_code( yytext + start, strlen(yytext)-start-2 );
-			  ECHO; return EXTERN_DECL;
+                          YYLVAL(string) = extern_code( yytext + start, strlen(yytext)-start-2, 0 );
+                          ECHO; return EXTERN_DECL;
                       }
 SIMCOST               { ECHO; return SIMCOST; }
 <*>"/*"               { YY_PUSH_STATE(comment);                            }

@@ -121,6 +121,7 @@ set(SOURCES
   zgelqf_wrapper.c
   zherbt_wrapper.c
   zhbrdt_wrapper.c
+  zheev_wrapper.c
   zungqr_wrapper.c
   zungqr_param_wrapper.c
   zunmqr_wrapper.c

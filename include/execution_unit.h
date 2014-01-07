@@ -106,6 +106,9 @@ struct dague_vp_s {
     dague_execution_unit_t* execution_units[1];
 };
 
+#define DAGUE_CONTEXT_FLAG_ACTIVE  0x0001
+#define DAGUE_CONTEXT_FLAG_MAIN_IN 0x0002
+
 /**
  * All virtual processes belong to a single physical
  * process
@@ -114,6 +117,8 @@ struct dague_context_s {
     volatile int32_t __dague_internal_finalization_in_progress;
     volatile int32_t __dague_internal_finalization_counter;
     volatile uint32_t active_objects;
+    volatile uint32_t flags;
+
     int32_t nb_nodes;    /**< nb of physical processes */
     int32_t my_rank;     /**< rank of this physical process */
 

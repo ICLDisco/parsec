@@ -149,7 +149,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
         ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->access_type,
                                        &(this_task->data[i]), gpu_task, gpu_stream->cuda_stream );
         if( ret < 0 ) {
-            return ret;
+            goto release_and_return_error;
         }
     }
 
@@ -244,7 +244,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
         original = this_task->data[i].data_out->original;
         gpu_copy = this_task->data[i].data_out;
         assert(original == this_task->data[i].data_in->original);
-        if( flow->access_type & ACCESS_READ ) {
+        if( flow->flow_flags & FLOW_ACCESS_READ ) {
             gpu_copy->readers--; assert(gpu_copy->readers >= 0);
             if( (0 == gpu_copy->readers) &&
                 !(flow->access_type & ACCESS_WRITE) ) {
@@ -253,7 +253,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                 dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
             }
         }
-        if( flow->access_type & ACCESS_WRITE ) {
+        if( flow->flow_flags & FLOW_ACCESS_WRITE ) {
             gpu_copy->version++;  /* on to the next version */
             assert( gpu_copy == dague_data_get_copy(gpu_copy->original, gpu_device->super.device_index) );
             /* Stage the transfer of the data back to main memory */
@@ -310,7 +310,7 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
 
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if(NULL == this_task->function->out[i]) continue;
-        if(!(this_task->function->out[i]->access_type & ACCESS_WRITE)) continue;
+        if( !(this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) continue;
 
         gpu_copy = this_task->data[this_task->function->out[i]->flow_index].data_out;
         original = gpu_copy->original;

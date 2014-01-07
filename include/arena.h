@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 #ifndef __USE_ARENA_H__
 #define __USE_ARENA_H__
-
-#include <stdlib.h>
 
 #include "dague_config.h"
 #include "dague_internal.h"
@@ -14,24 +12,20 @@
 #include <stddef.h>
 #endif  /* HAVE_STDDEF_H */
 #include "debug.h"
-#include "stats.h"
 
 #include <dague/sys/atomic.h>
 #include "lifo.h"
-
-#include "remote_dep.h"
 
 #define DAGUE_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
 #define DAGUE_ALIGN_PTR(x,a,t) ((t)DAGUE_ALIGN((uintptr_t)x, a, uintptr_t))
 #define DAGUE_ALIGN_PAD_AMOUNT(x,s) ((~((uintptr_t)(x))+1) & ((uintptr_t)(s)-1))
 
 struct dague_arena_s {
+    dague_lifo_t          area_lifo;
     size_t                alignment;     /* alignment to be respected, elem_size should be >> alignment, prefix size is
                                           the minimum alignment */
     size_t                elem_size;     /* size of one element (unpacked in memory, aka extent) */
-    dague_datatype_t      opaque_dtt;    /* the appropriate type for the network
-                                          engine to send an element */
-    dague_lifo_t          area_lifo;
+    dague_datatype_t      opaque_dtt;    /* the appropriate type for the network engine to send an element */
     volatile int32_t      used;           /* elements currently out of the arena */
     int32_t               max_used;       /* maximum size of the arena in elements */
     volatile int32_t      released;       /* elements currently not used but allocated */
@@ -62,13 +56,16 @@ int dague_arena_construct(dague_arena_t* arena,
                           size_t elem_size,
                           size_t alignment,
                           dague_datatype_t opaque_dtt);
+int dague_arena_construct_ex(dague_arena_t* arena,
+                             size_t elem_size,
+                             size_t alignment,
+                             dague_datatype_t opaque_dtt,
+                             int32_t max_used,
+                             int32_t max_released);
 void dague_arena_destruct(dague_arena_t* arena);
 
 dague_data_t* dague_arena_get(dague_arena_t* arena, size_t count);
 void dague_arena_release(dague_data_copy_t* ptr);
-
-#define CHUNK_DATA(CHK) \
-    (assert(NULL != ((CHK)->data)), (CHK)->data)
 
 #endif /* __USE_ARENA_H__ */
 

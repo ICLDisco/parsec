@@ -65,7 +65,7 @@ int default_vp_data_dist()
         q++;
         p = pq / q;
     }
-    DEBUG(( "Default data distribution between VP defined by \"pxq\" %ix%i\n", p, q ));
+    DEBUG3(( "Default data distribution between VP defined by \"pxq\" %ix%i\n", p, q ));
     return q;
 }
 

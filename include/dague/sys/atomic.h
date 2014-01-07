@@ -15,6 +15,9 @@
  * If the compiler provides atomic primitives we prefer to use
  * them instead of our own atomic assembly.
  */
+#if defined(__FUJITSU)
+  #undef DAGUE_ATOMIC_USE_XLC_32_BUILTINS
+#endif
 #if defined(DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
 #  include "atomic-xlc.h"
 #elif defined(MAC_OS_X)
@@ -111,8 +114,19 @@ static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 #endif  /* DAGUE_ATOMIC_HAS_ATOMIC_SUB_32B */
 #endif  /* DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B */
 
-typedef volatile uint32_t dague_atomic_lock_t;
+#ifndef DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
+static inline uint32_t dague_atomic_add_32b( volatile uint32_t *location, int32_t d )
+{
+    uint32_t l, n;
+    do {
+        l = *location;
+        n = (uint32_t)((int32_t)l + d);
+    } while( !dague_atomic_cas_32b( location, l, n ) );
+    return n;
+}
+#endif /* DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B */
 
+typedef volatile uint32_t dague_atomic_lock_t;
 /**
  * Enumeration of lock states
  */

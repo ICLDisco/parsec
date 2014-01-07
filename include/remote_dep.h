@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -14,41 +14,32 @@ typedef unsigned long remote_dep_datakey_t;
 #include "debug.h"
 #include <string.h>
 
-
-#if defined(HAVE_MPI)
-#include <mpi.h>
-#define DAGUE_DATATYPE_NULL  MPI_DATATYPE_NULL
-typedef MPI_Datatype dague_datatype_t;
-#else
-#define DAGUE_DATATYPE_NULL  NULL
-typedef void* dague_datatype_t;
-#endif
-
 #include "dague_description_structures.h"
 #include "lifo.h"
 
-#define DAGUE_ACTION_DEPS_MASK                  0x00FF
-#define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x0100
-#define DAGUE_ACTION_RELEASE_LOCAL_REFS         0x0200
-#define DAGUE_ACTION_SEND_INIT_REMOTE_DEPS      0x1000
-#define DAGUE_ACTION_SEND_REMOTE_DEPS           0x2000
-#define DAGUE_ACTION_RECV_INIT_REMOTE_DEPS      0x4000
+#define DAGUE_ACTION_DEPS_MASK                  0x00FFFFFF
+#define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x01000000
+#define DAGUE_ACTION_RELEASE_LOCAL_REFS         0x02000000
+#define DAGUE_ACTION_SEND_INIT_REMOTE_DEPS      0x10000000
+#define DAGUE_ACTION_SEND_REMOTE_DEPS           0x20000000
+#define DAGUE_ACTION_RECV_INIT_REMOTE_DEPS      0x40000000
 #define DAGUE_ACTION_RELEASE_REMOTE_DEPS        (DAGUE_ACTION_SEND_INIT_REMOTE_DEPS | DAGUE_ACTION_SEND_REMOTE_DEPS)
 
 typedef struct remote_dep_wire_activate_s
 {
-    remote_dep_datakey_t deps;
-    remote_dep_datakey_t which;
+    remote_dep_datakey_t deps;         /**< a pointer to the dep structure on the source */
+    remote_dep_datakey_t output_mask;  /**< the mask of the output dependencies satisfied by this activation message */
     remote_dep_datakey_t tag;
     uint32_t             handle_id;
     uint32_t             function_id;
+    uint32_t             length;
     assignment_t         locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
 
 typedef struct remote_dep_wire_get_s
 {
     remote_dep_datakey_t deps;
-    remote_dep_datakey_t which;
+    remote_dep_datakey_t output_mask;
     remote_dep_datakey_t tag;
 } remote_dep_wire_get_t;
 
@@ -74,31 +65,36 @@ struct remote_dep_output_param_s {
      *   "subtle" relation with remote_deps_allocation_init in
      *  remote_dep.c
      */
-    struct dague_dep_data_description_s data;
-    uint32_t*                           rank_bits;
-    uint32_t                            count_bits;
+    dague_list_item_t                    super;
+    dague_remote_deps_t                 *parent;
+    struct dague_dep_data_description_s  data;        /**< The data propagated by this message. */
+    uint32_t                             deps_mask;   /**< A bitmask of all the output dependencies
+                                                       propagated by this message. The bitmask uses
+                                                       depedencies indexes not flow indexes. */
+    int32_t                              priority;    /**< the priority of the message */
+    uint32_t                             count_bits;  /**< The number of participants */
+    uint32_t*                            rank_bits;   /**< The array of bits representing the propagation path */
 };
 
 struct dague_remote_deps_s {
-    dague_list_item_t           item;
-    dague_lifo_t               *origin;  /**< The memory arena where the data pointer is comming from */
-    struct dague_handle_s      *dague_handle;  /**< dague object generating this data transfer */
-    remote_dep_wire_activate_t  msg;     /**< A copy of the message control */
-    int                         root;    /**< The root of the control message */
-    int                         from;    /**< From whom we received the control */
-    int                         max_priority;
-    uint32_t                    output_count;
-    uint32_t                    output_sent_count;
-    uint32_t                   *remote_dep_fw_mask;  /**< list of peers already notified about
-                                                             * the control sequence (only used for control messages) */
+    dague_list_item_t               super;
+    struct dague_lifo_t            *origin;  /**< The memory arena where the data pointer is comming from */
+    struct dague_handle_s          *dague_handle;  /**< dague object generating this data transfer */
+    uint32_t                        pending_ack;  /**< Number of releases before completion */
+    int32_t                         from;    /**< From whom we received the control */
+    uint32_t                        activity_mask;  /**< Updated at each call into the internals to track the enabled actions */
+    int32_t                         root;    /**< The root of the control message */
+    remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
+    int32_t                         max_priority;
+    int32_t                         priority;
+    uint32_t                       *remote_dep_fw_mask;  /**< list of peers already notified about
+                                                           * the control sequence (only used for control messages) */
     struct remote_dep_output_param_s  output[1];
 };
 /* { item .. remote_dep_fw_mask (points to fw_mask_bitfield),
  *   output[0] .. output[max_deps < MAX_PARAM_COUNT],
  *   (max_dep_count x (np+31)/32 uint32_t) rank_bits
  *   ((np+31)/32 x uint32_t) fw_mask_bitfield } */
-
-
 
 #if defined(DISTRIBUTED)
 
@@ -127,7 +123,12 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
         ptr = (char*)(&(remote_deps->output[dague_remote_dep_context.max_dep_count]));
         rank_bit_size = sizeof(uint32_t) * ((dague_remote_dep_context.max_nodes_number + 31) / 32);
         for( i = 0; i < dague_remote_dep_context.max_dep_count; i++ ) {
-            remote_deps->output[i].rank_bits = (uint32_t*)ptr;
+            DAGUE_LIST_ITEM_CONSTRUCT(&remote_deps->output[i].super);
+            remote_deps->output[i].parent     = remote_deps;
+            remote_deps->output[i].rank_bits  = (uint32_t*)ptr;
+            remote_deps->output[i].deps_mask  = 0;
+            remote_deps->output[i].count_bits = 0;
+            remote_deps->output[i].priority   = 0xffffffff;
             ptr += rank_bit_size;
         }
         /* fw_mask immediatly follows outputs */
@@ -135,9 +136,13 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
         assert( (int)(ptr - (char*)remote_deps) ==
                 (int)(dague_remote_dep_context.elem_size - rank_bit_size));
     }
-    remote_deps->max_priority = 0xffffffff;
-    remote_deps->dague_handle = NULL;
-    remote_deps->root         = -1;
+    assert(NULL == remote_deps->dague_handle);
+    remote_deps->max_priority      = 0xffffffff;
+    remote_deps->root              = -1;
+    remote_deps->msg.output_mask   = 0;
+    remote_deps->pending_ack       = 0;
+    remote_deps->activity_mask     = 0;
+    DEBUG(("remote_deps_allocate: %p\n", remote_deps));
     return remote_deps;
 }
 
@@ -147,30 +152,28 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     }
 
 /* This returns the deps to the freelist, no use counter */
-static inline void remote_deps_free(dague_remote_deps_t* deps) {
-    uint32_t k = 0, count = 0, a;
-    while( count < deps->output_count ) {
+static inline void remote_deps_free(dague_remote_deps_t* deps)
+{
+    uint32_t k, a;
+    assert(0 == deps->pending_ack);
+    for( k = 0; deps->activity_mask >> k; k++ ) {
+        if( !((1U << k) & deps->activity_mask) ) continue;
         for(a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
             deps->output[k].rank_bits[a] = 0;
-        count += deps->output[k].count_bits;
         deps->output[k].count_bits = 0;
 #if defined(DAGUE_DEBUG_ENABLE)
         deps->output[k].data.data   = NULL;
         deps->output[k].data.arena  = NULL;
-        deps->output[k].data.layout = NULL;
+        deps->output[k].data.layout = DAGUE_DATATYPE_NULL;
         deps->output[k].data.count  = -1;
         deps->output[k].data.displ  = 0xFFFFFFFF;
 #endif
-        k++;
-        assert(k < MAX_PARAM_COUNT);
     }
-    assert(count == deps->output_count);
 #if defined(DAGUE_DEBUG_ENABLE)
-    DEBUG(("remote_deps_free: sent_count=%u/%u\n", deps->output_sent_count, deps->output_count));
+    DEBUG(("remote_deps_free: %p mask %x\n", deps, deps->activity_mask));
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
-    deps->output_count = 0;
-    deps->output_sent_count = 0;
+    deps->dague_handle      = NULL;
     dague_lifo_push(deps->origin, (dague_list_item_t*)deps);
 }
 
@@ -188,8 +191,7 @@ int dague_remote_dep_new_object(dague_handle_t* handle);
 /* Send remote dependencies to target processes */
 int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                                 const dague_execution_context_t* origin,
-                                dague_remote_deps_t* remote_deps,
-                                uint32_t remote_deps_count );
+                                dague_remote_deps_t* remote_deps);
 
 /* Memcopy a particular data using datatype specification */
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,

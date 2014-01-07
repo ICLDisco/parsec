@@ -8,6 +8,7 @@
  */
 #include "dague_internal.h"
 #include <plasma.h>
+#include <core_blas.h>
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"

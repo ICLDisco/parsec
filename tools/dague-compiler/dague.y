@@ -1,15 +1,22 @@
 %{
-/*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+/**
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
+#include "dague_config.h"
+
 #include <stdio.h>
+#if defined(HAVE_STRING_H)
 #include <string.h>
+#endif  /* defined(HAVE_STRING_H) */
 #include <stdlib.h>
 #include <assert.h>
+
 #include "jdf.h"
+#include "string_arena.h"
+#include "jdf2c_utils.h"
 
 #define YYDEBUG_LEXER_TEXT yytext
 
@@ -50,7 +57,7 @@ static void yyerror(YYLTYPE *locp,
     }
 }
 
-#define new(type)  (type*)calloc(1, sizeof(type))
+#define new(type) (type*)calloc(1, sizeof(type))
 
 jdf_def_list_t*
 jdf_create_properties_list( const char* name,
@@ -142,7 +149,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     jdf_def_list_t       *def_list;
     jdf_dataflow_t       *dataflow;
     jdf_dep_t            *dep;
-    jdf_dep_type_t        dep_type;
+    jdf_dep_flags_t       dep_type;
     jdf_guarded_call_t   *guarded_call;
     jdf_call_t           *call;
     jdf_expr_t           *expr;
@@ -168,7 +175,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <expr>expr_simple
 %type <expr>priority
 %type <expr>simulation_cost
-%type <number>optional_access_type
+%type <number>optional_flow_flags
 %type <external_code>prologue
 %type <external_code>epilogue
 %type <body>body
@@ -388,6 +395,7 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simula
 
                     JDF_OBJECT_LINENO(e) = current_lineno;
 
+                    jdf_flatten_function(e);
                     $$ = e;
                 }
         ;
@@ -481,18 +489,18 @@ dataflow_list:  dataflow dataflow_list
                 }
          ;
 
-optional_access_type :
+optional_flow_flags :
                 DEPENDENCY_TYPE
                 {
                     $$ = $1;
                 }
-         |      { $$ = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE; }
+         |      { $$ = JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE; }
          ;
 
-dataflow:       optional_access_type VAR dependencies
+dataflow:       optional_flow_flags VAR dependencies
                 {
                     jdf_dataflow_t *flow  = new(jdf_dataflow_t);
-                    flow->access_type     = $1;
+                    flow->flow_flags      = $1;
                     flow->varname         = $2;
                     flow->deps            = $3;
 
@@ -526,10 +534,11 @@ dependency:   ARROW guarded_call properties
                       property->next = $3;
                   }
 
-                  $2->properties = property;
-                  d->type = $1;
-                  d->guard = $2;
+                  $2->properties   = property;
+                  d->dep_flags     = $1;
+                  d->guard         = $2;
                   d->datatype.type = expr;
+                  JDF_OBJECT_LINENO(&d->datatype) = current_lineno;
 
                   if( NULL != jdf_find_property( $3, "arena_index", &property ) ) {
                       jdf_fatal(current_lineno, "Old construct arena_index used. Please update the code to use type instead.\n");
@@ -588,11 +597,14 @@ dependency:   ARROW guarded_call properties
                       expr          = new(jdf_expr_t);
                       expr->op      = JDF_CST;
                       expr->jdf_cst = 0;
+                  } else {
+                      if( !((JDF_CST != expr->op) && (0 == expr->jdf_cst)) )
+                          d->dep_flags |= JDF_DEP_HAS_DISPL;
                   }
                   d->datatype.displ = expr;
 
                   JDF_OBJECT_LINENO(d) = JDF_OBJECT_LINENO($2);
-
+                  assert( 0 != JDF_OBJECT_LINENO($2) );
                   $$ = d;
               }
        ;
@@ -605,6 +617,7 @@ guarded_call: call
                   g->calltrue = $1;
                   g->callfalse = NULL;
                   $$ = g;
+                  assert( 0 != JDF_OBJECT_LINENO($1) );
                   JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
               }
        |      expr_simple QUESTION_MARK call
@@ -615,6 +628,7 @@ guarded_call: call
                   g->calltrue = $3;
                   g->callfalse = NULL;
                   $$ = g;
+                  assert( 0 != JDF_OBJECT_LINENO($1) );
                   JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
               }
        |      expr_simple QUESTION_MARK call COLON call
@@ -625,6 +639,7 @@ guarded_call: call
                   g->calltrue = $3;
                   g->callfalse = $5;
                   $$ = g;
+                  assert( 0 != JDF_OBJECT_LINENO($1) );
                   JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
               }
        ;
@@ -637,6 +652,7 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
                   c->parameters = $4;
                   $$ = c;
                   JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($4);
+                  assert( 0 != JDF_OBJECT_LINENO($$) );
               }
        |      VAR OPEN_PAR expr_list_range CLOSE_PAR
               {
@@ -647,7 +663,9 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
                   c->var = NULL;
                   c->func_or_mem = $1;
                   c->parameters = $3;
+                  JDF_OBJECT_LINENO(c) = JDF_OBJECT_LINENO($3);
                   $$ = c;
+                  assert( 0 != JDF_OBJECT_LINENO($$) );
                   data = jdf_find_or_create_data(&current_jdf, $1);
                   JDF_COUNT_LIST_ENTRIES($3, jdf_expr_t, next, nbparams);
                   if( data->nbparams != -1 ) {
@@ -676,11 +694,13 @@ expr_list_range: expr_range COMMA expr_list_range
               {
                   $1->next = $3;
                   $$=$1;
+                  assert( 0 != JDF_OBJECT_LINENO($$) );
               }
       |       expr_range
               {
                   $1->next = NULL;
                   $$=$1;
+                  assert( 0 != JDF_OBJECT_LINENO($$) );
               }
       ;
 
@@ -705,8 +725,9 @@ expr_range: expr_simple RANGE expr_simple
                   e->jdf_ta3 = new(jdf_expr_t);  /* step */
                   e->jdf_ta3->op = JDF_CST;
                   e->jdf_ta3->jdf_cst = 1;
-                  JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
                   $$ = e;
+                  JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
+                  assert( 0 != JDF_OBJECT_LINENO($$) );
             }
           | expr_simple RANGE expr_simple RANGE expr_simple
             {
@@ -717,10 +738,12 @@ expr_range: expr_simple RANGE expr_simple
                   e->jdf_ta3 = $5;  /* step */
                   $$ = e;
                   JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
+                  assert( 0 != JDF_OBJECT_LINENO($$) );
             }
           | expr_simple
             {
                   $$ = $1;
+                  assert( 0 != JDF_OBJECT_LINENO($$) );
             }
           ;
 

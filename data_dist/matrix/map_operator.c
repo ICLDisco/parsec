@@ -172,7 +172,7 @@ static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
-    .datatype = { .type = { .cst = 0 }, .layout = NULL, .count = { .cst = 1 }, .displ = { .cst = 0 } },
+    .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } },
     .call_params = {
         &expr_of_p1_for_flow_of_map_operator_dep_in
     }
@@ -192,8 +192,9 @@ static const expr_t expr_of_p1_for_flow_of_map_operator_dep_out = {
 static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
+    .dep_index = 1,
     .flow = &flow_of_map_operator,
-    .datatype = { .type = { .cst = 0 }, .layout = NULL, .count = { .cst = 1 }, .displ = { .cst = 0 } },
+    .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } },
     .call_params = {
         &expr_of_p1_for_flow_of_map_operator_dep_out
     }
@@ -202,20 +203,20 @@ static const dep_t flow_of_map_operator_dep_out = {
 static const dague_flow_t flow_of_map_operator = {
     .name = "I",
     .sym_type = SYM_INOUT,
-    .access_type = ACCESS_RW,
+    .flow_flags = FLOW_ACCESS_RW,
     .flow_index = 0,
     .dep_in  = { &flow_of_map_operator_dep_in },
     .dep_out = { &flow_of_map_operator_dep_out }
 };
 
 static dague_ontask_iterate_t
-add_task_to_list(struct dague_execution_unit_s *eu_context,
-                 dague_execution_context_t *newcontext,
-                 dague_execution_context_t *oldcontext,
-                 int flow_index, int outdep_index,
+add_task_to_list(struct dague_execution_unit *eu_context,
+                 const dague_execution_context_t *newcontext,
+                 const dague_execution_context_t *oldcontext,
+                 const dep_t* dep,
+                 dague_dep_data_description_t* data,
                  int rank_src, int rank_dst,
                  int vpid_dst,
-                 dague_dep_data_description_t* data,
                  void *_ready_lists)
 {
     dague_execution_context_t** pready_list = (dague_execution_context_t**)_ready_lists;
@@ -228,7 +229,7 @@ add_task_to_list(struct dague_execution_unit_s *eu_context,
                                                                                           (dague_list_item_t*)new_context,
                                                                                           dague_execution_context_priority_comparator );
 
-    (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst; (void)vpid_dst; (void)data;
+    (void)oldcontext; (void)dep; (void)rank_src; (void)rank_dst; (void)vpid_dst; (void)data;
     return DAGUE_ITERATE_STOP;
 }
 
@@ -264,11 +265,11 @@ static void iterate_successors(dague_execution_unit_t *eu,
             nc.data[0].data_in = this_task->data[0].data_out;
             nc.data[1].data_in = this_task->data[1].data_out;
 
-            ontask(eu, &nc, this_task, 0, 0,
-                   __dague_handle->super.src->super.myrank,
-                   __dague_handle->super.src->super.myrank,
+            ontask(eu, &nc, this_task, &flow_of_map_operator_dep_out, NULL,
+                   __dague_object->super.src->super.myrank,
+                   __dague_object->super.src->super.myrank,
                    vpid,
-                   NULL, ontask_arg);
+                   ontask_arg);
             return;
         }
         /* Go to the next row ... atomically */
@@ -458,9 +459,9 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
                 eu = context->virtual_processes[vpid]->execution_units[count];
                 fake_context.locals[0].value = k;
                 fake_context.locals[1].value = n;
-                add_task_to_list(eu, &fake_context, NULL, 0, 0,
+                add_task_to_list(eu, &fake_context, NULL, &flow_of_map_operator_dep_out, NULL,
                                  __dague_handle->super.src->super.myrank, -1,
-                                 0, NULL, (void*)&ready_list);
+                                 0, (void*)&ready_list);
                 __dague_schedule( eu, ready_list );
                 count++;
                 if( count == context->virtual_processes[vpid]->nb_cores )

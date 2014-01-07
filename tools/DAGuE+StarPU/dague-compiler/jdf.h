@@ -134,25 +134,25 @@ typedef struct jdf_def_list {
 
 typedef struct jdf_dataflow jdf_dataflow_t;
 typedef struct jdf_dep jdf_dep_t;
-typedef unsigned int jdf_access_type_t;
-#define JDF_VAR_TYPE_CTL   ((jdf_access_type_t)0)
-#define JDF_VAR_TYPE_READ  ((jdf_access_type_t)(1<<0))
-#define JDF_VAR_TYPE_WRITE ((jdf_access_type_t)(1<<1))
+typedef unsigned int jdf_flow_flags_t;
+#define JDF_FLOW_TYPE_CTL   ((jdf_flow_flags_t)(1<<0))
+#define JDF_FLOW_TYPE_READ  ((jdf_flow_flags_t)(1<<1))
+#define JDF_FLOW_TYPE_WRITE ((jdf_flow_flags_t)(1<<2))
 struct jdf_dataflow {
     jdf_dataflow_t           *next;
+    jdf_flow_flags_t         flow_flags;
     char                     *varname;
     struct jdf_dep           *deps;
-    jdf_access_type_t         access_type;
     int                       lineno;
 };
 
-typedef unsigned int jdf_dep_type_t;
-#define JDF_DEP_TYPE_IN  ((jdf_dep_type_t)(1<<0))
-#define JDF_DEP_TYPE_OUT ((jdf_dep_type_t)(1<<1))
+typedef unsigned int jdf_dep_flags_t;
+#define JDF_DEP_FLOW_IN  ((jdf_dep_flags_t)(1<<0))
+#define JDF_DEP_FLOW_OUT ((jdf_dep_flags_t)(1<<1))
 
 struct jdf_dep {
     jdf_dep_t               *next;
-    jdf_dep_type_t           type;
+    jdf_dep_flags_t           type;
     struct jdf_guarded_call *guard;
     char*                    datatype_name;
     int                      lineno;

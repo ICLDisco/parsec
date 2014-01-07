@@ -5,6 +5,9 @@ extern "C" %{
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
+
+int *randprio;
+
 %}
 
 A          [type = "two_dim_block_cyclic_t*"]
@@ -18,21 +21,26 @@ STARTUP(i, j, k)
   i = 0 .. NI-1
   j = 0 .. NJ-1
   k = 0 .. NK-1
+  prio = inline_c %{ return pri == 2 ? (int)(random()) : ((NJ*NK*i + NK*j + k)*pri); %}
 
-: A(i,0)
+  : A(i,0)
 
   READ A <- A(i, 0)
          -> A(i, 0)
 
-; inline_c %{ return pri == 2 ? random() : ((NJ*NK*i + NK*j + k)*pri); %}
+    ; prio
 
 BODY
+{
+#if defined(DEBUG_STARTUP_TASK)
+    fprintf(stderr, "priority(%d, %d, %d): %d\n",
+            i, j, k, prio );
+#endif
+}
 END
 
 extern "C" %{
 
-#define BLOCK 10
-#define N     100
 #define NN    10
 #define TYPE  matrix_RealFloat
 
@@ -59,6 +67,10 @@ int main( int argc, char** argv )
     int ni = NN, nj = NN, nk = NN, verbose = 0, i = 1;
     long time_elapsed;
 
+#ifdef HAVE_MPI
+    MPI_Init(&argc,&argv);
+#endif
+
     while( NULL != argv[i] ) {
         if( 0 == strncmp(argv[i], "-i=", 3) ) {
             ni = strtol(argv[i]+3, NULL, 10);
@@ -82,6 +94,7 @@ int main( int argc, char** argv )
         memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
         argc -= 1;
     }
+
     dague = dague_init(1, &argc, &argv);
     assert( NULL != dague );
 
@@ -200,6 +213,10 @@ int main( int argc, char** argv )
     free(descA.mat);
 
     dague_fini( &dague);
+
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
 
     return 0;
 }

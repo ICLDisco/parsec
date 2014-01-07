@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,6 +16,14 @@ typedef struct dep_s dep_t;
 typedef struct symbol_s symbol_t;
 
 struct dague_handle_s;
+#if defined(HAVE_MPI)
+#include <mpi.h>
+#define DAGUE_DATATYPE_NULL  MPI_DATATYPE_NULL
+typedef MPI_Datatype dague_datatype_t;
+#else
+#define DAGUE_DATATYPE_NULL  NULL
+typedef void* dague_datatype_t;
+#endif
 
 BEGIN_C_DECLS
 
@@ -33,6 +41,7 @@ struct assignment_s {
 #define EXPR_OP_RANGE_EXPR_INCREMENT  25
 #define EXPR_OP_INLINE                100
 
+typedef dague_datatype_t (*expr_op_datatype_inline_func_t)(const struct dague_handle_s *__dague_handle_parent, const assignment_t *assignments);
 typedef int32_t (*expr_op_int32_inline_func_t)(const struct dague_handle_s *__dague_handle_parent, const assignment_t *assignments);
 typedef int64_t (*expr_op_int64_inline_func_t)(const struct dague_handle_s *__dague_handle_parent, const assignment_t *assignments);
 
@@ -63,20 +72,24 @@ struct expr_s {
  * Flows (data or control)
  */
 /**< Remark: (sym_type == SYM_INOUT) if (sym_type & SYM_IN) && (sym_type & SYM_OUT) */
-#define SYM_IN     0x01
-#define SYM_OUT    0x02
+#define SYM_IN     ((uint8_t)(1 << 0))
+#define SYM_OUT    ((uint8_t)(1 << 1))
 #define SYM_INOUT  (SYM_IN | SYM_OUT)
 
-#define ACCESS_NONE     0x00
-#define ACCESS_READ     0x01
-#define ACCESS_WRITE    0x02
-#define ACCESS_RW       (ACCESS_READ | ACCESS_WRITE)
+#define FLOW_ACCESS_NONE     ((uint8_t)0x00)
+#define FLOW_ACCESS_READ     ((uint8_t)(1 << 2))
+#define FLOW_ACCESS_WRITE    ((uint8_t)(1 << 3))
+#define FLOW_ACCESS_RW       (FLOW_ACCESS_READ | FLOW_ACCESS_WRITE)
+#define FLOW_ACCESS_MASK     (FLOW_ACCESS_READ | FLOW_ACCESS_WRITE)
+#define FLOW_HAS_IN_DEPS     ((uint8_t)(1 << 4))
 
 struct dague_flow_s {
     char               *name;
-    unsigned char       sym_type;
-    unsigned char       access_type;
-    dague_dependency_t  flow_index;
+    uint8_t             sym_type;
+    uint8_t             flow_flags;
+    uint8_t             flow_index; /**< The input index of the flow. This index is used
+                                     *   while computing the mask. */
+    dague_dependency_t  flow_datatype_mask;  /**< The bitmask of dep_datatype_index of all deps */
     const dep_t        *dep_in[MAX_DEP_IN_COUNT];
     const dep_t        *dep_out[MAX_DEP_OUT_COUNT];
 };
@@ -96,18 +109,28 @@ typedef union dague_cst_or_fct_64_u {
     expr_op_int64_inline_func_t  fct;
 } dague_cst_or_fct_64_t;
 
+typedef union dague_cst_or_fct_datatype_u {
+    dague_datatype_t                cst;
+    expr_op_datatype_inline_func_t  fct;
+} dague_cst_or_fct_datatype_t;
+
+
 struct dague_comm_desc_s {
-    dague_cst_or_fct_32_t       type;
-    expr_op_int32_inline_func_t layout;
-    dague_cst_or_fct_64_t       count;
-    dague_cst_or_fct_64_t       displ;
+    dague_cst_or_fct_32_t         type;
+    dague_cst_or_fct_datatype_t   layout;
+    dague_cst_or_fct_64_t         count;
+    dague_cst_or_fct_64_t         displ;
 };
 
 struct dep_s {
     const expr_t                *cond;           /**< The runtime-evaluable condition on this dependency */
     const expr_t                *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
-    const int                    function_id;    /**< Index of the target dague function in the object function array */
+    const uint8_t                function_id;    /**< Index of the target dague function in the object function array */
+    const uint8_t                dep_index;      /**< Output index of the dependency. This is used to store the flow
+                                                  *   before tranfering it to the successors. */
+    const uint8_t                dep_datatype_index;  /**< Index of the output datatype. */
     const dague_flow_t          *flow;           /**< Pointer to the flow pointed to/from this dependency */
+    const dague_flow_t          *belongs_to;     /**< The flow this dependency belongs tp */
     struct dague_comm_desc_s     datatype;       /**< Datatype associated with this dependency */
     const expr_t                *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
 };
