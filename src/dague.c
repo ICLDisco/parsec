@@ -587,6 +587,16 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
 
+    /* Load the default scheduler. User can change it afterward,
+     * but we need to ensure that one is loadable and here.
+     */
+    if( 0 == dague_set_scheduler( context ) ) {
+        /* TODO: handle memory leak / thread leak here: this is a fatal
+         * error for PaRSEC */
+        fprintf(stderr, "PaRSEC: unable to load any scheduler in init function. Fatal error.\n");
+        return NULL;
+    }
+
     if(dague_enable_dot) {
 #if defined(DAGUE_PROF_GRAPHER)
         dague_prof_grapher_init(dague_enable_dot, nb_total_comp_threads);
@@ -644,16 +654,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     /* Introduce communication thread */
     context->nb_nodes = dague_remote_dep_init(context);
     dague_statistics("DAGuE");
-
-    /* Load the default scheduler. User can change it afterward,
-     * but we need to ensure that one is loadable and here.
-     */
-    if( 0 == dague_set_scheduler( context ) ) {
-        /* TODO: handle memory leak / thread leak here: this is a fatal
-         * error for PaRSEC */
-        fprintf(stderr, "PaRSEC: unable to load any scheduler in init function. Fatal error.\n");
-        return NULL;
-    }
 
     AYU_INIT();
 
