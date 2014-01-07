@@ -47,11 +47,22 @@ if (MPI_C_FOUND)
     LIST(APPEND $sources scalapack_convert.c)
 endif(MPI_C_FOUND)
 
-add_library(dague_distribution_matrix STATIC
+add_library(dague_distribution_matrix
             ${sources})
 if (MPI_C_FOUND)
     set_target_properties(dague_distribution_matrix PROPERTIES COMPILE_FLAGS
                           "${MPI_C_COMPILE_FLAGS}")
 endif(MPI_C_FOUND)
-install(TARGETS dague_distribution_matrix ARCHIVE DESTINATION lib)
+install(TARGETS dague_distribution_matrix
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib)
 
+install(FILES
+  matrix.h
+  precision.h
+  two_dim_rectangle_cyclic.h
+  sym_two_dim_rectangle_cyclic.h
+  vector_two_dim_cyclic.h
+  two_dim_tabular.h
+  grid_2Dcyclic.h
+  DESTINATION include/data_dist/matrix )

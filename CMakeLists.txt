@@ -568,14 +568,16 @@ endif( HWLOC_FOUND )
 # Setup targets
 #
 if( BUILD_DAGUE )
-  add_library(dague STATIC ${SRCS})
+  add_library(dague ${SRCS})
   set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
   if (MPI_C_FOUND)
     set_target_properties(dague PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
   endif (MPI_C_FOUND)
   target_link_libraries(dague ${EXTRA_LIBS})
 
-  install(TARGETS dague ARCHIVE DESTINATION lib)
+  install(TARGETS dague
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib)
 
   add_subdirectory(data_dist)
 #
@@ -601,9 +603,9 @@ SET( PARSEC_ALL_SRCS "" CACHE INTERNAL "List of sources with internal documentat
 IF( BUILD_DPLASMA )
   add_subdirectory(dplasma)
 ENDIF ( BUILD_DPLASMA )
-IF( BUILD_TESTING AND BUILD_DAGUE )
+IF( DAGUE_DEBUG_BUILD_UNIT_TESTS AND BUILD_DAGUE )
   add_subdirectory(tests)
-ENDIF( BUILD_TESTING AND BUILD_DAGUE )
+ENDIF()
 
 message(STATUS "PARSEC_ALL_SRCS: ${PARSEC_ALL_SRCS}")
 
@@ -611,8 +613,15 @@ message(STATUS "PARSEC_ALL_SRCS: ${PARSEC_ALL_SRCS}")
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
-install(FILES "${PROJECT_INCLUDE_DIR}/dague_config.h" DESTINATION include)
-install(FILES "include/dague.h" DESTINATION include)
+
+install(FILES
+  ${PROJECT_INCLUDE_DIR}/dague_config.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config_bottom.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/data_distribution.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/profiling.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/vpmap.h
+  DESTINATION include)
 
 # pkg-config file
 configure_file (
