@@ -7,7 +7,7 @@
 
 
   @precisions normal z -> z c d s
-       
+
 */
 
 #if (CUDA_SM_VERSION == 11) || (CUDA_SM_VERSION == 12) || (CUDA_SM_VERSION == 13)
@@ -18,12 +18,12 @@
 #include <cuda.h>
 #include <cublas.h>
 
-#include "dague.h"
+#include "dague_internal.h"
 #include "data_dist/matrix/precision.h"
 
 #define PRECISION_z
 
-#if defined(PRECISION_z) || defined(PRECISION_c) 
+#if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
 #endif
 
@@ -42,7 +42,7 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
                                  dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,
                                  CUstream stream )
 {
-#if defined(PRECISION_z) || defined(PRECISION_c)    
+#if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex lalpha = make_cuDoubleComplex( creal(alpha), cimag(alpha) );
     cuDoubleComplex lbeta  = make_cuDoubleComplex( creal(beta),  cimag(beta)  );
 #else
@@ -51,27 +51,27 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
 #endif
 
 #if (__CUDA_API_VERSION < 4000)
-    
+
     cublasSetKernelStream( stream );
 
-    cublasZgemm(TRANSA, TRANSB, m, n, k, 
+    cublasZgemm(TRANSA, TRANSB, m, n, k,
                 lalpha, (cuDoubleComplex*)d_A, lda,
                         (cuDoubleComplex*)d_B, ldb,
-                lbeta,  (cuDoubleComplex*)d_C, ldc); 
+                lbeta,  (cuDoubleComplex*)d_C, ldc);
     assert( CUBLAS_STATUS_SUCCESS == cublasGetError() );
 
 #else
     cudaStream_t current_stream;
     cublasHandle_t handle = cublasGetCurrentCtx();
-    
+
     cublasGetStream_v2 ( handle, &saved_stream );
     cublasSetStream_v2 ( handle, &stream );
 
     cublasZgemm_v2(handle, convertToOp(TRANSA), convertToOp(TRANSB),
-                   m, n, k, 
+                   m, n, k,
                    &lalpha, (cuDoubleComplex*)d_A, lda,
                             (cuDoubleComplex*)d_B, ldb,
-                   &lbeta,  (cuDoubleComplex*)d_C, ldc); 
+                   &lbeta,  (cuDoubleComplex*)d_C, ldc);
     assert( CUBLAS_STATUS_SUCCESS == cublasGetError() );
 
     cublasSetStream_v2 ( handle, &saved_stream );
@@ -80,4 +80,3 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #endif /* (CUDA_SM_VERSION == 11) || (CUDA_SM_VERSION == 12) || (CUDA_SM_VERSION == 13) */
-

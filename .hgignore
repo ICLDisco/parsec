@@ -242,6 +242,8 @@ dplasma/lib/[sdc]syrbt_wrapper.c$
 dplasma/lib/[sdc]sytrf_wrapper.c$
 dplasma/lib/[sdc]sytrs_wrapper.c$
 dplasma/lib/[sdc]trdsm_wrapper.c$
+dplasma/lib/[c]heev_wrapper.c$
+dplasma/lib/[ds]syev_wrapper.c$
 
 dplasma/testing/testing_[sdc]print.c$
 dplasma/testing/testing_[sdc]lange.c$

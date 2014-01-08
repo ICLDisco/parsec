@@ -73,8 +73,12 @@ set(HEADERS
 
 ### generate the dplasma_cores headers for all possible precisions
 precisions_rules_py(generated_headers
-                 "dplasma_zcores.h"
+                 ${HEADERS}
                  PRECISIONS "s;d;c;z")
+
+add_custom_target(dplasma_cores_includes ALL SOURCES
+    ${generated_headers} )
+
 ### Generate the dplasma wrappers for all required precisions
 set(SOURCES
   core_ztrdv.c
@@ -103,7 +107,9 @@ target_link_libraries(dplasma_cores
   ${EXTRA_LIBS}
 )
 
-add_dependencies(dplasma_cores dplasma_includes)
+add_dependencies(dplasma_cores
+         dplasma_includes
+         dplasma_cores_includes)
 
 install(TARGETS dplasma_cores
         ARCHIVE DESTINATION lib
