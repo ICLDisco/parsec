@@ -49,7 +49,6 @@ static char* cuda_lib_path = NULL;
 //    { 622.08, 1030.4, 3520 },
 //    {  77.76,  515.2, 1170 }
 //}; leave for reference
-float *device_weight = NULL;
 
 /* the rate represents how many times single is faster than double */
 int stod_rate[3] = {8, 2, 3};
@@ -241,7 +240,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
 
   retry_lesser_sm_version:
     capability = cuda_legal_compute_capabilitites[index];
-    snprintf(function_name, FILENAME_MAX, "magmablas_S%s_SM%2d", fname, capability);
+    snprintf(function_name, FILENAME_MAX, "%s_SM%2d", fname, capability);
 
     for( target = argv; (NULL != target) && (NULL != *target); target++ ) {
         struct stat status;
@@ -327,21 +326,17 @@ dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
         const dague_function_t* function = handle->functions_array[i];
         __dague_chore_t* chores = (__dague_chore_t*)function->incarnations;
         for( dev_mask = j = 0; NULL != chores[j].hook; j++ ) {
-            dev_mask |= (1 << chores[j].type);
-        }
-        if(dev_mask & (1 << device->type)) {  /* find the function */
-            void* devf = cuda_solve_handle_dependencies(gpu_device, function->name);
-            if( NULL != devf ) {
-                /* TODO: Ugly code to be removed ASAP */
-                if( NULL == cuda_gemm_functions ) {
-                    cuda_gemm_functions = (void**)calloc(100, sizeof(void*));
+            if( chores[j].type == device->type ) {
+                void* devf = cuda_solve_handle_dependencies(gpu_device, NULL==chores[j].dyld?function->name:chores[j].dyld);
+                if( NULL != devf ) {
+                    /* TODO: Ugly code to be removed ASAP */
+                    if( NULL == cuda_gemm_functions ) {
+                        cuda_gemm_functions = (void**)calloc(100, sizeof(void*));
+                    }
+                    cuda_gemm_functions[gpu_device->cuda_index] = devf;
+                    rc = DAGUE_SUCCESS;
+                    dev_mask |= (1 << chores[j].type);
                 }
-                cuda_gemm_functions[gpu_device->cuda_index] = devf;
-                rc = DAGUE_SUCCESS;
-                /* TODO: Ugly code to be removed ASAP */
-            } else {
-                /* We cannot support this device, remove the chore from the list */
-                dev_mask ^= (1 << device->type);
             }
         }
     }
@@ -367,7 +362,6 @@ int dague_gpu_init(dague_context_t *dague_context)
     int cuda_mask, cuda_verbosity;
     int ndevices, i, j, k;
     int isdouble = 0;
-    float total_perf;
     CUresult status;
 
     use_cuda_index = dague_mca_param_reg_int_name("device_cuda", "enabled",
@@ -382,6 +376,7 @@ int dague_gpu_init(dague_context_t *dague_context)
     (void)dague_mca_param_reg_string_name("device_cuda", "path",
                                           "Path to the shared library files containing the CUDA version of the hooks. It is a ;-separated list of either directories or .so files.\n",
                                           false, false, DAGUE_LIB_CUDA_PREFIX, &cuda_lib_path);
+
     if( 0 == use_cuda ) {
         return -1;  /* Nothing to do around here */
     }
@@ -434,9 +429,6 @@ int dague_gpu_init(dague_context_t *dague_context)
                                             &dague_cuda_own_GPU_key_start, &dague_cuda_own_GPU_key_end);
 #endif  /* defined(PROFILING) */
 
-    /* TODO: Remove this ASAP */
-    device_weight = (float*)calloc(ndevices+1, sizeof(float));
-
     for( i = 0; i < ndevices; i++ ) {
 #if CUDA_VERSION >= 3020
         size_t total_mem;
@@ -472,7 +464,6 @@ int dague_gpu_init(dague_context_t *dague_context)
         status = cuDeviceGetAttribute( &computemode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
 
-        show_caps = 1;
         if( show_caps ) {
             STATUS(("GPU Device %d (capability %d.%d): %s\n", i, major, minor, szName ));
             STATUS(("\tSM                 : %d\n", streaming_multiprocessor ));
@@ -563,25 +554,14 @@ int dague_gpu_init(dague_context_t *dague_context)
         gpu_device->super.device_handle_register   = dague_cuda_handle_register;
         gpu_device->super.device_handle_unregister = dague_cuda_handle_unregister;
 
-        /**
-         * TODO: Find a better ay to evaluate the performance of the current GPU.
-         * device_weight[i+1] = ((float)devProps.maxThreadsPerBlock * (float)devProps.clockRate) * 2;
-         * device_weight[i+1] *= (concurrency == 1 ? 2 : 1);
-         */
-        //gpu_device->super.device_dweight = ( major == 1 ) ? gpu_speeds[1][0] : gpu_speeds[1][1];
-        //gpu_device->super.device_sweight = ( major == 1 ) ? gpu_speeds[0][0] : gpu_speeds[0][1];
-
         if (dague_cuda_lookup_device_cudacores(&cuda_cores, major, minor) == DAGUE_ERROR ) {
             return -1;
         }
         gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)cuda_cores * (float)devProps.clockRate * 2.0 / 1000000;
         gpu_device->super.device_dweight = gpu_device->super.device_sweight / stod_rate[major-1];
-        printf("dweight %f, sweight %f\n", gpu_device->super.device_dweight, gpu_device->super.device_sweight);
 
-        if ( isdouble ) {
-            device_weight[i+1] = gpu_device->super.device_dweight;
-        } else {
-            device_weight[i+1] = gpu_device->super.device_sweight;
+        if( show_caps ) {
+            STATUS(("\tFlops capacity     : single %2.4f, double %2.4f\n", gpu_device->super.device_sweight, gpu_device->super.device_dweight));
         }
 
         /* Initialize internal lists */
@@ -590,24 +570,6 @@ int dague_gpu_init(dague_context_t *dague_context)
         OBJ_CONSTRUCT(&gpu_device->pending,           dague_list_t);
 
         dague_devices_add(dague_context, &(gpu_device->super));
-    }
-
-    /* Compute the weight of each device including the cores */
-    DEBUG(("Global Theoritical performance: %2.4f\n", total_perf ));
-    for( i = 0; i < (ndevices+1); i++ ) {
-        if( 0 == i )
-            DEBUG(("CPU             ->ratio %2.4e\n",
-                   device_weight[i]));
-        else
-            DEBUG(("Device index %2d ->ratio %2.4e\n",
-                   i-1, device_weight[i]));
-        device_weight[i] = (total_perf / device_weight[i]);
-        if( cuda_verbosity ) {
-            if( 0 == i )
-                STATUS(("CPU             ->ratio %2.4f\n", device_weight[i]));
-            else
-                STATUS(("Device index %2d ->ratio %2.4f\n", i-1, device_weight[i]));
-        }
     }
 
     /**
@@ -814,9 +776,9 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
         /* Skip all non CUDA devices */
         if( DAGUE_DEV_CUDA != gpu_device->super.type ) continue;
-
-        dump_GPU_state(gpu_device);
-            
+#if 0
+        dump_GPU_state(gpu_device); // debug only
+#endif            
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_data_unregister) cuCtxPushCurrent ", status,
                                 {continue;} );

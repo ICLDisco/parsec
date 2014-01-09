@@ -41,24 +41,14 @@ module dague_profile_f08_interfaces
   END INTERFACE dague_profile_reset_f08
 
   INTERFACE dague_profile_dump_f08
-     SUBROUTINE dague_profile_dump_f08(ierr) &
+     SUBROUTINE dague_profile_dump_f08(fname, ierr) &
           BIND(C, name="dague_profile_dump_f08")
-       USE, intrinsic :: ISO_C_BINDING, only : C_INT
-       IMPLICIT NONE
-       INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
-     END SUBROUTINE dague_profile_dump_f08
-  END INTERFACE dague_profile_dump_f08
-
-  INTERFACE dague_profile_start_f08
-     SUBROUTINE dague_profile_start_f08(fname, hr_info, ierr) &
-          BIND(C, name="dague_profile_start_f08")
        USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR
        IMPLICIT NONE
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: fname(*)
-       CHARACTER(KIND=C_CHAR), INTENT(IN)           :: hr_info(*)
        INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
-     END SUBROUTINE dague_profile_start_f08
-  END INTERFACE dague_profile_start_f08
+     END SUBROUTINE dague_profile_dump_f08
+  END INTERFACE dague_profile_dump_f08
 
   INTERFACE dague_profile_thread_init_f08
      FUNCTION dague_profile_thread_init_f08(length, id_name) &
@@ -118,6 +108,15 @@ module dague_profile_f08_interfaces
      END SUBROUTINE dague_profile_disable_f08
   END INTERFACE dague_profile_disable_f08
 
+  INTERFACE dague_profile_start_f08
+    FUNCTION dague_profile_start_f08() &
+          BIND(C, name="dague_profiling_start")
+      USE, intrinsic :: ISO_C_BINDING, only : C_INT
+      IMPLICIT NONE
+      INTEGER(KIND=C_INT)                          :: dague_profile_start_f08
+    END FUNCTION dague_profile_start_f08
+  END INTERFACE dague_profile_start_f08
+
 CONTAINS
 
   SUBROUTINE dague_profile_init(hdr_id, ierr)
@@ -130,7 +129,7 @@ CONTAINS
     CHARACTER(KIND=C_CHAR), ALLOCATABLE        :: c_hdr_id(:)
     INTEGER                                    :: i
 
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_hdr_id(LEN_TRIM(hdr_id)+1))
+    ALLOCATE(c_hdr_id(LEN_TRIM(hdr_id)+1))
     c_hdr_id(:) = (/ (hdr_id(i:i), i = 1, LEN_TRIM(hdr_id)), c_null_char /)
     call dague_profile_init_f08(c_hdr_id, c_err)
     if(present(ierr)) ierr = c_err;
@@ -157,38 +156,22 @@ CONTAINS
     if(present(ierr)) ierr = c_err;
   END SUBROUTINE dague_profile_reset
 
-  SUBROUTINE dague_profile_dump(ierr)
-    USE, intrinsic :: ISO_C_BINDING, only : C_INT
-    IMPLICIT NONE
-    INTEGER, OPTIONAL, INTENT(OUT)             :: ierr
-
-    INTEGER(KIND=c_int)                        :: c_err
-
-    call dague_profile_dump_f08(c_err)
-    if(present(ierr)) ierr = c_err;
-  END SUBROUTINE dague_profile_dump
-
-
-  SUBROUTINE dague_profile_start(fname, hr_info, ierr)
+  SUBROUTINE dague_profile_dump(fname, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR
     IMPLICIT NONE
-    CHARACTER, INTENT(IN)                      :: fname(:)
-    CHARACTER, INTENT(IN)                      :: hr_info(:)
+    CHARACTER(*), INTENT(IN)                   :: fname
     INTEGER, OPTIONAL, INTENT(OUT)             :: ierr
 
     INTEGER(KIND=c_int)                        :: c_err
     CHARACTER(KIND=C_CHAR), ALLOCATABLE        :: c_fname(:)
-    CHARACTER(KIND=C_CHAR), ALLOCATABLE        :: c_hr_info(:)
+    INTEGER                                    :: i
 
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_fname(LEN(fname)+1))
-    c_fname = fname // c_null_char
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_hr_info(LEN(hr_info)+1))
-    c_hr_info = hr_info // c_null_char
-    call dague_profile_start_f08(c_fname, c_hr_info, c_err)
+    ALLOCATE(c_fname(LEN_TRIM(fname)+1))
+    c_fname(:) = (/ (fname(i:i), i = 1, LEN_TRIM(fname)), c_null_char /)
+    call dague_profile_dump_f08(c_fname, c_err)
     if(present(ierr)) ierr = c_err;
     DEALLOCATE(c_fname)
-    DEALLOCATE(c_hr_info)
-  END SUBROUTINE dague_profile_start
+  END SUBROUTINE dague_profile_dump
 
   FUNCTION dague_profile_thread_init(length, id_name)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR, C_SIZE_T, C_PTR
@@ -202,7 +185,7 @@ CONTAINS
     INTEGER                                   :: i
 
     c_length = length
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_id_name(LEN_TRIM(id_name)+1))
+    ALLOCATE(c_id_name(LEN_TRIM(id_name)+1))
     c_id_name(:) = (/ (id_name(i:i), i = 1, LEN_TRIM(id_name)), c_null_char /)
     dague_profile_thread_init = dague_profile_thread_init_f08(c_length, c_id_name)
     DEALLOCATE(c_id_name)
@@ -228,11 +211,11 @@ CONTAINS
     INTEGER                                    :: i
 
     c_info_length = info_length
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_key_name(LEN_TRIM(key_name)+1))
+    ALLOCATE(c_key_name(LEN_TRIM(key_name)+1))
     c_key_name(:) = (/ (key_name(i:i), i = 1, LEN_TRIM(key_name)), c_null_char /)
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_attr(LEN_TRIM(attr)+1))
+    ALLOCATE(c_attr(LEN_TRIM(attr)+1))
     c_attr(:) = (/ (attr(i:i), i = 1, LEN_TRIM(attr)), c_null_char /)
-    ALLOCATE(CHARACTER(KIND=C_CHAR) :: c_conv_code(LEN_TRIM(conv_code)+1))
+    ALLOCATE(c_conv_code(LEN_TRIM(conv_code)+1))
     c_conv_code(:) = (/ (conv_code(i:i), i = 1, LEN_TRIM(conv_code)), c_null_char /)
     call dague_profile_add_dictionary_keyword_f08(c_key_name, c_attr, c_info_length, &
                                                   c_conv_code, c_key_start, c_key_end, c_err)
@@ -274,5 +257,14 @@ CONTAINS
 
     call dague_profile_disable_f08()
   END SUBROUTINE dague_profile_disable
+
+  SUBROUTINE dague_profile_start(ierr)
+    IMPLICIT NONE
+    INTEGER, OPTIONAL, INTENT(OUT)             :: ierr
+
+    INTEGER(KIND=c_int)                        :: c_ierr
+    c_ierr = dague_profile_start_f08();
+    if(present(ierr)) ierr = c_ierr;
+  END SUBROUTINE dague_profile_start
 
 end module dague_profile_f08_interfaces

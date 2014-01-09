@@ -187,6 +187,7 @@ typedef int (dague_task_fct_t)(dague_execution_context_t *exec_context);
 
 typedef struct __dague_internal_incarnation_s {
     int32_t                    type;
+    char                      *dyld;
     dague_evaluate_function_t *evaluate;
     dague_hook_t              *hook;
 } __dague_chore_t;
