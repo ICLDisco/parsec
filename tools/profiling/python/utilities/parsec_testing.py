@@ -12,6 +12,7 @@ import cPickle
 import glob
 import subprocess
 from multiprocessing import Process, Pipe
+
 from common_utils import *
 
 class ParsecTest(object):
@@ -137,7 +138,7 @@ test_output_pattern = (
 
 def spawn_trial_processes(trials, tests_per_trial, keep_best_test_only=False,
                           exe_dir='.', out_dir='.', max_rsd=max_rsd,
-                          convert_profiles=True, compress_profiles=('blosc', 0)):
+                          convert_profiles=True):
     last_N = 0
     last_exe = ''
     total_fail_count = 0
@@ -157,15 +158,15 @@ def spawn_trial_processes(trials, tests_per_trial, keep_best_test_only=False,
             last_N = trials[trial_num].N
         trial_done = False
         fail_count = 0
+
         while not trial_done:
             print()
             trial = trials[trial_num]
             try:
                 # my_end, their_end = Pipe()
-                p = Process(target=run_trial_in_process,
+                p = Process(target=run_trial,
                             args=(trial, tests_per_trial, exe_dir, out_dir,
-                                  max_rsd, keep_best_test_only, convert_profiles,
-                                  compress_profiles))
+                                  max_rsd, keep_best_test_only, convert_profiles))
                 p.start()
                 while p.is_alive():
                     p.join(2)
@@ -195,9 +196,8 @@ def spawn_trial_processes(trials, tests_per_trial, keep_best_test_only=False,
                     print('the trial {} failed '.format(trial.unique_name()) +
                           'to successfully execute after {} failures.'.format(fail_count))
 
-def run_trial_in_process(trial, tests_per_trial, exe_dir, out_dir,
-                         max_rsd, keep_best_test_only,
-                         convert_profiles, compress_profiles):
+def run_trial(trial, tests_per_trial, exe_dir, out_dir,
+              max_rsd, keep_best_test_only, convert_profiles):
     import online_math
 
     test_output_re = re.compile(test_output_pattern, flags=re.DOTALL)
@@ -231,10 +231,10 @@ def run_trial_in_process(trial, tests_per_trial, exe_dir, out_dir,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             # RUN
             (stdout, stderr) = proc.communicate()
-            if len(stderr) != 0:
-                marker = randint(0, 99999)
-                # print("AN ERROR OCCURRED (random id: %d)" % marker)
-                # sys.stderr.write(str(marker) + ':\n' + stderr + '\n')
+            # if len(stderr) != 0:
+            #     marker = randint(0, 99999)
+            #     print("AN ERROR OCCURRED (random id: %d)" % marker)
+            #     sys.stderr.write(str(marker) + ':\n' + stderr + '\n')
             match = test_output_re.match(stdout)
             profile_filenames = glob.glob( 'testing_' + exe + '*.prof-*')
             if match:
@@ -320,8 +320,7 @@ def run_trial_in_process(trial, tests_per_trial, exe_dir, out_dir,
                             import parsec_binprof as pbp
                             add_info = add_info_to_profile(trial)
                             profile_filenames = [pbp.convert(profile_filenames,
-                                                             add_info=add_info,
-                                                             compress=compress_profiles)]
+                                                             add_info=add_info)]
                             new_list.append((test, profile_filenames))
                         except ImportError:
                             new_list.append((test, profile_filenames))
@@ -376,14 +375,20 @@ def run_trial_in_process(trial, tests_per_trial, exe_dir, out_dir,
             # as never having completed later on
             trial_finished = True
     # be done.
-    return 0
+    return trial
 
 
 def add_info_to_profile(trial):
     add_info = dict()
-    if trial.exe.endswith('potrf'):
-        precision = trial.exe.replace('potrf', '')[-1].upper()
-        add_info['POTRF_PRI_CHANGE'] = os.environ[precision + 'POTRF']
+    try:
+        if trial.exe.endswith('potrf'):
+            precision = trial.exe.replace('potrf', '')[-1].upper()
+            add_info['POTRF_PRI_CHANGE'] = int(os.environ[precision + 'POTRF'])
+    except KeyError as ke:
+        add_info['POTRF_PRI_CHANGE'] = 0
+        print(ke)
+        print('Could not find', precision + 'POTRF', 'environment variable.\n',
+              'Setting POTRF_PRI_CHANGE to 0.')
     return add_info
 
 ####### global parameter defaults for ig
@@ -429,6 +434,7 @@ def generate_trials(out_dir, print_only=True, Ns=None, min_N=min_N, max_N=max_N,
                 else:
                     fact = 2 * NB
                 Ns = list(range(NB*8 * N_hi_mult, min_N-1, -fact*8))
+                print('generated ', Ns)
                 if len(Ns) == 0:
                     Ns = [min_N]
                 while len(Ns) > 1 and Ns[0] > max_N: # cutoff
@@ -548,6 +554,7 @@ def generate_main():
     # parser.add_argument('out_dir', type=str, default='.', required=False)
     parser.add_argument('-p', '--print-only', action='store_true')
     parser.add_argument('-N', type=int, nargs='*', default=None)
+    parser.add_argument('-Nrange', nargs='+', default=None)
     parser.add_argument('--maxN', type=int, default=max_N)
     parser.add_argument('--minN', type=int, default=min_N)
     parser.add_argument('-NB', nargs='+', default=default_NBs)
@@ -556,6 +563,9 @@ def generate_main():
     args, extra_args = parser.parse_known_args()
 
     args.NB = smart_parse(args.NB)
+
+    if args.Nrange and not args.N:
+        args.N = smart_parse(args.Nrange)
 
     out_dir = '.'
     # for arg in args.extra_args:

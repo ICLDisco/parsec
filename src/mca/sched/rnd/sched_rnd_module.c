@@ -79,17 +79,17 @@ static dague_execution_context_t *sched_rnd_select( dague_execution_unit_t *eu_c
 static int sched_rnd_schedule( dague_execution_unit_t* eu_context,
                                dague_execution_context_t* new_context )
 {
-#if defined(DAGUE_DEBUG_VERBOSE3)
     dague_list_item_t *it = (dague_list_item_t*)new_context;
     char tmp[MAX_TASK_STRLEN];
     do {
+#if defined(DAGUE_DEBUG_VERBOSE3)
         DEBUG3(("RND:\t Pushing task %s\n",
                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it)));
+#endif
         /* randomly assign priority */
         (*((int*)(((uintptr_t)it)+dague_execution_context_priority_comparator))) = rand();
         it = (dague_list_item_t*)((dague_list_item_t*)it)->list_next;
     } while( it != (dague_list_item_t*)new_context );
-#endif
     dague_list_chain_sorted((dague_list_t*)eu_context->scheduler_object,
                             (dague_list_item_t*)new_context,
                             dague_execution_context_priority_comparator);
