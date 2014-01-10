@@ -53,7 +53,7 @@ static void* dague_gpu_data_allocate(size_t matrix_size)
 
     if( __dague_active_gpu ) {
         CUresult status;
-        if( dague_gpu_allocation_initialized ) { 
+        if( dague_gpu_allocation_initialized ) {
             status = cuCtxPushCurrent( dague_allocate_on_gpu_context );
             DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
                                     {
@@ -387,7 +387,7 @@ int dague_gpu_init(dague_context_t *dague_context,
                                         {break;} );
             }
 #if defined(DAGUE_PROF_TRACE)
-	    exec_stream->profiling = dague_profiling_thread_init( 2*1024*1024, DAGUE_PROFILE_STREAM_STR, i, j );
+            exec_stream->profiling = dague_profiling_thread_init( 2*1024*1024, DAGUE_PROFILE_STREAM_STR, i, j );
 #endif  /* defined(PROFILING) */
 #if defined(DAGUE_PROF_TRACE)
             exec_stream->prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC;
@@ -552,8 +552,8 @@ int dague_gpu_fini( void )
         dague_gpu_allocation_initialized = 0;
     }
 
-    free(device_load);
-    free(device_weight);
+    free(device_load); device_load = NULL;
+    free(device_weight); device_weight = NULL;
 
     __dague_active_gpu = 0;
     return 0;
@@ -603,7 +603,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
          * We allocate a bunch of tiles that will be used
          * during the computations
          */
-        while( (free_mem > eltsize ) 
+        while( (free_mem > eltsize )
                && ((total_mem - free_mem) < how_much_we_allocate)
                && !(mem_elem_per_gpu > (uint32_t)(nbelem/2*3)) ) {
             gpu_elem_t* gpu_elem;
@@ -637,7 +637,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
         if( 0 == mem_elem_per_gpu && dague_ulist_is_empty( gpu_device->gpu_mem_lru ) ) {
             WARNING(("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!\n",
                      dague_context->my_rank, i));
-        } 
+        }
         else {
             DEBUG3(( "GPU:\tAllocate %u tiles on the GPU memory\n", mem_elem_per_gpu ));
         }
@@ -656,7 +656,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             else {
                 DEBUG3(( "GPU:\tAllocate %u segment of size %d on the GPU memory\n",
                          mem_elem_per_gpu, GPU_MALLOC_UNIT_SIZE ));
-        
+
             }
         }
 #endif
@@ -685,39 +685,38 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
         DAGUE_ULIST_ITERATOR(gpu_device->gpu_mem_lru, item, {
                 gpu_elem_t* gpu_elem = (gpu_elem_t*)item;
                 moesi_master_t* master = gpu_elem->moesi.master;
-                DEBUG3(("Considering suppresion of %p, attached to master %p, if in map %p",
+                DEBUG3(("Suppressing %p, attached to master %p, in map %p\n",
                         gpu_elem, master, ddesc->moesi_map));
                 if( !master || master->map == ddesc->moesi_map ) {
-                    DEBUG3(("  Suppressing %p\n", gpu_elem));
                     if( master ) master->device_copies[i] = NULL;
-#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-                    cuMemFree( gpu_elem->gpu_mem_ptr );
-#else
-                    gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
-#endif
-                    item = dague_ulist_remove(gpu_device->gpu_mem_lru, item);
-                    free(gpu_elem);
                 }
+#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
+                cuMemFree( gpu_elem->gpu_mem_ptr );
+#else
+                gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
+#endif
+                item = dague_ulist_remove(gpu_device->gpu_mem_lru, item);
+                free(gpu_elem);
             });
         DAGUE_ULIST_ITERATOR(gpu_device->gpu_mem_owned_lru, item, {
                 gpu_elem_t* gpu_elem = (gpu_elem_t*)item;
                 moesi_master_t* master = gpu_elem->moesi.master;
-                DEBUG3(("Considering suppresion of %p, attached to master %p, if in map %p", gpu_elem, master, ddesc->moesi_map));
+                DEBUG3(("Suppresing %p, attached to master %p, in map %p\n",
+                        gpu_elem, master, ddesc->moesi_map));
                 if( !master || master->map == ddesc->moesi_map ) {
-                    DEBUG3(("  Suppressing %p\n", gpu_elem));
                     if( master ) master->device_copies[i] = NULL;
-                    if( MOESI_OWNED == gpu_elem->moesi.coherency_state ) {
-                        WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n", i, gpu_elem->moesi.master->key));
-                        assert( gpu_elem->moesi.master->owner_device == i );
-                    }
-#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-                    cuMemFree( gpu_elem->gpu_mem_ptr );
-#else
-                    gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
-#endif
-                    item = dague_ulist_remove(gpu_device->gpu_mem_owned_lru, item);
-                    free(gpu_elem);
                 }
+                if( MOESI_OWNED == gpu_elem->moesi.coherency_state ) {
+                    WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n", i, gpu_elem->moesi.master->key));
+                    assert( gpu_elem->moesi.master->owner_device == i );
+                }
+#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
+                cuMemFree( gpu_elem->gpu_mem_ptr );
+#else
+                gpu_free( gpu_device->memory, (void*)gpu_elem->gpu_mem_ptr );
+#endif
+                item = dague_ulist_remove(gpu_device->gpu_mem_owned_lru, item);
+                free(gpu_elem);
             });
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
@@ -946,7 +945,7 @@ int progress_stream( gpu_device_t* gpu_device,
     rc = progress_fct( gpu_device, task, exec_stream );
     if( 0 > rc ) {
         if( -1 == rc ) return -1;  /* Critical issue */
-        assert(0); // want to debug this. It happens too often 
+        assert(0); // want to debug this. It happens too often
         /* No more room on the GPU. Push the task back on the queue and check the completion queue. */
         DAGUE_FIFO_PUSH(exec_stream->fifo_pending, (dague_list_item_t*)task);
         DEBUG2(( "GPU: Reschedule %s(task %p) priority %d: no room available on the GPU for data\n",
@@ -978,7 +977,7 @@ int progress_stream( gpu_device_t* gpu_device,
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
             DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable,
                                      exec_stream->profiling,
-                                     (-1 == exec_stream->prof_event_key_end ? 
+                                     (-1 == exec_stream->prof_event_key_end ?
                                       DAGUE_PROF_FUNC_KEY_END(task->ec->dague_object,
                                                               task->ec->function->function_id) :
                                       exec_stream->prof_event_key_end),

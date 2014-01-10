@@ -192,17 +192,17 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
      * if the kernel swap A and B it won't work
      */
     moesi_get_master(args->ddescA->moesi_map, TILED_MATRIX_KEY(args->ddescA, args->Am, args->An ),
-                           &(this_task->data[0].moesi_master));
+                     &(this_task->data[0].moesi_master));
     if( NULL == (this_task->data[0].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
 
     moesi_get_master(args->ddescB->moesi_map, TILED_MATRIX_KEY(args->ddescB, args->Bm, args->Bn ),
-                           &(this_task->data[1].moesi_master));
+                     &(this_task->data[1].moesi_master));
     if( NULL == (this_task->data[1].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
 
     moesi_get_master(args->ddescC->moesi_map, TILED_MATRIX_KEY(args->ddescC, args->Cm, args->Cn ),
-                           &(this_task->data[2].moesi_master));
+                     &(this_task->data[2].moesi_master));
     if( NULL == (this_task->data[2].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
 
