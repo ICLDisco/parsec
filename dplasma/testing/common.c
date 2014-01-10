@@ -633,13 +633,6 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
     dague_profiling_dump_dbp(filename);
     free(filename);
 #endif  /* DAGUE_PROF_TRACE */
-#if defined(HAVE_CUDA)
-    if( iparam[IPARAM_NGPUS] > 0 ) {
-        if( 0 != dague_gpu_fini() ) {
-            fprintf(stderr, "#XXXXX DAGuE is unable to finalize the CUDA environment.\n");
-        }
-    }
-#endif  /* defined(HAVE_CUDA) */
     dague_fini(&dague);
 
 #ifdef HAVE_MPI
