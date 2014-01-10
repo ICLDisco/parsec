@@ -269,7 +269,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     gpu_elem_t *gpu_elem_A = NULL, *gpu_elem_B = NULL, *gpu_elem_C = NULL;
     CUdeviceptr d_A, d_B, d_C;
     cudaError_t status;
-#if defined(DAGUE_DEBUG_VERBOSE2)
+#if DAGUE_DEBUG_VERBOSE >= 2
     char tmp[MAX_TASK_STRLEN];
 #endif
 

@@ -406,11 +406,11 @@ int dague_gpu_init(dague_context_t *dague_context,
     /* Compute the weight of each device including the cores */
     DEBUG(("Global Theoritical performance: %2.4f\n", total_perf ));
     for( i = 0; i < (ndevices+1); i++ ) {
-        if( 0 == i )
+        if( 0 == i ) {
             DEBUG(("CPU             ->ratio %2.4e (%2.4e)\n",
                    device_weight[i],
                    device_weight[i] / nb_cores ));
-        else
+        } else
             DEBUG(("Device index %2d ->ratio %2.4e\n",
                    i-1, device_weight[i]));
         device_weight[i] = (total_perf / device_weight[i]);
