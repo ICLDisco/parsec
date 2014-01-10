@@ -17,21 +17,30 @@ static dague_lifo_t dague_data_copies_lifo;
 
 static void dague_data_copy_construct(dague_data_copy_t* obj)
 {
-    obj->device_index     = 0;
-    obj->flags            = 0;
-    obj->coherency_state  = DATA_COHERENCY_INVALID;
-    obj->readers          = 0;
-    obj->version          = 0;
-    obj->older            = NULL;
-    obj->original         = NULL;
-    obj->device_private   = NULL;
-    obj->arena_chunk      = NULL;
-    obj->data_transfer_status      = DATA_STATUS_NOT_TRANSFER;
-    obj->push_task        = NULL;
+    obj->device_index         = 0;
+    obj->flags                = 0;
+    obj->coherency_state      = DATA_COHERENCY_INVALID;
+    obj->readers              = 0;
+    obj->version              = 0;
+    obj->older                = NULL;
+    obj->original             = NULL;
+    obj->device_private       = NULL;
+    obj->arena_chunk          = NULL;
+    obj->data_transfer_status = DATA_STATUS_NOT_TRANSFER;
+    obj->push_task            = NULL;
+    DEBUG3(("Allocate data copy %p\n", obj));
 }
 
 static void dague_data_copy_destruct(dague_data_copy_t* obj)
 {
+    DEBUG3(("Release data copy %p\n", obj));
+
+    /* If the copy is still attached to a data we should detach it first */
+    if( NULL != obj->original) {
+        dague_data_copy_detach(obj->original, obj, obj->device_index);
+        obj->original = NULL;
+    }
+
     if( obj->flags & DAGUE_DATA_FLAG_ARENA ) {
         /* It is an arena that is now unused.
          * give the chunk back to the arena memory management.
@@ -51,10 +60,12 @@ static void dague_data_construct(dague_data_t* obj )
     obj->nb_elts          = 0;
     for( uint32_t i = 0; i < dague_nb_devices;
          obj->device_copies[i] = NULL, i++ );
+    DEBUG3(("Allocate data %p\n", obj));
 }
 
 static void dague_data_destruct(dague_data_t* obj )
 {
+    DEBUG3(("Release data %p\n", obj));
     for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
         dague_data_copy_t *copy = NULL;
 
@@ -127,6 +138,7 @@ dague_data_copy_attach(dague_data_t* data,
 {
     copy->device_index    = device;
     copy->original        = data;
+    assert(NULL == copy->older);
     /* Atomically set the device copy */
     copy->older = data->device_copies[device];
     if( !dague_atomic_cas(&data->device_copies[device], copy->older, copy) ) {
@@ -136,6 +148,10 @@ dague_data_copy_attach(dague_data_t* data,
     return DAGUE_SUCCESS;
 }
 
+/**
+ * In the current version only the latest copy of a data for each device can
+ * be safely removed.
+ */
 int dague_data_copy_detach(dague_data_t* data,
                            dague_data_copy_t* copy,
                            uint8_t device)
@@ -148,8 +164,9 @@ int dague_data_copy_detach(dague_data_t* data,
     if( !dague_atomic_cas(&data->device_copies[device], copy, copy->older) ) {
         return DAGUE_ERROR;
     }
-    copy->device_index    = 0;
-    copy->original        = NULL;
+    copy->device_index = 0;
+    copy->original     = NULL;
+    copy->older        = NULL;
     return DAGUE_SUCCESS;
 }
 

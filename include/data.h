@@ -99,10 +99,10 @@ dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint8_t device);
  * 0 the upper level is in charge of cleaning up and releasing all content
  * of the copy.
  */
-static inline void dague_data_copy_release(dague_data_copy_t* data)
+static inline void dague_data_copy_release(dague_data_copy_t* copy)
 {
     /* TODO: Move the copy back to the CPU before destroying it */
-    OBJ_RELEASE(data);
+    OBJ_RELEASE(copy);
 }
 #define DAGUE_DATA_COPY_RELEASE(DATA) dague_data_copy_release(DATA)
 
