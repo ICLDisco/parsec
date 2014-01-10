@@ -663,9 +663,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if( NULL != binding_parameter )
         dague_parse_binding_parameter(binding_parameter, context, startup);
 
-    /* Set the scheduler */
-    dague_set_scheduler( context );
-
     if( display_vpmap )
         vpmap_display_map(stderr);
 
