@@ -467,14 +467,9 @@ static char *dump_dataflow(void **elem, void *arg)
  *  and stores in sa_test the test to check
  *  whether this data is looked up or not.
  */
-typedef struct {
-    string_arena_t *sa;
-    string_arena_t *sa_test;
-} dump_data_declaration_info_t;
 static char *dump_data_declaration(void **elem, void *arg)
 {
-    dump_data_declaration_info_t *info = (dump_data_declaration_info_t*)arg;
-    string_arena_t *sa = info->sa;
+    string_arena_t *sa = (string_arena_t*)arg;
     jdf_dataflow_t *f = (jdf_dataflow_t*)elem;
     char *varname = f->varname;
 
@@ -483,23 +478,11 @@ static char *dump_data_declaration(void **elem, void *arg)
     }
 
     string_arena_init(sa);
-
     string_arena_add_string(sa,
                             "  dague_arena_chunk_t *g%s;\n"
                             "  data_repo_entry_t *e%s = NULL; /**< repo entries can be NULL for memory data */\n",
                             varname,
                             varname);
-
-    if( strlen( string_arena_get_string(info->sa_test) ) == 0 ) {
-        string_arena_add_string(info->sa_test,
-                                "(this_task->data[%d].data_in != NULL)",
-                                f->flow_index);
-    } else {
-        string_arena_add_string(info->sa_test,
-                                " &&\n"
-                                "      (this_task->data[%d].data_in != NULL)",
-                                f->flow_index);
-    }
     return string_arena_get_string(sa);
 }
 
@@ -523,7 +506,7 @@ static char *dump_data_initialization_from_data_array(void **elem, void *arg)
     string_arena_init(sa);
 
     string_arena_add_string(sa,
-                            "  dague_data_copy_t *g%s = this_task->data[%d].data_out;\n"
+                            "  dague_data_copy_t *g%s = this_task->data[%d].data_in;\n"
                             "  void *%s = DAGUE_DATA_COPY_GET_PTR(g%s); (void)%s;\n",
                             varname, f->flow_index,
                             varname, varname, varname);
@@ -3486,7 +3469,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                 flow->varname, flow->flow_index);
         return;
     }
-    coutput( "  if( NULL == (chunk = this_task->data[%u].data_out) ) {;  /* flow %s */\n"
+    coutput( "  if( NULL == (chunk = this_task->data[%u].data_in) ) {;  /* flow %s */\n"
              "    entry = NULL;\n",
              flow->flow_index, flow->varname);
 
@@ -3578,7 +3561,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             "      this_task->data[%u].data_repo = entry;\n"
             "    }\n"
             "    /* Now get the local version of the data to be worked on */\n"
-            "    this_task->data[%u].data_out = chunk->original->device_copies[target_device];\n",
+            "    this_task->data[%u].data_out = dague_data_get_copy(chunk->original, target_device);\n",
             flow->flow_index, flow->varname,
             flow->flow_index,
             flow->flow_index);
@@ -3786,14 +3769,13 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
                               const jdf_function_entry_t *f,
                               const char *name)
 {
-    string_arena_t *sa, *sa2, *sa_test;
+    string_arena_t *sa, *sa2;
     assignment_info_t ai;
     jdf_dataflow_t *fl;
-    dump_data_declaration_info_t dinfo;
 
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
-    sa_test = string_arena_new(64);
+
     ai.sa = sa2;
     ai.idx = 0;
     ai.holder = "this_task->locals";
@@ -3813,26 +3795,12 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                  dump_string, NULL, "", " (void)", ";", "; (void)chunk; (void)entry;\n"));
-
-    dinfo.sa = sa2;
-    dinfo.sa_test = sa_test;
     UTIL_DUMP_LIST(sa, f->dataflow, next,
-                   dump_data_declaration, &dinfo, "", "", "", "");
-
-    if( strlen( string_arena_get_string( sa_test ) ) != 0 )
-        coutput("  /** Check if some lookups are to be done **/\n"
-                "  if( %s )\n"
-                "    goto complete_and_return;\n"
-                "\n",
-                string_arena_get_string(sa_test));
-
+                   dump_data_declaration, sa2, "", "", "", "");
     coutput("  /** Lookup the input data, and store them in the context if any */\n");
     for( fl = f->dataflow; fl != NULL; fl = fl->next ) {
         jdf_generate_code_flow_initialization(jdf, f->fname, fl);
     }
-
-    if( strlen( string_arena_get_string( sa_test ) ) != 0 )
-         coutput(" complete_and_return:\n");
 
     /* If the function has the property profile turned off do not generate the profiling code */
     if( jdf_property_get_int(f->properties, "profile", 1) ) {
@@ -3864,7 +3832,6 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
             "}\n\n");
     string_arena_free(sa);
     string_arena_free(sa2);
-    string_arena_free(sa_test);
 }
 
 static void jdf_generate_code_hook(const jdf_t *jdf,
