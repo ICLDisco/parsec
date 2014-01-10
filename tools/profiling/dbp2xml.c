@@ -17,7 +17,7 @@
 #include "dbp.h"
 #include "dbpreader.h"
 
-#if defined(DAGUE_DEBUG_VERBOSE1)
+#if DAGUE_DEBUG_VERBOSE >= 1
 #define DEBUG(toto) output toto
 #else
 #define DEBUG(toto) do {} while(0)

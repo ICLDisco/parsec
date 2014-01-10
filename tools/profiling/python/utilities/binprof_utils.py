@@ -270,6 +270,10 @@ def get_partner_name(filename):
     else:
         return filename
 
+def compress_many(filenames, clevel=5):
+    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+    pool.map(compress_h5, filenames)
+
 def compress_h5(filename, clevel=5):
     if p3.p3_core in filename:
         os.system('h5repack -f GZIP={} {} {}'.format(clevel, filename, filename + '.ctmp'))
@@ -332,9 +336,9 @@ if __name__ == '__main__':
         else:
             print('You chose not to revert the filenames. Utility now exiting.')
         sys.exit(0)
+
     if '--compress' in args:
-        pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-        pool.map(compress_h5, filenames)
+        compress_many(filenames)
         sys.exit(0)
 
     if '--help' in args:

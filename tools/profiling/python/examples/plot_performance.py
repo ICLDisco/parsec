@@ -19,10 +19,11 @@ default_ext = 'pdf' # public - change before using
 
 default_x_axis = 'NB'
 default_groupby = 'sched'
-default_infos = ['hostname', 'exe', 'ncores', 'sched', 'N', 'POTRF_PRI_CHANGE']
+default_infos = ['hostname', 'exe', 'ncores', 'sched', 'N', 'NB', 'POTRF_PRI_CHANGE']
+default_tag = None
 
 def plot_performance(profiles, x_axis, groupby=default_groupby, infos=default_infos,
-                     ext=default_ext, sort_ascending=True, groupby2=None):
+                     ext=default_ext, sort_ascending=True, groupby2=None, filename_tag=None):
     # remove nonsensical info keys
     infos = [x for x in infos if x != groupby and x != groupby2 and x != x_axis]
     x_axis_name = x_axis
@@ -75,10 +76,6 @@ def plot_performance(profiles, x_axis, groupby=default_groupby, infos=default_in
     else:
         ax.legend(loc='best', title=groupby_name)
 
-    ax.grid(True)
-    ax.set_xlabel(x_axis_name)
-    ax.set_ylabel('Performance (GFLOPS/s)')
-
     title = ''
     try:
         title += p3.nice_val(matched_info, 'exe').upper() + ' '
@@ -95,12 +92,18 @@ def plot_performance(profiles, x_axis, groupby=default_groupby, infos=default_in
     print('Plotted', title)
 
     ax.set_title(title)
-
+    ax.grid(True)
+    ax.set_xlabel(x_axis_name)
+    ax.set_ylabel('Performance (GFLOPS/s)')
     fig.set_size_inches(10, 7)
+
     names = [profile.name(infos=infos) for profile in profiles]
-    fig.savefig(
-        'perf_{}.{}'.format(longest_substr(names).strip('_'), ext),
-        dpi=300, bbox_inches='tight')
+    filename = 'perf_vs_' + str(x_axis_name) + '_'
+    filename += longest_substr(names).strip('_')
+    if filename_tag:
+        filename += '_' + filename_tag
+
+    fig.savefig(filename + '.' + ext, dpi=300, bbox_inches='tight')
 
 def do_plot(axis, dataframe, x_axis, y_axis, sort_ascending=True,
             color=None, label=None, linestyle='-'):
@@ -117,6 +120,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--file-ext', default=default_ext)
     parser.add_argument('-g', '--group-by', default=default_groupby)
     parser.add_argument('-s', '--second-group-by', default=None)
+    parser.add_argument('-t', '--filename-tag', default=None)
 
     args, filenames = parser.parse_known_args()
 
@@ -124,4 +128,5 @@ if __name__ == '__main__':
     profiles = p3_utils.autoload_profiles(filenames, skeleton_only=True)
 
     plot_performance(profiles, args.x_axis, infos=default_infos, groupby=args.group_by,
-                     ext=args.file_ext, groupby2=args.second_group_by)
+                     ext=args.file_ext, groupby2=args.second_group_by,
+                     filename_tag=args.filename_tag)

@@ -1045,7 +1045,7 @@ static int dague_update_deps_with_mask(const dague_handle_t *dague_handle,
         if( dep_new_value != 0 ) {
             DEBUG3(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
         }
-#endif /* DAGUE_DEBUG_VERBOSE3 */
+#endif
     }
 
     dep_cur_value = dague_atomic_bor( deps, dep_new_value );
