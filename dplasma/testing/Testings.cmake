@@ -84,6 +84,13 @@ foreach(prec ${DPLASMA_PRECISIONS})
   #add_test(shm_${prec}gesv         ${SHM_TEST_CMD_LIST} ./testing_${prec}gesv         -N 874 -K 367 -t 76       -x -v=5)
   add_test(shm_${prec}gesv_incpiv  ${SHM_TEST_CMD_LIST} ./testing_${prec}gesv_incpiv  -N 874 -K 367 -t 76 -i 23 -x -v=5)
 
+  # The headnode lack GPUs so we need MPI in order to get the test to run on
+  # one of the nodes.
+  if (CUDA_FOUND AND MPI_C_FOUND)
+    add_test(gpu_shm_${prec}potrf_g1 ${SHM_TEST_CMD_LIST} ./testing_${prec}potrf -N 8000 -t 320 -x -v=5 -g 1)
+    add_test(gpu_shm_${prec}potrf_g2 ${SHM_TEST_CMD_LIST} ./testing_${prec}potrf -N 8000 -t 320 -x -v=5 -g 2)
+  endif (CUDA_FOUND AND MPI_C_FOUND)
+
   #   if ( "${prec}" STREQUAL "c" OR "${prec}" STREQUAL "z" )
   #     add_test(shm_${prec}heev         ${SHM_TEST_CMD_LIST} ./testing_${prec}heev  -N 4000 -x -v=5)
   #   else()
@@ -95,18 +102,6 @@ foreach(prec ${DPLASMA_PRECISIONS})
   #   add_test(shm_${prec}geqrf_p3     ${SHM_TEST_CMD_LIST} ./testing_${prec}geqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 3 --tsrr=0 -v=5)
   #
 endforeach()
-
-#  # Specific cases
-#  # Do we want to test them in all precisions ?
-#  add_test(dpotrf_pbq ${SHM_TEST_CMD_LIST} ./testing_dpotrf -N 4000 -x -v=5 -o PBQ)
-#  add_test(dgeqrf_pbq ${SHM_TEST_CMD_LIST} ./testing_dgeqrf -N 4000 -x -v=5 -o PBQ)
-#
-#  # The headnode lack GPUs so we need MPI in order to get the test to run on
-#  # one of the nodes.
-#  if (CUDA_FOUND AND MPI_C_FOUND)
-#    add_test(dpotrf_g1  ${SHM_TEST_CMD_LIST} ./testing_dpotrf -N 8000 -x -v=5 -g 1)
-#    add_test(dpotrf_g2  ${SHM_TEST_CMD_LIST} ./testing_dpotrf -N 8000 -x -v=5 -g 2)
-#  endif (CUDA_FOUND AND MPI_C_FOUND)
 
 #
 # Distributed Memory Testings
@@ -197,13 +192,14 @@ if( MPI_C_FOUND )
     add_test(mpi_${prec}getrf_nopiv  ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}getrf_nopiv  ${CORES} -P 2 -N 378 -t 19      -x -v=5)
     add_test(mpi_${prec}getrf_qrf    ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}getrf_qrf    ${CORES} -P 2 -N 378 -t 19 -i 7 -x -v=5)
 
-    #add_test(mpi_${prec}gesv         ${MPI_TEST_CMD_LIST} ./testing_${prec}gesv        ${CORES}  -N 874 -K 367 -t 76       -x -v=5)
-    add_test(mpi_${prec}gesv_incpiv  ${MPI_TEST_CMD_LIST} ./testing_${prec}gesv_incpiv  ${CORES} -N 874 -K 367 -t 17 -i 7 -x -v=5)
+    #add_test(mpi_${prec}gesv        ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}gesv        ${CORES}  -N 874 -K 367 -t 76       -x -v=5)
+    add_test(mpi_${prec}gesv_incpiv  ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}gesv_incpiv  ${CORES} -N 874 -K 367 -t 17 -i 7 -x -v=5)
 
-    # if (CUDA_FOUND)
-    #   add_test(mpi_${prec}potrf_g1     ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}potrf       ${CORES}  -p 2 -N 8000 -x -v=5 -g 1)
-    #   SET_TESTS_PROPERTIES(mpi_${prec}potrf_g1 PROPERTIES DEPENDS mpi_test)
-    # endif (CUDA_FOUND)
+    # GPU Cholesky tests
+    if (CUDA_FOUND)
+      add_test(gpu_mpi_${prec}potrf_g1 ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}potrf ${CORES} -N 8000 -t 320 -x -v=5 -g 1 -P 2)
+      add_test(gpu_mpi_${prec}potrf_g2 ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}potrf ${CORES} -N 8000 -t 320 -x -v=5 -g 2 -P 2)
+    endif (CUDA_FOUND)
 
     # add_test(mpi_${prec}potrf_pbq    ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}potrf       ${CORES}  -p 2 -N 4000 -x -v=5 -o PBQ)
     # SET_TESTS_PROPERTIES(mpi_${prec}potrf_pbq PROPERTIES DEPENDS mpi_test)
@@ -231,3 +227,10 @@ if( MPI_C_FOUND )
   endforeach()
 
 endif( MPI_C_FOUND )
+
+#  # Specific cases
+#  # Do we want to test them in all precisions ?
+#  add_test(dpotrf_pbq ${SHM_TEST_CMD_LIST} ./testing_dpotrf -N 4000 -x -v=5 -o PBQ)
+#  add_test(dgeqrf_pbq ${SHM_TEST_CMD_LIST} ./testing_dgeqrf -N 4000 -x -v=5 -o PBQ)
+#
+
