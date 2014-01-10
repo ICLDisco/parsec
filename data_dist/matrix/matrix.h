@@ -160,6 +160,12 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
             free(data);
             data = matrix->data_map[pos];
         }
+    } else {
+        /* Do we have a copy of this data */
+        if( NULL == data->device_copies[0] ) {
+            dague_data_copy_t* data_copy = dague_data_copy_new(data, 0);
+            data_copy->device_private = ptr;
+        }
     }
     return data;
 }
