@@ -1001,7 +1001,36 @@ int jdf_flatten_function(jdf_function_entry_t* function)
     for( flow = function->dataflow; NULL != flow; flow = flow->next )
         if( 0xFF == flow->flow_index )
             flow->flow_index = flow_index++;
-
+    /* Let's reorder the dataflow list based on the flow_index field */
+    jdf_dataflow_t *parent, *reverse_order = NULL;
+    flow_index = 0;
+    while( NULL != (flow = function->dataflow) ) {
+        parent = NULL;
+        /* Find the right index */
+        while( NULL != flow ) {
+            if( flow_index == flow->flow_index )
+                break;
+            parent = flow;
+            flow = flow->next;
+        }
+        assert(NULL != flow);
+        /* Remove current (flow) from the previous chain */
+        if( NULL !=  parent )
+            parent->next = flow->next;
+        else
+            function->dataflow = flow->next;
+        /* And add it into the new list that is ordered in reverse */
+        flow->next = reverse_order;
+        reverse_order = flow;
+        flow_index++;
+    }
+    /* Reorder the reverse_order list to get the expected ordering */
+    while( NULL != reverse_order ) {
+        parent = reverse_order->next;
+        reverse_order->next = function->dataflow;
+        function->dataflow = reverse_order;
+        reverse_order = parent;
+    }
 #if 0
     for( flow = function->dataflow; NULL != flow; flow = flow->next) {
         string_arena_t* sa1 = string_arena_new(64);
