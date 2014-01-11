@@ -24,6 +24,10 @@
 
 #include "cuda_zgemm.h"
 
+#define flow_A  1
+#define flow_B  2
+#define flow_C  0
+
 #define KERNEL_NAME zgemm
 
 typedef void (*cuda_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
@@ -192,26 +196,26 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
      * if the kernel swap A and B it won't work
      */
     moesi_get_master(args->ddescA->moesi_map, TILED_MATRIX_KEY(args->ddescA, args->Am, args->An ),
-                     &(this_task->data[0].moesi_master));
-    if( NULL == (this_task->data[0].moesi_master)->device_copies[gpu_device->index])
+                     &(this_task->data[flow_A].moesi_master));
+    if( NULL == (this_task->data[flow_A].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
 
     moesi_get_master(args->ddescB->moesi_map, TILED_MATRIX_KEY(args->ddescB, args->Bm, args->Bn ),
-                     &(this_task->data[1].moesi_master));
-    if( NULL == (this_task->data[1].moesi_master)->device_copies[gpu_device->index])
+                     &(this_task->data[flow_B].moesi_master));
+    if( NULL == (this_task->data[flow_B].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
 
     moesi_get_master(args->ddescC->moesi_map, TILED_MATRIX_KEY(args->ddescC, args->Cm, args->Cn ),
-                     &(this_task->data[2].moesi_master));
-    if( NULL == (this_task->data[2].moesi_master)->device_copies[gpu_device->index])
+                     &(this_task->data[flow_C].moesi_master));
+    if( NULL == (this_task->data[flow_C].moesi_master)->device_copies[gpu_device->index])
         move_data_count++;
 
     this_task->data[3].moesi_master =  NULL;  /* last element */
 
     if( 0 != move_data_count ) { /* Try to reserve enough room for all data */
-        sizeloc[0] = args->sizeA;
-        sizeloc[1] = args->sizeB;
-        sizeloc[2] = args->sizeC;
+        sizeloc[flow_A] = args->sizeA;
+        sizeloc[flow_B] = args->sizeB;
+        sizeloc[flow_C] = args->sizeC;
 
         ret = dague_gpu_data_reserve_device_space( gpu_device,
                                                    this_task,
@@ -222,35 +226,38 @@ gpu_kernel_push_zgemm( gpu_device_t        *gpu_device,
         }
     }
 
-    assert( NULL != gpu_elem_obtain_from_master(this_task->data[0].moesi_master, gpu_device->index) );
-    assert( NULL != gpu_elem_obtain_from_master(this_task->data[1].moesi_master, gpu_device->index) );
-    assert( NULL != gpu_elem_obtain_from_master(this_task->data[2].moesi_master, gpu_device->index) );
+    assert( NULL != gpu_elem_obtain_from_master(this_task->data[flow_A].moesi_master, gpu_device->index) );
+    assert( NULL != gpu_elem_obtain_from_master(this_task->data[flow_B].moesi_master, gpu_device->index) );
+    assert( NULL != gpu_elem_obtain_from_master(this_task->data[flow_C].moesi_master, gpu_device->index) );
 
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                              gpu_stream->profiling,
-                             (-1 == gpu_stream->prof_event_key_start ? 
+                             (-1 == gpu_stream->prof_event_key_start ?
                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
                                                         this_task->function->function_id) :
                               gpu_stream->prof_event_key_start),
                              this_task);
 
-    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[0]->name, args->Am, args->An));
-    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[0]->flow_flags,
-                                   &(this_task->data[0]), args->sizeA, gpu_stream->cuda_stream );
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index,
+            this_task->function->in[flow_A]->name, args->Am, args->An));
+    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[flow_A]->flow_flags,
+                                   &(this_task->data[flow_A]), args->sizeA, gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
-    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[1]->name, args->Bm, args->Bn));
-    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[1]->flow_flags,
-                                   &(this_task->data[1]), args->sizeB, gpu_stream->cuda_stream );
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index,
+            this_task->function->in[flow_B]->name, args->Bm, args->Bn));
+    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[flow_B]->flow_flags,
+                                   &(this_task->data[flow_B]), args->sizeB, gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
 
-    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index, this_task->function->in[2]->name, args->Cm, args->Cn));
-    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[2]->flow_flags,
-                                   &(this_task->data[2]), args->sizeC, gpu_stream->cuda_stream );
+    DEBUG3(("GPU[%1d]:\tIN  Data of %s(%d, %d) on GPU\n", gpu_device->device_index,
+            this_task->function->in[flow_C]->name, args->Cm, args->Cn));
+    ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[flow_C]->flow_flags,
+                                   &(this_task->data[flow_C]), args->sizeC, gpu_stream->cuda_stream );
     if( ret < 0 ) {
         goto release_and_return_error;
     }
@@ -275,9 +282,9 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 
     cuda_zgemm_t cuda_zgemm = zgemm_functions[gpu_device->index];
 
-    gpu_elem_A = gpu_elem_obtain_from_master(this_task->data[0].moesi_master, gpu_device->index);
-    gpu_elem_B = gpu_elem_obtain_from_master(this_task->data[1].moesi_master, gpu_device->index);
-    gpu_elem_C = gpu_elem_obtain_from_master(this_task->data[2].moesi_master, gpu_device->index);
+    gpu_elem_A = gpu_elem_obtain_from_master(this_task->data[flow_A].moesi_master, gpu_device->index);
+    gpu_elem_B = gpu_elem_obtain_from_master(this_task->data[flow_B].moesi_master, gpu_device->index);
+    gpu_elem_C = gpu_elem_obtain_from_master(this_task->data[flow_C].moesi_master, gpu_device->index);
     d_A = gpu_elem_A->gpu_mem_ptr;
     d_B = gpu_elem_B->gpu_mem_ptr;
     d_C = gpu_elem_C->gpu_mem_ptr;
@@ -288,7 +295,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                              gpu_stream->profiling,
-                             (-1 == gpu_stream->prof_event_key_start ? 
+                             (-1 == gpu_stream->prof_event_key_start ?
                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
                                                         this_task->function->function_id) :
                               gpu_stream->prof_event_key_start),
@@ -304,13 +311,6 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     DAGUE_CUDA_CHECK_ERROR( "cuLaunchGridAsync ", status,
                               {return -1;} );
 
-/*     fprintf(stderr, "cuda_zgemm( %d, %d, %d )\n\t( %c, %c, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n", */
-/*             this_task->locals[0].value, this_task->locals[1].value, this_task->locals[2].value, */
-/*             lapack_const( args->transA ),  lapack_const( args->transB ), */
-/*             args->M, args->N, args->K, */
-/*             args->alpha, args->Am, args->An, (dague_complex64_t*)d_A, args->lda, */
-/*                          args->Bm, args->Bn, (dague_complex64_t*)d_B, args->ldb, */
-/*             args->beta,  args->Cm, args->Cn, (dague_complex64_t*)d_C, args->ldc); */
     return 0;
 }
 
@@ -352,16 +352,21 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             assert( ((dague_list_item_t*)gpu_elem)->list_prev == (dague_list_item_t*)gpu_elem );
 
             if( args->pushout ) {  /* n == (k + 1) */
-                DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index, this_task->function->in[i]->name, this_task->data[i].moesi_master->key));
+                DEBUG3(("GPU[%1d]:\tOUT Data of %s key %d\n", gpu_device->device_index,
+                        this_task->function->in[i]->name, this_task->data[i].moesi_master->key));
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                                          gpu_stream->profiling,
-                                         (-1 == gpu_stream->prof_event_key_start ? 
+                                         (-1 == gpu_stream->prof_event_key_start ?
                                           DAGUE_PROF_FUNC_KEY_START(this_task->dague_object,
                                                                     this_task->function->function_id) :
                                           gpu_stream->prof_event_key_start),
                                          this_task);
                 /* Move the data back into main memory */
-                status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[i].data), gpu_elem->gpu_mem_ptr, args->sizeC, gpu_stream->cuda_stream );
+                DEBUG3(("GPU:\tMove D2H data %x (D %p:H %p) %d bytes to GPU %d\n",
+                        this_task->data[i].moesi_master->key, (void*)gpu_elem->gpu_mem_ptr,
+                        ADATA(this_task->data[i].data), args->sizeC, gpu_device->device_index));
+                status = (cudaError_t)cuMemcpyDtoHAsync( ADATA(this_task->data[i].data),
+                                                         gpu_elem->gpu_mem_ptr, args->sizeC, gpu_stream->cuda_stream );
                 DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
                                         { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->in[i]->name,
                                                   (void*)gpu_elem->gpu_mem_ptr, (void*)ADATA(this_task->data[i].data)));
@@ -372,7 +377,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             }
         }
     }
-    
+
  release_and_return_error:
     return (return_code < 0 ? return_code : how_many);
 }

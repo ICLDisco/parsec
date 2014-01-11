@@ -214,6 +214,7 @@ BODY
     if( dague_active_gpu() > 0 ) {
         int rc;
 
+        DEBUG2(("Execute GEMM with A = %p B = %p C = %p\n", A, B, C));
         if( 0 == (rc = gpu_zgemm( context, this_task,
                                   ( m == k+1 ),
                                   PlasmaConjTrans, PlasmaNoTrans,

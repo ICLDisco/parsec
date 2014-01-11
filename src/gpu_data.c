@@ -884,8 +884,8 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     if( transfer_required ) {
         cudaError_t status;
 
-        DEBUG3(("GPU:\tMove data %x (%p:%p) to GPU %d\n",
-                key, memptr, (void*)gpu_elem->gpu_mem_ptr, gpu_device->device_index));
+        DEBUG3(("GPU:\tMove H2D data %x (H %p:D %p) %d bytes to GPU %d\n",
+                key, memptr, (void*)gpu_elem->gpu_mem_ptr, length, gpu_device->device_index));
         /* Push data into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( gpu_elem->gpu_mem_ptr, memptr, length, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device ", status,
@@ -961,8 +961,9 @@ int progress_stream( gpu_device_t* gpu_device,
         rc = cuEventRecord( exec_stream->events[exec_stream->start], exec_stream->cuda_stream );
         exec_stream->tasks[exec_stream->start] = task;
         exec_stream->start = (exec_stream->start + 1) % exec_stream->max_events;
-        DEBUG3(( "GPU: Submitted %s(task %p) priority %d\n",
-                 task->ec->function->name, (void*)task->ec, task->ec->priority ));
+        DEBUG3(( "GPU: Submitted %s(task %p) priority %d on stream %p\n",
+                 task->ec->function->name, (void*)task->ec, task->ec->priority,
+                 (void*)exec_stream->cuda_stream ));
     }
     task = NULL;
 
@@ -972,7 +973,8 @@ int progress_stream( gpu_device_t* gpu_device,
         if( CUDA_SUCCESS == rc ) {
             /* Save the task for the next step */
             task = *out_task = exec_stream->tasks[exec_stream->end];
-            DEBUG3(("GPU: Complete %s(task %p)\n", task->ec->function->name, (void*)task ));
+            DEBUG3(("GPU: Complete %s(task %p) on stream %p\n", task->ec->function->name, (void*)task,
+                    (void*)exec_stream->cuda_stream));
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
             DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable,

@@ -74,11 +74,11 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
 #if defined(DAGUE_PROF_TRACE)
     DAGUE_PROFILING_TRACE_FLAGS( eu_context->eu_profile,
-				 DAGUE_PROF_FUNC_KEY_END(this_task->ec->dague_object,
-							 this_task->ec->function->function_id),
-				 this_task->ec->function->key( this_task->ec->dague_object, this_task->ec->locals),
-				 this_task->ec->dague_object->object_id, NULL,
-				 DAGUE_PROFILING_EVENT_RESCHEDULED );
+                                 DAGUE_PROF_FUNC_KEY_END(this_task->ec->dague_object,
+                                                         this_task->ec->function->function_id),
+                                 this_task->ec->function->key( this_task->ec->dague_object, this_task->ec->locals),
+                                 this_task->ec->dague_object->object_id, NULL,
+                                 DAGUE_PROFILING_EVENT_RESCHEDULED );
 #endif /* defined(DAGUE_PROF_TRACE) */
 
     gpu_device = gpu_enabled_devices[which_gpu];
@@ -111,7 +111,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
  check_in_deps:
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tPush data for %s priority %d\n", gpu_device->device_index,
+        DEBUG2(( "GPU[%1d]:\tUpload data (if any) for %s priority %d\n", gpu_device->device_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
                  this_task->ec->priority ));
     }
@@ -139,12 +139,12 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     if( rc < 0 ) {
         if( -1 == rc )
             goto disable_gpu;
-    } 
+    }
     this_task = next_task;
 
     /* This task has completed its execution: we have to check if we schedule DtoN */
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tPop data for %s priority %d\n", gpu_device->device_index,
+        DEBUG2(( "GPU[%1d]:\tRetrieve data (if any) for %s priority %d\n", gpu_device->device_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
                  this_task->ec->priority ));
     }
@@ -219,4 +219,3 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 }
 
 #endif /* HAVE_CUDA */
-
