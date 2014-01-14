@@ -1126,7 +1126,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             int _array_pos, _array_mask;
 
 #if !defined(DAGUE_DIST_COLLECTIVES)
-        assert(src_rank == eu->virtual_process->dague_context->my_rank);
+            assert(src_rank == eu->virtual_process->dague_context->my_rank);
 #endif
             _array_pos = dst_rank / (8 * sizeof(uint32_t));
             _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
@@ -1139,7 +1139,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                 output->rank_bits[_array_pos] |= _array_mask;
                 output->deps_mask |= (1 << dep->dep_index);
                 if( 0 == output->count_bits ) {
-                    output->data       = *data;
+                    output->data = *data;
                 } else {
                     assert(output->data.ptr == data->ptr);
                 }
@@ -1149,9 +1149,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
                     if(newcontext->priority > arg->remote_deps->max_priority)
                         arg->remote_deps->max_priority = newcontext->priority;
                 }
-            } else {
-                /* The bit is already flipped, the peer is already part of the propagation. */
-            }
+            }  /* otherwise the bit is already flipped, the peer is already part of the propagation. */
         }
     }
 #else

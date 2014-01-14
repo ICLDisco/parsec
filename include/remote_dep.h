@@ -20,6 +20,7 @@ typedef unsigned long remote_dep_datakey_t;
 #define DAGUE_ACTION_DEPS_MASK                  0x00FFFFFF
 #define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x01000000
 #define DAGUE_ACTION_RELEASE_LOCAL_REFS         0x02000000
+#define DAGUE_ACTION_GET_REPO_ENTRY             0x04000000
 #define DAGUE_ACTION_SEND_INIT_REMOTE_DEPS      0x10000000
 #define DAGUE_ACTION_SEND_REMOTE_DEPS           0x20000000
 #define DAGUE_ACTION_RECV_INIT_REMOTE_DEPS      0x40000000
@@ -84,11 +85,13 @@ struct dague_remote_deps_s {
     int32_t                         from;    /**< From whom we received the control */
     uint32_t                        activity_mask;  /**< Updated at each call into the internals to track the enabled actions */
     int32_t                         root;    /**< The root of the control message */
+    remote_dep_datakey_t            work_mask;  /**< a copy of the original msg.output_mask */
     remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
     int32_t                         max_priority;
     int32_t                         priority;
     uint32_t*                       remote_dep_fw_mask;  /**< list of peers already notified about
                                                            * the control sequence (only used for control messages) */
+    struct data_repo_entry*         repo_entry;
     struct remote_dep_output_param  output[1];
 };
 /* { item .. remote_dep_fw_mask (points to fw_mask_bitfield),
@@ -137,11 +140,13 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
                 (int)(dague_remote_dep_context.elem_size - rank_bit_size));
     }
     assert(NULL == remote_deps->dague_object);
-    remote_deps->max_priority      = 0xffffffff;
-    remote_deps->root              = -1;
-    remote_deps->msg.output_mask   = 0;
-    remote_deps->pending_ack       = 0;
-    remote_deps->activity_mask     = 0;
+    remote_deps->max_priority    = 0xffffffff;
+    remote_deps->root            = -1;
+    remote_deps->msg.output_mask = 0;
+    remote_deps->pending_ack     = 0;
+    remote_deps->activity_mask   = 0;
+    remote_deps->repo_entry      = NULL;
+    remote_deps->work_mask       = 0;
     DEBUG(("remote_deps_allocate: %p\n", remote_deps));
     return remote_deps;
 }
@@ -156,8 +161,8 @@ static inline void remote_deps_free(dague_remote_deps_t* deps)
 {
     uint32_t k, a;
     assert(0 == deps->pending_ack);
-    for( k = 0; deps->activity_mask >> k; k++ ) {
-        if( !((1U << k) & deps->activity_mask) ) continue;
+    for( k = 0; k < dague_remote_dep_context.max_dep_count; k++ ) {
+        if( 0 == deps->output[k].count_bits ) continue;
         for(a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
             deps->output[k].rank_bits[a] = 0;
         deps->output[k].count_bits = 0;
@@ -198,6 +203,13 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_object_t* dague_object,
                              void* dst,
                              dague_dep_data_description_t* data);
+
+#ifdef DAGUE_DIST_COLLECTIVES
+/* Propagate an activation order from the current node down the original tree */
+int dague_remote_dep_propagate(dague_execution_unit_t* eu_context,
+                               const dague_execution_context_t* task,
+                               dague_remote_deps_t* deps);
+#endif
 
 #else
 # define dague_remote_dep_init(ctx) (1)

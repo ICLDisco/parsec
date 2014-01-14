@@ -106,6 +106,7 @@ int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context
 
     assert( dague_object->nb_local_tasks != 0 );
     remaining = dague_atomic_dec_32b( &(dague_object->nb_local_tasks) );
+    printf("object %p tasks %d\n", dague_object, remaining);
     if( 0 == remaining ) {
         /* A dague object has been completed. Call the attached callback if
          * necessary, then update the main engine.

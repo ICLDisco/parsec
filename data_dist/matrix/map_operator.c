@@ -204,7 +204,7 @@ add_task_to_list(struct dague_execution_unit *eu_context,
 }
 
 static void iterate_successors(dague_execution_unit_t *eu,
-                               dague_execution_context_t *this_task,
+                               const dague_execution_context_t *this_task,
                                uint32_t action_mask,
                                dague_ontask_function_t *ontask,
                                void *ontask_arg)

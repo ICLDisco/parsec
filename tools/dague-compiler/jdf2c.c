@@ -3161,8 +3161,12 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     char* condition[] = {"    if( %s ) {\n", "    else if( %s ) {\n"};
 
     if( JDF_FLOW_TYPE_CTL & flow->flow_flags ) {
-        coutput("  /* %s : this_task->data[%u] is a control flow */\n",
-                flow->varname, flow->flow_index);
+        coutput("  /* %s : this_task->data[%u] is a control flow */\n"
+                "  this_task->data[%u].data      = NULL;\n"
+                "  this_task->data[%u].data_repo = NULL;\n",
+                flow->varname, flow->flow_index,
+                flow->flow_index,
+                flow->flow_index);
         return;
     }
     coutput( "  if( NULL == (chunk = this_task->data[%u].data) ) {  /* flow %s */\n"
@@ -3777,30 +3781,27 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  int __vp_id;\n"
             "  arg.action_mask = action_mask;\n"
             "  arg.output_usage = 0;\n"
-            "  arg.deps = deps;\n"
+            "  arg.remote_deps = deps;\n"
             "  arg.ready_lists = (NULL != eu) ? alloca(sizeof(dague_execution_context_t *) * eu->virtual_process->dague_context->nb_vp) : NULL;\n"
             "  if(NULL != eu) for( __vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
             "  (void)__dague_object;\n",
             name, jdf_basename, jdf_basename);
 
     if( 0 != has_output_data )
-        coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n"
+        coutput("  if( action_mask & (DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_GET_REPO_ENTRY) ) {\n"
                 "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, context->locals) );\n"
                 "    arg.output_entry->generator = (void*)context;  /* for AYU */\n"
                 "#if defined(DAGUE_SIM)\n"
                 "    assert(arg.output_entry->sim_exec_date == 0);\n"
                 "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
                 "#endif\n"
+                "    if( NULL != arg.remote_deps ) arg.remote_deps->repo_entry = arg.output_entry;\n"
                 "  }\n",
                 f->fname, f->fname);
     else
         coutput("  arg.output_entry = NULL;\n");
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
-        coutput("#if defined(DISTRIBUTED)\n"
-                "  arg.remote_deps = NULL;\n"
-                "#endif\n");
-
         coutput("  iterate_successors_of_%s_%s(eu, context, action_mask, dague_release_dep_fct, &arg);\n"
                 "\n",
                 jdf_basename, f->fname);
@@ -4108,7 +4109,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
     ai.holder = "this_task->locals";
     ai.expr = NULL;
     coutput("static void\n"
-            "%s(dague_execution_unit_t *eu, dague_execution_context_t *this_task,\n"
+            "%s(dague_execution_unit_t *eu, const dague_execution_context_t *this_task,\n"
             "               uint32_t action_mask, dague_ontask_function_t *ontask, void *ontask_arg)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)this_task->dague_object;\n"
@@ -4302,11 +4303,10 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
         } else if( 1 == flowempty ) {
             coutput("  /* Flow of data %s has only OUTPUT dependencies to Memory */\n", fl->varname);
         } else {
-            coutput("  /* Flow of Data %s */\n"
-                    "  if( action_mask & 0x%x ) {\n"
+            coutput("  if( action_mask & 0x%x ) {  /* Flow of Data %s */\n"
                     "%s"
                     "  }\n",
-                    fl->varname, fl->flow_dep_mask, string_arena_get_string(sa_coutput));
+                    fl->flow_dep_mask, fl->varname, string_arena_get_string(sa_coutput));
         }
     }
     coutput("  (void)data;(void)nc;(void)eu;(void)ontask;(void)ontask_arg;(void)rank_dst;(void)action_mask;\n");
