@@ -63,7 +63,6 @@ static inline void
 remote_dep_inc_flying_messages(dague_object_t *dague_object,
                                dague_context_t* ctx)
 {
-    printf("increment tasks (%d)\n", dague_object->nb_local_tasks);
     assert( dague_object->nb_local_tasks > 0 );
     dague_atomic_inc_32b( &(dague_object->nb_local_tasks) );
     (void)ctx;
@@ -74,7 +73,6 @@ static inline void
 remote_dep_dec_flying_messages(dague_object_t *dague_object,
                                dague_context_t* ctx)
 {
-    printf("decrement tasks (%d)\n", dague_object->nb_local_tasks);
     __dague_complete_task(dague_object, ctx);
 }
 
@@ -225,18 +223,17 @@ dague_complete_collective_pattern(dague_execution_unit_t *eu,
     const int _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
 
     deps->activity_mask |= (1 << dep->dep_datatype_index);
-    deps->root = src_rank;
-    if( !(output->rank_bits[_array_pos] & _array_mask) ) {
+    if( !(output->rank_bits[_array_pos] & _array_mask) ) {  /* new participant */
         output->rank_bits[_array_pos] |= _array_mask;
         output->deps_mask |= (1 << dep->dep_index);
         output->count_bits++;
-        if(newcontext->priority > output->priority) {
-            output->priority = newcontext->priority;
-            if(newcontext->priority > deps->max_priority)
-                deps->max_priority = newcontext->priority;
-        }
-    }  /* otherwise the bit is already flipped, the peer is already part of the propagation. */
-    (void)eu; (void)oldcontext; (void)dst_vpid; (void)data;
+    }
+    if(newcontext->priority > output->priority) {  /* select the priority */
+        output->priority = newcontext->priority;
+        if(newcontext->priority > deps->max_priority)
+            deps->max_priority = newcontext->priority;
+    }
+    (void)eu; (void)oldcontext; (void)dst_vpid; (void)data; (void)src_rank;
     return DAGUE_ITERATE_CONTINUE;
 }
 
@@ -292,10 +289,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     assert(0 == remote_deps->pending_ack);
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
 
-    //#if DAGUE_DEBUG_VERBOSE != 0
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
-    //#endif
+#endif
 
     remote_dep_reset_forwarded(eu_context, remote_deps);
     remote_deps->dague_object    = exec_context->dague_object;
@@ -340,14 +337,14 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                 count++;
 
                 if(remote_dep_is_forwarded(eu_context, remote_deps, rank)) {  /* already in the counting */
-                    printf("[%d:%d] task %s my_idx %d idx %d rank %d -- skip (already done)\n",
-                           remote_deps->root, i, tmp, my_idx, idx, rank);
+                    DEBUG3(("[%d:%d] task %s my_idx %d idx %d rank %d -- skip (already done)\n",
+                            remote_deps->root, i, tmp, my_idx, idx, rank));
                     continue;
                 }
                 idx++;
                 if(my_idx == -1) {
-                    printf("[%d:%d] task %s my_idx %d idx %d rank %d -- skip\n",
-                           remote_deps->root, i, tmp, my_idx, idx, rank);
+                    DEBUG3(("[%d:%d] task %s my_idx %d idx %d rank %d -- skip\n",
+                            remote_deps->root, i, tmp, my_idx, idx, rank));
                     if(rank == eu_context->virtual_process->dague_context->my_rank) {
                         my_idx = idx;
                     }
@@ -358,8 +355,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         tmp, remote_deps->root, eu_context->virtual_process->dague_context->my_rank, my_idx, rank));
 
                 if(remote_dep_bcast_child(my_idx, idx)) {
-                    printf("[%d:%d] task %s my_idx %d idx %d rank %d -- send\n",
-                           remote_deps->root, i, tmp, my_idx, idx, rank);
+                    DEBUG3(("[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)\n",
+                            remote_deps->root, i, tmp, my_idx, idx, rank, remote_deps->activity_mask));
 
 #if DAGUE_DEBUG_VERBOSE >= 2
                     for(int flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
@@ -385,8 +382,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     }
                     remote_dep_send(rank, remote_deps);
                 } else {
-                    printf("[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)\n",
-                           remote_deps->root, i, tmp, my_idx, idx, rank);
+                    DEBUG3(("[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)\n",
+                            remote_deps->root, i, tmp, my_idx, idx, rank));
                 }
                 remote_dep_mark_forwarded(eu_context, remote_deps, rank);
             }
