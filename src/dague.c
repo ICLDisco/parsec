@@ -1134,7 +1134,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
             output = &arg->remote_deps->output[dep->dep_datatype_index];
             assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
             arg->remote_deps->root = src_rank;
-            arg->remote_deps->activity_mask |= (1 << dep->dep_datatype_index);
+            arg->remote_deps->outgoing_mask |= (1 << dep->dep_datatype_index);
             if( !(output->rank_bits[_array_pos] & _array_mask) ) {
                 output->rank_bits[_array_pos] |= _array_mask;
                 output->deps_mask |= (1 << dep->dep_index);

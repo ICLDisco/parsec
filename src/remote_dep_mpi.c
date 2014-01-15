@@ -435,9 +435,9 @@ remote_dep_mpi_retrieve_datatype(dague_execution_unit_t *eu,
     output->data.ptr = dataptr; /* if still NULL allocate it */
     assert(NULL == output->data.ptr);
 
-    deps->priority       = oldcontext->priority;
-    deps->activity_mask |= (1U << dep->dep_datatype_index);
-    deps->root           = src_rank;
+    deps->priority   = oldcontext->priority;
+    deps->incoming_mask |= (1U << dep->dep_datatype_index);
+    deps->root       = src_rank;
     return DAGUE_ITERATE_STOP;
 }
 
@@ -457,7 +457,6 @@ remote_dep_get_datatypes(dague_execution_unit_t* eu_context,
     origin->dague_object = dague_object_lookup( origin->msg.object_id );
     if( NULL == origin->dague_object )
         return -1; /* the dague object doesn't exist yet */
-    origin->activity_mask = 0;
     task.dague_object = origin->dague_object;
     task.function     = task.dague_object->functions_array[origin->msg.function_id];
     task.priority     = 0;  /* unknown yet */
@@ -487,10 +486,9 @@ remote_dep_get_datatypes(dague_execution_unit_t* eu_context,
     /**
      * At this point the msg->output_mask contains the root mask, and should be
      * keep as is and be propagated down the communication pattern. On the
-     * origin->activity_mask we have all the local data that will be retrieved
-     * from the predecessor, and we should save it for the next step (data retrieval).
+     * origin->incoming_mask we have the mask of all local data to be retrieved from
+     * the predecessor.
      */
-    origin->work_mask = origin->activity_mask;  /* save the for later */
     return 0;
 }
 
@@ -506,9 +504,12 @@ remote_dep_release(dague_execution_unit_t* eu_context,
     dague_execution_context_t task;
     const dague_flow_t* target;
     int i, pidx = 0;
-    uint32_t action_mask;
+    uint32_t action_mask = 0;
 
-    assert((origin->work_mask & complete_mask) == complete_mask);
+    /* Update the mask of remaining dependencies to avoid releasing the same outputs twice */
+    assert((origin->incoming_mask & complete_mask) == complete_mask);
+    origin->incoming_mask ^= complete_mask;
+
     task.dague_object = origin->dague_object;
     task.function = task.dague_object->functions_array[origin->msg.function_id];
     task.priority = origin->priority;
@@ -528,7 +529,7 @@ remote_dep_release(dague_execution_unit_t* eu_context,
         }
         DEBUG3(("MPI:\tDATA %p(%s) released from %p[%d] flow idx %d\n",
                 ADATA(origin->output[i].data.ptr), target->name, origin, i, target->flow_index));
-        task.data[target->flow_index].data      = origin->output[i].data.ptr;
+        task.data[target->flow_index].data = origin->output[i].data.ptr;
     }
 
 #ifdef DAGUE_DIST_COLLECTIVES
@@ -539,7 +540,7 @@ remote_dep_release(dague_execution_unit_t* eu_context,
      * Thus, in order to avoid this case we have to propagate the activation
      * before releasing the last set of local tasks.
      */
-    if( complete_mask == origin->work_mask ) {
+    if(0 == origin->incoming_mask) {
         dague_remote_dep_propagate(eu_context, &task, origin);
         /* don't change the internals of the origin from now on */
     }
@@ -554,6 +555,7 @@ remote_dep_release(dague_execution_unit_t* eu_context,
     (void)task.function->release_deps(eu_context, &task,
                                       action_mask | DAGUE_ACTION_RELEASE_LOCAL_DEPS,
                                       origin);
+    assert(0 == (origin->incoming_mask & complete_mask));
     /**
      * Release the dependency owned by the communication engine for all data that has been
      * internally allocated by the engine.
@@ -564,9 +566,7 @@ remote_dep_release(dague_execution_unit_t* eu_context,
         if( NULL != origin->output[i].data.ptr )  /* don't release the CONTROLs */
             AUNREF(origin->output[i].data.ptr);
     }
-    /* Update the mask of remaining dependencies to avoid releasing the same outputs twice */
-    origin->work_mask ^= complete_mask;
-    if(0 == origin->work_mask) {  /* if necessary release the deps */
+    if(0 == origin->incoming_mask) {  /* if necessary release the deps */
 #if !defined(DAGUE_DIST_COLLECTIVES)
         remote_deps_free(origin);
 #endif  /* !DAGUE_DIST_COLLECTIVES */
@@ -1032,12 +1032,12 @@ static int remote_dep_mpi_pack_dep(int peer,
     }
     /* Don't pack yet, we need to update the length field before packing */
     *position  += dsize;
-    msg->output_mask = deps->activity_mask;
+    msg->output_mask = deps->outgoing_mask;
     msg->length      = 0;
     item->cmd.activate.task.output_mask = 0;  /* clean start */
     /* Treat for special cases: CTL, Eager, etc... */
-    for(k = 0; deps->activity_mask >> k; k++) {
-        if( !((1U << k) & deps->activity_mask )) continue;
+    for(k = 0; deps->outgoing_mask >> k; k++) {
+        if( !((1U << k) & deps->outgoing_mask )) continue;
         if( !(deps->output[k].rank_bits[peer_bank] & peer_mask) ) continue;
 
         /* Remove CTL from the message we expect to send */
@@ -1398,7 +1398,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN);
 #endif
 #if RDEP_MSG_SHORT_LIMIT != 0
-    remote_dep_datakey_t short_which = remote_dep_mpi_short_which(deps, deps->work_mask);
+    remote_dep_datakey_t short_which = remote_dep_mpi_short_which(deps, deps->incoming_mask);
 #if !defined(DAGUE_PROF_DRY_DEP)
     MPI_Request reqs[MAX_PARAM_COUNT];
     int nb_reqs = 0, flag;
@@ -1407,10 +1407,10 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
     DEBUG(("MPI:\tFROM\t%d\tActivate\t% -8s\n"
            "\twith datakey %lx\tparams %lx length %d (pack buf %d/%d)\n",
-           deps->from, tmp, deps->msg.deps, deps->work_mask,
+           deps->from, tmp, deps->msg.deps, deps->incoming_mask,
            deps->msg.length, *position, length));
-    for(k = 0; deps->work_mask>>k; k++) {
-        if(!(deps->work_mask & (1U<<k))) continue;
+    for(k = 0; deps->incoming_mask>>k; k++) {
+        if(!(deps->incoming_mask & (1U<<k))) continue;
         /* Check for all CTL messages, that do not carry payload */
         if(NULL == deps->output[k].data.arena) {
             DEBUG2(("MPI:\tHERE\t%d\tGet NONE\t% -8s\tk=%d\twith datakey %lx at <NA> type CONTROL\n",
@@ -1496,7 +1496,8 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
     /* Store the request in the rdv queue if any unsatisfied dep exist at this point */
     if(NULL != deps) {
-        assert(0 != deps->work_mask);
+        assert(0 != deps->incoming_mask);
+        assert(0 != deps->msg.output_mask);
         dague_ulist_push_sorted(&dep_activates_fifo, (dague_list_item_t*)deps, rdep_prio);
     }
 
@@ -1525,8 +1526,8 @@ remote_dep_mpi_save_activate_cb(dague_execution_unit_t* eu_context,
                    &deps->msg, dep_count, dep_dtt, dep_comm);
         deps->from = status->MPI_SOURCE;
 
-        /* Retrieve the data arenas and update the msg.output_mask to reflect
-         * all the data we should be receiving from the predecessor.
+        /* Retrieve the data arenas and update the msg.incoming_mask to reflect
+         * the data we should be receiving from the predecessor.
          */
         if( -1 == remote_dep_get_datatypes(eu_context, deps) ) {
             /* the corresponding dague_object doesn't exist, yet. Put it in unexpected */
@@ -1595,9 +1596,11 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
     remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN);
 #endif
 
-    for(k = count = 0; deps->work_mask >> k; k++)
-        if( ((1U<<k) & deps->work_mask) ) count++;
+    for(k = count = 0; deps->incoming_mask >> k; k++)
+        if( ((1U<<k) & deps->incoming_mask) ) count++;
     if( (dague_comm_gets + count) > dague_comm_gets_max ) {
+        assert(deps->msg.output_mask != 0);
+        assert(deps->incoming_mask != 0);
         dague_ulist_push_front(&dep_activates_fifo, (dague_list_item_t*)deps);
         return;
     }
@@ -1608,14 +1611,14 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
     msg.deps        = task->deps;
     msg.tag         = task->tag;
 
-    for(k = 0; deps->work_mask >> k; k++) {
-        if( !((1U<<k) & deps->work_mask) ) continue;
+    for(k = 0; deps->incoming_mask >> k; k++) {
+        if( !((1U<<k) & deps->incoming_mask) ) continue;
 
 #ifdef DAGUE_PROF_DRY_DEP
         (void)dtt; (void)nbdtt;
         /* Removing the corresponding bit prevent the sending of the GET_DATA request */
         remote_dep_mpi_get_end(eu_context, k, deps);
-        deps->work_mask ^= (1U<<k);
+        deps->incoming_mask ^= (1U<<k);
 #else
         dtt   = deps->output[k].data.layout;
         nbdtt = deps->output[k].data.count;
@@ -1680,7 +1683,7 @@ remote_dep_mpi_get_end_cb(dague_execution_unit_t* eu_context,
 
     DEBUG2(("MPI:\tFROM\t%d\tGet END  \t% -8s\tk=%d\twith datakey na        \tparams %lx\t(tag=%d)\n",
             status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
-            (int)cb->storage2, deps->work_mask, status->MPI_TAG)); (void)status;
+            (int)cb->storage2, deps->incoming_mask, status->MPI_TAG)); (void)status;
     DEBUG_MARK_DTA_MSG_END_RECV(status->MPI_TAG);
     TAKE_TIME(MPIrcv_prof, MPI_Data_pldr_ek, (int)cb->storage2);
     remote_dep_mpi_get_end(eu_context, (int)cb->storage2, deps);
