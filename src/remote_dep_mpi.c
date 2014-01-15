@@ -533,6 +533,19 @@ remote_dep_release(dague_execution_unit_t* eu_context,
         task.data[target->flow_index].data      = origin->output[i].data.ptr;
     }
 
+#ifdef DAGUE_DIST_COLLECTIVES
+    /**
+     * There is a catch here. If we release the last dep below we can run in a
+     * case where the last task is executed, then completed and the object is
+     * released before we have the opportunity to propagate the
+     * collective. Thus, in order to avoid this case we have to protect the
+     * object by increasing it's task count.
+     */
+    if( complete_mask == origin->work_mask ) {
+        dague_remote_dep_propagate(eu_context, &task, origin);
+    }
+#endif  /* DAGUE_DIST_COLLECTIVES */
+
     /* We need to convert from a dep_datatype_index mask into a dep_index mask */
     for(int i = 0; NULL != task.function->out[i]; i++ )
         for(int j = 0; NULL != task.function->out[i]->dep_out[j]; j++ )
@@ -555,14 +568,12 @@ remote_dep_release(dague_execution_unit_t* eu_context,
     }
     /* Update the mask of remaining dependencies to avoid releasing the same outputs twice */
     origin->work_mask ^= complete_mask;
+#if !defined(DAGUE_DIST_COLLECTIVES)
     if(0 == origin->work_mask) {  /* Forward the collective if necessary and release the deps */
-#ifdef DAGUE_DIST_COLLECTIVES
-        dague_remote_dep_propagate(eu_context, &task, origin);
-#else
         remote_deps_free(origin);
-#endif  /* DAGUE_DIST_COLLECTIVES */
         origin = NULL;
     }
+#endif  /* !DAGUE_DIST_COLLECTIVES */
     return origin;
 }
 
