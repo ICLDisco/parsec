@@ -34,7 +34,7 @@ endif(PLASMA_DIR)
 
 # Optionally use pkg-config to detect include/library dirs (if pkg-config is available)
 # -------------------------------------------------------------------------------------
-STRING(REPLACE ":" ";" PATH_PKGCONFIGPATH "$ENV{PKG_CONFIG_PATH}:${COREBLAS_PKG_DIR}")
+STRING(REPLACE ":" ";" PATH_PKGCONFIGPATH "${COREBLAS_PKG_DIR}:$ENV{PKG_CONFIG_PATH}")
 FIND_FILE(COREBLAS_PKG_FILE
     NAME  coreblas.pc
     PATHS ${PATH_PKGCONFIGPATH})
@@ -43,7 +43,7 @@ MARK_AS_ADVANCED(COREBLAS_PKG_FILE)
 FIND_PACKAGE(PkgConfig QUIET)
 IF(PKG_CONFIG_EXECUTABLE)
     IF(COREBLAS_PKG_FILE)
-        pkg_search_module(PC_COREBLAS coreblas)
+        pkg_search_module(COREBLAS coreblas)
     ELSE()
         MESSAGE(STATUS "Looking for COREBLAS - pkgconfig not used")
     ENDIF()
