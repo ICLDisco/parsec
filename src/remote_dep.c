@@ -209,14 +209,23 @@ int dague_remote_dep_new_object(dague_object_t* obj) {
     return remote_dep_new_object(obj);
 }
 
+#ifdef DAGUE_DIST_COLLECTIVES
+/**
+ * This function is called from the task successor iterator in order to rebuilt
+ * the information needed to propagate the collective in a meaningful way. In
+ * other words it reconstruct the entire information as viewed by the root of
+ * the collective. This information is stored in the corresponding output
+ * structures. In addition, this function compute the set of data is currently
+ * available locally and can be propagated to our predecessors.
+ */
 dague_ontask_iterate_t
-dague_complete_collective_pattern(dague_execution_unit_t *eu,
-                                  const dague_execution_context_t *newcontext,
-                                  const dague_execution_context_t *oldcontext,
-                                  const dep_t* dep,
-                                  dague_dep_data_description_t* data,
-                                  int src_rank, int dst_rank, int dst_vpid,
-                                  void *param)
+dague_gather_collective_pattern(dague_execution_unit_t *eu,
+                                const dague_execution_context_t *newcontext,
+                                const dague_execution_context_t *oldcontext,
+                                const dep_t* dep,
+                                dague_dep_data_description_t* data,
+                                int src_rank, int dst_rank, int dst_vpid,
+                                void *param)
 {
     dague_remote_deps_t* deps = (dague_remote_deps_t*)param;
     struct remote_dep_output_param* output = &deps->output[dep->dep_datatype_index];
@@ -240,9 +249,12 @@ dague_complete_collective_pattern(dague_execution_unit_t *eu,
     return DAGUE_ITERATE_CONTINUE;
 }
 
-#ifdef DAGUE_DIST_COLLECTIVES
 /**
- *
+ * This is the local continuation of a collective pattern. Upon receiving an
+ * activation from the predecessor the first thing is to retrieve all the data
+ * that is needed locally (this is a super-set of the data to be propagated down
+ * the collective tree). Thus, once all the data become available locally, this
+ * function is called to start propagating the activation order and the data.
  */
 int dague_remote_dep_propagate(dague_execution_unit_t* eu_context,
                                const dague_execution_context_t* task,
@@ -252,12 +264,9 @@ int dague_remote_dep_propagate(dague_execution_unit_t* eu_context,
     uint32_t dep_mask = 0;
 
     assert(deps->root != eu_context->virtual_process->dague_context->my_rank );
-    /* If I am not the root of the collective I must base my propagation
-     * decision on exactly the same information as the root. Thus, I need to
-     * build the exact same propagation tree. What I have so far is only
-     * related to the data I continue to propagate, but I need the entire
-     * communication infrastructure in order to build an propagation tree
-     * identical to all my predecessors.
+    /* If I am not the root of the collective I must rebuild the same
+     * information as the root, i.e. the exact same propagation tree as the
+     * initiator.
      */
     assert(0 == deps->outgoing_mask);
 
@@ -267,9 +276,9 @@ int dague_remote_dep_propagate(dague_execution_unit_t* eu_context,
             if(deps->msg.output_mask & (1U << function->out[i]->dep_out[j]->dep_datatype_index))
                 dep_mask |= (1U << function->out[i]->dep_out[j]->dep_index);
 
-    function->iterate_successors(NULL, task,
+    function->iterate_successors(eu_context, task,
                                  dep_mask | DAGUE_ACTION_RELEASE_REMOTE_DEPS,
-                                 dague_complete_collective_pattern,
+                                 dague_gather_collective_pattern,
                                  deps);
 
     return dague_remote_dep_activate(eu_context, task, deps, deps->msg.output_mask);
