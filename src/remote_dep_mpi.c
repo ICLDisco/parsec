@@ -23,9 +23,10 @@ static int remote_dep_mpi_fini(dague_context_t* context);
 static int remote_dep_mpi_on(dague_context_t* context);
 static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context);
 static int remote_dep_get_datatypes(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin);
-static dague_remote_deps_t* remote_dep_release(dague_execution_unit_t* eu_context,
-                                               dague_remote_deps_t* origin,
-                                               remote_dep_datakey_t complete_mask);
+static dague_remote_deps_t*
+remote_dep_release_incoming(dague_execution_unit_t* eu_context,
+                            dague_remote_deps_t* origin,
+                            remote_dep_datakey_t complete_mask);
 
 static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
                                     dep_cmd_item_t **head_item);
@@ -497,9 +498,9 @@ remote_dep_get_datatypes(dague_execution_unit_t* eu_context,
  * Put the data in the correct location then call the release_deps.
  */
 static dague_remote_deps_t*
-remote_dep_release(dague_execution_unit_t* eu_context,
-                   dague_remote_deps_t* origin,
-                   remote_dep_datakey_t complete_mask)
+remote_dep_release_incoming(dague_execution_unit_t* eu_context,
+                            dague_remote_deps_t* origin,
+                            remote_dep_datakey_t complete_mask)
 {
     dague_execution_context_t task;
     const dague_flow_t* target;
@@ -551,10 +552,10 @@ remote_dep_release(dague_execution_unit_t* eu_context,
         for(int j = 0; NULL != task.function->out[i]->dep_out[j]; j++ )
             if(complete_mask & (1U << task.function->out[i]->dep_out[j]->dep_datatype_index))
                 action_mask |= (1U << task.function->out[i]->dep_out[j]->dep_index);
-    DEBUG3(("MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release)\n", complete_mask, action_mask));
+    DEBUG3(("MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)\n", complete_mask, action_mask));
     (void)task.function->release_deps(eu_context, &task,
                                       action_mask | DAGUE_ACTION_RELEASE_LOCAL_DEPS,
-                                      origin);
+                                      NULL);
     assert(0 == (origin->incoming_mask & complete_mask));
     /**
      * Release the dependency owned by the communication engine for all data that has been
@@ -1032,8 +1033,9 @@ static int remote_dep_mpi_pack_dep(int peer,
     }
     /* Don't pack yet, we need to update the length field before packing */
     *position  += dsize;
-    msg->output_mask = deps->outgoing_mask;
-    msg->length      = 0;
+    assert((0 != msg->output_mask) &&   /* this should be preset */
+           (msg->output_mask & deps->outgoing_mask) == deps->outgoing_mask);
+    msg->length = 0;
     item->cmd.activate.task.output_mask = 0;  /* clean start */
     /* Treat for special cases: CTL, Eager, etc... */
     for(k = 0; deps->outgoing_mask >> k; k++) {
@@ -1245,7 +1247,7 @@ static void remote_dep_mpi_put_short(dague_execution_unit_t* eu_context,
 #endif
 
     item->cmd.activate.task.output_mask = remote_dep_mpi_short_which(deps, task->output_mask);
-    if( 0 == task->output_mask ) {
+    if( 0 == item->cmd.activate.task.output_mask ) {
         free(item);  /* nothing to do, no reason to keep it */
         return;
     }
@@ -1282,6 +1284,8 @@ remote_dep_mpi_save_put_cb(dague_execution_unit_t* eu_context,
     task = &(item->cmd.activate.task);
     memcpy(task, &dep_get_buff[cb->storage2], sizeof(remote_dep_wire_get_t));
     deps = (dague_remote_deps_t*) (uintptr_t) task->deps;
+    assert(0 != deps->pending_ack);
+    assert(0 != deps->outgoing_mask);
     item->priority = deps->max_priority;
 
     /* Get the highest priority PUT operation */
@@ -1464,7 +1468,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                       deps->output[k].data.count, deps->output[k].data.layout,
                       deps->from, tag+k, dep_comm, &reqs[nb_reqs]);
             nb_reqs++;
-            MPI_Testall(nb_reqs, reqs, &flag, MPI_STATUSES_IGNORE);
+            MPI_Testall(nb_reqs, reqs, &flag, MPI_STATUSES_IGNORE);  /* a little progress */
 #endif
             complete_mask |= (1U<<k);
             continue;
@@ -1474,7 +1478,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                 deps->from, tmp, k, deps->msg.deps, tag+k));
     }
 #if (RDEP_MSG_SHORT_LIMIT != 0) && !defined(DAGUE_PROF_DRY_DEP)
-    while(1) {  /* 'till flag become true */
+    while(nb_reqs) {  /* 'till flag become true */
         MPI_Testall(nb_reqs, reqs, &flag, MPI_STATUSES_IGNORE);
         if(flag) break;
         remote_dep_mpi_progress(eu_context);
@@ -1490,8 +1494,8 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                 DEBUG2(("MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)\n",
                         deps->from, tmp, k, deps->msg.deps, ADATA(deps->output[k].data.ptr), tag+k ));
 #endif
-        /* If this is the only remote_dep_release call then force the remote deps propagation */
-        deps = remote_dep_release(eu_context, deps, complete_mask);
+        /* If this is the only call then force the remote deps propagation */
+        deps = remote_dep_release_incoming(eu_context, deps, complete_mask);
     }
 
     /* Store the request in the rdv queue if any unsatisfied dep exist at this point */
@@ -1607,7 +1611,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
     (void)eu_context;
     DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, (void*)task, task);
 
-    msg.output_mask = task->output_mask;
+    msg.output_mask = deps->incoming_mask;  /* Only get what I need */
     msg.deps        = task->deps;
     msg.tag         = task->tag;
 
@@ -1667,8 +1671,8 @@ static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context,
                                    int idx,
                                    dague_remote_deps_t* deps)
 {
-    /* No need to release the ref on the data it will be done in the remote_dep_release */
-    remote_dep_release(eu_context, deps, (1U<<idx));
+    /* The ref on the data will be released below */
+    remote_dep_release_incoming(eu_context, deps, (1U<<idx));
 }
 
 static int

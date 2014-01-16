@@ -196,8 +196,9 @@ int dague_remote_dep_new_object(dague_object_t* obj);
 
 /* Send remote dependencies to target processes */
 int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
-                                const dague_execution_context_t* origin,
-                                dague_remote_deps_t* remote_deps);
+                              const dague_execution_context_t* origin,
+                              dague_remote_deps_t* remote_deps,
+                              uint32_t propagation_mask);
 
 /* Memcopy a particular data using datatype specification */
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,

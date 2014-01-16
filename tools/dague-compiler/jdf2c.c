@@ -3808,7 +3808,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 
         coutput("#if defined(DISTRIBUTED)\n"
                 "  if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) && (NULL != arg.remote_deps)) {\n"
-                "    dague_remote_dep_activate(eu, context, arg.remote_deps);\n"
+                "    dague_remote_dep_activate(eu, context, arg.remote_deps, arg.remote_deps->outgoing_mask);\n"
                 "  }\n"
                 "#endif\n"
                 "\n");
