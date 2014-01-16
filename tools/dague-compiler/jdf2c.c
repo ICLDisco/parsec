@@ -3781,10 +3781,12 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  int __vp_id;\n"
             "  arg.action_mask = action_mask;\n"
             "  arg.output_usage = 0;\n"
+            "#if defined(DISTRIBUTED)\n"
             "  arg.remote_deps = deps;\n"
+            "#endif  /* defined(DISTRIBUTED) */\n"
             "  arg.ready_lists = (NULL != eu) ? alloca(sizeof(dague_execution_context_t *) * eu->virtual_process->dague_context->nb_vp) : NULL;\n"
             "  if(NULL != eu) for( __vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
-            "  (void)__dague_object;\n",
+            "  (void)__dague_object; (void)deps;\n",
             name, jdf_basename, jdf_basename);
 
     if( 0 != has_output_data )
@@ -3795,7 +3797,9 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 "    assert(arg.output_entry->sim_exec_date == 0);\n"
                 "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
                 "#endif\n"
+                "#if defined(DISTRIBUTED)\n"
                 "    if( NULL != arg.remote_deps ) arg.remote_deps->repo_entry = arg.output_entry;\n"
+                "#endif  /* defined(DISTRIBUTED) */\n"
                 "  }\n",
                 f->fname, f->fname);
     else
