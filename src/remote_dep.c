@@ -323,13 +323,14 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 
     /* Mark the root of the collective as rank 0 */
     remote_dep_mark_forwarded(eu_context, remote_deps, remote_deps->root);
-    my_idx = (remote_deps->root == eu_context->virtual_process->dague_context->my_rank) ? 0 : -1;
 
-    idx = 0;
     for( i = 0; propagation_mask >> i; i++ ) {
         if( !((1U << i) & propagation_mask )) continue;
         output = &remote_deps->output[i];
         assert( 0 != output->count_bits );
+
+        my_idx = (remote_deps->root == eu_context->virtual_process->dague_context->my_rank) ? 0 : -1;
+        idx = 0;
         /**
          * Increase the refcount of each local output data once, to ensure the
          * data is protected during the entire execution of the communication,
