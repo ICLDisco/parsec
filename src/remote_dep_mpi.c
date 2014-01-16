@@ -494,8 +494,8 @@ remote_dep_get_datatypes(dague_execution_unit_t* eu_context,
 }
 
 /**
- * Trigger the local completion of a remote task, once we have some of the data locally.
- * Put the data in the correct location then call the release_deps.
+ * Trigger the local reception of a remote task data. Put the data in the
+ * correct location then call the release_deps.
  */
 static dague_remote_deps_t*
 remote_dep_release_incoming(dague_execution_unit_t* eu_context,
@@ -525,8 +525,7 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
         if( !((1U<<i) & complete_mask) ) continue;
         while( !((1U<<i) & target->flow_datatype_mask) ) {
             target = task.function->out[++pidx];
-            if(NULL == target)
-                assert(0);
+            assert(NULL != target);
         }
         DEBUG3(("MPI:\tDATA %p(%s) released from %p[%d] flow idx %d\n",
                 ADATA(origin->output[i].data.ptr), target->name, origin, i, target->flow_index));
@@ -548,27 +547,31 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
 #endif  /* DAGUE_DIST_COLLECTIVES */
 
     /* We need to convert from a dep_datatype_index mask into a dep_index mask */
-    for(int i = 0; NULL != task.function->out[i]; i++ )
-        for(int j = 0; NULL != task.function->out[i]->dep_out[j]; j++ )
-            if(complete_mask & (1U << task.function->out[i]->dep_out[j]->dep_datatype_index))
-                action_mask |= (1U << task.function->out[i]->dep_out[j]->dep_index);
+    for(int i = 0; NULL != task.function->out[i]; i++ ) {
+        target = task.function->out[i];
+        if( !(complete_mask & target->flow_datatype_mask) ) continue;
+        for(int j = 0; NULL != target->dep_out[j]; j++ )
+            if(complete_mask & (1U << target->dep_out[j]->dep_datatype_index))
+                action_mask |= (1U << target->dep_out[j]->dep_index);
+    }
     DEBUG3(("MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)\n", complete_mask, action_mask));
     (void)task.function->release_deps(eu_context, &task,
                                       action_mask | DAGUE_ACTION_RELEASE_LOCAL_DEPS,
                                       NULL);
     assert(0 == (origin->incoming_mask & complete_mask));
-    /**
-     * Release the dependency owned by the communication engine for all data that has been
-     * internally allocated by the engine.
-     */
-    for(i = 0; complete_mask>>i; i++) {
-        assert(i < MAX_PARAM_COUNT);
-        if( !((1U<<i) & complete_mask) ) continue;
-        if( NULL != origin->output[i].data.ptr )  /* don't release the CONTROLs */
-            AUNREF(origin->output[i].data.ptr);
-    }
+
     if(0 == origin->incoming_mask) {  /* if necessary release the deps */
 #if !defined(DAGUE_DIST_COLLECTIVES)
+        /**
+         * Release the dependency owned by the communication engine for all data
+         * that has been internally allocated by the engine.
+         */
+        for(i = 0; origin->outgoing_mask>>i; i++) {
+            assert(i < MAX_PARAM_COUNT);
+            if( !((1U<<i) & complete_mask) ) continue;
+            if( NULL != origin->output[i].data.ptr )  /* don't release the CONTROLs */
+                AUNREF(origin->output[i].data.ptr);
+        }
         remote_deps_free(origin);
 #endif  /* !DAGUE_DIST_COLLECTIVES */
         origin = NULL;
