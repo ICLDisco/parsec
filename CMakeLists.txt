@@ -89,9 +89,9 @@ option(DAGUE_DIST_PRIORITIES
   "Favor the communications that unlock the most prioritary tasks" ON)
 option(DAGUE_DIST_COLLECTIVES
   "Use optimized asynchronous operations where collective communication pattern is detected" ON)
-set   (DAGUE_DIST_EAGER_LIMIT 0 CACHE STRING
+set   (DAGUE_DIST_EAGER_LIMIT 1 CACHE STRING
   "Use the eager protocol (no flow control) for messages smaller than the limit in KB")
-set   (DAGUE_DIST_SHORT_LIMIT 0 CACHE STRING
+set   (DAGUE_DIST_SHORT_LIMIT 1 CACHE STRING
   "Use the short protocol (no flow control) for messages smaller than the limit in KB")
 
 ### GPU engine parameters
