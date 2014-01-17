@@ -81,7 +81,9 @@ static int sched_rnd_schedule( dague_execution_unit_t* eu_context,
                                dague_execution_context_t* new_context )
 {
     dague_list_item_t *it = (dague_list_item_t*)new_context;
+#if DAGUE_DEBUG_VERBOSE >= 3
     char tmp[MAX_TASK_STRLEN];
+#endif
     do {
 #if DAGUE_DEBUG_VERBOSE >= 3
         DEBUG3(("RND:\t Pushing task %s\n",
