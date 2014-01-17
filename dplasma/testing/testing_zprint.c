@@ -17,14 +17,11 @@ int main(int argc, char ** argv)
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaLower;
-    int ret = 0;
+    int i, info, ret = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    iparam[IPARAM_NGPUS] = 0;
-#endif
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
@@ -48,13 +45,23 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    dplasma_zplghe( dague, (double)(N), uplo,
+    ret |= dplasma_zplghe( dague, (double)(N), uplo,
                     (tiled_matrix_desc_t *)&ddescA, 3872);
-    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 2354);
+    ret |= dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 2354);
     if(loud > 2) printf("Done\n");
 
-    //    dplasma_zprint( dague, uplo, (tiled_matrix_desc_t *)&ddescA );
-    dplasma_zprint( dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB );
+    ret |= dplasma_zprint( dague, uplo,             (tiled_matrix_desc_t *)&ddescA );
+    ret |= dplasma_zprint( dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB );
+
+    for(i=0; i<43; i++) {
+        if ( rank == 0 ) {
+            fprintf(stdout, "====== Generate Test Matrix %d ======\n", i);
+            fflush(stdout);
+        }
+        info = dplasma_zpltmg( dague, i, (tiled_matrix_desc_t *)&ddescB, 5373 );
+        if (info == 0)
+            ret |= dplasma_zprint( dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB );
+    }
 
     dague_data_free(ddescB.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB );

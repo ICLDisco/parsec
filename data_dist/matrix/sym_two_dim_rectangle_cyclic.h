@@ -6,7 +6,6 @@
 #ifndef __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
 #define __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
 
-#include "dague_config.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/grid_2Dcyclic.h"
 

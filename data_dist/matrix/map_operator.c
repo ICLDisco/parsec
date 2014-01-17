@@ -234,7 +234,7 @@ add_task_to_list(dague_execution_unit_t *eu_context,
 }
 
 static void iterate_successors(dague_execution_unit_t *eu,
-                               dague_execution_context_t *this_task,
+                               const dague_execution_context_t *this_task,
                                uint32_t action_mask,
                                dague_ontask_function_t *ontask,
                                void *ontask_arg)
@@ -377,7 +377,9 @@ static int complete_hook(dague_execution_unit_t *context,
 
     TAKE_TIME(context, 2*this_task->function->function_id+1, map_operator_op_hash( __dague_handle, k, n ), NULL, 0);
 
+#if defined(DAGUE_PROF_GRAPHER)
     dague_prof_grapher_task(this_task, context->th_id, context->virtual_process->vp_id, k+n);
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
 
     release_deps(context, this_task,
                  (DAGUE_ACTION_RELEASE_REMOTE_DEPS |

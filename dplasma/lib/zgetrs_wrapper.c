@@ -7,12 +7,63 @@
  *
  */
 #include "dague_internal.h"
-#include <plasma.h>
+#include <core_blas.h>
 #include "dplasma.h"
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zgetrs - Solves a system of linear equations A * X = B with a
+ * general square matrix A using the LU factorization with partial pivoting strategy
+ * computed by dplasma_zgetrf().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] trans
+ *          Specifies whether the matrix A is transposed, not transposed or
+ *          conjugate transposed:
+ *          = PlasmaNoTrans:   A is transposed;
+ *          = PlasmaTrans:     A is not transposed;
+ *          = PlasmaConjTrans: A is conjugate transposed.
+ *
+ * @param[in] A
+ *          Descriptor of the distributed factorized matrix A.
+ *          On entry, describes the M-by-N matrix A.
+ *          On exit, the factors L and U from the factorization
+ *          A = P*L*U; the unit diagonal elements of L are not stored.
+ *
+ * @param[out] IPIV
+ *          Descriptor of the IPIV matrix. Should be of size 1-by-min(M,N).
+ *          On exit, contains the pivot indices; for 1 <= i <= min(M,N), row i
+ *          of the matrix was interchanged with row IPIV(i).
+ *
+ * @param[in,out] B
+ *          On entry, the N-by-NRHS right hand side matrix B.
+ *          On exit, if return value = 0, B is overwritten by the solution matrix X.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgetrs_New
+ * @sa dplasma_zgetrs_Destruct
+ * @sa dplasma_cgetrs
+ * @sa dplasma_dgetrs
+ * @sa dplasma_sgetrs
+ *
+ ******************************************************************************/
 int
 dplasma_zgetrs(dague_context_t *dague,
-               const PLASMA_enum trans,
+               PLASMA_enum trans,
                tiled_matrix_desc_t *A,
                tiled_matrix_desc_t *IPIV,
                tiled_matrix_desc_t *B)

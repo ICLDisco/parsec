@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -31,27 +31,24 @@ remote_dep_reset_forwarded(dague_execution_unit_t* eu_context,
 /* Mark a rank as already forwarded the termination of the current task */
 static inline void
 remote_dep_mark_forwarded(dague_execution_unit_t* eu_context,
-                          struct remote_dep_output_param_s* output,
+                          dague_remote_deps_t* rdeps,
                           int rank)
 {
-    dague_remote_deps_t* rdeps = output->parent;
-    uint32_t boffset, mask;
+    uint32_t boffset;
 
     DEBUG3(("fw mark\tREMOTE rank %d\n", rank));
     boffset = rank / (8 * sizeof(uint32_t));
-    mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
     assert(boffset <= eu_context->virtual_process->dague_context->remote_dep_fw_mask_sizeof);
     (void)eu_context;
-    rdeps->remote_dep_fw_mask[boffset] |= mask;
+    rdeps->remote_dep_fw_mask[boffset] |= ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
 }
 
 /* Check if rank has already been forwarded the termination of the current task */
 static inline int
 remote_dep_is_forwarded(dague_execution_unit_t* eu_context,
-                        struct remote_dep_output_param_s* output,
+                        dague_remote_deps_t* rdeps,
                         int rank)
 {
-    dague_remote_deps_t* rdeps = output->parent;
     uint32_t boffset, mask;
 
     boffset = rank / (8 * sizeof(uint32_t));
@@ -98,11 +95,12 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
          * of all communications related to the task. This is not optimal as it
          * increases the timespan of a data, but it is much easier to implement.
          */
-        for( int i = 0; (*deps)->activity_mask >> i; i++ )
-            if( (1U << i) & (*deps)->activity_mask ) {
+        for( int i = 0; (*deps)->outgoing_mask >> i; i++ )
+            if( (1U << i) & (*deps)->outgoing_mask ) {
                 assert( (*deps)->output[i].count_bits );
                 DAGUE_DATA_COPY_RELEASE((*deps)->output[i].data.data);
             }
+        (*deps)->outgoing_mask = 0;
         if(ncompleted)
             remote_dep_dec_flying_messages((*deps)->dague_handle, ctx);
         remote_deps_free(*deps);
@@ -213,12 +211,92 @@ int dague_remote_dep_new_object(dague_handle_t* obj) {
     return remote_dep_new_object(obj);
 }
 
+#ifdef DAGUE_DIST_COLLECTIVES
+/**
+ * This function is called from the task successor iterator in order to rebuilt
+ * the information needed to propagate the collective in a meaningful way. In
+ * other words it reconstruct the entire information as viewed by the root of
+ * the collective. This information is stored in the corresponding output
+ * structures. In addition, this function compute the set of data is currently
+ * available locally and can be propagated to our predecessors.
+ */
+dague_ontask_iterate_t
+dague_gather_collective_pattern(dague_execution_unit_t *eu,
+                                const dague_execution_context_t *newcontext,
+                                const dague_execution_context_t *oldcontext,
+                                const dep_t* dep,
+                                dague_dep_data_description_t* data,
+                                int src_rank, int dst_rank, int dst_vpid,
+                                void *param)
+{
+    dague_remote_deps_t* deps = (dague_remote_deps_t*)param;
+    struct remote_dep_output_param* output = &deps->output[dep->dep_datatype_index];
+    const int _array_pos  = dst_rank / (8 * sizeof(uint32_t));
+    const int _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
+
+    if( dst_rank == eu->virtual_process->dague_context->my_rank )
+        deps->outgoing_mask |= (1 << dep->dep_datatype_index);
+
+    if( !(output->rank_bits[_array_pos] & _array_mask) ) {  /* new participant */
+        output->rank_bits[_array_pos] |= _array_mask;
+        output->deps_mask |= (1 << dep->dep_index);
+        output->count_bits++;
+    }
+    if(newcontext->priority > output->priority) {  /* select the priority */
+        output->priority = newcontext->priority;
+        if(newcontext->priority > deps->max_priority)
+            deps->max_priority = newcontext->priority;
+    }
+    (void)eu; (void)oldcontext; (void)dst_vpid; (void)data; (void)src_rank;
+    return DAGUE_ITERATE_CONTINUE;
+}
+
+/**
+ * This is the local continuation of a collective pattern. Upon receiving an
+ * activation from the predecessor the first thing is to retrieve all the data
+ * that is needed locally (this is a super-set of the data to be propagated down
+ * the collective tree). Thus, once all the data become available locally, this
+ * function is called to start propagating the activation order and the data.
+ */
+int dague_remote_dep_propagate(dague_execution_unit_t* eu_context,
+                               const dague_execution_context_t* task,
+                               dague_remote_deps_t* deps)
+{
+    const dague_function_t* function = task->function;
+    uint32_t dep_mask = 0;
+
+    assert(deps->root != eu_context->virtual_process->dague_context->my_rank );
+    /* If I am not the root of the collective I must rebuild the same
+     * information as the root, i.e. the exact same propagation tree as the
+     * initiator.
+     */
+    assert(0 == deps->outgoing_mask);
+
+    /* We need to convert from a dep_datatype_index mask into a dep_index mask */
+    for(int i = 0; NULL != function->out[i]; i++ )
+        for(int j = 0; NULL != function->out[i]->dep_out[j]; j++ )
+            if(deps->msg.output_mask & (1U << function->out[i]->dep_out[j]->dep_datatype_index))
+                dep_mask |= (1U << function->out[i]->dep_out[j]->dep_index);
+
+    function->iterate_successors(eu_context, task,
+                                 dep_mask | DAGUE_ACTION_RELEASE_REMOTE_DEPS,
+                                 dague_gather_collective_pattern,
+                                 deps);
+
+    return dague_remote_dep_activate(eu_context, task, deps, deps->msg.output_mask);
+}
+#endif
+
+/**
+ *
+ */
 int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                               const dague_execution_context_t* exec_context,
-                              dague_remote_deps_t* remote_deps)
+                              dague_remote_deps_t* remote_deps,
+                              uint32_t propagation_mask)
 {
     const dague_function_t* function = exec_context->function;
-    int i, me, him, current_mask, keeper = 0;
+    int i, my_idx, idx, current_mask, keeper = 0;
     unsigned int array_index, count, bit_index;
     struct remote_dep_output_param_s* output;
 
@@ -232,8 +310,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 
     remote_dep_reset_forwarded(eu_context, remote_deps);
     remote_deps->dague_handle    = exec_context->dague_handle;
-    remote_deps->msg.deps        = (uintptr_t) remote_deps;
-    remote_deps->msg.handle_id   = exec_context->dague_handle->handle_id;
+    /* Safe-keep the propagation mask (it must be packed in the message) */
+    remote_deps->msg.output_mask = propagation_mask;
+    remote_deps->msg.deps        = (uintptr_t)remote_deps;
+    remote_deps->msg.object_id   = exec_context->dague_object->object_id;
     remote_deps->msg.function_id = function->function_id;
     for(i = 0; i < function->nb_locals; i++) {
         remote_deps->msg.locals[i] = exec_context->locals[i];
@@ -243,28 +323,29 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     memset(&remote_deps->msg.locals[i], 0, (MAX_LOCAL_COUNT - i) * sizeof(int));
 #endif
 
-    if(remote_deps->root == eu_context->virtual_process->dague_context->my_rank) me = 0;
-    else me = -1;
+    /* Mark the root of the collective as rank 0 */
+    remote_dep_mark_forwarded(eu_context, remote_deps, remote_deps->root);
 
-    for( i = 0; remote_deps->activity_mask >> i; i++ ) {
-        if( !((1U << i) & remote_deps->activity_mask )) continue;
+    for( i = 0; propagation_mask >> i; i++ ) {
+        if( !((1U << i) & propagation_mask )) continue;
         output = &remote_deps->output[i];
         assert( 0 != output->count_bits );
-        /**
-         * Increase the refcount of each possible output data once, to insure
-         * the data is protected during the entire execution of the
-         * communication, independent on what is happening with the data outside
-         * of the communication engine.
-         */
-        OBJ_RETAIN(output->data.data);
 
-        him = 0;
+        my_idx = (remote_deps->root == eu_context->virtual_process->dague_context->my_rank) ? 0 : -1;
+        idx = 0;
+        /**
+         * Increase the refcount of each local output data once, to ensure the
+         * data is protected during the entire execution of the communication,
+         * independent on what is happening with the data outside of the
+         * communication engine.
+         */
+        if(remote_deps->outgoing_mask & (1U<<i))
+            OBJ_RETAIN(output->data.data);
+
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {
             current_mask = output->rank_bits[array_index];
             if( 0 == current_mask ) continue;  /* no bits here */
-            for( bit_index = 0;
-                 (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0);
-                 bit_index++ ) {
+            for( bit_index = 0; current_mask != 0; bit_index++ ) {
                 if( !(current_mask & (1 << bit_index)) ) continue;
 
                 int rank = (array_index * sizeof(uint32_t) * 8) + bit_index;
@@ -273,39 +354,41 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                 current_mask ^= (1 << bit_index);
                 count++;
 
-                /* root already knows but falsely appear in this bitfield */
-                if(rank == remote_deps->root) continue;
-
-                DEBUG3((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n",
-                        tmp, remote_deps->root, eu_context->virtual_process->dague_context->my_rank, me, rank));
-
-                if((me == -1) && (rank >= eu_context->virtual_process->dague_context->my_rank)) {
-                    /* the next bit points after me, so I know my dense rank now */
-                    me = ++him;
-                    if(rank == eu_context->virtual_process->dague_context->my_rank) {
-                        continue;
-                    }
+                if(remote_dep_is_forwarded(eu_context, remote_deps, rank)) {  /* already in the counting */
+                    DEBUG3(("[%d:%d] task %s my_idx %d idx %d rank %d -- skip (already done)\n",
+                            remote_deps->root, i, tmp, my_idx, idx, rank));
+                    continue;
                 }
-                him++;
+                idx++;
+                if(my_idx == -1) {
+                    DEBUG3(("[%d:%d] task %s my_idx %d idx %d rank %d -- skip\n",
+                            remote_deps->root, i, tmp, my_idx, idx, rank));
+                    if(rank == eu_context->virtual_process->dague_context->my_rank) {
+                        my_idx = idx;
+                    }
+                    remote_dep_mark_forwarded(eu_context, remote_deps, rank);
+                    continue;
+                }
+                DEBUG3((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n",
+                        tmp, remote_deps->root, eu_context->virtual_process->dague_context->my_rank, my_idx, rank));
 
-                if(remote_dep_bcast_child(me, him)) {
-                    if(remote_dep_is_forwarded(eu_context, output, rank))
-                        continue;
-
+                if(remote_dep_bcast_child(my_idx, idx)) {
+                    DEBUG3(("[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)\n",
+                            remote_deps->root, i, tmp, my_idx, idx, rank, remote_deps->outgoing_mask));
+                    assert(remote_deps->outgoing_mask & (1U<<i));
 #if DAGUE_DEBUG_VERBOSE >= 2
                     for(int flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
                         if( exec_context->function->out[flow_index]->flow_datatype_mask & (1<<i) ) {
                             assert( NULL != exec_context->function->out[flow_index] );
                             DEBUG2((" TOPO\t%s flow %s root=%d\t%d (d%d) -> %d (d%d)\n",
                                     tmp, exec_context->function->out[flow_index]->name, remote_deps->root,
-                                    eu_context->virtual_process->dague_context->my_rank, me, rank, him));
+                                    eu_context->virtual_process->dague_context->my_rank, my_idx, rank, idx));
                             break;
                         }
                     }
 #endif  /* DAGUE_DEBUG_VERBOSE */
                     assert(output->parent->dague_handle == exec_context->dague_handle);
-                    remote_dep_mark_forwarded(eu_context, output, rank);
-                    keeper = dague_atomic_add_32b((int32_t*)&remote_deps->pending_ack, 1);
+                    keeper = dague_atomic_add_32b(&remote_deps->pending_ack, 1);
                     if( 1 == keeper ) {
                         /* Let the engine know we're working to activate the dependencies remotely */
                         remote_dep_inc_flying_messages(exec_context->dague_handle,
@@ -316,7 +399,11 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         dague_atomic_add_32b((int32_t*)&remote_deps->pending_ack, 1);
                     }
                     remote_dep_send(rank, remote_deps);
+                } else {
+                    DEBUG3(("[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)\n",
+                            remote_deps->root, i, tmp, my_idx, idx, rank));
                 }
+                remote_dep_mark_forwarded(eu_context, remote_deps, rank);
             }
         }
     }

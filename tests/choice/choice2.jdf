@@ -1,0 +1,166 @@
+extern "C" %{
+#define idecision(k)  (*((int32_t*)decision(k)))
+%}
+
+A        [ type = "dague_ddesc_t *" ]
+NT       [ type = "int" ]
+P        [ type = "int" ]
+decision [ type = "dague_ddesc_t *" ]
+
+GenChoice(k)
+
+k = 0 .. NT
+pos = inline_c %{ return k*P + k%P; %}
+
+: A(k)
+
+RW D  <- D Selector(k, k)
+      -> (k == NT) ? A(k)
+      -> inline_c %{ return (k < NT) && idecision(pos) == 1; %} ? D TA(k, k)
+      -> inline_c %{ return (k < NT) && idecision(pos) == 2; %} ? D TB(k, k)
+RW C  <- decision( pos )           [type=DECISION]
+      -> A LChoice( k, 0 .. P-1 )  [type=DECISION]
+
+BODY
+    {
+        int d;
+        d = rand() % 2 + 1;
+        idecision( pos ) = d ;
+        fprintf(stderr, "Generate Choice(%d), choosing decision %c\n", k, d == 0 ? '#' : (d == 1 ? 'A' : 'B'));
+    }
+END
+
+Ter1(pos)
+
+pos = 0..(P-1)
+
+:A(pos)
+
+    CTL ct1 <- ct LChoice(pos)
+            -> (pos == P-1) ? ct Terminate(0..P-1)
+    CTL ct2 <- (pos>0)     ? ct2 Ter1(pos-1)
+            -> (pos<(P-1)) ? ct2 Ter1(pos+1)
+BODY
+    fprintf(stderr, "Execute Ter1(%d): Terminating the DAG\n", pos);
+END
+
+Terminate(pos)
+
+pos = 0..(P-1)
+
+:A(pos)
+
+    CTL ct <- ct1 Ter1(P-1)
+
+BODY
+    fprintf(stderr, "Execute Terminate(%d): Terminating the DAG\n", pos);
+END
+
+LChoice( k, p )
+
+k = 0 .. NT
+p = 0 .. P-1
+
+first = inline_c %{
+    int i = ( k / P ) * P;
+    if( p > k%P )
+        return i + p;
+    else
+        return i + P + p;
+    %}
+
+: decision( k*P + p )
+
+READ A  <- C GenChoice( k )      [type=DECISION]
+RW   C  <- decision( k*P + p )   [type=DECISION]
+        -> decision( k*P + p )   [type=DECISION]
+CTL ct  <- (k > 0) ? ct LChoice(k-1, P)
+        -> ct Selector(k, first..NT..P )
+        -> ( k == NT ) ? ct1 Ter1(p) : ct LChoice(k+1, p)
+
+BODY
+    {
+        if (p != k%P )
+            *((int32_t*)C) = *((int32_t*)A);
+
+        int d = *((int32_t*)(C));
+        fprintf(stderr, "Received choice %c (%d) on rank %d from rank %d\n",
+               d == 0 ? '#' : (d == 1 ? 'A' : 'B'),
+               k, p, k%P );
+    }
+END
+
+Selector(k, m)
+
+k = 0 .. NT
+m = k .. NT
+d1 = inline_c %{
+    /*assert( k == 0 || idecision(P*k + m%P) != 0);*/
+    return idecision(P*k + m%P);
+    %}
+d2 = inline_c %{
+    /*assert( k == 0 || idecision(P*(k-1) + m%P) != 0);*/
+    if ( k == 0 )
+        return 0;
+    else
+        return idecision(P*(k-1) + m%P);
+    %}
+
+:A(m)
+
+RW  D <- ( k == 0 ) ? A(m)
+      <- ((k > 0) && (d2 == 1)) ? D TA( k-1, m )
+      <- ((k > 0) && (d2 == 2)) ? D TB( k-1, m )
+      -> ( k == m ) ? D GenChoice(k)
+      -> ((k != m ) && (d1 == 1)) ? D TA( k, m )
+      -> ((k != m ) && (d1 == 2)) ? D TB( k, m )
+CTL ct <- ( m > k ) ? ct LChoice( k, m%P )
+
+BODY
+  fprintf(stderr, "Selector(%d, %d) from %c (%d) to %c (%d)\n", k, m,
+         d2 == 0 ? '#' : (d2 == 1 ? 'A' : 'B'), k-1,
+         d1 == 0 ? '#' : (d1 == 1 ? 'A' : 'B'), k  );
+END
+
+
+TA(k, m)
+
+k = 0 .. NT
+m = k .. NT
+pos = inline_c %{ return k*P + m%P; %}
+
+: A(m)
+
+RW  D <- inline_c %{ return (k == m) && (idecision(k*P+m%P) == 1); %} ? D GenChoice(k)
+      <- inline_c %{ return (k != m) && (idecision(k*P+m%P) == 1); %} ? D Selector(k,   m)
+      -> inline_c %{ return (m >  k) && (idecision(k*P+m%P) == 1); %} ? D Selector(k+1, m)
+          //-> inline_c %{ return (m == k) && (idecision(k*P+m%P) == 1); %} ? A(m)
+
+BODY
+{
+    fprintf(stderr, "Execute TA(%d, %d)\n", k, m);
+    /* Decrease counter for the task B not done */
+    dague_object_dec_nbtask( this_task->dague_object, 1 );
+}
+END
+
+TB(k, m)
+
+k = 0 .. NT
+m = k .. NT
+pos = inline_c %{ return k*P + m%P; %}
+
+: A(m)
+
+RW  D <- inline_c %{ return (k == m) && (idecision(pos) == 2); %} ? D GenChoice(k)
+      <- inline_c %{ return (k != m) && (idecision(pos) == 2); %} ? D Selector(k,   m)
+      -> inline_c %{ return (m >  k) && (idecision(pos) == 2); %} ? D Selector(k+1, m)
+          //      -> inline_c %{ return (m == k) && (idecision(pos) == 2); %} ? A(m)
+
+BODY
+{
+    fprintf(stderr, "Execute TB(%d, %d)\n", k, m);
+    /* Decrease counter for the task A not done */
+    dague_object_dec_nbtask( this_task->dague_object, 1 );
+}
+END

@@ -20,7 +20,7 @@ int main(int argc, char ** argv)
     double normdag = 0.0;
     double eps = LAPACKE_dlamch_work('e');
     int iparam[IPARAM_SIZEOF];
-    int i, u, ret = 0;
+    int An, i, u, ret = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -32,13 +32,14 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     check = 1;
+    An = dplasma_imax(M, N);
     LDA = max( LDA, M );
 
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
-                               1, rank, MB, NB, LDA, N, 0, 0,
-                               M, N, SMB, SNB, 1));
+                               1, rank, MB, NB, LDA, An, 0, 0,
+                               M, An, SMB, SNB, 1));
 
     if( rank == 0 ) {
         work = (double *)malloc( max(M,N) * sizeof(double));
@@ -81,6 +82,11 @@ int main(int argc, char ** argv)
             if ( rank == 0 ) {
                 result = fabs(normdag - normlap) / (normlap * eps) ;
 
+                if ( loud > 3 ) {
+                    printf( "%d: The norm %s of A is %e (LAPACK)\n",
+                            rank, normsstr[i], normlap);
+                }
+
                 switch(norms[i]) {
                 case PlasmaMaxNorm:
                     /* result should be perfectly equal */
@@ -113,6 +119,95 @@ int main(int argc, char ** argv)
         dague_data_free(ddescA.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     }
+
+    /*
+     * Triangular cases LANTR
+     */
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    {
+        int d;
+
+        /* matrix generation */
+        if(loud > 2) printf("+++ Generate matrices ... ");
+        dplasma_zplrnt( dague, 0., (tiled_matrix_desc_t *)&ddescA0, 3872);
+        if(loud > 2) printf("Done\n");
+
+        /* Computing the norm */
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
+                                   1, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   M, N, SMB, SNB, 1));
+
+        for(u=1; u<2; u++) {
+
+            dplasma_zplrnt( dague, 0., (tiled_matrix_desc_t *)&ddescA, 3872);
+
+            for(d=0; d<2; d++) {
+                for(i=0; i<4; i++) {
+                    if ( rank == 0 ) {
+                        printf("***************************************************\n");
+                    }
+                    if(loud > 2) printf("+++ Computing norm %s ... ", normsstr[i]);
+                    normdag = dplasma_zlantr(dague, norms[i], uplo[u], diag[d],
+                                             (tiled_matrix_desc_t *)&ddescA);
+
+                    if ( rank == 0 ) {
+                        normlap = LAPACKE_zlantr_work(LAPACK_COL_MAJOR, normsstr[i][0], uplostr[u][0], diagstr[d][0], M, N,
+                                                      (dague_complex64_t*)(ddescA0.mat), ddescA0.super.lm, work);
+                    }
+                    if(loud > 2) printf("Done.\n");
+
+                    if ( loud > 3 ) {
+                        printf( "%d: The norm %s of A is %e\n",
+                                rank, normsstr[i], normdag);
+                    }
+
+                    if ( rank == 0 ) {
+                        result = fabs(normdag - normlap) / (normlap * eps);
+
+                        if ( loud > 3 ) {
+                            printf( "%d: The norm %s of A is %e (LAPACK)\n",
+                                    rank, normsstr[i], normlap);
+                        }
+
+                        switch(norms[i]) {
+                        case PlasmaMaxNorm:
+                            /* result should be perfectly equal */
+                            break;
+                        case PlasmaInfNorm:
+                            /* Sum order on the line can differ */
+                            result = result / (double)N;
+                            break;
+                        case PlasmaOneNorm:
+                            /* Sum order on the column can differ */
+                            result = result / (double)M;
+                            break;
+                        case PlasmaFrobeniusNorm:
+                            /* Sum oreder on every element can differ */
+                            result = result / ((double)M * (double)N);
+                            break;
+                        }
+
+                        if ( result < 1. ) {
+                            printf(" ----- TESTING ZLANTR (%s, %s, %s) ... SUCCESS !\n",
+                                   normsstr[i], uplostr[u], diagstr[d]);
+                        } else {
+                            printf(" ----- TESTING ZLANTR (%s, %s, %s) ... FAILED !\n",
+                                   normsstr[i], uplostr[u], diagstr[d]);
+                            printf("       | Ndag - Nlap | / Nlap = %e\n", normdag);
+                            ret |= 1;
+                        }
+                    }
+                }
+            }
+        }
+        dague_data_free(ddescA.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+    }
+#endif /* defined(PRECISION_z) || defined(PRECISION_c) */
+
+    /* Let set N=M for the triangular cases */
+    N = M;
 
     /*
      * Symmetric cases LANSY
@@ -154,6 +249,11 @@ int main(int argc, char ** argv)
 
                 if ( rank == 0 ) {
                     result = fabs(normdag - normlap) / (normlap * eps);
+
+                    if ( loud > 3 ) {
+                        printf( "%d: The norm %s of A is %e (LAPACK)\n",
+                                rank, normsstr[i], normlap);
+                    }
 
                     switch(norms[i]) {
                     case PlasmaMaxNorm:
@@ -230,6 +330,10 @@ int main(int argc, char ** argv)
                 if ( rank == 0 ) {
                     result = fabs(normdag - normlap) / (normlap * eps);
 
+                    if ( loud > 3 ) {
+                        printf( "%d: The norm %s of A is %e (LAPACK)\n",
+                                rank, normsstr[i], normlap);
+                    }
                     switch(norms[i]) {
                     case PlasmaMaxNorm:
                         /* result should be perfectly equal */

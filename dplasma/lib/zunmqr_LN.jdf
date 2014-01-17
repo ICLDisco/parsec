@@ -1,25 +1,17 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
  *
- * @precisions normal z -> z c d s
+ * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <plasma.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
 
 %}
 
@@ -32,6 +24,7 @@ descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_d
 dataT     [type = "dague_ddesc_t *"]
 descT     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
 ib        [type = "int" hidden = on default = "descT.mb" ]
+KT        [type = "int" hidden = on default = "dplasma_imin(descA.mt-2, descA.nt-1)" ]
 pool_0    [type = "dague_memory_pool_t *" size = "((sizeof(dague_complex64_t))*ib)*descT.nb"]
 
 
@@ -41,32 +34,34 @@ zunmqr(k, n)
   n = 0 .. descB.nt-1
 
   /* Locality */
-  : dataB(k,n)
+  : dataB( k, n )
 
   READ  A    <- A zunmqr_in_data_A0(k)   [type = LOWER_TILE]
   READ  T    <- T zunmqr_in_data_T1(k)   [type = LITTLE_T]
-  RW    C    -> ( k == 0 ) ? dataB(k,n)
+  RW    C    -> ( k == 0 ) ? dataB(k, n)
              -> ( k >  0 ) ? A2 ztsmqr(k-1, k, n)
              <- ( k <  (descB.mt-1)) ? A1 ztsmqr(k, k+1, n)
-             <- ( k == (descB.mt-1)) ? dataB(k,n)
+             <- ( k == (descB.mt-1)) ? dataB(k, n)
 
 BODY
-
-    int tempkm   = (k == (descB.mt-1)) ? (descB.m - k * descB.mb) : descB.mb;
-    int tempnn   = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
-    int tempkmin = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+{
+    int tempkm = (k == (descB.mt-1)) ? (descB.m - k * descB.mb) : descB.mb;
+    int tempnn = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
     int ldak = BLKLDD( descA, k );
     int ldbk = BLKLDD( descB, k );
 
-    printlog("CORE_zunmqr(%d, %d)\n"
-             "\t(side, trans, tempkm, tempnn, tempkmin, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, B(%d,%d)[%p], ldbk, p_elem_A, descT.nb)\n",
-             k, n, k, k, A, k, k, T, k, n, C);
-
-#if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( pool_0 );
 
-    CORE_zunmqr(side, trans, tempkm,
-                tempnn, tempkmin, ib,
+    printlog("CORE_zunmqr(%d, %d)\n"
+             "\t(side=%s, trans=%s, M=%d, N=%d, K=%d, ib=%d,\n"
+             "\t A(%d,%d)[%p], lda=%d, T(%d,%d)[%p], ldt=%d, B(%d,%d)[%p], ldb=%d, W=%p, LDW=%d)\n",
+             k, n, plasma_const( side ), plasma_const( trans ), tempkm, tempnn, tempkn, ib,
+             k, k, A, ldak, k, k, T, descT.mb, k, n, C, ldbk, p_elem_A, descT.nb );
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zunmqr(side, trans,
+                tempkm, tempnn, tempkn, ib,
                 A /* dataA(k,k) */, ldak,
                 T /* dataT(k,k) */, descT.mb,
                 C /* dataB(k,n) */, ldbk,
@@ -74,7 +69,7 @@ BODY
 
     dague_private_memory_push( pool_0, p_elem_A );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
+}
 END
 
 zunmqr_in_data_T1(k) [profile = off]
@@ -82,13 +77,15 @@ zunmqr_in_data_T1(k) [profile = off]
   k = 0 .. descA.nt-1
 
   /* Locality */
-  : dataT(k,k)
+  : dataT(k, k)
 
   READ  T    <- dataT(k,k)                      [type = LITTLE_T]
              -> T zunmqr(k, 0 .. descB.nt-1)    [type = LITTLE_T]
 
 BODY
+{
     /* nothing */
+}
 END
 
 zunmqr_in_data_A0(k) [profile = off]
@@ -96,18 +93,20 @@ zunmqr_in_data_A0(k) [profile = off]
   k = 0 .. descA.nt-1
 
   /* Locality */
-  : dataA(k,k)
+  : dataA(k, k)
 
-  READ  A    <- dataA(k,k)                      [type = LOWER_TILE]
-             -> A zunmqr(k, 0 .. (descB.nt-1))  [type = LOWER_TILE]
+  READ  A    <- dataA(k,k)                     [type = LOWER_TILE]
+             -> A zunmqr(k, 0 .. descB.nt-1 )  [type = LOWER_TILE]
 
 BODY
+{
     /* nothing */
+}
 END
 
 ztsmqr(k, m, n)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dague_imin((descB.mt-1),(descA.nt-1)); %}
+  k = 0     .. KT
   m = (k+1) .. (descB.mt-1)
   n = 0     .. (descB.nt-1)
 
@@ -118,16 +117,18 @@ ztsmqr(k, m, n)
              -> ( m >  (k+1) ) ? A1 ztsmqr(k, m-1, n)
              <- ( m <  (descB.mt-1) ) ? A1 ztsmqr(k, m+1, n)
              <- ( m == (descB.mt-1) ) ? A1 ztsmqr_out_data_B0(k, n)
+
   RW    A2   -> ( k == 0 ) ? dataB(m,n)
              -> ( k >  0 ) ? A2 ztsmqr(k-1, m, n)
              <-  (k == (descA.nt-1)) ? dataB(m,n)
              <- ((k <  (descA.nt-1)) & (m == (k+1))) ? C  zunmqr(k+1, n)
              <- ((k <  (descA.nt-1)) & (m >  (k+1))) ? A2 ztsmqr(k+1, m, n)
+
   READ  V    <- V ztsmqr_in_data_A1(k, m)
   READ  T    <- T ztsmqr_in_data_T2(k, m)  [type = LITTLE_T]
 
 BODY
-
+{
     int tempnn   = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
     int tempmm   = (m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
     int tempkmin = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
@@ -136,29 +137,32 @@ BODY
     int ldam = BLKLDD( descA, m );
     int ldwork = ib;
 
-    printlog("CORE_ztsmqr(%d, %d, %d)\n"
-             "\t(side, trans, descB.mb, tempnn, tempmm, tempnn, tempkmin, ib, B(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-             k, m, n, k, n, A1, m, n, A2, m, k, V, m, k, T);
-
-#if !defined(DAGUE_DRY_RUN)
     void *p_elem_A = dague_private_memory_pop( pool_0 );
 
-    CORE_ztsmqr(side, trans, descB.mb, tempnn,
-                tempmm, tempnn, tempkmin, ib,
+    printlog( "CORE_ztsmqr(%d, %d, %d)\n"
+              "\t(side=%s, trans=%s, M1=%d, N1=%d, M2=%d, N2=%d, K=%d, ib=%d,\n"
+              "\t A1(%d,%d)[%p], lda1=%d, A2(%d,%d)[%p], lda2=%d, V(%d,%d)[%p], ldv=%d, T(%d,%d)[%p], ldt=%d, W=%p, LDW=%d)\n",
+              k, m, n, plasma_const( side ), plasma_const( trans ),
+              descB.mb, tempnn, tempmm, tempnn, tempkmin, ib,
+              k, n, A1, ldbk, m, n, A2, ldbm, m, k, V, ldam, m, k, T, descT.mb, p_elem_A, descT.nb );
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_ztsmqr(side, trans,
+                descB.mb, tempnn, tempmm, tempnn, tempkmin, ib,
                 A1 /* dataB(k,n) */, ldbk,
                 A2 /* dataB(m,n) */, ldbm,
-                V  /* dataA(m,k) */,  ldam,
-                T  /* dataT(m,k) */,  descT.mb,
+                V  /* dataA(m,k) */, ldam,
+                T  /* dataT(m,k) */, descT.mb,
                 p_elem_A, ldwork );
 
-        dague_private_memory_push( pool_0, p_elem_A );
+    dague_private_memory_push( pool_0, p_elem_A );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
+}
 END
 
 ztsmqr_in_data_T2(k, m) [profile = off]
   /* Execution Space */
-  k = 0     .. inline_c %{ return dague_imin((descB.mt-2),(descA.nt-1)); %}
+  k = 0     .. KT
   m = (k+1) .. (descB.mt-1)
 
   /* Locality */
@@ -168,12 +172,14 @@ ztsmqr_in_data_T2(k, m) [profile = off]
              -> T ztsmqr(k, m, 0 .. (descB.nt-1))   [type = LITTLE_T]
 
 BODY
+{
     /* nothing */
+}
 END
 
 ztsmqr_in_data_A1(k, m) [profile = off]
   /* Execution Space */
-  k = 0     .. inline_c %{ return dague_imin((descB.mt-2),(descA.nt-1)); %}
+  k = 0     .. KT
   m = (k+1) .. (descB.mt-1)
 
   /* Locality */
@@ -183,12 +189,14 @@ ztsmqr_in_data_A1(k, m) [profile = off]
              -> V ztsmqr(k, m, 0 .. (descB.nt-1))
 
 BODY
+{
     /* nothing */
+}
 END
 
 ztsmqr_out_data_B0(k, n) [profile = off]
   /* Execution Space */
-  k = 0 .. inline_c %{ return dague_imin((descB.mt-2),(descA.nt-1)); %}
+  k = 0 .. KT
   n = 0 .. (descB.nt-1)
 
   /* Locality */
@@ -198,6 +206,7 @@ ztsmqr_out_data_B0(k, n) [profile = off]
              <- dataB(k,n)
 
 BODY
+{
     /* nothing */
+}
 END
-

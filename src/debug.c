@@ -39,7 +39,7 @@ void dague_debug_init(void)
     MPI_Comm_rank(MPI_COMM_WORLD, &dague_debug_rank);
     asprintf(&dague_debug_filename, "log.rank%02d", dague_debug_rank);
 #endif
-#if 0
+#if 0  /* Set to 1 to log all output on your local directory */
     if( NULL != dague_debug_filename ) {
         dague_debug_file = fopen(dague_debug_filename, "w");
     }

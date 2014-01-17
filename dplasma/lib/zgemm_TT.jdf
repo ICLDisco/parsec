@@ -9,16 +9,8 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <plasma.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
-#include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
 
 #if defined(HAVE_CUDA)
 #include <dague/devices/cuda/dev_cuda.h>
@@ -36,12 +28,12 @@ transB [type = int]
 alpha  [type = dague_complex64_t]
 beta   [type = dague_complex64_t]
 
-dataA     [type = "dague_ddesc_t *"]
-descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-dataB     [type = "dague_ddesc_t *"]
-descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
-dataC     [type = "dague_ddesc_t *"]
-descC     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
+dataA  [type = "dague_ddesc_t *"]
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+dataB  [type = "dague_ddesc_t *"]
+descB  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
+dataC  [type = "dague_ddesc_t *"]
+descC  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
 
 /**************************************************
  *                       READ_A                   *
@@ -56,7 +48,9 @@ m = 0 .. descA.nt-1
 READ A <- dataA(k, m)
        -> A GEMM(m, 0, k)
 BODY
-    printlog("rank %u <- A(%d,%d)\n", __dague_handle->super.dataA->myrank, k, m);
+{
+    printlog("rank %u <- A(%d,%d)\n", __dague_object->super.dataA->myrank, k, m);
+}
 END
 
 /**************************************************
@@ -72,7 +66,9 @@ k = 0 .. descB.nt-1
 READ B <- dataB(n, k)
        -> B GEMM(0, n, k)
 BODY
-     printlog("rank %u <- B(%d,%d)\n", __dague_handle->super.dataB->myrank, n, k);
+{
+     printlog("rank %u <- B(%d,%d)\n", __dague_object->super.dataB->myrank, n, k);
+}
 END
 
 /**************************************************
@@ -114,6 +110,7 @@ BODY [type=CUDA dyld=magmablas_ZGEMM]
 END
 
 BODY
+{
     dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
     int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
@@ -133,13 +130,10 @@ BODY
     printlog("gemm( %d, %d, %d )\n"
              "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
              m, n, k,
-             plasma_const( transA ), plasma_const( transB ), 
+             plasma_const( transA ), plasma_const( transB ),
              tempmm, tempnn, tempkk,
              creal(alpha), k, m, ldak,
                            n, k, ldbn,
              creal(lbeta), m, n, ldcm);
+}
 END
-
-extern "C" %{
-
-%}

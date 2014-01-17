@@ -70,7 +70,7 @@ int dplasma_add2arena_contiguous( dague_arena_t *arena, size_t elem_size, size_t
                                   dague_datatype_t oldtype,
                                   unsigned int nb_elem, int resized );
 int dplasma_add2arena_rectangle( dague_arena_t *arena, size_t elem_size, size_t alignment,
-                                 dague_datatype_t oldtype, 
+                                 dague_datatype_t oldtype,
                                  unsigned int tile_mb, unsigned int tile_nb, int resized );
 int dplasma_add2arena_tile( dague_arena_t *arena, size_t elem_size, size_t alignment,
                             dague_datatype_t oldtype, unsigned int tile_mb );

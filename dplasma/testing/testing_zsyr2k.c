@@ -43,7 +43,7 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     M = N;
-    LDC = max(LDC, N);
+    LDC = dplasma_imax(LDC, N);
 
     if(!check)
     {

@@ -13,7 +13,7 @@
  *
  **/
 #include "dague.h"
-#include <plasma.h>
+#include <core_blas.h>
 #include "dplasma.h"
 #include "dplasmaf77.h"
 #include "data_dist/matrix/matrix.h"

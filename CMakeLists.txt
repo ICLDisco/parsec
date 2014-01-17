@@ -86,9 +86,9 @@ option(DAGUE_DIST_PRIORITIES
   "Favor the communications that unlock the most prioritary tasks" ON)
 option(DAGUE_DIST_COLLECTIVES
   "Use optimized asynchronous operations where collective communication pattern is detected" ON)
-set   (DAGUE_DIST_EAGER_LIMIT 0 CACHE STRING
+set   (DAGUE_DIST_EAGER_LIMIT 1 CACHE STRING
   "Use the eager protocol (no flow control) for messages smaller than the limit in KB")
-set   (DAGUE_DIST_SHORT_LIMIT 0 CACHE STRING
+set   (DAGUE_DIST_SHORT_LIMIT 1 CACHE STRING
   "Use the short protocol (no flow control) for messages smaller than the limit in KB")
 
 ### GPU engine parameters
@@ -503,6 +503,7 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
     # gfortran
     set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-fno-f2c -O0 -g")
+    list(APPEND EXTRA_LIBS gfortran)
   elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
     # ifort
     set (CMAKE_Fortran_FLAGS_RELEASE "-f77rtl -O3")
@@ -598,25 +599,38 @@ ENDIF( BUILD_DAGUE )
 # Now continue with compiling the tests.
 #
 
+# List of files that will go through documentation generation
+SET( PARSEC_ALL_SRCS "" CACHE INTERNAL "List of sources with internal documentation" )
+
 IF( BUILD_DPLASMA )
   add_subdirectory(dplasma)
 ENDIF ( BUILD_DPLASMA )
-IF( BUILD_TESTING AND BUILD_DAGUE )
+IF( DAGUE_DEBUG_BUILD_UNIT_TESTS AND BUILD_DAGUE )
   add_subdirectory(tests)
-ENDIF( BUILD_TESTING AND BUILD_DAGUE )
+ENDIF()
 
 # Configuration header
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
-install(FILES "${PROJECT_INCLUDE_DIR}/dague_config.h" DESTINATION include)
-install(FILES "include/dague.h" DESTINATION include)
+
+install(FILES
+  ${PROJECT_INCLUDE_DIR}/dague_config.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config_bottom.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/data_distribution.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/profiling.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/vpmap.h
+  DESTINATION include)
 
 # pkg-config file
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/dague.pc" @ONLY)
-install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc" DESTINATION include)
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
+  "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
+install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc" DESTINATION lib/pkgconfig)
 
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)
@@ -627,3 +641,6 @@ set (CPACK_PACKAGE_VERSION_MAJOR "${DAGUE_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${DAGUE_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "gamma")
 include (CPack)
+
+# build doxyegn documentation
+add_subdirectory(docs)

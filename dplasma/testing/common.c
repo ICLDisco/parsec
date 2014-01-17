@@ -12,7 +12,6 @@
 
 #include "common.h"
 #include "common_timing.h"
-#include <plasma.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -72,6 +71,7 @@ static char ** delimited_string_to_strings(char * const string_of_strings, char 
 
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
+double alpha = 1.;
 
 /**********************************
  * Command line arguments
@@ -107,7 +107,13 @@ void print_usage(void)
             "    --treel        : Tree used for low level reduction inside nodes. (specific to xgeqrf_param)\n"
             "    --treeh        : Tree used for high level reduction between nodes, only if qr_p > 1. (specific to xgeqrf_param)\n"
             "                      (0: Flat, 1: Greedy, 2: Fibonacci, 3: Binary)\n"
-
+            "\n"
+            "    --criteria     : Choice of the criteria to switch between LU and QR\n"
+            "                      (0: Alternate, 1: Higham, 2: MUMPS (specific to xgetrf_qrf)\n"
+            " -a --alpha        : Threshold to swith back to QR. (specific to xgetrf_qrf)\n"
+            "    --seed         : Set the seed for pseudo-random generator\n"
+            " -m --mtx          : Set the matrix generator (Default: 0, random)\n"
+            "\n"
             " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
             "    --mca-pins     : specify the Performance Instrumentation modules to be loaded (if available), separated by commas.\n"
@@ -160,7 +166,7 @@ void print_usage(void)
             dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:m::"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:m:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -220,6 +226,12 @@ static struct option long_options[] =
     {"treel",       required_argument,  0, 'l'},
     {"treeh",       required_argument,  0, 'L'},
 
+    /* LU-QR options */
+    {"criteria",    required_argument,  0, '1'},
+    {"alpha",       required_argument,  0, 'a'},
+    {"seed",        required_argument,  0, 'R'},
+    {"mtx",         required_argument,  0, 'm'},
+
     /* HERBT options */
     {"butlvl",      required_argument,  0, 'y'},
     {"y",           required_argument,  0, 'y'},
@@ -242,6 +254,10 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     int argc = *_argc;
     char **argv = *_argv;
     char *add_dot = NULL;
+
+    /* Default seed */
+    iparam[IPARAM_RANDOM_SEED] = 3872;
+    iparam[IPARAM_MATRIX_INIT] = PlasmaMatrixRandom;
 
     do {
 #if defined(HAVE_GETOPT_LONG)
@@ -315,11 +331,17 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
 
+            case 'R': iparam[IPARAM_RANDOM_SEED]  = atoi(optarg); break;
+            case 'm': iparam[IPARAM_MATRIX_INIT]  = atoi(optarg); break;
+
             case 'd': iparam[IPARAM_QR_DOMINO]    = atoi(optarg) ? 1 : 0; break;
             case 'r': iparam[IPARAM_QR_TSRR]      = atoi(optarg) ? 1 : 0; break;
 
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;
             case 'L': iparam[IPARAM_HIGHLVL_TREE] = atoi(optarg); break;
+
+                /* GETRF/QRF parameters */
+            case 'a': alpha = atof(optarg); break;
 
                 /* Butterfly parameters */
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
@@ -530,8 +552,8 @@ static void iparam_default(int* iparam)
     memset(iparam, 0, IPARAM_SIZEOF * sizeof(int));
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_NGPUS] = -1;
-    iparam[IPARAM_QR_DOMINO] = 1;
-    iparam[IPARAM_QR_TSRR] = 1;
+    iparam[IPARAM_QR_DOMINO] = 0;
+    iparam[IPARAM_QR_TSRR] = 0;
 }
 
 void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb)

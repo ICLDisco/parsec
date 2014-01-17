@@ -54,9 +54,9 @@ static int sym_twoDBC_memory_unregister(dague_ddesc_t* desc, struct dague_device
 
 static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
 {
-    unsigned int cr, m, n;
-    unsigned int rr;
-    unsigned int res;
+    int cr, m, n;
+    int rr;
+    int res;
     va_list ap;
     sym_two_dim_block_cyclic_t * Ddesc;
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
@@ -70,6 +70,9 @@ static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
     /* Offset by (i,j) to translate (m,n) in the global matrix */
     m += Ddesc->super.i / Ddesc->super.mb;
     n += Ddesc->super.j / Ddesc->super.nb;
+
+    assert( m < Ddesc->super.mt );
+    assert( n < Ddesc->super.nt );
 
     assert( (Ddesc->uplo == MatrixLower && m>=n) ||
             (Ddesc->uplo == MatrixUpper && n>=m) );
@@ -129,6 +132,9 @@ static dague_data_t* sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
     m += Ddesc->super.i / Ddesc->super.mb;
     n += Ddesc->super.j / Ddesc->super.nb;
 
+    assert( m < Ddesc->super.mt );
+    assert( n < Ddesc->super.nt );
+
 #if defined(DISTRIBUTED)
     assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));
 #endif
@@ -177,6 +183,9 @@ static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     /* Offset by (i,j) to translate (m,n) in the global matrix */
     m += Ddesc->super.i / Ddesc->super.mb;
     n += Ddesc->super.j / Ddesc->super.nb;
+
+    assert( m < Ddesc->super.mt );
+    assert( n < Ddesc->super.nt );
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));

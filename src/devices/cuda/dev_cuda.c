@@ -640,7 +640,72 @@ int dague_gpu_fini(void)
     dague_output_close(dague_cuda_output_stream);
     dague_cuda_output_stream = -1;
 
-    return DAGUE_SUCCESS;
+    for(i = 0; i < __dague_active_gpu; i++) {
+        if( NULL == (gpu_device = gpu_enabled_devices[i]) ) continue;
+        gpu_enabled_devices[i] = NULL;
+
+        status = cuCtxPushCurrent( gpu_device->ctx );
+        DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxPushCurrent ", status,
+                                {continue;} );
+        /*
+         * Release pending queue
+         */
+        dague_list_destruct(&gpu_device->pending);
+
+        /**
+         * Release all streams
+         */
+        for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
+            dague_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
+
+            exec_stream->max_events   = DAGUE_MAX_EVENTS_PER_STREAM;
+            exec_stream->executed     = 0;
+            exec_stream->start        = 0;
+            exec_stream->end          = 0;
+
+            for( k = 0; k < exec_stream->max_events; k++ ) {
+                assert( NULL == exec_stream->tasks[k] );
+                status = cuEventDestroy(exec_stream->events[k]);
+                DAGUE_CUDA_CHECK_ERROR( "(FINI) cuEventDestroy ", status,
+                                        {continue;} );
+            }
+            free(exec_stream->events); exec_stream->events = NULL;
+            free(exec_stream->tasks); exec_stream->tasks = NULL;
+            free(exec_stream->fifo_pending); exec_stream->fifo_pending = NULL;
+
+            /* Release the stream */
+            cudaStreamDestroy( exec_stream->cuda_stream );
+        }
+
+        free(gpu_device->exec_stream);
+
+        status = cuCtxDestroy( gpu_device->ctx );
+        DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxDestroy ", status,
+                                {continue;} );
+        gpu_device->ctx = NULL;
+
+        /*
+         * Release the GPU memory.
+         */
+        DAGUE_LIST_DESTRUCT(gpu_device->gpu_mem_lru);
+        DAGUE_LIST_DESTRUCT(gpu_device->gpu_mem_owned_lru);
+
+        free(gpu_device);
+
+    }
+    free(gpu_enabled_devices);
+    gpu_enabled_devices = NULL;
+
+    if( dague_gpu_allocation_initialized == 1 ) {
+        cuCtxDestroy( dague_allocate_on_gpu_context );
+        dague_gpu_allocation_initialized = 0;
+    }
+
+    free(device_load); device_load = NULL;
+    free(device_weight); device_weight = NULL;
+
+    __dague_active_gpu = 0;
+    return 0;
 }
 
 /*
@@ -740,10 +805,11 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             if( gpu_device->memory == NULL ) {
                 WARNING(("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!\n",
                          dague_context->my_rank, i));
+            } else {
+                DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
+                                      "GPU:\tAllocate %u segment of size %d on the GPU memory\n",
+                                      mem_elem_per_gpu, GPU_MALLOC_UNIT_SIZE ));
             }
-            DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
-                                  "GPU:\tAllocate %u segment of size %d on the GPU memory\n",
-                                  mem_elem_per_gpu, GPU_MALLOC_UNIT_SIZE ));
         }
 #endif
 
@@ -1007,8 +1073,8 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         cudaError_t status;
 
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
-                              "GPU:\tMove data <%x> (%p:%p) to GPU %d requested\n",
-                              original->key, in_elem->device_private, (void*)gpu_elem->device_private, gpu_device->cuda_index));
+                              "GPU:\tMove H2D data %x (H %p:D %p) %d bytes to GPU %d\n",
+                              key, memptr, (void*)gpu_elem->gpu_mem_ptr, length, gpu_device->device_index));
         /* Push data into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( (CUdeviceptr)gpu_elem->device_private,
                                                  in_elem->device_private, original->nb_elts, stream );
@@ -1092,8 +1158,9 @@ int progress_stream( gpu_device_t* gpu_device,
         exec_stream->tasks[exec_stream->start] = task;
         exec_stream->start = (exec_stream->start + 1) % exec_stream->max_events;
         DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
-                              "GPU: Event for task %s(task %p) priority %d requested\n",
-                              task->ec->function->name, (void*)task->ec, task->ec->priority ));
+                              "GPU: Submitted %s(task %p) priority %d on stream %p\n",
+                              task->ec->function->name, (void*)task->ec, task->ec->priority,
+                              (void*)exec_stream->cuda_stream));
     }
     task = NULL;
 
@@ -1123,8 +1190,8 @@ int progress_stream( gpu_device_t* gpu_device,
             /* Save the task for the next step */
             task = *out_task = exec_stream->tasks[exec_stream->end];
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
-                                  "GPU: Event for task %s(task %p) encountered\n",
-                                  task->ec->function->name, (void*)task->ec ));
+                                  "GPU: Complete %s(task %p) on stream %p\n", task->ec->function->name, (void*)task,
+                                  (void*)exec_stream->cuda_stream));
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
             DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable,

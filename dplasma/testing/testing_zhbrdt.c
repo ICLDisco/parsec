@@ -33,19 +33,18 @@ int main(int argc, char *argv[])
         fprintf(stderr, "!!! This algorithm works on a band 1D matrix. The value of P=%d has been overriden, the actual grid is %dx%d\n", P, 1, nodes);
 
     PASTE_CODE_FLOPS_COUNT(FADDS_ZHBRDT, FMULS_ZHBRDT, ((DagDouble_t)N));
-    PLASMA_Init(1);
 
     /*
-      PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-      sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-      nodes, rank, MB, NB, LDA, N, 0, 0,
-      N, N, P, MatrixLower))
-    */
+     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+     sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+     nodes, rank, MB, NB, LDA, N, 0, 0,
+     N, N, P, MatrixLower))
+     */
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
-                               MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
+                               two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                                                      nodes, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
+                                                      MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
 
     dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
 
@@ -79,37 +78,37 @@ int main(int argc, char *argv[])
                                                           0, 0, 2, NB*NT, 1, 1, 1));
         if(rank == 0) {
             for(int t = 0; t < NT; t++)
-                {
-                    int rsrc = ddescA.super.super.rank_of(0,t);
-                    if(rsrc == 0)
-                        {
-                            PLASMA_Complex64_t* datain = dague_data_copy_get_ptr(dague_data_get_copy(ddescA.super.super.data_of(0,t), 0));
-                            PLASMA_Complex64_t* dataout = dague_data_copy_get_ptr(dague_data_get_copy(ddescLA.super.super.data_of(0,t), 0));
-                            for(int n = 0; n < NB; n++) for(int m = 0; m < 2; m++)
-                                                            {
-                                                                dataout[m+n*2] = datain[m+n*(MB+1)];
-                                                            }
-                        }
-                    else
-                        {
-                            PLASMA_Complex64_t* dataout = dague_data_copy_get_ptr(dague_data_get_copy(ddescLA.super.super.data_of(0,t), 0));
-                            MPI_Recv(dataout, 2*NB, MPI_DOUBLE_COMPLEX, rsrc, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                        }
-                }
-        }
-        else
             {
-                MPI_Datatype bidiagband_dtt;
-                MPI_Type_vector(NB, 2, MB+1, MPI_DOUBLE_COMPLEX, &bidiagband_dtt);
-
-                for(int t = 0; t < NT; t++) {
-                    if(ddescA.super.super.rank_of(0,t) == (uint32_t)rank)
-                        {
-                            PLASMA_Complex64_t* datain = dague_data_copy_get_ptr(dague_data_get_copy(ddescA.super.super.data_of(0,t), 0));
-                            MPI_Send(datain, 1, bidiagband_dtt, 0, t, MPI_COMM_WORLD);
-                        }
+                int rsrc = ddescA.super.super.rank_of(0,t);
+                if(rsrc == 0)
+                {
+                    PLASMA_Complex64_t* datain = dague_data_copy_get_ptr(dague_data_get_copy(ddescA.super.super.data_of(0,t)));
+                    PLASMA_Complex64_t* dataout = dague_data_copy_get_ptr(dague_data_get_copy(ddescLA.super.super.data_of(0,t)));
+                    for(int n = 0; n < NB; n++) for(int m = 0; m < 2; m++)
+                                                {
+                                                    dataout[m+n*2] = datain[m+n*(MB+1)];
+                                                }
+                }
+                else
+                {
+                    PLASMA_Complex64_t* dataout = ddescLA.super.super.data_of(0,t);
+                    MPI_Recv(dataout, 2*NB, MPI_DOUBLE_COMPLEX, rsrc, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 }
             }
+        }
+        else
+        {
+            MPI_Datatype bidiagband_dtt;
+            MPI_Type_vector(NB, 2, MB+1, MPI_DOUBLE_COMPLEX, &bidiagband_dtt);
+
+            for(int t = 0; t < NT; t++) {
+                if(ddescA.super.super.rank_of(0,t) == (uint32_t)rank)
+                {
+                    PLASMA_Complex64_t* datain = dague_data_copy_get_ptr(dague_data_get_copy(ddescA.super.super.data_of(0,t)));
+                    MPI_Send(datain, 1, bidiagband_dtt, 0, t, MPI_COMM_WORLD);
+                }
+            }
+        }
 #endif  /* defined(DISTRIBUTED) */
     }
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
@@ -139,7 +138,7 @@ static int check_solution(int N, double *E1, double *E2, double eps)
         maxeig      = dplasma_fmax(maxtmp, maxeig);
         //printf("Residu: %f E1: %f E2: %f\n", Residual[i], E1[i], E2[i] );
         if (maxel < Residual[i])
-           maxel =  Residual[i];
+            maxel =  Residual[i];
     }
 
     //printf("maxel: %.16f maxeig: %.16f \n", maxel, maxeig );

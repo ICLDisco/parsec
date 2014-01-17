@@ -1,12 +1,12 @@
 prefix=@CMAKE_INSTALL_PREFIX@
-exec_prefix=${prefix}
+exec_prefix=${prefix}/bin
 libdir=${prefix}/lib
 includedir=${prefix}/include
 
-Name: DAGuE
-Description: Distributed DAG scheduling.
+Name: PaRSEC
+Description: Parallel Runtime Scheduling and Execution Controller
 Version: @DAGUE_VERSION_MAJOR@.@DAGUE_VERSION_MINOR@
-Requires: plasma
+Requires: coreblas
 Libs: -L${libdir} -ldague
 Libs.private:@HWLOC_LIBRARY@ @EXTRA_LIBS@
 Cflags: -I${includedir} -I@HWLOC_INCLUDE_DIR@

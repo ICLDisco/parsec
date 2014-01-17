@@ -130,7 +130,7 @@ typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_
  *
  */
 typedef void (dague_traverse_function_t)(struct dague_execution_unit_s *,
-                                         dague_execution_context_t *,
+                                         const dague_execution_context_t *,
                                          uint32_t,
                                          dague_ontask_function_t *,
                                          void *);
@@ -333,7 +333,6 @@ typedef struct {
     uint32_t action_mask;
     uint32_t output_usage;
     struct data_repo_entry_s *output_entry;
-    struct dague_remote_deps_s *deps;
     dague_execution_context_t** ready_lists;
 #if defined(DISTRIBUTED)
     struct dague_remote_deps_s *remote_deps;

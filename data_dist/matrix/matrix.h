@@ -18,8 +18,6 @@
 
 BEGIN_C_DECLS
 
-struct dague_object_t;
-
 enum matrix_type {
     matrix_Byte          = 0, /**< unsigned char  */
     matrix_Integer       = 1, /**< signed int     */
@@ -99,6 +97,19 @@ static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
 
 struct dague_execution_unit_s;
 typedef int (*dague_operator_t)( struct dague_execution_unit_s *eu, const void* src, void* dst, void* op_data, ... );
+
+typedef int (*tiled_matrix_unary_op_t )( dague_execution_unit_t *eu,
+                                         const tiled_matrix_desc_t *desc1,
+                                         void *data1,
+                                         int uplo, int m, int n,
+                                         void *args );
+
+typedef int (*tiled_matrix_binary_op_t)( dague_execution_unit_t *eu,
+                                         const tiled_matrix_desc_t *desc1,
+                                         const tiled_matrix_desc_t *desc2,
+                                         const void *data1, void *data2,
+                                         int uplo, int m, int n,
+                                         void *args );
 
 extern struct dague_handle_t*
 dague_map_operator_New(const tiled_matrix_desc_t* src,

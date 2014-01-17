@@ -10,6 +10,7 @@
 
 #include "dague_config.h"
 #include "dague/types.h"
+
 #include "profiling.h"
 
 #if defined(HAVE_STDARG_H)

@@ -6,13 +6,10 @@
 #ifndef __TWO_DIM_RECTANGLE_CYCLIC_H__
 #define __TWO_DIM_RECTANGLE_CYCLIC_H__
 
-#ifdef HAVE_MPI
-#include <mpi.h>
-#endif /* HAVE_MPI */
-
-#include "dague_config.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/grid_2Dcyclic.h"
+
+BEGIN_C_DECLS
 
 /*
  * General distribution of data. Suppose exists a matrix in process of mpi rank 0
@@ -95,5 +92,6 @@ int close_matrix_file(MPI_File * handle);
 
 #endif /* HAVE_MPI */
 
+END_C_DECLS
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

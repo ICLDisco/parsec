@@ -10,6 +10,7 @@ extern "C" %{
  *
  */
 
+#include "dague_internal.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/matrix.h"
 

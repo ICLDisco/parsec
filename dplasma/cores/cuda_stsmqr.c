@@ -15,7 +15,7 @@
 #include "fifo.h"
 #include "datarepo.h"
 
-#include <plasma.h>
+#include <core_blas.h>
 #include <cublas.h>
 
 #include "data_distribution.h"

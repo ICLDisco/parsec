@@ -9,17 +9,8 @@ extern "C" %{
  * @precisions normal z -> z c d s
  *
  */
-#define PRECISION_z
-
-#include <plasma.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
 
 %}
 
@@ -48,7 +39,7 @@ zsyrk(n, k)
              -> ((descA.nt==(k+1))) ? dataC(n,n)
 
 BODY
-
+{
     int tempnn = (n==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
     int tempkn = (k==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
     int ldan = BLKLDD( descA, n );
@@ -59,12 +50,11 @@ BODY
              "\t(uplo, trans, tempnn=%d, tempkn=%d, alpha, A(%d,%d)[%p], ldan=%d, zbeta, C(%d,%d)[%p], ldcn=%d)\n",
              n, k, tempnn, tempkn, n, k, A, ldan, n, n, C, ldcn );
 #if !defined(DAGUE_DRY_RUN)
-
     CORE_zsyrk(uplo, trans, tempnn, tempkn,
                alpha, A /* dataA(n,k) */, ldan,
                zbeta, C /* dataC(n,n) */, ldcn );
-#endif  /* !defined(DAGUE_DRY_RUN) */
-
+#endif /* !defined(DAGUE_DRY_RUN) */
+}
 END
 
 zsyrk_in_data_A0(n, k) [profile = off]
@@ -79,7 +69,9 @@ zsyrk_in_data_A0(n, k) [profile = off]
              -> A zsyrk(n, k)
 
 BODY
+{
     /* nothing */
+}
 END
 
 zgemm(n, m, k)
@@ -99,7 +91,7 @@ zgemm(n, m, k)
              -> ((descA.nt==(k+1))) ? dataC(n,m)
 
 BODY
-
+{
     int tempnn = (n==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
     int tempmm = ((m)==(descC.mt-1)) ? (descC.m-(m*descC.mb)) : descC.mb;
     int tempkn = (k==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
@@ -112,13 +104,13 @@ BODY
              "\t(trans, PlasmaTrans, tempnn, tempmm, tempkn, zalpha, A(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, zbeta, C(%d,%d)[%p], ldcn)\n",
              n, m, k, n, k, A, m, k, B, n, m, C);
 #if !defined(DAGUE_DRY_RUN)
-    CORE_zgemm(trans, PlasmaTrans, tempnn, 
-               tempmm, tempkn, alpha, 
-               A /* dataA(n,k) */, ldan, B /* dataA(m,k) */, 
-               ldam, zbeta, C /* dataC(n,m) */, 
-               ldcn);
-#endif  /* !defined(DAGUE_DRY_RUN) */
-
+    CORE_zgemm(trans, PlasmaTrans, tempnn,
+               tempmm, tempkn, alpha,
+               A /* dataA(n,k) */, ldan, B /* dataA(m,k) */,
+               ldam, zbeta, C /* dataC(n,m) */,
+               ldcn );
+#endif /* !defined(DAGUE_DRY_RUN) */
+}
 END
 
 zgemm_in_data_A1(m, k) [profile = off]
@@ -133,7 +125,9 @@ zgemm_in_data_A1(m, k) [profile = off]
              -> B zgemm(0..(descC.mt-2), m, k)
 
 BODY
+{
     /* nothing */
+}
 END
 
 zgemm_in_data_A0(n, k) [profile = off]
@@ -148,6 +142,7 @@ zgemm_in_data_A0(n, k) [profile = off]
              -> A zgemm(n, (n+1)..(descC.mt-1), k)
 
 BODY
+{
     /* nothing */
+}
 END
-

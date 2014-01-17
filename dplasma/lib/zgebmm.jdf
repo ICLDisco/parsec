@@ -1,27 +1,18 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
- * 
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <plasma.h>
-#include <core_blas.h>
-#include <string.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 #include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/butterfly_map.h"
 
 extern void RBMM_zTOP( int mb, int nb, int lda, int off, int lvl, int N, int trans,
@@ -53,7 +44,7 @@ GEBMM(i,j)
 
   : A(i,j)
 
-  /* Atl: A from Top Left */ 
+  /* Atl: A from Top Left */
   RW  Atl <- A GEBMM_Reader(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
           -> A GEBMM_Writer(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
 
@@ -75,7 +66,6 @@ BODY
   uintptr_t off_in_U, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
-  tiled_matrix_desc_t *tiled_A = descA.A_org;
 
   printlog( "GEBMM(%d, %d) (PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
              i, j, i, j, Atl);
@@ -83,8 +73,8 @@ BODY
   type = segment_to_type_index(descA.seg_info, i, j);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists ); (void)type_exists;
-  lda = tiled_A->mb; /* This is the mb of the tile */
-  segment_to_tile(&descA, tiled_A, i, j, &i_tile, &j_tile, &off_in_tile);
+  lda = descA.A_org->mb; /* This is the mb of the tile */
+  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
 
   /*
    * off_in_U is the beginning (vertically) of the segment as an absolute offest
@@ -92,7 +82,7 @@ BODY
    */
   off_in_U = i_tile*lda + off_in_tile%lda;
 
-  N = tiled_A->lm;
+  N = descA.A_org->lm;
   lvl = descA.level;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
@@ -109,7 +99,7 @@ but_debug ("-- GEBMM\n");
   RBMM_zBTM( mb_seg, nb_seg, lda, off_in_U, lvl, N, trans, Atr, Abr, p_elem_br, U);
 
   for(jj=0; jj<nb_seg; jj++){
-      uintptr_t off = (lda*jj) * sizeof(PLASMA_Complex64_t); 
+      uintptr_t off = (lda*jj) * sizeof(PLASMA_Complex64_t);
       sz = mb_seg * sizeof(PLASMA_Complex64_t);
       memcpy((void *)((uintptr_t)Atl+off), (void *)((uintptr_t)p_elem_tl+off), sz);
       memcpy((void *)((uintptr_t)Abl+off), (void *)((uintptr_t)p_elem_bl+off), sz);
@@ -182,5 +172,3 @@ BODY
 #endif
 
 END
-
-

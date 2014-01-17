@@ -15,10 +15,10 @@ if(CUDA_FOUND)
 
 ### CUDA .cu sources
     set( CUDA11_SOURCES
-         zgemm_11_12_13.cu 
+         zgemm_11_12_13.cu
     )
     set( CUDA13_SOURCES ${CUDA11_SOURCES} )
-    set( CUDA20_SOURCES 
+    set( CUDA20_SOURCES
          zgemm_20_30.cu
     )
     set( CUDA35_SOURCES ${CUDA11_SOURCES} )
@@ -26,12 +26,12 @@ if(CUDA_FOUND)
     foreach( _smtarget ${CUDA_SM_TARGETS} )
         set(cuda_generated_files "")
         precisions_rules_py(cuda_generated_files
-                            "${CUDA${_smtarget}_SOURCES}" 
+                            "${CUDA${_smtarget}_SOURCES}"
                             PRECISIONS "${DPLASMA_PRECISIONS}")
         foreach( _cudafile ${cuda_generated_files} )
             get_source_file_property(_IsInBinaryDir ${_cudafile} IS_IN_BINARY_DIR )
             if( _IsInBinaryDir )
-                string(REGEX REPLACE 
+                string(REGEX REPLACE
                         ${_cudafile}
                         ${CMAKE_CURRENT_BINARY_DIR}/${_cudafile}
                         cuda_generated_files "${cuda_generated_files}")
@@ -73,12 +73,16 @@ set(HEADERS
     dplasma_zcores.h
     ${GPU_KERNEL_HEADERS}
 )
+
 ### generate the dplasma_cores headers for all possible precisions
 precisions_rules_py(generated_headers
-                    "${HEADERS}"
-                    PRECISIONS "s;d;c;z")
+                 ${HEADERS}
+                 PRECISIONS "s;d;c;z")
 
-### Generate the dplasma wrappers for all required precisions 
+add_custom_target(dplasma_cores_includes ALL SOURCES
+    ${generated_headers} )
+
+### Generate the dplasma wrappers for all required precisions
 set(SOURCES
   core_ztrdv.c
   core_zhetrf2_nopiv.c
@@ -87,7 +91,7 @@ set(SOURCES
   core_ztrmdm.c
   core_zhetrf_nopiv.c
   core_zhebut.c
-  core_zplssq.c
+  core_zamax.c
   ${GPU_KERNEL_SOURCES}
 )
 precisions_rules_py(generated_files
@@ -95,11 +99,21 @@ precisions_rules_py(generated_files
                  PRECISIONS "${DPLASMA_PRECISIONS}")
 
 ### Generate the lib
+link_directories(${COREBLAS_LIBRARY_DIRS})
 add_library(dplasma_cores
-  ${generated_headers}
   ${generated_files}
 )
-target_link_libraries(dplasma_cores ${GPU_KERNEL_LIBS})
+
+target_link_libraries(dplasma_cores
+  ${GPU_KERNEL_LIBS}
+  ${COREBLAS_LIBRARIES}
+  ${EXTRA_LIBS}
+)
+
+add_dependencies(dplasma_cores
+         dplasma_includes
+         dplasma_cores_includes)
+
 install(TARGETS dplasma_cores
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)

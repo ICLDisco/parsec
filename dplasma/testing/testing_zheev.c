@@ -6,9 +6,8 @@
  * @precisions normal z -> s d c
  *
  */
-
 #include "common.h"
-#include "dague_internal.h"
+#include "flops.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/diag_band_to_rect.h"
@@ -24,72 +23,60 @@ static int check_solution(int N, double *E1, double *E2, double eps);
 
 int main(int argc, char *argv[])
 {
-    int j;
-    dague_context_t *dague;
+    dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaLower;
+    int j;
 
-     /* Set defaults for non argv iparams */
+    /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
-    //iparam_default_ibnbmb(iparam, 48, 144, 144);
     iparam_default_ibnbmb(iparam, 40, 120, 120);
-    iparam[IPARAM_SNB] = 1;
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    iparam[IPARAM_NGPUS] = 0;
-#endif
 
+    /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
-
     PASTE_CODE_FLOPS_COUNT(FADDS_ZHEEV, FMULS_ZHEEV, ((DagDouble_t)N));
 
-    PLASMA_Init(1);
-    PLASMA_Disable(PLASMA_AUTOTUNING);
-    PLASMA_Set(PLASMA_TILE_SIZE, MB);
+    /* initializing matrix structure */
+    LDA = dplasma_imax( LDA, N );
+    LDB = dplasma_imax( LDB, N );
+    SMB = 1;
+    SNB = 1;
 
- /*
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-         nodes, rank, MB, NB, LDA, N, 0, 0,
-         N, N, P, uplo))
-*/
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-         nodes, rank, MB, NB, LDA, N, 0, 0,
-         N, N, SMB, SMB, P))
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               N, N, SMB, SMB, P));
+    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
+        two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+                               MT*IB, N, SMB, SNB, P));
+
     /* Fill A with randomness */
-    dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA, 3872);
+    dplasma_zplghe( dague, (double)N, uplo,
+                    (tiled_matrix_desc_t *)&ddescA, 3872);
 #ifdef PRINTF_HEAVY
-    dplasma_zprint( dague, uplo, &ddescA);
+    dplasma_zprint( dague, uplo, (tiled_matrix_desc_t *)&ddescA );
 #endif
 
-/*
-    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
-         sym_two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble,
-         nodes, rank, IB, NB, MT*IB, N, 0, 0,
-         MT*IB, N, P, uplo))
-*/
-    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
-         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
-         nodes, rank, IB, NB, MT*IB, N, 0, 0,
-         MT*IB, N, SMB, SMB, P))
-
-    /* REDUCTION OF A TO BAND */
+    /* Step 1 - Reduction A to band matrix */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt,
-         (uplo, IB, (tiled_matrix_desc_t*)&ddescA, (tiled_matrix_desc_t*)&ddescT));
+                              (uplo, IB,
+                               (tiled_matrix_desc_t*)&ddescA,
+                               (tiled_matrix_desc_t*)&ddescT));
     PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
 #ifdef PRINTF_HEAVY
     dplasma_zprint( dague, uplo, &ddescA);
 #endif
 
-    /* CONVERSION OF A INTO BAND STORAGE */
+    /* Step 2 - Conversion of the tiled band to 1D band storage */
     PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1,
         two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble, matrix_Tile,
-        nodes, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
-        MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
+                               nodes, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
+                               MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
     SYNC_TIME_START();
     dague_diag_band_to_rect_handle_t* DAGUE_diag_band_to_rect = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
-            MT, NT, MB, NB, sizeof(matrix_ComplexDouble));
+                                                                                            MT, NT, MB, NB, sizeof(dague_complex64_t));
     dague_arena_t* arena = DAGUE_diag_band_to_rect->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA];
     dplasma_add2arena_tile(arena,
                            MB*NB*sizeof(dague_complex64_t),
@@ -102,9 +89,9 @@ int main(int argc, char *argv[])
     dplasma_zprint(dague, PlasmaUpperLower, &ddescBAND);
 #endif
 
-    /* REDUCTION TO BIDIAGONAL FORM */
+    /* Step 3 - Reduce band to bi-diag form */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zhbrdt, ((tiled_matrix_desc_t*)&ddescBAND));
-    PASTE_CODE_PROGRESS_KERNEL(dague, zhbrdt)
+    PASTE_CODE_PROGRESS_KERNEL(dague, zhbrdt);
 
     if( check ) {
         PLASMA_desc *plasmaDescA0;
@@ -122,13 +109,13 @@ int main(int argc, char *argv[])
 #if 0
             /* LAcpy doesn't handle differing tile sizes, so lets get simple here */
             PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1,
-                two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
-                nodes, rank, 2, N, 1, 1, 0, 0, 2, N, 1, 1, 1)); /* on rank 0 only */
+                                       two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
+                                                              nodes, rank, 2, N, 1, 1, 0, 0, 2, N, 1, 1, 1)); /* on rank 0 only */
 #else
             PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1,
-                two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
-                    1, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
-                    MB+1, (NB+2)*NT, 1, 1, 1 /* rank0 only */ ));
+                                       two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
+                                                              1, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
+                                                              MB+1, (NB+2)*NT, 1, 1, 1 /* rank0 only */ ));
 #endif
             dplasma_zlacpy(dague, PlasmaUpperLower, &ddescBAND.super, &ddescW.super);
             band = ddescW.mat;
@@ -176,13 +163,14 @@ int main(int argc, char *argv[])
         /* COMPUTE THE EIGENVALUES WITH LAPACK */
         /* Regenerate A (same random generator) into A0 */
         PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
-            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
-            1, rank, MB, NB, LDA, N, 0, 0,
-            N, N, 1, 1, 1))
+                                   two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
+                                                          1, rank, MB, NB, LDA, N, 0, 0,
+                                                          N, N, 1, 1, 1));
+
         PLASMA_Desc_Create(&plasmaDescA0, ddescA0.mat, PlasmaComplexDouble,
-            ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
-            ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
-            ddescA0.super.m, ddescA0.super.n);
+                           ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
+                           ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
+                           ddescA0.super.m, ddescA0.super.n);
         /* Fill A0 again */
         dplasma_zlaset( dague, PlasmaUpperLower, 0.0, 0.0, &ddescA0.super);
         dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
@@ -205,8 +193,8 @@ int main(int argc, char *argv[])
             /* Compute eigenvalues directly */
             TIME_START();
             LAPACKE_zheev( LAPACK_COL_MAJOR,
-                lapack_const(PlasmaNoVec), lapack_const(uplo),
-                N, A0, LDA, W0);
+                           lapack_const(PlasmaNoVec), lapack_const(uplo),
+                           N, A0, LDA, W0);
             TIME_PRINT(rank, ("LAPACK HEEV\n"));
 #ifdef PRINTF_HEAVY
             printf("########### A (after LAPACK direct eignesolver)\n");
@@ -273,8 +261,6 @@ int main(int argc, char *argv[])
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT);
 
     cleanup_dague(dague, iparam);
-
-    PLASMA_Finalize();
 
     return EXIT_SUCCESS;
 }

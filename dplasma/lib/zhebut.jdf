@@ -1,27 +1,18 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <plasma.h>
-#include <core_blas.h>
-#include <string.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 #include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/butterfly_map.h"
 
 /*
@@ -98,7 +89,6 @@ BODY
   uintptr_t i_seg, j_seg, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_br;
-  tiled_matrix_desc_t *tiled_A = descA.A_org;
 
   printlog("HEBUT_Diag(%d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
@@ -107,13 +97,13 @@ BODY
   type = segment_to_type_index(descA.seg_info, i, i);
   type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists ); (void)type_exists;
-  mb_tile = tiled_A->mb;
-  nb_tile = tiled_A->nb;
-  segment_to_tile(&descA, tiled_A, i, i, &i_tile, &j_tile, &off_in_tile);
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
+  segment_to_tile(&descA, i, i, &i_tile, &j_tile, &off_in_tile);
 
   i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
-  N = tiled_A->lm;
+  N = descA.A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
   p_elem_bl = dague_private_memory_pop( pool_0 );
@@ -201,7 +191,6 @@ BODY
   uintptr_t i_seg, j_seg, off_in_tile;
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
-  tiled_matrix_desc_t *tiled_A = descA.A_org;
 
   printlog("HEBUT_Lower(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
@@ -223,13 +212,13 @@ BODY
   fflush(stdout);
 #endif
   assert( type_exists ); (void)type_exists;
-  mb_tile = tiled_A->mb;
-  nb_tile = tiled_A->nb;
-  segment_to_tile(&descA, tiled_A, i, j, &i_tile, &j_tile, &off_in_tile);
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
+  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
 
   i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
-  N = tiled_A->lm;
+  N = descA.A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
   p_elem_bl = dague_private_memory_pop( pool_0 );
@@ -306,7 +295,6 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
-  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
 
   printlog("HEBUT_Reader_TL(%d, %d)\n"
@@ -316,10 +304,10 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_TL(%d,%d)\n",i,j);
 
-  mb_tile = tiled_A->mb;
-  nb_tile = tiled_A->nb;
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
 
-  segment_to_tile(&descA, tiled_A, i, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
@@ -363,7 +351,6 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
-  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
 
   printlog("HEBUT_Reader_BL(%d, %d)\n"
@@ -373,10 +360,10 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_BL(%d,%d)\n",i,j);
 
-  mb_tile = tiled_A->mb;
-  nb_tile = tiled_A->nb;
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
 
-  segment_to_tile(&descA, tiled_A, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(&descA, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
@@ -418,7 +405,6 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
-  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
 
   printlog("HEBUT_Reader_BR(%d, %d)\n"
@@ -428,10 +414,10 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_BR(%d,%d)\n",i,j);
 
-  mb_tile = tiled_A->mb;
-  nb_tile = tiled_A->nb;
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
 
-  segment_to_tile(&descA, tiled_A, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(&descA, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
@@ -470,7 +456,6 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
-  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
 
   printlog("HEBUT_Writer_TL(%d, %d)\n"
@@ -480,10 +465,10 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_TL(%d,%d)\n",i,j);
 
-  mb_tile = tiled_A->mb;
-  nb_tile = tiled_A->nb;
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
 
-  segment_to_tile(&descA, tiled_A, i, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
@@ -524,7 +509,6 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
-  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
 
   printlog("HEBUT_Writer_BL(%d, %d)\n"
@@ -534,10 +518,10 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_BL(%d,%d)\n",i,j);
 
-  mb_tile = tiled_A->mb;
-  nb_tile = tiled_A->nb;
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
 
-  segment_to_tile(&descA, tiled_A, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(&descA, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
@@ -576,7 +560,6 @@ BODY
   unsigned ii,jj;
   int i_tile, j_tile;
   uintptr_t off_in_tile;
-  tiled_matrix_desc_t *tiled_A = descA.A_org;
 #endif
 
   printlog("HEBUT_Writer_BR(%d, %d)\n"
@@ -586,10 +569,10 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_BR(%d,%d)\n",i,j);
 
-  mb_tile = tiled_A->mb;
-  nb_tile = tiled_A->nb;
+  mb_tile = descA.A_org->mb;
+  nb_tile = descA.A_org->nb;
 
-  segment_to_tile(&descA, tiled_A, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(&descA, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 

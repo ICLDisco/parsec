@@ -17,7 +17,6 @@
 /* Plasma and math libs */
 #include <math.h>
 #include <cblas.h>
-#include <plasma.h>
 #include <lapacke.h>
 #include <core_blas.h>
 /* dague things */
@@ -64,6 +63,8 @@ enum iparam_t {
   IPARAM_HIGHLVL_TREE, /* Tree used for reduction between nodes (specific to xgeqrf_param) */
   IPARAM_QR_TS_SZE,    /* Size of TS domain                     (specific to xgeqrf_param) */
   IPARAM_QR_HLVL_SZE,  /* Size of the high level tree           (specific to xgeqrf_param) */
+  IPARAM_RANDOM_SEED,  /* Seed for the pseudo-random generators */
+  IPARAM_MATRIX_INIT,  /* Matrix generator type */
   IPARAM_QR_DOMINO,    /* Enable/disable the domino between the upper and the lower tree (specific to xgeqrf_param) */
   IPARAM_QR_TSRR,      /* Enable/disable the round-robin on TS domain */
   IPARAM_BUT_LEVEL,    /* Butterfly level */
@@ -112,11 +113,14 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int check = iparam[IPARAM_CHECK];\
   int check_inv = iparam[IPARAM_CHECKINV];\
   int loud  = iparam[IPARAM_VERBOSE];\
+  int scheduler = iparam[IPARAM_SCHEDULER];\
+  int random_seed = iparam[IPARAM_RANDOM_SEED];\
+  int matrix_init = iparam[IPARAM_MATRIX_INIT];\
   int nb_local_tasks = 0;                                               \
   int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
   (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)KT;(void)SMB;(void)SNB;(void)check;(void)loud;\
-  (void)nb_local_tasks; (void)butterfly_level;(void)check_inv;
+  (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;(void)check_inv;(void)random_seed;(void)matrix_init;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
@@ -134,6 +138,10 @@ typedef double DagDouble_t;
 /*******************************
  * globals values
  *******************************/
+
+#if defined(HAVE_MPI)
+extern MPI_Datatype SYNCHRO;
+#endif  /* HAVE_MPI */
 
 extern const int side[2];
 extern const int uplo[2];
@@ -179,6 +187,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     nb_local_tasks = DAGUE_##KERNEL->nb_local_tasks;                    \
     if( loud > 2 ) SYNC_TIME_PRINT(rank, ( #KERNEL "\tDAG created\n"));
 
+
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
@@ -187,10 +196,8 @@ static inline int min(int a, int b) { return a < b ? a : b; }
         TIME_PRINT(rank, (#KERNEL "\t%d tasks computed,\t%f task/s rate\n",    \
                           nb_local_tasks,                               \
                           nb_local_tasks/time_elapsed));                \
-    else /* not loud, but still need to 'stop' time_elapsed */          \
-        TIME_STOP();                                                    \
-    SYNC_TIME_PRINT(rank, (#KERNEL " computation PxQ= %d %d N= %d NB= %d IB= %d : %f gflops\n", \
-                           P, Q, N, NB, IB,                             \
+    SYNC_TIME_PRINT(rank, (#KERNEL "\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n", \
+                           P, Q, NB, N,                                 \
                            gflops=(flops/1e9)/sync_time_elapsed));      \
     PROFILING_SAVE_dINFO("TIME_ELAPSED", time_elapsed);                 \
     PROFILING_SAVE_dINFO("SYNC_TIME_ELAPSED", sync_time_elapsed);       \
@@ -232,5 +239,6 @@ static inline int min(int a, int b) { return a < b ? a : b; }
                gflops);                                                 \
     }                                                                   \
     (void)gflops;
+
 
 #endif /* _TESTSCOMMON_H */

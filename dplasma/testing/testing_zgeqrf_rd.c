@@ -43,13 +43,6 @@ int main(int argc, char ** argv)
 
     seed = getpid();
 #if defined(HAVE_MPI)
-#if defined(DAGUE_DIST_COLLECTIVES)
-    if ( nodes > 1 ) {
-        fprintf(stderr, "Disable DAGUE_DIST_COLLECTIVES to run testing_zgeqrf_rd on multiple nodes\n");
-        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-    }
-#endif /* defined(DAGUE_DIST_COLLECTIVES) */
-
     /* If we are in a distributed run, broadcast the seed of rank 0 */
     MPI_Bcast(&seed, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif  /* defined(HAVE_MPI) */

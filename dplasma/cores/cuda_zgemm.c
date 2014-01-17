@@ -8,7 +8,8 @@
  */
 #include <dague_config.h>
 #include <stdlib.h>
-#include <plasma.h>
+#include <dlfcn.h>
+#include <core_blas.h>
 #include <core_blas.h>
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
@@ -21,6 +22,10 @@
 #include "data_dist/matrix/matrix.h"
 #include "dague/utils/output.h"
 #include "cuda_zgemm.h"
+
+#define flow_A  1
+#define flow_B  2
+#define flow_C  0
 
 #define KERNEL_NAME zgemm
 
@@ -204,13 +209,6 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     DAGUE_CUDA_CHECK_ERROR( "cuda_zgemm ", status,
                               {return -1;} );
 
-/*     fprintf(stderr, "cuda_zgemm( %d, %d, %d )\n\t( %c, %c, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n", */
-/*             this_task->locals[0].value, this_task->locals[1].value, this_task->locals[2].value, */
-/*             lapack_const( args->transA ),  lapack_const( args->transB ), */
-/*             args->M, args->N, args->K, */
-/*             args->alpha, args->Am, args->An, (dague_complex64_t*)d_A, args->lda, */
-/*                          args->Bm, args->Bn, (dague_complex64_t*)d_B, args->ldb, */
-/*             args->beta,  args->Cm, args->Cn, (dague_complex64_t*)d_C, args->ldc); */
     return 0;
 }
 
@@ -266,8 +264,8 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             if( args->pushout ) {  /* n == (k + 1) */
                 original = gpu_copy->original;
                 DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
-                                      "GPU:\tMove data <%x> from GPU %d %p -> %p requested\n",
-                                      original->key, gpu_device->cuda_index,
+                                      "GPU:\tMove D2H data <%x> from GPU %d %p -> %p requested\n",
+                                      this_task->function->in[i]->name, original->key, gpu_device->cuda_index,
                                       (void*)gpu_copy->device_private, original->device_copies[0]->device_private));
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                                          gpu_stream->profiling,
@@ -276,7 +274,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                                                                     this_task->function->function_id) :
                                           gpu_stream->prof_event_key_start),
                                          this_task);
-                /* TODO: Move the data back into main memory, but not always on the first device (!) */
+                /* Move the data back into main memory */
                 status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
                                                          (CUdeviceptr)gpu_copy->device_private,
                                                          original->nb_elts, gpu_stream->cuda_stream );

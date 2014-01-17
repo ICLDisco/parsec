@@ -16,7 +16,7 @@
 #include <lapacke.h>
 #include <math.h>
 #include "dague_config.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 
 #if defined(HAVE_STRING_H)
@@ -30,9 +30,8 @@
 #include <limits.h>
 #endif
 
-#include "plasma.h"
-#include "cblas.h"
-#include "core_blas.h"
+#include <cblas.h>
+#include <core_blas.h>
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))

@@ -1,16 +1,15 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> s d c
  *
  */
-
 #include "dague_internal.h"
-#include <plasma.h>
 #include "dplasma.h"
-#include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/dplasmatypes.h"
 
 #include "ztrsm_LLN.h"
@@ -22,12 +21,14 @@
 #include "ztrsm_RUN.h"
 #include "ztrsm_RUT.h"
 
-/***************************************************************************//**
+/**
+ *******************************************************************************
  *
  * @ingroup dplasma_Complex64_t
  *
  *  dplasma_ztrsm_New - Generates dague object to compute triangular solve
  *     op( A ) * X = B or X * op( A ) = B
+ *  WARNING: The computations are not done by this call.
  *
  *******************************************************************************
  *
@@ -42,7 +43,7 @@
  *          = PlasmaUpper: Upper triangle of A is stored;
  *          = PlasmaLower: Lower triangle of A is stored.
  *
- * @param[in] transA
+ * @param[in] trans
  *          Specifies whether the matrix A is transposed, not transposed or
  *          conjugate transposed:
  *          = PlasmaNoTrans:   A is transposed;
@@ -53,6 +54,9 @@
  *          Specifies whether or not A is unit triangular:
  *          = PlasmaNonUnit: A is non unit;
  *          = PlasmaUnit:    A us unit.
+ *
+ * @param[in] alpha
+ *          alpha specifies the scalar alpha
  *
  * @param[in] A
  *          Descriptor of the triangular matrix A of size N-by-N.
@@ -72,24 +76,26 @@
  *******************************************************************************
  *
  * @return
- *          \retval The dague object which describes the operation to perform
- *                  NULL if one of the parameter is incorrect
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_ztrsm_Destruct();
  *
  *******************************************************************************
  *
  * @sa dplasma_ztrsm
  * @sa dplasma_ztrsm_Destruct
- * @sa dplasma_ctrsm
- * @sa dplasma_dtrsm
- * @sa dplasma_strsm
+ * @sa dplasma_ctrsm_New
+ * @sa dplasma_dtrsm_New
+ * @sa dplasma_strsm_New
  *
  ******************************************************************************/
 dague_handle_t*
-dplasma_ztrsm_New(const PLASMA_enum side,  const PLASMA_enum uplo,
-                  const PLASMA_enum trans, const PLASMA_enum diag,
-                  const dague_complex64_t alpha,
-                  const tiled_matrix_desc_t *A,
-                  tiled_matrix_desc_t *B )
+dplasma_ztrsm_New( PLASMA_enum side,  PLASMA_enum uplo,
+                   PLASMA_enum trans, PLASMA_enum diag,
+                   dague_complex64_t alpha,
+                   const tiled_matrix_desc_t *A,
+                   tiled_matrix_desc_t *B )
 {
     dague_handle_t *dague_trsm = NULL;
 
@@ -98,25 +104,25 @@ dplasma_ztrsm_New(const PLASMA_enum side,  const PLASMA_enum uplo,
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_handle_t*)dague_ztrsm_LLN_new(
                     side, uplo, trans, diag, alpha,
-                    *A, (dague_ddesc_t*)A,
-                    *B, (dague_ddesc_t*)B);
+                    (dague_ddesc_t*)A,
+                    (dague_ddesc_t*)B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_handle_t*)dague_ztrsm_LLT_new(
                     side, uplo, trans, diag, alpha,
-                    *A, (dague_ddesc_t*)A,
-                    *B, (dague_ddesc_t*)B);
+                    (dague_ddesc_t*)A,
+                    (dague_ddesc_t*)B);
             }
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_handle_t*)dague_ztrsm_LUN_new(
                     side, uplo, trans, diag, alpha,
-                    *A, (dague_ddesc_t*)A,
-                    *B, (dague_ddesc_t*)B);
+                    (dague_ddesc_t*)A,
+                    (dague_ddesc_t*)B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_handle_t*)dague_ztrsm_LUT_new(
                     side, uplo, trans, diag, alpha,
-                    *A, (dague_ddesc_t*)A,
-                    *B, (dague_ddesc_t*)B);
+                    (dague_ddesc_t*)A,
+                    (dague_ddesc_t*)B);
             }
         }
     } else { /* side == PlasmaRight */
@@ -124,25 +130,25 @@ dplasma_ztrsm_New(const PLASMA_enum side,  const PLASMA_enum uplo,
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_handle_t*)dague_ztrsm_RLN_new(
                     side, uplo, trans, diag, alpha,
-                    *A, (dague_ddesc_t*)A,
-                    *B, (dague_ddesc_t*)B);
+                    (dague_ddesc_t*)A,
+                    (dague_ddesc_t*)B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_handle_t*)dague_ztrsm_RLT_new(
                     side, uplo, trans, diag, alpha,
-                    *A, (dague_ddesc_t*)A,
-                    *B, (dague_ddesc_t*)B);
+                    (dague_ddesc_t*)A,
+                    (dague_ddesc_t*)B);
             }
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_handle_t*)dague_ztrsm_RUN_new(
                     side, uplo, trans, diag, alpha,
-                    *A, (dague_ddesc_t*)A,
-                    *B, (dague_ddesc_t*)B);
+                    (dague_ddesc_t*)A,
+                    (dague_ddesc_t*)B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_handle_t*)dague_ztrsm_RUT_new(
                     side, uplo, trans, diag, alpha,
-                    *A, (dague_ddesc_t*)A,
-                    *B, (dague_ddesc_t*)B);
+                    (dague_ddesc_t*)A,
+                    (dague_ddesc_t*)B);
             }
         }
     }
@@ -155,25 +161,24 @@ dplasma_ztrsm_New(const PLASMA_enum side,  const PLASMA_enum uplo,
     return dague_trsm;
 }
 
-/***************************************************************************//**
+/**
+ *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64_t
  *
- *  dplasma_ztrsm_Destruct - Clean the data structures associated to a
- *  ztrsm dague object.
+ *  dplasma_ztrsm_Destruct - Free the data structure associated to an object
+ *  created with dplasma_ztrsm_New().
  *
  *******************************************************************************
  *
- * @param[in] o
- *          Object to destroy.
+ * @param[in,out] o
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
  *
  *******************************************************************************
  *
  * @sa dplasma_ztrsm_New
  * @sa dplasma_ztrsm
- * @sa dplasma_ctrsm_Destruct
- * @sa dplasma_dtrsm_Destruct
- * @sa dplasma_strsm_Destruct
  *
  ******************************************************************************/
 void
@@ -185,27 +190,70 @@ dplasma_ztrsm_Destruct( dague_handle_t *o )
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
-/***************************************************************************//**
+/**
+ *******************************************************************************
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_ztrsm - Synchronous version of dplasma_ztrsm_New
+ *  dplasma_ztrsm - Computes triangular solve
+ *     op( A ) * X = B or X * op( A ) = B
  *
  *******************************************************************************
  *
- * @param[in] dague
- *          Dague context to which submit the DAG object.
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] side
+ *          Specifies whether A appears on the left or on the right of X:
+ *          = PlasmaLeft:  op( A ) * X = B
+ *          = PlasmaRight: X * op( A ) = B
+ *
+ * @param[in] uplo
+ *          Specifies whether the matrix A is upper triangular or lower
+ *          triangular:
+ *          = PlasmaUpper: Upper triangle of A is stored;
+ *          = PlasmaLower: Lower triangle of A is stored.
+ *
+ * @param[in] trans
+ *          Specifies whether the matrix A is transposed, not transposed or
+ *          conjugate transposed:
+ *          = PlasmaNoTrans:   A is transposed;
+ *          = PlasmaTrans:     A is not transposed;
+ *          = PlasmaConjTrans: A is conjugate transposed.
+ *
+ * @param[in] diag
+ *          Specifies whether or not A is unit triangular:
+ *          = PlasmaNonUnit: A is non unit;
+ *          = PlasmaUnit:    A us unit.
+ *
+ * @param[in] alpha
+ *          alpha specifies the scalar alpha
+ *
+ * @param[in] A
+ *          Descriptor of the triangular matrix A of size N-by-N.
+ *          If uplo = PlasmaUpper, the leading N-by-N upper triangular part of
+ *          the array A contains the upper triangular matrix, and the strictly
+ *          lower triangular part of A is not referenced. If uplo = PlasmaLower,
+ *          the leading N-by-N lower triangular part of the array A contains the
+ *          lower triangular matrix, and the strictly upper triangular part of A
+ *          is not referenced. If diag = PlasmaUnit, the diagonal elements of A
+ *          are also not referenced and are assumed to be 1.
+ *
+ * @param[in,out] B
+ *          Descriptor of the N-by-NRHS right hand side B
+ *          On entry, the N-by-NRHS right hand side matrix B.
+ *          On exit, if return value = 0, the N-by-NRHS solution matrix X.
  *
  *******************************************************************************
  *
  * @return
- *          \retval 0 if success
- *          \retval <0 if -i, the i-th argument had an illegal value
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
  *
  *******************************************************************************
  *
- * @sa dplasma_ztrsm_Destruct
  * @sa dplasma_ztrsm_New
+ * @sa dplasma_ztrsm_Destruct
  * @sa dplasma_ctrsm
  * @sa dplasma_dtrsm
  * @sa dplasma_strsm
@@ -213,9 +261,9 @@ dplasma_ztrsm_Destruct( dague_handle_t *o )
  ******************************************************************************/
 int
 dplasma_ztrsm( dague_context_t *dague,
-               const PLASMA_enum side, const PLASMA_enum uplo,
-               const PLASMA_enum trans, const PLASMA_enum diag,
-               const dague_complex64_t alpha,
+               PLASMA_enum side,  PLASMA_enum uplo,
+               PLASMA_enum trans, PLASMA_enum diag,
+               dague_complex64_t alpha,
                const tiled_matrix_desc_t *A,
                tiled_matrix_desc_t *B)
 {
@@ -223,30 +271,39 @@ dplasma_ztrsm( dague_context_t *dague,
 
     /* Check input arguments */
     if (side != PlasmaLeft && side != PlasmaRight) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of side");
+        dplasma_error("dplasma_ztrsm", "illegal value of side");
         return -1;
     }
     if (uplo != PlasmaUpper && uplo != PlasmaLower) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of uplo");
+        dplasma_error("dplasma_ztrsm", "illegal value of uplo");
         return -2;
     }
     if (trans != PlasmaConjTrans && trans != PlasmaNoTrans && trans != PlasmaTrans ) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of trans");
+        dplasma_error("dplasma_ztrsm", "illegal value of trans");
         return -3;
     }
     if (diag != PlasmaUnit && diag != PlasmaNonUnit) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of diag");
+        dplasma_error("dplasma_ztrsm", "illegal value of diag");
         return -4;
     }
 
-   dague_ztrsm = dplasma_ztrsm_New(side, uplo, trans, diag, alpha, A, B);
+    if ( (A->m != A->n) ||
+         (( side == PlasmaLeft )  && (A->n != B->m)) ||
+         (( side == PlasmaRight ) && (A->n != B->n)) ) {
+        dplasma_error("dplasma_ztrsm", "illegal matrix A");
+        return -6;
+    }
+
+    dague_ztrsm = dplasma_ztrsm_New(side, uplo, trans, diag, alpha, A, B);
 
     if ( dague_ztrsm != NULL )
     {
         dague_enqueue( dague, dague_ztrsm );
         dplasma_progress( dague );
-
         dplasma_ztrsm_Destruct( dague_ztrsm );
+        return 0;
     }
-    return 0;
+    else {
+        return -101;
+    }
 }

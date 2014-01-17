@@ -1,0 +1,95 @@
+extern "C" %{
+/*
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ *
+ */
+#include "dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+/*
+ * Globals
+ */
+uplo     [type = PLASMA_enum]
+dataA    [type = "dague_ddesc_t *"]
+operator [type = "tiled_matrix_unary_op_t" ]
+op_args  [type = "void *" ]
+
+descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
+plasma_upper [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
+plasma_lower [type="PLASMA_enum" hidden=on default=PlasmaLower ]
+
+MAP_L(m, n)  [profile = off]
+  // Execution space
+  m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
+  n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
+
+  // Parallel partitioning
+  : dataA(m, n)
+
+  // Parameters
+  RW    A <- dataA(m, n)
+          -> dataA(m, n)
+
+BODY
+{
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), A,
+              PlasmaUpperLower, m, n, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
+
+    printlog("thread %d VP %d map_l( %d, %d )\n",
+             context->th_id, context->virtual_process->vp_id, m, n );
+}
+END
+
+MAP_U(m, n)  [profile = off]
+  // Execution space
+  m = 0   .. descA.mt-1
+  n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
+
+  // Parallel partitioning
+  : dataA(m, n)
+
+  // Parameters
+  RW    A <- dataA(m, n)
+          -> dataA(m, n)
+
+BODY
+{
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), A,
+              PlasmaUpperLower, m, n, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
+
+    printlog("thread %d VP %d map_u( %d, %d )\n",
+             context->th_id, context->virtual_process->vp_id, m, n );
+}
+END
+
+MAP_DIAG(k) [profile = off]
+  // Execution space
+  k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
+
+  // Parallel partitioning
+  : dataA(k, k)
+
+  // Parameters
+  RW    A <- dataA(k, k)
+          -> dataA(k, k)
+
+BODY
+{
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), A,
+              uplo, k, k, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
+
+    printlog("thread %d VP %d map_diag( %d, %d )\n",
+             context->th_id, context->virtual_process->vp_id, k, k );
+}
+END

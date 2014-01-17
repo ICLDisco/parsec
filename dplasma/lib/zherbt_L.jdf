@@ -1,25 +1,17 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> s d c
  *
  */
-#define PRECISION_z
-
-#include <plasma.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_distribution.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
 
 %}
 
@@ -42,7 +34,7 @@ bcast_zgeqrt(k)
   READ A <- A zgeqrt(k)
          -> (descA.mt>=(k+3)) ? F zunmqr(k, (k+2)..(descA.mt-1))
   READ B <- B zgeqrt(k) [type=LITTLE_T]
-         -> (descA.mt>=(k+3)) ? G zunmqr(k, (k+2)..(descA.mt-1)) [type = LITTLE_T]  
+         -> (descA.mt>=(k+3)) ? G zunmqr(k, (k+2)..(descA.mt-1)) [type = LITTLE_T]
 BODY
  /* */
 END

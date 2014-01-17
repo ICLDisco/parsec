@@ -1,35 +1,25 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
  *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * @precisions normal z -> c d s
  *
- * @precisions normal z -> s d c
+ * WARNING: This jdf works only in 1D distribution, and doesn't respect dataflow.
  *
  */
-#define PRECISION_z
-
-#include <plasma.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/memory_pool.h"
-#include "dplasma/lib/dplasmajdf.h"
-
-PLASMA_desc plasma_desc_init(PLASMA_enum dtyp, int mb, int nb, int bsiz,
-                             int lm, int ln, int i, int j, int m, int n);
 
 %}
 
 /** Globals */
-descA     [type = "tiled_matrix_desc_t"]
-A         [type = "dague_ddesc_t *"]
-descIP    [type = "tiled_matrix_desc_t"]
-IPIV      [type = "dague_ddesc_t *"]
+dataA     [type = "dague_ddesc_t *"]
+descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+dataIP    [type = "dague_ddesc_t *"]
+descIP    [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataIP)"]
 inc       [type = "int"]
 
 /************************************************************************************
@@ -39,13 +29,15 @@ inc       [type = "int"]
 LASWP_IPIV_in(k) [profile = off]
   k = 0..descIP.nt-1
 
-:IPIV(0, k)
+:dataIP(0, k)
 
-READ IP <- IPIV(0, k)                     [type = PIVOT]
+READ IP <- dataIP(0, k)                         [type = PIVOT]
         -> IPIV LASWP_laswp(k, 0..descA.nt-1)   [type = PIVOT]
 
 BODY
-    /**/
+{
+    /* Nothing */
+}
 END
 
 
@@ -55,38 +47,38 @@ LASWP_laswp(k, n)
   n = 0..descA.nt-1
 
   /* Locality */
-  :A(k, n)
+  :dataA(k, n)
 
-  READ  A    <- A(k, n)
-  READ  IPIV <- IP LASWP_IPIV_in(k)                              [type = PIVOT]
+  READ  A    <- dataA(k, n)
+  READ  IPIV <- IP LASWP_IPIV_in(k)             [type = PIVOT]
   CTL   ctl  <- ( (inc > 0) && (k > 0 )          ) ? ctl LASWP_laswp(k-1, n)
              <- ( (inc < 0) && (k < descIP.nt-1 )) ? ctl LASWP_laswp(k+1, n)
              -> ( (inc > 0) && (k < descIP.nt-1 )) ? ctl LASWP_laswp(k+1, n)
              -> ( (inc < 0) && (k > 0 )          ) ? ctl LASWP_laswp(k-1, n)
 
 BODY
-
+{
 #if !defined(DAGUE_DRY_RUN)
-    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-    int ldak = BLKLDD(descA, k);
+        int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+        int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+        int ldak = BLKLDD(descA, k);
 
-    if ( descA.storage == matrix_Tile ) {
-        int tempk = k * descA.mb;
-        int tempm = descA.m - tempk;
-        PLASMA_desc pdescA = plasma_desc_init(PlasmaComplexDouble,
-                                              descA.mb, descA.nb, descA.mb * descA.nb,
-                                              ( descA.mt-k)*descA.mb, descA.nb, 0, 0,
-                                              tempm, tempnn);
-        pdescA.mat = A;
-        CORE_zlaswp_ontile( pdescA, 1, tempkm, IPIV, 1);
-    } else {
-        CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc);
-    }
-#endif  /* !defined(DAGUE_DRY_RUN) */
+        if ( descA.storage == matrix_Tile ) {
+            int tempk = k * descA.mb;
+            int tempm = descA.m - tempk;
+            PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
+                                                   descA.mb, descA.nb, descA.mb * descA.nb,
+                                                   ( descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                                   tempm, tempnn);
+            pdescA.mat = A;
+            CORE_zlaswp_ontile( pdescA, 1, tempkm, IPIV, 1);
+        } else {
+            CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc );
+        }
+#endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("thread %d   CORE_zlaswp(%d, %d)\n"
              "\t(%d, A(%d,%d)[%p], %d, %d, %d, IPIV(%d)[%p], %d)\n",
              context->th_id, k, n, tempnn, k, n, A, ldak, 1, tempkm, k, IPIV, inc);
-
+}
 END

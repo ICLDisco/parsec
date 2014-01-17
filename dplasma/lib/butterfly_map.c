@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include "dague_internal.h"
 #include "dplasma/lib/butterfly_map.h"
 
 seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, int ib, int jb){
@@ -173,100 +174,15 @@ seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, in
     return seg;
 }
 
-void tile_to_segment(const dague_seg_ddesc_t *seg_ddesc, const tiled_matrix_desc_t *tiledA, int m_tile, int n_tile, int *m_seg, int *n_seg, int *seg_cnt_m, int *seg_cnt_n){
+void segment_to_tile(const dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset){
     seg_info_t seg;
     int mb, nb;
     int abs_m=0, abs_n=0;
     int right=0, bottom=0;
 
     seg = seg_ddesc->seg_info;
-    mb = tiledA->mb;
-    nb = tiledA->nb;
-
-    abs_m = m_tile*mb;
-    abs_n = n_tile*nb;
-
-    /* map it to the top left quadrant, and store the actual quadrant */
-    if( abs_n > seg.mpn ){
-        right = 1;
-        abs_n -= (seg.mpn-seg.spn); /* subtract the size of a quadrant */
-    }
-    if( abs_m > seg.mpm ){
-        bottom = 1;
-        abs_m -= (seg.mpm-seg.spm); /* subtract the size of a quadrant */
-    }
-
-
-    /* Horizontal */
-    int right_type_start = seg.mpn - (seg.r_sz.n1 + seg.r_sz.n2);
-    int center_type_h_start = seg.spn + seg.l_sz.n1 + seg.l_sz.n2;
-
-    if( abs_n >= right_type_start ){ /* segments on the right edge */
-        *n_seg = seg.l_cnt.n+seg.c_seg_cnt_n;
-        *seg_cnt_n = seg.r_cnt.n;
-    }else if( abs_n >= center_type_h_start ){ /* segments in the center */
-        *n_seg = seg.l_cnt.n + seg.c_cnt.n*(abs_n-center_type_h_start)/nb;
-        /* the mapping to the top left quadrant could make abs_n not be in multiples of tile size */
-        if( (abs_n-center_type_h_start) % nb ){
-            *n_seg = *n_seg+1;
-        }
-        *seg_cnt_n = seg.c_cnt.n;
-    }else{ /* segments on the left edge */
-        *n_seg = 0;
-        *seg_cnt_n = seg.l_cnt.n;
-    }
-
-
-
-    /* Vertical */
-    int bottom_type_start = seg.mpm - (seg.b_sz.m1 + seg.b_sz.m2);
-    int center_type_v_start = seg.spm + seg.t_sz.m1 + seg.t_sz.m2;
-
-    if( abs_m >= bottom_type_start ){ /* segments on the bottom edge */
-        *m_seg = seg.t_cnt.m+seg.c_seg_cnt_m;
-        *seg_cnt_m = seg.b_cnt.m;
-    }else if( abs_m >= center_type_v_start ){ /* segments in the center */
-        *m_seg = seg.t_cnt.m+seg.c_cnt.m*(abs_m-center_type_v_start)/mb;
-        /* the mapping to the top left quadrant could make abs_m not be in multiples of tile size */
-        if( (abs_m-center_type_v_start) % mb ){
-            *m_seg = *m_seg+1;
-        }
-        *seg_cnt_m = seg.c_cnt.m;
-    }else{
-        *m_seg = 0;
-        *seg_cnt_m = seg.t_cnt.m;
-    }
-
-
-    /* map map to the correct quadrant */
-    if( right ){
-        n_seg += seg.tot_seg_cnt_n/2;
-    }
-    if( bottom ){
-        m_seg += seg.tot_seg_cnt_m/2;
-    }
-
-    /* sanity checks */
-    assert( (*n_seg < seg.tot_seg_cnt_n) && (*m_seg < seg.tot_seg_cnt_m) );
-#if defined(DAGUE_DEBUG_ENABLE)
-    int m_t, n_t;
-    uintptr_t off;
-    segment_to_tile(seg_ddesc, seg_ddesc->A_org, *m_seg, *n_seg, &m_t, &n_t, &off);
-    assert( (m_t == m_tile) && (n_t == n_tile) );
-#endif
-
-    return;
-}
-
-void segment_to_tile(const dague_seg_ddesc_t *seg_ddesc, const tiled_matrix_desc_t *tiledA, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset){
-    seg_info_t seg;
-    int mb, nb;
-    int abs_m=0, abs_n=0;
-    int right=0, bottom=0;
-
-    seg = seg_ddesc->seg_info;
-    mb = tiledA->mb;
-    nb = tiledA->nb;
+    mb = seg_ddesc->A_org->mb;
+    nb = seg_ddesc->A_org->nb;
 
     if( n >= seg.tot_seg_cnt_n || m >= seg.tot_seg_cnt_m ){
         fprintf(stderr,"invalid segment coordinates\n");
@@ -309,7 +225,7 @@ void segment_to_tile(const dague_seg_ddesc_t *seg_ddesc, const tiled_matrix_desc
         }
     }else if( m < (seg.t_cnt.m+seg.c_seg_cnt_m) ){ /* center */
         abs_m = seg.spm + seg.t_sz.m1 + seg.t_sz.m2;
-        abs_m += ((m-seg.t_cnt.m)/seg.c_cnt.m)*mb;
+        abs_m += ((m-seg.t_cnt.m)/seg.c_cnt.m)*nb;
         if( (m-seg.t_cnt.m) % seg.c_cnt.m ){
             abs_m += seg.c_sz.m1;
         }
