@@ -515,9 +515,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(DAGUE_PROF_TRACE)
     if( dague_profiling_init( ) == 0 ) {
         int i, l;
-        char *cmdline_info;
+        char *cmdline_info = basename(dague_app_name);
 
-        if( dague_profiling_dbp_start( basename(dague_app_name), dague_app_name ) != 0 ) {
+        if( dague_profiling_dbp_start( cmdline_info, dague_app_name ) != 0 ) {
             fprintf(stderr, "*** %s. Profile deactivated.\n", dague_profiling_strerror());
         }
 
