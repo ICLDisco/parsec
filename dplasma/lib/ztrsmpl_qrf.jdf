@@ -10,7 +10,7 @@ extern "C" %{
  *
  */
 #include <pthread.h>
-#include "dplasmajdf.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
@@ -589,7 +589,7 @@ BODY
             }
         }
     }
-    dague_object_dec_nbtask( this_task->dague_object, nb_tasks );
+    dague_handle_dec_nbtask( this_task->dague_handle, nb_tasks );
 
 }
 END

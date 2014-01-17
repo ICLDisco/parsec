@@ -103,7 +103,7 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
                                          (dague_ddesc_t*)B );
     }
     else {
-        dague_trsmpl = (dague_ztrsmpl_object_t*)
+        dague_trsmpl = (dague_ztrsmpl_handle_t*)
             dague_ztrsmpl_sd_new( (dague_ddesc_t*)A,
                                   (dague_ddesc_t*)L,
                                   NULL,

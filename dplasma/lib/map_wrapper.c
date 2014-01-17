@@ -65,13 +65,13 @@
  * @sa dplasma_map_Destruct
  *
  ******************************************************************************/
-dague_object_t *
+dague_handle_t *
 dplasma_map_New( PLASMA_enum uplo,
                  tiled_matrix_desc_t *A,
                  tiled_matrix_unary_op_t operator,
                  void *op_args )
 {
-    dague_map_object_t *dague_map = NULL;
+    dague_map_handle_t *dague_map = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&
@@ -117,7 +117,7 @@ dplasma_map_New( PLASMA_enum uplo,
                                 DAGUE_ARENA_ALIGNMENT_SSE,
                                 MPI_INT, A->mb);
     }
-    return (dague_object_t*)dague_map;
+    return (dague_handle_t*)dague_map;
 }
 
 /**
@@ -141,9 +141,9 @@ dplasma_map_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_map_Destruct( dague_object_t *o )
+dplasma_map_Destruct( dague_handle_t *o )
 {
-    dague_map_object_t *omap = (dague_map_object_t *)o;
+    dague_map_handle_t *omap = (dague_map_handle_t *)o;
 
     if ( omap->op_args ) {
         free( omap->op_args );
@@ -151,7 +151,7 @@ dplasma_map_Destruct( dague_object_t *o )
 
     dplasma_datatype_undefine_type( &(omap->arenas[DAGUE_map_DEFAULT_ARENA]->opaque_dtt) );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(omap);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(omap);
 }
 
 /**
@@ -213,7 +213,7 @@ dplasma_map( dague_context_t *dague,
              tiled_matrix_unary_op_t operator,
              void *op_args )
 {
-    dague_object_t *dague_map = NULL;
+    dague_handle_t *dague_map = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&

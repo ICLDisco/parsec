@@ -166,7 +166,7 @@ dplasma_zgetrf_nopiv( dague_context_t *dague,
     dague_zgetrf_nopiv = dplasma_zgetrf_nopiv_New(A, &info);
 
     if ( dague_zgetrf_nopiv != NULL ) {
-        dague_enqueue( dague, (dague_object_t*)dague_zgetrf_nopiv);
+        dague_enqueue( dague, (dague_handle_t*)dague_zgetrf_nopiv);
         dplasma_progress(dague);
         dplasma_zgetrf_nopiv_Destruct( dague_zgetrf_nopiv );
         return info;

@@ -88,9 +88,9 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
 
     *info = 0;
     if ( uplo == PlasmaUpper ) {
-        o = (dague_object_t*)dague_zpotrf_U_new( uplo, (dague_ddesc_t*)A, info);
+        o = (dague_handle_t*)dague_zpotrf_U_new( uplo, (dague_ddesc_t*)A, info);
     } else {
-        o = (dague_object_t*)dague_zpotrf_L_new( uplo, (dague_ddesc_t*)A, info);
+        o = (dague_handle_t*)dague_zpotrf_L_new( uplo, (dague_ddesc_t*)A, info);
     }
 
     dague_zpotrf = (dague_zpotrf_L_handle_t*)o;

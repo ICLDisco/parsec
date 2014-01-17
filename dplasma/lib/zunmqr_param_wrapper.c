@@ -177,7 +177,7 @@ dplasma_zunmqr_param_New( PLASMA_enum side, PLASMA_enum trans,
         }
     } else {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_object_t*)dague_zunmqr_param_RN_new( side, trans,
+            object = (dague_handle_t*)dague_zunmqr_param_RN_new( side, trans,
                                                                  (dague_ddesc_t*)A,
                                                                  (dague_ddesc_t*)C,
                                                                  (dague_ddesc_t*)TS,
@@ -185,7 +185,7 @@ dplasma_zunmqr_param_New( PLASMA_enum side, PLASMA_enum trans,
                                                                  *qrtree,
                                                                  NULL);
         } else {
-            object = (dague_object_t*)dague_zunmqr_param_RC_new( side, trans,
+            object = (dague_handle_t*)dague_zunmqr_param_RC_new( side, trans,
                                                                  (dague_ddesc_t*)A,
                                                                  (dague_ddesc_t*)C,
                                                                  (dague_ddesc_t*)TS,

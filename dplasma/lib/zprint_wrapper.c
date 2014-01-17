@@ -75,7 +75,7 @@ int dplasma_zprint( dague_context_t *dague,
                                 DAGUE_ARENA_ALIGNMENT_SSE,
                                 MPI_DOUBLE_COMPLEX, A->mb );
 
-        dague_enqueue(dague, (dague_object_t*)object);
+        dague_enqueue(dague, (dague_handle_t*)object);
         dplasma_progress(dague);
 
         dplasma_datatype_undefine_type( &(object->arenas[DAGUE_zprint_DEFAULT_ARENA]->opaque_dtt) );

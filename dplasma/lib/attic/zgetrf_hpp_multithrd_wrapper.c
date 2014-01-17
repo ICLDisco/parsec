@@ -15,13 +15,13 @@
 
 #include "zgetrf_hpp_multithrd.h"
 
-dague_object_t* dplasma_zgetrf_hpp_multithrd_New( qr_piv_t *qrpiv,
+dague_handle_t* dplasma_zgetrf_hpp_multithrd_New( qr_piv_t *qrpiv,
                                             tiled_matrix_desc_t *A,
                                             tiled_matrix_desc_t *IPIV,
                                             tiled_matrix_desc_t *LT,
                                             int* INFO )
 {
-    dague_zgetrf_hpp_multithrd_object_t* object;
+    dague_zgetrf_hpp_multithrd_handle_t* object;
     int ib = LT->mb;
 
     /*
@@ -72,7 +72,7 @@ dague_object_t* dplasma_zgetrf_hpp_multithrd_New( qr_piv_t *qrpiv,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, LT->mb, LT->nb, -1);
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 int dplasma_zgetrf_hpp_multithrd( dague_context_t *dague,
@@ -82,11 +82,11 @@ int dplasma_zgetrf_hpp_multithrd( dague_context_t *dague,
                             tiled_matrix_desc_t *LT,
                             int* INFO )
 {
-    dague_object_t *dague_zgetrf_hpp_multithrd = NULL;
+    dague_handle_t *dague_zgetrf_hpp_multithrd = NULL;
 
     dague_zgetrf_hpp_multithrd = dplasma_zgetrf_hpp_multithrd_New(qrpiv, A, IPIV, LT, INFO);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zgetrf_hpp_multithrd);
+    dague_enqueue(dague, (dague_handle_t*)dague_zgetrf_hpp_multithrd);
     dplasma_progress(dague);
 
     dplasma_zgetrf_hpp_multithrd_Destruct( dague_zgetrf_hpp_multithrd );
@@ -94,9 +94,9 @@ int dplasma_zgetrf_hpp_multithrd( dague_context_t *dague,
 }
 
 void
-dplasma_zgetrf_hpp_multithrd_Destruct( dague_object_t *o )
+dplasma_zgetrf_hpp_multithrd_Destruct( dague_handle_t *o )
 {
-    dague_zgetrf_hpp_multithrd_object_t *dague_zgetrf_hpp_multithrd = (dague_zgetrf_hpp_multithrd_object_t *)o;
+    dague_zgetrf_hpp_multithrd_handle_t *dague_zgetrf_hpp_multithrd = (dague_zgetrf_hpp_multithrd_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zgetrf_hpp_multithrd->arenas[DAGUE_zgetrf_hpp_multithrd_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_hpp_multithrd->arenas[DAGUE_zgetrf_hpp_multithrd_UPPER_TILE_ARENA]->opaque_dtt) );
@@ -110,6 +110,6 @@ dplasma_zgetrf_hpp_multithrd_Destruct( dague_object_t *o )
     free( dague_zgetrf_hpp_multithrd->p_work );
     free( dague_zgetrf_hpp_multithrd->p_tau  );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 

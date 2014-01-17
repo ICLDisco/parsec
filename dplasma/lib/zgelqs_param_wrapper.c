@@ -104,8 +104,8 @@ dplasma_zgelqs_param( dague_context_t *dague,
 
 #ifdef DAGUE_COMPOSITION
 
-    dague_object_t *dague_zunmlq = NULL;
-    dague_object_t *dague_ztrsm  = NULL;
+    dague_handle_t *dague_zunmlq = NULL;
+    dague_handle_t *dague_ztrsm  = NULL;
 
     dague_ztrsm  = dplasma_ztrsm_New(  PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
     dague_zunmlq = dplasma_zunmlq_param_New( PlasmaLeft, PlasmaConjTrans, qrtree, A, TS, TT, B );

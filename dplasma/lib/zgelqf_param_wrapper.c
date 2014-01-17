@@ -82,13 +82,13 @@
  * @sa dplasma_sgelqf_param_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zgelqf_param_New( dplasma_qrtree_t *qrtree,
                           tiled_matrix_desc_t *A,
                           tiled_matrix_desc_t *TS,
                           tiled_matrix_desc_t *TT )
 {
-    dague_zgelqf_param_object_t* object;
+    dague_zgelqf_param_handle_t* object;
     int ib = TS->mb;
 
     if ( (A->mt != TS->mt) || (A->nt != TS->nt) ) {
@@ -135,7 +135,7 @@ dplasma_zgelqf_param_New( dplasma_qrtree_t *qrtree,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, TS->mb, TS->nb, -1);
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 /**
@@ -159,9 +159,9 @@ dplasma_zgelqf_param_New( dplasma_qrtree_t *qrtree,
  *
  ******************************************************************************/
 void
-dplasma_zgelqf_param_Destruct( dague_object_t *o )
+dplasma_zgelqf_param_Destruct( dague_handle_t *o )
 {
-    dague_zgelqf_param_object_t *dague_zgelqf_param = (dague_zgelqf_param_object_t *)o;
+    dague_zgelqf_param_handle_t *dague_zgelqf_param = (dague_zgelqf_param_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zgelqf_param->arenas[DAGUE_zgelqf_param_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgelqf_param->arenas[DAGUE_zgelqf_param_LOWER_TILE_ARENA]->opaque_dtt) );
@@ -173,7 +173,7 @@ dplasma_zgelqf_param_Destruct( dague_object_t *o )
     free( dague_zgelqf_param->p_work );
     free( dague_zgelqf_param->p_tau  );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(dague_zgelqf_param);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgelqf_param);
 }
 
 /**
@@ -250,7 +250,7 @@ dplasma_zgelqf_param( dague_context_t *dague,
                       tiled_matrix_desc_t *TS,
                       tiled_matrix_desc_t *TT)
 {
-    dague_object_t *dague_zgelqf_param = NULL;
+    dague_handle_t *dague_zgelqf_param = NULL;
 
     if ( (A->mt != TS->mt) || (A->nt != TS->nt) ) {
         dplasma_error("dplasma_zgelqf_param", "TS doesn't have the same number of tiles as A");
@@ -264,7 +264,7 @@ dplasma_zgelqf_param( dague_context_t *dague,
     dague_zgelqf_param = dplasma_zgelqf_param_New(qrtree, A, TS, TT);
 
     if (dague_zgelqf_param != NULL) {
-        dague_enqueue(dague, (dague_object_t*)dague_zgelqf_param);
+        dague_enqueue(dague, (dague_handle_t*)dague_zgelqf_param);
         dplasma_progress(dague);
         dplasma_zgelqf_param_Destruct( dague_zgelqf_param );
         return 0;

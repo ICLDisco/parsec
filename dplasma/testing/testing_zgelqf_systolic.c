@@ -50,34 +50,34 @@ int main(int argc, char ** argv)
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               nodes, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescTS, 1,
         two_dim_block_cyclic, (&ddescTS, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+                               nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescTT, 1,
         two_dim_block_cyclic, (&ddescTT, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+                               nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               nodes, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescQ, check,
         two_dim_block_cyclic, (&ddescQ, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               nodes, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
 
     /* Check the solution */
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
         two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
     /* matrix generation */
@@ -230,7 +230,7 @@ static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_de
 
     PASTE_CODE_ALLOCATE_MATRIX(Id, 1,
         two_dim_block_cyclic, (&Id, matrix_ComplexDouble, matrix_Tile,
-                               Q->super.nodes, Q->super.cores, twodQ->grid.rank,
+                               Q->super.nodes, twodQ->grid.rank,
                                Q->mb, Q->nb, minMN, minMN, 0, 0,
                                minMN, minMN, twodQ->grid.strows, twodQ->grid.stcols, twodQ->grid.rows));
 
@@ -289,13 +289,13 @@ check_factorization(dague_context_t *dague, int loud,
 
     PASTE_CODE_ALLOCATE_MATRIX(Residual, 1,
         two_dim_block_cyclic, (&Residual, matrix_ComplexDouble, matrix_Tile,
-                               A->super.nodes, A->super.cores, twodA->grid.rank,
+                               A->super.nodes, twodA->grid.rank,
                                A->mb, A->nb, M, N, 0, 0,
                                M, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 
     PASTE_CODE_ALLOCATE_MATRIX(L, 1,
         two_dim_block_cyclic, (&L, matrix_ComplexDouble, matrix_Tile,
-                               A->super.nodes, A->super.cores, twodA->grid.rank,
+                               A->super.nodes, twodA->grid.rank,
                                A->mb, A->nb, M, M, 0, 0,
                                M, M, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 

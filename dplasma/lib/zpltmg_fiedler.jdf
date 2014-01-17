@@ -8,7 +8,7 @@ extern "C" %{
  * @precisions normal z -> c d s
  *
  */
-#include "dplasmajdf.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 %}

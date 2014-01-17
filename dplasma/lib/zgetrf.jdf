@@ -9,7 +9,7 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  */
-#include "dplasmajdf.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 #define nbthreads( __k ) (dplasma_imin( ((descA.mt - (__k)) + 3 )/  4, nbmaxthrd) - 1)
@@ -22,7 +22,7 @@ dataIP    [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
 
 descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-nbmaxthrd [type = "int" hidden=on default="( dplasma_imax( 1, dplasma_imin( dataA->cores - 1, 48 ) ) )" ] /* 48 is the actual limit of the kernel */
+nbmaxthrd [type = "int" hidden=on default="( dplasma_imax( 1, dplasma_imin( /*dataA->cores*/ - 1, 48 ) ) ); assert(0)" ] /* 48 is the actual limit of the kernel */
 KT        [type = "int" hidden=on default="( dplasma_imin( descA.mt, descA.nt )-1 )" ]
 
 /************************************************************************************

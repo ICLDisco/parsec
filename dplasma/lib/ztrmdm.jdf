@@ -9,7 +9,7 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  */
-#include "dplasmajdf.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 extern int CORE_ztrmdm(int uplo, int N, PLASMA_Complex64_t *A, int LDA);

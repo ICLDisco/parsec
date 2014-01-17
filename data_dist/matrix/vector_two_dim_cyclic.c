@@ -45,7 +45,7 @@ static inline int lcm(int a, int b) {
 void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
                                  enum matrix_type mtype,
                                  enum vector_distrib distrib,
-                                 int nodes, int cores, int myrank,
+                                 int nodes, int myrank,
                                  int mb,   /* Segment size                                           */
                                  int lm,   /* Global vector size (what is stored)                    */
                                  int i,    /* Staring point in the global vector                     */
@@ -57,7 +57,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
 
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile, two_dim_block_cyclic_type,
-                            nodes, cores, myrank,
+                            nodes, myrank,
                             mb, 1, lm, 1, i, 0, m, 1 );
 
     if(nodes < P)
@@ -146,11 +146,10 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
 #endif
 
     DEBUG3(("vector_two_dim_cyclic_init: \n"
-            "      Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %d, \n"
+            "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
             "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
             "      nrst = %d, ncst = %d, P = %d, Q = %d\n",
-            Ddesc, Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.cores,
-            Ddesc->super.super.myrank,
+            Ddesc, Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.myrank,
             Ddesc->super.mb, Ddesc->super.nb,
             Ddesc->super.lm, Ddesc->super.ln,
             Ddesc->super.i,  Ddesc->super.j,

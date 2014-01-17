@@ -15,9 +15,9 @@
 #include "zlange_frb_cyclic.h"
 #include "zlange_one_cyclic.h"
 
-static inline void *fake_data_of(struct dague_ddesc *mat, ...)
+static inline dague_data_t* fake_data_of(dague_ddesc_t *mat, ...)
 {
-    return (void*)mat;
+    return (dague_data_t*)mat;
 }
 
 /**
@@ -83,14 +83,14 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
  * @sa dplasma_slantr_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
                     const tiled_matrix_desc_t *A,
                     double *result )
 {
     int P, Q, m, n, mb, nb, elt;
     two_dim_block_cyclic_t *Tdist;
-    dague_object_t *dague_zlantr = NULL;
+    dague_handle_t *dague_zlantr = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -144,7 +144,7 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
 
     two_dim_block_cyclic_init(
         Tdist, matrix_RealDouble, matrix_Tile,
-        A->super.nodes, A->super.cores, A->super.myrank,
+        A->super.nodes, A->super.myrank,
         1, 1, /* Dimensions of the tiles              */
         m, n, /* Dimensions of the matrix             */
         0, 0, /* Starting points (not important here) */
@@ -156,7 +156,7 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
     /* Create the DAG */
     switch( norm ) {
     case PlasmaOneNorm:
-        dague_zlantr = (dague_object_t*)dague_zlange_one_cyclic_new(
+        dague_zlantr = (dague_handle_t*)dague_zlange_one_cyclic_new(
             P, Q, norm, uplo, diag, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
         break;
 
@@ -164,23 +164,23 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
     case PlasmaInfNorm:
     case PlasmaFrobeniusNorm:
     default:
-        dague_zlantr = (dague_object_t*)dague_zlange_frb_cyclic_new(
+        dague_zlantr = (dague_handle_t*)dague_zlange_frb_cyclic_new(
             P, Q, norm, uplo, diag, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
     }
 
     /* Set the datatypes */
-    dplasma_add2arena_tile(((dague_zlange_frb_cyclic_object_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((dague_zlange_frb_cyclic_handle_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
-    dplasma_add2arena_rectangle(((dague_zlange_frb_cyclic_object_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA],
+    dplasma_add2arena_rectangle(((dague_zlange_frb_cyclic_handle_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA],
                                 mb * nb * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
                                 MPI_DOUBLE, mb, nb, -1);
-    dplasma_add2arena_rectangle(((dague_zlange_frb_cyclic_object_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA],
+    dplasma_add2arena_rectangle(((dague_zlange_frb_cyclic_handle_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA],
                                 elt * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
                                 MPI_DOUBLE, elt, 1, -1);
 
-    return (dague_object_t*)dague_zlantr;
+    return (dague_handle_t*)dague_zlantr;
 }
 
 /**
@@ -204,9 +204,9 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
  *
  ******************************************************************************/
 void
-dplasma_zlantr_Destruct( dague_object_t *o )
+dplasma_zlantr_Destruct( dague_handle_t *o )
 {
-    dague_zlange_frb_cyclic_object_t *dague_zlantr = (dague_zlange_frb_cyclic_object_t *)o;
+    dague_zlange_frb_cyclic_handle_t *dague_zlantr = (dague_zlange_frb_cyclic_handle_t *)o;
 
     dague_ddesc_destroy( dague_zlantr->Tdist );
     free( dague_zlantr->Tdist );
@@ -215,7 +215,7 @@ dplasma_zlantr_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA]->opaque_dtt) );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 /**
@@ -282,7 +282,7 @@ dplasma_zlantr( dague_context_t *dague,
                 const tiled_matrix_desc_t *A)
 {
     double result = 0.;
-    dague_object_t *dague_zlantr = NULL;
+    dague_handle_t *dague_zlantr = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -298,7 +298,7 @@ dplasma_zlantr( dague_context_t *dague,
 
     if ( dague_zlantr != NULL )
     {
-        dague_enqueue( dague, (dague_object_t*)dague_zlantr);
+        dague_enqueue( dague, (dague_handle_t*)dague_zlantr);
         dplasma_progress(dague);
         dplasma_zlantr_Destruct( dague_zlantr );
     }

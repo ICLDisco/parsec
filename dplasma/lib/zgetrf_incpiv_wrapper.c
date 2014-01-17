@@ -119,7 +119,7 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
                                                       INFO, NULL);
     } else {
         ib = L->mb - 1;
-        dague_getrf_incpiv = (dague_zgetrf_incpiv_object_t*)
+        dague_getrf_incpiv = (dague_zgetrf_incpiv_handle_t*)
             dague_zgetrf_incpiv_sd_new( (dague_ddesc_t*)A,
                                         (dague_ddesc_t*)L,
                                         NULL, INFO, NULL);

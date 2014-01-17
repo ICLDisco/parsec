@@ -77,7 +77,7 @@ dplasma_zpotrf_rec_New( PLASMA_enum uplo,
                         tiled_matrix_desc_t *A,
                         int *info )
 {
-    dague_zpotrf_rec_L_handle_t *dague_zpotrf = NULL;
+    dague_zpotrf_L_rec_handle_t *dague_zpotrf = NULL;
     dague_handle_t *o = NULL;
 
     /* Check input arguments */
@@ -129,7 +129,7 @@ dplasma_zpotrf_rec_Destruct( dague_handle_t *o )
 {
     dague_zpotrf_L_rec_handle_t *dague_zpotrf = (dague_zpotrf_L_rec_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_zpotrf->arenas[DAGUE_zpotrf_L_DEFAULT_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zpotrf->arenas[DAGUE_zpotrf_L_rec_DEFAULT_ARENA]->opaque_dtt) );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
@@ -180,14 +180,14 @@ dplasma_zpotrf_rec_Destruct( dague_handle_t *o )
  *
  ******************************************************************************/
 int
-dplasma_zpotrf( dague_context_t *dague,
-                PLASMA_enum uplo,
-                tiled_matrix_desc_t *A )
+dplasma_zpotrf_rec( dague_context_t *dague,
+                    PLASMA_enum uplo,
+                    tiled_matrix_desc_t *A )
 {
     dague_handle_t *dague_zpotrf_rec = NULL;
     int info = 0, ginfo = 0 ;
 
-    dague_zpotrf_rec = dplasma_zpotrf_rec_New(uplo, ddescA, &info);
+    dague_zpotrf_rec = dplasma_zpotrf_rec_New(uplo, A, &info);
 
     if ( dague_zpotrf_rec != NULL )
     {

@@ -44,13 +44,13 @@
  *          On exit, the data described by A is overwritten by the updated matrix.
  *
  ******************************************************************************/
-static inline dague_object_t*
+static inline dague_handle_t*
 dplasma_zger_internal_New( int trans, dague_complex64_t alpha,
                            const tiled_matrix_desc_t *X,
                            const tiled_matrix_desc_t *Y,
                            tiled_matrix_desc_t *A)
 {
-    dague_zger_object_t* zger_object;
+    dague_zger_handle_t* zger_object;
 
     /* Check input arguments */
     if ((trans != PlasmaTrans) && (trans != PlasmaConjTrans)) {
@@ -72,16 +72,16 @@ dplasma_zger_internal_New( int trans, dague_complex64_t alpha,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, X->mb, 1, -1);
 
-    return (dague_object_t*)zger_object;
+    return (dague_handle_t*)zger_object;
 }
 
 static inline void
-dplasma_zger_internal_Destruct( dague_object_t *o )
+dplasma_zger_internal_Destruct( dague_handle_t *o )
 {
-    dplasma_datatype_undefine_type( &(((dague_zger_object_t *)o)->arenas[DAGUE_zger_DEFAULT_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(((dague_zger_object_t *)o)->arenas[DAGUE_zger_VECTOR_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(((dague_zger_handle_t *)o)->arenas[DAGUE_zger_DEFAULT_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(((dague_zger_handle_t *)o)->arenas[DAGUE_zger_VECTOR_ARENA]->opaque_dtt) );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 static inline int
@@ -92,7 +92,7 @@ dplasma_zger_internal( dague_context_t *dague,
                        const tiled_matrix_desc_t *Y,
                              tiled_matrix_desc_t *A)
 {
-    dague_object_t *dague_zger = NULL;
+    dague_handle_t *dague_zger = NULL;
 
     /* Check input arguments */
     if ((trans != PlasmaTrans) && (trans != PlasmaConjTrans)) {
@@ -161,7 +161,7 @@ dplasma_zger_internal( dague_context_t *dague,
  * @sa dplasma_sgeru_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zgeru_New( const dague_complex64_t alpha,
                    const tiled_matrix_desc_t *X,
                    const tiled_matrix_desc_t *Y,
@@ -191,7 +191,7 @@ dplasma_zgeru_New( const dague_complex64_t alpha,
  *
  ******************************************************************************/
 void
-dplasma_zgeru_Destruct( dague_object_t *o )
+dplasma_zgeru_Destruct( dague_handle_t *o )
 {
     dplasma_zger_internal_Destruct( o );
 }
@@ -300,7 +300,7 @@ dplasma_zgeru( dague_context_t *dague,
  * @sa dplasma_sgerc_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zgerc_New( dague_complex64_t alpha,
                    const tiled_matrix_desc_t *X,
                    const tiled_matrix_desc_t *Y,
@@ -330,7 +330,7 @@ dplasma_zgerc_New( dague_complex64_t alpha,
  *
  ******************************************************************************/
 void
-dplasma_zgerc_Destruct( dague_object_t *o )
+dplasma_zgerc_Destruct( dague_handle_t *o )
 {
     dplasma_zger_internal_Destruct( o );
 }

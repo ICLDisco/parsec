@@ -15,9 +15,9 @@
 
 #include "zlansy.h"
 
-static inline void *fake_data_of(struct dague_ddesc *mat, ...)
+static inline dague_data_t* fake_data_of(dague_ddesc_t *mat, ...)
 {
-    return (void*)mat;
+    return (dague_data_t*)mat;
 }
 
 /**
@@ -80,7 +80,7 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
  * @sa dplasma_slansy_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zlansy_New( PLASMA_enum norm,
                     PLASMA_enum uplo,
                     const tiled_matrix_desc_t *A,
@@ -88,7 +88,7 @@ dplasma_zlansy_New( PLASMA_enum norm,
 {
     int P, Q, mb, nb, elt;
     two_dim_block_cyclic_t *Tdist;
-    dague_object_t *dague_zlansy = NULL;
+    dague_handle_t *dague_zlansy = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -134,7 +134,7 @@ dplasma_zlansy_New( PLASMA_enum norm,
 
     two_dim_block_cyclic_init(
         Tdist, matrix_RealDouble, matrix_Tile,
-        A->super.nodes, A->super.cores, A->super.myrank,
+        A->super.nodes, A->super.myrank,
         1, 1,       /* Dimensions of the tiles              */
         A->mt, P*Q, /* Dimensions of the matrix             */
         0, 0,       /* Starting points (not important here) */
@@ -144,25 +144,25 @@ dplasma_zlansy_New( PLASMA_enum norm,
     Tdist->super.super.data_of = fake_data_of;
 
     /* Create the DAG */
-    dague_zlansy = (dague_object_t*)dague_zlansy_new(
+    dague_zlansy = (dague_handle_t*)dague_zlansy_new(
         P, Q, norm, uplo, PlasmaTrans,
         (dague_ddesc_t*)A,
         (dague_ddesc_t*)Tdist,
         result);
 
     /* Set the datatypes */
-    dplasma_add2arena_tile(((dague_zlansy_object_t*)dague_zlansy)->arenas[DAGUE_zlansy_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((dague_zlansy_handle_t*)dague_zlansy)->arenas[DAGUE_zlansy_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
-    dplasma_add2arena_rectangle(((dague_zlansy_object_t*)dague_zlansy)->arenas[DAGUE_zlansy_COL_ARENA],
+    dplasma_add2arena_rectangle(((dague_zlansy_handle_t*)dague_zlansy)->arenas[DAGUE_zlansy_COL_ARENA],
                                 mb * nb * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
                                 MPI_DOUBLE, mb, nb, -1);
-    dplasma_add2arena_rectangle(((dague_zlansy_object_t*)dague_zlansy)->arenas[DAGUE_zlansy_ELT_ARENA],
+    dplasma_add2arena_rectangle(((dague_zlansy_handle_t*)dague_zlansy)->arenas[DAGUE_zlansy_ELT_ARENA],
                                 elt * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
                                 MPI_DOUBLE, elt, 1, -1);
 
-    return (dague_object_t*)dague_zlansy;
+    return (dague_handle_t*)dague_zlansy;
 }
 
 /**
@@ -186,9 +186,9 @@ dplasma_zlansy_New( PLASMA_enum norm,
  *
  ******************************************************************************/
 void
-dplasma_zlansy_Destruct( dague_object_t *o )
+dplasma_zlansy_Destruct( dague_handle_t *o )
 {
-    dague_zlansy_object_t *dague_zlansy = (dague_zlansy_object_t *)o;
+    dague_zlansy_handle_t *dague_zlansy = (dague_zlansy_handle_t *)o;
 
     dague_ddesc_destroy( dague_zlansy->Tdist );
     free( dague_zlansy->Tdist );
@@ -197,7 +197,7 @@ dplasma_zlansy_Destruct( dague_object_t *o )
     dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_COL_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_ELT_ARENA]->opaque_dtt) );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 /**

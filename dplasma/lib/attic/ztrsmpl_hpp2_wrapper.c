@@ -15,7 +15,7 @@
 
 #include "ztrsmpl_hpp2.h"
 
-dague_object_t* dplasma_ztrsmpl_hpp2_New( qr_piv_t *qrpiv,
+dague_handle_t* dplasma_ztrsmpl_hpp2_New( qr_piv_t *qrpiv,
                                             tiled_matrix_desc_t *A,
                                             tiled_matrix_desc_t *B,
                                             tiled_matrix_desc_t *IPIV,
@@ -23,7 +23,7 @@ dague_object_t* dplasma_ztrsmpl_hpp2_New( qr_piv_t *qrpiv,
                                             tiled_matrix_desc_t *LT2,
                                             int* INFO )
 {
-    dague_ztrsmpl_hpp2_object_t* object;
+    dague_ztrsmpl_hpp2_handle_t* object;
     int ib = LT->mb;
 
     /*
@@ -32,7 +32,7 @@ dague_object_t* dplasma_ztrsmpl_hpp2_New( qr_piv_t *qrpiv,
      */
 
     object = dague_ztrsmpl_hpp2_new( *A,  (dague_ddesc_t*)A,
-					                  *B,  (dague_ddesc_t*)B,
+                                     *B,  (dague_ddesc_t*)B,
                                             (dague_ddesc_t*)IPIV,
                                        *LT, (dague_ddesc_t*)LT,
                                        *LT2, (dague_ddesc_t*)LT2,
@@ -64,7 +64,7 @@ dague_object_t* dplasma_ztrsmpl_hpp2_New( qr_piv_t *qrpiv,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_INT, A->mb, 1, -1 );
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 int dplasma_ztrsmpl_hpp2( dague_context_t *dague,
@@ -76,11 +76,11 @@ int dplasma_ztrsmpl_hpp2( dague_context_t *dague,
                             tiled_matrix_desc_t *LT2,
                             int* INFO )
 {
-    dague_object_t *dague_ztrsmpl_hpp2 = NULL;
+    dague_handle_t *dague_ztrsmpl_hpp2 = NULL;
 
     dague_ztrsmpl_hpp2 = dplasma_ztrsmpl_hpp2_New(qrpiv, A, B, IPIV, LT, LT2, INFO);
 
-    dague_enqueue(dague, (dague_object_t*)dague_ztrsmpl_hpp2);
+    dague_enqueue(dague, (dague_handle_t*)dague_ztrsmpl_hpp2);
     dplasma_progress(dague);
 
     dplasma_ztrsmpl_hpp2_Destruct( dague_ztrsmpl_hpp2 );
@@ -88,9 +88,9 @@ int dplasma_ztrsmpl_hpp2( dague_context_t *dague,
 }
 
 void
-dplasma_ztrsmpl_hpp2_Destruct( dague_object_t *o )
+dplasma_ztrsmpl_hpp2_Destruct( dague_handle_t *o )
 {
-    dague_ztrsmpl_hpp2_object_t *dague_ztrsmpl_hpp2 = (dague_ztrsmpl_hpp2_object_t *)o;
+    dague_ztrsmpl_hpp2_handle_t *dague_ztrsmpl_hpp2 = (dague_ztrsmpl_hpp2_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_ztrsmpl_hpp2->arenas[DAGUE_ztrsmpl_hpp2_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_ztrsmpl_hpp2->arenas[DAGUE_ztrsmpl_hpp2_LOWER_TILE_ARENA]->opaque_dtt) );
@@ -102,6 +102,6 @@ dplasma_ztrsmpl_hpp2_Destruct( dague_object_t *o )
     free( dague_ztrsmpl_hpp2->p_work );
     free( dague_ztrsmpl_hpp2->p_tau  );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 

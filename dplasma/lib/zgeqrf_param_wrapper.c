@@ -263,7 +263,7 @@ dplasma_zgeqrf_param( dague_context_t *dague,
 
     dague_zgeqrf_param = dplasma_zgeqrf_param_New(qrtree, A, TS, TT);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zgeqrf_param);
+    dague_enqueue(dague, (dague_handle_t*)dague_zgeqrf_param);
     dplasma_progress(dague);
 
     dplasma_zgeqrf_param_Destruct( dague_zgeqrf_param );

@@ -152,7 +152,7 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
  * @sa dplasma_sgetrf_qrf_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                         tiled_matrix_desc_t *A,
                         tiled_matrix_desc_t *IPIV,
@@ -161,7 +161,7 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                         int criteria, double alpha, int* lu_tab,
                         int* INFO)
 {
-    dague_zgetrf_qrf_object_t* object;
+    dague_zgetrf_qrf_handle_t* object;
     int ib = TS->mb;
     size_t sizeW = 1;
     size_t sizeReduceVec = 1;
@@ -253,7 +253,7 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                                  sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_INT, 1, 1, -1);
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 /**
@@ -277,9 +277,9 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
  *
  ******************************************************************************/
 void
-dplasma_zgetrf_qrf_Destruct( dague_object_t *o )
+dplasma_zgetrf_qrf_Destruct( dague_handle_t *o )
 {
-    dague_zgetrf_qrf_object_t *dague_zgetrf_qrf = (dague_zgetrf_qrf_object_t *)o;
+    dague_zgetrf_qrf_handle_t *dague_zgetrf_qrf = (dague_zgetrf_qrf_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_LOWER_TILE_ARENA]->opaque_dtt) );
@@ -296,7 +296,7 @@ dplasma_zgetrf_qrf_Destruct( dague_object_t *o )
     free( dague_zgetrf_qrf->p_work );
     free( dague_zgetrf_qrf->p_tau  );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 /**
@@ -418,11 +418,11 @@ dplasma_zgetrf_qrf( dague_context_t *dague,
                     int criteria, double alpha, int* lu_tab,
                     int* INFO )
 {
-    dague_object_t *dague_zgetrf_qrf = NULL;
+    dague_handle_t *dague_zgetrf_qrf = NULL;
 
     dague_zgetrf_qrf = dplasma_zgetrf_qrf_New(qrtree, A, IPIV, TS, TT, criteria, alpha, lu_tab, INFO);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zgetrf_qrf);
+    dague_enqueue(dague, (dague_handle_t*)dague_zgetrf_qrf);
     dplasma_progress(dague);
 
     dplasma_zgetrf_qrf_Destruct( dague_zgetrf_qrf );

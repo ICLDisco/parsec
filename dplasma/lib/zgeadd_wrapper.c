@@ -136,7 +136,7 @@ dplasma_zgeadd_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zgeadd_Destruct( dague_object_t *o )
+dplasma_zgeadd_Destruct( dague_handle_t *o )
 {
     dplasma_map2_Destruct( o );
 }

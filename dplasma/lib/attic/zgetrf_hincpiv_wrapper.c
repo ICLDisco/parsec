@@ -15,13 +15,13 @@
 
 #include "zgetrf_hincpiv.h"
 
-dague_object_t* dplasma_zgetrf_hincpiv_New( dplasma_qrtree_t *qrtree,
+dague_handle_t* dplasma_zgetrf_hincpiv_New( dplasma_qrtree_t *qrtree,
                                             tiled_matrix_desc_t *A,
                                             tiled_matrix_desc_t *IPIV,
                                             tiled_matrix_desc_t *LT,
                                             int* INFO )
 {
-    dague_zgetrf_hincpiv_object_t* object;
+    dague_zgetrf_hincpiv_handle_t* object;
     int ib = LT->mb;
 
     /*
@@ -72,7 +72,7 @@ dague_object_t* dplasma_zgetrf_hincpiv_New( dplasma_qrtree_t *qrtree,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_INT, A->mb, 1, -1 );
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 int dplasma_zgetrf_hincpiv( dague_context_t *dague,
@@ -82,11 +82,11 @@ int dplasma_zgetrf_hincpiv( dague_context_t *dague,
                             tiled_matrix_desc_t *LT,
                             int* INFO )
 {
-    dague_object_t *dague_zgetrf_hincpiv = NULL;
+    dague_handle_t *dague_zgetrf_hincpiv = NULL;
 
     dague_zgetrf_hincpiv = dplasma_zgetrf_hincpiv_New(qrtree, A, IPIV, LT, INFO);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zgetrf_hincpiv);
+    dague_enqueue(dague, (dague_handle_t*)dague_zgetrf_hincpiv);
     dplasma_progress(dague);
 
     dplasma_zgetrf_hincpiv_Destruct( dague_zgetrf_hincpiv );
@@ -94,9 +94,9 @@ int dplasma_zgetrf_hincpiv( dague_context_t *dague,
 }
 
 void
-dplasma_zgetrf_hincpiv_Destruct( dague_object_t *o )
+dplasma_zgetrf_hincpiv_Destruct( dague_handle_t *o )
 {
-    dague_zgetrf_hincpiv_object_t *dague_zgetrf_hincpiv = (dague_zgetrf_hincpiv_object_t *)o;
+    dague_zgetrf_hincpiv_handle_t *dague_zgetrf_hincpiv = (dague_zgetrf_hincpiv_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_zgetrf_hincpiv->arenas[DAGUE_zgetrf_hincpiv_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgetrf_hincpiv->arenas[DAGUE_zgetrf_hincpiv_LOWER_TILE_ARENA]->opaque_dtt) );
@@ -110,5 +110,5 @@ dplasma_zgetrf_hincpiv_Destruct( dague_object_t *o )
     free( dague_zgetrf_hincpiv->p_work );
     free( dague_zgetrf_hincpiv->p_tau  );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

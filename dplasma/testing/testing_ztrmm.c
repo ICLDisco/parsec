@@ -166,8 +166,8 @@ int main(int argc, char ** argv)
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC2);
     }
 
-    dague_data_free(ddescA.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
+    dague_data_free(ddescA0.mat);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0);
     dague_data_free(ddescC.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
 

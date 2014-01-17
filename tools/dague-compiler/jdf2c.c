@@ -3466,7 +3466,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
 
     if( JDF_FLOW_TYPE_CTL & flow->flow_flags ) {
         coutput("  /* %s : this_task->data[%u] is a control flow */\n"
-                "  this_task->data[%u].data      = NULL;\n"
+                "  this_task->data[%u].data_in   = NULL;\n"
                 "  this_task->data[%u].data_repo = NULL;\n",
                 flow->varname, flow->flow_index,
                 flow->flow_index,
@@ -4133,6 +4133,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  int __vp_id;\n"
             "  arg.action_mask = action_mask;\n"
             "  arg.output_usage = 0;\n"
+            "  arg.output_entry = NULL;\n"
             "#if defined(DISTRIBUTED)\n"
             "  arg.remote_deps = deps;\n"
             "#endif  /* defined(DISTRIBUTED) */\n"

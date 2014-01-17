@@ -126,7 +126,7 @@ dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zplgsy_Destruct( dague_object_t *o )
+dplasma_zplgsy_Destruct( dague_handle_t *o )
 {
     dplasma_map_Destruct( o );
 }
@@ -198,7 +198,7 @@ dplasma_zplgsy( dague_context_t *dague,
     dague_zplgsy = dplasma_zplgsy_New( bump, uplo, A, seed );
 
     if ( dague_zplgsy != NULL ) {
-        dague_enqueue(dague, (dague_object_t*)dague_zplgsy);
+        dague_enqueue(dague, (dague_handle_t*)dague_zplgsy);
         dplasma_progress(dague);
         dplasma_zplgsy_Destruct( dague_zplgsy );
     }

@@ -111,7 +111,7 @@ dplasma_zpltmg_generic( dague_context_t *dague,
                         dague_complex64_t *W,
                         unsigned long long int seed)
 {
-    dague_object_t *dague_zpltmg = NULL;
+    dague_handle_t *dague_zpltmg = NULL;
     zpltmg_args_t *params = (zpltmg_args_t*)malloc(sizeof(zpltmg_args_t));
 
     params->mtxtype = mtxtype;
@@ -121,7 +121,7 @@ dplasma_zpltmg_generic( dague_context_t *dague,
     dague_zpltmg = dplasma_map_New( PlasmaUpperLower, A, dplasma_zpltmg_generic_operator, params );
     if ( dague_zpltmg != NULL )
     {
-        dague_enqueue(dague, (dague_object_t*)dague_zpltmg);
+        dague_enqueue(dague, (dague_handle_t*)dague_zpltmg);
         dplasma_progress(dague);
         dplasma_map_Destruct( dague_zpltmg );
         return 0;
@@ -174,29 +174,29 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
                         unsigned long long int seed )
 {
     size_t vectorsize = 0;
-    dague_object_t* object;
+    dague_handle_t* object;
 
     switch( mtxtype ) {
     case PlasmaMatrixChebvand:
-        object = (dague_object_t*)dague_zpltmg_chebvand_new( seed,
+        object = (dague_handle_t*)dague_zpltmg_chebvand_new( seed,
                                                              (dague_ddesc_t*)A );
         vectorsize = 2 * A->nb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixFiedler:
-        object = (dague_object_t*)dague_zpltmg_fiedler_new( seed,
+        object = (dague_handle_t*)dague_zpltmg_fiedler_new( seed,
                                                             (dague_ddesc_t*)A );
         vectorsize = A->mb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixHankel:
-        object = (dague_object_t*)dague_zpltmg_hankel_new( seed,
+        object = (dague_handle_t*)dague_zpltmg_hankel_new( seed,
                                                            (dague_ddesc_t*)A );
         vectorsize = A->mb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixToeppd:
-        object = (dague_object_t*)dague_zpltmg_toeppd_new( seed,
+        object = (dague_handle_t*)dague_zpltmg_toeppd_new( seed,
                                                            (dague_ddesc_t*)A );
         vectorsize = 2 * A->mb * sizeof(dague_complex64_t);
         break;
@@ -206,7 +206,7 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
     }
 
     if (object != NULL) {
-        dague_zpltmg_hankel_object_t *o = (dague_zpltmg_hankel_object_t*)object;
+        dague_zpltmg_hankel_handle_t *o = (dague_zpltmg_hankel_handle_t*)object;
 
         /* Default type */
         dplasma_add2arena_tile( o->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA],
@@ -225,7 +225,7 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
 
         dplasma_datatype_undefine_type( &(o->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA]->opaque_dtt) );
         dplasma_datatype_undefine_type( &(o->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA ]->opaque_dtt) );
-        DAGUE_INTERNAL_OBJECT_DESTRUCT(object);
+        DAGUE_INTERNAL_HANDLE_DESTRUCT(object);
         return 0;
     } else {
         return -101;
@@ -320,7 +320,7 @@ dplasma_zpltmg_condex( dague_context_t *dague,
     two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
     two_dim_block_cyclic_t Q;
     two_dim_block_cyclic_init( &Q, matrix_ComplexDouble, matrix_Tile,
-                               1, A->super.cores, A->super.myrank,
+                               1, A->super.myrank,
                                A->mb, A->nb, A->mb*A->mt, 3, 0, 0, A->m, 3, twodA->grid.strows, twodA->grid.stcols, 1 );
     Q.mat = dague_data_allocate((size_t)Q.super.nb_local_tiles *
                                 (size_t)Q.super.bsiz *
@@ -413,7 +413,7 @@ dplasma_zpltmg_house( dague_context_t *dague,
     dague_complex64_t *Vmat, tau;
 
     vector_two_dim_cyclic_init( &V, matrix_ComplexDouble, PlasmaVectorDiag,
-                                1, A->super.cores, A->super.myrank,
+                                1, A->super.myrank,
                                 A->mb, A->m, 0, A->m, 1 );
     V.mat = dague_data_allocate((size_t)V.super.nb_local_tiles *
                                 (size_t)V.super.bsiz *

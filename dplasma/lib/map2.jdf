@@ -6,7 +6,7 @@ extern "C" %{
  * Copyright (c) 2013      Inria. All rights reserved.
  *
  */
-#include "dplasmajdf.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 %}

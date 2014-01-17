@@ -230,7 +230,7 @@ static struct option long_options[] =
     {"criteria",    required_argument,  0, '1'},
     {"alpha",       required_argument,  0, 'a'},
     {"seed",        required_argument,  0, 'R'},
-    {"mtx",         required_argument,  0, 'm'},
+    {"mtx",         required_argument,  0, 'b'},
 
     /* HERBT options */
     {"butlvl",      required_argument,  0, 'y'},
@@ -332,7 +332,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
 
             case 'R': iparam[IPARAM_RANDOM_SEED]  = atoi(optarg); break;
-            case 'm': iparam[IPARAM_MATRIX_INIT]  = atoi(optarg); break;
+            case 'b': iparam[IPARAM_MATRIX_INIT]  = atoi(optarg); break;
 
             case 'd': iparam[IPARAM_QR_DOMINO]    = atoi(optarg) ? 1 : 0; break;
             case 'r': iparam[IPARAM_QR_TSRR]      = atoi(optarg) ? 1 : 0; break;

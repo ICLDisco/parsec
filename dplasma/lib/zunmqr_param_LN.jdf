@@ -12,7 +12,7 @@ extern "C" %{
  * This jdf is identical to zunmqr_param_LC.jdf except on arrows direction.
  *
  */
-#include "dplasmajdf.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 %}

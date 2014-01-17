@@ -139,7 +139,7 @@ dplasma_zlascal_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlascal_Destruct( dague_object_t *o )
+dplasma_zlascal_Destruct( dague_handle_t *o )
 {
     dplasma_map_Destruct( o );
 }

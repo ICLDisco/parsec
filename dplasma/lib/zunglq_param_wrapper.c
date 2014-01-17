@@ -77,7 +77,7 @@
  * @sa dplasma_zgelqf_param_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
                           tiled_matrix_desc_t *A,
                           tiled_matrix_desc_t *TS,
@@ -125,7 +125,7 @@ dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
  *
  ******************************************************************************/
 void
-dplasma_zunglq_param_Destruct( dague_object_t *object )
+dplasma_zunglq_param_Destruct( dague_handle_t *object )
 {
     dplasma_zunmlq_Destruct( object );
 }

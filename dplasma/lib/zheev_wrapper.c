@@ -100,7 +100,7 @@ dplasma_zheev_Destruct( dague_handle_t *o )
     dague_data_free(T->mat);
     dague_ddesc_destroy((dague_ddesc_t*)T); free(T);
 
-    dplasma_datatype_undefine_type( &(((dague_diag_band_to_rect_object_t *)o)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(((dague_diag_band_to_rect_handle_t *)o)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA]->opaque_dtt) );
 #endif
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

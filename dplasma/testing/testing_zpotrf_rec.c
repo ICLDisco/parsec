@@ -44,8 +44,8 @@ int main(int argc, char ** argv)
     PASTE_CODE_FLOPS(FLOPS_ZPOTRF, ((DagDouble_t)N));
 
     /* initializing matrix structure */
-    LDA = max( LDA, N );
-    LDB = max( LDB, N );
+    LDA = dplasma_imax( LDA, N );
+    LDB = dplasma_imax( LDB, N );
     SMB = 1;
     SNB = 1;
 
@@ -57,7 +57,7 @@ int main(int argc, char ** argv)
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), uplo,
-                    (tiled_matrix_desc_t *)&ddescA, 3872);
+                    (tiled_matrix_desc_t *)&ddescA, random_seed);
     if(loud > 3) printf("Done\n");
 
     /* load the GPU kernel */
@@ -94,7 +94,7 @@ int main(int argc, char ** argv)
                                        nodes, rank, MB, NB, LDA, N, 0, 0,
                                        N, N, P, uplo));
         dplasma_zplghe( dague, (double)(N), uplo,
-                        (tiled_matrix_desc_t *)&ddescA0, 3872);
+                        (tiled_matrix_desc_t *)&ddescA0, random_seed);
 
         ret |= check_factorization( dague, (rank == 0) ? loud : 0, uplo,
                                     (tiled_matrix_desc_t *)&ddescA,
@@ -105,7 +105,7 @@ int main(int argc, char ** argv)
             two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 2354);
+        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, random_seed+1);
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
             two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,

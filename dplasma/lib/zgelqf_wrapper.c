@@ -238,7 +238,7 @@ dplasma_zgelqf( dague_context_t *dague,
     dague_zgelqf = dplasma_zgelqf_New(A, T);
 
     if ( dague_zgelqf != NULL ) {
-        dague_enqueue(dague, (dague_object_t*)dague_zgelqf);
+        dague_enqueue(dague, (dague_handle_t*)dague_zgelqf);
         dplasma_progress(dague);
         dplasma_zgelqf_Destruct( dague_zgelqf );
     }

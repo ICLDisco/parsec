@@ -42,7 +42,6 @@ typedef struct vector_two_dim_cyclic_s {
  * @param Ddesc matrix description structure, already allocated, that will be initialize
  * @param mtype type of data used for this matrix
  * @param nodes number of nodes
- * @param cores number of cores per node
  * @param myrank rank of the local node (as of mpi rank)
  * @param mb number of elements in a segment
  * @param lm number of elements in the full vector
@@ -53,7 +52,7 @@ typedef struct vector_two_dim_cyclic_s {
 void vector_two_dim_cyclic_init(vector_two_dim_cyclic_t * vdesc,
                                 enum matrix_type    mtype,
                                 enum vector_distrib distrib,
-                                int nodes, int cores, int myrank,
+                                int nodes, int myrank,
                                 int mb, int lm, int i, int m,
                                 int process_GridRows );
 

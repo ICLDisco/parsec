@@ -62,12 +62,12 @@ int main(int argc, char ** argv)
     /* Check the solution */
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
         two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
+                               nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
     /* matrix generation */

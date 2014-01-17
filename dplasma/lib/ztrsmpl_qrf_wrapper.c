@@ -16,7 +16,7 @@
 
 #include "ztrsmpl_qrf.h"
 
-dague_object_t*
+dague_handle_t*
 dplasma_ztrsmpl_qrf_New( dplasma_qrtree_t *qrtree,
                          tiled_matrix_desc_t *A,
                          tiled_matrix_desc_t *IPIV,
@@ -25,7 +25,7 @@ dplasma_ztrsmpl_qrf_New( dplasma_qrtree_t *qrtree,
                          tiled_matrix_desc_t *TT,
                          int *lu_tab )
 {
-    dague_ztrsmpl_qrf_object_t* object;
+    dague_ztrsmpl_qrf_handle_t* object;
     int ib = TS->mb;
 
     /*
@@ -78,13 +78,13 @@ dplasma_ztrsmpl_qrf_New( dplasma_qrtree_t *qrtree,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_INT, A->mb, 1, -1 );
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 void
-dplasma_ztrsmpl_qrf_Destruct( dague_object_t *o )
+dplasma_ztrsmpl_qrf_Destruct( dague_handle_t *o )
 {
-    dague_ztrsmpl_qrf_object_t *dague_ztrsmpl_qrf = (dague_ztrsmpl_qrf_object_t *)o;
+    dague_ztrsmpl_qrf_handle_t *dague_ztrsmpl_qrf = (dague_ztrsmpl_qrf_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_ztrsmpl_qrf->arenas[DAGUE_ztrsmpl_qrf_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_ztrsmpl_qrf->arenas[DAGUE_ztrsmpl_qrf_UPPER_TILE_ARENA]->opaque_dtt) );
@@ -98,7 +98,7 @@ dplasma_ztrsmpl_qrf_Destruct( dague_object_t *o )
     free( dague_ztrsmpl_qrf->p_work );
     free( dague_ztrsmpl_qrf->p_tau  );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 int
@@ -111,11 +111,11 @@ dplasma_ztrsmpl_qrf( dague_context_t *dague,
                      tiled_matrix_desc_t *TT,
                      int *lu_tab)
 {
-    dague_object_t *dague_ztrsmpl_qrf = NULL;
+    dague_handle_t *dague_ztrsmpl_qrf = NULL;
 
     dague_ztrsmpl_qrf = dplasma_ztrsmpl_qrf_New(qrtree, A, IPIV, B, TS, TT, lu_tab);
 
-    dague_enqueue(dague, (dague_object_t*)dague_ztrsmpl_qrf);
+    dague_enqueue(dague, (dague_handle_t*)dague_ztrsmpl_qrf);
     dplasma_progress(dague);
 
     dplasma_ztrsmpl_qrf_Destruct( dague_ztrsmpl_qrf );

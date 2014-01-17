@@ -119,7 +119,7 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlacpy_Destruct( dague_object_t *o )
+dplasma_zlacpy_Destruct( dague_handle_t *o )
 {
     dplasma_map2_Destruct( o );
 }
@@ -195,7 +195,7 @@ dplasma_zlacpy( dague_context_t *dague,
 
     if ( dague_zlacpy != NULL )
     {
-        dague_enqueue(dague, (dague_object_t*)dague_zlacpy);
+        dague_enqueue(dague, (dague_handle_t*)dague_zlacpy);
         dplasma_progress(dague);
         dplasma_zlacpy_Destruct( dague_zlacpy );
     }

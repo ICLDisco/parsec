@@ -15,14 +15,14 @@
 
 #include "ztrsmpl_hpp.h"
 
-dague_object_t* dplasma_ztrsmpl_hpp_New( qr_piv_t *qrpiv,
+dague_handle_t* dplasma_ztrsmpl_hpp_New( qr_piv_t *qrpiv,
                                             tiled_matrix_desc_t *A,
                                             tiled_matrix_desc_t *B,
                                             tiled_matrix_desc_t *IPIV,
                                             tiled_matrix_desc_t *LT,
                                             int* INFO )
 {
-    dague_ztrsmpl_hpp_object_t* object;
+    dague_ztrsmpl_hpp_handle_t* object;
     int ib = LT->mb;
 
     /*
@@ -31,7 +31,7 @@ dague_object_t* dplasma_ztrsmpl_hpp_New( qr_piv_t *qrpiv,
      */
 
     object = dague_ztrsmpl_hpp_new( *A,  (dague_ddesc_t*)A,
-					                  *B,  (dague_ddesc_t*)B,
+                                    *B,  (dague_ddesc_t*)B,
                                             (dague_ddesc_t*)IPIV,
                                        *LT, (dague_ddesc_t*)LT,
                                        qrpiv, ib,
@@ -62,7 +62,7 @@ dague_object_t* dplasma_ztrsmpl_hpp_New( qr_piv_t *qrpiv,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_INT, A->mb, 1, -1 );
 
-    return (dague_object_t*)object;
+    return (dague_handle_t*)object;
 }
 
 int dplasma_ztrsmpl_hpp( dague_context_t *dague,
@@ -73,11 +73,11 @@ int dplasma_ztrsmpl_hpp( dague_context_t *dague,
                             tiled_matrix_desc_t *LT,
                             int* INFO )
 {
-    dague_object_t *dague_ztrsmpl_hpp = NULL;
+    dague_handle_t *dague_ztrsmpl_hpp = NULL;
 
     dague_ztrsmpl_hpp = dplasma_ztrsmpl_hpp_New(qrpiv, A, B, IPIV, LT, INFO);
 
-    dague_enqueue(dague, (dague_object_t*)dague_ztrsmpl_hpp);
+    dague_enqueue(dague, (dague_handle_t*)dague_ztrsmpl_hpp);
     dplasma_progress(dague);
 
     dplasma_ztrsmpl_hpp_Destruct( dague_ztrsmpl_hpp );
@@ -85,9 +85,9 @@ int dplasma_ztrsmpl_hpp( dague_context_t *dague,
 }
 
 void
-dplasma_ztrsmpl_hpp_Destruct( dague_object_t *o )
+dplasma_ztrsmpl_hpp_Destruct( dague_handle_t *o )
 {
-    dague_ztrsmpl_hpp_object_t *dague_ztrsmpl_hpp = (dague_ztrsmpl_hpp_object_t *)o;
+    dague_ztrsmpl_hpp_handle_t *dague_ztrsmpl_hpp = (dague_ztrsmpl_hpp_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(dague_ztrsmpl_hpp->arenas[DAGUE_ztrsmpl_hpp_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_ztrsmpl_hpp->arenas[DAGUE_ztrsmpl_hpp_LOWER_TILE_ARENA]->opaque_dtt) );
@@ -99,6 +99,6 @@ dplasma_ztrsmpl_hpp_Destruct( dague_object_t *o )
     free( dague_ztrsmpl_hpp->p_work );
     free( dague_ztrsmpl_hpp->p_tau  );
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 

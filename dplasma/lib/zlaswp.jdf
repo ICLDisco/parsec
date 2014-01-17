@@ -10,7 +10,7 @@ extern "C" %{
  * WARNING: This jdf works only in 1D distribution, and doesn't respect dataflow.
  *
  */
-#include "dplasmajdf.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 %}

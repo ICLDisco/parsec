@@ -64,7 +64,7 @@
  * @sa dplasma_zgelqf_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zunglq_New( tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T,
                     tiled_matrix_desc_t *Q )
@@ -106,7 +106,7 @@ dplasma_zunglq_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zunglq_Destruct( dague_object_t *object )
+dplasma_zunglq_Destruct( dague_handle_t *object )
 {
     dplasma_zunmlq_Destruct( object );
 }

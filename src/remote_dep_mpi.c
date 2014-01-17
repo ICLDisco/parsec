@@ -426,8 +426,8 @@ remote_dep_mpi_retrieve_datatype(dague_execution_unit_t *eu,
     if( dst_rank != eu->virtual_process->dague_context->my_rank )
         return DAGUE_ITERATE_CONTINUE;
 
-    dague_remote_deps_t *deps              = (dague_remote_deps_t*)param;
-    struct remote_dep_output_param* output = &deps->output[dep->dep_datatype_index];
+    dague_remote_deps_t *deps                = (dague_remote_deps_t*)param;
+    struct remote_dep_output_param_s* output = &deps->output[dep->dep_datatype_index];
 
     dague_data_t* data_arena = is_read_only(oldcontext, dep);
     if(NULL == data_arena) {
@@ -517,12 +517,12 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
     origin->incoming_mask ^= complete_mask;
 
     task.dague_handle = origin->dague_handle;
-    task.function = task.dague_object->functions_array[origin->msg.function_id];
+    task.function = task.dague_handle->functions_array[origin->msg.function_id];
     task.priority = origin->priority;
     for(i = 0; i < task.function->nb_locals;
         task.locals[i] = origin->msg.locals[i], i++);
     for(i = 0; i < task.function->nb_flows;
-        task.data[i].data = NULL, task.data[i].data_repo = NULL, i++);
+        task.data[i].data_in = task.data[i].data_out = NULL, task.data[i].data_repo = NULL, i++);
 
     target = task.function->out[pidx];
     for(i = 0; complete_mask>>i; i++) {
@@ -1464,14 +1464,14 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
        /* Check if we have SHORT deps to satisfy quickly */
         if( short_which & (1U<<k) ) {
 
-            assert(NULL == deps->output[k].data.ptr); /* we do not support in-place tiles now, make sure it doesn't happen yet */
-            if(NULL == deps->output[k].data.ptr) {
-                deps->output[k].data.ptr = dague_arena_get(deps->output[k].data.arena,
-                                                           deps->output[k].data.count);
+            assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
+            if(NULL == deps->output[k].data.data) {
+                deps->output[k].data.data = dague_arena_get(deps->output[k].data.arena,
+                                                            deps->output[k].data.count);
                 DEBUG3(("MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 "(short)\n",
-                        deps->output[k].data.ptr, deps->output[k].data.arena->elem_size,
+                        deps->output[k].data.data, deps->output[k].data.arena->elem_size,
                         deps->output[k].data.count, deps->output[k].data.displ));
-                assert(deps->output[k].data.ptr != NULL);
+                assert(deps->output[k].data.data != NULL);
             }
             DEBUG2(("MPI:\tFROM\t%d\tGet SHORT\t% -8s\tk=%d\twith datakey %lx at %p\t(tag=%d)\n",
                     deps->from, tmp, k, deps->msg.deps, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), tag+k));
@@ -1546,7 +1546,7 @@ remote_dep_mpi_save_activate_cb(dague_execution_unit_t* eu_context,
          * the data we should be receiving from the predecessor.
          */
         if( -1 == remote_dep_get_datatypes(eu_context, deps) ) {
-            /* the corresponding dague_object doesn't exist, yet. Put it in unexpected */
+            /* the corresponding dague_handle doesn't exist, yet. Put it in unexpected */
             char* packed_buffer;
             DEBUG2(("MPI:\tFROM\t%d\tActivate NOOBJ\t% -8s\tk=%d\twith datakey %lx\tparams %lx\n",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),

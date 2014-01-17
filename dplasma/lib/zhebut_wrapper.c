@@ -471,7 +471,7 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Comple
 
     N = A->lm;
 
-    subop = (dague_object_t **)malloc((nbhe+nbge) * sizeof(dague_object_t*));
+    subop = (dague_handle_t **)malloc((nbhe+nbge) * sizeof(dague_handle_t*));
     U_but_vec = (PLASMA_Complex64_t *)malloc( (levels+1)*N*sizeof(PLASMA_Complex64_t) );
     *U_but_ptr = U_but_vec;
     srandom(0);

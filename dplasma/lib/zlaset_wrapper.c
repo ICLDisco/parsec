@@ -124,7 +124,7 @@ dplasma_zlaset_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlaset_Destruct( dague_object_t *o )
+dplasma_zlaset_Destruct( dague_handle_t *o )
 {
     dplasma_map_Destruct( o );
 }

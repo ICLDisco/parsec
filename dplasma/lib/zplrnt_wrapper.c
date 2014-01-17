@@ -139,7 +139,7 @@ dplasma_zplrnt_New( int diagdom,
  *
  ******************************************************************************/
 void
-dplasma_zplrnt_Destruct( dague_object_t *o )
+dplasma_zplrnt_Destruct( dague_handle_t *o )
 {
     dplasma_map_Destruct( o );
 }

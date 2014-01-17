@@ -230,7 +230,7 @@ dague_gather_collective_pattern(dague_execution_unit_t *eu,
                                 void *param)
 {
     dague_remote_deps_t* deps = (dague_remote_deps_t*)param;
-    struct remote_dep_output_param* output = &deps->output[dep->dep_datatype_index];
+    struct remote_dep_output_param_s* output = &deps->output[dep->dep_datatype_index];
     const int _array_pos  = dst_rank / (8 * sizeof(uint32_t));
     const int _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
 
@@ -313,7 +313,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     /* Safe-keep the propagation mask (it must be packed in the message) */
     remote_deps->msg.output_mask = propagation_mask;
     remote_deps->msg.deps        = (uintptr_t)remote_deps;
-    remote_deps->msg.object_id   = exec_context->dague_object->object_id;
+    remote_deps->msg.handle_id   = exec_context->dague_handle->handle_id;
     remote_deps->msg.function_id = function->function_id;
     for(i = 0; i < function->nb_locals; i++) {
         remote_deps->msg.locals[i] = exec_context->locals[i];

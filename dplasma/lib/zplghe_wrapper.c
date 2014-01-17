@@ -124,7 +124,7 @@ dplasma_zplghe_New( double bump, PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zplghe_Destruct( dague_object_t *o )
+dplasma_zplghe_Destruct( dague_handle_t *o )
 {
     dplasma_map_Destruct( o );
 }
@@ -194,7 +194,7 @@ dplasma_zplghe( dague_context_t *dague,
     dague_zplghe = dplasma_zplghe_New( bump, uplo, A, seed );
 
     if ( dague_zplghe != NULL ) {
-        dague_enqueue(dague, (dague_object_t*)dague_zplghe);
+        dague_enqueue(dague, (dague_handle_t*)dague_zplghe);
         dplasma_progress(dague);
         dplasma_zplghe_Destruct( dague_zplghe );
     }
