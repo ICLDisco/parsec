@@ -81,7 +81,7 @@ struct dague_remote_deps_s {
     dague_list_item_t                super;
     dague_lifo_t                    *origin;  /**< The memory arena where the data pointer is comming from */
     struct dague_handle_s           *dague_handle;  /**< dague object generating this data transfer */
-    uint32_t                         pending_ack;  /**< Number of releases before completion */
+    int32_t                          pending_ack;  /**< Number of releases before completion */
     int32_t                          from;    /**< From whom we received the control */
     int32_t                          root;    /**< The root of the control message */
     uint32_t                         incoming_mask;  /**< track all incoming actions (receives) */

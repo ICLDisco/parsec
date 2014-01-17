@@ -16,14 +16,14 @@
 
 static uint32_t vector_twoDBC_rank_of(dague_ddesc_t* ddesc, ...);
 static int32_t  vector_twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
-static void*    vector_twoDBC_data_of(dague_ddesc_t* ddesc, ...);
+static dague_data_t* vector_twoDBC_data_of(dague_ddesc_t* ddesc, ...);
 
 #if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
-static uint32_t vector_twoDBC_data_key(struct dague_ddesc *desc, ...);
+static uint32_t vector_twoDBC_data_key(struct dague_ddesc_s *desc, ...);
 #endif /* defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA) */
 
 #if defined(DAGUE_PROF_TRACE)
-static int      vector_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
+static int      vector_twoDBC_key_to_string(struct dague_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
 #endif
 
 static inline int gcd(int a, int b){
@@ -238,7 +238,7 @@ static int32_t vector_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     return vpid;
 }
 
-static void *vector_twoDBC_data_of(dague_ddesc_t *desc, ...)
+static dague_data_t* vector_twoDBC_data_of(dague_ddesc_t *desc, ...)
 {
     int m;
     size_t pos;
@@ -266,7 +266,9 @@ static void *vector_twoDBC_data_of(dague_ddesc_t *desc, ...)
     pos = local_m * Ddesc->super.mb;
 
     pos *= dague_datadist_getsizeoftype(Ddesc->super.mtype);
-    return &(((char *) Ddesc->mat)[pos]);
+    return dague_matrix_create_data(&Ddesc->super,
+                                    (char*)Ddesc->mat + pos,
+                                    pos, m);
 }
 
 /*
@@ -274,7 +276,7 @@ static void *vector_twoDBC_data_of(dague_ddesc_t *desc, ...)
  */
 #if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
 /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
-static uint32_t vector_twoDBC_data_key(struct dague_ddesc *desc, ...)
+static uint32_t vector_twoDBC_data_key(struct dague_ddesc_s *desc, ...)
 {
     unsigned int m;
     vector_two_dim_cyclic_t * Ddesc;
@@ -295,7 +297,7 @@ static uint32_t vector_twoDBC_data_key(struct dague_ddesc *desc, ...)
 
 #if defined(DAGUE_PROF_TRACE)
 /* return a string meaningful for profiling about data */
-static int  vector_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+static int  vector_twoDBC_key_to_string(struct dague_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
 {
     int res;
     (void)desc;

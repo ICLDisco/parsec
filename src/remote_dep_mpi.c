@@ -1466,12 +1466,14 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
             assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data.data) {
-                deps->output[k].data.data = dague_arena_get(deps->output[k].data.arena,
-                                                            deps->output[k].data.count);
                 DEBUG3(("MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 "(short)\n",
                         deps->output[k].data.data, deps->output[k].data.arena->elem_size,
                         deps->output[k].data.count, deps->output[k].data.displ));
-                assert(deps->output[k].data.data != NULL);
+                dague_data_t* data = dague_arena_get(deps->output[k].data.arena, deps->output[k].data.count);
+                assert(data != NULL);
+                dague_data_copy_t* data_copy = dague_data_get_copy(data, 0);
+                data_copy->coherency_state = DATA_COHERENCY_EXCLUSIVE;
+                deps->output[k].data.data = data_copy;
             }
             DEBUG2(("MPI:\tFROM\t%d\tGet SHORT\t% -8s\tk=%d\twith datakey %lx at %p\t(tag=%d)\n",
                     deps->from, tmp, k, deps->msg.deps, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), tag+k));

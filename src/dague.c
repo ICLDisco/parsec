@@ -15,6 +15,9 @@
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
+#if defined(HAVE_GEN_H)
+#include <libgen.h>
+#endif  /* defined(HAVE_GEN_H) */
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */

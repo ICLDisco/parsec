@@ -76,6 +76,7 @@
 #cmakedefine HAVE_STDBOOL_H
 #cmakedefine HAVE_LIMITS_H
 #cmakedefine HAVE_STRING_H
+#cmakedefine HAVE_GEN_H
 #cmakedefine HAVE_COMPLEX_H
 #cmakedefine ARCH_X86
 #cmakedefine ARCH_X86_64
