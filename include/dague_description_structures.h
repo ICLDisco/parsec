@@ -122,16 +122,16 @@ struct dague_comm_desc_s {
 };
 
 struct dep_s {
-    const expr_t                *cond;           /**< The runtime-evaluable condition on this dependency */
-    const expr_t                *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
-    const uint8_t                function_id;    /**< Index of the target dague function in the object function array */
-    const uint8_t                dep_index;      /**< Output index of the dependency. This is used to store the flow
+    expr_t const          *cond;           /**< The runtime-evaluable condition on this dependency */
+    expr_t const          *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
+    uint8_t                function_id;    /**< Index of the target dague function in the object function array */
+    uint8_t                dep_index;      /**< Output index of the dependency. This is used to store the flow
                                                   *   before tranfering it to the successors. */
-    const uint8_t                dep_datatype_index;  /**< Index of the output datatype. */
-    const dague_flow_t          *flow;           /**< Pointer to the flow pointed to/from this dependency */
-    const dague_flow_t          *belongs_to;     /**< The flow this dependency belongs tp */
+    uint8_t                dep_datatype_index;  /**< Index of the output datatype. */
+    dague_flow_t const    *flow;           /**< Pointer to the flow pointed to/from this dependency */
+    dague_flow_t const    *belongs_to;     /**< The flow this dependency belongs tp */
     struct dague_comm_desc_s     datatype;       /**< Datatype associated with this dependency */
-    const expr_t                *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
+    expr_t const          *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
 };
 
 void dep_dump(const dep_t *d, const struct dague_handle_s *dague_handle, const char *prefix);
