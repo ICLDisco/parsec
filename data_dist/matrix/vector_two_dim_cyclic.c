@@ -59,6 +59,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile, two_dim_block_cyclic_type,
                             nodes, myrank,
                             mb, 1, lm, 1, i, 0, m, 1 );
+    Ddesc->mat = NULL;  /* No data associated with the vector yet */
 
     if(nodes < P)
         ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
@@ -144,6 +145,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
     o->key           = NULL;
     asprintf(&(o->key_dim), "(%d)", Ddesc->super.lmt);
 #endif
+    Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
 
     DEBUG3(("vector_two_dim_cyclic_init: \n"
             "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
@@ -268,7 +270,7 @@ static dague_data_t* vector_twoDBC_data_of(dague_ddesc_t *desc, ...)
     pos *= dague_datadist_getsizeoftype(Ddesc->super.mtype);
     return dague_matrix_create_data(&Ddesc->super,
                                     (char*)Ddesc->mat + pos,
-                                    pos, m);
+                                    local_m, m);
 }
 
 /*

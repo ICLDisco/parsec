@@ -310,7 +310,7 @@ static int release_deps(dague_execution_unit_t *eu,
          *
          * data_repo_entry_used_once( eu, this_task->data[0].data_repo, this_task->data[0].data_repo->key );
          */
-        (void)DAGUE_DATA_COPY_RELEASE(this_task->data[0].data_in);
+        DAGUE_DATA_COPY_RELEASE(this_task->data[0].data_in);
     }
 
     free(ready_list);

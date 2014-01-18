@@ -82,6 +82,7 @@ void local_block_cyclic_init(local_block_cyclic_t * Ddesc,
     tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type,
                             nodes, myrank,
                             mb, nb, lm, ln, i, j, m, n );
+    Ddesc->mat = NULL;  /* No data associated with the matrix yet */
 
     if(nodes < P)
         ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));

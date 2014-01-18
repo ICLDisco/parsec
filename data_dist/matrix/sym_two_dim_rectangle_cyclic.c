@@ -231,6 +231,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
                             sym_two_dim_block_cyclic_type,
                             nodes, myrank,
                             mb, nb, lm, ln, i, j, m, n );
+    Ddesc->mat = NULL;  /* No data associated with the matrix yet */
 
     o->rank_of     = sym_twoDBC_rank_of;
     o->rank_of_key = sym_twoDBC_rank_of_key;

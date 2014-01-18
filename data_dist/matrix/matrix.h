@@ -152,6 +152,7 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
                          dague_data_key_t key)
 {
     dague_data_t* data = matrix->data_map[pos];
+    assert(pos <= matrix->nb_local_tiles);
 
     if( NULL == data ) {
         dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);

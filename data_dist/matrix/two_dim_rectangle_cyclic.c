@@ -79,6 +79,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type,
                             nodes, myrank,
                             mb, nb, lm, ln, i, j, m, n );
+    Ddesc->mat = NULL;  /* No data associated with the matrix yet */
 
     if(nodes < P)
         ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
@@ -290,6 +291,7 @@ inline int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *Ddesc, int m, 
     local_n = n / Ddesc->grid.cols;
     assert( (n % Ddesc->grid.cols) == Ddesc->grid.crank );
 
+    assert(Ddesc->nb_elem_r <= Ddesc->super.lmt);
     position = Ddesc->nb_elem_r * local_n + local_m;
 
     return position;
@@ -299,17 +301,18 @@ inline int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *Ddesc, int m, 
  * This is the inverse function of: twoDBC_coordinates_to_position()
  * Please keep them in sync, other files (zhebut) depend on this function.
  */
-inline void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *Ddesc, int position, int *m, int *n){
-    int local_m, local_n, sanity_check;
+inline void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *Ddesc, int position, int *m, int *n)
+{
+    int local_m, local_n;
 
     local_m = position%(Ddesc->nb_elem_r);
     local_n = position/(Ddesc->nb_elem_r);
 
     *m = local_m*(Ddesc->grid.rows) + Ddesc->grid.rrank;
     *n = local_n*(Ddesc->grid.cols) + Ddesc->grid.crank;
-
-    sanity_check = twoDBC_coordinates_to_position(Ddesc, *m, *n);
-    assert( sanity_check == position ); (void)sanity_check;
+#if defined(DAGUE_DEBUG_ENABLE)
+    assert(position == twoDBC_coordinates_to_position(Ddesc, *m, *n));
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
 
     return;
 }

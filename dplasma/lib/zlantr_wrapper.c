@@ -17,7 +17,7 @@
 
 static inline dague_data_t* fake_data_of(dague_ddesc_t *mat, ...)
 {
-    return (dague_data_t*)mat;
+    return (dague_data_t*)((two_dim_block_cyclic_t*)mat)->mat;
 }
 
 /**
@@ -137,9 +137,10 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
         elt = 1;
     }
 
-    /* Create a copy of the A descriptor that is general to avoid problem when
-     * accessing not referenced part of the matrix */
-    /* Create the task distribution */
+    /* Create a copy of the A matrix to be used as a data distribution metric.
+     * As it is used as a NULL value we must have a data_copy and a data associated
+     * with it, so we can create them here.
+     * Create the task distribution */
     Tdist = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
 
     two_dim_block_cyclic_init(
@@ -150,7 +151,8 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
         0, 0, /* Starting points (not important here) */
         m, n, /* Dimensions of the submatrix          */
         1, 1, P);
-
+    Tdist->mat = (void*)OBJ_NEW(dague_data_t);
+    (void)dague_data_copy_new((dague_data_t*)Tdist->mat, 0);
     Tdist->super.super.data_of = fake_data_of;
 
     /* Create the DAG */
