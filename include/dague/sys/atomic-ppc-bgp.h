@@ -108,7 +108,7 @@ static inline uint32_t dague_atomic_sub_32b( volatile int32_t *location, int32_t
     return( tmp_val );
 }
 
-#define DAGUE_ATOMIC_HAS_ATOMIC_add_32B
+#define DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
 static inline uint32_t dague_atomic_add_32b( volatile uint32_t *location, int32_t d )
 {
     register uint32_t old_val, tmp_val;
