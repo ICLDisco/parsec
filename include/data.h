@@ -104,7 +104,11 @@ static inline void dague_data_copy_release(dague_data_copy_t* copy)
     /* TODO: Move the copy back to the CPU before destroying it */
     OBJ_RELEASE(copy);
 }
-#define DAGUE_DATA_COPY_RELEASE(DATA) dague_data_copy_release(DATA)
+#define DAGUE_DATA_COPY_RELEASE(DATA)     \
+    do {                                  \
+        DEBUG3(("Release data copy %p at %s:%d\n", (DATA), __FILE__, __LINE__)); \
+        dague_data_copy_release(DATA);    \
+    } while(0)
 
 /**
  * Return the device private pointer for a datacopy.

@@ -3388,16 +3388,22 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
         coutput("%s  ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass, chunk);\n",
                 spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
     } else {
-        coutput("%s    chunk = (%s(%s))->device_copies[0];\n",
+        coutput("%s    chunk = dague_data_get_copy(%s(%s), target_device);\n"
+                "%s    OBJ_RETAIN(chunk);\n",
                 spaces, call->func_or_mem,
                 UTIL_DUMP_LIST(sa, call->parameters, next,
-                               dump_expr, (void*)&info, "", "", ", ", ""));
+                               dump_expr, (void*)&info, "", "", ", ", ""),
+                spaces);
     }
 
     string_arena_free(sa);
     string_arena_free(sa2);
 }
 
+/**
+ * A pure output data. We need to allocate the data base on the output flow that
+ * will be followed upon completion.
+ */
 static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_t *call,
                                                int lineno, const char *fname,
                                                const char *spaces, const char *arena, int count)
@@ -3424,10 +3430,12 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
             }
         }
     }
-    coutput("%s    chunk = dague_data_copy_new(NULL, 0);\n"
-            "%s    chunk->device_private = dague_arena_get(%s, %d);\n",
+    coutput("%s    dague_data_t* dl = dague_arena_get(%s, %d);\n"
+            "%s    assert(NULL != dl);\n"
+            "%s    chunk = dague_data_get_copy(dl, target_device);\n",
+            spaces, arena, count,
             spaces,
-            spaces, arena, count );
+            spaces);
     return;
 }
 
@@ -3610,7 +3618,8 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
                 "%s    data.count  = %s;\n"
                 "%s    data.displ  = %s;\n"
                 "%s    assert( data.count > 0 );\n"
-                "%s    dague_remote_dep_memcpy(context, this_task->dague_handle, (%s(%s))->device_copies[0],\n"
+                "%s    dague_remote_dep_memcpy(context, this_task->dague_handle,\n"
+                "%s                            dague_data_get_copy(%s(%s), 0),\n"
                 "%s                            this_task->data[%d].data_out, &data);\n"
                 "%s  }\n",
                 spaces, dataflow_index, call->func_or_mem, string_arena_get_string(sa),
@@ -3620,6 +3629,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
                 spaces,
                 spaces, string_arena_get_string(sa3),
                 spaces, string_arena_get_string(sa4),
+                spaces,
                 spaces,
                 spaces, call->func_or_mem, string_arena_get_string(sa),
                 spaces, dataflow_index,
@@ -4113,7 +4123,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
 
     next_dependency:
         if( dl->flow_flags & (JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE) )
-            coutput("    (void)DAGUE_DATA_COPY_RELEASE(context->data[%d].data_in);\n", dl->flow_index);
+            coutput("    DAGUE_DATA_COPY_RELEASE(context->data[%d].data_in);\n", dl->flow_index);
         (void)jdf;  /* just to keep the compilers happy regarding the goto to an empty statement */
     }
     coutput("  }\n");

@@ -33,7 +33,7 @@ static void dague_data_copy_construct(dague_data_copy_t* obj)
 
 static void dague_data_copy_destruct(dague_data_copy_t* obj)
 {
-    DEBUG3(("Release data copy %p\n", obj));
+    DEBUG3(("Destruct data copy %p (attached to %p)\n", obj, obj->original));
 
     /* If the copy is still attached to a data we should detach it first */
     if( NULL != obj->original) {
@@ -136,15 +136,18 @@ dague_data_copy_attach(dague_data_t* data,
                        dague_data_copy_t* copy,
                        uint8_t device)
 {
+    assert(NULL == copy->original);
+    assert(NULL == copy->older);
+
     copy->device_index    = device;
     copy->original        = data;
-    assert(NULL == copy->older);
     /* Atomically set the device copy */
     copy->older = data->device_copies[device];
     if( !dague_atomic_cas(&data->device_copies[device], copy->older, copy) ) {
         copy->older = NULL;
         return DAGUE_ERROR;
     }
+    OBJ_RETAIN(data);
     return DAGUE_SUCCESS;
 }
 
@@ -164,14 +167,15 @@ int dague_data_copy_detach(dague_data_t* data,
     if( !dague_atomic_cas(&data->device_copies[device], copy, copy->older) ) {
         return DAGUE_ERROR;
     }
-    copy->device_index = 0;
+    OBJ_RELEASE(data);
     copy->original     = NULL;
     copy->older        = NULL;
     return DAGUE_SUCCESS;
 }
 
 /**
- *
+ * Allocate a data copy and attach it as a device specific copy. The data must
+ * not be NULL in order for this operation to be relevant.
  */
 dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint8_t device)
 {
