@@ -45,7 +45,7 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
             continue;  /* space available on the device */
         }
         /* If the data is needed as an input load it up */
-        if(this_task->function->in[i]->access_type & ACCESS_READ)
+        if(this_task->function->in[i]->flow_flags & FLOW_ACCESS_READ)
             space_needed++;
     }
 
@@ -74,7 +74,7 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
                               "GPU[%1d]:\tIN  Data of %s <%x> on GPU\n",
                               gpu_device->cuda_index, this_task->function->in[i]->name,
                               (int)this_task->data[i].data_out->original->key));
-        ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->access_type,
+        ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->flow_flags,
                                        &(this_task->data[i]), gpu_task, gpu_stream->cuda_stream );
         if( ret < 0 ) {
             return ret;
@@ -107,16 +107,16 @@ gpu_kernel_pop_bandwidth( gpu_device_t        *gpu_device,
         original = this_task->data[i].data_out->original;
         gpu_copy = this_task->data[i].data_out;
         assert(original == this_task->data[i].data_in->original);
-        if( flow->access_type & ACCESS_READ ) {
+        if( flow->flow_flags & FLOW_ACCESS_READ ) {
             gpu_copy->readers--; assert(gpu_copy->readers >= 0);
             if( (0 == gpu_copy->readers) &&
-                !(flow->access_type & ACCESS_WRITE) ) {
+                !(flow->flow_flags & FLOW_ACCESS_WRITE) ) {
                 dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
                 DAGUE_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
                 dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
             }
         }
-        if( flow->access_type & ACCESS_WRITE ) {
+        if( flow->flow_flags & FLOW_ACCESS_WRITE ) {
             assert( gpu_copy == dague_data_get_copy(gpu_copy->original, gpu_device->super.device_index) );
             /* Stage the transfer of the data back to main memory */
             gpu_device->super.required_data_out += original->nb_elts;
@@ -165,7 +165,7 @@ gpu_kernel_epilog_bandwidth( gpu_device_t        *gpu_device,
 
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if(NULL == this_task->function->out[i]) continue;
-        if(!(this_task->function->out[i]->access_type & ACCESS_WRITE)) continue;
+        if(!(this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE)) continue;
 
         gpu_copy = this_task->data[this_task->function->out[i]->flow_index].data_out;
         original = gpu_copy->original;
