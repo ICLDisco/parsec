@@ -98,7 +98,8 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
         for( int i = 0; (*deps)->outgoing_mask >> i; i++ )
             if( (1U << i) & (*deps)->outgoing_mask ) {
                 assert( (*deps)->output[i].count_bits );
-                DAGUE_DATA_COPY_RELEASE((*deps)->output[i].data.data);
+                if( NULL != (*deps)->output[i].data.data )  /* if not CONTROL */
+                    DAGUE_DATA_COPY_RELEASE((*deps)->output[i].data.data);
             }
         (*deps)->outgoing_mask = 0;
         if(ncompleted)
@@ -339,8 +340,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
          * independent on what is happening with the data outside of the
          * communication engine.
          */
-        if(remote_deps->outgoing_mask & (1U<<i))
+        if( NULL != output->data.data ) {  /* if not CONTROL */
+            assert(remote_deps->outgoing_mask & (1U<<i));
             OBJ_RETAIN(output->data.data);
+        }
 
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {
             current_mask = output->rank_bits[array_index];
