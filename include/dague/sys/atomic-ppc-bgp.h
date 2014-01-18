@@ -108,20 +108,5 @@ static inline uint32_t dague_atomic_sub_32b( volatile int32_t *location, int32_t
     return( tmp_val );
 }
 
-#define DAGUE_ATOMIC_HAS_ATOMIC_add_32B
-static inline uint32_t dague_atomic_add_32b( volatile uint32_t *location, int32_t d )
-{
-    register uint32_t old_val, tmp_val;
-
-    _bgp_msync();
-    do {
-        old_val = _bgp_LoadReserved( location );
-        tmp_val = (uint32_t((int32_t)old_val + d);
-    } while( !_bgp_StoreConditional( location, tmp_val ) );
-
-    return( tmp_val );
-}
-
-
 #endif  /* DAGUE_ATOMIC_BGP_HAS_BEEN_INCLUDED */
 

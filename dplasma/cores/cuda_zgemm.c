@@ -122,7 +122,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
         }
 
         /* If the data is needed as an input load it up */
-        if(this_task->function->in[i]->access_type & ACCESS_READ)
+        if(this_task->function->in[i]->flow_flags & FLOW_ACCESS_READ)
             space_needed++;
     }
 
@@ -151,7 +151,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
                               "GPU[%1d]:\tIN  Data of %s <%x> on GPU\n",
                               gpu_device->cuda_index, this_task->function->in[i]->name,
                               this_task->data[i].data_out->original->key));
-        ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->access_type,
+        ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->flow_flags,
                                        &(this_task->data[i]), gpu_task, gpu_stream->cuda_stream );
         if( ret < 0 ) {
             goto release_and_return_error;
@@ -245,7 +245,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
         if( flow->flow_flags & FLOW_ACCESS_READ ) {
             gpu_copy->readers--; assert(gpu_copy->readers >= 0);
             if( (0 == gpu_copy->readers) &&
-                !(flow->access_type & ACCESS_WRITE) ) {
+                !(flow->flow_flags & FLOW_ACCESS_WRITE) ) {
                 dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
                 DAGUE_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
                 dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
@@ -371,7 +371,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     /* Step one: Find the first data in WRITE mode */
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if( (NULL == this_task->function->out[i]) ||
-            (this_task->function->out[i]->access_type & ACCESS_WRITE) ) {
+            (this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
             data_index = this_task->function->out[i]->flow_index;
             break;
         }
