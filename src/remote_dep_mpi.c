@@ -452,7 +452,7 @@ remote_dep_mpi_retrieve_datatype(dague_execution_unit_t *eu,
         data_arena = is_inplace(oldcontext, dep);  /* Can we do it inplace */
     }
     output->data      = *data;
-    output->data.data = remote_dep_copy_allocate(data);
+    output->data.data = NULL;
 
     deps->priority   = oldcontext->priority;
     deps->incoming_mask |= (1U << dep->dep_datatype_index);
@@ -546,9 +546,10 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
             assert(NULL != target);
         }
         DEBUG3(("MPI:\tDATA %p(%s) released from %p[%d] flow idx %d\n",
-                DAGUE_DATA_COPY_GET_PTR(origin->output[i].data.data), target->name, origin, i, target->flow_index));
+                origin->output[i].data.data, target->name, origin, i, target->flow_index));
         task.data[target->flow_index].data_repo = NULL;
         task.data[target->flow_index].data_in   = origin->output[i].data.data;
+        task.data[target->flow_index].data_out  = origin->output[i].data.data;
     }
 
 #ifdef DAGUE_DIST_COLLECTIVES
@@ -1507,7 +1508,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
         for(int k = 0; complete_mask>>k; k++)
             if((1U<<k) & complete_mask)
                 DEBUG2(("MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)\n",
-                        deps->from, tmp, k, deps->msg.deps, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), tag+k ));
+                        deps->from, tmp, k, deps->msg.deps, deps->output[k].data.data, tag+k ));
 #endif
         /* If this is the only call then force the remote deps propagation */
         deps = remote_dep_release_incoming(eu_context, deps, complete_mask);
