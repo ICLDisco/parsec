@@ -1647,7 +1647,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
 #  if DAGUE_DEBUG_VERBOSE != 0
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\tk=%d\twith datakey %lx at %p type %s count %d displ %ld extent %d\t(tag=%d)\n",
-                from, tmp, k, task->deps, DAGUE_DATA_COPY_GET_PTR(data), type_name, nbdtt,
+                from, tmp, k, task->deps, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, nbdtt,
                 deps->output[k].data.displ, deps->output[k].data.arena->elem_size * nbdtt, msg.tag+k));
 #  endif
         TAKE_TIME_WITH_INFO(MPIrcv_prof, MPI_Data_pldr_sk, k, from,
