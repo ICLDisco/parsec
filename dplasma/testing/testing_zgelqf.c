@@ -129,12 +129,12 @@ int main(int argc, char ** argv)
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescQ);
     }
 
-    cleanup_dague(dague, iparam);
-
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT);
+
+    cleanup_dague(dague, iparam);
 
     return ret;
 }
