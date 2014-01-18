@@ -394,11 +394,13 @@ IF( BUILD_DAGUE )
 
   if (DAGUE_DIST_WITH_MPI)
     # Force the detection of the C library
-    find_package(MPI REQUIRED)
+    find_package(MPI)
     set(HAVE_MPI ${MPI_C_FOUND})
     if (MPI_C_FOUND)
       list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
       include_directories( ${MPI_C_INCLUDE_PATH} )
+    else (MPI_C_FOUND)
+      MESSAGE(ERROR "MPI is required but was not found. Please provide an MPI compiler")
     endif (MPI_C_FOUND)
   endif (DAGUE_DIST_WITH_MPI)
   #
