@@ -404,16 +404,20 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 }
 
-static inline
-dague_data_copy_t* remote_dep_copy_allocate(dague_dep_data_description_t* data)
+static inline dague_data_copy_t*
+remote_dep_copy_allocate(dague_dep_data_description_t* data)
 {
-    dague_data_t* data_arena = dague_arena_get(data->arena, data->count);
-    data->data = dague_data_get_copy(data_arena, 0);
-    data->data->coherency_state = DATA_COHERENCY_EXCLUSIVE;
+    dague_data_t* da;
+    if( NULL == data->arena ) {
+        assert(0 == data->count);
+        return NULL;
+    }
+    da = dague_arena_get(data->arena, data->count);
+    dague_data_copy_t* dc = dague_data_get_copy(da, 0);
+    dc->coherency_state = DATA_COHERENCY_EXCLUSIVE;
     DEBUG3(("MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 "\n",
-            data->data, data->arena->elem_size,
-            data->count, data->displ));
-    return data->data;
+            dc, data->arena->elem_size, data->count, data->displ));
+    return dc;
 }
 #define is_inplace(ctx,dep) NULL
 #define is_read_only(ctx,dep) NULL
@@ -448,8 +452,7 @@ remote_dep_mpi_retrieve_datatype(dague_execution_unit_t *eu,
         data_arena = is_inplace(oldcontext, dep);  /* Can we do it inplace */
     }
     output->data      = *data;
-    (void)remote_dep_copy_allocate(data);
-    assert(output->data.data != NULL);
+    output->data.data = remote_dep_copy_allocate(data);
 
     deps->priority   = oldcontext->priority;
     deps->incoming_mask |= (1U << dep->dep_datatype_index);
@@ -470,8 +473,8 @@ remote_dep_get_datatypes(dague_execution_unit_t* eu_context,
     uint32_t i, j, k, local_mask = 0;
 
     assert(NULL == origin->dague_handle);
-    task.dague_handle = dague_handle_lookup(origin->msg.handle_id);
-    if( NULL == task.dague_handle )
+    origin->dague_handle = dague_handle_lookup(origin->msg.handle_id);
+    if( NULL == origin->dague_handle )
         return -1; /* the dague object doesn't exist yet */
     task.dague_handle = origin->dague_handle;
     task.function     = task.dague_handle->functions_array[origin->msg.function_id];
@@ -1445,15 +1448,14 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
             continue;
         }
 
-        if( dague_param_enable_eager && (length > *position) ) {
+        if( length > *position ) {
             /* Check if the data is EAGERly embedded in the activate */
             MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout,
                           dep_comm, &dsize);
             if((length - (*position)) >= dsize) {
                 assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
                 if(NULL == deps->output[k].data.data) {
-                    (void)remote_dep_copy_allocate(&deps->output[k].data);
-                    assert(deps->output[k].data.data != NULL);
+                    deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
                 }
 #ifndef DAGUE_PROF_DRY_DEP
                 DEBUG2((" EGR\t%s\tparam %d\teager from the activate msg (%d/%d)\n",
@@ -1472,11 +1474,10 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
             assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data.data) {
-                (void)remote_dep_copy_allocate(&deps->output[k].data);
-                assert(deps->output[k].data.data != NULL);
+                deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
             }
             DEBUG2(("MPI:\tFROM\t%d\tGet SHORT\t% -8s\tk=%d\twith datakey %lx at %p\t(tag=%d)\n",
-                    deps->from, tmp, k, deps->msg.deps, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), tag+k));
+                    deps->from, tmp, k, deps->msg.deps, deps->output[k].data.data, tag+k));
 #ifndef DAGUE_PROF_DRY_DEP
             MPI_Irecv((char*)DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
                       deps->output[k].data.count, deps->output[k].data.layout,
@@ -1641,8 +1642,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
         nbdtt = deps->output[k].data.count;
         assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
         if(NULL == deps->output[k].data.data) {
-            (void)remote_dep_copy_allocate(&deps->output[k].data);
-            assert(deps->output[k].data.data != NULL);
+            deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
         }
 #  if DAGUE_DEBUG_VERBOSE != 0
         MPI_Type_get_name(dtt, type_name, &len);
