@@ -484,7 +484,7 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
  * can be NULL, and then the data is reported as NULL in the corresponding op
  * floweter.
  */
-struct dague_handle_t*
+dague_handle_t*
 dague_map_operator_New(const tiled_matrix_desc_t* src,
                        tiled_matrix_desc_t* dest,
                        dague_operator_t op,
@@ -515,10 +515,10 @@ dague_map_operator_New(const tiled_matrix_desc_t* src,
     res->super.super.handle_id = 1111;
     res->super.super.nb_local_tasks = src->nb_local_tiles;
     res->super.super.startup_hook = dague_map_operator_startup_fn;
-    return (struct dague_handle_t*)res;
+    return (dague_handle_t*)res;
 }
 
-void dague_map_operator_Destruct( struct dague_handle_t* o )
+void dague_map_operator_Destruct( dague_handle_t* o )
 {
-    (void)o;
+    free(o);
 }

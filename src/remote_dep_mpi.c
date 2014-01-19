@@ -1161,7 +1161,7 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
     DAGUE_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, packed, MPI_PACKED);
     MPI_Send((void*)packed_buffer, position, MPI_PACKED, peer, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
-    DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(peer, (void*)&deps->msg, deps->msg);
+    DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(peer, (void*)&deps->msg, &deps->msg);
 
     do {
         item = (dep_cmd_item_t*)ring;
@@ -1653,7 +1653,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
 #  endif
         TAKE_TIME_WITH_INFO(MPIrcv_prof, MPI_Data_pldr_sk, k, from,
                             eu_context->virtual_process->dague_context->my_rank, deps->msg);
-        DEBUG_MARK_DTA_MSG_START_RECV(from, data_copy, msg.tag+k);
+        DEBUG_MARK_DTA_MSG_START_RECV(from, deps->output[k].data.data, msg.tag+k);
         MPI_Irecv(DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ, nbdtt,
                   dtt, from, msg.tag+k, dep_comm,
                   &array_of_requests[dague_comm_last_active_req]);

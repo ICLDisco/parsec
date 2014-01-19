@@ -18,13 +18,13 @@ static MPI_Datatype block;
  *
  * @return the dague object to schedule.
  */
-dague_object_t *choice_new(dague_ddesc_t *A, int size, int *decision, int nb, int world)
+dague_handle_t *choice_new(dague_ddesc_t *A, int size, int *decision, int nb, int world)
 {
-    dague_choice_object_t *o = NULL;
+    dague_choice_handle_t *o = NULL;
 
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, CHOICE nb and size must be > 0\n");
-        return (dague_object_t*)o;
+        return (dague_handle_t*)o;
     }
 
     o = dague_choice_new(A, nb, world, decision);
@@ -39,20 +39,20 @@ dague_object_t *choice_new(dague_ddesc_t *A, int size, int *decision, int nb, in
     }
 #endif
 
-    return (dague_object_t*)o;
+    return (dague_handle_t*)o;
 }
 
 /**
  * @param [INOUT] o the dague object to destroy
  */
-void choice_destroy(dague_object_t *o)
+void choice_destroy(dague_handle_t *o)
 {
-    dague_choice_object_t *c = (dague_choice_object_t*)o;
+    dague_choice_handle_t *c = (dague_choice_handle_t*)o;
     (void)c;
 
 #if defined(HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

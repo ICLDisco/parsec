@@ -1,18 +1,13 @@
-/*
- * Copyright (c) 2013      The University of Tennessee and The University
+/**
+ * Copyright (c) 2013-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  *
- * These symbols are in a file by themselves to provide nice linker
- * semantics.  Since linkers generally pull in symbols by object
- * files, keeping these symbols as the only symbols in this file
- * prevents utility programs such as "ompi_info" from having to import
- * entire components just to query their version and parameters.
  */
 
 #include "dague_config.h"
@@ -30,19 +25,20 @@
 #define dague_heap_priority_comparator (offsetof(dague_heap_t, priority))
 static int SYSTEM_NEIGHBOR = 0;
 
-/*
+/**
  * Module functions
  */
 static int sched_ltq_install(dague_context_t* master);
 static int sched_ltq_schedule(dague_execution_unit_t* eu_context, dague_execution_context_t* new_context);
 static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_context );
+static int flow_ltq_init(dague_execution_unit_t* eu_context, struct dague_barrier_t* barrier);
 static void sched_ltq_remove(dague_context_t* master);
 
 const dague_sched_module_t dague_sched_ltq_module = {
     &dague_sched_ltq_component,
     {
         sched_ltq_install,
-        NULL,
+        flow_ltq_init,
         sched_ltq_schedule,
         sched_ltq_select,
         NULL,
@@ -52,14 +48,18 @@ const dague_sched_module_t dague_sched_ltq_module = {
 
 static int sched_ltq_install( dague_context_t *master )
 {
-    int t, p, nq = 1;
-    dague_execution_unit_t *eu;
-    dague_vp_t * vp;
-    uint32_t queue_size;
-    local_queues_scheduler_object_t *sched_obj = NULL;
-    int hwloc_levels;
+    SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores;
+    return 0;
+}
 
-    SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores; // defined for instrumentation
+static int flow_ltq_init(dague_execution_unit_t* eu_context, struct dague_barrier_t* barrier)
+{
+    dague_context_t *master = eu_context->virtual_process->dague_context;
+    local_queues_scheduler_object_t *sched_obj = NULL;
+    int t, p, nq = 1, hwloc_levels;
+    dague_execution_unit_t *eu;
+    uint32_t queue_size;
+    dague_vp_t * vp;
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
@@ -140,6 +140,7 @@ static int sched_ltq_install( dague_context_t *master )
             }
         }
     }
+    (void)barrier;
     return 0;
 }
 

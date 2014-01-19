@@ -111,14 +111,14 @@ typedef int (*tiled_matrix_binary_op_t)( dague_execution_unit_t *eu,
                                          int uplo, int m, int n,
                                          void *args );
 
-extern struct dague_handle_t*
+extern dague_handle_t*
 dague_map_operator_New(const tiled_matrix_desc_t* src,
                        tiled_matrix_desc_t* dest,
                        dague_operator_t op,
                        void* op_data);
 
 extern void
-dague_map_operator_Destruct( struct dague_handle_t* o );
+dague_map_operator_Destruct( dague_handle_t* o );
 
 extern struct dague_handle_t*
 dague_reduce_col_New( const tiled_matrix_desc_t* src,

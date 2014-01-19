@@ -48,11 +48,11 @@ typedef int64_t (*expr_op_int64_inline_func_t)(const struct dague_handle_s *__da
 struct expr_s {
     union {
         struct {
-            const struct expr_s *op1;
-            const struct expr_s *op2;
+            struct expr_s const *op1;
+            struct expr_s const *op2;
             union {
                 int cst;
-                const struct expr_s *expr;
+                struct expr_s const *expr;
             } increment;
         } range;
         expr_op_int32_inline_func_t inline_func_int32;
@@ -90,8 +90,8 @@ struct dague_flow_s {
     uint8_t             flow_index; /**< The input index of the flow. This index is used
                                      *   while computing the mask. */
     dague_dependency_t  flow_datatype_mask;  /**< The bitmask of dep_datatype_index of all deps */
-    const dep_t        *dep_in[MAX_DEP_IN_COUNT];
-    const dep_t        *dep_out[MAX_DEP_OUT_COUNT];
+    dep_t const        *dep_in[MAX_DEP_IN_COUNT];
+    dep_t const        *dep_out[MAX_DEP_OUT_COUNT];
 };
 
 /**
@@ -126,7 +126,7 @@ struct dep_s {
     expr_t const          *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
     uint8_t                function_id;    /**< Index of the target dague function in the object function array */
     uint8_t                dep_index;      /**< Output index of the dependency. This is used to store the flow
-                                                  *   before tranfering it to the successors. */
+                                             *   before tranfering it to the successors. */
     uint8_t                dep_datatype_index;  /**< Index of the output datatype. */
     dague_flow_t const    *flow;           /**< Pointer to the flow pointed to/from this dependency */
     dague_flow_t const    *belongs_to;     /**< The flow this dependency belongs tp */
@@ -145,11 +145,11 @@ void dep_dump(const dep_t *d, const struct dague_handle_s *dague_handle, const c
 
 struct symbol_s {
     uint32_t        flags;           /*< mask of GLOBAL and STANDALONE */
-    const char     *name;            /*< Name, used for debugging purposes */
+    char const     *name;            /*< Name, used for debugging purposes */
     int             context_index;   /*< Location of this symbol's value in the execution_context->locals array */
-    const expr_t   *min;             /*< Expression that represents the minimal value of this symbol */
-    const expr_t   *max;             /*< Expression that represents the maximal value of this symbol */
-    const expr_t   *expr_inc;        /*< Expression that represents the increment of this symbol. NULL if and only if cst_inc is defined */
+    expr_t const   *min;             /*< Expression that represents the minimal value of this symbol */
+    expr_t const   *max;             /*< Expression that represents the maximal value of this symbol */
+    expr_t const   *expr_inc;        /*< Expression that represents the increment of this symbol. NULL if and only if cst_inc is defined */
     int             cst_inc;         /*< If expr_inc is NULL, represents the integer increment of this symbol. */
 };
 

@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2013      The University of Tennessee and The University
+/**
+ * Copyright (c) 2013-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -8,11 +8,6 @@
  *
  * $HEADER$
  *
- * These symbols are in a file by themselves to provide nice linker
- * semantics.  Since linkers generally pull in symbols by object
- * files, keeping these symbols as the only symbols in this file
- * prevents utility programs such as "ompi_info" from having to import
- * entire components just to query their version and parameters.
  */
 
 #include "dague_config.h"
@@ -32,19 +27,20 @@
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
 
-/*
+/**
  * Module functions
  */
 static int sched_lhq_install(dague_context_t* master);
 static int sched_lhq_schedule(dague_execution_unit_t* eu_context, dague_execution_context_t* new_context);
 static dague_execution_context_t *sched_lhq_select( dague_execution_unit_t *eu_context );
+static int flow_lhq_init(dague_execution_unit_t* eu_context, struct dague_barrier_t* barrier);
 static void sched_lhq_remove(dague_context_t* master);
 
 const dague_sched_module_t dague_sched_lhq_module = {
     &dague_sched_lhq_component,
     {
         sched_lhq_install,
-        NULL,
+        flow_lhq_init,
         sched_lhq_schedule,
         sched_lhq_select,
         NULL,
@@ -54,10 +50,17 @@ const dague_sched_module_t dague_sched_lhq_module = {
 
 static int sched_lhq_install( dague_context_t *master )
 {
-    int p, t;
+    (void)master;
+    return 0;
+}
+
+static int flow_lhq_init(dague_execution_unit_t* eu_context, struct dague_barrier_t* barrier)
+{
+    dague_context_t *master = eu_context->virtual_process->dague_context;
+    local_queues_scheduler_object_t *sched_obj = NULL;
     dague_execution_unit_t *eu;
     dague_vp_t *vp;
-    local_queues_scheduler_object_t *sched_obj = NULL;
+    int p, t;
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
@@ -122,7 +125,7 @@ static int sched_lhq_install( dague_context_t *master )
             sched_obj->task_queue = sched_obj->hierarch_queues[0];
         }
     }
-
+    (void)barrier;
     return 0;
 }
 

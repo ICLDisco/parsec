@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2013      The University of Tennessee and The University
+/**
+ * Copyright (c) 2013-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -8,11 +8,6 @@
  * 
  * $HEADER$
  *
- * These symbols are in a file by themselves to provide nice linker
- * semantics.  Since linkers generally pull in symbols by object
- * files, keeping these symbols as the only symbols in this file
- * prevents utility programs such as "ompi_info" from having to import
- * entire components just to query their version and parameters.
  */
 
 #include "dague_config.h"
@@ -25,6 +20,7 @@
 #include "dague/mca/sched/lfq/sched_lfq.h"
 #include "dequeue.h"
 #include "dague/mca/pins/pins.h"
+
 static int SYSTEM_NEIGHBOR = 0;
 
 #if defined(DAGUE_PROF_TRACE)
@@ -33,7 +29,7 @@ static int SYSTEM_NEIGHBOR = 0;
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
 
-/*
+/**
  * Module functions
  */
 static int sched_lfq_install(dague_context_t* master);
@@ -62,10 +58,10 @@ static int sched_lfq_install( dague_context_t *master )
 
 static int flow_lfq_init(dague_execution_unit_t* eu_context, struct dague_barrier_t* barrier)
 {
-    int nq, hwloc_levels;
-    dague_vp_t* vp;
-    uint32_t queue_size;
     local_queues_scheduler_object_t *sched_obj = NULL;
+    int nq, hwloc_levels;
+    uint32_t queue_size;
+    dague_vp_t* vp;
 
     vp = eu_context->virtual_process;
     sched_obj = LOCAL_QUEUES_OBJECT(eu_context);

@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     int size, nb, i, c;
     dague_ddesc_t *ddescA;
     int *decision;
-    dague_object_t *choice;
+    dague_handle_t *choice;
 
 #if defined(HAVE_MPI)
     MPI_Init(&argc, &argv);
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
         nb = atoi(argv[1]);
     }
 
-    ddescA = create_and_distribute_data(rank, world, cores, size);
+    ddescA = create_and_distribute_data(rank, world, size);
     dague_ddesc_set_key(ddescA, "A");
 
     decision = (int*)calloc(sizeof(int), nb+1);

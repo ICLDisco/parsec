@@ -20,22 +20,10 @@
 #include "profiling.h"
 #include "barrier.h"
 
-#ifdef HAVE_PAPI
-/* for PAPI event sets in execution_unit */
-typedef enum PAPI_EVENTSETS {
-	EXEC_SET,
-	SELECT_SET,
-	PER_SOCKET_SET,
-	EVENTSETS_COUNT
-} PAPI_EVENTSETS;
-#endif // HAVE_PAPI
-
-
 #if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
-
 
 /**
  *  Computational Thread-specific structure
@@ -45,7 +33,7 @@ struct dague_execution_unit_s {
     int core_id;            /**< Core on which the thread is bound (hwloc in order numbering) */
     int socket_id;          /**< Socket on which the thread is bound (hwloc in order numerotation) */
 
-pthread_t pthread_id;     /**< POSIX thread identifier. */
+    pthread_t pthread_id;     /**< POSIX thread identifier. */
 
 #if defined(DAGUE_PROF_TRACE)
     dague_thread_profiling_t *eu_profile;
@@ -62,17 +50,16 @@ pthread_t pthread_id;     /**< POSIX thread identifier. */
 #endif
 
 #if defined(HAVE_PAPI)
-	long long int papi_last_read[5]; // TODO: magic number
-	int papi_eventsets[EVENTSETS_COUNT];
+    long long int papi_last_read[5]; // TODO: magic number
+    int papi_eventsets[EVENTSETS_COUNT];
 #endif /* HAVE_PAPI */
 
 #if defined(PINS_ENABLE)
-	long long int starvation;
-	long * steal_counters; // this is for Stephanie and print_steals PINS module
-#endif // PINS_ENABLE
+    long long int starvation;
+    long * steal_counters; // this is for Stephanie and print_steals PINS module
+#endif  /* defined(PINS_ENABLE) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
-// STEPH  :: RUSAGE per EU
 #if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
     int _eu_rusage_first_call;
     struct rusage _eu_rusage;

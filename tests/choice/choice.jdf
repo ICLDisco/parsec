@@ -58,7 +58,7 @@ BODY
         printf("Execute TB(%d); decision[%d] = %d\n", k, k, decision[k]);
 
         /* Decrease counter for the task A not done */
-        dague_object_dec_nbtask( this_task->dague_object, 1 );
+        __dague_complete_task( this_task->dague_handle, context->virtual_process->dague_context );
 }
 END
 
@@ -77,6 +77,6 @@ BODY
         printf("Execute TA(%d); decision[%d] = %d\n", k, k, decision[k]);
 
         /* Decrease counter for the task B not done */
-        dague_object_dec_nbtask( this_task->dague_object, 1 );
+        __dague_complete_task( this_task->dague_handle, context->virtual_process->dague_context );
 }
 END
