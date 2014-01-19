@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -145,42 +145,11 @@ extern void dague_reduce_row_Destruct( struct dague_handle_t *o );
  * Helper functions to allocate and retrieve pointers to the dague_data_t and
  * the corresponding copies.
  */
-static inline dague_data_t*
+dague_data_t*
 dague_matrix_create_data(tiled_matrix_desc_t* matrix,
                          void* ptr,
                          int pos,
-                         dague_data_key_t key)
-{
-    dague_data_t* data = matrix->data_map[pos];
-    assert(pos <= matrix->nb_local_tiles);
-
-    if( NULL == data ) {
-        dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);
-        data = OBJ_NEW(dague_data_t);
-
-        data_copy->coherency_state = DATA_COHERENCY_OWNED;
-        data_copy->original = data;
-        data_copy->device_private = ptr;
-
-        data->owner_device = 0;
-        data->key = key;
-        data->nb_elts = matrix->bsiz * dague_datadist_getsizeoftype(matrix->mtype);
-        data->device_copies[0] = data_copy;
-
-        if( !dague_atomic_cas(&matrix->data_map[pos], NULL, data) ) {
-            free(data_copy);
-            free(data);
-            data = matrix->data_map[pos];
-        }
-    } else {
-        /* Do we have a copy of this data */
-        if( NULL == data->device_copies[0] ) {
-            dague_data_copy_t* data_copy = dague_data_copy_new(data, 0);
-            data_copy->device_private = ptr;
-        }
-    }
-    return data;
-}
+                         dague_data_key_t key);
 
 END_C_DECLS
 #endif /* _MATRIX_H_  */
