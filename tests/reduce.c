@@ -35,7 +35,7 @@ static int dague_operator_print_id( struct dague_execution_unit *eu, void* data,
 int main( int argc, char* argv[] )
 {
     dague_context_t* dague;
-    struct dague_object_t* object;
+    dague_object_t* object;
     two_dim_block_cyclic_t ddescA;
     int cores = 4, world = 1, rank = 0;
     int mb = 100, nb = 100;
@@ -49,7 +49,7 @@ int main( int argc, char* argv[] )
 #endif
 
     dague = dague_init(cores, &argc, &argv);
-    
+
     two_dim_block_cyclic_init( &ddescA, matrix_RealFloat, matrix_Tile,
                                world, cores, rank, mb, nb, lm, ln, 0, 0, lm, ln, 1, 1, rows );
     ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles *
@@ -58,11 +58,11 @@ int main( int argc, char* argv[] )
 
     dague_ddesc_set_key(&ddescA.super.super, "A");
 
-    object = (struct dague_object_t*)dague_reduce_new((dague_ddesc_t*)&ddescA,
-                                                    (dague_ddesc_t*)&ddescA,
-                                                    ddescA.super.mt,
-                                                    (int)ceil(log(ddescA.super.mt) / log(2.0)),
-                                                    NULL);
+    object = (dague_object_t*)dague_reduce_new((dague_ddesc_t*)&ddescA,
+                                               (dague_ddesc_t*)&ddescA,
+                                               ddescA.super.mt,
+                                               (int)ceil(log(ddescA.super.mt) / log(2.0)),
+                                               NULL);
     dague_enqueue(dague, (dague_object_t*)object);
 
     dague_progress(dague);

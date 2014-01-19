@@ -164,7 +164,7 @@ __data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *rep
 
     e = (data_repo_entry_t*)dague_thread_mempool_allocate( eu->datarepo_mempools[repo->nbdata] );
 #if defined(DAGUE_DEBUG)
-    for(int i = 0; i < repo->nbdata; e->data[i] = NULL);
+    for(uint32_t i = 0; i < repo->nbdata; e->data[i] = NULL);
 #endif  /* defined(DAGUE_DEBUG) */
     e->data_repo_mempool_owner = eu->datarepo_mempools[repo->nbdata];
     e->key = key;

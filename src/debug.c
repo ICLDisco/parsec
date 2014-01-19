@@ -230,8 +230,8 @@ void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote
                         f->locals[j]->name, m->locals[j].value,
                         (j == f->nb_parameters - 1) ? ")\n" : ", ");
     }
-    pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n",
-                    (uint32_t)m->which);
+    pos += snprintf(msg+pos, len-pos, "\toutput_mask = 0x%08x\n",
+                    (uint32_t)m->output_mask);
 
     /* Do not use set_my_mark: msg is a stack-allocated buffer */
     dague_debug_history_add("%s", msg);
@@ -255,8 +255,8 @@ void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remo
                         f->locals[j]->name, m->locals[j].value,
                         (j == f->nb_parameters - 1) ? ")\n" : ", ");
     }
-    pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n",
-                    (uint32_t)m->which);
+    pos += snprintf(msg+pos, len-pos, "\toutput_mask = 0x%08x\n",
+                    (uint32_t)m->output_mask);
     pos += snprintf(msg+pos, len-pos, "\t      deps = 0x%X\n",
                     (uint32_t)m->deps);
 
@@ -271,7 +271,7 @@ void debug_mark_ctl_msg_get_sent(int to, const void *b, const struct remote_dep_
                             "\t      deps requested = 0x%X\n"
                             "\t      which requested = 0x%08x\n"
                             "\t      tag for the reception of data = %d\n",
-                            to, b, m->deps, m->which, m->tag);
+                            to, b, m->deps, (uint32_t)m->output_mask, m->tag);
 }
 
 void debug_mark_ctl_msg_get_recv(int from, const void *b, const remote_dep_wire_get_t *m)
@@ -281,7 +281,7 @@ void debug_mark_ctl_msg_get_recv(int from, const void *b, const remote_dep_wire_
                             "\t      deps requested = 0x%X\n"
                             "\t      which requested = 0x%08x\n"
                             "\t      tag for the reception of data = %d\n",
-                            from, b, m->deps, m->which, m->tag);
+                            from, b, m->deps, (uint32_t)m->output_mask, m->tag);
 }
 
 void debug_mark_dta_msg_start_send(int to, const void *b, int tag)
