@@ -2,9 +2,9 @@
 # Shared Memory Testings
 #
 
-add_test(unit_startup1 ${SHM_TEST_CMD_LIST} ./startup -i=10 -j=10 -k=10 -v=5)
-add_test(unit_startup2 ${SHM_TEST_CMD_LIST} ./startup -i=10 -j=20 -k=30 -v=5)
-add_test(unit_startup3 ${SHM_TEST_CMD_LIST} ./startup -i=50 -j=50 -k=50 -v=5)
+add_test(unit_startup111 ${SHM_TEST_CMD_LIST} ./startup -i=10 -j=10 -k=10 -v=5)
+add_test(unit_startup123 ${SHM_TEST_CMD_LIST} ./startup -i=10 -j=20 -k=30 -v=5)
+add_test(unit_startup345 ${SHM_TEST_CMD_LIST} ./startup -i=30 -j=40 -k=50 -v=5)
 
 add_test(unit_touch    ${SHM_TEST_CMD_LIST} ./touch_ex -v=5)
 
