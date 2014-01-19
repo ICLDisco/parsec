@@ -1,0 +1,9 @@
+Copyright (c) 2004-2006 The University of Tennessee and The University
+                        of Tennessee Research Foundation.  All rights
+                        reserved.
+
+This file contains the main features as well as overviews of specific
+bug fixes (and other actions) for each version of PaRSEC since v.1.1.0
+
+Trunk
+ - The support for C is required from MPI.
