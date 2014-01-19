@@ -655,7 +655,7 @@ static int remote_dep_dequeue_nothread_progress(dague_context_t* context)
                  might be either in the dep_cmd_fifo if it is old enough to be
                  pushed there, or in the temp_list waiting to be moved
                  upstrea. Pay attention from which queue it is removed. */
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
                 dague_list_nolock_remove((struct dague_list_t*)same_pos->super.belong_to, (dague_list_item_t*)same_pos);
 #else
                 dague_list_nolock_remove(NULL, (dague_list_item_t*)same_pos);

@@ -171,7 +171,7 @@ void debug_mark_purge_all_history(void);
 # define DEBUG(ARG)  do {} while(0)
 # define DEBUG2(ARG) do {} while(0)
 # define DEBUG3(ARG) do {} while(0)
-#endif  /* defined(DAGUE_DEBUG) */
+#endif  /* DAGUE_DEBUG_VERBOSE != 0 */
 
 #endif /* DEBUG_H_HAS_BEEN_INCLUDED */
 

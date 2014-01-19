@@ -81,7 +81,7 @@ dague_arena_get(dague_arena_t* arena, size_t count)
     }
     data->nb_elts = count * arena->elem_size;
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
     DAGUE_LIST_ITEM_SINGLETON( &chunk->item );
 #endif
 

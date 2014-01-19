@@ -16,7 +16,7 @@ BEGIN_C_DECLS
 #define dplasma_error(__func, __msg) do { fprintf(stderr, "%s: %s\n", (__func), (__msg)); *((int*)0) = 42; } while(0)
 #else
 #define dplasma_error(__func, __msg) do { fprintf(stderr, "%s: %s\n", (__func), (__msg)); } while(0)
-#endif /* defined(DAGUE_DEBUG) */
+#endif /* defined(DPLASMA_DEBUG) */
 
 
 #include "data_dist/matrix/matrix.h"

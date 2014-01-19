@@ -277,35 +277,35 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
              && data->device_copies[i]->version > copy->version ) {
                 transfer_required = 1;
             }
-#if defined(ENABLE_DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
             else {
                 assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state
                      || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state );
                 assert( data->device_copies[i]->version <= copy->version );
             }
-#endif
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
         }
         break;
 
     case DATA_COHERENCY_EXCLUSIVE:
-#if defined(ENABLE_DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( device == i || NULL == data->device_copies[i] ) continue;
             assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state );
         }
-#endif
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
         break;
 
     case DATA_COHERENCY_OWNED:
         assert( device == data->owner_device ); /* memory is owned, better be me otherwise 2 writters: wrong JDF */
-#if defined(ENABLE_DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_ENABLE)
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( device == i || NULL == data->device_copies[i] ) continue;
             assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state
                  || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state );
             assert( copy->version >= data->device_copies[i]->version );
         }
-#endif
+#endif  /* defined(DAGUE_DEBUG_ENABLE) */
         break;
     }
 
