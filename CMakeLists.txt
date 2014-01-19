@@ -21,7 +21,6 @@ if( "${MPI_TEST_CMD}" STREQUAL "" )
     MESSAGE(WARNING "MPI tests will most likely not work, MPI_TEST_CMD is not set")
 endif()
 string(REPLACE " " ";" MPI_TEST_CMD_LIST "${MPI_TEST_CMD}")
-
 set(SHM_TEST_CMD
       "" CACHE STRING
       "A command to run shared memory testings")
@@ -350,10 +349,15 @@ check_include_files(unistd.h HAVE_UNISTD_H)
 check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
 check_include_files(stddef.h HAVE_STDDEF_H)
+check_include_files(stdbool.h HAVE_STDBOOL_H)
 check_function_exists(getrusage HAVE_GETRUSAGE)
 check_include_files(limits.h HAVE_LIMITS_H)
 check_include_files(string.h HAVE_STRING_H)
+check_include_files(gen.h HAVE_GEN_H)
 check_include_files(complex.h HAVE_COMPLEX_H)
+check_include_files(sys/param.h HAVE_SYS_PARAM_H)
+check_include_files(sys/types.h HAVE_SYS_TYPES_H)
+check_include_files(syslog.h HAVE_SYSLOG_H)
 
 #
 # Find optional packages
@@ -368,12 +372,13 @@ IF( BUILD_DAGUE )
 
   if (DAGUE_DIST_WITH_MPI)
     # Force the detection of the C library
-    set(MPI_C_COMPILER mpicc)
-    find_package(MPI REQUIRED)
+    find_package(MPI)
     set(HAVE_MPI ${MPI_C_FOUND})
     if (MPI_C_FOUND)
       list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
       include_directories( ${MPI_C_INCLUDE_PATH} )
+    else (MPI_C_FOUND)
+      MESSAGE(ERROR "MPI is required but was not found. Please provide an MPI compiler")
     endif (MPI_C_FOUND)
   endif (DAGUE_DIST_WITH_MPI)
   #
