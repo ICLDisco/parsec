@@ -406,6 +406,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     DEBUG3(("[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)\n",
                             remote_deps->root, i, tmp, my_idx, idx, rank));
                 }
+                assert(!remote_dep_is_forwarded(eu_context, remote_deps, rank));
                 remote_dep_mark_forwarded(eu_context, remote_deps, rank);
             }
         }
