@@ -115,6 +115,7 @@ static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 #endif  /* DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B */
 
 #ifndef DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
+#define DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
 static inline uint32_t dague_atomic_add_32b( volatile uint32_t *location, int32_t d )
 {
     uint32_t l, n;
