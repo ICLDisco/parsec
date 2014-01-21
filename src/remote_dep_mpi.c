@@ -158,8 +158,7 @@ remote_dep_mpi_get_end_cb(dague_execution_unit_t* eu_context,
                           dague_comm_callback_t* cb, MPI_Status* status);
 static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dep_cmd_item_t *item );
 
-#if DAGUE_DEBUG_VERBOSE != 0
-static inline char*
+extern char*
 remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
                          char* str,
                          size_t len)
@@ -172,7 +171,6 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
     task.priority     = 0xFFFFFFFF;
     return dague_snprintf_execution_context(str, len, &task);
 }
-#endif
 
 static pthread_t dep_thread_id;
 dague_dequeue_t dep_cmd_queue;
@@ -1057,7 +1055,7 @@ static int remote_dep_mpi_pack_dep(int peer,
         return 1;
     }
     /* Don't pack yet, we need to update the length field before packing */
-    *position  += dsize;
+    *position += dsize;
     assert((0 != msg->output_mask) &&   /* this should be preset */
            (msg->output_mask & deps->outgoing_mask) == deps->outgoing_mask);
     msg->length = 0;
@@ -1106,7 +1104,6 @@ static int remote_dep_mpi_pack_dep(int peer,
     /* We can only have up to k data sends related to this remote_dep (include the order itself) */
     item->cmd.activate.task.tag = next_tag(k);
     msg->tag = item->cmd.activate.task.tag;
-
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\n"
            "    \t\t\twith datakey %lx\tmask %lx\t(tag=%d) eager mask %lu length %d\n",
            peer, tmp, msg->deps, msg->output_mask, msg->tag,
@@ -1138,7 +1135,6 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
                         eu_context->virtual_process->dague_context->my_rank, peer, deps->msg);
   pack_more:
     assert(peer == item->cmd.activate.peer);
-
     deps = (dague_remote_deps_t*)item->cmd.activate.task.deps;
 
     dague_list_item_singleton((dague_list_item_t*)item);
@@ -1151,9 +1147,8 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
         if( NULL != next ) {
             item = container_of(next, dep_cmd_item_t, pos_list);
             assert(DEP_ACTIVATE == item->action);
-            if( dague_param_enable_aggregate ) {
+            if( dague_param_enable_aggregate )
                 goto pack_more;
-            }
         } else item = NULL;
     }
     *head_item = item;
@@ -1204,7 +1199,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
         }
 
         /* Compact the pending requests in order to minimize the testsome waiting time.
-         * Parsing the array_of_indeices in the reverse order insure a smooth and fast
+         * Parsing the array_of_indices in the reverse order insure a smooth and fast
          * compacting.
          */
         for( idx = outcount-1; idx >= 0; idx-- ) {
@@ -1440,8 +1435,8 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
            deps->msg.length, *position, length));
     for(k = 0; deps->incoming_mask>>k; k++) {
         if(!(deps->incoming_mask & (1U<<k))) continue;
-        /* Check for all CTL messages, that do not carry payload */
-        if(NULL == deps->output[k].data.arena) {
+        /* Check for CTL and data that do not carry payload */
+        if((NULL == deps->output[k].data.arena) || (0 == deps->output[k].data.count)) {
             DEBUG2(("MPI:\tHERE\t%d\tGet NONE\t% -8s\tk=%d\twith datakey %lx at <NA> type CONTROL\n",
                     deps->from, tmp, k, deps->msg.deps));
             deps->output[k].data.data = (void*)2; /* the first non zero even value */
@@ -1449,7 +1444,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
             continue;
         }
 
-        if( length > *position ) {
+        if( dague_param_enable_eager && (length > *position) ) {
             /* Check if the data is EAGERly embedded in the activate */
             MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout,
                           dep_comm, &dsize);
@@ -1482,7 +1477,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 #ifndef DAGUE_PROF_DRY_DEP
             MPI_Irecv((char*)DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
                       deps->output[k].data.count, deps->output[k].data.layout,
-                      deps->from, tag+k, dep_comm, &reqs[nb_reqs]);
+                      deps->from, tag + k, dep_comm, &reqs[nb_reqs]);
             nb_reqs++;
             MPI_Testall(nb_reqs, reqs, &flag, MPI_STATUSES_IGNORE);  /* a little progress */
 #endif
@@ -1494,10 +1489,9 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                 deps->from, tmp, k, deps->msg.deps, tag+k));
     }
 #if (RDEP_MSG_SHORT_LIMIT != 0) && !defined(DAGUE_PROF_DRY_DEP)
-    while(nb_reqs) {  /* 'till flag become true */
-        MPI_Testall(nb_reqs, reqs, &flag, MPI_STATUSES_IGNORE);
-        if(flag) break;
-        remote_dep_mpi_progress(eu_context);
+    if(nb_reqs) {
+        MPI_Waitall(nb_reqs, reqs, MPI_STATUSES_IGNORE);
+        /* Dont recursively call remote_dep_mpi_progress(eu_context) */;
     }
 #endif  /* (RDEP_MSG_SHORT_LIMIT != 0) && !defined(DAGUE_PROF_DRY_DEP) */
     assert(length == *position);
@@ -1655,7 +1649,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
                             eu_context->virtual_process->dague_context->my_rank, deps->msg);
         DEBUG_MARK_DTA_MSG_START_RECV(from, deps->output[k].data.data, msg.tag+k);
         MPI_Irecv(DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ, nbdtt,
-                  dtt, from, msg.tag+k, dep_comm,
+                  dtt, from, msg.tag + k, dep_comm,
                   &array_of_requests[dague_comm_last_active_req]);
         dague_comm_callback_t* cb = &array_of_callbacks[dague_comm_last_active_req];
         cb->fct      = remote_dep_mpi_get_end_cb;
