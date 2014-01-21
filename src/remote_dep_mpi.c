@@ -1481,10 +1481,9 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                 deps->from, tmp, k, deps->msg.deps, tag+k));
     }
 #if (RDEP_MSG_SHORT_LIMIT != 0) && !defined(DAGUE_PROF_DRY_DEP)
-    while(nb_reqs) {  /* 'till flag become true */
-        MPI_Testall(nb_reqs, reqs, &flag, MPI_STATUSES_IGNORE);
-        if(flag) break;
-        remote_dep_mpi_progress(eu_context);
+    if (nb_reqs) {
+        MPI_Waitall(nb_reqs, reqs, MPI_STATUSES_IGNORE);
+        /* don't recursively call remote_dep_mpi_progress(eu_context); */
     }
 #endif  /* (RDEP_MSG_SHORT_LIMIT != 0) && !defined(DAGUE_PROF_DRY_DEP) */
     assert(length == *position);
