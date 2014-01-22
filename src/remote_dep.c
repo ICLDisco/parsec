@@ -326,6 +326,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 
     /* Mark the root of the collective as rank 0 */
     remote_dep_mark_forwarded(eu_context, remote_deps, remote_deps->root);
+    assert((propagation_mask & remote_deps->outgoing_mask) == remote_deps->outgoing_mask);
 
     for( i = 0; propagation_mask >> i; i++ ) {
         if( !((1U << i) & propagation_mask )) continue;
@@ -340,8 +341,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
          * independent on what is happening with the data outside of the
          * communication engine.
          */
-        if( NULL != output->data.data ) {  /* if not CONTROL */
-            assert(remote_deps->outgoing_mask & (1U<<i));
+        if( (remote_deps->outgoing_mask & (1U<<i)) && (NULL != output->data.data) ) {
+            /* if propagated and not a CONTROL */
+            assert(NULL != output->data.arena);
+            assert(NULL != output->data.layout);
             OBJ_RETAIN(output->data.data);
         }
 
