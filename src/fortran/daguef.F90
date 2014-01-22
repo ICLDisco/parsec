@@ -91,7 +91,7 @@ SUBROUTINE dague_set_complete_callback_f08(object, complete_cb, &
     IMPORT dague_object_t, dague_completion_cb
     IMPLICIT NONE
     TYPE(dague_object_t)                             :: object
-    PROCEDURE(dague_completion_cb), BIND(C), POINTER :: complete_cb
+    PROCEDURE(dague_completion_cb), BIND(C)          :: complete_cb
     TYPE(C_PTR), INTENT(IN)                          :: complete_data
     INTEGER(KIND=C_INT), INTENT(OUT)                 :: ierr
 END SUBROUTINE dague_set_complete_callback_f08
@@ -105,7 +105,7 @@ SUBROUTINE dague_get_complete_callback_f08(object, complete_cb, &
     IMPORT dague_object_t, dague_completion_cb
     IMPLICIT NONE
     TYPE(dague_object_t)                             :: object
-    PROCEDURE(dague_completion_cb), BIND(C), POINTER :: complete_cb
+    PROCEDURE(dague_completion_cb), BIND(C)          :: complete_cb
     TYPE(C_PTR), INTENT(OUT)                         :: complete_data
     INTEGER(KIND=C_INT), INTENT(OUT)                 :: ierr
 END SUBROUTINE dague_get_complete_callback_f08
@@ -176,7 +176,7 @@ SUBROUTINE dague_set_complete_callback(object, complete_cb, &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPLICIT NONE
     TYPE(dague_object_t)                       :: object
-    PROCEDURE(dague_completion_cb), POINTER    :: complete_cb
+    PROCEDURE(dague_completion_cb), BIND(C)    :: complete_cb
     TYPE(C_PTR), INTENT(IN)                    :: complete_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     INTEGER(KIND=C_INT)                        :: c_err
@@ -191,7 +191,7 @@ SUBROUTINE dague_get_complete_callback(object, complete_cb, &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPLICIT NONE
     TYPE(dague_object_t)                       :: object
-    PROCEDURE(dague_completion_cb), POINTER    :: complete_cb
+    PROCEDURE(dague_completion_cb), BIND(C)    :: complete_cb
     TYPE(C_PTR), INTENT(OUT)                   :: complete_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     INTEGER(KIND=C_INT)                        :: c_err
