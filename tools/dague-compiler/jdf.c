@@ -985,7 +985,7 @@ int jdf_flatten_function(jdf_function_entry_t* function)
 
         flow->flow_index  = 0xFF;
         jdf_reorder_dep_list_by_type(flow, &dep_in_index, &dep_out_index);
-        if( ((1U << dep_in_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/) ||
+        if( ((1U << dep_in_index) > 0x1FFFFFFF /* should be ~DAGUE_DEPENDENCIES_BITMASK */) ||
             ((1U << dep_out_index) > 0x00FFFFFF /* should be DAGUE_ACTION_DEPS_MASK*/)) {
             jdf_fatal(JDF_OBJECT_LINENO(function),
                       "Function %s has too many input or output flow with different datatypes (up to 24 supported)\n",
