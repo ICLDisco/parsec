@@ -20,7 +20,6 @@ typedef uint8_t moesi_coherency_t;
 #define    MOESI_SHARED    ((uint8_t)0x4)
 
 typedef struct _moesi_copy      moesi_copy_t;
-typedef struct _moesi_map       moesi_map_t;
 
 typedef uint32_t moesi_key_t;
 
