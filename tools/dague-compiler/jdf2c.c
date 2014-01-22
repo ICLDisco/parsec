@@ -506,11 +506,17 @@ static char *dump_data_initialization_from_data_array(void **elem, void *arg)
     string_arena_init(sa);
 
     string_arena_add_string(sa,
-                            "  dague_data_copy_t *g%s = this_task->data[%d].data_in;\n"
-                            "  void *%s = DAGUE_DATA_COPY_GET_PTR(g%s); (void)%s;\n",
-                            varname, f->flow_index,
-                            varname, varname, varname);
-
+                            "  dague_data_copy_t *g%s = this_task->data[%d].data_in;\n",
+                            varname, f->flow_index);
+    if( !(f->flow_flags & JDF_FLOW_TYPE_READ) ) {  /* if only write then we can locally have NULL */
+        string_arena_add_string(sa,
+                                "  void *%s = (NULL != g%s) ? DAGUE_DATA_COPY_GET_PTR(g%s) : NULL; (void)%s;\n",
+                                varname, varname, varname, varname);
+    } else {
+        string_arena_add_string(sa,
+                                "  void *%s = DAGUE_DATA_COPY_GET_PTR(g%s); (void)%s;\n",
+                                varname, varname, varname);
+    }
     return string_arena_get_string(sa);
 }
 
@@ -3527,8 +3533,9 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                       "During code generation: unable to find an input flow for variable %s marked as RW or READ\n",
                       flow->varname );
         }
+        goto done_with_input;
     }
-    else if ( flow->flow_flags & JDF_FLOW_TYPE_WRITE ) {
+    if ( flow->flow_flags & JDF_FLOW_TYPE_WRITE ) {
         for(dl = flow->deps; dl != NULL; dl = dl->next) {
             if ( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) {
                 jdf_fatal(JDF_OBJECT_LINENO(flow),
@@ -3567,15 +3574,15 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             }
         }
     }
-
  done_with_input:
     coutput("      this_task->data[%u].data_in   = chunk;   /* flow %s */\n"
             "      this_task->data[%u].data_repo = entry;\n"
             "    }\n"
             "    /* Now get the local version of the data to be worked on */\n"
-            "    this_task->data[%u].data_out = dague_data_get_copy(chunk->original, target_device);\n",
+            "    %sthis_task->data[%u].data_out = dague_data_get_copy(chunk->original, target_device);\n",
             flow->flow_index, flow->varname,
             flow->flow_index,
+            (flow->flow_flags & JDF_FLOW_TYPE_WRITE ? "if( NULL != chunk )\n  " : ""),
             flow->flow_index);
     string_arena_free(sa);
     string_arena_free(sa2);
@@ -4000,7 +4007,11 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         if(JDF_FLOW_TYPE_CTL & fl->flow_flags) continue;
         if(fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
-            coutput("this_task->data[%d].data_out->version++;\n", di);
+            if(fl->flow_flags & JDF_FLOW_TYPE_READ)
+                coutput("this_task->data[%d].data_out->version++;\n", di);
+            else
+                coutput("if( NULL !=  this_task->data[%d].data_out) this_task->data[%d].data_out->version++;\n",
+                        di, di);
         }
     }
 
@@ -4123,6 +4134,8 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
 
     next_dependency:
         if( dl->flow_flags & (JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE) )
+            if( !(dl->flow_flags & JDF_FLOW_TYPE_READ) )
+                coutput("    if(NULL != context->data[%d].data_in)\n", dl->flow_index);
             coutput("    DAGUE_DATA_COPY_RELEASE(context->data[%d].data_in);\n", dl->flow_index);
         (void)jdf;  /* just to keep the compilers happy regarding the goto to an empty statement */
     }
