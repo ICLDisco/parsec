@@ -283,8 +283,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 break;
 
             case 'g':
-                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
-                        "It should be passed directly to PaRSEC instead\n");
+                //fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
+                  //      "It should be passed directly to PaRSEC instead\n");
                 if(iparam[IPARAM_NGPUS] == -1) {
                     fprintf(stderr, "#!!!!! This test does not have GPU support. GPU disabled.\n");
                     break;

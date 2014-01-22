@@ -145,6 +145,7 @@ dague_data_copy_attach(dague_data_t* data,
         copy->older = NULL;
         return DAGUE_ERROR;
     }
+    OBJ_RETAIN(data);
     return DAGUE_SUCCESS;
 }
 
@@ -167,6 +168,7 @@ int dague_data_copy_detach(dague_data_t* data,
     copy->device_index = 0;
     copy->original     = NULL;
     copy->older        = NULL;
+    OBJ_RELEASE(data);
     return DAGUE_SUCCESS;
 }
 

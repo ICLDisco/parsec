@@ -129,5 +129,5 @@ void dague_arena_release(dague_data_copy_t* copy)
         }
         dague_lifo_push(&arena->area_lifo, &chunk->item);
     }
-    OBJ_RELEASE( data );
+  //  OBJ_RELEASE( data );
 }

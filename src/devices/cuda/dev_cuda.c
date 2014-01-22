@@ -980,12 +980,11 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
 
-#if 0
     /* If the source and target data are on the same device then they should be
      * identical and the only thing left to do is update the number of readers.
      */
     if( in_elem == gpu_elem ) {
-        if( ACCESS_READ & type ) gpu_elem->readers++;
+        if( FLOW_ACCESS_READ & type ) gpu_elem->readers++;
         gpu_elem->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER; /* data is already in GPU, so no transfer required.*/
         return 0;
     }
@@ -998,8 +997,6 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         in_elem = task_data->data_in;
         OBJ_RETAIN(in_elem);  /* retain the corresponding CPU copy */
     }
-#endif 
-
 
     transfer_from = dague_data_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
     gpu_device->super.required_data_in += original->nb_elts;

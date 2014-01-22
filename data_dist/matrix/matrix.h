@@ -146,18 +146,17 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
         dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);
         data = OBJ_NEW(dague_data_t);
 
+        dague_data_copy_attach(data, data_copy, 0);
         data_copy->coherency_state = DATA_COHERENCY_OWNED;
-        data_copy->original = data;
         data_copy->device_private = ptr;
 
         data->owner_device = 0;
         data->key = key;
         data->nb_elts = matrix->bsiz * dague_datadist_getsizeoftype(matrix->mtype);
-        data->device_copies[0] = data_copy;
 
         if( !dague_atomic_cas(&matrix->data_map[pos], NULL, data) ) {
-            free(data_copy);
-            free(data);
+            dague_data_copy_detach(data, data_copy, 0);
+            OBJ_RELEASE(data_copy);
             data = matrix->data_map[pos];
         }
     } else {
