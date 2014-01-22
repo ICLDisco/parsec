@@ -64,7 +64,6 @@ static int flow_lfq_init(dague_execution_unit_t* eu_context, struct dague_barrie
     dague_vp_t* vp;
 
     vp = eu_context->virtual_process;
-    sched_obj = LOCAL_QUEUES_OBJECT(eu_context);
 
     /* Every flow create it's own local object */
     sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
@@ -77,6 +76,13 @@ static int flow_lfq_init(dague_execution_unit_t* eu_context, struct dague_barrie
     sched_obj->hierarch_queues = (dague_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
     queue_size = vp->nb_cores * 4;
 
+    /* All local allocations are now completed. Synchronize with the other
+     threads before setting up the entire queues hierarchy. */
+    dague_barrier_wait(barrier);
+
+    /* Get the flow 0 system queue and store it locally */
+    sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_units[0])->system_queue;
+
     /* Each thread creates its own "local" queue, connected to the shared dequeue */
     sched_obj->task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper,
                                                 (void*)sched_obj->system_queue);
@@ -85,11 +91,6 @@ static int flow_lfq_init(dague_execution_unit_t* eu_context, struct dague_barrie
     /* All local allocations are now completed. Synchronize with the other
      threads before setting up the entire queues hierarchy. */
     dague_barrier_wait(barrier);
-
-    /* Get the flow 0 system queue and store it locally */
-    do {
-        sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_units[0])->system_queue;
-    } while (NULL == sched_obj->system_queue);
 
     nq = 1;
 #if defined(HAVE_HWLOC)
