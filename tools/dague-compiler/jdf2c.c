@@ -3781,6 +3781,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  int __vp_id;\n"
             "  arg.action_mask = action_mask;\n"
             "  arg.output_usage = 0;\n"
+            "  arg.output_entry = NULL;\n"
             "#if defined(DISTRIBUTED)\n"
             "  arg.remote_deps = deps;\n"
             "#endif  /* defined(DISTRIBUTED) */\n"
