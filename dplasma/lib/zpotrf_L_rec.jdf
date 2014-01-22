@@ -390,6 +390,7 @@ BODY [type=CUDA dyld=magmablas_ZGEMM]
 #endif  /* !defined(DAGUE_DRY_RUN) */
 	
     }
+}
 END
 
 BODY
