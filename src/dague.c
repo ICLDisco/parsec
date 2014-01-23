@@ -177,7 +177,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #else
     eu->socket_id        = 0;
 #endif  /* defined(HAVE_HWLOC) */
+
+#if defined(PINS_ENABLE)
     eu->starvation      = 0;
+#endif  /* defined(PINS_ENABLE) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
     eu-> _eu_rusage_first_call=1;
