@@ -20,6 +20,16 @@
 #include "profiling.h"
 #include "barrier.h"
 
+#ifdef HAVE_PAPI
+/* for PAPI event sets in execution_unit */
+typedef enum PAPI_EVENTSETS {
+        EXEC_SET,
+        SELECT_SET,
+        PER_SOCKET_SET,
+        EVENTSETS_COUNT
+} PAPI_EVENTSETS;
+#endif // HAVE_PAPI
+
 #if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
