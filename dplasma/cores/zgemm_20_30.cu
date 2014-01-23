@@ -12,14 +12,14 @@
 
 #if (CUDA_SM_VERSION == 20) || (CUDA_SM_VERSION == 30)
 
+#include "dague_config.h"
+#include "data_dist/matrix/precision.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <cuda.h>
 #include <cublas.h>
-
-#include "dague_internal.h"
-#include "data_dist/matrix/precision.h"
 
 #define PRECISION_z
 
