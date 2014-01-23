@@ -157,8 +157,7 @@ SUBROUTINE dague_fini(context, ierr)
     if(present(ierr)) ierr = c_err;
 END SUBROUTINE dague_fini
 
-SUBROUTINE dague_handle_free(ctx, ierr) &
-         BIND(C, name="dague_handle_free")
+SUBROUTINE dague_handle_free(ctx, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPLICIT NONE
     TYPE(dague_handle_t), INTENT(IN) :: ctx
