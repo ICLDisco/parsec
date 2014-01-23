@@ -106,6 +106,8 @@ BODY
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
 
+    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+
 #if !defined(DAGUE_DRY_RUN)
     CORE_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit,
                descA.mb, tempnn,
