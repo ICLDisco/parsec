@@ -17,7 +17,7 @@ module dague_f08_interfaces
     end type dague_context_t
 
 ABSTRACT INTERFACE
-SUBROUTINE dague_completion_cb(object, cbdata) BIND(C)
+SUBROUTINE dague_completion_cb(object, cbdata)
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR
     IMPORT dague_object_t
     IMPLICIT NONE
@@ -87,13 +87,13 @@ INTERFACE  dague_set_complete_callback_f08
 SUBROUTINE dague_set_complete_callback_f08(object, complete_cb, &
                                            complete_data, ierr) &
            BIND( C, name="dague_set_complete_callback_f08")
-    USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
-    IMPORT dague_object_t, dague_completion_cb
+    USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
+    IMPORT dague_object_t
     IMPLICIT NONE
-    TYPE(dague_object_t)                             :: object
-    PROCEDURE(dague_completion_cb), BIND(C)          :: complete_cb
-    TYPE(C_PTR), INTENT(IN)                          :: complete_data
-    INTEGER(KIND=C_INT), INTENT(OUT)                 :: ierr
+    TYPE(dague_object_t)                 :: object
+    TYPE(C_FUNPTR), INTENT(IN)           :: complete_cb
+    TYPE(C_PTR), INTENT(IN)              :: complete_data
+    INTEGER(KIND=C_INT), INTENT(OUT)     :: ierr
 END SUBROUTINE dague_set_complete_callback_f08
 END INTERFACE  dague_set_complete_callback_f08
 
@@ -101,13 +101,13 @@ INTERFACE  dague_get_complete_callback_f08
 SUBROUTINE dague_get_complete_callback_f08(object, complete_cb, &
                                            complete_data, ierr) &
            BIND(C, name="dague_get_complete_callback_f08")
-    USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
+    USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
     IMPORT dague_object_t, dague_completion_cb
     IMPLICIT NONE
-    TYPE(dague_object_t)                             :: object
-    PROCEDURE(dague_completion_cb), BIND(C)          :: complete_cb
-    TYPE(C_PTR), INTENT(OUT)                         :: complete_data
-    INTEGER(KIND=C_INT), INTENT(OUT)                 :: ierr
+    TYPE(dague_object_t)                 :: object
+    TYPE(C_FUNPTR), INTENT(OUT)          :: complete_cb
+    TYPE(C_PTR), INTENT(OUT)             :: complete_data
+    INTEGER(KIND=C_INT), INTENT(OUT)     :: ierr
 END SUBROUTINE dague_get_complete_callback_f08
 END INTERFACE  dague_get_complete_callback_f08
 
@@ -173,15 +173,17 @@ END SUBROUTINE dague_progress
 
 SUBROUTINE dague_set_complete_callback(object, complete_cb, &
                                        complete_data, ierr)
-    USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
+    USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
     IMPLICIT NONE
     TYPE(dague_object_t)                       :: object
-    PROCEDURE(dague_completion_cb), BIND(C)    :: complete_cb
+    PROCEDURE(dague_completion_cb)             :: complete_cb
     TYPE(C_PTR), INTENT(IN)                    :: complete_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
+    TYPE(C_FUNPTR)                             :: c_fct
     INTEGER(KIND=C_INT)                        :: c_err
 
-    call dague_set_complete_callback_f08(object, complete_cb, &
+    c_fct = C_FUNLOC(complete_cb)
+    call dague_set_complete_callback_f08(object, c_fct, &
                                          complete_data, c_err)
     if(present(ierr)) ierr = c_err;
 END SUBROUTINE dague_set_complete_callback
@@ -190,14 +192,16 @@ SUBROUTINE dague_get_complete_callback(object, complete_cb, &
                                        complete_data, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPLICIT NONE
-    TYPE(dague_object_t)                       :: object
-    PROCEDURE(dague_completion_cb), BIND(C)    :: complete_cb
-    TYPE(C_PTR), INTENT(OUT)                   :: complete_data
-    INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
-    INTEGER(KIND=C_INT)                        :: c_err
+    TYPE(dague_object_t)                        :: object
+    PROCEDURE(dague_completion_cb), POINTER, INTENT(OUT) :: complete_cb
+    TYPE(C_PTR), INTENT(OUT)                    :: complete_data
+    INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT)  :: ierr
+    TYPE(C_FUNPTR)                              :: c_fun
+    INTEGER(KIND=C_INT)                         :: c_err
 
-    call dague_get_complete_callback_f08(object, complete_cb, &
+    call dague_get_complete_callback_f08(object, c_fun, &
                                          complete_data, c_err)
+    call C_F_PROCPOINTER(c_fun, complete_cb)
     if(present(ierr)) ierr = c_err;
 END SUBROUTINE dague_get_complete_callback
 
