@@ -135,7 +135,7 @@ int main(int argc, char ** argv)
         /* Computing the norm */
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
             two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
-                                   1, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   1, rank, MB, NB, LDA, N, 0, 0,
                                    M, N, SMB, SNB, 1));
 
         for(u=1; u<2; u++) {

@@ -74,7 +74,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
                                  DAGUE_PROF_FUNC_KEY_END(this_task->ec->dague_handle,
                                                          this_task->ec->function->function_id),
                                  this_task->ec->function->key( this_task->ec->dague_handle, this_task->ec->locals),
-                                 this_task->ec->dague_object->handle_id, NULL,
+                                 this_task->ec->dague_handle->handle_id, NULL,
                                  DAGUE_PROFILING_EVENT_RESCHEDULED );
 #endif /* defined(DAGUE_PROF_TRACE) */
 

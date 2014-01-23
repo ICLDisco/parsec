@@ -15,7 +15,7 @@
 
 #include "zlansy.h"
 
-static inline void *fake_data_of(struct dague_ddesc *mat, ...)
+static inline dague_data_t* fake_data_of(dague_ddesc_t *mat, ...)
 {
     return (dague_data_t*)((two_dim_block_cyclic_t*)mat)->mat;
 }
@@ -133,7 +133,7 @@ dplasma_zlanhe_New( PLASMA_enum norm,
 
     two_dim_block_cyclic_init(
         Tdist, matrix_RealDouble, matrix_Tile,
-        A->super.nodes, A->super.cores, A->super.myrank,
+        A->super.nodes, A->super.myrank,
         1, 1,       /* Dimensions of the tiles              */
         A->mt, P*Q, /* Dimensions of the matrix             */
         0, 0,       /* Starting points (not important here) */
@@ -197,7 +197,7 @@ dplasma_zlanhe_Destruct( dague_handle_t *o )
     dplasma_datatype_undefine_type( &(dague_zlanhe->arenas[DAGUE_zlansy_COL_ARENA]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zlanhe->arenas[DAGUE_zlansy_ELT_ARENA]->opaque_dtt) );
 
-    DAGUE_INTERNAL_handle_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 /**
