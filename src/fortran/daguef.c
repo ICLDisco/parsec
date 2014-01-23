@@ -35,22 +35,6 @@ void dague_fini_f08(dague_context_t** context, int* ierr)
     *ierr = dague_fini(context);
 }
 
-dague_handle_t* dague_compose_f08(dague_handle_t** start, dague_handle_t** next)
-{
-    dague_handle_t* object = dague_compose(*start, *next);
-    return object;
-}
-
-void dague_enqueue_f08(dague_context_t** context, dague_handle_t** object, int* ierr)
-{
-    *ierr = dague_enqueue(*context, *object);
-}
-
-void dague_progress_f08(dague_context_t** context, int* ierr)
-{
-    *ierr = dague_progress(*context);
-}
-
 void dague_set_complete_callback_f08(dague_handle_t** object,
                                      dague_completion_cb_t complete_cb,
                                      void* cb_data, int* ierr)

@@ -51,12 +51,12 @@ END INTERFACE dague_fini_f08
 
 INTERFACE dague_compose_f08
 FUNCTION dague_compose_f08(start, next) &
-         BIND(C, name="dague_compose_f08")
+         BIND(C, name="dague_compose")
     IMPORT dague_handle_t
     IMPLICIT NONE
-    TYPE(dague_handle_t), INTENT(IN) :: start
-    TYPE(dague_handle_t), INTENT(IN) :: next
-    TYPE(dague_handle_t)             :: dague_compose_f08
+    TYPE(dague_handle_t), VALUE, INTENT(IN) :: start
+    TYPE(dague_handle_t), VALUE, INTENT(IN) :: next
+    TYPE(dague_handle_t)                    :: dague_compose_f08
 END FUNCTION dague_compose_f08
 END INTERFACE dague_compose_f08
 
@@ -70,26 +70,26 @@ END SUBROUTINE dague_handle_free_f08
 END INTERFACE dague_handle_free_f08
 
 INTERFACE dague_enqueue_f08
-SUBROUTINE dague_enqueue_f08(context, handle, ierr) &
-           BIND(C, name="dague_enqueue_f08")
+FUNCTION dague_enqueue_f08(context, handle) &
+           BIND(C, name="dague_enqueue")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPORT dague_handle_t, dague_context_t
     IMPLICIT NONE
-    TYPE(dague_context_t), INTENT(IN)  :: context
-    TYPE(dague_handle_t), INTENT(IN)   :: handle
-    INTEGER(KIND=c_int), INTENT(OUT)   :: ierr
-END SUBROUTINE dague_enqueue_f08
+    TYPE(dague_context_t), VALUE, INTENT(IN)  :: context
+    TYPE(dague_handle_t), VALUE, INTENT(IN)   :: handle
+    INTEGER(KIND=c_int)                       :: dague_enqueue_f08
+END FUNCTION dague_enqueue_f08
 END INTERFACE dague_enqueue_f08
 
 INTERFACE dague_progress_f08
-SUBROUTINE dague_progress_f08(context, ierr) &
-           BIND(C, name="dague_progress_f08")
+FUNCTION dague_progress_f08(context) &
+           BIND(C, name="dague_progress")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPORT dague_context_t
     IMPLICIT NONE
-    TYPE(dague_context_t), INTENT(IN)    :: context
-    INTEGER(KIND=c_int), INTENT(OUT)     :: ierr
-END SUBROUTINE dague_progress_f08
+    TYPE(dague_context_t), VALUE, INTENT(IN)    :: context
+    INTEGER(KIND=c_int)                         :: dague_progress_f08
+END FUNCTION dague_progress_f08
 END INTERFACE dague_progress_f08
 
 INTERFACE  dague_set_complete_callback_f08
@@ -170,12 +170,12 @@ END SUBROUTINE dague_handle_free
 SUBROUTINE dague_enqueue(context, handle, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPLICIT NONE
-    TYPE(dague_context_t), INTENT(IN)          :: context
-    TYPE(dague_handle_t), INTENT(IN)           :: handle
+    TYPE(dague_context_t), VALUE, INTENT(IN)   :: context
+    TYPE(dague_handle_t), VALUE, INTENT(IN)    :: handle
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     INTEGER(KIND=C_INT)                        :: c_err
 
-    call dague_enqueue_f08(context, handle, c_err)
+    c_err = dague_enqueue_f08(context, handle)
     if(present(ierr)) ierr = c_err;
 END SUBROUTINE dague_enqueue
 
@@ -186,7 +186,7 @@ SUBROUTINE dague_progress(context, ierr)
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     INTEGER(KIND=C_INT)                        :: c_err
 
-    call dague_progress_f08(context, c_err)
+    c_err = dague_progress_f08(context)
     if(present(ierr)) ierr = c_err;
 END SUBROUTINE dague_progress
 
