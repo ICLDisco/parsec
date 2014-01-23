@@ -637,20 +637,22 @@ int dague_gpu_init(dague_context_t *dague_context)
 
 int dague_gpu_fini(void)
 {
+    gpu_device_t* gpu_device;
+    CUresult status;
+    int i, j, k;
+
     dague_output_close(dague_cuda_output_stream);
     dague_cuda_output_stream = -1;
 
-    for(i = 0; i < __dague_active_gpu; i++) {
-        if( NULL == (gpu_device = gpu_enabled_devices[i]) ) continue;
-        gpu_enabled_devices[i] = NULL;
+    for(i = 0; i < dague_devices_enabled(); i++) {
+        if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
+        if(DAGUE_DEV_CUDA != gpu_device->super.type) continue;
+        dague_device_remove((dague_device_t*)gpu_device);
 
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_fini) cuCtxPushCurrent ", status,
                                 {continue;} );
-        /*
-         * Release pending queue
-         */
-        dague_list_destruct(&gpu_device->pending);
+        OBJ_DESTRUCT(&gpu_device->pending);  /* Release pending queue */
 
         /**
          * Release all streams
@@ -684,27 +686,13 @@ int dague_gpu_fini(void)
                                 {continue;} );
         gpu_device->ctx = NULL;
 
-        /*
-         * Release the GPU memory.
-         */
-        DAGUE_LIST_DESTRUCT(gpu_device->gpu_mem_lru);
-        DAGUE_LIST_DESTRUCT(gpu_device->gpu_mem_owned_lru);
+        /* Release the GPU memory. */
+        OBJ_DESTRUCT(&gpu_device->gpu_mem_lru);
+        OBJ_DESTRUCT(&gpu_device->gpu_mem_owned_lru);
 
         free(gpu_device);
-
-    }
-    free(gpu_enabled_devices);
-    gpu_enabled_devices = NULL;
-
-    if( dague_gpu_allocation_initialized == 1 ) {
-        cuCtxDestroy( dague_allocate_on_gpu_context );
-        dague_gpu_allocation_initialized = 0;
     }
 
-    free(device_load); device_load = NULL;
-    free(device_weight); device_weight = NULL;
-
-    __dague_active_gpu = 0;
     return 0;
 }
 
