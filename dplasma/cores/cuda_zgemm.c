@@ -180,12 +180,12 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 
     /*assert( DATA_COHERENCY_OWNED == this_task->data[2].data_out->coherency_state );*/
 
-    assert(this_task->data[0].data_out->device_index == gpu_device->super.device_index);
-    d_A = (CUdeviceptr)this_task->data[0].data_out->device_private;
-    assert(this_task->data[1].data_out->device_index == gpu_device->super.device_index);
-    d_B = (CUdeviceptr)this_task->data[1].data_out->device_private;
-    assert(this_task->data[2].data_out->device_index == gpu_device->super.device_index);
-    d_C = (CUdeviceptr)this_task->data[2].data_out->device_private;
+    assert(this_task->data[flow_A].data_out->device_index == gpu_device->super.device_index);
+    d_A = (CUdeviceptr)this_task->data[flow_A].data_out->device_private;
+    assert(this_task->data[flow_B].data_out->device_index == gpu_device->super.device_index);
+    d_B = (CUdeviceptr)this_task->data[flow_B].data_out->device_private;
+    assert(this_task->data[flow_C].data_out->device_index == gpu_device->super.device_index);
+    d_C = (CUdeviceptr)this_task->data[flow_C].data_out->device_private;
 
     DEBUG2(( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),

@@ -639,7 +639,7 @@ int dague_gpu_fini(void)
 {
     dague_output_close(dague_cuda_output_stream);
     dague_cuda_output_stream = -1;
-
+#if defined (WEI_DEBUG) //TODO:finish gpu_fini function later
     for(i = 0; i < __dague_active_gpu; i++) {
         if( NULL == (gpu_device = gpu_enabled_devices[i]) ) continue;
         gpu_enabled_devices[i] = NULL;
@@ -705,6 +705,7 @@ int dague_gpu_fini(void)
     free(device_weight); device_weight = NULL;
 
     __dague_active_gpu = 0;
+#endif
     return 0;
 }
 
