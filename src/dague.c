@@ -1464,14 +1464,14 @@ void dague_handle_unregister( dague_handle_t* object )
 
 void dague_handle_free(dague_handle_t *handle)
 {
-      if( NULL == handle )
-                return;
-          if( NULL == handle->destructor ) {
-                    free( handle );
-                            return;
-                                }
-              /* the destructor calls the appropriate free on the handle */
-              handle->destructor( handle );
+    if( NULL == handle )
+        return;
+    if( NULL == handle->destructor ) {
+        free( handle );
+        return;
+    }
+    /* the destructor calls the appropriate free on the handle */
+    handle->destructor( handle );
 }
 
 /**< Decrease task number of the object by nb_tasks. */

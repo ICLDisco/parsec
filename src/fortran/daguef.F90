@@ -1,5 +1,5 @@
 ! -*- f90 -*-
-! Copyright (c) 2013      The University of Tennessee and The University
+! Copyright (c) 2013-2014 The University of Tennessee and The University
 !                         of Tennessee Research Foundation.  All rights
 !                         reserved.
 ! $COPYRIGHT$
@@ -59,6 +59,15 @@ FUNCTION dague_compose_f08(start, next) &
     TYPE(dague_handle_t)             :: dague_compose_f08
 END FUNCTION dague_compose_f08
 END INTERFACE dague_compose_f08
+
+INTERFACE dague_handle_free_f08
+SUBROUTINE dague_handle_free_f08(ctx) &
+         BIND(C, name="dague_handle_free")
+    IMPORT dague_handle_t
+    IMPLICIT NONE
+    TYPE(dague_handle_t), INTENT(IN) :: ctx
+END SUBROUTINE dague_handle_free_f08
+END INTERFACE dague_handle_free_f08
 
 INTERFACE dague_enqueue_f08
 SUBROUTINE dague_enqueue_f08(context, handle, ierr) &
@@ -147,6 +156,17 @@ SUBROUTINE dague_fini(context, ierr)
     call dague_fini_f08(context, c_err)
     if(present(ierr)) ierr = c_err;
 END SUBROUTINE dague_fini
+
+SUBROUTINE dague_handle_free(ctx, ierr) &
+         BIND(C, name="dague_handle_free")
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPLICIT NONE
+    TYPE(dague_handle_t), INTENT(IN) :: ctx
+    INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
+
+    call dague_handle_free_f08(ctx)
+    ierr = 0;
+END SUBROUTINE dague_handle_free
 
 SUBROUTINE dague_enqueue(context, handle, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
