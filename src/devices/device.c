@@ -71,7 +71,7 @@ void dague_compute_best_unit( uint64_t length, float* updated_value, char** best
 int dague_devices_fini(dague_context_t* dague_context)
 {
     dague_device_t *device;
-    int show_stats_index, show_stats = 0;
+    int show_stats_index, show_stats = 0, rvalue;
 
     /* If no statistics are required */
     show_stats_index = dague_mca_param_find("device", NULL, "show_statistics");
@@ -176,14 +176,16 @@ int dague_devices_fini(dague_context_t* dague_context)
     if(NULL != dague_device_dweight) free(dague_device_dweight);
     dague_device_dweight = NULL;
 
+#if defined(HAVE_CUDA)
+    rvalue = dague_gpu_fini();
+#else
+    rvalue = 0;
+#endif  /* defined(HAVE_CUDA) */
+
     free(dague_devices);
     dague_devices = NULL;
 
-#if defined(HAVE_CUDA)
-    return dague_gpu_fini();
-#else
-    return 0;
-#endif  /* defined(HAVE_CUDA) */
+    return rvalue;
 }
 
 int dague_devices_freeze(dague_context_t* context)
