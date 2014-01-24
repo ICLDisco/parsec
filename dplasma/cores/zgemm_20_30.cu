@@ -25,7 +25,14 @@
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
-#endif
+#if defined(PRECISION_c)
+#define CREAL(v) cuCrealf(*(cuDoubleComplex*)&(v))
+#define CIMAG(v) cuCimagf(*(cuDoubleComplex*)&(v))
+#else
+#define CREAL(v) cuCreal(*(cuDoubleComplex*)&(v))
+#define CIMAG(v) cuCimag(*(cuDoubleComplex*)&(v))
+#endif  /* defined(PRECISION_c) */
+#endif  /* defined(PRECISION_z) || defined(PRECISION_c) */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -47,8 +54,8 @@ GENERATE_SM_VERSION_NAME(zgemm)( char TRANSA, char TRANSB, int m, int n, int k,
                                  CUstream stream )
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
-    cuDoubleComplex lalpha = make_cuDoubleComplex( creal(alpha), cimag(alpha) );
-    cuDoubleComplex lbeta  = make_cuDoubleComplex( creal(beta),  cimag(beta)  );
+    cuDoubleComplex lalpha = make_cuDoubleComplex( CREAL(alpha), CIMAG(alpha) );
+    cuDoubleComplex lbeta  = make_cuDoubleComplex( CREAL(beta),  CIMAG(beta)  );
 #else
     double lalpha = alpha;
     double lbeta  = beta;
