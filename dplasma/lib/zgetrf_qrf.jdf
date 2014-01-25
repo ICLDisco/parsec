@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -26,7 +26,7 @@ dplasma_log2(int n)
 {
     int i;
     if (n == 0) return 0;
-    for(i=-1; n>0; i++)
+    for( i = (-1); n>0; i++ )
         n = n >> 1;
     return i;
 }
