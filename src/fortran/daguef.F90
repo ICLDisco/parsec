@@ -17,7 +17,7 @@ module dague_f08_interfaces
     end type dague_context_t
 
 ABSTRACT INTERFACE
-SUBROUTINE dague_completion_cb(object, cbdata)
+SUBROUTINE dague_completion_cb(object, cbdata) BIND(C)
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR
     IMPORT dague_object_t
     IMPLICIT NONE
@@ -102,7 +102,7 @@ SUBROUTINE dague_get_complete_callback_f08(object, complete_cb, &
                                            complete_data, ierr) &
            BIND(C, name="dague_get_complete_callback_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
-    IMPORT dague_object_t, dague_completion_cb
+    IMPORT dague_object_t
     IMPLICIT NONE
     TYPE(dague_object_t)                 :: object
     TYPE(C_FUNPTR), INTENT(OUT)          :: complete_cb
@@ -176,7 +176,7 @@ SUBROUTINE dague_set_complete_callback(object, complete_cb, &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
     IMPLICIT NONE
     TYPE(dague_object_t)                       :: object
-    PROCEDURE(dague_completion_cb)             :: complete_cb
+    PROCEDURE(dague_completion_cb), BIND(C)    :: complete_cb
     TYPE(C_PTR), INTENT(IN)                    :: complete_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     TYPE(C_FUNPTR)                             :: c_fct
