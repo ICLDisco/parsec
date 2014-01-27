@@ -603,6 +603,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         return NULL;
     }
 
+    //- PETER EXPERIMENT DELETE ME
+    /* dague_set_scheduler( context); */
+    //-
+
     if(dague_enable_dot) {
 #if defined(DAGUE_PROF_GRAPHER)
         dague_prof_grapher_init(dague_enable_dot, nb_total_comp_threads);

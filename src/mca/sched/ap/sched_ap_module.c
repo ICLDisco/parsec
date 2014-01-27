@@ -42,7 +42,8 @@ const dague_sched_module_t dague_sched_ap_module = {
 
 static int sched_ap_install( dague_context_t *master )
 {
-	SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores;
+    printf("ap installed.\n");
+    SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores;
     return 0;
 }
 
