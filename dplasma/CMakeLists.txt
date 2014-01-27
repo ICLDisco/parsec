@@ -20,7 +20,7 @@ else()
 endif()
 
 #
-# Find required packages
+# Find packages to decide if we compile DPLASMA support or not
 #
 find_package(COREBLAS)
 if( PLASMA_SRC )

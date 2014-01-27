@@ -95,8 +95,8 @@ typedef enum dep_cmd_action_t {
     DEP_MEMCPY,
     DEP_RELEASE,
 /*    DEP_PROGRESS,
-    DEP_PUT_DATA,
-    DEP_GET_DATA,*/
+    DEP_PUT_DATA, */
+    DEP_GET_DATA,
     DEP_CTL,
     DEP_LAST  /* always the last element. it shoud not be used */
 } dep_cmd_action_t;
@@ -202,8 +202,8 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     MPI_Initialized(&is_mpi_up);
     if( 0 == is_mpi_up ) {
         /**
-         * MPI is not up, so we will consider this as a single
-         * node run. Fall back to the no-MPI case.
+         * MPI is not up, so we will consider this as a single node run. Fall
+         * back to the no-MPI case.
          */
         context->nb_nodes = 1;
         DEBUG3(("MPI is not initialized. Fall back to a single node execution\n"));
@@ -230,12 +230,11 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
 
    /**
-    * We need to synchronize with the newly spawned thread. We will use
-    * the condition for this. If we lock the mutex prior to spawning the
-    * MPI thread, and then go in a condition wait, the MPI thread can
-    * lock the mutex, and then call condition signal. This insure
-    * proper synchronization. Similar mechanism will be used to turn
-    * on and off the MPI thread.
+    * We need to synchronize with the newly spawned thread. We will use the
+    * condition for this. If we lock the mutex prior to spawning the MPI thread,
+    * and then go in a condition wait, the MPI thread can lock the mutex, and
+    * then call condition signal. This insure proper synchronization. Similar
+    * mechanism will be used to turn on and off the MPI thread.
     */
     pthread_mutex_lock(&mpi_thread_mutex);
 
@@ -256,13 +255,11 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
     if( (1 == context->nb_nodes) || (0 == mpi_initialized) ) return 0;
 
     /**
-     * We suppose the off function was called before. Then
-     * we will append a shutdown command in the MPI thread queue,
-     * and wake the MPI thread. Upon processing of the pending
-     * command the MPI thread will exit, we will be able to catch
-     * this by locking the mutex.
-     * Once we know the MPI thread is gone, cleaning up will be
-     * straighforward.
+     * We suppose the off function was called before. Then we will append a
+     * shutdown command in the MPI thread queue, and wake the MPI thread. Upon
+     * processing of the pending command the MPI thread will exit, we will be
+     * able to catch this by locking the mutex.  Once we know the MPI thread is
+     * gone, cleaning up will be straighforward.
      */
     {
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
@@ -332,9 +329,8 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
     pthread_mutex_lock(&mpi_thread_mutex);
     pthread_cond_signal(&mpi_thread_condition);
 
-    /* This is the main loop. Wait until being woken up by the main thread,
-     * do the MPI stuff until we get the OFF or FINI commands. Then
-     * react the them.
+    /* This is the main loop. Wait until being woken up by the main thread, do
+     * the MPI stuff until we get the OFF or FINI commands. Then react the them.
      */
     do {
         /* Now let's block */
@@ -452,9 +448,9 @@ remote_dep_mpi_retrieve_datatype(dague_execution_unit_t *eu,
     output->data      = *data;
     output->data.data = NULL;
 
-    deps->priority   = oldcontext->priority;
+    deps->priority       = oldcontext->priority;
     deps->incoming_mask |= (1U << dep->dep_datatype_index);
-    deps->root       = src_rank;
+    deps->root           = src_rank;
     return DAGUE_ITERATE_STOP;
 }
 
@@ -480,10 +476,10 @@ remote_dep_get_datatypes(dague_execution_unit_t* eu_context,
     for(i = 0; i < task.function->nb_locals; i++)
         task.locals[i] = origin->msg.locals[i];
 
-    /* We need to convert from a dep_datatype_index mask into a dep_index mask. However,
-     * in order to be able to use the above iterator we need to be able to identify the
-     * dep_index for each particular datatype index, and call the iterate_successors on
-     * each of the dep_index sets.
+    /* We need to convert from a dep_datatype_index mask into a dep_index
+     * mask. However, in order to be able to use the above iterator we need to
+     * be able to identify the dep_index for each particular datatype index, and
+     * call the iterate_successors on each of the dep_index sets.
      */
     for(k = 0; origin->msg.output_mask>>k; k++) {
         if(!(origin->msg.output_mask & (1U<<k))) continue;
@@ -503,15 +499,18 @@ remote_dep_get_datatypes(dague_execution_unit_t* eu_context,
     /**
      * At this point the msg->output_mask contains the root mask, and should be
      * keep as is and be propagated down the communication pattern. On the
-     * origin->incoming_mask we have the mask of all local data to be retrieved from
-     * the predecessor.
+     * origin->incoming_mask we have the mask of all local data to be retrieved
+     * from the predecessor.
      */
+    origin->outgoing_mask = origin->incoming_mask;  /* safekeeper */
     return 0;
 }
 
 /**
- * Trigger the local reception of a remote task data. Put the data in the
- * correct location then call the release_deps.
+ * Trigger the local reception of a remote task data. Upon completion of all
+ * pending receives related to a remote task completion, we call the
+ * release_deps tp enable all local tasks and then start the activation
+ * propagation.
  */
 static dague_remote_deps_t*
 remote_dep_release_incoming(dague_execution_unit_t* eu_context,
@@ -551,16 +550,11 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
     }
 
 #ifdef DAGUE_DIST_COLLECTIVES
-    /**
-     * There is a catch here. If we release the last dep below we can run in a
-     * case where the last task is executed, then completed and the object is
-     * released before we have the opportunity to propagate the collective.
-     * Thus, in order to avoid this case we have to propagate the activation
-     * before releasing the last set of local tasks.
-     */
+    /* Corresponding comment below on the propogation part */
     if(0 == origin->incoming_mask) {
-        dague_remote_dep_propagate(eu_context, &task, origin);
-        /* don't change the internals of the origin from now on */
+        remote_dep_inc_flying_messages(task.dague_handle,
+                                       eu_context->virtual_process->dague_context);
+        dague_atomic_add_32b(&origin->pending_ack, 1);
     }
 #endif  /* DAGUE_DIST_COLLECTIVES */
 
@@ -572,29 +566,46 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
             if(complete_mask & (1U << target->dep_out[j]->dep_datatype_index))
                 action_mask |= (1U << target->dep_out[j]->dep_index);
     }
-    DEBUG3(("MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)\n", complete_mask, action_mask));
+    DEBUG3(("MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)\n",
+            complete_mask, action_mask));
     (void)task.function->release_deps(eu_context, &task,
                                       action_mask | DAGUE_ACTION_RELEASE_LOCAL_DEPS,
                                       NULL);
     assert(0 == (origin->incoming_mask & complete_mask));
 
-    if(0 == origin->incoming_mask) {  /* if necessary release the deps */
-#if !defined(DAGUE_DIST_COLLECTIVES)
-        /**
-         * Release the dependency owned by the communication engine for all data
-         * that has been internally allocated by the engine.
-         */
-        for(i = 0; origin->outgoing_mask>>i; i++) {
-            assert(i < MAX_PARAM_COUNT);
-            if( !((1U<<i) & complete_mask) ) continue;
-            if( NULL != origin->output[i].data.data)  /* don't release the CONTROLs */
-                DAGUE_DATA_COPY_RELEASE(origin->output[i].data.data);
-        }
-        remote_deps_free(origin);
-#endif  /* !DAGUE_DIST_COLLECTIVES */
-        origin = NULL;
+    if(0 != origin->incoming_mask)  /* not done receiving */
+        return origin;
+
+    /**
+     * All incoming data are now received, start the propagation. We first
+     * release the local dependencies, thus we must ensure the communication
+     * engine is not prevented from completing the propagation (the code few
+     * lines above). Once the propagation is started we can release the
+     * references on the allocated data and on the dependency.
+     */
+    uint32_t mask = origin->outgoing_mask;
+    origin->outgoing_mask = 0;
+
+#if defined(DAGUE_DIST_COLLECTIVES)
+    dague_remote_dep_propagate(eu_context, &task, origin);
+#endif  /* DAGUE_DIST_COLLECTIVES */
+    /**
+     * Release the dependency owned by the communication engine for all data
+     * internally allocated by the engine.
+     */
+    for(i = 0; mask>>i; i++) {
+        assert(i < MAX_PARAM_COUNT);
+        if( !((1U<<i) & mask) ) continue;
+        if( NULL != origin->output[i].data.data )  /* except CONTROLs */
+            DAGUE_DATA_COPY_RELEASE(origin->output[i].data.data);
     }
-    return origin;
+#if defined(DAGUE_DIST_COLLECTIVES)
+    remote_dep_complete_and_cleanup(&origin, 1, eu_context->virtual_process->dague_context);
+#else
+    remote_deps_free(origin);
+#endif  /* DAGUE_DIST_COLLECTIVES */
+
+    return NULL;
 }
 
 #ifndef DAGUE_REMOTE_DEP_USE_THREADS
@@ -1298,7 +1309,7 @@ remote_dep_mpi_save_put_cb(dague_execution_unit_t* eu_context,
 
     item = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
     OBJ_CONSTRUCT(&item->super, dague_list_item_t);
-    item->action = 0 /* DEP_GET_DATA */;
+    item->action = DEP_GET_DATA;
     item->cmd.activate.peer = status->MPI_SOURCE;
 
     task = &(item->cmd.activate.task);
@@ -1489,9 +1500,9 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
                 deps->from, tmp, k, deps->msg.deps, tag+k));
     }
 #if (RDEP_MSG_SHORT_LIMIT != 0) && !defined(DAGUE_PROF_DRY_DEP)
-    if(nb_reqs) {
+    if (nb_reqs) {
         MPI_Waitall(nb_reqs, reqs, MPI_STATUSES_IGNORE);
-        /* Dont recursively call remote_dep_mpi_progress(eu_context) */;
+        /* don't recursively call remote_dep_mpi_progress(eu_context); */
     }
 #endif  /* (RDEP_MSG_SHORT_LIMIT != 0) && !defined(DAGUE_PROF_DRY_DEP) */
     assert(length == *position);

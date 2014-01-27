@@ -12,20 +12,27 @@
 
 #if (CUDA_SM_VERSION == 11) || (CUDA_SM_VERSION == 12) || (CUDA_SM_VERSION == 13) || (CUDA_SM_VERSION == 35)
 
+#include "dague_config.h"
+#include "data_dist/matrix/precision.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <cuda.h>
 #include <cublas.h>
 
-#include "dague_internal.h"
-#include "data_dist/matrix/precision.h"
-
 #define PRECISION_z
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
-#endif
+#if defined(PRECISION_c)
+#define CREAL(v) cuCrealf(*(cuDoubleComplex*)&(v))
+#define CIMAG(v) cuCimagf(*(cuDoubleComplex*)&(v))
+#else
+#define CREAL(v) cuCreal(*(cuDoubleComplex*)&(v))
+#define CIMAG(v) cuCimag(*(cuDoubleComplex*)&(v))
+#endif  /* defined(PRECISION_c) */
+#endif  /* defined(PRECISION_z) || defined(PRECISION_c) */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -43,8 +50,8 @@ GENERATE_SM_VERSION_NAME(ZGEMM)( char TRANSA, char TRANSB, int m, int n, int k,
                                  CUstream stream )
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
-    cuDoubleComplex lalpha = make_cuDoubleComplex( creal(alpha), cimag(alpha) );
-    cuDoubleComplex lbeta  = make_cuDoubleComplex( creal(beta),  cimag(beta)  );
+    cuDoubleComplex lalpha = make_cuDoubleComplex( CREAL(alpha), CIMAG(alpha) );
+    cuDoubleComplex lbeta  = make_cuDoubleComplex( CREAL(beta),  CIMAG(beta)  );
 #else
     double lalpha = alpha;
     double lbeta  = beta;

@@ -301,7 +301,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     unsigned int array_index, count, bit_index;
     struct remote_dep_output_param_s* output;
 
-    assert(0 == remote_deps->pending_ack);
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
 
 #if DAGUE_DEBUG_VERBOSE != 0
@@ -394,8 +393,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     }
 #endif  /* DAGUE_DEBUG_VERBOSE */
                     assert(output->parent->dague_handle == exec_context->dague_handle);
-                    keeper = dague_atomic_add_32b(&remote_deps->pending_ack, 1);
-                    if( 1 == keeper ) {
+                    if( 1 == dague_atomic_add_32b(&remote_deps->pending_ack, 1) ) {
+                        keeper = 1;
                         /* Let the engine know we're working to activate the dependencies remotely */
                         remote_dep_inc_flying_messages(exec_context->dague_handle,
                                                        eu_context->virtual_process->dague_context);
