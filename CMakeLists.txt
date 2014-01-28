@@ -13,7 +13,7 @@ set (DAGUE_VERSION_MINOR 0)
 SET(DART_TESTING_TIMEOUT 120)
 enable_testing()
 include(CTest)
-enable_testing()
+
 set(MPI_TEST_CMD
       "mpirun" CACHE STRING
       "A command to run distributed memory testings")
