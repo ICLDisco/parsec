@@ -58,7 +58,7 @@ static int sched_pbq_install( dague_context_t *master )
 static int flow_pbq_init(dague_execution_unit_t* eu, struct dague_barrier_t* barrier)
 {
     local_queues_scheduler_object_t *sched_obj = NULL;
-    int p, t, nq = 1, hwloc_levels;
+    int nq = 1, hwloc_levels;
     dague_vp_t *vp = eu->virtual_process;
     uint32_t queue_size = 0;
 
@@ -84,9 +84,7 @@ static int flow_pbq_init(dague_execution_unit_t* eu, struct dague_barrier_t* bar
     /* Each thread creates its own "local" queue, connected to the shared dequeue */
     sched_obj->task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper,
                                                 (void*)sched_obj->system_queue);
-    sched_obj->task_queue->assoc_core_num = p * vp->nb_cores + t; // stored for PINS
     sched_obj->hierarch_queues[0] = sched_obj->task_queue;
-    DEBUG((" Core %d:%d: Task queue is %p (that's 0-preferred queue)\n",  p, t, sched_obj->task_queue));
 
     /* All local allocations are now completed. Synchronize with the other
      threads before setting up the entire queues hierarchy. */
