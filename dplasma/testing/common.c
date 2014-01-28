@@ -9,6 +9,7 @@
 #include "dague_hwloc.h"
 #include "execution_unit.h"
 #include <dague/utils/mca_param.h>
+#include "src/mca/mca_repository.h"
 
 #include "common.h"
 #include "common_timing.h"
@@ -603,6 +604,9 @@ int unix_timestamp;
 
 dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 {
+    dague_mca_param_init();
+    mca_components_repository_init();
+
 #ifdef DAGUE_PROF_TRACE
     argvzero = argv[0];
     unix_timestamp = time(NULL);
@@ -640,6 +644,20 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
         free(param);
     }
 #endif
+
+    if( iparam[IPARAM_SCHEDULER] != DAGUE_SCHEDULER_DEFAULT ) {
+        char *ignored;
+        (void)dague_mca_param_reg_string_name("mca", "sched", NULL,
+                                              false, false,
+                                              DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]],
+                                              &ignored);
+        /* if( 0 == dague_set_scheduler( ctx ) ) { */
+        /*     fprintf(stderr, "*** Warning: unable to select the scheduler %s. Default scheduler is maintained.\n", */
+        /*             DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]]); */
+        /*     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ; /\* set param for profile *\/ */
+        /* } */
+    }
+
     dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES], &argc, &argv);
 
     /* If the number of cores has not been defined as a parameter earlier
@@ -653,19 +671,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
         iparam[IPARAM_NCORES] = nb_total_comp_threads;
     }
     print_arguments(iparam);
-
-    if( iparam[IPARAM_SCHEDULER] != DAGUE_SCHEDULER_DEFAULT ) {
-        char *ignored;
-        (void)dague_mca_param_reg_string_name("mca", "sched", NULL,
-                                              false, false,
-                                              DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]],
-                                              &ignored);
-        if( 0 == dague_set_scheduler( ctx ) ) {
-            fprintf(stderr, "*** Warning: unable to select the scheduler %s. Default scheduler is maintained.\n",
-                    DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]]);
-            iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ; /* set param for profile */
-        }
-    }
 
     if(verbose > 2) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialized\n"));
     return ctx;

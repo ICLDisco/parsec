@@ -141,7 +141,7 @@ static dague_execution_context_t *sched_lfq_select( dague_execution_unit_t *eu_c
     exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
                                                                        dague_execution_context_priority_comparator);
     if( NULL != exec_context ) {
-		exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
+        exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
         return exec_context;
     }
     for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
@@ -150,7 +150,7 @@ static dague_execution_context_t *sched_lfq_select( dague_execution_unit_t *eu_c
         if( NULL != exec_context ) {
             DEBUG3(("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
                     eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]));
-			exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
+            exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
             return exec_context;
         }
     }
@@ -159,7 +159,7 @@ static dague_execution_context_t *sched_lfq_select( dague_execution_unit_t *eu_c
     if( NULL != exec_context ) {
         DEBUG3(("LQ\t: %d:%d found task %p in its system queue %p\n",
                 eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue));
-		exec_context->victim_core = SYSTEM_NEIGHBOR;
+        exec_context->victim_core = SYSTEM_NEIGHBOR;
     }
     return exec_context;
 }
@@ -186,22 +186,25 @@ static void sched_lfq_remove( dague_context_t *master )
         vp = master->virtual_processes[p];
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_units[t];
-            sched_obj = LOCAL_QUEUES_OBJECT(eu);
+            if (eu != NULL) {
+                sched_obj = LOCAL_QUEUES_OBJECT(eu);
 
-            if( eu->th_id == 0 ) {
-                OBJ_DESTRUCT( sched_obj->system_queue );
-                free( sched_obj->system_queue );
+                if( eu->th_id == 0 ) {
+                    OBJ_DESTRUCT( sched_obj->system_queue );
+                    free( sched_obj->system_queue );
+                }
+                sched_obj->system_queue = NULL;
+
+                dague_hbbuffer_destruct( sched_obj->task_queue );
+                sched_obj->task_queue = NULL;
+
+                free(sched_obj->hierarch_queues);
+                sched_obj->hierarch_queues = NULL;
+
+                free(eu->scheduler_object);
+                eu->scheduler_object = NULL;
             }
-            sched_obj->system_queue = NULL;
-
-            dague_hbbuffer_destruct( sched_obj->task_queue );
-            sched_obj->task_queue = NULL;
-
-            free(sched_obj->hierarch_queues);
-            sched_obj->hierarch_queues = NULL;
-
-            free(eu->scheduler_object);
-            eu->scheduler_object = NULL;
+            // else the scheduler wasn't really initialized anyway
         }
     }
 }

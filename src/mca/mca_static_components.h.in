@@ -40,8 +40,9 @@ static void mca_static_components_init(void)
 {
     static int mca_static_components_inited = 0;
     int p = 0;
-    if (mca_static_components_inited)
+    if (mca_static_components_inited) {
         return;
+    }
     mca_static_components_inited = 1;
    
     ${MCA_STATIC_COMPONENTS_ACCESSORS}

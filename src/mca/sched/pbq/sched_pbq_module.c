@@ -55,99 +55,84 @@ static int sched_pbq_install( dague_context_t *master )
     return 0;
 }
 
-static int flow_pbq_init(dague_execution_unit_t* eu_context, struct dague_barrier_t* barrier)
+static int flow_pbq_init(dague_execution_unit_t* eu, struct dague_barrier_t* barrier)
 {
-    dague_context_t *master = eu_context->virtual_process->dague_context;
     local_queues_scheduler_object_t *sched_obj = NULL;
     int p, t, nq = 1, hwloc_levels;
-    dague_execution_unit_t *eu;
-    dague_vp_t *vp;
+    dague_vp_t *vp = eu->virtual_process;
     uint32_t queue_size = 0;
 
-    for(p = 0; p < master->nb_vp; p++) {
-        vp = master->virtual_processes[p];
+    sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
+    eu->scheduler_object = sched_obj;
 
-        for(t = 0; t < vp->nb_cores; t++) {
-            eu = vp->execution_units[t];
-            queue_size = 4 * vp->nb_cores;
+    if( eu->th_id == 0 ) {
+        sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
+        sched_obj->system_queue = OBJ_NEW(dague_dequeue_t);
+    }
 
-            sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
-            eu->scheduler_object = sched_obj;
+    sched_obj->nb_hierarch_queues = vp->nb_cores;
+    sched_obj->hierarch_queues = (dague_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
+    queue_size = 4 * vp->nb_cores;
 
-            if( eu->th_id == 0 ) {
-                sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-                OBJ_CONSTRUCT( sched_obj->system_queue, dague_dequeue_t );
-            } else {
-                sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_units[0])->system_queue;
-            }
-        }
+    /* All local allocations are now completed. Synchronize with the other
+     threads before setting up the entire queues hierarchy. */
+    dague_barrier_wait(barrier);
 
-        DEBUG(("VP %d: creating queues for %d cores\n",
-               p, vp->nb_cores));
+    /* Get the flow 0 system queue and store it locally */
+    sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_units[0])->system_queue;
 
-        for(t = 0; t < vp->nb_cores; t++) {
-            eu = vp->execution_units[t];
-            sched_obj = LOCAL_QUEUES_OBJECT(eu);
+    /* Each thread creates its own "local" queue, connected to the shared dequeue */
+    sched_obj->task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper,
+                                                (void*)sched_obj->system_queue);
+    sched_obj->task_queue->assoc_core_num = p * vp->nb_cores + t; // stored for PINS
+    sched_obj->hierarch_queues[0] = sched_obj->task_queue;
+    DEBUG((" Core %d:%d: Task queue is %p (that's 0-preferred queue)\n",  p, t, sched_obj->task_queue));
 
-            sched_obj->nb_hierarch_queues = vp->nb_cores;
-            sched_obj->hierarch_queues = (dague_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
+    /* All local allocations are now completed. Synchronize with the other
+     threads before setting up the entire queues hierarchy. */
+    dague_barrier_wait(barrier);
 
-            /* Each thread creates its own "local" queue, connected to the shared dequeue */
-            sched_obj->task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper,
-                                                        (void*)sched_obj->system_queue);
-            sched_obj->task_queue->assoc_core_num = p * vp->nb_cores + t; // stored for PINS
-            sched_obj->hierarch_queues[0] = sched_obj->task_queue;
-            DEBUG((" Core %d:%d: Task queue is %p (that's 0-preferred queue)\n",  p, t, sched_obj->task_queue));
-        }
-
-        for(t = 0; t < vp->nb_cores; t++) {
-            nq = 1;
-            eu = vp->execution_units[t];
-            sched_obj = LOCAL_QUEUES_OBJECT(eu);
-
+    nq = 1;
 #if defined(HAVE_HWLOC)
-            hwloc_levels = dague_hwloc_nb_levels();
+    hwloc_levels = dague_hwloc_nb_levels();
 #else
-            hwloc_levels = -1;
+    hwloc_levels = -1;
 #endif
 
-            /* Handle the case when HWLOC is present but cannot compute the hierarchy,
-             * as well as the casewhen HWLOC is not present
-             */
-            if( hwloc_levels == -1 ) {
-                for( ; nq < sched_obj->nb_hierarch_queues; nq++ ) {
-                    sched_obj->hierarch_queues[nq] =
-                        LOCAL_QUEUES_OBJECT(vp->execution_units[(eu->th_id + nq) % vp->nb_cores])->task_queue;
-                }
-            } else {
+    /* Handle the case when HWLOC is present but cannot compute the hierarchy,
+     * as well as the casewhen HWLOC is not present
+     */
+    if( hwloc_levels == -1 ) {
+        for( ; nq < sched_obj->nb_hierarch_queues; nq++ ) {
+            sched_obj->hierarch_queues[nq] =
+                LOCAL_QUEUES_OBJECT(vp->execution_units[(eu->th_id + nq) % vp->nb_cores])->task_queue;
+        }
 #if defined(HAVE_HWLOC)
-                /* Then, they know about all other queues, from the closest to the farthest */
-                for(int level = 0; level <= hwloc_levels; level++) {
-                    for(int id = (eu->th_id + 1) % vp->nb_cores;
-                        id != eu->th_id;
-                        id = (id + 1) %  vp->nb_cores) {
-                        int d;
-                        d = dague_hwloc_distance(eu->th_id, id);
-                        if( d == 2*level || d == 2*level + 1 ) {
-                            sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_units[id])->task_queue;
-                            DEBUG(("%d of %d: my %d-preferred queue is the task queue of %d (%p)\n",
-                                   eu->th_id, eu->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]));
-                            nq++;
-                            if( nq == sched_obj->nb_hierarch_queues )
-                                break;
-                        }
-                    }
+    }
+    else {
+        /* Then, they know about all other queues, from the closest to the farthest */
+        for(int level = 0; level <= hwloc_levels; level++) {
+            for(int id = (eu->th_id + 1) % vp->nb_cores;
+                id != eu->th_id;
+                id = (id + 1) %  vp->nb_cores) {
+                int d;
+                d = dague_hwloc_distance(eu->th_id, id);
+                if( d == 2*level || d == 2*level + 1 ) {
+                    sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_units[id])->task_queue;
+                    DEBUG(("%d of %d: my %d-preferred queue is the task queue of %d (%p)\n",
+                           eu->th_id, eu->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]));
+                    nq++;
                     if( nq == sched_obj->nb_hierarch_queues )
                         break;
                 }
-                assert( nq == sched_obj->nb_hierarch_queues );
-#else
-                /* Unreachable code */
-#endif
             }
+            if( nq == sched_obj->nb_hierarch_queues )
+                break;
         }
+        assert( nq == sched_obj->nb_hierarch_queues );
+#endif
     }
-    (void)barrier;
+
     return 0;
 }
 

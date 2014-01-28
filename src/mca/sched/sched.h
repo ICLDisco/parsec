@@ -88,7 +88,7 @@ typedef void (*dague_sched_base_module_stats_fn_t)(dague_execution_unit_t* eu_co
  * resources. Special attention should be taken for destroying the data used by
  * the execution flows as there is no special call for this. However, it should
  * be assumed that when remove is called all existing execution flows have been
- * teared down, and their data can be safely released.
+ * torn down, and their data can be safely released.
  */
 typedef void (*dague_sched_base_module_remove_fn_t)(dague_context_t* master);
 

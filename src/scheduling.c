@@ -198,7 +198,6 @@ void dague_remove_scheduler( dague_context_t *dague )
 {
     if( NULL != current_scheduler ) {
         current_scheduler->module.remove( dague );
-        //        pins_fini_steals(dague); // PETER TODO where does this actually belong!?
         assert( NULL != scheduler_component );
         mca_component_close( (mca_base_component_t*)scheduler_component );
         current_scheduler = NULL;
