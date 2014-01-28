@@ -112,7 +112,7 @@
 #define DAGUE_CMD_LINE_H
 
 #include "dague_config.h"
-
+#include <stdbool.h>
 #include "dague/class/dague_object.h"
 #include "list.h"
 #include "dague/sys/atomic.h"

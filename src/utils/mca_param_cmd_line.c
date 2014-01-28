@@ -23,6 +23,7 @@
 
 #include "dague/utils/cmd_line.h"
 #include "dague/utils/argv.h"
+#include "dague/utils/mca_param.h"
 #include "dague/utils/dague_environ.h"
 #include "dague/constants.h"
 
