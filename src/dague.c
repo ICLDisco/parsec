@@ -39,6 +39,7 @@
 #include "dague/utils/mca_param.h"
 #include "dague/utils/installdirs.h"
 #include "dague/devices/device.h"
+#include "dague/utils/cmd_line.h"
 
 #include "src/mca/mca_repository.h"
 
@@ -278,40 +279,35 @@ static void dague_vp_init( dague_vp_t *vp,
     }
 }
 
-#if defined(HAVE_GETOPT_LONG)
-static struct option long_options[] =
-{
-    {"help",             no_argument,        NULL, 'h'},
-    {"dague_bind",       optional_argument,  NULL, 'b'},
-    {"dague_bind_comm",  optional_argument,  NULL, 'C'},
-
-    {"dague_dot",        optional_argument,  NULL, '.'},
-    {"dot",              required_argument,  NULL, '.'},
-
-    {"cores",            required_argument,  NULL, 'c'},
-    {"c",                required_argument,  NULL, 'c'},
-
-    {"gpus",             required_argument,  NULL, 'g'},
-    {"g",                required_argument,  NULL, 'g'},
-
-    {"V",                required_argument,  NULL, 'V'},
-    {"vpmap",            required_argument,  NULL, 'V'},
-    {"ht",               required_argument,  NULL, 'H'},
-
-    {0, 0, 0, 0}
-};
-#endif  /* defined(HAVE_GETOPT_LONG) */
-
 #define DEFAULT_APPNAME "app_name_%d"
+
+#define GET_INT_ARGV(CMD, ARGV, VALUE) \
+do { \
+    int __nb_elems = dague_cmd_line_get_ninsts((CMD), (ARGV)); \
+    if( 0 != __nb_elems ) { \
+        char* __value = dague_cmd_line_get_param((CMD), (ARGV), 0, 0); \
+        if( NULL != __value ) \
+            (VALUE) = (int)strtol(__value, NULL, 10); \
+    } \
+} while (0)
+
+#define GET_STR_ARGV(CMD, ARGV, VALUE) \
+do { \
+    int __nb_elems = dague_cmd_line_get_ninsts((CMD), (ARGV)); \
+    if( 0 != __nb_elems ) { \
+        (VALUE) = dague_cmd_line_get_param((CMD), (ARGV), 0, 0); \
+    } \
+} while (0)
+
 
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
-    int argc = 0, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
+    int ret, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
     char *comm_binding_parameter = NULL;
     char *binding_parameter = NULL;
-    char **argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
+    dague_cmd_line_t *cmd_line = NULL;
 
     dague_debug_init(); /* First thing ever ! */
     dague_installdirs_open();
@@ -319,18 +315,46 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_output_init();
     mca_components_repository_init();
 
+    /* Extract what we can from the arguments */
+    cmd_line = OBJ_NEW(dague_cmd_line_t);
+    if( NULL == cmd_line ) {
+        return NULL;
+    }
+
+    /* Declare the command line for the .dot generation */
+    dague_cmd_line_make_opt3(cmd_line, 'h', "help", "help", 0,
+                             "Show the usage text.");
+    dague_cmd_line_make_opt3(cmd_line, '.', "dot", "dague_dot", 1,
+                             "Filename for the .dot file");
+    dague_cmd_line_make_opt3(cmd_line, 'b', NULL, "dague_bind", 1,
+                             "Execution thread binding");
+    dague_cmd_line_make_opt3(cmd_line, 'C', NULL, "dague_bind_comm", 1,
+                             "Communication thread binding");
+    dague_cmd_line_make_opt3(cmd_line, 'c', "cores", "cores", 1,
+                             "Number of cores to used");
+    dague_cmd_line_make_opt3(cmd_line, 'g', "gpus", "gpus", 1,
+                             "Number of GPU to used");
+    dague_cmd_line_make_opt3(cmd_line, 'V', "vpmap", "vpmap", 1,
+                             "Virtual process map");
+    dague_cmd_line_make_opt3(cmd_line, 'H', "ht", "ht", 1,
+                             "Enable hyperthreading");
+
+    if( (NULL != pargc) && (0 != *pargc) ) {
+        dague_app_name = strdup( (*pargv)[0] );
+
+        ret = dague_cmd_line_parse(cmd_line, false, *pargc, *pargv);
+        if (DAGUE_SUCCESS != ret) {
+            fprintf(stderr, "%s: command line error (%d)\n", (*pargv)[0], ret);
+        }
+    } else {
+        ret = asprintf( &dague_app_name, DEFAULT_APPNAME, (int)getpid() );
+        if (ret == -1) {
+            dague_app_name = strdup( "app_name_XXXXXX" );
+        }
+    }
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
-
-    if((NULL == pargc) || (*pargc == 0)) {
-        int rc = asprintf( &dague_app_name, DEFAULT_APPNAME, (int)getpid() );
-        if (rc == -1) {
-            dague_app_name = strdup( "app_name_XXXXXX" );
-        }
-    } else {
-        dague_app_name = strdup( (*pargv)[0] );
-    }
 
     /* Set a default the number of cores if not defined by parameters
      * - with hwloc if available
@@ -339,108 +363,74 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if( nb_cores <= 0 ) {
 #if defined(HAVE_HWLOC)
         nb_cores = dague_hwloc_nb_real_cores();
-#else
+#endif  /* defined(HAVE_HWLOC) */
         nb_cores = sysconf(_SC_NPROCESSORS_ONLN);
         if(nb_cores == -1) {
             perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
             nb_cores = 1;
         }
-#endif
     }
 
-    if( (NULL != pargc) && (*pargc != 0) ) {
-        int index = 0;
-        /* Check for the upper level arguments */
-        while(1) {
-            if( NULL == (*pargv)[index] )
-                break;
-            if( 0 == strcmp( "--", (*pargv)[index]) ) {
-                argv = &(*pargv)[index];
-                break;
-            }
-            index++;
-        }
-        argc = (*pargc) - index;
+    if( dague_cmd_line_is_taken(cmd_line, "help") ||
+        dague_cmd_line_is_taken(cmd_line, "h")) {
+        char* help_msg = dague_cmd_line_get_usage_msg(cmd_line);
+        fprintf(stdout, "%s\n", help_msg);
+        free(help_msg);
+        return NULL;
     }
-
-    if( argv != NULL ) {
-        optind = 1;
-        do {
-            int ret;
-#if defined(HAVE_GETOPT_LONG)
-            int option_index = 0;
-
-            ret = getopt_long_only(argc, argv, "p:b:c:.::",
-                                   long_options, &option_index);
-#else
-            ret = getopt(argc, argv, "p:b:c:.::");
-#endif  /* defined(HAVE_GETOPT_LONG) */
-            if( -1 == ret ) break;  /* we're done */
-
-            switch(ret) {
-
-            case 'h': dague_usage(); break;
-
-            case 'c': nb_cores = (int)strtol(optarg, NULL, 10); break;
-
-            case 'g': /* Enabled devices */
-                fprintf(stderr, "Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.\n");
-                break;
-
-            case 'C': comm_binding_parameter = optarg; break;
-            case 'b': binding_parameter = optarg; break;
-            case 'V':
-                if( !strncmp(optarg, "display", 7 )) {
-                    display_vpmap = 1;
-                } else {
-                    /* Change the vpmap choice: first cancel the previous one */
-                    vpmap_fini();
-                    if( !strncmp(optarg, "flat", 4) ) {
-                        /* default case (handled in dague_init) */
-                    } else if( !strncmp(optarg, "hwloc", 5) ) {
-                        vpmap_init_from_hardware_affinity();
-                    } else if( !strncmp(optarg, "file:", 5) ) {
-                        vpmap_init_from_file(optarg + 5);
-                    } else if( !strncmp(optarg, "rr:", 3) ) {
-                        int n, p, co;
-                        sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co);
-                        vpmap_init_from_parameters(n, p, co);
-                    } else {
-                        fprintf(stderr, "#XXXXX invalid VPMAP choice (-V argument): %s. Fallback to default!\n", optarg);
-                    }
-                }
-                break;
-
-            case 'H':  /* hyper-threading */
 #if defined(HAVE_HWLOC)
-                dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
-#else
-                fprintf(stderr, "Option H (hyper-threading) disabled without HWLOC\n");
-#endif  /* defined(HAVE_HWLOC */
-            case '.':
-                if( dague_enable_dot ) free( dague_enable_dot );
-                /** Could not make optional_argument work. Recoding its behavior... */
-                if( strlen( argv[optind-1] ) >= 2 && strncmp( argv[optind-1], "-.", 2) == 0) {
-                    /** Case one: using short argument -. */
-                    if( strlen( argv[optind-1] ) > 2 ) {
-                        dague_enable_dot = strdup( argv[optind-1] + 2 );
-                    } else {
-                        dague_enable_dot = strdup(dague_app_name);
-                    }
-                } else {
-                    /** Long argument type */
-                    if( (strlen( argv[optind-1] ) > 12) &&
-                        (strncmp( argv[optind-1], "--dague_dot=", 12 ) == 0 ) ) {
-                        dague_enable_dot = strdup( argv[optind-1]+12 );
-                    } else {
-                        dague_enable_dot = strdup(dague_app_name);
-                    }
-                }
-                break;
-            }
-        } while(1);
+    if( dague_cmd_line_is_taken(cmd_line, "ht") ) {
+        int hyperth = 0;
+        GET_INT_ARGV(cmd_line, "ht", hyperth);
+        dague_hwloc_allow_ht(hyperth);
+    }
+#endif  /* defined(HAVE_HWLOC) */
+
+    if( dague_cmd_line_is_taken(cmd_line, "gpus") ) {
+        fprintf(stderr, "Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.\n");
     }
 
+    printf("Before %d cores\n", nb_cores);
+    GET_INT_ARGV(cmd_line, "cores", nb_cores);
+    printf("You asked for %d cores\n", nb_cores);
+    GET_STR_ARGV(cmd_line, "dague_bind_comm", comm_binding_parameter);
+    GET_STR_ARGV(cmd_line, "dague_bind", binding_parameter);
+
+    if( dague_cmd_line_is_taken(cmd_line, "vpmap") ) {
+        char* optarg = NULL;
+        GET_STR_ARGV(cmd_line, "vpmap", optarg);
+        if( !strncmp(optarg, "display", 7 )) {
+            display_vpmap = 1;
+        } else {
+            /* Change the vpmap choice: first cancel the previous one */
+            vpmap_fini();
+            if( !strncmp(optarg, "flat", 4) ) {
+                /* default case (handled in dague_init) */
+            } else if( !strncmp(optarg, "hwloc", 5) ) {
+                vpmap_init_from_hardware_affinity();
+            } else if( !strncmp(optarg, "file:", 5) ) {
+                vpmap_init_from_file(optarg + 5);
+            } else if( !strncmp(optarg, "rr:", 3) ) {
+                int n, p, co;
+                sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co);
+                vpmap_init_from_parameters(n, p, co);
+            } else {
+                fprintf(stderr, "#XXXXX invalid VPMAP choice (-V argument): %s. Fallback to default!\n", optarg);
+            }
+        }
+    }
+
+    if( dague_cmd_line_is_taken(cmd_line, "dot") ) {
+        char* optarg = NULL;
+        GET_STR_ARGV(cmd_line, "dot", optarg);
+
+        if( dague_enable_dot ) free( dague_enable_dot );
+        if( NULL == optarg ) {
+            dague_enable_dot = strdup(dague_app_name);
+        } else {
+            dague_enable_dot = strdup(optarg);
+        }
+    }
     /* Default case if vpmap has not been initialized */
     if(vpmap_get_nb_vp() == -1)
         vpmap_init_from_flat(nb_cores);
@@ -671,6 +661,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     if( display_vpmap )
         vpmap_display_map(stderr);
+
+    if( NULL != cmd_line )
+        OBJ_RELEASE(cmd_line);
 
     return context;
 }

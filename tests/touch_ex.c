@@ -19,7 +19,7 @@ int main( int argc, char** argv )
 #endif
 
     (void)argc; (void)argv;
-    dague = dague_init(1, NULL, NULL);
+    dague = dague_init(1, &argc, &argv);
     assert( NULL != dague );
 
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,

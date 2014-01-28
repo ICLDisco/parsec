@@ -16,6 +16,8 @@ set(BASE_SOURCES
   utils/show_help.c
   utils/keyval_parse.c
   utils/mca_parse_paramfile.c
+  utils/cmd_line.c
+  utils/mca_param_cmd_line.c
   utils/mca_param.c
 )
 

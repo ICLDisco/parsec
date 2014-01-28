@@ -652,6 +652,23 @@ dague_mca_param_dump_release(dague_list_t *info);
 DAGUE_DECLSPEC int
 dague_mca_param_finalize(void);
 
+/**
+ * Get the string name corresponding to the MCA variable
+ * value in the environment.
+ *
+ * @param param_name Name of the type containing the variable.
+ *
+ * @retval string A string suitable for setenv() or appending to
+ * an environ-style string array.
+ * @retval NULL Upon failure.
+ *
+ * The string that is returned is owned by the caller; if
+ * appropriate, it must be eventually freed by the caller.
+ */
+DAGUE_DECLSPEC int
+mca_base_var_env_name(const char *param_name,
+                      char **env_name);
+
 END_C_DECLS
 
 #endif /* DAGUE_MCA_PARAM_H */
