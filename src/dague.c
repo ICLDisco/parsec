@@ -342,7 +342,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if( (NULL != pargc) && (0 != *pargc) ) {
         dague_app_name = strdup( (*pargv)[0] );
 
-        ret = dague_cmd_line_parse(cmd_line, false, *pargc, *pargv);
+        ret = dague_cmd_line_parse(cmd_line, true, *pargc, *pargv);
         if (DAGUE_SUCCESS != ret) {
             fprintf(stderr, "%s: command line error (%d)\n", (*pargv)[0], ret);
         }
