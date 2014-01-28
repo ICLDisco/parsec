@@ -2004,3 +2004,19 @@ int dague_mca_param_check_exclusive_string(const char *type_a,
 
     return DAGUE_SUCCESS;
 }
+
+int mca_base_var_env_name(const char *param_name,
+                          char **env_name)
+{
+    int ret;
+
+    assert (NULL != env_name);
+
+    ret = asprintf(env_name, "%s%s", mca_prefix, param_name);
+    if (0 > ret) {
+        return DAGUE_ERR_OUT_OF_RESOURCE;
+    }
+
+    return DAGUE_SUCCESS;
+}
+

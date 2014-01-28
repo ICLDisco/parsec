@@ -658,7 +658,19 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
         /* } */
     }
 
-    dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES], &argc, &argv);
+    /* Once we got out arguments, we should pass whatever is left down */
+    int dague_argc, idx;
+    char** dague_argv = (char**)calloc(argc, sizeof(char*));
+    dague_argv[0] = argv[0];  /* the app name */
+    for( idx = dague_argc = 1;
+         (idx < argc) && (0 != strcmp(argv[idx], "--")); idx++);
+    if( idx != argc ) {
+        for( dague_argc = 1, idx++; idx < argc;
+             dague_argv[dague_argc] = argv[idx], dague_argc++, idx++);
+    }
+    dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES],
+                                      &dague_argc, &dague_argv);
+    free(dague_argv);
 
     /* If the number of cores has not been defined as a parameter earlier
      update it with the default parameter computed in dague_init. */
